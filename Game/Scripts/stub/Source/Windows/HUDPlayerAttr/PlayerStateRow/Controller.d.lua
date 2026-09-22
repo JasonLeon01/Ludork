@@ -1,13 +1,16 @@
 ---@meta Source.Windows.HUDPlayerAttr.PlayerStateRow.Controller
 
 ---@class Source.Windows.HUDPlayerAttr.PlayerStateRow.Controller.Model
----@field iconSize     integer
 ---@field iconTexture? sf.Texture
 ---@field name         string
 
 ---@class Source.Windows.HUDPlayerAttr.PlayerStateRow.Controller: Source.UIBase.UiController
----@field ui    Source.UI.Parts.PlayerAttrHUD.PlayerStateRow
----@field model Source.Windows.HUDPlayerAttr.PlayerStateRow.Controller.Model
+---@field ui              Source.UI.Parts.PlayerAttrHUD.PlayerStateRow
+---@field model           Source.Windows.HUDPlayerAttr.PlayerStateRow.Controller.Model
+---@field _logicalSize    sf.Vector2u
+---@field _contentPadding number
+---@field _iconSize       number
+---@field _width          number
 local PlayerStateRowController = {}
 
 ---@param model Source.Windows.HUDPlayerAttr.PlayerStateRow.Controller.Model

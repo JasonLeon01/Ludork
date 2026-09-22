@@ -6,8 +6,6 @@ local Ui = require("Source.UIBase.Ui")
 local View = require("Source.UI.Parts.WindowSaveLoad.WindowSaveDetail")
 local WindowBase = require("Source.Windows.Base.WindowBase")
 
-local _DETAIL_THUMB_WIDTH = 224
-local _DETAIL_THUMB_HEIGHT = 168
 ---@class Source.Windows.WindowSaveDetail.Controller
 local Controller = {}
 
@@ -62,7 +60,8 @@ function Controller:_requestPreview()
     end
     local slotNumber = self._currentSlot + 1
     ---@cast slotNumber integer
-    self._reader:requestPreview(Save.GetSavePath(slotNumber), _DETAIL_THUMB_WIDTH, _DETAIL_THUMB_HEIGHT)
+    local size = self.ui.controls["ThumbnailArea"]:getSize()
+    self._reader:requestPreview(Save.GetSavePath(slotNumber), math.floor(size.x), math.floor(size.y))
     self._refreshElapsed = 0
 end
 
@@ -92,14 +91,17 @@ function Controller:_displayPreview()
                 texture:setSmooth(true)
                 self._thumbTexture = texture
                 self.ui.controls["Thumbnail"]:setTexture(texture, true)
-                local size = image:getSize()
-                local scale = math.min(_DETAIL_THUMB_WIDTH / size.x, _DETAIL_THUMB_HEIGHT / size.y)
-                self.ui.controls["Thumbnail"]:setScale(sf.Vector2f.new(scale, scale))
-                self.ui.controls["Thumbnail"]:setPosition(sf.Vector2f.new(0, 0))
+                self.view:reflow()
             end
         end
         self.ui.controls["Thumbnail"]:setVisible(image ~= nil)
         self:setModificationTime(self._reader:getModificationTime())
+        if image ~= nil then
+            local size = image:getSize()
+            local targetSize = self.ui.controls["ThumbnailArea"]:getSize()
+            local scale = math.min(targetSize.x / size.x, targetSize.y / size.y)
+            self.ui.controls["Thumbnail"]:setScale(sf.Vector2f.new(scale, scale))
+        end
         self._lastError = ""
     else
         self.ui.controls["Thumbnail"]:setVisible(false)

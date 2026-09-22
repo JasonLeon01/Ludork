@@ -8,7 +8,6 @@ local View = require("Source.UI.Parts.WindowShop.WindowShopDetail")
 local LOC = LocaleCore.ApplyStringLocaleFormat
 local TextLayout = Engine.TextLayout
 
-local _DETAIL_TEXT_WIDTH = 320
 ---@class Source.Windows.WindowShopDetail.Controller
 local Controller = {}
 
@@ -31,7 +30,10 @@ function Controller:refresh()
         self:setText("Price", tostring(self._price or 0))
         local description = LOC(self._itemInfo.desc or ""):gsub("\\n", "\n")
         self:setText(
-            "Description", TextLayout.wrapPlainText(description, _DETAIL_TEXT_WIDTH, self.ui.controls["Description"])
+            "Description",
+            TextLayout.wrapPlainText(
+                description, self.ui.controls["DescriptionArea"]:getSize().x, self.ui.controls["Description"]
+            )
         )
     end
     self.ui:prepare()

@@ -53,6 +53,13 @@ public:
     BIND_METHOD(defaults = {nil})
     void reflow(std::optional<sf::Vector2u> logicalSize = std::nullopt);
 
+    /// Resize an asset-local control and lay out its authored descendants.
+    /// Its parent Slot and current position are unchanged; a parent reflow
+    /// restores that Slot.
+    BIND_METHOD()
+    void reflowControl(const std::string& localName,
+                       const sf::Vector2u& logicalSize);
+
     BIND_METHOD(Pure = true, defaults = {nil})
     bool hasAnimation(const std::string& name,
                       std::optional<std::string> target = std::nullopt) const;

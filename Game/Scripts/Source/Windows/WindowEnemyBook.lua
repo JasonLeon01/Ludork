@@ -20,9 +20,6 @@ local Special = GeneralEnum.Special
 local GameplayEventData = GlobalCore.GameplayEventData
 local AudioManager = GlobalCore.AudioManager
 
-local _CELL_WIDTH = 320
-local _CELL_HEIGHT = 64
-
 ---@class Source.Windows.WindowEnemyBook.Controller
 local Controller = {}
 
@@ -31,9 +28,7 @@ Controller.windowOptions = {
     hidden = true,
     returnButton = true,
     list = "EnemyList",
-    scroll = "EnemyScrollBox",
-    itemWidth = _CELL_WIDTH,
-    itemHeight = _CELL_HEIGHT
+    scroll = "EnemyScrollBox"
 }
 
 local function formatSpecialDescription(descSource, specialID, value)
@@ -88,14 +83,12 @@ function Controller:refreshEnemies(gameMap)
     self._cells:clear()
     for _, entry in ipairs(entries) do
         local enemyEntry = entry
-        local logicalSize = sf.Vector2u.new(_CELL_WIDTH, _CELL_HEIGHT)
-        ---@cast logicalSize sf.Vector2u
         self._cells:add({
             entry = enemyEntry,
             callback = function (_obj, _kwargs)
                 self:confirmEnemy(enemyEntry)
             end
-        }, logicalSize)
+        })
     end
     self._cells:layout()
     self.host:resetSelection()
@@ -235,14 +228,14 @@ function Controller:close(onHidden)
     self.host:hideWithAnimation("FadeOut", onHidden)
 end
 
----@diagnostic disable-next-line: unused
-function Controller:_getRectPositionForIndex(index)
-    return sf.Vector2f.new(0.0, index * _CELL_HEIGHT)
-end
-
----@diagnostic disable-next-line: unused
-function Controller:getItemWidth()
-    return _CELL_WIDTH
+function Controller:getSelectionLayoutRect(index)
+    local cell = self._cells.items[index + 1]
+    if cell == nil then
+        return self.ui.controls["EnemyList"]:getItemLayoutRect(index)
+    end
+    local root = cell.ui.root
+    local bounds = root:getLocalBounds()
+    return sf.FloatRect.new(root:getPosition() + bounds.position, bounds.size)
 end
 
 function Controller:onReturn()

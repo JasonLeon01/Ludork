@@ -5,12 +5,9 @@
 ---@field _oldIndex                         integer?
 ---@field index                             integer?
 ---@field _scrollBox                        Engine.ScrollBox?
----@field _ownsScrollBox                    boolean
 ---@field _listView                         Engine.ListView?
----@field _rectWidth                        integer
----@field _rectHeight                       integer
----@field _hitRectWidth                     integer?
----@field _hitRectHeight                    integer?
+---@field _rectWidth                        number
+---@field _rectHeight                       number
 ---@field _rect                             Engine.Rect
 ---@field _ensureSelectionVisibleRequested  boolean
 ---@field _selectionScrollIndex             integer?
@@ -29,29 +26,9 @@
 ---@field _touchStartScrollOffset           sf.Vector2f
 local WindowSelectable = {}
 
----@brief Construct a selectable window.
----
---- - @param rect The window rectangle.
---- - @param listView Optional ListView for selectable items.
---- - @param rectWidth Optional fixed width for the selection rectangle.
---- - @param rectHeight Height of each selection item.
---- - @param windowSkin Optional window skin image.
---- - @param repeated Whether the window skin is repeated.
---- - @param hitRectWidth Override hit detection width; defaults to selection rect width.
---- - @param hitRectHeight Override hit detection height; defaults to selection rect height.
---- - @param deferView Whether a declarative Controller will provide the window frame and content.
----@param rect          sf.IntRect
----@param listView      Engine.ListView | nil
----@param rectWidth     integer | nil
----@param rectHeight    integer | nil
----@param windowSkin    sf.Image | nil
----@param repeated      boolean | nil
----@param hitRectWidth  integer | nil
----@param hitRectHeight integer | nil
----@param deferView     boolean | nil
-function WindowSelectable:init(
-    rect, listView, rectWidth, rectHeight, windowSkin, repeated, hitRectWidth, hitRectHeight, deferView
-) end
+--- Construct an input host for an asset-owned selectable list.
+---@param rect sf.IntRect
+function WindowSelectable:init(rect) end
 
 ---@brief Get the current list view.
 ---
@@ -71,9 +48,8 @@ function WindowSelectable:setScrollBox(scrollBox) end
 ---@brief Set the list view for selectable items.
 ---
 --- - @param listView The ListView to use, or nil to clear.
----@param listView      Engine.ListView | nil
----@param directContent boolean | nil
-function WindowSelectable:setListView(listView, directContent) end
+---@param listView Engine.ListView | nil
+function WindowSelectable:setListView(listView) end
 
 ---@brief Reset selection to the first item and scroll to the top without playing CursorSE.
 ---
@@ -138,8 +114,9 @@ function WindowSelectable:_getRectPositionForIndex(index) end
 ---@return integer
 function WindowSelectable:getItemWidth() end
 
----@param item Engine.ControlBase
-function WindowSelectable:applyItem(item) end
+---@param index integer
+---@return sf.FloatRect
+function WindowSelectable:getSelectionLayoutRect(index) end
 
 ---@param position sf.Vector2f
 ---@return boolean
@@ -190,10 +167,6 @@ function WindowSelectable:setPointerIndex(index) end
 ---@param position sf.Vector2f
 ---@return boolean
 function WindowSelectable:shouldCaptureTouch(position) end
-
----@param index integer
----@return sf.Vector2f
-function WindowSelectable:getSelectionPositionForIndex(index) end
 
 ---@param index integer
 ---@return boolean

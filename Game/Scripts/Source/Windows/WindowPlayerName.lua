@@ -20,6 +20,8 @@ Controller.windowOptions = { centered = true, hidden = true, returnButton = true
 function Controller:init(player, onClose)
     self._player = player
     self._onClose = onClose
+    self._confirmColour = self.ui.controls["ConfirmButton"]:getColour():copy()
+    self._confirmLabelColour = self.ui.controls["ConfirmLabel"]:getColour():copy()
     self._errorKey = ""
     self:watch(self, "_errorKey", Controller.refreshError)
 end
@@ -120,12 +122,8 @@ end
 
 function Controller:setConfirmEnabled(enabled)
     self.ui.controls["ConfirmButton"]:setActive(enabled)
-    self.ui.controls["ConfirmButton"]:setColour(
-        enabled and sf.Color.new(255, 255, 255, 255) or sf.Color.new(110, 110, 110, 170)
-    )
-    self.ui.controls["ConfirmLabel"]:setColour(
-        enabled and sf.Color.new(255, 255, 255, 255) or sf.Color.new(150, 150, 150, 255)
-    )
+    self.ui.controls["ConfirmButton"]:setColour(enabled and self._confirmColour or sf.Color.new(110, 110, 110, 170))
+    self.ui.controls["ConfirmLabel"]:setColour(enabled and self._confirmLabelColour or sf.Color.new(150, 150, 150, 255))
 end
 
 function Controller:moveFocus(delta)

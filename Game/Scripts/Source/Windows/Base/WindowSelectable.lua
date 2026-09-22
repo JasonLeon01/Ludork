@@ -1,11 +1,9 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GameSystem = require("Source.System")
-local UiControlFactory = require("Source.UIBase.UiControlFactory")
 local WindowBase = require("Source.Windows.Base.WindowBase")
 
 local Input = Engine.Input
-local ControlBase = Engine.ControlBase
 local FunctionalBase = Engine.FunctionalBase
 local Direction = Engine.FocusDirection
 local AudioManager = GlobalCore.AudioManager
@@ -17,24 +15,15 @@ local _REPEAT_INTERVAL = 0.1
 ---@class Source.Windows.Base.WindowSelectable
 local WindowSelectable = {}
 
-function WindowSelectable:init(
-    rect, listView, rectWidth, rectHeight, windowSkin, repeated, hitRectWidth, hitRectHeight, deferView
-)
-    super(WindowSelectable, self).init(rect, windowSkin, repeated, deferView)
+function WindowSelectable:init(rect)
+    super(WindowSelectable, self).init(rect)
     self._oldIndex = nil
     self.index = 0
     self:setCanReceiveFocus(true)
     self._scrollBox = nil
-    self._ownsScrollBox = false
-    self._listView = listView
-    if rectWidth == nil then
-        rectWidth = deferView == true and 1 or self:getItemWidth()
-    end
-    ---@cast rectWidth integer
-    self._rectWidth = rectWidth
-    self._rectHeight = rectHeight or 32
-    self._hitRectWidth = hitRectWidth
-    self._hitRectHeight = hitRectHeight
+    self._listView = nil
+    self._rectWidth = 1
+    self._rectHeight = 1
     self._rect = self:_createSelectionRect()
     self._ensureSelectionVisibleRequested = true
     self._selectionScrollIndex = nil
@@ -51,23 +40,11 @@ function WindowSelectable:init(
     self._touchDragging = false
     self._touchStartPosition = nil
     self._touchStartScrollOffset = sf.Vector2f.new(0.0, 0.0)
-    if listView ~= nil then
-        local scrollBox = self:_ensureScrollBox()
-        scrollBox:addChild(listView)
-    end
 end
 
 ---@return Engine.Rect
 function WindowSelectable:_createSelectionRect()
-    ---@cast self._rectWidth integer
-    ---@cast self._rectHeight integer
-    local size = sf.Vector2u.new(self._rectWidth, self._rectHeight)
-    ---@cast size sf.Vector2u
-    local rect = UiControlFactory.CreateSelectionRect(size, self._windowSkin)
-    local position = self:_getRectPosition()
-    ---@cast position - nil
-    rect:setPosition(position)
-    return rect
+    return Engine.Rect.new(Engine.ToIntRect(0, 0, 1, 1), self._windowSkin, Engine.Rect.SelectionRectOpacityCurveKey)
 end
 
 function WindowSelectable:detachSelectionRect()
@@ -91,52 +68,13 @@ function WindowSelectable:setScrollBox(scrollBox)
     if self._scrollBox == scrollBox then
         return
     end
-    ---@type Engine.ScrollBox | nil
-    local oldScrollBox = self._scrollBox
-    if self._ownsScrollBox and oldScrollBox ~= nil and oldScrollBox:getParent() == self.content then
-        self.content:removeChild(oldScrollBox)
-    end
+    self:detachSelectionRect()
     self._scrollBox = scrollBox
-    self._ownsScrollBox = false
     scrollBox:setScrollingEnabled(not self._selectionInputPaused)
 end
 
----@return Engine.ScrollBox
-function WindowSelectable:_ensureScrollBox()
-    if self._scrollBox ~= nil then
-        return self._scrollBox
-    end
-    local contentSize = self.content:getSize()
-    local logicalSize = sf.Vector2u.new(contentSize.x, contentSize.y)
-    ---@cast logicalSize sf.Vector2u
-    self._scrollBox = UiControlFactory.CreateScrollBox(logicalSize, self._windowSkin)
-    self._ownsScrollBox = true
-    self.content:addChild(self._scrollBox)
-    return self._scrollBox
-end
-
-function WindowSelectable:setListView(listView, directContent)
-    if directContent then
-        if self._listView ~= nil and self._listView:getParent() == self.content then
-            self.content:removeChild(self._listView)
-        end
-        if listView ~= nil and listView:getParent() ~= self.content then
-            self.content:addChild(listView)
-        end
-        self._listView = listView
-        self._ensureSelectionVisibleRequested = true
-        return
-    end
-    if self._ownsScrollBox and self._listView ~= nil and self._scrollBox ~= nil
-        and self._listView:getParent() == self._scrollBox then
-        self._scrollBox:removeChild(self._listView)
-    end
-    if listView ~= nil then
-        local scrollBox = self:_ensureScrollBox()
-        if listView:getParent() ~= scrollBox then
-            scrollBox:addChild(listView)
-        end
-    end
+function WindowSelectable:setListView(listView)
+    self:detachSelectionRect()
     self._listView = listView
     self._ensureSelectionVisibleRequested = true
 end
@@ -184,16 +122,16 @@ end
 function WindowSelectable:onTick(deltaTime)
     local active = self:canReceiveFocus()
     local focused = self:_hasCursorFocus()
-    if self.index ~= nil then
-        if self._rectWidth ~= self:getItemWidth() then
-            self._rectWidth = self:getItemWidth()
-            self:detachSelectionRect()
-            self._rect = self:_createSelectionRect()
+    if self.index ~= nil and self.index >= 0 and self.index < self:_itemCount() then
+        local bounds = self:getSelectionLayoutRect(self.index)
+        bounds.size = bounds.size:componentWiseMul(assert(self._listView):getScale())
+        if self._rectWidth ~= bounds.size.x or self._rectHeight ~= bounds.size.y then
+            self._rectWidth = bounds.size.x
+            self._rectHeight = bounds.size.y
+            self._rect:resize(bounds.size)
             self._ensureSelectionVisibleRequested = true
         end
-        local position = self:_getRectPosition()
-        ---@cast position - nil
-        self._rect:setPosition(position)
+        self._rect:setPosition(self:_getRectPositionForIndex(self.index))
     end
     local selectionVisible = not self._selectionInputPaused and self.index ~= nil
         and self:_itemCount() > 0 and focused == true
@@ -367,52 +305,39 @@ end
 ---@param index integer
 ---@return sf.Vector2f
 function WindowSelectable:_getRectPositionForIndex(index)
-    local columns = self:_getColumns()
-    local x = index % columns * self._rectWidth + 16
-    local y = math.floor(index / columns) * self._rectHeight
-    return sf.Vector2f.new(x, y)
+    local list = assert(self._listView)
+    local bounds = self:getSelectionLayoutRect(index)
+    return list:getPosition() + (bounds.position - list:getOrigin()):componentWiseMul(list:getScale())
+end
+
+function WindowSelectable:getSelectionLayoutRect(index)
+    return assert(self._listView):getItemLayoutRect(index)
 end
 
 ---@return sf.Vector2f | nil
 function WindowSelectable:_getRectPosition()
-    if self.index == nil then
+    if self.index == nil or self.index < 0 or self.index >= self:_itemCount() then
         return nil
     end
     return self:_getRectPositionForIndex(self.index)
-end
-
----@return sf.Vector2i
-function WindowSelectable:_getItemHitSize()
-    local width = self._hitRectWidth or self._rectWidth
-    local height = self._hitRectHeight or self._rectHeight
-    ---@cast width integer
-    ---@cast height integer
-    local size = sf.Vector2i.new(width, height)
-    ---@cast size sf.Vector2i
-    return size
 end
 
 ---@param index integer
 ---@return sf.FloatRect
 function WindowSelectable:_getItemHitAbsoluteBounds(index)
     local savedPos = self._rect:getPosition()
+    local savedSize = sf.Vector2f.new(self._rectWidth, self._rectHeight)
     self._rect:setPosition(self:_getRectPositionForIndex(index))
-    local rectAbs = self._rect:getAbsoluteBounds()
+    self._rect:resize(self:getSelectionLayoutRect(index).size:componentWiseMul(assert(self._listView):getScale()))
+    local bounds = self._rect:getAbsoluteBounds()
     self._rect:setPosition(savedPos)
-    local hitSize = self:_getItemHitSize()
-    if hitSize.x == self._rectWidth and hitSize.y == self._rectHeight then
-        return rectAbs
-    end
-    local scaleX = self._rectWidth ~= 0 and rectAbs.size.x / self._rectWidth or 1.0
-    local scaleY = self._rectHeight ~= 0 and rectAbs.size.y / self._rectHeight or 1.0
-    return sf.FloatRect.new(rectAbs.position, sf.Vector2f.new(hitSize.x * scaleX, hitSize.y * scaleY))
+    self._rect:resize(savedSize)
+    return bounds
 end
 
 ---@return integer
 function WindowSelectable:getItemWidth()
-    local columns = self:_getColumns()
-    local viewportWidth = self._scrollBox ~= nil and self._scrollBox:getSize().x or self.content:getSize().x
-    return math.floor((viewportWidth - 32) / columns)
+    return math.floor(assert(self._listView):getDefaultItemSize().x)
 end
 
 ---@return integer
@@ -478,16 +403,6 @@ end
 function WindowSelectable:_setPointerIndex(index)
     self.index = index
     self:_synchronizeSelectionScrollState()
-end
-
----@param item Engine.ControlBase
----@diagnostic disable-next-line: unused
-function WindowSelectable:applyItem(item)
-    if Class.isInstance(item, ControlBase) then
-        local bounds = item:getLocalBounds()
-        local origin = sf.Vector2f.new(bounds.position.x + bounds.size.x / 2, 0)
-        item:setOrigin(origin)
-    end
 end
 
 function WindowSelectable:_getScrollOriginY()
@@ -755,7 +670,7 @@ function WindowSelectable:_getSelectionAt(position)
         return nil
     end
     for luaIndex, child in ipairs(self._listView:getChildren()) do
-        if Class.isInstance(child, ControlBase)
+        if Class.isInstance(child, Engine.ControlBase)
             and sf.FloatRect.contains(self:_getItemHitAbsoluteBounds(luaIndex - 1), position) then
             return luaIndex - 1
         end
@@ -803,7 +718,7 @@ function WindowSelectable:isSelectionInputPaused()
 end
 
 function WindowSelectable:getSelectionRowHeight()
-    return self._rectHeight
+    return math.ceil(assert(self._listView):getDefaultItemSize().y)
 end
 
 function WindowSelectable:setPointerIndex(index)
@@ -812,10 +727,6 @@ end
 
 function WindowSelectable:shouldCaptureTouch(position)
     return WindowSelectable._shouldCaptureTouch(self, position)
-end
-
-function WindowSelectable:getSelectionPositionForIndex(index)
-    return WindowSelectable._getRectPositionForIndex(self, index)
 end
 
 function WindowSelectable:changeSelection(index)

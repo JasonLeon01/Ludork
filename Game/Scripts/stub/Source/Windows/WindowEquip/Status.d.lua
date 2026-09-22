@@ -5,11 +5,13 @@
 --- Shows currently equipped item names per slot, or unequipped placeholder text.
 
 ---@class Source.Windows.WindowEquipStatus.Controller: Source.UIBase.UiController
----@field host         Source.Windows.WindowEquipStatus
----@field ui           Source.UI.Parts.WindowEquip.WindowEquipStatusPane
----@field _logicalSize sf.Vector2u | nil
----@field _player      Source.Player.Player
----@field _changeRows  Source.UIBase.UiCollection<Source.Windows.WindowEquip.EquipStatusRow.Controller>
+---@field host             Source.Windows.WindowEquipStatus
+---@field ui               Source.UI.Parts.WindowEquip.WindowEquipStatusPane
+---@field _player          Source.Player.Player
+---@field _changeRows      Source.UIBase.UiCollection<Source.Windows.WindowEquip.EquipStatusRow.Controller>
+---@field _showComparison  boolean
+---@field _descriptionName string
+---@field _descriptionText string
 local Controller = {}
 
 ---@brief Construct the equipment status window.
@@ -17,8 +19,6 @@ local Controller = {}
 --- - @param player The player instance.
 ---@param player Source.Player.Player
 function Controller:init(player) end
-
-function Controller:ready() end
 
 ---@brief Rebind the player instance used for equipment comparisons.
 ---
@@ -56,11 +56,6 @@ function Controller:refresh() end
 ---@param currentAttrs   table<string, integer>
 ---@param candidateAttrs table<string, integer>
 function Controller:refreshChangeRows(currentAttrs, candidateAttrs) end
-
----@param attrKey  string
----@param delta    integer
----@param rowIndex integer
-function Controller:addChangeRow(attrKey, delta, rowIndex) end
 
 ---@param candidateEquipID string | nil
 ---@param showUnequip      boolean

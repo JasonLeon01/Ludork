@@ -12,8 +12,7 @@
 ---@field _stateDisplaySignature tuple<string> | nil
 ---@field _avatarTexture         sf.Texture | nil
 ---@field _avatarRect            sf.IntRect | nil
----@field _avatarSize            integer
----@field _infoStartX            integer
+---@field _avatarOffset          number
 ---@field _language              string
 ---@field _headerSignature       tuple<any> | nil
 ---@field _combatSignature       tuple<any> | nil

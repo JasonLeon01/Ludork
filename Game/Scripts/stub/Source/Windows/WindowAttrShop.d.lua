@@ -18,7 +18,6 @@
 ---@field _moneyName            string
 ---@field _closed               boolean
 ---@field ui                    Source.UI.WindowAttrShop
----@field _logicalSize          sf.Vector2u | nil
 ---@field _shopNameSource       string
 ---@field _descriptionSource    string
 ---@field _shopName             string

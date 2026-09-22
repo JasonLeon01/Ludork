@@ -10,13 +10,6 @@ local EquipStatusRowController = require("Source.Windows.WindowEquip.EquipStatus
 local LOC = LocaleCore.ApplyStringLocaleFormat
 local TextLayout = Engine.TextLayout
 
-local _ROW_HEIGHT = 20
-local _MAX_ROWS = 3
-local _SLOT_DESC_NAME_Y = 0
-local _SLOT_DESC_TEXT_Y = 24
-local _EQUIP_DESC_NAME_Y = 76
-local _EQUIP_DESC_TEXT_Y = 100
-
 local _ATTR_ORDER = { "MAXHP", "HP", "ATK", "DEF", "EXP", "GOLD" }
 
 ---@class Source.Windows.WindowEquipStatus.Controller
@@ -28,17 +21,10 @@ function Controller:init(player)
     self._player = player
     self._descriptionName = ""
     self._descriptionText = ""
-    self._descriptionNameY = _EQUIP_DESC_NAME_Y
-    self._descriptionTextY = _EQUIP_DESC_TEXT_Y
-    self._logicalSize = nil
+    self._showComparison = true
     self._changeRows = self:createCollection(
         self.ui.assets["StatusAsset"].controls["ChangeList"], EquipStatusRowController
     )
-end
-
-function Controller:ready()
-    self:_refreshLogicalSize()
-    self:_applyDescriptionPosition()
 end
 
 function Controller:refresh()
@@ -65,49 +51,40 @@ function Controller:refreshForEquip(slotKey, candidateEquipID, showUnequip)
     if showUnequip == nil then
         showUnequip = false
     end
-    self:_refreshLogicalSize()
     local currentEquipID = self._player:getEquipInfo(slotKey)
     local currentAttrs = self:getAttrPlus(currentEquipID)
     local candidateAttrs = showUnequip and {} or self:getAttrPlus(candidateEquipID)
     self:refreshChangeRows(currentAttrs, candidateAttrs)
-    self._descriptionNameY = _EQUIP_DESC_NAME_Y
-    self._descriptionTextY = _EQUIP_DESC_TEXT_Y
+    self._showComparison = true
     self:refreshDescription(candidateEquipID, showUnequip)
 end
 
 function Controller:refreshForSlot(slotKey)
-    self:_refreshLogicalSize()
     self:clearChangeTexts()
-    self._descriptionNameY = _SLOT_DESC_NAME_Y
-    self._descriptionTextY = _SLOT_DESC_TEXT_Y
+    self._showComparison = false
     local currentEquipID = self._player:getEquipInfo(slotKey)
     self:refreshDescription(bool(currentEquipID) and currentEquipID or nil, false)
 end
 
 function Controller:refreshChangeRows(currentAttrs, candidateAttrs)
     self:clearChangeTexts()
+    local list = self.ui.assets["StatusAsset"].controls["ChangeList"]
+    local maximumRows = math.floor(list:getSize().y / list:getDefaultItemSize().y)
     local rowIndex = 0
     for _, attrKey in ipairs(self:getAttrKeys(candidateAttrs, currentAttrs)) do
         local delta = (candidateAttrs[attrKey] or 0) - (currentAttrs[attrKey] or 0)
         if delta ~= 0 then
-            self:addChangeRow(attrKey, delta, rowIndex)
+            self._changeRows:add({ label = LOC(attrKey), delta = delta })
             rowIndex = rowIndex + 1
-            if rowIndex >= _MAX_ROWS then
+            if rowIndex >= maximumRows then
                 break
             end
         end
     end
 end
 
-function Controller:addChangeRow(attrKey, delta, _rowIndex)
-    local logicalSize = sf.Vector2u.new(self.ui.assets["StatusAsset"].root:getSize().x, _ROW_HEIGHT)
-    ---@cast logicalSize sf.Vector2u
-    self._changeRows:add({ label = LOC(attrKey), delta = delta }, logicalSize)
-    self._changeRows:layout()
-end
-
 function Controller:refreshDescription(candidateEquipID, showUnequip)
-    local descMaxWidth = math.max(1, math.floor(self.host.content:getSize().x))
+    local descMaxWidth = self.ui.assets["StatusAsset"].controls["DescriptionArea"]:getSize().x
     if showUnequip then
         self._descriptionName = LOC("EQUIP_UNEQUIP")
         self._descriptionText = TextLayout.wrapPlainText(
@@ -125,7 +102,7 @@ function Controller:refreshDescription(candidateEquipID, showUnequip)
         )
     end
     self:refresh()
-    self.ui.assets["StatusAsset"].instance:reflow(self._logicalSize)
+    self.ui.assets["StatusAsset"].instance:reflow()
     self:_applyDescriptionPosition()
 end
 
@@ -134,8 +111,15 @@ function Controller:clearChangeTexts()
 end
 
 function Controller:_applyDescriptionPosition()
-    self.ui.assets["StatusAsset"].controls["ItemName"]:setPosition(sf.Vector2f.new(0.0, self._descriptionNameY))
-    self.ui.assets["StatusAsset"].controls["Description"]:setPosition(sf.Vector2f.new(0.0, self._descriptionTextY))
+    if not self._showComparison then
+        local position = self.ui.assets["StatusAsset"].controls["ChangeList"]:getPosition()
+        local rootSize = self.ui.assets["StatusAsset"].root:getSize()
+        local size = sf.Vector2f.new(rootSize.x, rootSize.y) - position
+        self.ui.assets["StatusAsset"].instance:reflowControl(
+            "DescriptionArea", sf.Vector2u.new(math.floor(size.x), math.floor(size.y))
+        )
+        self.ui.assets["StatusAsset"].controls["DescriptionArea"]:setPosition(position)
+    end
 end
 
 ---@diagnostic disable-next-line: unused
@@ -164,13 +148,6 @@ function Controller:getAttrKeys(firstAttrs, secondAttrs)
         end
     end
     return result
-end
-
-function Controller:_refreshLogicalSize()
-    local contentSize = self.host.content:getSize()
-    local logicalSize = sf.Vector2u.new(math.max(1, math.floor(contentSize.x)), math.max(1, math.floor(contentSize.y)))
-    ---@cast logicalSize sf.Vector2u
-    self._logicalSize = logicalSize
 end
 
 return Ui.DefineWindow(View, Controller, WindowBase)

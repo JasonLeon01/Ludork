@@ -110,11 +110,8 @@ function Controller:formatName(name) end
 function Controller:formatText(text) end
 
 ---@param index integer
----@return sf.Vector2f
-function Controller:_getRectPositionForIndex(index) end
-
----@return integer
-function Controller:getItemWidth() end
+---@return sf.FloatRect
+function Controller:getSelectionLayoutRect(index) end
 
 ---@param text string | nil
 ---@return string

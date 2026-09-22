@@ -225,3 +225,7 @@ function Controller:setPageRowsActive(index, active) end
 function Controller.new(onClose) end
 
 function Controller:ready() end
+
+---@param index integer
+---@return sf.FloatRect
+function Controller:getSelectionLayoutRect(index) end

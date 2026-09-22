@@ -33,6 +33,19 @@ int ListView::getColumns() const {
     return columns_;
 }
 
+sf::Vector2f ListView::getDefaultItemSize() const {
+    return {(size_.x - 32.0f) / columns_,
+            static_cast<float>(defaultItemHeight_)};
+}
+
+sf::FloatRect ListView::getItemLayoutRect(int index) const {
+    if (index < 0 || static_cast<std::size_t>(index) >= children_.size()) {
+        throw std::out_of_range("ListView item index out of range");
+    }
+    const_cast<ListView*>(this)->applyPositions();
+    return itemLayoutRects_[static_cast<std::size_t>(index)];
+}
+
 sf::Vector2f ListView::getSize() const {
     return size_;
 }
@@ -158,36 +171,35 @@ void ListView::applyPositions() {
         return;
     }
     positionsSettled_ = true;
-    const float columnWidth = (size_.x - 32.0f) / columns_;
-    float rowHeight = 0.0f;
+    const sf::Vector2f defaultSize = getDefaultItemSize();
+    const float columnWidth = defaultSize.x;
+    const float inset = (size_.x - columnWidth * columns_) / 2.0f;
+    itemLayoutRects_.resize(children_.size());
     float currentY = 0.0f;
-
-    for (std::size_t index = 0; index < children_.size(); ++index) {
-        const std::shared_ptr<ControlBase>& child = children_[index];
-        const int column = static_cast<int>(index % columns_);
-        if (column == 0 && index > 0) {
-            currentY += rowHeight > 0.0f
-                            ? rowHeight
-                            : static_cast<float>(defaultItemHeight_);
-            rowHeight = 0.0f;
+    for (std::size_t rowStart = 0; rowStart < children_.size();
+         rowStart += static_cast<std::size_t>(columns_)) {
+        const std::size_t rowEnd = std::min(
+            rowStart + static_cast<std::size_t>(columns_), children_.size());
+        float rowHeight = defaultSize.y;
+        if (!fixItemHeight_) {
+            for (std::size_t index = rowStart; index < rowEnd; ++index) {
+                rowHeight = std::max(rowHeight, children_[index]->getSize().y);
+            }
         }
-        float itemHeight = child->getSize().y;
-        itemHeight =
-            std::max(itemHeight, static_cast<float>(defaultItemHeight_));
-        if (fixItemHeight_) {
-            itemHeight = static_cast<float>(defaultItemHeight_);
+        for (std::size_t index = rowStart; index < rowEnd; ++index) {
+            const std::shared_ptr<ControlBase>& child = children_[index];
+            const float columnX =
+                inset + static_cast<float>(index - rowStart) * columnWidth;
+            itemLayoutRects_[index] = {{columnX, currentY},
+                                       {columnWidth, rowHeight}};
+            const sf::FloatRect bounds = child->getLocalBounds();
+            const float positionX = columnX + columnWidth / 2.0f -
+                                    (bounds.position.x + bounds.size.x / 2.0f -
+                                     child->getOrigin().x) *
+                                        child->getScale().x;
+            child->setPosition({positionX, currentY});
         }
-        const float columnCentre = 16.0f +
-                                   static_cast<float>(column) * columnWidth +
-                                   columnWidth / 2.0f;
-        const sf::FloatRect bounds = child->getLocalBounds();
-        const float originX = child->getOrigin().x;
-        const float scaleX = child->getScale().x;
-        const float positionX =
-            columnCentre -
-            (bounds.position.x + bounds.size.x / 2.0f - originX) * scaleX;
-        rowHeight = std::max(rowHeight, itemHeight);
-        child->setPosition({positionX, currentY});
+        currentY += rowHeight;
     }
 }
 

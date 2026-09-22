@@ -1,19 +1,12 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
-local GlobalFunctions = require("GlobalFunctions")
-local WindowBaseController = require("Source.Windows.Base.WindowBase.Controller")
 
 local Canvas = Engine.Canvas
-local ManagerFunctions = GlobalFunctions.Manager
 local TextureManager = GlobalCore.TextureManager
 
 ---@class Source.Windows.Base.WindowBase
 local WindowBase = {}
 
-WindowBase._PAUSE_MARK_SIZE = 16
-WindowBase._PAUSE_MARK_Y_OFFSET = 4
-WindowBase._GAMEPAD_HINT_BAR_HEIGHT = 16
-WindowBase._GAMEPAD_HINT_CHARACTER_SIZE = 12
 WindowBase._PAUSE_MARK_FRAME_INTERVAL = 0.125
 WindowBase._PAUSE_MARK_ATLAS_RECT = Engine.ToIntRect(160, 64, 32, 32)
 ---@type sf.IntRect[]
@@ -22,18 +15,14 @@ WindowBase._PAUSE_MARK_FRAME_RECTS = {
     Engine.ToIntRect(16, 16, 16, 16)
 }
 
-function WindowBase:init(rect, windowSkin, repeated, deferView)
+function WindowBase:init(rect)
     super(WindowBase, self).init(rect)
-    if windowSkin == nil then
-        windowSkin = assert(TextureManager.load(
-            assert(Engine.DefaultWindowskinName, "Default windowskin path is unavailable"), false, nil, true
-        ), "Default windowskin texture is unavailable"):copyToImage()
-    end
-    self._windowSkin = windowSkin
-    self._repeated = repeated == true
+    self._windowSkin = assert(TextureManager.load(
+        assert(Engine.DefaultWindowskinName, "Default windowskin path is unavailable"), false, nil, true
+    ), "Default windowskin texture is unavailable"):copyToImage()
+    self._repeated = false
     self._hasReturnBtn = false
     self._returnButtonSuppressed = false
-    self._windowBaseUI = nil
     self._window = nil
     self.content = nil
     self._visualRoot = nil
@@ -45,49 +34,12 @@ function WindowBase:init(rect, windowSkin, repeated, deferView)
     self._uiController = nil
     self._uiDispose = nil
     self._transition = nil
-    if deferView == true then
-        self:_createDeclarativeChrome()
-    else
-        self._windowBaseUI = WindowBaseController.new(
-            self, windowSkin, repeated, self._PAUSE_MARK_ATLAS_RECT, assert(self._PAUSE_MARK_FRAME_RECTS[1])
-        )
-        local size = self:getSize()
-        local logicalSize = sf.Vector2u.new(size.x, size.y)
-        ---@cast logicalSize sf.Vector2u
-        self._windowBaseUI:attachTo(self, logicalSize)
-    end
-    ---@cast self._returnButton Engine.Button
-    ---@cast self._pauseMark Engine.Image
-    ---@cast self._pauseMarkTexture sf.Texture
-    ---@cast self._gamepadHintBar Engine.GamepadHintBar
-    self:_bindReturnButton()
-    self:_bindGamepadHintBar()
     self._pauseMarkShowRequested = false
     self._pauseMarkEnabled = true
     self._pauseMarkVisiblePredicate = nil
     self._pauseMarkFrameIndex = 1
     self._pauseMarkFrameTimer = 0.0
     self:_refreshReturnButtonState()
-end
-
-function WindowBase:_createDeclarativeChrome()
-    local returnTexture = assert(
-        ManagerFunctions.loadTexture("System", "ReturnButton.png"), "Return button texture is unavailable"
-    )
-    self._returnButton = Engine.Button.new(
-        returnTexture, nil, sf.Color.new(238, 246, 255, 255), sf.Color.new(205, 220, 238, 255)
-    )
-    self._returnButton:setVisible(false)
-    self._returnButton:setActive(false)
-    self._pauseMarkTexture = sf.Texture.new(self._windowSkin, false, self._PAUSE_MARK_ATLAS_RECT)
-    self._pauseMarkTexture:setSmooth(false)
-    self._pauseMark = Engine.Image.new(self._pauseMarkTexture, self._PAUSE_MARK_FRAME_RECTS[1])
-    self._pauseMark:setVisible(false)
-    local size = self:getSize()
-    self._gamepadHintBar = Engine.GamepadHintBar.new(
-        sf.Vector2f.new(size.x, self._GAMEPAD_HINT_BAR_HEIGHT),
-        Engine.PlainTextConfig.new({ font = Engine.DefaultFont, characterSize = self._GAMEPAD_HINT_CHARACTER_SIZE })
-    )
 end
 
 ---@diagnostic disable-next-line: unused
@@ -126,20 +78,18 @@ function WindowBase:attachPreparedView(controller, viewParts)
     self._window = viewParts.windowFrame
     self.content = viewParts.content
     self._visualRoot = viewParts.root
-    if viewParts.returnButton ~= nil then
-        self._returnButton = viewParts.returnButton
-        self._pauseMark = assert(viewParts.pauseMark)
-        self._pauseMarkTexture = assert(viewParts.pauseMarkTexture)
-        self._gamepadHintBar = assert(viewParts.gamepadHintBar)
-    else
-        self.content:addChild(self._pauseMark)
-        viewParts.chromeRoot:addChild(self._returnButton)
-        viewParts.chromeRoot:addChild(self._gamepadHintBar)
-    end
+    self._returnButton = viewParts.returnButton
+    self._pauseMark = viewParts.pauseMark
+    self._gamepadHintBar = viewParts.gamepadHintBar
+    self._pauseMarkTexture = sf.Texture.new(self._windowSkin, false, self._PAUSE_MARK_ATLAS_RECT)
+    self._pauseMarkTexture:setSmooth(false)
+    self._pauseMark:setTexture(self._pauseMarkTexture, false)
+    self:_bindReturnButton()
+    self:_bindGamepadHintBar()
+    self:_refreshReturnButtonState()
     self._uiController = controller
     self._uiDispose = controller.dispose
     self._transition = controller:createTransition(self, viewParts.transitionTarget)
-    self:_refreshHintBarLayout()
 end
 
 function WindowBase:getTransition()
@@ -232,19 +182,8 @@ function WindowBase:_bindGamepadHintBar()
     end)
 end
 
-function WindowBase:_refreshHintBarLayout()
-    if self._gamepadHintBar == nil then
-        return
-    end
-    local size = self:getSize()
-    local height = self._GAMEPAD_HINT_BAR_HEIGHT
-    self._gamepadHintBar:resize(sf.Vector2f.new(size.x, height))
-    self._gamepadHintBar:setPosition(sf.Vector2f.new(0.0, size.y - height))
-end
-
 function WindowBase:setGamepadHints(hints)
     self._gamepadHintBar:setHints(hints)
-    self:_refreshHintBarLayout()
 end
 
 function WindowBase:setGamepadHintEnabled(index, enabled)
@@ -283,25 +222,9 @@ function WindowBase:hidePauseMark()
     self:_refreshPauseMarkVisibility()
 end
 
-function WindowBase:refreshPauseMarkLayout()
-    local contentSize = self.content:getSize()
-    local posX = (contentSize.x - self._PAUSE_MARK_SIZE) / 2.0
-    local posY = contentSize.y - self._PAUSE_MARK_SIZE + self._PAUSE_MARK_Y_OFFSET
-    self._pauseMark:setPosition(sf.Vector2f.new(posX, posY))
-    self:_bringPauseMarkToFront()
-end
-
-function WindowBase:_bringPauseMarkToFront()
-    if self._pauseMark:getParent() == self.content then
-        self.content:removeChild(self._pauseMark)
-        self.content:addChild(self._pauseMark)
-    end
-end
-
 function WindowBase:onTick(deltaTime)
     super(WindowBase, self).onTick(deltaTime)
     self:_refreshReturnButtonState()
-    self:_refreshHintBarLayout()
     self:_updatePauseMarkAnimation(deltaTime)
 end
 
@@ -345,7 +268,7 @@ function WindowBase:applyWindowSkin(windowFrame)
 end
 
 function WindowBase:getPauseMarkSize()
-    return self._PAUSE_MARK_SIZE
+    return math.ceil(self._pauseMark:getSize().y)
 end
 
 function WindowBase:dispose()

@@ -17,15 +17,7 @@ local _SLOT_ORDER = { "weapon", "shield", "accessory" }
 ---@class Source.Windows.WindowEquipSlot.Controller
 local Controller = {}
 
-Controller.windowOptions = {
-    returnButton = true,
-    hidden = true,
-    itemHeight = 32,
-    list = "SlotList",
-    scroll = "SlotScrollBox"
-}
-
-Controller.ROW_HEIGHT = 32
+Controller.windowOptions = { returnButton = true, hidden = true, list = "SlotList", scroll = "SlotScrollBox" }
 
 function Controller:init(player, windowEquipSelect, windowEquipStatus, onClose)
     self._player = player
@@ -38,8 +30,6 @@ function Controller:init(player, windowEquipSelect, windowEquipStatus, onClose)
 end
 
 function Controller:ready()
-    self:_refreshLogicalSize()
-    self:refreshListLayout()
     self:refreshSlots()
 end
 
@@ -62,24 +52,17 @@ function Controller:refreshSlots()
         classSlots = {}
     end
     self._slotKeys = table.orderedStringKeys(classSlots, _SLOT_ORDER)
-    self:_refreshLogicalSize()
-    self._columns = 1
-    self.ui.controls["SlotList"]:setColumns(self._columns)
     self._rows:clear()
-    local cellWidth = self.host:getItemWidth()
     for _, slotKey in ipairs(self._slotKeys) do
         local iconTexture, label = self:getSlotCellData(slotKey)
-        local rowSize = sf.Vector2u.new(cellWidth, Controller.ROW_HEIGHT)
-        ---@cast rowSize sf.Vector2u
         local rowUI = self._rows:add({
             label = label,
             iconTexture = iconTexture
-        }, rowSize)
+        })
         local child = rowUI.ui.root
         child:addConfirmCallback(self:bindCallback(Controller.focusSelectWindow))
-        self.host:applyItem(child)
     end
-    self:refreshListLayout()
+    self._rows:layout()
     self.host:setListView(self.ui.controls["SlotList"])
     if savedSlotKey ~= nil then
         local restoredIndex = nil
@@ -228,13 +211,6 @@ function Controller:onReturn()
     end
 end
 
-function Controller:_refreshLogicalSize()
-    local contentSize = self.host.content:getSize()
-    local logicalSize = sf.Vector2u.new(math.max(1, math.floor(contentSize.x)), math.max(1, math.floor(contentSize.y)))
-    ---@cast logicalSize sf.Vector2u
-    self._logicalSize = logicalSize
-end
-
 function Controller:setPlayer(player)
     self._player = player
 end
@@ -249,14 +225,6 @@ end
 
 function Controller:setOnCloseCallback(callback)
     self._onCloseCallback = callback
-end
-
-function Controller:refreshListLayout()
-    local size = sf.Vector2i.new(math.floor(self._logicalSize.x), math.floor(self._logicalSize.y))
-    ---@cast size sf.Vector2i
-    self.ui.controls["SlotList"]:setSize(size)
-    self.ui.controls["SlotList"]:setColumns(self._columns or 1)
-    self._rows:layout()
 end
 
 return Ui.DefineWindow(View, Controller, WindowSelectable)

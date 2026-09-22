@@ -4,9 +4,6 @@ local View = require("Source.UI.Parts.WindowEnemyEncyclopedia.EnemyEncyclopediaI
 
 local TextLayout = Engine.TextLayout
 
-local _LABEL_WIDTH = 96
-local _VALUE_WIDTH = 104
-
 local EnemyEncyclopediaInfoPairController = {}
 
 function EnemyEncyclopediaInfoPairController:refresh()
@@ -14,12 +11,8 @@ function EnemyEncyclopediaInfoPairController:refresh()
     local value = self.ui.controls["Value"]
     ---@cast label Engine.PlainText
     ---@cast value Engine.PlainText
-    self:setText("Label", TextLayout.fitPlainText(self.model.label, _LABEL_WIDTH, label))
-    self:setText("Value", TextLayout.fitPlainText(self.model.value, _VALUE_WIDTH, value))
-end
-
-function EnemyEncyclopediaInfoPairController:prepare(logicalSize)
-    return super(EnemyEncyclopediaInfoPairController, self).prepare(logicalSize)
+    self:setText("Label", TextLayout.fitPlainText(self.model.label, self.ui.controls["LabelArea"]:getSize().x, label))
+    self:setText("Value", TextLayout.fitPlainText(self.model.value, self.ui.controls["ValueArea"]:getSize().x, value))
 end
 
 return Ui.Define(View, EnemyEncyclopediaInfoPairController)

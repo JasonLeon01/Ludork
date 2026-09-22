@@ -12,8 +12,6 @@ local AudioManager = GlobalCore.AudioManager
 local LOC = LocaleCore.ApplyStringLocaleFormat
 
 local _ABILITY_ORDER = { "LEVEL", "ATK", "DEF", "MAXHP", "HP", "EXP", "GOLD" }
-local _AVATAR_SIZE = 32
-local _ITEM_ROW_HEIGHT = 32
 
 ---@class Source.Windows.WindowAttrShop.Controller
 local Controller = {}
@@ -23,8 +21,7 @@ Controller.windowOptions = {
     hidden = true,
     returnButton = true,
     list = "AbilityList",
-    scroll = "AbilityScrollBox",
-    itemHeight = _ITEM_ROW_HEIGHT
+    scroll = "AbilityScrollBox"
 }
 
 function Controller:refresh()
@@ -37,21 +34,18 @@ end
 function Controller:refreshRows()
     self._offers = self:getOffers()
     self._rows:clear()
-    local cellWidth = self.host:getItemWidth()
     local moneyDisplayName = self:getAttributeDisplayName(self:getCurrencyName())
     for _, offer in ipairs(self._offers) do
-        self:_addRow(
-            self:formatPurchaseText(offer.key, offer.delta, offer.price, moneyDisplayName), offer.available, cellWidth
-        )
+        self:_addRow(self:formatPurchaseText(offer.key, offer.delta, offer.price, moneyDisplayName), offer.available)
     end
-    self:_addRow(LOC("SHOP_ATTR_LEAVE"), true, cellWidth)
+    self:_addRow(LOC("SHOP_ATTR_LEAVE"), true)
     self._rows:layout()
     if self.host.index == nil then
         self.host.index = 0
     else
         self.host.index = math.trunc(math.min(self.host.index, #self._offers))
     end
-    self:_reflow()
+    self.view:reflow()
     self.host:detachSelectionRect()
 end
 
@@ -69,14 +63,11 @@ end
 
 ---@param textValue string
 ---@param available boolean
----@param width     integer
-function Controller:_addRow(textValue, available, width)
-    local logicalSize = sf.Vector2u.new(width, _ITEM_ROW_HEIGHT)
-    ---@cast logicalSize sf.Vector2u
+function Controller:_addRow(textValue, available)
     local row = self._rows:add({
         text = textValue,
         available = available
-    }, logicalSize)
+    })
     local cell = row.ui.root
     cell:addConfirmCallback(self:bindCallback(Controller.confirmItem))
 end
@@ -134,7 +125,7 @@ function Controller:refreshPriceText()
         })
     end
     self:setText("Price", self._priceTextValue)
-    self:_reflow()
+    self.view:reflow()
 end
 
 function Controller:refreshItems()
@@ -182,19 +173,19 @@ function Controller:refreshAvatar(shopActor)
     self._avatarAnimatable = false
     self._avatarSwitchTimer = 0.0
     if shopActor == nil then
-        self:_reflow()
+        self.view:reflow()
         return
     end
     local texture = shopActor:getTexture()
     if texture == nil then
-        self:_reflow()
+        self.view:reflow()
         return
     end
     local sourceRect = shopActor:getTextureRect()
     local textureRect = sourceRect:copy()
     local frameSize = textureRect.size
     if frameSize.x <= 0 or frameSize.y <= 0 then
-        self:_reflow()
+        self.view:reflow()
         return
     end
     self._avatarTexture = texture
@@ -204,7 +195,7 @@ function Controller:refreshAvatar(shopActor)
     self.ui.controls["Avatar"]:setTexture(texture, false)
     self.ui.controls["Avatar"]:setTextureRect(textureRect)
     self:setProperty("Avatar", "visible", true)
-    self:_reflow()
+    self.view:reflow()
 end
 
 function Controller:animateAvatar(deltaTime)
@@ -238,16 +229,6 @@ function Controller:formatPurchaseText(abilityKey, delta, price, moneyDisplayNam
         .. self:getAttributeDisplayName(abilityKey)
 end
 
-function Controller:_reflow()
-    self.view:reflow(self._logicalSize)
-    if self._avatarRect == nil then
-        return
-    end
-    self.ui.controls["Avatar"]:setScale(
-        sf.Vector2f.new(_AVATAR_SIZE / self._avatarRect.size.x, _AVATAR_SIZE / self._avatarRect.size.y)
-    )
-end
-
 function Controller:init(player, onClose)
     self._player = player
     self._onCloseCallback = onClose
@@ -258,10 +239,6 @@ function Controller:init(player, onClose)
     self._priceIncrement = 1
     self._moneyName = "GOLD"
     self._closed = true
-    local size = self.host:getSize()
-    local logicalSize = sf.Vector2u.new(size.x, size.y)
-    ---@cast logicalSize sf.Vector2u
-    self._logicalSize = logicalSize
     self._shopNameSource = ""
     self._descriptionSource = ""
     self._shopName = ""

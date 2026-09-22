@@ -10,17 +10,10 @@ local Input = Engine.Input
 ---@type fun(value: string): string
 local LOC = LocaleCore.ApplyStringLocaleFormat
 
-local _SLOT_ROW_HEIGHT = 32
 ---@class Source.Windows.WindowSaveSlot.Controller
 local Controller = {}
 
-Controller.windowOptions = {
-    returnButton = true,
-    hidden = true,
-    list = "SlotList",
-    scroll = "SlotScrollBox",
-    itemHeight = _SLOT_ROW_HEIGHT
-}
+Controller.windowOptions = { returnButton = true, hidden = true, list = "SlotList", scroll = "SlotScrollBox" }
 
 Controller.MAX_SAVE_SLOTS = 100
 Controller.refreshEvents = { EventKeys.LocaleChanged }
@@ -86,14 +79,12 @@ function Controller:_buildRows()
     self._buildClock:restart()
     repeat
         local slot = #self._rows.items
-        local rowUI = self._rows:add({
+        self._rows:add({
             text = LOC("SAVEFILE"):pformat(slot + 1),
             callback = function (_obj, _kwargs)
                 self:confirmSlot(slot)
             end
         })
-        local root = rowUI.ui.root
-        self.host:applyItem(root)
     until self:isReady() or self._buildClock:getElapsedTime():asMicroseconds() >= 2000
     self._rows:layout()
     if self:isReady() then

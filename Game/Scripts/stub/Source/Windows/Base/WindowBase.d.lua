@@ -4,7 +4,6 @@
 ---@class Source.Windows.Base.WindowBase: Engine.Canvas
 ---@field _windowSkin                sf.Image
 ---@field _repeated                  boolean
----@field _windowBaseUI              Source.Windows.Base.WindowBase.Controller | nil
 ---@field _window                    Engine.Window
 ---@field content                    Engine.Canvas
 ---@field _visualRoot                Engine.ControlBase | nil
@@ -25,17 +24,9 @@
 ---@field _transition                Source.UIBase.WindowTransition | nil
 local WindowBase = {}
 
----@brief Construct a window with a skin and content area.
----
---- - @param rect The window rectangle.
---- - @param windowSkin Optional window skin image; defaults to the system windowskin.
---- - @param repeated Whether the window skin is repeated.
---- - @param deferView Whether a declarative Controller will provide the window frame and content.
----@param rect       sf.IntRect
----@param windowSkin sf.Image | nil
----@param repeated   boolean | nil
----@param deferView  boolean | nil
-function WindowBase:init(rect, windowSkin, repeated, deferView) end
+--- Construct an input host; its generated View supplies frame, content and chrome.
+---@param rect sf.IntRect
+function WindowBase:init(rect) end
 
 ---@brief Return whether this window exposes its return button.
 ---
@@ -66,13 +57,11 @@ function WindowBase:setVisible(visible) end
 ---@field root             Engine.ControlBase
 ---@field windowFrame      Engine.Window
 ---@field content          Engine.Canvas
----@field chromeRoot       Engine.Canvas
 ---@field nested           boolean
 ---@field transitionTarget string | nil
----@field returnButton     Engine.Button | nil
----@field pauseMark        Engine.Image | nil
----@field pauseMarkTexture sf.Texture | nil
----@field gamepadHintBar   Engine.GamepadHintBar | nil
+---@field returnButton     Engine.Button
+---@field pauseMark        Engine.Image
+---@field gamepadHintBar   Engine.GamepadHintBar
 
 ---@brief Attach a prepared controller view while retaining ownership of host chrome and transitions.
 ---@param controller Source.UIBase.UiController | Source.UIBase.UiView
@@ -115,9 +104,6 @@ function WindowBase:showPauseMark() end
 
 ---@brief Hide the pause mark.
 function WindowBase:hidePauseMark() end
-
----@brief Position the pause mark at the bottom-centre of the content area.
-function WindowBase:refreshPauseMarkLayout() end
 
 ---@brief Update pause mark animation.
 ---

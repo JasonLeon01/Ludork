@@ -3,18 +3,10 @@ local Ui = require("Source.UIBase.Ui")
 local View = require("Source.UI.Parts.WindowFloorTeleporter.WindowFloorMapCommand")
 local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
 
-local _LIST_ROW_HEIGHT = 32
-
 ---@class Source.Windows.WindowFloorMapCommand.Controller
 local Controller = {}
 
-Controller.windowOptions = {
-    returnButton = true,
-    hidden = true,
-    list = "CommandList",
-    scroll = "CommandScrollBox",
-    itemHeight = _LIST_ROW_HEIGHT
-}
+Controller.windowOptions = { returnButton = true, hidden = true, list = "CommandList", scroll = "CommandScrollBox" }
 
 function Controller:init(owner)
     self._owner = owner
@@ -26,15 +18,15 @@ function Controller:refreshMaps(entries)
     local previousMapKey = self:getCurrentMapKey()
     self._mapKeys = {}
     self._commands:clear()
-    local rowSize = sf.Vector2u.new(math.max(1, math.floor(self.ui.controls["Content"]:getSize().x - 32)), 32)
+    local itemSize = self.ui.controls["CommandList"]:getDefaultItemSize()
+    local rowSize = sf.Vector2u.new(math.floor(itemSize.x), math.floor(itemSize.y))
     ---@cast rowSize sf.Vector2u
     for index, entry in ipairs(entries) do
         self._mapKeys[index] = entry[1]
-        local row = self._commands:add({
+        self._commands:add({
             text = entry[2],
             callback = self:bindCallback(Controller.activateTelepointSelector)
         }, rowSize)
-        self.host:applyItem(row.ui.root)
     end
     self._commands:layout()
     if not bool(self._mapKeys) then

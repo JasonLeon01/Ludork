@@ -22,6 +22,16 @@
 ---@field _panelSize          sf.Vector2f
 ---@field _messageRows        Source.UIBase.UiCollection<Source.Windows.WindowMessage.MessageOptionRow.Controller>
 ---@field _selectionRows      Source.UIBase.UiCollection<Source.Windows.WindowMessage.MessageOptionRow.Controller>
+---@field _panelSize          sf.Vector2f
+---@field _contentInsets      sf.Vector2f
+---@field _screenInsets       number
+---@field _nameGap            number
+---@field _bodyPosition       sf.Vector2f
+---@field _selectionPosition  sf.Vector2f
+---@field _textPadding        sf.Vector2f
+---@field _nameColour         sf.Color
+---@field _messageColour      sf.Color
+---@field _hostColour         sf.Color
 local Controller = {}
 
 ---@brief Construct a message window with default fade and layout settings.
@@ -151,10 +161,17 @@ function Controller:cancelSelection(index) end
 ---@param options string[]
 function Controller:_refreshSelectionText(options) end
 
----@param index     integer
----@param rowHeight number
----@return sf.Vector2f | nil
-function Controller:getSelectionPosition(index, rowHeight) end
+---@param index integer
+---@return sf.FloatRect
+function Controller:getSelectionLayoutRect(index) end
 
----@return integer | nil
-function Controller:getSelectionWidth() end
+---@return number
+function Controller:_getMaxContentWidth() end
+
+---@return sf.Vector2f
+function Controller:_getNameSize() end
+
+---@param contentWidth number
+---@param bodyHeight   number
+---@param nameSize     sf.Vector2f
+function Controller:_layoutContent(contentWidth, bodyHeight, nameSize) end

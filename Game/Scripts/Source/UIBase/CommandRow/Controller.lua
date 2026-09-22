@@ -8,9 +8,9 @@ local LOC = LocaleCore.ApplyStringLocaleFormat
 ---@class Source.UIBase.CommandRow.Controller
 local CommandRowController = {}
 
-function CommandRowController:init(model)
+function CommandRowController:init(model, ui)
     assert((model.text ~= nil) ~= (model.localeKey ~= nil), "Command row requires exactly one of text or localeKey")
-    super(CommandRowController, self).init(model)
+    super(CommandRowController, self).init(model, ui)
 end
 
 function CommandRowController:bind()

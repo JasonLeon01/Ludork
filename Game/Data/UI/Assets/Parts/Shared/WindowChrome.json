@@ -1,0 +1,50 @@
+{
+  "type": "uiAsset",
+  "designSize": { "width": 160, "height": 96 },
+  "palette": {
+    "exposed": true,
+    "displayName": "Window Chrome",
+    "category": "Parts / Shared"
+  },
+  "root": {
+    "name": "Root",
+    "controlId": "Engine.Canvas",
+    "properties": { "size": [160, 96] },
+    "editor": {},
+    "children": [
+      {
+        "name": "ReturnButton",
+        "controlId": "Engine.Button",
+        "properties": {
+          "texture": "/Game/Assets/System/ReturnButton.png",
+          "visible": false,
+          "hoverColour": [238, 246, 255, 255],
+          "pressedColour": [205, 220, 238, 255]
+        },
+        "slot": {
+          "anchors": { "min": [0, 0], "max": [0, 0] },
+          "offsets": { "left": 0, "top": 0, "right": 16, "bottom": 16 },
+          "alignment": [0, 0],
+          "autoSize": false,
+          "zOrder": 0
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "name": "HintBar",
+        "controlId": "Engine.GamepadHintBar",
+        "properties": { "size": [160, 16], "characterSize": 12 },
+        "slot": {
+          "anchors": { "min": [0, 1], "max": [1, 1] },
+          "offsets": { "left": 0, "top": 0, "right": 0, "bottom": 16 },
+          "alignment": [0, 1],
+          "autoSize": false,
+          "zOrder": 1
+        },
+        "editor": {},
+        "children": []
+      }
+    ]
+  }
+}

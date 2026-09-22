@@ -116,3 +116,17 @@ void UiLayoutEngine::reflow(UiAssetInstanceState& impl,
     }
     layoutInstance(impl, logicalSize);
 }
+
+void UiLayoutEngine::reflowControl(UiAssetInstanceState& impl,
+                                   const std::string& localName,
+                                   const sf::Vector2f& logicalSize) {
+    const auto iterator = impl.controls.find(localName);
+    if (iterator == impl.controls.end()) {
+        throw std::out_of_range("UI control not found in " + impl.assetKey +
+                                ": " + localName);
+    }
+    const std::shared_ptr<UiRuntimeNode>& node = iterator->second;
+    UiControlAdapterRegistry::instance().arrange(
+        node->controlId, *node->control, logicalSize, node->renderScale);
+    layoutNode(node);
+}

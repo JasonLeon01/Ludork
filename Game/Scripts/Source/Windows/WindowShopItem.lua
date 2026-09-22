@@ -5,18 +5,10 @@ local View = require("Source.UI.Parts.WindowShop.WindowShopItem")
 local WindowShopCellController = require("Source.Windows.WindowShop.WindowShopCell.Controller")
 local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
 
-local SHOP_ITEM_ROW_HEIGHT = 32
-
 ---@class Source.Windows.WindowShopItem.Controller
 local Controller = {}
 
-Controller.windowOptions = {
-    returnButton = true,
-    hidden = true,
-    list = "ItemList",
-    scroll = "ItemScrollBox",
-    itemHeight = SHOP_ITEM_ROW_HEIGHT
-}
+Controller.windowOptions = { returnButton = true, hidden = true, list = "ItemList", scroll = "ItemScrollBox" }
 
 function Controller:init(owner)
     self._owner = owner
@@ -32,7 +24,6 @@ function Controller:refreshItems(itemIDs, availableMap, valueMap, showValues)
     self._itemIDs = copy(itemIDs)
     self._cells:clear()
     self._cellAvailable = {}
-    local cellWidth = self.host:getItemWidth()
     local itemData = Data.GetAllGeneralItemData()
     for _, itemID in ipairs(itemIDs) do
         local member = itemData[itemID] or {}
@@ -41,15 +32,13 @@ function Controller:refreshItems(itemIDs, availableMap, valueMap, showValues)
             available = true
         end
         self._cellAvailable[#self._cellAvailable + 1] = available
-        local rowSize = sf.Vector2u.new(cellWidth, SHOP_ITEM_ROW_HEIGHT)
-        ---@cast rowSize sf.Vector2u
         self._cells:add({
             iconTexture = IconTexture.Load(member.icon or ""),
             value = valueMap[itemID] or 0,
             showValue = showValues,
             available = available,
             callback = self:bindCallback(Controller.confirmItem)
-        }, rowSize)
+        })
     end
     self._cells:layout()
     if not bool(itemIDs) then

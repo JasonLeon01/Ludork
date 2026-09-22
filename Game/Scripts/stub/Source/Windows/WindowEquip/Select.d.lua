@@ -3,8 +3,6 @@
 ---@class Source.Windows.WindowEquipSelect.Controller: Source.UIBase.UiController
 ---@field host               Source.Windows.WindowEquipSelect
 ---@field ui                 Source.UI.Parts.WindowEquip.WindowEquipSelect
----@field _logicalSize       sf.Vector2u
----@field CELL_SIZE          integer
 ---@field UNEQUIP            table
 ---@field _player            Source.Player.Player
 ---@field _windowEquipSlot   Source.Windows.WindowEquipSlot | nil
@@ -14,7 +12,6 @@
 ---@field _equipList         (string | table)[]
 ---@field _equipCounts       table<string, integer>
 ---@field _lastStatusIndex   integer | nil
----@field _columns           integer
 ---@field _rows              Source.UIBase.UiCollection<Source.Windows.WindowEquip.EquipItemRow.Controller>
 local Controller = {}
 
@@ -29,8 +26,6 @@ local Controller = {}
 ---@param windowEquipStatus Source.Windows.WindowEquipStatus | nil
 ---@param onEquip           function | nil
 function Controller:init(player, windowEquipSlot, windowEquipStatus, onEquip) end
-
-function Controller:ready() end
 
 ---@brief Rebind the player whose available equipment is displayed.
 ---@param player Source.Player.Player
@@ -77,12 +72,4 @@ function Controller:open() end
 ---@brief Close the available-equip window.
 function Controller:close() end
 
----@param contentWidth integer
----@return integer
-function Controller:getGridColumns(contentWidth) end
-
 function Controller:onConfirmAction() end
-
-function Controller:_updateLayout() end
-
-function Controller:refreshListLayout() end

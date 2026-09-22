@@ -9,24 +9,6 @@
     "displayName": "Title",
     "category": "Scenes"
   },
-  "animations": [
-    {
-      "name": "FadeIn",
-      "target": "CommandPanel",
-      "duration": 0.2,
-      "pivot": [0.5, 0.5],
-      "tracks": {
-        "translation": [
-          { "time": 0.0, "value": [0.0, 80.0] },
-          { "time": 0.2, "value": [0.0, 0.0] }
-        ],
-        "colour": [
-          { "time": 0.0, "value": [255, 255, 255, 0] },
-          { "time": 0.2, "value": [255, 255, 255, 255] }
-        ]
-      }
-    }
-  ],
   "root": {
     "name": "Root",
     "controlId": "Engine.Canvas",
@@ -73,13 +55,8 @@
       },
       {
         "name": "CommandPanel",
-        "controlId": "Engine.Canvas",
-        "properties": {
-          "size": [
-            256,
-            160
-          ]
-        },
+        "controlId": "Project:Parts/Title/CommandWindow",
+        "properties": {},
         "slot": {
           "anchors": {
             "min": [
@@ -105,170 +82,7 @@
           "zOrder": 1
         },
         "editor": {},
-        "children": [
-          {
-            "name": "CommandWindowFrame",
-            "controlId": "Engine.Window",
-            "properties": {
-              "size": [
-                256,
-                160
-              ],
-              "windowSkin": "",
-              "repeated": false
-            },
-            "slot": {
-              "anchors": {
-                "min": [
-                  0,
-                  0
-                ],
-                "max": [
-                  1,
-                  1
-                ]
-              },
-              "offsets": {
-                "left": 0,
-                "top": 0,
-                "right": 0,
-                "bottom": 0
-              },
-              "alignment": [
-                0,
-                0
-              ],
-              "autoSize": false,
-              "zOrder": 0
-            },
-            "editor": {},
-            "children": []
-          },
-          {
-            "name": "CommandContent",
-            "controlId": "Engine.Canvas",
-            "properties": {
-              "size": [
-                224,
-                128
-              ]
-            },
-            "slot": {
-              "anchors": {
-                "min": [
-                  0,
-                  0
-                ],
-                "max": [
-                  1,
-                  1
-                ]
-              },
-              "offsets": {
-                "left": 16,
-                "top": 16,
-                "right": 16,
-                "bottom": 16
-              },
-              "alignment": [
-                0,
-                0
-              ],
-              "autoSize": false,
-              "zOrder": 1
-            },
-            "editor": {},
-            "children": [
-              {
-                "name": "CommandScrollBox",
-                "controlId": "Engine.ScrollBox",
-                "properties": {
-                  "size": [
-                    224,
-                    128
-                  ],
-                  "windowSkin": ""
-                },
-                "slot": {
-                  "anchors": {
-                    "min": [
-                      0,
-                      0
-                    ],
-                    "max": [
-                      1,
-                      1
-                    ]
-                  },
-                  "offsets": {
-                    "left": 0,
-                    "top": 0,
-                    "right": 0,
-                    "bottom": 0
-                  },
-                  "alignment": [
-                    0,
-                    0
-                  ],
-                  "autoSize": false,
-                  "zOrder": 0
-                },
-                "editor": {},
-                "children": [
-                  {
-                    "name": "CommandList",
-                    "controlId": "Engine.ListView",
-                    "properties": {
-                      "size": [
-                        224,
-                        128
-                      ],
-                      "defaultItemHeight": 32,
-                      "fixItemHeight": true,
-                      "columns": 1
-                    },
-                    "slot": {},
-                    "editor": {},
-                    "children": [
-                      {
-                        "name": "TitleCommand1",
-                        "controlId": "Project:Parts/Shared/CommandRow",
-                        "properties": {},
-                        "slot": {},
-                        "editor": {},
-                        "children": []
-                      },
-                      {
-                        "name": "TitleCommand2",
-                        "controlId": "Project:Parts/Shared/CommandRow",
-                        "properties": {},
-                        "slot": {},
-                        "editor": {},
-                        "children": []
-                      },
-                      {
-                        "name": "TitleCommand3",
-                        "controlId": "Project:Parts/Shared/CommandRow",
-                        "properties": {},
-                        "slot": {},
-                        "editor": {},
-                        "children": []
-                      },
-                      {
-                        "name": "TitleCommand4",
-                        "controlId": "Project:Parts/Shared/CommandRow",
-                        "properties": {},
-                        "slot": {},
-                        "editor": {},
-                        "children": []
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          }
-        ]
+        "children": []
       }
     ]
   }

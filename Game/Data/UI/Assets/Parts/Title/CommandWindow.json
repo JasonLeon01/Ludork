@@ -1,40 +1,59 @@
 {
   "type": "uiAsset",
   "designSize": {
-    "width": 352,
-    "height": 352
+    "width": 256,
+    "height": 160
   },
   "palette": {
     "exposed": true,
-    "displayName": "Window Enemy Book",
-    "category": "Windows"
+    "displayName": "Title Command Window",
+    "category": "Parts / Title"
   },
   "animations": [
     {
       "name": "FadeIn",
       "target": null,
       "duration": 0.2,
-      "pivot": [0.5, 0.5],
+      "pivot": [
+        0.5,
+        0.5
+      ],
       "tracks": {
-        "scale": [
-          { "time": 0.0, "value": [0.5, 0.5] },
-          { "time": 0.2, "value": [1.0, 1.0] }
+        "translation": [
+          {
+            "time": 0.0,
+            "value": [
+              0.0,
+              80.0
+            ]
+          },
+          {
+            "time": 0.2,
+            "value": [
+              0.0,
+              0.0
+            ]
+          }
         ],
         "colour": [
-          { "time": 0.0, "value": [255, 255, 255, 0] },
-          { "time": 0.2, "value": [255, 255, 255, 255] }
-        ]
-      }
-    },
-    {
-      "name": "FadeOut",
-      "target": null,
-      "duration": 0.2,
-      "pivot": [0.5, 0.5],
-      "tracks": {
-        "colour": [
-          { "time": 0.0, "value": [255, 255, 255, 255] },
-          { "time": 0.2, "value": [255, 255, 255, 0] }
+          {
+            "time": 0.0,
+            "value": [
+              255,
+              255,
+              255,
+              0
+            ]
+          },
+          {
+            "time": 0.2,
+            "value": [
+              255,
+              255,
+              255,
+              255
+            ]
+          }
         ]
       }
     }
@@ -44,19 +63,19 @@
     "controlId": "Engine.Canvas",
     "properties": {
       "size": [
-        352,
-        352
+        256,
+        160
       ]
     },
     "editor": {},
     "children": [
       {
-        "name": "WindowFrame",
+        "name": "CommandWindowFrame",
         "controlId": "Engine.Window",
         "properties": {
           "size": [
-            352,
-            352
+            256,
+            160
           ],
           "windowSkin": "",
           "repeated": false
@@ -64,23 +83,23 @@
         "slot": {
           "anchors": {
             "min": [
-              0.0,
-              0.0
+              0,
+              0
             ],
             "max": [
-              1.0,
-              1.0
+              1,
+              1
             ]
           },
           "offsets": {
-            "left": 0.0,
-            "top": 0.0,
-            "right": 0.0,
-            "bottom": 0.0
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
           },
           "alignment": [
-            0.0,
-            0.0
+            0,
+            0
           ],
           "autoSize": false,
           "zOrder": 0
@@ -89,34 +108,34 @@
         "children": []
       },
       {
-        "name": "Content",
+        "name": "CommandContent",
         "controlId": "Engine.Canvas",
         "properties": {
           "size": [
-            320,
-            320
+            224,
+            128
           ]
         },
         "slot": {
           "anchors": {
             "min": [
-              0.0,
-              0.0
+              0,
+              0
             ],
             "max": [
-              1.0,
-              1.0
+              1,
+              1
             ]
           },
           "offsets": {
-            "left": 16.0,
-            "top": 16.0,
-            "right": 16.0,
-            "bottom": 16.0
+            "left": 16,
+            "top": 16,
+            "right": 16,
+            "bottom": 16
           },
           "alignment": [
-            0.0,
-            0.0
+            0,
+            0
           ],
           "autoSize": false,
           "zOrder": 1
@@ -124,35 +143,35 @@
         "editor": {},
         "children": [
           {
-            "name": "EnemyScrollBox",
+            "name": "CommandScrollBox",
             "controlId": "Engine.ScrollBox",
             "properties": {
               "size": [
-                320,
-                320
+                224,
+                128
               ],
               "windowSkin": ""
             },
             "slot": {
               "anchors": {
                 "min": [
-                  0.0,
-                  0.0
+                  0,
+                  0
                 ],
                 "max": [
-                  1.0,
-                  1.0
+                  1,
+                  1
                 ]
               },
               "offsets": {
-                "left": 0.0,
-                "top": 0.0,
-                "right": 0.0,
-                "bottom": 0.0
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
               },
               "alignment": [
-                0.0,
-                0.0
+                0,
+                0
               ],
               "autoSize": false,
               "zOrder": 0
@@ -160,11 +179,14 @@
             "editor": {},
             "children": [
               {
-                "name": "EnemyList",
+                "name": "CommandList",
                 "controlId": "Engine.ListView",
                 "properties": {
-                  "size": [320.0, 320.0],
-                  "defaultItemHeight": 64,
+                  "size": [
+                    224,
+                    128
+                  ],
+                  "defaultItemHeight": 32,
                   "fixItemHeight": true,
                   "columns": 1
                 },
@@ -172,40 +194,32 @@
                 "editor": {},
                 "children": [
                   {
-                    "name": "EnemyItem1",
-                    "controlId": "Project:Parts/WindowEnemyBook/WindowEnemyBookCell",
+                    "name": "TitleCommand1",
+                    "controlId": "Project:Parts/Shared/CommandRow",
                     "properties": {},
                     "slot": {},
                     "editor": {},
                     "children": []
                   },
                   {
-                    "name": "EnemyItem2",
-                    "controlId": "Project:Parts/WindowEnemyBook/WindowEnemyBookCell",
+                    "name": "TitleCommand2",
+                    "controlId": "Project:Parts/Shared/CommandRow",
                     "properties": {},
                     "slot": {},
                     "editor": {},
                     "children": []
                   },
                   {
-                    "name": "EnemyItem3",
-                    "controlId": "Project:Parts/WindowEnemyBook/WindowEnemyBookCell",
+                    "name": "TitleCommand3",
+                    "controlId": "Project:Parts/Shared/CommandRow",
                     "properties": {},
                     "slot": {},
                     "editor": {},
                     "children": []
                   },
                   {
-                    "name": "EnemyItem4",
-                    "controlId": "Project:Parts/WindowEnemyBook/WindowEnemyBookCell",
-                    "properties": {},
-                    "slot": {},
-                    "editor": {},
-                    "children": []
-                  },
-                  {
-                    "name": "EnemyItem5",
-                    "controlId": "Project:Parts/WindowEnemyBook/WindowEnemyBookCell",
+                    "name": "TitleCommand4",
+                    "controlId": "Project:Parts/Shared/CommandRow",
                     "properties": {},
                     "slot": {},
                     "editor": {},
@@ -255,23 +269,23 @@
         "slot": {
           "anchors": {
             "min": [
-              0.0,
-              0.0
+              0,
+              0
             ],
             "max": [
-              1.0,
-              1.0
+              1,
+              1
             ]
           },
           "offsets": {
-            "left": 0.0,
-            "top": 0.0,
-            "right": 0.0,
-            "bottom": 0.0
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
           },
           "alignment": [
-            0.0,
-            0.0
+            0,
+            0
           ],
           "autoSize": false,
           "zOrder": 100

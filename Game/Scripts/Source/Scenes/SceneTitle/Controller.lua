@@ -1,4 +1,3 @@
-local Engine = require("Engine")
 local SourceSystem = require("Source.System")
 local EventKeys = require("Source.Configs.EventKeys")
 local WindowCommand = require("Source.Windows.WindowCommand")
@@ -37,22 +36,7 @@ function SceneTitleController:bind()
             end
         }
     }
-    self._windowCommand = WindowCommand.new(
-        Engine.ToIntRect(192, 240, 256, 160),
-        self._commandModels,
-        224,
-        32,
-        nil,
-        nil,
-        1,
-        {
-            windowFrame = self.ui.controls["CommandWindowFrame"],
-            content = self.ui.controls["CommandContent"],
-            scrollBox = self.ui.controls["CommandScrollBox"],
-            listView = self.ui.controls["CommandList"]
-        }
-    )
-    self.ui:own(self._windowCommand)
+    self._windowCommand = self:createChild("CommandPanel", WindowCommand, self._commandModels)
 end
 
 function SceneTitleController:refresh()

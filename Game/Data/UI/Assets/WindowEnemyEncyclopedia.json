@@ -14,15 +14,46 @@
       "name": "FadeIn",
       "target": null,
       "duration": 0.2,
-      "pivot": [0.5, 0.5],
+      "pivot": [
+        0.5,
+        0.5
+      ],
       "tracks": {
         "scale": [
-          { "time": 0.0, "value": [0.5, 0.5] },
-          { "time": 0.2, "value": [1.0, 1.0] }
+          {
+            "time": 0.0,
+            "value": [
+              0.5,
+              0.5
+            ]
+          },
+          {
+            "time": 0.2,
+            "value": [
+              1.0,
+              1.0
+            ]
+          }
         ],
         "colour": [
-          { "time": 0.0, "value": [255, 255, 255, 0] },
-          { "time": 0.2, "value": [255, 255, 255, 255] }
+          {
+            "time": 0.0,
+            "value": [
+              255,
+              255,
+              255,
+              0
+            ]
+          },
+          {
+            "time": 0.2,
+            "value": [
+              255,
+              255,
+              255,
+              255
+            ]
+          }
         ]
       }
     },
@@ -30,11 +61,30 @@
       "name": "FadeOut",
       "target": null,
       "duration": 0.2,
-      "pivot": [0.5, 0.5],
+      "pivot": [
+        0.5,
+        0.5
+      ],
       "tracks": {
         "colour": [
-          { "time": 0.0, "value": [255, 255, 255, 255] },
-          { "time": 0.2, "value": [255, 255, 255, 0] }
+          {
+            "time": 0.0,
+            "value": [
+              255,
+              255,
+              255,
+              255
+            ]
+          },
+          {
+            "time": 0.2,
+            "value": [
+              255,
+              255,
+              255,
+              0
+            ]
+          }
         ]
       }
     }
@@ -63,8 +113,14 @@
         },
         "slot": {
           "anchors": {
-            "min": [0.0, 0.0],
-            "max": [1.0, 1.0]
+            "min": [
+              0.0,
+              0.0
+            ],
+            "max": [
+              1.0,
+              1.0
+            ]
           },
           "offsets": {
             "left": 0.0,
@@ -72,7 +128,10 @@
             "right": 0.0,
             "bottom": 0.0
           },
-          "alignment": [0.0, 0.0],
+          "alignment": [
+            0.0,
+            0.0
+          ],
           "autoSize": false,
           "zOrder": 0
         },
@@ -90,8 +149,14 @@
         },
         "slot": {
           "anchors": {
-            "min": [0.0, 0.0],
-            "max": [1.0, 1.0]
+            "min": [
+              0.0,
+              0.0
+            ],
+            "max": [
+              1.0,
+              1.0
+            ]
           },
           "offsets": {
             "left": 16.0,
@@ -99,7 +164,10 @@
             "right": 16.0,
             "bottom": 16.0
           },
-          "alignment": [0.0, 0.0],
+          "alignment": [
+            0.0,
+            0.0
+          ],
           "autoSize": false,
           "zOrder": 1
         },
@@ -109,10 +177,21 @@
             "name": "Portrait",
             "controlId": "Engine.CharacterView",
             "properties": {
-              "size": [608, 32],
+              "size": [
+                608,
+                32
+              ],
               "texture": "/Game/Assets/Characters/enemies/classic-enemies-10-king-single.png",
-              "textureRect": [0, 0, 32, 32],
-              "characterScale": [1.0, 1.0],
+              "textureRect": [
+                0,
+                0,
+                32,
+                32
+              ],
+              "characterScale": [
+                1.0,
+                1.0
+              ],
               "animatable": true,
               "switchInterval": 0.2,
               "shader": "",
@@ -120,8 +199,14 @@
             },
             "slot": {
               "anchors": {
-                "min": [0.0, 0.0],
-                "max": [0.0, 0.0]
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  0.0,
+                  0.0
+                ]
               },
               "offsets": {
                 "left": 304.0,
@@ -129,7 +214,10 @@
                 "right": 0.0,
                 "bottom": 0.0
               },
-              "alignment": [0.5, 0.0],
+              "alignment": [
+                0.5,
+                0.0
+              ],
               "autoSize": true,
               "zOrder": 0
             },
@@ -137,45 +225,100 @@
             "children": []
           },
           {
-            "name": "Name",
-            "controlId": "Engine.FunctionalPlainText",
+            "name": "NameArea",
+            "controlId": "Engine.Canvas",
             "properties": {
-              "characterSize": 20,
-              "text": ""
+              "size": [
+                608,
+                28
+              ]
             },
             "slot": {
               "anchors": {
-                "min": [0.5, 0.0],
-                "max": [0.5, 0.0]
+                "min": [
+                  0,
+                  0
+                ],
+                "max": [
+                  0,
+                  0
+                ]
               },
               "offsets": {
-                "left": 0.0,
-                "top": 40.0,
-                "right": 0.0,
-                "bottom": 0.0
+                "left": 0,
+                "top": 40,
+                "right": 608,
+                "bottom": 28
               },
-              "alignment": [0.5, 0.0],
-              "autoSize": true,
+              "alignment": [
+                0,
+                0
+              ],
+              "autoSize": false,
               "zOrder": 1
             },
-            "editor": {
-              "previewText": "Ancient Dragon"
-            },
-            "children": []
+            "editor": {},
+            "children": [
+              {
+                "name": "Name",
+                "controlId": "Engine.FunctionalPlainText",
+                "properties": {
+                  "characterSize": 20,
+                  "text": ""
+                },
+                "slot": {
+                  "anchors": {
+                    "min": [
+                      0,
+                      0
+                    ],
+                    "max": [
+                      0,
+                      0
+                    ]
+                  },
+                  "offsets": {
+                    "left": 304,
+                    "top": 0,
+                    "right": 0,
+                    "bottom": 0
+                  },
+                  "alignment": [
+                    0.5,
+                    0
+                  ],
+                  "autoSize": true,
+                  "zOrder": 0
+                },
+                "editor": {
+                  "previewText": "Ancient Dragon"
+                },
+                "children": []
+              }
+            ]
           },
           {
             "name": "InfoLayer",
             "controlId": "Engine.ListView",
             "properties": {
-              "size": [608, 96],
+              "size": [
+                608,
+                96
+              ],
               "defaultItemHeight": 32,
               "fixItemHeight": true,
               "columns": 3
             },
             "slot": {
               "anchors": {
-                "min": [0.0, 0.0],
-                "max": [0.0, 0.0]
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  0.0,
+                  0.0
+                ]
               },
               "offsets": {
                 "left": 0.0,
@@ -183,7 +326,10 @@
                 "right": 608.0,
                 "bottom": 96.0
               },
-              "alignment": [0.0, 0.0],
+              "alignment": [
+                0.0,
+                0.0
+              ],
               "autoSize": false,
               "zOrder": 2
             },
@@ -256,32 +402,78 @@
             ]
           },
           {
-            "name": "Description",
-            "controlId": "Engine.PlainText",
+            "name": "DescriptionArea",
+            "controlId": "Engine.Canvas",
             "properties": {
-              "characterSize": 16,
-              "lineAlignment": "left",
-              "text": ""
+              "size": [
+                608,
+                44
+              ]
             },
             "slot": {
               "anchors": {
-                "min": [0.0, 0.0],
-                "max": [0.0, 0.0]
+                "min": [
+                  0,
+                  0
+                ],
+                "max": [
+                  0,
+                  0
+                ]
               },
               "offsets": {
-                "left": 0.0,
-                "top": 172.0,
-                "right": 0.0,
-                "bottom": 0.0
+                "left": 0,
+                "top": 172,
+                "right": 608,
+                "bottom": 44
               },
-              "alignment": [0.0, 0.0],
-              "autoSize": true,
+              "alignment": [
+                0,
+                0
+              ],
+              "autoSize": false,
               "zOrder": 3
             },
-            "editor": {
-              "previewText": "A fearsome enemy from the deepest floor."
-            },
-            "children": []
+            "editor": {},
+            "children": [
+              {
+                "name": "Description",
+                "controlId": "Engine.PlainText",
+                "properties": {
+                  "characterSize": 16,
+                  "lineAlignment": "left",
+                  "text": ""
+                },
+                "slot": {
+                  "anchors": {
+                    "min": [
+                      0,
+                      0
+                    ],
+                    "max": [
+                      0,
+                      0
+                    ]
+                  },
+                  "offsets": {
+                    "left": 0,
+                    "top": 0,
+                    "right": 0,
+                    "bottom": 0
+                  },
+                  "alignment": [
+                    0,
+                    0
+                  ],
+                  "autoSize": true,
+                  "zOrder": 0
+                },
+                "editor": {
+                  "previewText": "A fearsome enemy from the deepest floor."
+                },
+                "children": []
+              }
+            ]
           },
           {
             "name": "SpecialScrollBox",
@@ -295,8 +487,14 @@
             },
             "slot": {
               "anchors": {
-                "min": [0.0, 0.0],
-                "max": [1.0, 1.0]
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  1.0,
+                  1.0
+                ]
               },
               "offsets": {
                 "left": 0.0,
@@ -304,7 +502,10 @@
                 "right": 0.0,
                 "bottom": 0.0
               },
-              "alignment": [0.0, 0.0],
+              "alignment": [
+                0.0,
+                0.0
+              ],
               "autoSize": false,
               "zOrder": 4
             },
@@ -314,7 +515,10 @@
                 "name": "SpecialList",
                 "controlId": "Engine.ListView",
                 "properties": {
-                  "size": [608.0, 216.0],
+                  "size": [
+                    608.0,
+                    216.0
+                  ],
                   "defaultItemHeight": 32,
                   "fixItemHeight": false,
                   "columns": 1
@@ -349,8 +553,70 @@
                 ]
               }
             ]
+          },
+          {
+            "name": "WindowPauseMark",
+            "controlId": "Project:Parts/Shared/WindowPauseMark",
+            "properties": {},
+            "slot": {
+              "anchors": {
+                "min": [
+                  0.5,
+                  1
+                ],
+                "max": [
+                  0.5,
+                  1
+                ]
+              },
+              "offsets": {
+                "left": 0,
+                "top": 4,
+                "right": 16,
+                "bottom": 16
+              },
+              "alignment": [
+                0.5,
+                1
+              ],
+              "autoSize": false,
+              "zOrder": 100
+            },
+            "editor": {},
+            "children": []
           }
         ]
+      },
+      {
+        "name": "WindowChrome",
+        "controlId": "Project:Parts/Shared/WindowChrome",
+        "properties": {},
+        "slot": {
+          "anchors": {
+            "min": [
+              0.0,
+              0.0
+            ],
+            "max": [
+              1.0,
+              1.0
+            ]
+          },
+          "offsets": {
+            "left": 0.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            0.0,
+            0.0
+          ],
+          "autoSize": false,
+          "zOrder": 100
+        },
+        "editor": {},
+        "children": []
       }
     ]
   }

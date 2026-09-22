@@ -68,7 +68,8 @@ function Controller:setVisible(visible) end
 --- Selects the latest existing save, or the first slot when none exists.
 ---@param transitionProfile string | nil
 ---@param initialMode       "load" | "save" | nil
-function Controller:open(transitionProfile, initialMode) end
+---@param dockPosition      sf.Vector2f | nil
+function Controller:open(transitionProfile, initialMode, dockPosition) end
 
 ---@param _ number
 function Controller:onTick(_) end

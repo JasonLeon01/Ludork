@@ -22,16 +22,7 @@ local Input = Engine.Input
 local AudioManager = GlobalCore.AudioManager
 local ToShortNumber = NumberFormat.ToShortNumber
 
-local _PORTRAIT_AREA_HEIGHT = Engine.GetCellSize()
-local _NAME_TOP_MARGIN = 8
-local _INFO_TOP_MARGIN = 8
-local _INFO_PAIR_WIDTH = 200
-local _INFO_ROW_GAP = 32
-local _INFO_LAYER_HEIGHT = 96
-local _DESC_TOP_MARGIN = 8
-local _DESC_LINE_GAP = 22
 local _DESC_MAX_LINES = 2
-local _SPECIAL_TOP_MARGIN = 16
 
 ---@class Source.Windows.WindowEnemyEncyclopedia.Controller
 local Controller = {}
@@ -72,44 +63,20 @@ end
 
 ---@param entry Source.Windows.WindowEnemyBook.Entry
 function Controller:_renderEntry(entry)
-    local contentWidth = math.max(1, math.floor(self.ui.controls["Content"]:getSize().x))
-    local fittedName = TextLayout.fitPlainText(tostring(entry.name or ""), contentWidth, self.ui.controls["Name"])
+    local nameWidth = math.max(1, math.floor(self.ui.controls["NameArea"]:getSize().x))
+    local descriptionWidth = math.max(1, math.floor(self.ui.controls["DescriptionArea"]:getSize().x))
+    local fittedName = TextLayout.fitPlainText(tostring(entry.name or ""), nameWidth, self.ui.controls["Name"])
     self:setText("Name", fittedName)
     self:setProperty("Name", "visible", true)
     local displayDescription = limitLines(
-        TextLayout.wrapPlainText(tostring(entry.desc or ""), contentWidth, self.ui.controls["Description"]),
-        _DESC_MAX_LINES, contentWidth, self.ui.controls["Description"]
+        TextLayout.wrapPlainText(tostring(entry.desc or ""), descriptionWidth, self.ui.controls["Description"]),
+        _DESC_MAX_LINES, descriptionWidth, self.ui.controls["Description"]
     )
     self:setText("Description", displayDescription)
     self:setProperty("Description", "visible", true)
-    self.view:reflow(self._logicalSize)
-
-    local portraitHeight = self:_layoutPortrait()
-    local nameY = portraitHeight + _NAME_TOP_MARGIN
-    local nameWidth = TextLayout.measurePlainText(self.ui.controls["Name"], fittedName)
-    self.ui.controls["Name"]:setPosition(sf.Vector2f.new((contentWidth - nameWidth) / 2.0, nameY))
-    local nameBottom = nameY + self.ui.controls["Name"]:getCharacterSize()
-    local infoY = nameBottom + _INFO_TOP_MARGIN
-    self:_layoutInfoLayer(contentWidth, infoY)
     self:buildInfo(entry)
-    local descY = infoY + 3 * _INFO_ROW_GAP + _DESC_TOP_MARGIN
-    self.ui.controls["Description"]:setPosition(sf.Vector2f.new(0.0, descY))
-    local specialY = descY + _DESC_MAX_LINES * _DESC_LINE_GAP + _SPECIAL_TOP_MARGIN
-    self:buildSpecials(entry, specialY)
-end
-
----@return number
-function Controller:_layoutPortrait()
-    return math.min(_PORTRAIT_AREA_HEIGHT, self.ui.controls["Portrait"]:getSize().y)
-end
-
----@param contentWidth integer
----@param infoY        number
-function Controller:_layoutInfoLayer(contentWidth, infoY)
-    local size = sf.Vector2i.new(contentWidth, _INFO_LAYER_HEIGHT)
-    ---@cast size sf.Vector2i
-    self.ui.controls["InfoLayer"]:setSize(size)
-    self.ui.controls["InfoLayer"]:setPosition(sf.Vector2f.new(0.0, infoY))
+    self:buildSpecials(entry)
+    self.view:reflow()
 end
 
 function Controller:buildInfo(entry)
@@ -159,25 +126,15 @@ function Controller:buildInfo(entry)
 end
 
 function Controller:addInfoPair(label, value)
-    local logicalSize = sf.Vector2u.new(_INFO_PAIR_WIDTH, _INFO_ROW_GAP)
-    ---@cast logicalSize sf.Vector2u
     self._infoRows:add({
         label = label,
         value = value
-    }, logicalSize)
+    })
     self._infoRows:layout()
 end
 
-function Controller:buildSpecials(entry, y)
-    local contentSize = self.ui.controls["Content"]:getSize()
-    local contentWidth = math.max(1, math.floor(contentSize.x))
-    local listHeight = math.max(1, math.floor(contentSize.y - y))
-    self.ui.controls["SpecialScrollBox"]:setPosition(sf.Vector2f.new(0.0, y))
-    self.ui.controls["SpecialScrollBox"]:resize(sf.Vector2f.new(contentWidth, listHeight))
-    self.ui.controls["SpecialList"]:setPosition(sf.Vector2f.new(0.0, 0.0))
-    local listSize = sf.Vector2u.new(contentWidth, listHeight)
-    ---@cast listSize sf.Vector2u
-    self.ui.controls["SpecialList"]:setSize(listSize)
+function Controller:buildSpecials(entry)
+    local contentWidth = math.max(1, math.floor(self.ui.controls["SpecialList"]:getSize().x))
     local specialDetails = entry.specialDetails or {}
     for _, special in ipairs(specialDetails) do
         self._specialRows:add({
@@ -232,10 +189,6 @@ end
 
 function Controller:init(onClose)
     self._onCloseCallback = onClose
-    local size = self.host:getSize()
-    local logicalSize = sf.Vector2u.new(size.x, size.y)
-    ---@cast logicalSize sf.Vector2u
-    self._logicalSize = logicalSize
     self._entry = nil
     self._infoRows = self:createCollection(self.ui.controls["InfoLayer"], EnemyEncyclopediaInfoPairController)
     self._specialRows = self:createCollection(self.ui.controls["SpecialList"], EnemyEncyclopediaSpecialRowController)

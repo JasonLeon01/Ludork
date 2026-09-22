@@ -4,11 +4,7 @@ local Ui = require("Source.UIBase.Ui")
 local View = require("Source.UI.Parts.WindowFloorTeleporter.WindowFloorMapPreview")
 local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
 
-local _PREVIEW_CONTENT_SIZE = 208
 local _PREVIEW_SCALE = 0.5
-local _TELEPOINT_LIST_WIDTH = 144
-local _TELEPOINT_VIEW_HEIGHT = 208
-local _TELEPOINT_ROW_HEIGHT = 32
 
 ---@class Source.Windows.WindowFloorMapPreview.Controller
 local Controller = {}
@@ -19,9 +15,7 @@ Controller.windowOptions = {
     frame = "TelepointWindowFrame",
     content = "TelepointContent",
     list = "TelepointList",
-    scroll = "TelepointScrollBox",
-    itemWidth = _TELEPOINT_LIST_WIDTH - 32,
-    itemHeight = _TELEPOINT_ROW_HEIGHT
+    scroll = "TelepointScrollBox"
 }
 
 function Controller:init(owner, loadPreview, resolvePreviewMapPath)
@@ -34,7 +28,6 @@ function Controller:init(owner, loadPreview, resolvePreviewMapPath)
     self._currentPreviewKey = nil
     self._previewTextureCache = dict()
     self._rows = self:createCollection(self.ui.controls["TelepointList"], CommandRowController)
-    self.host:applyWindowSkin(self.ui.controls["PreviewWindowFrame"])
 end
 
 function Controller:clearPreviewCache()
@@ -100,7 +93,6 @@ function Controller:notifyTelepointIndexMaybeChanged(index)
 end
 
 function Controller:refresh()
-    self:_applyListLayout(#self._telepoints)
     self:setProperty("PreviewImage", "visible", false)
 end
 
@@ -128,17 +120,15 @@ end
 
 function Controller:rebuildTelepointList(entries)
     self._rows:clear()
+    local itemSize = self.ui.controls["TelepointList"]:getDefaultItemSize()
+    local logicalSize = sf.Vector2u.new(math.floor(itemSize.x), math.floor(itemSize.y))
+    ---@cast logicalSize sf.Vector2u
     for _, entry in ipairs(entries) do
-        local logicalSize = sf.Vector2u.new(self.host:getItemWidth(), _TELEPOINT_ROW_HEIGHT)
-        ---@cast logicalSize sf.Vector2u
-        local controller = self._rows:add({
+        self._rows:add({
             text = entry[2],
             callback = self:bindCallback(Controller.confirmSelectedTelepoint)
         }, logicalSize)
-        local child = controller.ui.root
-        self.host:applyItem(child)
     end
-    self:_applyListLayout(#entries)
     self._rows:layout()
     self.ui:prepare()
 end
@@ -164,7 +154,10 @@ function Controller:refreshSelectedPreview()
     end
     local texture = self._previewTextureCache:get(currentKey)
     if texture == nil then
-        texture = self._loadPreview(self._mapKey, telepoint, _PREVIEW_CONTENT_SIZE, _PREVIEW_SCALE, showMarker)
+        local previewSize = self.ui.controls["PreviewContent"]:getSize()
+        texture = self._loadPreview(
+            self._mapKey, telepoint, math.min(previewSize.x, previewSize.y), _PREVIEW_SCALE, showMarker
+        )
         if texture ~= nil then
             self._previewTextureCache[currentKey] = texture
         end
@@ -176,6 +169,7 @@ function Controller:refreshSelectedPreview()
     texture:setSmooth(false)
     self.ui.controls["PreviewImage"]:setTexture(texture, true)
     self:setProperty("PreviewImage", "visible", true)
+    self.view:reflow()
 end
 
 function Controller:getSelectedTelepoint()
@@ -188,14 +182,6 @@ end
 function Controller:hidePreview()
     self._currentPreviewKey = nil
     self:setProperty("PreviewImage", "visible", false)
-end
-
-function Controller:_applyListLayout(itemCount)
-    self:setProperty(
-        "TelepointList", "size",
-        sf.Vector2f.new(_TELEPOINT_LIST_WIDTH, math.max(_TELEPOINT_VIEW_HEIGHT, itemCount * _TELEPOINT_ROW_HEIGHT))
-    )
-    self:setProperty("TelepointList", "columns", 1)
 end
 
 return Ui.DefineWindow(View, Controller, WindowSelectable)

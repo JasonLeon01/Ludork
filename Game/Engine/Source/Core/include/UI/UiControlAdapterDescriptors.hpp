@@ -169,7 +169,9 @@ struct UiControlAdapterTraits;
         UI_CONTROL_PROPERTY("size", "Size", "sf.Vector2u", false, "[160,96]"), \
         UI_CONTROL_PROPERTY("windowSkin", "Window Skin", "string", false,      \
                             "\"\""),                                           \
-        UI_CONTROL_PROPERTY("repeated", "Repeated", "bool", false, "false"))   \
+        UI_CONTROL_PROPERTY("repeated", "Repeated", "bool", false, "false"),   \
+        UI_CONTROL_PROPERTY("colour", "Colour", "sf.Color", false,             \
+                            "[255,255,255,255]"))                              \
     BIND_UI_CONTROL(RectUiControlAdapterTag, "Engine.Rect", "Engine.Rect",     \
                     "Rect", "Visual", UiChildPolicy::None,                     \
                     UiControlSlotType::None,                                   \

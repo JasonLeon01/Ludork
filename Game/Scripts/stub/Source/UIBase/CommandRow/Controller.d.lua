@@ -15,11 +15,12 @@
 ---@class Source.UIBase.CommandRow.Controller: Source.UIBase.UiController
 ---@field ui    Source.UI.Parts.Shared.CommandRow
 ---@field model Source.UIBase.CommandRow.Controller.Model
----@field new   fun(model: Source.UIBase.CommandRow.Controller.Model): Source.UIBase.CommandRow.Controller
+---@field new   fun(model: Source.UIBase.CommandRow.Controller.Model, ui: Source.UI.Parts.Shared.CommandRow | nil): Source.UIBase.CommandRow.Controller
 local CommandRowController = {}
 
 ---@param model Source.UIBase.CommandRow.Controller.Model
-function CommandRowController:init(model) end
+---@param ui    Source.UI.Parts.Shared.CommandRow | nil
+function CommandRowController:init(model, ui) end
 
 function CommandRowController:bind() end
 

@@ -164,6 +164,16 @@ void UiAssetInstance::reflow(std::optional<sf::Vector2u> logicalSize) {
     UiLayoutEngine::reflow(*impl_, impl_->logicalSize);
 }
 
+void UiAssetInstance::reflowControl(const std::string& localName,
+                                    const sf::Vector2u& logicalSize) {
+    if (logicalSize.x == 0 || logicalSize.y == 0) {
+        throw std::invalid_argument("UI control logical size must be positive");
+    }
+    UiLayoutEngine::reflowControl(
+        *impl_, localName,
+        {static_cast<float>(logicalSize.x), static_cast<float>(logicalSize.y)});
+}
+
 bool UiAssetInstance::hasAnimation(const std::string& name,
                                    std::optional<std::string> target) const {
     return ludork::engine::ui_asset_runtime_impl::hasAnimation(impl_, name,

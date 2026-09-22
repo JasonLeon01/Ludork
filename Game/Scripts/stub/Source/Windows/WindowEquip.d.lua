@@ -1,11 +1,11 @@
 ---@meta
 
 ---@class Source.Windows.WindowEquip.Controller: Source.UIBase.UiController
----@field host          Source.Windows.WindowEquip
----@field _slotWindow   Source.Windows.WindowEquipSlot
----@field _selectWindow Source.Windows.WindowEquipSelect
----@field _statusWindow Source.Windows.WindowEquipStatus
----@field ui            Source.UI.WindowEquip
+---@field host               Source.Windows.WindowEquip
+---@field _slotWindow        Source.Windows.WindowEquipSlot
+---@field _selectWindow      Source.Windows.WindowEquipSelect
+---@field _statusWindow      Source.Windows.WindowEquipStatus
+---@field ui                 Source.UI.WindowEquip
 ---@field _transitionProfile string
 local Controller = {}
 
@@ -19,7 +19,8 @@ function Controller:setPlayer(player) end
 function Controller:setOnCloseCallback(callback) end
 
 ---@param transitionProfile string | nil
-function Controller:open(transitionProfile) end
+---@param dockPosition      sf.Vector2f | nil
+function Controller:open(transitionProfile, dockPosition) end
 
 ---@param onHidden function | nil
 function Controller:close(onHidden) end

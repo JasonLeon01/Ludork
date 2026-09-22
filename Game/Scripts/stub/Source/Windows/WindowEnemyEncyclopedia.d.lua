@@ -3,7 +3,6 @@
 ---@class Source.Windows.WindowEnemyEncyclopedia.Controller: Source.UIBase.UiController
 ---@field _onCloseCallback function | nil
 ---@field ui               Source.UI.WindowEnemyEncyclopedia
----@field _logicalSize     sf.Vector2u
 ---@field _entry           Source.Windows.WindowEnemyBook.Entry | nil
 ---@field _infoRows        Source.UIBase.UiCollection<Source.Windows.WindowEnemyEncyclopedia.EnemyEncyclopediaInfoPair.Controller>
 ---@field _specialRows     Source.UIBase.UiCollection<Source.Windows.WindowEnemyEncyclopedia.EnemyEncyclopediaSpecialRow.Controller>
@@ -52,7 +51,6 @@ function Controller:buildInfo(entry) end
 function Controller:addInfoPair(label, value) end
 
 ---@param entry Source.Windows.WindowEnemyBook.Entry
----@param y     number
-function Controller:buildSpecials(entry, y) end
+function Controller:buildSpecials(entry) end
 
 function Controller:clearEnemyControls() end

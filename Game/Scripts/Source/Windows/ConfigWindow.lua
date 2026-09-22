@@ -137,8 +137,7 @@ Controller.windowOptions = {
     returnButton = true,
     content = "SettingsContent",
     list = "GraphicsList",
-    scroll = "SettingsScrollBox",
-    itemHeight = 32
+    scroll = "SettingsScrollBox"
 }
 
 Controller.refreshEvents = { EventKeys.LocaleChanged }
@@ -516,24 +515,15 @@ local function findSelectedIndex(items, value)
     return 0
 end
 
----@return integer
-function Controller:getItemWidth()
-    return self.host.content:getSize().x
-end
-
 ---@param index integer
----@return sf.Vector2f
-function Controller:_getRectPositionForIndex(index)
-    if self.ui == nil then
-        return sf.Vector2f.new(0.0, index * self.host:getSelectionRowHeight())
-    end
+---@return sf.FloatRect
+function Controller:getSelectionLayoutRect(index)
     local page = self:_getActivePage()
     page.list:applyPositions()
     local child = page.list:getChildren()[index + 1]
-    if child == nil then
-        return sf.Vector2f.new(0.0, index * self.host:getSelectionRowHeight())
-    end
-    return sf.Vector2f.new(0.0, child:getPosition().y)
+    assert(Class.isInstance(child, Engine.ControlBase))
+    ---@cast child Engine.ControlBase
+    return child:getTransform():transformRect(child:getLocalBounds())
 end
 
 ---@return Source.Windows.ConfigWindow.Page

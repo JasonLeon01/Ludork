@@ -8,8 +8,4 @@ local EnemyEncyclopediaInfoPairController = {}
 
 function EnemyEncyclopediaInfoPairController:refresh() end
 
----@param logicalSize sf.Vector2u
----@return Engine.Canvas
-function EnemyEncyclopediaInfoPairController:prepare(logicalSize) end
-
 return EnemyEncyclopediaInfoPairController

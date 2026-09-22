@@ -3,8 +3,6 @@
 #include <UI/RichText.hpp>
 #include <UnicodeText.hpp>
 
-#include <CoreShared/TextConfigCodec.hpp>
-
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -309,10 +307,8 @@ float measurePlainText(PlainText& control, const std::string& text) {
     return measurement(text);
 }
 
-float measureRichText(const std::string& textConfigKey,
-                      const std::string& text) {
-    RichText control(ludork::engine::text_config::loadRich(textConfigKey),
-                     text);
+float measureRichText(RichText& source, const std::string& text) {
+    RichText control(source.getConfig(), text);
     return control.getLocalBounds().size.x;
 }
 
@@ -355,8 +351,8 @@ std::string wrapPlainText(const std::string& text, float maxWidth,
 }
 
 std::string wrapRichText(const std::string& text, float maxWidth,
-                         const std::string& textConfigKey) {
-    RichText control(ludork::engine::text_config::loadRich(textConfigKey), "");
+                         RichText& source) {
+    RichText control(source.getConfig(), "");
     std::unordered_map<std::string, float> measurements;
     std::unordered_map<std::string, bool> markerFlags;
     const MeasureFunction measure = [&](const std::string& value) {

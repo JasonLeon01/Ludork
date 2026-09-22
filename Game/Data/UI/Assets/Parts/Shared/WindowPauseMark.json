@@ -1,0 +1,20 @@
+{
+  "type": "uiAsset",
+  "designSize": { "width": 16, "height": 16 },
+  "palette": {
+    "exposed": true,
+    "displayName": "Window Pause Mark",
+    "category": "Parts / Shared"
+  },
+  "root": {
+    "name": "PauseMark",
+    "controlId": "Engine.Image",
+    "properties": {
+      "texture": "",
+      "textureRect": [0, 0, 16, 16],
+      "visible": false
+    },
+    "editor": {},
+    "children": []
+  }
+}

@@ -4,16 +4,14 @@
 --- Shows player inventory items in a grid with icons and counts.
 --- Uses WindowSelectable for keyboard/mouse navigation.
 ---@class Source.Windows.WindowItem.Controller: Source.UIBase.UiController
----@field host             Source.Windows.WindowItem
----@field _onCloseCallback function | nil
----@field _onUseCallback   function | nil
----@field _player          Source.Player.Player
----@field ui               Source.UI.WindowItem
----@field _itemList        { [1]: string, [2]: integer } []
----@field _lastDescIndex   integer | nil
----@field _descMaxWidth    integer
----@field _logicalSize     sf.Vector2u | nil
----@field _rows            Source.UIBase.UiCollection<Source.Windows.WindowItem.ItemRow.Controller>
+---@field host               Source.Windows.WindowItem
+---@field _onCloseCallback   function | nil
+---@field _onUseCallback     function | nil
+---@field _player            Source.Player.Player
+---@field ui                 Source.UI.WindowItem
+---@field _itemList          { [1]: string, [2]: integer } []
+---@field _lastDescIndex     integer | nil
+---@field _rows              Source.UIBase.UiCollection<Source.Windows.WindowItem.ItemRow.Controller>
 ---@field _transitionProfile string
 local Controller = {}
 
@@ -37,9 +35,10 @@ function Controller:onTick(deltaTime) end
 
 ---@brief Open the item window, refreshing inventory and selecting its first item.
 ---
---- Defaults to Menu dock + FadeIn_Menu. Pass DEFAULT to center with scale fade.
+--- Defaults to centered scale fade. Menu transitions require the owning menu dock position.
 ---@param transitionProfile string | nil
-function Controller:open(transitionProfile) end
+---@param dockPosition      sf.Vector2f | nil
+function Controller:open(transitionProfile, dockPosition) end
 
 ---@brief Refresh the currently selected item's localised name and description.
 function Controller:refreshLocale() end

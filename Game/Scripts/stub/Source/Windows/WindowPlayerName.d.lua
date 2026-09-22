@@ -1,11 +1,13 @@
 ---@meta
 
 ---@class Source.Windows.WindowPlayerName.Controller: Source.UIBase.UiController
----@field host      Source.Windows.WindowPlayerName
----@field _player   Source.Player.Player
----@field _onClose  fun()
----@field ui        Source.UI.WindowPlayerName
----@field _errorKey string
+---@field host                Source.Windows.WindowPlayerName
+---@field _player             Source.Player.Player
+---@field _onClose            fun()
+---@field ui                  Source.UI.WindowPlayerName
+---@field _errorKey           string
+---@field _confirmColour      sf.Color
+---@field _confirmLabelColour sf.Color
 local Controller = {}
 
 ---@param player  Source.Player.Player

@@ -3,6 +3,7 @@
 #include <EngineRuntimeApi.hpp>
 
 #include <SFML/System/Vector2.hpp>
+#include <string>
 
 namespace ludork::engine::ui_asset_runtime_impl {
 struct AssetImpl;
@@ -14,4 +15,7 @@ class LUDORK_ENGINE_API UiLayoutEngine {
 public:
     static void reflow(UiAssetInstanceState& impl,
                        const sf::Vector2f& logicalSize);
+    static void reflowControl(UiAssetInstanceState& impl,
+                              const std::string& localName,
+                              const sf::Vector2f& logicalSize);
 };

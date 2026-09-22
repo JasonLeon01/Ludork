@@ -1,12 +1,12 @@
 {
   "type": "uiAsset",
   "designSize": {
-    "width": 200,
-    "height": 32
+    "width": 84,
+    "height": 20
   },
   "palette": {
     "exposed": true,
-    "displayName": "Enemy Encyclopedia Info Pair",
+    "displayName": "Enemy Book Special Display",
     "category": "Rows"
   },
   "root": {
@@ -14,19 +14,19 @@
     "controlId": "Engine.Canvas",
     "properties": {
       "size": [
-        200,
-        32
+        84,
+        20
       ]
     },
     "editor": {},
     "children": [
       {
-        "name": "LabelArea",
+        "name": "Content",
         "controlId": "Engine.Canvas",
         "properties": {
           "size": [
-            96,
-            32
+            80,
+            20
           ]
         },
         "slot": {
@@ -36,15 +36,15 @@
               0
             ],
             "max": [
-              0,
-              0
+              1,
+              1
             ]
           },
           "offsets": {
             "left": 0,
             "top": 0,
-            "right": 96,
-            "bottom": 32
+            "right": 4,
+            "bottom": 0
           },
           "alignment": [
             0,
@@ -56,12 +56,13 @@
         "editor": {},
         "children": [
           {
-            "name": "Label",
-            "controlId": "Engine.PlainText",
+            "name": "IconArea",
+            "controlId": "Engine.Canvas",
             "properties": {
-              "characterSize": 16,
-              "lineAlignment": "left",
-              "text": ""
+              "size": [
+                16,
+                16
+              ]
             },
             "slot": {
               "anchors": {
@@ -77,79 +78,82 @@
               "offsets": {
                 "left": 0,
                 "top": 0,
-                "right": 0,
-                "bottom": 0
+                "right": 16,
+                "bottom": 16
               },
               "alignment": [
                 0,
                 0
               ],
-              "autoSize": true,
+              "autoSize": false,
               "zOrder": 0
             },
-            "editor": {
-              "previewText": "HP"
-            },
-            "children": []
-          }
-        ]
-      },
-      {
-        "name": "ValueArea",
-        "controlId": "Engine.Canvas",
-        "properties": {
-          "size": [
-            104,
-            32
-          ]
-        },
-        "slot": {
-          "anchors": {
-            "min": [
-              0,
-              0
-            ],
-            "max": [
-              0,
-              0
+            "editor": {},
+            "children": [
+              {
+                "name": "Icon",
+                "controlId": "Engine.FunctionalImage",
+                "properties": {
+                  "texture": ""
+                },
+                "slot": {
+                  "anchors": {
+                    "min": [
+                      0,
+                      0
+                    ],
+                    "max": [
+                      0,
+                      0
+                    ]
+                  },
+                  "offsets": {
+                    "left": 0,
+                    "top": 0,
+                    "right": 0,
+                    "bottom": 0
+                  },
+                  "alignment": [
+                    0,
+                    0
+                  ],
+                  "autoSize": true,
+                  "zOrder": 0
+                },
+                "editor": {},
+                "children": []
+              }
             ]
           },
-          "offsets": {
-            "left": 72,
-            "top": 0,
-            "right": 104,
-            "bottom": 32
-          },
-          "alignment": [
-            0,
-            0
-          ],
-          "autoSize": false,
-          "zOrder": 1
-        },
-        "editor": {},
-        "children": [
           {
-            "name": "Value",
+            "name": "Text",
             "controlId": "Engine.PlainText",
             "properties": {
-              "characterSize": 16,
+              "characterSize": 10,
               "lineAlignment": "right",
-              "text": ""
+              "text": "",
+              "outlineColor": [
+                0,
+                0,
+                0,
+                255
+              ],
+              "outlineThickness": 1.0,
+              "visible": false
             },
             "slot": {
               "anchors": {
                 "min": [
-                  0,
+                  1,
                   0
                 ],
                 "max": [
-                  0,
+                  1,
                   0
                 ]
               },
               "offsets": {
-                "left": 104,
+                "left": 0,
                 "top": 0,
                 "right": 0,
                 "bottom": 0
@@ -159,10 +163,10 @@
                 0
               ],
               "autoSize": true,
-              "zOrder": 0
+              "zOrder": 1
             },
             "editor": {
-              "previewText": "999"
+              "previewText": "Poison"
             },
             "children": []
           }

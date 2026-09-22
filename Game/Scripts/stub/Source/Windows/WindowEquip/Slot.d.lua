@@ -7,15 +7,12 @@
 ---@class Source.Windows.WindowEquipSlot.Controller: Source.UIBase.UiController
 ---@field host               Source.Windows.WindowEquipSlot
 ---@field ui                 Source.UI.Parts.WindowEquip.WindowEquipSlot
----@field _logicalSize       sf.Vector2u
----@field ROW_HEIGHT         integer
 ---@field _player            Source.Player.Player
 ---@field _windowEquipSelect Source.Windows.WindowEquipSelect | nil
 ---@field _windowEquipStatus Source.Windows.WindowEquipStatus | nil
 ---@field _onCloseCallback   function | nil
 ---@field _slotKeys          string[]
 ---@field _lastSlotIndex     integer | nil
----@field _columns           integer
 ---@field _rows              Source.UIBase.UiCollection<Source.Windows.WindowEquip.EquipSlotRow.Controller>
 local Controller = {}
 
@@ -86,7 +83,3 @@ function Controller:notifySlotChanged() end
 function Controller:focusSelectWindow() end
 
 function Controller:closeChildWindows() end
-
-function Controller:_refreshLogicalSize() end
-
-function Controller:refreshListLayout() end

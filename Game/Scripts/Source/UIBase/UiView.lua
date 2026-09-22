@@ -142,13 +142,17 @@ function UiView:attachNestedWindowView(host, logicalSize)
 end
 
 function UiView:attachPreparedWindow(host, frame, content, nested, transitionTarget)
-    local chromeRoot = transitionTarget ~= nil and assert(self.instance:requireControl(transitionTarget)) or self.root
-    ---@cast chromeRoot Engine.Canvas
+    local chrome = assert(self.assets["WindowChrome"])
+    local pause = assert(self.assets["WindowPauseMark"])
+    ---@cast chrome Source.UI.Parts.Shared.WindowChrome
+    ---@cast pause Source.UI.Parts.Shared.WindowPauseMark
     host:attachPreparedView(self, {
         root = self.root,
         windowFrame = frame,
         content = content,
-        chromeRoot = chromeRoot,
+        returnButton = chrome.controls["ReturnButton"],
+        gamepadHintBar = chrome.controls["HintBar"],
+        pauseMark = pause.root,
         transitionTarget = transitionTarget,
         nested = nested
     })

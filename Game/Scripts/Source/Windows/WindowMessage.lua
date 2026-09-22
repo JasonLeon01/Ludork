@@ -6,27 +6,10 @@ local WindowMessageLayout = require("Source.Windows.WindowMessage.Layout")
 local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
 local MessageOptionRowController = require("Source.Windows.WindowMessage.MessageOptionRow.Controller")
 local Ui = require("Source.UIBase.Ui")
-local UiLayout = require("Source.UIBase.UiLayout")
 local View = require("Source.UI.WindowMessage")
 
 local Display = GlobalCore.Display
-local PlainText = Engine.PlainText
-local RichText = Engine.RichText
 local TextLayout = Engine.TextLayout
-local _MESSAGE_TEXT_CONFIG = "UI/Message"
-
-local _OPTION_ITEM_HEIGHT = 32
-
-local _WINDOW_PADDING = 16
-
-local _SCREEN_EDGE_MARGIN = 64
-
-local _NAME_MESSAGE_GAP = 8
-
-local _SELECTION_LIST_HORIZONTAL_INSET = 32
-
-local _TEXT_RENDER_GUTTER = 2
-
 local Input = Engine.Input
 local AudioManager = GlobalCore.AudioManager
 
@@ -35,13 +18,7 @@ local ContentMode = { MESSAGE = 0, SELECTION = 1 }
 ---@class Source.Windows.WindowMessage.Controller
 local Controller = {}
 
-Controller.windowOptions = {
-    screen = true,
-    hidden = true,
-    transitionTarget = "Panel",
-    itemWidth = 480,
-    itemHeight = _OPTION_ITEM_HEIGHT
-}
+Controller.windowOptions = { screen = true, hidden = true, transitionTarget = "Panel" }
 
 Controller._MAX_OPTIONS = 4
 Controller.ContentMode = ContentMode
@@ -58,7 +35,19 @@ function Controller:init()
 
     self._name = ""
     self._message = ""
-    self._panelSize = sf.Vector2f.new(544.0, 160.0)
+    local panelSize = self.ui.controls["Panel"]:getSize()
+    local contentSize = self.ui.controls["Content"]:getSize()
+    self._panelSize = sf.Vector2f.new(panelSize.x, panelSize.y)
+    self._contentInsets = sf.Vector2f.new(panelSize.x - contentSize.x, panelSize.y - contentSize.y)
+    self._screenInsets = self.root:getSize().x - self.ui.controls["DialogBounds"]:getSize().x
+    self._nameGap = self.ui.controls["MessageBody"]:getPosition().y - self.ui.controls["NameArea"]:getSize().y
+    self._bodyPosition = self.ui.controls["MessageBody"]:getPosition()
+    self._selectionPosition = self.ui.controls["SelectionList"]:getPosition()
+    self._textPadding = self.ui.controls["MessageText"]:getPosition()
+        + self.ui.controls["MessageText"]:getLocalBounds().position
+    self._nameColour = self.ui.controls["NameText"]:getColour()
+    self._messageColour = self.ui.controls["MessageText"]:getColour()
+    self._hostColour = self.host:getColour()
     self._messageAdvancer = nil
     self._messageRows = self:createCollection(self.ui.controls["MessageList"], MessageOptionRowController)
     self._selectionRows = self:createCollection(self.ui.controls["SelectionList"], MessageOptionRowController)
@@ -77,7 +66,7 @@ function Controller:_setupMessageAdvancer()
 end
 
 function Controller:setListView(listView)
-    WindowSelectable.setListView(self.host, listView, true)
+    WindowSelectable.setListView(self.host, listView)
 end
 
 function Controller:onTick(deltaTime)
@@ -157,7 +146,7 @@ end
 ---@param onFinished  fun() | nil
 function Controller:_beginDialogue(refPosition, name, allowCancel, onFinished)
     self.host:hidePauseMark()
-    self.host:setColour(sf.Color.White)
+    self.host:setColour(self._hostColour)
     self._inDialogue = true
     self._selectionResult = nil
     self._allowCancel = allowCancel
@@ -264,31 +253,16 @@ end
 
 function Controller:_onFadeInComplete()
     if self._contentMode == ContentMode.MESSAGE then
-        self.host:refreshPauseMarkLayout()
         self.host:showPauseMark()
     end
 end
 
----@param index integer
----@return sf.Vector2f
-function Controller:_getRectPositionForIndex(index)
-    if self._contentMode == ContentMode.SELECTION then
-        local position = self:getSelectionPosition(index, self.host:getSelectionRowHeight())
-        if position ~= nil then
-            return position
-        end
-    end
-    return self.host:getSelectionPositionForIndex(index)
-end
-
-function Controller:getItemWidth()
-    if self._contentMode == ContentMode.SELECTION then
-        local width = self:getSelectionWidth()
-        if width ~= nil then
-            return width
-        end
-    end
-    return WindowSelectable.getItemWidth(self.host)
+function Controller:getSelectionLayoutRect(index)
+    local list = assert(self.host:getListView())
+    local bounds = list:getItemLayoutRect(index)
+    bounds.position.x = 0.0
+    bounds.size.x = list:getSize().x
+    return bounds
 end
 
 function Controller:bind()
@@ -303,7 +277,6 @@ function Controller:bind()
         self:confirmMessage()
     end)
     self:setConfirmLayerActive(false)
-    self.ui.controls["WindowFrame"]:setColour(sf.Color.new(255, 255, 255, 192))
     self.ui.controls["NameText"]:setVisible(false)
 end
 
@@ -345,7 +318,7 @@ function Controller:showSelectionList(options, onConfirm, onCancel)
     self._selectionRows:clear()
     for luaIndex, optionText in ipairs(options) do
         local optionIndex = luaIndex - 1
-        local controller = self._selectionRows:add({
+        self._selectionRows:add({
             text = optionText,
             onConfirm = function (_itemSelf, _kwargs)
                 onConfirm(optionIndex)
@@ -354,8 +327,6 @@ function Controller:showSelectionList(options, onConfirm, onCancel)
                 onCancel()
             end
         })
-        controller.ui.root:setColour(sf.Color.White)
-        self.host:applyItem(controller.ui.root)
     end
     self._selectionRows:layout()
     self.ui.controls["SelectionList"]:setVisible(true)
@@ -390,130 +361,79 @@ function Controller:updateWindowPosition(refPosition)
     end
 end
 
-local function getMaxWindowWidth()
-    local gameWidth = Display.getGameSize().x
-    return math.max(1, gameWidth - _SCREEN_EDGE_MARGIN)
+function Controller:_getMaxContentWidth()
+    return math.max(1, Display.getGameSize().x - self._screenInsets - self._contentInsets.x)
 end
 
-local function getTextRenderWidth(measuredWidth)
-    return math.max(1, math.ceil(measuredWidth) + _TEXT_RENDER_GUTTER * 2)
+function Controller:_getNameSize()
+    if not self.ui.controls["NameText"]:getVisible() then
+        return sf.Vector2f.new(0, 0)
+    end
+    local width = TextLayout.measurePlainText(self.ui.controls["NameText"], self._name)
+    local height = WindowMessageLayout.GetTextLineHeight(self.ui.controls["NameText"]:getLocalBounds())
+    return sf.Vector2f.new(math.ceil(width) + self._textPadding.x * 2, height)
 end
 
-local function getBoundsHeight(bounds)
-    return math.max(1, math.ceil(bounds.size.y) + _TEXT_RENDER_GUTTER * 2)
+function Controller:_layoutContent(contentWidth, bodyHeight, nameSize)
+    local headerHeight = nameSize.y > 0 and nameSize.y + self._nameGap or 0
+    local contentHeight = bodyHeight + headerHeight
+    local width = math.ceil(contentWidth + self._contentInsets.x)
+    local height = math.ceil(contentHeight + self._contentInsets.y)
+    local panelSize = sf.Vector2u.new(width, height)
+    ---@cast panelSize sf.Vector2u
+    self.view:reflowControl("Panel", panelSize)
+    self._panelSize = sf.Vector2f.new(width, height)
+    local nameAreaSize = sf.Vector2u.new(math.ceil(contentWidth), math.max(1, math.ceil(nameSize.y)))
+    ---@cast nameAreaSize sf.Vector2u
+    self.view:reflowControl("NameArea", nameAreaSize)
+    local bodySize = sf.Vector2u.new(math.ceil(contentWidth), math.max(1, math.ceil(bodyHeight)))
+    ---@cast bodySize sf.Vector2u
+    self.view:reflowControl("MessageBody", bodySize)
+    self.ui.controls["MessageBody"]:setPosition(sf.Vector2f.new(self._bodyPosition.x, headerHeight))
+    self.view:reflowControl("SelectionList", bodySize)
+    self.ui.controls["SelectionList"]:setPosition(sf.Vector2f.new(self._selectionPosition.x, headerHeight))
 end
 
 function Controller:updateLayoutByTextSize()
-    local nameBounds = self.ui.controls["NameText"]:getLocalBounds()
-    local hasName = self.ui.controls["NameText"]:getVisible()
-    local nameWidth = 0
-    local nameHeight = 0
-    if hasName then
-        nameWidth = getTextRenderWidth(TextLayout.measurePlainText(self.ui.controls["NameText"], self._name))
-        nameHeight = WindowMessageLayout.GetTextLineHeight(nameBounds)
-    end
-    local maxContentWidth = math.trunc(math.max(32, getMaxWindowWidth() - _WINDOW_PADDING * 2))
+    local nameSize = self:_getNameSize()
+    local maxContentWidth = self:_getMaxContentWidth()
     self:setText("MessageText", self._message)
-    local textBounds = self.ui.controls["MessageText"]:getLocalBounds()
-    local textWidth = getTextRenderWidth(TextLayout.measureRichText(_MESSAGE_TEXT_CONFIG, self._message))
+    local textWidth = math.ceil(TextLayout.measureRichText(self.ui.controls["MessageText"], self._message))
+        + self._textPadding.x * 2
     if textWidth > maxContentWidth then
         local displayMessage = WindowMessageLayout.WrapMessage(
-            self._message, math.max(1.0, maxContentWidth - _TEXT_RENDER_GUTTER * 2.0), _MESSAGE_TEXT_CONFIG
+            self._message, math.max(1, maxContentWidth - self._textPadding.x * 2), self.ui.controls["MessageText"]
         )
         self:setText("MessageText", displayMessage)
-        textBounds = self.ui.controls["MessageText"]:getLocalBounds()
-        textWidth = getTextRenderWidth(TextLayout.measureRichText(_MESSAGE_TEXT_CONFIG, displayMessage))
+        textWidth = math.ceil(TextLayout.measureRichText(self.ui.controls["MessageText"], displayMessage))
+            + self._textPadding.x * 2
     end
-    local textHeight = getBoundsHeight(textBounds)
-    local pauseMarkSize = self.host:getPauseMarkSize()
-    ---@cast pauseMarkSize integer
-    local contentWidth = math.trunc(math.max(textWidth, nameWidth, pauseMarkSize))
-    contentWidth = math.trunc(math.min(contentWidth, maxContentWidth))
-    local contentHeight = textHeight + pauseMarkSize
-    if hasName then
-        contentHeight = contentHeight + nameHeight + _NAME_MESSAGE_GAP
-    end
-    local totalWidth = contentWidth + _WINDOW_PADDING * 2
-    totalWidth = math.min(totalWidth, getMaxWindowWidth())
-    local totalHeight = contentHeight + _WINDOW_PADDING * 2
-    self:_resizeWindow(totalWidth, totalHeight)
-    UiLayout.ResizeCanvas(self.ui.controls["Content"], contentWidth, contentHeight)
-    self.ui.controls["Content"]:setPosition(sf.Vector2f.new(_WINDOW_PADDING, _WINDOW_PADDING))
-    local textY = 0.0
-    if hasName then
-        self.ui.controls["NameText"]:setPosition(sf.Vector2f.new(contentWidth / 2.0, 0.0))
-        textY = nameHeight + _NAME_MESSAGE_GAP + 0.0
-    end
-    self.ui.controls["MessageText"]:setPosition(
-        sf.Vector2f.new(
-            _TEXT_RENDER_GUTTER - textBounds.position.x, textY + _TEXT_RENDER_GUTTER - textBounds.position.y
-        )
+    local textHeight = math.max(
+        1, math.ceil(self.ui.controls["MessageText"]:getLocalBounds().size.y) + self._textPadding.y * 2
     )
-    self.host:refreshPauseMarkLayout()
+    local pauseMarkSize = self.host:getPauseMarkSize()
+    local contentWidth = math.min(maxContentWidth, math.max(textWidth, nameSize.x, pauseMarkSize))
+    self:_layoutContent(contentWidth, textHeight + pauseMarkSize, nameSize)
 end
 
 function Controller:updateLayoutBySelectionSize()
-    local nameBounds = self.ui.controls["NameText"]:getLocalBounds()
-    local hasName = self.ui.controls["NameText"]:getVisible()
-    local nameWidth = 0
-    local nameHeight = 0
-    if hasName then
-        nameWidth = getTextRenderWidth(TextLayout.measurePlainText(self.ui.controls["NameText"], self._name))
-        nameHeight = WindowMessageLayout.GetTextLineHeight(nameBounds)
-    end
+    local nameSize = self:_getNameSize()
     local maxOptionTextWidth = 1
-    local optionCount = 0
-    if self.ui.controls["SelectionList"] ~= nil then
-        local children = self.ui.controls["SelectionList"]:getChildren()
-        optionCount = #children
-        for _, child in ipairs(children) do
-            local optionWidth = 1.0
-            if Class.isInstance(child, PlainText) or Class.isInstance(child, RichText) then
-                ---@cast child Engine.PlainText | Engine.RichText
-                optionWidth = child:getLocalBounds().size.x
-            end
-            maxOptionTextWidth = math.max(maxOptionTextWidth, math.max(1, math.round(optionWidth)))
-        end
+    local children = self.ui.controls["SelectionList"]:getChildren()
+    for _, child in ipairs(children) do
+        maxOptionTextWidth = math.max(maxOptionTextWidth, math.ceil(child:getLocalBounds().size.x))
     end
-    local contentWidth = math.trunc(math.max(32, nameWidth, maxOptionTextWidth + _SELECTION_LIST_HORIZONTAL_INSET))
-    local maxContentWidth = math.trunc(math.max(32, getMaxWindowWidth() - _WINDOW_PADDING * 2))
-    contentWidth = math.trunc(math.min(contentWidth, maxContentWidth))
-    local contentHeight = optionCount * _OPTION_ITEM_HEIGHT
-    if hasName then
-        contentHeight = contentHeight + nameHeight + _NAME_MESSAGE_GAP
-    end
-    local totalWidth = contentWidth + _WINDOW_PADDING * 2
-    totalWidth = math.min(totalWidth, getMaxWindowWidth())
-    local totalHeight = contentHeight + _WINDOW_PADDING * 2
-    self:_resizeWindow(totalWidth, totalHeight)
-    UiLayout.ResizeCanvas(self.ui.controls["Content"], contentWidth, contentHeight)
-    self.ui.controls["Content"]:setPosition(sf.Vector2f.new(_WINDOW_PADDING, _WINDOW_PADDING))
-    local currentY = 0.0
-    if hasName then
-        self.ui.controls["NameText"]:setPosition(sf.Vector2f.new(contentWidth / 2.0, 0.0))
-        currentY = nameHeight + _NAME_MESSAGE_GAP + 0.0
-    end
-    if self.ui.controls["SelectionList"] ~= nil then
-        local listSize = sf.Vector2i.new(contentWidth, optionCount * _OPTION_ITEM_HEIGHT)
-        ---@cast listSize sf.Vector2i
-        self.ui.controls["SelectionList"]:setSize(listSize)
-        self.ui.controls["SelectionList"]:setOrigin(sf.Vector2f.new(contentWidth / 2.0, 0.0))
-        self.ui.controls["SelectionList"]:setPosition(sf.Vector2f.new(contentWidth / 2.0, currentY))
-    end
-    self.host:refreshPauseMarkLayout()
-end
-
-function Controller:_resizeWindow(width, height)
-    self._panelSize = sf.Vector2f.new(width, height)
-    local logicalSize = sf.Vector2u.new(width, height)
-    ---@cast logicalSize sf.Vector2u
-    UiLayout.ResizeCanvas(self.ui.controls["Panel"], width, height)
-    self.ui.controls["WindowFrame"]:resize(logicalSize)
+    local defaultSize = self.ui.controls["SelectionList"]:getDefaultItemSize()
+    local inset = self.ui.controls["SelectionList"]:getSize().x
+        - defaultSize.x * self.ui.controls["SelectionList"]:getColumns()
+    local contentWidth = math.min(self:_getMaxContentWidth(), math.max(nameSize.x, maxOptionTextWidth + inset))
+    local bodyHeight = #children * defaultSize.y
+    self:_layoutContent(contentWidth, bodyHeight, nameSize)
 end
 
 function Controller:resetTextColour()
-    self.ui.controls["NameText"]:setColour(sf.Color.White)
-    self.ui.controls["MessageText"]:setColour(sf.Color.White)
+    self.ui.controls["NameText"]:setColour(self._nameColour)
+    self.ui.controls["MessageText"]:setColour(self._messageColour)
 end
 
 function Controller:setMessageVisible(visible)
@@ -541,28 +461,6 @@ function Controller:_refreshSelectionText(options)
         ---@cast child Engine.PlainText
         child:setString(WindowMessageLayout.NormaliseText(assert(options[index])))
     end
-end
-
-function Controller:getSelectionPosition(index, rowHeight)
-    local columns = self.ui.controls["SelectionList"]:getColumns()
-    if columns <= 0 then
-        return nil
-    end
-    local position = self.ui.controls["SelectionList"]:getPosition()
-    local origin = self.ui.controls["SelectionList"]:getOrigin()
-    local columnWidth = self.ui.controls["SelectionList"]:getSize().x / columns
-    return sf.Vector2f.new(
-        position.x - origin.x + index % columns * columnWidth,
-        position.y - origin.y + math.floor(index / columns) * rowHeight
-    )
-end
-
-function Controller:getSelectionWidth()
-    local columns = self.ui.controls["SelectionList"]:getColumns()
-    if columns <= 0 then
-        return nil
-    end
-    return math.max(1, math.round(self.ui.controls["SelectionList"]:getSize().x / columns))
 end
 
 return Ui.DefineWindow(View, Controller, WindowSelectable)

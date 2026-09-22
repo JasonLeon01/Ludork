@@ -4,6 +4,7 @@ local GameSystem = require("Source.System")
 local WindowTransition = require("Source.UIBase.WindowTransition")
 local CommandRowController = require("Source.UIBase.CommandRow.Controller")
 local Ui = require("Source.UIBase.Ui")
+local UiLayout = require("Source.UIBase.UiLayout")
 local View = require("Source.UI.WindowMenu")
 local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
 
@@ -27,14 +28,7 @@ end
 ---@class Source.Windows.WindowMenu.Controller
 local Controller = {}
 
-Controller.windowOptions = {
-    hidden = true,
-    returnButton = true,
-    list = "MenuList",
-    scroll = "MenuScrollBox",
-    itemWidth = 160,
-    itemHeight = 32
-}
+Controller.windowOptions = { hidden = true, returnButton = true, list = "MenuList", scroll = "MenuScrollBox" }
 
 function Controller:init(player, windows, onExit)
     self._player = player
@@ -111,21 +105,21 @@ end
 function Controller:openInventory()
     AudioManager.playSound(GameSystem.GetDecisionSE())
     self:_closeSubMenus("item")
-    self._windowItem:get():open()
+    self._windowItem:get():open(WindowTransition.MENU, UiLayout.GetMenuDockPosition(self.host))
     self:_syncReturnButtonSuppression()
 end
 
 function Controller:openEquipment()
     AudioManager.playSound(GameSystem.GetDecisionSE())
     self:_closeSubMenus("equip")
-    self._windowEquip:get():open()
+    self._windowEquip:get():open(WindowTransition.MENU, UiLayout.GetMenuDockPosition(self.host))
     self:_syncReturnButtonSuppression()
 end
 
 function Controller:openSaveLoad()
     AudioManager.playSound(GameSystem.GetDecisionSE())
     self:_closeSubMenus("save")
-    self._windowSaveLoad:get():open(WindowTransition.MENU)
+    self._windowSaveLoad:get():open(WindowTransition.MENU, nil, UiLayout.GetMenuDockPosition(self.host))
     self:_syncReturnButtonSuppression()
 end
 
@@ -336,11 +330,11 @@ function Controller:_returnEquipSelectToSlot()
 end
 
 function Controller:attach(commands)
-    local rowSize = sf.Vector2u.new(math.max(1, math.floor(self.ui.controls["Content"]:getSize().x - 32)), 32)
+    local itemSize = self.ui.controls["MenuList"]:getDefaultItemSize()
+    local rowSize = sf.Vector2u.new(math.floor(itemSize.x), math.floor(itemSize.y))
     ---@cast rowSize sf.Vector2u
     for _, model in ipairs(commands) do
-        local row = self._commands:add(model, rowSize)
-        self.host:applyItem(row.ui.root)
+        self._commands:add(model, rowSize)
     end
     self._commands:layout()
 end

@@ -10,8 +10,10 @@
 ---@field root                 Engine.Canvas
 ---@field _specialDisplays     Source.Windows.WindowEnemyBook.SpecialDisplay[]
 ---@field _specialDisplayTexts string[]
----@field _specialIcons        Engine.FunctionalImage[]
----@field _specialTexts        Engine.PlainText[]
+---@field _specialViews        Source.UI.Parts.WindowEnemyBook.SpecialDisplay[]
+---@field _specialPadding      number[]
+---@field _specialNameWidths   number[]
+---@field _statColours         table<string, sf.Color>
 ---@field new                  fun(model: Source.Windows.WindowEnemyBook.WindowEnemyBookCell.Controller.Model): Source.Windows.WindowEnemyBook.WindowEnemyBookCell.Controller
 local WindowEnemyBookCellController = {}
 

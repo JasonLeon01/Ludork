@@ -11,11 +11,6 @@
 ---@field content?          string
 ---@field list?             string
 ---@field scroll?           string
----@field itemWidth?        integer
----@field itemHeight?       integer
----@field hitWidth?         integer
----@field hitHeight?        integer
----@field directContent?    boolean
 ---@field transitionTarget? string
 
 ---@class Source.UIBase.UiWindow

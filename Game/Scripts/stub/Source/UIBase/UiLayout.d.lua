@@ -9,7 +9,8 @@ local UiLayout = {}
 function UiLayout.GetCenteredRect(width, height) end
 
 ---@return sf.Vector2f
-function UiLayout.GetMenuDockPosition() end
+---@param menu Engine.ControlBase
+function UiLayout.GetMenuDockPosition(menu) end
 
 ---@param width  integer
 ---@param height integer

@@ -25,6 +25,17 @@ public:
     BIND_METHOD(Pure = true)
     int getColumns() const;
 
+    /// Return the column width and authored default row height in logical
+    /// pixels.
+    BIND_METHOD(Pure = true)
+    sf::Vector2f getDefaultItemSize() const;
+
+    /// Return a zero-based item's cell in list-local logical coordinates.
+    /// Variable-height rows use the tallest item in that row. An invalid index
+    /// throws.
+    BIND_METHOD(Pure = true)
+    sf::FloatRect getItemLayoutRect(int index) const;
+
     BIND_METHOD(Pure = true)
     virtual sf::Vector2f getSize() const override;
 
@@ -89,6 +100,7 @@ private:
     bool fixItemHeight_ = false;
     int columns_ = 1;
     std::vector<std::shared_ptr<ControlBase>> children_;
+    std::vector<sf::FloatRect> itemLayoutRects_;
     sf::RenderStates renderStates_;
     bool positionsSettled_ = false;
     float displayScale_ = 1.0f;

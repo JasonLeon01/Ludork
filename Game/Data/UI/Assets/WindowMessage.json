@@ -14,11 +14,30 @@
       "name": "FadeIn",
       "target": "Panel",
       "duration": 0.2,
-      "pivot": [0.5, 0.5],
+      "pivot": [
+        0.5,
+        0.5
+      ],
       "tracks": {
         "colour": [
-          { "time": 0.0, "value": [255, 255, 255, 0] },
-          { "time": 0.2, "value": [255, 255, 255, 255] }
+          {
+            "time": 0.0,
+            "value": [
+              255,
+              255,
+              255,
+              0
+            ]
+          },
+          {
+            "time": 0.2,
+            "value": [
+              255,
+              255,
+              255,
+              255
+            ]
+          }
         ]
       }
     },
@@ -26,11 +45,30 @@
       "name": "FadeOut",
       "target": "Panel",
       "duration": 0.2,
-      "pivot": [0.5, 0.5],
+      "pivot": [
+        0.5,
+        0.5
+      ],
       "tracks": {
         "colour": [
-          { "time": 0.0, "value": [255, 255, 255, 255] },
-          { "time": 0.2, "value": [255, 255, 255, 0] }
+          {
+            "time": 0.0,
+            "value": [
+              255,
+              255,
+              255,
+              255
+            ]
+          },
+          {
+            "time": 0.2,
+            "value": [
+              255,
+              255,
+              255,
+              0
+            ]
+          }
         ]
       }
     }
@@ -39,21 +77,71 @@
     "name": "Root",
     "controlId": "Engine.Canvas",
     "properties": {
-      "size": [640, 480]
+      "size": [
+        640,
+        480
+      ]
     },
     "editor": {},
     "children": [
+      {
+        "name": "DialogBounds",
+        "controlId": "Engine.Canvas",
+        "properties": {
+          "size": [
+            576,
+            480
+          ]
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0,
+              0
+            ],
+            "max": [
+              1,
+              1
+            ]
+          },
+          "offsets": {
+            "left": 32,
+            "top": 0,
+            "right": 32,
+            "bottom": 0
+          },
+          "alignment": [
+            0,
+            0
+          ],
+          "autoSize": false,
+          "zOrder": 0
+        },
+        "children": [],
+        "editor": {}
+      },
       {
         "name": "ConfirmLayer",
         "controlId": "Engine.FunctionalImage",
         "properties": {
           "texture": "",
-          "colour": [255, 255, 255, 0]
+          "colour": [
+            255,
+            255,
+            255,
+            0
+          ]
         },
         "slot": {
           "anchors": {
-            "min": [0.0, 0.0],
-            "max": [1.0, 1.0]
+            "min": [
+              0.0,
+              0.0
+            ],
+            "max": [
+              1.0,
+              1.0
+            ]
           },
           "offsets": {
             "left": 0.0,
@@ -61,7 +149,10 @@
             "right": 0.0,
             "bottom": 0.0
           },
-          "alignment": [0.0, 0.0],
+          "alignment": [
+            0.0,
+            0.0
+          ],
           "autoSize": false,
           "zOrder": 0
         },
@@ -72,12 +163,21 @@
         "name": "Panel",
         "controlId": "Engine.Canvas",
         "properties": {
-          "size": [544, 160]
+          "size": [
+            544,
+            160
+          ]
         },
         "slot": {
           "anchors": {
-            "min": [0.0, 0.0],
-            "max": [0.0, 0.0]
+            "min": [
+              0.0,
+              0.0
+            ],
+            "max": [
+              0.0,
+              0.0
+            ]
           },
           "offsets": {
             "left": 48.0,
@@ -85,7 +185,10 @@
             "right": 544.0,
             "bottom": 160.0
           },
-          "alignment": [0.0, 0.0],
+          "alignment": [
+            0.0,
+            0.0
+          ],
           "autoSize": false,
           "zOrder": 1
         },
@@ -95,14 +198,29 @@
             "name": "WindowFrame",
             "controlId": "Engine.Window",
             "properties": {
-              "size": [544, 160],
+              "size": [
+                544,
+                160
+              ],
               "windowSkin": "",
-              "repeated": false
+              "repeated": false,
+              "colour": [
+                255,
+                255,
+                255,
+                192
+              ]
             },
             "slot": {
               "anchors": {
-                "min": [0.0, 0.0],
-                "max": [1.0, 1.0]
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  1.0,
+                  1.0
+                ]
               },
               "offsets": {
                 "left": 0.0,
@@ -110,7 +228,10 @@
                 "right": 0.0,
                 "bottom": 0.0
               },
-              "alignment": [0.0, 0.0],
+              "alignment": [
+                0.0,
+                0.0
+              ],
               "autoSize": false,
               "zOrder": 0
             },
@@ -121,12 +242,21 @@
             "name": "Content",
             "controlId": "Engine.Canvas",
             "properties": {
-              "size": [512, 128]
+              "size": [
+                512,
+                128
+              ]
             },
             "slot": {
               "anchors": {
-                "min": [0.0, 0.0],
-                "max": [1.0, 1.0]
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  1.0,
+                  1.0
+                ]
               },
               "offsets": {
                 "left": 16.0,
@@ -134,80 +264,184 @@
                 "right": 16.0,
                 "bottom": 16.0
               },
-              "alignment": [0.0, 0.0],
+              "alignment": [
+                0.0,
+                0.0
+              ],
               "autoSize": false,
               "zOrder": 1
             },
             "editor": {},
             "children": [
               {
-                "name": "NameText",
-                "controlId": "Engine.PlainText",
+                "name": "NameArea",
+                "controlId": "Engine.Canvas",
                 "properties": {
-                  "characterSize": 24,
-                  "lineAlignment": "center",
-                  "text": ""
+                  "size": [
+                    512,
+                    24
+                  ]
                 },
                 "slot": {
                   "anchors": {
-                    "min": [0.5, 0.0],
-                    "max": [0.5, 0.0]
+                    "min": [
+                      0,
+                      0
+                    ],
+                    "max": [
+                      1,
+                      0
+                    ]
                   },
                   "offsets": {
-                    "left": 0.0,
-                    "top": 0.0,
-                    "right": 0.0,
-                    "bottom": 0.0
+                    "left": 0,
+                    "top": 0,
+                    "right": 0,
+                    "bottom": 24
                   },
-                  "alignment": [0.5, 0.0],
-                  "autoSize": true,
+                  "alignment": [
+                    0,
+                    0
+                  ],
+                  "autoSize": false,
                   "zOrder": 0
                 },
-                "editor": {
-                  "previewText": "Speaker"
-                },
-                "children": []
+                "children": [
+                  {
+                    "name": "NameText",
+                    "controlId": "Engine.PlainText",
+                    "properties": {
+                      "characterSize": 24,
+                      "lineAlignment": "center",
+                      "text": ""
+                    },
+                    "slot": {
+                      "anchors": {
+                        "min": [
+                          0.5,
+                          0.0
+                        ],
+                        "max": [
+                          0.5,
+                          0.0
+                        ]
+                      },
+                      "offsets": {
+                        "left": 0.0,
+                        "top": 0.0,
+                        "right": 0.0,
+                        "bottom": 0.0
+                      },
+                      "alignment": [
+                        0.5,
+                        0.0
+                      ],
+                      "autoSize": true,
+                      "zOrder": 0
+                    },
+                    "editor": {
+                      "previewText": "Speaker"
+                    },
+                    "children": []
+                  }
+                ],
+                "editor": {}
               },
               {
-                "name": "MessageText",
-                "controlId": "Engine.RichText",
+                "name": "MessageBody",
+                "controlId": "Engine.Canvas",
                 "properties": {
-                  "textConfig": "UI/Message",
-                  "text": ""
+                  "size": [
+                    512,
+                    96
+                  ]
                 },
                 "slot": {
                   "anchors": {
-                    "min": [0.0, 0.0],
-                    "max": [0.0, 0.0]
+                    "min": [
+                      0,
+                      0
+                    ],
+                    "max": [
+                      1,
+                      1
+                    ]
                   },
                   "offsets": {
-                    "left": 2.0,
-                    "top": 40.0,
-                    "right": 0.0,
-                    "bottom": 0.0
+                    "left": 0,
+                    "top": 32,
+                    "right": 0,
+                    "bottom": 0
                   },
-                  "alignment": [0.0, 0.0],
-                  "autoSize": true,
+                  "alignment": [
+                    0,
+                    0
+                  ],
+                  "autoSize": false,
                   "zOrder": 1
                 },
-                "editor": {
-                  "previewText": "This is a preview message."
-                },
-                "children": []
+                "children": [
+                  {
+                    "name": "MessageText",
+                    "controlId": "Engine.RichText",
+                    "properties": {
+                      "textConfig": "UI/Message",
+                      "text": ""
+                    },
+                    "slot": {
+                      "anchors": {
+                        "min": [
+                          0.0,
+                          0.0
+                        ],
+                        "max": [
+                          0.0,
+                          0.0
+                        ]
+                      },
+                      "offsets": {
+                        "left": 2.0,
+                        "top": 2,
+                        "right": 0.0,
+                        "bottom": 0.0
+                      },
+                      "alignment": [
+                        0.0,
+                        0.0
+                      ],
+                      "autoSize": true,
+                      "zOrder": 1
+                    },
+                    "editor": {
+                      "previewText": "This is a preview message."
+                    },
+                    "children": []
+                  }
+                ],
+                "editor": {}
               },
               {
                 "name": "MessageList",
                 "controlId": "Engine.ListView",
                 "properties": {
-                  "size": [512, 128],
+                  "size": [
+                    512,
+                    128
+                  ],
                   "defaultItemHeight": 32,
                   "fixItemHeight": true,
                   "columns": 1
                 },
                 "slot": {
                   "anchors": {
-                    "min": [0.0, 0.0],
-                    "max": [1.0, 1.0]
+                    "min": [
+                      0.0,
+                      0.0
+                    ],
+                    "max": [
+                      1.0,
+                      1.0
+                    ]
                   },
                   "offsets": {
                     "left": 0.0,
@@ -215,7 +449,10 @@
                     "right": 0.0,
                     "bottom": 0.0
                   },
-                  "alignment": [0.0, 0.0],
+                  "alignment": [
+                    0.0,
+                    0.0
+                  ],
                   "autoSize": false,
                   "zOrder": 2
                 },
@@ -226,7 +463,10 @@
                 "name": "SelectionList",
                 "controlId": "Engine.ListView",
                 "properties": {
-                  "size": [512, 128],
+                  "size": [
+                    512,
+                    128
+                  ],
                   "defaultItemHeight": 32,
                   "fixItemHeight": true,
                   "columns": 1,
@@ -234,8 +474,14 @@
                 },
                 "slot": {
                   "anchors": {
-                    "min": [0.0, 0.0],
-                    "max": [1.0, 1.0]
+                    "min": [
+                      0.0,
+                      0.0
+                    ],
+                    "max": [
+                      1.0,
+                      1.0
+                    ]
                   },
                   "offsets": {
                     "left": 0.0,
@@ -243,7 +489,10 @@
                     "right": 0.0,
                     "bottom": 0.0
                   },
-                  "alignment": [0.0, 0.0],
+                  "alignment": [
+                    0.0,
+                    0.0
+                  ],
                   "autoSize": false,
                   "zOrder": 3
                 },
@@ -282,8 +531,70 @@
                     "children": []
                   }
                 ]
+              },
+              {
+                "name": "WindowPauseMark",
+                "controlId": "Project:Parts/Shared/WindowPauseMark",
+                "slot": {
+                  "anchors": {
+                    "min": [
+                      0.5,
+                      1
+                    ],
+                    "max": [
+                      0.5,
+                      1
+                    ]
+                  },
+                  "offsets": {
+                    "left": 0,
+                    "top": 4,
+                    "right": 16,
+                    "bottom": 16
+                  },
+                  "alignment": [
+                    0.5,
+                    1
+                  ],
+                  "autoSize": false,
+                  "zOrder": 10
+                },
+                "properties": {},
+                "editor": {},
+                "children": []
               }
             ]
+          },
+          {
+            "name": "WindowChrome",
+            "controlId": "Project:Parts/Shared/WindowChrome",
+            "slot": {
+              "anchors": {
+                "min": [
+                  0,
+                  0
+                ],
+                "max": [
+                  1,
+                  1
+                ]
+              },
+              "offsets": {
+                "left": 0,
+                "top": 0,
+                "right": 0,
+                "bottom": 0
+              },
+              "alignment": [
+                0,
+                0
+              ],
+              "autoSize": false,
+              "zOrder": 10
+            },
+            "properties": {},
+            "editor": {},
+            "children": []
           }
         ]
       }

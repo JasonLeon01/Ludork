@@ -25,14 +25,10 @@ function UiWindow:init(host, ui, nativeBase, options, nested)
     end
     local rect = Engine.ToIntRect(math.floor(position.x), math.floor(position.y), math.ceil(size.x), math.ceil(size.y))
     if Class.isSubclass(nativeBase, WindowSelectable) then
-        local content = assert(ui.controls[options.content or "Content"])
-        local itemWidth = options.itemWidth or math.max(1, math.floor(content:getSize().x - 32))
-        WindowSelectable.init(
-            host, rect, nil, itemWidth, options.itemHeight, nil, nil, options.hitWidth, options.hitHeight, true
-        )
+        WindowSelectable.init(host, rect)
         self._selectable = true
     elseif Class.isSubclass(nativeBase, WindowBase) then
-        WindowBase.init(host, rect, nil, nil, true)
+        WindowBase.init(host, rect)
     else
         nativeBase.init(host, rect)
     end
@@ -64,7 +60,7 @@ function UiWindow:attach()
         if self.options.list ~= nil then
             local list = assert(self.ui.controls[self.options.list])
             ---@cast list Engine.ListView
-            self.host:setListView(list, self.options.directContent)
+            self.host:setListView(list)
         end
     end
     if self.options.focusable ~= nil then

@@ -155,8 +155,70 @@
                 ]
               }
             ]
+          },
+          {
+            "name": "WindowPauseMark",
+            "controlId": "Project:Parts/Shared/WindowPauseMark",
+            "properties": {},
+            "slot": {
+              "anchors": {
+                "min": [
+                  0.5,
+                  1
+                ],
+                "max": [
+                  0.5,
+                  1
+                ]
+              },
+              "offsets": {
+                "left": 0,
+                "top": 4,
+                "right": 16,
+                "bottom": 16
+              },
+              "alignment": [
+                0.5,
+                1
+              ],
+              "autoSize": false,
+              "zOrder": 100
+            },
+            "editor": {},
+            "children": []
           }
         ]
+      },
+      {
+        "name": "WindowChrome",
+        "controlId": "Project:Parts/Shared/WindowChrome",
+        "properties": {},
+        "slot": {
+          "anchors": {
+            "min": [
+              0.0,
+              0.0
+            ],
+            "max": [
+              1.0,
+              1.0
+            ]
+          },
+          "offsets": {
+            "left": 0.0,
+            "top": 0.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            0.0,
+            0.0
+          ],
+          "autoSize": false,
+          "zOrder": 100
+        },
+        "editor": {},
+        "children": []
       }
     ]
   }

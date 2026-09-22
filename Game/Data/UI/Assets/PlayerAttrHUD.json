@@ -1,8 +1,8 @@
 {
   "type": "uiAsset",
   "designSize": {
-    "width": 144,
-    "height": 388
+    "width": 160,
+    "height": 404
   },
   "palette": {
     "exposed": true,
@@ -14,818 +14,884 @@
     "controlId": "Engine.Canvas",
     "properties": {
       "size": [
-        144,
-        388
+        160,
+        404
       ]
     },
     "editor": {},
     "children": [
       {
-        "name": "Avatar",
-        "controlId": "Engine.Button",
-        "properties": {
-          "texture": "/Game/Assets/Characters/actors/classic-cha-braver01.png",
-          "textureRect": [0, 0, 32, 32],
-          "visible": true,
-          "hoverColour": [
-            238,
-            246,
-            255,
-            255
-          ],
-          "pressedColour": [
-            205,
-            220,
-            238,
-            255
-          ]
-        },
-        "slot": {
-          "anchors": {
-            "min": [
-              0.0,
-              0.0
-            ],
-            "max": [
-              0.0,
-              0.0
-            ]
-          },
-          "offsets": {
-            "left": 0.0,
-            "top": 0.0,
-            "right": 0.0,
-            "bottom": 0.0
-          },
-          "alignment": [
-            0.0,
-            0.0
-          ],
-          "autoSize": true,
-          "zOrder": 0
-        },
-        "editor": {},
-        "children": []
-      },
-      {
-        "name": "MapName",
-        "controlId": "Engine.PlainText",
-        "properties": {
-          "characterSize": 22,
-          "text": ""
-        },
-        "slot": {
-          "anchors": {
-            "min": [
-              0.0,
-              0.0
-            ],
-            "max": [
-              0.0,
-              0.0
-            ]
-          },
-          "offsets": {
-            "left": 32.0,
-            "top": 0.0,
-            "right": 0.0,
-            "bottom": 0.0
-          },
-          "alignment": [
-            0.0,
-            0.0
-          ],
-          "autoSize": true,
-          "zOrder": 1
-        },
-        "editor": {
-          "previewText": "Map Name"
-        },
-        "children": []
-      },
-      {
-        "name": "PlayerName",
-        "controlId": "Engine.PlainText",
-        "properties": {
-          "text": "",
-          "characterSize": 18
-        },
-        "slot": {
-          "anchors": {
-            "min": [
-              0.0,
-              0.0
-            ],
-            "max": [
-              0.0,
-              0.0
-            ]
-          },
-          "offsets": {
-            "left": 0,
-            "top": 32,
-            "right": 144,
-            "bottom": 24
-          },
-          "alignment": [
-            0.0,
-            0.0
-          ],
-          "autoSize": false,
-          "zOrder": 22
-        },
-        "editor": {
-          "previewText": "Player Name"
-        },
-        "children": []
-      },
-      {
-        "name": "Level",
-        "controlId": "Engine.PlainText",
-        "properties": {
-          "characterSize": 18,
-          "text": ""
-        },
-        "slot": {
-          "anchors": {
-            "min": [
-              0.0,
-              0.0
-            ],
-            "max": [
-              0.0,
-              0.0
-            ]
-          },
-          "offsets": {
-            "left": 0.0,
-            "top": 64.0,
-            "right": 0.0,
-            "bottom": 0.0
-          },
-          "alignment": [
-            0.0,
-            0.0
-          ],
-          "autoSize": true,
-          "zOrder": 2
-        },
-        "editor": {
-          "previewText": "Lv. 1"
-        },
-        "children": []
-      },
-      {
-        "name": "StateHost",
+        "name": "HUDContent",
         "controlId": "Engine.Canvas",
         "properties": {
           "size": [
             144,
-            24
+            388
           ]
         },
         "slot": {
           "anchors": {
             "min": [
-              0.0,
-              0.0
+              0,
+              0
             ],
             "max": [
-              1.0,
-              0.0
+              0,
+              0
             ]
           },
           "offsets": {
-            "left": 0.0,
-            "top": 96.0,
-            "right": 0.0,
-            "bottom": 24.0
+            "left": 16,
+            "top": 16,
+            "right": 144,
+            "bottom": 388
           },
           "alignment": [
-            0.0,
-            0.0
+            0,
+            0
           ],
           "autoSize": false,
-          "zOrder": 21
+          "zOrder": 0
         },
         "editor": {},
         "children": [
           {
-            "name": "StateItem1",
-            "controlId": "Project:Parts/PlayerAttrHUD/PlayerStateRow",
-            "properties": {},
+            "name": "Avatar",
+            "controlId": "Engine.Button",
+            "properties": {
+              "texture": "/Game/Assets/Characters/actors/classic-cha-braver01.png",
+              "textureRect": [
+                0,
+                0,
+                32,
+                32
+              ],
+              "visible": true,
+              "hoverColour": [
+                238,
+                246,
+                255,
+                255
+              ],
+              "pressedColour": [
+                205,
+                220,
+                238,
+                255
+              ]
+            },
             "slot": {
               "anchors": {
-                "min": [0.0, 0.0],
-                "max": [0.0, 0.0]
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  0.0,
+                  0.0
+                ]
               },
               "offsets": {
                 "left": 0.0,
                 "top": 0.0,
-                "right": 128.0,
-                "bottom": 24.0
+                "right": 0.0,
+                "bottom": 0.0
               },
-              "alignment": [0.0, 0.0],
-              "autoSize": false,
+              "alignment": [
+                0.0,
+                0.0
+              ],
+              "autoSize": true,
               "zOrder": 0
             },
             "editor": {},
             "children": []
+          },
+          {
+            "name": "MapName",
+            "controlId": "Engine.PlainText",
+            "properties": {
+              "characterSize": 22,
+              "text": ""
+            },
+            "slot": {
+              "anchors": {
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "offsets": {
+                "left": 32.0,
+                "top": 0.0,
+                "right": 0.0,
+                "bottom": 0.0
+              },
+              "alignment": [
+                0.0,
+                0.0
+              ],
+              "autoSize": true,
+              "zOrder": 1
+            },
+            "editor": {
+              "previewText": "Map Name"
+            },
+            "children": []
+          },
+          {
+            "name": "PlayerName",
+            "controlId": "Engine.PlainText",
+            "properties": {
+              "text": "",
+              "characterSize": 18
+            },
+            "slot": {
+              "anchors": {
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "offsets": {
+                "left": 0,
+                "top": 32,
+                "right": 144,
+                "bottom": 24
+              },
+              "alignment": [
+                0.0,
+                0.0
+              ],
+              "autoSize": false,
+              "zOrder": 22
+            },
+            "editor": {
+              "previewText": "Player Name"
+            },
+            "children": []
+          },
+          {
+            "name": "Level",
+            "controlId": "Engine.PlainText",
+            "properties": {
+              "characterSize": 18,
+              "text": ""
+            },
+            "slot": {
+              "anchors": {
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "offsets": {
+                "left": 0.0,
+                "top": 64.0,
+                "right": 0.0,
+                "bottom": 0.0
+              },
+              "alignment": [
+                0.0,
+                0.0
+              ],
+              "autoSize": true,
+              "zOrder": 2
+            },
+            "editor": {
+              "previewText": "Lv. 1"
+            },
+            "children": []
+          },
+          {
+            "name": "StateHost",
+            "controlId": "Engine.Canvas",
+            "properties": {
+              "size": [
+                144,
+                24
+              ]
+            },
+            "slot": {
+              "anchors": {
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  1.0,
+                  0.0
+                ]
+              },
+              "offsets": {
+                "left": 0.0,
+                "top": 96.0,
+                "right": 0.0,
+                "bottom": 24.0
+              },
+              "alignment": [
+                0.0,
+                0.0
+              ],
+              "autoSize": false,
+              "zOrder": 21
+            },
+            "editor": {},
+            "children": [
+              {
+                "name": "StateItem1",
+                "controlId": "Project:Parts/PlayerAttrHUD/PlayerStateRow",
+                "properties": {},
+                "slot": {
+                  "anchors": {
+                    "min": [
+                      0.0,
+                      0.0
+                    ],
+                    "max": [
+                      0.0,
+                      0.0
+                    ]
+                  },
+                  "offsets": {
+                    "left": 0.0,
+                    "top": 0.0,
+                    "right": 128.0,
+                    "bottom": 24.0
+                  },
+                  "alignment": [
+                    0.0,
+                    0.0
+                  ],
+                  "autoSize": false,
+                  "zOrder": 0
+                },
+                "editor": {},
+                "children": []
+              }
+            ]
+          },
+          {
+            "name": "HpBar",
+            "controlId": "Engine.ProgressBar",
+            "properties": {
+              "size": [
+                144.0,
+                8.0
+              ],
+              "progress": 1.0,
+              "backgroundColor": [
+                24,
+                24,
+                24,
+                220
+              ],
+              "fillColor": [
+                0,
+                192,
+                0,
+                255
+              ]
+            },
+            "slot": {
+              "anchors": {
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  1.0,
+                  0.0
+                ]
+              },
+              "offsets": {
+                "left": 0.0,
+                "top": 140.0,
+                "right": 0.0,
+                "bottom": 8.0
+              },
+              "alignment": [
+                0.0,
+                0.0
+              ],
+              "autoSize": false,
+              "zOrder": 4
+            },
+            "editor": {},
+            "children": []
+          },
+          {
+            "name": "HpLabel",
+            "controlId": "Engine.PlainText",
+            "properties": {
+              "characterSize": 18,
+              "text": ""
+            },
+            "slot": {
+              "anchors": {
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "offsets": {
+                "left": 0.0,
+                "top": 132.0,
+                "right": 0.0,
+                "bottom": 0.0
+              },
+              "alignment": [
+                0.0,
+                0.0
+              ],
+              "autoSize": true,
+              "zOrder": 6
+            },
+            "editor": {
+              "previewText": "HP"
+            },
+            "children": []
+          },
+          {
+            "name": "HpValue",
+            "controlId": "Engine.RichText",
+            "properties": {
+              "textConfig": "HUD/HP",
+              "text": ""
+            },
+            "slot": {
+              "anchors": {
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "offsets": {
+                "left": 128.0,
+                "top": 138,
+                "right": 0.0,
+                "bottom": 0.0
+              },
+              "alignment": [
+                1.0,
+                0.5
+              ],
+              "autoSize": true,
+              "zOrder": 7
+            },
+            "editor": {
+              "previewText": "#default#100/#max#100#default#"
+            },
+            "children": []
+          },
+          {
+            "name": "HpPoison",
+            "controlId": "Engine.PlainText",
+            "properties": {
+              "characterSize": 8,
+              "fillColor": [
+                0,
+                192,
+                0,
+                255
+              ],
+              "text": ""
+            },
+            "slot": {
+              "anchors": {
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "offsets": {
+                "left": 130.0,
+                "top": 132.0,
+                "right": 0.0,
+                "bottom": 0.0
+              },
+              "alignment": [
+                0.0,
+                0.0
+              ],
+              "autoSize": true,
+              "zOrder": 8
+            },
+            "editor": {
+              "previewText": "(2)"
+            },
+            "children": []
+          },
+          {
+            "name": "AtkLabel",
+            "controlId": "Engine.PlainText",
+            "properties": {
+              "characterSize": 18,
+              "text": ""
+            },
+            "slot": {
+              "anchors": {
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "offsets": {
+                "left": 0.0,
+                "top": 160.0,
+                "right": 0.0,
+                "bottom": 0.0
+              },
+              "alignment": [
+                0.0,
+                0.0
+              ],
+              "autoSize": true,
+              "zOrder": 9
+            },
+            "editor": {
+              "previewText": "ATK"
+            },
+            "children": []
+          },
+          {
+            "name": "AtkValue",
+            "controlId": "Engine.PlainText",
+            "properties": {
+              "characterSize": 18,
+              "lineAlignment": "right",
+              "text": ""
+            },
+            "slot": {
+              "anchors": {
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "offsets": {
+                "left": 128.0,
+                "top": 160.0,
+                "right": 0.0,
+                "bottom": 0.0
+              },
+              "alignment": [
+                1.0,
+                0.0
+              ],
+              "autoSize": true,
+              "zOrder": 10
+            },
+            "editor": {
+              "previewText": "999"
+            },
+            "children": []
+          },
+          {
+            "name": "AtkDebuff",
+            "controlId": "Engine.PlainText",
+            "properties": {
+              "characterSize": 8,
+              "fillColor": [
+                150,
+                0,
+                220,
+                255
+              ],
+              "text": ""
+            },
+            "slot": {
+              "anchors": {
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "offsets": {
+                "left": 130.0,
+                "top": 160.0,
+                "right": 0.0,
+                "bottom": 0.0
+              },
+              "alignment": [
+                0.0,
+                0.0
+              ],
+              "autoSize": true,
+              "zOrder": 11
+            },
+            "editor": {
+              "previewText": "(-1)"
+            },
+            "children": []
+          },
+          {
+            "name": "DefLabel",
+            "controlId": "Engine.PlainText",
+            "properties": {
+              "characterSize": 18,
+              "text": ""
+            },
+            "slot": {
+              "anchors": {
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "offsets": {
+                "left": 0.0,
+                "top": 192.0,
+                "right": 0.0,
+                "bottom": 0.0
+              },
+              "alignment": [
+                0.0,
+                0.0
+              ],
+              "autoSize": true,
+              "zOrder": 12
+            },
+            "editor": {
+              "previewText": "DEF"
+            },
+            "children": []
+          },
+          {
+            "name": "DefValue",
+            "controlId": "Engine.PlainText",
+            "properties": {
+              "characterSize": 18,
+              "lineAlignment": "right",
+              "text": ""
+            },
+            "slot": {
+              "anchors": {
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "offsets": {
+                "left": 128.0,
+                "top": 192.0,
+                "right": 0.0,
+                "bottom": 0.0
+              },
+              "alignment": [
+                1.0,
+                0.0
+              ],
+              "autoSize": true,
+              "zOrder": 13
+            },
+            "editor": {
+              "previewText": "999"
+            },
+            "children": []
+          },
+          {
+            "name": "DefDebuff",
+            "controlId": "Engine.PlainText",
+            "properties": {
+              "characterSize": 8,
+              "fillColor": [
+                150,
+                0,
+                220,
+                255
+              ],
+              "text": ""
+            },
+            "slot": {
+              "anchors": {
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "offsets": {
+                "left": 130.0,
+                "top": 192.0,
+                "right": 0.0,
+                "bottom": 0.0
+              },
+              "alignment": [
+                0.0,
+                0.0
+              ],
+              "autoSize": true,
+              "zOrder": 14
+            },
+            "editor": {
+              "previewText": "(-1)"
+            },
+            "children": []
+          },
+          {
+            "name": "ExpLabel",
+            "controlId": "Engine.PlainText",
+            "properties": {
+              "characterSize": 18,
+              "text": ""
+            },
+            "slot": {
+              "anchors": {
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "offsets": {
+                "left": 0.0,
+                "top": 256.0,
+                "right": 0.0,
+                "bottom": 0.0
+              },
+              "alignment": [
+                0.0,
+                0.0
+              ],
+              "autoSize": true,
+              "zOrder": 15
+            },
+            "editor": {
+              "previewText": "EXP"
+            },
+            "children": []
+          },
+          {
+            "name": "ExpValue",
+            "controlId": "Engine.PlainText",
+            "properties": {
+              "characterSize": 18,
+              "lineAlignment": "right",
+              "text": ""
+            },
+            "slot": {
+              "anchors": {
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "offsets": {
+                "left": 128.0,
+                "top": 256.0,
+                "right": 0.0,
+                "bottom": 0.0
+              },
+              "alignment": [
+                1.0,
+                0.0
+              ],
+              "autoSize": true,
+              "zOrder": 16
+            },
+            "editor": {
+              "previewText": "999"
+            },
+            "children": []
+          },
+          {
+            "name": "GoldLabel",
+            "controlId": "Engine.PlainText",
+            "properties": {
+              "characterSize": 18,
+              "text": ""
+            },
+            "slot": {
+              "anchors": {
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "offsets": {
+                "left": 0.0,
+                "top": 288.0,
+                "right": 0.0,
+                "bottom": 0.0
+              },
+              "alignment": [
+                0.0,
+                0.0
+              ],
+              "autoSize": true,
+              "zOrder": 17
+            },
+            "editor": {
+              "previewText": "GOLD"
+            },
+            "children": []
+          },
+          {
+            "name": "GoldValue",
+            "controlId": "Engine.PlainText",
+            "properties": {
+              "characterSize": 18,
+              "lineAlignment": "right",
+              "text": ""
+            },
+            "slot": {
+              "anchors": {
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "offsets": {
+                "left": 128.0,
+                "top": 288.0,
+                "right": 0.0,
+                "bottom": 0.0
+              },
+              "alignment": [
+                1.0,
+                0.0
+              ],
+              "autoSize": true,
+              "zOrder": 18
+            },
+            "editor": {
+              "previewText": "999"
+            },
+            "children": []
+          },
+          {
+            "name": "KeyIcon",
+            "controlId": "Engine.Image",
+            "properties": {
+              "texture": "/Game/Assets/System/Keys.png"
+            },
+            "slot": {
+              "anchors": {
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "offsets": {
+                "left": 0.0,
+                "top": 352.0,
+                "right": 0.0,
+                "bottom": 0.0
+              },
+              "alignment": [
+                0.0,
+                0.0
+              ],
+              "autoSize": true,
+              "zOrder": 19
+            },
+            "editor": {},
+            "children": []
+          },
+          {
+            "name": "ItemCounts",
+            "controlId": "Engine.RichText",
+            "properties": {
+              "textConfig": "HUD/Items",
+              "text": ""
+            },
+            "slot": {
+              "anchors": {
+                "min": [
+                  0.0,
+                  0.0
+                ],
+                "max": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "offsets": {
+                "left": 128.0,
+                "top": 368,
+                "right": 0.0,
+                "bottom": 0.0
+              },
+              "alignment": [
+                1.0,
+                0.5
+              ],
+              "autoSize": true,
+              "zOrder": 20
+            },
+            "editor": {
+              "previewText": "#Yellow#01#default#  #Blue#02#default#  #Red#03#default#"
+            },
+            "children": []
           }
         ]
-      },
-      {
-        "name": "HpBar",
-        "controlId": "Engine.ProgressBar",
-        "properties": {
-          "size": [
-            144.0,
-            8.0
-          ],
-          "progress": 1.0,
-          "backgroundColor": [
-            24,
-            24,
-            24,
-            220
-          ],
-          "fillColor": [
-            0,
-            192,
-            0,
-            255
-          ]
-        },
-        "slot": {
-          "anchors": {
-            "min": [
-              0.0,
-              0.0
-            ],
-            "max": [
-              1.0,
-              0.0
-            ]
-          },
-          "offsets": {
-            "left": 0.0,
-            "top": 140.0,
-            "right": 0.0,
-            "bottom": 8.0
-          },
-          "alignment": [
-            0.0,
-            0.0
-          ],
-          "autoSize": false,
-          "zOrder": 4
-        },
-        "editor": {},
-        "children": []
-      },
-      {
-        "name": "HpLabel",
-        "controlId": "Engine.PlainText",
-        "properties": {
-          "characterSize": 18,
-          "text": ""
-        },
-        "slot": {
-          "anchors": {
-            "min": [
-              0.0,
-              0.0
-            ],
-            "max": [
-              0.0,
-              0.0
-            ]
-          },
-          "offsets": {
-            "left": 0.0,
-            "top": 132.0,
-            "right": 0.0,
-            "bottom": 0.0
-          },
-          "alignment": [
-            0.0,
-            0.0
-          ],
-          "autoSize": true,
-          "zOrder": 6
-        },
-        "editor": {
-          "previewText": "HP"
-        },
-        "children": []
-      },
-      {
-        "name": "HpValue",
-        "controlId": "Engine.RichText",
-        "properties": {
-          "textConfig": "HUD/HP",
-          "text": ""
-        },
-        "slot": {
-          "anchors": {
-            "min": [
-              0.0,
-              0.0
-            ],
-            "max": [
-              0.0,
-              0.0
-            ]
-          },
-          "offsets": {
-            "left": 128.0,
-            "top": 132.0,
-            "right": 0.0,
-            "bottom": 0.0
-          },
-          "alignment": [
-            1.0,
-            0.0
-          ],
-          "autoSize": true,
-          "zOrder": 7
-        },
-        "editor": {
-          "previewText": "#default#100/#max#100#default#"
-        },
-        "children": []
-      },
-      {
-        "name": "HpPoison",
-        "controlId": "Engine.PlainText",
-        "properties": {
-          "characterSize": 8,
-          "fillColor": [0, 192, 0, 255],
-          "text": ""
-        },
-        "slot": {
-          "anchors": {
-            "min": [
-              0.0,
-              0.0
-            ],
-            "max": [
-              0.0,
-              0.0
-            ]
-          },
-          "offsets": {
-            "left": 130.0,
-            "top": 132.0,
-            "right": 0.0,
-            "bottom": 0.0
-          },
-          "alignment": [
-            0.0,
-            0.0
-          ],
-          "autoSize": true,
-          "zOrder": 8
-        },
-        "editor": {
-          "previewText": "(2)"
-        },
-        "children": []
-      },
-      {
-        "name": "AtkLabel",
-        "controlId": "Engine.PlainText",
-        "properties": {
-          "characterSize": 18,
-          "text": ""
-        },
-        "slot": {
-          "anchors": {
-            "min": [
-              0.0,
-              0.0
-            ],
-            "max": [
-              0.0,
-              0.0
-            ]
-          },
-          "offsets": {
-            "left": 0.0,
-            "top": 160.0,
-            "right": 0.0,
-            "bottom": 0.0
-          },
-          "alignment": [
-            0.0,
-            0.0
-          ],
-          "autoSize": true,
-          "zOrder": 9
-        },
-        "editor": {
-          "previewText": "ATK"
-        },
-        "children": []
-      },
-      {
-        "name": "AtkValue",
-        "controlId": "Engine.PlainText",
-        "properties": {
-          "characterSize": 18,
-          "lineAlignment": "right",
-          "text": ""
-        },
-        "slot": {
-          "anchors": {
-            "min": [
-              0.0,
-              0.0
-            ],
-            "max": [
-              0.0,
-              0.0
-            ]
-          },
-          "offsets": {
-            "left": 128.0,
-            "top": 160.0,
-            "right": 0.0,
-            "bottom": 0.0
-          },
-          "alignment": [
-            1.0,
-            0.0
-          ],
-          "autoSize": true,
-          "zOrder": 10
-        },
-        "editor": {
-          "previewText": "999"
-        },
-        "children": []
-      },
-      {
-        "name": "AtkDebuff",
-        "controlId": "Engine.PlainText",
-        "properties": {
-          "characterSize": 8,
-          "fillColor": [150, 0, 220, 255],
-          "text": ""
-        },
-        "slot": {
-          "anchors": {
-            "min": [
-              0.0,
-              0.0
-            ],
-            "max": [
-              0.0,
-              0.0
-            ]
-          },
-          "offsets": {
-            "left": 130.0,
-            "top": 160.0,
-            "right": 0.0,
-            "bottom": 0.0
-          },
-          "alignment": [
-            0.0,
-            0.0
-          ],
-          "autoSize": true,
-          "zOrder": 11
-        },
-        "editor": {
-          "previewText": "(-1)"
-        },
-        "children": []
-      },
-      {
-        "name": "DefLabel",
-        "controlId": "Engine.PlainText",
-        "properties": {
-          "characterSize": 18,
-          "text": ""
-        },
-        "slot": {
-          "anchors": {
-            "min": [
-              0.0,
-              0.0
-            ],
-            "max": [
-              0.0,
-              0.0
-            ]
-          },
-          "offsets": {
-            "left": 0.0,
-            "top": 192.0,
-            "right": 0.0,
-            "bottom": 0.0
-          },
-          "alignment": [
-            0.0,
-            0.0
-          ],
-          "autoSize": true,
-          "zOrder": 12
-        },
-        "editor": {
-          "previewText": "DEF"
-        },
-        "children": []
-      },
-      {
-        "name": "DefValue",
-        "controlId": "Engine.PlainText",
-        "properties": {
-          "characterSize": 18,
-          "lineAlignment": "right",
-          "text": ""
-        },
-        "slot": {
-          "anchors": {
-            "min": [
-              0.0,
-              0.0
-            ],
-            "max": [
-              0.0,
-              0.0
-            ]
-          },
-          "offsets": {
-            "left": 128.0,
-            "top": 192.0,
-            "right": 0.0,
-            "bottom": 0.0
-          },
-          "alignment": [
-            1.0,
-            0.0
-          ],
-          "autoSize": true,
-          "zOrder": 13
-        },
-        "editor": {
-          "previewText": "999"
-        },
-        "children": []
-      },
-      {
-        "name": "DefDebuff",
-        "controlId": "Engine.PlainText",
-        "properties": {
-          "characterSize": 8,
-          "fillColor": [150, 0, 220, 255],
-          "text": ""
-        },
-        "slot": {
-          "anchors": {
-            "min": [
-              0.0,
-              0.0
-            ],
-            "max": [
-              0.0,
-              0.0
-            ]
-          },
-          "offsets": {
-            "left": 130.0,
-            "top": 192.0,
-            "right": 0.0,
-            "bottom": 0.0
-          },
-          "alignment": [
-            0.0,
-            0.0
-          ],
-          "autoSize": true,
-          "zOrder": 14
-        },
-        "editor": {
-          "previewText": "(-1)"
-        },
-        "children": []
-      },
-      {
-        "name": "ExpLabel",
-        "controlId": "Engine.PlainText",
-        "properties": {
-          "characterSize": 18,
-          "text": ""
-        },
-        "slot": {
-          "anchors": {
-            "min": [
-              0.0,
-              0.0
-            ],
-            "max": [
-              0.0,
-              0.0
-            ]
-          },
-          "offsets": {
-            "left": 0.0,
-            "top": 256.0,
-            "right": 0.0,
-            "bottom": 0.0
-          },
-          "alignment": [
-            0.0,
-            0.0
-          ],
-          "autoSize": true,
-          "zOrder": 15
-        },
-        "editor": {
-          "previewText": "EXP"
-        },
-        "children": []
-      },
-      {
-        "name": "ExpValue",
-        "controlId": "Engine.PlainText",
-        "properties": {
-          "characterSize": 18,
-          "lineAlignment": "right",
-          "text": ""
-        },
-        "slot": {
-          "anchors": {
-            "min": [
-              0.0,
-              0.0
-            ],
-            "max": [
-              0.0,
-              0.0
-            ]
-          },
-          "offsets": {
-            "left": 128.0,
-            "top": 256.0,
-            "right": 0.0,
-            "bottom": 0.0
-          },
-          "alignment": [
-            1.0,
-            0.0
-          ],
-          "autoSize": true,
-          "zOrder": 16
-        },
-        "editor": {
-          "previewText": "999"
-        },
-        "children": []
-      },
-      {
-        "name": "GoldLabel",
-        "controlId": "Engine.PlainText",
-        "properties": {
-          "characterSize": 18,
-          "text": ""
-        },
-        "slot": {
-          "anchors": {
-            "min": [
-              0.0,
-              0.0
-            ],
-            "max": [
-              0.0,
-              0.0
-            ]
-          },
-          "offsets": {
-            "left": 0.0,
-            "top": 288.0,
-            "right": 0.0,
-            "bottom": 0.0
-          },
-          "alignment": [
-            0.0,
-            0.0
-          ],
-          "autoSize": true,
-          "zOrder": 17
-        },
-        "editor": {
-          "previewText": "GOLD"
-        },
-        "children": []
-      },
-      {
-        "name": "GoldValue",
-        "controlId": "Engine.PlainText",
-        "properties": {
-          "characterSize": 18,
-          "lineAlignment": "right",
-          "text": ""
-        },
-        "slot": {
-          "anchors": {
-            "min": [
-              0.0,
-              0.0
-            ],
-            "max": [
-              0.0,
-              0.0
-            ]
-          },
-          "offsets": {
-            "left": 128.0,
-            "top": 288.0,
-            "right": 0.0,
-            "bottom": 0.0
-          },
-          "alignment": [
-            1.0,
-            0.0
-          ],
-          "autoSize": true,
-          "zOrder": 18
-        },
-        "editor": {
-          "previewText": "999"
-        },
-        "children": []
-      },
-      {
-        "name": "KeyIcon",
-        "controlId": "Engine.Image",
-        "properties": {
-          "texture": "/Game/Assets/System/Keys.png"
-        },
-        "slot": {
-          "anchors": {
-            "min": [
-              0.0,
-              0.0
-            ],
-            "max": [
-              0.0,
-              0.0
-            ]
-          },
-          "offsets": {
-            "left": 0.0,
-            "top": 352.0,
-            "right": 0.0,
-            "bottom": 0.0
-          },
-          "alignment": [
-            0.0,
-            0.0
-          ],
-          "autoSize": true,
-          "zOrder": 19
-        },
-        "editor": {},
-        "children": []
-      },
-      {
-        "name": "ItemCounts",
-        "controlId": "Engine.RichText",
-        "properties": {
-          "textConfig": "HUD/Items",
-          "text": ""
-        },
-        "slot": {
-          "anchors": {
-            "min": [
-              0.0,
-              0.0
-            ],
-            "max": [
-              0.0,
-              0.0
-            ]
-          },
-          "offsets": {
-            "left": 128.0,
-            "top": 352.0,
-            "right": 0.0,
-            "bottom": 0.0
-          },
-          "alignment": [
-            1.0,
-            0.0
-          ],
-          "autoSize": true,
-          "zOrder": 20
-        },
-        "editor": {
-          "previewText": "#Yellow#01#default#  #Blue#02#default#  #Red#03#default#"
-        },
-        "children": []
       }
     ]
   }

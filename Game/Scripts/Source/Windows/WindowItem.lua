@@ -29,30 +29,19 @@ end
 ---@class Source.Windows.WindowItem.Controller
 local Controller = {}
 
-Controller.windowOptions = {
-    position = sf.Vector2f.new(192, 0),
-    hidden = true,
-    returnButton = true,
-    list = "ItemList",
-    scroll = "ItemScrollBox",
-    itemWidth = 32,
-    itemHeight = 32
-}
+Controller.windowOptions = { hidden = true, returnButton = true, list = "ItemList", scroll = "ItemScrollBox" }
 
 function Controller:init(player, onClose)
     self._onCloseCallback = onClose
     self._onUseCallback = nil
     self._player = player
-    self._logicalSize = nil
     self._itemList = {}
     self._lastDescIndex = nil
-    self._descMaxWidth = 1
-    self._transitionProfile = WindowTransition.MENU
+    self._transitionProfile = WindowTransition.DEFAULT
     self._rows = self:createCollection(self.ui.controls["ItemList"], ItemRowController)
 end
 
 function Controller:ready()
-    self:_updateLayout()
     self:refreshItems()
 end
 
@@ -65,11 +54,11 @@ function Controller:onTick(deltaTime)
     self:tick()
 end
 
-function Controller:open(transitionProfile)
-    self._transitionProfile = transitionProfile or WindowTransition.MENU
+function Controller:open(transitionProfile, dockPosition)
+    self._transitionProfile = transitionProfile or WindowTransition.DEFAULT
     local size = self.ui.root:getSize()
     if self._transitionProfile == WindowTransition.MENU then
-        self.host:setPosition(UiLayout.GetMenuDockPosition())
+        self.host:setPosition(assert(dockPosition, "Menu windows require a dock position"))
     else
         self.host:setPosition(UiLayout.GetCenteredPosition(size.x, size.y))
     end
@@ -124,7 +113,6 @@ function Controller:refresh()
 end
 
 function Controller:refreshItems()
-    self:_updateLayout()
     self._rows:clear()
     local itemData = Data.GetAllGeneralItemData()
     local playerItems = self:getPlayer():getItems()
@@ -142,17 +130,14 @@ function Controller:refreshItems()
         if cost == nil then
             cost = true
         end
-        local rowSize = sf.Vector2u.new(32, 32)
-        ---@cast rowSize sf.Vector2u
         local rowUI = self._rows:add({
             iconTexture = IconTexture.Load(member.icon or ""),
             usable = usable,
             cost = cost,
             count = count
-        }, rowSize)
+        })
         local cell = rowUI.ui.root
         cell:addConfirmCallback(self:bindCallback(Controller.useSelectedItem))
-        self.host:applyItem(cell)
     end
     self._rows:layout()
     self.host:resetSelection()
@@ -168,12 +153,14 @@ function Controller:tick()
 end
 
 function Controller:wrapDescription(text)
-    return TextLayout.wrapPlainText(text, self._descMaxWidth, self.ui.controls["Description"])
+    return TextLayout.wrapPlainText(
+        text, self.ui.controls["DescriptionArea"]:getSize().x, self.ui.controls["Description"]
+    )
 end
 
 function Controller:updateDescription()
     self:_assignDescription()
-    self.view:reflow(self._logicalSize)
+    self.view:reflow()
 end
 
 function Controller:useSelectedItem()
@@ -198,17 +185,6 @@ end
 function Controller:closeByCancel()
     AudioManager.playSound(GameSystem.GetCancelSE())
     self:close(self:bindCallback(Controller.notifyClosed))
-end
-
-function Controller:_updateLayout()
-    local windowSize = self.host:getSize()
-    local contentWidth = math.max(1, math.floor(windowSize.x - 32))
-    local contentHeight = math.max(1, math.floor(windowSize.y - 96))
-    self._descMaxWidth = contentWidth
-    self.ui.controls["ItemScrollBox"]:resize(sf.Vector2f.new(contentWidth, contentHeight))
-    local size = sf.Vector2i.new(contentWidth, contentHeight)
-    ---@cast size sf.Vector2i
-    self.ui.controls["ItemList"]:setSize(size)
 end
 
 function Controller:_assignDescription()

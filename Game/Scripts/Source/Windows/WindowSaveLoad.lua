@@ -21,7 +21,7 @@ local CLOSE_REASON_LOADED = "loaded"
 ---@class Source.Windows.WindowSaveLoad.Controller
 local Controller = {}
 
-Controller.windowOptions = { position = sf.Vector2f.new(192, 0), hidden = true }
+Controller.windowOptions = { hidden = true }
 
 function Controller:init(loadOnly, getSaveSource, onClose, onLoaded)
     self._loadOnly = loadOnly == true
@@ -82,7 +82,7 @@ function Controller:setVisible(visible)
     self._detailWindow:setVisible(visible)
 end
 
-function Controller:open(transitionProfile, initialMode)
+function Controller:open(transitionProfile, initialMode, dockPosition)
     self._openClock:restart()
     self._reportedOpen = false
     self._opening = true
@@ -109,7 +109,7 @@ function Controller:open(transitionProfile, initialMode)
     if not self._loadOnly then
         local size = self.ui.root:getSize()
         if self._transitionProfile == WindowTransition.MENU then
-            self.host:setPosition(UiLayout.GetMenuDockPosition())
+            self.host:setPosition(assert(dockPosition, "Menu windows require a dock position"))
         else
             self.host:setPosition(UiLayout.GetCenteredPosition(size.x, size.y))
         end

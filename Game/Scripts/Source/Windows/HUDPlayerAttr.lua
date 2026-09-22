@@ -24,19 +24,6 @@ local createSignature = tuple
 ---@cast createStateSignature fun(values: string[]): tuple<string>
 ---@cast createSignature fun(...: any): tuple<any>
 
-local _AVATAR_MIN_SIZE = 32
-local _FONT_SIZE = 18
-local _STATE_ICON_SIZE = 16
-local _STATE_GAP = 4
-local _ROW_SHIFT = 64
-local _HEADER_ROW_Y = 0
-local _HP_ROW_Y = 68 + _ROW_SHIFT
-local _HP_TEXT_LAYOUT_HEIGHT = 12
-local _STAT_VALUE_X = 128
-local _DEBUFF_TEXT_OFFSET_X = 2
-local _KEY_ROW_Y = 288 + _ROW_SHIFT
-local _KEY_ICON_HEIGHT = 32
-
 local function getStateSignature(states)
     ---@type string[]
     local stateIDs = {}
@@ -65,21 +52,14 @@ end
 ---@class Source.Windows.PlayerAttrHUD.Controller
 local Controller = {}
 
-Controller.windowOptions = { position = sf.Vector2f.new(16, 16) }
-
-Controller.refreshEvents = {
-    EventKeys.LocaleChanged,
-    EventKeys.AbilitySystemChanged,
-    EventKeys.PlayerChanged
-}
+Controller.refreshEvents = { EventKeys.LocaleChanged, EventKeys.AbilitySystemChanged, EventKeys.PlayerChanged }
 
 function Controller:init(player, openMenuCallback)
     self._player = player
     self._openMenuCallback = openMenuCallback
     self._avatarTexture = nil
     self._avatarRect = nil
-    self._avatarSize = _AVATAR_MIN_SIZE
-    self._infoStartX = _AVATAR_MIN_SIZE
+    self._avatarOffset = 0
     self._stateSignature = nil
     self._stateDisplaySignature = nil
     self._language = ""
@@ -131,8 +111,8 @@ function Controller:_initialiseAvatar(player)
     local avatarRect = sf.IntRect.new(0, 0, frameWidth, frameHeight)
     ---@cast avatarRect sf.IntRect
     self._avatarRect = avatarRect
-    self._avatarSize = math.max(self._avatarSize, frameSize)
-    self._infoStartX = math.max(self._infoStartX, self._avatarSize)
+    local authoredSize = self.ui.controls["Avatar"]:getLocalBounds().size
+    self._avatarOffset = math.max(0, frameSize - math.min(authoredSize.x, authoredSize.y))
 end
 
 function Controller:bind()
@@ -155,7 +135,7 @@ function Controller:_rebuildStateRows(states, signature)
     self._stateDisplaySignature = nil
     self._stateSignature = signature
     for _ in ipairs(states) do
-        self._states:add({ iconSize = _STATE_ICON_SIZE, iconTexture = nil, name = "" })
+        self._states:add({ iconTexture = nil, name = "" })
     end
 end
 
@@ -170,8 +150,8 @@ function Controller:_updateStateRows(states)
         row.model.iconTexture = texture
         row.model.name = state.name
         local rowRoot = row:prepare()
-        rowRoot:setPosition(sf.Vector2f.new(x, 0.0))
-        x = x + row:getWidth() + _STATE_GAP
+        rowRoot:setPosition(sf.Vector2f.new(x, rowRoot:getPosition().y))
+        x = x + row:getWidth()
     end
 end
 
@@ -214,7 +194,9 @@ function Controller:refresh()
         self:setText("MapName", LOC(tostring(mapName)))
         self:setText(
             "PlayerName",
-            Engine.TextLayout.fitPlainText(playerName, self.root:getSize().x, self.ui.controls["PlayerName"])
+            Engine.TextLayout.fitPlainText(
+                playerName, self.ui.controls["HUDContent"]:getSize().x, self.ui.controls["PlayerName"]
+            )
         )
         self:setText("HpLabel", LOC("HP"))
         self:setText("AtkLabel", LOC("ATK"))
@@ -297,35 +279,32 @@ function Controller:refresh()
     end
     if layoutDirty then
         self.view:reflow()
-        self:_applyGeometry()
+        self:_applyContentLayout()
     end
 end
 
-function Controller:_applyGeometry()
-    self.ui.controls["MapName"]:setPosition(sf.Vector2f.new(self._infoStartX, _HEADER_ROW_Y))
-    self.ui.controls["PlayerName"]:setPosition(sf.Vector2f.new(0.0, self._avatarSize))
-    self.ui.controls["Level"]:setPosition(sf.Vector2f.new(0.0, self._avatarSize + 32))
-    self.ui.controls["StateHost"]:setPosition(sf.Vector2f.new(0.0, self._avatarSize + _ROW_SHIFT))
-
-    local hpBounds = self.ui.controls["HpValue"]:getLocalBounds()
-    local textY = _HP_ROW_Y + (_HP_TEXT_LAYOUT_HEIGHT - hpBounds.size.y) / 2.0 - hpBounds.position.y
-    local textX = _STAT_VALUE_X - hpBounds.size.x - hpBounds.position.x
-    self.ui.controls["HpLabel"]:setPosition(sf.Vector2f.new(0.0, textY))
-    self.ui.controls["HpValue"]:setPosition(sf.Vector2f.new(textX, textY))
-    self.ui.controls["HpPoison"]:setPosition(sf.Vector2f.new(_STAT_VALUE_X + _DEBUFF_TEXT_OFFSET_X, textY))
-
-    local itemBounds = self.ui.controls["ItemCounts"]:getLocalBounds()
-    local itemX = _STAT_VALUE_X - itemBounds.size.x - itemBounds.position.x
-    local keyRowHeight = math.max(_FONT_SIZE, _KEY_ICON_HEIGHT)
-    local itemY = _KEY_ROW_Y + (keyRowHeight - itemBounds.size.y) / 2.0 - itemBounds.position.y
-    self.ui.controls["ItemCounts"]:setPosition(sf.Vector2f.new(itemX, itemY))
-    local iconY = _KEY_ROW_Y + (keyRowHeight - _KEY_ICON_HEIGHT) / 2.0
-    self.ui.controls["KeyIcon"]:setPosition(sf.Vector2f.new(0.0, iconY))
+function Controller:_applyContentLayout()
+    local hpPosition = self.ui.controls["HpValue"]:getPosition()
+    for _, name in ipairs({ "HpLabel", "HpPoison" }) do
+        local control = self.ui.controls[name]
+        local position = control:getPosition()
+        control:setPosition(sf.Vector2f.new(position.x, hpPosition.y))
+    end
+    if self._avatarOffset <= 0 then
+        return
+    end
+    local mapPosition = self.ui.controls["MapName"]:getPosition()
+    self.ui.controls["MapName"]:setPosition(sf.Vector2f.new(mapPosition.x + self._avatarOffset, mapPosition.y))
+    for _, name in ipairs({ "PlayerName", "Level", "StateHost" }) do
+        local control = self.ui.controls[name]
+        local position = control:getPosition()
+        control:setPosition(sf.Vector2f.new(position.x, position.y + self._avatarOffset))
+    end
 end
 
 function Controller:prepare(logicalSize)
     local root = super(Controller, self).prepare(logicalSize)
-    self:_applyGeometry()
+    self:_applyContentLayout()
     return root
 end
 

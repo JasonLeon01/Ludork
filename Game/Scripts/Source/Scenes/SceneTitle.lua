@@ -55,7 +55,6 @@ function Scene:onCreate()
         window:mount(assert(self:getUIManager()))
         return window
     end)
-    uiManager:loadUI(self._windowCommand)
     self._windowCommand:setActive(false)
     self._ui:playAnimation("FadeIn", "CommandPanel", function ()
         self._windowCommand:setActive(true)

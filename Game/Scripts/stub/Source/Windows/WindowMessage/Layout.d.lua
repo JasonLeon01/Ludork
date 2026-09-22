@@ -10,10 +10,10 @@ function WindowMessageLayout.NormaliseText(text) end
 ---@return integer
 function WindowMessageLayout.GetTextLineHeight(bounds) end
 
----@param text          string
----@param maxWidth      number
----@param textConfigKey string
+---@param text     string
+---@param maxWidth number
+---@param control  Engine.RichText
 ---@return string
-function WindowMessageLayout.WrapMessage(text, maxWidth, textConfigKey) end
+function WindowMessageLayout.WrapMessage(text, maxWidth, control) end
 
 return WindowMessageLayout

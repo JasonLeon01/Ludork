@@ -332,17 +332,24 @@ void UiControlAdapterRegistry::BuilderImpl::registerSkinnedAdapters(
     window.factory = [](const UiControlProperties& properties) {
         const sf::Vector2u size =
             vector2uProperty(properties, "size", {160u, 96u});
-        return std::make_shared<Window>(
+        auto window = std::make_shared<Window>(
             sf::IntRect({0, 0},
                         {static_cast<int>(size.x), static_cast<int>(size.y)}),
             loadWindowSkin(stringProperty(properties, "windowSkin")),
             boolProperty(properties, "repeated", false));
+        window->setColour(
+            colorProperty(properties, "colour", sf::Color::White));
+        return window;
     };
     window.setter = [](ControlBase& control, const std::string& propertyId,
                        const UiControlPropertyValue& value) {
         Window& window = requireControlType<Window>(control, "Engine.Window");
         if (propertyId == "size") {
             window.resize(requireVector2u(value, "size"));
+            return;
+        }
+        if (propertyId == "colour") {
+            window.setColour(requireColor(value, "colour"));
             return;
         }
         throw std::invalid_argument(propertyId +

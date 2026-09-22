@@ -101,10 +101,9 @@
             ]
           },
           {
-            "nodeFunction": "NodeFunctions.Utils.GetAttr",
+            "nodeFunction": "Engine.Actor.getMapTag",
             "params": [
-              "",
-              "tag"
+              null
             ],
             "pos": [
               -720,

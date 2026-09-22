@@ -1,7 +1,7 @@
 {
   "type": "uiAsset",
   "designSize": {
-    "width": 132,
+    "width": 128,
     "height": 32
   },
   "palette": {
@@ -14,7 +14,7 @@
     "controlId": "Engine.Canvas",
     "properties": {
       "size": [
-        132,
+        128,
         32
       ]
     },

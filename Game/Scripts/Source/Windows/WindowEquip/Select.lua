@@ -4,7 +4,6 @@ local GameSystem = require("Source.System")
 local IconTexture = require("Source.UIBase.IconTexture")
 local EquipItemRowController = require("Source.Windows.WindowEquip.EquipItemRow.Controller")
 local Ui = require("Source.UIBase.Ui")
-local UiLayout = require("Source.UIBase.UiLayout")
 local View = require("Source.UI.Parts.WindowEquip.WindowEquipSelect")
 local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
 
@@ -13,16 +12,7 @@ local AudioManager = GlobalCore.AudioManager
 ---@class Source.Windows.WindowEquipSelect.Controller
 local Controller = {}
 
-Controller.windowOptions = {
-    returnButton = true,
-    hidden = true,
-    itemWidth = 32,
-    itemHeight = 32,
-    list = "SelectList",
-    scroll = "SelectScrollBox"
-}
-
-Controller.CELL_SIZE = 32
+Controller.windowOptions = { returnButton = true, hidden = true, list = "SelectList", scroll = "SelectScrollBox" }
 
 Controller.UNEQUIP = {}
 
@@ -38,14 +28,8 @@ function Controller:init(player, windowEquipSlot, windowEquipStatus, onEquip)
     self._rows = self:createCollection(self.ui.controls["SelectList"], EquipItemRowController)
 end
 
-function Controller:ready()
-    self:_updateLayout()
-    self:refreshListLayout()
-end
-
 function Controller:refreshForSlot(slotKey)
     self._slotKey = slotKey
-    self:_updateLayout()
     self._rows:clear()
     local equipData = Data.GetAllGeneralEquipData()
     local playerEquips = self._player:getEquips()
@@ -71,17 +55,14 @@ function Controller:refreshForSlot(slotKey)
             iconTexture = IconTexture.Load(member.icon or "")
             count = self._equipCounts[entry] or 1
         end
-        local rowSize = sf.Vector2u.new(Controller.CELL_SIZE, Controller.CELL_SIZE)
-        ---@cast rowSize sf.Vector2u
         local rowUI = self._rows:add({
             iconTexture = iconTexture,
             count = count
-        }, rowSize)
+        })
         local cell = rowUI.ui.root
         cell:addConfirmCallback(self:bindCallback(Controller.onConfirmAction))
-        self.host:applyItem(cell)
     end
-    self:refreshListLayout()
+    self._rows:layout()
     self.host:setListView(self.ui.controls["SelectList"])
     self.host:resetSelection()
     self._lastStatusIndex = nil
@@ -115,11 +96,6 @@ function Controller:updateStatus()
     else
         self._windowEquipStatus:refreshForEquip(self._slotKey, self._equipList[self.host.index + 1], false)
     end
-end
-
----@diagnostic disable-next-line: unused
-function Controller:getGridColumns(contentWidth)
-    return math.max(1, math.floor(contentWidth / Controller.CELL_SIZE))
 end
 
 function Controller:returnToSlotWindow(playSE)
@@ -178,18 +154,6 @@ function Controller:onConfirmAction()
     end
 end
 
-function Controller:_updateLayout()
-    local windowSize = self.host:getSize()
-    local contentWidth = math.max(1, math.floor(windowSize.x - 32))
-    local contentHeight = math.max(1, math.floor(windowSize.y - 32))
-    UiLayout.ResizeCanvas(self.host.content, contentWidth, contentHeight)
-    local logicalSize = sf.Vector2u.new(contentWidth, contentHeight)
-    ---@cast logicalSize sf.Vector2u
-    self._logicalSize = logicalSize
-    self._columns = self:getGridColumns(contentWidth)
-    self.ui.controls["SelectList"]:setColumns(self._columns)
-end
-
 function Controller:setPlayer(player)
     self._player = player
 end
@@ -200,14 +164,6 @@ end
 
 function Controller:setEquipSlotWindow(windowEquipSlot)
     self._windowEquipSlot = windowEquipSlot
-end
-
-function Controller:refreshListLayout()
-    local size = sf.Vector2i.new(math.floor(self._logicalSize.x), math.floor(self._logicalSize.y))
-    ---@cast size sf.Vector2i
-    self.ui.controls["SelectList"]:setSize(size)
-    self.ui.controls["SelectList"]:setColumns(self._columns or 1)
-    self._rows:layout()
 end
 
 return Ui.DefineWindow(View, Controller, WindowSelectable)
