@@ -1,22 +1,41 @@
-## 改动目的 / Purpose
+<!--
+Thanks for contributing to Ludork!
 
-<!-- 描述解决的问题和改动后的行为。Describe the problem and resulting behavior. -->
+Before opening this pull request, please check the following where applicable:
+- Has this change been discussed in an issue?
+- Does the code follow the repository's contribution and coding conventions?
+- Have relevant API, data, generated output, and documentation changes been included?
+- Are any remaining steps listed as tasks below?
+-->
 
-## 影响范围 / Affected areas
+## Description
 
-- [ ] Engine / native templates
-- [ ] Editor / Avalonia
-- [ ] Scripts / Lua
-- [ ] 其他 / Other
+<!-- Describe the problem and resulting behavior. -->
 
-<!-- CI 按实际文件差异独立选择验证，勾选不会控制 CI；命中的验证必须全部通过。
-CI selects checks independently from the actual diff; these boxes do not control CI. All selected checks must pass. -->
+## Fixed issues (if any)
 
-## 验证结果 / Validation
+<!--
+Complete the line below with an issue number (for example, Fixes #123), or remove it if none.
+Use a separate Fixes #... line for each issue. GitHub automatically closes these issues
+when this PR is merged into the default branch.
+-->
 
-<!-- 写明运行的检查、结果及未验证项。List checks, results, and anything unverified. -->
+Fixes #
 
-## 兼容性 / Compatibility
+## Tasks
 
-<!-- 说明 API、数据、生成文件或文档变化；不涉及则写“无 / None”。
-Describe API, data, generated output, or documentation changes; otherwise write None. -->
+<!-- Keep applicable platforms and add any remaining tasks. Check only what you have verified. -->
+
+- [ ] Tested on Windows
+- [ ] Tested on macOS
+- [ ] Tested on Linux
+- [ ] Tested on iOS
+- [ ] Tested on Android
+
+## How to test this PR?
+
+<!--
+Describe the setup, steps, and expected results needed to verify these changes.
+Include a minimal example or sample project when useful.
+List checks already run, their results, and anything still unverified.
+-->
