@@ -77,6 +77,8 @@ public sealed record ProjectPackOptions(
     bool EncryptSaves,
     bool UseLdPak)
 {
+    public string Version { get; init; } = "1.0.0";
+    public bool Dev { get; init; }
     public bool ExportToIPhone { get; init; }
     public bool ExportToHarmonyDevice { get; init; }
     public HarmonyDeviceForm HarmonyDeviceForm { get; init; } =
@@ -145,9 +147,9 @@ public sealed class ProjectPackService
         if (optionsFailure is not null)
             return optionsFailure;
 
-        ProjectPackResult? appNameFailure = await validateAppNameAsync(cancellationToken);
-        if (appNameFailure is not null)
-            return appNameFailure;
+        ProjectPackResult? metadataFailure = await validatePackageMetadataAsync(options, cancellationToken);
+        if (metadataFailure is not null)
+            return metadataFailure;
 
         string? scriptName = GetScriptName(options.Platform);
         if (scriptName is null)
@@ -201,6 +203,7 @@ public sealed class ProjectPackService
                 harmonyGraphicsApi,
                 androidSigning,
                 packaging,
+                options,
                 cancellationToken);
             ProjectPackResult? preflightFailure = executionFailure(preflight, options.Platform);
             if (preflightFailure is not null)
@@ -250,6 +253,7 @@ public sealed class ProjectPackService
                 harmonyGraphicsApi,
                 androidSigning,
                 packaging,
+                options,
                 cancellationToken);
             ProjectPackResult? buildPreflightFailure = executionFailure(
                 buildPreflight,
@@ -272,6 +276,7 @@ public sealed class ProjectPackService
             harmonyGraphicsApi,
             androidSigning,
             packaging,
+            options,
             cancellationToken);
         return executionFailure(execution, options.Platform)
             ?? ProjectPackResult.Completed();
@@ -398,6 +403,7 @@ public sealed class ProjectPackService
         HarmonyGraphicsApi? harmonyGraphicsApi,
         AndroidSigningOptions? androidSigning,
         ProjectPackaging packaging,
+        ProjectPackOptions options,
         CancellationToken cancellationToken)
     {
         ProcessStartInfo startInfo = createStartInfo(
@@ -413,11 +419,14 @@ public sealed class ProjectPackService
             harmonyDeviceForm,
             harmonyGraphicsApi,
             androidSigning,
-            packaging);
+            packaging,
+            options);
         using Process process = createProcess(startInfo);
         Task outputTask = Task.CompletedTask;
         Task errorTask = Task.CompletedTask;
-        string optionText = (useLuac ? " --compile-lua" : string.Empty)
+        string optionText = " --version " + options.Version
+            + (options.Dev ? " --dev" : " --release")
+            + (useLuac ? " --compile-lua" : string.Empty)
             + (encryptShaders ? " --encrypt-shaders" : string.Empty)
             + (encryptData ? " --encrypt-data" : string.Empty)
             + (encryptSaves ? " --encrypt-saves" : string.Empty)
@@ -536,72 +545,34 @@ public sealed class ProjectPackService
             execution.ExitCode.ToString());
     }
 
-    private async Task<ProjectPackResult?> validateAppNameAsync(CancellationToken cancellationToken)
+    private async Task<ProjectPackResult?> validatePackageMetadataAsync(
+        ProjectPackOptions options,
+        CancellationToken cancellationToken)
     {
-        string entryPath = Path.Combine(projectPath, "Scripts", "Entry.lua");
-        if (!File.Exists(entryPath))
-            return ProjectPackResult.Failed(ProjectPackFailure.ProjectInvalid, entryPath);
-        if (cancellationToken.IsCancellationRequested)
-            return ProjectPackResult.Failed(ProjectPackFailure.Cancelled, string.Empty);
-
-        string? toolPath = EditorRuntimePaths.FindScriptTools();
-        if (toolPath is null)
-        {
-            return ProjectPackResult.Failed(
-                ProjectPackFailure.ScriptMissing,
-                "ScriptTools was not found in the editor installation.");
-        }
-        ProcessStartInfo startInfo = new()
-        {
-            FileName = toolPath,
-            WorkingDirectory = projectPath,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            StandardOutputEncoding = utf8,
-            StandardErrorEncoding = utf8,
-        };
-        startInfo.ArgumentList.Add("packaging-constants");
-        startInfo.ArgumentList.Add("check-app-name");
-        startInfo.ArgumentList.Add(projectPath);
-        startInfo.Environment["PYTHONUTF8"] = "1";
-        startInfo.Environment["PYTHONIOENCODING"] = "utf-8";
-        using Process process = createProcess(startInfo);
+        ProjectPackageMetadataResult result;
         try
         {
-            if (!process.Start())
-                return ProjectPackResult.Failed(ProjectPackFailure.LaunchFailed, toolPath);
-            Task<string> output = process.StandardOutput.ReadToEndAsync();
-            Task<string> error = process.StandardError.ReadToEndAsync();
-            using CancellationTokenRegistration registration = cancellationToken.Register(() => stopProcess(process));
-            await process.WaitForExitAsync().ConfigureAwait(false);
-            string outputText = (await output.ConfigureAwait(false)).Trim();
-            string errorText = (await error.ConfigureAwait(false)).Trim();
-            if (cancellationToken.IsCancellationRequested)
-                return ProjectPackResult.Failed(ProjectPackFailure.Cancelled, string.Empty);
-            if (outputText.Length != 0)
-                writeOutput(outputText);
-            if (errorText.Length != 0)
-                writeOutput(errorText);
-            if (process.ExitCode == 0)
-                return null;
-            string detail = errorText.Length != 0
-                ? errorText
-                : outputText.Length != 0 ? outputText : entryPath;
-            return ProjectPackResult.Failed(
-                process.ExitCode == ProjectToolConstants.AppNameUnchangedExitCode
-                    ? ProjectPackFailure.AppNameUnchanged
-                    : ProjectPackFailure.ProjectInvalid,
-                detail);
+            result = await ProjectPackageMetadataService.ExecuteAsync(
+                "check-package-metadata", projectPath, options.Version, options.Dev, cancellationToken);
         }
-        catch (Exception exception) when (exception is Win32Exception or IOException or InvalidOperationException)
+        catch (OperationCanceledException)
         {
-            stopProcess(process);
-            return cancellationToken.IsCancellationRequested
-                ? ProjectPackResult.Failed(ProjectPackFailure.Cancelled, string.Empty)
-                : ProjectPackResult.Failed(ProjectPackFailure.LaunchFailed, exception.Message);
+            return ProjectPackResult.Failed(ProjectPackFailure.Cancelled, string.Empty);
         }
+        if (result.Output.Length != 0)
+            writeOutput(result.Output);
+        if (result.Error.Length != 0)
+            writeOutput(result.Error);
+        if (result.ExitCode == 0)
+            return null;
+        ProjectPackFailure failure = result.ExitCode switch
+        {
+            ProjectToolConstants.AppNameUnchangedExitCode => ProjectPackFailure.AppNameUnchanged,
+            -1 => ProjectPackFailure.LaunchFailed,
+            _ => ProjectPackFailure.ProjectInvalid,
+        };
+        return ProjectPackResult.Failed(failure,
+            result.Error.Length != 0 ? result.Error : result.Output);
     }
 
     private ProcessStartInfo createStartInfo(
@@ -617,7 +588,8 @@ public sealed class ProjectPackService
         HarmonyDeviceForm? harmonyDeviceForm,
         HarmonyGraphicsApi? harmonyGraphicsApi,
         AndroidSigningOptions? androidSigning,
-        ProjectPackaging packaging)
+        ProjectPackaging packaging,
+        ProjectPackOptions options)
     {
         ProcessStartInfo startInfo = new()
         {
@@ -656,6 +628,9 @@ public sealed class ProjectPackService
             startInfo.ArgumentList.Add("call");
         }
         startInfo.ArgumentList.Add(Path.GetFullPath(scriptPath));
+        startInfo.ArgumentList.Add("--version");
+        startInfo.ArgumentList.Add(options.Version);
+        startInfo.ArgumentList.Add(options.Dev ? "--dev" : "--release");
         if (checkOnly)
             startInfo.ArgumentList.Add("--check");
         if (useLuac)

@@ -1,8 +1,13 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Platform;
 using Ludork.Services;
+using Ludork.Views.Utils;
 using System;
 using System.IO;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Ludork.Views;
 
@@ -12,14 +17,37 @@ public partial class PackSelectionDialog : Window
     private const string DevEcoStudioPath = "/Applications/DevEco-Studio.app";
     private const string DevEcoStudioEnvironment = "LUDORK_DEVECO_STUDIO";
     private bool? encryptionOptionsState;
+    private readonly ProjectConfigService? projectConfig;
+    private CancellationTokenSource? previewCancellation;
+    private int previewGeneration;
+    private bool closed;
 
-    public PackSelectionDialog() : this(true)
+    public PackSelectionDialog() : this(null)
     {
     }
 
-    public PackSelectionDialog(bool isStandalone)
+    public PackSelectionDialog(ProjectConfigService? projectConfig)
     {
+        this.projectConfig = projectConfig;
+        bool isStandalone = projectConfig?.IsStandalone ?? true;
         InitializeComponent();
+        VersionLabel.Text = LocaleService.Get("PACK_RELEASE_VERSION");
+        DevOption.Content = LocaleService.Get("PACK_DEV");
+        ReleaseVersionLabel.Text = LocaleService.Get("PACK_FULL_VERSION");
+        ReleaseVersionHintText.Text = LocaleService.Get("PACK_FULL_VERSION_HINT");
+        EditorInputs.ApplyEditable(VersionBox);
+        EditorInputs.ApplyReadOnly(ReleaseVersionBox);
+        VersionBox.Text = projectConfig?.PackagingVersion ?? "1.0.0";
+        DevOption.IsChecked = projectConfig?.PackagingDev ?? false;
+        VersionBox.TextChanged += async (_, _) => await updateReleasePreviewAsync();
+        DevOption.IsCheckedChanged += async (_, _) => await updateReleasePreviewAsync();
+        Closed += (_, _) =>
+        {
+            closed = true;
+            ++previewGeneration;
+            previewCancellation?.Cancel();
+        };
+        Opened += async (_, _) => await updateReleasePreviewAsync(true);
         Title = LocaleService.Get("PACK_PROJECT");
         DescriptionText.Text = LocaleService.Get("PACK_MODE_DESC");
         Win32Option.Content = LocaleService.Get("PACK_PLATFORM_WIN32");
@@ -77,6 +105,9 @@ public partial class PackSelectionDialog : Window
             ConfirmButton.IsEnabled = false;
         Opened += (_, _) =>
         {
+            Screen? screen = Screens.ScreenFromWindow(this) ?? Screens.Primary;
+            if (screen is not null)
+                MaxHeight = Math.Max(400, screen.WorkingArea.Height / screen.Scaling - 80);
             if (OperatingSystem.IsWindows())
                 Win32Option.Focus();
             else if (OperatingSystem.IsMacOS())
@@ -119,78 +150,120 @@ public partial class PackSelectionDialog : Window
             || Directory.Exists(userApplicationsPath);
     }
 
+    private async Task<bool> updateReleasePreviewAsync(bool immediate = false)
+    {
+        int generation = ++previewGeneration;
+        previewCancellation?.Cancel();
+        using CancellationTokenSource cancellation = new();
+        previewCancellation = cancellation;
+        ReleaseVersionBox.Text = string.Empty;
+        VersionErrorText.IsVisible = false;
+        try
+        {
+            if (!immediate)
+                await Task.Delay(200, cancellation.Token);
+            ProjectPackageMetadataResult result = await ProjectPackageMetadataService.ExecuteAsync(
+                "release-version", null, VersionBox.Text ?? string.Empty,
+                DevOption.IsChecked == true, cancellation.Token);
+            if (closed || generation != previewGeneration)
+                return false;
+            if (result.ExitCode != 0)
+            {
+                showVersionError(result.Error.Length != 0 ? result.Error : result.Output);
+                return false;
+            }
+            using JsonDocument document = JsonDocument.Parse(result.Output);
+            if (document.RootElement.ValueKind != JsonValueKind.Object
+                || !document.RootElement.TryGetProperty("fullVersion", out JsonElement fullVersion)
+                || fullVersion.ValueKind != JsonValueKind.String)
+            {
+                showVersionError(LocaleService.Get("PACK_VERSION_RESPONSE_INVALID"));
+                return false;
+            }
+            ReleaseVersionBox.Text = fullVersion.GetString();
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            return false;
+        }
+        catch (JsonException exception)
+        {
+            if (!closed && generation == previewGeneration)
+                showVersionError(exception.Message);
+            return false;
+        }
+        finally
+        {
+            if (ReferenceEquals(previewCancellation, cancellation))
+                previewCancellation = null;
+        }
+    }
+
+    private void showVersionError(string message)
+    {
+        VersionErrorText.Text = message;
+        VersionErrorText.IsVisible = true;
+    }
+
     private async void onConfirm(object? sender, RoutedEventArgs args)
     {
-        if (Win32Option.IsChecked == true)
-            Close(new ProjectPackOptions(
-                ProjectPackPlatform.Win32,
-                LuacOption.IsChecked == true,
-                EncryptShadersOption.IsChecked == true,
-                EncryptDataOption.IsChecked == true,
-                EncryptSavesOption.IsChecked == true,
-                UseLdPakOption.IsChecked == true));
-        else if (MacOSOption.IsChecked == true)
-            Close(new ProjectPackOptions(
-                ProjectPackPlatform.MacOS,
-                LuacOption.IsChecked == true,
-                EncryptShadersOption.IsChecked == true,
-                EncryptDataOption.IsChecked == true,
-                EncryptSavesOption.IsChecked == true,
-                UseLdPakOption.IsChecked == true));
-        else if (IosOption.IsChecked == true)
-            Close(new ProjectPackOptions(
-                ProjectPackPlatform.IOS,
-                LuacOption.IsChecked == true,
-                EncryptShadersOption.IsChecked == true,
-                EncryptDataOption.IsChecked == true,
-                EncryptSavesOption.IsChecked == true,
-                UseLdPakOption.IsChecked == true)
-            {
-                ExportToIPhone = ExportToIPhoneOption.IsChecked == true,
-            });
-        else if (HarmonyOption.IsChecked == true)
+        OptionsPanel.IsEnabled = false;
+        ConfirmButton.IsEnabled = false;
+        try
         {
-            HarmonyDeviceForm deviceForm = HarmonyTwoInOneOption.IsChecked == true
-                ? HarmonyDeviceForm.TwoInOne
-                : HarmonyDeviceForm.Mobile;
-            HarmonyGraphicsApi graphicsApi = deviceForm == HarmonyDeviceForm.Mobile
-                ? HarmonyGraphicsApi.OpenGLES
-                : HarmonyOpenGLESOption.IsChecked == true
-                    ? HarmonyGraphicsApi.OpenGLES
-                    : HarmonyGraphicsApi.OpenGL;
-            Close(new ProjectPackOptions(
-                ProjectPackPlatform.HarmonyOS,
-                LuacOption.IsChecked == true,
-                EncryptShadersOption.IsChecked == true,
-                EncryptDataOption.IsChecked == true,
-                EncryptSavesOption.IsChecked == true,
-                UseLdPakOption.IsChecked == true)
-            {
-                HarmonyDeviceForm = deviceForm,
-                HarmonyGraphicsApi = graphicsApi,
-                ExportToHarmonyDevice = ExportToHarmonyDeviceOption.IsChecked == true,
-            });
-        }
-        else if (AndroidOption.IsChecked == true)
-        {
+            if (!await updateReleasePreviewAsync(true))
+                return;
+            ProjectPackPlatform? platform = Win32Option.IsChecked == true ? ProjectPackPlatform.Win32
+                : MacOSOption.IsChecked == true ? ProjectPackPlatform.MacOS
+                : IosOption.IsChecked == true ? ProjectPackPlatform.IOS
+                : HarmonyOption.IsChecked == true ? ProjectPackPlatform.HarmonyOS
+                : AndroidOption.IsChecked == true ? ProjectPackPlatform.Android
+                : null;
+            if (platform is null)
+                return;
             AndroidSigningOptions? signing = null;
-            if (AndroidSigningOption.IsChecked == true)
+            if (platform == ProjectPackPlatform.Android && AndroidSigningOption.IsChecked == true)
             {
                 AndroidSigningDialog signingDialog = new();
                 signing = await signingDialog.ShowDialog<AndroidSigningOptions?>(this);
-                if (signing is null)
+                if (signing is null || closed)
                     return;
             }
-            Close(new ProjectPackOptions(
-                ProjectPackPlatform.Android,
+            HarmonyDeviceForm deviceForm = HarmonyTwoInOneOption.IsChecked == true
+                ? HarmonyDeviceForm.TwoInOne
+                : HarmonyDeviceForm.Mobile;
+            ProjectPackOptions options = new(
+                platform.Value,
                 LuacOption.IsChecked == true,
                 EncryptShadersOption.IsChecked == true,
                 EncryptDataOption.IsChecked == true,
                 EncryptSavesOption.IsChecked == true,
                 UseLdPakOption.IsChecked == true)
             {
+                Version = VersionBox.Text ?? string.Empty,
+                Dev = DevOption.IsChecked == true,
+                ExportToIPhone = ExportToIPhoneOption.IsChecked == true,
+                ExportToHarmonyDevice = ExportToHarmonyDeviceOption.IsChecked == true,
+                HarmonyDeviceForm = deviceForm,
+                HarmonyGraphicsApi = deviceForm == HarmonyDeviceForm.Mobile || HarmonyOpenGLESOption.IsChecked == true
+                    ? HarmonyGraphicsApi.OpenGLES : HarmonyGraphicsApi.OpenGL,
                 AndroidSigning = signing,
-            });
+            };
+            projectConfig?.SetPackaging(options.Version, options.Dev);
+            Close(options);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            showVersionError(exception.Message);
+        }
+        finally
+        {
+            if (!closed)
+            {
+                OptionsPanel.IsEnabled = true;
+                ConfirmButton.IsEnabled = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS();
+            }
         }
     }
 

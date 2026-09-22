@@ -12,6 +12,9 @@ permissions:
   contents: read
   actions: read
 
+env:
+  EDITOR_CHANNEL: ${{ startsWith(github.ref, 'refs/tags/v') && '--release' || '--dev' }}
+
 concurrency:
   group: export-editor-${{ github.event_name == 'push' && github.ref || 'temporary' }}
   cancel-in-progress: false
@@ -151,7 +154,7 @@ jobs:
         env:
           EDITOR_BUILD_OPTION: ${{ steps.managed-cache.outputs.cache-hit == 'true' && '--use-current-editor-build' || '' }}
         shell: cmd
-        run: tools\pack_editor.bat --templates "%CD%\obj\editor-inputs\Templates" --launcher "%CD%\obj\editor-launcher\bin\Release\Ludork.exe" %EDITOR_BUILD_OPTION%
+        run: tools\pack_editor.bat --templates "%CD%\obj\editor-inputs\Templates" --launcher "%CD%\obj\editor-launcher\bin\Release\Ludork.exe" %EDITOR_CHANNEL% %EDITOR_BUILD_OPTION%
 
       - name: Save C# build outputs
         if: steps.managed-cache.outputs.cache-hit != 'true'
@@ -166,6 +169,11 @@ jobs:
             Editor/Ludork.Plugin.Avalonia/obj/Release
           key: ${{ steps.managed-cache.outputs.cache-primary-key }}
 
+      - name: Build editor MSI
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: cmd
+        run: tools\pack_editor_msi.bat
+
       - name: Upload editor package
         uses: actions/upload-artifact@v7
         with:
@@ -173,6 +181,16 @@ jobs:
           path: dist/
           if-no-files-found: error
           include-hidden-files: true
+          compression-level: 0
+          retention-days: 7
+
+      - name: Upload editor MSI
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v7
+        with:
+          name: Ludork-windows-x64-msi-${{ github.sha }}
+          path: Ludork-*-windows-x64.msi
+          if-no-files-found: error
           compression-level: 0
           retention-days: 7
 
@@ -249,7 +267,7 @@ jobs:
       - name: Package unsigned editor DMG
         env:
           EDITOR_BUILD_OPTION: ${{ steps.managed-cache.outputs.cache-hit == 'true' && '--use-current-editor-build' || '' }}
-        run: sh tools/pack_editor.sh --templates "$PWD/obj/editor-inputs/Templates" ${EDITOR_BUILD_OPTION:+"$EDITOR_BUILD_OPTION"}
+        run: sh tools/pack_editor.sh --templates "$PWD/obj/editor-inputs/Templates" "$EDITOR_CHANNEL" ${EDITOR_BUILD_OPTION:+"$EDITOR_BUILD_OPTION"}
 
       - name: Save C# build outputs
         if: steps.managed-cache.outputs.cache-hit != 'true'
@@ -296,19 +314,16 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - name: Download Windows package
+      - name: Download Windows installer
         uses: actions/download-artifact@v8
         with:
-          name: Ludork-windows-x64-${{ github.sha }}
-          path: obj/release/windows
+          name: Ludork-windows-x64-msi-${{ github.sha }}
+          path: obj/release/assets
       - name: Download macOS DMG
         uses: actions/download-artifact@v8
         with:
           name: Ludork-macos-arm64-unsigned-${{ github.sha }}
           path: obj/release/assets
-      - name: Archive Windows distribution
-        working-directory: obj/release/windows
-        run: zip -q -r ../assets/Ludork-windows-x64.zip .
       - name: Create or update the draft
         uses: actions/github-script@v8
         with:

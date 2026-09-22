@@ -73,9 +73,9 @@ async function publishRelease({ github, context, core }, assetDirectory) {
 
   const entries = fs.readdirSync(assetDirectory, { withFileTypes: true });
   if (entries.length !== 2 || entries.some(entry => !entry.isFile())
-      || entries.filter(entry => entry.name.endsWith('.zip')).length !== 1
+      || entries.filter(entry => entry.name.endsWith('.msi')).length !== 1
       || entries.filter(entry => entry.name.endsWith('.dmg')).length !== 1) {
-    throw new Error('Release assets must contain exactly one Windows ZIP and one macOS DMG.');
+    throw new Error('Release assets must contain exactly one Windows MSI and one macOS DMG.');
   }
   const assets = entries.map(entry => {
     const filename = path.join(assetDirectory, entry.name);
@@ -120,7 +120,7 @@ async function publishRelease({ github, context, core }, assetDirectory) {
   });
   for (const asset of previousAssets) {
     if (!assets.some(current => current.name === asset.name)
-        && !/^Ludork-.+-macos-arm64\.dmg$/.test(asset.name)) continue;
+        && !/^Ludork-.+-(windows-x64\.msi|macos-arm64\.dmg)$/.test(asset.name)) continue;
     await ensureDraft();
     await github.rest.repos.deleteReleaseAsset({ ...context.repo, asset_id: asset.id });
   }
@@ -131,7 +131,7 @@ async function publishRelease({ github, context, core }, assetDirectory) {
       release_id: release.id,
       name: asset.name,
       headers: {
-        'content-type': asset.name.endsWith('.zip') ? 'application/zip' : 'application/x-apple-diskimage',
+        'content-type': asset.name.endsWith('.msi') ? 'application/x-msi' : 'application/x-apple-diskimage',
         'content-length': asset.size,
       },
       data: fs.createReadStream(asset.filename),

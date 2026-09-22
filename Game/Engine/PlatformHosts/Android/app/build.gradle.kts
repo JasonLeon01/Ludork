@@ -11,8 +11,8 @@ android {
         applicationId = __LUDORK_APPLICATION_ID_LITERAL__
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = __LUDORK_VERSION_CODE__
+        versionName = __LUDORK_VERSION_NAME_LITERAL__
 
         ndk {
             abiFilters += "arm64-v8a"

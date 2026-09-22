@@ -8,6 +8,14 @@ import sys
 from . import packaging_constants as constants
 from .pack_error import PackError
 from .packaging_names import artifact_name, prepare_output, read_app_name
+from .packaging_metadata import (
+    add_channel_arguments,
+    add_package_arguments,
+    load_package_metadata,
+    load_release_version,
+    read_package_metadata,
+    read_release_version,
+)
 from .resource_constants import RESOURCE_GROUPS
 
 
@@ -54,25 +62,63 @@ def main(arguments: list[str] | None = None) -> int:
     listing.add_argument("name", choices=tuple(lists))
     listing.add_argument("--separator", choices=("newline", "space"), default="newline")
     listing.add_argument("--windows", action="store_true")
-    checking = operations.add_parser("check-app-name")
+    checking = operations.add_parser("check-package-metadata")
     checking.add_argument("project", type=pathlib.Path)
+    add_package_arguments(checking)
+    release = operations.add_parser("release-version")
+    add_package_arguments(release)
+    release_build_info = operations.add_parser("release-build-info")
+    release_build_info.add_argument("directory", type=pathlib.Path)
+    release_build_info.add_argument("--version", required=True, help="Base release version, such as 1.0.0")
+    add_channel_arguments(release_build_info)
+    build_info = operations.add_parser("build-info")
+    build_info.add_argument("file", type=pathlib.Path)
+    build_info.add_argument("--field", required=True,
+                            choices=("version", "fullVersion", "dev", "builtAt", "versionCode", "appleBuildVersion"))
+    resolving = operations.add_parser("resolve-metadata")
+    resolving.add_argument("project", type=pathlib.Path)
+    resolving.add_argument("output", type=pathlib.Path)
+    add_package_arguments(resolving)
     naming = operations.add_parser("app-name")
     naming.add_argument("project", type=pathlib.Path)
     naming.add_argument("--artifact", action="store_true")
     preparing = operations.add_parser("prepare-output")
     preparing.add_argument("project", type=pathlib.Path)
     preparing.add_argument("dist", type=pathlib.Path)
+    preparing.add_argument("--metadata", type=pathlib.Path, required=True)
+    package_name = operations.add_parser("package-name")
+    package_name.add_argument("--metadata", type=pathlib.Path, required=True)
+    writing = operations.add_parser("write-build-info")
+    writing.add_argument("runtime_root", type=pathlib.Path)
+    writing.add_argument("--metadata", type=pathlib.Path, required=True)
     parsed = parser.parse_args(arguments)
     try:
         if parsed.operation == "csharp":
             _write_csharp(parsed.output)
-        elif parsed.operation == "check-app-name":
-            read_app_name(parsed.project.expanduser().resolve())
+        elif parsed.operation == "release-version":
+            metadata = read_release_version(parsed.version, parsed.dev if parsed.dev is not None else False)
+            print(json.dumps(metadata.as_dict(), ensure_ascii=False))
+        elif parsed.operation == "release-build-info":
+            release = read_release_version(parsed.version, parsed.dev if parsed.dev is not None else False)
+            release.write_build_info(parsed.directory)
+            print(release.full_version)
+        elif parsed.operation == "build-info":
+            value = load_release_version(parsed.file).as_dict()[parsed.field]
+            print("true" if value is True else "false" if value is False else value)
+        elif parsed.operation in {"check-package-metadata", "resolve-metadata"}:
+            metadata = read_package_metadata(parsed.project.expanduser().resolve(), parsed.version, parsed.dev)
+            if parsed.operation == "resolve-metadata":
+                parsed.output.write_text(json.dumps(metadata.as_dict(), ensure_ascii=False), encoding="utf-8")
         elif parsed.operation == "app-name":
             name = read_app_name(parsed.project.expanduser().resolve())
             print(artifact_name(name) if parsed.artifact else name)
         elif parsed.operation == "prepare-output":
-            print(prepare_output(parsed.project, parsed.dist))
+            metadata = load_package_metadata(parsed.metadata)
+            print(prepare_output(parsed.project, parsed.dist, metadata.package_name))
+        elif parsed.operation == "package-name":
+            print(load_package_metadata(parsed.metadata).package_name)
+        elif parsed.operation == "write-build-info":
+            load_package_metadata(parsed.metadata).write_build_info(parsed.runtime_root)
         else:
             values = lists[parsed.name]
             if parsed.windows:

@@ -3,22 +3,11 @@ from __future__ import annotations
 import argparse
 import pathlib
 import plistlib
-import re
-import xml.etree.ElementTree as elementTree
+
+from .packaging_metadata import ReleaseVersion, load_release_version
 
 
-def readProjectVersion(projectPath: pathlib.Path) -> str:
-    root = elementTree.parse(projectPath).getroot()
-    versionNode = root.find(".//Version")
-    if versionNode is None or versionNode.text is None:
-        raise RuntimeError(f"Version was not found in {projectPath}")
-    version = versionNode.text.strip()
-    if re.fullmatch(r"[0-9]+(?:\.[0-9]+){0,2}", version) is None:
-        raise RuntimeError(f"Unsupported macOS bundle version: {version}")
-    return version
-
-
-def expectedMetadata(version: str) -> dict[str, object]:
+def expectedMetadata(release: ReleaseVersion) -> dict[str, object]:
     return {
         "CFBundleDocumentTypes": [
             {
@@ -38,8 +27,8 @@ def expectedMetadata(version: str) -> dict[str, object]:
         "CFBundleIconFile": "AppIcon",
         "CFBundleName": "Ludork",
         "CFBundlePackageType": "APPL",
-        "CFBundleShortVersionString": version,
-        "CFBundleVersion": version,
+        "CFBundleShortVersionString": release.version,
+        "CFBundleVersion": release.apple_build_version,
         "LSApplicationCategoryType": "public.app-category.developer-tools",
         "LSMinimumSystemVersion": "13.3",
         "NSHighResolutionCapable": True,
@@ -57,17 +46,17 @@ def expectedMetadata(version: str) -> dict[str, object]:
     }
 
 
-def generate(projectPath: pathlib.Path, outputPath: pathlib.Path) -> None:
-    metadata = expectedMetadata(readProjectVersion(projectPath))
+def generate(buildInfoPath: pathlib.Path, outputPath: pathlib.Path) -> None:
+    metadata = expectedMetadata(load_release_version(buildInfoPath))
     outputPath.parent.mkdir(parents=True, exist_ok=True)
     with outputPath.open("wb") as stream:
         plistlib.dump(metadata, stream, sort_keys=True)
 
 
-def validate(projectPath: pathlib.Path, plistPath: pathlib.Path) -> None:
+def validate(buildInfoPath: pathlib.Path, plistPath: pathlib.Path) -> None:
     with plistPath.open("rb") as stream:
         metadata = plistlib.load(stream)
-    expected = expectedMetadata(readProjectVersion(projectPath))
+    expected = expectedMetadata(load_release_version(buildInfoPath))
     if metadata != expected:
         raise RuntimeError(f"Editor bundle metadata is invalid: {plistPath}")
 
@@ -76,14 +65,14 @@ def main(arguments: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="ScriptTools editor-macos-metadata")
     subparsers = parser.add_subparsers(dest="command", required=True)
     generateParser = subparsers.add_parser("generate")
-    generateParser.add_argument("project_file", type=pathlib.Path)
     generateParser.add_argument("output_file", type=pathlib.Path)
+    generateParser.add_argument("--build-info", type=pathlib.Path, required=True)
     validateParser = subparsers.add_parser("validate")
-    validateParser.add_argument("project_file", type=pathlib.Path)
     validateParser.add_argument("plist_file", type=pathlib.Path)
+    validateParser.add_argument("--build-info", type=pathlib.Path, required=True)
     parsed = parser.parse_args(arguments)
     if parsed.command == "generate":
-        generate(parsed.project_file.resolve(), parsed.output_file.resolve())
+        generate(parsed.build_info.resolve(), parsed.output_file.resolve())
     else:
-        validate(parsed.project_file.resolve(), parsed.plist_file.resolve())
+        validate(parsed.build_info.resolve(), parsed.plist_file.resolve())
     return 0

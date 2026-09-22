@@ -1267,6 +1267,26 @@
     "zh_CN": "将 Assets、Data 和 Scripts 打包为 .ldpak",
     "en_GB": "Archive Assets, Data and Scripts (.ldpak)"
   },
+  "PACK_RELEASE_VERSION": {
+    "zh_CN": "发行版本",
+    "en_GB": "Release Version"
+  },
+  "PACK_DEV": {
+    "zh_CN": "内部测试包（dev）",
+    "en_GB": "Internal Test Package (dev)"
+  },
+  "PACK_FULL_VERSION": {
+    "zh_CN": "发行标识预览",
+    "en_GB": "Release Identifier Preview"
+  },
+  "PACK_FULL_VERSION_HINT": {
+    "zh_CN": "dev 包追加打包开始时的北京时间（精确到小时）。同一小时重复打包会替换对应产物。",
+    "en_GB": "dev packages append the UTC+8 date and hour at packaging start. Repacking in the same hour replaces the matching package."
+  },
+  "PACK_VERSION_RESPONSE_INVALID": {
+    "zh_CN": "打包工具返回了无效的发行版本信息。",
+    "en_GB": "The packaging tool returned invalid release version information."
+  },
   "PACK_MODE_DESC": {
     "zh_CN": "选择目标平台和打包选项。",
     "en_GB": "Select the target platform and packaging options."

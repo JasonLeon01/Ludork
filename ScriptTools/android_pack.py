@@ -31,7 +31,8 @@ from .packaging_constants import (
     RUNTIME_LEGAL_FILES,
     TEMPLATE_TOKEN_PATTERN,
 )
-from .packaging_names import artifact_name, read_app_name
+from .packaging_names import read_app_name
+from .packaging_metadata import PackageMetadata, add_package_arguments, read_package_metadata
 from .resource_constants import RESOURCE_GROUPS
 from .ui_property_values import UiAssetError
 from ScriptTools.ui_preview import prepare_registry
@@ -142,6 +143,7 @@ class PackContext:
     ndk: AndroidNdk
     cmake: CMakeTool
     make: pathlib.Path
+    metadata: PackageMetadata
     game_name: str
     artifact_name: str
     application_id: str
@@ -598,6 +600,7 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
             EXIT_TOOLCHAIN,
         )
     project_dir = resolve_project(arguments.project_folder)
+    metadata = read_package_metadata(project_dir, arguments.version, arguments.dev)
     if arguments.use_ldpak:
         validate_ldpak_source(project_dir)
     if arguments.compile_lua:
@@ -665,7 +668,6 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
     assert cmake is not None
     assert make is not None
     assert script_tools is not None
-    game_name = read_app_name(project_dir)
     build_dir = project_dir / "build" / "android"
     return PackContext(
         project_dir=project_dir,
@@ -682,9 +684,10 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
         ndk=ndk,
         cmake=cmake,
         make=make,
-        game_name=game_name,
-        artifact_name=artifact_name(game_name),
-        application_id=application_id(game_name),
+        metadata=metadata,
+        game_name=metadata.display_name,
+        artifact_name=metadata.package_name,
+        application_id=application_id(metadata.app_name),
         use_luac=arguments.compile_lua,
         encrypt_shaders=arguments.encrypt_shaders,
         encrypt_data=arguments.encrypt_data,
@@ -716,6 +719,7 @@ def copy_runtime_resources(context: PackContext) -> None:
         source = context.project_dir / name
         if source.is_file():
             shutil.copy2(source, context.runtime_dir / name)
+    context.metadata.write_build_info(context.runtime_dir)
     finalize_package(
         context.runtime_dir,
         context.encrypt_shaders,
@@ -789,10 +793,13 @@ def replace_template_tokens(
     stage_dir: pathlib.Path,
     game_name: str,
     app_id: str,
+    metadata: PackageMetadata,
 ) -> None:
     replacements = {
         "__LUDORK_APPLICATION_ID_LITERAL__": _kotlin_string(app_id),
         "__LUDORK_GAME_NAME_XML__": html.escape(game_name, quote=True),
+        "__LUDORK_VERSION_NAME_LITERAL__": _kotlin_string(metadata.version),
+        "__LUDORK_VERSION_CODE__": str(metadata.version_code),
     }
     text_names = {
         "build.gradle.kts",
@@ -884,7 +891,9 @@ def prepare_gradle_stage(
         encoding="utf-8",
     )
     create_app_icon(context)
-    replace_template_tokens(context.stage_dir, context.game_name, context.application_id)
+    replace_template_tokens(
+        context.stage_dir, context.game_name, context.application_id, context.metadata
+    )
 
 
 def cached_dependency_arguments(project_dir: pathlib.Path) -> list[str]:
@@ -1295,6 +1304,9 @@ def validate_apk_metadata(
         raise PackError("aapt could not read the APK metadata.\n" + badging.stderr.strip())
     checks = (
         (f"package: name='{context.application_id}'", "application ID"),
+        (f"versionCode='{context.metadata.version_code}'", "version code"),
+        (f"versionName='{context.metadata.version}'", "version name"),
+        (f"application-label:'{context.game_name}'", "application label"),
         (f"sdkVersion:'{ANDROID_MIN_SDK}'", "minimum SDK"),
         (f"targetSdkVersion:'{ANDROID_TARGET_SDK}'", "target SDK"),
         (f"native-code: '{ANDROID_ABI}'", "native ABI"),
@@ -1809,6 +1821,8 @@ def validate_template_source(context: PackContext) -> None:
         (app_build, f"compileSdk = {ANDROID_COMPILE_SDK}"),
         (app_build, f"minSdk = {ANDROID_MIN_SDK}"),
         (app_build, f"targetSdk = {ANDROID_TARGET_SDK}"),
+        (app_build, "versionCode = __LUDORK_VERSION_CODE__"),
+        (app_build, "versionName = __LUDORK_VERSION_NAME_LITERAL__"),
         (app_build, f'buildToolsVersion = "{ANDROID_BUILD_TOOLS}"'),
         (app_build, 'noCompress += "ldpak"'),
     )
@@ -1826,6 +1840,7 @@ def validate_template_source(context: PackContext) -> None:
 
 def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="ScriptTools android-pack")
+    add_package_arguments(parser)
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--compile-lua", action="store_true")
     parser.add_argument("--encrypt-shaders", action="store_true")

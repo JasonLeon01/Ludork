@@ -3,8 +3,9 @@ setlocal EnableExtensions EnableDelayedExpansion
 chcp 65001>nul
 
 for %%I in ("%~dp0..") do set "ROOT_DIR=%%~fI"
-set "PROJECT_FILE=%ROOT_DIR%\Ludork.csproj"
 set "DIST_DIR=%ROOT_DIR%\dist"
+set "BUILD_INFO=%DIST_DIR%\BuildInfo.json"
+set "SCRIPT_TOOLS=%ROOT_DIR%\.tools\ScriptTools\ScriptTools.exe"
 set "WIX_SOURCE=%ROOT_DIR%\tools\installer\Ludork.wxs"
 set "PAYLOAD_GENERATOR=%ROOT_DIR%\tools\installer\generate_installer_payload.ps1"
 set "PROJECT_ICON=%ROOT_DIR%\Editor\Assets\project-icon.ico"
@@ -14,8 +15,8 @@ set "WORK_DIR=%ROOT_DIR%\obj\editor-msi"
 set "WORK_MSI=%WORK_DIR%\Ludork.msi"
 set "PAYLOAD_SOURCE=%WORK_DIR%\EditorPayload.wxs"
 
-if not exist "%PROJECT_FILE%" (
-    echo Ludork.csproj was not found: %PROJECT_FILE%
+if not exist "%SCRIPT_TOOLS%" (
+    echo ScriptTools was not found: %SCRIPT_TOOLS%
     exit /b 1
 )
 if not exist "%WIX_SOURCE%" (
@@ -34,6 +35,10 @@ if not exist "%DIST_DIR%\Ludork.exe" (
     echo Packaged editor was not found. Run tools\pack_editor.bat first.
     exit /b 1
 )
+if not exist "%BUILD_INFO%" (
+    echo Packaged editor build information was not found: %BUILD_INFO%
+    exit /b 1
+)
 call "%ROOT_DIR%\tools\validate_editor_windows_layout.bat" "%DIST_DIR%"
 if errorlevel 1 exit /b 1
 if /I not "%PROCESSOR_ARCHITECTURE%"=="AMD64" if /I not "%PROCESSOR_ARCHITEW6432%"=="AMD64" (
@@ -48,25 +53,39 @@ if errorlevel 1 (
 )
 
 set "WIX_VERSION="
+set "EDITOR_VERSION="
 for /f "usebackq eol=# tokens=1,2 delims==" %%A in ("%ROOT_DIR%\versions.conf") do (
     if /I "%%A"=="WIX_VERSION" set "WIX_VERSION=%%B"
+    if /I "%%A"=="EDITOR_VERSION" set "EDITOR_VERSION=%%B"
 )
 if not defined WIX_VERSION (
     echo WIX_VERSION is not set in versions.conf.
     exit /b 1
 )
-
-set "PRODUCT_VERSION="
-for /f "usebackq delims=" %%V in (`dotnet msbuild "%PROJECT_FILE%" -nologo -getProperty:Version`) do (
-    if not defined PRODUCT_VERSION set "PRODUCT_VERSION=%%V"
+if not defined EDITOR_VERSION (
+    echo EDITOR_VERSION is not set in versions.conf.
+    exit /b 1
 )
+
+set "PACKAGE_DEV="
+for /f "delims=" %%V in ('""%SCRIPT_TOOLS%" packaging-constants build-info "%BUILD_INFO%" --field dev"') do set "PACKAGE_DEV=%%V"
+if not "%PACKAGE_DEV%"=="false" (
+    echo The editor MSI requires a release package. Run tools\pack_editor.bat --release first.
+    exit /b 1
+)
+set "PRODUCT_VERSION="
+for /f "delims=" %%V in ('""%SCRIPT_TOOLS%" packaging-constants build-info "%BUILD_INFO%" --field version"') do set "PRODUCT_VERSION=%%V"
 if not defined PRODUCT_VERSION (
-    echo The Ludork product version could not be read.
+    echo The packaged editor version could not be read: %BUILD_INFO%
+    exit /b 1
+)
+if not "%PRODUCT_VERSION%"=="%EDITOR_VERSION%" (
+    echo The packaged editor version %PRODUCT_VERSION% does not match EDITOR_VERSION=%EDITOR_VERSION%.
     exit /b 1
 )
 
 if "%~1"=="" (
-    set "OUTPUT_MSI=%ROOT_DIR%\Ludork-%PRODUCT_VERSION%-win-x64.msi"
+    set "OUTPUT_MSI=%ROOT_DIR%\Ludork-%PRODUCT_VERSION%-windows-x64.msi"
 ) else (
     for %%I in ("%~1") do set "OUTPUT_MSI=%%~fI"
 )

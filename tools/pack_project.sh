@@ -7,8 +7,26 @@ ENCRYPT_SHADERS=0
 ENCRYPT_DATA=0
 ENCRYPT_SAVES=0
 USE_LDPAK=0
+PACKAGE_VERSION=
+PACKAGE_CHANNEL=
 while [ "$#" -gt 0 ]; do
     case "$1" in
+        --version)
+            if [ "$#" -lt 2 ] || [ -z "$2" ]; then
+                echo "--version requires a three-part version." >&2
+                exit 1
+            fi
+            PACKAGE_VERSION=$2
+            shift 2
+            ;;
+        --dev|--release)
+            if [ -n "$PACKAGE_CHANNEL" ] && [ "$PACKAGE_CHANNEL" != "$1" ]; then
+                echo "--dev and --release are mutually exclusive." >&2
+                exit 1
+            fi
+            PACKAGE_CHANNEL=$1
+            shift
+            ;;
         --compile-lua)
             USE_LUAC=1
             shift
@@ -39,7 +57,7 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
-    echo "Usage: tools/pack_project.sh [--compile-lua] [--encrypt-shaders] [--encrypt-data] [--encrypt-saves] [--use-ldpak] <project-folder> [dist-folder]" >&2
+    echo "Usage: tools/pack_project.sh [--version X.Y.Z] [--dev|--release] [--compile-lua] [--encrypt-shaders] [--encrypt-data] [--encrypt-saves] [--use-ldpak] <project-folder> [dist-folder]" >&2
     exit 1
 fi
 
@@ -53,14 +71,6 @@ if [ ! -f "$PROJECT_FILE" ]; then
     echo "Main.proj was not found: $PROJECT_FILE" >&2
     exit 1
 fi
-"$SCRIPT_TOOLS" packaging-constants check-app-name "$PROJECT_DIR"
-APP_NAME=$("$SCRIPT_TOOLS" packaging-constants app-name "$PROJECT_DIR" --artifact)
-APP_PATH="$DIST_DIR/$APP_NAME.app"
-if [ "$USE_LDPAK" -eq 1 ]; then
-    "$SCRIPT_TOOLS" validate-ldpak-source "$PROJECT_DIR"
-fi
-
-PROJECT_MODE=$("$SCRIPT_TOOLS" project-runtime-mode "$PROJECT_FILE")
 TEMPORARY_DIR=$(mktemp -d "${TMPDIR:-/tmp}/ludork-pack.XXXXXX")
 
 cleanup_temporary() {
@@ -68,6 +78,22 @@ cleanup_temporary() {
 }
 
 trap cleanup_temporary EXIT HUP INT TERM
+
+PACKAGE_METADATA="$TEMPORARY_DIR/package-metadata.json"
+set -- "$PROJECT_DIR" "$PACKAGE_METADATA"
+if [ -n "$PACKAGE_VERSION" ]; then
+    set -- "$@" --version "$PACKAGE_VERSION"
+fi
+if [ -n "$PACKAGE_CHANNEL" ]; then
+    set -- "$@" "$PACKAGE_CHANNEL"
+fi
+"$SCRIPT_TOOLS" packaging-constants resolve-metadata "$@"
+PACKAGE_NAME=$("$SCRIPT_TOOLS" packaging-constants package-name --metadata "$PACKAGE_METADATA")
+APP_PATH="$DIST_DIR/$PACKAGE_NAME.app"
+if [ "$USE_LDPAK" -eq 1 ]; then
+    "$SCRIPT_TOOLS" validate-ldpak-source "$PROJECT_DIR"
+fi
+PROJECT_MODE=$("$SCRIPT_TOOLS" project-runtime-mode "$PROJECT_FILE")
 
 if [ "$PROJECT_MODE" = "standalone" ]; then
     if [ "$ENCRYPT_SAVES" -eq 1 ]; then
@@ -90,7 +116,7 @@ if [ "$USE_LDPAK" -eq 1 ]; then
     "$SCRIPT_TOOLS" validate-ldpak-source "$PROJECT_DIR"
 fi
 "$SCRIPT_TOOLS" macos-bundle \
-    "$PROJECT_DIR" "$RUNTIME_DIR" "$APP_PATH"
+    "$PROJECT_DIR" "$RUNTIME_DIR" "$APP_PATH" --metadata "$PACKAGE_METADATA"
 set --
 if [ "$USE_LUAC" -eq 1 ]; then
     set -- "$@" --compile-lua

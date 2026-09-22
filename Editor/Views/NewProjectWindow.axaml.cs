@@ -328,6 +328,11 @@ public partial class NewProjectWindow : Window
             };
             if (FfmpegToggle.IsChecked == true)
                 config["ffmpeg"] = true;
+            config["packaging"] = new JsonObject
+            {
+                ["version"] = "1.0.0",
+                ["dev"] = false,
+            };
             string projectFilePath = Path.Combine(targetPath, "Main.proj");
             await File.WriteAllTextAsync(
                 projectFilePath,

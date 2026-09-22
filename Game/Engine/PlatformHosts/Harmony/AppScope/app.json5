@@ -2,8 +2,8 @@
   "app": {
     "bundleName": "__LUDORK_BUNDLE_NAME__",
     "vendor": "Ludork",
-    "versionCode": 1,
-    "versionName": "1.0.0",
+    "versionCode": __LUDORK_VERSION_CODE__,
+    "versionName": "__LUDORK_VERSION_NAME__",
     "label": "$string:app_name",
     "icon": "$media:app_icon"__LUDORK_APP_ENVIRONMENTS__
   }

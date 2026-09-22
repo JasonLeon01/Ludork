@@ -5,6 +5,7 @@ using System;
 using System.IO;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 
 namespace Ludork.Views;
 
@@ -27,8 +28,24 @@ public partial class AboutDialog : Window
 
     private static string getVersion()
     {
+        string? fullVersion = readPackagedVersion();
+        if (fullVersion is not null)
+            return fullVersion;
         Version? version = Assembly.GetEntryAssembly()?.GetName().Version;
         return version is null ? "1.0.0" : $"{version.Major}.{version.Minor}.{version.Build}";
+    }
+
+    private static string? readPackagedVersion()
+    {
+        string? buildInfoPath = EditorRuntimePaths.FindFile("BuildInfo.json");
+        if (buildInfoPath is null)
+            return null;
+        using JsonDocument document = JsonDocument.Parse(File.ReadAllText(buildInfoPath, Encoding.UTF8));
+        return document.RootElement.ValueKind == JsonValueKind.Object
+            && document.RootElement.TryGetProperty("fullVersion", out JsonElement fullVersion)
+            && fullVersion.ValueKind == JsonValueKind.String
+            ? fullVersion.GetString()
+            : null;
     }
 
     private void onOpenLicenses(object? sender, RoutedEventArgs args)

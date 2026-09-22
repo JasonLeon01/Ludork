@@ -4,14 +4,34 @@ set -eu
 . "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)/common.sh"
 . "$PROJECT_ROOT/versions.conf"
 : "${FFMPEG_VERSION:?FFMPEG_VERSION is not set in versions.conf}"
+: "${EDITOR_VERSION:?EDITOR_VERSION is not set in versions.conf}"
 
+USAGE="Usage: tools/pack_editor.sh [--version X.Y.Z] [--dev|--release] [--templates <folder>] [--use-current-editor-build]"
 PREBUILT_TEMPLATES_DIR=
 USE_CURRENT_EDITOR_BUILD=0
+PRODUCT_VERSION=$EDITOR_VERSION
+PACKAGE_CHANNEL=
 while [ "$#" -gt 0 ]; do
     case "$1" in
+        --version)
+            if [ "$#" -lt 2 ] || [ -z "$2" ]; then
+                echo "$USAGE" >&2
+                exit 1
+            fi
+            PRODUCT_VERSION=$2
+            shift 2
+            ;;
+        --dev|--release)
+            if [ -n "$PACKAGE_CHANNEL" ] && [ "$PACKAGE_CHANNEL" != "$1" ]; then
+                echo "--dev and --release are mutually exclusive." >&2
+                exit 1
+            fi
+            PACKAGE_CHANNEL=$1
+            shift
+            ;;
         --templates)
             if [ "$#" -lt 2 ]; then
-                echo "Usage: tools/pack_editor.sh [--templates <folder>] [--use-current-editor-build]" >&2
+                echo "$USAGE" >&2
                 exit 1
             fi
             PREBUILT_TEMPLATES_DIR=$2
@@ -22,11 +42,14 @@ while [ "$#" -gt 0 ]; do
             shift
             ;;
         *)
-            echo "Usage: tools/pack_editor.sh [--templates <folder>] [--use-current-editor-build]" >&2
+            echo "$USAGE" >&2
             exit 1
             ;;
     esac
 done
+if [ -z "$PACKAGE_CHANNEL" ]; then
+    PACKAGE_CHANNEL=--dev
+fi
 
 PROJECT_FILE="$PROJECT_ROOT/Ludork.csproj"
 WORK_DIR="$PROJECT_ROOT/obj/editor-package"
@@ -551,6 +574,7 @@ validate_package() {
 
     require_package_executable "$package_macos/Ludork"
     require_package_file "$info_plist"
+    require_package_file "$package_resources/BuildInfo.json"
     require_package_file "$package_resources/AppIcon.icns"
     require_package_file "$package_resources/ProjectIcon.icns"
     require_package_file "$package_resources/Locale/en_GB"
@@ -736,7 +760,8 @@ validate_package() {
         echo "The Ludork project icon is invalid." >&2
         exit 1
     fi
-    "$SCRIPT_TOOLS" editor-macos-metadata validate "$PROJECT_FILE" "$info_plist"
+    "$SCRIPT_TOOLS" editor-macos-metadata validate "$info_plist" \
+        --build-info "$package_resources/BuildInfo.json"
 
     for forbidden_path in \
         "$package_macos/Game" \
@@ -1051,23 +1076,19 @@ require_directory "$PROJECT_ROOT/docs/en_GB"
 require_directory "$PROJECT_ROOT/docs/zh_CN"
 require_directory "$PROJECT_ROOT/Licenses"
 
-product_version=$(
-    dotnet msbuild "$PROJECT_FILE" -nologo -getProperty:Version |
-        awk 'NF { value=$0 } END { print value }'
-)
-if ! printf '%s\n' "$product_version" | grep -Eq '^[0-9]+(\.[0-9]+){0,2}$'; then
-    echo "The Ludork product version is invalid: $product_version" >&2
-    exit 1
-fi
-DMG_FILE_NAME="Ludork-$product_version-macos-arm64.dmg"
-DMG_VOLUME_NAME="Ludork $product_version"
-STAGE_DMG="$STAGE_DIR/$DMG_FILE_NAME"
-
 if [ -d "$WORK_DIR" ]; then
     rm -rf "$WORK_DIR"
 fi
 WORK_DIR_OWNED=1
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$STAGE_DIR"
+
+BUILD_INFO="$RESOURCES_DIR/BuildInfo.json"
+FULL_VERSION=$("$SCRIPT_TOOLS" packaging-constants release-build-info "$RESOURCES_DIR" \
+    --version "$PRODUCT_VERSION" "$PACKAGE_CHANNEL")
+DMG_FILE_NAME="Ludork-$FULL_VERSION-macos-arm64.dmg"
+DMG_VOLUME_NAME="Ludork $FULL_VERSION"
+STAGE_DMG="$STAGE_DIR/$DMG_FILE_NAME"
+echo "Packaging Ludork $FULL_VERSION for macOS Apple Silicon..."
 
 echo "Publishing macOS Apple Silicon editor..."
 set --
@@ -1148,8 +1169,8 @@ chmod +x \
     "$RESOURCES_DIR/tools/luac"
 
 "$SCRIPT_TOOLS" editor-macos-metadata generate \
-    "$PROJECT_FILE" \
-    "$APP_DIR/Contents/Info.plist"
+    "$APP_DIR/Contents/Info.plist" \
+    --build-info "$BUILD_INFO"
 create_bundle_icons
 purge_python_cache "$APP_DIR"
 purge_debug_symbols "$APP_DIR"

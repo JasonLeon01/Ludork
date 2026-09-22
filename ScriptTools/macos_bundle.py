@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
+import argparse
 import pathlib
 import plistlib
 import re
 import shutil
 import subprocess
-import sys
 import tempfile
 
 from .resource_constants import ANIMATION_CACHE_SUFFIX
 from .packaging_constants import (
     RUNTIME_LEGAL_FILES,
 )
-from .packaging_names import prepare_directory, read_app_name
+from .packaging_names import prepare_directory
+from .packaging_metadata import add_package_arguments, load_package_metadata, read_package_metadata
 from .resource_constants import RESOURCE_GROUPS
 from .ui_preview import is_preview_development_file
 
@@ -261,17 +262,20 @@ def bundle_identifier(app_name: str) -> str:
 
 
 def main(arguments: list[str] | None = None) -> int:
-    command_arguments = sys.argv[1:] if arguments is None else arguments
-    if len(command_arguments) != 3:
-        print(
-            "Usage: ScriptTools macos-bundle <project-folder> <runtime-folder> <app-path>",
-            file=sys.stderr,
-        )
-        return 1
-    project_dir = pathlib.Path(command_arguments[0]).resolve()
-    app_name = read_app_name(project_dir)
-    runtime_dir = pathlib.Path(command_arguments[1]).resolve()
-    app_path = prepare_directory(project_dir, pathlib.Path(command_arguments[2]))
+    parser = argparse.ArgumentParser(prog="ScriptTools macos-bundle")
+    parser.add_argument("project", type=pathlib.Path)
+    parser.add_argument("runtime", type=pathlib.Path)
+    parser.add_argument("app_path", type=pathlib.Path)
+    parser.add_argument("--metadata", type=pathlib.Path)
+    add_package_arguments(parser)
+    parsed = parser.parse_args(arguments)
+    if parsed.metadata is not None and (parsed.version is not None or parsed.dev is not None):
+        parser.error("--metadata cannot be combined with version overrides")
+    project_dir = parsed.project.resolve()
+    metadata = (load_package_metadata(parsed.metadata) if parsed.metadata is not None
+                else read_package_metadata(project_dir, parsed.version, parsed.dev))
+    runtime_dir = parsed.runtime.resolve()
+    app_path = prepare_directory(project_dir, parsed.app_path)
     macos_dir = app_path / "Contents" / "MacOS"
     frameworks_dir = app_path / "Contents" / "Frameworks"
     resources_dir = app_path / "Contents" / "Resources"
@@ -280,19 +284,20 @@ def main(arguments: list[str] | None = None) -> int:
     resources_dir.mkdir(parents=True)
     copy_runtime(runtime_dir, macos_dir, frameworks_dir)
     copy_resources(project_dir, resources_dir)
+    metadata.write_build_info(resources_dir)
     validate_resources(resources_dir)
     create_icon(project_dir, resources_dir)
     plist = {
         "CFBundleDevelopmentRegion": "en",
-        "CFBundleDisplayName": app_name,
+        "CFBundleDisplayName": metadata.display_name,
         "CFBundleExecutable": "Main",
-        "CFBundleIdentifier": bundle_identifier(app_name),
+        "CFBundleIdentifier": bundle_identifier(metadata.app_name),
         "CFBundleInfoDictionaryVersion": "6.0",
         "CFBundleIconFile": "AppIcon",
-        "CFBundleName": app_name,
+        "CFBundleName": metadata.display_name,
         "CFBundlePackageType": "APPL",
-        "CFBundleShortVersionString": "1.0.0",
-        "CFBundleVersion": "1",
+        "CFBundleShortVersionString": metadata.version,
+        "CFBundleVersion": metadata.apple_build_version,
         "LSMinimumSystemVersion": "13.3",
         "NSHighResolutionCapable": True,
     }

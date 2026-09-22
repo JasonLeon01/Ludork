@@ -6,9 +6,30 @@ for %%I in ("%~dp0..") do set "ROOT_DIR=%%~fI"
 set "PREBUILT_TEMPLATES_DIR="
 set "EDITOR_PUBLISH_OPTIONS="
 set "PREBUILT_LAUNCHER="
+set "PACKAGE_VERSION="
+set "PACKAGE_CHANNEL="
 
 :parse_arguments
 if "%~1"=="" goto arguments_ready
+if /I "%~1"=="--version" (
+    if "%~2"=="" goto usage
+    set "PACKAGE_VERSION=%~2"
+    shift
+    shift
+    goto parse_arguments
+)
+if /I "%~1"=="--dev" (
+    if "%PACKAGE_CHANNEL%"=="--release" goto conflicting_channel
+    set "PACKAGE_CHANNEL=--dev"
+    shift
+    goto parse_arguments
+)
+if /I "%~1"=="--release" (
+    if "%PACKAGE_CHANNEL%"=="--dev" goto conflicting_channel
+    set "PACKAGE_CHANNEL=--release"
+    shift
+    goto parse_arguments
+)
 if /I "%~1"=="--templates" (
     if "%~2"=="" goto usage
     for %%I in ("%~2") do set "PREBUILT_TEMPLATES_DIR=%%~fI"
@@ -31,6 +52,7 @@ if /I "%~1"=="--launcher" (
 goto usage
 
 :arguments_ready
+if not defined PACKAGE_CHANNEL set "PACKAGE_CHANNEL=--dev"
 set "PROJECT_FILE=%ROOT_DIR%\Ludork.csproj"
 set "WORK_DIR=%ROOT_DIR%\obj\editor-package"
 set "STAGE_DIR=%WORK_DIR%\dist"
@@ -61,19 +83,17 @@ if errorlevel 1 (
 )
 
 set "PRODUCT_VERSION="
-for /f "usebackq delims=" %%V in (`dotnet msbuild "%PROJECT_FILE%" -nologo -getProperty:Version`) do (
-    if not defined PRODUCT_VERSION set "PRODUCT_VERSION=%%V"
-)
-if not defined PRODUCT_VERSION (
-    echo The Ludork product version could not be read.
-    exit /b 1
-)
-
 set "GNU_MAKE_VERSION="
 set "FFMPEG_VERSION="
 for /f "usebackq eol=# tokens=1,2 delims==" %%A in ("%ROOT_DIR%\versions.conf") do (
+    if /I "%%A"=="EDITOR_VERSION" set "PRODUCT_VERSION=%%B"
     if /I "%%A"=="GNU_MAKE_VERSION" set "GNU_MAKE_VERSION=%%B"
     if /I "%%A"=="FFMPEG_VERSION" set "FFMPEG_VERSION=%%B"
+)
+if defined PACKAGE_VERSION set "PRODUCT_VERSION=%PACKAGE_VERSION%"
+if not defined PRODUCT_VERSION (
+    echo EDITOR_VERSION is not set in versions.conf.
+    exit /b 1
 )
 if not defined GNU_MAKE_VERSION (
     echo GNU_MAKE_VERSION is not set in versions.conf.
@@ -166,6 +186,11 @@ for %%D in (
 if exist "%WORK_DIR%" rmdir /S /Q "%WORK_DIR%"
 mkdir "%STAGE_DIR%"
 if errorlevel 1 goto failed
+
+set "FULL_VERSION="
+for /f "delims=" %%V in ('""%SCRIPT_TOOLS%" packaging-constants release-build-info "%STAGE_DIR%" --version "%PRODUCT_VERSION%" %PACKAGE_CHANNEL%"') do set "FULL_VERSION=%%V"
+if not defined FULL_VERSION goto failed
+echo Packaging Ludork %FULL_VERSION% for Windows x64...
 
 if defined PREBUILT_LAUNCHER (
     echo Using prepared Windows x64 editor launcher...
@@ -277,7 +302,7 @@ set "DIST_BACKED_UP=0"
 if exist "%BACKUP_DIR%" rmdir /S /Q "%BACKUP_DIR%"
 if exist "%WORK_DIR%" rmdir /S /Q "%WORK_DIR%"
 
-echo Editor package complete: %FINAL_DIR%
+echo Editor package complete: %FINAL_DIR% (%FULL_VERSION%)
 exit /b 0
 
 :restore_previous
@@ -369,6 +394,8 @@ if errorlevel 1 exit /b 1
 call :require_file "%PACKAGE_DIR%\tools\gnu-make\make-%GNU_MAKE_VERSION%.tar.gz"
 if errorlevel 1 exit /b 1
 call :require_file "%PACKAGE_DIR%\tools\gnu-make\COPYING"
+if errorlevel 1 exit /b 1
+call :require_file "%PACKAGE_DIR%\BuildInfo.json"
 if errorlevel 1 exit /b 1
 call :require_file "%PACKAGE_DIR%\LICENSE.md"
 if errorlevel 1 exit /b 1
@@ -721,7 +748,11 @@ for /f "delims=" %%F in ('dir /B /A "%~1\%EDITOR_CACHE_DIRECTORY%"') do if not "
 exit /b 0
 
 :usage
-echo Usage: tools\pack_editor.bat [--templates ^<folder^>] [--use-current-editor-build] [--launcher ^<file^>]
+echo Usage: tools\pack_editor.bat [--version X.Y.Z] [--dev^|--release] [--templates ^<folder^>] [--use-current-editor-build] [--launcher ^<file^>]
+exit /b 1
+
+:conflicting_channel
+echo --dev and --release are mutually exclusive.
 exit /b 1
 
 :failed

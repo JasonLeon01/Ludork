@@ -29,7 +29,8 @@ from .packaging_constants import (
     RUNTIME_LEGAL_FILES,
     TEMPLATE_TOKEN_PATTERN,
 )
-from .packaging_names import artifact_name, read_app_name
+from .packaging_names import read_app_name
+from .packaging_metadata import PackageMetadata, add_package_arguments, read_package_metadata
 from .resource_constants import RESOURCE_GROUPS, RESOURCE_PACKAGES
 from .ui_property_values import UiAssetError
 from ScriptTools.compile_lua import resolve_luac
@@ -140,6 +141,7 @@ class PackContext:
     template_dir: pathlib.Path
     script_tools: pathlib.Path
     tools: DevEcoTools
+    metadata: PackageMetadata
     game_name: str
     artifact_name: str
     bundle_name: str
@@ -317,6 +319,7 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
             EXIT_PROJECT,
         )
     project_dir = resolve_project(arguments.project_folder)
+    metadata = read_package_metadata(project_dir, arguments.version, arguments.dev)
     if arguments.use_ldpak:
         validate_ldpak_source(project_dir)
     if arguments.compile_lua:
@@ -324,13 +327,12 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
             resolve_luac()
         except RuntimeError as exception:
             raise PackError(str(exception), EXIT_TOOLCHAIN) from exception
-    game_name = read_app_name(project_dir)
     dist_dir = (
         arguments.dist_folder.expanduser().resolve()
         if arguments.dist_folder is not None
         else project_dir / "dist"
     )
-    bundle_name = harmony_bundle_name(game_name)
+    bundle_name = harmony_bundle_name(metadata.app_name)
     validate_bundle_name(bundle_name)
     return PackContext(
         project_dir=project_dir,
@@ -347,8 +349,9 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
         template_dir=project_dir / "Engine" / "PlatformHosts" / "Harmony",
         script_tools=resolve_script_tools(),
         tools=resolve_deveco_tools(),
-        game_name=game_name,
-        artifact_name=artifact_name(game_name),
+        metadata=metadata,
+        game_name=metadata.display_name,
+        artifact_name=metadata.package_name,
         bundle_name=bundle_name,
         device_form=arguments.device_form,
         graphics_api=graphics_api,
@@ -537,6 +540,7 @@ def copy_runtime_resources(context: PackContext, destination: pathlib.Path) -> N
         source = context.project_dir / name
         if source.is_file():
             shutil.copy2(source, destination / name)
+    context.metadata.write_build_info(destination)
     finalize_package(
         destination,
         context.encrypt_shaders,
@@ -760,6 +764,8 @@ def replace_template_tokens(
         "__LUDORK_RUNTIME_HASH__": runtime_hash,
         "__LUDORK_GRAPHICS_API__": "OpenGL ES" if context.graphics_api == "opengl-es" else "OpenGL",
         "__LUDORK_BUNDLE_NAME__": context.bundle_name,
+        "__LUDORK_VERSION_NAME__": context.metadata.version,
+        "__LUDORK_VERSION_CODE__": str(context.metadata.version_code),
         "__LUDORK_GAME_NAME__": json.dumps(
             context.game_name,
             ensure_ascii=False,
@@ -960,6 +966,8 @@ def valid_generated_module(context: PackContext, profile: dict[str, object]) -> 
     if len(entry_abilities) != 1:
         return False
     ability = entry_abilities[0]
+    if ability.get("label") != "$string:ability_label":
+        return False
     permissions = module.get("requestPermissions")
     if not isinstance(permissions, list):
         return False
@@ -1092,12 +1100,31 @@ def validate_project_contract(
     if (
         not isinstance(app, dict)
         or app.get("bundleName") != context.bundle_name
+        or app.get("versionName") != context.metadata.version
+        or app.get("versionCode") != context.metadata.version_code
+        or app.get("label") != "$string:app_name"
         or not valid_generated_app_scope(context, app)
     ):
         raise PackError(
             f"Generated HarmonyOS project has an invalid app contract in {app_path}.",
             EXIT_PROJECT,
         )
+    for relative_path, key in (
+        ("AppScope/resources/base/element/string.json", "app_name"),
+        ("entry/src/main/resources/base/element/string.json", "ability_label"),
+    ):
+        resource_path = project_dir / relative_path
+        resource = require_json5_object(context.tools, resource_path)
+        values = resource.get("string")
+        if not isinstance(values, list) or [
+            value.get("value")
+            for value in values
+            if isinstance(value, dict) and value.get("name") == key
+        ] != [context.game_name]:
+            raise PackError(
+                f"Generated HarmonyOS project has an invalid application label in {resource_path}.",
+                EXIT_PROJECT,
+            )
     project_profile_path = project_dir / "build-profile.json5"
     project_profile = require_json5_object(context.tools, project_profile_path)
     if (
@@ -2178,6 +2205,18 @@ def build_hap(
         raise PackError(f"{signature.title()} HarmonyOS HAP was not produced: {hap}", exit_code)
     with zipfile.ZipFile(hap) as archive:
         names = set(archive.namelist())
+        try:
+            profile = json.loads(archive.read("module.json"))
+        except (KeyError, UnicodeError, ValueError) as exception:
+            raise PackError("HarmonyOS HAP does not contain a valid module.json.") from exception
+        app = profile.get("app") if isinstance(profile, dict) else None
+        if (
+            not isinstance(app, dict)
+            or app.get("bundleName") != context.bundle_name
+            or app.get("versionName") != context.metadata.version
+            or app.get("versionCode") != context.metadata.version_code
+        ):
+            raise PackError("HarmonyOS HAP does not contain the configured identity and version.")
     if "libs/arm64-v8a/libentry.so" not in names:
         raise PackError("HarmonyOS HAP does not contain arm64-v8a/libentry.so.", 1)
     validate_hap_native_dependencies(context, hap)
@@ -2335,6 +2374,7 @@ def install_and_launch_harmony_hap(
 
 def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="ScriptTools harmony-pack")
+    add_package_arguments(parser)
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--export-to-device", action="store_true")
     parser.add_argument("--compile-lua", action="store_true")

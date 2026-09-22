@@ -151,11 +151,11 @@ if not exist "%STANDALONE_DIR%\Binaries\Main.exe" (
     exit /b 1
 )
 set "RUNTIME_LIBRARY_FOUND=0"
-for %%F in ("%STANDALONE_DIR%\*.dll" "%STANDALONE_DIR%\*.so" "%STANDALONE_DIR%\*.dylib" "%STANDALONE_DIR%\*.so.*") do if exist "%%~fF" if not exist "%%~fF\" (
-    echo Runtime library exists outside Binaries: "%%~fF"
+for /f "delims=" %%F in ('dir /b /a-d "%STANDALONE_DIR%\*.dll" "%STANDALONE_DIR%\*.so" "%STANDALONE_DIR%\*.dylib" "%STANDALONE_DIR%\*.so.*" 2^>nul') do (
+    echo Runtime library exists outside Binaries: "%%F"
     exit /b 1
 )
-for %%F in ("%STANDALONE_DIR%\Binaries\*.dll") do if exist "%%~fF" if not exist "%%~fF\" set "RUNTIME_LIBRARY_FOUND=1"
+for /f "delims=" %%F in ('dir /b /a-d "%STANDALONE_DIR%\Binaries\*.dll" 2^>nul') do set "RUNTIME_LIBRARY_FOUND=1"
 if "%RUNTIME_LIBRARY_FOUND%"=="0" (
     echo Standalone output contains no runtime libraries in Binaries.
     exit /b 1

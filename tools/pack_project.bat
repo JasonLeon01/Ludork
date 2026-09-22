@@ -11,7 +11,28 @@ set "ENCRYPT_SHADERS=0"
 set "ENCRYPT_DATA=0"
 set "ENCRYPT_SAVES=0"
 set "USE_LDPAK=0"
+set "PACKAGE_VERSION="
+set "PACKAGE_CHANNEL="
 :parse_options
+if /I "%~1"=="--version" (
+    if "%~2"=="" goto usage
+    set "PACKAGE_VERSION=%~2"
+    shift
+    shift
+    goto parse_options
+)
+if /I "%~1"=="--dev" (
+    if "%PACKAGE_CHANNEL%"=="--release" goto conflicting_channel
+    set "PACKAGE_CHANNEL=--dev"
+    shift
+    goto parse_options
+)
+if /I "%~1"=="--release" (
+    if "%PACKAGE_CHANNEL%"=="--dev" goto conflicting_channel
+    set "PACKAGE_CHANNEL=--release"
+    shift
+    goto parse_options
+)
 if /I "%~1"=="--compile-lua" (
     set "USE_LUAC=1"
     shift
@@ -58,7 +79,18 @@ if not exist "%PROJECT_FILE%" (
     echo Main.proj was not found: %PROJECT_FILE%
     exit /b 1
 )
-"%SCRIPT_TOOLS%" packaging-constants check-app-name "%PROJECT_DIR%"
+set "PACKAGE_METADATA=%TEMP%\ludork-package-%RANDOM%-%RANDOM%.json"
+call :pack_project
+set "PACK_EXIT_CODE=%ERRORLEVEL%"
+if exist "%PACKAGE_METADATA%" del /Q "%PACKAGE_METADATA%"
+exit /b %PACK_EXIT_CODE%
+
+:pack_project
+if defined PACKAGE_VERSION (
+    "%SCRIPT_TOOLS%" packaging-constants resolve-metadata "%PROJECT_DIR%" "%PACKAGE_METADATA%" --version "%PACKAGE_VERSION%" %PACKAGE_CHANNEL%
+) else (
+    "%SCRIPT_TOOLS%" packaging-constants resolve-metadata "%PROJECT_DIR%" "%PACKAGE_METADATA%" %PACKAGE_CHANNEL%
+)
 if errorlevel 1 exit /b %errorlevel%
 set "EDITOR_CACHE_DIRECTORY="
 for /f "delims=" %%V in ('""%SCRIPT_TOOLS%" packaging-constants list editor-cache-directory --separator space"') do set "EDITOR_CACHE_DIRECTORY=%%V"
@@ -70,7 +102,7 @@ if "%USE_LDPAK%"=="1" (
 
 set "DIST_DIR="
 set "NAME_OUTPUT=%TEMP%\ludork-pack-output-%RANDOM%-%RANDOM%.txt"
-"%SCRIPT_TOOLS%" packaging-constants prepare-output "%PROJECT_DIR%" "%DIST_ROOT%" > "%NAME_OUTPUT%"
+"%SCRIPT_TOOLS%" packaging-constants prepare-output "%PROJECT_DIR%" "%DIST_ROOT%" --metadata "%PACKAGE_METADATA%" > "%NAME_OUTPUT%"
 set "PREPARE_EXIT_CODE=%ERRORLEVEL%"
 if "%PREPARE_EXIT_CODE%"=="0" for /f "usebackq delims=" %%V in ("%NAME_OUTPUT%") do set "DIST_DIR=%%V"
 del /Q "%NAME_OUTPUT%"
@@ -121,6 +153,8 @@ if not exist "%DIST_DIR%\Main.exe" (
 )
 
 :complete_pack
+"%SCRIPT_TOOLS%" packaging-constants write-build-info "%DIST_DIR%" --metadata "%PACKAGE_METADATA%"
+if errorlevel 1 exit /b %errorlevel%
 call :validate_runtime_layout
 if errorlevel 1 exit /b %errorlevel%
 call :finalize_package
@@ -155,11 +189,11 @@ if not exist "%DIST_DIR%\Binaries\Main.exe" (
     exit /b 1
 )
 set "RUNTIME_LIBRARY_FOUND=0"
-for %%F in ("%DIST_DIR%\*.dll" "%DIST_DIR%\*.so" "%DIST_DIR%\*.dylib" "%DIST_DIR%\*.so.*") do if exist "%%~fF" if not exist "%%~fF\" (
-    echo Runtime library exists outside Binaries: "%%~fF"
+for /f "delims=" %%F in ('dir /b /a-d "%DIST_DIR%\*.dll" "%DIST_DIR%\*.so" "%DIST_DIR%\*.dylib" "%DIST_DIR%\*.so.*" 2^>nul') do (
+    echo Runtime library exists outside Binaries: "%%F"
     exit /b 1
 )
-for %%F in ("%DIST_DIR%\Binaries\*.dll") do if exist "%%~fF" if not exist "%%~fF\" set "RUNTIME_LIBRARY_FOUND=1"
+for /f "delims=" %%F in ('dir /b /a-d "%DIST_DIR%\Binaries\*.dll" 2^>nul') do set "RUNTIME_LIBRARY_FOUND=1"
 if "%RUNTIME_LIBRARY_FOUND%"=="0" (
     echo Pack output contains no runtime DLLs in Binaries.
     exit /b 1
@@ -167,5 +201,9 @@ if "%RUNTIME_LIBRARY_FOUND%"=="0" (
 exit /b 0
 
 :usage
-echo Usage: tools\pack_project.bat [--compile-lua] [--encrypt-shaders] [--encrypt-data] [--encrypt-saves] [--use-ldpak] ^<project-folder^> [dist-folder]
+echo Usage: tools\pack_project.bat [--version X.Y.Z] [--dev^|--release] [--compile-lua] [--encrypt-shaders] [--encrypt-data] [--encrypt-saves] [--use-ldpak] ^<project-folder^> [dist-folder]
+exit /b 1
+
+:conflicting_channel
+echo --dev and --release are mutually exclusive.
 exit /b 1

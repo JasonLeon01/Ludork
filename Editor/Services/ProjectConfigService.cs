@@ -65,6 +65,28 @@ public sealed class ProjectConfigService
         }
     }
 
+    public string PackagingVersion => data["packaging"] is JsonObject packaging
+        && packaging["version"] is JsonValue value && value.TryGetValue(out string? version)
+            ? version ?? "1.0.0" : "1.0.0";
+
+    public bool PackagingDev => data["packaging"] is JsonObject packaging
+        && packaging["dev"] is JsonValue value && value.TryGetValue(out bool dev) && dev;
+
+    public void SetPackaging(string version, bool dev)
+    {
+        JsonObject updated = (JsonObject)data.DeepClone();
+        if (updated["packaging"] is not JsonObject packaging)
+        {
+            packaging = [];
+            updated["packaging"] = packaging;
+        }
+        packaging["version"] = version;
+        packaging["dev"] = dev;
+        if (JsonNode.DeepEquals(data, updated))
+            return;
+        save(updated);
+    }
+
     public string? LastFileExplorerPath
     {
         get => data["lastFileExplorerPath"]?.GetValue<string>();
@@ -229,5 +251,11 @@ public sealed class ProjectConfigService
         return (value ?? string.Empty).Trim().Replace('/', '.').Replace('\\', '.');
     }
 
-    private void save() => File.WriteAllText(configPath, data.ToJsonString(new() { WriteIndented = true }));
+    private void save() => save(data);
+
+    private void save(JsonObject updated)
+    {
+        File.WriteAllText(configPath, updated.ToJsonString(new() { WriteIndented = true }));
+        data = updated;
+    }
 }

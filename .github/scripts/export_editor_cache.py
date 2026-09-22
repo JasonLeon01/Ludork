@@ -50,6 +50,7 @@ MANAGED_INPUTS = (
     "*nuget.config",
     "packages.lock.json",
     "*/packages.lock.json",
+    "versions.conf",
     "tools/pack_editor.*",
     "Game/Engine/Source/Core/include/EngineState.hpp",
     "ScriptTools/engine_constants.py",
@@ -61,6 +62,7 @@ LAUNCHER_INPUTS = (
     "tools/pack_editor.bat",
     "Editor/Assets/icon.ico",
     "Ludork.csproj",
+    "versions.conf",
 )
 
 

@@ -16,6 +16,7 @@ def main(arguments: list[str] | None = None) -> int:
     if projectFile.is_file():
         data = json.loads(projectFile.read_text(encoding="utf-8"))
     data["Cpp"] = parsed.cpp == "true"
+    data["packaging"] = {"version": "1.0.0", "dev": False}
     if parsed.ffmpeg == "true":
         data["ffmpeg"] = True
     else:

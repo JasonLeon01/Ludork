@@ -23,6 +23,7 @@ All scripts switch to the repository root before doing work. Use `.bat` on Windo
 | `pack_android.sh` | Build an Android arm64-v8a Release APK from a C++ Source project, unsigned by default with optional signing |
 | `pack_editor.bat` | Publish and validate the self-contained Windows 10-or-newer x64 editor package with official plug-ins |
 | `pack_editor.sh` | Publish and validate the self-contained macOS Apple Silicon editor DMG |
+| `pack_editor_msi.bat` | Wrap a release Windows editor package into the installer MSI |
 
 Typical commands:
 
@@ -212,6 +213,31 @@ its two contract projects. It still refreshes Content and compiles current local
 data in a clean staging directory. Windows also accepts `--launcher <file>` for
 a prepared editor launcher outside that staging directory.
 
+`EDITOR_VERSION` in `versions.conf` is the editor's own base version. `Ludork.csproj`
+derives its `<Version>` from that entry, so the assembly, Windows launcher resource,
+macOS bundle metadata and installer all report the same number. Both editor packers
+accept `--version <base-version>` and mutually exclusive `--dev` / `--release`,
+defaulting to `--dev`; an override applies to that invocation only and does not
+change `versions.conf`. They follow the same identifier rules as the game packers:
+a formal package keeps the base version, and a dev package appends the UTC+8
+`YYYYMMDDHH` build hour, as in `1.0.0.2026010107`.
+
+```bat
+tools\pack_editor.bat --release
+tools\pack_editor.bat --version 1.1.0 --dev
+```
+
+```sh
+./tools/pack_editor.sh --release
+```
+
+Each package receives `BuildInfo.json` at its content root, which is the package
+root on Windows and `Contents/Resources` inside the macOS app bundle, with the same
+`version`, `fullVersion`, `dev` and `builtAt` fields as a game package. The About
+dialog shows `fullVersion`. Binary version fields hold the base version, because
+Windows resources and .NET assembly versions reject components above 65535; the full
+version names the DMG, its volume and the packaging log line.
+
 ### Pull requests and automated packages
 
 PR validation selects checks from changed paths, including added, deleted and
@@ -241,17 +267,20 @@ runs are serialized; after acquiring that slot, a scheduled run skips when its
 commit equals the latest successful dual-platform temporary package of the
 default branch. Manual runs always build, including the same commit. Successful
 manual default-branch packages update that baseline; skipped, failed, cancelled,
-other-branch and tag runs do not. Temporary artifacts retain their existing names
-and expire after seven days.
+other-branch and tag runs do not. Scheduled and manual runs package both platforms
+with `--dev`, so their artifacts carry the dated full version. Temporary artifacts
+retain their existing names and expire after seven days.
 
 Artifact consumers must select a run whose `Record successful package` job
 succeeded and whose requested artifact is still available and unexpired. Selecting
 only the latest successful workflow is insufficient: a scheduled run skipped for
 an unchanged commit also succeeds, but produces no package artifacts.
 
-Pushing a `v*` tag builds both platforms and then creates a draft GitHub Release
-with generated release notes, the Windows ZIP and the macOS DMG. A rerun updates
-the existing draft; an already published release is not overwritten. No release
+Pushing a `v*` tag packages both platforms with `--release`, builds the Windows MSI
+and then creates a draft GitHub Release with generated release notes, that MSI and
+the macOS DMG. The tag only selects the packaging mode; the version always comes
+from `EDITOR_VERSION`, and the tag name is never parsed. A rerun updates the
+existing draft; an already published release is not overwritten. No release
 is automatically published, and only the release-upload job has `contents: write`.
 
 The Export Editor workflow uses separate
@@ -279,6 +308,7 @@ the self-contained editor under `Binaries`. Its output has this layout:
 ```text
 dist/
 ├── Ludork.exe                 # Native launcher
+├── BuildInfo.json
 ├── Binaries/
 │   ├── Ludork.exe             # Actual editor
 │   ├── Ludork.dll
@@ -316,6 +346,13 @@ configuration against the installation root even when started directly from
 `Plugins/.data`. Repository development builds use `Plugins` and
 `plugins.json` with the development marker. Desktop game Standalone packages retain their
 own packaging layout.
+
+`pack_editor_msi.bat` wraps the current `dist` package into the Windows Installer
+database with the pinned WiX toolset. It reads `dist\BuildInfo.json`, refuses a dev
+package and requires the packaged version to match `EDITOR_VERSION`, so run
+`tools\pack_editor.bat --release` first. Without an argument it writes
+`Ludork-<version>-windows-x64.msi` to the repository root; an argument selects a
+different `.msi` path.
 
 `pack_editor.sh` requires macOS on Apple Silicon with a logged-in Finder session,
 the .NET 9 SDK, CMake, ScriptTools built by `init.sh`, and initialized Game project
@@ -372,9 +409,13 @@ An installed editor uses its bundled runtime and needs no system Python.
 editor-cache directory, licence lists, template names, generated native Lua
 files, and common mobile project/dependency-cache
 inputs. `ScriptTools/packaging_names.py` reads the static `APP_NAME` string in
-`Scripts/Entry.lua` and owns package filename rules. The `packaging-constants`
+`Scripts/Entry.lua` and owns package filename rules. `ScriptTools/packaging_metadata.py`
+resolves project release settings, the System title and one UTC+8 build timestamp
+for all platform metadata and artifacts. Its release-version half carries the
+version rules, derived platform build numbers and `BuildInfo.json` handling that
+editor packaging reuses without a project. The `packaging-constants`
 command and C# constant generation live in `ScriptTools/packaging_cli.py`, which
-consumes both modules; the shared constants have no dependency on the command or naming logic.
+consumes these shared modules; the shared constants have no dependency on the command or naming logic.
 `ScriptTools/resource_constants.py` owns resource groups, logical path prefixes,
 entry names and file extensions. Platform SDK, signing, bundle identifiers and
 platform archive formats remain in their platform packers. Mobile dependency-cache
@@ -388,18 +429,37 @@ Shell and batch tools read fixed lists through
 `standalone-template-names`, `plain-template-names`, `ffmpeg-template-names` and
 `native-lua-files`. Output is one entry per line; `--separator space` emits a
 single line, and `--windows` changes path separators for batch consumers.
-`check-app-name <project-root>` rejects the unchanged sample name with exit code
-24 and reports missing, unreadable or invalid name definitions with code 23.
-`ScriptTools packaging-constants app-name <project-root>` prints the same validated
+`ScriptTools packaging-constants app-name <project-root>` prints the validated
 `APP_NAME`; add `--artifact` to print its safe filename form. Desktop and mobile
 packers share this reader and require exactly one top-level `local APP_NAME`
 declaration with a non-empty static Lua string literal. Expressions that need
 Lua execution are rejected.
 
-`ScriptTools packaging-constants prepare-output <project-root> <dist-root>`
-prepares and prints the Windows package directory `<dist-root>/<game>` using
-the same filename form. It replaces only that named child, preserves siblings,
-and rejects links in the output directory or any ancestor, and paths that overlap protected project content.
+`ScriptTools packaging-constants check-package-metadata <project-root>` validates
+application identity, System title and release settings; it accepts `--version`
+and mutually exclusive `--dev` / `--release` overrides. It rejects the unchanged
+sample application name with exit code 24 and missing, unreadable or invalid
+project metadata with code 23. `release-version
+--version <version> [--dev|--release]` prints the release preview as JSON without
+loading a project.
+
+Editor packaging uses the same release rules without a project. `release-build-info
+<directory> --version <version> [--dev|--release]` writes `<directory>/BuildInfo.json`
+and prints the full version, and `build-info <file> --field <name>` prints one
+resolved field of an existing `BuildInfo.json`, including `fullVersion`, `dev` and
+`appleBuildVersion`. Both reject a file whose fields disagree with its own version
+and build time.
+
+Packers call `resolve-metadata <project-root> <output-json> [overrides]` once to
+freeze the metadata for that invocation. `package-name --metadata <snapshot-json>`
+prints the versioned safe filename. `prepare-output <project-root> <dist-root>
+--metadata <snapshot-json>` prepares and prints the Windows package directory
+`<dist-root>/<game>-<full-version>`, replacing only that child and preserving
+siblings. It rejects links in the output directory or any ancestor and paths
+that overlap protected project content. `write-build-info <runtime-root>
+--metadata <snapshot-json>` writes staged `Data/BuildInfo.json` before data
+finalisation. These commands all belong to `ScriptTools packaging-constants`;
+reuse the same snapshot through the entire invocation rather than recapturing time.
 
 `ScriptTools packaging-constants csharp <output.cs>` generates
 `Ludork.Services.ProjectToolConstants` for the editor build. Generated constants
@@ -560,30 +620,56 @@ while excluding generated language catalogues.
 ./tools/pack_harmony.sh --device-form 2in1 --graphics-api opengl-es Game
 ```
 
-The three unsigned outputs are `dist/<game>-harmony-mobile-unsigned.hap`, `dist/<game>-harmony-2in1-opengl-unsigned.hap` and `dist/<game>-harmony-2in1-opengl-es-unsigned.hap`. Add `--export-to-device` to build the corresponding `-signed.hap`, install it and launch it. Mobile export accepts a connected target whose reported device type is `default`, `phone` or `tablet`; 2in1 export accepts only `2in1`. Exactly one connected device must match the requested form, while devices of the other form may remain connected. `--check` validates the same selected form/backend and, when combined with `--export-to-device`, the matching-device requirement without building or publishing a HAP.
+The three unsigned outputs are `dist/<game>-<full-version>-harmony-mobile-unsigned.hap`, `dist/<game>-<full-version>-harmony-2in1-opengl-unsigned.hap` and `dist/<game>-<full-version>-harmony-2in1-opengl-es-unsigned.hap`. Add `--export-to-device` to build the corresponding `-signed.hap`, install it and launch it. Mobile export accepts a connected target whose reported device type is `default`, `phone` or `tablet`; 2in1 export accepts only `2in1`. Exactly one connected device must match the requested form, while devices of the other form may remain connected. `--check` validates the same selected form/backend and, when combined with `--export-to-device`, the matching-device requirement without building or publishing a HAP.
 
 Every variant sets the HAP target and compatible SDK to `6.0.2(22)` and passes `OHOS_COMPATIBLE_SDK_VERSION=22` to the native build, producing the versioned compiler target `aarch64-linux-ohos22.0.0`. The Mobile CMake contract is `SFML_HARMONY_DEVICE_FORM=MOBILE` with `SFML_OPENGL_ES=ON`; the two 2in1 contracts use `SFML_HARMONY_DEVICE_FORM=2IN1` with `SFML_OPENGL_ES=OFF` for OpenGL or `ON` for OpenGL ES. FFmpeg-enabled builds use that same versioned target for compilation and linking.
 
 The 2in1 OpenGL HAP requires the target image to provide HarmonyOS desktop OpenGL through `libGLv4.so` and the platform capability query. Some API 24 PC emulator images omit that runtime even though the compile SDK contains its import library. Such an image cannot load the OpenGL native module; the app reports the missing runtime and never silently falls back to OpenGL ES. Export the separate OpenGL ES variant for that image, or use a 2in1 device/image that provides desktop OpenGL to validate the OpenGL variant.
 
-`pack_android.sh` produces an arm64-v8a Release APK for Android 7.0 / API 24 or newer. It requires Apple Silicon macOS, Android Studio at one of its two standard application locations, SDK Platform 36, Build Tools 36.0.0, a complete stable NDK r27 or newer under the locally installed SDK, system CMake 3.28 or newer with Unix Makefiles support, and `/usr/bin/make`. The SDK is resolved from `ANDROID_SDK_ROOT`, then `ANDROID_HOME`, then `~/Library/Android/sdk`. The packer selects the highest complete stable NDK under that SDK's `ndk` directory; projects and editor packages never carry an SDK or NDK. Set `LUDORK_CMAKE` only when selecting a particular system CMake executable. The tool does not use an SDK-bundled CMake, Ninja, SDK Manager, an emulator, AVD or adb. It runs `ScriptTools android-pack`, packages the prebuilt `libludork.so` with Gradle and, by default, writes `dist/<game>-android-arm64-v8a-unsigned.apk` without installing or launching it.
+`pack_android.sh` produces an arm64-v8a Release APK for Android 7.0 / API 24 or newer. It requires Apple Silicon macOS, Android Studio at one of its two standard application locations, SDK Platform 36, Build Tools 36.0.0, a complete stable NDK r27 or newer under the locally installed SDK, system CMake 3.28 or newer with Unix Makefiles support, and `/usr/bin/make`. The SDK is resolved from `ANDROID_SDK_ROOT`, then `ANDROID_HOME`, then `~/Library/Android/sdk`. The packer selects the highest complete stable NDK under that SDK's `ndk` directory; projects and editor packages never carry an SDK or NDK. Set `LUDORK_CMAKE` only when selecting a particular system CMake executable. The tool does not use an SDK-bundled CMake, Ninja, SDK Manager, an emulator, AVD or adb. It runs `ScriptTools android-pack`, packages the prebuilt `libludork.so` with Gradle and, by default, writes `dist/<game>-<full-version>-android-arm64-v8a-unsigned.apk` without installing or launching it.
 
 The Gradle wrapper lives in `Game/Engine/PlatformHosts/Android` alongside the Android host template and is included in both C++ Source template variants. Packaging copies and validates that template without reading third-party examples. `gradle/wrapper/gradle-wrapper.properties` selects Gradle 9.5.0; Android Gradle Plugin remains 9.3.0. The wrapper’s licence and source notice travel with it under `gradle/wrapper`. macOS packages retain `gradlew`, the wrapper JAR, configuration and notices; they omit the Windows-only `gradlew.bat`.
 
-Optional signing uses `--sign --keystore <absolute-path> --key-alias <alias>`. Supply exactly two UTF-8, newline-delimited passwords on standard input, using the same value twice when they match; never place them in command-line arguments. With `--check`, the same protocol validates the environment and credentials without publishing. A successful run signs and verifies the APK, then publishes only `dist/<game>-android-arm64-v8a-signed.apk`; the command does not persist credentials. Reuse the same signing key for later application updates. A signed package is not installed or launched.
+Optional signing uses `--sign --keystore <absolute-path> --key-alias <alias>`. Supply exactly two UTF-8, newline-delimited passwords on standard input, using the same value twice when they match; never place them in command-line arguments. With `--check`, the same protocol validates the environment and credentials without publishing. A successful run signs and verifies the APK, then publishes only `dist/<game>-<full-version>-android-arm64-v8a-signed.apk`; the command does not persist credentials. Reuse the same signing key for later application updates. A signed package is not installed or launched.
 
-All game packers use `APP_NAME` from `Scripts/Entry.lua` for application display
-names and derive output names and application identifiers from it. `<game>` in
-the mobile output paths above is its sanitised filename form. `pack_project`
-writes `dist/<game>/Main.exe` on Windows and `dist/<game>.app` on macOS; a custom
-output directory replaces `dist` as the parent. Repacking replaces only the
-package for the current name, preserving sibling packages and unrelated files.
-Project folder names and the System Config title do not affect these names;
-runtime title behaviour remains unchanged. Changing `APP_NAME` can change the
-installed application identity and require updated signing or provisioning.
-Set one top-level `local APP_NAME` to a unique non-empty static string literal
-before packaging; the sample
-`APP_NAME = "LudorkSample"`, missing definitions and dynamic expressions are rejected.
+All game packers derive application identifiers and the `<game>` filename
+component from the static `APP_NAME` in `Scripts/Entry.lua`. Set one top-level
+`local APP_NAME` to a unique non-empty string literal before packaging; the
+sample `LudorkSample`, missing definitions and dynamic expressions are rejected.
+Mobile and macOS display names use the non-empty, control-character-free raw
+`title.value` in `Data/Configs/System.json`. The project folder name is not used.
+Changing the title or version preserves installation identity; changing `APP_NAME`
+can require updated signing or provisioning.
+
+Game packers accept `--version <base-version>` and mutually exclusive `--dev` /
+`--release`. Unspecified values come from `Main.proj` fields `packaging.version`
+and `packaging.dev`, whose defaults are `"1.0.0"` and `false`. CLI overrides never
+write back to the project. Base versions contain three non-negative decimal
+components without leading zeroes, prefixes or suffixes, up to 127 bytes. The editor's Pack
+Options saves valid version/dev choices on confirmation and writes nothing on
+cancel. These settings do not belong in Entry.
+
+```sh
+./tools/pack_project.sh --version 1.0.0 --dev Game Game/dist
+./tools/pack_android.sh --version 1.0.0 --release Game
+./tools/pack_harmony.sh --version 1.0.0 --dev --device-form mobile Game
+```
+
+The full release identifier is the base version for formal packages, or
+`<base-version>.YYYYMMDDHH` for dev packages, using one UTC+8 timestamp captured
+at pack start. For example, `1.0.0` at `2026-01-01T07:00:00+08:00` produces
+`1.0.0.2026010107` in dev mode. The full rules, platform version/build-number
+mapping and `Data/BuildInfo.json` fields are documented in
+[Release version and internal packages](<../docs/en_GB/02.Editor User Guide/08.Run Debug and Package.md#release-version-and-internal-packages>).
+The dev flag does not change Release optimisation, signing or encryption.
+
+`<full-version>` in the output paths is this full release identifier.
+`pack_project` writes `dist/<game>-<full-version>/Main.exe` on Windows and
+`dist/<game>-<full-version>.app` on macOS; iOS writes
+`dist/<game>-<full-version>.ipa`. A custom output directory replaces `dist` as
+the parent. Repacking the same identifier replaces only its artifact, preserving
+other versions and unrelated files. A repeated dev build in the same hour has
+the same identifier and platform build number.
 
 With `--compile-lua`, every packaged `Scripts/**/*.lua` file is compiled with
 `luac -s`, renamed to `.luac`, and written to `dist`.

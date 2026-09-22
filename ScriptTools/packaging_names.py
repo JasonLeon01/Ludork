@@ -150,10 +150,10 @@ def artifact_name(name: str) -> str:
     return safe
 
 
-def prepare_output(project: pathlib.Path, dist: pathlib.Path) -> pathlib.Path:
+def prepare_output(project: pathlib.Path, dist: pathlib.Path, package_name: str) -> pathlib.Path:
     project = project.expanduser().resolve()
     dist = dist.expanduser().absolute()
-    output = dist / artifact_name(read_app_name(project))
+    output = dist / package_name
     return prepare_directory(project, output)
 
 

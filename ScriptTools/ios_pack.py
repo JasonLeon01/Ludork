@@ -22,6 +22,7 @@ from .packaging_constants import (
     MOBILE_PROJECT_DIRECTORIES,
 )
 from .packaging_names import artifact_name, read_app_name
+from .packaging_metadata import PackageMetadata, add_package_arguments, read_package_metadata
 from .resource_constants import RESOURCE_GROUPS
 from .compile_lua import resolve_luac
 from .ui_property_values import UiAssetError
@@ -64,7 +65,9 @@ class PackContext:
         encrypt_data: bool,
         encrypt_saves: bool,
         use_ldpak: bool,
+        metadata: PackageMetadata,
     ) -> None:
+        self.metadata = metadata
         self.project_dir = project_dir
         self.dist_dir = dist_dir
         self.developer_dir = developer_dir
@@ -89,8 +92,9 @@ class PackContext:
 def parse_arguments(arguments: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="pack_ios",
-        usage="pack_ios [--check] [--compile-lua] [--encrypt-shaders] [--encrypt-data] [--encrypt-saves] [--use-ldpak] [--export-to-iphone] <project-folder> [dist-folder]",
+        usage="pack_ios [--check] [--version VERSION] [--dev | --release] [--compile-lua] [--encrypt-shaders] [--encrypt-data] [--encrypt-saves] [--use-ldpak] [--export-to-iphone] <project-folder> [dist-folder]",
     )
+    add_package_arguments(parser)
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--compile-lua", action="store_true")
     parser.add_argument("--encrypt-shaders", action="store_true")
@@ -169,6 +173,7 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
     if sys.platform != "darwin":
         raise PackError("iOS packaging is only supported on macOS.", EXIT_TOOLCHAIN)
     project_dir = resolve_project(arguments.project_folder)
+    metadata = read_package_metadata(project_dir, arguments.version, arguments.dev)
     if arguments.use_ldpak:
         validate_ldpak_source(project_dir)
     dist_dir = (
@@ -179,7 +184,7 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
     developer_dir = resolve_developer_dir()
     cmake = resolve_cmake()
     cmake_version = require_cmake(cmake)
-    game_name = read_app_name(project_dir)
+    game_name = metadata.display_name
     tools = require_xcode_tools(developer_dir)
     team_id = select_team_id()
     if arguments.compile_lua:
@@ -188,8 +193,8 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
         except RuntimeError as exception:
             raise PackError(str(exception), EXIT_TOOLCHAIN) from exception
         print(f"luac: {luac}")
-    name = artifact_name(game_name)
-    identifier = bundle_identifier(team_id, game_name)
+    name = artifact_name(metadata.app_name)
+    identifier = bundle_identifier(team_id, metadata.app_name)
     print(f"Xcode: {tools['xcodebuild'].splitlines()[0]}")
     print(f"CMake: {cmake_version}")
     print(f"Developer directory: {developer_dir}")
@@ -210,6 +215,7 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
         arguments.encrypt_data,
         arguments.encrypt_saves,
         arguments.use_ldpak,
+        metadata,
     )
 
 
@@ -222,8 +228,8 @@ def write_info_plist(context: PackContext, path: pathlib.Path) -> None:
         "CFBundleInfoDictionaryVersion": "6.0",
         "CFBundleName": context.game_name,
         "CFBundlePackageType": "APPL",
-        "CFBundleShortVersionString": "1.0.0",
-        "CFBundleVersion": "1",
+        "CFBundleShortVersionString": context.metadata.version,
+        "CFBundleVersion": context.metadata.apple_build_version,
         "LSRequiresIPhoneOS": True,
         "NSHighResolutionCapable": True,
         "CFBundleIconFiles": ["AppIcon"],
@@ -364,6 +370,7 @@ def configure_and_build(
     ).expanduser().resolve()
     ui_registry = prepare_registry(context.project_dir, script_tools)
     copy_runtime_resources(context, resources_dir)
+    context.metadata.write_build_info(resources_dir)
     finalize_package(
         resources_dir,
         context.encrypt_shaders,
@@ -461,6 +468,12 @@ def verify_app(context: PackContext, app_path: pathlib.Path) -> None:
         info = plistlib.load(stream)
     if info.get("CFBundleDisplayName") != context.game_name:
         raise PackError("The built app does not contain the configured game name.")
+    if (
+        info.get("CFBundleName") != context.game_name
+        or info.get("CFBundleShortVersionString") != context.metadata.version
+        or info.get("CFBundleVersion") != context.metadata.apple_build_version
+    ):
+        raise PackError("The built app does not contain the configured name and version.")
     if info.get("CFBundleIdentifier") != context.bundle_identifier:
         raise PackError("The built app does not contain the configured bundle identifier.")
     try:
@@ -474,8 +487,8 @@ def verify_app(context: PackContext, app_path: pathlib.Path) -> None:
 
 def create_ipa(context: PackContext, app_path: pathlib.Path) -> pathlib.Path:
     context.dist_dir.mkdir(parents=True, exist_ok=True)
-    ipa_path = context.dist_dir / f"{context.artifact_name}.ipa"
-    temporary_ipa = context.dist_dir / f".{context.artifact_name}.ipa.tmp"
+    ipa_path = context.dist_dir / f"{context.metadata.package_name}.ipa"
+    temporary_ipa = context.dist_dir / f".{context.metadata.package_name}.ipa.tmp"
     if temporary_ipa.exists():
         temporary_ipa.unlink()
     stage_root = app_path.parent.parent / "ipa-stage"
