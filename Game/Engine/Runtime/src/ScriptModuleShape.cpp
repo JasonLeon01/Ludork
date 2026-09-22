@@ -55,6 +55,11 @@ void pushShape(lua_State* state, int value, int seen) {
     }
     lua_pushvalue(state, shape);
     lua_rawsetp(state, seen, lua_topointer(state, value));
+    if (standard::class_runtime::isHotReloadNativeType(state, value)) {
+        lua_pushvalue(state, value);
+        lua_setfield(state, shape, "nativeType");
+        return;
+    }
     const bool classTable =
         standard::class_runtime::isHotReloadClass(state, value);
     lua_pushboolean(state, classTable);
@@ -128,6 +133,17 @@ void compareShapes(lua_State* state, int oldShape, int newShape,
         fail("definition field type changed");
     }
     if (kind != LUA_TTABLE) {
+        return;
+    }
+    lua_getfield(state, oldShape, "nativeType");
+    lua_getfield(state, newShape, "nativeType");
+    const bool nativeType = !lua_isnil(state, -2) || !lua_isnil(state, -1);
+    const bool sameNativeType = lua_rawequal(state, -2, -1) != 0;
+    lua_pop(state, 2);
+    if (nativeType) {
+        if (!sameNativeType) {
+            fail("native type reference changed");
+        }
         return;
     }
     const void* oldId = lua_topointer(state, oldShape);

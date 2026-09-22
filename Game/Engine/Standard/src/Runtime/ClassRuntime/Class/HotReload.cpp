@@ -163,6 +163,12 @@ bool isHotReloadClass(lua_State* state, int index) {
            detail::isClass(lua_glue::Read<lua_glue::Table>(state, index));
 }
 
+bool isHotReloadNativeType(lua_State* state, int index) {
+    return lua_istable(state, index) != 0 &&
+           detail::isNativeType(lua_glue::StateView(state),
+                                lua_glue::Read<lua_glue::Table>(state, index));
+}
+
 bool isHotReloadProtectedTable(lua_State* state, int index) {
     if (lua_istable(state, index) == 0) {
         return false;
