@@ -74,6 +74,9 @@ void VideoPlayerImpl::play() {
         }
         window->clear(sf::Color::Transparent);
         update(*window, sound, silentClock);
+        if (finished_ && !sprite_.has_value()) {
+            break;
+        }
         if (sprite_.has_value()) {
             window->draw(*sprite_);
         }
