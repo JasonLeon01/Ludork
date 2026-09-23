@@ -1,24 +1,24 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GameSystem = require("Source.System")
-local WindowTransition = require("Source.UIBase.WindowTransition")
-local CommandRowController = require("Source.UIBase.CommandRow.Controller")
-local Ui = require("Source.UIBase.Ui")
-local UiLayout = require("Source.UIBase.UiLayout")
-local View = require("Source.UI.WindowMenu")
-local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
+local WindowTransition = require("Internal.UIBase.WindowTransition")
+local CommandRowController = require("Internal.UIBase.CommandRow.Controller")
+local Ui = require("Internal.UIBase.Ui")
+local UiLayout = require("Internal.UIBase.UiLayout")
+local View = require("Internal.UI.WindowMenu")
+local WindowSelectable = require("Internal.UIBase.WindowSelectable")
 
 local Input = Engine.Input
 local Direction = Engine.FocusDirection
 local AudioManager = GlobalCore.AudioManager
 
----@param window Source.UIBase.Ui.Window | nil
+---@param window Internal.UIBase.Ui.Window | nil
 ---@return boolean
 local function isVisible(window)
     return window ~= nil and window:getVisible()
 end
 
----@param window   Source.UIBase.Ui.Window | nil
+---@param window   Internal.UIBase.Ui.Window | nil
 ---@param position sf.Vector2f
 ---@return boolean
 local function containsPointer(window, position)

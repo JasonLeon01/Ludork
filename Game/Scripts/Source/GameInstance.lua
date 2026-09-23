@@ -1,8 +1,8 @@
 local GameVariables = require("Source.Configs.GameVariables")
-local GameInstanceRecords = require("Source.GameInstance.Records")
-local GameInstanceSaveCodec = require("Source.GameInstance.SaveCodec")
-local GameInstanceWorldPersistence = require("Source.GameInstance.WorldPersistence")
-local MapPath = require("Source.MapPath")
+local GameInstanceRecords = require("Source.Utils.GameInstance.Records")
+local GameInstanceSaveCodec = require("Source.Utils.GameInstance.SaveCodec")
+local GameInstanceWorldPersistence = require("Source.Utils.GameInstance.WorldPersistence")
+local MapPath = require("Source.Utils.MapPath")
 ---@class (partial) Source.GameInstance.GameInstance
 local GameInstance = {}
 
@@ -24,7 +24,7 @@ function GameInstance:init(skipDefaultPlayer)
     if skipDefaultPlayer then
         return
     end
-    local Player = require("Source.Player")
+    local Player = require("Source.MapActors.Player")
     local GameSystem = require("Source.System")
 
     self._currentRegion = GameSystem.GetStartRegion()
@@ -166,7 +166,7 @@ end
 function GameInstance:addPlayerByClass(playerClass, mapPath, position)
     assert(Class.isInstance(mapPath, "string") and bool(mapPath), "Added player map path must be a non-empty string")
     assert(position ~= nil, "Added player position is required")
-    local Player = require("Source.Player")
+    local Player = require("Source.MapActors.Player")
     local player = Player.InitPlayer(playerClass)
     player:setMapPosition(position)
     GameInstanceRecords.AppendPlayer(self._players, self._playerKeys, player)

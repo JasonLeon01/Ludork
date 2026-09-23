@@ -1,6 +1,6 @@
 local ConfigRowControllerBase = require("Source.Windows.ConfigWindow.ConfigRow")
-local Ui = require("Source.UIBase.Ui")
-local View = require("Source.UI.Parts.ConfigWindow.ConfigCheckBoxRow")
+local Ui = require("Internal.UIBase.Ui")
+local View = require("Internal.UI.Parts.ConfigWindow.ConfigCheckBoxRow")
 
 local ConfigCheckBoxRowController = {}
 

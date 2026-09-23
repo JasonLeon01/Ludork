@@ -5,6 +5,8 @@
 --- Save data is serialized as JSON and stored in plain `.json` or encrypted
 --- `.ldc` files.
 
+local Save = {}
+
 ---@brief Save game state to the file format selected by `SAVE_AS_LDC`.
 ---
 --- - @param filePath Path whose extension matches the configured save format.

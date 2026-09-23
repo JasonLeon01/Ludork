@@ -7,17 +7,17 @@
 ---@field available boolean
 
 ---@brief Attribute upgrade shop window and Controller.
----@class Source.Windows.WindowAttrShop.Controller: Source.UIBase.UiController
----@field _player               Source.Player.Player
+---@class Source.Windows.WindowAttrShop.Controller: Internal.UIBase.UiController
+---@field _player               Source.MapActors.Player.Player
 ---@field _onCloseCallback      function | nil
 ---@field _abilities            table<string, integer>
 ---@field _abilityKeys          string[]
----@field _priceRef             Source.NodeFunctions.Utils.NodeReference<integer | integer[]> | nil
+---@field _priceRef             GlobalFunctions.Utils.NodeReference<integer | integer[]> | nil
 ---@field _fallbackPrice        integer
 ---@field _priceIncrement       integer
 ---@field _moneyName            string
 ---@field _closed               boolean
----@field ui                    Source.UI.WindowAttrShop
+---@field ui                    Internal.UI.WindowAttrShop
 ---@field _shopNameSource       string
 ---@field _descriptionSource    string
 ---@field _shopName             string
@@ -29,7 +29,7 @@
 ---@field _avatarSwitchInterval number
 ---@field _avatarSwitchTimer    number
 ---@field _offers               Source.Windows.WindowAttrShop.Offer[]
----@field _rows                 Source.UIBase.UiCollection<Source.Windows.WindowAttrShop.AttrShopRow.Controller>
+---@field _rows                 Internal.UIBase.UiCollection<Source.Windows.WindowAttrShop.AttrShopRow.Controller>
 ---@field host                  Source.Windows.WindowAttrShop
 local Controller = {}
 
@@ -53,18 +53,18 @@ function Controller:_increasePrice(abilityIndex) end
 ---
 --- - @param player Player whose currency and attributes are modified.
 --- - @param onClose Callback invoked after the shop closes.
----@param player  Source.Player.Player
+---@param player  Source.MapActors.Player.Player
 ---@param onClose function | nil
 function Controller:init(player, onClose) end
 
 ---@brief Get the player currently bound to the shop.
----@return Source.Player.Player
+---@return Source.MapActors.Player.Player
 function Controller:getPlayer() end
 
 ---@brief Rebind the player used by the shop.
 ---
 --- - @param player New player instance.
----@param player Source.Player.Player
+---@param player Source.MapActors.Player.Player
 function Controller:setPlayer(player) end
 
 ---@brief Resolve a display name for a player info component attribute.
@@ -88,7 +88,7 @@ function Controller:getAttributeDisplayName(attributeName) end
 ---@param shopName        string
 ---@param shopDescription string
 ---@param abilities       table<string, integer>
----@param priceRef        Source.NodeFunctions.Utils.NodeReference<integer | integer[]> | nil
+---@param priceRef        GlobalFunctions.Utils.NodeReference<integer | integer[]> | nil
 ---@param priceIncrement  integer
 ---@param moneyName       string | nil
 function Controller:open(shopActor, shopName, shopDescription, abilities, priceRef, priceIncrement, moneyName) end

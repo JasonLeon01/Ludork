@@ -1,5 +1,5 @@
 {
-  "parent": "Source.DoorBase.DoorBase",
+  "parent": "Source.MapActors.DoorBase.DoorBase",
   "attrs": {
     "scriptMixin": true,
     "scriptPath": "Doors/Door.lua",

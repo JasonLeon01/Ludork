@@ -44,7 +44,7 @@
 ---@field version          integer
 ---@field region           string
 ---@field playerKeys       string[]
----@field players          table<string, Source.Player.SaveData>
+---@field players          table<string, Source.MapActors.Player.SaveData>
 ---@field variables        table<string, Source.GameInstance.RecordValue>
 ---@field map              table<string, string>
 ---@field obtainedItems    table<string, boolean>
@@ -63,13 +63,13 @@
 --- the stable map-placement tag returned by `actor:getMapTag()`, not `actor.tag`.
 ---@class Source.GameInstance.GameInstance
 ---@field _playerKeys                 string[]
----@field _players                    table<string, Source.Player.Player>
+---@field _players                    table<string, Source.MapActors.Player.Player>
 ---@field _cachedMaps                 table<string, string>
 ---@field _cachedTelepoints           table<string, Source.GameInstance.TelepointRecord[]>
 ---@field _cachedWorldMovedActors     table<string, Source.GameInstance.WorldMovedActorRecord[]>
 ---@field new                         fun(skipDefaultPlayer?: boolean): Source.GameInstance.GameInstance
 ---@field FromDict                    fun(data: Source.GameInstance.SaveData): Source.GameInstance.GameInstance
----@field getPlayer                   fun(self: Source.GameInstance.GameInstance): Source.Player.Player
+---@field getPlayer                   fun(self: Source.GameInstance.GameInstance): Source.MapActors.Player.Player
 ---@field getVariables                fun(self: Source.GameInstance.GameInstance): table<string, Source.GameInstance.RecordValue>
 ---@field getVariable                 fun(self: Source.GameInstance.GameInstance, name: string): Source.GameInstance.RecordValue
 ---@field setVariable                 fun(self: Source.GameInstance.GameInstance, name: string, value: Source.GameInstance.RecordValue)
@@ -174,7 +174,7 @@ function GameInstance:setVariable(name, value) end
 ---@brief Get the first (primary) player.
 ---
 --- - @return The primary player.
----@return Source.Player.Player
+---@return Source.MapActors.Player.Player
 function GameInstance:getPlayer() end
 
 ---@brief Make an existing keyed player the primary player.
@@ -188,7 +188,7 @@ function GameInstance:setPlayer(playerKey) end
 ---@brief Get all players.
 ---
 --- - @return A dictionary keyed by Player General Data key.
----@return table<string, Source.Player.Player>
+---@return table<string, Source.MapActors.Player.Player>
 function GameInstance:getPlayers() end
 
 ---@brief Get player keys in their current order.
@@ -202,7 +202,7 @@ function GameInstance:getPlayerKeys() end
 --- - @param index The zero-based index in the ordered player-key list.
 --- - @return The player at the given index.
 ---@param index integer
----@return Source.Player.Player
+---@return Source.MapActors.Player.Player
 function GameInstance:getPlayerByIndex(index) end
 
 ---@brief Find a player by tag.
@@ -210,7 +210,7 @@ function GameInstance:getPlayerByIndex(index) end
 --- - @param tag The player tag to search for.
 --- - @return The matching player, or nil.
 ---@param tag string
----@return Source.Player.Player | nil
+---@return Source.MapActors.Player.Player | nil
 function GameInstance:getPlayerByTag(tag) end
 
 ---@brief Make an existing party member the primary player by class path.

@@ -1,7 +1,7 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local Logging = require("Global.Utils.Logging")
-local LazyWindow = require("Source.UIBase.LazyWindow")
+local LazyWindow = require("Internal.UIBase.LazyWindow")
 
 local Direction = Engine.FocusDirection
 local FocusGroup = GlobalCore.FocusGroup

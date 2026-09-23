@@ -1,5 +1,5 @@
 {
-  "parent": "Source.Enemy",
+  "parent": "Source.MapActors.Enemy",
   "attrs": {
     "material": {
       "lightBlock": 0.4,

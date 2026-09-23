@@ -1,11 +1,11 @@
 ---@meta
 
 ---@brief Integrated shop UI with tabs, item list, and item details.
----@class Source.Windows.WindowShop.Controller: Source.UIBase.UiController
+---@class Source.Windows.WindowShop.Controller: Internal.UIBase.UiController
 ---@field host             Source.Windows.WindowShop
 ---@field SHOP_MODE_BUY    "buy"
 ---@field SHOP_MODE_SELL   "sell"
----@field _player          Source.Player.Player
+---@field _player          Source.MapActors.Player.Player
 ---@field _onCloseCallback function | nil
 ---@field _tabWindow       Source.Windows.WindowShopTabs
 ---@field _itemWindow      Source.Windows.WindowShopItem
@@ -17,7 +17,7 @@
 ---@field _canSell         boolean
 ---@field _mode            string
 ---@field _closed          boolean
----@field ui               Source.UI.WindowShop
+---@field ui               Internal.UI.WindowShop
 local Controller = {}
 
 ---@param buyItemIDs table
@@ -32,7 +32,7 @@ function Controller.GetItemPrice(itemID) end
 ---@return integer
 function Controller.GetSellPrice(itemID) end
 
----@param player  Source.Player.Player
+---@param player  Source.MapActors.Player.Player
 ---@param onClose function | nil
 function Controller:init(player, onClose) end
 
@@ -45,7 +45,7 @@ function Controller:getItemWindow() end
 ---@return Source.Windows.WindowShopDetail
 function Controller:getDetailWindow() end
 
----@param player Source.Player.Player
+---@param player Source.MapActors.Player.Player
 function Controller:setPlayer(player) end
 
 ---@return boolean

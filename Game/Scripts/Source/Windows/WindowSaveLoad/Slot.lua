@@ -1,10 +1,10 @@
 local Engine = require("Engine")
 local EventKeys = require("Source.Configs.EventKeys")
 local LocaleCore = require("Source.Locale.Core")
-local Ui = require("Source.UIBase.Ui")
-local View = require("Source.UI.Parts.WindowSaveLoad.WindowSaveSlot")
+local Ui = require("Internal.UIBase.Ui")
+local View = require("Internal.UI.Parts.WindowSaveLoad.WindowSaveSlot")
 local WindowSaveSlotRowController = require("Source.Windows.WindowSaveLoad.WindowSaveSlotRow.Controller")
-local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
+local WindowSelectable = require("Internal.UIBase.WindowSelectable")
 
 local Input = Engine.Input
 ---@type fun(value: string): string

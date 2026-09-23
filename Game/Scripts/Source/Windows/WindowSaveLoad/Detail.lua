@@ -2,9 +2,9 @@ local Engine = require("Engine")
 local Save = require("Source.Save")
 local Logging = require("Global.Utils.Logging")
 local LocaleCore = require("Source.Locale.Core")
-local Ui = require("Source.UIBase.Ui")
-local View = require("Source.UI.Parts.WindowSaveLoad.WindowSaveDetail")
-local WindowBase = require("Source.Windows.Base.WindowBase")
+local Ui = require("Internal.UIBase.Ui")
+local View = require("Internal.UI.Parts.WindowSaveLoad.WindowSaveDetail")
+local WindowBase = require("Internal.UIBase.WindowBase")
 
 ---@class Source.Windows.WindowSaveDetail.Controller
 local Controller = {}

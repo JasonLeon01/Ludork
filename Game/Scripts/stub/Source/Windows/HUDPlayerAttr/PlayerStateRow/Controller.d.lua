@@ -4,8 +4,8 @@
 ---@field iconTexture? sf.Texture
 ---@field name         string
 
----@class Source.Windows.HUDPlayerAttr.PlayerStateRow.Controller: Source.UIBase.UiController
----@field ui              Source.UI.Parts.PlayerAttrHUD.PlayerStateRow
+---@class Source.Windows.HUDPlayerAttr.PlayerStateRow.Controller: Internal.UIBase.UiController
+---@field ui              Internal.UI.Parts.PlayerAttrHUD.PlayerStateRow
 ---@field model           Source.Windows.HUDPlayerAttr.PlayerStateRow.Controller.Model
 ---@field _logicalSize    sf.Vector2u
 ---@field _contentPadding number

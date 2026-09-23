@@ -1,0 +1,159 @@
+---@meta Internal.UIBase.WindowBase
+---
+--- Provides a window skin, content area, and nested canvas hierarchy.
+---@class Internal.UIBase.WindowBase: Engine.Canvas
+---@field _windowSkin                sf.Image
+---@field _repeated                  boolean
+---@field _window                    Engine.Window
+---@field content                    Engine.Canvas
+---@field _visualRoot                Engine.ControlBase | nil
+---@field _hasReturnBtn              boolean
+---@field _returnButtonSuppressed    boolean
+---@field _returnButton              Engine.Button
+---@field _pauseMarkShowRequested    boolean
+---@field _pauseMarkEnabled          boolean
+---@field _pauseMarkVisiblePredicate function | nil
+---@field _pauseMarkFrameIndex       integer
+---@field _pauseMarkFrameTimer       number
+---@field _pauseMark                 Engine.Image
+---@field _pauseMarkTexture          sf.Texture
+---@field _gamepadHintBar            Engine.GamepadHintBar
+---@field _gamepadHintTriggered      fun(index: integer) | nil
+---@field _uiController              Internal.UIBase.UiController | Internal.UIBase.UiView | nil
+---@field _uiDispose                 function | nil
+---@field _transition                Internal.UIBase.WindowTransition | nil
+local WindowBase = {}
+
+--- Construct an input host; its generated View supplies frame, content and chrome.
+---@param rect sf.IntRect
+function WindowBase:init(rect) end
+
+---@brief Return whether this window exposes its return button.
+---
+--- - @return True when the return button is enabled.
+---@return boolean
+function WindowBase:getHasReturnBtn() end
+
+---@brief Enable or disable this window's return button.
+---
+--- - @param hasReturnBtn Whether the window exposes its return button.
+---@param hasReturnBtn boolean
+function WindowBase:setHasReturnBtn(hasReturnBtn) end
+
+---@brief Handle a return request from the window button or another input source.
+function WindowBase:onReturn() end
+
+---@param active boolean
+function WindowBase:setActive(active) end
+
+---@brief Show or hide this window and its declarative visual root.
+---
+--- Nested panes created through `createChild` or `FromView` keep their visual root in the parent asset. `setVisible` applies to that root as well as the input host.
+--- - @param visible Whether the window and its visual root are shown.
+---@param visible boolean
+function WindowBase:setVisible(visible) end
+
+---@class Internal.UIBase.WindowBase.PreparedView
+---@field root             Engine.ControlBase
+---@field windowFrame      Engine.Window
+---@field content          Engine.Canvas
+---@field nested           boolean
+---@field transitionTarget string | nil
+---@field returnButton     Engine.Button
+---@field pauseMark        Engine.Image
+---@field gamepadHintBar   Engine.GamepadHintBar
+
+---@brief Attach a prepared controller view while retaining ownership of host chrome and transitions.
+---@param controller Internal.UIBase.UiController | Internal.UIBase.UiView
+---@param viewParts  Internal.UIBase.WindowBase.PreparedView
+function WindowBase:attachPreparedView(controller, viewParts) end
+
+---@param animationName string | nil
+---@param onReady       function | nil
+function WindowBase:showWithAnimation(animationName, onReady) end
+
+---@param animationName string | nil
+---@param onHidden      function | nil
+function WindowBase:hideWithAnimation(animationName, onHidden) end
+
+function WindowBase:hideImmediate() end
+
+---@return boolean
+function WindowBase:isTransitionBlocking() end
+
+---@return boolean
+function WindowBase:isTransitionOpen() end
+
+---@param suppressed boolean
+function WindowBase:setReturnButtonSuppressed(suppressed) end
+
+---@brief Enable or disable the pause mark display.
+---
+--- - @param enabled Whether the pause mark is allowed to show.
+---@param enabled boolean
+function WindowBase:setPauseMarkEnabled(enabled) end
+
+---@brief Set an optional predicate that gates pause mark visibility.
+---
+--- - @param predicate Callable returning True when the pause mark may show, or nil to clear.
+---@param predicate function | nil
+function WindowBase:setPauseMarkVisiblePredicate(predicate) end
+
+---@brief Request the pause mark to be shown (subject to enabled state and predicate).
+function WindowBase:showPauseMark() end
+
+---@brief Hide the pause mark.
+function WindowBase:hidePauseMark() end
+
+---@brief Update pause mark animation.
+---
+--- - @param deltaTime Elapsed time in seconds.
+---@param deltaTime number
+function WindowBase:onTick(deltaTime) end
+
+---@return boolean
+function WindowBase:isReturnButtonEnabled() end
+
+---@param windowFrame Engine.Window
+function WindowBase:applyWindowSkin(windowFrame) end
+
+---@return integer
+function WindowBase:getPauseMarkSize() end
+
+function WindowBase:dispose() end
+
+---@return boolean
+function WindowBase:isReturnButtonSuppressed() end
+
+---@return Internal.UIBase.WindowTransition
+function WindowBase:getTransition() end
+
+---@brief Set the gamepad hint entries rendered along the bottom of the window.
+---
+--- Hints only display while a gamepad is connected. The bar is embedded in the window chrome like the return button.
+--- - @param hints The ordered hint descriptors (maximum three).
+---@param hints Engine.GamepadHint[]
+function WindowBase:setGamepadHints(hints) end
+
+---@brief Enable or disable a single gamepad hint by index.
+---
+--- - @param index Zero-based hint index.
+--- - @param enabled Whether the hint accepts input and renders at full opacity.
+---@param index   integer
+---@param enabled boolean
+function WindowBase:setGamepadHintEnabled(index, enabled) end
+
+---@return integer
+function WindowBase:getGamepadHintCount() end
+
+---@brief Return whether any gamepad is currently connected.
+---@return boolean
+function WindowBase:isGamepadConnected() end
+
+---@brief Set the callback invoked when a gamepad hint completes its trigger.
+---
+--- - @param callback Receives the zero-based hint index, or nil to clear.
+---@param callback fun(index: integer) | nil
+function WindowBase:setOnGamepadHintTriggered(callback) end
+
+return WindowBase

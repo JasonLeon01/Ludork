@@ -1,9 +1,9 @@
 ---@meta
 
 ---@brief Non-focusable load/save tab window.
----@class Source.Windows.WindowSaveTabs.Controller: Source.UIBase.UiController
+---@class Source.Windows.WindowSaveTabs.Controller: Internal.UIBase.UiController
 ---@field host Source.Windows.WindowSaveTabs
----@field ui   Source.UI.Parts.WindowSaveLoad.WindowSaveTabs
+---@field ui   Internal.UI.Parts.WindowSaveLoad.WindowSaveTabs
 local Controller = {}
 
 ---@param owner Source.Windows.WindowSaveLoad

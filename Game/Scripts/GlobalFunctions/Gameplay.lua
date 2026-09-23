@@ -1,0 +1,110 @@
+local GlobalCore
+local function loadGlobalCore()
+    if GlobalCore == nil then
+        GlobalCore = require("GlobalCore")
+    end
+    return GlobalCore
+end
+
+local Context
+local function loadContext()
+    if Context == nil then
+        Context = require("GlobalFunctions.Context")
+    end
+    return Context
+end
+
+local Effects
+local function loadEffects()
+    if Effects == nil then
+        Effects = require("Source.Gameplay.Effects")
+    end
+    return Effects
+end
+
+local Gameplay = {}
+
+local function requireGameplayContext(fn)
+    local context = loadContext().RequireGraphParent(fn)
+    assert(Class.isInstance(context, loadGlobalCore().GameplayEventData), "Gameplay node requires GameplayEventData")
+    return context
+end
+
+function Gameplay.GetContext()
+    return requireGameplayContext(Gameplay.GetContext)
+end
+
+function Gameplay.GetSource()
+    return requireGameplayContext(Gameplay.GetSource).instigator
+end
+
+function Gameplay.GetTarget()
+    return requireGameplayContext(Gameplay.GetTarget).target
+end
+
+function Gameplay.GetEventTag()
+    return requireGameplayContext(Gameplay.GetEventTag).eventTag
+end
+
+function Gameplay.GetPayload()
+    return requireGameplayContext(Gameplay.GetPayload).payload
+end
+
+function Gameplay.HasTag(target, tag)
+    return target:getAbilitySystemComponent():hasMatchingGameplayTag(tag)
+end
+
+function Gameplay.GetNumericAttribute(target, attribute)
+    return target:getAttr(attribute)
+end
+
+function Gameplay.SetNumericAttributeBase(target, attribute, value)
+    target:setAttr(attribute, value)
+end
+
+function Gameplay.ApplyAttributeDelta(target, attribute, magnitude)
+    return loadEffects()
+        .ApplyInstantModifier(target, "Blueprint.AttributeDelta", attribute, "Add", magnitude, requireGameplayContext(
+            Gameplay.ApplyAttributeDelta
+        ))
+end
+
+function Gameplay.ApplyState(target, stateID, stacks)
+    return loadEffects().ApplyState(target, stateID, stacks or 1, requireGameplayContext(Gameplay.ApplyState))
+end
+
+function Gameplay.RemoveState(target, stateID)
+    return loadEffects().RemoveState(target, stateID)
+end
+
+function Gameplay.ReduceState(target, stateID, stacks)
+    return loadEffects().ReduceState(target, stateID, stacks or 1)
+end
+
+function Gameplay.RemovePlayerState(stateID)
+    local player = assert(requireGameplayContext(Gameplay.RemovePlayerState).target, "Gameplay event requires a target")
+    return loadEffects().RemoveState(player, stateID)
+end
+
+function Gameplay.ReducePlayerState(stateID, stacks)
+    local player = assert(requireGameplayContext(Gameplay.ReducePlayerState).target, "Gameplay event requires a target")
+    return loadEffects().ReduceState(player, stateID, stacks or 1)
+end
+
+function Gameplay.SendEvent(target, eventTag, payload)
+    local sourceContext = requireGameplayContext(Gameplay.SendEvent)
+    return target
+        :getAbilitySystemComponent()
+        :handleGameplayEvent(loadGlobalCore().GameplayEventData.new(sourceContext.instigator, target, eventTag, payload
+            or {}))
+end
+
+function Gameplay.ApplyEffect(target, effect, stacks, sourceKey)
+    return target
+        :getAbilitySystemComponent()
+        :applyGameplayEffectSpec(loadGlobalCore().GameplayEffectSpec.new(effect, requireGameplayContext(
+            Gameplay.ApplyEffect
+        ), stacks or 1, sourceKey))
+end
+
+return Gameplay

@@ -1,15 +1,15 @@
 ---@meta
 
 ---@brief Integrated floor teleporter window with visited-map list and preview.
----@class Source.Windows.WindowFloorTeleporter.Controller: Source.UIBase.UiController
+---@class Source.Windows.WindowFloorTeleporter.Controller: Internal.UIBase.UiController
 ---@field host                       Source.Windows.WindowFloorTeleporter
 ---@field _inst                      Source.GameInstance.GameInstance | nil
 ---@field _onCloseCallback           function | nil
 ---@field _onConfirmCallback         fun(mapKey: string, telepoint: sf.Vector2u) | nil
 ---@field _clearPreviewCacheCallback function | nil
----@field ui                         Source.UI.WindowFloorTeleporter
+---@field ui                         Internal.UI.WindowFloorTeleporter
 ---@field _telepointEntriesCache     dict<tuple<any>, { [1]: sf.Vector2u, [2]: string } []>
----@field _transition                Source.UIBase.WindowTransition
+---@field _transition                Internal.UIBase.WindowTransition
 ---@field _lastMapKey                string | nil
 ---@field _telepointIndexes          table<string, integer>
 local Controller = {}

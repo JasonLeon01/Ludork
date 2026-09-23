@@ -1,8 +1,8 @@
 local Engine = require("Engine")
 local Locale = require("Source.Locale.Core")
 local NumberFormat = require("Source.Utils.NumberFormat")
-local Ui = require("Source.UIBase.Ui")
-local View = require("Source.UI.Parts.WindowEnemyBook.WindowEnemyBookCell")
+local Ui = require("Internal.UIBase.Ui")
+local View = require("Internal.UI.Parts.WindowEnemyBook.WindowEnemyBookCell")
 
 ---@type fun(value: string): string
 local LOC = Locale.ApplyStringLocaleFormat

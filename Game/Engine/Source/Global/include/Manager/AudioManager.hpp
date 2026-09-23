@@ -145,7 +145,7 @@ public:
                                const MusicFilter& filter);
 
     BIND_METHOD(metadata = false, allow_nil = "effect",
-                parameter_types = {string, Source.AudioEffects.Attacher})
+                parameter_types = {string, Source.Utils.AudioEffects.Attacher})
     static void setEffect(
         const std::string& audioType,
         std::function<void(sf::SoundSource&,

@@ -1,15 +1,15 @@
 ---@meta
 
 ---@brief Two-column shop item list.
----@class Source.Windows.WindowShopItem.Controller: Source.UIBase.UiController
+---@class Source.Windows.WindowShopItem.Controller: Internal.UIBase.UiController
 ---@field host             Source.Windows.WindowShopItem
 ---@field _owner           Source.Windows.WindowShop
 ---@field _itemIDs         string[]
 ---@field _lastDetailIndex integer | nil
 ---@field _listView        Engine.ListView
----@field ui               Source.UI.Parts.WindowShop.WindowShopItem
+---@field ui               Internal.UI.Parts.WindowShop.WindowShopItem
 ---@field _cellAvailable   boolean[]
----@field _cells           Source.UIBase.UiCollection<Source.Windows.WindowShop.WindowShopCell.Controller>
+---@field _cells           Internal.UIBase.UiCollection<Source.Windows.WindowShop.WindowShopCell.Controller>
 local Controller = {}
 
 ---@brief Construct the shop item list.

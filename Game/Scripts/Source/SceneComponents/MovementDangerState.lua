@@ -1,7 +1,7 @@
 local ActorTree = require("Global.ActorTree")
 local ComponentBase = require("Global.Components.ComponentBase")
-local Enemy = require("Source.Enemy")
-local MovementSpecials = require("Source.MovementSpecials")
+local Enemy = require("Source.MapActors.Enemy")
+local MovementSpecials = require("Source.Utils.MovementSpecials")
 local MovementDangerGrid = require("Source.SceneComponents.MovementDangerGrid")
 
 ---@class (partial) Source.SceneComponents.MovementDangerState
@@ -58,7 +58,7 @@ function MovementDangerState:onTick(_deltaTime)
     ---@type Source.Configs.GeneralDataTypes.PlayerAttributeSet | nil
     local playerAttributes
     if player ~= nil then
-        ---@cast player Source.Player.Player
+        ---@cast player Source.MapActors.Player.Player
         playerAbilityRevision = player:getAbilitySystemComponent():getRevision()
         playerAttributes = player.attributes
     end
@@ -71,11 +71,11 @@ function MovementDangerState:onTick(_deltaTime)
     local enemyScanRevision = self._enemyScanRevision + 1
     self._enemyScanRevision = enemyScanRevision
     if player ~= nil then
-        ---@cast player Source.Player.Player
+        ---@cast player Source.MapActors.Player.Player
         for _, actor in ipairs(self._parent:getAllActors()) do
             if Class.isInstance(actor, Enemy) and not actor:isDestroyed()
                 and MovementDangerGrid.HasMovementSpecial(actor) then
-                ---@cast actor Source.Enemy
+                ---@cast actor Source.MapActors.Enemy
                 local position = actor:getMapPosition()
                 local abilityRevision = actor:getAbilitySystemComponent():getRevision()
                 local visible = actor:isVisibleInHierarchy()

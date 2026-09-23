@@ -1,5 +1,5 @@
 {
-  "parent": "Source.ConditionalActor.ConditionalActor",
+  "parent": "Source.MapActors.ConditionalActor.ConditionalActor",
   "attrs": {
     "animatable": true,
     "material": {
@@ -27,7 +27,7 @@
       "onCollision": {
         "nodes": [
           {
-            "nodeFunction": "NodeFunctions.Scene.OpenAttrShop",
+            "nodeFunction": "GlobalFunctions.Scene.OpenAttrShop",
             "params": [
               null,
               "{EXP_SHOP_NAME}",
@@ -51,7 +51,7 @@
             ]
           },
           {
-            "nodeFunction": "NodeFunctions.Utils.SELF",
+            "nodeFunction": "GlobalFunctions.Utils.SELF",
             "params": [],
             "pos": [
               -720.0,

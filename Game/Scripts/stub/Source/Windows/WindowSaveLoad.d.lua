@@ -5,11 +5,11 @@
 --- Owner-agnostic coordinator. Hosts pass callbacks for close and load events
 --- instead of being referenced directly, so the same UI can serve the in-game
 --- menu, the title screen, or any other entry point.
----@class Source.Windows.WindowSaveLoad.Controller: Source.UIBase.UiController
+---@class Source.Windows.WindowSaveLoad.Controller: Internal.UIBase.UiController
 ---@field host              Source.Windows.WindowSaveLoad
 ---@field _mode             "load" | "save"
 ---@field _tabWindow        Source.Windows.WindowSaveTabs | nil
----@field ui                Source.UI.WindowSaveLoad
+---@field ui                Internal.UI.WindowSaveLoad
 ---@field _scanReader       Engine.SavePreviewReader
 ---@field _scanPending      boolean
 ---@field _latestSlot       integer | nil

@@ -13,9 +13,9 @@ local Effects = {}
 ---@param target   Source.Battler.Battler
 ---@param stateID? string
 local function publishStateChanged(target, stateID)
-    local Player = require("Source.Player")
+    local Player = require("Source.MapActors.Player")
     if Class.isInstance(target, Player) then
-        ---@cast target Source.Player.Player
+        ---@cast target Source.MapActors.Player.Player
         if target:getLoading() then
             return
         end

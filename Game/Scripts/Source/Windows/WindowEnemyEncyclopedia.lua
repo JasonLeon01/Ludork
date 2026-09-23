@@ -1,12 +1,12 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GameSystem = require("Source.System")
-local WindowBase = require("Source.Windows.Base.WindowBase")
-local EnemyText = require("Source.EnemyText")
+local WindowBase = require("Internal.UIBase.WindowBase")
+local EnemyText = require("Source.Utils.EnemyText")
 local Locale = require("Source.Locale.Core")
 local NumberFormat = require("Source.Utils.NumberFormat")
-local Ui = require("Source.UIBase.Ui")
-local View = require("Source.UI.WindowEnemyEncyclopedia")
+local Ui = require("Internal.UIBase.Ui")
+local View = require("Internal.UI.WindowEnemyEncyclopedia")
 local WindowEnemyBook = require("Source.Windows.WindowEnemyBook")
 local EnemyEncyclopediaInfoPairController = require(
     "Source.Windows.WindowEnemyEncyclopedia.EnemyEncyclopediaInfoPair.Controller"

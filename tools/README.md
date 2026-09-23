@@ -251,10 +251,26 @@ require full `Game` workspace diagnostics from a pinned EmmyLua version, with
 from the Windows plain template build, reusing that build when Engine validation
 also needs it, and generates the remaining workspace declarations before checking.
 Shared build and CI inputs select every affected check; the categories are additive.
+Every PR also checks the Lua modules in `Scripts/GlobalFunctions` against the
+native `GlobalFunctions` binding declarations. A Lua module must not occupy a
+native function-group or root-function path, and modules in this directory must
+resolve their `require` dependencies inside functions rather than at module scope.
+The check reads C++ annotations, including bindings hidden from Blueprint metadata.
+
+Install the repository's staged-file check once per clone:
+
+```sh
+git config --local core.hooksPath .githooks
+```
+
+The pre-commit hook runs `python -m ScriptTools.global_functions_check --staged`
+against the exact Git index. Run `python -m ScriptTools.global_functions_check`
+to inspect the current worktree without staging files. Python 3.12 or newer is required.
 
 The always-running `PR Validation` check succeeds only when every selected check
-succeeds. A selected check that fails, is cancelled or unexpectedly skips blocks
-it; unselected checks may skip, and documentation-only PRs pass without builds.
+succeeds and the GlobalFunctions check passes. A selected check that fails, is
+cancelled or unexpectedly skips blocks it; unselected checks may skip, and
+documentation-only PRs pass without builds.
 New commits cancel older validation runs for the same PR. In GitHub repository
 settings, edit the existing rule or ruleset targeting `main`, require status
 checks before merging, and add `PR Validation` from GitHub Actions while preserving
@@ -498,15 +514,15 @@ table, and adding controls with supported property types does not require
 rebuilding those tools.
 
 `ScriptTools ui-assets generate <project-root>` generates all Lua Views under
-`Scripts/Source/UI` and their typed declarations under `Scripts/stub/Source/UI`
+`Scripts/Internal/UI` and their typed declarations under `Scripts/stub/Internal/UI`
 from `Data/UI/Assets`. It also generates public window declarations under
-`Scripts/stub/Source/UIWindows`, mirroring window modules below `Scripts/Source`.
+`Scripts/stub/Internal/UIWindows`, mirroring window modules below `Scripts/Source`.
 Each window module returns `Ui.DefineWindow(ViewClass, Controller, nativeBase?)`;
 its ordinary mirrored stub declares only the private Controller and business
 types, with bare `---@meta` and no return. The generated declaration uses the
 window's real module name and derives `new`, `FromView`, methods and constants
 from that Controller contract. An empty Controller needs no handwritten stub.
-Handwritten foundations live in `Source.UIBase`; independent row and Scene
+Handwritten foundations live in `Internal.UIBase`; independent row and Scene
 Controllers use `Ui.Define(ViewClass, definition, base?)`.
 
 Generation reads asset structure, canonical `controlId` values and window
@@ -541,7 +557,7 @@ run editor plug-ins or publish the editor's project export record.
 Unchanged generated files retain their contents and timestamps; only obsolete
 files bearing the generation marker are removed from the generated trees.
 Handwritten file conflicts stop generation. `create_templates` excludes
-`Scripts/Source/UI`, `Scripts/stub/Source/UI` and `Scripts/stub/Source/UIWindows`,
+`Scripts/Internal/UI`, `Scripts/stub/Internal/UI` and `Scripts/stub/Internal/UIWindows`,
 even when these folders exist in Game or a native cache is reused. Templates
 retain handwritten declarations and native binding stubs; game packaging
 removes all of `Scripts/stub` before optional Lua compilation.

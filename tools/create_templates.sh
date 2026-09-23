@@ -205,9 +205,9 @@ copy_cpp_template() {
         --exclude 'standalone-extensions.json' \
         --exclude 'ThirdPartySource/' \
         --exclude '/Binaries/' \
-        --exclude '/Scripts/Source/UI/' \
-        --exclude '/Scripts/stub/Source/UI/' \
-        --exclude '/Scripts/stub/Source/UIWindows/' \
+        --exclude '/Scripts/Internal/UI/' \
+        --exclude '/Scripts/stub/Internal/UI/' \
+        --exclude '/Scripts/stub/Internal/UIWindows/' \
         --include '/Scripts/Source/Locale/Core.lua' \
         --exclude '/Scripts/Source/Locale/*'
     if [ "$include_ffmpeg" -ne 1 ]; then

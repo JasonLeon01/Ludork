@@ -1,5 +1,5 @@
 ---@meta Mixins.Doors.ConditionDoor
----@class (partial) Mixins.Doors.ConditionDoor: Source.DoorBase.DoorBase
+---@class (partial) Mixins.Doors.ConditionDoor: Source.MapActors.DoorBase.DoorBase
 ---@field openConditionName     string
 ---@field openConditionVal      integer
 ---@field _conditionDoorPending boolean

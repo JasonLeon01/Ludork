@@ -1,8 +1,8 @@
-local TelepointKey = require("Source.UIBase.Helpers.TelepointKey")
-local CommandRowController = require("Source.UIBase.CommandRow.Controller")
-local Ui = require("Source.UIBase.Ui")
-local View = require("Source.UI.Parts.WindowFloorTeleporter.WindowFloorMapPreview")
-local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
+local TelepointKey = require("Source.Configs.TelepointKey")
+local CommandRowController = require("Internal.UIBase.CommandRow.Controller")
+local Ui = require("Internal.UIBase.Ui")
+local View = require("Internal.UI.Parts.WindowFloorTeleporter.WindowFloorMapPreview")
+local WindowSelectable = require("Internal.UIBase.WindowSelectable")
 
 local _PREVIEW_SCALE = 0.5
 

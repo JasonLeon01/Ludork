@@ -12,7 +12,7 @@
 ---@field scrollOffset sf.Vector2f
 
 --- Each setting row combines a label and an interactive control.
----@class Source.Windows.ConfigWindow.Controller: Source.UIBase.UiController
+---@class Source.Windows.ConfigWindow.Controller: Internal.UIBase.UiController
 ---@field host                           Source.Windows.ConfigWindow
 ---@field _activePageIndex               integer
 ---@field _pageSessions                  Source.Windows.ConfigWindow.PageSession[]
@@ -32,7 +32,7 @@
 ---@field _onClose                       function | nil
 ---@field _open                          boolean
 ---@field _tabNavigationHandledThisFrame boolean
----@field ui                             Source.UI.ConfigWindow
+---@field ui                             Internal.UI.ConfigWindow
 ---@field _scaleAvailable                boolean
 ---@field _scaleValues                   number[]
 ---@field _maximumRenderScaleValues      number[]

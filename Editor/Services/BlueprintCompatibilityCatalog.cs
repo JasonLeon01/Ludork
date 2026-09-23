@@ -32,7 +32,7 @@ internal static class BlueprintCompatibilityCatalog
                 ["directionFix"] = JsonValue.Create(false),
                 ["animateWithoutMoving"] = JsonValue.Create(false),
             }),
-            ["Source.Enemy"] = new(
+            ["Source.MapActors.Enemy"] = new(
                 "Engine.Actor",
                 [],
                 new Dictionary<string, JsonNode?>(StringComparer.Ordinal)
@@ -43,7 +43,7 @@ internal static class BlueprintCompatibilityCatalog
                 ["animatable"] = JsonValue.Create(true),
                 ["animateWithoutMoving"] = JsonValue.Create(true),
             }),
-            ["Source.Item"] = new(
+            ["Source.MapActors.Item"] = new(
                 "Engine.Actor",
                 [],
                 new Dictionary<string, JsonNode?>(StringComparer.Ordinal)
@@ -51,7 +51,7 @@ internal static class BlueprintCompatibilityCatalog
                 ["ID"] = JsonValue.Create("FILL_IT_BY_YOURSELF"),
                 ["getSE"] = JsonValue.Create(string.Empty),
             }),
-            ["Source.Player"] = new(
+            ["Source.MapActors.Player"] = new(
                 "Engine.Character",
                 [],
                 new Dictionary<string, JsonNode?>(StringComparer.Ordinal)
@@ -62,7 +62,7 @@ internal static class BlueprintCompatibilityCatalog
                 ["animatable"] = JsonValue.Create(true),
                 ["speed"] = JsonValue.Create(96.0),
             }),
-            ["Source.Teleporter.Teleporter"] = new("Engine.Actor", [], new Dictionary<string, JsonNode?>(StringComparer.Ordinal)
+            ["Source.MapActors.Teleporter.Teleporter"] = new("Engine.Actor", [], new Dictionary<string, JsonNode?>(StringComparer.Ordinal)
             {
                 ["Offset"] = new JsonArray(0, 0),
                 ["stairSE"] = JsonValue.Create(string.Empty),

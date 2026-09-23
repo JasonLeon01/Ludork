@@ -330,9 +330,10 @@ public sealed class BlueprintNodeDefinitionCatalog
         return root switch
         {
             "Source" => 0,
-            "Global" => 1,
-            "Engine" => 2,
-            _ => 3,
+            "GlobalFunctions" => 1,
+            "Global" => 2,
+            "Engine" => 3,
+            _ => 4,
         };
     }
 
@@ -351,7 +352,7 @@ public sealed class BlueprintNodeDefinitionCatalog
         LuaNodeMemberMetadata member,
         IReadOnlySet<string> contextTypes)
     {
-        if (member.RuntimePath.Split('.').Contains("NodeFunctions", StringComparer.Ordinal))
+        if (member.RuntimePath.StartsWith("GlobalFunctions.", StringComparison.Ordinal))
             return true;
         if (matchesContextType(member.DeclaringType, contextTypes)
             || member.Returns.Any(returnValue => matchesContextType(returnValue.Type, contextTypes)))

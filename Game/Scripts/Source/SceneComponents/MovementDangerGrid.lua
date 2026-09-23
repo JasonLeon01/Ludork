@@ -1,4 +1,4 @@
-local MovementSpecials = require("Source.MovementSpecials")
+local MovementSpecials = require("Source.Utils.MovementSpecials")
 local GameplayConstants = require("Source.Configs.GameplayConstants")
 
 local MovementDangerGrid = {}

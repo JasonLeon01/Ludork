@@ -1,9 +1,9 @@
 ---@meta
 
 ---@brief Right-side preview panel and telepoint selector for the selected map.
----@class Source.Windows.WindowFloorMapPreview.Controller: Source.UIBase.UiController
+---@class Source.Windows.WindowFloorMapPreview.Controller: Internal.UIBase.UiController
 ---@field host                   Source.Windows.WindowFloorMapPreview
----@field ui                     Source.UI.Parts.WindowFloorTeleporter.WindowFloorMapPreview
+---@field ui                     Internal.UI.Parts.WindowFloorTeleporter.WindowFloorMapPreview
 ---@field _mapKey                string | nil
 ---@field _telepoints            sf.Vector2u[]
 ---@field _currentListKey        tuple<any> | nil
@@ -11,7 +11,7 @@
 ---@field _previewTextureCache   dict<tuple<any>, sf.Texture>
 ---@field _loadPreview           function
 ---@field _resolvePreviewMapPath function | nil
----@field _rows                  Source.UIBase.UiCollection<Source.UIBase.CommandRow.Controller>
+---@field _rows                  Internal.UIBase.UiCollection<Internal.UIBase.CommandRow.Controller>
 local Controller = {}
 
 ---@brief Construct the map preview panel.

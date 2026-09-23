@@ -267,7 +267,7 @@ exit /b 0
 
 :copy_cpp_template
 set COPY_TEMPLATE_EXCLUDED_DIRECTORIES="%SOURCE_DIR%\Binaries" "%SOURCE_DIR%\.venv" "%SOURCE_DIR%\build" "%SOURCE_DIR%\Intermediate" "%SOURCE_DIR%\%EDITOR_CACHE_DIRECTORY%" "%SOURCE_DIR%\Cache" "%SOURCE_DIR%\bin" "%SOURCE_DIR%\Log" "%SOURCE_DIR%\Save" "%SOURCE_DIR%\.vs" "%SOURCE_DIR%\.idea" "%SOURCE_DIR%\cmake-build-ludork-debug" "%SOURCE_DIR%\ThirdPartySource" __pycache__
-set COPY_TEMPLATE_EXCLUDED_DIRECTORIES=%COPY_TEMPLATE_EXCLUDED_DIRECTORIES% "%SOURCE_DIR%\Scripts\Source\UI" "%SOURCE_DIR%\Scripts\stub\Source\UI" "%SOURCE_DIR%\Scripts\stub\Source\UIWindows" "%SOURCE_DIR%\Scripts\Source\Locale"
+set COPY_TEMPLATE_EXCLUDED_DIRECTORIES=%COPY_TEMPLATE_EXCLUDED_DIRECTORIES% "%SOURCE_DIR%\Scripts\Internal\UI" "%SOURCE_DIR%\Scripts\stub\Internal\UI" "%SOURCE_DIR%\Scripts\stub\Internal\UIWindows" "%SOURCE_DIR%\Scripts\Source\Locale"
 if "%~2"=="0" set COPY_TEMPLATE_EXCLUDED_DIRECTORIES=%COPY_TEMPLATE_EXCLUDED_DIRECTORIES% "%SOURCE_DIR%\Engine\ThirdParty\ffmpeg"
 robocopy "%SOURCE_DIR%" "%~1" /E /XD %COPY_TEMPLATE_EXCLUDED_DIRECTORIES% /XF *.anim.json *.py *.pyc *.pyo *.log Main.ini Ludork.ini CMakeUserPresets.json generate_clion.sh standalone-launch.json standalone-extensions.json /NFL /NDL /NJH /NJS /NP
 if errorlevel 8 exit /b %errorlevel%

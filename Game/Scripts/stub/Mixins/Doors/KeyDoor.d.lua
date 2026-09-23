@@ -1,5 +1,5 @@
 ---@meta Mixins.Doors.KeyDoor
----@class (partial) Mixins.Doors.KeyDoor: Source.DoorBase.DoorBase
+---@class (partial) Mixins.Doors.KeyDoor: Source.MapActors.DoorBase.DoorBase
 ---@field needKeyID    string
 ---@field needKeyCount integer
 local KeyDoor = {}

@@ -1,9 +1,9 @@
 local Data = require("Source.Data")
-local IconTexture = require("Source.UIBase.IconTexture")
-local Ui = require("Source.UIBase.Ui")
-local View = require("Source.UI.Parts.WindowShop.WindowShopItem")
+local IconTexture = require("Internal.UIBase.IconTexture")
+local Ui = require("Internal.UIBase.Ui")
+local View = require("Internal.UI.Parts.WindowShop.WindowShopItem")
 local WindowShopCellController = require("Source.Windows.WindowShop.WindowShopCell.Controller")
-local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
+local WindowSelectable = require("Internal.UIBase.WindowSelectable")
 
 ---@class Source.Windows.WindowShopItem.Controller
 local Controller = {}

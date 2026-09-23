@@ -4,16 +4,16 @@
 ---
 --- Shows owned equips matching the selected slot with icons and counts.
 
----@class Source.Windows.WindowEquipSlot.Controller: Source.UIBase.UiController
+---@class Source.Windows.WindowEquipSlot.Controller: Internal.UIBase.UiController
 ---@field host               Source.Windows.WindowEquipSlot
----@field ui                 Source.UI.Parts.WindowEquip.WindowEquipSlot
----@field _player            Source.Player.Player
+---@field ui                 Internal.UI.Parts.WindowEquip.WindowEquipSlot
+---@field _player            Source.MapActors.Player.Player
 ---@field _windowEquipSelect Source.Windows.WindowEquipSelect | nil
 ---@field _windowEquipStatus Source.Windows.WindowEquipStatus | nil
 ---@field _onCloseCallback   function | nil
 ---@field _slotKeys          string[]
 ---@field _lastSlotIndex     integer | nil
----@field _rows              Source.UIBase.UiCollection<Source.Windows.WindowEquip.EquipSlotRow.Controller>
+---@field _rows              Internal.UIBase.UiCollection<Source.Windows.WindowEquip.EquipSlotRow.Controller>
 local Controller = {}
 
 ---@brief Construct the equipped-slot window.
@@ -22,7 +22,7 @@ local Controller = {}
 --- - @param windowEquipSelect The available-equip window to refresh on slot change.
 --- - @param windowEquipStatus The detail window to refresh on slot change.
 --- - @param onClose Optional callback invoked when the window is closed.
----@param player            Source.Player.Player
+---@param player            Source.MapActors.Player.Player
 ---@param windowEquipSelect Source.Windows.WindowEquipSelect | nil
 ---@param windowEquipStatus Source.Windows.WindowEquipStatus | nil
 ---@param onClose           function | nil
@@ -31,7 +31,7 @@ function Controller:init(player, windowEquipSelect, windowEquipStatus, onClose) 
 function Controller:ready() end
 
 ---@brief Rebind the player whose equipment slots are displayed.
----@param player Source.Player.Player
+---@param player Source.MapActors.Player.Player
 function Controller:setPlayer(player) end
 
 ---@brief Set the available-equip window reference.

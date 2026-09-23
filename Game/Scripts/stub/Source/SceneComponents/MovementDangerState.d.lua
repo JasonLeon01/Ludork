@@ -3,7 +3,7 @@
 ---@class Source.SceneComponents.MovementDangerEntry
 ---@field position sf.Vector2i
 ---@field damage   integer
----@field sources  Source.MovementSpecials.DangerSource[]
+---@field sources  Source.Utils.MovementSpecials.DangerSource[]
 
 ---@class Source.SceneComponents.MovementDangerEnemySnapshot
 ---@field x               integer
@@ -16,10 +16,10 @@
 ---@brief Cached movement-special danger grid for the current map and player.
 ---@class Source.SceneComponents.MovementDangerState: ComponentBase
 ---@field _parent                GameMap
----@field _player                Source.Player.Player | nil
+---@field _player                Source.MapActors.Player.Player | nil
 ---@field _playerAttributes      Source.Configs.GeneralDataTypes.PlayerAttributeSet | nil
 ---@field _playerAbilityRevision integer | nil
----@field _enemies               Source.Enemy[]
+---@field _enemies               Source.MapActors.Enemy[]
 ---@field _enemyScanRevision     integer
 ---@field _entryGrid             table<integer, table<integer, Source.SceneComponents.MovementDangerEntry>>
 ---@field _entriesValid          boolean
@@ -27,7 +27,7 @@
 ---@field _entryAreaY            integer | nil
 ---@field _entryAreaWidth        integer | nil
 ---@field _entryAreaHeight       integer | nil
----@field _previewContext        Source.MovementSpecials.PreviewContext | nil
+---@field _previewContext        Source.Utils.MovementSpecials.PreviewContext | nil
 ---@field _areaX                 integer | nil
 ---@field _areaY                 integer | nil
 ---@field _areaWidth             integer | nil
@@ -35,7 +35,7 @@
 ---@field _pathfindingRevision   integer
 ---@field _previewRevision       integer
 ---@field _entries               Source.SceneComponents.MovementDangerEntry[]
----@field _enemySnapshots        table<Source.Enemy, Source.SceneComponents.MovementDangerEnemySnapshot>
+---@field _enemySnapshots        table<Source.MapActors.Enemy, Source.SceneComponents.MovementDangerEnemySnapshot>
 local MovementDangerState = {}
 
 ---@param gameMap GameMap
@@ -58,12 +58,12 @@ function MovementDangerState:getPreviewRevision() end
 function MovementDangerState:getEntries() end
 
 ---@param position       sf.Vector2i
----@param ignoredEnemies Source.Enemy[] | nil
+---@param ignoredEnemies Source.MapActors.Enemy[] | nil
 ---@return integer
 function MovementDangerState:getDamageAt(position, ignoredEnemies) end
 
 ---@param goal               sf.Vector2i
----@param ignoredGoalEnemies Source.Enemy[] | nil
+---@param ignoredGoalEnemies Source.MapActors.Enemy[] | nil
 ---@param allowGoal          boolean
 ---@return sf.Vector2i[]
 function MovementDangerState:getExcludedAnchors(goal, ignoredGoalEnemies, allowGoal) end

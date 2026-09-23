@@ -1,7 +1,7 @@
 ---@meta Source.Windows.WindowMessage.MessageOptionRow.Controller
 
----@class Source.Windows.WindowMessage.MessageOptionRow.Controller: Source.UIBase.UiController
----@field ui  Source.UI.Parts.WindowMessage.MessageOptionRow
+---@class Source.Windows.WindowMessage.MessageOptionRow.Controller: Internal.UIBase.UiController
+---@field ui  Internal.UI.Parts.WindowMessage.MessageOptionRow
 ---@field new fun(model: table): Source.Windows.WindowMessage.MessageOptionRow.Controller
 local MessageOptionRowController = {}
 

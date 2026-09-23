@@ -4,7 +4,7 @@ local Logging = require("Global.Utils.Logging")
 local SourceSystem = require("Source.System")
 local GameInstance = require("Source.GameInstance")
 local SceneTitleController = require("Source.Scenes.SceneTitle.Controller")
-local LazyWindow = require("Source.UIBase.LazyWindow")
+local LazyWindow = require("Internal.UIBase.LazyWindow")
 
 local Display = GlobalCore.Display
 local SceneManager = GlobalCore.SceneManager

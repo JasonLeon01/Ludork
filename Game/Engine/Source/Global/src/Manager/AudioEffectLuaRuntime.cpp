@@ -62,7 +62,7 @@ LuaAudioEffectProcessorImpl::LuaAudioEffectProcessorImpl(
     std::uint32_t sampleRate, const std::string& packagePath)
     : processor_(ludork::runtime::AudioProcessorOptions{
           packagePath,
-          "Source.AudioEffects",
+          "Source.Utils.AudioEffects",
           "Get",
           name,
           {[control] {

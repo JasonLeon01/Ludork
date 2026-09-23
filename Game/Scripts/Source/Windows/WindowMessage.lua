@@ -1,12 +1,12 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local System = require("Source.System")
-local WindowBase = require("Source.Windows.Base.WindowBase")
+local WindowBase = require("Internal.UIBase.WindowBase")
 local WindowMessageLayout = require("Source.Windows.WindowMessage.Layout")
-local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
+local WindowSelectable = require("Internal.UIBase.WindowSelectable")
 local MessageOptionRowController = require("Source.Windows.WindowMessage.MessageOptionRow.Controller")
-local Ui = require("Source.UIBase.Ui")
-local View = require("Source.UI.WindowMessage")
+local Ui = require("Internal.UIBase.Ui")
+local View = require("Internal.UI.WindowMessage")
 
 local Display = GlobalCore.Display
 local TextLayout = Engine.TextLayout

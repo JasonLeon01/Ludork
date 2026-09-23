@@ -1,26 +1,26 @@
 ---@meta
 
 ---@class Source.Windows.WindowMenuWindows
----@field item     Source.UIBase.LazyWindow<Source.Windows.WindowItem>
----@field equip    Source.UIBase.LazyWindow<Source.Windows.WindowEquip>
----@field saveLoad Source.UIBase.LazyWindow<Source.Windows.WindowSaveLoad>
----@field config   Source.UIBase.LazyWindow<Source.Windows.ConfigWindow>
+---@field item     Internal.UIBase.LazyWindow<Source.Windows.WindowItem>
+---@field equip    Internal.UIBase.LazyWindow<Source.Windows.WindowEquip>
+---@field saveLoad Internal.UIBase.LazyWindow<Source.Windows.WindowSaveLoad>
+---@field config   Internal.UIBase.LazyWindow<Source.Windows.ConfigWindow>
 
 ---@brief In-game menu window that manages commands, open/close triggers, and sub-windows.
 ---
 --- Defines commands and sub-window navigation, then restores player movement on close.
 --- The owning scene controls opening, stacking and the exit action.
----@class Source.Windows.WindowMenu.Controller: Source.UIBase.UiController
+---@class Source.Windows.WindowMenu.Controller: Internal.UIBase.UiController
 ---@field host              Source.Windows.WindowMenu
----@field _player           Source.Player.Player
----@field ui                Source.UI.WindowMenu
+---@field _player           Source.MapActors.Player.Player
+---@field ui                Internal.UI.WindowMenu
 ---@field _moveRestoreGuard fun(): boolean
 ---@field _onExit           fun()
----@field _windowItem       Source.UIBase.LazyWindow<Source.Windows.WindowItem>
----@field _windowEquip      Source.UIBase.LazyWindow<Source.Windows.WindowEquip>
----@field _windowSaveLoad   Source.UIBase.LazyWindow<Source.Windows.WindowSaveLoad>
----@field _configWindow     Source.UIBase.LazyWindow<Source.Windows.ConfigWindow>
----@field _commands         Source.UIBase.UiCollection<Source.UIBase.CommandRow.Controller>
+---@field _windowItem       Internal.UIBase.LazyWindow<Source.Windows.WindowItem>
+---@field _windowEquip      Internal.UIBase.LazyWindow<Source.Windows.WindowEquip>
+---@field _windowSaveLoad   Internal.UIBase.LazyWindow<Source.Windows.WindowSaveLoad>
+---@field _configWindow     Internal.UIBase.LazyWindow<Source.Windows.ConfigWindow>
+---@field _commands         Internal.UIBase.UiCollection<Internal.UIBase.CommandRow.Controller>
 local Controller = {}
 
 ---@brief Construct the menu window without creating its independent sub-windows.
@@ -28,13 +28,13 @@ local Controller = {}
 --- - @param player The player actor; movement is disabled while the menu is open.
 --- - @param windows Named lazy handles for item, equipment, non-load-only save/load, and configuration windows.
 --- - @param onExit Scene-owned action invoked after the menu closes for Exit.
----@param player  Source.Player.Player
+---@param player  Source.MapActors.Player.Player
 ---@param windows Source.Windows.WindowMenuWindows
 ---@param onExit  fun()
 function Controller:init(player, windows, onExit) end
 
 ---@brief Rebind the player whose movement is controlled by the menu.
----@param player Source.Player.Player
+---@param player Source.MapActors.Player.Player
 function Controller:setPlayer(player) end
 
 ---@brief Set a predicate that decides whether close restores player movement.
@@ -96,13 +96,13 @@ function Controller:onSubMenuClose() end
 ---@brief Reactivate the command list and return focus after the Config window closes.
 function Controller:onConfigClose() end
 
----@return Source.Player.Player
+---@return Source.MapActors.Player.Player
 function Controller:getPlayer() end
 
 function Controller:refreshRows() end
 
 ---@param owner Source.Windows.WindowMenu
----@return Source.UIBase.CommandRow.Controller.Model[]
+---@return Internal.UIBase.CommandRow.Controller.Model[]
 function Controller.CreateCommands(owner) end
 
 function Controller:bind() end
@@ -123,7 +123,7 @@ function Controller:onMenuExit() end
 
 function Controller:_closeByCancel() end
 
----@return Source.Windows.Base.WindowSelectable | nil
+---@return Internal.UIBase.WindowSelectable | nil
 function Controller:_getCurrentSubMenuFocusTarget() end
 
 ---@param position sf.Vector2f
@@ -139,5 +139,5 @@ function Controller:_syncReturnButtonSuppression() end
 ---@return boolean
 function Controller:_returnEquipSelectToSlot() end
 
----@param commands Source.UIBase.CommandRow.Controller.Model[]
+---@param commands Internal.UIBase.CommandRow.Controller.Model[]
 function Controller:attach(commands) end

@@ -1,4 +1,4 @@
-local UiController = require("Source.UIBase.UiController")
+local UiController = require("Internal.UIBase.UiController")
 
 local ConfigRowControllerBase = {}
 

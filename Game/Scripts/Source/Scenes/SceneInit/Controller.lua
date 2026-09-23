@@ -1,6 +1,6 @@
 local SourceSystem = require("Source.System")
-local Ui = require("Source.UIBase.Ui")
-local View = require("Source.UI.Init")
+local Ui = require("Internal.UIBase.Ui")
+local View = require("Internal.UI.Init")
 
 local SceneInitController = {}
 

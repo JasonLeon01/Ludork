@@ -4,7 +4,7 @@ local GlobalFunctions = require("GlobalFunctions")
 local Logging = require("Global.Utils.Logging")
 local MainConfig = require("Source.Configs.Main")
 local Locale = require("Source.Locale.Core")
-local LiveDebug = require("Source.LiveDebug")
+local LiveDebug = require("Internal.LiveDebug")
 
 local SceneManager = GlobalCore.SceneManager
 local NodeGraphFunctions = GlobalFunctions.NodeGraph

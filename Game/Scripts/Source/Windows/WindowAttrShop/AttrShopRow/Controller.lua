@@ -1,5 +1,5 @@
-local Ui = require("Source.UIBase.Ui")
-local View = require("Source.UI.Parts.WindowAttrShop.AttrShopRow")
+local Ui = require("Internal.UIBase.Ui")
+local View = require("Internal.UI.Parts.WindowAttrShop.AttrShopRow")
 
 local _DISABLED_COLOUR = sf.Color.new(160, 160, 160, 255)
 

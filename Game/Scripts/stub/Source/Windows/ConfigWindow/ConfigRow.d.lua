@@ -1,11 +1,11 @@
 ---@meta Source.Windows.ConfigWindow.ConfigRow
 
----@class Source.Windows.ConfigWindow.ConfigRow: Source.UIBase.UiController
+---@class Source.Windows.ConfigWindow.ConfigRow: Internal.UIBase.UiController
 ---@field root       Engine.Canvas
 ---@field _labelText string
 local ConfigRowControllerBase = {}
 
----@param ui        Source.UIBase.UiView
+---@param ui        Internal.UIBase.UiView
 ---@param labelText string
 function ConfigRowControllerBase:init(ui, labelText) end
 

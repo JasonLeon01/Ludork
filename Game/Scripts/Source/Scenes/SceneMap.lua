@@ -6,10 +6,10 @@ local GameSystem = require("Source.System")
 local EventKeys = require("Source.Configs.EventKeys")
 local RegionDict = require("Source.Configs.RegionDict")
 local GameplayScene = require("Source.Gameplay.GameplayScene")
-local ConditionalActor = require("Source.ConditionalActor")
-local Teleporter = require("Source.Teleporter")
-local MapPath = require("Source.MapPath")
-local LiveDebug = require("Source.LiveDebug")
+local ConditionalActor = require("Source.MapActors.ConditionalActor")
+local Teleporter = require("Source.MapActors.Teleporter")
+local MapPath = require("Source.Utils.MapPath")
+local LiveDebug = require("Internal.LiveDebug")
 local SceneMapInteractions = require("Source.Scenes.SceneMap.Interactions")
 local SceneMapAudioController = require("Source.SceneComponents.MapAudio")
 local SceneMapBuilder = require("Source.SceneComponents.MapBuilder")
@@ -529,7 +529,7 @@ function Scene:getGameInstance()
     return self.inst
 end
 
----@param teleporter Source.Teleporter.Teleporter
+---@param teleporter Source.MapActors.Teleporter.Teleporter
 ---@return boolean
 function Scene:_canRequestTeleporterTransfer(teleporter)
     if not self._gameplayRequestsActive or SceneManager.getScene() ~= self or self._mapTransferInProgress
@@ -574,7 +574,7 @@ function Scene:requestMapTransfer(teleporter, mapPath, position, record)
     return self:_startTeleporterTransfer(teleporter, targetMap, targetPosition, false, record ~= false)
 end
 
----@param teleporter     Source.Teleporter.Teleporter
+---@param teleporter     Source.MapActors.Teleporter.Teleporter
 ---@param targetMap      string
 ---@param targetPosition sf.Vector2i
 ---@param findNearest    boolean

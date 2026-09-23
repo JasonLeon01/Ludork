@@ -102,7 +102,7 @@
           "onUse": {
             "nodes": [
               {
-                "nodeFunction": "NodeFunctions.Scene.ShowEnemyBook",
+                "nodeFunction": "GlobalFunctions.Scene.ShowEnemyBook",
                 "params": [],
                 "pos": [
                   0,
@@ -130,7 +130,7 @@
           "onUse": {
             "nodes": [
               {
-                "nodeFunction": "NodeFunctions.Mota.OpenFloorTeleporter",
+                "nodeFunction": "GlobalFunctions.Mota.OpenFloorTeleporter",
                 "params": [],
                 "pos": [
                   0,
@@ -158,7 +158,7 @@
           "onUse": {
             "nodes": [
               {
-                "nodeFunction": "NodeFunctions.Mota.GoUpstairsSamePos",
+                "nodeFunction": "GlobalFunctions.Mota.GoUpstairsSamePos",
                 "params": [],
                 "pos": [
                   0,
@@ -166,7 +166,7 @@
                 ]
               },
               {
-                "nodeFunction": "NodeFunctions.Player.RemoveItem",
+                "nodeFunction": "GlobalFunctions.Player.RemoveItem",
                 "params": [
                   "UpFly",
                   1
@@ -205,7 +205,7 @@
           "onUse": {
             "nodes": [
               {
-                "nodeFunction": "NodeFunctions.Mota.GoDownstairsSamePos",
+                "nodeFunction": "GlobalFunctions.Mota.GoDownstairsSamePos",
                 "params": [],
                 "pos": [
                   0,
@@ -213,7 +213,7 @@
                 ]
               },
               {
-                "nodeFunction": "NodeFunctions.Player.RemoveItem",
+                "nodeFunction": "GlobalFunctions.Player.RemoveItem",
                 "params": [
                   "DownFly",
                   1
@@ -252,7 +252,7 @@
           "onUse": {
             "nodes": [
               {
-                "nodeFunction": "NodeFunctions.Mota.CenterSymmetricTeleport",
+                "nodeFunction": "GlobalFunctions.Mota.CenterSymmetricTeleport",
                 "params": [],
                 "pos": [
                   0,
@@ -260,7 +260,7 @@
                 ]
               },
               {
-                "nodeFunction": "NodeFunctions.Player.RemoveItem",
+                "nodeFunction": "GlobalFunctions.Player.RemoveItem",
                 "params": [
                   "CentreFly",
                   1
@@ -299,7 +299,7 @@
           "onUse": {
             "nodes": [
               {
-                "nodeFunction": "NodeFunctions.Scene.DestroyTerrain",
+                "nodeFunction": "GlobalFunctions.Scene.DestroyTerrain",
                 "params": [
                   "default",
                   [
@@ -314,7 +314,7 @@
                 ]
               },
               {
-                "nodeFunction": "NodeFunctions.Scene.GetTerrainTile",
+                "nodeFunction": "GlobalFunctions.Scene.GetTerrainTile",
                 "params": [
                   "default",
                   [
@@ -328,7 +328,7 @@
                 ]
               },
               {
-                "nodeFunction": "NodeFunctions.Container.ListContains",
+                "nodeFunction": "GlobalFunctions.Container.ListContains",
                 "params": [
                   {
                     "$type": {
@@ -348,7 +348,7 @@
                 ]
               },
               {
-                "nodeFunction": "NodeFunctions.Utils.IF",
+                "nodeFunction": "GlobalFunctions.Utils.IF",
                 "params": [
                   false
                 ],
@@ -358,7 +358,7 @@
                 ]
               },
               {
-                "nodeFunction": "NodeFunctions.Player.GetPlayerFrontPosition",
+                "nodeFunction": "GlobalFunctions.Player.GetPlayerFrontPosition",
                 "params": [],
                 "pos": [
                   -2160,
@@ -366,7 +366,7 @@
                 ]
               },
               {
-                "nodeFunction": "NodeFunctions.Player.RemoveItem",
+                "nodeFunction": "GlobalFunctions.Player.RemoveItem",
                 "params": [
                   "BreakWall",
                   1
@@ -440,7 +440,7 @@
           "onUse": {
             "nodes": [
               {
-                "nodeFunction": "NodeFunctions.Scene.DestroyTerrainList",
+                "nodeFunction": "GlobalFunctions.Scene.DestroyTerrainList",
                 "params": [
                   "default",
                   [],
@@ -452,7 +452,7 @@
                 ]
               },
               {
-                "nodeFunction": "NodeFunctions.Scene.GetTerrainTilePositions",
+                "nodeFunction": "GlobalFunctions.Scene.GetTerrainTilePositions",
                 "params": [
                   "default",
                   5
@@ -463,7 +463,7 @@
                 ]
               },
               {
-                "nodeFunction": "NodeFunctions.Scene.GetTerrainTilePositions",
+                "nodeFunction": "GlobalFunctions.Scene.GetTerrainTilePositions",
                 "params": [
                   "default",
                   6
@@ -474,7 +474,7 @@
                 ]
               },
               {
-                "nodeFunction": "NodeFunctions.Scene.GetTerrainTilePositions",
+                "nodeFunction": "GlobalFunctions.Scene.GetTerrainTilePositions",
                 "params": [
                   "default",
                   7
@@ -485,7 +485,7 @@
                 ]
               },
               {
-                "nodeFunction": "NodeFunctions.Player.RemoveItem",
+                "nodeFunction": "GlobalFunctions.Player.RemoveItem",
                 "params": [
                   "ClearWall",
                   1
@@ -496,7 +496,7 @@
                 ]
               },
               {
-                "nodeFunction": "NodeFunctions.Container.TableToList",
+                "nodeFunction": "GlobalFunctions.Container.TableToList",
                 "params": [
                   []
                 ],
@@ -506,7 +506,7 @@
                 ]
               },
               {
-                "nodeFunction": "NodeFunctions.Container.ListExtend",
+                "nodeFunction": "GlobalFunctions.Container.ListExtend",
                 "params": [
                   {
                     "$type": {
@@ -527,7 +527,7 @@
                 ]
               },
               {
-                "nodeFunction": "NodeFunctions.Container.ListExtend",
+                "nodeFunction": "GlobalFunctions.Container.ListExtend",
                 "params": [
                   {
                     "$type": {
@@ -548,7 +548,7 @@
                 ]
               },
               {
-                "nodeFunction": "NodeFunctions.Container.ListToTable",
+                "nodeFunction": "GlobalFunctions.Container.ListToTable",
                 "params": [
                   null
                 ],
@@ -654,7 +654,7 @@
           "onUse": {
             "nodes": [
               {
-                "nodeFunction": "NodeFunctions.Player.GetPlayerFrontPosition",
+                "nodeFunction": "GlobalFunctions.Player.GetPlayerFrontPosition",
                 "params": [],
                 "pos": [
                   -2160,
@@ -662,7 +662,7 @@
                 ]
               },
               {
-                "nodeFunction": "NodeFunctions.Scene.GetTerrainTile",
+                "nodeFunction": "GlobalFunctions.Scene.GetTerrainTile",
                 "params": [
                   "lava",
                   [
@@ -676,7 +676,7 @@
                 ]
               },
               {
-                "nodeFunction": "NodeFunctions.Container.ListContains",
+                "nodeFunction": "GlobalFunctions.Container.ListContains",
                 "params": [
                   {
                     "$type": {
@@ -695,7 +695,7 @@
                 ]
               },
               {
-                "nodeFunction": "NodeFunctions.Utils.IF",
+                "nodeFunction": "GlobalFunctions.Utils.IF",
                 "params": [
                   false
                 ],
@@ -705,7 +705,7 @@
                 ]
               },
               {
-                "nodeFunction": "NodeFunctions.Scene.DestroyTerrain",
+                "nodeFunction": "GlobalFunctions.Scene.DestroyTerrain",
                 "params": [
                   "lava",
                   [
@@ -720,7 +720,7 @@
                 ]
               },
               {
-                "nodeFunction": "NodeFunctions.Player.RemoveItem",
+                "nodeFunction": "GlobalFunctions.Player.RemoveItem",
                 "params": [
                   "BreakLava",
                   1
@@ -794,7 +794,7 @@
           "onUse": {
             "nodes": [
               {
-                "nodeFunction": "NodeFunctions.Player.GetPlayerFrontPosition",
+                "nodeFunction": "GlobalFunctions.Player.GetPlayerFrontPosition",
                 "params": [],
                 "pos": [
                   -2160,
@@ -802,7 +802,7 @@
                 ]
               },
               {
-                "nodeFunction": "NodeFunctions.Scene.GetTerrainTile",
+                "nodeFunction": "GlobalFunctions.Scene.GetTerrainTile",
                 "params": [
                   "default",
                   [
@@ -816,7 +816,7 @@
                 ]
               },
               {
-                "nodeFunction": "NodeFunctions.Container.ListContains",
+                "nodeFunction": "GlobalFunctions.Container.ListContains",
                 "params": [
                   {
                     "$type": {
@@ -834,7 +834,7 @@
                 ]
               },
               {
-                "nodeFunction": "NodeFunctions.Utils.IF",
+                "nodeFunction": "GlobalFunctions.Utils.IF",
                 "params": [
                   false
                 ],
@@ -844,7 +844,7 @@
                 ]
               },
               {
-                "nodeFunction": "NodeFunctions.Scene.DestroyTerrain",
+                "nodeFunction": "GlobalFunctions.Scene.DestroyTerrain",
                 "params": [
                   "default",
                   [
@@ -859,7 +859,7 @@
                 ]
               },
               {
-                "nodeFunction": "NodeFunctions.Player.RemoveItem",
+                "nodeFunction": "GlobalFunctions.Player.RemoveItem",
                 "params": [
                   "BreakIce",
                   1
@@ -938,7 +938,7 @@
           "onUse": {
             "nodes": [
               {
-                "nodeFunction": "NodeFunctions.Gameplay.ReducePlayerState",
+                "nodeFunction": "GlobalFunctions.Gameplay.ReducePlayerState",
                 "params": [
                   "Poisoned",
                   5
@@ -949,7 +949,7 @@
                 ]
               },
               {
-                "nodeFunction": "NodeFunctions.Player.RemoveItem",
+                "nodeFunction": "GlobalFunctions.Player.RemoveItem",
                 "params": [
                   "PoisonedEase",
                   1
@@ -988,7 +988,7 @@
           "onUse": {
             "nodes": [
               {
-                "nodeFunction": "NodeFunctions.Gameplay.RemovePlayerState",
+                "nodeFunction": "GlobalFunctions.Gameplay.RemovePlayerState",
                 "params": [
                   "Poisoned"
                 ],
@@ -998,7 +998,7 @@
                 ]
               },
               {
-                "nodeFunction": "NodeFunctions.Player.RemoveItem",
+                "nodeFunction": "GlobalFunctions.Player.RemoveItem",
                 "params": [
                   "PoisonedRelease",
                   1
@@ -1037,7 +1037,7 @@
           "onUse": {
             "nodes": [
               {
-                "nodeFunction": "NodeFunctions.Gameplay.ReducePlayerState",
+                "nodeFunction": "GlobalFunctions.Gameplay.ReducePlayerState",
                 "params": [
                   "Weak",
                   5
@@ -1048,7 +1048,7 @@
                 ]
               },
               {
-                "nodeFunction": "NodeFunctions.Player.RemoveItem",
+                "nodeFunction": "GlobalFunctions.Player.RemoveItem",
                 "params": [
                   "WeakEase",
                   1
@@ -1087,7 +1087,7 @@
           "onUse": {
             "nodes": [
               {
-                "nodeFunction": "NodeFunctions.Gameplay.RemovePlayerState",
+                "nodeFunction": "GlobalFunctions.Gameplay.RemovePlayerState",
                 "params": [
                   "Weak"
                 ],
@@ -1097,7 +1097,7 @@
                 ]
               },
               {
-                "nodeFunction": "NodeFunctions.Player.RemoveItem",
+                "nodeFunction": "GlobalFunctions.Player.RemoveItem",
                 "params": [
                   "WeakRelease",
                   1

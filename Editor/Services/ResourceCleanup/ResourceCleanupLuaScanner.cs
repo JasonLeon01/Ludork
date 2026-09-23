@@ -43,7 +43,7 @@ internal static class ResourceCleanupLuaScanner
         return relativePath.StartsWith("Scripts/", StringComparison.Ordinal)
             && relativePath.EndsWith(".lua", StringComparison.OrdinalIgnoreCase)
             && !relativePath.StartsWith("Scripts/stub/", StringComparison.Ordinal)
-            && !relativePath.StartsWith("Scripts/Source/UI/", StringComparison.Ordinal)
+            && !relativePath.StartsWith("Scripts/Internal/UI/", StringComparison.Ordinal)
             && !relativePath.StartsWith("Scripts/Source/Locale/", StringComparison.Ordinal)
             && !relativePath.EndsWith(".d.lua", StringComparison.OrdinalIgnoreCase)
             && relativePath is not "Scripts/Source/Configs/GeneralEnum.lua"

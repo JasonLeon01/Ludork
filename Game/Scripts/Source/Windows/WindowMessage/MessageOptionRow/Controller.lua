@@ -1,5 +1,5 @@
-local Ui = require("Source.UIBase.Ui")
-local View = require("Source.UI.Parts.WindowMessage.MessageOptionRow")
+local Ui = require("Internal.UIBase.Ui")
+local View = require("Internal.UI.Parts.WindowMessage.MessageOptionRow")
 
 ---@class Source.Windows.WindowMessage.MessageOptionRow.Controller
 local MessageOptionRowController = {}

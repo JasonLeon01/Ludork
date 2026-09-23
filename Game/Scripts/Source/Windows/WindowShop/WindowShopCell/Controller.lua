@@ -1,5 +1,5 @@
-local Ui = require("Source.UIBase.Ui")
-local View = require("Source.UI.Parts.WindowShop.WindowShopCell")
+local Ui = require("Internal.UIBase.Ui")
+local View = require("Internal.UI.Parts.WindowShop.WindowShopCell")
 
 local _SHOP_DISABLED_ALPHA = 120
 local _SHOP_DISABLED_TEXT_COLOUR = sf.Color.new(160, 160, 160, 255)

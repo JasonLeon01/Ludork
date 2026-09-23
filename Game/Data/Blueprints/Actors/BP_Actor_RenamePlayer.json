@@ -1,5 +1,5 @@
 {
-  "parent": "Source.ConditionalActor.ConditionalActor",
+  "parent": "Source.MapActors.ConditionalActor.ConditionalActor",
   "attrs": {
     "animatable": true,
     "material": {
@@ -27,7 +27,7 @@
       "onCollision": {
         "nodes": [
           {
-            "nodeFunction": "NodeFunctions.Scene.OpenPlayerName",
+            "nodeFunction": "GlobalFunctions.Scene.OpenPlayerName",
             "params": [],
             "pos": [
               0,

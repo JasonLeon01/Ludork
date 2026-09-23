@@ -1,5 +1,5 @@
 {
-  "parent": "Source.Equip",
+  "parent": "Source.MapActors.Equip",
   "attrs": {
     "ID": "Shield_A",
     "material": {

@@ -1,5 +1,5 @@
-local Ui = require("Source.UIBase.Ui")
-local View = require("Source.UI.GameOver")
+local Ui = require("Internal.UIBase.Ui")
+local View = require("Internal.UI.GameOver")
 
 local GameOverController = {}
 

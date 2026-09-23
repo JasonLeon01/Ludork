@@ -4,11 +4,11 @@
 ---
 --- Shows currently equipped item names per slot, or unequipped placeholder text.
 
----@class Source.Windows.WindowEquipStatus.Controller: Source.UIBase.UiController
+---@class Source.Windows.WindowEquipStatus.Controller: Internal.UIBase.UiController
 ---@field host             Source.Windows.WindowEquipStatus
----@field ui               Source.UI.Parts.WindowEquip.WindowEquipStatusPane
----@field _player          Source.Player.Player
----@field _changeRows      Source.UIBase.UiCollection<Source.Windows.WindowEquip.EquipStatusRow.Controller>
+---@field ui               Internal.UI.Parts.WindowEquip.WindowEquipStatusPane
+---@field _player          Source.MapActors.Player.Player
+---@field _changeRows      Internal.UIBase.UiCollection<Source.Windows.WindowEquip.EquipStatusRow.Controller>
 ---@field _showComparison  boolean
 ---@field _descriptionName string
 ---@field _descriptionText string
@@ -17,13 +17,13 @@ local Controller = {}
 ---@brief Construct the equipment status window.
 ---
 --- - @param player The player instance.
----@param player Source.Player.Player
+---@param player Source.MapActors.Player.Player
 function Controller:init(player) end
 
 ---@brief Rebind the player instance used for equipment comparisons.
 ---
 --- - @param player The player instance.
----@param player Source.Player.Player
+---@param player Source.MapActors.Player.Player
 function Controller:setPlayer(player) end
 
 ---@brief Open the detail window for the current equipment slot.

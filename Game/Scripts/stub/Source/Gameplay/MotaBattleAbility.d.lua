@@ -16,8 +16,8 @@ local CriticalResult = {}
 ---@field fixedDamage         integer
 ---@field playerAttack        table<string, integer>
 ---@field enemyAttack         table<string, integer>
----@field enemy               Source.Enemy
----@field player              Source.Player.Player
+---@field enemy               Source.MapActors.Enemy
+---@field player              Source.MapActors.Player.Player
 ---@field committed           boolean
 ---@field damageEffectSpec?   GlobalCore.GameplayEffectSpec
 ---@field gameOverEffectSpec? GlobalCore.GameplayEffectSpec
@@ -55,8 +55,8 @@ function MotaBattleAbility.CalculateDamagePerRound(attacker, defender) end
 ---@param result Source.Gameplay.MotaBattleResult
 function MotaBattleAbility.CommitResult(result) end
 
----@param enemy  Source.Enemy
----@param player Source.Player.Player
+---@param enemy  Source.MapActors.Enemy
+---@param player Source.MapActors.Player.Player
 ---@return Source.Gameplay.MotaCriticalResult
 function MotaBattleAbility.CalculateCriticalValue(enemy, player) end
 

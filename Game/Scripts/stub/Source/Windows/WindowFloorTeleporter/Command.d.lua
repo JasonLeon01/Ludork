@@ -1,12 +1,12 @@
 ---@meta
 
 ---@brief Command list displaying visited maps in the current region.
----@class Source.Windows.WindowFloorMapCommand.Controller: Source.UIBase.UiController
+---@class Source.Windows.WindowFloorMapCommand.Controller: Internal.UIBase.UiController
 ---@field host      Source.Windows.WindowFloorMapCommand
 ---@field _owner    Source.Windows.WindowFloorTeleporter
 ---@field _mapKeys  string[]
----@field ui        Source.UI.Parts.WindowFloorTeleporter.WindowFloorMapCommand
----@field _commands Source.UIBase.UiCollection<Source.UIBase.CommandRow.Controller>
+---@field ui        Internal.UI.Parts.WindowFloorTeleporter.WindowFloorMapCommand
+---@field _commands Internal.UIBase.UiCollection<Internal.UIBase.CommandRow.Controller>
 local Controller = {}
 
 ---@brief Construct the floor map command list.

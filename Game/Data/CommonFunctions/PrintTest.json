@@ -4,7 +4,7 @@
         "common": {
             "nodes": [
                 {
-                    "nodeFunction": "NodeFunctions.Utils.Print",
+                    "nodeFunction": "GlobalFunctions.Utils.Print",
                     "params": [
                         "Start testing print!"
                     ],

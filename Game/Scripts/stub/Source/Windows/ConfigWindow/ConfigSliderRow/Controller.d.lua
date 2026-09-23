@@ -1,9 +1,9 @@
 ---@meta Source.Windows.ConfigWindow.ConfigSliderRow.Controller
 ---@class Source.Windows.ConfigWindow.ConfigSliderRow.Controller: Source.Windows.ConfigWindow.ConfigRow
----@field ui Source.UI.Parts.ConfigWindow.ConfigSliderRow
+---@field ui Internal.UI.Parts.ConfigWindow.ConfigSliderRow
 local ConfigSliderRowController = {}
 
----@param ui             Source.UI.Parts.ConfigWindow.ConfigSliderRow
+---@param ui             Internal.UI.Parts.ConfigWindow.ConfigSliderRow
 ---@param labelText      string
 ---@param value          integer | nil
 ---@param onValueChanged fun(value: integer) | nil
@@ -11,7 +11,7 @@ local ConfigSliderRowController = {}
 function ConfigSliderRowController.new(ui, labelText, value, onValueChanged) end
 
 ---@brief Bind configuration volume behaviour to an existing generated row View.
----@param ui             Source.UI.Parts.ConfigWindow.ConfigSliderRow
+---@param ui             Internal.UI.Parts.ConfigWindow.ConfigSliderRow
 ---@param labelText      string
 ---@param value          integer | nil
 ---@param onValueChanged fun(value: integer) | nil

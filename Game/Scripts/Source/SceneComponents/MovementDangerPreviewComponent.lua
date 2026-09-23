@@ -1,7 +1,7 @@
 local Engine = require("Engine")
 local ComponentBase = require("Global.Components.ComponentBase")
 local Data = require("Source.Data")
-local EnemyDamageText = require("Source.EnemyDamageText")
+local EnemyDamageText = require("Source.MapActors.EnemyDamageText")
 local NumberFormat = require("Source.Utils.NumberFormat")
 
 local PlainText = Engine.PlainText
@@ -38,7 +38,7 @@ function MovementDangerPreviewComponent:onRender(camera)
     end
 end
 
----@param player Source.Player.Player
+---@param player Source.MapActors.Player.Player
 function MovementDangerPreviewComponent:_refreshEntries(player)
     self._cachedEntries = self._dangerState:getEntries()
     local cellSize = Engine.GetCellSize()

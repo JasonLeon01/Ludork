@@ -1,7 +1,7 @@
 ---@meta Source.Windows.WindowAttrShop.AttrShopRow.Controller
 
----@class Source.Windows.WindowAttrShop.AttrShopRow.Controller: Source.UIBase.UiController
----@field ui           Source.UI.Parts.WindowAttrShop.AttrShopRow
+---@class Source.Windows.WindowAttrShop.AttrShopRow.Controller: Internal.UIBase.UiController
+---@field ui           Internal.UI.Parts.WindowAttrShop.AttrShopRow
 ---@field new          fun(model: table): Source.Windows.WindowAttrShop.AttrShopRow.Controller
 ---@field model        { text: string, available: boolean }
 ---@field root         Engine.Canvas

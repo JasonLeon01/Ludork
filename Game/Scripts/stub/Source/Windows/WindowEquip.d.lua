@@ -1,18 +1,18 @@
 ---@meta
 
----@class Source.Windows.WindowEquip.Controller: Source.UIBase.UiController
+---@class Source.Windows.WindowEquip.Controller: Internal.UIBase.UiController
 ---@field host               Source.Windows.WindowEquip
 ---@field _slotWindow        Source.Windows.WindowEquipSlot
 ---@field _selectWindow      Source.Windows.WindowEquipSelect
 ---@field _statusWindow      Source.Windows.WindowEquipStatus
----@field ui                 Source.UI.WindowEquip
+---@field ui                 Internal.UI.WindowEquip
 ---@field _transitionProfile string
 local Controller = {}
 
----@param player Source.Player.Player
+---@param player Source.MapActors.Player.Player
 function Controller:init(player) end
 
----@param player Source.Player.Player
+---@param player Source.MapActors.Player.Player
 function Controller:setPlayer(player) end
 
 ---@param callback function | nil

@@ -6,8 +6,8 @@ local MapClickAutoPathRuntime = {}
 ---@param dangerState        Source.SceneComponents.MovementDangerState
 ---@param route              sf.Vector2i[]
 ---@param goal               sf.Vector2i | nil
----@param ignoredGoalEnemies Source.Enemy[] | nil
----@param player             Source.Player.Player
+---@param ignoredGoalEnemies Source.MapActors.Enemy[] | nil
+---@param player             Source.MapActors.Player.Player
 ---@return boolean
 function MapClickAutoPathRuntime.IsRouteInvalidatedByDanger(
     gameMap, dangerState, route, goal, ignoredGoalEnemies, player
@@ -23,11 +23,11 @@ function MapClickAutoPathRuntime.GetTeleportPathPositions(route, destination) en
 ---@return integer
 function MapClickAutoPathRuntime.GetInstantWalkCount(route, destination) end
 
----@param player    Source.Player.Player
+---@param player    Source.MapActors.Player.Player
 ---@param walkCount integer
 function MapClickAutoPathRuntime.TriggerInstantWalkStates(player, walkCount) end
 
----@param actor          Source.Player.Player
+---@param actor          Source.MapActors.Player.Player
 ---@param fromPos        sf.Vector2i
 ---@param goal           sf.Vector2i
 ---@param rotateWhenSame boolean

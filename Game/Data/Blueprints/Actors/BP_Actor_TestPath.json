@@ -1,5 +1,5 @@
 {
-  "parent": "Source.ConditionalActor.ConditionalActor",
+  "parent": "Source.MapActors.ConditionalActor.ConditionalActor",
   "attrs": {
     "animatable": true,
     "material": {
@@ -28,7 +28,7 @@
       "onCollision": {
         "nodes": [
           {
-            "nodeFunction": "NodeFunctions.Utils.SELF",
+            "nodeFunction": "GlobalFunctions.Utils.SELF",
             "params": [],
             "pos": [
               -720.0,
@@ -36,7 +36,7 @@
             ]
           },
           {
-            "nodeFunction": "NodeFunctions.Movement.SetAutoPathToDestination",
+            "nodeFunction": "GlobalFunctions.Movement.SetAutoPathToDestination",
             "params": [
               null,
               [
@@ -50,7 +50,7 @@
             ]
           },
           {
-            "nodeFunction": "NodeFunctions.Utils.Print",
+            "nodeFunction": "GlobalFunctions.Utils.Print",
             "params": [
               "Start path!"
             ],
@@ -60,7 +60,7 @@
             ]
           },
           {
-            "nodeFunction": "NodeFunctions.Utils.Print",
+            "nodeFunction": "GlobalFunctions.Utils.Print",
             "params": [
               "End path"
             ],

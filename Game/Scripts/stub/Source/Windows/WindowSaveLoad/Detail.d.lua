@@ -5,9 +5,9 @@
 --- Renders the snapshot horizontally filling the content area at a 4:3 ratio
 --- and displays the file's last-modified timestamp underneath. Loading, empty
 --- and failed slots display a status message. Native previews are read in the background.
----@class Source.Windows.WindowSaveDetail.Controller: Source.UIBase.UiController
+---@class Source.Windows.WindowSaveDetail.Controller: Internal.UIBase.UiController
 ---@field host            Source.Windows.WindowSaveDetail
----@field ui              Source.UI.Parts.WindowSaveLoad.WindowSaveDetail
+---@field ui              Internal.UI.Parts.WindowSaveLoad.WindowSaveDetail
 ---@field _reader         Engine.SavePreviewReader
 ---@field _currentSlot    integer | nil
 ---@field _previewEnabled boolean

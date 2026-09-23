@@ -7,8 +7,8 @@
 ---@field value       number | nil
 ---@field callback    function | nil
 
----@class Source.Windows.WindowShop.WindowShopCell.Controller: Source.UIBase.UiController
----@field ui           Source.UI.Parts.WindowShop.WindowShopCell
+---@class Source.Windows.WindowShop.WindowShopCell.Controller: Internal.UIBase.UiController
+---@field ui           Internal.UI.Parts.WindowShop.WindowShopCell
 ---@field model        Source.Windows.WindowShop.WindowShopCell.Controller.Model
 ---@field new          fun(model: Source.Windows.WindowShop.WindowShopCell.Controller.Model): Source.Windows.WindowShop.WindowShopCell.Controller
 ---@field _iconColour  sf.Color

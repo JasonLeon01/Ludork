@@ -1,5 +1,7 @@
 ---@meta Global.Utils.Logging
 
+local Logging = {}
+
 function Logging.setLevel(level) end
 
 function Logging.debug(formatValue, ...) end

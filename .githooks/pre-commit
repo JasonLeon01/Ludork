@@ -1,0 +1,15 @@
+#!/bin/sh
+set -eu
+
+cd "$(git rev-parse --show-toplevel)"
+if command -v python >/dev/null 2>&1 && python -c 'import sys; assert sys.version_info >= (3, 12)' >/dev/null 2>&1; then
+    exec python -m ScriptTools.global_functions_check --staged
+fi
+if command -v python3 >/dev/null 2>&1 && python3 -c 'import sys; assert sys.version_info >= (3, 12)' >/dev/null 2>&1; then
+    exec python3 -m ScriptTools.global_functions_check --staged
+fi
+if command -v py >/dev/null 2>&1 && py -3 -c 'import sys; assert sys.version_info >= (3, 12)' >/dev/null 2>&1; then
+    exec py -3 -m ScriptTools.global_functions_check --staged
+fi
+echo "Python 3 is required for the GlobalFunctions commit check" >&2
+exit 1

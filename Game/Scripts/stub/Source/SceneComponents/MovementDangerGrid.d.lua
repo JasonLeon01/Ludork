@@ -2,28 +2,28 @@
 
 local MovementDangerGrid = {}
 
----@param enemy Source.Enemy
+---@param enemy Source.MapActors.Enemy
 ---@return boolean
 function MovementDangerGrid.HasMovementSpecial(enemy) end
 
 ---@param entry           Source.SceneComponents.MovementDangerEntry
----@param ignoredEnemySet table<Source.Enemy, boolean> | nil
+---@param ignoredEnemySet table<Source.MapActors.Enemy, boolean> | nil
 ---@return integer
 function MovementDangerGrid.GetEntryDamage(entry, ignoredEnemySet) end
 
----@param enemies        Source.Enemy[]
----@param player         Source.Player.Player
+---@param enemies        Source.MapActors.Enemy[]
+---@param player         Source.MapActors.Player.Player
 ---@param areaX          integer
 ---@param areaY          integer
 ---@param areaWidth      integer
 ---@param areaHeight     integer
----@param previewContext Source.MovementSpecials.PreviewContext
+---@param previewContext Source.Utils.MovementSpecials.PreviewContext
 ---@return Source.SceneComponents.MovementDangerEntry[] entries
 ---@return table<integer, table<integer, Source.SceneComponents.MovementDangerEntry>> grid
 function MovementDangerGrid.Build(enemies, player, areaX, areaY, areaWidth, areaHeight, previewContext) end
 
----@param enemies            Source.Enemy[]
----@param player             Source.Player.Player
+---@param enemies            Source.MapActors.Enemy[]
+---@param player             Source.MapActors.Player.Player
 ---@param areaX              integer
 ---@param areaY              integer
 ---@param areaWidth          integer
@@ -33,7 +33,7 @@ function MovementDangerGrid.Build(enemies, player, areaX, areaY, areaWidth, area
 ---@param previousAreaWidth  integer
 ---@param previousAreaHeight integer
 ---@param previousGrid       table<integer, table<integer, Source.SceneComponents.MovementDangerEntry>>
----@param previewContext     Source.MovementSpecials.PreviewContext
+---@param previewContext     Source.Utils.MovementSpecials.PreviewContext
 ---@return Source.SceneComponents.MovementDangerEntry[] entries
 ---@return table<integer, table<integer, Source.SceneComponents.MovementDangerEntry>> grid
 function MovementDangerGrid.Refresh(

@@ -1,11 +1,11 @@
 ---@meta
 
 ---@brief Save-file slot list (1..MAX_SAVE_SLOTS) for load/save selection.
----@class Source.Windows.WindowSaveSlot.Controller: Source.UIBase.UiController
+---@class Source.Windows.WindowSaveSlot.Controller: Internal.UIBase.UiController
 ---@field host           Source.Windows.WindowSaveSlot
 ---@field MAX_SAVE_SLOTS integer
----@field ui             Source.UI.Parts.WindowSaveLoad.WindowSaveSlot
----@field _rows          Source.UIBase.UiCollection<Source.Windows.WindowSaveLoad.WindowSaveSlotRow.Controller>
+---@field ui             Internal.UI.Parts.WindowSaveLoad.WindowSaveSlot
+---@field _rows          Internal.UIBase.UiCollection<Source.Windows.WindowSaveLoad.WindowSaveSlotRow.Controller>
 ---@field _buildClock    sf.Clock
 local Controller = {}
 

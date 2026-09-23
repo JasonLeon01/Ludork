@@ -8,7 +8,7 @@ from .ui_assets import _is_link
 from .ui_property_values import UiAssetError
 
 
-OUTPUT_ROOT = pathlib.Path("Scripts/stub/Source/UIWindows")
+OUTPUT_ROOT = pathlib.Path("Scripts/stub/Internal/UIWindows")
 _NAME = r"[A-Za-z_]\w*"
 _METHOD = re.compile(
     rf"(?P<docs>(?:^[ \t]*---[^\n]*\n)*)"
@@ -271,7 +271,7 @@ def _render(path: pathlib.Path, text: str, relative: pathlib.Path,
     if description:
         lines.append(description)
     lines.extend([
-        f"---@class {window_type}: {base_type}, Source.UIBase.Ui.Window",
+        f"---@class {window_type}: {base_type}, Internal.UIBase.Ui.Window",
         f"---@field ui {view_type}",
         *[f"---@field {name} {type_name}" for name, type_name in sorted(constants.items())],
         "local Window = {}", "",
@@ -317,7 +317,7 @@ def window_outputs(
         references = _references(tokens)
         calls = [
             index for index in range(len(tokens) - 3)
-            if references.get(tokens[index].value) == "Source.UIBase.Ui"
+            if references.get(tokens[index].value) == "Internal.UIBase.Ui"
             and [token.value for token in tokens[index + 1:index + 4]] == [".", "DefineWindow", "("]
         ]
         if not calls:

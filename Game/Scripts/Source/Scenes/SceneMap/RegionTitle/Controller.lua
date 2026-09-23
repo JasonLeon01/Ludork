@@ -1,15 +1,15 @@
 local GlobalCore = require("GlobalCore")
 local EventKeys = require("Source.Configs.EventKeys")
 local Locale = require("Source.Locale.Core")
-local Ui = require("Source.UIBase.Ui")
-local View = require("Source.UI.RegionTitle")
+local Ui = require("Internal.UIBase.Ui")
+local View = require("Internal.UI.RegionTitle")
 
 local Graphics = GlobalCore.Graphics
 local Transition = GlobalCore.Transition
 ---@type fun(value: string): string
 local LOC = Locale.ApplyStringLocaleFormat
 
----@class Source.Scenes.SceneMap.RegionTitle.Controller: Source.UIBase.UiController
+---@class Source.Scenes.SceneMap.RegionTitle.Controller: Internal.UIBase.UiController
 local RegionTitleController = {}
 
 RegionTitleController.refreshEvents = { EventKeys.LocaleChanged }

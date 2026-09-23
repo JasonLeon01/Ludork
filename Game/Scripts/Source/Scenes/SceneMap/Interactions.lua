@@ -1,17 +1,17 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
-local ConditionalActor = require("Source.ConditionalActor")
+local ConditionalActor = require("Source.MapActors.ConditionalActor")
 local GameSystem = require("Source.System")
 local LocaleCore = require("Source.Locale.Core")
 ---@type { Item: Source.Configs.GeneralEnum.Item }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
-local Teleporter = require("Source.Teleporter")
+local Teleporter = require("Source.MapActors.Teleporter")
 local RegionDict = require("Source.Configs.RegionDict")
 local MapConstants = require("Source.Configs.MapConstants")
 
 local AudioManager = GlobalCore.AudioManager
 local Save = require("Source.Save")
-local WindowTransition = require("Source.UIBase.WindowTransition")
+local WindowTransition = require("Internal.UIBase.WindowTransition")
 local WindowSaveSlot = require("Source.Windows.WindowSaveLoad.Slot")
 
 local Transition = GlobalCore.Transition
@@ -28,7 +28,7 @@ local FLOOR_TELEPORTER_ITEM_ID = GeneralEnum.Item.Teleport
 
 local Scene = {}
 
----@param player     Source.Player.Player
+---@param player     Source.MapActors.Player.Player
 ---@param blockInput fun()
 ---@return fun()
 local function suspendPlayerMovement(player, blockInput)
@@ -827,7 +827,7 @@ function Scene.RecordDestroyedActorTag(self, actorTag)
     if actor ~= nil then
         for _, listed in ipairs(actor:collectTree()) do
             if Class.isInstance(listed, ConditionalActor) then
-                ---@cast listed Source.ConditionalActor
+                ---@cast listed Source.MapActors.ConditionalActor
                 listed:releaseConditionMonitor()
             end
         end

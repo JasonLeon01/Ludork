@@ -1,6 +1,6 @@
 local LocaleCore = require("Source.Locale.Core")
-local Ui = require("Source.UIBase.Ui")
-local View = require("Source.UI.Parts.PlayerAttrHUD.PlayerStateRow")
+local Ui = require("Internal.UIBase.Ui")
+local View = require("Internal.UI.Parts.PlayerAttrHUD.PlayerStateRow")
 
 ---@type fun(value: string): string
 local LOC = LocaleCore.ApplyStringLocaleFormat

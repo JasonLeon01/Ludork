@@ -1,5 +1,5 @@
 {
-  "parent": "Source.Player",
+  "parent": "Source.MapActors.Player",
   "attrs": {
     "material": {
       "lightBlock": 0.4,

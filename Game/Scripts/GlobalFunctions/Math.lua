@@ -1,0 +1,466 @@
+local Engine
+local function loadEngine()
+    if Engine == nil then
+        Engine = require("Engine")
+    end
+    return Engine
+end
+
+local Utils
+local function loadUtils()
+    if Utils == nil then
+        Utils = require("GlobalFunctions.Utils")
+    end
+    return Utils
+end
+
+local Math = {}
+
+---@param fn        function
+---@param a         any
+---@param b         any
+---@param operation fun(left: any, right: any): any
+local function updateInPlace(fn, a, b, operation)
+    local refLocal = loadEngine().Node.getRefLocal(fn)
+    if Class.isInstance(a, "string") and refLocal ~= nil and refLocal[a] ~= nil then
+        refLocal[a] = operation(refLocal[a], b)
+        return
+    end
+    if loadUtils().IsNodeReference(a) then
+        a:set(operation(a:get(), b))
+        return
+    end
+    operation(a, b)
+end
+
+function Math.BuildVector2f(x, y)
+    x = x == nil and 0.0 or x
+    y = y == nil and 0.0 or y
+    return sf.Vector2f.new(x, y)
+end
+
+function Math.BuildVector2i(x, y)
+    x = x == nil and 0 or x
+    y = y == nil and 0 or y
+    return sf.Vector2i.new(x, y)
+end
+
+function Math.BuildVector2u(x, y)
+    x = x == nil and 0 or x
+    y = y == nil and 0 or y
+    return sf.Vector2u.new(x, y)
+end
+
+function Math.BuildVector3f(x, y, z)
+    x = x == nil and 0.0 or x
+    y = y == nil and 0.0 or y
+    z = z == nil and 0.0 or z
+    return sf.Vector3f.new(x, y, z)
+end
+
+function Math.BuildVector3i(x, y, z)
+    x = x == nil and 0 or x
+    y = y == nil and 0 or y
+    z = z == nil and 0 or z
+    return sf.Vector3i.new(x, y, z)
+end
+
+function Math.IsNearZero(num, epsilon)
+    epsilon = epsilon == nil and 0.1 or epsilon
+    return math.isNearZero(num, epsilon)
+end
+
+function Math.IsVector2NearZero(v, epsilon)
+    epsilon = epsilon == nil and 0.1 or epsilon
+    return loadEngine().IsVector2NearZero(v, epsilon)
+end
+
+function Math.IsVector3NearZero(v, epsilon)
+    epsilon = epsilon == nil and 0.1 or epsilon
+    return loadEngine().IsVector3NearZero(v, epsilon)
+end
+
+function Math.Vector2fRound(v)
+    return loadEngine().Vector2fRound(v)
+end
+
+function Math.Vector2fFloor(v)
+    return loadEngine().Vector2fFloor(v)
+end
+
+function Math.Vector2fCeil(v)
+    return loadEngine().Vector2fCeil(v)
+end
+
+function Math.ToVector2f(v)
+    return loadEngine().ToVector2f(v)
+end
+
+function Math.ToVector2i(v)
+    return loadEngine().ToVector2i(v)
+end
+
+function Math.ToVector2u(v)
+    return loadEngine().ToVector2u(v)
+end
+
+function Math.ToVector3f(v)
+    return loadEngine().ToVector3f(v)
+end
+
+function Math.ToVector3i(v)
+    return loadEngine().ToVector3i(v)
+end
+
+function Math.ToIntRect(x, y, width, height)
+    x = x == nil and 0 or x
+    y = y == nil and 0 or y
+    width = width == nil and 32 or width
+    height = height == nil and 32 or height
+    return loadEngine().ToIntRect(x, y, width, height)
+end
+
+function Math.ToFloatRect(x, y, width, height)
+    x = x == nil and 0.0 or x
+    y = y == nil and 0.0 or y
+    width = width == nil and 32.0 or width
+    height = height == nil and 32.0 or height
+    return loadEngine().ToFloatRect(x, y, width, height)
+end
+
+function Math.Clamp(value, min_val, max_val)
+    value = value == nil and 0.0 or value
+    min_val = min_val == nil and 0.0 or min_val
+    max_val = max_val == nil and 1.0 or max_val
+    return math.clamp(value, min_val, max_val)
+end
+
+function Math.Lerp(a, b, t)
+    a = a == nil and 0.0 or a
+    b = b == nil and 1.0 or b
+    t = t == nil and 0.5 or t
+    return math.lerp(a, b, t)
+end
+
+function Math.Sign(value)
+    value = value == nil and 0.0 or value
+    return math.sign(value)
+end
+
+function Math.InverseLerp(a, b, value)
+    a = a == nil and 0.0 or a
+    b = b == nil and 1.0 or b
+    value = value == nil and 0.0 or value
+    return math.inverseLerp(a, b, value)
+end
+
+function Math.Remap(value, inMin, inMax, outMin, outMax)
+    value = value == nil and 0.0 or value
+    inMin = inMin == nil and 0.0 or inMin
+    inMax = inMax == nil and 1.0 or inMax
+    outMin = outMin == nil and 0.0 or outMin
+    outMax = outMax == nil and 1.0 or outMax
+    return math.remap(value, inMin, inMax, outMin, outMax)
+end
+
+function Math.Smoothstep(edge0, edge1, value)
+    edge0 = edge0 == nil and 0.0 or edge0
+    edge1 = edge1 == nil and 1.0 or edge1
+    value = value == nil and 0.0 or value
+    return math.smoothstep(edge0, edge1, value)
+end
+
+function Math.MoveTowards(current, target, maxDelta)
+    current = current == nil and 0.0 or current
+    target = target == nil and 1.0 or target
+    maxDelta = maxDelta == nil and 0.0 or maxDelta
+    return math.moveTowards(current, target, maxDelta)
+end
+
+function Math.Abs(value)
+    value = value == nil and 0 or value
+    return math.abs(value)
+end
+
+function Math.ToInt(value)
+    value = value == nil and 0 or value
+    return math.trunc(value)
+end
+
+function Math.ToFloat(value)
+    value = value == nil and 0 or value
+    local result = tonumber(value)
+    ---@cast result number
+    return result
+end
+
+function Math.Max(values)
+    values = values or {}
+    if not bool(values) then
+        error("max() arg is an empty sequence")
+    end
+    local result = values[1]
+    for index = 2, #values do
+        if values[index] > result then
+            result = values[index]
+        end
+    end
+    return result
+end
+
+function Math.Min(values)
+    values = values or {}
+    if not bool(values) then
+        error("min() arg is an empty sequence")
+    end
+    local result = values[1]
+    for index = 2, #values do
+        if values[index] < result then
+            result = values[index]
+        end
+    end
+    return result
+end
+
+function Math.Sqrt(value)
+    value = value == nil and 0 or value
+    return math.sqrt(value)
+end
+
+function Math.Pow(base, exp)
+    base = base == nil and 1 or base
+    exp = exp == nil and 2 or exp
+    return base ^ exp
+end
+
+function Math.Vector2Distance(v1, v2)
+    return math.sqrt((v1.x - v2.x) ^ 2 + (v1.y - v2.y) ^ 2)
+end
+
+function Math.Vector3Distance(v1, v2)
+    return math.sqrt((v1.x - v2.x) ^ 2 + (v1.y - v2.y) ^ 2 + (v1.z - v2.z) ^ 2)
+end
+
+function Math.Vector2Dot(v1, v2)
+    return v1:dot(v2)
+end
+
+function Math.Vector3Dot(v1, v2)
+    return v1:dot(v2)
+end
+
+function Math.Vector2Cross(v1, v2)
+    return v1:cross(v2)
+end
+
+function Math.Vector3Cross(v1, v2)
+    return v1:cross(v2)
+end
+
+function Math.Vector2Length(v)
+    return v:length()
+end
+
+function Math.Vector3Length(v)
+    return v:length()
+end
+
+function Math.Vector2LengthSquared(v)
+    return v:lengthSquared()
+end
+
+function Math.Vector3LengthSquared(v)
+    return v:lengthSquared()
+end
+
+function Math.Vector2Normalized(v)
+    return v:normalized()
+end
+
+function Math.Vector3Normalized(v)
+    return v:normalized()
+end
+
+function Math.GetAngle(v)
+    return v:angle()
+end
+
+function Math.GetAngleTo(v1, v2)
+    return v1:angleTo(v2)
+end
+
+function Math.AsDegrees(angle)
+    return angle:asDegrees()
+end
+
+function Math.AsRadians(angle)
+    return angle:asRadians()
+end
+
+function Math.Vector2ComponentWiseDiv(v, div)
+    return v:componentWiseDiv(div)
+end
+
+function Math.Vector2ComponentWiseMul(v, mul)
+    return v:componentWiseMul(mul)
+end
+
+function Math.Vector2Perpendicular(v)
+    return v:perpendicular()
+end
+
+function Math.Vector2ProjectedOnto(v, axis)
+    return v:projectedOnto(axis)
+end
+
+function Math.Vector2RotatedBy(v, phi)
+    return v:rotatedBy(phi)
+end
+
+function Math.DegreesToAngle(degrees_)
+    degrees_ = degrees_ == nil and 0.0 or degrees_
+    return sf.degrees(degrees_)
+end
+
+function Math.RadiansToAngle(radians_)
+    radians_ = radians_ == nil and 0.0 or radians_
+    return sf.radians(radians_)
+end
+
+function Math.RandomInt(min_val, max_val)
+    min_val = min_val == nil and 0 or min_val
+    max_val = max_val == nil and 100 or max_val
+    return math.random(min_val, max_val)
+end
+
+function Math.RandomFloat(min_val, max_val)
+    min_val = min_val == nil and 0.0 or min_val
+    max_val = max_val == nil and 1.0 or max_val
+    return min_val + (max_val - min_val) * math.random()
+end
+
+function Math.GCD(a, b)
+    a = a == nil and 1 or a
+    b = b == nil and 1 or b
+    return math.gcd(a, b)
+end
+
+function Math.LCM(a, b)
+    a = a == nil and 1 or a
+    b = b == nil and 1 or b
+    return math.lcm(a, b)
+end
+
+function Math.ADD(a, b)
+    return a + b
+end
+
+function Math.SUB(a, b)
+    return a - b
+end
+
+function Math.MUL(a, b)
+    return a * b
+end
+
+function Math.DIV(a, b)
+    return a / b
+end
+
+function Math.MOD(a, b)
+    return a % b
+end
+
+function Math.POW(a, b)
+    return a ^ b
+end
+
+function Math.EQUALS(a, b)
+    return a == b
+end
+
+function Math.NOT_EQUALS(a, b)
+    return a ~= b
+end
+
+function Math.LESS(a, b)
+    return a < b
+end
+
+function Math.LESS_EQUALS(a, b)
+    return a <= b
+end
+
+function Math.GREATER(a, b)
+    return a > b
+end
+
+function Math.GREATER_EQUALS(a, b)
+    return a >= b
+end
+
+function Math.AND(a, b)
+    return a and b
+end
+
+function Math.OR(a, b)
+    return a or b
+end
+
+function Math.NOT(a)
+    return not a
+end
+
+function Math.XOR(a, b)
+    return a ~= b
+end
+
+function Math.NAND(a, b)
+    return not (a and b)
+end
+
+function Math.NOR(a, b)
+    return not (a or b)
+end
+
+function Math.XNOR(a, b)
+    return a == b
+end
+
+function Math.IADD(a, b)
+    updateInPlace(Math.IADD, a, b, function (left, right)
+        return left + right
+    end)
+end
+
+function Math.ISUB(a, b)
+    updateInPlace(Math.ISUB, a, b, function (left, right)
+        return left - right
+    end)
+end
+
+function Math.IMUL(a, b)
+    updateInPlace(Math.IMUL, a, b, function (left, right)
+        return left * right
+    end)
+end
+
+function Math.IDIV(a, b)
+    updateInPlace(Math.IDIV, a, b, function (left, right)
+        return left / right
+    end)
+end
+
+function Math.IMOD(a, b)
+    updateInPlace(Math.IMOD, a, b, function (left, right)
+        return left % right
+    end)
+end
+
+function Math.IPOW(a, b)
+    updateInPlace(Math.IPOW, a, b, function (left, right)
+        return left ^ right
+    end)
+end
+
+return Math

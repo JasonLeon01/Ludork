@@ -1,8 +1,8 @@
 local Engine = require("Engine")
-local WindowBase = require("Source.Windows.Base.WindowBase")
+local WindowBase = require("Internal.UIBase.WindowBase")
 local LocaleCore = require("Source.Locale.Core")
-local Ui = require("Source.UIBase.Ui")
-local View = require("Source.UI.Parts.WindowShop.WindowShopDetail")
+local Ui = require("Internal.UIBase.Ui")
+local View = require("Internal.UI.Parts.WindowShop.WindowShopDetail")
 
 ---@type fun(value: string): string
 local LOC = LocaleCore.ApplyStringLocaleFormat

@@ -1,7 +1,7 @@
 ---@meta Source.Windows.WindowEnemyEncyclopedia.EnemyEncyclopediaSpecialRow.Controller
 
----@class Source.Windows.WindowEnemyEncyclopedia.EnemyEncyclopediaSpecialRow.Controller: Source.UIBase.UiController
----@field ui    Source.UI.Parts.WindowEnemyEncyclopedia.EnemyEncyclopediaSpecialRow
+---@class Source.Windows.WindowEnemyEncyclopedia.EnemyEncyclopediaSpecialRow.Controller: Internal.UIBase.UiController
+---@field ui    Internal.UI.Parts.WindowEnemyEncyclopedia.EnemyEncyclopediaSpecialRow
 ---@field model { width: integer, name: string, description: string }
 ---@field new   fun(model: { width: integer, name: string, description: string }): Source.Windows.WindowEnemyEncyclopedia.EnemyEncyclopediaSpecialRow.Controller
 local EnemyEncyclopediaSpecialRowController = {}

@@ -3,7 +3,7 @@
 ---
 --- Supports Timeline fade-in/out, speaker name display, multi-option selection,
 --- and automatic positioning relative to reference actors.
----@class Source.Windows.WindowMessage.Controller: Source.UIBase.UiController
+---@class Source.Windows.WindowMessage.Controller: Internal.UIBase.UiController
 ---@field host                Source.Windows.WindowMessage
 ---@field _MAX_OPTIONS        integer
 ---@field _inDialogue         boolean
@@ -14,14 +14,14 @@
 ---@field _pendingLayout      boolean
 ---@field _pendingFadeIn      boolean
 ---@field _pendingRefPosition sf.Vector2f | nil
----@field ui                  Source.UI.WindowMessage
+---@field ui                  Internal.UI.WindowMessage
 ---@field root                Engine.Canvas
 ---@field _messageAdvancer    Engine.FunctionalPlainText | nil
 ---@field _name               string
 ---@field _message            string
 ---@field _panelSize          sf.Vector2f
----@field _messageRows        Source.UIBase.UiCollection<Source.Windows.WindowMessage.MessageOptionRow.Controller>
----@field _selectionRows      Source.UIBase.UiCollection<Source.Windows.WindowMessage.MessageOptionRow.Controller>
+---@field _messageRows        Internal.UIBase.UiCollection<Source.Windows.WindowMessage.MessageOptionRow.Controller>
+---@field _selectionRows      Internal.UIBase.UiCollection<Source.Windows.WindowMessage.MessageOptionRow.Controller>
 ---@field _panelSize          sf.Vector2f
 ---@field _contentInsets      sf.Vector2f
 ---@field _screenInsets       number

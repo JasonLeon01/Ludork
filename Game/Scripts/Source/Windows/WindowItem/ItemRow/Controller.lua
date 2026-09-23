@@ -1,5 +1,5 @@
-local Ui = require("Source.UIBase.Ui")
-local View = require("Source.UI.Parts.WindowItem.ItemRow")
+local Ui = require("Internal.UIBase.Ui")
+local View = require("Internal.UI.Parts.WindowItem.ItemRow")
 
 local _UNUSABLE_ICON_ALPHA = 160
 

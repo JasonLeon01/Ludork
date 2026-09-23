@@ -8,9 +8,9 @@
 /Intermediate/
 /Cache/
 /Binaries/
-/Scripts/Source/UI/
-/Scripts/stub/Source/UI/
-/Scripts/stub/Source/UIWindows/
+/Scripts/Internal/UI/
+/Scripts/stub/Internal/UI/
+/Scripts/stub/Internal/UIWindows/
 /Scripts/Source/Locale/*
 !/Scripts/Source/Locale/Core.lua
 /EditorCache/

@@ -32,26 +32,26 @@
 ---@class Source.Scenes.SceneMap.SceneMap: Source.Gameplay.GameplayScene
 ---@field new                                   fun(): Source.Scenes.SceneMap.SceneMap
 ---@field inst                                  Source.GameInstance.GameInstance
----@field player                                Source.Player.Player
+---@field player                                Source.MapActors.Player.Player
 ---@field _gameplayRequestsActive               boolean
----@field _gameOverRequest                      { player: Source.Player.Player, gameMap: GameMap } | nil
+---@field _gameOverRequest                      { player: Source.MapActors.Player.Player, gameMap: GameMap } | nil
 ---@field _mapBuilder                           Source.SceneComponents.SceneMapBuilder
 ---@field _mapAudio                             Source.SceneComponents.SceneMapAudioController
 ---@field _playerHUD                            Source.Windows.PlayerAttrHUD
----@field _messageWindow                        Source.UIBase.LazyWindow<Source.Windows.WindowMessage>
----@field _windowPlayerName                     Source.UIBase.LazyWindow<Source.Windows.WindowPlayerName>
+---@field _messageWindow                        Internal.UIBase.LazyWindow<Source.Windows.WindowMessage>
+---@field _windowPlayerName                     Internal.UIBase.LazyWindow<Source.Windows.WindowPlayerName>
 ---@field _playerNameMoveEnabledBeforeOpen      boolean
----@field _windowItem                           Source.UIBase.LazyWindow<Source.Windows.WindowItem>
----@field _windowEquip                          Source.UIBase.LazyWindow<Source.Windows.WindowEquip>
----@field _windowShop                           Source.UIBase.LazyWindow<Source.Windows.WindowShop>
----@field _windowAttrShop                       Source.UIBase.LazyWindow<Source.Windows.WindowAttrShop>
----@field _windowEnemyBook                      Source.UIBase.LazyWindow<Source.Windows.WindowEnemyBook>
----@field _windowEnemyEncyclopedia              Source.UIBase.LazyWindow<Source.Windows.WindowEnemyEncyclopedia>
----@field _windowFloorTeleporter                Source.UIBase.LazyWindow<Source.Windows.WindowFloorTeleporter>
----@field _windowSaveLoad                       Source.UIBase.LazyWindow<Source.Windows.WindowSaveLoad>
----@field _windowMenu                           Source.UIBase.LazyWindow<Source.Windows.WindowMenu>
----@field _configWindow                         Source.UIBase.LazyWindow<Source.Windows.ConfigWindow>
----@field _blockingWindows                      Source.UIBase.LazyWindow<Source.Scenes.SceneMap.BlockingWindow>[]
+---@field _windowItem                           Internal.UIBase.LazyWindow<Source.Windows.WindowItem>
+---@field _windowEquip                          Internal.UIBase.LazyWindow<Source.Windows.WindowEquip>
+---@field _windowShop                           Internal.UIBase.LazyWindow<Source.Windows.WindowShop>
+---@field _windowAttrShop                       Internal.UIBase.LazyWindow<Source.Windows.WindowAttrShop>
+---@field _windowEnemyBook                      Internal.UIBase.LazyWindow<Source.Windows.WindowEnemyBook>
+---@field _windowEnemyEncyclopedia              Internal.UIBase.LazyWindow<Source.Windows.WindowEnemyEncyclopedia>
+---@field _windowFloorTeleporter                Internal.UIBase.LazyWindow<Source.Windows.WindowFloorTeleporter>
+---@field _windowSaveLoad                       Internal.UIBase.LazyWindow<Source.Windows.WindowSaveLoad>
+---@field _windowMenu                           Internal.UIBase.LazyWindow<Source.Windows.WindowMenu>
+---@field _configWindow                         Internal.UIBase.LazyWindow<Source.Windows.ConfigWindow>
+---@field _blockingWindows                      Internal.UIBase.LazyWindow<Source.Scenes.SceneMap.BlockingWindow>[]
 ---@field _regionTitleUI                        Source.Scenes.SceneMap.RegionTitle.Controller
 ---@field _regionTitleText                      Engine.PlainText
 ---@field _localeChangedToken                   integer | nil
@@ -156,12 +156,12 @@ function Scene:getGameInstance() end
 
 function Scene:refreshLocale() end
 
----@param teleporter Source.Teleporter.Teleporter
+---@param teleporter Source.MapActors.Teleporter.Teleporter
 ---@param step       integer
 ---@return boolean
 function Scene:requestFloorStep(teleporter, step) end
 
----@param player Source.Player.Player
+---@param player Source.MapActors.Player.Player
 ---@param delay  number
 function Scene:requestGameOver(player, delay) end
 
@@ -264,7 +264,7 @@ function Scene:openShop(buyItemIDs, canSell) end
 ---@param shopName        string
 ---@param shopDescription string
 ---@param abilities       table<string, integer>
----@param priceRef        Source.NodeFunctions.Utils.NodeReference<integer | integer[]>
+---@param priceRef        GlobalFunctions.Utils.NodeReference<integer | integer[]>
 ---@param priceIncrement  integer
 ---@param moneyName       string
 ---@return function

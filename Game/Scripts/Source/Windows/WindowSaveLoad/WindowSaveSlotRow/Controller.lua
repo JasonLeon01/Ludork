@@ -1,5 +1,5 @@
-local Ui = require("Source.UIBase.Ui")
-local View = require("Source.UI.Parts.WindowSaveLoad.WindowSaveSlotRow")
+local Ui = require("Internal.UIBase.Ui")
+local View = require("Internal.UI.Parts.WindowSaveLoad.WindowSaveSlotRow")
 
 ---@class Source.Windows.WindowSaveLoad.WindowSaveSlotRow.Controller
 local WindowSaveSlotRowController = {}

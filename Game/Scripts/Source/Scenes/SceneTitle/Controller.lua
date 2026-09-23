@@ -1,8 +1,8 @@
 local SourceSystem = require("Source.System")
 local EventKeys = require("Source.Configs.EventKeys")
 local WindowCommand = require("Source.Windows.WindowCommand")
-local Ui = require("Source.UIBase.Ui")
-local View = require("Source.UI.Title")
+local Ui = require("Internal.UIBase.Ui")
+local View = require("Internal.UI.Title")
 
 ---@class Source.Scenes.SceneTitle.Controller
 local SceneTitleController = {}

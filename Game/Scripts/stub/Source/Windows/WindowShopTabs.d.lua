@@ -1,9 +1,9 @@
 ---@meta
 
----@class Source.Windows.WindowShopTabs.Controller: Source.UIBase.UiController
+---@class Source.Windows.WindowShopTabs.Controller: Internal.UIBase.UiController
 ---@field host   Source.Windows.WindowShopTabs
 ---@field _owner Source.Windows.WindowShop
----@field ui     Source.UI.Parts.WindowShop.WindowShopTabs
+---@field ui     Internal.UI.Parts.WindowShop.WindowShopTabs
 local Controller = {}
 
 ---@param owner Source.Windows.WindowShop

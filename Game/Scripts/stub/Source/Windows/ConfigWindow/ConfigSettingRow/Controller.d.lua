@@ -1,9 +1,9 @@
 ---@meta Source.Windows.ConfigWindow.ConfigSettingRow.Controller
 ---@class Source.Windows.ConfigWindow.ConfigSettingRow.Controller: Source.Windows.ConfigWindow.ConfigRow
----@field ui Source.UI.Parts.ConfigWindow.ConfigSettingRow
+---@field ui Internal.UI.Parts.ConfigWindow.ConfigSettingRow
 local ConfigSettingRowController = {}
 
----@param ui            Source.UI.Parts.ConfigWindow.ConfigSettingRow
+---@param ui            Internal.UI.Parts.ConfigWindow.ConfigSettingRow
 ---@param labelText     string
 ---@param items         string[]
 ---@param selectedIndex integer | nil
@@ -11,7 +11,7 @@ local ConfigSettingRowController = {}
 function ConfigSettingRowController.new(ui, labelText, items, selectedIndex) end
 
 ---@brief Bind configuration options to an existing generated row View.
----@param ui            Source.UI.Parts.ConfigWindow.ConfigSettingRow
+---@param ui            Internal.UI.Parts.ConfigWindow.ConfigSettingRow
 ---@param labelText     string
 ---@param items         string[]
 ---@param selectedIndex integer | nil

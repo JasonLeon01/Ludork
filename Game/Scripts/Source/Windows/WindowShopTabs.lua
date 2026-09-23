@@ -1,9 +1,9 @@
 local Engine = require("Engine")
 local GameSystem = require("Source.System")
 local LocaleCore = require("Source.Locale.Core")
-local Ui = require("Source.UIBase.Ui")
-local View = require("Source.UI.Parts.WindowShop.WindowShopTabs")
-local WindowBase = require("Source.Windows.Base.WindowBase")
+local Ui = require("Internal.UIBase.Ui")
+local View = require("Internal.UI.Parts.WindowShop.WindowShopTabs")
+local WindowBase = require("Internal.UIBase.WindowBase")
 
 ---@class Source.Windows.WindowShopTabs.Controller
 local Controller = {}

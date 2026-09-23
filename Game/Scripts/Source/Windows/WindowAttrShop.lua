@@ -3,9 +3,9 @@ local GlobalCore = require("GlobalCore")
 local GameSystem = require("Source.System")
 local LocaleCore = require("Source.Locale.Core")
 local AttrShopRowController = require("Source.Windows.WindowAttrShop.AttrShopRow.Controller")
-local Ui = require("Source.UIBase.Ui")
-local View = require("Source.UI.WindowAttrShop")
-local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
+local Ui = require("Internal.UIBase.Ui")
+local View = require("Internal.UI.WindowAttrShop")
+local WindowSelectable = require("Internal.UIBase.WindowSelectable")
 
 local AudioManager = GlobalCore.AudioManager
 ---@type fun(value: string): string

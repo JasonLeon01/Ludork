@@ -32,6 +32,10 @@ Game/Scripts/stub/*
 !Game/Scripts/stub/cjson.d.lua
 !Game/Scripts/stub/Global/
 !Game/Scripts/stub/Global/**
+!Game/Scripts/stub/GlobalFunctions/
+!Game/Scripts/stub/GlobalFunctions/**
+!Game/Scripts/stub/Internal/
+!Game/Scripts/stub/Internal/**
 !Game/Scripts/stub/Mixins/
 !Game/Scripts/stub/Mixins/**
 !Game/Scripts/stub/Source/

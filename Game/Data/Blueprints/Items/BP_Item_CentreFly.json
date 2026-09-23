@@ -1,5 +1,5 @@
 {
-  "parent": "Source.Item",
+  "parent": "Source.MapActors.Item",
   "attrs": {
     "material": {
       "lightBlock": 0.24,

@@ -1,4 +1,4 @@
-local Player = require("Source.Player")
+local Player = require("Source.MapActors.Player")
 
 ---@class (partial) Mixins.Doors.KeyDoor
 local KeyDoor = {}

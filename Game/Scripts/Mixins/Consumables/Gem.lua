@@ -1,4 +1,4 @@
-local Pickup = require("Source.Pickup")
+local Pickup = require("Source.Utils.Pickup")
 local Effects = require("Source.Gameplay.Effects")
 
 ---@class (partial) Mixins.Consumables.Gem

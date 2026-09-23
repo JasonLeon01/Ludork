@@ -35,6 +35,8 @@ def changed_paths(base: str, head: str) -> list[str]:
 
 
 def validate_results(needs: dict) -> None:
+    if needs["global_functions"]["result"] != "success":
+        raise ValueError("GlobalFunctions ownership check did not succeed")
     if needs["changes"]["result"] != "success":
         raise ValueError("Change detection did not succeed")
     flags = needs["changes"]["outputs"]

@@ -3,15 +3,15 @@
 ---
 --- Shows player inventory items in a grid with icons and counts.
 --- Uses WindowSelectable for keyboard/mouse navigation.
----@class Source.Windows.WindowItem.Controller: Source.UIBase.UiController
+---@class Source.Windows.WindowItem.Controller: Internal.UIBase.UiController
 ---@field host               Source.Windows.WindowItem
 ---@field _onCloseCallback   function | nil
 ---@field _onUseCallback     function | nil
----@field _player            Source.Player.Player
----@field ui                 Source.UI.WindowItem
+---@field _player            Source.MapActors.Player.Player
+---@field ui                 Internal.UI.WindowItem
 ---@field _itemList          { [1]: string, [2]: integer } []
 ---@field _lastDescIndex     integer | nil
----@field _rows              Source.UIBase.UiCollection<Source.Windows.WindowItem.ItemRow.Controller>
+---@field _rows              Internal.UIBase.UiCollection<Source.Windows.WindowItem.ItemRow.Controller>
 ---@field _transitionProfile string
 local Controller = {}
 
@@ -19,12 +19,12 @@ local Controller = {}
 ---
 --- - @param player The player instance with inventory.
 --- - @param onClose Optional callback invoked when the window is closed.
----@param player  Source.Player.Player
+---@param player  Source.MapActors.Player.Player
 ---@param onClose function | nil
 function Controller:init(player, onClose) end
 
 ---@brief Rebind the player whose inventory is displayed.
----@param player Source.Player.Player
+---@param player Source.MapActors.Player.Player
 function Controller:setPlayer(player) end
 
 ---@brief Update item window and render item cells.
@@ -50,7 +50,7 @@ function Controller:close(onHidden) end
 ---@brief Close the item window through its cancel path.
 function Controller:onReturn() end
 
----@return Source.Player.Player
+---@return Source.MapActors.Player.Player
 function Controller:getPlayer() end
 
 ---@param callback function | nil

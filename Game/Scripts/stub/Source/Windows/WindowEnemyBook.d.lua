@@ -37,13 +37,13 @@
 ---@field shaderPath      string
 ---@field hue             number
 
----@class Source.Windows.WindowEnemyBook.Controller: Source.UIBase.UiController
----@field ui                 Source.UI.WindowEnemyBook
----@field _player            Source.Player.Player
+---@class Source.Windows.WindowEnemyBook.Controller: Internal.UIBase.UiController
+---@field ui                 Internal.UI.WindowEnemyBook
+---@field _player            Source.MapActors.Player.Player
 ---@field _onCloseCallback   function | nil
 ---@field _onConfirmCallback function | nil
 ---@field _enemies           Source.Windows.WindowEnemyBook.Entry[]
----@field _cells             Source.UIBase.UiCollection<Source.Windows.WindowEnemyBook.WindowEnemyBookCell.Controller>
+---@field _cells             Internal.UIBase.UiCollection<Source.Windows.WindowEnemyBook.WindowEnemyBookCell.Controller>
 ---@field host               Source.Windows.WindowEnemyBook
 local Controller = {}
 
@@ -52,7 +52,7 @@ local Controller = {}
 --- - @param player Player used to calculate displayed damage.
 --- - @param onClose Optional callback invoked when the window closes.
 --- - @param onConfirm Optional callback invoked when an enemy is confirmed.
----@param player    Source.Player.Player
+---@param player    Source.MapActors.Player.Player
 ---@param onClose   function | nil
 ---@param onConfirm function | nil
 function Controller:init(player, onClose, onConfirm) end
@@ -60,7 +60,7 @@ function Controller:init(player, onClose, onConfirm) end
 ---@brief Rebind the player used for damage preview.
 ---
 --- - @param player The current player instance.
----@param player Source.Player.Player
+---@param player Source.MapActors.Player.Player
 function Controller:setPlayer(player) end
 
 ---@brief Open the handbook, rescan current-map enemies, and select the first entry.
@@ -79,7 +79,7 @@ function Controller:refreshLocale() end
 ---@brief Close the handbook through its cancel path.
 function Controller:onReturn() end
 
----@return Source.Player.Player
+---@return Source.MapActors.Player.Player
 function Controller:getPlayer() end
 
 ---@param entry Source.Windows.WindowEnemyBook.Entry
@@ -88,7 +88,7 @@ function Controller:confirmEnemy(entry) end
 ---@param gameMap GameMap | nil
 function Controller:refreshEnemies(gameMap) end
 
----@param enemy  Source.Enemy
+---@param enemy  Source.MapActors.Enemy
 ---@param visual Global.Utils.Render.ActorVisual | nil
 ---@return Source.Windows.WindowEnemyBook.Entry
 function Controller:buildEntry(enemy, visual) end

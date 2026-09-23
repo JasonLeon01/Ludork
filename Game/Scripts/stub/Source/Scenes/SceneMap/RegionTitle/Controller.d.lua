@@ -1,7 +1,7 @@
 ---@meta Source.Scenes.SceneMap.RegionTitle.Controller
 
----@class Source.Scenes.SceneMap.RegionTitle.Controller: Source.UIBase.UiController
----@field ui            Source.UI.RegionTitle
+---@class Source.Scenes.SceneMap.RegionTitle.Controller: Internal.UIBase.UiController
+---@field ui            Internal.UI.RegionTitle
 ---@field new           fun(logicalSize: sf.Vector2u): Source.Scenes.SceneMap.RegionTitle.Controller
 ---@field Publish       fun(payload: table)
 ---@field refreshEvents string[]

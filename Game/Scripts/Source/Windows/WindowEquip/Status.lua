@@ -1,9 +1,9 @@
 local Engine = require("Engine")
-local WindowBase = require("Source.Windows.Base.WindowBase")
+local WindowBase = require("Internal.UIBase.WindowBase")
 local Data = require("Source.Data")
 local LocaleCore = require("Source.Locale.Core")
-local Ui = require("Source.UIBase.Ui")
-local View = require("Source.UI.Parts.WindowEquip.WindowEquipStatusPane")
+local Ui = require("Internal.UIBase.Ui")
+local View = require("Internal.UI.Parts.WindowEquip.WindowEquipStatusPane")
 local EquipStatusRowController = require("Source.Windows.WindowEquip.EquipStatusRow.Controller")
 
 ---@type fun(value: string): string

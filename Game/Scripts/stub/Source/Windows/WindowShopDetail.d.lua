@@ -1,8 +1,8 @@
 ---@meta
 
----@class Source.Windows.WindowShopDetail.Controller: Source.UIBase.UiController
+---@class Source.Windows.WindowShopDetail.Controller: Internal.UIBase.UiController
 ---@field host      Source.Windows.WindowShopDetail
----@field ui        Source.UI.Parts.WindowShop.WindowShopDetail
+---@field ui        Internal.UI.Parts.WindowShop.WindowShopDetail
 ---@field _itemInfo Source.Data.GeneralItemData | nil
 ---@field _price    integer | nil
 local Controller = {}

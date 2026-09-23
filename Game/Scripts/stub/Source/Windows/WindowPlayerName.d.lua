@@ -1,23 +1,23 @@
 ---@meta
 
----@class Source.Windows.WindowPlayerName.Controller: Source.UIBase.UiController
+---@class Source.Windows.WindowPlayerName.Controller: Internal.UIBase.UiController
 ---@field host                Source.Windows.WindowPlayerName
----@field _player             Source.Player.Player
+---@field _player             Source.MapActors.Player.Player
 ---@field _onClose            fun()
----@field ui                  Source.UI.WindowPlayerName
+---@field ui                  Internal.UI.WindowPlayerName
 ---@field _errorKey           string
 ---@field _confirmColour      sf.Color
 ---@field _confirmLabelColour sf.Color
 local Controller = {}
 
----@param player  Source.Player.Player
+---@param player  Source.MapActors.Player.Player
 ---@param onClose fun()
 function Controller:init(player, onClose) end
 
----@return Source.Player.Player
+---@return Source.MapActors.Player.Player
 function Controller:getPlayer() end
 
----@param player Source.Player.Player
+---@param player Source.MapActors.Player.Player
 function Controller:setPlayer(player) end
 
 ---@brief Start a fresh draft with an initially inactive text editor.

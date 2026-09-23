@@ -2,8 +2,8 @@ local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local ComponentBase = require("Global.Components.ComponentBase")
 local Pool = require("Global.Pool")
-local Enemy = require("Source.Enemy")
-local MovementSpecials = require("Source.MovementSpecials")
+local Enemy = require("Source.MapActors.Enemy")
+local MovementSpecials = require("Source.Utils.MovementSpecials")
 local MapClickAutoPathRuntime = require("Source.SceneComponents.MapClickAutoPathRuntime")
 local GameplayConstants = require("Source.Configs.GameplayConstants")
 
@@ -62,7 +62,7 @@ function MapClickAutoPath:onLateTick(_deltaTime)
     if player == nil then
         return
     end
-    ---@cast player Source.Player.Player
+    ---@cast player Source.MapActors.Player.Player
     if self:_isAutoPathBlocked(player) then
         return
     end
@@ -95,7 +95,7 @@ function MapClickAutoPath:onTick(_deltaTime)
         self._previewMapY = nil
         return
     end
-    ---@cast player Source.Player.Player
+    ---@cast player Source.MapActors.Player.Player
     if self:_isAutoPathBlocked(player) then
         self._autoPathing = false
         self._activeGoal = nil
@@ -164,7 +164,7 @@ function MapClickAutoPath:onTick(_deltaTime)
     end
 end
 
----@param player Source.Player.Player
+---@param player Source.MapActors.Player.Player
 ---@param start  sf.Vector2i
 ---@param goal   sf.Vector2i
 ---@param plan   MapClickAutoPath.Plan
@@ -179,7 +179,7 @@ function MapClickAutoPath:_startAutoPath(player, start, goal, plan)
     self._autoPathing = true
 end
 
----@param player Source.Player.Player
+---@param player Source.MapActors.Player.Player
 function MapClickAutoPath:_replanForDangerChange(player)
     local goal = self._activeGoal ~= nil and self._activeGoal:copy() or nil
     local stablePosition = player:getMapPosition()
@@ -207,7 +207,7 @@ function MapClickAutoPath:_replanForDangerChange(player)
     self:_startAutoPath(player, start, goal, plan)
 end
 
----@param player Source.Player.Player
+---@param player Source.MapActors.Player.Player
 ---@param start  sf.Vector2i
 function MapClickAutoPath:_finishAutoPathImmediately(player, start)
     local route = self._routeState:getRoute()
@@ -258,7 +258,7 @@ function MapClickAutoPath:_finishAutoPathImmediately(player, start)
     MovementSpecials.NotifyPlayerMovementFinished(player, pathPositions)
 end
 
----@param player Source.Player.Player
+---@param player Source.MapActors.Player.Player
 function MapClickAutoPath:_dispatchInstantMoveOverlaps(player)
     local overlaps = self._parent:getOverlaps(player)
     if not bool(overlaps) then
@@ -370,12 +370,12 @@ function MapClickAutoPath:_buildPathToTarget(actor, start, target, excludedAncho
 end
 
 ---@param goal sf.Vector2i
----@return Source.Enemy[]
+---@return Source.MapActors.Enemy[]
 function MapClickAutoPath:_getIgnoredGoalEnemies(goal)
     local enemies = {}
     for _, actor in ipairs(self._parent:getAllActors()) do
         if Class.isInstance(actor, Enemy) then
-            ---@cast actor Source.Enemy
+            ---@cast actor Source.MapActors.Enemy
             local abilitySystem = actor:getAbilitySystemComponent()
             if not actor:isDestroyed() and actor:isVisibleInHierarchy()
                 and abilitySystem:hasMatchingGameplayTag(GameplayConstants.MOVEMENT_HAZARD_TAG) then
@@ -447,7 +447,7 @@ function MapClickAutoPath:_drainPendingGoals()
     return goals
 end
 
----@param player Source.Player.Player
+---@param player Source.MapActors.Player.Player
 ---@return boolean
 function MapClickAutoPath:_isAutoPathBlocked(player)
     if not player:getMoveEnabled() then

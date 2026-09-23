@@ -4,8 +4,8 @@
 ---@field iconTexture sf.Texture | nil
 ---@field label       string
 
----@class Source.Windows.WindowEquip.EquipSlotRow.Controller: Source.UIBase.UiController
----@field ui    Source.UI.Parts.WindowEquip.EquipSlotRow
+---@class Source.Windows.WindowEquip.EquipSlotRow.Controller: Internal.UIBase.UiController
+---@field ui    Internal.UI.Parts.WindowEquip.EquipSlotRow
 ---@field model Source.Windows.WindowEquip.EquipSlotRow.Controller.Model
 ---@field new   fun(model: Source.Windows.WindowEquip.EquipSlotRow.Controller.Model): Source.Windows.WindowEquip.EquipSlotRow.Controller
 local EquipSlotRowController = {}

@@ -1,11 +1,11 @@
 ---@meta
 
----@class Source.Windows.WindowEnemyEncyclopedia.Controller: Source.UIBase.UiController
+---@class Source.Windows.WindowEnemyEncyclopedia.Controller: Internal.UIBase.UiController
 ---@field _onCloseCallback function | nil
----@field ui               Source.UI.WindowEnemyEncyclopedia
+---@field ui               Internal.UI.WindowEnemyEncyclopedia
 ---@field _entry           Source.Windows.WindowEnemyBook.Entry | nil
----@field _infoRows        Source.UIBase.UiCollection<Source.Windows.WindowEnemyEncyclopedia.EnemyEncyclopediaInfoPair.Controller>
----@field _specialRows     Source.UIBase.UiCollection<Source.Windows.WindowEnemyEncyclopedia.EnemyEncyclopediaSpecialRow.Controller>
+---@field _infoRows        Internal.UIBase.UiCollection<Source.Windows.WindowEnemyEncyclopedia.EnemyEncyclopediaInfoPair.Controller>
+---@field _specialRows     Internal.UIBase.UiCollection<Source.Windows.WindowEnemyEncyclopedia.EnemyEncyclopediaSpecialRow.Controller>
 ---@field host             Source.Windows.WindowEnemyEncyclopedia
 local Controller = {}
 

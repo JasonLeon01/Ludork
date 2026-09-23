@@ -1,10 +1,10 @@
 ---@meta
 
----@class Source.Windows.WindowEquipSelect.Controller: Source.UIBase.UiController
+---@class Source.Windows.WindowEquipSelect.Controller: Internal.UIBase.UiController
 ---@field host               Source.Windows.WindowEquipSelect
----@field ui                 Source.UI.Parts.WindowEquip.WindowEquipSelect
+---@field ui                 Internal.UI.Parts.WindowEquip.WindowEquipSelect
 ---@field UNEQUIP            table
----@field _player            Source.Player.Player
+---@field _player            Source.MapActors.Player.Player
 ---@field _windowEquipSlot   Source.Windows.WindowEquipSlot | nil
 ---@field _windowEquipStatus Source.Windows.WindowEquipStatus | nil
 ---@field _onEquipCallback   function | nil
@@ -12,7 +12,7 @@
 ---@field _equipList         (string | table)[]
 ---@field _equipCounts       table<string, integer>
 ---@field _lastStatusIndex   integer | nil
----@field _rows              Source.UIBase.UiCollection<Source.Windows.WindowEquip.EquipItemRow.Controller>
+---@field _rows              Internal.UIBase.UiCollection<Source.Windows.WindowEquip.EquipItemRow.Controller>
 local Controller = {}
 
 ---@brief Construct the available-equip window.
@@ -21,14 +21,14 @@ local Controller = {}
 --- - @param windowEquipSlot The equipped-slot window for focus switching and refresh.
 --- - @param windowEquipStatus The detail window for stat changes and description.
 --- - @param onEquip Optional callback invoked after equipping an item.
----@param player            Source.Player.Player
+---@param player            Source.MapActors.Player.Player
 ---@param windowEquipSlot   Source.Windows.WindowEquipSlot | nil
 ---@param windowEquipStatus Source.Windows.WindowEquipStatus | nil
 ---@param onEquip           function | nil
 function Controller:init(player, windowEquipSlot, windowEquipStatus, onEquip) end
 
 ---@brief Rebind the player whose available equipment is displayed.
----@param player Source.Player.Player
+---@param player Source.MapActors.Player.Player
 function Controller:setPlayer(player) end
 
 ---@brief Set the equipped-slot window reference.

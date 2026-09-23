@@ -1,7 +1,7 @@
-local CommandRowController = require("Source.UIBase.CommandRow.Controller")
-local Ui = require("Source.UIBase.Ui")
-local View = require("Source.UI.Parts.Title.CommandWindow")
-local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
+local CommandRowController = require("Internal.UIBase.CommandRow.Controller")
+local Ui = require("Internal.UIBase.Ui")
+local View = require("Internal.UI.Parts.Title.CommandWindow")
+local WindowSelectable = require("Internal.UIBase.WindowSelectable")
 
 ---@class Source.Windows.WindowCommand.Controller
 local Controller = {}

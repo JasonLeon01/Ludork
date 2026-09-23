@@ -1,16 +1,16 @@
 local GlobalCore = require("GlobalCore")
 local Render = require("Global.Utils.Render")
 local GameSystem = require("Source.System")
-local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
+local WindowSelectable = require("Internal.UIBase.WindowSelectable")
 local Data = require("Source.Data")
 local Locale = require("Source.Locale.Core")
 ---@type { Special: Source.Configs.GeneralEnum.Special }
 local GeneralEnum = require("Source.Configs.GeneralEnum")
-local Enemy = require("Source.Enemy")
+local Enemy = require("Source.MapActors.Enemy")
 local MotaBattleAbility = require("Source.Gameplay.MotaBattleAbility")
-local IconTexture = require("Source.UIBase.IconTexture")
-local Ui = require("Source.UIBase.Ui")
-local View = require("Source.UI.WindowEnemyBook")
+local IconTexture = require("Internal.UIBase.IconTexture")
+local Ui = require("Internal.UIBase.Ui")
+local View = require("Internal.UI.WindowEnemyBook")
 local WindowEnemyBookCellController = require("Source.Windows.WindowEnemyBook.WindowEnemyBookCell.Controller")
 local GameplayConstants = require("Source.Configs.GameplayConstants")
 
@@ -68,7 +68,7 @@ function Controller:refreshEnemies(gameMap)
         for _, actor in ipairs(gameMap:getAllActors()) do
             if Class.isInstance(actor, Enemy) and not actor:isDestroyed()
                 and actor:isVisibleInHierarchy() and gameMap:isActorVisibleOnMap(actor) then
-                ---@cast actor Source.Enemy
+                ---@cast actor Source.MapActors.Enemy
                 local enemyID = actor.ID
                 local visual = Render.CaptureActorVisual(actor)
                 local signature = Render.GetActorVisualSignature(enemyID, visual)

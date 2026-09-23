@@ -1,7 +1,7 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local WorldGeometry = require("Global.WorldGeometry")
-local MapPath = require("Source.MapPath")
+local MapPath = require("Source.Utils.MapPath")
 local System = require("Source.System")
 local MapConstants = require("Source.Configs.MapConstants")
 
@@ -44,7 +44,9 @@ end
 
 local function rejectUnknownFields(value, allowed, path)
     for key in pairs(value) do
-        assert(Class.isInstance(key, "string") and allowed[key], path .. " contains an unknown field: " .. tostring(key))
+        assert(
+            Class.isInstance(key, "string") and allowed[key], path .. " contains an unknown field: " .. tostring(key)
+        )
     end
 end
 
@@ -107,7 +109,10 @@ function MapDataParser.NormaliseWorld(data, manifestPath)
             and data.ambientLight == nil,
         "World manifest must not define BGM, BGS, audio filters, or ambientLight: " .. manifestPath)
     rejectUnknownFields(data, WORLD_MANIFEST_FIELDS, "worldMap")
-    assert(Class.isInstance(data.worldName, "string") and bool(data.worldName), "worldMap.worldName must be a non-empty string")
+    assert(
+        Class.isInstance(data.worldName, "string") and bool(data.worldName),
+        "worldMap.worldName must be a non-empty string"
+    )
     data.width = requireInteger(data.width, "worldMap.width", 1)
     data.height = requireInteger(data.height, "worldMap.height", 1)
     assert(Class.isInstance(data.fog, "string"), "worldMap.fog must be a string")
@@ -142,7 +147,9 @@ function MapDataParser.NormaliseWorld(data, manifestPath)
         rejectUnknownFields(placement, WORLD_PLACEMENT_FIELDS, "worldMap.placements[" .. index .. "]")
         local map = placement.map
         assert(
-            Class.isInstance(map, "string") and bool(map), "worldMap.placements[" .. index .. "].map must be a non-empty string"
+            Class.isInstance(map, "string") and bool(map),
+            "worldMap.placements[" .. index
+                .. "].map must be a non-empty string"
         )
         map = MapPath.Normalise(map)
         assert(os.path.dirname(map) == "", "World child map must be a direct file: " .. map)

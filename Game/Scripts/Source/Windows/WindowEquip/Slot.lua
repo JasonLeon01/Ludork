@@ -2,11 +2,11 @@ local GlobalCore = require("GlobalCore")
 local Data = require("Source.Data")
 local GameSystem = require("Source.System")
 local LocaleCore = require("Source.Locale.Core")
-local IconTexture = require("Source.UIBase.IconTexture")
+local IconTexture = require("Internal.UIBase.IconTexture")
 local EquipSlotRowController = require("Source.Windows.WindowEquip.EquipSlotRow.Controller")
-local Ui = require("Source.UIBase.Ui")
-local View = require("Source.UI.Parts.WindowEquip.WindowEquipSlot")
-local WindowSelectable = require("Source.Windows.Base.WindowSelectable")
+local Ui = require("Internal.UIBase.Ui")
+local View = require("Internal.UI.Parts.WindowEquip.WindowEquipSlot")
+local WindowSelectable = require("Internal.UIBase.WindowSelectable")
 
 local AudioManager = GlobalCore.AudioManager
 ---@type fun(value: string): string

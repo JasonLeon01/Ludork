@@ -2,7 +2,6 @@ name: PR Validation
 
 on:
   pull_request:
-    branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
@@ -13,6 +12,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  global_functions:
+    name: GlobalFunctions ownership
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Test GlobalFunctions checker
+        run: python3 -m unittest tools.global_functions_check_test
+      - name: Check native and Lua GlobalFunctions paths
+        run: python3 -m ScriptTools.global_functions_check
+
   changes:
     name: Detect affected checks
     runs-on: ubuntu-latest
@@ -134,7 +148,7 @@ jobs:
 
   validation:
     name: PR Validation
-    needs: [changes, templates, editor, scripts]
+    needs: [global_functions, changes, templates, editor, scripts]
     if: always()
     runs-on: ubuntu-latest
     steps:

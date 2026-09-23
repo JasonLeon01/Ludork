@@ -1,6 +1,6 @@
 local Engine = require("Engine")
-local Ui = require("Source.UIBase.Ui")
-local View = require("Source.UI.Parts.WindowEnemyEncyclopedia.EnemyEncyclopediaInfoPair")
+local Ui = require("Internal.UIBase.Ui")
+local View = require("Internal.UI.Parts.WindowEnemyEncyclopedia.EnemyEncyclopediaInfoPair")
 
 local TextLayout = Engine.TextLayout
 

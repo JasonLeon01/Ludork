@@ -1,0 +1,175 @@
+---@meta Internal.UIBase.WindowSelectable
+---
+--- Supports keyboard and mouse navigation, scrolling, and item selection.
+---@class Internal.UIBase.WindowSelectable: Internal.UIBase.WindowBase
+---@field _oldIndex                         integer?
+---@field index                             integer?
+---@field _scrollBox                        Engine.ScrollBox?
+---@field _listView                         Engine.ListView?
+---@field _rectWidth                        number
+---@field _rectHeight                       number
+---@field _rect                             Engine.Rect
+---@field _ensureSelectionVisibleRequested  boolean
+---@field _selectionScrollIndex             integer?
+---@field _selectionScrollItemCount         integer?
+---@field _selectionScrollItem              Engine.ControlBase?
+---@field _selectionScrollX                 number?
+---@field _selectionScrollY                 number?
+---@field _selectionViewWidth               number?
+---@field _selectionViewHeight              number?
+---@field _mousePositionAtCursorPending     boolean
+---@field _mouseSelectionConfirmedThisFrame boolean
+---@field _selectionInputPaused             boolean
+---@field _touchCaptured                    boolean
+---@field _touchDragging                    boolean
+---@field _touchStartPosition               sf.Vector2f?
+---@field _touchStartScrollOffset           sf.Vector2f
+local WindowSelectable = {}
+
+--- Construct an input host for an asset-owned selectable list.
+---@param rect sf.IntRect
+function WindowSelectable:init(rect) end
+
+---@brief Get the current list view.
+---
+--- - @return The ListView, or nil.
+---@return Engine.ListView | nil
+function WindowSelectable:getListView() end
+
+---@return Engine.ScrollBox | nil
+function WindowSelectable:getScrollBox() end
+
+---@brief Detach the selection rectangle from its current content or ScrollBox parent.
+function WindowSelectable:detachSelectionRect() end
+
+---@param scrollBox Engine.ScrollBox
+function WindowSelectable:setScrollBox(scrollBox) end
+
+---@brief Set the list view for selectable items.
+---
+--- - @param listView The ListView to use, or nil to clear.
+---@param listView Engine.ListView | nil
+function WindowSelectable:setListView(listView) end
+
+---@brief Reset selection to the first item and scroll to the top without playing CursorSE.
+---
+--- Empty lists use a nil index.
+function WindowSelectable:resetSelection() end
+
+---@param active boolean
+function WindowSelectable:setActive(active) end
+
+---@param visible boolean
+function WindowSelectable:setVisible(visible) end
+
+---@param deltaTime number
+function WindowSelectable:update(deltaTime) end
+
+---@brief Update selection rectangle position and selection state.
+---
+--- - @param deltaTime Elapsed time in seconds.
+---@param deltaTime number
+function WindowSelectable:onTick(deltaTime) end
+
+---@brief Handle mouse movement events.
+---
+--- - @param kwargs Event data.
+---@param kwargs Engine.UiInputEventArguments
+function WindowSelectable:onMouseMoved(kwargs) end
+
+---@return boolean
+function WindowSelectable:requestKeyboardFocusAtCursor() end
+
+---@brief Handle cancel, keyboard navigation, and confirmation.
+---
+--- Cancel keys call `onReturn` before list navigation. Direction keys use
+--- repeat mode: immediate first press, then after ~0.4 s they fire every
+--- ~0.1 s while held.
+---
+--- - @param kwargs Event data.
+---@param kwargs Engine.UiInputEventArguments
+function WindowSelectable:onKeyDown(kwargs) end
+
+---@brief Handle right-click cancel through `onReturn`.
+---
+--- - @param kwargs Event data.
+--- - @return True when right-click cancel was handled.
+---@param kwargs Engine.UiInputEventArguments
+---@return boolean
+function WindowSelectable:onMouseButtonDown(kwargs) end
+
+---@brief Handle directional cursor movement.
+---
+--- - @param direction Direction pressed by keyboard or gamepad.
+---
+--- - @return True if the direction was handled inside this window.
+---@param direction string
+---@return boolean
+function WindowSelectable:onDirectionalKey(direction) end
+
+---@param index integer
+---@return sf.Vector2f
+function WindowSelectable:_getRectPositionForIndex(index) end
+
+---@return integer
+function WindowSelectable:getItemWidth() end
+
+---@param index integer
+---@return sf.FloatRect
+function WindowSelectable:getSelectionLayoutRect(index) end
+
+---@param position sf.Vector2f
+---@return boolean
+function WindowSelectable:_shouldCaptureTouch(position) end
+
+---@brief Handle the beginning of a touch captured by the parent list.
+---@param position sf.Vector2f
+function WindowSelectable:_onCapturedTouchBegan(position) end
+
+---@brief Optionally handle a captured touch drag instead of scrolling the parent list.
+---@param position sf.Vector2f
+---@return boolean
+function WindowSelectable:_handleCapturedTouchDrag(position) end
+
+---@brief Optionally handle a captured touch tap instead of selecting the parent-list item.
+---@param position sf.Vector2f
+---@return boolean
+function WindowSelectable:_handleCapturedTouchTap(position) end
+
+---@brief Reset state owned by captured-touch hooks.
+function WindowSelectable:_onCapturedTouchReset() end
+
+---@brief Cancel Lua-owned captured-touch state when native interaction state is reset.
+function WindowSelectable:onPointerInteractionReset() end
+
+---@brief Pause or resume every parent-list input path while a child owns input.
+---@param paused boolean
+function WindowSelectable:_setSelectionInputPaused(paused) end
+
+function WindowSelectable:hideSelectionCursor() end
+
+---@param index         integer | nil
+---@param ensureVisible boolean | nil
+function WindowSelectable:selectIndex(index, ensureVisible) end
+
+---@param paused boolean
+function WindowSelectable:setSelectionInputPaused(paused) end
+
+---@return boolean
+function WindowSelectable:isSelectionInputPaused() end
+
+---@return integer
+function WindowSelectable:getSelectionRowHeight() end
+
+---@param index integer
+function WindowSelectable:setPointerIndex(index) end
+
+---@param position sf.Vector2f
+---@return boolean
+function WindowSelectable:shouldCaptureTouch(position) end
+
+---@param index integer
+---@return boolean
+function WindowSelectable:changeSelection(index) end
+
+return WindowSelectable
