@@ -1163,32 +1163,32 @@
         ]
       },
       {
-        "tag": "Map_W01_03.Consumables_Bottle_500_default_0_6",
-        "bp": "Data.Blueprints.Consumables.Bottle_500",
+        "tag": "Map_W01_03.Consumables_BP_Bottle_500_default_0_6",
+        "bp": "Data.Blueprints.Consumables.BP_Bottle_500",
         "position": [
           0,
           6
         ]
       },
       {
-        "tag": "Map_W01_03.Consumables_Bottle_500_default_7_6",
-        "bp": "Data.Blueprints.Consumables.Bottle_500",
+        "tag": "Map_W01_03.Consumables_BP_Bottle_500_default_7_6",
+        "bp": "Data.Blueprints.Consumables.BP_Bottle_500",
         "position": [
           7,
           6
         ]
       },
       {
-        "tag": "Map_W01_03.Consumables_Bottle_500_default_7_8",
-        "bp": "Data.Blueprints.Consumables.Bottle_500",
+        "tag": "Map_W01_03.Consumables_BP_Bottle_500_default_7_8",
+        "bp": "Data.Blueprints.Consumables.BP_Bottle_500",
         "position": [
           7,
           8
         ]
       },
       {
-        "tag": "Map_W01_03.Consumables_Bottle_500_default_7_10",
-        "bp": "Data.Blueprints.Consumables.Bottle_500",
+        "tag": "Map_W01_03.Consumables_BP_Bottle_500_default_7_10",
+        "bp": "Data.Blueprints.Consumables.BP_Bottle_500",
         "position": [
           7,
           10

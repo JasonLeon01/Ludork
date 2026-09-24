@@ -1368,7 +1368,7 @@
     "default": [
       {
         "tag": "Downstair",
-        "bp": "Data.Blueprints.Teleportations.Downstair",
+        "bp": "Data.Blueprints.Teleportations.BP_Downstair",
         "position": [
           0,
           0
@@ -1463,72 +1463,72 @@
         ]
       },
       {
-        "tag": "Map_w01_01.Consumables_Bottle_200_default_7_5",
-        "bp": "Data.Blueprints.Consumables.Bottle_200",
+        "tag": "Map_w01_01.Consumables_BP_Bottle_200_default_7_5",
+        "bp": "Data.Blueprints.Consumables.BP_Bottle_200",
         "position": [
           7,
           5
         ]
       },
       {
-        "tag": "Map_w01_01.Consumables_Bottle_200_default_8_5",
-        "bp": "Data.Blueprints.Consumables.Bottle_200",
+        "tag": "Map_w01_01.Consumables_BP_Bottle_200_default_8_5",
+        "bp": "Data.Blueprints.Consumables.BP_Bottle_200",
         "position": [
           8,
           5
         ]
       },
       {
-        "tag": "Map_w01_01.Consumables_Bottle_200_default_9_5",
-        "bp": "Data.Blueprints.Consumables.Bottle_200",
+        "tag": "Map_w01_01.Consumables_BP_Bottle_200_default_9_5",
+        "bp": "Data.Blueprints.Consumables.BP_Bottle_200",
         "position": [
           9,
           5
         ]
       },
       {
-        "tag": "Map_w01_01.Consumables_Gem_1_1_default_12_7",
-        "bp": "Data.Blueprints.Consumables.Gem_1_1",
+        "tag": "Map_w01_01.Consumables_BP_Gem_1_1_default_12_7",
+        "bp": "Data.Blueprints.Consumables.BP_Gem_1_1",
         "position": [
           12,
           7
         ]
       },
       {
-        "tag": "Map_w01_01.Consumables_Gem_1_1_default_13_7",
-        "bp": "Data.Blueprints.Consumables.Gem_1_1",
+        "tag": "Map_w01_01.Consumables_BP_Gem_1_1_default_13_7",
+        "bp": "Data.Blueprints.Consumables.BP_Gem_1_1",
         "position": [
           13,
           7
         ]
       },
       {
-        "tag": "Map_w01_01.Consumables_Gem_1_1_default_14_7",
-        "bp": "Data.Blueprints.Consumables.Gem_1_1",
+        "tag": "Map_w01_01.Consumables_BP_Gem_1_1_default_14_7",
+        "bp": "Data.Blueprints.Consumables.BP_Gem_1_1",
         "position": [
           14,
           7
         ]
       },
       {
-        "tag": "Map_w01_01.Consumables_Gem_2_1_default_16_4",
-        "bp": "Data.Blueprints.Consumables.Gem_2_1",
+        "tag": "Map_w01_01.Consumables_BP_Gem_2_1_default_16_4",
+        "bp": "Data.Blueprints.Consumables.BP_Gem_2_1",
         "position": [
           16,
           4
         ]
       },
       {
-        "tag": "Map_w01_01.Consumables_Gem_2_1_default_16_5",
-        "bp": "Data.Blueprints.Consumables.Gem_2_1",
+        "tag": "Map_w01_01.Consumables_BP_Gem_2_1_default_16_5",
+        "bp": "Data.Blueprints.Consumables.BP_Gem_2_1",
         "position": [
           16,
           5
         ]
       },
       {
-        "tag": "Map_w01_01.Consumables_Gem_2_1_default_16_6",
-        "bp": "Data.Blueprints.Consumables.Gem_2_1",
+        "tag": "Map_w01_01.Consumables_BP_Gem_2_1_default_16_6",
+        "bp": "Data.Blueprints.Consumables.BP_Gem_2_1",
         "position": [
           16,
           6

@@ -1225,7 +1225,7 @@
     "default": [
       {
         "tag": "Downstair 1",
-        "bp": "Data.Blueprints.Teleportations.Downstair",
+        "bp": "Data.Blueprints.Teleportations.BP_Downstair",
         "position": [
           5,
           0
@@ -1233,7 +1233,7 @@
       },
       {
         "tag": "Downstair 2",
-        "bp": "Data.Blueprints.Teleportations.Downstair",
+        "bp": "Data.Blueprints.Teleportations.BP_Downstair",
         "position": [
           7,
           0
@@ -1401,39 +1401,39 @@
       },
       {
         "tag": "Upstair",
-        "bp": "Data.Blueprints.Teleportations.Upstair",
+        "bp": "Data.Blueprints.Teleportations.BP_Upstair",
         "position": [
           6,
           12
         ]
       },
       {
-        "bp": "Data.Blueprints.Consumables.Gem_1_1",
-        "tag": "Consumables_Gem_1_1_default_0_10",
+        "bp": "Data.Blueprints.Consumables.BP_Gem_1_1",
+        "tag": "Consumables_BP_Gem_1_1_default_0_10",
         "position": [
           0,
           10
         ]
       },
       {
-        "bp": "Data.Blueprints.Consumables.Gem_2_1",
-        "tag": "Consumables_Gem_2_1_default_12_10",
+        "bp": "Data.Blueprints.Consumables.BP_Gem_2_1",
+        "tag": "Consumables_BP_Gem_2_1_default_12_10",
         "position": [
           12,
           10
         ]
       },
       {
-        "bp": "Data.Blueprints.Consumables.Bottle_500",
-        "tag": "Consumables_Bottle_500_default_4_10",
+        "bp": "Data.Blueprints.Consumables.BP_Bottle_500",
+        "tag": "Consumables_BP_Bottle_500_default_4_10",
         "position": [
           4,
           10
         ]
       },
       {
-        "bp": "Data.Blueprints.Consumables.Bottle_500",
-        "tag": "Consumables_Bottle_500_default_8_10",
+        "bp": "Data.Blueprints.Consumables.BP_Bottle_500",
+        "tag": "Consumables_BP_Bottle_500_default_8_10",
         "position": [
           8,
           10
@@ -1525,23 +1525,23 @@
     "Data.Blueprints.Actors.BP_Actor_TestPath_default_6_1": {
       "shaderPath": "/Game/Assets/Shaders/Petrify.frag"
     },
-    "Consumables_Gem_1_1_default_0_10": {
+    "Consumables_BP_Gem_1_1_default_0_10": {
       "conditionVariable": "MTExample",
       "conditionOperator": "\u003E=",
       "conditionValue": 1,
       "visible": false
     },
-    "Consumables_Gem_2_1_default_12_10": {
+    "Consumables_BP_Gem_2_1_default_12_10": {
       "conditionVariable": "MTExample",
       "conditionOperator": "\u003E=",
       "conditionValue": 2,
       "visible": false
     },
-    "Consumables_Bottle_500_default_4_10": {
+    "Consumables_BP_Bottle_500_default_4_10": {
       "conditionVariable": "MTExample",
       "visible": false
     },
-    "Consumables_Bottle_500_default_8_10": {
+    "Consumables_BP_Bottle_500_default_8_10": {
       "conditionVariable": "MTExample",
       "conditionValue": 1,
       "visible": false

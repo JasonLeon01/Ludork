@@ -1123,56 +1123,56 @@
         ]
       },
       {
-        "tag": "Map_W01_05.Consumables_Bottle_200_default_2_14",
-        "bp": "Data.Blueprints.Consumables.Bottle_200",
+        "tag": "Map_W01_05.Consumables_BP_Bottle_200_default_2_14",
+        "bp": "Data.Blueprints.Consumables.BP_Bottle_200",
         "position": [
           2,
           14
         ]
       },
       {
-        "tag": "Map_W01_05.Consumables_Bottle_200_default_4_14",
-        "bp": "Data.Blueprints.Consumables.Bottle_200",
+        "tag": "Map_W01_05.Consumables_BP_Bottle_200_default_4_14",
+        "bp": "Data.Blueprints.Consumables.BP_Bottle_200",
         "position": [
           4,
           14
         ]
       },
       {
-        "tag": "Map_W01_05.Consumables_Bottle_200_default_7_14",
-        "bp": "Data.Blueprints.Consumables.Bottle_200",
+        "tag": "Map_W01_05.Consumables_BP_Bottle_200_default_7_14",
+        "bp": "Data.Blueprints.Consumables.BP_Bottle_200",
         "position": [
           7,
           14
         ]
       },
       {
-        "tag": "Map_W01_05.Consumables_Bottle_200_default_8_14",
-        "bp": "Data.Blueprints.Consumables.Bottle_200",
+        "tag": "Map_W01_05.Consumables_BP_Bottle_200_default_8_14",
+        "bp": "Data.Blueprints.Consumables.BP_Bottle_200",
         "position": [
           8,
           14
         ]
       },
       {
-        "tag": "Map_W01_05.Consumables_Bottle_200_default_9_14",
-        "bp": "Data.Blueprints.Consumables.Bottle_200",
+        "tag": "Map_W01_05.Consumables_BP_Bottle_200_default_9_14",
+        "bp": "Data.Blueprints.Consumables.BP_Bottle_200",
         "position": [
           9,
           14
         ]
       },
       {
-        "tag": "Map_W01_05.Consumables_Bottle_200_default_10_14",
-        "bp": "Data.Blueprints.Consumables.Bottle_200",
+        "tag": "Map_W01_05.Consumables_BP_Bottle_200_default_10_14",
+        "bp": "Data.Blueprints.Consumables.BP_Bottle_200",
         "position": [
           10,
           14
         ]
       },
       {
-        "tag": "Map_W01_05.Consumables_Bottle_200_default_11_14",
-        "bp": "Data.Blueprints.Consumables.Bottle_200",
+        "tag": "Map_W01_05.Consumables_BP_Bottle_200_default_11_14",
+        "bp": "Data.Blueprints.Consumables.BP_Bottle_200",
         "position": [
           11,
           14

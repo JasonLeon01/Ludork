@@ -1069,7 +1069,7 @@
     "default": [
       {
         "tag": "Downstair",
-        "bp": "Data.Blueprints.Teleportations.Downstair",
+        "bp": "Data.Blueprints.Teleportations.BP_Downstair",
         "position": [
           7,
           13
@@ -1093,7 +1093,7 @@
       },
       {
         "tag": "Upstair",
-        "bp": "Data.Blueprints.Teleportations.Upstair",
+        "bp": "Data.Blueprints.Teleportations.BP_Upstair",
         "position": [
           0,
           0
