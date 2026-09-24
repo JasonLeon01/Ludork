@@ -56,7 +56,7 @@ class ReleaseVersion:
 
     @property
     def version_code(self) -> int:
-        return int(self.built_at.strftime("%Y%m%d%H"))
+        return int(self.built_at.strftime("%y%m%d%H"))
 
     @property
     def apple_build_version(self) -> str:
