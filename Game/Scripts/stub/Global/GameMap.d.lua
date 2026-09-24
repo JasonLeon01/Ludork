@@ -65,6 +65,7 @@
 ---@field _renderer                 GlobalCore.GameMapRenderer | nil
 ---@field _renderEffectTarget       sf.RenderTarget | nil
 ---@field _drawLayerEffects         fun(layerName: string)
+---@field _billboardLayerVisible    fun(actor: Engine.Actor, layerName: string): boolean
 ---@field mapName                   string
 ---@field new                       fun(mapName: string, tilemap: Engine.Tilemap, camera?: GlobalCore.Camera, previewOnly?: boolean, sparseWorldConfig?: Global.GameMap.SparseWorldConfig): GameMap
 local GameMap = {}
@@ -85,6 +86,11 @@ function GameMap:init(mapName, tilemap, camera, previewOnly, sparseWorldConfig) 
 
 ---@return boolean
 function GameMap:isWorldMap() end
+
+---@param actor Engine.Actor
+---@param layerName string
+---@return boolean
+function GameMap:_isBillboardActorVisible(actor, layerName) end
 
 ---@param deltaTime number
 function GameMap:updateAutoTileAnimation(deltaTime) end

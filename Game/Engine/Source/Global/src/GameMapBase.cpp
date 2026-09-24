@@ -11,6 +11,8 @@
 #include <LightOcclusionInput.hpp>
 #include <LightOcclusionResult.hpp>
 #include <GameMapBase.hpp>
+#include <Camera.hpp>
+#include <Gameplay/Components/BillboardComponent.hpp>
 #include <Emitters/EmitterScheduler.hpp>
 #include <Runtime/RuntimeObject.hpp>
 
@@ -20,6 +22,7 @@
 #include <SFML/Graphics/Image.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -34,6 +37,38 @@
 #include <vector>
 
 namespace {
+
+bool intersectsCamera(const sf::FloatRect& bounds,
+                      const sf::Transform& clipTransform) {
+    const sf::Vector2f end = bounds.position + bounds.size;
+    const std::array<sf::Vector2f, 4> corners = {
+        clipTransform.transformPoint(bounds.position),
+        clipTransform.transformPoint({end.x, bounds.position.y}),
+        clipTransform.transformPoint(end),
+        clipTransform.transformPoint({bounds.position.x, end.y})};
+    const auto separated = [&](sf::Vector2f axis) {
+        float minimum = std::numeric_limits<float>::max();
+        float maximum = std::numeric_limits<float>::lowest();
+        for (const sf::Vector2f& corner : corners) {
+            const float projection = corner.x * axis.x + corner.y * axis.y;
+            minimum = std::min(minimum, projection);
+            maximum = std::max(maximum, projection);
+        }
+        const float clipExtent = std::abs(axis.x) + std::abs(axis.y);
+        return minimum > clipExtent || maximum < -clipExtent;
+    };
+    if (separated({1.0f, 0.0f}) || separated({0.0f, 1.0f})) {
+        return false;
+    }
+    for (std::size_t index = 0; index < corners.size(); ++index) {
+        const sf::Vector2f edge =
+            corners[(index + 1) % corners.size()] - corners[index];
+        if (separated({-edge.y, edge.x})) {
+            return false;
+        }
+    }
+    return true;
+}
 
 float materialValueToFloat(const MaterialValue& value) {
     return std::visit(
@@ -67,6 +102,7 @@ GameMapBase::GameMapBase()
 
 GameMapBase::~GameMapBase() {
     releaseEmitters();
+    releaseBillboards();
 }
 
 void GameMapBase::collectEmitters(EmitterScheduler& scheduler) {
@@ -81,6 +117,42 @@ void GameMapBase::collectEmitters(EmitterScheduler& scheduler) {
 
 void GameMapBase::releaseEmitters() noexcept {
     actorRegistry_->releaseEmitters();
+}
+
+void GameMapBase::releaseBillboards() noexcept {
+    actorRegistry_->releaseBillboards();
+}
+
+void GameMapBase::_updateBillboards(
+    float deltaTime, const Camera& camera,
+    std::function<bool(Actor&, const std::string&)> layerVisible) {
+    const ActorPtr& player = actorRegistry_->playerActor();
+    const sf::Transform clipTransform =
+        camera.getView().getTransform() * camera.getRenderStates().transform;
+    std::unordered_map<Actor*, bool> presentationVisible;
+    for (const auto& [layerName, actors] : actorRegistry_->materialActors()) {
+        for (const ActorPtr& actor : actors) {
+            if (!actor || !actor->getBillboardComponent()) {
+                continue;
+            }
+            bool& visible = presentationVisible[actor.get()];
+            visible = visible || (isActorVisibleOnMap(*actor) &&
+                                  layerVisible(*actor, layerName) &&
+                                  intersectsCamera(actor->getGlobalBounds(),
+                                                   clipTransform));
+        }
+    }
+    for (const auto& [actor, visible] : presentationVisible) {
+        const float range =
+            std::max(0.0f, actor->getBillboardComponent()->showRange);
+        bool inRange = false;
+        if (player && !player->isDestroyed()) {
+            const sf::Vector2f distance =
+                actor->getPosition() - player->getPosition();
+            inRange = distance.lengthSquared() <= range * range;
+        }
+        actor->updateBillboard(deltaTime, visible, inRange);
+    }
 }
 
 const ActorDict& GameMapBase::getMaterialActorsForRenderer() const {

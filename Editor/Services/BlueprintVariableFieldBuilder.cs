@@ -223,6 +223,15 @@ public sealed class BlueprintVariableFieldBuilder
         JsonNode? value,
         HashSet<string> resolving)
     {
+        LuaMetadataType schemaType = fieldType.Schema;
+        if (schemaType.Kind == LuaMetadataTypeKind.List)
+        {
+            return createStructuredFields(
+                LuaTypeReference.FromSchema(schemaType.Arguments[0]),
+                defaultModule,
+                null,
+                resolving);
+        }
         LuaTypeReference type = fieldType.WithDefaultModule(defaultModule);
         if (metadataService.GetType(type) is null || !resolving.Add(type.QualifiedName))
             return [];

@@ -25,6 +25,20 @@
       ],
       "beforeActor": false
     },
+    "billboardComp": {
+      "items": [
+        {
+          "kind": "image",
+          "image": "/Game/Assets/Icons/classic-equips-0-0.png"
+        },
+        {
+          "kind": "text",
+          "text": "EmitterShowcase",
+          "color": [255, 255, 255, 255]
+        }
+      ],
+      "showRange": 128
+    },
     "tag": ""
   },
   "graph": {

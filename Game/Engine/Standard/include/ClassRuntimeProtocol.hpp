@@ -18,5 +18,6 @@ inline constexpr const char* RUNTIME_METADATA_FIELD = "__runtimeMetadata";
 inline constexpr const char* CLASS_GETTERS_FIELD = "__getters";
 inline constexpr const char* CLASS_SETTERS_FIELD = "__setters";
 inline constexpr const char* NATIVE_COPY_FIELD = "__copy";
+inline constexpr const char* NATIVE_PROPERTIES_FIELD = "__nativeProperties";
 
 }  // namespace ludork::standard::class_runtime::protocol

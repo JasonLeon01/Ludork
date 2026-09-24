@@ -71,7 +71,6 @@ inline constexpr const char* CLASS_DEFAULTS_FIELD = "__classDefaults";
 inline constexpr const char* CLASS_FACTORY_FIELD = "__classFactory";
 inline constexpr const char* CLASS_FACTORY_MIN_ARGUMENTS_FIELD =
     "__classFactoryMinArgs";
-inline constexpr const char* NATIVE_PROPERTIES_FIELD = "__nativeProperties";
 inline constexpr const char* INSTANCE_ID_FIELD = "__instanceId";
 inline constexpr const char* CLASS_INITIALIZED_ROOTS_FIELD =
     "__classInitializedRoots";

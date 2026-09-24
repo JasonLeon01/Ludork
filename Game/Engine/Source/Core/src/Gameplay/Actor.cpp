@@ -96,12 +96,14 @@ bool Actor::isDestroyed() const {
 
 Actor::~Actor() {
     releaseEmitter();
+    releaseBillboard();
 }
 
 void Actor::markDestroyed(bool destroyed) {
     destroyed_ = destroyed;
     if (destroyed_) {
         releaseEmitter();
+        releaseBillboard();
     }
 }
 
@@ -134,6 +136,38 @@ void Actor::collectEmitter(EmitterScheduler& scheduler) {
 void Actor::releaseEmitter() noexcept {
     if (emitterComp_ != nullptr) {
         emitterComp_->release();
+    }
+}
+
+std::shared_ptr<BillboardComponent> Actor::getBillboardComponent() const {
+    return billboardComp_;
+}
+
+void Actor::setBillboardComponent(
+    const std::shared_ptr<BillboardComponent>& component) {
+    if (billboardComp_ == component) {
+        return;
+    }
+    releaseBillboard();
+    billboardComp_ = component;
+}
+
+void Actor::updateBillboard(float deltaTime, bool presentationVisible,
+                            bool inRange) {
+    if (billboardComp_ != nullptr) {
+        billboardComp_->update(*this, deltaTime, presentationVisible, inRange);
+    }
+}
+
+void Actor::drawBillboard(sf::RenderTarget& target, sf::RenderStates states) {
+    if (billboardComp_ != nullptr) {
+        billboardComp_->draw(*this, target, states);
+    }
+}
+
+void Actor::releaseBillboard() noexcept {
+    if (billboardComp_ != nullptr) {
+        billboardComp_->release();
     }
 }
 
@@ -731,6 +765,7 @@ void Actor::setMap(const std::shared_ptr<ActorMapService>& inMap) {
     if (const std::shared_ptr<ActorMapService> previous = map_.lock();
         previous != nullptr && previous != inMap) {
         releaseEmitter();
+        releaseBillboard();
     }
     map_ = ludork::runtime::detail::canonicalRuntimeOwner(inMap);
 }

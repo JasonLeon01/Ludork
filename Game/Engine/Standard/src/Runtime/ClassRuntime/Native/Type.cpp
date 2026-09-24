@@ -74,7 +74,7 @@ namespace {
 // boolean crosses back to C++; intermediate cache tables stay on this stack.
 int nativePropertyLookup(lua_State* state) {
     luaL_checktype(state, 1, LUA_TTABLE);
-    lua_pushstring(state, NATIVE_PROPERTIES_FIELD);
+    lua_pushstring(state, protocol::NATIVE_PROPERTIES_FIELD);
     lua_rawget(state, 1);
     const int properties = lua_absindex(state, -1);
     if (!lua_istable(state, properties) || lua_rawlen(state, properties) == 0) {

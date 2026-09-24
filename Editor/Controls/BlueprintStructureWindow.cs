@@ -25,7 +25,8 @@ internal sealed class BlueprintStructureWindow : Window
         string assetsDirectory,
         int cellSize,
         IGameVariableCatalog? gameVariables,
-        bool readOnly)
+        bool readOnly,
+        Func<JsonObject, IReadOnlyList<BlueprintVariableField>>? createFields)
     {
         Title = title;
         double contentHeight = Math.Max(200, fields.Count * 38 + 68);
@@ -48,8 +49,11 @@ internal sealed class BlueprintStructureWindow : Window
         {
             value[args.Name] = args.Value?.DeepClone();
             hasEdits = true;
+            if (args.RequiresRefresh && createFields is not null)
+                variableForm.SetFields(createFields(value));
         };
-        variableForm.SetFields(fields);
+        variableForm.SetFields(createFields?.Invoke(value) ?? fields);
+        Closed += (_, _) => variableForm.Dispose();
 
         ScrollViewer scroll = new()
         {
@@ -101,7 +105,8 @@ internal sealed class BlueprintStructureWindow : Window
         string assetsDirectory,
         int cellSize,
         IGameVariableCatalog? gameVariables,
-        bool readOnly)
+        bool readOnly,
+        Func<JsonObject, IReadOnlyList<BlueprintVariableField>>? createFields = null)
     {
         BlueprintStructureWindow window = new(
             title,
@@ -110,7 +115,8 @@ internal sealed class BlueprintStructureWindow : Window
             assetsDirectory,
             cellSize,
             gameVariables,
-            readOnly);
+            readOnly,
+            createFields);
         return window.ShowDialog<JsonObject?>(owner);
     }
 }

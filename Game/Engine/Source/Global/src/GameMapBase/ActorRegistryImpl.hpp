@@ -26,6 +26,7 @@ public:
     void markViewsDirty();
     void destroyActor(Actor& actor);
     void releaseEmitters() noexcept;
+    void releaseBillboards() noexcept;
     void syncActorsRef(const ActorDict& actors, OccupancyIndexImpl& occupancy);
     void syncMaterialActorsRef(const ActorDict& actors);
     bool registerLayerActor(ActorPtr actor, const std::string& layer);

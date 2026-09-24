@@ -180,7 +180,7 @@ constexpr const char* CLASS_RESERVED_FIELDS[] = {
     NATIVE_INITIALIZER_FIELD,
     NATIVE_METHOD_CACHE_FIELD,
     protocol::NATIVE_OBJECTS_FIELD,
-    NATIVE_PROPERTIES_FIELD,
+    protocol::NATIVE_PROPERTIES_FIELD,
 };
 
 void validateClassDefinition(const lua_glue::Table& definition) {

@@ -17,6 +17,10 @@ Assets/System/SliderLine.png
 Assets/System/icon.icns
 Assets/System/icon.ico
 Assets/System/icon.png
+Data/Curves/Global/BillboardAlphaIn.json
+Data/Curves/Global/BillboardAlphaOut.json
+Data/Curves/Global/BillboardYIn.json
+Data/Curves/Global/BillboardYOut.json
 Data/Curves/Global/CommonTipAlphaIn.json
 Data/Curves/Global/CommonTipAlphaOut.json
 Data/Curves/Global/CommonTipRise.json

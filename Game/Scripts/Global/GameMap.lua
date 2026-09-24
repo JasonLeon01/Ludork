@@ -132,6 +132,10 @@ function GameMap:init(mapName, tilemap, camera, previewOnly, sparseWorldConfig)
             gameMap:drawLayerEffects(layerName)
         end
     end
+    self._billboardLayerVisible = function (actor, layerName)
+        local gameMap = selfRef[1]
+        return gameMap ~= nil and gameMap:_isBillboardActorVisible(actor, layerName)
+    end
     self:setActorListUpdater(function ()
         local gameMap = selfRef[1]
         if gameMap ~= nil then
@@ -330,8 +334,20 @@ function GameMap:_prepareCameraFrame()
     return true
 end
 
+function GameMap:_isBillboardActorVisible(actor, layerName)
+    local layer = self._tilemap:getLayer(layerName)
+    return layer ~= nil and layer.visible and self._actorPixelShatterByActor[actor] == nil
+end
+
 function GameMap:show()
     local renderCameraFrame = self:_prepareCameraFrame()
+    if renderCameraFrame and self._camera ~= nil then
+        self:_updateBillboards(
+            GlobalCore.TimeManager.getDeltaTime():asSeconds(), self._camera, self._billboardLayerVisible
+        )
+    else
+        self:releaseBillboards()
+    end
     Graphics.setWindowMapView(self._mapViewRect)
     if renderCameraFrame and self._camera ~= nil then
         self._camera:clear()
