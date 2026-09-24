@@ -6,8 +6,9 @@ set -eu
 : "${FFMPEG_VERSION:?FFMPEG_VERSION is not set in versions.conf}"
 : "${EDITOR_VERSION:?EDITOR_VERSION is not set in versions.conf}"
 
-USAGE="Usage: tools/pack_editor.sh [--version X.Y.Z] [--dev|--release] [--templates <folder>] [--use-current-editor-build] [--signing-identity NAME] [--certificate PATH.p12] [--notarize] [--notary-apple-id EMAIL] [--notary-team-id TEAMID] [--notary-key PATH.p8] [--notary-key-id ID] [--notary-key-issuer UUID]"
+USAGE="Usage: tools/pack_editor.sh [--version X.Y.Z] [--dev|--release] [--templates <folder>|--without-templates] [--use-current-editor-build] [--signing-identity NAME] [--certificate PATH.p12] [--notarize] [--notary-apple-id EMAIL] [--notary-team-id TEAMID] [--notary-key PATH.p8] [--notary-key-id ID] [--notary-key-issuer UUID]"
 PREBUILT_TEMPLATES_DIR=
+WITHOUT_TEMPLATES=0
 USE_CURRENT_EDITOR_BUILD=0
 PRODUCT_VERSION=$EDITOR_VERSION
 PACKAGE_CHANNEL=
@@ -39,12 +40,16 @@ while [ "$#" -gt 0 ]; do
             shift
             ;;
         --templates)
-            if [ "$#" -lt 2 ]; then
+            if [ "$#" -lt 2 ] || [ -z "$2" ]; then
                 echo "$USAGE" >&2
                 exit 1
             fi
             PREBUILT_TEMPLATES_DIR=$2
             shift 2
+            ;;
+        --without-templates)
+            WITHOUT_TEMPLATES=1
+            shift
             ;;
         --use-current-editor-build)
             USE_CURRENT_EDITOR_BUILD=1
@@ -116,6 +121,10 @@ while [ "$#" -gt 0 ]; do
             ;;
     esac
 done
+if [ "$WITHOUT_TEMPLATES" -eq 1 ] && [ -n "$PREBUILT_TEMPLATES_DIR" ]; then
+    echo "--templates and --without-templates are mutually exclusive." >&2
+    exit 1
+fi
 if [ -z "$PACKAGE_CHANNEL" ]; then
     PACKAGE_CHANNEL=--dev
 fi
@@ -279,6 +288,7 @@ run_macos_sign() {
     fi
     if [ "$signing_mode" = "app" ]; then
         set -- "$@" --entitlements "$SIGNING_ENTITLEMENTS"
+        set -- "$@" --runtime-bundle "$RESOURCES_DIR/tools/ScriptTools"
     fi
     if [ "$signing_mode" = "dmg-notarize" ]; then
         set -- "$@" --notarize
@@ -704,22 +714,32 @@ validate_package() {
     info_plist="$package_app/Contents/Info.plist"
 
     require_package_executable "$package_macos/Ludork"
+    if [ -n "$SIGNING_IDENTITY$SIGNING_CERTIFICATE" ]; then
+        codesign --verify --deep --strict "$package_app"
+    fi
     require_package_file "$info_plist"
     require_package_file "$package_resources/BuildInfo.json"
     require_package_file "$package_resources/AppIcon.icns"
     require_package_file "$package_resources/ProjectIcon.icns"
     require_package_file "$package_resources/Locale/en_GB"
     require_package_file "$package_resources/Locale/zh_CN"
-    require_package_file "$package_resources/Templates/Cpp/Main.proj"
-    require_package_file "$package_resources/Templates/Cpp-ffmpeg/Main.proj"
-    validate_standalone_runtime_layout \
-        "$package_resources/Templates/Standalone"
-    validate_standalone_runtime_layout \
-        "$package_resources/Templates/Standalone-ffmpeg"
-    for template_name in $TEMPLATE_NAMES; do
-        "$SCRIPT_TOOLS" validate-ldpak-source \
-            "$package_resources/Templates/$template_name"
-    done
+    if [ "$WITHOUT_TEMPLATES" -eq 1 ]; then
+        if [ -e "$package_resources/Templates" ] || [ -L "$package_resources/Templates" ]; then
+            echo "Unexpected Templates entry in an editor-only package: $package_resources/Templates" >&2
+            exit 1
+        fi
+    else
+        require_package_file "$package_resources/Templates/Cpp/Main.proj"
+        require_package_file "$package_resources/Templates/Cpp-ffmpeg/Main.proj"
+        validate_standalone_runtime_layout \
+            "$package_resources/Templates/Standalone"
+        validate_standalone_runtime_layout \
+            "$package_resources/Templates/Standalone-ffmpeg"
+        for template_name in $TEMPLATE_NAMES; do
+            "$SCRIPT_TOOLS" validate-ldpak-source \
+                "$package_resources/Templates/$template_name"
+        done
+    fi
     require_package_executable "$package_resources/tools/build_cpp.sh"
     require_package_executable "$package_resources/tools/build_standalone.sh"
     require_package_executable "$package_resources/tools/pack_project.sh"
@@ -731,31 +751,33 @@ validate_package() {
     validate_script_tools_bundle "$package_resources/tools/ScriptTools"
     require_package_executable "$package_resources/tools/luac"
     require_package_executable "$package_resources/tools/build_ui_preview_host.sh"
-    for template_name in $STANDALONE_TEMPLATE_NAMES; do
-        "$SCRIPT_TOOLS" ui-preview validate "$package_resources/Templates/$template_name"
-        unexpected_temp=$(find "$package_resources/Templates/$template_name/$EDITOR_CACHE_DIRECTORY" \
-            -mindepth 1 -maxdepth 1 ! -name UiPreview.json ! -name UiPreview.registry.json -print -quit)
-        if [ -n "$unexpected_temp" ]; then
-            echo "Unexpected template $EDITOR_CACHE_DIRECTORY entry: $unexpected_temp" >&2
-            exit 1
-        fi
-    done
-    for template_name in $CPP_TEMPLATE_NAMES; do
-        require_package_file "$package_resources/Templates/$template_name/Engine/UiPreviewHost/CMakeLists.txt"
-        for wrapper_path in \
-            gradlew \
-            gradle/wrapper/gradle-wrapper.jar \
-            gradle/wrapper/gradle-wrapper.properties \
-            gradle/wrapper/LICENSE.txt \
-            gradle/wrapper/NOTICE.md; do
-            require_package_file "$package_resources/Templates/$template_name/Engine/PlatformHosts/Android/$wrapper_path"
+    if [ "$WITHOUT_TEMPLATES" -eq 0 ]; then
+        for template_name in $STANDALONE_TEMPLATE_NAMES; do
+            "$SCRIPT_TOOLS" ui-preview validate "$package_resources/Templates/$template_name"
+            unexpected_temp=$(find "$package_resources/Templates/$template_name/$EDITOR_CACHE_DIRECTORY" \
+                -mindepth 1 -maxdepth 1 ! -name UiPreview.json ! -name UiPreview.registry.json -print -quit)
+            if [ -n "$unexpected_temp" ]; then
+                echo "Unexpected template $EDITOR_CACHE_DIRECTORY entry: $unexpected_temp" >&2
+                exit 1
+            fi
         done
-        if [ -e "$package_resources/Templates/$template_name/Binaries" ] \
-            || [ -e "$package_resources/Templates/$template_name/$EDITOR_CACHE_DIRECTORY" ]; then
-            echo "Source template contains a prebuilt UI preview snapshot." >&2
-            exit 1
-        fi
-    done
+        for template_name in $CPP_TEMPLATE_NAMES; do
+            require_package_file "$package_resources/Templates/$template_name/Engine/UiPreviewHost/CMakeLists.txt"
+            for wrapper_path in \
+                gradlew \
+                gradle/wrapper/gradle-wrapper.jar \
+                gradle/wrapper/gradle-wrapper.properties \
+                gradle/wrapper/LICENSE.txt \
+                gradle/wrapper/NOTICE.md; do
+                require_package_file "$package_resources/Templates/$template_name/Engine/PlatformHosts/Android/$wrapper_path"
+            done
+            if [ -e "$package_resources/Templates/$template_name/Binaries" ] \
+                || [ -e "$package_resources/Templates/$template_name/$EDITOR_CACHE_DIRECTORY" ]; then
+                echo "Source template contains a prebuilt UI preview snapshot." >&2
+                exit 1
+            fi
+        done
+    fi
     require_package_file "$package_resources/LICENSE.md"
     require_package_file "$package_resources/README.md"
     require_package_file "$package_resources/README_zh_CN.md"
@@ -986,6 +1008,10 @@ validate_package() {
         fi
     done
 
+    if [ "$WITHOUT_TEMPLATES" -eq 1 ]; then
+        return
+    fi
+
     for template_name in $TEMPLATE_NAMES; do
         template_dir="$package_resources/Templates/$template_name"
         require_package_file "$template_dir/LICENSE.md"
@@ -1132,7 +1158,9 @@ require_command sync
 require_command xattr
 require_file /usr/bin/lipo
 
-require_file "$PROJECT_ROOT/tools/create_templates.sh"
+if [ "$WITHOUT_TEMPLATES" -eq 0 ]; then
+    require_file "$PROJECT_ROOT/tools/create_templates.sh"
+fi
 require_file "$PROJECT_ROOT/tools/build_ui_preview_host.sh"
 require_file "$PROJECT_ROOT/tools/common.sh"
 require_file "$PROJECT_ROOT/tools/editor_runtime/build_cpp.sh"
@@ -1183,15 +1211,17 @@ if [ -n "$PREBUILT_TEMPLATES_DIR" ]; then
             ;;
     esac
 fi
-require_file "$PROJECT_ROOT/Game/CMakeLists.txt"
-require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/LuaSF"
-require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/SFML"
-require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/LuaGlue"
-require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/Lua"
-require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/lua-cjson"
-require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/zlib"
-require_file "$PROJECT_ROOT/Game/Engine/ThirdParty/ffmpeg/configure"
-require_file "$FFMPEG_SOURCE_ARCHIVE"
+if [ "$WITHOUT_TEMPLATES" -eq 0 ]; then
+    require_file "$PROJECT_ROOT/Game/CMakeLists.txt"
+    require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/LuaSF"
+    require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/SFML"
+    require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/LuaGlue"
+    require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/Lua"
+    require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/lua-cjson"
+    require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/zlib"
+    require_file "$PROJECT_ROOT/Game/Engine/ThirdParty/ffmpeg/configure"
+    require_file "$FFMPEG_SOURCE_ARCHIVE"
+fi
 require_file "$PROJECT_ROOT/Locale/locale.json"
 require_file "$PROJECT_ROOT/LICENSE.md"
 require_file "$PROJECT_ROOT/README.md"
@@ -1260,12 +1290,14 @@ rm -f \
     "$MACOS_DIR/THIRD_PARTY_NOTICES.md" \
     "$MACOS_DIR/THIRD_PARTY_NOTICES_zh_CN.md"
 
-if [ -n "$PREBUILT_TEMPLATES_DIR" ]; then
-    echo "Copying prepared editor project templates..."
-    copy_directory "$PREBUILT_TEMPLATES_DIR" "$RESOURCES_DIR/Templates"
-else
-    echo "Generating editor project templates..."
-    sh "$PROJECT_ROOT/tools/create_templates.sh" Release "$RESOURCES_DIR/Templates"
+if [ "$WITHOUT_TEMPLATES" -eq 0 ]; then
+    if [ -n "$PREBUILT_TEMPLATES_DIR" ]; then
+        echo "Copying prepared editor project templates..."
+        copy_directory "$PREBUILT_TEMPLATES_DIR" "$RESOURCES_DIR/Templates"
+    else
+        echo "Generating editor project templates..."
+        sh "$PROJECT_ROOT/tools/create_templates.sh" Release "$RESOURCES_DIR/Templates"
+    fi
 fi
 
 echo "Copying editor resources..."
@@ -1306,7 +1338,9 @@ create_bundle_icons
 purge_python_cache "$APP_DIR"
 purge_debug_symbols "$APP_DIR"
 purge_windows_tools "$APP_DIR"
-purge_template_runtime_state "$RESOURCES_DIR/Templates"
+if [ "$WITHOUT_TEMPLATES" -eq 0 ]; then
+    purge_template_runtime_state "$RESOURCES_DIR/Templates"
+fi
 find "$APP_DIR" -name '.DS_Store' -delete
 
 if [ -n "$SIGNING_IDENTITY$SIGNING_CERTIFICATE" ]; then

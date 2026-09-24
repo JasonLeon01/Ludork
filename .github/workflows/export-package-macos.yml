@@ -1,0 +1,22 @@
+name: Export Package macOS
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      release:
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  macos:
+    name: macOS package
+    uses: ./.github/workflows/export-editor-macos.yml
+    with:
+      templates: true
+      release: ${{ inputs.release == true }}
+    secrets: inherit

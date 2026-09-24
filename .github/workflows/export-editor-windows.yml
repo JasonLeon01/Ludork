@@ -1,0 +1,194 @@
+name: Export Editor Windows
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      templates:
+        type: boolean
+        default: false
+      release:
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  EDITOR_CHANNEL: ${{ inputs.release && '--release' || '--dev' }}
+
+concurrency:
+  group: export-${{ inputs.templates && 'package' || 'editor' }}-windows-${{ github.event_name == 'push' && github.ref || 'temporary' }}
+  cancel-in-progress: false
+
+jobs:
+  preparation:
+    uses: ./.github/workflows/build-templates.yml
+    with:
+      templates: ${{ inputs.templates == true }}
+      windows: true
+      macos: false
+
+  windows:
+    name: Windows x64
+    needs: preparation
+    runs-on: windows-2022
+    timeout-minutes: 180
+    env:
+      CMAKE_GENERATOR: Ninja
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Resolve active .NET SDK
+        id: dotnet-sdk
+        shell: pwsh
+        run: |
+          $version = & dotnet --version
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Restore C# build outputs
+        id: managed-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            bin/Release
+            obj/Release
+            Editor/Ludork.Plugin.Abstractions/bin/Release
+            Editor/Ludork.Plugin.Abstractions/obj/Release
+            Editor/Ludork.Plugin.Avalonia/bin/Release
+            Editor/Ludork.Plugin.Avalonia/obj/Release
+          key: export-v1-windows-2022-${{ runner.arch }}-managed-Release-${{ steps.dotnet-sdk.outputs.version }}-${{ needs.preparation.outputs.managed }}
+
+      - name: Set up MSVC command-line environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64
+
+      - name: Restore editor launcher
+        id: launcher-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: obj/editor-launcher/bin/Release
+          key: export-v1-windows-2022-${{ runner.arch }}-launcher-Release-${{ needs.preparation.outputs.launcher }}
+
+      - name: Build editor launcher
+        if: steps.launcher-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $version = (& dotnet msbuild Ludork.csproj -nologo -getProperty:Version).Trim()
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cmake -S tools/editor_launcher -B obj/editor-launcher -DCMAKE_BUILD_TYPE=Release "-DLUDORK_VERSION=$version"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cmake --build obj/editor-launcher --config Release --target LudorkEditorLauncher
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+      - name: Save editor launcher
+        if: steps.launcher-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: obj/editor-launcher/bin/Release
+          key: ${{ steps.launcher-cache.outputs.cache-primary-key }}
+
+      - name: Download prepared environment
+        uses: actions/download-artifact@v8
+        with:
+          name: windows-native-environment.tar
+          path: obj/editor-inputs/artifacts
+
+      - name: Download templates without FFmpeg
+        if: inputs.templates
+        uses: actions/download-artifact@v8
+        with:
+          name: windows-templates-plain.tar
+          path: obj/editor-inputs/artifacts
+
+      - name: Download templates with FFmpeg
+        if: inputs.templates
+        uses: actions/download-artifact@v8
+        with:
+          name: windows-templates-ffmpeg.tar
+          path: obj/editor-inputs/artifacts
+
+      - name: Download Lua compiler
+        if: inputs.templates
+        uses: actions/download-artifact@v8
+        with:
+          name: windows-luac.tar
+          path: obj/editor-inputs/artifacts
+
+      - name: Restore editor tools
+        if: ${{ !inputs.templates }}
+        shell: cmd
+        run: tar.exe -xf "obj\editor-inputs\artifacts\windows-native-environment.tar" -C .
+
+      - name: Restore editor inputs
+        if: inputs.templates
+        shell: cmd
+        run: |
+          tar.exe -xf "obj\editor-inputs\artifacts\windows-native-environment.tar" -C .
+          if errorlevel 1 exit /b 1
+          if not exist ".tools\Lua" mkdir ".tools\Lua"
+          if not exist "obj\editor-inputs\Templates" mkdir "obj\editor-inputs\Templates"
+          tar.exe -xf "obj\editor-inputs\artifacts\windows-luac.tar" -C ".tools\Lua"
+          if errorlevel 1 exit /b 1
+          tar.exe -xf "obj\editor-inputs\artifacts\windows-templates-plain.tar" -C "obj\editor-inputs\Templates"
+          if errorlevel 1 exit /b 1
+          tar.exe -xf "obj\editor-inputs\artifacts\windows-templates-ffmpeg.tar" -C "obj\editor-inputs\Templates"
+          if errorlevel 1 exit /b 1
+
+      - name: Package editor
+        env:
+          TEMPLATE_OPTION: ${{ inputs.templates && '--templates' || '--without-templates' }}
+          TEMPLATE_DIRECTORY: ${{ inputs.templates && 'obj/editor-inputs/Templates' || '' }}
+          EDITOR_BUILD_OPTION: ${{ steps.managed-cache.outputs.cache-hit == 'true' && '--use-current-editor-build' || '' }}
+        shell: cmd
+        run: tools\pack_editor.bat %TEMPLATE_OPTION% %TEMPLATE_DIRECTORY% --launcher "%CD%\obj\editor-launcher\bin\Release\Ludork.exe" %EDITOR_CHANNEL% %EDITOR_BUILD_OPTION%
+
+      - name: Save C# build outputs
+        if: steps.managed-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            bin/Release
+            obj/Release
+            Editor/Ludork.Plugin.Abstractions/bin/Release
+            Editor/Ludork.Plugin.Abstractions/obj/Release
+            Editor/Ludork.Plugin.Avalonia/bin/Release
+            Editor/Ludork.Plugin.Avalonia/obj/Release
+          key: ${{ steps.managed-cache.outputs.cache-primary-key }}
+
+      - name: Build editor MSI
+        if: inputs.release && inputs.templates
+        shell: cmd
+        run: tools\pack_editor_msi.bat
+
+      - name: Upload editor package
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.templates && 'Ludork' || 'Ludork-editor' }}-windows-x64-${{ github.sha }}
+          path: dist/
+          if-no-files-found: error
+          include-hidden-files: true
+          compression-level: 0
+          retention-days: 7
+
+      - name: Upload editor MSI
+        if: inputs.release && inputs.templates
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.templates && 'Ludork' || 'Ludork-editor' }}-windows-x64-msi-${{ github.sha }}
+          path: Ludork-*-windows-x64.msi
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7

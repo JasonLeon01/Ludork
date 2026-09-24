@@ -1,0 +1,98 @@
+name: Query macOS Notarization
+
+on:
+  workflow_dispatch:
+    inputs:
+      submission_id:
+        description: "Submission UUID (leave empty to list recent submissions)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  query:
+    name: Query Apple notary service
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Query notarization history or submission
+        shell: python3 {0}
+        env:
+          SUBMISSION_ID: ${{ inputs.submission_id }}
+          MACOS_NOTARY_APPLE_ID: ${{ secrets.MACOS_NOTARY_APPLE_ID }}
+          MACOS_NOTARY_TEAM_ID: ${{ secrets.MACOS_NOTARY_TEAM_ID }}
+          MACOS_NOTARY_PASSWORD: ${{ secrets.MACOS_NOTARY_PASSWORD }}
+          MACOS_NOTARY_KEY: ${{ secrets.MACOS_NOTARY_KEY }}
+          MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+          MACOS_NOTARY_KEY_ISSUER: ${{ secrets.MACOS_NOTARY_KEY_ISSUER }}
+        run: |
+          import base64
+          import json
+          import os
+          import pathlib
+          import subprocess
+          import sys
+          import tempfile
+          import uuid
+
+          sys.path.insert(0, os.getcwd())
+          from ScriptTools.apple_signing import (
+              OptionSource,
+              TemporaryKeychain,
+              resolve_notary_credentials,
+              store_notary_credentials,
+          )
+
+          submission_id = os.environ["SUBMISSION_ID"].strip()
+          if submission_id:
+              submission_id = str(uuid.UUID(submission_id))
+
+          with tempfile.TemporaryDirectory(prefix="ludork-notary-query-") as temporary:
+              key = None
+              encoded_key = os.environ["MACOS_NOTARY_KEY"].strip()
+              if encoded_key and not os.environ["MACOS_NOTARY_APPLE_ID"].strip():
+                  key = pathlib.Path(temporary) / "notary.p8"
+                  key.write_bytes(base64.b64decode("".join(encoded_key.split()), validate=True))
+                  key.chmod(0o600)
+              credentials = resolve_notary_credentials(
+                  OptionSource(ignore_environment=True),
+                  apple_id=os.environ["MACOS_NOTARY_APPLE_ID"],
+                  team_id=os.environ["MACOS_NOTARY_TEAM_ID"],
+                  key=key,
+                  key_id=os.environ["MACOS_NOTARY_KEY_ID"],
+                  key_issuer=os.environ["MACOS_NOTARY_KEY_ISSUER"],
+              )
+              with TemporaryKeychain() as keychain:
+                  if credentials.password_required:
+                      password = os.environ["MACOS_NOTARY_PASSWORD"]
+                      if not password:
+                          raise SystemExit("MACOS_NOTARY_PASSWORD is required for Apple ID authentication.")
+                      store_notary_credentials(keychain, credentials, password)
+                  authentication = credentials.arguments(keychain.path)
+
+                  def query(*arguments):
+                      result = subprocess.run(
+                          ["xcrun", "notarytool", *arguments, *authentication],
+                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                          text=True, check=False, timeout=120,
+                      )
+                      print(result.stdout, flush=True)
+                      if result.returncode:
+                          raise SystemExit(result.returncode)
+                      return result.stdout
+
+                  if submission_id:
+                      report = json.loads(query("info", submission_id, "--output-format", "json"))
+                      if report.get("status") in ("Accepted", "Invalid", "Rejected"):
+                          query("log", submission_id)
+                      else:
+                          print("Submission is still processing; its notary log is not yet available.", flush=True)
+                  else:
+                      query("history", "--output-format", "json")

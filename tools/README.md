@@ -192,6 +192,12 @@ source/Standalone pair; the matching `create_templates_plain` and
 `create_templates_ffmpeg` scripts are thin entry points for automation. Without
 `--variant`, it rebuilds all four templates.
 
+Both editor packers accept `--without-templates` to produce an editor and its
+build/package tools without a `Templates` directory. It is mutually exclusive with
+`--templates <folder>`; omitting both keeps normal template generation. This mode
+still requires ScriptTools, the host Lua compiler and the Windows GNU Make tool,
+but does not require the Game native dependency tree or FFmpeg source archive.
+
 Windows and macOS automation may pass `--templates <folder>` to copy an already
 generated set of four editor templates. Each Standalone template must contain
 its own matched preview snapshot; C++ templates contain preview source only.
@@ -277,8 +283,8 @@ checks before merging, and add `PR Validation` from GitHub Actions while preserv
 the other protections. Workflow files alone do not enable this merge requirement;
 changing branch protection requires repository administration permission.
 
-[Export Editor](../.github/workflows/export-editor.yml) packages the default branch
-at 08:00 and 16:00 UTC+8 (`0 0,8 * * *` UTC), or a selected ref on manual dispatch.
+[Export Package](../.github/workflows/export-package.yml) packages the default branch
+at 02:00 and 14:00 UTC+8 (`0 6,18 * * *` UTC), or a selected ref on manual dispatch.
 Ordinary pushes and PRs do not create complete editor packages. Temporary package
 runs are serialized; after acquiring that slot, a scheduled run skips when its
 commit equals the latest successful dual-platform temporary package of the
@@ -295,7 +301,43 @@ either `MACOS_NOTARY_APPLE_ID`, `MACOS_NOTARY_TEAM_ID` and `MACOS_NOTARY_PASSWOR
 or `MACOS_NOTARY_KEY` as a base64-encoded `.p8` with `MACOS_NOTARY_KEY_ID` and
 `MACOS_NOTARY_KEY_ISSUER`. Missing secrets keep the unsigned package.
 
-Artifact consumers must select a run whose `Record successful package` job
+[Export Package Windows](../.github/workflows/export-package-windows.yml) and
+[Export Package macOS](../.github/workflows/export-package-macos.yml) manually
+produce the same complete package for one platform, including all four templates.
+
+For tests that do not need project templates, run
+[Export Editor](../.github/workflows/export-editor.yml) for both platforms,
+[Export Editor Windows](../.github/workflows/export-editor-windows.yml), or
+[Export Editor macOS](../.github/workflows/export-editor-macos.yml). These
+entries pass `--without-templates`: no template generation, native template builds,
+template downloads or `Templates` directory. They retain the editor, official
+plug-ins and build/package tools for existing projects. Tool preparation builds
+ScriptTools and a standalone `luac`, plus GNU Make on Windows, without configuring
+Game or downloading its SFML/LuaSF/FFmpeg dependencies. Creating a new project
+requires templates from a complete package. Both macOS modes use the same signing
+and notarisation secrets and DMG verification.
+
+The template-free artifacts are `Ludork-editor-windows-x64-<sha>` and
+`Ludork-editor-macos-arm64-<sha>`; complete packages retain `Ludork-windows-x64-<sha>`
+and `Ludork-macos-arm64-<sha>`. All temporary artifacts expire after seven days.
+Consumers of template-free editors inspect the combined or matching single-platform
+Export Editor runs on `main`, require a successful target platform job and a unique,
+unexpired exact-name artifact, and continue to earlier runs when unavailable.
+
+The combined `Export Editor` also runs at 02:00 and 14:00 UTC+8, using the same
+cron as `Export Package`. Each mode deduplicates scheduled runs against its own
+latest successful default-branch dual-platform run, recorded by `Record successful
+editor` or `Record successful package`; legacy complete-package runs under the old
+Export Editor name do not count as editor-only successes. Manual runs always build.
+
+The six entries reuse each platform's packaging steps and managed/launcher caches;
+complete and template-free preparation caches are separate. Concurrency groups are
+separate for each platform and package mode, so full packages do not hold up
+scheduled editor-only builds. Scheduled and manual runs use `--dev`. Only a `v*`
+tag push to `Export Package` uses `--release` and creates or updates a draft Release
+with complete Windows MSI and macOS DMG packages, both including templates.
+
+Consumers of the combined `Export Package` workflow must select a run whose `Record successful package` job
 succeeded and whose requested artifact is still available and unexpired. Selecting
 only the latest successful workflow is insufficient: a scheduled run skipped for
 an unchanged commit also succeeds, but produces no package artifacts.
@@ -307,7 +349,7 @@ from `EDITOR_VERSION`, and the tag name is never parsed. A rerun updates the
 existing draft; an already published release is not overwritten. No release
 is automatically published, and only the release-upload job has `contents: write`.
 
-The Export Editor workflow uses separate
+The packaging workflows use separate
 exact caches for the prepared environment, native components, C# build outputs
 and Windows editor launcher. Keys include tracked input paths and Git object
 IDs, platform, architecture and configuration; the C# key also includes the .NET
@@ -315,8 +357,8 @@ SDK version. Source additions, deletions and renames invalidate the affected key
 Only successful results are saved, with no prefix-key fallback. A missing or
 evicted cache rebuilds that component. Workflow or cache-rule changes invalidate
 all groups. Delete the relevant Actions cache to force a rebuild with unchanged
-sources. Every non-skipped packaging run packages the selected commit's Game
-project, Lua, plug-ins, locale and docs. Local syntax and build checks do not
+sources. Complete packages include the selected commit's Game templates; both modes
+include its editor, tools, plug-ins, locale and docs. Local syntax and build checks do not
 replace successful hosted Actions runs or confirmation of the `main` merge rule.
 
 Both editor packaging scripts use the shared ScriptTools command
@@ -379,8 +421,9 @@ package and requires the packaged version to match `EDITOR_VERSION`, so run
 different `.msi` path.
 
 `pack_editor.sh` requires macOS on Apple Silicon with a logged-in Finder session,
-the .NET 9 SDK, CMake, ScriptTools built by `init.sh`, and initialized Game project
-dependencies. It produces `dist/Ludork-<version>-macos-arm64.dmg` for macOS 13.3
+the .NET 9 SDK, CMake, ScriptTools and the host Lua compiler. Including templates
+also requires initialized Game project dependencies. It produces
+`dist/Ludork-<version>-macos-arm64.dmg` for macOS 13.3
 or newer. The mounted
 volume visibly contains `Ludork.app`, an `Applications` link, and **Install
 Official Plugins**; Finder hides the installer's `.command` extension. The user
@@ -423,6 +466,13 @@ neighbouring libraries and data files together when copying or moving it.
 `ScriptTools runtime-bundle validate <bundle-directory>`. Package validation
 runs this command through the installed entry point. On macOS it also verifies
 the signatures of every Mach-O executable and library in the copied bundle.
+The macOS editor signer receives that copied directory through
+`macos-sign --runtime-bundle <directory>`. It validates the original manifest
+before signing, regenerates it after signing the runtime's binaries, and seals
+the enclosing app afterwards. This keeps the recorded sizes and hashes aligned
+with the signed files without accepting an incomplete input bundle. The option
+may be repeated for runtime directories inside the application's resources;
+it is not passed when signing the DMG.
 
 Python is needed only when `init` or `build_script_tools` compiles ScriptTools.
 Development build and packaging commands consume the prepared runtime bundle;
@@ -662,7 +712,12 @@ macOS packaging always signs. Without any signing information it applies ad-hoc
 signatures exactly as before; with a signing identity it signs every Mach-O file
 in the bundle from the inside out, then seals the bundle. `pack_project.sh`
 exposes the same options through `ScriptTools macos-sign`, which `pack_editor.sh`
-also uses for the editor application and disk image.
+also uses for the editor application and disk image. Files in a bundle's
+`Contents/MacOS`, including .NET assemblies and configuration files, are signed
+before the bundle; its main executable receives its signature and entitlements
+with the bundle. Non-Mach-O signatures use extended attributes, which must survive
+distribution. Editor packaging verifies the complete app before and after DMG
+creation, including the app mounted from the final disk image.
 
 | Command line | Environment variable |
 |---|---|
@@ -684,9 +739,9 @@ A `--certificate` is imported into a temporary keychain that is removed afterwar
 its password is the first password read from standard input. `--signing-identity`
 selects one identity when the certificate or keychain holds several, and accepts a
 SHA-1 fingerprint. A real identity adds the hardened runtime and a secure timestamp
-to the bundle's code locations; files under `Contents/Resources` keep their
-Developer ID signature without the hardened runtime, so packaged templates and
-helper tools still load their own dependencies. `--entitlements` applies to the
+to all nested code, including helper tools and template executables under
+`Contents/Resources`; their location does not exempt them from notarisation
+requirements. `--entitlements` applies to the
 application's main executable. Apple does not offer a non-interactive alternative
 to passing the `.p12` password on the `security import` command line, so that one
 process argument is unavoidable; every other step keeps passwords on standard input.
@@ -699,6 +754,18 @@ ID and issuer ID, which needs no password. Notarisation requires a real signing
 identity; an ad-hoc identity is rejected. Without notarisation credentials the
 packaging signs only. With `--check`, the packaging validates the environment and
 the signing material, including a notarisation round trip, without building.
+If submission fails or is rejected, the signer retrieves the Apple notary log
+when a submission ID is available, prints its issues in the build log, and keeps
+the original failure status and ID even if that diagnostic download fails.
+
+To inspect CI submissions without rebuilding, manually run
+[Query macOS Notarization](../.github/workflows/macos-notary-status.yml).
+Leave `submission_id` empty to list recent submissions, then run it again with
+one submission UUID to print its status and, once finished, its notary log.
+The workflow reuses the existing `MACOS_NOTARY_*` secrets (Apple ID or API key),
+needs no signing certificate, and does not submit, cancel or wait for notarisation.
+Results appear in the query step's Actions log; workflow success means the query
+succeeded, not that the selected package passed notarisation.
 
 ### iOS signing
 

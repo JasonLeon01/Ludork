@@ -3,6 +3,9 @@ name: Build Templates
 on:
   workflow_call:
     inputs:
+      templates:
+        type: boolean
+        default: true
       windows:
         type: boolean
         default: true
@@ -57,7 +60,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: windows-native-environment.tar
-          key: export-v1-windows-2022-${{ runner.arch }}-environment-${{ needs.build_inputs.outputs.environment }}
+          key: export-v1-windows-2022-${{ runner.arch }}-environment-${{ inputs.templates && 'templates' || 'editor' }}-${{ needs.build_inputs.outputs.environment }}
 
       - name: Unpack cached environment
         if: steps.environment-cache.outputs.cache-hit == 'true'
@@ -79,7 +82,7 @@ jobs:
           arch: amd64
 
       - name: Restore FFmpeg source archive
-        if: steps.environment-cache.outputs.cache-hit != 'true'
+        if: inputs.templates && steps.environment-cache.outputs.cache-hit != 'true'
         id: ffmpeg-source-cache
         uses: actions/cache/restore@v5
         with:
@@ -98,20 +101,36 @@ jobs:
         timeout-minutes: 30
         run: tools\build_script_tools.bat
 
+      - name: Prepare editor tools without templates
+        if: ${{ !inputs.templates && steps.environment-cache.outputs.cache-hit != 'true' }}
+        shell: cmd
+        run: |
+          call tools\cpp_dependencies\lua.bat Game
+          if errorlevel 1 exit /b 1
+          call tools\init_gnu_make.bat
+          if errorlevel 1 exit /b 1
+          cmake -S tools/lua_compiler -B obj/editor-luac -DCMAKE_BUILD_TYPE=Release "-DLUDORK_LUA_SOURCE_DIR=%CD%/Game/Engine/ThirdParty/Lua"
+          if errorlevel 1 exit /b 1
+          cmake --build obj/editor-luac --config Release --target luac
+          if errorlevel 1 exit /b 1
+          cmake --install obj/editor-luac --config Release --prefix "%CD%/.tools/Lua"
+          if errorlevel 1 exit /b 1
+
       - name: Initialize C++ dependencies
-        if: steps.environment-cache.outputs.cache-hit != 'true'
+        if: inputs.templates && steps.environment-cache.outputs.cache-hit != 'true'
         shell: cmd
         timeout-minutes: 20
         run: tools\init_cpp_dependencies.bat Game
 
       - name: Save FFmpeg source archive
-        if: steps.environment-cache.outputs.cache-hit != 'true' && steps.ffmpeg-source-cache.outputs.cache-hit != 'true'
+        if: inputs.templates && steps.environment-cache.outputs.cache-hit != 'true' && steps.ffmpeg-source-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5
         with:
           path: Game/ThirdPartySource/ffmpeg-*.tar.gz
           key: ${{ steps.ffmpeg-source-cache.outputs.cache-primary-key }}
 
       - name: Validate native build inputs
+        if: inputs.templates
         shell: cmd
         timeout-minutes: 10
         run: |
@@ -119,9 +138,14 @@ jobs:
           if errorlevel 1 exit /b 1
 
       - name: Archive prepared environment
-        if: steps.environment-cache.outputs.cache-hit != 'true'
+        if: inputs.templates && steps.environment-cache.outputs.cache-hit != 'true'
         shell: cmd
         run: tar.exe -cf windows-native-environment.tar .tools\ScriptTools .tools\gnu-make .tools\sources .tools\build Game\Engine\ThirdParty\LuaSF Game\Engine\ThirdParty\SFML Game\Engine\ThirdParty\LuaGlue Game\Engine\ThirdParty\Lua Game\Engine\ThirdParty\lua-cjson Game\Engine\ThirdParty\zlib Game\Engine\ThirdParty\ffmpeg Game\ThirdPartySource
+
+      - name: Archive prepared editor tools
+        if: ${{ !inputs.templates && steps.environment-cache.outputs.cache-hit != 'true' }}
+        shell: cmd
+        run: tar.exe -cf windows-native-environment.tar .tools\ScriptTools .tools\Lua .tools\gnu-make .tools\sources .tools\build
 
       - name: Save prepared environment cache
         if: steps.environment-cache.outputs.cache-hit != 'true'
@@ -142,6 +166,7 @@ jobs:
   windows_native:
     name: Windows x64 native / ${{ matrix.component }}
     needs: [build_inputs, windows_prepare]
+    if: inputs.templates
     runs-on: windows-2022
     timeout-minutes: 180
     strategy:
@@ -253,7 +278,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: macos-native-environment.tar
-          key: export-v1-macos-15-${{ runner.arch }}-environment-${{ needs.build_inputs.outputs.environment }}
+          key: export-v1-macos-15-${{ runner.arch }}-environment-${{ inputs.templates && 'templates' || 'editor' }}-${{ needs.build_inputs.outputs.environment }}
 
       - name: Unpack cached environment
         if: steps.environment-cache.outputs.cache-hit == 'true'
@@ -268,7 +293,7 @@ jobs:
           cache-dependency-path: requirements.txt
 
       - name: Restore FFmpeg source archive
-        if: steps.environment-cache.outputs.cache-hit != 'true'
+        if: inputs.templates && steps.environment-cache.outputs.cache-hit != 'true'
         id: ffmpeg-source-cache
         uses: actions/cache/restore@v5
         with:
@@ -287,26 +312,41 @@ jobs:
         timeout-minutes: 30
         run: sh tools/build_script_tools.sh
 
+      - name: Prepare editor tools without templates
+        if: ${{ !inputs.templates && steps.environment-cache.outputs.cache-hit != 'true' }}
+        run: |
+          sh tools/cpp_dependencies/lua.sh Game
+          cmake -S tools/lua_compiler -B obj/editor-luac -DCMAKE_BUILD_TYPE=Release \
+            "-DLUDORK_LUA_SOURCE_DIR=$PWD/Game/Engine/ThirdParty/Lua" \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=13.3
+          cmake --build obj/editor-luac --config Release --target luac
+          cmake --install obj/editor-luac --config Release --prefix "$PWD/.tools/Lua"
+
       - name: Initialize C++ dependencies
-        if: steps.environment-cache.outputs.cache-hit != 'true'
+        if: inputs.templates && steps.environment-cache.outputs.cache-hit != 'true'
         timeout-minutes: 20
         run: sh tools/init_cpp_dependencies.sh Game
 
       - name: Save FFmpeg source archive
-        if: steps.environment-cache.outputs.cache-hit != 'true' && steps.ffmpeg-source-cache.outputs.cache-hit != 'true'
+        if: inputs.templates && steps.environment-cache.outputs.cache-hit != 'true' && steps.ffmpeg-source-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5
         with:
           path: Game/ThirdPartySource/ffmpeg-*.tar.gz
           key: ${{ steps.ffmpeg-source-cache.outputs.cache-primary-key }}
 
       - name: Validate native build inputs
+        if: inputs.templates
         timeout-minutes: 10
         run: |
           .tools/ScriptTools/ScriptTools impl-boundary-check Game
 
       - name: Archive prepared environment
-        if: steps.environment-cache.outputs.cache-hit != 'true'
+        if: inputs.templates && steps.environment-cache.outputs.cache-hit != 'true'
         run: tar -cf macos-native-environment.tar .tools/ScriptTools Game/Engine/ThirdParty/LuaSF Game/Engine/ThirdParty/SFML Game/Engine/ThirdParty/LuaGlue Game/Engine/ThirdParty/Lua Game/Engine/ThirdParty/lua-cjson Game/Engine/ThirdParty/zlib Game/Engine/ThirdParty/ffmpeg Game/ThirdPartySource
+
+      - name: Archive prepared editor tools
+        if: ${{ !inputs.templates && steps.environment-cache.outputs.cache-hit != 'true' }}
+        run: tar -cf macos-native-environment.tar .tools/ScriptTools .tools/Lua
 
       - name: Save prepared environment cache
         if: steps.environment-cache.outputs.cache-hit != 'true'
@@ -327,6 +367,7 @@ jobs:
   macos_native:
     name: macOS ARM64 native / ${{ matrix.component }}
     needs: [build_inputs, macos_prepare]
+    if: inputs.templates
     runs-on: macos-15
     timeout-minutes: 180
     strategy:

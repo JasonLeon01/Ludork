@@ -4,6 +4,7 @@ chcp 65001>nul
 
 for %%I in ("%~dp0..") do set "ROOT_DIR=%%~fI"
 set "PREBUILT_TEMPLATES_DIR="
+set "WITHOUT_TEMPLATES=0"
 set "EDITOR_PUBLISH_OPTIONS="
 set "PREBUILT_LAUNCHER="
 set "PACKAGE_VERSION="
@@ -37,6 +38,11 @@ if /I "%~1"=="--templates" (
     shift
     goto parse_arguments
 )
+if /I "%~1"=="--without-templates" (
+    set "WITHOUT_TEMPLATES=1"
+    shift
+    goto parse_arguments
+)
 if /I "%~1"=="--use-current-editor-build" (
     set "EDITOR_PUBLISH_OPTIONS=--no-build"
     shift
@@ -52,6 +58,10 @@ if /I "%~1"=="--launcher" (
 goto usage
 
 :arguments_ready
+if "%WITHOUT_TEMPLATES%"=="1" if defined PREBUILT_TEMPLATES_DIR (
+    echo --templates and --without-templates are mutually exclusive.
+    exit /b 1
+)
 if not defined PACKAGE_CHANNEL set "PACKAGE_CHANNEL=--dev"
 set "PROJECT_FILE=%ROOT_DIR%\Ludork.csproj"
 set "WORK_DIR=%ROOT_DIR%\obj\editor-package"
@@ -131,7 +141,6 @@ set "SCRIPT_TOOLS_VERSION_REPORT=%SCRIPT_TOOLS_DIRECTORY%\runtime-versions.txt"
 set "FFMPEG_SOURCE_ARCHIVE=%ROOT_DIR%\Game\ThirdPartySource\ffmpeg-%FFMPEG_VERSION%.tar.gz"
 
 for %%F in (
-    "%ROOT_DIR%\tools\create_templates.bat"
     "%ROOT_DIR%\tools\build_ui_preview_host.bat"
     "%ROOT_DIR%\tools\editor_runtime\build_cpp.bat"
     "%ROOT_DIR%\tools\build_standalone.bat"
@@ -140,25 +149,32 @@ for %%F in (
     "%ROOT_DIR%\tools\editor_launcher\CMakeLists.txt"
     "%SCRIPT_TOOLS%"
     "%SCRIPT_TOOLS_VERSION_REPORT%"
-    "%ROOT_DIR%\Game\CMakeLists.txt"
 ) do (
     call :require_file "%%~F"
     if errorlevel 1 exit /b 1
 )
-for %%D in (
-    "%ROOT_DIR%\Game\Engine\ThirdParty\LuaSF"
-    "%ROOT_DIR%\Game\Engine\ThirdParty\SFML"
-    "%ROOT_DIR%\Game\Engine\ThirdParty\LuaGlue"
-    "%ROOT_DIR%\Game\Engine\ThirdParty\Lua"
-    "%ROOT_DIR%\Game\Engine\ThirdParty\lua-cjson"
-    "%ROOT_DIR%\Game\Engine\ThirdParty\zlib"
-) do (
-    call :require_directory "%%~D"
+if "%WITHOUT_TEMPLATES%"=="0" (
+    call :require_file "%ROOT_DIR%\tools\create_templates.bat"
     if errorlevel 1 exit /b 1
+    call :require_file "%ROOT_DIR%\Game\CMakeLists.txt"
+    if errorlevel 1 exit /b 1
+    call :require_file "%ROOT_DIR%\Game\Engine\ThirdParty\ffmpeg\configure"
+    if errorlevel 1 exit /b 1
+    call :require_file "%FFMPEG_SOURCE_ARCHIVE%"
+    if errorlevel 1 exit /b 1
+    for %%D in (
+        "%ROOT_DIR%\Game\Engine\ThirdParty\LuaSF"
+        "%ROOT_DIR%\Game\Engine\ThirdParty\SFML"
+        "%ROOT_DIR%\Game\Engine\ThirdParty\LuaGlue"
+        "%ROOT_DIR%\Game\Engine\ThirdParty\Lua"
+        "%ROOT_DIR%\Game\Engine\ThirdParty\lua-cjson"
+        "%ROOT_DIR%\Game\Engine\ThirdParty\zlib"
+    ) do (
+        call :require_directory "%%~D"
+        if errorlevel 1 exit /b 1
+    )
 )
 for %%F in (
-    "%ROOT_DIR%\Game\Engine\ThirdParty\ffmpeg\configure"
-    "%FFMPEG_SOURCE_ARCHIVE%"
     "%GNU_MAKE_EXE%"
     "%GNU_MAKE_SOURCE%"
     "%ROOT_DIR%\Locale\locale.json"
@@ -242,14 +258,16 @@ popd
 if not "!PACK_RESULT!"=="0" goto failed
 if exist "%STAGE_DIR%\Locale\locale.json" del /Q "%STAGE_DIR%\Locale\locale.json"
 
-if defined PREBUILT_TEMPLATES_DIR (
-    echo Copying prepared editor project templates...
-    call :copy_directory "%PREBUILT_TEMPLATES_DIR%" "%STAGE_DIR%\Templates"
-    if errorlevel 1 goto failed
-) else (
-    echo Generating editor project templates...
-    call "%ROOT_DIR%\tools\create_templates.bat" Release "%STAGE_DIR%\Templates"
-    if errorlevel 1 goto failed
+if "%WITHOUT_TEMPLATES%"=="0" (
+    if defined PREBUILT_TEMPLATES_DIR (
+        echo Copying prepared editor project templates...
+        call :copy_directory "%PREBUILT_TEMPLATES_DIR%" "%STAGE_DIR%\Templates"
+        if errorlevel 1 goto failed
+    ) else (
+        echo Generating editor project templates...
+        call "%ROOT_DIR%\tools\create_templates.bat" Release "%STAGE_DIR%\Templates"
+        if errorlevel 1 goto failed
+    )
 )
 
 echo Preparing official editor plugins...
@@ -285,8 +303,10 @@ call :purge_python_cache "%STAGE_DIR%"
 if errorlevel 1 goto failed
 call :purge_debug_symbols "%STAGE_DIR%"
 if errorlevel 1 goto failed
-call :purge_template_runtime_state "%STAGE_DIR%\Templates"
-if errorlevel 1 goto failed
+if "%WITHOUT_TEMPLATES%"=="0" (
+    call :purge_template_runtime_state "%STAGE_DIR%\Templates"
+    if errorlevel 1 goto failed
+)
 call :validate_package "%STAGE_DIR%"
 if errorlevel 1 goto failed
 
@@ -365,17 +385,24 @@ call :require_file "%PACKAGE_DIR%\Locale\en_GB"
 if errorlevel 1 exit /b 1
 call :require_file "%PACKAGE_DIR%\Locale\zh_CN"
 if errorlevel 1 exit /b 1
-call :require_file "%PACKAGE_DIR%\Templates\Cpp\Main.proj"
-if errorlevel 1 exit /b 1
-call :require_file "%PACKAGE_DIR%\Templates\Cpp-ffmpeg\Main.proj"
-if errorlevel 1 exit /b 1
-call :validate_standalone_runtime_layout "%PACKAGE_DIR%\Templates\Standalone"
-if errorlevel 1 exit /b 1
-call :validate_standalone_runtime_layout "%PACKAGE_DIR%\Templates\Standalone-ffmpeg"
-if errorlevel 1 exit /b 1
-for %%T in (%TEMPLATE_NAMES%) do (
-    "%SCRIPT_TOOLS%" validate-ldpak-source "%PACKAGE_DIR%\Templates\%%T"
+if "%WITHOUT_TEMPLATES%"=="1" (
+    if exist "%PACKAGE_DIR%\Templates" (
+        echo Unexpected Templates entry in an editor-only package: %PACKAGE_DIR%\Templates
+        exit /b 1
+    )
+) else (
+    call :require_file "%PACKAGE_DIR%\Templates\Cpp\Main.proj"
     if errorlevel 1 exit /b 1
+    call :require_file "%PACKAGE_DIR%\Templates\Cpp-ffmpeg\Main.proj"
+    if errorlevel 1 exit /b 1
+    call :validate_standalone_runtime_layout "%PACKAGE_DIR%\Templates\Standalone"
+    if errorlevel 1 exit /b 1
+    call :validate_standalone_runtime_layout "%PACKAGE_DIR%\Templates\Standalone-ffmpeg"
+    if errorlevel 1 exit /b 1
+    for %%T in (%TEMPLATE_NAMES%) do (
+        "%SCRIPT_TOOLS%" validate-ldpak-source "%PACKAGE_DIR%\Templates\%%T"
+        if errorlevel 1 exit /b 1
+    )
 )
 call :require_file "%PACKAGE_DIR%\tools\build_cpp.bat"
 if errorlevel 1 exit /b 1
@@ -605,6 +632,8 @@ for /r "%PACKAGE_DIR%\tools" %%F in (*.sh) do (
         exit /b 1
     )
 )
+if "%WITHOUT_TEMPLATES%"=="1" exit /b 0
+
 for %%T in (%TEMPLATE_NAMES%) do (
     call :require_file "%PACKAGE_DIR%\Templates\%%T\LICENSE.md"
     if errorlevel 1 exit /b 1
@@ -748,7 +777,7 @@ for /f "delims=" %%F in ('dir /B /A "%~1\%EDITOR_CACHE_DIRECTORY%"') do if not "
 exit /b 0
 
 :usage
-echo Usage: tools\pack_editor.bat [--version X.Y.Z] [--dev^|--release] [--templates ^<folder^>] [--use-current-editor-build] [--launcher ^<file^>]
+echo Usage: tools\pack_editor.bat [--version X.Y.Z] [--dev^|--release] [--templates ^<folder^>^|--without-templates] [--use-current-editor-build] [--launcher ^<file^>]
 exit /b 1
 
 :conflicting_channel

@@ -1,0 +1,92 @@
+name: Export Package
+
+on:
+  schedule:
+    - cron: '0 6,18 * * *'
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: export-package-${{ github.event_name == 'push' && github.ref || 'temporary' }}
+  cancel-in-progress: false
+
+jobs:
+  package_decision:
+    name: Decide whether to package
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.decision.outputs.should_build }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Compare with the last successful temporary package
+        id: decision
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { shouldRun } = require('./.github/scripts/package_control.cjs');
+            await shouldRun({ github, context, core }, 'export-package.yml', 'Record successful package');
+
+  windows:
+    name: Windows x64
+    needs: package_decision
+    if: needs.package_decision.outputs.should_build == 'true'
+    uses: ./.github/workflows/export-package-windows.yml
+    with:
+      release: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+
+  macos:
+    name: macOS ARM64
+    needs: package_decision
+    if: needs.package_decision.outputs.should_build == 'true'
+    uses: ./.github/workflows/export-package-macos.yml
+    with:
+      release: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+    secrets: inherit
+
+  package_complete:
+    name: Record successful package
+    needs: [windows, macos]
+    if: github.event_name != 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record the packaged commit
+        env:
+          PACKAGE_SHA: ${{ github.sha }}
+        run: echo "Both platform packages completed for $PACKAGE_SHA" >> "$GITHUB_STEP_SUMMARY"
+
+  release:
+    name: Update draft release
+    needs: [windows, macos]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Download Windows installer
+        uses: actions/download-artifact@v8
+        with:
+          name: Ludork-windows-x64-msi-${{ github.sha }}
+          path: obj/release/assets
+      - name: Download macOS DMG
+        uses: actions/download-artifact@v8
+        with:
+          name: Ludork-macos-arm64-${{ github.sha }}
+          path: obj/release/assets
+      - name: Create or update the draft
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { publishRelease } = require('./.github/scripts/package_control.cjs');
+            await publishRelease({ github, context, core }, 'obj/release/assets');

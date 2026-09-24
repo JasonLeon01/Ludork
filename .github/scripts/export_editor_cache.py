@@ -6,7 +6,10 @@ from pathlib import Path
 
 
 COMMON_INPUTS = (
+    ".github/workflows/export-package*.yml",
     ".github/workflows/export-editor.yml",
+    ".github/workflows/export-editor-windows.yml",
+    ".github/workflows/export-editor-macos.yml",
     ".github/workflows/build-templates.yml",
     ".github/scripts/export_editor_cache.py",
 )
@@ -20,6 +23,7 @@ ENVIRONMENT_INPUTS = (
     "tools/init_cpp_dependencies.*",
     "tools/init_ffmpeg_source.*",
     "tools/init_gnu_make.*",
+    "tools/lua_compiler/*",
     "tools/common.sh",
 )
 NATIVE_INPUTS = (

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import pathlib
+import plistlib
 import re
 import secrets
 import shutil
@@ -14,6 +15,7 @@ from typing import TextIO
 
 from .pack_error import PackError
 from .packaging_constants import EXIT_SIGNING, EXIT_TOOLCHAIN
+from .runtime_bundle import MANIFEST_NAME, validate_bundle, write_manifest
 
 
 MACOS_SIGNING_IDENTITY_ENVIRONMENT = "LUDORK_MACOS_SIGNING_IDENTITY"
@@ -34,9 +36,6 @@ NOTARY_KEYCHAIN_PROFILE = "ludork-notary"
 KEYCHAIN_TIMEOUT_SECONDS = "21600"
 
 _BUNDLE_SUFFIXES = frozenset({".app", ".appex", ".bundle", ".framework", ".plugin", ".xpc"})
-_CODE_LOCATION_DIRECTORIES = frozenset(
-    {"MacOS", "Frameworks", "SharedFrameworks", "PlugIns", "Helpers", "XPCServices", "Library"}
-)
 _MACH_O_MAGICS = frozenset(
     (
         b"\xfe\xed\xfa\xce", b"\xce\xfa\xed\xfe",
@@ -135,12 +134,13 @@ def _run_streaming(
     *,
     environment: dict[str, str] | None = None,
     input_text: str | None = None,
+    check: bool = True,
 ) -> subprocess.CompletedProcess[str]:
     print("> " + " ".join(command), flush=True)
     result = _run_capture(command, environment=environment, input_text=input_text, timeout=None)
     if result.stdout:
         print(result.stdout.rstrip("\n"), flush=True)
-    if result.returncode != 0:
+    if check and result.returncode != 0:
         raise PackError(
             f"Command failed with exit code {result.returncode}: {command[0]}",
             EXIT_SIGNING,
@@ -289,7 +289,13 @@ class TemporaryKeychain:
                 timeout=60,
             ).stdout
         )
-        valid = tuple(identity for identity, status in entries if not status)
+        valid = tuple(
+            {
+                identity.identifier: identity
+                for identity, status in entries
+                if not status
+            }.values()
+        )
         if valid:
             return valid
         if entries:
@@ -347,28 +353,43 @@ def _depth(path: pathlib.Path) -> int:
     return len(path.parts)
 
 
+def _bundle_main_executable(bundle: pathlib.Path) -> pathlib.Path | None:
+    info = bundle / "Contents" / "Info.plist"
+    if not info.is_file():
+        return None
+    try:
+        with info.open("rb") as stream:
+            metadata = plistlib.load(stream)
+    except (OSError, ValueError, plistlib.InvalidFileException) as exception:
+        raise PackError(f"Could not read signing bundle metadata: {info}", EXIT_SIGNING) from exception
+    executable = metadata.get("CFBundleExecutable")
+    return bundle / "Contents" / "MacOS" / executable if executable else None
+
+
 def nested_sign_targets(root: pathlib.Path) -> list[pathlib.Path]:
     targets: list[pathlib.Path] = []
+    bundle_executables = {_bundle_main_executable(root)}
     for directory, directory_names, file_names in os.walk(root):
         current = pathlib.Path(directory)
+        owner = next(
+            parent for parent in (current, *current.parents)
+            if parent == root or parent.suffix in _BUNDLE_SUFFIXES
+        )
+        in_macos = current.is_relative_to(owner / "Contents" / "MacOS")
         directory_names.sort()
         for name in sorted(directory_names):
             path = current / name
             if not path.is_symlink() and path.suffix in _BUNDLE_SUFFIXES:
                 targets.append(path)
+                bundle_executables.add(_bundle_main_executable(path))
         for name in sorted(file_names):
             path = current / name
-            if not path.is_symlink() and is_mach_o(path):
+            if not path.is_symlink() and path.is_file() and (in_macos or is_mach_o(path)):
                 targets.append(path)
-    return sorted(targets, key=_depth, reverse=True)
-
-
-def _uses_hardened_runtime(root: pathlib.Path, target: pathlib.Path, hardened: bool) -> bool:
-    if not hardened:
-        return False
-    relative = target.relative_to(root)
-    return len(relative.parts) > 1 and relative.parts[0] == "Contents" and (
-        relative.parts[1] in _CODE_LOCATION_DIRECTORIES
+    return sorted(
+        (path for path in targets if path not in bundle_executables),
+        key=_depth,
+        reverse=True,
     )
 
 
@@ -420,17 +441,41 @@ def sign_artifact(
     entitlements: pathlib.Path | None = None,
     keychain: pathlib.Path | None = None,
     notarized: bool = False,
+    runtime_bundles: tuple[pathlib.Path, ...] = (),
 ) -> None:
+    target = target.resolve()
     if not target.exists():
         raise PackError(f"The signing target was not found: {target}", EXIT_SIGNING)
+    if runtime_bundles and not target.is_dir():
+        raise PackError("Runtime bundles require an application signing target.", EXIT_SIGNING)
     hardened = identity != AD_HOC_IDENTITY
     if target.is_dir():
-        for nested in nested_sign_targets(target):
+        targets = nested_sign_targets(target)
+        runtime_directories: set[pathlib.Path] = set()
+        for directory in runtime_bundles:
+            resolved = directory.resolve()
+            if resolved == target or not resolved.is_relative_to(target):
+                raise PackError(f"Runtime bundle must be inside the signing target: {directory}", EXIT_SIGNING)
+            if resolved in targets or resolved / MANIFEST_NAME in targets:
+                raise PackError(f"Runtime bundle must occupy a resource location: {directory}", EXIT_SIGNING)
+            try:
+                validate_bundle(directory)
+            except (OSError, ValueError, RuntimeError) as exception:
+                raise PackError(f"Runtime bundle validation failed for {directory}: {exception}", EXIT_SIGNING) from exception
+            runtime_directories.add(resolved)
+        for nested in sorted([*targets, *sorted(runtime_directories)], key=_depth, reverse=True):
+            if nested in runtime_directories:
+                try:
+                    write_manifest(nested)
+                    validate_bundle(nested)
+                except (OSError, ValueError, RuntimeError) as exception:
+                    raise PackError(f"Runtime bundle finalisation failed for {nested}: {exception}", EXIT_SIGNING) from exception
+                continue
             _codesign(
                 nested,
                 identity=identity,
                 environment=environment,
-                hardened_runtime=_uses_hardened_runtime(target, nested, hardened),
+                hardened_runtime=hardened,
                 keychain=keychain,
             )
         _codesign(
@@ -595,12 +640,29 @@ def notarize_and_staple(
                 "json",
             ],
             environment=environment,
+            check=False,
         )
     report = _notary_report(result.stdout)
     status = str(report.get("status", "")).strip()
-    if status != "Accepted":
+    if result.returncode != 0 or status != "Accepted":
+        submission_id = str(report.get("id", "")).strip()
+        if submission_id:
+            print(f"Notarisation log for submission {submission_id}:", flush=True)
+            log = _run_capture(
+                ["xcrun", "notarytool", "log", submission_id, *credentials.arguments(keychain.path)],
+                environment=environment,
+                timeout=120,
+            )
+            if log.stdout:
+                print(log.stdout.rstrip("\n"), flush=True)
+            if log.returncode != 0:
+                print(f"Could not retrieve the notarisation log (exit code {log.returncode}).", file=sys.stderr, flush=True)
         message = str(report.get("message", "")).strip()
         detail = f"\n{message}" if message else ""
+        if submission_id:
+            detail += f"\nSubmission ID: {submission_id}"
+        if result.returncode != 0:
+            detail += f"\nSubmission command exit code: {result.returncode}"
         raise PackError(
             f"Notarisation was not accepted for {artifact}: {status or 'unknown status'}{detail}",
             EXIT_SIGNING,

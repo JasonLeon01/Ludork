@@ -1,0 +1,187 @@
+name: Export Editor macOS
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      templates:
+        type: boolean
+        default: false
+      release:
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  EDITOR_CHANNEL: ${{ inputs.release && '--release' || '--dev' }}
+
+concurrency:
+  group: export-${{ inputs.templates && 'package' || 'editor' }}-macos-${{ github.event_name == 'push' && github.ref || 'temporary' }}
+  cancel-in-progress: false
+
+jobs:
+  preparation:
+    uses: ./.github/workflows/build-templates.yml
+    with:
+      templates: ${{ inputs.templates == true }}
+      windows: false
+      macos: true
+
+  macos:
+    name: macOS ARM64
+    needs: preparation
+    runs-on: macos-15
+    timeout-minutes: 180
+    env:
+      CMAKE_GENERATOR: Ninja
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Resolve active .NET SDK
+        id: dotnet-sdk
+        run: |
+          version=$(dotnet --version)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Restore C# build outputs
+        id: managed-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            bin/Release
+            obj/Release
+            Editor/Ludork.Plugin.Abstractions/bin/Release
+            Editor/Ludork.Plugin.Abstractions/obj/Release
+            Editor/Ludork.Plugin.Avalonia/bin/Release
+            Editor/Ludork.Plugin.Avalonia/obj/Release
+          key: export-v1-macos-15-${{ runner.arch }}-managed-Release-${{ steps.dotnet-sdk.outputs.version }}-${{ needs.preparation.outputs.managed }}
+
+      - name: Download prepared environment
+        uses: actions/download-artifact@v8
+        with:
+          name: macos-native-environment.tar
+          path: obj/editor-inputs/artifacts
+
+      - name: Download templates without FFmpeg
+        if: inputs.templates
+        uses: actions/download-artifact@v8
+        with:
+          name: macos-templates-plain.tar
+          path: obj/editor-inputs/artifacts
+
+      - name: Download templates with FFmpeg
+        if: inputs.templates
+        uses: actions/download-artifact@v8
+        with:
+          name: macos-templates-ffmpeg.tar
+          path: obj/editor-inputs/artifacts
+
+      - name: Download Lua compiler
+        if: inputs.templates
+        uses: actions/download-artifact@v8
+        with:
+          name: macos-luac.tar
+          path: obj/editor-inputs/artifacts
+
+      - name: Restore editor tools
+        if: ${{ !inputs.templates }}
+        run: tar -xf obj/editor-inputs/artifacts/macos-native-environment.tar -C .
+
+      - name: Restore editor inputs
+        if: inputs.templates
+        run: |
+          tar -xf obj/editor-inputs/artifacts/macos-native-environment.tar -C .
+          mkdir -p .tools/Lua obj/editor-inputs/Templates
+          tar -xf obj/editor-inputs/artifacts/macos-luac.tar -C .tools/Lua
+          tar -xf obj/editor-inputs/artifacts/macos-templates-plain.tar -C obj/editor-inputs/Templates
+          tar -xf obj/editor-inputs/artifacts/macos-templates-ffmpeg.tar -C obj/editor-inputs/Templates
+
+      - name: Prepare macOS signing material
+        id: signing
+        env:
+          MACOS_SIGNING_CERTIFICATE: ${{ secrets.MACOS_SIGNING_CERTIFICATE }}
+          MACOS_NOTARY_KEY: ${{ secrets.MACOS_NOTARY_KEY }}
+        run: |
+          set -eu
+          certificate=${MACOS_SIGNING_CERTIFICATE:-}
+          notary_key=${MACOS_NOTARY_KEY:-}
+          if [ -z "$certificate" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          printf '%s' "$certificate" | base64 --decode > "$RUNNER_TEMP/ludork-signing.p12"
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+          echo "certificate=$RUNNER_TEMP/ludork-signing.p12" >> "$GITHUB_OUTPUT"
+          if [ -n "$notary_key" ]; then
+            printf '%s' "$notary_key" | base64 --decode > "$RUNNER_TEMP/ludork-notary.p8"
+            echo "notaryKey=$RUNNER_TEMP/ludork-notary.p8" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Package editor DMG
+        env:
+          INCLUDE_TEMPLATES: ${{ inputs.templates }}
+          EDITOR_BUILD_OPTION: ${{ steps.managed-cache.outputs.cache-hit == 'true' && '--use-current-editor-build' || '' }}
+          SIGNING_ENABLED: ${{ steps.signing.outputs.enabled }}
+          MACOS_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_SIGNING_CERTIFICATE_PASSWORD }}
+          MACOS_NOTARY_PASSWORD: ${{ secrets.MACOS_NOTARY_PASSWORD }}
+          LUDORK_MACOS_SIGNING_CERTIFICATE: ${{ steps.signing.outputs.certificate }}
+          LUDORK_MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          LUDORK_MACOS_NOTARY_APPLE_ID: ${{ secrets.MACOS_NOTARY_APPLE_ID }}
+          LUDORK_MACOS_NOTARY_TEAM_ID: ${{ secrets.MACOS_NOTARY_TEAM_ID }}
+          LUDORK_MACOS_NOTARY_KEY: ${{ steps.signing.outputs.notaryKey }}
+          LUDORK_MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+          LUDORK_MACOS_NOTARY_KEY_ISSUER: ${{ secrets.MACOS_NOTARY_KEY_ISSUER }}
+        run: |
+          set -eu
+          set -- --without-templates
+          if [ "$INCLUDE_TEMPLATES" = "true" ]; then
+            set -- --templates "$PWD/obj/editor-inputs/Templates"
+          fi
+          if [ "$SIGNING_ENABLED" != "true" ]; then
+            sh tools/pack_editor.sh "$EDITOR_CHANNEL" ${EDITOR_BUILD_OPTION:+"$EDITOR_BUILD_OPTION"} "$@"
+            exit 0
+          fi
+          notary_apple_id=${LUDORK_MACOS_NOTARY_APPLE_ID:-}
+          notary_key=${LUDORK_MACOS_NOTARY_KEY:-}
+          if [ -n "$notary_apple_id" ] || [ -n "$notary_key" ]; then
+            set -- "$@" --notarize
+          fi
+          if [ -n "$notary_apple_id" ]; then
+            printf '%s\n%s\n' "$MACOS_SIGNING_CERTIFICATE_PASSWORD" "$MACOS_NOTARY_PASSWORD"
+          else
+            printf '%s\n' "$MACOS_SIGNING_CERTIFICATE_PASSWORD"
+          fi | sh tools/pack_editor.sh "$EDITOR_CHANNEL" ${EDITOR_BUILD_OPTION:+"$EDITOR_BUILD_OPTION"} "$@"
+
+      - name: Save C# build outputs
+        if: steps.managed-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            bin/Release
+            obj/Release
+            Editor/Ludork.Plugin.Abstractions/bin/Release
+            Editor/Ludork.Plugin.Abstractions/obj/Release
+            Editor/Ludork.Plugin.Avalonia/bin/Release
+            Editor/Ludork.Plugin.Avalonia/obj/Release
+          key: ${{ steps.managed-cache.outputs.cache-primary-key }}
+
+      - name: Upload editor DMG
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.templates && 'Ludork' || 'Ludork-editor' }}-macos-arm64-${{ github.sha }}
+          path: dist/Ludork-*-macos-arm64.dmg
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7

@@ -34,6 +34,7 @@ class SigningSession:
     certificate: pathlib.Path | None
     certificate_password: str
     entitlements: pathlib.Path | None
+    runtime_bundles: tuple[pathlib.Path, ...]
     credentials: NotaryCredentials | None
     notary_password: str
     check_only: bool
@@ -47,13 +48,14 @@ def create_parser() -> argparse.ArgumentParser:
             "macos-sign [--signing-identity NAME] [--certificate PATH.p12] "
             "[--entitlements PATH.plist] [--notarize] [--notary-apple-id EMAIL] "
             "[--notary-team-id TEAMID] [--notary-key PATH.p8] [--notary-key-id ID] "
-            "[--notary-key-issuer UUID] [--check] <app-or-dmg>"
+            "[--notary-key-issuer UUID] [--runtime-bundle PATH] [--check] <app-or-dmg>"
         ),
     )
     parser.add_argument("target", type=pathlib.Path)
     parser.add_argument("--signing-identity")
     parser.add_argument("--certificate", type=pathlib.Path)
     parser.add_argument("--entitlements", type=pathlib.Path)
+    parser.add_argument("--runtime-bundle", type=pathlib.Path, action="append", default=[])
     parser.add_argument("--notarize", action="store_true")
     parser.add_argument("--notary-apple-id")
     parser.add_argument("--notary-team-id")
@@ -128,6 +130,7 @@ def create_session(parsed: argparse.Namespace) -> SigningSession:
         certificate,
         certificate_password,
         entitlements,
+        tuple(directory.expanduser().absolute() for directory in parsed.runtime_bundle),
         credentials,
         notary_password,
         parsed.check,
@@ -181,6 +184,7 @@ def perform(session: SigningSession, keychain: TemporaryKeychain | None) -> None
         identity=identity,
         environment=session.environment,
         entitlements=session.entitlements,
+        runtime_bundles=session.runtime_bundles,
         keychain=keychain.path if keychain is not None and session.certificate is not None else None,
     )
     if session.credentials is not None:

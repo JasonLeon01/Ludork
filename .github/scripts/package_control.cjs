@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-async function shouldRun({ github, context, core }) {
+async function shouldRun({ github, context, core }, workflow, markerName) {
   if (context.eventName !== 'schedule') {
     core.setOutput('should_build', true);
     return true;
@@ -16,7 +16,7 @@ async function shouldRun({ github, context, core }) {
   for (let page = 1; ; page++) {
     const { data } = await github.rest.actions.listWorkflowRuns({
       ...context.repo,
-      workflow_id: 'export-editor.yml',
+      workflow_id: workflow,
       per_page: 100,
       page,
     });
@@ -36,7 +36,7 @@ async function shouldRun({ github, context, core }) {
           per_page: 100,
           page: jobPage,
         });
-        marker = jobs.jobs.find(job => job.name === 'Record successful package'
+        marker = jobs.jobs.find(job => job.name === markerName
           && job.conclusion === 'success');
         if (marker || jobs.jobs.length < 100) break;
       }

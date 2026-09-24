@@ -2,21 +2,15 @@ name: Export Editor
 
 on:
   schedule:
-    - cron: '0 0,8 * * *'
+    - cron: '0 6,18 * * *'
   workflow_dispatch:
-  push:
-    tags:
-      - 'v*'
 
 permissions:
   contents: read
   actions: read
 
-env:
-  EDITOR_CHANNEL: ${{ startsWith(github.ref, 'refs/tags/v') && '--release' || '--dev' }}
-
 concurrency:
-  group: export-editor-${{ github.event_name == 'push' && github.ref || 'temporary' }}
+  group: export-editor-temporary
   cancel-in-progress: false
 
 jobs:
@@ -29,351 +23,34 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - name: Compare with the last successful temporary package
+      - name: Compare with the last successful temporary editor
         id: decision
         uses: actions/github-script@v8
         with:
           script: |
             const { shouldRun } = require('./.github/scripts/package_control.cjs');
-            await shouldRun({ github, context, core });
-
-  templates:
-    needs: package_decision
-    if: needs.package_decision.outputs.should_build == 'true'
-    uses: ./.github/workflows/build-templates.yml
+            await shouldRun({ github, context, core }, 'export-editor.yml', 'Record successful editor');
 
   windows:
     name: Windows x64
-    needs: templates
-    runs-on: windows-2022
-    timeout-minutes: 180
-    env:
-      CMAKE_GENERATOR: Ninja
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-
-      - name: Set up .NET
-        uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: "9.0.x"
-
-      - name: Resolve active .NET SDK
-        id: dotnet-sdk
-        shell: pwsh
-        run: |
-          $version = & dotnet --version
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          "version=$version" >> $env:GITHUB_OUTPUT
-
-      - name: Restore C# build outputs
-        id: managed-cache
-        uses: actions/cache/restore@v5
-        with:
-          path: |
-            bin/Release
-            obj/Release
-            Editor/Ludork.Plugin.Abstractions/bin/Release
-            Editor/Ludork.Plugin.Abstractions/obj/Release
-            Editor/Ludork.Plugin.Avalonia/bin/Release
-            Editor/Ludork.Plugin.Avalonia/obj/Release
-          key: export-v1-windows-2022-${{ runner.arch }}-managed-Release-${{ steps.dotnet-sdk.outputs.version }}-${{ needs.templates.outputs.managed }}
-
-      - name: Set up MSVC command-line environment
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: amd64
-
-      - name: Restore editor launcher
-        id: launcher-cache
-        uses: actions/cache/restore@v5
-        with:
-          path: obj/editor-launcher/bin/Release
-          key: export-v1-windows-2022-${{ runner.arch }}-launcher-Release-${{ needs.templates.outputs.launcher }}
-
-      - name: Build editor launcher
-        if: steps.launcher-cache.outputs.cache-hit != 'true'
-        shell: pwsh
-        run: |
-          $version = (& dotnet msbuild Ludork.csproj -nologo -getProperty:Version).Trim()
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          cmake -S tools/editor_launcher -B obj/editor-launcher -DCMAKE_BUILD_TYPE=Release "-DLUDORK_VERSION=$version"
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          cmake --build obj/editor-launcher --config Release --target LudorkEditorLauncher
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-
-      - name: Save editor launcher
-        if: steps.launcher-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: obj/editor-launcher/bin/Release
-          key: ${{ steps.launcher-cache.outputs.cache-primary-key }}
-
-      - name: Download prepared environment
-        uses: actions/download-artifact@v8
-        with:
-          name: windows-native-environment.tar
-          path: obj/editor-inputs/artifacts
-
-      - name: Download templates without FFmpeg
-        uses: actions/download-artifact@v8
-        with:
-          name: windows-templates-plain.tar
-          path: obj/editor-inputs/artifacts
-
-      - name: Download templates with FFmpeg
-        uses: actions/download-artifact@v8
-        with:
-          name: windows-templates-ffmpeg.tar
-          path: obj/editor-inputs/artifacts
-
-      - name: Download Lua compiler
-        uses: actions/download-artifact@v8
-        with:
-          name: windows-luac.tar
-          path: obj/editor-inputs/artifacts
-
-      - name: Restore editor inputs
-        shell: cmd
-        run: |
-          tar.exe -xf "obj\editor-inputs\artifacts\windows-native-environment.tar" -C .
-          if errorlevel 1 exit /b 1
-          if not exist ".tools\Lua" mkdir ".tools\Lua"
-          if not exist "obj\editor-inputs\Templates" mkdir "obj\editor-inputs\Templates"
-          tar.exe -xf "obj\editor-inputs\artifacts\windows-luac.tar" -C ".tools\Lua"
-          if errorlevel 1 exit /b 1
-          tar.exe -xf "obj\editor-inputs\artifacts\windows-templates-plain.tar" -C "obj\editor-inputs\Templates"
-          if errorlevel 1 exit /b 1
-          tar.exe -xf "obj\editor-inputs\artifacts\windows-templates-ffmpeg.tar" -C "obj\editor-inputs\Templates"
-          if errorlevel 1 exit /b 1
-
-      - name: Package editor
-        env:
-          EDITOR_BUILD_OPTION: ${{ steps.managed-cache.outputs.cache-hit == 'true' && '--use-current-editor-build' || '' }}
-        shell: cmd
-        run: tools\pack_editor.bat --templates "%CD%\obj\editor-inputs\Templates" --launcher "%CD%\obj\editor-launcher\bin\Release\Ludork.exe" %EDITOR_CHANNEL% %EDITOR_BUILD_OPTION%
-
-      - name: Save C# build outputs
-        if: steps.managed-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: |
-            bin/Release
-            obj/Release
-            Editor/Ludork.Plugin.Abstractions/bin/Release
-            Editor/Ludork.Plugin.Abstractions/obj/Release
-            Editor/Ludork.Plugin.Avalonia/bin/Release
-            Editor/Ludork.Plugin.Avalonia/obj/Release
-          key: ${{ steps.managed-cache.outputs.cache-primary-key }}
-
-      - name: Build editor MSI
-        if: startsWith(github.ref, 'refs/tags/v')
-        shell: cmd
-        run: tools\pack_editor_msi.bat
-
-      - name: Upload editor package
-        uses: actions/upload-artifact@v7
-        with:
-          name: Ludork-windows-x64-${{ github.sha }}
-          path: dist/
-          if-no-files-found: error
-          include-hidden-files: true
-          compression-level: 0
-          retention-days: 7
-
-      - name: Upload editor MSI
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-artifact@v7
-        with:
-          name: Ludork-windows-x64-msi-${{ github.sha }}
-          path: Ludork-*-windows-x64.msi
-          if-no-files-found: error
-          compression-level: 0
-          retention-days: 7
+    needs: package_decision
+    if: needs.package_decision.outputs.should_build == 'true'
+    uses: ./.github/workflows/export-editor-windows.yml
 
   macos:
     name: macOS ARM64
-    needs: templates
-    runs-on: macos-15
-    timeout-minutes: 180
-    env:
-      CMAKE_GENERATOR: Ninja
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-
-      - name: Set up .NET
-        uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: "9.0.x"
-
-      - name: Resolve active .NET SDK
-        id: dotnet-sdk
-        run: |
-          version=$(dotnet --version)
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-
-      - name: Restore C# build outputs
-        id: managed-cache
-        uses: actions/cache/restore@v5
-        with:
-          path: |
-            bin/Release
-            obj/Release
-            Editor/Ludork.Plugin.Abstractions/bin/Release
-            Editor/Ludork.Plugin.Abstractions/obj/Release
-            Editor/Ludork.Plugin.Avalonia/bin/Release
-            Editor/Ludork.Plugin.Avalonia/obj/Release
-          key: export-v1-macos-15-${{ runner.arch }}-managed-Release-${{ steps.dotnet-sdk.outputs.version }}-${{ needs.templates.outputs.managed }}
-
-      - name: Download prepared environment
-        uses: actions/download-artifact@v8
-        with:
-          name: macos-native-environment.tar
-          path: obj/editor-inputs/artifacts
-
-      - name: Download templates without FFmpeg
-        uses: actions/download-artifact@v8
-        with:
-          name: macos-templates-plain.tar
-          path: obj/editor-inputs/artifacts
-
-      - name: Download templates with FFmpeg
-        uses: actions/download-artifact@v8
-        with:
-          name: macos-templates-ffmpeg.tar
-          path: obj/editor-inputs/artifacts
-
-      - name: Download Lua compiler
-        uses: actions/download-artifact@v8
-        with:
-          name: macos-luac.tar
-          path: obj/editor-inputs/artifacts
-
-      - name: Restore editor inputs
-        run: |
-          tar -xf obj/editor-inputs/artifacts/macos-native-environment.tar -C .
-          mkdir -p .tools/Lua obj/editor-inputs/Templates
-          tar -xf obj/editor-inputs/artifacts/macos-luac.tar -C .tools/Lua
-          tar -xf obj/editor-inputs/artifacts/macos-templates-plain.tar -C obj/editor-inputs/Templates
-          tar -xf obj/editor-inputs/artifacts/macos-templates-ffmpeg.tar -C obj/editor-inputs/Templates
-
-      - name: Prepare macOS signing material
-        id: signing
-        env:
-          MACOS_SIGNING_CERTIFICATE: ${{ secrets.MACOS_SIGNING_CERTIFICATE }}
-          MACOS_NOTARY_KEY: ${{ secrets.MACOS_NOTARY_KEY }}
-        run: |
-          set -eu
-          certificate=${MACOS_SIGNING_CERTIFICATE:-}
-          notary_key=${MACOS_NOTARY_KEY:-}
-          if [ -z "$certificate" ]; then
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          printf '%s' "$certificate" | base64 --decode > "$RUNNER_TEMP/ludork-signing.p12"
-          echo "enabled=true" >> "$GITHUB_OUTPUT"
-          echo "certificate=$RUNNER_TEMP/ludork-signing.p12" >> "$GITHUB_OUTPUT"
-          if [ -n "$notary_key" ]; then
-            printf '%s' "$notary_key" | base64 --decode > "$RUNNER_TEMP/ludork-notary.p8"
-            echo "notaryKey=$RUNNER_TEMP/ludork-notary.p8" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Package editor DMG
-        env:
-          EDITOR_BUILD_OPTION: ${{ steps.managed-cache.outputs.cache-hit == 'true' && '--use-current-editor-build' || '' }}
-          SIGNING_ENABLED: ${{ steps.signing.outputs.enabled }}
-          MACOS_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_SIGNING_CERTIFICATE_PASSWORD }}
-          MACOS_NOTARY_PASSWORD: ${{ secrets.MACOS_NOTARY_PASSWORD }}
-          LUDORK_MACOS_SIGNING_CERTIFICATE: ${{ steps.signing.outputs.certificate }}
-          LUDORK_MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
-          LUDORK_MACOS_NOTARY_APPLE_ID: ${{ secrets.MACOS_NOTARY_APPLE_ID }}
-          LUDORK_MACOS_NOTARY_TEAM_ID: ${{ secrets.MACOS_NOTARY_TEAM_ID }}
-          LUDORK_MACOS_NOTARY_KEY: ${{ steps.signing.outputs.notaryKey }}
-          LUDORK_MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
-          LUDORK_MACOS_NOTARY_KEY_ISSUER: ${{ secrets.MACOS_NOTARY_KEY_ISSUER }}
-        run: |
-          set -eu
-          if [ "$SIGNING_ENABLED" != "true" ]; then
-            sh tools/pack_editor.sh --templates "$PWD/obj/editor-inputs/Templates" "$EDITOR_CHANNEL" ${EDITOR_BUILD_OPTION:+"$EDITOR_BUILD_OPTION"}
-            exit 0
-          fi
-          notary_apple_id=${LUDORK_MACOS_NOTARY_APPLE_ID:-}
-          notary_key=${LUDORK_MACOS_NOTARY_KEY:-}
-          set --
-          if [ -n "$notary_apple_id" ] || [ -n "$notary_key" ]; then
-            set -- --notarize
-          fi
-          if [ -n "$notary_apple_id" ]; then
-            printf '%s\n%s\n' "$MACOS_SIGNING_CERTIFICATE_PASSWORD" "$MACOS_NOTARY_PASSWORD"
-          else
-            printf '%s\n' "$MACOS_SIGNING_CERTIFICATE_PASSWORD"
-          fi | sh tools/pack_editor.sh --templates "$PWD/obj/editor-inputs/Templates" "$EDITOR_CHANNEL" ${EDITOR_BUILD_OPTION:+"$EDITOR_BUILD_OPTION"} "$@"
-
-      - name: Save C# build outputs
-        if: steps.managed-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: |
-            bin/Release
-            obj/Release
-            Editor/Ludork.Plugin.Abstractions/bin/Release
-            Editor/Ludork.Plugin.Abstractions/obj/Release
-            Editor/Ludork.Plugin.Avalonia/bin/Release
-            Editor/Ludork.Plugin.Avalonia/obj/Release
-          key: ${{ steps.managed-cache.outputs.cache-primary-key }}
-
-      - name: Upload editor DMG
-        uses: actions/upload-artifact@v7
-        with:
-          name: Ludork-macos-arm64-${{ github.sha }}
-          path: dist/Ludork-*-macos-arm64.dmg
-          if-no-files-found: error
-          compression-level: 0
-          retention-days: 7
+    needs: package_decision
+    if: needs.package_decision.outputs.should_build == 'true'
+    uses: ./.github/workflows/export-editor-macos.yml
+    secrets: inherit
 
   package_complete:
-    name: Record successful package
+    name: Record successful editor
     needs: [windows, macos]
-    if: github.event_name != 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
     steps:
       - name: Record the packaged commit
         env:
           PACKAGE_SHA: ${{ github.sha }}
-        run: echo "Both platform packages completed for $PACKAGE_SHA" >> "$GITHUB_STEP_SUMMARY"
-
-  release:
-    name: Update draft release
-    needs: [windows, macos]
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      actions: read
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - name: Download Windows installer
-        uses: actions/download-artifact@v8
-        with:
-          name: Ludork-windows-x64-msi-${{ github.sha }}
-          path: obj/release/assets
-      - name: Download macOS DMG
-        uses: actions/download-artifact@v8
-        with:
-          name: Ludork-macos-arm64-${{ github.sha }}
-          path: obj/release/assets
-      - name: Create or update the draft
-        uses: actions/github-script@v8
-        with:
-          script: |
-            const { publishRelease } = require('./.github/scripts/package_control.cjs');
-            await publishRelease({ github, context, core }, 'obj/release/assets');
+        run: echo "Both template-free editors completed for $PACKAGE_SHA" >> "$GITHUB_STEP_SUMMARY"

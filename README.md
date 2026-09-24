@@ -99,6 +99,8 @@ macOS:
 
 The initialisation script prepares the native dependencies and the editor-owned UI preview host. It does not build the Game project game. Build the Game project separately with `tools\build_cpp.bat Game Debug` or `./tools/build_cpp.sh Game Debug`.
 
+GitHub Actions provides six packaging entries. [Export Package](.github/workflows/export-package.yml), [Export Package Windows](.github/workflows/export-package-windows.yml) and [Export Package macOS](.github/workflows/export-package-macos.yml) include project templates; the combined entry retains scheduled and tag-release packaging. [Export Editor](.github/workflows/export-editor.yml), [Export Editor Windows](.github/workflows/export-editor-windows.yml) and [Export Editor macOS](.github/workflows/export-editor-macos.yml) package the editor and its tools without compiling or including templates, for tests and existing projects. The combined Export Package and Export Editor workflows both run at 02:00 and 14:00 UTC+8, with independent unchanged-commit checks. Tag pushes only run Export Package and create a draft Release containing complete packages. Both macOS modes use the same signing and notarisation. Platform steps and caches are reused; see [automated packages](tools/README.md#pull-requests-and-automated-packages).
+
 ## Documentation and support
 
 - Visit the [Ludork website](https://jasonleon01.github.io/Ludork/?lang=en_GB) for an overview, downloads, and project information, or read the [online documentation](https://jasonleon01.github.io/Ludork/docs/?lang=en_GB).
