@@ -563,6 +563,16 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         if (customEditor is not null)
             return customEditor;
 
+        if (BillboardItemEditor.Supports(field))
+        {
+            return new BillboardItemEditor(
+                new BlueprintVariableEditorRequest(field, displayValue, changed),
+                AssetsDirectory,
+                CellSize,
+                GameVariables,
+                isReadOnly || field.IsReadOnly);
+        }
+
         string? rectSource = getRectSourceField(field);
         if (!string.IsNullOrWhiteSpace(rectSource))
             return createRectRangeEditor(field, displayValue, changed);
@@ -1738,6 +1748,8 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
                 if (value.TryGetPropertyValue(child.Name, out JsonNode? childValue))
                 {
                     child.Value = cloneNode(childValue);
+                    if (!JsonNode.DeepEquals(definition.Value, childValue))
+                        child.DisplayValue = null;
                     child.PreserveNullValue = childValue is null;
                 }
                 else if (child.Value is null)

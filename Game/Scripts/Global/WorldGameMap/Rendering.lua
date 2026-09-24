@@ -464,6 +464,7 @@ function WorldGameMapRendering.DrawMapContent(self, target, states, _applyPlayer
                 actor:drawEmitter(target, states, true)
                 self:_drawActor(target, states, actor, 255)
                 actor:drawEmitter(target, states, false)
+                actor:drawBillboard(target, states)
             end
         end
         self:_drawActorPixelShatterEffects(target, layerName)

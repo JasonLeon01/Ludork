@@ -6,6 +6,7 @@
 #include <Runtime/RuntimeReflection.hpp>
 #include <Runtime/RuntimeReference.hpp>
 #include <Runtime/TypedDataService.hpp>
+#include <ClassRuntimeProtocol.hpp>
 
 #include <cstdint>
 #include <stdexcept>
@@ -191,9 +192,84 @@ std::vector<std::string> componentFieldNames(
     return names;
 }
 
+bool isNativeComponentField(const RuntimeValue& componentType,
+                            const std::string& fieldName) {
+    for (const RuntimeValue& type : runtimeMro(componentType)) {
+        const auto properties = ludork::runtime::reference::arrayValues(
+            runtimeGet(type,
+                       ludork::standard::class_runtime::protocol::
+                           NATIVE_PROPERTIES_FIELD,
+                       true));
+        if (!properties) {
+            continue;
+        }
+        for (const RuntimeValue& property : *properties) {
+            const std::string* name = property.getIf<std::string>();
+            if (name != nullptr && *name == fieldName) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+RuntimeValue normaliseNativeComponentValue(const RuntimeValue& value,
+                                           const TypeSchema& type,
+                                           const std::string& declaringModule) {
+    if (value.isNil() || type.kind == TypeSchema::Kind::Union) {
+        return value;
+    }
+    if (type.kind == TypeSchema::Kind::Optional) {
+        return normaliseNativeComponentValue(value, type.arguments.front(),
+                                             declaringModule);
+    }
+    if (type.kind == TypeSchema::Kind::List ||
+        type.kind == TypeSchema::Kind::Tuple) {
+        auto array = ludork::runtime::reference::arrayValues(value);
+        if (!array || (type.kind == TypeSchema::Kind::Tuple &&
+                       array->size() != type.arguments.size())) {
+            return value;
+        }
+        for (std::size_t index = 0; index < array->size(); ++index) {
+            const TypeSchema& itemType = type.kind == TypeSchema::Kind::List
+                                             ? type.arguments.front()
+                                             : type.arguments[index];
+            (*array)[index] = normaliseNativeComponentValue(
+                (*array)[index], itemType, declaringModule);
+        }
+        return RuntimeValue(std::move(*array));
+    }
+    if (type.kind == TypeSchema::Kind::Dictionary) {
+        auto map = ludork::runtime::reference::mapValues(value);
+        if (!map) {
+            return value;
+        }
+        for (auto& [_, item] : *map) {
+            item = normaliseNativeComponentValue(item, type.arguments.front(),
+                                                 declaringModule);
+        }
+        return RuntimeValue(std::move(*map));
+    }
+    TypedDataService& service = typedDataService();
+    const RuntimeValue namedType =
+        type.module.empty()
+            ? RuntimeValue(type.name)
+            : RuntimeValue(RuntimeValue::Array{RuntimeValue(type.module),
+                                               RuntimeValue(type.name)});
+    if (service.isStandardValueType(namedType) ||
+        (type.module.empty() &&
+         (type.name == "function" || type.name == "event")) ||
+        (!ludork::runtime::reference::mapValues(value) &&
+         !ludork::runtime::reference::arrayValues(value))) {
+        return value;
+    }
+    return service.constructTypedValue(value, namedType, declaringModule);
+}
+
 RuntimeValue cloneRuntimeComponentFieldValue(const RuntimeValue& componentType,
                                              const std::string& fieldName,
-                                             const RuntimeValue& value) {
+                                             const RuntimeValue& value,
+                                             bool nativeReadback = false) {
     const RuntimeValue metadata =
         typedDataService().resolveAttrMetadata(componentType, fieldName);
     if (metadata.isNil()) {
@@ -202,8 +278,16 @@ RuntimeValue cloneRuntimeComponentFieldValue(const RuntimeValue& componentType,
     const RuntimeValue type = runtimeGet(metadata, "type");
     const RuntimeValue moduleValue = runtimeGet(metadata, "module");
     const std::string* module = moduleValue.getIf<std::string>();
-    const RuntimeValue resolved = typedDataService().resolveRuntimeTypedValue(
-        value, type, module == nullptr ? std::string{} : *module);
+    TypedDataService& service = typedDataService();
+    const TypeSchema schema = service.compileType(type);
+    const std::string declaringModule =
+        module == nullptr ? std::string{} : *module;
+    const RuntimeValue normalised =
+        nativeReadback && isNativeComponentField(componentType, fieldName)
+            ? normaliseNativeComponentValue(value, schema, declaringModule)
+            : value;
+    const RuntimeValue resolved =
+        service.resolveRuntimeTypedValue(normalised, schema, declaringModule);
     return cloneComponentRuntimeValue(resolved);
 }
 
@@ -263,8 +347,9 @@ void loadInheritedComponentDefaults(ComponentRuntimeCache::Lease& cache,
                     (parent.isNil() &&
                      runtimeHasOwnField(parentComponent, fieldName))) {
                     componentDefaults.emplace(
-                        fieldName, cache.store(cloneRuntimeComponentFieldValue(
-                                       componentType, fieldName, parent)));
+                        fieldName,
+                        cache.store(cloneRuntimeComponentFieldValue(
+                            componentType, fieldName, parent, true)));
                 }
             }
         }
@@ -503,7 +588,7 @@ RuntimeValue componentFromData(const RuntimeValue& componentType,
         if (runtimeSource || !supplied.isNil()) {
             values.emplace(name, runtimeSource
                                      ? cloneRuntimeComponentFieldValue(
-                                           componentType, name, supplied)
+                                           componentType, name, supplied, true)
                                      : cloneComponentFieldValue(
                                            componentType, name, supplied));
         } else {

@@ -1,0 +1,23 @@
+{
+  "type": "curve",
+  "name": "BillboardYOut",
+  "defaultValue": 0,
+  "preInfinity": "constant",
+  "postInfinity": "constant",
+  "keys": [
+    {
+      "time": 0,
+      "value": 0,
+      "interpolation": "linear",
+      "arriveTangent": 0,
+      "leaveTangent": 0
+    },
+    {
+      "time": 0.35,
+      "value": -16,
+      "interpolation": "linear",
+      "arriveTangent": 0,
+      "leaveTangent": 0
+    }
+  ]
+}

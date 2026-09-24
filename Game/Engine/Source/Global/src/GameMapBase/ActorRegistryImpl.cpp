@@ -25,6 +25,19 @@ void ActorRegistryImpl::syncActorsRef(const ActorDict& actors,
 }
 
 void ActorRegistryImpl::syncMaterialActorsRef(const ActorDict& actors) {
+    std::unordered_set<Actor*> nextActors;
+    for (const auto& [_, actorList] : actors) {
+        for (const ActorPtr& actor : actorList) {
+            nextActors.insert(actor.get());
+        }
+    }
+    for (const auto& [_, actorList] : materialActorsRef_) {
+        for (const ActorPtr& actor : actorList) {
+            if (actor && !nextActors.contains(actor.get())) {
+                actor->releaseBillboard();
+            }
+        }
+    }
     materialActorsRef_.clear();
     for (const auto& [layerName, actorList] : actors) {
         std::vector<ActorPtr>& actorRefs = materialActorsRef_[layerName];
@@ -262,6 +275,9 @@ void ActorRegistryImpl::syncActorViews(
     std::unordered_set<Actor*> destroyedEntries;
     for (auto iterator = entries.begin(); iterator != entries.end();) {
         Actor* actor = iterator->first;
+        if (!nextActorLayerRef.contains(actor) && iterator->second.owner) {
+            iterator->second.owner->releaseBillboard();
+        }
         if (actor != playerActor_.get() && !nextActorLayerRef.contains(actor) &&
             iterator->second.owner && iterator->second.owner->isDestroyed()) {
             destroyedEntries.insert(actor);
@@ -328,6 +344,7 @@ bool ActorRegistryImpl::forgetActors(
             occupancy.unregisterActorOccupancy(*actor, worldSize);
         }
         actor->releaseEmitter();
+        actor->releaseBillboard();
         actorLayerRef_.erase(actor);
         entries.erase(actor);
     }
@@ -416,6 +433,14 @@ void ActorRegistryImpl::releaseEmitters() noexcept {
     for (const auto& [_, entry] : entries) {
         if (entry.owner != nullptr) {
             entry.owner->releaseEmitter();
+        }
+    }
+}
+
+void ActorRegistryImpl::releaseBillboards() noexcept {
+    for (const auto& [_, entry] : entries) {
+        if (entry.owner != nullptr) {
+            entry.owner->releaseBillboard();
         }
     }
 }

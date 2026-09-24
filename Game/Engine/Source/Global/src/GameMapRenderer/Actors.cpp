@@ -180,6 +180,7 @@ void GameMapRendererImpl::drawLayerActors(sf::RenderTarget& target,
         actor->drawEmitter(target, states, true);
         drawActor(target, states, actor, alpha, shaderTime);
         actor->drawEmitter(target, states, false);
+        actor->drawBillboard(target, states);
     }
 }
 

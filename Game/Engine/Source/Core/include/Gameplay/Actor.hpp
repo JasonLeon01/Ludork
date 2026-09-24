@@ -11,6 +11,7 @@
 #include <Runtime/NodeGraph/Graph.hpp>
 #include <Gameplay/Components/LightComponent.hpp>
 #include <Gameplay/Components/EmitterComponent.hpp>
+#include <Gameplay/Components/BillboardComponent.hpp>
 #include <General/Material.hpp>
 
 #include <SFML/Audio/Sound.hpp>
@@ -382,6 +383,20 @@ public:
     void collectEmitter(EmitterScheduler& scheduler);
     void releaseEmitter() noexcept;
 
+    BIND_METHOD(property = "billboardComp", setter = "setBillboardComponent",
+                component = true)
+    std::shared_ptr<BillboardComponent> getBillboardComponent() const;
+
+    void setBillboardComponent(
+        const std::shared_ptr<BillboardComponent>& component);
+
+    BIND_METHOD(metadata = false)
+    void drawBillboard(sf::RenderTarget& target, sf::RenderStates states);
+
+    void updateBillboard(float deltaTime, bool presentationVisible,
+                         bool inRange);
+    void releaseBillboard() noexcept;
+
     BIND_METHOD(property = "lightColour", setter = "setLightColour",
                 metadata = false)
     sf::Color getLightColour() const;
@@ -559,6 +574,7 @@ private:
 
     std::weak_ptr<ActorMapService> map_;
     std::shared_ptr<EmitterComponent> emitterComp_;
+    std::shared_ptr<BillboardComponent> billboardComp_;
     bool pathfindingBlocks_ = false;
     std::unordered_set<Actor*> descendantActors_;
     std::weak_ptr<Actor> parent_;

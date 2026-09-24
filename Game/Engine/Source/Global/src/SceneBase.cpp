@@ -52,6 +52,7 @@ void SceneBase::setEmitterMap(const std::shared_ptr<GameMapBase>& map) {
     if (const std::shared_ptr<GameMapBase> previous = emitterMap_.lock();
         previous != nullptr && previous != map) {
         previous->releaseEmitters();
+        previous->releaseBillboards();
     }
     emitterMap_ = ludork::runtime::detail::canonicalRuntimeOwner(map);
 }
@@ -683,6 +684,7 @@ void SceneBase::clearRuntimeState() noexcept {
         uiManager = std::move(uiManager_);
         if (const std::shared_ptr<GameMapBase> map = emitterMap_.lock()) {
             map->releaseEmitters();
+            map->releaseBillboards();
         }
         emitterMap_.reset();
         if (emitterScheduler_ != nullptr) {

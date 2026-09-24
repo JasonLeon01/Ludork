@@ -21,7 +21,7 @@ public sealed class BlueprintVariableField
     public string? SourceClass { get; init; }
     public JsonNode? Value { get; set; }
     public JsonNode? DefaultValue { get; init; }
-    public JsonNode? DisplayValue { get; init; }
+    public JsonNode? DisplayValue { get; set; }
     public JsonObject Meta { get; init; } = [];
     public bool IsComponent { get; init; }
     public bool IsReadOnly { get; init; }
@@ -38,7 +38,12 @@ public sealed class BlueprintVariableField
 
     public BlueprintVariableField Clone()
     {
-        return new BlueprintVariableField(Name, Type, Value)
+        return Clone(Name);
+    }
+
+    public BlueprintVariableField Clone(string name)
+    {
+        return new BlueprintVariableField(name, Type, Value)
         {
             Description = Description,
             Module = Module,

@@ -126,7 +126,7 @@ void syncNativeRootDefaults(lua_glue::StateView lua,
         }
         const lua_glue::Object rawProperties =
             rawType.as<lua_glue::Table>().raw_get<lua_glue::Object>(
-                NATIVE_PROPERTIES_FIELD);
+                protocol::NATIVE_PROPERTIES_FIELD);
         if (!rawProperties.is<lua_glue::Table>()) {
             continue;
         }
@@ -259,7 +259,8 @@ void syncNativeClassDefaults(lua_glue::StateView lua,
             continue;
         }
         const lua_glue::Object rawProperties =
-            nativeType.raw_get<lua_glue::Object>(NATIVE_PROPERTIES_FIELD);
+            nativeType.raw_get<lua_glue::Object>(
+                protocol::NATIVE_PROPERTIES_FIELD);
         if (!rawProperties.is<lua_glue::Table>()) {
             continue;
         }

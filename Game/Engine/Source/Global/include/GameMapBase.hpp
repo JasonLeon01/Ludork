@@ -15,6 +15,7 @@ using ActorDict = std::unordered_map<std::string, std::vector<ActorPtr>>;
 using IntPair = std::pair<int, int>;
 
 class EmitterScheduler;
+class Camera;
 
 namespace ludork::global::game_map_base_impl {
 class ActorRegistryImpl;
@@ -68,6 +69,14 @@ public:
 
     void collectEmitters(EmitterScheduler& scheduler);
     void releaseEmitters() noexcept;
+
+    BIND_METHOD(metadata = false)
+    void releaseBillboards() noexcept;
+
+    BIND_METHOD(metadata = false)
+    void _updateBillboards(
+        float deltaTime, const Camera& camera,
+        std::function<bool(Actor&, const std::string&)> layerVisible);
 
     ////////////////////////////////////////////////////////////
     /// \brief Build a grayscale texture from a material map

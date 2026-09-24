@@ -723,6 +723,10 @@ function WorldGameMap:_prepareCameraFrame()
     return WorldGameMapRendering.PrepareCameraFrame(self)
 end
 
+function WorldGameMap:_isBillboardActorVisible(actor, layerName)
+    return self._actorPixelShatterByActor[actor] == nil and self:_isWorldActorLayerVisible(actor, layerName)
+end
+
 function WorldGameMap:prepareViewportAt(position)
     return WorldGameMapRendering.PrepareViewportAt(self, position)
 end
