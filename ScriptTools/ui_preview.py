@@ -340,6 +340,62 @@ def _read_snapshot(
     return UiPreviewSnapshot(root, directory, host, registry_file, registry, manifest)
 
 
+def reseal_signed_preview(
+    project: pathlib.Path, snapshot: UiPreviewSnapshot
+) -> UiPreviewSnapshot:
+    project = project.expanduser().resolve()
+    with _metadata_lock(project):
+        _require_not_building(project)
+        current = _artifact_root(project, METADATA_DIRECTORY) / MANIFEST_NAME
+        if _is_link(current) or require_fields(
+            strict_json(current.read_bytes()), MANIFEST_FIELDS, "Preview manifest"
+        ) != snapshot.manifest:
+            raise UiRegistryError("Preview metadata changed during code signing")
+        if (
+            _is_link(snapshot.registry_path)
+            or snapshot.registry_path.read_bytes() != snapshot.registry.raw
+        ):
+            raise UiRegistryError("Preview registry changed during code signing")
+        manifest = dict(snapshot.manifest)
+        manifest["buildId"] = runtime_digest(
+            snapshot.runtime_directory,
+            _runtime_files(manifest["files"]),
+            snapshot.registry_path,
+        )
+        result = _read_snapshot(project, manifest)
+        if manifest == snapshot.manifest:
+            return result
+        descriptor, temporary_name = tempfile.mkstemp(
+            prefix="ui-preview-signed-", dir=current.parent
+        )
+        temporary = pathlib.Path(temporary_name)
+        try:
+            with os.fdopen(descriptor, "wb") as output:
+                output.write(
+                    (json.dumps(manifest, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+                )
+                output.flush()
+                os.fsync(output.fileno())
+            shutil.copymode(current, temporary)
+            _replace(temporary, current)
+        finally:
+            temporary.unlink(missing_ok=True)
+        return load_preview(project)
+
+
+def verify_preview_host(project: pathlib.Path) -> None:
+    project = project.expanduser().resolve()
+    snapshot = load_preview(project)
+    info = _build_info(snapshot.host_path, project)
+    if any(
+        info[name] != snapshot.manifest[name]
+        for name in ("platform", "architecture", "configuration", "files")
+    ):
+        raise UiRegistryError("Signed preview Host build info changed")
+    if describe_host(snapshot.host_path, project).raw != snapshot.registry.raw:
+        raise UiRegistryError("Signed preview Host registry changed")
+
+
 def registry_path(project: pathlib.Path) -> pathlib.Path:
     return ensure_preview(project).registry_path
 

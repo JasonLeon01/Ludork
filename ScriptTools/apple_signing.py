@@ -11,7 +11,7 @@ import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass
-from typing import TextIO
+from typing import Callable, TextIO
 
 from .pack_error import PackError
 from .packaging_constants import EXIT_SIGNING, EXIT_TOOLCHAIN
@@ -442,12 +442,15 @@ def sign_artifact(
     keychain: pathlib.Path | None = None,
     notarized: bool = False,
     runtime_bundles: tuple[pathlib.Path, ...] = (),
+    after_nested_sign: Callable[[], None] | None = None,
 ) -> None:
     target = target.resolve()
     if not target.exists():
         raise PackError(f"The signing target was not found: {target}", EXIT_SIGNING)
     if runtime_bundles and not target.is_dir():
         raise PackError("Runtime bundles require an application signing target.", EXIT_SIGNING)
+    if after_nested_sign is not None and not target.is_dir():
+        raise PackError("Nested signing requires an application target.", EXIT_SIGNING)
     hardened = identity != AD_HOC_IDENTITY
     if target.is_dir():
         targets = nested_sign_targets(target)
@@ -478,6 +481,8 @@ def sign_artifact(
                 hardened_runtime=hardened,
                 keychain=keychain,
             )
+        if after_nested_sign is not None:
+            after_nested_sign()
         _codesign(
             target,
             identity=identity,

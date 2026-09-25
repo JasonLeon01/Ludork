@@ -204,6 +204,7 @@ copy_cpp_template() {
         --exclude 'standalone-launch.json' \
         --exclude 'standalone-extensions.json' \
         --exclude 'ThirdPartySource/' \
+        --exclude '/Engine/ThirdParty/SFML/test/' \
         --exclude '/Binaries/' \
         --exclude '/Scripts/Internal/UI/' \
         --exclude '/Scripts/stub/Internal/UI/' \

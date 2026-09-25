@@ -134,9 +134,15 @@ def read_package_metadata(project: pathlib.Path, version: str | None = None,
     packaging = project_data.get("packaging", {})
     if not isinstance(packaging, dict):
         raise PackError("Main.proj packaging must be an object.", EXIT_PROJECT)
+    if project_data.get("Cpp") is not True:
+        if dev is True:
+            raise PackError("Standalone projects do not support --dev.", EXIT_PROJECT)
+        selected_dev = False
+    else:
+        selected_dev = packaging.get("dev", False) if dev is None else dev
     release = read_release_version(
         packaging.get("version", "1.0.0") if version is None else version,
-        packaging.get("dev", False) if dev is None else dev,
+        selected_dev,
         started_at,
     )
     app_name = read_app_name(project)

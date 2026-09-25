@@ -1094,7 +1094,7 @@ def validate_apk_archive(
     signed: bool = False,
 ) -> None:
     try:
-        with zipfile.ZipFile(apk) as archive:
+        with zipfile.ZipFile(apk, metadata_encoding="utf-8") as archive:
             names = archive.namelist()
             if len(names) != len(set(names)):
                 raise PackError("The APK contains duplicate ZIP entries.")

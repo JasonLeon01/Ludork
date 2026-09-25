@@ -69,7 +69,7 @@ public sealed class ProjectConfigService
         && packaging["version"] is JsonValue value && value.TryGetValue(out string? version)
             ? version ?? "1.0.0" : "1.0.0";
 
-    public bool PackagingDev => data["packaging"] is JsonObject packaging
+    public bool PackagingDev => !IsStandalone && data["packaging"] is JsonObject packaging
         && packaging["dev"] is JsonValue value && value.TryGetValue(out bool dev) && dev;
 
     public void SetPackaging(string version, bool dev)
@@ -81,7 +81,7 @@ public sealed class ProjectConfigService
             updated["packaging"] = packaging;
         }
         packaging["version"] = version;
-        packaging["dev"] = dev;
+        packaging["dev"] = !IsStandalone && dev;
         if (JsonNode.DeepEquals(data, updated))
             return;
         save(updated);

@@ -22,9 +22,12 @@ from .apple_signing import (
     select_identity,
     sign_artifact,
     store_notary_credentials,
+    verify_signature,
 )
 from .pack_error import PackError
 from .packaging_constants import EXIT_SIGNING
+from .ui_preview import load_preview, reseal_signed_preview, verify_preview_host
+from .ui_property_values import UiAssetError
 
 
 @dataclass(frozen=True)
@@ -35,6 +38,7 @@ class SigningSession:
     certificate_password: str
     entitlements: pathlib.Path | None
     runtime_bundles: tuple[pathlib.Path, ...]
+    preview_templates: tuple[pathlib.Path, ...]
     credentials: NotaryCredentials | None
     notary_password: str
     check_only: bool
@@ -48,7 +52,8 @@ def create_parser() -> argparse.ArgumentParser:
             "macos-sign [--signing-identity NAME] [--certificate PATH.p12] "
             "[--entitlements PATH.plist] [--notarize] [--notary-apple-id EMAIL] "
             "[--notary-team-id TEAMID] [--notary-key PATH.p8] [--notary-key-id ID] "
-            "[--notary-key-issuer UUID] [--runtime-bundle PATH] [--check] <app-or-dmg>"
+            "[--notary-key-issuer UUID] [--runtime-bundle PATH] "
+            "[--ui-preview-template PATH] [--check] <app-or-dmg>"
         ),
     )
     parser.add_argument("target", type=pathlib.Path)
@@ -56,6 +61,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument("--certificate", type=pathlib.Path)
     parser.add_argument("--entitlements", type=pathlib.Path)
     parser.add_argument("--runtime-bundle", type=pathlib.Path, action="append", default=[])
+    parser.add_argument("--ui-preview-template", type=pathlib.Path, action="append", default=[])
     parser.add_argument("--notarize", action="store_true")
     parser.add_argument("--notary-apple-id")
     parser.add_argument("--notary-team-id")
@@ -131,6 +137,7 @@ def create_session(parsed: argparse.Namespace) -> SigningSession:
         certificate_password,
         entitlements,
         tuple(directory.expanduser().absolute() for directory in parsed.runtime_bundle),
+        tuple(directory.expanduser().absolute() for directory in parsed.ui_preview_template),
         credentials,
         notary_password,
         parsed.check,
@@ -155,6 +162,37 @@ def _describe(session: SigningSession, identity: str) -> None:
 
 
 def perform(session: SigningSession, keychain: TemporaryKeychain | None) -> None:
+    if session.preview_templates and (session.check_only or session.target.suffix != ".app"):
+        raise PackError("UI preview templates require an application signing target.", EXIT_SIGNING)
+    snapshots = []
+    seen_templates: set[pathlib.Path] = set()
+    for template in session.preview_templates:
+        if template.is_symlink() or not template.resolve().is_relative_to(session.target):
+            raise PackError(
+                f"UI preview template must be inside the application: {template}",
+                EXIT_SIGNING,
+            )
+        resolved = template.resolve()
+        if resolved in seen_templates:
+            raise PackError(f"Duplicate UI preview template: {template}", EXIT_SIGNING)
+        seen_templates.add(resolved)
+        try:
+            snapshots.append((resolved, load_preview(resolved)))
+        except (UiAssetError, OSError, ValueError) as exception:
+            raise PackError(
+                f"UI preview template is invalid: {template}: {exception}", EXIT_SIGNING
+            ) from exception
+
+    def reseal_templates() -> None:
+        for template, snapshot in snapshots:
+            try:
+                reseal_signed_preview(template, snapshot)
+            except (UiAssetError, OSError, ValueError) as exception:
+                raise PackError(
+                    f"Signed UI preview template is invalid: {template}: {exception}",
+                    EXIT_SIGNING,
+                ) from exception
+
     identity = AD_HOC_IDENTITY
     if session.certificate is not None:
         if keychain is None:
@@ -185,8 +223,19 @@ def perform(session: SigningSession, keychain: TemporaryKeychain | None) -> None
         environment=session.environment,
         entitlements=session.entitlements,
         runtime_bundles=session.runtime_bundles,
+        after_nested_sign=reseal_templates if snapshots else None,
         keychain=keychain.path if keychain is not None and session.certificate is not None else None,
     )
+    for template, _ in snapshots:
+        try:
+            verify_preview_host(template)
+        except (UiAssetError, OSError, ValueError) as exception:
+            raise PackError(
+                f"Signed UI preview Host is invalid: {template}: {exception}",
+                EXIT_SIGNING,
+            ) from exception
+    if snapshots:
+        verify_signature(session.target, session.environment)
     if session.credentials is not None:
         if keychain is None:
             raise PackError("The notarisation keychain is unavailable.", EXIT_SIGNING)

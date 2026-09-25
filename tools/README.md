@@ -209,6 +209,8 @@ recreated during packaging.
 `plain`/`ffmpeg` and `Debug`/`Release`. A matching entry supplies runtime binaries,
 the Windows game launcher, and the seven generated Lua stub/metadata files;
 templates still copy current Game project content and run the packaging validations.
+Source templates omit SFML's upstream test fixtures, which are not used by the
+game build and have filenames that HFS+ normalizes during macOS DMG creation.
 Keep this folder outside both Game and the template output. The caller must
 invalidate it when native sources, bindings, dependencies or build options
 change. `build_standalone --use-current-build` packages the matching existing
@@ -473,6 +475,11 @@ the enclosing app afterwards. This keeps the recorded sizes and hashes aligned
 with the signed files without accepting an incomplete input bundle. The option
 may be repeated for runtime directories inside the application's resources;
 it is not passed when signing the DMG.
+Complete editor packages also pass each Standalone template through
+`macos-sign --ui-preview-template <directory>`. The signer validates each preview
+before signing nested binaries, refreshes only its build ID against the signed
+runtime, validates the resulting snapshot, then seals the editor app and checks
+the signed Host description. Editor-only packages do not pass template paths.
 
 Python is needed only when `init` or `build_script_tools` compiles ScriptTools.
 Development build and packaging commands consume the prepared runtime bundle;
@@ -800,13 +807,16 @@ Mobile and macOS display names use the non-empty, control-character-free raw
 Changing the title or version preserves installation identity; changing `APP_NAME`
 can require updated signing or provisioning.
 
-Game packers accept `--version <base-version>` and mutually exclusive `--dev` /
-`--release`. Unspecified values come from `Main.proj` fields `packaging.version`
-and `packaging.dev`, whose defaults are `"1.0.0"` and `false`. CLI overrides never
-write back to the project. Base versions contain three non-negative decimal
-components without leading zeroes, prefixes or suffixes, up to 127 bytes. The editor's Pack
-Options saves valid version/dev choices on confirmation and writes nothing on
-cancel. These settings do not belong in Entry.
+Game packers accept `--version <base-version>` and `--release`; C++ Source projects
+also accept `--dev`. Unspecified values come from `Main.proj` fields
+`packaging.version` and, for C++ Source projects, `packaging.dev`, whose defaults
+are `"1.0.0"` and `false`. Standalone projects always use release, ignore an older
+`packaging.dev=true`, and reject an explicit `--dev`. CLI overrides never write
+back to the project. Base versions contain three non-negative decimal components
+without leading zeroes, prefixes or suffixes, up to 127 bytes. The editor's Pack
+Options shows dev only for C++ Source projects and saves valid choices on
+confirmation; confirming a Standalone package clears an older dev value. Cancelling
+writes nothing. These settings do not belong in Entry.
 
 ```sh
 ./tools/pack_project.sh --version 1.0.0 --dev Game Game/dist

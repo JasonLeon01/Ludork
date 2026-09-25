@@ -20,6 +20,7 @@ public partial class PackSelectionDialog : Window
     private bool? encryptionOptionsState;
     private bool encryptionOptionsExpanded;
     private readonly ProjectConfigService? projectConfig;
+    private readonly bool isStandalone;
     private CancellationTokenSource? validationCancellation;
     private int validationGeneration;
     private bool closed;
@@ -31,13 +32,14 @@ public partial class PackSelectionDialog : Window
     public PackSelectionDialog(ProjectConfigService? projectConfig)
     {
         this.projectConfig = projectConfig;
-        bool isStandalone = projectConfig?.IsStandalone ?? true;
+        isStandalone = projectConfig?.IsStandalone ?? true;
         InitializeComponent();
         VersionLabel.Text = LocaleService.Get("PACK_RELEASE_VERSION");
         DevOption.Content = LocaleService.Get("PACK_DEV");
         EditorInputs.ApplyEditable(VersionBox);
         VersionBox.Text = projectConfig?.PackagingVersion ?? "1.0.0";
-        DevOption.IsChecked = projectConfig?.PackagingDev ?? false;
+        DevOption.IsVisible = !isStandalone;
+        DevOption.IsChecked = !isStandalone && projectConfig?.PackagingDev == true;
         VersionBox.TextChanged += async (_, _) => await validateVersionAsync();
         DevOption.IsCheckedChanged += async (_, _) => await validateVersionAsync();
         Closed += (_, _) =>
@@ -162,7 +164,7 @@ public partial class PackSelectionDialog : Window
                 await Task.Delay(200, cancellation.Token);
             ProjectPackageMetadataResult result = await ProjectPackageMetadataService.ExecuteAsync(
                 "release-version", null, VersionBox.Text ?? string.Empty,
-                DevOption.IsChecked == true, cancellation.Token);
+                !isStandalone && DevOption.IsChecked == true, cancellation.Token);
             if (closed || generation != validationGeneration)
                 return false;
             if (result.ExitCode != 0)
@@ -257,7 +259,7 @@ public partial class PackSelectionDialog : Window
                 UseLdPakOption.IsChecked == true)
             {
                 Version = VersionBox.Text ?? string.Empty,
-                Dev = DevOption.IsChecked == true,
+                Dev = !isStandalone && DevOption.IsChecked == true,
                 ExportToIPhone = ExportToIPhoneOption.IsChecked == true,
                 ExportToHarmonyDevice = ExportToHarmonyDeviceOption.IsChecked == true,
                 HarmonyDeviceForm = deviceForm,

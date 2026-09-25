@@ -187,10 +187,7 @@ cleanup() {
     set +e
     remove_work_dir=$WORK_DIR_OWNED
     if [ "$DMG_MOUNTED" -eq 1 ]; then
-        if hdiutil detach "$DMG_MOUNT_DIR" >/dev/null \
-            || hdiutil detach -force "$DMG_MOUNT_DIR" >/dev/null; then
-            DMG_MOUNTED=0
-        else
+        if ! detach_dmg; then
             remove_work_dir=0
             echo "Failed to detach the editor DMG; preserving the work directory: $WORK_DIR" >&2
         fi
@@ -232,6 +229,28 @@ interrupt() {
 
 trap cleanup EXIT
 trap interrupt HUP INT TERM
+
+detach_dmg() {
+    if hdiutil detach "$DMG_MOUNT_DIR" >/dev/null; then
+        DMG_MOUNTED=0
+        return 0
+    fi
+    if ! hdiutil info | grep -Fq "$DMG_MOUNT_DIR"; then
+        DMG_MOUNTED=0
+        return 0
+    fi
+
+    echo "Retrying editor DMG detach with force..." >&2
+    if hdiutil detach -force "$DMG_MOUNT_DIR" >/dev/null; then
+        DMG_MOUNTED=0
+        return 0
+    fi
+    if ! hdiutil info | grep -Fq "$DMG_MOUNT_DIR"; then
+        DMG_MOUNTED=0
+        return 0
+    fi
+    return 1
+}
 
 require_file() {
     if [ -f "$1" ]; then
@@ -289,6 +308,11 @@ run_macos_sign() {
     if [ "$signing_mode" = "app" ]; then
         set -- "$@" --entitlements "$SIGNING_ENTITLEMENTS"
         set -- "$@" --runtime-bundle "$RESOURCES_DIR/tools/ScriptTools"
+        if [ "$WITHOUT_TEMPLATES" -eq 0 ]; then
+            for template_name in $STANDALONE_TEMPLATE_NAMES; do
+                set -- "$@" --ui-preview-template "$RESOURCES_DIR/Templates/$template_name"
+            done
+        fi
     fi
     if [ "$signing_mode" = "dmg-notarize" ]; then
         set -- "$@" --notarize
@@ -638,8 +662,7 @@ validate_dmg() {
     fi
     DMG_MOUNTED=1
     validate_dmg_root "$DMG_MOUNT_DIR" 1
-    hdiutil detach "$DMG_MOUNT_DIR" >/dev/null
-    DMG_MOUNTED=0
+    detach_dmg
     rmdir "$DMG_MOUNT_DIR"
     DMG_MOUNT_DIR_OWNED=0
 }
@@ -1391,8 +1414,7 @@ SetFile -a V "$DMG_MOUNT_DIR/.VolumeIcon.icns"
 SetFile -a C "$DMG_MOUNT_DIR"
 sync
 validate_dmg_root "$DMG_MOUNT_DIR" 1
-hdiutil detach "$DMG_MOUNT_DIR" >/dev/null
-DMG_MOUNTED=0
+detach_dmg
 rmdir "$DMG_MOUNT_DIR"
 DMG_MOUNT_DIR_OWNED=0
 hdiutil convert \
