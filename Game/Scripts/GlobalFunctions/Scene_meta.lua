@@ -1,6 +1,13 @@
 local _METADATA = {
     Scene = {
         attrs = {},
+        ShowTutorial = {
+            type = "function",
+            parameters = { "key", key = "string" },
+            ["return"] = { "return", ["return"] = "function" },
+            Latent = true,
+            LatentStates = { "Finished", Finished = { true } }
+        },
         GotoMap = {
             type = "function",
             parameters = {

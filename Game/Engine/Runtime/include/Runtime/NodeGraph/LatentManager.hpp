@@ -27,6 +27,9 @@ public:
     BIND_METHOD(metadata = false)
     void update();
 
+    BIND_METHOD(metadata = false, parameter_types = {function})
+    void cancel(const RuntimeIdentityPtr& condition);
+
     bool isInitialised() const noexcept;
     void setInitialised(bool value) noexcept;
     void clear() noexcept;

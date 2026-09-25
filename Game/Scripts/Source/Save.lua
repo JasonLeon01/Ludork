@@ -31,7 +31,10 @@ function Save.LoadGame(filePath)
     if not os.path.isfile(filePath) then
         return nil
     end
-    local instance = GameInstance.FromDict(Engine.getJSONData(filePath))
+    local data = Engine.getJSONData(filePath)
+    assert(Class.isInstance(data, "table"), "Save data must be an object")
+    ---@cast data Source.GameInstance.SaveData
+    local instance = GameInstance.FromDict(data)
     Logging.info("Loaded game from %s", filePath)
     return instance
 end

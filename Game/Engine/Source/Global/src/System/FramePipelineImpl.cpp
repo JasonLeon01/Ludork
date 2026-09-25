@@ -101,7 +101,7 @@ void FramePipelineImpl::composeFrame(float deltaTime,
             index == 0 ? *canvas_ : *graphicsCanvases_[index - 1];
         target.clear(sf::Color::Transparent);
         sf::Sprite sprite(source.getTexture());
-        sf::RenderStates states = canvasRenderStates();
+        sf::RenderStates states(sf::BlendNone);
         const std::shared_ptr<sf::Shader>& shader = graphicsShaders_[index];
         if (shader != nullptr) {
             shader->setUniform("screenTex", source.getTexture());

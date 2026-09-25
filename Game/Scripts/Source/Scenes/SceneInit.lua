@@ -205,6 +205,8 @@ function Scene:_processAnimationSource(item, sourceRoot, cacheRoot)
         os.createDirectories(os.path.dirname(cachePath))
         Logging.debug("Compressing animation: %s", relativePath)
         local compressed = Engine.compressAnimation(payload, "png")
+        assert(Class.isInstance(compressed, "table"), "Compressed animation must be a data table")
+        ---@cast compressed table<string, Engine.RuntimeDataValue>
         Engine.writeJSON(cachePath, compressed)
     end
     local alternateCachePath = os.path.join(

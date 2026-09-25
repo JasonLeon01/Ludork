@@ -157,7 +157,7 @@ void TransitionImpl::compose(const sf::Sprite& source,
                              sf::RenderTarget& target) {
     if (transitionOutputTexture_ == nullptr ||
         !transitionOutputSprite_.has_value()) {
-        target.draw(source, canvasRenderStates());
+        target.draw(source, premultipliedRenderStates());
     } else if (inTransition_ && transitionShader_ != nullptr &&
                transition_ != nullptr && transitionTempTexture_ != nullptr &&
                transitionSprite_.has_value()) {
@@ -182,12 +182,12 @@ void TransitionImpl::compose(const sf::Sprite& source,
         transitionOutputTexture_->clear(sf::Color::Transparent);
         transitionOutputTexture_->draw(*transitionSprite_, states);
         transitionOutputTexture_->display();
-        target.draw(*transitionOutputSprite_, canvasRenderStates());
+        target.draw(*transitionOutputSprite_, premultipliedRenderStates());
     } else {
         transitionOutputTexture_->clear(sf::Color::Transparent);
         transitionOutputTexture_->draw(source, sf::BlendNone);
         transitionOutputTexture_->display();
-        target.draw(*transitionOutputSprite_, canvasRenderStates());
+        target.draw(*transitionOutputSprite_, premultipliedRenderStates());
     }
 }
 

@@ -306,6 +306,15 @@ std::size_t Graph::getLatentPendingCount(const std::string& key) const {
     return ludork::runtime::graph_detail::latentCount(*executionState_, key);
 }
 
+std::uint64_t Graph::executionRevision(const std::string& key) const {
+    return ludork::runtime::graph_detail::executionRevision(*executionState_,
+                                                            key);
+}
+
+void Graph::cancelExecutionState(const std::string& key) {
+    ludork::runtime::graph_detail::cancelExecution(*executionState_, key);
+}
+
 void Graph::addExecutionCompleteCallback(const std::string& key,
                                          std::function<void()> callback) {
     ludork::runtime::graph_detail::addCompletionCallback(*executionState_, key,
@@ -453,6 +462,7 @@ RuntimeValue::Array Graph::execute(const std::string& key,
 NodeResult Graph::executeResult(const std::string& key,
                                 std::optional<int> startNode, std::size_t limit,
                                 NodeCache* externalCache) {
+    const std::uint64_t revision = executionRevision(key);
     ensureEventInitialised(key);
     executionState_->suspendedByLatent = false;
     executionState_->doingPartKey = key;
@@ -475,7 +485,13 @@ NodeResult Graph::executeResult(const std::string& key,
     NodeCache& cache = externalCache == nullptr ? localCache : *externalCache;
     std::size_t steps = 0;
     while (true) {
+        if (executionRevision(key) != revision) {
+            return {};
+        }
         NodeResult result = executeNodeResult(key, NodeIndex(current), cache);
+        if (executionRevision(key) != revision) {
+            return result;
+        }
         const std::shared_ptr<Node>& node = nodeEvent->second[current];
         const NodeMemberMetadata& metadata = node->getMemberMetadata();
         if (metadata.latent || !metadata.latentStates.empty()) {
@@ -503,6 +519,9 @@ NodeResult Graph::executeResult(const std::string& key,
             Graph::LoopResult loop =
                 executeLoopNode(key, current, result, cache, limit);
             result = std::move(loop.result);
+            if (executionRevision(key) != revision) {
+                return result;
+            }
             steps += loop.steps;
             if (steps >= limit) {
                 throw std::runtime_error(
@@ -587,6 +606,7 @@ NodeResult Graph::executeResult(const std::string& key,
 Graph::LoopResult Graph::executeLoopNode(const std::string& key, int nodeIndex,
                                          const NodeResult& controlResult,
                                          NodeCache& cache, std::size_t limit) {
+    const std::uint64_t revision = executionRevision(key);
     const std::shared_ptr<Node>& node = nodes_.at(key).at(nodeIndex);
     const NodeMemberMetadata& metadata = node->getMemberMetadata();
     const PinNexts& nexts = getNodeNexts(key, nodeIndex);
@@ -619,13 +639,19 @@ Graph::LoopResult Graph::executeLoopNode(const std::string& key, int nodeIndex,
             std::vector<NodeResult> iterations =
                 iterateLoopResults(metadata, controlResult);
             for (std::size_t index = 0; index < iterations.size(); ++index) {
-                const std::size_t frameBaseIndex =
-                    executionState_->loopFrames.size();
+                if (executionRevision(key) != revision) {
+                    return loop;
+                }
+                const std::vector<std::shared_ptr<LoopFrame>> previousFrames =
+                    executionState_->loopFrames;
                 NodeResult iteration = iterations[index];
                 const bool suspended =
                     runLoopBodyIteration(key, nodeIndex, *bodyStart, cacheKeys,
                                          cache, iteration, limit);
                 loop.result = std::move(iteration);
+                if (executionRevision(key) != revision) {
+                    return loop;
+                }
                 ++loop.steps;
                 if (loop.steps >= limit) {
                     throw std::runtime_error(
@@ -652,10 +678,17 @@ Graph::LoopResult Graph::executeLoopNode(const std::string& key, int nodeIndex,
                         }
                     }
                     frame->limit = limit;
-                    executionState_->loopFrames.insert(
-                        executionState_->loopFrames.begin() +
-                            static_cast<std::ptrdiff_t>(frameBaseIndex),
-                        std::move(frame));
+                    const auto firstNewFrame = std::find_if(
+                        executionState_->loopFrames.begin(),
+                        executionState_->loopFrames.end(),
+                        [&previousFrames](
+                            const std::shared_ptr<LoopFrame>& existing) {
+                            return std::find(previousFrames.begin(),
+                                             previousFrames.end(),
+                                             existing) == previousFrames.end();
+                        });
+                    executionState_->loopFrames.insert(firstNewFrame,
+                                                       std::move(frame));
                     executionState_->suspendedByLatent = true;
                     return loop;
                 }
@@ -663,6 +696,9 @@ Graph::LoopResult Graph::executeLoopNode(const std::string& key, int nodeIndex,
         }
     }
 
+    if (executionRevision(key) != revision) {
+        return loop;
+    }
     cache[NodeIndex(nodeIndex)] = loop.result;
     if (completed != nullptr) {
         if (const int* completedStart = std::get_if<int>(&completed->node)) {
@@ -772,6 +808,7 @@ RuntimeValue::Array Graph::executeNode(
 NodeResult Graph::executeNodeResult(const std::string& key,
                                     const NodeIndex& nodeIndex,
                                     NodeCache& cache) {
+    const std::uint64_t revision = executionRevision(key);
     ensureEventInitialised(key);
     const auto cached = cache.find(nodeIndex);
     if (cached != cache.end()) {
@@ -821,6 +858,9 @@ NodeResult Graph::executeNodeResult(const std::string& key,
                 const NodeSource& source = dependencies->second.at(inputPin);
                 const NodeResult upstream =
                     executeNodeResult(key, source.node, cache);
+                if (executionRevision(key) != revision) {
+                    return {};
+                }
                 if (source.pin < 0 ||
                     static_cast<std::size_t>(source.pin) >= upstream.count ||
                     static_cast<std::size_t>(source.pin) >=
@@ -834,12 +874,18 @@ NodeResult Graph::executeNodeResult(const std::string& key,
         }
     }
 
+    if (executionRevision(key) != revision) {
+        return {};
+    }
     NodeResult result = eventNodes->second[index]->executeResult(replacements);
-    cache.emplace(nodeIndex, result);
+    if (executionRevision(key) == revision) {
+        cache.emplace(nodeIndex, result);
+    }
     return result;
 }
 
 void Graph::resumeSuspendedLoops(const std::string& key) {
+    const std::uint64_t revision = executionRevision(key);
     while (!executionState_->loopFrames.empty()) {
         const std::shared_ptr<ludork::runtime::graph_detail::LoopFrame> frame =
             executionState_->loopFrames.back();
@@ -853,6 +899,9 @@ void Graph::resumeSuspendedLoops(const std::string& key) {
                 key, frame->loopNodeIndex, frame->bodyStart,
                 frame->bodyCacheKeys, frame->baseCache, loopResult,
                 frame->limit);
+            if (executionRevision(key) != revision) {
+                return;
+            }
             frame->lastResult = std::move(loopResult);
             ++frame->loopSteps;
             if (frame->loopSteps >= frame->limit) {
@@ -876,16 +925,21 @@ void Graph::resumeSuspendedLoops(const std::string& key) {
         StringRestore partKeyRestore(executionState_->doingPartKey);
         executeResult(key, *frame->completedNext, frame->limit,
                       &frame->baseCache);
-        if (executionState_->suspendedByLatent) {
+        if (executionRevision(key) != revision ||
+            executionState_->suspendedByLatent) {
             return;
         }
     }
 }
 
 void Graph::completeExecution(const std::string& key) {
+    const std::uint64_t revision = executionRevision(key);
     const std::vector<std::function<void()>> pending =
         ludork::runtime::graph_detail::completeExecution(*executionState_, key);
     for (const std::function<void()>& callback : pending) {
+        if (executionRevision(key) != revision) {
+            return;
+        }
         callback();
     }
 }

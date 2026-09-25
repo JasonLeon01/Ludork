@@ -16,6 +16,21 @@ bool InputImpl::isInputCaptured() const {
     return modal_.captured();
 }
 
+std::shared_ptr<InputCapture> InputImpl::captureInput() {
+    std::shared_ptr<InputCapture> capture = modal_.capture();
+    ludork::engine::text_input::service().close();
+    clearCapturedInput();
+    return capture;
+}
+
+void InputImpl::setCaptureConfirmEnabled(InputCapture& capture, bool enabled) {
+    modal_.setConfirmEnabled(capture, enabled);
+}
+
+bool InputImpl::consumeCaptureConfirm(InputCapture& capture) {
+    return modal_.consumeConfirm(capture, eventPump_.focused_);
+}
+
 void InputImpl::clearCapturedInput() {
     for (const auto& [key, state] : keyboard_.heldKeys_) {
         static_cast<void>(state);

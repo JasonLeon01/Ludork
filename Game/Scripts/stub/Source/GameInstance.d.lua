@@ -41,20 +41,21 @@
 ---@field tileID   integer | string | lightuserdata
 
 ---@class Source.GameInstance.SaveData
----@field version          integer
----@field region           string
----@field playerKeys       string[]
----@field players          table<string, Source.MapActors.Player.SaveData>
----@field variables        table<string, Source.GameInstance.RecordValue>
----@field map              table<string, string>
----@field obtainedItems    table<string, boolean>
----@field addedActors      table<string, Source.GameInstance.SavedAddedActorRecord[]>
----@field actorPositions   table<string, table<string, integer[]>>
----@field worldMovedActors table<string, Source.GameInstance.SavedWorldMovedActorRecord[]> | nil        Required when any stored player map is a world manifest or the save retains moved-world state.
----@field destroyedActors  table<string, string[]>
----@field destroyedTerrain table<string, table<string, Source.GameInstance.SavedTerrainChangeRecord[]>>
----@field telepoints       table<string, Source.GameInstance.SavedTelepointRecord[]>
----@field screenshot       integer[] | nil
+---@field version            integer
+---@field region             string
+---@field playerKeys         string[]
+---@field players            table<string, Source.MapActors.Player.SaveData>
+---@field variables          table<string, Source.GameInstance.RecordValue>
+---@field map                table<string, string>
+---@field obtainedItems      table<string, boolean>
+---@field addedActors        table<string, Source.GameInstance.SavedAddedActorRecord[]>
+---@field actorPositions     table<string, table<string, integer[]>>
+---@field worldMovedActors   table<string, Source.GameInstance.SavedWorldMovedActorRecord[]> | nil        Required when any stored player map is a world manifest or the save retains moved-world state.
+---@field destroyedActors    table<string, string[]>
+---@field destroyedTerrain   table<string, table<string, Source.GameInstance.SavedTerrainChangeRecord[]>>
+---@field telepoints         table<string, Source.GameInstance.SavedTelepointRecord[]>
+---@field triggeredTutorials string[] | nil                                                               Ordered tutorial keys, missing in older v1 saves.
+---@field screenshot         integer[] | nil
 
 ---@brief Persistent game state container that survives across scene transitions.
 ---
@@ -67,6 +68,7 @@
 ---@field _cachedMaps                 table<string, string>
 ---@field _cachedTelepoints           table<string, Source.GameInstance.TelepointRecord[]>
 ---@field _cachedWorldMovedActors     table<string, Source.GameInstance.WorldMovedActorRecord[]>
+---@field _triggeredTutorials         list<string>
 ---@field new                         fun(skipDefaultPlayer?: boolean): Source.GameInstance.GameInstance
 ---@field FromDict                    fun(data: Source.GameInstance.SaveData): Source.GameInstance.GameInstance
 ---@field getPlayer                   fun(self: Source.GameInstance.GameInstance): Source.MapActors.Player.Player
@@ -381,5 +383,14 @@ function GameInstance:getCachedNewItem(itemID) end
 --- - @param itemID The item ID.
 ---@param itemID string
 function GameInstance:setCachedNewItem(itemID) end
+
+---@brief Check whether a tutorial has started in this game instance.
+---@param key string
+---@return boolean
+function GameInstance:hasTriggeredTutorial(key) end
+
+---@brief Append a tutorial once in display-start order, without writing a save slot.
+---@param key string Non-empty tutorial configuration key.
+function GameInstance:recordTriggeredTutorial(key) end
 
 return GameInstance

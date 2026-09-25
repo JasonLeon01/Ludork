@@ -1,5 +1,11 @@
 ---@meta GlobalFunctions.Scene
 
+--- Show a configured tutorial and suspend execution until confirmation.
+--- Already-triggered keys finish immediately; unknown keys raise an error.
+---@param key string
+---@return fun(): boolean
+function Scene.ShowTutorial(key) end
+
 ---@brief Transition to a map and optionally place the player at a tile coordinate.
 ---
 --- - @param mapPath Path to the map data file (relative to Data/Maps/).

@@ -4,6 +4,7 @@
 
 #include <EngineRuntimeApi.hpp>
 #include <Input/InputActionKey.hpp>
+#include <Input/InputCapture.hpp>
 #include <Input/InputNamedValue.hpp>
 #include <Input/InjectedInputEvent.hpp>
 #include <Input/JoystickAxisEvent.hpp>
@@ -23,7 +24,11 @@ public:
 
     void initializeNativePolling();
 
+    BIND_METHOD(Pure = true)
     bool isInputCaptured() const override;
+
+    BIND_METHOD()
+    std::shared_ptr<InputCapture> captureInput();
 
     BIND_METHOD()
     void update(sf::RenderWindow& window);

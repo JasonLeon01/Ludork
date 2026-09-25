@@ -13,6 +13,7 @@
 ---@field terrainDestructions table<string, table<string, table<string, Source.GameInstance.TerrainChangeRecord>>>
 ---@field obtainedItems       table<string, boolean>
 ---@field telepoints          table<string, Source.GameInstance.TelepointRecord[]>
+---@field triggeredTutorials  list<string>
 ---@field screenshot          integer[] | nil
 
 local SaveCodec = {}

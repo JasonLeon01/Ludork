@@ -82,7 +82,7 @@ TimerHandle SceneBase::addTimer(float interval, RuntimeIdentityPtr task,
 
 bool SceneBase::isInputBlocked() const {
     const std::lock_guard<std::recursive_mutex> lock(logicDataMutex_);
-    return blockingTimerCount_ > 0;
+    return blockingTimerCount_ > 0 || inputService().isInputCaptured();
 }
 
 void SceneBase::addAnim(const std::shared_ptr<Animation>& anim) {
@@ -383,7 +383,8 @@ bool SceneBase::systemIsRunning() const noexcept {
 }
 
 void SceneBase::systemInput() {
-    if (lifecycleImpl_->isEntered() && !lifecycleImpl_->isDestroyed()) {
+    if (lifecycleImpl_->isEntered() && !lifecycleImpl_->isDestroyed() &&
+        !inputService().isInputCaptured()) {
         onInput();
     }
 }

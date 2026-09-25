@@ -1,0 +1,98 @@
+{
+  "parent": "Engine.Actor",
+  "attrs": {
+    "texturePath": "",
+    "animatable": false,
+    "collisionEnabled": false,
+    "tickable": false,
+    "visible": false
+  },
+  "graph": {
+    "nodeGraph": {
+      "onCreate": {
+        "nodes": [
+          {
+            "nodeFunction": "GlobalFunctions.Container.ForEach",
+            "params": [
+              {
+                "$type": {
+                  "list": "any"
+                },
+                "$value": [
+                  "Map01Menu",
+                  "Map01Stairs",
+                  "Map01Enemy",
+                  "Map01Door",
+                  "Map01KeyDoor",
+                  "Map01Key",
+                  "Map01Potion",
+                  "Map01Gem",
+                  "Map01Equipment",
+                  "Map01Recovery",
+                  "Map01EnemyBook",
+                  "Map01FloorTeleporter",
+                  "Map01ObstacleTool",
+                  "Map01Flight",
+                  "Map01AttributeShop",
+                  "Map01Dialogue",
+                  "Map01PlayerName",
+                  "Map01Documentation",
+                  "Map01Particles"
+                ]
+              }
+            ],
+            "pos": [
+              0,
+              0
+            ]
+          },
+          {
+            "nodeFunction": "GlobalFunctions.Scene.ShowTutorial",
+            "params": [
+              ""
+            ],
+            "pos": [
+              720,
+              -160
+            ]
+          },
+          {
+            "nodeFunction": "GlobalFunctions.Scene.SelfRecordAndDestroy",
+            "params": [],
+            "pos": [
+              720,
+              160
+            ]
+          }
+        ],
+        "links": [
+          {
+            "left": 0,
+            "right": 1,
+            "leftOutPin": 0,
+            "rightInPin": 0,
+            "linkType": "Params"
+          },
+          {
+            "left": 0,
+            "right": 1,
+            "leftOutPin": 0,
+            "rightInPin": 0,
+            "linkType": "Exec"
+          },
+          {
+            "left": 0,
+            "right": 2,
+            "leftOutPin": 1,
+            "rightInPin": 0,
+            "linkType": "Exec"
+          }
+        ]
+      }
+    },
+    "startNodes": {
+      "onCreate": 0
+    }
+  },
+  "type": "blueprint"
+}

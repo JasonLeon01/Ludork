@@ -10,6 +10,8 @@
 #include <Runtime/NodeGraph/GraphLink.hpp>
 #include <Runtime/NodeGraph/Types.hpp>
 
+#include <cstdint>
+
 namespace ludork::runtime::graph_detail {
 struct ExecutionState;
 }  // namespace ludork::runtime::graph_detail
@@ -146,6 +148,8 @@ public:
     const std::string& getDoingPartKey() const;
 
 private:
+    friend class LatentManager;
+
     struct LoopResult {
         std::optional<int> next;
         NodeResult result;
@@ -185,6 +189,8 @@ private:
                                                 int loopNodeIndex,
                                                 int startNode) const;
     RuntimeValue contextValue(const std::string& name) const;
+    std::uint64_t executionRevision(const std::string& key) const;
+    void cancelExecutionState(const std::string& key);
 
     DataNodeMap dataNodes_;
     std::unordered_map<std::string, std::vector<std::shared_ptr<Node>>> nodes_;

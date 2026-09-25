@@ -420,11 +420,3 @@ void writeJSON(const std::filesystem::path& filePath,
                const RuntimeData& value) {
     ludork::standard::writeJsonText(filePath, stringifyJSON(value));
 }
-
-RuntimeValue getJSONDataForLua(const std::string& filePath) {
-    return RuntimeValue(getJSONData(filePath));
-}
-
-void writeJSONForLua(const std::string& filePath, const RuntimeValue& value) {
-    writeJSON(filePath, value.toData());
-}

@@ -176,8 +176,11 @@ void LatentManager::update() {
     const UpdateScope updateScope(updating_);
     const std::vector<std::shared_ptr<Entry>> snapshot = entries_;
     for (const std::shared_ptr<Entry>& entry : snapshot) {
-        if (std::find(entries_.begin(), entries_.end(), entry) ==
-            entries_.end()) {
+        const auto isPending = [this, &entry]() {
+            return std::find(entries_.begin(), entries_.end(), entry) !=
+                   entries_.end();
+        };
+        if (!isPending()) {
             continue;
         }
 
@@ -189,8 +192,14 @@ void LatentManager::update() {
 
         const LatentManager::ConditionResult condition =
             pollCondition(entry->condition);
+        if (!isPending()) {
+            continue;
+        }
         const std::vector<std::shared_ptr<Node>> nodes =
             graph->getNodes(entry->key);
+        if (!isPending()) {
+            continue;
+        }
         if (entry->index < 0 ||
             static_cast<std::size_t>(entry->index) >= nodes.size() ||
             nodes[static_cast<std::size_t>(entry->index)] == nullptr) {
@@ -200,7 +209,7 @@ void LatentManager::update() {
             nodes[static_cast<std::size_t>(entry->index)]->getMemberMetadata();
         const std::vector<int> execIndexes =
             latentExecIndexes(metadata, condition);
-        if (execIndexes.empty()) {
+        if (execIndexes.empty() || !isPending()) {
             continue;
         }
 
@@ -209,6 +218,9 @@ void LatentManager::update() {
             const Graph::PinNexts& nexts =
                 graph->getNodeNexts(entry->key, entry->index);
             for (const int execIndex : execIndexes) {
+                if (!isPending()) {
+                    break;
+                }
                 const auto next = nexts.find(execIndex);
                 if (next == nexts.end()) {
                     continue;
@@ -223,14 +235,52 @@ void LatentManager::update() {
             }
         }
 
-        if (condition.finished) {
+        if (condition.finished && isPending()) {
+            const std::uint64_t revision = graph->executionRevision(entry->key);
             removeLatentsForNode(graph, entry->key, entry->index);
             graph->onLatentResolved(entry->key);
             if (graph->getLatentPendingCount(entry->key) == 0) {
                 graph->resumeSuspendedLoops(entry->key);
             }
-            graph->completeExecution(entry->key);
+            if (graph->executionRevision(entry->key) == revision) {
+                graph->completeExecution(entry->key);
+            }
         }
+    }
+}
+
+void LatentManager::cancel(const RuntimeIdentityPtr& condition) {
+    if (condition == nullptr) {
+        throw std::invalid_argument("Latent condition cannot be null");
+    }
+    std::vector<std::shared_ptr<Entry>> matches;
+    std::vector<std::pair<std::shared_ptr<Graph>, std::string>> executions;
+    const std::vector<std::shared_ptr<Entry>> snapshot = entries_;
+    for (const std::shared_ptr<Entry>& entry : snapshot) {
+        if (entry->condition != condition &&
+            !entry->condition->equals(*condition)) {
+            continue;
+        }
+        matches.push_back(entry);
+        if (const std::shared_ptr<Graph> graph = entry->graph.lock()) {
+            const std::pair execution{graph, entry->key};
+            if (std::find(executions.begin(), executions.end(), execution) ==
+                executions.end()) {
+                executions.push_back(execution);
+            }
+        }
+    }
+    std::erase_if(entries_, [&matches,
+                             &executions](const std::shared_ptr<Entry>& entry) {
+        if (std::find(matches.begin(), matches.end(), entry) != matches.end()) {
+            return true;
+        }
+        const std::pair execution{entry->graph.lock(), entry->key};
+        return std::find(executions.begin(), executions.end(), execution) !=
+               executions.end();
+    });
+    for (const auto& [graph, key] : executions) {
+        graph->cancelExecutionState(key);
     }
 }
 

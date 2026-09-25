@@ -2,6 +2,7 @@
 
 #include "ExecutionState.hpp"
 
+#include <algorithm>
 #include <utility>
 
 namespace ludork::runtime::graph_detail {
@@ -17,6 +18,26 @@ bool tryLockExecution(ExecutionState& state, const std::string& key) {
 bool isExecutionLocked(const ExecutionState& state, const std::string& key) {
     const auto locked = state.locked.find(key);
     return locked != state.locked.end() && locked->second;
+}
+
+std::uint64_t executionRevision(const ExecutionState& state,
+                                const std::string& key) {
+    const auto revision = state.cancellationRevisions.find(key);
+    return revision == state.cancellationRevisions.end() ? 0 : revision->second;
+}
+
+void cancelExecution(ExecutionState& state, const std::string& key) {
+    ++state.cancellationRevisions[key];
+    state.locked.erase(key);
+    state.latentPendingCount.erase(key);
+    state.completionCallbacks.erase(key);
+    std::erase_if(state.loopFrames,
+                  [&key](const std::shared_ptr<LoopFrame>& frame) {
+                      return frame != nullptr && frame->key == key;
+                  });
+    if (state.doingPartKey == key) {
+        state.suspendedByLatent = false;
+    }
 }
 
 void addLatent(ExecutionState& state, const std::string& key) {

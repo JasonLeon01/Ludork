@@ -210,13 +210,21 @@
                     <ColumnDefinition Width="*" MinWidth="640" />
                 </Grid.ColumnDefinitions>
 
-                <Grid Grid.Column="0" RowDefinitions="32,*,24" IsEnabled="{Binding CanEdit}">
+                <Grid Grid.Column="0" RowDefinitions="32,*" ColumnDefinitions="8,*,8" IsEnabled="{Binding CanEdit}">
                     <TextBlock Grid.Row="0"
+                               Grid.ColumnSpan="3"
                                Classes="panelTitle"
                                Text="{Binding MapList}" />
+                    <Border Grid.Row="1"
+                            Grid.Column="0"
+                            Background="Transparent"
+                            IsEnabled="{Binding #MapList.IsEnabled}"
+                            PointerPressed="onMapListPointerPressed" />
                     <TreeView x:Name="MapList"
                               Classes="mapList"
                               Grid.Row="1"
+                              Grid.Column="1"
+                              Padding="0,0,0,24"
                               ItemsSource="{Binding MapWorkspace.Maps}"
                               SelectedItem="{Binding MapWorkspace.SelectedMap}"
                               DoubleTapped="onMapListDoubleTapped"
@@ -241,7 +249,8 @@
                             </TreeDataTemplate>
                         </TreeView.ItemTemplate>
                     </TreeView>
-                    <Border Grid.Row="2"
+                    <Border Grid.Row="1"
+                            Grid.Column="2"
                             Background="Transparent"
                             IsEnabled="{Binding #MapList.IsEnabled}"
                             PointerPressed="onMapListPointerPressed" />

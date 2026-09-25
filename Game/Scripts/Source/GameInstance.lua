@@ -20,6 +20,7 @@ function GameInstance:init(skipDefaultPlayer)
     self._cachedDestroyedActors = {}
     self._cachedTerrainDestructions = {}
     self._cachedTelepoints = {}
+    self._triggeredTutorials = list()
     self._screenshot = nil
     if skipDefaultPlayer then
         return
@@ -48,6 +49,7 @@ function GameInstance:asDict()
         terrainDestructions = self._cachedTerrainDestructions,
         obtainedItems = self._cachedNewItem,
         telepoints = self._cachedTelepoints,
+        triggeredTutorials = self._triggeredTutorials,
         screenshot = self._screenshot
     })
 end
@@ -73,6 +75,7 @@ function GameInstance:restoreFromData(data)
     self._cachedTerrainDestructions = state.terrainDestructions
     self._cachedNewItem = state.obtainedItems
     self._cachedTelepoints = state.telepoints
+    self._triggeredTutorials = state.triggeredTutorials
     self._screenshot = state.screenshot
 end
 
@@ -259,6 +262,17 @@ end
 
 function GameInstance:setCachedNewItem(itemID)
     self._cachedNewItem[itemID] = true
+end
+
+function GameInstance:hasTriggeredTutorial(key)
+    return self._triggeredTutorials:contains(key)
+end
+
+function GameInstance:recordTriggeredTutorial(key)
+    assert(Class.isInstance(key, "string") and bool(key), "Tutorial key must be a non-empty string")
+    if not self._triggeredTutorials:contains(key) then
+        self._triggeredTutorials:append(key)
+    end
 end
 
 function GameInstance:getAddedActors(mapPath)

@@ -726,6 +726,11 @@ with the bundle. Non-Mach-O signatures use extended attributes, which must survi
 distribution. Editor packaging verifies the complete app before and after DMG
 creation, including the app mounted from the final disk image.
 
+The editor DMG packer detaches the whole device associated with its image file
+and confirms that the image is no longer attached before conversion or cleanup.
+An unmounted volume alone is not sufficient. Detach failures receive bounded
+forced retries; an unresolved attachment preserves the image and work directory.
+
 | Command line | Environment variable |
 |---|---|
 | `--signing-identity NAME` | `LUDORK_MACOS_SIGNING_IDENTITY` |

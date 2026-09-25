@@ -37,6 +37,7 @@
 ---@field _gameOverRequest                      { player: Source.MapActors.Player.Player, gameMap: GameMap } | nil
 ---@field _mapBuilder                           Source.SceneComponents.SceneMapBuilder
 ---@field _mapAudio                             Source.SceneComponents.SceneMapAudioController
+---@field _tutorials                            Source.SceneComponents.Tutorial
 ---@field _playerHUD                            Source.Windows.PlayerAttrHUD
 ---@field _messageWindow                        Internal.UIBase.LazyWindow<Source.Windows.WindowMessage>
 ---@field _windowPlayerName                     Internal.UIBase.LazyWindow<Source.Windows.WindowPlayerName>

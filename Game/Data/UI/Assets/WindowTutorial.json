@@ -1,0 +1,329 @@
+{
+  "type": "uiAsset",
+  "designSize": {
+    "width": 640,
+    "height": 480
+  },
+  "palette": {
+    "exposed": true,
+    "displayName": "Tutorial",
+    "category": "Windows"
+  },
+  "animations": [
+    {
+      "name": "Flash",
+      "target": "Border",
+      "duration": 0.25,
+      "tracks": {
+        "colour": [
+          {
+            "time": 0,
+            "value": [
+              255,
+              255,
+              255,
+              255
+            ]
+          },
+          {
+            "time": 0.125,
+            "value": [
+              255,
+              255,
+              255,
+              0
+            ]
+          },
+          {
+            "time": 0.25,
+            "value": [
+              255,
+              255,
+              255,
+              255
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "root": {
+    "name": "Root",
+    "controlId": "Engine.Canvas",
+    "properties": {
+      "size": [
+        640,
+        480
+      ]
+    },
+    "editor": {},
+    "children": [
+      {
+        "name": "TopCurtain",
+        "controlId": "Engine.SolidRect",
+        "properties": {
+          "size": [
+            0,
+            0
+          ],
+          "fillColor": [
+            128,
+            128,
+            128,
+            102
+          ]
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0,
+              0
+            ],
+            "max": [
+              0,
+              0
+            ]
+          },
+          "offsets": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          },
+          "alignment": [
+            0,
+            0
+          ],
+          "autoSize": true,
+          "zOrder": 0
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "name": "BottomCurtain",
+        "controlId": "Engine.SolidRect",
+        "properties": {
+          "size": [
+            0,
+            0
+          ],
+          "fillColor": [
+            128,
+            128,
+            128,
+            102
+          ]
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0,
+              0
+            ],
+            "max": [
+              0,
+              0
+            ]
+          },
+          "offsets": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          },
+          "alignment": [
+            0,
+            0
+          ],
+          "autoSize": true,
+          "zOrder": 0
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "name": "LeftCurtain",
+        "controlId": "Engine.SolidRect",
+        "properties": {
+          "size": [
+            0,
+            0
+          ],
+          "fillColor": [
+            128,
+            128,
+            128,
+            102
+          ]
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0,
+              0
+            ],
+            "max": [
+              0,
+              0
+            ]
+          },
+          "offsets": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          },
+          "alignment": [
+            0,
+            0
+          ],
+          "autoSize": true,
+          "zOrder": 0
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "name": "RightCurtain",
+        "controlId": "Engine.SolidRect",
+        "properties": {
+          "size": [
+            0,
+            0
+          ],
+          "fillColor": [
+            128,
+            128,
+            128,
+            102
+          ]
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0,
+              0
+            ],
+            "max": [
+              0,
+              0
+            ]
+          },
+          "offsets": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          },
+          "alignment": [
+            0,
+            0
+          ],
+          "autoSize": true,
+          "zOrder": 0
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "name": "Border",
+        "controlId": "Engine.SolidRect",
+        "properties": {
+          "size": [
+            32,
+            32
+          ],
+          "fillColor": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "outlineColor": [
+            255,
+            255,
+            255,
+            255
+          ],
+          "outlineThickness": 1,
+          "visible": false
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0,
+              0
+            ],
+            "max": [
+              0,
+              0
+            ]
+          },
+          "offsets": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          },
+          "alignment": [
+            0,
+            0
+          ],
+          "autoSize": true,
+          "zOrder": 1
+        },
+        "editor": {},
+        "children": []
+      },
+      {
+        "name": "Explanation",
+        "controlId": "Engine.PlainText",
+        "properties": {
+          "characterSize": 12,
+          "fillColor": [
+            255,
+            255,
+            255,
+            255
+          ],
+          "outlineColor": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "outlineThickness": 1,
+          "text": "",
+          "visible": false
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0,
+              0
+            ],
+            "max": [
+              0,
+              0
+            ]
+          },
+          "offsets": {
+            "left": 0,
+            "top": 0,
+            "right": 0,
+            "bottom": 0
+          },
+          "alignment": [
+            0,
+            0
+          ],
+          "autoSize": true,
+          "zOrder": 2
+        },
+        "editor": {},
+        "children": []
+      }
+    ]
+  }
+}

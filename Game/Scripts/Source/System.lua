@@ -61,6 +61,8 @@ end
 
 function System.Init()
     local systemData = Engine.getJSONData("./Data/Configs/System.json")
+    assert(Class.isInstance(systemData, "table"), "System configuration must be an object")
+    ---@cast systemData Source.System.ConfigData
     systemState.title = systemData.title.value
     local size = systemData.gameSize.value
     local gameSize = sf.Vector2u.new(size[1], size[2])

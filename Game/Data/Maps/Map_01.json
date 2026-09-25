@@ -1867,6 +1867,14 @@
           12,
           3
         ]
+      },
+      {
+        "tag": "MapIntroduction",
+        "bp": "Data.Blueprints.Actors.BP_MapIntroduction",
+        "position": [
+          6,
+          12
+        ]
       }
     ]
   },

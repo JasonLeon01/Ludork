@@ -14,6 +14,10 @@ bool InputService::isInputCaptured() const {
     return ludork::engine::input_impl::inputImpl().isInputCaptured();
 }
 
+std::shared_ptr<InputCapture> InputService::captureInput() {
+    return ludork::engine::input_impl::inputImpl().captureInput();
+}
+
 void InputService::initializeNativePolling() {
     ludork::engine::input_impl::inputImpl().initializeNativePolling();
 }

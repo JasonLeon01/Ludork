@@ -95,6 +95,12 @@ function Scene.ShowEnemyBook()
     loadContext().RequireSceneMap():showEnemyBook()
 end
 
+function Scene.ShowTutorial(key)
+    local Tutorial = require("Global.Tutorial")
+
+    return Tutorial.Show(key)
+end
+
 function Scene.ShowMessageByTag(name, message, refActorTag)
     refActorTag = refActorTag == nil and "" or refActorTag
     local scene = loadContext().RequireSceneMap()

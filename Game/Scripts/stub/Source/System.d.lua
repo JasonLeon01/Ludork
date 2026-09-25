@@ -1,5 +1,20 @@
 ---@meta Source.System
 
+---@class Source.System.ConfigData
+---@field title                { value: string }
+---@field gameSize             { value: { [1]: integer, [2]: integer } }
+---@field fonts                { value: string[] }
+---@field fontSize             { value: integer }
+---@field icon                 { value: string }
+---@field cursor               { value: string }
+---@field windowskinName       { value: string }
+---@field titleBackgroundFile  { value: string }
+---@field coverOpaqueAlpha     { value: integer }
+---@field startMap             { value: string }
+---@field startPlayerBlueprint { value: string }
+---@field startRegion          { value: string }
+---@field startPos             { value: { [1]: integer, [2]: integer } }
+
 ---@brief Game system bootstrap that initialises engine subsystems.
 ---@class Source.System.Module
 ---@field Init                    fun()

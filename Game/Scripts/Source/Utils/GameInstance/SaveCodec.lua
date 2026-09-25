@@ -283,6 +283,40 @@ local function normaliseObtainedItems(obtainedItems)
     return result
 end
 
+local function normaliseTriggeredTutorials(triggeredTutorials)
+    ---@type list<string>
+    local result = list()
+    if triggeredTutorials == nil then
+        return result
+    end
+    assert(Class.isInstance(triggeredTutorials, "table"), "triggeredTutorials must be an array")
+    local count = 0
+    for index in pairs(triggeredTutorials) do
+        if index ~= "n" then
+            assert(
+                Class.isInstance(index, "number") and math.type(index) == "integer" and index >= 1,
+                "triggeredTutorials must be an array"
+            )
+            count = count + 1
+        end
+    end
+    local length = rawget(triggeredTutorials, "n")
+    if length ~= nil then
+        assert(
+            Class.isInstance(length, "number") and math.type(length) == "integer" and length == count,
+            "triggeredTutorials must be a dense array"
+        )
+    end
+    for index = 1, count do
+        local key = triggeredTutorials[index]
+        assert(Class.isInstance(key, "string") and bool(key), "Tutorial key must be a non-empty string")
+        if not result:contains(key) then
+            result:append(key)
+        end
+    end
+    return result
+end
+
 local function containsWorldManifest(maps)
     for _, mapPath in pairs(maps) do
         if os.path.basename(mapPath) == MapConstants.WORLD_MANIFEST_FILE then
@@ -314,10 +348,7 @@ local function normalisePlayerMaps(savedMaps, playerKeys)
     local maps = {}
     for _, playerKey in ipairs(playerKeys) do
         local mapPath = savedMaps[playerKey]
-        assert(
-            Class.isInstance(mapPath, "string") and bool(mapPath),
-            "Map is missing for player key: " .. playerKey
-        )
+        assert(Class.isInstance(mapPath, "string") and bool(mapPath), "Map is missing for player key: " .. playerKey)
         maps[playerKey] = MapPath.Normalise(mapPath)
     end
     for playerKey in pairs(savedMaps) do
@@ -355,6 +386,7 @@ function SaveCodec.Encode(state)
         destroyedActors = deepcopy(state.destroyedActors),
         destroyedTerrain = serialiseTerrainDestructions(state.terrainDestructions),
         telepoints = serialiseTelepoints(state.telepoints),
+        triggeredTutorials = state.triggeredTutorials:toTable(),
         screenshot = deepcopy(state.screenshot)
     }
     if bool(worldMovedActors) or containsWorldManifest(maps) then
@@ -399,7 +431,10 @@ function SaveCodec.Decode(data)
     state.terrainDestructions = normaliseTerrainDestructions(data.destroyedTerrain)
     state.obtainedItems = normaliseObtainedItems(data.obtainedItems)
     state.telepoints = normaliseTelepoints(data.telepoints)
-    state.screenshot = data.screenshot == cjson.null and nil or data.screenshot
+    state.triggeredTutorials = normaliseTriggeredTutorials(data.triggeredTutorials)
+    if data.screenshot ~= cjson.null then
+        state.screenshot = data.screenshot
+    end
     return state
 end
 

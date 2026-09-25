@@ -174,6 +174,7 @@ FFMPEG_SOURCE_ARCHIVE="$PROJECT_ROOT/Game/ThirdPartySource/ffmpeg-$FFMPEG_VERSIO
 LUAC="$PROJECT_ROOT/.tools/Lua/luac"
 DIST_BACKED_UP=0
 DMG_MOUNTED=0
+DMG_IMAGE_PATH=
 DMG_MOUNT_DIR_OWNED=0
 DMG_TEMP_OWNED=0
 WORK_DIR_OWNED=0
@@ -230,26 +231,51 @@ interrupt() {
 trap cleanup EXIT
 trap interrupt HUP INT TERM
 
-detach_dmg() {
-    if hdiutil detach "$DMG_MOUNT_DIR" >/dev/null; then
-        DMG_MOUNTED=0
-        return 0
-    fi
-    if ! hdiutil info | grep -Fq "$DMG_MOUNT_DIR"; then
-        DMG_MOUNTED=0
-        return 0
-    fi
+attach_dmg() {
+    DMG_IMAGE_PATH=$1
+    DMG_MOUNTED=1
+    hdiutil attach "$2" -nobrowse \
+        -mountpoint "$DMG_MOUNT_DIR" "$DMG_IMAGE_PATH" >/dev/null
+}
 
-    echo "Retrying editor DMG detach with force..." >&2
-    if hdiutil detach -force "$DMG_MOUNT_DIR" >/dev/null; then
-        DMG_MOUNTED=0
-        return 0
-    fi
-    if ! hdiutil info | grep -Fq "$DMG_MOUNT_DIR"; then
-        DMG_MOUNTED=0
-        return 0
-    fi
-    return 1
+attached_dmg_device() {
+    dmg_info="$WORK_DIR/dmg-info.plist"
+    hdiutil info -plist > "$dmg_info" || return 1
+    dmg_image_count=$(plutil -extract images raw -expect array -o - "$dmg_info") || return 1
+    dmg_image_index=0
+    while [ "$dmg_image_index" -lt "$dmg_image_count" ]; do
+        dmg_image_path=$(plutil -extract "images.$dmg_image_index.image-path" \
+            raw -expect string -o - "$dmg_info") || return 1
+        if [ "$dmg_image_path" -ef "$DMG_IMAGE_PATH" ]; then
+            plutil -extract "images.$dmg_image_index.system-entities.0.dev-entry" \
+                raw -expect string -o - "$dmg_info"
+            return $?
+        fi
+        dmg_image_index=$((dmg_image_index + 1))
+    done
+}
+
+detach_dmg() {
+    dmg_detach_attempt=0
+    while :; do
+        dmg_device=$(attached_dmg_device) || return 1
+        if [ -z "$dmg_device" ]; then
+            DMG_MOUNTED=0
+            return 0
+        fi
+        if [ "$dmg_detach_attempt" -ge 4 ]; then
+            echo "Editor disk image is still attached: $DMG_IMAGE_PATH ($dmg_device)" >&2
+            return 1
+        fi
+        if [ "$dmg_detach_attempt" -eq 0 ]; then
+            hdiutil detach "$dmg_device" >/dev/null || true
+        else
+            echo "Retrying editor DMG detach with force: $dmg_device..." >&2
+            hdiutil detach -force "$dmg_device" >/dev/null || true
+        fi
+        dmg_detach_attempt=$((dmg_detach_attempt + 1))
+        sleep 2
+    done
 }
 
 require_file() {
@@ -650,17 +676,7 @@ validate_dmg() {
     fi
     mkdir "$DMG_MOUNT_DIR"
     DMG_MOUNT_DIR_OWNED=1
-    if ! hdiutil attach \
-        -readonly \
-        -nobrowse \
-        -mountpoint "$DMG_MOUNT_DIR" \
-        "$dmg_path" >/dev/null; then
-        if hdiutil info | grep -Fq "$DMG_MOUNT_DIR"; then
-            DMG_MOUNTED=1
-        fi
-        exit 1
-    fi
-    DMG_MOUNTED=1
+    attach_dmg "$dmg_path" -readonly
     validate_dmg_root "$DMG_MOUNT_DIR" 1
     detach_dmg
     rmdir "$DMG_MOUNT_DIR"
@@ -1392,17 +1408,7 @@ hdiutil create \
     "$DMG_READ_WRITE" >/dev/null
 mkdir "$DMG_MOUNT_DIR"
 DMG_MOUNT_DIR_OWNED=1
-if ! hdiutil attach \
-    -readwrite \
-    -nobrowse \
-    -mountpoint "$DMG_MOUNT_DIR" \
-    "$DMG_READ_WRITE" >/dev/null; then
-    if hdiutil info | grep -Fq "$DMG_MOUNT_DIR"; then
-        DMG_MOUNTED=1
-    fi
-    exit 1
-fi
-DMG_MOUNTED=1
+attach_dmg "$DMG_READ_WRITE" -readwrite
 if ! osascript "$DMG_ASSET_DIR/configure_layout.applescript" "$DMG_MOUNT_DIR"; then
     sleep 2
     osascript "$DMG_ASSET_DIR/configure_layout.applescript" "$DMG_MOUNT_DIR"

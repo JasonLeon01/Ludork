@@ -203,6 +203,9 @@ public:
     void onWindowRecreated(sf::RenderWindow& window);
 
     bool isInputCaptured() const;
+    std::shared_ptr<InputCapture> captureInput();
+    void setCaptureConfirmEnabled(InputCapture& capture, bool enabled);
+    bool consumeCaptureConfirm(InputCapture& capture);
     bool isFocused() const;
     bool isFocusLost() const;
     bool isFocusGained() const;

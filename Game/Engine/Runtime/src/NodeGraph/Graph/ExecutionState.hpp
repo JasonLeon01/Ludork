@@ -4,6 +4,7 @@
 #include <Runtime/NodeGraph/Types.hpp>
 
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -28,6 +29,7 @@ struct LoopFrame {
 };
 
 struct ExecutionState {
+    std::unordered_map<std::string, std::uint64_t> cancellationRevisions;
     std::unordered_map<std::string, bool> locked;
     std::unordered_map<std::string, std::size_t> latentPendingCount;
     std::unordered_map<std::string, std::vector<std::function<void()>>>
