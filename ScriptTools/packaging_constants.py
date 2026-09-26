@@ -27,7 +27,7 @@ MOBILE_PROJECT_DIRECTORIES = (
     "Engine/ThirdParty/SFML", "Engine/ThirdParty/LuaGlue", "Engine/ThirdParty/Lua",
 )
 MOBILE_DEPENDENCY_NAMES = (
-    "flac", "freetype", "harfbuzz", "libssh2", "mbedtls", "ogg", "sheenbidi", "vorbis",
+    "flac", "freetype", "harfbuzz", "libssh2", "ludork_utf8proc", "mbedtls", "ogg", "sheenbidi", "vorbis",
 )
 COMMON_DEPENDENCY_CACHE_DIRECTORIES = ("build/_deps", "build/Release/_deps", "build/Debug/_deps")
 CPP_TEMPLATE_NAMES = ("Cpp", "Cpp-ffmpeg")

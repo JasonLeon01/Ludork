@@ -45,7 +45,7 @@ internal sealed class ProjectPackCoordinator(Window owner, EditorProjectSession 
         {
             return;
         }
-        PackSelectionDialog selectionDialog = new(session.ProjectConfig);
+        PackSelectionDialog selectionDialog = new(session.ProjectConfig, session.ProjectPath);
         packSelectionDialog = selectionDialog;
         ProjectPackOptions? options = await selectionDialog.ShowDialog<ProjectPackOptions?>(owner);
         packSelectionDialog = null;

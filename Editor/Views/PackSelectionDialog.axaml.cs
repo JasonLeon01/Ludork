@@ -20,6 +20,7 @@ public partial class PackSelectionDialog : Window
     private bool? encryptionOptionsState;
     private bool encryptionOptionsExpanded;
     private readonly ProjectConfigService? projectConfig;
+    private readonly string? projectPath;
     private readonly bool isStandalone;
     private CancellationTokenSource? validationCancellation;
     private int validationGeneration;
@@ -29,9 +30,10 @@ public partial class PackSelectionDialog : Window
     {
     }
 
-    public PackSelectionDialog(ProjectConfigService? projectConfig)
+    public PackSelectionDialog(ProjectConfigService? projectConfig, string? projectPath = null)
     {
         this.projectConfig = projectConfig;
+        this.projectPath = projectPath;
         isStandalone = projectConfig?.IsStandalone ?? true;
         InitializeComponent();
         VersionLabel.Text = LocaleService.Get("PACK_RELEASE_VERSION");
@@ -58,6 +60,7 @@ public partial class PackSelectionDialog : Window
         IosSigningOption.Content = LocaleService.Get("PACK_IOS_SIGN_APP");
         IosStatusText.Text = LocaleService.Get("PACK_IOS_REQUIREMENTS");
         HarmonyOption.Content = LocaleService.Get("PACK_PLATFORM_HARMONYOS");
+        HarmonySigningOption.Content = LocaleService.Get("PACK_HARMONY_SIGN_HAP");
         HarmonyMobileOption.Content = LocaleService.Get("PACK_HARMONY_DEVICE_MOBILE");
         HarmonyTwoInOneOption.Content = LocaleService.Get("PACK_HARMONY_DEVICE_TWO_IN_ONE");
         HarmonyGraphicsApiText.Text = LocaleService.Get("PACK_HARMONY_GRAPHICS_API");
@@ -83,6 +86,7 @@ public partial class PackSelectionDialog : Window
         HarmonyOption.IsCheckedChanged += (_, _) => updateHarmonyDeviceVisibility();
         HarmonyMobileOption.IsCheckedChanged += (_, _) => updateHarmonyDeviceVisibility();
         HarmonyTwoInOneOption.IsCheckedChanged += (_, _) => updateHarmonyDeviceVisibility();
+        ExportToHarmonyDeviceOption.IsCheckedChanged += (_, _) => updateHarmonyDeviceVisibility();
         AndroidOption.IsCheckedChanged += (_, _) => updateAndroidSigningVisibility();
         EncryptGameDataOption.Click += (_, _) => toggleEncryptionOptions();
         LuacOption.IsCheckedChanged += (_, _) => updateEncryptionOptionsState();
@@ -222,6 +226,15 @@ public partial class PackSelectionDialog : Window
             if (platform is null)
                 return;
             AndroidSigningOptions? signing = null;
+            HarmonySigningOptions? harmonySigning = null;
+            if (platform == ProjectPackPlatform.HarmonyOS
+                && (HarmonySigningOption.IsChecked == true || ExportToHarmonyDeviceOption.IsChecked == true))
+            {
+                HarmonySigningDialog signingDialog = new(projectPath);
+                harmonySigning = await signingDialog.ShowDialog<HarmonySigningOptions?>(this);
+                if (harmonySigning is null || closed)
+                    return;
+            }
             if (platform == ProjectPackPlatform.Android && AndroidSigningOption.IsChecked == true)
             {
                 AndroidSigningDialog signingDialog = new();
@@ -266,6 +279,7 @@ public partial class PackSelectionDialog : Window
                 HarmonyGraphicsApi = deviceForm == HarmonyDeviceForm.Mobile || HarmonyOpenGLESOption.IsChecked == true
                     ? HarmonyGraphicsApi.OpenGLES : HarmonyGraphicsApi.OpenGL,
                 AndroidSigning = signing,
+                HarmonySigning = harmonySigning,
                 MacOSSigning = macOSSigning,
                 IOSSigning = iosSigning,
             };
@@ -342,6 +356,9 @@ public partial class PackSelectionDialog : Window
         HarmonyGraphicsApiPanel.IsVisible = HarmonyDevicePanel.IsVisible
             && HarmonyTwoInOneOption.IsChecked == true;
         ExportToHarmonyDeviceOption.IsVisible = HarmonyDevicePanel.IsVisible;
+        if (ExportToHarmonyDeviceOption.IsChecked == true)
+            HarmonySigningOption.IsChecked = true;
+        HarmonySigningOption.IsEnabled = ExportToHarmonyDeviceOption.IsChecked != true;
     }
 
     private void updateIosDetailsVisibility()

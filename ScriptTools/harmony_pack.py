@@ -17,6 +17,14 @@ from dataclasses import dataclass, replace
 
 from .resource_constants import ANIMATION_CACHE_SUFFIX
 from .pack_error import PackError
+from .harmony_signing import (
+    HarmonySigningOptions,
+    read_signing_options,
+    sign_hap,
+    signing_workspace,
+    validate_signing_credentials,
+    verify_signed_hap,
+)
 from .packaging_constants import (
     MOBILE_PROJECT_DIRECTORIES,
     COMMON_DEPENDENCY_CACHE_DIRECTORIES,
@@ -50,32 +58,15 @@ HARMONY_SDK_VERSION = "6.0.2(22)"
 HARMONY_COMPATIBLE_API = 22
 HARMONY_COMPILER_TARGET = "aarch64-linux-ohos22.0.0"
 HARMONY_MOBILE_DEVICE_TYPES = frozenset(("default", "phone", "tablet"))
-HARMONY_SIGNING_CONTRACT_VERSION = 1
 BUNDLE_NAME_PATTERN = re.compile(
     r"^[A-Za-z](?:[A-Za-z0-9_]*[A-Za-z0-9])?"
     r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9_]*[A-Za-z0-9])?){2,}$"
 )
-SIGNING_MATERIAL_FIELDS = (
-    "storeFile",
-    "storePassword",
-    "keyAlias",
-    "keyPassword",
-    "signAlg",
-    "profile",
-    "certpath",
-)
-SIGNING_PATH_FIELDS = ("storeFile", "profile", "certpath")
-SIGNING_WAIT_SECONDS = 180.0
-SIGNING_POLL_SECONDS = 0.5
-SIGNING_VALIDATION_TIMEOUT_SECONDS = 5.0
-SIGNING_INVALID_RECHECK_SECONDS = 2.0
-SIGNING_FINAL_VALIDATION_TIMEOUT_SECONDS = 5.0
 HARMONY_LAUNCH_FOREGROUND_TIMEOUT_SECONDS = 10.0
 HARMONY_LAUNCH_POLL_SECONDS = 0.5
 HARMONY_LAUNCH_QUERY_TIMEOUT_SECONDS = 3.0
 HARMONY_LAUNCH_ATTEMPTS = 2
 HARMONY_LAUNCH_DIAGNOSTIC_LIMIT = 2048
-INVALID_SIGNING_FINGERPRINT_LIMIT = 64
 NATIVE_BUILD_LOG_READ_LIMIT = 512 * 1024
 NATIVE_BUILD_DIAGNOSTIC_LIMIT = 16 * 1024
 NATIVE_BUILD_DIAGNOSTIC_LINE_LIMIT = 64
@@ -108,7 +99,6 @@ DEVICE_IDENTIFIER_PATTERN = re.compile(r"(?i)\b[0-9a-f]{64}\b")
 @dataclass(frozen=True)
 class DevEcoTools:
     app: pathlib.Path
-    executable: pathlib.Path
     java_home: pathlib.Path
     node_home: pathlib.Path
     sdk_home: pathlib.Path
@@ -127,17 +117,10 @@ class HarmonyDevice:
 
 
 @dataclass(frozen=True)
-class SigningCandidate:
-    overlay: dict[str, object]
-    fingerprint: str
-
-
-@dataclass(frozen=True)
 class PackContext:
     project_dir: pathlib.Path
     dist_dir: pathlib.Path
     stage_dir: pathlib.Path
-    signing_dir: pathlib.Path
     template_dir: pathlib.Path
     script_tools: pathlib.Path
     tools: DevEcoTools
@@ -170,7 +153,6 @@ def resolve_deveco_tools() -> DevEcoTools:
         app = next((candidate for candidate in candidates if candidate.is_dir()), DEVECO_APP)
     tools = DevEcoTools(
         app,
-        app / "Contents" / "MacOS" / "devecostudio",
         app / "Contents" / "jbr" / "Contents" / "Home",
         app / "Contents" / "tools" / "node",
         app / "Contents" / "sdk",
@@ -222,9 +204,7 @@ def resolve_deveco_tools() -> DevEcoTools:
 
 def require_device_export_tools(tools: DevEcoTools) -> None:
     required = (
-        tools.executable,
         tools.hdc,
-        tools.sign_tool,
     )
     missing = [str(path) for path in required if not path.is_file()]
     if missing:
@@ -338,14 +318,6 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
         project_dir=project_dir,
         dist_dir=dist_dir,
         stage_dir=project_dir / "build" / "harmony" / "stage",
-        signing_dir=(
-            project_dir
-            / "build"
-            / "harmony"
-            / "signing"
-            / bundle_name
-            / arguments.device_form
-        ),
         template_dir=project_dir / "Engine" / "PlatformHosts" / "Harmony",
         script_tools=resolve_script_tools(),
         tools=resolve_deveco_tools(),
@@ -1011,60 +983,9 @@ def valid_generated_native_profile(
     return isinstance(arguments, str) and arguments.split() == generated_native_arguments(context)
 
 
-def valid_signing_native_profile(
-    context: PackContext,
-    profile: dict[str, object],
-) -> bool:
-    build_option = profile.get("buildOption")
-    if not isinstance(build_option, dict):
-        return False
-    native_options = build_option.get("externalNativeOptions")
-    if not isinstance(native_options, dict):
-        return False
-    arguments = native_options.get("arguments")
-    if not isinstance(arguments, str):
-        return False
-    actual = arguments.split()
-    expected = generated_native_arguments(context)
-    if context.device_form != "2in1":
-        return actual == expected
-    graphics_prefix = "-DSFML_OPENGL_ES="
-    graphics_indexes = [
-        index for index, argument in enumerate(actual) if argument.startswith(graphics_prefix)
-    ]
-    if len(graphics_indexes) != 1:
-        return False
-    graphics_index = graphics_indexes[0]
-    if actual[graphics_index] not in {f"{graphics_prefix}ON", f"{graphics_prefix}OFF"}:
-        return False
-    actual[graphics_index] = f"{graphics_prefix}{cmake_opengl_es(context)}"
-    return actual == expected
-
-
-def write_private_json(path: pathlib.Path, value: object) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    descriptor, temporary_name = tempfile.mkstemp(
-        prefix=f".{path.name}.",
-        suffix=".tmp",
-        dir=path.parent,
-    )
-    temporary = pathlib.Path(temporary_name)
-    try:
-        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
-            json.dump(value, stream, ensure_ascii=False, indent=2)
-            stream.write("\n")
-            stream.flush()
-            os.fsync(stream.fileno())
-        temporary.replace(path)
-    except BaseException:
-        temporary.unlink(missing_ok=True)
-        raise
-
-
 def validate_project_contract(
     context: PackContext,
     project_dir: pathlib.Path,
-    signing_workspace: bool,
 ) -> None:
     text_suffixes = {
         ".cmake",
@@ -1129,6 +1050,8 @@ def validate_project_contract(
     project_profile = require_json5_object(context.tools, project_profile_path)
     if (
         not valid_harmony_project_profile(project_profile)
+        or project_profile["app"].get("signingConfigs") != []
+        or any("signingConfig" in product for product in project_profile["app"].get("products", []))
         or not harmony_project_sdk_contract(project_profile)
     ):
         raise PackError(
@@ -1144,12 +1067,7 @@ def validate_project_contract(
         )
     native_profile_path = project_dir / "entry" / "build-profile.json5"
     native_profile = require_json5_object(context.tools, native_profile_path)
-    valid_native_profile = (
-        valid_signing_native_profile(context, native_profile)
-        if signing_workspace
-        else valid_generated_native_profile(context, native_profile)
-    )
-    if not valid_native_profile:
+    if not valid_generated_native_profile(context, native_profile):
         raise PackError(
             f"Generated HarmonyOS project has an invalid native build contract: {native_profile_path}",
             EXIT_PROJECT,
@@ -1158,708 +1076,7 @@ def validate_project_contract(
 
 
 def validate_generated_project(context: PackContext, project_dir: pathlib.Path) -> None:
-    validate_project_contract(context, project_dir, False)
-
-
-def validate_signing_workspace(context: PackContext, project_dir: pathlib.Path) -> None:
-    validate_project_contract(context, project_dir, True)
-
-
-def absolute_signing_path(project_dir: pathlib.Path, value: str) -> pathlib.Path:
-    path = pathlib.Path(os.path.expandvars(value)).expanduser()
-    if not path.is_absolute():
-        path = project_dir / path
-    return path.resolve()
-
-
-def signing_overlay_from_profile(
-    context: PackContext,
-    profile: dict[str, object],
-    project_dir: pathlib.Path,
-) -> dict[str, object] | None:
-    if (
-        not valid_harmony_project_profile(profile)
-        or not harmony_project_sdk_contract(profile)
-    ):
-        return None
-    app = profile.get("app")
-    if not isinstance(app, dict):
-        return None
-    products = app.get("products")
-    signing_configs = app.get("signingConfigs")
-    if not isinstance(products, list) or not isinstance(signing_configs, list):
-        return None
-    default_products = [
-        product
-        for product in products
-        if isinstance(product, dict) and product.get("name") == "default"
-    ]
-    if len(default_products) != 1:
-        return None
-    signing_reference = default_products[0].get("signingConfig")
-    if isinstance(signing_reference, str) and signing_reference.strip():
-        signing_name = signing_reference.rsplit(".", 1)[-1]
-    else:
-        implicit_configs = [
-            config
-            for config in signing_configs
-            if isinstance(config, dict) and config.get("name") == "default"
-        ]
-        if len(signing_configs) != 1 or len(implicit_configs) != 1:
-            return None
-        signing_reference = "default"
-        signing_name = "default"
-    matching_configs = [
-        config
-        for config in signing_configs
-        if isinstance(config, dict) and config.get("name") == signing_name
-    ]
-    if len(matching_configs) != 1:
-        return None
-    config = matching_configs[0]
-    material = config.get("material")
-    if not isinstance(material, dict):
-        return None
-    normalized_material: dict[str, str] = {}
-    for field in SIGNING_MATERIAL_FIELDS:
-        value = material.get(field)
-        if not isinstance(value, str) or not value.strip():
-            return None
-        normalized_material[field] = value
-    for field in SIGNING_PATH_FIELDS:
-        path = absolute_signing_path(project_dir, normalized_material[field])
-        if not path.is_file():
-            return None
-        normalized_material[field] = str(path)
-    config_type = config.get("type")
-    if config_type != "HarmonyOS":
-        return None
-    normalized_config: dict[str, object] = {
-        "name": signing_name,
-        "material": normalized_material,
-        "type": config_type,
-    }
-    return {
-        "bundleName": context.bundle_name,
-        "deviceForm": context.device_form,
-        "compatibleSdkApi": HARMONY_COMPATIBLE_API,
-        "contractVersion": HARMONY_SIGNING_CONTRACT_VERSION,
-        "productSigningConfig": signing_reference,
-        "signingConfig": normalized_config,
-    }
-
-
-def verify_profile(
-    tools: DevEcoTools,
-    profile_path: pathlib.Path,
-    timeout: float = 20.0,
-) -> dict[str, object] | None:
-    with tempfile.TemporaryDirectory(prefix="ludork-harmony-profile-") as temporary:
-        result_path = pathlib.Path(temporary) / "result.json"
-        try:
-            result = subprocess.run(
-                [
-                    str(tools.java_home / "bin" / "java"),
-                    "-jar",
-                    str(tools.sign_tool),
-                    "verify-profile",
-                    "-inFile",
-                    str(profile_path),
-                    "-outFile",
-                    str(result_path),
-                ],
-                check=False,
-                capture_output=True,
-                timeout=timeout,
-            )
-        except (OSError, subprocess.TimeoutExpired):
-            return None
-        if result.returncode != 0 or not result_path.is_file():
-            return None
-        try:
-            verification = json.loads(result_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            return None
-    if not isinstance(verification, dict) or verification.get("verifiedPassed") is not True:
-        return None
-    content = verification.get("content")
-    if not isinstance(content, dict):
-        return None
-    return content
-
-
-def profile_matches_export(
-    content: dict[str, object],
-    bundle_name: str,
-    device_udid: str,
-) -> bool:
-    if content.get("type") != "debug":
-        return False
-    bundle_info = content.get("bundle-info")
-    validity = content.get("validity")
-    debug_info = content.get("debug-info")
-    if not isinstance(bundle_info, dict) or bundle_info.get("bundle-name") != bundle_name:
-        return False
-    if not isinstance(validity, dict):
-        return False
-    not_before = validity.get("not-before")
-    not_after = validity.get("not-after")
-    if (
-        isinstance(not_before, bool)
-        or isinstance(not_after, bool)
-        or not isinstance(not_before, (int, float))
-        or not isinstance(not_after, (int, float))
-    ):
-        return False
-    current_time = time.time()
-    if current_time < not_before or current_time > not_after:
-        return False
-    if not isinstance(debug_info, dict) or debug_info.get("device-id-type") != "udid":
-        return False
-    device_ids = debug_info.get("device-ids")
-    if not isinstance(device_ids, list):
-        return False
-    return any(isinstance(value, str) and value == device_udid for value in device_ids)
-
-
-def signing_candidate_from_overlay(
-    context: PackContext,
-    overlay: dict[str, object],
-    device: HarmonyDevice,
-    validation_timeout: float = SIGNING_VALIDATION_TIMEOUT_SECONDS,
-) -> SigningCandidate | None:
-    if (
-        device.udid is None
-        or overlay.get("bundleName") != context.bundle_name
-        or overlay.get("deviceForm") != context.device_form
-        or overlay.get("compatibleSdkApi") != HARMONY_COMPATIBLE_API
-        or overlay.get("contractVersion") != HARMONY_SIGNING_CONTRACT_VERSION
-    ):
-        return None
-    config = overlay.get("signingConfig")
-    reference = overlay.get("productSigningConfig")
-    if not isinstance(config, dict) or not isinstance(reference, str):
-        return None
-    config_name = config.get("name")
-    if (
-        not isinstance(config_name, str)
-        or not config_name
-        or config.get("type") != "HarmonyOS"
-        or reference.rsplit(".", 1)[-1] != config_name
-    ):
-        return None
-    material = config.get("material")
-    if not isinstance(material, dict):
-        return None
-    for field in SIGNING_MATERIAL_FIELDS:
-        value = material.get(field)
-        if not isinstance(value, str) or not value.strip():
-            return None
-    paths: dict[str, pathlib.Path] = {}
-    for field in SIGNING_PATH_FIELDS:
-        value = material[field]
-        if not isinstance(value, str):
-            return None
-        path = pathlib.Path(value)
-        try:
-            if not path.is_absolute() or not path.is_file():
-                return None
-        except OSError:
-            return None
-        paths[field] = path
-    content = verify_profile(
-        context.tools,
-        paths["profile"],
-        timeout=validation_timeout,
-    )
-    if content is None or not profile_matches_export(content, context.bundle_name, device.udid):
-        return None
-    fingerprint_parts = [json.dumps(overlay, ensure_ascii=False, sort_keys=True)]
-    try:
-        for field in SIGNING_PATH_FIELDS:
-            stat = paths[field].stat()
-            fingerprint_parts.append(f"{field}:{stat.st_size}:{stat.st_mtime_ns}")
-    except OSError:
-        return None
-    fingerprint = hashlib.sha256("\n".join(fingerprint_parts).encode("utf-8")).hexdigest()
-    return SigningCandidate(overlay, fingerprint)
-
-
-def signing_candidate_from_project(
-    context: PackContext,
-    project_dir: pathlib.Path,
-    device: HarmonyDevice,
-    validation_timeout: float = SIGNING_VALIDATION_TIMEOUT_SECONDS,
-) -> SigningCandidate | None:
-    started = time.monotonic()
-    profile_path = project_dir / "build-profile.json5"
-    profile = read_json5(
-        context.tools,
-        profile_path,
-        timeout=validation_timeout,
-    )
-    if not isinstance(profile, dict):
-        return None
-    overlay = signing_overlay_from_profile(context, profile, project_dir)
-    if overlay is None:
-        return None
-    remaining = validation_timeout - (time.monotonic() - started)
-    if remaining <= 0:
-        return None
-    return signing_candidate_from_overlay(
-        context,
-        overlay,
-        device,
-        remaining,
-    )
-
-
-def signing_project_stamp(project_dir: pathlib.Path) -> tuple[int, int] | None:
-    try:
-        stat = (project_dir / "build-profile.json5").stat()
-    except OSError:
-        return None
-    return stat.st_size, stat.st_mtime_ns
-
-
-def load_signing_overlay(path: pathlib.Path) -> dict[str, object] | None:
-    if not path.is_file():
-        return None
-    try:
-        overlay = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return None
-    return overlay if isinstance(overlay, dict) else None
-
-
-def inject_signing_overlay(
-    context: PackContext,
-    project_dir: pathlib.Path,
-    overlay: dict[str, object],
-) -> None:
-    profile_path = project_dir / "build-profile.json5"
-    profile = require_json5_object(context.tools, profile_path)
-    app = profile.get("app")
-    config = overlay.get("signingConfig")
-    reference = overlay.get("productSigningConfig")
-    if not isinstance(app, dict) or not isinstance(config, dict) or not isinstance(reference, str):
-        raise PackError("Stored HarmonyOS signing configuration is invalid.", EXIT_SIGNING)
-    if (
-        overlay.get("bundleName") != context.bundle_name
-        or overlay.get("deviceForm") != context.device_form
-        or overlay.get("compatibleSdkApi") != HARMONY_COMPATIBLE_API
-        or overlay.get("contractVersion") != HARMONY_SIGNING_CONTRACT_VERSION
-    ):
-        raise PackError(
-            "Stored HarmonyOS signing configuration does not match the generated project contract.",
-            EXIT_SIGNING,
-        )
-    products = app.get("products")
-    if not isinstance(products, list):
-        raise PackError("Generated HarmonyOS products configuration is invalid.", EXIT_PROJECT)
-    default_products = [
-        product
-        for product in products
-        if isinstance(product, dict) and product.get("name") == "default"
-    ]
-    if len(default_products) != 1:
-        raise PackError("Generated HarmonyOS default product is invalid.", EXIT_PROJECT)
-    app["signingConfigs"] = [config]
-    default_products[0]["signingConfig"] = reference
-    write_private_json(profile_path, profile)
-
-
-def signing_overlay_path(context: PackContext) -> pathlib.Path:
-    return context.signing_dir / "overlay.json"
-
-
-def signing_overlay_fingerprint(overlay: dict[str, object]) -> str | None:
-    config = overlay.get("signingConfig")
-    if not isinstance(config, dict):
-        return None
-    material = config.get("material")
-    if not isinstance(material, dict):
-        return None
-    fingerprint_parts = [json.dumps(overlay, ensure_ascii=False, sort_keys=True)]
-    try:
-        for field in SIGNING_PATH_FIELDS:
-            value = material.get(field)
-            if not isinstance(value, str):
-                return None
-            path = pathlib.Path(value)
-            if not path.is_absolute() or not path.is_file():
-                return None
-            stat = path.stat()
-            fingerprint_parts.append(f"{field}:{stat.st_size}:{stat.st_mtime_ns}")
-    except OSError:
-        return None
-    return hashlib.sha256("\n".join(fingerprint_parts).encode("utf-8")).hexdigest()
-
-
-def invalid_signing_fingerprints_path(context: PackContext) -> pathlib.Path:
-    return context.signing_dir / "invalid-fingerprints.json"
-
-
-def load_invalid_signing_fingerprints(context: PackContext) -> list[str]:
-    path = invalid_signing_fingerprints_path(context)
-    if not path.is_file():
-        return []
-    try:
-        values = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return []
-    if not isinstance(values, list):
-        return []
-    return [
-        value
-        for value in values
-        if isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value)
-    ]
-
-
-def invalidate_signing_overlay(
-    context: PackContext,
-    overlay: dict[str, object],
-) -> None:
-    overlay_path = signing_overlay_path(context)
-    fingerprint = signing_overlay_fingerprint(overlay)
-    if fingerprint is not None:
-        invalid_fingerprints = load_invalid_signing_fingerprints(context)
-        invalid_fingerprints = [
-            value for value in invalid_fingerprints if value != fingerprint
-        ]
-        invalid_fingerprints.append(fingerprint)
-        write_private_json(
-            invalid_signing_fingerprints_path(context),
-            invalid_fingerprints[-INVALID_SIGNING_FINGERPRINT_LIMIT:],
-        )
-    invalid_path = overlay_path.with_name(
-        f"overlay.invalid-{time.time_ns()}-{os.getpid()}.json"
-    )
-    try:
-        overlay_path.replace(invalid_path)
-    except FileNotFoundError:
-        return
-    except OSError as exception:
-        raise PackError(
-            "Unable to invalidate the unusable HarmonyOS signing configuration.",
-            EXIT_SIGNING,
-        ) from exception
-
-
-def existing_signing_workspaces(context: PackContext) -> list[pathlib.Path]:
-    candidates = [context.signing_dir / "project"]
-    attempts_dir = context.signing_dir / "attempts"
-    if attempts_dir.is_dir():
-        try:
-            candidates.extend(path for path in attempts_dir.iterdir() if path.is_dir())
-        except OSError:
-            pass
-    dated: list[tuple[int, pathlib.Path]] = []
-    for workspace in candidates:
-        profile_path = workspace / "build-profile.json5"
-        try:
-            if profile_path.is_file():
-                dated.append((profile_path.stat().st_mtime_ns, workspace))
-        except OSError:
-            continue
-    return [
-        workspace
-        for _, workspace in sorted(dated, key=lambda value: value[0], reverse=True)
-    ]
-
-
-def prepare_signing_workspace(context: PackContext) -> pathlib.Path:
-    attempts_dir = context.signing_dir / "attempts"
-    attempts_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
-    context.signing_dir.chmod(0o700)
-    attempts_dir.chmod(0o700)
-    workspace = pathlib.Path(tempfile.mkdtemp(prefix="project-", dir=attempts_dir))
-    try:
-        prepare_stage(context, workspace)
-        validate_generated_project(context, workspace)
-    except BaseException:
-        shutil.rmtree(workspace, ignore_errors=True)
-        raise
-    return workspace
-
-
-def reusable_signing_workspace(
-    context: PackContext,
-    workspaces: list[pathlib.Path],
-    invalid_fingerprints: set[str],
-) -> pathlib.Path | None:
-    for workspace in workspaces:
-        try:
-            validate_signing_workspace(context, workspace)
-        except (OSError, PackError):
-            continue
-        profile = read_json5(context.tools, workspace / "build-profile.json5")
-        if not isinstance(profile, dict):
-            continue
-        overlay = signing_overlay_from_profile(context, profile, workspace)
-        if overlay is not None:
-            fingerprint = signing_overlay_fingerprint(overlay)
-            if fingerprint is not None and fingerprint in invalid_fingerprints:
-                continue
-        return workspace
-    return None
-
-
-def deveco_process_ids(tools: DevEcoTools) -> set[int]:
-    try:
-        process = subprocess.run(
-            ["/usr/bin/pgrep", "-x", tools.executable.name],
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-    except (OSError, subprocess.TimeoutExpired) as exception:
-        raise PackError(
-            "Unable to monitor the DevEco Studio process.",
-            EXIT_SIGNING,
-        ) from exception
-    if process.returncode == 1:
-        return set()
-    if process.returncode != 0:
-        raise PackError(
-            "Unable to monitor the DevEco Studio process.",
-            EXIT_SIGNING,
-        )
-    return {
-        int(value)
-        for value in process.stdout.splitlines()
-        if value.strip().isdigit()
-    }
-
-
-def launch_deveco_signing_project(
-    context: PackContext,
-    workspace: pathlib.Path,
-) -> None:
-    try:
-        opened = subprocess.run(
-            ["/usr/bin/open", "-a", str(context.tools.app), str(workspace)],
-            check=False,
-            capture_output=True,
-            timeout=20,
-        )
-    except (OSError, subprocess.TimeoutExpired) as exception:
-        raise PackError("Unable to open the signing project in DevEco Studio.", EXIT_SIGNING) from exception
-    if opened.returncode != 0:
-        raise PackError("Unable to open the signing project in DevEco Studio.", EXIT_SIGNING)
-    process_deadline = time.monotonic() + 20.0
-    while True:
-        if deveco_process_ids(context.tools):
-            return
-        if time.monotonic() >= process_deadline:
-            raise PackError("DevEco Studio did not finish starting.", EXIT_SIGNING)
-        time.sleep(0.25)
-
-
-def confirm_signing_candidate(
-    context: PackContext,
-    workspace: pathlib.Path,
-    device: HarmonyDevice,
-    validation_timeout: float = SIGNING_VALIDATION_TIMEOUT_SECONDS,
-) -> SigningCandidate | None:
-    first = signing_candidate_from_project(
-        context,
-        workspace,
-        device,
-        validation_timeout,
-    )
-    if first is None:
-        return None
-    time.sleep(SIGNING_POLL_SECONDS)
-    second = signing_candidate_from_project(
-        context,
-        workspace,
-        device,
-        validation_timeout,
-    )
-    if second is None or second.fingerprint != first.fingerprint:
-        return None
-    return second
-
-
-def wait_for_deveco_signing(
-    context: PackContext,
-    workspace: pathlib.Path,
-    device: HarmonyDevice,
-    invalid_fingerprints: set[str],
-) -> SigningCandidate:
-    print("HarmonyOS device export requires a valid automatic signing configuration.", flush=True)
-    print(
-        "In DevEco Studio, open File > Project Structure > Project > Signing Configs for the "
-        "default product, enable automatic signing, sign in, and complete the device confirmation "
-        "within 3 minutes. Remove an existing invalid signing config before applying automatic "
-        "signing again.",
-        flush=True,
-    )
-    print(f"Signing project: {workspace}", flush=True)
-    launch_deveco_signing_project(context, workspace)
-    deadline = time.monotonic() + SIGNING_WAIT_SECONDS
-    stable_fingerprint: str | None = None
-    stable_count = 0
-    last_invalid_stamp: tuple[int, int] | None = None
-    next_invalid_validation = 0.0
-    while True:
-        current_time = time.monotonic()
-        remaining = deadline - current_time
-        if remaining <= 0:
-            final_candidate = confirm_signing_candidate(
-                context,
-                workspace,
-                device,
-                SIGNING_FINAL_VALIDATION_TIMEOUT_SECONDS,
-            )
-            if (
-                final_candidate is not None
-                and final_candidate.fingerprint not in invalid_fingerprints
-            ):
-                return final_candidate
-            raise PackError(
-                "HarmonyOS signing was not completed within 3 minutes.",
-                EXIT_SIGNING,
-            )
-        profile_stamp = signing_project_stamp(workspace)
-        should_validate = (
-            stable_fingerprint is not None
-            or profile_stamp != last_invalid_stamp
-            or current_time >= next_invalid_validation
-        )
-        candidate: SigningCandidate | None = None
-        if should_validate:
-            candidate = signing_candidate_from_project(
-                context,
-                workspace,
-                device,
-                min(SIGNING_VALIDATION_TIMEOUT_SECONDS, remaining),
-            )
-            if (
-                candidate is not None
-                and candidate.fingerprint in invalid_fingerprints
-            ):
-                candidate = None
-            if candidate is None:
-                last_invalid_stamp = profile_stamp
-                next_invalid_validation = (
-                    time.monotonic() + SIGNING_INVALID_RECHECK_SECONDS
-                )
-                stable_fingerprint = None
-                stable_count = 0
-            elif candidate.fingerprint == stable_fingerprint:
-                stable_count += 1
-            else:
-                stable_fingerprint = candidate.fingerprint
-                stable_count = 1
-            if candidate is not None and stable_count >= 2:
-                return candidate
-        application_closed = not deveco_process_ids(context.tools)
-        if application_closed:
-            final_candidate = confirm_signing_candidate(
-                context,
-                workspace,
-                device,
-                SIGNING_FINAL_VALIDATION_TIMEOUT_SECONDS,
-            )
-            if (
-                final_candidate is not None
-                and final_candidate.fingerprint not in invalid_fingerprints
-            ):
-                return final_candidate
-            raise PackError(
-                "DevEco Studio exited before signing was completed.",
-                EXIT_SIGNING,
-            )
-        time.sleep(SIGNING_POLL_SECONDS)
-
-
-def resolve_signing_overlay(
-    context: PackContext,
-    device: HarmonyDevice,
-) -> dict[str, object]:
-    overlay_path = signing_overlay_path(context)
-    invalid_fingerprints = set(load_invalid_signing_fingerprints(context))
-    workspaces = existing_signing_workspaces(context)
-    overlay = load_signing_overlay(overlay_path)
-    if overlay is not None:
-        candidate = signing_candidate_from_overlay(context, overlay, device)
-        if candidate is not None and candidate.fingerprint not in invalid_fingerprints:
-            return candidate.overlay
-    for workspace in workspaces:
-        try:
-            validate_signing_workspace(context, workspace)
-        except (OSError, PackError):
-            continue
-        candidate = confirm_signing_candidate(context, workspace, device)
-        if candidate is not None and candidate.fingerprint not in invalid_fingerprints:
-            write_private_json(overlay_path, candidate.overlay)
-            return candidate.overlay
-    workspace = reusable_signing_workspace(
-        context,
-        workspaces,
-        invalid_fingerprints,
-    ) or prepare_signing_workspace(context)
-    candidate = wait_for_deveco_signing(
-        context,
-        workspace,
-        device,
-        invalid_fingerprints,
-    )
-    write_private_json(overlay_path, candidate.overlay)
-    return candidate.overlay
-
-
-def verify_signed_hap(
-    context: PackContext,
-    hap: pathlib.Path,
-    device: HarmonyDevice,
-) -> None:
-    if device.udid is None:
-        raise PackError("The HarmonyOS device UDID is unavailable.", EXIT_DEVICE)
-    with tempfile.TemporaryDirectory(prefix="ludork-harmony-hap-") as temporary:
-        temporary_dir = pathlib.Path(temporary)
-        certificate_path = temporary_dir / "certificate.cer"
-        profile_path = temporary_dir / "profile.p7b"
-        try:
-            result = subprocess.run(
-                [
-                    str(context.tools.java_home / "bin" / "java"),
-                    "-jar",
-                    str(context.tools.sign_tool),
-                    "verify-app",
-                    "-inFile",
-                    str(hap),
-                    "-outCertChain",
-                    str(certificate_path),
-                    "-outProfile",
-                    str(profile_path),
-                ],
-                check=False,
-                capture_output=True,
-                timeout=30,
-            )
-        except (OSError, subprocess.TimeoutExpired) as exception:
-            raise PackError("Unable to verify the signed HarmonyOS HAP.", EXIT_SIGNING) from exception
-        if (
-            result.returncode != 0
-            or not certificate_path.is_file()
-            or not profile_path.is_file()
-        ):
-            raise PackError("The generated HarmonyOS HAP has an invalid signature.", EXIT_SIGNING)
-        content = verify_profile(context.tools, profile_path)
-        if content is None or not profile_matches_export(
-            content,
-            context.bundle_name,
-            device.udid,
-        ):
-            raise PackError(
-                "The generated HarmonyOS HAP signature does not match the app or connected device.",
-                EXIT_SIGNING,
-            )
+    validate_project_contract(context, project_dir)
 
 
 def redact_native_build_diagnostic(text: str) -> str:
@@ -2147,15 +1364,7 @@ def validate_hap_native_dependencies(
         )
 
 
-def build_hap(
-    context: PackContext,
-    signed: bool = False,
-    device: HarmonyDevice | None = None,
-) -> pathlib.Path:
-    if signed:
-        if device is None:
-            raise PackError("A HarmonyOS device is required for signed export.", EXIT_DEVICE)
-        ensure_harmony_device_connected(context, device)
+def build_hap(context: PackContext) -> pathlib.Path:
     environment = os.environ.copy()
     environment["JAVA_HOME"] = str(context.tools.java_home)
     environment["NODE_HOME"] = str(context.tools.node_home)
@@ -2183,26 +1392,21 @@ def build_hap(
         / "default"
     )
     unsigned_hap = output_dir / "entry-default-unsigned.hap"
-    signed_hap = output_dir / "entry-default-signed.hap"
     native_log_baseline = native_build_log_states(context.stage_dir)
     result = subprocess.run(command, cwd=context.stage_dir, env=environment, check=False)
     if result.returncode != 0:
         print_native_build_diagnostic(context.stage_dir, native_log_baseline)
-        if signed and unsigned_hap.is_file() and not signed_hap.is_file():
-            raise PackError(
-                "DevEco Studio built the unsigned HAP but failed to sign it.",
-                EXIT_SIGNING,
-            )
         raise PackError(
             "DevEco Studio failed to build the HarmonyOS HAP.",
             result.returncode or 1,
         )
     validate_native_build_contract(context)
-    signature = "signed" if signed else "unsigned"
-    hap = signed_hap if signed else unsigned_hap
-    if not hap.is_file():
-        exit_code = EXIT_SIGNING if signed else 1
-        raise PackError(f"{signature.title()} HarmonyOS HAP was not produced: {hap}", exit_code)
+    if not unsigned_hap.is_file():
+        raise PackError(f"Unsigned HarmonyOS HAP was not produced: {unsigned_hap}")
+    return unsigned_hap
+
+
+def validate_hap(context: PackContext, hap: pathlib.Path) -> None:
     with zipfile.ZipFile(hap) as archive:
         names = set(archive.namelist())
         try:
@@ -2220,18 +1424,40 @@ def build_hap(
     if "libs/arm64-v8a/libentry.so" not in names:
         raise PackError("HarmonyOS HAP does not contain arm64-v8a/libentry.so.", 1)
     validate_hap_native_dependencies(context, hap)
-    if signed:
-        if device is None:
-            raise PackError("A HarmonyOS device is required for signed export.", EXIT_DEVICE)
-        ensure_harmony_device_connected(context, device)
-        verify_signed_hap(context, hap, device)
+
+
+def publish_hap(context: PackContext, hap: pathlib.Path, signed: bool) -> pathlib.Path:
+    signature = "signed" if signed else "unsigned"
     context.dist_dir.mkdir(parents=True, exist_ok=True)
-    output = (
-        context.dist_dir
-        / f"{context.artifact_name}-harmony-{harmony_artifact_variant(context)}-{signature}.hap"
-    )
-    shutil.copy2(hap, output)
+    output = context.dist_dir / f"{context.artifact_name}-harmony-{harmony_artifact_variant(context)}-{signature}.hap"
+    descriptor, name = tempfile.mkstemp(prefix=f".{output.name}.", suffix=".tmp", dir=context.dist_dir)
+    temporary = pathlib.Path(name)
+    try:
+        with os.fdopen(descriptor, "wb") as destination, hap.open("rb") as source:
+            shutil.copyfileobj(source, destination, FILE_BUFFER_SIZE)
+            destination.flush()
+            os.fsync(destination.fileno())
+        temporary.replace(output)
+    finally:
+        temporary.unlink(missing_ok=True)
     return output
+
+
+def sign_and_publish_hap(
+    context: PackContext,
+    hap: pathlib.Path,
+    signing: HarmonySigningOptions,
+    device: HarmonyDevice | None,
+) -> pathlib.Path:
+    with signing_workspace("ludork-harmony-sign-") as temporary:
+        signed_hap = pathlib.Path(temporary) / "signed.hap"
+        sign_hap(context.tools.java_home, context.tools.sign_tool, signing, hap, signed_hap, HARMONY_COMPATIBLE_API)
+        verify_signed_hap(
+            context.tools.java_home, context.tools.sign_tool, signed_hap, signing,
+            context.bundle_name, device.udid if device is not None else None,
+        )
+        validate_hap(context, signed_hap)
+        return publish_hap(context, signed_hap, signed=True)
 
 
 def harmony_app_is_foreground(
@@ -2377,6 +1603,11 @@ def create_parser() -> argparse.ArgumentParser:
     add_package_arguments(parser)
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--export-to-device", action="store_true")
+    parser.add_argument("--sign", action="store_true")
+    parser.add_argument("--keystore", type=pathlib.Path)
+    parser.add_argument("--certificate", type=pathlib.Path)
+    parser.add_argument("--profile", type=pathlib.Path)
+    parser.add_argument("--key-alias")
     parser.add_argument("--compile-lua", action="store_true")
     parser.add_argument("--encrypt-shaders", action="store_true")
     parser.add_argument("--encrypt-data", action="store_true")
@@ -2392,7 +1623,9 @@ def create_parser() -> argparse.ArgumentParser:
 def main(arguments: list[str] | None = None) -> int:
     parser = create_parser()
     parsed = parser.parse_args(arguments)
+    signing: HarmonySigningOptions | None = None
     try:
+        signing = read_signing_options(parsed, sys.stdin, parsed.project_folder.expanduser().resolve())
         context = create_context(parsed)
         print(f"DevEco Studio: {context.tools.app}")
         print(f"Game name: {context.game_name}")
@@ -2403,51 +1636,40 @@ def main(arguments: list[str] | None = None) -> int:
         if parsed.export_to_device:
             require_device_export_tools(context.tools)
             device = select_harmony_device(context.tools, context.device_form)
-            print(
-                f"One matching HarmonyOS {context.device_form} device was found "
-                f"({device.device_type})."
-            )
-        if parsed.check:
-            print(
-                f"HarmonyOS {harmony_artifact_variant(context)} packaging check passed."
-            )
-            return 0
-        context = replace(context, ui_registry=prepare_registry(context.project_dir, context.script_tools))
-        if parsed.export_to_device:
-            if device is None:
-                raise PackError("A HarmonyOS device is required for device export.", EXIT_DEVICE)
             device = read_device_udid(context.tools, device)
             ensure_harmony_device_connected(context, device)
-            overlay = resolve_signing_overlay(context, device)
-            runtime_hash = prepare_stage(context)
-            validate_generated_project(context, context.stage_dir)
-            inject_signing_overlay(context, context.stage_dir, overlay)
-            print(f"Runtime archive SHA-256: {runtime_hash}")
-            try:
-                output = build_hap(context, signed=True, device=device)
-            except PackError as exception:
-                if exception.exit_code == EXIT_SIGNING:
-                    invalidate_signing_overlay(context, overlay)
-                raise
-            print(f"Signed pack complete: {output}")
-            install_and_launch_harmony_hap(context, device, output)
-            print(f"Installed and launched {context.game_name} on the HarmonyOS device.")
+        if signing is not None:
+            validate_signing_credentials(
+                context.tools.java_home, context.tools.sign_tool, signing, context.bundle_name,
+                device.udid if device is not None else None,
+            )
+        if parsed.check:
+            print(f"HarmonyOS {harmony_artifact_variant(context)} packaging check passed.")
             return 0
+        context = replace(context, ui_registry=prepare_registry(context.project_dir, context.script_tools))
         runtime_hash = prepare_stage(context)
         validate_generated_project(context, context.stage_dir)
         print(f"Runtime archive SHA-256: {runtime_hash}")
-        output = build_hap(context)
+        hap = build_hap(context)
+        validate_hap(context, hap)
+        output = (
+            sign_and_publish_hap(context, hap, signing, device)
+            if signing is not None else publish_hap(context, hap, signed=False)
+        )
         print(f"Pack complete: {output}")
+        if device is not None:
+            ensure_harmony_device_connected(context, device)
+            install_and_launch_harmony_hap(context, device, output)
+            print(f"Installed and launched {context.game_name} on the HarmonyOS device.")
         return 0
-    except PackError as exception:
-        print(str(exception), file=sys.stderr)
-        return exception.exit_code
-    except (LdPakError, UiAssetError) as exception:
-        print(str(exception), file=sys.stderr)
-        return EXIT_PROJECT
-    except (OSError, RuntimeError, zipfile.BadZipFile) as exception:
-        print(str(exception), file=sys.stderr)
-        return 1
+    except (PackError, LdPakError, UiAssetError, OSError, RuntimeError, ValueError, zipfile.BadZipFile) as exception:
+        message = str(exception)
+        if signing is not None:
+            message = signing.redact(message)
+        print(redact_native_build_diagnostic(message), file=sys.stderr)
+        if isinstance(exception, PackError):
+            return exception.exit_code
+        return EXIT_PROJECT if isinstance(exception, (LdPakError, UiAssetError)) else 1
 
 
 if __name__ == "__main__":

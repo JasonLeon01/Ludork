@@ -1403,6 +1403,122 @@
     "zh_CN": "OpenGL ES",
     "en_GB": "OpenGL ES"
   },
+  "PACK_HARMONY_SIGNING_TITLE": {
+    "zh_CN": "HarmonyOS HAP 签名",
+    "en_GB": "HarmonyOS HAP Signing"
+  },
+  "PACK_HARMONY_SIGNING_DESCRIPTION": {
+    "zh_CN": "选择工程目录外的密钥库、证书和 Profile。选择已保存的密钥库后会自动填写签名信息。",
+    "en_GB": "Select a keystore, certificate and profile outside the project directory. Saved details are filled after selecting the matching keystore."
+  },
+  "PACK_HARMONY_KEYSTORE": {
+    "zh_CN": "Keystore 文件",
+    "en_GB": "Keystore File"
+  },
+  "PACK_HARMONY_KEY_ALIAS": {
+    "zh_CN": "Key alias",
+    "en_GB": "Key Alias"
+  },
+  "PACK_HARMONY_KEYSTORE_PASSWORD": {
+    "zh_CN": "Keystore 密码",
+    "en_GB": "Keystore Password"
+  },
+  "PACK_HARMONY_KEY_PASSWORD_SAME": {
+    "zh_CN": "Key 密码与 Keystore 密码相同",
+    "en_GB": "Key password is the same as the keystore password"
+  },
+  "PACK_HARMONY_KEY_PASSWORD": {
+    "zh_CN": "Key 密码",
+    "en_GB": "Key Password"
+  },
+  "PACK_HARMONY_SAVE_SIGNING": {
+    "zh_CN": "在此设备上保存签名信息",
+    "en_GB": "Save signing information on this device"
+  },
+  "PACK_HARMONY_SIGNING_LOAD_FAILED": {
+    "zh_CN": "无法读取已保存的签名信息，请重新填写。",
+    "en_GB": "Could not read the saved signing information. Enter the details again."
+  },
+  "PACK_HARMONY_SIGNING_SAVE_FAILED": {
+    "zh_CN": "无法保存签名信息，请检查本机凭据存储或取消保存后重试。",
+    "en_GB": "Could not save signing information. Check this device’s credential store or clear the save option and retry."
+  },
+  "PACK_HARMONY_SELECT_KEYSTORE": {
+    "zh_CN": "选择 Keystore 文件",
+    "en_GB": "Select Keystore File"
+  },
+  "PACK_HARMONY_KEYSTORE_FILES": {
+    "zh_CN": "PKCS12 密钥库",
+    "en_GB": "PKCS12 Keystores"
+  },
+  "PACK_HARMONY_ALL_FILES": {
+    "zh_CN": "所有文件",
+    "en_GB": "All Files"
+  },
+  "PACK_HARMONY_KEYSTORE_INVALID": {
+    "zh_CN": "请选择存在、可读且使用绝对路径的 Keystore 文件。",
+    "en_GB": "Select an existing, readable keystore file with an absolute path."
+  },
+  "PACK_HARMONY_KEY_ALIAS_REQUIRED": {
+    "zh_CN": "请输入 Key alias。",
+    "en_GB": "Enter the key alias."
+  },
+  "PACK_HARMONY_KEY_ALIAS_INVALID": {
+    "zh_CN": "Key alias 不能包含换行符。",
+    "en_GB": "The key alias cannot contain line breaks."
+  },
+  "PACK_HARMONY_KEYSTORE_PASSWORD_REQUIRED": {
+    "zh_CN": "请输入 Keystore 密码。",
+    "en_GB": "Enter the keystore password."
+  },
+  "PACK_HARMONY_KEY_PASSWORD_REQUIRED": {
+    "zh_CN": "请输入 Key 密码。",
+    "en_GB": "Enter the key password."
+  },
+  "PACK_HARMONY_PASSWORD_LINE_BREAK": {
+    "zh_CN": "签名密码不能包含换行符。",
+    "en_GB": "Signing passwords cannot contain line breaks."
+  },
+  "PACK_HARMONY_SIGN_HAP": {
+    "zh_CN": "签名 HAP",
+    "en_GB": "Sign HAP"
+  },
+  "PACK_HARMONY_CERTIFICATE": {
+    "zh_CN": "签名证书",
+    "en_GB": "Signing Certificate"
+  },
+  "PACK_HARMONY_PROFILE": {
+    "zh_CN": "签名 Profile",
+    "en_GB": "Signing Profile"
+  },
+  "PACK_HARMONY_SELECT_CERTIFICATE": {
+    "zh_CN": "选择签名证书",
+    "en_GB": "Select Signing Certificate"
+  },
+  "PACK_HARMONY_SELECT_PROFILE": {
+    "zh_CN": "选择签名 Profile",
+    "en_GB": "Select Signing Profile"
+  },
+  "PACK_HARMONY_CERTIFICATE_FILES": {
+    "zh_CN": "证书文件",
+    "en_GB": "Certificate Files"
+  },
+  "PACK_HARMONY_PROFILE_FILES": {
+    "zh_CN": "Profile 文件",
+    "en_GB": "Profile Files"
+  },
+  "PACK_HARMONY_CERTIFICATE_INVALID": {
+    "zh_CN": "请选择存在、可读且使用绝对路径的签名证书。",
+    "en_GB": "Select an existing, readable signing certificate with an absolute path."
+  },
+  "PACK_HARMONY_PROFILE_INVALID": {
+    "zh_CN": "请选择存在、可读且使用绝对路径的签名 Profile。",
+    "en_GB": "Select an existing, readable signing profile with an absolute path."
+  },
+  "PACK_HARMONY_MATERIALS_OUTSIDE_PROJECT": {
+    "zh_CN": "签名材料必须保存在工程目录之外，符号链接也不能指向工程内部。",
+    "en_GB": "Signing materials must be outside the project directory, including symbolic-link targets."
+  },
   "PACK_EXPORT_TO_HARMONY_DEVICE": {
     "zh_CN": "导出到匹配的 HarmonyOS 设备",
     "en_GB": "Export to matching HarmonyOS device"
@@ -1528,8 +1644,8 @@
     "en_GB": "No single available HarmonyOS device matching the selected form was found. Connect and unlock the device, and enable Developer Mode"
   },
   "PACK_HARMONY_SIGNING_UNAVAILABLE": {
-    "zh_CN": "HarmonyOS 签名未完成或签名无效，请查看上方日志并在 DevEco Studio 中重新完成自动签名",
-    "en_GB": "HarmonyOS signing did not complete or is invalid. Review the log above and complete automatic signing again in DevEco Studio"
+    "zh_CN": "HarmonyOS HAP 签名失败。请检查工程外的密钥库、证书、Profile、Key alias 和密码，并查看上方日志了解详情",
+    "en_GB": "HarmonyOS HAP signing failed. Check the external keystore, certificate, profile, key alias and passwords, and review the log above for details"
   },
   "PACK_HARMONY_PROJECT_UNSUPPORTED": {
     "zh_CN": "HarmonyOS 打包只支持包含完整 CMake 源码的 C++ 项目",

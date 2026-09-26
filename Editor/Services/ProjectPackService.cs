@@ -121,6 +121,7 @@ public sealed record ProjectPackOptions(
     public HarmonyGraphicsApi HarmonyGraphicsApi { get; init; } =
         global::Ludork.Services.HarmonyGraphicsApi.OpenGL;
     public AndroidSigningOptions? AndroidSigning { get; init; }
+    public HarmonySigningOptions? HarmonySigning { get; init; }
     public MacOSSigningOptions? MacOSSigning { get; init; }
     public IOSSigningOptions? IOSSigning { get; init; }
 }
@@ -316,7 +317,7 @@ public sealed class ProjectPackService
         ProjectPackOptions options,
         string projectFilePath)
     {
-        ProjectPackResult? signingFailure = validateSigning(options);
+        ProjectPackResult? signingFailure = validateSigning(options, Path.GetDirectoryName(projectFilePath));
         if (signingFailure is not null)
             return signingFailure;
 
@@ -354,8 +355,29 @@ public sealed class ProjectPackService
         return null;
     }
 
-    private static ProjectPackResult? validateSigning(ProjectPackOptions options)
+    private static ProjectPackResult? validateSigning(ProjectPackOptions options, string? projectPath)
     {
+        if (options.Platform == ProjectPackPlatform.HarmonyOS)
+        {
+            HarmonySigningOptions? harmony = options.HarmonySigning;
+            if ((options.ExportToHarmonyDevice && harmony is null)
+                || (harmony is not null
+                    && (!HarmonySigningInput.IsReadableFile(harmony.KeystorePath)
+                        || !HarmonySigningInput.IsReadableFile(harmony.CertificatePath)
+                        || !HarmonySigningInput.IsReadableFile(harmony.ProfilePath)
+                        || !HarmonySigningInput.IsOutsideProject(harmony.KeystorePath, projectPath)
+                        || !HarmonySigningInput.IsOutsideProject(harmony.CertificatePath, projectPath)
+                        || !HarmonySigningInput.IsOutsideProject(harmony.ProfilePath, projectPath)
+                        || string.IsNullOrWhiteSpace(harmony.KeyAlias)
+                        || HarmonySigningInput.HasLineBreak(harmony.KeyAlias)
+                        || !HarmonySigningInput.IsNonEmptySingleLine(harmony.KeystorePassword)
+                        || !HarmonySigningInput.IsNonEmptySingleLine(harmony.KeyPassword))))
+            {
+                return ProjectPackResult.Failed(
+                    ProjectPackFailure.HarmonySigningUnavailable, string.Empty);
+            }
+            return null;
+        }
         if (options.Platform == ProjectPackPlatform.Android)
         {
             if (options.AndroidSigning is { } android
@@ -481,7 +503,18 @@ public sealed class ProjectPackService
                     normalizeOptionalPath(iosSigning.ProvisioningProfilePath),
             };
         }
-        return new PackSigning(android, macOS, ios);
+        HarmonySigningOptions? harmony = null;
+        if (options.Platform == ProjectPackPlatform.HarmonyOS
+            && options.HarmonySigning is { } harmonySigning)
+        {
+            harmony = harmonySigning with
+            {
+                KeystorePath = Path.GetFullPath(harmonySigning.KeystorePath),
+                CertificatePath = Path.GetFullPath(harmonySigning.CertificatePath),
+                ProfilePath = Path.GetFullPath(harmonySigning.ProfilePath),
+            };
+        }
+        return new PackSigning(android, macOS, ios, harmony);
     }
 
     private static string normalizeOptionalPath(string path) =>
@@ -578,7 +611,7 @@ public sealed class ProjectPackService
             + (harmonyGraphicsApi is null
                 ? string.Empty
                 : " --graphics-api " + getHarmonyGraphicsApiArgument(harmonyGraphicsApi.Value))
-            + (signing.Android is not null ? " --sign" : string.Empty);
+            + (signing.Android is not null || signing.Harmony is not null ? " --sign" : string.Empty);
         writeOutput(checkOnly
             ? $"> {scriptPath} --check{optionText} \"{projectPath}\""
             : $"> {scriptPath}{optionText} \"{projectPath}\"");
@@ -810,6 +843,18 @@ public sealed class ProjectPackService
             startInfo.ArgumentList.Add("--key-alias");
             startInfo.ArgumentList.Add(androidSigning.KeyAlias);
         }
+        if (signing.Harmony is { } harmonySigning)
+        {
+            startInfo.ArgumentList.Add("--sign");
+            startInfo.ArgumentList.Add("--keystore");
+            startInfo.ArgumentList.Add(harmonySigning.KeystorePath);
+            startInfo.ArgumentList.Add("--certificate");
+            startInfo.ArgumentList.Add(harmonySigning.CertificatePath);
+            startInfo.ArgumentList.Add("--profile");
+            startInfo.ArgumentList.Add(harmonySigning.ProfilePath);
+            startInfo.ArgumentList.Add("--key-alias");
+            startInfo.ArgumentList.Add(harmonySigning.KeyAlias);
+        }
         if (signing.MacOS is { } macOSSigning)
         {
             startInfo.ArgumentList.Add("--ignore-environment");
@@ -939,10 +984,16 @@ public sealed class ProjectPackService
     private sealed record PackSigning(
         AndroidSigningOptions? Android,
         MacOSSigningOptions? MacOS,
-        IOSSigningOptions? IOS)
+        IOSSigningOptions? IOS,
+        HarmonySigningOptions? Harmony)
     {
         public IEnumerable<string> Secrets()
         {
+            if (Harmony is { } harmony)
+            {
+                yield return harmony.KeystorePassword;
+                yield return harmony.KeyPassword;
+            }
             if (Android is { } android)
             {
                 yield return android.KeystorePassword;
@@ -961,6 +1012,15 @@ public sealed class ProjectPackService
 
         public IEnumerable<string> SensitiveValues()
         {
+            if (Harmony is { } harmony)
+            {
+                yield return harmony.KeystorePath;
+                yield return harmony.CertificatePath;
+                yield return harmony.ProfilePath;
+                yield return harmony.KeyAlias;
+                yield return harmony.KeystorePassword;
+                yield return harmony.KeyPassword;
+            }
             if (Android is { } android)
             {
                 yield return android.KeystorePath;

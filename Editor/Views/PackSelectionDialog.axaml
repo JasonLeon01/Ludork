@@ -85,6 +85,9 @@
                             <RadioButton x:Name="HarmonyOpenGLESOption"
                                          GroupName="HarmonyGraphicsApi" />
                         </StackPanel>
+                        <CheckBox x:Name="HarmonySigningOption"
+                                  Margin="28,0,0,0"
+                                  IsChecked="False" />
                         <CheckBox x:Name="ExportToHarmonyDeviceOption"
                                   Margin="28,0,0,0"
                                   IsChecked="False" />

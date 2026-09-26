@@ -20,7 +20,7 @@ All scripts switch to the repository root before doing work. Use `.bat` on Windo
 | `create_templates_ffmpeg` | Recreate only the FFmpeg-enabled Cpp and Standalone templates |
 | `pack_project` | Produce the platform distribution layout, with optional macOS signing and notarisation |
 | `pack_ios.sh` | Build an iOS 16.3-or-newer IPA from a C++ Source project, with optional manual signing |
-| `pack_harmony.sh` | Build a HarmonyOS API 22 Mobile or 2in1 arm64-v8a HAP, with optional device export |
+| `pack_harmony.sh` | Build a HarmonyOS API 22 Mobile or 2in1 arm64-v8a HAP, with optional signing and device export |
 | `pack_android.sh` | Build an Android arm64-v8a Release APK from a C++ Source project, unsigned by default with optional signing |
 | `pack_editor.bat` | Publish and validate the self-contained Windows 10-or-newer x64 editor package with official plug-ins |
 | `pack_editor.sh` | Publish and validate the self-contained macOS Apple Silicon editor DMG, with optional signing and notarisation |
@@ -698,7 +698,20 @@ while excluding generated language catalogues.
 ./tools/pack_harmony.sh --device-form 2in1 --graphics-api opengl-es Game
 ```
 
-The three unsigned outputs are `dist/<game>-<full-version>-harmony-mobile-unsigned.hap`, `dist/<game>-<full-version>-harmony-2in1-opengl-unsigned.hap` and `dist/<game>-<full-version>-harmony-2in1-opengl-es-unsigned.hap`. Add `--export-to-device` to build the corresponding `-signed.hap`, install it and launch it. Mobile export accepts a connected target whose reported device type is `default`, `phone` or `tablet`; 2in1 export accepts only `2in1`. Exactly one connected device must match the requested form, while devices of the other form may remain connected. `--check` validates the same selected form/backend and, when combined with `--export-to-device`, the matching-device requirement without building or publishing a HAP.
+The three default outputs are `dist/<game>-<full-version>-harmony-mobile-unsigned.hap`, `dist/<game>-<full-version>-harmony-2in1-opengl-unsigned.hap` and `dist/<game>-<full-version>-harmony-2in1-opengl-es-unsigned.hap`. `pack_harmony.sh` delegates to `ScriptTools harmony-pack`. Add `--sign --keystore <absolute-p12-path> --certificate <absolute-cer-path> --profile <absolute-p7b-path> --key-alias <alias>` to publish the corresponding `-signed.hap`. Supply exactly two UTF-8, newline-delimited passwords on standard input: the keystore password, then the key password. Use the same value twice when they match. The command does not persist credentials. Keep signing materials outside the repository and project; CI can inject their absolute paths, alias and passwords through its secret variables:
+
+```sh
+printf '%s\n%s\n' "$HOS_STORE_PASSWORD" "$HOS_KEY_PASSWORD" |
+  ./tools/pack_harmony.sh --device-form mobile --graphics-api opengl-es \
+    --sign --keystore "$HOS_KEYSTORE" --certificate "$HOS_CERTIFICATE" \
+    --profile "$HOS_PROFILE" --key-alias "$HOS_KEY_ALIAS" /absolute/path/to/game
+```
+
+Hvigor always builds an unsigned HAP without signing settings in the generated project. Signed packaging then invokes `hap-sign-tool.jar sign-app` with `localSign`, `SHA256withECDSA` and API 22, following Huawei's [command-line signing workflow](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/ide-command-line-building-app#section103321051433). It verifies the resulting signature, embedded Profile, bundle name, version and native libraries before atomically replacing the final HAP. A failed build, signature or verification leaves an existing successful output intact. Signing uses an external temporary work directory, cleans it on completion, and redacts passwords and signing material details from logs. It runs without opening DevEco Studio or waiting for automatic signing.
+
+`--check` validates the environment and selected form/backend without building or publishing. With `--sign`, it also reads the same two passwords and checks signing tools, materials, the private key and the Profile's signature, validity period and bundle name. Valid Debug and Release Profiles are supported. Missing materials, invalid passwords and verification failures stop the command.
+
+Unsigned and signed export both work without a device and do not invoke HDC. Add `--export-to-device` together with `--sign` and all signing options to install and launch the signed HAP as well. Only this mode checks device authorisation in the Profile. Mobile export accepts a connected target whose reported device type is `default`, `phone` or `tablet`; 2in1 export accepts only `2in1`. Exactly one connected device must match the requested form, while devices of the other form may remain connected. `--check --export-to-device --sign` also validates that matching-device requirement and authorisation without building, publishing, installing or launching a HAP.
 
 Every variant sets the HAP target and compatible SDK to `6.0.2(22)` and passes `OHOS_COMPATIBLE_SDK_VERSION=22` to the native build, producing the versioned compiler target `aarch64-linux-ohos22.0.0`. The Mobile CMake contract is `SFML_HARMONY_DEVICE_FORM=MOBILE` with `SFML_OPENGL_ES=ON`; the two 2in1 contracts use `SFML_HARMONY_DEVICE_FORM=2IN1` with `SFML_OPENGL_ES=OFF` for OpenGL or `ON` for OpenGL ES. FFmpeg-enabled builds use that same versioned target for compilation and linking.
 
