@@ -23,7 +23,12 @@ from .ldpak import (
     validate_ldpak_source,
     validate_runtime_ldpak_layout,
 )
-from .packaging_constants import COMPILE_LUA_DIRECTORIES_ENVIRONMENT, EXCLUDED_FILES_ENVIRONMENT, PACKAGE_CACHE_DIRECTORIES
+from .packaging_constants import (
+    COMPILE_LUA_DIRECTORIES_ENVIRONMENT,
+    EXCLUDED_FILES_ENVIRONMENT,
+    GAME_BUILD_TOOL_FILES,
+    PACKAGE_CACHE_DIRECTORIES,
+)
 from .resource_constants import DATA_EXTENSION, ENCRYPTED_DATA_EXTENSION, SHADER_EXTENSIONS
 from .runtime_formats import (
     DATA_MAGIC,
@@ -373,7 +378,9 @@ def prune_package(
         raise RuntimeError(f"Package Binaries must not be a link: {binaries}")
     if binaries.is_dir():
         for path in binaries.iterdir():
-            if is_preview_development_file(path.name) and _remove_path(path):
+            if (
+                path.name in GAME_BUILD_TOOL_FILES or is_preview_development_file(path.name)
+            ) and _remove_path(path):
                 removed += 1
 
     vscode_directories = sorted(
@@ -460,10 +467,11 @@ def _finalize_package_in_place(
             )
     binaries = root / PREVIEW_DIRECTORY
     if binaries.is_dir() and any(
-        is_preview_development_file(path.name) for path in binaries.iterdir()
+        path.name in GAME_BUILD_TOOL_FILES or is_preview_development_file(path.name)
+        for path in binaries.iterdir()
     ):
         raise RuntimeError(
-            "UI preview development files remain in the game package Binaries"
+            "Build tools or UI preview development files remain in the game package Binaries"
         )
     packed_groups = pack_ldpak(root) if use_ldpak else 0
     expected_entry = "Entry.luac" if scripts_compiled else "Entry.lua"

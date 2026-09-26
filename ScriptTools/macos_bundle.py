@@ -9,6 +9,7 @@ import tempfile
 
 from .resource_constants import ANIMATION_CACHE_SUFFIX
 from .packaging_constants import (
+    GAME_BUILD_TOOL_FILES,
     RUNTIME_LEGAL_FILES,
 )
 from .packaging_names import prepare_directory
@@ -66,7 +67,7 @@ def copy_runtime(
     runtime_files: list[pathlib.Path] = []
     runtime_symlinks: list[tuple[pathlib.Path, pathlib.Path]] = []
     for source in sorted(binaries_dir.iterdir(), key=lambda path: path.name):
-        if is_preview_development_file(source.name):
+        if source.name in GAME_BUILD_TOOL_FILES or is_preview_development_file(source.name):
             continue
         if source.is_symlink():
             if not is_runtime_library(source):

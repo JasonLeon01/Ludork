@@ -11,7 +11,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import BinaryIO
 
-from .packaging_constants import FILE_BUFFER_SIZE, PACKAGE_CACHE_DIRECTORIES
+from .packaging_constants import FILE_BUFFER_SIZE, GAME_BUILD_TOOL_FILES, PACKAGE_CACHE_DIRECTORIES
 from .resource_constants import (
     PACKAGE_EXTENSION,
     RESOURCE_GROUPS,
@@ -657,11 +657,14 @@ def validate_runtime_resource_paths(
     if any(
         name.startswith("Binaries/")
         and "/" not in name.removeprefix("Binaries/")
-        and is_preview_development_file(name.removeprefix("Binaries/"))
+        and (
+            name.removeprefix("Binaries/") in GAME_BUILD_TOOL_FILES
+            or is_preview_development_file(name.removeprefix("Binaries/"))
+        )
         for name in names
     ):
         raise LdPakError(
-            "Runtime must not contain UI preview development files in Binaries"
+            "Runtime must not contain build tools or UI preview development files in Binaries"
         )
     for group, package in zip(RESOURCE_GROUPS, RESOURCE_PACKAGES, strict=True):
         has_loose = group + "/" in paths or any(

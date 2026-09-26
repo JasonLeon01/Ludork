@@ -12,7 +12,7 @@ Before opening this pull request, please check the following where applicable:
 
 <!-- Describe the problem and resulting behavior. -->
 
-## Fixed issues (if any)
+## Fixed issues
 
 <!--
 Complete the line below with an issue number (for example, Fixes #123), or remove it if none.
@@ -28,8 +28,8 @@ Fixes #
 
 - [ ] Tested on Windows
 - [ ] Tested on macOS
-- [ ] Tested on Linux
 - [ ] Tested on iOS
+- [ ] Tested on OHOS
 - [ ] Tested on Android
 
 ## How to test this PR?

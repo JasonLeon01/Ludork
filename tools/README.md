@@ -943,8 +943,10 @@ projects must be regenerated.
 native dependencies, optional FFmpeg and bundled assets. Template generation
 refreshes those materials in C++ templates and derives Standalone templates
 from them. Editor, managed-runtime and build-tool notices remain in the editor
-distribution. Final game packages remove only preview-specific files from
-`Binaries`, retain shared libraries, and exclude root `EditorCache` and `Cache`.
+distribution. Final game packages remove preview-specific files and the
+`LudorkNativeStubDump` / `LudorkNativeStubDump.exe` build tool from `Binaries`,
+retain shared libraries, and exclude root `EditorCache` and `Cache`. macOS
+excludes the build tool before validating and copying app runtime libraries.
 
 LuaSF source archives contain two sibling CMake projects, `LuaSF/` and `LuaGlue/`. For local dependency and template checks, set `LUASF_SOURCE_ARCHIVE` to the generated `.tar.gz` (`.zip` on Windows) before `init_cpp_dependencies`. For an existing build, configure `LUDORK_LUASF_SOURCE_DIR` with the generator's `output/LuaSF` directory; LuaGlue is found next to it. Desktop native packages include the shared LuaGlue runtime; mobile builds use its static target.
 
