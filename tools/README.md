@@ -332,8 +332,13 @@ latest successful default-branch dual-platform run, recorded by `Record successf
 editor` or `Record successful package`; legacy complete-package runs under the old
 Export Editor name do not count as editor-only successes. Manual runs always build.
 
-The six entries reuse each platform's packaging steps and managed/launcher caches;
-complete and template-free preparation caches are separate. Concurrency groups are
+The six entries reuse each platform's packaging steps and build on clean runners
+without restoring or saving caches. Every export builds ScriptTools, the Lua
+compiler, the editor and the Windows launcher anew; complete packages also
+rebuild both native template variants. pip and compiler caches are disabled.
+Artifacts pass the freshly prepared tools and templates between jobs of the
+current workflow run only; packaging never selects a previous editor build or
+native cache. Concurrency groups are
 separate for each platform and package mode, so full packages do not hold up
 scheduled editor-only builds. Scheduled and manual runs use `--dev`. Only a `v*`
 tag push to `Export Package` uses `--release` and creates or updates a draft Release
@@ -351,15 +356,7 @@ from `EDITOR_VERSION`, and the tag name is never parsed. A rerun updates the
 existing draft; an already published release is not overwritten. No release
 is automatically published, and only the release-upload job has `contents: write`.
 
-The packaging workflows use separate
-exact caches for the prepared environment, native components, C# build outputs
-and Windows editor launcher. Keys include tracked input paths and Git object
-IDs, platform, architecture and configuration; the C# key also includes the .NET
-SDK version. Source additions, deletions and renames invalidate the affected key.
-Only successful results are saved, with no prefix-key fallback. A missing or
-evicted cache rebuilds that component. Workflow or cache-rule changes invalidate
-all groups. Delete the relevant Actions cache to force a rebuild with unchanged
-sources. Complete packages include the selected commit's Game templates; both modes
+Complete packages include the selected commit's Game templates; both modes
 include its editor, tools, plug-ins, locale and docs. Local syntax and build checks do not
 replace successful hosted Actions runs or confirmation of the `main` merge rule.
 
@@ -547,7 +544,7 @@ reuse the same snapshot through the entire invocation rather than recapturing ti
 are build outputs; edit the Python source and rebuild ScriptTools before
 building the editor or running packaging tools.
 
-`dotnet build` and `dotnet publish` generate `obj/.../EngineConstants.g.cs` with `ScriptTools engine-constants <EngineState.hpp> <output.cs>`. The C++ declaration is authoritative for the editor cell size; rebuild ScriptTools after changing the generator. The managed Actions cache includes this header and generator so changed constants cannot reuse stale editor binaries.
+`dotnet build` and `dotnet publish` generate `obj/.../EngineConstants.g.cs` with `ScriptTools engine-constants <EngineState.hpp> <output.cs>`. The C++ declaration is authoritative for the editor cell size; rebuild ScriptTools after changing the generator.
 
 `ScriptTools runtime-constants cpp <project-root> <output-directory>` generates
 C++ headers under `<output-directory>/LudorkGenerated`. `runtime_formats.py`
@@ -757,6 +754,12 @@ requirements. `--entitlements` applies to the
 application's main executable. Apple does not offer a non-interactive alternative
 to passing the `.p12` password on the `security import` command line, so that one
 process argument is unavoidable; every other step keeps passwords on standard input.
+
+When `codesign` reports that the timestamp service is unavailable, real-identity
+signing retries only the failed target after 5, 15 and 30 seconds, for at most four
+attempts. Every attempt retains the timestamp and signing options. Other signing
+errors and verification failures stop immediately; exhausted retries retain the
+last diagnostic and signing failure status.
 
 `--notarize` submits the disk image directly, or a temporary ZIP of an application
 bundle, to `notarytool`, waits for the result and staples the ticket to the

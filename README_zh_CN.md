@@ -99,7 +99,7 @@ macOS：
 
 初始化脚本会准备原生依赖和编辑器专用的 UI preview host，但不会构建 Game 游戏。请另外使用 `tools\build_cpp.bat Game Debug` 或 `./tools/build_cpp.sh Game Debug` 构建 Game。
 
-GitHub Actions 提供六个打包入口。[Export Package](.github/workflows/export-package.yml)、[Export Package Windows](.github/workflows/export-package-windows.yml) 和 [Export Package macOS](.github/workflows/export-package-macos.yml) 包含项目模板，双平台入口保留定时与标签 Release 打包。[Export Editor](.github/workflows/export-editor.yml)、[Export Editor Windows](.github/workflows/export-editor-windows.yml) 和 [Export Editor macOS](.github/workflows/export-editor-macos.yml) 打包编辑器及其工具，不编译、不包含模板，供测试和已有项目使用。双平台 Export Package 和 Export Editor 都在北京时间 02:00、14:00 定时运行，分别判断提交是否已成功打包。推送标签只运行 Export Package，并创建包含完整包的 Release 草稿。两种 macOS 包共用签名与公证流程。平台步骤与缓存继续复用；详见[自动打包说明](tools/README.md#pull-requests-and-automated-packages)。
+GitHub Actions 提供六个打包入口。[Export Package](.github/workflows/export-package.yml)、[Export Package Windows](.github/workflows/export-package-windows.yml) 和 [Export Package macOS](.github/workflows/export-package-macos.yml) 包含项目模板，双平台入口保留定时与标签 Release 打包。[Export Editor](.github/workflows/export-editor.yml)、[Export Editor Windows](.github/workflows/export-editor-windows.yml) 和 [Export Editor macOS](.github/workflows/export-editor-macos.yml) 打包编辑器及其工具，不编译、不包含模板，供测试和已有项目使用。双平台 Export Package 和 Export Editor 都在北京时间 02:00、14:00 定时运行，分别判断提交是否已成功打包。推送标签只运行 Export Package，并创建包含完整包的 Release 草稿。两种 macOS 包共用签名与公证流程。每次导出都在干净的 runner 中重新构建，不恢复或保存依赖及构建缓存；详见[自动打包说明](tools/README.md#pull-requests-and-automated-packages)。
 
 ## 文档与支持
 

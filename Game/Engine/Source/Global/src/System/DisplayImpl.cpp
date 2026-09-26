@@ -132,7 +132,6 @@ void DisplayImpl::createDisplayWindow() {
     const ludork::global::RuntimeLaunchOptions& launchOptions =
         ludork::global::runtimeLaunchOptions();
     std::shared_ptr<sf::RenderWindow> window;
-    float surfaceFitScale = 1.0f;
     inputService().setUseInjectedMouseOnly(false);
 
     if (isEmbeddedDisplay()) {
@@ -144,7 +143,6 @@ void DisplayImpl::createDisplayWindow() {
             reinterpret_cast<sf::WindowHandle>(
                 launchOptions.hostWindowHandle.value()),
             windowContextSettings_);
-        surfaceFitScale = windowFitScale(window->getSize());
         inputService().setUseInjectedMouseOnly(true);
 #else
         throw std::runtime_error(
@@ -155,7 +153,6 @@ void DisplayImpl::createDisplayWindow() {
             sf::VideoMode::getDesktopMode(), windowTitle_,
             ludork::global::runtimeWindowStyle(), sf::State::Fullscreen,
             windowContextSettings_);
-        surfaceFitScale = windowFitScale(window->getSize());
     } else {
         const float configuredScale = Display::getConfiguredScale();
         desktopFullscreen_ = configuredScale == 0.0f;
@@ -167,14 +164,9 @@ void DisplayImpl::createDisplayWindow() {
             desktopFullscreen_ ? sf::Style::None
                                : ludork::global::runtimeWindowStyle(),
             sf::State::Windowed, windowContextSettings_);
-        const std::optional<sf::Vector2u> clientSize =
-            desktopFullscreen_ ? std::nullopt
-                               : ludork::global::getWindowedClientSize(
-                                     window->getNativeHandle());
-        surfaceFitScale =
-            windowFitScale(clientSize.value_or(window->getSize()));
     }
 
+    const float surfaceFitScale = windowFitScale(window->getSize());
     surfaceFitScale_ = surfaceFitScale;
     engineState().setScale(effectiveRenderScale(surfaceFitScale));
 #if defined(SFML_OPENGL_ES)
@@ -433,7 +425,8 @@ std::optional<float> DisplayImpl::applyConfiguredScale(float scale) {
     observedWindowSize_ = window_->getSize();
     observedWindowClientSize_ = clientSize;
     pendingResizeScale_.reset();
-    return windowFitScale(clientSize.value_or(observedWindowSize_));
+    pendingClientSizeChange_ = false;
+    return windowFitScale(observedWindowSize_);
 }
 
 std::optional<float> DisplayImpl::observeWindowResize(
@@ -442,6 +435,9 @@ std::optional<float> DisplayImpl::observeWindowResize(
         return std::nullopt;
     }
     const sf::Vector2u size = window_->getSize();
+    if (size.x == 0 || size.y == 0) {
+        return std::nullopt;
+    }
     const auto now = std::chrono::steady_clock::now();
     if (size != observedWindowSize_) {
         const std::optional<sf::Vector2u> clientSize =
@@ -452,11 +448,10 @@ std::optional<float> DisplayImpl::observeWindowResize(
             !clientSize.has_value() || clientSize != observedWindowClientSize_;
         observedWindowSize_ = size;
         observedWindowClientSize_ = clientSize;
-        if (clientSizeChanged) {
-            pendingResizeScale_ =
-                windowFitScale(clientSize.value_or(observedWindowSize_));
-            lastResizeTime_ = now;
-        }
+        pendingClientSizeChange_ =
+            pendingClientSizeChange_ || clientSizeChanged;
+        pendingResizeScale_ = windowFitScale(size);
+        lastResizeTime_ = now;
         updateWindowViewport(renderSize);
     }
     if (!pendingResizeScale_.has_value() ||
@@ -466,7 +461,8 @@ std::optional<float> DisplayImpl::observeWindowResize(
     float scale = *pendingResizeScale_;
     pendingResizeScale_.reset();
 #if defined(__APPLE__) && !defined(LUDORK_MOBILE)
-    if (!isEmbeddedDisplay() && !desktopFullscreen_) {
+    if (pendingClientSizeChange_ && !isEmbeddedDisplay() &&
+        !desktopFullscreen_) {
         const std::optional<sf::Vector2u> clientSize =
             ludork::global::getWindowedClientSize(window_->getNativeHandle());
         if (clientSize.has_value()) {
@@ -480,10 +476,11 @@ std::optional<float> DisplayImpl::observeWindowResize(
                 ludork::global::getWindowedClientSize(
                     window_->getNativeHandle());
             observedWindowClientSize_ = replacedClientSize;
-            scale = windowFitScale(replacedClientSize.value_or(*clientSize));
+            scale = windowFitScale(observedWindowSize_);
         }
     }
 #endif
+    pendingClientSizeChange_ = false;
     return scale;
 }
 
@@ -608,6 +605,7 @@ void DisplayImpl::reset() {
         pendingRenderTargetRebuild_ = false;
     }
     pendingResizeScale_.reset();
+    pendingClientSizeChange_ = false;
     surfaceFitScale_ = 1.0f;
     observedWindowSize_ = {};
     observedWindowClientSize_.reset();

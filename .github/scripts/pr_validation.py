@@ -1,4 +1,5 @@
 import argparse
+import fnmatch
 import json
 import os
 from pathlib import Path
@@ -6,7 +7,54 @@ import shutil
 import subprocess
 import sys
 
-from export_editor_cache import ENVIRONMENT_INPUTS, MANAGED_INPUTS, NATIVE_INPUTS, matches
+ENVIRONMENT_INPUTS = (
+    "ScriptTools/*",
+    "requirements.txt",
+    "versions.conf",
+    "tools/cpp_dependencies/*",
+    "tools/setup_python.*",
+    "tools/build_script_tools.*",
+    "tools/init_cpp_dependencies.*",
+    "tools/init_ffmpeg_source.*",
+    "tools/init_gnu_make.*",
+    "tools/lua_compiler/*",
+    "tools/common.sh",
+)
+NATIVE_INPUTS = (
+    "Game/Engine/*",
+    "Game/Application/*",
+    "Game/CMakeLists.txt",
+    "Game/Main.*",
+    "Game/Assets/System/icon.ico",
+    "tools/build_cpp.*",
+    "tools/build_standalone.*",
+    "tools/build_ui_preview_host.*",
+    "tools/create_templates*",
+)
+MANAGED_INPUTS = (
+    "*.cs",
+    "*.axaml",
+    "*.paml",
+    "*.resx",
+    "*.csproj",
+    "*.props",
+    "*.targets",
+    "*.ruleset",
+    "*.editorconfig",
+    "*.manifest",
+    "Editor/Assets/*",
+    "global.json",
+    "*NuGet.Config",
+    "*nuget.config",
+    "packages.lock.json",
+    "*/packages.lock.json",
+    "versions.conf",
+    "tools/pack_editor.*",
+    "Game/Engine/Source/Core/include/EngineState.hpp",
+    "ScriptTools/engine_constants.py",
+    "ScriptTools/packaging_constants.py",
+    "ScriptTools/packaging_cli.py",
+)
 
 
 COMMON_INPUTS = (
@@ -17,6 +65,10 @@ SCRIPT_INPUTS = (
     "Game/Scripts/*", "Game/.emmyrc.json", "Game/.emmyrc.lua", "Game/.luarc.json",
     "Game/Data/UI/*", "Game/Data/Locale/*", "Plugins/OfficialLocaleTools/*",
 )
+
+
+def matches(path: str, patterns: tuple[str, ...]) -> bool:
+    return any(fnmatch.fnmatchcase(path, pattern) for pattern in patterns)
 
 
 def classify(paths: list[str]) -> dict[str, bool]:

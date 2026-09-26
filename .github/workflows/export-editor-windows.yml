@@ -37,6 +37,7 @@ jobs:
     timeout-minutes: 180
     env:
       CMAKE_GENERATOR: Ninja
+      CCACHE_DISABLE: "1"
 
     steps:
       - name: Check out repository
@@ -49,41 +50,12 @@ jobs:
         with:
           dotnet-version: "9.0.x"
 
-      - name: Resolve active .NET SDK
-        id: dotnet-sdk
-        shell: pwsh
-        run: |
-          $version = & dotnet --version
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          "version=$version" >> $env:GITHUB_OUTPUT
-
-      - name: Restore C# build outputs
-        id: managed-cache
-        uses: actions/cache/restore@v5
-        with:
-          path: |
-            bin/Release
-            obj/Release
-            Editor/Ludork.Plugin.Abstractions/bin/Release
-            Editor/Ludork.Plugin.Abstractions/obj/Release
-            Editor/Ludork.Plugin.Avalonia/bin/Release
-            Editor/Ludork.Plugin.Avalonia/obj/Release
-          key: export-v1-windows-2022-${{ runner.arch }}-managed-Release-${{ steps.dotnet-sdk.outputs.version }}-${{ needs.preparation.outputs.managed }}
-
       - name: Set up MSVC command-line environment
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: amd64
 
-      - name: Restore editor launcher
-        id: launcher-cache
-        uses: actions/cache/restore@v5
-        with:
-          path: obj/editor-launcher/bin/Release
-          key: export-v1-windows-2022-${{ runner.arch }}-launcher-Release-${{ needs.preparation.outputs.launcher }}
-
       - name: Build editor launcher
-        if: steps.launcher-cache.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
           $version = (& dotnet msbuild Ludork.csproj -nologo -getProperty:Version).Trim()
@@ -92,13 +64,6 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           cmake --build obj/editor-launcher --config Release --target LudorkEditorLauncher
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-
-      - name: Save editor launcher
-        if: steps.launcher-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: obj/editor-launcher/bin/Release
-          key: ${{ steps.launcher-cache.outputs.cache-primary-key }}
 
       - name: Download prepared environment
         uses: actions/download-artifact@v8
@@ -151,22 +116,8 @@ jobs:
         env:
           TEMPLATE_OPTION: ${{ inputs.templates && '--templates' || '--without-templates' }}
           TEMPLATE_DIRECTORY: ${{ inputs.templates && 'obj/editor-inputs/Templates' || '' }}
-          EDITOR_BUILD_OPTION: ${{ steps.managed-cache.outputs.cache-hit == 'true' && '--use-current-editor-build' || '' }}
         shell: cmd
-        run: tools\pack_editor.bat %TEMPLATE_OPTION% %TEMPLATE_DIRECTORY% --launcher "%CD%\obj\editor-launcher\bin\Release\Ludork.exe" %EDITOR_CHANNEL% %EDITOR_BUILD_OPTION%
-
-      - name: Save C# build outputs
-        if: steps.managed-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: |
-            bin/Release
-            obj/Release
-            Editor/Ludork.Plugin.Abstractions/bin/Release
-            Editor/Ludork.Plugin.Abstractions/obj/Release
-            Editor/Ludork.Plugin.Avalonia/bin/Release
-            Editor/Ludork.Plugin.Avalonia/obj/Release
-          key: ${{ steps.managed-cache.outputs.cache-primary-key }}
+        run: tools\pack_editor.bat %TEMPLATE_OPTION% %TEMPLATE_DIRECTORY% --launcher "%CD%\obj\editor-launcher\bin\Release\Ludork.exe" %EDITOR_CHANNEL%
 
       - name: Build editor MSI
         if: inputs.release && inputs.templates

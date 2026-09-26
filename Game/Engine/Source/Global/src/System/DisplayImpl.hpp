@@ -77,6 +77,7 @@ private:
     float surfaceFitScale_ = 1.0f;
     std::optional<float> pendingConfiguredScale_;
     std::optional<float> pendingResizeScale_;
+    bool pendingClientSizeChange_ = false;
     bool pendingRenderTargetRebuild_ = false;
     std::chrono::steady_clock::time_point lastResizeTime_;
     bool desktopFullscreen_ = false;

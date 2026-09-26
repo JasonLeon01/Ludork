@@ -37,6 +37,7 @@ jobs:
     timeout-minutes: 180
     env:
       CMAKE_GENERATOR: Ninja
+      CCACHE_DISABLE: "1"
 
     steps:
       - name: Check out repository
@@ -48,25 +49,6 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: "9.0.x"
-
-      - name: Resolve active .NET SDK
-        id: dotnet-sdk
-        run: |
-          version=$(dotnet --version)
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-
-      - name: Restore C# build outputs
-        id: managed-cache
-        uses: actions/cache/restore@v5
-        with:
-          path: |
-            bin/Release
-            obj/Release
-            Editor/Ludork.Plugin.Abstractions/bin/Release
-            Editor/Ludork.Plugin.Abstractions/obj/Release
-            Editor/Ludork.Plugin.Avalonia/bin/Release
-            Editor/Ludork.Plugin.Avalonia/obj/Release
-          key: export-v1-macos-15-${{ runner.arch }}-managed-Release-${{ steps.dotnet-sdk.outputs.version }}-${{ needs.preparation.outputs.managed }}
 
       - name: Download prepared environment
         uses: actions/download-artifact@v8
@@ -132,7 +114,6 @@ jobs:
       - name: Package editor DMG
         env:
           INCLUDE_TEMPLATES: ${{ inputs.templates }}
-          EDITOR_BUILD_OPTION: ${{ steps.managed-cache.outputs.cache-hit == 'true' && '--use-current-editor-build' || '' }}
           SIGNING_ENABLED: ${{ steps.signing.outputs.enabled }}
           MACOS_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_SIGNING_CERTIFICATE_PASSWORD }}
           MACOS_NOTARY_PASSWORD: ${{ secrets.MACOS_NOTARY_PASSWORD }}
@@ -150,7 +131,7 @@ jobs:
             set -- --templates "$PWD/obj/editor-inputs/Templates"
           fi
           if [ "$SIGNING_ENABLED" != "true" ]; then
-            sh tools/pack_editor.sh "$EDITOR_CHANNEL" ${EDITOR_BUILD_OPTION:+"$EDITOR_BUILD_OPTION"} "$@"
+            sh tools/pack_editor.sh "$EDITOR_CHANNEL" "$@"
             exit 0
           fi
           notary_apple_id=${LUDORK_MACOS_NOTARY_APPLE_ID:-}
@@ -162,20 +143,7 @@ jobs:
             printf '%s\n%s\n' "$MACOS_SIGNING_CERTIFICATE_PASSWORD" "$MACOS_NOTARY_PASSWORD"
           else
             printf '%s\n' "$MACOS_SIGNING_CERTIFICATE_PASSWORD"
-          fi | sh tools/pack_editor.sh "$EDITOR_CHANNEL" ${EDITOR_BUILD_OPTION:+"$EDITOR_BUILD_OPTION"} "$@"
-
-      - name: Save C# build outputs
-        if: steps.managed-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: |
-            bin/Release
-            obj/Release
-            Editor/Ludork.Plugin.Abstractions/bin/Release
-            Editor/Ludork.Plugin.Abstractions/obj/Release
-            Editor/Ludork.Plugin.Avalonia/bin/Release
-            Editor/Ludork.Plugin.Avalonia/obj/Release
-          key: ${{ steps.managed-cache.outputs.cache-primary-key }}
+          fi | sh tools/pack_editor.sh "$EDITOR_CHANNEL" "$@"
 
       - name: Upload editor DMG
         uses: actions/upload-artifact@v7

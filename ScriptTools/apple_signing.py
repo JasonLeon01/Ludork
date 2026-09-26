@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from dataclasses import dataclass
 from typing import Callable, TextIO
 
@@ -34,6 +35,7 @@ IOS_PROVISIONING_PROFILE_ENVIRONMENT = "LUDORK_IOS_PROVISIONING_PROFILE"
 AD_HOC_IDENTITY = "-"
 NOTARY_KEYCHAIN_PROFILE = "ludork-notary"
 KEYCHAIN_TIMEOUT_SECONDS = "21600"
+TIMESTAMP_RETRY_DELAYS_SECONDS = (5, 15, 30)
 
 _BUNDLE_SUFFIXES = frozenset({".app", ".appex", ".bundle", ".framework", ".plugin", ".xpc"})
 _MACH_O_MAGICS = frozenset(
@@ -412,12 +414,28 @@ def _codesign(
     if keychain is not None:
         command.extend(["--keychain", str(keychain)])
     command.append(str(target))
-    result = _run_capture(command, environment=environment)
-    if result.returncode != 0:
-        raise PackError(
-            f"Code signing failed for {target}.\n" + result.stdout.strip(),
-            EXIT_SIGNING,
+    for attempt in range(len(TIMESTAMP_RETRY_DELAYS_SECONDS) + 1):
+        result = _run_capture(command, environment=environment)
+        if result.returncode == 0:
+            return
+        if (
+            identity == AD_HOC_IDENTITY
+            or "the timestamp service is not available" not in result.stdout.casefold()
+            or attempt == len(TIMESTAMP_RETRY_DELAYS_SECONDS)
+        ):
+            break
+        delay = TIMESTAMP_RETRY_DELAYS_SECONDS[attempt]
+        print(
+            f"Timestamp service unavailable while signing {target}; "
+            f"retrying in {delay}s "
+            f"(attempt {attempt + 2}/{len(TIMESTAMP_RETRY_DELAYS_SECONDS) + 1}).",
+            flush=True,
         )
+        time.sleep(delay)
+    raise PackError(
+        f"Code signing failed for {target}.\n" + result.stdout.strip(),
+        EXIT_SIGNING,
+    )
 
 
 def verify_signature(target: pathlib.Path, environment: dict[str, str]) -> None:
