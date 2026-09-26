@@ -108,6 +108,23 @@ void Canvas::addChild(const std::shared_ptr<ControlBase>& child) {
     child->setParent(self);
 }
 
+void Canvas::insertChildBefore(const std::shared_ptr<ControlBase>& child,
+                               const std::shared_ptr<ControlBase>& before) {
+    if (child == nullptr) {
+        throw std::invalid_argument("Canvas child cannot be null");
+    }
+    const std::shared_ptr<ControlBase> self = weak_from_this().lock();
+    if (self == nullptr) {
+        throw std::logic_error("Canvas owner is not shared");
+    }
+    const auto iterator = std::find(children_.begin(), children_.end(), before);
+    if (iterator == children_.end()) {
+        throw std::invalid_argument("Child not found");
+    }
+    children_.insert(iterator, child);
+    child->setParent(self);
+}
+
 void Canvas::removeChild(const std::shared_ptr<ControlBase>& child) {
     const auto iterator = std::find(children_.begin(), children_.end(), child);
     if (iterator == children_.end()) {

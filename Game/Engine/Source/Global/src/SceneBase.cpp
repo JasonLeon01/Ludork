@@ -156,7 +156,9 @@ void SceneBase::systemMain() {
                     lifecycleImpl_->requestStop();
                     break;
                 }
-                System::updateRuntime();
+                if (!lifecycleImpl_->isSuspended()) {
+                    System::updateRuntime();
+                }
                 if (!System::isActive() ||
                     SceneManager::hasPendingSceneOperations()) {
                     lifecycleImpl_->requestStop();
@@ -170,6 +172,7 @@ void SceneBase::systemMain() {
                 phaseStart = phaseEnd;
             }
             float deltaTime = 0.0f;
+            bool resumed = false;
             {
                 std::unique_lock<std::recursive_mutex> lock =
                     lockLogicDataForMain();
@@ -181,6 +184,26 @@ void SceneBase::systemMain() {
                 if (!System::isActive()) {
                     break;
                 }
+#if defined(SFML_SYSTEM_ANDROID) || defined(SFML_SYSTEM_IOS)
+                if (inputService().isFocusLost()) {
+                    lifecycleImpl_->setSuspended(true);
+                }
+                resumed =
+                    lifecycleImpl_->isSuspended() && inputService().isFocused();
+                lifecycleImpl_->setSuspended(!inputService().isFocused());
+                if (lifecycleImpl_->isSuspended()) {
+                    TimeManager::update();
+                    lock.unlock();
+                    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+                    continue;
+                }
+                if (resumed) {
+                    TimeManager::update();
+                    if (PerformanceProfiler::isEnabled()) {
+                        PerformanceProfiler::setEnabled(true);
+                    }
+                }
+#endif
                 if (uiManager_ != nullptr) {
                     uiManager_->refreshDisplayScale();
                 }
@@ -195,7 +218,8 @@ void SceneBase::systemMain() {
                     phaseStart = phaseEnd;
                 }
                 TimeManager::update();
-                deltaTime = TimeManager::getDeltaTime().asSeconds();
+                deltaTime =
+                    resumed ? 0.0f : TimeManager::getDeltaTime().asSeconds();
                 if (uiManager_ != nullptr) {
                     uiManager_->logicHandle(deltaTime);
                 }
@@ -512,10 +536,14 @@ SceneBase::LogicStepPerformance SceneBase::runLogicStep(float deltaTime,
                                                         bool profile) {
     const std::lock_guard<std::recursive_mutex> lock(logicDataMutex_);
     LogicStepPerformance performance;
-    if (lifecycleImpl_->isStopping() || !System::isActive() ||
-        SceneManager::getScene().get() != this ||
+    if (lifecycleImpl_->isStopping() || lifecycleImpl_->isSuspended() ||
+        !System::isActive() || SceneManager::getScene().get() != this ||
         SceneManager::hasPendingSceneOperations()) {
         return performance;
+    }
+    if (lifecycleImpl_->takeLogicTimeReset()) {
+        deltaTime = 0.0f;
+        fixedAccumulator_ = 0.0f;
     }
     std::chrono::steady_clock::time_point phaseStart;
     if (profile) {
@@ -608,6 +636,13 @@ void SceneBase::logicLoop() {
     while (!lifecycleImpl_->isStopping() && System::isActive() &&
            SceneManager::getScene().get() == this &&
            !SceneManager::hasPendingSceneOperations()) {
+        std::unique_lock<std::recursive_mutex> lock(logicDataMutex_);
+        if (lifecycleImpl_->isSuspended()) {
+            lock.unlock();
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            lastTime = std::chrono::steady_clock::now();
+            continue;
+        }
         const int targetFps = Display::getFrameRate();
         const auto logicFrameTime = std::chrono::duration<double>(
             targetFps == 0 ? 0.0
@@ -620,6 +655,7 @@ void SceneBase::logicLoop() {
         const bool profile = PerformanceProfiler::isEnabled();
         const LogicStepPerformance stepPerformance =
             runLogicStep(deltaTime, profile);
+        lock.unlock();
         const auto workEnd = std::chrono::steady_clock::now();
         const std::uint64_t currentVideoPlaybackSequence =
             getVideoPlaybackCompletionSequence();

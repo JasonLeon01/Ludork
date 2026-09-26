@@ -14,6 +14,7 @@ if(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
         "${CMAKE_CURRENT_SOURCE_DIR}/src/System/Platform/DesktopTextInputHostMac.mm")
 elseif(CMAKE_SYSTEM_NAME STREQUAL "iOS")
     list(APPEND LUDORK_GLOBAL_SOURCES
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/System/Platform/NativeDisplayIOS.mm"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/System/Platform/TextInputHostIOS.mm")
 endif()
 

@@ -55,6 +55,10 @@ public:
     void addChild(const std::shared_ptr<ControlBase>& child);
 
     BIND_METHOD()
+    void insertChildBefore(const std::shared_ptr<ControlBase>& child,
+                           const std::shared_ptr<ControlBase>& before);
+
+    BIND_METHOD()
     void removeChild(const std::shared_ptr<ControlBase>& child);
 
     BIND_METHOD()

@@ -10,7 +10,6 @@
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Graphics/Sprite.hpp>
 #include <SFML/Graphics/Texture.hpp>
-#include <SFML/System/Clock.hpp>
 
 #include <optional>
 #endif
@@ -40,7 +39,7 @@ public:
 
 private:
     void update(sf::RenderWindow& window, const std::optional<sf::Sound>& sound,
-                const sf::Clock& silentClock);
+                float elapsed);
     std::optional<int> getFrame(sf::RenderWindow& window);
     void updateSpriteLayout(const sf::RenderWindow& window);
 

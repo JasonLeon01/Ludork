@@ -19,7 +19,7 @@ All scripts switch to the repository root before doing work. Use `.bat` on Windo
 | `create_templates_plain` | Recreate only the non-FFmpeg Cpp and Standalone templates |
 | `create_templates_ffmpeg` | Recreate only the FFmpeg-enabled Cpp and Standalone templates |
 | `pack_project` | Produce the platform distribution layout, with optional macOS signing and notarisation |
-| `pack_ios.sh` | Build an iOS 15.0-or-newer IPA from a C++ Source project, with optional manual signing |
+| `pack_ios.sh` | Build an iOS 16.3-or-newer IPA from a C++ Source project, with optional manual signing |
 | `pack_harmony.sh` | Build a HarmonyOS API 22 Mobile or 2in1 arm64-v8a HAP, with optional device export |
 | `pack_android.sh` | Build an Android arm64-v8a Release APK from a C++ Source project, unsigned by default with optional signing |
 | `pack_editor.bat` | Publish and validate the self-contained Windows 10-or-newer x64 editor package with official plug-ins |

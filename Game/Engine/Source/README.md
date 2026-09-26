@@ -2,7 +2,7 @@
 
 `Game/Engine/Source` contains the C++20 Engine, GlobalCore and GlobalFunctions modules. Shared values, Lua-session services, binding infrastructure and Blueprint execution live in the `Game/Engine/Runtime` library.
 
-Supported release targets require Windows 10 or newer on x64, macOS 13.3 or newer on Apple Silicon, iOS 15.0 or newer on arm64, HarmonyOS 6.0.2 / API 22 or newer on arm64-v8a, or Android 7.0 / API 24 or newer on arm64-v8a.
+Supported release targets require Windows 10 or newer on x64, macOS 13.3 or newer on Apple Silicon, iOS 16.3 or newer on arm64, HarmonyOS 6.0.2 / API 22 or newer on arm64-v8a, or Android 7.0 / API 24 or newer on arm64-v8a.
 
 ## Modules and dependency direction
 

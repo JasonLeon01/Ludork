@@ -31,10 +31,11 @@ std::string lowerString(std::string value) {
 }
 
 bool isEncryptedExtension(const std::string& extension) {
-    return std::ranges::any_of(ludork::generated::resources::ShaderExtensions,
-                               [&extension](const auto& item) {
-                                   return extension == item.encrypted;
-                               });
+    const auto& extensions = ludork::generated::resources::ShaderExtensions;
+    return std::any_of(extensions.begin(), extensions.end(),
+                       [&extension](const auto& item) {
+                           return extension == item.encrypted;
+                       });
 }
 
 std::string pathExtension(const std::string& path) {
@@ -55,10 +56,11 @@ void validateRequestedShaderPath(const std::string& path) {
             "an encrypted extension: " +
             path);
     }
-    if (std::ranges::none_of(ludork::generated::resources::ShaderExtensions,
-                             [&extension](const auto& item) {
-                                 return extension == item.source;
-                             })) {
+    const auto& extensions = ludork::generated::resources::ShaderExtensions;
+    if (std::none_of(extensions.begin(), extensions.end(),
+                     [&extension](const auto& item) {
+                         return extension == item.source;
+                     })) {
         throw std::invalid_argument(
             "Shader asset path must use .frag, .vert, or .geom: " + path);
     }

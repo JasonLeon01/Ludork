@@ -884,8 +884,8 @@
     "en_GB": "Adds trimmed H.264 / AAC MP4 playback support; disabled by default."
   },
   "NEW_PROJECT_FFMPEG_APPLE_HINT": {
-    "zh_CN": "Apple 平台提示：Standalone FFmpeg 模板仅面向 macOS；iOS 15.0 或更高版本请使用 C++ 源码版构建。",
-    "en_GB": "Apple platform note: the Standalone FFmpeg template targets macOS only; use C++ Source for iOS 15.0 or newer."
+    "zh_CN": "Apple 平台提示：Standalone FFmpeg 模板仅面向 macOS；iOS 16.3 或更高版本请使用 C++ 源码版构建。",
+    "en_GB": "Apple platform note: the Standalone FFmpeg template targets macOS only; use C++ Source for iOS 16.3 or newer."
   },
   "BROWSE": {
     "zh_CN": "浏览...",

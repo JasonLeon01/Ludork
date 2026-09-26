@@ -8,10 +8,13 @@
 #include <System.hpp>
 
 #include <SFML/Audio/SoundBuffer.hpp>
+#include <SFML/System/Clock.hpp>
 
 #include <algorithm>
+#include <chrono>
 #include <memory>
 #include <stdexcept>
+#include <thread>
 #include <utility>
 #else
 #include <iostream>
@@ -61,19 +64,70 @@ void VideoPlayerImpl::play() {
 
     sf::Clock silentClock;
     silentClock.restart();
+    sf::Time excludedSilentTime;
+#if defined(SFML_SYSTEM_ANDROID) || defined(SFML_SYSTEM_IOS)
+    bool suspended = false;
+    bool resumeSound = false;
+    bool resumeClock = false;
+#endif
     while (System::isActive()) {
         window = Display::getWindow();
         if (window == nullptr) {
             break;
         }
+#if defined(SFML_SYSTEM_ANDROID) || defined(SFML_SYSTEM_IOS)
+        const sf::Time silentTimeBeforeEvents = silentClock.getElapsedTime();
+        const sf::Time soundTimeBeforeEvents =
+            sound.has_value() ? sound->getPlayingOffset() : sf::Time::Zero;
+        const bool soundWasPlaying =
+            sound.has_value() &&
+            sound->getStatus() == sf::SoundSource::Status::Playing;
+#endif
         inputService().update(*window);
+        if (!System::isActive()) {
+            break;
+        }
         TimeManager::update();
+#if defined(SFML_SYSTEM_ANDROID) || defined(SFML_SYSTEM_IOS)
+        if (!inputService().isFocused() || inputService().isFocusLost()) {
+            if (!suspended) {
+                suspended = true;
+                resumeClock = silentClock.isRunning();
+                silentClock.stop();
+                excludedSilentTime +=
+                    silentClock.getElapsedTime() - silentTimeBeforeEvents;
+                resumeSound = soundWasPlaying;
+                if (resumeSound) {
+                    sound->pause();
+                    sound->setPlayingOffset(soundTimeBeforeEvents);
+                }
+            }
+        }
+        if (suspended && !inputService().isFocused()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            continue;
+        }
+        if (suspended) {
+            suspended = false;
+            if (resumeClock) {
+                silentClock.start();
+            }
+            if (resumeSound) {
+                sound->play();
+            }
+        }
+#endif
         if (skipable_ && inputService().isActionTriggered(
                              inputService().getConfirmKeys(), true)) {
             break;
         }
         window->clear(sf::Color::Transparent);
-        update(*window, sound, silentClock);
+        const float elapsed =
+            sound.has_value()
+                ? sound->getPlayingOffset().asSeconds()
+                : (silentClock.getElapsedTime() - excludedSilentTime)
+                      .asSeconds();
+        update(*window, sound, elapsed);
         if (finished_ && !sprite_.has_value()) {
             break;
         }
@@ -94,10 +148,7 @@ void VideoPlayerImpl::play() {
 
 void VideoPlayerImpl::update(sf::RenderWindow& window,
                              const std::optional<sf::Sound>& sound,
-                             const sf::Clock& silentClock) {
-    const float elapsed = sound.has_value()
-                              ? sound->getPlayingOffset().asSeconds()
-                              : silentClock.getElapsedTime().asSeconds();
+                             float elapsed) {
     const int expectedFrame =
         static_cast<int>(elapsed * static_cast<float>(decoder_.fps()));
     if (sound.has_value() &&
