@@ -17,9 +17,11 @@ WindowBase._PAUSE_MARK_FRAME_RECTS = {
 
 function WindowBase:init(rect)
     super(WindowBase, self).init(rect)
-    self._windowSkin = assert(TextureManager.load(
-        assert(Engine.DefaultWindowskinName, "Default windowskin path is unavailable"), false, nil, true
-    ), "Default windowskin texture is unavailable"):copyToImage()
+    local windowskinName = Engine.DefaultWindowskinName
+    assert(windowskinName ~= nil, "Default windowskin path is unavailable")
+    self._windowSkin = assert
+        (TextureManager.load(windowskinName, false, nil, true), "Default windowskin texture is unavailable")
+        :copyToImage()
     self._repeated = false
     self._hasReturnBtn = false
     self._returnButtonSuppressed = false
