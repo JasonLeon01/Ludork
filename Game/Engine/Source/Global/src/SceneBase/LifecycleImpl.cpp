@@ -33,6 +33,8 @@ void LifecycleImpl::markCreated() noexcept {
 void LifecycleImpl::markEntered() noexcept {
     entered_ = true;
     stopping_.store(false);
+    suspended_.store(false);
+    logicTimeResetPending_.store(false);
 }
 
 void LifecycleImpl::markExited() noexcept {
@@ -58,6 +60,21 @@ void LifecycleImpl::resetStop() noexcept {
 
 bool LifecycleImpl::isStopping() const noexcept {
     return stopping_.load();
+}
+
+void LifecycleImpl::setSuspended(bool suspended) noexcept {
+    if (suspended) {
+        logicTimeResetPending_.store(true);
+    }
+    suspended_.store(suspended);
+}
+
+bool LifecycleImpl::isSuspended() const noexcept {
+    return suspended_.load();
+}
+
+bool LifecycleImpl::takeLogicTimeReset() noexcept {
+    return logicTimeResetPending_.exchange(false);
 }
 
 }  // namespace ludork::global::scene_base_impl

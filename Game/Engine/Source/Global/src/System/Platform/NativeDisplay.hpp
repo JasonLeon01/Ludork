@@ -8,6 +8,10 @@
 
 namespace ludork::global {
 
+#if defined(SFML_SYSTEM_IOS)
+void attachIosWindowScene(sf::WindowHandle windowHandle);
+#endif
+
 struct WindowedFramePlacement {
     sf::Vector2i topLeft;
     sf::Vector2i screenOrigin;

@@ -86,6 +86,19 @@ else()
         "${LUDORK_APPLICATION_ROOT}/src/Platform/Default/StartupErrorLog.cpp")
 endif()
 
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    enable_language(OBJCXX)
+    set(LUDORK_IOS_APPLICATION_SOURCES
+        "${LUDORK_APPLICATION_ROOT}/src/Platform/IOS/LudorkSceneDelegate.mm"
+        "${LUDORK_APPLICATION_ROOT}/src/Platform/IOS/SceneLifecycle.mm")
+    list(APPEND LUDORK_APPLICATION_SOURCES
+        ${LUDORK_IOS_APPLICATION_SOURCES}
+        "${LUDORK_APPLICATION_ROOT}/src/Platform/IOS/LudorkSceneDelegate.hpp"
+        "${LUDORK_APPLICATION_ROOT}/src/Platform/IOS/SceneLifecycle.hpp")
+    set_source_files_properties(${LUDORK_IOS_APPLICATION_SOURCES}
+        PROPERTIES COMPILE_OPTIONS -fno-objc-arc)
+endif()
+
 if(CMAKE_SYSTEM_NAME STREQUAL "OHOS")
     add_library(entry SHARED ${LUDORK_APPLICATION_SOURCES})
     set(LUDORK_APPLICATION_TARGET entry)
@@ -155,6 +168,11 @@ if(APPLE)
         ${LUDORK_APPLICATION_TARGET}
         PRIVATE
         "${COREFOUNDATION_FRAMEWORK}")
+    if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+        find_library(UIKIT_FRAMEWORK UIKit REQUIRED)
+        target_link_libraries(${LUDORK_APPLICATION_TARGET} PRIVATE
+            "${UIKIT_FRAMEWORK}")
+    endif()
 endif()
 if(WIN32)
     add_executable(LudorkLauncher WIN32 EXCLUDE_FROM_ALL

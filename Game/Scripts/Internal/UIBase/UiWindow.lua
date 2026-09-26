@@ -69,7 +69,11 @@ function UiWindow:attach()
     if self.nested then
         local parent = assert(self.ui.root:getParent(), "Child UI View must already be attached")
         ---@cast parent Engine.Canvas
-        parent:addChild(self.host)
+        if self._selectable then
+            -- The Lua list handler owns its gestures; other touches belong to the View.
+            self.host:setTouchHitBounds(Engine.ToFloatRect(0, 0, 0, 0))
+        end
+        parent:insertChildBefore(self.host, self.ui.root)
         if Class.isInstance(self.ui.root, Engine.Canvas) then
             ---@cast self.ui.root Engine.Canvas
             self.host:setZOrder(self.ui.root:getZOrder())

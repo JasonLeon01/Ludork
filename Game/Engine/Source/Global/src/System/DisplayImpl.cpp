@@ -166,6 +166,9 @@ void DisplayImpl::createDisplayWindow() {
             sf::State::Windowed, windowContextSettings_);
     }
 
+#if defined(SFML_SYSTEM_IOS)
+    ludork::global::attachIosWindowScene(window->getNativeHandle());
+#endif
     const float surfaceFitScale = windowFitScale(window->getSize());
     surfaceFitScale_ = surfaceFitScale;
     engineState().setScale(effectiveRenderScale(surfaceFitScale));

@@ -128,6 +128,13 @@ endif()
 if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
     target_compile_definitions(LuaSF_lua_shared PRIVATE LUA_USE_IOS)
     target_compile_definitions(LuaSF PRIVATE LUASF_IOS_COMPAT=1)
+    if(CMAKE_GENERATOR STREQUAL "Xcode")
+        set(ludork_luasf_archive_source
+            "${CMAKE_CURRENT_BINARY_DIR}/LuaSFArchive.cpp")
+        file(GENERATE OUTPUT "${ludork_luasf_archive_source}"
+            CONTENT "// Xcode requires a source compilation phase to archive the LuaSF binding objects.\n")
+        target_sources(LuaSF PRIVATE "${ludork_luasf_archive_source}")
+    endif()
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "iOS"

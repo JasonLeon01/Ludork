@@ -381,6 +381,15 @@ def write_info_plist(context: PackContext, path: pathlib.Path) -> None:
         "NSHighResolutionCapable": True,
         "CFBundleIconFiles": ["AppIcon"],
         "UILaunchScreen": {},
+        "UIApplicationSceneManifest": {
+            "UIApplicationSupportsMultipleScenes": False,
+            "UISceneConfigurations": {
+                "UIWindowSceneSessionRoleApplication": [{
+                    "UISceneConfigurationName": "Ludork",
+                    "UISceneDelegateClassName": "LudorkSceneDelegate",
+                }],
+            },
+        },
         "UIRequiredDeviceCapabilities": ["arm64"],
         "UIRequiresFullScreen": True,
         "UISupportedInterfaceOrientations": [
@@ -563,7 +572,7 @@ def configure_and_build(
         "-DCMAKE_SYSTEM_NAME=iOS",
         "-DCMAKE_OSX_SYSROOT=iphoneos",
         "-DCMAKE_OSX_ARCHITECTURES=arm64",
-        "-DCMAKE_OSX_DEPLOYMENT_TARGET=15.0",
+        "-DCMAKE_OSX_DEPLOYMENT_TARGET=16.3",
         f"-DLUDORK_SCRIPT_TOOLS_EXECUTABLE={script_tools}",
         "-DLUDORK_BUILD_UI_PREVIEW_HOST=OFF",
         f"-DLUDORK_UI_REGISTRY_PATH={ui_registry}",

@@ -23,12 +23,18 @@ public:
     void resetStop() noexcept;
     [[nodiscard]] bool isStopping() const noexcept;
 
+    void setSuspended(bool suspended) noexcept;
+    [[nodiscard]] bool isSuspended() const noexcept;
+    [[nodiscard]] bool takeLogicTimeReset() noexcept;
+
 private:
     bool created_ = false;
     bool entered_ = false;
     bool destroyed_ = false;
     std::atomic_bool stopping_{false};
     std::atomic_bool mainRunning_{false};
+    std::atomic_bool suspended_{false};
+    std::atomic_bool logicTimeResetPending_{false};
 };
 
 }  // namespace ludork::global::scene_base_impl
