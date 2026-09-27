@@ -39,7 +39,7 @@ internal sealed class ReferenceTreeGraphControl : Control
             ["unknown"] = Color.FromRgb(82, 82, 82),
         };
 
-    private readonly ReferenceIndexService referenceIndex;
+    private ReferenceIndexSnapshot? snapshot;
     private readonly string rootNodeId;
     private readonly List<ReferenceGraphNode> nodes = [];
     private readonly List<ReferenceGraphEdge> edges = [];
@@ -55,17 +55,15 @@ internal sealed class ReferenceTreeGraphControl : Control
     private bool fitted;
     private ReferenceGraphNode? hoveredNode;
 
-    public ReferenceTreeGraphControl(ReferenceIndexService referenceIndex, string rootNodeId)
+    public ReferenceTreeGraphControl(string rootNodeId)
     {
-        this.referenceIndex = referenceIndex;
         this.rootNodeId = rootNodeId;
         Focusable = true;
         ClipToBounds = true;
         PointerTouchPadGestureMagnify += onPointerTouchPadGestureMagnify;
-        buildGraph();
         SizeChanged += (_, _) =>
         {
-            if (!fitted && Bounds.Width > 0 && Bounds.Height > 0)
+            if (!fitted && nodes.Count != 0 && Bounds.Width > 0 && Bounds.Height > 0)
             {
                 fitGraph();
                 fitted = true;
@@ -74,6 +72,34 @@ internal sealed class ReferenceTreeGraphControl : Control
     }
 
     public event EventHandler<ReferenceNodeOpenEventArgs>? NodeOpenRequested;
+
+    public void SetSnapshot(ReferenceIndexSnapshot snapshot)
+    {
+        ReferenceGraphNode? previousRoot = nodes.FirstOrDefault(node => node.Current);
+        this.snapshot = snapshot;
+        nodes.Clear();
+        edges.Clear();
+        visualSerial = 0;
+        hoveredNode = null;
+        Cursor = Cursor.Default;
+        ToolTip.SetTip(this, null);
+        buildGraph();
+        ReferenceGraphNode? currentRoot = nodes.FirstOrDefault(node => node.Current);
+        if (fitted && previousRoot is not null && currentRoot is not null)
+        {
+            Vector offset = new(
+                (previousRoot.X - currentRoot.X) * scale,
+                (previousRoot.Y - currentRoot.Y) * scale);
+            translation += offset;
+            dragOrigin += offset;
+        }
+        else if (Bounds.Width > 0 && Bounds.Height > 0)
+        {
+            fitGraph();
+            fitted = true;
+        }
+        InvalidateVisual();
+    }
 
     public override void Render(DrawingContext context)
     {
@@ -198,9 +224,11 @@ internal sealed class ReferenceTreeGraphControl : Control
 
     private void buildGraph()
     {
+        if (snapshot is null)
+            return;
         string rootVisual = createNode(rootNodeId, 0, 0, null, false);
-        ReferenceTreeNode leftTree = referenceIndex.GetTree(rootNodeId, ReferenceDirection.ReferencedBy, MaximumDepth);
-        ReferenceTreeNode rightTree = referenceIndex.GetTree(rootNodeId, ReferenceDirection.References, MaximumDepth);
+        ReferenceTreeNode leftTree = snapshot.GetTree(rootNodeId, ReferenceDirection.ReferencedBy, MaximumDepth);
+        ReferenceTreeNode rightTree = snapshot.GetTree(rootNodeId, ReferenceDirection.References, MaximumDepth);
         if (leftTree.Items.Count != 0)
         {
             List<string> branchVisuals = [];
@@ -260,7 +288,7 @@ internal sealed class ReferenceTreeGraphControl : Control
         bool cycle)
     {
         string visualId = $"reference_{visualSerial++}";
-        ReferenceNode referenceNode = referenceIndex.GetNode(nodeId)
+        ReferenceNode referenceNode = snapshot?.GetNode(nodeId)
             ?? new ReferenceNode(nodeId, "unknown", nodeId);
         Color baseColor = NodeColors.TryGetValue(referenceNode.Type, out Color known)
             ? known
@@ -444,7 +472,7 @@ internal sealed class ReferenceTreeGraphControl : Control
             string kind = getKindName(record.Kind);
             lines.Add(record.Path.Length == 0 ? kind : $"{kind} - {record.Path}");
         }
-        string path = referenceIndex.GetNodePath(node.Id);
+        string path = snapshot?.GetNodePath(node.Id) ?? string.Empty;
         if (path.Length != 0)
             lines.Add(path);
         return string.Join(Environment.NewLine, lines);

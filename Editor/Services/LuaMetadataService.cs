@@ -37,6 +37,12 @@ public sealed class LuaMetadataService
         return files.BeginRead();
     }
 
+    internal IDisposable BeginReferenceRead()
+    {
+        ensureCacheCurrent();
+        return files.BeginRead(requireValid: true);
+    }
+
     internal LuaMetadataDependencySnapshot CaptureDependencies(
         IEnumerable<LuaTypeReference> types,
         IEnumerable<string> scriptMixins)

@@ -16,6 +16,7 @@ public sealed partial class ReferenceIndexService
             MarkDirty();
             return;
         }
+        invalidateBackground(false);
         if (dirty)
             return;
         foreach (EditorDocumentChange change in args.Changes)
@@ -85,7 +86,6 @@ public sealed partial class ReferenceIndexService
                     referencedByTarget.Remove(record.Target);
             }
         }
-        BlueprintNodeDefinitionSet? globalDefinitions = null;
         foreach (KeyValuePair<string, (string Section, string Key)> pending in pendingDocuments)
         {
             (string section, string key) = pending.Value;
@@ -104,9 +104,7 @@ public sealed partial class ReferenceIndexService
             if (dataSection is null || !dataSection.Value.Data.TryGetValue(key, out JsonObject? data))
                 continue;
             addNode(dataSection.Value.Type, key);
-            if (section == "CommonFunctions")
-                globalDefinitions ??= new BlueprintNodeDefinitionCatalog(metadataService, classResolver).GetNodeDefinitionSet();
-            scanDocumentReferences(section, key, data, globalDefinitions);
+            scanDocumentReferences(section, key, data);
         }
         foreach (string id in affectedNodes)
         {
@@ -123,51 +121,4 @@ public sealed partial class ReferenceIndexService
         dirty = false;
     }
 
-    private void scanDocumentReferences(string section, string key, JsonObject data,
-        BlueprintNodeDefinitionSet? globalDefinitions)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        progress?.Invoke($"Data/{section}/{key}.json");
-        switch (section)
-        {
-            case "Configs":
-                scanConfigReferences(nodeId("config", key), key, data);
-                break;
-            case "Tilesets":
-                addAssetReference(nodeId("tileset", key), data["fileName"], "asset", "fileName");
-                break;
-            case "AutoTiles":
-                addAssetReference(nodeId("autoTile", key), data["fileName"], "asset", "fileName");
-                break;
-            case "WorldMaps":
-                scanWorldMapReferences(nodeId("worldMap", key), key, data);
-                break;
-            case "CommonFunctions":
-                string sourceId = nodeId("commonFunction", key);
-                scanNodeGraphReferences(sourceId, data, $"CommonFunctions/{key}", globalDefinitions!);
-                scanGenericReferences(sourceId, data, $"CommonFunctions/{key}");
-                break;
-            case "Blueprints":
-                scanBlueprintReferences(key, data);
-                break;
-            case "Animations":
-                scanAnimationReferences(nodeId("animation", key), data, key);
-                break;
-            case "Particles":
-                scanParticleReferences(key, data);
-                break;
-            case "Curves":
-                scanGenericReferences(nodeId("curve", key), data, $"Curves/{key}");
-                break;
-            case "TextConfigs":
-                scanTextConfigReferences(nodeId("textConfig", key), key, data);
-                break;
-            case "UI":
-                scanUiAssetReferences(nodeId("uiAsset", key), key, data);
-                break;
-            case "General":
-                scanGeneralReferences(key, data, globalDefinitions!);
-                break;
-        }
-    }
 }

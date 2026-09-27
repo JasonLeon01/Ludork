@@ -14,14 +14,15 @@ public sealed class EditorProjectSession : IDisposable
         ProjectPath = Path.GetFullPath(projectPath);
         GameData = new ProjectDataStore(ProjectPath);
         ProjectConfig = new ProjectConfigService(ProjectPath);
-        Metadata = new LuaMetadataService(ProjectPath);
+        Metadata = GameData.Metadata;
         GameVariables = new GameVariableService(ProjectPath, Metadata, GameData.Documents);
-        BlueprintClasses = new BlueprintClassResolver(GameData, Metadata);
+        BlueprintClasses = GameData.BlueprintClasses;
         GameConfig = new GameConfigService(ProjectPath);
         ProjectRunner = new ProjectRunnerService(ProjectPath);
         BlueprintValidation = new BlueprintValidationService(GameData, Metadata, BlueprintClasses);
         ProjectSave = new ProjectSaveService(GameData, GameVariables, BlueprintValidation, ProjectConfig);
-        ReferenceIndex = new ReferenceIndexService(GameData, Metadata, BlueprintClasses);
+        ReferenceIndex = GameData.ReferenceIndex;
+        ReferenceIndex.EnableBackgroundUpdates();
         BlueprintCreation = new BlueprintCreationService(GameData, Metadata, BlueprintClasses);
         PreviewService = new BlueprintPreviewService(ProjectPath, GameData, BlueprintClasses, UiControlRegistry.Runtime);
         TileSelect = new TileSelectViewModel(GameData);
@@ -68,8 +69,6 @@ public sealed class EditorProjectSession : IDisposable
         ProjectRunner.Dispose();
         PreviewService.Dispose();
         UiControlRegistry.Dispose();
-        ReferenceIndex.Dispose();
-        BlueprintClasses.Dispose();
         GameData.Dispose();
     }
 }

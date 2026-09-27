@@ -59,8 +59,6 @@ public sealed partial class MapWorkspaceViewModel
     private void onRuntimeMapChanged(object? sender, MapPreviewChangedEventArgs args)
     {
         onMapPreviewChanged(sender, args);
-        if (args.Edit is null)
-            refreshLayerTabs();
     }
 
     private IEnumerable<string> displayedLayerNames()

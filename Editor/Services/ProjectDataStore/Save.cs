@@ -268,9 +268,7 @@ public sealed partial class ProjectDataStore
             candidate.Path != candidate.SavedPath || candidate.SavedState.InternalData is null).ToArray();
         if (changedPaths.Length == 0)
             return false;
-        LuaMetadataService metadata = new(ProjectPath);
-        using BlueprintClassResolver resolver = new(this, metadata);
-        using ReferenceIndexService references = new(this, metadata, resolver);
+        ReferenceIndexService references = ReferenceIndex;
         string? source = references.GetNodeIdForPath(document.Path);
         return source is not null && references.GetOutgoing(source).Any(reference =>
             changedPaths.Any(candidate => pathsEqual(candidate.Path, references.GetNodePath(reference.Target))));

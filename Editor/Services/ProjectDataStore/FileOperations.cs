@@ -214,9 +214,7 @@ public sealed partial class ProjectDataStore
 
     internal static void assertDocumentsUnreferenced(ProjectDataStore data, IReadOnlyList<string> paths)
     {
-        LuaMetadataService metadata = new(data.ProjectPath);
-        using BlueprintClassResolver resolver = new(data, metadata);
-        using ReferenceIndexService references = new(data, metadata, resolver);
+        ReferenceIndexService references = data.ReferenceIndex;
         HashSet<string> deleting = paths.Select(path => Path.GetFullPath(path)).ToHashSet(StringComparer.OrdinalIgnoreCase);
         ReferenceImpact impact = references.GetImpactForPaths(paths);
         ReferenceRecord[] incoming = impact.Incoming.Where(reference => !deleting.Contains(references.GetNodePath(reference.Source))).ToArray();

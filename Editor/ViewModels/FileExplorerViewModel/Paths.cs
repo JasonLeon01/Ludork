@@ -72,13 +72,7 @@ public sealed partial class FileExplorerViewModel
             added,
             moved,
             deleted,
-            () =>
-            {
-                LuaMetadataService metadata = new(projectPath);
-                using BlueprintClassResolver resolver = new(gameData, metadata);
-                using ReferenceIndexService candidateReferences = new(gameData, metadata, resolver);
-                return candidateReferences.PrepareMapReferenceRewrites(mapReplacements);
-            });
+            () => gameData.ReferenceIndex.PrepareMapReferenceRewrites(mapReplacements));
         try
         {
             changed(new FileExplorerFilesChangedEventArgs(

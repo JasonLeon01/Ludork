@@ -22,7 +22,6 @@ public sealed partial class ProjectDataStore
             validateRestoredReferences(document, candidate);
             if (!commitResourceChange(document.Section, document.Key, state.Key, candidate, recordSource: false))
                 return new HistoryResult(false, "The document could not be restored because its name or references changed.");
-            NotifyDataRestored();
             return new HistoryResult(true) { Changes = [document.Path] };
         }
         catch (Exception exception) when (exception is InvalidDataException or InvalidOperationException or IOException)
@@ -47,9 +46,6 @@ public sealed partial class ProjectDataStore
         {
             [source] = (newKey, (JsonObject)candidate.DeepClone()),
         };
-        LuaMetadataService metadata = new(ProjectPath);
-        using BlueprintClassResolver resolver = new(this, metadata);
-        using ReferenceIndexService references = new(this, metadata, resolver);
         if (renamed)
         {
             IReadOnlyList<ReferenceRewrite> rewrites;
@@ -67,10 +63,10 @@ public sealed partial class ProjectDataStore
                     replacements[childKey + ".json"] = targetKey + ".json";
                     changes[child] = (targetKey, child.Data!);
                 }
-                rewrites = references.PrepareMapReferenceRewrites(replacements);
+                rewrites = ReferenceIndex.PrepareMapReferenceRewrites(replacements);
             }
             else
-                rewrites = references.PrepareDocumentRename(section, oldKey, newKey);
+                rewrites = ReferenceIndex.PrepareDocumentRename(section, oldKey, newKey);
             foreach (ReferenceRewrite rewrite in rewrites)
             {
                 EditorDocument target = GetDocument(rewrite.Section, rewrite.Key)
@@ -213,25 +209,18 @@ public sealed partial class ProjectDataStore
 
     internal void validateRestoredReferences(EditorDocument document, JsonObject candidate)
     {
-        JsonObject original = sections[document.Section][document.Key];
-        LuaMetadataService metadata = new(ProjectPath);
-        using BlueprintClassResolver resolver = new(this, metadata);
-        using ReferenceIndexService references = new(this, metadata, resolver);
-        try
+        if (deletedDocumentPaths.Count == 0)
+            return;
+        using BlueprintClassResolver resolver = new(Metadata, key =>
+            document.Section == "Blueprints" && document.Key == key
+                ? (JsonObject)candidate.DeepClone() : ReadReferenceBlueprint(key));
+        DocumentReferenceScanner scanner = new(Metadata, resolver);
+        DocumentReferenceResult result = scanner.Scan(document.Section, document.Key, candidate);
+        foreach (ReferenceRecord reference in result.References)
         {
-            sections[document.Section][document.Key] = candidate;
-            references.MarkDirty();
-            foreach (ReferenceRecord reference in references.GetOutgoingForDocumentPath(document.Path))
-            {
-                string path = references.GetNodePath(reference.Target);
-                if (deletedDocumentPaths.Contains(path) && GetDocumentByPath(path)?.Exists != true)
-                    throw new InvalidDataException($"Undo/Redo cannot restore a reference to a deleted file: {path}");
-            }
-        }
-        finally
-        {
-            sections[document.Section][document.Key] = original;
+            string path = ReferenceIndexSnapshot.ResolvePath(ProjectPath, reference.Target, result.GeneralMemberTypes);
+            if (deletedDocumentPaths.Contains(path) && GetDocumentByPath(path)?.Exists != true)
+                throw new InvalidDataException($"Undo/Redo cannot restore a reference to a deleted file: {path}");
         }
     }
-
 }

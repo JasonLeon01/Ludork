@@ -7,6 +7,7 @@ public sealed class MapListItemViewModel : ViewModelBase
 {
     private bool isExpanded;
     private bool isModified;
+    private string displayName;
 
     public MapListItemViewModel(
         string key,
@@ -15,13 +16,17 @@ public sealed class MapListItemViewModel : ViewModelBase
         string? worldKey)
     {
         Key = key;
-        DisplayName = displayName;
+        this.displayName = displayName;
         Kind = kind;
         WorldKey = worldKey;
     }
 
     public string Key { get; }
-    public string DisplayName { get; }
+    public string DisplayName
+    {
+        get => displayName;
+        internal set => SetProperty(ref displayName, value);
+    }
     public MapCatalogEntryKind Kind { get; }
     public string? WorldKey { get; }
     public bool IsWorld => Kind == MapCatalogEntryKind.WorldMap;

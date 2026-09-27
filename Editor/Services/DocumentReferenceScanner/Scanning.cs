@@ -1,13 +1,12 @@
 using Ludork.Models;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
 
 namespace Ludork.Services;
 
-public sealed partial class ReferenceIndexService
+internal sealed partial class DocumentReferenceScanner
 {
     private void scanTextConfigReferences(string sourceId, string key, JsonObject data)
     {
@@ -43,6 +42,7 @@ public sealed partial class ReferenceIndexService
         JsonObject node,
         string path)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         string? controlId = getString(node["controlId"]);
         if (controlId is not null
             && UiAssetSchema.TryGetProjectAssetKey(controlId, out string targetAssetKey))
@@ -115,6 +115,7 @@ public sealed partial class ReferenceIndexService
     {
         foreach (KeyValuePair<string, JsonNode?> pair in data)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (pair.Value is not JsonObject setting)
                 continue;
             string? valueType = getString(setting["type"]);
@@ -145,10 +146,10 @@ public sealed partial class ReferenceIndexService
                             : blueprintNodeIdFromKey(normalized);
                         addReference(sourceId, target, "configFile", path);
                     }
-                    else if (getDataSection(baseDirectory) is { } section)
+                    else if (getSectionType(baseDirectory) is string sectionType)
                     {
                         addReference(sourceId,
-                            nodeId(section.Type, normalizeDataReference(dataReference, baseDirectory)),
+                            nodeId(sectionType, normalizeDataReference(dataReference, baseDirectory)),
                             "configFile", path);
                     }
                 }
@@ -163,6 +164,7 @@ public sealed partial class ReferenceIndexService
 
     private void scanAutoTileReferences(string sourceId, JsonNode? value, string path)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         string? key = getString(value);
         if (!string.IsNullOrWhiteSpace(key))
         {
@@ -182,6 +184,7 @@ public sealed partial class ReferenceIndexService
             return;
         for (int index = 0; index < actors.Count; index++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (actors[index] is not JsonObject actor)
                 continue;
             string? blueprintId = blueprintNodeIdFromClassPath(actor["bp"]);
@@ -227,10 +230,13 @@ public sealed partial class ReferenceIndexService
 
         if (data["graph"] is JsonObject graph)
         {
-            BlueprintGraphContext context = new(data, key);
-            BlueprintNodeDefinitionSet definitions =
-                new BlueprintNodeDefinitionCatalog(metadataService, classResolver).GetNodeDefinitionSet(context);
-            scanNodeGraphReferences(sourceId, graph, $"Blueprints/{key}.graph", definitions);
+            if (graph["nodeGraph"] is JsonObject)
+            {
+                BlueprintGraphContext context = new(data, key);
+                BlueprintNodeDefinitionSet definitions =
+                    blueprintDefinitions.GetNodeDefinitionSet(context, resolved);
+                scanNodeGraphReferences(sourceId, graph, $"Blueprints/{key}.graph", definitions);
+            }
             scanGenericReferences(sourceId, graph, $"Blueprints/{key}.graph");
         }
     }
@@ -267,8 +273,7 @@ public sealed partial class ReferenceIndexService
 
     private void scanGeneralReferences(
         string key,
-        JsonObject data,
-        BlueprintNodeDefinitionSet globalDefinitions)
+        JsonObject data)
     {
         string sourceId = nodeId("general", key);
         JsonObject parameterSchema = data["params"] as JsonObject ?? [];
@@ -288,6 +293,7 @@ public sealed partial class ReferenceIndexService
             return;
         foreach (KeyValuePair<string, JsonNode?> pair in members)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             string memberId = generalMemberNodeId(key, pair.Key);
             addReference(sourceId, memberId, "member", $"General/{key}.members.{pair.Key}");
             if (pair.Value is not JsonObject member)
@@ -295,11 +301,14 @@ public sealed partial class ReferenceIndexService
             scanGeneralParameterReferences(memberId, key, pair.Key, member, parameterSchema);
             if (member["_graph"] is JsonObject graph)
             {
-                scanNodeGraphReferences(
-                    memberId,
-                    graph,
-                    $"General/{key}/{pair.Key}._graph",
-                    globalDefinitions);
+                if (graph["nodeGraph"] is JsonObject)
+                {
+                    scanNodeGraphReferences(
+                        memberId,
+                        graph,
+                        $"General/{key}/{pair.Key}._graph",
+                        getGlobalDefinitions());
+                }
                 scanGenericReferences(memberId, graph, $"General/{key}/{pair.Key}._graph");
             }
         }
@@ -402,6 +411,7 @@ public sealed partial class ReferenceIndexService
                 continue;
             for (int index = 0; index < graphNodes.Count; index++)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 if (graphNodes[index] is not JsonObject node)
                     continue;
                 string nodePath = $"{path}.nodeGraph.{graphPair.Key}.nodes[{index}]";

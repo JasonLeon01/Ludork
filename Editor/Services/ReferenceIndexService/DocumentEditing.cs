@@ -16,7 +16,6 @@ public sealed partial class ReferenceIndexService
         string oldPath = section == "WorldMaps"
             ? Path.Combine(gameData.ProjectPath, "Data", "Maps", oldKey, "_world.json")
             : dataPath(section, oldKey);
-        MarkDirty();
         string? target = GetNodeIdForPath(oldPath);
         if (target is null)
             return [];

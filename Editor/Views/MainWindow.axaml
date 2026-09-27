@@ -116,9 +116,9 @@
         <KeyBinding Gesture="{OnPlatform Default=Ctrl+N, macOS=Meta+N}" Command="{Binding NewProjectCommand}" />
         <KeyBinding Gesture="{OnPlatform Default=Ctrl+O, macOS=Meta+O}" Command="{Binding OpenProjectCommand}" />
         <KeyBinding Gesture="{OnPlatform Default=Ctrl+W, macOS=Meta+W}" Command="{Binding ExitCommand}" />
-        <KeyBinding Gesture="{OnPlatform Default=Ctrl+1, macOS=Meta+1}" Command="{Binding TileModeCommand}" />
-        <KeyBinding Gesture="{OnPlatform Default=Ctrl+2, macOS=Meta+2}" Command="{Binding LightModeCommand}" />
-        <KeyBinding Gesture="{OnPlatform Default=Ctrl+3, macOS=Meta+3}" Command="{Binding ActorModeCommand}" />
+        <KeyBinding Gesture="{OnPlatform Default=Ctrl+D1, macOS=Meta+D1}" Command="{Binding TileModeCommand}" />
+        <KeyBinding Gesture="{OnPlatform Default=Ctrl+D2, macOS=Meta+D2}" Command="{Binding LightModeCommand}" />
+        <KeyBinding Gesture="{OnPlatform Default=Ctrl+D3, macOS=Meta+D3}" Command="{Binding ActorModeCommand}" />
         <KeyBinding Gesture="F1" Command="{Binding HelpCommand}" />
         <KeyBinding Gesture="F3" Command="{Binding GameConfigCommand}" />
         <KeyBinding Gesture="F4" Command="{Binding SystemConfigCommand}" />

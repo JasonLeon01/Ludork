@@ -19,6 +19,7 @@ internal sealed class LuaMetadataFileCache
     private Dictionary<string, LuaMetadataFileStamp>? readDependencyStamps;
     private bool readDependenciesConsistent = true;
     private int readScopeDepth;
+    private int strictReadDepth;
     private long revision;
 
     public LuaMetadataFileCache(string projectPath, bool strictReads = false, CancellationToken cancellationToken = default)
@@ -35,7 +36,7 @@ internal sealed class LuaMetadataFileCache
     public bool IsReading => readScopeDepth != 0;
     public event Action? Invalidated;
 
-    public IDisposable BeginRead()
+    public IDisposable BeginRead(bool requireValid = false)
     {
         if (readScopeDepth == 0)
         {
@@ -43,8 +44,15 @@ internal sealed class LuaMetadataFileCache
             readDependencyStamps = new Dictionary<string, LuaMetadataFileStamp>(StringComparer.OrdinalIgnoreCase);
             readDependenciesConsistent = true;
         }
+        if (requireValid)
+        {
+            foreach (KeyValuePair<string, CachedMetadataFile> entry in fileCache)
+                if (entry.Value.Error is Exception error)
+                    throw new InvalidDataException($"Could not read metadata: {entry.Key}: {error.Message}", error);
+            strictReadDepth++;
+        }
         readScopeDepth++;
-        return new MetadataReadScope(this);
+        return new MetadataReadScope(this, requireValid);
     }
 
     internal LuaMetadataDependencySnapshot CaptureDependencies(
@@ -325,20 +333,21 @@ internal sealed class LuaMetadataFileCache
             && string.Equals(scopedCached.ModuleName, moduleName, StringComparison.Ordinal))
         {
             trackReadDependency(path, scopedCached.Stamp);
-            return scopedCached.Types;
+            return readCachedTypes(path, scopedCached);
         }
         LuaMetadataFileStamp stamp = getFileStamp(path);
         trackReadDependency(path, stamp);
         if (fileCache.TryGetValue(path, out CachedMetadataFile? cached))
         {
             if (cached.Stamp == stamp && string.Equals(cached.ModuleName, moduleName, StringComparison.Ordinal))
-                return cached.Types;
+                return readCachedTypes(path, cached);
             Clear();
             stamp = getFileStamp(path);
             trackReadDependency(path, stamp);
         }
 
         IReadOnlyDictionary<string, LuaTypeMetadata> types;
+        Exception? readError = null;
         if (!stamp.Exists)
         {
             types = new Dictionary<string, LuaTypeMetadata>(StringComparer.Ordinal);
@@ -349,26 +358,24 @@ internal sealed class LuaMetadataFileCache
             {
                 types = LuaMetadataParser.ReadFile(path, moduleName);
             }
-            catch (InterpreterException) when (!strictReads)
+            catch (Exception exception) when (exception is InterpreterException or InvalidDataException or IOException or UnauthorizedAccessException)
             {
-                types = new Dictionary<string, LuaTypeMetadata>(StringComparer.Ordinal);
-            }
-            catch (InvalidDataException) when (!strictReads)
-            {
-                types = new Dictionary<string, LuaTypeMetadata>(StringComparer.Ordinal);
-            }
-            catch (IOException) when (!strictReads)
-            {
-                types = new Dictionary<string, LuaTypeMetadata>(StringComparer.Ordinal);
-            }
-            catch (UnauthorizedAccessException) when (!strictReads)
-            {
+                if (strictReads || strictReadDepth != 0)
+                    throw new InvalidDataException($"Could not read metadata: {path}: {exception.Message}", exception);
+                readError = exception;
                 types = new Dictionary<string, LuaTypeMetadata>(StringComparer.Ordinal);
             }
         }
 
-        fileCache[path] = new CachedMetadataFile(stamp, moduleName, types);
+        fileCache[path] = new CachedMetadataFile(stamp, moduleName, types, readError);
         return types;
+    }
+
+    private IReadOnlyDictionary<string, LuaTypeMetadata> readCachedTypes(string path, CachedMetadataFile cached)
+    {
+        if ((strictReads || strictReadDepth != 0) && cached.Error is Exception error)
+            throw new InvalidDataException($"Could not read metadata: {path}: {error.Message}", error);
+        return cached.Types;
     }
 
     private readonly record struct DirectoryStamp(bool Exists, DateTime ModifiedAt);
@@ -376,7 +383,7 @@ internal sealed class LuaMetadataFileCache
     private sealed record CachedMetadataFile(
         LuaMetadataFileStamp Stamp,
         string ModuleName,
-        IReadOnlyDictionary<string, LuaTypeMetadata> Types);
+        IReadOnlyDictionary<string, LuaTypeMetadata> Types, Exception? Error);
 
     private sealed record CachedScriptMixinMetadata(
         string Path,
@@ -387,7 +394,7 @@ internal sealed class LuaMetadataFileCache
         IReadOnlyList<string> Paths,
         IReadOnlyDictionary<string, DirectoryStamp> DirectoryStamps);
 
-    private sealed class MetadataReadScope(LuaMetadataFileCache owner) : IDisposable
+    private sealed class MetadataReadScope(LuaMetadataFileCache owner, bool requireValid) : IDisposable
     {
         private LuaMetadataFileCache? service = owner;
 
@@ -397,6 +404,8 @@ internal sealed class LuaMetadataFileCache
             if (current is null)
                 return;
             service = null;
+            if (requireValid)
+                current.strictReadDepth--;
             current.endRead();
         }
     }

@@ -80,6 +80,8 @@ public sealed class EditorDocumentRegistry
 
     internal bool IsRegistered(EditorDocument document) => documents.Contains(document);
 
+    internal bool HasPendingNotifications => notificationScopes.Count != 0;
+
     internal IEnumerable<EditorDocument> PendingDocuments => documents.Where(document => document.PendingState is not null);
 
     internal EditorDocument Register(string section, string key, string path, JsonObject? data, bool isNew = false)

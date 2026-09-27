@@ -3671,6 +3671,14 @@
     "zh_CN": "引用树 - {name}",
     "en_GB": "Reference Tree - {name}"
   },
+  "REFERENCE_TREE_UPDATING": {
+    "zh_CN": "引用树正在更新…",
+    "en_GB": "Updating references…"
+  },
+  "REFERENCE_TREE_UPDATE_FAILED": {
+    "zh_CN": "引用树更新失败：{reason}",
+    "en_GB": "Could not update references: {reason}"
+  },
   "REFERENCE_OBJECT": {
     "zh_CN": "对象",
     "en_GB": "Object"

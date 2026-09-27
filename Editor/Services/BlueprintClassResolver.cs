@@ -11,7 +11,8 @@ namespace Ludork.Services;
 public sealed class BlueprintClassResolver : IDisposable
 {
     private const string BlueprintPrefix = "Data.Blueprints.";
-    private readonly ProjectDataStore gameData;
+    private readonly EditorDocumentRegistry? documents;
+    private readonly Func<string, JsonObject?> readBlueprint;
     private readonly LuaMetadataService metadataService;
     private readonly Dictionary<string, ResolvedBlueprintTemplate> templateCache = new(StringComparer.Ordinal);
     private long metadataRevision = -1;
@@ -19,11 +20,20 @@ public sealed class BlueprintClassResolver : IDisposable
     private bool disposed;
 
     public BlueprintClassResolver(ProjectDataStore gameData, LuaMetadataService metadataService)
+        : this(metadataService, key => gameData.Blueprints.BlueprintsData.TryGetValue(key, out BlueprintDefinitionSnapshot? blueprint)
+            ? blueprint.ToJson() : null)
     {
-        this.gameData = gameData;
-        this.metadataService = metadataService;
-        gameData.Documents.ContentInvalidated += onContentInvalidated;
+        documents = gameData.Documents;
+        documents.ContentInvalidated += onContentInvalidated;
     }
+
+    internal BlueprintClassResolver(LuaMetadataService metadataService, Func<string, JsonObject?> readBlueprint)
+    {
+        this.metadataService = metadataService;
+        this.readBlueprint = readBlueprint;
+    }
+
+    internal void Invalidate() => clearResolutionCaches();
 
     public ResolvedBlueprintClass Resolve(string classReference, JsonObject? overrides = null)
     {
@@ -122,7 +132,8 @@ public sealed class BlueprintClassResolver : IDisposable
         if (disposed)
             return;
         disposed = true;
-        gameData.Documents.ContentInvalidated -= onContentInvalidated;
+        if (documents is not null)
+            documents.ContentInvalidated -= onContentInvalidated;
     }
 
     public IDisposable BeginBatch()
@@ -135,8 +146,8 @@ public sealed class BlueprintClassResolver : IDisposable
         if (reference.StartsWith(BlueprintPrefix, StringComparison.Ordinal))
         {
             string key = reference[BlueprintPrefix.Length..].Replace('.', '/');
-            if (gameData.Blueprints.BlueprintsData.TryGetValue(key, out BlueprintDefinitionSnapshot? blueprint))
-                return createBlueprintTemplate(blueprint.ToJson(), reference, key);
+            if (readBlueprint(key) is JsonObject blueprint)
+                return createBlueprintTemplate(blueprint, reference, key);
             return createResolvedTemplate(
                 reference,
                 null,
@@ -174,13 +185,13 @@ public sealed class BlueprintClassResolver : IDisposable
         while (!string.IsNullOrWhiteSpace(parent) && parent.StartsWith(BlueprintPrefix, StringComparison.Ordinal))
         {
             string key = parent[BlueprintPrefix.Length..].Replace('.', '/');
-            if (!visited.Add(key) || !gameData.Blueprints.BlueprintsData.TryGetValue(key, out BlueprintDefinitionSnapshot? parentBlueprint))
+            if (!visited.Add(key) || readBlueprint(key) is not JsonObject parentBlueprint)
             {
                 parent = null;
                 break;
             }
-            chain.Add((parent, parentBlueprint.ToJson()));
-            parent = parentBlueprint.Parent;
+            chain.Add((parent, parentBlueprint));
+            parent = getParent(parentBlueprint);
         }
 
         chain.Reverse();

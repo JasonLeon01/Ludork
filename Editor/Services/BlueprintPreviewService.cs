@@ -30,6 +30,7 @@ public sealed partial class BlueprintPreviewService : IDisposable
         ActorPreviews = new ActorPreviewService(runtime, gameData.Thumbnails);
         gameData.DataReloaded += onVisualSourceDataChanged;
         gameData.DataRestored += onVisualSourceDataChanged;
+        gameData.Documents.ContentChanged += onDocumentsChanged;
     }
 
     public ActorPreviewService ActorPreviews { get; }
@@ -44,7 +45,6 @@ public sealed partial class BlueprintPreviewService : IDisposable
 
     public void InvalidateVisuals()
     {
-        sourceImageInfoCache.Clear();
         VisualsInvalidated?.Invoke(this, EventArgs.Empty);
         LiveVisualsInvalidated?.Invoke(this, EventArgs.Empty);
     }
@@ -111,6 +111,7 @@ public sealed partial class BlueprintPreviewService : IDisposable
     {
         gameData.DataReloaded -= onVisualSourceDataChanged;
         gameData.DataRestored -= onVisualSourceDataChanged;
+        gameData.Documents.ContentChanged -= onDocumentsChanged;
         ActorPreviews.Dispose();
         sourceImageInfoCache.Clear();
     }
@@ -119,6 +120,12 @@ public sealed partial class BlueprintPreviewService : IDisposable
     {
         sourceImageInfoCache.Clear();
         VisualsInvalidated?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void onDocumentsChanged(object? sender, EditorDocumentsChangedEventArgs args)
+    {
+        if (!args.Reset && args.AffectsSection("Blueprints"))
+            InvalidateVisuals();
     }
 
     public Bitmap? tryLoadPreview(JsonObject blueprint, int size = 80, string? blueprintKey = null)

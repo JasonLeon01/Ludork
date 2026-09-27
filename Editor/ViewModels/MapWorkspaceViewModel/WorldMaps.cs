@@ -59,6 +59,40 @@ public sealed partial class MapWorkspaceViewModel
             selectedSnapshotKey = null;
             selectedMapSnapshot = null;
         }
+        if (args.Edit is null)
+            refreshLayerTabs();
+    }
+
+    private void onDocumentContentChanged(object? sender, EditorDocumentsChangedEventArgs args)
+    {
+        if (args.Reset || liveDebugSession is not null)
+            return;
+        EditorDocumentChange[] changes = args.Changes
+            .Where(change => change.Section is "Maps" or "WorldMaps").ToArray();
+        if (changes.Length == 0)
+            return;
+        if (changes.Any(change => change.IdentityChanged))
+        {
+            string? selectedKey = SelectedMap?.Key;
+            EditorDocumentChange? selectedChange = changes.FirstOrDefault(change => change.PreviousKey == selectedKey
+                && (change.Section == "WorldMaps") == (SelectedMap?.IsWorld == true));
+            refreshMaps(selectedChange?.Key ?? selectedKey);
+            return;
+        }
+        foreach (EditorDocumentChange change in changes)
+        {
+            MapListItemViewModel? item = Maps.SelectMany(root => root.Children.Prepend(root))
+                .FirstOrDefault(item => item.Key == change.Key && item.IsWorld == (change.Section == "WorldMaps"));
+            if (item is null)
+                continue;
+            if (item.IsWorld)
+                item.DisplayName = GameData.Worlds.ReadWorldMapSnapshot(item.Key)?["worldName"]?.GetValue<string>() ?? item.Key;
+            else if (GameData.Maps.tryGetMapCatalogEntry(item.Key, out MapCatalogEntry entry))
+                item.DisplayName = entry.DisplayName;
+        }
+        if (SelectedMap is { IsWorld: true } world
+            && changes.Any(change => change.Section == "WorldMaps" && change.Key == world.Key))
+            SelectedMapChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public JsonObject? SelectedWorldMapData => SelectedMap is { IsWorld: true } world ? GameData.Worlds.ReadWorldMapSnapshot(world.Key) : null;

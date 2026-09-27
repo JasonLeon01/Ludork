@@ -200,13 +200,13 @@ public sealed partial class MapPanel
         return best;
     }
 
-    private void setSelectedLightIndex(int? index)
+    private void setSelectedLightIndex(int? index, bool force = false)
     {
         MapLightSnapshot? light = null;
         if (index is int value && CurrentMapDocument?.Lights is IReadOnlyList<MapLightSnapshot> lights && value >= 0 && value < lights.Count)
             light = lights[value];
         int? nextIndex = light is null ? null : index;
-        if (selectedLightIndex == nextIndex)
+        if (selectedLightIndex == nextIndex && !force)
             return;
         if (propertyWheelTarget is not null)
             endMapGesture();
@@ -513,8 +513,6 @@ public sealed partial class MapPanel
             {
                 cancelMapGesture();
                 CurrentMapDocument = editingContext?.ReadMapDocument(CurrentMapKey);
-                if (EditMode == MapEditMode.Light)
-                    setSelectedActor(null, null, true);
                 if (IsRuntimeEditing)
                     reconcileRuntimeActorSelection();
             }
@@ -523,6 +521,13 @@ public sealed partial class MapPanel
             tilesetPaths.Clear();
             autoTileRenderer?.Dispose();
             autoTileRenderer = new AutoTileRenderer(gameData);
+            if (args.ReloadData)
+            {
+                setSelectedActor(selectedActorLayer, selectedActorIndex, true, true);
+                setSelectedLightIndex(selectedLightIndex, true);
+                reconcileLightActorSelection();
+                ActorDataChanged?.Invoke(this, EventArgs.Empty);
+            }
             InvalidateMeasure();
         }
         InvalidateVisual();
@@ -576,7 +581,11 @@ public sealed partial class MapPanel
     {
         cancelMapGesture();
         if (gameData is not null)
+        {
             gameData.Documents.ContentChanged -= onActorLightSourcesChanged;
+            gameData.DataReloaded -= onMapImagesRestored;
+            gameData.DataRestored -= onMapImagesRestored;
+        }
         if (editingContext is not null)
             editingContext.Changed -= onMapDataChanged;
         disposeMapRenderCaches();
@@ -603,6 +612,11 @@ public sealed partial class MapPanel
     {
         invalidateActorRenderStates();
         invalidatePendingActorRenderState();
+        InvalidateVisual();
+    }
+
+    private void onMapImagesRestored(object? sender, EventArgs args)
+    {
         disposeCachedBitmaps();
         InvalidateVisual();
     }

@@ -39,6 +39,7 @@ public sealed partial class MapWorkspaceViewModel : ViewModelBase, IDisposable
         TileSelect.TilesetSelected += onTilesetSelected;
         GameData.Maps.MapPreviewChanged += onMapPreviewChanged;
         GameData.Documents.Changed += onDocumentsChanged;
+        GameData.Documents.ContentChanged += onDocumentContentChanged;
         rebuildMapTree();
         SelectedMap = findMapItem(ProjectConfig.LastOpenedMapKey) ?? Maps.FirstOrDefault();
     }
@@ -69,6 +70,7 @@ public sealed partial class MapWorkspaceViewModel : ViewModelBase, IDisposable
         TileSelect.TilesetSelected -= onTilesetSelected;
         GameData.Maps.MapPreviewChanged -= onMapPreviewChanged;
         GameData.Documents.Changed -= onDocumentsChanged;
+        GameData.Documents.ContentChanged -= onDocumentContentChanged;
         if (liveDebugSession is not null)
             liveDebugSession.Changed -= onRuntimeMapChanged;
         liveDebugSession = null;
@@ -138,11 +140,7 @@ public sealed partial class MapWorkspaceViewModel : ViewModelBase, IDisposable
             return false;
         if (!GameData.Maps.reorderLayers(SelectedMap.Key, moving.Name, target.Name))
             return false;
-        int fromIndex = LayerTabs.IndexOf(moving);
-        int targetIndex = LayerTabs.IndexOf(target);
-        LayerTabs.Move(fromIndex, targetIndex);
-        SelectedLayerTab = moving;
-        refreshActorOutliner();
+        refreshLayerTabs(moving.Name);
         return true;
     }
 
@@ -332,29 +330,48 @@ public sealed partial class MapWorkspaceViewModel : ViewModelBase, IDisposable
     private void refreshLayerTabs(string? preferredLayerName = null)
     {
         string? previousName = preferredLayerName ?? (SelectedLayerTab is { IsOverview: false } ? SelectedLayerTab.Name : null);
-        LayerTabs.Clear();
         if (SelectedMap is not { IsMap: true })
         {
+            LayerTabs.Clear();
             SelectedLayerTab = null;
             refreshActorOutliner();
             updateLayerEditability();
             return;
         }
-        LayerTabs.Add(new LayerTabViewModel(LocaleService.Get("OVERVIEW"), true, true));
+        List<LayerTabViewModel> nextTabs =
+        [
+            LayerTabs.FirstOrDefault(item => item.IsOverview)
+                ?? new LayerTabViewModel(LocaleService.Get("OVERVIEW"), true, true),
+        ];
         if (SelectedMap is not null)
         {
             foreach (string name in displayedLayerNames())
             {
                 bool visible = SelectedMapDocument?.Layers.GetValueOrDefault(name)?.Visible ?? true;
-                LayerTabs.Add(new LayerTabViewModel(
-                    name,
-                    false,
-                    visible));
+                LayerTabViewModel tab = LayerTabs.FirstOrDefault(item => !item.IsOverview && item.Name == name)
+                    ?? new LayerTabViewModel(name, false, visible);
+                tab.LayerVisible = visible;
+                nextTabs.Add(tab);
             }
+        }
+        for (int index = LayerTabs.Count - 1; index >= 0; index--)
+            if (!nextTabs.Contains(LayerTabs[index]))
+                LayerTabs.RemoveAt(index);
+        for (int index = 0; index < nextTabs.Count; index++)
+        {
+            int previous = LayerTabs.IndexOf(nextTabs[index]);
+            if (previous < 0)
+                LayerTabs.Insert(index, nextTabs[index]);
+            else if (previous != index)
+                LayerTabs.Move(previous, index);
         }
         SelectedLayerTab = previousName is null
             ? LayerTabs[0]
             : LayerTabs.FirstOrDefault(item => !item.IsOverview && item.Name == previousName) ?? LayerTabs[0];
+        if (liveDebugSession is null && SelectedLayerTab is { IsOverview: false } layer)
+            TileSelect.setCurrentTilesetKey(GameData.Maps.getLayerTilesetKey(SelectedMap!.Key, layer.Name));
+        else if (liveDebugSession is not null)
+            restoreRuntimeTileset();
         refreshActorOutliner();
         updateLayerEditability();
     }

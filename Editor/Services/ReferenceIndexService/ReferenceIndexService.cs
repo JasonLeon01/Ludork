@@ -11,23 +11,8 @@ namespace Ludork.Services;
 public sealed partial class ReferenceIndexService : IDisposable
 {
     private const string BlueprintPrefix = "Data.Blueprints.";
-    private static readonly IReadOnlyDictionary<string, string> DataRoots =
-        new Dictionary<string, string>(StringComparer.Ordinal)
-        {
-            ["config"] = "Configs",
-            ["tileset"] = "Tilesets",
-            ["autoTile"] = "AutoTiles",
-            ["map"] = "Maps",
-            ["worldMap"] = "Maps",
-            ["commonFunction"] = "CommonFunctions",
-            ["animation"] = "Animations",
-            ["particle"] = "Particles",
-            ["curve"] = "Curves",
-            ["textConfig"] = "TextConfigs",
-            ["uiAsset"] = "UI",
-            ["general"] = "General",
-        };
-
+    private readonly DocumentReferenceScanner scanner;
+    private DocumentReferenceScanner? transactionScanner;
     private readonly ProjectDataStore gameData;
     private readonly LuaMetadataService metadataService;
     private readonly BlueprintClassResolver classResolver;
@@ -58,15 +43,23 @@ public sealed partial class ReferenceIndexService : IDisposable
         this.classResolver = classResolver;
         this.cancellationToken = cancellationToken;
         this.progress = progress;
+        scanner = new DocumentReferenceScanner(metadataService, classResolver, cancellationToken);
         gameData.Documents.ContentInvalidated += onContentInvalidated;
     }
 
     public void MarkDirty()
     {
         dirty = true;
+        invalidateBackground(true);
     }
 
     public void Rebuild()
+    {
+        MarkDirty();
+        ensureBuilt();
+    }
+
+    private void rebuildIndex()
     {
         using IDisposable metadataRead = metadataService.BeginRead();
         dirty = true;
@@ -126,8 +119,6 @@ public sealed partial class ReferenceIndexService : IDisposable
                 return null;
             }
             string assetNodeId = nodeId("asset", logicalPath);
-            ensureBuilt();
-            ensureNode(assetNodeId);
             return assetNodeId;
         }
 
@@ -160,6 +151,8 @@ public sealed partial class ReferenceIndexService : IDisposable
                 : null;
         }
 
+        if (section.Equals("Maps", StringComparison.OrdinalIgnoreCase))
+            return gameData.Maps.containsMapKey(key) ? nodeId("map", key) : null;
         (string Type, IReadOnlyDictionary<string, JsonObject> Data)? dataSection = getDataSection(section);
         return dataSection is not null && dataSection.Value.Data.ContainsKey(key)
             ? nodeId(dataSection.Value.Type, key)
@@ -168,39 +161,9 @@ public sealed partial class ReferenceIndexService : IDisposable
 
     public string GetNodePath(string nodeIdValue)
     {
-        ReferenceNode? node = GetNode(nodeIdValue);
-        if (node is null)
-            return string.Empty;
-        if (node.Type == "asset")
-        {
-            return GameAssetPath.TryToProjectFile(gameData.ProjectPath, node.Key, out string path)
-                ? path
-                : string.Empty;
-        }
-        if (node.Type == "blueprint")
-        {
-            string key = node.Key.StartsWith(BlueprintPrefix, StringComparison.Ordinal)
-                ? node.Key[BlueprintPrefix.Length..].Replace('.', '/')
-                : node.Key;
-            return dataPath("Blueprints", key);
-        }
-        if (node.Type == "generalMember")
-        {
-            return generalMemberTypes.TryGetValue(nodeIdValue, out string? typeKey)
-                ? dataPath("General", typeKey) : string.Empty;
-        }
-        if (node.Type == "worldMap")
-        {
-            return Path.Combine(
-                gameData.ProjectPath,
-                "Data",
-                "Maps",
-                node.Key.Replace('/', Path.DirectorySeparatorChar),
-                "_world" + DataConfig.DataFileExtension);
-        }
-        return DataRoots.TryGetValue(node.Type, out string? root)
-            ? dataPath(root, node.Key)
-            : string.Empty;
+        if (nodeIdValue.StartsWith("generalMember:", StringComparison.Ordinal) && !generalMemberTypes.ContainsKey(nodeIdValue))
+            ensureBuilt();
+        return ReferenceIndexSnapshot.ResolvePath(gameData.ProjectPath, nodeIdValue, generalMemberTypes);
     }
 
     public ReferenceNode? GetNode(string nodeIdValue)
@@ -273,11 +236,8 @@ public sealed partial class ReferenceIndexService : IDisposable
         ensureBuilt();
         ensureAllWorldChildMapReferences();
         ensureNode(nodeIdValue);
-        return buildTree(
-            nodeIdValue,
-            direction,
-            Math.Max(0, maxDepth),
-            new HashSet<string>(StringComparer.Ordinal) { nodeIdValue });
+        ReferenceIndexSnapshot snapshot = new(gameData.ProjectPath, version, nodes.Values, seen, generalMemberTypes, declaredNodes);
+        return snapshot.GetTree(nodeIdValue, direction, maxDepth);
     }
 
     public ReferenceImpact GetImpactForPaths(IEnumerable<string> paths)
@@ -294,11 +254,11 @@ public sealed partial class ReferenceIndexService : IDisposable
             nodeIds.UnionWith(getNodeIdsForDocumentPath(path, true));
         }
         List<ReferenceRecord> incoming = nodeIds
-            .SelectMany(GetIncoming)
+            .SelectMany(id => referencedByTarget.GetValueOrDefault(id) ?? [])
             .Where(record => !nodeIds.Contains(record.Source))
             .Distinct()
-            .OrderBy(record => GetNode(record.Source)?.Type, StringComparer.Ordinal)
-            .ThenBy(record => GetNode(record.Source)?.Key, StringComparer.Ordinal)
+            .OrderBy(record => nodes.GetValueOrDefault(record.Source)?.Type, StringComparer.Ordinal)
+            .ThenBy(record => nodes.GetValueOrDefault(record.Source)?.Key, StringComparer.Ordinal)
             .ThenBy(record => record.Path, StringComparer.Ordinal)
             .ToList();
         return new ReferenceImpact(nodeIds.OrderBy(value => value, StringComparer.Ordinal).ToArray(), incoming);
@@ -331,17 +291,52 @@ public sealed partial class ReferenceIndexService : IDisposable
         if (disposed)
             return;
         disposed = true;
+        disposeBackground();
         gameData.Documents.ContentInvalidated -= onContentInvalidated;
     }
 
     private void ensureBuilt()
     {
-        if (metadataRevision != metadataService.Revision)
+        ObjectDisposedException.ThrowIf(disposed, this);
+        activate();
+        if (gameData.Documents.HasPendingNotifications)
+        {
+            using BlueprintClassResolver resolver = new(metadataService, gameData.ReadReferenceBlueprint);
+            transactionScanner = new DocumentReferenceScanner(metadataService, resolver, cancellationToken);
+            try
+            {
+                ReferenceInputFiles transactionalFiles = ReferenceInputFiles.Capture(gameData.ProjectPath, unloadedMapPaths());
+                rebuildIndex();
+                ensureAllWorldChildMapReferences();
+                if (!transactionalFiles.IsCurrent())
+                    throw new IOException("Reference inputs changed during indexing.");
+            }
+            finally
+            {
+                transactionScanner = null;
+                dirty = true;
+            }
+            return;
+        }
+        if (!dirty && (metadataRevision != metadataService.Revision || inputFiles is not null && !inputFiles.IsCurrent()))
             MarkDirty();
+        if (!dirty && pendingDocuments.Count == 0 && CurrentSnapshot?.Version == version)
+            return;
+        ReferenceInputFiles files = ReferenceInputFiles.Capture(gameData.ProjectPath, unloadedMapPaths());
         if (dirty)
-            Rebuild();
+            rebuildIndex();
         else
             updatePendingDocuments();
+        ensureAllWorldChildMapReferences();
+        if (!files.IsCurrent())
+        {
+            MarkDirty();
+            throw new IOException("Reference inputs changed during indexing.");
+        }
+        inputFiles = files;
+        observedFiles = files;
+        backgroundCancellation?.Cancel();
+        publish(new ReferenceIndexSnapshot(gameData.ProjectPath, version, nodes.Values, seen, generalMemberTypes, declaredNodes));
     }
 
     private void buildNodes()
@@ -363,7 +358,7 @@ public sealed partial class ReferenceIndexService : IDisposable
         addSectionNodes("curve", gameData.Assets.CurvesData.Keys);
         addSectionNodes("textConfig", gameData.Assets.TextConfigsData.Keys);
         addSectionNodes("uiAsset", gameData.UiAssets.UiAssetsData.Keys);
-        foreach (KeyValuePair<string, JsonObject> pair in SnapshotJson.ToDictionary(gameData.General.GeneralData))
+        foreach (KeyValuePair<string, JsonObject> pair in gameData.GetReferenceSection("General"))
         {
             addNode("general", pair.Key);
             if (pair.Value["members"] is not JsonObject members)
@@ -408,58 +403,30 @@ public sealed partial class ReferenceIndexService : IDisposable
 
     private void buildEdges()
     {
-        BlueprintNodeDefinitionSet globalDefinitions =
-            new BlueprintNodeDefinitionCatalog(metadataService, classResolver).GetNodeDefinitionSet();
-        foreach (KeyValuePair<string, JsonObject> pair in SnapshotJson.ToDictionary(gameData.Configs.SystemConfigData))
-            scanDocumentReferences("Configs", pair.Key, pair.Value, globalDefinitions);
-        foreach (KeyValuePair<string, JsonObject> pair in SnapshotJson.ToDictionary(gameData.Assets.TilesetData))
-            scanDocumentReferences("Tilesets", pair.Key, pair.Value, globalDefinitions);
-        foreach (KeyValuePair<string, JsonObject> pair in SnapshotJson.ToDictionary(gameData.Assets.AutoTileData))
-            scanDocumentReferences("AutoTiles", pair.Key, pair.Value, globalDefinitions);
-        foreach (MapCatalogEntry entry in gameData.Maps.MapCatalog
-                     .Where(entry => entry.Kind != MapCatalogEntryKind.WorldMap))
+        foreach ((string section, string key, JsonObject data) in gameData.ReferenceDocuments)
         {
-            if (entry.Kind == MapCatalogEntryKind.WorldChildMap
-                && !gameData.Maps.LoadedMapData.ContainsKey(entry.Key))
-            {
-                if (mapReferenceCache.TryGetValue(entry.Key, out IReadOnlyList<ReferenceRecord>? cached))
-                    replayMapReferences(cached);
-                continue;
-            }
-            scanAndCacheMapReferences(entry);
+            if (section != "Maps")
+                scanDocumentReferences(section, key, data);
+        }
+        foreach (MapCatalogEntry entry in gameData.Maps.MapCatalog.Where(entry => entry.Kind != MapCatalogEntryKind.WorldMap))
+        {
+            if (entry.Kind != MapCatalogEntryKind.WorldChildMap || gameData.Maps.LoadedMapData.ContainsKey(entry.Key))
+                scanAndCacheMapReferences(entry);
         }
         allWorldChildMapReferencesBuilt = gameData.Maps.MapCatalog
             .Where(entry => entry.Kind == MapCatalogEntryKind.WorldChildMap)
             .All(entry => mapReferenceCache.ContainsKey(entry.Key));
-        foreach (KeyValuePair<string, JsonObject> pair in SnapshotJson.ToDictionary(gameData.Worlds.WorldMapData))
-            scanDocumentReferences("WorldMaps", pair.Key, pair.Value, globalDefinitions);
-        foreach (KeyValuePair<string, JsonObject> pair in SnapshotJson.ToDictionary(gameData.Blueprints.CommonFunctionsData))
-            scanDocumentReferences("CommonFunctions", pair.Key, pair.Value, globalDefinitions);
-        foreach (KeyValuePair<string, JsonObject> pair in SnapshotJson.ToDictionary(gameData.Blueprints.BlueprintsData))
-            scanDocumentReferences("Blueprints", pair.Key, pair.Value, globalDefinitions);
-        foreach (KeyValuePair<string, JsonObject> pair in SnapshotJson.ToDictionary(gameData.Assets.AnimationsData))
-            scanDocumentReferences("Animations", pair.Key, pair.Value, globalDefinitions);
-        foreach (KeyValuePair<string, JsonObject> pair in SnapshotJson.ToDictionary(gameData.Assets.ParticlesData))
-            scanDocumentReferences("Particles", pair.Key, pair.Value, globalDefinitions);
-        foreach (KeyValuePair<string, JsonObject> pair in SnapshotJson.ToDictionary(gameData.Assets.CurvesData))
-            scanDocumentReferences("Curves", pair.Key, pair.Value, globalDefinitions);
-        foreach (KeyValuePair<string, JsonObject> pair in SnapshotJson.ToDictionary(gameData.Assets.TextConfigsData))
-            scanDocumentReferences("TextConfigs", pair.Key, pair.Value, globalDefinitions);
-        foreach (KeyValuePair<string, JsonObject> pair in SnapshotJson.ToDictionary(gameData.UiAssets.UiAssetsData))
-            scanDocumentReferences("UI", pair.Key, pair.Value, globalDefinitions);
-        foreach (KeyValuePair<string, JsonObject> pair in SnapshotJson.ToDictionary(gameData.General.GeneralData))
-            scanDocumentReferences("General", pair.Key, pair.Value, globalDefinitions);
     }
 
-    private void addAssetReference(
-        string sourceId,
-        JsonNode? value,
-        string kind,
-        string path)
+    private void scanDocumentReferences(string section, string key, JsonObject data)
     {
-        string assetPath = normalizeAssetPath(value);
-        if (assetPath.Length != 0)
-            addReference(sourceId, nodeId("asset", assetPath), kind, path);
+        cancellationToken.ThrowIfCancellationRequested();
+        progress?.Invoke($"Data/{section}/{key}.json");
+        DocumentReferenceResult result = (transactionScanner ?? scanner).Scan(section, key, data);
+        foreach (KeyValuePair<string, string> member in result.GeneralMemberTypes)
+            generalMemberTypes[member.Key] = member.Value;
+        foreach (ReferenceRecord reference in result.References)
+            addReference(reference.Source, reference.Target, reference.Kind, reference.Path);
     }
 
     private void addReference(string sourceId, string targetId, string kind, string path)
@@ -485,31 +452,6 @@ public sealed partial class ReferenceIndexService : IDisposable
         incoming.Add(record);
     }
 
-    private ReferenceTreeNode buildTree(
-        string currentId,
-        ReferenceDirection direction,
-        int depth,
-        IReadOnlySet<string> stack)
-    {
-        IReadOnlyList<ReferenceRecord> records = direction == ReferenceDirection.ReferencedBy
-            ? GetIncoming(currentId)
-            : GetOutgoing(currentId);
-        List<ReferenceTreeItem> items = [];
-        foreach (ReferenceRecord record in records)
-        {
-            string childId = direction == ReferenceDirection.ReferencedBy ? record.Source : record.Target;
-            bool cycle = stack.Contains(childId);
-            ReferenceTreeNode child = new(childId, [], cycle);
-            if (!cycle && depth > 0)
-            {
-                HashSet<string> childStack = new(stack, StringComparer.Ordinal) { childId };
-                child = buildTree(childId, direction, depth - 1, childStack);
-            }
-            items.Add(new ReferenceTreeItem(record, child));
-        }
-        return new ReferenceTreeNode(currentId, items, false);
-    }
-
     private IReadOnlyList<ReferenceRecord> sortRecords(
         IEnumerable<ReferenceRecord> records,
         Func<ReferenceRecord, string> nodeSelector)
@@ -523,30 +465,9 @@ public sealed partial class ReferenceIndexService : IDisposable
 
     private (string Type, IReadOnlyDictionary<string, JsonObject> Data)? getDataSection(string section)
     {
-        if (section.Equals("Configs", StringComparison.OrdinalIgnoreCase))
-            return ("config", SnapshotJson.ToDictionary(gameData.Configs.SystemConfigData));
-        if (section.Equals("Tilesets", StringComparison.OrdinalIgnoreCase))
-            return ("tileset", SnapshotJson.ToDictionary(gameData.Assets.TilesetData));
-        if (section.Equals("AutoTiles", StringComparison.OrdinalIgnoreCase))
-            return ("autoTile", SnapshotJson.ToDictionary(gameData.Assets.AutoTileData));
-        if (section.Equals("Maps", StringComparison.OrdinalIgnoreCase))
-            return ("map", SnapshotJson.ToDictionary(gameData.Maps.MapData));
-        if (section.Equals("WorldMaps", StringComparison.OrdinalIgnoreCase))
-            return ("worldMap", SnapshotJson.ToDictionary(gameData.Worlds.WorldMapData));
-        if (section.Equals("CommonFunctions", StringComparison.OrdinalIgnoreCase))
-            return ("commonFunction", SnapshotJson.ToDictionary(gameData.Blueprints.CommonFunctionsData));
-        if (section.Equals("Animations", StringComparison.OrdinalIgnoreCase))
-            return ("animation", SnapshotJson.ToDictionary(gameData.Assets.AnimationsData));
-        if (section.Equals("Particles", StringComparison.OrdinalIgnoreCase))
-            return ("particle", SnapshotJson.ToDictionary(gameData.Assets.ParticlesData));
-        if (section.Equals("Curves", StringComparison.OrdinalIgnoreCase))
-            return ("curve", SnapshotJson.ToDictionary(gameData.Assets.CurvesData));
-        if (section.Equals("TextConfigs", StringComparison.OrdinalIgnoreCase))
-            return ("textConfig", SnapshotJson.ToDictionary(gameData.Assets.TextConfigsData));
-        if (section.Equals("UI", StringComparison.OrdinalIgnoreCase))
-            return ("uiAsset", SnapshotJson.ToDictionary(gameData.UiAssets.UiAssetsData));
-        if (section.Equals("General", StringComparison.OrdinalIgnoreCase))
-            return ("general", SnapshotJson.ToDictionary(gameData.General.GeneralData));
+        foreach (KeyValuePair<string, string> root in ReferenceIndexSnapshot.DataRoots)
+            if (root.Value.Equals(section, StringComparison.OrdinalIgnoreCase))
+                return (root.Key, gameData.GetReferenceSection(root.Value));
         return null;
     }
 
@@ -574,62 +495,6 @@ public sealed partial class ReferenceIndexService : IDisposable
     private static string blueprintNodeIdFromKey(string key)
     {
         return nodeId("blueprint", BlueprintPrefix + key.Replace('/', '.'));
-    }
-
-    private static string? blueprintNodeIdFromClassPath(JsonNode? value)
-    {
-        string? text = getString(value)?.Trim();
-        return text is not null && text.StartsWith(BlueprintPrefix, StringComparison.Ordinal)
-            ? nodeId("blueprint", text)
-            : null;
-    }
-
-    private static JsonNode? parameterAt(JsonArray parameters, int index)
-    {
-        return index >= 0 && index < parameters.Count ? parameters[index] : null;
-    }
-
-    private static string? getMetaReference(JsonNode? value, string name)
-    {
-        if (value is JsonValue scalar)
-        {
-            if (scalar.TryGetValue(out string? text))
-                return text;
-            if (scalar.TryGetValue(out bool enabled) && enabled)
-                return string.Empty;
-            return null;
-        }
-        if (value is JsonObject objectValue)
-        {
-            if (objectValue.TryGetPropertyValue(name, out JsonNode? named))
-                return getString(named) ?? string.Empty;
-            return null;
-        }
-        if (value is not JsonArray array)
-            return null;
-        foreach (JsonNode? item in array)
-        {
-            if (string.Equals(getString(item), name, StringComparison.Ordinal))
-                return string.Empty;
-            if (item is JsonArray tuple
-                && tuple.Count != 0
-                && string.Equals(getString(tuple[0]), name, StringComparison.Ordinal))
-            {
-                return tuple.Count > 1 ? getString(tuple[1]) ?? string.Empty : string.Empty;
-            }
-        }
-        return null;
-    }
-
-    private static string normalizeAssetPath(JsonNode? value)
-    {
-        string? text = getString(value);
-        return GameAssetPath.IsCanonical(text) ? text! : string.Empty;
-    }
-
-    private static string normalizeExplicitAssetPath(string value)
-    {
-        return GameAssetPath.IsCanonical(value) ? value : string.Empty;
     }
 
     private static string? normalizeReferenceParam(JsonNode? value)

@@ -6,7 +6,7 @@ using System.Text.Json.Nodes;
 
 namespace Ludork.Services;
 
-public sealed partial class ReferenceIndexService
+internal sealed partial class DocumentReferenceScanner
 {
     private void scanResolvedFieldReferences(
         string sourceId,
