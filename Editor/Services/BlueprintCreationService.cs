@@ -9,7 +9,6 @@ namespace Ludork.Services;
 
 public sealed class BlueprintCreationService
 {
-    private const string BlueprintPrefix = "Data.Blueprints.";
     private readonly ProjectDataStore gameData;
     private readonly LuaMetadataService metadataService;
     private readonly BlueprintClassResolver classResolver;
@@ -43,7 +42,7 @@ public sealed class BlueprintCreationService
         }
 
         string relativePath = Path.GetRelativePath(blueprintsRoot, fullPath);
-        string key = Path.ChangeExtension(relativePath, null)!.Replace('\\', '/');
+        string key = BlueprintReference.NormalizeKey(relativePath);
         if (key.Length == 0 || key.StartsWith("../", StringComparison.Ordinal)
             || File.Exists(fullPath)
             || gameData.Blueprints.BlueprintsData.ContainsKey(key))
@@ -66,10 +65,10 @@ public sealed class BlueprintCreationService
         }
 
         ResolvedBlueprintClass resolved = classResolver.Resolve(parent);
-        if (!parent.StartsWith(BlueprintPrefix, StringComparison.Ordinal) && resolved.RootType is not null)
+        if (!BlueprintReference.IsReference(parent) && resolved.RootType is not null)
             parent = metadataService.GetRuntimeClassReference(resolved.RootType);
         JsonObject attrs = [];
-        if (!parent.StartsWith(BlueprintPrefix, StringComparison.Ordinal))
+        if (!BlueprintReference.IsReference(parent))
         {
             HashSet<string> invalidVars = new(resolved.InvalidVars, StringComparer.Ordinal);
             foreach (ResolvedBlueprintField field in resolved.Fields)
@@ -134,9 +133,9 @@ public sealed class BlueprintCreationService
         ISet<string> events,
         ISet<string> visited)
     {
-        if (!reference.StartsWith(BlueprintPrefix, StringComparison.Ordinal))
+        if (!BlueprintReference.IsReference(reference))
             return;
-        string key = reference[BlueprintPrefix.Length..].Replace('.', '/');
+        string key = BlueprintReference.NormalizeKey(reference);
         if (!visited.Add(key)
             || !gameData.Blueprints.BlueprintsData.TryGetValue(key, out BlueprintDefinitionSnapshot? blueprint))
         {

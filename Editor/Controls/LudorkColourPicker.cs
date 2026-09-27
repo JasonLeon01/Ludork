@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Ludork.Plugin.Avalonia;
 using Ludork.Services;
 using Ludork.Views.Utils;
 using System;
@@ -403,45 +404,15 @@ public sealed class LudorkColourPicker : Grid
 
     private static (int Hue, int Saturation, int Value) rgbToHsv(int red, int green, int blue, int previousHue)
     {
-        double rr = clamp(red, 0, 255) / 255.0;
-        double gg = clamp(green, 0, 255) / 255.0;
-        double bb = clamp(blue, 0, 255) / 255.0;
-        double maximum = Math.Max(rr, Math.Max(gg, bb));
-        double minimum = Math.Min(rr, Math.Min(gg, bb));
-        double delta = maximum - minimum;
-        double hh = previousHue;
-        if (delta > 0)
-        {
-            if (maximum == rr)
-                hh = 60 * ((gg - bb) / delta % 6);
-            else if (maximum == gg)
-                hh = 60 * ((bb - rr) / delta + 2);
-            else
-                hh = 60 * ((rr - gg) / delta + 4);
-            if (hh < 0)
-                hh += 360;
-        }
-        return ((int)Math.Round(hh), maximum == 0 ? 0 : (int)Math.Round(delta / maximum * 255), (int)Math.Round(maximum * 255));
+        HsvColor hsv = Color.ToHsv((byte)clamp(red, 0, 255), (byte)clamp(green, 0, 255), (byte)clamp(blue, 0, 255));
+        int nextHue = hsv.S == 0 ? previousHue : (int)Math.Round(hsv.H) % 360;
+        return (nextHue, (int)Math.Round(hsv.S * 255), (int)Math.Round(hsv.V * 255));
     }
 
     private static Color hsvToColor(int hue, int saturation, int value, byte alpha)
     {
-        double h = ((hue % 360) + 360) % 360;
-        double s = clamp(saturation, 0, 255) / 255.0;
-        double v = clamp(value, 0, 255) / 255.0;
-        double chroma = v * s;
-        double x = chroma * (1 - Math.Abs(h / 60 % 2 - 1));
-        double match = v - chroma;
-        (double Red, double Green, double Blue) rgb = h switch
-        {
-            < 60 => (chroma, x, 0),
-            < 120 => (x, chroma, 0),
-            < 180 => (0, chroma, x),
-            < 240 => (0, x, chroma),
-            < 300 => (x, 0, chroma),
-            _ => (chroma, 0, x),
-        };
-        return Color.FromArgb(alpha, (byte)Math.Round((rgb.Red + match) * 255), (byte)Math.Round((rgb.Green + match) * 255), (byte)Math.Round((rgb.Blue + match) * 255));
+        return HsvColor.ToRgb(EditorBitmapEffects.NormalizeHue(hue),
+            clamp(saturation, 0, 255) / 255.0, clamp(value, 0, 255) / 255.0, alpha / 255.0);
     }
 
     private sealed class ColourPlaneControl : Control

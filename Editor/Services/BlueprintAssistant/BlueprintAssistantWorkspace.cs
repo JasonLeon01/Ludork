@@ -91,7 +91,6 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
     private readonly Action<string> flushBlueprint;
     private readonly Action<string> refreshBlueprint;
     private readonly string projectPath;
-    private readonly StringComparison pathComparison;
     private readonly string targetBlueprintKey;
     private readonly JsonObject baseBlueprint;
     private readonly string baseRevision;
@@ -113,14 +112,11 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
         this.flushBlueprint = flushBlueprint;
         this.refreshBlueprint = refreshBlueprint;
         projectPath = Path.GetFullPath(gameData.ProjectPath);
-        this.targetBlueprintKey = normalizeBlueprintKey(targetBlueprintKey);
+        this.targetBlueprintKey = BlueprintReference.NormalizeKey(targetBlueprintKey);
         if (!gameData.Blueprints.BlueprintsData.TryGetValue(this.targetBlueprintKey, out BlueprintDefinitionSnapshot? blueprint))
             throw new ArgumentException("The target Blueprint was not found.", nameof(targetBlueprintKey));
         baseBlueprint = blueprint.ToJson();
         baseRevision = GetBlueprintHash(baseBlueprint);
-        pathComparison = OperatingSystem.IsWindows()
-            ? StringComparison.OrdinalIgnoreCase
-            : StringComparison.Ordinal;
     }
 
     public string ProjectPath => projectPath;
@@ -136,7 +132,7 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
 
     public BlueprintAssistantBlueprint? ReadBlueprint(string blueprintKey)
     {
-        string key = normalizeBlueprintKey(blueprintKey);
+        string key = BlueprintReference.NormalizeKey(blueprintKey);
         if (!gameData.Blueprints.BlueprintsData.TryGetValue(key, out BlueprintDefinitionSnapshot? blueprint))
             return null;
         JsonObject clone = blueprint.ToJson();
@@ -153,7 +149,7 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
         if (!tryParseCandidate(candidateJson, out JsonObject? candidate, out string error))
             return new BlueprintAssistantValidation(false, [error]);
         BlueprintValidationResult result = validationService.ValidateBlueprint(
-            normalizeBlueprintKey(blueprintKey),
+            BlueprintReference.NormalizeKey(blueprintKey),
             candidate);
         return new BlueprintAssistantValidation(result.IsValid, result.Errors);
     }
@@ -163,7 +159,7 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
         string? query,
         int maximumResults = 80)
     {
-        string key = normalizeBlueprintKey(blueprintKey);
+        string key = BlueprintReference.NormalizeKey(blueprintKey);
         if (!gameData.Blueprints.BlueprintsData.TryGetValue(key, out BlueprintDefinitionSnapshot? blueprint))
             return "[]";
         BlueprintGraphContext context = new(blueprint.ToJson(), key);
@@ -283,7 +279,7 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
         string baseHash,
         string candidateJson)
     {
-        string key = normalizeBlueprintKey(blueprintKey);
+        string key = BlueprintReference.NormalizeKey(blueprintKey);
         flushBlueprint(key);
         if (!gameData.Blueprints.BlueprintsData.TryGetValue(key, out BlueprintDefinitionSnapshot? current))
         {
@@ -412,21 +408,28 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
         System.Threading.CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        IReadOnlyList<BlueprintAssistantSearchMatch> matches = SearchProject(
-            query,
-            maxResults);
-        JsonArray result = [];
-        foreach (BlueprintAssistantSearchMatch match in matches)
+        try
         {
-            result.Add(new JsonObject
+            IReadOnlyList<BlueprintAssistantSearchMatch> matches = SearchProject(
+                query,
+                maxResults);
+            JsonArray result = [];
+            foreach (BlueprintAssistantSearchMatch match in matches)
             {
-                ["path"] = match.Path,
-                ["line"] = match.Line,
-                ["text"] = match.Text,
-            });
+                result.Add(new JsonObject
+                {
+                    ["path"] = match.Path,
+                    ["line"] = match.Line,
+                    ["text"] = match.Text,
+                });
+            }
+            return Task.FromResult(BlueprintAssistantToolResult.Completed(
+                result.ToJsonString(WriteOptions)));
         }
-        return Task.FromResult(BlueprintAssistantToolResult.Completed(
-            result.ToJsonString(WriteOptions)));
+        catch (Exception exception) when (EditorPathSandbox.IsPathFailure(exception))
+        {
+            return Task.FromResult(BlueprintAssistantToolResult.Failed(exception.Message));
+        }
     }
 
     public Task<BlueprintAssistantToolResult> ReadProjectFileAsync(
@@ -442,11 +445,7 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
             return Task.FromResult(BlueprintAssistantToolResult.Completed(content));
         }
         catch (Exception exception) when (
-            exception is IOException
-            or UnauthorizedAccessException
-            or InvalidDataException
-            or ArgumentException
-            or NotSupportedException)
+            EditorPathSandbox.IsPathFailure(exception) || exception is InvalidDataException)
         {
             return Task.FromResult(BlueprintAssistantToolResult.Failed(exception.Message));
         }
@@ -1048,7 +1047,7 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
         foreach (string rootName in AllowedRootNames.OrderBy(name => name, StringComparer.Ordinal))
         {
             string root = Path.Combine(projectPath, rootName);
-            if (!Directory.Exists(root) || isLink(root))
+            if (!EditorPathSandbox.TryResolve(projectPath, root, out _) || !Directory.Exists(root))
                 continue;
             Stack<string> pending = new();
             pending.Push(root);
@@ -1059,7 +1058,7 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
                              .OrderByDescending(path => path, StringComparer.Ordinal))
                 {
                     if (!ExcludedSegments.Contains(Path.GetFileName(childDirectory))
-                        && !isLink(childDirectory))
+                        && EditorPathSandbox.TryResolve(projectPath, childDirectory, out _))
                     {
                         pending.Push(childDirectory);
                     }
@@ -1076,22 +1075,19 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
 
     private string resolveReadablePath(string relativePath)
     {
-        if (string.IsNullOrWhiteSpace(relativePath)
-            || Path.IsPathFullyQualified(relativePath))
-        {
+        if (string.IsNullOrWhiteSpace(relativePath) || Path.IsPathRooted(relativePath))
             throw new UnauthorizedAccessException("Only project-relative paths are allowed.");
-        }
-        string path = Path.GetFullPath(Path.Combine(
-            projectPath,
-            relativePath.Replace('/', Path.DirectorySeparatorChar)));
-        if (!isInsideProject(path) || !isReadablePath(path) || !File.Exists(path))
+        if (!EditorPathSandbox.TryResolve(projectPath, relativePath, out string path)
+            || !isReadablePath(path) || !File.Exists(path))
+        {
             throw new UnauthorizedAccessException("The requested path is not readable by Blueprint AI.");
+        }
         return path;
     }
 
     private bool isReadablePath(string path)
     {
-        if (!isInsideProject(path)
+        if (!EditorPathSandbox.TryResolve(projectPath, path, out _)
             || !AllowedExtensions.Contains(Path.GetExtension(path)))
         {
             return false;
@@ -1105,13 +1101,6 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
             || segments.Any(ExcludedSegments.Contains))
         {
             return false;
-        }
-        string current = projectPath;
-        foreach (string segment in segments)
-        {
-            current = Path.Combine(current, segment);
-            if (isLink(current))
-                return false;
         }
         string fileName = Path.GetFileName(path);
         string[] sensitiveNames =
@@ -1131,43 +1120,9 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
                 fileName.Contains(value, StringComparison.OrdinalIgnoreCase));
     }
 
-    private bool isInsideProject(string path)
-    {
-        string relative = Path.GetRelativePath(projectPath, Path.GetFullPath(path));
-        return relative != "."
-            && !Path.IsPathRooted(relative)
-            && relative != ".."
-            && !relative.StartsWith(
-                ".." + Path.DirectorySeparatorChar,
-                pathComparison)
-            && !relative.StartsWith(
-                ".." + Path.AltDirectorySeparatorChar,
-                pathComparison);
-    }
-
-    private static bool isLink(string path)
-    {
-        return File.Exists(path) || Directory.Exists(path)
-            ? File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint)
-            : false;
-    }
-
     private string normalizeRelativePath(string path)
     {
         return Path.GetRelativePath(projectPath, path).Replace('\\', '/');
-    }
-
-    private static string normalizeBlueprintKey(string blueprintKey)
-    {
-        string key = blueprintKey.Trim()
-            .Replace('\\', '/')
-            .Trim('/');
-        const string prefix = "Data.Blueprints.";
-        if (key.StartsWith(prefix, StringComparison.Ordinal))
-            key = key[prefix.Length..].Replace('.', '/');
-        if (key.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
-            key = key[..^5];
-        return key;
     }
 
     private static bool tryParseCandidate(

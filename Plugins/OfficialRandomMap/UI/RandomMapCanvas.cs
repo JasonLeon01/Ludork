@@ -3,14 +3,12 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
-using Avalonia.Platform;
 using Avalonia.VisualTree;
 using Ludork.Plugin.Abstractions;
 using Ludork.Plugin.Avalonia;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.InteropServices;
 
 namespace Ludork.Plugins.OfficialRandomMap.UI;
 
@@ -698,167 +696,15 @@ internal sealed class RandomMapCanvas : Control, IDisposable
         Bitmap source,
         double hue)
     {
-        double normalizedHue = normalizeHue(hue);
-        if (normalizedHue <= 0.0001)
+        double normalizedHue = EditorBitmapEffects.NormalizeHue(hue);
+        if (EditorBitmapEffects.IsNeutralHue(normalizedHue))
             return source;
         ActorHueBitmapCacheKey key = new(assetPath, normalizedHue);
         if (actorHueBitmapCache.TryGetValue(key, out Bitmap? cached))
             return cached;
-        Bitmap tinted = applyHue(source, normalizedHue);
+        Bitmap tinted = EditorBitmapEffects.CreateHueShiftedBitmap(source, normalizedHue);
         actorHueBitmapCache[key] = tinted;
         return tinted;
-    }
-
-    private static double normalizeHue(double hue)
-    {
-        if (!double.IsFinite(hue))
-            return 0;
-        double normalized = hue % 360;
-        return normalized < 0 ? normalized + 360 : normalized;
-    }
-
-    private static Bitmap applyHue(Bitmap source, double hue)
-    {
-        WriteableBitmap result = new(
-            source.PixelSize,
-            source.Dpi,
-            PixelFormat.Bgra8888,
-            AlphaFormat.Unpremul);
-        using (ILockedFramebuffer frame = result.Lock())
-        {
-            source.CopyPixels(frame);
-            byte[] pixels = new byte[frame.RowBytes * frame.Size.Height];
-            Marshal.Copy(frame.Address, pixels, 0, pixels.Length);
-            float hueOffset = (float)(hue / 360);
-            for (int y = 0; y < frame.Size.Height; y++)
-            {
-                for (int x = 0; x < frame.Size.Width; x++)
-                {
-                    int index = y * frame.RowBytes + x * 4;
-                    byte alpha = pixels[index + 3];
-                    if (alpha == 0)
-                        continue;
-                    rgbToHsv(
-                        pixels[index + 2],
-                        pixels[index + 1],
-                        pixels[index],
-                        out float pixelHue,
-                        out float saturation,
-                        out float value);
-                    hsvToRgb(
-                        (pixelHue + hueOffset) % 1,
-                        saturation,
-                        value,
-                        out byte red,
-                        out byte green,
-                        out byte blue);
-                    pixels[index + 2] = red;
-                    pixels[index + 1] = green;
-                    pixels[index] = blue;
-                }
-            }
-            Marshal.Copy(pixels, 0, frame.Address, pixels.Length);
-        }
-        return result;
-    }
-
-    private static void rgbToHsv(
-        byte red,
-        byte green,
-        byte blue,
-        out float hue,
-        out float saturation,
-        out float value)
-    {
-        float redValue = red / 255f;
-        float greenValue = green / 255f;
-        float blueValue = blue / 255f;
-        float maximum = Math.Max(
-            redValue,
-            Math.Max(greenValue, blueValue));
-        float minimum = Math.Min(
-            redValue,
-            Math.Min(greenValue, blueValue));
-        float delta = maximum - minimum;
-        value = maximum;
-        if (delta <= 0.00001f)
-        {
-            hue = 0;
-            saturation = 0;
-            return;
-        }
-        saturation = delta / maximum;
-        if (redValue >= maximum)
-            hue = (greenValue - blueValue) / delta % 6;
-        else if (greenValue >= maximum)
-            hue = (blueValue - redValue) / delta + 2;
-        else
-            hue = (redValue - greenValue) / delta + 4;
-        hue /= 6;
-        if (hue < 0)
-            hue += 1;
-    }
-
-    private static void hsvToRgb(
-        float hue,
-        float saturation,
-        float value,
-        out byte red,
-        out byte green,
-        out byte blue)
-    {
-        float chroma = value * saturation;
-        float intermediate = chroma * (
-            1 - Math.Abs(hue * 6 % 2 - 1));
-        float minimum = value - chroma;
-        float redValue;
-        float greenValue;
-        float blueValue;
-        switch ((int)(hue * 6) % 6)
-        {
-            case 0:
-                redValue = chroma;
-                greenValue = intermediate;
-                blueValue = 0;
-                break;
-            case 1:
-                redValue = intermediate;
-                greenValue = chroma;
-                blueValue = 0;
-                break;
-            case 2:
-                redValue = 0;
-                greenValue = chroma;
-                blueValue = intermediate;
-                break;
-            case 3:
-                redValue = 0;
-                greenValue = intermediate;
-                blueValue = chroma;
-                break;
-            case 4:
-                redValue = intermediate;
-                greenValue = 0;
-                blueValue = chroma;
-                break;
-            default:
-                redValue = chroma;
-                greenValue = 0;
-                blueValue = intermediate;
-                break;
-        }
-        red = (byte)Math.Clamp(
-            (redValue + minimum) * 255,
-            0,
-            255);
-        green = (byte)Math.Clamp(
-            (greenValue + minimum) * 255,
-            0,
-            255);
-        blue = (byte)Math.Clamp(
-            (blueValue + minimum) * 255,
-            0,
-            255);
     }
 
     private Rect getMapRect()

@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Media.Imaging;
 using Ludork.Models;
+using Ludork.Plugin.Avalonia;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -36,7 +37,7 @@ public sealed partial class BlueprintPreviewService
         (int sx, int sy, int w, int h)? rect;
         (double x, double y) origin;
         (double x, double y) scale;
-        float hue;
+        double hue;
         using (classResolver.BeginBatch())
         {
             visual = createActorVisual(resolved, blueprintReference, source.Bitmap.PixelSize);
@@ -58,9 +59,9 @@ public sealed partial class BlueprintPreviewService
                 origin.x, origin.y, scale.x, scale.y, width, height);
             if (preview is null)
                 return null;
-            if (!isNeutralHue(hue))
+            if (!EditorBitmapEffects.IsNeutralHue(hue))
             {
-                Bitmap colored = applyHue(preview, hue);
+                Bitmap colored = EditorBitmapEffects.CreateHueShiftedBitmap(preview, hue);
                 preview.Dispose();
                 preview = colored;
             }

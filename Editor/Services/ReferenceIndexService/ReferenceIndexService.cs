@@ -10,7 +10,6 @@ namespace Ludork.Services;
 
 public sealed partial class ReferenceIndexService : IDisposable
 {
-    private const string BlueprintPrefix = "Data.Blueprints.";
     private readonly DocumentReferenceScanner scanner;
     private DocumentReferenceScanner? transactionScanner;
     private readonly ProjectDataStore gameData;
@@ -352,7 +351,7 @@ public sealed partial class ReferenceIndexService : IDisposable
         addSectionNodes("worldMap", gameData.Worlds.WorldMapData.Keys);
         addSectionNodes("commonFunction", gameData.Blueprints.CommonFunctionsData.Keys);
         foreach (string key in gameData.Blueprints.BlueprintsData.Keys)
-            addNode("blueprint", BlueprintPrefix + key.Replace('/', '.'));
+            addNode("blueprint", BlueprintReference.ToReference(key));
         addSectionNodes("animation", gameData.Assets.AnimationsData.Keys);
         addSectionNodes("particle", gameData.Assets.ParticlesData.Keys);
         addSectionNodes("curve", gameData.Assets.CurvesData.Keys);
@@ -494,7 +493,7 @@ public sealed partial class ReferenceIndexService : IDisposable
 
     private static string blueprintNodeIdFromKey(string key)
     {
-        return nodeId("blueprint", BlueprintPrefix + key.Replace('/', '.'));
+        return nodeId("blueprint", BlueprintReference.ToReference(key));
     }
 
     private static string? normalizeReferenceParam(JsonNode? value)
@@ -509,20 +508,6 @@ public sealed partial class ReferenceIndexService : IDisposable
             text = text[1..^1].Trim();
         }
         return text.Length == 0 ? null : text;
-    }
-
-    private static string normalizeDataReference(string value, string section)
-    {
-        string normalized = value.Replace('\\', '/').Trim().Trim('/');
-        string dottedPrefix = "Data." + section + ".";
-        if (normalized.StartsWith(dottedPrefix, StringComparison.Ordinal))
-            normalized = normalized[dottedPrefix.Length..].Replace('.', '/');
-        string slashPrefix = section + "/";
-        if (normalized.StartsWith(slashPrefix, StringComparison.OrdinalIgnoreCase))
-            normalized = normalized[slashPrefix.Length..];
-        if (normalized.EndsWith(DataConfig.DataFileExtension, StringComparison.OrdinalIgnoreCase))
-            normalized = normalized[..^DataConfig.DataFileExtension.Length];
-        return normalized;
     }
 
     private static string? getString(JsonNode? value)

@@ -1,4 +1,5 @@
 using Ludork.Models;
+using Ludork.Plugin.Abstractions;
 using MoonSharp.Interpreter;
 using System;
 using System.Collections.Generic;
@@ -632,7 +633,7 @@ public sealed class GameVariableService : IGameVariableCatalog
             JsonNode? initialValue = definition.InitialValue;
             if (initialValue is null)
                 throw new InvalidDataException($"Initial value for {definition.Name} is required");
-            builder.Append("    [").Append(quote(definition.Name)).Append("] = ");
+            builder.Append("    [").Append(LuaStringLiteral.Quote(definition.Name)).Append("] = ");
             appendInitialValue(builder, initialValue, definition.Type);
             builder.Append(",\n");
         }
@@ -650,23 +651,23 @@ public sealed class GameVariableService : IGameVariableCatalog
         foreach (GameVariableDefinition definition in variables.OrderBy(
             value => value.Name,
             StringComparer.Ordinal))
-            builder.Append("            ").Append(quote(definition.Name)).Append(",\n");
+            builder.Append("            ").Append(LuaStringLiteral.Quote(definition.Name)).Append(",\n");
         builder.Append("        },\n");
         foreach (GameVariableDefinition definition in variables.OrderBy(
             value => value.Name,
             StringComparer.Ordinal))
         {
             builder.Append("        [")
-                .Append(quote(definition.Name))
+                .Append(LuaStringLiteral.Quote(definition.Name))
                 .Append("] = {\n")
                 .Append("            type = ")
-                .Append(quote(typeName(definition.Type)))
+                .Append(LuaStringLiteral.Quote(typeName(definition.Type)))
                 .Append(",\n");
             if (definition.Remark.Length != 0)
             {
                 builder.Append("            Meta = {\n")
                     .Append("                Remark = ")
-                    .Append(quote(definition.Remark))
+                    .Append(LuaStringLiteral.Quote(definition.Remark))
                     .Append(",\n")
                     .Append("            },\n");
             }
@@ -697,7 +698,7 @@ public sealed class GameVariableService : IGameVariableCatalog
                 builder.Append("false");
                 return;
             case JsonValueKind.String:
-                builder.Append(quote(value.GetValue<string>()));
+                builder.Append(LuaStringLiteral.Quote(value.GetValue<string>()));
                 return;
             case JsonValueKind.Number:
                 if (tryReadNumber(value, out double number) && double.IsFinite(number))
@@ -768,7 +769,7 @@ public sealed class GameVariableService : IGameVariableCatalog
             if (pair.Value is null)
                 throw new InvalidDataException("Initial values cannot contain nil entries");
             appendIndent(builder, indent + 1);
-            builder.Append('[').Append(quote(pair.Key)).Append("] = ");
+            builder.Append('[').Append(LuaStringLiteral.Quote(pair.Key)).Append("] = ");
             appendLuaValue(builder, pair.Value, indent + 1);
             builder.Append(",\n");
         }
@@ -779,41 +780,6 @@ public sealed class GameVariableService : IGameVariableCatalog
     private static void appendIndent(StringBuilder builder, int indent)
     {
         builder.Append(' ', indent * 4);
-    }
-
-    private static string quote(string value)
-    {
-        StringBuilder builder = new(value.Length + 2);
-        builder.Append('"');
-        foreach (char character in value)
-        {
-            switch (character)
-            {
-                case '\\':
-                    builder.Append("\\\\");
-                    break;
-                case '"':
-                    builder.Append("\\\"");
-                    break;
-                case '\n':
-                    builder.Append("\\n");
-                    break;
-                case '\r':
-                    builder.Append("\\r");
-                    break;
-                case '\t':
-                    builder.Append("\\t");
-                    break;
-                default:
-                    if (char.IsControl(character) && character <= byte.MaxValue)
-                        builder.Append('\\').Append(((int)character).ToString("D3", CultureInfo.InvariantCulture));
-                    else
-                        builder.Append(character);
-                    break;
-            }
-        }
-        builder.Append('"');
-        return builder.ToString();
     }
 
     private void writePair(byte[] runtimeContent, byte[] metadataContent)

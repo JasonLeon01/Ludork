@@ -31,26 +31,14 @@ internal static class ResourceCleanupFileSystem
         return normalized;
     }
 
-    public static string ResolveSafePath(string projectPath, string relativePath)
+    public static string ResolveSafePath(string projectPath, string relativePath, bool allowMissing = false)
     {
-        string root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(projectPath));
         string normalized = relativePath.Replace('\\', '/');
         if (Path.IsPathRooted(normalized) || normalized.Length == 0
-            || normalized.Split('/').Any(part => part.Length == 0 || part is "." or ".."))
-            throw new InvalidDataException($"The path is outside the project: {relativePath}");
-        string absolute = Path.GetFullPath(Path.Combine(root, normalized));
-        StringComparison comparison = OperatingSystem.IsWindows()
-            ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-        if (!absolute.StartsWith(root + Path.DirectorySeparatorChar, comparison))
-            throw new InvalidDataException($"The path is outside the project: {relativePath}");
-        rejectLink(root);
-        string current = root;
-        foreach (string part in normalized.Split('/'))
+            || normalized.Split('/').Any(part => part.Length == 0 || part is "." or "..")
+            || !EditorPathSandbox.TryResolve(projectPath, normalized, out string absolute, allowMissing))
         {
-            current = Path.Combine(current, part);
-            if (File.Exists(current) || Directory.Exists(current)
-                || new FileInfo(current).LinkTarget is not null)
-                rejectLink(current);
+            throw new InvalidDataException($"The path is outside the project, linked or inaccessible: {relativePath}");
         }
         return absolute;
     }
@@ -67,7 +55,7 @@ internal static class ResourceCleanupFileSystem
             token.ThrowIfCancellationRequested();
             try
             {
-                string path = ResolveSafePath(projectPath, directory);
+                string path = ResolveSafePath(projectPath, directory, allowMissing: true);
                 if (Directory.Exists(path))
                     enumerateDirectory(projectPath, path, files, issues, progress, token);
             }
@@ -81,7 +69,7 @@ internal static class ResourceCleanupFileSystem
         {
             try
             {
-                string path = ResolveSafePath(projectPath, relative);
+                string path = ResolveSafePath(projectPath, relative, allowMissing: true);
                 if (!File.Exists(path))
                     continue;
                 files.Add(relative);
@@ -122,8 +110,7 @@ internal static class ResourceCleanupFileSystem
 
     public static bool IsReadFailure(Exception exception)
     {
-        return exception is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException
-            or NotSupportedException or System.Text.Json.JsonException;
+        return EditorPathSandbox.IsPathFailure(exception) || exception is InvalidDataException or System.Text.Json.JsonException;
     }
 
     private static void enumerateDirectory(
@@ -140,7 +127,7 @@ internal static class ResourceCleanupFileSystem
             string relative = Path.GetRelativePath(projectPath, path).Replace('\\', '/');
             try
             {
-                rejectLink(path);
+                ResolveSafePath(projectPath, relative);
                 if (Directory.Exists(path))
                     enumerateDirectory(projectPath, path, files, issues, progress, token);
                 else
@@ -153,11 +140,5 @@ internal static class ResourceCleanupFileSystem
                 issues.Add(new ResourceCleanupIssue(relative, exception.Message));
             }
         }
-    }
-
-    private static void rejectLink(string path)
-    {
-        if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
-            throw new InvalidDataException($"Symbolic links and reparse points cannot be scanned or recycled: {path}");
     }
 }

@@ -11,9 +11,8 @@ public sealed partial class BlueprintPreviewService
 {
     public ActorLightDescriptor? tryResolveActorLight(string blueprintReference, JsonObject? overrides = null)
     {
-        const string prefix = "Data.Blueprints.";
-        if (blueprintReference.StartsWith(prefix, StringComparison.Ordinal)
-            && !gameData.Blueprints.BlueprintsData.ContainsKey(blueprintReference[prefix.Length..].Replace('.', '/')))
+        if (BlueprintReference.IsReference(blueprintReference)
+            && !gameData.Blueprints.BlueprintsData.ContainsKey(BlueprintReference.NormalizeKey(blueprintReference)))
             return null;
         ResolvedBlueprintClass resolved = classResolver.Resolve(blueprintReference, overrides);
         ResolvedBlueprintField? field = resolved.GetField("lightComp");

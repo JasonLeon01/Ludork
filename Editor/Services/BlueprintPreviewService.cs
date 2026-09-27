@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Ludork.Models;
+using Ludork.Plugin.Avalonia;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -53,10 +54,9 @@ public sealed partial class BlueprintPreviewService : IDisposable
         string blueprintReference,
         JsonObject? overrides = null)
     {
-        const string prefix = "Data.Blueprints.";
-        if (!blueprintReference.StartsWith(prefix, StringComparison.Ordinal))
+        if (!BlueprintReference.IsReference(blueprintReference))
             return createActorVisual(classResolver.Resolve(blueprintReference, overrides), blueprintReference);
-        string key = blueprintReference[prefix.Length..].Replace('.', '/');
+        string key = BlueprintReference.NormalizeKey(blueprintReference);
         return gameData.Blueprints.BlueprintsData.ContainsKey(key)
             ? tryResolveActorVisual(classResolver.Resolve(blueprintReference, overrides), blueprintReference)
             : null;
@@ -70,9 +70,7 @@ public sealed partial class BlueprintPreviewService : IDisposable
         ResolvedBlueprintClass resolved = classResolver.ResolveBlueprint(blueprint, blueprintKey, overrides);
         string reference = string.IsNullOrWhiteSpace(blueprintKey)
             ? resolved.ClassReference
-            : blueprintKey.StartsWith("Data.Blueprints.", StringComparison.Ordinal)
-                ? blueprintKey
-                : "Data.Blueprints." + blueprintKey.Replace('/', '.').Replace('\\', '.');
+            : BlueprintReference.ToReference(blueprintKey);
         return tryResolveActorVisual(resolved, reference);
     }
 
@@ -100,9 +98,8 @@ public sealed partial class BlueprintPreviewService : IDisposable
 
     private ResolvedBlueprintClass? resolveMapActorClass(string reference, JsonObject? overrides)
     {
-        const string prefix = "Data.Blueprints.";
-        if (reference.Length == 0 || reference.StartsWith(prefix, StringComparison.Ordinal)
-            && !gameData.Blueprints.BlueprintsData.ContainsKey(reference[prefix.Length..].Replace('.', '/')))
+        if (reference.Length == 0 || BlueprintReference.IsReference(reference)
+            && !gameData.Blueprints.BlueprintsData.ContainsKey(BlueprintReference.NormalizeKey(reference)))
             return null;
         return classResolver.Resolve(reference, overrides);
     }
@@ -148,7 +145,7 @@ public sealed partial class BlueprintPreviewService : IDisposable
         (int sx, int sy, int w, int h)? rect = parseRect(getResolvedValue(resolved, "defaultRect"));
         (double x, double y) origin = parseVec2(getResolvedValue(resolved, "defaultOrigin"), 0, 0);
         (double x, double y) scale = parseVec2(getResolvedValue(resolved, "defaultScale"), 1, 1);
-        float hue = parseHue(getResolvedValue(resolved, "hue"));
+        double hue = parseHue(getResolvedValue(resolved, "hue"));
         if (rect is null)
         {
             bool isCharacter = classResolver.IsDerivedFrom(resolved, "Engine.Character");
@@ -162,9 +159,9 @@ public sealed partial class BlueprintPreviewService : IDisposable
         Bitmap? preview = renderCrop(source, rectValue.sx, rectValue.sy, rectValue.w, rectValue.h, origin.x, origin.y, scale.x, scale.y, dw, dh);
         if (preview is null)
             return null;
-        if (!isNeutralHue(hue))
+        if (!EditorBitmapEffects.IsNeutralHue(hue))
         {
-            Bitmap huePreview = applyHue(preview, hue);
+            Bitmap huePreview = EditorBitmapEffects.CreateHueShiftedBitmap(preview, hue);
             preview.Dispose();
             preview = huePreview;
         }
@@ -176,10 +173,9 @@ public sealed partial class BlueprintPreviewService : IDisposable
 
     public Bitmap? tryLoadPreview(string blueprintReference, int size = 80)
     {
-        const string prefix = "Data.Blueprints.";
-        if (!blueprintReference.StartsWith(prefix, StringComparison.Ordinal))
+        if (!BlueprintReference.IsReference(blueprintReference))
             return null;
-        string key = blueprintReference[prefix.Length..].Replace('.', '/');
+        string key = BlueprintReference.NormalizeKey(blueprintReference);
         return gameData.Blueprints.BlueprintsData.ContainsKey(key)
             ? tryLoadPreview(classResolver.Resolve(blueprintReference), size)
             : null;
@@ -187,10 +183,9 @@ public sealed partial class BlueprintPreviewService : IDisposable
 
     public JsonNode? getBlueprintAttr(string blueprintReference, string attrName)
     {
-        const string prefix = "Data.Blueprints.";
-        if (!blueprintReference.StartsWith(prefix, StringComparison.Ordinal))
+        if (!BlueprintReference.IsReference(blueprintReference))
             return null;
-        string key = blueprintReference[prefix.Length..].Replace('.', '/');
+        string key = BlueprintReference.NormalizeKey(blueprintReference);
         return gameData.Blueprints.BlueprintsData.ContainsKey(key)
             ? classResolver.Resolve(blueprintReference).GetValue(attrName)
             : null;
@@ -298,12 +293,12 @@ public sealed partial class BlueprintPreviewService : IDisposable
         return (defaultX, defaultY);
     }
 
-    private static float parseHue(JsonNode? value)
+    private static double parseHue(JsonNode? value)
     {
         if (value is null)
             return 0;
-        return float.TryParse(value.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out float hue)
-            ? hue % 360f
+        return double.TryParse(value.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out double hue)
+            ? EditorBitmapEffects.NormalizeHue(hue)
             : 0;
     }
 
@@ -483,92 +478,6 @@ public sealed partial class BlueprintPreviewService : IDisposable
         target[targetIndex + targetChannels.Green] = source[sourceIndex + sourceChannels.Green];
         target[targetIndex + targetChannels.Blue] = source[sourceIndex + sourceChannels.Blue];
         target[targetIndex + targetChannels.Alpha] = source[sourceIndex + sourceChannels.Alpha];
-    }
-
-    private static bool isNeutralHue(float hue) => hue <= 0.0001f || Math.Abs(hue - 360f) <= 0.0001f;
-
-    private static Bitmap applyHue(Bitmap source, float hue)
-    {
-        WriteableBitmap writeable = new WriteableBitmap(source.PixelSize, source.Dpi, PixelFormat.Bgra8888, AlphaFormat.Unpremul);
-        using (ILockedFramebuffer frame = writeable.Lock())
-        {
-            source.CopyPixels(frame);
-            PixelChannels channels = getPixelChannels(frame.Format);
-            float hueOffset = hue / 360f;
-            byte[] pixels = new byte[frame.RowBytes * frame.Size.Height];
-            Marshal.Copy(frame.Address, pixels, 0, pixels.Length);
-            for (int y = 0; y < frame.Size.Height; y++)
-            {
-                for (int x = 0; x < frame.Size.Width; x++)
-                {
-                    int index = y * frame.RowBytes + x * 4;
-                    byte alpha = pixels[index + channels.Alpha];
-                    if (alpha == 0)
-                        continue;
-                    rgbToHsv(
-                        pixels[index + channels.Red],
-                        pixels[index + channels.Green],
-                        pixels[index + channels.Blue],
-                        out float h,
-                        out float s,
-                        out float v);
-                    hsvToRgb((h + hueOffset) % 1f, s, v, out byte r, out byte g, out byte b);
-                    pixels[index + channels.Red] = r;
-                    pixels[index + channels.Green] = g;
-                    pixels[index + channels.Blue] = b;
-                }
-            }
-            Marshal.Copy(pixels, 0, frame.Address, pixels.Length);
-        }
-        return writeable;
-    }
-
-    private static void rgbToHsv(byte r, byte g, byte b, out float h, out float s, out float v)
-    {
-        float rf = r / 255f;
-        float gf = g / 255f;
-        float bf = b / 255f;
-        float max = Math.Max(rf, Math.Max(gf, bf));
-        float min = Math.Min(rf, Math.Min(gf, bf));
-        float delta = max - min;
-        v = max;
-        if (delta <= 0.00001f)
-        {
-            h = 0;
-            s = 0;
-            return;
-        }
-        s = delta / max;
-        if (rf >= max)
-            h = (gf - bf) / delta % 6f;
-        else if (gf >= max)
-            h = (bf - rf) / delta + 2f;
-        else
-            h = (rf - gf) / delta + 4f;
-        h /= 6f;
-        if (h < 0)
-            h += 1f;
-    }
-
-    private static void hsvToRgb(float h, float s, float v, out byte r, out byte g, out byte b)
-    {
-        float c = v * s;
-        float x = c * (1 - Math.Abs(h * 6f % 2f - 1));
-        float m = v - c;
-        float rf, gf, bf;
-        int sector = (int)(h * 6f) % 6;
-        switch (sector)
-        {
-            case 0: rf = c; gf = x; bf = 0; break;
-            case 1: rf = x; gf = c; bf = 0; break;
-            case 2: rf = 0; gf = c; bf = x; break;
-            case 3: rf = 0; gf = x; bf = c; break;
-            case 4: rf = x; gf = 0; bf = c; break;
-            default: rf = c; gf = 0; bf = x; break;
-        }
-        r = (byte)Math.Clamp((rf + m) * 255f, 0, 255);
-        g = (byte)Math.Clamp((gf + m) * 255f, 0, 255);
-        b = (byte)Math.Clamp((bf + m) * 255f, 0, 255);
     }
 
     private static PixelChannels getPixelChannels(PixelFormat format)

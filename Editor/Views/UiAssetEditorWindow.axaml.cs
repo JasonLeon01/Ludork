@@ -280,14 +280,16 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
 
     private async void onDocumentKeyDown(object? sender, KeyEventArgs args)
     {
-        if (!EditorShortcuts.HasPrimaryModifier(args.KeyModifiers) || args.Key is not (Key.S or Key.Z or Key.Y))
+        bool save = EditorShortcuts.HasPrimaryModifier(args.KeyModifiers) && args.Key == Key.S;
+        bool undo = EditorShortcuts.IsUndo(args.Key, args.KeyModifiers);
+        if (!save && !undo && !EditorShortcuts.IsRedo(args.Key, args.KeyModifiers))
             return;
         FlushPendingChanges();
-        if (args.Key == Key.S)
+        if (save)
             await EditorSaveWorkflow.TrySaveAsync(this, projectSave);
         else if (toast is not null)
-            EditorFeedback.ShowHistory(toast, args.Key == Key.Z ? "Undo" : "Redo",
-                args.Key == Key.Z ? documentBinding.Undo() : documentBinding.Redo());
+            EditorFeedback.ShowHistory(toast, undo ? "Undo" : "Redo",
+                undo ? documentBinding.Undo() : documentBinding.Redo());
         args.Handled = true;
     }
 

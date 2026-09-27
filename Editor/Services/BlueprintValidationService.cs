@@ -16,7 +16,6 @@ public sealed record BlueprintValidationResult(
 
 public sealed class BlueprintValidationService
 {
-    private const string BlueprintPrefix = "Data.Blueprints.";
     private readonly ProjectDataStore gameData;
     private readonly LuaMetadataService metadataService;
     private readonly BlueprintClassResolver classResolver;
@@ -33,7 +32,7 @@ public sealed class BlueprintValidationService
 
     public BlueprintValidationResult ValidateBlueprint(string blueprintKey, JsonObject? data = null)
     {
-        string key = normalizeBlueprintKey(blueprintKey);
+        string key = BlueprintReference.NormalizeKey(blueprintKey);
         List<string> errors = [];
         if (data is null)
             data = gameData.Blueprints.BlueprintsData.TryGetValue(key, out BlueprintDefinitionSnapshot? snapshot) ? snapshot.ToJson() : null;
@@ -115,9 +114,9 @@ public sealed class BlueprintValidationService
         HashSet<string> visited = new(StringComparer.Ordinal) { blueprintKey };
         string? parent = getString(data["parent"]);
         while (!string.IsNullOrWhiteSpace(parent)
-            && parent.StartsWith(BlueprintPrefix, StringComparison.Ordinal))
+            && BlueprintReference.IsReference(parent))
         {
-            string parentKey = normalizeBlueprintKey(parent);
+            string parentKey = BlueprintReference.NormalizeKey(parent);
             if (!visited.Add(parentKey)
                 || !gameData.Blueprints.BlueprintsData.TryGetValue(parentKey, out BlueprintDefinitionSnapshot? parentData))
             {
@@ -269,9 +268,9 @@ public sealed class BlueprintValidationService
     {
         HashSet<string> visited = new(StringComparer.Ordinal) { blueprintKey };
         string currentParent = parent;
-        while (currentParent.StartsWith(BlueprintPrefix, StringComparison.Ordinal))
+        while (BlueprintReference.IsReference(currentParent))
         {
-            string parentKey = normalizeBlueprintKey(currentParent);
+            string parentKey = BlueprintReference.NormalizeKey(currentParent);
             if (!visited.Add(parentKey))
             {
                 errors.Add($"Blueprint parent chain contains a cycle at '{currentParent}'");
@@ -792,16 +791,5 @@ public sealed class BlueprintValidationService
     private static string? getString(JsonNode? value)
     {
         return value is JsonValue scalar && scalar.TryGetValue(out string? text) ? text : null;
-    }
-
-    private static string normalizeBlueprintKey(string reference)
-    {
-        string value = reference?.Trim() ?? string.Empty;
-        if (value.StartsWith(BlueprintPrefix, StringComparison.Ordinal))
-            value = value[BlueprintPrefix.Length..].Replace('.', '/');
-        value = value.Replace('\\', '/').Trim('/');
-        if (value.EndsWith(DataConfig.DataFileExtension, StringComparison.OrdinalIgnoreCase))
-            value = value[..^DataConfig.DataFileExtension.Length];
-        return value;
     }
 }

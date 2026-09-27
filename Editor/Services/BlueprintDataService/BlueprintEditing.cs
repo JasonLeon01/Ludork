@@ -8,8 +8,6 @@ namespace Ludork.Services;
 
 public sealed partial class BlueprintDataService
 {
-    internal const string BlueprintClassPrefix = "Data.Blueprints.";
-
     public bool UpdateBlueprintAttributes(
         string key,
         IReadOnlyDictionary<string, JsonNode?> updates,
@@ -151,9 +149,9 @@ public sealed partial class BlueprintDataService
     internal void collectBlueprintGraphNames(JsonObject blueprint, ICollection<string> result, ISet<string> visited)
     {
         string? parent = ProjectDataStore.getString(blueprint["parent"]);
-        if (parent?.StartsWith(BlueprintClassPrefix, StringComparison.Ordinal) == true)
+        if (BlueprintReference.IsReference(parent))
         {
-            string parentKey = parent[BlueprintClassPrefix.Length..].Replace('.', '/');
+            string parentKey = BlueprintReference.NormalizeKey(parent);
             if (visited.Add(parentKey)
                 && blueprintDocuments.TryGetValue(parentKey, out JsonObject? parentBlueprint))
             {

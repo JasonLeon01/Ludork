@@ -141,9 +141,7 @@ internal sealed partial class DocumentReferenceScanner
                     if (baseDirectory.Equals("Blueprints", StringComparison.OrdinalIgnoreCase))
                     {
                         string normalized = normalizeDataReference(dataReference, "Blueprints");
-                        string target = normalized.StartsWith(BlueprintPrefix, StringComparison.Ordinal)
-                            ? nodeId("blueprint", normalized)
-                            : blueprintNodeIdFromKey(normalized);
+                        string target = blueprintNodeIdFromKey(normalized);
                         addReference(sourceId, target, "configFile", path);
                     }
                     else if (getSectionType(baseDirectory) is string sectionType)

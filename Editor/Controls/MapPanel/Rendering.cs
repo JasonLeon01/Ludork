@@ -316,7 +316,7 @@ public sealed partial class MapPanel
         Rect source = new(textureRect.X, textureRect.Y, textureRect.Width, textureRect.Height);
         if (source.Width <= 0 || source.Height <= 0 || source.Right > image.PixelSize.Width || source.Bottom > image.PixelSize.Height)
             return ActorRenderState.Missing(actor);
-        if (Math.Abs(descriptor.Hue % 360) > 0.001)
+        if (!EditorBitmapEffects.IsNeutralHue(descriptor.Hue))
             image = getHueImage(descriptor.TexturePath, image, descriptor.Hue);
         ActorPreviewLease? previewLease = null;
         if (descriptor.RequiresNativePreview && previewService is not null)

@@ -89,7 +89,7 @@ public sealed class ReferenceIndexSnapshot
         if (node.Type == "asset")
             return GameAssetPath.TryToProjectFile(projectPath, key, out string assetPath) ? assetPath : string.Empty;
         if (node.Type == "blueprint")
-            key = key.StartsWith("Data.Blueprints.", StringComparison.Ordinal) ? key["Data.Blueprints.".Length..].Replace('.', '/') : key;
+            key = BlueprintReference.NormalizeKey(key);
         if (node.Type == "generalMember")
             return generalMemberTypes.TryGetValue(id, out string? type)
                 ? Path.Combine(projectPath, "Data", "General", type.Replace('/', Path.DirectorySeparatorChar) + ".json") : string.Empty;

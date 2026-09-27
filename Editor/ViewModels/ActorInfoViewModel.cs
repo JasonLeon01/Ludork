@@ -217,11 +217,11 @@ public sealed class ActorInfoViewModel
 
     private bool tryGetProjectBlueprintReference(out string reference)
     {
-        const string prefix = "Data.Blueprints.";
         reference = blueprintReference ?? string.Empty;
-        return reference.StartsWith(prefix, StringComparison.Ordinal)
-            && reference.Length > prefix.Length
-            && gameData?.Blueprints.BlueprintsData.ContainsKey(reference[prefix.Length..].Replace('.', '/')) == true;
+        string key = Services.BlueprintReference.NormalizeKey(reference);
+        return Services.BlueprintReference.IsReference(reference)
+            && key.Length != 0
+            && gameData?.Blueprints.BlueprintsData.ContainsKey(key) == true;
     }
 
     public void resetOverride(string name)

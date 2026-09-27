@@ -1,3 +1,4 @@
+using Ludork.Plugin.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -152,51 +153,13 @@ internal static class LocaleExporter
                  mapping.OrderBy(entry => entry.Key, StringComparer.Ordinal))
         {
             builder.Append("    [");
-            AppendLuaString(builder, entry.Key);
+            LuaStringLiteral.Append(builder, entry.Key);
             builder.Append("] = ");
-            AppendLuaString(builder, entry.Value);
+            LuaStringLiteral.Append(builder, entry.Value);
             builder.Append(",\n");
         }
         builder.Append("}\n");
         return builder.ToString();
-    }
-
-    private static void AppendLuaString(StringBuilder builder, string value)
-    {
-        builder.Append('"');
-        foreach (char character in value)
-        {
-            switch (character)
-            {
-                case '\\':
-                    builder.Append("\\\\");
-                    break;
-                case '"':
-                    builder.Append("\\\"");
-                    break;
-                case '\n':
-                    builder.Append("\\n");
-                    break;
-                case '\r':
-                    builder.Append("\\r");
-                    break;
-                case '\t':
-                    builder.Append("\\t");
-                    break;
-                default:
-                    if (character < 32 || character == 127)
-                    {
-                        builder.Append('\\');
-                        builder.Append(((int)character).ToString("D3"));
-                    }
-                    else
-                    {
-                        builder.Append(character);
-                    }
-                    break;
-            }
-        }
-        builder.Append('"');
     }
 
     private static void WriteUtf8File(string path, string content)

@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
+using Ludork.Plugin.Avalonia;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -32,7 +33,7 @@ public sealed record ActorVisualDescriptor(
 {
     public double MapPreviewOpacity => Visible ? 1.0 : 0.25;
     public bool RequiresRealtimePreview => Animated || ShaderPath.Length != 0;
-    public bool RequiresNativePreview => ShaderPath.Length != 0 || Math.Abs(Hue % 360) > 0.001;
+    public bool RequiresNativePreview => ShaderPath.Length != 0 || !EditorBitmapEffects.IsNeutralHue(Hue);
     public bool RequiresPreviewService => Animated || RequiresNativePreview;
 
     public PixelRect GetTextureRect(TimeSpan elapsed)
@@ -372,7 +373,7 @@ public sealed partial class ActorPreviewService : IDisposable
             }
             frame = await Task.Run(() =>
             {
-                byte[] pixels = source.Copy(textureRect, applyHue ? normalizeHue(descriptor.Hue) : 0, token);
+                byte[] pixels = source.Copy(textureRect, applyHue ? descriptor.Hue : 0, token);
                 return lease.PrepareFallback(pixels, textureRect.Width, textureRect.Height, descriptor, token);
             }, token);
             token.ThrowIfCancellationRequested();
@@ -507,13 +508,7 @@ public sealed partial class ActorPreviewService : IDisposable
             rect.Width.ToString(CultureInfo.InvariantCulture),
             rect.Height.ToString(CultureInfo.InvariantCulture),
             descriptor.ShaderPath,
-            normalizeHue(descriptor.Hue).ToString("R", CultureInfo.InvariantCulture));
-    }
-
-    private static double normalizeHue(double hue)
-    {
-        double result = hue % 360;
-        return result < 0 ? result + 360 : result;
+            EditorBitmapEffects.NormalizeHue(descriptor.Hue).ToString("R", CultureInfo.InvariantCulture));
     }
 
     private static string getString(JsonObject value, string propertyName, string fallback = "")

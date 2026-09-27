@@ -45,7 +45,7 @@ public sealed class ActorQueueItemViewModel : ViewModelBase, IDisposable
         this.isFavorite = isFavorite;
         this.isRecent = isRecent;
         icon = placeholder;
-        Key = blueprintReference["Data.Blueprints.".Length..].Replace('.', '/');
+        Key = Services.BlueprintReference.NormalizeKey(blueprintReference);
         DisplayName = Key.Split('/').LastOrDefault() ?? Key;
         string[] pathParts = Key.Split('/', StringSplitOptions.RemoveEmptyEntries);
         Category = pathParts.Length > 1 ? pathParts[0] : LocaleService.Get("UNCATEGORISED");

@@ -25,9 +25,9 @@ public static class MapTagService
         int x,
         int y)
     {
-        string prefix = blueprintReference
-            .Replace("Data.Blueprints.", string.Empty, StringComparison.Ordinal)
-            .Replace('.', '_');
+        string prefix = BlueprintReference.IsReference(blueprintReference)
+            ? BlueprintReference.NormalizeKey(blueprintReference).Replace('/', '_')
+            : blueprintReference.Replace('.', '_');
         return $"{prefix}_default_{x}_{y}";
     }
 

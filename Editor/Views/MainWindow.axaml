@@ -51,7 +51,7 @@
                     </NativeMenuItem>
                     <NativeMenuItemSeparator />
                     <NativeMenuItem Header="{Binding Undo}" Command="{Binding UndoCommand}" Gesture="{OnPlatform Default=Ctrl+Z, macOS=Meta+Z}" />
-                    <NativeMenuItem Header="{Binding Redo}" Command="{Binding RedoCommand}" Gesture="{OnPlatform Default=Ctrl+Y, macOS=Meta+Y}" />
+                    <NativeMenuItem Header="{Binding Redo}" Command="{Binding RedoCommand}" Gesture="{OnPlatform Default=Ctrl+Y, macOS=Meta+Shift+Z}" />
                 </NativeMenu>
             </NativeMenuItem>
             <NativeMenuItem Header="{Binding Game}" IsEnabled="{Binding CanEdit}">
@@ -113,6 +113,7 @@
         <KeyBinding Gesture="{OnPlatform Default=Ctrl+S, macOS=Meta+S}" Command="{Binding SaveCommand}" />
         <KeyBinding Gesture="{OnPlatform Default=Ctrl+Z, macOS=Meta+Z}" Command="{Binding UndoCommand}" />
         <KeyBinding Gesture="{OnPlatform Default=Ctrl+Y, macOS=Meta+Y}" Command="{Binding RedoCommand}" />
+        <KeyBinding Gesture="{OnPlatform Default=Ctrl+Shift+Z, macOS=Meta+Shift+Z}" Command="{Binding RedoCommand}" />
         <KeyBinding Gesture="{OnPlatform Default=Ctrl+N, macOS=Meta+N}" Command="{Binding NewProjectCommand}" />
         <KeyBinding Gesture="{OnPlatform Default=Ctrl+O, macOS=Meta+O}" Command="{Binding OpenProjectCommand}" />
         <KeyBinding Gesture="{OnPlatform Default=Ctrl+W, macOS=Meta+W}" Command="{Binding ExitCommand}" />

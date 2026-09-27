@@ -60,7 +60,7 @@ internal sealed class ReferenceIndexSnapshotBuilder : IDisposable
             }
             next[key] = cached;
             string type = ReferenceIndexSnapshot.DataRoots.Single(pair => pair.Value == document.Section).Key;
-            string nodeKey = type == "blueprint" ? "Data.Blueprints." + document.Key.Replace('/', '.') : document.Key;
+            string nodeKey = type == "blueprint" ? BlueprintReference.ToReference(document.Key) : document.Key;
             string id = type + ":" + nodeKey;
             nodes[id] = new ReferenceNode(id, type, nodeKey);
             declared.Add(id);

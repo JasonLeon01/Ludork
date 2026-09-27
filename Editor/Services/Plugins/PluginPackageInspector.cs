@@ -81,15 +81,10 @@ internal static class PluginPackageInspector
     {
         if (!IsSafeDirectoryName(directory))
             throw new InvalidDataException($"Invalid plugin directory in registry: {directory}");
-        string pluginsRoot = Path.GetFullPath(pluginsDirectory);
-        ensureExistingDirectoryIsNotReparsePoint(pluginsRoot);
-        string root = appendDirectorySeparator(pluginsRoot);
-        string path = Path.GetFullPath(Path.Combine(pluginsRoot, directory));
-        StringComparison comparison = OperatingSystem.IsWindows()
-            ? StringComparison.OrdinalIgnoreCase
-            : StringComparison.Ordinal;
-        if (!path.StartsWith(root, comparison))
-            throw new InvalidDataException($"Plugin path escapes the managed directory: {directory}");
+        string pluginsRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(pluginsDirectory));
+        string contentRoot = Path.GetDirectoryName(pluginsRoot) ?? pluginsRoot;
+        if (!EditorPathSandbox.TryResolve(contentRoot, Path.Combine(pluginsRoot, directory), out _, allowMissing: true))
+            throw new InvalidDataException($"Plugin path is outside the managed directory, linked or inaccessible: {directory}");
     }
 
     public static void EnsureDirectoryTreeIsSafe(string rootPath)
@@ -240,36 +235,16 @@ internal static class PluginPackageInspector
         while (directories.Count != 0)
         {
             string directory = directories.Pop();
-            FileAttributes directoryAttributes = File.GetAttributes(directory);
-            if ((directoryAttributes & FileAttributes.ReparsePoint) != 0)
-                throw new InvalidDataException($"Symbolic links are not allowed: {directory}");
+            if (!EditorPathSandbox.TryResolve(root, directory, out _))
+                throw new InvalidDataException($"Plugin directory is linked or inaccessible: {directory}");
             foreach (string path in Directory.EnumerateFileSystemEntries(directory))
             {
+                if (!EditorPathSandbox.TryResolve(root, path, out _))
+                    throw new InvalidDataException($"Plugin path is linked or inaccessible: {path}");
                 FileAttributes attributes = File.GetAttributes(path);
-                if ((attributes & FileAttributes.ReparsePoint) != 0)
-                    throw new InvalidDataException($"Symbolic links are not allowed: {path}");
                 if ((attributes & FileAttributes.Directory) != 0)
                     directories.Push(path);
             }
         }
-    }
-
-    private static string appendDirectorySeparator(string path)
-    {
-        if (path.EndsWith(Path.DirectorySeparatorChar)
-            || path.EndsWith(Path.AltDirectorySeparatorChar))
-        {
-            return path;
-        }
-        return path + Path.DirectorySeparatorChar;
-    }
-
-    private static void ensureExistingDirectoryIsNotReparsePoint(string path)
-    {
-        if (!Directory.Exists(path))
-            return;
-        FileAttributes attributes = File.GetAttributes(path);
-        if ((attributes & FileAttributes.ReparsePoint) != 0)
-            throw new InvalidDataException($"Symbolic links are not allowed: {path}");
     }
 }

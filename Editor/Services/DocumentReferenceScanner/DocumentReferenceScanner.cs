@@ -9,7 +9,6 @@ namespace Ludork.Services;
 
 internal sealed partial class DocumentReferenceScanner
 {
-    private const string BlueprintPrefix = "Data.Blueprints.";
     private readonly LuaMetadataService metadataService;
     private readonly BlueprintClassResolver classResolver;
     private readonly CancellationToken cancellationToken;

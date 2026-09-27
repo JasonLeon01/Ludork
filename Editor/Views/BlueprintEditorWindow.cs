@@ -899,9 +899,9 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         flushGraphViews();
         if (args.Key == Key.S)
             await EditorSaveWorkflow.TrySaveAsync(this, projectSave);
-        else if (args.Key == Key.Z)
+        else if (EditorShortcuts.IsUndo(args.Key, args.KeyModifiers))
             EditorFeedback.ShowHistory(toast, "Undo", documentBinding.Undo());
-        else if (args.Key == Key.Y)
+        else if (EditorShortcuts.IsRedo(args.Key, args.KeyModifiers))
             EditorFeedback.ShowHistory(toast, "Redo", documentBinding.Redo());
         else
             return;

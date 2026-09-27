@@ -129,6 +129,8 @@ public sealed partial class ReferenceIndexService
         string content = quote is not null ? text[1..^1] : text;
         if (section == "UI" && content.StartsWith("Project:", StringComparison.Ordinal))
             content = "Project:" + UiAssetSchema.ToLogicalAssetKey(newKey);
+        else if (section == "Blueprints" && BlueprintReference.IsReference(content))
+            content = BlueprintReference.ToReference(newKey);
         else if (content.StartsWith("Data." + section + ".", StringComparison.Ordinal))
             content = "Data." + section + "." + newKey.Replace('/', '.');
         else if (content == oldKey)

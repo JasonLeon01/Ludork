@@ -20,14 +20,14 @@ internal sealed partial class DocumentReferenceScanner
 
     private static string blueprintNodeIdFromKey(string key)
     {
-        return nodeId("blueprint", BlueprintPrefix + key.Replace('/', '.'));
+        return nodeId("blueprint", BlueprintReference.ToReference(key));
     }
 
     private static string? blueprintNodeIdFromClassPath(JsonNode? value)
     {
         string? text = getString(value)?.Trim();
-        return text is not null && text.StartsWith(BlueprintPrefix, StringComparison.Ordinal)
-            ? nodeId("blueprint", text)
+        return BlueprintReference.IsReference(text)
+            ? nodeId("blueprint", BlueprintReference.ToReference(text))
             : null;
     }
 
@@ -96,6 +96,13 @@ internal sealed partial class DocumentReferenceScanner
     private static string normalizeDataReference(string value, string section)
     {
         string normalized = value.Replace('\\', '/').Trim().Trim('/');
+        if (section.Equals("Blueprints", StringComparison.OrdinalIgnoreCase))
+        {
+            const string blueprintRootPrefix = "Blueprints/";
+            return BlueprintReference.NormalizeKey(normalized.StartsWith(blueprintRootPrefix, StringComparison.OrdinalIgnoreCase)
+                ? normalized[blueprintRootPrefix.Length..]
+                : normalized);
+        }
         string dottedPrefix = "Data." + section + ".";
         if (normalized.StartsWith(dottedPrefix, StringComparison.Ordinal))
             normalized = normalized[dottedPrefix.Length..].Replace('.', '/');

@@ -223,7 +223,7 @@ internal sealed class ResourceCleanupScanner
                 if (absolute.Length == 0)
                     continue;
                 string path = Path.GetRelativePath(root, absolute).Replace('\\', '/');
-                ResourceCleanupFileSystem.ResolveSafePath(root, path);
+                ResourceCleanupFileSystem.ResolveSafePath(root, path, allowMissing: true);
                 if (!edges.ContainsKey(path))
                     continue;
                 nodePaths[node.Id] = path;
@@ -260,7 +260,7 @@ internal sealed class ResourceCleanupScanner
             try
             {
                 string normalized = ResourceCleanupFileSystem.NormalizeKeepPath(path);
-                ResourceCleanupFileSystem.ResolveSafePath(root, normalized);
+                ResourceCleanupFileSystem.ResolveSafePath(root, normalized, allowMissing: true);
                 string prefix = normalized + "/";
                 foreach (string file in files)
                 {

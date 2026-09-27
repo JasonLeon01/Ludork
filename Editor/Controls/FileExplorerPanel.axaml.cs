@@ -658,13 +658,13 @@ public partial class FileExplorerPanel : UserControl
             reference = string.Empty;
             return false;
         }
-        string key = Path.ChangeExtension(relative, null)!.Replace('\\', '/');
+        string key = BlueprintReference.NormalizeKey(relative);
         if (!viewModel.HasBlueprint(key))
         {
             reference = string.Empty;
             return false;
         }
-        reference = "Data.Blueprints." + key.Replace('/', '.');
+        reference = BlueprintReference.ToReference(key);
         return true;
     }
 

@@ -15,7 +15,6 @@ public enum BlueprintEditorDocumentKind
 
 public sealed class BlueprintEditorDocument : IDisposable
 {
-    private const string BlueprintPrefix = "Data.Blueprints.";
     private readonly ProjectDataStore gameData;
     private readonly EditorDocument? resourceDocument;
     private readonly string? initialBlueprintKey;
@@ -67,7 +66,7 @@ public sealed class BlueprintEditorDocument : IDisposable
 
     public static BlueprintEditorDocument? CreateBlueprint(ProjectDataStore gameData, string reference)
     {
-        string key = NormalizeBlueprintKey(reference);
+        string key = BlueprintReference.NormalizeKey(reference);
         return key.Length != 0 && gameData.Blueprints.BlueprintsData.ContainsKey(key)
             ? new BlueprintEditorDocument(
                 gameData,
@@ -107,22 +106,11 @@ public sealed class BlueprintEditorDocument : IDisposable
         return GetGeneralDocumentPrefix(typeKey) + $"{memberId.Length}:{memberId}";
     }
 
-    public static string NormalizeBlueprintKey(string reference)
-    {
-        string value = reference?.Trim() ?? string.Empty;
-        if (value.StartsWith(BlueprintPrefix, StringComparison.Ordinal))
-            value = value[BlueprintPrefix.Length..].Replace('.', '/');
-        value = value.Replace('\\', '/').Trim('/');
-        if (value.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
-            value = value[..^5];
-        return value;
-    }
-
     public bool RekeyBlueprint(string reference)
     {
         if (Kind != BlueprintEditorDocumentKind.Blueprint)
             return false;
-        string key = NormalizeBlueprintKey(reference);
+        string key = BlueprintReference.NormalizeKey(reference);
         if (key.Length == 0 || !gameData.Blueprints.BlueprintsData.ContainsKey(key))
             return false;
         return string.Equals(resourceDocument?.Key, key, StringComparison.Ordinal);

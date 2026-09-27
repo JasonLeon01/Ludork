@@ -173,9 +173,9 @@ public sealed class TilesetEditorWindow : Window
     {
         if (!EditorShortcuts.HasPrimaryModifier(args.KeyModifiers))
             return;
-        if (args.Key == Key.Z)
+        if (EditorShortcuts.IsUndo(args.Key, args.KeyModifiers))
             EditorFeedback.ShowHistory(toast, "Undo", documentBinding.Undo());
-        else if (args.Key == Key.Y)
+        else if (EditorShortcuts.IsRedo(args.Key, args.KeyModifiers))
             EditorFeedback.ShowHistory(toast, "Redo", documentBinding.Redo());
         else if (args.Key == Key.S)
             await EditorSaveWorkflow.TrySaveAsync(this, projectSave);

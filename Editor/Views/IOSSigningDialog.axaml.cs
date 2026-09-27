@@ -135,7 +135,7 @@ public partial class IOSSigningDialog : Window
         bool environmentSigning = EnvironmentSigningOption.IsChecked == true;
         SaveSigningOption.IsVisible = !environmentSigning
             && !credentialOperationPending
-            && AppleSigningInput.IsReadableFile(CertificatePathBox.Text ?? string.Empty);
+            && SigningInput.IsReadableFile(CertificatePathBox.Text ?? string.Empty);
         if (credentialOperationPending)
         {
             ValidationText.Text = string.Empty;
@@ -154,7 +154,7 @@ public partial class IOSSigningDialog : Window
         string teamId = TeamIdBox.Text ?? string.Empty;
         if (teamId.Length != 0 && !AppleSigningInput.IsValidTeamId(teamId.Trim().ToUpperInvariant()))
             return LocaleService.Get("PACK_IOS_SIGNING_TEAM_ID_INVALID");
-        if (AppleSigningInput.HasLineBreak(SigningIdentityBox.Text ?? string.Empty))
+        if (SigningInput.HasInvalidCharacters(SigningIdentityBox.Text ?? string.Empty))
             return LocaleService.Get("PACK_SIGNING_IDENTITY_LINE_BREAK");
 
         string certificatePath = CertificatePathBox.Text ?? string.Empty;
@@ -165,14 +165,14 @@ public partial class IOSSigningDialog : Window
             return LocaleService.Get("PACK_IOS_SIGNING_PAIR_REQUIRED");
         if (!hasCertificate)
             return null;
-        if (!AppleSigningInput.IsReadableFile(certificatePath))
+        if (!SigningInput.IsReadableFile(certificatePath))
             return LocaleService.Get("PACK_SIGNING_CERTIFICATE_INVALID");
         string certificatePassword = CertificatePasswordBox.Text ?? string.Empty;
         if (certificatePassword.Length == 0)
             return LocaleService.Get("PACK_SIGNING_CERTIFICATE_PASSWORD_REQUIRED");
-        if (AppleSigningInput.HasLineBreak(certificatePassword))
+        if (SigningInput.HasInvalidCharacters(certificatePassword))
             return LocaleService.Get("PACK_SIGNING_PASSWORD_LINE_BREAK");
-        if (!AppleSigningInput.IsReadableFile(provisioningProfile))
+        if (!SigningInput.IsReadableFile(provisioningProfile))
             return LocaleService.Get("PACK_IOS_PROVISIONING_PROFILE_INVALID");
         return null;
     }

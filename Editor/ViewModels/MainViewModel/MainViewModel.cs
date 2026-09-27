@@ -288,7 +288,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         DataFileInfo? info = args.Info;
         if (info?.Type != "blueprint" || info.Key is null)
             return;
-        string reference = "Data.Blueprints." + info.Key.Replace('/', '.');
+        string reference = BlueprintReference.ToReference(info.Key);
         if (BlueprintClasses.IsDerivedFrom(reference, "Engine.Actor"))
             ActorQueue.AddOrPromote(reference);
     }
@@ -356,11 +356,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return false;
         }
         string key = directory ? relative : Path.ChangeExtension(relative, null)!;
-        reference = "Data.Blueprints." + key
-            .Replace(Path.DirectorySeparatorChar, '.')
-            .Replace(Path.AltDirectorySeparatorChar, '.')
-            .Trim('.');
-        return reference.Length > "Data.Blueprints.".Length;
+        reference = relative == "." ? string.Empty : BlueprintReference.ToReference(key);
+        return reference.Length != 0;
     }
 
     private void onExplorerFileOpened(object? sender, FileExplorerFileEventArgs args)

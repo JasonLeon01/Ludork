@@ -83,7 +83,8 @@ public static class GameAssetPath
         string relative;
         try
         {
-            fullPath = Path.GetFullPath(filePath);
+            if (!EditorPathSandbox.TryResolve(assetsRoot, Path.GetFullPath(filePath), out fullPath))
+                return false;
             relative = Path.GetRelativePath(assetsRoot, fullPath);
         }
         catch (Exception exception) when (isPathException(exception))
@@ -119,7 +120,7 @@ public static class GameAssetPath
             string candidate = Path.GetFullPath(Path.Combine(
                 assetsRoot,
                 relativePath.Replace('/', Path.DirectorySeparatorChar)));
-            if (!isContainedBy(assetsRoot, candidate))
+            if (!EditorPathSandbox.TryResolve(projectDirectory, candidate, out candidate, allowMissing: true))
                 return false;
             filePath = candidate;
             return true;
@@ -167,7 +168,7 @@ public static class GameAssetPath
                 : Path.GetFullPath(Path.Combine(
                     assetsRoot,
                     relativePath.Replace('/', Path.DirectorySeparatorChar)));
-            if (!isContainedBy(assetsRoot, candidate))
+            if (!EditorPathSandbox.TryResolve(projectDirectory, candidate, out candidate, allowMissing: true))
                 return false;
             if (Directory.Exists(candidate)
                 && (!hasExactAssetsDirectory(projectDirectory)
@@ -207,7 +208,7 @@ public static class GameAssetPath
             string candidate = Path.GetFullPath(Path.Combine(
                 assetsRoot,
                 baseHint.Replace('/', Path.DirectorySeparatorChar)));
-            if (!isContainedBy(assetsRoot, candidate))
+            if (!EditorPathSandbox.TryResolve(projectDirectory, candidate, out candidate, allowMissing: true))
                 return false;
             if (Directory.Exists(candidate)
                 && (!hasExactAssetsDirectory(projectDirectory)
@@ -229,29 +230,15 @@ public static class GameAssetPath
         assetsRoot = string.Empty;
         if (string.IsNullOrWhiteSpace(projectDirectory))
             return false;
-        try
-        {
-            assetsRoot = Path.GetFullPath(Path.Combine(projectDirectory, "Assets"));
-            if (Directory.Exists(assetsRoot)
-                && (File.GetAttributes(assetsRoot) & FileAttributes.ReparsePoint) != 0)
-            {
-                assetsRoot = string.Empty;
-                return false;
-            }
-            return true;
-        }
-        catch (Exception exception) when (isPathException(exception)
-            || exception is IOException or UnauthorizedAccessException)
-        {
-            return false;
-        }
+        return EditorPathSandbox.TryResolve(projectDirectory, "Assets", out assetsRoot, allowMissing: true);
     }
 
     private static bool isCanonicalRelativePath(string value)
     {
         if (value.Length == 0)
             return false;
-        if (value.StartsWith("/", StringComparison.Ordinal)
+        if (Path.IsPathRooted(value)
+            || value.StartsWith("/", StringComparison.Ordinal)
             || value.EndsWith("/", StringComparison.Ordinal))
         {
             return false;
@@ -261,15 +248,6 @@ public static class GameAssetPath
             && parts.All(part => part.Length != 0
             && part is not "." and not ".."
             && !part.Contains('\0'));
-    }
-
-    private static bool isContainedBy(string root, string path)
-    {
-        string relative = Path.GetRelativePath(root, path);
-        return !Path.IsPathRooted(relative)
-            && relative != ".."
-            && !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal)
-            && !relative.StartsWith("../", StringComparison.Ordinal);
     }
 
     private static bool hasExactCase(string root, string relativePath, bool directory)
@@ -295,15 +273,6 @@ public static class GameAssetPath
             }
             if (match is null)
                 return false;
-            try
-            {
-                if ((File.GetAttributes(match) & FileAttributes.ReparsePoint) != 0)
-                    return false;
-            }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-            {
-                return false;
-            }
             current = match;
         }
         return directory ? Directory.Exists(current) : File.Exists(current);

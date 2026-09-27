@@ -6,36 +6,6 @@ namespace Ludork.Services;
 
 internal static class HarmonySigningInput
 {
-    public static bool HasLineBreak(string value) =>
-        value.IndexOfAny(['\r', '\n']) >= 0;
-
-    public static bool IsNonEmptySingleLine(string value) =>
-        value.Length != 0 && !HasLineBreak(value);
-
-    public static bool IsReadableFile(string path)
-    {
-        if (!Path.IsPathFullyQualified(path)
-            || HasLineBreak(path)
-            || !File.Exists(path))
-        {
-            return false;
-        }
-        try
-        {
-            using FileStream stream = File.Open(
-                path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            return stream.CanRead;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return false;
-        }
-        catch (IOException)
-        {
-            return false;
-        }
-    }
-
     public static bool IsOutsideProject(string path, string? projectPath)
     {
         if (string.IsNullOrEmpty(projectPath))

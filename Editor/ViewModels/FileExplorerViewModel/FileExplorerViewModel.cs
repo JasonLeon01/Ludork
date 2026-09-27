@@ -104,7 +104,7 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
 
     public bool HasBlueprint(string key)
     {
-        return gameData.Blueprints.BlueprintsData.ContainsKey(key.Replace('\\', '/').Trim('/'));
+        return gameData.Blueprints.BlueprintsData.ContainsKey(BlueprintReference.NormalizeKey(key));
     }
 
     public bool CanShowReferenceTree(string path)

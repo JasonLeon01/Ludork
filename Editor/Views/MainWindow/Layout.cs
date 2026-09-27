@@ -429,9 +429,9 @@ public partial class MainWindow
 
     private async void onBlueprintLocateRequested(object? sender, string reference)
     {
-        if (!reference.StartsWith("Data.Blueprints.", StringComparison.Ordinal))
+        if (!BlueprintReference.IsReference(reference))
             return;
-        string key = reference["Data.Blueprints.".Length..].Replace('.', Path.DirectorySeparatorChar);
+        string key = BlueprintReference.NormalizeKey(reference).Replace('/', Path.DirectorySeparatorChar);
         string path = Path.Combine(ProjectPath, "Data", "Blueprints", key + ".json");
         BottomTabs.SelectedItem = FileExplorerTab;
         await FileExplorerPanel.LocatePathAsync(path);

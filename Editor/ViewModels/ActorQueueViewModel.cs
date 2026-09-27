@@ -21,7 +21,6 @@ public sealed record ActorLibraryScopeOption(ActorLibraryScope Scope, string Dis
 public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
 {
     private const int MaximumRecentItems = 20;
-    private const string BlueprintPrefix = "Data.Blueprints.";
     private readonly ProjectDataStore gameData;
     private readonly ProjectConfigService projectConfig;
     private readonly BlueprintClassResolver classResolver;
@@ -260,7 +259,7 @@ public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
         HashSet<string> validReferences = new HashSet<string>(StringComparer.Ordinal);
         foreach (string key in gameData.Blueprints.BlueprintsData.Keys)
         {
-            string reference = BlueprintPrefix + key.Replace('/', '.');
+            string reference = BlueprintReference.ToReference(key);
             ResolvedBlueprintClass resolved = classResolver.Resolve(reference);
             if (!classResolver.IsDerivedFrom(resolved, "Engine.Actor"))
                 continue;

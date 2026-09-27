@@ -431,12 +431,12 @@ public sealed class GameVariableManagerWindow : Window
             await saveAsync();
             return;
         }
-        if (!EditorShortcuts.HasPrimaryModifier(args.KeyModifiers)
-            || args.Key is not (Key.Z or Key.Y))
+        bool undo = EditorShortcuts.IsUndo(args.Key, args.KeyModifiers);
+        if (!undo && !EditorShortcuts.IsRedo(args.Key, args.KeyModifiers))
             return;
         args.Handled = true;
         gestureId = gameVariables.BeginHistoryGesture();
-        HistoryResult result = args.Key == Key.Z
+        HistoryResult result = undo
             ? gameVariables.Undo()
             : gameVariables.Redo();
         if (!result.Success && !string.IsNullOrEmpty(result.Message))

@@ -213,7 +213,7 @@ public sealed partial class ReferenceIndexService
                 || captured.Revision != revision || !ReferenceEquals(captured.Original, data))
             {
                 string type = ReferenceIndexSnapshot.DataRoots.Single(pair => pair.Value == section).Key;
-                string nodeKey = type == "blueprint" ? BlueprintPrefix + key.Replace('/', '.') : key;
+                string nodeKey = type == "blueprint" ? BlueprintReference.ToReference(key) : key;
                 string path = ReferenceIndexSnapshot.ResolvePath(gameData.ProjectPath, type + ":" + nodeKey,
                     new Dictionary<string, string>());
                 captured = new CapturedDocument(data, revision,

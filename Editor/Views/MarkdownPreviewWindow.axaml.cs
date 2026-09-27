@@ -115,13 +115,13 @@ public partial class MarkdownPreviewWindow : Window
     {
         if (singleFile)
         {
-            if (isSymbolicLinkOrInaccessible(path))
+            if (!EditorPathSandbox.TryResolve(documentRoot, path, out _))
                 return [];
             MarkdownDocumentEntry entry = new(Path.GetFileNameWithoutExtension(path), path, false);
             entries.Add(entry);
             return [entry];
         }
-        if (!Directory.Exists(path) || isSymbolicLinkOrInaccessible(path))
+        if (!Directory.Exists(path) || !EditorPathSandbox.TryResolve(documentRoot, path, out _))
             return [];
         IReadOnlyList<MarkdownDocumentEntry> roots = collectDirectory(path);
         foreach (MarkdownDocumentEntry root in roots)
@@ -131,10 +131,19 @@ public partial class MarkdownPreviewWindow : Window
 
     private IReadOnlyList<MarkdownDocumentEntry> collectDirectory(string directory)
     {
-        List<MarkdownDocumentEntry> result = [];
-        foreach (string child in Directory.EnumerateFileSystemEntries(directory).OrderBy(getSortKey, StringComparer.OrdinalIgnoreCase))
+        string[] children;
+        try
         {
-            if (isSymbolicLinkOrInaccessible(child))
+            children = Directory.GetFileSystemEntries(directory);
+        }
+        catch (Exception exception) when (EditorPathSandbox.IsPathFailure(exception))
+        {
+            return [];
+        }
+        List<MarkdownDocumentEntry> result = [];
+        foreach (string child in children.OrderBy(getSortKey, StringComparer.OrdinalIgnoreCase))
+        {
+            if (!EditorPathSandbox.TryResolve(documentRoot, child, out _))
                 continue;
             if (Directory.Exists(child))
             {
@@ -302,9 +311,16 @@ public partial class MarkdownPreviewWindow : Window
 
     private void loadEntry(MarkdownDocumentEntry entry)
     {
-        string markdown = entry.IsDirectory
-            ? buildDirectoryContents(entry)
-            : File.ReadAllText(entry.Path, Encoding.UTF8);
+        string markdown = "The document is missing, inaccessible or linked.";
+        if (entry.IsDirectory)
+        {
+            if (EditorPathSandbox.TryResolve(documentRoot, entry.Path, out _))
+                markdown = buildDirectoryContents(entry);
+        }
+        else if (entry.TryReadText(documentRoot, out string content))
+        {
+            markdown = content;
+        }
         renderMarkdown(markdown);
         DocumentScrollViewer.Offset = new Vector();
     }
@@ -920,62 +936,11 @@ public partial class MarkdownPreviewWindow : Window
         }
         if (decodedPath.IndexOf('\0') >= 0 || Path.IsPathRooted(decodedPath))
             return false;
-        try
-        {
-            fullPath = Path.GetFullPath(Path.Combine(baseDirectory, decodedPath));
-        }
-        catch (ArgumentException)
-        {
-            return false;
-        }
-        catch (NotSupportedException)
-        {
-            return false;
-        }
-        catch (IOException)
-        {
-            return false;
-        }
-        string relativePath = Path.GetRelativePath(allowedRoot, fullPath);
-        bool contained = !Path.IsPathRooted(relativePath)
-            && !relativePath.Equals("..", StringComparison.Ordinal)
-            && !relativePath.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal)
-            && !relativePath.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal);
-        return contained
-            && !isSymbolicLinkOrInaccessible(allowedRoot)
-            && !containsNestedSymbolicLink(fullPath, allowedRoot);
-    }
-
-    private static bool containsNestedSymbolicLink(string path, string allowedRoot)
-    {
-        string current = path;
-        while (!pathsEqual(current, allowedRoot))
-        {
-            if ((File.Exists(current) || Directory.Exists(current))
-                && isSymbolicLinkOrInaccessible(current))
-                return true;
-            string? parent = Path.GetDirectoryName(current);
-            if (parent is null || pathsEqual(parent, current))
-                return true;
-            current = parent;
-        }
-        return false;
-    }
-
-    private static bool isSymbolicLinkOrInaccessible(string path)
-    {
-        try
-        {
-            return (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
-        }
-        catch (IOException)
-        {
-            return true;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return true;
-        }
+        return EditorPathSandbox.TryResolve(
+            allowedRoot,
+            Path.Combine(baseDirectory, decodedPath),
+            out fullPath,
+            allowMissing: true);
     }
 
     private static string unwrapLinkTarget(string target)
@@ -1386,12 +1351,12 @@ public partial class MarkdownPreviewWindow : Window
         return matchCount;
     }
 
-    private static bool refreshEntryVisibility(MarkdownDocumentEntry entry, string query, ref int matchCount)
+    private bool refreshEntryVisibility(MarkdownDocumentEntry entry, string query, ref int matchCount)
     {
         bool childMatches = false;
         foreach (MarkdownDocumentEntry child in entry.Children)
             childMatches |= refreshEntryVisibility(child, query, ref matchCount);
-        bool matches = string.IsNullOrEmpty(query) || entry.matches(query);
+        bool matches = string.IsNullOrEmpty(query) || entry.matches(query, documentRoot);
         if (!string.IsNullOrEmpty(query) && matches)
             matchCount++;
         entry.IsVisible = matches || childMatches;

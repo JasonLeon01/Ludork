@@ -10,7 +10,6 @@ namespace Ludork.Services;
 
 public sealed class BlueprintClassResolver : IDisposable
 {
-    private const string BlueprintPrefix = "Data.Blueprints.";
     private readonly EditorDocumentRegistry? documents;
     private readonly Func<string, JsonObject?> readBlueprint;
     private readonly LuaMetadataService metadataService;
@@ -37,7 +36,9 @@ public sealed class BlueprintClassResolver : IDisposable
 
     public ResolvedBlueprintClass Resolve(string classReference, JsonObject? overrides = null)
     {
-        string reference = classReference?.Trim() ?? string.Empty;
+        string reference = BlueprintReference.IsReference(classReference)
+            ? BlueprintReference.ToReference(classReference)
+            : classReference?.Trim() ?? string.Empty;
         if (templateCache.TryGetValue(reference, out ResolvedBlueprintTemplate? cached))
         {
             if (cached.IsCurrent(metadataService))
@@ -73,16 +74,8 @@ public sealed class BlueprintClassResolver : IDisposable
     {
         using IDisposable metadataRead = metadataService.BeginRead();
         ensureMetadataRevision();
-        string reference = string.IsNullOrWhiteSpace(blueprintKey)
-            ? string.Empty
-            : blueprintKey.StartsWith(BlueprintPrefix, StringComparison.Ordinal)
-                ? blueprintKey
-                : BlueprintPrefix + blueprintKey.Replace('/', '.').Replace('\\', '.');
-        string? key = string.IsNullOrWhiteSpace(blueprintKey)
-            ? null
-            : blueprintKey.StartsWith(BlueprintPrefix, StringComparison.Ordinal)
-                ? blueprintKey[BlueprintPrefix.Length..].Replace('.', '/')
-                : blueprintKey.Replace('\\', '/');
+        string reference = BlueprintReference.ToReference(blueprintKey);
+        string? key = reference.Length == 0 ? null : BlueprintReference.NormalizeKey(blueprintKey);
         ResolvedBlueprintTemplate template = createBlueprintTemplate(blueprint, reference, key);
         if (!template.IsCaptureConsistent)
         {
@@ -143,9 +136,9 @@ public sealed class BlueprintClassResolver : IDisposable
 
     private ResolvedBlueprintTemplate createCanonicalTemplate(string reference)
     {
-        if (reference.StartsWith(BlueprintPrefix, StringComparison.Ordinal))
+        if (BlueprintReference.IsReference(reference))
         {
-            string key = reference[BlueprintPrefix.Length..].Replace('.', '/');
+            string key = BlueprintReference.NormalizeKey(reference);
             if (readBlueprint(key) is JsonObject blueprint)
                 return createBlueprintTemplate(blueprint, reference, key);
             return createResolvedTemplate(
@@ -182,9 +175,9 @@ public sealed class BlueprintClassResolver : IDisposable
         if (!string.IsNullOrWhiteSpace(blueprintKey))
             visited.Add(blueprintKey);
         string? parent = getParent(blueprint);
-        while (!string.IsNullOrWhiteSpace(parent) && parent.StartsWith(BlueprintPrefix, StringComparison.Ordinal))
+        while (!string.IsNullOrWhiteSpace(parent) && BlueprintReference.IsReference(parent))
         {
-            string key = parent[BlueprintPrefix.Length..].Replace('.', '/');
+            string key = BlueprintReference.NormalizeKey(parent);
             if (!visited.Add(key) || readBlueprint(key) is not JsonObject parentBlueprint)
             {
                 parent = null;
@@ -211,7 +204,7 @@ public sealed class BlueprintClassResolver : IDisposable
     private BlueprintRootResolution resolveRoot(string? reference)
     {
         HashSet<LuaTypeReference> probedMetadataTypes = [];
-        if (string.IsNullOrWhiteSpace(reference) || reference.StartsWith(BlueprintPrefix, StringComparison.Ordinal))
+        if (string.IsNullOrWhiteSpace(reference) || BlueprintReference.IsReference(reference))
             return new BlueprintRootResolution(
                 null,
                 null,
@@ -764,7 +757,8 @@ public sealed class BlueprintClassResolver : IDisposable
 
     private static string? getParent(JsonObject blueprint)
     {
-        return blueprint["parent"]?.GetValue<string>()?.Trim();
+        string? parent = blueprint["parent"]?.GetValue<string>()?.Trim();
+        return BlueprintReference.IsReference(parent) ? BlueprintReference.ToReference(parent) : parent;
     }
 
     private void ensureMetadataRevision()

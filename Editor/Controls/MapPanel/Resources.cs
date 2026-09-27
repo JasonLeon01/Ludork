@@ -3,7 +3,6 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
-using Avalonia.Platform;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Ludork.Plugin.Avalonia;
@@ -16,7 +15,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
 
 namespace Ludork.Controls;
@@ -80,29 +78,11 @@ public sealed partial class MapPanel
 
     private Bitmap getHueImage(string assetPath, Bitmap source, double hue)
     {
-        string cacheKey = assetPath + "|" + (hue % 360).ToString("F3", CultureInfo.InvariantCulture);
+        double normalizedHue = EditorBitmapEffects.NormalizeHue(hue);
+        string cacheKey = assetPath + "|" + normalizedHue.ToString("R", CultureInfo.InvariantCulture);
         if (hueCache.TryGetValue(cacheKey, out Bitmap? cached))
             return cached;
-        int width = source.PixelSize.Width;
-        int height = source.PixelSize.Height;
-        WriteableBitmap result = new(new PixelSize(width, height), new Vector(96, 96), Avalonia.Platform.PixelFormat.Bgra8888, Avalonia.Platform.AlphaFormat.Unpremul);
-        using ILockedFramebuffer frame = result.Lock();
-        byte[] pixels = new byte[frame.RowBytes * height];
-        source.CopyPixels(new PixelRect(source.PixelSize), frame.Address, pixels.Length, frame.RowBytes);
-        double offset = (hue % 360 + 360) % 360 / 360.0;
-        for (int y = 0; y < height; y++)
-        for (int x = 0; x < width; x++)
-        {
-            int index = y * frame.RowBytes + x * 4;
-            if (pixels[index + 3] == 0)
-                continue;
-            (double h, double s, double v) = rgbToHsv(pixels[index + 2] / 255.0, pixels[index + 1] / 255.0, pixels[index] / 255.0);
-            (double r, double g, double b) = hsvToRgb((h + offset) % 1.0, s, v);
-            pixels[index] = (byte)Math.Round(b * 255);
-            pixels[index + 1] = (byte)Math.Round(g * 255);
-            pixels[index + 2] = (byte)Math.Round(r * 255);
-        }
-        Marshal.Copy(pixels, 0, frame.Address, pixels.Length);
+        Bitmap result = EditorBitmapEffects.CreateHueShiftedBitmap(source, normalizedHue);
         hueCache[cacheKey] = result;
         return result;
     }
@@ -117,27 +97,6 @@ public sealed partial class MapPanel
             retiredBitmaps.Add(hueCache[key]);
             hueCache.Remove(key);
         }
-    }
-
-    private static (double H, double S, double V) rgbToHsv(double r, double g, double b)
-    {
-        double max = Math.Max(r, Math.Max(g, b));
-        double min = Math.Min(r, Math.Min(g, b));
-        double delta = max - min;
-        if (delta == 0)
-            return (0, 0, max);
-        double h = max == r ? ((g - b) / delta + (g < b ? 6 : 0)) : max == g ? (b - r) / delta + 2 : (r - g) / delta + 4;
-        return (h / 6, max == 0 ? 0 : delta / max, max);
-    }
-
-    private static (double R, double G, double B) hsvToRgb(double h, double s, double v)
-    {
-        int sector = (int)Math.Floor(h * 6) % 6;
-        double f = h * 6 - Math.Floor(h * 6);
-        double p = v * (1 - s);
-        double q = v * (1 - f * s);
-        double t = v * (1 - (1 - f) * s);
-        return sector switch { 0 => (v, t, p), 1 => (q, v, p), 2 => (p, v, t), 3 => (p, q, v), 4 => (t, p, v), _ => (v, p, q) };
     }
 
     private void showLightContextMenu(Point position, int width, int height)

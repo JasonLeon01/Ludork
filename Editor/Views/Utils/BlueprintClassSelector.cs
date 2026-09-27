@@ -20,7 +20,6 @@ public enum BlueprintClassSelectorMode
 
 public static class BlueprintClassSelector
 {
-    private const string BlueprintPrefix = "Data.Blueprints.";
     private const string ActorRoot = "Engine.Actor";
 
     public static Task<string?> ShowAsync(
@@ -38,8 +37,8 @@ public static class BlueprintClassSelector
             classResolver,
             blueprintKey,
             mode);
-        string initial = current;
-        if (!current.StartsWith(BlueprintPrefix, StringComparison.Ordinal))
+        string initial = BlueprintReference.IsReference(current) ? BlueprintReference.ToReference(current) : current;
+        if (!BlueprintReference.IsReference(current))
         {
             ResolvedBlueprintClass resolved = classResolver.Resolve(current);
             if (resolved.RootType is not null)
@@ -70,7 +69,7 @@ public static class BlueprintClassSelector
             {
                 continue;
             }
-            string reference = BlueprintPrefix + key.Replace('/', '.').Replace('\\', '.');
+            string reference = BlueprintReference.ToReference(key);
             if (isBlueprintClass(reference, classResolver))
                 blueprints.Add(reference);
         }
@@ -116,11 +115,11 @@ public static class BlueprintClassSelector
                 return true;
             if (!gameData.Blueprints.BlueprintsData.TryGetValue(key, out BlueprintDefinitionSnapshot? blueprint)
                 || string.IsNullOrWhiteSpace(blueprint.Parent)
-                || !blueprint.Parent.StartsWith(BlueprintPrefix, StringComparison.Ordinal))
+                || !BlueprintReference.IsReference(blueprint.Parent))
             {
                 return false;
             }
-            key = BlueprintEditorDocument.NormalizeBlueprintKey(blueprint.Parent);
+            key = BlueprintReference.NormalizeKey(blueprint.Parent);
         }
         return false;
     }

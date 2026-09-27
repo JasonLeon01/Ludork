@@ -35,7 +35,7 @@ internal sealed class ResourceCleanupHostBridge : IResourceCleanupHost
         return await Task.Run(() =>
         {
             cancellationToken.ThrowIfCancellationRequested();
-            string path = ResourceCleanupFileSystem.ResolveSafePath(ProjectPath, ResourceCleanupFileSystem.KeepListPath);
+            string path = ResourceCleanupFileSystem.ResolveSafePath(ProjectPath, ResourceCleanupFileSystem.KeepListPath, allowMissing: true);
             return File.Exists(path) ? normalizeKeepPaths(File.ReadAllLines(path, Encoding.UTF8)) : [];
         }, cancellationToken);
     }
@@ -50,7 +50,7 @@ internal sealed class ResourceCleanupHostBridge : IResourceCleanupHost
             await Task.Run(() =>
             {
                 string[] normalized = normalizeKeepPaths(requested);
-                string path = ResourceCleanupFileSystem.ResolveSafePath(ProjectPath, ResourceCleanupFileSystem.KeepListPath);
+                string path = ResourceCleanupFileSystem.ResolveSafePath(ProjectPath, ResourceCleanupFileSystem.KeepListPath, allowMissing: true);
                 cancellationToken.ThrowIfCancellationRequested();
                 if (normalized.Length == 0)
                 {
@@ -67,7 +67,7 @@ internal sealed class ResourceCleanupHostBridge : IResourceCleanupHost
                 {
                     File.WriteAllText(temporary, content, new UTF8Encoding(false, true));
                     cancellationToken.ThrowIfCancellationRequested();
-                    ResourceCleanupFileSystem.ResolveSafePath(ProjectPath, ResourceCleanupFileSystem.KeepListPath);
+                    ResourceCleanupFileSystem.ResolveSafePath(ProjectPath, ResourceCleanupFileSystem.KeepListPath, allowMissing: true);
                     File.Move(temporary, path, true);
                 }
                 finally
@@ -193,7 +193,7 @@ internal sealed class ResourceCleanupHostBridge : IResourceCleanupHost
         string[] result = paths.Where(path => !string.IsNullOrWhiteSpace(path))
             .Select(ResourceCleanupFileSystem.NormalizeKeepPath).Distinct(StringComparer.Ordinal).ToArray();
         foreach (string path in result)
-            ResourceCleanupFileSystem.ResolveSafePath(ProjectPath, path);
+            ResourceCleanupFileSystem.ResolveSafePath(ProjectPath, path, allowMissing: true);
         return result;
     }
 

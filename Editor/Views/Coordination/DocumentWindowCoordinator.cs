@@ -421,8 +421,7 @@ internal sealed class DocumentWindowCoordinator : IDisposable
             key = string.Empty;
             return false;
         }
-        key = Path.ChangeExtension(relative, null)!
-            .Replace('\\', '/');
+        key = BlueprintReference.NormalizeKey(relative);
         return gameData.Blueprints.BlueprintsData.ContainsKey(key);
     }
 

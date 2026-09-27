@@ -107,17 +107,17 @@ public partial class AndroidSigningDialog : Window
     private string? getValidationMessage()
     {
         string keystorePath = KeystorePathBox.Text ?? string.Empty;
-        if (!isReadableAbsoluteFile(keystorePath))
+        if (!SigningInput.IsReadableFile(keystorePath))
             return LocaleService.Get("PACK_ANDROID_KEYSTORE_INVALID");
         if (string.IsNullOrWhiteSpace(KeyAliasBox.Text))
             return LocaleService.Get("PACK_ANDROID_KEY_ALIAS_REQUIRED");
-        if (hasLineBreak(KeyAliasBox.Text))
+        if (SigningInput.HasInvalidCharacters(KeyAliasBox.Text))
             return LocaleService.Get("PACK_ANDROID_KEY_ALIAS_INVALID");
 
         string keystorePassword = KeystorePasswordBox.Text ?? string.Empty;
         if (keystorePassword.Length == 0)
             return LocaleService.Get("PACK_ANDROID_KEYSTORE_PASSWORD_REQUIRED");
-        if (hasLineBreak(keystorePassword))
+        if (SigningInput.HasInvalidCharacters(keystorePassword))
             return LocaleService.Get("PACK_ANDROID_PASSWORD_LINE_BREAK");
 
         if (SameKeyPasswordOption.IsChecked != true)
@@ -125,42 +125,10 @@ public partial class AndroidSigningDialog : Window
             string keyPassword = KeyPasswordBox.Text ?? string.Empty;
             if (keyPassword.Length == 0)
                 return LocaleService.Get("PACK_ANDROID_KEY_PASSWORD_REQUIRED");
-            if (hasLineBreak(keyPassword))
+            if (SigningInput.HasInvalidCharacters(keyPassword))
                 return LocaleService.Get("PACK_ANDROID_PASSWORD_LINE_BREAK");
         }
         return null;
-    }
-
-    private static bool isReadableAbsoluteFile(string path)
-    {
-        if (string.IsNullOrWhiteSpace(path)
-            || !Path.IsPathFullyQualified(path)
-            || !File.Exists(path))
-        {
-            return false;
-        }
-        try
-        {
-            using FileStream stream = File.Open(
-                path,
-                FileMode.Open,
-                FileAccess.Read,
-                FileShare.ReadWrite | FileShare.Delete);
-            return stream.CanRead;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return false;
-        }
-        catch (IOException)
-        {
-            return false;
-        }
-    }
-
-    private static bool hasLineBreak(string value)
-    {
-        return value.IndexOfAny(['\r', '\n']) >= 0;
     }
 
     private async void onConfirm(object? sender, RoutedEventArgs args)

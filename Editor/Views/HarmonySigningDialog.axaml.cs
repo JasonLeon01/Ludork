@@ -144,11 +144,11 @@ public partial class HarmonySigningDialog : Window
         string keystorePath = KeystorePathBox.Text ?? string.Empty;
         string certificatePath = CertificatePathBox.Text ?? string.Empty;
         string profilePath = ProfilePathBox.Text ?? string.Empty;
-        if (!HarmonySigningInput.IsReadableFile(keystorePath))
+        if (!SigningInput.IsReadableFile(keystorePath))
             return LocaleService.Get("PACK_HARMONY_KEYSTORE_INVALID");
-        if (!HarmonySigningInput.IsReadableFile(certificatePath))
+        if (!SigningInput.IsReadableFile(certificatePath))
             return LocaleService.Get("PACK_HARMONY_CERTIFICATE_INVALID");
-        if (!HarmonySigningInput.IsReadableFile(profilePath))
+        if (!SigningInput.IsReadableFile(profilePath))
             return LocaleService.Get("PACK_HARMONY_PROFILE_INVALID");
         if (!HarmonySigningInput.IsOutsideProject(keystorePath, projectPath)
             || !HarmonySigningInput.IsOutsideProject(certificatePath, projectPath)
@@ -158,19 +158,19 @@ public partial class HarmonySigningDialog : Window
         }
         if (string.IsNullOrWhiteSpace(KeyAliasBox.Text))
             return LocaleService.Get("PACK_HARMONY_KEY_ALIAS_REQUIRED");
-        if (HarmonySigningInput.HasLineBreak(KeyAliasBox.Text))
+        if (SigningInput.HasInvalidCharacters(KeyAliasBox.Text))
             return LocaleService.Get("PACK_HARMONY_KEY_ALIAS_INVALID");
         string keystorePassword = KeystorePasswordBox.Text ?? string.Empty;
         if (keystorePassword.Length == 0)
             return LocaleService.Get("PACK_HARMONY_KEYSTORE_PASSWORD_REQUIRED");
-        if (HarmonySigningInput.HasLineBreak(keystorePassword))
+        if (SigningInput.HasInvalidCharacters(keystorePassword))
             return LocaleService.Get("PACK_HARMONY_PASSWORD_LINE_BREAK");
         if (SameKeyPasswordOption.IsChecked != true)
         {
             string keyPassword = KeyPasswordBox.Text ?? string.Empty;
             if (keyPassword.Length == 0)
                 return LocaleService.Get("PACK_HARMONY_KEY_PASSWORD_REQUIRED");
-            if (HarmonySigningInput.HasLineBreak(keyPassword))
+            if (SigningInput.HasInvalidCharacters(keyPassword))
                 return LocaleService.Get("PACK_HARMONY_PASSWORD_LINE_BREAK");
         }
         return null;

@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
+using Ludork.Plugin.Avalonia;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -42,7 +43,7 @@ public sealed partial class ActorPreviewService
                     ["height"] = textureRect.Height,
                 },
                 ["shaderPath"] = descriptor.ShaderPath,
-                ["hue"] = normalizeHue(descriptor.Hue),
+                ["hue"] = EditorBitmapEffects.NormalizeHue(descriptor.Hue),
             });
         }
         JsonObject request = new()

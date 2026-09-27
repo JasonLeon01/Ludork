@@ -362,16 +362,16 @@ public sealed class ProjectPackService
             HarmonySigningOptions? harmony = options.HarmonySigning;
             if ((options.ExportToHarmonyDevice && harmony is null)
                 || (harmony is not null
-                    && (!HarmonySigningInput.IsReadableFile(harmony.KeystorePath)
-                        || !HarmonySigningInput.IsReadableFile(harmony.CertificatePath)
-                        || !HarmonySigningInput.IsReadableFile(harmony.ProfilePath)
+                    && (!SigningInput.IsReadableFile(harmony.KeystorePath)
+                        || !SigningInput.IsReadableFile(harmony.CertificatePath)
+                        || !SigningInput.IsReadableFile(harmony.ProfilePath)
                         || !HarmonySigningInput.IsOutsideProject(harmony.KeystorePath, projectPath)
                         || !HarmonySigningInput.IsOutsideProject(harmony.CertificatePath, projectPath)
                         || !HarmonySigningInput.IsOutsideProject(harmony.ProfilePath, projectPath)
                         || string.IsNullOrWhiteSpace(harmony.KeyAlias)
-                        || HarmonySigningInput.HasLineBreak(harmony.KeyAlias)
-                        || !HarmonySigningInput.IsNonEmptySingleLine(harmony.KeystorePassword)
-                        || !HarmonySigningInput.IsNonEmptySingleLine(harmony.KeyPassword))))
+                        || SigningInput.HasInvalidCharacters(harmony.KeyAlias)
+                        || !SigningInput.IsNonEmptySingleLine(harmony.KeystorePassword)
+                        || !SigningInput.IsNonEmptySingleLine(harmony.KeyPassword))))
             {
                 return ProjectPackResult.Failed(
                     ProjectPackFailure.HarmonySigningUnavailable, string.Empty);
@@ -381,14 +381,11 @@ public sealed class ProjectPackService
         if (options.Platform == ProjectPackPlatform.Android)
         {
             if (options.AndroidSigning is { } android
-                && (string.IsNullOrWhiteSpace(android.KeystorePath)
-                    || !Path.IsPathFullyQualified(android.KeystorePath)
-                    || android.KeystorePath.IndexOfAny(['\r', '\n']) >= 0
-                    || !File.Exists(android.KeystorePath)
+                && (!SigningInput.IsReadableFile(android.KeystorePath)
                     || string.IsNullOrWhiteSpace(android.KeyAlias)
-                    || android.KeyAlias.IndexOfAny(['\r', '\n']) >= 0
-                    || !AppleSigningInput.IsNonEmptySingleLine(android.KeystorePassword)
-                    || !AppleSigningInput.IsNonEmptySingleLine(android.KeyPassword)))
+                    || SigningInput.HasInvalidCharacters(android.KeyAlias)
+                    || !SigningInput.IsNonEmptySingleLine(android.KeystorePassword)
+                    || !SigningInput.IsNonEmptySingleLine(android.KeyPassword)))
             {
                 return ProjectPackResult.Failed(
                     ProjectPackFailure.AndroidSigningUnavailable,
@@ -407,10 +404,10 @@ public sealed class ProjectPackService
     {
         if (signing is null)
             return null;
-        if (signing.SigningIdentity.IndexOfAny(['\r', '\n']) >= 0
-            || !AppleSigningInput.IsOptionalReadableFile(signing.CertificatePath)
+        if (SigningInput.HasInvalidCharacters(signing.SigningIdentity)
+            || !SigningInput.IsOptionalReadableFile(signing.CertificatePath)
             || (signing.CertificatePath.Length != 0
-                && !AppleSigningInput.IsNonEmptySingleLine(signing.CertificatePassword)))
+                && !SigningInput.IsNonEmptySingleLine(signing.CertificatePassword)))
         {
             return ProjectPackResult.Failed(
                 ProjectPackFailure.MacOSSigningUnavailable,
@@ -425,12 +422,12 @@ public sealed class ProjectPackService
                 string.Empty);
         }
         bool validCredentials = notarization.UsesApiKey
-            ? AppleSigningInput.IsReadableFile(notarization.KeyPath)
-                && AppleSigningInput.IsNonEmptySingleLine(notarization.KeyId)
-                && AppleSigningInput.IsNonEmptySingleLine(notarization.KeyIssuer)
-            : AppleSigningInput.IsNonEmptySingleLine(notarization.AppleId)
+            ? SigningInput.IsReadableFile(notarization.KeyPath)
+                && SigningInput.IsNonEmptySingleLine(notarization.KeyId)
+                && SigningInput.IsNonEmptySingleLine(notarization.KeyIssuer)
+            : SigningInput.IsNonEmptySingleLine(notarization.AppleId)
                 && AppleSigningInput.IsValidTeamId(notarization.TeamId)
-                && AppleSigningInput.IsNonEmptySingleLine(notarization.AppSpecificPassword);
+                && SigningInput.IsNonEmptySingleLine(notarization.AppSpecificPassword);
         if (!validCredentials)
         {
             return ProjectPackResult.Failed(
@@ -447,7 +444,7 @@ public sealed class ProjectPackService
         bool hasCertificate = signing.CertificatePath.Length != 0;
         bool hasProfile = signing.ProvisioningProfilePath.Length != 0;
         if (hasCertificate != hasProfile
-            || signing.SigningIdentity.IndexOfAny(['\r', '\n']) >= 0
+            || SigningInput.HasInvalidCharacters(signing.SigningIdentity)
             || (signing.TeamId.Length != 0 && !AppleSigningInput.IsValidTeamId(signing.TeamId)))
         {
             return ProjectPackResult.Failed(
@@ -455,9 +452,9 @@ public sealed class ProjectPackService
                 string.Empty);
         }
         if (hasCertificate
-            && (!AppleSigningInput.IsReadableFile(signing.CertificatePath)
-                || !AppleSigningInput.IsReadableFile(signing.ProvisioningProfilePath)
-                || !AppleSigningInput.IsNonEmptySingleLine(signing.CertificatePassword)))
+            && (!SigningInput.IsReadableFile(signing.CertificatePath)
+                || !SigningInput.IsReadableFile(signing.ProvisioningProfilePath)
+                || !SigningInput.IsNonEmptySingleLine(signing.CertificatePassword)))
         {
             return ProjectPackResult.Failed(
                 ProjectPackFailure.SigningUnavailable,

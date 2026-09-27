@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using Ludork.Plugin.Avalonia;
 using System;
 using System.IO;
 using System.Collections.Generic;
@@ -210,76 +211,8 @@ public sealed partial class ActorPreviewService
                 int targetOffset = y * rect.Width * 4;
                 Buffer.BlockCopy(pixels, sourceOffset, result, targetOffset, rect.Width * 4);
             }
-            if (hue > 0.001)
-                applyHue(result, hue, cancellationToken);
+            EditorBitmapEffects.ApplyHueShiftBgra(result, rect.Width, rect.Height, rect.Width * 4, hue, cancellationToken);
             return result;
-        }
-
-        private static void applyHue(byte[] data, double hue, CancellationToken cancellationToken)
-        {
-            float offset = (float)(hue / 360.0);
-            for (int index = 0; index < data.Length; index += 4)
-            {
-                if ((index & 16383) == 0)
-                    cancellationToken.ThrowIfCancellationRequested();
-                if (data[index + 3] == 0)
-                    continue;
-                rgbToHsv(data[index + 2], data[index + 1], data[index], out float h, out float s, out float v);
-                hsvToRgb((h + offset) % 1f, s, v, out byte r, out byte g, out byte b);
-                data[index + 2] = r;
-                data[index + 1] = g;
-                data[index] = b;
-            }
-        }
-
-        private static void rgbToHsv(byte r, byte g, byte b, out float h, out float s, out float v)
-        {
-            float rf = r / 255f;
-            float gf = g / 255f;
-            float bf = b / 255f;
-            float max = Math.Max(rf, Math.Max(gf, bf));
-            float min = Math.Min(rf, Math.Min(gf, bf));
-            float delta = max - min;
-            v = max;
-            if (delta <= 0.00001f)
-            {
-                h = 0;
-                s = 0;
-                return;
-            }
-            s = delta / max;
-            if (rf >= max)
-                h = (gf - bf) / delta % 6f;
-            else if (gf >= max)
-                h = (bf - rf) / delta + 2f;
-            else
-                h = (rf - gf) / delta + 4f;
-            h /= 6f;
-            if (h < 0)
-                h += 1f;
-        }
-
-        private static void hsvToRgb(float h, float s, float v, out byte r, out byte g, out byte b)
-        {
-            float c = v * s;
-            float x = c * (1 - Math.Abs(h * 6f % 2f - 1));
-            float m = v - c;
-            float rf;
-            float gf;
-            float bf;
-            int sector = (int)(h * 6f) % 6;
-            switch (sector)
-            {
-                case 0: rf = c; gf = x; bf = 0; break;
-                case 1: rf = x; gf = c; bf = 0; break;
-                case 2: rf = 0; gf = c; bf = x; break;
-                case 3: rf = 0; gf = x; bf = c; break;
-                case 4: rf = x; gf = 0; bf = c; break;
-                default: rf = c; gf = 0; bf = x; break;
-            }
-            r = (byte)Math.Clamp((rf + m) * 255f, 0, 255);
-            g = (byte)Math.Clamp((gf + m) * 255f, 0, 255);
-            b = (byte)Math.Clamp((bf + m) * 255f, 0, 255);
         }
     }
 }

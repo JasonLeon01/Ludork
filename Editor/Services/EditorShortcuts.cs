@@ -13,4 +13,15 @@ public static class EditorShortcuts
     {
         return modifiers.HasFlag(PrimaryModifier);
     }
+
+    public static bool IsUndo(Key key, KeyModifiers modifiers)
+    {
+        return key == Key.Z && modifiers == PrimaryModifier;
+    }
+
+    public static bool IsRedo(Key key, KeyModifiers modifiers)
+    {
+        return key == Key.Y && modifiers == PrimaryModifier
+            || key == Key.Z && modifiers == (PrimaryModifier | KeyModifiers.Shift);
+    }
 }

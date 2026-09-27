@@ -1,3 +1,4 @@
+using Ludork.Services;
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -36,18 +37,29 @@ public sealed class MarkdownDocumentEntry : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public bool matches(string query)
+    public bool matches(string query, string root)
     {
         if (DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase))
             return true;
         if (IsDirectory)
             return false;
-        searchText ??= readSearchText();
+        searchText ??= TryReadText(root, out string content) ? content : string.Empty;
         return searchText.Contains(query, StringComparison.OrdinalIgnoreCase);
     }
 
-    private string readSearchText()
+    public bool TryReadText(string root, out string content)
     {
-        return File.ReadAllText(Path, Encoding.UTF8);
+        content = string.Empty;
+        if (IsDirectory || !EditorPathSandbox.TryResolve(root, Path, out string path))
+            return false;
+        try
+        {
+            content = File.ReadAllText(path, Encoding.UTF8);
+            return true;
+        }
+        catch (Exception exception) when (EditorPathSandbox.IsPathFailure(exception))
+        {
+            return false;
+        }
     }
 }

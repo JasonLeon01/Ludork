@@ -167,7 +167,7 @@ public partial class MacOSSigningDialog : Window
         bool environmentSigning = EnvironmentSigningOption.IsChecked == true;
         SaveSigningOption.IsVisible = !environmentSigning
             && !credentialOperationPending
-            && AppleSigningInput.IsReadableFile(CertificatePathBox.Text ?? string.Empty);
+            && SigningInput.IsReadableFile(CertificatePathBox.Text ?? string.Empty);
         if (credentialOperationPending)
         {
             ValidationText.Text = string.Empty;
@@ -184,18 +184,18 @@ public partial class MacOSSigningDialog : Window
         if (EnvironmentSigningOption.IsChecked == true)
             return null;
         string identity = SigningIdentityBox.Text ?? string.Empty;
-        if (AppleSigningInput.HasLineBreak(identity))
+        if (SigningInput.HasInvalidCharacters(identity))
             return LocaleService.Get("PACK_SIGNING_IDENTITY_LINE_BREAK");
 
         string certificatePath = CertificatePathBox.Text ?? string.Empty;
         string certificatePassword = CertificatePasswordBox.Text ?? string.Empty;
         if (certificatePath.Length != 0)
         {
-            if (!AppleSigningInput.IsReadableFile(certificatePath))
+            if (!SigningInput.IsReadableFile(certificatePath))
                 return LocaleService.Get("PACK_SIGNING_CERTIFICATE_INVALID");
             if (certificatePassword.Length == 0)
                 return LocaleService.Get("PACK_SIGNING_CERTIFICATE_PASSWORD_REQUIRED");
-            if (AppleSigningInput.HasLineBreak(certificatePassword))
+            if (SigningInput.HasInvalidCharacters(certificatePassword))
                 return LocaleService.Get("PACK_SIGNING_PASSWORD_LINE_BREAK");
         }
 
@@ -205,7 +205,7 @@ public partial class MacOSSigningDialog : Window
             return LocaleService.Get("PACK_MACOS_SIGNING_IDENTITY_REQUIRED");
         if (ApiKeyOption.IsChecked == true)
         {
-            if (!AppleSigningInput.IsReadableFile(NotaryKeyPathBox.Text ?? string.Empty))
+            if (!SigningInput.IsReadableFile(NotaryKeyPathBox.Text ?? string.Empty))
                 return LocaleService.Get("PACK_MACOS_NOTARY_KEY_REQUIRED");
             if (string.IsNullOrWhiteSpace(NotaryKeyIdBox.Text))
                 return LocaleService.Get("PACK_MACOS_NOTARY_KEY_ID_REQUIRED");
@@ -220,7 +220,7 @@ public partial class MacOSSigningDialog : Window
         string notaryPassword = NotaryPasswordBox.Text ?? string.Empty;
         if (notaryPassword.Length == 0)
             return LocaleService.Get("PACK_MACOS_NOTARY_PASSWORD_REQUIRED");
-        if (AppleSigningInput.HasLineBreak(notaryPassword))
+        if (SigningInput.HasInvalidCharacters(notaryPassword))
             return LocaleService.Get("PACK_SIGNING_PASSWORD_LINE_BREAK");
         return null;
     }

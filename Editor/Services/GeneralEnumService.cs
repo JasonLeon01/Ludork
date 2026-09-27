@@ -1,4 +1,5 @@
 using Ludork.Models;
+using Ludork.Plugin.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -167,7 +168,7 @@ internal sealed class GeneralEnumService
         StringBuilder builder = new();
         builder.Append(GeneratedMarker)
             .Append("\nlocal AttributeSet = require(")
-            .Append(quote(AttributeSetModule))
+            .Append(LuaStringLiteral.Quote(AttributeSetModule))
             .Append(").AttributeSet\n\n")
             .Append("---@param self GlobalCore.AttributeSet\n")
             .Append("---@param values? table<string, any>\n")
@@ -190,7 +191,7 @@ internal sealed class GeneralEnumService
         {
             GeneralEnumType type = types[index];
             builder.Append("    [")
-                .Append(quote(type.SourceKey))
+                .Append(LuaStringLiteral.Quote(type.SourceKey))
                 .Append("] = ")
                 .Append(type.AttributeSetName);
             if (index != types.Count - 1)
@@ -239,7 +240,7 @@ internal sealed class GeneralEnumService
         }
         else
         {
-            string names = string.Join(", ", type.Attributes.Select(attribute => quote(attribute.Name)));
+            string names = string.Join(", ", type.Attributes.Select(attribute => LuaStringLiteral.Quote(attribute.Name)));
             string singleLine = type.AttributeSetName + ".ATTRIBUTE_NAMES = { " + names + " }";
             if (singleLine.Length <= 120)
             {
@@ -420,7 +421,7 @@ internal sealed class GeneralEnumService
 
     private static string luaDocFieldName(string name)
     {
-        return isLuaIdentifier(name) ? name : "[" + quote(name) + "]";
+        return isLuaIdentifier(name) ? name : "[" + LuaStringLiteral.Quote(name) + "]";
     }
 
     private static void appendLuaTableKey(StringBuilder builder, string key)
@@ -428,7 +429,7 @@ internal sealed class GeneralEnumService
         if (isLuaIdentifier(key))
             builder.Append(key);
         else
-            builder.Append('[').Append(quote(key)).Append(']');
+            builder.Append('[').Append(LuaStringLiteral.Quote(key)).Append(']');
     }
 
     private static bool isLuaIdentifier(string value)
@@ -478,7 +479,7 @@ internal sealed class GeneralEnumService
         }
         JsonValue scalar = (JsonValue)value;
         if (scalar.TryGetValue(out string? stringValue))
-            builder.Append(quote(stringValue));
+            builder.Append(LuaStringLiteral.Quote(stringValue));
         else if (scalar.TryGetValue(out bool boolValue))
             builder.Append(boolValue ? "true" : "false");
         else if (scalar.TryGetValue(out long longValue))
@@ -506,7 +507,7 @@ internal sealed class GeneralEnumService
             builder.Append("    ")
                 .Append(entry.Identifier)
                 .Append(" = ")
-                .Append(quote(entry.SourceKey))
+                .Append(LuaStringLiteral.Quote(entry.SourceKey))
                 .Append(",\n");
         }
         builder.Append("}\n");
@@ -560,41 +561,6 @@ internal sealed class GeneralEnumService
         while (!usedNames.Add(candidate))
             candidate = value + "_" + suffix++;
         return candidate;
-    }
-
-    private static string quote(string value)
-    {
-        StringBuilder builder = new(value.Length + 2);
-        builder.Append('"');
-        foreach (char character in value)
-        {
-            switch (character)
-            {
-                case '\\':
-                    builder.Append("\\\\");
-                    break;
-                case '"':
-                    builder.Append("\\\"");
-                    break;
-                case '\n':
-                    builder.Append("\\n");
-                    break;
-                case '\r':
-                    builder.Append("\\r");
-                    break;
-                case '\t':
-                    builder.Append("\\t");
-                    break;
-                default:
-                    if (char.IsControl(character) && character <= byte.MaxValue)
-                        builder.Append('\\').Append(((int)character).ToString("D3", CultureInfo.InvariantCulture));
-                    else
-                        builder.Append(character);
-                    break;
-            }
-        }
-        builder.Append('"');
-        return builder.ToString();
     }
 
     private sealed record GeneralEnumType(
