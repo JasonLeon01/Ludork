@@ -27,8 +27,12 @@ export default function LudorkHomePage({ language }: { language: LanguageKey }) 
           <LudorkHeroComparison description={messages.home.imageAlt} editorLabel={messages.home.imageEditorLabel} gameLabel={messages.home.imageGameLabel} />
         </LudorkReveal>
       </section>
-      <LudorkPlatformSection id="editor-platforms" title={messages.home.editorPlatforms} platforms={LUDORK_EDITOR_PLATFORMS} />
-      <LudorkPlatformSection id="game-platforms" title={messages.home.gamePlatforms} platforms={LUDORK_GAME_PLATFORMS} />
+      <div className="ludork-platforms">
+        <div className="ludork-platform-grid ludork-container ludork-section">
+          <LudorkPlatformSection id="editor-platforms" title={messages.home.editorPlatforms} platforms={LUDORK_EDITOR_PLATFORMS} />
+          <LudorkPlatformSection id="game-platforms" title={messages.home.gamePlatforms} platforms={LUDORK_GAME_PLATFORMS} />
+        </div>
+      </div>
       <LudorkAcknowledgements language={language} />
     </main>
   )

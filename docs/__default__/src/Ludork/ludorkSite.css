@@ -444,22 +444,56 @@ html[lang="zh-CN"] .ludork-hero h1 {
   text-wrap: balance;
 }
 
-.ludork-platform-section {
+.ludork-platforms {
   background: var(--ludork-canvas);
+}
+
+.ludork-platform-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(16px, 4vw, 48px);
+}
+
+.ludork-platform-section {
+  min-width: 0;
   text-align: center;
 }
 
-.ludork-platform-section + .ludork-platform-section .ludork-section {
-  border-top: 1px solid var(--ludork-line);
+.ludork-platform-section h2 {
+  font-size: clamp(1rem, 2.2vw, 1.75rem);
+}
+
+.ludork-platform-icons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 16px 20px;
+  list-style: none;
+  padding: 0;
+  margin: 28px 0 0;
+}
+
+.ludork-platform-icons li {
+  flex: none;
+}
+
+.ludork-platform-icons img {
+  display: block;
+  max-width: 100%;
+  object-fit: contain;
 }
 
 .ludork-logo-scroll {
   container-type: inline-size;
-  overflow-x: clip;
+  overflow-x: auto;
   margin-top: 36px;
   padding-block: 12px 20px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--ludork-scrollbar) transparent;
+  scrollbar-width: none;
+}
+
+.ludork-logo-scroll::-webkit-scrollbar {
+  display: none;
 }
 
 .ludork-logo-track {
@@ -480,14 +514,6 @@ html[lang="zh-CN"] .ludork-hero h1 {
 
 .ludork-logo-scroll[data-overflow="true"] {
   mask-image: linear-gradient(to right, transparent, #000 min(32px, 6%), #000 calc(100% - min(32px, 6%)), transparent);
-}
-
-.ludork-logo-scroll[data-overflow="true"] .ludork-logo-track {
-  animation: ludork-logo-loop var(--logo-duration) linear infinite;
-}
-
-.ludork-logo-scroll:is(:hover, :focus-within, :active) .ludork-logo-track {
-  animation-play-state: paused;
 }
 
 .ludork-logo-group {
@@ -556,20 +582,11 @@ html[lang="zh-CN"] .ludork-hero h1 {
 }
 
 .ludork-logo-scroll:has(:focus-visible) {
-  overflow-x: auto;
   mask-image: none;
-}
-
-.ludork-logo-scroll:has(:focus-visible) .ludork-logo-track {
-  animation: none;
 }
 
 .ludork-logo-scroll:has(:focus-visible) .ludork-logo-copy {
   display: none;
-}
-
-@keyframes ludork-logo-loop {
-  to { transform: translateX(var(--logo-shift)); }
 }
 
 .ludork-acknowledgements {
@@ -887,12 +904,7 @@ html[lang="zh-CN"] .ludork-hero h1 {
   }
 
   .ludork-logo-scroll[data-overflow="true"] {
-    overflow-x: auto;
     mask-image: none;
-  }
-
-  .ludork-logo-scroll[data-overflow="true"] .ludork-logo-track {
-    animation: none;
   }
 
   .ludork-logo-copy {

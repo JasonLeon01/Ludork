@@ -82,9 +82,14 @@ retain their `docs/` paths through MSBuild and the platform packaging scripts.
 Website HTML, JavaScript, and build sources are not included in editor packages.
 
 The homepage uses `src/Ludork/assets/hero/home-hero.png` as its replaceable main
-image. Its acknowledgements list is defined in `ludorkDependencies.ts`; platform
-and dependency cards share the horizontal logo scroller, with manual scrolling
-when reduced motion is requested. Icon sources are recorded in
+image. Its acknowledgements list is defined in `ludorkDependencies.ts`; dependency
+cards scroll automatically and support native horizontal scrolling with hidden
+scrollbars, including trackpad gestures, Shift + mouse wheel and mobile touch
+swipes. Automatic scrolling pauses during hover, focus, touch and momentum
+scrolling, and is disabled when reduced motion is requested. The platform
+sections share one row in equal columns, with centred headings and fixed small
+icons that wrap on narrow screens and do not link to
+external websites. Icon sources are recorded in
 `src/Ludork/assets/credits.md`.
 
 `ScriptTools legal-resources editor <repository-root> <output-root>` writes the
