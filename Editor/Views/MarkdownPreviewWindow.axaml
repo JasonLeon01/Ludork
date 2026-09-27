@@ -61,7 +61,7 @@
                        HorizontalAlignment="Center"
                        VerticalAlignment="Center" />
         </Grid>
-        <Grid Grid.Row="4" ColumnDefinitions="2*,8,8*">
+        <Grid x:Name="DocumentLayout" Grid.Row="4" ColumnDefinitions="2*,8,8*">
             <TreeView x:Name="DocumentTree"
                       Grid.Column="0"
                       SelectionChanged="onDocumentSelectionChanged">

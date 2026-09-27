@@ -39,6 +39,7 @@ public sealed class ParticleOverviewWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Background = Ludork.Services.EditorTheme.Brush("Background");
         EditorWindowIcon.Apply(this);
+        EditorLayoutService.AttachWindow(this, nameof(ParticleOverviewWindow));
         search.PlaceholderText = LocaleService.Get("PARTICLE_SEARCH");
         resources.ItemTemplate = DocumentStatusPresenter.CreateTemplate(gameData, "Particles");
         MenuItem copy = new() { Header = LocaleService.Get("PARTICLE_COPY") };
@@ -61,6 +62,7 @@ public sealed class ParticleOverviewWindow : Window
         GridSplitter splitter = new() { Width = 5, HorizontalAlignment = HorizontalAlignment.Stretch };
         Grid.SetColumn(splitter, 1);
         root.Children.Add(splitter);
+        EditorLayoutService.BindColumns(root, splitter, "ParticleOverview.Columns", 0, 2);
         Grid.SetColumn(editorHost, 2);
         root.Children.Add(editorHost);
         Content = root;

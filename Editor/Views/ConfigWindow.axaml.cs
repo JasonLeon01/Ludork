@@ -28,6 +28,7 @@ public partial class ConfigWindow : Window
 
     public ConfigWindow(ProjectDataStore gameData, ProjectSaveService projectSave) : this()
     {
+        EditorLayoutService.AttachWindow(this, nameof(ConfigWindow));
         this.gameData = gameData;
         this.projectSave = projectSave;
         toast = new Toast(this);

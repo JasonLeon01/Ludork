@@ -22,7 +22,7 @@ namespace Ludork.Controls;
 public partial class FileExplorerPanel : UserControl
 {
     private const string DragPrefix = "ludork-file-explorer:";
-    private ExternalOpenTarget externalOpenTarget;
+    private EditorExternalOpenTarget externalOpenTarget;
     private Point? dragStart;
     private ListBox? dragSource;
     private PointerPressedEventArgs? dragPress;
@@ -34,12 +34,14 @@ public partial class FileExplorerPanel : UserControl
         InitializeComponent();
         DataContextChanged += (_, _) =>
         {
+            restoreExternalOpenTarget();
             updatePreviewActivity();
             if (IsLoaded)
                 refreshEntries();
         };
         Loaded += (_, _) =>
         {
+            restoreExternalOpenTarget();
             updatePreviewActivity();
             refreshEntries();
         };
@@ -51,6 +53,8 @@ public partial class FileExplorerPanel : UserControl
         };
         IconEntries.AddHandler(PointerPressedEvent, onPointerPressed, RoutingStrategies.Tunnel);
         ListEntries.AddHandler(PointerPressedEvent, onPointerPressed, RoutingStrategies.Tunnel);
+        IconEntries.AddHandler(PointerCaptureLostEvent, onPointerCaptureLost, RoutingStrategies.Bubble, true);
+        ListEntries.AddHandler(PointerCaptureLostEvent, onPointerCaptureLost, RoutingStrategies.Bubble, true);
         IconEntries.AddHandler(InputElement.ContextRequestedEvent, onContextRequested, RoutingStrategies.Tunnel);
         ListEntries.AddHandler(InputElement.ContextRequestedEvent, onContextRequested, RoutingStrategies.Tunnel);
         configureDropTarget(IconEntries);
@@ -65,6 +69,7 @@ public partial class FileExplorerPanel : UserControl
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs args)
     {
+        resetPendingDrag();
         foreach (FileExplorerItemControl row in this.GetVisualDescendants().OfType<FileExplorerItemControl>())
             row.Deactivate();
         previewViewModel = null;
@@ -107,6 +112,27 @@ public partial class FileExplorerPanel : UserControl
             await viewModel.NavigateToAsync(path);
     }
 
+    private async void onRootSelectionChanged(object? sender, SelectionChangedEventArgs args)
+    {
+        if (DataContext is FileExplorerViewModel viewModel
+            && RootEntries.SelectedItem is FileExplorerRootViewModel root
+            && root != viewModel.CurrentRoot)
+        {
+            await viewModel.NavigateToAsync(root.Path);
+        }
+    }
+
+    private async void onRootTapped(object? sender, TappedEventArgs args)
+    {
+        if (args.Source is Control { DataContext: FileExplorerRootViewModel root }
+            && DataContext is FileExplorerViewModel viewModel
+            && !string.Equals(viewModel.CurrentPath, root.Path,
+                OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+        {
+            await viewModel.NavigateToAsync(root.Path);
+        }
+    }
+
     internal void UpdateItemPresentation(FileExplorerItemControl row, FileExplorerEntryViewModel item)
     {
         ListBox? list = row.FindAncestorOfType<ListBox>();
@@ -117,7 +143,7 @@ public partial class FileExplorerPanel : UserControl
         Rect viewport = new(list?.Bounds.Size ?? default);
         bool visible = active && bounds.Intersects(viewport);
         bool preload = active && bounds.Intersects(viewport.Inflate(new Thickness(0, viewport.Height)));
-        int size = (int)Math.Ceiling((ReferenceEquals(list, IconEntries) ? 80 : 28) * (TopLevel.GetTopLevel(this)?.RenderScaling ?? 1));
+        int size = (int)Math.Ceiling((ReferenceEquals(list, IconEntries) ? 64 : 28) * (TopLevel.GetTopLevel(this)?.RenderScaling ?? 1));
         item.SetPresentation(row, visible, preload, size);
     }
 
@@ -149,28 +175,29 @@ public partial class FileExplorerPanel : UserControl
 
     private async void onDoubleTapped(object? sender, TappedEventArgs args)
     {
-        if (DataContext is FileExplorerViewModel viewModel)
+        if (getEntry(args.Source) is not null && DataContext is FileExplorerViewModel viewModel)
             await viewModel.OpenSelectedAsync();
     }
 
     private async void onOpenTarget(object? sender, RoutedEventArgs args)
     {
-        if (externalOpenTarget == ExternalOpenTarget.Folder)
+        applyExternalOpenTarget(resolveExternalOpenTarget(externalOpenTarget));
+        if (externalOpenTarget == EditorExternalOpenTarget.Folder)
         {
             await openContainingFolder();
             return;
         }
-        if (externalOpenTarget == ExternalOpenTarget.VsCode)
+        if (externalOpenTarget == EditorExternalOpenTarget.VsCode)
         {
             await openExternalIde(ExternalIde.VsCode, "Visual Studio Code");
             return;
         }
-        if (externalOpenTarget == ExternalOpenTarget.Cursor)
+        if (externalOpenTarget == EditorExternalOpenTarget.Cursor)
         {
             await openExternalIde(ExternalIde.Cursor, "Cursor");
             return;
         }
-        if (externalOpenTarget == ExternalOpenTarget.Clion)
+        if (externalOpenTarget == EditorExternalOpenTarget.Clion)
         {
             await openExternalIde(ExternalIde.Clion, "CLion");
             return;
@@ -180,37 +207,70 @@ public partial class FileExplorerPanel : UserControl
 
     private void onSelectFolder(object? sender, RoutedEventArgs args)
     {
-        selectExternalOpenTarget(ExternalOpenTarget.Folder);
+        selectExternalOpenTarget(EditorExternalOpenTarget.Folder);
     }
 
     private void onSelectVsCode(object? sender, RoutedEventArgs args)
     {
-        selectExternalOpenTarget(ExternalOpenTarget.VsCode);
+        selectExternalOpenTarget(EditorExternalOpenTarget.VsCode);
     }
 
     private void onSelectCursor(object? sender, RoutedEventArgs args)
     {
-        selectExternalOpenTarget(ExternalOpenTarget.Cursor);
+        selectExternalOpenTarget(EditorExternalOpenTarget.Cursor);
     }
 
     private void onSelectClion(object? sender, RoutedEventArgs args)
     {
-        selectExternalOpenTarget(ExternalOpenTarget.Clion);
+        selectExternalOpenTarget(EditorExternalOpenTarget.Clion);
     }
 
     private void onSelectVisualStudio(object? sender, RoutedEventArgs args)
     {
-        selectExternalOpenTarget(ExternalOpenTarget.VisualStudio);
+        selectExternalOpenTarget(EditorExternalOpenTarget.VisualStudio);
     }
 
-    private void selectExternalOpenTarget(ExternalOpenTarget target)
+    private void restoreExternalOpenTarget()
+    {
+        EditorExternalOpenTarget target = EditorLayoutService.Settings?.FileExplorerOpenTarget
+            ?? EditorExternalOpenTarget.Folder;
+        applyExternalOpenTarget(resolveExternalOpenTarget(target));
+    }
+
+    private EditorExternalOpenTarget resolveExternalOpenTarget(EditorExternalOpenTarget target)
+    {
+        if (DataContext is not FileExplorerViewModel viewModel)
+            return EditorExternalOpenTarget.Folder;
+        bool available = target switch
+        {
+            EditorExternalOpenTarget.Folder => true,
+            EditorExternalOpenTarget.VsCode => viewModel.HasVSCode,
+            EditorExternalOpenTarget.Cursor => viewModel.HasCursor,
+            EditorExternalOpenTarget.Clion => viewModel.HasClion,
+            EditorExternalOpenTarget.VisualStudio => viewModel.HasVisualStudio,
+            _ => false,
+        };
+        return available ? target : EditorExternalOpenTarget.Folder;
+    }
+
+    private void selectExternalOpenTarget(EditorExternalOpenTarget target)
+    {
+        if (EditorLayoutService.Settings is EditorSettings settings)
+        {
+            settings.FileExplorerOpenTarget = target;
+            EditorLayoutService.Save();
+        }
+        applyExternalOpenTarget(resolveExternalOpenTarget(target));
+    }
+
+    private void applyExternalOpenTarget(EditorExternalOpenTarget target)
     {
         externalOpenTarget = target;
-        FolderOpenButtonIcon.IsVisible = target == ExternalOpenTarget.Folder;
-        VSCodeButtonIcon.IsVisible = target == ExternalOpenTarget.VsCode;
-        CursorButtonIcon.IsVisible = target == ExternalOpenTarget.Cursor;
-        ClionButtonIcon.IsVisible = target == ExternalOpenTarget.Clion;
-        VisualStudioButtonIcon.IsVisible = target == ExternalOpenTarget.VisualStudio;
+        FolderOpenButtonIcon.IsVisible = target == EditorExternalOpenTarget.Folder;
+        VSCodeButtonIcon.IsVisible = target == EditorExternalOpenTarget.VsCode;
+        CursorButtonIcon.IsVisible = target == EditorExternalOpenTarget.Cursor;
+        ClionButtonIcon.IsVisible = target == EditorExternalOpenTarget.Clion;
+        VisualStudioButtonIcon.IsVisible = target == EditorExternalOpenTarget.VisualStudio;
     }
 
     private async Task openContainingFolder()
@@ -282,13 +342,16 @@ public partial class FileExplorerPanel : UserControl
 
     private void onPointerPressed(object? sender, PointerPressedEventArgs args)
     {
-        if (DataContext is not FileExplorerViewModel viewModel)
-            return;
-        if (isScrollBarSource(args.Source))
+        resetPendingDrag();
+        if (DataContext is not FileExplorerViewModel { IsReadOnly: false }
+            || isScrollBarSource(args.Source)
+            || getEntry(args.Source) is null)
             return;
         ListBox list = sender as ListBox ?? activeEntries;
         PointerPoint point = args.GetCurrentPoint(list);
-        if (point.Properties.IsLeftButtonPressed)
+        if (point.Properties.IsLeftButtonPressed
+            && !point.Properties.IsRightButtonPressed
+            && !point.Properties.IsMiddleButtonPressed)
         {
             dragStart = args.GetPosition(list);
             dragSource = list;
@@ -301,6 +364,7 @@ public partial class FileExplorerPanel : UserControl
         object? sender,
         ContextRequestedEventArgs args)
     {
+        resetPendingDrag();
         if (DataContext is not FileExplorerViewModel viewModel)
             return;
         ListBox list = sender as ListBox ?? activeEntries;
@@ -310,6 +374,14 @@ public partial class FileExplorerPanel : UserControl
         {
             item = list.SelectedItem as FileExplorerEntryViewModel
                 ?? viewModel.SelectedEntry;
+        }
+        if (item is not null && !getSelectedEntries(list).Contains(item))
+        {
+            using (list.Selection.BatchUpdate())
+            {
+                list.Selection.Clear();
+                list.Selection.Select(viewModel.Entries.IndexOf(item));
+            }
         }
         Control placementTarget = list;
         if (!requestedByPointer)
@@ -415,6 +487,21 @@ public partial class FileExplorerPanel : UserControl
         if (DataContext is not FileExplorerViewModel viewModel)
             return;
         KeyModifiers modifiers = args.KeyModifiers;
+        if (RootEntries.IsKeyboardFocusWithin)
+        {
+            if (args.Key is Key.Enter or Key.Space)
+            {
+                args.Handled = true;
+                if (RootEntries.SelectedItem is FileExplorerRootViewModel root)
+                    await viewModel.NavigateToAsync(root.Path);
+            }
+            else if (args.Key is Key.Delete or Key.F2 or Key.Back
+                || EditorShortcuts.HasPrimaryModifier(modifiers) && args.Key is Key.C or Key.X or Key.V or Key.D or Key.N or Key.A)
+            {
+                args.Handled = true;
+            }
+            return;
+        }
         if (viewModel.IsReadOnly)
         {
             if (args.Key == Key.Enter)
@@ -663,9 +750,7 @@ public partial class FileExplorerPanel : UserControl
             return;
         if (isScrollBarSource(args.Source))
         {
-            dragStart = null;
-            dragSource = null;
-            dragPress = null;
+            resetPendingDrag();
             return;
         }
         if (startingDrag
@@ -674,8 +759,13 @@ public partial class FileExplorerPanel : UserControl
             || dragPress is not PointerPressedEventArgs press)
             return;
         PointerPoint point = args.GetCurrentPoint(list);
-        if (!point.Properties.IsLeftButtonPressed)
+        if (!point.Properties.IsLeftButtonPressed
+            || point.Properties.IsRightButtonPressed
+            || point.Properties.IsMiddleButtonPressed)
+        {
+            resetPendingDrag();
             return;
+        }
         Point current = args.GetPosition(list);
         if (Math.Abs(current.X - start.X) < 4 && Math.Abs(current.Y - start.Y) < 4)
             return;
@@ -687,12 +777,20 @@ public partial class FileExplorerPanel : UserControl
         data.Add(DataTransferItem.CreateText(DragPrefix + JsonSerializer.Serialize(paths)));
         await DragDrop.DoDragDropAsync(press, data, DragDropEffects.Move);
         startingDrag = false;
-        dragStart = null;
-        dragSource = null;
-        dragPress = null;
+        resetPendingDrag();
     }
 
     private void onPointerReleased(object? sender, PointerReleasedEventArgs args)
+    {
+        resetPendingDrag();
+    }
+
+    private void onPointerCaptureLost(object? sender, PointerCaptureLostEventArgs args)
+    {
+        resetPendingDrag();
+    }
+
+    private void resetPendingDrag()
     {
         dragStart = null;
         dragSource = null;
@@ -780,13 +878,4 @@ public partial class FileExplorerPanel : UserControl
     }
 
     private ListBox activeEntries => IconEntries.IsVisible ? IconEntries : ListEntries;
-
-    private enum ExternalOpenTarget
-    {
-        Folder,
-        VsCode,
-        Cursor,
-        Clion,
-        VisualStudio,
-    }
 }

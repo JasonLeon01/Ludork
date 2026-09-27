@@ -110,6 +110,7 @@ public sealed partial class MapPanel : Control
         tileBrushRenderTimer.Tick += onTileBrushRenderTick;
         propertyWheelTimer.Tick += (_, _) => endMapGesture();
         LostFocus += onPropertyInputLostFocus;
+        ContextRequested += onContextRequested;
         PointerTouchPadGestureMagnify += onPointerTouchPadGestureMagnify;
         EffectiveViewportChanged += (_, _) => scheduleActorPreviewActivityUpdate();
         Unloaded += (_, _) => disposeRenderResources();

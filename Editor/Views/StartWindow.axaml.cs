@@ -22,7 +22,7 @@ public partial class StartWindow : Window
 
     private readonly EditorSettings editorSettings;
 
-    public StartWindow() : this(EditorSettings.Load())
+    public StartWindow() : this(EditorLayoutService.Settings ?? new EditorSettings())
     {
     }
 

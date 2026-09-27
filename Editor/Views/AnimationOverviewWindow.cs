@@ -39,6 +39,7 @@ public sealed class AnimationOverviewWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Background = Ludork.Services.EditorTheme.Brush("Background");
         EditorWindowIcon.Apply(this);
+        EditorLayoutService.AttachWindow(this, nameof(AnimationOverviewWindow));
 
         Grid root = new() { ColumnDefinitions = new ColumnDefinitions("240,*") };
         animationList.SelectionChanged += (_, _) => select(animationList.SelectedItem as string);

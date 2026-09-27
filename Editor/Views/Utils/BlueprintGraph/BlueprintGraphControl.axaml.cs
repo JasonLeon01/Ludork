@@ -47,6 +47,7 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         changeTimer.Tick += onChangeTimer;
         Loaded += onLoaded;
         AddHandler(PointerPressedEvent, onPointerPressed, RoutingStrategies.Tunnel);
+        AddHandler(ContextRequestedEvent, onContextRequested, RoutingStrategies.Tunnel);
         AddHandler(PointerReleasedEvent, onPointerReleased, RoutingStrategies.Tunnel);
         AddHandler(PointerMovedEvent, onPointerMoved, RoutingStrategies.Tunnel);
         AddHandler(PointerWheelChangedEvent, onPointerWheelChanged, RoutingStrategies.Tunnel);
@@ -175,6 +176,7 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         viewModel.ParameterEdited -= onParameterEdited;
         viewModel.InputDraftChanged -= onInputDraftChanged;
         RemoveHandler(PointerPressedEvent, onPointerPressed);
+        RemoveHandler(ContextRequestedEvent, onContextRequested);
         RemoveHandler(PointerReleasedEvent, onPointerReleased);
         RemoveHandler(PointerMovedEvent, onPointerMoved);
         RemoveHandler(PointerWheelChangedEvent, onPointerWheelChanged);
@@ -291,8 +293,15 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
     {
         Focus();
         updatePointerPosition(args.GetPosition(editor));
-        if (!args.GetCurrentPoint(this).Properties.IsRightButtonPressed)
-            return;
+        if (args.GetCurrentPoint(this).Properties.IsRightButtonPressed)
+            args.Handled = true;
+    }
+
+    private void onContextRequested(object? sender, ContextRequestedEventArgs args)
+    {
+        Focus();
+        if (args.TryGetPosition(editor, out Point position))
+            updatePointerPosition(position);
         BlueprintGraphNodeViewModel? contextNode = findContextNode(args.Source);
         selectContextNode(contextNode);
         args.Handled = true;

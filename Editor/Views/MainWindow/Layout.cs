@@ -29,6 +29,9 @@ public partial class MainWindow
 {
     private void initializeInteraction()
     {
+        LightActorSelectionToggle.IsChecked = editorSettings?.LightActorSelection ?? false;
+        EditorPanel.setLightActorSelectionEnabled(LightActorSelectionToggle.IsChecked == true);
+        EditorLayoutService.BindRows(ActorModePanel, ActorOutlinerSplitter, "Main.ActorRows", 0, 2);
         LightActorSelectionToggle.Content = LocaleService.Get("LIGHT_SELECT_ACTORS");
         ToolTip.SetTip(LightActorSelectionToggle, LocaleService.Get("LIGHT_SELECT_ACTORS_HINT"));
         EditorInputs.ApplyEditable(ConsoleInput);
@@ -39,8 +42,9 @@ public partial class MainWindow
         ConsoleSendButton.Click += onConsoleSendClick;
         updateConsoleInputState();
         DataContextChanged += (_, _) => attachViewModel(DataContext as MainViewModel);
-        MapList.AddHandler(PointerPressedEvent, onMapListPointerPressed, RoutingStrategies.Tunnel);
+        MapList.AddHandler(ContextRequestedEvent, onMapListContextRequested, RoutingStrategies.Tunnel);
         LayerTabs.AddHandler(PointerPressedEvent, onLayerPointerPressed, RoutingStrategies.Tunnel);
+        LayerTabs.AddHandler(ContextRequestedEvent, onLayerContextRequested, RoutingStrategies.Tunnel);
         LayerTabs.AddHandler(PointerMovedEvent, onLayerPointerMoved, RoutingStrategies.Tunnel);
         LayerTabs.AddHandler(PointerReleasedEvent, onLayerPointerReleased, RoutingStrategies.Tunnel);
         LayerTabs.AddHandler(PointerCaptureLostEvent, onLayerPointerCaptureLost, RoutingStrategies.Tunnel);
@@ -57,13 +61,17 @@ public partial class MainWindow
         SizeChanged += (_, _) => onWindowSizeChanged();
         MainLayoutGrid.SizeChanged += (_, _) => clampHorizontalPanelWidths();
         UpperLeftSplitter.DragDelta += (_, _) => onHorizontalSplitterChanged();
-        UpperLeftSplitter.DragCompleted += (_, _) => onHorizontalSplitterChanged();
+        EditorSplitterChangeBinding.Attach(UpperLeftSplitter, () => [leftColumn.Width],
+            _ => saveEditorPanelLayout("UpperLeft"));
         UpperRightSplitter.DragDelta += (_, _) => onHorizontalSplitterChanged();
-        UpperRightSplitter.DragCompleted += (_, _) => onHorizontalSplitterChanged();
+        EditorSplitterChangeBinding.Attach(UpperRightSplitter, () => [rightColumn.Width],
+            _ => saveEditorPanelLayout("UpperRight"));
         LowerLeftSplitter.DragDelta += (_, _) => onLowerLeftSplitterChanged();
-        LowerLeftSplitter.DragCompleted += (_, _) => onLowerLeftSplitterChanged();
-        UpperLowerSplitter.DragDelta += (_, _) => saveEditorLayout();
-        UpperLowerSplitter.DragCompleted += (_, _) => saveEditorLayout();
+        EditorSplitterChangeBinding.Attach(LowerLeftSplitter, () => [lowerLeftColumn.Width],
+            _ => saveEditorPanelLayout("LowerLeft"));
+        UpperLowerSplitter.DragDelta += (_, _) => clampLowerAreaHeight();
+        EditorSplitterChangeBinding.Attach(UpperLowerSplitter, () => [lowerRow.Height],
+            _ => saveEditorPanelLayout("LowerArea"));
         EditorPanel.TileSelectionPicked += onTileSelectionPicked;
         EditorPanel.ActorSelectionChanged += onMapActorSelectionChanged;
         EditorPanel.ActorDataChanged += onActorDataChanged;
@@ -198,7 +206,6 @@ public partial class MainWindow
         applyEditorLayout();
         clampHorizontalPanelWidths();
         layoutReady = true;
-        saveEditorLayout();
         if (viewModel is null || viewModel.GameData.InvalidLoadPaths.Count == 0)
             return;
         string paths = string.Join(Environment.NewLine, viewModel.GameData.InvalidLoadPaths);
@@ -226,31 +233,16 @@ public partial class MainWindow
         clampHorizontalPanelWidths();
         clampLowerLeftPanelWidth();
         clampLowerAreaHeight();
-        scheduleEditorLayoutSave();
-    }
-
-    private void scheduleEditorLayoutSave()
-    {
-        if (layoutSavePending)
-            return;
-        layoutSavePending = true;
-        Dispatcher.UIThread.Post(() =>
-        {
-            layoutSavePending = false;
-            saveEditorLayout();
-        }, DispatcherPriority.Background);
     }
 
     private void onHorizontalSplitterChanged()
     {
         clampHorizontalPanelWidths();
-        saveEditorLayout();
     }
 
     private void onLowerLeftSplitterChanged()
     {
         clampLowerLeftPanelWidth();
-        saveEditorLayout();
     }
 
     private void clampHorizontalPanelWidths()
@@ -317,21 +309,29 @@ public partial class MainWindow
             maximum));
     }
 
-    private void saveEditorLayout()
+    private void saveEditorPanelLayout(string panel)
     {
-        if (editorSettings is null || !layoutReady)
+        if (editorSettings is null || !layoutReady || gameLayoutLocked)
             return;
-        if (WindowState == WindowState.Normal)
+        clampHorizontalPanelWidths();
+        clampLowerLeftPanelWidth();
+        clampLowerAreaHeight();
+        switch (panel)
         {
-            editorSettings.Width = Math.Max((int)MinWidth, (int)Math.Round(Width));
-            editorSettings.Height = Math.Max((int)MinHeight, (int)Math.Round(Height));
+            case "UpperLeft":
+                editorSettings.UpperLeftWidth = Math.Max(160, getColumnPixelWidth(leftColumn));
+                break;
+            case "UpperRight":
+                editorSettings.UpperRightWidth = Math.Max(320, getColumnPixelWidth(rightColumn));
+                break;
+            case "LowerLeft":
+                editorSettings.LowerLeftWidth = Math.Max(180, getColumnPixelWidth(lowerLeftColumn));
+                break;
+            case "LowerArea":
+                editorSettings.LowerAreaHeight = Math.Max(160, getRowPixelHeight(lowerRow));
+                break;
         }
-        editorSettings.UpperLeftWidth = Math.Max(160, getColumnPixelWidth(leftColumn));
-        editorSettings.UpperRightWidth = Math.Max(320, getColumnPixelWidth(rightColumn));
-        editorSettings.LowerLeftWidth = Math.Max(180, getColumnPixelWidth(lowerLeftColumn));
-        editorSettings.LowerAreaHeight = Math.Max(160, getRowPixelHeight(lowerRow));
-        editorSettings.Language = LocaleService.CurrentLanguage;
-        editorSettings.Save();
+        EditorLayoutService.Save();
     }
 
     private static int getColumnPixelWidth(ColumnDefinition column)

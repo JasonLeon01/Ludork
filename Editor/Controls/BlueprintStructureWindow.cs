@@ -36,6 +36,7 @@ internal sealed class BlueprintStructureWindow : Window
         MinHeight = Math.Min(contentHeight, 640);
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         EditorWindowIcon.Apply(this);
+        EditorLayoutService.AttachWindow(this, nameof(BlueprintStructureWindow));
 
         value = initialValue?.DeepClone() as JsonObject ?? [];
         variableForm = new BlueprintVariableForm

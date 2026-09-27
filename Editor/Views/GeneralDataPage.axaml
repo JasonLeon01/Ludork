@@ -4,14 +4,14 @@
              x:Class="Ludork.Views.GeneralDataPage"
              x:ClassModifier="internal"
              x:DataType="vm:GeneralDataPageViewModel">
-    <Grid ColumnDefinitions="240,4,*">
+    <Grid x:Name="PageLayout" ColumnDefinitions="240,4,*">
         <Grid RowDefinitions="Auto,*,Auto">
             <TextBox x:Name="SearchBox" Margin="4" Text="{Binding SearchText, Mode=TwoWay}" />
             <ListBox x:Name="MemberList" Grid.Row="1" SelectionMode="Single"
                      Background="{DynamicResource Editor.SurfaceBrush}" />
             <Button x:Name="AddMemberButton" Grid.Row="2" Margin="4" HorizontalAlignment="Stretch" />
         </Grid>
-        <GridSplitter Grid.Column="1" Width="4" VerticalAlignment="Stretch"
+        <GridSplitter x:Name="MemberSplitter" Grid.Column="1" Width="4" VerticalAlignment="Stretch"
                       Background="{DynamicResource Editor.InputBrush}" />
         <Grid Grid.Column="2" RowDefinitions="Auto,*">
             <Border Padding="8,6" Background="{DynamicResource Editor.SurfaceBrush}">

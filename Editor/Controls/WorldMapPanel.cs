@@ -73,6 +73,7 @@ public sealed class WorldMapPanel : Grid, IDisposable
         GridSplitter splitter = new() { ResizeDirection = GridResizeDirection.Columns };
         Grid.SetColumn(splitter, 1);
         Children.Add(splitter);
+        EditorLayoutService.BindColumns(this, splitter, "WorldMap.Columns", 0, 2);
 
         canvas = new WorldMapCanvas();
         statusText = new TextBlock

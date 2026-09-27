@@ -53,6 +53,7 @@ public sealed class TilesetEditorWindow : Window
         Background = Ludork.Services.EditorTheme.Brush("Surface");
         FontFamily = Ludork.Services.EditorTheme.FontFamily;
         EditorWindowIcon.Apply(this);
+        EditorLayoutService.AttachWindow(this, nameof(TilesetEditorWindow));
         HistoryMergeBehavior.AttachBoundary(this, gameData);
 
         Content = DeferredWindowInitializer.CreateLoadingContent();

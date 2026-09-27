@@ -156,6 +156,7 @@ public sealed partial class ParticleEditor
             else
                 expander.Content = null;
         };
+        EditorLayoutService.BindExpander(expander, "ParticleEditor." + label);
         return expander;
     }
 

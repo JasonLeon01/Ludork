@@ -52,6 +52,7 @@ public sealed class GameVariableManagerWindow : Window
         Background = Ludork.Services.EditorTheme.Brush("Background");
         FontFamily = Ludork.Services.EditorTheme.FontFamily;
         EditorWindowIcon.Apply(this);
+        EditorLayoutService.AttachWindow(this, nameof(GameVariableManagerWindow));
 
         variableSearchBox = EditorInputs.CreateEditableTextBox();
         variableSearchBox.PlaceholderText = LocaleService.Get("SEARCH");
@@ -167,6 +168,7 @@ public sealed class GameVariableManagerWindow : Window
         manager.Children.Add(left);
         Grid.SetColumn(splitter, 1);
         manager.Children.Add(splitter);
+        EditorLayoutService.BindColumns(manager, splitter, "GameVariableManager.Columns", 0, 2);
         Grid.SetColumn(detailHost, 2);
         manager.Children.Add(detailHost);
 

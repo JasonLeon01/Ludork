@@ -160,6 +160,7 @@ public sealed class UiAnimationTimelineEditor : UserControl
         };
         Grid.SetColumn(splitter, 1);
         root.Children.Add(splitter);
+        EditorLayoutService.BindColumns(root, splitter, "UiAnimationTimeline.Columns", 0, 2);
 
         selectionEditor.RowDefinitions = new RowDefinitions("Auto,*,Auto");
         Grid.SetColumn(selectionEditor, 2);
@@ -339,6 +340,13 @@ public sealed class UiAnimationTimelineEditor : UserControl
 
     private void onAnimationListContextRequested(object? sender, ContextRequestedEventArgs args)
     {
+        if (args.TryGetPosition(animationList, out Point position))
+        {
+            ListBoxItem? item = getAnimationListItem(position);
+            animationList.SelectedIndex = item?.DataContext is string label
+                ? choices.FindIndex(choice => string.Equals(choice.Label, label, StringComparison.Ordinal))
+                : -1;
+        }
         showAnimationContextMenu();
         args.Handled = true;
     }

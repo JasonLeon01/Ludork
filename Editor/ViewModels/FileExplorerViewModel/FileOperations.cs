@@ -21,13 +21,15 @@ public sealed partial class FileExplorerViewModel
     {
         if (IsReadOnly)
             return FileOperationResult.Empty;
-        string target = getTargetDirectory(targetDirectory);
+        string? target = getTargetDirectory(targetDirectory);
+        if (target is null)
+            return FileOperationResult.Empty;
         List<string> errors = [];
         List<string> externalAdded = [];
         List<string> managedAdded = [];
         List<(string OldPath, string NewPath)> moved = [];
         List<(string OldPath, string NewPath)> managedMoved = [];
-        foreach (string source in clipboardPaths.Where(pathExists).ToArray())
+        foreach (string source in clipboardPaths.Where(path => pathExists(path) && isEditablePath(path)).ToArray())
         {
             string destination = Path.Combine(target, Path.GetFileName(source));
             if (clipboardCut && tryMoveManagedPath(source, destination, out string? managedError))
@@ -118,7 +120,8 @@ public sealed partial class FileExplorerViewModel
         List<string> errors = [];
         List<string> externalAdded = [];
         List<string> managedAdded = [];
-        foreach (string source in normalizeTopLevelPaths(paths).Where(path => pathExists(path) && !isVisibleDirectory(path)))
+        foreach (string source in normalizeTopLevelPaths(paths)
+            .Where(path => isEditablePath(path) && pathExists(path) && !isVisibleDirectory(path)))
         {
             if (isSameOrChildPath(gameData.Worlds.MapPathPolicy.MapsRoot, source))
             {
@@ -170,7 +173,9 @@ public sealed partial class FileExplorerViewModel
     {
         if (IsReadOnly)
             return FileOperationResult.Empty;
-        string[] normalizedPaths = normalizeTopLevelPaths(paths).ToArray();
+        string[] normalizedPaths = normalizeTopLevelPaths(paths).Where(isEditablePath).ToArray();
+        if (normalizedPaths.Length == 0)
+            return FileOperationResult.Empty;
         string[] protectedMapPaths = normalizedPaths
             .Where(path => !gameData.Worlds.MapPathPolicy.CanDeletePath(path))
             .ToArray();
@@ -243,7 +248,7 @@ public sealed partial class FileExplorerViewModel
         else if (deleted.Count != 0)
             changed(new FileExplorerFilesChangedEventArgs([], [], deleted));
         if (!isVisibleDirectory(CurrentPath))
-            _ = NavigateToAsync(projectPath);
+            _ = NavigateToAsync(CurrentRoot.Path);
         return new FileOperationResult(deleted.Count != 0, errors);
     }
 
@@ -264,7 +269,9 @@ public sealed partial class FileExplorerViewModel
     {
         if (IsReadOnly)
             return FileOperationResult.Empty;
-        string target = getTargetDirectory(targetDirectory);
+        string? target = getTargetDirectory(targetDirectory);
+        if (target is null)
+            return FileOperationResult.Empty;
         if (isSameOrChildPath(gameData.Worlds.MapPathPolicy.MapsRoot, target)
             && !gameData.Worlds.MapPathPolicy.CanCreateDirectory(target))
         {
@@ -295,6 +302,8 @@ public sealed partial class FileExplorerViewModel
         if (SelectedEntry is null)
             return FileOperationResult.Empty;
         string oldPath = SelectedEntry.FullPath;
+        if (!isEditablePath(oldPath))
+            return FileOperationResult.Empty;
         string trimmedName = newName.Trim();
         if (!tryGetChildPath(CurrentPath, trimmedName, out string newPath))
             return new FileOperationResult(false, [LocaleService.Get("RENAME_FAILED") + Environment.NewLine + newName]);
@@ -341,11 +350,13 @@ public sealed partial class FileExplorerViewModel
     {
         if (IsReadOnly)
             return FileOperationResult.Empty;
-        string target = getTargetDirectory(targetDirectory);
+        string? target = getTargetDirectory(targetDirectory);
+        if (target is null)
+            return FileOperationResult.Empty;
         List<string> errors = [];
         List<(string OldPath, string NewPath)> moved = [];
         List<(string OldPath, string NewPath)> managedMoved = [];
-        foreach (string source in normalizeTopLevelPaths(paths))
+        foreach (string source in normalizeTopLevelPaths(paths).Where(isEditablePath))
         {
             string destination = Path.Combine(target, Path.GetFileName(source));
             if (tryMoveManagedPath(source, destination, out string? managedError))

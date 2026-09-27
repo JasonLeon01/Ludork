@@ -135,7 +135,7 @@ public sealed partial class ProjectDataStore
             ?? throw new InvalidDataException("The map layers conflict with the world composition.");
         JsonObject result = WorldDataService.replaceWorldComposition(world, order, placements);
         WorldMapValidationResult validation = Worlds.worldMapValidation.Validate(worldKey, result, children);
-        if (!validation.IsValid)
+        if (!validation.IsValidForEditing)
             throw new InvalidDataException(WorldDataService.formatWorldMapValidation(validation));
         return result;
     }

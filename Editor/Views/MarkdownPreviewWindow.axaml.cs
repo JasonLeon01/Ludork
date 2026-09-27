@@ -84,6 +84,8 @@ public partial class MarkdownPreviewWindow : Window
 
     public MarkdownPreviewWindow(string path, string title, string imageRoot) : this()
     {
+        EditorLayoutService.AttachWindow(this, nameof(MarkdownPreviewWindow));
+        EditorLayoutService.BindColumns(DocumentLayout, DocumentTreeSplitter, "MarkdownPreview.Columns", 0, 2);
         Title = title;
         string fullPath = Path.GetFullPath(path);
         singleFile = File.Exists(fullPath);

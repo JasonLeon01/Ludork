@@ -53,6 +53,7 @@ public sealed class WorldMapEditWindow : Window
         MinHeight = 300;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         EditorWindowIcon.Apply(this);
+        EditorLayoutService.AttachWindow(this, nameof(WorldMapEditWindow));
 
         directoryNameBox.Text = initial.DirectoryName;
         worldNameBox.Text = initial.WorldName;

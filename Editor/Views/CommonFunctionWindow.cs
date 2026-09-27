@@ -61,6 +61,7 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
         Background = Ludork.Services.EditorTheme.Brush("Background");
         FontFamily = Ludork.Services.EditorTheme.FontFamily;
         EditorWindowIcon.Apply(this);
+        EditorLayoutService.AttachWindow(this, nameof(CommonFunctionWindow));
 
         Content = DeferredWindowInitializer.CreateLoadingContent();
 

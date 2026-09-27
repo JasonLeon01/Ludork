@@ -31,6 +31,7 @@ public sealed class MaterialEditorWindow : Window
         MinHeight = 280;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         EditorWindowIcon.Apply(this);
+        EditorLayoutService.AttachWindow(this, nameof(MaterialEditorWindow));
 
         Grid form = new() { ColumnDefinitions = new ColumnDefinitions("Auto,12,*"), RowSpacing = 8 };
         lightBlock = addNumberRow(form, 0, "lightBlock", 0.0);

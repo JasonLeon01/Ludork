@@ -21,6 +21,7 @@ public sealed class PerformanceMonitorWindow : Window
         Background = Ludork.Services.EditorTheme.Brush("Background");
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         EditorWindowIcon.Apply(this);
+        EditorLayoutService.AttachWindow(this, nameof(PerformanceMonitorWindow));
         Content = canvas;
     }
 

@@ -107,7 +107,7 @@ public sealed partial class FileExplorerViewModel
 
     public async Task NavigateToAsync(string path, CancellationToken cancellationToken = default)
     {
-        string fullPath = Path.GetFullPath(path);
+        string fullPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
         if (disposed || !isUnderRoot(fullPath))
             return;
         if (!PathComparer.Equals(CurrentPath, fullPath))
@@ -125,16 +125,24 @@ public sealed partial class FileExplorerViewModel
 
     public Task GoUpAsync()
     {
+        if (!CanGoUp)
+            return Task.CompletedTask;
         string? parent = Directory.GetParent(CurrentPath)?.FullName;
         return parent is null ? Task.CompletedTask : NavigateToAsync(parent);
     }
 
     public async Task<bool> LocatePathAsync(string path)
     {
-        string fullPath = Path.GetFullPath(path);
-        if (!isUnderRoot(fullPath))
+        string fullPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        FileExplorerRootViewModel? root = getContentRoot(fullPath);
+        if (root is null)
             return false;
-        string directory = Directory.GetParent(fullPath)?.FullName ?? projectPath;
+        if (isContentRoot(fullPath))
+        {
+            await NavigateToAsync(root.Path);
+            return PathComparer.Equals(CurrentPath, root.Path) && LoadingError.Length == 0;
+        }
+        string directory = Directory.GetParent(fullPath)?.FullName ?? root.Path;
         if (publishedPath != directory || CurrentPath != directory || IsLoading)
             await NavigateToAsync(directory);
         if (CurrentPath != directory)

@@ -10,15 +10,59 @@
             <Setter Property="Padding" Value="0" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         </Style>
+        <Style Selector="ListBox#IconEntries ListBoxItem">
+            <Setter Property="Margin" Value="8" />
+        </Style>
         <Style Selector="ToggleButton#ViewModeButton > Image">
             <Setter Property="Source" Value="{StaticResource EditorImage.ViewGrid}" />
         </Style>
         <Style Selector="ToggleButton#ViewModeButton:checked > Image">
             <Setter Property="Source" Value="{StaticResource EditorImage.ViewList}" />
         </Style>
+        <Style Selector="ToggleButton#SourcesButton:checked > Image">
+            <Setter Property="RenderTransform" Value="rotate(180deg)" />
+        </Style>
     </UserControl.Styles>
-    <Grid RowDefinitions="36,*,Auto">
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="4" Margin="2">
+    <Grid RowDefinitions="36,*,Auto" ColumnDefinitions="Auto,*">
+        <Border x:Name="SourcesPane" Grid.Column="0" Grid.RowSpan="3"
+                MinWidth="36"
+                Background="{DynamicResource Editor.SurfaceBrush}"
+                BorderBrush="{DynamicResource Editor.BorderBrush}"
+                BorderThickness="0,0,1,0">
+            <Grid RowDefinitions="36,*">
+                <ToggleButton x:Name="SourcesButton"
+                              Grid.Row="0"
+                              HorizontalAlignment="Left"
+                              Margin="3"
+                              IsChecked="{Binding IsSourcesExpanded, Mode=TwoWay}"
+                              Classes="toolbar"
+                              ToolTip.Tip="{Binding SourcesToggleHint}"
+                              AutomationProperties.Name="{Binding SourcesToggleHint}">
+                    <Image Source="{StaticResource EditorImage.ChevronRight}" />
+                </ToggleButton>
+                <ListBox x:Name="RootEntries"
+                         Grid.Row="1"
+                         Width="143"
+                         Background="Transparent"
+                         IsVisible="{Binding IsSourcesExpanded}"
+                         ItemsSource="{Binding ContentRoots}"
+                         SelectedItem="{Binding CurrentRoot, Mode=OneWay}"
+                         SelectionMode="Single"
+                         SelectionChanged="onRootSelectionChanged"
+                         Tapped="onRootTapped"
+                         DoubleTapped="onRootTapped">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:FileExplorerRootViewModel">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Image Source="{StaticResource EditorImage.Folder}" Width="16" Height="16" />
+                                <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+        </Border>
+        <Grid Grid.Row="0" Grid.Column="1" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="4" Margin="2">
             <ScrollViewer Grid.Column="0"
                           HorizontalScrollBarVisibility="Auto"
                           VerticalScrollBarVisibility="Disabled">
@@ -135,7 +179,7 @@
                 </SplitButton.Flyout>
             </SplitButton>
         </Grid>
-        <Grid Grid.Row="1">
+        <Grid Grid.Row="1" Grid.Column="1">
             <ListBox x:Name="IconEntries"
                      ItemsSource="{Binding Entries}"
                      SelectedItem="{Binding SelectedEntry, Mode=TwoWay}"
@@ -151,12 +195,12 @@
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="vm:FileExplorerEntryViewModel">
                         <controls:FileExplorerItemControl>
-                        <StackPanel Width="150" Margin="6" Spacing="3">
-                            <Grid Width="80" Height="80" HorizontalAlignment="Center">
+                        <StackPanel Width="134" Margin="6" Spacing="3">
+                            <Grid Width="64" Height="64" HorizontalAlignment="Center">
                                 <controls:FrameRevisionImage Source="{Binding Icon}"
                                                          FrameRevision="{Binding PreviewFrameRevision}"
-                                                         Width="80"
-                                                         Height="80"
+                                                         Width="64"
+                                                         Height="64"
                                                          Stretch="Uniform"
                                                          HorizontalAlignment="Center" />
                                 <TextBlock Text="*" IsVisible="{Binding IsModified}"
@@ -205,7 +249,7 @@
                 </ListBox.ItemTemplate>
             </ListBox>
         </Grid>
-        <StackPanel Grid.Row="2" Margin="8,2" Orientation="Horizontal" Spacing="8">
+        <StackPanel Grid.Row="2" Grid.Column="1" Margin="8,2" Orientation="Horizontal" Spacing="8">
             <TextBlock IsVisible="{Binding IsLoading}" Text="{Binding LoadingLabel}" FontSize="12" Foreground="{DynamicResource Editor.TextMutedBrush}" />
             <TextBlock Text="{Binding LoadingError}" TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource Editor.TextMutedBrush}" />
         </StackPanel>

@@ -55,6 +55,7 @@ public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
         Background = Ludork.Services.EditorTheme.Brush("Background");
         FontFamily = Ludork.Services.EditorTheme.FontFamily;
         EditorWindowIcon.Apply(this);
+        EditorLayoutService.AttachWindow(this, nameof(GeneralDataEditorWindow));
 
         tabControl = new TabControl
         {

@@ -12,6 +12,7 @@ using Ludork.Services;
 using Ludork.Services.Plugins;
 using Ludork.ViewModels;
 using Ludork.Views;
+using Ludork.Views.Utils;
 
 namespace Ludork;
 
@@ -24,6 +25,7 @@ public partial class App : Application
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
+        EditorContextMenuBehavior.Initialize();
 #if DEBUG
         this.AttachDeveloperTools();
 #endif
@@ -37,6 +39,9 @@ public partial class App : Application
             if (activatableLifetime is not null)
                 activatableLifetime.Activated += onActivated;
             editorSettings = EditorSettings.Load();
+            EditorLayoutService.Initialize(editorSettings);
+            editorSettings.SaveFailed += (_, message) => showSettingsError(message);
+            desktop.Exit += (_, _) => EditorLayoutService.Save();
             LocaleService.Initialize(editorSettings.Language);
             pluginHost = new PluginHost(LocaleService.CurrentLanguage);
             Task.Run(() => pluginHost.InitializeAsync()).GetAwaiter().GetResult();
@@ -67,6 +72,20 @@ public partial class App : Application
         }
 
         base.OnFrameworkInitializationCompleted();
+        if (editorSettings?.LastError is string error)
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => showSettingsError(error),
+                Avalonia.Threading.DispatcherPriority.ContextIdle);
+    }
+
+    private void showSettingsError(string message)
+    {
+        string text = string.Format(LocaleService.Get("EDITOR_SETTINGS_SAVE_FAILED"), message);
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
+            && (desktop.Windows.FirstOrDefault(window => window.IsActive && window.IsVisible)
+                ?? desktop.Windows.FirstOrDefault(window => window.IsVisible)) is Window owner)
+            new Ludork.Controls.Toast(owner).ShowMessage(text, 6000);
+        else
+            Console.Error.WriteLine(text);
     }
 
     public void showAbout(Window owner)

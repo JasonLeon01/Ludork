@@ -2,12 +2,7 @@
     x:Class="Ludork.Views.UiAssetEditorWindow"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:utils="using:Ludork.Views.Utils"
-    Width="1480"
-    Height="860"
-    MinWidth="1080"
-    MinHeight="640"
-    WindowStartupLocation="CenterOwner">
+    xmlns:utils="using:Ludork.Views.Utils">
     <Grid RowDefinitions="36,*,30">
         <Border Grid.Row="0" Background="{DynamicResource Editor.SurfaceBrush}" Padding="8,4">
             <StackPanel Orientation="Horizontal" Spacing="8">
@@ -18,13 +13,14 @@
         </Border>
 
         <Grid
+            x:Name="EditorLayout"
             Grid.Row="1"
             ColumnDefinitions="300,4,*,4,420">
             <Border
                 Grid.Column="0"
                 BorderBrush="{DynamicResource Editor.BorderBrush}"
                 BorderThickness="0">
-                <Grid RowDefinitions="*,4,*">
+                <Grid x:Name="PaletteLayout" RowDefinitions="*,4,*">
                     <Border Padding="8">
                         <Grid RowDefinitions="Auto,Auto,*">
                             <TextBlock
@@ -43,6 +39,7 @@
                         </Grid>
                     </Border>
                     <GridSplitter
+                        x:Name="PaletteSplitter"
                         Grid.Row="1"
                         ResizeDirection="Rows" />
                     <Border
@@ -143,9 +140,9 @@
                     </Border>
                 </Grid>
             </Border>
-            <GridSplitter Grid.Column="1" ResizeDirection="Columns" />
+            <GridSplitter x:Name="PaletteColumnSplitter" Grid.Column="1" ResizeDirection="Columns" />
 
-            <Grid Grid.Column="2" RowDefinitions="Auto,*,5,Auto">
+            <Grid x:Name="PreviewLayout" Grid.Column="2" RowDefinitions="Auto,*,5,Auto">
                 <Border
                     Padding="10,6"
                     Background="{DynamicResource Editor.SurfaceBrush}"
@@ -166,6 +163,7 @@
                 </Border>
                 <ContentControl x:Name="PreviewContainer" Grid.Row="1" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" />
                 <GridSplitter
+                    x:Name="TimelineSplitter"
                     Grid.Row="2"
                     ResizeDirection="Rows" />
                 <Expander
@@ -191,7 +189,7 @@
                     </Border>
                 </Expander>
             </Grid>
-            <GridSplitter Grid.Column="3" ResizeDirection="Columns" />
+            <GridSplitter x:Name="DetailsColumnSplitter" Grid.Column="3" ResizeDirection="Columns" />
 
             <Border
                 Grid.Column="4"

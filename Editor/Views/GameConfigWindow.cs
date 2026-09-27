@@ -48,6 +48,7 @@ public sealed class GameConfigWindow : Window
         MinHeight = 320;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         EditorWindowIcon.Apply(this);
+        EditorLayoutService.AttachWindow(this, nameof(GameConfigWindow));
 
         TextBox scriptBox = EditorInputs.CreateReadOnlyTextBox(initialData.Script);
         languageBox = createComboBox(languages.Cast<object>().ToArray());

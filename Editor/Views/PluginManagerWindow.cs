@@ -46,6 +46,7 @@ public sealed class PluginManagerWindow : Window
         Background = Ludork.Services.EditorTheme.Brush("Background");
         FontFamily = Ludork.Services.EditorTheme.FontFamily;
         EditorWindowIcon.Apply(this);
+        EditorLayoutService.AttachWindow(this, nameof(PluginManagerWindow));
 
         importButton.Content = LocaleService.Get("IMPORT_PLUGIN");
         importButton.Click += onImport;

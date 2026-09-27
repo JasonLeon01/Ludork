@@ -38,6 +38,7 @@ public sealed class ReferenceTreeWindow : Window
         Background = new SolidColorBrush(Color.Parse("#202124"));
         FontFamily = Ludork.Services.EditorTheme.FontFamily;
         EditorWindowIcon.Apply(this);
+        EditorLayoutService.AttachWindow(this, nameof(ReferenceTreeWindow));
         graph = new ReferenceTreeGraphControl(nodeId);
         graph.NodeOpenRequested += onNodeOpenRequested;
         statusText = new TextBlock

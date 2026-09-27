@@ -10,6 +10,7 @@ using Ludork.Plugin.Avalonia;
 using Ludork.Services;
 using Ludork.Models;
 using Ludork.ViewModels;
+using Ludork.Views.Utils;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -148,6 +149,50 @@ public sealed partial class MapPanel
         capturePointer(args.Pointer);
         writeTileSelection(grid);
         args.Handled = true;
+    }
+
+    private void onContextRequested(object? sender, ContextRequestedEventArgs args)
+    {
+        if (CurrentMapDocument is null || gameData is null
+            || !tryGetMapSize(out int width, out int height)
+            || !args.TryGetPosition(this, out Point position))
+        {
+            return;
+        }
+        if (EditMode == MapEditMode.Light)
+        {
+            if (IsRuntimeEditing || getMapBasePosition(position, width, height) is not { } basePosition)
+                return;
+            int? actorHit = hitTestLightActor(position, basePosition, width, height, out int? lightHit);
+            if (actorHit is int actorIndex && selectedLayerName is not null)
+            {
+                setSelectedLightIndex(null);
+                setSelectedActor(selectedLayerName, actorIndex, true);
+            }
+            else
+            {
+                setSelectedActor(null, null, true);
+                setSelectedLightIndex(lightHit);
+                showLightContextMenu(position, width, height);
+            }
+        }
+        else if (getGridPosition(position, width, height) is { } grid)
+        {
+            if (EditMode == MapEditMode.Actor && selectedLayerName is not null)
+            {
+                int? hit = getMapDisplayPosition(position, out int mapWidth, out int mapHeight) is { } mapPosition
+                    ? hitTestActor(selectedLayerName, mapPosition)
+                    : null;
+                (string Layer, int Index)? target = resolveMapActorHit(selectedLayerName, hit);
+                setSelectedActor(target?.Layer, target?.Index, true);
+                showActorContextMenu(grid);
+            }
+            else if (EditMode == MapEditMode.Tile && selectedLayerName is not null
+                && EditorContextMenuBehavior.IsMixedButtonRequest(args))
+                pickTileAt(grid);
+        }
+        args.Handled = true;
+        InvalidateVisual();
     }
 
     protected override void OnPointerMoved(PointerEventArgs args)

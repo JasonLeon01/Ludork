@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Ludork.Models;
 
@@ -15,6 +16,7 @@ public sealed class WorldMapValidationResult
     }
 
     public bool IsValid => Issues.Count == 0;
+    public bool IsValidForEditing => Issues.All(issue => issue.Code == "overlappingPlacement");
     public IReadOnlyList<WorldMapValidationIssue> Issues { get; }
     public IReadOnlyList<string> LayerOrder { get; }
     public IReadOnlyList<WorldMapPlacement> Placements { get; }

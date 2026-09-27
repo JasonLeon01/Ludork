@@ -43,7 +43,7 @@ public partial class NewProjectWindow : Window
     private bool standalone = true;
     private bool creating;
 
-    public NewProjectWindow() : this(EditorSettings.Load())
+    public NewProjectWindow() : this(EditorLayoutService.Settings ?? new EditorSettings())
     {
     }
 
@@ -325,6 +325,7 @@ public partial class NewProjectWindow : Window
             JsonObject config = new()
             {
                 ["Cpp"] = !standalone,
+                ["lastFileExplorerPath"] = "Assets",
             };
             if (FfmpegToggle.IsChecked == true)
                 config["ffmpeg"] = true;

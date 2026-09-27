@@ -90,11 +90,12 @@ public sealed partial class FileExplorerViewModel
     private void refreshBreadcrumbs()
     {
         BreadcrumbItems.Clear();
-        BreadcrumbItems.Add(new FileExplorerBreadcrumbViewModel(projectPath, projectPath));
-        string relative = Path.GetRelativePath(projectPath, CurrentPath);
+        FileExplorerRootViewModel root = CurrentRoot;
+        BreadcrumbItems.Add(new FileExplorerBreadcrumbViewModel(root.Label, root.Path));
+        string relative = Path.GetRelativePath(root.Path, CurrentPath);
         if (relative is "." or "")
             return;
-        string current = projectPath;
+        string current = root.Path;
         foreach (string part in relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
         {
             if (string.IsNullOrWhiteSpace(part))
@@ -108,17 +109,29 @@ public sealed partial class FileExplorerViewModel
 
     private bool isUnderRoot(string path)
     {
-        string fullPath = Path.GetFullPath(path);
-        string relative = Path.GetRelativePath(projectPath, fullPath);
-        return relative == "."
-            || (!Path.IsPathRooted(relative)
-                && relative != ".."
-                && !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal));
+        return getContentRoot(path) is not null;
     }
-    private string getTargetDirectory(string? targetDirectory)
+
+    private FileExplorerRootViewModel? getContentRoot(string path)
+    {
+        return ContentRoots.FirstOrDefault(root => isSameOrChildPath(root.Path, path));
+    }
+
+    private bool isContentRoot(string path)
+    {
+        string fullPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        return ContentRoots.Any(root => PathComparer.Equals(root.Path, fullPath));
+    }
+
+    private bool isEditablePath(string path)
+    {
+        return isUnderRoot(path) && !isContentRoot(path);
+    }
+
+    private string? getTargetDirectory(string? targetDirectory)
     {
         string target = string.IsNullOrWhiteSpace(targetDirectory) ? CurrentPath : Path.GetFullPath(targetDirectory);
-        return isVisibleDirectory(target) && isUnderRoot(target) ? target : CurrentPath;
+        return isUnderRoot(target) && isVisibleDirectory(target) ? target : null;
     }
 
     private bool tryGetChildPath(string directory, string name, out string path)
@@ -142,9 +155,7 @@ public sealed partial class FileExplorerViewModel
     private bool canTransfer(string source, string targetDirectory, string destination, out string? error)
     {
         error = null;
-        if ((!File.Exists(source) && !Directory.Exists(source)) || !isUnderRoot(source) || !isUnderRoot(targetDirectory))
-            return false;
-        if (string.Equals(Path.GetFullPath(source), projectPath, StringComparison.OrdinalIgnoreCase))
+        if ((!File.Exists(source) && !Directory.Exists(source)) || !isEditablePath(source) || !isUnderRoot(targetDirectory))
             return false;
         if (string.Equals(Path.GetFullPath(source), Path.GetFullPath(destination), StringComparison.Ordinal))
             return false;

@@ -32,6 +32,7 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
     [ObservableProperty] private string loadingError = string.Empty;
     [ObservableProperty] private string currentPath;
     [ObservableProperty] private bool iconView = true;
+    [ObservableProperty] private bool isSourcesExpanded;
     [ObservableProperty] private FileExplorerEntryViewModel? selectedEntry;
 
     public FileExplorerViewModel(
@@ -46,12 +47,25 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
         this.gameData = gameData;
         this.previewService = previewService;
         this.referenceIndex = referenceIndex;
+        if (EditorLayoutService.Settings is EditorSettings settings)
+        {
+            iconView = settings.FileExplorerIconView;
+            isSourcesExpanded = settings.FileExplorerSourcesExpanded;
+        }
         externalIdeService = new ExternalIdeService(this.projectPath, !projectConfig.IsStandalone);
+        ContentRoots = [
+            new FileExplorerRootViewModel("Assets", Path.Combine(this.projectPath, "Assets")),
+            new FileExplorerRootViewModel("Data", Path.Combine(this.projectPath, "Data")),
+        ];
+        currentPath = ContentRoots[0].Path;
         string? savedPath = projectConfig.LastFileExplorerPath;
-        currentPath = !string.IsNullOrWhiteSpace(savedPath)
-            && Directory.Exists(Path.Combine(this.projectPath, savedPath))
-            ? Path.GetFullPath(Path.Combine(this.projectPath, savedPath))
-            : this.projectPath;
+        if (!string.IsNullOrWhiteSpace(savedPath)
+            && Directory.Exists(Path.Combine(this.projectPath, savedPath)))
+        {
+            string fullPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.Combine(this.projectPath, savedPath)));
+            if (isUnderRoot(fullPath))
+                currentPath = fullPath;
+        }
         refreshBreadcrumbs();
         gameData.DataReloaded += onGameDataChanged;
         gameData.Documents.Changed += onDocumentsChanged;
@@ -61,6 +75,8 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
 
     public ObservableCollection<FileExplorerEntryViewModel> Entries { get; } = [];
     public ObservableCollection<FileExplorerBreadcrumbViewModel> BreadcrumbItems { get; } = [];
+    public IReadOnlyList<FileExplorerRootViewModel> ContentRoots { get; }
+    public FileExplorerRootViewModel CurrentRoot => getContentRoot(CurrentPath) ?? ContentRoots[0];
     public event EventHandler<FileExplorerFileEventArgs>? FileClicked;
     public event EventHandler<FileExplorerFileEventArgs>? FileOpened;
     public event EventHandler<EditorDataCreationRequest>? DataCreationRequested;
@@ -94,8 +110,10 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
     {
         return referenceIndex.GetNodeIdForPath(path) is not null;
     }
-    public string Breadcrumb => Path.GetRelativePath(projectPath, CurrentPath) is "." ? projectPath : Path.GetRelativePath(projectPath, CurrentPath);
-    public bool CanGoUp => !string.Equals(CurrentPath, projectPath, StringComparison.OrdinalIgnoreCase);
+    public string Breadcrumb => Path.GetRelativePath(projectPath, CurrentPath);
+    public bool CanGoUp => !isContentRoot(CurrentPath);
+    public string SourcesToggleHint => LocaleService.Get(
+        IsSourcesExpanded ? "FILE_EXPLORER_HIDE_SOURCES" : "FILE_EXPLORER_SHOW_SOURCES");
     public string FileExplorerViewMode => LocaleService.Get(
         IconView ? "FILE_EXPLORER_LIST_VIEW" : "FILE_EXPLORER_ICON_VIEW");
     public string ParentFolder => LocaleService.Get("FILE_DIALOG_PARENT_FOLDER");
@@ -114,10 +132,26 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
     partial void OnIconViewChanged(bool value)
     {
         OnPropertyChanged(nameof(FileExplorerViewMode));
+        if (EditorLayoutService.Settings is EditorSettings settings)
+        {
+            settings.FileExplorerIconView = value;
+            EditorLayoutService.Save();
+        }
+    }
+
+    partial void OnIsSourcesExpandedChanged(bool value)
+    {
+        OnPropertyChanged(nameof(SourcesToggleHint));
+        if (EditorLayoutService.Settings is EditorSettings settings)
+        {
+            settings.FileExplorerSourcesExpanded = value;
+            EditorLayoutService.Save();
+        }
     }
 
     partial void OnCurrentPathChanged(string value)
     {
+        OnPropertyChanged(nameof(CurrentRoot));
         OnPropertyChanged(nameof(Breadcrumb));
         OnPropertyChanged(nameof(CanGoUp));
         refreshBreadcrumbs();
@@ -141,7 +175,7 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
         if (IsReadOnly && cut)
             return;
         clipboardPaths.Clear();
-        clipboardPaths.AddRange(normalizeTopLevelPaths(paths));
+        clipboardPaths.AddRange(normalizeTopLevelPaths(paths).Where(isEditablePath));
         clipboardCut = cut && clipboardPaths.Count != 0;
     }
 
@@ -235,3 +269,4 @@ public sealed record FileOperationResult(bool Changed, IReadOnlyList<string> Err
 }
 
 public sealed record FileExplorerBreadcrumbViewModel(string Label, string Path, bool ShowSeparator = false);
+public sealed record FileExplorerRootViewModel(string Label, string Path);

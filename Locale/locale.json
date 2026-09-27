@@ -39,6 +39,10 @@
     "zh_CN": "值不符合 {type}：{reason}",
     "en_GB": "Value does not match {type}: {reason}"
   },
+  "EDITOR_SETTINGS_SAVE_FAILED": {
+    "zh_CN": "无法保存编辑器设置：{0}",
+    "en_GB": "Could not save editor settings: {0}"
+  },
   "LIGHT_SELECT_ACTORS": {
     "zh_CN": "可选中 Actor",
     "en_GB": "Select Actors"
@@ -1942,6 +1946,14 @@
   "FILE_EXPLORER_LIST_VIEW": {
     "zh_CN": "列表视图",
     "en_GB": "List View"
+  },
+  "FILE_EXPLORER_SHOW_SOURCES": {
+    "zh_CN": "展开 Assets 和 Data",
+    "en_GB": "Show Assets and Data"
+  },
+  "FILE_EXPLORER_HIDE_SOURCES": {
+    "zh_CN": "收起 Assets 和 Data",
+    "en_GB": "Hide Assets and Data"
   },
   "ADD_LAYER": {
     "zh_CN": "添加图层",

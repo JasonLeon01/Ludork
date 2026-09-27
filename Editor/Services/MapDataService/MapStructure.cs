@@ -17,7 +17,7 @@ public sealed partial class MapDataService
             && store.Worlds.getWorldMap(worldKey) is JsonObject world)
         {
             WorldMapValidationResult validation = store.Worlds.ValidateWorldMap(worldKey);
-            if (!validation.IsValid)
+            if (!validation.IsValidForEditing)
                 return false;
             Dictionary<string, MapCatalogEntry> children = store.Worlds.getWorldChildCatalog(worldKey)
                 .ToDictionary(item => item.Key, item => item.Value, StringComparer.Ordinal);
@@ -33,7 +33,7 @@ public sealed partial class MapDataService
             if (worldLayerOrder is null)
                 return false;
             worldCandidate = WorldDataService.replaceWorldComposition(world, worldLayerOrder, validation.Placements);
-            if (!store.Worlds.worldMapValidation.Validate(worldKey, worldCandidate, children).IsValid)
+            if (!store.Worlds.worldMapValidation.Validate(worldKey, worldCandidate, children).IsValidForEditing)
                 return false;
         }
         return store.commitResourceChange("Maps", mapKey, mapKey, candidate, worldCandidate);

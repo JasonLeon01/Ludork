@@ -41,7 +41,7 @@ internal sealed class TilesetEditorTab : Grid
         dataList.Width = 120;
         dataList.SelectionChanged += (_, _) => selectCurrent();
         dataList.AddHandler(KeyDownEvent, onListKeyDown, RoutingStrategies.Tunnel);
-        dataList.AddHandler(PointerPressedEvent, onListPointerPressed, RoutingStrategies.Tunnel);
+        dataList.AddHandler(ContextRequestedEvent, onListContextRequested, RoutingStrategies.Tunnel);
 
         Children.Add(dataList);
         Grid.SetColumn(detail, 1);
@@ -156,13 +156,11 @@ internal sealed class TilesetEditorTab : Grid
         args.Handled = true;
     }
 
-    private void onListPointerPressed(object? sender, PointerPressedEventArgs args)
+    private void onListContextRequested(object? sender, ContextRequestedEventArgs args)
     {
-        PointerPoint point = args.GetCurrentPoint(dataList);
-        if (!point.Properties.IsRightButtonPressed)
-            return;
-
-        string? key = getItemAt(point.Position);
+        string? key = args.TryGetPosition(dataList, out Point position)
+            ? getItemAt(position)
+            : dataList.SelectedItem as string;
         if (key is not null)
             dataList.SelectedItem = key;
         showContextMenu(key);

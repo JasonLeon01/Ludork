@@ -226,7 +226,7 @@ public sealed partial class WorldDataService
         WorldMapPlacement? found = validation.Placements.FirstOrDefault(item =>
             string.Equals(item.Map, childFile, StringComparison.Ordinal));
         placement = found!;
-        return validation.IsValid && found is not null;
+        return validation.IsValidForEditing && found is not null;
     }
 
     internal static string formatWorldMapValidation(WorldMapValidationResult validation)

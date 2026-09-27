@@ -1,3 +1,4 @@
+using Avalonia.Controls;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -11,8 +12,15 @@ public sealed class EditorSettings
 {
     private const int MaxRecentProjectCount = 3;
     private const string SectionName = "Ludork";
-
     private readonly List<string> recentProjectPaths = [];
+    private readonly Dictionary<string, Dictionary<string, string>> sections = new(StringComparer.OrdinalIgnoreCase);
+    private readonly string? configPath;
+    private string? savedText;
+
+    public EditorSettings(string? path = null)
+    {
+        configPath = path;
+    }
 
     public int Width { get; set; } = 1512;
     public int Height { get; set; } = 982;
@@ -22,36 +30,125 @@ public sealed class EditorSettings
     public int LowerAreaHeight { get; set; } = 240;
     public string Language { get; set; } = getDefaultLanguage();
     public string LastOpenPath { get; set; } = string.Empty;
+    public bool FileExplorerIconView { get; set; } = true;
+    public bool FileExplorerSourcesExpanded { get; set; }
+    public EditorExternalOpenTarget FileExplorerOpenTarget { get; set; }
+    public bool LightActorSelection { get; set; }
     public IReadOnlyList<string> RecentProjectPaths => recentProjectPaths;
-
+    public string? LastError { get; private set; }
+    public event EventHandler<string>? SaveFailed;
     public static string ConfigPath => EditorPaths.IniFilePath;
 
-    public static EditorSettings Load()
+    public static EditorSettings Load(string? path = null)
     {
-        EditorSettings settings = new EditorSettings();
-        if (!File.Exists(ConfigPath))
+        EditorSettings settings = new(path);
+        try
         {
-            settings.Save();
-            return settings;
+            string resolvedPath = path ?? ConfigPath;
+            if (!File.Exists(resolvedPath))
+            {
+                settings.Save();
+                return settings;
+            }
+            string text = File.ReadAllText(resolvedPath, Encoding.UTF8);
+            settings.readSections(text);
+            settings.savedText = text;
         }
-
-        Dictionary<string, string> values = readSection(ConfigPath, SectionName);
-        settings.Width = readPositiveInt(values, "Width", settings.Width);
-        settings.Height = readPositiveInt(values, "Height", settings.Height);
-        settings.UpperLeftWidth = readPositiveInt(values, "UpperLeftWidth", settings.UpperLeftWidth);
-        settings.UpperRightWidth = readPositiveInt(values, "UpperRightWidth", settings.UpperRightWidth);
-        settings.LowerLeftWidth = readPositiveInt(values, "LowerLeftWidth", settings.LowerLeftWidth);
-        settings.LowerAreaHeight = readPositiveInt(values, "LowerAreaHeight", settings.LowerAreaHeight);
-        settings.Language = readText(values, "Language", settings.Language);
-        settings.LastOpenPath = readText(values, "LastOpenPath", string.Empty);
+        catch (IOException exception)
+        {
+            settings.LastError = exception.Message;
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            settings.LastError = exception.Message;
+        }
+        Dictionary<string, string> values = settings.section(SectionName);
+        settings.Width = readPositiveInt(values, "width", settings.Width);
+        settings.Height = readPositiveInt(values, "height", settings.Height);
+        settings.UpperLeftWidth = readPositiveInt(values, "upperleftwidth", settings.UpperLeftWidth);
+        settings.UpperRightWidth = readPositiveInt(values, "upperrightwidth", settings.UpperRightWidth);
+        settings.LowerLeftWidth = readPositiveInt(values, "lowerleftwidth", settings.LowerLeftWidth);
+        settings.LowerAreaHeight = readPositiveInt(values, "lowerareaheight", settings.LowerAreaHeight);
+        settings.Language = readText(values, "language", settings.Language);
+        settings.LastOpenPath = readText(values, "lastopenpath", string.Empty);
         for (int index = 0; index < MaxRecentProjectCount; index++)
         {
-            string projectFilePath = readText(values, $"RecentProject{index}", string.Empty);
+            string projectFilePath = readText(values, $"recentproject{index}", string.Empty);
             if (!string.IsNullOrWhiteSpace(projectFilePath))
                 settings.recentProjectPaths.Add(projectFilePath);
         }
+        Dictionary<string, string> explorer = settings.section("FileExplorer");
+        settings.FileExplorerIconView = readBool(explorer, "iconview", true);
+        settings.FileExplorerSourcesExpanded = readBool(explorer, "sourcesexpanded", false);
+        if (Enum.TryParse(readText(explorer, "opentarget", "Folder"), true, out EditorExternalOpenTarget target)
+            && Enum.IsDefined(target))
+            settings.FileExplorerOpenTarget = target;
+        settings.LightActorSelection = readBool(settings.section("MapEditor"), "lightactorselection", false);
         return settings;
     }
+
+    public EditorWindowState? GetWindowState(string key)
+    {
+        Dictionary<string, string> values = section(key == "Main" ? SectionName : "Window." + key);
+        double width = key == "Main" ? Width : readPositiveDouble(values, "width");
+        double height = key == "Main" ? Height : readPositiveDouble(values, "height");
+        if (width <= 0 || height <= 0)
+            return null;
+        return new EditorWindowState(width, height, readInt(values, "x"), readInt(values, "y"),
+            readBool(values, "maximized", false));
+    }
+
+    public void SetWindowState(string key, EditorWindowState state)
+    {
+        Dictionary<string, string> values = section(key == "Main" ? SectionName : "Window." + key);
+        values["width"] = state.Width.ToString("R", CultureInfo.InvariantCulture);
+        values["height"] = state.Height.ToString("R", CultureInfo.InvariantCulture);
+        if (key == "Main")
+        {
+            Width = (int)Math.Round(state.Width);
+            Height = (int)Math.Round(state.Height);
+        }
+        if (state.X is int x && state.Y is int y)
+        {
+            values["x"] = x.ToString(CultureInfo.InvariantCulture);
+            values["y"] = y.ToString(CultureInfo.InvariantCulture);
+        }
+        values["maximized"] = state.Maximized.ToString();
+    }
+
+    public GridLength[]? GetPanelLayout(string key)
+    {
+        string[] parts = readText(section("Layouts"), key, string.Empty).Split(',');
+        if (parts.Length == 0 || parts.Length > 16)
+            return null;
+        GridLength[] lengths = new GridLength[parts.Length];
+        for (int index = 0; index < parts.Length; index++)
+        {
+            string part = parts[index].Trim();
+            if (part.Equals("Auto", StringComparison.OrdinalIgnoreCase))
+            {
+                lengths[index] = GridLength.Auto;
+                continue;
+            }
+            bool star = part.EndsWith('*');
+            string number = star ? part[..^1] : part;
+            if (!double.TryParse(number, NumberStyles.Float, CultureInfo.InvariantCulture, out double value)
+                || !double.IsFinite(value) || value < 0 || value > 100000)
+                return null;
+            lengths[index] = new GridLength(value, star ? GridUnitType.Star : GridUnitType.Pixel);
+        }
+        return lengths;
+    }
+
+    public void SetPanelLayout(string key, GridLength[] lengths)
+    {
+        section("Layouts")[key] = string.Join(",", lengths.Select(length => length.IsAuto ? "Auto"
+            : length.Value.ToString("R", CultureInfo.InvariantCulture) + (length.IsStar ? "*" : string.Empty)));
+    }
+
+    public bool GetExpanded(string key, bool defaultValue) => readBool(section("Expanded"), key, defaultValue);
+
+    public void SetExpanded(string key, bool expanded) => section("Expanded")[key] = expanded.ToString();
 
     public string getLastPathOrHome()
     {
@@ -100,24 +197,97 @@ public sealed class EditorSettings
         Save();
     }
 
-    public void Save()
+    public bool Save()
     {
-        List<string> lines =
-        [
-            $"[{SectionName}]",
-            $"width = {Width}",
-            $"height = {Height}",
-            $"upperleftwidth = {UpperLeftWidth}",
-            $"upperrightwidth = {UpperRightWidth}",
-            $"lowerleftwidth = {LowerLeftWidth}",
-            $"lowerareaheight = {LowerAreaHeight}",
-            $"language = {Language}",
-            $"lastopenpath = {LastOpenPath}",
-        ];
-        for (int index = 0; index < recentProjectPaths.Count; index++)
-            lines.Add($"recentproject{index} = {recentProjectPaths[index]}");
-        lines.Add(string.Empty);
-        File.WriteAllLines(ConfigPath, lines, new UTF8Encoding(false));
+        string? temporaryPath = null;
+        try
+        {
+            string path = configPath ?? ConfigPath;
+            string text = serialize();
+            if (text == savedText && File.Exists(path))
+                return true;
+            string? directory = Path.GetDirectoryName(Path.GetFullPath(path));
+            Directory.CreateDirectory(directory!);
+            temporaryPath = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            File.WriteAllText(temporaryPath, text, new UTF8Encoding(false));
+            File.Move(temporaryPath, path, true);
+            savedText = text;
+            LastError = null;
+            return true;
+        }
+        catch (IOException exception)
+        {
+            reportFailure(exception.Message);
+            return false;
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            reportFailure(exception.Message);
+            return false;
+        }
+        finally
+        {
+            if (temporaryPath is not null)
+            {
+                try
+                {
+                    File.Delete(temporaryPath);
+                }
+                catch (IOException exception)
+                {
+                    reportFailure(exception.Message);
+                }
+                catch (UnauthorizedAccessException exception)
+                {
+                    reportFailure(exception.Message);
+                }
+            }
+        }
+    }
+
+    private void reportFailure(string message)
+    {
+        bool changed = LastError != message;
+        LastError = message;
+        if (changed)
+            SaveFailed?.Invoke(this, message);
+    }
+
+    private string serialize()
+    {
+        Dictionary<string, string> main = section(SectionName);
+        main["width"] = Width.ToString(CultureInfo.InvariantCulture);
+        main["height"] = Height.ToString(CultureInfo.InvariantCulture);
+        main["upperleftwidth"] = UpperLeftWidth.ToString(CultureInfo.InvariantCulture);
+        main["upperrightwidth"] = UpperRightWidth.ToString(CultureInfo.InvariantCulture);
+        main["lowerleftwidth"] = LowerLeftWidth.ToString(CultureInfo.InvariantCulture);
+        main["lowerareaheight"] = LowerAreaHeight.ToString(CultureInfo.InvariantCulture);
+        main["language"] = Language;
+        main["lastopenpath"] = LastOpenPath;
+        main.TryAdd("maximized", "False");
+        for (int index = 0; index < MaxRecentProjectCount; index++)
+        {
+            if (index < recentProjectPaths.Count)
+                main[$"recentproject{index}"] = recentProjectPaths[index];
+            else
+                main.Remove($"recentproject{index}");
+        }
+        Dictionary<string, string> explorer = section("FileExplorer");
+        explorer["iconview"] = FileExplorerIconView.ToString();
+        explorer["sourcesexpanded"] = FileExplorerSourcesExpanded.ToString();
+        explorer["opentarget"] = FileExplorerOpenTarget.ToString();
+        section("MapEditor")["lightactorselection"] = LightActorSelection.ToString();
+        StringBuilder text = new();
+        foreach (KeyValuePair<string, Dictionary<string, string>> entry in sections)
+        {
+            if (entry.Value.Count == 0)
+                continue;
+            text.Append('[').Append(entry.Key).AppendLine("]");
+            foreach (KeyValuePair<string, string> value in entry.Value)
+                text.Append(value.Key).Append(" = ").AppendLine(value.Value);
+            text.AppendLine();
+        }
+        return text.ToString();
     }
 
     private static bool pathsEqual(string left, string right)
@@ -130,42 +300,62 @@ public sealed class EditorSettings
         return leftPath.Equals(rightPath, comparison);
     }
 
-    private static Dictionary<string, string> readSection(string path, string sectionName)
+    private Dictionary<string, string> section(string name)
     {
-        Dictionary<string, string> values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        bool inSection = false;
-        foreach (string rawLine in File.ReadLines(path, Encoding.UTF8))
+        if (!sections.TryGetValue(name, out Dictionary<string, string>? values))
+        {
+            values = new(StringComparer.OrdinalIgnoreCase);
+            sections.Add(name, values);
+        }
+        return values;
+    }
+
+    private void readSections(string text)
+    {
+        Dictionary<string, string>? values = null;
+        using StringReader reader = new(text);
+        while (reader.ReadLine() is string rawLine)
         {
             string line = rawLine.Trim();
             if (line.Length == 0 || line.StartsWith(';') || line.StartsWith('#'))
                 continue;
             if (line.StartsWith('[') && line.EndsWith(']'))
             {
-                inSection = string.Equals(line[1..^1].Trim(), sectionName, StringComparison.OrdinalIgnoreCase);
+                values = section(line[1..^1].Trim());
                 continue;
             }
-            if (!inSection)
-                continue;
             int separator = line.IndexOf('=');
-            if (separator <= 0)
-                continue;
-            values[line[..separator].Trim()] = line[(separator + 1)..].Trim();
+            if (values is not null && separator > 0)
+                values[line[..separator].Trim()] = line[(separator + 1)..].Trim();
         }
-        return values;
+    }
+
+    private static int? readInt(IReadOnlyDictionary<string, string> values, string key)
+    {
+        return values.TryGetValue(key, out string? value)
+            && int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed) ? parsed : null;
     }
 
     private static int readPositiveInt(IReadOnlyDictionary<string, string> values, string key, int defaultValue)
     {
-        return values.TryGetValue(key, out string? value) && int.TryParse(value, out int parsed) && parsed > 0
-            ? parsed
-            : defaultValue;
+        return readInt(values, key) is int value && value > 0 && value <= 100000 ? value : defaultValue;
+    }
+
+    private static double readPositiveDouble(IReadOnlyDictionary<string, string> values, string key)
+    {
+        return values.TryGetValue(key, out string? value)
+            && double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out double parsed)
+            && double.IsFinite(parsed) && parsed > 0 && parsed <= 100000 ? parsed : 0;
+    }
+
+    private static bool readBool(IReadOnlyDictionary<string, string> values, string key, bool defaultValue)
+    {
+        return values.TryGetValue(key, out string? value) && bool.TryParse(value, out bool parsed) ? parsed : defaultValue;
     }
 
     private static string readText(IReadOnlyDictionary<string, string> values, string key, string defaultValue)
     {
-        return values.TryGetValue(key, out string? value) && !string.IsNullOrWhiteSpace(value)
-            ? value.Trim()
-            : defaultValue;
+        return values.TryGetValue(key, out string? value) && !string.IsNullOrWhiteSpace(value) ? value.Trim() : defaultValue;
     }
 
     private static string getDefaultLanguage()

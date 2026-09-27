@@ -59,6 +59,7 @@ public sealed class TextConfigEditorWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Background = Ludork.Services.EditorTheme.Brush("Background");
         EditorWindowIcon.Apply(this);
+        EditorLayoutService.AttachWindow(this, nameof(TextConfigEditorWindow));
         toast = new Toast(this);
         preview = new TextConfigPreview(gameData);
         previewText.AcceptsReturn = true;
@@ -140,6 +141,7 @@ public sealed class TextConfigEditorWindow : Window
         };
         Grid.SetColumn(splitter, 1);
         root.Children.Add(splitter);
+        EditorLayoutService.BindColumns(root, splitter, "TextConfigEditor.Columns", 0, 2);
         Grid.SetColumn(previewArea, 2);
         root.Children.Add(previewArea);
         return root;

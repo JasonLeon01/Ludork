@@ -59,6 +59,7 @@ public sealed class AnimationTimeline : Control
             RoutingStrategies.Tunnel
         );
         PointerTouchPadGestureMagnify += onPointerTouchPadGestureMagnify;
+        ContextRequested += onContextRequested;
     }
 
     public event Action<int, int>? SegmentSelected;
@@ -349,23 +350,8 @@ public sealed class AnimationTimeline : Control
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         Point position = e.GetPosition(this);
-        if (e.GetCurrentPoint(this).Properties.IsRightButtonPressed)
-        {
-            int timeTag = hitTimeTag(position);
-            if (timeTag >= 0)
-            {
-                Focus();
-                SelectedTimeTag = timeTag;
-                selectedSegments.Clear();
-                updatePrimarySegmentSelection();
-                SegmentSelected?.Invoke(-1, -1);
-                showTimeTagContextMenu();
-                InvalidateVisual();
-                e.Handled = true;
-            }
-            return;
-        }
-        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        PointerPointProperties properties = e.GetCurrentPoint(this).Properties;
+        if (!properties.IsLeftButtonPressed || properties.IsRightButtonPressed)
             return;
         Focus();
         int selectedTimeTag = hitTimeTag(position);
@@ -424,6 +410,21 @@ public sealed class AnimationTimeline : Control
         }
         e.Pointer.Capture(this);
         InvalidateVisual();
+    }
+
+    private void onContextRequested(object? sender, ContextRequestedEventArgs args)
+    {
+        int timeTag = args.TryGetPosition(this, out Point position) ? hitTimeTag(position) : SelectedTimeTag;
+        if (timeTag < 0)
+            return;
+        Focus();
+        SelectedTimeTag = timeTag;
+        selectedSegments.Clear();
+        updatePrimarySegmentSelection();
+        SegmentSelected?.Invoke(-1, -1);
+        showTimeTagContextMenu();
+        InvalidateVisual();
+        args.Handled = true;
     }
 
     protected override void OnPointerMoved(PointerEventArgs e)
@@ -506,11 +507,17 @@ public sealed class AnimationTimeline : Control
 
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
+        completePointerGesture(true, e.GetPosition(this));
+        e.Pointer.Capture(null);
+    }
+
+    private void completePointerGesture(bool completeMarquee, Point position)
+    {
         if (dragMode == SegmentMarqueeDragMode)
         {
-            if (segmentMarqueeActive)
-                updateSegmentMarquee(e.GetPosition(this));
-            completeSegmentMarquee(true);
+            if (completeMarquee && segmentMarqueeActive)
+                updateSegmentMarquee(position);
+            completeSegmentMarquee(completeMarquee);
         }
         else if (dragMode == TimeTagDragMode)
         {
@@ -526,7 +533,6 @@ public sealed class AnimationTimeline : Control
         else if (dragMode != 0 && dragMode != ScrubDragMode)
             SegmentChanged?.Invoke();
         dragMode = 0;
-        e.Pointer.Capture(null);
     }
 
     private void beginSegmentMarquee(Point position, KeyModifiers modifiers)
@@ -675,8 +681,7 @@ public sealed class AnimationTimeline : Control
 
     private void onPointerCaptureLost(object? sender, PointerCaptureLostEventArgs args)
     {
-        if (dragMode == SegmentMarqueeDragMode)
-            completeSegmentMarquee(false);
+        completePointerGesture(false, default);
     }
 
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)

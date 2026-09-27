@@ -116,14 +116,14 @@ public partial class MainWindow
             children);
     }
 
-    private void onMapListPointerPressed(object? sender, PointerPressedEventArgs args)
+    private void onMapListContextRequested(object? sender, ContextRequestedEventArgs args)
     {
         if (viewModel?.CanEdit != true)
             return;
-        if (viewModel is null || !args.GetCurrentPoint(MapList).Properties.IsRightButtonPressed)
-            return;
         TreeViewItem? item = getMapListItem(args.Source);
         MapListItemViewModel? map = item?.DataContext as MapListItemViewModel;
+        if (map is null && !args.TryGetPosition(MapList, out _))
+            map = viewModel.MapWorkspace.SelectedMap;
         if (map is not null)
             viewModel.MapWorkspace.SelectedMap = map;
         showMapContextMenu(map);

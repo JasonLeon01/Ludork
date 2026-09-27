@@ -115,6 +115,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         MinWidth = 1080;
         MinHeight = 640;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        EditorLayoutService.AttachWindow(this, nameof(UiAssetEditorWindow));
         document.Changed += onDocumentChanged;
         controlRegistry.Runtime.Changed += onRegistryChanged;
         gameData.Documents.Changed += onProjectDocumentsChanged;
@@ -135,6 +136,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             detailsSignature = null;
             animationSignature = null;
             InitializeComponent();
+            bindEditorLayout();
             DetailsPanel.LostFocus += onDetailsLostFocus;
             toast = new Toast(this);
             previewSession = new UiAssetPreviewSession(document, gameData, controlRegistry.Runtime);
@@ -163,6 +165,39 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             await EditorUiBatch.YieldAsync(cancellationToken);
             await initializePanelsAsync(cancellationToken);
         });
+    }
+
+    private void bindEditorLayout()
+    {
+        EditorLayoutService.BindColumns(EditorLayout, PaletteColumnSplitter, "UiAssetEditor.Columns", 0, 2, 4);
+        EditorLayoutService.BindColumns(EditorLayout, DetailsColumnSplitter, "UiAssetEditor.Columns", 0, 2, 4);
+        EditorLayoutService.BindRows(PaletteLayout, PaletteSplitter, "UiAssetEditor.PaletteRows", 0, 2);
+        EditorLayoutService.BindRows(PreviewLayout, TimelineSplitter, "UiAssetEditor.PreviewRows", 1, 3);
+        EditorLayoutService.BindExpander(TimelineExpander, "UiAssetEditor.Timeline");
+        Grid previewLayout = PreviewLayout;
+        GridSplitter timelineSplitter = TimelineSplitter;
+        Expander timelineExpander = TimelineExpander;
+        GridLength previewHeight = previewLayout.RowDefinitions[1].Height;
+        GridLength timelineHeight = previewLayout.RowDefinitions[3].Height;
+        void applyTimelineVisibility()
+        {
+            bool expanded = timelineExpander.IsExpanded;
+            if (!expanded)
+            {
+                previewHeight = previewLayout.RowDefinitions[1].Height;
+                timelineHeight = previewLayout.RowDefinitions[3].Height;
+            }
+            previewLayout.RowDefinitions[1].Height = expanded ? previewHeight : new GridLength(1, GridUnitType.Star);
+            previewLayout.RowDefinitions[2].Height = new GridLength(expanded ? 5 : 0);
+            previewLayout.RowDefinitions[3].Height = expanded ? timelineHeight : GridLength.Auto;
+            timelineSplitter.IsVisible = expanded;
+        }
+        timelineExpander.PropertyChanged += (_, args) =>
+        {
+            if (args.Property == Expander.IsExpandedProperty)
+                applyTimelineVisibility();
+        };
+        applyTimelineVisibility();
     }
 
     public event EventHandler<string>? NestedAssetOpenRequested;
@@ -463,6 +498,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
                 item.AddHandler(PointerPressedEvent, onPalettePointerPressed, RoutingStrategies.Tunnel);
                 item.AddHandler(PointerMovedEvent, onHierarchyPointerMoved, handledEventsToo: true);
                 item.AddHandler(PointerReleasedEvent, onHierarchyPointerReleased, handledEventsToo: true);
+                item.PointerCaptureLost += onHierarchyPointerCaptureLost;
                 entries.Children.Add(item);
             }
             Expander category = new()
@@ -471,6 +507,9 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
                 IsExpanded = true,
                 Content = entries,
             };
+            UiControlDescriptor first = group.First();
+            if (!string.Equals(first.Source, "project", StringComparison.Ordinal))
+                EditorLayoutService.BindExpander(category, "UiAssetEditor.Palette." + first.Category);
             PaletteCategories.Children.Add(category);
         }
     }
@@ -1988,6 +2027,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             RoutingStrategies.Tunnel);
         HierarchyTree.PointerMoved += onHierarchyPointerMoved;
         HierarchyTree.PointerReleased += onHierarchyPointerReleased;
+        HierarchyTree.PointerCaptureLost += onHierarchyPointerCaptureLost;
         DragDrop.SetAllowDrop(HierarchyTree, true);
         HierarchyTree.AddHandler(DragDrop.DragOverEvent, onHierarchyDragOver);
         HierarchyTree.AddHandler(DragDrop.DragLeaveEvent, onHierarchyDragLeave);
@@ -2001,7 +2041,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         clearHierarchyDrag();
         PointerPoint point = args.GetCurrentPoint(this);
         UiHierarchyItem? item = getHierarchyItem(args.Source);
-        if (!point.Properties.IsLeftButtonPressed
+        if (!point.Properties.IsLeftButtonPressed || point.Properties.IsRightButtonPressed
             || item is null
             || document.FindParent(item.NodeName) is null)
         {
@@ -2017,7 +2057,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     {
         clearHierarchyDrag();
         PointerPoint point = args.GetCurrentPoint(this);
-        if (!point.Properties.IsLeftButtonPressed || args.ClickCount != 1
+        if (!point.Properties.IsLeftButtonPressed || point.Properties.IsRightButtonPressed || args.ClickCount != 1
             || sender is not Button { Tag: UiControlDescriptor descriptor })
         {
             return;
@@ -2032,6 +2072,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         object? sender,
         ContextRequestedEventArgs args)
     {
+        clearHierarchyDrag();
         if (!args.TryGetPosition(HierarchyTree, out _))
             return;
         UiHierarchyItem? item = getHierarchyItem(args.Source);
@@ -2053,8 +2094,11 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             return;
         }
         PointerPoint point = args.GetCurrentPoint(this);
-        if (!point.Properties.IsLeftButtonPressed)
+        if (!point.Properties.IsLeftButtonPressed || point.Properties.IsRightButtonPressed)
+        {
+            clearHierarchyDrag();
             return;
+        }
         Point current = point.Position;
         if (Math.Abs(current.X - start.X) < 4
             && Math.Abs(current.Y - start.Y) < 4)
@@ -2078,6 +2122,12 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         PointerReleasedEventArgs args)
     {
         clearHierarchyDrag();
+    }
+
+    private void onHierarchyPointerCaptureLost(object? sender, PointerCaptureLostEventArgs args)
+    {
+        clearHierarchyDrag();
+        clearHierarchyDropIndicator();
     }
 
     private void onHierarchyDragOver(object? sender, DragEventArgs args)

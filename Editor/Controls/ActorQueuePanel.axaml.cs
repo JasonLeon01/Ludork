@@ -27,6 +27,7 @@ public partial class ActorQueuePanel : UserControl
         EditorInputs.ApplyEditable(SearchBox);
         SearchBox.PlaceholderText = LocaleService.Get("SEARCH_ACTORS");
         Queue.AddHandler(PointerPressedEvent, onPointerPressed, RoutingStrategies.Tunnel);
+        Queue.AddHandler(ContextRequestedEvent, onContextRequested, RoutingStrategies.Tunnel);
         DataContextChanged += (_, _) => updatePreviewActivity();
         EffectiveViewportChanged += (_, _) => updatePreviewActivity();
     }
@@ -84,12 +85,16 @@ public partial class ActorQueuePanel : UserControl
     {
         PointerPoint point = args.GetCurrentPoint(Queue);
         ActorQueueItemViewModel? item = getItemAt(point.Position);
-        if (point.Properties.IsLeftButtonPressed)
-        {
+        if (point.Properties.IsLeftButtonPressed && !point.Properties.IsRightButtonPressed)
             handleLeftClick(item);
-            return;
-        }
-        if (!point.Properties.IsRightButtonPressed || item is null || DataContext is not ActorQueueViewModel viewModel)
+    }
+
+    private void onContextRequested(object? sender, ContextRequestedEventArgs args)
+    {
+        ActorQueueItemViewModel? item = args.TryGetPosition(Queue, out Point position)
+            ? getItemAt(position)
+            : Queue.SelectedItem as ActorQueueItemViewModel;
+        if (item is null || DataContext is not ActorQueueViewModel viewModel)
             return;
 
         ActorQueueItemViewModel? previousItem = viewModel.SelectedItem;

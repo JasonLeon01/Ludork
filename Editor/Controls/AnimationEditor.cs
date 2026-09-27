@@ -233,6 +233,7 @@ public sealed class AnimationEditor : UserControl
         assetSelectionSurface.Children.Add(assetsScroll);
         assetSelectionSurface.Children.Add(assetSelectionOverlay);
         assetSelectionSurface.PointerPressed += onAssetsPointerPressed;
+        assetSelectionSurface.ContextRequested += onAssetsContextRequested;
         assetSelectionSurface.PointerMoved += onAssetsPointerMoved;
         assetSelectionSurface.PointerReleased += onAssetsPointerReleased;
         assetSelectionSurface.AddHandler(
@@ -398,14 +399,9 @@ public sealed class AnimationEditor : UserControl
         int assetIndex = getAssetIndexFromSource(args.Source);
         if (assetIndex < 0)
             assetIndex = getAssetIndexAtPosition(position);
-        if (point.Properties.IsRightButtonPressed)
-        {
-            showAssetsContextMenu(assetIndex);
-            args.Handled = true;
-            return;
-        }
         if (args.Pointer.Type != PointerType.Mouse
             || !point.Properties.IsLeftButtonPressed
+            || point.Properties.IsRightButtonPressed
             || assetIndex >= 0)
         {
             return;
@@ -423,13 +419,26 @@ public sealed class AnimationEditor : UserControl
         args.Handled = true;
     }
 
+    private void onAssetsContextRequested(object? sender, ContextRequestedEventArgs args)
+    {
+        if (isAssetScrollBarSource(args.Source))
+            return;
+        completeAssetMarquee(false);
+        int assetIndex = getAssetIndexFromSource(args.Source);
+        if (assetIndex < 0 && args.TryGetPosition(assetSelectionSurface, out Point position))
+            assetIndex = getAssetIndexAtPosition(position);
+        showAssetsContextMenu(assetIndex);
+        args.Handled = true;
+    }
+
     private void onAssetsPointerMoved(object? sender, PointerEventArgs args)
     {
         if (!assetMarqueePending)
             return;
         PointerPoint point = args.GetCurrentPoint(assetSelectionSurface);
         if (args.Pointer.Type != PointerType.Mouse
-            || !point.Properties.IsLeftButtonPressed)
+            || !point.Properties.IsLeftButtonPressed
+            || point.Properties.IsRightButtonPressed)
         {
             completeAssetMarquee(true);
             args.Pointer.Capture(null);
@@ -1088,7 +1097,8 @@ public sealed class AnimationEditor : UserControl
         bool collapseSelectionOnRelease = false;
         item.PointerPressed += (_, args) =>
         {
-            if (args.GetCurrentPoint(item).Properties.IsLeftButtonPressed)
+            PointerPointProperties properties = args.GetCurrentPoint(item).Properties;
+            if (properties.IsLeftButtonPressed && !properties.IsRightButtonPressed)
             {
                 bool primary = EditorShortcuts.HasPrimaryModifier(args.KeyModifiers);
                 bool shift = args.KeyModifiers.HasFlag(KeyModifiers.Shift);
@@ -1126,7 +1136,8 @@ public sealed class AnimationEditor : UserControl
         {
             if (assetDragPress is null || assetDragStart is not Point start)
                 return;
-            if (!args.GetCurrentPoint(item).Properties.IsLeftButtonPressed)
+            PointerPointProperties properties = args.GetCurrentPoint(item).Properties;
+            if (!properties.IsLeftButtonPressed || properties.IsRightButtonPressed)
             {
                 assetDragPress = null;
                 assetDragStart = null;
@@ -1161,6 +1172,12 @@ public sealed class AnimationEditor : UserControl
                 assetSelectionAnchor = index;
                 refreshAssetSelection();
             }
+            collapseSelectionOnRelease = false;
+            assetDragPress = null;
+            assetDragStart = null;
+        };
+        item.PointerCaptureLost += (_, _) =>
+        {
             collapseSelectionOnRelease = false;
             assetDragPress = null;
             assetDragStart = null;

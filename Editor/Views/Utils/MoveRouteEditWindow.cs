@@ -31,6 +31,7 @@ internal sealed class MoveRouteEditWindow : Window
         MinHeight = 540;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         EditorWindowIcon.Apply(this);
+        EditorLayoutService.AttachWindow(this, nameof(MoveRouteEditWindow));
 
         mapList = new ListBox { MinWidth = 180 };
         mapView = new MoveRouteMapReferenceView(gameData);
@@ -148,6 +149,7 @@ internal sealed class MoveRouteEditWindow : Window
         area.Children.Add(mapList);
         Grid.SetColumn(splitter, 1);
         area.Children.Add(splitter);
+        EditorLayoutService.BindColumns(area, splitter, "MoveRouteEditor.Columns", 0, 2);
         Grid.SetColumn(scroll, 2);
         area.Children.Add(scroll);
         return area;

@@ -26,7 +26,7 @@ public sealed partial class MapPanel
     private void handleLightPointerPressed(PointerPressedEventArgs args, Point position, int width, int height)
     {
         PointerPoint pointer = args.GetCurrentPoint(this);
-        if (!pointer.Properties.IsLeftButtonPressed && !pointer.Properties.IsRightButtonPressed
+        if (!pointer.Properties.IsLeftButtonPressed || pointer.Properties.IsRightButtonPressed
             || getMapBasePosition(position, width, height) is not { } basePosition)
             return;
         int? actorHit = hitTestLightActor(position, basePosition, width, height, out int? hit);
@@ -50,12 +50,6 @@ public sealed partial class MapPanel
         }
         setSelectedActor(null, null, true);
         setSelectedLightIndex(hit);
-        if (pointer.Properties.IsRightButtonPressed)
-        {
-            showLightContextMenu(position, width, height);
-            args.Handled = true;
-            return;
-        }
         if (hit is not int index || CurrentMapDocument?.Lights is not IReadOnlyList<MapLightSnapshot> lights || lights[index] is not MapLightSnapshot light || !tryGetLight(light, out Point center, out double radius))
         {
             InvalidateVisual();
@@ -102,15 +96,7 @@ public sealed partial class MapPanel
             ? hitTestActor(selectedLayerName, mapPosition)
             : null;
         (string Layer, int Index)? target = resolveMapActorHit(selectedLayerName, hit);
-        if (point.Properties.IsRightButtonPressed)
-        {
-            setSelectedActor(target?.Layer, target?.Index, true);
-            showActorContextMenu(grid);
-            args.Handled = true;
-            InvalidateVisual();
-            return;
-        }
-        if (!point.Properties.IsLeftButtonPressed)
+        if (!point.Properties.IsLeftButtonPressed || point.Properties.IsRightButtonPressed)
             return;
         if (target is { } selected)
         {

@@ -27,6 +27,7 @@ public sealed class ParticleWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Background = Ludork.Services.EditorTheme.Brush("Background");
         EditorWindowIcon.Apply(this);
+        EditorLayoutService.AttachWindow(this, nameof(ParticleWindow));
         Content = DeferredWindowInitializer.CreateLoadingContent();
         _ = new DeferredWindowInitializer(this, async cancellationToken =>
         {

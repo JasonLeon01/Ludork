@@ -114,6 +114,7 @@ public sealed partial class ParticleEditor : UserControl
             GridSplitter splitter = new() { Width = 5, HorizontalAlignment = HorizontalAlignment.Stretch, Background = Brushes.DimGray };
             Grid.SetColumn(splitter, column);
             root.Children.Add(splitter);
+            EditorLayoutService.BindColumns(root, splitter, "ParticleEditor.Columns", 0, 2, 4);
         }
         Content = root;
     }

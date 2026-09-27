@@ -149,6 +149,11 @@ public partial class MainWindow
 
     private void onLightActorSelectionClick(object? sender, RoutedEventArgs args)
     {
+        if (editorSettings is not null)
+        {
+            editorSettings.LightActorSelection = LightActorSelectionToggle.IsChecked == true;
+            EditorLayoutService.Save();
+        }
         EditorPanel.setLightActorSelectionEnabled(LightActorSelectionToggle.IsChecked == true);
         if (LightActorSelectionToggle.IsChecked == true)
             restoreLightLayerSelection();
@@ -193,10 +198,11 @@ public partial class MainWindow
     private void updateMapModePanels()
     {
         bool actorMode = EditorPanel.EditMode == MapEditMode.Actor;
-        bool lightActorSelected = EditorPanel.EditMode == MapEditMode.Light
+        bool lightMode = EditorPanel.EditMode == MapEditMode.Light;
+        bool lightActorSelected = lightMode
             && EditorPanel.LightActorSelectionEnabled && EditorPanel.SelectedActorIndex is not null;
         RightList.IsVisible = EditorPanel.EditMode == MapEditMode.Tile;
-        LightInfoPanel.IsVisible = false;
+        LightInfoPanel.IsVisible = lightMode && !lightActorSelected;
         ActorModePanel.IsVisible = actorMode || lightActorSelected;
         ActorOutlinerPanel.IsVisible = actorMode;
         ActorOutlinerSplitter.IsVisible = actorMode;
@@ -213,21 +219,25 @@ public partial class MainWindow
         PointerPoint point = args.GetCurrentPoint(LayerTabs);
         TabStripItem? item = getTabStripItem(args.Source);
         LayerTabViewModel? layer = item?.Content as LayerTabViewModel ?? item?.DataContext as LayerTabViewModel;
-        if (point.Properties.IsRightButtonPressed)
-        {
-            if (viewModel?.CanEdit != true)
-                return;
-            showLayerContextMenu(layer, item as Control ?? LayerTabs);
-            args.Handled = true;
-            return;
-        }
-        if (!point.Properties.IsLeftButtonPressed || layer is null || layer.IsOverview)
+        if (!point.Properties.IsLeftButtonPressed || point.Properties.IsRightButtonPressed || layer is null || layer.IsOverview)
             return;
         if (viewModel?.CanEdit != true)
             return;
         draggedLayer = layer;
         dragStart = args.GetPosition(LayerTabs);
         isDraggingLayer = false;
+    }
+
+    private void onLayerContextRequested(object? sender, ContextRequestedEventArgs args)
+    {
+        if (!LayerTabs.IsEnabled || viewModel?.CanEdit != true || isLayerActionSource(args.Source))
+            return;
+        TabStripItem? item = getTabStripItem(args.Source);
+        LayerTabViewModel? layer = item?.Content as LayerTabViewModel ?? item?.DataContext as LayerTabViewModel;
+        if (layer is null && !args.TryGetPosition(LayerTabs, out _))
+            layer = viewModel.MapWorkspace.SelectedLayerTab;
+        showLayerContextMenu(layer, item as Control ?? LayerTabs);
+        args.Handled = true;
     }
 
     private void onLayerVisibilityClick(object? sender, RoutedEventArgs args)
@@ -514,7 +524,7 @@ public partial class MainWindow
 
     protected override void OnClosed(EventArgs args)
     {
-        saveEditorLayout();
+        EditorLayoutService.Save();
         consoleLogView.Dispose();
         consoleLogSession.Dispose();
         if (actorPreviewService is not null)

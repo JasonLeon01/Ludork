@@ -36,6 +36,7 @@ public sealed class CurveWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Background = Ludork.Services.EditorTheme.Brush("Background");
         EditorWindowIcon.Apply(this);
+        EditorLayoutService.AttachWindow(this, nameof(CurveWindow));
         editor = new CurveEditor(gameData, key, data);
         Content = editor;
         toast = new Toast(this);

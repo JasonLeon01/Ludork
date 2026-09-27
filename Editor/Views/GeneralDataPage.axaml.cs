@@ -66,6 +66,7 @@ internal sealed partial class GeneralDataPage : UserControl
         this.gameData = gameData;
         viewModel = new GeneralDataPageViewModel(gameData.General, gameData.GetDocument("General", typeKey), typeKey, typeData, sessionState);
         InitializeComponent();
+        EditorLayoutService.BindColumns(PageLayout, MemberSplitter, "GeneralDataPage.Columns", 0, 2);
         DataContext = viewModel;
         searchBox = this.FindControl<TextBox>("SearchBox")!;
         memberList = this.FindControl<ListBox>("MemberList")!;
@@ -685,13 +686,10 @@ internal sealed partial class GeneralDataPage : UserControl
         }
         if (paramName is not null && paramsObj is not null)
         {
-            labelBlock.AddHandler(PointerPressedEvent, (s, e) =>
+            labelBlock.AddHandler(ContextRequestedEvent, (s, e) =>
             {
-                if (e.GetCurrentPoint(null).Properties.IsRightButtonPressed)
-                {
-                    e.Handled = true;
-                    showParamLabelContextMenu(paramName, paramsObj, labelBlock);
-                }
+                e.Handled = true;
+                showParamLabelContextMenu(paramName, paramsObj, labelBlock);
             }, RoutingStrategies.Tunnel);
             labelBlock.Cursor = new Cursor(StandardCursorType.Hand);
         }

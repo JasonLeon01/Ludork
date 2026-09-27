@@ -89,6 +89,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         Background = EditorTheme.Brush("Background");
         FontFamily = EditorTheme.FontFamily;
         EditorWindowIcon.Apply(this);
+        EditorLayoutService.AttachWindow(this, nameof(BlueprintEditorWindow));
         HistoryMergeBehavior.AttachBoundary(this, gameData);
 
         Content = DeferredWindowInitializer.CreateLoadingContent();
@@ -164,6 +165,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         }
         splitLayout = editorLayout;
         contentSplitter = splitter;
+        EditorLayoutService.BindColumns(editorLayout, splitter, "BlueprintEditor.Columns", 0, 2);
         void updateVariableColumnWidth()
         {
             double availableWidth = editorLayout.Bounds.Width;

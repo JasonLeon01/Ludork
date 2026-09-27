@@ -50,7 +50,6 @@ public partial class MainWindow : Window, IProjectOperationInteraction
     private bool closeConfirmed;
     private bool closingPrompt;
     private bool layoutReady;
-    private bool layoutSavePending;
     private TileSelectViewModel? tileSelect;
     private PerformanceMonitorWindow? performanceMonitorWindow;
     private readonly Toast toast;
@@ -121,6 +120,7 @@ public partial class MainWindow : Window, IProjectOperationInteraction
         leftColumn.Width = new GridLength(Math.Max(160, settings.UpperLeftWidth));
         rightColumn.Width = new GridLength(Math.Max(320, settings.UpperRightWidth));
         lowerLeftColumn.Width = new GridLength(Math.Max(180, settings.LowerLeftWidth));
+        EditorLayoutService.AttachWindow(this, "Main");
     }
 
 }

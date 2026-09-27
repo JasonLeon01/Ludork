@@ -188,7 +188,7 @@ public sealed partial class MapDataService
         if (childMap && (sizeChanged || currentKey != newKey) && store.Worlds.getWorldMap(worldKey) is JsonObject world)
         {
             WorldMapValidationResult worldValidation = store.Worlds.ValidateWorldMap(worldKey);
-            if (!worldValidation.IsValid)
+            if (!worldValidation.IsValidForEditing)
                 return false;
             string oldFile = Path.GetFileName(currentKey) + ".json";
             string newFile = Path.GetFileName(newKey) + ".json";
@@ -216,7 +216,7 @@ public sealed partial class MapDataService
             if (merged is null)
                 return false;
             worldCandidate = WorldDataService.replaceWorldComposition(world, merged, placements);
-            if (!store.Worlds.worldMapValidation.Validate(worldKey, worldCandidate, children).IsValid)
+            if (!store.Worlds.worldMapValidation.Validate(worldKey, worldCandidate, children).IsValidForEditing)
                 return false;
         }
         if (ProjectDataStore.nodesEqual(current, candidate)

@@ -53,6 +53,7 @@ public sealed partial class WorldMapCanvas : Control, IDisposable
         AddHandler(DragDrop.DropEvent, onDrop);
         AddHandler(DragDrop.DragLeaveEvent, onDragLeave);
         PointerTouchPadGestureMagnify += onPointerTouchPadGestureMagnify;
+        ContextRequested += onContextRequested;
     }
 
     public event EventHandler<WorldMapPlacementChangedEventArgs>? PlacementChanged;
@@ -212,6 +213,7 @@ public sealed partial class WorldMapCanvas : Control, IDisposable
                     placement.Width,
                     placement.Height))
                 .Intersects(visibleCanvas))
+            .OrderBy(placement => placement == selectedPlacement)
             .ToArray();
         bool drawDetailedMaps = cellSize >= 1 && visiblePlacements.Length <= 32;
         HashSet<string> pinnedMaps = drawDetailedMaps
@@ -291,15 +293,7 @@ public sealed partial class WorldMapCanvas : Control, IDisposable
         if (tryStartPanning(args, point))
             return;
         WorldMapPlacementPreview? hit = hitTestPlacement(position);
-        if (point.Properties.IsRightButtonPressed && PlacementEditingEnabled && hit is not null)
-        {
-            selectedPlacement = hit;
-            showPlacementContextMenu(hit);
-            InvalidateVisual();
-            args.Handled = true;
-            return;
-        }
-        if (!point.Properties.IsLeftButtonPressed)
+        if (!point.Properties.IsLeftButtonPressed || point.Properties.IsRightButtonPressed)
             return;
         if (WorldCellAt(position) is { } cell)
         {
@@ -317,8 +311,23 @@ public sealed partial class WorldMapCanvas : Control, IDisposable
         movingPlacement = hit;
         Point worldPosition = screenToWorld(position);
         movingOffset = new Vector(worldPosition.X - hit.X, worldPosition.Y - hit.Y);
-        ghost = new WorldMapGhost(hit.Child, hit.X, hit.Y, isPlacementValid(hit.Child, hit.X, hit.Y, hit));
+        ghost = new WorldMapGhost(hit.Child, hit.X, hit.Y, isPlacementValid(hit.Child, hit.X, hit.Y));
         args.Pointer.Capture(this);
+        InvalidateVisual();
+        args.Handled = true;
+    }
+
+    private void onContextRequested(object? sender, ContextRequestedEventArgs args)
+    {
+        if (!PlacementEditingEnabled)
+            return;
+        WorldMapPlacementPreview? hit = args.TryGetPosition(this, out Point position)
+            ? hitTestPlacement(position)
+            : selectedPlacement;
+        if (hit is null)
+            return;
+        selectedPlacement = hit;
+        showPlacementContextMenu(hit);
         InvalidateVisual();
         args.Handled = true;
     }
@@ -338,7 +347,7 @@ public sealed partial class WorldMapCanvas : Control, IDisposable
             movingPlacement.Child,
             x,
             y,
-            isPlacementValid(movingPlacement.Child, x, y, movingPlacement));
+            isPlacementValid(movingPlacement.Child, x, y));
         InvalidateVisual();
         args.Handled = true;
     }
@@ -409,7 +418,7 @@ public sealed partial class WorldMapCanvas : Control, IDisposable
         Point world = screenToWorld(args.GetPosition(this));
         int x = (int)Math.Floor(world.X);
         int y = (int)Math.Floor(world.Y);
-        bool valid = isPlacementValid(child, x, y, getPlacement(child.Key));
+        bool valid = isPlacementValid(child, x, y);
         ghost = new WorldMapGhost(child, x, y, valid);
         args.DragEffects = valid ? DragDropEffects.Copy : DragDropEffects.None;
         args.Handled = true;
@@ -429,6 +438,8 @@ public sealed partial class WorldMapCanvas : Control, IDisposable
                     dropGhost.Child.Key,
                     dropGhost.X,
                     dropGhost.Y));
+            selectedPlacement = placements.FirstOrDefault(placement => placement.Child.Key == dropGhost.Child.Key)
+                ?? selectedPlacement;
         }
         args.Handled = true;
         InvalidateVisual();
@@ -613,8 +624,7 @@ public sealed partial class WorldMapCanvas : Control, IDisposable
     private bool isPlacementValid(
         WorldMapChildSource child,
         int x,
-        int y,
-        WorldMapPlacementPreview? ignored)
+        int y)
     {
         int width = getMapWidth(child);
         int height = getMapHeight(child);
@@ -626,14 +636,6 @@ public sealed partial class WorldMapCanvas : Control, IDisposable
             || y + height > WorldHeight)
         {
             return false;
-        }
-        Rect candidate = new(x, y, width, height);
-        foreach (WorldMapPlacementPreview placement in placements)
-        {
-            if (placement == ignored)
-                continue;
-            if (candidate.Intersects(new Rect(placement.X, placement.Y, placement.Width, placement.Height)))
-                return false;
         }
         return childLayerOrderValidity.GetValueOrDefault(child.Key);
     }
@@ -678,6 +680,11 @@ public sealed partial class WorldMapCanvas : Control, IDisposable
     private WorldMapPlacementPreview? hitTestPlacement(Point screenPosition)
     {
         Point world = screenToWorld(screenPosition);
+        if (selectedPlacement is not null
+            && new Rect(selectedPlacement.X, selectedPlacement.Y, selectedPlacement.Width, selectedPlacement.Height).Contains(world))
+        {
+            return selectedPlacement;
+        }
         for (int index = placements.Count - 1; index >= 0; index--)
         {
             WorldMapPlacementPreview placement = placements[index];
@@ -685,11 +692,6 @@ public sealed partial class WorldMapCanvas : Control, IDisposable
                 return placement;
         }
         return null;
-    }
-
-    private WorldMapPlacementPreview? getPlacement(string childKey)
-    {
-        return placements.FirstOrDefault(item => string.Equals(item.Child.Key, childKey, StringComparison.Ordinal));
     }
 
     private static int getMapWidth(WorldMapChildSource child)

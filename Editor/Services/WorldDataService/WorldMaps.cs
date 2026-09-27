@@ -227,7 +227,7 @@ public sealed partial class WorldDataService
         if (!MapDataService.isValidMapSize(info.Width, info.Height))
             return WorldMapMutationResult.Failed("The world size must be from 1 to 32768 cells.");
         WorldMapValidationResult currentValidation = ValidateWorldMap(worldKey);
-        if (!currentValidation.IsValid)
+        if (!currentValidation.IsValidForEditing)
             return WorldMapMutationResult.Failed(formatWorldMapValidation(currentValidation));
         WorldMapInfo baseline = getWorldMapInfo(worldKey)!;
         JsonObject candidate = (JsonObject)current.DeepClone();
@@ -255,7 +255,7 @@ public sealed partial class WorldDataService
             worldKey,
             candidate,
             getWorldChildCatalog(worldKey));
-        if (!validation.IsValid)
+        if (!validation.IsValidForEditing)
             return WorldMapMutationResult.Failed(formatWorldMapValidation(validation));
         if (ProjectDataStore.nodesEqual(current, candidate))
             return WorldMapMutationResult.Succeeded;
@@ -341,7 +341,7 @@ public sealed partial class WorldDataService
             return WorldMapMutationResult.Failed("The world or child map does not exist.");
         }
         WorldMapValidationResult currentValidation = ValidateWorldMap(worldKey);
-        if (!currentValidation.IsValid)
+        if (!currentValidation.IsValidForEditing)
             return WorldMapMutationResult.Failed(formatWorldMapValidation(currentValidation));
         string childFile = Path.GetFileName(childMapKey) + ".json";
         List<WorldMapPlacement> placements = currentValidation.Placements.ToList();
@@ -365,7 +365,7 @@ public sealed partial class WorldDataService
             worldKey,
             candidate,
             getWorldChildCatalog(worldKey));
-        if (!validation.IsValid)
+        if (!validation.IsValidForEditing)
             return WorldMapMutationResult.Failed(formatWorldMapValidation(validation));
         if (ProjectDataStore.nodesEqual(current, candidate))
             return WorldMapMutationResult.Succeeded;
@@ -387,7 +387,7 @@ public sealed partial class WorldDataService
             return WorldMapMutationResult.Failed("The world or child map does not exist.");
         }
         WorldMapValidationResult validation = ValidateWorldMap(worldKey);
-        if (!validation.IsValid)
+        if (!validation.IsValidForEditing)
             return WorldMapMutationResult.Failed(formatWorldMapValidation(validation));
         string childFile = Path.GetFileName(childMapKey) + ".json";
         List<WorldMapPlacement> placements = validation.Placements
