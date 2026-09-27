@@ -50,6 +50,7 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
         if (EditorLayoutService.Settings is EditorSettings settings)
         {
             iconView = settings.FileExplorerIconView;
+            zoom = settings.FileExplorerZoom;
             isSourcesExpanded = settings.FileExplorerSourcesExpanded;
         }
         externalIdeService = new ExternalIdeService(this.projectPath, !projectConfig.IsStandalone);
@@ -131,12 +132,21 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
 
     partial void OnIconViewChanged(bool value)
     {
+        if (value && !IsSearching && SelectedEntry is { Depth: > 0 } selected)
+        {
+            string first = Path.GetRelativePath(CurrentPath, selected.FullPath)
+                .Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)[0];
+            string parentPath = Path.Combine(CurrentPath, first);
+            SelectedEntry = Entries.FirstOrDefault(entry => PathComparer.Equals(entry.FullPath, parentPath));
+        }
         OnPropertyChanged(nameof(FileExplorerViewMode));
         if (EditorLayoutService.Settings is EditorSettings settings)
         {
             settings.FileExplorerIconView = value;
             EditorLayoutService.Save();
         }
+        if (publishedPath is not null || IsLoading)
+            _ = RefreshAsync();
     }
 
     partial void OnIsSourcesExpandedChanged(bool value)

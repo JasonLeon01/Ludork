@@ -29,6 +29,7 @@ public sealed partial class FileExplorerViewModel
 
     private void changed(FileExplorerFilesChangedEventArgs changes)
     {
+        updateExpandedDirectories(changes);
         RequestRefresh();
         FilesChanged?.Invoke(this, changes);
     }
@@ -358,16 +359,41 @@ public sealed partial class FileExplorerViewModel
             File.Copy(source, target);
     }
 
-    private string getDuplicatePath(string source)
+    private string getDuplicatePath(string source, string? targetDirectory = null)
     {
-        string directory = Path.GetDirectoryName(source)!;
-        string extension = Path.GetExtension(source);
-        string stem = Path.GetFileNameWithoutExtension(source);
+        string directory = targetDirectory ?? Path.GetDirectoryName(source)!;
+        bool directorySource = isVisibleDirectory(source);
+        string extension = directorySource ? string.Empty : Path.GetExtension(source);
+        string stem = directorySource ? Path.GetFileName(source) : Path.GetFileNameWithoutExtension(source);
         string candidate = Path.Combine(directory, stem + "_copy" + extension);
         int suffix = 2;
         while (pathExists(candidate))
             candidate = Path.Combine(directory, stem + "_copy" + suffix++ + extension);
         return candidate;
+    }
+
+    public IReadOnlyList<string> GetSiblingNames(FileExplorerEntryViewModel entry)
+    {
+        string directory = Path.GetDirectoryName(entry.FullPath)!;
+        HashSet<string> paths = Directory.Exists(directory)
+            ? Directory.EnumerateFileSystemEntries(directory).ToHashSet(PathComparer)
+            : new HashSet<string>(PathComparer);
+        foreach (EditorDocument document in gameData.Documents.All)
+        {
+            if (!document.Exists)
+                continue;
+            foreach (string path in gameData.Documents.GetPaths(document))
+            {
+                if (!isSameOrChildPath(directory, path))
+                    continue;
+                string relative = Path.GetRelativePath(directory, path);
+                string first = relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)[0];
+                if (first is not ("" or "."))
+                    paths.Add(Path.Combine(directory, first));
+            }
+        }
+        paths.Remove(entry.FullPath);
+        return paths.Select(path => Path.GetFileName(path)).ToArray();
     }
 
     private static void copyDirectory(string source, string target)
@@ -399,4 +425,3 @@ public sealed partial class FileExplorerViewModel
         }
     }
 }
-

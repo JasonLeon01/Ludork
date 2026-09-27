@@ -30,12 +30,18 @@ public sealed class FileExplorerEntryViewModel : ViewModelBase, IDisposable
     private int presentationSize;
     private string? blueprintReference;
     private string revision = string.Empty;
+    private string relativePath;
+    private int depth;
+    private bool canExpand;
+    private bool isExpanded;
+    private double indentation;
     private Task<DataFileInfo?>? dataInfo;
 
     public FileExplorerEntryViewModel(string fullPath, bool isDirectory, IImage placeholder,
         EditorThumbnailService thumbnails, BlueprintPreviewService previews)
     {
         FullPath = fullPath;
+        relativePath = Path.GetFileName(fullPath);
         IsDirectory = isDirectory;
         this.placeholder = placeholder;
         this.thumbnails = thumbnails;
@@ -46,15 +52,31 @@ public sealed class FileExplorerEntryViewModel : ViewModelBase, IDisposable
 
     public string FullPath { get; private set; }
     public string Name => Path.GetFileName(FullPath);
+    public string RelativePath { get => relativePath; private set => SetProperty(ref relativePath, value); }
     public bool IsDirectory { get; }
+    public int Depth { get => depth; private set => SetProperty(ref depth, value); }
+    public bool CanExpand { get => canExpand; private set => SetProperty(ref canExpand, value); }
+    public bool IsExpanded { get => isExpanded; private set => SetProperty(ref isExpanded, value); }
+    public double Indentation { get => indentation; private set => SetProperty(ref indentation, value); }
     public IImage? Icon { get => icon; private set => SetProperty(ref icon, value); }
     public long PreviewFrameRevision { get => previewFrameRevision; private set => SetProperty(ref previewFrameRevision, value); }
     public bool IsModified { get => isModified; set => SetProperty(ref isModified, value); }
 
     public Task<DataFileInfo?> ReadInfoAsync(ProjectDataStore gameData) => dataInfo ??= gameData.TryLoadDataFileAsync(FullPath);
 
-    public void UpdatePath(string path)
+    public void UpdateHierarchy(int level, bool expandable, bool expanded, double zoom)
     {
+        Depth = level;
+        CanExpand = expandable;
+        IsExpanded = expanded;
+        UpdateIndentation(zoom);
+    }
+
+    public void UpdateIndentation(double zoom) => Indentation = Depth * 18 * zoom / 100;
+
+    public void UpdatePath(string path, string? directory = null)
+    {
+        RelativePath = directory is null ? Path.GetFileName(path) : Path.GetRelativePath(directory, path).Replace('\\', '/');
         if (FullPath == path)
             return;
         FullPath = path;

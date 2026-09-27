@@ -140,7 +140,6 @@ public partial class MainWindow
     {
         resetConsoleOutput();
         performanceMonitorWindow?.ClearData();
-        BottomTabs.SelectedIndex = 1;
         string? error = consoleLogSession.Start(ProjectPath);
         if (error is not null)
             appendConsoleLine("[Console] Failed to create the log file: " + error);

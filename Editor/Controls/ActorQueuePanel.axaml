@@ -5,6 +5,19 @@
              x:Class="Ludork.Controls.ActorQueuePanel"
              x:DataType="vm:ActorQueueViewModel">
     <UserControl.Styles>
+        <Style Selector="ListBox#IconQueue ListBoxItem, ListBox#ListQueue ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="ListBox#IconQueue ListBoxItem">
+            <Setter Property="Margin" Value="8" />
+        </Style>
+        <Style Selector="ToggleButton#ViewModeButton > Image">
+            <Setter Property="Source" Value="{StaticResource EditorImage.ViewGrid}" />
+        </Style>
+        <Style Selector="ToggleButton#ViewModeButton:checked > Image">
+            <Setter Property="Source" Value="{StaticResource EditorImage.ViewList}" />
+        </Style>
         <Style Selector="ToggleButton.favorite > Image">
             <Setter Property="Source" Value="{StaticResource EditorImage.Favorite}" />
         </Style>
@@ -12,12 +25,12 @@
             <Setter Property="Source" Value="{StaticResource EditorImage.FavoriteSelected}" />
         </Style>
     </UserControl.Styles>
-    <Grid RowDefinitions="38,38,*" RowSpacing="6">
-        <TextBox x:Name="SearchBox"
-                 Text="{Binding SearchText, Mode=TwoWay}"
-                 PlaceholderText="Search" />
-        <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="6">
+    <Grid RowDefinitions="36,*">
+        <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="4" Margin="2">
             <ComboBox ItemsSource="{Binding Scopes}"
+                      MinWidth="100"
+                      MaxWidth="160"
+                      IsEnabled="{Binding AreFiltersEnabled}"
                       SelectedItem="{Binding SelectedScope, Mode=TwoWay}">
                 <ComboBox.ItemTemplate>
                     <DataTemplate x:DataType="vm:ActorLibraryScopeOption">
@@ -26,47 +39,105 @@
                 </ComboBox.ItemTemplate>
             </ComboBox>
             <ComboBox Grid.Column="1"
+                      MinWidth="100"
+                      MaxWidth="200"
+                      IsEnabled="{Binding AreFiltersEnabled}"
                       ItemsSource="{Binding Categories}"
                       SelectedItem="{Binding SelectedCategory, Mode=TwoWay}" />
+            <TextBox x:Name="SearchBox"
+                     Grid.Column="3"
+                     Width="180"
+                     VerticalAlignment="Center"
+                     Text="{Binding SearchText, Mode=TwoWay}" />
+            <ToggleButton x:Name="ViewModeButton"
+                          Grid.Column="4"
+                          IsChecked="{Binding IconView, Mode=TwoWay}"
+                          Classes="toolbar"
+                          ToolTip.Tip="{Binding ViewModeLabel}"
+                          AutomationProperties.Name="{Binding ViewModeLabel}">
+                <Image />
+            </ToggleButton>
         </Grid>
-        <ListBox x:Name="Queue"
-                 Grid.Row="2"
-                 ItemsSource="{Binding Items}"
-                 SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
-                 DoubleTapped="onDoubleTapped">
-            <ListBox.ItemTemplate>
-                <DataTemplate x:DataType="vm:ActorQueueItemViewModel">
-                    <controls:ActorQueueItemControl>
-                        <Grid Height="66"
-                              ColumnDefinitions="Auto,*,Auto"
-                              ColumnSpacing="6"
-                              ToolTip.Tip="{Binding BlueprintReference}">
-                            <controls:FrameRevisionImage Source="{Binding Icon}"
-                                                         FrameRevision="{Binding PreviewFrameRevision}"
-                                                         Width="48"
-                                                         Height="48"
-                                                         Stretch="Uniform"
-                                                         VerticalAlignment="Center" />
-                            <StackPanel Grid.Column="1"
-                                        VerticalAlignment="Center"
-                                        Spacing="2">
-                                <controls:MiddleEllipsisTextBlock SourceText="{Binding DisplayName}" />
-                                <controls:MiddleEllipsisTextBlock SourceText="{Binding Category}"
-                                                                  FontSize="11"
-                                                                  Opacity="0.62" />
-                            </StackPanel>
-                            <ToggleButton Grid.Column="2"
-                                          Classes="toolbar favorite"
-                                          ToolTip.Tip="{Binding FavoriteLabel}"
-                                          AutomationProperties.Name="{Binding FavoriteLabel}"
-                                          IsChecked="{Binding IsFavorite, Mode=OneWay}"
-                                          Click="onFavouriteClick">
-                                <Image />
-                            </ToggleButton>
-                        </Grid>
-                    </controls:ActorQueueItemControl>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
+        <Grid Grid.Row="1">
+            <ListBox x:Name="IconQueue"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     ItemsSource="{Binding Items}"
+                     SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+                     DoubleTapped="onDoubleTapped">
+                <ListBox.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <controls:VirtualizingTilePanel ItemWidth="162" ItemHeight="146" />
+                    </ItemsPanelTemplate>
+                </ListBox.ItemsPanel>
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ActorQueueItemViewModel">
+                        <controls:ActorQueueItemControl PreviewSize="64">
+                            <Grid Width="134" Margin="6" RowDefinitions="64,Auto,Auto" RowSpacing="3"
+                                  ToolTip.Tip="{Binding BlueprintReference}">
+                                <controls:FrameRevisionImage Source="{Binding Icon}"
+                                                             FrameRevision="{Binding PreviewFrameRevision}"
+                                                             Width="64"
+                                                             Height="64"
+                                                             Stretch="Uniform"
+                                                             HorizontalAlignment="Center" />
+                                <ToggleButton Classes="toolbar favorite"
+                                              HorizontalAlignment="Right"
+                                              VerticalAlignment="Top"
+                                              ToolTip.Tip="{Binding FavoriteLabel}"
+                                              AutomationProperties.Name="{Binding FavoriteLabel}"
+                                              IsChecked="{Binding IsFavorite, Mode=OneWay}"
+                                              Click="onFavouriteClick">
+                                    <Image />
+                                </ToggleButton>
+                                <TextBlock Grid.Row="1" Text="{Binding DisplayName}"
+                                           TextAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Grid.Row="2" Text="{Binding Category}" FontSize="11" Opacity="0.62"
+                                           TextAlignment="Center" TextTrimming="CharacterEllipsis" />
+                            </Grid>
+                        </controls:ActorQueueItemControl>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+            <ListBox x:Name="ListQueue"
+                     IsVisible="False"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     ItemsSource="{Binding Items}"
+                     SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+                     DoubleTapped="onDoubleTapped">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ActorQueueItemViewModel">
+                        <controls:ActorQueueItemControl>
+                            <Grid Height="66" Margin="6,0"
+                                  ColumnDefinitions="Auto,*,Auto"
+                                  ColumnSpacing="6"
+                                  ToolTip.Tip="{Binding BlueprintReference}">
+                                <controls:FrameRevisionImage Source="{Binding Icon}"
+                                                             FrameRevision="{Binding PreviewFrameRevision}"
+                                                             Width="48"
+                                                             Height="48"
+                                                             Stretch="Uniform"
+                                                             VerticalAlignment="Center" />
+                                <StackPanel Grid.Column="1"
+                                            VerticalAlignment="Center"
+                                            Spacing="2">
+                                    <controls:MiddleEllipsisTextBlock SourceText="{Binding DisplayName}" />
+                                    <controls:MiddleEllipsisTextBlock SourceText="{Binding Category}"
+                                                                      FontSize="11"
+                                                                      Opacity="0.62" />
+                                </StackPanel>
+                                <ToggleButton Grid.Column="2"
+                                              Classes="toolbar favorite"
+                                              ToolTip.Tip="{Binding FavoriteLabel}"
+                                              AutomationProperties.Name="{Binding FavoriteLabel}"
+                                              IsChecked="{Binding IsFavorite, Mode=OneWay}"
+                                              Click="onFavouriteClick">
+                                    <Image />
+                                </ToggleButton>
+                            </Grid>
+                        </controls:ActorQueueItemControl>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Grid>
     </Grid>
 </UserControl>

@@ -75,7 +75,6 @@ public partial class MainWindow : Window, IProjectOperationInteraction
     private ColumnDefinition centerColumn => UpperGrid.ColumnDefinitions[2];
     private ColumnDefinition workspaceColumn => MainLayoutGrid.ColumnDefinitions[0];
     private ColumnDefinition rightColumn => MainLayoutGrid.ColumnDefinitions[2];
-    private ColumnDefinition lowerLeftColumn => LowerGrid.ColumnDefinitions[0];
     private RowDefinition upperRow => MainLayoutGrid.RowDefinitions[0];
     private RowDefinition lowerRow => MainLayoutGrid.RowDefinitions[2];
 
@@ -119,7 +118,6 @@ public partial class MainWindow : Window, IProjectOperationInteraction
         Height = Math.Max(MinHeight, settings.Height);
         leftColumn.Width = new GridLength(Math.Max(160, settings.UpperLeftWidth));
         rightColumn.Width = new GridLength(Math.Max(320, settings.UpperRightWidth));
-        lowerLeftColumn.Width = new GridLength(Math.Max(180, settings.LowerLeftWidth));
         EditorLayoutService.AttachWindow(this, "Main");
     }
 

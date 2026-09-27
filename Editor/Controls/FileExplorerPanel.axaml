@@ -8,10 +8,11 @@
     <UserControl.Styles>
         <Style Selector="ListBox#IconEntries ListBoxItem, ListBox#ListEntries ListBoxItem">
             <Setter Property="Padding" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         </Style>
         <Style Selector="ListBox#IconEntries ListBoxItem">
-            <Setter Property="Margin" Value="8" />
+            <Setter Property="Margin" Value="{Binding ((vm:FileExplorerViewModel)DataContext).IconItemMargin, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}" />
         </Style>
         <Style Selector="ToggleButton#ViewModeButton > Image">
             <Setter Property="Source" Value="{StaticResource EditorImage.ViewGrid}" />
@@ -21,6 +22,17 @@
         </Style>
         <Style Selector="ToggleButton#SourcesButton:checked > Image">
             <Setter Property="RenderTransform" Value="rotate(180deg)" />
+        </Style>
+        <Style Selector="ToggleButton.directoryExpander">
+            <Setter Property="ToolTip.Tip" Value="{Binding ((vm:FileExplorerViewModel)DataContext).ExpandFolderLabel, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}" />
+            <Setter Property="AutomationProperties.Name" Value="{Binding ((vm:FileExplorerViewModel)DataContext).ExpandFolderLabel, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}" />
+        </Style>
+        <Style Selector="ToggleButton.directoryExpander:checked">
+            <Setter Property="ToolTip.Tip" Value="{Binding ((vm:FileExplorerViewModel)DataContext).CollapseFolderLabel, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}" />
+            <Setter Property="AutomationProperties.Name" Value="{Binding ((vm:FileExplorerViewModel)DataContext).CollapseFolderLabel, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}" />
+        </Style>
+        <Style Selector="ToggleButton.directoryExpander:checked > Image">
+            <Setter Property="RenderTransform" Value="rotate(90deg)" />
         </Style>
     </UserControl.Styles>
     <Grid RowDefinitions="36,*,Auto" ColumnDefinitions="Auto,*">
@@ -62,7 +74,7 @@
                 </ListBox>
             </Grid>
         </Border>
-        <Grid Grid.Row="0" Grid.Column="1" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="4" Margin="2">
+        <Grid Grid.Row="0" Grid.Column="1" ColumnDefinitions="*,160,Auto,Auto,Auto" ColumnSpacing="4" Margin="2">
             <ScrollViewer Grid.Column="0"
                           HorizontalScrollBarVisibility="Auto"
                           VerticalScrollBarVisibility="Disabled">
@@ -88,20 +100,23 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </ScrollViewer>
+            <TextBox x:Name="SearchBox" Grid.Column="1"
+                     Text="{Binding SearchText, Mode=TwoWay}"
+                     VerticalAlignment="Center" />
             <ToggleButton x:Name="ViewModeButton"
-                          Grid.Column="1"
+                          Grid.Column="2"
                           IsChecked="{Binding IconView, Mode=TwoWay}"
                           Classes="toolbar"
                           ToolTip.Tip="{Binding FileExplorerViewMode}"
                           AutomationProperties.Name="{Binding FileExplorerViewMode}">
                 <Image />
             </ToggleButton>
-            <Button Grid.Column="2" Classes="toolbar" Click="onUp" IsEnabled="{Binding CanGoUp}"
+            <Button Grid.Column="3" Classes="toolbar" Click="onUp" IsEnabled="{Binding CanGoUp}"
                     ToolTip.Tip="{Binding ParentFolder}" AutomationProperties.Name="{Binding ParentFolder}">
                 <Image Source="{StaticResource EditorImage.NavigateUp}" />
             </Button>
             <SplitButton x:Name="ExternalOpenButton"
-                         Grid.Column="3"
+                         Grid.Column="4"
                          Click="onOpenTarget"
                          Padding="6,0" Height="28" VerticalAlignment="Center">
                 <Grid Width="16" Height="16">
@@ -189,23 +204,23 @@
                      PointerReleased="onPointerReleased">
                 <ListBox.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <controls:VirtualizingTilePanel ItemWidth="162" ItemHeight="124" />
+                        <controls:VirtualizingTilePanel ItemWidth="{Binding IconTileWidth}" ItemHeight="{Binding IconTileHeight}" />
                     </ItemsPanelTemplate>
                 </ListBox.ItemsPanel>
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="vm:FileExplorerEntryViewModel">
                         <controls:FileExplorerItemControl>
-                        <StackPanel Width="134" Margin="6" Spacing="3">
-                            <Grid Width="64" Height="64" HorizontalAlignment="Center">
+                        <StackPanel Width="{Binding ((vm:FileExplorerViewModel)DataContext).IconContentWidth, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}" Margin="{Binding ((vm:FileExplorerViewModel)DataContext).IconMargin, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}" Spacing="{Binding ((vm:FileExplorerViewModel)DataContext).IconSpacing, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}">
+                            <Grid Width="{Binding ((vm:FileExplorerViewModel)DataContext).IconSize, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}" Height="{Binding ((vm:FileExplorerViewModel)DataContext).IconSize, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}" HorizontalAlignment="Center">
                                 <controls:FrameRevisionImage Source="{Binding Icon}"
                                                          FrameRevision="{Binding PreviewFrameRevision}"
-                                                         Width="64"
-                                                         Height="64"
+                                                         Width="{Binding ((vm:FileExplorerViewModel)DataContext).IconSize, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}"
+                                                         Height="{Binding ((vm:FileExplorerViewModel)DataContext).IconSize, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}"
                                                          Stretch="Uniform"
                                                          HorizontalAlignment="Center" />
                                 <TextBlock Text="*" IsVisible="{Binding IsModified}"
                                            HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                                           FontSize="18" FontWeight="Bold" Foreground="{DynamicResource Editor.AccentBrush}"
+                                           FontSize="{Binding ((vm:FileExplorerViewModel)DataContext).ModifiedFontSize, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}" FontWeight="Bold" Foreground="{DynamicResource Editor.AccentBrush}"
                                            IsHitTestVisible="False" />
                             </Grid>
                             <TextBlock Text="{Binding Name}"
@@ -213,7 +228,13 @@
                                        TextWrapping="NoWrap"
                                        TextTrimming="CharacterEllipsis"
                                        ToolTip.Tip="{Binding FullPath}"
-                                       MaxHeight="38" />
+                                       FontSize="{Binding ((vm:FileExplorerViewModel)DataContext).EntryFontSize, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}" />
+                            <TextBlock Text="{Binding RelativePath}"
+                                       IsVisible="{Binding ((vm:FileExplorerViewModel)DataContext).IsSearching, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}"
+                                       FontSize="{Binding ((vm:FileExplorerViewModel)DataContext).PathFontSize, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}"
+                                       TextAlignment="Center" TextTrimming="CharacterEllipsis"
+                                       ToolTip.Tip="{Binding RelativePath}"
+                                       Foreground="{DynamicResource Editor.TextMutedBrush}" />
                         </StackPanel>
                         </controls:FileExplorerItemControl>
                     </DataTemplate>
@@ -230,28 +251,58 @@
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="vm:FileExplorerEntryViewModel">
                         <controls:FileExplorerItemControl>
-                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="6,3">
-                            <Grid Width="28" Height="28" HorizontalAlignment="Center">
+                        <Grid ColumnDefinitions="Auto,Auto,*" Margin="{Binding ((vm:FileExplorerViewModel)DataContext).ListMargin, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}">
+                            <Border Width="{Binding Indentation}" />
+                            <Grid Grid.Column="1"
+                                  Width="{Binding ((vm:FileExplorerViewModel)DataContext).TreeExpanderSize, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}"
+                                  IsVisible="{Binding !((vm:FileExplorerViewModel)DataContext).IsSearching, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}">
+                                <ToggleButton Classes="directoryExpander" Focusable="False"
+                                              IsVisible="{Binding CanExpand}" IsChecked="{Binding IsExpanded, Mode=OneWay}"
+                                              Width="{Binding ((vm:FileExplorerViewModel)DataContext).TreeExpanderSize, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}"
+                                              Height="{Binding ((vm:FileExplorerViewModel)DataContext).TreeExpanderSize, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}"
+                                              MinWidth="0" MinHeight="0" Padding="0" BorderThickness="0" Background="Transparent"
+                                              VerticalAlignment="Center" Click="onDirectoryToggleClick">
+                                    <Image Source="{StaticResource EditorImage.ChevronRight}"
+                                           Width="{Binding ((vm:FileExplorerViewModel)DataContext).TreeExpanderIconSize, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}"
+                                           Height="{Binding ((vm:FileExplorerViewModel)DataContext).TreeExpanderIconSize, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}" />
+                                </ToggleButton>
+                            </Grid>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="{Binding ((vm:FileExplorerViewModel)DataContext).ListSpacing, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}">
+                            <Grid Width="{Binding ((vm:FileExplorerViewModel)DataContext).ListIconSize, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}" Height="{Binding ((vm:FileExplorerViewModel)DataContext).ListIconSize, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}" HorizontalAlignment="Center">
                                 <controls:FrameRevisionImage Source="{Binding Icon}"
                                                          FrameRevision="{Binding PreviewFrameRevision}"
-                                                         Width="28"
-                                                         Height="28"
+                                                         Width="{Binding ((vm:FileExplorerViewModel)DataContext).ListIconSize, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}"
+                                                         Height="{Binding ((vm:FileExplorerViewModel)DataContext).ListIconSize, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}"
                                                          Stretch="Uniform" />
                                 <TextBlock Text="*" IsVisible="{Binding IsModified}"
                                            HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                                           FontSize="18" FontWeight="Bold" Foreground="{DynamicResource Editor.AccentBrush}"
+                                           FontSize="{Binding ((vm:FileExplorerViewModel)DataContext).ModifiedFontSize, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}" FontWeight="Bold" Foreground="{DynamicResource Editor.AccentBrush}"
                                            IsHitTestVisible="False" />
                             </Grid>
-                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
-                        </StackPanel>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Name}" FontSize="{Binding ((vm:FileExplorerViewModel)DataContext).EntryFontSize, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}" />
+                                <TextBlock Text="{Binding RelativePath}" IsVisible="{Binding ((vm:FileExplorerViewModel)DataContext).IsSearching, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}"
+                                           FontSize="{Binding ((vm:FileExplorerViewModel)DataContext).PathFontSize, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}"
+                                           Foreground="{DynamicResource Editor.TextMutedBrush}" />
+                            </StackPanel>
+                            </StackPanel>
+                        </Grid>
                         </controls:FileExplorerItemControl>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
         </Grid>
-        <StackPanel Grid.Row="2" Grid.Column="1" Margin="8,2" Orientation="Horizontal" Spacing="8">
-            <TextBlock IsVisible="{Binding IsLoading}" Text="{Binding LoadingLabel}" FontSize="12" Foreground="{DynamicResource Editor.TextMutedBrush}" />
-            <TextBlock Text="{Binding LoadingError}" TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource Editor.TextMutedBrush}" />
-        </StackPanel>
+        <Grid Grid.Row="2" Grid.Column="1" ColumnDefinitions="*,Auto" Margin="8,2">
+            <StackPanel Spacing="2" VerticalAlignment="Center">
+                <TextBlock IsVisible="{Binding IsLoading}" Text="{Binding LoadingLabel}" FontSize="12" Foreground="{DynamicResource Editor.TextMutedBrush}" />
+                <TextBlock Text="{Binding LoadingError}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding LoadingError}" FontSize="12" Foreground="{DynamicResource Editor.TextMutedBrush}" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" ToolTip.Tip="{Binding ZoomHint}">
+                <Slider x:Name="ZoomSlider" Width="120" Minimum="50" Maximum="200"
+                        SmallChange="10" LargeChange="25" Value="{Binding Zoom, Mode=TwoWay}"
+                        AutomationProperties.Name="{Binding ZoomHint}" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding ZoomLabel}" Width="38" VerticalAlignment="Center" TextAlignment="Right" />
+            </StackPanel>
+        </Grid>
     </Grid>
 </UserControl>

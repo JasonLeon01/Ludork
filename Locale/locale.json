@@ -1935,6 +1935,22 @@
     "zh_CN": "文件浏览器",
     "en_GB": "File Explorer"
   },
+  "FILE_EXPLORER_SEARCH": {
+    "zh_CN": "搜索文件",
+    "en_GB": "Search files"
+  },
+  "FILE_EXPLORER_SEARCH_HINT": {
+    "zh_CN": "搜索当前目录及子目录",
+    "en_GB": "Search this folder and subfolders"
+  },
+  "FILE_EXPLORER_ZOOM": {
+    "zh_CN": "缩放（Ctrl＋滚轮）",
+    "en_GB": "Zoom (Ctrl + scroll)"
+  },
+  "FILE_EXPLORER_ZOOM_MAC": {
+    "zh_CN": "缩放（Command＋滚轮）",
+    "en_GB": "Zoom (Command + scroll)"
+  },
   "FILE_EXPLORER_REFRESH": {
     "zh_CN": "刷新",
     "en_GB": "Refresh"
@@ -1954,6 +1970,14 @@
   "FILE_EXPLORER_HIDE_SOURCES": {
     "zh_CN": "收起 Assets 和 Data",
     "en_GB": "Hide Assets and Data"
+  },
+  "FILE_EXPLORER_EXPAND_FOLDER": {
+    "zh_CN": "展开文件夹",
+    "en_GB": "Expand folder"
+  },
+  "FILE_EXPLORER_COLLAPSE_FOLDER": {
+    "zh_CN": "收起文件夹",
+    "en_GB": "Collapse folder"
   },
   "ADD_LAYER": {
     "zh_CN": "添加图层",

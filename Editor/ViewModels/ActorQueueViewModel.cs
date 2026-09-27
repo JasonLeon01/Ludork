@@ -1,5 +1,4 @@
 using Avalonia.Media;
-using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Ludork.Models;
 using Ludork.Services;
@@ -39,6 +38,7 @@ public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
     [ObservableProperty] private string searchText = string.Empty;
     [ObservableProperty] private ActorLibraryScopeOption? selectedScope;
     [ObservableProperty] private string? selectedCategory;
+    [ObservableProperty] private bool iconView = true;
 
     public ActorQueueViewModel(
         ProjectDataStore gameData,
@@ -50,6 +50,7 @@ public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
         this.projectConfig = projectConfig;
         this.classResolver = classResolver;
         this.previewService = previewService;
+        iconView = EditorLayoutService.Settings?.ActorLibraryIconView ?? true;
         placeholder = EditorIconResources.GetImage("EditorImage.File");
         Scopes.Add(new ActorLibraryScopeOption(ActorLibraryScope.All, LocaleService.Get("ACTOR_LIBRARY_ALL")));
         Scopes.Add(new ActorLibraryScopeOption(ActorLibraryScope.Favourites, LocaleService.Get("ACTOR_LIBRARY_FAVOURITES")));
@@ -65,6 +66,9 @@ public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
     public ObservableCollection<ActorLibraryScopeOption> Scopes { get; } = [];
     public ObservableCollection<string> Categories { get; } = [];
     public IReadOnlyList<string> BlueprintReferences => catalog.Keys.ToArray();
+    public bool AreFiltersEnabled => string.IsNullOrWhiteSpace(SearchText);
+    public string ViewModeLabel => LocaleService.Get(
+        IconView ? "FILE_EXPLORER_LIST_VIEW" : "FILE_EXPLORER_ICON_VIEW");
     public event EventHandler<string?>? SelectionChanged;
     public event EventHandler<string>? BlueprintOpenRequested;
     public event EventHandler<string>? BlueprintLocateRequested;
@@ -85,7 +89,18 @@ public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
 
     partial void OnSearchTextChanged(string value)
     {
+        OnPropertyChanged(nameof(AreFiltersEnabled));
         requestVisibleItemsRefresh();
+    }
+
+    partial void OnIconViewChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ViewModeLabel));
+        if (EditorLayoutService.Settings is EditorSettings settings)
+        {
+            settings.ActorLibraryIconView = value;
+            EditorLayoutService.Save();
+        }
     }
 
     partial void OnSelectedScopeChanged(ActorLibraryScopeOption? value)
@@ -311,10 +326,12 @@ public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
     {
         if (disposed)
             return;
-        ActorLibraryScope scope = SelectedScope?.Scope ?? ActorLibraryScope.All;
+        string query = SearchText.Trim();
+        ActorLibraryScope scope = query.Length == 0
+            ? SelectedScope?.Scope ?? ActorLibraryScope.All
+            : ActorLibraryScope.All;
         string allCategories = Categories.FirstOrDefault() ?? LocaleService.Get("ALL_CATEGORIES");
         string category = SelectedCategory ?? allCategories;
-        string query = SearchText.Trim();
         IEnumerable<ActorQueueItemViewModel> source = scope == ActorLibraryScope.Recent
             ? recentReferences
                 .Select(reference => catalog.GetValueOrDefault(reference))
@@ -323,12 +340,13 @@ public sealed partial class ActorQueueViewModel : ViewModelBase, IDisposable
                 .ThenBy(item => item.DisplayName, StringComparer.Ordinal);
         if (scope == ActorLibraryScope.Favourites)
             source = source.Where(item => item.IsFavorite);
-        if (!string.Equals(category, allCategories, StringComparison.Ordinal))
+        if (query.Length == 0 && !string.Equals(category, allCategories, StringComparison.Ordinal))
             source = source.Where(item => string.Equals(item.Category, category, StringComparison.Ordinal));
         if (query.Length != 0)
         {
             source = source.Where(item => item.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase)
-                || item.BlueprintReference.Contains(query, StringComparison.OrdinalIgnoreCase));
+                || item.BlueprintReference.Contains(query, StringComparison.OrdinalIgnoreCase)
+                || item.Key.Contains(query, StringComparison.OrdinalIgnoreCase));
         }
 
         ActorQueueItemViewModel[] nextItems = source.ToArray();

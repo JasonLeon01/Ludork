@@ -389,30 +389,17 @@
             <GridSplitter x:Name="UpperLowerSplitter" Grid.Row="1" ResizeDirection="Rows" />
 
             <Grid x:Name="LowerGrid" Grid.Row="2">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="320" MinWidth="180" />
-                    <ColumnDefinition Width="4" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-
-                <Grid Grid.Column="0" RowDefinitions="32,*">
-                    <TextBlock Grid.Row="0"
-                               Classes="panelTitle"
-                               Text="{Binding ActorLibrary}" />
-                    <controls:ActorQueuePanel Grid.Row="1"
-                                              Classes="surface"
-                                              DataContext="{Binding ActorQueue}" />
-                </Grid>
-
-                <GridSplitter x:Name="LowerLeftSplitter" Grid.Column="1" ResizeDirection="Columns" />
-
-                <TabControl x:Name="BottomTabs" Grid.Column="2">
-                    <TabItem Header="{Binding FileExplorer}">
+                <TabControl x:Name="BottomTabs">
+                    <TabItem x:Name="FileExplorerTab" Header="{Binding FileExplorer}">
                         <controls:FileExplorerPanel x:Name="FileExplorerPanel"
                                                     Classes="surface"
                                                     DataContext="{Binding FileExplorerPanel}" />
                     </TabItem>
-                    <TabItem Header="{Binding Console}">
+                    <TabItem x:Name="ActorLibraryTab" Header="{Binding ActorLibrary}">
+                        <controls:ActorQueuePanel Classes="surface"
+                                                  DataContext="{Binding ActorQueue}" />
+                    </TabItem>
+                    <TabItem x:Name="ConsoleTab" Header="{Binding Console}">
                         <Border x:Name="ConsolePanel" Classes="surface">
                             <Grid RowDefinitions="*,Auto">
                                 <Border Grid.Row="0" Background="{DynamicResource Editor.BackgroundBrush}">

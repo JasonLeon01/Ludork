@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Selection;
@@ -32,17 +33,24 @@ public partial class FileExplorerPanel : UserControl
     public FileExplorerPanel()
     {
         InitializeComponent();
+        EditorInputs.ApplyEditable(SearchBox);
+        SearchBox.PlaceholderText = LocaleService.Get("FILE_EXPLORER_SEARCH");
+        string searchHint = LocaleService.Get("FILE_EXPLORER_SEARCH_HINT");
+        ToolTip.SetTip(SearchBox, searchHint);
+        AutomationProperties.SetName(SearchBox, searchHint);
+        initializeZoom();
+        ListEntries.AddHandler(KeyDownEvent, onTreeKeyDown, RoutingStrategies.Tunnel);
         DataContextChanged += (_, _) =>
         {
             restoreExternalOpenTarget();
-            updatePreviewActivity();
+            updateViewMode();
             if (IsLoaded)
                 refreshEntries();
         };
         Loaded += (_, _) =>
         {
             restoreExternalOpenTarget();
-            updatePreviewActivity();
+            updateViewMode();
             refreshEntries();
         };
         EffectiveViewportChanged += (_, _) => updatePreviewActivity();
@@ -143,31 +151,48 @@ public partial class FileExplorerPanel : UserControl
         Rect viewport = new(list?.Bounds.Size ?? default);
         bool visible = active && bounds.Intersects(viewport);
         bool preload = active && bounds.Intersects(viewport.Inflate(new Thickness(0, viewport.Height)));
-        int size = (int)Math.Ceiling((ReferenceEquals(list, IconEntries) ? 64 : 28) * (TopLevel.GetTopLevel(this)?.RenderScaling ?? 1));
+        double logicalSize = ReferenceEquals(list, IconEntries) ? previewViewModel?.IconSize ?? 64 : previewViewModel?.ListIconSize ?? 28;
+        int size = (int)Math.Ceiling(logicalSize * (TopLevel.GetTopLevel(this)?.RenderScaling ?? 1));
         item.SetPresentation(row, visible, preload, size);
     }
 
     private void updateViewMode()
     {
         ListBox previous = activeEntries;
-        int[] selectedIndexes = previous.Selection.SelectedIndexes.ToArray();
-        int selectedIndex = previous.Selection.SelectedIndex;
-        int anchorIndex = previous.Selection.AnchorIndex;
+        FileExplorerViewModel? viewModel = DataContext as FileExplorerViewModel;
         bool iconMode = ViewModeButton.IsChecked == true;
+        FileExplorerEntryViewModel[] selected = getSelectedEntries(previous)
+            .Where(entry => !iconMode || entry.Depth == 0).ToArray();
+        FileExplorerEntryViewModel? selectedItem = viewModel?.SelectedEntry
+            ?? previous.SelectedItem as FileExplorerEntryViewModel;
+        if (iconMode && viewModel is not null)
+        {
+            while (selectedItem is not null && viewModel.GetParentEntry(selectedItem) is FileExplorerEntryViewModel parent)
+                selectedItem = parent;
+        }
+        int anchorIndex = previous.Selection.AnchorIndex;
+        object? anchor = anchorIndex >= 0 && anchorIndex < previous.Items.Count ? previous.Items[anchorIndex] : null;
+        if (iconMode && viewModel is not null)
+        {
+            while (anchor is FileExplorerEntryViewModel entry && viewModel.GetParentEntry(entry) is FileExplorerEntryViewModel parent)
+                anchor = parent;
+        }
         IconEntries.IsVisible = iconMode;
         ListEntries.IsVisible = !iconMode;
         ListBox current = activeEntries;
         using (current.Selection.BatchUpdate())
         {
             current.Selection.Clear();
+            int selectedIndex = selectedItem is null ? -1 : current.Items.IndexOf(selectedItem);
             if (selectedIndex >= 0)
                 current.Selection.Select(selectedIndex);
-            foreach (int index in selectedIndexes)
+            foreach (FileExplorerEntryViewModel entry in selected)
             {
-                if (index != selectedIndex)
+                int index = current.Items.IndexOf(entry);
+                if (index >= 0 && index != selectedIndex)
                     current.Selection.Select(index);
             }
-            current.Selection.AnchorIndex = anchorIndex;
+            current.Selection.AnchorIndex = anchor is null ? -1 : current.Items.IndexOf(anchor);
         }
         current.Focus();
         updatePreviewActivity();
@@ -175,6 +200,11 @@ public partial class FileExplorerPanel : UserControl
 
     private async void onDoubleTapped(object? sender, TappedEventArgs args)
     {
+        if (getDirectoryExpander(args.Source) is not null)
+        {
+            args.Handled = true;
+            return;
+        }
         if (getEntry(args.Source) is not null && DataContext is FileExplorerViewModel viewModel)
             await viewModel.OpenSelectedAsync();
     }
@@ -340,9 +370,17 @@ public partial class FileExplorerPanel : UserControl
         return (source as Visual)?.GetVisualAncestors().OfType<ScrollBar>().Any() == true;
     }
 
-    private void onPointerPressed(object? sender, PointerPressedEventArgs args)
+    private async void onPointerPressed(object? sender, PointerPressedEventArgs args)
     {
         resetPendingDrag();
+        if (getDirectoryExpander(args.Source) is ToggleButton { DataContext: FileExplorerEntryViewModel entry }
+            && args.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        {
+            args.Handled = true;
+            if (DataContext is FileExplorerViewModel viewModel)
+                await viewModel.ToggleDirectoryAsync(entry);
+            return;
+        }
         if (DataContext is not FileExplorerViewModel { IsReadOnly: false }
             || isScrollBarSource(args.Source)
             || getEntry(args.Source) is null)
@@ -486,6 +524,15 @@ public partial class FileExplorerPanel : UserControl
     {
         if (DataContext is not FileExplorerViewModel viewModel)
             return;
+        if (SearchBox.IsKeyboardFocusWithin)
+        {
+            if (args.Key == Key.F5)
+            {
+                args.Handled = true;
+                await viewModel.RefreshAsync();
+            }
+            return;
+        }
         KeyModifiers modifiers = args.KeyModifiers;
         if (RootEntries.IsKeyboardFocusWithin)
         {
@@ -591,7 +638,7 @@ public partial class FileExplorerPanel : UserControl
     {
         if (TopLevel.GetTopLevel(this) is not Window owner)
             return;
-        string? name = await SingleRowDialog.ShowAsync(owner, LocaleService.Get("RENAME_FILE"), LocaleService.Get("RENAME_FILE"), viewModel.Entries.Where(entry => entry != item).Select(entry => entry.Name), item.Name);
+        string? name = await SingleRowDialog.ShowAsync(owner, LocaleService.Get("RENAME_FILE"), LocaleService.Get("RENAME_FILE"), viewModel.GetSiblingNames(item), item.Name);
         if (!string.IsNullOrWhiteSpace(name))
             await showOperationErrors(viewModel.RenameSelected(name), LocaleService.Get("RENAME_FAILED"));
     }

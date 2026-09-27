@@ -32,6 +32,8 @@ public sealed partial class FileExplorerViewModel
         foreach (string source in clipboardPaths.Where(path => pathExists(path) && isEditablePath(path)).ToArray())
         {
             string destination = Path.Combine(target, Path.GetFileName(source));
+            if (!clipboardCut && pathExists(destination))
+                destination = getDuplicatePath(source, target);
             if (clipboardCut && tryMoveManagedPath(source, destination, out string? managedError))
             {
                 if (managedError is not null)
@@ -304,13 +306,14 @@ public sealed partial class FileExplorerViewModel
         string oldPath = SelectedEntry.FullPath;
         if (!isEditablePath(oldPath))
             return FileOperationResult.Empty;
+        string directory = Path.GetDirectoryName(oldPath)!;
         string trimmedName = newName.Trim();
-        if (!tryGetChildPath(CurrentPath, trimmedName, out string newPath))
+        if (!tryGetChildPath(directory, trimmedName, out string newPath))
             return new FileOperationResult(false, [LocaleService.Get("RENAME_FAILED") + Environment.NewLine + newName]);
         if (string.Equals(oldPath, newPath, StringComparison.Ordinal))
             return FileOperationResult.Empty;
         bool caseOnlyRename = isCaseOnlyPathChange(oldPath, newPath);
-        if (!caseOnlyRename && (File.Exists(newPath) || Directory.Exists(newPath)))
+        if (!caseOnlyRename && pathExists(newPath))
             return new FileOperationResult(false, [LocaleService.Get("FILE_ALREADY_EXISTS").Replace("{name}", trimmedName)]);
         if (tryMoveManagedPath(oldPath, newPath, out string? managedError))
         {
@@ -320,7 +323,7 @@ public sealed partial class FileExplorerViewModel
             SelectedEntry = Entries.FirstOrDefault(entry => pathsEqual(entry.FullPath, newPath));
             return new FileOperationResult(true, []);
         }
-        if (!canTransfer(oldPath, CurrentPath, newPath, out string? transferError))
+        if (!canTransfer(oldPath, directory, newPath, out string? transferError))
         {
             return new FileOperationResult(
                 false,
@@ -405,4 +408,3 @@ public sealed partial class FileExplorerViewModel
     }
 
 }
-

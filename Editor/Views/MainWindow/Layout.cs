@@ -66,9 +66,6 @@ public partial class MainWindow
         UpperRightSplitter.DragDelta += (_, _) => onHorizontalSplitterChanged();
         EditorSplitterChangeBinding.Attach(UpperRightSplitter, () => [rightColumn.Width],
             _ => saveEditorPanelLayout("UpperRight"));
-        LowerLeftSplitter.DragDelta += (_, _) => onLowerLeftSplitterChanged();
-        EditorSplitterChangeBinding.Attach(LowerLeftSplitter, () => [lowerLeftColumn.Width],
-            _ => saveEditorPanelLayout("LowerLeft"));
         UpperLowerSplitter.DragDelta += (_, _) => clampLowerAreaHeight();
         EditorSplitterChangeBinding.Attach(UpperLowerSplitter, () => [lowerRow.Height],
             _ => saveEditorPanelLayout("LowerArea"));
@@ -222,27 +219,19 @@ public partial class MainWindow
             return;
         leftColumn.Width = new GridLength(Math.Max(160, editorSettings.UpperLeftWidth));
         rightColumn.Width = new GridLength(Math.Max(320, editorSettings.UpperRightWidth));
-        lowerLeftColumn.Width = new GridLength(Math.Max(180, editorSettings.LowerLeftWidth));
         lowerRow.Height = new GridLength(Math.Max(lowerRow.MinHeight, editorSettings.LowerAreaHeight));
-        clampLowerLeftPanelWidth();
         clampLowerAreaHeight();
     }
 
     private void onWindowSizeChanged()
     {
         clampHorizontalPanelWidths();
-        clampLowerLeftPanelWidth();
         clampLowerAreaHeight();
     }
 
     private void onHorizontalSplitterChanged()
     {
         clampHorizontalPanelWidths();
-    }
-
-    private void onLowerLeftSplitterChanged()
-    {
-        clampLowerLeftPanelWidth();
     }
 
     private void clampHorizontalPanelWidths()
@@ -296,25 +285,11 @@ public partial class MainWindow
             lowerRow.Height = new GridLength(maximum);
     }
 
-    private void clampLowerLeftPanelWidth()
-    {
-        double layoutWidth = LowerGrid.Bounds.Width;
-        if (layoutWidth <= 0)
-            return;
-        double splitterWidth = getColumnPixelWidth(LowerGrid.ColumnDefinitions[1]);
-        double maximum = Math.Max(lowerLeftColumn.MinWidth, layoutWidth - splitterWidth);
-        lowerLeftColumn.Width = new GridLength(Math.Clamp(
-            getColumnPixelWidth(lowerLeftColumn),
-            lowerLeftColumn.MinWidth,
-            maximum));
-    }
-
     private void saveEditorPanelLayout(string panel)
     {
         if (editorSettings is null || !layoutReady || gameLayoutLocked)
             return;
         clampHorizontalPanelWidths();
-        clampLowerLeftPanelWidth();
         clampLowerAreaHeight();
         switch (panel)
         {
@@ -323,9 +298,6 @@ public partial class MainWindow
                 break;
             case "UpperRight":
                 editorSettings.UpperRightWidth = Math.Max(320, getColumnPixelWidth(rightColumn));
-                break;
-            case "LowerLeft":
-                editorSettings.LowerLeftWidth = Math.Max(180, getColumnPixelWidth(lowerLeftColumn));
                 break;
             case "LowerArea":
                 editorSettings.LowerAreaHeight = Math.Max(160, getRowPixelHeight(lowerRow));
@@ -461,7 +433,7 @@ public partial class MainWindow
             return;
         string key = reference["Data.Blueprints.".Length..].Replace('.', Path.DirectorySeparatorChar);
         string path = Path.Combine(ProjectPath, "Data", "Blueprints", key + ".json");
-        BottomTabs.SelectedIndex = 0;
+        BottomTabs.SelectedItem = FileExplorerTab;
         await FileExplorerPanel.LocatePathAsync(path);
     }
 

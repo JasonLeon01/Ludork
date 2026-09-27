@@ -8,7 +8,16 @@ namespace Ludork.Controls;
 
 public sealed class ActorQueueItemControl : ContentControl
 {
+    public static readonly StyledProperty<double> PreviewSizeProperty =
+        AvaloniaProperty.Register<ActorQueueItemControl, double>(nameof(PreviewSize), 48);
+
     private ActorQueueItemViewModel? item;
+
+    public double PreviewSize
+    {
+        get => GetValue(PreviewSizeProperty);
+        set => SetValue(PreviewSizeProperty, value);
+    }
 
     public ActorQueueItemControl()
     {
@@ -16,7 +25,8 @@ public sealed class ActorQueueItemControl : ContentControl
         EffectiveViewportChanged += (_, _) => refreshPreviewActivity();
         PropertyChanged += (_, args) =>
         {
-            if (args.Property == BoundsProperty || args.Property == IsVisibleProperty)
+            if (args.Property == BoundsProperty || args.Property == IsVisibleProperty
+                || args.Property == PreviewSizeProperty)
                 refreshPreviewActivity();
         };
     }
@@ -58,7 +68,7 @@ public sealed class ActorQueueItemControl : ContentControl
         ActorQueuePanel? panel = this.FindAncestorOfType<ActorQueuePanel>();
         if (item is not null)
         {
-            int size = (int)Math.Ceiling(48 * (TopLevel.GetTopLevel(this)?.RenderScaling ?? 1));
+            int size = (int)Math.Ceiling(PreviewSize * (TopLevel.GetTopLevel(this)?.RenderScaling ?? 1));
             item.SetPreviewActive(this, panel?.IsItemPreviewVisible(this) == true, size);
         }
     }

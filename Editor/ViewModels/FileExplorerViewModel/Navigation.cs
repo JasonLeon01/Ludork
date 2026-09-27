@@ -23,9 +23,12 @@ public sealed partial class FileExplorerViewModel
 
     public string LoadingLabel => LocaleService.Get("LOADING");
 
-    public Task EnsureLoadedAsync() => !IsLoading && publishedPath != CurrentPath ? RefreshAsync() : Task.CompletedTask;
+    public Task EnsureLoadedAsync() => !IsLoading && (publishedPath != CurrentPath || publishedQuery != SearchText.Trim() || publishedIconView != IconView)
+        ? RefreshAsync() : Task.CompletedTask;
 
-    public async Task RefreshAsync(CancellationToken cancellationToken = default)
+    public Task RefreshAsync(CancellationToken cancellationToken = default) => refreshAsync(TimeSpan.Zero, cancellationToken);
+
+    private async Task refreshAsync(TimeSpan delay, CancellationToken cancellationToken)
     {
         if (disposed)
             return;
@@ -36,17 +39,25 @@ public sealed partial class FileExplorerViewModel
         long version = ++navigationVersion;
         visualVersion++;
         string path = CurrentPath;
+        string query = SearchText.Trim();
+        bool showIcons = IconView;
+        HashSet<string> expanded = showIcons ? new(PathComparer) : new(expandedDirectories, PathComparer);
         IsLoading = true;
         LoadingError = string.Empty;
         try
         {
+            if (delay > TimeSpan.Zero)
+                await Task.Delay(delay, token);
             await EditorUiBatch.YieldAsync(token);
             DocumentPath[] documents = captureDocumentPaths();
             HashSet<string> textConfigKeys = gameData.Assets.TextConfigsData.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
-            DirectoryEntry[] next = await Task.Run(() => readDirectory(path, documents, textConfigKeys, token), token);
+            DirectoryReadResult result = await Task.Run(() => query.Length == 0
+                ? readDirectoryTree(path, documents, textConfigKeys, expanded, token)
+                : readSearchResults(path, query, documents, textConfigKeys, token), token);
             token.ThrowIfCancellationRequested();
-            if (version != navigationVersion || disposed)
+            if (version != navigationVersion || disposed || path != CurrentPath || query != SearchText.Trim() || showIcons != IconView)
                 return;
+            DirectoryEntry[] next = result.Entries;
             Dictionary<string, FileExplorerEntryViewModel> previous = Entries.ToDictionary(entry => entry.FullPath, PathComparer);
             HashSet<string> nextPaths = next.Select(entry => entry.Path).ToHashSet(PathComparer);
             Dictionary<string, DirectoryEntry[]> spellingMatches = next.GroupBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)
@@ -57,16 +68,19 @@ public sealed partial class FileExplorerViewModel
                     && matches.Length == 1 && !previous.ContainsKey(matches[0].Path))
                 {
                     previous.Remove(entry.FullPath);
-                    entry.UpdatePath(matches[0].Path);
+                    entry.UpdatePath(matches[0].Path, path);
                     previous.Add(entry.FullPath, entry);
                 }
             }
             EditorUiBatch batch = new();
             for (int index = Entries.Count - 1; index >= 0; index--)
             {
+                token.ThrowIfCancellationRequested();
                 if (!nextPaths.Contains(Entries[index].FullPath))
                 {
                     FileExplorerEntryViewModel removed = Entries[index];
+                    if (ReferenceEquals(SelectedEntry, removed))
+                        SelectedEntry = null;
                     Entries.RemoveAt(index);
                     removed.Dispose();
                 }
@@ -74,20 +88,27 @@ public sealed partial class FileExplorerViewModel
             }
             for (int index = 0; index < next.Length; index++)
             {
+                token.ThrowIfCancellationRequested();
                 DirectoryEntry info = next[index];
-                if (!previous.TryGetValue(info.Path, out FileExplorerEntryViewModel? entry))
+                int previousIndex = previous.TryGetValue(info.Path, out FileExplorerEntryViewModel? entry)
+                    ? Entries.IndexOf(entry) : -1;
+                if (entry is null || previousIndex < 0)
                 {
                     IImage placeholder = EditorIconResources.GetImage(info.IsDirectory ? "EditorImage.Folder" : "EditorImage.File");
                     entry = new FileExplorerEntryViewModel(info.Path, info.IsDirectory, placeholder, gameData.Thumbnails, previewService);
                     Entries.Insert(index, entry);
                 }
-                else if (index >= Entries.Count || !ReferenceEquals(Entries[index], entry))
-                    Entries.Move(Entries.IndexOf(entry), index);
-                entry.UpdatePath(info.Path);
+                else if (previousIndex != index)
+                    Entries.Move(previousIndex, index);
+                entry.UpdatePath(info.Path, path);
+                entry.UpdateHierarchy(info.Depth, info.CanExpand, info.IsExpanded, Zoom);
                 updateDocumentState(entry, info.Stamp);
                 await batch.YieldIfNeededAsync(token);
             }
             publishedPath = path;
+            publishedQuery = query;
+            publishedIconView = showIcons;
+            LoadingError = result.Error;
             visibleDocumentPaths = gameData.Documents.All.ToDictionary(document => document.Id, document => (document.Path, document.Exists));
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -110,6 +131,7 @@ public sealed partial class FileExplorerViewModel
         string fullPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
         if (disposed || !isUnderRoot(fullPath))
             return;
+        clearSearchForNavigation();
         if (!PathComparer.Equals(CurrentPath, fullPath))
         {
             SelectedEntry = null;
@@ -143,7 +165,7 @@ public sealed partial class FileExplorerViewModel
             return PathComparer.Equals(CurrentPath, root.Path) && LoadingError.Length == 0;
         }
         string directory = Directory.GetParent(fullPath)?.FullName ?? root.Path;
-        if (publishedPath != directory || CurrentPath != directory || IsLoading)
+        if (publishedPath != directory || CurrentPath != directory || IsLoading || SearchText.Length != 0)
             await NavigateToAsync(directory);
         if (CurrentPath != directory)
             return false;
@@ -217,50 +239,36 @@ public sealed partial class FileExplorerViewModel
             gameData.Documents.GetPaths(document).ToArray(), document.Section, document.Exists)).ToArray();
     }
 
-    private DirectoryEntry[] readDirectory(string directory, DocumentPath[] documents,
-        HashSet<string> textConfigKeys, CancellationToken token)
+    private DirectoryEntry[] readDirectory(string directory, DirectorySnapshot snapshot, CancellationToken token)
     {
-        HashSet<string> hidden = documents.Where(document => document.Path != document.SavedPath || !document.Exists)
-            .Select(document => document.SavedPath).ToHashSet(PathComparer);
-        foreach (DocumentPath document in documents.Where(document => document.Section == "WorldMaps"
-            && Path.GetDirectoryName(document.Path) != Path.GetDirectoryName(document.SavedPath)))
-            hidden.Add(Path.GetDirectoryName(document.SavedPath)!);
         Dictionary<string, DirectoryEntry> paths = new(PathComparer);
         if (Directory.Exists(directory))
         {
             foreach (FileSystemInfo file in new DirectoryInfo(directory).EnumerateFileSystemInfos())
             {
                 token.ThrowIfCancellationRequested();
-                if (hidden.Contains(file.FullName) || !DataConfig.shouldDisplay(file.FullName))
+                if (snapshot.Hidden.Contains(file.FullName) || !DataConfig.shouldDisplay(file.FullName))
                     continue;
                 bool isDirectory = file is DirectoryInfo;
+                bool canExpand = isDirectory && (file.Attributes & FileAttributes.ReparsePoint) == 0;
                 long length = file is FileInfo info ? info.Length : 0;
-                paths[file.FullName] = new DirectoryEntry(file.FullName, isDirectory, $"{file.LastWriteTimeUtc.Ticks}:{length}");
+                paths[file.FullName] = new DirectoryEntry(file.FullName, isDirectory,
+                    $"{file.LastWriteTimeUtc.Ticks}:{length}", CanExpand: canExpand);
             }
         }
-        else if (!documents.Any(document => document.Exists && isSameOrChildPath(directory, document.Path)))
+        else if (!snapshot.Children.ContainsKey(directory))
             throw new DirectoryNotFoundException(directory);
-        foreach (DocumentPath document in documents)
+        if (snapshot.Children.TryGetValue(directory, out Dictionary<string, DirectoryEntry>? children))
         {
-            token.ThrowIfCancellationRequested();
-            if (!document.Exists)
-                continue;
-            foreach (string path in document.Paths)
+            foreach (DirectoryEntry child in children.Values)
             {
-                string relative = Path.GetRelativePath(directory, path);
-                if (Path.IsPathRooted(relative) || relative == ".." || relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal))
-                    continue;
-                string first = relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)[0];
-                if (first.Length == 0 || first == ".")
-                    continue;
-                string visiblePath = Path.Combine(directory, first);
-                if (DataConfig.shouldDisplay(visiblePath))
-                    paths.TryAdd(visiblePath, new DirectoryEntry(visiblePath, relative != first, string.Empty));
+                token.ThrowIfCancellationRequested();
+                paths.TryAdd(child.Path, child);
             }
         }
         string textRoot = Path.Combine(projectPath, "Data", "TextConfigs");
         return paths.Values.Where(entry => !isSameOrChildPath(textRoot, entry.Path)
-                || hasVisibleTextContent(entry.Path, entry.IsDirectory, textConfigKeys, token))
+                || hasVisibleTextContent(entry.Path, entry.IsDirectory, snapshot.TextConfigKeys, token))
             .OrderBy(entry => !entry.IsDirectory)
             .ThenBy(entry => Path.GetFileName(entry.Path), StringComparer.OrdinalIgnoreCase).ToArray();
     }
@@ -270,6 +278,8 @@ public sealed partial class FileExplorerViewModel
         token.ThrowIfCancellationRequested();
         if (directory)
         {
+            if (Directory.Exists(path) && (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
+                return true;
             string relative = Path.GetRelativePath(Path.Combine(projectPath, "Data", "TextConfigs"), path).Replace('\\', '/').Trim('/');
             if (textKeys.Any(key => key.StartsWith(relative + "/", StringComparison.OrdinalIgnoreCase)))
                 return true;
@@ -293,5 +303,6 @@ public sealed partial class FileExplorerViewModel
     }
 
     private sealed record DocumentPath(string Path, string SavedPath, string[] Paths, string Section, bool Exists);
-    private sealed record DirectoryEntry(string Path, bool IsDirectory, string Stamp);
+    private sealed record DirectoryEntry(string Path, bool IsDirectory, string Stamp,
+        int Depth = 0, bool CanExpand = false, bool IsExpanded = false);
 }
