@@ -38,4 +38,7 @@ function RegionTerrain:setTerrainTiles(layerName, positions, tileID) end
 ---@param terrainDestructions table<string, table<string, { position: sf.Vector2i, tileID: Global.GameMap.TerrainTileID }>>
 function RegionTerrain:applyTerrainDestructions(terrainDestructions) end
 
+--- Region terrain delegates invalidation to its terrain-change subscriber.
+function RegionTerrain:markPassabilityDirty() end
+
 return RegionTerrain

@@ -29,13 +29,15 @@ end
 local function collectDesiredRoots(world, roots, active, region, pendingRehomes, suppressedObjects)
     local desired = {}
     local destroyedRoots = false
-    if active == nil or active.width <= 0 or active.height <= 0 then
+    local firstX, firstY, chunkWidth, chunkHeight = getActiveChunkBounds(active)
+    if firstX == nil then
         return desired, destroyedRoots
     end
-    local firstX = math.floor(active.x / WorldMapConstants.SPATIAL_CHUNK_SIZE)
-    local firstY = math.floor(active.y / WorldMapConstants.SPATIAL_CHUNK_SIZE)
-    local lastX = math.floor((active.x + active.width - 1) / WorldMapConstants.SPATIAL_CHUNK_SIZE)
-    local lastY = math.floor((active.y + active.height - 1) / WorldMapConstants.SPATIAL_CHUNK_SIZE)
+    ---@cast firstY integer
+    ---@cast chunkWidth integer
+    ---@cast chunkHeight integer
+    local lastX = firstX + chunkWidth - 1
+    local lastY = firstY + chunkHeight - 1
     for _, root in ipairs(roots) do
         local position = root:getMapPosition()
         local chunkX = math.floor(position.x / WorldMapConstants.SPATIAL_CHUNK_SIZE)
@@ -358,6 +360,15 @@ function WorldGameMapActorStreaming.IsPendingWorldActorTag(self, _region, tag)
     return false
 end
 
+---@param self       WorldGameMapImplState
+---@param root       Engine.Actor
+---@param regionPath string
+---@param position   sf.Vector2i
+local function recordRootPosition(self, root, regionPath, position)
+    self:_recordWorldRootPosition(root, regionPath, position)
+    self:_rememberWorldRootPosition(root, position)
+end
+
 ---@param root              Engine.Actor
 ---@param destinationRegion Source.SceneComponents.WorldRegionData
 ---@param sourceRegion      Source.SceneComponents.WorldRegionData | nil
@@ -383,8 +394,7 @@ function WorldGameMapActorStreaming.QueuePendingWorldActorRehome(
     end
     self._worldPendingRehomes[root] = destinationRegion
     self._worldStreamingState:requestRegion(destinationRegion.index)
-    self:_recordWorldRootPosition(root, destinationRegion.path, position)
-    self:_rememberWorldRootPosition(root, position)
+    recordRootPosition(self, root, destinationRegion.path, position)
     self:_sleepWorldRoot(root)
     return touchedRegions, looseTouched
 end
@@ -426,8 +436,7 @@ function WorldGameMapActorStreaming.TransferWorldActorRoot(
         self._worldActorRegions[root] = nil
         looseTouched = true
     end
-    self:_recordWorldRootPosition(root, destinationRegion ~= nil and destinationRegion.path or "", position)
-    self:_rememberWorldRootPosition(root, position)
+    recordRootPosition(self, root, destinationRegion ~= nil and destinationRegion.path or "", position)
     self._worldPendingRehomes[root] = nil
     return touchedRegions, looseTouched
 end
@@ -489,8 +498,7 @@ function WorldGameMapActorStreaming.RehomeChangedWorldActorRoot(
         if self:isSparseWorldCellReady(position) then
             touchedRegions = touchedRegions or {}
             touchedRegions[sourceRegion] = true
-            self:_recordWorldRootPosition(root, sourceRegion.path, position)
-            self:_rememberWorldRootPosition(root, position)
+            recordRootPosition(self, root, sourceRegion.path, position)
         else
             local changedLoose
             touchedRegions, changedLoose = self:_queuePendingWorldActorRehome(
@@ -501,8 +509,7 @@ function WorldGameMapActorStreaming.RehomeChangedWorldActorRoot(
     elseif destinationRegion == nil then
         if sourceRegion == nil then
             looseTouched = true
-            self:_recordWorldRootPosition(root, "", position)
-            self:_rememberWorldRootPosition(root, position)
+            recordRootPosition(self, root, "", position)
         else
             local changedLoose
             touchedRegions, changedLoose = self:_transferWorldActorRoot(

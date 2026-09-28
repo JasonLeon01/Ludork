@@ -51,4 +51,8 @@ function Render.CaptureActorVisual(actor) end
 ---@return tuple<string>
 function Render.GetActorVisualSignature(enemyID, visual) end
 
+---@param effectsByLayer table<string, Global.CustomEffects.ActorPixelShatterEffect[]>
+---@param drawActor      fun(target: sf.RenderTarget, actor: Engine.Actor)
+function Render.PrepareActorPixelShatterEffects(effectsByLayer, drawActor) end
+
 return Render

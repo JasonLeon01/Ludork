@@ -91,12 +91,19 @@ end
 
 ---@param self            Source.Scenes.SceneMap.SceneMap
 ---@param previousEnabled boolean
+---@param blockFrames     integer
+local function restorePlayerMovement(self, previousEnabled, blockFrames)
+    self.player:setMoveEnabled(previousEnabled)
+    self:_blockMapInput(blockFrames)
+end
+
+---@param self            Source.Scenes.SceneMap.SceneMap
+---@param previousEnabled boolean
 local function restoreHotkeyOverlayMove(self, previousEnabled)
     if menuIsVisible(self) then
         return
     end
-    self.player:setMoveEnabled(previousEnabled)
-    self:_blockMapInput(WINDOW_CLOSE_INPUT_BLOCK_FRAMES)
+    restorePlayerMovement(self, previousEnabled, WINDOW_CLOSE_INPUT_BLOCK_FRAMES)
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
@@ -419,25 +426,22 @@ end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
 function Scene.OnShopClose(self)
-    self.player:setMoveEnabled(self._shopMoveEnabledBeforeOpen)
+    restorePlayerMovement(self, self._shopMoveEnabledBeforeOpen, WINDOW_CLOSE_INPUT_BLOCK_FRAMES)
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
 function Scene.OnPlayerNameClose(self)
-    self.player:setMoveEnabled(self._playerNameMoveEnabledBeforeOpen)
-    self:_blockMapInput(MAP_INPUT_BLOCK_FRAMES)
+    restorePlayerMovement(self, self._playerNameMoveEnabledBeforeOpen, MAP_INPUT_BLOCK_FRAMES)
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
 function Scene.OnAttrShopClose(self)
-    self.player:setMoveEnabled(self._attrShopMoveEnabledBeforeOpen)
-    self:_blockMapInput(WINDOW_CLOSE_INPUT_BLOCK_FRAMES)
+    restorePlayerMovement(self, self._attrShopMoveEnabledBeforeOpen, WINDOW_CLOSE_INPUT_BLOCK_FRAMES)
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
 function Scene.OnEnemyBookClose(self)
-    self.player:setMoveEnabled(self._enemyBookMoveEnabledBeforeOpen)
-    self:_blockMapInput(WINDOW_CLOSE_INPUT_BLOCK_FRAMES)
+    restorePlayerMovement(self, self._enemyBookMoveEnabledBeforeOpen, WINDOW_CLOSE_INPUT_BLOCK_FRAMES)
 end
 
 ---@param entry Source.Windows.WindowEnemyBook.Entry
@@ -449,14 +453,12 @@ end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
 function Scene.OnEnemyEncyclopediaClose(self)
-    self.player:setMoveEnabled(self._enemyBookMoveEnabledBeforeOpen)
-    self:_blockMapInput(WINDOW_CLOSE_INPUT_BLOCK_FRAMES)
+    restorePlayerMovement(self, self._enemyBookMoveEnabledBeforeOpen, WINDOW_CLOSE_INPUT_BLOCK_FRAMES)
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
 function Scene.OnFloorTeleporterClose(self)
-    self.player:setMoveEnabled(self._floorTeleporterMoveEnabledBeforeOpen)
-    self:_blockMapInput(WINDOW_CLOSE_INPUT_BLOCK_FRAMES)
+    restorePlayerMovement(self, self._floorTeleporterMoveEnabledBeforeOpen, WINDOW_CLOSE_INPUT_BLOCK_FRAMES)
 end
 
 ---@param mapKey    string
@@ -471,8 +473,7 @@ function Scene.OnFloorTeleporterConfirm(self, mapKey, telepoint)
         window:close()
     end
     self:gotoMapAndPos(targetMap, targetPosition)
-    self.player:setMoveEnabled(self._floorTeleporterMoveEnabledBeforeOpen)
-    self:_blockMapInput(MAP_INPUT_BLOCK_FRAMES)
+    restorePlayerMovement(self, self._floorTeleporterMoveEnabledBeforeOpen, MAP_INPUT_BLOCK_FRAMES)
 end
 
 ---@param nodeFunction function

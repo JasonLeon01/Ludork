@@ -22,4 +22,10 @@ function RenderSupport.CreateTileMaskConfig(target, viewPosition, viewSize, view
 ---@return string
 function RenderSupport.TileMaskCacheKey(region, layerName) end
 
+---@param baseStates sf.RenderStates
+---@param region     Source.SceneComponents.WorldRegionData
+---@param shader     sf.Shader | nil
+---@return sf.RenderStates
+function RenderSupport.CreateRegionRenderStates(baseStates, region, shader) end
+
 return RenderSupport

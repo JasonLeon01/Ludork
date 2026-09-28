@@ -1,3 +1,5 @@
+local Render = require("Global.Utils.Render")
+
 local GameMapRendering = {}
 
 ---@param self GameMapImplState
@@ -31,13 +33,7 @@ function GameMapRendering.PrepareActorPixelShatterEffects(self)
     local function drawActor(snapshotTarget, actor)
         self:_drawActor(snapshotTarget, sf.RenderStates.new(), actor, 255)
     end
-    for _, effects in pairs(self._actorPixelShatterEffects) do
-        for _, effect in ipairs(effects) do
-            if not effect:isPrepared() then
-                effect:prepare(drawActor)
-            end
-        end
-    end
+    Render.PrepareActorPixelShatterEffects(self._actorPixelShatterEffects, drawActor)
 end
 
 ---@param target    sf.RenderTarget

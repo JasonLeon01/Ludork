@@ -47,7 +47,8 @@ local standardTypeNames = {
     Dictionary = true,
     Map = true,
     Tuple = true,
-    Union = true
+    Union = true,
+    Optional = true
 }
 
 ---@type table<string, boolean>
@@ -66,13 +67,20 @@ local sfValueTypeNames = {
     ["sf.Vector3b"] = true
 }
 
+---@param name            string
+---@param declaringModule string | nil
+---@return string
+local function qualifiedTypeName(name, declaringModule)
+    return name:find("%.") and name or (declaringModule or "") .. "." .. name
+end
+
 ---@param valueType       any
 ---@param declaringModule string | nil
 ---@return boolean
 local function supportsType(valueType, declaringModule)
     local name = Engine.metadataTypeName(valueType)
     for token in name:gmatch("[%a_][%w_%.]*") do
-        local qualified = token:find("%.") and token or (declaringModule or "") .. "." .. token
+        local qualified = qualifiedTypeName(token, declaringModule)
         if not standardTypeNames[token] and not sfValueTypeNames[token] and dataValueTypes[qualified] == nil then
             return false
         end
@@ -272,6 +280,29 @@ local function typeSchema(name)
     return { [kind:lower()] = entries }
 end
 
+---@param name string
+---@return string | nil
+local function containerKind(name)
+    local kind = name:match("^(%a+)%[")
+    if kind == "List" or kind == "Tuple" or kind == "Dict" then
+        return kind
+    end
+    return nil
+end
+
+---@param kind      string
+---@param arguments string[]
+---@param key       any
+---@return string | nil
+local function containerItemType(kind, arguments, key)
+    if kind == "Dict" then
+        return arguments[2]
+    elseif kind == "Tuple" then
+        return arguments[key]
+    end
+    return arguments[1]
+end
+
 ---@param value           any
 ---@param encoded         any
 ---@param valueType       any
@@ -303,22 +334,18 @@ local function typedSnapshot(value, encoded, valueType, declaringModule)
     if value == nil then
         return encoded
     end
-    if name:match("^List%[") or name:match("^Tuple%[") or name:match("^Dict%[") then
-        if not name:match("^Dict%[") then
+    local kind = containerKind(name)
+    if kind ~= nil then
+        if kind ~= "Dict" then
             setmetatable(encoded, arrayMetatable)
         end
         local arguments = typeArguments(name)
         for key, item in pairs(encoded) do
-            local itemType = arguments[1]
-            if name:match("^Dict%[") then
-                itemType = arguments[2]
-            elseif name:match("^Tuple%[") then
-                itemType = arguments[key]
-            end
+            local itemType = containerItemType(kind, arguments, key)
             encoded[key] = typedSnapshot(value[key], item, itemType, declaringModule)
         end
     end
-    local qualified = name:find("%.") and name or (declaringModule or "") .. "." .. name
+    local qualified = qualifiedTypeName(name, declaringModule)
     local dataType = dataValueTypes[qualified]
     if dataType ~= nil then
         local descriptors = Engine.getAttrMetadata(dataType)
@@ -368,25 +395,21 @@ local function isLiteralInput(value, valueType, declaringModule)
         end
         return false
     end
-    if name:match("^List%[") or name:match("^Tuple%[") or name:match("^Dict%[") then
+    local kind = containerKind(name)
+    if kind ~= nil then
         if not Class.isInstance(value, "table") then
             return false
         end
         local arguments = typeArguments(name)
         for key, item in pairs(value) do
-            local itemType = arguments[1]
-            if name:match("^Dict%[") then
-                itemType = arguments[2]
-            elseif name:match("^Tuple%[") then
-                itemType = arguments[key]
-            end
+            local itemType = containerItemType(kind, arguments, key)
             if itemType == nil or not isLiteralInput(item, itemType, declaringModule) then
                 return false
             end
         end
         return true
     end
-    local qualified = name:find("%.") and name or (declaringModule or "") .. "." .. name
+    local qualified = qualifiedTypeName(name, declaringModule)
     local dataType = dataValueTypes[qualified]
     if dataType ~= nil and Class.isInstance(value, "table") then
         local descriptors = Engine.getAttrMetadata(dataType)

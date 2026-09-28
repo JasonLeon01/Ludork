@@ -171,6 +171,15 @@ function GameMapLighting.EnsureStaticDirectLight(self)
     self._cachedLightMaterialRevision = -1
 end
 
+---@param self       WorldGameMapImplState
+---@param targetSize sf.Vector2u
+---@param width      number
+---@param height     number
+local function setLightPassTargetUniforms(self, targetSize, width, height)
+    self:_setLightPassTextureUniforms()
+    self._lightPassShader:setUniform("targetPixelScale", sf.Vector2f.new(targetSize.x / width, targetSize.y / height))
+end
+
 ---@param self WorldGameMapImplState
 function GameMapLighting.SetLightPassCommonUniforms(self)
     ---@cast self._camera GlobalCore.Camera
@@ -178,10 +187,7 @@ function GameMapLighting.SetLightPassCommonUniforms(self)
     local screenSize = self._camera:getViewSize()
     local targetSize = self._directLight:getSize()
     ---@cast screenSize sf.Vector2f
-    self:_setLightPassTextureUniforms()
-    self._lightPassShader:setUniform(
-        "targetPixelScale", sf.Vector2f.new(targetSize.x / screenSize.x, targetSize.y / screenSize.y)
-    )
+    setLightPassTargetUniforms(self, targetSize, screenSize.x, screenSize.y)
     self._lightPassShader:setUniform("useCachedStaticLight", 0.0)
     self:_setViewShaderUniforms(self._lightPassShader, screenSize, self._zeroShaderOffset, true)
 end
@@ -192,10 +198,7 @@ function GameMapLighting.SetLightPassWorldUniforms(self)
     local tilemapSize = self._tilemap:getSize()
     local screenSize = sf.Vector2f.new(tilemapSize.x * Engine.GetCellSize(), tilemapSize.y * Engine.GetCellSize())
     local targetSize = self._staticDirectLight:getSize()
-    self:_setLightPassTextureUniforms()
-    self._lightPassShader:setUniform(
-        "targetPixelScale", sf.Vector2f.new(targetSize.x / screenSize.x, targetSize.y / screenSize.y)
-    )
+    setLightPassTargetUniforms(self, targetSize, screenSize.x, screenSize.y)
     self._lightPassShader:setUniform("screenSize", screenSize)
     self._lightPassShader:setUniform("mapViewOffset", self._zeroShaderOffset)
     self._lightPassShader:setUniform("viewPos", self._zeroShaderOffset)
@@ -212,10 +215,7 @@ function GameMapLighting.SetLightPassCacheUniforms(self, target, light)
     local diameter = light.radius * 2.0
     local screenSize = sf.Vector2f.new(diameter, diameter)
     local targetSize = target:getSize()
-    self:_setLightPassTextureUniforms()
-    self._lightPassShader:setUniform(
-        "targetPixelScale", sf.Vector2f.new(targetSize.x / diameter, targetSize.y / diameter)
-    )
+    setLightPassTargetUniforms(self, targetSize, diameter, diameter)
     self._lightPassShader:setUniform("screenSize", screenSize)
     self._lightPassShader:setUniform("mapViewOffset", self._zeroShaderOffset)
     self._lightPassShader:setUniform(

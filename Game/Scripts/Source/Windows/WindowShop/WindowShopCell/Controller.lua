@@ -1,9 +1,11 @@
 local Ui = require("Internal.UIBase.Ui")
+local IconTexture = require("Internal.UIBase.IconTexture")
 local View = require("Internal.UI.Parts.WindowShop.WindowShopCell")
 
 local _SHOP_DISABLED_ALPHA = 120
 local _SHOP_DISABLED_TEXT_COLOUR = sf.Color.new(160, 160, 160, 255)
 
+---@class (partial) Source.Windows.WindowShop.WindowShopCell.Controller
 local WindowShopCellController = {}
 
 function WindowShopCellController:bind()
@@ -17,11 +19,7 @@ function WindowShopCellController:bind()
 end
 
 function WindowShopCellController:refresh()
-    if self.model.iconTexture == nil then
-        self:setProperty("Icon", "visible", false)
-    else
-        self.ui.controls["Icon"]:setTexture(self.model.iconTexture, true)
-        self:setProperty("Icon", "visible", true)
+    if IconTexture.Apply(self, "Icon", self.model.iconTexture) then
         local colour = self._iconColour:copy()
         if not self.model.available then
             colour.a = _SHOP_DISABLED_ALPHA

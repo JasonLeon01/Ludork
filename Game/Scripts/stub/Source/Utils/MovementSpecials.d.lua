@@ -11,6 +11,10 @@
 
 local MovementSpecials = {}
 
+---@param gameMap GameMap
+---@return Source.MapActors.Enemy[]
+function MovementSpecials.CollectEnemies(gameMap) end
+
 ---@param enemies Source.MapActors.Enemy[]
 ---@param player  Source.MapActors.Player.Player
 ---@return Source.Utils.MovementSpecials.PreviewContext

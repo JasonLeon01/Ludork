@@ -86,4 +86,14 @@ function Render.GetActorVisualSignature(enemyID, visual)
     return tuple(values)
 end
 
+function Render.PrepareActorPixelShatterEffects(effectsByLayer, drawActor)
+    for _, effects in pairs(effectsByLayer) do
+        for _, effect in ipairs(effects) do
+            if not effect:isPrepared() then
+                effect:prepare(drawActor)
+            end
+        end
+    end
+end
+
 return Render

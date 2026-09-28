@@ -139,14 +139,10 @@ function MovementSpecials.Preview(enemies, player, playerPosition, ignoredEnemie
         }))
 end
 
-local function collectEnemies(player)
+function MovementSpecials.CollectEnemies(gameMap)
     local Enemy = require("Source.MapActors.Enemy")
 
-    local gameMap = player:getMap()
-    if gameMap == nil then
-        return nil, {}
-    end
-    ---@cast gameMap GameMap
+    ---@type Source.MapActors.Enemy[]
     local enemies = {}
     for _, actor in ipairs(gameMap:getAllActors()) do
         if Class.isInstance(actor, Enemy) and not actor:isDestroyed() and actor:isVisibleInHierarchy() then
@@ -157,11 +153,16 @@ local function collectEnemies(player)
             end
         end
     end
-    return gameMap, enemies
+    return enemies
 end
 
 function MovementSpecials.Commit(player, pathPositions)
-    local gameMap, enemies = collectEnemies(player)
+    local gameMap = player:getMap()
+    ---@type Source.MapActors.Enemy[]
+    local enemies = {}
+    if gameMap ~= nil then
+        enemies = MovementSpecials.CollectEnemies(gameMap)
+    end
     if gameMap == nil or not bool(enemies) then
         return assert(GameplayAbilityResult.Success("NoMovementHazard", { damage = 0, sources = {} }))
     end

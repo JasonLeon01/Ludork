@@ -52,11 +52,7 @@ function WorldGameMapRendering.DrawWorldTileMaskLayer(
         RenderSupport.CreateTileMaskConfig(target, viewPosition, viewSize, viewRotation, region),
         region.lightingRevision
     )
-    local regionStates = sf.RenderStates.new(baseStates.blendMode)
-    regionStates.transform = baseStates.transform:copy()
-    regionStates.texture = baseStates.texture
-    regionStates.shader = self._tilemapLightMaskShader
-    regionStates.transform:translate(sf.Vector2f.new(region.x * Engine.GetCellSize(), region.y * Engine.GetCellSize()))
+    local regionStates = RenderSupport.CreateRegionRenderStates(baseStates, region, self._tilemapLightMaskShader)
     target:draw(layer, regionStates)
 end
 
@@ -447,13 +443,7 @@ function WorldGameMapRendering.DrawMapContent(self, target, states, _applyPlayer
             if region.payload ~= nil and WorldGeometry.RectIntersects(region, visibleRect) then
                 local layer = region.payload.tilemap:getLayer(layerName)
                 if layer ~= nil and layer.visible then
-                    local regionStates = sf.RenderStates.new(states.blendMode)
-                    regionStates.transform = states.transform:copy()
-                    regionStates.texture = states.texture
-                    regionStates.shader = layer.shader
-                    regionStates.transform:translate(
-                        sf.Vector2f.new(region.x * Engine.GetCellSize(), region.y * Engine.GetCellSize())
-                    )
+                    local regionStates = RenderSupport.CreateRegionRenderStates(states, region, layer.shader)
                     target:draw(layer, regionStates)
                 end
             end

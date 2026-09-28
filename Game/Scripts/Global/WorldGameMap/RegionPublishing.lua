@@ -363,81 +363,64 @@ function WorldGameMapRegionPublishing.PumpRegionBackgroundBuilds(self, deadline)
             background[#background + 1] = region
         end
     end
+    ---@type Source.SceneComponents.WorldRegionData | nil
+    local region
+    ---@type Global.WorldGeometry.CellRect | nil
+    local priorityRect
     if bool(urgent) then
         local index = self._worldUrgentBuildCursor % #urgent + 1
         self._worldUrgentBuildCursor = self._worldUrgentBuildCursor + 1
-        local region = urgent[index]
-        local builder = assert(region.backgroundBuilder)
-        ---@cast builder Global.WorldGameMap.RegionBuildState
-        local started = perfCounter()
-        resetBuilderStage(builder)
-        local actorsWereReady = builder.areActorsReady()
-        local previousGeometryRevision = region.geometryRevision
-        if self:_pumpRegionBackgroundActors(region, builder, deadline) and perfCounter() < deadline then
+        region = urgent[index]
+        priorityRect = assert(visibleRect)
+    elseif bool(background) then
+        local index = self._worldBackgroundBuildCursor % #background + 1
+        self._worldBackgroundBuildCursor = self._worldBackgroundBuildCursor + 1
+        region = background[index]
+    else
+        return
+    end
+    ---@cast region Source.SceneComponents.WorldRegionData
+    local builder = assert(region.backgroundBuilder)
+    ---@cast builder Global.WorldGameMap.RegionBuildState
+    local started = perfCounter()
+    resetBuilderStage(builder)
+    local actorsWereReady = builder.areActorsReady()
+    local previousGeometryRevision = region.geometryRevision
+    if self:_pumpRegionBackgroundActors(region, builder, deadline) and perfCounter() < deadline then
+        if priorityRect ~= nil then
             local prepareStarted = perfCounter()
-            builder.prepareRect(assert(visibleRect), deadline)
+            builder.prepareRect(priorityRect, deadline)
             self._worldPublishSlowStage, self._worldPublishSlowStageMilliseconds = recordPublishStage(
                 self._worldPublishSlowStage, self._worldPublishSlowStageMilliseconds, "prepareVisibleTileChunk",
                 (perfCounter() - prepareStarted) * 1000.0
             )
-            self:_pumpRegionBackgroundActors(region, builder, deadline)
-        end
-        self._worldPublishSlowStage, self._worldPublishSlowStageMilliseconds = recordPublishStage(
-            self._worldPublishSlowStage, self._worldPublishSlowStageMilliseconds, builder.lastStepMaximumStage,
-            builder.lastStepMaximumMilliseconds
-        )
-        region.geometryRevision = builder.geometryRevision
-        local actorsAreReady = builder.areActorsReady()
-        if not actorsWereReady and actorsAreReady then
-            self:setSparseWorldRegionActorsReady(region.index)
-        end
-        if region.lightingRevision ~= builder.lightingRevision then
-            region.lightingRevision = builder.lightingRevision
-            self:_refreshWorldLights()
-        end
-        if self._worldStreamingState:getRegionState(region.index) == WorldRegionState.Active
-            and (region.geometryRevision ~= previousGeometryRevision or not actorsWereReady and actorsAreReady) then
-            self:_syncRegionActorActivation(region)
-        end
-        self._worldPublishMilliseconds = self._worldPublishMilliseconds + (perfCounter() - started) * 1000.0
-        return
-    end
-    if bool(background) then
-        local index = self._worldBackgroundBuildCursor % #background + 1
-        self._worldBackgroundBuildCursor = self._worldBackgroundBuildCursor + 1
-        local region = background[index]
-        local builder = assert(region.backgroundBuilder)
-        ---@cast builder Global.WorldGameMap.RegionBuildState
-        local started = perfCounter()
-        resetBuilderStage(builder)
-        local actorsWereReady = builder.areActorsReady()
-        local previousGeometryRevision = region.geometryRevision
-        if self:_pumpRegionBackgroundActors(region, builder, deadline) and perfCounter() < deadline then
+        else
             builder.step(deadline)
-            self:_pumpRegionBackgroundActors(region, builder, deadline)
         end
-        self._worldPublishSlowStage, self._worldPublishSlowStageMilliseconds = recordPublishStage(
-            self._worldPublishSlowStage, self._worldPublishSlowStageMilliseconds, builder.lastStepMaximumStage,
-            builder.lastStepMaximumMilliseconds
-        )
-        region.geometryRevision = builder.geometryRevision
-        local actorsAreReady = builder.areActorsReady()
-        if not actorsWereReady and actorsAreReady then
-            self:setSparseWorldRegionActorsReady(region.index)
-        end
-        if region.lightingRevision ~= builder.lightingRevision then
-            region.lightingRevision = builder.lightingRevision
-            self:_refreshWorldLights()
-        end
-        if self._worldStreamingState:getRegionState(region.index) == WorldRegionState.Active
-            and (region.geometryRevision ~= previousGeometryRevision or not actorsWereReady and actorsAreReady) then
-            self:_syncRegionActorActivation(region)
-        end
-        if builder.completed and builder.actorPublishQueue == nil and not bool(builder.readyActorRoots) then
-            region.backgroundBuilder = nil
-        end
-        self._worldPublishMilliseconds = self._worldPublishMilliseconds + (perfCounter() - started) * 1000.0
+        self:_pumpRegionBackgroundActors(region, builder, deadline)
     end
+    self._worldPublishSlowStage, self._worldPublishSlowStageMilliseconds = recordPublishStage(
+        self._worldPublishSlowStage, self._worldPublishSlowStageMilliseconds, builder.lastStepMaximumStage,
+        builder.lastStepMaximumMilliseconds
+    )
+    region.geometryRevision = builder.geometryRevision
+    local actorsAreReady = builder.areActorsReady()
+    if not actorsWereReady and actorsAreReady then
+        self:setSparseWorldRegionActorsReady(region.index)
+    end
+    if region.lightingRevision ~= builder.lightingRevision then
+        region.lightingRevision = builder.lightingRevision
+        self:_refreshWorldLights()
+    end
+    if self._worldStreamingState:getRegionState(region.index) == WorldRegionState.Active
+        and (region.geometryRevision ~= previousGeometryRevision or not actorsWereReady and actorsAreReady) then
+        self:_syncRegionActorActivation(region)
+    end
+    if priorityRect == nil and builder.completed
+        and builder.actorPublishQueue == nil and not bool(builder.readyActorRoots) then
+        region.backgroundBuilder = nil
+    end
+    self._worldPublishMilliseconds = self._worldPublishMilliseconds + (perfCounter() - started) * 1000.0
 end
 
 ---@param region               Source.SceneComponents.WorldRegionData

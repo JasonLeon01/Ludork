@@ -1,8 +1,10 @@
 local Ui = require("Internal.UIBase.Ui")
+local IconTexture = require("Internal.UIBase.IconTexture")
 local View = require("Internal.UI.Parts.WindowItem.ItemRow")
 
 local _UNUSABLE_ICON_ALPHA = 160
 
+---@class (partial) Source.Windows.WindowItem.ItemRow.Controller
 local ItemRowController = {}
 
 function ItemRowController:bind()
@@ -10,11 +12,7 @@ function ItemRowController:bind()
 end
 
 function ItemRowController:refresh()
-    if self.model.iconTexture == nil then
-        self:setProperty("Icon", "visible", false)
-    else
-        self.ui.controls["Icon"]:setTexture(self.model.iconTexture, true)
-        self:setProperty("Icon", "visible", true)
+    if IconTexture.Apply(self, "Icon", self.model.iconTexture) then
         local colour = self._iconColour:copy()
         if not self.model.usable then
             colour.a = _UNUSABLE_ICON_ALPHA

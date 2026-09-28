@@ -53,4 +53,13 @@ function RenderSupport.TileMaskCacheKey(region, layerName)
     return region.path .. "\0" .. layerName
 end
 
+function RenderSupport.CreateRegionRenderStates(baseStates, region, shader)
+    local states = sf.RenderStates.new(baseStates.blendMode)
+    states.transform = baseStates.transform:copy()
+    states.texture = baseStates.texture
+    states.shader = shader
+    states.transform:translate(sf.Vector2f.new(region.x * Engine.GetCellSize(), region.y * Engine.GetCellSize()))
+    return states
+end
+
 return RenderSupport

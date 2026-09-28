@@ -58,6 +58,17 @@ local Utils = {}
 local AttrRef = {}
 local LocalRef = {}
 
+---@generic T
+---@param value   T | nil
+---@param default T | nil
+---@return T | nil
+local function valueOrDefault(value, default)
+    if value == nil then
+        return default
+    end
+    return value
+end
+
 function Utils.IsNodeReference(value)
     return Class.isInstance(value, AttrRef) or Class.isInstance(value, LocalRef)
 end
@@ -151,16 +162,21 @@ local function referenceToString(value)
     return tostring(value:get())
 end
 
-AttrRef.__add = referenceAdd
-AttrRef.__sub = referenceSub
-AttrRef.__mul = referenceMul
-AttrRef.__div = referenceDiv
-AttrRef.__mod = referenceMod
-AttrRef.__pow = referencePow
-AttrRef.__eq = referenceEq
-AttrRef.__lt = referenceLt
-AttrRef.__le = referenceLe
-AttrRef.__tostring = referenceToString
+---@param definition table
+local function installReferenceOperators(definition)
+    definition.__add = referenceAdd
+    definition.__sub = referenceSub
+    definition.__mul = referenceMul
+    definition.__div = referenceDiv
+    definition.__mod = referenceMod
+    definition.__pow = referencePow
+    definition.__eq = referenceEq
+    definition.__lt = referenceLt
+    definition.__le = referenceLe
+    definition.__tostring = referenceToString
+end
+
+installReferenceOperators(AttrRef)
 
 function AttrRef:init(obj, name)
     self.obj = obj
@@ -188,16 +204,7 @@ end
 
 local FinalAttrRef = class(AttrRef)
 
-LocalRef.__add = referenceAdd
-LocalRef.__sub = referenceSub
-LocalRef.__mul = referenceMul
-LocalRef.__div = referenceDiv
-LocalRef.__mod = referenceMod
-LocalRef.__pow = referencePow
-LocalRef.__eq = referenceEq
-LocalRef.__lt = referenceLt
-LocalRef.__le = referenceLe
-LocalRef.__tostring = referenceToString
+installReferenceOperators(LocalRef)
 
 function LocalRef:init(loc, name, default)
     self.loc = loc
@@ -206,7 +213,7 @@ function LocalRef:init(loc, name, default)
 end
 
 function LocalRef:get()
-    return self.loc[self.name] == nil and self.default or self.loc[self.name]
+    return valueOrDefault(self.loc[self.name], self.default)
 end
 
 function LocalRef:set(value)
@@ -230,7 +237,7 @@ end
 
 function Utils.GetLocalValue(valueName, default)
     local value = loadContext().GetRefLocal(Utils.GetLocalValue)[valueName]
-    return value == nil and default or value
+    return valueOrDefault(value, default)
 end
 
 function Utils.GetLocalValueRef(valueName, default)
@@ -243,7 +250,7 @@ end
 
 function Utils.GetGameVariable(valueName, default)
     local value = loadContext().RequireGameInstance():getVariables()[valueName]
-    return value == nil and default or value
+    return valueOrDefault(value, default)
 end
 
 function Utils.GetGameVariableRef(valueName, default)

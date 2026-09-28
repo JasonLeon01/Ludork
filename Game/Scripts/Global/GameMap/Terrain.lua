@@ -1,6 +1,6 @@
 local GlobalCore = require("GlobalCore")
 local TerrainOperations = require("Global.GameMap.TerrainOperations")
-local TerrainChanges = require("Global.GameMap.TerrainChanges")
+local TerrainEditing = require("Global.GameMap.TerrainEditing")
 
 local GameMapBase = GlobalCore.GameMapBase
 
@@ -23,29 +23,18 @@ end
 
 ---@param self GameMapImplState
 function GameMapTerrain.SetTerrainTiles(self, layerName, positions, tileID)
-    local changedPositions, layer, layerData, autoTileTextures, autoTileFrameCounts = TerrainOperations.SetTiles(
-        self._tilemap, self._autoTileResolver, layerName, positions, tileID
-    )
-    if not bool(changedPositions) then
-        return {}
+    ---@type Global.GameMap.TerrainEditing.ReplaceLayer
+    local replaceLayer = function (layer, layerData, autoTileTextures, autoTileFrameCounts)
+        self:_replaceTerrainLayer(layerName, layer, layerData, autoTileTextures, autoTileFrameCounts)
     end
-    ---@cast layer Engine.TileLayer
-    ---@cast layerData Engine.TileLayerData
-    ---@cast autoTileTextures sf.Texture[]
-    ---@cast autoTileFrameCounts integer[]
-    self:_replaceTerrainLayer(layerName, layer, layerData, autoTileTextures, autoTileFrameCounts)
-    self:markPassabilityDirty()
-    TerrainChanges.Publish(self, layerName, changedPositions, tileID, layer)
-    return changedPositions
+    return TerrainEditing.SetTiles(
+        self, self._tilemap, self._autoTileResolver, layerName, positions, tileID, replaceLayer
+    )
 end
 
 ---@param self GameMapImplState
 function GameMapTerrain.ApplyTerrainDestructions(self, terrainDestructions)
-    for layerName, changes in pairs(terrainDestructions) do
-        for _, change in pairs(changes) do
-            self:setTerrainTile(layerName, change.position, change.tileID)
-        end
-    end
+    TerrainEditing.ApplyDestructions(self, terrainDestructions)
 end
 
 ---@param self GameMapImplState

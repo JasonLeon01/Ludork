@@ -9,6 +9,7 @@
 
 ---@class Source.Windows.WindowShop.WindowShopCell.Controller: Internal.UIBase.UiController
 ---@field ui           Internal.UI.Parts.WindowShop.WindowShopCell
+---@field root         Engine.Canvas
 ---@field model        Source.Windows.WindowShop.WindowShopCell.Controller.Model
 ---@field new          fun(model: Source.Windows.WindowShop.WindowShopCell.Controller.Model): Source.Windows.WindowShop.WindowShopCell.Controller
 ---@field _iconColour  sf.Color

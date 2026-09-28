@@ -1,15 +1,12 @@
 local Ui = require("Internal.UIBase.Ui")
+local IconTexture = require("Internal.UIBase.IconTexture")
 local View = require("Internal.UI.Parts.WindowEquip.EquipSlotRow")
 
+---@class (partial) Source.Windows.WindowEquip.EquipSlotRow.Controller
 local EquipSlotRowController = {}
 
 function EquipSlotRowController:refresh()
-    if self.model.iconTexture == nil then
-        self:setProperty("Icon", "visible", false)
-    else
-        self.ui.controls["Icon"]:setTexture(self.model.iconTexture, true)
-        self:setProperty("Icon", "visible", true)
-    end
+    IconTexture.Apply(self, "Icon", self.model.iconTexture)
     self:setText("Label", self.model.label)
 end
 
