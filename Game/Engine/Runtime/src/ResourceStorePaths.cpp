@@ -13,6 +13,34 @@
 
 namespace ludork::runtime::detail {
 
+std::string asciiFold(std::string value) {
+    for (char& character : value) {
+        if (character >= 'A' && character <= 'Z') {
+            character = static_cast<char>(character - 'A' + 'a');
+        }
+    }
+    return value;
+}
+
+bool isLinkLike(const std::filesystem::path& path,
+                const std::filesystem::file_status& status,
+                std::string_view inspectionError) {
+    if (std::filesystem::is_symlink(status)) {
+        return true;
+    }
+#if defined(_WIN32)
+    const DWORD attributes = GetFileAttributesW(path.c_str());
+    if (attributes == INVALID_FILE_ATTRIBUTES) {
+        throw std::runtime_error(std::string(inspectionError));
+    }
+    return (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
+#else
+    static_cast<void>(path);
+    static_cast<void>(inspectionError);
+    return false;
+#endif
+}
+
 std::filesystem::path resourceStoreRoot(
     const std::filesystem::path& runtimeRoot, const std::string& name,
     const bool packed) {

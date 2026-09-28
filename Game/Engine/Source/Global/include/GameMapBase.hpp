@@ -472,6 +472,10 @@ private:
     int getTopmostOccupantLayerIndex(const std::vector<Actor*>& actorsAtCell,
                                      const Actor* selfActor) const;
 
+    bool isTopmostOccupant(Actor* actor, const Actor* excludedActor,
+                           const std::unordered_set<Actor*>* descendants,
+                           int topmostLayerIndex) const;
+
     struct VisibilityLayerState {
         std::shared_ptr<TileLayer> layer;
         bool visible = false;

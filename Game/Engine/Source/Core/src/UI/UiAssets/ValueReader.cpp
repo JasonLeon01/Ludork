@@ -5,6 +5,17 @@
 
 namespace ludork::engine::ui_asset_runtime_impl {
 
+void requireOnlyKeys(const RuntimeData::Map& values,
+                     const std::unordered_set<std::string>& allowed,
+                     const std::string& source) {
+    for (const auto& [name, value] : values) {
+        static_cast<void>(value);
+        if (!allowed.contains(name)) {
+            throw std::invalid_argument(source + " has unknown field " + name);
+        }
+    }
+}
+
 sf::Vector2f requireVector2f(const RuntimeData& value,
                              const std::string& source) {
     const RuntimeData::Array& array =

@@ -1,4 +1,6 @@
 #include "InputImpl.hpp"
+#include "InputThresholds.hpp"
+#include "InputEventUtils.hpp"
 #include <Input/TextInputService.hpp>
 #include <Input/InputNamedValue.hpp>
 #include <Input/JoystickAxisEvent.hpp>
@@ -25,6 +27,14 @@ std::string InputImpl::axisId(unsigned int joystickId,
                               sf::Joystick::Axis axis) {
     return std::to_string(joystickId) + ":" +
            std::to_string(static_cast<int>(axis));
+}
+
+void InputImpl::clearJoystickState() {
+    joystick_.buttonTriggers_.clear();
+    joystick_.pendingButtonReleases_.clear();
+    joystick_.axisTriggers_.clear();
+    joystick_.axisStatus_.clear();
+    joystick_.dominantAxis_.clear();
 }
 
 void InputImpl::clearJoystickDevice(unsigned int joystickId) {
@@ -57,7 +67,7 @@ void InputImpl::updateJoystickDominantAxes() {
                 dominant = axis;
             }
         }
-        if (maximum < 10.0f) {
+        if (maximum < StickDeadZone) {
             dominant.reset();
         }
         const auto previousIterator = joystick_.dominantAxis_.find(joystickId);
@@ -132,15 +142,7 @@ bool InputImpl::getJoystickButtonPressed(unsigned int joystickId,
     if (joystick == joystick_.pressedEvents_.end()) {
         return false;
     }
-    const auto iterator = joystick->second.find(button);
-    if (iterator == joystick->second.end()) {
-        return false;
-    }
-    const bool result = iterator->second;
-    if (result && handled) {
-        iterator->second = false;
-    }
-    return result;
+    return consumeInputEvent(joystick->second, button, handled).value_or(false);
 }
 
 bool InputImpl::getJoystickButtonValuePressed(unsigned int joystickId,
@@ -160,15 +162,7 @@ bool InputImpl::getJoystickButtonReleased(unsigned int joystickId,
     if (joystick == joystick_.releasedEvents_.end()) {
         return false;
     }
-    const auto iterator = joystick->second.find(button);
-    if (iterator == joystick->second.end()) {
-        return false;
-    }
-    const bool result = iterator->second;
-    if (result && handled) {
-        iterator->second = false;
-    }
-    return result;
+    return consumeInputEvent(joystick->second, button, handled).value_or(false);
 }
 
 bool InputImpl::getJoystickButtonValueReleased(unsigned int joystickId,

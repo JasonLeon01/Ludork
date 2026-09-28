@@ -99,18 +99,10 @@ struct LuaCodecAdapter<Sequence, LuaSequenceCodecPolicy<ItemPolicy>> {
     static_assert(IsVector<Sequence>::value || IsArray<Sequence>::value);
 
     static bool canRead(const lua_glue::Object& value) {
-        if (!(value.get_type() == lua_glue::Type::Table)) {
-            return false;
-        }
-        const lua_glue::Table table = value.as<lua_glue::Table>();
+        lua_glue::Table table;
         std::size_t length = 0;
-        if (!trySequenceLength(table, length)) {
+        if (!tryReadSequenceTable(value, table, length, fixedLength())) {
             return false;
-        }
-        if constexpr (IsArray<Sequence>::value) {
-            if (length != std::tuple_size_v<Sequence>) {
-                return false;
-            }
         }
         for (std::size_t index = 1; index <= length; ++index) {
             if (!LuaCodecAdapter<Item, ItemPolicy>::canRead(
@@ -123,21 +115,9 @@ struct LuaCodecAdapter<Sequence, LuaSequenceCodecPolicy<ItemPolicy>> {
 
     static Sequence read(const lua_glue::Object& value,
                          std::string_view label) {
-        if (!(value.get_type() == lua_glue::Type::Table)) {
-            throw std::invalid_argument("expected a Lua sequence table");
-        }
-        const lua_glue::Table table = value.as<lua_glue::Table>();
         std::size_t length = 0;
-        if (!trySequenceLength(table, length)) {
-            throw std::invalid_argument(
-                "Lua sequence n must be a non-negative integer");
-        }
-        if constexpr (IsArray<Sequence>::value) {
-            if (length != std::tuple_size_v<Sequence>) {
-                throw std::invalid_argument(
-                    "Lua sequence length does not match the fixed C++ size");
-            }
-        }
+        const lua_glue::Table table =
+            readSequenceTable(value, length, fixedLength());
         Sequence result{};
         if constexpr (IsVector<Sequence>::value) {
             result.reserve(length);
@@ -184,6 +164,15 @@ struct LuaCodecAdapter<Sequence, LuaSequenceCodecPolicy<ItemPolicy>> {
         }
         return lua_glue::MakeObject(lua, table);
     }
+
+private:
+    static constexpr std::optional<std::size_t> fixedLength() {
+        if constexpr (IsArray<Sequence>::value) {
+            return std::tuple_size_v<Sequence>;
+        } else {
+            return std::nullopt;
+        }
+    }
 };
 
 template <typename Map, typename KeyPolicy, typename ItemPolicy>
@@ -194,10 +183,10 @@ struct LuaCodecAdapter<Map, LuaMapCodecPolicy<KeyPolicy, ItemPolicy>> {
     static_assert(IsMap<Map>::value);
 
     static bool canRead(const lua_glue::Object& value) {
-        if (!(value.get_type() == lua_glue::Type::Table)) {
+        lua_glue::Table table;
+        if (!tryReadLuaTable(value, table)) {
             return false;
         }
-        const lua_glue::Table table = value.as<lua_glue::Table>();
         for (const auto& entry : table) {
             if (!LuaCodecAdapter<Key, KeyPolicy>::canRead(entry.first) ||
                 !LuaCodecAdapter<Item, ItemPolicy>::canRead(entry.second)) {
@@ -208,10 +197,8 @@ struct LuaCodecAdapter<Map, LuaMapCodecPolicy<KeyPolicy, ItemPolicy>> {
     }
 
     static Map read(const lua_glue::Object& value, std::string_view label) {
-        if (!(value.get_type() == lua_glue::Type::Table)) {
-            throw std::invalid_argument("expected a Lua map table");
-        }
-        const lua_glue::Table table = value.as<lua_glue::Table>();
+        const lua_glue::Table table =
+            readLuaTable(value, "expected a Lua map table");
         Map result;
         for (const auto& entry : table) {
             result.emplace(
@@ -361,12 +348,9 @@ struct LuaCodecAdapter<Pair, LuaPairCodecPolicy<FirstPolicy, SecondPolicy>> {
     static_assert(IsPair<Pair>::value);
 
     static bool canRead(const lua_glue::Object& value) {
-        if (!(value.get_type() == lua_glue::Type::Table)) {
-            return false;
-        }
-        const lua_glue::Table table = value.as<lua_glue::Table>();
+        lua_glue::Table table;
         std::size_t length = 0;
-        return trySequenceLength(table, length) && length == 2 &&
+        return tryReadSequenceTable(value, table, length, 2) &&
                LuaCodecAdapter<First, FirstPolicy>::canRead(
                    table.raw_get<lua_glue::Object>(1)) &&
                LuaCodecAdapter<Second, SecondPolicy>::canRead(
@@ -412,13 +396,10 @@ struct LuaCodecAdapter<Tuple, LuaTupleCodecPolicy<Policies...>> {
     static_assert(std::tuple_size_v<Tuple> == sizeof...(Policies));
 
     static bool canRead(const lua_glue::Object& value) {
-        if (!(value.get_type() == lua_glue::Type::Table)) {
-            return false;
-        }
-        const lua_glue::Table table = value.as<lua_glue::Table>();
+        lua_glue::Table table;
         std::size_t length = 0;
-        return trySequenceLength(table, length) &&
-               length == sizeof...(Policies) &&
+        return tryReadSequenceTable(value, table, length,
+                                    sizeof...(Policies)) &&
                canReadItems(table,
                             std::make_index_sequence<sizeof...(Policies)>{});
     }

@@ -7,6 +7,18 @@
 
 #include <array>
 
+namespace {
+
+void invokeEvent(const FunctionalBase::EventCallback& callback,
+                 FunctionalBase& owner,
+                 const UiInputEventArguments& arguments) {
+    if (callback) {
+        callback(owner, arguments);
+    }
+}
+
+}  // namespace
+
 FunctionalInputProvider* FunctionalBase::inputProvider_ = nullptr;
 FunctionalBase::FocusResolver FunctionalBase::keyboardFocusResolver_;
 FunctionalBase::DirectionalFocusRequester
@@ -377,21 +389,15 @@ void FunctionalBase::fixedUpdate(float fixedDelta) {
 }
 
 void FunctionalBase::onConfirm(const UiInputEventArguments& arguments) {
-    if (confirmCallback_) {
-        confirmCallback_(*this, arguments);
-    }
+    invokeEvent(confirmCallback_, *this, arguments);
 }
 
 void FunctionalBase::onCancel(const UiInputEventArguments& arguments) {
-    if (cancelCallback_) {
-        cancelCallback_(*this, arguments);
-    }
+    invokeEvent(cancelCallback_, *this, arguments);
 }
 
 void FunctionalBase::onClick(const UiInputEventArguments& arguments) {
-    if (clickCallback_) {
-        clickCallback_(*this, arguments);
-    }
+    invokeEvent(clickCallback_, *this, arguments);
 }
 
 bool FunctionalBase::onMouseButtonDown(const UiInputEventArguments& arguments) {
@@ -400,40 +406,28 @@ bool FunctionalBase::onMouseButtonDown(const UiInputEventArguments& arguments) {
 }
 
 void FunctionalBase::onHover(const UiInputEventArguments& arguments) {
-    if (hoverCallback_) {
-        hoverCallback_(*this, arguments);
-    }
+    invokeEvent(hoverCallback_, *this, arguments);
 }
 
 void FunctionalBase::onUnHover(const UiInputEventArguments& arguments) {
-    if (unHoverCallback_) {
-        unHoverCallback_(*this, arguments);
-    }
+    invokeEvent(unHoverCallback_, *this, arguments);
 }
 
 void FunctionalBase::onMouseMoved(const UiInputEventArguments& arguments) {
-    if (mouseMovedCallback_) {
-        mouseMovedCallback_(*this, arguments);
-    }
+    invokeEvent(mouseMovedCallback_, *this, arguments);
 }
 
 void FunctionalBase::onMouseWheelScrolled(
     const UiInputEventArguments& arguments) {
-    if (mouseWheelScrolledCallback_) {
-        mouseWheelScrolledCallback_(*this, arguments);
-    }
+    invokeEvent(mouseWheelScrolledCallback_, *this, arguments);
 }
 
 void FunctionalBase::onKeyDown(const UiInputEventArguments& arguments) {
-    if (keyDownCallback_) {
-        keyDownCallback_(*this, arguments);
-    }
+    invokeEvent(keyDownCallback_, *this, arguments);
 }
 
 void FunctionalBase::onKeyUp(const UiInputEventArguments& arguments) {
-    if (keyUpCallback_) {
-        keyUpCallback_(*this, arguments);
-    }
+    invokeEvent(keyUpCallback_, *this, arguments);
 }
 
 void FunctionalBase::onTick(float) {}

@@ -181,6 +181,9 @@ void CharacterView::update(float deltaTime) {
 
 void CharacterView::draw(sf::RenderTarget& target,
                          sf::RenderStates states) const {
+    if (!getVisible()) {
+        return;
+    }
     _applyRenderStates(states);
     states.blendMode = getRenderStates().blendMode;
     const sf::Color colour = shaderError_

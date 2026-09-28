@@ -1,4 +1,5 @@
 #include "InputImpl.hpp"
+#include "InputThresholds.hpp"
 #include <CoreShared/JoystickDevice.hpp>
 #include <Input/InjectedInputEvent.hpp>
 
@@ -246,28 +247,9 @@ void InputImpl::onWindowRecreated(sf::RenderWindow& window) {
     ludork::engine::text_input::service().close();
     resetFrameState();
     clearKeyboardState();
-    pointer_.mouseButtonPressed_ = false;
-    pointer_.mouseButtonReleased_ = false;
-    pointer_.mousePressedEvents_.clear();
-    pointer_.mouseReleasedEvents_.clear();
     pointer_.mouseTriggers_.clear();
-    pointer_.pendingMouseTriggerReleases_.clear();
-    pointer_.mouseMoved_ = false;
-    pointer_.mouseMovedDelta_.reset();
-    pointer_.mouseEntered_ = false;
-    pointer_.mouseLeft_ = false;
-    pointer_.touchBegan_ = false;
-    pointer_.touchEnded_ = false;
-    pointer_.touchMoved_ = false;
     pointer_.touchActive_ = false;
     pointer_.touchPosition_.reset();
-    pointer_.touchBeganPosition_.reset();
-    pointer_.touchTap_ = false;
-    pointer_.touchTapHandled_ = false;
-    pointer_.touchTapPosition_.reset();
-    pointer_.touchEndedPosition_.reset();
-    pointer_.touchMovedDelta_.reset();
-    pointer_.touchBeganHandled_ = false;
     pointer_.touchTrigger_ = {};
     pointer_.touchTravelDistance_ = 0.0f;
     pointer_.touchDragged_ = false;
@@ -275,7 +257,6 @@ void InputImpl::onWindowRecreated(sf::RenderWindow& window) {
     pointer_.primaryTouchFinger_.reset();
     pointer_.touchFingers_.clear();
     pointer_.touchCancelMouseActive_ = false;
-    pointer_.touchCancelMousePressedThisFrame_ = false;
     pointer_.touchCancelMouseReleasePending_.reset();
     pointer_.injectedPixel_.reset();
     pointer_.injectedTransitionPending_.reset();
@@ -405,35 +386,14 @@ void InputImpl::processInjectedEvents() {
                 setKeyReleased(key, scan, modifiers);
             }
         } else if (event.type == "MouseMoved") {
-            updatePointerViewportState(pixel);
-            if (acceptsPointerPixel(pixel) ||
-                !pointer_.mouseTriggers_.empty()) {
-                const sf::Vector2i previous = pointer_.mousePosition_;
-                pointer_.mouseMoved_ = true;
-                pointer_.mousePosition_ = position;
-                if (pointer_.mousePosition_ != previous) {
-                    pointer_.mouseMovedDelta_ =
-                        pointer_.mousePosition_ - previous;
-                }
-            } else {
-                pointer_.mousePosition_ = position;
-            }
+            processMouseMoved(pixel, position);
         } else if (event.type == "MouseButtonPressed") {
-            updatePointerViewportState(pixel);
-            if (acceptsPointerPixel(pixel)) {
-                setMouseButtonPressed(button, position);
-            }
+            processMouseButtonPressed(button, pixel, position);
         } else if (event.type == "MouseButtonReleased") {
-            updatePointerViewportState(pixel);
-            if (pointer_.mouseTriggers_.contains(static_cast<int>(button))) {
-                setMouseButtonReleased(button, position);
-            }
+            processMouseButtonReleased(button, pixel, position);
         } else if (event.type == "MouseWheelScrolled") {
-            updatePointerViewportState(pixel);
-            if (acceptsPointerPixel(pixel)) {
-                recordMouseWheel(sf::Mouse::Wheel::Vertical, event.delta,
-                                 position);
-            }
+            processMouseWheel(sf::Mouse::Wheel::Vertical, event.delta, pixel,
+                              position);
         } else if (event.type == "FocusGained") {
             setFocused(true);
         } else if (event.type == "FocusLost") {
@@ -472,12 +432,13 @@ bool InputImpl::processNativeEvent(sf::RenderWindow& window,
         ludork::engine::joystick_device::activity(button->joystickId);
     }
     if (const auto* axis = event.getIf<sf::Event::JoystickMoved>();
-        axis != nullptr && ((axis->axis == sf::Joystick::Axis::X ||
-                             axis->axis == sf::Joystick::Axis::Y) &&
-                                std::abs(axis->position) >= 10.0f ||
-                            (axis->axis == sf::Joystick::Axis::PovX ||
-                             axis->axis == sf::Joystick::Axis::PovY) &&
-                                std::abs(axis->position) >= 50.0f)) {
+        axis != nullptr &&
+        ((axis->axis == sf::Joystick::Axis::X ||
+          axis->axis == sf::Joystick::Axis::Y) &&
+             std::abs(axis->position) >= StickDeadZone ||
+         (axis->axis == sf::Joystick::Axis::PovX ||
+          axis->axis == sf::Joystick::Axis::PovY) &&
+             std::abs(axis->position) >= DpadActivationThreshold)) {
         ludork::engine::joystick_device::activity(axis->joystickId);
     }
     if (!eventPump_.useInjectedMouseOnly_ && event.is<sf::Event::FocusLost>()) {
@@ -538,48 +499,26 @@ bool InputImpl::processNativeEvent(sf::RenderWindow& window,
         }
         if (const sf::Event::MouseWheelScrolled* mouseEvent =
                 event.getIf<sf::Event::MouseWheelScrolled>()) {
-            updatePointerViewportState(mouseEvent->position);
-            if (acceptsPointerPixel(mouseEvent->position)) {
-                recordMouseWheel(mouseEvent->wheel, mouseEvent->delta,
-                                 pixelToWorld(window, mouseEvent->position));
-            }
+            processMouseWheel(mouseEvent->wheel, mouseEvent->delta,
+                              mouseEvent->position,
+                              pixelToWorld(window, mouseEvent->position));
         }
         if (const sf::Event::MouseButtonPressed* mouseEvent =
                 event.getIf<sf::Event::MouseButtonPressed>()) {
-            updatePointerViewportState(mouseEvent->position);
-            if (acceptsPointerPixel(mouseEvent->position)) {
-                setMouseButtonPressed(
-                    mouseEvent->button,
-                    pixelToWorld(window, mouseEvent->position));
-            }
+            processMouseButtonPressed(
+                mouseEvent->button, mouseEvent->position,
+                pixelToWorld(window, mouseEvent->position));
         }
         if (const sf::Event::MouseButtonReleased* mouseEvent =
                 event.getIf<sf::Event::MouseButtonReleased>()) {
-            updatePointerViewportState(mouseEvent->position);
-            if (pointer_.mouseTriggers_.contains(
-                    static_cast<int>(mouseEvent->button))) {
-                setMouseButtonReleased(
-                    mouseEvent->button,
-                    pixelToWorld(window, mouseEvent->position));
-            }
+            processMouseButtonReleased(
+                mouseEvent->button, mouseEvent->position,
+                pixelToWorld(window, mouseEvent->position));
         }
         if (const sf::Event::MouseMoved* mouseEvent =
                 event.getIf<sf::Event::MouseMoved>()) {
-            updatePointerViewportState(mouseEvent->position);
-            const sf::Vector2i position =
-                pixelToWorld(window, mouseEvent->position);
-            if (acceptsPointerPixel(mouseEvent->position) ||
-                !pointer_.mouseTriggers_.empty()) {
-                const sf::Vector2i previous = pointer_.mousePosition_;
-                pointer_.mouseMoved_ = true;
-                pointer_.mousePosition_ = position;
-                if (pointer_.mousePosition_ != previous) {
-                    pointer_.mouseMovedDelta_ =
-                        pointer_.mousePosition_ - previous;
-                }
-            } else {
-                pointer_.mousePosition_ = position;
-            }
+            processMouseMoved(mouseEvent->position,
+                              pixelToWorld(window, mouseEvent->position));
         }
         if (event.is<sf::Event::MouseEntered>()) {
             updatePointerViewportState(sf::Mouse::getPosition(window));

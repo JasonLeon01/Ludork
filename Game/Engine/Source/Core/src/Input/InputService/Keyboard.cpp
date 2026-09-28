@@ -1,4 +1,5 @@
 #include "InputImpl.hpp"
+#include "InputEventUtils.hpp"
 #include <Input/TextInputService.hpp>
 
 #include <algorithm>
@@ -73,13 +74,17 @@ std::string InputImpl::keyId(int code, const InputModifiers& modifiers) {
     return result;
 }
 
-void InputImpl::clearKeyboardState() {
+void InputImpl::clearKeyboardFrameState() {
     keyboard_.keyPressed_ = false;
     keyboard_.keyReleased_ = false;
     keyboard_.keyPressedEvents_.clear();
     keyboard_.keyReleasedEvents_.clear();
     keyboard_.scanPressedEvents_.clear();
     keyboard_.scanReleasedEvents_.clear();
+}
+
+void InputImpl::clearKeyboardState() {
+    clearKeyboardFrameState();
     keyboard_.keyTriggers_.clear();
     keyboard_.scanTriggers_.clear();
     keyboard_.keyPulseTriggerBackups_.clear();
@@ -320,19 +325,6 @@ bool InputImpl::isKeyReleased() const {
            !isKeyboardBlocked();
 }
 
-bool InputImpl::consume(std::unordered_map<std::string, bool>& events,
-                        const std::string& id, bool handled) {
-    const auto iterator = events.find(id);
-    if (iterator == events.end()) {
-        return false;
-    }
-    const bool result = iterator->second;
-    if (result && handled) {
-        iterator->second = false;
-    }
-    return result;
-}
-
 bool InputImpl::getKeyPressed(sf::Keyboard::Key key, bool handled, bool alt,
                               bool ctrl, bool shift, bool system) {
     if (!isKeyPressed()) {
@@ -340,21 +332,19 @@ bool InputImpl::getKeyPressed(sf::Keyboard::Key key, bool handled, bool alt,
     }
     const InputModifiers modifiers{alt, ctrl, shift, system};
     const std::string identifier = keyId(static_cast<int>(key), modifiers);
-    const auto direct = keyboard_.keyPressedEvents_.find(identifier);
-    if (direct != keyboard_.keyPressedEvents_.end()) {
-        const bool result = direct->second;
-        if (result && handled) {
-            direct->second = false;
-        }
-        return result;
+    const std::optional<bool> direct =
+        consumeInputEvent(keyboard_.keyPressedEvents_, identifier, handled);
+    if (direct.has_value()) {
+        return *direct;
     }
     const sf::Keyboard::Scancode scan = sf::Keyboard::delocalize(key);
     if (scan == sf::Keyboard::Scancode::Unknown) {
         return false;
     }
     const bool result =
-        consume(keyboard_.scanPressedEvents_,
-                keyId(static_cast<int>(scan), modifiers), handled);
+        consumeInputEvent(keyboard_.scanPressedEvents_,
+                          keyId(static_cast<int>(scan), modifiers), handled)
+            .value_or(false);
     if (result && handled) {
         const auto unknown = keyboard_.keyPressedEvents_.find(
             keyId(static_cast<int>(sf::Keyboard::Key::Unknown), modifiers));
@@ -370,9 +360,11 @@ bool InputImpl::getScanPressed(sf::Keyboard::Scancode scan, bool handled,
     if (!isKeyPressed()) {
         return false;
     }
-    return consume(keyboard_.scanPressedEvents_,
-                   keyId(static_cast<int>(scan), {alt, ctrl, shift, system}),
-                   handled);
+    return consumeInputEvent(
+               keyboard_.scanPressedEvents_,
+               keyId(static_cast<int>(scan), {alt, ctrl, shift, system}),
+               handled)
+        .value_or(false);
 }
 
 bool InputImpl::getKeyReleased(sf::Keyboard::Key key, bool handled, bool alt,
@@ -382,21 +374,19 @@ bool InputImpl::getKeyReleased(sf::Keyboard::Key key, bool handled, bool alt,
     }
     const InputModifiers modifiers{alt, ctrl, shift, system};
     const std::string identifier = keyId(static_cast<int>(key), modifiers);
-    const auto direct = keyboard_.keyReleasedEvents_.find(identifier);
-    if (direct != keyboard_.keyReleasedEvents_.end()) {
-        const bool result = direct->second;
-        if (result && handled) {
-            direct->second = false;
-        }
-        return result;
+    const std::optional<bool> direct =
+        consumeInputEvent(keyboard_.keyReleasedEvents_, identifier, handled);
+    if (direct.has_value()) {
+        return *direct;
     }
     const sf::Keyboard::Scancode scan = sf::Keyboard::delocalize(key);
     if (scan == sf::Keyboard::Scancode::Unknown) {
         return false;
     }
     const bool result =
-        consume(keyboard_.scanReleasedEvents_,
-                keyId(static_cast<int>(scan), modifiers), handled);
+        consumeInputEvent(keyboard_.scanReleasedEvents_,
+                          keyId(static_cast<int>(scan), modifiers), handled)
+            .value_or(false);
     if (result && handled) {
         const auto unknown = keyboard_.keyReleasedEvents_.find(
             keyId(static_cast<int>(sf::Keyboard::Key::Unknown), modifiers));
@@ -412,9 +402,11 @@ bool InputImpl::getScanReleased(sf::Keyboard::Scancode scan, bool handled,
     if (!isKeyReleased()) {
         return false;
     }
-    return consume(keyboard_.scanReleasedEvents_,
-                   keyId(static_cast<int>(scan), {alt, ctrl, shift, system}),
-                   handled);
+    return consumeInputEvent(
+               keyboard_.scanReleasedEvents_,
+               keyId(static_cast<int>(scan), {alt, ctrl, shift, system}),
+               handled)
+        .value_or(false);
 }
 
 std::string InputImpl::getEnteredText() const {

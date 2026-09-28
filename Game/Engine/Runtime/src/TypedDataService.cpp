@@ -1,4 +1,5 @@
 #include <Runtime/TypedDataService.hpp>
+#include <StringUtils.hpp>
 
 #include <Runtime/MetadataRuntime.hpp>
 #include <Runtime/RuntimeReference.hpp>
@@ -9,35 +10,11 @@
 #include <algorithm>
 #include <charconv>
 #include <cmath>
-#include <cctype>
 #include <iomanip>
 #include <sstream>
 #include <stdexcept>
 
 namespace {
-
-std::string lower(std::string value) {
-    std::transform(value.begin(), value.end(), value.begin(),
-                   [](unsigned char character) {
-                       return static_cast<char>(std::tolower(character));
-                   });
-    return value;
-}
-
-std::string trim(const std::string& value) {
-    const auto first = std::find_if_not(value.begin(), value.end(),
-                                        [](unsigned char character) {
-                                            return std::isspace(character) != 0;
-                                        });
-    if (first == value.end()) {
-        return std::string();
-    }
-    const auto last = std::find_if_not(value.rbegin(), value.rend(),
-                                       [](unsigned char character) {
-                                           return std::isspace(character) != 0;
-                                       });
-    return std::string(first, last.base());
-}
 
 std::optional<RuntimeValueView> mapValue(RuntimeValueView value,
                                          const std::string& key) {
@@ -451,7 +428,7 @@ RuntimeValue TypedDataService::evalDataExpression(
     if (expression == nullptr) {
         return value;
     }
-    const std::string text = trim(*expression);
+    const std::string text = ludork::standard::trimWhitespace(*expression);
     if (text.empty()) {
         return RuntimeValue();
     }
@@ -470,7 +447,7 @@ RuntimeValue TypedDataService::coerceStandardValue(
         return resolveStored(*this, value, schema, {}, {}, "value", false);
     }
     if (const std::string* text = unwrapped.getIf<std::string>()) {
-        const std::string type = lower(*text);
+        const std::string type = ludork::standard::lowercase(*text);
         if (type == "string") {
             return RuntimeValue(scalarString(value));
         }
@@ -573,7 +550,7 @@ RuntimeValue TypedDataService::coerceInteger(const RuntimeValue& value) const {
         return RuntimeValue(static_cast<std::int64_t>(*boolean ? 1 : 0));
     }
     if (const std::string* source = value.getIf<std::string>()) {
-        const std::string text = trim(*source);
+        const std::string text = ludork::standard::trimWhitespace(*source);
         std::int64_t integer = 0;
         if (parseInteger(text, integer)) {
             return RuntimeValue(integer);
@@ -598,7 +575,7 @@ RuntimeValue TypedDataService::coerceFloat(const RuntimeValue& value) const {
         return RuntimeValue(*boolean ? 1.0 : 0.0);
     }
     if (const std::string* source = value.getIf<std::string>()) {
-        const std::string text = trim(*source);
+        const std::string text = ludork::standard::trimWhitespace(*source);
         double number = 0.0;
         if (parseFloat(text, number)) {
             return RuntimeValue(number);

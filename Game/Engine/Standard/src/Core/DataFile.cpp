@@ -1,4 +1,5 @@
 #include <DataFile.hpp>
+#include <StringUtils.hpp>
 #include <LudorkGenerated/EncryptedPayloadConstants.hpp>
 #include <LudorkGenerated/ResourceFileConstants.hpp>
 #include <EncryptedPayload.hpp>
@@ -7,7 +8,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cctype>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -28,14 +28,6 @@ constexpr EncryptedPayloadFormat DataFormat{
     .formatName = "data",
 };
 
-std::string lowerString(std::string value) {
-    std::transform(value.begin(), value.end(), value.begin(),
-                   [](unsigned char character) {
-                       return static_cast<char>(std::tolower(character));
-                   });
-    return value;
-}
-
 bool isRegularFile(const std::filesystem::path& path) {
     const ReadOnlyFileStatus virtualStatus = readOnlyFileStatus(path);
     if (virtualStatus.handled) {
@@ -47,7 +39,7 @@ bool isRegularFile(const std::filesystem::path& path) {
 }
 
 bool isEncryptedDataPath(const std::filesystem::path& path) {
-    return lowerString(pathToUtf8(path.extension())) ==
+    return ludork::standard::lowercase(pathToUtf8(path.extension())) ==
            ludork::generated::resources::EncryptedDataExtension;
 }
 
@@ -110,7 +102,7 @@ std::filesystem::path resolveJsonDataPath(const std::filesystem::path& path) {
     if (isRegularFile(path)) {
         return path;
     }
-    if (lowerString(pathToUtf8(path.extension())) ==
+    if (ludork::standard::lowercase(pathToUtf8(path.extension())) ==
         ludork::generated::resources::DataExtension) {
         std::filesystem::path encrypted = path;
         encrypted.replace_extension(

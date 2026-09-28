@@ -1,9 +1,9 @@
 #include "ConfigParser.hpp"
+#include <StringUtils.hpp>
 
 #include <Utf8Path.hpp>
 
 #include <algorithm>
-#include <cctype>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -14,31 +14,6 @@
 #include <utility>
 
 namespace ludork::standard {
-
-namespace {
-
-std::string trim(std::string value) {
-    const auto first = std::find_if_not(value.begin(), value.end(),
-                                        [](unsigned char character) {
-                                            return std::isspace(character) != 0;
-                                        });
-    const auto last = std::find_if_not(value.rbegin(), value.rend(),
-                                       [](unsigned char character) {
-                                           return std::isspace(character) != 0;
-                                       })
-                          .base();
-    return first >= last ? "" : std::string(first, last);
-}
-
-std::string lowercase(std::string value) {
-    std::transform(value.begin(), value.end(), value.begin(),
-                   [](unsigned char character) {
-                       return static_cast<char>(std::tolower(character));
-                   });
-    return value;
-}
-
-}  // namespace
 
 bool ConfigParser::read(const std::filesystem::path& path) {
     std::ifstream input(path, std::ios::binary);
@@ -59,12 +34,13 @@ bool ConfigParser::read(const std::filesystem::path& path) {
             line.erase(0, 3);
         }
         firstLine = false;
-        const std::string stripped = trim(line);
+        const std::string stripped = ludork::standard::trimWhitespace(line);
         if (stripped.empty() || stripped[0] == '#' || stripped[0] == ';') {
             continue;
         }
         if (stripped.front() == '[' && stripped.back() == ']') {
-            section = trim(stripped.substr(1, stripped.size() - 2));
+            section = ludork::standard::trimWhitespace(
+                stripped.substr(1, stripped.size() - 2));
             sections_.try_emplace(section);
             continue;
         }
@@ -80,10 +56,12 @@ bool ConfigParser::read(const std::filesystem::path& path) {
         if (separator == std::string::npos) {
             continue;
         }
-        const std::string key = trim(stripped.substr(0, separator));
+        const std::string key =
+            ludork::standard::trimWhitespace(stripped.substr(0, separator));
         if (!key.empty()) {
-            sections_[section][lowercase(key)] = {
-                key, trim(stripped.substr(separator + 1))};
+            sections_[section][ludork::standard::lowercase(key)] = {
+                key, ludork::standard::trimWhitespace(
+                         stripped.substr(separator + 1))};
         }
     }
     return true;
@@ -103,7 +81,8 @@ const std::string* ConfigParser::findValue(const std::string& section,
     if (sectionIterator == sections_.end()) {
         return nullptr;
     }
-    const auto valueIterator = sectionIterator->second.find(lowercase(key));
+    const auto valueIterator =
+        sectionIterator->second.find(ludork::standard::lowercase(key));
     return valueIterator == sectionIterator->second.end()
                ? nullptr
                : &valueIterator->second.second;
@@ -121,7 +100,8 @@ std::optional<double> ConfigParser::getFloat(const std::string& section,
     if (value != nullptr) {
         char* end = nullptr;
         const double parsed = std::strtod(value->c_str(), &end);
-        if (end != value->c_str() && trim(end).empty()) {
+        if (end != value->c_str() &&
+            ludork::standard::trimWhitespace(end).empty()) {
             return parsed;
         }
     }
@@ -134,7 +114,8 @@ std::optional<std::int64_t> ConfigParser::getInt(const std::string& section,
     if (value != nullptr) {
         char* end = nullptr;
         const long long parsed = std::strtoll(value->c_str(), &end, 10);
-        if (end != value->c_str() && trim(end).empty()) {
+        if (end != value->c_str() &&
+            ludork::standard::trimWhitespace(end).empty()) {
             return static_cast<std::int64_t>(parsed);
         }
     }
@@ -145,7 +126,8 @@ std::optional<bool> ConfigParser::getBoolean(const std::string& section,
                                              const std::string& key) const {
     const std::string* value = findValue(section, key);
     if (value != nullptr) {
-        const std::string parsed = lowercase(trim(*value));
+        const std::string parsed = ludork::standard::lowercase(
+            ludork::standard::trimWhitespace(*value));
         if (parsed == "1" || parsed == "yes" || parsed == "true" ||
             parsed == "on") {
             return true;
@@ -160,7 +142,8 @@ std::optional<bool> ConfigParser::getBoolean(const std::string& section,
 
 void ConfigParser::set(const std::string& section, const std::string& key,
                        std::string value) {
-    sections_[section][lowercase(key)] = {key, std::move(value)};
+    sections_[section][ludork::standard::lowercase(key)] = {key,
+                                                            std::move(value)};
 }
 
 void ConfigParser::write(const std::filesystem::path& path) const {

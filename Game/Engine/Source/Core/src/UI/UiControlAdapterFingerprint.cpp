@@ -1,3 +1,4 @@
+#include "UiControlAdapters/ChildPolicyName.hpp"
 #include <UI/UiControlAdapterRegistry.hpp>
 
 #include <algorithm>
@@ -108,15 +109,12 @@ std::string sha256(std::string_view value) {
 }
 
 std::string_view childPolicyName(UiChildPolicy policy) {
-    switch (policy) {
-        case UiChildPolicy::None:
-            return "none";
-        case UiChildPolicy::Single:
-            return "single";
-        case UiChildPolicy::Multiple:
-            return "multiple";
+    const auto name =
+        ludork::engine::ui_control_adapter_detail::childPolicyName(policy);
+    if (!name.has_value()) {
+        throw std::logic_error("Unknown UI child policy");
     }
-    throw std::logic_error("Unknown UI child policy");
+    return *name;
 }
 
 std::string_view slotTypeName(UiControlSlotType slotType) {

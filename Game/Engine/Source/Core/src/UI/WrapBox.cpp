@@ -1,3 +1,4 @@
+#include "Containers/ContainerSupport.hpp"
 #include <UI/WrapBox.hpp>
 
 #include <EngineState.hpp>
@@ -215,32 +216,20 @@ void WrapBox::applyPositions() {
 
 void WrapBox::update(float deltaTime) {
     applyPositions();
-    for (const auto& child : getChildren()) {
-        if (auto functional = ludork::Cast<FunctionalBase>(child.get());
-            functional && child->getVisible()) {
-            functional->update(deltaTime);
-        }
-    }
+    ludork::engine::ui_container::tickChildren(
+        getChildren(), &FunctionalBase::update, deltaTime);
     FunctionalBase::update(deltaTime);
 }
 
 void WrapBox::lateUpdate(float deltaTime) {
-    for (const auto& child : getChildren()) {
-        if (auto functional = ludork::Cast<FunctionalBase>(child.get());
-            functional && child->getVisible()) {
-            functional->lateUpdate(deltaTime);
-        }
-    }
+    ludork::engine::ui_container::tickChildren(
+        getChildren(), &FunctionalBase::lateUpdate, deltaTime);
     FunctionalBase::lateUpdate(deltaTime);
 }
 
 void WrapBox::fixedUpdate(float fixedDelta) {
-    for (const auto& child : getChildren()) {
-        if (auto functional = ludork::Cast<FunctionalBase>(child.get());
-            functional && child->getVisible()) {
-            functional->fixedUpdate(fixedDelta);
-        }
-    }
+    ludork::engine::ui_container::tickChildren(
+        getChildren(), &FunctionalBase::fixedUpdate, fixedDelta);
     FunctionalBase::fixedUpdate(fixedDelta);
 }
 

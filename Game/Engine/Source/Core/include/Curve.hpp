@@ -62,13 +62,4 @@ public:
 
     BIND_PROPERTY()
     std::vector<CurveKey> keys;
-
-private:
-    static std::string normaliseInfinityMode(const std::string& mode);
-    static std::string normaliseInterpolation(const std::string& mode);
-    static float evaluateSegment(const CurveKey& start, const CurveKey& ending,
-                                 float time);
-    static float extrapolate(float time, const CurveKey& start,
-                             const CurveKey& ending, const std::string& mode,
-                             bool beforeFirst);
 };

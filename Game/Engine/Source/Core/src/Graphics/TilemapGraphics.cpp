@@ -33,6 +33,10 @@ TileLayerGraphics::TileLayerGraphics(
     for (const auto& autoTile : autoTilePool_) {
         autoTileMaterials_.push_back(autoTile.material);
     }
+    ludork::engine::tilemap_graphics_impl::validateMaterialOpacities(
+        materials_, "layerTileset.materials");
+    ludork::engine::tilemap_graphics_impl::validateMaterialOpacities(
+        autoTileMaterials_, "autotile materials");
     autoTileCurrentFrames_.assign(autoTileTextures_.size(), 0);
     initChunks();
     if (deferred) {
@@ -55,8 +59,8 @@ void TileLayerGraphics::initChunks() {
 }
 
 TileChunk& TileLayerGraphics::getChunk(int x, int y) {
-    return chunks_[static_cast<std::size_t>((y / ChunkSize) * chunkColumns_ +
-                                            x / ChunkSize)];
+    return chunks_[ludork::engine::tilemap_graphics_impl::chunkIndex(
+        x / ChunkSize, y / ChunkSize, chunkColumns_)];
 }
 
 void TileLayerGraphics::setTileColor(int x, int y, sf::Color color) {
@@ -73,9 +77,8 @@ void TileLayerGraphics::setTileColor(int x, int y, sf::Color color) {
     if (chunk.vertexArray == nullptr) {
         return;
     }
-    int localX = x - chunk.x;
-    int localY = y - chunk.y;
-    int start = (localX + localY * chunk.width) * 6;
+    const int start =
+        ludork::engine::tilemap_graphics_impl::tileVertexOffset(chunk, x, y);
     for (int i = 0; i < 6; ++i) {
         (*chunk.vertexArray)[start + i].color = color;
     }
@@ -97,8 +100,8 @@ void TileLayerGraphics::resetTileColor(int x, int y) {
     }
 
     float opacity = materials_[tileNumber].opacity;
-    sf::Color color = sf::Color::White;
-    color.a = static_cast<std::uint8_t>(opacity * 255);
+    const sf::Color color =
+        ludork::engine::tilemap_graphics_impl::materialColour(opacity);
 
     setTileColor(x, y, color);
 }
@@ -238,52 +241,38 @@ std::optional<Material> TileLayerGraphics::getMaterial(
 }
 
 std::vector<std::vector<float>> TileLayerGraphics::getLightBlockMap() const {
-    int width = static_cast<int>(size_.x);
-    int height = static_cast<int>(size_.y);
-    std::vector<std::vector<float>> result(height,
-                                           std::vector<float>(width, 0.0f));
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-            auto material = getMaterial(sf::Vector2i(x, y));
-            result[y][x] =
-                material.has_value() ? material.value().lightBlock : 0.0f;
-        }
-    }
-    return result;
+    return ludork::engine::tilemap_graphics_impl::materialMap(
+        static_cast<int>(size_.x), static_cast<int>(size_.y),
+        [this](const sf::Vector2i& position) {
+            return getMaterial(position);
+        },
+        [](const Material& material) {
+            return material.lightBlock;
+        });
 }
 
 std::vector<std::vector<float>> TileLayerGraphics::getReflectionStrengthMap()
     const {
-    int width = static_cast<int>(size_.x);
-    int height = static_cast<int>(size_.y);
-    std::vector<std::vector<float>> result(height,
-                                           std::vector<float>(width, 0.0f));
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-            auto material = getMaterial(sf::Vector2i(x, y));
-            if (material.has_value() && material.value().mirror) {
-                result[y][x] = material.value().reflectionStrength;
-            }
-        }
-    }
-    return result;
+    return ludork::engine::tilemap_graphics_impl::materialMap(
+        static_cast<int>(size_.x), static_cast<int>(size_.y),
+        [this](const sf::Vector2i& position) {
+            return getMaterial(position);
+        },
+        [](const Material& material) {
+            return material.mirror ? material.reflectionStrength : 0.0f;
+        });
 }
 
 std::vector<std::vector<float>> TileLayerGraphics::getIgnoreLightingMap()
     const {
-    int width = static_cast<int>(size_.x);
-    int height = static_cast<int>(size_.y);
-    std::vector<std::vector<float>> result(height,
-                                           std::vector<float>(width, 0.0f));
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-            auto material = getMaterial(sf::Vector2i(x, y));
-            result[y][x] =
-                material.has_value() && material.value().ignoreLighting ? 1.0f
-                                                                        : 0.0f;
-        }
-    }
-    return result;
+    return ludork::engine::tilemap_graphics_impl::materialMap(
+        static_cast<int>(size_.x), static_cast<int>(size_.y),
+        [this](const sf::Vector2i& position) {
+            return getMaterial(position);
+        },
+        [](const Material& material) {
+            return material.ignoreLighting ? 1.0f : 0.0f;
+        });
 }
 
 void TileLayerGraphics::updateAutoTileAnimation(float deltaTime,
@@ -365,8 +354,9 @@ void TileLayerGraphics::draw(sf::RenderTarget& target,
     int submittedChunks = 0;
     for (int chunkY = range.firstY; chunkY <= range.lastY; ++chunkY) {
         for (int chunkX = range.firstX; chunkX <= range.lastX; ++chunkX) {
-            const TileChunk& chunk = chunks_[static_cast<std::size_t>(
-                chunkY * chunkColumns_ + chunkX)];
+            const TileChunk& chunk =
+                chunks_[ludork::engine::tilemap_graphics_impl::chunkIndex(
+                    chunkX, chunkY, chunkColumns_)];
             bool hasGeometry = chunk.vertexArray != nullptr;
             if (!hasGeometry) {
                 for (const auto& autoTileVertexArray :
@@ -387,8 +377,9 @@ void TileLayerGraphics::draw(sf::RenderTarget& target,
     tileStates.texture = texture_.get();
     for (int chunkY = range.firstY; chunkY <= range.lastY; ++chunkY) {
         for (int chunkX = range.firstX; chunkX <= range.lastX; ++chunkX) {
-            const TileChunk& chunk = chunks_[static_cast<std::size_t>(
-                chunkY * chunkColumns_ + chunkX)];
+            const TileChunk& chunk =
+                chunks_[ludork::engine::tilemap_graphics_impl::chunkIndex(
+                    chunkX, chunkY, chunkColumns_)];
             if (chunk.vertexArray != nullptr) {
                 target.draw(*chunk.vertexArray, tileStates);
             }
@@ -399,8 +390,9 @@ void TileLayerGraphics::draw(sf::RenderTarget& target,
         autoStates.texture = autoTileTextures_[i].get();
         for (int chunkY = range.firstY; chunkY <= range.lastY; ++chunkY) {
             for (int chunkX = range.firstX; chunkX <= range.lastX; ++chunkX) {
-                const TileChunk& chunk = chunks_[static_cast<std::size_t>(
-                    chunkY * chunkColumns_ + chunkX)];
+                const TileChunk& chunk =
+                    chunks_[ludork::engine::tilemap_graphics_impl::chunkIndex(
+                        chunkX, chunkY, chunkColumns_)];
                 if (i >= chunk.autoTileVertexArrays.size() ||
                     chunk.autoTileVertexArrays[i] == nullptr) {
                     continue;
@@ -441,8 +433,8 @@ bool TileLayerGraphics::buildChunk(int chunkX, int chunkY) {
         throw std::out_of_range(
             "Tile layer chunk coordinates are out of range");
     }
-    const std::size_t index =
-        static_cast<std::size_t>(chunkY * chunkColumns_ + chunkX);
+    const std::size_t index = ludork::engine::tilemap_graphics_impl::chunkIndex(
+        chunkX, chunkY, chunkColumns_);
     if (builtChunks_[index]) {
         return buildComplete_;
     }
@@ -465,8 +457,8 @@ bool TileLayerGraphics::isChunkBuilt(int chunkX, int chunkY) const {
         throw std::out_of_range(
             "Tile layer chunk coordinates are out of range");
     }
-    const std::size_t index =
-        static_cast<std::size_t>(chunkY * chunkColumns_ + chunkX);
+    const std::size_t index = ludork::engine::tilemap_graphics_impl::chunkIndex(
+        chunkX, chunkY, chunkColumns_);
     return builtChunks_[index];
 }
 
@@ -496,7 +488,8 @@ void TileLayerGraphics::writePendingBlock(int x, int y,
     for (int chunkY = firstChunkY; chunkY <= lastChunkY; ++chunkY) {
         for (int chunkX = firstChunkX; chunkX <= lastChunkX; ++chunkX) {
             const std::size_t index =
-                static_cast<std::size_t>(chunkY * chunkColumns_ + chunkX);
+                ludork::engine::tilemap_graphics_impl::chunkIndex(
+                    chunkX, chunkY, chunkColumns_);
             if (builtChunks_[index]) {
                 throw std::logic_error(
                     "Tile layer block overlaps an already built chunk");
@@ -543,28 +536,19 @@ void TileLayerGraphics::buildStaticChunk(TileChunk& chunk) {
             }
             const int textureX = tileNumber % columns;
             const int textureY = tileNumber / columns;
-            const int localX = x - chunk.x;
-            const int localY = y - chunk.y;
-            const int start = (localX + localY * chunk.width) * 6;
-            const std::array<sf::Vector2f, 6> positions = {
-                sf::Vector2f(x * tileSize_, y * tileSize_),
-                sf::Vector2f((x + 1) * tileSize_, y * tileSize_),
-                sf::Vector2f(x * tileSize_, (y + 1) * tileSize_),
-                sf::Vector2f(x * tileSize_, (y + 1) * tileSize_),
-                sf::Vector2f((x + 1) * tileSize_, y * tileSize_),
-                sf::Vector2f((x + 1) * tileSize_, (y + 1) * tileSize_),
-            };
-            const std::array<sf::Vector2f, 6> textureCoordinates = {
-                sf::Vector2f(textureX * tileSize_, textureY * tileSize_),
-                sf::Vector2f((textureX + 1) * tileSize_, textureY * tileSize_),
-                sf::Vector2f(textureX * tileSize_, (textureY + 1) * tileSize_),
-                sf::Vector2f(textureX * tileSize_, (textureY + 1) * tileSize_),
-                sf::Vector2f((textureX + 1) * tileSize_, textureY * tileSize_),
-                sf::Vector2f((textureX + 1) * tileSize_,
-                             (textureY + 1) * tileSize_),
-            };
-            sf::Color colour = sf::Color::White;
-            colour.a = static_cast<std::uint8_t>(opacity * 255.0f);
+            const int start =
+                ludork::engine::tilemap_graphics_impl::tileVertexOffset(chunk,
+                                                                        x, y);
+            const auto positions =
+                ludork::engine::tilemap_graphics_impl::rectangleVertices(
+                    x * tileSize_, y * tileSize_, (x + 1) * tileSize_,
+                    (y + 1) * tileSize_);
+            const auto textureCoordinates =
+                ludork::engine::tilemap_graphics_impl::rectangleVertices(
+                    textureX * tileSize_, textureY * tileSize_,
+                    (textureX + 1) * tileSize_, (textureY + 1) * tileSize_);
+            const sf::Color colour =
+                ludork::engine::tilemap_graphics_impl::materialColour(opacity);
             for (int vertex = 0; vertex < 6; ++vertex) {
                 (*chunk.vertexArray)[start + vertex].position =
                     positions[vertex];
@@ -629,20 +613,21 @@ void TileLayerGraphics::buildAutoTileChunk(TileChunk& chunk) {
                 const std::size_t base = (cell * 4 + quadrant) * 6;
                 sf::VertexArray& vertices =
                     *chunk.autoTileVertexArrays[poolIndex];
-                vertices[base + 0].position = sf::Vector2f(left, top);
-                vertices[base + 1].position = sf::Vector2f(right, top);
-                vertices[base + 2].position = sf::Vector2f(left, bottom);
-                vertices[base + 3].position = sf::Vector2f(left, bottom);
-                vertices[base + 4].position = sf::Vector2f(right, top);
-                vertices[base + 5].position = sf::Vector2f(right, bottom);
+                const auto positions =
+                    ludork::engine::tilemap_graphics_impl::rectangleVertices(
+                        left, top, right, bottom);
+                for (std::size_t vertex = 0; vertex < positions.size();
+                     ++vertex) {
+                    vertices[base + vertex].position = positions[vertex];
+                }
             }
         }
         const float opacity = poolIndex < autoTileMaterials_.size()
                                   ? autoTileMaterials_[poolIndex].opacity
                                   : 1.0f;
         if (opacity < 1.0f) {
-            sf::Color colour = sf::Color::White;
-            colour.a = static_cast<std::uint8_t>(opacity * 255.0f);
+            const sf::Color colour =
+                ludork::engine::tilemap_graphics_impl::materialColour(opacity);
             sf::VertexArray& vertices = *chunk.autoTileVertexArrays[poolIndex];
             for (std::size_t vertex = 0; vertex < vertices.getVertexCount();
                  ++vertex) {
@@ -699,12 +684,13 @@ void TileLayerGraphics::refreshAutoTileTexCoords(TileChunk& chunk,
             const float right = left + static_cast<float>(half);
             const float bottom = top + static_cast<float>(half);
             const std::size_t base = (cell * 4 + quadrant) * 6;
-            (*vertices)[base + 0].texCoords = sf::Vector2f(left, top);
-            (*vertices)[base + 1].texCoords = sf::Vector2f(right, top);
-            (*vertices)[base + 2].texCoords = sf::Vector2f(left, bottom);
-            (*vertices)[base + 3].texCoords = sf::Vector2f(left, bottom);
-            (*vertices)[base + 4].texCoords = sf::Vector2f(right, top);
-            (*vertices)[base + 5].texCoords = sf::Vector2f(right, bottom);
+            const auto coordinates =
+                ludork::engine::tilemap_graphics_impl::rectangleVertices(
+                    left, top, right, bottom);
+            for (std::size_t vertex = 0; vertex < coordinates.size();
+                 ++vertex) {
+                (*vertices)[base + vertex].texCoords = coordinates[vertex];
+            }
         }
     }
 }

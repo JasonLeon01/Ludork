@@ -1,4 +1,5 @@
 #include "InputImpl.hpp"
+#include "InputEventUtils.hpp"
 
 #include "Platform/PlatformInputBridge.hpp"
 
@@ -16,6 +17,48 @@ sf::Vector2i InputImpl::worldToPixel(sf::RenderWindow& window,
                                      const sf::Vector2i& position) {
     return window.mapCoordsToPixel(
         {static_cast<float>(position.x), static_cast<float>(position.y)});
+}
+
+void InputImpl::processMouseMoved(const sf::Vector2i& pixel,
+                                  const sf::Vector2i& position) {
+    updatePointerViewportState(pixel);
+    if (acceptsPointerPixel(pixel) || !pointer_.mouseTriggers_.empty()) {
+        const sf::Vector2i previous = pointer_.mousePosition_;
+        pointer_.mouseMoved_ = true;
+        pointer_.mousePosition_ = position;
+        if (pointer_.mousePosition_ != previous) {
+            pointer_.mouseMovedDelta_ = pointer_.mousePosition_ - previous;
+        }
+    } else {
+        pointer_.mousePosition_ = position;
+    }
+}
+
+void InputImpl::processMouseButtonPressed(sf::Mouse::Button button,
+                                          const sf::Vector2i& pixel,
+                                          const sf::Vector2i& position) {
+    updatePointerViewportState(pixel);
+    if (acceptsPointerPixel(pixel)) {
+        setMouseButtonPressed(button, position);
+    }
+}
+
+void InputImpl::processMouseButtonReleased(sf::Mouse::Button button,
+                                           const sf::Vector2i& pixel,
+                                           const sf::Vector2i& position) {
+    updatePointerViewportState(pixel);
+    if (pointer_.mouseTriggers_.contains(static_cast<int>(button))) {
+        setMouseButtonReleased(button, position);
+    }
+}
+
+void InputImpl::processMouseWheel(sf::Mouse::Wheel wheel, float delta,
+                                  const sf::Vector2i& pixel,
+                                  const sf::Vector2i& position) {
+    updatePointerViewportState(pixel);
+    if (acceptsPointerPixel(pixel)) {
+        recordMouseWheel(wheel, delta, position);
+    }
 }
 
 void InputImpl::setMouseButtonPressed(sf::Mouse::Button button,
@@ -167,32 +210,18 @@ bool InputImpl::getMouseButtonPressed(sf::Mouse::Button button, bool handled) {
     if (!isMouseButtonPressed()) {
         return false;
     }
-    const auto iterator =
-        pointer_.mousePressedEvents_.find(static_cast<int>(button));
-    if (iterator == pointer_.mousePressedEvents_.end()) {
-        return false;
-    }
-    const bool result = iterator->second;
-    if (result && handled) {
-        iterator->second = false;
-    }
-    return result;
+    return consumeInputEvent(pointer_.mousePressedEvents_,
+                             static_cast<int>(button), handled)
+        .value_or(false);
 }
 
 bool InputImpl::getMouseButtonReleased(sf::Mouse::Button button, bool handled) {
     if (!isMouseButtonReleased()) {
         return false;
     }
-    const auto iterator =
-        pointer_.mouseReleasedEvents_.find(static_cast<int>(button));
-    if (iterator == pointer_.mouseReleasedEvents_.end()) {
-        return false;
-    }
-    const bool result = iterator->second;
-    if (result && handled) {
-        iterator->second = false;
-    }
-    return result;
+    return consumeInputEvent(pointer_.mouseReleasedEvents_,
+                             static_cast<int>(button), handled)
+        .value_or(false);
 }
 
 bool InputImpl::isMouseMoved() const {

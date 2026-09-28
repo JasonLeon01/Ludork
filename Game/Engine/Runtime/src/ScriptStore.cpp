@@ -5,6 +5,7 @@
 #include "ScriptStoreImpl.hpp"
 #include "ScriptModuleShape.hpp"
 #include "LdPakArchive.hpp"
+#include "ResourceStorePaths.hpp"
 #include <Utf8Path.hpp>
 
 extern "C" {
@@ -24,13 +25,6 @@ extern "C" {
 #include <unordered_set>
 #include <utility>
 #include <vector>
-
-#if defined(_WIN32)
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-#endif
 
 namespace ludork::runtime {
 namespace {
@@ -59,34 +53,9 @@ void pushPreloadOwners(lua_State* state, const ScriptStore* store,
     lua_remove(state, -2);
 }
 
-std::string asciiFold(std::string value) {
-    for (char& character : value) {
-        if (character >= 'A' && character <= 'Z') {
-            character = static_cast<char>(character - 'A' + 'a');
-        }
-    }
-    return value;
-}
-
-bool isLinkLike(const std::filesystem::path& path,
-                const std::filesystem::file_status& status) {
-    if (std::filesystem::is_symlink(status)) {
-        return true;
-    }
-#if defined(_WIN32)
-    const DWORD attributes = GetFileAttributesW(path.c_str());
-    if (attributes == INVALID_FILE_ATTRIBUTES) {
-        throw std::runtime_error("Failed to inspect Scripts filesystem entry");
-    }
-    return (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
-#else
-    static_cast<void>(path);
-    return false;
-#endif
-}
-
 bool isDeclarationPath(const std::string_view path) {
-    const std::string folded = asciiFold(std::string(path));
+    const std::string folded =
+        ludork::runtime::detail::asciiFold(std::string(path));
     return folded == "stub" || folded.starts_with("stub/") ||
            folded.ends_with(".d.lua");
 }
@@ -200,7 +169,7 @@ void addScriptEntry(
     if (!entries.emplace(relative, std::move(entry)).second) {
         throw std::runtime_error("Duplicate Script path: " + relative);
     }
-    const std::string folded = asciiFold(relative);
+    const std::string folded = ludork::runtime::detail::asciiFold(relative);
     const auto [iterator, inserted] = foldedPaths.emplace(folded, relative);
     if (!inserted && iterator->second != relative) {
         throw std::runtime_error("Script paths differ only by case: " +
@@ -353,7 +322,9 @@ void ScriptStore::configure(const std::filesystem::path& runtimeRoot) {
         const std::filesystem::file_status scriptsStatus =
             std::filesystem::symlink_status(scriptsRoot, error);
         if (error || !std::filesystem::is_directory(scriptsStatus) ||
-            isLinkLike(scriptsRoot, scriptsStatus)) {
+            ludork::runtime::detail::isLinkLike(
+                scriptsRoot, scriptsStatus,
+                "Failed to inspect Scripts filesystem entry")) {
             throw std::runtime_error("Scripts must be a real directory");
         }
         std::filesystem::recursive_directory_iterator iterator(
@@ -371,7 +342,9 @@ void ScriptStore::configure(const std::filesystem::path& runtimeRoot) {
                 throw std::runtime_error("Failed to inspect Script entry: " +
                                          error.message());
             }
-            if (isLinkLike(entry.path(), status)) {
+            if (ludork::runtime::detail::isLinkLike(
+                    entry.path(), status,
+                    "Failed to inspect Scripts filesystem entry")) {
                 throw std::runtime_error(
                     "Script symlinks are not supported: " +
                     ludork::standard::pathToUtf8(entry.path()));

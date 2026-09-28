@@ -3,8 +3,44 @@
 #include "Pattern.hpp"
 
 #include <algorithm>
+#include <cmath>
+#include <stdexcept>
+#include <string>
 
 namespace ludork::engine::tilemap_graphics_impl {
+
+void validateMaterialOpacities(const std::vector<Material>& materials,
+                               std::string_view source) {
+    for (std::size_t index = 0; index < materials.size(); ++index) {
+        const float opacity = materials[index].opacity;
+        if (!std::isfinite(opacity) || opacity < 0.0f || opacity > 1.0f) {
+            throw std::invalid_argument(
+                std::string(source) + "[" + std::to_string(index) +
+                "].opacity must be finite and in [0, 1]");
+        }
+    }
+}
+
+sf::Color materialColour(float opacity) {
+    sf::Color colour = sf::Color::White;
+    colour.a = static_cast<std::uint8_t>(opacity * 255.0f);
+    return colour;
+}
+
+std::size_t chunkIndex(int x, int y, int columns) {
+    return static_cast<std::size_t>(y * columns + x);
+}
+
+int tileVertexOffset(const TileChunk& chunk, int x, int y) {
+    return ((x - chunk.x) + (y - chunk.y) * chunk.width) * 6;
+}
+
+std::array<sf::Vector2f, 6> rectangleVertices(float left, float top,
+                                              float right, float bottom) {
+    return {sf::Vector2f(left, top),    sf::Vector2f(right, top),
+            sf::Vector2f(left, bottom), sf::Vector2f(left, bottom),
+            sf::Vector2f(right, top),   sf::Vector2f(right, bottom)};
+}
 
 std::vector<TileChunk> createChunks(int width, int height, int chunkSize) {
     const int columns = width > 0 ? (width + chunkSize - 1) / chunkSize : 0;

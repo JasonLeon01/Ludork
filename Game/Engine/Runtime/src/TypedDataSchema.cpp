@@ -1,28 +1,12 @@
 #include "TypedDataSchema.hpp"
+#include <StringUtils.hpp>
 #include <Runtime/RuntimeReference.hpp>
 
 #include <algorithm>
-#include <cctype>
 #include <stdexcept>
 
 namespace ludork::runtime::typed_data_impl {
 namespace {
-
-std::string trim(std::string value) {
-    const std::size_t first = value.find_first_not_of(" \t\r\n");
-    if (first == std::string::npos) {
-        return {};
-    }
-    return value.substr(first, value.find_last_not_of(" \t\r\n") - first + 1);
-}
-
-std::string lower(std::string value) {
-    std::transform(value.begin(), value.end(), value.begin(),
-                   [](unsigned char item) {
-                       return static_cast<char>(std::tolower(item));
-                   });
-    return value;
-}
 
 TypeSchema named(std::string name, std::string module = {}) {
     if (name.ends_with("[]")) {
@@ -38,7 +22,7 @@ TypeSchema named(std::string name, std::string module = {}) {
         name = name.substr(separator + 1);
     }
     if (module.empty()) {
-        const std::string normalized = lower(name);
+        const std::string normalized = ludork::standard::lowercase(name);
         if (normalized == "integer") {
             name = "int";
         } else if (normalized == "double" || normalized == "number") {
@@ -88,7 +72,7 @@ TypeSchema composite(TypeSchema::Kind kind, std::vector<TypeSchema> arguments) {
 }
 
 TypeSchema parseText(std::string text) {
-    text = trim(std::move(text));
+    text = ludork::standard::trimCharacters(text);
     if (text.empty()) {
         throw std::invalid_argument("Metadata type name must not be empty");
     }
@@ -96,7 +80,7 @@ TypeSchema parseText(std::string text) {
         return composite(TypeSchema::Kind::List,
                          {parseText(text.substr(0, text.size() - 2))});
     }
-    const std::string normalized = lower(text);
+    const std::string normalized = ludork::standard::lowercase(text);
     if (normalized == "list" || normalized == "array") {
         return composite(TypeSchema::Kind::List, {named("any")});
     }
@@ -127,7 +111,8 @@ TypeSchema parseText(std::string text) {
         throw std::invalid_argument("Invalid metadata type: " + text);
     }
     arguments.push_back(parseText(text.substr(begin, text.size() - 1 - begin)));
-    const std::string container = lower(trim(text.substr(0, opening)));
+    const std::string container = ludork::standard::lowercase(
+        ludork::standard::trimCharacters(text.substr(0, opening)));
     if ((container == "list" || container == "array" || container == "set") &&
         arguments.size() == 1) {
         return composite(TypeSchema::Kind::List, std::move(arguments));

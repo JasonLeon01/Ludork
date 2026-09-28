@@ -230,6 +230,49 @@ inline bool trySequenceLength(const lua_glue::Table& value,
     return true;
 }
 
+inline bool tryReadLuaTable(const lua_glue::Object& value,
+                            lua_glue::Table& table) {
+    if (value.get_type() != lua_glue::Type::Table) {
+        return false;
+    }
+    table = value.as<lua_glue::Table>();
+    return true;
+}
+
+inline lua_glue::Table readLuaTable(const lua_glue::Object& value,
+                                    std::string_view error) {
+    lua_glue::Table table;
+    if (!tryReadLuaTable(value, table)) {
+        throw std::invalid_argument(std::string(error));
+    }
+    return table;
+}
+
+inline bool tryReadSequenceTable(
+    const lua_glue::Object& value, lua_glue::Table& table, std::size_t& length,
+    std::optional<std::size_t> fixedLength = std::nullopt) {
+    return tryReadLuaTable(value, table) && trySequenceLength(table, length) &&
+           (!fixedLength.has_value() || length == *fixedLength);
+}
+
+inline lua_glue::Table readSequenceTable(
+    const lua_glue::Object& value, std::size_t& length,
+    std::optional<std::size_t> fixedLength = std::nullopt,
+    std::string_view tableError = "expected a Lua sequence table",
+    std::string_view lengthError =
+        "Lua sequence n must be a non-negative integer",
+    std::string_view sizeError =
+        "Lua sequence length does not match the fixed C++ size") {
+    const lua_glue::Table table = readLuaTable(value, tableError);
+    if (!trySequenceLength(table, length)) {
+        throw std::invalid_argument(std::string(lengthError));
+    }
+    if (fixedLength.has_value() && length != *fixedLength) {
+        throw std::invalid_argument(std::string(sizeError));
+    }
+    return table;
+}
+
 template <typename T>
 bool canReadLuaValue(const lua_glue::Object& value);
 
@@ -283,15 +326,9 @@ lua_glue::MultipleResults writeLuaReturns(lua_glue::StateView lua,
 template <typename Sequence>
 bool canReadSequence(const lua_glue::Object& value,
                      std::optional<std::size_t> fixedLength = std::nullopt) {
-    if (!(value.get_type() == lua_glue::Type::Table)) {
-        return false;
-    }
-    const lua_glue::Table table = value.as<lua_glue::Table>();
+    lua_glue::Table table;
     std::size_t length = 0;
-    if (!trySequenceLength(table, length)) {
-        return false;
-    }
-    if (fixedLength.has_value() && length != *fixedLength) {
+    if (!tryReadSequenceTable(value, table, length, fixedLength)) {
         return false;
     }
     using Item = typename Sequence::value_type;
@@ -312,10 +349,10 @@ bool canReadSequence(const lua_glue::Object& value,
 
 template <typename Map>
 bool canReadMap(const lua_glue::Object& value) {
-    if (!(value.get_type() == lua_glue::Type::Table)) {
+    lua_glue::Table table;
+    if (!tryReadLuaTable(value, table)) {
         return false;
     }
-    const lua_glue::Table table = value.as<lua_glue::Table>();
     using Key = typename Map::key_type;
     using Value = typename Map::mapped_type;
     for (const auto& entry : table) {
@@ -451,12 +488,9 @@ bool canReadLuaValue(const lua_glue::Object& value) {
     } else if constexpr (IsArray<Value>::value) {
         return canReadSequence<Value>(value, std::tuple_size_v<Value>);
     } else if constexpr (IsPair<Value>::value) {
-        if (!(value.get_type() == lua_glue::Type::Table)) {
-            return false;
-        }
-        const lua_glue::Table table = value.as<lua_glue::Table>();
+        lua_glue::Table table;
         std::size_t length = 0;
-        if (!trySequenceLength(table, length) || length != 2) {
+        if (!tryReadSequenceTable(value, table, length, 2)) {
             return false;
         }
         return canReadLuaValue<typename Value::first_type>(
@@ -464,13 +498,10 @@ bool canReadLuaValue(const lua_glue::Object& value) {
                canReadLuaValue<typename Value::second_type>(
                    table.raw_get<lua_glue::Object>(2));
     } else if constexpr (IsTuple<Value>::value) {
-        if (!(value.get_type() == lua_glue::Type::Table)) {
-            return false;
-        }
-        const lua_glue::Table table = value.as<lua_glue::Table>();
+        lua_glue::Table table;
         std::size_t length = 0;
-        if (!trySequenceLength(table, length) ||
-            length != std::tuple_size_v<Value>) {
+        if (!tryReadSequenceTable(value, table, length,
+                                  std::tuple_size_v<Value>)) {
             return false;
         }
         return canReadTuple<Value>(
@@ -507,19 +538,8 @@ bool canReadLuaValue(const lua_glue::Object& value) {
 template <typename Sequence>
 Sequence readSequence(const lua_glue::Object& value,
                       std::optional<std::size_t> fixedLength = std::nullopt) {
-    if (!(value.get_type() == lua_glue::Type::Table)) {
-        throw std::invalid_argument("expected a Lua sequence table");
-    }
-    const lua_glue::Table table = value.as<lua_glue::Table>();
     std::size_t length = 0;
-    if (!trySequenceLength(table, length)) {
-        throw std::invalid_argument(
-            "Lua sequence n must be a non-negative integer");
-    }
-    if (fixedLength.has_value() && length != *fixedLength) {
-        throw std::invalid_argument(
-            "Lua sequence length does not match the fixed C++ size");
-    }
+    const lua_glue::Table table = readSequenceTable(value, length, fixedLength);
     Sequence result{};
     if constexpr (IsVector<Sequence>::value) {
         result.reserve(length);
@@ -548,10 +568,8 @@ Sequence readSequence(const lua_glue::Object& value,
 
 template <typename Map>
 Map readMap(const lua_glue::Object& value) {
-    if (!(value.get_type() == lua_glue::Type::Table)) {
-        throw std::invalid_argument("expected a Lua map table");
-    }
-    const lua_glue::Table table = value.as<lua_glue::Table>();
+    const lua_glue::Table table =
+        readLuaTable(value, "expected a Lua map table");
     Map result;
     using Key = typename Map::key_type;
     using Item = typename Map::mapped_type;
@@ -633,15 +651,11 @@ T readLuaValue(const lua_glue::Object& value) {
     } else if constexpr (IsArray<Value>::value) {
         return readSequence<Value>(value, std::tuple_size_v<Value>);
     } else if constexpr (IsPair<Value>::value) {
-        if (!(value.get_type() == lua_glue::Type::Table)) {
-            throw std::invalid_argument("expected a two-element Lua table");
-        }
-        const lua_glue::Table table = value.as<lua_glue::Table>();
         std::size_t length = 0;
-        if (!trySequenceLength(table, length) || length != 2) {
-            throw std::invalid_argument(
-                "Lua pair table must contain exactly two values");
-        }
+        const lua_glue::Table table = readSequenceTable(
+            value, length, 2, "expected a two-element Lua table",
+            "Lua pair table must contain exactly two values",
+            "Lua pair table must contain exactly two values");
         auto first = [&table]() {
             try {
                 return readLuaValue<typename Value::first_type>(
@@ -662,16 +676,12 @@ T readLuaValue(const lua_glue::Object& value) {
         }();
         return Value(std::move(first), std::move(second));
     } else if constexpr (IsTuple<Value>::value) {
-        if (!(value.get_type() == lua_glue::Type::Table)) {
-            throw std::invalid_argument("expected a Lua tuple table");
-        }
-        const lua_glue::Table table = value.as<lua_glue::Table>();
         std::size_t length = 0;
-        if (!trySequenceLength(table, length) ||
-            length != std::tuple_size_v<Value>) {
-            throw std::invalid_argument(
-                "Lua tuple length does not match the fixed C++ size");
-        }
+        const lua_glue::Table table = readSequenceTable(
+            value, length, std::tuple_size_v<Value>,
+            "expected a Lua tuple table",
+            "Lua tuple length does not match the fixed C++ size",
+            "Lua tuple length does not match the fixed C++ size");
         return readTuple<Value>(
             table, std::make_index_sequence<std::tuple_size_v<Value>>{});
     } else if constexpr (IsMap<Value>::value) {

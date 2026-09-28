@@ -1,3 +1,4 @@
+#include "UiControlAdapters/ChildPolicyName.hpp"
 #include <UI/UiControlAdapterRegistry.hpp>
 
 #include "UiControlAdapters/UiControlPropertyCodec.hpp"
@@ -44,15 +45,12 @@ bool controlIdentifier(std::string_view value) {
 }
 
 std::string_view childPolicyName(UiChildPolicy policy) {
-    switch (policy) {
-        case UiChildPolicy::None:
-            return "none";
-        case UiChildPolicy::Single:
-            return "single";
-        case UiChildPolicy::Multiple:
-            return "multiple";
+    const auto name =
+        ludork::engine::ui_control_adapter_detail::childPolicyName(policy);
+    if (!name.has_value()) {
+        throw std::invalid_argument("Unknown UI child policy");
     }
-    throw std::invalid_argument("Unknown UI child policy");
+    return *name;
 }
 
 RuntimeData slotTypeValue(UiControlSlotType type) {

@@ -1,3 +1,4 @@
+#include "Containers/ContainerSupport.hpp"
 #include <UI/Canvas.hpp>
 #include <UI/WrapBox.hpp>
 #include <AnimSprite.hpp>
@@ -174,15 +175,8 @@ int Canvas::getZOrder() const {
 }
 
 void Canvas::update(float deltaTime) {
-    for (const std::shared_ptr<ControlBase>& child : children_) {
-        if (!child->getVisible()) {
-            continue;
-        }
-        FunctionalBase* functional = ludork::Cast<FunctionalBase>(child.get());
-        if (functional != nullptr) {
-            functional->update(deltaTime);
-        }
-    }
+    ludork::engine::ui_container::tickChildren(
+        children_, &FunctionalBase::update, deltaTime);
     animations_.erase(
         std::remove_if(animations_.begin(), animations_.end(),
                        [](const std::shared_ptr<AnimSprite>& animation) {
@@ -231,15 +225,8 @@ void Canvas::render(sf::RenderTarget& target) {
 }
 
 void Canvas::lateUpdate(float deltaTime) {
-    for (const std::shared_ptr<ControlBase>& child : children_) {
-        if (!child->getVisible()) {
-            continue;
-        }
-        FunctionalBase* functional = ludork::Cast<FunctionalBase>(child.get());
-        if (functional != nullptr) {
-            functional->lateUpdate(deltaTime);
-        }
-    }
+    ludork::engine::ui_container::tickChildren(
+        children_, &FunctionalBase::lateUpdate, deltaTime);
     if (particleSystem_ != nullptr) {
         particleSystem_->onLateTick(deltaTime);
     }
@@ -247,15 +234,8 @@ void Canvas::lateUpdate(float deltaTime) {
 }
 
 void Canvas::fixedUpdate(float fixedDelta) {
-    for (const std::shared_ptr<ControlBase>& child : children_) {
-        if (!child->getVisible()) {
-            continue;
-        }
-        FunctionalBase* functional = ludork::Cast<FunctionalBase>(child.get());
-        if (functional != nullptr) {
-            functional->fixedUpdate(fixedDelta);
-        }
-    }
+    ludork::engine::ui_container::tickChildren(
+        children_, &FunctionalBase::fixedUpdate, fixedDelta);
     if (particleSystem_ != nullptr) {
         particleSystem_->onFixedTick(fixedDelta);
     }

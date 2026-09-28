@@ -1,4 +1,5 @@
 #include <Graphics.hpp>
+#include <StringUtils.hpp>
 #include <EngineDataProviders.hpp>
 #include <CustomParticles/CommonTipController.hpp>
 #include <Curve.hpp>
@@ -22,14 +23,6 @@ constexpr const char* AlphaOutCurveKey = "Global/CommonTipAlphaOut";
 constexpr const char* RiseCurveKey = "Global/CommonTipRise";
 constexpr const char* TextConfigKey = "Global/CommonTip";
 
-std::string trim(std::string value) {
-    const std::size_t first = value.find_first_not_of(" \t\r\n");
-    if (first == std::string::npos) {
-        return {};
-    }
-    const std::size_t last = value.find_last_not_of(" \t\r\n");
-    return value.substr(first, last - first + 1);
-}
 }  // namespace
 
 std::unordered_map<std::string, std::shared_ptr<Curve>>
@@ -48,7 +41,7 @@ CommonTipController::CommonTipController(
 
 void CommonTipController::addTip(const std::string& text) {
     syncDisplayScale();
-    const std::string message = trim(text);
+    const std::string message = ludork::standard::trimCharacters(text);
     if (message.empty() || particleSystem_ == nullptr) {
         return;
     }

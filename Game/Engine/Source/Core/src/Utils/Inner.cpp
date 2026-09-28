@@ -1,4 +1,5 @@
 #include <Utils/Inner.hpp>
+#include <StringUtils.hpp>
 
 #include <LudorkPlatform.hpp>
 #include <Runtime/AssetStore.hpp>
@@ -7,7 +8,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cctype>
 #include <charconv>
 #include <cmath>
 #include <cstdio>
@@ -25,19 +25,6 @@ namespace {
 
 std::string appName;
 std::unordered_set<std::string> warnings;
-
-std::string trim(const std::string& value) {
-    const auto first = std::find_if_not(value.begin(), value.end(),
-                                        [](unsigned char character) {
-                                            return std::isspace(character) != 0;
-                                        });
-    const auto last = std::find_if_not(value.rbegin(), value.rend(),
-                                       [](unsigned char character) {
-                                           return std::isspace(character) != 0;
-                                       })
-                          .base();
-    return first < last ? std::string(first, last) : std::string{};
-}
 
 std::string environmentValue(const char* name) {
     const char* value = std::getenv(name);
@@ -137,7 +124,7 @@ std::string runtimeValueString(const RuntimeValue& value) {
 }  // namespace
 
 void setAppName(const std::string& value) {
-    const std::string normalized = trim(value);
+    const std::string normalized = ludork::standard::trimWhitespace(value);
     if (normalized.empty()) {
         throw std::invalid_argument("Application name must not be empty");
     }

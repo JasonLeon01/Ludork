@@ -1,3 +1,4 @@
+#include "Containers/ContainerSupport.hpp"
 #include <UI/ScrollBox.hpp>
 
 #include "Interaction/InputArguments.hpp"
@@ -217,27 +218,8 @@ std::size_t ScrollBox::indicatorIndex(Indicator indicator) {
 }
 
 sf::FloatRect ScrollBox::aggregateContentBounds() const {
-    sf::FloatRect bounds{{0.0f, 0.0f}, getSize()};
-    for (const std::shared_ptr<ControlBase>& child : getChildren()) {
-        if (child == nullptr || !child->getVisible()) {
-            continue;
-        }
-        const sf::FloatRect childBounds =
-            child->getTransform().transformRect(child->getContentBounds());
-        const float minimumX =
-            std::min(bounds.position.x, childBounds.position.x);
-        const float minimumY =
-            std::min(bounds.position.y, childBounds.position.y);
-        const float maximumX =
-            std::max(bounds.position.x + bounds.size.x,
-                     childBounds.position.x + childBounds.size.x);
-        const float maximumY =
-            std::max(bounds.position.y + bounds.size.y,
-                     childBounds.position.y + childBounds.size.y);
-        bounds = {{minimumX, minimumY},
-                  {maximumX - minimumX, maximumY - minimumY}};
-    }
-    return bounds;
+    return ludork::engine::ui_container::aggregateContentBounds(
+        {{0.0f, 0.0f}, getSize()}, getChildren());
 }
 
 void ScrollBox::clampOffsets() {

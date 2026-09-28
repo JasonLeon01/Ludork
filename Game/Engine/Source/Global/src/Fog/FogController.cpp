@@ -1,4 +1,5 @@
 #include <Graphics.hpp>
+#include <StringUtils.hpp>
 #include <Fog/FogController.hpp>
 
 #include "FogController/FogRenderImpl.hpp"
@@ -18,15 +19,6 @@
 #include <utility>
 
 namespace {
-std::string trim(std::string value) {
-    const std::size_t first = value.find_first_not_of(" \t\r\n");
-    if (first == std::string::npos) {
-        return {};
-    }
-    const std::size_t last = value.find_last_not_of(" \t\r\n");
-    return value.substr(first, last - first + 1);
-}
-
 void validateMapFogSettings(const MapFogSettings& mapData) {
     const auto requireFinite = [](float value, const char* name) {
         if (!std::isfinite(value)) {
@@ -67,7 +59,7 @@ std::optional<WorldFogLayer> makeWorldFogLayer(std::string graphic, float power,
         !std::isfinite(scroll.y) || !std::isfinite(distort)) {
         throw std::invalid_argument("world fog values must be finite");
     }
-    graphic = trim(std::move(graphic));
+    graphic = ludork::standard::trimCharacters(graphic);
     power = std::clamp(std::floor(power), 0.0f, 100.0f);
     if (graphic.empty() || power <= 0.0f) {
         return std::nullopt;
@@ -133,7 +125,7 @@ std::optional<sf::FloatRect> worldFogRect(const WorldFogLayer& layer,
 void FogController::applyFromMapData(const MapFogSettings& mapData) {
     clearFog();
     validateMapFogSettings(mapData);
-    const std::string graphic = trim(mapData.fog);
+    const std::string graphic = ludork::standard::trimCharacters(mapData.fog);
     const float power = std::clamp(std::floor(mapData.fogPower), 0.0f, 100.0f);
     const sf::Vector2f scroll{mapData.fogOx, mapData.fogOy};
     const float distort =

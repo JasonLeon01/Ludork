@@ -1,3 +1,4 @@
+#include "InputThresholds.hpp"
 #include "ModalInputImpl.hpp"
 
 #include <Input/JoystickButton.hpp>
@@ -230,7 +231,8 @@ bool ModalInputImpl::observeNativeEvent(const sf::Event& event,
         return !capture && !suppressed;
     }
     if (const auto* axis = event.getIf<sf::Event::JoystickMoved>()) {
-        const bool neutral = std::abs(axis->position) <= 10.0f;
+        const bool neutral =
+            std::abs(axis->position) <= CapturedAxisNeutralThreshold;
         auto& suppressed = suppressedJoystickAxes_[axis->joystickId];
         if (neutral) {
             const bool previous = suppressed.erase(axis->axis) != 0;
@@ -476,7 +478,8 @@ void ModalInputImpl::synchronizeSuppressedControls(bool capture) {
         for (unsigned int index = 0; index < sf::Joystick::AxisCount; ++index) {
             const auto axis = static_cast<sf::Joystick::Axis>(index);
             if (!sf::Joystick::hasAxis(id, axis) ||
-                std::abs(sf::Joystick::getAxisPosition(id, axis)) <= 10.0f) {
+                std::abs(sf::Joystick::getAxisPosition(id, axis)) <=
+                    CapturedAxisNeutralThreshold) {
                 const auto device = suppressedJoystickAxes_.find(id);
                 if (device != suppressedJoystickAxes_.end()) {
                     device->second.erase(axis);
@@ -547,7 +550,8 @@ bool ModalInputImpl::physicalInputHeld() const {
         }
         for (const sf::Joystick::Axis axis : axes) {
             if (sf::Joystick::hasAxis(id, axis) &&
-                std::abs(sf::Joystick::getAxisPosition(id, axis)) > 10.0f) {
+                std::abs(sf::Joystick::getAxisPosition(id, axis)) >
+                    CapturedAxisNeutralThreshold) {
                 return true;
             }
         }

@@ -1,4 +1,5 @@
 #include <Utils/ShaderLoader.hpp>
+#include <StringUtils.hpp>
 #include <LudorkGenerated/EncryptedPayloadConstants.hpp>
 #include <LudorkGenerated/ResourceFileConstants.hpp>
 
@@ -7,7 +8,6 @@
 #include <Runtime/AssetStore.hpp>
 
 #include <algorithm>
-#include <cctype>
 #include <cstdint>
 #include <stdexcept>
 #include <string>
@@ -21,14 +21,6 @@ constexpr ludork::standard::EncryptedPayloadFormat ShaderFormat{
     .maximumSourceSize = ludork::generated::encrypted::MaximumShaderSize,
     .formatName = "shader",
 };
-
-std::string lowerString(std::string value) {
-    std::transform(value.begin(), value.end(), value.begin(),
-                   [](unsigned char character) {
-                       return static_cast<char>(std::tolower(character));
-                   });
-    return value;
-}
 
 bool isEncryptedExtension(const std::string& extension) {
     const auto& extensions = ludork::generated::resources::ShaderExtensions;
@@ -44,7 +36,7 @@ std::string pathExtension(const std::string& path) {
     return dot == std::string::npos ||
                    (separator != std::string::npos && dot < separator)
                ? std::string{}
-               : lowerString(path.substr(dot));
+               : ludork::standard::lowercase(path.substr(dot));
 }
 
 void validateRequestedShaderPath(const std::string& path) {

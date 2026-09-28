@@ -1,4 +1,5 @@
 #include "AnimationSupport.hpp"
+#include "ValueReader.hpp"
 #include "AnimationImpl.hpp"
 
 #include <Runtime/RuntimeDataReader.hpp>
@@ -25,27 +26,6 @@ using ludork::runtime::value_reader::requireInt;
 using ludork::runtime::value_reader::requireMap;
 using ludork::runtime::value_reader::requireString;
 
-void requireOnlyKeys(const RuntimeData::Map& values,
-                     const std::unordered_set<std::string>& allowed,
-                     const std::string& source) {
-    for (const auto& [name, value] : values) {
-        static_cast<void>(value);
-        if (!allowed.contains(name)) {
-            throw std::invalid_argument(source + " has unknown field " + name);
-        }
-    }
-}
-
-sf::Vector2f requireVector2f(const RuntimeData& value,
-                             const std::string& source) {
-    const RuntimeData::Array& array = requireArray(value, source);
-    if (array.size() != 2) {
-        throw std::invalid_argument(source + " must contain two numbers");
-    }
-    return {requireFloat(array[0], source + "[0]"),
-            requireFloat(array[1], source + "[1]")};
-}
-
 std::string definitionKey(const std::string& name,
                           const std::optional<std::string>& target) {
     return target.value_or("") + '\x1f' + name;
@@ -58,14 +38,16 @@ bool isBlank(const std::string& value) {
            });
 }
 
-std::vector<AnimationDefinition::AnimationScalarKey> parseScalarKeys(
-    const RuntimeData& value, float duration, const std::string& source,
-    const std::function<void(float, const std::string&)>& validate) {
+template <typename Key, bool ReadBeforeTimeValidation, typename Read,
+          typename Validate>
+std::vector<Key> parseKeys(const RuntimeData& value, float duration,
+                           const std::string& source, Read read,
+                           Validate validate) {
     const RuntimeData::Array& values = requireArray(value, source);
     if (values.empty()) {
         throw std::invalid_argument(source + " must contain at least one key");
     }
-    std::vector<AnimationDefinition::AnimationScalarKey> result;
+    std::vector<Key> result;
     result.reserve(values.size());
     float previous = -1.0f;
     for (std::size_t index = 0; index < values.size(); ++index) {
@@ -79,101 +61,67 @@ std::vector<AnimationDefinition::AnimationScalarKey> parseScalarKeys(
             throw std::invalid_argument(keySource + " requires time and value");
         }
         const float time = requireFloat(*timeValue, keySource + ".time");
-        const float data = requireFloat(*dataValue, keySource + ".value");
-        if (time < 0.0f || time > duration || time <= previous) {
-            throw std::invalid_argument(
-                keySource + ".time must be strictly ordered within duration");
+        const auto validateTime = [&] {
+            if (time < 0.0f || time > duration || time <= previous) {
+                throw std::invalid_argument(
+                    keySource +
+                    ".time must be strictly ordered within duration");
+            }
+        };
+        if constexpr (!ReadBeforeTimeValidation) {
+            validateTime();
+        }
+        const auto data = read(*dataValue, keySource + ".value");
+        if constexpr (ReadBeforeTimeValidation) {
+            validateTime();
         }
         validate(data, keySource + ".value");
         result.push_back({time, data});
         previous = time;
     }
     return result;
+}
+
+std::vector<AnimationDefinition::AnimationScalarKey> parseScalarKeys(
+    const RuntimeData& value, float duration, const std::string& source,
+    const std::function<void(float, const std::string&)>& validate) {
+    return parseKeys<AnimationDefinition::AnimationScalarKey, true>(
+        value, duration, source, requireFloat<RuntimeData>, validate);
 }
 
 std::vector<AnimationDefinition::AnimationVectorKey> parseVectorKeys(
     const RuntimeData& value, float duration, const std::string& source,
     const std::function<void(const sf::Vector2f&, const std::string&)>&
         validate) {
-    const RuntimeData::Array& values = requireArray(value, source);
-    if (values.empty()) {
-        throw std::invalid_argument(source + " must contain at least one key");
+    return parseKeys<AnimationDefinition::AnimationVectorKey, true>(
+        value, duration, source, requireVector2f, validate);
+}
+
+sf::Color requireColour(const RuntimeData& value, const std::string& source) {
+    const RuntimeData::Array& components = requireArray(value, source);
+    if (components.size() != 4) {
+        throw std::invalid_argument(source + " must contain four RGBA values");
     }
-    std::vector<AnimationDefinition::AnimationVectorKey> result;
-    result.reserve(values.size());
-    float previous = -1.0f;
-    for (std::size_t index = 0; index < values.size(); ++index) {
-        const std::string keySource =
-            source + "[" + std::to_string(index) + "]";
-        const RuntimeData::Map& key = requireMap(values[index], keySource);
-        requireOnlyKeys(key, {"time", "value"}, keySource);
-        const auto timeValue = findValue(key, "time");
-        const auto dataValue = findValue(key, "value");
-        if (!timeValue || !dataValue) {
-            throw std::invalid_argument(keySource + " requires time and value");
-        }
-        const float time = requireFloat(*timeValue, keySource + ".time");
-        const sf::Vector2f data =
-            requireVector2f(*dataValue, keySource + ".value");
-        if (time < 0.0f || time > duration || time <= previous) {
+    std::array<int, 4> channels;
+    for (std::size_t channel = 0; channel < channels.size(); ++channel) {
+        channels[channel] = requireInt(
+            components[channel], source + "[" + std::to_string(channel) + "]");
+        if (channels[channel] < 0 || channels[channel] > 255) {
             throw std::invalid_argument(
-                keySource + ".time must be strictly ordered within duration");
+                source + " components must be between 0 and 255");
         }
-        validate(data, keySource + ".value");
-        result.push_back({time, data});
-        previous = time;
     }
-    return result;
+    return sf::Color(static_cast<std::uint8_t>(channels[0]),
+                     static_cast<std::uint8_t>(channels[1]),
+                     static_cast<std::uint8_t>(channels[2]),
+                     static_cast<std::uint8_t>(channels[3]));
 }
 
 std::vector<AnimationDefinition::AnimationColourKey> parseColourKeys(
     const RuntimeData& value, float duration, const std::string& source) {
-    const RuntimeData::Array& values = requireArray(value, source);
-    if (values.empty()) {
-        throw std::invalid_argument(source + " must contain at least one key");
-    }
-    std::vector<AnimationDefinition::AnimationColourKey> result;
-    result.reserve(values.size());
-    float previous = -1.0f;
-    for (std::size_t index = 0; index < values.size(); ++index) {
-        const std::string keySource =
-            source + "[" + std::to_string(index) + "]";
-        const RuntimeData::Map& key = requireMap(values[index], keySource);
-        requireOnlyKeys(key, {"time", "value"}, keySource);
-        const auto timeValue = findValue(key, "time");
-        const auto dataValue = findValue(key, "value");
-        if (!timeValue || !dataValue) {
-            throw std::invalid_argument(keySource + " requires time and value");
-        }
-        const float time = requireFloat(*timeValue, keySource + ".time");
-        if (time < 0.0f || time > duration || time <= previous) {
-            throw std::invalid_argument(
-                keySource + ".time must be strictly ordered within duration");
-        }
-        const RuntimeData::Array& components =
-            requireArray(*dataValue, keySource + ".value");
-        if (components.size() != 4) {
-            throw std::invalid_argument(keySource +
-                                        ".value must contain four RGBA values");
-        }
-        std::array<int, 4> channels;
-        for (std::size_t channel = 0; channel < channels.size(); ++channel) {
-            channels[channel] = requireInt(
-                components[channel],
-                keySource + ".value[" + std::to_string(channel) + "]");
-            if (channels[channel] < 0 || channels[channel] > 255) {
-                throw std::invalid_argument(
-                    keySource + ".value components must be between 0 and 255");
-            }
-        }
-        result.push_back(
-            {time, sf::Color(static_cast<std::uint8_t>(channels[0]),
-                             static_cast<std::uint8_t>(channels[1]),
-                             static_cast<std::uint8_t>(channels[2]),
-                             static_cast<std::uint8_t>(channels[3]))});
-        previous = time;
-    }
-    return result;
+    return parseKeys<AnimationDefinition::AnimationColourKey, false>(
+        value, duration, source, requireColour,
+        [](const sf::Color&, const std::string&) {});
 }
 
 template <typename Key, typename Value, typename Interpolate>

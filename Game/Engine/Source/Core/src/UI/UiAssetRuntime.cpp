@@ -45,27 +45,17 @@ sf::Vector2f parseDesignSize(const RuntimeData::Map& asset,
                                                                   source);
 }
 
-void requireOnlyKeys(const RuntimeData::Map& values,
-                     const std::unordered_set<std::string>& allowed,
-                     const std::string& source) {
-    for (const auto& [name, value] : values) {
-        static_cast<void>(value);
-        if (!allowed.contains(name)) {
-            throw std::invalid_argument(source + " has unknown field " + name);
-        }
-    }
-}
-
 UiCanvasSlotData parseCanvasSlot(const RuntimeData& value,
                                  const std::string& source) {
     const RuntimeData::Map& slot = requireMap(value, source);
-    requireOnlyKeys(slot,
-                    {"anchors", "offsets", "alignment", "autoSize", "zOrder"},
-                    source);
+    ludork::engine::ui_asset_runtime_impl::requireOnlyKeys(
+        slot, {"anchors", "offsets", "alignment", "autoSize", "zOrder"},
+        source);
     UiCanvasSlotData result;
     if (const auto anchors = findValue(slot, "anchors")) {
         const RuntimeData::Map& map = requireMap(*anchors, source + ".anchors");
-        requireOnlyKeys(map, {"min", "max"}, source + ".anchors");
+        ludork::engine::ui_asset_runtime_impl::requireOnlyKeys(
+            map, {"min", "max"}, source + ".anchors");
         if (const auto minimum = findValue(map, "min")) {
             result.anchorMinimum =
                 ludork::engine::ui_asset_runtime_impl::requireVector2f(
@@ -79,8 +69,8 @@ UiCanvasSlotData parseCanvasSlot(const RuntimeData& value,
     }
     if (const auto offsets = findValue(slot, "offsets")) {
         const RuntimeData::Map& map = requireMap(*offsets, source + ".offsets");
-        requireOnlyKeys(map, {"left", "top", "right", "bottom"},
-                        source + ".offsets");
+        ludork::engine::ui_asset_runtime_impl::requireOnlyKeys(
+            map, {"left", "top", "right", "bottom"}, source + ".offsets");
         if (const auto left = findValue(map, "left")) {
             result.offsetLeft = requireFloat(*left, source + ".offsets.left");
         }
@@ -286,7 +276,7 @@ std::shared_ptr<UiRuntimeNode> buildNode(
     ludork::engine::ui_asset_runtime_impl::BuildContext& context,
     std::unordered_set<std::string>& localNames, bool root) {
     const RuntimeData::Map& data = requireMap(value, source);
-    requireOnlyKeys(
+    ludork::engine::ui_asset_runtime_impl::requireOnlyKeys(
         data, {"name", "controlId", "properties", "slot", "editor", "children"},
         source);
     const auto nameValue = findValue(data, "name");
@@ -465,9 +455,9 @@ std::shared_ptr<UiAssetInstanceState> buildAsset(
     try {
         const RuntimeData::Map& asset =
             requireMap(value, "UI asset " + expectedAssetKey);
-        requireOnlyKeys(asset,
-                        {"type", "designSize", "palette", "root", "animations"},
-                        "UI asset " + expectedAssetKey);
+        ludork::engine::ui_asset_runtime_impl::requireOnlyKeys(
+            asset, {"type", "designSize", "palette", "root", "animations"},
+            "UI asset " + expectedAssetKey);
         const auto type = findValue(asset, "type");
         const auto paletteValue = findValue(asset, "palette");
         const auto rootValue = findValue(asset, "root");

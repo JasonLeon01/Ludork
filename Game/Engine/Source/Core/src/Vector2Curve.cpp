@@ -6,12 +6,12 @@
 Vector2Curve::Vector2Curve(Vector2Curve::Vector2CurveData data)
     : name(std::move(data.name)),
       defaultValue(data.defaultValue),
-      preInfinity(ludork::engine::curve_detail::normaliseVectorInfinityMode(
+      preInfinity(ludork::engine::curve_detail::normaliseInfinityMode(
           data.preInfinity)),
-      postInfinity(ludork::engine::curve_detail::normaliseVectorInfinityMode(
+      postInfinity(ludork::engine::curve_detail::normaliseInfinityMode(
           data.postInfinity)),
       keys(std::move(data.keys)) {
-    ludork::engine::curve_detail::normaliseVectorKeys(keys);
+    ludork::engine::curve_detail::normaliseKeys(keys);
 }
 
 std::shared_ptr<Vector2Curve> Vector2Curve::fromData(
@@ -29,10 +29,10 @@ bool Vector2Curve::isEmpty() const {
 }
 
 float Vector2Curve::getDuration() const {
-    return ludork::engine::curve_detail::vectorDuration(keys);
+    return ludork::engine::curve_detail::duration(keys);
 }
 
 std::array<float, 2> Vector2Curve::evaluate(float time) const {
-    return ludork::engine::curve_detail::evaluateVector<Vector2CurveKey, 2>(
+    return ludork::engine::curve_detail::evaluate(
         keys, defaultValue, preInfinity, postInfinity, time);
 }

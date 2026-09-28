@@ -1,4 +1,5 @@
 #include <Graphics.hpp>
+#include <StringUtils.hpp>
 #include <Panorama/PanoramaController.hpp>
 
 #include "PanoramaControllerImpl.hpp"
@@ -14,15 +15,6 @@
 #include <string>
 
 namespace {
-
-std::string trim(std::string value) {
-    const std::size_t first = value.find_first_not_of(" \t\r\n");
-    if (first == std::string::npos) {
-        return {};
-    }
-    const std::size_t last = value.find_last_not_of(" \t\r\n");
-    return value.substr(first, last - first + 1);
-}
 
 float scrollFactor(float cameraPosition, float mapLength, float viewLength) {
     const float travel = mapLength - viewLength;
@@ -56,7 +48,8 @@ auto& sprite_ =
 
 void PanoramaController::applyFromMapData(const MapPanoramaSettings& mapData) {
     clear();
-    const std::string graphic = trim(mapData.panorama);
+    const std::string graphic =
+        ludork::standard::trimCharacters(mapData.panorama);
     if (graphic.empty()) {
         return;
     }

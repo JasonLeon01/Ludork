@@ -1,4 +1,5 @@
 #include "LdPakArchive.hpp"
+#include "ResourceStorePaths.hpp"
 #include <LudorkGenerated/LdPakFormatConstants.hpp>
 #include <LudorkGenerated/ResourceFileConstants.hpp>
 
@@ -18,13 +19,6 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
-
-#if defined(_WIN32)
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-#endif
 
 namespace format = ludork::generated::ldpak;
 
@@ -111,32 +105,6 @@ bool validUtf8(const std::string_view value) {
     return true;
 }
 
-std::string asciiFold(std::string value) {
-    for (char& character : value) {
-        if (character >= 'A' && character <= 'Z') {
-            character = static_cast<char>(character - 'A' + 'a');
-        }
-    }
-    return value;
-}
-
-bool isLinkLike(const std::filesystem::path& path,
-                const std::filesystem::file_status& status) {
-    if (std::filesystem::is_symlink(status)) {
-        return true;
-    }
-#if defined(_WIN32)
-    const DWORD attributes = GetFileAttributesW(path.c_str());
-    if (attributes == INVALID_FILE_ATTRIBUTES) {
-        throw std::runtime_error("Failed to inspect LDPak path");
-    }
-    return (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
-#else
-    static_cast<void>(path);
-    return false;
-#endif
-}
-
 void validateSegment(const std::string_view segment,
                      const std::string& source) {
     if (segment.empty() || segment == "." || segment == ".." ||
@@ -167,7 +135,7 @@ void validateRelativePath(const std::string_view value,
 void validateGroup(const std::string& group) {
     validateSegment(group, group);
     if (group.find('/') != std::string::npos ||
-        asciiFold(group).ends_with(
+        ludork::runtime::detail::asciiFold(group).ends_with(
             ludork::generated::resources::PackageExtension)) {
         throw std::runtime_error("Invalid LDPak group: " + group);
     }
@@ -280,7 +248,8 @@ LdPakArchive::LdPakArchive(const std::filesystem::path& path)
     const std::filesystem::file_status status =
         std::filesystem::symlink_status(path, statusError);
     if (statusError || !std::filesystem::is_regular_file(status) ||
-        isLinkLike(path, status)) {
+        ludork::runtime::detail::isLinkLike(path, status,
+                                            "Failed to inspect LDPak path")) {
         throw std::runtime_error("LDPak file was not found: " +
                                  ludork::standard::pathToUtf8(path));
     }
@@ -402,7 +371,7 @@ LdPakArchive::LdPakArchive(const std::filesystem::path& path)
                 "LDPak index paths are not strictly sorted");
         }
         previousPath = relative;
-        const std::string folded = asciiFold(relative);
+        const std::string folded = ludork::runtime::detail::asciiFold(relative);
         const auto [foldedIterator, foldedInserted] =
             foldedPaths.emplace(folded, relative);
         if (!foldedInserted && foldedIterator->second != relative) {

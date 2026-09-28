@@ -342,7 +342,9 @@ private:
     void clearCapturedInput();
     void consumePendingSystemCancel();
     void restoreKeyPulses();
+    void clearKeyboardFrameState();
     void clearKeyboardState();
+    void clearJoystickState();
     void setFocused(bool focused);
     void setKeyPressed(sf::Keyboard::Key key, sf::Keyboard::Scancode scan,
                        const InputModifiers& modifiers);
@@ -350,6 +352,17 @@ private:
                         const InputModifiers& modifiers);
     void setKeyPulse(sf::Keyboard::Key key, sf::Keyboard::Scancode scan,
                      const InputModifiers& modifiers);
+    void processMouseMoved(const sf::Vector2i& pixel,
+                           const sf::Vector2i& position);
+    void processMouseButtonPressed(sf::Mouse::Button button,
+                                   const sf::Vector2i& pixel,
+                                   const sf::Vector2i& position);
+    void processMouseButtonReleased(sf::Mouse::Button button,
+                                    const sf::Vector2i& pixel,
+                                    const sf::Vector2i& position);
+    void processMouseWheel(sf::Mouse::Wheel wheel, float delta,
+                           const sf::Vector2i& pixel,
+                           const sf::Vector2i& position);
     void setMouseButtonPressed(sf::Mouse::Button button,
                                const sf::Vector2i& position);
     void setMouseButtonReleased(sf::Mouse::Button button,
@@ -374,8 +387,6 @@ private:
         std::unordered_map<std::string, InputTriggerEntry>& entries,
         const std::string& id, bool down, bool handled, float repeatDelay,
         float repeatInterval);
-    bool consume(std::unordered_map<std::string, bool>& events,
-                 const std::string& id, bool handled);
     bool actionTriggered(const InputActionKey& key, bool handled,
                          float repeatDelay, float repeatInterval);
     bool actionHeld(const InputActionKey& key) const;

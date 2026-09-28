@@ -1,4 +1,5 @@
 #include "InputImpl.hpp"
+#include "InputThresholds.hpp"
 #include <Input/TextInputService.hpp>
 
 #include "Platform/PlatformInputBridge.hpp"
@@ -50,11 +51,7 @@ void InputImpl::clearCapturedInput() {
     pointer_.primaryTouchFinger_.reset();
     pointer_.touchPosition_.reset();
     pointer_.touchBeganPosition_.reset();
-    joystick_.buttonTriggers_.clear();
-    joystick_.pendingButtonReleases_.clear();
-    joystick_.axisTriggers_.clear();
-    joystick_.axisStatus_.clear();
-    joystick_.dominantAxis_.clear();
+    clearJoystickState();
 }
 
 void InputImpl::resetFrameState() {
@@ -83,12 +80,7 @@ void InputImpl::resetFrameState() {
     pointer_.pendingMouseTriggerReleases_.clear();
     eventPump_.focusLost_ = false;
     eventPump_.focusGained_ = false;
-    keyboard_.keyPressed_ = false;
-    keyboard_.keyReleased_ = false;
-    keyboard_.keyPressedEvents_.clear();
-    keyboard_.keyReleasedEvents_.clear();
-    keyboard_.scanPressedEvents_.clear();
-    keyboard_.scanReleasedEvents_.clear();
+    clearKeyboardFrameState();
     pointer_.mouseWheelScrolled_ = false;
     pointer_.mouseWheel_.reset();
     pointer_.mouseWheelDelta_ = 0.0f;
@@ -136,7 +128,7 @@ void InputImpl::updateInputType(sf::WindowBase& window) {
         for (const auto& [joystickId, axes] : joystick_.axisStatus_) {
             static_cast<void>(joystickId);
             if (std::any_of(axes.begin(), axes.end(), [](const auto& entry) {
-                    return std::abs(entry.second) > 10.0f;
+                    return std::abs(entry.second) > InputActivityThreshold;
                 })) {
                 next = InputType::Gamepad;
                 break;
@@ -273,8 +265,6 @@ void InputImpl::shutdown() noexcept {
     resetFrameState();
     clearKeyboardState();
     pointer_.mouseTriggers_.clear();
-    keyboard_.heldKeys_.clear();
-    keyboard_.heldScans_.clear();
     abortTwoFingerCancel();
     pointer_.primaryTouchFinger_.reset();
     pointer_.touchFingers_.clear();
@@ -290,11 +280,7 @@ void InputImpl::shutdown() noexcept {
     pointer_.insideViewport_ = true;
     pointer_.injectedPixel_.reset();
     pointer_.injectedTransitionPending_.reset();
-    joystick_.axisStatus_.clear();
-    joystick_.dominantAxis_.clear();
-    joystick_.axisTriggers_.clear();
-    joystick_.buttonTriggers_.clear();
-    joystick_.pendingButtonReleases_.clear();
+    clearJoystickState();
     ludork::engine::joystick_device::reset();
     eventPump_.activeWindow_ = nullptr;
 }

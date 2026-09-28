@@ -38,6 +38,13 @@
 
 namespace {
 
+bool isEligibleOccupant(Actor* actor, const Actor* excludedActor,
+                        const std::unordered_set<Actor*>* descendants) {
+    return actor != excludedActor &&
+           (descendants == nullptr || !descendants->contains(actor)) &&
+           !actor->isDestroyed() && actor->isVisibleInHierarchy();
+}
+
 bool intersectsCamera(const sf::FloatRect& bounds,
                       const sf::Transform& clipTransform) {
     const sf::Vector2f end = bounds.position + bounds.size;
@@ -759,16 +766,8 @@ std::vector<Actor*> GameMapBase::getCollisionAt(int x, int y,
     for (auto actorIt = actorsAtCell->rbegin(); actorIt != actorsAtCell->rend();
          ++actorIt) {
         Actor* otherActor = *actorIt;
-        if (otherActor == &selfActor) {
-            continue;
-        }
-        if (descendantActors.find(otherActor) != descendantActors.end()) {
-            continue;
-        }
-        if (otherActor->isDestroyed() || !otherActor->isVisibleInHierarchy()) {
-            continue;
-        }
-        if (getActorLayerIndex(otherActor) != topmostLayerIndex) {
+        if (!isTopmostOccupant(otherActor, &selfActor, &descendantActors,
+                               topmostLayerIndex)) {
             continue;
         }
         if (!otherActor->getCollisionEnabled()) {
@@ -796,16 +795,8 @@ std::vector<Actor*> GameMapBase::getOverlapsAt(int x, int y, Actor& selfActor) {
     const auto& descendantActors = selfActor.getDescendantActors();
     std::vector<Actor*> result;
     for (Actor* otherActor : *actorsAtCell) {
-        if (otherActor == &selfActor) {
-            continue;
-        }
-        if (descendantActors.find(otherActor) != descendantActors.end()) {
-            continue;
-        }
-        if (otherActor->isDestroyed() || !otherActor->isVisibleInHierarchy()) {
-            continue;
-        }
-        if (getActorLayerIndex(otherActor) != topmostLayerIndex) {
+        if (!isTopmostOccupant(otherActor, &selfActor, &descendantActors,
+                               topmostLayerIndex)) {
             continue;
         }
         result.push_back(otherActor);
@@ -833,17 +824,8 @@ bool GameMapBase::passableForActor(int x, int y, int sx, int sy, int gx, int gy,
         }
         if (topmostLayerIndex != std::numeric_limits<int>::max()) {
             for (Actor* actor : *actorsAtCell) {
-                if (actor == excludedActor) {
-                    continue;
-                }
-                if (descendantActors != nullptr &&
-                    descendantActors->find(actor) != descendantActors->end()) {
-                    continue;
-                }
-                if (actor->isDestroyed() || !actor->isVisibleInHierarchy()) {
-                    continue;
-                }
-                if (getActorLayerIndex(actor) != topmostLayerIndex) {
+                if (!isTopmostOccupant(actor, excludedActor, descendantActors,
+                                       topmostLayerIndex)) {
                     continue;
                 }
                 if (actor->blocksPassability()) {
@@ -884,6 +866,14 @@ int GameMapBase::getActorLayerIndex(const Actor* actor) const {
     return static_cast<int>(layerIndexIt - layerNames.begin());
 }
 
+bool GameMapBase::isTopmostOccupant(
+    Actor* actor, const Actor* excludedActor,
+    const std::unordered_set<Actor*>* descendants,
+    int topmostLayerIndex) const {
+    return isEligibleOccupant(actor, excludedActor, descendants) &&
+           getActorLayerIndex(actor) == topmostLayerIndex;
+}
+
 int GameMapBase::getTopmostOccupantLayerIndex(
     const std::vector<Actor*>& actorsAtCell, const Actor* selfActor) const {
     const std::unordered_set<Actor*>* descendantActors = nullptr;
@@ -892,14 +882,7 @@ int GameMapBase::getTopmostOccupantLayerIndex(
     }
     int topmostLayerIndex = std::numeric_limits<int>::max();
     for (Actor* actor : actorsAtCell) {
-        if (selfActor != nullptr && actor == selfActor) {
-            continue;
-        }
-        if (descendantActors != nullptr &&
-            descendantActors->find(actor) != descendantActors->end()) {
-            continue;
-        }
-        if (actor->isDestroyed() || !actor->isVisibleInHierarchy()) {
+        if (!isEligibleOccupant(actor, selfActor, descendantActors)) {
             continue;
         }
         const int layerIndex = getActorLayerIndex(actor);

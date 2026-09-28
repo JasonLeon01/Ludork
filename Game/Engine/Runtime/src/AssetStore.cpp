@@ -18,43 +18,10 @@
 #include <unordered_set>
 #include <utility>
 
-#if defined(_WIN32)
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-#endif
-
 namespace ludork::runtime {
 namespace {
 
 using asset_store_impl::StoreEntry;
-
-std::string asciiFold(std::string value) {
-    for (char& character : value) {
-        if (character >= 'A' && character <= 'Z') {
-            character = static_cast<char>(character - 'A' + 'a');
-        }
-    }
-    return value;
-}
-
-bool isLinkLike(const std::filesystem::path& path,
-                const std::filesystem::file_status& status) {
-    if (std::filesystem::is_symlink(status)) {
-        return true;
-    }
-#if defined(_WIN32)
-    const DWORD attributes = GetFileAttributesW(path.c_str());
-    if (attributes == INVALID_FILE_ATTRIBUTES) {
-        throw std::runtime_error("Failed to inspect asset filesystem entry");
-    }
-    return (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
-#else
-    static_cast<void>(path);
-    return false;
-#endif
-}
 
 bool isIgnoredAssetMetadata(const std::filesystem::path& path,
                             const std::filesystem::file_status& status) {
@@ -127,7 +94,7 @@ void addEntry(std::unordered_map<std::string, StoreEntry>& entries,
     if (!entries.emplace(key, std::move(entry)).second) {
         throw std::runtime_error("Duplicate asset path: " + key);
     }
-    const std::string folded = asciiFold(key);
+    const std::string folded = ludork::runtime::detail::asciiFold(key);
     const auto [iterator, inserted] = foldedPaths.emplace(folded, key);
     if (!inserted && iterator->second != key) {
         throw std::runtime_error("Asset paths differ only by case: " +
@@ -188,7 +155,9 @@ std::optional<StoreEntry> findLooseEntry(
             throw std::runtime_error("Failed to inspect loose asset: " +
                                      error.message());
         }
-        if (isLinkLike(matched->path(), status)) {
+        if (ludork::runtime::detail::isLinkLike(
+                matched->path(), status,
+                "Failed to inspect asset filesystem entry")) {
             throw std::runtime_error("Asset symlinks are not supported: " +
                                      assetPath.value);
         }
@@ -239,7 +208,9 @@ void loadLooseTree(const std::filesystem::path& assetsRoot,
             throw std::runtime_error("Failed to inspect loose asset: " +
                                      error.message());
         }
-        if (isLinkLike(entry.path(), status)) {
+        if (ludork::runtime::detail::isLinkLike(
+                entry.path(), status,
+                "Failed to inspect asset filesystem entry")) {
             throw std::runtime_error(
                 "Asset symlinks are not supported: " +
                 ludork::standard::pathToUtf8(entry.path()));

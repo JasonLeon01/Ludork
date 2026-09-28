@@ -1,4 +1,5 @@
 #include "InputImpl.hpp"
+#include "InputThresholds.hpp"
 #include <Input/TextInputService.hpp>
 #include <Input/InputActionKey.hpp>
 #include <Input/InputNamedValue.hpp>
@@ -67,10 +68,23 @@ bool isDefaultDirectionalAxis(const InputActionKey& key) {
     const sf::Joystick::Axis axis = static_cast<sf::Joystick::Axis>(key.code);
     const float magnitude = std::abs(key.threshold);
     if (axis == sf::Joystick::Axis::X || axis == sf::Joystick::Axis::Y) {
-        return std::abs(magnitude - 10.0f) < 1e-6f;
+        return std::abs(magnitude - StickDeadZone) < 1e-6f;
     }
     if (axis == sf::Joystick::Axis::PovX || axis == sf::Joystick::Axis::PovY) {
-        return std::abs(magnitude - 50.0f) < 1e-6f;
+        return std::abs(magnitude - DpadActivationThreshold) < 1e-6f;
+    }
+    return false;
+}
+
+bool repeatTrigger(InputTriggerEntry& entry,
+                   std::chrono::steady_clock::time_point now, float repeatDelay,
+                   float repeatInterval) {
+    if (std::chrono::duration<float>(now - entry.repeatStart).count() >=
+            repeatDelay &&
+        std::chrono::duration<float>(now - entry.repeatLast).count() >=
+            repeatInterval) {
+        entry.repeatLast = now;
+        return true;
     }
     return false;
 }
@@ -241,15 +255,7 @@ bool InputImpl::triggerFromMap(
             }
             return true;
         }
-        if (down &&
-            std::chrono::duration<float>(now - entry.repeatStart).count() >=
-                repeatDelay &&
-            std::chrono::duration<float>(now - entry.repeatLast).count() >=
-                repeatInterval) {
-            entry.repeatLast = now;
-            return true;
-        }
-        return false;
+        return down && repeatTrigger(entry, now, repeatDelay, repeatInterval);
     }
     if (entry.handled || entry.count < 1) {
         return false;
@@ -299,13 +305,7 @@ bool InputImpl::joystickButtonTriggered(unsigned int joystickId,
     }
     if (repeatInterval > 0.0f && isJoystickButtonDown(joystickId, button)) {
         const auto now = std::chrono::steady_clock::now();
-        if (std::chrono::duration<float>(now - entry.repeatStart).count() >=
-                repeatDelay &&
-            std::chrono::duration<float>(now - entry.repeatLast).count() >=
-                repeatInterval) {
-            entry.repeatLast = now;
-            return true;
-        }
+        return repeatTrigger(entry, now, repeatDelay, repeatInterval);
     }
     return false;
 }
@@ -522,8 +522,9 @@ std::vector<InputActionKey> InputImpl::getUpKeys() const {
     return {
         keyboardKey(Key::Up),
         keyboardScan(sf::Keyboard::Scancode::Up),
-        joystickAxis(sf::Joystick::Axis::Y, -10.0f, "Less"),
-        joystickAxis(sf::Joystick::Axis::PovY, 50.0f, "Greater"),
+        joystickAxis(sf::Joystick::Axis::Y, -StickDeadZone, "Less"),
+        joystickAxis(sf::Joystick::Axis::PovY, DpadActivationThreshold,
+                     "Greater"),
     };
 }
 
@@ -531,8 +532,9 @@ std::vector<InputActionKey> InputImpl::getDownKeys() const {
     return {
         keyboardKey(Key::Down),
         keyboardScan(sf::Keyboard::Scancode::Down),
-        joystickAxis(sf::Joystick::Axis::Y, 10.0f, "Greater"),
-        joystickAxis(sf::Joystick::Axis::PovY, -50.0f, "Less"),
+        joystickAxis(sf::Joystick::Axis::Y, StickDeadZone, "Greater"),
+        joystickAxis(sf::Joystick::Axis::PovY, -DpadActivationThreshold,
+                     "Less"),
     };
 }
 
@@ -540,8 +542,9 @@ std::vector<InputActionKey> InputImpl::getLeftKeys() const {
     return {
         keyboardKey(Key::Left),
         keyboardScan(sf::Keyboard::Scancode::Left),
-        joystickAxis(sf::Joystick::Axis::X, -10.0f, "Less"),
-        joystickAxis(sf::Joystick::Axis::PovX, -50.0f, "Less"),
+        joystickAxis(sf::Joystick::Axis::X, -StickDeadZone, "Less"),
+        joystickAxis(sf::Joystick::Axis::PovX, -DpadActivationThreshold,
+                     "Less"),
     };
 }
 
@@ -549,8 +552,9 @@ std::vector<InputActionKey> InputImpl::getRightKeys() const {
     return {
         keyboardKey(Key::Right),
         keyboardScan(sf::Keyboard::Scancode::Right),
-        joystickAxis(sf::Joystick::Axis::X, 10.0f, "Greater"),
-        joystickAxis(sf::Joystick::Axis::PovX, 50.0f, "Greater"),
+        joystickAxis(sf::Joystick::Axis::X, StickDeadZone, "Greater"),
+        joystickAxis(sf::Joystick::Axis::PovX, DpadActivationThreshold,
+                     "Greater"),
     };
 }
 

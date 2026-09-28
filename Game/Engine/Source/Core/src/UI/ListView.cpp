@@ -1,3 +1,4 @@
+#include "Containers/ContainerSupport.hpp"
 #include <UI/ListView.hpp>
 
 #include <EngineState.hpp>
@@ -52,27 +53,8 @@ sf::Vector2f ListView::getSize() const {
 
 sf::FloatRect ListView::getContentBounds() const {
     const_cast<ListView*>(this)->applyPositions();
-    sf::FloatRect bounds{{0.0f, 0.0f}, size_};
-    for (const std::shared_ptr<ControlBase>& child : children_) {
-        if (child == nullptr || !child->getVisible()) {
-            continue;
-        }
-        const sf::FloatRect childBounds =
-            child->getTransform().transformRect(child->getContentBounds());
-        const float minimumX =
-            std::min(bounds.position.x, childBounds.position.x);
-        const float minimumY =
-            std::min(bounds.position.y, childBounds.position.y);
-        const float maximumX =
-            std::max(bounds.position.x + bounds.size.x,
-                     childBounds.position.x + childBounds.size.x);
-        const float maximumY =
-            std::max(bounds.position.y + bounds.size.y,
-                     childBounds.position.y + childBounds.size.y);
-        bounds = {{minimumX, minimumY},
-                  {maximumX - minimumX, maximumY - minimumY}};
-    }
-    return bounds;
+    return ludork::engine::ui_container::aggregateContentBounds(
+        {{0.0f, 0.0f}, size_}, children_);
 }
 
 void ListView::setSize(const sf::Vector2i& size) {
@@ -135,31 +117,21 @@ sf::RenderStates ListView::getRenderStates() const {
 }
 
 void ListView::update(float deltaTime) {
-    for (const std::shared_ptr<ControlBase>& child : children_) {
-        FunctionalBase* functional = ludork::Cast<FunctionalBase>(child.get());
-        if (functional != nullptr && child->getVisible()) {
-            functional->update(deltaTime);
-        }
-    }
+    ludork::engine::ui_container::tickChildren(
+        children_, &FunctionalBase::update, deltaTime);
     FunctionalBase::update(deltaTime);
 }
 
 void ListView::lateUpdate(float deltaTime) {
-    for (const std::shared_ptr<ControlBase>& child : children_) {
-        FunctionalBase* functional = ludork::Cast<FunctionalBase>(child.get());
-        if (functional != nullptr && child->getVisible()) {
-            functional->lateUpdate(deltaTime);
-        }
-    }
+    ludork::engine::ui_container::tickChildren(
+        children_, &FunctionalBase::lateUpdate, deltaTime);
+    FunctionalBase::lateUpdate(deltaTime);
 }
 
 void ListView::fixedUpdate(float fixedDelta) {
-    for (const std::shared_ptr<ControlBase>& child : children_) {
-        FunctionalBase* functional = ludork::Cast<FunctionalBase>(child.get());
-        if (functional != nullptr && child->getVisible()) {
-            functional->fixedUpdate(fixedDelta);
-        }
-    }
+    ludork::engine::ui_container::tickChildren(
+        children_, &FunctionalBase::fixedUpdate, fixedDelta);
+    FunctionalBase::fixedUpdate(fixedDelta);
 }
 
 void ListView::invalidatePositions() {
@@ -215,10 +187,15 @@ void ListView::refreshDisplayScale() {
 }
 
 void ListView::draw(sf::RenderTarget& target, sf::RenderStates states) const {
+    if (!getVisible()) {
+        return;
+    }
     const_cast<ListView*>(this)->applyPositions();
     states.transform.combine(getTransform());
     for (const std::shared_ptr<ControlBase>& child : children_) {
-        target.draw(*child, states);
+        if (child->getVisible()) {
+            target.draw(*child, states);
+        }
     }
 }
 
