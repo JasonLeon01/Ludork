@@ -161,7 +161,8 @@
             "params": [
               "/Game/Assets/Videos/sample-5mb.mp4",
               false,
-              true
+              true,
+              "/Game/Assets/Subtitles/Example.json"
             ],
             "pos": [
               2880,

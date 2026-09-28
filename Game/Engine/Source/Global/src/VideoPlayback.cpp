@@ -46,14 +46,19 @@ std::deque<std::shared_ptr<VideoPlaybackRequest>> pendingVideoPlayback;
 std::thread::id videoPlaybackThread;
 bool videoPlaybackShuttingDown = false;
 
-void playVideoNow(const std::string& path, bool mute, bool skipable) {
+void playVideoNow(const std::string& path, bool mute, bool skipable,
+                  const std::string& subtitlePath) {
     VideoPlaybackCompletionScope completionScope(
         videoPlaybackCompletionSequence);
-    ludork::video::runVideoPlayback(path, mute, skipable);
+    ludork::video::runVideoPlayback(path, mute, skipable, subtitlePath);
 }
 
-void playVideo(const std::string& path, bool mute, bool skipable) {
+void playVideo(const std::string& path, bool mute, bool skipable,
+               const std::string& subtitlePath) {
     static_cast<void>(ludork::runtime::AssetPath::parse(path));
+    if (!subtitlePath.empty()) {
+        static_cast<void>(ludork::runtime::AssetPath::parse(subtitlePath));
+    }
     std::unique_lock<std::mutex> lock(videoPlaybackMutex);
     if (videoPlaybackShuttingDown) {
         throw std::runtime_error("Video playback is shutting down");
@@ -61,13 +66,13 @@ void playVideo(const std::string& path, bool mute, bool skipable) {
     if (videoPlaybackThread == std::thread::id{} ||
         videoPlaybackThread == std::this_thread::get_id()) {
         lock.unlock();
-        playVideoNow(path, mute, skipable);
+        playVideoNow(path, mute, skipable, subtitlePath);
         return;
     }
 
     const std::shared_ptr<VideoPlaybackRequest> request =
         std::make_shared<VideoPlaybackRequest>(
-            VideoPlaybackRequest{path, mute, skipable});
+            VideoPlaybackRequest{path, mute, skipable, subtitlePath});
     pendingVideoPlayback.push_back(request);
     videoPlaybackCondition.notify_all();
     videoPlaybackCondition.wait(lock, [&request]() {
@@ -92,7 +97,8 @@ int luaPlayVideo(lua_State* state) {
                 lua_gettop(state) >= 2 && lua_toboolean(state, 2) != 0;
             const bool skipable =
                 lua_gettop(state) >= 3 && lua_toboolean(state, 3) != 0;
-            playVideo(path, mute, skipable);
+            const std::string subtitlePath = luaL_optstring(state, 4, "");
+            playVideo(path, mute, skipable, subtitlePath);
         } catch (const std::exception& exception) {
             std::snprintf(error, sizeof(error), "%s", exception.what());
         }
@@ -132,7 +138,8 @@ void processPendingVideoPlayback() {
 
     std::exception_ptr failure;
     try {
-        playVideoNow(request->path, request->mute, request->skipable);
+        playVideoNow(request->path, request->mute, request->skipable,
+                     request->subtitlePath);
     } catch (...) {
         failure = std::current_exception();
     }

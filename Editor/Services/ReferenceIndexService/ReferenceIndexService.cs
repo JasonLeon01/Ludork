@@ -110,6 +110,8 @@ public sealed partial class ReferenceIndexService : IDisposable
         }
         if (lower.StartsWith("assets/", StringComparison.Ordinal))
         {
+            if (gameData.GetDocumentByPath(absolutePath) is { Section: "Subtitles" } subtitle)
+                return nodeId("subtitle", subtitle.Key);
             if (!GameAssetPath.TryFromProjectFile(
                     gameData.ProjectPath,
                     absolutePath,
@@ -354,6 +356,7 @@ public sealed partial class ReferenceIndexService : IDisposable
             addNode("blueprint", BlueprintReference.ToReference(key));
         addSectionNodes("animation", gameData.Assets.AnimationsData.Keys);
         addSectionNodes("particle", gameData.Assets.ParticlesData.Keys);
+        addSectionNodes("subtitle", gameData.Subtitles.Keys);
         addSectionNodes("curve", gameData.Assets.CurvesData.Keys);
         addSectionNodes("textConfig", gameData.Assets.TextConfigsData.Keys);
         addSectionNodes("uiAsset", gameData.UiAssets.UiAssetsData.Keys);
@@ -382,7 +385,7 @@ public sealed partial class ReferenceIndexService : IDisposable
         cancellationToken.ThrowIfCancellationRequested();
         string id = nodeId(type, key);
         declaredNodes.Add(id);
-        nodes[id] = new ReferenceNode(id, type, key.Replace('\\', '/'));
+        nodes[id] = ReferenceIndexSnapshot.ParseNode(id)!;
         return id;
     }
 
@@ -473,15 +476,13 @@ public sealed partial class ReferenceIndexService : IDisposable
     private string dataPath(string root, string key)
     {
         return Path.Combine(
-            gameData.ProjectPath,
-            "Data",
-            root,
+            gameData.getSectionRoot(root),
             key.Replace('/', Path.DirectorySeparatorChar) + DataConfig.DataFileExtension);
     }
 
     private static string nodeId(string type, string key)
     {
-        return $"{type}:{key.Replace('\\', '/')}";
+        return ReferenceIndexSnapshot.NodeId(type, key);
     }
 
     private string generalMemberNodeId(string typeKey, string memberKey)

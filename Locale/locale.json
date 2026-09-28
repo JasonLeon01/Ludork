@@ -1,4 +1,148 @@
 {
+  "NEW_SUBTITLE": {
+    "zh_CN": "新建字幕",
+    "en_GB": "New Subtitle"
+  },
+  "SELECT_SUBTITLE_PATH": {
+    "zh_CN": "选择字幕保存位置",
+    "en_GB": "Select Subtitle Location"
+  },
+  "SUBTITLE_EXISTS": {
+    "zh_CN": "字幕已存在",
+    "en_GB": "Subtitle already exists"
+  },
+  "INVALID_SUBTITLE_TYPE": {
+    "zh_CN": "字幕资产必须是包含 type: subtitle 的 JSON 对象：{path}",
+    "en_GB": "Subtitle assets must be JSON objects with type: subtitle: {path}"
+  },
+  "SUBTITLE_EDITOR": {
+    "zh_CN": "字幕编辑器",
+    "en_GB": "Subtitle Editor"
+  },
+  "SUBTITLE_PREVIEW_UNAVAILABLE": {
+    "zh_CN": "请重新构建项目预览以启用字幕预览。",
+    "en_GB": "Rebuild the project preview to enable subtitle preview."
+  },
+  "SUBTITLE_ADD_SECTION": {
+    "zh_CN": "新增片段",
+    "en_GB": "Add Section"
+  },
+  "SUBTITLE_REMOVE_SECTION": {
+    "zh_CN": "删除片段",
+    "en_GB": "Delete Section"
+  },
+  "SUBTITLE_SECTION": {
+    "zh_CN": "片段",
+    "en_GB": "Section"
+  },
+  "SUBTITLE_START": {
+    "zh_CN": "开始时间",
+    "en_GB": "Start Time"
+  },
+  "SUBTITLE_END": {
+    "zh_CN": "结束时间",
+    "en_GB": "End Time"
+  },
+  "SUBTITLE_MULTILINGUAL": {
+    "zh_CN": "多语言",
+    "en_GB": "Multilingual"
+  },
+  "SUBTITLE_KEEP_LANGUAGE": {
+    "zh_CN": "转换后仅保留以下语言，其他语言将被移除（可撤销）：",
+    "en_GB": "Keep only the following language and remove the others (undo is available):"
+  },
+  "SUBTITLE_ADD_LANGUAGE": {
+    "zh_CN": "添加语言",
+    "en_GB": "Add Language"
+  },
+  "SUBTITLE_REMOVE_LANGUAGE": {
+    "zh_CN": "删除语言",
+    "en_GB": "Delete Language"
+  },
+  "SUBTITLE_LANGUAGE_ERROR": {
+    "zh_CN": "语言键不能为空、重复或带首尾空格。",
+    "en_GB": "Language keys must be nonempty, unique and have no surrounding whitespace."
+  },
+  "SUBTITLE_TIME_ERROR": {
+    "zh_CN": "请输入有效的非负时间。",
+    "en_GB": "Enter a valid nonnegative time."
+  },
+  "SUBTITLE_UP": {
+    "zh_CN": "上移",
+    "en_GB": "Up"
+  },
+  "SUBTITLE_DOWN": {
+    "zh_CN": "下移",
+    "en_GB": "Down"
+  },
+  "SUBTITLE_REMOVE_LINE": {
+    "zh_CN": "删除文本",
+    "en_GB": "Delete Text"
+  },
+  "SUBTITLE_ADD_LINE": {
+    "zh_CN": "添加文本",
+    "en_GB": "Add Text"
+  },
+  "SUBTITLE_PLAY": {
+    "zh_CN": "播放",
+    "en_GB": "Play"
+  },
+  "SUBTITLE_PAUSE": {
+    "zh_CN": "暂停",
+    "en_GB": "Pause"
+  },
+  "SUBTITLE_STOP": {
+    "zh_CN": "停止",
+    "en_GB": "Stop"
+  },
+  "SUBTITLE_MUTE": {
+    "zh_CN": "静音",
+    "en_GB": "Mute"
+  },
+  "SUBTITLE_SELECT_VIDEO": {
+    "zh_CN": "选择参考视频",
+    "en_GB": "Select Reference Video"
+  },
+  "SUBTITLE_CLEAR_VIDEO": {
+    "zh_CN": "清除视频",
+    "en_GB": "Clear Video"
+  },
+  "SUBTITLE_PREVIEW_LANGUAGE": {
+    "zh_CN": "预览语言",
+    "en_GB": "Preview Language"
+  },
+  "SUBTITLE_ZOOM": {
+    "zh_CN": "时间轴缩放",
+    "en_GB": "Timeline Zoom"
+  },
+  "SUBTITLE_VIDEO_FILES": {
+    "zh_CN": "视频文件",
+    "en_GB": "Video Files"
+  },
+  "SUBTITLE_NOT_FFMPEG": {
+    "zh_CN": "当前不是 FFmpeg 工程",
+    "en_GB": "The current project is not an FFmpeg project."
+  },
+  "SUBTITLE_VIDEO_PATH_ERROR": {
+    "zh_CN": "请选择当前工程 Assets/Videos 下的视频。",
+    "en_GB": "Select a video under this project's Assets/Videos directory."
+  },
+  "SUBTITLE_FIX_ERRORS": {
+    "zh_CN": "修正字幕错误后恢复预览。",
+    "en_GB": "Correct the subtitle errors to resume preview."
+  },
+  "SUBTITLE_CLOSE_INVALID": {
+    "zh_CN": "关闭将丢弃尚未生效的无效输入，其他修改保留在工程中。是否关闭？",
+    "en_GB": "Closing discards invalid input drafts; other edits remain in the project. Close?"
+  },
+  "SUBTITLE_CLOSE_MODIFIED": {
+    "zh_CN": "字幕尚未保存。关闭窗口后修改仍保留在工程中，可通过全局保存写入文件。是否关闭？",
+    "en_GB": "The subtitle has unsaved changes. They remain in the project after closing and can be saved with Save All. Close?"
+  },
+  "SUBTITLE_MISSING_LANGUAGE": {
+    "zh_CN": "当前片段缺少此预览语言及 en_GB，不显示字幕。",
+    "en_GB": "The active section has neither the preview language nor en_GB; no subtitle is shown."
+  },
   "BLUEPRINT_PLAIN_INPUTS": {
     "zh_CN": "转换为普通输入框",
     "en_GB": "Convert to Plain Text Inputs"
@@ -1723,7 +1867,7 @@
     "zh_CN": "帧率上限",
     "en_GB": "Frame Rate"
   },
-  "antialiasinglevel":{
+  "antialiasinglevel": {
     "zh_CN": "抗锯齿等级",
     "en_GB": "Antialiasing Level"
   },

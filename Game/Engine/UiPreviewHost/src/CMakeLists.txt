@@ -6,6 +6,8 @@ target_sources(UiPreviewHostExecutable PRIVATE
     Protocol/FrameFiles.cpp
     Protocol/PreviewProtocol.cpp
     Rendering/PixelConversion.cpp
+    Rendering/PreviewResources.cpp
+    Subtitle/SubtitlePreviewSession.cpp
     UI/UiPreviewDrawing.cpp
     UI/UiPreviewInstantiation.cpp
     UI/UiPreviewReparent.cpp

@@ -4,6 +4,7 @@
 #include "Particle/ParticlePreviewSession.hpp"
 #include "Protocol/FrameFiles.hpp"
 #include "UI/UiPreviewSession.hpp"
+#include "Subtitle/SubtitlePreviewSession.hpp"
 
 #include <Runtime/RuntimeData.hpp>
 
@@ -34,6 +35,7 @@ private:
     ActorBatchRenderer actorRenderer_;
     UiPreviewSession uiSession_;
     ParticlePreviewSession particleSession_;
+    SubtitlePreviewSession subtitleSession_;
     bool accepted_ = false;
 };
 

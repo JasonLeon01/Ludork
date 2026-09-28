@@ -1,6 +1,8 @@
 #include "VideoDecoder.hpp"
 
 #if LUDORK_HAS_FFMPEG
+#include <algorithm>
+#include <cmath>
 #include <stdexcept>
 
 namespace ludork::video {
@@ -32,6 +34,13 @@ bool VideoDecoder::readFrame() {
             avcodec_receive_frame(decoder_.get(), frame_.get());
         if (receiveResult == 0) {
             ++frameIndex_;
+            const std::int64_t start =
+                stream_->start_time == AV_NOPTS_VALUE ? 0 : stream_->start_time;
+            time_ = frame_->best_effort_timestamp == AV_NOPTS_VALUE
+                        ? static_cast<double>(frameIndex_ - 1) / fps_
+                        : static_cast<double>(frame_->best_effort_timestamp -
+                                              start) *
+                              av_q2d(stream_->time_base);
             return true;
         }
         if (receiveResult == AVERROR_EOF) {
@@ -105,6 +114,50 @@ int VideoDecoder::width() const noexcept {
 
 int VideoDecoder::height() const noexcept {
     return frame_->height;
+}
+
+double VideoDecoder::duration() const noexcept {
+    if (stream_->duration != AV_NOPTS_VALUE && stream_->duration > 0) {
+        return static_cast<double>(stream_->duration) *
+               av_q2d(stream_->time_base);
+    }
+    return format_->duration == AV_NOPTS_VALUE
+               ? 0.0
+               : std::max(0.0, static_cast<double>(format_->duration) /
+                                   AV_TIME_BASE);
+}
+
+double VideoDecoder::time() const noexcept {
+    return time_;
+}
+
+bool VideoDecoder::seek(double seconds) {
+    if (!std::isfinite(seconds) || seconds < 0) {
+        throw std::invalid_argument(
+            "Video seek time must be finite and nonnegative");
+    }
+    const double boundedTime =
+        duration() > 0 ? std::min(seconds, duration()) : seconds;
+    const std::int64_t start =
+        stream_->start_time == AV_NOPTS_VALUE ? 0 : stream_->start_time;
+    const std::int64_t timestamp =
+        start +
+        static_cast<std::int64_t>(boundedTime / av_q2d(stream_->time_base));
+    requireFfmpeg(av_seek_frame(format_.get(), streamIndex_, timestamp,
+                                AVSEEK_FLAG_BACKWARD),
+                  "Failed to seek video");
+    avcodec_flush_buffers(decoder_.get());
+    av_packet_unref(packet_.get());
+    av_frame_unref(frame_.get());
+    flushing_ = false;
+    frameIndex_ = 0;
+    time_ = -1;
+    while (readFrame()) {
+        if (time_ + 0.5 / fps_ >= boundedTime) {
+            return true;
+        }
+    }
+    return false;
 }
 
 }  // namespace ludork::video

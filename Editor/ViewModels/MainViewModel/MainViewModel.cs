@@ -58,6 +58,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         NewBlueprintCommand = new RelayCommand(() => Actions.NewBlueprint(), () => CanEdit);
         NewAnimationCommand = new RelayCommand(Actions.NewAnimation, () => CanEdit);
         NewParticleCommand = new RelayCommand(() => Actions.NewParticle(), () => CanEdit);
+        NewSubtitleCommand = new RelayCommand(() => Actions.NewSubtitle(), () => CanEdit);
         NewCurveCommand = new RelayCommand(Actions.NewCurve, () => CanEdit);
         NewTextConfigCommand = new RelayCommand(() => Actions.NewTextConfig(), () => CanEdit);
         NewUiAssetCommand = new RelayCommand(() => Actions.NewUiAsset(), () => CanEdit);
@@ -74,7 +75,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         editingCommands =
         [
             SaveCommand, UndoCommand, RedoCommand, TileModeCommand, LightModeCommand, ActorModeCommand,
-            NewBlueprintCommand, NewAnimationCommand, NewParticleCommand, NewCurveCommand, NewTextConfigCommand, NewUiAssetCommand,
+            NewBlueprintCommand, NewAnimationCommand, NewParticleCommand, NewSubtitleCommand, NewCurveCommand, NewTextConfigCommand, NewUiAssetCommand,
             GameConfigCommand, SystemConfigCommand, AnimationOverviewCommand, ParticleOverviewCommand, TilesetsDataCommand,
             CommonFunctionsCommand, GameVariablesCommand, GeneralDataCommand,
         ];
@@ -123,6 +124,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public IRelayCommand NewBlueprintCommand { get; }
     public IRelayCommand NewAnimationCommand { get; }
     public IRelayCommand NewParticleCommand { get; }
+    public IRelayCommand NewSubtitleCommand { get; }
     public IRelayCommand NewCurveCommand { get; }
     public IRelayCommand NewTextConfigCommand { get; }
     public IRelayCommand NewUiAssetCommand { get; }
@@ -366,6 +368,11 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return;
         string path = args.Path;
         DataFileInfo? info = args.Info;
+        if (info?.Type == "invalidSubtitle")
+        {
+            FileOpenFailed?.Invoke(this, LocaleService.Get("INVALID_SUBTITLE_TYPE").Replace("{path}", path));
+            return;
+        }
         if (info?.Type == "invalidTextConfig")
         {
             FileOpenFailed?.Invoke(
@@ -403,6 +410,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 break;
             case EditorDataOpenTarget.Animation:
                 Actions.OpenAnimation(info.Key);
+                break;
+            case EditorDataOpenTarget.Subtitle:
+                Actions.OpenSubtitle(info.Key);
                 break;
             case EditorDataOpenTarget.Particle:
                 Actions.OpenParticle(info.Key);
@@ -470,6 +480,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public string NewBlueprint => LocaleService.Get("NEW_BLUEPRINT");
     public string NewAnimation => LocaleService.Get("NEW_ANIMATION");
     public string NewParticle => LocaleService.Get("NEW_PARTICLE");
+    public string NewSubtitle => LocaleService.Get("NEW_SUBTITLE");
     public string NewCurve => LocaleService.Get("NEW_CURVE");
     public string NewTextConfig => LocaleService.Get("NEW_TEXT_CONFIG");
     public string NewUiAsset => LocaleService.Get("NEW_UI_ASSET");

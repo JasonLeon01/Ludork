@@ -22,6 +22,9 @@ public sealed partial class ProjectDataStore
         return OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
     }
 
+    internal string getSectionRoot(string sectionName) => Path.Combine(ProjectPath,
+        sectionName == "Subtitles" ? "Assets" : "Data", sectionName);
+
     internal string getSectionDataPath(string sectionName, string key)
     {
         if (sectionName == "WorldMaps")
@@ -34,9 +37,7 @@ public sealed partial class ProjectDataStore
                 "_world.json");
         }
         return Path.Combine(
-            ProjectPath,
-            "Data",
-            sectionName,
+            getSectionRoot(sectionName),
             key.Replace('/', Path.DirectorySeparatorChar) + ".json");
     }
 

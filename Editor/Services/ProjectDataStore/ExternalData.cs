@@ -20,7 +20,7 @@ public sealed partial class ProjectDataStore
             pair.Value.Clear();
             if (!pair.Value.Persist || pair.Key is "Maps" or "WorldMaps")
                 continue;
-            string root = Path.Combine(ProjectPath, "Data", pair.Key);
+            string root = getSectionRoot(pair.Key);
             if (!Directory.Exists(root))
                 continue;
             foreach (string path in Directory.EnumerateFiles(root, "*.json", SearchOption.AllDirectories)
@@ -37,7 +37,7 @@ public sealed partial class ProjectDataStore
                 {
                     if (JsonNode.Parse(File.ReadAllText(path)) is not JsonObject data)
                     {
-                        if (pair.Key is "TextConfigs" or "UI")
+                        if (pair.Key is "TextConfigs" or "UI" or "Subtitles")
                             invalidLoadPaths.Add(Path.GetRelativePath(ProjectPath, path));
                         continue;
                     }
@@ -47,7 +47,7 @@ public sealed partial class ProjectDataStore
                             : null;
                     if (!pair.Value.AcceptsType(type))
                     {
-                        if (pair.Key is "TextConfigs" or "UI")
+                        if (pair.Key is "TextConfigs" or "UI" or "Subtitles")
                             invalidLoadPaths.Add(Path.GetRelativePath(ProjectPath, path));
                         continue;
                     }
@@ -91,7 +91,7 @@ public sealed partial class ProjectDataStore
         {
             if (!pair.Value.Persist || pair.Key is "Maps" or "WorldMaps")
                 continue;
-            string root = Path.Combine(ProjectPath, "Data", pair.Key);
+            string root = getSectionRoot(pair.Key);
             if (fullPath.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
                 return Path.ChangeExtension(Path.GetRelativePath(root, fullPath), null)?.Replace('\\', '/');
         }
@@ -169,7 +169,7 @@ public sealed partial class ProjectDataStore
         {
             if (!pair.Value.Persist || pair.Key is "Maps" or "WorldMaps")
                 continue;
-            string root = Path.GetFullPath(Path.Combine(ProjectPath, "Data", pair.Key));
+            string root = Path.GetFullPath(getSectionRoot(pair.Key));
             string relative = Path.GetRelativePath(root, fullPath);
             if (Path.IsPathRooted(relative)
                 || relative == ".."

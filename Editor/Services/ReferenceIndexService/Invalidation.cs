@@ -42,6 +42,7 @@ public sealed partial class ReferenceIndexService
             "CommonFunctions" => "commonFunction",
             "Animations" => "animation",
             "Particles" => "particle",
+            "Subtitles" => "subtitle",
             "Curves" => "curve",
             "TextConfigs" => "textConfig",
             "UI" => "uiAsset",

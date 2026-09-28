@@ -5,6 +5,8 @@
 #if LUDORK_HAS_FFMPEG
 #include "VideoAudio.hpp"
 #include "VideoDecoder.hpp"
+#include <UI/SubtitleTrack.hpp>
+#include <UI/SubtitleRenderer.hpp>
 
 #include <SFML/Audio/Sound.hpp>
 #include <SFML/Graphics/RenderWindow.hpp>
@@ -16,7 +18,8 @@
 
 namespace ludork::video {
 
-void runVideoPlayback(const std::string& path, bool mute, bool skipable);
+void runVideoPlayback(const std::string& path, bool mute, bool skipable,
+                      const std::string& subtitlePath);
 
 #if LUDORK_HAS_FFMPEG
 class WindowFocusRestoreScope {
@@ -33,7 +36,8 @@ private:
 
 class VideoPlayerImpl {
 public:
-    VideoPlayerImpl(std::string path, bool mute, bool skipable);
+    VideoPlayerImpl(std::string path, bool mute, bool skipable,
+                    const std::string& subtitlePath);
 
     void play();
 
@@ -48,6 +52,8 @@ private:
     bool skipable_ = false;
     VideoDecoder decoder_;
     AudioData audio_;
+    SubtitleTrack subtitles_;
+    SubtitleRenderer subtitleRenderer_;
     std::optional<int> targetFrameIndex_ = 0;
     std::optional<sf::Texture> texture_;
     std::optional<sf::Sprite> sprite_;

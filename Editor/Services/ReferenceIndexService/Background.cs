@@ -214,7 +214,7 @@ public sealed partial class ReferenceIndexService
             {
                 string type = ReferenceIndexSnapshot.DataRoots.Single(pair => pair.Value == section).Key;
                 string nodeKey = type == "blueprint" ? BlueprintReference.ToReference(key) : key;
-                string path = ReferenceIndexSnapshot.ResolvePath(gameData.ProjectPath, type + ":" + nodeKey,
+                string path = ReferenceIndexSnapshot.ResolvePath(gameData.ProjectPath, ReferenceIndexSnapshot.NodeId(type, nodeKey),
                     new Dictionary<string, string>());
                 captured = new CapturedDocument(data, revision,
                     new ReferenceBuildDocument(section, key, path, (JsonObject)data.DeepClone()));

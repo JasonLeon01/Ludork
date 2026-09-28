@@ -1,0 +1,27 @@
+{
+  "type": "subtitle",
+  "sections": [
+    {
+      "startTime": 0.5,
+      "endTime": 4.0,
+      "content": {
+        "en_GB": [
+          "Welcome to Ludork.",
+          "Each speaker's text appears on a separate line."
+        ],
+        "zh_CN": [
+          "欢迎来到 Ludork。",
+          "每位角色的文字各占一行。"
+        ]
+      }
+    },
+    {
+      "startTime": 4.0,
+      "endTime": 8.0,
+      "content": [
+        "Ludork",
+        "字幕示例 / Subtitle example"
+      ]
+    }
+  ]
+}

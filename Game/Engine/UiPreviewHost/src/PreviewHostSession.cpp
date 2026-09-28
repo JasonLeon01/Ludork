@@ -22,6 +22,7 @@ PreviewHostSession::PreviewHostSession(std::string_view adapterFingerprint,
     : adapterFingerprint_(adapterFingerprint), registryHash_(registryHash) {}
 
 PreviewHostSession::~PreviewHostSession() noexcept {
+    subtitleSession_.reset();
     particleSession_.reset();
     uiSession_.reset();
     clearUiVector4CurveResourceCache();
@@ -60,10 +61,14 @@ RuntimeData PreviewHostSession::handle(const RuntimeData& requestValue) {
         engineState().setScale(1.0f);
         return particleSession_.render(request, frameFiles_);
     }
+    if (type == "renderSubtitle") {
+        return subtitleSession_.render(request, frameFiles_);
+    }
     throw std::invalid_argument("Unknown preview request type: " + type);
 }
 
 RuntimeData PreviewHostSession::handshake(const RuntimeData::Map& request) {
+    subtitleSession_.reset();
     particleSession_.reset();
     clearUiVector4CurveResourceCache();
     accepted_ = false;
@@ -111,6 +116,7 @@ RuntimeData PreviewHostSession::handshake(const RuntimeData::Map& request) {
     capabilities.emplace_back(RuntimeData("ui"));
     capabilities.emplace_back(RuntimeData("actor"));
     capabilities.emplace_back(RuntimeData("particle"));
+    capabilities.emplace_back(RuntimeData("subtitle"));
     return RuntimeData(object({
         {"type", RuntimeData("handshake")},
         {"accepted", RuntimeData(accepted)},
@@ -118,6 +124,7 @@ RuntimeData PreviewHostSession::handshake(const RuntimeData::Map& request) {
         {"adapterFingerprint", RuntimeData(adapterFingerprint_)},
         {"registryHash", RuntimeData(registryHash_)},
         {"capabilities", RuntimeData(std::move(capabilities))},
+        {"ffmpeg", RuntimeData(LUDORK_HAS_FFMPEG != 0)},
         {"message", RuntimeData(std::move(message))},
     }));
 }

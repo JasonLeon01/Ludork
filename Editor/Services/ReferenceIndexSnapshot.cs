@@ -13,7 +13,7 @@ public sealed class ReferenceIndexSnapshot
     {
         ["config"] = "Configs", ["tileset"] = "Tilesets", ["autoTile"] = "AutoTiles", ["map"] = "Maps",
         ["worldMap"] = "WorldMaps", ["commonFunction"] = "CommonFunctions", ["blueprint"] = "Blueprints",
-        ["animation"] = "Animations", ["particle"] = "Particles", ["curve"] = "Curves",
+        ["animation"] = "Animations", ["particle"] = "Particles", ["curve"] = "Curves", ["subtitle"] = "Subtitles",
         ["textConfig"] = "TextConfigs", ["uiAsset"] = "UI", ["general"] = "General",
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
@@ -74,6 +74,10 @@ public sealed class ReferenceIndexSnapshot
         => Array.AsReadOnly(records.OrderBy(record => GetNode(selector(record))?.Type, StringComparer.Ordinal)
             .ThenBy(record => GetNode(selector(record))?.Key, StringComparer.Ordinal)
             .ThenBy(record => record.Path, StringComparer.Ordinal).ToArray());
+
+    internal static string NodeId(string type, string key) => type == "subtitle"
+        ? "asset:/Game/Assets/Subtitles/" + key.Replace('\\', '/') + ".json"
+        : type + ":" + key.Replace('\\', '/');
 
     internal static ReferenceNode? ParseNode(string id)
     {

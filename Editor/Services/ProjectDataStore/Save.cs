@@ -96,7 +96,8 @@ public sealed partial class ProjectDataStore
     {
         if (document.InternalData is not JsonObject data)
             return new Dictionary<string, byte[]>();
-        JsonObject payload = (JsonObject)data.DeepClone();
+        JsonObject payload = document.Section == "Subtitles"
+            ? SubtitleAssetSchema.SortSections(data) : (JsonObject)data.DeepClone();
         EditorDocumentCollection section = sections[document.Section];
         if (section.WriteType && section.ExpectedType is not null)
             payload["type"] = section.ExpectedType;
@@ -109,6 +110,8 @@ public sealed partial class ProjectDataStore
     internal IReadOnlyList<string> validateGameAssetPaths()
     {
         List<string> errors = [];
+        foreach (KeyValuePair<string, JsonObject> entry in sections["Subtitles"])
+            errors.AddRange(SubtitleAssetSchema.Validate(entry.Value, entry.Key));
         foreach (KeyValuePair<string, JsonObject> entry in sections["Particles"])
             errors.AddRange(ParticleAssetSchema.Validate(entry.Value, entry.Key));
         foreach (KeyValuePair<string, JsonObject> entry in sections["Tilesets"])

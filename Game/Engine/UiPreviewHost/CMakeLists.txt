@@ -3,7 +3,7 @@ add_subdirectory(src)
 set_target_properties(UiPreviewHostExecutable PROPERTIES OUTPUT_NAME UiPreviewHost)
 ludork_set_runtime_output(UiPreviewHostExecutable)
 target_compile_features(UiPreviewHostExecutable PRIVATE cxx_std_20)
-target_link_libraries(UiPreviewHostExecutable PRIVATE Ludork::UiPreviewHostRuntime)
+target_link_libraries(UiPreviewHostExecutable PRIVATE Ludork::UiPreviewHostRuntime Ludork::Video)
 ludork_enable_release_symbols(UiPreviewHostExecutable)
 if(APPLE)
     set_target_properties(UiPreviewHostExecutable PROPERTIES
@@ -12,14 +12,14 @@ if(APPLE)
 endif()
 
 set(preview_runtime_targets LudorkRuntime LudorkStandard
-    sfml-system sfml-window sfml-graphics)
+    sfml-system sfml-window sfml-graphics sfml-audio)
 if(LUDORK_WITH_LUA)
     get_target_property(preview_glue_target LuaGlue::LuaGlue ALIASED_TARGET)
     if(NOT preview_glue_target)
         set(preview_glue_target LuaGlue::LuaGlue)
     endif()
     list(APPEND preview_runtime_targets
-        LuaSF LuaSF_lua_shared ${preview_glue_target} sfml-audio sfml-network)
+        LuaSF LuaSF_lua_shared ${preview_glue_target} sfml-network)
 endif()
 add_custom_target(UiPreviewPrepare
     COMMAND "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}"
@@ -35,6 +35,10 @@ set(preview_runtime_files
     "$<TARGET_FILE:UiPreviewHostExecutable>"
     "$<TARGET_FILE:UiPreviewHostRuntime>")
 set(preview_runtime_links)
+if(LUDORK_ENABLE_FFMPEG)
+    list(APPEND preview_runtime_files ${LUDORK_FFMPEG_RUNTIME_FILES})
+    ludork_copy_ffmpeg_runtime(UiPreviewHostExecutable)
+endif()
 foreach(runtime_target IN LISTS preview_runtime_targets)
     get_target_property(runtime_type ${runtime_target} TYPE)
     if(runtime_type STREQUAL "SHARED_LIBRARY" OR runtime_type STREQUAL "MODULE_LIBRARY")

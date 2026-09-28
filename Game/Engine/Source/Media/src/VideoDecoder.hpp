@@ -19,6 +19,9 @@ public:
     int frameIndex() const noexcept;
     int width() const noexcept;
     int height() const noexcept;
+    double duration() const noexcept;
+    double time() const noexcept;
+    bool seek(double seconds);
 
 private:
     FormatInput format_;
@@ -30,6 +33,7 @@ private:
     int streamIndex_ = -1;
     int frameIndex_ = 0;
     double fps_ = 0.0;
+    double time_ = -1.0;
     bool flushing_ = false;
     std::vector<std::uint8_t> rgba_;
 };

@@ -33,12 +33,15 @@ WindowFocusRestoreScope::~WindowFocusRestoreScope() {
     }
 }
 
-VideoPlayerImpl::VideoPlayerImpl(std::string path, bool mute, bool skipable)
+VideoPlayerImpl::VideoPlayerImpl(std::string path, bool mute, bool skipable,
+                                 const std::string& subtitlePath)
     : path_(std::move(path)),
       mute_(mute),
       skipable_(skipable),
       decoder_(path_),
-      audio_(extractAudio(path_)) {}
+      audio_(extractAudio(path_)),
+      subtitles_(subtitlePath.empty() ? SubtitleTrack{}
+                                      : SubtitleTrack::load(subtitlePath)) {}
 
 void VideoPlayerImpl::play() {
     std::shared_ptr<sf::RenderWindow> window = Display::getWindow();
@@ -134,6 +137,8 @@ void VideoPlayerImpl::play() {
         if (sprite_.has_value()) {
             window->draw(*sprite_);
         }
+        subtitleRenderer_.draw(
+            *window, subtitles_.linesAt(elapsed, System::getLanguage()));
         Graphics::present();
         window.reset();
         Graphics::completeFrame();
@@ -199,11 +204,12 @@ void VideoPlayerImpl::updateSpriteLayout(const sf::RenderWindow& window) {
     sprite_->setPosition(view.getCenter());
 }
 
-void runVideoPlayback(const std::string& path, bool mute, bool skipable) {
-    VideoPlayerImpl(path, mute, skipable).play();
+void runVideoPlayback(const std::string& path, bool mute, bool skipable,
+                      const std::string& subtitlePath) {
+    VideoPlayerImpl(path, mute, skipable, subtitlePath).play();
 }
 #else
-void runVideoPlayback(const std::string&, bool, bool) {
+void runVideoPlayback(const std::string&, bool, bool, const std::string&) {
     std::cerr << "Video playback is disabled for this project. Enable FFmpeg "
                  "when creating the project.\n";
 }

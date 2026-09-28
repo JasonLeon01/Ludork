@@ -20,6 +20,7 @@ public sealed partial class ProjectDataStore : IDisposable
     public ConfigDataService Configs { get; }
     public AssetDataService Assets { get; }
     public UiAssetDataService UiAssets { get; }
+    public SubtitleDataService Subtitles { get; }
     internal static readonly JsonSerializerOptions WriteOptions = new()
     {
         WriteIndented = true,
@@ -38,6 +39,7 @@ public sealed partial class ProjectDataStore : IDisposable
         ["Blueprints"] = new("blueprint", true),
         ["Animations"] = new("animation", true),
         ["Particles"] = new("particle", true),
+        ["Subtitles"] = new([SubtitleAssetSchema.AssetType]),
         ["Curves"] = new(["curve", "vector2Curve", "vector3Curve", "vector4Curve"]),
         ["TextConfigs"] = new(["plainTextConfig", "richTextConfig"]),
         ["UI"] = new([UiAssetSchema.UiAssetType]),
@@ -73,6 +75,7 @@ public sealed partial class ProjectDataStore : IDisposable
         this.loadCancellationToken = loadCancellationToken;
         this.loadProgress = loadProgress;
         ProjectPath = Path.GetFullPath(projectPath);
+        Directory.CreateDirectory(Path.Combine(ProjectPath, "Assets", "Subtitles"));
         generalEnums = new GeneralEnumService(ProjectPath);
 
         foreach ((string sectionName, EditorDocumentCollection collection) in sections)
@@ -84,6 +87,7 @@ public sealed partial class ProjectDataStore : IDisposable
         Configs = new ConfigDataService(this, sections["Configs"]);
         Assets = new AssetDataService(this, sections["Tilesets"], sections["AutoTiles"], sections["Animations"], sections["Particles"], sections["Curves"], sections["TextConfigs"]);
         UiAssets = new UiAssetDataService(this, sections["UI"]);
+        Subtitles = new SubtitleDataService(this, sections["Subtitles"]);
         loadAll();
     }
 

@@ -5,6 +5,7 @@ public enum EditorDataKind
     Blueprint,
     Animation,
     Particle,
+    Subtitle,
     Curve,
     TextConfig,
     PlainTextConfig,

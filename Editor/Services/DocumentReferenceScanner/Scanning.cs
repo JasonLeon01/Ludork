@@ -128,7 +128,9 @@ internal sealed partial class DocumentReferenceScanner
             string baseDirectory = getString(setting["base"]) ?? string.Empty;
             for (int index = 0; index < values.Count; index++)
             {
-                string path = $"Configs/{key}.{pair.Key}[{index}]";
+                string path = setting["value"] is JsonArray
+                    ? $"Configs/{key}.{pair.Key}.value[{index}]"
+                    : $"Configs/{key}.{pair.Key}.value";
                 if (root.Equals("Data", StringComparison.OrdinalIgnoreCase)
                     && baseDirectory.Equals("Maps", StringComparison.OrdinalIgnoreCase))
                 {
@@ -467,6 +469,7 @@ internal sealed partial class DocumentReferenceScanner
             ([".ShowVoiceMessageByTag", ".ShowVoiceMessage"], 2, "asset", "Voices"),
             ([".PlayMusic"], 0, "asset", "Musics"),
             ([".PlayVideo"], 0, "asset", "Videos"),
+            ([".PlayVideo"], 3, "asset", "Subtitles"),
             ([".GetItemCount", ".AddItem", ".RemoveItem", ".HasItem"], 0, "generalMember", "Item"),
             ([".AddEquip", ".RemoveEquip", ".HasEquip", ".EquipItem"], 0, "generalMember", "Equip"),
         ];

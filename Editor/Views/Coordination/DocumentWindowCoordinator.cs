@@ -124,6 +124,9 @@ internal sealed class DocumentWindowCoordinator : IDisposable
             case EditorActionKind.Animation when request.ResourceKey is { } key:
                 showAnimation(key, viewModel.GameData);
                 break;
+            case EditorActionKind.Subtitle when request.ResourceKey is { } key:
+                showSubtitle(key, viewModel.GameData);
+                break;
             case EditorActionKind.Particle when request.ResourceKey is { } key:
                 showParticle(key, viewModel.GameData);
                 break;
@@ -153,6 +156,8 @@ internal sealed class DocumentWindowCoordinator : IDisposable
             await createBlueprintAsync(viewModel, request);
         else if (request.Kind == EditorDataKind.Animation)
             await createAnimationAsync(viewModel.GameData, request.DestinationPath);
+        else if (request.Kind == EditorDataKind.Subtitle)
+            await createSubtitleAsync(viewModel.GameData, request.DestinationPath);
         else if (request.Kind == EditorDataKind.Particle)
             await createParticleAsync(viewModel.GameData, request.DestinationPath);
         else if (request.Kind == EditorDataKind.Curve)
@@ -955,6 +960,44 @@ internal sealed class DocumentWindowCoordinator : IDisposable
     }
 
 
+    private async Task createSubtitleAsync(ProjectDataStore gameData, string? destinationPath = null)
+    {
+        string root = Path.Combine(gameData.ProjectPath, "Assets", "Subtitles");
+        Directory.CreateDirectory(root);
+        string? path = destinationPath ?? await FileSelectorDialog.ShowAsync(owner, root,
+            FileSelectorDialog.FilesFilter("*.json"), LocaleService.Get("SELECT_SUBTITLE_PATH"), save: true);
+        if (path is null)
+            return;
+        path = Path.GetFullPath(path);
+        if (!Path.HasExtension(path))
+            path = Path.ChangeExtension(path, "json");
+        string relative = Path.GetRelativePath(root, path);
+        if (!isRelativePathInside(relative) || !string.Equals(Path.GetExtension(path), ".json", StringComparison.OrdinalIgnoreCase))
+        {
+            await AlertDialog.ShowAsync(owner, LocaleService.Get("ERROR"), LocaleService.Get("SELECT_SUBTITLE_PATH"));
+            return;
+        }
+        string key = Path.ChangeExtension(relative, null)!.Replace('\\', '/');
+        if (!gameData.Subtitles.CreateSubtitle(key))
+        {
+            await AlertDialog.ShowAsync(owner, LocaleService.Get("ERROR"), LocaleService.Get("SUBTITLE_EXISTS"));
+            return;
+        }
+        showSubtitle(key, gameData);
+    }
+
+    private void showSubtitle(string key, ProjectDataStore gameData)
+    {
+        SubtitleWindow? existing = owner.OwnedWindows.OfType<SubtitleWindow>().FirstOrDefault(window => window.Key == key);
+        if (existing is not null)
+        {
+            existing.Activate();
+            return;
+        }
+        if (gameData.Subtitles.Contains(key))
+            new SubtitleWindow(gameData, viewModel!.ProjectSave, key, projectSession!.UiControlRegistry.Runtime).Show(owner);
+    }
+
     private async Task createParticleAsync(ProjectDataStore gameData, string? destinationPath = null)
     {
         string root = Path.Combine(gameData.ProjectPath, "Data", "Particles");
@@ -1031,11 +1074,13 @@ internal sealed class DocumentWindowCoordinator : IDisposable
     {
         foreach (Window window in owner.OwnedWindows)
         {
+            if (!enabled && window is SubtitleWindow subtitle)
+                subtitle.PausePreview();
             if (!enabled && window is ParticleWindow particle)
                 particle.PausePreview();
             if (!enabled && window is ParticleOverviewWindow particles)
                 particles.PausePreview();
-            if (window is AnimationOverviewWindow or AnimationWindow or ParticleOverviewWindow or ParticleWindow or TilesetEditorWindow
+            if (window is SubtitleWindow or AnimationOverviewWindow or AnimationWindow or ParticleOverviewWindow or ParticleWindow or TilesetEditorWindow
                 or GeneralDataEditorWindow or CommonFunctionWindow or GameVariableManagerWindow
                 or CurveWindow or TextConfigEditorWindow or BlueprintEditorWindow or UiAssetEditorWindow)
                 window.IsEnabled = enabled;

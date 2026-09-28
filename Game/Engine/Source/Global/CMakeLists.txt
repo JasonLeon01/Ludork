@@ -46,6 +46,7 @@ target_link_libraries(GlobalCore
         SFML::Audio
         SFML::Network
     PRIVATE
+        Ludork::Video
         LuaSF::LuaSF
         LuaSF::Lua)
 if(WIN32)
@@ -58,17 +59,6 @@ elseif(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
     target_include_directories(GlobalCore PRIVATE
         "${LUDORK_SFML_SOURCE_DIR}/src")
     target_link_libraries(GlobalCore PRIVATE "${APPKIT_FRAMEWORK}")
-endif()
-if(LUDORK_ENABLE_FFMPEG)
-    target_compile_definitions(GlobalCore PRIVATE LUDORK_HAS_FFMPEG=1)
-    target_link_libraries(GlobalCore PRIVATE
-        FFmpeg::avformat
-        FFmpeg::avcodec
-        FFmpeg::avutil
-        FFmpeg::swscale
-        FFmpeg::swresample)
-else()
-    target_compile_definitions(GlobalCore PRIVATE LUDORK_HAS_FFMPEG=0)
 endif()
 ludork_configure_core_library(
     GlobalCore

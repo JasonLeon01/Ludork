@@ -10,6 +10,7 @@ struct VideoPlaybackRequest {
     std::string path;
     bool mute = false;
     bool skipable = false;
+    std::string subtitlePath;
     bool completed = false;
     std::exception_ptr failure;
 };

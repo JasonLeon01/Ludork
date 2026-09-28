@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.21)
 
 project(LudorkCore LANGUAGES CXX)
 
+add_subdirectory(Media)
+
 set(LUDORK_CORE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 get_filename_component(LUDORK_RUNTIME_SOURCE_DIR
     "${CMAKE_CURRENT_SOURCE_DIR}/../Runtime" ABSOLUTE)

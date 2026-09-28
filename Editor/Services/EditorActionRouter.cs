@@ -35,6 +35,11 @@ public sealed class EditorActionRouter
         requestCreation(new EditorDataCreationRequest(EditorDataKind.Particle, destinationPath));
     }
 
+    public void NewSubtitle(string? destinationPath = null)
+    {
+        requestCreation(new EditorDataCreationRequest(EditorDataKind.Subtitle, destinationPath));
+    }
+
     public void NewCurve()
     {
         NewCurve(null);
@@ -69,6 +74,7 @@ public sealed class EditorActionRouter
     public void OpenAnimationOverview() => request(EditorActionKind.AnimationOverview);
     public void OpenParticleOverview() => request(EditorActionKind.ParticleOverview);
     public void OpenParticle(string key) => request(EditorActionKind.Particle, key);
+    public void OpenSubtitle(string key) => request(EditorActionKind.Subtitle, key);
     public void OpenAnimation(string key) => request(EditorActionKind.Animation, key);
     public void OpenCurve(string key) => request(EditorActionKind.Curve, key);
     public void OpenTextConfig(string key) => request(EditorActionKind.TextConfig, key);

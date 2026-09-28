@@ -98,6 +98,7 @@ public sealed partial class ProjectDataStore
         EditorDocumentCollection? section = dataFile ? sections[sectionName] : null;
         bool textConfigFile = dataFile && sectionName == "TextConfigs";
         bool uiFile = dataFile && sectionName == "UI";
+        bool subtitleFile = dataFile && sectionName == "Subtitles";
         string? key = getDataKey(absolutePath);
         if (uiFile && !hasDataFileExtension(sectionName, absolutePath))
             return () => new DataFileInfo("invalidUiData", key);
@@ -113,6 +114,8 @@ public sealed partial class ProjectDataStore
                         ? new DataFileInfo("invalidTextConfig", key)
                         : uiFile
                             ? new DataFileInfo("invalidUiData", key)
+                        : subtitleFile
+                            ? new DataFileInfo("invalidSubtitle", key)
                         : null;
                 }
                 string? type = file["type"] is JsonValue typeValue
@@ -125,6 +128,8 @@ public sealed partial class ProjectDataStore
                         ? new DataFileInfo("invalidTextConfig", key)
                         : uiFile
                             ? new DataFileInfo("invalidUiData", key)
+                        : subtitleFile
+                            ? new DataFileInfo("invalidSubtitle", key)
                         : null;
                 }
                 string? resolvedType = string.IsNullOrWhiteSpace(type)
@@ -141,6 +146,8 @@ public sealed partial class ProjectDataStore
                     ? new DataFileInfo("invalidTextConfig", key)
                     : uiFile
                         ? new DataFileInfo("invalidUiData", key)
+                    : subtitleFile
+                        ? new DataFileInfo("invalidSubtitle", key)
                     : null;
             }
         };

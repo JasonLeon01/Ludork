@@ -7,13 +7,16 @@ local _METADATA = {
                 "videoFileName",
                 "mute",
                 "skipable",
+                "subtitleFileName",
                 videoFileName = "string",
                 mute = "bool",
-                skipable = "bool"
+                skipable = "bool",
+                subtitleFileName = "string"
             },
             default = {
                 [2] = false,
-                [3] = true
+                [3] = true,
+                [4] = ""
             },
             ["return"] = {},
             ExecSplit = {
@@ -25,6 +28,10 @@ local _METADATA = {
                     {
                         "videoFileName",
                         "/Game/Assets/Videos"
+                    },
+                    {
+                        "subtitleFileName",
+                        "/Game/Assets/Subtitles"
                     }
                 }
             }
