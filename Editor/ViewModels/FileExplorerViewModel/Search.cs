@@ -34,6 +34,7 @@ public sealed partial class FileExplorerViewModel
     private DirectoryReadResult readSearchResults(string directory, string query, DocumentPath[] documents,
         HashSet<string> textConfigKeys, CancellationToken token)
     {
+        TextConfigVisibility textVisibility = new(projectPath, textConfigKeys);
         HashSet<string> hidden = getHiddenPaths(documents);
         Dictionary<string, DirectoryEntry> paths = new(PathComparer);
         Dictionary<string, bool> directoryVisibility = new(PathComparer);
@@ -67,7 +68,7 @@ public sealed partial class FileExplorerViewModel
                         }
                         if (!file.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
                             || EditorPathSandbox.IsSameOrChildPath(textRoot, file.FullName)
-                            && !hasVisibleTextContent(file.FullName, false, textConfigKeys, token))
+                            && !textVisibility.IsVisible(file.FullName, false, token))
                             continue;
                         long length = file is FileInfo info ? info.Length : 0;
                         paths[file.FullName] = new DirectoryEntry(file.FullName, false, $"{file.LastWriteTimeUtc.Ticks}:{length}");
@@ -97,7 +98,7 @@ public sealed partial class FileExplorerViewModel
                 try
                 {
                     if (!isVisibleSearchDocumentPath(directory, path, directoryVisibility, token)
-                        || EditorPathSandbox.IsSameOrChildPath(textRoot, path) && !hasVisibleTextContent(path, false, textConfigKeys, token))
+                        || EditorPathSandbox.IsSameOrChildPath(textRoot, path) && !textVisibility.IsVisible(path, false, token))
                         continue;
                     paths.TryAdd(path, new DirectoryEntry(path, false, string.Empty));
                 }

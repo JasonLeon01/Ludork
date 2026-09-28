@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace Ludork.Services;
@@ -69,7 +69,7 @@ public sealed partial class MapDataService
         key = normaliseMapKey(key);
         long bytes = savedPath is not null && File.Exists(savedPath)
             ? new FileInfo(savedPath).Length
-            : Encoding.UTF8.GetByteCount(map.ToJsonString());
+            : getMapSerializedByteCount(map);
         mapLoadedBytes[key] = bytes;
         touchMap(key);
     }
@@ -125,10 +125,19 @@ public sealed partial class MapDataService
             mapActorTagIndexes.Remove(key);
         foreach (KeyValuePair<string, JsonObject> map in mapDocuments)
         {
-            mapLoadedBytes[map.Key] = Encoding.UTF8.GetByteCount(map.Value.ToJsonString());
+            mapLoadedBytes[map.Key] = getMapSerializedByteCount(map.Value);
             if (!mapAccessOrder.ContainsKey(map.Key))
                 touchMap(map.Key);
         }
+    }
+
+    private static long getMapSerializedByteCount(JsonObject map)
+    {
+        using JsonByteCountingBuffer buffer = new();
+        using Utf8JsonWriter writer = new(buffer);
+        map.WriteTo(writer);
+        writer.Flush();
+        return buffer.Count;
     }
 
     internal bool isMapHeldByHistory(string key)

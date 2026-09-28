@@ -20,6 +20,7 @@ public sealed class EditorDocument
     internal Action<EditorDocument>? StateRestored;
     internal Action<EditorDocument>? StateRestoring;
     internal Func<IReadOnlyDictionary<string, byte[]>>? SaveAdapter;
+    internal Action<EditorDocument>? IdentityChanged;
     private bool modified;
 
     internal EditorDocument(string section, string key, string path, JsonObject? data, bool isNew)
@@ -36,9 +37,9 @@ public sealed class EditorDocument
 
     public Guid Id { get; }
     public long Revision { get; internal set; }
-    public string Section { get; internal set; }
-    public string Key { get; internal set; }
-    public string Path { get; internal set; }
+    public string Section { get; private set; }
+    public string Key { get; private set; }
+    public string Path { get; private set; }
     public string SavedPath => SavedState.Path;
     public JsonObject? Data => InternalData?.DeepClone() as JsonObject;
     internal JsonObject? InternalData { get; set; }
@@ -68,13 +69,21 @@ public sealed class EditorDocument
     internal void RestoreState(EditorDocumentState state)
     {
         StateRestoring?.Invoke(this);
-        Section = state.Section;
-        Key = state.Key;
-        Path = state.Path;
+        SetIdentity(state.Section, state.Key, state.Path);
         InternalData = state.Data;
         CurrentState = state;
         UpdateModified();
         StateRestored?.Invoke(this);
+    }
+
+    internal void SetIdentity(string section, string key, string path)
+    {
+        if (Section == section && Key == key && Path == path)
+            return;
+        Section = section;
+        Key = key;
+        Path = path;
+        IdentityChanged?.Invoke(this);
     }
 
     internal void NotifyChanged() => Changed?.Invoke(this, EventArgs.Empty);

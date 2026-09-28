@@ -135,6 +135,12 @@ public sealed partial class ProjectDataStore
 
     public bool TryDeleteManagedPath(string path, out string? error)
     {
+        using ProjectResourceDeletionValidation validation = new(ProjectPath);
+        return TryDeleteManagedPath(path, validation, out error);
+    }
+
+    internal bool TryDeleteManagedPath(string path, ProjectResourceDeletionValidation validation, out string? error)
+    {
         error = null;
         EditorDocument? document = GetDocumentByPath(path);
         string? worldKey = sections["WorldMaps"].Keys.FirstOrDefault(key => pathsEqual(Worlds.getWorldDirectory(key), path));
@@ -149,7 +155,7 @@ public sealed partial class ProjectDataStore
         }
         try
         {
-            if (!DeleteDocumentResource(document.Section, document.Key))
+            if (!deleteDocumentResource(document.Section, document.Key, validation))
                 error = "The resource could not be deleted.";
         }
         catch (Exception exception) when (exception is IOException or InvalidOperationException or UnauthorizedAccessException)
@@ -160,6 +166,12 @@ public sealed partial class ProjectDataStore
     }
 
     public bool DeleteDocumentResource(string section, string key)
+    {
+        using ProjectResourceDeletionValidation validation = new(ProjectPath);
+        return deleteDocumentResource(section, key, validation);
+    }
+
+    private bool deleteDocumentResource(string section, string key, ProjectResourceDeletionValidation validation)
     {
         EditorDocument? document = GetDocument(section, key);
         if (document is null)
@@ -174,10 +186,7 @@ public sealed partial class ProjectDataStore
         string[] savedPaths = targets.Where(target => target.SavedState.InternalData is not null)
             .Select(target => target.SavedPath).ToArray();
         if (savedPaths.Length != 0)
-        {
-            using ProjectDataStore diskData = new(ProjectPath);
-            assertDocumentsUnreferenced(diskData, savedPaths);
-        }
+            validation.AssertUnreferenced(savedPaths);
         EditorFileSaveBatch batch = new();
         if (section == "WorldMaps" && document.SavedState.InternalData is not null)
             batch.DeleteDirectory(Path.GetDirectoryName(document.SavedPath)!);
@@ -206,6 +215,7 @@ public sealed partial class ProjectDataStore
         }
         refreshModifiedState();
         notifications.Commit();
+        validation.AcceptDeleted(savedPaths);
         NotifyDataRestored();
         if (section == "UI")
             UiAssets.NotifyUiAssetsChanged();

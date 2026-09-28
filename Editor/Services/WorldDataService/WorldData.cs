@@ -151,10 +151,7 @@ public sealed partial class WorldDataService
 
     internal IReadOnlyDictionary<string, MapCatalogEntry> getWorldChildCatalog(string worldKey)
     {
-        return store.Maps.getMapCatalogEntries()
-            .Where(entry => entry.Kind == MapCatalogEntryKind.WorldChildMap
-                && string.Equals(entry.WorldKey, worldKey, StringComparison.Ordinal))
-            .ToDictionary(entry => entry.Key, entry => entry, StringComparer.Ordinal);
+        return store.Maps.getWorldCatalog(worldKey);
     }
 
     internal static JsonObject createWorldMapData(

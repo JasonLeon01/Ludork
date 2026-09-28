@@ -26,11 +26,32 @@ public sealed class UiAssetEditingService
 
     private readonly ProjectDataStore gameData;
     private readonly UiControlRegistryService controlRegistry;
+    private IReadOnlyDictionary<string, UiControlDescriptor>? controls;
+    private UiPreviewRuntimeSnapshot? runtimeRegistry;
+    private UiAssetDependencyGraph? dependencyGraph;
+    private readonly Dictionary<string, Failure> insertionFailures = new(StringComparer.Ordinal);
 
     public UiAssetEditingService(ProjectDataStore gameData, UiControlRegistryService controlRegistry)
     {
         this.gameData = gameData;
         this.controlRegistry = controlRegistry;
+    }
+
+    internal void Invalidate()
+    {
+        controls = null;
+        dependencyGraph = null;
+        insertionFailures.Clear();
+    }
+
+    private IReadOnlyDictionary<string, UiControlDescriptor> getControls()
+    {
+        if (!ReferenceEquals(runtimeRegistry, controlRegistry.Runtime.Current))
+        {
+            Invalidate();
+            runtimeRegistry = controlRegistry.Runtime.Current;
+        }
+        return controls ??= controlRegistry.CreateControlLookup();
     }
 
     internal bool TryCreateControl(
@@ -46,7 +67,7 @@ public sealed class UiAssetEditingService
         failure = Failure.UnknownControl;
         if (!controlRegistry.IsReady)
             return false;
-        IReadOnlyDictionary<string, UiControlDescriptor> controls = controlRegistry.CreateControlLookup();
+        IReadOnlyDictionary<string, UiControlDescriptor> controls = getControls();
         if (!controls.TryGetValue(controlId, out UiControlDescriptor? descriptor))
             return false;
         parent = getAddParent(document, selectedNodeName, controls);
@@ -60,8 +81,7 @@ public sealed class UiAssetEditingService
             failure = Failure.ContainerRejectsChild;
             return false;
         }
-        UiAssetDependencyGraph graph = new(gameData.UiAssets.UiAssetsData, document.AssetKey, document.Data);
-        if (!canInsertControl(document, descriptor, graph, out failure))
+        if (!canInsertControl(document, descriptor, out failure))
             return false;
         JsonObject properties = new();
         foreach (UiControlPropertyDescriptor property in descriptor.Properties)
@@ -90,11 +110,10 @@ public sealed class UiAssetEditingService
             return false;
         }
         JsonObject? source = document.FindNode(nodeName);
-        IReadOnlyDictionary<string, UiControlDescriptor> controls = controlRegistry.CreateControlLookup();
+        IReadOnlyDictionary<string, UiControlDescriptor> controls = getControls();
         if (source is null || parent is null || !canAcceptChild(parent, null, controls))
             return false;
-        UiAssetDependencyGraph graph = new(gameData.UiAssets.UiAssetsData, document.AssetKey, document.Data);
-        return canCopySubtree(document, source, controls, graph);
+        return canCopySubtree(document, source, controls);
     }
 
     internal bool TryGetMoveLocation(
@@ -116,7 +135,7 @@ public sealed class UiAssetEditingService
             || destination is null
             || ReferenceEquals(source, destination)
             || isDescendant(source, parentName)
-            || !canAcceptChild(destination, nodeName, controlRegistry.CreateControlLookup()))
+            || !canAcceptChild(destination, nodeName, getControls()))
         {
             return false;
         }
@@ -210,7 +229,7 @@ public sealed class UiAssetEditingService
         {
             return false;
         }
-        IReadOnlyDictionary<string, UiControlDescriptor> controls = controlRegistry.CreateControlLookup();
+        IReadOnlyDictionary<string, UiControlDescriptor> controls = getControls();
         if (!tryGetDropLocation(document, target, nodeName, position, controls, out parentName, out index))
         {
             return false;
@@ -236,7 +255,7 @@ public sealed class UiAssetEditingService
         parentName = string.Empty;
         index = 0;
         failure = Failure.UnknownControl;
-        IReadOnlyDictionary<string, UiControlDescriptor> controls = controlRegistry.CreateControlLookup();
+        IReadOnlyDictionary<string, UiControlDescriptor> controls = getControls();
         if (!controlRegistry.IsReady || !controls.TryGetValue(controlId, out UiControlDescriptor? descriptor))
             return false;
         JsonObject? target = document.FindNode(targetNodeName);
@@ -248,8 +267,7 @@ public sealed class UiAssetEditingService
         {
             return false;
         }
-        UiAssetDependencyGraph graph = new(gameData.UiAssets.UiAssetsData, document.AssetKey, document.Data);
-        return canInsertControl(document, descriptor, graph, out failure);
+        return canInsertControl(document, descriptor, out failure);
     }
 
     private static bool tryGetDropLocation(
@@ -339,45 +357,49 @@ public sealed class UiAssetEditingService
                 && string.Equals(getString(value, "name"), movingNodeName, StringComparison.Ordinal));
     }
 
-    private static bool canInsertControl(
+    private bool canInsertControl(
         UiAssetEditorDocument document,
         UiControlDescriptor descriptor,
-        UiAssetDependencyGraph graph,
         out Failure failure)
     {
         failure = Failure.None;
         if (!descriptor.ControlId.StartsWith(UiAssetSchema.ProjectControlPrefix, StringComparison.Ordinal))
             return true;
+        if (insertionFailures.TryGetValue(descriptor.ControlId, out failure))
+            return failure == Failure.None;
         if (!UiAssetSchema.TryGetProjectAssetKey(descriptor.ControlId, out string targetKey))
         {
             failure = Failure.UnknownControl;
             return false;
         }
-        if (!graph.TryGetAsset(targetKey, out JsonObject? target)
+        dependencyGraph ??= new UiAssetDependencyGraph(gameData.UiAssets.UiAssetsData, document.AssetKey, document.Data);
+        if (!dependencyGraph.TryGetAsset(targetKey, out JsonObject? target)
             || target?["palette"] is not JsonObject palette
             || palette["exposed"] is not JsonValue exposedValue
             || !exposedValue.TryGetValue<bool>(out bool exposed)
             || !exposed)
         {
             failure = Failure.UnknownControl;
+            insertionFailures[descriptor.ControlId] = failure;
             return false;
         }
-        if (graph.WouldCreateCycle(document.AssetKey, targetKey))
+        if (dependencyGraph.WouldCreateCycle(document.AssetKey, targetKey))
         {
             failure = Failure.AssetCycle;
+            insertionFailures[descriptor.ControlId] = failure;
             return false;
         }
+        insertionFailures[descriptor.ControlId] = Failure.None;
         return true;
     }
 
     private bool canCopySubtree(
         UiAssetEditorDocument document,
         JsonObject node,
-        IReadOnlyDictionary<string, UiControlDescriptor> controls,
-        UiAssetDependencyGraph graph)
+        IReadOnlyDictionary<string, UiControlDescriptor> controls)
     {
         if (!controls.TryGetValue(getString(node, "controlId"), out UiControlDescriptor? descriptor)
-            || !canInsertControl(document, descriptor, graph, out _))
+            || !canInsertControl(document, descriptor, out _))
         {
             return false;
         }
@@ -396,7 +418,7 @@ public sealed class UiAssetEditingService
             return false;
         }
         return children is null
-            || children.All(child => child is JsonObject value && canCopySubtree(document, value, controls, graph));
+            || children.All(child => child is JsonObject value && canCopySubtree(document, value, controls));
     }
 
     private static JsonObject createSlot(

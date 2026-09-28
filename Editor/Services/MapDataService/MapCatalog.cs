@@ -477,21 +477,14 @@ public sealed partial class MapDataService
 
     internal IReadOnlyList<MapCatalogEntry> getMapCatalogEntries()
     {
-        return catalogDocuments.Values
-            .Select(readMapCatalogEntry)
-            .Where(entry => entry is not null)
-            .Select(entry => entry!)
-            .OrderBy(entry => entry.Kind == MapCatalogEntryKind.WorldChildMap ? 1 : 0)
-            .ThenBy(entry => entry.Key, StringComparer.Ordinal)
-            .ToArray();
+        ensureCatalogProjection();
+        return catalogEntries;
     }
 
     internal IReadOnlyList<string> getAllMapKeys()
     {
-        return getMapCatalogEntries()
-            .Where(entry => entry.Kind is MapCatalogEntryKind.StandaloneMap or MapCatalogEntryKind.WorldChildMap)
-            .Select(entry => entry.Key)
-            .ToArray();
+        ensureCatalogProjection();
+        return allMapKeys;
     }
 
     internal bool containsMapKey(string key)
@@ -501,26 +494,9 @@ public sealed partial class MapDataService
 
     internal bool tryGetMapCatalogEntry(string key, out MapCatalogEntry entry)
     {
-        foreach (MapCatalogEntryKind kind in new[]
-                 {
-                     MapCatalogEntryKind.StandaloneMap,
-                     MapCatalogEntryKind.WorldChildMap,
-                 })
-        {
-            if (catalogDocuments.TryGetValue(
-                    getMapCatalogDataKey(kind, key),
-                    out JsonObject? data))
-            {
-                MapCatalogEntry? parsed = readMapCatalogEntry(data);
-                if (parsed is not null)
-                {
-                    entry = parsed;
-                    return true;
-                }
-            }
-        }
-        entry = null!;
-        return false;
+        ensureCatalogProjection();
+        return catalogByKey.TryGetValue(getMapCatalogDataKey(MapCatalogEntryKind.StandaloneMap, key), out entry!)
+            || catalogByKey.TryGetValue(getMapCatalogDataKey(MapCatalogEntryKind.WorldChildMap, key), out entry!);
     }
 
     internal bool tryGetMapsRelativePath(string fullPath, out string relativePath)
@@ -714,7 +690,9 @@ public sealed partial class MapDataService
         JsonArray values = new JsonArray();
         foreach (string name in layerOrder)
             values.Add(name);
-        data["layerOrder"] = values;
+        JsonObject updated = (JsonObject)data.DeepClone();
+        updated["layerOrder"] = values;
+        catalogDocuments[catalogKey] = updated;
     }
 
 }

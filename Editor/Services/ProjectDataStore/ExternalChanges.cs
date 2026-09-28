@@ -15,11 +15,12 @@ public sealed partial class ProjectDataStore
         IReadOnlyList<string> deletedPaths)
     {
         Dictionary<(string Section, string Key), JsonObject?> changes = [];
+        Dictionary<string, string[]> keysBySection = new(StringComparer.Ordinal);
         foreach (string path in deletedPaths)
-            prepareExternalDelete(path, changes);
+            prepareExternalDelete(path, changes, keysBySection);
         foreach ((string oldPath, string newPath) in movedPaths)
         {
-            prepareExternalDelete(oldPath, changes);
+            prepareExternalDelete(oldPath, changes, keysBySection);
             prepareExternalAdd(newPath, changes);
         }
         foreach (string path in addedPaths)
@@ -32,16 +33,30 @@ public sealed partial class ProjectDataStore
         return changes;
     }
 
-    internal void prepareExternalDelete(string path, IDictionary<(string Section, string Key), JsonObject?> changes)
+    internal void prepareExternalDelete(string path, IDictionary<(string Section, string Key), JsonObject?> changes,
+        Dictionary<string, string[]>? keysBySection = null)
     {
         if (!tryGetDataLocation(path, out string section, out string relativePath))
             return;
         if (hasDataFileExtension(section, path))
-            changes[(section, Path.ChangeExtension(relativePath, null)!.Replace('\\', '/'))] = null;
+        {
+            string key = section == "WorldMaps" ? normalizeDataKey(relativePath)
+                : Path.ChangeExtension(relativePath, null)!.Replace('\\', '/');
+            bool knownFile = sections[section].ContainsKey(key) || originData[section].ContainsKey(key)
+                || Documents.Find(section, key) is not null || changes.ContainsKey((section, key));
+            changes[(section, key)] = null;
+            if (knownFile && !Directory.Exists(path))
+                return;
+        }
         string prefix = normalizeDataKey(relativePath);
-        string[] keys = sections[section].Keys.Concat(originData[section].Keys)
-            .Concat(Documents.All.Where(document => document.Section == section).Select(document => document.Key))
-            .Concat(changes.Keys.Where(location => location.Section == section).Select(location => location.Key))
+        if (keysBySection is null || !keysBySection.TryGetValue(section, out string[]? sectionKeys))
+        {
+            sectionKeys = sections[section].Keys.Concat(originData[section].Keys)
+                .Concat(Documents.All.Where(document => document.Section == section).Select(document => document.Key))
+                .Distinct(StringComparer.Ordinal).ToArray();
+            keysBySection?.Add(section, sectionKeys);
+        }
+        string[] keys = sectionKeys.Concat(changes.Keys.Where(location => location.Section == section).Select(location => location.Key))
             .Where(key => keyMatchesPrefix(key, prefix)).Distinct(StringComparer.Ordinal).ToArray();
         foreach (string key in keys)
             changes[(section, key)] = null;

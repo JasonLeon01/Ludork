@@ -69,6 +69,7 @@ public sealed partial class ReferenceIndexService
             return;
         }
         dirty = true;
+        nodesByDocumentPath = null;
         HashSet<string> affectedNodes = new(StringComparer.Ordinal);
         foreach (string sourceId in pendingDocuments.Keys)
         {

@@ -18,7 +18,7 @@ public sealed class UiAssetEditorDocument : IDisposable
     private readonly EditorDocument? resourceDocument;
     private readonly string initialAssetKey;
     private string assetKey => resourceDocument is null ? initialAssetKey : UiAssetSchema.ToLogicalAssetKey(resourceDocument.Key);
-    private JsonObject sourceData;
+    private EditorDocumentState? sourceState;
     private bool committing;
 
     private UiAssetEditorDocument(
@@ -32,7 +32,7 @@ public sealed class UiAssetEditorDocument : IDisposable
         initialAssetKey = assetKey;
         resourceDocument = gameData.GetDocument("UI", UiAssetSchema.ToAssetDataKey(assetKey));
         this.data = (JsonObject)data.DeepClone();
-        sourceData = (JsonObject)data.DeepClone();
+        sourceState = resourceDocument?.CaptureState();
         if (resourceDocument is not null)
             resourceDocument.Changed += onResourceChanged;
         gameData.Documents.Changed += onRegistryChanged;
@@ -79,11 +79,12 @@ public sealed class UiAssetEditorDocument : IDisposable
     public bool Reload()
     {
         endGesture();
-        string dataKey = UiAssetSchema.ToAssetDataKey(assetKey);
-        if (!gameData.UiAssets.UiAssetsData.TryGetValue(dataKey, out UiAssetSnapshot? stored))
+        EditorDocumentState? state = resourceDocument?.CaptureState();
+        if (state?.Data is not JsonObject stored)
             return false;
-        data = stored.ToJson();
-        sourceData = stored.ToJson();
+        data = stored;
+        sourceState = state;
+        editing.Invalidate();
         gestureStart = null;
         Changed?.Invoke(this, EventArgs.Empty);
         return true;
@@ -424,17 +425,17 @@ public sealed class UiAssetEditorDocument : IDisposable
 
     private bool commitWorking()
     {
-        string dataKey = UiAssetSchema.ToAssetDataKey(assetKey);
-        if (!gameData.UiAssets.UiAssetsData.TryGetValue(dataKey, out UiAssetSnapshot? stored)
-            || JsonNode.DeepEquals(stored.ToJson(), data))
+        if (resourceDocument?.InternalData is not JsonObject stored
+            || JsonNode.DeepEquals(stored, data))
         {
             return false;
         }
+        editing.Invalidate();
         committing = true;
         try
         {
             gameData.UiAssets.UpdateUiAsset(assetKey, (JsonObject)data.DeepClone());
-            sourceData = resourceDocument?.Data ?? (JsonObject)data.DeepClone();
+            sourceState = resourceDocument.CaptureState();
         }
         finally
         {
@@ -454,18 +455,24 @@ public sealed class UiAssetEditorDocument : IDisposable
 
     private void onResourceChanged(object? sender, EventArgs args)
     {
-        if (committing || JsonNode.DeepEquals(sourceData, resourceDocument?.Data))
+        if (committing)
+            return;
+        EditorDocumentState? state = resourceDocument?.CaptureState();
+        bool unchanged = EditorDocumentState.ContentEquals(sourceState, state);
+        sourceState = state;
+        if (unchanged)
             return;
         if (!Reload())
         {
             data = [];
-            sourceData = [];
+            editing.Invalidate();
             Changed?.Invoke(this, EventArgs.Empty);
         }
     }
 
     private void onRegistryChanged(object? sender, EventArgs args)
     {
+        editing.Invalidate();
         if (!committing && gestureStart is not null)
             endGesture();
     }

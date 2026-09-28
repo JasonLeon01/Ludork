@@ -10,6 +10,7 @@ public sealed class CommonFunctionEditorDocument : IDisposable
     private readonly ProjectDataStore gameData;
     private JsonObject data = [];
     private readonly EditorDocument? resourceDocument;
+    private EditorDocumentState? sourceState;
     private bool committing;
 
     private CommonFunctionEditorDocument(ProjectDataStore gameData, string name)
@@ -37,12 +38,13 @@ public sealed class CommonFunctionEditorDocument : IDisposable
 
     public bool Reload()
     {
-        if (!gameData.Blueprints.CommonFunctionsData.TryGetValue(Name, out CommonFunctionSnapshot? stored))
+        sourceState = resourceDocument?.CaptureState();
+        if (sourceState?.Data is not JsonObject stored)
         {
             data = [];
             return false;
         }
-        data = stored.ToJson();
+        data = stored;
         return true;
     }
 
@@ -76,6 +78,7 @@ public sealed class CommonFunctionEditorDocument : IDisposable
         finally
         {
             committing = false;
+            sourceState = resourceDocument?.CaptureState();
         }
     }
 
@@ -87,7 +90,12 @@ public sealed class CommonFunctionEditorDocument : IDisposable
 
     private void onResourceChanged(object? sender, EventArgs args)
     {
-        if (committing || JsonNode.DeepEquals(data, resourceDocument?.Data))
+        if (committing)
+            return;
+        EditorDocumentState? currentState = resourceDocument?.CaptureState();
+        bool unchanged = EditorDocumentState.ContentEquals(sourceState, currentState);
+        sourceState = currentState;
+        if (unchanged)
             return;
         Reload();
         ExternalChanged?.Invoke(this, EventArgs.Empty);

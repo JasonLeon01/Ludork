@@ -11,6 +11,11 @@ public sealed partial class ProjectDataStore
 {
     public void AcceptTrashedResources(IReadOnlyList<string> paths)
     {
+        AcceptTrashedResources(paths, true);
+    }
+
+    internal void AcceptTrashedResources(IReadOnlyList<string> paths, bool notify)
+    {
         foreach (string path in paths)
         {
             if (File.Exists(path) || Directory.Exists(path))
@@ -25,7 +30,15 @@ public sealed partial class ProjectDataStore
                 deletedDocumentPaths.Add(document.SavedPath);
             prepareExternalDelete(path, changes);
         }
-        applyExternalChanges(changes, true, null);
+        if (changes.Count != 0)
+            applyExternalChanges(changes, false, null);
+        if (notify)
+            CompleteTrashedResources();
+    }
+
+    internal void CompleteTrashedResources()
+    {
+        Documents.PublishReset();
         DataReloaded?.Invoke(this, EventArgs.Empty);
         NotifyDataRestored();
     }

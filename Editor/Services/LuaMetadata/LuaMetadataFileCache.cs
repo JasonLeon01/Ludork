@@ -77,8 +77,7 @@ internal sealed class LuaMetadataFileCache
         foreach (string path in paths)
         {
             bool cachedByFile = fileCache.ContainsKey(path);
-            bool cachedByMixin = scriptMixinCache.Values.Any(
-                cached => string.Equals(cached.Path, path, StringComparison.OrdinalIgnoreCase));
+            bool cachedByMixin = scriptMixinCache.TryGetValue(path, out CachedScriptMixinMetadata? cachedMixin);
             if (!cachedByFile && !cachedByMixin)
                 coveredByReadSnapshot = false;
             if (readDependencyStamps?.TryGetValue(path, out LuaMetadataFileStamp readStamp) == true)
@@ -95,8 +94,6 @@ internal sealed class LuaMetadataFileCache
                     consistent = false;
                 continue;
             }
-            CachedScriptMixinMetadata? cachedMixin = scriptMixinCache.Values.FirstOrDefault(
-                cached => string.Equals(cached.Path, path, StringComparison.OrdinalIgnoreCase));
             if (cachedMixin is not null)
             {
                 stamps[path] = cachedMixin.Stamp;
@@ -151,14 +148,14 @@ internal sealed class LuaMetadataFileCache
             return null;
         string metadataPath = ScriptMixinPaths.GetMetadataPath(ProjectPath, normalized);
         if (readScopeDepth != 0
-            && scriptMixinCache.TryGetValue(normalized, out CachedScriptMixinMetadata? scopedCached))
+            && scriptMixinCache.TryGetValue(metadataPath, out CachedScriptMixinMetadata? scopedCached))
         {
             trackReadDependency(metadataPath, scopedCached.Stamp);
             return scopedCached.Metadata;
         }
         LuaMetadataFileStamp stamp = getFileStamp(metadataPath);
         trackReadDependency(metadataPath, stamp);
-        if (scriptMixinCache.TryGetValue(normalized, out CachedScriptMixinMetadata? cached))
+        if (scriptMixinCache.TryGetValue(metadataPath, out CachedScriptMixinMetadata? cached))
         {
             if (cached.Stamp == stamp)
                 return cached.Metadata;
@@ -168,7 +165,7 @@ internal sealed class LuaMetadataFileCache
         }
         if (!stamp.Exists)
         {
-            scriptMixinCache[normalized] = new CachedScriptMixinMetadata(metadataPath, stamp, null);
+            scriptMixinCache[metadataPath] = new CachedScriptMixinMetadata(metadataPath, stamp, null);
             return null;
         }
 
@@ -176,7 +173,7 @@ internal sealed class LuaMetadataFileCache
             metadataPath,
             ScriptMixinPaths.GetModuleName(normalized),
             ScriptMixinPaths.GetTypeName(normalized));
-        scriptMixinCache[normalized] = new CachedScriptMixinMetadata(metadataPath, stamp, metadata);
+        scriptMixinCache[metadataPath] = new CachedScriptMixinMetadata(metadataPath, stamp, metadata);
         return metadata;
     }
 

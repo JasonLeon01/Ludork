@@ -6,7 +6,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -91,7 +90,8 @@ public sealed partial class FileExplorerViewModel
                 token.ThrowIfCancellationRequested();
                 DirectoryEntry info = next[index];
                 int previousIndex = previous.TryGetValue(info.Path, out FileExplorerEntryViewModel? entry)
-                    ? Entries.IndexOf(entry) : -1;
+                    ? index < Entries.Count && ReferenceEquals(Entries[index], entry) ? index : Entries.IndexOf(entry)
+                    : -1;
                 if (entry is null || previousIndex < 0)
                 {
                     IImage placeholder = EditorIconResources.GetImage(info.IsDirectory ? "EditorImage.Folder" : "EditorImage.File");
@@ -268,38 +268,9 @@ public sealed partial class FileExplorerViewModel
         }
         string textRoot = Path.Combine(projectPath, "Data", "TextConfigs");
         return paths.Values.Where(entry => !EditorPathSandbox.IsSameOrChildPath(textRoot, entry.Path)
-                || hasVisibleTextContent(entry.Path, entry.IsDirectory, snapshot.TextConfigKeys, token))
+                || snapshot.TextVisibility.IsVisible(entry.Path, entry.IsDirectory, token))
             .OrderBy(entry => !entry.IsDirectory)
             .ThenBy(entry => Path.GetFileName(entry.Path), StringComparer.OrdinalIgnoreCase).ToArray();
-    }
-
-    private bool hasVisibleTextContent(string path, bool directory, HashSet<string> textKeys, CancellationToken token)
-    {
-        token.ThrowIfCancellationRequested();
-        if (directory)
-        {
-            if (Directory.Exists(path) && EditorPathSandbox.IsLink(path))
-                return true;
-            string relative = Path.GetRelativePath(Path.Combine(projectPath, "Data", "TextConfigs"), path).Replace('\\', '/').Trim('/');
-            if (textKeys.Any(key => key.StartsWith(relative + "/", StringComparison.OrdinalIgnoreCase)))
-                return true;
-            return Directory.Exists(path) && new DirectoryInfo(path).EnumerateFileSystemInfos()
-                .Any(file => hasVisibleTextContent(file.FullName, file is DirectoryInfo, textKeys, token));
-        }
-        if (!Path.GetExtension(path).Equals(DataConfig.DataFileExtension, StringComparison.OrdinalIgnoreCase))
-            return true;
-        string key = Path.ChangeExtension(Path.GetRelativePath(Path.Combine(projectPath, "Data", "TextConfigs"), path), null)!.Replace('\\', '/');
-        if (textKeys.Contains(key) || !File.Exists(path))
-            return true;
-        try
-        {
-            JsonObject? data = JsonNode.Parse(File.ReadAllText(path)) as JsonObject;
-            return data?["type"]?.ToString() is not ("plainTextConfig" or "richTextConfig");
-        }
-        catch (System.Text.Json.JsonException)
-        {
-            return true;
-        }
     }
 
     private sealed record DocumentPath(string Path, string SavedPath, string[] Paths, string Section, bool Exists);

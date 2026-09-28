@@ -33,13 +33,13 @@ public sealed class LuaMetadataService
 
     public IDisposable BeginRead()
     {
-        ensureCacheCurrent();
+        ensureHierarchyCurrent();
         return files.BeginRead();
     }
 
     internal IDisposable BeginReferenceRead()
     {
-        ensureCacheCurrent();
+        ensureHierarchyCurrent();
         return files.BeginRead(requireValid: true);
     }
 
@@ -101,7 +101,7 @@ public sealed class LuaMetadataService
 
     public LuaTypeMetadata? LoadScriptMixinMetadata(string scriptPath)
     {
-        ensureCacheCurrent();
+        ensureHierarchyCurrent();
         return files.LoadScriptMixinMetadata(scriptPath);
     }
 
@@ -155,11 +155,15 @@ public sealed class LuaMetadataService
     {
         if (files.IsReading)
             return;
-        if (!hierarchy.IsCurrent)
-        {
-            files.Clear();
-            return;
-        }
+        ensureHierarchyCurrent();
         files.EnsureCurrent();
+    }
+
+    private void ensureHierarchyCurrent()
+    {
+        if (files.IsReading)
+            return;
+        if (!hierarchy.IsCurrent)
+            files.Clear();
     }
 }

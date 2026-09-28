@@ -35,22 +35,47 @@ internal sealed class EditorDocumentCollection : IDictionary<string, JsonObject>
     private readonly Dictionary<string, JsonObject> data = new(StringComparer.Ordinal);
     private Action<string, string?, HistoryMarker?>? record;
 
-    public JsonObject this[string key] { get => data[key]; set => data[key] = value; }
+    internal long Revision { get; private set; }
+    public JsonObject this[string key]
+    {
+        get => data[key];
+        set
+        {
+            data[key] = value;
+            Revision++;
+        }
+    }
     public ICollection<string> Keys => data.Keys;
     public ICollection<JsonObject> Values => data.Values;
     IEnumerable<string> IReadOnlyDictionary<string, JsonObject>.Keys => data.Keys;
     IEnumerable<JsonObject> IReadOnlyDictionary<string, JsonObject>.Values => data.Values;
     public int Count => data.Count;
     public bool IsReadOnly => false;
-    public void Add(string key, JsonObject value) => data.Add(key, value);
+    public void Add(string key, JsonObject value)
+    {
+        data.Add(key, value);
+        Revision++;
+    }
     public bool ContainsKey(string key) => data.ContainsKey(key);
-    public bool Remove(string key) => data.Remove(key);
+    public bool Remove(string key)
+    {
+        if (!data.Remove(key))
+            return false;
+        Revision++;
+        return true;
+    }
     public bool TryGetValue(string key, out JsonObject value) => data.TryGetValue(key, out value!);
-    public void Add(KeyValuePair<string, JsonObject> item) => ((ICollection<KeyValuePair<string, JsonObject>>)data).Add(item);
+    public void Add(KeyValuePair<string, JsonObject> item) => Add(item.Key, item.Value);
     public bool Contains(KeyValuePair<string, JsonObject> item) => ((ICollection<KeyValuePair<string, JsonObject>>)data).Contains(item);
     public void CopyTo(KeyValuePair<string, JsonObject>[] array, int index) => ((ICollection<KeyValuePair<string, JsonObject>>)data).CopyTo(array, index);
-    public bool Remove(KeyValuePair<string, JsonObject> item) => ((ICollection<KeyValuePair<string, JsonObject>>)data).Remove(item);
-    public void Clear() => data.Clear();
+    public bool Remove(KeyValuePair<string, JsonObject> item) => Contains(item) && Remove(item.Key);
+    public void Clear()
+    {
+        if (data.Count == 0)
+            return;
+        data.Clear();
+        Revision++;
+    }
     public IEnumerator<KeyValuePair<string, JsonObject>> GetEnumerator() => data.GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 

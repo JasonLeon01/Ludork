@@ -215,11 +215,12 @@ public sealed partial class FileExplorerViewModel
         List<string> errors = [];
         List<string> deleted = [];
         List<string> externalDeleted = [];
+        using ProjectResourceDeletionValidation deletionValidation = new(gameData.ProjectPath);
         foreach (string path in normalizedPaths)
         {
             try
             {
-                if (gameData.TryDeleteManagedPath(path, out string? managedError))
+                if (gameData.TryDeleteManagedPath(path, deletionValidation, out string? managedError))
                 {
                     if (managedError is not null)
                         errors.Add(managedError);

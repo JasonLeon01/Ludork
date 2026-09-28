@@ -62,6 +62,7 @@ public sealed partial class ReferenceIndexService : IDisposable
     {
         using IDisposable metadataRead = metadataService.BeginRead();
         dirty = true;
+        nodesByDocumentPath = null;
         mapReferenceCache.Clear();
         pendingDocuments.Clear();
         declaredNodes.Clear();
@@ -276,15 +277,7 @@ public sealed partial class ReferenceIndexService : IDisposable
         {
             return [];
         }
-        string prefix = fullPath + Path.DirectorySeparatorChar;
-        StringComparison comparison = OperatingSystem.IsWindows()
-            ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-        return nodes.Keys.ToArray().Where(id =>
-        {
-            string nodePath = GetNodePath(id);
-            return string.Equals(nodePath, fullPath, comparison)
-                || includeDescendants && nodePath.StartsWith(prefix, comparison);
-        }).ToArray();
+        return findDocumentNodes(fullPath, includeDescendants);
     }
 
     public void Dispose()
@@ -384,6 +377,7 @@ public sealed partial class ReferenceIndexService : IDisposable
     {
         cancellationToken.ThrowIfCancellationRequested();
         string id = ReferenceIdentity.NodeId(type, key);
+        nodesByDocumentPath = null;
         declaredNodes.Add(id);
         nodes[id] = ReferenceIndexSnapshot.ParseNode(id)!;
         return id;
@@ -394,6 +388,7 @@ public sealed partial class ReferenceIndexService : IDisposable
         cancellationToken.ThrowIfCancellationRequested();
         if (nodes.ContainsKey(id))
             return;
+        nodesByDocumentPath = null;
         int separator = id.IndexOf(':');
         if (separator < 0)
         {

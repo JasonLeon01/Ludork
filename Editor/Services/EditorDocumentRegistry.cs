@@ -9,14 +9,19 @@ namespace Ludork.Services;
 public sealed class EditorDocumentRegistry
 {
     private readonly List<EditorDocument> documents = [];
+    private readonly Dictionary<(string Section, string Key), List<EditorDocument>> documentsByKey = [];
+    private readonly Dictionary<string, List<EditorDocument>> documentsByPath = new(OperatingSystem.IsWindows()
+        ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+    private readonly Dictionary<EditorDocument, (string Section, string Key, string Path, long Order)> identities = [];
+    private long nextRegistrationOrder;
+    private IReadOnlyList<EditorDocument>? allDocuments;
     private readonly Dictionary<string, EditorDocument> additionalPaths = new(OperatingSystem.IsWindows()
         ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+    private readonly Dictionary<EditorDocument, HashSet<string>> documentAliases = [];
     private long nextGestureId;
     private readonly Stack<NotificationScope> notificationScopes = [];
-    private readonly StringComparison pathComparison = OperatingSystem.IsWindows()
-        ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-
-    public IReadOnlyList<EditorDocument> All => documents.ToArray();
+    internal long Revision { get; private set; }
+    public IReadOnlyList<EditorDocument> All => allDocuments ??= Array.AsReadOnly(documents.ToArray());
     public IReadOnlyList<EditorDocument> ModifiedDocuments => documents.Where(document => document.IsModified).ToArray();
     public bool IsModified => documents.Any(document => document.IsModified);
     public event EventHandler? Changed;
@@ -25,14 +30,14 @@ public sealed class EditorDocumentRegistry
 
     public EditorDocument? Find(string section, string key)
     {
-        return documents.FirstOrDefault(document => document.Section == section && document.Key == key);
+        return documentsByKey.TryGetValue((section, key), out List<EditorDocument>? matches) ? matches[0] : null;
     }
 
     public EditorDocument? FindByPath(string path)
     {
         string fullPath = Path.GetFullPath(path);
-        return documents.FirstOrDefault(document => string.Equals(document.Path, fullPath, pathComparison))
-            ?? additionalPaths.GetValueOrDefault(fullPath);
+        return documentsByPath.TryGetValue(fullPath, out List<EditorDocument>? matches)
+            ? matches[0] : additionalPaths.GetValueOrDefault(fullPath);
     }
 
     public IReadOnlyList<string> GetPaths(EditorDocument document)
@@ -41,7 +46,16 @@ public sealed class EditorDocumentRegistry
             .Distinct(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal).ToArray();
     }
 
-    internal void BindPath(EditorDocument document, string path) => additionalPaths[Path.GetFullPath(path)] = document;
+    internal void BindPath(EditorDocument document, string path)
+    {
+        string fullPath = Path.GetFullPath(path);
+        if (additionalPaths.TryGetValue(fullPath, out EditorDocument? previous))
+            RemoveAlias(previous, fullPath);
+        additionalPaths[fullPath] = document;
+        if (!documentAliases.TryGetValue(document, out HashSet<string>? aliases))
+            documentAliases[document] = aliases = new HashSet<string>(additionalPaths.Comparer);
+        aliases.Add(fullPath);
+    }
 
     internal void Remove(EditorDocument document)
     {
@@ -49,9 +63,10 @@ public sealed class EditorDocumentRegistry
         EditorDocumentState before = document.CaptureState();
         if (!documents.Remove(document))
             return;
-        foreach (string path in additionalPaths.Where(pair => ReferenceEquals(pair.Value, document))
-                     .Select(pair => pair.Key).ToArray())
-            additionalPaths.Remove(path);
+        Unindex(document);
+        allDocuments = null;
+        foreach (string path in GetAdditionalPaths(document))
+            RemoveAlias(document, path);
         document.RestoreState(new EditorDocumentState(document.Section, document.Key, document.Path, null));
         document.SavedState = document.CaptureState();
         document.UndoEntries.Clear();
@@ -61,24 +76,44 @@ public sealed class EditorDocumentRegistry
         Notify(document, before, document.CaptureState());
     }
 
-    internal string[] GetAdditionalPaths(EditorDocument document) => additionalPaths
-        .Where(pair => ReferenceEquals(pair.Value, document)).Select(pair => pair.Key).ToArray();
+    internal string[] GetAdditionalPaths(EditorDocument document) => documentAliases.TryGetValue(document, out HashSet<string>? aliases)
+        ? aliases.ToArray() : [];
+
+    private void RemoveAlias(EditorDocument document, string path)
+    {
+        if (additionalPaths.TryGetValue(path, out EditorDocument? current) && ReferenceEquals(current, document))
+            additionalPaths.Remove(path);
+        if (documentAliases.TryGetValue(document, out HashSet<string>? aliases))
+        {
+            aliases.Remove(path);
+            if (aliases.Count == 0)
+                documentAliases.Remove(document);
+        }
+    }
 
     internal void RestoreRegistration(EditorDocument document, IReadOnlyList<string> aliases, bool registered)
     {
-        if (registered && !documents.Contains(document))
+        if (registered && !IsRegistered(document))
+        {
             documents.Add(document);
+            Index(document);
+            allDocuments = null;
+        }
         else if (!registered)
+        {
             documents.Remove(document);
+            Unindex(document);
+            allDocuments = null;
+        }
         foreach (string alias in GetAdditionalPaths(document))
-            additionalPaths.Remove(alias);
+            RemoveAlias(document, alias);
         foreach (string alias in aliases)
-            additionalPaths[alias] = document;
+            BindPath(document, alias);
     }
 
     internal long CreateGestureId() => ++nextGestureId;
 
-    internal bool IsRegistered(EditorDocument document) => documents.Contains(document);
+    internal bool IsRegistered(EditorDocument document) => identities.ContainsKey(document);
 
     internal bool HasPendingNotifications => notificationScopes.Count != 0;
 
@@ -92,6 +127,8 @@ public sealed class EditorDocumentRegistry
         EditorDocument document = new(section, key, Path.GetFullPath(path), data, isNew);
         TrackDocument(document);
         documents.Add(document);
+        Index(document);
+        allDocuments = null;
         Notify(document);
         return document;
     }
@@ -114,8 +151,8 @@ public sealed class EditorDocumentRegistry
         TrackDocument(document);
         document.CurrentState = null;
         document.InternalData = data;
-        document.Key = key ?? document.Key;
-        document.Path = path is null ? document.Path : Path.GetFullPath(path);
+        document.SetIdentity(document.Section, key ?? document.Key,
+            path is null ? document.Path : Path.GetFullPath(path));
         if (before is null)
         {
             document.UpdateModified();
@@ -262,6 +299,8 @@ public sealed class EditorDocumentRegistry
 
     private void Publish(NotificationScope scope)
     {
+        if (scope.Changed.Count != 0 || scope.Reset)
+            Revision++;
         EditorDocumentChange[] changes = scope.Content.Select(pair => new EditorDocumentChange(
                 pair.Key.Id, pair.Value.After.Section,
                 pair.Value.Before.InternalData is null ? null : pair.Value.Before.Key,
@@ -288,9 +327,61 @@ public sealed class EditorDocumentRegistry
 
     internal void Clear()
     {
+        foreach (EditorDocument document in documents)
+            document.IdentityChanged = null;
         documents.Clear();
+        documentsByKey.Clear();
+        documentsByPath.Clear();
+        identities.Clear();
+        allDocuments = null;
         additionalPaths.Clear();
+        documentAliases.Clear();
         PublishReset();
+    }
+
+    private void Index(EditorDocument document)
+    {
+        long order;
+        if (identities.Remove(document, out (string Section, string Key, string Path, long Order) previous))
+        {
+            RemoveIndex(documentsByKey, (previous.Section, previous.Key), document);
+            RemoveIndex(documentsByPath, previous.Path, document);
+            order = previous.Order;
+        }
+        else
+            order = ++nextRegistrationOrder;
+        identities[document] = (document.Section, document.Key, document.Path, order);
+        AddIndex(documentsByKey, (document.Section, document.Key), document, order);
+        AddIndex(documentsByPath, document.Path, document, order);
+        document.IdentityChanged = Index;
+    }
+
+    private void Unindex(EditorDocument document)
+    {
+        document.IdentityChanged = null;
+        if (!identities.Remove(document, out (string Section, string Key, string Path, long Order) previous))
+            return;
+        RemoveIndex(documentsByKey, (previous.Section, previous.Key), document);
+        RemoveIndex(documentsByPath, previous.Path, document);
+    }
+
+    private void AddIndex<TKey>(Dictionary<TKey, List<EditorDocument>> index, TKey key, EditorDocument document, long order)
+        where TKey : notnull
+    {
+        if (!index.TryGetValue(key, out List<EditorDocument>? matches))
+            index[key] = matches = [];
+        int position = matches.FindIndex(candidate => identities[candidate].Order > order);
+        matches.Insert(position < 0 ? matches.Count : position, document);
+    }
+
+    private static void RemoveIndex<TKey>(Dictionary<TKey, List<EditorDocument>> index, TKey key, EditorDocument document)
+        where TKey : notnull
+    {
+        if (!index.TryGetValue(key, out List<EditorDocument>? matches))
+            return;
+        matches.Remove(document);
+        if (matches.Count == 0)
+            index.Remove(key);
     }
 
     private HistoryResult Replay(EditorDocument document, bool undo)

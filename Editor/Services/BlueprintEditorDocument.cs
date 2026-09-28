@@ -21,7 +21,7 @@ public sealed class BlueprintEditorDocument : IDisposable
     private readonly string? initialGeneralTypeKey;
     private string? blueprintKey => Kind == BlueprintEditorDocumentKind.Blueprint ? resourceDocument?.Key ?? initialBlueprintKey : null;
     private string? generalTypeKey => Kind == BlueprintEditorDocumentKind.GeneralDataAbility ? resourceDocument?.Key ?? initialGeneralTypeKey : null;
-    private JsonObject? sourceData;
+    private EditorDocumentState? sourceState;
     private bool committing;
     private readonly string? generalMemberId;
     private readonly List<string> requiredEvents = [];
@@ -118,28 +118,30 @@ public sealed class BlueprintEditorDocument : IDisposable
 
     public bool Reload()
     {
-        sourceData = resourceDocument?.Data;
+        sourceState = resourceDocument?.CaptureState();
         requiredEvents.Clear();
         if (Kind == BlueprintEditorDocumentKind.Blueprint)
         {
-            if (blueprintKey is null
-                || !gameData.Blueprints.BlueprintsData.TryGetValue(blueprintKey, out BlueprintDefinitionSnapshot? blueprint))
+            if (sourceState?.Data is not JsonObject blueprint)
             {
                 data = [];
                 return false;
             }
-            data = blueprint.ToJson();
+            data = blueprint;
             return true;
         }
 
-        GeneralDataTypeSnapshot? typeData = getGeneralTypeData();
-        JsonObject? member = getGeneralMember();
+        JsonObject? typeData = sourceState?.InternalData;
+        JsonObject? member = generalMemberId is null ? null : typeData?["members"]?[generalMemberId] as JsonObject;
         if (typeData is null || member is null)
         {
             data = [];
             return false;
         }
-        foreach (string name in typeData.Events)
+        IEnumerable<string> eventNames = (typeData["events"] as JsonArray ?? []).OfType<JsonValue>()
+            .Select(value => value.TryGetValue(out string? text) ? text : null)
+            .Where(text => !string.IsNullOrWhiteSpace(text)).Cast<string>();
+        foreach (string name in eventNames)
         {
             if (!requiredEvents.Contains(name, StringComparer.Ordinal))
                 requiredEvents.Add(name);
@@ -294,13 +296,18 @@ public sealed class BlueprintEditorDocument : IDisposable
         finally
         {
             committing = false;
-            sourceData = resourceDocument?.Data;
+            sourceState = resourceDocument?.CaptureState();
         }
     }
 
     private void onResourceChanged(object? sender, EventArgs args)
     {
-        if (committing || JsonNode.DeepEquals(sourceData, resourceDocument?.Data))
+        if (committing)
+            return;
+        EditorDocumentState? currentState = resourceDocument?.CaptureState();
+        bool unchanged = EditorDocumentState.ContentEquals(sourceState, currentState);
+        sourceState = currentState;
+        if (unchanged)
             return;
         Reload();
         Changed?.Invoke(this, EventArgs.Empty);
@@ -312,22 +319,6 @@ public sealed class BlueprintEditorDocument : IDisposable
         return blueprintKey is not null
             && gameData.Blueprints.BlueprintsData.TryGetValue(blueprintKey, out BlueprintDefinitionSnapshot? blueprint)
             ? blueprint.ToJson()
-            : null;
-    }
-
-    private GeneralDataTypeSnapshot? getGeneralTypeData()
-    {
-        return generalTypeKey is not null
-            && gameData.General.GeneralData.TryGetValue(generalTypeKey, out GeneralDataTypeSnapshot? typeData)
-            ? typeData
-            : null;
-    }
-
-    private JsonObject? getGeneralMember()
-    {
-        return generalMemberId is not null
-            && getGeneralTypeData()?.Members.TryGetValue(generalMemberId, out JsonObject? member) == true
-            ? member
             : null;
     }
 

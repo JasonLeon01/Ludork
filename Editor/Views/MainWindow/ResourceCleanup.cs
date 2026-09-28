@@ -19,7 +19,6 @@ public partial class MainWindow
             current.ProjectSave.FlushPendingChanges();
         }, paths =>
         {
-            current.GameData.AcceptTrashedResources(paths);
             current.ReferenceIndex.MarkDirty();
             current.FileExplorerPanel.RequestRefresh();
             documentWindows?.ApplyFileChanges(this, new FileExplorerFilesChangedEventArgs([], [], paths));

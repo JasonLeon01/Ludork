@@ -236,6 +236,7 @@ public sealed partial class ReferenceIndexService
 
     private void importSnapshot(ReferenceIndexSnapshot snapshot)
     {
+        nodesByDocumentPath = null;
         nodes.Clear();
         generalMemberTypes.Clear();
         referencesBySource.Clear();

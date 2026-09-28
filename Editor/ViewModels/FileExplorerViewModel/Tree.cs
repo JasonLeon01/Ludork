@@ -82,7 +82,7 @@ public sealed partial class FileExplorerViewModel
         return new DirectoryReadResult(entries.ToArray(), string.Join(Environment.NewLine, errors));
     }
 
-    private static DirectorySnapshot createDirectorySnapshot(string directory, DocumentPath[] documents,
+    private DirectorySnapshot createDirectorySnapshot(string directory, DocumentPath[] documents,
         HashSet<string> textConfigKeys, CancellationToken token)
     {
         Dictionary<string, Dictionary<string, DirectoryEntry>> children = new(PathComparer);
@@ -114,9 +114,9 @@ public sealed partial class FileExplorerViewModel
                 }
             }
         }
-        return new DirectorySnapshot(children, getHiddenPaths(documents), textConfigKeys);
+        return new DirectorySnapshot(children, getHiddenPaths(documents), new TextConfigVisibility(projectPath, textConfigKeys));
     }
 
     private sealed record DirectorySnapshot(Dictionary<string, Dictionary<string, DirectoryEntry>> Children,
-        HashSet<string> Hidden, HashSet<string> TextConfigKeys);
+        HashSet<string> Hidden, TextConfigVisibility TextVisibility);
 }

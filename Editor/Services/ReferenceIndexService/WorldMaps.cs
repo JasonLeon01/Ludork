@@ -144,6 +144,11 @@ public sealed partial class ReferenceIndexService
     {
         foreach (KeyValuePair<string, JsonObject> entry in data)
         {
+            bool matches = config
+                ? rewriteConfigMapReferences(entry.Value, replacements, false)
+                : rewriteKnownMapNodeReferences(entry.Value, replacements, false);
+            if (!matches)
+                continue;
             JsonObject candidate = (JsonObject)entry.Value.DeepClone();
             bool changed = config
                 ? rewriteConfigMapReferences(candidate, replacements)
@@ -155,7 +160,8 @@ public sealed partial class ReferenceIndexService
 
     private static bool rewriteConfigMapReferences(
         JsonObject config,
-        IReadOnlyDictionary<string, string> replacements)
+        IReadOnlyDictionary<string, string> replacements,
+        bool apply = true)
     {
         bool changed = false;
         foreach (JsonObject setting in config.Select(item => item.Value).OfType<JsonObject>())
@@ -174,12 +180,16 @@ public sealed partial class ReferenceIndexService
                 {
                     if (!tryGetMapReplacement(values[index], replacements, out string replacement))
                         continue;
+                    if (!apply)
+                        return true;
                     changed = true;
                     values[index] = replacement;
                 }
             }
             else if (tryGetMapReplacement(setting["value"], replacements, out string replacement))
             {
+                if (!apply)
+                    return true;
                 changed = true;
                 setting["value"] = replacement;
             }
@@ -189,7 +199,8 @@ public sealed partial class ReferenceIndexService
 
     private static bool rewriteKnownMapNodeReferences(
         JsonNode node,
-        IReadOnlyDictionary<string, string> replacements)
+        IReadOnlyDictionary<string, string> replacements,
+        bool apply = true)
     {
         bool changed = false;
         if (node is JsonObject objectValue)
@@ -200,13 +211,19 @@ public sealed partial class ReferenceIndexService
                 && objectValue["params"] is JsonArray { Count: > 0 } parameters
                 && tryGetMapReplacement(parameters[0], replacements, out string replacement))
             {
+                if (!apply)
+                    return true;
                 changed = true;
                 parameters[0] = replacement;
             }
             foreach (JsonNode? child in objectValue.Select(item => item.Value).ToArray())
             {
                 if (child is not null)
-                    changed |= rewriteKnownMapNodeReferences(child, replacements);
+                {
+                    changed |= rewriteKnownMapNodeReferences(child, replacements, apply);
+                    if (changed && !apply)
+                        return true;
+                }
             }
         }
         else if (node is JsonArray arrayValue)
@@ -214,7 +231,11 @@ public sealed partial class ReferenceIndexService
             foreach (JsonNode? child in arrayValue.ToArray())
             {
                 if (child is not null)
-                    changed |= rewriteKnownMapNodeReferences(child, replacements);
+                {
+                    changed |= rewriteKnownMapNodeReferences(child, replacements, apply);
+                    if (changed && !apply)
+                        return true;
+                }
             }
         }
         return changed;

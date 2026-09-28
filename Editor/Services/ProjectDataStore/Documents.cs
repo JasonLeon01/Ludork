@@ -117,8 +117,8 @@ public sealed partial class ProjectDataStore
     {
         EditorDocument document = Documents.Find(section, normalizeJsonKey(oldKey))
             ?? throw new InvalidOperationException("The renamed document was not captured.");
-        document.Key = normalizeJsonKey(newKey);
-        document.Path = getSectionDataPath(section, document.Key);
+        string key = normalizeJsonKey(newKey);
+        document.SetIdentity(section, key, getSectionDataPath(section, key));
     }
 
     internal void MarkDocumentSaved(string section, string key)

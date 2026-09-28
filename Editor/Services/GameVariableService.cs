@@ -24,6 +24,8 @@ public sealed class GameVariableService : IGameVariableCatalog
     private readonly LuaMetadataService metadataService;
     private readonly EditorDocumentRegistry documents;
     private readonly List<GameVariableDefinition> variables = [];
+    private readonly Dictionary<string, int> variableIndices = new(StringComparer.Ordinal);
+    private bool committing;
     private readonly ReadOnlyCollection<GameVariableDefinition> readonlyVariables;
 
     public GameVariableService(
@@ -72,6 +74,7 @@ public sealed class GameVariableService : IGameVariableCatalog
             readDocument();
         }
         documents.BindPath(Document, MetadataPath);
+        rebuildIndices();
         Document.SaveAdapter = prepareSaveOutputs;
         Document.Changed += onDocumentChanged;
     }
@@ -98,9 +101,7 @@ public sealed class GameVariableService : IGameVariableCatalog
 
     public bool TryGet(string name, out GameVariableDefinition? definition)
     {
-        GameVariableDefinition? found = variables.FirstOrDefault(
-            value => string.Equals(value.Name, name, StringComparison.Ordinal));
-        definition = found;
+        definition = variableIndices.TryGetValue(name, out int index) ? variables[index] : null;
         return definition is not null;
     }
 
@@ -116,7 +117,7 @@ public sealed class GameVariableService : IGameVariableCatalog
             return GameVariableSaveResult.Failed("Game variable name is invalid");
         if (!Enum.IsDefined(type))
             return GameVariableSaveResult.Failed("Game variable type is invalid");
-        if (variables.Any(value => string.Equals(value.Name, name, StringComparison.Ordinal)))
+        if (variableIndices.ContainsKey(name))
             return GameVariableSaveResult.Failed($"Game variable {name} already exists");
         documents.Capture(Document, "Create game variable");
         variables.Add(new GameVariableDefinition(name, type, createDefault(type)));
@@ -150,7 +151,7 @@ public sealed class GameVariableService : IGameVariableCatalog
             type,
             createDefault(type),
             current.Remark);
-        return commitMutation();
+        return commitMutation(index);
     }
 
     public GameVariableSaveResult SetInitialValue(string name, JsonNode? initialValue, long gestureId = 0)
@@ -175,7 +176,7 @@ public sealed class GameVariableService : IGameVariableCatalog
             current.Type,
             initialValue,
             current.Remark);
-        return commitMutation();
+        return commitMutation(index);
     }
 
     public GameVariableSaveResult SetRemark(string name, string? remark, long gestureId = 0)
@@ -193,7 +194,7 @@ public sealed class GameVariableService : IGameVariableCatalog
             current.Type,
             current.InitialValue,
             normalized);
-        return commitMutation();
+        return commitMutation(index);
     }
 
     public GameVariableSaveResult SavePending()
@@ -235,9 +236,28 @@ public sealed class GameVariableService : IGameVariableCatalog
         };
     }
 
-    private GameVariableSaveResult commitMutation()
+    private GameVariableSaveResult commitMutation(int index = -1)
     {
-        documents.Commit(Document, serializeVariables());
+        JsonObject data;
+        if (index >= 0)
+        {
+            data = Document.InternalData!;
+            ((JsonArray)data["variables"]!)[index] = serializeDefinition(variables[index]);
+        }
+        else
+        {
+            rebuildIndices();
+            data = serializeVariables();
+        }
+        committing = true;
+        try
+        {
+            documents.Commit(Document, data);
+        }
+        finally
+        {
+            committing = false;
+        }
         return GameVariableSaveResult.Completed(string.Empty);
     }
 
@@ -245,28 +265,29 @@ public sealed class GameVariableService : IGameVariableCatalog
     {
         JsonArray definitions = [];
         foreach (GameVariableDefinition definition in variables)
-        {
-            definitions.Add(new JsonObject
-            {
-                ["name"] = definition.Name,
-                ["type"] = (int)definition.Type,
-                ["initialValue"] = definition.InitialValue,
-                ["remark"] = definition.Remark,
-            });
-        }
+            definitions.Add(serializeDefinition(definition));
         return new JsonObject { ["variables"] = definitions };
     }
 
+    private static JsonObject serializeDefinition(GameVariableDefinition definition) => new()
+    {
+        ["name"] = definition.Name,
+        ["type"] = (int)definition.Type,
+        ["initialValue"] = definition.InitialValue,
+        ["remark"] = definition.Remark,
+    };
+
     private void onDocumentChanged(object? sender, EventArgs args)
     {
-        readDocument();
+        if (!committing)
+            readDocument();
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
     private void readDocument()
     {
         variables.Clear();
-        if (Document.Data?["variables"] is JsonArray definitions)
+        if (Document.InternalData?["variables"] is JsonArray definitions)
         {
             foreach (JsonNode? value in definitions)
             {
@@ -279,12 +300,17 @@ public sealed class GameVariableService : IGameVariableCatalog
                     definition["remark"]!.GetValue<string>()));
             }
         }
+        rebuildIndices();
     }
 
-    private int findIndex(string name)
+    private void rebuildIndices()
     {
-        return variables.FindIndex(value => string.Equals(value.Name, name, StringComparison.Ordinal));
+        variableIndices.Clear();
+        for (int index = 0; index < variables.Count; index++)
+            variableIndices.Add(variables[index].Name, index);
     }
+
+    private int findIndex(string name) => variableIndices.GetValueOrDefault(name, -1);
 
     private IReadOnlyList<GameVariableDefinition> loadExisting()
     {

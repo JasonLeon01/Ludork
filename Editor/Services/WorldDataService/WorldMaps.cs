@@ -41,12 +41,7 @@ public sealed partial class WorldDataService
     public IReadOnlyList<string> getWorldChildren(string worldKey)
     {
         worldKey = normalizeWorldKey(worldKey);
-        return store.Maps.getMapCatalogEntries()
-            .Where(entry => entry.Kind == MapCatalogEntryKind.WorldChildMap
-                && string.Equals(entry.WorldKey, worldKey, StringComparison.Ordinal))
-            .Select(entry => entry.Key)
-            .OrderBy(key => key, StringComparer.Ordinal)
-            .ToArray();
+        return store.Maps.getWorldChildKeys(worldKey);
     }
 
     public IReadOnlyDictionary<string, JsonObject> GetWorldChildMaps(string worldKey)
@@ -87,19 +82,11 @@ public sealed partial class WorldDataService
         string normalizedIgnoredMap = ignoredMapKey is null
             ? string.Empty
             : MapDataService.normaliseMapKey(ignoredMapKey);
-        foreach (string childKey in getWorldChildren(worldKey))
+        if (store.Maps.hasWorldActorTag(worldKey, tag, normalizedIgnoredMap))
+            return true;
+        if (store.Maps.getWorldCatalog(worldKey).ContainsKey(normalizedIgnoredMap))
         {
-            bool liveMap = string.Equals(childKey, normalizedIgnoredMap, StringComparison.Ordinal);
-            if (!liveMap)
-            {
-                if (store.Maps.tryGetMapCatalogEntry(childKey, out MapCatalogEntry child)
-                    && child.ActorTags.Contains(tag, StringComparer.Ordinal))
-                {
-                    return true;
-                }
-                continue;
-            }
-            Dictionary<string, List<MapDataService.MapActorTagLocation>> index = store.Maps.getMapActorTagIndex(childKey, true);
+            Dictionary<string, List<MapDataService.MapActorTagLocation>> index = store.Maps.getMapActorTagIndex(normalizedIgnoredMap, true);
             if (index.TryGetValue(tag, out List<MapDataService.MapActorTagLocation>? locations)
                 && locations.Any(location =>
                     !string.Equals(location.LayerName, ignoredLayerName, StringComparison.Ordinal)

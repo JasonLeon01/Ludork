@@ -17,6 +17,11 @@ public sealed class EditorDocumentState
     public string Path { get; }
     public JsonObject? Data => InternalData?.DeepClone() as JsonObject;
     internal JsonObject? InternalData { get; }
+
+    internal static bool ContentEquals(EditorDocumentState? left, EditorDocumentState? right)
+    {
+        return ReferenceEquals(left, right) || JsonNode.DeepEquals(left?.InternalData, right?.InternalData);
+    }
 }
 
 public sealed record DocumentHistoryEntry(

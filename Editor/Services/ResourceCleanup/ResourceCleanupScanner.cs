@@ -254,6 +254,7 @@ internal sealed class ResourceCleanupScanner
         ICollection<ResourceCleanupIssue> issues,
         CancellationToken token)
     {
+        HashSet<string> protectedPaths = new(StringComparer.Ordinal);
         foreach (string path in keepPaths)
         {
             token.ThrowIfCancellationRequested();
@@ -261,16 +262,28 @@ internal sealed class ResourceCleanupScanner
             {
                 string normalized = ResourceCleanupFileSystem.NormalizeKeepPath(path);
                 ResourceCleanupFileSystem.ResolveSafePath(root, normalized, allowMissing: true);
-                string prefix = normalized + "/";
-                foreach (string file in files)
-                {
-                    if (file == normalized || file.StartsWith(prefix, StringComparison.Ordinal))
-                        roots.Add(file);
-                }
+                protectedPaths.Add(normalized);
             }
             catch (Exception exception) when (ResourceCleanupFileSystem.IsReadFailure(exception))
             {
                 issues.Add(new ResourceCleanupIssue(path, exception.Message));
+            }
+        }
+        foreach (string file in files)
+        {
+            token.ThrowIfCancellationRequested();
+            string path = file;
+            while (true)
+            {
+                if (protectedPaths.Contains(path))
+                {
+                    roots.Add(file);
+                    break;
+                }
+                int separator = path.LastIndexOf('/');
+                if (separator < 0)
+                    break;
+                path = path[..separator];
             }
         }
     }

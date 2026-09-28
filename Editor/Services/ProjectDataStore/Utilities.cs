@@ -78,7 +78,7 @@ public sealed partial class ProjectDataStore
 
     internal static bool nodesEqual(JsonNode current, JsonNode origin)
     {
-        return string.Equals(current.ToJsonString(), origin.ToJsonString(), StringComparison.Ordinal);
+        return JsonNode.DeepEquals(current, origin);
     }
 
     internal static void deleteTemporaryFile(string path)

@@ -14,18 +14,18 @@ internal sealed class ResourceCleanupHostBridge : IResourceCleanupHost
 {
     private readonly ProjectDataStore gameData;
     private readonly Action prepareProject;
-    private readonly Action<IReadOnlyList<string>> acceptTrashedResources;
+    private readonly Action<IReadOnlyList<string>> notifyTrashedResources;
     private readonly SemaphoreSlim operationGate = new(1, 1);
     private readonly ResourceCleanupScanner scanner = new();
     private ResourceCleanupSnapshot? snapshot;
-    private Dictionary<EditorDocument, long> documentRevisions = [];
+    private long documentRevision;
 
     public ResourceCleanupHostBridge(ProjectDataStore gameData, Action prepareProject,
-        Action<IReadOnlyList<string>> acceptTrashedResources)
+        Action<IReadOnlyList<string>> notifyTrashedResources)
     {
         this.gameData = gameData;
         this.prepareProject = prepareProject;
-        this.acceptTrashedResources = acceptTrashedResources;
+        this.notifyTrashedResources = notifyTrashedResources;
     }
 
     public string ProjectPath => gameData.ProjectPath;
@@ -88,7 +88,7 @@ internal sealed class ResourceCleanupHostBridge : IResourceCleanupHost
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 ensureSaved();
-                documentRevisions = gameData.Documents.All.ToDictionary(document => document, document => document.Revision);
+                documentRevision = gameData.Documents.Revision;
             });
             ResourceCleanupSnapshot result = await Task.Run(() => scanner.Scan(ProjectPath, nativePaths, userPaths,
                 progress, cancellationToken), cancellationToken);
@@ -108,6 +108,7 @@ internal sealed class ResourceCleanupHostBridge : IResourceCleanupHost
     {
         await operationGate.WaitAsync(cancellationToken);
         List<string> recycled = [];
+        List<string> recycledPaths = [];
         List<string> pendingSynchronization = [];
         try
         {
@@ -115,7 +116,11 @@ internal sealed class ResourceCleanupHostBridge : IResourceCleanupHost
                 && available.Report.CanTrash ? available
                 : throw new InvalidOperationException("The cleanup report is unavailable. Scan the project again.");
             snapshot = null;
-            await Dispatcher.UIThread.InvokeAsync(ensureUnchanged);
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                ensureSaved();
+                ensureUnchanged();
+            });
             await Task.Run(() => scanner.Validate(current, progress, cancellationToken), cancellationToken);
             await Dispatcher.UIThread.InvokeAsync(ensureUnchanged);
             return await SystemTrashService.RunAsync(trash =>
@@ -132,6 +137,7 @@ internal sealed class ResourceCleanupHostBridge : IResourceCleanupHost
                         progress?.Report(new ResourceCleanupProgress("Recycle", recycled.Count, current.DeletionOrder.Count, relativePath));
                         trash.MoveToTrash(absolutePath);
                         recycled.Add(relativePath);
+                        recycledPaths.Add(absolutePath);
                         pendingSynchronization.Add(absolutePath);
                         Dispatcher.UIThread.InvokeAsync(() =>
                         {
@@ -144,11 +150,11 @@ internal sealed class ResourceCleanupHostBridge : IResourceCleanupHost
                             {
                                 conflict = exception.Message;
                             }
-                            acceptTrashedResources([absolutePath]);
+                            gameData.AcceptTrashedResources([absolutePath], false);
                             pendingSynchronization.Remove(absolutePath);
                             if (conflict is not null)
                                 throw new InvalidOperationException(conflict);
-                            documentRevisions = gameData.Documents.All.ToDictionary(document => document, document => document.Revision);
+                            documentRevision = gameData.Documents.Revision;
                         }).GetAwaiter().GetResult();
                     }
                     catch (OperationCanceledException)
@@ -170,8 +176,20 @@ internal sealed class ResourceCleanupHostBridge : IResourceCleanupHost
         {
             try
             {
-                if (pendingSynchronization.Count != 0)
-                    await Dispatcher.UIThread.InvokeAsync(() => acceptTrashedResources(pendingSynchronization.ToArray()));
+                if (recycledPaths.Count != 0)
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        try
+                        {
+                            if (pendingSynchronization.Count != 0)
+                                gameData.AcceptTrashedResources(pendingSynchronization.ToArray(), false);
+                        }
+                        finally
+                        {
+                            gameData.CompleteTrashedResources();
+                            notifyTrashedResources(recycledPaths.ToArray());
+                        }
+                    });
             }
             finally
             {
@@ -198,10 +216,8 @@ internal sealed class ResourceCleanupHostBridge : IResourceCleanupHost
 
     private void ensureUnchanged()
     {
-        ensureSaved();
-        IReadOnlyList<EditorDocument> documents = gameData.Documents.All;
-        if (documents.Count != documentRevisions.Count || documents.Any(document =>
-                !documentRevisions.TryGetValue(document, out long revision) || revision != document.Revision))
+        prepareProject();
+        if (gameData.IsModified || gameData.Documents.Revision != documentRevision)
             throw new InvalidOperationException("The project changed after scanning. Scan the project again.");
     }
 }
