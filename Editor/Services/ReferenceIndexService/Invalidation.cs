@@ -50,7 +50,7 @@ public sealed partial class ReferenceIndexService
         };
         if (type is null)
             return;
-        pendingDocuments[nodeId(type, key)] = (section, key);
+        pendingDocuments[ReferenceIdentity.NodeId(type, key)] = (section, key);
         if (section == "Maps")
         {
             mapReferenceCache.Remove(key);

@@ -26,7 +26,7 @@ internal sealed class TilesetGridControl : Control, IDisposable
     private readonly EditorZoomInput zoomInput = new();
     private ScrollViewer? hostScrollViewer;
     private double scale = 1.0;
-    private TilesetZoomAnchor? pendingZoomAnchor;
+    private readonly EditorZoomAnchor pendingZoomAnchor = new();
 
     public TilesetGridControl(
         IMapEditorHost host,
@@ -126,7 +126,7 @@ internal sealed class TilesetGridControl : Control, IDisposable
         VisualTreeAttachmentEventArgs args)
     {
         LayoutUpdated -= onLayoutUpdated;
-        pendingZoomAnchor = null;
+        pendingZoomAnchor.Clear();
         hostScrollViewer = null;
         base.OnDetachedFromVisualTree(args);
     }
@@ -188,10 +188,7 @@ internal sealed class TilesetGridControl : Control, IDisposable
             MaximumScale);
         if (Math.Abs(clampedScale - scale) < double.Epsilon)
             return;
-        pendingZoomAnchor = new TilesetZoomAnchor(
-            contentPoint.X / scale,
-            contentPoint.Y / scale,
-            viewportPoint);
+        pendingZoomAnchor.Capture(contentPoint, viewportPoint, default, scale);
         scale = clampedScale;
         InvalidateMeasure();
         InvalidateVisual();
@@ -199,40 +196,22 @@ internal sealed class TilesetGridControl : Control, IDisposable
 
     private void onLayoutUpdated(object? sender, EventArgs args)
     {
-        if (pendingZoomAnchor is null)
+        if (!pendingZoomAnchor.IsPending)
             return;
         applyZoomAnchor();
     }
 
     private void applyZoomAnchor()
     {
-        if (pendingZoomAnchor is not TilesetZoomAnchor anchor
-            || hostScrollViewer is null)
-        {
-            pendingZoomAnchor = null;
-            return;
-        }
-        pendingZoomAnchor = null;
-        Point contentAnchor = new(
-            anchor.ImageX * scale,
-            anchor.ImageY * scale);
-        hostScrollViewer.Offset = EditorZoomInput.GetAnchoredOffset(
-            contentAnchor,
-            anchor.ViewportPoint,
-            hostScrollViewer.Extent,
-            hostScrollViewer.Viewport);
+        pendingZoomAnchor.Apply(hostScrollViewer, default, scale);
     }
 
     public void Dispose()
     {
         LayoutUpdated -= onLayoutUpdated;
-        pendingZoomAnchor = null;
+        pendingZoomAnchor.Clear();
         hostScrollViewer = null;
         bitmap.Dispose();
     }
 
-    private readonly record struct TilesetZoomAnchor(
-        double ImageX,
-        double ImageY,
-        Point ViewportPoint);
 }

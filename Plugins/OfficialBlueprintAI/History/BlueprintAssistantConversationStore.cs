@@ -237,25 +237,10 @@ public sealed class BlueprintAssistantConversationStore
             }
             if (corrupted)
             {
-                string repairPath =
-                    path + $".{Guid.NewGuid():N}.repair";
-                bool moved = false;
-                try
-                {
-                    await File.WriteAllLinesAsync(
-                        repairPath,
-                        validLines,
-                        cancellationToken);
-                    File.Move(repairPath, path, true);
-                    moved = true;
-                }
-                finally
-                {
-                    if (!moved && File.Exists(repairPath))
-                    {
-                        File.Delete(repairPath);
-                    }
-                }
+                string repaired = string.Join(Environment.NewLine, validLines);
+                if (validLines.Count != 0)
+                    repaired += Environment.NewLine;
+                await FilePersistence.WriteAllTextAtomicAsync(path, repaired, cancellationToken);
             }
             return result;
         }
@@ -525,36 +510,15 @@ public sealed class BlueprintAssistantConversationStore
         IReadOnlyList<BlueprintAssistantConversationSummary> conversations,
         CancellationToken cancellationToken)
     {
-        Directory.CreateDirectory(conversationsDirectory);
-        string temporaryPath = indexPath + $".{Guid.NewGuid():N}.tmp";
         ConversationIndex index = new()
         {
             Conversations = conversations
                 .OrderByDescending(conversation => conversation.UpdatedAt)
                 .ToList(),
         };
-        bool moved = false;
-        try
-        {
-            await using (FileStream stream = File.Create(temporaryPath))
-            {
-                await JsonSerializer.SerializeAsync(
-                    stream,
-                    index,
-                    JsonOptions,
-                    cancellationToken);
-                await stream.FlushAsync(cancellationToken);
-            }
-            File.Move(temporaryPath, indexPath, true);
-            moved = true;
-        }
-        finally
-        {
-            if (!moved && File.Exists(temporaryPath))
-            {
-                File.Delete(temporaryPath);
-            }
-        }
+        await FilePersistence.WriteAtomicAsync(indexPath,
+            (stream, token) => JsonSerializer.SerializeAsync(stream, index, JsonOptions, token),
+            cancellationToken);
     }
 
     private string getConversationPath(string conversationId)

@@ -13,7 +13,7 @@ public sealed class OfficialLocaleToolsPlugin : IEditorPlugin
         ArgumentNullException.ThrowIfNull(registrar);
 
         string localePath = Path.Combine(registrar.PluginDirectory, "locale.json");
-        PluginLocalizer localizer = PluginLocalizer.Load(localePath, registrar.EditorLanguage);
+        PluginLocalizer localizer = PluginLocalizer.LoadCatalog(localePath, registrar.EditorLanguage);
         LocaleTextHintProvider textHintProvider = new LocaleTextHintProvider();
         LocaleExportHook exportHook = new LocaleExportHook(localizer, textHintProvider);
 

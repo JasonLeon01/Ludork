@@ -156,7 +156,7 @@ public sealed class ParticleCurveEditor : UserControl
         bool normalized = false;
         foreach (JsonObject key in canvas.ExportKeys().OfType<JsonObject>())
         {
-            double time = ParticleAssetSchema.Number(key["time"]);
+            double time = JsonScalar.Number(key["time"]);
             double clamped = Math.Clamp(time, 0, 1);
             normalized |= clamped != time;
             key["time"] = clamped;
@@ -169,7 +169,7 @@ public sealed class ParticleCurveEditor : UserControl
         }
         curve["keys"] = keys;
         if (normalized)
-            canvas.SetCurveData(keys, [ParticleAssetSchema.Number(curve["defaultValue"], selectedChannel == "rotation" ? 0 : 1)],
+            canvas.SetCurveData(keys, [JsonScalar.Number(curve["defaultValue"], selectedChannel == "rotation" ? 0 : 1)],
                 "constant", "constant", 1);
         ensureCurves();
         curves[selectedChannel] = curve.DeepClone();

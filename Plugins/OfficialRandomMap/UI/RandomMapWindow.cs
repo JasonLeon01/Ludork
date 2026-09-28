@@ -6,7 +6,6 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Ludork.Plugin.Abstractions;
 using Ludork.Plugins.OfficialRandomMap.Generation;
-using Ludork.Plugins.OfficialRandomMap.Localization;
 using System;
 using System.Collections.Generic;
 using System.Linq;

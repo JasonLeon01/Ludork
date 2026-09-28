@@ -687,7 +687,7 @@ public sealed class UiAnimationTimelineEditor : UserControl
         for (int index = 0; index < keys.Count; index++)
         {
             if (keys[index] is JsonObject key
-                && Math.Abs(number(key["time"]) - currentTime) < 0.0001)
+                && Math.Abs(JsonScalar.Number(key["time"]) - currentTime) < 0.0001)
             {
                 selectedKey = index;
                 refreshKeyEditor();
@@ -711,7 +711,7 @@ public sealed class UiAnimationTimelineEditor : UserControl
         int insertion = 0;
         while (insertion < keys.Count
                && keys[insertion] is JsonObject existing
-               && number(existing["time"]) < currentTime)
+               && JsonScalar.Number(existing["time"]) < currentTime)
         {
             insertion++;
         }
@@ -754,12 +754,12 @@ public sealed class UiAnimationTimelineEditor : UserControl
             return;
         double minimum = keyIndex == 0
             ? 0.0
-            : number((keys[keyIndex - 1] as JsonObject)?["time"]) + 0.001;
+            : JsonScalar.Number((keys[keyIndex - 1] as JsonObject)?["time"]) + 0.001;
         double maximum = keyIndex + 1 >= keys.Count
             ? duration(animation)
-            : number((keys[keyIndex + 1] as JsonObject)?["time"]) - 0.001;
+            : JsonScalar.Number((keys[keyIndex + 1] as JsonObject)?["time"]) - 0.001;
         double next = Math.Clamp(Math.Round(time, 3), minimum, maximum);
-        if (Math.Abs(number(key["time"]) - next) < 0.000001)
+        if (Math.Abs(JsonScalar.Number(key["time"]) - next) < 0.000001)
             return;
         key["time"] = next;
         currentTime = next;
@@ -915,14 +915,14 @@ public sealed class UiAnimationTimelineEditor : UserControl
         foreach (JsonArray keys in tracks.Select(pair => pair.Value).OfType<JsonArray>())
         {
             foreach (JsonObject key in keys.OfType<JsonObject>())
-                result = Math.Max(result, number(key["time"]));
+                result = Math.Max(result, JsonScalar.Number(key["time"]));
         }
         return result;
     }
 
     private static double duration(JsonObject? animation)
     {
-        return animation is null ? 0.0 : Math.Max(0.01, number(animation["duration"], 0.5));
+        return animation is null ? 0.0 : Math.Max(0.01, JsonScalar.Number(animation["duration"], 0.5));
     }
 
     private static decimal identityValue(string track)
@@ -937,9 +937,7 @@ public sealed class UiAnimationTimelineEditor : UserControl
 
     private static string stringValue(JsonNode? value)
     {
-        return value is JsonValue json && json.TryGetValue(out string? result)
-            ? result ?? string.Empty
-            : string.Empty;
+        return JsonScalar.String(value, string.Empty);
     }
 
     private static string? nullableString(JsonNode? value)
@@ -950,20 +948,7 @@ public sealed class UiAnimationTimelineEditor : UserControl
 
     private static decimal decimalValue(JsonNode? value, decimal fallback)
     {
-        return (decimal)number(value, decimal.ToDouble(fallback));
-    }
-
-    private static double number(JsonNode? value, double fallback = 0.0)
-    {
-        if (value is not JsonValue json)
-            return fallback;
-        if (json.TryGetValue(out double doubleValue))
-            return doubleValue;
-        if (json.TryGetValue(out long integerValue))
-            return integerValue;
-        if (json.TryGetValue(out decimal decimalValue))
-            return decimal.ToDouble(decimalValue);
-        return fallback;
+        return JsonScalar.ToDecimal(JsonScalar.Number(value, decimal.ToDouble(fallback)), fallback);
     }
 
     private sealed record AnimationChoice(

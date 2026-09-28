@@ -2,9 +2,11 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
+using Ludork.Controls;
 using Ludork.Services;
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Ludork.Views.Utils;
 
@@ -70,6 +72,34 @@ public sealed class EditorDocumentBinding : IDisposable
     {
         Refresh();
         return document is null ? new HistoryResult(false) : gameData.Redo(document.Section, document.Key);
+    }
+
+    public async Task HandleShortcutAsync(
+        KeyEventArgs args,
+        ProjectSaveService projectSave,
+        Toast? toast,
+        Func<Task<bool>>? prepareSave = null)
+    {
+        if (!EditorShortcuts.HasPrimaryModifier(args.KeyModifiers))
+            return;
+        if (args.Key == Key.S)
+        {
+            if (prepareSave is null || await prepareSave())
+                await EditorSaveWorkflow.TrySaveAsync(owner, projectSave);
+        }
+        else if (EditorShortcuts.IsUndo(args.Key, args.KeyModifiers))
+        {
+            if (toast is not null)
+                EditorFeedback.ShowHistory(toast, "Undo", Undo());
+        }
+        else if (EditorShortcuts.IsRedo(args.Key, args.KeyModifiers))
+        {
+            if (toast is not null)
+                EditorFeedback.ShowHistory(toast, "Redo", Redo());
+        }
+        else
+            return;
+        args.Handled = true;
     }
 
     public void Dispose()

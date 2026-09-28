@@ -1,3 +1,4 @@
+using Ludork.Views.Utils;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
@@ -35,7 +36,7 @@ internal sealed class TextConfigPreview : Border
         PreviewStyle style = PreviewStyle.FromConfig(data);
         IReadOnlyList<PreviewStyle> textStyles = activeStyles(data, text);
         JsonObject glow = objectValue(data["glow"]);
-        if (boolValue(glow["enabled"]))
+        if (JsonScalar.Bool(glow["enabled"]))
             addGlowLayers(data, text, style, glow);
         foreach (PreviewStyle outlineStyle in textStyles
                      .Where(item => item.OutlineThickness > 0)
@@ -56,9 +57,9 @@ internal sealed class TextConfigPreview : Border
         PreviewStyle style,
         JsonObject glow)
     {
-        Color colour = colourValue(glow["color"], Colors.Transparent);
-        double radius = Math.Max(0, numberValue(glow["radius"]));
-        double intensity = Math.Clamp(numberValue(glow["intensity"]), 0, 1);
+        Color colour = TextConfigValues.Colour(glow["color"], Colors.Transparent);
+        double radius = Math.Max(0, JsonScalar.Number(glow["radius"]));
+        double intensity = Math.Clamp(JsonScalar.Number(glow["intensity"]), 0, 1);
         if (radius <= 0 || intensity <= 0 || colour.A == 0)
             return;
         int rings = Math.Clamp((int)Math.Ceiling(radius / 2), 1, 4);
@@ -98,7 +99,7 @@ internal sealed class TextConfigPreview : Border
                 new Vector(
                     Math.Cos(angle) * style.OutlineThickness,
                     Math.Sin(angle) * style.OutlineThickness),
-                stringValue(data["type"]) == "richTextConfig"
+                JsonScalar.String(data["type"], string.Empty) == "richTextConfig"
                     ? PreviewLayer.Outline
                     : PreviewLayer.Forced,
                 style.OutlineThickness));
@@ -113,7 +114,7 @@ internal sealed class TextConfigPreview : Border
         PreviewLayer layer = PreviewLayer.Fill,
         double targetOutlineThickness = 0)
     {
-        return stringValue(data["type"]) == "richTextConfig"
+        return JsonScalar.String(data["type"], string.Empty) == "richTextConfig"
             ? createRichText(
                 data,
                 text,
@@ -136,7 +137,7 @@ internal sealed class TextConfigPreview : Border
         double measuredLineHeight = lineHeight(fontFamily, defaultStyle);
         double slantAngle = defaultStyle.Italic
             ? 0
-            : Math.Clamp(numberValue(data["slantAngle"]), -45, 45);
+            : Math.Clamp(JsonScalar.Number(data["slantAngle"]), -45, 45);
         string normalizedText = text
             .Replace("\r\n", "\n", StringComparison.Ordinal)
             .Replace('\r', '\n');
@@ -151,7 +152,7 @@ internal sealed class TextConfigPreview : Border
                 Height = measuredLineHeight,
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 TextWrapping = TextWrapping.NoWrap,
-                TextAlignment = alignment(stringValue(data["lineAlignment"])),
+                TextAlignment = alignment(JsonScalar.String(data["lineAlignment"], string.Empty)),
                 FontFamily = fontFamily,
                 FontSize = defaultStyle.CharacterSize,
                 FontWeight = defaultStyle.Bold ? FontWeight.Bold : FontWeight.Normal,
@@ -224,7 +225,7 @@ internal sealed class TextConfigPreview : Border
                 Height = lineHeight,
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 TextWrapping = TextWrapping.NoWrap,
-                TextAlignment = alignment(stringValue(data["lineAlignment"])),
+                TextAlignment = alignment(JsonScalar.String(data["lineAlignment"], string.Empty)),
                 FontFamily = fontFamily,
                 FontSize = line.EndStyle.CharacterSize,
                 FontWeight = line.EndStyle.Bold ? FontWeight.Bold : FontWeight.Normal,
@@ -351,7 +352,7 @@ internal sealed class TextConfigPreview : Border
         string text)
     {
         PreviewStyle defaultStyle = PreviewStyle.FromConfig(data);
-        if (stringValue(data["type"]) != "richTextConfig")
+        if (JsonScalar.String(data["type"], string.Empty) != "richTextConfig")
             return [defaultStyle];
         List<PreviewStyle> result = parseRichLines(data, text)
             .SelectMany(line => line.Segments.Select(segment => segment.Style))
@@ -449,16 +450,16 @@ internal sealed class TextConfigPreview : Border
         bool useRelativeVerticalBounds = false)
     {
         JsonObject gradient = objectValue(data["gradient"]);
-        if (!boolValue(gradient["enabled"]))
+        if (!JsonScalar.Bool(gradient["enabled"]))
             return new SolidColorBrush(fallback);
-        string curve = stringValue(gradient["curve"]);
+        string curve = JsonScalar.String(gradient["curve"], string.Empty);
         JsonObject? curveData = SnapshotJson.ToDictionary(gameData.Assets.CurvesData).TryGetValue(curve, out JsonObject? value)
             ? value
             : null;
         PreviewVectorCurve? vectorCurve = createPreviewVectorCurve(curveData);
         if (vectorCurve is null)
             return new SolidColorBrush(fallback);
-        bool horizontal = stringValue(gradient["direction"]) == "horizontal";
+        bool horizontal = JsonScalar.String(gradient["direction"], string.Empty) == "horizontal";
         LinearGradientBrush brush = new()
         {
             StartPoint = new RelativePoint(
@@ -487,7 +488,7 @@ internal sealed class TextConfigPreview : Border
 
     private FontFamily resolveFont(JsonObject data)
     {
-        string font = stringValue(data["font"]);
+        string font = JsonScalar.String(data["font"], string.Empty);
         return font.Length != 0
             && TextConfigFontLoader.TryResolve(gameData.ProjectPath, font, out FontFamily family)
                 ? family
@@ -571,7 +572,7 @@ internal sealed class TextConfigPreview : Border
 
     private static PreviewVectorCurve? createPreviewVectorCurve(JsonObject? curve)
     {
-        if (stringValue(curve?["type"]) != "vector4Curve"
+        if (JsonScalar.String(curve?["type"], string.Empty) != "vector4Curve"
             || curve?["keys"] is not JsonArray source)
         {
             return null;
@@ -579,9 +580,9 @@ internal sealed class TextConfigPreview : Border
         List<PreviewVectorCurveKey> keys = source
             .OfType<JsonObject>()
             .Select(item => new PreviewVectorCurveKey(
-                numberValue(item["time"]),
+                JsonScalar.Number(item["time"]),
                 vectorValue(item["value"], 4),
-                stringValue(item["interpolation"]),
+                JsonScalar.String(item["interpolation"], string.Empty),
                 vectorValue(item["arriveTangent"], 4),
                 vectorValue(item["leaveTangent"], 4)))
             .OrderBy(item => item.Time)
@@ -598,7 +599,7 @@ internal sealed class TextConfigPreview : Border
         for (int index = 0; index < componentCount; index += 1)
         {
             result[index] = values is not null && index < values.Count
-                ? numberValue(values[index])
+                ? JsonScalar.Number(values[index])
                 : 0;
         }
         return result;
@@ -656,43 +657,6 @@ internal sealed class TextConfigPreview : Border
         return node as JsonObject ?? new JsonObject();
     }
 
-    private static string stringValue(JsonNode? node)
-    {
-        return node is JsonValue value && value.TryGetValue<string>(out string? result)
-            ? result ?? string.Empty
-            : string.Empty;
-    }
-
-    private static bool boolValue(JsonNode? node)
-    {
-        return node is JsonValue value && value.TryGetValue<bool>(out bool result) && result;
-    }
-
-    private static double numberValue(JsonNode? node, double fallback = 0)
-    {
-        return node is JsonValue value && value.TryGetValue<double>(out double result)
-            ? result
-            : fallback;
-    }
-
-    private static Color colourValue(JsonNode? node, Color fallback)
-    {
-        if (node is not JsonArray values || values.Count < 4)
-            return fallback;
-        return Color.FromArgb(
-            byteValue(values[3], fallback.A),
-            byteValue(values[0], fallback.R),
-            byteValue(values[1], fallback.G),
-            byteValue(values[2], fallback.B));
-    }
-
-    private static byte byteValue(JsonNode? node, byte fallback)
-    {
-        if (node is not JsonValue value || !value.TryGetValue<int>(out int result))
-            return fallback;
-        return (byte)Math.Clamp(result, 0, 255);
-    }
-
     private sealed record PreviewVectorCurve(
         double[] DefaultValue,
         IReadOnlyList<PreviewVectorCurveKey> Keys);
@@ -738,22 +702,22 @@ internal sealed class TextConfigPreview : Border
     {
         public static PreviewStyle FromConfig(JsonObject data)
         {
-            JsonObject source = stringValue(data["type"]) == "richTextConfig"
+            JsonObject source = JsonScalar.String(data["type"], string.Empty) == "richTextConfig"
                 ? objectValue(data["defaultStyle"])
                 : data;
             JsonObject flags = objectValue(source["style"]);
             JsonObject outline = objectValue(source["outline"]);
             return new PreviewStyle(
-                Math.Max(1, numberValue(source["characterSize"], 22)),
-                boolValue(flags["bold"]),
-                boolValue(flags["italic"]),
-                boolValue(flags["underlined"]),
-                boolValue(flags["strikeThrough"]),
-                colourValue(source["fillColor"], Colors.White),
-                numberValue(source["letterSpacing"], 1),
-                numberValue(source["lineSpacing"], 1),
-                colourValue(outline["color"], Colors.Black),
-                Math.Max(0, numberValue(outline["thickness"])));
+                Math.Max(1, JsonScalar.Number(source["characterSize"], 22)),
+                JsonScalar.Bool(flags["bold"]),
+                JsonScalar.Bool(flags["italic"]),
+                JsonScalar.Bool(flags["underlined"]),
+                JsonScalar.Bool(flags["strikeThrough"]),
+                TextConfigValues.Colour(source["fillColor"], Colors.White),
+                JsonScalar.Number(source["letterSpacing"], 1),
+                JsonScalar.Number(source["lineSpacing"], 1),
+                TextConfigValues.Colour(outline["color"], Colors.Black),
+                Math.Max(0, JsonScalar.Number(outline["thickness"])));
         }
 
         public PreviewStyle Adapt(JsonObject partial)
@@ -763,28 +727,28 @@ internal sealed class TextConfigPreview : Border
             return this with
             {
                 CharacterSize = partial.ContainsKey("characterSize")
-                    ? Math.Max(1, numberValue(partial["characterSize"], CharacterSize))
+                    ? Math.Max(1, JsonScalar.Number(partial["characterSize"], CharacterSize))
                     : CharacterSize,
-                Bold = flags.ContainsKey("bold") ? boolValue(flags["bold"]) : Bold,
-                Italic = flags.ContainsKey("italic") ? boolValue(flags["italic"]) : Italic,
-                Underlined = flags.ContainsKey("underlined") ? boolValue(flags["underlined"]) : Underlined,
+                Bold = flags.ContainsKey("bold") ? JsonScalar.Bool(flags["bold"]) : Bold,
+                Italic = flags.ContainsKey("italic") ? JsonScalar.Bool(flags["italic"]) : Italic,
+                Underlined = flags.ContainsKey("underlined") ? JsonScalar.Bool(flags["underlined"]) : Underlined,
                 StrikeThrough = flags.ContainsKey("strikeThrough")
-                    ? boolValue(flags["strikeThrough"])
+                    ? JsonScalar.Bool(flags["strikeThrough"])
                     : StrikeThrough,
                 FillColor = partial.ContainsKey("fillColor")
-                    ? colourValue(partial["fillColor"], FillColor)
+                    ? TextConfigValues.Colour(partial["fillColor"], FillColor)
                     : FillColor,
                 LetterSpacing = partial.ContainsKey("letterSpacing")
-                    ? numberValue(partial["letterSpacing"], LetterSpacing)
+                    ? JsonScalar.Number(partial["letterSpacing"], LetterSpacing)
                     : LetterSpacing,
                 LineSpacing = partial.ContainsKey("lineSpacing")
-                    ? numberValue(partial["lineSpacing"], LineSpacing)
+                    ? JsonScalar.Number(partial["lineSpacing"], LineSpacing)
                     : LineSpacing,
                 OutlineColor = outline.ContainsKey("color")
-                    ? colourValue(outline["color"], OutlineColor)
+                    ? TextConfigValues.Colour(outline["color"], OutlineColor)
                     : OutlineColor,
                 OutlineThickness = outline.ContainsKey("thickness")
-                    ? Math.Max(0, numberValue(outline["thickness"], OutlineThickness))
+                    ? Math.Max(0, JsonScalar.Number(outline["thickness"], OutlineThickness))
                     : OutlineThickness,
             };
         }

@@ -4,7 +4,6 @@ using System.IO;
 using System.Threading.Tasks;
 using Ludork.Plugin.Abstractions;
 using Ludork.Plugin.Avalonia;
-using Ludork.Plugins.OfficialBlueprintAI.Localization;
 using Ludork.Plugins.OfficialBlueprintAI.UI;
 
 namespace Ludork.Plugins.OfficialBlueprintAI;
@@ -20,7 +19,7 @@ public sealed class OfficialBlueprintAIPlugin : IEditorPlugin
     public void Register(IPluginRegistrar registrar)
     {
         ArgumentNullException.ThrowIfNull(registrar);
-        PluginLocalizer localizer = PluginLocalizer.Load(
+        PluginLocalizer localizer = PluginLocalizer.LoadDirectory(
             registrar.PluginDirectory,
             registrar.EditorLanguage);
         PluginUiText.Initialize(localizer);

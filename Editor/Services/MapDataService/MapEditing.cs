@@ -170,20 +170,7 @@ public sealed partial class MapDataService
             candidate["bgs"] = info.Bgs.Trim();
         if (!JsonNode.DeepEquals(info.BgsFilter, baseline.BgsFilter))
             candidate["bgsFilter"] = ProjectDataStore.cloneObject(info.BgsFilter);
-        bool fogChanged = info.Fog.Trim() != baseline.Fog.Trim();
-        bool clearFog = fogChanged && string.IsNullOrWhiteSpace(info.Fog);
-        if (fogChanged)
-            candidate["fog"] = info.Fog.Trim();
-        if (clearFog || info.FogPower != baseline.FogPower)
-            candidate["fogPower"] = clearFog ? 0 : info.FogPower;
-        if (clearFog || info.FogOx != baseline.FogOx)
-            candidate["fogOx"] = clearFog ? 0.0 : info.FogOx;
-        if (clearFog || info.FogOy != baseline.FogOy)
-            candidate["fogOy"] = clearFog ? 0.0 : info.FogOy;
-        if (clearFog || info.FogDistort != baseline.FogDistort)
-            candidate["fogDistort"] = clearFog ? 0 : info.FogDistort;
-        if (info.Panorama.Trim() != baseline.Panorama.Trim())
-            candidate["panorama"] = info.Panorama.Trim();
+        MapVisualSettings.From(info).ApplyDelta(candidate, MapVisualSettings.From(baseline));
         JsonObject? worldCandidate = null;
         if (childMap && (sizeChanged || currentKey != newKey) && store.Worlds.getWorldMap(worldKey) is JsonObject world)
         {

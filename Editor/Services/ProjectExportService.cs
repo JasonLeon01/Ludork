@@ -194,7 +194,7 @@ public sealed class ProjectExportService : IDisposable
         foreach (string part in parts)
         {
             current = Path.Combine(current, part);
-            if (Path.Exists(current) && (File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
+            if (EditorPathSandbox.IsLink(current))
                 throw new InvalidDataException("Export paths must not contain symbolic links: " + relativePath);
         }
         return current;
@@ -229,18 +229,8 @@ public sealed class ProjectExportService : IDisposable
 
     private async Task writeRecordAsync(ExportRecord record, CancellationToken cancellationToken)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(recordPath)!);
-        string temporaryPath = recordPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
-        try
-        {
-            await File.WriteAllTextAsync(temporaryPath, JsonSerializer.Serialize(record, jsonOptions), cancellationToken);
-            cancellationToken.ThrowIfCancellationRequested();
-            EditorFileRetry.MoveFile(temporaryPath, recordPath, true);
-        }
-        finally
-        {
-            EditorFileRetry.DeleteFile(temporaryPath);
-        }
+        await FilePersistence.WriteAllTextAtomicAsync(
+            recordPath, JsonSerializer.Serialize(record, jsonOptions), cancellationToken);
     }
 
     private static bool sameInputs(ExportSnapshot first, ExportSnapshot second) =>

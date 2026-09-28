@@ -118,7 +118,7 @@ public sealed class ReferenceTreeWindow : Window
             displayedSnapshot = snapshot;
             graph.SetSnapshot(snapshot);
             ReferenceNode? node = snapshot.GetNode(nodeId);
-            string nodeName = node is null ? nodeId : $"{getTypeName(node.Type)}: {node.Key}";
+            string nodeName = node is null ? nodeId : $"{ReferenceTypeDisplay.Name(node.Type)}: {node.Key}";
             Title = LocaleService.Get("REFERENCE_TREE_TITLE").Replace("{name}", nodeName, StringComparison.Ordinal);
         }
         string? error = referenceIndex.UpdateError;
@@ -158,22 +158,4 @@ public sealed class ReferenceTreeWindow : Window
         }
     }
 
-    private static string getTypeName(string type)
-    {
-        string key = type switch
-        {
-            "asset" => "REFERENCE_TYPE_ASSET",
-            "autoTile" => "REFERENCE_TYPE_AUTOTILE",
-            "blueprint" => "REFERENCE_TYPE_BLUEPRINT",
-            "commonFunction" => "REFERENCE_TYPE_COMMON_FUNCTION",
-            "config" => "REFERENCE_TYPE_CONFIG",
-            "general" => "REFERENCE_TYPE_GENERAL",
-            "generalMember" => "REFERENCE_TYPE_GENERAL_MEMBER",
-            "map" => "REFERENCE_TYPE_MAP",
-            "animation" => "REFERENCE_TYPE_ANIMATION",
-            "tileset" => "REFERENCE_TYPE_TILESET",
-            _ => "REFERENCE_TYPE_UNKNOWN",
-        };
-        return LocaleService.Get(key);
-    }
 }

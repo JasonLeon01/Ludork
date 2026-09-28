@@ -13,12 +13,13 @@ public sealed class EditorZoomInput
 
     public static bool IsMacOS => OperatingSystem.IsMacOS();
 
+    public static KeyModifiers PrimaryModifier => IsMacOS
+        ? KeyModifiers.Meta
+        : KeyModifiers.Control;
+
     public static bool HasPrimaryModifier(KeyModifiers modifiers)
     {
-        KeyModifiers primaryModifier = IsMacOS
-            ? KeyModifiers.Meta
-            : KeyModifiers.Control;
-        return modifiers.HasFlag(primaryModifier);
+        return modifiers.HasFlag(PrimaryModifier);
     }
 
     public static bool ShouldZoomWheel(

@@ -47,7 +47,7 @@ public sealed partial class ReferenceIndexService
             return result;
         foreach (KeyValuePair<string, JsonNode?> parameter in schema)
         {
-            if (parameter.Value is not JsonObject definition || getString(definition["type"]) != "dict"
+            if (parameter.Value is not JsonObject definition || JsonScalar.String(definition["type"]) != "dict"
                 || definition["reference"] is not JsonObject)
                 continue;
             foreach (KeyValuePair<string, JsonNode?> member in members)
@@ -97,7 +97,7 @@ public sealed partial class ReferenceIndexService
                     value[newKey] = pair.Value;
                     rewritten.Add(childPath);
                 }
-                else if (paths.Contains(childPath) && getString(pair.Value) is string text)
+                else if (paths.Contains(childPath) && JsonScalar.String(pair.Value) is string text)
                 {
                     value[pair.Key] = rewrite(text);
                     rewritten.Add(childPath);
@@ -111,7 +111,7 @@ public sealed partial class ReferenceIndexService
             for (int index = 0; index < array.Count; index++)
             {
                 string childPath = path + "[" + index + "]";
-                if (paths.Contains(childPath) && getString(array[index]) is string text)
+                if (paths.Contains(childPath) && JsonScalar.String(array[index]) is string text)
                 {
                     array[index] = rewrite(text);
                     rewritten.Add(childPath);

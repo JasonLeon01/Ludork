@@ -1,6 +1,5 @@
 using Ludork.Plugin.Abstractions;
 using Ludork.Plugin.Avalonia;
-using Ludork.Plugins.OfficialResourceCleanup.Localization;
 using Ludork.Plugins.OfficialResourceCleanup.UI;
 using System;
 using System.IO;
@@ -14,7 +13,7 @@ public sealed class OfficialResourceCleanupPlugin : IEditorPlugin
     public void Register(IPluginRegistrar registrar)
     {
         ArgumentNullException.ThrowIfNull(registrar);
-        PluginLocalizer localizer = PluginLocalizer.Load(
+        PluginLocalizer localizer = PluginLocalizer.LoadDirectory(
             registrar.PluginDirectory, registrar.EditorLanguage);
         registrar.RegisterMenuCommand(new PluginMenuCommand(
             "Ludork.OfficialResourceCleanup.Open",

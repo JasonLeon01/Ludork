@@ -41,7 +41,7 @@ public sealed partial class FileExplorerViewModel
         Stack<DirectoryInfo> pending = new();
         if (Directory.Exists(directory))
             pending.Push(new DirectoryInfo(directory));
-        else if (!documents.Any(document => document.Exists && document.Paths.Any(path => isSameOrChildPath(directory, path))))
+        else if (!documents.Any(document => document.Exists && document.Paths.Any(path => EditorPathSandbox.IsSameOrChildPath(directory, path))))
             throw new DirectoryNotFoundException(directory);
         string textRoot = Path.Combine(projectPath, "Data", "TextConfigs");
         while (pending.TryPop(out DirectoryInfo? current))
@@ -49,7 +49,7 @@ public sealed partial class FileExplorerViewModel
             token.ThrowIfCancellationRequested();
             try
             {
-                bool visible = (current.Attributes & FileAttributes.ReparsePoint) == 0;
+                bool visible = !EditorPathSandbox.IsLink(current);
                 directoryVisibility[current.FullName] = visible;
                 if (!visible || hidden.Contains(current.FullName))
                     continue;
@@ -66,7 +66,7 @@ public sealed partial class FileExplorerViewModel
                             continue;
                         }
                         if (!file.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
-                            || isSameOrChildPath(textRoot, file.FullName)
+                            || EditorPathSandbox.IsSameOrChildPath(textRoot, file.FullName)
                             && !hasVisibleTextContent(file.FullName, false, textConfigKeys, token))
                             continue;
                         long length = file is FileInfo info ? info.Length : 0;
@@ -92,12 +92,12 @@ public sealed partial class FileExplorerViewModel
             {
                 token.ThrowIfCancellationRequested();
                 if (!Path.GetFileName(path).Contains(query, StringComparison.OrdinalIgnoreCase)
-                    || !isSameOrChildPath(directory, path) || PathComparer.Equals(directory, path))
+                    || !EditorPathSandbox.IsSameOrChildPath(directory, path) || PathComparer.Equals(directory, path))
                     continue;
                 try
                 {
                     if (!isVisibleSearchDocumentPath(directory, path, directoryVisibility, token)
-                        || isSameOrChildPath(textRoot, path) && !hasVisibleTextContent(path, false, textConfigKeys, token))
+                        || EditorPathSandbox.IsSameOrChildPath(textRoot, path) && !hasVisibleTextContent(path, false, textConfigKeys, token))
                         continue;
                     paths.TryAdd(path, new DirectoryEntry(path, false, string.Empty));
                 }
@@ -130,7 +130,7 @@ public sealed partial class FileExplorerViewModel
             if (!directoryVisibility.TryGetValue(current, out bool visible))
             {
                 visible = DataConfig.shouldDisplay(current)
-                    && (!Directory.Exists(current) || (File.GetAttributes(current) & FileAttributes.ReparsePoint) == 0);
+                    && (!Directory.Exists(current) || !EditorPathSandbox.IsLink(current));
                 directoryVisibility[current] = visible;
             }
             if (!visible)

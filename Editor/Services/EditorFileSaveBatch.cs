@@ -1,3 +1,4 @@
+using Ludork.Plugin.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -103,7 +104,7 @@ internal sealed class EditorFileSaveBatch
                 currentPath = path;
                 if (!File.Exists(path))
                     continue;
-                EditorFileRetry.DeleteFile(path);
+                FilePersistence.DeleteFile(path);
                 changedFiles.Add(path);
             }
             committed = true;
@@ -119,7 +120,7 @@ internal sealed class EditorFileSaveBatch
                     if (original is null)
                     {
                         if (File.Exists(path))
-                            EditorFileRetry.DeleteFile(path);
+                            FilePersistence.DeleteFile(path);
                     }
                     else
                     {
@@ -189,7 +190,7 @@ internal sealed class EditorFileSaveBatch
     private static void moveDirectory(string source, string destination,
         ICollection<(string Source, string Destination)> completed)
     {
-        EditorFileRetry.MoveDirectory(source, destination);
+        FilePersistence.MoveDirectory(source, destination);
         completed.Add((source, destination));
     }
 
@@ -216,19 +217,15 @@ internal sealed class EditorFileSaveBatch
         try
         {
             using (FileStream input = new(source, FileMode.Open, FileAccess.Read, FileShare.Read))
-            using (FileStream output = new(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-            {
-                input.CopyTo(output);
-                output.Flush(true);
-            }
-            EditorFileRetry.MoveFile(temporary, destination, true);
+                FilePersistence.WriteDurable(temporary, input.CopyTo);
+            FilePersistence.MoveFile(temporary, destination, true);
         }
         finally
         {
             cleanup(temporary, () =>
             {
                 if (File.Exists(temporary))
-                    EditorFileRetry.DeleteFile(temporary);
+                    FilePersistence.DeleteFile(temporary);
             }, errors);
         }
     }

@@ -1,3 +1,4 @@
+using Ludork.Services;
 using System.Linq;
 using System.Text.Json.Nodes;
 
@@ -10,7 +11,7 @@ public sealed class CurveKey
     public CurveKey(JsonObject data, int componentCount)
     {
         this.data = (JsonObject)data.DeepClone();
-        Time = CurveEditor.number(data["time"]);
+        Time = JsonScalar.Number(data["time"]);
         Value = CurveEditor.vector(data["value"], componentCount);
         Interpolation = CurveEditor.interpolation(data["interpolation"]?.GetValue<string>());
         ArriveTangent = CurveEditor.vector(data["arriveTangent"], componentCount);
@@ -26,7 +27,7 @@ public sealed class CurveKey
     public JsonObject ToJson()
     {
         JsonObject result = (JsonObject)data.DeepClone();
-        if (Time != CurveEditor.number(data["time"]))
+        if (Time != JsonScalar.Number(data["time"]))
             result["time"] = Time;
         if (!Value.SequenceEqual(CurveEditor.vector(data["value"], Value.Length)))
             result["value"] = CurveEditor.valueJson(Value);

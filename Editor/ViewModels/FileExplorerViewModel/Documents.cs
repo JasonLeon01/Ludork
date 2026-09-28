@@ -46,7 +46,7 @@ public sealed partial class FileExplorerViewModel
     private bool isVisibleDirectory(string path)
     {
         return Directory.Exists(path) || gameData.Documents.All.Any(document =>
-            document.Exists && !pathsEqual(document.Path, path) && isPathInside(document.Path, path));
+            document.Exists && !pathsEqual(document.Path, path) && EditorPathSandbox.IsSameOrChildPath(path, document.Path));
     }
 
     private bool pathExists(string path)

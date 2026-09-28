@@ -433,8 +433,6 @@ public sealed class UiAssetEditingService
 
     private static string getString(JsonObject node, string propertyName)
     {
-        return node[propertyName] is JsonValue value && value.TryGetValue<string>(out string? text)
-            ? text ?? string.Empty
-            : string.Empty;
+        return JsonScalar.String(node[propertyName], string.Empty);
     }
 }

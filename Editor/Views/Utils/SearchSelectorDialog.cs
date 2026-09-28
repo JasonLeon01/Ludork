@@ -12,37 +12,56 @@ namespace Ludork.Views.Utils;
 
 public sealed class SearchSelectorDialog : Window
 {
-    private readonly IReadOnlyList<string> options;
+    private readonly IReadOnlyList<SearchSelectorGroup> groups;
     private readonly TextBox searchBox;
-    private readonly ListBox optionList;
+    private readonly List<ListBox> optionLists = [];
+    private bool changingSelection;
     private readonly Button confirmButton;
 
     private SearchSelectorDialog(
         string title,
-        IEnumerable<string> options,
-        string current)
+        IReadOnlyList<SearchSelectorGroup> groups,
+        string current,
+        bool grouped)
     {
         Title = title;
-        Width = 360;
-        Height = 480;
-        MinWidth = 300;
-        MinHeight = 280;
+        Width = grouped ? 800 : 360;
+        Height = grouped ? 560 : 480;
+        MinWidth = grouped ? 500 : 300;
+        MinHeight = grouped ? 300 : 280;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         EditorWindowIcon.Apply(this);
 
-        this.options = options.ToArray();
+        this.groups = groups;
         searchBox = EditorInputs.CreateEditableTextBox();
         searchBox.PlaceholderText = LocaleService.Get("SEARCH");
         searchBox.TextChanged += (_, _) => rebuildOptions();
 
-        optionList = new ListBox
+        Grid lists = new() { ColumnSpacing = 8 };
+        foreach (SearchSelectorGroup group in groups)
         {
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            VerticalAlignment = VerticalAlignment.Stretch,
-            ItemTemplate = HintedTextPresenter.StringItemTemplate,
-        };
-        optionList.SelectionChanged += (_, _) => updateConfirmState();
-        optionList.DoubleTapped += (_, _) => confirm();
+            ListBox list = new()
+            {
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch,
+                ItemTemplate = HintedTextPresenter.StringItemTemplate,
+            };
+            list.SelectionChanged += (_, _) => selectFrom(list);
+            list.DoubleTapped += (_, _) => confirm();
+            Control column = list;
+            if (grouped)
+            {
+                Grid titledColumn = new() { RowDefinitions = new RowDefinitions("Auto,4,*") };
+                titledColumn.Children.Add(new TextBlock { Text = group.Title });
+                Grid.SetRow(list, 2);
+                titledColumn.Children.Add(list);
+                column = titledColumn;
+            }
+            Grid.SetColumn(column, optionLists.Count);
+            lists.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+            lists.Children.Add(column);
+            optionLists.Add(list);
+        }
 
         confirmButton = new Button
         {
@@ -71,8 +90,8 @@ public sealed class SearchSelectorDialog : Window
             RowDefinitions = new RowDefinitions("Auto,8,*,8,Auto"),
         };
         content.Children.Add(searchBox);
-        Grid.SetRow(optionList, 2);
-        content.Children.Add(optionList);
+        Grid.SetRow(lists, 2);
+        content.Children.Add(lists);
         Grid.SetRow(actions, 4);
         content.Children.Add(actions);
         Content = content;
@@ -80,8 +99,13 @@ public sealed class SearchSelectorDialog : Window
         KeyDown += onKeyDown;
         Opened += (_, _) => searchBox.Focus();
         rebuildOptions();
-        if (this.options.Contains(current, StringComparer.Ordinal))
-            optionList.SelectedItem = current;
+        for (int index = groups.Count - 1; index >= 0; index--)
+        {
+            if (!groups[index].Options.Contains(current, StringComparer.Ordinal))
+                continue;
+            optionLists[index].SelectedItem = current;
+            break;
+        }
     }
 
     public static Task<string?> ShowAsync(
@@ -90,33 +114,70 @@ public sealed class SearchSelectorDialog : Window
         IEnumerable<string> options,
         string current = "")
     {
-        SearchSelectorDialog dialog = new(title, options, current);
+        SearchSelectorDialog dialog = new(title, [new SearchSelectorGroup(string.Empty, options.ToArray())], current, false);
+        return dialog.ShowDialog<string?>(owner);
+    }
+
+    internal static Task<string?> ShowGroupedAsync(
+        Window owner,
+        string title,
+        IReadOnlyList<SearchSelectorGroup> groups,
+        string current)
+    {
+        SearchSelectorDialog dialog = new(title, groups, current, true);
         return dialog.ShowDialog<string?>(owner);
     }
 
     private void rebuildOptions()
     {
         string search = searchBox.Text?.Trim() ?? string.Empty;
-        string[] filtered = options
-            .Where(option => option.Contains(search, StringComparison.OrdinalIgnoreCase))
-            .ToArray();
-        string? selected = optionList.SelectedItem as string;
-        optionList.ItemsSource = filtered;
-        optionList.SelectedItem = selected is not null
-            && filtered.Contains(selected, StringComparer.Ordinal)
-            ? selected
-            : null;
+        changingSelection = true;
+        for (int index = 0; index < groups.Count; index++)
+        {
+            ListBox list = optionLists[index];
+            string? selected = list.SelectedItem as string;
+            string[] filtered = groups[index].Options
+                .Where(option => option.Contains(search, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            list.ItemsSource = filtered;
+            list.SelectedItem = selected is not null && filtered.Contains(selected, StringComparer.Ordinal)
+                ? selected
+                : null;
+        }
+        changingSelection = false;
         updateConfirmState();
+    }
+
+    private void selectFrom(ListBox source)
+    {
+        if (changingSelection)
+            return;
+        changingSelection = true;
+        if (source.SelectedItem is string)
+        {
+            foreach (ListBox other in optionLists)
+            {
+                if (!ReferenceEquals(source, other))
+                    other.SelectedItem = null;
+            }
+        }
+        changingSelection = false;
+        updateConfirmState();
+    }
+
+    private string? getSelection()
+    {
+        return optionLists.Select(list => list.SelectedItem).OfType<string>().FirstOrDefault();
     }
 
     private void updateConfirmState()
     {
-        confirmButton.IsEnabled = optionList.SelectedItem is string;
+        confirmButton.IsEnabled = getSelection() is not null;
     }
 
     private void confirm()
     {
-        if (optionList.SelectedItem is string selected && selected.Length != 0)
+        if (getSelection() is string selected && selected.Length != 0)
             Close(selected);
     }
 

@@ -1,3 +1,4 @@
+using Ludork.Plugin.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -67,25 +68,8 @@ internal sealed class PluginRegistryStore
         CancellationToken cancellationToken)
     {
         validate(document);
-        Directory.CreateDirectory(environment.RootDirectory);
-        string temporaryPath = Path.Combine(
-            environment.RootDirectory,
-            $".plugins.json.{Guid.NewGuid():N}.tmp");
         string json = JsonSerializer.Serialize(document, SerializerOptions) + Environment.NewLine;
-        try
-        {
-            await File.WriteAllTextAsync(
-                temporaryPath,
-                json,
-                new UTF8Encoding(false),
-                cancellationToken);
-            File.Move(temporaryPath, environment.RegistryPath, true);
-        }
-        finally
-        {
-            if (File.Exists(temporaryPath))
-                File.Delete(temporaryPath);
-        }
+        await FilePersistence.WriteAllTextAtomicAsync(environment.RegistryPath, json, cancellationToken);
     }
 
     private static void validate(PluginRegistryDocument document)

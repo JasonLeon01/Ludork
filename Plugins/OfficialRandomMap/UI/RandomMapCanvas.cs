@@ -57,7 +57,7 @@ internal sealed class RandomMapCanvas : Control, IDisposable
     private int cellSize = 32;
     private double continuousCellSize = 32;
     private bool markerMode;
-    private MapZoomAnchor? pendingMapZoomAnchor;
+    private readonly EditorZoomAnchor pendingMapZoomAnchor = new();
 
     public RandomMapCanvas(IMapEditorHost host)
     {
@@ -158,7 +158,7 @@ internal sealed class RandomMapCanvas : Control, IDisposable
         VisualTreeAttachmentEventArgs args)
     {
         LayoutUpdated -= onLayoutUpdated;
-        pendingMapZoomAnchor = null;
+        pendingMapZoomAnchor.Clear();
         bindHostScrollViewer(null);
         base.OnDetachedFromVisualTree(args);
     }
@@ -233,15 +233,6 @@ internal sealed class RandomMapCanvas : Control, IDisposable
         Point contentPoint,
         Point viewportPoint)
     {
-        MapZoomAnchor? nextAnchor = null;
-        if (snapshot is not null && snapshot.Width > 0 && snapshot.Height > 0)
-        {
-            Rect mapRect = getMapRect();
-            nextAnchor = new MapZoomAnchor(
-                (contentPoint.X - mapRect.X) / cellSize,
-                (contentPoint.Y - mapRect.Y) / cellSize,
-                viewportPoint);
-        }
         continuousCellSize = Math.Clamp(
             nextContinuousCellSize,
             MinimumCellSize,
@@ -254,44 +245,41 @@ internal sealed class RandomMapCanvas : Control, IDisposable
             MaximumCellSize);
         if (nextCellSize == cellSize)
             return;
+        if (snapshot is not null && snapshot.Width > 0 && snapshot.Height > 0)
+        {
+            Rect mapRect = getMapRect();
+            pendingMapZoomAnchor.Capture(contentPoint, viewportPoint, mapRect.Position, cellSize);
+        }
+        else
+        {
+            pendingMapZoomAnchor.Clear();
+        }
         cellSize = nextCellSize;
-        pendingMapZoomAnchor = nextAnchor;
         updateContentSize();
         InvalidateVisual();
     }
 
     private void onLayoutUpdated(object? sender, EventArgs args)
     {
-        if (pendingMapZoomAnchor is null)
+        if (!pendingMapZoomAnchor.IsPending)
             return;
         applyMapZoomAnchor();
     }
 
     private void applyMapZoomAnchor()
     {
-        if (pendingMapZoomAnchor is not MapZoomAnchor anchor
-            || hostScrollViewer is null
-            || snapshot is null)
+        if (snapshot is null)
         {
-            pendingMapZoomAnchor = null;
+            pendingMapZoomAnchor.Clear();
             return;
         }
-        pendingMapZoomAnchor = null;
-        Rect mapRect = getMapRect();
-        Point contentAnchor = new(
-            mapRect.X + anchor.MapX * cellSize,
-            mapRect.Y + anchor.MapY * cellSize);
-        hostScrollViewer.Offset = EditorZoomInput.GetAnchoredOffset(
-            contentAnchor,
-            anchor.ViewportPoint,
-            hostScrollViewer.Extent,
-            hostScrollViewer.Viewport);
+        pendingMapZoomAnchor.Apply(hostScrollViewer, getMapRect().Position, cellSize);
     }
 
     public void Dispose()
     {
         LayoutUpdated -= onLayoutUpdated;
-        pendingMapZoomAnchor = null;
+        pendingMapZoomAnchor.Clear();
         bindHostScrollViewer(null);
         foreach (Bitmap bitmap in actorHueBitmapCache.Values)
             bitmap.Dispose();
@@ -769,8 +757,4 @@ internal sealed class RandomMapCanvas : Control, IDisposable
         string AssetPath,
         double Hue);
 
-    private readonly record struct MapZoomAnchor(
-        double MapX,
-        double MapY,
-        Point ViewportPoint);
 }

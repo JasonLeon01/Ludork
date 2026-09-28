@@ -201,7 +201,7 @@ public sealed class AnimationTimeline : Control
         JsonArray segments = ((JsonObject)tracks[track]!)["timeSegments"]!.AsArray();
         JsonObject startFrame = segment["startFrame"] as JsonObject ?? new JsonObject();
         JsonObject endFrame = segment["endFrame"] as JsonObject ?? new JsonObject();
-        double duration = Math.Max(minimumDuration(segment), AnimationEditor.number(endFrame["time"]) - AnimationEditor.number(startFrame["time"]));
+        double duration = Math.Max(minimumDuration(segment), JsonScalar.Number(endFrame["time"]) - JsonScalar.Number(startFrame["time"]));
         double start = clampInsertStart(track, -1, Math.Max(0, snap(startTime)), duration);
         if (overlaps(track, start, start + duration, -1))
             return false;
@@ -222,7 +222,7 @@ public sealed class AnimationTimeline : Control
         if (selectedSegments.Count != 1
             || segmentAt(SelectedTrack, SelectedSegment) is not JsonObject source)
             return false;
-        double end = AnimationEditor.number((source["endFrame"] as JsonObject)?["time"]);
+        double end = JsonScalar.Number((source["endFrame"] as JsonObject)?["time"]);
         return InsertSegmentAt(SelectedTrack, (JsonObject)source.DeepClone(), end);
     }
 
@@ -233,8 +233,8 @@ public sealed class AnimationTimeline : Control
             return false;
         JsonObject startFrame = segment["startFrame"] as JsonObject ?? new JsonObject();
         JsonObject endFrame = segment["endFrame"] as JsonObject ?? new JsonObject();
-        double start = AnimationEditor.number(startFrame["time"]);
-        double end = AnimationEditor.number(endFrame["time"]);
+        double start = JsonScalar.Number(startFrame["time"]);
+        double end = JsonScalar.Number(endFrame["time"]);
         double duration = end - start;
         double savedStart = originalStart;
         double savedEnd = originalEnd;
@@ -299,7 +299,7 @@ public sealed class AnimationTimeline : Control
             {
                 if (tags[index] is not JsonObject timeTag)
                     continue;
-                double actualX = AnimationEditor.number(timeTag["time"]) * PixelsPerSecond;
+                double actualX = JsonScalar.Number(timeTag["time"]) * PixelsPerSecond;
                 double markerX = timeTagDisplayX(index);
                 bool selected = index == SelectedTimeTag;
                 SolidColorBrush markerBrush = new(Color.Parse(selected ? "#ffd166" : "#5ad1c4"));
@@ -328,7 +328,7 @@ public sealed class AnimationTimeline : Control
         }
         if (SelectedTimeTag >= 0 && GetTimeTag(SelectedTimeTag) is JsonObject selectedTimeTag)
         {
-            double timeTagX = AnimationEditor.number(selectedTimeTag["time"]) * PixelsPerSecond;
+            double timeTagX = JsonScalar.Number(selectedTimeTag["time"]) * PixelsPerSecond;
             context.DrawLine(new Pen(new SolidColorBrush(Color.Parse("#66ffd166")), 1), new Point(timeTagX, HeaderHeight), new Point(timeTagX, bounds.Height));
         }
         double playhead = CurrentTime * PixelsPerSecond;
@@ -369,7 +369,7 @@ public sealed class AnimationTimeline : Control
                 return;
             }
             draggedTimeTag = GetTimeTag(selectedTimeTag);
-            double tagTime = AnimationEditor.number(draggedTimeTag?["time"]);
+            double tagTime = JsonScalar.Number(draggedTimeTag?["time"]);
             timeTagPointerOffset = position.X - tagTime * PixelsPerSecond;
             timeTagMoved = false;
             dragMode = TimeTagDragMode;
@@ -389,8 +389,8 @@ public sealed class AnimationTimeline : Control
                 dragMode = mode;
                 dragStart = position;
                 JsonObject current = segmentAt(track, segment)!;
-                originalStart = AnimationEditor.number((current["startFrame"] as JsonObject)?["time"]);
-                originalEnd = AnimationEditor.number((current["endFrame"] as JsonObject)?["time"]);
+                originalStart = JsonScalar.Number((current["startFrame"] as JsonObject)?["time"]);
+                originalEnd = JsonScalar.Number((current["endFrame"] as JsonObject)?["time"]);
             }
             else
                 dragMode = 0;
@@ -458,7 +458,7 @@ public sealed class AnimationTimeline : Control
             if (draggedTimeTag is not null)
             {
                 double next = Math.Max(0, snap((e.GetPosition(this).X - timeTagPointerOffset) / PixelsPerSecond));
-                double current = AnimationEditor.number(draggedTimeTag["time"]);
+                double current = JsonScalar.Number(draggedTimeTag["time"]);
                 if (Math.Abs(next - current) > 0.000001)
                 {
                     draggedTimeTag["time"] = next;
@@ -480,7 +480,7 @@ public sealed class AnimationTimeline : Control
         double end = originalEnd;
         double minimum = segment["type"]?.GetValue<string>() == "sound" ? 1.0 / frameRate() : 0.05;
         double maximum = segment["type"]?.GetValue<string>() == "sound"
-            ? AnimationEditor.number(segment["originalDuration"], double.PositiveInfinity)
+            ? JsonScalar.Number(segment["originalDuration"], double.PositiveInfinity)
             : double.PositiveInfinity;
         if (dragMode == 1)
         {
@@ -665,10 +665,10 @@ public sealed class AnimationTimeline : Control
 
     private Rect segmentRect(int track, JsonObject segment)
     {
-        double start = AnimationEditor.number(
+        double start = JsonScalar.Number(
             (segment["startFrame"] as JsonObject)?["time"]
         );
-        double end = AnimationEditor.number(
+        double end = JsonScalar.Number(
             (segment["endFrame"] as JsonObject)?["time"]
         );
         return new Rect(
@@ -845,8 +845,8 @@ public sealed class AnimationTimeline : Control
         {
             if (segments[index] is not JsonObject segment)
                 continue;
-            double start = AnimationEditor.number((segment["startFrame"] as JsonObject)?["time"]);
-            double end = AnimationEditor.number((segment["endFrame"] as JsonObject)?["time"]);
+            double start = JsonScalar.Number((segment["startFrame"] as JsonObject)?["time"]);
+            double end = JsonScalar.Number((segment["endFrame"] as JsonObject)?["time"]);
             if (time < start - handleWidth || time > end + handleWidth)
                 continue;
             int mode = Math.Abs(time - start) <= handleWidth ? 2 : Math.Abs(time - end) <= handleWidth ? 3 : 1;
@@ -903,8 +903,8 @@ public sealed class AnimationTimeline : Control
         {
             if (index == ignored || segments[index] is not JsonObject segment)
                 continue;
-            double currentStart = AnimationEditor.number((segment["startFrame"] as JsonObject)?["time"]);
-            double currentEnd = AnimationEditor.number((segment["endFrame"] as JsonObject)?["time"]);
+            double currentStart = JsonScalar.Number((segment["startFrame"] as JsonObject)?["time"]);
+            double currentEnd = JsonScalar.Number((segment["endFrame"] as JsonObject)?["time"]);
             if (start < currentEnd && end > currentStart)
                 return true;
         }
@@ -921,8 +921,8 @@ public sealed class AnimationTimeline : Control
         {
             if (index == ignored || node is not JsonObject segment)
                 continue;
-            double start = AnimationEditor.number((segment["startFrame"] as JsonObject)?["time"]);
-            double end = AnimationEditor.number((segment["endFrame"] as JsonObject)?["time"]);
+            double start = JsonScalar.Number((segment["startFrame"] as JsonObject)?["time"]);
+            double end = JsonScalar.Number((segment["endFrame"] as JsonObject)?["time"]);
             if (end <= originalStart + 0.0001)
                 left = Math.Max(left, end);
             if (start >= originalEnd - 0.0001)
@@ -1002,7 +1002,7 @@ public sealed class AnimationTimeline : Control
                 {
                     if (node is not JsonObject other)
                         continue;
-                    double otherStart = AnimationEditor.number((other["startFrame"] as JsonObject)?["time"]);
+                    double otherStart = JsonScalar.Number((other["startFrame"] as JsonObject)?["time"]);
                     if (otherStart > nextStart)
                         duration = Math.Min(duration, otherStart - nextStart);
                 }
@@ -1105,12 +1105,12 @@ public sealed class AnimationTimeline : Control
                 continue;
             foreach (JsonNode? segmentNode in segments)
                 if (segmentNode is JsonObject segment)
-                    contentEnd = Math.Max(contentEnd, AnimationEditor.number((segment["endFrame"] as JsonObject)?["time"]));
+                    contentEnd = Math.Max(contentEnd, JsonScalar.Number((segment["endFrame"] as JsonObject)?["time"]));
         }
         foreach (JsonNode? timeTagNode in timeTags())
         {
             if (timeTagNode is JsonObject timeTag)
-                contentEnd = Math.Max(contentEnd, AnimationEditor.number(timeTag["time"]));
+                contentEnd = Math.Max(contentEnd, JsonScalar.Number(timeTag["time"]));
         }
         Width = (contentEnd + 1) * PixelsPerSecond;
         Height = HeaderHeight + (Math.Max(5, trackCount) + 1) * TrackHeight;
@@ -1150,7 +1150,7 @@ public sealed class AnimationTimeline : Control
         List<(JsonNode? Node, double Time, int Order)> ordered = tags
             .Select((node, index) => (
                 Node: node,
-                Time: node is JsonObject timeTag ? AnimationEditor.number(timeTag["time"]) : double.PositiveInfinity,
+                Time: node is JsonObject timeTag ? JsonScalar.Number(timeTag["time"]) : double.PositiveInfinity,
                 Order: index
             ))
             .OrderBy(item => item.Time)
@@ -1172,12 +1172,12 @@ public sealed class AnimationTimeline : Control
     {
         if (GetTimeTag(index) is not JsonObject timeTag)
             return double.NegativeInfinity;
-        double time = AnimationEditor.number(timeTag["time"]);
+        double time = JsonScalar.Number(timeTag["time"]);
         int duplicate = 0;
         for (int previous = 0; previous < index; previous += 1)
         {
             if (GetTimeTag(previous) is JsonObject previousTag
-                && Math.Abs(AnimationEditor.number(previousTag["time"]) - time) < 0.000001)
+                && Math.Abs(JsonScalar.Number(previousTag["time"]) - time) < 0.000001)
             {
                 duplicate += 1;
             }
@@ -1185,7 +1185,7 @@ public sealed class AnimationTimeline : Control
         return time * PixelsPerSecond + duplicate * 14;
     }
 
-    private int frameRate() => Math.Max(1, (int)AnimationEditor.number(getData()["frameRate"], 30));
+    private int frameRate() => Math.Max(1, (int)JsonScalar.Number(getData()["frameRate"], 30));
     private double snap(double time) => Math.Round(time * frameRate()) / frameRate();
     private readonly record struct TimelineZoomAnchor(
         double Time,

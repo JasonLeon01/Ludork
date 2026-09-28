@@ -40,8 +40,7 @@ internal sealed class ProjectPackCoordinator(Window owner, EditorProjectSession 
         if (!await EditorSaveWorkflow.TrySaveAsync(
                 owner,
                 session.ProjectSave,
-                false,
-                !session.ProjectConfig.IsStandalone))
+                beforeNativeBuild: !session.ProjectConfig.IsStandalone))
         {
             return;
         }

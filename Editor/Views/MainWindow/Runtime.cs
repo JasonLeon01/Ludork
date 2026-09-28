@@ -125,7 +125,7 @@ public partial class MainWindow
     Task<nint> IProjectOperationInteraction.PrepareViewportAsync(ProjectWindowMode mode) => prepareGameViewportAsync(mode);
 
     Task<bool> IProjectOperationInteraction.SaveAsync(bool needsBuild) =>
-        EditorSaveWorkflow.TrySaveAsync(this, viewModel!.ProjectSave, false, needsBuild);
+        EditorSaveWorkflow.TrySaveAsync(this, viewModel!.ProjectSave, beforeNativeBuild: needsBuild);
 
     Task<bool> IProjectOperationInteraction.ConfirmRebuildAsync(CancellationToken token) =>
         ConfirmationDialog.ShowAsync(this, LocaleService.Get("RUN_REBUILD_TITLE"), LocaleService.Get("RUN_REBUILD_CONFIRM"), token);

@@ -17,16 +17,6 @@ namespace Ludork.ViewModels;
 
 public sealed partial class FileExplorerViewModel
 {
-    private static bool isSameOrChildPath(string directory, string path)
-    {
-        string relative = Path.GetRelativePath(
-            Path.GetFullPath(directory),
-            Path.GetFullPath(path));
-        return !Path.IsPathRooted(relative)
-            && relative != ".."
-            && !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal);
-    }
-
     private void changed(FileExplorerFilesChangedEventArgs changes)
     {
         updateExpandedDirectories(changes);
@@ -115,7 +105,7 @@ public sealed partial class FileExplorerViewModel
 
     private FileExplorerRootViewModel? getContentRoot(string path)
     {
-        return ContentRoots.FirstOrDefault(root => isSameOrChildPath(root.Path, path));
+        return ContentRoots.FirstOrDefault(root => EditorPathSandbox.IsSameOrChildPath(root.Path, path));
     }
 
     private bool isContentRoot(string path)
@@ -160,7 +150,7 @@ public sealed partial class FileExplorerViewModel
             return false;
         if (string.Equals(Path.GetFullPath(source), Path.GetFullPath(destination), StringComparison.Ordinal))
             return false;
-        if (Directory.Exists(source) && isPathInside(targetDirectory, source))
+        if (Directory.Exists(source) && EditorPathSandbox.IsSameOrChildPath(source, targetDirectory))
         {
             error = $"{Path.GetFileName(source)}: {LocaleService.Get("MOVE_FILE_FAILED")}";
             return false;
@@ -186,8 +176,8 @@ public sealed partial class FileExplorerViewModel
         if (uiAssetMoves.Count != 0)
         {
             string uiAssetsRoot = Path.Combine(projectPath, "Data", "UI", "Assets");
-            if (!isPathInside(source, uiAssetsRoot)
-                || !isPathInside(destination, uiAssetsRoot)
+            if (!EditorPathSandbox.IsSameOrChildPath(uiAssetsRoot, source)
+                || !EditorPathSandbox.IsSameOrChildPath(uiAssetsRoot, destination)
                 || uiAssetMoves.Any(move =>
                     !tryGetUiAssetKeyForPath(move.SourcePath, out _)
                     || !tryGetUiAssetKeyForPath(move.DestinationPath, out _)))
@@ -204,7 +194,7 @@ public sealed partial class FileExplorerViewModel
         string root = Path.GetFullPath(Path.Combine(projectPath, "Data", "UI", "Assets"));
         string relative = Path.GetRelativePath(root, Path.GetFullPath(path));
         key = string.Empty;
-        if (!isPathInside(path, root) || !string.Equals(Path.GetExtension(relative), DataConfig.DataFileExtension, StringComparison.Ordinal))
+        if (!EditorPathSandbox.IsSameOrChildPath(root, path) || !string.Equals(Path.GetExtension(relative), DataConfig.DataFileExtension, StringComparison.Ordinal))
             return false;
         key = UiAssetSchema.NormalizeAssetKey(Path.ChangeExtension(relative, null)!.Replace('\\', '/'));
         return key.Length != 0 && string.Equals(
@@ -241,7 +231,7 @@ public sealed partial class FileExplorerViewModel
                 result.Add((assetPath, destination));
                 continue;
             }
-            if (!Directory.Exists(source) || !isPathInside(assetPath, source))
+            if (!Directory.Exists(source) || !EditorPathSandbox.IsSameOrChildPath(source, assetPath))
                 continue;
             string relative = Path.GetRelativePath(source, assetPath);
             result.Add((assetPath, Path.Combine(destination, relative)));
@@ -266,15 +256,6 @@ public sealed partial class FileExplorerViewModel
         return result;
     }
 
-    private static bool isPathInside(string path, string root)
-    {
-        string relative = Path.GetRelativePath(Path.GetFullPath(root), Path.GetFullPath(path));
-        return relative == "."
-            || (!Path.IsPathRooted(relative)
-                && relative != ".."
-                && !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal));
-    }
-
     private static IReadOnlyList<string> normalizeTopLevelPaths(IEnumerable<string> paths)
     {
         string[] normalized = paths
@@ -285,7 +266,7 @@ public sealed partial class FileExplorerViewModel
             .ToArray();
         return normalized
             .Where(path => !normalized.Any(parent => !string.Equals(parent, path, StringComparison.OrdinalIgnoreCase)
-                && isPathInside(path, parent)))
+                && EditorPathSandbox.IsSameOrChildPath(parent, path)))
             .ToArray();
     }
 
@@ -384,7 +365,7 @@ public sealed partial class FileExplorerViewModel
                 continue;
             foreach (string path in gameData.Documents.GetPaths(document))
             {
-                if (!isSameOrChildPath(directory, path))
+                if (!EditorPathSandbox.IsSameOrChildPath(directory, path))
                     continue;
                 string relative = Path.GetRelativePath(directory, path);
                 string first = relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)[0];

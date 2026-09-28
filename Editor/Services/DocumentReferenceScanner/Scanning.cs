@@ -16,12 +16,12 @@ internal sealed partial class DocumentReferenceScanner
             "font",
             $"TextConfigs/{key}.font");
         if (data["gradient"] is JsonObject gradient
-            && normalizeReferenceParam(gradient["curve"]) is string curve
+            && ReferenceIdentity.NormalizeParameter(gradient["curve"]) is string curve
             && curve.Length != 0)
         {
             addReference(
                 sourceId,
-                nodeId("curve", normalizeDataReference(curve, "Curves")),
+                ReferenceIdentity.NodeId("curve", normalizeDataReference(curve, "Curves")),
                 "curve",
                 $"TextConfigs/{key}.gradient.curve");
         }
@@ -43,22 +43,22 @@ internal sealed partial class DocumentReferenceScanner
         string path)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        string? controlId = getString(node["controlId"]);
+        string? controlId = JsonScalar.String(node["controlId"]);
         if (controlId is not null
             && UiAssetSchema.TryGetProjectAssetKey(controlId, out string targetAssetKey))
         {
             string targetKey = UiAssetSchema.ToAssetDataKey(targetAssetKey);
             addReference(
                 sourceId,
-                nodeId("uiAsset", targetKey),
+                ReferenceIdentity.NodeId("uiAsset", targetKey),
                 "nestedUiAsset",
                 $"UI/{key}.{path}.controlId");
         }
         if (node["properties"] is JsonObject properties)
         {
             if (controlId == "Engine.EmitterView"
-                && normalizeReferenceParam(properties["particle"]) is string particle && particle.Length != 0)
-                addReference(sourceId, nodeId("particle", particle), "particle", $"UI/{key}.{path}.properties.particle");
+                && ReferenceIdentity.NormalizeParameter(properties["particle"]) is string particle && particle.Length != 0)
+                addReference(sourceId, ReferenceIdentity.NodeId("particle", particle), "particle", $"UI/{key}.{path}.properties.particle");
             foreach (string propertyName in new[]
                      {
                          "texture",
@@ -77,21 +77,21 @@ internal sealed partial class DocumentReferenceScanner
                     "uiResource",
                     $"UI/{key}.{path}.properties.{propertyName}");
             }
-            if (normalizeReferenceParam(properties["textConfig"]) is string textConfig
+            if (ReferenceIdentity.NormalizeParameter(properties["textConfig"]) is string textConfig
                 && textConfig.Length != 0)
             {
                 addReference(
                     sourceId,
-                    nodeId("textConfig", normalizeDataReference(textConfig, "TextConfigs")),
+                    ReferenceIdentity.NodeId("textConfig", normalizeDataReference(textConfig, "TextConfigs")),
                     "textConfig",
                     $"UI/{key}.{path}.properties.textConfig");
             }
-            if (normalizeReferenceParam(properties["opacityCurve"]) is string curve
+            if (ReferenceIdentity.NormalizeParameter(properties["opacityCurve"]) is string curve
                 && curve.Length != 0)
             {
                 addReference(
                     sourceId,
-                    nodeId("curve", normalizeDataReference(curve, "Curves")),
+                    ReferenceIdentity.NodeId("curve", normalizeDataReference(curve, "Curves")),
                     "curve",
                     $"UI/{key}.{path}.properties.opacityCurve");
             }
@@ -118,14 +118,14 @@ internal sealed partial class DocumentReferenceScanner
             cancellationToken.ThrowIfCancellationRequested();
             if (pair.Value is not JsonObject setting)
                 continue;
-            string? valueType = getString(setting["type"]);
+            string? valueType = JsonScalar.String(setting["type"]);
             if (valueType is null || !valueType.StartsWith("file", StringComparison.Ordinal))
                 continue;
             JsonArray values = setting["value"] is JsonArray array
                 ? array
                 : new JsonArray(setting["value"]?.DeepClone());
-            string root = getString(setting["root"]) ?? "Assets";
-            string baseDirectory = getString(setting["base"]) ?? string.Empty;
+            string root = JsonScalar.String(setting["root"]) ?? "Assets";
+            string baseDirectory = JsonScalar.String(setting["base"]) ?? string.Empty;
             for (int index = 0; index < values.Count; index++)
             {
                 string path = setting["value"] is JsonArray
@@ -137,19 +137,19 @@ internal sealed partial class DocumentReferenceScanner
                     addMapReference(sourceId, values[index], "configFile", path);
                 }
                 else if (root.Equals("Data", StringComparison.OrdinalIgnoreCase)
-                    && normalizeReferenceParam(values[index]) is string dataReference
+                    && ReferenceIdentity.NormalizeParameter(values[index]) is string dataReference
                     && dataReference.Length != 0)
                 {
                     if (baseDirectory.Equals("Blueprints", StringComparison.OrdinalIgnoreCase))
                     {
                         string normalized = normalizeDataReference(dataReference, "Blueprints");
-                        string target = blueprintNodeIdFromKey(normalized);
+                        string target = ReferenceIdentity.BlueprintNodeId(normalized);
                         addReference(sourceId, target, "configFile", path);
                     }
                     else if (getSectionType(baseDirectory) is string sectionType)
                     {
                         addReference(sourceId,
-                            nodeId(sectionType, normalizeDataReference(dataReference, baseDirectory)),
+                            ReferenceIdentity.NodeId(sectionType, normalizeDataReference(dataReference, baseDirectory)),
                             "configFile", path);
                     }
                 }
@@ -165,10 +165,10 @@ internal sealed partial class DocumentReferenceScanner
     private void scanAutoTileReferences(string sourceId, JsonNode? value, string path)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        string? key = getString(value);
+        string? key = JsonScalar.String(value);
         if (!string.IsNullOrWhiteSpace(key))
         {
-            addReference(sourceId, nodeId("autoTile", key), "autoTile", path);
+            addReference(sourceId, ReferenceIdentity.NodeId("autoTile", key), "autoTile", path);
             return;
         }
         if (value is not JsonArray array)
@@ -190,8 +190,8 @@ internal sealed partial class DocumentReferenceScanner
             string? blueprintId = blueprintNodeIdFromClassPath(actor["bp"]);
             if (blueprintId is not null)
                 addReference(sourceId, blueprintId, "mapActor", $"{path}[{index}].bp");
-            string? classReference = getString(actor["bp"]);
-            string? tag = getString(actor["tag"]);
+            string? classReference = JsonScalar.String(actor["bp"]);
+            string? tag = JsonScalar.String(actor["tag"]);
             JsonObject? actorOverrides = tag is null ? null : overrides?[tag] as JsonObject;
             if (!string.IsNullOrWhiteSpace(classReference) && (actorOverrides is not null || blueprintId is null))
             {
@@ -206,7 +206,7 @@ internal sealed partial class DocumentReferenceScanner
 
     private void scanBlueprintReferences(string key, JsonObject data)
     {
-        string sourceId = blueprintNodeIdFromKey(key);
+        string sourceId = ReferenceIdentity.BlueprintNodeId(key);
         string? parentId = blueprintNodeIdFromClassPath(data["parent"]);
         if (parentId is not null)
             addReference(sourceId, parentId, "parent", $"Blueprints/{key}.parent");
@@ -255,7 +255,7 @@ internal sealed partial class DocumentReferenceScanner
 
     private void scanParticleReferences(string key, JsonObject data)
     {
-        string source = nodeId("particle", key);
+        string source = ReferenceIdentity.NodeId("particle", key);
         scanGenericReferences(source, data, $"Particles/{key}");
         if (data["tracks"] is not JsonArray tracks)
             return;
@@ -265,8 +265,8 @@ internal sealed partial class DocumentReferenceScanner
                 continue;
             foreach (KeyValuePair<string, JsonNode?> pair in curves)
             {
-                if (getString(pair.Value) is string curve && curve.Length != 0)
-                    addReference(source, nodeId("curve", curve), "curve", $"Particles/{key}.tracks[{index}].curves.{pair.Key}");
+                if (JsonScalar.String(pair.Value) is string curve && curve.Length != 0)
+                    addReference(source, ReferenceIdentity.NodeId("curve", curve), "curve", $"Particles/{key}.tracks[{index}].curves.{pair.Key}");
             }
         }
     }
@@ -275,17 +275,17 @@ internal sealed partial class DocumentReferenceScanner
         string key,
         JsonObject data)
     {
-        string sourceId = nodeId("general", key);
+        string sourceId = ReferenceIdentity.NodeId("general", key);
         JsonObject parameterSchema = data["params"] as JsonObject ?? [];
         foreach (KeyValuePair<string, JsonNode?> parameter in parameterSchema)
         {
             if (parameter.Value is JsonObject definition
                 && definition["reference"] is JsonObject reference
-                && getString(reference["kind"]) == "general"
-                && getString(reference["key"]) is string referencedType
+                && JsonScalar.String(reference["kind"]) == "general"
+                && JsonScalar.String(reference["key"]) is string referencedType
                 && !string.IsNullOrWhiteSpace(referencedType))
             {
-                addReference(sourceId, nodeId("general", referencedType), "generalType",
+                addReference(sourceId, ReferenceIdentity.NodeId("general", referencedType), "generalType",
                     $"General/{key}.params.{parameter.Key}.reference.key");
             }
         }
@@ -325,7 +325,7 @@ internal sealed partial class DocumentReferenceScanner
         {
             if (pair.Value is not JsonObject definition)
                 continue;
-            string type = getString(definition["type"]) ?? "string";
+            string type = JsonScalar.String(definition["type"]) ?? "string";
             if (type == "file")
             {
                 addAssetReference(
@@ -342,7 +342,7 @@ internal sealed partial class DocumentReferenceScanner
             {
                 for (int index = 0; index < list.Count; index++)
                 {
-                    if (getString(definition["itemType"]) == "file")
+                    if (JsonScalar.String(definition["itemType"]) == "file")
                     {
                         addAssetReference(
                             sourceId,
@@ -358,7 +358,7 @@ internal sealed partial class DocumentReferenceScanner
             {
                 foreach (KeyValuePair<string, JsonNode?> item in dictionary)
                 {
-                    if (getString(definition["valueType"]) == "file")
+                    if (JsonScalar.String(definition["valueType"]) == "file")
                     {
                         addAssetReference(
                             sourceId,
@@ -383,16 +383,16 @@ internal sealed partial class DocumentReferenceScanner
     {
         if (definition["reference"] is not JsonObject reference)
             return;
-        string? kind = getString(reference["kind"]);
-        string? text = normalizeReferenceParam(value);
+        string? kind = JsonScalar.String(reference["kind"]);
+        string? text = ReferenceIdentity.NormalizeParameter(value);
         if (string.IsNullOrWhiteSpace(text))
             return;
         if (kind == "animation")
         {
-            addReference(sourceId, nodeId("animation", text), "reference", path);
+            addReference(sourceId, ReferenceIdentity.NodeId("animation", text), "reference", path);
             return;
         }
-        if (kind == "general" && getString(reference["key"]) is string generalKey)
+        if (kind == "general" && JsonScalar.String(reference["key"]) is string generalKey)
             addReference(sourceId, generalMemberNodeId(generalKey, text), "member", path);
     }
 
@@ -415,7 +415,7 @@ internal sealed partial class DocumentReferenceScanner
                 if (graphNodes[index] is not JsonObject node)
                     continue;
                 string nodePath = $"{path}.nodeGraph.{graphPair.Key}.nodes[{index}]";
-                string? nodeFunction = getString(node["nodeFunction"]);
+                string? nodeFunction = JsonScalar.String(node["nodeFunction"]);
                 JsonArray parameters = node["params"] as JsonArray ?? [];
                 if (nodeFunction is not null && lookup.TryGetValue(nodeFunction, out BlueprintGraphNodeDefinition? definition))
                     scanDefinitionParameterReferences(sourceId, definition, parameters, nodePath);
@@ -479,7 +479,7 @@ internal sealed partial class DocumentReferenceScanner
                 continue;
             JsonNode? value = parameterAt(parameters, parameter);
             string referencePath = $"{path}.params[{parameter}]";
-            string? text = normalizeReferenceParam(value);
+            string? text = ReferenceIdentity.NormalizeParameter(value);
             if (string.IsNullOrWhiteSpace(text))
                 continue;
             if (type == "blueprint")
@@ -498,7 +498,7 @@ internal sealed partial class DocumentReferenceScanner
             }
             else
             {
-                addReference(sourceId, nodeId(type, text), "nodeParam", referencePath);
+                addReference(sourceId, ReferenceIdentity.NodeId(type, text), "nodeParam", referencePath);
             }
         }
     }
@@ -506,7 +506,7 @@ internal sealed partial class DocumentReferenceScanner
     private void scanGenericReferences(string sourceId, JsonNode? value, string path)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (getString(value) is string text)
+        if (JsonScalar.String(value) is string text)
         {
             string? blueprintId = blueprintNodeIdFromClassPath(value);
             if (blueprintId is not null)
@@ -516,7 +516,7 @@ internal sealed partial class DocumentReferenceScanner
             }
             string assetPath = normalizeExplicitAssetPath(text);
             if (assetPath.Length != 0)
-                addReference(sourceId, nodeId("asset", assetPath), "asset", path);
+                addReference(sourceId, ReferenceIdentity.NodeId("asset", assetPath), "asset", path);
             return;
         }
         if (value is JsonObject objectValue)

@@ -790,16 +790,16 @@ public sealed class GameVariableService : IGameVariableCatalog
         ensureOwnedIfPresent(RuntimePath);
         ensureOwnedIfPresent(MetadataPath);
         byte[]? runtimeOriginal = File.Exists(RuntimePath) ? File.ReadAllBytes(RuntimePath) : null;
-        string runtimeTemp = createTempPath(RuntimePath);
-        string metadataTemp = createTempPath(MetadataPath);
+        string runtimeTemp = FilePersistence.CreateTemporaryPath(RuntimePath);
+        string metadataTemp = FilePersistence.CreateTemporaryPath(MetadataPath);
         bool runtimeReplaced = false;
         try
         {
-            writeDurable(runtimeTemp, runtimeContent);
-            writeDurable(metadataTemp, metadataContent);
-            File.Move(runtimeTemp, RuntimePath, true);
+            FilePersistence.WriteDurable(runtimeTemp, stream => stream.Write(runtimeContent));
+            FilePersistence.WriteDurable(metadataTemp, stream => stream.Write(metadataContent));
+            FilePersistence.MoveFile(runtimeTemp, RuntimePath, true);
             runtimeReplaced = true;
-            File.Move(metadataTemp, MetadataPath, true);
+            FilePersistence.MoveFile(metadataTemp, MetadataPath, true);
         }
         catch (Exception exception) when (isFileException(exception))
         {
@@ -829,14 +829,14 @@ public sealed class GameVariableService : IGameVariableCatalog
     {
         if (original is null)
         {
-            File.Delete(path);
+            FilePersistence.DeleteFile(path);
             return;
         }
-        string temp = createTempPath(path);
+        string temp = FilePersistence.CreateTemporaryPath(path);
         try
         {
-            writeDurable(temp, original);
-            File.Move(temp, path, true);
+            FilePersistence.WriteDurable(temp, stream => stream.Write(original));
+            FilePersistence.MoveFile(temp, path, true);
         }
         finally
         {
@@ -844,24 +844,11 @@ public sealed class GameVariableService : IGameVariableCatalog
         }
     }
 
-    private static void writeDurable(string path, byte[] bytes)
-    {
-        using FileStream stream = new(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-        stream.Write(bytes);
-        stream.Flush(true);
-    }
-
-    private static string createTempPath(string path)
-    {
-        string directory = Path.GetDirectoryName(path) ?? throw new InvalidOperationException(path);
-        return Path.Combine(directory, "." + Path.GetFileName(path) + "." + Guid.NewGuid().ToString("N") + ".tmp");
-    }
-
     private static void deleteTemp(string path)
     {
         try
         {
-            File.Delete(path);
+            FilePersistence.DeleteFile(path);
         }
         catch (IOException)
         {

@@ -279,7 +279,7 @@ public sealed class TextConfigEditorWindow : Window
         ListBox styleList = new()
         {
             Height = 130,
-            ItemsSource = styleOrder.Select(node => stringValue(node)).Where(name => name.Length != 0).ToArray(),
+            ItemsSource = styleOrder.Select(node => JsonScalar.String(node, string.Empty)).Where(name => name.Length != 0).ToArray(),
         };
         ContentControl detailHost = new();
         Button add = new() { Content = LocaleService.Get("TEXT_CONFIG_ADD_STYLE") };
@@ -318,7 +318,7 @@ public sealed class TextConfigEditorWindow : Window
                 this,
                 LocaleService.Get("TEXT_CONFIG_ADD_STYLE"),
                 LocaleService.Get("TEXT_CONFIG_STYLE_NAME"),
-                styleOrder.Select(node => stringValue(node)));
+                styleOrder.Select(node => JsonScalar.String(node, string.Empty)));
             string normalized = name?.Trim() ?? string.Empty;
             if (!isValidStyleName(normalized, styles, null))
                 return;
@@ -335,7 +335,7 @@ public sealed class TextConfigEditorWindow : Window
                 this,
                 LocaleService.Get("TEXT_CONFIG_RENAME_STYLE"),
                 LocaleService.Get("TEXT_CONFIG_STYLE_NAME"),
-                styleOrder.Select(node => stringValue(node)).Where(item => item != current),
+                styleOrder.Select(node => JsonScalar.String(node, string.Empty)).Where(item => item != current),
                 current);
             string normalized = name?.Trim() ?? string.Empty;
             if (!isValidStyleName(normalized, styles, current) || styles[current] is not JsonObject currentStyle)
@@ -437,7 +437,7 @@ public sealed class TextConfigEditorWindow : Window
             IsChecked = hasValue,
         };
         NumericUpDown input = EditorInputs.CreateNumericUpDown(
-            (decimal)numberValue(target[field], fallback),
+            JsonScalar.Decimal(target[field], fallback),
             (decimal)minimum,
             (decimal)maximum,
             (decimal)increment);
@@ -477,7 +477,7 @@ public sealed class TextConfigEditorWindow : Window
         };
         CheckBox input = new()
         {
-            IsChecked = boolValue(flags?[field]),
+            IsChecked = JsonScalar.Bool(flags?[field]),
             IsEnabled = hasValue,
         };
         enabled.IsCheckedChanged += (_, _) =>
@@ -520,7 +520,7 @@ public sealed class TextConfigEditorWindow : Window
             Content = LocaleService.Get("TEXT_CONFIG_OVERRIDE"),
             IsChecked = hasValue,
         };
-        Button input = createColourButton(colourValue(target[field], fallback));
+        Button input = createColourButton(TextConfigValues.Colour(target[field], fallback));
         input.IsEnabled = hasValue;
         enabled.IsCheckedChanged += (_, _) =>
         {
@@ -553,9 +553,9 @@ public sealed class TextConfigEditorWindow : Window
             IsChecked = hasOutline,
         };
         StackPanel fields = new() { Spacing = 6, IsEnabled = hasOutline };
-        Button colour = createColourButton(colourValue(outline?["color"], Colors.Black));
+        Button colour = createColourButton(TextConfigValues.Colour(outline?["color"], Colors.Black));
         NumericUpDown thickness = EditorInputs.CreateNumericUpDown(
-            (decimal)numberValue(outline?["thickness"], 0),
+            JsonScalar.Decimal(outline?["thickness"], 0),
             0,
             32,
             0.25m);
@@ -667,7 +667,7 @@ public sealed class TextConfigEditorWindow : Window
 
     private void addStringField(string label, JsonObject target, string field)
     {
-        TextBox input = EditorInputs.CreateEditableTextBox(stringValue(target[field]));
+        TextBox input = EditorInputs.CreateEditableTextBox(JsonScalar.String(target[field], string.Empty));
         input.PropertyChanged += (_, args) =>
         {
             if (args.Property != TextBox.TextProperty || syncing)
@@ -680,7 +680,7 @@ public sealed class TextConfigEditorWindow : Window
 
     private CheckBox addCheckField(string label, JsonObject target, string field)
     {
-        CheckBox input = new() { IsChecked = boolValue(target[field]) };
+        CheckBox input = new() { IsChecked = JsonScalar.Bool(target[field]) };
         input.IsCheckedChanged += (_, _) =>
         {
             if (syncing)
@@ -701,7 +701,7 @@ public sealed class TextConfigEditorWindow : Window
         double increment)
     {
         NumericUpDown input = EditorInputs.CreateNumericUpDown(
-            (decimal)numberValue(target[field], minimum),
+            JsonScalar.Decimal(target[field], minimum),
             (decimal)minimum,
             (decimal)maximum,
             (decimal)increment);
@@ -725,8 +725,8 @@ public sealed class TextConfigEditorWindow : Window
         ComboBox input = new()
         {
             ItemsSource = choices,
-            SelectedItem = choices.Contains(stringValue(target[field]))
-                ? stringValue(target[field])
+            SelectedItem = choices.Contains(JsonScalar.String(target[field], string.Empty))
+                ? JsonScalar.String(target[field], string.Empty)
                 : choices[0],
             HorizontalAlignment = HorizontalAlignment.Stretch,
         };
@@ -746,7 +746,7 @@ public sealed class TextConfigEditorWindow : Window
         string field,
         Color fallback)
     {
-        Button input = createColourButton(colourValue(target[field], fallback));
+        Button input = createColourButton(TextConfigValues.Colour(target[field], fallback));
         input.Click += async (_, _) =>
         {
             Color? selected = await ColourPickerWindow.ShowAsync(this, (Color)input.Tag!);
@@ -765,7 +765,7 @@ public sealed class TextConfigEditorWindow : Window
         string field,
         TextConfigReferenceKind kind)
     {
-        TextBox input = EditorInputs.CreateEditableTextBox(stringValue(target[field]));
+        TextBox input = EditorInputs.CreateEditableTextBox(JsonScalar.String(target[field], string.Empty));
         input.PropertyChanged += (_, args) =>
         {
             if (args.Property != TextBox.TextProperty || syncing)
@@ -778,7 +778,7 @@ public sealed class TextConfigEditorWindow : Window
         Button select = new() { Content = "…", Width = 38 };
         select.Click += async (_, _) =>
         {
-            string? selected = await selectReference(kind, stringValue(target[field]));
+            string? selected = await selectReference(kind, JsonScalar.String(target[field], string.Empty));
             if (selected is null)
                 return;
             target[field] = selected;
@@ -948,15 +948,15 @@ public sealed class TextConfigEditorWindow : Window
     private IReadOnlyList<string> getReferenceErrors()
     {
         List<string> errors = [];
-        string font = stringValue(data["font"]);
+        string font = JsonScalar.String(data["font"], string.Empty);
         if (font.Length != 0
             && !TextConfigFontLoader.TryResolve(gameData.ProjectPath, font, out _))
         {
             errors.Add($"{LocaleService.Get("TEXT_CONFIG_FONT")}: {font}");
         }
         JsonObject gradient = ensureObject(data, "gradient");
-        string curve = stringValue(gradient["curve"]);
-        bool enabled = boolValue(gradient["enabled"]);
+        string curve = JsonScalar.String(gradient["curve"], string.Empty);
+        bool enabled = JsonScalar.Bool(gradient["enabled"]);
         if (enabled && curve.Length == 0)
             errors.Add(LocaleService.Get("TEXT_CONFIG_CURVE"));
         else if (curve.Length != 0
@@ -970,47 +970,37 @@ public sealed class TextConfigEditorWindow : Window
 
     private async void onKeyDown(object? sender, KeyEventArgs args)
     {
-        if (!EditorShortcuts.HasPrimaryModifier(args.KeyModifiers))
-            return;
-        if (args.Key == Key.S)
+        await documentBinding.HandleShortcutAsync(args, projectSave, toast, prepareSaveAsync);
+    }
+
+    private async Task<bool> prepareSaveAsync()
+    {
+        IReadOnlyList<string> errors = getReferenceErrors();
+        if (errors.Count != 0)
         {
-            IReadOnlyList<string> errors = getReferenceErrors();
-            if (errors.Count != 0)
-            {
-                await AlertDialog.ShowAsync(
-                    this,
-                    LocaleService.Get("ERROR"),
-                    LocaleService.Get("TEXT_CONFIG_INVALID_REFERENCES")
-                        .Replace("{details}", string.Join(", ", errors)));
-            }
-            else
-            {
-                if (!gameData.Assets.TextConfigsData.ContainsKey(key))
-                {
-                    await AlertDialog.ShowAsync(
-                        this,
-                        LocaleService.Get("ERROR"),
-                        LocaleService.Get("TEXT_CONFIG_NO_LONGER_EXISTS"));
-                    Close();
-                    args.Handled = true;
-                    return;
-                }
-                applyChanges();
-                await EditorSaveWorkflow.TrySaveAsync(this, projectSave);
-            }
+            await AlertDialog.ShowAsync(
+                this,
+                LocaleService.Get("ERROR"),
+                LocaleService.Get("TEXT_CONFIG_INVALID_REFERENCES")
+                    .Replace("{details}", string.Join(", ", errors)));
+            return false;
         }
-        else if (EditorShortcuts.IsUndo(args.Key, args.KeyModifiers))
-            EditorFeedback.ShowHistory(toast, "Undo", documentBinding.Undo());
-        else if (EditorShortcuts.IsRedo(args.Key, args.KeyModifiers))
-            EditorFeedback.ShowHistory(toast, "Redo", documentBinding.Redo());
-        else
-            return;
-        args.Handled = true;
+        if (!gameData.Assets.TextConfigsData.ContainsKey(key))
+        {
+            await AlertDialog.ShowAsync(
+                this,
+                LocaleService.Get("ERROR"),
+                LocaleService.Get("TEXT_CONFIG_NO_LONGER_EXISTS"));
+            Close();
+            return false;
+        }
+        applyChanges();
+        return true;
     }
 
     private void onDataChanged(object? sender, EditorDocumentsChangedEventArgs args)
     {
-        string curve = stringValue(data["gradient"]?["curve"]);
+        string curve = JsonScalar.String(data["gradient"]?["curve"], string.Empty);
         if (!args.Reset && !args.Changes.Any(change => change.Section == "Curves"
                 && (change.PreviousKey == curve || change.Key == curve)))
             return;
@@ -1036,7 +1026,7 @@ public sealed class TextConfigEditorWindow : Window
 
     private bool isRich()
     {
-        return stringValue(data["type"]) == "richTextConfig";
+        return JsonScalar.String(data["type"], string.Empty) == "richTextConfig";
     }
 
     private void normalizeData()
@@ -1053,7 +1043,7 @@ public sealed class TextConfigEditorWindow : Window
             JsonObject styles = ensureObject(data, "styles");
             foreach (JsonNode? node in order)
             {
-                string name = stringValue(node);
+                string name = JsonScalar.String(node, string.Empty);
                 if (name.Length != 0 && styles[name] is not JsonObject)
                     styles[name] = new JsonObject();
             }
@@ -1063,7 +1053,7 @@ public sealed class TextConfigEditorWindow : Window
             normalizeStyle(data);
             setDefault(data, "slantAngle", 0.0);
             data["slantAngle"] = Math.Clamp(
-                numberValue(data["slantAngle"]),
+                JsonScalar.Number(data["slantAngle"]),
                 -45,
                 45);
         }
@@ -1072,7 +1062,7 @@ public sealed class TextConfigEditorWindow : Window
         setDefault(glow, "color", colourArray(Colors.Transparent));
         setDefault(glow, "radius", 0.0);
         setDefault(glow, "intensity", 0.0);
-        glow["intensity"] = Math.Clamp(numberValue(glow["intensity"]), 0, 1);
+        glow["intensity"] = Math.Clamp(JsonScalar.Number(glow["intensity"]), 0, 1);
         JsonObject gradient = ensureObject(data, "gradient");
         setDefault(gradient, "enabled", false);
         setDefault(gradient, "direction", "vertical");
@@ -1125,43 +1115,6 @@ public sealed class TextConfigEditorWindow : Window
     private static string normalizeReference(string? value)
     {
         return (value ?? string.Empty).Trim().Replace('\\', '/');
-    }
-
-    private static string stringValue(JsonNode? node)
-    {
-        return node is JsonValue value && value.TryGetValue<string>(out string? result)
-            ? result ?? string.Empty
-            : string.Empty;
-    }
-
-    private static bool boolValue(JsonNode? node)
-    {
-        return node is JsonValue value && value.TryGetValue<bool>(out bool result) && result;
-    }
-
-    private static double numberValue(JsonNode? node, double fallback = 0)
-    {
-        return node is JsonValue value && value.TryGetValue<double>(out double result)
-            ? result
-            : fallback;
-    }
-
-    private static Color colourValue(JsonNode? node, Color fallback)
-    {
-        if (node is not JsonArray values || values.Count < 4)
-            return fallback;
-        return Color.FromArgb(
-            byteValue(values[3], fallback.A),
-            byteValue(values[0], fallback.R),
-            byteValue(values[1], fallback.G),
-            byteValue(values[2], fallback.B));
-    }
-
-    private static byte byteValue(JsonNode? node, byte fallback)
-    {
-        if (node is not JsonValue value || !value.TryGetValue<int>(out int result))
-            return fallback;
-        return (byte)Math.Clamp(result, 0, 255);
     }
 
     private static JsonArray colourArray(Color colour)

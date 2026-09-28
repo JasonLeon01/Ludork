@@ -105,7 +105,7 @@ public sealed class UiAnimationTimelineSurface : Control
         {
             JsonObject? key = keyAt(track, keyIndex);
             if (key is not null)
-                TimeChanged?.Invoke(this, number(key["time"]));
+                TimeChanged?.Invoke(this, JsonScalar.Number(key["time"]));
             if (editable)
             {
                 draggingKey = true;
@@ -192,7 +192,7 @@ public sealed class UiAnimationTimelineSurface : Control
         {
             if (keys[keyIndex] is not JsonObject key)
                 continue;
-            double x = LabelWidth + number(key["time"]) * PixelsPerSecond;
+            double x = LabelWidth + JsonScalar.Number(key["time"]) * PixelsPerSecond;
             double centerY = y + TrackHeight / 2.0;
             StreamGeometry diamond = new();
             using (StreamGeometryContext geometry = diamond.Open())
@@ -223,7 +223,7 @@ public sealed class UiAnimationTimelineSurface : Control
         {
             if (keys[index] is not JsonObject key)
                 continue;
-            double current = Math.Abs(LabelWidth + number(key["time"]) * PixelsPerSecond - x);
+            double current = Math.Abs(LabelWidth + JsonScalar.Number(key["time"]) * PixelsPerSecond - x);
             if (current <= distance)
             {
                 result = index;
@@ -253,19 +253,7 @@ public sealed class UiAnimationTimelineSurface : Control
 
     private double duration()
     {
-        return Math.Max(0.01, number(animation?["duration"], 0.5));
+        return Math.Max(0.01, JsonScalar.Number(animation?["duration"], 0.5));
     }
 
-    private static double number(JsonNode? value, double fallback = 0.0)
-    {
-        if (value is not JsonValue json)
-            return fallback;
-        if (json.TryGetValue(out double doubleValue))
-            return doubleValue;
-        if (json.TryGetValue(out long integerValue))
-            return integerValue;
-        if (json.TryGetValue(out decimal decimalValue))
-            return decimal.ToDouble(decimalValue);
-        return fallback;
-    }
 }

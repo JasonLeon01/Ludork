@@ -716,7 +716,7 @@ public sealed partial class WorldMapCanvas : Control, IDisposable
 
     private static string? getString(JsonNode? value)
     {
-        return value is JsonValue scalar && scalar.TryGetValue(out string? result) ? result : null;
+        return JsonScalar.String(value);
     }
 
     private void setRenderer(WorldMapPreviewRenderer? nextRenderer, bool ownsNextRenderer)

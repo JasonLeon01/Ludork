@@ -897,15 +897,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         if (!EditorShortcuts.HasPrimaryModifier(args.KeyModifiers))
             return;
         flushGraphViews();
-        if (args.Key == Key.S)
-            await EditorSaveWorkflow.TrySaveAsync(this, projectSave);
-        else if (EditorShortcuts.IsUndo(args.Key, args.KeyModifiers))
-            EditorFeedback.ShowHistory(toast, "Undo", documentBinding.Undo());
-        else if (EditorShortcuts.IsRedo(args.Key, args.KeyModifiers))
-            EditorFeedback.ShowHistory(toast, "Redo", documentBinding.Redo());
-        else
-            return;
-        args.Handled = true;
+        await documentBinding.HandleShortcutAsync(args, projectSave, toast);
     }
 
     private void onClosed(object? sender, EventArgs args)

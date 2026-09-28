@@ -427,8 +427,7 @@ public sealed class UiPreviewRuntimeService : IDisposable, IAsyncDisposable
 
     private static void requireNotLink(string path)
     {
-        FileSystemInfo entry = Directory.Exists(path) ? new DirectoryInfo(path) : new FileInfo(path);
-        require(entry.LinkTarget is null && (!entry.Exists || (entry.Attributes & FileAttributes.ReparsePoint) == 0),
+        require(!EditorPathSandbox.IsLink(path),
             "UI preview metadata and directories must not be links: " + path);
     }
 
@@ -558,7 +557,7 @@ public sealed class UiPreviewRuntimeService : IDisposable, IAsyncDisposable
             }
             else
             {
-                require((file.Attributes & FileAttributes.ReparsePoint) == 0,
+                require(!EditorPathSandbox.IsLink(file),
                     "Unsupported UI preview runtime file link.");
                 using FileStream stream = openSharedRead(file.FullName);
                 string fileHash = Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();

@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using Ludork.Plugin.Abstractions;
 using Ludork.Plugins.OfficialBlueprintAI.Agent;
 using Ludork.Plugins.OfficialBlueprintAI.Configuration;
-using Ludork.Plugins.OfficialBlueprintAI.Localization;
 using Ludork.Plugins.OfficialBlueprintAI.Providers;
 
 namespace Ludork.Plugins.OfficialBlueprintAI;

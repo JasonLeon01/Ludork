@@ -19,27 +19,17 @@ namespace Ludork.Views;
 public sealed class MapEditWindow : Window
 {
     private readonly ProjectDataStore gameData;
-    private readonly double initialFogOx;
-    private readonly double initialFogOy;
-    private readonly decimal? displayedFogOx;
-    private readonly decimal? displayedFogOy;
     private readonly string currentKey;
     private readonly string keyPrefix;
     private readonly bool isNew;
+    private readonly MapFogEditor fogEditor;
     private readonly TextBox fileNameBox = EditorInputs.CreateEditableTextBox();
     private readonly TextBox mapNameBox = EditorInputs.CreateEditableTextBox();
     private readonly NumericUpDown widthBox = EditorInputs.CreateNumericUpDown(13, 1, 32768, 1);
     private readonly NumericUpDown heightBox = EditorInputs.CreateNumericUpDown(13, 1, 32768, 1);
     private readonly TextBox bgmBox = EditorInputs.CreateReadOnlyTextBox();
     private readonly TextBox bgsBox = EditorInputs.CreateReadOnlyTextBox();
-    private readonly TextBox fogBox = EditorInputs.CreateReadOnlyTextBox();
-    private readonly NumericUpDown fogPowerBox = EditorInputs.CreateNumericUpDown(0, 0, 100, 1);
-    private readonly NumericUpDown fogOxBox = EditorInputs.CreateNumericUpDown(0, -9999, 9999, 1);
-    private readonly NumericUpDown fogOyBox = EditorInputs.CreateNumericUpDown(0, -9999, 9999, 1);
-    private readonly NumericUpDown fogDistortBox = EditorInputs.CreateNumericUpDown(0, 0, 100, 1);
-    private readonly TextBox panoramaBox = EditorInputs.CreateReadOnlyTextBox();
     private readonly TextBlock errorText = new() { Foreground = Brushes.IndianRed, TextWrapping = TextWrapping.Wrap };
-    private readonly StackPanel fogOptions = new() { Spacing = 8 };
     private readonly Button ambientButton = new();
     private readonly Border ambientSwatch = new();
     private readonly TextBlock ambientValue = new() { VerticalAlignment = VerticalAlignment.Center };
@@ -77,16 +67,7 @@ public sealed class MapEditWindow : Window
         heightBox.Value = initial.Height;
         bgmBox.Text = initial.Bgm;
         bgsBox.Text = initial.Bgs;
-        fogBox.Text = initial.Fog;
-        fogPowerBox.Value = initial.FogPower;
-        fogOxBox.Value = (decimal)initial.FogOx;
-        fogOyBox.Value = (decimal)initial.FogOy;
-        initialFogOx = initial.FogOx;
-        initialFogOy = initial.FogOy;
-        displayedFogOx = fogOxBox.Value;
-        displayedFogOy = fogOyBox.Value;
-        fogDistortBox.Value = initial.FogDistort;
-        panoramaBox.Text = initial.Panorama;
+        fogEditor = new MapFogEditor(MapVisualSettings.From(initial));
         ambientButton.Content = new StackPanel
         {
             Orientation = Orientation.Horizontal,
@@ -111,23 +92,17 @@ public sealed class MapEditWindow : Window
         updateAmbientButton();
 
         Grid form = new() { RowSpacing = 8 };
-        addRow(form, LocaleService.Get("FILE_NAME"), fileNameBox);
-        addRow(form, LocaleService.Get("EDIT_MAP"), mapNameBox);
-        addRow(form, LocaleService.Get("MAP_WIDTH"), widthBox);
-        addRow(form, LocaleService.Get("MAP_HEIGHT"), heightBox);
+        EditorFormRows.Add(form, LocaleService.Get("FILE_NAME"), fileNameBox);
+        EditorFormRows.Add(form, LocaleService.Get("EDIT_MAP"), mapNameBox);
+        EditorFormRows.Add(form, LocaleService.Get("MAP_WIDTH"), widthBox);
+        EditorFormRows.Add(form, LocaleService.Get("MAP_HEIGHT"), heightBox);
         ambientButton.Click += onPickAmbient;
-        addRow(form, LocaleService.Get("AMBIENT_LIGHT"), ambientButton);
-        addRow(form, LocaleService.Get("MAP_BGM"), createFileRow(bgmBox, "Musics", true));
-        addRow(form, LocaleService.Get("MAP_BGS"), createFileRow(bgsBox, "Musics", false));
-        addRow(form, LocaleService.Get("MAP_PANORAMA"), createFileRow(panoramaBox, "Panoramas", null));
-        addRow(form, LocaleService.Get("MAP_FOG"), createFileRow(fogBox, "Fogs", null));
-        fogOptions.Children.Add(createRow(LocaleService.Get("MAP_FOG_POWER"), fogPowerBox));
-        fogOptions.Children.Add(createRow(LocaleService.Get("MAP_FOG_OX"), fogOxBox));
-        fogOptions.Children.Add(createRow(LocaleService.Get("MAP_FOG_OY"), fogOyBox));
-        fogOptions.Children.Add(createRow(LocaleService.Get("MAP_FOG_DISTORT"), fogDistortBox));
-        addRow(form, string.Empty, fogOptions);
-        fogBox.TextChanged += (_, _) => updateFogVisibility();
-        updateFogVisibility();
+        EditorFormRows.Add(form, LocaleService.Get("AMBIENT_LIGHT"), ambientButton);
+        EditorFormRows.Add(form, LocaleService.Get("MAP_BGM"), createFileRow(bgmBox, "Musics", true));
+        EditorFormRows.Add(form, LocaleService.Get("MAP_BGS"), createFileRow(bgsBox, "Musics", false));
+        EditorFormRows.Add(form, LocaleService.Get("MAP_PANORAMA"), createFileRow(fogEditor.PanoramaBox, "Panoramas", null));
+        EditorFormRows.Add(form, LocaleService.Get("MAP_FOG"), createFileRow(fogEditor.PathBox, "Fogs", null));
+        EditorFormRows.Add(form, string.Empty, fogEditor.Options);
 
         Button confirm = new() { Content = LocaleService.Get("CONFIRM"), MinWidth = 80 };
         confirm.Click += onConfirm;
@@ -254,8 +229,8 @@ public sealed class MapEditWindow : Window
                  {
                      bgmBox.Text ?? string.Empty,
                      bgsBox.Text ?? string.Empty,
-                     fogBox.Text ?? string.Empty,
-                     panoramaBox.Text ?? string.Empty,
+                     fogEditor.PathBox.Text ?? string.Empty,
+                     fogEditor.PanoramaBox.Text ?? string.Empty,
                  })
         {
             if (assetPath.Length != 0 && !GameAssetPath.IsCanonical(assetPath))
@@ -279,18 +254,13 @@ public sealed class MapEditWindow : Window
             BgmFilter = cloneObject(bgmFilter),
             Bgs = bgsBox.Text?.Trim() ?? string.Empty,
             BgsFilter = cloneObject(bgsFilter),
-            Fog = fogBox.Text?.Trim() ?? string.Empty,
-            FogPower = getIntValue(fogPowerBox),
-            FogOx = fogOxBox.Value == displayedFogOx ? initialFogOx : getDoubleValue(fogOxBox),
-            FogOy = fogOyBox.Value == displayedFogOy ? initialFogOy : getDoubleValue(fogOyBox),
-            FogDistort = getIntValue(fogDistortBox),
-            Panorama = panoramaBox.Text?.Trim() ?? string.Empty,
+            Fog = fogEditor.PathBox.Text?.Trim() ?? string.Empty,
+            FogPower = fogEditor.Power,
+            FogOx = fogEditor.Ox,
+            FogOy = fogEditor.Oy,
+            FogDistort = fogEditor.Distort,
+            Panorama = fogEditor.PanoramaBox.Text?.Trim() ?? string.Empty,
         });
-    }
-
-    private void updateFogVisibility()
-    {
-        fogOptions.IsVisible = !string.IsNullOrWhiteSpace(fogBox.Text);
     }
 
     private void updateAmbientButton()
@@ -300,32 +270,9 @@ public sealed class MapEditWindow : Window
         AutomationProperties.SetName(ambientButton, $"{LocaleService.Get("AMBIENT_LIGHT")} {ambientValue.Text}");
     }
 
-    private static void addRow(Grid form, string label, Control editor)
-    {
-        int rowIndex = form.RowDefinitions.Count;
-        form.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        Grid row = createRow(label, editor);
-        Grid.SetRow(row, rowIndex);
-        form.Children.Add(row);
-    }
-
-    private static Grid createRow(string label, Control editor)
-    {
-        Grid row = new() { ColumnDefinitions = new ColumnDefinitions("160,*"), ColumnSpacing = 12 };
-        row.Children.Add(new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap });
-        Grid.SetColumn(editor, 1);
-        row.Children.Add(editor);
-        return row;
-    }
-
     private static int getIntValue(NumericUpDown number)
     {
         return decimal.ToInt32(number.Value ?? 0);
-    }
-
-    private static double getDoubleValue(NumericUpDown number)
-    {
-        return (double)(number.Value ?? 0);
     }
 
     private static JsonObject cloneObject(JsonObject value) => (JsonObject)value.DeepClone();

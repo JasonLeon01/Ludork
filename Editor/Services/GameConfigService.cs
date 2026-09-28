@@ -1,3 +1,4 @@
+using Ludork.Plugin.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -139,14 +140,12 @@ public sealed class GameConfigService
         if (confirmed == savedData && File.Exists(iniPath))
             return GameConfigSaveResult.Completed(string.Empty);
 
-        string temporaryPath = iniPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
         string? failure = null;
         try
         {
             IniDocument document = loadDocument();
             setKnownValues(document, confirmed);
-            File.WriteAllText(temporaryPath, document.ToText(), new UTF8Encoding(false));
-            File.Move(temporaryPath, iniPath, true);
+            FilePersistence.WriteAllTextAtomic(iniPath, document.ToText());
         }
         catch (IOException exception)
         {
@@ -155,23 +154,6 @@ public sealed class GameConfigService
         catch (UnauthorizedAccessException exception)
         {
             failure = exception.Message;
-        }
-
-        finally
-        {
-            try
-            {
-                if (File.Exists(temporaryPath))
-                    File.Delete(temporaryPath);
-            }
-            catch (IOException exception)
-            {
-                failure = failure + "; temporary file cleanup failed: " + exception.Message;
-            }
-            catch (UnauthorizedAccessException exception)
-            {
-                failure = failure + "; temporary file cleanup failed: " + exception.Message;
-            }
         }
 
         if (failure is not null)

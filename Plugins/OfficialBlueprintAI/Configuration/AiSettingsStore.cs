@@ -79,40 +79,9 @@ internal sealed class AiSettingsStore
             throw new InvalidOperationException("Blueprint AI settings path has no directory.");
         }
 
-        Directory.CreateDirectory(directory);
-        string temporaryPath = Path.Combine(
-            directory,
-            $".settings-{Guid.NewGuid():N}.tmp");
-
-        bool moved = false;
-        try
-        {
-            await using (FileStream stream = new FileStream(
-                temporaryPath,
-                FileMode.CreateNew,
-                FileAccess.Write,
-                FileShare.None,
-                4096,
-                FileOptions.Asynchronous | FileOptions.WriteThrough))
-            {
-                await JsonSerializer.SerializeAsync(
-                    stream,
-                    normalized,
-                    JsonOptions,
-                    cancellationToken);
-                await stream.FlushAsync(cancellationToken);
-            }
-
-            File.Move(temporaryPath, settingsPath, true);
-            moved = true;
-        }
-        finally
-        {
-            if (!moved && File.Exists(temporaryPath))
-            {
-                File.Delete(temporaryPath);
-            }
-        }
+        await FilePersistence.WriteAtomicAsync(settingsPath,
+            (stream, token) => JsonSerializer.SerializeAsync(stream, normalized, JsonOptions, token),
+            cancellationToken);
     }
 
     public AiProviderProfile GetActiveProfile(AiSettingsFile settings)

@@ -19,7 +19,7 @@ public sealed partial class ReferenceIndexService
         HashSet<string> ignoredSources = ignoredMapKeys is null
             ? new HashSet<string>(StringComparer.Ordinal)
             : ignoredMapKeys
-                .Select(key => nodeId("map", normalizeMapRuntimePath(key, false)))
+                .Select(key => ReferenceIdentity.NodeId("map", normalizeMapRuntimePath(key, false)))
                 .ToHashSet(StringComparer.Ordinal);
         return runtimePaths
             .Select(mapNodeIdFromRuntimePath)
@@ -160,11 +160,11 @@ public sealed partial class ReferenceIndexService
         bool changed = false;
         foreach (JsonObject setting in config.Select(item => item.Value).OfType<JsonObject>())
         {
-            string? valueType = getString(setting["type"]);
+            string? valueType = JsonScalar.String(setting["type"]);
             if (valueType is null
                 || !valueType.StartsWith("file", StringComparison.Ordinal)
-                || !string.Equals(getString(setting["root"]), "Data", StringComparison.OrdinalIgnoreCase)
-                || !string.Equals(getString(setting["base"]), "Maps", StringComparison.OrdinalIgnoreCase))
+                || !string.Equals(JsonScalar.String(setting["root"]), "Data", StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(JsonScalar.String(setting["base"]), "Maps", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -194,7 +194,7 @@ public sealed partial class ReferenceIndexService
         bool changed = false;
         if (node is JsonObject objectValue)
         {
-            string? nodeFunction = getString(objectValue["nodeFunction"]);
+            string? nodeFunction = JsonScalar.String(objectValue["nodeFunction"]);
             if (nodeFunction is not null
                 && isKnownMapNodeReference(nodeFunction)
                 && objectValue["params"] is JsonArray { Count: > 0 } parameters
@@ -226,7 +226,7 @@ public sealed partial class ReferenceIndexService
         out string replacement)
     {
         replacement = string.Empty;
-        string? text = normalizeReferenceParam(value);
+        string? text = ReferenceIdentity.NormalizeParameter(value);
         if (text is null
             || !replacements.TryGetValue(normalizeMapRuntimePath(text, true), out string? result))
         {
@@ -242,8 +242,8 @@ public sealed partial class ReferenceIndexService
         if (key.Length == 0)
             return null;
         if (key.EndsWith("/_world", StringComparison.OrdinalIgnoreCase))
-            return nodeId("worldMap", key[..^"/_world".Length]);
-        return nodeId("map", key);
+            return ReferenceIdentity.NodeId("worldMap", key[..^"/_world".Length]);
+        return ReferenceIdentity.NodeId("map", key);
     }
 
     private static string normalizeMapRuntimePath(string value, bool keepExtension)
@@ -298,7 +298,7 @@ public sealed partial class ReferenceIndexService
     private void scanAndCacheMapReferences(MapCatalogEntry entry)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        string sourceId = nodeId("map", entry.Key);
+        string sourceId = ReferenceIdentity.NodeId("map", entry.Key);
         JsonObject? map = gameData.Maps.ReadMapSnapshotWithoutCaching(entry.Key);
         if (map is null)
         {

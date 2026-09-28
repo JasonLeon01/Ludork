@@ -19,12 +19,12 @@ internal sealed partial class DocumentReferenceScanner
                 cancellationToken.ThrowIfCancellationRequested();
                 if (pair.Value is not JsonObject layer)
                     continue;
-                string? tilesetKey = getString(layer["layerTileset"]);
+                string? tilesetKey = JsonScalar.String(layer["layerTileset"]);
                 if (!string.IsNullOrWhiteSpace(tilesetKey))
                 {
                     addReference(
                         sourceId,
-                        nodeId("tileset", tilesetKey),
+                        ReferenceIdentity.NodeId("tileset", tilesetKey),
                         "tileset",
                         $"Maps/{key}.layers.{pair.Key}.layerTileset");
                 }
@@ -76,7 +76,7 @@ internal sealed partial class DocumentReferenceScanner
         cancellationToken.ThrowIfCancellationRequested();
         if (node is JsonObject objectValue)
         {
-            string? nodeFunction = getString(objectValue["nodeFunction"]);
+            string? nodeFunction = JsonScalar.String(objectValue["nodeFunction"]);
             if (nodeFunction is not null
                 && isKnownMapNodeReference(nodeFunction)
                 && objectValue["params"] is JsonArray { Count: > 0 } parameters)
@@ -109,7 +109,7 @@ internal sealed partial class DocumentReferenceScanner
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (placements[index] is not JsonObject placement
-                || getString(placement["map"]) is not string fileName)
+                || JsonScalar.String(placement["map"]) is not string fileName)
             {
                 continue;
             }
@@ -118,7 +118,7 @@ internal sealed partial class DocumentReferenceScanner
                 continue;
             addReference(
                 sourceId,
-                nodeId("map", $"{key}/{childName}"),
+                ReferenceIdentity.NodeId("map", $"{key}/{childName}"),
                 "worldPlacement",
                 $"Maps/{key}/_world.placements[{index}].map");
         }
@@ -132,15 +132,15 @@ internal sealed partial class DocumentReferenceScanner
 
     private void addMapReference(string sourceId, JsonNode? value, string kind, string path)
     {
-        string? key = normalizeReferenceParam(value);
+        string? key = ReferenceIdentity.NormalizeParameter(value);
         if (string.IsNullOrWhiteSpace(key))
             return;
         key = Path.ChangeExtension(key.Replace('\\', '/'), null) ?? key;
         if (key.EndsWith("/_world", StringComparison.OrdinalIgnoreCase))
         {
-            addReference(sourceId, nodeId("worldMap", key[..^"/_world".Length]), kind, path);
+            addReference(sourceId, ReferenceIdentity.NodeId("worldMap", key[..^"/_world".Length]), kind, path);
             return;
         }
-        addReference(sourceId, nodeId("map", key), kind, path);
+        addReference(sourceId, ReferenceIdentity.NodeId("map", key), kind, path);
     }
 }

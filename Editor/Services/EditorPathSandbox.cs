@@ -10,6 +10,26 @@ internal static class EditorPathSandbox
         ? StringComparison.OrdinalIgnoreCase
         : StringComparison.Ordinal;
 
+    public static bool IsSameOrChildPath(string root, string path)
+    {
+        string relative = Path.GetRelativePath(Path.GetFullPath(root), Path.GetFullPath(path));
+        return !Path.IsPathRooted(relative)
+            && relative != ".."
+            && !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal);
+    }
+
+    public static bool IsLink(string path)
+    {
+        FileSystemInfo entry = Directory.Exists(path) ? new DirectoryInfo(path) : new FileInfo(path);
+        return IsLink(entry);
+    }
+
+    public static bool IsLink(FileSystemInfo entry)
+    {
+        return entry.LinkTarget is not null
+            || entry.Exists && (entry.Attributes & FileAttributes.ReparsePoint) != 0;
+    }
+
     public static bool TryResolve(
         string root,
         string path,
@@ -27,11 +47,7 @@ internal static class EditorPathSandbox
         {
             string fullRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
             string candidate = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path, fullRoot));
-            string prefix = Path.EndsInDirectorySeparator(fullRoot)
-                ? fullRoot
-                : fullRoot + Path.DirectorySeparatorChar;
-            if (!candidate.Equals(fullRoot, PathComparison)
-                && !candidate.StartsWith(prefix, PathComparison))
+            if (!IsSameOrChildPath(fullRoot, candidate))
             {
                 return false;
             }
@@ -40,10 +56,10 @@ internal static class EditorPathSandbox
             {
                 bool atRoot = current.Equals(fullRoot, PathComparison);
                 FileAttributes? attributes = getAttributes(current, allowMissing && !atRoot);
-                if (attributes is FileAttributes existing
-                    && ((existing & FileAttributes.ReparsePoint) != 0
-                        || (atRoot || !current.Equals(candidate, PathComparison))
-                        && (existing & FileAttributes.Directory) == 0))
+                if (IsLink(current)
+                    || attributes is FileAttributes existing
+                        && (atRoot || !current.Equals(candidate, PathComparison))
+                        && (existing & FileAttributes.Directory) == 0)
                 {
                     return false;
                 }

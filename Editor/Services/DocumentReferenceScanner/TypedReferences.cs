@@ -129,15 +129,15 @@ internal sealed partial class DocumentReferenceScanner
             && blueprintNodeIdFromClassPath(value) is string blueprintId)
             addReference(sourceId, blueprintId, kind, path);
         if (getReference("CommonFunctionVars") is not null
-            && normalizeReferenceParam(value) is string functionName)
-            addReference(sourceId, nodeId("commonFunction", functionName), kind, path);
+            && ReferenceIdentity.NormalizeParameter(value) is string functionName)
+            addReference(sourceId, ReferenceIdentity.NodeId("commonFunction", functionName), kind, path);
         if (getReference("GeneralDataVars") is string generalType
-            && normalizeReferenceParam(value) is string generalValue)
+            && ReferenceIdentity.NormalizeParameter(value) is string generalValue)
         {
             string target = generalType.ToUpperInvariant() switch
             {
-                "ANIMATION" => nodeId("animation", generalValue),
-                "PARTICLE" => nodeId("particle", generalValue),
+                "ANIMATION" => ReferenceIdentity.NodeId("animation", generalValue),
+                "PARTICLE" => ReferenceIdentity.NodeId("particle", generalValue),
                 _ => generalMemberNodeId(generalType, generalValue),
             };
             addReference(sourceId, target, kind, path);

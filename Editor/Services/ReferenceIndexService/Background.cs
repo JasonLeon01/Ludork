@@ -214,7 +214,7 @@ public sealed partial class ReferenceIndexService
             {
                 string type = ReferenceIndexSnapshot.DataRoots.Single(pair => pair.Value == section).Key;
                 string nodeKey = type == "blueprint" ? BlueprintReference.ToReference(key) : key;
-                string path = ReferenceIndexSnapshot.ResolvePath(gameData.ProjectPath, ReferenceIndexSnapshot.NodeId(type, nodeKey),
+                string path = ReferenceIndexSnapshot.ResolvePath(gameData.ProjectPath, ReferenceIdentity.NodeId(type, nodeKey),
                     new Dictionary<string, string>());
                 captured = new CapturedDocument(data, revision,
                     new ReferenceBuildDocument(section, key, path, (JsonObject)data.DeepClone()));
@@ -252,7 +252,7 @@ public sealed partial class ReferenceIndexService
         foreach (ReferenceRecord record in snapshot.References)
             addReference(record.Source, record.Target, record.Kind, record.Path);
         foreach (MapCatalogEntry entry in gameData.Maps.MapCatalog.Where(entry => entry.Kind == MapCatalogEntryKind.WorldChildMap))
-            mapReferenceCache[entry.Key] = snapshot.GetOutgoing(nodeId("map", entry.Key));
+            mapReferenceCache[entry.Key] = snapshot.GetOutgoing(ReferenceIdentity.NodeId("map", entry.Key));
         allWorldChildMapReferencesBuilt = true;
         dirty = false;
     }

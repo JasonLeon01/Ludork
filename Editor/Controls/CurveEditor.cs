@@ -400,7 +400,6 @@ public sealed class CurveEditor : UserControl
 
     private JsonArray keys() => data["keys"] as JsonArray ?? new JsonArray();
     private static bool tryNumber(string? text, out double value) => double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) && double.IsFinite(value);
-    internal static double number(JsonNode? node) => node is JsonValue value && value.TryGetValue<double>(out double number) ? number : 0;
     internal static double[] vector(JsonNode? node, int componentCount)
     {
         JsonArray? values = node as JsonArray;
@@ -408,8 +407,8 @@ public sealed class CurveEditor : UserControl
         for (int index = 0; index < componentCount; index += 1)
         {
             result[index] = values is null
-                ? index == 0 ? number(node) : 0
-                : index < values.Count ? number(values[index]) : 0;
+                ? index == 0 ? JsonScalar.Number(node) : 0
+                : index < values.Count ? JsonScalar.Number(values[index]) : 0;
         }
         return result;
     }

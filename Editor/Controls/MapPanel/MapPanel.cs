@@ -98,7 +98,7 @@ public sealed partial class MapPanel : Control
     private bool hasAnimatedActors;
     private bool actorPreviewActivityUpdatePending;
     private int renderedAutoTileFrame;
-    private MapZoomAnchor? pendingMapZoomAnchor;
+    private readonly EditorZoomAnchor pendingMapZoomAnchor = new();
 
     public MapPanel()
     {
@@ -210,7 +210,7 @@ public sealed partial class MapPanel : Control
 
     public void RestoreViewport(MapPanelViewportState state)
     {
-        pendingMapZoomAnchor = null;
+        pendingMapZoomAnchor.Clear();
         tileSize = Math.Clamp(state.TileSize, MinTileSize, MaxTileSize);
         continuousTileSize = Math.Clamp(state.ContinuousTileSize, MinTileSize, MaxTileSize);
         disposeMapRenderCaches();

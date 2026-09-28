@@ -234,5 +234,5 @@ public sealed partial class ParticleEditor : UserControl
     }
 
     private static string text(JsonObject value, string property, string fallback = "") => value[property]?.GetValue<string>() ?? fallback;
-    private static double number(JsonNode? value, double fallback = 0) => ParticleAssetSchema.Number(value, fallback);
+    private static double number(JsonNode? value, double fallback = 0) => JsonScalar.Number(value, fallback);
 }

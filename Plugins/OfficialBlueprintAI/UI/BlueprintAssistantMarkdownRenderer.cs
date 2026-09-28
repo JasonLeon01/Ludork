@@ -18,9 +18,7 @@ public static class BlueprintAssistantMarkdownRenderer
     public static Control Create(string markdown)
     {
         StackPanel content = new() { Spacing = 6 };
-        string[] lines = markdown.Replace("\r\n", "\n", StringComparison.Ordinal)
-            .Replace('\r', '\n')
-            .Split('\n');
+        string[] lines = MarkdownSyntax.GetLines(markdown);
         bool inCode = false;
         string codeLanguage = string.Empty;
         StringBuilder code = new();
@@ -112,132 +110,18 @@ public static class BlueprintAssistantMarkdownRenderer
         out Control table,
         out int consumedLines)
     {
-        table = null!;
-        consumedLines = 0;
-        if (startIndex + 1 >= lines.Count)
-            return false;
-
-        string headerLine = lines[startIndex];
-        string delimiterLine = lines[startIndex + 1];
-        if (!containsTablePipe(headerLine)
-            && !containsTablePipe(delimiterLine))
+        MarkdownTable? parsed = MarkdownSyntax.ReadTable(lines, startIndex, MarkdownSyntax.Profile.Assistant);
+        if (parsed is null)
         {
+            table = null!;
+            consumedLines = 0;
             return false;
         }
-
-        IReadOnlyList<string> headers = splitTableRow(headerLine);
-        IReadOnlyList<string> delimiters = splitTableRow(delimiterLine);
-        if (headers.Count == 0 || delimiters.Count != headers.Count)
-            return false;
-
-        List<TextAlignment> alignments = new List<TextAlignment>();
-        foreach (string delimiter in delimiters)
-        {
-            string value = delimiter.Trim();
-            if (!Regex.IsMatch(value, "^:?-{3,}:?$"))
-                return false;
-            alignments.Add(value.StartsWith(':') && value.EndsWith(':')
-                ? TextAlignment.Center
-                : value.EndsWith(':')
-                    ? TextAlignment.Right
-                    : TextAlignment.Left);
-        }
-
-        List<IReadOnlyList<string>> rows = new List<IReadOnlyList<string>>
-        {
-            headers,
-        };
-        int lineIndex = startIndex + 2;
-        while (lineIndex < lines.Count
-            && !string.IsNullOrWhiteSpace(lines[lineIndex])
-            && containsTablePipe(lines[lineIndex]))
-        {
-            IReadOnlyList<string> parsedRow = splitTableRow(lines[lineIndex]);
-            List<string> normalizedRow = new List<string>(headers.Count);
-            for (int column = 0; column < headers.Count; column++)
-            {
-                normalizedRow.Add(
-                    column < parsedRow.Count ? parsedRow[column] : string.Empty);
-            }
-            rows.Add(normalizedRow);
-            lineIndex++;
-        }
-
-        table = createTable(rows, alignments);
-        consumedLines = lineIndex - startIndex;
+        List<IReadOnlyList<string>> rows = [parsed.Header];
+        rows.AddRange(parsed.Rows);
+        table = createTable(rows, parsed.Alignments);
+        consumedLines = parsed.ConsumedLines;
         return true;
-    }
-
-    private static bool containsTablePipe(string line)
-    {
-        bool escaped = false;
-        bool inCode = false;
-        foreach (char character in line)
-        {
-            if (escaped)
-            {
-                escaped = false;
-                continue;
-            }
-            if (character == '\\')
-            {
-                escaped = true;
-                continue;
-            }
-            if (character == '`')
-            {
-                inCode = !inCode;
-                continue;
-            }
-            if (character == '|' && !inCode)
-                return true;
-        }
-        return false;
-    }
-
-    private static IReadOnlyList<string> splitTableRow(string line)
-    {
-        List<string> cells = new List<string>();
-        StringBuilder cell = new StringBuilder();
-        bool escaped = false;
-        bool inCode = false;
-        foreach (char character in line.Trim())
-        {
-            if (escaped)
-            {
-                if (character != '|')
-                    cell.Append('\\');
-                cell.Append(character);
-                escaped = false;
-                continue;
-            }
-            if (character == '\\')
-            {
-                escaped = true;
-                continue;
-            }
-            if (character == '`')
-            {
-                inCode = !inCode;
-                cell.Append(character);
-                continue;
-            }
-            if (character == '|' && !inCode)
-            {
-                cells.Add(cell.ToString().Trim());
-                cell.Clear();
-                continue;
-            }
-            cell.Append(character);
-        }
-        if (escaped)
-            cell.Append('\\');
-        cells.Add(cell.ToString().Trim());
-        if (cells.Count > 0 && cells[0].Length == 0)
-            cells.RemoveAt(0);
-        if (cells.Count > 0 && cells[^1].Length == 0)
-            cells.RemoveAt(cells.Count - 1);
-        return cells;
     }
 
     private static Control createTable(
@@ -302,9 +186,7 @@ public static class BlueprintAssistantMarkdownRenderer
         };
         InlineCollection inlines = block.Inlines ?? new InlineCollection();
         block.Inlines = inlines;
-        MatchCollection matches = Regex.Matches(
-            text,
-            @"`[^`\n]+`|\*\*[^*\n]+?\*\*|__[^_\n]+?__|(?<!\*)\*[^*\n]+?\*(?!\*)|\[[^\]]+\]\([^)]+\)");
+        MatchCollection matches = MarkdownSyntax.GetInlineMatches(text, MarkdownSyntax.Profile.Assistant);
         int position = 0;
         foreach (Match match in matches)
         {

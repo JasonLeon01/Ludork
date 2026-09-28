@@ -174,7 +174,7 @@ internal sealed partial class ResourceCleanupWindow
         row.Children.Add(new TextBlock { Text = item.RelativePath, TextWrapping = TextWrapping.Wrap });
         TextBlock size = new()
         {
-            Text = localizer.Size(item.SizeBytes),
+            Text = ResourceSizeFormatter.Format(item.SizeBytes),
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Center,
         };

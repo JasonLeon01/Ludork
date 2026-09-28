@@ -167,16 +167,6 @@ public sealed class ParticleOverviewWindow : Window
 
     private async void onKeyDown(object? sender, KeyEventArgs args)
     {
-        if (!EditorShortcuts.HasPrimaryModifier(args.KeyModifiers))
-            return;
-        if (args.Key == Key.S)
-            await EditorSaveWorkflow.TrySaveAsync(this, projectSave);
-        else if (EditorShortcuts.IsUndo(args.Key, args.KeyModifiers))
-            EditorFeedback.ShowHistory(toast, "Undo", binding.Undo());
-        else if (EditorShortcuts.IsRedo(args.Key, args.KeyModifiers))
-            EditorFeedback.ShowHistory(toast, "Redo", binding.Redo());
-        else
-            return;
-        args.Handled = true;
+        await binding.HandleShortcutAsync(args, projectSave, toast);
     }
 }

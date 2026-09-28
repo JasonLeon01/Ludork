@@ -3,7 +3,6 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Ludork.Plugin.Abstractions;
 using Ludork.Plugin.Avalonia;
-using Ludork.Plugins.OfficialResourceCleanup.Localization;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -149,8 +148,8 @@ internal sealed partial class ResourceCleanupWindow : Window
             ResourceCleanupCandidate[] assets = scanned.Candidates.Where(item => item.Category == "Assets").ToArray();
             dataList.ItemsSource = data;
             assetList.ItemsSource = assets;
-            dataTab.Header = localizer.Format("categorySummary", "Data", data.Length, localizer.Size(data.Sum(item => item.SizeBytes)));
-            assetTab.Header = localizer.Format("categorySummary", "Assets", assets.Length, localizer.Size(assets.Sum(item => item.SizeBytes)));
+            dataTab.Header = localizer.Format("categorySummary", "Data", data.Length, ResourceSizeFormatter.Format(data.Sum(item => item.SizeBytes)));
+            assetTab.Header = localizer.Format("categorySummary", "Assets", assets.Length, ResourceSizeFormatter.Format(assets.Sum(item => item.SizeBytes)));
             issueList.ItemsSource = scanned.Issues;
             issueTab.IsVisible = scanned.Issues.Count != 0;
             issueTab.Header = localizer.Format("issues", scanned.Issues.Count);
@@ -158,7 +157,7 @@ internal sealed partial class ResourceCleanupWindow : Window
             statusText.Text = scanned.Issues.Count != 0
                 ? localizer.Text("scanBlocked")
                 : scanned.Candidates.Count == 0 ? localizer.Text("noCandidates")
-                : localizer.Format("scanSummary", scanned.Candidates.Count, localizer.Size(scanned.TotalBytes));
+                : localizer.Format("scanSummary", scanned.Candidates.Count, ResourceSizeFormatter.Format(scanned.TotalBytes));
         });
     }
 

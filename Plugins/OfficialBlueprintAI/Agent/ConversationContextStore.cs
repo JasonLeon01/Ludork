@@ -196,38 +196,8 @@ internal sealed class ConversationContextStore
             throw new InvalidOperationException("Conversation summary path has no directory.");
         }
 
-        Directory.CreateDirectory(directory);
-        string temporaryPath = Path.Combine(
-            directory,
-            $".summary-{Guid.NewGuid():N}.tmp");
-        bool moved = false;
-        try
-        {
-            await using (FileStream stream = new FileStream(
-                temporaryPath,
-                FileMode.CreateNew,
-                FileAccess.Write,
-                FileShare.None,
-                4096,
-                FileOptions.Asynchronous | FileOptions.WriteThrough))
-            {
-                await JsonSerializer.SerializeAsync(
-                    stream,
-                    state,
-                    JsonOptions,
-                    cancellationToken);
-                await stream.FlushAsync(cancellationToken);
-            }
-
-            File.Move(temporaryPath, path, true);
-            moved = true;
-        }
-        finally
-        {
-            if (!moved && File.Exists(temporaryPath))
-            {
-                File.Delete(temporaryPath);
-            }
-        }
+        await FilePersistence.WriteAtomicAsync(path,
+            (stream, token) => JsonSerializer.SerializeAsync(stream, state, JsonOptions, token),
+            cancellationToken);
     }
 }

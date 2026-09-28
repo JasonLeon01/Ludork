@@ -106,12 +106,12 @@ public sealed partial class ReferenceIndexService : IDisposable
         {
             string worldKey = normalized["Data/Maps/".Length..].Trim('/');
             if (!worldKey.Contains('/') && gameData.Worlds.WorldMapData.ContainsKey(worldKey))
-                return nodeId("worldMap", worldKey);
+                return ReferenceIdentity.NodeId("worldMap", worldKey);
         }
         if (lower.StartsWith("assets/", StringComparison.Ordinal))
         {
             if (gameData.GetDocumentByPath(absolutePath) is { Section: "Subtitles" } subtitle)
-                return nodeId("subtitle", subtitle.Key);
+                return ReferenceIdentity.NodeId("subtitle", subtitle.Key);
             if (!GameAssetPath.TryFromProjectFile(
                     gameData.ProjectPath,
                     absolutePath,
@@ -119,7 +119,7 @@ public sealed partial class ReferenceIndexService : IDisposable
             {
                 return null;
             }
-            string assetNodeId = nodeId("asset", logicalPath);
+            string assetNodeId = ReferenceIdentity.NodeId("asset", logicalPath);
             return assetNodeId;
         }
 
@@ -139,7 +139,7 @@ public sealed partial class ReferenceIndexService : IDisposable
         if (section.Equals("Blueprints", StringComparison.OrdinalIgnoreCase))
         {
             return gameData.Blueprints.BlueprintsData.ContainsKey(key)
-                ? blueprintNodeIdFromKey(key)
+                ? ReferenceIdentity.BlueprintNodeId(key)
                 : null;
         }
 
@@ -148,15 +148,15 @@ public sealed partial class ReferenceIndexService : IDisposable
         {
             string worldKey = key[..^"/_world".Length];
             return gameData.Worlds.WorldMapData.ContainsKey(worldKey)
-                ? nodeId("worldMap", worldKey)
+                ? ReferenceIdentity.NodeId("worldMap", worldKey)
                 : null;
         }
 
         if (section.Equals("Maps", StringComparison.OrdinalIgnoreCase))
-            return gameData.Maps.containsMapKey(key) ? nodeId("map", key) : null;
+            return gameData.Maps.containsMapKey(key) ? ReferenceIdentity.NodeId("map", key) : null;
         (string Type, IReadOnlyDictionary<string, JsonObject> Data)? dataSection = getDataSection(section);
         return dataSection is not null && dataSection.Value.Data.ContainsKey(key)
-            ? nodeId(dataSection.Value.Type, key)
+            ? ReferenceIdentity.NodeId(dataSection.Value.Type, key)
             : null;
     }
 
@@ -383,7 +383,7 @@ public sealed partial class ReferenceIndexService : IDisposable
     private string addNode(string type, string key)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        string id = nodeId(type, key);
+        string id = ReferenceIdentity.NodeId(type, key);
         declaredNodes.Add(id);
         nodes[id] = ReferenceIndexSnapshot.ParseNode(id)!;
         return id;
@@ -480,40 +480,11 @@ public sealed partial class ReferenceIndexService : IDisposable
             key.Replace('/', Path.DirectorySeparatorChar) + DataConfig.DataFileExtension);
     }
 
-    private static string nodeId(string type, string key)
-    {
-        return ReferenceIndexSnapshot.NodeId(type, key);
-    }
-
     private string generalMemberNodeId(string typeKey, string memberKey)
     {
-        string id = nodeId("generalMember", $"{typeKey}/{memberKey}");
+        string id = ReferenceIdentity.GeneralMemberNodeId(typeKey, memberKey);
         generalMemberTypes[id] = typeKey;
         return id;
-    }
-
-    private static string blueprintNodeIdFromKey(string key)
-    {
-        return nodeId("blueprint", BlueprintReference.ToReference(key));
-    }
-
-    private static string? normalizeReferenceParam(JsonNode? value)
-    {
-        string? text = getString(value)?.Trim();
-        if (string.IsNullOrWhiteSpace(text))
-            return null;
-        if (text.Length >= 2
-            && text[0] == text[^1]
-            && text[0] is '\'' or '"')
-        {
-            text = text[1..^1].Trim();
-        }
-        return text.Length == 0 ? null : text;
-    }
-
-    private static string? getString(JsonNode? value)
-    {
-        return value is JsonValue scalar && scalar.TryGetValue(out string? text) ? text : null;
     }
 
 }

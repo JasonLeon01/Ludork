@@ -17,27 +17,17 @@ namespace Ludork.Views;
 public sealed class WorldMapEditWindow : Window
 {
     private readonly ProjectDataStore gameData;
-    private readonly double initialFogOx;
-    private readonly double initialFogOy;
-    private readonly decimal? displayedFogOx;
-    private readonly decimal? displayedFogOy;
     private readonly bool isNew;
+    private readonly MapFogEditor fogEditor;
     private readonly TextBox directoryNameBox = EditorInputs.CreateEditableTextBox();
     private readonly TextBox worldNameBox = EditorInputs.CreateEditableTextBox();
     private readonly NumericUpDown widthBox = EditorInputs.CreateNumericUpDown(256, 1, 32768, 1);
     private readonly NumericUpDown heightBox = EditorInputs.CreateNumericUpDown(192, 1, 32768, 1);
-    private readonly TextBox fogBox = EditorInputs.CreateReadOnlyTextBox();
-    private readonly NumericUpDown fogPowerBox = EditorInputs.CreateNumericUpDown(0, 0, 100, 1);
-    private readonly NumericUpDown fogOxBox = EditorInputs.CreateNumericUpDown(0, -9999, 9999, 1);
-    private readonly NumericUpDown fogOyBox = EditorInputs.CreateNumericUpDown(0, -9999, 9999, 1);
-    private readonly NumericUpDown fogDistortBox = EditorInputs.CreateNumericUpDown(0, 0, 100, 1);
-    private readonly TextBox panoramaBox = EditorInputs.CreateReadOnlyTextBox();
     private readonly TextBlock errorText = new()
     {
         Foreground = Brushes.IndianRed,
         TextWrapping = TextWrapping.Wrap,
     };
-    private readonly StackPanel fogOptions = new() { Spacing = 8 };
 
     private WorldMapEditWindow(
         ProjectDataStore gameData,
@@ -59,32 +49,17 @@ public sealed class WorldMapEditWindow : Window
         worldNameBox.Text = initial.WorldName;
         widthBox.Value = initial.Width;
         heightBox.Value = initial.Height;
-        fogBox.Text = initial.Fog;
-        fogPowerBox.Value = initial.FogPower;
-        fogOxBox.Value = (decimal)initial.FogOx;
-        fogOyBox.Value = (decimal)initial.FogOy;
-        initialFogOx = initial.FogOx;
-        initialFogOy = initial.FogOy;
-        displayedFogOx = fogOxBox.Value;
-        displayedFogOy = fogOyBox.Value;
-        fogDistortBox.Value = initial.FogDistort;
-        panoramaBox.Text = initial.Panorama;
+        fogEditor = new MapFogEditor(MapVisualSettings.From(initial));
 
         Grid form = new() { RowSpacing = 8 };
         if (isNew)
-            addRow(form, LocaleService.Get("WORLD_FOLDER_NAME"), directoryNameBox);
-        addRow(form, LocaleService.Get("WORLD_NAME"), worldNameBox);
-        addRow(form, LocaleService.Get("MAP_WIDTH"), widthBox);
-        addRow(form, LocaleService.Get("MAP_HEIGHT"), heightBox);
-        addRow(form, LocaleService.Get("MAP_PANORAMA"), createFileRow(panoramaBox, "Panoramas"));
-        addRow(form, LocaleService.Get("MAP_FOG"), createFileRow(fogBox, "Fogs"));
-        fogOptions.Children.Add(createRow(LocaleService.Get("MAP_FOG_POWER"), fogPowerBox));
-        fogOptions.Children.Add(createRow(LocaleService.Get("MAP_FOG_OX"), fogOxBox));
-        fogOptions.Children.Add(createRow(LocaleService.Get("MAP_FOG_OY"), fogOyBox));
-        fogOptions.Children.Add(createRow(LocaleService.Get("MAP_FOG_DISTORT"), fogDistortBox));
-        addRow(form, string.Empty, fogOptions);
-        fogBox.TextChanged += (_, _) => updateFogVisibility();
-        updateFogVisibility();
+            EditorFormRows.Add(form, LocaleService.Get("WORLD_FOLDER_NAME"), directoryNameBox);
+        EditorFormRows.Add(form, LocaleService.Get("WORLD_NAME"), worldNameBox);
+        EditorFormRows.Add(form, LocaleService.Get("MAP_WIDTH"), widthBox);
+        EditorFormRows.Add(form, LocaleService.Get("MAP_HEIGHT"), heightBox);
+        EditorFormRows.Add(form, LocaleService.Get("MAP_PANORAMA"), createFileRow(fogEditor.PanoramaBox, "Panoramas"));
+        EditorFormRows.Add(form, LocaleService.Get("MAP_FOG"), createFileRow(fogEditor.PathBox, "Fogs"));
+        EditorFormRows.Add(form, string.Empty, fogEditor.Options);
 
         Button confirm = new() { Content = LocaleService.Get("CONFIRM"), MinWidth = 80 };
         confirm.Click += onConfirm;
@@ -189,8 +164,8 @@ public sealed class WorldMapEditWindow : Window
             errorText.Text = LocaleService.Get("WORLD_NAME_EMPTY");
             return;
         }
-        string fog = fogBox.Text?.Trim() ?? string.Empty;
-        string panorama = panoramaBox.Text?.Trim() ?? string.Empty;
+        string fog = fogEditor.PathBox.Text?.Trim() ?? string.Empty;
+        string panorama = fogEditor.PanoramaBox.Text?.Trim() ?? string.Empty;
         if (fog.Length != 0 && !GameAssetPath.IsCanonical(fog))
         {
             errorText.Text = $"Invalid game asset path: {fog}";
@@ -208,17 +183,12 @@ public sealed class WorldMapEditWindow : Window
             Width = decimal.ToInt32(widthBox.Value ?? 0),
             Height = decimal.ToInt32(heightBox.Value ?? 0),
             Fog = fog,
-            FogPower = decimal.ToInt32(fogPowerBox.Value ?? 0),
-            FogOx = fogOxBox.Value == displayedFogOx ? initialFogOx : (double)(fogOxBox.Value ?? 0),
-            FogOy = fogOyBox.Value == displayedFogOy ? initialFogOy : (double)(fogOyBox.Value ?? 0),
-            FogDistort = decimal.ToInt32(fogDistortBox.Value ?? 0),
+            FogPower = fogEditor.Power,
+            FogOx = fogEditor.Ox,
+            FogOy = fogEditor.Oy,
+            FogDistort = fogEditor.Distort,
             Panorama = panorama,
         });
-    }
-
-    private void updateFogVisibility()
-    {
-        fogOptions.IsVisible = !string.IsNullOrWhiteSpace(fogBox.Text);
     }
 
     private static bool isValidDirectoryName(string value)
@@ -231,30 +201,4 @@ public sealed class WorldMapEditWindow : Window
             && !string.Equals(value, "_world", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static void addRow(Grid form, string label, Control editor)
-    {
-        int rowIndex = form.RowDefinitions.Count;
-        form.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        Grid row = createRow(label, editor);
-        Grid.SetRow(row, rowIndex);
-        form.Children.Add(row);
-    }
-
-    private static Grid createRow(string label, Control editor)
-    {
-        Grid row = new()
-        {
-            ColumnDefinitions = new ColumnDefinitions("160,*"),
-            ColumnSpacing = 12,
-        };
-        row.Children.Add(new TextBlock
-        {
-            Text = label,
-            VerticalAlignment = VerticalAlignment.Center,
-            TextWrapping = TextWrapping.Wrap,
-        });
-        Grid.SetColumn(editor, 1);
-        row.Children.Add(editor);
-        return row;
-    }
 }

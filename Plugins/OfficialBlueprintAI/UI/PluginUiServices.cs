@@ -1,3 +1,4 @@
+using Ludork.Plugin.Abstractions;
 using Avalonia;
 using Ludork.Plugin.Avalonia;
 using Avalonia.Controls;
@@ -7,7 +8,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Ludork.Plugins.OfficialBlueprintAI.Localization;
 
 namespace Ludork.Plugins.OfficialBlueprintAI.UI;
 

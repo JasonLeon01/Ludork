@@ -23,13 +23,13 @@ public sealed partial class WorldMapCanvas
     private bool viewportResetPending;
     private bool panning;
     private Point lastPanPointer;
-    private WorldMapZoomAnchor? pendingZoomAnchor;
+    private readonly EditorZoomAnchor pendingZoomAnchor = new();
 
     public WorldMapViewportState CaptureViewport() => new(cellSize, hostScrollViewer?.Offset ?? default);
 
     public void RestoreViewport(WorldMapViewportState state)
     {
-        pendingZoomAnchor = null;
+        pendingZoomAnchor.Clear();
         viewportResetPending = false;
         viewInitialized = true;
         cellSize = Math.Clamp(state.CellSize, MinimumCellSize, MaximumCellSize);
@@ -66,7 +66,7 @@ public sealed partial class WorldMapCanvas
         LayoutUpdated -= onLayoutUpdated;
         foreach (WorldMapChildSource child in childMaps.Values)
             child.ReleaseData(this);
-        pendingZoomAnchor = null;
+        pendingZoomAnchor.Clear();
         bindHostScrollViewer(null);
         base.OnDetachedFromVisualTree(args);
     }
@@ -131,10 +131,7 @@ public sealed partial class WorldMapCanvas
         if (Math.Abs(nextCellSize - cellSize) < double.Epsilon)
             return;
         Rect worldRect = getWorldRect();
-        pendingZoomAnchor = new WorldMapZoomAnchor(
-            (contentPoint.X - worldRect.X) / cellSize,
-            (contentPoint.Y - worldRect.Y) / cellSize,
-            viewportPoint);
+        pendingZoomAnchor.Capture(contentPoint, viewportPoint, worldRect.Position, cellSize);
         cellSize = nextCellSize;
         viewInitialized = true;
         viewportResetPending = false;
@@ -149,7 +146,7 @@ public sealed partial class WorldMapCanvas
             tryInitializeView();
             return;
         }
-        if (pendingZoomAnchor is not null)
+        if (pendingZoomAnchor.IsPending)
         {
             applyZoomAnchor();
             return;
@@ -183,22 +180,7 @@ public sealed partial class WorldMapCanvas
 
     private void applyZoomAnchor()
     {
-        if (pendingZoomAnchor is not WorldMapZoomAnchor anchor
-            || hostScrollViewer is null)
-        {
-            pendingZoomAnchor = null;
-            return;
-        }
-        pendingZoomAnchor = null;
-        Rect worldRect = getWorldRect();
-        Point contentAnchor = new(
-            worldRect.X + anchor.WorldX * cellSize,
-            worldRect.Y + anchor.WorldY * cellSize);
-        hostScrollViewer.Offset = EditorZoomInput.GetAnchoredOffset(
-            contentAnchor,
-            anchor.ViewportPoint,
-            hostScrollViewer.Extent,
-            hostScrollViewer.Viewport);
+        pendingZoomAnchor.Apply(hostScrollViewer, getWorldRect().Position, cellSize);
     }
 
     private bool tryStartPanning(
@@ -306,14 +288,14 @@ public sealed partial class WorldMapCanvas
         cellSize = 8;
         viewInitialized = false;
         viewportResetPending = true;
-        pendingZoomAnchor = null;
+        pendingZoomAnchor.Clear();
     }
 
     private void disposeViewport()
     {
         PointerTouchPadGestureMagnify -= onPointerTouchPadGestureMagnify;
         LayoutUpdated -= onLayoutUpdated;
-        pendingZoomAnchor = null;
+        pendingZoomAnchor.Clear();
         bindHostScrollViewer(null);
     }
 
@@ -335,8 +317,4 @@ public sealed partial class WorldMapCanvas
         InvalidateVisual();
     }
 
-    private readonly record struct WorldMapZoomAnchor(
-        double WorldX,
-        double WorldY,
-        Point ViewportPoint);
 }

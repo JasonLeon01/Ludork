@@ -171,16 +171,6 @@ public sealed class TilesetEditorWindow : Window
 
     private async void onKeyDown(object? sender, KeyEventArgs args)
     {
-        if (!EditorShortcuts.HasPrimaryModifier(args.KeyModifiers))
-            return;
-        if (EditorShortcuts.IsUndo(args.Key, args.KeyModifiers))
-            EditorFeedback.ShowHistory(toast, "Undo", documentBinding.Undo());
-        else if (EditorShortcuts.IsRedo(args.Key, args.KeyModifiers))
-            EditorFeedback.ShowHistory(toast, "Redo", documentBinding.Redo());
-        else if (args.Key == Key.S)
-            await EditorSaveWorkflow.TrySaveAsync(this, projectSave);
-        else
-            return;
-        args.Handled = true;
+        await documentBinding.HandleShortcutAsync(args, projectSave, toast);
     }
 }

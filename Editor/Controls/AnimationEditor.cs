@@ -681,7 +681,7 @@ public sealed class AnimationEditor : UserControl
             {
                 if (segments[index] is not JsonObject segment)
                     continue;
-                int segmentAsset = (int)number(segment["asset"], -1);
+                int segmentAsset = (int)JsonScalar.Number(segment["asset"], -1);
                 if (segmentAsset == assetIndex)
                     segments.RemoveAt(index);
                 else if (segmentAsset > assetIndex)
@@ -789,13 +789,13 @@ public sealed class AnimationEditor : UserControl
             if (index == 0)
             {
                 value = Math.Max(0, value);
-                double first = frameName == "startFrame" ? value : number((segment["startFrame"] as JsonObject)?["time"]);
-                double last = frameName == "endFrame" ? value : number((segment["endFrame"] as JsonObject)?["time"]);
+                double first = frameName == "startFrame" ? value : JsonScalar.Number((segment["startFrame"] as JsonObject)?["time"]);
+                double last = frameName == "endFrame" ? value : JsonScalar.Number((segment["endFrame"] as JsonObject)?["time"]);
                 double minimumDuration = segment["type"]?.GetValue<string>() == "sound" ? 1.0 / frameRate() : 0.05;
                 if (last < first + minimumDuration)
                     return;
             }
-            if (number(frame[property]) == value)
+            if (JsonScalar.Number(frame[property]) == value)
                 return;
             frame[property] = value;
         }
@@ -805,7 +805,7 @@ public sealed class AnimationEditor : UserControl
             int component = index < 3 ? index - 1 : index - 4;
             double fallback = property == "scale" ? 1 : 0;
             JsonArray values = frame[property] as JsonArray ?? new JsonArray();
-            if (number(values.ElementAtOrDefault(component), fallback) == value)
+            if (JsonScalar.Number(values.ElementAtOrDefault(component), fallback) == value)
                 return;
             while (values.Count < 2)
                 values.Add(fallback);
@@ -898,15 +898,15 @@ public sealed class AnimationEditor : UserControl
             {
                 if (segments[segmentIndex] is not JsonObject segment || segment["type"]?.GetValue<string>() != "sound")
                     continue;
-                double start = number((segment["startFrame"] as JsonObject)?["time"]);
-                double end = number((segment["endFrame"] as JsonObject)?["time"]);
+                double start = JsonScalar.Number((segment["startFrame"] as JsonObject)?["time"]);
+                double end = JsonScalar.Number((segment["endFrame"] as JsonObject)?["time"]);
                 if (time < start || time >= end)
                     continue;
                 (int Track, int Segment) playerKey = (track, segmentIndex);
                 active.Add(playerKey);
                 if (soundPlayers.ContainsKey(playerKey))
                     continue;
-                int assetIndex = (int)number(segment["asset"], -1);
+                int assetIndex = (int)JsonScalar.Number(segment["asset"], -1);
                 if (assetIndex < 0 || assetIndex >= assets.Count || assets[assetIndex] is not JsonValue asset || !asset.TryGetValue<string>(out string? assetName) || string.IsNullOrWhiteSpace(assetName))
                     continue;
                 if (!GameAssetPath.TryResolveExistingFile(
@@ -1018,7 +1018,7 @@ public sealed class AnimationEditor : UserControl
             foreach (JsonNode? segmentNode in segments)
             {
                 if (segmentNode is JsonObject segment)
-                    maximum = Math.Max(maximum, number((segment["endFrame"] as JsonObject)?["time"]));
+                    maximum = Math.Max(maximum, JsonScalar.Number((segment["endFrame"] as JsonObject)?["time"]));
             }
         }
         return maximum;
@@ -1287,7 +1287,7 @@ public sealed class AnimationEditor : UserControl
         return segments[selectedSegment] as JsonObject;
     }
 
-    private int frameRate() => Math.Max(1, (int)number(data["frameRate"], 30));
+    private int frameRate() => Math.Max(1, (int)JsonScalar.Number(data["frameRate"], 30));
 
     private static JsonObject createFrame(double time) => new()
     {
@@ -1301,36 +1301,14 @@ public sealed class AnimationEditor : UserControl
     {
         JsonArray position = frame["position"] as JsonArray ?? new JsonArray(0.0, 0.0);
         JsonArray scale = frame["scale"] as JsonArray ?? new JsonArray(1.0, 1.0);
-        time.Text = number(frame["time"]).ToString(CultureInfo.InvariantCulture);
-        x.Text = number(position.ElementAtOrDefault(0)).ToString(CultureInfo.InvariantCulture);
-        y.Text = number(position.ElementAtOrDefault(1)).ToString(CultureInfo.InvariantCulture);
-        rotation.Text = number(frame["rotation"]).ToString(CultureInfo.InvariantCulture);
-        scaleX.Text = number(scale.ElementAtOrDefault(0), 1).ToString(CultureInfo.InvariantCulture);
-        scaleY.Text = number(scale.ElementAtOrDefault(1), 1).ToString(CultureInfo.InvariantCulture);
+        time.Text = JsonScalar.Number(frame["time"]).ToString(CultureInfo.InvariantCulture);
+        x.Text = JsonScalar.Number(position.ElementAtOrDefault(0)).ToString(CultureInfo.InvariantCulture);
+        y.Text = JsonScalar.Number(position.ElementAtOrDefault(1)).ToString(CultureInfo.InvariantCulture);
+        rotation.Text = JsonScalar.Number(frame["rotation"]).ToString(CultureInfo.InvariantCulture);
+        scaleX.Text = JsonScalar.Number(scale.ElementAtOrDefault(0), 1).ToString(CultureInfo.InvariantCulture);
+        scaleY.Text = JsonScalar.Number(scale.ElementAtOrDefault(1), 1).ToString(CultureInfo.InvariantCulture);
     }
 
     private static bool tryNumber(string? value, out double result) => double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out result) && double.IsFinite(result);
-    internal static double number(JsonNode? node, double fallback = 0)
-    {
-        if (node is not JsonValue value)
-            return fallback;
-        if (value.TryGetValue<double>(out double doubleValue))
-            return doubleValue;
-        if (value.TryGetValue<float>(out float floatValue))
-            return floatValue;
-        if (value.TryGetValue<int>(out int intValue))
-            return intValue;
-        if (value.TryGetValue<long>(out long longValue))
-            return longValue;
-        if (value.TryGetValue<decimal>(out decimal decimalValue))
-            return (double)decimalValue;
-        if (value.TryGetValue<JsonElement>(out JsonElement element)
-            && element.ValueKind == JsonValueKind.Number
-            && element.TryGetDouble(out double elementValue))
-        {
-            return elementValue;
-        }
-        return fallback;
-    }
     internal static bool isAudioAsset(string name) => new[] { ".wav", ".ogg", ".mp3" }.Contains(Path.GetExtension(name), StringComparer.OrdinalIgnoreCase);
 }

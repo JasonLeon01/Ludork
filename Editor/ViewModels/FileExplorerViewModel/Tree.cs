@@ -25,7 +25,7 @@ public sealed partial class FileExplorerViewModel
         {
             expandedDirectories.Remove(entry.FullPath);
             if (SelectedEntry is { } selected && !ReferenceEquals(selected, entry)
-                && isSameOrChildPath(entry.FullPath, selected.FullPath))
+                && EditorPathSandbox.IsSameOrChildPath(entry.FullPath, selected.FullPath))
                 SelectedEntry = entry;
         }
         entry.UpdateHierarchy(entry.Depth, entry.CanExpand, expanded, Zoom);
@@ -44,14 +44,14 @@ public sealed partial class FileExplorerViewModel
     {
         foreach ((string oldPath, string newPath) in changes.Moved)
         {
-            string[] moved = expandedDirectories.Where(path => isSameOrChildPath(oldPath, path)).ToArray();
+            string[] moved = expandedDirectories.Where(path => EditorPathSandbox.IsSameOrChildPath(oldPath, path)).ToArray();
             foreach (string path in moved)
             {
                 expandedDirectories.Remove(path);
                 expandedDirectories.Add(Path.GetFullPath(Path.Combine(newPath, Path.GetRelativePath(oldPath, path))));
             }
         }
-        expandedDirectories.RemoveWhere(path => changes.Deleted.Any(deleted => isSameOrChildPath(deleted, path)));
+        expandedDirectories.RemoveWhere(path => changes.Deleted.Any(deleted => EditorPathSandbox.IsSameOrChildPath(deleted, path)));
     }
 
     private DirectoryReadResult readDirectoryTree(string directory, DocumentPath[] documents,
@@ -93,7 +93,7 @@ public sealed partial class FileExplorerViewModel
                 continue;
             foreach (string path in document.Paths)
             {
-                if (!isSameOrChildPath(directory, path))
+                if (!EditorPathSandbox.IsSameOrChildPath(directory, path))
                     continue;
                 string current = path;
                 bool isDirectory = false;

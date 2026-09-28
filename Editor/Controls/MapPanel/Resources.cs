@@ -650,5 +650,4 @@ public sealed partial class MapPanel
     }
 
     private readonly record struct CacheGeometry(int MapWidth, int MapHeight, int TileSize, double RenderScale, Rect Viewport);
-    private readonly record struct MapZoomAnchor(double MapX, double MapY, Point ViewportPoint);
 }

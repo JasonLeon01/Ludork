@@ -120,19 +120,8 @@ internal sealed class SigningCredentialStore<TEntry, TSecrets>
         string? directory = Path.GetDirectoryName(indexPath);
         if (directory is null)
             throw new InvalidDataException($"{platformName} signing credential index has no parent directory.");
-        Directory.CreateDirectory(directory);
-        string temporaryPath = Path.Combine(directory, $".{Path.GetFileName(indexPath)}.{Guid.NewGuid():N}.tmp");
         string json = JsonSerializer.Serialize(document, serializerOptions) + Environment.NewLine;
-        try
-        {
-            await File.WriteAllTextAsync(temporaryPath, json, new UTF8Encoding(false), cancellationToken);
-            File.Move(temporaryPath, indexPath, true);
-        }
-        finally
-        {
-            if (File.Exists(temporaryPath))
-                File.Delete(temporaryPath);
-        }
+        await FilePersistence.WriteAllTextAtomicAsync(indexPath, json, cancellationToken);
     }
 
     private static string? findPath(CredentialIndexDocument document, string path) =>

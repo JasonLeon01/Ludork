@@ -29,7 +29,7 @@ public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
     private readonly EditorDocumentBinding documentBinding;
     private readonly TabControl tabControl;
     private readonly DeferredWindowInitializer initializer;
-    private readonly Dictionary<string, BlueprintEditorWindow> blueprintWindows = new(StringComparer.Ordinal);
+    private readonly BlueprintEditorWindowCollection blueprintWindows = new();
     private readonly Dictionary<string, GeneralDataPageSessionState> pageStates = new(StringComparer.Ordinal);
     private string? pendingTypeKey;
     private bool buildingTabs;
@@ -181,10 +181,7 @@ public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
 
     private void onDocumentsChanged(object? sender, EventArgs args)
     {
-        BlueprintEditorWindow[] windows = blueprintWindows.Values.Distinct().ToArray();
-        blueprintWindows.Clear();
-        foreach (BlueprintEditorWindow window in windows)
-            blueprintWindows[window.Document.DocumentKey] = window;
+        blueprintWindows.Reindex();
         if (!initializer.IsInitialized)
             return;
         string[] keys = gameData.General.GeneralData.Keys.OrderBy(key => key, StringComparer.Ordinal).ToArray();
@@ -212,25 +209,24 @@ public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
 
     internal void FlushBlueprintEditors()
     {
-        foreach (BlueprintEditorWindow window in blueprintWindows.Values.ToArray())
+        foreach (BlueprintEditorWindow window in blueprintWindows.Windows)
             window.FlushPendingChanges();
     }
 
     internal void closeBlueprintEditor(string typeKey, string memberId)
     {
         string key = BlueprintEditorDocument.GetGeneralDocumentKey(typeKey, memberId);
-        if (blueprintWindows.TryGetValue(key, out BlueprintEditorWindow? window))
+        if (blueprintWindows.Find(key) is BlueprintEditorWindow window)
             window.Close();
     }
 
     private void closeBlueprintEditors(string typeKey)
     {
         string prefix = BlueprintEditorDocument.GetGeneralDocumentPrefix(typeKey);
-        foreach (KeyValuePair<string, BlueprintEditorWindow> entry in blueprintWindows
-            .Where(entry => entry.Key.StartsWith(prefix, StringComparison.Ordinal))
-            .ToArray())
+        foreach (BlueprintEditorWindow window in blueprintWindows.Windows
+            .Where(window => window.Document.DocumentKey.StartsWith(prefix, StringComparison.Ordinal)))
         {
-            entry.Value.Close();
+            window.Close();
         }
     }
 
@@ -240,45 +236,20 @@ public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
             gameData,
             typeKey,
             memberId);
-        if (document is null)
-            return;
-        if (blueprintWindows.TryGetValue(document.DocumentKey, out BlueprintEditorWindow? existing))
-        {
-            document.Dispose();
-            if (!existing.Reload())
-                return;
-            existing.Show();
-            existing.Activate();
-            return;
-        }
-        BlueprintEditorWindow window = new(
-            document,
+        blueprintWindows.Open(this, document, value => new BlueprintEditorWindow(
+            value,
             gameData,
             projectSave,
             metadataService,
             classResolver,
-            previewService);
-        blueprintWindows[document.DocumentKey] = window;
-        window.Closed += (_, _) => blueprintWindows.Remove(document.DocumentKey);
-        window.Show(this);
+            previewService));
     }
 
     private async void onKeyDown(object? sender, KeyEventArgs args)
     {
-        if (!EditorShortcuts.HasPrimaryModifier(args.KeyModifiers))
-            return;
-        if (args.Key == Key.S)
-        {
+        if (EditorShortcuts.HasPrimaryModifier(args.KeyModifiers) && args.Key == Key.S)
             FlushBlueprintEditors();
-            await EditorSaveWorkflow.TrySaveAsync(this, projectSave);
-        }
-        else if (EditorShortcuts.IsUndo(args.Key, args.KeyModifiers))
-            EditorFeedback.ShowHistory(toast, "Undo", documentBinding.Undo());
-        else if (EditorShortcuts.IsRedo(args.Key, args.KeyModifiers))
-            EditorFeedback.ShowHistory(toast, "Redo", documentBinding.Redo());
-        else
-            return;
-        args.Handled = true;
+        await documentBinding.HandleShortcutAsync(args, projectSave, toast);
     }
 
     private void onTabContextRequested(object? sender, ContextRequestedEventArgs args)

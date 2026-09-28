@@ -1,6 +1,5 @@
 using Ludork.Plugin.Abstractions;
 using Ludork.Plugin.Avalonia;
-using Ludork.Plugins.OfficialRandomMap.Localization;
 using Ludork.Plugins.OfficialRandomMap.UI;
 using System;
 using System.Threading.Tasks;
@@ -12,7 +11,7 @@ public sealed class OfficialRandomMapPlugin : IEditorPlugin
     public void Register(IPluginRegistrar registrar)
     {
         ArgumentNullException.ThrowIfNull(registrar);
-        PluginLocalizer localizer = PluginLocalizer.Load(
+        PluginLocalizer localizer = PluginLocalizer.LoadDirectory(
             registrar.PluginDirectory,
             registrar.EditorLanguage);
         PluginMapContextMenuCommand command = new(

@@ -42,7 +42,7 @@ internal sealed class DocumentWindowCoordinator : IDisposable
     private GameVariableManagerWindow? gameVariableManager;
     private readonly Dictionary<string, CurveWindow> curveWindows = new(StringComparer.Ordinal);
     private readonly Dictionary<string, TextConfigEditorWindow> textConfigWindows = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, BlueprintEditorWindow> blueprintWindows = new(StringComparer.Ordinal);
+    private readonly BlueprintEditorWindowCollection blueprintWindows = new();
     private readonly Dictionary<string, UiAssetEditorWindow> uiAssetWindows = new(StringComparer.Ordinal);
     private bool uiAssetRefreshPending;
     private string? lastActiveBlueprintKey;
@@ -178,22 +178,10 @@ internal sealed class DocumentWindowCoordinator : IDisposable
         EditorDataCreationRequest request)
     {
         string blueprintsRoot = Path.Combine(mainViewModel.GameData.ProjectPath, "Data", "Blueprints");
-        Directory.CreateDirectory(blueprintsRoot);
-        string? selectedPath = request.DestinationPath;
-        if (string.IsNullOrWhiteSpace(selectedPath))
-        {
-            selectedPath = await FileSelectorDialog.ShowAsync(
-                owner,
-                blueprintsRoot,
-                FileSelectorDialog.FilesFilter("*.json"),
-                LocaleService.Get("SELECT_BLUEPRINT_PATH"),
-                save: true);
-        }
+        string? selectedPath = await EditorResourceCreation.SelectJsonPathAsync(
+            owner, blueprintsRoot, request.DestinationPath, "SELECT_BLUEPRINT_PATH");
         if (selectedPath is null)
             return;
-        selectedPath = Path.GetFullPath(selectedPath);
-        if (!Path.HasExtension(selectedPath))
-            selectedPath = Path.ChangeExtension(selectedPath, "json");
 
         string parentClass = request.ParentClass?.Trim() ?? string.Empty;
         if (parentClass.Length == 0)
@@ -242,10 +230,7 @@ internal sealed class DocumentWindowCoordinator : IDisposable
         if (!args.Reset && !args.Changes.Any(change => change.IdentityChanged
                 && change.Section is "Blueprints" or "UI"))
             return;
-        BlueprintEditorWindow[] blueprints = blueprintWindows.Values.Distinct().ToArray();
-        blueprintWindows.Clear();
-        foreach (BlueprintEditorWindow window in blueprints)
-            blueprintWindows[window.Document.DocumentKey] = window;
+        blueprintWindows.Reindex();
         UiAssetEditorWindow[] assets = uiAssetWindows.Values.Distinct().ToArray();
         uiAssetWindows.Clear();
         foreach (UiAssetEditorWindow window in assets)
@@ -265,13 +250,13 @@ internal sealed class DocumentWindowCoordinator : IDisposable
             "Assets");
         bool uiAssetsChanged = args.Added
                 .Concat(args.Deleted)
-                .Any(path => isSameOrChildPath(uiAssetsRoot, path))
+                .Any(path => EditorPathSandbox.IsSameOrChildPath(uiAssetsRoot, path))
             || args.Moved.Any(move =>
-                isSameOrChildPath(uiAssetsRoot, move.OldPath)
-                || isSameOrChildPath(uiAssetsRoot, move.NewPath));
+                EditorPathSandbox.IsSameOrChildPath(uiAssetsRoot, move.OldPath)
+                || EditorPathSandbox.IsSameOrChildPath(uiAssetsRoot, move.NewPath));
         bool uiAssetsMoved = args.Moved.Any(move =>
-            isSameOrChildPath(uiAssetsRoot, move.OldPath)
-            || isSameOrChildPath(uiAssetsRoot, move.NewPath));
+            EditorPathSandbox.IsSameOrChildPath(uiAssetsRoot, move.OldPath)
+            || EditorPathSandbox.IsSameOrChildPath(uiAssetsRoot, move.NewPath));
         if (uiAssetsChanged && !uiAssetsMoved)
         {
             foreach (UiAssetEditorWindow window in uiAssetWindows.Values
@@ -287,9 +272,7 @@ internal sealed class DocumentWindowCoordinator : IDisposable
             viewModel.GameData.ProjectPath,
             "Data",
             "Blueprints");
-        foreach (BlueprintEditorWindow window in blueprintWindows.Values
-                     .Distinct()
-                     .ToArray())
+        foreach (BlueprintEditorWindow window in blueprintWindows.Windows)
         {
             if (window.Document.BlueprintKey is not string key)
                 continue;
@@ -299,7 +282,6 @@ internal sealed class DocumentWindowCoordinator : IDisposable
                     + DataConfig.DataFileExtension);
             if (tryMapMovedPath(path, args.Moved, out string movedPath))
             {
-                string oldDocumentKey = window.Document.DocumentKey;
                 if (!tryGetBlueprintKey(
                         blueprintsRoot,
                         movedPath,
@@ -310,11 +292,10 @@ internal sealed class DocumentWindowCoordinator : IDisposable
                     window.Close();
                     continue;
                 }
-                blueprintWindows.Remove(oldDocumentKey);
-                blueprintWindows[window.Document.DocumentKey] = window;
+                blueprintWindows.Reindex();
                 continue;
             }
-            if (args.Deleted.Any(deleted => isSameOrChildPath(deleted, path)))
+            if (args.Deleted.Any(deleted => EditorPathSandbox.IsSameOrChildPath(deleted, path)))
                 window.Close();
         }
         string uiRoot = Path.Combine(
@@ -347,7 +328,7 @@ internal sealed class DocumentWindowCoordinator : IDisposable
                 uiAssetWindows[window.Document.DocumentKey] = window;
                 continue;
             }
-            if (args.Deleted.Any(deleted => isSameOrChildPath(deleted, path)))
+            if (args.Deleted.Any(deleted => EditorPathSandbox.IsSameOrChildPath(deleted, path)))
                 window.Close();
         }
         if (!uiAssetsMoved)
@@ -397,7 +378,7 @@ internal sealed class DocumentWindowCoordinator : IDisposable
             string relative = Path.GetRelativePath(
                 Path.GetFullPath(oldPath),
                 Path.GetFullPath(path));
-            if (!isRelativePathInside(relative))
+            if (!EditorPathSandbox.IsSameOrChildPath(oldPath, path))
                 continue;
             mappedPath = relative == "."
                 ? Path.GetFullPath(newPath)
@@ -417,7 +398,7 @@ internal sealed class DocumentWindowCoordinator : IDisposable
         string relative = Path.GetRelativePath(
             Path.GetFullPath(blueprintsRoot),
             Path.GetFullPath(path));
-        if (!isRelativePathInside(relative)
+        if (!EditorPathSandbox.IsSameOrChildPath(blueprintsRoot, path)
             || !string.Equals(
                 Path.GetExtension(path),
                 DataConfig.DataFileExtension,
@@ -430,23 +411,6 @@ internal sealed class DocumentWindowCoordinator : IDisposable
         return gameData.Blueprints.BlueprintsData.ContainsKey(key);
     }
 
-    private static bool isSameOrChildPath(string root, string path)
-    {
-        string relative = Path.GetRelativePath(
-            Path.GetFullPath(root),
-            Path.GetFullPath(path));
-        return isRelativePathInside(relative);
-    }
-
-    private static bool isRelativePathInside(string relative)
-    {
-        return relative == "."
-            || (!Path.IsPathRooted(relative)
-                && relative != ".."
-                && !relative.StartsWith(
-                    ".." + Path.DirectorySeparatorChar,
-                    StringComparison.Ordinal));
-    }
 
     private async void onFileOpenFailed(object? sender, string message)
     {
@@ -514,17 +478,11 @@ internal sealed class DocumentWindowCoordinator : IDisposable
         BlueprintEditorDocument? document = BlueprintEditorDocument.CreateBlueprint(
             mainViewModel.GameData,
             reference);
-        if (document is null)
-            return;
-        if (blueprintWindows.TryGetValue(document.DocumentKey, out BlueprintEditorWindow? existing))
-        {
-            document.Dispose();
-            if (!existing.Reload())
-                return;
-            existing.Show();
-            existing.Activate();
-            return;
-        }
+        blueprintWindows.Open(owner, document, value => createBlueprintWindow(mainViewModel, value));
+    }
+
+    private BlueprintEditorWindow createBlueprintWindow(MainViewModel mainViewModel, BlueprintEditorDocument document)
+    {
         BlueprintEditorWindow window = new(
             document,
             mainViewModel.GameData,
@@ -542,7 +500,6 @@ internal sealed class DocumentWindowCoordinator : IDisposable
             mainViewModel.ActorQueue.PurgeStale();
         };
         document.Changed += actorLibraryDocumentChanged;
-        blueprintWindows[document.DocumentKey] = window;
         window.Activated += (_, _) =>
         {
             if (window.Document.BlueprintKey is string key)
@@ -551,9 +508,8 @@ internal sealed class DocumentWindowCoordinator : IDisposable
         window.Closed += (_, _) =>
         {
             document.Changed -= actorLibraryDocumentChanged;
-            blueprintWindows.Remove(document.DocumentKey);
         };
-        window.Show(owner);
+        return window;
     }
 
     private static JsonObject createActorLibraryState(BlueprintEditorDocument document)
@@ -587,32 +543,14 @@ internal sealed class DocumentWindowCoordinator : IDisposable
             "Data",
             "UI");
         string assetsRoot = Path.Combine(uiRoot, "Assets");
-        Directory.CreateDirectory(assetsRoot);
-        string? selectedPath = destinationPath;
-        if (string.IsNullOrWhiteSpace(selectedPath))
-        {
-            selectedPath = await FileSelectorDialog.ShowAsync(
-                owner,
-                assetsRoot,
-                FileSelectorDialog.FilesFilter("*.json"),
-                LocaleService.Get("SELECT_UI_ASSET_PATH"),
-                save: true);
-        }
+        string? selectedPath = await EditorResourceCreation.SelectJsonPathAsync(
+            owner, assetsRoot, destinationPath, "SELECT_UI_ASSET_PATH");
         if (selectedPath is null)
             return;
-        selectedPath = Path.GetFullPath(selectedPath);
-        if (!Path.HasExtension(selectedPath))
-            selectedPath = Path.ChangeExtension(selectedPath, "json");
-        string relativePath = Path.GetRelativePath(assetsRoot, selectedPath);
-        string key = UiAssetSchema.NormalizeAssetKey(
-            Path.ChangeExtension(relativePath, null)!.Replace('\\', '/'));
-        if (key.Length == 0
-            || Path.IsPathRooted(relativePath)
-            || !isRelativePathInside(relativePath)
-            || !string.Equals(
-                Path.GetExtension(selectedPath),
-                DataConfig.DataFileExtension,
-                StringComparison.Ordinal)
+        bool validPath = EditorResourceCreation.TryGetJsonKey(
+            assetsRoot, selectedPath, out string relativeKey, StringComparison.Ordinal);
+        string key = UiAssetSchema.NormalizeAssetKey(relativeKey);
+        if (!validPath || key.Length == 0
             || File.Exists(selectedPath)
             || !mainViewModel.GameData.UiAssets.CreateUiAsset(key))
         {
@@ -681,7 +619,7 @@ internal sealed class DocumentWindowCoordinator : IDisposable
         if (lastActiveBlueprintKey is null)
             return null;
         string documentKey = "Blueprint:" + lastActiveBlueprintKey;
-        return blueprintWindows.ContainsKey(documentKey)
+        return blueprintWindows.Find(documentKey) is not null
             ? lastActiveBlueprintKey
             : null;
     }
@@ -689,9 +627,7 @@ internal sealed class DocumentWindowCoordinator : IDisposable
     internal void FlushBlueprintAssistantTarget(string blueprintKey)
     {
         string documentKey = "Blueprint:" + blueprintKey;
-        if (blueprintWindows.TryGetValue(
-                documentKey,
-                out BlueprintEditorWindow? window))
+        if (blueprintWindows.Find(documentKey) is BlueprintEditorWindow window)
         {
             window.FlushPendingChanges();
         }
@@ -700,9 +636,7 @@ internal sealed class DocumentWindowCoordinator : IDisposable
     internal void RefreshBlueprintAssistantTarget(string blueprintKey)
     {
         string documentKey = "Blueprint:" + blueprintKey;
-        if (blueprintWindows.TryGetValue(
-                documentKey,
-                out BlueprintEditorWindow? window))
+        if (blueprintWindows.Find(documentKey) is BlueprintEditorWindow window)
         {
             window.Reload();
         }
@@ -711,18 +645,10 @@ internal sealed class DocumentWindowCoordinator : IDisposable
     private async Task createAnimationAsync(ProjectDataStore gameData, string? destinationPath = null)
     {
         string animationsRoot = Path.Combine(gameData.ProjectPath, "Data", "Animations");
-        Directory.CreateDirectory(animationsRoot);
-        string? selectedPath = destinationPath;
-        if (string.IsNullOrWhiteSpace(selectedPath))
-        {
-            selectedPath = await FileSelectorDialog.ShowAsync(owner, animationsRoot,
-                FileSelectorDialog.FilesFilter("*.json"), LocaleService.Get("SELECT_ANIMATION_PATH"), save: true);
-        }
+        string? selectedPath = await EditorResourceCreation.SelectJsonPathAsync(
+            owner, animationsRoot, destinationPath, "SELECT_ANIMATION_PATH");
         if (selectedPath is null)
             return;
-        selectedPath = Path.GetFullPath(selectedPath);
-        if (!Path.HasExtension(selectedPath))
-            selectedPath = Path.ChangeExtension(selectedPath, "json");
         if (DataConfig.isAnimationCache(selectedPath)
             || !string.Equals(Path.GetExtension(selectedPath), ".json", StringComparison.OrdinalIgnoreCase))
         {
@@ -734,13 +660,11 @@ internal sealed class DocumentWindowCoordinator : IDisposable
             await AlertDialog.ShowAsync(owner, LocaleService.Get("ERROR"), LocaleService.Get("ANIMATION_EXISTS"));
             return;
         }
-        string relativePath = Path.GetRelativePath(animationsRoot, selectedPath);
-        if (relativePath.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) || Path.IsPathRooted(relativePath))
+        if (!EditorResourceCreation.TryGetJsonKey(animationsRoot, selectedPath, out string key))
         {
             await AlertDialog.ShowAsync(owner, LocaleService.Get("ERROR"), LocaleService.Get("SELECT_ANIMATION_PATH"));
             return;
         }
-        string key = Path.ChangeExtension(relativePath, null)!.Replace('\\', '/');
         if (!gameData.Assets.CreateAnimation(key, Path.GetFileNameWithoutExtension(key)))
         {
             await AlertDialog.ShowAsync(owner, LocaleService.Get("ERROR"), LocaleService.Get("ANIMATION_EXISTS"));
@@ -812,18 +736,10 @@ internal sealed class DocumentWindowCoordinator : IDisposable
                 return;
         }
         string curvesRoot = Path.Combine(gameData.ProjectPath, "Data", "Curves");
-        Directory.CreateDirectory(curvesRoot);
-        string? selectedPath = destinationPath;
-        if (string.IsNullOrWhiteSpace(selectedPath))
-        {
-            selectedPath = await FileSelectorDialog.ShowAsync(owner, curvesRoot,
-                FileSelectorDialog.FilesFilter("*.json"), LocaleService.Get("SELECT_CURVE_PATH"), save: true);
-        }
+        string? selectedPath = await EditorResourceCreation.SelectJsonPathAsync(
+            owner, curvesRoot, destinationPath, "SELECT_CURVE_PATH");
         if (selectedPath is null)
             return;
-        selectedPath = Path.GetFullPath(selectedPath);
-        if (!Path.HasExtension(selectedPath))
-            selectedPath = Path.ChangeExtension(selectedPath, "json");
         if (!string.Equals(Path.GetExtension(selectedPath), ".json", StringComparison.OrdinalIgnoreCase))
         {
             await AlertDialog.ShowAsync(owner, LocaleService.Get("ERROR"), LocaleService.Get("SELECT_CURVE_PATH"));
@@ -834,13 +750,11 @@ internal sealed class DocumentWindowCoordinator : IDisposable
             await AlertDialog.ShowAsync(owner, LocaleService.Get("ERROR"), LocaleService.Get("CURVE_EXISTS"));
             return;
         }
-        string relativePath = Path.GetRelativePath(curvesRoot, selectedPath);
-        if (relativePath.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) || Path.IsPathRooted(relativePath))
+        if (!EditorResourceCreation.TryGetJsonKey(curvesRoot, selectedPath, out string key))
         {
             await AlertDialog.ShowAsync(owner, LocaleService.Get("ERROR"), LocaleService.Get("SELECT_CURVE_PATH"));
             return;
         }
-        string key = Path.ChangeExtension(relativePath, null)!.Replace('\\', '/');
         if (!gameData.Assets.CreateCurve(
                 key,
                 Path.GetFileNameWithoutExtension(key),
@@ -899,39 +813,26 @@ internal sealed class DocumentWindowCoordinator : IDisposable
         }
         else
         {
-            selectedPath = request.DestinationPath;
-            if (string.IsNullOrWhiteSpace(selectedPath))
-            {
-                selectedPath = await FileSelectorDialog.ShowAsync(
-                    owner,
-                    root,
-                    FileSelectorDialog.FilesFilter("*.json"),
-                    LocaleService.Get("SELECT_TEXT_CONFIG_PATH"),
-                    save: true);
-            }
+            selectedPath = await EditorResourceCreation.SelectJsonPathAsync(
+                owner, root, request.DestinationPath, "SELECT_TEXT_CONFIG_PATH");
             type = request.Kind == EditorDataKind.PlainTextConfig
                 ? "plainTextConfig"
                 : "richTextConfig";
         }
         if (selectedPath is null)
             return;
-        selectedPath = Path.GetFullPath(selectedPath);
-        if (!Path.HasExtension(selectedPath))
-            selectedPath = Path.ChangeExtension(selectedPath, "json");
+        selectedPath = EditorResourceCreation.NormalizePath(selectedPath);
         if (!string.Equals(Path.GetExtension(selectedPath), ".json", StringComparison.OrdinalIgnoreCase))
         {
             await AlertDialog.ShowAsync(owner, LocaleService.Get("ERROR"), LocaleService.Get("SELECT_TEXT_CONFIG_PATH"));
             return;
         }
-        string relativePath = Path.GetRelativePath(root, selectedPath);
-        if (File.Exists(selectedPath)
-            || relativePath.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal)
-            || Path.IsPathRooted(relativePath))
+        if (!EditorResourceCreation.TryGetJsonKey(root, selectedPath, out string key)
+            || File.Exists(selectedPath))
         {
             await AlertDialog.ShowAsync(owner, LocaleService.Get("ERROR"), LocaleService.Get("TEXT_CONFIG_EXISTS"));
             return;
         }
-        string key = Path.ChangeExtension(relativePath, null)!.Replace('\\', '/');
         if (!gameData.Assets.CreateTextConfig(key, type, Path.GetFileNameWithoutExtension(key)))
         {
             await AlertDialog.ShowAsync(owner, LocaleService.Get("ERROR"), LocaleService.Get("TEXT_CONFIG_EXISTS"));
@@ -963,21 +864,15 @@ internal sealed class DocumentWindowCoordinator : IDisposable
     private async Task createSubtitleAsync(ProjectDataStore gameData, string? destinationPath = null)
     {
         string root = Path.Combine(gameData.ProjectPath, "Assets", "Subtitles");
-        Directory.CreateDirectory(root);
-        string? path = destinationPath ?? await FileSelectorDialog.ShowAsync(owner, root,
-            FileSelectorDialog.FilesFilter("*.json"), LocaleService.Get("SELECT_SUBTITLE_PATH"), save: true);
+        string? path = await EditorResourceCreation.SelectJsonPathAsync(
+            owner, root, destinationPath, "SELECT_SUBTITLE_PATH", selectWhenWhitespace: false);
         if (path is null)
             return;
-        path = Path.GetFullPath(path);
-        if (!Path.HasExtension(path))
-            path = Path.ChangeExtension(path, "json");
-        string relative = Path.GetRelativePath(root, path);
-        if (!isRelativePathInside(relative) || !string.Equals(Path.GetExtension(path), ".json", StringComparison.OrdinalIgnoreCase))
+        if (!EditorResourceCreation.TryGetJsonKey(root, path, out string key, StringComparison.OrdinalIgnoreCase))
         {
             await AlertDialog.ShowAsync(owner, LocaleService.Get("ERROR"), LocaleService.Get("SELECT_SUBTITLE_PATH"));
             return;
         }
-        string key = Path.ChangeExtension(relative, null)!.Replace('\\', '/');
         if (!gameData.Subtitles.CreateSubtitle(key))
         {
             await AlertDialog.ShowAsync(owner, LocaleService.Get("ERROR"), LocaleService.Get("SUBTITLE_EXISTS"));
@@ -1001,21 +896,15 @@ internal sealed class DocumentWindowCoordinator : IDisposable
     private async Task createParticleAsync(ProjectDataStore gameData, string? destinationPath = null)
     {
         string root = Path.Combine(gameData.ProjectPath, "Data", "Particles");
-        Directory.CreateDirectory(root);
-        string? path = destinationPath ?? await FileSelectorDialog.ShowAsync(owner, root,
-            FileSelectorDialog.FilesFilter("*.json"), LocaleService.Get("SELECT_PARTICLE_PATH"), save: true);
+        string? path = await EditorResourceCreation.SelectJsonPathAsync(
+            owner, root, destinationPath, "SELECT_PARTICLE_PATH", selectWhenWhitespace: false);
         if (path is null)
             return;
-        path = Path.GetFullPath(path);
-        if (!Path.HasExtension(path))
-            path = Path.ChangeExtension(path, "json");
-        string relative = Path.GetRelativePath(root, path);
-        if (!isRelativePathInside(relative) || !string.Equals(Path.GetExtension(path), ".json", StringComparison.Ordinal))
+        if (!EditorResourceCreation.TryGetJsonKey(root, path, out string key, StringComparison.Ordinal))
         {
             await AlertDialog.ShowAsync(owner, LocaleService.Get("ERROR"), LocaleService.Get("SELECT_PARTICLE_PATH"));
             return;
         }
-        string key = Path.ChangeExtension(relative, null)!.Replace('\\', '/');
         if (!gameData.Assets.CreateParticle(key, Path.GetFileNameWithoutExtension(key)))
         {
             await AlertDialog.ShowAsync(owner, LocaleService.Get("ERROR"), LocaleService.Get("PARTICLE_EXISTS"));
@@ -1055,7 +944,7 @@ internal sealed class DocumentWindowCoordinator : IDisposable
         out string key)
     {
         string relative = Path.GetRelativePath(uiRoot, Path.GetFullPath(path));
-        if (!isRelativePathInside(relative)
+        if (!EditorPathSandbox.IsSameOrChildPath(uiRoot, path)
             || !string.Equals(
                 Path.GetExtension(relative),
                 DataConfig.DataFileExtension,

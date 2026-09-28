@@ -93,8 +93,8 @@ public class MapReferenceView : Control, IDisposable
 
     protected bool TryGetMapSize(out int width, out int height)
     {
-        width = getInt(MapData?["width"]);
-        height = getInt(MapData?["height"]);
+        width = JsonScalar.IntegerFromText(MapData?["width"]);
+        height = JsonScalar.IntegerFromText(MapData?["height"]);
         return width > 0 && height > 0;
     }
 
@@ -280,7 +280,7 @@ public class MapReferenceView : Control, IDisposable
 
     private void drawLayer(DrawingContext context, JsonObject layer, int width, int height)
     {
-        Bitmap? tileset = getTileset(getString(layer["layerTileset"]));
+        Bitmap? tileset = getTileset(JsonScalar.String(layer["layerTileset"]));
         JsonArray? tiles = layer["tiles"] as JsonArray;
         JsonArray? autoTiles = layer["autoTiles"] as JsonArray;
         int sourceTileSize = Math.Max(1, gameData.Configs.getCellSize());
@@ -291,14 +291,14 @@ public class MapReferenceView : Control, IDisposable
             for (int x = 0; x < width; x++)
             {
                 Rect destination = GetCellRect(x, y);
-                string? autoTileKey = getString(getValue(autoTileRow, x));
+                string? autoTileKey = JsonScalar.String(getValue(autoTileRow, x));
                 if (!string.IsNullOrWhiteSpace(autoTileKey) && autoTiles is not null)
                 {
                     autoTileRenderer.drawTile(context, autoTileKey, autoTiles, x, y, destination, 0);
                     continue;
                 }
                 if (tileset is null
-                    || !tryGetInt(getValue(tileRow, x), out int tileNumber)
+                    || !JsonScalar.TryGetIntegerFromText(getValue(tileRow, x), out int tileNumber)
                     || tileNumber < 0)
                 {
                     continue;
@@ -381,39 +381,6 @@ public class MapReferenceView : Control, IDisposable
     private static JsonNode? getValue(JsonArray? row, int index)
     {
         return row is not null && index >= 0 && index < row.Count ? row[index] : null;
-    }
-
-    private static int getInt(JsonNode? value)
-    {
-        return tryGetInt(value, out int result) ? result : 0;
-    }
-
-    private static string? getString(JsonNode? value)
-    {
-        return value is JsonValue scalar && scalar.TryGetValue(out string? text) ? text : null;
-    }
-
-    private static bool tryGetInt(JsonNode? value, out int result)
-    {
-        if (value is JsonValue json)
-        {
-            if (json.TryGetValue(out int integer))
-            {
-                result = integer;
-                return true;
-            }
-            if (json.TryGetValue(out long longValue))
-            {
-                result = (int)Math.Clamp(longValue, int.MinValue, int.MaxValue);
-                return true;
-            }
-            if (json.TryGetValue(out double number) && double.IsFinite(number))
-            {
-                result = (int)Math.Clamp(number, int.MinValue, int.MaxValue);
-                return true;
-            }
-        }
-        return int.TryParse(value?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out result);
     }
 
     private readonly record struct MapZoomAnchor(

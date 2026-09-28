@@ -198,8 +198,8 @@ internal sealed partial class WorldMapPreviewRenderer : IDisposable
         Rect clip,
         out PreviewViewport viewport)
     {
-        int width = getInt(map["width"]);
-        int height = getInt(map["height"]);
+        int width = JsonScalar.IntegerFromText(map["width"]);
+        int height = JsonScalar.IntegerFromText(map["height"]);
         if (width <= 0 || height <= 0 || cellSize <= 0)
         {
             viewport = default;
@@ -383,7 +383,7 @@ internal sealed partial class WorldMapPreviewRenderer : IDisposable
             return;
         JsonArray? tiles = layer["tiles"] as JsonArray;
         JsonArray? autoTiles = layer["autoTiles"] as JsonArray;
-        Bitmap? tileset = getResourceImage(false, getString(layer["layerTileset"]));
+        Bitmap? tileset = getResourceImage(false, JsonScalar.String(layer["layerTileset"]));
         int sourceTileSize = Math.Max(1, gameData.Configs.getCellSize());
         for (int y = minY; y < maxY; y++)
         {
@@ -396,13 +396,13 @@ internal sealed partial class WorldMapPreviewRenderer : IDisposable
                     origin.Y + y * cellSize,
                     cellSize,
                     cellSize);
-                string? autoTileKey = getString(getValue(autoTileRow, x));
+                string? autoTileKey = JsonScalar.String(getValue(autoTileRow, x));
                 if (!string.IsNullOrWhiteSpace(autoTileKey) && autoTiles is not null)
                 {
                     autoTileRenderer.drawTile(context, autoTileKey, autoTiles, x, y, destination, 0);
                     continue;
                 }
-                if (!tryGetInt(getValue(tileRow, x), out int tileNumber) || tileNumber < 0)
+                if (!JsonScalar.TryGetIntegerFromText(getValue(tileRow, x), out int tileNumber) || tileNumber < 0)
                     continue;
                 if (tileset is null)
                 {
@@ -440,8 +440,8 @@ internal sealed partial class WorldMapPreviewRenderer : IDisposable
         {
             if (node is not JsonObject actor
                 || actor["position"] is not JsonArray { Count: >= 2 } position
-                || !tryGetInt(position[0], out int x)
-                || !tryGetInt(position[1], out int y))
+                || !JsonScalar.TryGetIntegerFromText(position[0], out int x)
+                || !JsonScalar.TryGetIntegerFromText(position[1], out int y))
             {
                 continue;
             }
@@ -466,7 +466,7 @@ internal sealed partial class WorldMapPreviewRenderer : IDisposable
         {
             foreach (JsonNode? node in order)
             {
-                string? name = getString(node);
+                string? name = JsonScalar.String(node);
                 if (!string.IsNullOrWhiteSpace(name) && layers.ContainsKey(name) && !result.Contains(name, StringComparer.Ordinal))
                     result.Add(name);
             }
@@ -489,39 +489,6 @@ internal sealed partial class WorldMapPreviewRenderer : IDisposable
     private static JsonNode? getValue(JsonArray? row, int index)
     {
         return row is not null && index >= 0 && index < row.Count ? row[index] : null;
-    }
-
-    private static int getInt(JsonNode? value)
-    {
-        return tryGetInt(value, out int result) ? result : 0;
-    }
-
-    private static string? getString(JsonNode? value)
-    {
-        return value is JsonValue scalar && scalar.TryGetValue(out string? text) ? text : null;
-    }
-
-    internal static bool tryGetInt(JsonNode? value, out int result)
-    {
-        if (value is JsonValue scalar)
-        {
-            if (scalar.TryGetValue(out int integer))
-            {
-                result = integer;
-                return true;
-            }
-            if (scalar.TryGetValue(out long longValue))
-            {
-                result = (int)Math.Clamp(longValue, int.MinValue, int.MaxValue);
-                return true;
-            }
-            if (scalar.TryGetValue(out double number) && double.IsFinite(number))
-            {
-                result = (int)Math.Clamp(number, int.MinValue, int.MaxValue);
-                return true;
-            }
-        }
-        return int.TryParse(value?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out result);
     }
 
     private readonly record struct PreviewChunkKey(

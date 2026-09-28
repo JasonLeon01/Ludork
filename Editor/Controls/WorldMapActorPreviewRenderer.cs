@@ -56,8 +56,8 @@ internal sealed class WorldMapActorPreviewRenderer : IDisposable
         {
             if (actors[index] is not JsonObject actor
                 || actor["position"] is not JsonArray { Count: >= 2 } position
-                || !WorldMapPreviewRenderer.tryGetInt(position[0], out int gridX)
-                || !WorldMapPreviewRenderer.tryGetInt(position[1], out int gridY))
+                || !JsonScalar.TryGetIntegerFromText(position[0], out int gridX)
+                || !JsonScalar.TryGetIntegerFromText(position[1], out int gridY))
             {
                 continue;
             }

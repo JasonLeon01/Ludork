@@ -1014,29 +1014,6 @@ public sealed class UiAssetValidationService
         return result;
     }
 
-    private static bool tryGetFiniteNumber(JsonNode? value, out double result)
-    {
-        result = 0.0;
-        if (value is not JsonValue scalar)
-            return false;
-        if (scalar.TryGetValue(out double number))
-        {
-            result = number;
-            return double.IsFinite(result);
-        }
-        if (scalar.TryGetValue(out int integer32))
-        {
-            result = integer32;
-            return true;
-        }
-        if (scalar.TryGetValue(out long integer))
-        {
-            result = integer;
-            return true;
-        }
-        return false;
-    }
-
     private static bool tryGetFloatNumber(JsonNode? value, out double result)
     {
         return tryGetFiniteNumber(value, out result)
@@ -1052,7 +1029,7 @@ public sealed class UiAssetValidationService
 
     private static string? getString(JsonNode? value)
     {
-        return value is JsonValue scalar && scalar.TryGetValue(out string? text) ? text : null;
+        return JsonScalar.String(value);
     }
 
     private static bool isUiPath(string path)
@@ -1069,4 +1046,5 @@ public sealed class UiAssetValidationService
     {
         issues.Add(new UiValidationIssue(code, path, message));
     }
+    private static bool tryGetFiniteNumber(JsonNode? value, out double result) => JsonScalar.TryGetFiniteNumber(value, out result);
 }

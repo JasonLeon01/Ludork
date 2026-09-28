@@ -19,7 +19,11 @@ public sealed record ProjectSaveAttempt(
     {
         get
         {
-            string[] details = [DataResult.Details, GameVariableResult.Detail];
+            string[] details =
+            [
+                DataResult.Success ? string.Empty : DataResult.Details,
+                GameVariableResult.Success ? string.Empty : GameVariableResult.Detail,
+            ];
             string detail = string.Join(
                 Environment.NewLine,
                 details.Where(value => !string.IsNullOrWhiteSpace(value)));

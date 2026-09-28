@@ -63,11 +63,11 @@ public sealed class AnimationPreview : Control, IDisposable
                 JsonObject? end = segment["endFrame"] as JsonObject;
                 if (start is null || end is null)
                     continue;
-                double startTime = AnimationEditor.number(start["time"]);
-                double endTime = AnimationEditor.number(end["time"]);
+                double startTime = JsonScalar.Number(start["time"]);
+                double endTime = JsonScalar.Number(end["time"]);
                 if (CurrentTime < startTime || CurrentTime > endTime)
                     continue;
-                int assetIndex = (int)AnimationEditor.number(segment["asset"], -1);
+                int assetIndex = (int)JsonScalar.Number(segment["asset"], -1);
                 if (assetIndex < 0 || assetIndex >= assets.Count || assets[assetIndex] is not JsonValue assetValue || !assetValue.TryGetValue<string>(out string? assetName) || string.IsNullOrWhiteSpace(assetName))
                     continue;
                 Bitmap? bitmap = getBitmap(assetName);
@@ -163,7 +163,7 @@ public sealed class AnimationPreview : Control, IDisposable
                     continue;
                 JsonObject? start = segment["startFrame"] as JsonObject;
                 JsonObject? end = segment["endFrame"] as JsonObject;
-                if (start is null || end is null || CurrentTime < AnimationEditor.number(start["time"]) || CurrentTime > AnimationEditor.number(end["time"]))
+                if (start is null || end is null || CurrentTime < JsonScalar.Number(start["time"]) || CurrentTime > JsonScalar.Number(end["time"]))
                     continue;
                 double factor = timeFactor(start, end);
                 double x = interpolate(start["position"] as JsonArray, end["position"] as JsonArray, 0, factor);
@@ -237,29 +237,29 @@ public sealed class AnimationPreview : Control, IDisposable
 
     private static double interpolate(JsonArray? start, JsonArray? end, int index, double factor, double fallback = 0)
     {
-        double a = AnimationEditor.number(start?.ElementAtOrDefault(index), fallback);
-        double b = AnimationEditor.number(end?.ElementAtOrDefault(index), fallback);
+        double a = JsonScalar.Number(start?.ElementAtOrDefault(index), fallback);
+        double b = JsonScalar.Number(end?.ElementAtOrDefault(index), fallback);
         return a + (b - a) * factor;
     }
 
     private static double interpolateValue(JsonNode? start, JsonNode? end, double factor)
     {
-        double a = AnimationEditor.number(start);
-        return a + (AnimationEditor.number(end) - a) * factor;
+        double a = JsonScalar.Number(start);
+        return a + (JsonScalar.Number(end) - a) * factor;
     }
 
     private double timeFactor(JsonObject start, JsonObject end)
     {
-        double startTime = AnimationEditor.number(start["time"]);
-        double endTime = AnimationEditor.number(end["time"]);
+        double startTime = JsonScalar.Number(start["time"]);
+        double endTime = JsonScalar.Number(end["time"]);
         return endTime - startTime < 0.0001 ? 0 : (CurrentTime - startTime) / (endTime - startTime);
     }
 
     private static void shiftFrame(JsonObject frame, double x, double y)
     {
         JsonArray position = frame["position"] as JsonArray ?? new JsonArray(0.0, 0.0);
-        position[0] = AnimationEditor.number(position.ElementAtOrDefault(0)) + x;
-        position[1] = AnimationEditor.number(position.ElementAtOrDefault(1)) + y;
+        position[0] = JsonScalar.Number(position.ElementAtOrDefault(0)) + x;
+        position[1] = JsonScalar.Number(position.ElementAtOrDefault(1)) + y;
         frame["position"] = position;
     }
 

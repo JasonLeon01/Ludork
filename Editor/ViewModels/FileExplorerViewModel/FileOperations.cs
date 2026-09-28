@@ -125,7 +125,7 @@ public sealed partial class FileExplorerViewModel
         foreach (string source in normalizeTopLevelPaths(paths)
             .Where(path => isEditablePath(path) && pathExists(path) && !isVisibleDirectory(path)))
         {
-            if (isSameOrChildPath(gameData.Worlds.MapPathPolicy.MapsRoot, source))
+            if (EditorPathSandbox.IsSameOrChildPath(gameData.Worlds.MapPathPolicy.MapsRoot, source))
             {
                 errors.Add($"{Path.GetFileName(source)}: {LocaleService.Get("DUPLICATE_FAILED")}");
                 continue;
@@ -274,7 +274,7 @@ public sealed partial class FileExplorerViewModel
         string? target = getTargetDirectory(targetDirectory);
         if (target is null)
             return FileOperationResult.Empty;
-        if (isSameOrChildPath(gameData.Worlds.MapPathPolicy.MapsRoot, target)
+        if (EditorPathSandbox.IsSameOrChildPath(gameData.Worlds.MapPathPolicy.MapsRoot, target)
             && !gameData.Worlds.MapPathPolicy.CanCreateDirectory(target))
         {
             return new FileOperationResult(

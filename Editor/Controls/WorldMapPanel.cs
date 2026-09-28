@@ -326,7 +326,7 @@ public sealed class WorldMapPanel : Grid, IDisposable
 
     private static string? getString(JsonNode? value)
     {
-        return value is JsonValue scalar && scalar.TryGetValue(out string? text) ? text : null;
+        return JsonScalar.String(value);
     }
 
     private sealed record WorldMapChildListItem(

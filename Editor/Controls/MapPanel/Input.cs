@@ -47,7 +47,7 @@ public sealed partial class MapPanel
     {
         CancelInteractions();
         LayoutUpdated -= onLayoutUpdated;
-        pendingMapZoomAnchor = null;
+        pendingMapZoomAnchor.Clear();
         bindHostScrollViewer(null);
         base.OnDetachedFromVisualTree(e);
     }
@@ -380,15 +380,6 @@ public sealed partial class MapPanel
         Point contentPoint,
         Point viewportPoint)
     {
-        MapZoomAnchor? nextAnchor = null;
-        if (tryGetMapSize(out int mapWidth, out int mapHeight))
-        {
-            Rect mapRect = getMapRect(mapWidth, mapHeight);
-            nextAnchor = new MapZoomAnchor(
-                (contentPoint.X - mapRect.X) / tileSize,
-                (contentPoint.Y - mapRect.Y) / tileSize,
-                viewportPoint);
-        }
         continuousTileSize = Math.Clamp(
             nextContinuousTileSize,
             MinTileSize,
@@ -401,8 +392,16 @@ public sealed partial class MapPanel
             MaxTileSize);
         if (nextTileSize == tileSize)
             return;
+        if (tryGetMapSize(out int mapWidth, out int mapHeight))
+        {
+            Rect mapRect = getMapRect(mapWidth, mapHeight);
+            pendingMapZoomAnchor.Capture(contentPoint, viewportPoint, mapRect.Position, tileSize);
+        }
+        else
+        {
+            pendingMapZoomAnchor.Clear();
+        }
         tileSize = nextTileSize;
-        pendingMapZoomAnchor = nextAnchor;
         disposeMapRenderCaches();
         InvalidateMeasure();
         InvalidateVisual();
@@ -410,30 +409,19 @@ public sealed partial class MapPanel
 
     private void onLayoutUpdated(object? sender, EventArgs args)
     {
-        if (pendingMapZoomAnchor is null)
+        if (!pendingMapZoomAnchor.IsPending)
             return;
         applyMapZoomAnchor();
     }
 
     private void applyMapZoomAnchor()
     {
-        if (pendingMapZoomAnchor is not MapZoomAnchor anchor
-            || hostScrollViewer is null
-            || !tryGetMapSize(out int mapWidth, out int mapHeight))
+        if (!tryGetMapSize(out int mapWidth, out int mapHeight))
         {
-            pendingMapZoomAnchor = null;
+            pendingMapZoomAnchor.Clear();
             return;
         }
-        pendingMapZoomAnchor = null;
-        Rect mapRect = getMapRect(mapWidth, mapHeight);
-        Point contentAnchor = new(
-            mapRect.X + anchor.MapX * tileSize,
-            mapRect.Y + anchor.MapY * tileSize);
-        hostScrollViewer.Offset = EditorZoomInput.GetAnchoredOffset(
-            contentAnchor,
-            anchor.ViewportPoint,
-            hostScrollViewer.Extent,
-            hostScrollViewer.Viewport);
+        pendingMapZoomAnchor.Apply(hostScrollViewer, getMapRect(mapWidth, mapHeight).Position, tileSize);
     }
 
 }

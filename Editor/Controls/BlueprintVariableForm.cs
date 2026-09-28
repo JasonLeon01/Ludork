@@ -216,7 +216,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
 
         foreach (BlueprintVariableField field in fields)
         {
-            values[field.Name] = cloneNode(getFieldValue(field));
+            values[field.Name] = (getFieldValue(field))?.DeepClone();
             BlueprintVariableDependency? dependency = getDependency(field);
             if (dependency is not null && !string.IsNullOrWhiteSpace(dependency.Source))
                 dependencySources.Add(dependency.Source);
@@ -227,7 +227,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         foreach (KeyValuePair<string, JsonNode?> entry in contextValues)
         {
             if (!values.ContainsKey(entry.Key))
-                values[entry.Key] = cloneNode(entry.Value);
+                values[entry.Key] = (entry.Value)?.DeepClone();
         }
 
     }
@@ -280,8 +280,8 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         if (hadPrevious && JsonNode.DeepEquals(previous, value))
             return;
         string? previousType = hadPrevious ? resolveInstanceVariableType(previous) : null;
-        contextValues[name] = cloneNode(value);
-        values[name] = cloneNode(value);
+        contextValues[name] = (value)?.DeepClone();
+        values[name] = (value)?.DeepClone();
         string? nextType = resolveInstanceVariableType(value);
         bool affectsInstanceVariable = instanceVariableSources.Contains(name);
         bool typeChanged = !string.Equals(previousType, nextType, StringComparison.Ordinal);
@@ -308,7 +308,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
             item => string.Equals(item.Name, name, StringComparison.Ordinal));
         if (field is null || JsonNode.DeepEquals(field.Value, value))
             return;
-        field.Value = cloneNode(value);
+        field.Value = (value)?.DeepClone();
         BlueprintVariableField[] nextFields = fields.Select(item => item.Clone()).ToArray();
         SetFields(nextFields);
     }
@@ -534,7 +534,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         if (PlainTextEditorFactory is not null)
         {
             BlueprintVariableField resolved = resolveInstanceVariableValueField(field, dictionaryKey);
-            Control plainEditor = PlainTextEditorFactory(new BlueprintVariableEditorRequest(resolved, cloneNode(displayValue), changed));
+            Control plainEditor = PlainTextEditorFactory(new BlueprintVariableEditorRequest(resolved, (displayValue)?.DeepClone(), changed));
             if (plainEditor is TextBox text)
                 attachHistory(text);
             return plainEditor;
@@ -559,7 +559,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         if (declaredType.Kind == LuaMetadataTypeKind.Union)
             return createUnionEditor(field, declaredType, displayValue, changed, dictionaryKey);
         Control? customEditor = CustomValueEditorFactory?.Invoke(
-            new BlueprintVariableEditorRequest(field, cloneNode(displayValue), changed));
+            new BlueprintVariableEditorRequest(field, (displayValue)?.DeepClone(), changed));
         if (customEditor is not null)
             return customEditor;
 
@@ -752,7 +752,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
     {
         CheckBox box = new()
         {
-            IsChecked = getBool(value),
+            IsChecked = JsonScalar.Bool(value),
             HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Center,
         };
@@ -779,18 +779,18 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         {
             ItemsSource = names,
             PlaceholderText = LocaleService.Get("SELECT_GAME_VARIABLE"),
-            SelectedValue = tryGetString(value, out string current) ? current : string.Empty,
+            SelectedValue = JsonScalar.TryGetString(value, out string current) ? current : string.Empty,
         };
         picker.SelectionChanged += (_, _) =>
         {
             string selected = picker.SelectedValue;
-            if (tryGetString(value, out string previous)
+            if (JsonScalar.TryGetString(value, out string previous)
                 && string.Equals(previous, selected, StringComparison.Ordinal))
             {
                 return;
             }
             value = JsonValue.Create(selected);
-            changed(cloneNode(value), true);
+            changed((value)?.DeepClone(), true);
         };
         return picker;
     }
@@ -973,8 +973,8 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         {
             if (box.SelectedItem is BlueprintVariableOption option && !JsonNode.DeepEquals(value, option.Value))
             {
-                value = cloneNode(option.Value);
-                changed(cloneNode(value), false);
+                value = (option.Value)?.DeepClone();
+                changed((value)?.DeepClone(), false);
             }
         };
         return box;
@@ -1002,8 +1002,8 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
                     return;
                 while (source.Count < spec.Count)
                     source.Add(0);
-                source[componentIndex] = cloneNode(next);
-                changed(cloneNode(source), refresh);
+                source[componentIndex] = (next)?.DeepClone();
+                changed(source.DeepClone(), refresh);
             }
             Control editor;
             if (spec.IsInteger)
@@ -1273,7 +1273,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         Action<JsonNode?, bool> changed,
         string? dictionaryKey)
     {
-        JsonArray items = cloneNode(value) as JsonArray ?? [];
+        JsonArray items = (value)?.DeepClone() as JsonArray ?? [];
         JsonObject itemMeta = getMetadataObject(field, "ItemMeta") ?? [];
         StackPanel panel = new()
         {
@@ -1299,8 +1299,8 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
                     {
                         if (JsonNode.DeepEquals(items[itemIndex], next))
                             return;
-                        items[itemIndex] = cloneNode(next);
-                        changed(cloneNode(items), refresh);
+                        items[itemIndex] = (next)?.DeepClone();
+                        changed(items.DeepClone(), refresh);
                     },
                     dictionaryKey);
                 Button remove = new()
@@ -1313,7 +1313,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
                 remove.Click += (_, _) =>
                 {
                     items.RemoveAt(itemIndex);
-                    changed(cloneNode(items), true);
+                    changed(items.DeepClone(), true);
                     rebuild();
                 };
                 Grid row = new()
@@ -1342,7 +1342,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
                     null,
                     itemMeta);
                 items.Add(createContainerDefaultNode(itemField, dictionaryKey));
-                changed(cloneNode(items), true);
+                changed(items.DeepClone(), true);
                 rebuild();
             };
             panel.Children.Add(add);
@@ -1359,7 +1359,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         Action<JsonNode?, bool> changed,
         string? dictionaryKey)
     {
-        JsonArray source = cloneNode(value) as JsonArray ?? [];
+        JsonArray source = (value)?.DeepClone() as JsonArray ?? [];
         JsonArray items = [];
         List<BlueprintVariableField> itemFields = [];
         for (int index = 0; index < tupleType.Arguments.Count; index++)
@@ -1370,7 +1370,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
                 index < source.Count ? source[index] : null,
                 getTupleItemMeta(field, index));
             JsonNode? item = index < source.Count
-                ? cloneNode(source[index])
+                ? (source[index])?.DeepClone()
                 : createContainerDefaultNode(itemField, dictionaryKey);
             items.Add(item);
             itemFields.Add(itemField);
@@ -1394,8 +1394,8 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
                 {
                     if (JsonNode.DeepEquals(items[itemIndex], next))
                         return;
-                    items[itemIndex] = cloneNode(next);
-                    changed(cloneNode(items), refresh);
+                    items[itemIndex] = (next)?.DeepClone();
+                    changed(items.DeepClone(), refresh);
                 },
                 dictionaryKey);
             Grid.SetColumn(itemEditor, index);
@@ -1411,7 +1411,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         Action<JsonNode?, bool> changed,
         string? parentDictionaryKey)
     {
-        JsonObject items = cloneNode(value) as JsonObject ?? [];
+        JsonObject items = (value)?.DeepClone() as JsonObject ?? [];
         JsonObject? keyMeta = getMetadataObject(field, "DictKeyMeta");
         JsonObject itemMeta = getMetadataObject(field, "ItemMeta") ?? [];
         bool hasDraft = false;
@@ -1429,7 +1429,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
                 valueType,
                 initialValue,
                 itemMeta);
-            JsonNode? rowValue = cloneNode(initialValue)
+            JsonNode? rowValue = (initialValue)?.DeepClone()
                 ?? createContainerDefaultNode(valueField, currentKey);
             Control keyEditor;
             if (keyMeta is null)
@@ -1447,8 +1447,8 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
                         items.Remove(currentKey);
                     currentKey = nextKey;
                     if (!string.IsNullOrEmpty(nextKey))
-                        items[nextKey] = cloneNode(rowValue);
-                    changed(cloneNode(items), false);
+                        items[nextKey] = (rowValue)?.DeepClone();
+                    changed(items.DeepClone(), false);
                 };
                 keyEditor = keyBox;
             }
@@ -1468,7 +1468,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
                     JsonValue.Create(currentKey),
                     (next, _) =>
                     {
-                        if (!tryGetString(next, out string nextKey))
+                        if (!JsonScalar.TryGetString(next, out string nextKey))
                             return;
                         nextKey = nextKey.Trim();
                         if (string.Equals(nextKey, currentKey, StringComparison.Ordinal))
@@ -1504,10 +1504,10 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
                                 nextKey);
                         }
                         currentKey = nextKey;
-                        items[currentKey] = cloneNode(rowValue);
+                        items[currentKey] = (rowValue)?.DeepClone();
                         if (isDraft)
                             hasDraft = false;
-                        changed(cloneNode(items), false);
+                        changed(items.DeepClone(), false);
                         rebuild();
                     },
                     parentDictionaryKey,
@@ -1523,9 +1523,9 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
                     {
                         if (JsonNode.DeepEquals(rowValue, next))
                             return;
-                        rowValue = cloneNode(next);
-                        items[currentKey] = cloneNode(rowValue);
-                        changed(cloneNode(items), refresh);
+                        rowValue = (next)?.DeepClone();
+                        items[currentKey] = (rowValue)?.DeepClone();
+                        changed(items.DeepClone(), refresh);
                     },
                     currentKey);
             Button remove = new()
@@ -1542,7 +1542,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
                 else if (currentKey.Length > 0)
                 {
                     items.Remove(currentKey);
-                    changed(cloneNode(items), false);
+                    changed(items.DeepClone(), false);
                 }
                 rebuild();
             };
@@ -1620,7 +1620,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
                     null,
                     itemMeta);
                 items[key] = createContainerDefaultNode(valueField, key);
-                changed(cloneNode(items), false);
+                changed(items.DeepClone(), false);
                 rebuild();
             };
             panel.Children.Add(add);
@@ -1647,8 +1647,8 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         JsonObject value = getFieldValue(field)?.DeepClone() as JsonObject ?? [];
         nested.ValueChanged += (_, args) =>
         {
-            value[args.Name] = cloneNode(args.Value);
-            changed(cloneNode(value), args.RequiresRefresh);
+            value[args.Name] = (args.Value)?.DeepClone();
+            changed((value)?.DeepClone(), args.RequiresRefresh);
         };
         nested.SetFields(nestedFields);
         return new Border
@@ -1681,18 +1681,18 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         values.TryGetValue(field.Name, out JsonNode? previous);
         if (JsonNode.DeepEquals(previous, value))
             return;
-        JsonNode? next = cloneNode(value);
-        field.Value = cloneNode(next);
+        JsonNode? next = (value)?.DeepClone();
+        field.Value = (next)?.DeepClone();
         if (next is null)
             field.PreserveNullValue = true;
-        values[field.Name] = cloneNode(next);
+        values[field.Name] = (next)?.DeepClone();
         refreshDependencyStates();
         if (building)
             return;
         bool requiresRefresh = refresh || dependencySources.Contains(field.Name);
         ValueChanged?.Invoke(
             this,
-            new BlueprintVariableValueChangedEventArgs(field.Name, cloneNode(next), requiresRefresh));
+            new BlueprintVariableValueChangedEventArgs(field.Name, (next)?.DeepClone(), requiresRefresh));
         if (instanceVariableSources.Contains(field.Name))
         {
             string? previousType = resolveInstanceVariableType(previous);
@@ -1747,14 +1747,14 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
                 BlueprintVariableField child = definition.Clone();
                 if (value.TryGetPropertyValue(child.Name, out JsonNode? childValue))
                 {
-                    child.Value = cloneNode(childValue);
+                    child.Value = (childValue)?.DeepClone();
                     if (!JsonNode.DeepEquals(definition.Value, childValue))
                         child.DisplayValue = null;
                     child.PreserveNullValue = childValue is null;
                 }
                 else if (child.Value is null)
                 {
-                    child.Value = cloneNode(child.DefaultValue);
+                    child.Value = (child.DefaultValue)?.DeepClone();
                     child.PreserveNullValue = false;
                 }
                 result.Add(child);
@@ -1772,7 +1772,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
     {
         JsonObject result = [];
         foreach (BlueprintVariableField field in structureFields)
-            result[field.Name] = cloneNode(getFieldValue(field));
+            result[field.Name] = (getFieldValue(field))?.DeepClone();
         return result;
     }
 
@@ -1803,7 +1803,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         BlueprintVariableField resolvedField = resolveInstanceVariableValueField(field, dictionaryKey);
         IReadOnlyList<BlueprintVariableOption> options = getValueOptions(resolvedField);
         if (options.Count > 0)
-            return cloneNode(options[0].Value);
+            return (options[0].Value)?.DeepClone();
 
         LuaMetadataType type = LuaMetadataType.Parse(getTypeName(resolvedField));
         if (type.Kind == LuaMetadataTypeKind.Tuple)
@@ -1843,7 +1843,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         LuaMetadataType type = LuaMetadataType.Parse(getTypeName(field));
         if (type.Kind == LuaMetadataTypeKind.Tuple)
         {
-            JsonArray source = cloneNode(value) as JsonArray ?? [];
+            JsonArray source = (value)?.DeepClone() as JsonArray ?? [];
             JsonArray result = [];
             for (int index = 0; index < type.Arguments.Count; index++)
             {
@@ -1861,7 +1861,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         }
         if (type.Kind == LuaMetadataTypeKind.List)
         {
-            JsonArray source = cloneNode(value) as JsonArray ?? [];
+            JsonArray source = (value)?.DeepClone() as JsonArray ?? [];
             JsonArray result = [];
             JsonObject itemMeta = getMetadataObject(field, "ItemMeta") ?? [];
             foreach (JsonNode? item in source)
@@ -1875,7 +1875,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
             }
             return result;
         }
-        return cloneNode(value);
+        return (value)?.DeepClone();
     }
 
     private static JsonNode? createDefaultNode(
@@ -1914,7 +1914,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
     private string? resolveInstanceVariableType(JsonNode? value)
     {
         if (gameVariables is null
-            || !tryGetString(value, out string name)
+            || !JsonScalar.TryGetString(value, out string name)
             || !gameVariables.TryGet(name, out GameVariableDefinition? definition)
             || definition is null)
         {
@@ -1935,14 +1935,14 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
                 continue;
             }
             JsonNode? value = createDefaultNode(LuaMetadataType.Parse(type), field.Fields);
-            field.Value = cloneNode(value);
+            field.Value = (value)?.DeepClone();
             field.PreserveNullValue = value is null;
-            values[field.Name] = cloneNode(value);
+            values[field.Name] = (value)?.DeepClone();
             if (!building)
             {
                 ValueChanged?.Invoke(
                     this,
-                    new BlueprintVariableValueChangedEventArgs(field.Name, cloneNode(value), true));
+                    new BlueprintVariableValueChangedEventArgs(field.Name, (value)?.DeepClone(), true));
             }
         }
     }
@@ -1984,7 +1984,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         }
         foreach (JsonNode? item in types)
         {
-            if (tryGetString(item, out string type) && !string.IsNullOrWhiteSpace(type))
+            if (JsonScalar.TryGetString(item, out string type) && !string.IsNullOrWhiteSpace(type))
                 result.Add(type.Trim());
         }
         return result;
@@ -2104,9 +2104,9 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         }
         if (rely is JsonArray array
             && array.Count >= 2
-            && tryGetString(array[0], out string source))
+            && JsonScalar.TryGetString(array[0], out string source))
         {
-            return new BlueprintVariableDependency(source, cloneNode(array[1]));
+            return new BlueprintVariableDependency(source, (array[1])?.DeepClone());
         }
         if (rely is not JsonObject rule)
             return null;
@@ -2119,7 +2119,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
             ?? getObjectString(rule, "operator")
             ?? "==";
         rule.TryGetPropertyValue("value", out JsonNode? expected);
-        return new BlueprintVariableDependency(sourceName, cloneNode(expected), operation);
+        return new BlueprintVariableDependency(sourceName, (expected)?.DeepClone(), operation);
     }
 
     private static bool isColourField(BlueprintVariableField field)
@@ -2257,16 +2257,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
             return "dict";
         if (value is JsonArray)
             return "list";
-        if (value is JsonValue json)
-        {
-            if (json.TryGetValue(out bool _))
-                return "bool";
-            if (json.TryGetValue(out int _) || json.TryGetValue(out long _))
-                return "int";
-            if (json.TryGetValue(out double _) || json.TryGetValue(out decimal _))
-                return "float";
-        }
-        return "string";
+        return JsonScalar.ScalarType(value) ?? "string";
     }
 
     private static JsonArray flattenArray(JsonNode? value)
@@ -2279,11 +2270,11 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
             if (item is JsonArray nested)
             {
                 foreach (JsonNode? nestedItem in nested)
-                    result.Add(cloneNode(nestedItem));
+                    result.Add((nestedItem)?.DeepClone());
             }
             else
             {
-                result.Add(cloneNode(item));
+                result.Add((item)?.DeepClone());
             }
         }
         return result;
@@ -2376,7 +2367,7 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         List<BlueprintVariableOption> result = [];
         foreach (JsonNode? value in values)
         {
-            string label = tryGetString(value, out string text)
+            string label = JsonScalar.TryGetString(value, out string text)
                 ? text
                 : value?.ToJsonString() ?? string.Empty;
             result.Add(new BlueprintVariableOption(label, value));
@@ -2387,33 +2378,22 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
     private static string? getMetadataString(BlueprintVariableField field, string key)
     {
         JsonNode? value = getMetadataNode(field, key);
-        return tryGetString(value, out string result) ? result : null;
+        return JsonScalar.TryGetString(value, out string result) ? result : null;
     }
 
     private static string? getObjectString(JsonObject value, string key)
     {
         return value.TryGetPropertyValue(key, out JsonNode? node)
-            && tryGetString(node, out string result)
+            && JsonScalar.TryGetString(node, out string result)
             ? result
             : null;
-    }
-
-    private static bool tryGetString(JsonNode? value, out string result)
-    {
-        if (value is JsonValue json && json.TryGetValue(out string? text) && text is not null)
-        {
-            result = text;
-            return true;
-        }
-        result = string.Empty;
-        return false;
     }
 
     private static string getText(JsonNode? value)
     {
         if (value is null)
             return string.Empty;
-        if (tryGetString(value, out string text))
+        if (JsonScalar.TryGetString(value, out string text))
             return text;
         return value.ToJsonString();
     }
@@ -2425,11 +2405,6 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         if (value is JsonValue json && json.TryGetValue(out bool boolean))
             return boolean ? "true" : "false";
         return getText(value);
-    }
-
-    private static bool getBool(JsonNode? value)
-    {
-        return value is JsonValue json && json.TryGetValue(out bool result) && result;
     }
 
     private static int getInt(JsonNode? value, int fallback = 0)
@@ -2448,22 +2423,6 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
             : fallback;
     }
 
-    private static double getDouble(JsonNode? value, double fallback = 0)
-    {
-        if (value is JsonValue json)
-        {
-            if (json.TryGetValue(out double number))
-                return number;
-            if (json.TryGetValue(out decimal decimalValue))
-                return decimal.ToDouble(decimalValue);
-            if (json.TryGetValue(out int integer))
-                return integer;
-        }
-        return double.TryParse(getText(value), NumberStyles.Float, CultureInfo.InvariantCulture, out double result)
-            ? result
-            : fallback;
-    }
-
     private static decimal getDecimal(JsonNode? value)
     {
         if (decimal.TryParse(getText(value), NumberStyles.Float, CultureInfo.InvariantCulture, out decimal number))
@@ -2475,11 +2434,6 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
     private static bool isWhole(double value)
     {
         return Math.Abs(value - Math.Round(value)) < double.Epsilon;
-    }
-
-    private static JsonNode? cloneNode(JsonNode? value)
-    {
-        return value?.DeepClone();
     }
 
     private void subscribeGameVariables()
@@ -2561,4 +2515,5 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
         BlueprintVariableDependency? Dependency);
 
     private readonly record struct VectorSpec(int Count, bool IsInteger, decimal Minimum, decimal Maximum);
+    private static double getDouble(JsonNode? value, double fallback = 0) => JsonScalar.NumberFromText(value, fallback);
 }

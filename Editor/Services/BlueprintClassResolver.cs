@@ -508,9 +508,7 @@ public sealed class BlueprintClassResolver : IDisposable
 
     private static string readString(JsonNode? value)
     {
-        return value is JsonValue scalar && scalar.TryGetValue<string>(out string? result)
-            ? result.Trim()
-            : string.Empty;
+        return JsonScalar.String(value, string.Empty).Trim();
     }
 
     private static void mergeMetadataType(
@@ -548,7 +546,7 @@ public sealed class BlueprintClassResolver : IDisposable
             if (field.HasDefaultValue)
             {
                 fieldsWithMetadataDefaults.Add(attr);
-                metadataDefaults[attr] = cloneNode(field.DefaultValue);
+                metadataDefaults[attr] = (field.DefaultValue)?.DeepClone();
             }
         }
     }
@@ -575,7 +573,7 @@ public sealed class BlueprintClassResolver : IDisposable
                 : structuralDefaults.GetValueOrDefault(pair.Key);
             blueprintValues[pair.Key] = structureDefault is JsonObject && pair.Value is JsonObject
                 ? mergeFieldValue(schema.GetValueOrDefault(pair.Key)?.Type.Schema, structureDefault, pair.Value)
-                : cloneNode(pair.Value);
+                : (pair.Value)?.DeepClone();
         }
     }
 
@@ -629,18 +627,7 @@ public sealed class BlueprintClassResolver : IDisposable
                     : "any";
             return new LuaTypeReference(null, elementType + "[]");
         }
-        if (value is not JsonValue scalar)
-            return new LuaTypeReference(null, "any");
-        if (scalar.TryGetValue<bool>(out bool _))
-            return new LuaTypeReference(null, "bool");
-        if (scalar.TryGetValue<string>(out string? _))
-            return new LuaTypeReference(null, "string");
-        if (scalar.TryGetValue<int>(out int _) || scalar.TryGetValue<long>(out long _))
-            return new LuaTypeReference(null, "int");
-        if (scalar.TryGetValue<float>(out float _) || scalar.TryGetValue<double>(out double _)
-            || scalar.TryGetValue<decimal>(out decimal _))
-            return new LuaTypeReference(null, "float");
-        return new LuaTypeReference(null, "any");
+        return new LuaTypeReference(null, JsonScalar.ScalarType(value) ?? "any");
     }
 
     private static void mergeObject(JsonObject target, JsonObject source)
@@ -718,9 +705,9 @@ public sealed class BlueprintClassResolver : IDisposable
     private JsonNode? mergeFieldValue(LuaMetadataType? type, JsonNode? inheritedValue, JsonNode? nextValue)
     {
         if (type?.Kind == LuaMetadataTypeKind.Union)
-            return cloneNode(nextValue);
+            return (nextValue)?.DeepClone();
         if (inheritedValue is not JsonObject inheritedObject || nextValue is not JsonObject nextObject)
-            return cloneNode(nextValue);
+            return (nextValue)?.DeepClone();
         IReadOnlyList<LuaTypeMetadata> metadata = type?.Kind == LuaMetadataTypeKind.Named
             && metadataService.GetType(type.Name) is not null ? metadataService.ResolveMro(type.Name) : [];
         JsonObject result = (JsonObject)inheritedObject.DeepClone();
@@ -747,12 +734,7 @@ public sealed class BlueprintClassResolver : IDisposable
             }
             return result;
         }
-        return cloneNode(nextValue);
-    }
-
-    private static JsonNode? cloneNode(JsonNode? value)
-    {
-        return value?.DeepClone();
+        return (nextValue)?.DeepClone();
     }
 
     private static string? getParent(JsonObject blueprint)

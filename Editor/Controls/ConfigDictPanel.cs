@@ -449,7 +449,7 @@ public sealed class ConfigDictPanel : Border
     {
         bool isInt = type == "int";
         NumericUpDown box = EditorInputs.CreateNumericUpDown(
-            isInt ? getInt(initialValue) : (decimal)getDouble(initialValue),
+            isInt ? getInt(initialValue) : JsonScalar.ToDecimal(JsonScalar.NumberFromText(initialValue)),
             isInt ? int.MinValue : (decimal)-999999999.0,
             isInt ? int.MaxValue : (decimal)999999999.0,
             isInt ? 1m : 0.1m);
@@ -505,8 +505,6 @@ public sealed class ConfigDictPanel : Border
     };
 
     private static int getInt(JsonNode? value) => int.TryParse(value?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int result) ? result : 0;
-
-    private static double getDouble(JsonNode? value) => double.TryParse(value?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out double result) ? result : 0;
 
     private static IReadOnlyList<string> getExtensions(JsonNode? value)
     {

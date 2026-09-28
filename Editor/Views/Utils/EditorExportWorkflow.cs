@@ -16,7 +16,7 @@ public static class EditorExportWorkflow
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (!await EditorSaveWorkflow.TrySaveAsync(owner, saveService, false))
+        if (!await EditorSaveWorkflow.TrySaveAsync(owner, saveService))
             return ProjectExportResult.CancelledResult();
         cancellationToken.ThrowIfCancellationRequested();
         return await exportService.ExportAsync(writeOutput, cancellationToken);

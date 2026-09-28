@@ -75,10 +75,6 @@ public sealed class ReferenceIndexSnapshot
             .ThenBy(record => GetNode(selector(record))?.Key, StringComparer.Ordinal)
             .ThenBy(record => record.Path, StringComparer.Ordinal).ToArray());
 
-    internal static string NodeId(string type, string key) => type == "subtitle"
-        ? "asset:/Game/Assets/Subtitles/" + key.Replace('\\', '/') + ".json"
-        : type + ":" + key.Replace('\\', '/');
-
     internal static ReferenceNode? ParseNode(string id)
     {
         int separator = id.IndexOf(':');

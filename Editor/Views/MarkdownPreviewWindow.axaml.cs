@@ -1,3 +1,4 @@
+using Ludork.Plugin.Avalonia;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -24,13 +25,6 @@ namespace Ludork.Views;
 
 public partial class MarkdownPreviewWindow : Window
 {
-    private enum TableAlignment
-    {
-        Left,
-        Center,
-        Right,
-    }
-
     private enum ImageFailure
     {
         Invalid,
@@ -333,7 +327,7 @@ public partial class MarkdownPreviewWindow : Window
         headingAnchorCounts.Clear();
         renderSerial++;
         StringBuilder paragraph = new();
-        string[] lines = markdown.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+        string[] lines = MarkdownSyntax.GetLines(markdown);
 
         void flushParagraph()
         {
@@ -389,21 +383,12 @@ public partial class MarkdownPreviewWindow : Window
                 index++;
                 continue;
             }
-            if (index + 1 < lines.Length && isTableStart(line, lines[index + 1]))
+            MarkdownTable? table = MarkdownSyntax.ReadTable(lines, index, MarkdownSyntax.Profile.Documentation);
+            if (table is not null)
             {
                 flushParagraph();
-                List<string> header = splitTableRow(line);
-                List<TableAlignment> alignments = splitTableRow(lines[index + 1])
-                    .Select(getTableAlignment)
-                    .ToList();
-                List<IReadOnlyList<string>> rows = [];
-                index += 2;
-                while (index < lines.Length && isTableDataLine(lines[index]))
-                {
-                    rows.Add(normaliseTableRow(splitTableRow(lines[index]), header.Count));
-                    index++;
-                }
-                addTable(header, alignments, rows);
+                addTable(table.Header, table.Alignments, table.Rows);
+                index += table.ConsumedLines;
                 continue;
             }
             if (Regex.IsMatch(line, "^[-*_]{3,}$"))
@@ -512,9 +497,7 @@ public partial class MarkdownPreviewWindow : Window
     {
         InlineCollection inlines = getInlines(block);
         List<MarkdownLinkRange> links = [];
-        MatchCollection matches = Regex.Matches(
-            text,
-            @"`[^`\n]+`|\*\*[^*\n]+?\*\*|__[^_\n]+?__|~~[^~\n]+?~~|(?<!\*)\*[^*\n]+?\*(?!\*)|!?\[[^\]]*\]\([^)]+\)");
+        MatchCollection matches = MarkdownSyntax.GetInlineMatches(text, MarkdownSyntax.Profile.Documentation);
         int position = 0;
         int textPosition = 0;
         foreach (Match match in matches)
@@ -1123,86 +1106,9 @@ public partial class MarkdownPreviewWindow : Window
         };
     }
 
-    private static bool isTableStart(string headerLine, string separatorLine)
-    {
-        List<string> header = splitTableRow(headerLine);
-        List<string> separator = splitTableRow(separatorLine);
-        return header.Count > 0
-            && header.Count == separator.Count
-            && separator.All(cell => Regex.IsMatch(cell, "^:?-{3,}:?$"));
-    }
-
-    private static bool isTableDataLine(string line)
-    {
-        return !string.IsNullOrWhiteSpace(line) && line.Contains('|');
-    }
-
-    private static List<string> splitTableRow(string line)
-    {
-        string value = line.Trim();
-        if (value.StartsWith('|'))
-            value = value[1..];
-        if (value.EndsWith('|') && !value.EndsWith("\\|", StringComparison.Ordinal))
-            value = value[..^1];
-        List<string> cells = [];
-        StringBuilder cell = new();
-        bool inCode = false;
-        bool escaped = false;
-        foreach (char character in value)
-        {
-            if (escaped)
-            {
-                cell.Append(character);
-                escaped = false;
-                continue;
-            }
-            if (character == '\\')
-            {
-                escaped = true;
-                continue;
-            }
-            if (character == '`')
-            {
-                inCode = !inCode;
-                cell.Append(character);
-                continue;
-            }
-            if (character == '|' && !inCode)
-            {
-                cells.Add(cell.ToString().Trim());
-                cell.Clear();
-                continue;
-            }
-            cell.Append(character);
-        }
-        if (escaped)
-            cell.Append('\\');
-        cells.Add(cell.ToString().Trim());
-        return cells;
-    }
-
-    private static TableAlignment getTableAlignment(string separator)
-    {
-        string value = separator.Trim();
-        if (value.StartsWith(':') && value.EndsWith(':'))
-            return TableAlignment.Center;
-        if (value.EndsWith(':'))
-            return TableAlignment.Right;
-        return TableAlignment.Left;
-    }
-
-    private static IReadOnlyList<string> normaliseTableRow(List<string> cells, int count)
-    {
-        if (cells.Count > count)
-            return cells.Take(count).ToArray();
-        while (cells.Count < count)
-            cells.Add(string.Empty);
-        return cells;
-    }
-
     private void addTable(
         IReadOnlyList<string> header,
-        IReadOnlyList<TableAlignment> alignments,
+        IReadOnlyList<TextAlignment> alignments,
         IReadOnlyList<IReadOnlyList<string>> rows)
     {
         Grid table = new()
@@ -1224,7 +1130,7 @@ public partial class MarkdownPreviewWindow : Window
     private void addTableRow(
         Grid table,
         IReadOnlyList<string> cells,
-        IReadOnlyList<TableAlignment> alignments,
+        IReadOnlyList<TextAlignment> alignments,
         int row,
         bool header)
     {
@@ -1232,12 +1138,7 @@ public partial class MarkdownPreviewWindow : Window
         {
             TextBlock text = createTextBlock(cells[column], 15);
             text.FontWeight = header ? FontWeight.SemiBold : FontWeight.Normal;
-            text.TextAlignment = alignments[column] switch
-            {
-                TableAlignment.Center => TextAlignment.Center,
-                TableAlignment.Right => TextAlignment.Right,
-                _ => TextAlignment.Left,
-            };
+            text.TextAlignment = alignments[column];
             Border cell = new()
             {
                 Background = EditorTheme.Brush(header ? "Surface" : "Background"),

@@ -42,22 +42,22 @@ internal sealed partial class DocumentReferenceScanner
         switch (section)
         {
             case "Configs":
-                scanConfigReferences(nodeId("config", key), key, data);
+                scanConfigReferences(ReferenceIdentity.NodeId("config", key), key, data);
                 break;
             case "Tilesets":
-                addAssetReference(nodeId("tileset", key), data["fileName"], "asset", "fileName");
+                addAssetReference(ReferenceIdentity.NodeId("tileset", key), data["fileName"], "asset", "fileName");
                 break;
             case "AutoTiles":
-                addAssetReference(nodeId("autoTile", key), data["fileName"], "asset", "fileName");
+                addAssetReference(ReferenceIdentity.NodeId("autoTile", key), data["fileName"], "asset", "fileName");
                 break;
             case "Maps":
-                scanMapReferences(nodeId("map", key), key, data);
+                scanMapReferences(ReferenceIdentity.NodeId("map", key), key, data);
                 break;
             case "WorldMaps":
-                scanWorldMapReferences(nodeId("worldMap", key), key, data);
+                scanWorldMapReferences(ReferenceIdentity.NodeId("worldMap", key), key, data);
                 break;
             case "CommonFunctions":
-                string sourceId = nodeId("commonFunction", key);
+                string sourceId = ReferenceIdentity.NodeId("commonFunction", key);
                 if (data["nodeGraph"] is JsonObject)
                     scanNodeGraphReferences(sourceId, data, $"CommonFunctions/{key}", getGlobalDefinitions());
                 scanGenericReferences(sourceId, data, $"CommonFunctions/{key}");
@@ -66,19 +66,19 @@ internal sealed partial class DocumentReferenceScanner
                 scanBlueprintReferences(key, data);
                 break;
             case "Animations":
-                scanAnimationReferences(nodeId("animation", key), data, key);
+                scanAnimationReferences(ReferenceIdentity.NodeId("animation", key), data, key);
                 break;
             case "Particles":
                 scanParticleReferences(key, data);
                 break;
             case "Curves":
-                scanGenericReferences(nodeId("curve", key), data, $"Curves/{key}");
+                scanGenericReferences(ReferenceIdentity.NodeId("curve", key), data, $"Curves/{key}");
                 break;
             case "TextConfigs":
-                scanTextConfigReferences(nodeId("textConfig", key), key, data);
+                scanTextConfigReferences(ReferenceIdentity.NodeId("textConfig", key), key, data);
                 break;
             case "UI":
-                scanUiAssetReferences(nodeId("uiAsset", key), key, data);
+                scanUiAssetReferences(ReferenceIdentity.NodeId("uiAsset", key), key, data);
                 break;
             case "General":
                 scanGeneralReferences(key, data);
@@ -99,7 +99,7 @@ internal sealed partial class DocumentReferenceScanner
     {
         string assetPath = normalizeAssetPath(value);
         if (assetPath.Length != 0)
-            addReference(sourceId, nodeId("asset", assetPath), kind, path);
+            addReference(sourceId, ReferenceIdentity.NodeId("asset", assetPath), kind, path);
     }
 
     private void addReference(string sourceId, string targetId, string kind, string path)

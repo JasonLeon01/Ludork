@@ -285,12 +285,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         if (!save && !undo && !EditorShortcuts.IsRedo(args.Key, args.KeyModifiers))
             return;
         FlushPendingChanges();
-        if (save)
-            await EditorSaveWorkflow.TrySaveAsync(this, projectSave);
-        else if (toast is not null)
-            EditorFeedback.ShowHistory(toast, undo ? "Undo" : "Redo",
-                undo ? documentBinding.Undo() : documentBinding.Redo());
-        args.Handled = true;
+        await documentBinding.HandleShortcutAsync(args, projectSave, toast);
     }
 
     private void onPreviewZoomChanged(object? sender, EventArgs args)
@@ -2423,39 +2418,18 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         string propertyName,
         string fallback = "")
     {
-        return value?[propertyName] is JsonValue scalar
-            && scalar.TryGetValue(out string? text)
-                ? text ?? fallback
-                : fallback;
+        return JsonScalar.String(value?[propertyName], fallback);
     }
 
     private static string getString(JsonNode? value)
     {
-        return value is JsonValue scalar
-            && scalar.TryGetValue(out string? text)
-                ? text ?? string.Empty
-                : string.Empty;
+        return JsonScalar.String(value, string.Empty);
     }
 
     private static bool getBool(JsonNode? value, bool fallback)
     {
-        return value is JsonValue scalar
-            && scalar.TryGetValue(out bool result)
-                ? result
-                : fallback;
+        return JsonScalar.Bool(value, fallback);
     }
 
-    private static double getDouble(JsonNode? value, double fallback)
-    {
-        if (value is JsonValue scalar)
-        {
-            if (scalar.TryGetValue(out double result) && double.IsFinite(result))
-                return result;
-            if (scalar.TryGetValue(out int integer))
-                return integer;
-            if (scalar.TryGetValue(out long longInteger))
-                return longInteger;
-        }
-        return fallback;
-    }
+    private static double getDouble(JsonNode? value, double fallback) => JsonScalar.FiniteNumber(value, fallback);
 }

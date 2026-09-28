@@ -61,7 +61,7 @@ internal sealed class ReferenceIndexSnapshotBuilder : IDisposable
             next[key] = cached;
             string type = ReferenceIndexSnapshot.DataRoots.Single(pair => pair.Value == document.Section).Key;
             string nodeKey = type == "blueprint" ? BlueprintReference.ToReference(document.Key) : document.Key;
-            string id = ReferenceIndexSnapshot.NodeId(type, nodeKey);
+            string id = ReferenceIdentity.NodeId(type, nodeKey);
             nodes[id] = ReferenceIndexSnapshot.ParseNode(id)!;
             declared.Add(id);
             foreach (KeyValuePair<string, string> member in cached.Result.GeneralMemberTypes)

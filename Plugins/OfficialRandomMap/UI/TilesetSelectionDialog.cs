@@ -5,7 +5,6 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Controls.Primitives;
 using Ludork.Plugin.Abstractions;
-using Ludork.Plugins.OfficialRandomMap.Localization;
 using System;
 using System.Threading.Tasks;
 

@@ -17,8 +17,8 @@ internal static class BlueprintNodeParameterValues
         {
             if (item is JsonArray step
                 && step.Count >= 2
-                && tryGetInt(step[0], out int x)
-                && tryGetInt(step[1], out int y))
+                && JsonScalar.TryGetIntegerFromText(step[0], out int x)
+                && JsonScalar.TryGetIntegerFromText(step[1], out int y))
             {
                 result.Add(new JsonArray(x, y));
             }
@@ -30,8 +30,8 @@ internal static class BlueprintNodeParameterValues
     {
         if (value is not JsonArray position
             || position.Count < 2
-            || !tryGetInt(position[0], out int x)
-            || !tryGetInt(position[1], out int y))
+            || !JsonScalar.TryGetIntegerFromText(position[0], out int x)
+            || !JsonScalar.TryGetIntegerFromText(position[1], out int y))
         {
             return null;
         }
@@ -45,7 +45,7 @@ internal static class BlueprintNodeParameterValues
         foreach (JsonNode? item in route)
         {
             JsonArray step = (JsonArray)item!;
-            steps.Add($"({getInt(step[0])}, {getInt(step[1])})");
+            steps.Add($"({JsonScalar.IntegerFromText(step[0])}, {JsonScalar.IntegerFromText(step[1])})");
         }
         return "[" + string.Join(", ", steps) + "]";
     }
@@ -56,8 +56,8 @@ internal static class BlueprintNodeParameterValues
         if (position is null)
             return LocaleService.Get("TRANSFER_POS_NONE");
         return LocaleService.Get("TRANSFER_POS_LABEL")
-            .Replace("{x}", getInt(position[0]).ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal)
-            .Replace("{y}", getInt(position[1]).ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+            .Replace("{x}", JsonScalar.IntegerFromText(position[0]).ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal)
+            .Replace("{y}", JsonScalar.IntegerFromText(position[1]).ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal);
     }
 
     public static string GetString(JsonNode? value)
@@ -74,7 +74,7 @@ internal static class BlueprintNodeParameterValues
         foreach (JsonNode? item in route)
         {
             JsonArray step = (JsonArray)item!;
-            result.Add(new RouteStep(getInt(step[0]), getInt(step[1])));
+            result.Add(new RouteStep(JsonScalar.IntegerFromText(step[0]), JsonScalar.IntegerFromText(step[1])));
         }
         return result;
     }
@@ -87,38 +87,4 @@ internal static class BlueprintNodeParameterValues
         return result;
     }
 
-    private static int getInt(JsonNode? value)
-    {
-        return tryGetInt(value, out int result) ? result : 0;
-    }
-
-    private static bool tryGetInt(JsonNode? value, out int result)
-    {
-        if (value is JsonValue scalar)
-        {
-            if (scalar.TryGetValue(out int integer))
-            {
-                result = integer;
-                return true;
-            }
-            if (scalar.TryGetValue(out long longValue))
-            {
-                result = (int)Math.Clamp(longValue, int.MinValue, int.MaxValue);
-                return true;
-            }
-            if (scalar.TryGetValue(out double number) && double.IsFinite(number))
-            {
-                result = (int)Math.Clamp(number, int.MinValue, int.MaxValue);
-                return true;
-            }
-            if (scalar.TryGetValue(out string? text)
-                && int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer))
-            {
-                result = integer;
-                return true;
-            }
-        }
-        result = 0;
-        return false;
-    }
 }

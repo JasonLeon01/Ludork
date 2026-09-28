@@ -1,3 +1,4 @@
+using Ludork.Plugin.Abstractions;
 using Avalonia.Controls;
 using System;
 using System.Collections.Generic;
@@ -202,18 +203,13 @@ public sealed class EditorSettings
 
     public bool Save()
     {
-        string? temporaryPath = null;
         try
         {
             string path = configPath ?? ConfigPath;
             string text = serialize();
             if (text == savedText && File.Exists(path))
                 return true;
-            string? directory = Path.GetDirectoryName(Path.GetFullPath(path));
-            Directory.CreateDirectory(directory!);
-            temporaryPath = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
-            File.WriteAllText(temporaryPath, text, new UTF8Encoding(false));
-            File.Move(temporaryPath, path, true);
+            FilePersistence.WriteAllTextAtomic(path, text);
             savedText = text;
             LastError = null;
             return true;
@@ -227,24 +223,6 @@ public sealed class EditorSettings
         {
             reportFailure(exception.Message);
             return false;
-        }
-        finally
-        {
-            if (temporaryPath is not null)
-            {
-                try
-                {
-                    File.Delete(temporaryPath);
-                }
-                catch (IOException exception)
-                {
-                    reportFailure(exception.Message);
-                }
-                catch (UnauthorizedAccessException exception)
-                {
-                    reportFailure(exception.Message);
-                }
-            }
         }
     }
 

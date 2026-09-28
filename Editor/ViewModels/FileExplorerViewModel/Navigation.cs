@@ -250,7 +250,7 @@ public sealed partial class FileExplorerViewModel
                 if (snapshot.Hidden.Contains(file.FullName) || !DataConfig.shouldDisplay(file.FullName))
                     continue;
                 bool isDirectory = file is DirectoryInfo;
-                bool canExpand = isDirectory && (file.Attributes & FileAttributes.ReparsePoint) == 0;
+                bool canExpand = isDirectory && !EditorPathSandbox.IsLink(file);
                 long length = file is FileInfo info ? info.Length : 0;
                 paths[file.FullName] = new DirectoryEntry(file.FullName, isDirectory,
                     $"{file.LastWriteTimeUtc.Ticks}:{length}", CanExpand: canExpand);
@@ -267,7 +267,7 @@ public sealed partial class FileExplorerViewModel
             }
         }
         string textRoot = Path.Combine(projectPath, "Data", "TextConfigs");
-        return paths.Values.Where(entry => !isSameOrChildPath(textRoot, entry.Path)
+        return paths.Values.Where(entry => !EditorPathSandbox.IsSameOrChildPath(textRoot, entry.Path)
                 || hasVisibleTextContent(entry.Path, entry.IsDirectory, snapshot.TextConfigKeys, token))
             .OrderBy(entry => !entry.IsDirectory)
             .ThenBy(entry => Path.GetFileName(entry.Path), StringComparer.OrdinalIgnoreCase).ToArray();
@@ -278,7 +278,7 @@ public sealed partial class FileExplorerViewModel
         token.ThrowIfCancellationRequested();
         if (directory)
         {
-            if (Directory.Exists(path) && (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
+            if (Directory.Exists(path) && EditorPathSandbox.IsLink(path))
                 return true;
             string relative = Path.GetRelativePath(Path.Combine(projectPath, "Data", "TextConfigs"), path).Replace('\\', '/').Trim('/');
             if (textKeys.Any(key => key.StartsWith(relative + "/", StringComparison.OrdinalIgnoreCase)))

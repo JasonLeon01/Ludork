@@ -4,7 +4,6 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Ludork.Plugin.Abstractions;
 using Ludork.Plugin.Avalonia;
-using Ludork.Plugins.OfficialResourceCleanup.Localization;
 using System.Threading.Tasks;
 
 namespace Ludork.Plugins.OfficialResourceCleanup.UI;
@@ -35,7 +34,7 @@ internal sealed class ResourceCleanupConfirmation : Window
         StackPanel panel = new() { Margin = new Thickness(22), Spacing = 18 };
         panel.Children.Add(new TextBlock
         {
-            Text = localizer.Format("confirmMessage", report.Candidates.Count, localizer.Size(report.TotalBytes)),
+            Text = localizer.Format("confirmMessage", report.Candidates.Count, ResourceSizeFormatter.Format(report.TotalBytes)),
             TextWrapping = TextWrapping.Wrap,
         });
         panel.Children.Add(buttons);

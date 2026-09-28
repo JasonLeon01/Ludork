@@ -56,21 +56,6 @@ public static class ParticleAssetSchema
         };
     }
 
-    public static double Number(JsonNode? node, double fallback = 0)
-    {
-        if (node is not JsonValue value)
-            return fallback;
-        if (value.TryGetValue<double>(out double real))
-            return real;
-        if (value.TryGetValue<int>(out int integer))
-            return integer;
-        if (value.TryGetValue<long>(out long wide))
-            return wide;
-        if (value.TryGetValue<decimal>(out decimal precise))
-            return (double)precise;
-        return fallback;
-    }
-
     public static IReadOnlyList<string> Validate(JsonObject asset, string key)
     {
         List<string> errors = [];
@@ -135,16 +120,16 @@ public static class ParticleAssetSchema
             if ((component(track, defaults, "textureRect", 2) == 0) != (component(track, defaults, "textureRect", 3) == 0))
                 errors.Add(path + ".textureRect width and height must both be zero or both be positive");
             validateNumber(track, "capacity", 1024, 1, 1000000, true, path, errors);
-            validateNumber(track, "count", Math.Min(32, Number(track["capacity"], 1024)), 0,
-                Number(track["capacity"], 1024), true, path, errors);
+            validateNumber(track, "count", Math.Min(32, JsonScalar.Number(track["capacity"], 1024)), 0,
+                JsonScalar.Number(track["capacity"], 1024), true, path, errors);
             validateNumber(track, "duration", 2, 0, float.MaxValue, false, path, errors, true);
             validateNumber(track, "columns", 1, 1, 4096, true, path, errors);
             validateNumber(track, "rows", 1, 1, 4096, true, path, errors);
-            validateNumber(track, "frameCount", 1, 1, Number(track["columns"], 1) * Number(track["rows"], 1), true, path, errors);
+            validateNumber(track, "frameCount", 1, 1, JsonScalar.Number(track["columns"], 1) * JsonScalar.Number(track["rows"], 1), true, path, errors);
             foreach (string property in new[] { "delay", "rate", "distanceRate", "radius", "innerRadius", "spread", "damping", "frameRate" })
-                validateNumber(track, property, Number(defaults[property]), 0, float.MaxValue, false, path, errors);
+                validateNumber(track, property, JsonScalar.Number(defaults[property]), 0, float.MaxValue, false, path, errors);
             if (track["shape"] is JsonValue shape && shape.TryGetValue<string>(out string? shapeName) && shapeName == "ring"
-                && (float)Number(track["innerRadius"], 8) > (float)Number(track["radius"], 16))
+                && (float)JsonScalar.Number(track["innerRadius"], 8) > (float)JsonScalar.Number(track["radius"], 16))
                 errors.Add(path + ".innerRadius exceeds ring radius");
             validateBursts(track, path, errors);
             validateCurves(track, path, errors);
@@ -171,11 +156,11 @@ public static class ParticleAssetSchema
                         errors.Add(path + "." + field.Key + " must be a boolean");
                 }
                 else
-                    validateNumber(owner, field.Key, Number(field.Value), -float.MaxValue, float.MaxValue, false, path, errors);
+                    validateNumber(owner, field.Key, JsonScalar.Number(field.Value), -float.MaxValue, float.MaxValue, false, path, errors);
             }
             else if (field.Value is JsonArray expected && field.Key is not "bursts" and not "keys"
                 && (value is not JsonArray vector || vector.Count != expected.Count
-                    || vector.Any(item => !double.IsFinite(Number(item, double.NaN)) || Math.Abs(Number(item)) > float.MaxValue)))
+                    || vector.Any(item => !double.IsFinite(JsonScalar.Number(item, double.NaN)) || Math.Abs(JsonScalar.Number(item)) > float.MaxValue)))
                 errors.Add(path + "." + field.Key + " has invalid components");
         }
     }
@@ -183,7 +168,7 @@ public static class ParticleAssetSchema
     private static double component(JsonObject owner, JsonObject defaults, string property, int index)
     {
         JsonNode? value = owner.ContainsKey(property) ? owner[property] : defaults[property];
-        return value is JsonArray vector && index < vector.Count ? (float)Number(vector[index], double.NaN) : double.NaN;
+        return value is JsonArray vector && index < vector.Count ? (float)JsonScalar.Number(vector[index], double.NaN) : double.NaN;
     }
 
     private static void validateChoice(JsonObject owner, string property, string[] choices, string path, ICollection<string> errors)
@@ -211,11 +196,11 @@ public static class ParticleAssetSchema
                 continue;
             }
             validateNumber(burst, "time", 0, 0, float.MaxValue, false, burstPath, errors);
-            if ((float)Number(burst["time"]) >= (float)Number(track["duration"], 2))
+            if ((float)JsonScalar.Number(burst["time"]) >= (float)JsonScalar.Number(track["duration"], 2))
                 errors.Add(burstPath + ".time must be less than track duration");
             validateNumber(burst, "count", 0, 0, 1000000, true, burstPath, errors);
             validateNumber(burst, "cycles", 1, 1, 10000, true, burstPath, errors);
-            validateNumber(burst, "interval", 0, 0, float.MaxValue, false, burstPath, errors, Number(burst["cycles"], 1) > 1);
+            validateNumber(burst, "interval", 0, 0, float.MaxValue, false, burstPath, errors, JsonScalar.Number(burst["cycles"], 1) > 1);
         }
     }
 
@@ -265,7 +250,7 @@ public static class ParticleAssetSchema
     private static void validateNumber(JsonObject owner, string property, double fallback,
         double minimum, double maximum, bool integer, string path, ICollection<string> errors, bool exclusiveMinimum = false)
     {
-        double value = owner.ContainsKey(property) ? Number(owner[property], double.NaN) : fallback;
+        double value = owner.ContainsKey(property) ? JsonScalar.Number(owner[property], double.NaN) : fallback;
         if (!integer)
         {
             if (Math.Abs(value) > float.MaxValue)

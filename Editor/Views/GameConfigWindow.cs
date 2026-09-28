@@ -121,20 +121,20 @@ public sealed class GameConfigWindow : Window
         voiceVolumeBox = createVolumeBox(initialData.VoiceVolume);
 
         Grid form = new() { RowSpacing = 8 };
-        addRow(form, LocaleService.Get("script"), scriptBox);
-        addRow(form, LocaleService.Get("language"), languageBox);
-        addRow(form, LocaleService.Get("scale"), scaleBox);
-        addRow(form, LocaleService.Get("maxrenderscale"), maximumRenderScaleBox);
-        addRow(form, LocaleService.Get("lightingrenderscale"), lightingRenderScaleBox);
-        addRow(form, LocaleService.Get("framerate"), frameRateBox);
-        addRow(form, LocaleService.Get("antialiasinglevel"), antiAliasingLevelBox);
-        addRow(form, LocaleService.Get("verticalsync"), verticalSyncBox);
-        addRow(form, LocaleService.Get("musicon"), musicOnBox);
-        addRow(form, LocaleService.Get("soundon"), soundOnBox);
-        addRow(form, LocaleService.Get("voiceon"), voiceOnBox);
-        addRow(form, LocaleService.Get("musicvolume"), musicVolumeBox);
-        addRow(form, LocaleService.Get("soundvolume"), soundVolumeBox);
-        addRow(form, LocaleService.Get("voicevolume"), voiceVolumeBox);
+        EditorFormRows.Add(form, LocaleService.Get("script"), scriptBox);
+        EditorFormRows.Add(form, LocaleService.Get("language"), languageBox);
+        EditorFormRows.Add(form, LocaleService.Get("scale"), scaleBox);
+        EditorFormRows.Add(form, LocaleService.Get("maxrenderscale"), maximumRenderScaleBox);
+        EditorFormRows.Add(form, LocaleService.Get("lightingrenderscale"), lightingRenderScaleBox);
+        EditorFormRows.Add(form, LocaleService.Get("framerate"), frameRateBox);
+        EditorFormRows.Add(form, LocaleService.Get("antialiasinglevel"), antiAliasingLevelBox);
+        EditorFormRows.Add(form, LocaleService.Get("verticalsync"), verticalSyncBox);
+        EditorFormRows.Add(form, LocaleService.Get("musicon"), musicOnBox);
+        EditorFormRows.Add(form, LocaleService.Get("soundon"), soundOnBox);
+        EditorFormRows.Add(form, LocaleService.Get("voiceon"), voiceOnBox);
+        EditorFormRows.Add(form, LocaleService.Get("musicvolume"), musicVolumeBox);
+        EditorFormRows.Add(form, LocaleService.Get("soundvolume"), soundVolumeBox);
+        EditorFormRows.Add(form, LocaleService.Get("voicevolume"), voiceVolumeBox);
 
         confirmButton = new Button
         {
@@ -274,24 +274,5 @@ public sealed class GameConfigWindow : Window
         return box;
     }
 
-    private static void addRow(Grid form, string label, Control editor)
-    {
-        int rowIndex = form.RowDefinitions.Count;
-        form.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        Grid row = new()
-        {
-            ColumnDefinitions = new ColumnDefinitions("160,*"),
-            ColumnSpacing = 12,
-        };
-        row.Children.Add(new TextBlock
-        {
-            Text = label,
-            VerticalAlignment = VerticalAlignment.Center,
-            TextWrapping = TextWrapping.Wrap,
-        });
-        Grid.SetColumn(editor, 1);
-        row.Children.Add(editor);
-        Grid.SetRow(row, rowIndex);
-        form.Children.Add(row);
-    }
+
 }

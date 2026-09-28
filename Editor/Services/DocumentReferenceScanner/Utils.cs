@@ -6,28 +6,18 @@ namespace Ludork.Services;
 
 internal sealed partial class DocumentReferenceScanner
 {
-    private static string nodeId(string type, string key)
-    {
-        return $"{type}:{key.Replace('\\', '/')}";
-    }
-
     private string generalMemberNodeId(string typeKey, string memberKey)
     {
-        string id = nodeId("generalMember", $"{typeKey}/{memberKey}");
+        string id = ReferenceIdentity.GeneralMemberNodeId(typeKey, memberKey);
         generalMemberTypes[id] = typeKey;
         return id;
     }
 
-    private static string blueprintNodeIdFromKey(string key)
-    {
-        return nodeId("blueprint", BlueprintReference.ToReference(key));
-    }
-
     private static string? blueprintNodeIdFromClassPath(JsonNode? value)
     {
-        string? text = getString(value)?.Trim();
+        string? text = JsonScalar.String(value)?.Trim();
         return BlueprintReference.IsReference(text)
-            ? nodeId("blueprint", BlueprintReference.ToReference(text))
+            ? ReferenceIdentity.NodeId("blueprint", BlueprintReference.ToReference(text))
             : null;
     }
 
@@ -49,20 +39,20 @@ internal sealed partial class DocumentReferenceScanner
         if (value is JsonObject objectValue)
         {
             if (objectValue.TryGetPropertyValue(name, out JsonNode? named))
-                return getString(named) ?? string.Empty;
+                return JsonScalar.String(named) ?? string.Empty;
             return null;
         }
         if (value is not JsonArray array)
             return null;
         foreach (JsonNode? item in array)
         {
-            if (string.Equals(getString(item), name, StringComparison.Ordinal))
+            if (string.Equals(JsonScalar.String(item), name, StringComparison.Ordinal))
                 return string.Empty;
             if (item is JsonArray tuple
                 && tuple.Count != 0
-                && string.Equals(getString(tuple[0]), name, StringComparison.Ordinal))
+                && string.Equals(JsonScalar.String(tuple[0]), name, StringComparison.Ordinal))
             {
-                return tuple.Count > 1 ? getString(tuple[1]) ?? string.Empty : string.Empty;
+                return tuple.Count > 1 ? JsonScalar.String(tuple[1]) ?? string.Empty : string.Empty;
             }
         }
         return null;
@@ -70,27 +60,13 @@ internal sealed partial class DocumentReferenceScanner
 
     private static string normalizeAssetPath(JsonNode? value)
     {
-        string? text = getString(value);
+        string? text = JsonScalar.String(value);
         return GameAssetPath.IsCanonical(text) ? text! : string.Empty;
     }
 
     private static string normalizeExplicitAssetPath(string value)
     {
         return GameAssetPath.IsCanonical(value) ? value : string.Empty;
-    }
-
-    private static string? normalizeReferenceParam(JsonNode? value)
-    {
-        string? text = getString(value)?.Trim();
-        if (string.IsNullOrWhiteSpace(text))
-            return null;
-        if (text.Length >= 2
-            && text[0] == text[^1]
-            && text[0] is '\'' or '"')
-        {
-            text = text[1..^1].Trim();
-        }
-        return text.Length == 0 ? null : text;
     }
 
     private static string normalizeDataReference(string value, string section)
@@ -112,11 +88,6 @@ internal sealed partial class DocumentReferenceScanner
         if (normalized.EndsWith(DataConfig.DataFileExtension, StringComparison.OrdinalIgnoreCase))
             normalized = normalized[..^DataConfig.DataFileExtension.Length];
         return normalized;
-    }
-
-    private static string? getString(JsonNode? value)
-    {
-        return value is JsonValue scalar && scalar.TryGetValue(out string? text) ? text : null;
     }
 
 }

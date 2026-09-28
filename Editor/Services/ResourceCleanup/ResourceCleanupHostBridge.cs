@@ -61,20 +61,12 @@ internal sealed class ResourceCleanupHostBridge : IResourceCleanupHost
                 string content = string.Join('\n', normalized) + "\n";
                 if (File.Exists(path) && File.ReadAllText(path, Encoding.UTF8) == content)
                     return;
-                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-                string temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
-                try
+                byte[] bytes = new UTF8Encoding(false, true).GetBytes(content);
+                FilePersistence.WriteAtomic(path, stream => stream.Write(bytes), () =>
                 {
-                    File.WriteAllText(temporary, content, new UTF8Encoding(false, true));
                     cancellationToken.ThrowIfCancellationRequested();
                     ResourceCleanupFileSystem.ResolveSafePath(ProjectPath, ResourceCleanupFileSystem.KeepListPath, allowMissing: true);
-                    File.Move(temporary, path, true);
-                }
-                finally
-                {
-                    if (File.Exists(temporary))
-                        File.Delete(temporary);
-                }
+                });
             }, cancellationToken);
         }
         finally

@@ -18,12 +18,11 @@ public static class EditorFeedback
 
     public static Task ShowSaveResultAsync(Window owner, SaveResult result)
     {
-        string prefix = LocaleService.Get(result.Success ? "SAVE_SUCCESS" : "SAVE_FAILED");
-        string detailTemplate = LocaleService.Get("SAVE_PATH");
-        string details = detailTemplate.Contains("{}", System.StringComparison.Ordinal)
-            ? detailTemplate.Replace("{}", result.Details, System.StringComparison.Ordinal)
-            : detailTemplate + result.Details;
-        string message = prefix + details;
+        if (result.Success)
+            return Task.CompletedTask;
+        string message = LocaleService.Get("SAVE_FAILED");
+        if (!string.IsNullOrWhiteSpace(result.Details))
+            message += System.Environment.NewLine + result.Details;
         return AlertDialog.ShowAsync(owner, LocaleService.Get("HINT"), message);
     }
 
