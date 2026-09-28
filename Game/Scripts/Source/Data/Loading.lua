@@ -2,6 +2,7 @@ local cjson = require("cjson")
 local Engine = require("Engine")
 local FileBatch = require("Global.Utils.FileBatch")
 local Logging = require("Global.Utils.Logging")
+local Path = require("Global.Utils.Path")
 local GeneralDataSchema = require("Source.Data.GeneralDataSchema")
 
 local ResourceFileConstants = Engine.ResourceFileConstants
@@ -26,16 +27,6 @@ local DataLoading = {}
 ---@param data Source.Data.Cache
 function DataLoading:init(data)
     self._state = data
-end
-
----@param fileName string
----@return string, string
-local function splitCompound(fileName)
-    local name, extension = fileName:match("^(.-)(%..+)$")
-    if name == nil then
-        return fileName, ""
-    end
-    return name, extension or ""
 end
 
 ---@param value Source.Data.JsonValue | userdata
@@ -158,7 +149,7 @@ function DataLoading:applyInitialLoadItem(stage, item)
     Logging.debug("Loading %s: %s", category, relativePath)
     local payload = self:normaliseJsonNull(cjson.decode(item.content))
     ---@cast payload table<string, Source.Data.JsonValue>
-    local name
+    local name = Path.NormaliseSeparators((os.path.splitext(relativePath)))
     if category == "animations" then
         assert(payload.type == "compressedAnimation", "Invalid compressed animation type: " .. relativePath)
         assert(
@@ -169,27 +160,22 @@ function DataLoading:applyInitialLoadItem(stage, item)
         stage.animationData[name] = Engine.AnimationData.new(payload)
     elseif category == "commonFunctions" then
         payload.type = nil
-        name = splitCompound(relativePath)
         stage.commonFunctionsData[name] = payload
     elseif category == "tilesets" then
         payload.type = nil
-        name = splitCompound(relativePath)
         ---@cast payload table<string, string | boolean[] | table<string, boolean | number>[] | boolean[][]>
         stage.tilesetData[name] = Engine.Tileset.fromData(payload)
     elseif category == "autoTiles" then
         payload.type = nil
-        name = splitCompound(relativePath)
         ---@cast payload table<string, string | boolean | table<string, boolean | number>>
         stage.autoTileData[name] = Engine.AutoTile.fromData(payload)
     elseif category == "general" then
         payload.type = nil
-        name = splitCompound(relativePath)
         GeneralDataSchema.Canonicalise(payload, relativePath)
         stage.generalData[name] = payload
     elseif category == "curves" then
         local curveType = payload.type
         payload.type = nil
-        name = splitCompound(relativePath)
         if curveType == "curve" then
             local curveData = payload
             ---@cast curveData Engine.CurveData
@@ -215,7 +201,6 @@ function DataLoading:applyInitialLoadItem(stage, item)
             payload.type == "plainTextConfig" or payload.type == "richTextConfig",
             "Invalid text config type: " .. relativePath
         )
-        name = splitCompound(relativePath)
         stage.textConfigData[name] = payload
     else
         error("Unknown initial data category: " .. tostring(category))

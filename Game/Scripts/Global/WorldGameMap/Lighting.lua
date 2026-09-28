@@ -520,13 +520,13 @@ function GameMapLighting.GetStaticTransmissionSignature(self)
         local coverAlpha = self._coverAlpha
         ---@type (string | integer)[]
         local coverState = { "cover", coverPlayerX, coverPlayerY, coverPlayerLayerIndex, coverAlpha }
-        local coverTuple = tuple(table.unpack(coverState))
-        ---@diagnostic disable-next-line: cast-type-mismatch, table.unpack cannot express that this contiguous array has no nil slots
+        local coverTuple = tuple(coverState)
+        ---@diagnostic disable-next-line: cast-type-mismatch, EmmyLua selects the variadic overload instead of the sequence-copy overload
         ---@cast coverTuple tuple<string | integer>
         states[#states + 1] = coverTuple
     end
-    local signature = tuple(table.unpack(states))
-    ---@diagnostic disable-next-line: cast-type-mismatch, table.unpack cannot express that this contiguous array has no nil slots
+    local signature = tuple(states)
+    ---@diagnostic disable-next-line: cast-type-mismatch, EmmyLua selects the variadic overload instead of the sequence-copy overload
     ---@cast signature Global.GameMap.StaticTransmissionSignature
     return signature
 end

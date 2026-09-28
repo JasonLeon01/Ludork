@@ -35,10 +35,7 @@ local function requireInteger(value, path, minimum)
 end
 
 local function requireFiniteNumber(value, path)
-    assert(
-        Class.isInstance(value, "number") and value == value and value ~= math.huge and value ~= -math.huge,
-        path .. " must be a finite number"
-    )
+    assert(math.isFinite(value), path .. " must be a finite number")
     return value
 end
 

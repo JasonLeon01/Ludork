@@ -55,15 +55,14 @@ local function normalizeConfiguredScale(configuredScale)
     if configuredScale == nil then
         return DEFAULT_DISPLAY_SCALE
     end
-    if configuredScale ~= configuredScale or configuredScale < 0.0
-        or configuredScale == math.huge or configuredScale == -math.huge then
+    if not math.isFinite(configuredScale) or configuredScale < 0.0 then
         return INVALID_DISPLAY_SCALE_FALLBACK
     end
     return configuredScale
 end
 
 function MainConfig.GetDisplayScaleOptions(maximumScale, configuredScale)
-    if maximumScale ~= nil and (maximumScale ~= maximumScale or maximumScale == math.huge or maximumScale == -math.huge) then
+    if maximumScale ~= nil and not math.isFinite(maximumScale) then
         maximumScale = nil
     end
     configuredScale = normalizeConfiguredScale(configuredScale)
@@ -101,9 +100,7 @@ function MainConfig.GetDisplayScaleOptions(maximumScale, configuredScale)
 end
 
 local function normalizeMaximumRenderScale(configuredScale)
-    if configuredScale == nil or configuredScale ~= configuredScale
-        or configuredScale < 0.0 or configuredScale == math.huge
-        or configuredScale == -math.huge then
+    if configuredScale == nil or not math.isFinite(configuredScale) or configuredScale < 0.0 then
         return INVALID_MAXIMUM_RENDER_SCALE_FALLBACK
     end
     return configuredScale

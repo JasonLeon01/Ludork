@@ -15,14 +15,12 @@ function MapPath.Normalise(mapPath)
 end
 
 function MapPath.WithoutExtension(mapPath)
-    local path = MapPath.Normalise(mapPath)
-    return path:gsub("%.[^%.]+$", "")
+    local path = os.path.splitext(MapPath.Normalise(mapPath))
+    return Path.NormaliseSeparators(path)
 end
 
 function MapPath.BasenameWithoutExtension(mapPath)
-    local path = MapPath.Normalise(mapPath)
-    path = path:match("([^/]+)$") or path
-    return path:gsub("%.[^%.]+$", "")
+    return os.path.basename(MapPath.WithoutExtension(mapPath))
 end
 
 return MapPath

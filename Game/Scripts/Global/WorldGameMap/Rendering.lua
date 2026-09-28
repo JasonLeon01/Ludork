@@ -90,8 +90,8 @@ function WorldGameMapRendering.RebuildStaticTransmission(self, activeLights, _st
             end
         end
     end
-    local signature = tuple(table.unpack(signatureValues))
-    ---@diagnostic disable-next-line: cast-type-mismatch, table.unpack cannot express that this contiguous array has no nil slots
+    local signature = tuple(signatureValues)
+    ---@diagnostic disable-next-line: cast-type-mismatch, EmmyLua selects the variadic overload instead of the sequence-copy overload
     ---@cast signature Global.WorldGameMap.StaticTransmissionSignature
     if self._staticTransmissionRevision == self._materialRevision and self._staticTransmissionSignature == signature then
         return
