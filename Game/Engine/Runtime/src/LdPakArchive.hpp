@@ -1,5 +1,7 @@
 #pragma once
 
+#include "LdPakEntry.hpp"
+
 #include <cstdint>
 #include <filesystem>
 #include <memory>
@@ -7,14 +9,6 @@
 #include <vector>
 
 namespace ludork::runtime::detail {
-
-struct LdPakEntry {
-    std::string path;
-    std::uint64_t offset = 0;
-    std::uint64_t size = 0;
-    std::uint32_t crc = 0;
-    bool directory = false;
-};
 
 class LdPakArchive final {
 public:
@@ -30,6 +24,8 @@ public:
     [[nodiscard]] const std::string& group() const noexcept;
     [[nodiscard]] double modificationTime() const noexcept;
     [[nodiscard]] const std::vector<LdPakEntry>& entries() const noexcept;
+    [[nodiscard]] const LdPakEntry& entry(
+        const std::string& relativePath) const;
     [[nodiscard]] std::vector<std::uint8_t> readAll(
         const std::string& relativePath) const;
 
@@ -37,9 +33,5 @@ private:
     struct Impl;
     std::unique_ptr<Impl> impl_;
 };
-
-[[nodiscard]] std::uint32_t calculateLdPakDataCrc(
-    const std::filesystem::path& path, std::uint64_t offset,
-    std::uint64_t size);
 
 }  // namespace ludork::runtime::detail

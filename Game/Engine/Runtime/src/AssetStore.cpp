@@ -179,12 +179,11 @@ std::optional<StoreEntry> findLooseEntry(
         }
         if (index + 1 == segments.size()) {
             return StoreEntry{current,
-                              0,
                               directory ? 0 : regularFileSize(current),
-                              0,
                               modificationTime(current),
                               directory,
-                              false};
+                              {},
+                              {}};
         }
     }
     return std::nullopt;
@@ -229,10 +228,13 @@ void loadLooseTree(const std::filesystem::path& assetsRoot,
             const std::string key =
                 ludork::generated::resources::AssetPathPrefix + relativeText;
             static_cast<void>(AssetPath::parse(key));
-            addEntry(
-                entries, foldedPaths, key,
-                {entry.path(), 0, directory ? 0 : regularFileSize(entry.path()),
-                 0, modificationTime(entry.path()), directory, false});
+            addEntry(entries, foldedPaths, key,
+                     {entry.path(),
+                      directory ? 0 : regularFileSize(entry.path()),
+                      modificationTime(entry.path()),
+                      directory,
+                      {},
+                      {}});
         }
         iterator.increment(error);
         if (error) {
@@ -245,18 +247,18 @@ void loadLooseTree(const std::filesystem::path& assetsRoot,
 void loadPackage(const std::filesystem::path& packagePath,
                  std::unordered_map<std::string, StoreEntry>& entries,
                  std::unordered_map<std::string, std::string>& foldedPaths) {
-    detail::LdPakArchive archive(packagePath);
-    if (archive.group() != ludork::generated::resources::AssetGroup) {
+    auto archive = std::make_shared<detail::LdPakArchive>(packagePath);
+    if (archive->group() != ludork::generated::resources::AssetGroup) {
         throw std::runtime_error("Assets.ldpak must use the Assets group");
     }
-    for (const detail::LdPakEntry& archiveEntry : archive.entries()) {
+    for (const detail::LdPakEntry& archiveEntry : archive->entries()) {
         const std::string key =
             ludork::generated::resources::AssetPathPrefix + archiveEntry.path;
         static_cast<void>(AssetPath::parse(key));
-        addEntry(entries, foldedPaths, key,
-                 {archive.path(), archiveEntry.offset, archiveEntry.size,
-                  archiveEntry.crc, archive.modificationTime(),
-                  archiveEntry.directory, true});
+        addEntry(
+            entries, foldedPaths, key,
+            {archive->path(), archiveEntry.size, archive->modificationTime(),
+             archiveEntry.directory, archive, archiveEntry.path});
     }
 }
 
@@ -286,10 +288,6 @@ void AssetStore::configure(const std::filesystem::path& runtimeRoot,
     impl_->runtimeRoot = normalized;
     impl_->mode = mode;
     impl_->entries = std::move(loadedEntries);
-    {
-        std::lock_guard validationLock(impl_->validationMutex);
-        impl_->validatedEntries.clear();
-    }
     impl_->configured = true;
 }
 
@@ -297,10 +295,6 @@ void AssetStore::reset() noexcept {
     std::unique_lock lock(impl_->mutex);
     impl_->runtimeRoot.clear();
     impl_->entries.clear();
-    {
-        std::lock_guard validationLock(impl_->validationMutex);
-        impl_->validatedEntries.clear();
-    }
     impl_->mode = AssetStoreMode::Loose;
     impl_->configured = false;
 }
@@ -370,19 +364,12 @@ std::unique_ptr<AssetInputStream> AssetStore::open(
         throw std::runtime_error("Asset file not found: " + assetPath);
     }
     const StoreEntry& entry = *resolved;
-    if (entry.packed) {
-        std::lock_guard validationLock(impl_->validationMutex);
-        if (!impl_->validatedEntries.contains(assetPath)) {
-            if (detail::calculateLdPakDataCrc(entry.source, entry.offset,
-                                              entry.size) != entry.crc) {
-                throw std::runtime_error("Asset package data CRC mismatch: " +
-                                         assetPath);
-            }
-            impl_->validatedEntries.insert(assetPath);
-        }
+    if (entry.archive) {
+        return std::unique_ptr<AssetInputStream>(
+            new AssetInputStream(entry.archive, entry.archivePath));
     }
     return std::unique_ptr<AssetInputStream>(
-        new AssetInputStream(entry.source, entry.offset, entry.size));
+        new AssetInputStream(entry.source, 0, entry.size));
 }
 
 std::vector<std::uint8_t> AssetStore::readAll(

@@ -39,6 +39,20 @@ AssetInputStream::AssetInputStream(const std::filesystem::path& source,
 }
 
 AssetInputStream::~AssetInputStream() = default;
+
+AssetInputStream::AssetInputStream(
+    std::shared_ptr<const detail::LdPakArchive> archive,
+    const std::string& relativePath)
+    : impl_(std::make_unique<Impl>()) {
+    const detail::LdPakEntry& entry = archive->entry(relativePath);
+    if (entry.size > std::numeric_limits<std::size_t>::max()) {
+        throw std::runtime_error("Asset stream is too large for this platform");
+    }
+    impl_->size = entry.size;
+    impl_->archive = std::move(archive);
+    impl_->reader = std::make_unique<detail::LdPakEntryReader>(
+        impl_->archive->path(), entry);
+}
 AssetInputStream::AssetInputStream(AssetInputStream&&) noexcept = default;
 AssetInputStream& AssetInputStream::operator=(AssetInputStream&&) noexcept =
     default;
@@ -53,6 +67,15 @@ std::optional<std::size_t> AssetInputStream::read(void* data,
         static_cast<std::size_t>(std::min<std::uint64_t>(remaining, size));
     if (requested == 0) {
         return 0;
+    }
+    if (impl_->reader) {
+        try {
+            impl_->reader->read(impl_->position, data, requested);
+        } catch (const std::exception&) {
+            return std::nullopt;
+        }
+        impl_->position += requested;
+        return requested;
     }
     if (requested >
         static_cast<std::size_t>(std::numeric_limits<std::streamsize>::max())) {
@@ -69,6 +92,13 @@ std::optional<std::size_t> AssetInputStream::read(void* data,
 }
 
 std::optional<std::size_t> AssetInputStream::seek(std::size_t position) {
+    if (impl_ && impl_->reader) {
+        if (position > impl_->size) {
+            return std::nullopt;
+        }
+        impl_->position = position;
+        return position;
+    }
     if (impl_ == nullptr || position > impl_->size ||
         addOverflows(impl_->offset, position) ||
         impl_->offset + position >

@@ -22,7 +22,8 @@ else()
         src/AssetStore.cpp
         src/AssetInputStream.cpp
         src/ResourceStorePaths.cpp
-        src/LdPakArchive.cpp)
+        src/LdPakArchive.cpp
+        src/LdPakEntryReader.cpp)
 endif()
 
 ludork_apply_msvc_debug_source_options(

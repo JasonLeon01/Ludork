@@ -1,4 +1,6 @@
 #include "LdPakArchive.hpp"
+#include "LdPakArchiveImpl.hpp"
+#include "LdPakEntryReader.hpp"
 #include "ResourceStorePaths.hpp"
 #include <LudorkGenerated/LdPakFormatConstants.hpp>
 #include <LudorkGenerated/ResourceFileConstants.hpp>
@@ -13,7 +15,6 @@
 #include <cstring>
 #include <fstream>
 #include <limits>
-#include <mutex>
 #include <stdexcept>
 #include <string_view>
 #include <unordered_map>
@@ -23,8 +24,6 @@
 namespace format = ludork::generated::ldpak;
 
 namespace {
-
-constexpr std::size_t CrcBufferSize = 64U * 1024U;
 
 std::uint16_t readU16(const std::uint8_t* value) {
     return static_cast<std::uint16_t>(value[0]) |
@@ -234,14 +233,6 @@ std::string parentPath(const std::string& value) {
 
 namespace ludork::runtime::detail {
 
-struct LdPakArchive::Impl {
-    std::filesystem::path path;
-    std::string group;
-    double modificationTime = 0.0;
-    std::vector<LdPakEntry> entries;
-    std::unordered_map<std::string, std::size_t> entryIndices;
-};
-
 LdPakArchive::LdPakArchive(const std::filesystem::path& path)
     : impl_(std::make_unique<Impl>()) {
     std::error_code statusError;
@@ -351,10 +342,12 @@ LdPakArchive::LdPakArchive(const std::filesystem::path& path)
             readU64(entryHeader + format::EntryDataOffsetOffset);
         const std::uint64_t dataSize =
             readU64(entryHeader + format::EntryDataSizeOffset);
+        const std::uint64_t storedSize =
+            readU64(entryHeader + format::EntryStoredSizeOffset);
         const std::uint32_t crc =
             readU32(entryHeader + format::EntryDataCrcOffset);
-        const std::uint32_t entryReserved =
-            readU32(entryHeader + format::EntryReservedOffset);
+        const std::uint32_t blockCount =
+            readU32(entryHeader + format::EntryBlockCountOffset);
         position += format::EntrySize;
         if (pathLength == 0 || pathLength > index.size() - position) {
             throw std::runtime_error("Invalid LDPak entry path length");
@@ -379,25 +372,64 @@ LdPakArchive::LdPakArchive(const std::filesystem::path& path)
                 "LDPak paths differ only by case: " + foldedIterator->second +
                 " and " + relative);
         }
-        if (entryFlags & ~format::DirectoryFlag || entryReserved != 0) {
+        if (entryFlags & ~format::DirectoryFlag) {
             throw std::runtime_error("Unsupported LDPak entry flags: " +
                                      relative);
         }
         const bool directory = (entryFlags & format::DirectoryFlag) != 0;
         if (directory) {
-            if (dataOffset != 0 || dataSize != 0 || crc != 0) {
+            if (dataOffset != 0 || dataSize != 0 || storedSize != 0 ||
+                blockCount != 0 || crc != 0) {
                 throw std::runtime_error(
                     "LDPak directory contains file data: " + relative);
             }
             directoryPaths.insert(relative);
         } else if (dataOffset % format::Alignment != 0 ||
                    dataOffset < dataStart || dataOffset > indexOffset ||
-                   addOverflows(dataOffset, dataSize) ||
-                   dataOffset + dataSize > indexOffset ||
+                   addOverflows(dataOffset, storedSize) ||
+                   dataOffset + storedSize > indexOffset ||
                    (dataSize == 0 && crc != 0)) {
             throw std::runtime_error("Invalid LDPak data bounds: " + relative);
         }
-        entries.push_back({relative, dataOffset, dataSize, crc, directory});
+        const std::uint64_t expectedBlocks =
+            dataSize / format::BlockSize + (dataSize % format::BlockSize != 0);
+        if (blockCount != expectedBlocks ||
+            blockCount > (index.size() - position) / format::BlockHeaderSize) {
+            throw std::runtime_error("Invalid LDPak block count: " + relative);
+        }
+        LdPakEntry entry{relative, dataOffset, dataSize, storedSize,
+                         crc,      directory,  {}};
+        entry.blocks.reserve(blockCount);
+        std::uint64_t consumed = 0;
+        for (std::uint32_t blockIndex = 0; blockIndex < blockCount;
+             ++blockIndex) {
+            const std::uint8_t* blockHeader = index.data() + position;
+            const std::uint32_t blockSize =
+                readU32(blockHeader + format::BlockStoredSizeOffset);
+            const std::uint32_t blockFlags =
+                readU32(blockHeader + format::BlockFlagsOffset);
+            const std::uint32_t blockCrc =
+                readU32(blockHeader + format::BlockDataCrcOffset);
+            position += format::BlockHeaderSize;
+            const std::uint64_t rawSize = std::min<std::uint64_t>(
+                format::BlockSize,
+                dataSize -
+                    static_cast<std::uint64_t>(blockIndex) * format::BlockSize);
+            if ((blockFlags != 0 && blockFlags != format::BlockZlibFlag) ||
+                blockSize == 0 || blockSize > storedSize - consumed ||
+                (blockFlags == 0 ? blockSize != rawSize
+                                 : blockSize >= rawSize)) {
+                throw std::runtime_error("Invalid LDPak block bounds: " +
+                                         relative);
+            }
+            entry.blocks.push_back(
+                {dataOffset + consumed, blockSize, blockFlags, blockCrc});
+            consumed += blockSize;
+        }
+        if (consumed != storedSize) {
+            throw std::runtime_error("LDPak stored size mismatch: " + relative);
+        }
+        entries.push_back(std::move(entry));
     }
     if (position != index.size()) {
         throw std::runtime_error("LDPak index contains trailing data");
@@ -426,7 +458,7 @@ LdPakArchive::LdPakArchive(const std::filesystem::path& path)
             stream, expectedOffset,
             static_cast<std::size_t>(alignedOffset - expectedOffset),
             "LDPak file padding");
-        expectedOffset = alignedOffset + entry.size;
+        expectedOffset = alignedOffset + entry.storedSize;
     }
     const std::uint64_t alignedIndexOffset = alignArchiveOffset(expectedOffset);
     if (alignedIndexOffset != indexOffset) {
@@ -468,72 +500,19 @@ const std::vector<LdPakEntry>& LdPakArchive::entries() const noexcept {
     return impl_->entries;
 }
 
-std::vector<std::uint8_t> LdPakArchive::readAll(
-    const std::string& relativePath) const {
+const LdPakEntry& LdPakArchive::entry(const std::string& relativePath) const {
     const auto iterator = impl_->entryIndices.find(relativePath);
     if (iterator == impl_->entryIndices.end() ||
         impl_->entries[iterator->second].directory) {
         throw std::runtime_error("LDPak file not found: " + relativePath);
     }
-    const LdPakEntry& entry = impl_->entries[iterator->second];
-    if (entry.size > std::numeric_limits<std::size_t>::max() ||
-        entry.offset > static_cast<std::uint64_t>(
-                           std::numeric_limits<std::streamoff>::max())) {
-        throw std::runtime_error("LDPak entry is too large: " + relativePath);
-    }
-    std::ifstream stream(impl_->path, std::ios::binary);
-    if (!stream) {
-        throw std::runtime_error("Failed to open LDPak: " +
-                                 ludork::standard::pathToUtf8(impl_->path));
-    }
-    stream.seekg(static_cast<std::streamoff>(entry.offset));
-    if (!stream) {
-        throw std::runtime_error("Failed to seek LDPak entry: " + relativePath);
-    }
-    std::vector<std::uint8_t> result(static_cast<std::size_t>(entry.size));
-    uLong checksum = crc32(0L, Z_NULL, 0);
-    std::size_t position = 0;
-    while (position < result.size()) {
-        const std::size_t size = std::min<std::size_t>(
-            result.size() - position, std::numeric_limits<uInt>::max());
-        readExact(stream, result.data() + position, size,
-                  "LDPak entry " + relativePath);
-        checksum =
-            crc32(checksum, result.data() + position, static_cast<uInt>(size));
-        position += size;
-    }
-    if (static_cast<std::uint32_t>(checksum) != entry.crc) {
-        throw std::runtime_error("LDPak data CRC mismatch: " + relativePath);
-    }
-    return result;
+    return impl_->entries[iterator->second];
 }
 
-std::uint32_t calculateLdPakDataCrc(const std::filesystem::path& path,
-                                    std::uint64_t offset, std::uint64_t size) {
-    std::ifstream stream(path, std::ios::binary);
-    if (!stream) {
-        throw std::runtime_error("Failed to open LDPak: " +
-                                 ludork::standard::pathToUtf8(path));
-    }
-    if (offset > static_cast<std::uint64_t>(
-                     std::numeric_limits<std::streamoff>::max())) {
-        throw std::runtime_error("LDPak offset is too large");
-    }
-    stream.seekg(static_cast<std::streamoff>(offset));
-    if (!stream) {
-        throw std::runtime_error("Failed to seek LDPak");
-    }
-    std::array<std::uint8_t, CrcBufferSize> buffer{};
-    std::uint64_t remaining = size;
-    uLong checksum = crc32(0L, Z_NULL, 0);
-    while (remaining > 0) {
-        const std::size_t chunk = static_cast<std::size_t>(
-            std::min<std::uint64_t>(remaining, buffer.size()));
-        readExact(stream, buffer.data(), chunk, "LDPak entry");
-        checksum = crc32(checksum, buffer.data(), static_cast<uInt>(chunk));
-        remaining -= chunk;
-    }
-    return static_cast<std::uint32_t>(checksum);
+std::vector<std::uint8_t> LdPakArchive::readAll(
+    const std::string& relativePath) const {
+    LdPakEntryReader reader(impl_->path, entry(relativePath));
+    return reader.readAll();
 }
 
 }  // namespace ludork::runtime::detail
