@@ -30,6 +30,7 @@ public sealed partial class SubtitleWindow : Window, IProjectSaveParticipant
     private JsonObject data;
     private int selected = -1;
     private string selectedLanguage = "en_GB";
+    private int selectedLine;
     private bool committing;
     private bool refreshing;
     private bool confirmedClose;
@@ -97,6 +98,8 @@ public sealed partial class SubtitleWindow : Window, IProjectSaveParticipant
                 Close();
             }
         };
+        if (normalizeContent())
+            commit();
         select(sections.Count == 0 ? -1 : 0);
         updateValidation();
     }
@@ -159,6 +162,8 @@ public sealed partial class SubtitleWindow : Window, IProjectSaveParticipant
             timeline.InvalidateVisual();
             return;
         }
+        if (selected != index)
+            selectedLine = 0;
         selected = index >= 0 && index < sections.Count ? index : -1;
         timeline.SelectedIndex = selected;
         timeline.InvalidateVisual();
@@ -179,6 +184,7 @@ public sealed partial class SubtitleWindow : Window, IProjectSaveParticipant
                 return;
             sections.RemoveAt(selected);
             selected = Math.Min(selected, sections.Count - 1);
+            selectedLine = 0;
             commit();
             select(selected);
         });
@@ -208,6 +214,7 @@ public sealed partial class SubtitleWindow : Window, IProjectSaveParticipant
             }
             if (multilingual.IsChecked == true && current["content"] is not JsonObject)
             {
+                normalizeContent();
                 current["content"] = new JsonObject { ["en_GB"] = current["content"] is JsonArray plain ? plain.DeepClone() : new JsonArray() };
                 selectedLanguage = "en_GB";
             }
@@ -221,8 +228,10 @@ public sealed partial class SubtitleWindow : Window, IProjectSaveParticipant
                     refreshing = false;
                     return;
                 }
+                normalizeContent();
                 current["content"] = languages[selectedLanguage]?.DeepClone() ?? new JsonArray();
             }
+            normalizeContent();
             commit();
             buildProperties();
         };
@@ -260,123 +269,6 @@ public sealed partial class SubtitleWindow : Window, IProjectSaveParticipant
             setInputError(input, valid ? null : L("SUBTITLE_TIME_ERROR"));
         };
         properties.Children.Add(input);
-    }
-
-    private void buildLanguages(JsonObject languages)
-    {
-        string[] keys = languages.Select(pair => pair.Key).ToArray();
-        if (!languages.ContainsKey(selectedLanguage))
-            selectedLanguage = keys.FirstOrDefault() ?? "en_GB";
-        Grid columns = new() { ColumnDefinitions = new ColumnDefinitions("130,8,*") };
-        StackPanel left = new() { Spacing = 5 };
-        ListBox list = new() { ItemsSource = keys, SelectedItem = selectedLanguage, MinHeight = 80 };
-        list.SelectionChanged += (_, _) =>
-        {
-            if (refreshing)
-                return;
-            if (inputErrors.Count != 0)
-            {
-                refreshing = true;
-                list.SelectedItem = selectedLanguage;
-                refreshing = false;
-                return;
-            }
-            if (list.SelectedItem is not string key)
-                return;
-            selectedLanguage = key;
-            buildProperties();
-        };
-        left.Children.Add(list);
-        TextBox languageKey = EditorInputs.CreateEditableTextBox(selectedLanguage);
-        languageKey.TextChanged += (_, _) =>
-        {
-            if (refreshing)
-                return;
-            string next = languageKey.Text ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(next) || next != next.Trim() || next != selectedLanguage && languages.ContainsKey(next))
-            {
-                setInputError(languageKey, L("SUBTITLE_LANGUAGE_ERROR"));
-                return;
-            }
-            setInputError(languageKey, null);
-            if (next == selectedLanguage || !languages.TryGetPropertyValue(selectedLanguage, out JsonNode? lines))
-                return;
-            languages.Remove(selectedLanguage);
-            languages[next] = lines;
-            selectedLanguage = next;
-            commit();
-            refreshing = true;
-            list.ItemsSource = languages.Select(pair => pair.Key).ToArray();
-            list.SelectedItem = next;
-            refreshing = false;
-        };
-        left.Children.Add(languageKey);
-        left.Children.Add(editButton("SUBTITLE_ADD_LANGUAGE", () =>
-        {
-            string name = "en_GB";
-            int suffix = 1;
-            while (languages.ContainsKey(name))
-                name = "language_" + suffix++;
-            languages[name] = new JsonArray();
-            selectedLanguage = name;
-            commit();
-            buildProperties();
-        }));
-        left.Children.Add(editButton("SUBTITLE_REMOVE_LANGUAGE", () =>
-        {
-            languages.Remove(selectedLanguage);
-            commit();
-            buildProperties();
-        }));
-        columns.Children.Add(left);
-        StackPanel right = new() { Spacing = 6 };
-        if (languages[selectedLanguage] is JsonArray content)
-            buildLines(right, content);
-        Grid.SetColumn(right, 2);
-        columns.Children.Add(right);
-        properties.Children.Add(columns);
-    }
-
-    private void buildLines(StackPanel panel, JsonArray lines)
-    {
-        for (int index = 0; index < lines.Count; index++)
-        {
-            int lineIndex = index;
-            string text = lines[index] is JsonValue scalar && scalar.TryGetValue(out string? value)
-                ? value ?? string.Empty : lines[index]?.ToJsonString() ?? string.Empty;
-            TextBox input = EditorInputs.CreateEditableTextBox(text);
-            input.AcceptsReturn = true;
-            input.TextWrapping = TextWrapping.Wrap;
-            input.MinHeight = 65;
-            input.TextChanged += (_, _) =>
-            {
-                if (!refreshing)
-                {
-                    lines[lineIndex] = input.Text ?? string.Empty;
-                    commit();
-                }
-            };
-            panel.Children.Add(input);
-            WrapPanel tools = new();
-            Button up = editButton("SUBTITLE_UP", () => moveLine(lines, lineIndex, -1));
-            up.IsEnabled = index > 0;
-            Button down = editButton("SUBTITLE_DOWN", () => moveLine(lines, lineIndex, 1));
-            down.IsEnabled = index + 1 < lines.Count;
-            tools.Children.Add(up);
-            tools.Children.Add(down);
-            tools.Children.Add(editButton("SUBTITLE_REMOVE_LINE", () => { lines.RemoveAt(lineIndex); commit(); buildProperties(); }));
-            panel.Children.Add(tools);
-        }
-        panel.Children.Add(editButton("SUBTITLE_ADD_LINE", () => { lines.Add(string.Empty); commit(); buildProperties(); }));
-    }
-
-    private void moveLine(JsonArray lines, int index, int delta)
-    {
-        JsonNode? item = lines[index];
-        lines.RemoveAt(index);
-        lines.Insert(index + delta, item);
-        commit();
-        buildProperties();
     }
 
     private void addSection()

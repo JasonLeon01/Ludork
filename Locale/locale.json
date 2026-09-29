@@ -51,37 +51,13 @@
     "zh_CN": "转换后仅保留以下语言，其他语言将被移除（可撤销）：",
     "en_GB": "Keep only the following language and remove the others (undo is available):"
   },
-  "SUBTITLE_ADD_LANGUAGE": {
-    "zh_CN": "添加语言",
-    "en_GB": "Add Language"
-  },
-  "SUBTITLE_REMOVE_LANGUAGE": {
-    "zh_CN": "删除语言",
-    "en_GB": "Delete Language"
-  },
-  "SUBTITLE_LANGUAGE_ERROR": {
-    "zh_CN": "语言键不能为空、重复或带首尾空格。",
-    "en_GB": "Language keys must be nonempty, unique and have no surrounding whitespace."
+  "SUBTITLE_RENAME_LANGUAGE": {
+    "zh_CN": "重命名语言",
+    "en_GB": "Rename Language"
   },
   "SUBTITLE_TIME_ERROR": {
     "zh_CN": "请输入有效的非负时间。",
     "en_GB": "Enter a valid nonnegative time."
-  },
-  "SUBTITLE_UP": {
-    "zh_CN": "上移",
-    "en_GB": "Up"
-  },
-  "SUBTITLE_DOWN": {
-    "zh_CN": "下移",
-    "en_GB": "Down"
-  },
-  "SUBTITLE_REMOVE_LINE": {
-    "zh_CN": "删除文本",
-    "en_GB": "Delete Text"
-  },
-  "SUBTITLE_ADD_LINE": {
-    "zh_CN": "添加文本",
-    "en_GB": "Add Text"
   },
   "SUBTITLE_PLAY": {
     "zh_CN": "播放",
