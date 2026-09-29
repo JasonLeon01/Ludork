@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <title>Ludork</title>
+  <defs>
+    <radialGradient id="disc" cx="38%" cy="30%" r="75%">
+      <stop offset="0" stop-color="#18233f"/>
+      <stop offset="0.68" stop-color="#0b1125"/>
+      <stop offset="1" stop-color="#050816"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#ff3868"/>
+      <stop offset="0.42" stop-color="#8d123f"/>
+      <stop offset="0.72" stop-color="#ff245c"/>
+      <stop offset="1" stop-color="#560a37"/>
+    </linearGradient>
+    <linearGradient id="word" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#ffdb18"/>
+      <stop offset="0.42" stop-color="#ff8a00"/>
+      <stop offset="1" stop-color="#ff3a00"/>
+    </linearGradient>
+    <pattern id="bricks" width="44" height="24" patternUnits="userSpaceOnUse">
+      <path d="M0 1h44M0 23h44M22 1v11M0 12h44M8 12v11" fill="none" stroke="#314064" stroke-width="2" opacity="0.42"/>
+    </pattern>
+    <clipPath id="disc-clip">
+      <circle cx="128" cy="128" r="91"/>
+    </clipPath>
+    <filter id="disc-shadow" x="-30%" y="-30%" width="160%" height="170%">
+      <feDropShadow dx="0" dy="8" stdDeviation="7" flood-color="#000" flood-opacity="0.72"/>
+    </filter>
+    <filter id="word-glow" x="-30%" y="-70%" width="160%" height="240%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur"/>
+      <feFlood flood-color="#ff2700" flood-opacity="0.8" result="glow"/>
+      <feComposite in="glow" in2="blur" operator="in" result="lit"/>
+      <feMerge>
+        <feMergeNode in="lit"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <g fill="#ffd8bd">
+    <path d="M99 10h6v10h-6zM130 6h5v8h-5zM151 15h8v5h-8zM55 35h7v7h-7zM35 59h9v5h-9zM17 102h6v8h-6zM12 137h9v5h-9zM25 177h7v8h-7zM47 205h8v5h-8zM92 232h6v11h-6zM128 238h5v8h-5zM163 232h8v6h-8zM207 205h7v8h-7zM229 167h9v5h-9zM235 122h7v9h-7zM222 82h8v6h-8zM202 47h6v9h-6z"/>
+  </g>
+  <g fill="#ff476f">
+    <path d="M117 17h5v7h-5zM66 23h5v8h-5zM29 82h6v6h-6zM18 155h6v7h-6zM65 223h5v7h-5zM150 239h5v7h-5zM218 190h7v6h-7zM237 100h6v7h-6zM189 29h5v8h-5z"/>
+  </g>
+
+  <g filter="url(#disc-shadow)">
+    <circle cx="128" cy="128" r="107" fill="#19051b" stroke="#ffadc0" stroke-width="3"/>
+    <circle cx="128" cy="128" r="102" fill="none" stroke="url(#rim)" stroke-width="10"/>
+    <circle cx="128" cy="128" r="95" fill="#090b1b" stroke="#ff426b" stroke-width="3"/>
+    <circle cx="128" cy="128" r="91" fill="url(#disc)"/>
+    <g clip-path="url(#disc-clip)" transform="rotate(-9 128 128)">
+      <rect x="25" y="25" width="206" height="206" fill="url(#bricks)"/>
+      <ellipse cx="92" cy="72" rx="76" ry="45" fill="#46618c" opacity="0.1"/>
+    </g>
+    <path d="M47 91a91 91 0 0 1 151-36" fill="none" stroke="#fff" stroke-width="3" opacity="0.2"/>
+  </g>
+
+  <g transform="rotate(-8 128 130)" filter="url(#word-glow)">
+    <text x="128" y="151" text-anchor="middle" textLength="174" lengthAdjust="spacingAndGlyphs"
+      fill="url(#word)" stroke="#cf142b" stroke-width="7" paint-order="stroke fill"
+      font-family="Arial Black, Segoe UI, sans-serif" font-size="55" font-style="italic" font-weight="900">Ludork</text>
+    <text x="128" y="147" text-anchor="middle" textLength="174" lengthAdjust="spacingAndGlyphs"
+      fill="none" stroke="#fff4a8" stroke-width="1.5" opacity="0.68"
+      font-family="Arial Black, Segoe UI, sans-serif" font-size="55" font-style="italic" font-weight="900">Ludork</text>
+  </g>
+</svg>
