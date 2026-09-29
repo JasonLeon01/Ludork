@@ -33,7 +33,6 @@ function WindowSelectable:init(rect)
     self._selectionScrollY = nil
     self._selectionViewWidth = nil
     self._selectionViewHeight = nil
-    self._mousePositionAtCursorPending = false
     self._mouseSelectionConfirmedThisFrame = false
     self._selectionInputPaused = false
     self._touchCaptured = false
@@ -147,7 +146,6 @@ function WindowSelectable:onTick(deltaTime)
         local target = self._scrollBox or self.content
         target:addChild(self._rect)
     end
-    self:_updatePendingMousePosition()
     if active and not self._selectionInputPaused and self._listView ~= nil then
         self:_confirmMouseSelection()
     end
@@ -197,9 +195,6 @@ function WindowSelectable:requestKeyboardFocusAtCursor()
         return false
     end
     self._ensureSelectionVisibleRequested = true
-    if LUDORK_DESKTOP and Input.isMouseInputMode() then
-        self._mousePositionAtCursorPending = true
-    end
     return true
 end
 
@@ -475,20 +470,6 @@ function WindowSelectable:_synchronizeSelectionScrollState()
     self._selectionViewHeight = viewSize.y
 end
 
-function WindowSelectable:_updatePendingMousePosition()
-    if not self._mousePositionAtCursorPending then
-        return
-    end
-    self._mousePositionAtCursorPending = false
-    if self._selectionInputPaused or LUDORK_MOBILE or not Input.isMouseInputMode() or not self:_hasCursorFocus()
-        or self.index == nil or self.index < 0 or self.index >= self:_itemCount() then
-        return
-    end
-    local bounds = self._rect:getAbsoluteBounds()
-    local centre = bounds.position + bounds.size / 2.0
-    Input.setMousePosition(Engine.ToVector2i(centre))
-end
-
 ---@return integer | nil
 function WindowSelectable:_updateTouchInput()
     if not self:canReceiveFocus() or self._selectionInputPaused or self._listView == nil then
@@ -628,7 +609,6 @@ function WindowSelectable:_setSelectionInputPaused(paused)
 end
 
 function WindowSelectable:_resetTransientInputState()
-    self._mousePositionAtCursorPending = false
     self._mouseSelectionConfirmedThisFrame = false
     self:_resetTouchCapture(true)
 end

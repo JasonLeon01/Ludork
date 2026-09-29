@@ -17,7 +17,6 @@
 ---@field _selectionScrollY                 number?
 ---@field _selectionViewWidth               number?
 ---@field _selectionViewHeight              number?
----@field _mousePositionAtCursorPending     boolean
 ---@field _mouseSelectionConfirmedThisFrame boolean
 ---@field _selectionInputPaused             boolean
 ---@field _touchCaptured                    boolean
