@@ -22,8 +22,7 @@ public sealed partial class ProjectDataStore
         return OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
     }
 
-    internal string getSectionRoot(string sectionName) => Path.Combine(ProjectPath,
-        sectionName == "Subtitles" ? "Assets" : "Data", sectionName);
+    internal string getSectionRoot(string sectionName) => Path.Combine(ProjectPath, "Data", sectionName);
 
     internal string getSectionDataPath(string sectionName, string key)
     {

@@ -863,7 +863,7 @@ internal sealed class DocumentWindowCoordinator : IDisposable
 
     private async Task createSubtitleAsync(ProjectDataStore gameData, string? destinationPath = null)
     {
-        string root = Path.Combine(gameData.ProjectPath, "Assets", "Subtitles");
+        string root = Path.Combine(gameData.ProjectPath, "Data", "Subtitles");
         string? path = await EditorResourceCreation.SelectJsonPathAsync(
             owner, root, destinationPath, "SELECT_SUBTITLE_PATH", selectWhenWhitespace: false);
         if (path is null)

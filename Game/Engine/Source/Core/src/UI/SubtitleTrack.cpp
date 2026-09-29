@@ -1,11 +1,14 @@
 #include <UI/SubtitleTrack.hpp>
 
-#include <Runtime/AssetStore.hpp>
+#include <DataFile.hpp>
+#include <Utf8Path.hpp>
 #include <Runtime/Json.hpp>
 #include <Runtime/RuntimeDataReader.hpp>
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
+#include <string_view>
 #include <stdexcept>
 
 namespace ludork::video {
@@ -80,10 +83,49 @@ SubtitleTrack SubtitleTrack::parse(const RuntimeData& asset) {
     return result;
 }
 
-SubtitleTrack SubtitleTrack::load(const std::string& assetPath) {
-    const std::vector<std::uint8_t> bytes =
-        ludork::runtime::assetStore().readAll(assetPath);
-    return parse(parseJSONText(std::string(bytes.begin(), bytes.end())));
+void SubtitleTrack::validatePath(const std::string& dataPath) {
+    constexpr std::string_view prefix = "Data/Subtitles/";
+    if (!dataPath.starts_with(prefix) || !dataPath.ends_with(".json") ||
+        dataPath.find_first_of("\\:") != std::string::npos ||
+        std::any_of(dataPath.begin(), dataPath.end(), [](unsigned char value) {
+            return value < 32 || value == 127;
+        })) {
+        throw std::invalid_argument(
+            "Subtitle path must use Data/Subtitles/...json: " + dataPath);
+    }
+    std::string_view remaining(dataPath);
+    while (!remaining.empty()) {
+        const std::size_t separator = remaining.find('/');
+        const std::string_view segment = remaining.substr(0, separator);
+        if (segment.empty() || segment == "." || segment == ".." ||
+            (separator == std::string_view::npos && segment == ".json")) {
+            throw std::invalid_argument("Invalid subtitle path: " + dataPath);
+        }
+        if (separator == std::string_view::npos) {
+            break;
+        }
+        remaining.remove_prefix(separator + 1);
+    }
+    static_cast<void>(ludork::standard::pathFromUtf8(dataPath));
+}
+
+SubtitleTrack SubtitleTrack::load(const std::string& dataPath) {
+    validatePath(dataPath);
+    const std::filesystem::path path = ludork::standard::pathFromUtf8(dataPath);
+    const std::filesystem::path root =
+        std::filesystem::current_path() / "Data" / "Subtitles";
+    const std::filesystem::path resolved = std::filesystem::weakly_canonical(
+        std::filesystem::absolute(ludork::standard::resolveJsonDataPath(path)));
+    const std::filesystem::path relative = resolved.lexically_relative(root);
+    if (relative.empty() || relative.is_absolute() ||
+        std::any_of(relative.begin(), relative.end(),
+                    [](const std::filesystem::path& part) {
+                        return part == "..";
+                    })) {
+        throw std::invalid_argument("Subtitle path escapes Data/Subtitles: " +
+                                    dataPath);
+    }
+    return parse(getJSONData(path));
 }
 
 const std::vector<std::string>* SubtitleTrack::linesAt(

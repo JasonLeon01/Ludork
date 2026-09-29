@@ -4,6 +4,7 @@
 #include "VideoPlayerImpl.hpp"
 
 #include <Runtime/AssetPath.hpp>
+#include <UI/SubtitleTrack.hpp>
 
 #include <atomic>
 #include <condition_variable>
@@ -57,7 +58,7 @@ void playVideo(const std::string& path, bool mute, bool skipable,
                const std::string& subtitlePath) {
     static_cast<void>(ludork::runtime::AssetPath::parse(path));
     if (!subtitlePath.empty()) {
-        static_cast<void>(ludork::runtime::AssetPath::parse(subtitlePath));
+        ludork::video::SubtitleTrack::validatePath(subtitlePath);
     }
     std::unique_lock<std::mutex> lock(videoPlaybackMutex);
     if (videoPlaybackShuttingDown) {

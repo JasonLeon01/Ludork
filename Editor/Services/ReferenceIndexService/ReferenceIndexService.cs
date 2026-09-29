@@ -111,8 +111,6 @@ public sealed partial class ReferenceIndexService : IDisposable
         }
         if (lower.StartsWith("assets/", StringComparison.Ordinal))
         {
-            if (gameData.GetDocumentByPath(absolutePath) is { Section: "Subtitles" } subtitle)
-                return ReferenceIdentity.NodeId("subtitle", subtitle.Key);
             if (!GameAssetPath.TryFromProjectFile(
                     gameData.ProjectPath,
                     absolutePath,

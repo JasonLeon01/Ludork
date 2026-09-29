@@ -14,7 +14,7 @@ public static class SubtitleAssetSchema
     public static IReadOnlyList<string> Validate(JsonObject data, string key = "")
     {
         List<string> errors = [];
-        string path = "Assets/Subtitles/" + key;
+        string path = "Data/Subtitles/" + key;
         if (data["type"] is not JsonValue type || !type.TryGetValue(out string? text) || text != AssetType)
             errors.Add(path + ".type must be subtitle");
         if (data["sections"] is not JsonArray sections)

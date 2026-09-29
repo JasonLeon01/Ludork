@@ -24,6 +24,8 @@ local _METADATA = {
                 default = "nil"
             },
             Meta = {
+                PathRoot = { subtitleFileName = "Data" },
+                PathFilter = { subtitleFileName = "*.json" },
                 PathVars = {
                     {
                         "videoFileName",
@@ -31,7 +33,7 @@ local _METADATA = {
                     },
                     {
                         "subtitleFileName",
-                        "/Game/Assets/Subtitles"
+                        "Data/Subtitles"
                     }
                 }
             }

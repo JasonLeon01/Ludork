@@ -21,7 +21,8 @@ public:
     };
 
     static SubtitleTrack parse(const RuntimeData& asset);
-    static SubtitleTrack load(const std::string& assetPath);
+    static void validatePath(const std::string& dataPath);
+    static SubtitleTrack load(const std::string& dataPath);
     const std::vector<std::string>* linesAt(double time,
                                             const std::string& language) const;
     double duration() const noexcept;

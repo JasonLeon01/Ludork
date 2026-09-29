@@ -682,7 +682,7 @@ public partial class FileExplorerPanel : UserControl
             (EditorDataKind.Blueprint, "NEW_BLUEPRINT", Path.Combine(viewModel.ProjectPath, "Data", "Blueprints"), null),
             (EditorDataKind.Animation, "NEW_ANIMATION", Path.Combine(viewModel.ProjectPath, "Data", "Animations"), null),
             (EditorDataKind.Particle, "NEW_PARTICLE", Path.Combine(viewModel.ProjectPath, "Data", "Particles"), null),
-            (EditorDataKind.Subtitle, "NEW_SUBTITLE", Path.Combine(viewModel.ProjectPath, "Assets", "Subtitles"), null),
+            (EditorDataKind.Subtitle, "NEW_SUBTITLE", Path.Combine(viewModel.ProjectPath, "Data", "Subtitles"), null),
             (EditorDataKind.Curve, "NEW_CURVE", Path.Combine(viewModel.ProjectPath, "Data", "Curves"), "curve"),
             (EditorDataKind.Curve, "NEW_VECTOR2_CURVE", Path.Combine(viewModel.ProjectPath, "Data", "Curves"), "vector2Curve"),
             (EditorDataKind.Curve, "NEW_VECTOR3_CURVE", Path.Combine(viewModel.ProjectPath, "Data", "Curves"), "vector3Curve"),

@@ -102,6 +102,12 @@ internal sealed partial class DocumentReferenceScanner
             addReference(sourceId, ReferenceIdentity.NodeId("asset", assetPath), kind, path);
     }
 
+    private void addSubtitleReference(string sourceId, JsonNode? value, string kind, string path)
+    {
+        if (GameDataPath.TryGetSubtitleKey(JsonScalar.String(value), out string key))
+            addReference(sourceId, ReferenceIdentity.NodeId("subtitle", key), kind, path);
+    }
+
     private void addReference(string sourceId, string targetId, string kind, string path)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -124,6 +130,7 @@ internal sealed partial class DocumentReferenceScanner
             "COMMONFUNCTIONS" => "commonFunction",
             "ANIMATIONS" => "animation",
             "PARTICLES" => "particle",
+            "SUBTITLES" => "subtitle",
             "CURVES" => "curve",
             "TEXTCONFIGS" => "textConfig",
             "UI" => "uiAsset",

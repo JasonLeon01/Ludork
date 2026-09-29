@@ -1132,10 +1132,19 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
                 getMetadataString(field, "PathRoot"),
                 "Project",
                 StringComparison.OrdinalIgnoreCase);
+            bool dataRoot = string.Equals(
+                getMetadataString(field, "PathRoot"),
+                "Data",
+                StringComparison.OrdinalIgnoreCase);
             string baseDirectory;
             if (projectRoot)
             {
                 baseDirectory = getSafeDirectory(ProjectDirectory, assetSubdirectory);
+            }
+            else if (dataRoot)
+            {
+                if (!GameDataPath.TryResolveSelectionDirectory(getProjectDirectory(), assetSubdirectory, out baseDirectory))
+                    return;
             }
             else if (!GameAssetPath.TryResolveSelectionDirectory(
                          getProjectDirectory(),
@@ -1146,6 +1155,8 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
             }
             if (!Directory.Exists(baseDirectory))
             {
+                if (dataRoot)
+                    return;
                 string fallback = projectRoot ? ProjectDirectory : AssetsDirectory;
                 baseDirectory = Directory.Exists(fallback) ? fallback : Environment.CurrentDirectory;
             }
@@ -1157,6 +1168,13 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
                 initialFilePath = string.IsNullOrWhiteSpace(current)
                     ? null
                     : Path.Combine(baseDirectory, current);
+            }
+            else if (dataRoot)
+            {
+                initialFilePath = GameDataPath.IsCanonical(current, assetSubdirectory)
+                    && GameDataPath.TryResolveExistingFile(getProjectDirectory(), current, out string resolvedData)
+                    ? resolvedData
+                    : null;
             }
             else
             {
@@ -1187,6 +1205,12 @@ public sealed class BlueprintVariableForm : UserControl, IDisposable
                 {
                     return;
                 }
+            }
+            else if (dataRoot)
+            {
+                if (!GameDataPath.TryFromProjectFile(getProjectDirectory(), selected, out storedPath)
+                    || !GameDataPath.IsCanonical(storedPath, assetSubdirectory))
+                    return;
             }
             else if (!GameAssetPath.TryFromProjectFile(
                          getProjectDirectory(),

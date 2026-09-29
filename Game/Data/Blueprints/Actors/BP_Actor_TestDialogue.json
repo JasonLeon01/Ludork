@@ -162,7 +162,7 @@
               "/Game/Assets/Videos/sample-5mb.mp4",
               false,
               true,
-              "/Game/Assets/Subtitles/Example.json"
+              "Data/Subtitles/Example.json"
             ],
             "pos": [
               2880,

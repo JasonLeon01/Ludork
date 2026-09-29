@@ -55,7 +55,7 @@ public sealed class BlueprintValidationService
         validateParent(key, data, parent.Trim(), errors);
         validateBlueprintModeChain(key, data, errors);
         ResolvedBlueprintClass resolved = validateScriptMixin(key, data, errors);
-        validateAssetAttributes(data, resolved, errors);
+        validatePathAttributes(data, resolved, errors);
 
         bool hasGraph = data.TryGetPropertyValue("graph", out JsonNode? graphNode);
         if (!hasGraph)
@@ -473,7 +473,7 @@ public sealed class BlueprintValidationService
                     links,
                     graphParentType,
                     errors);
-                validateAssetParameters(
+                validatePathParameters(
                     pair.Key,
                     index,
                     node["params"] as JsonArray,
@@ -627,7 +627,7 @@ public sealed class BlueprintValidationService
             errors.Add($"{path} cannot connect {sourceType} to {target.TypeName}");
     }
 
-    private static void validateAssetAttributes(
+    private static void validatePathAttributes(
         JsonObject data,
         ResolvedBlueprintClass resolved,
         ICollection<string> errors)
@@ -639,15 +639,16 @@ public sealed class BlueprintValidationService
             if (!attributes.TryGetPropertyValue(field.Name, out JsonNode? value))
                 continue;
             LuaMetadataLiteralValidation.ValidateUnions(field.Type.Schema, value, $"attrs.{field.Name}", errors);
-            bool projectPath = hasMetaReference(field.Metadata?.Meta["PathRoot"], field.Name, "Project");
-            bool assetPath = hasMetaReference(field.Metadata?.Meta["PathVars"], field.Name)
-                || hasMetaReference(resolved.Meta["PathVars"], field.Name);
-            if (!projectPath && assetPath)
-                validateAssetPath(value, $"attrs.{field.Name}", errors);
+            string? pathRoot = getMetaReference(field.Metadata?.Meta["PathRoot"], field.Name)
+                ?? getMetaReference(resolved.Meta["PathRoot"], field.Name);
+            string? directory = getMetaReference(field.Metadata?.Meta["PathVars"], field.Name)
+                ?? getMetaReference(resolved.Meta["PathVars"], field.Name);
+            if (directory is not null)
+                validatePath(value, pathRoot, directory, $"attrs.{field.Name}", errors);
         }
     }
 
-    private static void validateAssetParameters(
+    private static void validatePathParameters(
         string eventName,
         int nodeIndex,
         JsonArray? values,
@@ -663,64 +664,66 @@ public sealed class BlueprintValidationService
                 || port.ParameterIndex is not int parameterIndex
                 || parameterIndex < 0
                 || parameterIndex >= values.Count
-                || !hasMetaReference(port.Meta["PathVars"], port.Name)
-                || hasMetaReference(port.Meta["PathRoot"], port.Name, "Project"))
+                || getMetaReference(port.Meta["PathVars"], port.Name) is not string directory)
             {
                 continue;
             }
-            validateAssetPath(
+            validatePath(
                 values[parameterIndex],
+                getMetaReference(port.Meta["PathRoot"], port.Name),
+                directory,
                 $"graph.nodeGraph[\"{eventName}\"].nodes[{nodeIndex}].params[{parameterIndex}]",
                 errors);
         }
     }
 
-    private static void validateAssetPath(
+    private static void validatePath(
         JsonNode? value,
+        string? root,
+        string directory,
         string path,
         ICollection<string> errors)
     {
         string? text = getString(value);
-        if (!string.IsNullOrEmpty(text) && !GameAssetPath.IsCanonical(text))
+        if (string.IsNullOrEmpty(text) || root == "Project")
+            return;
+        if (root == "Data")
+        {
+            if (!GameDataPath.IsCanonical(text, directory))
+                errors.Add(path + " must use a canonical path inside " + directory + "/");
+            else if (directory == GameDataPath.Subtitles && !GameDataPath.TryGetSubtitleKey(text, out _))
+                errors.Add(path + " must name a subtitle .json file inside " + GameDataPath.Subtitles + "/");
+        }
+        else if (!GameAssetPath.IsCanonical(text))
+        {
             errors.Add(path + " must use a canonical /Game/Assets/ path");
+        }
     }
 
-    private static bool hasMetaReference(
-        JsonNode? value,
-        string name,
-        string? expected = null)
+    private static string? getMetaReference(JsonNode? value, string name)
     {
         if (value is JsonValue scalar)
         {
-            if (scalar.TryGetValue(out bool enabled))
-                return enabled && expected is null;
-            if (!scalar.TryGetValue(out string? text))
-                return false;
-            return expected is null || string.Equals(text, expected, StringComparison.Ordinal);
+            if (scalar.TryGetValue(out string? text))
+                return text;
+            return scalar.TryGetValue(out bool enabled) && enabled ? string.Empty : null;
         }
         if (value is JsonObject map)
-        {
-            return map.TryGetPropertyValue(name, out JsonNode? item)
-                && (expected is null
-                    || string.Equals(getString(item), expected, StringComparison.Ordinal));
-        }
+            return map.TryGetPropertyValue(name, out JsonNode? item) ? getString(item) ?? string.Empty : null;
         if (value is not JsonArray array)
-            return false;
+            return null;
         foreach (JsonNode? item in array)
         {
             if (string.Equals(getString(item), name, StringComparison.Ordinal))
-                return expected is null;
+                return string.Empty;
             if (item is JsonArray tuple
                 && tuple.Count > 0
-                && string.Equals(getString(tuple[0]), name, StringComparison.Ordinal)
-                && (expected is null
-                    || tuple.Count > 1
-                    && string.Equals(getString(tuple[1]), expected, StringComparison.Ordinal)))
+                && string.Equals(getString(tuple[0]), name, StringComparison.Ordinal))
             {
-                return true;
+                return tuple.Count > 1 ? getString(tuple[1]) ?? string.Empty : string.Empty;
             }
         }
-        return false;
+        return null;
     }
 
     private static void validateSourcePin(

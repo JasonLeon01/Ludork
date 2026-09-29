@@ -4,9 +4,7 @@ namespace Ludork.Services;
 
 internal static class ReferenceIdentity
 {
-    public static string NodeId(string type, string key) => type == "subtitle"
-        ? "asset:/Game/Assets/Subtitles/" + key.Replace('\\', '/') + ".json"
-        : type + ":" + key.Replace('\\', '/');
+    public static string NodeId(string type, string key) => type + ":" + key.Replace('\\', '/');
 
     public static string BlueprintNodeId(string key)
         => NodeId("blueprint", BlueprintReference.ToReference(key));

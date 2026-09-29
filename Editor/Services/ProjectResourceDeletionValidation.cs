@@ -35,11 +35,11 @@ internal sealed class ProjectResourceDeletionValidation(string projectPath) : ID
 
     private Dictionary<string, ReferenceInputFiles.Stamp> captureInputs()
     {
-        IEnumerable<string> files = new[] { "Data", Path.Combine("Assets", "Subtitles") }
-            .Select(directory => Path.Combine(projectPath, directory))
-            .Where(Directory.Exists)
-            .SelectMany(directory => Directory.EnumerateFiles(directory, "*.json", SearchOption.AllDirectories))
-            .Where(path => !DataConfig.isAnimationCache(path));
+        string data = Path.Combine(projectPath, "Data");
+        IEnumerable<string> files = Directory.Exists(data)
+            ? Directory.EnumerateFiles(data, "*.json", SearchOption.AllDirectories)
+                .Where(path => !DataConfig.isAnimationCache(path))
+            : [];
         string scripts = Path.Combine(projectPath, "Scripts");
         if (Directory.Exists(scripts))
             files = files.Concat(Directory.EnumerateFiles(scripts, "*_meta.lua", SearchOption.AllDirectories));

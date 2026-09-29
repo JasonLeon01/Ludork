@@ -123,8 +123,14 @@ internal sealed partial class DocumentReferenceScanner
         string? getReference(string key) =>
             getMetaReference(meta?[key], name) ?? getMetaReference(ownerMeta?[key], name);
 
-        if (getReference("PathVars") is not null && getReference("PathRoot") != "Project")
-            addAssetReference(sourceId, value, kind, path);
+        if (getReference("PathVars") is not null)
+        {
+            string? root = getReference("PathRoot");
+            if (root == "Data")
+                addSubtitleReference(sourceId, value, kind, path);
+            else if (root != "Project")
+                addAssetReference(sourceId, value, kind, path);
+        }
         if (getReference("BlueprintClassVars") is not null
             && blueprintNodeIdFromClassPath(value) is string blueprintId)
             addReference(sourceId, blueprintId, kind, path);

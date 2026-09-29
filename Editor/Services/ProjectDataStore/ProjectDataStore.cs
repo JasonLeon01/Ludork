@@ -75,7 +75,7 @@ public sealed partial class ProjectDataStore : IDisposable
         this.loadCancellationToken = loadCancellationToken;
         this.loadProgress = loadProgress;
         ProjectPath = Path.GetFullPath(projectPath);
-        Directory.CreateDirectory(Path.Combine(ProjectPath, "Assets", "Subtitles"));
+        Directory.CreateDirectory(Path.Combine(ProjectPath, "Data", "Subtitles"));
         generalEnums = new GeneralEnumService(ProjectPath);
 
         foreach ((string sectionName, EditorDocumentCollection collection) in sections)

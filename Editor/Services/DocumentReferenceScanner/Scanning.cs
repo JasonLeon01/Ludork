@@ -469,7 +469,7 @@ internal sealed partial class DocumentReferenceScanner
             ([".ShowVoiceMessageByTag", ".ShowVoiceMessage"], 2, "asset", "Voices"),
             ([".PlayMusic"], 0, "asset", "Musics"),
             ([".PlayVideo"], 0, "asset", "Videos"),
-            ([".PlayVideo"], 3, "asset", "Subtitles"),
+            ([".PlayVideo"], 3, "subtitle", ""),
             ([".GetItemCount", ".AddItem", ".RemoveItem", ".HasItem"], 0, "generalMember", "Item"),
             ([".AddEquip", ".RemoveEquip", ".HasEquip", ".EquipItem"], 0, "generalMember", "Equip"),
         ];
@@ -492,6 +492,10 @@ internal sealed partial class DocumentReferenceScanner
             {
                 addAssetReference(sourceId, value, "nodeParam", referencePath);
             }
+            else if (type == "subtitle")
+            {
+                addSubtitleReference(sourceId, value, "nodeParam", referencePath);
+            }
             else if (type == "generalMember")
             {
                 addReference(sourceId, generalMemberNodeId(baseValue, text), "nodeParam", referencePath);
@@ -508,6 +512,11 @@ internal sealed partial class DocumentReferenceScanner
         cancellationToken.ThrowIfCancellationRequested();
         if (JsonScalar.String(value) is string text)
         {
+            if (GameDataPath.TryGetSubtitleKey(text, out string subtitleKey))
+            {
+                addReference(sourceId, ReferenceIdentity.NodeId("subtitle", subtitleKey), "subtitle", path);
+                return;
+            }
             string? blueprintId = blueprintNodeIdFromClassPath(value);
             if (blueprintId is not null)
             {
