@@ -8,6 +8,9 @@ LDPK_VERSION = 1
 LDPK_FLAGS = 0
 LDPK_DIRECTORY_FLAG = 1
 LDPK_ALIGNMENT = 8
+LDPK_BLOCK_SIZE = 1024 * 1024
+LDPK_BLOCK_ZLIB_FLAG = 1
+LDPK_COMPRESSION_LEVEL = 6
 LDPK_HEADER_FIELDS = (
     ("Magic", "4s"), ("Version", "H"), ("Flags", "H"),
     ("GroupLength", "I"), ("EntryCount", "I"), ("IndexOffset", "Q"),
@@ -15,10 +18,14 @@ LDPK_HEADER_FIELDS = (
 )
 LDPK_ENTRY_FIELDS = (
     ("PathLength", "I"), ("Flags", "I"), ("DataOffset", "Q"),
-    ("DataSize", "Q"), ("DataCrc", "I"), ("Reserved", "I"),
+    ("DataSize", "Q"), ("StoredSize", "Q"), ("DataCrc", "I"), ("BlockCount", "I"),
+)
+LDPK_BLOCK_FIELDS = (
+    ("StoredSize", "I"), ("Flags", "I"), ("DataCrc", "I"),
 )
 LDPK_HEADER = struct.Struct("<" + "".join(code for _, code in LDPK_HEADER_FIELDS))
 LDPK_ENTRY = struct.Struct("<" + "".join(code for _, code in LDPK_ENTRY_FIELDS))
+LDPK_BLOCK = struct.Struct("<" + "".join(code for _, code in LDPK_BLOCK_FIELDS))
 
 SHADER_MAGIC = b"LDSC"
 DATA_MAGIC = b"LDDC"

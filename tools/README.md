@@ -327,6 +327,12 @@ and notarisation secrets and DMG verification.
 The template-free artifacts are `Ludork-editor-windows-x64-<sha>` and
 `Ludork-editor-macos-arm64-<sha>`; complete packages retain `Ludork-windows-x64-<sha>`
 and `Ludork-macos-arm64-<sha>`. All temporary artifacts expire after seven days.
+Each scheduled or manual Windows artifact contains one 7z archive:
+`Ludork-editor-<fullVersion>-windows-x64.7z` without templates, or
+`Ludork-<fullVersion>-windows-x64.7z` with templates. Download the artifact and
+extract the enclosed 7z; its root contains `Ludork.exe`. The archive uses LZMA2
+level 5 with multithreading and must pass `7z t` before upload. macOS keeps DMG,
+and tagged releases keep MSI/DMG.
 Consumers of template-free editors inspect the combined or matching single-platform
 Export Editor runs on `main`, require a successful target platform job and a unique,
 unexpired exact-name artifact, and continue to earlier runs when unavailable.
@@ -879,6 +885,11 @@ staging become root `Assets.ldpak`, `Data.ldpak` and `Scripts.ldpak`. Entries
 retain paths relative to their source directory. Use
 `ScriptTools validate-ldpak-source <runtime-root>` for the common source preflight.
 Encryption runs before archiving, and the source project remains loose and unchanged.
+Archives automatically split files into independent 1 MiB blocks and use zlib
+level 6 only when a compressed block is smaller; no extra option is needed.
+Seekable readers decompress only the current block, check each block's CRC32,
+and check the file CRC32 on complete reads. File sizes and seek positions use
+the original bytes.
 Packaging excludes the project-root `EditorCache` and `Cache` directories, with or
 without `--use-ldpak`. Nested directories with those names in runtime
 content remain included. Runtime rejects loose/archive conflicts and old per-group

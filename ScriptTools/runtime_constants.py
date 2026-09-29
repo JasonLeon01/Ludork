@@ -28,13 +28,15 @@ def _magic(name: str, value: bytes) -> str:
     return f"inline constexpr std::array<std::uint8_t, {len(value)}> {name} = {{{', '.join(str(byte) for byte in value)}}};"
 
 
-def _layout(name: str, fields: tuple[tuple[str, str], ...]) -> list[str]:
+def _layout(
+    name: str, fields: tuple[tuple[str, str], ...], size_name: str | None = None,
+) -> list[str]:
     declarations = []
     codes = "<"
     for field, code in fields:
         declarations.append(_integer("std::size_t", f"{name}{field}Offset", struct.calcsize(codes)))
         codes += code
-    declarations.append(_integer("std::size_t", f"{name}Size", struct.calcsize(codes)))
+    declarations.append(_integer("std::size_t", size_name or f"{name}Size", struct.calcsize(codes)))
     return declarations
 
 
@@ -59,8 +61,11 @@ def generate(project: pathlib.Path, output: pathlib.Path) -> None:
         _integer("std::uint16_t", "Flags", formats.LDPK_FLAGS),
         _integer("std::uint32_t", "DirectoryFlag", formats.LDPK_DIRECTORY_FLAG),
         _integer("std::uint64_t", "Alignment", formats.LDPK_ALIGNMENT),
+        _integer("std::uint32_t", "BlockSize", formats.LDPK_BLOCK_SIZE),
+        _integer("std::uint32_t", "BlockZlibFlag", formats.LDPK_BLOCK_ZLIB_FLAG),
         *_layout("Header", formats.LDPK_HEADER_FIELDS),
         *_layout("Entry", formats.LDPK_ENTRY_FIELDS),
+        *_layout("Block", formats.LDPK_BLOCK_FIELDS, "BlockHeaderSize"),
     ]
     encrypted = [
         _magic("ShaderMagic", formats.SHADER_MAGIC),

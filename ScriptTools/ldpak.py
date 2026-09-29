@@ -21,6 +21,10 @@ from .resource_constants import (
 )
 from .runtime_formats import (
     LDPK_ALIGNMENT as ALIGNMENT,
+    LDPK_BLOCK as BLOCK,
+    LDPK_BLOCK_SIZE as BLOCK_SIZE,
+    LDPK_BLOCK_ZLIB_FLAG as BLOCK_ZLIB_FLAG,
+    LDPK_COMPRESSION_LEVEL as COMPRESSION_LEVEL,
     LDPK_DIRECTORY_FLAG as DIRECTORY_FLAG,
     LDPK_ENTRY as ENTRY,
     LDPK_FLAGS as FLAGS,
@@ -44,13 +48,22 @@ class _SourceEntry:
 
 
 @dataclass(frozen=True)
+class _ArchiveBlock:
+    stored_size: int
+    flags: int
+    data_crc32: int
+
+
+@dataclass(frozen=True)
 class _ArchiveEntry:
     relative_path: str
     path_bytes: bytes
     flags: int
     data_offset: int
     data_size: int
+    stored_size: int
     data_crc32: int
+    blocks: tuple[_ArchiveBlock, ...]
 
 
 def _align(value: int) -> int:
@@ -209,6 +222,8 @@ def write_ldpak(group_root: pathlib.Path, destination: pathlib.Path) -> int:
                             0,
                             0,
                             0,
+                            0,
+                            (),
                         )
                     )
                     continue
@@ -220,13 +235,24 @@ def write_ldpak(group_root: pathlib.Path, destination: pathlib.Path) -> int:
                 _write_padding(stream, _align(stream.tell()))
                 data_offset = stream.tell()
                 data_size = 0
+                stored_size = 0
                 data_crc32 = 0
+                blocks: list[_ArchiveBlock] = []
                 with entry.source_path.open("rb") as source:
-                    while chunk := source.read(FILE_BUFFER_SIZE):
-                        stream.write(chunk)
+                    while chunk := source.read(BLOCK_SIZE):
+                        compressed = zlib.compress(chunk, COMPRESSION_LEVEL)
+                        use_compressed = len(compressed) < len(chunk)
+                        stored = compressed if use_compressed else chunk
+                        stream.write(stored)
                         data_size += len(chunk)
+                        stored_size += len(stored)
                         data_crc32 = zlib.crc32(chunk, data_crc32)
-                if data_size > 0xFFFFFFFFFFFFFFFF:
+                        blocks.append(_ArchiveBlock(
+                            len(stored),
+                            BLOCK_ZLIB_FLAG if use_compressed else 0,
+                            zlib.crc32(chunk) & 0xFFFFFFFF,
+                        ))
+                if data_size > 0xFFFFFFFFFFFFFFFF or len(blocks) > 0xFFFFFFFF:
                     raise LdPakError(
                         f"Asset package entry is too large: {entry.relative_path}"
                     )
@@ -237,7 +263,9 @@ def write_ldpak(group_root: pathlib.Path, destination: pathlib.Path) -> int:
                         0,
                         data_offset,
                         data_size,
+                        stored_size,
                         data_crc32 & 0xFFFFFFFF,
+                        tuple(blocks),
                     )
                 )
 
@@ -251,11 +279,14 @@ def write_ldpak(group_root: pathlib.Path, destination: pathlib.Path) -> int:
                         entry.flags,
                         entry.data_offset,
                         entry.data_size,
+                        entry.stored_size,
                         entry.data_crc32,
-                        0,
+                        len(entry.blocks),
                     )
                 )
                 index.extend(entry.path_bytes)
+                for block in entry.blocks:
+                    index.extend(BLOCK.pack(block.stored_size, block.flags, block.data_crc32))
             index_size = len(index)
             stream.write(index)
             header = HEADER.pack(
@@ -388,8 +419,9 @@ def _validate_ldpak_entries(
                 entry_flags,
                 data_offset,
                 data_size,
+                stored_size,
                 data_crc32,
-                entry_reserved,
+                block_count,
             ) = ENTRY.unpack_from(index, index_position)
             index_position += ENTRY.size
             if path_size == 0 or index_position + path_size > len(index):
@@ -418,7 +450,7 @@ def _validate_ldpak_entries(
                     f"{previous!r} and {relative_path!r}"
                 )
             folded_paths[folded] = relative_path
-            if entry_flags & ~DIRECTORY_FLAG or entry_reserved != 0:
+            if entry_flags & ~DIRECTORY_FLAG:
                 raise LdPakError(
                     f"Asset package entry flags are invalid: {relative_path}"
                 )
@@ -437,7 +469,7 @@ def _validate_ldpak_entries(
                     )
             declared_types[relative_path] = is_directory
             if is_directory:
-                if data_offset != 0 or data_size != 0 or data_crc32 != 0:
+                if any((data_offset, data_size, stored_size, data_crc32, block_count)):
                     raise LdPakError(
                         f"Asset package directory has file data: {relative_path}"
                     )
@@ -450,10 +482,37 @@ def _validate_ldpak_entries(
                     raise LdPakError(
                         f"Asset package file offset is invalid: {relative_path}"
                     )
-                if data_size > index_offset - data_offset:
+                if stored_size > index_offset - data_offset:
                     raise LdPakError(
                         f"Asset package file range is invalid: {relative_path}"
                     )
+            if block_count != (data_size + BLOCK_SIZE - 1) // BLOCK_SIZE:
+                raise LdPakError(
+                    f"Asset package block count is invalid: {relative_path}"
+                )
+            if block_count > (len(index) - index_position) // BLOCK.size:
+                raise LdPakError("Asset package block table is truncated")
+            blocks: list[_ArchiveBlock] = []
+            block_total = 0
+            for block_index in range(block_count):
+                block_size, block_flags, block_crc32 = BLOCK.unpack_from(index, index_position)
+                index_position += BLOCK.size
+                original_size = min(BLOCK_SIZE, data_size - block_index * BLOCK_SIZE)
+                if (
+                    block_flags not in (0, BLOCK_ZLIB_FLAG)
+                    or block_size == 0
+                    or (block_flags == 0 and block_size != original_size)
+                    or (block_flags == BLOCK_ZLIB_FLAG and block_size >= original_size)
+                ):
+                    raise LdPakError(
+                        f"Asset package block layout is invalid: {relative_path}"
+                    )
+                block_total += block_size
+                blocks.append(_ArchiveBlock(block_size, block_flags, block_crc32))
+            if block_total != stored_size:
+                raise LdPakError(
+                    f"Asset package stored size does not match its blocks: {relative_path}"
+                )
             archive_entries.append(
                 _ArchiveEntry(
                     relative_path,
@@ -461,7 +520,9 @@ def _validate_ldpak_entries(
                     entry_flags,
                     data_offset,
                     data_size,
+                    stored_size,
                     data_crc32,
+                    tuple(blocks),
                 )
             )
         if index_position != len(index):
@@ -483,21 +544,41 @@ def _validate_ldpak_entries(
                 f"padding before {entry.relative_path}",
             )
             stream.seek(entry.data_offset)
-            remaining = entry.data_size
             checksum = 0
-            while remaining:
+            for block_index, block in enumerate(entry.blocks):
                 chunk = _read_exact(
                     stream,
-                    min(remaining, FILE_BUFFER_SIZE),
+                    block.stored_size,
                     f"file data for {entry.relative_path}",
                 )
+                if block.flags & BLOCK_ZLIB_FLAG:
+                    original_size = min(BLOCK_SIZE, entry.data_size - block_index * BLOCK_SIZE)
+                    inflater = zlib.decompressobj()
+                    try:
+                        chunk = inflater.decompress(chunk, original_size + 1)
+                    except zlib.error as exception:
+                        raise LdPakError(
+                            f"Asset package block cannot be decompressed: {entry.relative_path}"
+                        ) from exception
+                    if (
+                        len(chunk) != original_size
+                        or not inflater.eof
+                        or inflater.unused_data
+                        or inflater.unconsumed_tail
+                    ):
+                        raise LdPakError(
+                            f"Asset package compressed block is invalid: {entry.relative_path}"
+                        )
+                if zlib.crc32(chunk) & 0xFFFFFFFF != block.data_crc32:
+                    raise LdPakError(
+                        f"Asset package block checksum does not match: {entry.relative_path}"
+                    )
                 checksum = zlib.crc32(chunk, checksum)
-                remaining -= len(chunk)
             if checksum & 0xFFFFFFFF != entry.data_crc32:
                 raise LdPakError(
                     f"Asset package file checksum does not match: {entry.relative_path}"
                 )
-            expected_offset = entry.data_offset + entry.data_size
+            expected_offset = entry.data_offset + entry.stored_size
         aligned_index_offset = _align(expected_offset)
         if index_offset != aligned_index_offset:
             raise LdPakError("Asset package file data does not end at its index")

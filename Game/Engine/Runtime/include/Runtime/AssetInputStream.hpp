@@ -6,8 +6,13 @@
 #include <filesystem>
 #include <memory>
 #include <optional>
+#include <string>
 
 namespace ludork::runtime {
+
+namespace detail {
+class LdPakArchive;
+}
 
 class LUDORK_RUNTIME_API AssetInputStream final : public sf::InputStream {
 public:
@@ -31,6 +36,8 @@ private:
 
     AssetInputStream(const std::filesystem::path& source, std::uint64_t offset,
                      std::uint64_t size);
+    AssetInputStream(std::shared_ptr<const detail::LdPakArchive> archive,
+                     const std::string& relativePath);
 
     std::unique_ptr<Impl> impl_;
 };
