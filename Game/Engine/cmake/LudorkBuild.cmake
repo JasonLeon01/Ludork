@@ -92,6 +92,9 @@ if(MSVC)
         "$<$<CONFIG:Release>:/experimental:deterministic>"
         "$<$<CONFIG:Release>:/pathmap:${CMAKE_SOURCE_DIR}=.>"
         "$<$<CONFIG:Release>:/pathmap:${CMAKE_BINARY_DIR}=.>")
+    add_link_options(
+        "$<$<CONFIG:Release>:/Brepro>"
+        "$<$<CONFIG:Release>:/INCREMENTAL:NO>")
 endif()
 
 function(ludork_apply_msvc_debug_source_options)

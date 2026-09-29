@@ -150,6 +150,7 @@ jobs:
         with:
           name: ${{ inputs.templates && 'Ludork' || 'Ludork-editor' }}-windows-x64-${{ github.sha }}
           path: ${{ inputs.release && 'dist/' || steps.archive.outputs.path }}
+          archive: ${{ inputs.release == true }}
           if-no-files-found: error
           include-hidden-files: true
           compression-level: 0

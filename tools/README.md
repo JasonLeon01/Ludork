@@ -317,13 +317,14 @@ Game or downloading its SFML/LuaSF/FFmpeg dependencies. Creating a new project
 requires templates from a complete package. Both macOS modes use the same signing
 and notarisation secrets and DMG verification.
 
-The template-free artifacts are `Ludork-editor-windows-x64-<sha>` and
-`Ludork-editor-macos-arm64-<sha>`; complete packages retain `Ludork-windows-x64-<sha>`
-and `Ludork-macos-arm64-<sha>`. All temporary artifacts expire after seven days.
-Each scheduled or manual Windows artifact contains one 7z archive:
+The macOS artifacts are `Ludork-editor-macos-arm64-<sha>` without templates and
+`Ludork-macos-arm64-<sha>` with templates. All temporary artifacts expire after
+seven days. Each scheduled or manual Windows artifact is uploaded directly as
+a single 7z file, with no outer ZIP:
 `Ludork-editor-<fullVersion>-windows-x64.7z` without templates, or
-`Ludork-<fullVersion>-windows-x64.7z` with templates. Download the artifact and
-extract the enclosed 7z; its root contains `Ludork.exe`. The archive uses LZMA2
+`Ludork-<fullVersion>-windows-x64.7z` with templates. The artifact name is the
+7z filename. Download it and extract it once; its root contains `Ludork.exe`.
+The archive uses LZMA2
 level 5 with multithreading and must pass `7z t` before upload. macOS keeps DMG,
 and tagged releases keep MSI/DMG.
 Consumers of template-free editors inspect the combined or matching single-platform

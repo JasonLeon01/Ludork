@@ -95,6 +95,7 @@ pushd "%BUILD_DIR%"
     --enable-parser=h264,aac ^
     --enable-swscale ^
     --enable-swresample ^
+    "--extra-ldflags=-Brepro -INCREMENTAL:NO" ^
     "--extra-cflags=-D_WIN32_WINNT=0x0602 -DWINVER=0x0602"
 if errorlevel 1 (
     set "BUILD_RESULT=!ERRORLEVEL!"
