@@ -1,0 +1,11 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:Ludork.Controls"
+        x:Class="Ludork.Views.DocumentationWindow"
+        Width="1100" Height="800" MinWidth="640" MinHeight="480"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Editor.BackgroundBrush}"
+        FontFamily="{DynamicResource Editor.FontFamily}"
+        Icon="/Editor/Assets/icon.ico">
+    <controls:DocumentationView x:Name="Documentation" />
+</Window>

@@ -7,10 +7,12 @@ description: Change or review Ludork Core bindings, bindgen, Blueprint metadata,
 
 ## Select the owning contract
 
-- For metadata and its editor consumers, read [Metadata Schema and Decorators](<../../../docs/en_GB/03.Lua and Blueprint Scripting/03.Blueprint Scripting/02.Metadata Schema and Decorators.md>).
-- For graph execution, read [Events, Common Functions and Blueprint Flow](<../../../docs/en_GB/03.Lua and Blueprint Scripting/03.Blueprint Scripting/01.Execution Flow Events and Variables.md>).
-- For native bindings or bindgen, read [Macro Reference](<../../../docs/en_GB/04.Native C++ Development/04.Macro Reference.md>) and [Generated Metadata and Stubs](<../../../docs/en_GB/04.Native C++ Development/05.Generated Metadata and Stubs.md>), then the relevant [class/property](<../../../docs/en_GB/04.Native C++ Development/02.Binding a Class.md>) or [function/execution](<../../../docs/en_GB/04.Native C++ Development/03.Functions Events and Execution.md>) section.
-- For native runtime architecture, read [Build and Module Layout](<../../../docs/en_GB/04.Native C++ Development/01.Build and Module Layout.md>); for Standard/native Lua semantics, also use [ludork-lua](../ludork-lua/SKILL.md).
+Resolve documentation sources and perform final documentation updates through the [AGENTS documentation workflow](../../../AGENTS.md#documentation-workflow).
+
+- For metadata and its editor consumers, read [Metadata Schema and Decorators](https://github.com/JasonLeon01/Ludork/blob/gh-pages/1.0/docs/en_GB/03.Lua%20and%20Blueprint%20Scripting/03.Blueprint%20Scripting/02.Metadata%20Schema%20and%20Decorators.md).
+- For graph execution, read [Events, Common Functions and Blueprint Flow](https://github.com/JasonLeon01/Ludork/blob/gh-pages/1.0/docs/en_GB/03.Lua%20and%20Blueprint%20Scripting/03.Blueprint%20Scripting/01.Execution%20Flow%20Events%20and%20Variables.md).
+- For native bindings or bindgen, read [Macro Reference](https://github.com/JasonLeon01/Ludork/blob/gh-pages/1.0/docs/en_GB/04.Native%20C%2B%2B%20Development/04.Macro%20Reference.md) and [Generated Metadata and Stubs](https://github.com/JasonLeon01/Ludork/blob/gh-pages/1.0/docs/en_GB/04.Native%20C%2B%2B%20Development/05.Generated%20Metadata%20and%20Stubs.md), then the relevant [class/property](https://github.com/JasonLeon01/Ludork/blob/gh-pages/1.0/docs/en_GB/04.Native%20C%2B%2B%20Development/02.Binding%20a%20Class.md) or [function/execution](https://github.com/JasonLeon01/Ludork/blob/gh-pages/1.0/docs/en_GB/04.Native%20C%2B%2B%20Development/03.Functions%20Events%20and%20Execution.md) section.
+- For native runtime architecture, read [Build and Module Layout](https://github.com/JasonLeon01/Ludork/blob/gh-pages/1.0/docs/en_GB/04.Native%20C%2B%2B%20Development/01.Build%20and%20Module%20Layout.md); for Standard/native Lua semantics, also use [ludork-lua](../ludork-lua/SKILL.md).
 
 Use those pages as the protocol reference; do not maintain a second macro/decorator catalogue in agent instructions.
 

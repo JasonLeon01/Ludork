@@ -21,6 +21,7 @@ for %%F in (
 )
 
 for %%F in (
+    "%PACKAGE_DIR%\docs"
     "%PACKAGE_DIR%\About_*.md"
     "%PACKAGE_DIR%\THIRD_PARTY_NOTICES*.md"
     "%PACKAGE_DIR%\*.dll"

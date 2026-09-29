@@ -23,7 +23,7 @@ def copy_markdown(
 def copy_resources(source_root: pathlib.Path, output_root: pathlib.Path, mode: str) -> None:
     if mode == "editor":
         copy_markdown(source_root / "LICENSE.md", output_root / "LICENSE.md", {})
-    for suffix in ("", "_zh_CN"):
+    for suffix, language in (("", "en_GB"), ("_zh_CN", "zh_CN")):
         notice_name = f"THIRD_PARTY_NOTICES{suffix}.md"
         readme_name = f"README{suffix}.md"
         if mode == "editor":
@@ -32,15 +32,14 @@ def copy_resources(source_root: pathlib.Path, output_root: pathlib.Path, mode: s
                 output_root / readme_name,
                 {},
             )
-            copy_markdown(
-                source_root / "docs" / notice_name,
-                output_root / "docs" / notice_name,
-                {},
-            )
         copy_markdown(
             source_root / "Licenses" / readme_name,
             output_root / "Licenses" / readme_name,
-            {f"../docs/{notice_name}": f"../{notice_name}"} if mode == "template-index" else {},
+            {
+                f"https://jasonleon01.github.io/Ludork/notices/?version=1.0&lang={language}": f"../{notice_name}"
+            }
+            if mode == "template-index"
+            else {},
         )
 
 

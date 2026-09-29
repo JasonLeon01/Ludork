@@ -1,6 +1,6 @@
 # 许可证正文索引
 
-Ludork 使用发行根目录的 [Zlib 许可证](../LICENSE.md)；第三方组件和资产保留各自条款。版本、来源、用途与正文路径见 [`THIRD_PARTY_NOTICES_zh_CN.md`](../docs/THIRD_PARTY_NOTICES_zh_CN.md)。
+Ludork 使用发行根目录的 [Zlib 许可证](../LICENSE.md)；第三方组件和资产保留各自条款。版本、来源、用途与正文路径见 [`THIRD_PARTY_NOTICES_zh_CN.md`](https://jasonleon01.github.io/Ludork/notices/?version=1.0&lang=zh_CN)。
 
 本目录是权威 `Licenses`。编辑器包完整携带；模板携带本索引、公共运行时目录，并仅在启用时携带 `FFmpeg`。
 
@@ -12,6 +12,8 @@ Ludork 使用发行根目录的 [Zlib 许可证](../LICENSE.md)；第三方组�
 - `HarmonyOSSans` 与 `SampleMusic`：权威资产声明；模板副本留在资产旁。
 
 Android 打包使用的 Gradle wrapper 在各 C++ Source 模板的 `Engine/PlatformHosts/Android/gradle/wrapper` 下随工具保留完整许可证与中英文来源说明。
+
+编辑器的 `Avalonia.Controls.WebView` 12.1.0 使用 [MIT 许可证正文](EditorPackages/Avalonia.Controls.WebView-LICENSE.txt)，原文来自 [NuGet 包标识的上游提交](https://github.com/AvaloniaUI/Avalonia.Controls.WebView/blob/b45e042d21d96371bb6d07822a55c85ee5f74d2f/LICENSE)。
 
 编辑器 SVG 依赖中，`Svg.Controls.Avalonia`、`Svg.Model`、`Svg.SceneGraph` 与 `ShimSkiaSharp` 使用 [Svg.Skia 的 MIT 正文](EditorPackages/Svg.Skia-LICENSE.txt)；`Svg.Custom` 使用 [Microsoft Public License 正文](EditorPackages/Svg.Custom-LICENSE.txt)；`ExCSS` 使用其 [MIT 正文](EditorPackages/ExCSS-LICENSE.txt)。这些正文均从已还原 NuGet 包标识的仓库提交原样复制，对应提交链接列在第三方声明表中。
 

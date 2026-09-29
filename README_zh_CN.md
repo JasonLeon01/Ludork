@@ -4,7 +4,7 @@
 
 Ludork 是一款面向 2D 角色扮演游戏创作的游戏编辑器与原生运行时。它将可视化地图和数据创作、Blueprint 图、Lua 脚本与 C++20 运行时整合为一套完整的生产流程。
 
-![Ludork 编辑器工作区](docs/_images/overview/editor-workspace.png)
+![Ludork 编辑器工作区](https://jasonleon01.github.io/Ludork/1.0/images/overview/editor-workspace.png)
 
 ## 核心能力
 
@@ -36,7 +36,7 @@ Ludork 1.0.0 不提供 Linux 或 Intel Mac 编辑器安装包。
 
 正式安装包为自包含发布，无需另外安装 .NET 运行时。macOS 可能会要求确认是否信任从互联网下载的应用。
 
-Windows 请运行安装根目录中的 `Ludork.exe`。该启动器会打开 `Binaries` 中的实际编辑器；DLL 与 .NET 运行时文件也保存在 `Binaries` 中。`Locale`、`Templates`、`tools`、`Plugins`、`plugins.json`、文档及许可证仍位于安装根目录。编辑器设置保存到根目录的 `Ludork.ini`，插件数据保存在 `Plugins/.data` 下。移动便携安装时，请保留完整的软件包目录。
+Windows 请运行安装根目录中的 `Ludork.exe`。该启动器会打开 `Binaries` 中的实际编辑器；DLL 与 .NET 运行时文件也保存在 `Binaries` 中。`Locale`、`Templates`、`tools`、`Plugins`、`plugins.json` 及许可证仍位于安装根目录。编辑器设置保存到根目录的 `Ludork.ini`，插件数据保存在 `Plugins/.data` 下。移动便携安装时，请保留完整的软件包目录。
 
 ## 选择工程模板
 
@@ -103,10 +103,12 @@ GitHub Actions 提供六个打包入口。[Export Package](.github/workflows/exp
 
 ## 文档与支持
 
-- 访问 [Ludork 官网](https://jasonleon01.github.io/Ludork/?lang=zh_CN)了解功能、下载与项目信息，或阅读[在线文档](https://jasonleon01.github.io/Ludork/docs/?lang=zh_CN)。
-- 从 [Ludork 文档](docs/zh_CN/00.Ludork%20文档.md)开始阅读。
-- 按照[快速入门](docs/zh_CN/01.快速入门/01.创建第一个项目.md)完成工程创建、运行与打包。
+- 访问 [Ludork 官网](https://jasonleon01.github.io/Ludork/?lang=zh_CN)了解功能、下载与项目信息。
+- 从 [Ludork 文档](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=zh_CN)开始阅读。
+- 按照[快速入门](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=zh_CN&doc=01%2F01)完成工程创建、运行与打包。
 - 通过 [GitHub Issues](https://github.com/JasonLeon01/Ludork/issues)报告可复现问题或提交功能建议。
+
+文档源码与官网位于独立的 `gh-pages` 分支。贡献者使用单独的 worktree，在代码验证完成后更新所有受影响语言；参阅[文档维护流程](tools/README.md#website-and-documentation)。编辑器会打开与自身主版本和次版本对应的在线文档。
 
 报告问题时，请提供 Ludork 1.0.0、操作系统、所选模板、复现步骤及相关 Console 输出。请勿附带包含凭据或无权再分发内容的工程。
 
@@ -116,8 +118,8 @@ Ludork 编辑器插件是会在编辑器进程中以当前用户完整权限执�
 
 ## 许可证与资产权利
 
-Ludork 软件本体使用 [Zlib 许可证](LICENSE.md)，允许商业使用。依赖项和随附工具继续适用各自条款；请查阅[第三方声明](docs/THIRD_PARTY_NOTICES_zh_CN.md)及[许可证正文索引](Licenses/README_zh_CN.md)。
+Ludork 软件本体使用 [Zlib 许可证](LICENSE.md)，允许商业使用。依赖项和随附工具继续适用各自条款；请查阅[第三方声明](https://jasonleon01.github.io/Ludork/notices/?lang=zh_CN&version=1.0)及[许可证正文索引](Licenses/README_zh_CN.md)。
 
-工程模板会把 Ludork 许可证，以及适用于游戏运行时、可选视频运行时和随包资产的声明与本地许可证完整正文带入新建工程。编辑器、托管运行时、预览宿主与构建工具声明只保留在编辑器发行包中，不会复制进工程。打包时会保留工程已有材料，但 Android APK 与 HarmonyOS HAP 打包不会把它们视为格式前置条件，也不校验法律材料是否完整。分发时应保留适用材料，为工程自行增加的依赖与资产补充声明，并重新审查最终包内容。
+工程模板会把 Ludork 许可证，以及适用于游戏运行时、可选视频运行时和随包资产的声明与本地许可证完整正文带入新建工程。编辑器、托管运行时、预览宿主与构建工具声明在官网提供，对应许可证正文保留在编辑器发行包中，不会复制进工程。打包时会保留工程已有材料，但 Android APK 与 HarmonyOS HAP 打包不会把它们视为格式前置条件，也不校验法律材料是否完整。分发时应保留适用材料，为工程自行增加的依赖与资产补充声明，并重新审查最终包内容。
 
 Game 工程随附的音乐不适用 Ludork 的 Zlib 许可证。其 Suno Free Tier 条款将使用限制为个人非商业用途，不能据此证明可在工程模板中再分发原始曲目。发布任何包含该曲目的包之前，必须移除或替换曲目，或取得明确的再分发权。Game 字体继续适用其随附条款。

@@ -5,7 +5,7 @@ description: Create or change Ludork Avalonia form inputs, declarative UI assets
 
 # Ludork UI
 
-Choose the relevant section; an editor form change does not need the declarative runtime documentation.
+Choose the relevant section; an editor form change does not need the declarative runtime documentation. Resolve documentation sources and perform final documentation updates through the [AGENTS documentation workflow](../../../AGENTS.md#documentation-workflow).
 
 ## Editor form inputs
 
@@ -21,7 +21,7 @@ Call these on `EditorInputs`; do not recreate their colours, borders, padding or
 
 ## Declarative assets and controllers
 
-Read [Declarative UI Authoring Workflow](<../../../docs/en_GB/03.Lua and Blueprint Scripting/04.Declarative UI/01.Authoring Workflow.md>) and the affected [Asset Schema](<../../../docs/en_GB/03.Lua and Blueprint Scripting/04.Declarative UI/04.Asset Schema and Control Registry.md>) or [Runtime Contract](<../../../docs/en_GB/03.Lua and Blueprint Scripting/04.Declarative UI/02.Runtime Contract.md>) section before editing. For native adapters, read [Native UI Adapters](<../../../docs/en_GB/04.Native C++ Development/08.Native UI Adapters.md>).
+Read [Declarative UI Authoring Workflow](https://github.com/JasonLeon01/Ludork/blob/gh-pages/1.0/docs/en_GB/03.Lua%20and%20Blueprint%20Scripting/04.Declarative%20UI/01.Authoring%20Workflow.md) and the affected [Asset Schema](https://github.com/JasonLeon01/Ludork/blob/gh-pages/1.0/docs/en_GB/03.Lua%20and%20Blueprint%20Scripting/04.Declarative%20UI/04.Asset%20Schema%20and%20Control%20Registry.md) or [Runtime Contract](https://github.com/JasonLeon01/Ludork/blob/gh-pages/1.0/docs/en_GB/03.Lua%20and%20Blueprint%20Scripting/04.Declarative%20UI/02.Runtime%20Contract.md) section before editing. For native adapters, read [Native UI Adapters](https://github.com/JasonLeon01/Ludork/blob/gh-pages/1.0/docs/en_GB/04.Native%20C%2B%2B%20Development/08.Native%20UI%20Adapters.md).
 
 - Complete UIs live directly under `Data/UI/Assets`; internal parts belong in `Parts/<LargeUiName>` and shared parts in `Parts/Shared`. `Scripts/Internal/UI` and `Scripts/stub/Internal/UI` are fully generated asset mirrors; `Scripts/stub/Internal/UIWindows` contains generated public window declarations. Never hand-edit these outputs. Editor Export owns their generation alongside Export plug-in hooks; ordinary Save, Construct, direct run/pack and template creation do not generate them. The three generated directories are ignored and excluded from templates. `ui-assets generate` explicitly generates UI files only and does not publish the complete editor Export record. Handwritten foundations and genuine shared UI helpers belong in `Internal.UIBase`; window business Controllers are private classes in their owning window module; independent row and Scene Controllers retain their own modules. Do not organise by control shape.
 - The sole asset identity is its extensionless path relative to `Data/UI/Assets`, with `/` separators. Nested references use `Project:<relative path>`. Do not add `assetId`, a UI Catalog or old-path aliases.

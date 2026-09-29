@@ -7,14 +7,14 @@ description: Edit or review Ludork Lua runtime, Standard globals, LuaLS declarat
 
 ## Load the affected contract
 
-Paths in commands and inline code are repository-relative. For Lua/runtime changes, read [Ludork Lua Advanced](<../../../docs/en_GB/01.Getting Started/04.Ludork Lua Advanced.md>) and [Lua Runtime and Modules](<../../../docs/en_GB/03.Lua and Blueprint Scripting/01.Lua Runtime and Modules.md>). These define native classes, containers, truth values, module boundaries and file ownership. Standard lives under `Game/Engine/Standard`; it is not an ordinary Lua library.
+Paths in commands and inline code are repository-relative. Resolve documentation sources and perform final documentation updates through the [AGENTS documentation workflow](../../../AGENTS.md#documentation-workflow). For Lua/runtime changes, read [Ludork Lua Advanced](https://github.com/JasonLeon01/Ludork/blob/gh-pages/1.0/docs/en_GB/01.Getting%20Started/04.Ludork%20Lua%20Advanced.md) and [Lua Runtime and Modules](https://github.com/JasonLeon01/Ludork/blob/gh-pages/1.0/docs/en_GB/03.Lua%20and%20Blueprint%20Scripting/01.Lua%20Runtime%20and%20Modules.md). These define native classes, containers, truth values, module boundaries and file ownership. Standard lives under `Game/Engine/Standard`; it is not an ordinary Lua library.
 
 Read additional pages only for the affected behaviour:
 
-- Script Mixins: [Runtime Contract](<../../../docs/en_GB/03.Lua and Blueprint Scripting/02.Script Mixins/02.Runtime Contract.md>) and [Metadata](<../../../docs/en_GB/03.Lua and Blueprint Scripting/02.Script Mixins/04.Metadata.md>).
-- Game project actors, combat, equipment or movement: [Actors, Enemies, Items and Equipment](<../../../docs/en_GB/03.Lua and Blueprint Scripting/05.Default Gameplay/03.Actors Enemies Items and Equipment.md>) and the affected type's API page.
-- Attributes, abilities or Effects: [Gameplay API](<../../../docs/en_GB/03.Lua and Blueprint Scripting/08.Global and Core Modules/01.Global APIs/02.Gameplay.md>). The ability system is native `GlobalCore`; do not recreate `Global.Gameplay` modules.
-- General Data or saves: [General Data and Text Config](<../../../docs/en_GB/02.Editor User Guide/05.General Data and Text Config.md>) and [Runtime Data, Configuration and Saves](<../../../docs/en_GB/03.Lua and Blueprint Scripting/05.Default Gameplay/06.Runtime Data Configuration and Saves.md>).
+- Script Mixins: [Runtime Contract](https://github.com/JasonLeon01/Ludork/blob/gh-pages/1.0/docs/en_GB/03.Lua%20and%20Blueprint%20Scripting/02.Script%20Mixins/02.Runtime%20Contract.md) and [Metadata](https://github.com/JasonLeon01/Ludork/blob/gh-pages/1.0/docs/en_GB/03.Lua%20and%20Blueprint%20Scripting/02.Script%20Mixins/04.Metadata.md).
+- Game project actors, combat, equipment or movement: [Actors, Enemies, Items and Equipment](https://github.com/JasonLeon01/Ludork/blob/gh-pages/1.0/docs/en_GB/03.Lua%20and%20Blueprint%20Scripting/05.Default%20Gameplay/03.Actors%20Enemies%20Items%20and%20Equipment.md) and the affected type's API page.
+- Attributes, abilities or Effects: [Gameplay API](https://github.com/JasonLeon01/Ludork/blob/gh-pages/1.0/docs/en_GB/03.Lua%20and%20Blueprint%20Scripting/08.Global%20and%20Core%20Modules/01.Global%20APIs/02.Gameplay.md). The ability system is native `GlobalCore`; do not recreate `Global.Gameplay` modules.
+- General Data or saves: [General Data and Text Config](https://github.com/JasonLeon01/Ludork/blob/gh-pages/1.0/docs/en_GB/02.Editor%20User%20Guide/05.General%20Data%20and%20Text%20Config.md) and [Runtime Data, Configuration and Saves](https://github.com/JasonLeon01/Ludork/blob/gh-pages/1.0/docs/en_GB/03.Lua%20and%20Blueprint%20Scripting/05.Default%20Gameplay/06.Runtime%20Data%20Configuration%20and%20Saves.md).
 - Graph execution or `_meta.lua`: [ludork-bindings](../ludork-bindings/SKILL.md). UI controllers/assets: [ludork-ui](../ludork-ui/SKILL.md).
 
 ## Implement against Native APIs

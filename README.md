@@ -4,7 +4,7 @@ English ｜ [简体中文](README_zh_CN.md)
 
 Ludork is a game editor and native runtime for creating 2D role-playing games. It combines visual map and data authoring, Blueprint graphs, Lua scripting, and a C++20 runtime in one production workflow.
 
-![The Ludork editor workspace](docs/_images/overview/editor-workspace.png)
+![The Ludork editor workspace](https://jasonleon01.github.io/Ludork/1.0/images/overview/editor-workspace.png)
 
 ## What Ludork provides
 
@@ -36,7 +36,7 @@ Linux and Intel-based macOS editor packages are not provided in Ludork 1.0.0.
 
 Release packages are self-contained; installing a separate .NET runtime is not required. macOS may ask you to confirm that you trust an application downloaded from the internet.
 
-On Windows, start `Ludork.exe` in the installation root. This launcher opens the actual editor under `Binaries`, which also contains its DLLs and .NET runtime files. `Locale`, `Templates`, `tools`, `Plugins`, `plugins.json`, documentation and licences remain in the installation root. Editor settings are saved to `Ludork.ini` there; plug-in data is stored under `Plugins/.data`. Keep the complete package together when moving a portable installation.
+On Windows, start `Ludork.exe` in the installation root. This launcher opens the actual editor under `Binaries`, which also contains its DLLs and .NET runtime files. `Locale`, `Templates`, `tools`, `Plugins`, `plugins.json`, and licences remain in the installation root. Editor settings are saved to `Ludork.ini` there; plug-in data is stored under `Plugins/.data`. Keep the complete package together when moving a portable installation.
 
 ## Choose a project template
 
@@ -103,10 +103,12 @@ GitHub Actions provides six packaging entries. [Export Package](.github/workflow
 
 ## Documentation and support
 
-- Visit the [Ludork website](https://jasonleon01.github.io/Ludork/?lang=en_GB) for an overview, downloads, and project information, or read the [online documentation](https://jasonleon01.github.io/Ludork/docs/?lang=en_GB).
-- Start with the [Ludork documentation](docs/en_GB/00.Ludork%20Documentation.md).
-- Follow [Getting Started](docs/en_GB/01.Getting%20Started/01.Create%20Your%20First%20Project.md) for project creation, running, and packaging.
+- Visit the [Ludork website](https://jasonleon01.github.io/Ludork/?lang=en_GB) for an overview, downloads, and project information.
+- Start with the [Ludork documentation](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB).
+- Follow [Getting Started](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=01%2F01) for project creation, running, and packaging.
 - Report reproducible faults and request features through [GitHub Issues](https://github.com/JasonLeon01/Ludork/issues).
+
+Documentation sources and the website live on the independent `gh-pages` branch. Contributors use a separate worktree and update all affected languages after code verification; see the [documentation workflow](tools/README.md#website-and-documentation). The editor opens the online documentation for its major/minor version.
 
 When reporting a problem, include Ludork 1.0.0, your operating system, the selected template, the steps to reproduce the problem, and the relevant Console output. Do not attach projects containing credentials or content you cannot redistribute.
 
@@ -116,8 +118,8 @@ Ludork editor plug-ins are C# source packages that execute with the editor proce
 
 ## Licences and asset rights
 
-Ludork itself is distributed under the [Zlib License](LICENSE.md), including commercial use. Dependencies and redistributed tools remain under their respective terms; see the [Third-Party Notices](docs/THIRD_PARTY_NOTICES.md) and the [complete licence-text index](Licenses/README.md).
+Ludork itself is distributed under the [Zlib License](LICENSE.md), including commercial use. Dependencies and redistributed tools remain under their respective terms; see the [Third-Party Notices](https://jasonleon01.github.io/Ludork/notices/?lang=en_GB&version=1.0) and the [complete licence-text index](Licenses/README.md).
 
-Project templates carry the Ludork licence together with the applicable game-runtime, optional video-runtime and bundled-asset notices and complete local licence texts. Editor, managed-runtime, preview-host and build-tool notices remain in the editor distribution and are not copied into projects. Packaging preserves project legal materials when they are present, but Android APK and HarmonyOS HAP packaging do not treat them as format prerequisites or verify legal completeness. Preserve the applicable materials, add notices for your own dependencies and assets, and review the result before distribution.
+Project templates carry the Ludork licence together with the applicable game-runtime, optional video-runtime and bundled-asset notices and complete local licence texts. Editor, managed-runtime, preview-host and build-tool notices are available on the website; their licence texts remain in the editor distribution and are not copied into projects. Packaging preserves project legal materials when they are present, but Android APK and HarmonyOS HAP packaging do not treat them as format prerequisites or verify legal completeness. Preserve the applicable materials, add notices for your own dependencies and assets, and review the result before distribution.
 
 The Game project's bundled music is not covered by the Ludork Zlib License. Its Suno Free Tier terms restrict use to personal, non-commercial purposes and do not establish permission to redistribute the raw track in a project template. Remove or replace the track, or obtain express redistribution rights, before publishing any package that contains it. The Game project font retains its supplied terms.

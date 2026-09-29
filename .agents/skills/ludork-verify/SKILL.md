@@ -32,6 +32,10 @@ Use the installed EmmyLua editor integration or language server, with `Game/.emm
 
 Preserve authoritative native/schema types. Fix control flow and callers; a narrow suppression is appropriate only for a confirmed analyser limitation. If the server, generated stubs or dependencies are unavailable, identify the missing prerequisite, complete independent checks and report diagnostics as unrun. Do not substitute a different formatter or claim a syntax check is full EmmyLua validation.
 
+## Documentation site
+
+Use the separate `gh-pages` worktree described in the [AGENTS documentation workflow](../../../AGENTS.md#documentation-workflow). After code verification, check the frontend with its lint, type-check and build commands; preview under `/Ludork/` and exercise affected version, language, navigation and embedded routes. The documentation commit hook rebuilds and stages generated output. Local preview and build checks do not establish GitHub Pages deployment. Keep documentation-only checks in that worktree; main-branch editor builds do not consume website sources.
+
 ## CI and completion
 
 PR validation selects additive checks from the actual changed paths: Engine/native inputs build Windows x64 and macOS ARM64 Release templates, plain and FFmpeg; Editor inputs compile Avalonia and referenced projects on both platforms without packaging; Scripts/EmmyLua inputs run pinned EmmyLua diagnostics for the complete Game workspace with `--warnings-as-errors`. Lua checking first reuses or builds Windows plain templates for matching native stubs and generates the remaining workspace declarations. Preserve shared preparation and artifact handoffs. New commits cancel older validation runs of the same PR; independent checks continue after another check fails.

@@ -360,31 +360,6 @@ copy_directory() {
     rsync -a --delete --exclude '.DS_Store' "$source_dir/" "$target_dir/"
 }
 
-copy_public_docs() {
-    docs_target_dir=$1
-    rm -rf "$docs_target_dir"
-    mkdir -p "$docs_target_dir"
-    copy_directory "$PROJECT_ROOT/docs/_images" "$docs_target_dir/_images"
-    copy_directory "$PROJECT_ROOT/docs/en_GB" "$docs_target_dir/en_GB"
-    copy_directory "$PROJECT_ROOT/docs/zh_CN" "$docs_target_dir/zh_CN"
-}
-
-copy_about_files() {
-    target_dir=$1
-    found=0
-    for source_path in "$PROJECT_ROOT"/docs/About_*.md; do
-        if [ ! -f "$source_path" ]; then
-            continue
-        fi
-        cp "$source_path" "$target_dir/$(basename -- "$source_path")"
-        found=1
-    done
-    if [ "$found" -ne 1 ]; then
-        echo "No About_*.md resources were found." >&2
-        exit 1
-    fi
-}
-
 create_icns() {
     icon_source=$1
     icon_name=$2
@@ -820,11 +795,6 @@ validate_package() {
     require_package_file "$package_resources/LICENSE.md"
     require_package_file "$package_resources/README.md"
     require_package_file "$package_resources/README_zh_CN.md"
-    require_package_file "$package_resources/docs/THIRD_PARTY_NOTICES.md"
-    require_package_file "$package_resources/docs/THIRD_PARTY_NOTICES_zh_CN.md"
-    require_package_directory "$package_resources/docs/_images"
-    require_package_directory "$package_resources/docs/en_GB"
-    require_package_directory "$package_resources/docs/zh_CN"
     require_package_directory "$package_resources/Licenses"
 
     for required_licence_path in \
@@ -848,6 +818,7 @@ validate_package() {
         Avalonia/LICENSE.txt \
         Avalonia/Inter-OFL-1.1.txt \
         EditorPackages/AvaloniaEdit-LICENSE.txt \
+        EditorPackages/Avalonia.Controls.WebView-LICENSE.txt \
         EditorPackages/CommunityToolkit.Mvvm-LICENSE.md \
         EditorPackages/Svg.Skia-LICENSE.txt \
         EditorPackages/Svg.Custom-LICENSE.txt \
@@ -904,29 +875,6 @@ validate_package() {
         require_package_file "$package_resources/Licenses/$required_licence_path"
     done
 
-    unexpected_docs_path=$(find "$package_resources/docs" \
-        -mindepth 1 \
-        -maxdepth 1 \
-        ! -name _images \
-        ! -name en_GB \
-        ! -name zh_CN \
-        ! -name 'About_*.md' \
-        ! -name 'THIRD_PARTY_NOTICES*.md' \
-        -print \
-        -quit)
-    if [ -n "$unexpected_docs_path" ]; then
-        echo "Non-public documentation was found in the editor package: $unexpected_docs_path" >&2
-        exit 1
-    fi
-
-    for source_path in "$PROJECT_ROOT"/docs/About_*.md; do
-        if [ -f "$source_path" ]; then
-            require_package_file "$package_resources/docs/$(basename -- "$source_path")"
-        fi
-    done
-    require_package_file "$package_resources/docs/About_en_GB.md"
-    require_package_file "$package_resources/docs/About_zh_CN.md"
-
     plutil -lint "$info_plist" >/dev/null
     if [ "$(plutil -extract CFBundleExecutable raw -o - "$info_plist")" != "Ludork" ]; then
         echo "The editor bundle executable metadata is invalid." >&2
@@ -980,6 +928,7 @@ validate_package() {
         "$package_resources"/About_*.md \
         "$package_resources"/THIRD_PARTY_NOTICES*.md \
         "$package_resources/Page" \
+        "$package_resources/docs" \
         "$package_resources/tools/ScriptTools-runtime-versions.txt" \
         "$package_resources/tools/pack_editor.sh" \
         "$package_resources/tools/pack_editor.bat" \
@@ -1265,15 +1214,8 @@ require_file "$PROJECT_ROOT/Locale/locale.json"
 require_file "$PROJECT_ROOT/LICENSE.md"
 require_file "$PROJECT_ROOT/README.md"
 require_file "$PROJECT_ROOT/README_zh_CN.md"
-require_file "$PROJECT_ROOT/docs/THIRD_PARTY_NOTICES.md"
-require_file "$PROJECT_ROOT/docs/THIRD_PARTY_NOTICES_zh_CN.md"
-require_file "$PROJECT_ROOT/docs/About_en_GB.md"
-require_file "$PROJECT_ROOT/docs/About_zh_CN.md"
 require_file "$PROJECT_ROOT/Editor/Assets/icon.ico"
 require_file "$PROJECT_ROOT/Editor/Assets/project-icon.png"
-require_directory "$PROJECT_ROOT/docs/_images"
-require_directory "$PROJECT_ROOT/docs/en_GB"
-require_directory "$PROJECT_ROOT/docs/zh_CN"
 require_directory "$PROJECT_ROOT/Licenses"
 
 if [ -d "$WORK_DIR" ]; then
@@ -1341,10 +1283,8 @@ fi
 
 echo "Copying editor resources..."
 rm -rf "$RESOURCES_DIR/docs" "$RESOURCES_DIR/Page" "$RESOURCES_DIR/Licenses"
-copy_public_docs "$RESOURCES_DIR/docs"
 copy_directory "$PROJECT_ROOT/Licenses" "$RESOURCES_DIR/Licenses"
 "$SCRIPT_TOOLS" legal-resources editor "$PROJECT_ROOT" "$RESOURCES_DIR"
-copy_about_files "$RESOURCES_DIR/docs"
 
 mkdir -p "$RESOURCES_DIR/tools"
 cp "$PROJECT_ROOT/tools/common.sh" "$RESOURCES_DIR/tools/common.sh"

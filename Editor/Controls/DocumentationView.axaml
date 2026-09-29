@@ -1,0 +1,17 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Ludork.Controls.DocumentationView">
+    <Grid RowDefinitions="Auto,*">
+        <TextBlock x:Name="LoadingText" Margin="16" IsVisible="False" />
+        <ContentControl x:Name="BrowserHost" Grid.Row="1" />
+        <StackPanel x:Name="ErrorPanel" Grid.Row="1" IsVisible="False"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Margin="24" Spacing="12" MaxWidth="520">
+            <TextBlock x:Name="ErrorText" TextWrapping="Wrap" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button x:Name="RetryButton" Click="onRetry" />
+                <Button x:Name="InstallButton" IsVisible="False" Click="onInstallRuntime" />
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</UserControl>

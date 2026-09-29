@@ -30,13 +30,6 @@ public partial class MainWindow
 {
     private void showHelp()
     {
-        string? docsRoot = EditorRuntimePaths.FindDirectory("docs");
-        if (docsRoot is null)
-            return;
-        string path = Path.Combine(docsRoot, LocaleService.CurrentLanguage);
-        string imageRoot = Path.Combine(docsRoot, "_images");
-        if (!Directory.Exists(path) || !Directory.Exists(imageRoot))
-            return;
         List<HintedTextPresenter> mapHints = MapList
             .GetVisualDescendants()
             .OfType<HintedTextPresenter>()
@@ -46,10 +39,9 @@ public partial class MainWindow
             ToolTip.SetIsOpen(hint, false);
             ToolTip.SetServiceEnabled(hint, false);
         }
-        MarkdownPreviewWindow window = new MarkdownPreviewWindow(
-            path,
-            LocaleService.Get("HELP_EXPLANATION"),
-            imageRoot);
+        DocumentationWindow window = new DocumentationWindow(
+            DocumentationService.Help,
+            LocaleService.Get("HELP_EXPLANATION"));
         window.Closed += (_, _) =>
         {
             foreach (HintedTextPresenter hint in mapHints)

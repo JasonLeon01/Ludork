@@ -46,14 +46,9 @@
     <None Include="Plugins\**\*.cs" />
     <AvaloniaResource Include="Editor\Assets\**" />
     <Content Include="Locale\**" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="docs\_images\**" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="docs\en_GB\**" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="docs\zh_CN\**" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="docs\About_*.md" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="LICENSE.md" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="README.md" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="README_zh_CN.md" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="docs\THIRD_PARTY_NOTICES*.md" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Licenses\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
@@ -64,6 +59,7 @@
     <PackageReference Include="Avalonia" Version="12.1.0" />
     <PackageReference Include="Avalonia.AvaloniaEdit" Version="12.0.0" />
     <PackageReference Include="Avalonia.Controls.ColorPicker" Version="12.1.0" />
+    <PackageReference Include="Avalonia.Controls.WebView" Version="12.1.0" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.0" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.0" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.0" />

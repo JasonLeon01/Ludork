@@ -181,18 +181,11 @@ for %%F in (
     "%ROOT_DIR%\LICENSE.md"
     "%ROOT_DIR%\README.md"
     "%ROOT_DIR%\README_zh_CN.md"
-    "%ROOT_DIR%\docs\THIRD_PARTY_NOTICES.md"
-    "%ROOT_DIR%\docs\THIRD_PARTY_NOTICES_zh_CN.md"
-    "%ROOT_DIR%\docs\About_en_GB.md"
-    "%ROOT_DIR%\docs\About_zh_CN.md"
 ) do (
     call :require_file "%%~F"
     if errorlevel 1 exit /b 1
 )
 for %%D in (
-    "%ROOT_DIR%\docs\_images"
-    "%ROOT_DIR%\docs\en_GB"
-    "%ROOT_DIR%\docs\zh_CN"
     "%ROOT_DIR%\Licenses"
 ) do (
     call :require_directory "%%~D"
@@ -234,7 +227,7 @@ if errorlevel 1 goto failed
 if errorlevel 1 goto failed
 
 echo Moving editor content to the package root...
-for %%D in (Locale docs Licenses) do (
+for %%D in (Locale Licenses) do (
     move "%BINARIES_DIR%\%%D" "%STAGE_DIR%\%%D" >nul
     if errorlevel 1 goto failed
 )
@@ -430,24 +423,6 @@ call :require_file "%PACKAGE_DIR%\README.md"
 if errorlevel 1 exit /b 1
 call :require_file "%PACKAGE_DIR%\README_zh_CN.md"
 if errorlevel 1 exit /b 1
-call :require_file "%PACKAGE_DIR%\docs\THIRD_PARTY_NOTICES.md"
-if errorlevel 1 exit /b 1
-call :require_file "%PACKAGE_DIR%\docs\THIRD_PARTY_NOTICES_zh_CN.md"
-if errorlevel 1 exit /b 1
-call :require_file "%PACKAGE_DIR%\docs\About_en_GB.md"
-if errorlevel 1 exit /b 1
-call :require_file "%PACKAGE_DIR%\docs\About_zh_CN.md"
-if errorlevel 1 exit /b 1
-for %%F in ("%ROOT_DIR%\docs\About_*.md") do (
-    call :require_file "%PACKAGE_DIR%\docs\%%~nxF"
-    if errorlevel 1 exit /b 1
-)
-call :require_directory "%PACKAGE_DIR%\docs\_images"
-if errorlevel 1 exit /b 1
-call :require_directory "%PACKAGE_DIR%\docs\en_GB"
-if errorlevel 1 exit /b 1
-call :require_directory "%PACKAGE_DIR%\docs\zh_CN"
-if errorlevel 1 exit /b 1
 call :require_directory "%PACKAGE_DIR%\Licenses"
 if errorlevel 1 exit /b 1
 "%SCRIPT_TOOLS%" editor-official-plugins validate "%PACKAGE_DIR%"
@@ -473,6 +448,7 @@ for %%F in (
     "Avalonia\LICENSE.txt"
     "Avalonia\Inter-OFL-1.1.txt"
     "EditorPackages\AvaloniaEdit-LICENSE.txt"
+    "EditorPackages\Avalonia.Controls.WebView-LICENSE.txt"
     "EditorPackages\CommunityToolkit.Mvvm-LICENSE.md"
     "EditorPackages\Svg.Skia-LICENSE.txt"
     "EditorPackages\Svg.Custom-LICENSE.txt"
@@ -565,17 +541,6 @@ for %%P in (
         exit /b 1
     )
 )
-for /f "delims=" %%D in ('dir /B /A "%PACKAGE_DIR%\docs"') do (
-    set "PUBLIC_DOC_ENTRY="
-    for %%F in (_images en_GB zh_CN THIRD_PARTY_NOTICES.md THIRD_PARTY_NOTICES_zh_CN.md "%ROOT_DIR%\docs\About_*.md") do (
-        if /I "%%D"=="%%~nxF" set "PUBLIC_DOC_ENTRY=1"
-    )
-    if not defined PUBLIC_DOC_ENTRY (
-        echo Non-public documentation was found in the editor package: %PACKAGE_DIR%\docs\%%D
-        exit /b 1
-    )
-)
-
 for %%P in (
     "%PACKAGE_DIR%\Game"
     "%PACKAGE_DIR%\.ludork-development"

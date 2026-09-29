@@ -3819,6 +3819,18 @@
     "zh_CN": "关于 Ludork",
     "en_GB": "About Ludork"
   },
+  "DOCUMENTATION_LOAD_FAILED": {
+    "zh_CN": "无法加载在线文档，请检查网络连接后重试。",
+    "en_GB": "Unable to load the online documentation. Check your connection and retry."
+  },
+  "DOCUMENTATION_WEBVIEW2_REQUIRED": {
+    "zh_CN": "在线文档需要 Microsoft Edge WebView2 运行时。请安装后重试。",
+    "en_GB": "Online documentation requires the Microsoft Edge WebView2 Runtime. Install it, then retry."
+  },
+  "DOCUMENTATION_INSTALL_WEBVIEW2": {
+    "zh_CN": "安装 WebView2",
+    "en_GB": "Install WebView2"
+  },
   "ABOUT_LICENSES": {
     "zh_CN": "许可证与第三方声明",
     "en_GB": "Licences and Third-Party Notices"

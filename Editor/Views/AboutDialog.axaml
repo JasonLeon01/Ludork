@@ -1,16 +1,16 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:Ludork.Controls"
         x:Class="Ludork.Views.AboutDialog"
-        Width="500"
-        Height="400"
-        MinWidth="400"
-        MinHeight="320"
-        CanResize="False"
+        Width="760"
+        Height="600"
+        MinWidth="540"
+        MinHeight="440"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource Editor.BackgroundBrush}"
         FontFamily="{DynamicResource Editor.FontFamily}"
         Icon="/Editor/Assets/icon.ico">
-    <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" RowSpacing="12">
+    <Grid Margin="24" RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="12">
         <TextBlock x:Name="AppNameText"
                    HorizontalAlignment="Center"
                    FontSize="28"
@@ -18,15 +18,12 @@
         <TextBlock x:Name="VersionText"
                    Grid.Row="1"
                    HorizontalAlignment="Center" />
-        <TextBlock x:Name="DescriptionText"
-                   Grid.Row="2"
-                   HorizontalAlignment="Stretch"
-                   TextWrapping="Wrap" />
+        <controls:DocumentationView x:Name="Documentation" Grid.Row="2" />
         <TextBlock x:Name="CopyrightText"
                    Grid.Row="3"
                    HorizontalAlignment="Center"
                    Foreground="{DynamicResource Editor.TextMutedBrush}" />
-        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
             <Button x:Name="LicensesButton" Click="onOpenLicenses" />
             <Button x:Name="CloseButton" Click="onClose" />
         </StackPanel>

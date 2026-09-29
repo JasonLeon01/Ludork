@@ -53,53 +53,46 @@ tools\pack_editor.bat
 
 ### Website and documentation
 
-The website frontend lives in `docs/__default__` and uses React, MUI, and Vite.
-Install its locked dependencies with `npm ci` from that directory, then run
-`npm run dev` for local development or `npm run preview` after building. Both
-servers expose the Markdown and images directly from the parent `docs` directory.
+The website and its source Markdown live on the independent `gh-pages` branch,
+served by GitHub Pages from that branch's root. Use a separate worktree and keep
+the business worktree on its current branch. Reuse the `gh-pages` checkout shown
+by `git worktree list`; if missing, create one from the existing branch (fetch it
+first when only the remote branch exists). AI agents use the managed worktree
+creation tool as described in [AGENTS.md](../AGENTS.md#documentation-workflow).
+Only the initial migration creates an orphan branch.
 
-From the repository root, run `sh docs/build_docs.sh` on macOS or
-`docs\build_docs.bat` on Windows to build the website and refresh its GitHub Pages
-files. Node.js must satisfy the frontend's `package.json` engine requirement.
-The scripts check all required outputs before replacing generated pages and
-assets. Do not edit the generated HTML or asset bundles by hand.
+The first two components of `EDITOR_VERSION` select the documentation version:
+`1.0.7` uses `1.0/docs/en_GB`, `1.0/docs/zh_CN` and `1.0/images` in the documentation
+worktree. Shared About and notice Markdown also lives in `1.0/docs`. Read those
+sources directly, or use `git show "gh-pages:1.0/docs/<path>"` without switching
+branches. Complete code verification first, then update all affected languages,
+verify the site, and create a scoped local documentation commit. Preserve
+unrelated work and retain the worktree for later tasks; pushing is a separate,
+explicit action.
 
-GitHub Pages serves the repository's `docs` directory at `/Ludork/`. The homepage,
-documentation, About, and third-party notices have separate HTML entries at
-`/Ludork/`, `/Ludork/docs/`, `/Ludork/about/`, and `/Ludork/notices/`; Download links
-directly to GitHub Releases. The notices page is reached from the shared footer
-and keeps its page identity when switching language.
-All pages use `?lang=en_GB` or `?lang=zh_CN`. Document selections use `doc` or
-`path` under `/Ludork/docs/`, with an optional heading fragment. Root-page document
-queries are not documentation routes. Keep `.nojekyll` in the published output.
+The React/MUI/Vite frontend lives in `__default__` on `gh-pages`. Follow that
+branch's README for dependency setup, development, preview and hook installation.
+Run its root `build_docs.bat` on Windows or `sh build_docs.sh` on macOS to refresh
+generated pages and assets. The branch's `.githooks/pre-commit` runs the build and
+includes generated output in the same commit; it rejects failed builds and
+unstaged build inputs. Do not edit generated HTML or asset bundles by hand.
+The main worktree retains its own GlobalFunctions commit check.
 
-Keep public Markdown in `docs/en_GB` and `docs/zh_CN`, images in `docs/_images`,
-and shared About text in `docs/About_*.md`. The editor notices are sourced from
-`docs/THIRD_PARTY_NOTICES.md` and `docs/THIRD_PARTY_NOTICES_zh_CN.md`. Frontend
-translations live in the typed `ludorkSiteMessages.ts` module. The editor packages
-the two documentation language trees and their images; About and notice sources
-retain their `docs/` paths through MSBuild and the platform packaging scripts.
-Website HTML, JavaScript, and build sources are not included in editor packages.
-
-The homepage uses `src/Ludork/assets/hero/home-hero.png` as its replaceable main
-image. Its acknowledgements list is defined in `ludorkDependencies.ts`; dependency
-cards scroll automatically and support native horizontal scrolling with hidden
-scrollbars, including trackpad gestures, Shift + mouse wheel and mobile touch
-swipes. Automatic scrolling pauses during hover, focus, touch and momentum
-scrolling, and is disabled when reduced motion is requested. The platform
-sections share one row in equal columns, with centred headings and fixed small
-icons that wrap on narrow screens and do not link to
-external websites. Icon sources are recorded in
-`src/Ludork/assets/credits.md`.
+Public entries are `/Ludork/`, `/Ludork/docs/v1.0/`, `/Ludork/about/` and
+`/Ludork/notices/`; Download links to GitHub Releases. Pages support `lang=en_GB`
+or `lang=zh_CN`; documentation selection uses `doc` or `path` and optional heading
+fragments. About and notices take `version=1.0`. The editor adds `embedded=1` and
+opens the online pages for its major/minor version. Editor builds and packages do
+not include or download website Markdown, images, frontend sources or generated
+site assets. Configure GitHub Pages to deploy `gh-pages / (root)` and keep
+`.nojekyll` in the published output; no custom deployment workflow is needed.
 
 `ScriptTools legal-resources editor <repository-root> <output-root>` writes the
-editor's root licence and READMEs, notices under `docs/`, and licence indexes,
-preserving their source-relative Markdown links. MSBuild and editor packaging invoke
-it after copying resources. `legal-resources template-index` takes the same two
-paths and writes only the two licence indexes so they point to the template's
-own root runtime notices. Both commands leave the source documents unchanged;
-the `Game` notices and runtime packaging filenames remain independent of the
-editor notices.
+editor's root licence, READMEs and licence indexes. MSBuild and editor packaging
+invoke it after copying resources. `legal-resources template-index` takes the
+same two paths and writes only the two licence indexes, pointing to the template's
+own root runtime notices. Both commands leave source documents unchanged. Local
+licence texts and Game/template runtime notices remain part of their distributions.
 
 ### Animation MP4 export
 
@@ -149,7 +142,7 @@ checks consider Construct first, then Export. After the first success, changed
 native inputs prompt to construct and play; changed export inputs or outputs
 prompt to export and play. Editor **Pack** runs Export before packaging and
 stops if export fails. The editor workflow is in
-[Running, Testing and Packaging](<../docs/en_GB/02.Editor User Guide/08.Run Debug and Package.md>).
+[Running, Testing and Packaging](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=02%2F08).
 
 The project export record is local state in `EditorCache/ProjectExport.json`. Templates
 exclude that record, generated UI Views and declarations, and generated locale
@@ -368,7 +361,7 @@ existing draft; an already published release is not overwritten. No release
 is automatically published, and only the release-upload job has `contents: write`.
 
 Complete packages include the selected commit's Game templates; both modes
-include its editor, tools, plug-ins, locale and docs. Local syntax and build checks do not
+include its editor, tools, plug-ins, locale and licence texts. Local syntax and build checks do not
 replace successful hosted Actions runs or confirmation of the `main` merge rule.
 
 Both editor packaging scripts use the shared ScriptTools command
@@ -401,7 +394,6 @@ dist/
 │       └── …                  # Bundled runtime dependencies
 ├── Plugins/
 ├── plugins.json
-├── docs/
 ├── Licenses/
 └── …                          # Readme and licence files
 ```
@@ -447,7 +439,7 @@ removed. An ordinary failure rolls back to the previous installation; if
 rollback itself cannot finish, the installer reports recovery details instead
 of claiming that the old installation is intact. The app registers Ludork
 `.proj` files with Finder and includes their document icon.
-Editor content, templates, documentation, and runtime tools are stored under
+Editor content, templates, licence texts, and runtime tools are stored under
 `Contents/Resources`; `Contents/MacOS` only contains the executable and its .NET
 runtime dependencies. The app and installer are not signed or notarised.
 
@@ -861,7 +853,7 @@ The full release identifier is the base version for formal packages, or
 at pack start. For example, `1.0.0` at `2026-01-01T07:00:00+08:00` produces
 `1.0.0.2026010107` in dev mode. The full rules, platform version/build-number
 mapping and `Data/BuildInfo.json` fields are documented in
-[Release version and internal packages](<../docs/en_GB/02.Editor User Guide/08.Run Debug and Package.md#release-version-and-internal-packages>).
+[Release version and internal packages](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=02%2F08#release-version-and-internal-packages).
 The dev flag does not change Release optimisation, signing or encryption.
 
 `<full-version>` in the output paths is this full release identifier.
@@ -971,8 +963,8 @@ projects must be regenerated.
 `Game` carries the Ludork licence and game-runtime legal materials, including
 native dependencies, optional FFmpeg and bundled assets. Template generation
 refreshes those materials in C++ templates and derives Standalone templates
-from them. Editor, managed-runtime and build-tool notices remain in the editor
-distribution. Final game packages remove preview-specific files and the
+from them. Editor, managed-runtime and build-tool notices are available on the
+website; their licence texts remain in the editor distribution. Final game packages remove preview-specific files and the
 `LudorkNativeStubDump` / `LudorkNativeStubDump.exe` build tool from `Binaries`,
 retain shared libraries, and exclude root `EditorCache` and `Cache`. macOS
 excludes the build tool before validating and copying app runtime libraries.
