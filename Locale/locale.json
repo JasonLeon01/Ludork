@@ -932,8 +932,8 @@
     "en_GB": "Start creating"
   },
   "START_SUBTITLE": {
-    "zh_CN": "创建新项目，或继续编辑已有的 Ludork 项目。",
-    "en_GB": "Create a new world or continue editing an existing Ludork project."
+    "zh_CN": "创建或打开 Ludork 项目。",
+    "en_GB": "Create or open a Ludork project."
   },
   "START_RECENT_PROJECTS": {
     "zh_CN": "最近项目",
@@ -952,8 +952,8 @@
     "en_GB": "New Project"
   },
   "NEW_PROJECT_SUBTITLE": {
-    "zh_CN": "选择适合的模板，并配置工程的保存位置。",
-    "en_GB": "Choose a template and configure where the project will be created."
+    "zh_CN": "选择模板和工程保存位置。",
+    "en_GB": "Choose a template and project location."
   },
   "NEW_PROJECT_CHOOSE_TEMPLATE": {
     "zh_CN": "工程模板",
@@ -964,8 +964,8 @@
     "en_GB": "Standalone"
   },
   "NEW_PROJECT_STANDALONE_SUMMARY": {
-    "zh_CN": "已完成编译，可直接开始制作和运行。",
-    "en_GB": "Precompiled and ready to create and run."
+    "zh_CN": "使用预编译运行时制作游戏。",
+    "en_GB": "Create games with a precompiled runtime."
   },
   "NEW_PROJECT_RECOMMENDED": {
     "zh_CN": "推荐",
@@ -992,8 +992,8 @@
     "en_GB": "Full Source"
   },
   "NEW_PROJECT_READY_TO_RUN": {
-    "zh_CN": "可直接运行",
-    "en_GB": "Ready to Run"
+    "zh_CN": "预编译运行时",
+    "en_GB": "Precompiled Runtime"
   },
   "NEW_PROJECT_NATIVE_DEBUG": {
     "zh_CN": "原生调试",
@@ -1028,12 +1028,12 @@
     "en_GB": "Enable video playback (FFmpeg)"
   },
   "NEW_PROJECT_FFMPEG_SUMMARY": {
-    "zh_CN": "加入精简的 H.264 / AAC MP4 播放支持；默认关闭。",
-    "en_GB": "Adds trimmed H.264 / AAC MP4 playback support; disabled by default."
+    "zh_CN": "支持 MOV / MP4 视频播放（H.264 / AAC）",
+    "en_GB": "Supports MOV / MP4 video playback (H.264 / AAC)"
   },
   "NEW_PROJECT_FFMPEG_APPLE_HINT": {
-    "zh_CN": "Apple 平台提示：Standalone FFmpeg 模板仅面向 macOS；iOS 16.3 或更高版本请使用 C++ 源码版构建。",
-    "en_GB": "Apple platform note: the Standalone FFmpeg template targets macOS only; use C++ Source for iOS 16.3 or newer."
+    "zh_CN": "Standalone FFmpeg 模板仅支持 macOS；iOS 16.3 或更高版本需使用 C++ 源码版。",
+    "en_GB": "The Standalone FFmpeg template supports macOS only; iOS 16.3 or newer requires C++ Source."
   },
   "BROWSE": {
     "zh_CN": "浏览...",
@@ -1056,8 +1056,8 @@
     "en_GB": "The selected project template is missing. Generate or install the templates first."
   },
   "NEW_PROJECT_STANDALONE_DESCRIPTION": {
-    "zh_CN": "适合第一次使用 Ludork 的用户。工程已包含编译完成的运行时，无需配置 C++ 工具链即可编辑 Lua、资源和数据并立即运行。",
-    "en_GB": "Best for new Ludork users. The compiled runtime is included, so Lua, assets, and data can be edited and run without a C++ toolchain."
+    "zh_CN": "无需 C++ 工具链即可编辑 Lua、资源和数据。首次运行前请先导出。",
+    "en_GB": "Edit Lua, assets and data without a C++ toolchain. Export before the first run."
   },
   "NEW_PROJECT_STANDALONE_FEATURE_1": {
     "zh_CN": "完整的游戏运行时与 Lua 脚本",
@@ -1068,8 +1068,8 @@
     "en_GB": "Editable Assets, Data, and Scripts"
   },
   "NEW_PROJECT_STANDALONE_FEATURE_3": {
-    "zh_CN": "编辑器内运行无需等待编译",
-    "en_GB": "Run from the editor without compiling"
+    "zh_CN": "无需编译 C++ 代码",
+    "en_GB": "No C++ compilation required"
   },
   "NEW_PROJECT_STANDALONE_REQUIREMENT_1": {
     "zh_CN": "Windows 10 或更高版本（x64）",
@@ -1079,10 +1079,6 @@
     "zh_CN": "无需 CMake 或 Visual Studio",
     "en_GB": "No CMake or Visual Studio required"
   },
-  "NEW_PROJECT_STANDALONE_REQUIREMENT_3": {
-    "zh_CN": "仅需足够的工程存储空间",
-    "en_GB": "Only sufficient project storage is required"
-  },
   "NEW_PROJECT_STANDALONE_REQUIREMENT_1_MACOS": {
     "zh_CN": "macOS 13.3 或更高版本（Apple Silicon）",
     "en_GB": "macOS 13.3 or newer on Apple Silicon"
@@ -1091,13 +1087,9 @@
     "zh_CN": "无需 CMake 或 Xcode",
     "en_GB": "No CMake or Xcode required"
   },
-  "NEW_PROJECT_STANDALONE_REQUIREMENT_3_MACOS": {
-    "zh_CN": "仅需足够的工程存储空间",
-    "en_GB": "Only sufficient project storage is required"
-  },
   "NEW_PROJECT_CPP_DESCRIPTION": {
-    "zh_CN": "适合需要修改引擎、原生模块或进行 C++ 断点调试的开发者。编辑器运行前会自动执行 Debug 构建。",
-    "en_GB": "For developers modifying the engine or native modules and debugging C++. The editor performs a Debug build before running."
+    "zh_CN": "可修改引擎和原生模块，并调试 C++ 代码。首次运行前请先编译，再导出。",
+    "en_GB": "Modify the engine and native modules, and debug C++ code. Construct, then Export before the first run."
   },
   "NEW_PROJECT_CPP_FEATURE_1": {
     "zh_CN": "完整的 C++、Lua 与 CMake 源码",
@@ -1119,10 +1111,6 @@
     "zh_CN": "Visual Studio 2022 MSVC 工具链",
     "en_GB": "Visual Studio 2022 MSVC toolchain"
   },
-  "NEW_PROJECT_CPP_REQUIREMENT_3": {
-    "zh_CN": "Python 3.12",
-    "en_GB": "Python 3.12"
-  },
   "NEW_PROJECT_CPP_REQUIREMENT_1_MACOS": {
     "zh_CN": "CMake 3.21 或更高版本",
     "en_GB": "CMake 3.21 or newer"
@@ -1130,10 +1118,6 @@
   "NEW_PROJECT_CPP_REQUIREMENT_2_MACOS": {
     "zh_CN": "Apple Clang 与 Xcode Command Line Tools",
     "en_GB": "Apple Clang and Xcode Command Line Tools"
-  },
-  "NEW_PROJECT_CPP_REQUIREMENT_3_MACOS": {
-    "zh_CN": "Python 3.12",
-    "en_GB": "Python 3.12"
   },
   "RUN_PROJECT_INVALID": {
     "zh_CN": "工程路径无效或缺少必要文件。",
@@ -1276,8 +1260,8 @@
     "en_GB": "Android APK Signing"
   },
   "PACK_ANDROID_SIGNING_DESCRIPTION": {
-    "zh_CN": "选择 Keystore 并输入本次打包使用的签名信息。已保存的信息会在选择对应文件后自动填写。",
-    "en_GB": "Select a keystore and enter the signing information for this packaging run. Saved details are filled after selecting the matching file."
+    "zh_CN": "选择 Keystore 并填写签名信息；选择已保存的文件会自动填入对应信息。",
+    "en_GB": "Select a keystore and enter signing details. Selecting a saved keystore fills its details automatically."
   },
   "PACK_ANDROID_KEYSTORE": {
     "zh_CN": "Keystore 文件",
@@ -1556,8 +1540,8 @@
     "en_GB": "HarmonyOS HAP Signing"
   },
   "PACK_HARMONY_SIGNING_DESCRIPTION": {
-    "zh_CN": "选择工程目录外的密钥库、证书和 Profile。选择已保存的密钥库后会自动填写签名信息。",
-    "en_GB": "Select a keystore, certificate and profile outside the project directory. Saved details are filled after selecting the matching keystore."
+    "zh_CN": "选择工程目录外的密钥库、证书和 Profile；已保存的签名信息会随密钥库自动填入。",
+    "en_GB": "Select a keystore, certificate and profile outside the project. Saved signing details are filled for the selected keystore."
   },
   "PACK_HARMONY_KEYSTORE": {
     "zh_CN": "Keystore 文件",
@@ -1780,8 +1764,8 @@
     "en_GB": "No unique Apple Development signing team is available. Configure a developer account in Xcode"
   },
   "PACK_IOS_PROJECT_UNSUPPORTED": {
-    "zh_CN": "iOS 打包只支持包含完整 CMake 源码的 C++ 项目",
-    "en_GB": "iOS packaging requires a C++ project with complete CMake sources"
+    "zh_CN": "iOS 打包需要 C++ 源码工程",
+    "en_GB": "iOS packaging requires a C++ Source project"
   },
   "PACK_HARMONY_TOOLCHAIN_UNAVAILABLE": {
     "zh_CN": "HarmonyOS 打包工具链不可用，请安装 DevEco Studio 并完成首次启动设置",
@@ -1796,8 +1780,8 @@
     "en_GB": "HarmonyOS HAP signing failed. Check the external keystore, certificate, profile, key alias and passwords, and review the log above for details"
   },
   "PACK_HARMONY_PROJECT_UNSUPPORTED": {
-    "zh_CN": "HarmonyOS 打包只支持包含完整 CMake 源码的 C++ 项目",
-    "en_GB": "HarmonyOS packaging requires a C++ project with complete CMake sources"
+    "zh_CN": "HarmonyOS 打包需要 C++ 源码工程",
+    "en_GB": "HarmonyOS packaging requires a C++ Source project"
   },
   "PACK_ANDROID_TOOLCHAIN_UNAVAILABLE": {
     "zh_CN": "Android 打包工具链不可用。请安装 Android Studio、SDK Platform 36、Build Tools 36.0.0、完整 NDK r27+ 及本机 CMake 3.28+；详情见打包日志",
@@ -1808,8 +1792,8 @@
     "en_GB": "Android APK signing failed. Check the keystore, key alias, and passwords, and review the log above for details"
   },
   "PACK_ANDROID_PROJECT_UNSUPPORTED": {
-    "zh_CN": "Android 打包只支持包含完整 CMake 源码的 C++ 项目",
-    "en_GB": "Android packaging requires a C++ project with complete CMake sources"
+    "zh_CN": "Android 打包需要 C++ 源码工程",
+    "en_GB": "Android packaging requires a C++ Source project"
   },
   "PACK_EXIT_CODE": {
     "zh_CN": "游戏打包进程退出码：{0}",
@@ -2940,8 +2924,8 @@
     "en_GB": "Edit Move Route"
   },
   "MOVE_ROUTE_EDITOR_HINT": {
-    "zh_CN": "地图仅作为设置参考路线，实际上的移动路线为Actor当前位置起，移动到设置的相对最终路线",
-    "en_GB": "The map is only a reference for setting the route. The actual movement starts from the Actor's current position and follows the configured relative route."
+    "zh_CN": "地图仅用于绘制参考路线；实际移动从 Actor 当前位置开始，沿相对路线进行。",
+    "en_GB": "Use the map to draw a reference route. Movement follows that relative route from the Actor's current position."
   },
   "MOVE_ROUTE_EDIT": {
     "zh_CN": "编辑路线",
@@ -3556,40 +3540,40 @@
     "en_GB": "Asset Selection Root"
   },
   "GENERAL_DATA_PARAM_NAME_TIP": {
-    "zh_CN": "字段名：保存到 GeneralData 成员里的键名，通常应与代码读取的属性名一致，例如 icon 或 price。",
-    "en_GB": "Field name: The key saved on each GeneralData member. It should usually match the attribute name read by code, such as icon or price."
+    "zh_CN": "字段在代码中使用的名称，例如 icon 或 price。",
+    "en_GB": "The field name used in code, such as icon or price."
   },
   "GENERAL_DATA_TYPE_TIP_STRING": {
-    "zh_CN": "string：普通文本字段，编辑时使用单行文本框。",
-    "en_GB": "string: A plain text field edited with a single-line text box."
+    "zh_CN": "string：单行文本。",
+    "en_GB": "string: Single-line text."
   },
   "GENERAL_DATA_TYPE_TIP_INT": {
-    "zh_CN": "int：整数数字字段，编辑时使用整数输入框。",
-    "en_GB": "int: An integer numeric field edited with an integer spin box."
+    "zh_CN": "int：整数。",
+    "en_GB": "int: An integer."
   },
   "GENERAL_DATA_TYPE_TIP_FLOAT": {
-    "zh_CN": "float：小数字段，编辑时使用浮点数输入框。",
-    "en_GB": "float: A decimal numeric field edited with a floating-point spin box."
+    "zh_CN": "float：小数。",
+    "en_GB": "float: A decimal number."
   },
   "GENERAL_DATA_TYPE_TIP_BOOL": {
-    "zh_CN": "bool：真假值字段，编辑时使用勾选框。",
-    "en_GB": "bool: A true/false field edited with a checkbox."
+    "zh_CN": "bool：勾选表示 true，未勾选表示 false。",
+    "en_GB": "bool: Checked means true; unchecked means false."
   },
   "GENERAL_DATA_TYPE_TIP_FILE": {
-    "zh_CN": "file：资源文件字段，编辑时从物理 Assets 目录选择文件，并保存完整的 /Game/Assets/... 逻辑路径。",
-    "en_GB": "file: An asset file field. It selects a physical file under Assets and stores its complete /Game/Assets/... logical path."
+    "zh_CN": "file：从 Assets 选择文件，保存为 /Game/Assets/... 路径。",
+    "en_GB": "file: Select a file under Assets; stores its /Game/Assets/... path."
   },
   "GENERAL_DATA_TYPE_TIP_LIST": {
-    "zh_CN": "list：列表字段；每一项由元素类型决定，并使用对应的 typed editor。",
-    "en_GB": "list: A list field whose item type selects the typed editor used for every row."
+    "zh_CN": "list：按所选元素类型编辑列表项。",
+    "en_GB": "list: Edit items using the selected item type."
   },
   "GENERAL_DATA_TYPE_TIP_DICT": {
-    "zh_CN": "dict：string key 字典；每个 value 由值类型决定，并使用对应的 typed editor。",
-    "en_GB": "dict: A string-keyed dictionary whose value type selects the typed editor for each value."
+    "zh_CN": "dict：键为字符串，值按所选类型编辑。",
+    "en_GB": "dict: String keys with values of the selected type."
   },
   "GENERAL_DATA_TYPE_TIP_SF": {
-    "zh_CN": "SFML 值类型：使用对应的向量、颜色或矩形复合输入控件。",
-    "en_GB": "SFML value type: Uses the matching vector, colour, or rectangle composite input."
+    "zh_CN": "SFML 值类型：向量、颜色或矩形。",
+    "en_GB": "SFML value type: A vector, colour or rectangle."
   },
   "GENERAL_DATA_DEFAULT_TIP_STRING": {
     "zh_CN": "string：新成员默认填入的文本。",
@@ -3608,16 +3592,16 @@
     "en_GB": "bool: Enter true for checked; any other value is unchecked."
   },
   "GENERAL_DATA_DEFAULT_TIP_FILE": {
-    "zh_CN": "file：填写选择器在 Assets 下的起始目录，例如 Icons；新成员的真实字段默认值始终为空字符串。",
-    "en_GB": "file: Enter the selector's starting directory under Assets, such as Icons; the real field default for new members is always an empty string."
+    "zh_CN": "file：Assets 下的文件选择起始目录，例如 Icons；新成员的文件路径默认为空。",
+    "en_GB": "file: Starting directory under Assets, such as Icons; new members have an empty file path."
   },
   "GENERAL_DATA_DEFAULT_TIP_LIST": {
     "zh_CN": "list：新成员默认使用空列表；新增项使用所选元素类型的默认值。",
     "en_GB": "list: New members use an empty list; added rows use the selected item type's default."
   },
   "GENERAL_DATA_DEFAULT_TIP_DICT": {
-    "zh_CN": "dict：新成员默认使用空字典；新增 value 使用所选值类型的默认值。",
-    "en_GB": "dict: New members use an empty dictionary; added values use the selected value type's default."
+    "zh_CN": "dict：新成员使用空字典；新增值使用所选类型的默认值。",
+    "en_GB": "dict: New members start with an empty dictionary; added values use the selected type's default."
   },
   "GENERAL_DATA_DEFAULT_TIP_SF": {
     "zh_CN": "SFML 值类型使用对应控件的内置默认值。",
@@ -4272,20 +4256,20 @@
     "en_GB": "Native preview unavailable"
   },
   "UI_PREVIEW_COMPILE_REQUIRED": {
-    "zh_CN": "UI 预览产物尚未就绪。源码工程请先编译；Standalone 工程会从 Binaries 恢复缺失的预览 JSON，恢复失败时请更新配套程序。",
-    "en_GB": "UI preview artifacts are not ready. Compile source projects first. Standalone projects restore missing preview JSON from Binaries; update the matching runtime if recovery fails."
+    "zh_CN": "UI 预览尚未就绪。源码工程请先编译；Standalone 工程若仍无法预览，请更新配套预览程序。",
+    "en_GB": "UI preview is not ready. Build source projects first; if a Standalone preview remains unavailable, update its matching preview runtime."
   },
   "UI_PREVIEW_BUILD_REQUIRED": {
-    "zh_CN": "此项目正在编译，或上次编译尚未成功。请完成一次成功编译后再编辑或预览 UI。",
-    "en_GB": "This project is building, or its last build did not succeed. Complete a successful build before editing or previewing UI."
+    "zh_CN": "工程正在编译或上次编译未成功；编译成功后才能编辑和预览 UI。",
+    "en_GB": "The project is building or its last build failed. A successful build is required to edit and preview UI."
   },
   "UI_SAVE_NATIVE_VALIDATION_PENDING": {
     "zh_CN": "UI 资产仅通过结构检查，尚未执行原生控件校验。请编译 C++ 工程完成校验。",
     "en_GB": "UI assets passed structural checks only. Native control validation has not run; build the C++ project to complete validation."
   },
   "UI_PREVIEW_SNAPSHOT_INVALID": {
-    "zh_CN": "此项目的 UI 注册表与原生预览程序无效或不匹配。源码工程请重新编译；Standalone 工程请更新 EditorCache 中的预览 JSON 和 Binaries 中配套的预览程序。",
-    "en_GB": "This project's UI registry and native preview runtime are invalid or do not match. Rebuild source projects; update the preview JSON in EditorCache and the matching preview runtime in Binaries for Standalone projects."
+    "zh_CN": "UI 注册表或预览程序无效或不匹配。源码工程请重新编译；Standalone 工程请更新 EditorCache 中的预览 JSON 和 Binaries 中的配套程序。",
+    "en_GB": "The UI registry or preview runtime is invalid or mismatched. Rebuild source projects; for Standalone, update the preview JSON in EditorCache and matching runtime in Binaries."
   },
   "UI_REGISTRY_CANVAS_REQUIRED": {
     "zh_CN": "此项目的 UI 注册表缺少 Engine.Canvas，无法创建默认 UI 根节点。请恢复该原生控件并重新编译。",
@@ -4296,8 +4280,8 @@
     "en_GB": "Live Actor shader preview is unavailable. Local texture rendering is being used: {0}"
   },
   "UI_ASSET_DELETE_REFERENCED": {
-    "zh_CN": "待删除内容仍存在以下 UI 相关入向引用，已取消删除：\n{references}",
-    "en_GB": "Deletion was cancelled because the selected content still has these UI-related incoming references:\n{references}"
+    "zh_CN": "以下 UI 相关引用尚未移除，已取消删除：\n{references}",
+    "en_GB": "Deletion cancelled. Remove these UI-related references first:\n{references}"
   },
   "ANCHOR_PRESETS": {
     "zh_CN": "锚点预设",

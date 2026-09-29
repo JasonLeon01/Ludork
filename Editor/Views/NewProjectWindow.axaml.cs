@@ -120,7 +120,6 @@ public partial class NewProjectWindow : Window
         string requirementSuffix = OperatingSystem.IsMacOS() ? "_MACOS" : string.Empty;
         DetailRequirement1.Text = LocaleService.Get(prefix + "_REQUIREMENT_1" + requirementSuffix);
         DetailRequirement2.Text = LocaleService.Get(prefix + "_REQUIREMENT_2" + requirementSuffix);
-        DetailRequirement3.Text = LocaleService.Get(prefix + "_REQUIREMENT_3" + requirementSuffix);
         updateCompatibility();
         updateValidation();
     }
