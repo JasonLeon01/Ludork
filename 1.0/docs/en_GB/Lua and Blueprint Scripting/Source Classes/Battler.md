@@ -1,0 +1,30 @@
+# Source.Battler
+
+`Battler` is the Lua gameplay base of `Enemy` and `Player`, which construct their generated Attribute Set from General Data.
+
+Metadata source: `Scripts/Source/Battler_meta.lua`
+
+## Runtime state
+
+| Name | Type | Meaning |
+|---|---|---|
+| `attributes` | `GlobalCore.AttributeSet` | Live generated Attribute Set; concrete types narrow it to Enemy or Player |
+| `_abilitySystemComponent` | `GlobalCore.AbilitySystemComponent` | Private owner of attributes, abilities, effects and tags |
+
+## Runtime API
+
+| Member | Signature | Behaviour |
+|---|---|---|
+| `init` | `(attributes)` | Requires an Attribute Set and creates its Ability System Component |
+| `getAbilitySystemComponent` | `() -> AbilitySystemComponent` | Returns the live Ability System |
+| `getAttr` | `(name, base = false) -> number` | Returns numeric Current, or Base when `base` is `true` |
+| `setAttr` | `(name, value)` | Sets numeric Base through the Ability System and recalculates Current |
+| `addAttr` | `(name, delta)` | Adds `delta` to numeric Base; negative values subtract |
+| `playAttackAnimationAt` | `(scene, targetPosition) -> GlobalCore.Animation?` | Plays `attributes.ANIMATION_KEY` at the target and returns the animation. An empty key returns `nil`. Callers can read its visual duration and time tags |
+
+Use `getAttr`, `setAttr` and `addAttr` for individual numeric attributes. `addAttr` reads Base, so active modifiers remain separate. These methods retain native validation: unknown attributes, non-finite values and generated `int` or `float` schema mismatches fail. Other data is read directly from `attributes`. Use the Ability System for batch writes, persistence, Effects and listeners.
+
+## Related pages
+
+- [GlobalCore Gameplay API](<../Global and Core Modules/Global APIs/Gameplay.md>)
+- [Source Gameplay API](<Gameplay.md>)

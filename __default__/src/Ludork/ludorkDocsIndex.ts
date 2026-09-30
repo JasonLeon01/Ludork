@@ -1,8 +1,10 @@
 import { getDocsVersion } from './ludorkVersions'
-import docFilenamesByVersion from 'virtual:ludork-doc-filenames'
+import manifestsByVersion from 'virtual:ludork-doc-manifest'
+import type { DocManifestNode, DocsManifest } from './ludorkDocsManifest'
 import { LUDORK_LANGUAGE_KEYS, type LanguageKey } from './ludorkLanguages'
 
 export type DocEntry = {
+  key: string
   filename: string
   displayName: string
 }
@@ -32,114 +34,36 @@ function entryDisplayName(filename: string): string {
   return filename.replace(/\.md$/i, '')
 }
 
-function sectionDisplayName(name: string): string {
-  const displayName = name.replace(/^\d+[.\s_-]*/, '')
-  return displayName || name
-}
-
-function byNumericPrefix(a: string, b: string): number {
-  return (parseInt(a, 10) || 0) - (parseInt(b, 10) || 0)
-}
-
 function normalizeDocPath(filename: string): string {
   return filename.replace(/\\/g, '/').replace(/^\/+/, '')
 }
 
-function compareTreeItems(a: DocTreeItem, b: DocTreeItem): number {
-  const aName = a.type === 'folder' ? a.path.split('/').at(-1)! : a.entry.filename.split('/').at(-1)!
-  const bName = b.type === 'folder' ? b.path.split('/').at(-1)! : b.entry.filename.split('/').at(-1)!
-  const prefixDiff = byNumericPrefix(aName, bName)
-  if (prefixDiff !== 0) {
-    return prefixDiff
-  }
-
-  const aLabel = a.type === 'folder' ? a.displayName : a.entry.displayName
-  const bLabel = b.type === 'folder' ? b.displayName : b.entry.displayName
-  return aLabel.localeCompare(bLabel, undefined, { numeric: true, sensitivity: 'base' })
+function getManifest(language: LanguageKey): DocsManifest {
+  const manifest = manifestsByVersion[getDocsVersion()]?.[language]
+  if (!manifest) throw new Error(`Missing local docs manifest for ${language}`)
+  return manifest
 }
 
-function sortTreeItems(items: DocTreeItem[]): void {
-  items.sort(compareTreeItems)
-  items.forEach((item) => {
-    if (item.type === 'folder') {
-      sortTreeItems(item.children)
-    }
+function docsFromManifest(nodes: DocManifestNode[]): DocTreeItem[] {
+  return nodes.map((node) => {
+    const displayName = entryDisplayName(node.path.split('/').at(-1)!)
+    return node.children === undefined
+      ? { type: 'doc', entry: { key: node.key, filename: node.path, displayName } }
+      : { type: 'folder', path: node.path, displayName, children: docsFromManifest(node.children) }
   })
 }
 
-function docsFromFilenames(filenames: readonly string[]): DocTreeItem[] {
-  const root: DocTreeItem[] = []
-  const folders = new Map<string, Extract<DocTreeItem, { type: 'folder' }>>()
-
-  filenames
-    .map(normalizeDocPath)
-    .filter((filename) => filename.endsWith('.md') && !filename.includes('//'))
-    .forEach((filename) => {
-      const parts = filename.split('/').filter(Boolean)
-      if (!parts.length) {
-        return
-      }
-
-      let siblings = root
-      let folderPath = ''
-
-      parts.slice(0, -1).forEach((folderName) => {
-        folderPath = folderPath ? `${folderPath}/${folderName}` : folderName
-        let folder = folders.get(folderPath)
-        if (!folder) {
-          folder = {
-            type: 'folder',
-            path: folderPath,
-            displayName: entryDisplayName(folderName),
-            children: [],
-          }
-          folders.set(folderPath, folder)
-          siblings.push(folder)
-        }
-        siblings = folder.children
-      })
-
-      const leafName = parts.at(-1)!
-      siblings.push({
-        type: 'doc',
-        entry: {
-          filename,
-          displayName: entryDisplayName(leafName),
-        },
-      })
-    })
-
-  sortTreeItems(root)
-  return root
+function flattenManifest(nodes: DocManifestNode[]): DocManifestNode[] {
+  return nodes.flatMap((node) => node.children === undefined ? [node] : flattenManifest(node.children))
 }
 
-function seqFromSegment(segment: string): string | null {
-  const name = segment.replace(/\.md$/i, '')
-  return name.match(/^(\d+)\./)?.[1] ?? null
-}
-
-export function docKeyFromFilename(filename: string): string {
-  return filename
-    .split('/')
-    .filter(Boolean)
-    .map((part) => seqFromSegment(part) ?? part)
-    .join('/')
+export function getDocKeyByFilename(language: LanguageKey, filename: string): string | null {
+  return flattenManifest(getManifest(language).sections)
+    .find((node) => node.path === normalizeDocPath(filename))?.key ?? null
 }
 
 export function getDocsHomeFilename(language: LanguageKey): string {
-  const filenames = docFilenamesByVersion[getDocsVersion()]?.[language]
-  if (!filenames) {
-    throw new Error(`Missing local docs manifest for ${language}`)
-  }
-
-  const candidates = filenames
-    .map(normalizeDocPath)
-    .filter((filename) => !filename.includes('/') && seqFromSegment(filename) === '00')
-  if (candidates.length !== 1) {
-    throw new Error(`Expected exactly one top-level 00 Markdown document for ${language}`)
-  }
-
-  return candidates[0]
+  return getManifest(language).home.path
 }
 
 export function getDocsHomePath(language: LanguageKey): string {
@@ -154,49 +78,27 @@ export function resolveKnownDocPath(path: string): KnownDocPath | null {
   }
 
   const filename = normalized.slice(language.length + 1)
-  const knownFilename = docFilenamesByVersion[getDocsVersion()]?.[language]
-    ?.map(normalizeDocPath)
-    .find((candidate) => candidate === filename)
-  if (!knownFilename) {
-    return null
-  }
-
-  return {
-    language,
-    filename: knownFilename,
-    docKey: knownFilename === getDocsHomeFilename(language)
-      ? null
-      : docKeyFromFilename(knownFilename),
-  }
+  const isHome = filename === getDocsHomeFilename(language)
+  const docKey = isHome ? null : getDocKeyByFilename(language, filename)
+  return isHome || docKey ? { language, filename, docKey } : null
 }
 
 export function getDocsSections(language: LanguageKey): DocSection[] {
-  const filenames = docFilenamesByVersion[getDocsVersion()]?.[language]
-  if (!filenames) {
-    throw new Error(`Missing local docs manifest for ${language}`)
-  }
-
-  const homeFilename = getDocsHomeFilename(language)
-  const roots = docsFromFilenames(filenames)
-
-  return roots.map((item) => {
-    if (item.type === 'folder') {
-      return {
-        key: docKeyFromFilename(item.path),
-        displayName: sectionDisplayName(item.displayName),
-        includesHome: false,
-        items: item.children,
-      }
-    }
-
-    const isHome = normalizeDocPath(item.entry.filename) === homeFilename
-    return {
-      key: docKeyFromFilename(item.entry.filename),
-      displayName: sectionDisplayName(item.entry.displayName),
-      includesHome: isHome,
-      items: isHome ? [] : [item],
-    }
-  })
+  const manifest = getManifest(language)
+  return [
+    {
+      key: manifest.home.key,
+      displayName: entryDisplayName(manifest.home.path),
+      includesHome: true,
+      items: [],
+    },
+    ...manifest.sections.map((section) => ({
+      key: section.key,
+      displayName: section.path,
+      includesHome: false,
+      items: docsFromManifest(section.children),
+    })),
+  ]
 }
 
 export function flattenDocFilenames(items: readonly DocTreeItem[]): string[] {
@@ -211,8 +113,8 @@ export function flattenDocFilenames(items: readonly DocTreeItem[]): string[] {
   return filenames
 }
 
-export function resolveFilenameByDocKey(filenames: readonly string[], docKey: string): string | null {
-  return filenames.find((filename) => docKeyFromFilename(filename) === docKey) ?? null
+export function resolveFilenameByDocKey(language: LanguageKey, docKey: string): string | null {
+  return flattenManifest(getManifest(language).sections).find((node) => node.key === docKey)?.path ?? null
 }
 
 export function findSectionByFilename(

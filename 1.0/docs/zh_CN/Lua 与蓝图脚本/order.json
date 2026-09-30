@@ -1,0 +1,396 @@
+{
+  "items": [
+    {
+      "key": "03/01",
+      "path": "Lua 运行时与模块.md"
+    },
+    {
+      "key": "03/02",
+      "path": "脚本 Mixin",
+      "children": [
+        {
+          "key": "03/02/00",
+          "path": "概述.md"
+        },
+        {
+          "key": "03/02/01",
+          "path": "编写工作流.md"
+        },
+        {
+          "key": "03/02/02",
+          "path": "运行时契约.md"
+        },
+        {
+          "key": "03/02/03",
+          "path": "Game Mixins.md"
+        },
+        {
+          "key": "03/02/04",
+          "path": "Metadata.md"
+        },
+        {
+          "key": "03/02/05",
+          "path": "校验与打包.md"
+        }
+      ]
+    },
+    {
+      "key": "03/03",
+      "path": "蓝图脚本",
+      "children": [
+        {
+          "key": "03/03/01",
+          "path": "执行流、事件与变量.md"
+        },
+        {
+          "key": "03/03/02",
+          "path": "Metadata 结构与 Decorator.md"
+        }
+      ]
+    },
+    {
+      "key": "03/04",
+      "path": "声明式 UI",
+      "children": [
+        {
+          "key": "03/04/01",
+          "path": "编写工作流.md"
+        },
+        {
+          "key": "03/04/02",
+          "path": "运行时契约.md"
+        },
+        {
+          "key": "03/04/03",
+          "path": "Controller 示例.md"
+        },
+        {
+          "key": "03/04/04",
+          "path": "资产 Schema 与 Control Registry.md"
+        },
+        {
+          "key": "03/04/05",
+          "path": "校验与打包.md"
+        }
+      ]
+    },
+    {
+      "key": "03/05",
+      "path": "Game 玩法",
+      "children": [
+        {
+          "key": "03/05/01",
+          "path": "默认模板概述.md"
+        },
+        {
+          "key": "03/05/02",
+          "path": "新游戏、标题与场景流程.md"
+        },
+        {
+          "key": "03/05/03",
+          "path": "Actor、敌人、物品与装备.md"
+        },
+        {
+          "key": "03/05/04",
+          "path": "窗口、菜单、输入与控件.md"
+        },
+        {
+          "key": "03/05/05",
+          "path": "资源、音频、视频与特效.md"
+        },
+        {
+          "key": "03/05/06",
+          "path": "运行时数据、配置与存档.md"
+        },
+        {
+          "key": "03/05/07",
+          "path": "游戏设置参考.md"
+        },
+        {
+          "key": "03/05/08",
+          "path": "故障排除.md"
+        },
+        {
+          "key": "03/05/09",
+          "path": "实用配方",
+          "children": [
+            {
+              "key": "03/05/09/01",
+              "path": "消耗品.md"
+            },
+            {
+              "key": "03/05/09/02",
+              "path": "门.md"
+            },
+            {
+              "key": "03/05/09/03",
+              "path": "敌人.md"
+            },
+            {
+              "key": "03/05/09/04",
+              "path": "装备与物品.md"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "03/06",
+      "path": "节点函数",
+      "children": [
+        {
+          "key": "03/06/00",
+          "path": "概述.md"
+        },
+        {
+          "key": "03/06/01",
+          "path": "Container.md"
+        },
+        {
+          "key": "03/06/02",
+          "path": "GameMap.md"
+        },
+        {
+          "key": "03/06/03",
+          "path": "Math.md"
+        },
+        {
+          "key": "03/06/04",
+          "path": "Mota.md"
+        },
+        {
+          "key": "03/06/05",
+          "path": "Movement.md"
+        },
+        {
+          "key": "03/06/06",
+          "path": "Player.md"
+        },
+        {
+          "key": "03/06/07",
+          "path": "Save.md"
+        },
+        {
+          "key": "03/06/08",
+          "path": "Scene.md"
+        },
+        {
+          "key": "03/06/09",
+          "path": "Gameplay.md"
+        },
+        {
+          "key": "03/06/10",
+          "path": "String.md"
+        },
+        {
+          "key": "03/06/11",
+          "path": "Audio.md"
+        },
+        {
+          "key": "03/06/12",
+          "path": "Utils.md"
+        },
+        {
+          "key": "03/06/13",
+          "path": "Video.md"
+        },
+        {
+          "key": "03/06/14",
+          "path": "Weather.md"
+        },
+        {
+          "key": "03/06/15",
+          "path": "ScreenEffects.md"
+        },
+        {
+          "key": "03/06/16",
+          "path": "Transition.md"
+        }
+      ]
+    },
+    {
+      "key": "03/07",
+      "path": "源码类",
+      "children": [
+        {
+          "key": "03/07/00",
+          "path": "概述.md"
+        },
+        {
+          "key": "03/07/01",
+          "path": "Battler.md"
+        },
+        {
+          "key": "03/07/02",
+          "path": "ChildActorComponent.md"
+        },
+        {
+          "key": "03/07/03",
+          "path": "DoorBase.md"
+        },
+        {
+          "key": "03/07/04",
+          "path": "Enemy.md"
+        },
+        {
+          "key": "03/07/05",
+          "path": "EnemyDamageText.md"
+        },
+        {
+          "key": "03/07/06",
+          "path": "Equip.md"
+        },
+        {
+          "key": "03/07/07",
+          "path": "Gameplay.md"
+        },
+        {
+          "key": "03/07/08",
+          "path": "Item.md"
+        },
+        {
+          "key": "03/07/09",
+          "path": "Player.md"
+        },
+        {
+          "key": "03/07/10",
+          "path": "SceneMap.md"
+        },
+        {
+          "key": "03/07/11",
+          "path": "Teleporter.md"
+        },
+        {
+          "key": "03/07/12",
+          "path": "ConditionalActor.md"
+        }
+      ]
+    },
+    {
+      "key": "03/08",
+      "path": "全局与 Core 模块",
+      "children": [
+        {
+          "key": "03/08/00",
+          "path": "概述.md"
+        },
+        {
+          "key": "03/08/01",
+          "path": "Global APIs",
+          "children": [
+            {
+              "key": "03/08/01/01",
+              "path": "GameMap.md"
+            },
+            {
+              "key": "03/08/01/02",
+              "path": "Gameplay.md"
+            }
+          ]
+        },
+        {
+          "key": "03/08/02",
+          "path": "Core Modules",
+          "children": [
+            {
+              "key": "03/08/02/01",
+              "path": "Engine",
+              "children": [
+                {
+                  "key": "03/08/02/01/01",
+                  "path": "标量曲线.md"
+                },
+                {
+                  "key": "03/08/02/01/02",
+                  "path": "向量曲线.md"
+                },
+                {
+                  "key": "03/08/02/01/03",
+                  "path": "音频过滤器.md"
+                },
+                {
+                  "key": "03/08/02/01/04",
+                  "path": "玩法类型.md"
+                },
+                {
+                  "key": "03/08/02/01/05",
+                  "path": "地图与材质.md"
+                },
+                {
+                  "key": "03/08/02/01/06",
+                  "path": "动画数据与图形.md"
+                },
+                {
+                  "key": "03/08/02/01/07",
+                  "path": "输入与服务.md"
+                },
+                {
+                  "key": "03/08/02/01/08",
+                  "path": "时间、渲染与粒子.md"
+                },
+                {
+                  "key": "03/08/02/01/09",
+                  "path": "运行时值与功能控件.md"
+                },
+                {
+                  "key": "03/08/02/01/10",
+                  "path": "布局与图像控件.md"
+                },
+                {
+                  "key": "03/08/02/01/11",
+                  "path": "文本与窗口.md"
+                },
+                {
+                  "key": "03/08/02/01/12",
+                  "path": "事件与模块根.md"
+                },
+                {
+                  "key": "03/08/02/01/13",
+                  "path": "交互与声明式 UI 控件.md"
+                }
+              ]
+            },
+            {
+              "key": "03/08/02/02",
+              "path": "GlobalCore",
+              "children": [
+                {
+                  "key": "03/08/02/02/01",
+                  "path": "摄像机与焦点.md"
+                },
+                {
+                  "key": "03/08/02/02/02",
+                  "path": "地图与雾效.md"
+                },
+                {
+                  "key": "03/08/02/02/03",
+                  "path": "动画与灯光.md"
+                },
+                {
+                  "key": "03/08/02/02/04",
+                  "path": "资源管理器.md"
+                },
+                {
+                  "key": "03/08/02/02/05",
+                  "path": "时间管理.md"
+                },
+                {
+                  "key": "03/08/02/02/06",
+                  "path": "场景与系统.md"
+                },
+                {
+                  "key": "03/08/02/02/07",
+                  "path": "UI、天气与模块根.md"
+                }
+              ]
+            },
+            {
+              "key": "03/08/02/03",
+              "path": "GlobalFunctions.md"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,233 @@
+# Ludork Lua Advanced
+
+Ludork's Standard runtime extends Lua with native classes, containers and utility functions. These APIs are available before `Scripts/Entry.lua` and do not require a `Standard` module. They are distinct from the `Engine`, `GlobalCore`, `GlobalFunctions` and LuaSF bindings documented in API Reference.
+
+Exact development-time signatures are declared in `Scripts/stub/Standard.d.lua` and `Scripts/stub/Class.d.lua`.
+
+## Ludork classes
+
+Create a plain definition table without a metatable, add defaults and methods, then return `class(definition, ...)`. The definition must not already be finalised. Every base must be a finalised Ludork class or a registered native type. Duplicate bases are rejected. Base order determines the C3 method-resolution order.
+
+```lua
+local Engine = require("Engine")
+
+local Actor = Engine.Actor
+
+local Pickup = {}
+
+Pickup.count = 1
+Pickup.sound = ""
+
+function Pickup:init(texture, tag)
+    Actor.init(self, texture, tag)
+    self._collected = false
+end
+
+return class(Pickup, Actor)
+```
+
+### Defaults and instance state
+
+Editable or inheritable defaults belong on the definition table before finalisation. This includes metadata fields, component defaults, `default*` spawn values and Blueprint-overridable identifiers.
+
+`init` applies constructor arguments and creates per-instance state. Copy mutable class defaults when each instance must own an independent value:
+
+```lua
+local RouteFollower = {}
+
+RouteFollower.speed = 96.0
+RouteFollower.defaultRoute = {}
+
+function RouteFollower:init()
+    self._route = deepcopy(self.defaultRoute)
+    self._routeIndex = 1
+end
+
+return class(RouteFollower)
+```
+
+Do not initialise a public default only inside `init`. Subclasses and Blueprint discovery read it from the class.
+
+An explicit `nil` restored from Blueprint, Component or General Data is an own field that overrides inherited defaults. Inheritance, `copy` and `deepcopy` preserve it. Assigning `nil` in Lua clears that override and resumes inheritance lookup. Native properties and Lua getters and setters keep their existing behaviour.
+
+### Construction, lifecycle and inheritance
+
+`Type.new(...)` constructs an instance and calls `init`. Finalised classes are also callable, but project code follows the style of the neighbouring module. A class without `init` accepts no arguments unless a single native root defines the constructor contract. Invoke required native-base initialisers explicitly. Lifecycle methods such as `onCreate`, `onTick` and `onDestroy` run only when their owning runtime contract calls them. `instance:dispose()` runs the resolved implementation at most once, releases native ownership and instance fields, and is not repeated by garbage collection.
+
+Before a native root is constructed, typed assignments to its properties are stored on the composite and applied during native-base initialization. Native property access uses that root; script getters and setters are resolved from script classes. Setter errors propagate to the caller.
+
+Inside a method, `super()` resolves the next implementation from the defining class. Use `super(ClassName, self)` when an indirect callback makes ownership ambiguous. Multiple inheritance is supported, and declared base order must remain stable.
+
+Direct Script Mixins follow their separate lifecycle and must not declare `init`.
+
+### Class utilities
+
+| API | Purpose |
+|---|---|
+| `Class.isInstance(value, target)` | Test a raw Lua type or an instance against a class's complete MRO. |
+| `Class.isSubclass(value, target)` | Test a class against its complete MRO. |
+| `Class.type(value)` | Return its Ludork class or native fallback type. |
+| `Class.hasOwnField(value, key)` | Test whether a field is stored directly. |
+| `Class.getMro(value)` | Return a detached MRO array. |
+| `Class.getParameterNames(callable)` | Return declared parameter names without `self`. |
+| `Class.constructNamed(type, values)` | Match named values to `init` parameters and construct. |
+| `Class.super(cls?, self?)` / `super(...)` | Resolve the next implementation in the active MRO. |
+| `Class.monitor` / `Class.unmonitor` | Add or remove a named subscription to a field. |
+| `Class.MISSING` | Sentinel used when a monitored field had no previous value. |
+
+`Class.monitor(target, name, callback, params?, notifyEqualWrites?, identifier?)` subscribes to a table or userdata field without immediately invoking the callback. `identifier` defaults to `""`. The same identifier replaces its subscription in place, while different identifiers run in registration order. `Class.unmonitor(target, name, identifier?)` removes only that subscription. A missing subscription is ignored. Omitting the identifier retains the single-subscription behaviour.
+
+Monitored fields reject `nil` assignments and normally notify only when their visible value changes. Pass `true` as `notifyEqualWrites` to receive equal writes for that subscription. A previous missing or explicit `nil` value reports `Class.MISSING`. Each callback receives `(oldValue, newValue, ...)`, followed by the entries of `params`. Re-entrant assignments take effect, but each subscription suppresses its own recursion. Callback errors stop dispatch and propagate without rolling back the assignment.
+
+Dispatch uses a subscription snapshot. Removing or replacing a subscription before its turn skips the old callback, and newly registered callbacks start with subsequent assignments. The removal of the last subscription restores ordinary field storage and the original metatable of the table.
+
+### Type checks
+
+Use `Class.isInstance` for every type check. Its target may be a finalised Ludork or registered native class, or an exact Lua type name: `nil`, `boolean`, `number`, `string`, `function`, `userdata`, `thread` or `table`.
+
+```lua
+if Class.isInstance(value, "string") then
+    print(string.upper(value))
+end
+
+local isActor = Class.isInstance(actor, Actor)
+local isNativeVector = Class.isInstance(position, sf.Vector2f)
+local isInteger = Class.isInstance(value, "number") and math.type(value) == "integer"
+```
+
+String targets preserve Lua `type` semantics: native containers are userdata, and callable tables remain tables. Unknown names return false. Targets that are neither strings nor tables are argument errors. Use `math.type` only after a number check, and `Class.type` only when the resolved type value is needed. Never compare Lua `type` with `==` or `~=`.
+
+## Project truth values and copies
+
+Lua itself treats only `nil` and `false` as false. Ludork's `bool(value)` additionally treats `0`, empty strings, empty tables and empty native containers as false. Use explicit `nil` comparisons only when absence is a distinct protocol value.
+
+| API | Behaviour |
+|---|---|
+| `copy(value)` | Shallow-copy tables and supported native values. |
+| `deepcopy(value)` | Recursively copy keys and values while preserving aliases and cycles. |
+| `asizeof(value)` | Estimate the memory owned by a Lua or native value graph, in bytes. |
+
+For known bound value types, use `value:copy()` or `value:deepcopy()` directly, for example `position:copy()`, `rect:copy()` and `colour:copy()`. These methods produce independent values. Global `copy` and `deepcopy` serve Lua tables and dynamic value graphs; when they encounter a supported bound value, they use the same LuaGlue copy entry points. Resources without a value-copy policy retain identity.
+
+For monitored tables, `copy` and `deepcopy` copy the current logical field values and preserve the original metatable, without the monitoring proxy or subscriptions. The copied values can be saved normally. Subscriptions belong to live instances and must be registered again after loading.
+
+## Native containers
+
+`list`, `tuple` and `dict` are native containers. They do not replace the Lua tables required by JSON, metadata, Blueprint values or Core bindings.
+
+```lua
+local route = list("north", nil, "east")
+local position = tuple(4, 7)
+local visited = dict {
+    [position] = true,
+}
+```
+
+`list(...)` and `tuple(...)` store arguments as 1-based slots. A single table, list or tuple argument is shallow-copied as a sequence. `dict(mapping?)` copies a mapping. Tuples reject `nil`. Lists and dictionaries preserve `nil` slots or values. Negative sequence indices are invalid. List writes and inserts must target an existing slot or `#value + 1`.
+
+| Type | Main operations |
+|---|---|
+| `list` | `append`, `extend`, `insert`, `pop`, `remove`, `clear`, `index`, `count`, `contains`, `reverse`, `sort`, `copy`, `unpack`, `toTable` |
+| `tuple` | `index`, `count`, `contains`, `unpack`, `toTable` |
+| `dict` | `get`, `setdefault`, `update`, `pop`, `remove`, `clear`, `contains`, `keys`, `values`, `items`, `copy`, `toTable` |
+
+Native `ipairs` visits `nil` list slots, and dictionary iteration preserves insertion order. Structural mutation during iteration fails. `dict:get(key, default)` uses the default only for a missing key, and `dict:contains(key)` distinguishes that case from a stored `nil` value. Remove entries with `remove` or `pop`, not `dictionary[key] = nil`. `remove` returns whether it found the key. `pop` raises for a missing key unless given a default.
+
+`list:pop()` removes the last slot by default. `list:remove` raises when its value is absent, and `list:sort(compare?)` is stable. Dictionary `keys` and `values` return insertion-ordered list snapshots. `items` is a lazy iterator. Dictionary method names take precedence over same-named string keys in direct lookup, so read such an entry with `value:get("get")` or `dict.get(value, "get")`.
+
+Lists and dictionaries compare structurally, including cyclic graphs. Tuples are immutable native-dictionary keys. Booleans, finite numbers, strings and nested tuples compare by value, while mutable or reference values compare by identity. `nil` and non-finite numeric tuple keys are invalid. Ordinary Lua tables still hash tuple userdata by identity.
+
+### Conversion boundaries
+
+`toTable` recursively converts native containers while preserving aliases and cycles. Converted lists and tuples retain JSON-array shape when empty or nested. `nil` list slots and dictionary values become `cjson.null`. Tuple keys become compact strings such as `(1,2)` and fail on collision with an existing string key. JSON encoders, metadata, Blueprint values and Core bindings do not perform this conversion automatically.
+
+Use record arrays instead when key identity must be reconstructed after loading.
+
+## Math extensions
+
+Standard adds the following functions to Lua's `math` library. Except for `isFinite`, arguments must be finite Lua numbers. Convert numeric strings explicitly with `tonumber`. Invalid ranges, arithmetic overflow and integer results outside the Lua integer range raise errors. `gcd` and `lcm` require Lua integers. `round` and `trunc` preserve integer inputs exactly.
+
+`lerp`, `inverseLerp` and `remap` support reversed intervals and extrapolation without clamping.
+
+| API | Behaviour |
+|---|---|
+| `math.isFinite(value)` | Return true for finite Lua numbers, false otherwise. |
+| `math.clamp(value, min, max)` | Return a float constrained to `[min, max]`. Require `min <= max`. |
+| `math.lerp(a, b, t)` | Linearly interpolate from `a` to `b` by `t`. |
+| `math.round(value)` | Round to the nearest integer, choosing the even integer at exact halves. |
+| `math.trunc(value)` | Truncate toward zero and return an integer, unlike the exact conversion in `math.tointeger`. |
+| `math.isNearZero(value, epsilon=0.1)` | Test `abs(value) < epsilon`. Require `epsilon >= 0`. |
+| `math.gcd(a, b)` | Return the nonnegative greatest common divisor. `gcd(0, 0)` is 0. |
+| `math.lcm(a, b)` | Return the nonnegative least common multiple, or 0 if either argument is 0. |
+| `math.sign(value)` | Return the integer −1, 0 or 1. Both signed zeros return 0. |
+| `math.inverseLerp(a, b, value)` | Return `(value - a) / (b - a)`. Require `a ~= b`. |
+| `math.remap(value, inMin, inMax, outMin, outMax)` | Map proportionally from the input interval to the output interval. Require `inMin ~= inMax`. |
+| `math.smoothstep(edge0, edge1, value)` | Clamp the normalised position `t` to `[0, 1]`, then return `t²(3 − 2t)`. Require `edge0 < edge1`. |
+| `math.moveTowards(current, target, maxDelta)` | Move by at most `maxDelta` without passing the target. Require `maxDelta >= 0`. |
+
+## String and table extensions
+
+Standard adds these helpers to Lua's existing libraries:
+
+| API | Purpose |
+|---|---|
+| `string.pformat` | Format `{}` positional fields or `{name}` fields from a final mapping table. `{{` and `}}` escape braces. |
+| `string.contains`, `string.startsWith`, `string.endsWith` | Test string contents or boundaries. |
+| `string.isEmpty`, `string.isBlank` | Test empty or whitespace-only text. |
+| `string.strip`, `string.stripLeading`, `string.stripTrailing` | Remove Unicode whitespace. |
+| `string.replace`, `string.split` | Replace or split text. |
+| `string.utf8Length`, `string.utf8Slice` | Measure or slice by UTF-8 codepoints. |
+| `string.graphemeLength` | Count Unicode grapheme clusters (user-perceived characters). |
+| `string.stripUnicode` | Trim Unicode White_Space from both ends. |
+| `table.contains`, `table.index` | Search a dense Lua array using Lua equality. Stop at its first `nil` slot. |
+| `table.orderedStringKeys` | Return preferred keys first, then remaining string keys sorted. |
+
+## Platform, configuration and files
+
+`PLATFORM` is the lower-case target name (`win32`, `darwin`, `ios`, `android`, `ohos` or the CMake system name). `LUDORK_MOBILE` and `LUDORK_DESKTOP` expose the runtime host category. Do not infer a platform from paths or environment variables.
+
+`configparser.ConfigParser()` reads and writes INI data. It provides `read`, `write`, `has_section`, `add_section`, `get`, `getfloat`, `getint`, `getboolean` and `set`. `locale.getdefaultlocale()` returns the host locale pair.
+
+Filesystem extensions are:
+
+| API | Purpose |
+|---|---|
+| `os.getcwd`, `os.listdir` | Read the current directory, or sorted direct entries. |
+| `os.createDirectories` | Create a UTF-8 directory path and its missing parents. Existing directories are accepted. |
+| `os.removeFile` | Remove one UTF-8 file path. Missing files and failures raise. This does not replace `os.remove`. |
+| `os.path.join`, `os.path.splitext`, `os.path.basename`, `os.path.dirname`, `os.path.abspath` | Build or inspect paths. |
+| `os.path.isdir`, `os.path.isfile` | Test existing directory or file paths. Missing paths return false, and inspection errors propagate. |
+| `os.path.getmtime` | Return a file modification timestamp. |
+
+Join `os.listdir` names to their parent before testing them.
+
+`os.listdir`, `os.path.isdir`, `os.path.isfile` and `io.open` use only the real filesystem. `/Game/Assets/...` works only with Ludork resource APIs. For packed Data, `os.path.getmtime("Data/...")` returns the timestamp of the containing `.ldpak` file. Other filesystem APIs do not expose archive entries.
+
+Standard also installs binary-safe codec globals:
+
+| API | Purpose |
+|---|---|
+| `zlib.compress`, `zlib.decompress` | Compress data to zlib, or decompress zlib or gzip data. |
+| `base64.encode`, `base64.decode` | Encode or decode Base64. Decoding accepts whitespace and valid padding, and rejects malformed data. |
+
+## Cooperative tasks and file batches
+
+`asyncio.create_task(callback, ...)` starts a cooperative task. `asyncio.sleep(seconds)` yields it, and `asyncio.cancel_task(task)` requests cancellation.
+
+For larger reads, `asyncio.start_file_batch(specs)` scans and reads at most four files concurrently while preserving manifest order. Logical `Data/...` roots support packed Data. Other roots use the physical filesystem. `asyncio.poll_file_batch(job, maxItems?)` returns progress, delivered items and a structured failure. `asyncio.cancel_file_batch(job)` cancels the job.
+
+With `parseJson = true`, every selected file must use `.json`. Polling returns a `FileBatchJsonConversion`. Parse failures use `operation = "parse"`. Advance the conversion on the Lua logic thread with `asyncio.step_file_batch_json(conversion, maxNodes, maxMilliseconds)`, using positive budgets. It returns `completed, processed, data`, with data delivered once on completion. Decoded arrays carry their logical length in `n`, while JSON null entries are absent keys. `asyncio.clear_file_batch_json` releases the conversion idempotently. Cancellation, collection and shutdown also invalidate it. Conversions cannot cross Lua VMs or threads.
+
+Without `parseJson`, file bytes remain in `item.content`.
+
+## Timing and memory diagnostics
+
+`perfCounter()` returns a monotonic high-resolution time in seconds. `processMemoryMB()` returns current process memory in MiB. Use `asizeof` for an owned value graph rather than process-wide memory.
+
+## Related pages
+
+- [Lua Basics](<Lua Basics.md>)
+- [SFML Quickstart](<SFML Quickstart.md>)
+- [Lua Runtime and Modules](<../Lua and Blueprint Scripting/Lua Runtime and Modules.md>)
+- [Script Mixin Runtime Contract](<../Lua and Blueprint Scripting/Script Mixins/Runtime Contract.md>)
+- [Engine: Events and Module Root](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Events and Module Root.md>)

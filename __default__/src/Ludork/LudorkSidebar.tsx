@@ -8,7 +8,6 @@ import {
   Typography,
 } from '@mui/material'
 import {
-  docKeyFromFilename,
   type DocSection,
   type DocTreeItem,
   type SelectedDoc,
@@ -117,7 +116,7 @@ function renderTreeItem(
     )
   }
 
-  const docKey = docKeyFromFilename(item.entry.filename)
+  const docKey = item.entry.key
   const isSelected =
     selected.type === 'doc' &&
     selected.lang === language &&

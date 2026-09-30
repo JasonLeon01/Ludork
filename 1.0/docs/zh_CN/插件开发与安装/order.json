@@ -1,0 +1,54 @@
+{
+  "items": [
+    {
+      "key": "05/01",
+      "path": "安装与管理插件.md"
+    },
+    {
+      "key": "05/02",
+      "path": "Manifest 与最小插件.md"
+    },
+    {
+      "key": "05/03",
+      "path": "Avalonia UI、密钥与本地化.md"
+    },
+    {
+      "key": "05/04",
+      "path": "测试与分发.md"
+    },
+    {
+      "key": "05/05",
+      "path": "注册点与 Hook 参考.md"
+    },
+    {
+      "key": "05/06",
+      "path": "Official 插件",
+      "children": [
+        {
+          "key": "05/06/00",
+          "path": "概述.md"
+        },
+        {
+          "key": "05/06/01",
+          "path": "Locale Tools.md"
+        },
+        {
+          "key": "05/06/02",
+          "path": "游戏本地化工作流.md"
+        },
+        {
+          "key": "05/06/03",
+          "path": "Random Map.md"
+        },
+        {
+          "key": "05/06/04",
+          "path": "Blueprint AI.md"
+        },
+        {
+          "key": "05/06/05",
+          "path": "Resource Cleanup.md"
+        }
+      ]
+    }
+  ]
+}

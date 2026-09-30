@@ -1,0 +1,50 @@
+# Project Templates
+
+## Goal
+
+Select the template that matches the project's native-code, video and target-platform requirements.
+
+## Template reference
+
+The picker presents two template cards, **Standalone** and **C++ Source**, and an independent **Enable video playback (FFmpeg)** switch.
+
+| Template | Native source | Native compiler required | Use when |
+|---|---|---|---|
+| Standalone | No | No | Authoring Lua, Blueprint, data and assets with the supplied runtime. |
+| C++ Source | Yes | Yes | Changing native services, bindings or building an iOS, HarmonyOS or Android target. |
+
+Each combination of card and switch has its own generated template folder: `Standalone`, `Cpp`, `Standalone-ffmpeg` and `Cpp-ffmpeg`. The template establishes the project baseline. Changing it later is a source-management task, not an editor toggle.
+
+C++ Source templates include a project-root `.clang-format` for native source formatting. Use **Construct** for the first Debug build so the executable, preview binaries and metadata exist, then **Export** before the first Play. Standalone projects need Export before their first Play as well. The build and export checks, and how **Stop** works, are described in [Run, Debug and Package](<../Editor User Guide/Run Debug and Package.md>). Standalone templates include the preview runtime in `Binaries` and its metadata in `EditorCache/UiPreview.json` and `EditorCache/UiPreview.registry.json`.
+
+## FFmpeg option
+
+**Enable video playback (FFmpeg)** adds local MOV and MP4 playback to the selected template and increases the build size. The bundled build enables the FFmpeg file protocol, the MOV/MP4 demuxer, the H.264 and AAC decoders and parsers, libswscale and libswresample. It provides no network protocol, no hardware acceleration and no other codec.
+
+Platform preparation differs as well. Windows and macOS use shared FFmpeg libraries, while iOS, HarmonyOS and Android use static libraries. Distribution requirements, including the LGPL relinking materials for static builds, are described in `Licenses/FFmpeg/README.md`. On macOS, selecting FFmpeg also displays a compatibility notice.
+
+## Template targets
+
+- There is no Standalone iOS template. Every iOS output requires a C++ Source project, Xcode, a development team, bundle settings and signing resources.
+- There is no Standalone HarmonyOS template. HarmonyOS output requires a C++ Source project and DevEco Studio with the OpenHarmony native SDK. All HAPs target API 22. Mobile uses OpenGL ES, while 2in1 uses OpenGL by default and can select OpenGL ES.
+- There is no Standalone Android template. Android output requires a C++ Source project, Android Studio, SDK Platform 36, Build Tools 36.0.0, NDK r27 or newer and host CMake 3.28 or newer. The APK declares API 24 (Android 7.0) as its minimum, so it installs on Android 7.0 and later. Compile level and target level are both API 36. Packaging produces an unsigned APK by default. **Sign APK** optionally signs the APK with an existing JKS or PKCS12 keystore. Neither mode installs or launches the APK.
+- Script compilation, shader encryption, data encryption, save encryption and **Archive Assets, Data and Scripts (.ldpak)** are packaging options, not template types. See [Run, Debug and Package](<../Editor User Guide/Run Debug and Package.md>) for the complete option behaviour.
+
+All four templates exclude Export outputs: `Scripts/Internal/UI/`, `Scripts/stub/Internal/UI/`, `Scripts/stub/Internal/UIWindows/`, generated locale language Lua files and `EditorCache/ProjectExport.json`. These exclusions apply even if the template source has already been exported. The project `.gitignore` carries the same generated-file rules. Templates retain UI JSON, handwritten Controllers and declarations, `Scripts/Source/Locale/Core.lua`, General Data and variable Lua with their declarations, and native binding declarations. Export recreates the UI and locale files in each project.
+
+C++ Source templates also omit SFML's upstream `test` fixtures; the game build does not use them.
+
+The retained `Scripts/stub/**/*.d.lua` files support editors and Lua language tooling. Packaging removes the entire `Scripts/stub` directory, and Lua compilation ignores `.d.lua`; no declaration file is shipped with a game.
+
+Top-level `Licenses` is the sole licence-text source. Template generation copies the common runtime set into each C++ Source template before deriving Standalone. Only FFmpeg variants receive `Licenses/FFmpeg`. Editor and tool notices stay in the editor distribution, and asset notices stay beside their assets. Packaging preserves available texts but does not require them, so distributors remain responsible for legal completeness.
+
+## Decision check
+
+Use Standalone if every planned feature is expressible through the available Lua, Blueprint, asset and data APIs. Use C++ Source when even one required feature changes native code. Its targets also require the matching compiler, SDK and signing resources on the development host. Add FFmpeg only when video playback is an explicit requirement.
+
+## Related pages
+
+- [Create Your First Project](<Create Your First Project.md>)
+- [Ludork Lua Advanced](<Ludork Lua Advanced.md>)
+- [Build and Module Layout](<../Native C++ Development/Build and Module Layout.md>)
+- [Run, Debug and Package](<../Editor User Guide/Run Debug and Package.md>)

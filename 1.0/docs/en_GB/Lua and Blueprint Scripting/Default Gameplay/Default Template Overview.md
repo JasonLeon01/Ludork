@@ -1,0 +1,65 @@
+# Default Template Overview
+
+The Game project is both a playable reference and the source of the reusable templates. It demonstrates the expected project shape rather than a minimal empty application. Use it to learn ownership and data flow, and copy a pattern only after identifying its dependencies.
+
+The Game project is source material, not an implicit engine contract. Confirm public behaviour in metadata, LuaLS stubs and the API reference before depending on it in another project.
+
+## Entry and modules
+
+Entry retains the static `APP_NAME` for application identity and package filenames. Release version and dev settings belong to `Main.proj` and Pack Options, while mobile and macOS display names come from the System title. See [Packaging](<../../Editor User Guide/Run Debug and Package.md#packaging>) for the shared rules.
+
+`Scripts/Entry.lua` initialises the game and enters the native loop. It loads Core modules in this order:
+
+```lua
+local Engine = require("Engine")
+local GlobalCore = require("GlobalCore")
+local GlobalFunctions = require("GlobalFunctions")
+
+local Components = GlobalFunctions.Components
+local UI = GlobalFunctions.UI
+local NodeGraph = GlobalFunctions.NodeGraph
+local Manager = GlobalFunctions.Manager
+```
+
+Startup calls the following functions explicitly. Requiring their modules does not initialise services:
+
+| Call | Responsibility |
+|---|---|
+| `Source.Locale.Core.Init()` | Loads locale dictionaries before configuration loading and language selection. |
+| `Source.Configs.Main.LoadOrCreate()` | Reads `Main.ini`, creating it with default settings when absent. |
+| `Source.Data.InitializeRuntime()` | Initialises data services and registers data and Blueprint providers before the first scene. |
+| `Source.System.InstallRuntimeProviders()` | Registers the configuration provider before the first scene. |
+| `Source.System.Init()` | Applies game and audio configuration and prepares display resources through `GlobalCore.Display` before the native loop. |
+
+Entry also initialises latent graphs and the native System before it constructs `SceneInit`. Register providers once per session. Hot reload does not rerun startup; see [Lua Runtime and Modules](<../Lua Runtime and Modules.md#lua-hot-reload>). [Runtime Data, Configuration and Saves](<Runtime Data Configuration and Saves.md>) describes the configuration and save locations.
+
+On Android and iOS, returning from the background in the same process resumes the current scene and Lua state without rerunning Entry or catching up on background time; see the [SceneBase lifecycle](<../Global and Core Modules/Core Modules/GlobalCore/Scenes and System.md#scenebase>).
+
+## Gameplay layout
+
+- `Scripts/Source/MapActors` contains the reusable map Actor classes. `Scripts/Source/Utils` contains gameplay helpers, including the Enemy and GameInstance implementation modules; scenes, business windows and components retain their own directories.
+- `Scripts/GlobalFunctions` contains independent Lua Blueprint function libraries. Their paths in graph data begin with `GlobalFunctions.`; the native root module remains separate.
+- `Scripts/Internal` contains Live Debug and UI foundations, including the shared window base classes.
+- `Scripts/Internal/UI` contains Views generated from `Data/UI/Assets` by Export. Generated UI and locale files are absent from templates and version control; export the project before its first run. Handwritten foundations live in `Internal.UIBase`, and business windows live in `Source.Windows`. See [Declarative UI Authoring Workflow](<../Declarative UI/Authoring Workflow.md>).
+- `Scripts/Mixins` contains directly attachable Lua behaviour.
+- `Data/Blueprints` contains game-specific Actor classes.
+- `Data/General` provides items, enemies, equipment, classes, players, states and special effects.
+- `Data/Maps` and `Data/Tilesets` provide the playable world.
+- `Engine/` contains the native runtime, modules and dependencies.
+
+Some public Lua modules group private implementation services under directories of the same name; Game's Enemy and GameInstance helpers live under `Source.Utils` instead. These helpers neither require nor extend their host. Modules with their own `.d.lua` contract remain independent.
+
+[Build and Module Layout](<../../Native C++ Development/Build and Module Layout.md>) describes native source ownership and dependencies.
+
+`Source.Data.Blueprints` compiles Blueprint, Common Function and General Data graph definitions into native `Engine.Graph` templates, and then creates instances with `instantiate`.
+
+## Template variants
+
+`Cpp` keeps native sources and builds them per project. `Cpp-ffmpeg` adds video support. Standalone variants contain a built runtime for packaging. iOS, HarmonyOS and Android packages are built only from a C++ Source variant, and they use the FFmpeg-enabled C++ Source variant when video is enabled. Changing the Game project does not update an existing project, so regenerate the template or apply the required changes to that project explicitly.
+
+Runtime Lua, `Scripts/stub` declarations and `_meta.lua` file-layer rules are in [Lua Runtime and Modules](<../Lua Runtime and Modules.md>).
+
+## Related pages
+
+- [Project Templates](<../../Getting Started/Project Templates.md>)
+- [Lua Runtime and Modules](<../Lua Runtime and Modules.md>)

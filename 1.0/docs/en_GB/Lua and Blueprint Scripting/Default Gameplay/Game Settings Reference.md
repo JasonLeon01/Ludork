@@ -1,0 +1,60 @@
+# Game Settings Reference
+
+**Game Config** edits supported `[Main]` values in `Main.ini`.
+
+## Supported keys
+
+| Key | Type | Meaning |
+|---|---|---|
+| `script` | path | Lua entry script; normally `Scripts/Entry.lua` |
+| `language` | string | Game catalogue key; see Game Localisation Workflow |
+| `scale` | float | Display-scale preference; defaults to Fullscreen (`0`) |
+| `maxrenderscale` | float | Maximum internal render scale, default `2.0`; Unlimited (`0`) removes the cap |
+| `lightingrenderscale` | discrete float | Direct-light render scale: `0.5`, `0.75` or `1.0`; default `1.0`, also used for invalid values |
+| `framerate` | integer | Target frame rate, default `60`; Unlimited (`0`) removes the cap |
+| `antialiasinglevel` | non-negative integer | Requested SFML anti-aliasing level; default `8` |
+| `verticalsync` | boolean | Vertical synchronisation |
+| `musicon`, `soundon`, `voiceon` | boolean | Channel enable switches |
+| `musicvolume`, `soundvolume`, `voicevolume` | float | Channel volume, clamped to 0–100 |
+
+The editor preserves unknown sections and keys. Invalid supported values fall back to safe defaults in the applicable reader. Correct the source rather than relying on the fallback.
+
+`Main.proj` contains project and tooling flags rather than mutable game preferences. `Cpp` selects native-project behaviour, `ffmpeg` selects video-capable packaging, and `IndividualWindow` stores the preferred editor run mode. `packaging.version` and `packaging.dev` store release settings; see [Release version and internal packages](<../../Editor User Guide/Run Debug and Package.md#release-version-and-internal-packages>).
+
+Normal Save writes changed settings. New projects and missing settings use High (`2`, `60`, `8`, `1`) and Fullscreen (`scale = 0`); existing values are not overwritten.
+
+Scale applies immediately where `Display.isDisplayScaleConfigurable()` is true. On desktop, including HarmonyOS 2in1, positive values set a fixed window size, `0` selects borderless fullscreen, and unmatched aspect ratios are letterboxed. A HarmonyOS Mobile API 22-or-newer tablet exposes Scale only in free-window mode: positive values request a fixed drawable client size of `round(gameSize * scale)` pixels, with window decorations added separately, and `0` requests maximised/fullscreen. System size limits can still result in black bars to preserve aspect ratio. The runtime reapplies its current configured Scale when free-window mode is enabled and when the app returns to the foreground with that mode enabled. These desktop and tablet windows disable user drag resizing; use Scale to change their size or select fullscreen. A new config writes `scale = 0`, and a missing key uses `0` in memory only. Config updates the row when that mode changes and rechecks it before saving. Other mobile hosts omit Scale. Invalid negative or non-finite values resolve to `1`. See [GlobalCore: Scenes and System](<../Global and Core Modules/Core Modules/GlobalCore/Scenes and System.md>) for the host mapping.
+
+`maxrenderscale`, shown as **Render Limit**, caps the internal Graphics canvas and dependent render targets without changing the window, the logical game size or the configured Scale. It applies immediately on every platform. The cap uses physical drawable pixels relative to the logical game size, including Retina pixel density. On macOS, configured Scale still controls the window size in Cocoa points; Unlimited allows rendering at the full drawable resolution. Config offers `0.5`, `0.75`, `1`, `1.5`, `2`, `3`, `4` and Unlimited (`0`), retains another finite non-negative value, and resolves a negative or non-finite value to `2`.
+
+**Lighting Render Scale** applies immediately without rebuilding the Graphics canvas. The dynamic direct-light target uses the current logical camera view, while the static target always uses the complete map logical view. Each target axis is `floor(logicalPixels * lightingrenderscale)` with a minimum of one pixel. The surface mask and the static and dynamic transmission and occupancy targets stay full-resolution. Values below `1.0` use smooth upsampling, while `1.0` preserves the full-resolution sampling path. A scale change rebuilds the two direct-light targets, invalidates the static-light cache and affects the next map frame. Other numbers, non-finite values and a missing key resolve to `1.0`.
+
+**Frame Rate** offers `30`, `60`, `90`, `120` and Unlimited (`0`). Unlimited disables active frame-rate limiting while preserving the **Vertical Sync** setting. Fixed updates use a `1/60`-second step with Unlimited, or `1/framerate` for a positive frame rate.
+
+Config lists Low, Medium, High, Extra High and Original in that order, and derives the current **Quality Preset** from (`maxrenderscale`, `framerate`, `antialiasinglevel`, `lightingrenderscale`):
+
+| Preset | Values |
+|---|---|
+| Low | (`0.75`, `30`, `0`, `0.5`) |
+| Medium | (`1`, `60`, `2`, `0.75`) |
+| High | (`2`, `60`, `8`, `1`) |
+| Extra High | (`3`, `90`, `8`, `1`) |
+| Original | (Unlimited (`0`), `120`, `8`, `1`) |
+
+Only an unmatched tuple appends **Custom** as the final option and selects it, and selecting Custom applies no values. When the values match any preset again, Config selects that preset and removes Custom from the list. No preset key is stored, and `scale` and `verticalsync` do not participate.
+
+The anti-aliasing level is a requested multisample level. SFML may create the closest context supported by the platform. `0` is the SFML default and disables anti-aliasing. Because it is a context-creation setting, a change saves the preference but affects rendering only after the display is initialised again, normally on the next game start. Negative or out-of-range values resolve to the SFML default.
+
+Standalone desktop startup, including HarmonyOS 2in1, filters the positive Scale presets `1`, `1.25`, `1.5`, `1.75`, `2`, `3` and `4` against the primary display work area, and Config rechecks the window's current display when it opens. HarmonyOS Mobile free-window mode uses the smaller of the display's available area and the Stage maximum. Fullscreen (`0`) and a fitting non-preset value remain available. An over-limit value becomes the highest fitting preset, or Fullscreen if none fits, and moving to a larger display does not raise it automatically. A failed size query leaves the choices and the value unchanged.
+
+## Limitations
+
+Supported keys are interpreted by the current Game project readers. Adding a project-specific key requires corresponding runtime handling; merely adding it to `Main.ini` does not create behaviour.
+
+A configurable HarmonyOS Mobile host samples its maximum windowed dimensions when the native host is initialised, when free-window mode becomes enabled and when the app returns to the foreground with that mode enabled. While the app remains in the foreground, moving the window to another display or changing the display's available area does not automatically resample this maximum. The next foreground return, free-window mode re-enable or host reinitialisation updates the capacity used by the Scale choices. HarmonyOS 2in1 instead follows the ordinary desktop window and display queries.
+
+## Related pages
+
+- [Project Settings and Asset Layout](<../../Editor User Guide/Project Settings and Asset Layout.md>)
+- [Runtime Data, Configuration and Saves](<Runtime Data Configuration and Saves.md>)
+- [Game Localisation Workflow](<../../Plug-in Development and Installation/Official Plug-ins/Game Localisation Workflow.md>)

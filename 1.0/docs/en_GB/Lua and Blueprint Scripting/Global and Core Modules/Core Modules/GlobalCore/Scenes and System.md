@@ -1,0 +1,194 @@
+# GlobalCore: Scenes and System
+
+## SceneBase
+
+Direct metadata bases: —
+
+Closing the window during runtime or input processing ends the current frame before further UI updates, emitter simulation or rendering. Closing it from an input or UI callback also skips the remaining frame work. The loop stops its logic thread and runs `onQuit` through the normal Scene exit lifecycle.
+
+On Android and iOS, losing focus pauses scene and UI updates, rendering, runtime callbacks and scene timers while the loop continues processing system events. Returning to the foreground in the same process preserves the scene and Lua state, resets the frame and fixed-update timing, and resumes without catching up on time spent in the background. An actual close still follows the normal exit lifecycle.
+
+### Properties
+
+No editable properties are declared.
+
+### Functions and events
+
+| Name | Kind | Parameters | Returns | Execution and metadata |
+|---|---|---|---|---|
+| `getUIManager` | `function` | self: { "GlobalCore", "SceneBase" } = "self" | return: { "GlobalCore", "UIManager" } | Pure |
+| `addTimer` | `function` | self: { "GlobalCore", "SceneBase" } = "self"; interval: float = nil; task: function = nil; params: any[] = {  }; blocking: bool = false | return: function | Latent; LatentStates { [1] = "TimeUp", TimeUp = true } |
+| `isInputBlocked` | `function` | self: { "GlobalCore", "SceneBase" } = "self" | blocked: bool | Pure |
+| `addAnim` | `function` | self: { "GlobalCore", "SceneBase" } = "self"; anim: { "GlobalCore", "Animation" } | — | ExecSplit { [1] = "default", default = nil } |
+| `getAnims` | `function` | self: { "GlobalCore", "SceneBase" } = "self" | anims: { "GlobalCore", "Animation[]" } | Pure |
+| `removeAnim` | `function` | self: { "GlobalCore", "SceneBase" } = "self"; anim: { "GlobalCore", "Animation" } | — | ExecSplit { [1] = "default", default = nil } |
+| `clearAnims` | `function` | self: { "GlobalCore", "SceneBase" } = "self" | — | ExecSplit { [1] = "default", default = nil } |
+| `addCommonTip` | `function` | self: { "GlobalCore", "SceneBase" } = "self"; text: string | — | ExecSplit { [1] = "default", default = nil } |
+| `onEnter` | `function` | self: { "GlobalCore", "SceneBase" } = "self" | — | — |
+| `onQuit` | `function` | self: { "GlobalCore", "SceneBase" } = "self" | — | — |
+| `onCreate` | `function` | self: { "GlobalCore", "SceneBase" } = "self" | — | — |
+| `onInput` | `function` | self: { "GlobalCore", "SceneBase" } = "self" | — | — |
+| `onTick` | `function` | self: { "GlobalCore", "SceneBase" } = "self"; deltaTime: float | — | — |
+| `onLateTick` | `function` | self: { "GlobalCore", "SceneBase" } = "self"; deltaTime: float | — | — |
+| `onFixedTick` | `function` | self: { "GlobalCore", "SceneBase" } = "self"; fixedDelta: float | — | — |
+| `onDestroy` | `function` | self: { "GlobalCore", "SceneBase" } = "self" | — | — |
+
+
+All runtime services below are static types under `GlobalCore`. Configuration keeps its existing INI keys and defaults; each service owns its values and apply/save behaviour.
+
+## System
+
+`GlobalCore.System` owns configuration startup, the main loop, runtime lifecycle and script/language settings. `System.run()` enters the loop from Lua and is excluded from Blueprint metadata.
+
+### Functions and events
+
+| Name | Kind | Parameters | Returns | Execution and metadata |
+|---|---|---|---|---|
+| `init` | `function` | data: ludork::standard::ConfigParser; dataFilePath: string | — | — |
+| `getScript` | `function` | — | return: string | — |
+| `setScript` | `function` | value: string | — | — |
+| `saveScript` | `function` | value: string | — | — |
+| `getLanguage` | `function` | — | return: string | — |
+| `setLanguage` | `function` | value: string | — | — |
+| `saveLanguage` | `function` | value: string | — | — |
+| `isDebugMode` | `function` | — | return: bool | Pure |
+| `exit` | `function` | — | — | — |
+
+## Display
+
+`GlobalCore.Display` owns the window, logical size, display scale, input method and presentation settings. `Display.initializeDisplay(title, gameSize, iconPath, cursorPath)` prepares the display from Lua and is excluded from Blueprint metadata.
+
+### Display scale semantics
+
+`getConfiguredScale()` returns the configured display preference, including `0`. `getScale()` returns the positive effective scale that rendering and input currently use after Maximum Render Scale is applied. The default configured preference is Fullscreen (`0`). `setScale` applies the value and saves it. `applyScale` only applies the value, and `saveScale` only saves it. Non-finite or negative values normalise to `1`. On desktop, `0` selects borderless fullscreen without changing the display mode. Positive values set a fixed standalone window size controlled through Scale, and users cannot drag its borders to resize it. Rendering preserves aspect ratio with centred black bars when needed. On macOS, the configured window scale is measured in Cocoa client points. The effective render scale returned by `getScale()` and `Engine.GetScale()` is calculated from the actual drawable pixel size, including the Retina backing scale, and then limited by Maximum Render Scale. A backing-scale change rebuilds the render targets and refreshes text without resizing the logical window.
+
+`isDisplayScaleConfigurable()` is true for standalone desktop windows, including HarmonyOS 2in1, and false for embedded or ordinary mobile displays. In a HarmonyOS Mobile build for API 22 or newer, the result is true only on a tablet with free-window mode enabled. The ArkTS host listens for `freeWindowModeChange` and updates the native state. The runtime reapplies its current configured Scale when free-window mode is enabled and when the app returns to the foreground with that mode enabled. A positive value then requests a drawable client area of `round(gameSize * scale)` pixels; the host adds the window decorations to obtain the Stage's outer size. A value of `0` requests a maximised or fullscreen window. The host disables user drag resizing, so window size and fullscreen are controlled through Scale. Rendering uses the resulting surface and preserves aspect ratio with centred black bars if system size limits prevent the requested client size. HarmonyOS 2in1 follows the desktop scale protocol (default `0`).
+
+`getMaximumWindowedScale(gameSize)` returns the largest scale that fits the available window dimensions. Desktop, including HarmonyOS 2in1, uses the decorated work area of the current window, or the primary display when no window exists. A configurable Mobile host supplies its own maximum and refreshes it when HarmonyOS free-window mode is enabled or the app returns to the foreground with that mode enabled. The result is `nil` for embedded and non-configurable mobile hosts, for zero logical dimensions and for unknown available sizes.
+
+### Anti-aliasing semantics
+
+Anti-aliasing defaults to `8`, and an invalid value uses the SFML default. `setAntiAliasingLevel` saves the value without recreating the current context, so the level applies at the next display initialisation. SFML may negotiate another supported level.
+
+### Frame rate semantics
+
+`getFrameRate()` returns the configured target, which defaults to `60`. A value of `0` means Unlimited and disables active frame-rate limiting. Vertical Sync remains independent and can still limit presentation. `setFrameRate` applies the value and saves it. `saveFrameRate` only saves. Fixed updates use a `1/60`-second step with Unlimited, or `1/framerate` for a positive target.
+
+### iOS graphics context
+
+On iOS, startup requires an OpenGL ES 3.0 or later context.
+
+### Functions and events
+
+| Name | Kind | Parameters | Returns | Execution and metadata |
+|---|---|---|---|---|
+| `getScale` | `function` | — | return: float | — |
+| `getConfiguredScale` | `function` | — | return: float | — |
+| `getMaximumWindowedScale` | `function` | gameSize: sf.Vector2u | return: float \| nil | Pure |
+| `setScale` | `function` | value: float | — | — |
+| `applyScale` | `function` | value: float | — | — |
+| `saveScale` | `function` | value: float | — | — |
+| `isDisplayScaleConfigurable` | `function` | — | return: bool | Pure |
+| `getFrameRate` | `function` | — | return: int | — |
+| `setFrameRate` | `function` | value: int | — | — |
+| `saveFrameRate` | `function` | value: int | — | — |
+| `getAntiAliasingLevel` | `function` | — | return: int | — |
+| `setAntiAliasingLevel` | `function` | value: int | — | — |
+| `saveAntiAliasingLevel` | `function` | value: int | — | — |
+| `getVerticalSync` | `function` | — | return: bool | — |
+| `setVerticalSync` | `function` | value: bool | — | — |
+| `saveVerticalSync` | `function` | value: bool | — | — |
+| `getGameSize` | `function` | — | return: sf.Vector2u | Pure |
+| `setInputMethodDisabled` | `function` | disabled: bool | — | — |
+
+## Graphics
+
+`GlobalCore.Graphics` owns the canvas, views, drawing and ordered shader chain, and coordinates frame composition and submission.
+
+Graphics canvas textures use premultiplied alpha. Custom full-screen shaders must return premultiplied or opaque colours.
+
+### Maximum render scale semantics
+
+`getMaximumRenderScale()` returns the cap on the effective physical-pixel render scale. A value of `0` means unlimited, the default is `2`, and an invalid value also becomes `2`. `setMaximumRenderScale` applies the value and saves it between frames without resizing the window. `saveMaximumRenderScale` only saves. For a `640×480` game at configured scale `1.5` on a Retina 2× display, the window is `960×720` Cocoa points: an unlimited cap renders at `1920×1440` (effective scale `3`), while a cap of `2` renders at `1280×960` in the same window.
+
+### Lighting render scale semantics
+
+`getLightingRenderScale()` returns `0.5`, `0.75` or `1`. The default is `1`, also used for invalid values. `setLightingRenderScale` applies the value and saves it, rebuilding direct-light targets and invalidating the static cache. `saveLightingRenderScale` only saves. The surface mask, transmission and occupancy remain at full resolution.
+
+### Functions and events
+
+| Name | Kind | Parameters | Returns | Execution and metadata |
+|---|---|---|---|---|
+| `getMaximumRenderScale` | `function` | — | return: float | — |
+| `setMaximumRenderScale` | `function` | value: float | — | — |
+| `saveMaximumRenderScale` | `function` | value: float | — | — |
+| `getLightingRenderScale` | `function` | — | return: float | — |
+| `setLightingRenderScale` | `function` | value: float | — | — |
+| `saveLightingRenderScale` | `function` | value: float | — | — |
+| `setWindowMapView` | `function` | rect: sf.IntRect | — | — |
+| `setWindowDefaultView` | `function` | — | — | — |
+| `getCanvas` | `function` | — | return: sf.RenderTexture | Pure |
+| `draw` | `function` | drawable: sf.Drawable; shader: sf.Shader = nil | — | — |
+| `addGraphicsShader` | `function` | shader: sf.Shader; uniforms: any = nil | — | — |
+| `removeGraphicsShader` | `function` | shader: sf.Shader | — | — |
+| `removeAllGraphicsShaders` | `function` | — | — | — |
+| `removeGraphicsShaderAt` | `function` | index: int | — | — |
+
+## ScreenEffects
+
+`GlobalCore.ScreenEffects` owns flash, shake and screen tone, including their active/completion queries.
+
+### Functions and events
+
+| Name | Kind | Parameters | Returns | Execution and metadata |
+|---|---|---|---|---|
+| `flashScreen` | `function` | color: sf.Color = nil; duration: float = 0.5 | — | — |
+| `stopFlash` | `function` | — | — | — |
+| `isFlashing` | `function` | — | return: bool | Pure |
+| `changeScreenTone` | `function` | red: float = 0; green: float = 0; blue: float = 0; gray: float = 0; duration: float = 0 | — | — |
+| `clearScreenTone` | `function` | duration: float = 0 | — | — |
+| `stopScreenTone` | `function` | — | — | — |
+| `isScreenToneActive` | `function` | — | return: bool | Pure |
+| `startShake` | `function` | power: float = 4; speed: float = 10; duration: float = 0.5 | — | — |
+| `stopShake` | `function` | — | — | — |
+| `isShaking` | `function` | — | return: bool | Pure |
+| `isScreenToneTransitionComplete` | `function` | — | return: bool | Pure |
+
+## Transition
+
+`GlobalCore.Transition` owns transition requests and frozen backgrounds. `requestTransition` accepts an empty optional value or a complete `/Game/Assets/Transitions/...` logical path without adding a prefix. Freeze requests complete when the outgoing frame has been captured; transition completion is confirmed after the final frame has been submitted.
+
+### Functions and events
+
+| Name | Kind | Parameters | Returns | Execution and metadata |
+|---|---|---|---|---|
+| `setTransition` | `function` | transitionResource: sf.Texture = nil; transitionTime: float = 1 | — | — |
+| `freezeTransitionBackground` | `function` | — | — | — |
+| `isTransitionBackgroundFrozen` | `function` | — | return: bool | Pure |
+| `isTransitionBackgroundFreezePending` | `function` | — | return: bool | Pure |
+| `cancelTransitionBackgroundFreeze` | `function` | — | — | — |
+| `requestTransition` | `function` | transitionName: string = nil; transitionTime: float = 1 | — | — |
+| `cancelPendingTransition` | `function` | — | — | — |
+| `isTransitionPending` | `function` | — | return: bool | Pure |
+| `isInTransition` | `function` | — | return: bool | Pure |
+
+## SceneManager
+
+`GlobalCore.SceneManager` owns the current scene, scene stack and queued switches. It preserves the scene-thread and deferred-destruction lifecycle. Request application exit through `System.exit()`.
+
+### Functions and events
+
+| Name | Kind | Parameters | Returns | Execution and metadata |
+|---|---|---|---|---|
+| `getScene` | `function` | — | return: SceneRuntime | Pure |
+| `requireScene` | `function` | — | return: SceneRuntime | Pure |
+| `getSceneList` | `function` | — | return: SceneRuntime[] | Pure |
+| `setScene` | `function` | scene: SceneRuntime | — | — |
+| `pushScene` | `function` | scene: SceneRuntime | — | — |
+| `popScene` | `function` | — | — | — |
+
+## RuntimeDiagnostics
+
+`RuntimeDiagnostics.isPerformanceProfilerEnabled()` queries whether profiling is enabled. `recordWorldStreamingPerformance(queueDepth, reading, prepared, active, dormant, cacheBytes, publishMilliseconds, visibleTileChunks, activeActors)` records a streaming sample. Both methods are available to Lua and excluded from Blueprint metadata.
+
+Weather, fog and panorama use `WeatherController`, `FogController` and `PanoramaController` directly; see [Map and Fog](<Map and Fog.md>). Audio switches and volumes belong to [AudioManager](<Resource Managers.md#audiomanager>).

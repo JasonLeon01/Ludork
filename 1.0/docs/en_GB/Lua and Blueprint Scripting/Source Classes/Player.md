@@ -1,0 +1,71 @@
+# Source.MapActors.Player
+
+`Player` declares the Character properties and the inventory, equipment and attribute commands of the playable Actor.
+
+Metadata source: `Scripts/Source/MapActors/Player_meta.lua`
+
+Direct metadata bases: `{ "Engine", "Character" }`, `{ "Source.Battler", "Battler" }`
+
+Meta: `{ GeneralDataVars = { { "ID", "Player" } } }`
+
+The editor shows a read-only generated `PlayerAttributeSet` preview. The preview is not serialised into the Blueprint JSON.
+
+## Properties
+
+| Name | Type | Default | Metadata |
+|---|---|---|---|
+| `ID` | `string` | `"FILL_IT_BY_YOURSELF"` | GeneralDataVars = `Player` |
+| `tickable` | `bool` | `true` | — |
+| `collisionEnabled` | `bool` | `true` | — |
+| `animatable` | `bool` | `true` | — |
+| `speed` | `float` | `96` | — |
+
+`attributes` is the generated Player Attribute Set. Inventory, equipment, movement and the Ability System are runtime state.
+
+## Blueprint functions and events
+
+| Name | Kind | Parameters | Returns | Execution and metadata |
+|---|---|---|---|---|
+| `getDisplayName` | function | self: { "Source.MapActors.Player", "Player" } = "self" | `name: string` | Pure |
+| `setName` | function | self: { "Source.MapActors.Player", "Player" } = "self"; `name: string` | `success: bool` | Success/Invalid execution branches |
+| `onFixedTick` | event | `fixedDelta: float` | — | default execution output |
+| `addItem` | function | self: { "Source.MapActors.Player", "Player" } = "self"; `itemID: string; count: int = 1` | — | Item selector |
+| `removeItem` | function | self: { "Source.MapActors.Player", "Player" } = "self"; `itemID: string; count: int = 1` | bool | success/failed split; Item selector |
+| `getItemCount` | function | self: { "Source.MapActors.Player", "Player" } = "self"; `itemID: string` | `count: int` | Pure; Item selector |
+| `hasItem` | function | self: { "Source.MapActors.Player", "Player" } = "self"; `itemID: string` | `value: bool` | Pure; Item selector |
+| `addEquip` | function | self: { "Source.MapActors.Player", "Player" } = "self"; `equipID: string; count: int = 1` | — | Equip selector |
+| `removeEquip` | function | self: { "Source.MapActors.Player", "Player" } = "self"; `equipID: string; count: int = 1` | bool | success/failed split; Equip selector |
+| `equip` | function | self: { "Source.MapActors.Player", "Player" } = "self"; `equipID: string` | — | Equip selector |
+| `unequip` | function | self: { "Source.MapActors.Player", "Player" } = "self"; `slotID: string` | — | default execution output |
+| `getEquipCount` | function | self: { "Source.MapActors.Player", "Player" } = "self"; `equipID: string` | `count: int` | Pure; Equip selector |
+| `hasEquip` | function | self: { "Source.MapActors.Player", "Player" } = "self"; `equipID: string` | `value: bool` | Pure; Equip selector |
+| `getEquipInfo` | function | self: { "Source.MapActors.Player", "Player" } = "self"; `slotID: string` | `value: string` | Pure |
+| `getForbiddenMoving` | function | self: { "Source.MapActors.Player", "Player" } = "self" | `value: bool` | Pure |
+| `setForbiddenMoving` | function | self: { "Source.MapActors.Player", "Player" } = "self"; `value: bool` | — | default execution output |
+
+## Lua runtime API
+
+| Member | Signature | Behaviour |
+|---|---|---|
+| `ValidateName` | `(name) -> string, "empty"/"tooLong"/nil` | Returns the trimmed candidate and validation error (`nil` when valid) |
+| `init` | `(texture?, tag?)` | Constructs the Attribute Set, Ability System and empty inventory/equipment state |
+| `InitPlayer` | `(playerPath, applyInitialEquipment? = true) -> Player` | Constructs a Player from a Blueprint class path and optionally applies Class initial equipment |
+| `FromDict` | `(data) -> Player` | Restores Bases, inventory abilities, equipment Effects and State Effects without applying Class initial equipment or executing member graphs |
+| `asDict` | `() -> SaveData` | Serialises stable state, excluding runtime Effect handles |
+| `activateItem` | `(itemID) -> GameplayAbilityResult` | Activates `GeneralData.Item.<id>.onUse` |
+| `consumeMovementSpecialPath` | `() -> sf.Vector2i[]` | Takes and clears arrived map cells |
+| `getClassPath` / `setClassPath` | `() -> string` / `(path)` | Accesses the reconstructable Blueprint path |
+| `getItems` / `getEquips` | `() -> table<string, integer>` | Returns independent count snapshots; use inventory/equipment commands to change the Player |
+| `restoreFromData` | `(data)` | Restores saved state into a Player of the same Blueprint class without replaying member graphs |
+| `MeetPlayer` | `(actors, player) -> Player?` | Returns the specified player only when present in the Actor array |
+
+`InitPlayer` applies Class initial equipment. `FromDict` reconstructs saved equipment without replaying `onEquip`. A runtime equip or unequip changes the Infinite Effect before the corresponding graph runs. Movement completion sends `Event.Movement.Step`.
+
+HP Current is constrained to `0..MAXHP`. Permanent MAXHP and LEVEL growth uses Base deltas. Effect and Constraint changes never alter progression Bases.
+
+`setName` trims Unicode whitespace and accepts 1–32 grapheme clusters. Invalid input leaves the name unchanged. `getDisplayName` returns the custom name literally or the localised General Data default.
+
+## Related pages
+
+- [Runtime Data, Configuration and Saves](<../Default Gameplay/Runtime Data Configuration and Saves.md>)
+- [GlobalCore Gameplay API](<../Global and Core Modules/Global APIs/Gameplay.md>)

@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-declare module 'virtual:ludork-doc-filenames' {
-  const filenames: Readonly<Record<string, Readonly<Record<string, readonly string[]>>>>
-  export default filenames
+declare module 'virtual:ludork-doc-manifest' {
+  const manifests: Record<string, Record<import('./Ludork/ludorkLanguages').LanguageKey, import('./Ludork/ludorkDocsManifest').DocsManifest>>
+  export default manifests
 }
