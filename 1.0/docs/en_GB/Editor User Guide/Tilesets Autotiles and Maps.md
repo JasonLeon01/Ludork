@@ -54,6 +54,8 @@ A rename updates the recognised references listed in [Project Settings and Asset
 
 *Review map dimensions and ambient light before authoring layers. The Ambient Light button shows a colour swatch and its ARGB value; a checkerboard indicates transparency. Click it to choose a colour.*
 
+Use the browse button beside BGM, BGS, fog or panorama and select **Clear** to remove the file reference. World Map Properties uses the same selector for fog and panorama. Confirm the properties dialog to apply the change.
+
 Map Properties also selects an optional **Panorama** image from `Assets/Panoramas`. The runtime Cover-scales that image to fill `GameMap.MapViewRect`, then crops any overflow using the Camera's position as a fraction of the map's scrollable range. The left edge of the map shows the left of the panorama, and the right edge shows the right. An axis that cannot scroll uses the centre of that overflow. Ambient light tints the image, and point lights do not. A blank path disables the panorama. A world manifest may set a global panorama that covers the world Camera, while a child's `panorama` applies only when that child is loaded as a standalone map.
 
 ## Layers and painting
