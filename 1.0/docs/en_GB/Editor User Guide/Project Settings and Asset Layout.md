@@ -33,6 +33,8 @@ Editor appearance and tool preferences are shared through `Ludork.ini`, independ
 
 `Main.ini` stores game-facing settings. Open **Game → Game Config** (`F3`) to edit them. The dialog presents fourteen rows in this order: script (read-only), language, scale, render limit, lighting render scale, frame rate, antialiasing level, vertical sync, music enabled, sound enabled, voice enabled, music volume, sound volume and voice volume.
 
+The language list uses the exported `Scripts/Source/Locale/*.lua` files, excluding `Core.lua`, and refreshes whenever Game Config opens. The current configured language remains available even if its export is missing. Export workbook changes before selecting a newly added language.
+
 **Confirm** writes `Main.ini` atomically, and only when a value differs from the stored configuration, so an unchanged confirmation writes nothing. The current configuration is updated only after the write succeeds. Write failures keep the dialog open with an error, and **Cancel** writes nothing. Game Config is excluded from document Undo and unsaved state.
 
 ![Game Config with display and audio settings](../../../images/editor/game-config.png)
