@@ -1,5 +1,16 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Styles.Resources>
+        <ControlTheme x:Key="Editor.NumericSpinButton" TargetType="RepeatButton"
+                      BasedOn="{StaticResource FluentButtonSpinnerRepeatButton}">
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="IsTabStop" Value="False" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </ControlTheme>
+    </Styles.Resources>
     <Style Selector="Window">
         <Setter Property="Background" Value="{DynamicResource Editor.BackgroundBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource Editor.TextBrush}" />
@@ -97,6 +108,48 @@
     <Style Selector="NumericUpDown.ludork-editable /template/ TextBox#PART_TextBox">
         <Setter Property="MinHeight" Value="0" />
         <Setter Property="Padding" Value="{DynamicResource Editor.FieldPadding}" />
+    </Style>
+    <Style Selector="NumericUpDown.ludork-editable /template/ ButtonSpinner#PART_Spinner">
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <DataValidationErrors>
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}">
+                        <DockPanel>
+                            <Grid Name="PART_SpinnerPanel" DockPanel.Dock="Right"
+                                  Width="18" RowDefinitions="*,*"
+                                  IsVisible="{TemplateBinding ShowButtonSpinner}">
+                                <RepeatButton Name="PART_IncreaseButton" Grid.Row="0"
+                                              Theme="{StaticResource Editor.NumericSpinButton}"
+                                              Background="{TemplateBinding Background}"
+                                              Foreground="{TemplateBinding Foreground}"
+                                              BorderBrush="{TemplateBinding BorderBrush}"
+                                              BorderThickness="1,0,0,0">
+                                    <PathIcon Width="8" Height="4" Data="M0,4 L4,0 8,4 Z" />
+                                </RepeatButton>
+                                <RepeatButton Name="PART_DecreaseButton" Grid.Row="1"
+                                              Theme="{StaticResource Editor.NumericSpinButton}"
+                                              Background="{TemplateBinding Background}"
+                                              Foreground="{TemplateBinding Foreground}"
+                                              BorderBrush="{TemplateBinding BorderBrush}"
+                                              BorderThickness="1,1,0,0">
+                                    <PathIcon Width="8" Height="4" Data="M0,0 L4,4 8,0 Z" />
+                                </RepeatButton>
+                            </Grid>
+                            <ContentPresenter Name="PART_ContentPresenter"
+                                              Content="{TemplateBinding Content}"
+                                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                                              HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              Padding="{TemplateBinding Padding}" />
+                        </DockPanel>
+                    </Border>
+                </DataValidationErrors>
+            </ControlTemplate>
+        </Setter>
     </Style>
     <Style Selector="ListBox, TreeView">
         <Setter Property="Background" Value="{DynamicResource Editor.BackgroundBrush}" />

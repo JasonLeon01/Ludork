@@ -1,1 +1,6 @@
 Game/** linguist-documentation=false
+
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+* text=auto eol=lf
