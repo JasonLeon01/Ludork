@@ -106,6 +106,8 @@ File Explorer browses `Assets` and `Data` through the source sidebar and breadcr
 
 Right-click an entry for file operations or empty space for the current directory’s menu. Paste shortcuts target the current browsing directory.
 
+Right-click a file or folder and choose **Show in File Explorer** on Windows or **Show in Finder** on macOS to open its containing directory and select it. This also works in expanded folders and search results. With multiple entries selected, it reveals only the right-clicked entry. The action is disabled for entries that do not yet exist on disk and does not save pending changes.
+
 In list view, folder arrows expand or collapse nested folders in place; double-click a folder to enter it. `Right` expands a folder or selects its first child; `Left` collapses it or selects its parent. Expansion is remembered for the project session. Icon view and search results remain flat.
 
 Search matches file names in the current directory and its subdirectories, ignoring case. Results include unsaved resources and display relative paths. Clearing the field restores browsing; changing directories or locating a file clears the search. Symbolic-link folders are excluded from expansion and recursive search.
