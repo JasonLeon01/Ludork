@@ -218,24 +218,20 @@ public sealed class ProjectPackService
             projectPath,
             options.UseLuac,
             options.UseLdPak);
+        Task<ScriptExecutionResult> executeAsync(bool checkOnly) => executeScriptAsync(
+            scriptPath,
+            checkOnly,
+            exportToIPhone,
+            exportToHarmonyDevice,
+            harmonyDeviceForm,
+            harmonyGraphicsApi,
+            signing,
+            packaging,
+            options,
+            cancellationToken);
         if (requiresPreflight)
         {
-            ScriptExecutionResult preflight = await executeScriptAsync(
-                scriptPath,
-                true,
-                options.UseLuac,
-                options.EncryptShaders,
-                options.EncryptData,
-                options.EncryptSaves,
-                options.UseLdPak,
-                exportToIPhone,
-                exportToHarmonyDevice,
-                harmonyDeviceForm,
-                harmonyGraphicsApi,
-                signing,
-                packaging,
-                options,
-                cancellationToken);
+            ScriptExecutionResult preflight = await executeAsync(true);
             ProjectPackResult? preflightFailure = executionFailure(preflight, options.Platform);
             if (preflightFailure is not null)
                 return preflightFailure;
@@ -270,22 +266,7 @@ public sealed class ProjectPackService
 
         if (requiresPreflight)
         {
-            ScriptExecutionResult buildPreflight = await executeScriptAsync(
-                scriptPath,
-                true,
-                options.UseLuac,
-                options.EncryptShaders,
-                options.EncryptData,
-                options.EncryptSaves,
-                options.UseLdPak,
-                exportToIPhone,
-                exportToHarmonyDevice,
-                harmonyDeviceForm,
-                harmonyGraphicsApi,
-                signing,
-                packaging,
-                options,
-                cancellationToken);
+            ScriptExecutionResult buildPreflight = await executeAsync(true);
             ProjectPackResult? buildPreflightFailure = executionFailure(
                 buildPreflight,
                 options.Platform);
@@ -293,22 +274,7 @@ public sealed class ProjectPackService
                 return buildPreflightFailure;
         }
 
-        ScriptExecutionResult execution = await executeScriptAsync(
-            scriptPath,
-            false,
-            options.UseLuac,
-            options.EncryptShaders,
-            options.EncryptData,
-            options.EncryptSaves,
-            options.UseLdPak,
-            exportToIPhone,
-            exportToHarmonyDevice,
-            harmonyDeviceForm,
-            harmonyGraphicsApi,
-            signing,
-            packaging,
-            options,
-            cancellationToken);
+        ScriptExecutionResult execution = await executeAsync(false);
         return executionFailure(execution, options.Platform)
             ?? ProjectPackResult.Completed();
     }
@@ -561,11 +527,6 @@ public sealed class ProjectPackService
     private async Task<ScriptExecutionResult> executeScriptAsync(
         string scriptPath,
         bool checkOnly,
-        bool useLuac,
-        bool encryptShaders,
-        bool encryptData,
-        bool encryptSaves,
-        bool useLdPak,
         bool exportToIPhone,
         bool exportToHarmonyDevice,
         HarmonyDeviceForm? harmonyDeviceForm,
@@ -578,11 +539,6 @@ public sealed class ProjectPackService
         ProcessStartInfo startInfo = createStartInfo(
             scriptPath,
             checkOnly,
-            useLuac,
-            encryptShaders,
-            encryptData,
-            encryptSaves,
-            useLdPak,
             exportToIPhone,
             exportToHarmonyDevice,
             harmonyDeviceForm,
@@ -595,11 +551,11 @@ public sealed class ProjectPackService
         Task errorTask = Task.CompletedTask;
         string optionText = " --version " + options.Version
             + (options.Dev ? " --dev" : " --release")
-            + (useLuac ? " --compile-lua" : string.Empty)
-            + (encryptShaders ? " --encrypt-shaders" : string.Empty)
-            + (encryptData ? " --encrypt-data" : string.Empty)
-            + (encryptSaves ? " --encrypt-saves" : string.Empty)
-            + (useLdPak ? " --use-ldpak" : string.Empty)
+            + (options.UseLuac ? " --compile-lua" : string.Empty)
+            + (options.EncryptShaders ? " --encrypt-shaders" : string.Empty)
+            + (options.EncryptData ? " --encrypt-data" : string.Empty)
+            + (options.EncryptSaves ? " --encrypt-saves" : string.Empty)
+            + (options.UseLdPak ? " --use-ldpak" : string.Empty)
             + (exportToIPhone ? " --export-to-iphone" : string.Empty)
             + (exportToHarmonyDevice ? " --export-to-device" : string.Empty)
             + (harmonyDeviceForm is null
@@ -753,11 +709,6 @@ public sealed class ProjectPackService
     private ProcessStartInfo createStartInfo(
         string scriptPath,
         bool checkOnly,
-        bool useLuac,
-        bool encryptShaders,
-        bool encryptData,
-        bool encryptSaves,
-        bool useLdPak,
         bool exportToIPhone,
         bool exportToHarmonyDevice,
         HarmonyDeviceForm? harmonyDeviceForm,
@@ -808,15 +759,15 @@ public sealed class ProjectPackService
         startInfo.ArgumentList.Add(options.Dev ? "--dev" : "--release");
         if (checkOnly)
             startInfo.ArgumentList.Add("--check");
-        if (useLuac)
+        if (options.UseLuac)
             startInfo.ArgumentList.Add("--compile-lua");
-        if (encryptShaders)
+        if (options.EncryptShaders)
             startInfo.ArgumentList.Add("--encrypt-shaders");
-        if (encryptData)
+        if (options.EncryptData)
             startInfo.ArgumentList.Add("--encrypt-data");
-        if (encryptSaves)
+        if (options.EncryptSaves)
             startInfo.ArgumentList.Add("--encrypt-saves");
-        if (useLdPak)
+        if (options.UseLdPak)
             startInfo.ArgumentList.Add("--use-ldpak");
         if (exportToIPhone)
             startInfo.ArgumentList.Add("--export-to-iphone");

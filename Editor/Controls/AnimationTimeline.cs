@@ -557,7 +557,7 @@ public sealed class AnimationTimeline : Control
             Bounds.Width,
             Math.Max(0, Bounds.Height - HeaderHeight)
         );
-        segmentMarqueeRect = AnimationEditor.createMarqueeRect(
+        segmentMarqueeRect = MarqueeSelection.CreateRect(
             segmentMarqueeStart,
             position,
             trackBounds
@@ -574,13 +574,13 @@ public sealed class AnimationTimeline : Control
             for (int segment = 0; segment < segments.Count; segment += 1)
             {
                 if (segments[segment] is JsonObject data
-                    && AnimationEditor.rectsOverlap(segmentMarqueeRect, segmentRect(track, data)))
+                    && MarqueeSelection.Overlaps(segmentMarqueeRect, segmentRect(track, data)))
                 {
                     hits.Add((track, segment));
                 }
             }
         }
-        HashSet<(int Track, int Segment)> selection = AnimationEditor.buildMarqueeSelection(
+        HashSet<(int Track, int Segment)> selection = MarqueeSelection.Build(
             segmentSelectionBeforeMarquee,
             hits,
             segmentMarqueeAdditive,
@@ -1012,8 +1012,8 @@ public sealed class AnimationTimeline : Control
             {
                 ["type"] = sound ? "sound" : "frame",
                 ["asset"] = assetIndex,
-                ["startFrame"] = createFrame(nextStart),
-                ["endFrame"] = createFrame(nextStart + duration),
+                ["startFrame"] = AnimationFrameData.Create(nextStart),
+                ["endFrame"] = AnimationFrameData.Create(nextStart + duration),
             };
             if (sound)
                 segment["originalDuration"] = originalAudioDuration;
@@ -1086,14 +1086,6 @@ public sealed class AnimationTimeline : Control
         SegmentChanged?.Invoke();
         Refresh();
     }
-
-    private static JsonObject createFrame(double time) => new()
-    {
-        ["time"] = time,
-        ["position"] = new JsonArray(0.0, 0.0),
-        ["rotation"] = 0.0,
-        ["scale"] = new JsonArray(1.0, 1.0),
-    };
 
     private void updateCanvasSize()
     {

@@ -306,19 +306,12 @@ internal sealed partial class GeneralDataPage : UserControl
         JsonNode? rawValue = row.Member[column.Name];
         if (type == "bool")
         {
-            CheckBox check = new()
+            return createBooleanEditor(rawValue?.GetValue<bool?>() ?? false, next =>
             {
-                IsChecked = rawValue?.GetValue<bool?>() ?? false,
-                VerticalAlignment = VerticalAlignment.Center,
-            };
-            check.IsCheckedChanged += (_, _) =>
-            {
-                bool next = check.IsChecked ?? false;
                 if ((row.Member[column.Name]?.GetValue<bool?>() ?? false) == next)
                     return;
                 viewModel.UpdateMemberValue(row.Member, column.Name, JsonValue.Create(next));
-            };
-            return check;
+            });
         }
         if (type is "int" or "float")
             return buildTypedFieldEditor(column.Name, column.Definition, rawValue, row.Member, null);
@@ -331,26 +324,19 @@ internal sealed partial class GeneralDataPage : UserControl
             List<string>? options = getRefOptions(refKind, refKey);
             if (options is not null)
             {
-                ComboBox combo = GeneralDataReferenceInputs.Create(current, options);
-                combo.SelectionChanged += (_, _) =>
+                return createReferenceEditor(current, options, next =>
                 {
-                    string next = GeneralDataReferenceInputs.GetValue(combo);
                     if ((row.Member[column.Name]?.GetValue<string>() ?? string.Empty) == next)
                         return;
                     viewModel.UpdateMemberValue(row.Member, column.Name, JsonValue.Create(next));
-                };
-                return combo;
+                });
             }
-            TextBox text = EditorInputs.CreateEditableTextBox(current);
-            HistoryMergeBehavior.Attach(text, gameData);
-            text.TextChanged += (_, _) =>
+            return createTextEditor(current, next =>
             {
-                string next = text.Text ?? string.Empty;
                 if ((row.Member[column.Name]?.GetValue<string>() ?? string.Empty) == next)
                     return;
                 viewModel.UpdateMemberValue(row.Member, column.Name, JsonValue.Create(next));
-            };
-            return text;
+            });
         }
         Grid complex = new()
         {
@@ -846,17 +832,14 @@ internal sealed partial class GeneralDataPage : UserControl
         if (type == "bool")
         {
             bool current = rawValue?.GetValue<bool?>() ?? false;
-            CheckBox check = new() { IsChecked = current, VerticalAlignment = VerticalAlignment.Center };
-            check.IsCheckedChanged += (_, _) =>
+            return createBooleanEditor(current, next =>
             {
-                bool next = check.IsChecked ?? false;
                 if ((member[paramName]?.GetValue<bool?>() ?? false) == next)
                     return;
                 if (!viewModel.UpdateMemberValue(member, paramName, JsonValue.Create(next)))
                     return;
                 rawValue = member[paramName];
-            };
-            return check;
+            });
         }
 
         if (type is "int" or "float")
@@ -944,15 +927,13 @@ internal sealed partial class GeneralDataPage : UserControl
             for (int i = 0; i < size; i++)
             {
                 int captured = i;
-                TextBox box = EditorInputs.CreateEditableTextBox(tupleVal[captured]?.GetValue<string>() ?? string.Empty);
-                HistoryMergeBehavior.Attach(box, gameData);
-                box.TextChanged += (_, _) =>
+                TextBox box = createTextEditor(tupleVal[captured]?.GetValue<string>() ?? string.Empty, next =>
                 {
                     while (tupleVal.Count <= captured)
                         tupleVal.Add(string.Empty);
-                    tupleVal[captured] = box.Text ?? string.Empty;
+                    tupleVal[captured] = next;
                     viewModel.UpdateMemberValue(member, paramName, tupleVal);
-                };
+                });
                 Grid.SetColumn(box, captured);
                 tupleRow.Children.Add(box);
             }
@@ -967,31 +948,53 @@ internal sealed partial class GeneralDataPage : UserControl
             List<string>? refOptions = getRefOptions(refKind, refKey);
             if (refOptions is not null)
             {
-                ComboBox combo = GeneralDataReferenceInputs.Create(current, refOptions);
-                combo.SelectionChanged += (_, _) =>
+                return createReferenceEditor(current, refOptions, next =>
                 {
-                    string next = GeneralDataReferenceInputs.GetValue(combo);
                     if ((rawValue?.GetValue<string>() ?? string.Empty) == next)
                         return;
                     if (!viewModel.UpdateMemberValue(member, paramName, JsonValue.Create(next)))
                         return;
                     rawValue = member[paramName];
-                };
-                return combo;
+                });
             }
-            TextBox box = EditorInputs.CreateEditableTextBox(current);
-            HistoryMergeBehavior.Attach(box, gameData);
-            box.TextChanged += (_, _) =>
+            return createTextEditor(current, next =>
             {
-                string next = box.Text ?? string.Empty;
                 if ((rawValue?.GetValue<string>() ?? string.Empty) == next)
                     return;
                 if (!viewModel.UpdateMemberValue(member, paramName, JsonValue.Create(next)))
                     return;
                 rawValue = member[paramName];
-            };
-            return box;
+            });
         }
+    }
+
+    private static CheckBox createBooleanEditor(bool current, Action<bool> commit)
+    {
+        CheckBox check = new()
+        {
+            IsChecked = current,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        check.IsCheckedChanged += (_, _) => commit(check.IsChecked ?? false);
+        return check;
+    }
+
+    private TextBox createTextEditor(string current, Action<string> commit)
+    {
+        TextBox text = EditorInputs.CreateEditableTextBox(current);
+        HistoryMergeBehavior.Attach(text, gameData);
+        text.TextChanged += (_, _) => commit(text.Text ?? string.Empty);
+        return text;
+    }
+
+    private static ComboBox createReferenceEditor(
+        string current,
+        IReadOnlyList<string> options,
+        Action<string> commit)
+    {
+        ComboBox combo = GeneralDataReferenceInputs.Create(current, options);
+        combo.SelectionChanged += (_, _) => commit(GeneralDataReferenceInputs.GetValue(combo));
+        return combo;
     }
 
     private Control buildTypedFieldEditor(
@@ -1079,13 +1082,7 @@ internal sealed partial class GeneralDataPage : UserControl
             .Select(option => option?.GetValue<string>() ?? string.Empty)
             .ToList();
         string current = request.Value?.GetValue<string>() ?? string.Empty;
-        ComboBox combo = GeneralDataReferenceInputs.Create(current, options);
-        combo.SelectionChanged += (_, _) =>
-        {
-            string next = GeneralDataReferenceInputs.GetValue(combo);
-            request.Commit(JsonValue.Create(next), false);
-        };
-        return combo;
+        return createReferenceEditor(current, options, next => request.Commit(JsonValue.Create(next), false));
     }
 
     private List<string>? getRefOptions(string refKind, string refKey)

@@ -474,7 +474,7 @@ public sealed class AnimationEditor : UserControl
 
     private void updateAssetMarquee(Point position)
     {
-        Rect rectangle = createMarqueeRect(
+        Rect rectangle = MarqueeSelection.CreateRect(
             assetMarqueeStart,
             position,
             new Rect(assetSelectionSurface.Bounds.Size)
@@ -494,10 +494,10 @@ public sealed class AnimationEditor : UserControl
             if (origin is null)
                 continue;
             Rect itemBounds = new(origin.Value, item.Bounds.Size);
-            if (rectsOverlap(rectangle, itemBounds))
+            if (MarqueeSelection.Overlaps(rectangle, itemBounds))
                 hitIndexes.Add(index);
         }
-        HashSet<int> nextSelection = buildMarqueeSelection(
+        HashSet<int> nextSelection = MarqueeSelection.Build(
             assetSelectionBeforeMarquee,
             hitIndexes,
             assetMarqueeAdditive,
@@ -571,47 +571,6 @@ public sealed class AnimationEditor : UserControl
             .Any() == true;
     }
 
-    internal static Rect createMarqueeRect(
-        Point start,
-        Point finish,
-        Rect bounds
-    )
-    {
-        double left = Math.Clamp(Math.Min(start.X, finish.X), bounds.Left, bounds.Right);
-        double top = Math.Clamp(Math.Min(start.Y, finish.Y), bounds.Top, bounds.Bottom);
-        double right = Math.Clamp(Math.Max(start.X, finish.X), bounds.Left, bounds.Right);
-        double bottom = Math.Clamp(Math.Max(start.Y, finish.Y), bounds.Top, bounds.Bottom);
-        return new Rect(left, top, right - left, bottom - top);
-    }
-
-    internal static bool rectsOverlap(Rect first, Rect second)
-    {
-        return first.Left <= second.Right
-            && first.Right >= second.Left
-            && first.Top <= second.Bottom
-            && first.Bottom >= second.Top;
-    }
-
-    internal static HashSet<T> buildMarqueeSelection<T>(
-        IEnumerable<T> initialSelection,
-        IEnumerable<T> hitItems,
-        bool additive,
-        bool toggle
-    ) where T : notnull
-    {
-        HashSet<T> selection = additive || toggle
-            ? [.. initialSelection]
-            : [];
-        foreach (T item in hitItems)
-        {
-            if (toggle && !selection.Add(item))
-                selection.Remove(item);
-            else if (!toggle)
-                selection.Add(item);
-        }
-        return selection;
-    }
-
     private void showAssetsContextMenu(int assetIndex)
     {
         MenuItem addImage = new() { Header = LocaleService.Get("ADD_ASSET") };
@@ -650,8 +609,8 @@ public sealed class AnimationEditor : UserControl
             ["type"] = audio ? "sound" : "frame",
             ["asset"] = assetIndex,
             ["flipX"] = false,
-            ["startFrame"] = createFrame(start),
-            ["endFrame"] = createFrame(start + duration),
+            ["startFrame"] = AnimationFrameData.Create(start),
+            ["endFrame"] = AnimationFrameData.Create(start + duration),
         };
         if (audio)
             segment["originalDuration"] = duration;
@@ -1288,14 +1247,6 @@ public sealed class AnimationEditor : UserControl
     }
 
     private int frameRate() => Math.Max(1, (int)JsonScalar.Number(data["frameRate"], 30));
-
-    private static JsonObject createFrame(double time) => new()
-    {
-        ["time"] = time,
-        ["position"] = new JsonArray(0.0, 0.0),
-        ["rotation"] = 0.0,
-        ["scale"] = new JsonArray(1.0, 1.0),
-    };
 
     private static void setFrameFields(JsonObject frame, TextBox time, TextBox x, TextBox y, TextBox rotation, TextBox scaleX, TextBox scaleY)
     {
