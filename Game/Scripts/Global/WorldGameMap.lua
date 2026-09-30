@@ -945,8 +945,8 @@ function WorldGameMap:_getActorLightPosition(actor, lightComp, result)
     return WorldGameMapLightingPass.GetActorLightPosition(self, actor, lightComp, result)
 end
 
-function WorldGameMap:_isLightVisible(position, radius, viewport)
-    return WorldGameMapLightingPass.IsLightVisible(self, position, radius, viewport)
+function WorldGameMap:_isLightVisible(position, radius, left, top, right, bottom)
+    return WorldGameMapLightingPass.IsLightVisible(self, position, radius, left, top, right, bottom)
 end
 
 function WorldGameMap:_toShaderColour(colour, applyAlpha)

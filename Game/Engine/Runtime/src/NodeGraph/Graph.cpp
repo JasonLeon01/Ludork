@@ -583,8 +583,12 @@ NodeResult Graph::executeResult(const std::string& key,
         } else if (nexts.size() == 1) {
             chosen = nexts.begin()->second.node;
         } else {
-            const std::vector<int> pins = sortedPins(nexts);
-            chosen = nexts.at(pins.front()).node;
+            const auto next =
+                std::min_element(nexts.begin(), nexts.end(),
+                                 [](const auto& left, const auto& right) {
+                                     return left.first < right.first;
+                                 });
+            chosen = next->second.node;
         }
 
         if (!chosen.has_value()) {

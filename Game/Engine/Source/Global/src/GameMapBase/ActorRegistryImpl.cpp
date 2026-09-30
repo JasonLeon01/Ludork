@@ -3,6 +3,7 @@
 #include "OccupancyIndexImpl.hpp"
 #include <algorithm>
 #include <stdexcept>
+#include <utility>
 namespace ludork::global::game_map_base_impl {
 
 void ActorRegistryImpl::syncActorsRef(const ActorDict& actors,
@@ -245,7 +246,7 @@ void ActorRegistryImpl::syncActorViews(
         }
     }
 
-    updateBatch.syncActors(updateActors);
+    updateBatch.syncActors(std::move(updateActors));
 
     for (auto& [_, entry] : entries) {
         entry.liveLayers.clear();
@@ -371,7 +372,7 @@ bool ActorRegistryImpl::forgetActors(
         updateActors.insert(updateActors.end(), actorList.begin(),
                             actorList.end());
     }
-    updateBatch.syncActors(updateActors);
+    updateBatch.syncActors(std::move(updateActors));
 
     return true;
 }

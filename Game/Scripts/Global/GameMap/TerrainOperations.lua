@@ -29,41 +29,40 @@ local function isPositionInLayer(layer, position)
     return position.x >= 0 and position.y >= 0 and position.x < size.x and position.y < size.y
 end
 
----@param layer    Engine.TileLayer
----@param position sf.Vector2i
+---@param layer         Engine.TileLayer
+---@param autoTileIndex Global.GameMap.TerrainTileID
+---@param autoTilePool  Engine.AutoTile[] | nil
 ---@return string | nil
-local function getAutoTileID(layer, position)
-    local autoTiles = layer:getAutoTiles()
-    local row = autoTiles and autoTiles[position.y + 1] or nil
-    if row == nil then
-        return nil
-    end
-    local autoTileIndex = row[position.x + 1]
+---@return Engine.AutoTile[] | nil
+local function resolveAutoTileID(layer, autoTileIndex, autoTilePool)
     if autoTileIndex == nil then
-        return nil
+        return nil, autoTilePool
     elseif Class.isInstance(autoTileIndex, "string") then
         ---@cast autoTileIndex string
-        return bool(autoTileIndex) and autoTileIndex or nil
+        return bool(autoTileIndex) and autoTileIndex or nil, autoTilePool
     end
     ---@cast autoTileIndex integer
     local autoTileKey = layer:getAutoTileKey(autoTileIndex)
     if autoTileKey ~= nil then
-        return autoTileKey
+        return autoTileKey, autoTilePool
     end
-    local autoTilePool = layer:getAutoTilePool()
+    autoTilePool = autoTilePool or layer:getAutoTilePool()
     if autoTileIndex >= 0 and autoTileIndex < #autoTilePool then
         local autoTile = autoTilePool[autoTileIndex + 1]
         ---@cast autoTile Engine.AutoTile
-        return autoTile.name
+        return autoTile.name, autoTilePool
     end
-    return nil
+    return nil, autoTilePool
 end
 
 ---@param layer    Engine.TileLayer
 ---@param position sf.Vector2i
 ---@return Global.GameMap.TerrainTileID
 local function getTileID(layer, position)
-    return getAutoTileID(layer, position) or layer:get(position)
+    local autoTiles = layer:getAutoTiles()
+    local row = autoTiles and autoTiles[position.y + 1] or nil
+    local autoTileID = resolveAutoTileID(layer, row ~= nil and row[position.x + 1] or nil, nil)
+    return autoTileID or layer:get(position)
 end
 
 ---@param layerData Engine.TileLayerData
@@ -185,12 +184,23 @@ function TerrainOperations.GetTilePositions(tilemap, layerName, tileID)
     local terrainTileID = TerrainValue.Normalise(tileID)
     local positions = {}
     local size = layer:getGridSize()
+    local autoTiles = layer:getAutoTiles()
+    ---@type Engine.AutoTile[] | nil
+    local autoTilePool = nil
+    local terrainPosition = sf.Vector2i.new()
+    ---@cast terrainPosition sf.Vector2i
     for y = 0, size.y - 1 do
+        local row = autoTiles and autoTiles[y + 1] or nil
         for x = 0, size.x - 1 do
-            local terrainPosition = sf.Vector2i.new(x, y)
-            ---@cast terrainPosition sf.Vector2i
-            if getTileID(layer, terrainPosition) == terrainTileID then
-                positions[#positions + 1] = terrainPosition
+            local currentTileID
+            currentTileID, autoTilePool = resolveAutoTileID(layer, row ~= nil and row[x + 1] or nil, autoTilePool)
+            if currentTileID == nil then
+                terrainPosition.x = x
+                terrainPosition.y = y
+                currentTileID = layer:get(terrainPosition)
+            end
+            if currentTileID == terrainTileID then
+                positions[#positions + 1] = sf.Vector2i.new(x, y)
             end
         end
     end

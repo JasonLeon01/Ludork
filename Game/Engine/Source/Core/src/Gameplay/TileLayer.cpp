@@ -177,24 +177,7 @@ std::optional<MaterialValue> TileLayer::getMaterialProperty(
         return std::nullopt;
     }
 
-    std::string fieldName = propertyName;
-    if (propertyName == "getLightBlock") {
-        fieldName = "lightBlock";
-    } else if (propertyName == "getMirror") {
-        fieldName = "mirror";
-    } else if (propertyName == "getReflectionStrength") {
-        fieldName = "reflectionStrength";
-    } else if (propertyName == "getIgnoreLighting") {
-        fieldName = "ignoreLighting";
-    } else if (propertyName == "getSpeedRate") {
-        fieldName = "speedRate";
-    }
-
-    const MaterialData values = material->asDict();
-    const auto iterator = values.find(fieldName);
-    return iterator == values.end()
-               ? std::nullopt
-               : std::optional<MaterialValue>(iterator->second);
+    return material->getProperty(propertyName);
 }
 
 std::optional<float> TileLayer::getLightBlock(

@@ -13,7 +13,7 @@ public:
     ActorUpdateBatch();
 
     BIND_METHOD(metadata = false)
-    void syncActors(const std::vector<std::shared_ptr<Actor>>& actors);
+    void syncActors(std::vector<std::shared_ptr<Actor>> actors);
 
     BIND_METHOD(metadata = false)
     void update(float deltaTime);

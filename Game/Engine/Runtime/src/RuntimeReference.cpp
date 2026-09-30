@@ -602,13 +602,13 @@ RuntimeValue typeMetadata(const RuntimeHandle& value) {
 }
 
 bool isClass(const RuntimeValue& value) {
-    return isTable(value) &&
-           is<bool>(rawGet(ludork::runtime::reference::intern(value),
-                           ludork::standard::class_runtime::protocol::
-                               CLASS_MARKER_FIELD)) &&
-           as<bool>(rawGet(
-               ludork::runtime::reference::intern(value),
-               ludork::standard::class_runtime::protocol::CLASS_MARKER_FIELD));
+    if (!isTable(value)) {
+        return false;
+    }
+    const RuntimeValue marker =
+        rawGet(ludork::runtime::reference::intern(value),
+               ludork::standard::class_runtime::protocol::CLASS_MARKER_FIELD);
+    return is<bool>(marker) && as<bool>(marker);
 }
 
 bool isNativeType(const RuntimeValue& value) {

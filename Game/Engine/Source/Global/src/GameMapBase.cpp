@@ -972,21 +972,7 @@ MaterialValue GameMapBase::getMaterialProperty(
         if (!material.has_value()) {
             return invalidValue;
         }
-        std::string fieldName = propertyName;
-        if (propertyName == "getLightBlock") {
-            fieldName = "lightBlock";
-        } else if (propertyName == "getMirror") {
-            fieldName = "mirror";
-        } else if (propertyName == "getReflectionStrength") {
-            fieldName = "reflectionStrength";
-        } else if (propertyName == "getIgnoreLighting") {
-            fieldName = "ignoreLighting";
-        } else if (propertyName == "getSpeedRate") {
-            fieldName = "speedRate";
-        }
-        const MaterialData values = material->asDict();
-        const auto iterator = values.find(fieldName);
-        return iterator == values.end() ? invalidValue : iterator->second;
+        return material->getProperty(propertyName).value_or(invalidValue);
     }
     for (const std::string& layerName : getTopFirstLayerNames()) {
         const std::shared_ptr<TileLayer> layer = tilemap_->getLayer(layerName);

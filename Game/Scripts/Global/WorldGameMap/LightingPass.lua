@@ -485,8 +485,24 @@ end
 function GameMapLighting.GetActiveLights(self)
     local lights = {}
     local viewport = self._camera ~= nil and self._camera:getViewport() or nil
+    local left, top, right, bottom
+    if viewport ~= nil then
+        local radians = self._camera:getViewRotation():asDegrees() * 0.017453292519943295
+        local cosine = math.abs(math.cos(radians))
+        local sine = math.abs(math.sin(radians))
+        local halfWidth = viewport.size.x * 0.5
+        local halfHeight = viewport.size.y * 0.5
+        local extentX = cosine * halfWidth + sine * halfHeight
+        local extentY = sine * halfWidth + cosine * halfHeight
+        local centreX = viewport.position.x + halfWidth
+        local centreY = viewport.position.y + halfHeight
+        left = centreX - extentX
+        top = centreY - extentY
+        right = centreX + extentX
+        bottom = centreY + extentY
+    end
     for _, light in ipairs(self._lights) do
-        if light.radius > 0.0 and self:_isLightVisible(light.position, light.radius, viewport) then
+        if light.radius > 0.0 and self:_isLightVisible(light.position, light.radius, left, top, right, bottom) then
             lights[#lights + 1] = { light = light }
         end
     end
@@ -505,7 +521,7 @@ function GameMapLighting.GetActiveLights(self)
                 end
                 ---@cast position sf.Vector2f
                 self:_getActorLightPosition(actor, lightComp, position)
-                if self:_isLightVisible(position, radius, viewport) then
+                if self:_isLightVisible(position, radius, left, top, right, bottom) then
                     lights[#lights + 1] = {
                         light = Light.new(position, lightComp.lightColour, radius, 1.0),
                         owner = actor
@@ -541,25 +557,19 @@ end
 
 ---@param position sf.Vector2f
 ---@param radius   number
----@param viewport sf.FloatRect | nil
+---@param left     number | nil
+---@param top      number | nil
+---@param right    number | nil
+---@param bottom   number | nil
 ---@return boolean
+---@diagnostic disable-next-line: unused
 ---@param self     WorldGameMapImplState
-function GameMapLighting.IsLightVisible(self, position, radius, viewport)
-    if viewport == nil then
+function GameMapLighting.IsLightVisible(self, position, radius, left, top, right, bottom)
+    if left == nil then
         return true
     end
-    ---@cast self._camera GlobalCore.Camera
-    local radians = self._camera:getViewRotation():asDegrees() * 0.017453292519943295
-    local cosine = math.abs(math.cos(radians))
-    local sine = math.abs(math.sin(radians))
-    local halfWidth = viewport.size.x * 0.5
-    local halfHeight = viewport.size.y * 0.5
-    local extentX = cosine * halfWidth + sine * halfHeight
-    local extentY = sine * halfWidth + cosine * halfHeight
-    local centreX = viewport.position.x + halfWidth
-    local centreY = viewport.position.y + halfHeight
-    return position.x + radius >= centreX - extentX and position.x - radius <= centreX + extentX
-        and position.y + radius >= centreY - extentY and position.y - radius <= centreY + extentY
+    return position.x + radius >= left and position.x - radius <= right
+        and position.y + radius >= top and position.y - radius <= bottom
 end
 
 ---@param colour     sf.Color

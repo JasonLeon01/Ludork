@@ -3,6 +3,8 @@
 
 #include <Runtime/Blueprint/BlueprintRuntime.hpp>
 
+#include <utility>
+
 namespace {
 
 constexpr unsigned int actorTickEvent = 1U;
@@ -48,9 +50,8 @@ unsigned int getTickEvents(std::unordered_map<Actor*, unsigned int>& tickEvents,
 
 ActorUpdateBatch::ActorUpdateBatch() = default;
 
-void ActorUpdateBatch::syncActors(
-    const std::vector<std::shared_ptr<Actor>>& actors) {
-    actors_ = actors;
+void ActorUpdateBatch::syncActors(std::vector<std::shared_ptr<Actor>> actors) {
+    actors_ = std::move(actors);
     tickEvents_.clear();
     if (actors_.empty()) {
         return;

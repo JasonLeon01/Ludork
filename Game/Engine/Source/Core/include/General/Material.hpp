@@ -4,6 +4,9 @@
 
 #include <EngineRuntimeApi.hpp>
 
+#include <optional>
+#include <string_view>
+
 using MaterialValue = std::variant<bool, float>;
 using MaterialData = std::unordered_map<std::string, MaterialValue>;
 
@@ -56,6 +59,9 @@ struct LUDORK_ENGINE_API Material {
     Material(float lightBlock = 0.0f, bool mirror = false,
              float reflectionStrength = 0.5f, float opacity = 1.0f,
              float speedRate = 1.0f, bool ignoreLighting = false);
+
+    std::optional<MaterialValue> getProperty(
+        std::string_view propertyName) const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Serialize the material to a dictionary.

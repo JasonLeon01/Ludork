@@ -464,7 +464,7 @@ RuntimeValue TypedDataService::coerceStandardValue(
             return RuntimeValue();
         }
     }
-    if (isContainerValueType(unwrapped)) {
+    if (ludork::runtime::typed_data_impl::isContainerSchema(schema)) {
         return coerceContainer(value);
     }
     return value.getIf<std::string>() == nullptr ? value

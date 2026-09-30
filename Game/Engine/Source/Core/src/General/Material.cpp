@@ -27,6 +27,31 @@ Material::Material(float lightBlock, bool mirror, float reflectionStrength,
       speedRate(speedRate),
       ignoreLighting(ignoreLighting) {}
 
+std::optional<MaterialValue> Material::getProperty(
+    std::string_view propertyName) const {
+    if (propertyName == "lightBlock" || propertyName == "getLightBlock") {
+        return lightBlock;
+    }
+    if (propertyName == "mirror" || propertyName == "getMirror") {
+        return mirror;
+    }
+    if (propertyName == "reflectionStrength" ||
+        propertyName == "getReflectionStrength") {
+        return reflectionStrength;
+    }
+    if (propertyName == "opacity") {
+        return opacity;
+    }
+    if (propertyName == "speedRate" || propertyName == "getSpeedRate") {
+        return speedRate;
+    }
+    if (propertyName == "ignoreLighting" ||
+        propertyName == "getIgnoreLighting") {
+        return ignoreLighting;
+    }
+    return std::nullopt;
+}
+
 MaterialData Material::asDict() const {
     return {
         {"lightBlock", lightBlock},
