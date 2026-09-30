@@ -101,7 +101,7 @@ Each Scene collects active Actor and mounted visible UI emitters after UI update
 
 See [Emitter, EmitterComponent and EmitterView APIs](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Time Rendering and Particles.md#emitter>) for playback controls and native host integration.
 
-## GPU support and performance acceptance
+## GPU support and performance statistics
 
 Simulation keeps particle state in GPU buffers using transform feedback; rendering uses instanced textured quads. CPU work handles tracks, emission counts, host transforms and commands, without a per-particle CPU simulation or synchronous live-count readback. The backend requires transform feedback, instanced drawing/attributes, vertex texture sampling and floating-point curve textures. Missing capabilities produce a runtime error; there is no CPU fallback.
 
@@ -109,11 +109,7 @@ Desktop builds use the compatible OpenGL shader path and query core/extension en
 
 Native hosts must activate a compatible shared SFML context before ticking or drawing. Game and preview use separate hosts and contexts; GPU resources remain owned by their runtime host. Destroying an emitter can queue resource release, and the graphics thread collects it while a context is active. The renderer preserves its raw OpenGL state around SFML drawing. These requirements follow [SFML's OpenGL interoperability guidance](https://www.sfml-dev.org/tutorials/3.1/window/opengl/), [Khronos OpenGL ES 3.0](https://registry.khronos.org/OpenGL/specs/es/3.0/es_spec_3.0.pdf) and [Apple's legacy shader-extension documentation](https://developer.apple.com/library/archive/documentation/GraphicsImaging/Conceptual/OpenGL-MacProgGuide/opengl_shaders/opengl_shaders.html).
 
-The local acceptance target is RTX 5080, 1920×1080 at 60 Hz, 100,000 active particles: CPU P95 ≤ 1 ms and GPU simulation plus drawing P95 ≤ 4 ms. A separate 1,000,000-particle run is a stress test. These are acceptance thresholds, not an unmeasured performance claim. Record hardware/driver, build configuration, simulation rate, seed, warm-up/sample duration, tracks, capacities, sprite size, screen coverage and blend mode with the result. Large translucent overdraw can dominate cost independently of particle count.
-
-Profile CPU submission and asynchronous GPU timing separately. `getStatistics()` returns an `EmitterStatistics` struct in C++ and a fixed-field snapshot table in Lua. `capacity` and `time` are always present; `renderer`, live-count fields and timing fields are optional and read as `nil` in Lua when unavailable. `getCapacity()` and statistics `capacity` describe enabled-track capacity, not the exact live count. Available `aliveCount` is a delayed sample identified by `sampledTime`. GPU timings are delayed samples and may be unavailable when timer queries are unsupported or disjoint; unavailable values are not zero. Use `simulationSample` and `drawSample` to count each timing result once. Do not use blocking query reads or `glFinish` in the measured loop. Compilation or a Windows benchmark does not establish macOS, iOS, Android or OHOS device acceptance.
-
-The Windows measurements against these thresholds and their raw evidence are kept as internal acceptance records and are not part of this documentation.
+Profile CPU submission and asynchronous GPU timing separately. `getStatistics()` returns an `EmitterStatistics` struct in C++ and a fixed-field snapshot table in Lua. `capacity` and `time` are always present; `renderer`, live-count fields and timing fields are optional and read as `nil` in Lua when unavailable. `getCapacity()` and statistics `capacity` describe enabled-track capacity, not the exact live count. Available `aliveCount` is a delayed sample identified by `sampledTime`. GPU timings are delayed samples and may be unavailable when timer queries are unsupported or disjoint; unavailable values are not zero. Use `simulationSample` and `drawSample` to count each timing result once. Do not use blocking query reads or `glFinish` in the measured loop.
 
 ## Limitations
 
