@@ -1,0 +1,215 @@
+# Engine: Text and Windows
+
+## Engine.TextConfig
+
+`Engine.TextConfig` builds validated plain and rich text configurations for `Source.Data` and Declarative UI. Input tables must be JSON-compatible, and functions, native objects and cycles are rejected. See [Text Config](<../../../../Editor User Guide/General Data and Text Config.md#text-config>) for editor usage.
+
+| Name | Parameters | Returns |
+|---|---|---|
+| `buildPlain` | data: table; sourceName: string | `Engine.PlainTextConfig` |
+| `buildRich` | data: table; sourceName: string | `Engine.RichTextConfig` |
+
+## Engine.TextLayout
+
+`Engine.TextLayout` measures, truncates and wraps UTF-8 text without mutating the control, and `maxWidth` must be positive and finite.
+
+| Name | Parameters | Returns |
+|---|---|---|
+| `measurePlainText` | control: `Engine.PlainText`; text: string | number |
+| `measureRichText` | source: `Engine.RichText`; text: string | number |
+| `fitPlainText` | text: string; maxWidth: number; control: `Engine.PlainText` | string |
+| `wrapPlainText` | text: string; maxWidth: number; control: `Engine.PlainText` | string |
+| `wrapRichText` | text: string; maxWidth: number; source: `Engine.RichText` | string |
+
+`fitPlainText` returns the original text if it fits. Otherwise it truncates at grapheme boundaries and appends `.` within `maxWidth`. It returns an empty string if even `.` does not fit.
+
+Rich-text measurement and wrapping use the supplied control's authored configuration, including named tag styles, without changing its text or playback state.
+
+## TextOutlineConfig
+
+Direct metadata bases: —
+
+### Properties
+
+| Name | Type | Default | Metadata |
+|---|---|---|---|
+| `color` | `sf.Color` | — | — |
+| `thickness` | `float` | `0` | — |
+
+### Functions and events
+
+No Blueprint functions or events are declared.
+
+## TextGlowConfig
+
+Direct metadata bases: —
+
+### Properties
+
+| Name | Type | Default | Metadata |
+|---|---|---|---|
+| `enabled` | `bool` | `false` | — |
+| `color` | `sf.Color` | — | — |
+| `radius` | `float` | `0` | — |
+| `intensity` | `float` | `0` | — |
+
+### Functions and events
+
+No Blueprint functions or events are declared.
+
+## TextGradientConfig
+
+Direct metadata bases: —
+
+### Properties
+
+| Name | Type | Default | Metadata |
+|---|---|---|---|
+| `enabled` | `bool` | `false` | — |
+| `direction` | `string` | `"vertical"` | — |
+| `curve` | `{ "Engine", "Vector4Curve" }` | — | — |
+
+### Functions and events
+
+No Blueprint functions or events are declared.
+
+## TextStyle
+
+Direct metadata bases: —
+
+### Properties
+
+| Name | Type | Default | Metadata |
+|---|---|---|---|
+| `characterSize` | `int` | — | — |
+| `bold` | `bool` | — | — |
+| `italic` | `bool` | — | — |
+| `underlined` | `bool` | — | — |
+| `strikeThrough` | `bool` | — | — |
+| `fillColor` | `sf.Color` | — | — |
+| `letterSpacing` | `float` | — | — |
+| `lineSpacing` | `float` | — | — |
+| `outlineColor` | `sf.Color` | — | — |
+| `outlineThickness` | `float` | — | — |
+
+### Functions and events
+
+| Name | Kind | Parameters | Returns | Execution and metadata |
+|---|---|---|---|---|
+| `enableStyle` | `function` | self: { "Engine", "TextStyle" } = "self"; text: sf.Text | — | — |
+| `adaptStyle` | `function` | self: { "Engine", "TextStyle" } = "self"; inStyle: { "Engine", "TextStyle" } | — | — |
+
+## PlainTextConfig
+
+Direct metadata bases: —
+
+### Properties
+
+| Name | Type | Default | Metadata |
+|---|---|---|---|
+| `type` | `string` | `"plainTextConfig"` | — |
+| `name` | `string` | — | — |
+| `font` | `sf.Font` | — | — |
+| `characterSize` | `int` | `30` | — |
+| `style` | `uint32_t` | — | — |
+| `slantAngle` | `float` | `0` | — |
+| `fillColor` | `sf.Color` | — | — |
+| `letterSpacing` | `float` | `1` | — |
+| `lineSpacing` | `float` | `1` | — |
+| `lineAlignment` | `sf.Text.LineAlignment` | — | — |
+| `outline` | `{ "Engine", "TextOutlineConfig" }` | — | — |
+| `glow` | `{ "Engine", "TextGlowConfig" }` | — | — |
+| `gradient` | `{ "Engine", "TextGradientConfig" }` | — | — |
+
+### Functions and events
+
+No Blueprint functions or events are declared.
+
+## RichTextConfig
+
+Direct metadata bases: —
+
+### Properties
+
+| Name | Type | Default | Metadata |
+|---|---|---|---|
+| `type` | `string` | `"richTextConfig"` | — |
+| `name` | `string` | — | — |
+| `font` | `sf.Font` | — | — |
+| `lineAlignment` | `sf.Text.LineAlignment` | — | — |
+| `defaultStyle` | `{ "Engine", "TextStyle" }` | — | — |
+| `styleOrder` | `string[]` | — | — |
+| `styles` | `any` | — | — |
+| `glow` | `{ "Engine", "TextGlowConfig" }` | — | — |
+| `gradient` | `{ "Engine", "TextGradientConfig" }` | — | — |
+
+### Functions and events
+
+No Blueprint functions or events are declared.
+
+## PlainText
+
+Direct metadata bases: `{ "Engine", "ControlBase" }`
+
+### Properties
+
+No editable properties are declared.
+
+### Functions and events
+
+| Name | Kind | Parameters | Returns | Execution and metadata |
+|---|---|---|---|---|
+| `getConfig` | `function` | self: { "Engine", "PlainText" } = "self" | return: { "Engine", "PlainTextConfig" } | Pure |
+| `getCharacterSize` | `function` | self: { "Engine", "PlainText" } = "self" | return: int | Pure |
+| `setString` | `function` | self: { "Engine", "PlainText" } = "self"; text: string | — | — |
+| `getString` | `function` | self: { "Engine", "PlainText" } = "self" | return: string | Pure |
+| `getLocalBounds` | `function` | self: { "Engine", "PlainText" } = "self" | return: sf.FloatRect | Pure |
+| `getGlobalBounds` | `function` | self: { "Engine", "PlainText" } = "self" | return: sf.FloatRect | Pure |
+| `getSize` | `function` | self: { "Engine", "PlainText" } = "self" | return: sf.Vector2f | Pure |
+| `getOrigin` | `function` | self: { "Engine", "PlainText" } = "self" | return: sf.Vector2f | Pure |
+| `setOrigin` | `function` | self: { "Engine", "PlainText" } = "self"; origin: sf.Vector2f | — | — |
+| `getColour` | `function` | self: { "Engine", "PlainText" } = "self" | return: sf.Color | Pure |
+| `setColour` | `function` | self: { "Engine", "PlainText" } = "self"; colour: sf.Color | — | — |
+| `draw` | `function` | self: { "Engine", "PlainText" } = "self"; target: sf.RenderTarget; states: sf.RenderStates | — | — |
+
+## RichText
+
+Direct metadata bases: `{ "Engine", "ControlBase" }`
+
+### Properties
+
+No editable properties are declared.
+
+### Functions and events
+
+| Name | Kind | Parameters | Returns | Execution and metadata |
+|---|---|---|---|---|
+| `getConfig` | `function` | self: { "Engine", "RichText" } = "self" | return: { "Engine", "RichTextConfig" } | Pure |
+| `setString` | `function` | self: { "Engine", "RichText" } = "self"; text: string | — | — |
+| `getString` | `function` | self: { "Engine", "RichText" } = "self" | return: string | Pure |
+| `setColour` | `function` | self: { "Engine", "RichText" } = "self"; colour: sf.Color | — | — |
+| `getColour` | `function` | self: { "Engine", "RichText" } = "self" | return: sf.Color | Pure |
+| `getLocalBounds` | `function` | self: { "Engine", "RichText" } = "self" | return: sf.FloatRect | Pure |
+| `getGlobalBounds` | `function` | self: { "Engine", "RichText" } = "self" | return: sf.FloatRect | Pure |
+| `getSize` | `function` | self: { "Engine", "RichText" } = "self" | return: sf.Vector2f | Pure |
+| `getOrigin` | `function` | self: { "Engine", "RichText" } = "self" | return: sf.Vector2f | Pure |
+| `setOrigin` | `function` | self: { "Engine", "RichText" } = "self"; origin: sf.Vector2f | — | — |
+| `draw` | `function` | self: { "Engine", "RichText" } = "self"; target: sf.RenderTarget; states: sf.RenderStates | — | — |
+
+## Window
+
+Direct metadata bases: `{ "Engine", "SpriteBase" }`
+
+`repeated` selects texture repetition for the background when true and stretching when false. Borders always tile between the corners, using one draw per non-empty edge regardless of its length. Window and selection Rect compose their skin into a cached texture when created, resized or given a new skin, including rebuilds for UI Scale changes; normal display reuses that texture. DropBox popups use the same Window rendering.
+
+### Properties
+
+No editable properties are declared.
+
+### Functions and events
+
+| Name | Kind | Parameters | Returns | Execution and metadata |
+|---|---|---|---|---|
+| `getSize` | `function` | self: { "Engine", "Window" } = "self" | return: sf.Vector2u | Pure |
+| `resize` | `function` | self: { "Engine", "Window" } = "self"; size: sf.Vector2u | — | — |
+| `setWindowSkin` | `function` | self: { "Engine", "Window" } = "self"; windowSkin: sf.Image; repeated: bool | — | — |

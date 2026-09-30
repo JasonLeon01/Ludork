@@ -1,0 +1,40 @@
+{
+  "items": [
+    {
+      "key": "04/01",
+      "path": "Build and Module Layout.md"
+    },
+    {
+      "key": "04/02",
+      "path": "Binding a Class.md"
+    },
+    {
+      "key": "04/03",
+      "path": "Functions Events and Execution.md"
+    },
+    {
+      "key": "04/04",
+      "path": "Advanced Binding Patterns.md"
+    },
+    {
+      "key": "04/05",
+      "path": "Native UI Adapters.md"
+    },
+    {
+      "key": "04/06",
+      "path": "Macro Reference.md"
+    },
+    {
+      "key": "04/07",
+      "path": "Generated Metadata and Stubs.md"
+    },
+    {
+      "key": "04/08",
+      "path": "Runtime Value Boundaries.md"
+    },
+    {
+      "key": "04/09",
+      "path": "C++ Binding Troubleshooting.md"
+    }
+  ]
+}

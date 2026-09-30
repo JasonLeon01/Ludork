@@ -1,0 +1,263 @@
+# Engine: Gameplay Types
+
+## Actor
+
+Direct metadata bases: —
+
+`collectTree()` (`metadata = false`) returns a root-first BFS snapshot that preserves child order and ownership. Duplicates or cycles raise an error.
+
+`setGraph` stores an `Engine.Graph` instance, which `getGraph` returns. Passing nil clears the graph, after which `getGraph` returns nil.
+
+`visible` is an editable boolean field that defaults to `true`, and `getVisible()` returns its current value. `isVisibleInHierarchy()` also checks every ancestor. An invisible Actor keeps its instance, lifecycle and configured Tick behaviour, but contributes no drawing, no attached light or light blocking, and no collision, overlap or pathfinding obstruction. Rendering, interaction and gameplay caches account for the current visibility. `setVisible(value, applyToChildren = true)` also sets the descendants' own flags by default. Pass `false` to retain them, while the parent's visibility still gates the hierarchy. Direct assignment changes only the Actor's own flag.
+
+### Properties
+
+| Name | Type | Default | Metadata |
+|---|---|---|---|
+| `scriptMixin` | `bool` | `false` | Meta { BlueprintOnly = true } |
+| `scriptPath` | `string` | `""` | Meta { Rely = { source = "scriptMixin", op = "==", value = true }, PathVars = "Scripts/Mixins", PathRoot = "Project", PathFilter = "*.lua", BlueprintOnly = true } |
+| `tag` | `string` | `""` | — |
+| `switchInterval` | `float` | `0.2` | — |
+| `animatable` | `bool` | `false` | — |
+| `visible` | `bool` | `true` | — |
+| `material` | `{ "Engine", "Material" }` | `{  }` | — |
+| `shaderPath` | `string` | `""` | Meta { PathVars = "/Game/Assets/Shaders", PathFilter = "*.frag" } |
+| `hue` | `float` | `0` | Meta { ProgressVars = { [1] = 0, [2] = 360, [3] = 1 } } |
+| `collisionEnabled` | `bool` | `false` | — |
+| `tickable` | `bool` | `false` | — |
+| `speed` | `float` | `64` | — |
+| `autoSound` | `string` | `""` | Meta { PathVars = "/Game/Assets/Sounds" } |
+| `autoSoundInterval` | `float` | `0` | Meta { Rely = { source = "autoSound", op = "!=", value = "" } } |
+| `autoSoundParams` | `{ "Engine", "AutoSoundParams" }` | `{ volume = 100, minDistance = 64, attenuation = 1, loop = false, maxDistance = 0 }` | Meta { Rely = { source = "autoSound", op = "!=", value = "" } } |
+| `texturePath` | `string` | `""` | Meta { PathVars = "/Game/Assets/Characters" } |
+| `defaultRect` | `sf.IntRect` | `{ [1] = { [1] = 0, [2] = 0, [3] = 32, [4] = 32 } }` | Meta { RectRangeVars = "texturePath" } |
+| `defaultTranslation` | `sf.Vector2f` | `{ [1] = 0, [2] = 0 }` | — |
+| `defaultRotation` | `float` | `0` | — |
+| `defaultScale` | `sf.Vector2f` | `{ [1] = 1, [2] = 1 }` | — |
+| `defaultOrigin` | `sf.Vector2f` | `{ [1] = 0, [2] = 0 }` | — |
+| `lightComp` | `{ "Engine", "LightComponent" }` | — | component |
+| `emitterComp` | `{ "Engine", "EmitterComponent" }` | — | component; [GPU particle playback](<Time Rendering and Particles.md#emittercomponent>) |
+| `billboardComp` | `{ "Engine", "BillboardComponent" }` | — | component; [head labels](#billboardcomponent) |
+
+### Functions and events
+
+| Name | Kind | Parameters | Returns | Execution and metadata |
+|---|---|---|---|---|
+| `getCollisionEnabled` | `function` | self: { "Engine", "Actor" } = "self" | return: bool | Pure |
+| `setCollisionEnabled` | `function` | self: { "Engine", "Actor" } = "self"; enabled: bool | — | ExecSplit { [1] = "default", default = nil } |
+| `getPathfindingBlocks` | `function` | self: { "Engine", "Actor" } = "self" | return: bool | Pure |
+| `setPathfindingBlocks` | `function` | self: { "Engine", "Actor" } = "self"; blocks: bool | — | — |
+| `isDestroyed` | `function` | self: { "Engine", "Actor" } = "self" | return: bool | Pure |
+| `markDestroyed` | `function` | self: { "Engine", "Actor" } = "self"; destroyed: bool | — | — |
+| `setShaderPath` | `function` | self: { "Engine", "Actor" } = "self"; shaderPath: string | — | ExecSplit { [1] = "default", default = nil } |
+| `getShaderPath` | `function` | self: { "Engine", "Actor" } = "self" | shaderPath: string | Pure |
+| `getShader` | `function` | self: { "Engine", "Actor" } = "self" | shader: sf.Shader | Pure |
+| `hasShaderError` | `function` | self: { "Engine", "Actor" } = "self" | error: bool | Pure |
+| `update` | `function` | self: { "Engine", "Actor" } = "self"; deltaTime: float | — | — |
+| `lateUpdate` | `function` | self: { "Engine", "Actor" } = "self"; deltaTime: float | — | — |
+| `fixedUpdate` | `function` | self: { "Engine", "Actor" } = "self"; fixedDelta: float | — | — |
+| `getPosition` | `function` | self: { "Engine", "Actor" } = "self" | pos: sf.Vector2f | Pure |
+| `getRelativePosition` | `function` | self: { "Engine", "Actor" } = "self" | pos: sf.Vector2f | Pure |
+| `getMapPosition` | `function` | self: { "Engine", "Actor" } = "self" | pos: sf.Vector2i | Pure |
+| `getOccupiedMapCells` | `function` | self: { "Engine", "Actor" } = "self"; worldPosition: sf.Vector2f = nil | cells: sf.Vector2i[] | Pure |
+| `getOccupiedMapCellsAtMapPosition` | `function` | self: { "Engine", "Actor" } = "self"; mapPosition: sf.Vector2i | cells: sf.Vector2i[] | Pure |
+| `getRelativeMapPosition` | `function` | self: { "Engine", "Actor" } = "self" | pos: sf.Vector2i | Pure |
+| `getLocalBounds` | `function` | self: { "Engine", "Actor" } = "self" | return: sf.FloatRect | Pure |
+| `getGlobalBounds` | `function` | self: { "Engine", "Actor" } = "self" | return: sf.FloatRect | Pure |
+| `setPosition` | `function` | self: { "Engine", "Actor" } = "self"; position: sf.Vector2f | — | ExecSplit { [1] = "default", default = nil } |
+| `setRelativePosition` | `function` | self: { "Engine", "Actor" } = "self"; position: sf.Vector2f | — | ExecSplit { [1] = "default", default = nil } |
+| `setMapPosition` | `function` | self: { "Engine", "Actor" } = "self"; position: sf.Vector2u | — | ExecSplit { [1] = "default", default = nil } |
+| `setRelativeMapPosition` | `function` | self: { "Engine", "Actor" } = "self"; position: sf.Vector2u | — | ExecSplit { [1] = "default", default = nil } |
+| `move` | `function` | self: { "Engine", "Actor" } = "self"; offset: sf.Vector2f | — | ExecSplit { [1] = "default", default = nil } |
+| `getRotation` | `function` | self: { "Engine", "Actor" } = "self" | angle: sf.Angle | Pure |
+| `getRelativeRotation` | `function` | self: { "Engine", "Actor" } = "self" | angle: sf.Angle | Pure |
+| `setRotation` | `function` | self: { "Engine", "Actor" } = "self"; angle: sf.Angle | — | ExecSplit { [1] = "default", default = nil } |
+| `rotate` | `function` | self: { "Engine", "Actor" } = "self"; angle: sf.Angle | — | ExecSplit { [1] = "default", default = nil } |
+| `setRelativeRotation` | `function` | self: { "Engine", "Actor" } = "self"; angle: sf.Angle | — | ExecSplit { [1] = "default", default = nil } |
+| `getScale` | `function` | self: { "Engine", "Actor" } = "self" | scale: sf.Vector2f | Pure |
+| `getRelativeScale` | `function` | self: { "Engine", "Actor" } = "self" | scale: sf.Vector2f | Pure |
+| `setScale` | `function` | self: { "Engine", "Actor" } = "self"; factors: sf.Vector2f | — | ExecSplit { [1] = "default", default = nil } |
+| `scale` | `function` | self: { "Engine", "Actor" } = "self"; factor: sf.Vector2f | — | ExecSplit { [1] = "default", default = nil } |
+| `setRelativeScale` | `function` | self: { "Engine", "Actor" } = "self"; scale: sf.Vector2f | — | ExecSplit { [1] = "default", default = nil } |
+| `getOrigin` | `function` | self: { "Engine", "Actor" } = "self" | origin: sf.Vector2f | Pure |
+| `setOrigin` | `function` | self: { "Engine", "Actor" } = "self"; origin: sf.Vector2f | — | ExecSplit { [1] = "default", default = nil } |
+| `getTranslation` | `function` | self: { "Engine", "Actor" } = "self" | translation: sf.Vector2f | Pure |
+| `setTranslation` | `function` | self: { "Engine", "Actor" } = "self"; translation: sf.Vector2f | — | ExecSplit { [1] = "default", default = nil } |
+| `setAlignment` | `function` | self: { "Engine", "Actor" } = "self"; alignment: sf.Vector2f | — | ExecSplit { [1] = "default", default = nil } |
+| `getMap` | `function` | self: { "Engine", "Actor" } = "self" | map_: { "Engine", "ActorMapService" } | Pure |
+| `setMap` | `function` | self: { "Engine", "Actor" } = "self"; inMap: { "Engine", "ActorMapService" } | — | ExecSplit { [1] = "default", default = nil } |
+| `getParent` | `function` | self: { "Engine", "Actor" } = "self" | return: { "Engine", "Actor" } | Pure |
+| `setParent` | `function` | self: { "Engine", "Actor" } = "self"; parent: { "Engine", "Actor" } | — | — |
+| `getChildren` | `function` | self: { "Engine", "Actor" } = "self" | return: { "Engine", "Actor[]" } | Pure |
+| `addChild` | `function` | self: { "Engine", "Actor" } = "self"; child: { "Engine", "Actor" } | — | ExecSplit { [1] = "default", default = nil } |
+| `removeChild` | `function` | self: { "Engine", "Actor" } = "self"; child: { "Engine", "Actor" } | — | — |
+| `getVisible` | `function` | self: { "Engine", "Actor" } = "self" | visible: bool | Pure |
+| `isVisibleInHierarchy` | `function` | self: { "Engine", "Actor" } = "self" | return: bool | Pure |
+| `setVisible` | `function` | self: { "Engine", "Actor" } = "self"; visible: bool = nil; applyToChildren: bool = true | — | ExecSplit { [1] = "default", default = nil } |
+| `getAnimatable` | `function` | self: { "Engine", "Actor" } = "self" | animatable: bool | Pure |
+| `setAnimatable` | `function` | self: { "Engine", "Actor" } = "self"; animate: bool = nil; applyToChildren: bool = true | — | ExecSplit { [1] = "default", default = nil } |
+| `getSpriteTexture` | `function` | self: { "Engine", "Actor" } = "self" | texture: sf.Texture | Pure |
+| `getTexture` | `function` | self: { "Engine", "Actor" } = "self" | texture: sf.Texture | Pure |
+| `setSpriteTexture` | `function` | self: { "Engine", "Actor" } = "self"; texture: sf.Texture = nil; resetRect: bool = false | — | ExecSplit { [1] = "default", default = nil } |
+| `setTexture` | `function` | self: { "Engine", "Actor" } = "self"; texture: sf.Texture = nil; resetRect: bool = false | — | ExecSplit { [1] = "default", default = nil } |
+| `setTextureRect` | `function` | self: { "Engine", "Actor" } = "self"; rectangle: sf.IntRect | — | — |
+| `getTextureRect` | `function` | self: { "Engine", "Actor" } = "self" | return: sf.IntRect | Pure |
+| `getMaterial` | `function` | self: { "Engine", "Actor" } = "self" | material: { "Engine", "Material" } | Pure |
+| `setMaterial` | `function` | self: { "Engine", "Actor" } = "self"; material: { "Engine", "Material" } | — | ExecSplit { [1] = "default", default = nil } |
+| `getLightBlock` | `function` | self: { "Engine", "Actor" } = "self" | lightBlock: float | Pure |
+| `setLightBlock` | `function` | self: { "Engine", "Actor" } = "self"; lightBlock: float | — | ExecSplit { [1] = "default", default = nil } |
+| `getMirror` | `function` | self: { "Engine", "Actor" } = "self" | mirror: bool | Pure |
+| `setMirror` | `function` | self: { "Engine", "Actor" } = "self"; mirror: bool | — | ExecSplit { [1] = "default", default = nil } |
+| `getReflectionStrength` | `function` | self: { "Engine", "Actor" } = "self" | reflectionStrength: float | Pure |
+| `setReflectionStrength` | `function` | self: { "Engine", "Actor" } = "self"; reflectionStrength: float | — | ExecSplit { [1] = "default", default = nil } |
+| `getOpacity` | `function` | self: { "Engine", "Actor" } = "self" | opacity: float | Pure |
+| `setOpacity` | `function` | self: { "Engine", "Actor" } = "self"; opacity: float | — | ExecSplit { [1] = "default", default = nil } |
+| `getIgnoreLighting` | `function` | self: { "Engine", "Actor" } = "self" | ignoreLighting: bool | Pure |
+| `setIgnoreLighting` | `function` | self: { "Engine", "Actor" } = "self"; ignoreLighting: bool | — | ExecSplit { [1] = "default", default = nil } |
+| `setGraph` | `function` | self: { "Engine", "Actor" } = "self"; graph: { "Engine", "Graph" } | — | ExecSplit { [1] = "default", default = nil } |
+| `getGraph` | `function` | self: { "Engine", "Actor" } = "self" | return: { "Engine", "Graph" } | Pure |
+| `hasGraph` | `function` | self: { "Engine", "Actor" } = "self" | return: bool | Pure |
+| `getMapTag` | `function` | self: { "Engine", "Actor" } = "self" | return: string | Pure |
+| `setMapTag` | `function` | self: { "Engine", "Actor" } = "self"; value: string | — | — |
+| `ensureMapTag` | `function` | self: { "Engine", "Actor" } = "self" | — | — |
+| `onCreate` | `event` | — | — | ExecSplit { [1] = "default", default = nil } |
+| `onTick` | `event` | deltaTime: float | — | ExecSplit { [1] = "default", default = nil } |
+| `onLateTick` | `event` | deltaTime: float | — | ExecSplit { [1] = "default", default = nil } |
+| `onFixedTick` | `event` | fixedDelta: float | — | ExecSplit { [1] = "default", default = nil } |
+| `onDestroy` | `event` | — | — | ExecSplit { [1] = "default", default = nil } |
+| `onWorldSleep` | `event` | — | — | ExecSplit { [1] = "default", default = nil } |
+| `onWorldWake` | `event` | elapsedSeconds: float | — | ExecSplit { [1] = "default", default = nil } |
+| `onCollision` | `event` | other: { "Engine", "Actor[]" } | — | ExecSplit { [1] = "default", default = nil } |
+| `onOverlap` | `event` | other: { "Engine", "Actor[]" } | — | ExecSplit { [1] = "default", default = nil } |
+| `destroy` | `function` | self: { "Engine", "Actor" } = "self" | — | ExecSplit { [1] = "default", default = nil } |
+| `MapMove` | `function` | self: { "Engine", "Actor" } = "self"; offset: sf.Vector2i | return: bool | ExecSplit { [1] = "success", [2] = "fail", success = true, fail = false } |
+| `getTickable` | `function` | self: { "Engine", "Actor" } = "self" | tickable: bool | Pure |
+| `setTickable` | `function` | self: { "Engine", "Actor" } = "self"; tickable: bool = nil; applyToChildren: bool = true | — | ExecSplit { [1] = "default", default = nil } |
+| `intersects` | `function` | self: { "Engine", "Actor" } = "self"; other: { "Engine", "Actor" } | intersects: bool | Pure |
+| `isMoving` | `function` | self: { "Engine", "Actor" } = "self" | isMoving: bool | Pure |
+| `isInRoute` | `function` | self: { "Engine", "Actor" } = "self" | isInRoute: bool | Pure |
+| `setRoute` | `function` | self: { "Engine", "Actor" } = "self"; route: sf.Vector2i[] = {  } | — | Meta { MoveRouteVars = { [1] = "route" } }; ExecSplit { [1] = "default", default = nil } |
+| `getRoute` | `function` | self: { "Engine", "Actor" } = "self" | route: sf.Vector2i[] | Pure |
+| `getMoveEnabled` | `function` | self: { "Engine", "Actor" } = "self" | moveEnabled: bool | Pure |
+| `setMoveEnabled` | `function` | self: { "Engine", "Actor" } = "self"; enabled: bool | — | ExecSplit { [1] = "default", default = nil } |
+| `stop` | `function` | self: { "Engine", "Actor" } = "self" | — | ExecSplit { [1] = "default", default = nil } |
+| `getVelocity` | `function` | self: { "Engine", "Actor" } = "self" | velocity: sf.Vector2f | Pure |
+| `BlueprintEvent` | `function` | object: any; objectType: any; eventName: string; keywordArguments: any = nil; onComplete: any = nil | — | — |
+| `HasBlueprintEvent` | `function` | object: any; eventName: string | return: bool | — |
+| `IsBlueprintEventEmpty` | `function` | object: any; eventName: string | return: bool | — |
+| `GenActor` | `function` | actorModel: any; texture: any = nil; textureRect: any = nil; tag: string = nil | return: any | — |
+
+`onWorldSleep` runs when world streaming removes an Actor from Active simulation. `onWorldWake` runs when the Actor becomes Active again and reports the dormant duration. Both base implementations are empty, and ordinary maps emit neither event.
+
+## BPBase
+
+Direct metadata bases: —
+
+### Properties
+
+No editable properties are declared.
+
+### Functions and events
+
+| Name | Kind | Parameters | Returns | Execution and metadata |
+|---|---|---|---|---|
+| `BlueprintEvent` | `function` | object: any; objectType: any; eventName: string; keywordArguments: any = nil; onComplete: any = nil | — | — |
+| `HasBlueprintEvent` | `function` | object: any; eventName: string | return: bool | — |
+| `IsBlueprintEventEmpty` | `function` | object: any; eventName: string | return: bool | — |
+| `ExecuteParentEvent` | `function` | object: any; classType: any; eventName: string; arguments: any = nil; keywordArguments: any = nil; localGraph: any = nil; onComplete: any = nil | return: bool | — |
+| `ExecuteGraph` | `function` | graph: Engine.Graph; eventName: string; keywordArguments: any = nil; localGraph: any = nil; onComplete: any = nil | return: bool | runtime API; metadata = false |
+
+`ExecuteGraph` runs a native `Engine.Graph` event, and nil or non-Graph values raise a type error. Repeated execution is rejected while the same graph and event are locked or have pending latent work.
+
+## Character
+
+Direct metadata bases: `{ "Engine", "Actor" }`
+
+InvalidVars: `{ "defaultRect" }`
+
+### Properties
+
+| Name | Type | Default | Metadata |
+|---|---|---|---|
+| `direction` | `int` | `0` | Meta { DropBox = { 0, 1, 2, 3 } } |
+| `directionFix` | `bool` | `false` | — |
+| `animateWithoutMoving` | `bool` | `false` | — |
+
+### Functions and events
+
+| Name | Kind | Parameters | Returns | Execution and metadata |
+|---|---|---|---|---|
+| `setSpriteTexture` | `function` | self: { "Engine", "Character" } = "self"; texture: sf.Texture = nil; resetRect: bool = false | — | ExecSplit { [1] = "default", default = nil } |
+| `setTexture` | `function` | self: { "Engine", "Character" } = "self"; texture: sf.Texture = nil; resetRect: bool = false | — | ExecSplit { [1] = "default", default = nil } |
+| `setTextureRect` | `function` | self: { "Engine", "Character" } = "self"; rectangle: sf.IntRect | — | ExecSplit { [1] = "default", default = nil } |
+| `MapMove` | `function` | self: { "Engine", "Character" } = "self"; offset: sf.Vector2i | return: bool | ExecSplit { [1] = "success", [2] = "fail", success = true, fail = false } |
+| `update` | `function` | self: { "Engine", "Character" } = "self"; deltaTime: float | — | — |
+| `GenActor` | `function` | actorModel: any; texture: any = nil; textureRect: any = nil; tag: string = nil | return: any | — |
+
+## Component
+
+Direct metadata bases: —
+
+### Properties
+
+No editable properties are declared.
+
+### Functions and events
+
+| Name | Kind | Parameters | Returns | Execution and metadata |
+|---|---|---|---|---|
+| `onAttach` | `function` | self: { "Engine", "Component" } = "self"; owner: any | return: any[] | — |
+
+## BillboardComponent
+
+`Engine.BillboardComponent` derives from `Component` and is assigned to `Actor.billboardComp`.
+
+| Property | Type | Default | Meaning |
+|---|---|---|---|
+| `items` | `Engine.BillboardItem[]` | `[]` | Image and text items, ordered from top to bottom. |
+| `showRange` | `float` | `128` | Maximum player-to-Actor world-position distance in map logical pixels, inclusive. |
+
+### BillboardItem
+
+| Property | Type | Default | Meaning |
+|---|---|---|---|
+| `kind` | `string` | `"text"` | `text` or `image`. |
+| `text` | `string` | `""` | Text content. |
+| `fontSize` | `uint` | `12` | Text font size. |
+| `color` | `sf.Color` | `[255,255,255,255]` | Text RGBA colour. |
+| `image` | `string` | `""` | Image resource path. |
+
+Text uses the system default font; images use their original pixel size. Items share the Actor head's horizontal centreline, including each line of multiline text, with no extra spacing. At rest, the bottom item touches the top centre of the Actor's image bounds. The stack remains upright regardless of Actor rotation or flipping.
+
+### Visibility and animation
+
+Display requires the player to be within `showRange` and the Actor bounds to intersect the Camera view. Actor and ancestor visibility, map region activity and layer visibility apply; `tickable` does not affect the display. The stack draws after its Actor and attached emitter, allowing later Actors and layers to cover it, and is clipped by the map window.
+
+Entrance and exit both rise and fade over `0.35` seconds, controlled by four system curves. Default keys use linear interpolation and constant extrapolation:
+
+| Curve resource | Value at 0 → 0.35 seconds |
+|---|---|
+| `Global/BillboardYIn` | `16 → 0` logical pixels |
+| `Global/BillboardAlphaIn` | `0 → 255` |
+| `Global/BillboardYOut` | `0 → -16` logical pixels |
+| `Global/BillboardAlphaOut` | `255 → 0` |
+
+Animation opacity multiplies item alpha. Reversing a transition continues smoothly from its current position and opacity over a new `0.35` seconds. Leaving the Camera view, hiding or sleeping resets the display; returning starts a fresh entrance.
+
+## LightComponent
+
+Direct metadata bases: `{ "Engine", "Component" }`
+
+### Properties
+
+| Name | Type | Default | Metadata |
+|---|---|---|---|
+| `lightColour` | `sf.Color` | `{ [1] = 255, [2] = 255, [3] = 255, [4] = 255 }` | — |
+| `lightRadius` | `float` | `16` | — |
+| `lightOffset` | `sf.Vector2f` | `{ [1] = 0, [2] = 0 }` | — |
+
+`lightOffset` is measured from the centre of the Actor's local bounds and follows its complete transform. A wall-mounted emitter must use a separate Actor and place this offset at the flame on the room side, because the renderer does not search for a passable cell.
+
+### Functions and events
+
+No Blueprint functions or events are declared.

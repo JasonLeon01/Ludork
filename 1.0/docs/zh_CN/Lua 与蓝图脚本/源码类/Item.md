@@ -1,0 +1,28 @@
+# Source.MapActors.Item
+
+`Item` 声明物品 Actor 的 General Data 标识、拾取数量与音效；碰撞时它把自己加入 Player 背包。
+
+Metadata 来源：`Scripts/Source/MapActors/Item_meta.lua`
+
+直接 metadata 基类：`{ "Source.MapActors.ConditionalActor", "ConditionalActor" }`
+
+继承的可见性条件见 [Source.MapActors.ConditionalActor](<ConditionalActor.md>)。
+
+编辑器会按 `ID` 显示生成的 `ItemAttributeSet` 预览。`attributes` 字段只读，不会序列化到 Blueprint JSON 中。
+
+## 属性
+
+| 名称 | 类型 | 默认值 | Metadata |
+|---|---|---|---|
+| `ID` | `string` | `""` | GeneralDataVars = `Item` |
+| `count` | `int` | `1` | — |
+| `getSE` | `string` | `""` | `Sounds` 路径；回退到 `Audio.getSE` |
+
+## 运行时 API
+
+| 成员 | 签名 | 行为 |
+|---|---|---|
+| `init` | `(texture?, rect?, tag?)` | 根据 `ID` 构造生成的 Item Attribute Set |
+| `onCollision` | `(other)` | 通过共享的拾取流程，将 `count` 个 Item 加入 Player 的背包 |
+
+Item 数量大于 0 时，Player 会授予 `GeneralData.Item.<ID>.onUse`。Enemy 掉落时会显式激活 `onDrop`。

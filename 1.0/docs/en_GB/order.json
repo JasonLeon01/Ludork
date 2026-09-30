@@ -1,0 +1,28 @@
+{
+  "home": {
+    "key": "00",
+    "path": "Ludork Documentation.md"
+  },
+  "sections": [
+    {
+      "key": "01",
+      "path": "Getting Started"
+    },
+    {
+      "key": "02",
+      "path": "Editor User Guide"
+    },
+    {
+      "key": "03",
+      "path": "Lua and Blueprint Scripting"
+    },
+    {
+      "key": "04",
+      "path": "Native C++ Development"
+    },
+    {
+      "key": "05",
+      "path": "Plug-in Development and Installation"
+    }
+  ]
+}

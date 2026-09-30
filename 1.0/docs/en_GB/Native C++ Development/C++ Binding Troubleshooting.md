@@ -1,0 +1,39 @@
+# C++ Binding Troubleshooting
+
+Start with the first bindgen or compiler diagnostic. Resolve declaration, generation and runtime-path failures in that order, and rebuild before investigating a later symptom.
+
+## The declaration is not generated
+
+Confirm that the marker is on a public declaration parsed by the module, that the header appears in its CMake binding input and that the annotation syntax matches an existing example. Rebuild and read the first bindgen diagnostic.
+
+## C++ compiles but Lua cannot find the member
+
+Check the Lua module or canonical function-group path, the generated registration and the `require` order. Classes, ungrouped functions and module properties exist only at the module root. A grouped function exists only in its group table.
+
+## LuaLS sees a member but Blueprint does not
+
+Check whether the method is intentionally marked `metadata = false`, as for internal helpers and secondary adapter overloads. Otherwise the generated root `*_meta.lua` contains every logical public `BIND_METHOD`. Read the bindgen diagnostics and do not add a handwritten duplicate.
+
+## Bindgen reports a duplicate metadata method
+
+Keep the logical Blueprint-facing overload and mark secondary conversion or adapter overloads `metadata = false`. Do not add overload-specific generator branches, and do not let one declaration silently replace another.
+
+## Type conversion fails
+
+Use supported primitive, STL, SFML and declared Core types. Include complete cross-module declarations. Add reusable conversion through generic adapters or traits, and never make bindgen branch on one business class or member name.
+
+## Metadata default is wrong
+
+Put the property or method `Meta` inside its own annotation and use an annotation-native `default` (see [Macro Reference](<Macro Reference.md>) and [Generated Metadata and Stubs](<Generated Metadata and Stubs.md>)). Rebuild all generated outputs and recheck Blueprint API Reference coverage.
+
+A top-level method or function `default`, `success` or `fail` is rejected with a validation diagnostic that requires `outpins(...)`. The `outpins` and `defaults` distinction and the lowercase-token rules follow [Functions, Events and Execution](<Functions Events and Execution.md>) and [Macro Reference](<Macro Reference.md>).
+
+## Limitations
+
+This page covers declaration and generation faults. Crashes or incorrect behaviour after a member is called require ordinary C++ runtime debugging.
+
+## Related pages
+
+- [Generated Metadata and Stubs](<Generated Metadata and Stubs.md>)
+- [Advanced Binding Patterns](<Advanced Binding Patterns.md>)
+- [Macro Reference](<Macro Reference.md>)

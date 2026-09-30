@@ -38,6 +38,9 @@ export type SiteMessages = {
     loading: string
     loadError: string
     retry: string
+    onThisPage: string
+    expandHeadings: string
+    collapseHeadings: string
   }
 }
 
@@ -62,7 +65,7 @@ export const LUDORK_SITE_MESSAGES = {
     notices: { title: 'Ludork Licences and Third-Party Notices', description: 'Licences, attribution, and third-party notices for Ludork and its bundled components and assets.' },
     acknowledgements: { title: 'Acknowledgements' },
     footer: { description: FOOTER_DESCRIPTION, license: 'Zlib License', notices: 'Third-party notices', feedback: 'Feedback & issues', source: 'Source on GitHub', iconCredits: 'Icon credits' },
-    docs: { title: 'Ludork Documentation', description: 'Learn to build 2D RPGs with Ludork: getting started, editor tools, Lua, Blueprints, native development, and plug-ins.', sections: 'Documentation sections', expandSidebar: 'Open document navigation', collapseSidebar: 'Close document navigation', selectDocument: 'Select a document from the sidebar', loading: 'Loading document', loadError: 'Unable to load this document.', retry: 'Try again' },
+    docs: { title: 'Ludork Documentation', description: 'Learn to build 2D RPGs with Ludork: getting started, editor tools, Lua, Blueprints, native development, and plug-ins.', sections: 'Documentation sections', expandSidebar: 'Open document navigation', collapseSidebar: 'Close document navigation', selectDocument: 'Select a document from the sidebar', loading: 'Loading document', loadError: 'Unable to load this document.', retry: 'Try again', onThisPage: 'On this page', expandHeadings: 'Expand page headings', collapseHeadings: 'Collapse page headings' },
   },
   zh_CN: {
     navigation: { home: '首页', docs: '文档', about: '关于', repository: 'GitHub 仓库', label: '主导航' },
@@ -84,6 +87,6 @@ export const LUDORK_SITE_MESSAGES = {
     notices: { title: 'Ludork 许可证与第三方声明', description: 'Ludork 及随附组件和资产的许可证、来源与第三方声明。' },
     acknowledgements: { title: '致谢' },
     footer: { description: FOOTER_DESCRIPTION, license: 'Zlib 许可证', notices: '第三方声明', feedback: '问题与建议', source: 'GitHub 源码', iconCredits: '图标来源' },
-    docs: { title: 'Ludork 文档', description: '从快速入门、编辑器、Lua、蓝图、原生开发到插件，用 Ludork 制作 2D RPG。', sections: '文档章节', expandSidebar: '打开文档目录', collapseSidebar: '关闭文档目录', selectDocument: '请在左侧选择一篇文档', loading: '正在加载文档', loadError: '这篇文档暂时无法加载。', retry: '再试一次' },
+    docs: { title: 'Ludork 文档', description: '从快速入门、编辑器、Lua、蓝图、原生开发到插件，用 Ludork 制作 2D RPG。', sections: '文档章节', expandSidebar: '打开文档目录', collapseSidebar: '关闭文档目录', selectDocument: '请在左侧选择一篇文档', loading: '正在加载文档', loadError: '这篇文档暂时无法加载。', retry: '再试一次', onThisPage: '本页小标题', expandHeadings: '展开本页小标题', collapseHeadings: '收起本页小标题' },
   },
 } as const satisfies Record<LanguageKey, SiteMessages>

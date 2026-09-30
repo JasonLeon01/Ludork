@@ -1,6 +1,6 @@
-import filenames from 'virtual:ludork-doc-filenames'
+import manifests from 'virtual:ludork-doc-manifest'
 
-export const LUDORK_VERSIONS = Object.keys(filenames)
+export const LUDORK_VERSIONS = Object.keys(manifests)
 
 export function getDocsVersion(): string {
   const routeVersion = window.location.pathname.match(/\/docs\/v(\d+\.\d+)(?:\/|$)/)?.[1]

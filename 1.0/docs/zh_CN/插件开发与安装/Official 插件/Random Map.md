@@ -1,0 +1,35 @@
+# Official Random Map
+
+## 目标
+
+以官方 Random Map 插件为参考，理解地图项命令如何读取不可变的编辑器快照、打开自带的 Avalonia 工作流，并在 revision 保护下替换单个图层。
+
+## 前置条件
+
+- 安装编辑器发行版。macOS 上还要运行 DMG 中的 **Install Official Plugins**。重启 Ludork，确认 Official Random Map 状态为 **已加载**。`Plugins/OfficialRandomMap` 是它在仓库检出中的源码目录。
+- 打开一个至少包含一张地图、一个图层和有效图块集的项目。
+- 先保存目标地图中尚未保存的改动，或接受这一点：插件写入成功时，这些改动会一并进入该地图的直接保存。
+
+## 注册契约
+
+`OfficialRandomMapPlugin` 只注册一个 `PluginMapContextMenuCommand`。它不注册普通菜单命令、文本提示 provider、before-Export hook、before-Run hook 或 before-Pack hook。只有右键点击真实存在的地图项时，才会显示该命令。
+
+handler 收到 `PluginMapContextMenuContext`，检查 `IAvaloniaPluginUserInterface`，然后用宿主的真实所有者窗口打开插件自有的 `RandomMapWindow`。该窗口只使用 `IMapEditorHost`，拿不到编辑器 ViewModel、控件或可变 JSON 对象。
+
+## 步骤
+
+1. 右键点击地图项，选择 **随机地图设计** 命令。
+2. 选择目标地图与图层。插件读取 `PluginMapSnapshot` 与 `PluginTilesetSnapshot` 的取值。
+3. 选择有效的墙体 Tile，选定生成模式，并放置或清除所需的标点（marker）。
+4. 点击 **生成并保存**，替换并保存所选图层。插件发送 `PluginMapLayerWriteRequest`，携带原始 `BaseRevision` 与 `ExpectedTilesetKey` 以拒绝冲突改动，以及完整的 `Height × Width` Tile 与 AutoTile 矩阵。
+5. 在地图预览中查看已保存的结果。点击 **再次生成** 会生成并保存新的布局。
+
+## 限制
+
+`IMapEditorHost` 不能创建地图、修改尺寸、编辑 Actor、注入编辑器 UI，也不能绕过 revision 校验。Random Map 不承担打包职责，因此不得用 Pack hook 生成地图。
+
+## 相关页面
+
+- [注册点与 Hook 参考](<../注册点与 Hook 参考.md>)
+- [Avalonia UI、密钥与本地化](<../Avalonia UI、密钥与本地化.md>)
+- [图块集、自动图块与地图](<../../编辑器用户指南/图块集、自动图块与地图.md>)

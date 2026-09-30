@@ -13,7 +13,7 @@ import LudorkHeader from './LudorkHeader'
 import { LUDORK_SITE_MESSAGES } from './ludorkSiteMessages'
 import useLudorkPageMetadata from './useLudorkPageMetadata'
 import {
-  docKeyFromFilename,
+  getDocKeyByFilename,
   findSectionByFilename,
   flattenDocFilenames,
   getDocsHomePath,
@@ -50,14 +50,6 @@ function selectedFromDocKey(lang: LanguageKey, docKey: string): SelectedDoc {
   return { type: 'doc', lang, docKey }
 }
 
-function filenamesFromSections(sections: readonly DocSection[]): string[] {
-  return sections.flatMap((section) => flattenDocFilenames(section.items))
-}
-
-function filenameFromDocKey(lang: LanguageKey, docKey: string): string | null {
-  return resolveFilenameByDocKey(filenamesFromSections(getDocsSections(lang)), docKey)
-}
-
 function locationFromSelection(
   language: LanguageKey,
   sections: readonly DocSection[],
@@ -68,7 +60,7 @@ function locationFromSelection(
     return section ? { section, selection } : null
   }
 
-  const filename = resolveFilenameByDocKey(filenamesFromSections(sections), selection.docKey)
+  const filename = resolveFilenameByDocKey(language, selection.docKey)
   if (!filename) {
     return null
   }
@@ -95,8 +87,9 @@ function locationFromPath(
     return locationFromSelection(language, sections, { type: 'home' })
   }
 
-  const docKey = docKeyFromFilename(relativeFilenameFromPath(normalized))
-  return locationFromSelection(language, sections, selectedFromDocKey(language, docKey))
+  const docKey = resolveKnownDocPath(normalized)?.docKey
+    ?? getDocKeyByFilename(language, relativeFilenameFromPath(normalized))
+  return docKey ? locationFromSelection(language, sections, selectedFromDocKey(language, docKey)) : null
 }
 
 function firstSelection(language: LanguageKey, section: DocSection): SelectedDoc | null {
@@ -105,7 +98,8 @@ function firstSelection(language: LanguageKey, section: DocSection): SelectedDoc
   }
 
   const filename = flattenDocFilenames(section.items)[0]
-  return filename ? selectedFromDocKey(language, docKeyFromFilename(filename)) : null
+  const docKey = filename ? getDocKeyByFilename(language, filename) : null
+  return docKey ? selectedFromDocKey(language, docKey) : null
 }
 
 function rememberedSelectionKey(language: LanguageKey, sectionKey: string): string {
@@ -125,7 +119,7 @@ function sameSelection(left: SelectedDoc | undefined, right: SelectedDoc): boole
 function initialSelected(): SelectedDoc {
   const lang = resolveInitialLudorkLanguage()
   const docKey = parseLudorkDoc()
-  return docKey && filenameFromDocKey(lang, docKey)
+  return docKey && resolveFilenameByDocKey(lang, docKey)
     ? selectedFromDocKey(lang, docKey)
     : { type: 'home' }
 }
@@ -133,7 +127,7 @@ function initialSelected(): SelectedDoc {
 function initialFreePath(): string | null {
   const language = resolveInitialLudorkLanguage()
   const docKey = parseLudorkDoc()
-  return docKey && filenameFromDocKey(language, docKey) ? null : parseLudorkPath()
+  return docKey && resolveFilenameByDocKey(language, docKey) ? null : parseLudorkPath()
 }
 
 export default function LudorkApp() {
@@ -159,7 +153,7 @@ export default function LudorkApp() {
     }
 
     const docKey = parseLudorkDoc()
-    if (!freePath && docKey && !filenameFromDocKey(language, docKey)) {
+    if (!freePath && docKey && !resolveFilenameByDocKey(language, docKey)) {
       setLudorkDocInUrl(language, null, '', true)
     }
   }, [freePath, language])
@@ -172,7 +166,7 @@ export default function LudorkApp() {
 
       const pathParam = parseLudorkPath()
       const docKey = parseLudorkDoc()
-      if (docKey && filenameFromDocKey(lang, docKey)) {
+      if (docKey && resolveFilenameByDocKey(lang, docKey)) {
         setFreePath(null)
         setSelected(selectedFromDocKey(lang, docKey))
       } else if (pathParam) {
@@ -196,7 +190,7 @@ export default function LudorkApp() {
     if (selected.type !== 'doc') {
       return null
     }
-    return filenameFromDocKey(language, selected.docKey)
+    return resolveFilenameByDocKey(language, selected.docKey)
   }, [language, selected])
 
   const selectedLocation = useMemo(
@@ -337,7 +331,7 @@ export default function LudorkApp() {
           }
           const currentSelection = currentLocation?.selection ?? selected
           const nextSelection = currentSelection.type === 'doc'
-            && filenameFromDocKey(next, currentSelection.docKey)
+            && resolveFilenameByDocKey(next, currentSelection.docKey)
             ? selectedFromDocKey(next, currentSelection.docKey)
             : { type: 'home' } as const
           setLanguage(next)

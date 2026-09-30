@@ -1,0 +1,117 @@
+# 注册点与 Hook 参考
+
+注册只能在 `IEditorPlugin.Register` 中进行。API 共提供六个注册方法。
+
+## 菜单命令
+
+`RegisterMenuCommand(PluginMenuCommand)` 把命令插入 `File`、`Edit`、`Game`、`Database`、`Help` 或 `Plugins` 菜单。ID 必须非空且全局唯一。`Order` 决定同一位置内命令的排序。
+
+handler 会收到可选的项目路径、编辑器语言、只读的插件目录、可写的插件数据目录、消息 UI、文本提示失效、按插件隔离的密钥存储、可选的蓝图助手宿主桥，以及取消信号。引用 `Ludork.Plugin.Avalonia` 的 Avalonia 源码插件可以把消息 UI 转换为 `IAvaloniaPluginUserInterface`，从而为插件自有窗口取得真正的所有者窗口。成功时返回 `PluginResult.Completed()`；已处理的失败返回 `PluginResult.Failed(error)`。
+
+| `PluginMenuCommand` 字段 | 含义 |
+|---|---|
+| `Id` | 非空全局命令 ID |
+| `Location` | 六个菜单位置之一 |
+| `Order` | 数值排序键 |
+| `Label` | 显示的命令文本 |
+| `Handler` | 异步 `PluginMenuHandler` |
+
+## 地图项右键菜单命令
+
+`RegisterMapContextMenuCommand(PluginMapContextMenuCommand)` 在真实地图项的右键菜单中，把插件命令追加到内置命令之后。用户右键点击地图列表空白处时，该命令不会出现。命令 ID 必须非空，并且在普通菜单命令与地图右键菜单命令之间全局唯一。`Order` 决定插件命令的排序，`Label` 是已经本地化的显示文本。
+
+| `PluginMapContextMenuCommand` 字段 | 含义 |
+|---|---|
+| `Id` | 非空全局命令 ID |
+| `Order` | 数值排序键 |
+| `Label` | 显示的命令文本 |
+| `Handler` | 异步 `PluginMapContextMenuHandler` |
+
+handler 会收到 `PluginMapContextMenuContext`。`MapKey` 是被右键点击的地图；其余字段提供项目路径、编辑器语言、插件目录、消息 UI、文本提示失效、密钥存储、取消信号与 `MapEditorHost`。handler 与普通菜单命令一样返回 `PluginResult`。
+
+`IMapEditorHost` 是一条精简的契约边界。插件拿不到 `ProjectDataStore`、编辑器 ViewModel、`MapPanel`、宿主控件或可变 JSON。
+
+| `IMapEditorHost` 成员 | 含义 |
+|---|---|
+| `ProjectPath` | 已打开项目的根目录 |
+| `CellSize` | 来自引擎编译期声明的只读源格子尺寸，与预览缩放无关 |
+| `SuggestedMapKey` | 打开插件的地图 key；不可用时为空 |
+| `ListMaps()` | 按顺序返回含 key 与显示名的地图摘要 |
+| `ReadMap(mapKey)` | 当前内存地图的不可变快照 |
+| `ReadTileset(tilesetKey)` | 不可变的图块集快照 |
+| `ResolveAssetFile(assetPath)` | 在编辑器最终文件 I/O 时解析逻辑路径；不可用时为空字符串 |
+| `ReplaceLayerAndSaveAsync(request, cancellationToken)` | 经 revision 校验的图层替换与单地图直接保存 |
+
+`PluginMapSnapshot` 包含标识、尺寸、不透明的 `Revision`，以及由矩形 `Tiles` 和 `AutoTiles` 组成的有序图层。图块集与 Actor 的 `AssetPath` 始终保持大小写精确的 `/Game/Assets/...` 路径。只在最终原生文件 I/O 时调用 `ResolveAssetFile`，不要为快照或中间缓存调用它。图块集快照还包含图块尺寸、数量与可通行性。写入请求中的 revision 必须原样照抄。
+
+`PluginMapLayerWriteRequest` 指定地图与图层，回传 `BaseRevision` 和 `ExpectedTilesetKey`，并提供两份矩阵，形状必须与快照的 `Height × Width` 完全一致。`PluginMapWriteResult` 区分成功、revision 或图块集冲突，以及带错误信息的失败，同时返回当前 revision。校验或写入错误不会改动编辑器内存、Undo 状态或界面。
+
+写入成功时，宿主只替换当前内存地图中的该图层，并且只原子保存 `Data/Maps/<mapKey>.json`。它会在该地图的历史中记录一步 Undo，推进已保存的 revision，并刷新目标地图与图层。同一张地图上已有的未保存改动会一并进入这次直接保存。其他地图和项目数据不会保存，脏状态也不会被清除。Undo 会恢复写入前的内存状态，并把该地图标记为需要保存。Undo 不会自动保存。
+
+目标存在未保存的关联路径变更时，写入会被拒绝。先完成一次全局保存。
+
+## 文本提示
+
+`RegisterTextHintProvider(ITextHintProvider)` 注册同步文本解析。`TextHintContext` 包含项目路径、编辑器语言与当前文本。provider 按插件顺序执行，第一个非空结果生效。异常会记录为插件诊断。
+
+## Before Export、Before Run 与 Before Pack
+
+`RegisterBeforeExportHook(IProjectExportHook)` 注册导出步骤。`IProjectExportHook` 继承 `IProjectOperationHook`，新增 `ProjectExportFiles GetFiles(string projectPath)`。返回记录包含 `IReadOnlyList<string> InputPaths` 与 `IReadOnlyList<string> OutputPaths`，使用项目相对的具体文件路径，路径不能重复，输入与输出不能交叉。暂时缺失的输入也必须列出，以便编辑器检测其后续创建。`GetFiles` 描述当前输入和生成文件，不修改它们；`ExecuteAsync` 执行导出。
+
+导出先保存并校验项目，依次执行 Export Hook，生成 UI 文件，最后记录成功结果。编辑器对声明的文件和导出插件身份计算指纹，判断是否需要重新导出。导出按钮、确认后的 **导出后运行**，以及编辑器每次打包都执行 Export Hook。before-Run Hook 若修改导出输入，运行会在实际启动前要求再次导出。完整流程见[编译、导出与运行](<../编辑器用户指南/运行、调试与打包.md#编译导出与运行>)。
+
+`RegisterBeforeRunHook` 与 `RegisterBeforePackHook` 接受 `IProjectOperationHook`，在各自目标操作之前依次执行；编辑器打包会先完整导出，再执行 before-Pack Hook。所有 Hook 的 context 都提供项目路径、语言、操作类型、输出写入器、文本提示失效与取消信号。结果失败或抛出异常会终止后续 Hook 并阻止操作。Hook 必须响应取消请求，并通过 `IPluginOutput` 写出进度。
+
+| 操作 context 字段 | 含义 |
+|---|---|
+| `ProjectPath` | 已打开项目的根目录 |
+| `EditorLanguage` | 当前编辑器语言键 |
+| `Operation` | `ProjectOperationKind.Export`、`Run` 或 `Pack` |
+| `Packaging` | 仅 before-Pack Hook 中非 null；Export 与 before-Run 中为 null |
+| `Output` | 只能追加的操作输出 |
+| `TextHints` | 请求刷新文本提示 |
+| `CancellationToken` | 当前操作的取消信号 |
+
+`Packaging` 可用时，只暴露以下打包决策：
+
+| `IProjectPackaging` 成员 | 含义 |
+|---|---|
+| `UseLuac` | Pack 是否编译受支持的 Lua 源码 |
+| `UseLdPak` | Pack 是否把完整的 `Assets`、`Data` 与裁剪后的 `Scripts` 目录树写成根级 `Assets.ldpak`、`Data.ldpak` 和 `Scripts.ldpak` |
+| `CompileLuaDirectory(relativePath)` | 把项目相对的 Lua 目录加入 Pack 编译集合 |
+| `ExcludeFile(relativePath)` | 从发行包中排除项目相对文件 |
+
+Official Locale Tools 在 Pack 时调用 `ExcludeFile("Data/Locale/Locale.xlsx")`，使创作用的本地化工作簿不被分发。语言文件由独立的 Export Hook 写入；Export 与 Run 期间 `Packaging` 为 null。
+
+## 蓝图助手
+
+蓝图助手注册一条普通的 `PluginMenuCommand`，并自行携带 UI、设置与会话历史。宿主不提供助手窗口或控件，`IAvaloniaPluginUserInterface` 只为插件自有窗口提供一个可选的所有者窗口。在项目窗口中，可选的 `PluginMenuContext.BlueprintAssistantHost` 提供项目路径、当前建议的蓝图、可用蓝图 key 与 `CreateSession`。
+
+`IBlueprintAssistantSession` 固定绑定一个已有蓝图，并暴露其基础 revision 与 `IBlueprintAssistantWorkspace`。workspace 可以列出和读取蓝图、查询 API 清单、搜索或读取白名单内的项目源码、校验候选内容并生成提案。它不能应用改动，也不能访问任意编辑器服务。插件 UI 持有 session，在用户批准后显式调用其应用或放弃方法。应用会重新校验基础 revision 与候选有效性，记录一份编辑器 Undo 快照，把项目数据标记为脏，并刷新已打开的蓝图编辑器，但不会写入磁盘。
+
+API key 一律通过 `PluginMenuContext.SecretStore` 保存。它按插件 ID 隔离，使用操作系统的凭据存储，不会退化为明文文件。
+
+## 资源清理
+
+项目窗口中的 `PluginMenuContext.ResourceCleanupHost` 提供 `IResourceCleanupHost`。插件拥有扫描窗口、固定原生资源清单和最终用户确认；宿主负责分析、报告校验、项目保留项存储和系统回收。
+
+| 成员 | 含义 |
+|---|---|
+| `ProjectPath` | 已打开项目的根目录 |
+| `ReadKeepPathsAsync` / `SaveKeepPathsAsync` | 读取或替换 `EditorCache/ResourceCleanupKeep.list` 中的项目追加项，空列表会移除文件 |
+| `ScanAsync(nativeKeepPaths, userKeepPaths, progress, cancellationToken)` | 分析静态引用，返回包含候选路径、类别、体积和问题的不可变报告 |
+| `TrashAsync(reportId, progress, cancellationToken)` | 重新校验并回收报告中的全部候选，返回已移走路径、剩余路径和错误 |
+
+`ResourceCleanupProgress` 包含阶段、已完成数量、总数和当前路径。报告存在扫描问题时不能回收；项目输入变化会使报告失效。系统回收站或垃圾篓不可用时，宿主不会退回永久删除。扫描边界与检查流程见 [Official Resource Cleanup](<Official 插件/Resource Cleanup.md>)。
+
+## 不支持的扩展点
+
+宿主停靠面板、工具栏、任意右键菜单、数据类型和编辑器事件都没有公开 hook。上文的地图项命令是唯一的右键菜单扩展点。插件可以随命令携带并打开自己的 Avalonia 窗口，但不能把任意控件注入编辑器拥有的视图。
+
+## 相关页面
+
+- [Manifest 与最小插件](<Manifest 与最小插件.md>)
+- [Avalonia UI、密钥与本地化](<Avalonia UI、密钥与本地化.md>)
+- [Official Random Map](<Official 插件/Random Map.md>)
+- [Official Resource Cleanup](<Official 插件/Resource Cleanup.md>)
+- [测试与分发](<测试与分发.md>)

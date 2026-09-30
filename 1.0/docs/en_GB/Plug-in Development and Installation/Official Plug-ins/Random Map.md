@@ -1,0 +1,35 @@
+# Official Random Map
+
+## Goal
+
+Use the official Random Map plug-in as the reference for a map-item command that reads immutable editor snapshots, opens its own Avalonia workflow and replaces one layer with revision protection.
+
+## Prerequisites
+
+- Install the editor release. On macOS, also run **Install Official Plugins** from the DMG. Restart Ludork and confirm that Official Random Map is **Loaded**. `Plugins/OfficialRandomMap` is its source directory in a repository checkout.
+- Open a project containing at least one map, layer and valid tileset.
+- Save any unsaved edits in the target map, or accept that a successful plug-in write includes them in the direct save of that map.
+
+## Registration contract
+
+`OfficialRandomMapPlugin` registers exactly one `PluginMapContextMenuCommand`. It does not register a normal menu command, a text hint provider, a before-Export hook, a before-Run hook or a before-Pack hook. The command is displayed only when an actual map item is right-clicked.
+
+The handler receives `PluginMapContextMenuContext`, checks for `IAvaloniaPluginUserInterface`, and opens the plug-in-owned `RandomMapWindow` with the host's real owner. The window uses only `IMapEditorHost`. It does not receive an editor view model, a control or a mutable JSON object.
+
+## Steps
+
+1. Right-click a map item and choose the Random Map command.
+2. Select the target map and layer. The plug-in reads `PluginMapSnapshot` and `PluginTilesetSnapshot` values.
+3. Select a valid wall tile, choose the generation mode, and place or clear the required markers.
+4. Select **Generate and Save** to replace and save the selected layer. The plug-in sends `PluginMapLayerWriteRequest` with the original `BaseRevision` and `ExpectedTilesetKey` to reject conflicting changes, and complete `Height × Width` Tile and AutoTile matrices.
+5. Review the saved result in the map preview. **Generate Again** generates and saves another layout.
+
+## Limitations
+
+`IMapEditorHost` cannot create maps, change dimensions, edit Actors, inject editor UI or bypass revision checks. Random Map has no packaging responsibility, so it must not use a Pack hook for map generation.
+
+## Related pages
+
+- [Registration and Hook Reference](<../Registration and Hook Reference.md>)
+- [Avalonia UI, Secrets and Localisation](<../Avalonia UI Secrets and Localisation.md>)
+- [Tilesets, Autotiles and Maps](<../../Editor User Guide/Tilesets Autotiles and Maps.md>)

@@ -1,0 +1,11 @@
+# GlobalFunctions.Video
+
+`Video` 声明播放视频的节点，并提供可选的静音、可跳过与字幕参数。
+
+Metadata 来源：`Scripts/GlobalFunctions/Video_meta.lua`
+
+| 名称 | 种类 | 参数 | 返回 | 执行语义与 metadata |
+|---|---|---|---|---|
+| `PlayVideo` | `function` | videoFileName: string; mute: bool = false; skipable: bool = true; subtitleFileName: string = "" | — | ExecSplit { [1] = "default", default = nil }; Meta { PathRoot = { subtitleFileName = "Data" }; PathFilter = { subtitleFileName = "*.json" }; PathVars = { [1] = { [1] = "videoFileName", [2] = "/Game/Assets/Videos" }, [2] = { [1] = "subtitleFileName", [2] = "Data/Subtitles" } } } |
+
+可选的第四个参数为项目相对 `Data/Subtitles/...json` 路径。省略或传入空字符串时只播放视频，原有三参数调用继续有效。字幕文件必须包含 `type: "subtitle"` 和 `sections` 数组。格式、语言选择和编辑流程见 [视频字幕](<../../编辑器用户指南/视频字幕.md>)。
