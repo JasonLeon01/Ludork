@@ -2175,6 +2175,14 @@
     "zh_CN": "打开所在文件夹",
     "en_GB": "Open Containing Folder"
   },
+  "REVEAL_IN_FILE_EXPLORER": {
+    "zh_CN": "在文件资源管理器中查看",
+    "en_GB": "Show in File Explorer"
+  },
+  "REVEAL_IN_FINDER": {
+    "zh_CN": "在 Finder 中查看",
+    "en_GB": "Show in Finder"
+  },
   "OPEN_CONTAINING_FOLDER_FAILED": {
     "zh_CN": "无法打开所在文件夹",
     "en_GB": "Failed to open the containing folder"

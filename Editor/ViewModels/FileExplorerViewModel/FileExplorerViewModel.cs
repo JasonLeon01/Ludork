@@ -206,24 +206,39 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
 
     public bool OpenCurrentFolder()
     {
+        return openInFileManager(CurrentPath, false);
+    }
+
+    public bool RevealInFileManager(string path)
+    {
+        return (File.Exists(path) || Directory.Exists(path)) && openInFileManager(path, true);
+    }
+
+    private static bool openInFileManager(string path, bool select)
+    {
         ProcessStartInfo startInfo = new();
         if (OperatingSystem.IsMacOS())
         {
             startInfo.FileName = "/usr/bin/open";
             startInfo.UseShellExecute = false;
-            startInfo.ArgumentList.Add(CurrentPath);
+            if (select)
+                startInfo.ArgumentList.Add("-R");
+            startInfo.ArgumentList.Add(path);
         }
         else if (OperatingSystem.IsWindows())
         {
             startInfo.FileName = "explorer.exe";
             startInfo.UseShellExecute = false;
-            startInfo.ArgumentList.Add(CurrentPath);
+            if (select)
+                startInfo.Arguments = $"/select,\"{path}\"";
+            else
+                startInfo.ArgumentList.Add(path);
         }
         else
         {
             startInfo.FileName = "xdg-open";
             startInfo.UseShellExecute = false;
-            startInfo.ArgumentList.Add(CurrentPath);
+            startInfo.ArgumentList.Add(select ? Path.GetDirectoryName(path) ?? path : path);
         }
         return startProcess(startInfo);
     }

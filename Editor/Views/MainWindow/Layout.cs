@@ -71,6 +71,7 @@ public partial class MainWindow
             _ => saveEditorPanelLayout("LowerArea"));
         EditorPanel.TileSelectionPicked += onTileSelectionPicked;
         EditorPanel.ActorSelectionChanged += onMapActorSelectionChanged;
+        EditorPanel.BlueprintLocateRequested += onBlueprintLocateRequested;
         EditorPanel.ActorDataChanged += onActorDataChanged;
         EditorPanel.ActorPropertiesChanged += (_, _) => ActorInfoPanel.refreshActorProperties();
         EditorPanel.LightSelectionChanged += onLightSelectionChanged;

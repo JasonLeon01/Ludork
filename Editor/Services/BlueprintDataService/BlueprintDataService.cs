@@ -24,4 +24,12 @@ public sealed partial class BlueprintDataService
 
     public IReadOnlyDictionary<string, BlueprintDefinitionSnapshot> BlueprintsData => new DocumentSnapshotDictionary<BlueprintDefinitionSnapshot>(blueprintDocuments, value => new BlueprintDefinitionSnapshot(value));
 
+    public bool ContainsReference(string? reference)
+    {
+        string key = BlueprintReference.NormalizeKey(reference);
+        return BlueprintReference.IsReference(reference)
+            && key.Length != 0
+            && BlueprintsData.ContainsKey(key);
+    }
+
 }

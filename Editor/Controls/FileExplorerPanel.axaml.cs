@@ -303,9 +303,14 @@ public partial class FileExplorerPanel : UserControl
         VisualStudioButtonIcon.IsVisible = target == EditorExternalOpenTarget.VisualStudio;
     }
 
-    private async Task openContainingFolder()
+    private async Task openContainingFolder(string? selectedPath = null)
     {
-        if ((DataContext as FileExplorerViewModel)?.OpenCurrentFolder() != false)
+        if (DataContext is not FileExplorerViewModel viewModel)
+            return;
+        bool opened = selectedPath is null
+            ? viewModel.OpenCurrentFolder()
+            : viewModel.RevealInFileManager(selectedPath);
+        if (opened)
             return;
         if (TopLevel.GetTopLevel(this) is not Window owner)
             return;
@@ -479,6 +484,13 @@ public partial class FileExplorerPanel : UserControl
             MenuItem openSystem = new MenuItem { Header = LocaleService.Get("OPEN_FROM_SYSTEM") };
             openSystem.Click += async (_, _) => await openFromSystem(item.FullPath);
             items.Add(openSystem);
+            MenuItem reveal = new()
+            {
+                Header = LocaleService.Get(OperatingSystem.IsMacOS() ? "REVEAL_IN_FINDER" : "REVEAL_IN_FILE_EXPLORER"),
+                IsEnabled = File.Exists(item.FullPath) || Directory.Exists(item.FullPath),
+            };
+            reveal.Click += async (_, _) => await openContainingFolder(item.FullPath);
+            items.Add(reveal);
             if (!item.IsDirectory && tryGetBlueprintReference(viewModel, item.FullPath, out string blueprintReference))
             {
                 MenuItem copyClass = new MenuItem { Header = LocaleService.Get("COPY_BLUEPRINT_CLASS_NAME") };

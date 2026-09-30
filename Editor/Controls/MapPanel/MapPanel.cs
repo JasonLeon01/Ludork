@@ -130,6 +130,7 @@ public sealed partial class MapPanel : Control
     public MapEditMode EditMode { get; private set; } = MapEditMode.Tile;
     public event EventHandler<TileSelectionChangedEventArgs>? TileSelectionPicked;
     public event EventHandler<ActorSelectionChangedEventArgs>? ActorSelectionChanged;
+    public event EventHandler<string>? BlueprintLocateRequested;
     public event EventHandler? ActorDataChanged;
     public event EventHandler<LightSelectionChangedEventArgs>? LightSelectionChanged;
     public event EventHandler<LightDataChangedEventArgs>? LightDataChanged;

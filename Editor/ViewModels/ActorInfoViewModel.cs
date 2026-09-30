@@ -35,7 +35,7 @@ public sealed class ActorInfoViewModel
     public bool HasSelection { get; private set; }
     public bool CanEdit => canEditActor && HasSelection;
     public bool CanMove => canMoveActor && HasSelection;
-    public bool HasProjectBlueprint => tryGetProjectBlueprintReference(out _);
+    public bool HasProjectBlueprint => gameData?.Blueprints.ContainsReference(blueprintReference) == true;
     public bool HasOverrides => overriddenFields.Count != 0;
     public bool ClassDetailVisible { get; private set; }
     public string Tag { get; private set; } = string.Empty;
@@ -213,15 +213,6 @@ public sealed class ActorInfoViewModel
         actorData.TryGetGridPosition(out int x, out int y);
         PositionX = Math.Clamp(x, 0, width - 1);
         PositionY = Math.Clamp(y, 0, height - 1);
-    }
-
-    private bool tryGetProjectBlueprintReference(out string reference)
-    {
-        reference = blueprintReference ?? string.Empty;
-        string key = Services.BlueprintReference.NormalizeKey(reference);
-        return Services.BlueprintReference.IsReference(reference)
-            && key.Length != 0
-            && gameData?.Blueprints.BlueprintsData.ContainsKey(key) == true;
     }
 
     public void resetOverride(string name)

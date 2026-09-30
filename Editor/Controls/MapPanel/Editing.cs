@@ -271,13 +271,23 @@ public sealed partial class MapPanel
 
     private void showActorContextMenu((int X, int Y) grid)
     {
+        MapActorSnapshot? actor = getSelectedActor();
+        string reference = actor?.Blueprint ?? string.Empty;
+        if (IsRuntimeEditing && string.IsNullOrWhiteSpace(reference))
+            reference = actor?.Type ?? string.Empty;
+        MenuItem locate = new()
+        {
+            Header = LocaleService.Get("LOCATE_BLUEPRINT"),
+            IsEnabled = gameData?.Blueprints.ContainsReference(reference) == true,
+        };
+        locate.Click += (_, _) => BlueprintLocateRequested?.Invoke(this, reference);
         MenuItem copy = new() { Header = LocaleService.Get("COPY"), IsEnabled = getSelectedActor() is not null };
         copy.Click += (_, _) => copySelectedActorToClipboard();
         MenuItem paste = new() { Header = LocaleService.Get("PASTE"), IsEnabled = !IsRuntimeEditing && canEditMap && actorClipboard is not null && selectedLayerName is not null && !hasActorAt(selectedLayerName, grid) };
         paste.Click += (_, _) => pasteActor(grid);
         MenuItem delete = new() { Header = LocaleService.Get("DELETE"), IsEnabled = canEditMap && getSelectedActor() is not null };
         delete.Click += (_, _) => deleteSelectedActor();
-        ContextMenu menu = new() { ItemsSource = new object[] { copy, paste, delete } };
+        ContextMenu menu = new() { ItemsSource = new object[] { locate, new Separator(), copy, paste, delete } };
         menu.Open(this);
     }
 
