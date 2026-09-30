@@ -312,8 +312,11 @@ public sealed partial class ParticleEditor
                 return;
             string? selected = await FileSelectorDialog.ShowAsync(window,
                 System.IO.Path.Combine(gameData.ProjectPath, "Assets"), FileSelectorDialog.FilesFilter("*.png", "*.jpg", "*.webp"),
-                LocaleService.Get("PARTICLE_SELECT_TEXTURE"));
-            if (selected is not null && GameAssetPath.TryFromProjectFile(gameData.ProjectPath, selected, out string path))
+                LocaleService.Get("PARTICLE_SELECT_TEXTURE"), allowEmpty: true);
+            if (selected is null)
+                return;
+            string path = string.Empty;
+            if (selected.Length == 0 || GameAssetPath.TryFromProjectFile(gameData.ProjectPath, selected, out path))
             {
                 owner["texture"] = path;
                 value.Text = path;

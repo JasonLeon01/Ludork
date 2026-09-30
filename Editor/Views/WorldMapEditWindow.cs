@@ -103,18 +103,14 @@ public sealed class WorldMapEditWindow : Window
     {
         Button browse = new() { Content = "...", MinWidth = 36 };
         browse.Click += async (_, _) => await selectFileAsync(textBox, rootName);
-        Button clear = new() { Content = LocaleService.Get("CLEAR") };
-        clear.Click += (_, _) => textBox.Text = string.Empty;
         Grid row = new()
         {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"),
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
             ColumnSpacing = 6,
         };
         row.Children.Add(textBox);
         Grid.SetColumn(browse, 1);
         row.Children.Add(browse);
-        Grid.SetColumn(clear, 2);
-        row.Children.Add(clear);
         return row;
     }
 
@@ -133,9 +129,13 @@ public sealed class WorldMapEditWindow : Window
             this,
             root,
             FileSelectorDialog.ImageFilesFilter(),
-            initialFilePath: initialFilePath);
-        if (path is not null
-            && GameAssetPath.TryFromProjectFile(gameData.ProjectPath, path, out string assetPath))
+            initialFilePath: initialFilePath,
+            allowEmpty: true);
+        if (path is null)
+            return;
+        string assetPath = string.Empty;
+        if (path.Length == 0
+            || GameAssetPath.TryFromProjectFile(gameData.ProjectPath, path, out assetPath))
         {
             target.Text = assetPath;
         }

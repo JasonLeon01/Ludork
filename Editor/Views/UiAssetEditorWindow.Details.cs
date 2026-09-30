@@ -733,13 +733,15 @@ public partial class UiAssetEditorWindow
                 selectorRoot,
                 filter,
                 initialDirectory: Path.GetDirectoryName(initialFilePath),
-                initialFilePath: initialFilePath);
+                initialFilePath: initialFilePath,
+                allowEmpty: true);
             if (selectedPath is null)
                 return;
-            if (!GameAssetPath.TryFromProjectFile(
+            string assetPath = string.Empty;
+            if (selectedPath.Length != 0 && !GameAssetPath.TryFromProjectFile(
                     gameData.ProjectPath,
                     selectedPath,
-                    out string assetPath))
+                    out assetPath))
             {
                 return;
             }
@@ -747,28 +749,14 @@ public partial class UiAssetEditorWindow
             commit(assetPath);
         };
         ToolTip.SetTip(browse, LocaleService.Get("BROWSE"));
-        Button clear = new()
-        {
-            Content = LocaleService.Get("CLEAR"),
-            Height = EditorInputs.FieldMinHeight,
-        };
-        clear.Click += (_, _) =>
-        {
-            if (string.IsNullOrEmpty(pathBox.Text))
-                return;
-            pathBox.Text = string.Empty;
-            commit(string.Empty);
-        };
         Grid row = new()
         {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"),
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
             ColumnSpacing = 6,
         };
         row.Children.Add(pathBox);
         Grid.SetColumn(browse, 1);
         row.Children.Add(browse);
-        Grid.SetColumn(clear, 2);
-        row.Children.Add(clear);
         DetailsPanel.Children.Add(createField(label, row));
     }
 

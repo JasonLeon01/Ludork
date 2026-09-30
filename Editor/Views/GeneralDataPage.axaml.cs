@@ -872,13 +872,15 @@ internal sealed partial class GeneralDataPage : UserControl
                     owner,
                     startDir,
                     FileSelectorDialog.AllFilesFilter(),
-                    initialFilePath: initialFilePath);
+                    initialFilePath: initialFilePath,
+                    allowEmpty: true);
                 if (path is null)
                     return;
-                if (!GameAssetPath.TryFromProjectFile(
+                string assetPath = string.Empty;
+                if (path.Length != 0 && !GameAssetPath.TryFromProjectFile(
                         gameData.ProjectPath,
                         path,
-                        out string assetPath)
+                        out assetPath)
                     || string.Equals(
                         rawValue?.GetValue<string>() ?? string.Empty,
                         assetPath,

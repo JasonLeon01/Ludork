@@ -460,11 +460,14 @@ public sealed partial class BlueprintVariableForm
                 string.IsNullOrWhiteSpace(pathFilter)
                     ? FileSelectorDialog.AllFilesFilter(star: true)
                     : FileSelectorDialog.FilesFilter(pathFilter),
-                initialFilePath: initialFilePath);
-            if (string.IsNullOrWhiteSpace(selected))
+                initialFilePath: initialFilePath,
+                allowEmpty: true);
+            if (selected is null)
                 return;
             string storedPath;
-            if (projectRoot)
+            if (selected.Length == 0)
+                storedPath = string.Empty;
+            else if (projectRoot)
             {
                 try
                 {

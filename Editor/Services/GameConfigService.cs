@@ -72,11 +72,15 @@ public sealed class GameConfigService
     public IReadOnlyList<string> GetLanguageOptions()
     {
         SortedSet<string> languages = new(StringComparer.Ordinal);
-        string localeDirectory = Path.Combine(projectPath, "Data", "Locale");
+        string localeDirectory = Path.Combine(projectPath, "Scripts", "Source", "Locale");
         if (Directory.Exists(localeDirectory))
         {
             foreach (string path in Directory.EnumerateFiles(localeDirectory, "*.lua", SearchOption.TopDirectoryOnly))
-                languages.Add(Path.GetFileNameWithoutExtension(path));
+            {
+                string language = Path.GetFileNameWithoutExtension(path);
+                if (!language.Equals("Core", StringComparison.OrdinalIgnoreCase))
+                    languages.Add(language);
+            }
         }
         string currentLanguage = CurrentData.Language.Trim();
         if (currentLanguage.Length != 0)

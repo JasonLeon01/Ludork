@@ -143,20 +143,16 @@ public sealed class MapEditWindow : Window
             rootName is "Fogs" or "Panoramas"
                 ? FileSelectorDialog.ImageFilesFilter()
                 : FileSelectorDialog.AudioFilesFilter());
-        Button clear = new() { Content = LocaleService.Get("CLEAR") };
-        clear.Click += (_, _) => textBox.Text = string.Empty;
-        Grid row = new() { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), ColumnSpacing = 6 };
+        Grid row = new() { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 6 };
         row.Children.Add(textBox);
         Grid.SetColumn(browse, 1);
         row.Children.Add(browse);
-        Grid.SetColumn(clear, 2);
-        row.Children.Add(clear);
         if (isBgm is null)
             return row;
         Button filter = new() { Content = LocaleService.Get("FILTER") };
         filter.Click += async (_, _) => await editFilterAsync(isBgm.Value);
         row.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
-        Grid.SetColumn(filter, 3);
+        Grid.SetColumn(filter, 2);
         row.Children.Add(filter);
         return row;
     }
@@ -176,9 +172,13 @@ public sealed class MapEditWindow : Window
             this,
             root,
             filterStr,
-            initialFilePath: initialFilePath);
-        if (path is not null
-            && GameAssetPath.TryFromProjectFile(gameData.ProjectPath, path, out string assetPath))
+            initialFilePath: initialFilePath,
+            allowEmpty: true);
+        if (path is null)
+            return;
+        string assetPath = string.Empty;
+        if (path.Length == 0
+            || GameAssetPath.TryFromProjectFile(gameData.ProjectPath, path, out assetPath))
         {
             target.Text = assetPath;
         }

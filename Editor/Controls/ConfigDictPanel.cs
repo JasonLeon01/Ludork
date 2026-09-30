@@ -372,8 +372,9 @@ public sealed class ConfigDictPanel : Border
             owner,
             root,
             filterStr,
-            initialFilePath: initialFilePath);
-        if (path is null) return null;
+            initialFilePath: initialFilePath,
+            allowEmpty: true);
+        if (string.IsNullOrEmpty(path)) return path;
         string fileName = Path.GetFileName(path);
         if (extensions.Count != 0
             && !extensions.Any(e => fileName.EndsWith(e, StringComparison.OrdinalIgnoreCase)))

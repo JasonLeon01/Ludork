@@ -871,9 +871,11 @@ public sealed class TextConfigEditorWindow : Window
             root,
             filter,
             LocaleService.Get("TEXT_CONFIG_FONT"),
-            initialFilePath: initialFilePath);
-        return path is not null
-            && GameAssetPath.TryFromProjectFile(gameData.ProjectPath, path, out string assetPath)
+            initialFilePath: initialFilePath,
+            allowEmpty: true);
+        if (string.IsNullOrEmpty(path))
+            return path;
+        return GameAssetPath.TryFromProjectFile(gameData.ProjectPath, path, out string assetPath)
                 ? assetPath
                 : null;
     }

@@ -3655,6 +3655,10 @@
     "zh_CN": "文件类型:",
     "en_GB": "Files of type:"
   },
+  "FILE_DIALOG_EMPTY": {
+    "zh_CN": "清空",
+    "en_GB": "Clear"
+  },
   "FILE_DIALOG_OPEN": {
     "zh_CN": "打开",
     "en_GB": "Open"

@@ -42,6 +42,7 @@ public sealed class FileSelectorDialog : Window
     private readonly string _root;
     private readonly bool _save;
     private readonly bool _allowMultiple;
+    private readonly bool _allowEmpty;
     private readonly List<List<string>> _filterPatterns;
     private readonly string[] _filterNames;
     private int _filterIndex;
@@ -90,7 +91,8 @@ public sealed class FileSelectorDialog : Window
         string? title = null,
         bool save = false,
         string? initialDirectory = null,
-        string? initialFilePath = null)
+        string? initialFilePath = null,
+        bool allowEmpty = false)
     {
         FileSelectorDialog dialog = new(
             owner,
@@ -99,7 +101,8 @@ public sealed class FileSelectorDialog : Window
             title,
             save,
             initialDirectory,
-            initialFilePath: initialFilePath);
+            initialFilePath: initialFilePath,
+            allowEmpty: allowEmpty);
         return dialog.ShowDialog<string?>(owner);
     }
 
@@ -132,9 +135,10 @@ public sealed class FileSelectorDialog : Window
             root,
             FilesFilter("*.vert", "*.frag"),
             LocaleService.Get("SELECT_LAYER_SHADER"),
-            initialFilePath: initialFilePath);
-        if (path is null)
-            return null;
+            initialFilePath: initialFilePath,
+            allowEmpty: true);
+        if (string.IsNullOrEmpty(path))
+            return path;
         return GameAssetPath.TryFromProjectFile(projectPath, path, out string assetPath)
             ? assetPath
             : null;
@@ -148,11 +152,13 @@ public sealed class FileSelectorDialog : Window
         bool save = false,
         string? initialDirectory = null,
         bool allowMultiple = false,
-        string? initialFilePath = null)
+        string? initialFilePath = null,
+        bool allowEmpty = false)
     {
         _root = Path.GetFullPath(root);
         _save = save;
         _allowMultiple = allowMultiple && !save;
+        _allowEmpty = allowEmpty && !save && !_allowMultiple;
         EditorThumbnailService? projectThumbnails = findProjectThumbnails(owner);
         _thumbnails = projectThumbnails ?? new EditorThumbnailService();
         _ownsThumbnails = projectThumbnails is null;
@@ -417,7 +423,7 @@ public sealed class FileSelectorDialog : Window
             _fileNameBox.Text = string.Empty;
         clearPreview();
         updateConfirmButton();
-        _entries = [];
+        _entries = _allowEmpty ? [new FileEntry(string.Empty, false, 0)] : [];
         _fileGrid.ItemsSource = _entries;
         string directory = _currentDirectory;
         string[] patterns = _filterIndex < _filterPatterns.Count
@@ -428,6 +434,8 @@ public sealed class FileSelectorDialog : Window
             List<FileEntry> entries = await Task.Run(() => readDirectory(directory, patterns, token), token);
             if (_closed || token.IsCancellationRequested)
                 return;
+            if (_allowEmpty)
+                entries.Insert(0, new FileEntry(string.Empty, false, 0));
             _entries = entries;
             _fileGrid.ItemsSource = entries;
             if (initialFilePath is not null)
@@ -515,8 +523,8 @@ public sealed class FileSelectorDialog : Window
         string path = entry.Path;
         bool isDirectory = entry.IsDirectory;
         bool isImage = !isDirectory && ImageSuffixes.Contains(Path.GetExtension(path).TrimStart('.'));
-        string name = Path.GetFileName(path);
-        string detail = isDirectory ? string.Empty : formatFileSize(entry.Size);
+        string name = entry.IsEmpty ? LocaleService.Get("FILE_DIALOG_EMPTY") : Path.GetFileName(path);
+        string detail = isDirectory || entry.IsEmpty ? string.Empty : formatFileSize(entry.Size);
 
         Border cell = new()
         {
@@ -533,7 +541,15 @@ public sealed class FileSelectorDialog : Window
         Grid inner = new() { RowDefinitions = new RowDefinitions("80,22,14") };
 
         Panel iconArea = new() { Margin = new Thickness(0, 0, 0, 2), HorizontalAlignment = HorizontalAlignment.Center };
-        if (isDirectory)
+        if (entry.IsEmpty)
+            iconArea.Children.Add(new TextBlock
+            {
+                Text = "∅",
+                FontSize = 44,
+                Foreground = DetailBrush,
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+        else if (isDirectory)
             iconArea.Children.Add(EditorIconView.CreateImage("EditorImage.Folder", 54, 44));
         else if (isImage)
             iconArea.Children.Add(createThumbnail(path));
@@ -594,12 +610,14 @@ public sealed class FileSelectorDialog : Window
         _selectedPaths.AddRange(selected.Select(entry => entry.Path));
         _selectedPath = added is { IsDirectory: false } && selected.Contains(added)
             ? added.Path : selected.LastOrDefault()?.Path;
-        _fileName = _selectedPath is null ? string.Empty : Path.GetFileName(_selectedPath);
+        _fileName = _selectedPath == string.Empty
+            ? LocaleService.Get("FILE_DIALOG_EMPTY")
+            : _selectedPath is null ? string.Empty : Path.GetFileName(_selectedPath);
         if (!_save)
             _fileNameBox.Text = _allowMultiple
                 ? string.Join(", ", _selectedPaths.Select(Path.GetFileName))
                 : _fileName;
-        if (_selectedPath is null)
+        if (string.IsNullOrEmpty(_selectedPath))
             clearPreview();
         else
             _ = updatePreviewAsync(_selectedPath);
@@ -636,6 +654,11 @@ public sealed class FileSelectorDialog : Window
         string? resolved = _save ? buildSavePath() : _selectedPath;
         if (resolved is null)
             return;
+        if (_allowEmpty && resolved.Length == 0)
+        {
+            Close(string.Empty);
+            return;
+        }
         string full = Path.GetFullPath(resolved);
         if (!isWithinRoot(full))
             return;
@@ -832,5 +855,8 @@ public sealed class FileSelectorDialog : Window
             _thumbnails.Dispose();
     }
 
-    private sealed record FileEntry(string Path, bool IsDirectory, long Size);
+    private sealed record FileEntry(string Path, bool IsDirectory, long Size)
+    {
+        public bool IsEmpty => Path.Length == 0;
+    }
 }
