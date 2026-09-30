@@ -42,6 +42,8 @@ Filter by top-level folder and **All**, **Favourites** or **Recent** (the last 2
 
 Right-click an entry to open or locate its Blueprint, toggle its favourite state or remove it from Recent. Favourites are stored in `Main.proj` under `editor.actorFavorites`; they follow file moves and renames and are removed when the Blueprint is deleted.
 
+In Actor mode, right-click an Actor on the map and choose **Locate Blueprint** to switch to File Explorer and select its Blueprint file. The action is disabled on empty space and for Actors without a Blueprint in the project.
+
 For a selected map Actor, **Actor Info** shows its Blueprint reference with the **Open** and **Locate** actions, the grid position X/Y, the tag and the exposed class fields. Position and text edits merge into one Undo step for a continuous focused edit. A reset button beside an overridden field removes that instance override, and **Reset All** removes every class-field override for the instance and reveals the inherited Blueprint defaults again. When the Actor's layer is hidden, **Actor Info** stays available for inspection and Blueprint navigation, but its tag, position, reset actions and class fields are read-only.
 
 Placing and deleting Actor instances can be undone in their map document. Deleting the Blueprint file itself is immediate and cannot be undone. If an instance was deleted and saved before its Blueprint was deleted, Undo cannot bring that instance back while the Blueprint is missing. Blueprint field changes, including Undo and Redo, refresh Actor visuals using the current inherited defaults.
