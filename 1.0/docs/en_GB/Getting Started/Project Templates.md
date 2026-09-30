@@ -25,9 +25,7 @@ Platform preparation differs as well. Windows and macOS use shared FFmpeg librar
 
 ## Template targets
 
-- There is no Standalone iOS template. Every iOS output requires a C++ Source project, Xcode, a development team, bundle settings and signing resources.
-- There is no Standalone HarmonyOS template. HarmonyOS output requires a C++ Source project and DevEco Studio with the OpenHarmony native SDK. All HAPs target API 22. Mobile uses OpenGL ES, while 2in1 uses OpenGL by default and can select OpenGL ES.
-- There is no Standalone Android template. Android output requires a C++ Source project, Android Studio, SDK Platform 36, Build Tools 36.0.0, NDK r27 or newer and host CMake 3.28 or newer. The APK declares API 24 (Android 7.0) as its minimum, so it installs on Android 7.0 and later. Compile level and target level are both API 36. Packaging produces an unsigned APK by default. **Sign APK** optionally signs the APK with an existing JKS or PKCS12 keystore. Neither mode installs or launches the APK.
+- Exporting mobile packages (iOS, Android and HarmonyOS) requires a C++ Source template.
 - Script compilation, shader encryption, data encryption, save encryption and **Archive Assets, Data and Scripts (.ldpak)** are packaging options, not template types. See [Run, Debug and Package](<../Editor User Guide/Run Debug and Package.md>) for the complete option behaviour.
 
 All four templates exclude Export outputs: `Scripts/Internal/UI/`, `Scripts/stub/Internal/UI/`, `Scripts/stub/Internal/UIWindows/`, generated locale language Lua files and `EditorCache/ProjectExport.json`. These exclusions apply even if the template source has already been exported. The project `.gitignore` carries the same generated-file rules. Templates retain UI JSON, handwritten Controllers and declarations, `Scripts/Source/Locale/Core.lua`, General Data and variable Lua with their declarations, and native binding declarations. Export recreates the UI and locale files in each project.
