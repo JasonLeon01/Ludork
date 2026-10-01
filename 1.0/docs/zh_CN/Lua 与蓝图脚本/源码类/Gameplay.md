@@ -129,7 +129,7 @@ Compete、Hard、Magic、MultiHit 与 Poisoned 使用各自的战斗结算事件
 | `Commit` | `(player, pathPositions) -> GameplayAbilityResult` | 对每个经过的格子复用 `Preview`，应用总伤害并执行 Blockade 后退 |
 | `NotifyPlayerMovementFinished` | `(player, pathPositions?) -> GameplayAbilityResult` | 提交已完成的移动路径；缺省时提交当前格 |
 
-`Preview` 负责移动危险的几何计算。它派发 `Event.Movement.QueryHazard`，解析 Flank 与被忽略的敌人，并返回有序的来源与总伤害。Danger grid 按 `Gameplay.Movement.Hazard` 筛选，并按需生成。`PreviewContext` 为未变化的快照缓存与位置无关的伤害，但不会跳过逐格事件。被忽略的 Flank 敌人只参与几何计算，不贡献伤害。Preview handler 不得修改 gameplay state。
+`Preview` 负责移动危险的几何计算。它派发 `Event.Movement.QueryHazard`，解析 Flank 与被忽略的敌人，并返回有序的来源与总伤害。Domain 在曼哈顿距离 `<= max(1, magnitude)` 时触发，包含范围边界，并通过 `MotaBattleAbility.CalculateDamagePerRound` 计算伤害，保留 Magic 等战斗特性。Danger grid 按 `Gameplay.Movement.Hazard` 筛选，并按需生成。`PreviewContext` 为未变化的快照缓存与位置无关的伤害，但不会跳过逐格事件。被忽略的 Flank 敌人只参与几何计算，不贡献伤害。Preview handler 不得修改 gameplay state。
 
 ## 生成的 GeneralDataTypes
 

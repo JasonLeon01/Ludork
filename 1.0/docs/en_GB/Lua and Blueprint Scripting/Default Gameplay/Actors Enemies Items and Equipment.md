@@ -44,7 +44,7 @@ Sparse-world readiness, passability, Dir4 and top-material queries are native. P
 
 `PathRouteState` owns a copy of its route and exposes a revision that changes with the route. The preview renderer refreshes its cached route only after that revision changes, reuses its rectangle shape, and trims the visible route when the player enters another map cell. Changing only an atlas frame's source position does not refresh Actor bounds when the texture-rectangle size stays the same. Changing the frame size still refreshes cached bounds and occupied cells.
 
-Domain, Flank and Blockade Effects grant `Gameplay.Movement.Hazard`. Both movement and `MovementDangerGrid` use `MovementSpecials.Preview`, which dispatches `Event.Movement.QueryHazard`. Keep their spatial rules on that path. Domain uses Manhattan range, Flank requires enemies on opposite adjacent sides, and Blockade affects adjacent cells. Positive contributions add.
+Domain, Flank and Blockade Effects grant `Gameplay.Movement.Hazard`. Both movement and `MovementDangerGrid` use `MovementSpecials.Preview`, which dispatches `Event.Movement.QueryHazard`. Keep their spatial rules on that path. Domain includes cells whose Manhattan distance is at most its range (minimum 1): `Domain = 1` reaches the four orthogonally adjacent cells, but not diagonal cells. Its per-round damage respects combat specials, so Magic ignores player defence. Flank requires enemies on opposite adjacent sides, and Blockade affects adjacent cells. Positive contributions add.
 
 After obtaining the Enemy Book, `EnemyDamageHintLevel` selects no hints (`NONE`, `0`), enemy readouts (`BATTLE`, `1`, default) or enemy and map-cell readouts (`MAP`, `2`). Hints have no gameplay side effects.
 
