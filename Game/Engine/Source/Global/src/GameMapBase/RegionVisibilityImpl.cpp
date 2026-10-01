@@ -1,9 +1,45 @@
 #include "RegionVisibilityImpl.hpp"
 
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <queue>
 
 namespace ludork::global::game_map_base_impl {
+
+namespace {
+
+bool intersectsCell(const std::array<sf::Vector2f, 4>& corners,
+                    const sf::Vector2<double>& horizontal,
+                    const sf::Vector2<double>& vertical, int x, int y,
+                    int cellSize) {
+    const std::array<sf::Vector2<double>, 4> axes = {
+        sf::Vector2<double>{1.0, 0.0}, sf::Vector2<double>{0.0, 1.0},
+        sf::Vector2<double>{-horizontal.y, horizontal.x},
+        sf::Vector2<double>{-vertical.y, vertical.x}};
+    const double halfSize = cellSize * 0.5;
+    const sf::Vector2<double> centre{(x + 0.5) * cellSize,
+                                     (y + 0.5) * cellSize};
+    for (const sf::Vector2<double>& axis : axes) {
+        double minimum = axis.x * corners[0].x + axis.y * corners[0].y;
+        double maximum = minimum;
+        for (std::size_t index = 1; index < corners.size(); ++index) {
+            const double projection =
+                axis.x * corners[index].x + axis.y * corners[index].y;
+            minimum = std::min(minimum, projection);
+            maximum = std::max(maximum, projection);
+        }
+        const double projectedCentre = axis.x * centre.x + axis.y * centre.y;
+        const double radius = (std::abs(axis.x) + std::abs(axis.y)) * halfSize;
+        if (maximum <= projectedCentre - radius ||
+            minimum >= projectedCentre + radius) {
+            return false;
+        }
+    }
+    return true;
+}
+
+}  // namespace
 
 void RegionVisibilityImpl::rebuild(
     const std::vector<std::vector<bool>>& passable) {
@@ -91,6 +127,71 @@ bool RegionVisibilityImpl::isCellVisible(const sf::Vector2i& position) const {
     }
     const int region = regions_[position.y][position.x];
     return region < 0 || region == observerRegion_;
+}
+
+bool RegionVisibilityImpl::isActorVisible(const sf::Vector2i& position,
+                                          const sf::FloatRect& bounds,
+                                          const sf::Transform& transform,
+                                          int cellSize) const {
+    if (!contains(position) || observerRegion_ < 0) {
+        return false;
+    }
+    const int region = regions_[position.y][position.x];
+    if (region >= 0) {
+        return region == observerRegion_;
+    }
+    if (bounds.size.x <= 0.0f || bounds.size.y <= 0.0f || cellSize <= 0) {
+        return false;
+    }
+    const std::array<sf::Vector2f, 4> corners = {
+        transform.transformPoint(bounds.position),
+        transform.transformPoint(bounds.position +
+                                 sf::Vector2f{bounds.size.x, 0}),
+        transform.transformPoint(bounds.position + bounds.size),
+        transform.transformPoint(bounds.position +
+                                 sf::Vector2f{0, bounds.size.y})};
+    sf::Vector2f minimum = corners[0];
+    sf::Vector2f maximum = minimum;
+    for (const sf::Vector2f& corner : corners) {
+        if (!std::isfinite(corner.x) || !std::isfinite(corner.y)) {
+            return false;
+        }
+        minimum.x = std::min(minimum.x, corner.x);
+        minimum.y = std::min(minimum.y, corner.y);
+        maximum.x = std::max(maximum.x, corner.x);
+        maximum.y = std::max(maximum.y, corner.y);
+    }
+    const sf::Vector2<double> horizontal{
+        static_cast<double>(corners[1].x) - corners[0].x,
+        static_cast<double>(corners[1].y) - corners[0].y};
+    const sf::Vector2<double> vertical{
+        static_cast<double>(corners[3].x) - corners[0].x,
+        static_cast<double>(corners[3].y) - corners[0].y};
+    if (horizontal.x * vertical.y == horizontal.y * vertical.x) {
+        return false;
+    }
+    const double size = cellSize;
+    const int firstY =
+        static_cast<int>(std::clamp(std::floor(minimum.y / size), 0.0,
+                                    static_cast<double>(regions_.size())));
+    const int endY =
+        static_cast<int>(std::clamp(std::ceil(maximum.y / size), 0.0,
+                                    static_cast<double>(regions_.size())));
+    for (int y = firstY; y < endY; ++y) {
+        const int firstX = static_cast<int>(
+            std::clamp(std::floor(minimum.x / size), 0.0,
+                       static_cast<double>(regions_[y].size())));
+        const int endX = static_cast<int>(
+            std::clamp(std::ceil(maximum.x / size), 0.0,
+                       static_cast<double>(regions_[y].size())));
+        for (int x = firstX; x < endX; ++x) {
+            if (regions_[y][x] == observerRegion_ &&
+                intersectsCell(corners, horizontal, vertical, x, y, cellSize)) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 std::optional<sf::Vector2i> RegionVisibilityImpl::replacementSource(

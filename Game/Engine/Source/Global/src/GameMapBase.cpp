@@ -1059,7 +1059,9 @@ bool GameMapBase::isActorVisibleOnMap(const Actor& actor) const {
     std::shared_ptr<Actor> parent;
     for (const Actor* current = &actor; current != nullptr;
          current = parent.get()) {
-        if (!regionVisibility_->isCellVisible(current->getMapPosition())) {
+        if (!regionVisibility_->isActorVisible(
+                current->getMapPosition(), current->getLocalBounds(),
+                current->getTransform(), EngineState::CellSize)) {
             return false;
         }
         parent = current->getParent();

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <SFML/Graphics/Rect.hpp>
+#include <SFML/Graphics/Transform.hpp>
 #include <SFML/System/Vector2.hpp>
 #include <optional>
 #include <vector>
@@ -11,6 +13,9 @@ public:
     void rebuild(const std::vector<std::vector<bool>>& passable);
     bool setObserver(std::optional<sf::Vector2i> position);
     bool isCellVisible(const sf::Vector2i& position) const;
+    bool isActorVisible(const sf::Vector2i& position,
+                        const sf::FloatRect& bounds,
+                        const sf::Transform& transform, int cellSize) const;
     std::optional<sf::Vector2i> replacementSource(
         const sf::Vector2i& position) const;
 
