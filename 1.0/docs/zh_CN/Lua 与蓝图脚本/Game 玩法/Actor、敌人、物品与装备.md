@@ -44,7 +44,7 @@ Tile 与 Actor 的绘制顺序遵循清单中的 `layerOrder`。仅运行时存�
 
 `PathRouteState` 持有路线的一份副本，并公开一个随路线变化的 revision。只有该 revision 变化后，预览渲染器才刷新缓存路线；它复用矩形图形，并在玩家进入另一个地图格时裁剪可见路线。图集帧只改源位置、纹理矩形尺寸不变时，Actor 边界不会刷新；帧尺寸变化仍会刷新缓存边界与占用格。
 
-Domain、Flank 与 Blockade Effect 授予 `Gameplay.Movement.Hazard`。移动与 `MovementDangerGrid` 都使用 `MovementSpecials.Preview`，由它派发 `Event.Movement.QueryHazard`，因此空间规则要保留在这条路径上。Domain 使用曼哈顿距离范围，Flank 要求敌人位于相对的相邻两侧，Blockade 影响相邻格。正贡献会累加。
+Domain、Flank 与 Blockade Effect 授予 `Gameplay.Movement.Hazard`。移动与 `MovementDangerGrid` 都使用 `MovementSpecials.Preview`，由它派发 `Event.Movement.QueryHazard`，因此空间规则要保留在这条路径上。Domain 覆盖曼哈顿距离小于或等于范围值（最小为 1）的格子：`Domain = 1` 包含上下左右四个相邻格，不包含对角格。其单回合伤害遵循战斗特性，因此 Magic 会忽略玩家防御。Flank 要求敌人位于相对的相邻两侧，Blockade 影响相邻格。正贡献会累加。
 
 取得 Enemy Book 后，`EnemyDamageHintLevel` 可选择不显示提示（`NONE`，`0`）、显示敌人读数（`BATTLE`，`1`，默认）或同时显示敌人与地图格读数（`MAP`，`2`）。提示不影响玩法。
 

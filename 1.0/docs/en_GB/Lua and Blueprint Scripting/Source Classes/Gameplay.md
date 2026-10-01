@@ -129,7 +129,7 @@ Module: `Source.Utils.MovementSpecials`
 | `Commit` | `(player, pathPositions) -> GameplayAbilityResult` | Reuses `Preview` for every traversed cell, applies total damage and performs Blockade retreat |
 | `NotifyPlayerMovementFinished` | `(player, pathPositions?) -> GameplayAbilityResult` | Commits a completed movement path or the current cell |
 
-`Preview` owns movement-hazard geometry. It dispatches `Event.Movement.QueryHazard`, resolves Flank and ignored enemies, and returns ordered sources and total damage. Danger grids filter by `Gameplay.Movement.Hazard` and materialise on demand. `PreviewContext` caches position-independent damage for an unchanged snapshot without skipping per-cell events. Ignored Flank enemies count for geometry, not for damage. Preview handlers must not mutate gameplay state.
+`Preview` owns movement-hazard geometry. It dispatches `Event.Movement.QueryHazard`, resolves Flank and ignored enemies, and returns ordered sources and total damage. Domain activates when Manhattan distance is `<= max(1, magnitude)`, including the range boundary, and uses `MotaBattleAbility.CalculateDamagePerRound` with combat specials such as Magic. Danger grids filter by `Gameplay.Movement.Hazard` and materialise on demand. `PreviewContext` caches position-independent damage for an unchanged snapshot without skipping per-cell events. Ignored Flank enemies count for geometry, not for damage. Preview handlers must not mutate gameplay state.
 
 ## Generated GeneralDataTypes
 
