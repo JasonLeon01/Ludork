@@ -116,7 +116,7 @@ Search matches file names in the current directory and its subdirectories, ignor
 
 Use `Ctrl/Command` with the mouse wheel or the bottom-right slider to scale icons and text from 50% to 200%. Press F5 to refresh external file changes.
 
-Previews load progressively; animated previews play only for visible entries.
+Previews load progressively; animated previews play only for visible entries. Audio entries use the platform audio icon, with a music-note icon when it is unavailable. Video entries load a cover frame in the background and preserve its aspect ratio in both icon and list views. Covers use macOS AVFoundation or the Windows shell thumbnail provider, so supported formats depend on the system. A video icon remains visible while loading or when no cover is available. Media thumbnails share the image cache and refresh when the file changes.
 
 Select an image, audio or video file in File Explorer and press **Space** to open its preview window. File-selection dialogs also preview the selected audio or video in their right-hand pane. Both use the same media player, with playback, pause, seeking and volume controls. Media starts paused; selecting another file, clearing the selection or closing the window stops playback and releases the file. **Escape** closes the preview window or cancels the file selector, including while the player has focus.
 
