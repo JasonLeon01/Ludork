@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root { color-scheme: dark; font: 13px system-ui, sans-serif; color: #dedede; background: #1e1e1e; }
+body { margin: 0; height: 100vh; box-sizing: border-box; padding: 12px; display: flex; flex-direction: column; justify-content: center; gap: 12px; }
+audio, video { width: 100%; min-height: 54px; max-height: calc(100vh - 100px); object-fit: contain; }
+video { background: #000; }
+p { margin: 0; text-align: center; overflow-wrap: anywhere; }
+#status { color: #aaa; }
+[hidden] { display: none; }
+</style>
+</head>
+<body>
+<p>{{name}}</p>
+<{{tag}} id="media" controls preload="metadata" playsinline src="media"></{{tag}}>
+<p id="status" role="status">{{loading}}</p>
+<p id="error" role="alert" hidden>{{error}}</p>
+<script>
+const media = document.getElementById('media');
+const status = document.getElementById('status');
+const error = document.getElementById('error');
+const failed = () => { status.hidden = true; error.hidden = false; };
+const timeout = setTimeout(failed, 30000);
+media.addEventListener('loadedmetadata', () => { clearTimeout(timeout); status.hidden = true; error.hidden = true; });
+media.addEventListener('error', () => { clearTimeout(timeout); failed(); });
+window.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !document.fullscreenElement && !media.webkitDisplayingFullscreen) {
+        event.preventDefault();
+        invokeCSharpAction('close');
+    }
+});
+window.addEventListener('pagehide', () => { media.pause(); media.removeAttribute('src'); media.load(); });
+</script>
+</body>
+</html>

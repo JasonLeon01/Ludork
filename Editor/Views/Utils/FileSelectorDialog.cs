@@ -63,6 +63,7 @@ public sealed class FileSelectorDialog : Window
     private readonly TextBox _lookInBox;
     private readonly Button _upButton;
     private readonly ListBox _fileGrid;
+    private readonly MediaPreview _previewMedia;
     private readonly Image _previewImage;
     private readonly Panel _previewImageContainer;
     private readonly TextBox _previewTextBox;
@@ -283,7 +284,9 @@ public sealed class FileSelectorDialog : Window
         };
         _previewTextContainer = new Panel { Children = { previewTextScroll }, IsVisible = false };
 
-        Panel previewStack = new() { Children = { _previewImageContainer, _previewTextContainer } };
+        _previewMedia = new MediaPreview { IsVisible = false };
+        _previewMedia.CloseRequested += (_, _) => Close(null);
+        Panel previewStack = new() { Children = { _previewImageContainer, _previewTextContainer, _previewMedia } };
 
         Border previewBorder = new()
         {
@@ -688,6 +691,8 @@ public sealed class FileSelectorDialog : Window
         _previewCancellation.Cancel();
         _previewCancellation.Dispose();
         _previewCancellation = new CancellationTokenSource();
+        _previewMedia.Clear();
+        _previewMedia.IsVisible = false;
         _previewImageContainer.IsVisible = false;
         _previewTextContainer.IsVisible = false;
         _previewImage.Source = null;
@@ -714,6 +719,11 @@ public sealed class FileSelectorDialog : Window
                 _previewLease = lease;
                 _previewImage.Source = lease?.Bitmap;
                 _previewImageContainer.IsVisible = lease is not null;
+            }
+            else if (MediaPreview.CanPreview(path))
+            {
+                _previewMedia.IsVisible = true;
+                _previewMedia.Load(path);
             }
             else if (TextSuffixes.Contains(extension))
             {

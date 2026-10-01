@@ -1,4 +1,6 @@
 using Avalonia.Controls;
+using Avalonia.Input;
+using Ludork.Controls;
 using Ludork.Services;
 using Ludork.Views.Utils;
 using System;
@@ -10,17 +12,34 @@ public partial class FilePreviewDialog : Window
 {
     private EditorThumbnailLease? image;
     private bool closed;
+    private MediaPreview? media;
 
     public FilePreviewDialog()
     {
         InitializeComponent();
         PreviewStatus.Text = LocaleService.Get("LOADING");
         Closed += onClosed;
+        KeyDown += (_, args) =>
+        {
+            if (args.Key == Key.Escape)
+            {
+                args.Handled = true;
+                Close();
+            }
+        };
     }
 
     public FilePreviewDialog(string path, EditorThumbnailService thumbnails) : this()
     {
         Title = Path.GetFileName(path);
+        if (MediaPreview.CanPreview(path))
+        {
+            media = new MediaPreview();
+            media.CloseRequested += (_, _) => Close();
+            media.Load(path);
+            Content = media;
+            return;
+        }
         Control? previewContent = Content as Control;
         _ = new DeferredWindowInitializer(this, async cancellationToken =>
         {
@@ -41,6 +60,8 @@ public partial class FilePreviewDialog : Window
     private void onClosed(object? sender, EventArgs args)
     {
         closed = true;
+        media?.Clear();
+        media = null;
         PreviewImage.Source = null;
         image?.Dispose();
         image = null;

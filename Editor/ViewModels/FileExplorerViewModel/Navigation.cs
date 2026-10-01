@@ -94,7 +94,7 @@ public sealed partial class FileExplorerViewModel
                     : -1;
                 if (entry is null || previousIndex < 0)
                 {
-                    IImage placeholder = EditorIconResources.GetImage(info.IsDirectory ? "EditorImage.Folder" : "EditorImage.File");
+                    IImage placeholder = info.IsDirectory ? EditorIconResources.GetImage("EditorImage.Folder") : MediaFileThumbnail.GetPlaceholder(info.Path);
                     entry = new FileExplorerEntryViewModel(info.Path, info.IsDirectory, placeholder, gameData.Thumbnails, previewService);
                     Entries.Insert(index, entry);
                 }

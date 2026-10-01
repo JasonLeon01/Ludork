@@ -28,6 +28,26 @@ internal sealed class MacOSFileIconBackend : IFileIconBackend
         if (image == IntPtr.Zero)
             return null;
 
+        return decodeImage(image, size);
+    }
+
+    public static Bitmap? GetAudioIcon(int size)
+    {
+        IntPtr pool = objc_msgSend(objc_msgSend(objc_getClass("NSAutoreleasePool"), sel_registerName("alloc")), sel_registerName("init"));
+        try
+        {
+            IntPtr workspace = objc_msgSend(objc_getClass("NSWorkspace"), sel_registerName("sharedWorkspace"));
+            IntPtr image = objc_msgSend_intptr(workspace, sel_registerName("iconForFileType:"), createNSString("public.audio"));
+            return image == IntPtr.Zero ? null : decodeImage(image, size);
+        }
+        finally
+        {
+            objc_msgSend(pool, sel_registerName("drain"));
+        }
+    }
+
+    private static Bitmap? decodeImage(IntPtr image, int size)
+    {
         IntPtr tiffData = objc_msgSend(image, sel_registerName("TIFFRepresentation"));
         if (tiffData == IntPtr.Zero)
             return null;

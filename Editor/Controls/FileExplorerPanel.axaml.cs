@@ -39,6 +39,8 @@ public partial class FileExplorerPanel : UserControl
         ToolTip.SetTip(SearchBox, searchHint);
         AutomationProperties.SetName(SearchBox, searchHint);
         initializeZoom();
+        IconEntries.AddHandler(KeyDownEvent, onPreviewKeyDown, RoutingStrategies.Tunnel);
+        ListEntries.AddHandler(KeyDownEvent, onPreviewKeyDown, RoutingStrategies.Tunnel);
         ListEntries.AddHandler(KeyDownEvent, onTreeKeyDown, RoutingStrategies.Tunnel);
         DataContextChanged += (_, _) =>
         {
@@ -532,6 +534,19 @@ public partial class FileExplorerPanel : UserControl
         menu.Open(list);
     }
 
+    private async void onPreviewKeyDown(object? sender, KeyEventArgs args)
+    {
+        if (args.Key != Key.Space || args.KeyModifiers != KeyModifiers.None
+            || sender is not ListBox list || !ReferenceEquals(list, activeEntries)
+            || DataContext is not FileExplorerViewModel viewModel
+            || list.SelectedItem is not FileExplorerEntryViewModel { IsDirectory: false } selected
+            || (!isImage(selected.FullPath) && !MediaPreview.CanPreview(selected.FullPath))
+            || TopLevel.GetTopLevel(this) is not Window owner)
+            return;
+        args.Handled = true;
+        await new FilePreviewDialog(selected.FullPath, viewModel.Thumbnails).ShowDialog(owner);
+    }
+
     private async void onKeyDown(object? sender, KeyEventArgs args)
     {
         if (DataContext is not FileExplorerViewModel viewModel)
@@ -610,11 +625,6 @@ public partial class FileExplorerPanel : UserControl
                     await tryRenameSelected(viewModel);
                 else
                     await viewModel.OpenSelectedAsync();
-                break;
-            case Key.Space:
-                if (viewModel.SelectedEntry is { IsDirectory: false } selected && isImage(selected.FullPath)
-                    && TopLevel.GetTopLevel(this) is Window owner)
-                    await new FilePreviewDialog(selected.FullPath, viewModel.Thumbnails).ShowDialog(owner);
                 break;
             default:
                 return;

@@ -14,8 +14,8 @@ public sealed class FileExplorerEntryViewModel : ViewModelBase, IDisposable
 {
     private readonly EditorThumbnailService thumbnails;
     private readonly BlueprintPreviewService previews;
-    private readonly IImage placeholder;
-    private readonly bool image;
+    private IImage placeholder;
+    private bool image;
     private readonly Dictionary<object, (bool Visible, int Size)> presentations = [];
     private CancellationTokenSource? request;
     private EditorThumbnailLease? thumbnail;
@@ -81,6 +81,11 @@ public sealed class FileExplorerEntryViewModel : ViewModelBase, IDisposable
             return;
         FullPath = path;
         dataInfo = null;
+        if (!IsDirectory)
+        {
+            image = Path.GetExtension(path).ToLowerInvariant() is ".png" or ".jpg" or ".jpeg" or ".bmp" or ".gif" or ".webp";
+            placeholder = MediaFileThumbnail.GetPlaceholder(path);
+        }
         OnPropertyChanged(nameof(FullPath));
         OnPropertyChanged(nameof(Name));
         releasePreview();
@@ -132,7 +137,7 @@ public sealed class FileExplorerEntryViewModel : ViewModelBase, IDisposable
 
     private void startPreview()
     {
-        if (IsDirectory || !image && blueprintReference is null || request is not null)
+        if (IsDirectory || !image && !MediaFileThumbnail.CanLoad(FullPath) && blueprintReference is null || request is not null)
             return;
         request = new CancellationTokenSource();
         _ = loadPreviewAsync(request.Token);
@@ -146,6 +151,8 @@ public sealed class FileExplorerEntryViewModel : ViewModelBase, IDisposable
             ActorVisualDescriptor? visual = null;
             if (image)
                 loaded = await thumbnails.AcquireAsync(FullPath, presentationSize, token);
+            else if (MediaFileThumbnail.CanLoad(FullPath))
+                loaded = await MediaFileThumbnail.AcquireAsync(thumbnails, FullPath, presentationSize, token);
             else if (blueprintReference is not null)
                 (loaded, visual) = await previews.LoadPreviewAsync(blueprintReference, presentationSize, token);
             token.ThrowIfCancellationRequested();

@@ -23,7 +23,7 @@ function MovementSpecialAbility:activate(_abilitySystem, eventData)
     local active = false
     if self._specialID == Special.Domain then
         assert(math.type(self._magnitude) == "integer", "Domain special magnitude must be an integer")
-        active = eventData.payload.distance < math.max(1, self._magnitude)
+        active = eventData.payload.distance <= math.max(1, self._magnitude)
     elseif self._specialID == Special.Blockade then
         active = eventData.payload.distance == 1
     elseif self._specialID == Special.Flank then
