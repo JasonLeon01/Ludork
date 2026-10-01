@@ -118,6 +118,10 @@ Use `Ctrl/Command` with the mouse wheel or the bottom-right slider to scale icon
 
 Previews load progressively; animated previews play only for visible entries.
 
+Select an image, audio or video file in File Explorer and press **Space** to open its preview window. File-selection dialogs also preview the selected audio or video in their right-hand pane. Both use the same media player, with playback, pause, seeking and volume controls. Media starts paused; selecting another file, clearing the selection or closing the window stops playback and releases the file. **Escape** closes the preview window or cancels the file selector, including while the player has focus.
+
+Media previews recognise common audio files such as OGG, WAV, FLAC and MP3, and video containers such as MP4, MOV and WebM. Actual playback depends on the system WebView's codec support; a damaged file or unsupported format displays an error. Windows requires Microsoft Edge WebView2 Runtime; macOS uses WKWebView. Previewing does not require the project's FFmpeg option or a native game build, and files are served locally without uploading them.
+
 The file explorer manages project files and creates Blueprint, Animation, Common Particle, Curve, Text Config and UI assets. The reference tree shows incoming and outgoing references. Map operations update or guard recognised indexed references atomically, and arbitrary strings remain unmanaged.
 
 The project keeps one reference index in memory, builds it on first use and maintains it thereafter. The reference tree builds and refreshes in the background, combining changes within 150 ms. It shows a loading state initially and retains the previous graph with an updating indicator during refresh; successful refreshes preserve pan and zoom. A failed refresh displays an error. Deletion and rename checks synchronously catch up with current project data, so an older displayed graph cannot authorise a resource operation.
