@@ -8,6 +8,7 @@
 ---@field _telepoints            sf.Vector2u[]
 ---@field _currentListKey        tuple<any> | nil
 ---@field _currentPreviewKey     tuple<any> | nil
+---@field _conditionRevision     integer
 ---@field _previewTextureCache   dict<tuple<any>, sf.Texture>
 ---@field _loadPreview           function
 ---@field _resolvePreviewMapPath function | nil
@@ -18,7 +19,7 @@ local Controller = {}
 ---
 --- - @param owner The parent floor teleporter coordinator.
 --- - @param loadPreview Callback that builds a preview texture for a map key.
---- - @param resolvePreviewMapPath Callback returning the resolved map path and current visibility revision for caching.
+--- - @param resolvePreviewMapPath Callback returning the resolved map path, visibility revision and condition revision for caching.
 ---@param owner                 Source.Windows.WindowFloorTeleporter
 ---@param loadPreview           function
 ---@param resolvePreviewMapPath function | nil

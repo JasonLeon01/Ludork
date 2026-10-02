@@ -13,10 +13,13 @@ ConditionalActor.conditionVariable = ""
 ConditionalActor.conditionOperator = "=="
 ConditionalActor.conditionValue = 0
 
-function ConditionalActor:_updateConditionVisibility()
-    local variables = assert(self._conditionTarget, "ConditionalActor has no variable subscription")
-    local current = variables[assert(self._conditionName)]
-    assert(current ~= nil, "ConditionalActor variable is missing: " .. self._conditionName)
+function ConditionalActor:applyConditionVisibility(variables)
+    assert(Class.isInstance(self.conditionVariable, "string"), "ConditionalActor variable name must be a string")
+    if self.conditionVariable == "" then
+        return
+    end
+    local current = variables[self.conditionVariable]
+    assert(current ~= nil, "ConditionalActor variable is missing: " .. self.conditionVariable)
     local comparison = self.conditionValue
     local isNumber = Class.isInstance(current, "number") and Class.isInstance(comparison, "number")
     local isBoolean = Class.isInstance(current, "boolean") and Class.isInstance(comparison, "boolean")
@@ -49,6 +52,10 @@ function ConditionalActor:_updateConditionVisibility()
         end
     end
     self:setVisible(visible, false)
+end
+
+function ConditionalActor:_updateConditionVisibility()
+    self:applyConditionVisibility(assert(self._conditionTarget, "ConditionalActor has no variable subscription"))
 end
 
 function ConditionalActor:_registerConditionMonitor()

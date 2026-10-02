@@ -1,3 +1,4 @@
+local Engine = require("Engine")
 local SourceSystem = require("Source.System")
 local EventKeys = require("Source.Configs.EventKeys")
 local WindowCommand = require("Source.Windows.WindowCommand")
@@ -37,6 +38,8 @@ function SceneTitleController:bind()
         }
     }
     self._windowCommand = self:createChild("CommandPanel", WindowCommand, self._commandModels)
+    local savePath = Engine.getSavePath()
+    self._windowCommand:selectIndex(os.path.isdir(savePath) and bool(os.listdir(savePath)) and 1 or 0)
 end
 
 function SceneTitleController:refresh()

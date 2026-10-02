@@ -7,6 +7,7 @@ local WorldGeometry = require("Global.WorldGeometry")
 local PathPreviewComponent = require("Global.Components.PathPreviewComponent")
 local PathRouteState = require("Global.Components.PathRouteState")
 local Data = require("Source.Data")
+local ConditionalActor = require("Source.MapActors.ConditionalActor")
 local MapPath = require("Source.Utils.MapPath")
 local MapClickAutoPath = require("Source.SceneComponents.MapClickAutoPath")
 local MovementDangerPreviewComponent = require("Source.SceneComponents.MovementDangerPreviewComponent")
@@ -37,10 +38,45 @@ end
 
 function SceneMapBuilder:init()
     self._floorMapPreviewGameMaps = {}
+    self._floorMapPreviewConditions = {}
+    self._floorMapPreviewConditionRevision = 0
 end
 
 function SceneMapBuilder:clearFloorMapPreviewCache()
     self._floorMapPreviewGameMaps = {}
+    self._floorMapPreviewConditions = {}
+    self._floorMapPreviewConditionRevision = self._floorMapPreviewConditionRevision + 1
+end
+
+function SceneMapBuilder:getFloorMapPreviewConditionRevision(inst)
+    local variables = inst:getVariables()
+    local changed = false
+    for name, condition in pairs(self._floorMapPreviewConditions) do
+        if condition.value ~= variables[name] then
+            condition.value = variables[name]
+            changed = true
+        end
+    end
+    if changed then
+        self._floorMapPreviewConditionRevision = self._floorMapPreviewConditionRevision + 1
+    end
+    return self._floorMapPreviewConditionRevision
+end
+
+function SceneMapBuilder:applyFloorMapPreviewConditions(gameMap, inst)
+    local variables = inst:getVariables()
+    for _, root in ipairs(gameMap:getAllActors()) do
+        for _, actor in ipairs(root:collectTree()) do
+            if Class.isInstance(actor, ConditionalActor) then
+                ---@cast actor Source.MapActors.ConditionalActor
+                actor:applyConditionVisibility(variables)
+                local name = actor.conditionVariable
+                if name ~= "" then
+                    self._floorMapPreviewConditions[name] = { value = variables[name] }
+                end
+            end
+        end
+    end
 end
 
 ---@diagnostic disable-next-line: unused
@@ -307,6 +343,7 @@ end
 function SceneMapBuilder:buildFloorMapPreview(
     inst, currentMap, mapKey, telepoint, previewSize, previewScale, showTelepointMarker, activeMap
 )
+    self:getFloorMapPreviewConditionRevision(inst)
     local mapPath = self:resolveMapPath(mapKey, currentMap)
     local isCurrentMap = currentMap ~= nil and mapPath == self:resolveMapPath(currentMap, nil)
     local visibilityRevision = isCurrentMap and activeMap ~= nil and activeMap:getVisibilityRevision() or 0
@@ -453,6 +490,7 @@ function SceneMapBuilder:buildFloorMapPreview(
                 regionStates.transform:translate(
                     sf.Vector2f.new(region.x * Engine.GetCellSize(), region.y * Engine.GetCellSize())
                 )
+                self:applyFloorMapPreviewConditions(preview.regions[region.path], inst)
                 preview.regions[region.path]:drawMapContent(target, regionStates)
             end
         end
@@ -464,6 +502,7 @@ function SceneMapBuilder:buildFloorMapPreview(
             observer = inst:getPlayer():getMapPosition()
         end
         preview.gameMap:setVisibilityObserver(observer)
+        self:applyFloorMapPreviewConditions(preview.gameMap, inst)
         preview.gameMap:drawMapContent(target, states)
     end
     if showTelepointMarker then

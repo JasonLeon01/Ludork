@@ -26,6 +26,7 @@ function Controller:init(owner, loadPreview, resolvePreviewMapPath)
     self._telepoints = {}
     self._currentListKey = nil
     self._currentPreviewKey = nil
+    self._conditionRevision = 0
     self._previewTextureCache = dict()
     self._rows = self:createCollection(self.ui.controls["TelepointList"], CommandRowController)
 end
@@ -138,11 +139,16 @@ function Controller:refreshSelectedPreview()
     local showMarker = self.host:getActive()
     local mapPath = tostring(self._mapKey or "")
     local visibilityRevision = 0
+    local conditionRevision = 0
     if self._resolvePreviewMapPath ~= nil and bool(mapPath) then
-        mapPath, visibilityRevision = self._resolvePreviewMapPath(mapPath)
+        mapPath, visibilityRevision, conditionRevision = self._resolvePreviewMapPath(mapPath)
+    end
+    if conditionRevision ~= self._conditionRevision then
+        self._conditionRevision = conditionRevision
+        self._previewTextureCache = dict()
     end
     local currentKey = tuple {
-        tostring(mapPath or ""), TelepointKey.FromPoint(telepoint), showMarker, visibilityRevision
+        tostring(mapPath or ""), TelepointKey.FromPoint(telepoint), showMarker, visibilityRevision, conditionRevision
     }
     if currentKey == self._currentPreviewKey then
         return

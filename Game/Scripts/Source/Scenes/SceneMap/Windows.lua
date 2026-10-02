@@ -176,7 +176,7 @@ function Windows.Create(self)
                 local mapPath = self._mapBuilder:resolveMapPath(mapKey, self:_getCurrentRegionMap())
                 local currentPath = self._mapBuilder:resolveMapPath(self:_getCurrentRegionMap(), nil)
                 local revision = mapPath == currentPath and self:getGameMap():getVisibilityRevision() or 0
-                return mapPath, revision
+                return mapPath, revision, self._mapBuilder:getFloorMapPreviewConditionRevision(self.inst)
             end,
             function ()
                 self._mapBuilder:clearFloorMapPreviewCache()

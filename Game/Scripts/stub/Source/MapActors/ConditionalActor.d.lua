@@ -11,6 +11,10 @@
 ---@field new                          fun(texture?: sf.Texture, rect?: sf.IntRect, tag?: string): Source.MapActors.ConditionalActor
 local ConditionalActor = {}
 
+--- Apply the current condition without subscribing or dispatching lifecycle events. An empty condition preserves visibility.
+---@param variables table<string, Source.GameInstance.RecordValue>
+function ConditionalActor:applyConditionVisibility(variables) end
+
 --- Release this Actor's variable subscription without changing visibility or destruction records.
 function ConditionalActor:releaseConditionMonitor() end
 

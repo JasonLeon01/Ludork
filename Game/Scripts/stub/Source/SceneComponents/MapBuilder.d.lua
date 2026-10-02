@@ -150,9 +150,14 @@
 
 ---@alias Source.SceneComponents.FloorMapPreview Source.SceneComponents.SingleFloorMapPreview | Source.SceneComponents.WorldFloorMapPreview
 
+---@class Source.SceneComponents.FloorMapPreviewCondition
+---@field value Source.GameInstance.RecordValue | nil
+
 ---@brief Build map runtime objects and floor-map previews for SceneMap.
 ---@class Source.SceneComponents.SceneMapBuilder
----@field _floorMapPreviewGameMaps table<string, Source.SceneComponents.FloorMapPreview>
+---@field _floorMapPreviewGameMaps          table<string, Source.SceneComponents.FloorMapPreview>
+---@field _floorMapPreviewConditions        table<string, Source.SceneComponents.FloorMapPreviewCondition>
+---@field _floorMapPreviewConditionRevision integer
 local SceneMapBuilder = {}
 
 ---@return Source.SceneComponents.SceneMapBuilder
@@ -161,6 +166,16 @@ function SceneMapBuilder.new(...) end
 function SceneMapBuilder:init() end
 
 function SceneMapBuilder:clearFloorMapPreviewCache() end
+
+--- Refresh the snapshot of variables used by cached preview Actors and return its revision.
+---@param inst Source.GameInstance.GameInstance
+---@return integer
+function SceneMapBuilder:getFloorMapPreviewConditionRevision(inst) end
+
+--- Apply conditions to preview Actor trees without lifecycle events or live subscriptions.
+---@param gameMap GameMap
+---@param inst    Source.GameInstance.GameInstance
+function SceneMapBuilder:applyFloorMapPreviewConditions(gameMap, inst) end
 
 ---@param data integer[] | nil
 ---@return sf.Color
