@@ -18,6 +18,8 @@ An empty variable name leaves the authored `visible` value unchanged. Otherwise,
 
 The condition continuously controls `setVisible(result, false)`: a false result hides the Actor again. Child Actors retain their own visibility settings and follow their ancestors' effective visibility. Hidden Actors retain their instances and subscriptions, and Tick remains governed by `tickable` and world streaming.
 
+`applyConditionVisibility(variables)` evaluates the same condition against the supplied game-variable table and applies visibility once. It requires no owning Scene, registers no subscription and dispatches no lifecycle events. Floor previews call it for surviving Actor trees after restoring map records; an empty condition preserves the Actor’s existing visibility.
+
 ## Lifecycle
 
 `onCreate()` subscribes to `GameInstance:getVariables()` and immediately evaluates the condition. A subscription uses the current map path and a non-empty `getMapTag()`. Multiple Actors may watch the same field independently. A failed initial evaluation releases the subscription before it propagates the error.

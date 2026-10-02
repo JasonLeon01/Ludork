@@ -50,6 +50,8 @@ The Performance Monitor exposes streaming state and logs one warning per world s
 
 ### Configure Continue
 
+When the title command window is first created, it checks the directory returned by `Engine.getSavePath()`. Any direct entry, including an unrelated file or a subdirectory, selects Continue (`index = 1`); a missing or empty directory selects Start Game (`index = 0`). This check does not parse saves or filter their format. Locale refreshes and returning from Config or Save/Load preserve the current selection. Creating a new title window checks the directory again.
+
 Continue uses `GetSavePath(slot)` to read the plain or encrypted save selected by the native build. It restores game state and opens the appropriate scene. A missing, malformed or unsupported save must follow the explicit not-found or error path instead of silently constructing partial state.
 
 ### Preserve scene transitions

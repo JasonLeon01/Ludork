@@ -62,6 +62,8 @@ Telepoint labels resolve the recorded tag through `LOC`. Empty or automatically 
 
 Keyboard, mouse and touch selection update the destination and preview before confirmation. The preview keeps a fixed scale and stays within map bounds, centring axes smaller than the view. Composite previews use the full manifest bounds.
 
+Floor previews evaluate [ConditionalActor](<../Source Classes/ConditionalActor.md>) visibility using the current game variables, including on other floors and composite-world children. Evaluation follows restoration of added, moved and destroyed Actor records and includes child Actors, without running lifecycle events or subscribing preview Actors to live variables. Changes to variables used by cached previews invalidate their textures; the next draw reevaluates visibility on the cached map. Reopening the window clears its preview maps and textures.
+
 Attribute shops expose display snapshots through `getOffers()` and validate purchases through `purchaseAttribute(key)`. A scalar price reference is shared by all offers, while an array sets per-offer prices. A purchase increments the corresponding price.
 
 ### Map introduction

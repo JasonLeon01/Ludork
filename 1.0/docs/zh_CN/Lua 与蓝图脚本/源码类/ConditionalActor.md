@@ -18,6 +18,8 @@ Metadata 来源：`Scripts/Source/MapActors/ConditionalActor_meta.lua`
 
 条件会持续控制 `setVisible(result, false)`：结果为 false 时，Actor 再次隐藏。子 Actor 保留各自的可见性设置，并跟随祖先的有效可见性。隐藏的 Actor 保留实例与订阅，Tick 仍受 `tickable` 与大地图流送控制。
 
+`applyConditionVisibility(variables)` 使用传入的游戏变量表判断同一条件，并应用一次可见性。它不依赖所属 Scene，不注册订阅，也不触发生命周期事件。楼层预览恢复地图记录后，对剩余 Actor 及其子树调用此方法；空条件保留 Actor 原有的可见性。
+
 ## 生命周期
 
 `onCreate()` 订阅 `GameInstance:getVariables()`，并立即判断条件。订阅以当前地图路径与非空的 `getMapTag()` 为标识。多个 Actor 可以各自监听同一字段。初始判断失败时，会先释放订阅，再向上传播错误。
