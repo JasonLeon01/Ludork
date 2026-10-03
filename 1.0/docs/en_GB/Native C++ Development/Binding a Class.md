@@ -143,7 +143,25 @@ enum class WeatherType {
 };
 ```
 
-Bindgen generates `Module.WeatherType` and its LuaLS type. Do not duplicate its values as module properties. Bound enum values cross Lua as their underlying integers, and Blueprint metadata uses `int`.
+Bindgen generates `Module.WeatherType` and its LuaLS type. The native build also generates `Scripts/Enums/Module/WeatherType.lua`, which directly returns its named integer constants, and the mirrored enum stub. Blueprint fields and signatures use `{ enum = "Enums.Module.WeatherType" }`; Lua calls and saved Blueprint values retain the underlying integers. Do not duplicate enumerators as module properties. The original native table remains available and shares its compiled values with the pure enum module.
+
+An existing const map can supply a scalar enum without introducing a C++ enum:
+
+```cpp
+BIND_MODULE_PROPERTY(enum = true)
+extern const std::unordered_map<std::string, int> Direction;
+```
+
+Only const maps with string keys and numeric, string or boolean values support this marker. `Engine.Direction` and `Engine.FocusDirection` use it. The generated enum modules are owned by the build; edit the declaration or map source and rebuild.
+
+Use `metadata_type` when an existing scalar property should show an enum selector while keeping its C++ and LuaLS types:
+
+```cpp
+BIND_PROPERTY(metadata_type = {enum = "Enums.Engine.Direction"})
+int direction = 0;
+```
+
+The selector saves the referenced constant's value. Parameter and return overrides follow [Metadata-only signature schemas](<Functions Events and Execution.md#metadata-only-signature-schemas>).
 
 ### Bind owner-specific nested types
 

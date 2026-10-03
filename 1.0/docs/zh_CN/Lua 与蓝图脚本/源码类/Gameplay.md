@@ -67,20 +67,22 @@ graph 的 parent 与 `eventData` 参数是同一个 `GameplayEventData`。它的
 
 Ability ID：`Ability.Combat.MotaBattle`
 
+通过 `require` 直接加载这些常量模块；`MotaBattleAbility` 在 `result.code` 中返回对应的标量值。
+
 | 枚举 | 成员 |
 |---|---|
-| `BattleResult` | `WIN = 1`、`CANNOT_DAMAGE = 2`、`LETHAL_COUNTER_DAMAGE = 3` |
-| `CriticalResult` | `VALUE = 1`、`NOT_NEEDED = 2`、`UNKNOWN = 3` |
+| `Enums.BattleResultCode` | `WIN = 1`、`CANNOT_DAMAGE = 2`、`LETHAL_COUNTER_DAMAGE = 3` |
+| `Enums.CriticalResultCode` | `VALUE = 1`、`NOT_NEEDED = 2`、`UNKNOWN = 3` |
 
 | 成员 | 签名 | 行为 |
 |---|---|---|
-| `calculate` | `(abilitySystem, eventData) -> GameplayAbilityResult` | 不产生任何变更，只生成 `BattleResult` code 与预校验过的伤害、Game Over spec |
+| `calculate` | `(abilitySystem, eventData) -> GameplayAbilityResult` | 不产生任何变更，只生成 `Enums.BattleResultCode` code 与预校验过的伤害、Game Over spec |
 | `activate` | `(abilitySystem, eventData) -> GameplayAbilityResult` | 先计算，并在 `eventData.payload.commit` 为 true 时提交 |
 | `CalculateDamagePerRound` | `(attacker, defender) -> damage, details` | 运行攻击、防御、伤害、命中次数与受到伤害的事件管线 |
 | `CommitResult` | `(result)` | 恰好应用一次已预校验的反击伤害 Effect |
-| `CalculateCriticalValue` | `(enemy, player) -> GameplayAbilityResult` | 返回一个 `CriticalResult` code |
+| `CalculateCriticalValue` | `(enemy, player) -> GameplayAbilityResult` | 返回一个 `Enums.CriticalResultCode` code |
 
-持有者是敌人，`eventData.target` 是玩家。计算只做校验，不应用反击伤害或 Game Over Spec。`BattleResult` data 包含每回合伤害、反击回合数、Vampire 回复、先攻（First）与固定伤害（FixDmg）、双方 Battler、预先准备的 Spec 以及 `committed`。`CommitResult` 只提交一次合计伤害。Enemy 在动画结束后处理 Game Over。暴击值计算会纳入 Vampire 回复，First 的回合阈值保持原值，但会忽略 FixDmg 表达式。
+持有者是敌人，`eventData.target` 是玩家。计算只做校验，不应用反击伤害或 Game Over Spec。战斗结果的 data 包含每回合伤害、反击回合数、Vampire 回复、先攻（First）与固定伤害（FixDmg）、双方 Battler、预先准备的 Spec 以及 `committed`。`CommitResult` 只提交一次合计伤害。Enemy 在动画结束后处理 Game Over。暴击值计算会纳入 Vampire 回复，First 的回合阈值保持原值，但会忽略 FixDmg 表达式。
 
 ## GameplayConstants
 
@@ -135,7 +137,7 @@ Compete、Hard、Magic、MultiHit 与 Poisoned 使用各自的战斗结算事件
 
 模块：`Source.Configs.GeneralDataTypes`
 
-通用数据生成器拥有该模块及其 stub。`Types` 与其中的命名字段导出每一个生成的 `<TypeName>AttributeSet`。
+通用数据生成器拥有该模块及其 stub。`Types` 与其中的命名字段导出每一个生成的 `<TypeName>AttributeSet`。类型键来自 `Enums.GeneralDataKey`，成员键来自对应的 `Enums.GeneralData.<TypeName>` 模块。
 
 `Create(typeName, memberID, memberData) -> AttributeSet` 深拷贝 schema 字段并设置 `ID`。以 ID 为起点时，改用 `Source.Data.CreateGeneralAttributeSet(typeName, memberID)`。
 

@@ -25,7 +25,7 @@
 
 ## WeatherType
 
-`GlobalCore.WeatherType` 定义 `NONE = 0`、`RAIN = 1`、`STORM = 2` 和 `SNOW = 3`。模块根没有别名。Lua 签名保留枚举类型，Blueprint metadata 使用 `int`。
+`GlobalCore.WeatherType` 定义 `NONE = 0`、`RAIN = 1`、`STORM = 2` 和 `SNOW = 3`。原生构建通过纯数据模块 `Enums.GlobalCore.WeatherType` 导出同一组值。Lua 签名保留 `GlobalCore.WeatherType`；蓝图输入和输出使用 `{ enum = "Enums.GlobalCore.WeatherType" }`，显示 key 并保存底层整数。
 
 ## WeatherController
 

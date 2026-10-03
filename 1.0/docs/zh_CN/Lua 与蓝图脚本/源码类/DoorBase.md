@@ -4,7 +4,7 @@
 
 Metadata 来源：`Scripts/Source/MapActors/DoorBase_meta.lua`
 
-它的两阶段 latent 条件与移动节点共享 `Source.Configs.MovementLatentOutputs.STARTED`（`0`）和 `FINISHED`（`1`）；这些值表示执行输出索引。
+它的两阶段 latent 条件与移动节点共享 `Enums.MovementLatentOutput.STARTED`（`0`）和 `FINISHED`（`1`）；这些值表示执行输出索引。
 
 ## DoorBase
 

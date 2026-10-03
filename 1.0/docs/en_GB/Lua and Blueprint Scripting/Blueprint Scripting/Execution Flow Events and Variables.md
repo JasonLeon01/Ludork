@@ -62,11 +62,21 @@ In General Data graphs, the owner is `GameplayEventData`. Connect its `target` o
 
 A value may connect to a union when at least one branch accepts its type. A union output may connect only when the target accepts every possible branch. Lists, dictionaries and tuples apply the rule recursively. Derived types may connect to their declared bases. `int` may connect to `float`, but a `float` to `int` connection and conversions between different SFML vector types are rejected. `any` allows dynamic connections whose actual values are checked at runtime.
 
+Enum pins retain their enum schema but use the enum module's underlying `string`, `bool`, `int` or `float` for compatibility. They can connect to compatible scalar pins and other enums with compatible underlying types, including recursively inside containers and unions. Integer enums may connect to float inputs; float enums may not connect to integer inputs. Values need not match one of the current named choices.
+
 Incompatible connections remain visible in red after loading or pasting a graph, and their tooltip explains the error. Correct the connection before a normal save.
 
 ## Defaults and references
 
 New inputs use the declared default or a valid literal for their type. Object and function inputs without either remain unset. Saved literals must match the declared type, even on connected inputs. Invalid values remain visible and block normal saving, and connected values are checked at runtime. Metadata default and return declarations are covered in [Functions and events](<Metadata Schema and Decorators.md#functions-and-events>).
+
+An enum selector shows the key and saves its scalar value. Reopening it or returning to its field rereads the enum file. An unknown saved value is preserved with a message; a value of the wrong scalar type is invalid. Plain-text inputs accept the scalar, not the displayed key. See [Enum schemas](<Metadata Schema and Decorators.md#enum-schemas>) for module and metadata examples.
+
+## Class attributes
+
+The Blueprint's `attrs` contains values. Newly introduced variables also need a sibling `attrDefs` entry with an explicit `type`; **Add Attribute** writes both. Inherited metadata, Script Mixin and Blueprint fields retain their existing declarations, so a child overrides only the value. Field access nodes and Actor Info use that inherited type, including enum identity and nested container types.
+
+Missing declarations, incompatible values and duplicate declarations fail both editor and runtime reads. The editor's global save and **Save Invalid Blueprint** cannot bypass this class schema check. Map Actor overrides use the resolved class schema as well. See [Blueprint attribute declarations](<Metadata Schema and Decorators.md#blueprint-attribute-declarations>) for stored examples.
 
 ## Class definitions and session lifetime
 

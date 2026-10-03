@@ -55,6 +55,63 @@ Runtime calls must supply the declared types. Conversion rules are in [Runtime V
 
 `component = true` marks component fields. Composite controls are selected from their real type: vectors, colour, rectangles and `Pair`. `Pair` is a two-component numeric control type, not a fixed heterogeneous `Tuple`. `RectRangeVars` adds texture/range semantics to `sf.IntRect`.
 
+## Blueprint attribute declarations
+
+A Blueprint JSON document stores values in `attrs` and declares fields introduced by that Blueprint in the sibling `attrDefs` object. Omit `attrDefs` when the class introduces no fields. Each definition requires `type`, using the same primitive, qualified, enum or recursive schema as metadata. `file` alone may also declare `base` to constrain its asset selector; the value still stores a complete `/Game/Assets/...` path.
+
+```json
+{
+  "attrDefs": {
+    "rewardCount": { "type": "int" },
+    "stairChoice": { "type": { "enum": "Enums.StairDirection" } },
+    "offsets": { "type": { "list": "sf.Vector2i" } },
+    "icon": { "type": "file", "base": "Images" }
+  },
+  "attrs": {
+    "rewardCount": 3,
+    "stairChoice": "Up",
+    "offsets": [[0, 1]],
+    "icon": ""
+  }
+}
+```
+
+This excerpt shows the declaration and value portions of a Blueprint. A definition contains only `type` and optional file `base`; values and initial defaults belong in `attrs`. A declaration may remain without a value. The editor and runtime retain its exact type rather than inferring it from a number, string or empty container.
+
+Resolve declarations from Lua/native metadata, the active Script Mixin and ancestor Blueprints before adding local `attrDefs`. A child inherits both type and default: it may put a new value in `attrs`, but must not repeat or change the inherited definition in `attrDefs`. Local names must not collide with existing fields, methods or reserved runtime names. For example, an inherited `speed` or Mixin `needKeyCount` is a value override, not a new declaration.
+
+Every saved attribute and nested typed record member must be declared, and its value must match that schema. Unknown fields, missing definitions, invalid schemas and conflicting declarations fail loading with the Blueprint path and field. The editor and runtime do not infer missing declarations or convert an older untyped shape. Map `BPClassVarChanged` entries also store values only and use the Actor class's inherited schema. Graph-only Common Functions and General Data member graphs have no class declarations.
+
+## Enum schemas
+
+An enum references one module under `Scripts/Enums`. The module directly returns a nonempty table of named scalar literals:
+
+```lua
+-- Scripts/Enums/StairDirection.lua
+return { None = "None", Up = "Up", Down = "Down" }
+```
+
+Use its require path in the recursive schema:
+
+```lua
+stairDirection = {
+    type = { enum = "Enums.StairDirection" },
+    default = "None",
+}
+```
+
+The same `{ enum = "Enums.StairDirection" }` schema works directly in a function parameter or return entry and inside `list`, `dict`, `tuple` or `union`. Each enum has its own file and corresponding `Scripts/stub/Enums/...d.lua`. Do not wrap the constant table in a class or module member, call `require`, or add functions, expressions or initialization code to the enum module. Comments and scalar literals are accepted. Keys must be nonempty strings, and values must share one category: strings, booleans or finite numbers. A numeric enum is `int` when every literal is an integer; any floating-point literal, including `1.0`, makes it `float`.
+
+The selector displays keys in ordinal order and saves the selected value itself. It stores neither the key nor a Lua expression, and needs no `Meta.DropBox`. Equal values select the first matching key for display. Existing values absent from the current table remain saved and show an unknown-value message. They remain valid if their underlying scalar type is valid; an enum does not impose runtime membership checks.
+
+An explicit default is the actual scalar value and takes priority. Without one, new node inputs and container items use the first option. An attribute without a default remains schema-only until it has a saved value.
+
+The editor reads the current file whenever the field is displayed or the selector opens, including after returning to the window. It does not cache enum definitions across these reads or execute gameplay modules to discover their values. A missing file or invalid enum reports its module path and preserves the current value.
+
+**Convert to Plain Text Inputs** edits the underlying scalar value using its ordinary `string`, `bool`, `int` or `float` rules. For an integer enum, enter the number rather than the displayed key. Enum identity remains in the schema, including a union's `$type` branch descriptor; the stored value is still the scalar. [Typed connections](<Execution Flow Events and Variables.md#typed-connections>) use that underlying type as well.
+
+Native enums and marked constant maps generate equivalent modules such as `Enums.Engine.Direction`, `Enums.GlobalCore.WeatherType` and `Enums.sf.Keyboard.Scan`. Their generation and ownership are described in [Generated Metadata and Stubs](<../../Native C++ Development/Generated Metadata and Stubs.md#generated-enum-modules>).
+
 ## Union schemas and stored literals
 
 A union lists its allowed branches as `{ union = { T1, T2 } }` and appears in the editor as `Union[T1, T2]`. It composes with `{ list = T }`, `{ dict = T }` and `{ tuple = { T1, T2 } }`, the structured equivalents of `T[]`, `Dict[string, T]` and `Tuple[...]`.
@@ -158,7 +215,7 @@ openConditionVal = {
 }
 ```
 
-Container metadata refines editors at the immediate container layer without changing the declared schema or serialised shape. `DictKeyMeta` applies its editor decorators to each string key. `ItemMeta` applies to each immediate list item or dictionary value. When that item is a `Tuple`, `ItemMeta.TupleMeta` maps 1-based tuple positions to their own decorators. `DropBox` provides the ordered literal values for a drop-down. Within a dictionary value's `TupleMeta`, the reserved `InstVarValue = "$dictKey"` reference resolves to that row's dictionary key. It is not a field name and has no meaning outside that row.
+Container metadata refines editors at the immediate container layer without changing the declared schema or serialised shape. `DictKeyMeta` applies its editor decorators to each string key. `ItemMeta` applies to each immediate list item or dictionary value. When that item is a `Tuple`, `ItemMeta.TupleMeta` maps 1-based tuple positions to their own decorators. `DropBox` provides ordered literal choices for a drop-down when there is no shared enum module; use an enum schema when the choices already belong to one. Within a dictionary value's `TupleMeta`, the reserved `InstVarValue = "$dictKey"` reference resolves to that row's dictionary key. It is not a field name and has no meaning outside that row.
 
 ```lua
 afterBattleVarChanges = {

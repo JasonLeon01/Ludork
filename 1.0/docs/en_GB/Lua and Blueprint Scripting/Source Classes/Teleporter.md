@@ -12,7 +12,7 @@ Inherited visibility conditions: [Source.MapActors.ConditionalActor](<Conditiona
 
 `goUpstairs` and `goDownstairs` record the `getTeleportPosition()` of the triggering stair (including `Offset`) and its raw `getMapTag()` after the transfer request is accepted. Arrival records the destination stair. For discovery and display rules, see [Windows, Menus, Input and Controls](<../Default Gameplay/Windows Menus Input and Controls.md>).
 
-`stairDirection` uses the `Teleporter.StairDirection` string enum. The Blueprint property dropdown offers `None` (ordinary teleporter, the default), `Up` and `Down`. Configure every stair Blueprint, including custom variants, with its direction. Lua code uses `Teleporter.StairDirection.None`, `.Up` or `.Down` from the existing Teleporter class.
+`stairDirection` uses `type = { enum = "Enums.StairDirection" }`. Its selector reads the standalone enum module and offers `None` (ordinary teleporter, the default), `Up` and `Down`, storing the matching string value. Configure every stair Blueprint, including custom variants, with its direction. Lua code loads `local StairDirection = require("Enums.StairDirection")` and uses `StairDirection.None`, `.Up` or `.Down`.
 
 Going up selects the nearest visible, surviving `Down` stair on the next map; going down selects an `Up` stair. Distance is measured from the source stair's offset position to each candidate's map position using squared Euclidean distance. Equal distances retain Actor order, and arrival applies the selected stair's `Offset`. A missing counterpart follows the existing cancellation path, restores movement and releases the transition freeze; it does not select another direction or an ordinary teleporter.
 
@@ -31,7 +31,7 @@ Meta: `{ PathVars = { [1] = { [1] = "stairSE", [2] = "/Game/Assets/Sounds" }, [2
 | Name | Type | Default | Metadata |
 |---|---|---|---|
 | `Offset` | `sf.Vector2i` | `{ [1] = 0, [2] = 0 }` | — |
-| `stairDirection` | `string` enum | `"None"` | Meta { DropBox = { "None", "Up", "Down" } } |
+| `stairDirection` | `{ enum = "Enums.StairDirection" }` | `"None"` | — |
 | `stairSE` | `string` | `""` | Meta { PathVars = "/Game/Assets/Sounds", ConfigVars = { [1] = "Audio", [2] = "stairSE" } } |
 | `transitionName` | `string` | `""` | Meta { PathVars = "/Game/Assets/Transitions" } |
 | `transitionTime` | `float` | `0.5` | — |

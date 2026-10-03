@@ -24,6 +24,20 @@ An ungrouped free function is exposed only at the module root, such as `Engine.c
 
 Non-void functions receive one metadata output named `return`. Void functions receive an empty return table. Ordinary instance methods also receive a typed first `self` input that defaults to the graph owner and remains visible. Static methods, free functions and event entries do not add it. See [Generated Metadata and Stubs](<Generated Metadata and Stubs.md#defaults-and-types>) for parameter/default alignment.
 
+### Metadata-only signature schemas
+
+`metadata_parameters` maps existing business parameter names to Blueprint schemas. `metadata_returns` does the same for existing return-pin names; a single ordinary result is named `return`. These options change neither the C++ signature nor its LuaLS declaration, and keep the function's existing metadata visibility.
+
+```cpp
+BIND_METHOD(
+    Pure = true,
+    metadata_parameters = {direction = {enum = "Enums.Engine.Direction"}},
+    metadata_returns = {return = {enum = "Enums.Engine.Direction"}})
+int oppositeDirection(int direction) const;
+```
+
+Use annotation brace syntax, including the unquoted `return` token above. Bindgen emits the required quoted Lua key. Unknown pin names fail generation. Instance `self` is still generated separately, so the override names refer to business parameters without a receiver offset. Property schemas use `metadata_type`; recursive enum schemas compose with containers and unions as described in [Metadata Schema and Decorators](<../Lua and Blueprint Scripting/Blueprint Scripting/Metadata Schema and Decorators.md#enum-schemas>).
+
 ### Assign function groups
 
 A header containing only free functions can begin with:

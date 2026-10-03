@@ -19,7 +19,7 @@ Each page in this chapter documents one Blueprint node module under the `GlobalF
 | `GlobalFunctions.Audio` | Nodes editing the shared `SoundFilter` and `MusicFilter`; playback applies them only when `applyFilter` is true. | [Audio.md](<Audio.md>) |
 | `GlobalFunctions.Utils` | General-purpose nodes for flow control, local and game variables, attributes, animation helpers, the event bus and common functions. | [Utils.md](<Utils.md>) |
 | `GlobalFunctions.Video` | The `PlayVideo` node; its `mute`, `skipable` and `subtitleFileName` arguments are optional. | [Video.md](<Video.md>) |
-| `GlobalFunctions.Weather` | The `SetWeather` and `ClearWeather` nodes; the weather type is one of `NONE`, `RAIN`, `STORM` or `SNOW`. | [Weather.md](<Weather.md>) |
+| `GlobalFunctions.Weather` | The `SetWeather` and `ClearWeather` nodes; the selector shows `NONE`, `RAIN`, `STORM` or `SNOW` and stores its `Enums.GlobalCore.WeatherType` value. | [Weather.md](<Weather.md>) |
 | `GlobalFunctions.ScreenEffects` | Screen flash, tone and shake nodes, with the calls that stop or clear them. | [ScreenEffects.md](<ScreenEffects.md>) |
 | `GlobalFunctions.Transition` | Freeze and transition-wait nodes; their callable wait conditions live in `GlobalFunctions.FrozenCondition` and `GlobalFunctions.TransitionCondition`. | [Transition.md](<Transition.md>) |
 

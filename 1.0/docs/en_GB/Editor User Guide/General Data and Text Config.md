@@ -14,7 +14,11 @@ Define a reusable data schema, enter validated members and create Text Config wi
 | `members` | Named records that store values for those fields |
 | `events` | Optional ordered event names; each member may store an independent graph for each one |
 
-Supported fields include strings, booleans, integers, floating-point values, files, lists, dictionaries, `sf.Vector2f/i/u`, `sf.Vector3f/i/u`, `sf.Color` and `sf.IntRect`. Lists require `itemType`, and string-keyed dictionaries require `valueType`. `type`, `itemType` and `valueType` also accept the recursive container and union schemas defined by [Metadata Schema and Decorators](<../Lua and Blueprint Scripting/Blueprint Scripting/Metadata Schema and Decorators.md>). Select a union branch before entering its value.
+Supported fields include strings, booleans, integers, floating-point values, files, lists, dictionaries, `sf.Vector2f/i/u`, `sf.Vector3f/i/u`, `sf.Color` and `sf.IntRect`. Lists require `itemType`, and string-keyed dictionaries require `valueType`. `type`, `itemType` and `valueType` also accept the enum, recursive container and union schemas defined by [Metadata Schema and Decorators](<../Lua and Blueprint Scripting/Blueprint Scripting/Metadata Schema and Decorators.md>). Select a union branch before entering its value.
+
+In **Add Field** or **Edit Field**, select `enum` as the type, then choose an existing module under `Scripts/Enums` in **kind** and select its default value. **kind** is a UI selector: the saved declaration is `"type": { "enum": "Enums.StairDirection" }`, with no separate `kind` property and no `"type": "enum"` string. The same selector appears when a list's item type or a dictionary's value type is `enum`.
+
+An enum schema such as `{ "enum": "Enums.StairDirection" }` displays the module's keys and stores their scalar values. It can also appear inside lists, dictionaries, tuples and unions. The editor reads the enum module again when viewing or opening its selector. General Data reference selectors continue to read database records directly, including unsaved edits; choose them when the value is a database or resource reference.
 
 Loading fails on a missing subtype, on a missing or unknown non-underscore member field, and on any value that does not match the schema. Use `any` for heterogeneous JSON values, because it preserves literal types and never evaluates strings.
 
@@ -36,7 +40,7 @@ A General Data type declared in a field's reference schema counts as a file refe
 6. Inspect references before renaming or deleting types and members.
 7. Save and exercise the runtime path that reads the data.
 
-Saving regenerates `Source.Configs.GeneralEnum` (type and member constants), `Source.Configs.GeneralDataTypes` (typed `<TypeName>AttributeSet` classes) and their LuaLS declarations. Use `GeneralDataTypes.Create(typeName, memberID, memberData)` to restore a stored member with its ID and field types. Do not edit the generated files.
+Saving regenerates `Enums.GeneralDataKey` (type keys), one `Enums.GeneralData.<TypeName>` module per type (member keys), `Source.Configs.GeneralDataTypes` (typed `<TypeName>AttributeSet` classes), and their LuaLS declarations. Each enum module directly returns its key-to-string table. For example, `local Item = require("Enums.GeneralData.Item")` exposes `Item.EnemyBook`. Renaming or deleting a data type replaces or removes its generated enum files in the same save. Generated type names are distinct even on filesystems that ignore case; member keys retain case. Use `GeneralDataTypes.Create(typeName, memberID, memberData)` to restore a stored member with its ID and field types. Edit database records to change these generated outputs.
 
 Editing a field can change its name, type, container item or value type, default and comment. Renaming preserves each member's current field value. Changing the field type, a list's item type or a dictionary's value type first asks for confirmation, then resets that field in every existing member to the new default value. Changing only the default does not overwrite existing members. Removing a field removes its meaning but does not automatically repair the scripts that read it.
 

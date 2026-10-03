@@ -35,7 +35,7 @@ Runtime modules under `Scripts/GlobalFunctions` do not call `require` at module 
 
 Static dependencies flow from the root native modules through `Scripts/Global` to `Scripts/Source`. Global modules must not require Source. `Scripts/Internal` and `Scripts/GlobalFunctions` can depend on project modules in `Source`. Generic infrastructure can resolve opaque module names supplied by data, but it must not hard-code a higher-layer business module.
 
-Shared constants belong to their owning domain. Native resource suffixes are exposed through `Engine.ResourceFileConstants`; game-specific map identities, Gameplay tags and movement latent output indices live in `Source.Configs.MapConstants`, `Source.Configs.GameplayConstants` and `Source.Configs.MovementLatentOutputs`. Host-owned implementation settings are passed down as arguments. For example, `WorldGameMap` supplies its publication budget to its streaming and region-publishing modules; those modules do not require their host.
+Shared configuration constants belong to their owning domain. Native resource suffixes are exposed through `Engine.ResourceFileConstants`; game-specific map identities and Gameplay tags live in `Source.Configs.MapConstants` and `Source.Configs.GameplayConstants`. Public enums live in the independent `Enums.*` modules described below. Host-owned implementation settings are passed down as arguments. For example, `WorldGameMap` supplies its publication budget to its streaming and region-publishing modules; those modules do not require their host.
 
 At runtime, scripts use exactly one storage form: loose `Scripts` during development, or a root `Scripts.ldpak` in a packed release. Mixed, missing or invalid layouts fail during startup. Logical module and entry paths are identical in both forms.
 
@@ -48,6 +48,32 @@ Each independently reusable class has its own module, and that module returns th
 When a private implementation needs separate modules, a public module can host them in a same-name directory, such as `Global/GameMap.lua` and `Global/GameMap/*.lua`. Game's Enemy and GameInstance implementation helpers instead live under `Source/Utils`. The host owns its public methods and delegates to the implementation. Implementation modules must not require or extend the host. A helper with its own mirrored `.d.lua` declaration remains an independent module.
 
 Access private members only through `self` or same-instance `super(..., self)` dispatch. For other objects, including chained and dynamic access, use public getters, commands or data.
+
+## Enum modules
+
+Each public enum has its own module beneath `Scripts/Enums`, with a matching declaration beneath `Scripts/stub/Enums`. A module directly returns a table of string keys and scalar literal values. It has no dependencies, functions or class construction:
+
+```lua
+-- Scripts/Enums/StairDirection.lua
+return { None = "None", Up = "Up", Down = "Down" }
+```
+
+Runtime callers load the enum directly, for example `local StairDirection = require("Enums.StairDirection")`, then use `StairDirection.Up`. Normal Lua module caching applies at runtime. Blueprint metadata references the module with `type = { enum = "Enums.StairDirection" }`; the editor rereads the file whenever the value editor is viewed or its selector is opened, shows the keys, and stores their actual values. See [Metadata Schema and Decorators](<Blueprint Scripting/Metadata Schema and Decorators.md>) for schema composition and validation.
+
+| Game enum module | Values or purpose |
+|---|---|
+| `Enums.StairDirection` | `None`, `Up`, `Down`, stored as the same strings |
+| `Enums.BattleResultCode` | `WIN = 1`, `CANNOT_DAMAGE = 2`, `LETHAL_COUNTER_DAMAGE = 3` |
+| `Enums.CriticalResultCode` | `VALUE = 1`, `NOT_NEEDED = 2`, `UNKNOWN = 3` |
+| `Enums.DamageHintLevel` | `NONE = 0`, `BATTLE = 1`, `MAP = 2` |
+| `Enums.WindowTransitionProfile` | `DEFAULT = "Default"`, `MENU = "Menu"` |
+| `Enums.ShopMode` | `BUY = "buy"`, `SELL = "sell"` |
+| `Enums.EventKey` | `LocaleChanged`, `AbilitySystemChanged`, `PlayerChanged` event names |
+| `Enums.AbilitySystemChangeKind` | `Attribute`, `State` payload kinds |
+| `Enums.PlayerChangeKind` | `Inventory`, `Name`, `Map` payload kinds |
+| `Enums.MovementLatentOutput` | `STARTED = 0`, `FINISHED = 1` execution output indices |
+
+Native builds generate `Enums.Engine.*`, `Enums.GlobalCore.*`, `Enums.GlobalFunctions.*` and `Enums.sf.*`. General Data Save generates `Enums.GeneralDataKey` and one `Enums.GeneralData.<TypeName>` module per data type. These generated modules retain their owning native declarations or database records as the source of truth; edit those sources and regenerate.
 
 ## Native modules and values
 

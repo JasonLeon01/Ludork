@@ -6,7 +6,16 @@ Metadata source: `Scripts/GlobalFunctions/Weather_meta.lua`
 
 | Name | Kind | Parameters | Returns | Execution and metadata |
 |---|---|---|---|---|
-| `SetWeather` | `function` | weatherType: string; power: int = 40; maxCount: int = 80 | — | ExecSplit { [1] = "default", default = nil }; Meta { DropBox = { weatherType = { [1] = "LOC(\"WEATHER_TYPE_NONE\")", [2] = "LOC(\"WEATHER_TYPE_RAIN\")", [3] = "LOC(\"WEATHER_TYPE_STORM\")", [4] = "LOC(\"WEATHER_TYPE_SNOW\")" } } } |
-| `ClearWeather` | `function` | — | — | ExecSplit { [1] = "default", default = nil } |
+| `SetWeather` | `function` | weatherType: `{ enum = "Enums.GlobalCore.WeatherType" }`; power: int = 40; maxCount: int = 80 | — | Default execution output |
+| `ClearWeather` | `function` | — | — | Default execution output |
 
-The `SetWeather` Blueprint DropBox stores one of `NONE`, `RAIN`, `STORM` or `SNOW`. Lua may also pass the matching `GlobalCore.WeatherType` value. The enum supplies the names and the localised labels before the native call.
+The selector displays `NONE`, `RAIN`, `STORM` and `SNOW` from the generated `Enums.GlobalCore.WeatherType` module and stores their numeric values `0`, `1`, `2` and `3`. Lua callers pass the enum value directly:
+
+```lua
+local WeatherType = require("Enums.GlobalCore.WeatherType")
+local Weather = require("GlobalFunctions.Weather")
+
+Weather.SetWeather(WeatherType.STORM, 30, 50)
+```
+
+The node forwards the value to `GlobalCore.WeatherController.setWeather`; names and localised labels are not runtime arguments. Blueprint JSON stores the example above as `[2, 30, 50]`.

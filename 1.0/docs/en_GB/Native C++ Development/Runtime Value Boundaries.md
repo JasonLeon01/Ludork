@@ -30,6 +30,8 @@ Component and event descriptor caches retain Lua weak-key indexing. Private user
 
 Direct Lua calls pass a `std::variant` alternative as its actual value, without a wrapper. Lua integers prefer integer alternatives, and floating-point numbers prefer floating-point alternatives. Fractional numbers are never truncated into integers. Strings and booleans require their actual Lua types. Native SFML types remain distinct even when their values have the same shape.
 
+An enum schema such as `{ enum = "Enums.Engine.Direction" }` resolves its pure constant module and checks values against the underlying scalar type. All integer literals produce `int`; any floating-point literal produces `float`; string and boolean enums produce `string` and `bool`. Calls and stored values carry the scalar itself. A value absent from the named choices remains valid when it has the correct scalar type. Containers apply this recursively, and a union keeps its normal branch wrapper in storage while passing only the restored scalar at runtime. See [Enum schemas](<../Lua and Blueprint Scripting/Blueprint Scripting/Metadata Schema and Decorators.md#enum-schemas>) for the module contract.
+
 Pure-data conversion, used by `RuntimeData` and `BIND_CLASS(pure_data = true)`, accepts nil, the registered JSON-null sentinel, booleans, finite numbers, strings, acyclic arrays and string-keyed maps. It rejects functions, native objects, cycles, invalid keys and unrecognised metatables.
 
 An empty Lua `{}` is a map, while `{ n = 0 }` is an empty array. A non-negative integer `n` preserves array length and nil holes, and emitted arrays include it. Registered JSON array metatables are accepted. Map null entries use the registered JSON-null sentinel to preserve their keys.

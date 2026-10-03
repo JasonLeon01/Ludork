@@ -55,6 +55,63 @@ return _METADATA
 
 `component = true` 标记组件字段。复合控件按实际类型选择：向量、颜色、矩形与 `Pair`。`Pair` 是二分量数值控件类型，不是固定异构的 `Tuple`。`RectRangeVars` 为 `sf.IntRect` 增加纹理/范围语义。
 
+## 蓝图属性声明
+
+蓝图 JSON 在 `attrs` 中保存值，并通过同级 `attrDefs` 对象声明本蓝图新增的字段。没有新增字段时可以省略 `attrDefs`。每条定义必须提供 `type`，支持与 metadata 相同的基础类型、限定类型、枚举和递归 schema。只有 `file` 类型可以附加 `base` 限定资源选择目录；字段值仍保存完整的 `/Game/Assets/...` 路径。
+
+```json
+{
+  "attrDefs": {
+    "rewardCount": { "type": "int" },
+    "stairChoice": { "type": { "enum": "Enums.StairDirection" } },
+    "offsets": { "type": { "list": "sf.Vector2i" } },
+    "icon": { "type": "file", "base": "Images" }
+  },
+  "attrs": {
+    "rewardCount": 3,
+    "stairChoice": "Up",
+    "offsets": [[0, 1]],
+    "icon": ""
+  }
+}
+```
+
+此片段展示蓝图的声明与值部分。定义只包含 `type` 和可选的文件 `base`，值与初始默认值写在 `attrs`。声明可以暂时没有值；编辑器和运行时始终保留其准确类型，不根据数字、字符串或空容器猜测类型。
+
+先解析 Lua／原生 metadata、启用的 Script Mixin 与祖先蓝图的声明，再加入本地 `attrDefs`。子类同时继承类型与默认值，可以在 `attrs` 中覆盖值，但不能在 `attrDefs` 中重复声明或改写继承类型。本地名称不能与已有字段、方法或运行时保留名称冲突。例如，继承的 `speed` 或 Mixin 的 `needKeyCount` 都是值覆盖，无须新增声明。
+
+所有已保存属性以及带类型记录的嵌套成员都必须有声明，值必须符合对应 schema。未知字段、缺少声明、无效 schema 和冲突声明会拒绝加载，并指出蓝图路径及字段。编辑器与运行时不会推断缺失声明，也不会转换旧的无类型格式。地图 `BPClassVarChanged` 同样只保存值，使用 Actor 类继承得到的 schema。公共函数与通用数据成员的纯图文档没有类声明。
+
+## 枚举 schema
+
+枚举引用 `Scripts/Enums` 下的一个模块，该模块直接返回一张非空的具名标量字面量 table：
+
+```lua
+-- Scripts/Enums/StairDirection.lua
+return { None = "None", Up = "Up", Down = "Down" }
+```
+
+在递归 schema 中填写它的 require 路径：
+
+```lua
+stairDirection = {
+    type = { enum = "Enums.StairDirection" },
+    default = "None",
+}
+```
+
+同一个 `{ enum = "Enums.StairDirection" }` schema 可直接用作函数参数、返回项，也可嵌入 `list`、`dict`、`tuple` 或 `union`。每个枚举独占一个文件，并有对应的 `Scripts/stub/Enums/...d.lua`。枚举模块不能把常量表包装为类或模块成员，不能调用 `require`，也不能加入函数、表达式或初始化代码。允许注释与标量字面量。键必须是非空字符串，值必须属于同一类别：字符串、布尔值或有限数字。数值枚举的全部字面量都是整数时，底层类型为 `int`；只要存在浮点字面量，包括 `1.0`，底层类型就是 `float`。
+
+选择器按 ordinal 顺序显示键，保存选中键对应的值本身，不保存键名或 Lua 表达式，也无需 `Meta.DropBox`。多个键对应同一个值时，回显第一个匹配的键。当前常量表不再包含的已有值会保留保存，并显示未知值提示。只要它仍符合底层标量类型，就仍是有效值；枚举不在运行时强制限定取值集合。
+
+显式默认值填写实际标量值，并优先使用。没有默认值时，新节点输入和容器项使用第一个选项。未声明默认值的属性在存在保存值之前仍只提供 schema。
+
+编辑器在字段显示或下拉框打开时读取当前文件，返回该窗口时同样刷新。它不会跨这些读取缓存枚举定义，也不会执行玩法模块来发现取值。文件缺失或枚举无效时，错误会指出模块路径，并保留当前值。
+
+**转换为普通输入框** 按底层 `string`、`bool`、`int` 或 `float` 的普通规则编辑标量值。整数枚举需要输入数字，而不是显示的键。schema 中仍保留枚举身份，联合类型的 `$type` 分支描述也一样；保存的取值仍是标量。[连线的类型规则](<执行流、事件与变量.md#连线的类型规则>)同样使用该底层类型。
+
+原生枚举与带标记的常量映射会生成同等形式的模块，例如 `Enums.Engine.Direction`、`Enums.GlobalCore.WeatherType` 与 `Enums.sf.Keyboard.Scan`。生成方式与文件归属见[生成 Metadata 与 Stub](<../../C++ 原生开发/生成 Metadata 与 Stub.md#生成枚举模块>)。
+
 ## 联合类型 schema 与保存字面量
 
 联合类型用 `{ union = { T1, T2 } }` 列出允许的分支，在编辑器中显示为 `Union[T1, T2]`。它可以与 `{ list = T }`、`{ dict = T }`、`{ tuple = { T1, T2 } }` 组合，这三种写法分别是 `T[]`、`Dict[string, T]` 与 `Tuple[...]` 的结构化等价形式。
@@ -158,7 +215,7 @@ openConditionVal = {
 }
 ```
 
-容器 metadata 在紧邻的容器层细化编辑器，不改变声明 schema 或序列化形状。`DictKeyMeta` 把自身的编辑器 decorator 应用到每个字符串键，`ItemMeta` 应用到每个直接的列表项或字典值。若该项是 `Tuple`，`ItemMeta.TupleMeta` 按从 1 开始的元组位置分别指定 decorator。`DropBox` 提供下拉框的有序字面量取值。在字典值的 `TupleMeta` 内，保留引用 `InstVarValue = "$dictKey"` 解析为该行的字典键。它不是字段名，离开该行就没有意义。
+容器 metadata 在紧邻的容器层细化编辑器，不改变声明 schema 或序列化形状。`DictKeyMeta` 把自身的编辑器 decorator 应用到每个字符串键，`ItemMeta` 应用到每个直接的列表项或字典值。若该项是 `Tuple`，`ItemMeta.TupleMeta` 按从 1 开始的元组位置分别指定 decorator。没有共享枚举模块时，`DropBox` 提供下拉框的有序字面量取值；选项已经属于枚举模块时使用枚举 schema。在字典值的 `TupleMeta` 内，保留引用 `InstVarValue = "$dictKey"` 解析为该行的字典键。它不是字段名，离开该行就没有意义。
 
 ```lua
 afterBattleVarChanges = {

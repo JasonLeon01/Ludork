@@ -2,12 +2,13 @@
 
 生成文件属于构建产物，不得手工修改。
 
-原生绑定流程用一份声明产出四类结果：
+原生绑定流程用一份声明产出五类结果：
 
 1. 稳定的 `<Module>.<NativeClass>.auto.cpp` 注册单元，以及原生 Lua 模块使用的唯一一份 `<Module>.stub.auto.cpp`；
 2. 供 Lua 语言工具使用的 `Scripts/stub/<Module>.d.lua`；
 3. 供编辑器使用的 `Scripts/<Module>_meta.lua`；
-4. `<Module>.traits.auto.hpp`，内含该模块私有的转换特征。
+4. `<Module>.traits.auto.hpp`，内含该模块私有的转换特征；
+5. 绑定枚举与带标记常量映射对应的纯模块 `Scripts/Enums/<Module>/<Name>.lua`，以及配套声明 `Scripts/stub/Enums/<Module>/<Name>.d.lua`。
 
 这些输出必须在规范模块路径、类名、函数分组与参数顺序上保持一致。Metadata 还携带蓝图执行信息与编辑器信息。
 
@@ -24,6 +25,7 @@ Core bindgen 与 LuaSF 会在 `.d.lua` 中保留多行 `///` 文档，并把 `\p
 | C++ 值类型 | 蓝图 Metadata | LuaLS |
 |---|---|---|
 | 具名绑定类型 | 完整模块/类型引用 | 限定类型名 |
+| 已绑定的原生或 LuaSF 枚举 | `{ enum = "Enums.<Module>.<Name>" }` | 既有的限定枚举类型 |
 | `std::vector<T>` 或 `std::array<T, N>` | `{ list = T }` | `T` 数组 |
 | 字符串键映射 | `{ dict = T }` | 以字符串为键、值为 `T` 的映射 |
 | `std::pair<T1, T2>` 或 `std::tuple<T...>` | `{ tuple = { T1, T2, ... } }` | 固定的数值字段，如 `{ [1]: integer, [2]: string }` |
@@ -44,6 +46,16 @@ Core bindgen 与 LuaSF 会在 `.d.lua` 中保留多行 `///` 文档，并把 `\p
 LuaSF 通过 `LUASF_CALLBACK_CODECS_FILE` 提供具有特殊调用约定的回调别名。Bindgen 在展开规范类型之前按语义别名选择编解码器，并在嵌套容器中保持这一选择。清单缺失、不兼容或规范类型不匹配时，生成或编译会失败。
 
 `BIND_CLASS` 的 singleton 声明还会为已绑定的函数组生成 metadata。包装函数已经选定单例，因此其参数不含 `self`；类方法仍保留有类型的接收者。`Engine.Input` 与 `Engine.Service` 分别是对应的函数组与类接口。
+
+## 生成枚举模块
+
+桌面原生构建使用 `NativeStubDump` 调用 `<Module>_write_enum_catalogue`。编译后的 writer 从实际 C++ 枚举项取得整数值，从带 `BIND_MODULE_PROPERTY(enum = true)` 标记的 const 映射取得标量值，在 `Intermediate` 下写入 catalogue，不创建 Lua VM。随后 `ScriptTools enum-modules` 在 `Enums.Engine`、`Enums.GlobalCore` 或所属原生模块的命名空间下，为每个枚举生成直接返回常量 table 的独立模块。既有原生 table 导出继续使用同一份源值。
+
+`Enums.sf` 下的 LuaSF 枚举模块来自 `sfml_api.json`。嵌套名称形成目录，例如 `Enums/sf/Keyboard/Scan.lua`；`Scancode` 别名解析为规范 schema `Enums.sf.Keyboard.Scan`。这项生成不会额外公开蓝图节点。stub 用 `---@meta Enums.<Module>.<Name>` 声明 require 路径，并保留对应的 LuaLS 值类型。
+
+生成器只写入变化的内容，只清理带有自身生成标记的过期输出，并拒绝覆盖同路径的手写文件。编辑器模板与原生缓存同时包含枚举源码模块和 stub。游戏包保留枚举源码模块，排除 stub 目录树。
+
+交叉构建与静态 Lua 模块构建需要已有的桌面原生构建产出的枚举源码模块及镜像 stub。生成文件缺失时，预检会列出路径并失败，不会猜测 C++ 常量值。修改原生枚举声明或带标记映射后，应先在桌面重新构建，再准备这些构建。
 
 ## 重新生成
 

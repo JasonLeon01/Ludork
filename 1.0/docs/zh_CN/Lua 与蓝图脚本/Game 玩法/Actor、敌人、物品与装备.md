@@ -46,7 +46,7 @@ Tile 与 Actor 的绘制顺序遵循清单中的 `layerOrder`。仅运行时存�
 
 Domain、Flank 与 Blockade Effect 授予 `Gameplay.Movement.Hazard`。移动与 `MovementDangerGrid` 都使用 `MovementSpecials.Preview`，由它派发 `Event.Movement.QueryHazard`，因此空间规则要保留在这条路径上。Domain 覆盖曼哈顿距离小于或等于范围值（最小为 1）的格子：`Domain = 1` 包含上下左右四个相邻格，不包含对角格。其单回合伤害遵循战斗特性，因此 Magic 会忽略玩家防御。Flank 要求敌人位于相对的相邻两侧，Blockade 影响相邻格。正贡献会累加。
 
-取得 Enemy Book 后，`EnemyDamageHintLevel` 可选择不显示提示（`NONE`，`0`）、显示敌人读数（`BATTLE`，`1`，默认）或同时显示敌人与地图格读数（`MAP`，`2`）。提示不影响玩法。
+取得 Enemy Book 后，`EnemyDamageText.EnemyDamageHintLevel` 使用 `Enums.DamageHintLevel`，可选择不显示提示（`NONE`，`0`）、显示敌人读数（`BATTLE`，`1`，默认）或同时显示敌人与地图格读数（`MAP`，`2`）。提示不影响玩法。
 
 点击寻路始终排除正危险格，即使提示尚未显示；显式点击的目的地除外。点击 Domain 或 Blockade 敌人时，只移除该目标的贡献，包括它在 Flank 中的那一侧。玩家不会占用的碰撞与 overlap 目标忽略目的地格的危险。
 
@@ -62,7 +62,7 @@ Player 的 HP Current 在 modifier 之后钳制到 `0..MAXHP`。永久 MAXHP 与
 
 敌人的 `special` 会保留整数次数/范围、仅表示存在的 `""`、`Vampire` 比率、`FixDmg` 数值/表达式以及 `Reborn` 类路径。每一项都会转为一个 Infinite 的 `Special.<id>` Effect，带有同名 tag 和专用的 ability。战斗类 special 修改战斗 Gameplay Event；移动类 special 使用 `Event.Movement.QueryHazard` 与 `Gameplay.Movement.Hazard`。
 
-每个 Enemy 都授予 `Ability.Combat.MotaBattle`。它的计算没有副作用，返回伤害明细和数值形式的 `BattleResult`（`WIN`、`CANNOT_DAMAGE` 或 `LETHAL_COUNTER_DAMAGE`）。碰撞会在 `CommitResult(result)` 之前校验伤害、Game Over、奖励和 State Effect Spec。预览复用同一套计算，但不会修改状态。
+每个 Enemy 都授予 `Ability.Combat.MotaBattle`。它的计算没有副作用，返回伤害明细和数值形式的 `Enums.BattleResultCode`（`WIN`、`CANNOT_DAMAGE` 或 `LETHAL_COUNTER_DAMAGE`）。碰撞会在 `CommitResult(result)` 之前校验伤害、Game Over、奖励和 State Effect Spec。预览复用同一套计算，但不会修改状态。
 
 普通敌人战斗通过 Scene timer，在敌方攻击动画最早的 `dmg` 时间 tag 处弹出正数反击伤害；没有该 tag 或动画时立即弹出。HP 仍立即扣除，后续结算仍等待双方攻击动画的视觉时长结束。
 
