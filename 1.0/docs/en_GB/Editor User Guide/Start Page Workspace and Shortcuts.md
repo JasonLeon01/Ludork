@@ -106,7 +106,7 @@ Modified files show `*` in the file explorer and in editor titles, and they are 
 
 File Explorer browses `Assets` and `Data` through the source sidebar and breadcrumbs. Up stops at the selected root. The last valid browsing directory is restored, defaulting to `Assets`.
 
-Right-click an entry for file operations or empty space for the current directory’s menu. Paste shortcuts target the current browsing directory.
+Right-click an entry for file operations or empty space for the current directory’s menu. List view leaves gaps between rows and along both sides for opening this directory menu; these gaps scale with the content zoom. Paste shortcuts target the current browsing directory.
 
 Right-click a file or folder and choose **Show in File Explorer** on Windows or **Show in Finder** on macOS to open its containing directory and select it. This also works in expanded folders and search results. With multiple entries selected, it reveals only the right-clicked entry. The action is disabled for entries that do not yet exist on disk and does not save pending changes.
 
