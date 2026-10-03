@@ -42,9 +42,12 @@ public sealed partial class ProjectDataStore
 
     internal void addInvalidLoadPath(string path)
     {
-        string relative = Path.GetRelativePath(ProjectPath, path).Replace('\\', '/');
-        if (!invalidLoadPaths.Contains(relative, StringComparer.Ordinal))
-            invalidLoadPaths.Add(relative);
+        lock (invalidLoadLock)
+        {
+            string relative = Path.GetRelativePath(ProjectPath, path).Replace('\\', '/');
+            if (!invalidLoadPaths.Contains(relative, StringComparer.Ordinal))
+                invalidLoadPaths.Add(relative);
+        }
     }
 
 }

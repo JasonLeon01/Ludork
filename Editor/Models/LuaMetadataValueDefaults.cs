@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Text.Json.Nodes;
 
 namespace Ludork.Models;
@@ -7,13 +8,16 @@ internal static class LuaMetadataValueDefaults
 {
     public static JsonNode? Create(
         LuaMetadataType type,
-        Func<string, JsonNode?> createUnknownDefault)
+        Func<string, JsonNode?> createUnknownDefault,
+        Func<string, LuaEnumDefinition>? resolveEnum = null)
     {
+        if (type.Kind == LuaMetadataTypeKind.Enum)
+            return resolveEnum?.Invoke(type.Name).Options.FirstOrDefault()?.Value?.DeepClone();
         if (type.Kind == LuaMetadataTypeKind.Union)
         {
             foreach (LuaMetadataType branch in type.Arguments)
             {
-                if (TryCreateLiteral(branch, out JsonNode? branchValue))
+                if (TryCreateLiteral(branch, out JsonNode? branchValue, resolveEnum))
                     return WrapUnion(branch, branchValue);
             }
             return null;
@@ -29,7 +33,7 @@ internal static class LuaMetadataValueDefaults
         {
             JsonArray result = [];
             foreach (LuaMetadataType itemType in type.Arguments)
-                result.Add(Create(itemType, createUnknownDefault));
+                result.Add(Create(itemType, createUnknownDefault, resolveEnum));
             return result;
         }
         return tryCreateNamedDefault(type.Name, out JsonNode? value)
@@ -42,9 +46,15 @@ internal static class LuaMetadataValueDefaults
         return new JsonObject { ["$type"] = branch.ToSchema(), ["$value"] = value?.DeepClone() };
     }
 
-    public static bool TryCreateLiteral(LuaMetadataType type, out JsonNode? value)
+    public static bool TryCreateLiteral(LuaMetadataType type, out JsonNode? value,
+        Func<string, LuaEnumDefinition>? resolveEnum = null)
     {
         value = null;
+        if (type.Kind == LuaMetadataTypeKind.Enum)
+        {
+            value = Create(type, _ => null, resolveEnum);
+            return value is not null;
+        }
         if (type.Kind == LuaMetadataTypeKind.Named)
             return type.Name is not "function" and not "event" and not "any"
                 && tryCreateNamedDefault(type.Name, out value);
@@ -53,14 +63,14 @@ internal static class LuaMetadataValueDefaults
             JsonArray tuple = [];
             foreach (LuaMetadataType argument in type.Arguments)
             {
-                if (!TryCreateLiteral(argument, out JsonNode? item))
+                if (!TryCreateLiteral(argument, out JsonNode? item, resolveEnum))
                     return false;
                 tuple.Add(item);
             }
             value = tuple;
             return true;
         }
-        value = Create(type, _ => null);
+        value = Create(type, _ => null, resolveEnum);
         return value is not null;
     }
 

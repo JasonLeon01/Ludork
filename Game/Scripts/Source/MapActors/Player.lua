@@ -1,11 +1,12 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
+local PlayerChangeKind = require("Enums.PlayerChangeKind")
 local Data = require("Source.Data")
 local Battler = require("Source.Battler")
 local Effects = require("Source.Gameplay.Effects")
 local GeneralDataGraphAbility = require("Source.Gameplay.GeneralDataGraphAbility")
 local LocaleCore = require("Source.Locale.Core")
-local EventKeys = require("Source.Configs.EventKeys")
+local EventKey = require("Enums.EventKey")
 local GameplayConstants = require("Source.Configs.GameplayConstants")
 
 local GameplayEffectSpec = GlobalCore.GameplayEffectSpec
@@ -20,7 +21,7 @@ local function publishPlayerChanged(player, kind, name)
     if player:getLoading() then
         return
     end
-    Engine.publish(EventKeys.PlayerChanged, {
+    Engine.publish(EventKey.PlayerChanged, {
         owner = player,
         kind = kind,
         name = name
@@ -183,7 +184,7 @@ function Player:setName(name)
         return false
     end
     self._customName = trimmedName
-    publishPlayerChanged(self, EventKeys.PlayerChangeKind.Name)
+    publishPlayerChanged(self, PlayerChangeKind.Name)
     return true
 end
 
@@ -353,7 +354,7 @@ function Player:addItem(itemID, count)
     ---@cast itemCount integer
     self._items[itemID] = (self._items[itemID] or 0) + itemCount
     self:_syncItemAbility(itemID)
-    publishPlayerChanged(self, EventKeys.PlayerChangeKind.Inventory, itemID)
+    publishPlayerChanged(self, PlayerChangeKind.Inventory, itemID)
 end
 
 function Player:removeItem(itemID, count)
@@ -367,7 +368,7 @@ function Player:removeItem(itemID, count)
         self._items[itemID] = nil
     end
     self:_syncItemAbility(itemID)
-    publishPlayerChanged(self, EventKeys.PlayerChangeKind.Inventory, itemID)
+    publishPlayerChanged(self, PlayerChangeKind.Inventory, itemID)
     return true
 end
 

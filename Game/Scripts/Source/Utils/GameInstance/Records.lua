@@ -1,10 +1,14 @@
 local Engine = require("Engine")
+local cjson = require("cjson")
 local WorldGeometry = require("Global.WorldGeometry")
 local Data = require("Source.Data")
 
 local Records = {}
 
 local function normaliseRecordValue(value)
+    if value == cjson.null then
+        return value
+    end
     if Class.isInstance(value, "table") then
         local result = {}
         for key, item in pairs(value) do

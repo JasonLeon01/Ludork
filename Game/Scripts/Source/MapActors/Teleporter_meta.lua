@@ -16,11 +16,8 @@ local _METADATA = {
             default = { 0, 0 }
         },
         stairDirection = {
-            type = "string",
-            default = "None",
-            Meta = {
-                DropBox = { "None", "Up", "Down" }
-            }
+            type = { enum = "Enums.StairDirection" },
+            default = "None"
         },
         stairSE = {
             type = "string",

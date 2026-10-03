@@ -433,7 +433,11 @@ def lua_key(key: str) -> str:
 
 
 def metadata_schema(context: GeneratorContext, value: str, type_modules: dict[str, str]) -> object:
+    if value.strip().startswith("{"):
+        return PureDataParser(value, "metadata type").parse()
     parsed = parse_cpp_type(context, remove_pointer(value))
+    if parsed.name in context.enum_modules:
+        return {"enum": context.enum_modules[parsed.name]}
     if parsed.name in context.pure_data_types:
         return "any"
     if parsed.name in {"std::function", "ludork::runtime::StrictFunction"}:
@@ -556,6 +560,8 @@ def value_initialized_default(context: GeneratorContext, type_name: str, type_mo
 
 
 def tag_declared_default(context: GeneratorContext, value: object, type_name: str, type_modules: dict[str, str], value_initialized: bool = False) -> object:
+    if type_name.strip().startswith("{"):
+        return tag_metadata_default(value, metadata_schema(context, type_name, type_modules))
     parsed = parse_cpp_type(context, remove_pointer(type_name))
     if value_initialized and parsed.name in VARIANT_TYPES:
         return value_initialized_default(context, type_name, type_modules)
@@ -667,8 +673,9 @@ def parameter_metadata(
 ) -> str:
     parameters = exposed_parameters(member)
     names = [name for name, _ in parameters]
+    overrides = metadata_signature_overrides(member, "metadata_parameters", names)
     schemas = [
-        f"{lua_key(name)} = {lua_metadata_type(context, type_name, type_modules)}"
+        f"{lua_key(name)} = {lua_data_value(overrides[name], '            ') if name in overrides else lua_metadata_type(context, type_name, type_modules)}"
         for name, type_name in parameters
     ]
     if receiver is not None:
@@ -682,17 +689,28 @@ def return_metadata_lines(
     context: GeneratorContext, member: Member, type_modules: dict[str, str]
 ) -> list[str]:
     outputs = return_outputs(context, member)
+    overrides = metadata_signature_overrides(member, "metadata_returns", [name for name, _ in outputs])
     if not outputs:
         return ['            ["return"] = {},']
     lines = ['            ["return"] = {']
     lines.extend(f"                {lua_string(name)}," for name, _ in outputs)
     lines.extend(
         f"                {lua_key(name)} = "
-        f"{lua_metadata_type(context, type_name, type_modules)},"
+        f"{lua_data_value(overrides[name], '                ') if name in overrides else lua_metadata_type(context, type_name, type_modules)},"
         for name, type_name in outputs
     )
     lines.append("            },")
     return lines
+
+
+def metadata_signature_overrides(member: Member, option: str, names: list[str]) -> dict[str, object]:
+    raw = member.options.get(option)
+    if raw is None:
+        return {}
+    overrides = PureDataParser(raw, option).parse()
+    if not isinstance(overrides, dict) or any(name not in names for name in overrides):
+        raise ValueError(f"{option} on {member.name} must map existing pin names to schemas")
+    return overrides
 
 
 def lua_default_value(value: str) -> str:

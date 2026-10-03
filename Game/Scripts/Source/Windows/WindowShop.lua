@@ -1,5 +1,6 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
+local ShopMode = require("Enums.ShopMode")
 local Data = require("Source.Data")
 local GameSystem = require("Source.System")
 local Ui = require("Internal.UIBase.Ui")
@@ -17,9 +18,6 @@ local Controller = {}
 
 Controller.windowOptions = { centered = true, hidden = true }
 
-Controller.SHOP_MODE_BUY = "buy"
-Controller.SHOP_MODE_SELL = "sell"
-
 function Controller:init(player, onClose)
     self._player = player
     self._onCloseCallback = onClose
@@ -32,7 +30,7 @@ function Controller:init(player, onClose)
     self._detailTopLeft = self._detailWindow:getPosition()
     self._buyItemIDs = {}
     self._canSell = true
-    self._mode = self.SHOP_MODE_BUY
+    self._mode = ShopMode.BUY
     self._closed = true
 end
 
@@ -63,7 +61,7 @@ end
 function Controller:open(buyItemIDs, canSell)
     self._buyItemIDs = Controller.NormalizeBuyItems(buyItemIDs)
     self._canSell = bool(canSell)
-    self._mode = self.SHOP_MODE_BUY
+    self._mode = ShopMode.BUY
     self._closed = false
     self.ui.assets["TabsAsset"].controls["Tabs"]:setSelectedIndex(0)
     self:_refreshItems()
@@ -130,14 +128,14 @@ end
 
 ---@param index integer
 function Controller:onTabSelected(index)
-    self:setMode(index == 1 and self.SHOP_MODE_SELL or self.SHOP_MODE_BUY)
+    self:setMode(index == 1 and ShopMode.SELL or ShopMode.BUY)
 end
 
 function Controller:setMode(mode)
-    if mode ~= self.SHOP_MODE_BUY and mode ~= self.SHOP_MODE_SELL then
+    if mode ~= ShopMode.BUY and mode ~= ShopMode.SELL then
         return
     end
-    if not self._canSell and mode == self.SHOP_MODE_SELL then
+    if not self._canSell and mode == ShopMode.SELL then
         return
     end
     if self._mode == mode then
@@ -165,7 +163,7 @@ function Controller:confirmItem()
         AudioManager.playSound(GameSystem.GetBuzzerSE())
         return
     end
-    if self._mode == self.SHOP_MODE_BUY then
+    if self._mode == ShopMode.BUY then
         self:_buyItem(itemID)
     else
         self:_sellItem(itemID)
@@ -193,7 +191,7 @@ function Controller:_refreshItems()
     local availableMap = {}
     local valueMap = {}
     local showValues = true
-    if self._mode == self.SHOP_MODE_BUY then
+    if self._mode == ShopMode.BUY then
         itemIDs = self._buyItemIDs
         for _, itemID in ipairs(itemIDs) do
             availableMap[itemID] = self:_canBuy(itemID)
@@ -216,8 +214,7 @@ function Controller:_refreshDetail()
         self._detailWindow:setItem(nil, nil)
         return
     end
-    local price = self._mode == self.SHOP_MODE_BUY and Controller.GetItemPrice(itemID)
-        or Controller.GetSellPrice(itemID)
+    local price = self._mode == ShopMode.BUY and Controller.GetItemPrice(itemID) or Controller.GetSellPrice(itemID)
     self._detailWindow:setItem(Data.GetGeneralItemData(itemID), price)
 end
 

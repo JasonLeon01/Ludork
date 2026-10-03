@@ -58,6 +58,9 @@ if not defined EDITOR_CACHE_DIRECTORY exit /b 1
 set "GENERATED_SCRIPTS="
 for /f "delims=" %%V in ('""%SCRIPT_TOOLS%" packaging-constants list native-lua-files --separator space --windows"') do set "GENERATED_SCRIPTS=%%V"
 if not defined GENERATED_SCRIPTS exit /b 1
+set "GENERATED_ENUM_DIRECTORIES="
+for /f "delims=" %%V in ('""%SCRIPT_TOOLS%" packaging-constants list native-enum-directories --separator space --windows"') do set "GENERATED_ENUM_DIRECTORIES=%%V"
+if not defined GENERATED_ENUM_DIRECTORIES exit /b 1
 set "RUNTIME_LEGAL_FILES="
 for /f "delims=" %%V in ('""%SCRIPT_TOOLS%" packaging-constants list runtime-legal-files --separator space"') do set "RUNTIME_LEGAL_FILES=%%V"
 if not defined RUNTIME_LEGAL_FILES exit /b 1
@@ -237,6 +240,10 @@ for %%F in (%GENERATED_SCRIPTS%) do (
     copy /Y "%~1\Scripts\%%F" "%~2\Scripts\%%F" >nul
     if errorlevel 1 exit /b 1
 )
+for %%D in (%GENERATED_ENUM_DIRECTORIES%) do (
+    robocopy "%~1\Scripts\%%D" "%~2\Scripts\%%D" /MIR /NFL /NDL /NJH /NJS /NP
+    if errorlevel 8 exit /b 1
+)
 "%SCRIPT_TOOLS%" ui-preview copy --runtime-directory "bin/%CONFIG%" "%~1" "%~2"
 exit /b %errorlevel%
 
@@ -250,6 +257,12 @@ if errorlevel 1 exit /b 1
 for %%F in (%GENERATED_SCRIPTS%) do (
     call :require_native_file "%~1\Scripts\%%F"
     if errorlevel 1 exit /b 1
+)
+for %%D in (%GENERATED_ENUM_DIRECTORIES%) do (
+    if not exist "%~1\Scripts\%%D\" (
+        echo Required native enum directory was not found: %~1\Scripts\%%D
+        exit /b 1
+    )
 )
 "%SCRIPT_TOOLS%" ui-preview validate "%~1"
 exit /b %errorlevel%

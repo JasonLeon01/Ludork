@@ -111,6 +111,13 @@ public sealed partial class ProjectDataStore : IDisposable
 
     public bool IsModified => isModified;
 
-    public IReadOnlyList<string> InvalidLoadPaths => invalidLoadPaths;
+    public IReadOnlyList<string> InvalidLoadPaths
+    {
+        get
+        {
+            lock (invalidLoadLock)
+                return invalidLoadPaths.ToArray();
+        }
+    }
 
 }

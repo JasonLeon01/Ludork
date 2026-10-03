@@ -1,20 +1,18 @@
 local GlobalCore = require("GlobalCore")
+local BattleResultCode = require("Enums.BattleResultCode")
+local CriticalResultCode = require("Enums.CriticalResultCode")
+local Special = require("Enums.GeneralData.Special")
 local Effects = require("Source.Gameplay.Effects")
----@type { Special: Source.Configs.GeneralEnum.Special }
-local GeneralEnum = require("Source.Configs.GeneralEnum")
 local GameplayConstants = require("Source.Configs.GameplayConstants")
 
 local GameplayAbility = GlobalCore.GameplayAbility
 local GameplayAbilityResult = GlobalCore.GameplayAbilityResult
 local GameplayEventData = GlobalCore.GameplayEventData
-local Special = GeneralEnum.Special
 
 ---@class Source.Gameplay.MotaBattleAbility: GlobalCore.GameplayAbility
 local MotaBattleAbility = {}
 
 MotaBattleAbility.id = "Ability.Combat.MotaBattle"
-MotaBattleAbility.BattleResult = { WIN = 1, CANNOT_DAMAGE = 2, LETHAL_COUNTER_DAMAGE = 3 }
-MotaBattleAbility.CriticalResult = { VALUE = 1, NOT_NEEDED = 2, UNKNOWN = 3 }
 
 local function dispatchValue(abilitySystem, eventTag, instigator, target, payload)
     abilitySystem:handleGameplayEvent(GameplayEventData.new(instigator, target, eventTag, payload))
@@ -44,15 +42,9 @@ local function resolveDefense(defender, attacker, attackerATK)
 end
 
 local function resolveHitCount(attacker, defender)
-    return dispatchValue(
-        attacker:getAbilitySystemComponent(),
-        GameplayConstants.COMBAT_RESOLVE_HIT_COUNT_EVENT,
-        attacker,
-        defender,
-        {
-            value = 1
-        }
-    )
+    return dispatchValue(attacker:getAbilitySystemComponent(), GameplayConstants.COMBAT_RESOLVE_HIT_COUNT_EVENT, attacker, defender, {
+        value = 1
+    })
 end
 
 function MotaBattleAbility:init()
@@ -117,11 +109,11 @@ function MotaBattleAbility:calculate(abilitySystem, eventData)
     local damage = counterRounds ~= nil
         and math.max(0, counterRounds * counterDamage + firstStrikeDamage + battleRules.fixedDamage)
         or 0
-    local code = MotaBattleAbility.BattleResult.WIN
+    local code = BattleResultCode.WIN
     if counterRounds == nil then
-        code = MotaBattleAbility.BattleResult.CANNOT_DAMAGE
+        code = BattleResultCode.CANNOT_DAMAGE
     elseif damage >= player.attributes.HP then
-        code = MotaBattleAbility.BattleResult.LETHAL_COUNTER_DAMAGE
+        code = BattleResultCode.LETHAL_COUNTER_DAMAGE
     end
     local resultData = {
         damage = damage,
@@ -144,7 +136,7 @@ function MotaBattleAbility:calculate(abilitySystem, eventData)
         )
         playerAbilitySystem:validateGameplayEffectSpec(resultData.damageEffectSpec)
     end
-    if code ~= MotaBattleAbility.BattleResult.WIN then
+    if code ~= BattleResultCode.WIN then
         resultData.gameOverEffectSpec = Effects.CreateInstantModifierSpec(
             "Combat.GameOver", "HP", "Override", 0, eventData
         )
@@ -175,23 +167,23 @@ function MotaBattleAbility.CalculateCriticalValue(enemy, player)
     local counterDamage = MotaBattleAbility.CalculateDamagePerRound(enemy, player)
     local battleRules = resolveBattleRules(enemy, player, counterDamage)
     if attackDamage >= enemy.attributes.MAXHP then
-        return assert(GameplayAbilityResult.Success(MotaBattleAbility.CriticalResult.NOT_NEEDED))
+        return assert(GameplayAbilityResult.Success(CriticalResultCode.NOT_NEEDED))
     end
     if enemy:getAbilitySystemComponent():hasMatchingGameplayTag(GameplayConstants.SPECIAL_PREFIX .. Special.Hard) then
-        return assert(GameplayAbilityResult.Success(MotaBattleAbility.CriticalResult.UNKNOWN))
+        return assert(GameplayAbilityResult.Success(CriticalResultCode.UNKNOWN))
     end
     local hitCount = math.max(1, playerAttack.hitCount)
     local counterRounds = calculateCounterRounds(enemy.attributes.MAXHP, attackDamage, battleRules.vampireHealing)
     if counterRounds == nil then
         local requiredDamage = battleRules.vampireHealing + 1
-        return assert(GameplayAbilityResult.Success(MotaBattleAbility.CriticalResult.VALUE, {
+        return assert(GameplayAbilityResult.Success(CriticalResultCode.VALUE, {
                 value = math.ceil(requiredDamage / hitCount) + playerAttack.defenderDEF
             }))
     end
     local requiredDamage = math.ceil(
         (enemy.attributes.MAXHP + (counterRounds - 1) * battleRules.vampireHealing) / counterRounds
     )
-    return assert(GameplayAbilityResult.Success(MotaBattleAbility.CriticalResult.VALUE, {
+    return assert(GameplayAbilityResult.Success(CriticalResultCode.VALUE, {
             value = math.ceil(requiredDamage / hitCount) + playerAttack.defenderDEF
         }))
 end

@@ -1,6 +1,6 @@
 local Engine = require("Engine")
 local Logging = require("Global.Utils.Logging")
-local EventKeys = require("Source.Configs.EventKeys")
+local EventKey = require("Enums.EventKey")
 
 local Core = {}
 local LOCALE_MODULE_PREFIX = "Source.Locale."
@@ -105,7 +105,7 @@ function Core.SetLanguage(language)
     end
     Core.LANGUAGE = resolved
     Logging.info("Language changed to %s", resolved)
-    Engine.publish(EventKeys.LocaleChanged, {
+    Engine.publish(EventKey.LocaleChanged, {
         language = resolved
     })
 end

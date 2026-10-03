@@ -301,17 +301,12 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         {
             return;
         }
-        if (!viewModel.CanChangeParent(selected))
-        {
-            await AlertDialog.ShowAsync(
-                this,
-                LocaleService.Get("ERROR"),
-                LocaleService.Get("SCRIPT_MIXIN_INHERITANCE_CONFLICT"));
+        if (!await tryChangeAttributesAsync(() => viewModel.CanChangeParent(selected)
+            ? true : throw new InvalidDataException(LocaleService.Get("SCRIPT_MIXIN_INHERITANCE_CONFLICT"))))
             return;
-        }
         flushGraphViews();
         clearGraphViews();
-        if (viewModel.CommitParent(selected))
+        if (await tryChangeAttributesAsync(() => viewModel.CommitParent(selected)))
             refreshAll();
     }
 
@@ -341,7 +336,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         }
 
         flushGraphViews();
-        if (viewModel.CommitAttributeChange(change))
+        if (await tryChangeAttributesAsync(() => viewModel.CommitAttributeChange(change)))
         {
             refreshAttributes();
             refreshPreview(resolvedClass);
@@ -358,21 +353,32 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
     private async Task addAttributeAsync()
     {
         ResolvedBlueprintClass resolved = viewModel.ResolveClass();
-        string? name = await SingleRowDialog.ShowAsync(
-            this,
-            LocaleService.Get("ADD_ATTR"),
-            LocaleService.Get("ATTR_NAME"),
-            resolved.Fields.Select(field => field.Name));
-        if (string.IsNullOrWhiteSpace(name))
+        BlueprintAttributeCreation? creation = await AddBlueprintAttributeDialog.ShowAsync(
+            this, gameData.ProjectPath,
+            resolved.Fields.Where(field => field.HasBlueprintDefaultValue).Select(field => field.Name),
+            name => resolved.DeclaredFields.GetValueOrDefault(name));
+        if (creation is null)
             return;
-        string attributeName = name.Trim();
-        if (viewModel.ValidateAttributeName(attributeName) is string error)
+        if (viewModel.ValidateAttributeName(creation.Name) is string error)
         {
             await AlertDialog.ShowAsync(this, LocaleService.Get("ERROR"), error);
             return;
         }
-        if (viewModel.CommitAttribute(attributeName, JsonValue.Create(string.Empty)))
+        if (await tryChangeAttributesAsync(() => viewModel.AddAttribute(creation)))
             refreshAttributes();
+    }
+
+    private async Task<bool> tryChangeAttributesAsync(Func<bool> change)
+    {
+        try
+        {
+            return change();
+        }
+        catch (InvalidDataException exception)
+        {
+            await AlertDialog.ShowAsync(this, LocaleService.Get("ERROR"), exception.Message);
+            return false;
+        }
     }
 
     private Control? createAttributeAction(BlueprintVariableField field)
@@ -405,7 +411,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
                     await removeLocalScriptPathAsync();
                     return;
                 }
-                if (!viewModel.CommitAttribute(field.Name, parentValue))
+                if (!await tryChangeAttributesAsync(() => viewModel.RemoveAttribute(field.Name)))
                     return;
                 refreshAttributes();
                 refreshPreview(resolvedClass);
@@ -420,9 +426,9 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
             Padding = new Thickness(0),
             IsEnabled = hasLocalValue,
         };
-        remove.Click += (_, _) =>
+        remove.Click += async (_, _) =>
         {
-            if (!viewModel.RemoveAttribute(field.Name))
+            if (!await tryChangeAttributesAsync(() => viewModel.RemoveAttribute(field.Name)))
                 return;
             refreshAttributes();
             refreshPreview(resolvedClass);
@@ -447,7 +453,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
             if (!confirmed)
                 return;
         }
-        if (viewModel.CommitAttributeChange(change))
+        if (await tryChangeAttributesAsync(() => viewModel.CommitAttributeChange(change)))
         {
             refreshAttributes();
             refreshPreview(resolvedClass);
@@ -473,17 +479,17 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         {
             return;
         }
-        if (viewModel.AddComponent(selectedField))
+        if (await tryChangeAttributesAsync(() => viewModel.AddComponent(selectedField)))
         {
             refreshAttributes();
         }
     }
 
-    private void onComponentRemoveRequested(
+    private async void onComponentRemoveRequested(
         object? sender,
         BlueprintComponentFieldEventArgs args)
     {
-        if (viewModel.RemoveAttribute(args.Field.Name))
+        if (await tryChangeAttributesAsync(() => viewModel.RemoveAttribute(args.Field.Name)))
             refreshAttributes();
     }
 
@@ -633,8 +639,11 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         if (args.Name == "scriptMixin")
             flushGraphViews();
         bool generalDataSelectorChanged = viewModel.IsGeneralDataSelector(args.Name);
-        if (!viewModel.CommitAttribute(args.Name, args.Value))
+        if (!await tryChangeAttributesAsync(() => viewModel.CommitAttribute(args.Name, args.Value)))
+        {
+            refreshAttributes();
             return;
+        }
         if (revertActions.TryGetValue(
             args.Name,
             out (Button Button, JsonNode? ParentValue) action))

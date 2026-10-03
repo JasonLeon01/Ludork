@@ -12,7 +12,7 @@
 ---@field _itemList          { [1]: string, [2]: integer } []
 ---@field _lastDescIndex     integer | nil
 ---@field _rows              Internal.UIBase.UiCollection<Source.Windows.WindowItem.ItemRow.Controller>
----@field _transitionProfile string
+---@field _transitionProfile Enums.WindowTransitionProfile
 local Controller = {}
 
 ---@brief Construct the item window.
@@ -36,7 +36,7 @@ function Controller:onTick(deltaTime) end
 ---@brief Open the item window, refreshing inventory and selecting its first item.
 ---
 --- Defaults to centered scale fade. Menu transitions require the owning menu dock position.
----@param transitionProfile string | nil
+---@param transitionProfile Enums.WindowTransitionProfile | nil
 ---@param dockPosition      sf.Vector2f | nil
 function Controller:open(transitionProfile, dockPosition) end
 

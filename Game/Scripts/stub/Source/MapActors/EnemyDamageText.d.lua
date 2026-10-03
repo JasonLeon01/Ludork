@@ -1,17 +1,13 @@
 ---@meta Source.MapActors.EnemyDamageText
 
----@alias Source.MapActors.EnemyDamageText.DamageHintLevel integer
-local DamageHintLevel = {}
-
 ---@brief Text-only child actor showing enemy damage against the player.
 ---
---- `EnemyDamageHintLevel` defaults to `DamageHintLevel.BATTLE`. `NONE` hides expected-damage hints,
+--- `EnemyDamageHintLevel` defaults to `Enums.DamageHintLevel.BATTLE`. `NONE` hides expected-damage hints,
 --- `BATTLE` shows enemy battle readouts, and `MAP` additionally shows movement-danger cell totals.
 --- The configured `requiredItemID` remains a prerequisite at every visible level. Actual damage
 --- particles shown after HP loss are not hints and are not suppressed by this setting.
 ---@class Source.MapActors.EnemyDamageText: Engine.Actor
----@field DamageHintLevel        { NONE: Source.MapActors.EnemyDamageText.DamageHintLevel, BATTLE: Source.MapActors.EnemyDamageText.DamageHintLevel, MAP: Source.MapActors.EnemyDamageText.DamageHintLevel }
----@field EnemyDamageHintLevel   Source.MapActors.EnemyDamageText.DamageHintLevel
+---@field EnemyDamageHintLevel   Enums.DamageHintLevel
 ---@field requiredItemID         string
 ---@field textConfig             string
 ---@field damageTextOffset       sf.Vector2f

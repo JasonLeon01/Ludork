@@ -8,5 +8,6 @@ public sealed class BlueprintDefinitionSnapshot(JsonObject source) : EditorJsonS
     public string? Type => ReadString("type");
     public string Parent => ReadString("parent") ?? string.Empty;
     public JsonObject Attributes => ReadObject("attrs");
+    public JsonObject AttributeDefinitions => ReadObject("attrDefs");
     public BlueprintGraphsSnapshot Graph => new(ReadObject("graph"));
 }

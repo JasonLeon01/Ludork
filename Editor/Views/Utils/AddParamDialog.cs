@@ -1,280 +1,176 @@
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
-using Ludork.Services;
+using Ludork.Controls;
 using Ludork.Models;
-using System.Text.Json;
-using System.Text.Json.Nodes;
+using Ludork.Services;
+using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 
 namespace Ludork.Views.Utils;
 
 public sealed class AddParamDialog : Window
 {
-    private static readonly string[] ParamTypes =
-    [
-        "string",
-        "int",
-        "float",
-        "bool",
-        "file",
-        "list",
-        "dict",
-        "sf.Vector2f",
-        "sf.Vector2i",
-        "sf.Vector2u",
-        "sf.Vector3f",
-        "sf.Vector3i",
-        "sf.Vector3u",
-        "sf.Color",
-        "sf.IntRect",
-    ];
-    private static readonly string[] ContainerItemTypes =
-    [
-        "any",
-        "string",
-        "int",
-        "float",
-        "bool",
-        "file",
-        "sf.Vector2f",
-        "sf.Vector2i",
-        "sf.Vector2u",
-        "sf.Vector3f",
-        "sf.Vector3i",
-        "sf.Vector3u",
-        "sf.Color",
-        "sf.IntRect",
-    ];
-
-    private readonly IEnumerable<string> existingParams;
-    private readonly TextBox nameBox;
-    private readonly TextBox commentBox;
-    private readonly ComboBox typeCombo;
-    private readonly TextBlock containerItemTypeLabel;
-    private readonly ComboBox containerItemTypeCombo;
-    private readonly TextBlock defaultLabel;
-    private readonly TextBox defaultBox;
-    private readonly TextBlock typeTipBlock;
-    private readonly TextBlock defaultTipBlock;
-    private readonly TextBlock errorText;
+    private readonly GeneralDataParamCreation? initialValue;
+    private readonly HashSet<string> existingParams;
+    private readonly TextBox name = EditorInputs.CreateEditableTextBox();
+    private readonly TextBox comment = EditorInputs.CreateEditableTextBox();
+    private readonly TextBox fileBase = EditorInputs.CreateEditableTextBox();
+    private readonly MetadataTypeSelector type;
+    private readonly MetadataValueEditor value;
+    private readonly StackPanel baseRow = new() { Spacing = 4 };
+    private readonly StackPanel defaultRow = new() { Spacing = 4 };
+    private readonly TextBlock typeTip = new() { TextWrapping = TextWrapping.Wrap, FontSize = 11, Foreground = EditorTheme.Brush("TextMuted") };
+    private readonly TextBlock error = new() { Foreground = Brushes.OrangeRed, TextWrapping = TextWrapping.Wrap };
 
     private AddParamDialog(
+        string projectPath,
         IEnumerable<string> existingParams,
         GeneralDataParamCreation? initialValue)
     {
-        this.existingParams = existingParams;
+        this.initialValue = initialValue;
+        this.existingParams = new HashSet<string>(existingParams, StringComparer.Ordinal);
+        type = new MetadataTypeSelector(projectPath);
+        value = new MetadataValueEditor(projectPath);
         Title = LocaleService.Get(initialValue is null ? "ADD_PARAM" : "EDIT_PARAM");
-        Width = 480;
-        Height = 400;
-        MinWidth = 380;
+        Width = 560;
+        Height = 580;
+        MinWidth = 440;
+        MinHeight = 340;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = Ludork.Services.EditorTheme.Brush("Surface");
-        FontFamily = Ludork.Services.EditorTheme.FontFamily;
+        Background = EditorTheme.Brush("Surface");
+        FontFamily = EditorTheme.FontFamily;
         EditorWindowIcon.Apply(this);
-
-        nameBox = EditorInputs.CreateEditableTextBox();
-        commentBox = EditorInputs.CreateEditableTextBox();
-
-        typeCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
-        foreach (string t in ParamTypes)
-            typeCombo.Items.Add(t);
-        typeCombo.SelectedIndex = 0;
-
-        containerItemTypeLabel = new TextBlock
-        {
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        containerItemTypeCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
-        foreach (string t in ContainerItemTypes)
-            containerItemTypeCombo.Items.Add(t);
-        containerItemTypeCombo.SelectedIndex = 0;
-
-        defaultBox = EditorInputs.CreateEditableTextBox();
-        defaultLabel = new TextBlock
-        {
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        typeTipBlock = new TextBlock
-        {
-            TextWrapping = TextWrapping.Wrap,
-            FontSize = 11,
-            Foreground = EditorTheme.Brush("TextMuted"),
-        };
-        defaultTipBlock = new TextBlock
-        {
-            TextWrapping = TextWrapping.Wrap,
-            FontSize = 11,
-            Foreground = EditorTheme.Brush("TextMuted"),
-        };
-        errorText = new TextBlock
-        {
-            Foreground = new SolidColorBrush(Color.FromRgb(200, 80, 80)),
-            TextWrapping = TextWrapping.Wrap,
-        };
-
-        typeCombo.SelectionChanged += (_, _) => updateTypeState();
-
-        if (initialValue is not null)
-        {
-            nameBox.Text = initialValue.Name;
-            commentBox.Text = initialValue.Comment;
-            if (!typeCombo.Items.Contains(initialValue.Type))
-                typeCombo.Items.Add(initialValue.Type);
-            typeCombo.SelectedItem = initialValue.Type;
-            string itemType = initialValue.ItemType ?? initialValue.ValueType ?? "any";
-            if (!containerItemTypeCombo.Items.Contains(itemType))
-                containerItemTypeCombo.Items.Add(itemType);
-            containerItemTypeCombo.SelectedItem = itemType;
-            defaultBox.Text = initialValue.DefaultText;
-        }
-
-        Grid form = new()
-        {
-            ColumnDefinitions = new ColumnDefinitions("Auto,12,*"),
-            RowSpacing = 8,
-        };
-        addRow(form, 0, LocaleService.Get("PARAM_NAME"), nameBox);
-        form.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        addRow(form, 1, LocaleService.Get("PARAM_COMMENT"), commentBox);
-        addRow(form, 2, LocaleService.Get("PARAM_TYPE"), typeCombo);
-        addRow(form, 3, containerItemTypeLabel, containerItemTypeCombo);
-        addRow(form, 4, defaultLabel, defaultBox);
-        updateTypeState();
-
+        StackPanel fields = new() { Spacing = 10 };
+        fields.Children.Add(new TextBlock { Text = LocaleService.Get("PARAM_NAME") });
+        fields.Children.Add(name);
+        fields.Children.Add(new TextBlock { Text = LocaleService.Get("PARAM_COMMENT") });
+        fields.Children.Add(comment);
+        fields.Children.Add(new TextBlock { Text = LocaleService.Get("PARAM_TYPE") });
+        fields.Children.Add(type);
+        fields.Children.Add(typeTip);
+        baseRow.Children.Add(new TextBlock { Text = LocaleService.Get("ASSET_SELECTION_ROOT") });
+        baseRow.Children.Add(fileBase);
+        fields.Children.Add(baseRow);
+        defaultRow.Children.Add(new TextBlock { Text = LocaleService.Get("DEFAULT_VALUE") });
+        defaultRow.Children.Add(value);
+        fields.Children.Add(defaultRow);
+        fields.Children.Add(error);
         Button confirm = new() { Content = LocaleService.Get("CONFIRM"), MinWidth = 80 };
-        confirm.Click += onConfirm;
+        confirm.Click += (_, _) => confirmCreation();
         Button cancel = new() { Content = LocaleService.Get("CANCEL"), MinWidth = 80 };
         cancel.Click += (_, _) => Close(null);
-
-        StackPanel buttons = new()
-        {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Spacing = 8,
-        };
-        buttons.Children.Add(confirm);
-        buttons.Children.Add(cancel);
-
-        StackPanel content = new() { Margin = new Thickness(20), Spacing = 10 };
-        content.Children.Add(form);
-        content.Children.Add(typeTipBlock);
-        content.Children.Add(defaultTipBlock);
-        content.Children.Add(errorText);
+        StackPanel buttons = new() { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8, Children = { confirm, cancel } };
+        Grid content = new() { Margin = new Thickness(20), RowDefinitions = new RowDefinitions("*,Auto"), RowSpacing = 12 };
+        content.Children.Add(new ScrollViewer { Content = fields });
+        Grid.SetRow(buttons, 1);
         content.Children.Add(buttons);
         Content = content;
-
+        type.SelectionChanged += (_, _) => updateType();
         Opened += (_, _) =>
         {
-            nameBox.Focus();
-            nameBox.SelectAll();
+            name.Focus();
+            name.SelectAll();
         };
-    }
-
-    private void addRow(Grid form, int row, string label, Control editor)
-    {
-        addRow(
-            form,
-            row,
-            new TextBlock
+        Closed += (_, _) => value.Dispose();
+        if (initialValue is not null)
+        {
+            name.Text = initialValue.Name;
+            comment.Text = initialValue.Comment;
+            LuaMetadataType schema = initialValue.Type switch
             {
-                Text = label,
-                VerticalAlignment = VerticalAlignment.Center,
-            },
-            editor);
-    }
-
-    private void addRow(Grid form, int row, TextBlock label, Control editor)
-    {
-        while (form.RowDefinitions.Count <= row)
-            form.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        Grid.SetRow(label, row);
-        Grid.SetColumn(label, 0);
-        form.Children.Add(label);
-        Grid.SetRow(editor, row);
-        Grid.SetColumn(editor, 2);
-        form.Children.Add(editor);
-    }
-
-    private void updateTypeState()
-    {
-        string t = typeCombo.SelectedItem as string ?? "string";
-        bool list = t == "list";
-        bool dict = t == "dict";
-        containerItemTypeLabel.Text = LocaleService.Get(list ? "ITEM_TYPE" : "VALUE_TYPE");
-        containerItemTypeLabel.IsVisible = list || dict;
-        containerItemTypeCombo.IsVisible = list || dict;
-        bool sfType = t.StartsWith("sf.", System.StringComparison.Ordinal);
-        defaultBox.IsEnabled = !list && !dict && !sfType;
-        defaultLabel.Text = LocaleService.Get(t == "file" ? "ASSET_SELECTION_ROOT" : "DEFAULT_VALUE");
-        string tipType = sfType ? "SF" : LuaMetadataType.Parse(t).Kind == LuaMetadataTypeKind.Union ? "UNION" : t.ToUpperInvariant();
-        typeTipBlock.Text = LocaleService.Get("GENERAL_DATA_TYPE_TIP_" + tipType);
-        defaultTipBlock.Text = LocaleService.Get("GENERAL_DATA_DEFAULT_TIP_" + tipType);
+                "list" => LuaMetadataType.Parse(new JsonObject { ["list"] = LuaMetadataType.Parse(initialValue.ItemType ?? "any").ToSchema() }),
+                "dict" => LuaMetadataType.Parse(new JsonObject { ["dict"] = LuaMetadataType.Parse(initialValue.ValueType ?? "any").ToSchema() }),
+                _ => LuaMetadataType.Parse(initialValue.Type),
+            };
+            type.SetType(schema);
+            updateType();
+            JsonObject definition = GeneralDataParameterSchema.BuildParamDefinition(initialValue, new LuaEnumService(projectPath).Read);
+            value.SetValue(schema, definition["defaultValue"]);
+            if (initialValue.Type == "file")
+                fileBase.Text = initialValue.DefaultText;
+        }
+        else
+        {
+            updateType();
+        }
     }
 
     public static Task<GeneralDataParamCreation?> ShowAsync(
         Window owner,
-        IEnumerable<string> existingParams)
+        IEnumerable<string> existingParams,
+        string projectPath)
     {
-        return new AddParamDialog(existingParams, null).ShowDialog<GeneralDataParamCreation?>(owner);
+        return new AddParamDialog(projectPath, existingParams, null).ShowDialog<GeneralDataParamCreation?>(owner);
     }
 
     public static Task<GeneralDataParamCreation?> ShowEditAsync(
         Window owner,
         IEnumerable<string> existingParams,
-        GeneralDataParamCreation initialValue)
+        GeneralDataParamCreation initialValue,
+        string projectPath)
     {
-        return new AddParamDialog(existingParams, initialValue).ShowDialog<GeneralDataParamCreation?>(owner);
+        return new AddParamDialog(projectPath, existingParams, initialValue).ShowDialog<GeneralDataParamCreation?>(owner);
     }
 
-    private void onConfirm(object? sender, RoutedEventArgs args)
+    private void updateType()
     {
-        string name = nameBox.Text?.Trim() ?? string.Empty;
-        errorText.Text = string.Empty;
-        if (string.IsNullOrWhiteSpace(name))
+        string category = type.SelectedCategory;
+        baseRow.IsVisible = category == "file";
+        defaultRow.IsVisible = category != "file";
+        string tip = category.StartsWith("sf.", StringComparison.Ordinal) ? "SF"
+            : category.StartsWith("Union[", StringComparison.Ordinal) ? "UNION" : category.ToUpperInvariant();
+        string tipKey = "GENERAL_DATA_TYPE_TIP_" + tip;
+        typeTip.Text = LocaleService.Get(tipKey);
+        typeTip.IsVisible = typeTip.Text != tipKey;
+        if (!type.TryGetType(out LuaMetadataType? schema, out string? diagnostic))
         {
-            errorText.Text = LocaleService.Get("ADD_EMPTY");
+            value.IsVisible = false;
+            error.Text = diagnostic;
             return;
         }
-        if (existingParams.Contains(name, System.StringComparer.Ordinal))
+        value.IsVisible = true;
+        value.Reset(schema!);
+        error.Text = string.Empty;
+    }
+
+    private void confirmCreation()
+    {
+        string fieldName = name.Text?.Trim() ?? string.Empty;
+        if (fieldName.Length == 0 || existingParams.Contains(fieldName))
         {
-            errorText.Text = LocaleService.Get("PARAM_EXISTS");
+            error.Text = LocaleService.Get(fieldName.Length == 0 ? "ADD_EMPTY" : "PARAM_EXISTS");
             return;
         }
-        string type = typeCombo.SelectedItem as string ?? "string";
-        string containerItemType = containerItemTypeCombo.SelectedItem as string ?? "string";
-        string defaultText = defaultBox.Text ?? string.Empty;
-        string comment = commentBox.Text?.Trim() ?? string.Empty;
-        if (LuaMetadataType.Parse(type).ContainsUnion)
+        if (!type.TryGetType(out LuaMetadataType? schema, out string? diagnostic) || !value.TryValidate(out diagnostic))
         {
-            JsonNode? defaultValue;
-            try
-            {
-                defaultValue = JsonNode.Parse(defaultBox.Text ?? "null");
-            }
-            catch (JsonException exception)
-            {
-                errorText.Text = exception.Message;
-                return;
-            }
-            List<string> errors = [];
-            LuaMetadataLiteralValidation.ValidateUnions(LuaMetadataType.Parse(type), defaultValue, "defaultValue", errors);
-            if (errors.Count > 0)
-            {
-                errorText.Text = string.Join("\n", errors);
-                return;
-            }
+            error.Text = diagnostic;
+            return;
         }
+        if (type.SelectedCategory == "file" && !GameAssetPath.IsValidBaseHint(fileBase.Text?.Trim()))
+        {
+            error.Text = LocaleService.Get("ATTRIBUTE_INVALID_FILE_BASE");
+            return;
+        }
+        string category = schema!.Kind == LuaMetadataTypeKind.List ? "list"
+            : schema.Kind == LuaMetadataTypeKind.Dictionary ? "dict" : schema.ToString();
+        if (initialValue is not null && initialValue.Type is not ("list" or "dict")
+            && LuaMetadataType.Parse(initialValue.Type).ToString() == schema.ToString())
+        {
+            category = initialValue.Type;
+        }
+        string defaultText = category == "file" ? fileBase.Text?.Trim() ?? string.Empty
+            : schema.Kind == LuaMetadataTypeKind.Named && schema.Name == "string" ? value.Value?.GetValue<string>() ?? string.Empty
+            : value.Value?.ToJsonString() ?? "null";
         Close(new GeneralDataParamCreation(
-            name,
-            type,
-            type == "list" ? containerItemType : null,
-            type == "dict" ? containerItemType : null,
+            fieldName,
+            category,
+            category == "list" ? schema.Arguments[0].ToString() : null,
+            category == "dict" ? schema.Arguments[1].ToString() : null,
             defaultText,
-            comment));
+            comment.Text?.Trim() ?? string.Empty));
     }
 }

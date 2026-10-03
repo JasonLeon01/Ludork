@@ -3,10 +3,12 @@
 #include <Runtime/RuntimeReference.hpp>
 #include <Runtime/RuntimeReflection.hpp>
 #include "ClassRuntimeInternal.hpp"
+#include "BlueprintAttributeDeclarations.hpp"
 #include "LuaServices/RuntimeBindingTraits.hpp"
 #include "LuaServices/RuntimeReferenceConversion.hpp"
 #include "LuaServices/RuntimeServiceInternals.hpp"
 #include <LudorkRuntimeBinding/DynamicValueCodec.hpp>
+#include <LudorkRuntimeBinding/PureDataCodec.hpp>
 
 #include <Runtime/Components/ComponentRuntime.hpp>
 #include <Runtime/RuntimeValue.hpp>
@@ -181,6 +183,15 @@ std::tuple<RuntimeValue, RuntimeValue> resolveClass(
         return {RuntimeValue(cached->second->classType),
                 cached->second->definition};
     }
+    if (!state.resolving.insert(classPath).second) {
+        throw std::invalid_argument("Invalid Blueprint '" + classPath +
+                                    "': cyclic parent chain");
+    }
+    const auto finishResolution = [&classPath](ClassRuntimeState* current) {
+        current->resolving.erase(classPath);
+    };
+    std::unique_ptr<ClassRuntimeState, decltype(finishResolution)> resolution(
+        &state, finishResolution);
 
     const std::size_t separator = classPath.find_last_of('.');
     if (separator == std::string::npos) {
@@ -220,7 +231,9 @@ std::tuple<RuntimeValue, RuntimeValue> resolveClass(
         if (!jsonExists(filePath)) {
             throw std::runtime_error("Class " + classPath + " not found");
         }
-        rawData = intern(getJSONData(filePath));
+        RuntimeScope scope;
+        rawData = detail::readRuntimeReference(binding::writePureDataValue(
+            lua_glue::StateView(scope.state()), getJSONData(filePath)));
     }
     if (!isTable(rawData)) {
         throw std::runtime_error("Class data must be a table: " + classPath);
@@ -247,11 +260,11 @@ std::tuple<RuntimeValue, RuntimeValue> resolveClass(
 
     const RuntimeValue rawAttrs =
         rawGet(ludork::runtime::reference::intern(definitionData), "attrs");
-    RuntimeValue copiedAttrs =
-        isTable(rawAttrs) ? deepCopy(rawAttrs) : RuntimeValue(table());
-    RuntimeValue classAttrs = copiedAttrs;
-    rawSet(ludork::runtime::reference::intern(definitionData), "attrs",
-           classAttrs);
+    if (!isTable(rawAttrs)) {
+        throw std::invalid_argument("Invalid Blueprint '" + classPath +
+                                    "': attrs must be an object");
+    }
+    RuntimeValue classAttrs = deepCopy(rawAttrs);
     const RuntimeValue parentClassTable = parentClass;
     const RuntimeValue rawParentScriptMixin = get(
         ludork::runtime::reference::intern(parentClassTable), "scriptMixin");
@@ -291,18 +304,6 @@ std::tuple<RuntimeValue, RuntimeValue> resolveClass(
 
     const std::vector<ClassRuntimeState::ClassRecord::ConfigReference>
         references = configReferences(parentClass);
-    applyConfigValues(parentClass, classAttrs, references);
-    RuntimeScope scope;
-    lua_glue::StateView lua(scope.state());
-    const lua_glue::Object metadataOwner =
-        binding::writeLuaValue(lua, parentClass);
-    const RuntimeValue rawMetadata =
-        detail::readRuntimeReference(lua_glue::MakeObject(
-            lua, detail::collectRuntimeAttrMetadata(
-                     lua, metadataOwner.as<lua_glue::Table>())));
-    const RuntimeValue attrMetadata =
-        isTable(rawMetadata) ? rawMetadata : table();
-    RuntimeHandle attrTypes = table();
 
     RuntimeHandle definition = table();
     RuntimeHandle instanceAttrs = table();
@@ -317,6 +318,17 @@ std::tuple<RuntimeValue, RuntimeValue> resolveClass(
                          classPath, normalizedScriptPath);
         rawMixin = mixin;
     }
+    const BlueprintAttributeDeclarations declarations =
+        resolveBlueprintAttributeDeclarations(
+            parentClass, rawGet(intern(definitionData), "attrDefs"), rawMixin,
+            normalizedScriptPath, classPath);
+    const RuntimeHandle attrMetadata = declarations.metadata;
+    validateBlueprintAttributes(classAttrs, attrMetadata, classPath);
+    applyConfigValues(parentClass, classAttrs, references);
+    rawSet(definition, "__types", declarations.localTypes);
+    rawSet(definition,
+           ludork::standard::class_runtime::protocol::RUNTIME_METADATA_FIELD,
+           declarations.localMetadata);
     for (const auto& entry :
          entries(ludork::runtime::reference::intern(classAttrs))) {
         const RuntimeValue mixinMember = rawGet(definition, entry.first);
@@ -327,20 +339,16 @@ std::tuple<RuntimeValue, RuntimeValue> resolveClass(
         }
         const RuntimeValue rawFieldMetadata = rawGet(
             ludork::runtime::reference::intern(attrMetadata), entry.first);
-        RuntimeValue targetType = RuntimeValue();
-        if (!isTable(rawFieldMetadata)) {
-            if (is<std::string>(entry.first)) {
-                targetType = detail::readRuntimeReference(
-                    detail::resolveRuntimeAttrValueType(
-                        lua, metadataOwner, as<std::string>(entry.first)));
-            }
-            if (!targetType.isNil()) {
-                rawSet(attrTypes, entry.first, targetType);
-            }
+        RuntimeValue resolvedValue;
+        try {
+            resolvedValue =
+                cloneAttrValue(parentClass, entry.first, snapshot(entry.second),
+                               rawFieldMetadata, RuntimeValue());
+        } catch (const std::exception& error) {
+            throw std::invalid_argument(
+                "Invalid Blueprint '" + classPath + "': attrs." +
+                as<std::string>(entry.first) + ": " + error.what());
         }
-        const RuntimeValue resolvedValue =
-            cloneAttrValue(parentClass, entry.first, entry.second,
-                           rawFieldMetadata, targetType);
         if (resolvedValue.isNil() && is<std::string>(entry.first)) {
             const std::string name = as<std::string>(entry.first);
             runtimeReflection().setTyped(definition, name, resolvedValue);
@@ -389,10 +397,10 @@ std::tuple<RuntimeValue, RuntimeValue> resolveClass(
     record->configReferences = references;
     for (const auto& [key, value] : entries(instanceAttrs)) {
         if (is<std::string>(key)) {
-            record->attributes.push_back(compileAttributePlan(
-                as<std::string>(key), value, parentClass,
-                rawGet(intern(attrMetadata), key), rawGet(attrTypes, key),
-                boolean(rawGet(copyAttrs, key))));
+            record->attributes.push_back(
+                compileAttributePlan(as<std::string>(key), value, parentClass,
+                                     rawGet(attrMetadata, key), RuntimeValue(),
+                                     boolean(rawGet(copyAttrs, key))));
         }
     }
     for (const auto& [key, value] : entries(nilAttrs)) {

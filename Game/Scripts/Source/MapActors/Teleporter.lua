@@ -1,14 +1,13 @@
 local Engine = require("Engine")
+local StairDirection = require("Enums.StairDirection")
 local ConditionalActor = require("Source.MapActors.ConditionalActor")
 local MapPath = require("Source.Utils.MapPath")
 local GameplayScene = require("Source.Gameplay.GameplayScene")
 
 local Teleporter = {}
 
-Teleporter.StairDirection = { None = "None", Up = "Up", Down = "Down" }
-
 Teleporter.Offset = sf.Vector2i.new(0, 0)
-Teleporter.stairDirection = Teleporter.StairDirection.None
+Teleporter.stairDirection = StairDirection.None
 Teleporter.stairSE = ""
 Teleporter.transitionName = ""
 Teleporter.transitionTime = 0.5
@@ -65,7 +64,7 @@ end
 
 ---@param actors          Engine.Actor[]
 ---@param position        sf.Vector2i
----@param stairDirection? Source.MapActors.Teleporter.StairDirection
+---@param stairDirection? Enums.StairDirection
 ---@return Source.MapActors.Teleporter.Teleporter | nil
 function Teleporter.FindNearestTeleporter(actors, position, stairDirection)
     local nearest = nil

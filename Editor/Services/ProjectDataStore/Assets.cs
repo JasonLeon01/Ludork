@@ -38,8 +38,34 @@ public sealed partial class ProjectDataStore
                 throw new InvalidOperationException("Managed resource moves must use the document rename command.");
         }
         bool externalChanges = addedPaths.Count != 0 || movedPaths.Count != 0 || deletedPaths.Count != 0;
-        Dictionary<(string Section, string Key), JsonObject?> changes = prepareExternalChanges(addedPaths, movedPaths, deletedPaths);
-        applyExternalChanges(changes, externalChanges, prepareReferenceChanges);
+        string[] previousInvalidPaths;
+        Dictionary<string, string> previousInvalidErrors;
+        lock (invalidLoadLock)
+        {
+            previousInvalidPaths = invalidLoadPaths.ToArray();
+            previousInvalidErrors = new Dictionary<string, string>(invalidLoadErrors, StringComparer.Ordinal);
+        }
+        bool applied = false;
+        try
+        {
+            Dictionary<(string Section, string Key), JsonObject?> changes = prepareExternalChanges(addedPaths, movedPaths, deletedPaths);
+            applyExternalChanges(changes, externalChanges, prepareReferenceChanges);
+            applied = true;
+        }
+        finally
+        {
+            if (!applied)
+            {
+                lock (invalidLoadLock)
+                {
+                    invalidLoadPaths.Clear();
+                    invalidLoadPaths.AddRange(previousInvalidPaths);
+                    invalidLoadErrors.Clear();
+                    foreach ((string path, string error) in previousInvalidErrors)
+                        invalidLoadErrors[path] = error;
+                }
+            }
+        }
         if (addedPaths.Concat(deletedPaths).Any(path => path.Contains("UI", StringComparison.Ordinal)))
             UiAssets.NotifyUiAssetsChanged();
         if (externalChanges)
@@ -89,6 +115,15 @@ public sealed partial class ProjectDataStore
         {
             string? currentType = getString(current["type"]);
             DataFileInfo info = new(currentType ?? sections[document.Section].ExpectedType ?? "general", document.Key);
+            if (document.Section is "Blueprints" or "Maps")
+            {
+                JsonObject snapshot = (JsonObject)current.DeepClone();
+                Dictionary<string, JsonObject> blueprints = sections["Blueprints"].ToDictionary(
+                    entry => entry.Key, entry => (JsonObject)entry.Value.DeepClone(), StringComparer.Ordinal);
+                string currentSection = document.Section;
+                string currentKey = document.Key;
+                return () => isReadableBlueprintData(currentSection, currentKey, snapshot, blueprints) ? info : null;
+            }
             return () => info;
         }
         bool dataFile = tryGetDataLocation(
@@ -100,6 +135,10 @@ public sealed partial class ProjectDataStore
         bool uiFile = dataFile && sectionName == "UI";
         bool subtitleFile = dataFile && sectionName == "Subtitles";
         string? key = getDataKey(absolutePath);
+        Dictionary<string, JsonObject>? blueprintSnapshot = sectionName is "Blueprints" or "Maps"
+            ? sections["Blueprints"].ToDictionary(
+                entry => entry.Key, entry => (JsonObject)entry.Value.DeepClone(), StringComparer.Ordinal)
+            : null;
         if (uiFile && !hasDataFileExtension(sectionName, absolutePath))
             return () => new DataFileInfo("invalidUiData", key);
         return () =>
@@ -137,6 +176,8 @@ public sealed partial class ProjectDataStore
                     : type;
                 if (string.IsNullOrWhiteSpace(resolvedType)
                     && sectionName != "General")
+                    return null;
+                if (blueprintSnapshot is not null && !isReadableBlueprintData(sectionName, key ?? string.Empty, file, blueprintSnapshot))
                     return null;
                 return new DataFileInfo(resolvedType ?? "general", key);
             }

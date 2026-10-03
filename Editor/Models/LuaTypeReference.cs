@@ -44,7 +44,7 @@ public sealed record LuaTypeReference
         LuaMetadataType schema = Schema;
         bool builtin = schema.Kind != LuaMetadataTypeKind.Named
             || schema.Name is "any" or "nil" or "bool" or "int" or "float" or "number"
-                or "double" or "string" or "function" or "event" or "Pair";
+                or "double" or "string" or "file" or "function" or "event" or "Pair";
         return !builtin && ModuleName is null && !string.IsNullOrWhiteSpace(moduleName)
             ? new LuaTypeReference(moduleName, TypeName)
             : this;

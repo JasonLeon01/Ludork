@@ -1,4 +1,5 @@
 #include "TypedDataSchema.hpp"
+#include "Metadata/EnumSchema.hpp"
 #include <StringUtils.hpp>
 #include <Runtime/RuntimeReference.hpp>
 
@@ -71,6 +72,14 @@ TypeSchema composite(TypeSchema::Kind kind, std::vector<TypeSchema> arguments) {
     return type;
 }
 
+TypeSchema enumeration(std::string moduleName) {
+    ludork::runtime::detail::validateEnumModuleName(moduleName);
+    TypeSchema type;
+    type.kind = TypeSchema::Kind::Enum;
+    type.name = std::move(moduleName);
+    return type;
+}
+
 TypeSchema parseText(std::string text) {
     text = ludork::standard::trimCharacters(text);
     if (text.empty()) {
@@ -91,6 +100,11 @@ TypeSchema parseText(std::string text) {
     const std::size_t opening = text.find('[');
     if (opening == std::string::npos || text.back() != ']') {
         return named(std::move(text));
+    }
+    if (ludork::standard::lowercase(ludork::standard::trimCharacters(
+            text.substr(0, opening))) == "enum") {
+        return enumeration(ludork::standard::trimCharacters(
+            text.substr(opening + 1, text.size() - opening - 2)));
     }
     std::vector<TypeSchema> arguments;
     std::size_t begin = opening + 1;
@@ -171,6 +185,14 @@ TypeSchema parseSchema(RuntimeValueView value) {
             "schema");
     }
     for (const auto& [key, argument] : *map) {
+        if (key == "enum") {
+            const std::string* moduleName = argument.getIf<std::string>();
+            if (moduleName == nullptr) {
+                throw std::invalid_argument(
+                    "Enum schema requires a module name");
+            }
+            return enumeration(*moduleName);
+        }
         if (key == "optional" || key == "list" || key == "dict") {
             const TypeSchema::Kind kind =
                 key == "optional" ? TypeSchema::Kind::Optional
@@ -197,6 +219,10 @@ TypeSchema parseSchema(RuntimeValueView value) {
 }
 
 RuntimeValue schemaValue(const TypeSchema& type) {
+    if (type.kind == TypeSchema::Kind::Enum) {
+        return RuntimeValue(
+            RuntimeValue::Map{{"enum", RuntimeValue(type.name)}});
+    }
     if (type.kind == TypeSchema::Kind::Named) {
         if (type.module.empty()) {
             return RuntimeValue(type.name);
@@ -226,6 +252,9 @@ RuntimeValue schemaValue(const TypeSchema& type) {
 }
 
 std::string schemaName(const TypeSchema& type) {
+    if (type.kind == TypeSchema::Kind::Enum) {
+        return "Enum[" + type.name + "]";
+    }
     if (type.kind == TypeSchema::Kind::Named) {
         return type.module.empty() ? type.name : type.module + "." + type.name;
     }

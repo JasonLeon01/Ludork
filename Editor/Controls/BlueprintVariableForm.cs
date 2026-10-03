@@ -553,6 +553,8 @@ public sealed partial class BlueprintVariableForm : UserControl, IDisposable
             return input;
         }
         LuaMetadataType declaredType = LuaMetadataType.Parse(field.Type);
+        if (declaredType.Kind == LuaMetadataTypeKind.Enum)
+            return createEnumEditor(declaredType, displayValue, changed);
         if (declaredType.Kind == LuaMetadataTypeKind.Union)
             return createUnionEditor(field, declaredType, displayValue, changed, dictionaryKey);
         Control? customEditor = CustomValueEditorFactory?.Invoke(

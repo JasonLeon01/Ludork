@@ -1,8 +1,7 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
+local Special = require("Enums.GeneralData.Special")
 local ActorTree = require("Global.ActorTree")
----@type { Special: Source.Configs.GeneralEnum.Special }
-local GeneralEnum = require("Source.Configs.GeneralEnum")
 local Effects = require("Source.Gameplay.Effects")
 local MotaBattleAbility = require("Source.Gameplay.MotaBattleAbility")
 local GameplayScene = require("Source.Gameplay.GameplayScene")
@@ -10,7 +9,6 @@ local GameplayConstants = require("Source.Configs.GameplayConstants")
 
 local GameplayAbilityResult = GlobalCore.GameplayAbilityResult
 local GameplayEventData = GlobalCore.GameplayEventData
-local Special = GeneralEnum.Special
 
 local MovementSpecials = {}
 

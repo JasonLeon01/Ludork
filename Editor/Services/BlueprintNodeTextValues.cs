@@ -10,9 +10,11 @@ namespace Ludork.Services;
 
 internal static class BlueprintNodeTextValues
 {
-    public static string Format(string typeName, JsonNode? value)
+    public static string Format(string typeName, JsonNode? value, Func<string, LuaEnumDefinition>? resolveEnum = null)
     {
         LuaMetadataType type = LuaMetadataType.Parse(typeName);
+        if (type.Kind == LuaMetadataTypeKind.Enum)
+            type = resolveEnum?.Invoke(type.Name).ValueType ?? type;
         if (value is null)
             return type.IsAny ? "null" : string.Empty;
         if (type.Kind == LuaMetadataTypeKind.Named
@@ -23,11 +25,22 @@ internal static class BlueprintNodeTextValues
         return value.ToJsonString();
     }
 
-    public static bool TryParse(string typeName, string text, out JsonNode? value, out string? error)
+    public static bool TryParse(string typeName, string text, out JsonNode? value, out string? error,
+        Func<string, LuaEnumDefinition>? resolveEnum = null)
     {
         LuaMetadataType type = LuaMetadataType.Parse(typeName);
         value = null;
         error = null;
+        if (type.Kind == LuaMetadataTypeKind.Enum)
+        {
+            LuaEnumDefinition? definition = resolveEnum?.Invoke(type.Name);
+            if (definition?.ValueType is not LuaMetadataType valueType)
+            {
+                error = definition?.Error ?? "Enum resolver is unavailable for " + type.Name;
+                return false;
+            }
+            type = valueType;
+        }
         if (type.Kind == LuaMetadataTypeKind.Named && type.Name is "string" or "file")
         {
             value = JsonValue.Create(text);
@@ -104,7 +117,7 @@ internal static class BlueprintNodeTextValues
         }
 
         List<string> errors = [];
-        LuaMetadataLiteralValidation.ValidateNodeParameter(type, value, "$", errors);
+        LuaMetadataLiteralValidation.ValidateNodeParameter(type, value, "$", errors, resolveEnum);
         if (errors.Count == 0)
             return true;
         value = null;

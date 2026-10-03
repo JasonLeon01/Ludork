@@ -45,6 +45,7 @@ ClassRuntimeState::ClassRecord::InstanceAttributePlan compileAttributePlan(
     const RuntimeValue& parentClass, const RuntimeValue& fieldMetadata,
     const RuntimeValue& targetType, bool copyOnly);
 std::string normalizeScriptMixinPath(const std::string& value);
+bool isScriptMixinReservedName(const std::string& name);
 RuntimeValue loadScriptMixin(const std::string& classPath,
                              const std::string& scriptPath);
 void validateScriptMixin(const RuntimeValue& mixin,

@@ -66,7 +66,7 @@ function Controller:setVisible(visible) end
 ---
 --- Defaults to Load. Pass `"save"` to open the Save tab when tabs are present.
 --- Selects the latest existing save, or the first slot when none exists.
----@param transitionProfile string | nil
+---@param transitionProfile Enums.WindowTransitionProfile | nil
 ---@param initialMode       "load" | "save" | nil
 ---@param dockPosition      sf.Vector2f | nil
 function Controller:open(transitionProfile, initialMode, dockPosition) end

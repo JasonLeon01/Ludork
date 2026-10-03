@@ -25,6 +25,7 @@ public sealed partial class ProjectDataStore
         }
         foreach (string path in addedPaths)
             prepareExternalAdd(path, changes);
+        validateExternalBlueprintChanges(changes);
         foreach ((string section, string key) in changes.Keys)
         {
             if (Documents.Find(section, key) is { IsModified: true } document)
@@ -38,6 +39,7 @@ public sealed partial class ProjectDataStore
     {
         if (!tryGetDataLocation(path, out string section, out string relativePath))
             return;
+        clearRejectedDataFile(path);
         if (hasDataFileExtension(section, path))
         {
             string key = section == "WorldMaps" ? normalizeDataKey(relativePath)
@@ -75,8 +77,15 @@ public sealed partial class ProjectDataStore
             || !tryGetDataLocation(path, out string section, out string relativePath)
             || !hasDataFileExtension(section, path))
             return;
+        string key = Path.ChangeExtension(relativePath, null)!.Replace('\\', '/');
+        clearRejectedDataFile(path);
         if (readExternalDataFile(path, sections[section]) is JsonObject data)
-            changes[(section, Path.ChangeExtension(relativePath, null)!.Replace('\\', '/'))] = data;
+            changes[(section, key)] = data;
+        else if (section is "Blueprints" or "Maps")
+        {
+            changes[(section, key)] = null;
+            rejectDataFile(path, "The data file could not be parsed or has an unexpected type");
+        }
     }
 
     internal void applyExternalChanges(IReadOnlyDictionary<(string Section, string Key), JsonObject?> changes,
@@ -111,6 +120,9 @@ public sealed partial class ProjectDataStore
                     if (captured.Add((rewrite.Section, rewrite.Key)))
                         captureExternalChange(rewrite.Section, rewrite.Key, restoreEntries);
                 ApplyReferenceRewrites(rewrites);
+                IReadOnlyList<string> errors = ValidateBlueprintSchemas(includeRejectedFiles: false);
+                if (errors.Count != 0)
+                    throw new InvalidDataException(string.Join(Environment.NewLine, errors));
             }
             refreshModifiedState();
             if (reset)

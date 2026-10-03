@@ -6,7 +6,7 @@
 ---@field moveEnabled          boolean
 ---@field findNearest          boolean
 ---@field record               boolean
----@field targetStairDirection Source.MapActors.Teleporter.StairDirection | nil
+---@field targetStairDirection Enums.StairDirection | nil
 
 ---@class Source.Scenes.SceneMap.PendingWorldTransfer
 ---@field targetMap      string
@@ -277,7 +277,7 @@ function Scene:openAttrShop(actor, shopName, shopDescription, abilities, priceRe
 ---@param moveEnabled           boolean
 ---@param findNearest           boolean
 ---@param record                boolean
----@param targetStairDirection? Source.MapActors.Teleporter.StairDirection
+---@param targetStairDirection? Enums.StairDirection
 ---@return boolean
 function Scene:requestTeleporterTransfer(
     targetMap, targetPosition, moveEnabled, findNearest, record, targetStairDirection

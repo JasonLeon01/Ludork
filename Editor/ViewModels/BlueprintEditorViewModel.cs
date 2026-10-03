@@ -48,7 +48,8 @@ internal sealed class BlueprintEditorViewModel : ViewModelBase, IDisposable
 
     public ResolvedBlueprintClass ResolveClass()
     {
-        ResolvedClass = resolver.ResolveBlueprint(Document.Data, Document.BlueprintKey);
+        ResolvedClass = IsBlueprint ? resolver.ResolveBlueprint(Document.Data, Document.BlueprintKey)
+            : resolver.Resolve("GlobalCore.GameplayEventData");
         return ResolvedClass;
     }
 
@@ -96,6 +97,7 @@ internal sealed class BlueprintEditorViewModel : ViewModelBase, IDisposable
             if (string.IsNullOrEmpty(normalized) || !File.Exists(fullPath))
                 throw new FileNotFoundException($"Mixin script '{normalized}' was not found", fullPath);
             metadata.LoadScriptMixinMetadata(normalized);
+            return prepareScriptPathChange(JsonValue.Create(normalized), false);
         }
         catch (InterpreterException exception)
         {
@@ -113,7 +115,6 @@ internal sealed class BlueprintEditorViewModel : ViewModelBase, IDisposable
         {
             return BlueprintAttributeChange.Failed(exception.Message);
         }
-        return prepareScriptPathChange(JsonValue.Create(normalized), false);
     }
 
     public BlueprintAttributeChange? PrepareRemoveScriptPath()
@@ -131,11 +132,31 @@ internal sealed class BlueprintEditorViewModel : ViewModelBase, IDisposable
             prospectiveAttrs.Remove("scriptPath");
         else
             prospectiveAttrs["scriptPath"] = value;
+        Dictionary<string, JsonNode?> previousMixinValues = previous.LocalMixinFieldNames
+            .Where(prospectiveAttrs.ContainsKey)
+            .ToDictionary(name => name, name => prospectiveAttrs[name]?.DeepClone(), StringComparer.Ordinal);
+        foreach (string name in previousMixinValues.Keys)
+            prospectiveAttrs.Remove(name);
         ResolvedBlueprintClass next = resolver.ResolveBlueprint(prospective, Document.BlueprintKey);
         HashSet<string> nextSchema = new(next.DeclaredFieldNames, StringComparer.Ordinal);
         List<string> stale = previous.LocalMixinFieldNames
             .Where(name => HasLocalAttribute(name) && !nextSchema.Contains(name))
             .Distinct(StringComparer.Ordinal).ToList();
+        BlueprintAttributeSchema schemaValidation = new(metadata);
+        foreach (KeyValuePair<string, JsonNode?> entry in previousMixinValues)
+        {
+            if (!next.DeclaredFields.TryGetValue(entry.Key, out BlueprintFieldMetadata? field))
+                continue;
+            try
+            {
+                schemaValidation.ValidateValue(field.Type.Schema, entry.Value,
+                    Document.BlueprintKey ?? string.Empty, "attrs." + entry.Key);
+            }
+            catch (InvalidDataException)
+            {
+                stale.Add(entry.Key);
+            }
+        }
         Dictionary<string, JsonNode?> updates = new(StringComparer.Ordinal);
         List<string> removals = [.. stale];
         if (remove)
@@ -152,7 +173,7 @@ internal sealed class BlueprintEditorViewModel : ViewModelBase, IDisposable
 
     public string? ValidateAttributeName(string name)
     {
-        if (name.Length == 0 || char.IsDigit(name[0]))
+        if (BlueprintAttributeSchema.IsReservedName(name))
             return LocaleService.Get("ATTR_NAME_CANNOT_START_WITH_DIGIT");
         return (ResolvedClass ?? ResolveClass()).InvalidVars.Contains(name, StringComparer.Ordinal)
             ? LocaleService.Get("INVALID_NAME")
@@ -160,6 +181,18 @@ internal sealed class BlueprintEditorViewModel : ViewModelBase, IDisposable
     }
 
     public bool AddComponent(BlueprintVariableField field) => Document.CommitAttribute(field.Name, materializeComponent(field));
+    public bool AddAttribute(BlueprintAttributeCreation creation)
+    {
+        ResolvedBlueprintClass resolved = ResolveClass();
+        JsonObject? definition = null;
+        if (!resolved.DeclaredFields.ContainsKey(creation.Name))
+        {
+            definition = new JsonObject { ["type"] = creation.Type.ToSchema() };
+            if (!string.IsNullOrEmpty(creation.FileBase))
+                definition["base"] = creation.FileBase;
+        }
+        return Document.AddAttribute(creation.Name, definition, creation.Value);
+    }
     public bool CommitAttribute(string name, JsonNode? value) => Document.CommitAttribute(name, value);
     public bool RemoveAttribute(string name) => Document.RemoveAttribute(name);
     public bool CommitParent(string parent) => Document.CommitParent(parent);

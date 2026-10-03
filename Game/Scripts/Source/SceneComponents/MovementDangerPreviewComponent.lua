@@ -1,4 +1,5 @@
 local Engine = require("Engine")
+local DamageHintLevel = require("Enums.DamageHintLevel")
 local ComponentBase = require("Global.Components.ComponentBase")
 local Data = require("Source.Data")
 local EnemyDamageText = require("Source.MapActors.EnemyDamageText")
@@ -19,7 +20,7 @@ end
 
 function MovementDangerPreviewComponent:onRender(camera)
     local player = self._parent:getPlayer()
-    if player == nil or EnemyDamageText.EnemyDamageHintLevel < EnemyDamageText.DamageHintLevel.MAP
+    if player == nil or EnemyDamageText.EnemyDamageHintLevel < DamageHintLevel.MAP
         or not player:hasItem(EnemyDamageText.requiredItemID) then
         return
     end

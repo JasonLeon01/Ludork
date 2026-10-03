@@ -54,7 +54,8 @@ public:
     BIND_METHOD(Pure = true)
     bool shouldDispatchKeyboardInput() const;
 
-    BIND_METHOD()
+    BIND_METHOD(metadata_parameters = {
+                    direction = {enum = "Enums.Engine.FocusDirection"}})
     bool requestDirectionalFocusMove(const std::string& direction);
 
     BIND_METHOD()

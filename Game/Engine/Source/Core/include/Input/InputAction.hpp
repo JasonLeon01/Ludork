@@ -12,6 +12,7 @@ enum class InputType {
 
 using InputAxisComparison = std::function<bool(float, float)>;
 
+BIND_ENUM(name = "ActionKind")
 enum class InputActionKind {
     KeyOrScan,
     Key,
@@ -25,10 +26,6 @@ enum class InputActionKind {
 BIND_MODULE_PROPERTY(name = "InputType", metadata = false, cache = true)
 extern LUDORK_ENGINE_API const std::unordered_map<std::string, InputNamedValue>
     inputTypes;
-
-BIND_MODULE_PROPERTY(name = "ActionKind", metadata = false)
-extern LUDORK_ENGINE_API const std::unordered_map<std::string, int>
-    inputActionKinds;
 
 BIND_MODULE_PROPERTY(name = "AxisComparison", metadata = false)
 extern LUDORK_ENGINE_API const

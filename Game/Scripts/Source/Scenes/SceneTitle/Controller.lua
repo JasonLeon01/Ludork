@@ -1,6 +1,6 @@
 local Engine = require("Engine")
 local SourceSystem = require("Source.System")
-local EventKeys = require("Source.Configs.EventKeys")
+local EventKey = require("Enums.EventKey")
 local WindowCommand = require("Source.Windows.WindowCommand")
 local Ui = require("Internal.UIBase.Ui")
 local View = require("Internal.UI.Title")
@@ -8,7 +8,7 @@ local View = require("Internal.UI.Title")
 ---@class Source.Scenes.SceneTitle.Controller
 local SceneTitleController = {}
 
-SceneTitleController.refreshEvents = { EventKeys.LocaleChanged }
+SceneTitleController.refreshEvents = { EventKey.LocaleChanged }
 
 function SceneTitleController:bind()
     self._commandModels = {

@@ -4,7 +4,7 @@
 
 #include <EngineRuntimeApi.hpp>
 
-BIND_MODULE_PROPERTY(name = "FocusDirection", readonly = true)
+BIND_MODULE_PROPERTY(name = "FocusDirection", readonly = true, enum = true)
 extern LUDORK_ENGINE_API const std::unordered_map<std::string, std::string>
     FocusDirection;
 

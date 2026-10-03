@@ -3,8 +3,6 @@
 ---@brief Integrated shop UI with tabs, item list, and item details.
 ---@class Source.Windows.WindowShop.Controller: Internal.UIBase.UiController
 ---@field host             Source.Windows.WindowShop
----@field SHOP_MODE_BUY    "buy"
----@field SHOP_MODE_SELL   "sell"
 ---@field _player          Source.MapActors.Player.Player
 ---@field _onCloseCallback function | nil
 ---@field _tabWindow       Source.Windows.WindowShopTabs
@@ -15,7 +13,7 @@
 ---@field _detailTopLeft   sf.Vector2f
 ---@field _buyItemIDs      string[]
 ---@field _canSell         boolean
----@field _mode            string
+---@field _mode            Enums.ShopMode
 ---@field _closed          boolean
 ---@field ui               Internal.UI.WindowShop
 local Controller = {}
@@ -69,7 +67,7 @@ function Controller:handleTabNavigationInput() end
 ---@param index integer
 function Controller:onTabSelected(index) end
 
----@param mode string
+---@param mode Enums.ShopMode
 function Controller:setMode(mode) end
 
 function Controller:notifyItemIndexMaybeChanged() end

@@ -49,7 +49,8 @@ internal sealed class BlueprintGraphClipboardNode
                 port.ParameterIndex,
                 port.SupportsEditor,
                 port.Value,
-                port.Meta))
+                port.Meta,
+                port.ResolveEnum))
             .ToArray();
         BlueprintGraphNodeDefinition definition = new(
             node.NodeFunction,

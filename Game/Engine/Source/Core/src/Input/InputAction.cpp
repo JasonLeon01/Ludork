@@ -19,16 +19,6 @@ const std::unordered_map<std::string, InputNamedValue> inputTypes = {
     {"Gamepad", {"Gamepad", static_cast<int>(InputType::Gamepad)}},
 };
 
-const std::unordered_map<std::string, int> inputActionKinds = {
-    {"KeyOrScan", static_cast<int>(InputActionKind::KeyOrScan)},
-    {"Key", static_cast<int>(InputActionKind::Key)},
-    {"Scan", static_cast<int>(InputActionKind::Scan)},
-    {"MouseButton", static_cast<int>(InputActionKind::MouseButton)},
-    {"JoystickButton", static_cast<int>(InputActionKind::JoystickButton)},
-    {"JoystickAxis", static_cast<int>(InputActionKind::JoystickAxis)},
-    {"TouchTap", static_cast<int>(InputActionKind::TouchTap)},
-};
-
 const std::unordered_map<std::string, InputAxisComparison>
     inputAxisComparisons = {
         {"Less", lessThan},

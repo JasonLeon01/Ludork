@@ -9,19 +9,30 @@ using System.Text.Json.Nodes;
 
 namespace Ludork.Services;
 
-internal static class LuaMetadataParser
+internal sealed class LuaMetadataParser
 {
-    public static IReadOnlyDictionary<string, LuaTypeMetadata> ReadFile(string path, string moduleName)
+    private readonly Func<string, LuaEnumDefinition>? resolveEnum;
+
+    private LuaMetadataParser(Func<string, LuaEnumDefinition>? resolveEnum)
     {
-        Table root = readRoot(path);
-        return parseMetadataFile(root, moduleName);
+        this.resolveEnum = resolveEnum;
     }
 
-    public static LuaTypeMetadata ReadScriptMixin(string path, string moduleName, string typeName)
+    public static IReadOnlyDictionary<string, LuaTypeMetadata> ReadFile(string path, string moduleName,
+        Func<string, LuaEnumDefinition>? resolveEnum = null)
     {
-        Table root = readRoot(path);
-        validateScriptMixinMetadata(root, typeName);
-        IReadOnlyDictionary<string, LuaTypeMetadata> types = parseMetadataFile(root, moduleName);
+        LuaMetadataParser parser = new(resolveEnum);
+        Table root = parser.readRoot(path);
+        return parser.parseMetadataFile(root, moduleName);
+    }
+
+    public static LuaTypeMetadata ReadScriptMixin(string path, string moduleName, string typeName,
+        Func<string, LuaEnumDefinition>? resolveEnum = null)
+    {
+        LuaMetadataParser parser = new(resolveEnum);
+        Table root = parser.readRoot(path);
+        parser.validateScriptMixinMetadata(root, typeName);
+        IReadOnlyDictionary<string, LuaTypeMetadata> types = parser.parseMetadataFile(root, moduleName);
         if (types.Count != 1 || !types.TryGetValue(typeName, out LuaTypeMetadata? metadata))
             throw new InvalidDataException($"Mixin metadata must contain only the {typeName} type");
         if (metadata.Bases.Count != 0)
@@ -29,7 +40,7 @@ internal static class LuaMetadataParser
         return metadata;
     }
 
-    private static Table readRoot(string path)
+    private Table readRoot(string path)
     {
         Script script = new(CoreModules.None);
         DynValue result = script.DoString(File.ReadAllText(path), null, path);
@@ -37,7 +48,7 @@ internal static class LuaMetadataParser
         return result.Table;
     }
 
-    private static void validateMetadataRoot(DynValue value)
+    private void validateMetadataRoot(DynValue value)
     {
         if (value.Type != DataType.Table)
             throw new InvalidDataException();
@@ -45,7 +56,7 @@ internal static class LuaMetadataParser
         validatePureData(value, visiting);
     }
 
-    private static void validateScriptMixinMetadata(Table root, string expectedTypeName)
+    private void validateScriptMixinMetadata(Table root, string expectedTypeName)
     {
         List<TablePair> rootPairs = root.Pairs.ToList();
         if (rootPairs.Count != 1
@@ -90,7 +101,7 @@ internal static class LuaMetadataParser
             throw new InvalidDataException("Mixin metadata bases must be empty");
     }
 
-    private static void validatePureData(DynValue value, HashSet<Table> visiting)
+    private void validatePureData(DynValue value, HashSet<Table> visiting)
     {
         if (value.Type == DataType.Number)
         {
@@ -114,7 +125,7 @@ internal static class LuaMetadataParser
         visiting.Remove(value.Table);
     }
 
-    private static IReadOnlyDictionary<string, LuaTypeMetadata> parseMetadataFile(Table root, string moduleName)
+    private IReadOnlyDictionary<string, LuaTypeMetadata> parseMetadataFile(Table root, string moduleName)
     {
         Dictionary<string, LuaTypeMetadata> types = new(StringComparer.Ordinal);
         foreach (TablePair pair in root.Pairs)
@@ -131,7 +142,7 @@ internal static class LuaMetadataParser
         return types;
     }
 
-    private static LuaTypeMetadata? parseType(string moduleName, string typeName, Table table)
+    private LuaTypeMetadata? parseType(string moduleName, string typeName, Table table)
     {
         DynValue moduleReturn = table.Get("moduleReturn");
         if (moduleReturn.Type is not DataType.Nil and not DataType.Void and not DataType.Boolean)
@@ -198,7 +209,7 @@ internal static class LuaMetadataParser
         );
     }
 
-    private static LuaNodeMemberMetadata? parseNodeMember(
+    private LuaNodeMemberMetadata? parseNodeMember(
         string name,
         Table table,
         LuaTypeReference declaringType,
@@ -273,7 +284,7 @@ internal static class LuaMetadataParser
         );
     }
 
-    private static IReadOnlyList<LuaNodeReturnMetadata> readReturns(DynValue value)
+    private IReadOnlyList<LuaNodeReturnMetadata> readReturns(DynValue value)
     {
         if (value.Type != DataType.Table)
             return Array.Empty<LuaNodeReturnMetadata>();
@@ -291,7 +302,7 @@ internal static class LuaMetadataParser
         return returns;
     }
 
-    private static LuaTypeReference? readFieldType(DynValue value)
+    private LuaTypeReference? readFieldType(DynValue value)
     {
         if (value.Type == DataType.String && !string.IsNullOrWhiteSpace(value.String))
             return LuaTypeReference.FromSchema(LuaMetadataType.Parse(value.String));
@@ -300,7 +311,7 @@ internal static class LuaMetadataParser
             : null;
     }
 
-    private static IReadOnlyList<LuaTypeReference> readBases(DynValue value, string moduleName)
+    private IReadOnlyList<LuaTypeReference> readBases(DynValue value, string moduleName)
     {
         if (value.Type != DataType.Table)
             return Array.Empty<LuaTypeReference>();
@@ -326,7 +337,7 @@ internal static class LuaMetadataParser
         return bases;
     }
 
-    private static LuaTypeReference? readExplicitTypeReference(Table table)
+    private LuaTypeReference? readExplicitTypeReference(Table table)
     {
         DynValue module = table.Get(1);
         DynValue type = table.Get(2);
@@ -336,7 +347,7 @@ internal static class LuaMetadataParser
             : null;
     }
 
-    private static LuaTypeReference? readCompatibleBaseReference(string value, string moduleName)
+    private LuaTypeReference? readCompatibleBaseReference(string value, string moduleName)
     {
         if (string.IsNullOrWhiteSpace(value))
             return null;
@@ -344,7 +355,7 @@ internal static class LuaMetadataParser
         return reference.WithDefaultModule(moduleName);
     }
 
-    private static IReadOnlyList<string> readStringArray(DynValue value)
+    private IReadOnlyList<string> readStringArray(DynValue value)
     {
         if (value.Type != DataType.Table)
             return Array.Empty<string>();
@@ -357,7 +368,7 @@ internal static class LuaMetadataParser
         return result;
     }
 
-    private static List<DynValue> readArray(Table table)
+    private List<DynValue> readArray(Table table)
     {
         return table.Pairs
             .Where(pair => pair.Key.Type == DataType.Number && pair.Key.Number >= 1 && pair.Key.Number == Math.Truncate(pair.Key.Number))
@@ -366,12 +377,12 @@ internal static class LuaMetadataParser
             .ToList();
     }
 
-    private static JsonObject toJsonObject(DynValue value)
+    private JsonObject toJsonObject(DynValue value)
     {
         return toJsonNode(value) is JsonObject result ? result : new JsonObject();
     }
 
-    private static JsonNode? toJsonNode(
+    private JsonNode? toJsonNode(
         DynValue value,
         LuaMetadataType? declaredType = null)
     {
@@ -400,14 +411,14 @@ internal static class LuaMetadataParser
         };
     }
 
-    private static JsonNode numberToJson(double value)
+    private JsonNode numberToJson(double value)
     {
         if (value == Math.Truncate(value) && value is >= long.MinValue and <= long.MaxValue)
             return JsonValue.Create((long)value);
         return JsonValue.Create(value);
     }
 
-    private static JsonNode tableToJson(
+    private JsonNode tableToJson(
         Table table,
         LuaMetadataType? declaredType = null)
     {
@@ -433,7 +444,7 @@ internal static class LuaMetadataParser
         return tableToJsonObject(pairs, null);
     }
 
-    private static JsonArray tableToJsonArray(
+    private JsonArray tableToJsonArray(
         IEnumerable<TablePair> pairs,
         LuaMetadataType? itemType)
     {
@@ -443,7 +454,7 @@ internal static class LuaMetadataParser
         return array;
     }
 
-    private static JsonArray tableToJsonTuple(
+    private JsonArray tableToJsonTuple(
         IEnumerable<TablePair> pairs,
         IReadOnlyList<LuaMetadataType> itemTypes)
     {
@@ -463,12 +474,12 @@ internal static class LuaMetadataParser
                 ? toJsonNode(value, itemType)
                 : LuaMetadataValueDefaults.Create(
                     itemType,
-                    _ => JsonValue.Create(string.Empty)));
+                    _ => JsonValue.Create(string.Empty), resolveEnum));
         }
         return array;
     }
 
-    private static IEnumerable<TablePair> getDeclaredArrayPairs(IEnumerable<TablePair> pairs)
+    private IEnumerable<TablePair> getDeclaredArrayPairs(IEnumerable<TablePair> pairs)
     {
         return pairs
             .Where(pair => pair.Key.Type == DataType.Number
@@ -477,7 +488,7 @@ internal static class LuaMetadataParser
             .OrderBy(pair => pair.Key.Number);
     }
 
-    private static JsonObject tableToJsonObject(
+    private JsonObject tableToJsonObject(
         IEnumerable<TablePair> pairs,
         LuaMetadataType? valueType)
     {

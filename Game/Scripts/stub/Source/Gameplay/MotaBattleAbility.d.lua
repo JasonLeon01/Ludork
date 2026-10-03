@@ -1,11 +1,5 @@
 ---@meta Source.Gameplay.MotaBattleAbility
 
----@alias Source.Gameplay.MotaBattleAbility.BattleResult integer
-local BattleResult = {}
-
----@alias Source.Gameplay.MotaBattleAbility.CriticalResult integer
-local CriticalResult = {}
-
 ---@class Source.Gameplay.MotaBattleData
 ---@field damage              integer
 ---@field attackDamage        integer
@@ -23,18 +17,16 @@ local CriticalResult = {}
 ---@field gameOverEffectSpec? GlobalCore.GameplayEffectSpec
 
 ---@class Source.Gameplay.MotaBattleResult: GlobalCore.GameplayAbilityResult
----@field code Source.Gameplay.MotaBattleAbility.BattleResult
+---@field code Enums.BattleResultCode
 ---@field data Source.Gameplay.MotaBattleData
 
 ---@class Source.Gameplay.MotaCriticalResult: GlobalCore.GameplayAbilityResult
----@field code Source.Gameplay.MotaBattleAbility.CriticalResult
+---@field code Enums.CriticalResultCode
 ---@field data { value?: integer }
 
 ---@class Source.Gameplay.MotaBattleAbility: GlobalCore.GameplayAbility
----@field id             string
----@field BattleResult   { WIN: Source.Gameplay.MotaBattleAbility.BattleResult, CANNOT_DAMAGE: Source.Gameplay.MotaBattleAbility.BattleResult, LETHAL_COUNTER_DAMAGE: Source.Gameplay.MotaBattleAbility.BattleResult }
----@field CriticalResult { VALUE: Source.Gameplay.MotaBattleAbility.CriticalResult, NOT_NEEDED: Source.Gameplay.MotaBattleAbility.CriticalResult, UNKNOWN: Source.Gameplay.MotaBattleAbility.CriticalResult }
----@field new            fun(): Source.Gameplay.MotaBattleAbility
+---@field id  string
+---@field new fun(): Source.Gameplay.MotaBattleAbility
 local MotaBattleAbility = {}
 
 ---@param abilitySystem GlobalCore.AbilitySystemComponent

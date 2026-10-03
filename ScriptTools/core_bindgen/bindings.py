@@ -44,6 +44,7 @@ from .binding_values import (
 )
 from .constants import CPP_GENERATED_FILE_MARKER
 from .context import GeneratorContext
+from .enum_catalogue import enum_catalogue_writer
 from .cpp_types import (
     INTEGER_TYPES,
     exposed_type_name,
@@ -339,7 +340,7 @@ def compose_source(
         *(["#include <ClassServices.hpp>"] if class_binding else []),
         *[f"#include <{header}>" for header in context.binding_feature_headers()],
         *include_lines(sources, include_directories),
-        *(["#include <fstream>", "#include <LuaError.hpp>"] if stub_binding else []),
+        *(["#include <fstream>", "#include <LuaError.hpp>", "#include <Runtime/Json.hpp>", "#include <Runtime/RuntimeData.hpp>"] if stub_binding else []),
         "#include <memory>",
         "#include <stdexcept>",
         "#include <string>",
@@ -777,6 +778,7 @@ def generate_stub_binding(
             "",
         ]
     )
+    output.extend(enum_catalogue_writer(context, module, enums, functions))
     declarations = [
         (
             f"void {class_binder_name(module, info.cpp_name)}("

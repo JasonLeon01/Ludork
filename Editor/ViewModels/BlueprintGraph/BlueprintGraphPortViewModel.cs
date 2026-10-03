@@ -77,15 +77,15 @@ public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDispo
     public BlueprintParameterTextDraft PrepareTextDraft(string type, JsonNode? value)
     {
         if (textDraft is null || !JsonNode.DeepEquals(textDraft.Value, value))
-            textDraft = new BlueprintParameterTextDraft(BlueprintNodeTextValues.Format(type, value), value?.DeepClone(), null);
-        BlueprintNodeTextValues.TryParse(type, textDraft.Text, out _, out string? error);
+            textDraft = new BlueprintParameterTextDraft(BlueprintNodeTextValues.Format(type, value, fieldBuilder.ReadEnum), value?.DeepClone(), null);
+        BlueprintNodeTextValues.TryParse(type, textDraft.Text, out _, out string? error, fieldBuilder.ReadEnum);
         textDraft = textDraft with { Error = error };
         return textDraft;
     }
 
     public bool UpdateTextDraft(string type, string text, out JsonNode? value)
     {
-        bool valid = BlueprintNodeTextValues.TryParse(type, text, out value, out string? diagnostic);
+        bool valid = BlueprintNodeTextValues.TryParse(type, text, out value, out string? diagnostic, fieldBuilder.ReadEnum);
         textDraft = new BlueprintParameterTextDraft(text, valid ? value?.DeepClone() : Model.Value?.DeepClone(), diagnostic);
         notifyInputDraftProperties();
         InputDraftChanged?.Invoke(this, EventArgs.Empty);

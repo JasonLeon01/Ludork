@@ -23,10 +23,9 @@ public sealed partial class BlueprintDataService
             next[pair.Key] = pair.Value?.DeepClone();
         if (current is null && next.Count == 0 || JsonNode.DeepEquals(current, next))
             return false;
-        blueprintDocuments.RecordChange(key);
-        blueprint["attrs"] = next;
-        store.refreshModifiedState();
-        return true;
+        JsonObject candidate = (JsonObject)blueprint.DeepClone();
+        candidate["attrs"] = next;
+        return UpdateBlueprint(key, candidate);
     }
 
     public bool UpdateBlueprintParent(string key, string parent)
@@ -38,10 +37,9 @@ public sealed partial class BlueprintDataService
         {
             return false;
         }
-        blueprintDocuments.RecordChange(key);
-        blueprint["parent"] = value;
-        store.refreshModifiedState();
-        return true;
+        JsonObject candidate = (JsonObject)blueprint.DeepClone();
+        candidate["parent"] = value;
+        return UpdateBlueprint(key, candidate);
     }
 
     public IReadOnlyList<string> GetBlueprintGraphNames(string key)

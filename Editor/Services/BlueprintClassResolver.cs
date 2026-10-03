@@ -13,6 +13,7 @@ public sealed class BlueprintClassResolver : IDisposable
     private readonly EditorDocumentRegistry? documents;
     private readonly Func<string, JsonObject?> readBlueprint;
     private readonly LuaMetadataService metadataService;
+    private readonly BlueprintAttributeSchema attributeSchema;
     private readonly Dictionary<string, ResolvedBlueprintTemplate> templateCache = new(StringComparer.Ordinal);
     private long metadataRevision = -1;
     private long revision;
@@ -29,6 +30,7 @@ public sealed class BlueprintClassResolver : IDisposable
     internal BlueprintClassResolver(LuaMetadataService metadataService, Func<string, JsonObject?> readBlueprint)
     {
         this.metadataService = metadataService;
+        attributeSchema = new BlueprintAttributeSchema(metadataService);
         this.readBlueprint = readBlueprint;
     }
 
@@ -141,15 +143,7 @@ public sealed class BlueprintClassResolver : IDisposable
             string key = BlueprintReference.NormalizeKey(reference);
             if (readBlueprint(key) is JsonObject blueprint)
                 return createBlueprintTemplate(blueprint, reference, key);
-            return createResolvedTemplate(
-                reference,
-                null,
-                null,
-                Array.Empty<LuaTypeReference>(),
-                Array.Empty<(string Reference, BlueprintCompatibilityType Type)>(),
-                Array.Empty<LuaTypeReference>(),
-                Array.Empty<(string Reference, JsonObject Blueprint)>(),
-                new HashSet<string>(StringComparer.Ordinal) { key });
+            throw BlueprintAttributeSchema.Error(reference, "definition was not found");
         }
 
         BlueprintRootResolution root = resolveRoot(reference);
@@ -178,17 +172,20 @@ public sealed class BlueprintClassResolver : IDisposable
         while (!string.IsNullOrWhiteSpace(parent) && BlueprintReference.IsReference(parent))
         {
             string key = BlueprintReference.NormalizeKey(parent);
-            if (!visited.Add(key) || readBlueprint(key) is not JsonObject parentBlueprint)
-            {
-                parent = null;
-                break;
-            }
+            if (!visited.Add(key))
+                throw BlueprintAttributeSchema.Error(classReference, "cyclic parent '" + parent + "'");
+            if (readBlueprint(key) is not JsonObject parentBlueprint)
+                throw BlueprintAttributeSchema.Error(classReference, "parent '" + parent + "' was not found");
             chain.Add((parent, parentBlueprint));
             parent = getParent(parentBlueprint);
         }
 
+        if (string.IsNullOrWhiteSpace(parent))
+            throw BlueprintAttributeSchema.Error(classReference, "parent must be a non-empty class reference");
         chain.Reverse();
         BlueprintRootResolution root = resolveRoot(parent);
+        if (root.RootType is null || metadataService.GetType(root.RootType) is null)
+            throw BlueprintAttributeSchema.Error(classReference, "parent metadata was not found for '" + parent + "'");
         return createResolvedTemplate(
             classReference,
             root.TerminalReference,
@@ -353,8 +350,9 @@ public sealed class BlueprintClassResolver : IDisposable
             }
         }
 
-        HashSet<string> rootSchemaNames = new(schema.Keys, StringComparer.Ordinal);
-        HashSet<string> inactiveMixinNames = new(StringComparer.Ordinal);
+        HashSet<string> localDeclarations = new(StringComparer.Ordinal);
+        HashSet<string> memberNames = new(mergedMetadataTypes
+            .SelectMany(type => metadataService.GetType(type)?.MemberNames ?? []), StringComparer.Ordinal);
         List<string> localMixinFieldNames = [];
         bool scriptMixin = false;
         bool parentScriptMixin = false;
@@ -362,63 +360,63 @@ public sealed class BlueprintClassResolver : IDisposable
         string? scriptMixinError = null;
         for (int index = 0; index < blueprintChain.Count; index++)
         {
-            JsonObject blueprint = blueprintChain[index].Blueprint;
-            JsonObject? attrs = blueprint["attrs"] as JsonObject;
+            (string reference, JsonObject blueprint) = blueprintChain[index];
+            if (blueprint["attrs"] is not JsonObject attrs)
+                throw BlueprintAttributeSchema.Error(reference, "attrs must be an object");
             if (index == blueprintChain.Count - 1)
                 parentScriptMixin = scriptMixin;
-            if (attrs is not null && tryReadBool(attrs["scriptMixin"], out bool localScriptMixin))
+            if (attrs.ContainsKey("scriptMixin"))
+            {
+                if (!tryReadBool(attrs["scriptMixin"], out bool localScriptMixin))
+                    throw BlueprintAttributeSchema.Error(reference, "attrs.scriptMixin must be a boolean");
+                if (index > 0 && localScriptMixin != scriptMixin)
+                    throw BlueprintAttributeSchema.Error(reference, "Script Mixin mode must match its parent");
                 scriptMixin = localScriptMixin;
-            string localScriptPath = readString(attrs?["scriptPath"]);
-            if (string.IsNullOrWhiteSpace(localScriptPath))
-                continue;
-            dependencyMixins.Add(localScriptPath);
-
-            LuaTypeMetadata? mixinMetadata = null;
-            try
-            {
-                mixinMetadata = metadataService.LoadScriptMixinMetadata(localScriptPath);
             }
-            catch (InterpreterException exception)
+            string localScriptPath = readString(attrs["scriptPath"]);
+            if (!string.IsNullOrWhiteSpace(localScriptPath))
             {
-                scriptMixinError = exception.DecoratedMessage ?? exception.Message;
+                dependencyMixins.Add(localScriptPath);
+                LuaTypeMetadata? mixinMetadata = metadataService.LoadScriptMixinMetadata(localScriptPath);
+                if (mixinMetadata is not null)
+                {
+                    if (index == blueprintChain.Count - 1)
+                        localMixinFieldNames.AddRange(mixinMetadata.Attrs);
+                    if (scriptMixin)
+                    {
+                        string? conflict = mixinMetadata.Attrs.FirstOrDefault(localDeclarations.Contains);
+                        if (conflict is not null)
+                            throw BlueprintAttributeSchema.Error(reference, "Mixin redeclares Blueprint attribute '" + conflict + "'");
+                        mergeMetadataType(mixinMetadata, metadataOrder, schema, fieldSources, metadataDefaults,
+                            fieldsWithMetadataDefaults, classMeta, invalidVars, invalidVarSet, rectRangeVars);
+                        memberNames.UnionWith(mixinMetadata.MemberNames);
+                    }
+                }
             }
-            catch (InvalidDataException exception)
+            if (blueprint.TryGetPropertyValue("attrDefs", out JsonNode? rawDefinitions))
             {
-                scriptMixinError = exception.Message;
+                if (rawDefinitions is not JsonObject definitions)
+                    throw BlueprintAttributeSchema.Error(reference, "attrDefs must be an object");
+                foreach (KeyValuePair<string, JsonNode?> definition in definitions)
+                {
+                    if (schema.ContainsKey(definition.Key) || memberNames.Contains(definition.Key))
+                        throw BlueprintAttributeSchema.Error(reference, "attrDefs." + definition.Key + " is already declared");
+                    BlueprintFieldMetadata field = attributeSchema.ReadDefinition(reference, definition.Key, definition.Value);
+                    schema.Add(definition.Key, field);
+                    metadataOrder.Add(definition.Key);
+                    fieldSources[definition.Key] = reference;
+                    localDeclarations.Add(definition.Key);
+                }
             }
-            catch (IOException exception)
+            foreach (KeyValuePair<string, JsonNode?> attr in attrs)
             {
-                scriptMixinError = exception.Message;
+                if (!schema.TryGetValue(attr.Key, out BlueprintFieldMetadata? field))
+                    throw BlueprintAttributeSchema.Error(reference, "undeclared attribute '" + attr.Key + "'");
+                attributeSchema.ValidateValue(field.Type.WithDefaultModule(field.DeclaringType.ModuleName).Schema,
+                    attr.Value, reference, "attrs." + attr.Key);
             }
-            catch (UnauthorizedAccessException exception)
-            {
-                scriptMixinError = exception.Message;
-            }
-            if (mixinMetadata is null)
-                continue;
-            if (index == blueprintChain.Count - 1)
-                localMixinFieldNames.AddRange(mixinMetadata.Attrs);
-            if (!scriptMixin)
-            {
-                foreach (string name in mixinMetadata.Attrs)
-                    inactiveMixinNames.Add(name);
-                continue;
-            }
-            mergeMetadataType(
-                mixinMetadata,
-                metadataOrder,
-                schema,
-                fieldSources,
-                metadataDefaults,
-                fieldsWithMetadataDefaults,
-                classMeta,
-                invalidVars,
-                invalidVarSet,
-                rectRangeVars
-            );
         }
 
-        inactiveMixinNames.ExceptWith(rootSchemaNames);
         foreach (string name in metadataOrder)
         {
             BlueprintFieldMetadata field = schema[name];
@@ -454,7 +452,7 @@ public sealed class BlueprintClassResolver : IDisposable
             if (blueprint["attrs"] is not JsonObject attrs)
                 continue;
             applyBlueprintValues(
-                attrs.Where(pair => scriptMixin || !inactiveMixinNames.Contains(pair.Key)),
+                attrs,
                 metadataDefaults,
                 structuralDefaults,
                 blueprintValues,
@@ -491,7 +489,8 @@ public sealed class BlueprintClassResolver : IDisposable
             scriptMixinError,
             metadataService.CacheRevision,
             dependencies,
-            blueprintDependencies
+            blueprintDependencies,
+            attributeSchema
         );
     }
 
@@ -584,50 +583,6 @@ public sealed class BlueprintClassResolver : IDisposable
         dependencies.Add(metadata.Type);
         foreach (LuaTypeReference baseType in metadata.Bases)
             dependencies.Add(baseType.WithDefaultModule(metadata.Type.ModuleName));
-    }
-
-    private static ResolvedBlueprintField createUnknownField(
-        string name,
-        JsonNode? value,
-        JsonNode? blueprintDefaultValue,
-        bool hasBlueprintDefaultValue,
-        string? sourceClass
-    )
-    {
-        LuaTypeReference inferredType = inferType(value ?? blueprintDefaultValue);
-        return new ResolvedBlueprintField(
-            name,
-            inferredType,
-            value,
-            blueprintDefaultValue,
-            null,
-            true,
-            hasBlueprintDefaultValue,
-            sourceClass
-        );
-    }
-
-    private static LuaTypeReference inferType(JsonNode? value)
-    {
-        if (value is JsonObject)
-            return new LuaTypeReference(null, "table");
-        if (value is JsonArray array)
-        {
-            List<LuaTypeReference> elementTypes = array
-                .Where(item => item is not null)
-                .Select(inferType)
-                .ToList();
-            if (elementTypes.Count == 0)
-                return new LuaTypeReference(null, "any[]");
-            bool onlyNumbers = elementTypes.All(type => type.TypeName is "int" or "float");
-            string elementType = onlyNumbers && elementTypes.Any(type => type.TypeName == "float")
-                ? "float"
-                : elementTypes.All(type => type == elementTypes[0])
-                    ? elementTypes[0].QualifiedName
-                    : "any";
-            return new LuaTypeReference(null, elementType + "[]");
-        }
-        return new LuaTypeReference(null, JsonScalar.ScalarType(value) ?? "any");
     }
 
     private static void mergeObject(JsonObject target, JsonObject source)
@@ -739,7 +694,7 @@ public sealed class BlueprintClassResolver : IDisposable
 
     private static string? getParent(JsonObject blueprint)
     {
-        string? parent = blueprint["parent"]?.GetValue<string>()?.Trim();
+        string? parent = blueprint["parent"] is JsonValue value && value.TryGetValue(out string? text) ? text?.Trim() : null;
         return BlueprintReference.IsReference(parent) ? BlueprintReference.ToReference(parent) : parent;
     }
 
@@ -816,6 +771,7 @@ public sealed class BlueprintClassResolver : IDisposable
         private readonly string? scriptMixinError;
         private readonly LuaMetadataDependencySnapshot dependencies;
         private readonly IReadOnlySet<string> blueprintDependencies;
+        private readonly BlueprintAttributeSchema attributeSchema;
 
         public ResolvedBlueprintTemplate(
             string classReference,
@@ -839,9 +795,11 @@ public sealed class BlueprintClassResolver : IDisposable
             string? scriptMixinError,
             long metadataRevision,
             LuaMetadataDependencySnapshot dependencies,
-            IReadOnlySet<string> blueprintDependencies)
+            IReadOnlySet<string> blueprintDependencies,
+            BlueprintAttributeSchema attributeSchema)
         {
             this.classReference = classReference;
+            this.attributeSchema = attributeSchema;
             this.terminalReference = terminalReference;
             this.rootType = rootType;
             this.metadataOrder = metadataOrder.ToArray();
@@ -878,6 +836,23 @@ public sealed class BlueprintClassResolver : IDisposable
 
         public ResolvedBlueprintClass Materialize(JsonObject? overrides, long resolverRevision)
         {
+            foreach (BlueprintFieldMetadata field in schema.Values)
+                if (field.Type.Schema.ContainsEnum)
+                {
+                    attributeSchema.ValidateType(field.Type.Schema, classReference, "attribute '" + field.Name + "'");
+                    if (blueprintValues.TryGetValue(field.Name, out JsonNode? saved))
+                        attributeSchema.ValidateValue(field.Type.Schema, saved, classReference, "attrs." + field.Name);
+                }
+            if (overrides is not null)
+            {
+                foreach (KeyValuePair<string, JsonNode?> entry in overrides)
+                {
+                    if (!schema.TryGetValue(entry.Key, out BlueprintFieldMetadata? field))
+                        throw BlueprintAttributeSchema.Error(classReference, "undeclared override '" + entry.Key + "'");
+                    attributeSchema.ValidateValue(field.Type.WithDefaultModule(field.DeclaringType.ModuleName).Schema,
+                        entry.Value, classReference, "overrides." + entry.Key);
+                }
+            }
             List<ResolvedBlueprintField> fields = [];
             HashSet<string> added = new(StringComparer.Ordinal);
             foreach (string name in metadataOrder)
@@ -886,8 +861,6 @@ public sealed class BlueprintClassResolver : IDisposable
                 bool hasBlueprintValue = blueprintFieldSet.Contains(name);
                 bool hasDefault = fieldsWithMetadataDefaults.Contains(name);
                 bool hasOverride = overrides?.ContainsKey(name) == true;
-                if (!hasDefault && !hasBlueprintValue && !hasOverride && !fieldMetadata.Component)
-                    continue;
                 JsonNode? blueprintDefaultValue = hasBlueprintValue
                     ? blueprintValues[name]
                     : hasDefault
@@ -902,7 +875,8 @@ public sealed class BlueprintClassResolver : IDisposable
                     fieldMetadata,
                     false,
                     hasBlueprintValue || hasDefault,
-                    fieldSources.GetValueOrDefault(name)));
+                    fieldSources.GetValueOrDefault(name),
+                    hasOverride));
                 added.Add(name);
             }
 
@@ -924,11 +898,12 @@ public sealed class BlueprintClassResolver : IDisposable
                         fieldMetadata,
                         false,
                         true,
-                        fieldSources.GetValueOrDefault(name)));
+                        fieldSources.GetValueOrDefault(name),
+                        overrides?.ContainsKey(name) == true));
                 }
                 else
                 {
-                    fields.Add(createUnknownField(name, value, blueprintDefaultValue, true, fieldSources.GetValueOrDefault(name)));
+                    throw BlueprintAttributeSchema.Error(classReference, "undeclared attribute '" + name + "'");
                 }
                 added.Add(name);
             }
@@ -949,11 +924,12 @@ public sealed class BlueprintClassResolver : IDisposable
                             fieldMetadata,
                             false,
                             false,
-                            fieldSources.GetValueOrDefault(pair.Key)));
+                            fieldSources.GetValueOrDefault(pair.Key),
+                            true));
                     }
                     else
                     {
-                        fields.Add(createUnknownField(pair.Key, pair.Value, null, false, null));
+                        throw BlueprintAttributeSchema.Error(classReference, "undeclared override '" + pair.Key + "'");
                     }
                     added.Add(pair.Key);
                 }

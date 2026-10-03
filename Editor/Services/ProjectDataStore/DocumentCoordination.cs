@@ -84,6 +84,7 @@ public sealed partial class ProjectDataStore
             if (!JsonNode.DeepEquals(world.InternalData, composition))
                 changes[world] = (worldKey, composition);
         }
+        validateBlueprintResourceChanges(changes);
         using EditorDocumentTransaction transaction = Documents.BeginTransaction(changes.Keys);
         foreach (KeyValuePair<EditorDocument, (string Key, JsonObject Data)> change in changes)
         {

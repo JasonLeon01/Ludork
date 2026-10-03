@@ -605,7 +605,8 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
                 portDefinition.ParameterIndex,
                 portDefinition.SupportsEditor,
                 value,
-                portDefinition.Meta);
+                portDefinition.Meta,
+                portDefinition.ResolveEnum);
             node.AddPort(port);
         }
         return node;

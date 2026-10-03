@@ -286,7 +286,8 @@ public static class BlueprintGraphCodec
                 portDefinition.ParameterIndex,
                 portDefinition.SupportsEditor,
                 value,
-                portDefinition.Meta));
+                portDefinition.Meta,
+                portDefinition.ResolveEnum));
         }
     }
 

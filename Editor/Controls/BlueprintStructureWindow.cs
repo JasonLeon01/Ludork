@@ -8,6 +8,7 @@ using Ludork.Services;
 using Ludork.Views.Utils;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text.Json.Nodes;
 
 namespace Ludork.Controls;
@@ -42,6 +43,7 @@ internal sealed class BlueprintStructureWindow : Window
         variableForm = new BlueprintVariableForm
         {
             AssetsDirectory = assetsDirectory,
+            ProjectDirectory = Path.GetDirectoryName(assetsDirectory) ?? string.Empty,
             CellSize = cellSize,
             GameVariables = gameVariables,
             IsReadOnly = readOnly,

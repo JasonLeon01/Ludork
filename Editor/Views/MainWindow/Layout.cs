@@ -206,7 +206,7 @@ public partial class MainWindow
         layoutReady = true;
         if (viewModel is null || viewModel.GameData.InvalidLoadPaths.Count == 0)
             return;
-        string paths = string.Join(Environment.NewLine, viewModel.GameData.InvalidLoadPaths);
+        string paths = string.Join(Environment.NewLine, viewModel.GameData.InvalidLoadDetails);
         await AlertDialog.ShowAsync(
             this,
             LocaleService.Get("INVALID_DATA_FILE"),

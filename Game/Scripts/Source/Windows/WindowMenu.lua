@@ -1,7 +1,7 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
+local WindowTransitionProfile = require("Enums.WindowTransitionProfile")
 local GameSystem = require("Source.System")
-local WindowTransition = require("Internal.UIBase.WindowTransition")
 local CommandRowController = require("Internal.UIBase.CommandRow.Controller")
 local Ui = require("Internal.UIBase.Ui")
 local UiLayout = require("Internal.UIBase.UiLayout")
@@ -105,21 +105,21 @@ end
 function Controller:openInventory()
     AudioManager.playSound(GameSystem.GetDecisionSE())
     self:_closeSubMenus("item")
-    self._windowItem:get():open(WindowTransition.MENU, UiLayout.GetMenuDockPosition(self.host))
+    self._windowItem:get():open(WindowTransitionProfile.MENU, UiLayout.GetMenuDockPosition(self.host))
     self:_syncReturnButtonSuppression()
 end
 
 function Controller:openEquipment()
     AudioManager.playSound(GameSystem.GetDecisionSE())
     self:_closeSubMenus("equip")
-    self._windowEquip:get():open(WindowTransition.MENU, UiLayout.GetMenuDockPosition(self.host))
+    self._windowEquip:get():open(WindowTransitionProfile.MENU, UiLayout.GetMenuDockPosition(self.host))
     self:_syncReturnButtonSuppression()
 end
 
 function Controller:openSaveLoad()
     AudioManager.playSound(GameSystem.GetDecisionSE())
     self:_closeSubMenus("save")
-    self._windowSaveLoad:get():open(WindowTransition.MENU, nil, UiLayout.GetMenuDockPosition(self.host))
+    self._windowSaveLoad:get():open(WindowTransitionProfile.MENU, nil, UiLayout.GetMenuDockPosition(self.host))
     self:_syncReturnButtonSuppression()
 end
 

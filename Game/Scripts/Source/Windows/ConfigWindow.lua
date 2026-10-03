@@ -5,7 +5,7 @@ local View = require("Internal.UI.ConfigWindow")
 local WindowSelectable = require("Internal.UIBase.WindowSelectable")
 local ConfigSliderRowController = require("Source.Windows.ConfigWindow.ConfigSliderRow.Controller")
 local MainConfig = require("Source.Configs.Main")
-local EventKeys = require("Source.Configs.EventKeys")
+local EventKey = require("Enums.EventKey")
 local Locale = require("Source.Locale.Core")
 local ConfigCheckBoxRowController = require("Source.Windows.ConfigWindow.ConfigCheckBoxRow.Controller")
 local ConfigSettingRowController = require("Source.Windows.ConfigWindow.ConfigSettingRow.Controller")
@@ -140,7 +140,7 @@ Controller.windowOptions = {
     scroll = "SettingsScrollBox"
 }
 
-Controller.refreshEvents = { EventKeys.LocaleChanged }
+Controller.refreshEvents = { EventKey.LocaleChanged }
 
 function Controller:init(onClose)
     self._activePageIndex = _GRAPHICS_PAGE_INDEX

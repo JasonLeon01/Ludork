@@ -4,6 +4,7 @@
 #include "RuntimeBindingTraits.hpp"
 #include "RuntimeClassIdentity.hpp"
 #include "Metadata/ConfigVarReferences.hpp"
+#include "Metadata/EnumSchema.hpp"
 #include <ClassServices.hpp>
 #include <LudorkRuntimeBinding/DynamicValueCodec.hpp>
 #include <Runtime/RuntimeValue.hpp>
@@ -639,6 +640,19 @@ lua_glue::Object resolveRuntimeMetadataType(
     const lua_glue::Object& declaringModule) {
     if (typeReference.is<lua_glue::Table>()) {
         const lua_glue::Table reference = typeReference.as<lua_glue::Table>();
+        const lua_glue::Object enumeration =
+            reference.raw_get<lua_glue::Object>("enum");
+        if (enumeration.valid() &&
+            enumeration.get_type() != lua_glue::Type::Nil) {
+            if (!enumeration.is<std::string>()) {
+                throw std::invalid_argument(
+                    "Enum schema requires a module name");
+            }
+            const std::string moduleName = enumeration.as<std::string>();
+            validateEnumModuleName(moduleName);
+            return lua_glue::MakeObject(
+                lua, requireLuaTable(lua, moduleName.c_str()));
+        }
         const lua_glue::Object module = reference.raw_get<lua_glue::Object>(1);
         const lua_glue::Object name = reference.raw_get<lua_glue::Object>(2);
         if (!module.is<std::string>() || !name.is<std::string>()) {

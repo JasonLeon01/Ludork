@@ -973,3 +973,17 @@ excludes the build tool before validating and copying app runtime libraries.
 LuaSF source archives contain two sibling CMake projects, `LuaSF/` and `LuaGlue/`. For local dependency and template checks, set `LUASF_SOURCE_ARCHIVE` to the generated `.tar.gz` (`.zip` on Windows) before `init_cpp_dependencies`. For an existing build, configure `LUDORK_LUASF_SOURCE_DIR` with the generator's `output/LuaSF` directory; LuaGlue is found next to it. Desktop native packages include the shared LuaGlue runtime; mobile builds use its static target.
 
 Desktop Core builds use `Game/Engine/Tools/NativeStubDump` to load each module's exported stub writer after linking and from the aggregate native build. The tool does not create a Lua VM and publishes the compiler-verified copy methods into the existing native `.d.lua` files. Its sources travel with the Engine tree in project templates.
+
+The same build exports each module's compiled enum catalogue and runs
+`ScriptTools enum-modules` to generate one pure constant module per enum beneath
+`Scripts/Enums/<Module>/`, with matching declarations under `Scripts/stub/Enums`.
+LuaSF enums are generated from its API manifest beneath `Enums/sf`. The editor
+reads these files directly whenever an enum selector is displayed or opened;
+it does not load native libraries or gameplay modules to obtain choices.
+
+Native template caches include both enum source and declaration directories.
+Cross-compilation and static-module builds require the generated native enum
+modules from a desktop build and report missing files before generating bindings.
+Game packages retain enum source or compiled Lua modules and exclude their stubs
+with the rest of the stub tree. Regenerate native enums through the build rather
+than editing generated constant files.

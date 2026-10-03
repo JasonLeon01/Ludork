@@ -1,13 +1,11 @@
 local Engine = require("Engine")
----@type { GeneralDataKey: Source.Configs.GeneralEnum.GeneralDataKey }
-local GeneralEnum = require("Source.Configs.GeneralEnum")
+local GeneralDataKey = require("Enums.GeneralDataKey")
 local GeneralDataTypes = require("Source.Configs.GeneralDataTypes")
 local DataLoading = require("Source.Data.Loading")
 local DataTextConfigs = require("Source.Data.TextConfigs")
 local DataBlueprints = require("Source.Data.Blueprints")
 local Validation = require("Source.Data.Validation")
 
-local GeneralDataKey = GeneralEnum.GeneralDataKey
 local requireNamedValue = Validation.RequireNamedValue
 local RuntimeProviders = Engine.RuntimeProviders
 

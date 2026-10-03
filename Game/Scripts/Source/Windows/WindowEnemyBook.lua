@@ -1,11 +1,11 @@
 local GlobalCore = require("GlobalCore")
+local BattleResultCode = require("Enums.BattleResultCode")
+local Special = require("Enums.GeneralData.Special")
 local Render = require("Global.Utils.Render")
 local GameSystem = require("Source.System")
 local WindowSelectable = require("Internal.UIBase.WindowSelectable")
 local Data = require("Source.Data")
 local Locale = require("Source.Locale.Core")
----@type { Special: Source.Configs.GeneralEnum.Special }
-local GeneralEnum = require("Source.Configs.GeneralEnum")
 local Enemy = require("Source.MapActors.Enemy")
 local MotaBattleAbility = require("Source.Gameplay.MotaBattleAbility")
 local IconTexture = require("Internal.UIBase.IconTexture")
@@ -16,7 +16,6 @@ local GameplayConstants = require("Source.Configs.GameplayConstants")
 
 ---@type fun(value: string): string
 local LOC = Locale.ApplyStringLocaleFormat
-local Special = GeneralEnum.Special
 local GameplayEventData = GlobalCore.GameplayEventData
 local AudioManager = GlobalCore.AudioManager
 
@@ -126,7 +125,7 @@ function Controller:buildEntry(enemy, visual)
         DEF = battleData.playerAttack.defenderDEF,
         EXP = enemy.attributes.EXP,
         GOLD = enemy.attributes.GOLD,
-        damage = battleResult.code == MotaBattleAbility.BattleResult.CANNOT_DAMAGE and "???" or battleData.damage,
+        damage = battleResult.code == BattleResultCode.CANNOT_DAMAGE and "???" or battleData.damage,
         critical = MotaBattleAbility.CalculateCriticalValue(enemy, self:getPlayer()),
         hitCount = abilitySystem:hasMatchingGameplayTag(GameplayConstants.SPECIAL_PREFIX .. Special.MultiHit)
             and battleData.enemyAttack.hitCount

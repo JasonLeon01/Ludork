@@ -34,7 +34,7 @@ public sealed class BlueprintVariableFieldBuilder
         {
             if (invalidVars.Contains(field.Name)
                 || field.IsUnknown && !field.HasBlueprintDefaultValue
-                || !field.HasBlueprintDefaultValue && field.Metadata?.Component != true)
+                || !field.HasValue && field.Metadata?.Component != true)
             {
                 continue;
             }
@@ -61,6 +61,11 @@ public sealed class BlueprintVariableFieldBuilder
         if (generalDataFields is not null && !addedGeneralDataPreview)
             result.Add(createGeneralDataAttributesField(generalDataFields, resolved.GetField("ID")?.SourceClass));
         return result;
+    }
+
+    public LuaEnumDefinition ReadEnum(string moduleName)
+    {
+        return metadataService.Enums.Read(moduleName);
     }
 
     public bool IsTypeAssignable(string source, string target)
@@ -232,6 +237,8 @@ public sealed class BlueprintVariableFieldBuilder
                 null,
                 resolving);
         }
+        if (schemaType.Kind != LuaMetadataTypeKind.Named)
+            return [];
         LuaTypeReference type = fieldType.WithDefaultModule(defaultModule);
         if (metadataService.GetType(type) is null || !resolving.Add(type.QualifiedName))
             return [];

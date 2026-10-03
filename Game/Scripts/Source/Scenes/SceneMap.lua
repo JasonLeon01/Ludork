@@ -1,9 +1,11 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
+local StairDirection = require("Enums.StairDirection")
+local PlayerChangeKind = require("Enums.PlayerChangeKind")
 local Logging = require("Global.Utils.Logging")
 local GameSystem = require("Source.System")
-local EventKeys = require("Source.Configs.EventKeys")
+local EventKey = require("Enums.EventKey")
 local RegionDict = require("Source.Configs.RegionDict")
 local GameplayScene = require("Source.Gameplay.GameplayScene")
 local ConditionalActor = require("Source.MapActors.ConditionalActor")
@@ -76,7 +78,7 @@ function Scene:onCreate()
     self._regionTitleUI:prepare()
     self._regionTitleText = self._regionTitleUI:getText()
     self._playerHUD:mount(uiManager)
-    self._localeChangedToken = Engine.subscribe(EventKeys.LocaleChanged, function ()
+    self._localeChangedToken = Engine.subscribe(EventKey.LocaleChanged, function ()
         local scene = sceneRef[1]
         if scene ~= nil then
             scene:refreshLocale()
@@ -285,9 +287,9 @@ function Scene:loadMap(mapPath, initialPosition)
             }))
     end
     self:_updateCurrentRegion(mapFile)
-    Engine.publish(EventKeys.PlayerChanged, {
+    Engine.publish(EventKey.PlayerChanged, {
         owner = self.player,
-        kind = EventKeys.PlayerChangeKind.Map
+        kind = PlayerChangeKind.Map
     })
     Logging.info("Loaded map %s in %.3fs", mapFile, perfCounter() - startTime)
     return mapFile
@@ -571,7 +573,7 @@ function Scene:requestFloorStep(teleporter, step)
     ---@cast targetMapKey string
     local anchorPosition = teleporter:getTeleportPosition()
     local targetMap = self:resolveRegionMapPath(targetMapKey)
-    local targetStairDirection = step == 1 and Teleporter.StairDirection.Down or Teleporter.StairDirection.Up
+    local targetStairDirection = step == 1 and StairDirection.Down or StairDirection.Up
     return self:_startTeleporterTransfer(teleporter, targetMap, anchorPosition, true, true, targetStairDirection)
 end
 
@@ -591,7 +593,7 @@ end
 ---@param targetPosition        sf.Vector2i
 ---@param findNearest           boolean
 ---@param record                boolean
----@param targetStairDirection? Source.MapActors.Teleporter.StairDirection
+---@param targetStairDirection? Enums.StairDirection
 ---@return boolean
 function Scene:_startTeleporterTransfer(
     teleporter, targetMap, targetPosition, findNearest, record, targetStairDirection

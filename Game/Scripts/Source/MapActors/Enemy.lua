@@ -1,11 +1,12 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
+local BattleResultCode = require("Enums.BattleResultCode")
+local Special = require("Enums.GeneralData.Special")
+local State = require("Enums.GeneralData.State")
 local ConditionalActor = require("Source.MapActors.ConditionalActor")
 local Data = require("Source.Data")
 local ChildActorComponent = require("Source.Components.ChildActorComponent")
----@type { Special: Source.Configs.GeneralEnum.Special, State: Source.Configs.GeneralEnum.State }
-local GeneralEnum = require("Source.Configs.GeneralEnum")
 local Battler = require("Source.Battler")
 local DefeatSpawns = require("Source.Utils.Enemy.DefeatSpawns")
 local Effects = require("Source.Gameplay.Effects")
@@ -20,8 +21,6 @@ local GameplayEffectSpec = GlobalCore.GameplayEffectSpec
 local GameplayEventData = GlobalCore.GameplayEventData
 local ComponentsFunctions = GlobalFunctions.Components
 local Actor = Engine.Actor
-local Special = GeneralEnum.Special
-local State = GeneralEnum.State
 
 local componentTypes = {}
 for name, componentType in pairs(ComponentsFunctions.getComponentTypes(Actor)) do
@@ -196,7 +195,7 @@ function Enemy:onCollision(other)
     local battleEvent = createCombatEvent(player, self, "Event.Combat.MotaBattle", { commit = false })
     battleEvent.target = player
     local result = assert(self:getAbilitySystemComponent():tryActivateAbility(MotaBattleAbility.id, battleEvent))
-    local won = result.code == MotaBattleAbility.BattleResult.WIN
+    local won = result.code == BattleResultCode.WIN
     local prepared = won and self:_preparePostBattle(player, scene) or nil
     MotaBattleAbility.CommitResult(result)
     local playerAnimation = player:playAttackAnimationAt(scene, self:getPosition())

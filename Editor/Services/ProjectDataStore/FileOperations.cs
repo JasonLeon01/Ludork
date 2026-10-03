@@ -13,7 +13,7 @@ public sealed partial class ProjectDataStore
     {
         IEnumerable<string> paths = Documents.ModifiedDocuments.Select(document => document.Path);
         if (generalDataGenerationPending)
-            paths = paths.Append(generalEnums.RuntimePath);
+            paths = paths.Concat(generalEnums.GetOutputPaths(sections["General"]));
         return paths.Distinct(StringComparer.Ordinal).OrderBy(path => path, StringComparer.Ordinal).ToArray();
     }
 
@@ -197,8 +197,7 @@ public sealed partial class ProjectDataStore
             Dictionary<string, JsonObject> savedGeneral = originData["General"]
                 .Where(pair => pair.Key != document.SavedState.Key)
                 .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
-            foreach (KeyValuePair<string, byte[]> output in generalEnums.PrepareOutputs(savedGeneral))
-                batch.Write(output.Key, output.Value);
+            generalEnums.AddToSaveBatch(batch, savedGeneral);
         }
         SaveResult result = batch.Execute();
         if (!result.Success)

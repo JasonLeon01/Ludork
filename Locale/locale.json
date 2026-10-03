@@ -671,6 +671,46 @@
     "zh_CN": "透明度倍率",
     "en_GB": "Alpha Multiplier"
   },
+  "GENERAL_DATA_TYPE_TIP_ENUM": {
+    "zh_CN": "枚举选项读取对应的 Enums 常量模块，保存所选项的实际值。",
+    "en_GB": "Enum choices come from their Enums constant module and store the selected scalar value."
+  },
+  "GENERAL_DATA_DEFAULT_TIP_ENUM": {
+    "zh_CN": "使用符合该类型的 JSON 值；字符串需要引号，null 表示未设置。",
+    "en_GB": "Enter a JSON value matching the schema; quote strings, or use null to leave it unset."
+  },
+  "ADD_ATTRIBUTE": {
+    "zh_CN": "添加属性",
+    "en_GB": "Add Attribute"
+  },
+  "ATTRIBUTE_INITIAL_VALUE": {
+    "zh_CN": "初始值",
+    "en_GB": "Initial Value"
+  },
+  "ATTRIBUTE_DECLARED_TYPE": {
+    "zh_CN": "该属性已有类型声明，将沿用声明的类型。",
+    "en_GB": "This attribute uses its existing type declaration."
+  },
+  "ATTRIBUTE_INVALID_FILE_BASE": {
+    "zh_CN": "请选择 Assets 内的资源根目录，不能包含上级目录跳转。",
+    "en_GB": "Use a resource directory within Assets without parent-directory traversal."
+  },
+  "ENUM_SELECT_KIND": {
+    "zh_CN": "选择枚举模块",
+    "en_GB": "Select enum module"
+  },
+  "ENUM_NO_MODULES": {
+    "zh_CN": "Scripts/Enums 中没有可用的枚举模块。",
+    "en_GB": "No enum modules are available under Scripts/Enums."
+  },
+  "ENUM_SELECT_VALUE": {
+    "zh_CN": "选择枚举值",
+    "en_GB": "Select enum value"
+  },
+  "ENUM_UNKNOWN_VALUE": {
+    "zh_CN": "当前值 {value} 已不在枚举中；原值已保留。",
+    "en_GB": "Current value {value} is not declared in this enum; the saved value is preserved."
+  },
   "UNION_SELECT_TYPE": {
     "zh_CN": "选择类型",
     "en_GB": "Select type"

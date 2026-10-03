@@ -22,6 +22,7 @@ public sealed partial class BlueprintDataService
         EditorDocumentCollection data = blueprintDocuments;
         if (!store.canCreateDocument("Blueprints", normalizedKey))
             return false;
+        validateAttributeChange(normalizedKey, blueprint);
         blueprintDocuments.RecordChange(key);
         data[normalizedKey] = (JsonObject)blueprint.DeepClone();
         store.refreshModifiedState();
@@ -43,6 +44,7 @@ public sealed partial class BlueprintDataService
         value.Remove("type");
         if (JsonNode.DeepEquals(current, value))
             return false;
+        validateAttributeChange(normalizedKey, value);
         blueprintDocuments.RecordChange(key);
         data[normalizedKey] = value;
         store.refreshModifiedState();

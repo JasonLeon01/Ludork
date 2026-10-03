@@ -17,15 +17,7 @@ local function resolveValue(actorType, key, value, descriptor)
             return Class.isInstance(resolved, "string") and resolved or tostring(resolved)
         end
     end
-    local targetType
-    local declaringModule
-    if descriptor == nil then
-        targetType = Engine.resolveAttrValueType(actorType, key)
-    else
-        targetType = descriptor.type
-        declaringModule = descriptor.module
-    end
-    return deepcopy(Engine.resolveTypedDataValue(value, targetType, nil, declaringModule))
+    return deepcopy(Engine.resolveTypedDataValue(value, descriptor.type, nil, descriptor.module))
 end
 
 local function isBlueprintOnly(descriptor)
@@ -87,6 +79,15 @@ function BlueprintActorOverrides.ApplyGeneration(actor)
 end
 
 function BlueprintActorOverrides.ApplyChanges(actor, changes)
+    assert(Class.isInstance(changes, "table"), "Blueprint instance overrides must be a table")
+    local actorType = Class.type(actor)
+    local descriptors = {}
+    for key in pairs(changes) do
+        assert(Class.isInstance(key, "string"), "Blueprint instance overrides must use string keys")
+        local descriptor = Engine.resolveAttrMetadata(actorType, key)
+        assert(descriptor ~= nil, "Undeclared Blueprint instance override '" .. key .. "'")
+        descriptors[key] = descriptor
+    end
     ---@type Source.Data.GeneratedActor
     local generatedActor = actor
     local storedChanges = generatedActor.classVarChanges
@@ -95,11 +96,10 @@ function BlueprintActorOverrides.ApplyChanges(actor, changes)
     else
         storedChanges = deepcopy(storedChanges)
     end
-    local actorType = Class.type(actor)
     local componentTypes = ComponentsFunctions.getComponentTypes(actorType)
     for key, value in pairs(changes) do
         if Class.isInstance(key, "string") then
-            local descriptor = Engine.resolveAttrMetadata(actorType, key)
+            local descriptor = descriptors[key]
             if not isBlueprintOnly(descriptor) then
                 storedChanges[key] = deepcopy(value)
                 local componentType = componentTypes[key]

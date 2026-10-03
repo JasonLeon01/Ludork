@@ -37,6 +37,16 @@ Game/Data/Locale/*
 !Game/Scripts/stub/Mixins/**
 !Game/Scripts/stub/Source/
 !Game/Scripts/stub/Source/**
+!Game/Scripts/stub/Enums/
+!Game/Scripts/stub/Enums/**
+Game/Scripts/Enums/Engine/
+Game/Scripts/Enums/GlobalCore/
+Game/Scripts/Enums/GlobalFunctions/
+Game/Scripts/Enums/sf/
+Game/Scripts/stub/Enums/Engine/
+Game/Scripts/stub/Enums/GlobalCore/
+Game/Scripts/stub/Enums/GlobalFunctions/
+Game/Scripts/stub/Enums/sf/
 !/Game/Data/Locale/locale.xlsx
 *.proj
 **/dist/

@@ -172,7 +172,8 @@ internal sealed class LuaMetadataFileCache
         LuaTypeMetadata metadata = LuaMetadataParser.ReadScriptMixin(
             metadataPath,
             ScriptMixinPaths.GetModuleName(normalized),
-            ScriptMixinPaths.GetTypeName(normalized));
+            ScriptMixinPaths.GetTypeName(normalized),
+            new LuaEnumService(ProjectPath).Read);
         scriptMixinCache[metadataPath] = new CachedScriptMixinMetadata(metadataPath, stamp, metadata);
         return metadata;
     }
@@ -353,7 +354,7 @@ internal sealed class LuaMetadataFileCache
         {
             try
             {
-                types = LuaMetadataParser.ReadFile(path, moduleName);
+                types = LuaMetadataParser.ReadFile(path, moduleName, new LuaEnumService(ProjectPath).Read);
             }
             catch (Exception exception) when (exception is InterpreterException or InvalidDataException or IOException or UnauthorizedAccessException)
             {

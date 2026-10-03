@@ -8,6 +8,7 @@ namespace ludork::runtime {
 struct TypeSchema {
     enum class Kind {
         Named,
+        Enum,
         List,
         Dictionary,
         Tuple,

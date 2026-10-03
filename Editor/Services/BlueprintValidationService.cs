@@ -54,7 +54,16 @@ public sealed class BlueprintValidationService
         }
         validateParent(key, data, parent.Trim(), errors);
         validateBlueprintModeChain(key, data, errors);
-        ResolvedBlueprintClass resolved = validateScriptMixin(key, data, errors);
+        ResolvedBlueprintClass resolved;
+        try
+        {
+            resolved = validateScriptMixin(key, data, errors);
+        }
+        catch (InvalidDataException exception)
+        {
+            errors.Add(exception.Message);
+            return new BlueprintValidationResult(key, false, errors);
+        }
         validatePathAttributes(data, resolved, errors);
 
         bool hasGraph = data.TryGetPropertyValue("graph", out JsonNode? graphNode);
@@ -193,7 +202,7 @@ public sealed class BlueprintValidationService
     public IReadOnlyList<BlueprintValidationResult> ValidateGeneralDataGraphs()
     {
         List<BlueprintValidationResult> results = [];
-        IReadOnlyList<string> schemaErrors = GeneralDataSchemaValidation.Validate(SnapshotJson.ToDictionary(gameData.General.GeneralData));
+        IReadOnlyList<string> schemaErrors = GeneralDataSchemaValidation.Validate(SnapshotJson.ToDictionary(gameData.General.GeneralData), metadataService.Enums.Read);
         if (schemaErrors.Count != 0)
             results.Add(new BlueprintValidationResult("GeneralData", false, schemaErrors));
 
@@ -435,7 +444,8 @@ public sealed class BlueprintValidationService
     {
         using IDisposable metadataBatch = classResolver.BeginBatch();
         BlueprintGraphContext context = new(data, key);
-        ResolvedBlueprintClass resolved = classResolver.ResolveBlueprint(data, key);
+        ResolvedBlueprintClass resolved = graphParentType is null
+            ? classResolver.ResolveBlueprint(data, key) : classResolver.Resolve(graphParentType);
         BlueprintNodeDefinitionCatalog catalog = new(metadataService, classResolver);
         BlueprintNodeDefinitionSet definitionSet = catalog.GetNodeDefinitionSet(context, resolved);
         graphParentType ??= resolved.RootType?.QualifiedName;
@@ -499,7 +509,7 @@ public sealed class BlueprintValidationService
                     }
                     LuaMetadataLiteralValidation.ValidateNodeParameter(
                         LuaMetadataType.Parse(port.TypeName), values[parameterIndex],
-                        $"graph.nodeGraph[\"{pair.Key}\"].nodes[{nodeIndex}].params[{parameterIndex}]", errors);
+                        $"graph.nodeGraph[\"{pair.Key}\"].nodes[{nodeIndex}].params[{parameterIndex}]", errors, metadataService.Enums.Read);
                 }
             }
 
@@ -627,7 +637,7 @@ public sealed class BlueprintValidationService
             errors.Add($"{path} cannot connect {sourceType} to {target.TypeName}");
     }
 
-    private static void validatePathAttributes(
+    private void validatePathAttributes(
         JsonObject data,
         ResolvedBlueprintClass resolved,
         ICollection<string> errors)
@@ -638,7 +648,7 @@ public sealed class BlueprintValidationService
         {
             if (!attributes.TryGetPropertyValue(field.Name, out JsonNode? value))
                 continue;
-            LuaMetadataLiteralValidation.ValidateUnions(field.Type.Schema, value, $"attrs.{field.Name}", errors);
+            LuaMetadataLiteralValidation.ValidateUnions(field.Type.Schema, value, $"attrs.{field.Name}", errors, metadataService.Enums.Read);
             string? pathRoot = getMetaReference(field.Metadata?.Meta["PathRoot"], field.Name)
                 ?? getMetaReference(resolved.Meta["PathRoot"], field.Name);
             string? directory = getMetaReference(field.Metadata?.Meta["PathVars"], field.Name)

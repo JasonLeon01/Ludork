@@ -14,7 +14,10 @@ public sealed partial class ProjectDataStore
     {
         BreakHistoryGesture();
         CompleteDocumentChanges();
-        IReadOnlyList<string> errors = GeneralDataSchemaValidation.Validate(sections["General"]);
+        IReadOnlyList<string> blueprintErrors = ValidateBlueprintSchemas();
+        if (blueprintErrors.Count != 0)
+            return new SaveResult(false, string.Join(Environment.NewLine, blueprintErrors));
+        IReadOnlyList<string> errors = GeneralDataSchemaValidation.Validate(sections["General"], new LuaEnumService(ProjectPath).Read);
         if (errors.Count != 0)
             return new SaveResult(false, string.Join(Environment.NewLine, errors));
         IReadOnlyList<string> pathErrors = validateGameAssetPaths();
@@ -60,10 +63,9 @@ public sealed partial class ProjectDataStore
         {
             try
             {
-                foreach (KeyValuePair<string, byte[]> output in generalEnums.PrepareOutputs(sections["General"]))
-                    batch.Write(output.Key, output.Value);
+                generalEnums.AddToSaveBatch(batch, sections["General"]);
             }
-            catch (Exception exception) when (exception is InvalidDataException or ArgumentException)
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
             {
                 return new SaveResult(false, exception.Message);
             }

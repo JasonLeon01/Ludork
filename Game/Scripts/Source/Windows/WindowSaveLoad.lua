@@ -1,5 +1,6 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
+local WindowTransitionProfile = require("Enums.WindowTransitionProfile")
 local GameSystem = require("Source.System")
 local Save = require("Source.Save")
 local Logging = require("Global.Utils.Logging")
@@ -29,7 +30,7 @@ function Controller:init(loadOnly, getSaveSource, onClose, onLoaded)
     self._onCloseCallback = onClose
     self._onLoadedCallback = onLoaded
     self._mode = "load"
-    self._transitionProfile = WindowTransition.DEFAULT
+    self._transitionProfile = WindowTransitionProfile.DEFAULT
     self._tabWindow = nil
     if not self._loadOnly then
         self._tabWindow = self:createChild("TabsAsset", WindowSaveTabs, self.host)
@@ -88,7 +89,7 @@ function Controller:open(transitionProfile, initialMode, dockPosition)
     self._opening = true
     self._selectionTouched = false
     self._latestSlot = nil
-    self._transitionProfile = transitionProfile or WindowTransition.DEFAULT
+    self._transitionProfile = transitionProfile or WindowTransitionProfile.DEFAULT
     ---@type "load" | "save"
     local mode = "load"
     if not self._loadOnly and initialMode == "save" then
@@ -108,7 +109,7 @@ function Controller:open(transitionProfile, initialMode, dockPosition)
     self._lastSlotIndex = nil
     if not self._loadOnly then
         local size = self.ui.root:getSize()
-        if self._transitionProfile == WindowTransition.MENU then
+        if self._transitionProfile == WindowTransitionProfile.MENU then
             self.host:setPosition(assert(dockPosition, "Menu windows require a dock position"))
         else
             self.host:setPosition(UiLayout.GetCenteredPosition(size.x, size.y))

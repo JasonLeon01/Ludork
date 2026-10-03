@@ -1,11 +1,10 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
-local GeneralEnum = require("Source.Configs.GeneralEnum")
+local Special = require("Enums.GeneralData.Special")
 local GameplayConstants = require("Source.Configs.GameplayConstants")
 
 local GameplayAbility = GlobalCore.GameplayAbility
 local GameplayAbilityResult = GlobalCore.GameplayAbilityResult
-local Special = GeneralEnum.Special
 
 local function replaceNumericAttributes(expression, prefix, abilitySystem)
     for _, attribute in ipairs(table.orderedStringKeys(abilitySystem:getNumericAttributeBases())) do

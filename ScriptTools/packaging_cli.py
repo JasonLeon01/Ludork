@@ -53,6 +53,7 @@ def main(arguments: list[str] | None = None) -> int:
         "plain-template-names": constants.PLAIN_TEMPLATE_NAMES,
         "ffmpeg-template-names": constants.FFMPEG_TEMPLATE_NAMES,
         "native-lua-files": constants.NATIVE_LUA_FILES,
+        "native-enum-directories": constants.NATIVE_ENUM_DIRECTORIES,
     }
     parser = argparse.ArgumentParser(prog="ScriptTools packaging-constants")
     operations = parser.add_subparsers(dest="operation", required=True)

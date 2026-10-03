@@ -1,7 +1,7 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local ConditionalActor = require("Source.MapActors.ConditionalActor")
-local MovementLatentOutputs = require("Source.Configs.MovementLatentOutputs")
+local MovementLatentOutput = require("Enums.MovementLatentOutput")
 
 local SoundFilter = Engine.SoundFilter
 local AudioManager = GlobalCore.AudioManager
@@ -20,15 +20,15 @@ local function newDoorAnimationCondition(isComplete)
     return setmetatable(condition, {
         __call = function (self)
             if self._finished then
-                return { MovementLatentOutputs.FINISHED }
+                return { MovementLatentOutput.FINISHED }
             end
             if not self._startedEmitted then
                 self._startedEmitted = true
-                return { MovementLatentOutputs.STARTED }
+                return { MovementLatentOutput.STARTED }
             end
             if self._isComplete() then
                 self._finished = true
-                return { MovementLatentOutputs.FINISHED }
+                return { MovementLatentOutput.FINISHED }
             end
             return {}
         end

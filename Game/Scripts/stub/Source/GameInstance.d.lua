@@ -1,6 +1,6 @@
 ---@meta Source.GameInstance
 
----@alias Source.GameInstance.RecordValue nil | boolean | number | string | table
+---@alias Source.GameInstance.RecordValue nil | boolean | number | string | lightuserdata | table
 
 ---@class Source.GameInstance.AddedActorRecord
 ---@field bp              string

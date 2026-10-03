@@ -14,12 +14,12 @@ local function loadContext()
     return Context
 end
 
-local MovementLatentOutputs
-local function loadMovementLatentOutputs()
-    if MovementLatentOutputs == nil then
-        MovementLatentOutputs = require("Source.Configs.MovementLatentOutputs")
+local MovementLatentOutput
+local function loadMovementLatentOutput()
+    if MovementLatentOutput == nil then
+        MovementLatentOutput = require("Enums.MovementLatentOutput")
     end
-    return MovementLatentOutputs
+    return MovementLatentOutput
 end
 
 local Movement = {}
@@ -88,11 +88,11 @@ end
 function MovementCondition:poll()
     if not self._startedEmitted then
         self._startedEmitted = true
-        return { loadMovementLatentOutputs().STARTED }
+        return { loadMovementLatentOutput().STARTED }
     end
     if isMovementFinished(self._actor) then
         self._finished = true
-        return { loadMovementLatentOutputs().FINISHED }
+        return { loadMovementLatentOutput().FINISHED }
     end
     return {}
 end

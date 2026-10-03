@@ -4,6 +4,8 @@ import argparse
 import re
 from pathlib import Path
 
+from ScriptTools.enum_modules import check_native_modules, enum_module_paths
+
 from .constants import CPP_GENERATED_FILE_MARKER
 from .context import GeneratorContext
 from .scopes import register_headers, binding_identifier, validate_bound_types
@@ -113,6 +115,7 @@ def main(arguments: list[str] | None = None) -> int:
         help="Preserve a prebuilt native-verified stub during cross-compilation",
     )
     parser.add_argument("--scripts-directory", type=Path, required=True)
+    parser.add_argument("--require-enum-modules", type=Path)
     parser.add_argument("--metadata-stamp", type=Path, required=True)
     parser.add_argument("--callback-codecs", type=Path, required=True)
     parser.add_argument("--type-registry", action="append", default=[])
@@ -233,6 +236,11 @@ def main(arguments: list[str] | None = None) -> int:
     type_modules = dict(external_type_modules)
     type_modules.update({info.cpp_name: arguments.module for info in [*types, *enums]})
     context.type_modules = type_modules
+    context.enum_modules = enum_module_paths(arguments.callback_codecs.with_name("sfml_api.json"))
+    context.enum_modules.update({
+        info.cpp_name: f"Enums.{type_modules[info.cpp_name]}.{exposed_type_name(info)}"
+        for info in all_enums
+    })
     metadata_path = (
         arguments.scripts_directory.resolve() / f"{arguments.module}_meta.lua"
     )
@@ -257,6 +265,14 @@ def main(arguments: list[str] | None = None) -> int:
         all_types,
         [directory for _, directory in registry_entries],
     )
+    if arguments.require_enum_modules is not None:
+        enum_names = [exposed_type_name(info) for info in enums]
+        enum_names.extend(
+            member.options.get("name", member.name)
+            for member in functions
+            if member.kind == "MODULE_PROPERTY" and member.options.get("enum") == "true"
+        )
+        check_native_modules(arguments.require_enum_modules, arguments.module, enum_names)
     bindings_directory = arguments.bindings_directory.resolve()
     traits_header = binding_output_path(
         bindings_directory,

@@ -1,4 +1,5 @@
 local Engine = require("Engine")
+local WindowTransitionProfile = require("Enums.WindowTransitionProfile")
 local Ui = require("Internal.UIBase.Ui")
 local UiLayout = require("Internal.UIBase.UiLayout")
 local WindowTransition = require("Internal.UIBase.WindowTransition")
@@ -16,7 +17,7 @@ Controller.windowOptions = { hidden = true }
 
 function Controller:init(player)
     self._onCloseCallback = nil
-    self._transitionProfile = WindowTransition.DEFAULT
+    self._transitionProfile = WindowTransitionProfile.DEFAULT
     self._slotWindow = self:createChild("SlotAsset", WindowEquipSlot, player)
     self._selectWindow = self:createChild("SelectAsset", WindowEquipSelect, player, self._slotWindow)
     self._statusWindow = self:createChild("StatusPaneAsset", WindowEquipStatus, player)
@@ -40,9 +41,9 @@ function Controller:setOnCloseCallback(callback)
 end
 
 function Controller:open(transitionProfile, dockPosition)
-    self._transitionProfile = transitionProfile or WindowTransition.DEFAULT
+    self._transitionProfile = transitionProfile or WindowTransitionProfile.DEFAULT
     local size = self.ui.root:getSize()
-    if self._transitionProfile == WindowTransition.MENU then
+    if self._transitionProfile == WindowTransitionProfile.MENU then
         self.host:setPosition(assert(dockPosition, "Menu windows require a dock position"))
     else
         self.host:setPosition(UiLayout.GetCenteredPosition(size.x, size.y))

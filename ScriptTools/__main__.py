@@ -10,6 +10,7 @@ from ScriptTools import configure_project_template
 from ScriptTools import editor_macos_metadata
 from ScriptTools import editor_official_plugins
 from ScriptTools import engine_constants
+from ScriptTools import enum_modules
 from ScriptTools import finalize_package
 from ScriptTools import harmony_pack
 from ScriptTools import ide_config
@@ -45,6 +46,7 @@ COMMANDS: dict[str, Command] = {
     "editor-macos-metadata": editor_macos_metadata.main,
     "editor-official-plugins": editor_official_plugins.main,
     "engine-constants": engine_constants.main,
+    "enum-modules": enum_modules.main,
     "finalize-package": finalize_package.main,
     "harmony-pack": harmony_pack.main,
     "ide-config": ide_config.main,

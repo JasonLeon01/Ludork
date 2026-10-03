@@ -1,5 +1,5 @@
 local GlobalCore = require("GlobalCore")
-local EventKeys = require("Source.Configs.EventKeys")
+local EventKey = require("Enums.EventKey")
 local Locale = require("Source.Locale.Core")
 local Ui = require("Internal.UIBase.Ui")
 local View = require("Internal.UI.RegionTitle")
@@ -12,7 +12,7 @@ local LOC = Locale.ApplyStringLocaleFormat
 ---@class Source.Scenes.SceneMap.RegionTitle.Controller: Internal.UIBase.UiController
 local RegionTitleController = {}
 
-RegionTitleController.refreshEvents = { EventKeys.LocaleChanged }
+RegionTitleController.refreshEvents = { EventKey.LocaleChanged }
 
 function RegionTitleController:init(logicalSize)
     self._logicalSize = logicalSize

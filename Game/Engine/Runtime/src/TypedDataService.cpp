@@ -6,6 +6,7 @@
 #include <Runtime/RuntimeReflection.hpp>
 
 #include "TypedDataSchema.hpp"
+#include "Metadata/EnumSchema.hpp"
 
 #include <algorithm>
 #include <charconv>
@@ -76,8 +77,18 @@ RuntimeValue snapshotContainer(const RuntimeValue& value) {
                : ludork::runtime::reference::snapshot(value);
 }
 
+TypeSchema enumValueType(const TypeSchema& type) {
+    const RuntimeValue source =
+        metadataRuntime().resolveType(schemaValue(type), {});
+    const RuntimeValue values = ludork::runtime::reference::snapshot(source);
+    return ludork::runtime::detail::enumValueType(values.view(), type.name);
+}
+
 bool matchesRuntime(const RuntimeValue& value, const TypeSchema& type,
                     const std::string& declaringModule) {
+    if (type.kind == TypeSchema::Kind::Enum) {
+        return matchesRuntime(value, enumValueType(type), declaringModule);
+    }
     if (type.kind == TypeSchema::Kind::Optional) {
         return value.isNil() ||
                matchesRuntime(value, type.arguments.front(), declaringModule);
@@ -219,6 +230,10 @@ RuntimeValue resolveStored(const TypedDataService& service,
                            const std::string& declaringModule,
                            const std::string& path, bool strict,
                            bool evaluateAnyExpressions) {
+    if (type.kind == TypeSchema::Kind::Enum) {
+        return resolveStored(service, value, enumValueType(type), environment,
+                             declaringModule, path, strict, false);
+    }
     if (value.isNil()) {
         if (strict && type.kind == TypeSchema::Kind::Union) {
             throw std::invalid_argument(

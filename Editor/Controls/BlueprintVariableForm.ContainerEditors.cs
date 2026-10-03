@@ -37,7 +37,7 @@ public sealed partial class BlueprintVariableForm
             : -1;
         void showBranch(LuaMetadataType branch, JsonNode? branchValue)
         {
-            if (!LuaMetadataValueDefaults.TryCreateLiteral(branch, out JsonNode? _))
+            if (!branch.ContainsEnum && !LuaMetadataValueDefaults.TryCreateLiteral(branch, out JsonNode? _, readEnum))
             {
                 TextBox unavailable = EditorInputs.CreateReadOnlyTextBox();
                 unavailable.Text = branch.Name is "function" or "event"
@@ -69,7 +69,7 @@ public sealed partial class BlueprintVariableForm
                 return;
             selectedIndex = selector.SelectedIndex;
             LuaMetadataType branch = type.Arguments[selectedIndex];
-            bool hasLiteral = LuaMetadataValueDefaults.TryCreateLiteral(branch, out JsonNode? next);
+            bool hasLiteral = LuaMetadataValueDefaults.TryCreateLiteral(branch, out JsonNode? next, readEnum);
             showBranch(branch, next);
             changed(hasLiteral ? LuaMetadataValueDefaults.WrapUnion(branch, next) : null, false);
         };
@@ -447,6 +447,7 @@ public sealed partial class BlueprintVariableForm
         BlueprintVariableForm nested = new()
         {
             AssetsDirectory = AssetsDirectory,
+            ProjectDirectory = ProjectDirectory,
             CellSize = CellSize,
             GameVariables = GameVariables,
             IsReadOnly = isReadOnly || field.IsReadOnly,
@@ -612,7 +613,7 @@ public sealed partial class BlueprintVariableForm
         return (value)?.DeepClone();
     }
 
-    private static JsonNode? createDefaultNode(
+    private JsonNode? createDefaultNode(
         LuaMetadataType type,
         IReadOnlyList<BlueprintVariableField> structureFields)
     {
@@ -620,6 +621,7 @@ public sealed partial class BlueprintVariableForm
             return buildStructureValue(structureFields);
         return LuaMetadataValueDefaults.Create(
             type,
-            _ => JsonValue.Create(string.Empty));
+            _ => JsonValue.Create(string.Empty),
+            readEnum);
     }
 }

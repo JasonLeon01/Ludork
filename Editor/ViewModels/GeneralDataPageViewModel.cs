@@ -191,7 +191,7 @@ internal sealed class GeneralDataPageViewModel : ViewModelBase
 
     public bool AddParameter(GeneralDataParamCreation value)
     {
-        return reloadAfter(generalData.AddGeneralParameter(TypeKey, value.Name, GeneralDataParameterSchema.BuildParamDefinition(value)));
+        return reloadAfter(generalData.AddGeneralParameter(TypeKey, value.Name, GeneralDataParameterSchema.BuildParamDefinition(value, generalData.ReadEnum)));
     }
 
     public GeneralDataParamCreation? GetParameter(string name)
@@ -205,7 +205,7 @@ internal sealed class GeneralDataPageViewModel : ViewModelBase
     {
         if (parameters[name] is not JsonObject definition)
             return false;
-        JsonObject next = GeneralDataParameterSchema.UpdateParamDefinition(definition, initialValue, value);
+        JsonObject next = GeneralDataParameterSchema.UpdateParamDefinition(definition, initialValue, value, generalData.ReadEnum);
         bool reset = GeneralDataParameterSchema.HasValueTypeChanged(initialValue, value);
         if (value.Name == name && JsonNode.DeepEquals(definition, next))
             return false;

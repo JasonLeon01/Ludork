@@ -289,7 +289,12 @@ public sealed partial class GeneralDataService
             data.Add(entry.Key == oldName ? newName : entry.Key, entry.Key == oldName ? value : entry.Value);
     }
 
-    internal static JsonNode? createGeneralMemberDefaultValue(JsonObject definition)
+    internal LuaEnumDefinition ReadEnum(string moduleName)
+    {
+        return new LuaEnumService(store.ProjectPath).Read(moduleName);
+    }
+
+    private JsonNode? createGeneralMemberDefaultValue(JsonObject definition)
     {
         JsonNode? typeNode = definition["type"];
         string type = typeNode is JsonValue scalar && scalar.TryGetValue(out string? text)
@@ -297,10 +302,10 @@ public sealed partial class GeneralDataService
             : typeNode is null ? "string" : LuaMetadataType.Parse(typeNode).ToString();
         JsonNode? defaultValue = definition["defaultValue"];
         LuaMetadataType schema = LuaMetadataType.Parse(type);
-        if (schema.Kind == LuaMetadataTypeKind.Union || type.StartsWith("Tuple[", StringComparison.Ordinal)
+        if (schema.ContainsEnum || schema.Kind == LuaMetadataTypeKind.Union || type.StartsWith("Tuple[", StringComparison.Ordinal)
             || typeNode is JsonObject)
         {
-            return defaultValue?.DeepClone() ?? LuaMetadataValueDefaults.Create(schema, _ => null);
+            return defaultValue?.DeepClone() ?? LuaMetadataValueDefaults.Create(schema, _ => null, ReadEnum);
         }
         return type switch
         {
@@ -311,7 +316,7 @@ public sealed partial class GeneralDataService
             "dict" => defaultValue is JsonObject dictionary ? dictionary.DeepClone() : new JsonObject(),
             "file" => JsonValue.Create(string.Empty),
             _ when type.StartsWith("sf.", StringComparison.Ordinal) => defaultValue?.DeepClone()
-                ?? LuaMetadataValueDefaults.Create(schema, _ => JsonValue.Create(string.Empty))
+                ?? LuaMetadataValueDefaults.Create(schema, _ => JsonValue.Create(string.Empty), ReadEnum)
                 ?? JsonValue.Create(string.Empty),
             _ => JsonValue.Create(defaultValue?.GetValue<string>() ?? string.Empty),
         };

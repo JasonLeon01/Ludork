@@ -15,7 +15,7 @@ public:
 
     ~Character() override = default;
 
-    BIND_PROPERTY(meta(DropBox = {0, 1, 2, 3}))
+    BIND_PROPERTY(metadata_type = {enum = "Enums.Engine.Direction"})
     int direction = 0;
 
     BIND_PROPERTY()

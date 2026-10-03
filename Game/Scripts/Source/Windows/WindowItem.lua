@@ -1,5 +1,6 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
+local WindowTransitionProfile = require("Enums.WindowTransitionProfile")
 local GameSystem = require("Source.System")
 local Data = require("Source.Data")
 local LocaleCore = require("Source.Locale.Core")
@@ -37,7 +38,7 @@ function Controller:init(player, onClose)
     self._player = player
     self._itemList = {}
     self._lastDescIndex = nil
-    self._transitionProfile = WindowTransition.DEFAULT
+    self._transitionProfile = WindowTransitionProfile.DEFAULT
     self._rows = self:createCollection(self.ui.controls["ItemList"], ItemRowController)
 end
 
@@ -55,9 +56,9 @@ function Controller:onTick(deltaTime)
 end
 
 function Controller:open(transitionProfile, dockPosition)
-    self._transitionProfile = transitionProfile or WindowTransition.DEFAULT
+    self._transitionProfile = transitionProfile or WindowTransitionProfile.DEFAULT
     local size = self.ui.root:getSize()
-    if self._transitionProfile == WindowTransition.MENU then
+    if self._transitionProfile == WindowTransitionProfile.MENU then
         self.host:setPosition(assert(dockPosition, "Menu windows require a dock position"))
     else
         self.host:setPosition(UiLayout.GetCenteredPosition(size.x, size.y))

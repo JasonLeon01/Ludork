@@ -50,6 +50,7 @@ fi
 SCRIPT_TOOLS="$PROJECT_ROOT/.tools/ScriptTools/ScriptTools"
 EDITOR_CACHE_DIRECTORY=$("$SCRIPT_TOOLS" packaging-constants list editor-cache-directory --separator space)
 GENERATED_SCRIPTS=$("$SCRIPT_TOOLS" packaging-constants list native-lua-files --separator space)
+GENERATED_ENUM_DIRECTORIES=$("$SCRIPT_TOOLS" packaging-constants list native-enum-directories --separator space)
 RUNTIME_LEGAL_FILES=$("$SCRIPT_TOOLS" packaging-constants list runtime-legal-files --separator space)
 TEMPLATE_NAMES=$("$SCRIPT_TOOLS" packaging-constants list template-names --separator space)
 set -- $TEMPLATE_NAMES
@@ -113,6 +114,12 @@ validate_native_cache() (
             exit 1
         fi
     done
+    for enum_directory in $GENERATED_ENUM_DIRECTORIES; do
+        if [ ! -d "$cache_entry/Scripts/$enum_directory" ]; then
+            echo "Incomplete native cache: $cache_entry/Scripts/$enum_directory" >&2
+            exit 1
+        fi
+    done
     runtime_library=$(find "$cache_entry/bin/$CONFIG" -maxdepth 1 \
         \( -type f -o -type l \) \
         \( -name '*.so' -o -name '*.so.*' -o -name '*.dylib' \) -print -quit)
@@ -130,6 +137,10 @@ copy_native_outputs() (
     rsync -a "$native_source/bin/$CONFIG/" "$native_target/bin/$CONFIG/"
     for generated_script in $GENERATED_SCRIPTS; do
         cp -p "$native_source/Scripts/$generated_script" "$native_target/Scripts/$generated_script"
+    done
+    for enum_directory in $GENERATED_ENUM_DIRECTORIES; do
+        mkdir -p "$native_target/Scripts/$enum_directory"
+        rsync -a --delete "$native_source/Scripts/$enum_directory/" "$native_target/Scripts/$enum_directory/"
     done
     "$SCRIPT_TOOLS" ui-preview copy --runtime-directory "bin/$CONFIG" "$native_source" "$native_target"
 )

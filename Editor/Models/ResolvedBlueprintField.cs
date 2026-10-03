@@ -12,7 +12,8 @@ public sealed class ResolvedBlueprintField
         BlueprintFieldMetadata? metadata,
         bool isUnknown,
         bool hasBlueprintDefaultValue = true,
-        string? sourceClass = null
+        string? sourceClass = null,
+        bool hasOverride = false
     )
     {
         Name = name;
@@ -22,6 +23,7 @@ public sealed class ResolvedBlueprintField
         Metadata = metadata;
         IsUnknown = isUnknown;
         HasBlueprintDefaultValue = hasBlueprintDefaultValue;
+        HasValue = hasBlueprintDefaultValue || hasOverride;
         SourceClass = sourceClass;
     }
 
@@ -32,5 +34,6 @@ public sealed class ResolvedBlueprintField
     public BlueprintFieldMetadata? Metadata { get; }
     public bool IsUnknown { get; }
     public bool HasBlueprintDefaultValue { get; }
+    public bool HasValue { get; }
     public string? SourceClass { get; }
 }

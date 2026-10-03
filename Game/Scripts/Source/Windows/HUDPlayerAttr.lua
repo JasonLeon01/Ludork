@@ -1,8 +1,8 @@
 local Engine = require("Engine")
+local Item = require("Enums.GeneralData.Item")
+local State = require("Enums.GeneralData.State")
 local Data = require("Source.Data")
-local EventKeys = require("Source.Configs.EventKeys")
----@type { Item: Source.Configs.GeneralEnum.Item, State: Source.Configs.GeneralEnum.State }
-local GeneralEnum = require("Source.Configs.GeneralEnum")
+local EventKey = require("Enums.EventKey")
 local GeneralDataTypes = require("Source.Configs.GeneralDataTypes")
 local Effects = require("Source.Gameplay.Effects")
 local LocaleCore = require("Source.Locale.Core")
@@ -16,8 +16,6 @@ local GameplayConstants = require("Source.Configs.GameplayConstants")
 ---@type fun(value: string): string
 local LOC = LocaleCore.ApplyStringLocaleFormat
 local Canvas = Engine.Canvas
-local Item = GeneralEnum.Item
-local State = GeneralEnum.State
 local ToShortNumber = NumberFormat.ToShortNumber
 local createStateSignature = tuple
 local createSignature = tuple
@@ -52,7 +50,7 @@ end
 ---@class Source.Windows.PlayerAttrHUD.Controller
 local Controller = {}
 
-Controller.refreshEvents = { EventKeys.LocaleChanged, EventKeys.AbilitySystemChanged, EventKeys.PlayerChanged }
+Controller.refreshEvents = { EventKey.LocaleChanged, EventKey.AbilitySystemChanged, EventKey.PlayerChanged }
 
 function Controller:init(player, openMenuCallback)
     self._player = player
@@ -79,7 +77,7 @@ function Controller:setPlayer(player)
     self:refresh()
 end
 
----@param payload Source.Configs.EventKeys.ChangePayload | { language: string } | nil
+---@param payload Source.Configs.EventChangePayload | { language: string } | nil
 function Controller:refreshFromEvent(payload)
     if payload ~= nil and payload.owner ~= nil and payload.owner ~= self:getPlayer() then
         return

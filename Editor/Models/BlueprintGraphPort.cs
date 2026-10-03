@@ -24,8 +24,10 @@ public sealed class BlueprintGraphPort : INotifyPropertyChanged
         int? parameterIndex,
         bool supportsEditor,
         JsonNode? value,
-        JsonObject? meta = null)
+        JsonObject? meta = null,
+        Func<string, LuaEnumDefinition>? resolveEnum = null)
     {
+        ResolveEnum = resolveEnum;
         Id = id;
         NodeId = nodeId;
         Name = name;
@@ -42,6 +44,7 @@ public sealed class BlueprintGraphPort : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
+    public Func<string, LuaEnumDefinition>? ResolveEnum { get; }
     public Guid Id { get; }
     public Guid NodeId { get; }
     public string Name { get; }
@@ -83,7 +86,7 @@ public sealed class BlueprintGraphPort : INotifyPropertyChanged
         if (Direction != BlueprintGraphPortDirection.Input || Kind != BlueprintGraphPortKind.Params)
             return;
         List<string> errors = [];
-        LuaMetadataLiteralValidation.ValidateNodeParameter(LuaMetadataType.Parse(TypeName), value, Name, errors);
+        LuaMetadataLiteralValidation.ValidateNodeParameter(LuaMetadataType.Parse(TypeName), value, Name, errors, ResolveEnum);
         if (errors.Count != 0)
             valueDiagnostic = string.Join(Environment.NewLine, errors);
     }

@@ -1,10 +1,8 @@
+local WindowTransitionProfile = require("Enums.WindowTransitionProfile")
 local WindowTransition = {}
 
-WindowTransition.DEFAULT = "Default"
-WindowTransition.MENU = "Menu"
-
 function WindowTransition.GetAnimationNames(profile)
-    if profile == WindowTransition.MENU then
+    if profile == WindowTransitionProfile.MENU then
         return "FadeIn_Menu", "FadeOut_Menu"
     end
     return "FadeIn", "FadeOut"

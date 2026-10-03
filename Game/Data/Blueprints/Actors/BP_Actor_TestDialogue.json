@@ -56,7 +56,7 @@
           {
             "nodeFunction": "GlobalFunctions.Weather.SetWeather",
             "params": [
-              "STORM",
+              2,
               30,
               50
             ],

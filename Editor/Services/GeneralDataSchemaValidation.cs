@@ -9,15 +9,17 @@ namespace Ludork.Services;
 
 internal static class GeneralDataSchemaValidation
 {
-    public static IReadOnlyList<string> Validate(IReadOnlyDictionary<string, JsonObject> generalData)
+    public static IReadOnlyList<string> Validate(IReadOnlyDictionary<string, JsonObject> generalData,
+        Func<string, LuaEnumDefinition>? resolveEnum = null)
     {
         List<string> errors = [];
         foreach (KeyValuePair<string, JsonObject> entry in generalData.OrderBy(pair => pair.Key, StringComparer.Ordinal))
-            validateType(entry.Key, entry.Value, errors);
+            validateType(entry.Key, entry.Value, errors, resolveEnum);
         return errors;
     }
 
-    private static void validateType(string typeName, JsonObject typeData, ICollection<string> errors)
+    private static void validateType(string typeName, JsonObject typeData, ICollection<string> errors,
+        Func<string, LuaEnumDefinition>? resolveEnum)
     {
         string path = "General/" + typeName;
         if (typeData.ContainsKey("linkedType"))
@@ -31,7 +33,7 @@ internal static class GeneralDataSchemaValidation
             return;
         }
         if (parameters is not null)
-            validateAssetParameterDefinitions(path, parameters, errors);
+            validateAssetParameterDefinitions(path, parameters, errors, resolveEnum);
 
         HashSet<string> eventNames = new(StringComparer.Ordinal);
         if (typeData.TryGetPropertyValue("events", out JsonNode? rawEvents))
@@ -64,7 +66,7 @@ internal static class GeneralDataSchemaValidation
                 continue;
             }
             if (parameters is not null)
-                validateAssetPaths(path + "/" + memberEntry.Key, parameters, member, errors);
+                validateAssetPaths(path + "/" + memberEntry.Key, parameters, member, errors, resolveEnum);
             validateMemberGraph(path + "/" + memberEntry.Key, member["_graph"], eventNames, errors);
         }
     }
@@ -72,7 +74,8 @@ internal static class GeneralDataSchemaValidation
     private static void validateAssetParameterDefinitions(
         string path,
         JsonObject parameters,
-        ICollection<string> errors)
+        ICollection<string> errors,
+        Func<string, LuaEnumDefinition>? resolveEnum)
     {
         foreach (KeyValuePair<string, JsonNode?> entry in parameters)
         {
@@ -80,7 +83,7 @@ internal static class GeneralDataSchemaValidation
                 continue;
             LuaMetadataType? schema = readParameterSchema(definition, path + ".params." + entry.Key, errors);
             if (schema is not null)
-                LuaMetadataLiteralValidation.ValidateUnions(schema, definition["defaultValue"], path + ".params." + entry.Key + ".defaultValue", errors);
+                LuaMetadataLiteralValidation.ValidateUnions(schema, definition["defaultValue"], path + ".params." + entry.Key + ".defaultValue", errors, resolveEnum);
             if (getString(definition["type"]) != "file")
                 continue;
             if (getString(definition["defaultValue"]) is not "")
@@ -95,7 +98,8 @@ internal static class GeneralDataSchemaValidation
         string path,
         JsonObject parameters,
         JsonObject member,
-        ICollection<string> errors)
+        ICollection<string> errors,
+        Func<string, LuaEnumDefinition>? resolveEnum)
     {
         foreach (KeyValuePair<string, JsonNode?> entry in parameters)
         {
@@ -104,7 +108,7 @@ internal static class GeneralDataSchemaValidation
             string? type = getString(definition["type"]);
             LuaMetadataType? schema = readParameterSchema(definition, path + "." + entry.Key, errors);
             if (schema is not null)
-                LuaMetadataLiteralValidation.ValidateUnions(schema, member[entry.Key], path + "." + entry.Key, errors);
+                LuaMetadataLiteralValidation.ValidateUnions(schema, member[entry.Key], path + "." + entry.Key, errors, resolveEnum);
             if (type == "file")
             {
                 validateAssetPath(path + "." + entry.Key, member[entry.Key], errors);

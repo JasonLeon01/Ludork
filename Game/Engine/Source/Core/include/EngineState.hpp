@@ -26,7 +26,7 @@ extern LUDORK_ENGINE_API const sf::Vector3i ZeroVector3i;
 BIND_MODULE_PROPERTY()
 extern LUDORK_ENGINE_API const sf::Vector3u ZeroVector3u;
 
-BIND_MODULE_PROPERTY()
+BIND_MODULE_PROPERTY(enum = true)
 extern LUDORK_ENGINE_API const std::unordered_map<std::string, int> Direction;
 
 class LUDORK_ENGINE_API EngineState {
@@ -63,5 +63,8 @@ LUDORK_ENGINE_API float getScale();
 BIND_FUNCTION(name = "IsGameRunning", Pure = true)
 LUDORK_ENGINE_API bool isGameRunning();
 
-BIND_FUNCTION(name = "OppositeDirection")
+BIND_FUNCTION(
+    name = "OppositeDirection",
+    metadata_parameters = {direction = {enum = "Enums.Engine.Direction"}},
+    metadata_returns = {return = {enum = "Enums.Engine.Direction"}})
 LUDORK_ENGINE_API int oppositeDirection(int direction);

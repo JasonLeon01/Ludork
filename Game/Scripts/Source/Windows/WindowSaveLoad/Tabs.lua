@@ -1,5 +1,5 @@
 local Engine = require("Engine")
-local EventKeys = require("Source.Configs.EventKeys")
+local EventKey = require("Enums.EventKey")
 local GameSystem = require("Source.System")
 local LocaleCore = require("Source.Locale.Core")
 local Ui = require("Internal.UIBase.Ui")
@@ -11,7 +11,7 @@ local Controller = {}
 
 Controller.windowOptions = { focusable = false, hidden = true }
 
-Controller.refreshEvents = { EventKeys.LocaleChanged }
+Controller.refreshEvents = { EventKey.LocaleChanged }
 
 function Controller:init(owner)
     self._owner = owner

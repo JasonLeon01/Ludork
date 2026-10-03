@@ -157,6 +157,11 @@ function(ludork_generate_lua_bindings module_name include_directory output_varia
     set(binding_traits
         "${generated_bindings_directory}/${module_name}.traits.auto.hpp")
     set(published_scripts_directory "${LUDORK_BINDING_SCRIPTS_DIRECTORY}")
+    set(enum_module_options)
+    if(CMAKE_CROSSCOMPILING OR LUDORK_STATIC_LUA_MODULES)
+        list(APPEND enum_module_options
+            --require-enum-modules "${published_scripts_directory}")
+    endif()
     set(binding_layout_property
         "LUDORK_CORE_BINDING_LAYOUT_${module_name}")
     get_property(binding_layout_is_set GLOBAL
@@ -249,6 +254,7 @@ function(ludork_generate_lua_bindings module_name include_directory output_varia
             --stub "${stub}"
             ${stub_options}
             --scripts-directory "${generated_scripts_directory}"
+            ${enum_module_options}
             --metadata-stamp "${metadata_stamp}"
             --callback-codecs "${LUASF_CALLBACK_CODECS_FILE}"
             ${type_registry_arguments}

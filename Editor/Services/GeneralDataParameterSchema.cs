@@ -56,21 +56,21 @@ internal static class GeneralDataParameterSchema
         return type.StartsWith("sf.", StringComparison.Ordinal);
     }
 
-    private static JsonNode CreateTypedDefault(string type)
+    private static JsonNode? CreateTypedDefault(string type, Func<string, LuaEnumDefinition>? resolveEnum)
     {
         return LuaMetadataValueDefaults.Create(
             LuaMetadataType.Parse(type),
-            _ => JsonValue.Create(string.Empty)) ?? JsonValue.Create(string.Empty)!;
+            _ => JsonValue.Create(string.Empty), resolveEnum);
     }
 
-    public static JsonObject BuildParamDefinition(GeneralDataParamCreation value)
+    public static JsonObject BuildParamDefinition(GeneralDataParamCreation value, Func<string, LuaEnumDefinition>? resolveEnum = null)
     {
         JsonObject definition = new()
         {
             ["type"] = CanonicalTypeNode(value.Type),
             ["defaultValue"] = value.Type == "file"
                 ? JsonValue.Create(string.Empty)
-                : ParseDefaultValue(value.Type, value.DefaultText),
+                : ParseDefaultValue(value.Type, value.DefaultText, resolveEnum),
         };
         if (value.Type == "file" && value.DefaultText.Trim().Length != 0)
             definition["base"] = value.DefaultText.Trim();
@@ -86,7 +86,8 @@ internal static class GeneralDataParameterSchema
     public static JsonObject UpdateParamDefinition(
         JsonObject currentDefinition,
         GeneralDataParamCreation initialValue,
-        GeneralDataParamCreation value)
+        GeneralDataParamCreation value,
+        Func<string, LuaEnumDefinition>? resolveEnum = null)
     {
         JsonObject definition = (JsonObject)currentDefinition.DeepClone();
         bool typeChanged = HasValueTypeChanged(initialValue, value);
@@ -98,7 +99,7 @@ internal static class GeneralDataParameterSchema
             {
                 definition["defaultValue"] = value.Type == "file"
                     ? JsonValue.Create(string.Empty)
-                    : ParseDefaultValue(value.Type, value.DefaultText);
+                    : ParseDefaultValue(value.Type, value.DefaultText, resolveEnum);
             }
             if (value.Type == "file" && value.DefaultText.Trim().Length != 0)
                 definition["base"] = value.DefaultText.Trim();
@@ -168,25 +169,26 @@ internal static class GeneralDataParameterSchema
             "int" => (value?.GetValue<long?>() ?? 0).ToString(CultureInfo.InvariantCulture),
             "float" => (value?.GetValue<double?>() ?? 0.0).ToString(CultureInfo.InvariantCulture),
             "bool" => value?.GetValue<bool?>() == true ? "true" : "false",
-            "list" or "dict" => string.Empty,
-            _ when IsSfType(type) => string.Empty,
+            "list" or "dict" => value?.ToJsonString() ?? (type == "list" ? "[]" : "{}"),
+            _ when IsSfType(type) => value?.ToJsonString() ?? "null",
             _ when LuaMetadataType.Parse(type).Kind != LuaMetadataTypeKind.Named => value?.ToJsonString() ?? "null",
             _ => value?.GetValue<string>() ?? string.Empty,
         };
     }
 
-    private static JsonNode ParseDefaultValue(string type, string text)
+    private static JsonNode? ParseDefaultValue(string type, string text, Func<string, LuaEnumDefinition>? resolveEnum)
     {
         return type switch
         {
             "int" => long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out long i) ? i : 0,
             "float" => double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out double d) ? d : 0.0,
             "bool" => text.Equals("true", StringComparison.OrdinalIgnoreCase) ? true : false,
-            "list" => new JsonArray(),
-            "dict" => new JsonObject(),
-            _ when LuaMetadataType.Parse(type).Kind != LuaMetadataTypeKind.Named => JsonNode.Parse(text)!,
+            "list" => string.IsNullOrWhiteSpace(text) ? new JsonArray() : JsonNode.Parse(text),
+            "dict" => string.IsNullOrWhiteSpace(text) ? new JsonObject() : JsonNode.Parse(text),
+            _ when LuaMetadataType.Parse(type).Kind != LuaMetadataTypeKind.Named => string.IsNullOrWhiteSpace(text)
+                ? CreateTypedDefault(type, resolveEnum) : JsonNode.Parse(text),
             "file" => JsonValue.Create(string.Empty)!,
-            _ when IsSfType(type) => CreateTypedDefault(type),
+            _ when IsSfType(type) => string.IsNullOrWhiteSpace(text) ? CreateTypedDefault(type, resolveEnum) : JsonNode.Parse(text),
             _ => JsonValue.Create(text) ?? JsonValue.Create(string.Empty)!,
         };
     }

@@ -3,19 +3,12 @@
 ---@brief Actor used to move between neighbouring floors or to a chosen map position.
 ---@class Source.MapActors.Teleporter.Teleporter: Source.MapActors.ConditionalActor
 ---@field Offset                sf.Vector2i
----@field stairDirection        Source.MapActors.Teleporter.StairDirection
+---@field stairDirection        Enums.StairDirection
 ---@field stairSE               string
 ---@field transitionName        string
 ---@field transitionTime        number
 ---@field _floorTransferPending boolean
 local Teleporter = {}
-
----@enum Source.MapActors.Teleporter.StairDirection
-Teleporter.StairDirection = {
-    None = "None",
-    Up = "Up",
-    Down = "Down"
-}
 
 ---@brief Initialise a teleporter actor.
 ---@param texture sf.Texture | nil
@@ -58,7 +51,7 @@ function Teleporter.IsAsideOrOverlapping(actors, position) end
 --- Omitting stairDirection searches all teleporters. Equal distances retain actor order.
 ---@param actors          Engine.Actor[]
 ---@param position        sf.Vector2i
----@param stairDirection? Source.MapActors.Teleporter.StairDirection
+---@param stairDirection? Enums.StairDirection
 ---@return Source.MapActors.Teleporter.Teleporter | nil
 function Teleporter.FindNearestTeleporter(actors, position, stairDirection) end
 

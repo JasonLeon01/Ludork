@@ -39,3 +39,8 @@ NATIVE_LUA_FILES = (
     "stub/Engine.d.lua", "stub/GlobalCore.d.lua", "stub/GlobalFunctions.d.lua",
     "stub/LuaSF.d.lua", "Engine_meta.lua", "GlobalCore_meta.lua", "GlobalFunctions_meta.lua",
 )
+NATIVE_ENUM_DIRECTORIES = tuple(
+    prefix + module
+    for prefix in ("Enums/", "stub/Enums/")
+    for module in ("Engine", "GlobalCore", "GlobalFunctions", "sf")
+)

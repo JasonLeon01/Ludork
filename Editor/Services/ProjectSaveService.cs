@@ -103,6 +103,12 @@ public sealed class ProjectSaveService
                 new SaveResult(false, LocaleService.Get("BLUEPRINT_TEXT_SAVE_BLOCKED") + Environment.NewLine + string.Join(Environment.NewLine, inputErrors)));
         }
         GameVariableSaveResult gameVariableResult = GameVariableSaveResult.Completed(string.Empty);
+        IReadOnlyList<string> blueprintSchemaErrors = gameData.ValidateBlueprintSchemas();
+        if (blueprintSchemaErrors.Count != 0)
+        {
+            return new ProjectSaveAttempt(false, false, [],
+                new SaveResult(false, string.Join(Environment.NewLine, blueprintSchemaErrors)));
+        }
         bool structuralOnly = beforeNativeBuild || !uiControlRegistry.IsReady && !projectConfig.IsStandalone;
         IReadOnlyList<UiAssetValidationResult> uiValidationResults = uiAssetValidation.ValidateAll(structuralOnly);
         bool hasUiValidationErrors = uiValidationResults.Any(result => !result.IsValid);

@@ -768,7 +768,7 @@ internal sealed partial class GeneralDataPage : UserControl
     private async Task onAddParamAsync(string memberId)
     {
         GeneralDataParamCreation? result = await AddParamDialog.ShowAsync(
-            owner, viewModel.ParameterNames);
+            owner, viewModel.ParameterNames, gameData.ProjectPath);
         if (result is null)
             return;
         if (!viewModel.AddParameter(result))
@@ -784,7 +784,7 @@ internal sealed partial class GeneralDataPage : UserControl
         GeneralDataParamCreation? result = await AddParamDialog.ShowEditAsync(
             owner,
             viewModel.ParameterNames.Where(name => name != paramName),
-            initialValue);
+            initialValue, gameData.ProjectPath);
         if (result is null)
             return;
 
@@ -819,7 +819,8 @@ internal sealed partial class GeneralDataPage : UserControl
     private Control buildFieldEditor(string paramName, JsonObject paramDef, JsonNode? rawValue, JsonObject member)
     {
         string type = GeneralDataParameterSchema.ReadTypeName(paramDef["type"]);
-        if (LuaMetadataType.Parse(type).Kind == LuaMetadataTypeKind.Union
+        if (LuaMetadataType.Parse(type).ContainsEnum
+            || LuaMetadataType.Parse(type).Kind == LuaMetadataTypeKind.Union
             || type.StartsWith("Tuple[", StringComparison.Ordinal)
             || paramDef["type"] is JsonObject)
         {

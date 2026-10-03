@@ -1,7 +1,8 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
+local AbilitySystemChangeKind = require("Enums.AbilitySystemChangeKind")
 local Data = require("Source.Data")
-local EventKeys = require("Source.Configs.EventKeys")
+local EventKey = require("Enums.EventKey")
 
 local AbilitySystemComponent = GlobalCore.AbilitySystemComponent
 local AttributeSet = GlobalCore.AttributeSet
@@ -24,9 +25,9 @@ local function onNumericAttributeChanged(oldValue, newValue, _change, battler, n
     if oldValue == newValue then
         return
     end
-    Engine.publish(EventKeys.AbilitySystemChanged, {
+    Engine.publish(EventKey.AbilitySystemChanged, {
         owner = battler,
-        kind = EventKeys.AbilitySystemChangeKind.Attribute,
+        kind = AbilitySystemChangeKind.Attribute,
         name = name
     })
 end

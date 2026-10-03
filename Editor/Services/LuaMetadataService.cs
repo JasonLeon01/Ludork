@@ -14,10 +14,13 @@ public sealed class LuaMetadataService
 
     public LuaMetadataService(string projectPath, bool strictReads = false, CancellationToken cancellationToken = default)
     {
+        Enums = new LuaEnumService(projectPath);
         files = new LuaMetadataFileCache(projectPath, strictReads, cancellationToken);
         hierarchy = new LuaMetadataHierarchy(files);
         catalog = new LuaMetadataCatalog(files, hierarchy);
     }
+
+    public LuaEnumService Enums { get; }
 
     public string ProjectPath => files.ProjectPath;
     internal long CacheRevision => files.CacheRevision;
@@ -64,10 +67,10 @@ public sealed class LuaMetadataService
     {
         LuaMetadataType sourceType = LuaMetadataType.Parse(source);
         LuaMetadataType targetType = LuaMetadataType.Parse(target);
-        if (sourceType.IsAssignableTo(targetType))
+        if (sourceType.IsAssignableTo(targetType, resolveEnum: Enums.Read))
             return true;
         using IDisposable read = BeginRead();
-        return sourceType.IsAssignableTo(targetType, hierarchy.IsDerivedType);
+        return sourceType.IsAssignableTo(targetType, hierarchy.IsDerivedType, Enums.Read);
     }
 
     public LuaTypeMetadata? GetType(string qualifiedTypeName)

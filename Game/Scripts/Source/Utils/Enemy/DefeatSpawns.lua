@@ -1,11 +1,8 @@
+local Special = require("Enums.GeneralData.Special")
 local Logging = require("Global.Utils.Logging")
 local Data = require("Source.Data")
----@type { Special: Source.Configs.GeneralEnum.Special }
-local GeneralEnum = require("Source.Configs.GeneralEnum")
 local Item = require("Source.MapActors.Item")
 local SpecialAbilities = require("Source.Gameplay.SpecialAbilities")
-
-local Special = GeneralEnum.Special
 
 local DefeatSpawns = {}
 
@@ -84,7 +81,10 @@ local function prepareDrop(context, blueprintPath, offset)
     )
     local resolvedPath = Data.ResolveClassPath(blueprintPath)
     local itemClass = assert(Data.GetClass(resolvedPath), "Enemy drop Blueprint class not found: " .. resolvedPath)
-    assert(Class.isSubclass(itemClass, Item), "Enemy drop Blueprint must derive from Source.MapActors.Item: " .. resolvedPath)
+    assert(
+        Class.isSubclass(itemClass, Item),
+        "Enemy drop Blueprint must derive from Source.MapActors.Item: " .. resolvedPath
+    )
     local position = context.position + offset
     local mapTag = createDropMapTag(resolvedPath, position)
     if context.gameMap:getActorByTag(mapTag) ~= nil or context.reservedTags[mapTag] then

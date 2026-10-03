@@ -7,7 +7,7 @@ local _METADATA = {
                 "weatherType",
                 "power",
                 "maxCount",
-                weatherType = "string",
+                weatherType = { enum = "Enums.GlobalCore.WeatherType" },
                 power = "int",
                 maxCount = "int"
             },
@@ -19,16 +19,6 @@ local _METADATA = {
             ExecSplit = {
                 "default",
                 default = "nil"
-            },
-            Meta = {
-                DropBox = {
-                    weatherType = {
-                        "LOC(\"WEATHER_TYPE_NONE\")",
-                        "LOC(\"WEATHER_TYPE_RAIN\")",
-                        "LOC(\"WEATHER_TYPE_STORM\")",
-                        "LOC(\"WEATHER_TYPE_SNOW\")"
-                    }
-                }
             }
         },
         ClearWeather = {

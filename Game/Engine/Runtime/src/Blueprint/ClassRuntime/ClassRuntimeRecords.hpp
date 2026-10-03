@@ -7,6 +7,7 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 class Graph;
@@ -43,6 +44,7 @@ struct ClassRuntimeState {
 
     std::unordered_map<std::string, std::shared_ptr<ClassRecord>> records;
     std::unordered_map<std::string, std::string> classNames;
+    std::unordered_set<std::string> resolving;
     RuntimeHandle configReferenceCache;
 };
 

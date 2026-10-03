@@ -1,0 +1,1 @@
+return { WIN = 1, CANNOT_DAMAGE = 2, LETHAL_COUNTER_DAMAGE = 3 }

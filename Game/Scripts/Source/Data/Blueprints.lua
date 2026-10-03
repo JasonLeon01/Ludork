@@ -11,6 +11,12 @@ local ResourceFileConstants = Engine.ResourceFileConstants
 local RuntimeProviders = Engine.RuntimeProviders
 local TextureManager = GlobalCore.TextureManager
 
+local function prepareBlueprintData(data, loading)
+    assert(Class.isInstance(data, "table"), "Blueprint data must be a table")
+    data.graph = loading:normaliseJsonNull(data.graph)
+    return data
+end
+
 local nilGraphParentClass = {}
 local nodeCompilerContext = {
     moduleCandidates = function (prefix)
@@ -227,8 +233,8 @@ function DataBlueprints:resolveBlueprintData(classPath)
         self:_loadBlueprintClassPaths()
     end
     if Class.isInstance(self._state.blueprintClassData[classPath], "string") then
-        local loadedData = self._loading:normaliseJsonNull(
-            cjson.decode(tostring(self._state.blueprintClassData[classPath]))
+        local loadedData = prepareBlueprintData(
+            cjson.decode(tostring(self._state.blueprintClassData[classPath])), self._loading
         )
         ---@cast loadedData table<string, Source.Data.JsonValue>
         self._state.blueprintClassData[classPath] = loadedData
@@ -244,7 +250,7 @@ function DataBlueprints:resolveBlueprintData(classPath)
     if not Engine.jsonExists(path) then
         return nil
     end
-    local loadedData = self._loading:normaliseJsonNull(Engine.getJSONData(path))
+    local loadedData = prepareBlueprintData(Engine.getJSONData(path), self._loading)
     ---@cast loadedData table<string, Source.Data.JsonValue>
     self._state.blueprintClassData[classPath] = loadedData
     return loadedData

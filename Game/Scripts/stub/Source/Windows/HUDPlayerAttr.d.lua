@@ -41,7 +41,7 @@ function Controller:setPlayer(player) end
 --- Ignore Ability System and player events from other battlers, then refresh the HUD.
 ---
 --- - @param payload EventBus payload. Locale events have no owner; player and ability events include `owner`.
----@param payload Source.Configs.EventKeys.ChangePayload | { language: string } | nil
+---@param payload Source.Configs.EventChangePayload | { language: string } | nil
 function Controller:refreshFromEvent(payload) end
 
 ---@return Source.MapActors.Player.Player

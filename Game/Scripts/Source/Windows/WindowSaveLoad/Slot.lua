@@ -1,5 +1,5 @@
 local Engine = require("Engine")
-local EventKeys = require("Source.Configs.EventKeys")
+local EventKey = require("Enums.EventKey")
 local LocaleCore = require("Source.Locale.Core")
 local Ui = require("Internal.UIBase.Ui")
 local View = require("Internal.UI.Parts.WindowSaveLoad.WindowSaveSlot")
@@ -16,7 +16,7 @@ local Controller = {}
 Controller.windowOptions = { returnButton = true, hidden = true, list = "SlotList", scroll = "SlotScrollBox" }
 
 Controller.MAX_SAVE_SLOTS = 100
-Controller.refreshEvents = { EventKeys.LocaleChanged }
+Controller.refreshEvents = { EventKey.LocaleChanged }
 
 function Controller:init(owner)
     self._owner = owner

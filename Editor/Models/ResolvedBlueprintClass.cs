@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json.Nodes;
 
 namespace Ludork.Models;
@@ -54,6 +55,9 @@ public sealed class ResolvedBlueprintClass
     public string? TerminalReference { get; }
     public LuaTypeReference? RootType { get; }
     public IReadOnlyList<ResolvedBlueprintField> Fields { get; }
+    public IReadOnlyDictionary<string, BlueprintFieldMetadata> DeclaredFields => fieldsByName.Values
+        .Where(field => field.Metadata is not null)
+        .ToDictionary(field => field.Name, field => field.Metadata!, StringComparer.Ordinal);
     public JsonObject Meta { get; }
     public IReadOnlyList<string> InvalidVars { get; }
     public JsonObject RectRangeVars { get; }

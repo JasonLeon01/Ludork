@@ -223,7 +223,22 @@ public sealed class BlueprintEditorDocument : IDisposable
 
     public bool RemoveAttribute(string name)
     {
-        return CommitAttributes(new Dictionary<string, JsonNode?>(), [name]);
+        if (!CanEditAttributes || blueprintKey is null
+            || !mutate(() => gameData.Blueprints.RemoveBlueprintAttribute(blueprintKey, name)))
+            return false;
+        Reload();
+        Changed?.Invoke(this, EventArgs.Empty);
+        return true;
+    }
+
+    public bool AddAttribute(string name, JsonObject? definition, JsonNode? value)
+    {
+        if (!CanEditAttributes || blueprintKey is null
+            || !mutate(() => gameData.Blueprints.AddBlueprintAttribute(blueprintKey, name, definition, value)))
+            return false;
+        Reload();
+        Changed?.Invoke(this, EventArgs.Empty);
+        return true;
     }
 
     public bool AddEvent(string name)

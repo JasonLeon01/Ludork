@@ -2,7 +2,7 @@
 
 local Weather = {}
 
----@param weatherType GlobalCore.WeatherType | string
+---@param weatherType GlobalCore.WeatherType
 ---@param power       integer
 ---@param maxCount    integer
 function Weather.SetWeather(weatherType, power, maxCount) end

@@ -9,6 +9,7 @@ namespace Ludork.Models;
 public enum LuaMetadataTypeKind
 {
     Named,
+    Enum,
     List,
     Dictionary,
     Tuple,
@@ -62,6 +63,12 @@ public sealed class LuaMetadataType
         }
         if (schema is not JsonObject map || map.Count != 1)
             throw new InvalidDataException("Metadata type must be a name, module reference or structured schema.");
+        if (map.TryGetPropertyValue("enum", out JsonNode? enumModule))
+        {
+            if (enumModule is not JsonValue moduleValue || !moduleValue.TryGetValue(out string? enumModuleName))
+                throw new InvalidDataException("Metadata enum requires an Enums module name.");
+            return createEnum(enumModuleName ?? string.Empty);
+        }
         if (map.TryGetPropertyValue("list", out JsonNode? list))
             return createList(Parse(list));
         if (map.TryGetPropertyValue("dict", out JsonNode? dictionary))
@@ -91,6 +98,7 @@ public sealed class LuaMetadataType
     {
         return Kind switch
         {
+            LuaMetadataTypeKind.Enum => new JsonObject { ["enum"] = Name },
             LuaMetadataTypeKind.List => new JsonObject { ["list"] = Arguments[0].ToSchema() },
             LuaMetadataTypeKind.Dictionary => new JsonObject { ["dict"] = Arguments[1].ToSchema() },
             LuaMetadataTypeKind.Tuple => new JsonObject { ["tuple"] = new JsonArray(Arguments.Select(argument => argument.ToSchema()).ToArray()) },
@@ -101,19 +109,29 @@ public sealed class LuaMetadataType
 
     public bool ContainsUnion => Kind == LuaMetadataTypeKind.Union || Arguments.Any(argument => argument.ContainsUnion);
 
-    public bool IsAssignableTo(LuaMetadataType target, Func<string, string, bool>? isDerived = null)
+    public bool ContainsEnum => Kind == LuaMetadataTypeKind.Enum || Arguments.Any(argument => argument.ContainsEnum);
+
+    public bool IsAssignableTo(LuaMetadataType target, Func<string, string, bool>? isDerived = null,
+        Func<string, LuaEnumDefinition>? resolveEnum = null)
     {
         if (IsAny || target.IsAny)
             return true;
+        if (Kind == LuaMetadataTypeKind.Enum || target.Kind == LuaMetadataTypeKind.Enum)
+        {
+            LuaMetadataType? sourceValue = Kind == LuaMetadataTypeKind.Enum ? resolveEnum?.Invoke(Name).ValueType : this;
+            LuaMetadataType? targetValue = target.Kind == LuaMetadataTypeKind.Enum ? resolveEnum?.Invoke(target.Name).ValueType : target;
+            return sourceValue is not null && targetValue is not null
+                && sourceValue.IsAssignableTo(targetValue, isDerived, resolveEnum);
+        }
         if (Kind == LuaMetadataTypeKind.Union)
-            return Arguments.All(argument => argument.IsAssignableTo(target, isDerived));
+            return Arguments.All(argument => argument.IsAssignableTo(target, isDerived, resolveEnum));
         if (target.Kind == LuaMetadataTypeKind.Union)
-            return target.Arguments.Any(argument => IsAssignableTo(argument, isDerived));
+            return target.Arguments.Any(argument => IsAssignableTo(argument, isDerived, resolveEnum));
         if (Kind != target.Kind)
             return false;
         if (Kind != LuaMetadataTypeKind.Named)
             return Arguments.Count == target.Arguments.Count
-                && Arguments.Zip(target.Arguments).All(pair => pair.First.IsAssignableTo(pair.Second, isDerived));
+                && Arguments.Zip(target.Arguments).All(pair => pair.First.IsAssignableTo(pair.Second, isDerived, resolveEnum));
         return string.Equals(Name, target.Name, StringComparison.Ordinal)
             || Name == "int" && target.Name == "float"
             || isDerived?.Invoke(Name, target.Name) == true;
@@ -123,6 +141,7 @@ public sealed class LuaMetadataType
     {
         return Kind switch
         {
+            LuaMetadataTypeKind.Enum => $"Enum[{Name}]",
             LuaMetadataTypeKind.List => $"{Arguments[0]}[]",
             LuaMetadataTypeKind.Dictionary => $"Dict[{Arguments[0]}, {Arguments[1]}]",
             LuaMetadataTypeKind.Tuple => $"Tuple[{string.Join(", ", Arguments)}]",
@@ -155,6 +174,8 @@ public sealed class LuaMetadataType
             return createNamed(text);
         string containerName = text[..open].Trim();
         string body = text[(open + 1)..^1];
+        if (string.Equals(containerName, "Enum", StringComparison.Ordinal))
+            return createEnum(body.Trim());
         IReadOnlyList<string>? parts = splitArguments(body);
         if (parts is null)
             return createNamed(text);
@@ -224,6 +245,24 @@ public sealed class LuaMetadataType
             return null;
         result.Add(last);
         return result;
+    }
+
+    public static void ValidateEnumModule(string moduleName)
+    {
+        string[] parts = moduleName.Split('.');
+        if (parts.Length < 2 || parts[0] != "Enums"
+            || parts.Skip(1).Any(part => part.Length == 0
+                || !(char.IsAsciiLetter(part[0]) || part[0] == '_')
+                || part.Any(character => !(char.IsAsciiLetterOrDigit(character) || character == '_'))))
+        {
+            throw new InvalidDataException("Enum module must be an identifier path beneath Enums.");
+        }
+    }
+
+    private static LuaMetadataType createEnum(string moduleName)
+    {
+        ValidateEnumModule(moduleName);
+        return new LuaMetadataType(LuaMetadataTypeKind.Enum, moduleName, []);
     }
 
     private static LuaMetadataType createNamed(string name)

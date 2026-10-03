@@ -188,7 +188,9 @@ public sealed class BlueprintNodeDefinitionCatalog
             ? resolvedContext
             : context is null
                 ? null
-                : classResolver.ResolveBlueprint(context.Data, context.BlueprintKey);
+                : context.BlueprintKey is null && context.Data["parent"] is null
+                    ? classResolver.Resolve(string.Empty)
+                    : classResolver.ResolveBlueprint(context.Data, context.BlueprintKey);
         cachedContextData = data;
         cachedContextKey = key;
         cachedContextParent = parent;
@@ -199,7 +201,7 @@ public sealed class BlueprintNodeDefinitionCatalog
         return cachedContextClass;
     }
 
-    private static void addDefinition(
+    private void addDefinition(
         ICollection<BlueprintGraphNodeDefinition> target,
         ISet<string> definitionKeys,
         LuaNodeMemberMetadata member,
@@ -219,7 +221,7 @@ public sealed class BlueprintNodeDefinitionCatalog
             isContextRelevant));
     }
 
-    private static BlueprintGraphNodeDefinition createDefinition(
+    private BlueprintGraphNodeDefinition createDefinition(
         LuaNodeMemberMetadata member,
         string runtimePath,
         IReadOnlyList<string> runtimeAliases,
@@ -255,8 +257,10 @@ public sealed class BlueprintNodeDefinitionCatalog
                 parameter.Type.QualifiedName,
                 index,
                 true,
-                getParameterDefault(parameter),
-                parameterMeta));
+                parameter.Type.Schema.ContainsEnum ? null : getParameterDefault(parameter),
+                parameterMeta,
+                metadataService.Enums.Read,
+                parameter.Type.Schema.ContainsEnum ? () => getParameterDefault(parameter) : null));
         }
 
         for (int index = 0; index < executionOutputs.Count; index++)
@@ -395,11 +399,11 @@ public sealed class BlueprintNodeDefinitionCatalog
             : [];
     }
 
-    private static JsonNode? getParameterDefault(LuaNodeParameterMetadata parameter)
+    private JsonNode? getParameterDefault(LuaNodeParameterMetadata parameter)
     {
         if (parameter.HasDefaultValue)
             return parameter.DefaultValue?.DeepClone();
-        return LuaMetadataValueDefaults.TryCreateLiteral(parameter.Type.Schema, out JsonNode? value)
+        return LuaMetadataValueDefaults.TryCreateLiteral(parameter.Type.Schema, out JsonNode? value, metadataService.Enums.Read)
             ? value
             : null;
     }
@@ -511,4 +515,3 @@ public sealed class BlueprintNodeDefinitionCatalog
         return value is JsonValue scalar && scalar.TryGetValue(out string? text) ? text : null;
     }
 }
-

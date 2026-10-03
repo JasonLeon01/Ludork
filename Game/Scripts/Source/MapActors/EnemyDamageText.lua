@@ -1,18 +1,18 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
-local GameplayEventData = GlobalCore.GameplayEventData
----@type { Item: Source.Configs.GeneralEnum.Item }
-local GeneralEnum = require("Source.Configs.GeneralEnum")
+local BattleResultCode = require("Enums.BattleResultCode")
+local DamageHintLevel = require("Enums.DamageHintLevel")
+local Item = require("Enums.GeneralData.Item")
 local Data = require("Source.Data")
 local EnemyText = require("Source.Utils.EnemyText")
 local MotaBattleAbility = require("Source.Gameplay.MotaBattleAbility")
 local NumberFormat = require("Source.Utils.NumberFormat")
 
+local GameplayEventData = GlobalCore.GameplayEventData
 local Actor = Engine.Actor
 local PlainText = Engine.PlainText
 local UIFunctions = GlobalFunctions.UI
-local Item = GeneralEnum.Item
 
 ---@type function
 local getParentSize
@@ -25,8 +25,7 @@ local getScratchRenderTexture
 ---@class Source.MapActors.EnemyDamageText
 local EnemyDamageText = {}
 
-EnemyDamageText.DamageHintLevel = { NONE = 0, BATTLE = 1, MAP = 2 }
-EnemyDamageText.EnemyDamageHintLevel = EnemyDamageText.DamageHintLevel.BATTLE
+EnemyDamageText.EnemyDamageHintLevel = DamageHintLevel.BATTLE
 EnemyDamageText.tickable = true
 EnemyDamageText.collisionEnabled = false
 EnemyDamageText.requiredItemID = Item.EnemyBook
@@ -87,7 +86,7 @@ function EnemyDamageText:onTick(_deltaTime)
         return
     end
     local parent = self:getParent()
-    local visible = EnemyDamageText.EnemyDamageHintLevel >= EnemyDamageText.DamageHintLevel.BATTLE and parent ~= nil
+    local visible = EnemyDamageText.EnemyDamageHintLevel >= DamageHintLevel.BATTLE and parent ~= nil
         and parent:getVisible() and player:hasItem(self.requiredItemID)
     self:_setOverlayVisible(visible)
     if not visible then
@@ -112,7 +111,7 @@ function EnemyDamageText:onTick(_deltaTime)
         :calculate(parent:getAbilitySystemComponent(), GameplayEventData.new(nil, player))
     ---@type integer | nil
     local damage = nil
-    if battleResult.code ~= MotaBattleAbility.BattleResult.CANNOT_DAMAGE then
+    if battleResult.code ~= BattleResultCode.CANNOT_DAMAGE then
         damage = battleResult.data.damage
     end
     local damageText = damage == nil and "???" or tostring(NumberFormat.ToShortNumber(damage))

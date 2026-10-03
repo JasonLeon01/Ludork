@@ -12,7 +12,11 @@ public sealed partial class ProjectDataStore
 {
     internal void loadAll()
     {
-        invalidLoadPaths.Clear();
+        lock (invalidLoadLock)
+        {
+            invalidLoadPaths.Clear();
+            invalidLoadErrors.Clear();
+        }
         Worlds.ClearPendingDirectoryMoves();
         Maps.ResetCacheMetadata();
         foreach (KeyValuePair<string, EditorDocumentCollection> pair in sections)
@@ -30,15 +34,15 @@ public sealed partial class ProjectDataStore
                 reportDataRead(path);
                 if (pair.Key == "UI" && !hasDataFileExtension(pair.Key, path))
                 {
-                    invalidLoadPaths.Add(Path.GetRelativePath(ProjectPath, path));
+                    addInvalidLoadPath(path);
                     continue;
                 }
                 try
                 {
                     if (JsonNode.Parse(File.ReadAllText(path)) is not JsonObject data)
                     {
-                        if (pair.Key is "TextConfigs" or "UI" or "Subtitles")
-                            invalidLoadPaths.Add(Path.GetRelativePath(ProjectPath, path));
+                        if (pair.Key is "TextConfigs" or "UI" or "Subtitles" or "Blueprints")
+                            rejectDataFile(path, "Data must be a JSON object");
                         continue;
                     }
                     string? type = data["type"] is JsonValue typeValue
@@ -47,8 +51,8 @@ public sealed partial class ProjectDataStore
                             : null;
                     if (!pair.Value.AcceptsType(type))
                     {
-                        if (pair.Key is "TextConfigs" or "UI" or "Subtitles")
-                            invalidLoadPaths.Add(Path.GetRelativePath(ProjectPath, path));
+                        if (pair.Key is "TextConfigs" or "UI" or "Subtitles" or "Blueprints")
+                            rejectDataFile(path, "Unexpected data file type");
                         continue;
                     }
                     if (!pair.Value.PreserveType)
@@ -57,21 +61,21 @@ public sealed partial class ProjectDataStore
                     string key = Path.ChangeExtension(relativePath, null)!.Replace('\\', '/');
                     if (pair.Key == "Particles" && ParticleAssetSchema.Validate(data, key).Count != 0)
                     {
-                        invalidLoadPaths.Add(Path.GetRelativePath(ProjectPath, path));
+                        addInvalidLoadPath(path);
                         continue;
                     }
                     pair.Value[key] = data;
                 }
-                catch (JsonException)
+                catch (JsonException exception)
                 {
-                    invalidLoadPaths.Add(Path.GetRelativePath(ProjectPath, path));
+                    rejectDataFile(path, exception.Message);
                 }
             }
         }
+        rejectInvalidBlueprints();
         Worlds.loadMapsAndWorldMaps();
         originData = cloneAllData();
-        generalDataGenerationPending = !File.Exists(generalEnums.RuntimePath) || !File.Exists(generalEnums.StubPath)
-            || !File.Exists(generalEnums.TypesRuntimePath) || !File.Exists(generalEnums.TypesStubPath);
+        generalDataGenerationPending = generalEnums.NeedsGeneration(sections["General"]);
         isModified = generalDataGenerationPending;
         clearHistoryGesture();
         InitializeDocuments();

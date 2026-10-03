@@ -1,8 +1,6 @@
 ---@meta Internal.UIBase.WindowTransition
 
 ---@class Internal.UIBase.WindowTransition
----@field DEFAULT        string
----@field MENU           string
 ---@field _host          Engine.Canvas
 ---@field _ui            Internal.UIBase.UiView
 ---@field _target        string | nil
@@ -11,7 +9,7 @@
 ---@field _animationName string | nil
 local WindowTransition = {}
 
----@param profile? string
+---@param profile? Enums.WindowTransitionProfile
 ---@return string fadeIn
 ---@return string fadeOut
 function WindowTransition.GetAnimationNames(profile) end

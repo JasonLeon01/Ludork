@@ -87,6 +87,8 @@ public sealed partial class MapDataService
             data.Remove("type");
             if (!tryReadMapShape(data, out _, out _, out _, requireType))
                 return null;
+            if (!store.tryValidateMapBlueprintData(path, data))
+                return null;
             return data;
         }
         catch (Exception exception) when (
@@ -100,6 +102,8 @@ public sealed partial class MapDataService
 
     internal MapCatalogEntry? readMapCatalogEntry(string path, string worldKey)
     {
+        if (!store.tryValidateMapBlueprintFile(path))
+            return null;
         try
         {
             string cacheKey = Path.GetRelativePath(store.ProjectPath, path).Replace('\\', '/');

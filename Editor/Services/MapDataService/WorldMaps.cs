@@ -57,7 +57,7 @@ public sealed partial class MapDataService
             return null;
         }
         string path = getReadableMapDataPath(key);
-        if (!File.Exists(path))
+        if (!File.Exists(path) || !store.tryValidateMapBlueprintData(path, snapshot))
             return null;
         store.AcceptLoadedDocument("Maps", key, (JsonObject)snapshot.DeepClone());
         mapLoadedBytes[key] = new FileInfo(path).Length;

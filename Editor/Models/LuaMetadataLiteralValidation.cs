@@ -8,19 +8,27 @@ namespace Ludork.Models;
 
 internal static class LuaMetadataLiteralValidation
 {
-    public static void ValidateNodeParameter(LuaMetadataType type, JsonNode? value, string path, ICollection<string> errors)
+    public static void ValidateLiteral(LuaMetadataType type, JsonNode? value, string path, ICollection<string> errors,
+        Func<string, LuaEnumDefinition>? resolveEnum = null)
+    {
+        validate(type, value, path, errors, true, resolveEnum);
+    }
+
+    public static void ValidateNodeParameter(LuaMetadataType type, JsonNode? value, string path, ICollection<string> errors,
+        Func<string, LuaEnumDefinition>? resolveEnum = null)
     {
         if (value is not null)
-            validate(type, value, path, errors, true);
+            validate(type, value, path, errors, true, resolveEnum);
     }
 
-    public static void ValidateUnions(LuaMetadataType type, JsonNode? value, string path, ICollection<string> errors)
+    public static void ValidateUnions(LuaMetadataType type, JsonNode? value, string path, ICollection<string> errors,
+        Func<string, LuaEnumDefinition>? resolveEnum = null)
     {
-        if (type.ContainsUnion && value is not null)
-            validate(type, value, path, errors, false);
+        if ((type.ContainsUnion || type.ContainsEnum) && value is not null)
+            validate(type, value, path, errors, false, resolveEnum);
     }
 
-    private static void validate(LuaMetadataType type, JsonNode? value, string path, ICollection<string> errors, bool strict)
+    private static void validate(LuaMetadataType type, JsonNode? value, string path, ICollection<string> errors, bool strict, Func<string, LuaEnumDefinition>? resolveEnum)
     {
         if (type.Kind == LuaMetadataTypeKind.Union)
         {
@@ -36,7 +44,7 @@ internal static class LuaMetadataLiteralValidation
                 errors.Add(path + ".$type selects an undeclared union branch");
                 return;
             }
-            validate(branch, wrapper["$value"], path + ".$value", errors, true);
+            validate(branch, wrapper["$value"], path + ".$value", errors, true, resolveEnum);
             return;
         }
         if (type.Kind is LuaMetadataTypeKind.List or LuaMetadataTypeKind.Tuple)
@@ -47,7 +55,7 @@ internal static class LuaMetadataLiteralValidation
                 return;
             }
             for (int index = 0; index < sequence.Count; index++)
-                validate(type.Arguments[type.Kind == LuaMetadataTypeKind.List ? 0 : index], sequence[index], $"{path}[{index}]", errors, strict);
+                validate(type.Arguments[type.Kind == LuaMetadataTypeKind.List ? 0 : index], sequence[index], $"{path}[{index}]", errors, strict, resolveEnum);
             return;
         }
         if (type.Kind == LuaMetadataTypeKind.Dictionary)
@@ -58,7 +66,18 @@ internal static class LuaMetadataLiteralValidation
                 return;
             }
             foreach (KeyValuePair<string, JsonNode?> item in dictionary)
-                validate(type.Arguments[1], item.Value, path + "." + item.Key, errors, strict);
+                validate(type.Arguments[1], item.Value, path + "." + item.Key, errors, strict, resolveEnum);
+            return;
+        }
+        if (type.Kind == LuaMetadataTypeKind.Enum)
+        {
+            LuaEnumDefinition? definition = resolveEnum?.Invoke(type.Name);
+            if (definition?.ValueType is not LuaMetadataType valueType)
+            {
+                errors.Add(path + ": " + (definition?.Error ?? "Enum resolver is unavailable for " + type.Name));
+                return;
+            }
+            validate(valueType, value, path, errors, true, resolveEnum);
             return;
         }
         if (!strict || type.IsAny)

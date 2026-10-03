@@ -6,7 +6,7 @@
 ---@field _selectWindow      Source.Windows.WindowEquipSelect
 ---@field _statusWindow      Source.Windows.WindowEquipStatus
 ---@field ui                 Internal.UI.WindowEquip
----@field _transitionProfile string
+---@field _transitionProfile Enums.WindowTransitionProfile
 local Controller = {}
 
 ---@param player Source.MapActors.Player.Player
@@ -18,7 +18,7 @@ function Controller:setPlayer(player) end
 ---@param callback function | nil
 function Controller:setOnCloseCallback(callback) end
 
----@param transitionProfile string | nil
+---@param transitionProfile Enums.WindowTransitionProfile | nil
 ---@param dockPosition      sf.Vector2f | nil
 function Controller:open(transitionProfile, dockPosition) end
 

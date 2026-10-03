@@ -71,6 +71,14 @@ ludork_discover_lua_binding_layouts(
     GlobalCore "${CMAKE_CURRENT_SOURCE_DIR}/Global/include"
     GlobalFunctions "${CMAKE_CURRENT_SOURCE_DIR}/GlobalFunctions/include")
 
+add_custom_target(LudorkSfEnumModules
+    COMMAND "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}" enum-modules
+        --sfml-api "${LUASF_CALLBACK_CODECS_API_FILE}"
+        --module sf
+        --scripts-directory "${LUDORK_BINDING_SCRIPTS_DIRECTORY}"
+    DEPENDS "${LUASF_CALLBACK_CODECS_API_FILE}"
+    VERBATIM)
+
 if(LUDORK_WITH_LUA AND NOT CMAKE_CROSSCOMPILING AND NOT LUDORK_STATIC_LUA_MODULES)
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../Tools/NativeStubDump"
         "${CMAKE_CURRENT_BINARY_DIR}/NativeStubDump")
@@ -87,17 +95,30 @@ function(ludork_configure_core_library
         if(LUDORK_ENABLE_FFMPEG AND COMMAND ludork_copy_ffmpeg_runtime)
             ludork_copy_ffmpeg_runtime(${target})
         endif()
+        set(enum_catalogue
+            "${LUDORK_INTERMEDIATE_DIRECTORY}/${target}/${target}.enums.json")
+        set(enum_module_commands
+            COMMAND "$<TARGET_FILE:LudorkNativeStubDump>"
+                "$<TARGET_FILE:${target}>"
+                "${target}_write_enum_catalogue"
+                "${enum_catalogue}"
+            COMMAND "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}" enum-modules
+                --catalogue "${enum_catalogue}"
+                --module "${target}"
+                --scripts-directory "${LUDORK_BINDING_SCRIPTS_DIRECTORY}")
         add_custom_command(TARGET ${target} POST_BUILD
             COMMAND "$<TARGET_FILE:LudorkNativeStubDump>"
                 "$<TARGET_FILE:${target}>"
                 "${target}_write_stub"
                 "${LUDORK_BINDING_SCRIPTS_DIRECTORY}/stub/${target}.d.lua"
+            ${enum_module_commands}
             VERBATIM)
         add_custom_target(${target}NativeStub
             COMMAND "$<TARGET_FILE:LudorkNativeStubDump>"
                 "$<TARGET_FILE:${target}>"
                 "${target}_write_stub"
                 "${LUDORK_BINDING_SCRIPTS_DIRECTORY}/stub/${target}.d.lua"
+            ${enum_module_commands}
             DEPENDS ${target} LudorkNativeStubDump
             VERBATIM)
     endif()
@@ -139,7 +160,7 @@ add_subdirectory(GlobalFunctions)
 
 add_custom_target(LudorkCoreModules)
 add_dependencies(LudorkCoreModules
-    Engine GlobalCore GlobalFunctions)
+    Engine GlobalCore GlobalFunctions LudorkSfEnumModules)
 if(TARGET LudorkNativeStubDump)
     add_dependencies(LudorkCoreModules
         EngineNativeStub GlobalCoreNativeStub GlobalFunctionsNativeStub)

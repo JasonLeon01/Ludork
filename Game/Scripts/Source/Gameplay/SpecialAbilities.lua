@@ -1,5 +1,5 @@
 local GlobalCore = require("GlobalCore")
-local GeneralEnum = require("Source.Configs.GeneralEnum")
+local Special = require("Enums.GeneralData.Special")
 local CompeteAbility = require("Source.Gameplay.SpecialAbilities.CompeteAbility")
 local HardAbility = require("Source.Gameplay.SpecialAbilities.HardAbility")
 local MagicAbility = require("Source.Gameplay.SpecialAbilities.MagicAbility")
@@ -13,7 +13,6 @@ local FixDmgAbility = require("Source.Gameplay.SpecialAbilities.FixDmgAbility")
 local GameplayConstants = require("Source.Configs.GameplayConstants")
 
 local GameplayEffect = GlobalCore.GameplayEffect
-local Special = GeneralEnum.Special
 
 local SpecialAbilities = {}
 
