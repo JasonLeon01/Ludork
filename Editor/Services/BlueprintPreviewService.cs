@@ -39,6 +39,13 @@ public sealed partial class BlueprintPreviewService : IDisposable
     public event EventHandler? VisualsInvalidated;
     public event EventHandler? LiveVisualsInvalidated;
 
+    public string? GetBlueprintReferenceForPath(string path)
+    {
+        EditorDocument? document = gameData.Documents.FindByPath(path);
+        return document is { Section: "Blueprints", Exists: true }
+            ? BlueprintReference.ToReference(document.Key) : null;
+    }
+
     public IDisposable BeginResolutionBatch()
     {
         return classResolver.BeginBatch();

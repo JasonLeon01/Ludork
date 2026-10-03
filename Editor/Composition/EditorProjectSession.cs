@@ -30,7 +30,7 @@ public sealed class EditorProjectSession : IDisposable
         FileExplorer = new FileExplorerViewModel(ProjectPath, ProjectConfig, GameData, PreviewService, ReferenceIndex);
         Actions = new EditorActionRouter();
         MapWorkspace = new MapWorkspaceViewModel(GameData, ProjectConfig, TileSelect, ReferenceIndex);
-        MainViewModel = new MainViewModel(GameData, ProjectConfig, GameVariables, BlueprintClasses,
+        MainViewModel = new MainViewModel(GameData, ProjectConfig, GameVariables, BlueprintClasses, PreviewService,
             GameConfig, ProjectSave, ReferenceIndex, TileSelect, ActorQueue, FileExplorer, Actions, MapWorkspace);
     }
 

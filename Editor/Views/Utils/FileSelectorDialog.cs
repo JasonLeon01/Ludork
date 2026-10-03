@@ -53,6 +53,9 @@ public sealed class FileSelectorDialog : Window
     private string _fileName = string.Empty;
     private readonly EditorThumbnailService _thumbnails;
     private readonly bool _ownsThumbnails;
+    private readonly BlueprintPreviewService? _blueprintPreviews;
+    private readonly BlueprintPreviewSession? _blueprintPreview;
+    private bool _showingBlueprint;
     private EditorThumbnailLease? _previewLease;
     private CancellationTokenSource _directoryCancellation = new();
     private CancellationTokenSource _previewCancellation = new();
@@ -64,7 +67,7 @@ public sealed class FileSelectorDialog : Window
     private readonly Button _upButton;
     private readonly ListBox _fileGrid;
     private readonly MediaPreview _previewMedia;
-    private readonly Image _previewImage;
+    private readonly FrameRevisionImage _previewImage;
     private readonly Panel _previewImageContainer;
     private readonly TextBox _previewTextBox;
     private readonly Panel _previewTextContainer;
@@ -160,9 +163,16 @@ public sealed class FileSelectorDialog : Window
         _save = save;
         _allowMultiple = allowMultiple && !save;
         _allowEmpty = allowEmpty && !save && !_allowMultiple;
-        EditorThumbnailService? projectThumbnails = findProjectThumbnails(owner);
+        MainViewModel? project = findProject(owner);
+        EditorThumbnailService? projectThumbnails = project?.GameData.Thumbnails;
         _thumbnails = projectThumbnails ?? new EditorThumbnailService();
         _ownsThumbnails = projectThumbnails is null;
+        _blueprintPreviews = project?.BlueprintPreviews;
+        if (_blueprintPreviews is not null)
+        {
+            _blueprintPreview = new BlueprintPreviewSession(_blueprintPreviews);
+            _blueprintPreview.FrameChanged += onBlueprintFrameChanged;
+        }
 
         string[] parts = filterStr.Split(";;", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (parts.Length == 0)
@@ -262,7 +272,7 @@ public sealed class FileSelectorDialog : Window
             Child = _fileGrid,
         };
 
-        _previewImage = new Image { Stretch = Stretch.Uniform, Margin = new Thickness(8) };
+        _previewImage = new FrameRevisionImage { Stretch = Stretch.Uniform, Margin = new Thickness(8) };
         _previewImageContainer = new Panel { Children = { _previewImage }, IsVisible = false };
 
         _previewTextBox = new TextBox
@@ -368,6 +378,13 @@ public sealed class FileSelectorDialog : Window
 
         Content = layout;
 
+        if (_blueprintPreviews is not null)
+            _blueprintPreviews.VisualsInvalidated += onBlueprintVisualsInvalidated;
+        PropertyChanged += (_, args) =>
+        {
+            if (args.Property == IsVisibleProperty && _blueprintPreview is not null)
+                _blueprintPreview.IsActive = IsVisible && _showingBlueprint;
+        };
         KeyDown += onKeyDown;
         Closed += (_, _) => disposeResources();
         Opened += async (_, _) =>
@@ -377,12 +394,12 @@ public sealed class FileSelectorDialog : Window
         };
     }
 
-    private static EditorThumbnailService? findProjectThumbnails(Window? owner)
+    private static MainViewModel? findProject(Window? owner)
     {
         for (Window? window = owner; window is not null; window = window.Owner as Window)
         {
             if (window.DataContext is MainViewModel main)
-                return main.GameData.Thumbnails;
+                return main;
         }
         return null;
     }
@@ -427,7 +444,10 @@ public sealed class FileSelectorDialog : Window
         clearPreview();
         updateConfirmButton();
         _entries = _allowEmpty ? [new FileEntry(string.Empty, false, 0)] : [];
+        _updatingSelection = true;
+        _fileGrid.SelectedItems?.Clear();
         _fileGrid.ItemsSource = _entries;
+        _updatingSelection = false;
         string directory = _currentDirectory;
         string[] patterns = _filterIndex < _filterPatterns.Count
             ? _filterPatterns[_filterIndex].ToArray()
@@ -695,7 +715,13 @@ public sealed class FileSelectorDialog : Window
         _previewMedia.IsVisible = false;
         _previewImageContainer.IsVisible = false;
         _previewTextContainer.IsVisible = false;
+        _showingBlueprint = false;
         _previewImage.Source = null;
+        if (_blueprintPreview is not null)
+        {
+            _blueprintPreview.IsActive = false;
+            _blueprintPreview.Clear();
+        }
         _previewLease?.Dispose();
         _previewLease = null;
         _previewTextBox.Text = string.Empty;
@@ -703,6 +729,8 @@ public sealed class FileSelectorDialog : Window
 
     private async Task updatePreviewAsync(string path)
     {
+        if (_closed)
+            return;
         clearPreview();
         CancellationToken token = _previewCancellation.Token;
         string extension = Path.GetExtension(path).TrimStart('.');
@@ -725,6 +753,15 @@ public sealed class FileSelectorDialog : Window
                 _previewMedia.IsVisible = true;
                 _previewMedia.Load(path);
             }
+            else if (_blueprintPreview is not null
+                && _blueprintPreviews?.GetBlueprintReferenceForPath(path) is string blueprintReference)
+            {
+                _showingBlueprint = true;
+                _previewImageContainer.IsVisible = true;
+                _blueprintPreview.IsActive = IsVisible;
+                updateBlueprintFrame();
+                await _blueprintPreview.LoadAsync(blueprintReference, 520, token);
+            }
             else if (TextSuffixes.Contains(extension))
             {
                 string? text = await readTextPreviewAsync(path, token);
@@ -746,6 +783,25 @@ public sealed class FileSelectorDialog : Window
                 _previewTextContainer.IsVisible = true;
             }
         }
+    }
+
+    private void onBlueprintFrameChanged(object? sender, EventArgs args) => updateBlueprintFrame();
+
+    private void updateBlueprintFrame()
+    {
+        if (_closed || !_showingBlueprint)
+            return;
+        _previewImage.Source = _blueprintPreview?.Frame ?? EditorIconResources.GetImage("EditorImage.File");
+        _previewImage.FrameRevision++;
+    }
+
+    private void onBlueprintVisualsInvalidated(object? sender, EventArgs args)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!_closed && _showingBlueprint && !string.IsNullOrEmpty(_selectedPath))
+                _ = updatePreviewAsync(_selectedPath);
+        });
     }
 
     private static Task<string?> readTextPreviewAsync(string path, CancellationToken token) => Task.Run(async () =>
@@ -859,6 +915,13 @@ public sealed class FileSelectorDialog : Window
         _directoryCancellation.Cancel();
         _directoryCancellation.Dispose();
         clearPreview();
+        if (_blueprintPreviews is not null)
+            _blueprintPreviews.VisualsInvalidated -= onBlueprintVisualsInvalidated;
+        if (_blueprintPreview is not null)
+        {
+            _blueprintPreview.FrameChanged -= onBlueprintFrameChanged;
+            _blueprintPreview.Dispose();
+        }
         _previewCancellation.Dispose();
         _fileGrid.ItemsSource = null;
         if (_ownsThumbnails)

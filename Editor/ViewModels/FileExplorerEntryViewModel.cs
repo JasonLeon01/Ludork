@@ -1,5 +1,4 @@
 using Avalonia.Media;
-using Avalonia.Threading;
 using Ludork.Services;
 using System;
 using System.IO;
@@ -13,14 +12,12 @@ namespace Ludork.ViewModels;
 public sealed class FileExplorerEntryViewModel : ViewModelBase, IDisposable
 {
     private readonly EditorThumbnailService thumbnails;
-    private readonly BlueprintPreviewService previews;
+    private readonly BlueprintPreviewSession blueprintPreview;
     private IImage placeholder;
     private bool image;
     private readonly Dictionary<object, (bool Visible, int Size)> presentations = [];
     private CancellationTokenSource? request;
     private EditorThumbnailLease? thumbnail;
-    private ActorPreviewLease? previewLease;
-    private ActorVisualDescriptor? visualDescriptor;
     private IImage? icon;
     private long previewFrameRevision;
     private bool disposed;
@@ -45,7 +42,8 @@ public sealed class FileExplorerEntryViewModel : ViewModelBase, IDisposable
         IsDirectory = isDirectory;
         this.placeholder = placeholder;
         this.thumbnails = thumbnails;
-        this.previews = previews;
+        blueprintPreview = new BlueprintPreviewSession(previews);
+        blueprintPreview.FrameChanged += onPreviewFrameChanged;
         icon = placeholder;
         image = Path.GetExtension(fullPath).ToLowerInvariant() is ".png" or ".jpg" or ".jpeg" or ".bmp" or ".gif" or ".webp";
     }
@@ -121,9 +119,7 @@ public sealed class FileExplorerEntryViewModel : ViewModelBase, IDisposable
         presentationSize = pixelSize;
         if (preload && request is null)
             startPreview();
-        ensureActorPreview();
-        if (previewLease is not null)
-            previewLease.IsActive = visible;
+        blueprintPreview.IsActive = visible;
     }
 
     public void Dispose()
@@ -133,6 +129,8 @@ public sealed class FileExplorerEntryViewModel : ViewModelBase, IDisposable
         disposed = true;
         presentations.Clear();
         releasePreview();
+        blueprintPreview.FrameChanged -= onPreviewFrameChanged;
+        blueprintPreview.Dispose();
     }
 
     private void startPreview()
@@ -148,18 +146,18 @@ public sealed class FileExplorerEntryViewModel : ViewModelBase, IDisposable
         EditorThumbnailLease? loaded = null;
         try
         {
-            ActorVisualDescriptor? visual = null;
             if (image)
                 loaded = await thumbnails.AcquireAsync(FullPath, presentationSize, token);
             else if (MediaFileThumbnail.CanLoad(FullPath))
                 loaded = await MediaFileThumbnail.AcquireAsync(thumbnails, FullPath, presentationSize, token);
             else if (blueprintReference is not null)
-                (loaded, visual) = await previews.LoadPreviewAsync(blueprintReference, presentationSize, token);
+            {
+                blueprintPreview.IsActive = visible;
+                await blueprintPreview.LoadAsync(blueprintReference, presentationSize, token);
+            }
             token.ThrowIfCancellationRequested();
             thumbnail = loaded;
             loaded = null;
-            visualDescriptor = visual;
-            ensureActorPreview();
             updateFrame();
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -179,40 +177,22 @@ public sealed class FileExplorerEntryViewModel : ViewModelBase, IDisposable
         request?.Cancel();
         request?.Dispose();
         request = null;
-        if (previewLease is not null)
-        {
-            previewLease.FrameChanged -= onPreviewFrameChanged;
-            previewLease.Dispose();
-            previewLease = null;
-        }
         Icon = placeholder;
         thumbnail?.Dispose();
         thumbnail = null;
-        visualDescriptor = null;
-    }
-
-    private void ensureActorPreview()
-    {
-        if (visible && previewLease is null && visualDescriptor is { RequiresPreviewService: true })
-        {
-            previewLease = previews.ActorPreviews.Acquire(visualDescriptor, presentationSize, true);
-            previewLease.FrameChanged += onPreviewFrameChanged;
-        }
+        blueprintPreview.Clear();
     }
 
     private void onPreviewFrameChanged(object? sender, EventArgs args)
     {
-        if (Dispatcher.UIThread.CheckAccess())
-            updateFrame();
-        else
-            Dispatcher.UIThread.Post(updateFrame);
+        updateFrame();
     }
 
     private void updateFrame()
     {
         if (disposed)
             return;
-        Icon = previewLease?.Frame ?? thumbnail?.Bitmap ?? placeholder;
+        Icon = blueprintPreview.Frame ?? thumbnail?.Bitmap ?? placeholder;
         PreviewFrameRevision++;
     }
 }

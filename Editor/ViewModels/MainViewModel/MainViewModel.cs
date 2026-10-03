@@ -24,6 +24,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         ProjectConfigService projectConfig,
         GameVariableService gameVariables,
         BlueprintClassResolver blueprintClasses,
+        BlueprintPreviewService blueprintPreviews,
         GameConfigService gameConfig,
         ProjectSaveService projectSave,
         ReferenceIndexService referenceIndex,
@@ -37,6 +38,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         ProjectConfig = projectConfig;
         GameVariables = gameVariables;
         BlueprintClasses = blueprintClasses;
+        BlueprintPreviews = blueprintPreviews;
         GameConfig = gameConfig;
         ProjectSave = projectSave;
         ReferenceIndex = referenceIndex;
@@ -106,6 +108,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public ProjectConfigService ProjectConfig { get; }
     public GameVariableService GameVariables { get; }
     public BlueprintClassResolver BlueprintClasses { get; }
+    public BlueprintPreviewService BlueprintPreviews { get; }
     public GameConfigService GameConfig { get; }
     public ProjectSaveService ProjectSave { get; }
     public ReferenceIndexService ReferenceIndex { get; }
