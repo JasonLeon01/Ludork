@@ -50,6 +50,8 @@ Validation covers the manifest, the flat directory shape, direct JSON maps, plac
 
 A rename updates the recognised references listed in [Project Settings and Asset Layout](<Project Settings and Asset Layout.md>). The world manifest and its child maps have separate histories, and automatic reference, placement and layer-order corrections create Undo barriers. The file explorer preserves the `Data/Maps` hierarchy, so root maps, world folders and children cannot move between levels or worlds. Create and delete them through the Map List.
 
+Creating an ordinary map or a world child pre-fills Map Properties from the most recently modified ordinary map or world child in the project. This includes dimensions, ambient light, BGM/BGS and their filters, fog and all its parameters, and panorama. The file name and map name receive new defaults. Current-session edits, including unsaved changes and Undo/Redo, take priority; when no map has been edited in the session, the source is chosen by file modification time. Opening or saving a map does not change the session's edit order. With no existing map, the standard defaults apply. These settings are independent copies, so changing the new map's defaults leaves the source map unchanged.
+
 ![Map properties window](../../../images/editor/map-properties.png)
 
 *Review map dimensions and ambient light before authoring layers. The Ambient Light button shows a colour swatch and its ARGB value; a checkerboard indicates transparency. Click it to choose a colour.*
