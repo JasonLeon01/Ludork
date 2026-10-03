@@ -56,6 +56,8 @@ Language changes, loaded-player rebinding, visibility queries and input checks o
 
 The Teleporter opens with the current map's floor entry selected and scrolled into view, falling back to the first entry when the current map is absent. An empty list uses `nil`. Telepoint selection starts at the first entry. Its left slot alternates between the floor and telepoint lists, and cancelling telepoint selection restores the floors. The telepoint list scrolls without moving the right-side preview. A composite manifest remains one floor identity, with child maps composed at world offsets.
 
+Stair transfers arrive at the nearest stair of the opposite direction: up to `Down`, down to `Up`. Set the `stairDirection` enum in each stair Blueprint; ordinary `None` teleporters are excluded from these arrivals. See [Source.MapActors.Teleporter](<../Source Classes/Teleporter.md>).
+
 Telepoints are discovered through stair transfers or `Teleporter:goToMap(mapPath, position, record)` with `record` omitted or `true`, even before the Teleporter item is acquired. `goToMap` records the source actor's offset position and the exact destination tile on their respective maps, without searching for a destination stair. Passing `false` records neither endpoint. The window lists only the current map's region; a map without a configured region has an empty floor list. Opening the window or approaching stairs does not record a visit. Record structure and deduplication are described in [Runtime Data, Configuration and Saves](<Runtime Data Configuration and Saves.md>).
 
 Telepoint labels resolve the recorded tag through `LOC`. Empty or automatically generated tags use the localised `POINT` number format, and missing translations retain the raw tag.

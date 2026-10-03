@@ -12,7 +12,7 @@
 | `getGameInstance` | `() -> GameInstance` | 返回拥有变量和持久化状态的游戏实例 |
 | `recordAddedActor`、`recordDestroyedActor` | `(actor)` | 记录对应的持久化变更 |
 | `recordActorPosition` | `(actor, position)` | 记录 Actor 的地图位置 |
-| `requestFloorStep` | `(teleporter, step) -> boolean` | 接受一次相邻楼层请求；`step` 必须为 `1` 或 `-1` |
+| `requestFloorStep` | `(teleporter, step) -> boolean` | 接受一次相邻楼层请求；`step` 必须为 `1` 或 `-1`。抵达时选择最近的、可见且未销毁的相反方向楼梯 |
 | `requestMapTransfer` | `(teleporter, mapPath, position, record = true) -> boolean` | 接受一次指定地图坐标传送，不搜索楼梯；可选记录两端各自地图的传送点 |
 | `requestGameOver` | `(player, delay)` | 等待有限且非负的动画延时后切换场景，不施加伤害或 Effect |
 

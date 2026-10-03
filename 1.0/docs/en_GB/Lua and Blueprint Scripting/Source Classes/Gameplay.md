@@ -12,7 +12,7 @@ Module: `Source.Gameplay.GameplayScene`, derived from `GlobalCore.SceneBase`. `S
 | `getGameInstance` | `() -> GameInstance` | Returns the game instance owning variable and persistence state |
 | `recordAddedActor`, `recordDestroyedActor` | `(actor)` | Records the corresponding persistence change |
 | `recordActorPosition` | `(actor, position)` | Records the Actor's map position |
-| `requestFloorStep` | `(teleporter, step) -> boolean` | Accepts one adjacent-floor request; `step` must be `1` or `-1` |
+| `requestFloorStep` | `(teleporter, step) -> boolean` | Accepts one adjacent-floor request; `step` must be `1` or `-1`. Arrival selects the nearest visible, surviving stair of the opposite direction |
 | `requestMapTransfer` | `(teleporter, mapPath, position, record = true) -> boolean` | Accepts one transfer to the specified tile without searching for a stair; optionally records each endpoint on its own map |
 | `requestGameOver` | `(player, delay)` | Waits for a finite non-negative animation delay and navigates without applying damage or Effects |
 
