@@ -16,7 +16,7 @@ General Data is stored in the project's `Data/General` directory, one JSON file 
 | `Data/General/Special.json` | [Special](<Special.md>) |
 | `Data/General/State.json` | [State](<State.md>) |
 
-Each file holds the ordered field definitions under `params`, the named records under `members`, and optional `events`. The type structure, supported field types and reference declarations are described in [General Data and Text Config](<../General Data and Text Config.md#type-structure>).
+Each file holds the ordered field definitions under `params`, the named records under `members`, and optional `events`. The type structure, supported field types and reference declarations are described in [General Data and Text Config](<../General Data and Text Config.md#type-structure>). To add an enum field, choose `enum` and an existing module through **kind**; its saved `type` is an enum schema and each member stores the selected scalar value. Member ability graphs remain graph-only and do not use Blueprint `attrDefs`.
 
 ## What each page documents
 
@@ -38,7 +38,7 @@ General Data preserves every string exactly as stored, and display fields in the
 
 ## Relation to the General Data editor
 
-These pages are reference output, not an editing surface. Schemas, members and member ability graphs are edited in **Database → General Data** (`F10`), whose Form and Table views, search behaviour, reference selectors and shared Undo history are documented in [General Data and Text Config](<../General Data and Text Config.md>). Saving there regenerates `Source.Configs.GeneralEnum` and `Source.Configs.GeneralDataTypes`, and the runtime activates member graphs explicitly through `Source.Gameplay.GeneralDataGraphAbility`.
+These pages are reference output, not an editing surface. Schemas, members and member ability graphs are edited in **Database → General Data** (`F10`), whose Form and Table views, search behaviour, reference selectors and shared Undo history are documented in [General Data and Text Config](<../General Data and Text Config.md>). Saving there regenerates `Enums.GeneralDataKey`, each `Enums.GeneralData.<TypeName>` module, and `Source.Configs.GeneralDataTypes`, and the runtime activates member graphs explicitly through `Source.Gameplay.GeneralDataGraphAbility`.
 
 ## Related pages
 

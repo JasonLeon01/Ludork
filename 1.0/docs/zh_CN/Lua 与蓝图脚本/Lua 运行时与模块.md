@@ -35,7 +35,7 @@ local ManagerFunctions = GlobalFunctions.Manager
 
 静态依赖从根原生模块流向 `Scripts/Global`，再流向 `Scripts/Source`。Global 模块不得 `require` Source。`Scripts/Internal` 与 `Scripts/GlobalFunctions` 可以依赖 `Source` 中的项目模块。通用设施可以解析数据给出的不透明模块名，但不得硬编码更高层的业务模块。
 
-共享常数由对应领域统一声明。原生资源后缀通过 `Engine.ResourceFileConstants` 暴露；游戏的地图标识、Gameplay tag 和移动 latent 输出索引分别放在 `Source.Configs.MapConstants`、`Source.Configs.GameplayConstants` 与 `Source.Configs.MovementLatentOutputs`。由 host 持有的实现参数通过函数参数向下传递。例如，`WorldGameMap` 把发布预算传给流式加载与区域发布模块，子模块不反向 require host。
+共享配置常数由对应领域统一声明。原生资源后缀通过 `Engine.ResourceFileConstants` 暴露；游戏的地图标识与 Gameplay tag 分别放在 `Source.Configs.MapConstants` 和 `Source.Configs.GameplayConstants`。公开枚举放在下文所述的独立 `Enums.*` 模块中。由 host 持有的实现参数通过函数参数向下传递。例如，`WorldGameMap` 把发布预算传给流式加载与区域发布模块，子模块不反向 require host。
 
 运行时脚本只采用一种存储形态：开发期用未打包的 `Scripts`，打包发行版用根级 `Scripts.ldpak`。两种形态混用、缺失或无效都会在启动阶段失败。两种形态下的逻辑模块路径与入口路径完全一致。
 
@@ -48,6 +48,32 @@ local ManagerFunctions = GlobalFunctions.Manager
 私有实现需要拆成多个模块时，可以由公开模块充当宿主，把它们放进同名目录，例如 `Global/GameMap.lua` 与 `Global/GameMap/*.lua`。Game 的 Enemy 与 GameInstance 实现辅助模块则放在 `Source/Utils` 下。宿主负责自己的公开方法，并委托给实现模块。实现模块不得 `require` 宿主，也不得扩展宿主。带有独立镜像 `.d.lua` 声明的辅助模块仍是独立模块。
 
 私有成员只能通过 `self` 或同实例的 `super(..., self)` 分派访问。访问其他对象时改用公开的读取方法、命令或数据，链式访问与动态索引同样如此。
+
+## 枚举模块
+
+每个公开枚举在 `Scripts/Enums` 下拥有独立模块，并在 `Scripts/stub/Enums` 下提供对应声明。模块直接返回以字符串为键、标量字面值为值的表，不加载依赖、不定义函数，也不构造类：
+
+```lua
+-- Scripts/Enums/StairDirection.lua
+return { None = "None", Up = "Up", Down = "Down" }
+```
+
+运行时直接加载枚举，例如 `local StairDirection = require("Enums.StairDirection")`，随后使用 `StairDirection.Up`。运行时遵循常规 Lua 模块缓存。蓝图 metadata 通过 `type = { enum = "Enums.StairDirection" }` 引用模块；编辑器每次查看值编辑器或展开选择器时重新读取文件，显示 key，并保存对应的实际值。schema 的组合与校验规则见 [Metadata 结构与 Decorator](<蓝图脚本/Metadata 结构与 Decorator.md>)。
+
+| Game 枚举模块 | 值或用途 |
+|---|---|
+| `Enums.StairDirection` | `None`、`Up`、`Down`，保存同名字符串 |
+| `Enums.BattleResultCode` | `WIN = 1`、`CANNOT_DAMAGE = 2`、`LETHAL_COUNTER_DAMAGE = 3` |
+| `Enums.CriticalResultCode` | `VALUE = 1`、`NOT_NEEDED = 2`、`UNKNOWN = 3` |
+| `Enums.DamageHintLevel` | `NONE = 0`、`BATTLE = 1`、`MAP = 2` |
+| `Enums.WindowTransitionProfile` | `DEFAULT = "Default"`、`MENU = "Menu"` |
+| `Enums.ShopMode` | `BUY = "buy"`、`SELL = "sell"` |
+| `Enums.EventKey` | `LocaleChanged`、`AbilitySystemChanged`、`PlayerChanged` 事件名 |
+| `Enums.AbilitySystemChangeKind` | `Attribute`、`State` payload 种类 |
+| `Enums.PlayerChangeKind` | `Inventory`、`Name`、`Map` payload 种类 |
+| `Enums.MovementLatentOutput` | `STARTED = 0`、`FINISHED = 1` 执行输出索引 |
+
+原生构建生成 `Enums.Engine.*`、`Enums.GlobalCore.*`、`Enums.GlobalFunctions.*` 和 `Enums.sf.*`。通用数据保存生成 `Enums.GeneralDataKey`，并为每个数据类型生成独立的 `Enums.GeneralData.<TypeName>` 模块。这些生成模块仍以所属的原生声明或数据库记录为来源，应修改来源后重新生成。
 
 ## 原生模块与值
 

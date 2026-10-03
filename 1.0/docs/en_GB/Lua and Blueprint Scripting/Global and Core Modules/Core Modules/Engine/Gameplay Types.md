@@ -179,7 +179,7 @@ InvalidVars: `{ "defaultRect" }`
 
 | Name | Type | Default | Metadata |
 |---|---|---|---|
-| `direction` | `int` | `0` | Meta { DropBox = { 0, 1, 2, 3 } } |
+| `direction` | `{ enum = "Enums.Engine.Direction" }` | `0` | — |
 | `directionFix` | `bool` | `false` | — |
 | `animateWithoutMoving` | `bool` | `false` | — |
 

@@ -25,7 +25,11 @@ Variadic `BIND_*` markers compile to nothing. Bindgen reads raw tokens such as `
 
 `BIND_CLASS` infers declared bases. `cast_bases = {"BaseA", "BaseB"}` supplies ordered extra ancestors rather than a comma-separated string.
 
-`BIND_ENUM` binds an `enum class` to one module-root table. LuaLS retains the enum type, while Lua values and Blueprint metadata signatures use integers. The `name` option may replace the table identifier.
+`BIND_ENUM` binds an `enum class` to one module-root table and generates the matching pure module `Enums.<Module>.<Name>`. LuaLS retains the enum type, Lua calls use underlying integers, and Blueprint metadata preserves the enum reference with `{ enum = "Enums.<Module>.<Name>" }`. The `name` option selects the exposed table and generated module name.
+
+`BIND_MODULE_PROPERTY(enum = true)` additionally exports a const string-keyed map as an enum module. Its values must be scalar numbers, strings or booleans. Existing native table exports remain available; they and the generated pure modules share the same compiled source values. See [Bind scoped enums](<Binding a Class.md#bind-scoped-enums>).
+
+`metadata_type` overrides only a property's Blueprint schema. `metadata_parameters` and `metadata_returns` map existing pin names to metadata-only schemas. These options accept brace data, preserve native bindings and LuaLS types, and do not make an otherwise excluded function visible as a node. See [Metadata-only signature schemas](<Functions Events and Execution.md#metadata-only-signature-schemas>).
 
 Bound classes, ungrouped functions and module properties use exactly one module-root path. Grouped functions use their group table. `BIND_INJECT(global = ...)` uses `global` as the injection-source identifier. `variadic = true` is restricted to matching vector-in and vector-out `std::function` injection. It maps the trailing vector directly to Lua stack arguments and results.
 

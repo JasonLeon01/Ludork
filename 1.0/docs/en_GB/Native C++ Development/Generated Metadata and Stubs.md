@@ -2,12 +2,13 @@
 
 Generated files are build artefacts. Do not edit them by hand.
 
-The native binding pipeline uses one declaration to produce four outputs:
+The native binding pipeline uses one declaration to produce five outputs:
 
 1. stable `<Module>.<NativeClass>.auto.cpp` registration units and exactly one `<Module>.stub.auto.cpp` used by the native Lua module;
 2. `Scripts/stub/<Module>.d.lua` used by Lua language tooling;
 3. `Scripts/<Module>_meta.lua` used by the editor;
-4. `<Module>.traits.auto.hpp` containing the module's private conversion traits.
+4. `<Module>.traits.auto.hpp` containing the module's private conversion traits;
+5. pure `Scripts/Enums/<Module>/<Name>.lua` modules and matching `Scripts/stub/Enums/<Module>/<Name>.d.lua` declarations for bound enums and marked constant maps.
 
 These outputs must agree on the canonical module path, class name, function group and parameter order. Metadata additionally carries Blueprint execution and editor information.
 
@@ -24,6 +25,7 @@ Desktop builds finish native stubs by invoking the exported `<Module>_write_stub
 | C++ value type | Blueprint metadata | LuaLS |
 |---|---|---|
 | Named bound type | Full module/type reference | Qualified type name |
+| Bound native or LuaSF enum | `{ enum = "Enums.<Module>.<Name>" }` | Existing qualified enum type |
 | `std::vector<T>` or `std::array<T, N>` | `{ list = T }` | Array of `T` |
 | String-keyed map | `{ dict = T }` | String-keyed dictionary of `T` |
 | `std::pair<T1, T2>` or `std::tuple<T...>` | `{ tuple = { T1, T2, ... } }` | Fixed numeric fields, such as `{ [1]: integer, [2]: string }` |
@@ -44,6 +46,16 @@ Annotation defaults and parameter type overrides describe the original C++ argum
 LuaSF supplies `LUASF_CALLBACK_CODECS_FILE` for callback aliases with special calling conventions. Bindgen selects the codec by semantic alias before canonical type expansion and preserves it through nested containers. Missing or incompatible manifests and mismatched canonical types fail generation or compilation.
 
 A `BIND_CLASS` singleton declaration also generates metadata for its bound function group. Those wrappers already select the singleton, so their parameters contain no `self`; the class methods retain their typed receiver. `Engine.Input` and `Engine.Service` are the corresponding function-group and class surfaces.
+
+## Generated enum modules
+
+A desktop native build uses `NativeStubDump` to invoke `<Module>_write_enum_catalogue`. The compiled writer obtains integer values from the actual C++ enumerators and scalar values from const maps marked `BIND_MODULE_PROPERTY(enum = true)`. It writes a catalogue under `Intermediate` without creating a Lua VM. `ScriptTools enum-modules` then produces one directly returned constant table per enum under `Enums.Engine`, `Enums.GlobalCore` or the owning native module's namespace. The existing native table exports continue to use the same source values.
+
+LuaSF enum modules under `Enums.sf` come from `sfml_api.json`. Nested names become directories, such as `Enums/sf/Keyboard/Scan.lua`; the `Scancode` alias resolves to the canonical `Enums.sf.Keyboard.Scan` schema. Their generation does not expose additional Blueprint nodes. Stubs declare the require path with `---@meta Enums.<Module>.<Name>` and retain the appropriate LuaLS value types.
+
+The generator writes changed content only and removes stale outputs only when they carry its generation marker. It rejects a collision with a handwritten file. Editor templates and native caches include both enum source modules and stubs. Game packages keep the enum source modules and exclude the stub tree.
+
+Cross-builds and builds with static Lua modules require the enum source modules and mirrored stubs from a prior desktop native build. Missing generated files fail the preflight with their paths; the build does not guess C++ constant values. Rebuild on desktop after changing native enum declarations or marked maps before preparing those builds.
 
 ## Regeneration
 

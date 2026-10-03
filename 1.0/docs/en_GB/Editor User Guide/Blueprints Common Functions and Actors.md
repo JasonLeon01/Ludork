@@ -28,6 +28,14 @@ The Blueprint editor initially sizes its variables pane to the minimum width nee
 
 When a Blueprint's `ID` selects a General Data type, the editor shows a read-only `attributes` preview from the selected member. The preview is never saved to the Blueprint JSON. At runtime the generated Attribute Set is constructed through `Source.Configs.GeneralDataTypes.Create`, so edit its values in General Data.
 
+### Add a typed attribute
+
+Use **Add Attribute** to enter a name, choose its type and set the initial value. For `enum`, choose an existing `Enums.*` module in **kind**, then select a key for the value. Lists and dictionaries also support enum items or values. A file field can constrain the asset selector with a base directory.
+
+A new field saves its declaration in `attrDefs` and its initial value in `attrs`. If the name already belongs to an inherited field with no local value, the dialog fixes the type to that declaration and adds only an `attrs` override. Child Blueprints inherit the type and default; they cannot redeclare the inherited field. Removing an inherited override restores its inherited default. Deleting a field introduced by the current Blueprint removes both its declaration and local value, and is rejected while a descendant or map Actor override still depends on it.
+
+See [Blueprint attribute declarations](<../Lua and Blueprint Scripting/Blueprint Scripting/Metadata Schema and Decorators.md#blueprint-attribute-declarations>) for the JSON shape. Map Actor overrides use that same inherited type and introduce no new fields.
+
 ## Billboard component
 
 Add `billboardComp` through **Components** to configure `items` and the display range `showRange`. Use **+** and **-** to manage items and the **...** button beside each summary to edit it.
@@ -90,6 +98,10 @@ A child Blueprint inherits fields and behaviour. Changing a saved parent path ca
 ## Validation
 
 Validation checks parent resolution, cycles, graph shape, event start nodes, node functions, links, pins and stored defaults. An empty optional event is valid, while a malformed or out-of-range link is not. Save after correcting all reported errors, then run a representative map.
+
+Class schema errors block loading, external reload, editing and saving. The diagnostic identifies the Blueprint and attribute; an invalid file remains on disk but is excluded from usable project data. Changing a parent or Script Mixin, deleting a declaration, renaming and Undo/Redo also reject changes that would invalidate a descendant or leave a map Actor override without a compatible declaration. Global Save checks all Blueprint schemas and map overrides, including unchanged documents. **Save Invalid Blueprint** applies to graph validation only and cannot bypass schema errors.
+
+A saved value without a declaration in metadata, an active Script Mixin or inherited/local `attrDefs` is invalid. There is no inference or compatibility conversion for untyped custom fields. General Data member graphs and Common Functions remain graph-only and require no `attrDefs`.
 
 ## Limitations
 

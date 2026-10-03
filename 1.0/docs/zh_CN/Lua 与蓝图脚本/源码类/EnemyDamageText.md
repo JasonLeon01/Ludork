@@ -10,6 +10,8 @@ Metadata 来源：`Scripts/Source/MapActors/EnemyDamageText_meta.lua`
 
 Meta：`{ GeneralDataVars = { [1] = { [1] = "requiredItemID", [2] = "Item" } } }`
 
+`EnemyDamageText.EnemyDamageHintLevel` 是共享的运行时设置。加载 `Enums.DamageHintLevel` 后，可选择 `NONE = 0`、`BATTLE = 1`（默认）或 `MAP = 2`。`NONE` 隐藏预计伤害提示，`MAP` 还显示移动危险格的合计伤害。提示仍要求持有指定 Item，实际受伤时的伤害粒子不受影响。
+
 ### 属性
 
 | 名称 | 类型 | 默认值 | Metadata |

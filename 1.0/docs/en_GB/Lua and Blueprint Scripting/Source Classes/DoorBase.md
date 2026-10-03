@@ -4,7 +4,7 @@
 
 Metadata source: `Scripts/Source/MapActors/DoorBase_meta.lua`
 
-Its two-stage latent conditions use `Source.Configs.MovementLatentOutputs.STARTED` (`0`) and `FINISHED` (`1`), shared with the movement nodes. These values are execution output indices.
+Its two-stage latent conditions use `Enums.MovementLatentOutput.STARTED` (`0`) and `FINISHED` (`1`), shared with the movement nodes. These values are execution output indices.
 
 ## DoorBase
 

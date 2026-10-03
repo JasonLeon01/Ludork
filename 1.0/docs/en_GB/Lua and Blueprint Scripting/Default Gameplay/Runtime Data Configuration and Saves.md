@@ -24,7 +24,7 @@ Keep immutable definitions in Blueprint, Config or General Data files, and keep 
 
 `Data.GetClassData(path)` exposes the shared session definition; see [Execution Flow, Events and Variables](<../Blueprint Scripting/Execution Flow Events and Variables.md#class-definitions-and-session-lifetime>).
 
-Construct General Data Attribute Sets with `Source.Configs.GeneralDataTypes.Create`. The [General Data and Text Config](<../../Editor User Guide/General Data and Text Config.md>) page describes value conversion and defaults.
+Construct General Data Attribute Sets with `Source.Configs.GeneralDataTypes.Create`. Load type keys from `Enums.GeneralDataKey` and member keys from `Enums.GeneralData.<TypeName>`, such as `Enums.GeneralData.Item`. These modules are regenerated when General Data is saved. The [General Data and Text Config](<../../Editor User Guide/General Data and Text Config.md>) page describes value conversion and defaults.
 
 ### Players
 
@@ -55,6 +55,8 @@ The placement `tag` in map JSON becomes the Actor's map-persistence tag. `GameMa
 Runtime-spawned Actors that must survive a map rebuild are stored through the added-Actor record using their own generated map-placement tag. When such an Actor is later destroyed, its destroyed record suppresses the stored addition. Reborn enemies use this existing pair of records rather than reusing the original placement tag.
 
 World runtime tags use `<child-file-stem>.runtime_default_<N>` in placements and `<world-directory>.runtime_default_<N>` in holes. All tags remain reserved for the world lifetime, and conflicts fail. Editor tags are unique world-wide and stable across map renames.
+
+Map `BPClassVarChanged` and persisted `classVarChanges` contain only values for declared class fields. The editor and runtime resolve their types through metadata, Script Mixins and Blueprint `attrDefs`; an instance cannot introduce a field or change its type. Unknown override names and values that do not match the resolved schema fail loading. Enum overrides store the underlying scalar, and declared vectors and records use their typed conversion when applied.
 
 ### Composite-world persistence
 

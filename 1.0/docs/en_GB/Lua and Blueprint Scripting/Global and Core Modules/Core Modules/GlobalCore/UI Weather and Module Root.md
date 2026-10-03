@@ -25,7 +25,7 @@ No editable properties are declared.
 
 ## WeatherType
 
-`GlobalCore.WeatherType` defines `NONE = 0`, `RAIN = 1`, `STORM = 2` and `SNOW = 3`. No module-root aliases exist. Lua signatures retain the enum type, while Blueprint metadata uses `int`.
+`GlobalCore.WeatherType` defines `NONE = 0`, `RAIN = 1`, `STORM = 2` and `SNOW = 3`. The native build exports the same values through the pure-data module `Enums.GlobalCore.WeatherType`. Lua signatures retain `GlobalCore.WeatherType`; Blueprint inputs and outputs use `{ enum = "Enums.GlobalCore.WeatherType" }`, showing keys and storing the underlying integers.
 
 ## WeatherController
 

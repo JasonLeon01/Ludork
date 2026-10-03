@@ -67,20 +67,22 @@ Direct base: `GlobalCore.GameplayAbility`
 
 Ability ID: `Ability.Combat.MotaBattle`
 
+Load these constant modules directly with `require`; `MotaBattleAbility` returns their scalar values in `result.code`.
+
 | Enum | Members |
 |---|---|
-| `BattleResult` | `WIN = 1`, `CANNOT_DAMAGE = 2`, `LETHAL_COUNTER_DAMAGE = 3` |
-| `CriticalResult` | `VALUE = 1`, `NOT_NEEDED = 2`, `UNKNOWN = 3` |
+| `Enums.BattleResultCode` | `WIN = 1`, `CANNOT_DAMAGE = 2`, `LETHAL_COUNTER_DAMAGE = 3` |
+| `Enums.CriticalResultCode` | `VALUE = 1`, `NOT_NEEDED = 2`, `UNKNOWN = 3` |
 
 | Member | Signature | Behaviour |
 |---|---|---|
-| `calculate` | `(abilitySystem, eventData) -> GameplayAbilityResult` | Produces a `BattleResult` code and prevalidated damage/Game Over specs without mutation |
+| `calculate` | `(abilitySystem, eventData) -> GameplayAbilityResult` | Produces a `Enums.BattleResultCode` code and prevalidated damage/Game Over specs without mutation |
 | `activate` | `(abilitySystem, eventData) -> GameplayAbilityResult` | Calculates and optionally commits when `eventData.payload.commit` is true |
 | `CalculateDamagePerRound` | `(attacker, defender) -> damage, details` | Runs the attack, defence, damage, hit-count and incoming-damage event pipeline |
 | `CommitResult` | `(result)` | Applies the prevalidated counter-damage Effect exactly once |
-| `CalculateCriticalValue` | `(enemy, player) -> GameplayAbilityResult` | Returns a `CriticalResult` code |
+| `CalculateCriticalValue` | `(enemy, player) -> GameplayAbilityResult` | Returns a `Enums.CriticalResultCode` code |
 
-The owner is the enemy, and `eventData.target` is the player. Calculation validates without applying counter-damage or Game Over Specs. Its `BattleResult` data includes per-round damage, counter rounds, Vampire healing, first-strike and fixed damage, both Battlers, prepared Specs and `committed`. `CommitResult` applies the combined damage once. The Enemy handles Game Over after the animation. Critical calculation includes Vampire healing and the unchanged First round threshold, but it ignores FixDmg expressions.
+The owner is the enemy, and `eventData.target` is the player. Calculation validates without applying counter-damage or Game Over Specs. Its battle result data includes per-round damage, counter rounds, Vampire healing, first-strike and fixed damage, both Battlers, prepared Specs and `committed`. `CommitResult` applies the combined damage once. The Enemy handles Game Over after the animation. Critical calculation includes Vampire healing and the unchanged First round threshold, but it ignores FixDmg expressions.
 
 ## GameplayConstants
 
@@ -135,7 +137,7 @@ Module: `Source.Utils.MovementSpecials`
 
 Module: `Source.Configs.GeneralDataTypes`
 
-The General Data generator owns this module and its stub. `Types` and named fields expose each generated `<TypeName>AttributeSet`.
+The General Data generator owns this module and its stub. `Types` and named fields expose each generated `<TypeName>AttributeSet`. Type keys come from `Enums.GeneralDataKey`; member keys come from the matching `Enums.GeneralData.<TypeName>` module.
 
 `Create(typeName, memberID, memberData) -> AttributeSet` deep-copies schema fields and sets `ID`. Use `Source.Data.CreateGeneralAttributeSet(typeName, memberID)` when starting from IDs.
 

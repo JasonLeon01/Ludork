@@ -10,6 +10,8 @@ Direct metadata bases: `{ "Engine", "Actor" }`
 
 Meta: `{ GeneralDataVars = { [1] = { [1] = "requiredItemID", [2] = "Item" } } }`
 
+`EnemyDamageText.EnemyDamageHintLevel` is the shared runtime setting. Load `Enums.DamageHintLevel` to choose `NONE = 0`, `BATTLE = 1` (default), or `MAP = 2`. `NONE` hides expected-damage hints; `MAP` also enables movement-danger cell totals. The required Item still gates hints, and actual damage particles are unaffected.
+
 ### Properties
 
 | Name | Type | Default | Metadata |
