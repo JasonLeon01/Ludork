@@ -571,7 +571,8 @@ function Scene:requestFloorStep(teleporter, step)
     ---@cast targetMapKey string
     local anchorPosition = teleporter:getTeleportPosition()
     local targetMap = self:resolveRegionMapPath(targetMapKey)
-    return self:_startTeleporterTransfer(teleporter, targetMap, anchorPosition, true, true)
+    local targetStairDirection = step == 1 and Teleporter.StairDirection.Down or Teleporter.StairDirection.Up
+    return self:_startTeleporterTransfer(teleporter, targetMap, anchorPosition, true, true, targetStairDirection)
 end
 
 function Scene:requestMapTransfer(teleporter, mapPath, position, record)
@@ -585,18 +586,23 @@ function Scene:requestMapTransfer(teleporter, mapPath, position, record)
     return self:_startTeleporterTransfer(teleporter, targetMap, targetPosition, false, record ~= false)
 end
 
----@param teleporter     Source.MapActors.Teleporter.Teleporter
----@param targetMap      string
----@param targetPosition sf.Vector2i
----@param findNearest    boolean
----@param record         boolean
+---@param teleporter            Source.MapActors.Teleporter.Teleporter
+---@param targetMap             string
+---@param targetPosition        sf.Vector2i
+---@param findNearest           boolean
+---@param record                boolean
+---@param targetStairDirection? Source.MapActors.Teleporter.StairDirection
 ---@return boolean
-function Scene:_startTeleporterTransfer(teleporter, targetMap, targetPosition, findNearest, record)
+function Scene:_startTeleporterTransfer(
+    teleporter, targetMap, targetPosition, findNearest, record, targetStairDirection
+)
     local player = self:getGameMap():getPlayer()
     assert(player ~= nil, "Teleporter transfer requires a player")
     local moveEnabled = player:getMoveEnabled()
     player:setMoveEnabled(false)
-    if not self:requestTeleporterTransfer(targetMap, targetPosition, moveEnabled, findNearest, record) then
+    if not self:requestTeleporterTransfer(
+        targetMap, targetPosition, moveEnabled, findNearest, record, targetStairDirection
+    ) then
         player:setMoveEnabled(moveEnabled)
         return false
     end
@@ -766,9 +772,11 @@ function Scene:_blockMapInput(frames)
     return SceneMapInteractions.BlockMapInput(self, frames)
 end
 
-function Scene:requestTeleporterTransfer(targetMap, targetPosition, moveEnabled, findNearest, record)
+function Scene:requestTeleporterTransfer(
+    targetMap, targetPosition, moveEnabled, findNearest, record, targetStairDirection
+)
     return SceneMapInteractions.RequestTeleporterTransfer(
-        self, targetMap, targetPosition, moveEnabled, findNearest, record
+        self, targetMap, targetPosition, moveEnabled, findNearest, record, targetStairDirection
     )
 end
 

@@ -530,7 +530,9 @@ function Scene.BlockMapInput(self, frames)
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
-function Scene.RequestTeleporterTransfer(self, targetMap, targetPosition, moveEnabled, findNearest, record)
+function Scene.RequestTeleporterTransfer(
+    self, targetMap, targetPosition, moveEnabled, findNearest, record, targetStairDirection
+)
     if self._pendingTeleporterTransfer ~= nil or self._pendingWorldTransfer ~= nil then
         return false
     end
@@ -541,7 +543,8 @@ function Scene.RequestTeleporterTransfer(self, targetMap, targetPosition, moveEn
         targetPosition = savedPosition,
         moveEnabled = moveEnabled,
         findNearest = findNearest,
-        record = record
+        record = record,
+        targetStairDirection = targetStairDirection
     }
     Transition.freezeTransitionBackground()
     return true
@@ -570,7 +573,7 @@ function Scene.ProcessPendingTeleporterTransfer(self)
     local targetTag = ""
     if transferData.findNearest then
         local targetTeleporter = Teleporter.FindNearestTeleporter(
-            targetGameMap:getAllActors(), targetPlayer:getMapPosition()
+            targetGameMap:getAllActors(), targetPlayer:getMapPosition(), transferData.targetStairDirection
         )
         if targetTeleporter == nil then
             self:_cancelTeleporterTransfer(moveEnabled)

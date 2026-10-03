@@ -1,11 +1,12 @@
 ---@meta Source.Scenes.SceneMap
 
 ---@class Source.Scenes.SceneMap.PendingTeleporterTransfer
----@field targetMap      string
----@field targetPosition sf.Vector2i
----@field moveEnabled    boolean
----@field findNearest    boolean
----@field record         boolean
+---@field targetMap            string
+---@field targetPosition       sf.Vector2i
+---@field moveEnabled          boolean
+---@field findNearest          boolean
+---@field record               boolean
+---@field targetStairDirection Source.MapActors.Teleporter.StairDirection | nil
 
 ---@class Source.Scenes.SceneMap.PendingWorldTransfer
 ---@field targetMap      string
@@ -271,13 +272,16 @@ function Scene:openShop(buyItemIDs, canSell) end
 ---@return function
 function Scene:openAttrShop(actor, shopName, shopDescription, abilities, priceRef, priceIncrement, moneyName) end
 
----@param targetMap      string
----@param targetPosition sf.Vector2i
----@param moveEnabled    boolean
----@param findNearest    boolean
----@param record         boolean
+---@param targetMap             string
+---@param targetPosition        sf.Vector2i
+---@param moveEnabled           boolean
+---@param findNearest           boolean
+---@param record                boolean
+---@param targetStairDirection? Source.MapActors.Teleporter.StairDirection
 ---@return boolean
-function Scene:requestTeleporterTransfer(targetMap, targetPosition, moveEnabled, findNearest, record) end
+function Scene:requestTeleporterTransfer(
+    targetMap, targetPosition, moveEnabled, findNearest, record, targetStairDirection
+) end
 
 ---@brief Transition to a map and set the player position.
 ---

@@ -5,7 +5,10 @@ local GameplayScene = require("Source.Gameplay.GameplayScene")
 
 local Teleporter = {}
 
+Teleporter.StairDirection = { None = "None", Up = "Up", Down = "Down" }
+
 Teleporter.Offset = sf.Vector2i.new(0, 0)
+Teleporter.stairDirection = Teleporter.StairDirection.None
 Teleporter.stairSE = ""
 Teleporter.transitionName = ""
 Teleporter.transitionTime = 0.5
@@ -60,21 +63,25 @@ function Teleporter:_goFloor(step)
     end
 end
 
----@param actors   Engine.Actor[]
----@param position sf.Vector2i
+---@param actors          Engine.Actor[]
+---@param position        sf.Vector2i
+---@param stairDirection? Source.MapActors.Teleporter.StairDirection
 ---@return Source.MapActors.Teleporter.Teleporter | nil
-function Teleporter.FindNearestTeleporter(actors, position)
+function Teleporter.FindNearestTeleporter(actors, position, stairDirection)
     local nearest = nil
     local nearestDistance = nil
     for _, actor in ipairs(actors) do
         if Class.isInstance(actor, Teleporter) and not actor:isDestroyed() and actor:isVisibleInHierarchy() then
-            local actorPosition = actor:getMapPosition()
-            local dx = actorPosition.x - position.x
-            local dy = actorPosition.y - position.y
-            local distance = dx * dx + dy * dy
-            if nearestDistance == nil or distance < nearestDistance then
-                nearest = actor
-                nearestDistance = distance
+            ---@cast actor Source.MapActors.Teleporter.Teleporter
+            if stairDirection == nil or actor.stairDirection == stairDirection then
+                local actorPosition = actor:getMapPosition()
+                local dx = actorPosition.x - position.x
+                local dy = actorPosition.y - position.y
+                local distance = dx * dx + dy * dy
+                if nearestDistance == nil or distance < nearestDistance then
+                    nearest = actor
+                    nearestDistance = distance
+                end
             end
         end
     end

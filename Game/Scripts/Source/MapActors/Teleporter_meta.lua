@@ -3,6 +3,7 @@ local _METADATA = {
         moduleReturn = true,
         attrs = {
             "Offset",
+            "stairDirection",
             "stairSE",
             "transitionName",
             "transitionTime"
@@ -13,6 +14,13 @@ local _METADATA = {
         Offset = {
             type = "sf.Vector2i",
             default = { 0, 0 }
+        },
+        stairDirection = {
+            type = "string",
+            default = "None",
+            Meta = {
+                DropBox = { "None", "Up", "Down" }
+            }
         },
         stairSE = {
             type = "string",
