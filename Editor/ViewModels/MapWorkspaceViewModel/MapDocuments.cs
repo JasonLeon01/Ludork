@@ -12,13 +12,15 @@ public sealed partial class MapWorkspaceViewModel
     private (string SourceKey, JsonObject Data)? mapClipboard;
     public bool CanPasteMap => mapClipboard is not null;
 
-    public MapInfo NewMapDefaults() => new()
+    public MapInfo NewMapDefaults() => newMapDefaults(GameData.Maps.getNewMapFileName());
+
+    private MapInfo newMapDefaults(string fileName)
     {
-        FileName = GameData.Maps.getNewMapFileName(),
-        MapName = Ludork.Services.LocaleService.Get("NEW_MAP_DEFAULT_NAME"),
-        Width = 13,
-        Height = 13,
-    };
+        MapInfo info = GameData.Maps.GetMostRecentlyModifiedMapInfo() ?? new MapInfo();
+        info.FileName = fileName;
+        info.MapName = Ludork.Services.LocaleService.Get("NEW_MAP_DEFAULT_NAME");
+        return info;
+    }
 
     public WorldMapInfo NewWorldDefaults()
     {
@@ -39,7 +41,7 @@ public sealed partial class MapWorkspaceViewModel
         {
             string name = $"Map_{index:D2}";
             if (!names.Contains(name))
-                return new MapInfo { FileName = name + ".json", MapName = Ludork.Services.LocaleService.Get("NEW_MAP_DEFAULT_NAME"), Width = 13, Height = 13 };
+                return newMapDefaults(name + ".json");
         }
     }
 

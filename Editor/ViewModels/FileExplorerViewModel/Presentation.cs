@@ -28,6 +28,7 @@ public sealed partial class FileExplorerViewModel
             OnPropertyChanged(nameof(IconMargin));
             OnPropertyChanged(nameof(IconItemMargin));
             OnPropertyChanged(nameof(ListMargin));
+            OnPropertyChanged(nameof(ListItemMargin));
             OnPropertyChanged(nameof(IconSpacing));
             OnPropertyChanged(nameof(ListSpacing));
             OnPropertyChanged(nameof(TreeExpanderSize));
@@ -56,6 +57,7 @@ public sealed partial class FileExplorerViewModel
     public Thickness IconMargin => new(6 * Zoom / 100);
     public Thickness IconItemMargin => new(8 * Zoom / 100);
     public Thickness ListMargin => new(6 * Zoom / 100, 3 * Zoom / 100);
+    public Thickness ListItemMargin => new(8 * Zoom / 100, 4 * Zoom / 100);
     public double IconSpacing => 3 * Zoom / 100;
     public double ListSpacing => 8 * Zoom / 100;
     public double TreeExpanderSize => 16 * Zoom / 100;

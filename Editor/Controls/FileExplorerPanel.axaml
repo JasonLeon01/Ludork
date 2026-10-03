@@ -14,6 +14,9 @@
         <Style Selector="ListBox#IconEntries ListBoxItem">
             <Setter Property="Margin" Value="{Binding ((vm:FileExplorerViewModel)DataContext).IconItemMargin, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}" />
         </Style>
+        <Style Selector="ListBox#ListEntries ListBoxItem">
+            <Setter Property="Margin" Value="{Binding ((vm:FileExplorerViewModel)DataContext).ListItemMargin, RelativeSource={RelativeSource AncestorType={x:Type controls:FileExplorerPanel}}}" />
+        </Style>
         <Style Selector="ToggleButton#ViewModeButton > Image">
             <Setter Property="Source" Value="{StaticResource EditorImage.ViewGrid}" />
         </Style>

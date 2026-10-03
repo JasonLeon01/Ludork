@@ -37,6 +37,7 @@ public sealed class EditorDocument
 
     public Guid Id { get; }
     public long Revision { get; internal set; }
+    internal long LastContentChangeRevision { get; set; }
     public string Section { get; private set; }
     public string Key { get; private set; }
     public string Path { get; private set; }

@@ -62,6 +62,21 @@ public sealed partial class MapDataService
         };
     }
 
+    public MapInfo? GetMostRecentlyModifiedMapInfo()
+    {
+        IEnumerable<MapCatalogEntry> maps = MapCatalog
+            .Where(entry => entry.Kind != MapCatalogEntryKind.WorldMap)
+            .OrderByDescending(entry => store.Documents.Find("Maps", entry.Key)?.LastContentChangeRevision ?? 0)
+            .ThenByDescending(entry => File.GetLastWriteTimeUtc(getReadableMapDataPath(entry.Key)))
+            .ThenBy(entry => entry.Key, StringComparer.Ordinal);
+        foreach (MapCatalogEntry entry in maps)
+        {
+            if (getMapInfo(entry.Key) is MapInfo info)
+                return info;
+        }
+        return null;
+    }
+
     public string getMapDisplayName(string key)
     {
         key = normaliseMapKey(key);
