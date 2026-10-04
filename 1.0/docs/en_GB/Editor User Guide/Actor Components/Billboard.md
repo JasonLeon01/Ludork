@@ -16,10 +16,6 @@ Show a stack of images and text above an Actor when the player approaches, such 
 4. Choose `text` to set content, font size (default `12`) and colour. Choose `image` to select a picture through `path`; this editor label corresponds to the API's `image` field. Switching kinds preserves the hidden values.
 5. Save the Blueprint or map.
 
-## Check the result
-
-Run the map and move the player into and out of `showRange` while the Actor is in view. Check the item order, text readability and image size; images use their original pixels. The stack appears above the Actor and rises and fades on entry and exit. Full layout, visibility and animation rules are in the API reference.
-
 ## References
 
 - [Actor Components](<Overview.md>)

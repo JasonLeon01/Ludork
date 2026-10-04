@@ -15,10 +15,6 @@ Default Gameplay `Source.MapActors.Enemy` declares `childActorComp` as `Source.C
 3. Set `relativePosition` for the child's local position relative to the owner; the default is `[0,0]`.
 4. Save the Blueprint or map. Keep the default damage-readout class when that is the intended enemy behaviour.
 
-## Check the result
-
-Run the map and trigger the chosen child Actor's visible behaviour. For the default class, check the enemy damage readout; for a custom child, check its relative position and movement with the owner. If no child appears, confirm that the class reference resolves to an Actor and that its own visibility conditions are met.
-
 ## References
 
 - [Actor Components](<Overview.md>)

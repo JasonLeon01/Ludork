@@ -38,6 +38,8 @@ public sealed class Plugin : IEditorPlugin
 
 **With a Window**, the default, also creates an independent `PluginWindow : Window` class using the host theme. **Logic Only** creates only the manifest and entry class. Neither template registers commands; the window is not opened automatically. No XAML or IDE project is generated. Add your logic and registrations, then restart to load the edited source.
 
+The editor’s built-in template files live in `Editor/PluginTemplates` in the source repository: `Common` contains the manifest and entry class, and `Window` contains the window source. They are embedded in the published editor assembly and read when a plug-in is created. Creation fills in the ID, name, minimum editor version and escaped window title.
+
 ## Hand-written command example
 
 The following complete example adds one Help menu command. Its optional project file supports IDE diagnostics.

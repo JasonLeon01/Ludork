@@ -23,6 +23,7 @@ Review and push `gh-pages` yourself. In GitHub Pages, select **Deploy from a bra
 - `versions.json` lists available major.minor versions, newest/default first; currently `1.0`. Each version contains `docs/en_GB`, `docs/zh_CN`, shared About/notices Markdown, and `images`.
 - `/Ludork/docs/v1.0/` is the documentation entry. `lang`, `doc`, `path` and heading fragments select its language and content. `path` is relative to the version directory, such as `docs/en_GB/Ludork Documentation.md`.
 - Each language root has an `order.json` with `home` and ordered `sections`; each top-level chapter has an `order.json` with an ordered `items` tree. Every node has a fixed `key` and a `path` relative to its parent directory; folder nodes in the tree contain `children`. File and directory names have no ordering prefixes. Change array order to reorder the navigation, and preserve keys when renaming or reordering content. Matching English and Chinese pages and folders use the same keys; existing `doc=01/03` links remain valid.
+- Sidebar folder groups use the same full-width rows as document links. Click a group or press Enter/Space to expand or collapse its children without navigating. Groups start expanded; navigating to a document or switching language expands its ancestors, which can still be collapsed manually.
 - The pale-blue heading navigator at the bottom right links to the current page's subheadings. On first use it is expanded on desktop and collapsed on narrow screens. The arrow and Escape save the open/closed preference in browser `localStorage`, separately for desktop and narrow screens, across documents, languages, versions and reloads. Selecting a heading on a narrow screen closes the list temporarily without changing that preference. If browser storage is unavailable, the controls still work for the current page.
 - `/Ludork/`, `/Ludork/about/` and `/Ludork/notices/` are the website entries. About and notices accept `version=1.0`; without it they use the default version.
 - `embedded=1` hides the website header and, on About/notices, its footer. Language/version navigation preserves the parameter. The editor supplies its current language and major.minor version.
@@ -39,5 +40,7 @@ Review and push `gh-pages` yourself. In GitHub Pages, select **Deploy from a bra
 `versions.json` 按默认版本优先列出版本，目前只有 `1.0`；内容位于 `1.0/docs`，图片位于 `1.0/images`。新增版本时增加目录和版本项即可生成对应入口。文档路径为 `/Ludork/docs/v1.0/`，支持语言、章节、文件路径和标题锚点；关于和声明通过 `version=1.0` 指定版本。`embedded=1` 隐藏官网导航，供编辑器内嵌网页使用。
 
 各语言根目录的 `order.json` 使用 `home` 指定首页，使用有序的 `sections` 列出顶级章节；每个顶级章节的 `order.json` 使用有序的 `items` 树维护其完整目录。每个节点包含固定的 `key` 和相对于父目录的 `path`，树中的目录节点还包含 `children`。文件名和目录名不带排序前缀，调整数组顺序即可调整导航顺序；重命名或排序时保留原有 `key`，中英文对应页面和目录使用相同的 `key`，现有 `doc=01/03` 链接仍然有效。
+
+侧栏目录分组与文档链接使用相同的整行样式，点击或按 Enter/Space 只展开、收起子项，不跳转页面。分组默认展开；跳转文档或切换语言时会展开当前文档的祖先分组，之后仍可手动收起。
 
 右下角的淡蓝色小标题导航可跳转到当前页的小标题；首次使用时桌面端展开、窄屏收起。箭头切换与 Escape 关闭会通过浏览器 `localStorage` 分别记住桌面端和窄屏的展开偏好，在切换文档、语言、版本及刷新后恢复。窄屏点击标题后仅临时收起，不覆盖偏好。浏览器存储不可用时，当前页面仍可正常展开和收起。

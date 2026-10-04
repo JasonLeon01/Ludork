@@ -17,10 +17,6 @@ Attach a Common Particle effect to an Actor, such as a flame, aura or sparks. Au
 5. Leave `beforeActor` false to draw immediately after the owner, or enable it to draw immediately before. Ordinary maps and composite worlds preserve their Actor-list and layer order; this setting does not introduce Y sorting.
 6. Save the Blueprint or map.
 
-## Check the result
-
-Run the map and move the Actor to check the attachment point and drawing order. The resource's local/world simulation space controls whether existing particles follow their host. Check particle behaviour in the resource preview and the Actor attachment in the running map. Playback controls and lifecycle rules remain in the API reference.
-
 ## References
 
 - [Actor Components](<Overview.md>)
