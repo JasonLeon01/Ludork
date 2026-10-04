@@ -80,7 +80,7 @@ return StairDirection
 | `Enums.PlayerChangeKind` | `Inventory`、`Name`、`Map` payload 种类 |
 | `Enums.MovementLatentOutput` | `STARTED = 0`、`FINISHED = 1` 执行输出索引 |
 
-原生构建生成 `Enums.Engine.*`、`Enums.GlobalCore.*`、`Enums.GlobalFunctions.*` 和 `Enums.sf.*`。通用数据保存生成 `Enums.GeneralDataKey`，并为每个数据类型生成独立的 `Enums.GeneralData.<TypeName>` 模块。这些生成模块仍以所属的原生声明或数据库记录为来源，应修改来源后重新生成。
+原生构建生成 `Enums.Engine.*`、`Enums.GlobalCore.*`、`Enums.GlobalFunctions.*` 和 `Enums.sf.*`。项目数据保存生成 `Enums.GeneralDataKey`、每个数据类型独立的 `Enums.GeneralData.<TypeName>` 模块，以及 `Enums.Animation` 与 `Enums.Particle`。编辑器在保存前从当前项目目录解析这些字符串枚举，包括未保存的变更；运行时 `require` 读取生成的源码模块。这些生成模块仍以所属的原生声明或数据库记录为来源，应修改来源后重新生成。
 
 ## 原生模块与值
 

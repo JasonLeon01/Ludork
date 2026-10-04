@@ -9,11 +9,11 @@
 
 ## Schema
 
-| 字段 | 类型 | 默认值 | 描述 | 引用 |
-|---|---|---|---|---|
-| `name` | `string` | `""` | 该 special 的显示名称。 | `—` |
-| `desc` | `string` | `""` | 该 special 的显示说明。 | `—` |
-| `icon` | `file` | `""` | 完整的图标逻辑路径。选择器根路径为 `/Game/Assets/Icons`。 | `—` |
+| 字段 | 类型 | 默认值 | 描述 |
+|---|---|---|---|
+| `name` | `string` | `""` | 该 special 的显示名称。 |
+| `desc` | `string` | `""` | 该 special 的显示说明。 |
+| `icon` | `file` | `""` | 完整的图标逻辑路径。选择器根路径为 `/Game/Assets/Icons`。 |
 
 ## 编辑说明
 

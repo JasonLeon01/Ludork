@@ -14,7 +14,7 @@ The editor shows a generated `ItemAttributeSet` preview for `ID`. The `attribute
 
 | Name | Type | Default | Metadata |
 |---|---|---|---|
-| `ID` | `string` | `""` | GeneralDataVars = `Item` |
+| `ID` | `{ enum = "Enums.GeneralData.Item", valueType = "string" }` | `""` | — |
 | `count` | `int` | `1` | — |
 | `getSE` | `string` | `""` | Sounds path; `Audio.getSE` fallback |
 

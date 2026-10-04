@@ -59,6 +59,8 @@ The generator writes changed content only and removes stale outputs only when th
 
 Cross-builds and builds with static Lua modules require the enum source modules from a prior desktop native build. Missing generated files fail the preflight with their paths; the build does not guess C++ constant values. Rebuild on desktop after changing native enum declarations or marked maps before preparing those builds.
 
+Project-owned enums use a different source of truth: General Data, animation and particle documents. Their save pipeline generates `Enums.GeneralDataKey`, `Enums.GeneralData.*`, `Enums.Animation` and `Enums.Particle` atomically with the data. Native metadata may reference these through `metadata_type = { enum = "Enums.Particle", valueType = "string" }` without changing the C++ string parameter or Lua API value. The editor uses the live project catalog, and the runtime uses saved modules. See [General Data and Text Config](<../Editor User Guide/General Data and Text Config.md>) for ownership and rename rules.
+
 ## Regeneration
 
 Run the normal CMake build to add, update or remove generated class units and module outputs. Bindgen writes only changed content, preserving unchanged files' names and timestamps. If output appears stale, confirm that the annotated header belongs to the module's configured public-header set, then inspect the generator diagnostics and rebuild.

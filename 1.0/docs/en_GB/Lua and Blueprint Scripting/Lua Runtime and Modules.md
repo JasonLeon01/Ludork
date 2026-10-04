@@ -80,7 +80,7 @@ Runtime callers load the enum directly, for example `local StairDirection = requ
 | `Enums.PlayerChangeKind` | `Inventory`, `Name`, `Map` payload kinds |
 | `Enums.MovementLatentOutput` | `STARTED = 0`, `FINISHED = 1` execution output indices |
 
-Native builds generate `Enums.Engine.*`, `Enums.GlobalCore.*`, `Enums.GlobalFunctions.*` and `Enums.sf.*`. General Data Save generates `Enums.GeneralDataKey` and one `Enums.GeneralData.<TypeName>` module per data type. These generated modules retain their owning native declarations or database records as the source of truth; edit those sources and regenerate.
+Native builds generate `Enums.Engine.*`, `Enums.GlobalCore.*`, `Enums.GlobalFunctions.*` and `Enums.sf.*`. Project data saves generate `Enums.GeneralDataKey`, one `Enums.GeneralData.<TypeName>` module per data type, `Enums.Animation` and `Enums.Particle`. The editor resolves these string enums from the current project catalog before saving, including unsaved changes; runtime `require` reads the generated source modules. These generated modules retain their owning native declarations or database records as the source of truth; edit those sources and regenerate.
 
 ## Native modules and values
 

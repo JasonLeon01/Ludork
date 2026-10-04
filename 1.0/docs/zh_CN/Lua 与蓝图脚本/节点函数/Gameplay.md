@@ -21,11 +21,11 @@ Metadata 来源：`Scripts/GlobalFunctions/Gameplay_meta.lua`
 | `GetNumericAttribute` | `target: Battler; attribute: string` | `value: any` | Pure；动态数值引脚 |
 | `SetNumericAttributeBase` | `target: Battler; attribute: string; value: any` | — | 默认执行输出；动态数值引脚 |
 | `ApplyAttributeDelta` | `target: Battler; attribute: string; magnitude: any` | — | 默认执行输出；动态数值引脚 |
-| `ApplyState` | `target: Battler; stateID: string; stacks: int = 1` | `handle: int` | 默认执行输出；State 选择器 |
-| `RemoveState` | `target: Battler; stateID: string` | — | 成功/失败分支；State 选择器 |
-| `ReduceState` | `target: Battler; stateID: string; stacks: int = 1` | — | 成功/失败分支；State 选择器 |
-| `RemovePlayerState` | `stateID: string` | — | 默认执行输出；State 选择器 |
-| `ReducePlayerState` | `stateID: string; stacks: int = 1` | — | 默认执行输出；State 选择器 |
+| `ApplyState` | `target: Battler; stateID: string; stacks: int = 1` | `handle: int` | 默认执行输出；`Enums.GeneralData.State` 字符串枚举选择器 |
+| `RemoveState` | `target: Battler; stateID: string` | — | 成功/失败分支；`Enums.GeneralData.State` 字符串枚举选择器 |
+| `ReduceState` | `target: Battler; stateID: string; stacks: int = 1` | — | 成功/失败分支；`Enums.GeneralData.State` 字符串枚举选择器 |
+| `RemovePlayerState` | `stateID: string` | — | 默认执行输出；`Enums.GeneralData.State` 字符串枚举选择器 |
+| `ReducePlayerState` | `stateID: string; stacks: int = 1` | — | 默认执行输出；`Enums.GeneralData.State` 字符串枚举选择器 |
 | `SendEvent` | `target: Battler; eventTag: string; payload: any = {}` | `results: any` | 默认执行输出 |
 | `ApplyEffect` | `target: Battler; effect: any; stacks: int = 1; sourceKey: any` | `handle: int` | 默认执行输出 |
 

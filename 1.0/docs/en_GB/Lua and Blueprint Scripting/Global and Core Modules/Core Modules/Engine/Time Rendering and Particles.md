@@ -236,7 +236,7 @@ Replacing `actor.emitterComp` or assigning `nil` immediately clears the previous
 
 | Property | Default | Meaning |
 |---|---|---|
-| `resource` | `""` | `PARTICLE` resource selector; extensionless key under `Data/Particles`. Empty disables the effect. |
+| `resource` | `""` | `{ enum = "Enums.Particle", valueType = "string" }`; extensionless key under `Data/Particles`, selected from the live project catalog. Empty disables the effect. |
 | `anchor` | `[0.5,0.5]` | Normalized point in the Actor's local bounds. |
 | `offset` | `[0,0]` | Additional local offset in logical pixels. |
 | `rotation` | `0` | Local rotation in degrees. |

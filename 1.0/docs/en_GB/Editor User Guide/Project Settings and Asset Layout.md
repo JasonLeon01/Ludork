@@ -81,7 +81,7 @@ Moving an asset does not automatically repair every stored reference. Open its r
 
 Public enum modules live under `Scripts/Enums`, with one scalar table and its EmmyLua annotations per source module, without mirrored enum stubs. Native builds own the `Engine`, `GlobalCore`, `GlobalFunctions` and `sf` subdirectories. Handwritten project enums, such as `Enums.StairDirection`, keep their own source modules.
 
-The Game Variable Manager owns `Scripts/Source/Configs/GameVariables.lua` and `GameVariables_meta.lua`. General Data Save owns `Scripts/Enums/GeneralDataKey.lua`, `Scripts/Enums/GeneralData/<TypeName>.lua`, `Scripts/Source/Configs/GeneralDataTypes.lua` and the mirrored declaration for `GeneralDataTypes`. Generated enum sources carry their own `---@enum` annotations. Do not edit generated outputs by hand. Their regeneration is described in [General Data and Text Config](<General Data and Text Config.md>).
+The Game Variable Manager owns `Scripts/Source/Configs/GameVariables.lua` and `GameVariables_meta.lua`. Project data saves own `Scripts/Enums/GeneralDataKey.lua`, `Scripts/Enums/GeneralData/<TypeName>.lua`, `Scripts/Enums/Animation.lua`, `Scripts/Enums/Particle.lua`, `Scripts/Source/Configs/GeneralDataTypes.lua` and the mirrored declaration for `GeneralDataTypes`. Generated enum sources carry their own `---@enum` annotations. Do not edit generated outputs by hand. Their regeneration is described in [General Data and Text Config](<General Data and Text Config.md>).
 
 Do not edit `Engine_meta.lua`, `GlobalCore_meta.lua`, `GlobalFunctions_meta.lua` or generated Core/LuaSF declarations by hand. Packaging removes `Scripts/stub` and rejects any misplaced `.d.lua`.
 

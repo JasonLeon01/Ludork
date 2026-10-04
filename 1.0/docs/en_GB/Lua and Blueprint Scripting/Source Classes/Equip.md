@@ -14,7 +14,7 @@ The editor shows a generated `EquipAttributeSet` preview for `ID`. The `attribut
 
 | Name | Type | Default | Metadata |
 |---|---|---|---|
-| `ID` | `string` | `"FILL_IT_BY_YOURSELF"` | GeneralDataVars = `Equip` |
+| `ID` | `{ enum = "Enums.GeneralData.Equip", valueType = "string" }` | `"FILL_IT_BY_YOURSELF"` | — |
 | `getSE` | `string` | `""` | Sounds path; `Audio.getSE` fallback |
 
 ## Runtime API

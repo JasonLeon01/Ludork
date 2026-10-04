@@ -8,12 +8,12 @@
 
 ## Schema
 
-| 字段 | 类型 | 默认值 | 描述 | 引用 |
-|---|---|---|---|---|
-| `name` | `string` | `""` | 该 State 的显示名称。 | `—` |
-| `desc` | `string` | `""` | 该 State 的显示说明。 | `—` |
-| `icon` | `file` | `""` | 完整的图标逻辑路径。选择器根路径为 `/Game/Assets/Icons`。 | `—` |
-| `stackable` | `bool` | `false` | 再次添加该 State 时，是否增加已有 State 的层数。 | `—` |
+| 字段 | 类型 | 默认值 | 描述 |
+|---|---|---|---|
+| `name` | `string` | `""` | 该 State 的显示名称。 |
+| `desc` | `string` | `""` | 该 State 的显示说明。 |
+| `icon` | `file` | `""` | 完整的图标逻辑路径。选择器根路径为 `/Game/Assets/Icons`。 |
+| `stackable` | `bool` | `false` | 再次添加该 State 时，是否增加已有 State 的层数。 |
 
 ## 编辑说明
 

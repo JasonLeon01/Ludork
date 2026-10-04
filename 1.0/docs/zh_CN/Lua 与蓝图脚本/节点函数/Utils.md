@@ -28,10 +28,10 @@ Metadata 来源：`Scripts/GlobalFunctions/Utils_meta.lua`
 | `AddPlayerByClass` | `function` | playerClass: string = ""; mapPath: string = ""; position: sf.Vector2i | — | ExecSplit { [1] = "default", default = nil }; Meta { BlueprintClassVars = { [1] = "playerClass" }, Transfer = { [1] = { [1] = "position", [2] = "mapPath" } } } |
 | `SetPlayerByClass` | `function` | playerClass: string = "" | — | ExecSplit { [1] = "default", default = nil }; Meta { BlueprintClassVars = { [1] = "playerClass" } } |
 | `RemovePlayerByClass` | `function` | playerClass: string = "" | — | ExecSplit { [1] = "default", default = nil }; Meta { BlueprintClassVars = { [1] = "playerClass" } } |
-| `AddAnim` | `function` | animName: string; position: sf.Vector2f = { [1] = 0, [2] = 0 }; rotation: float = 0; scale: sf.Vector2f = { [1] = 1, [2] = 1 } | — | ExecSplit { [1] = "default", default = nil }; Meta { GeneralDataVars = { [1] = { [1] = "animName", [2] = "ANIMATION" } } } |
-| `AddAnimOn` | `function` | animName: string; actorTag: string; rotation: float = 0; scale: sf.Vector2f = { [1] = 1, [2] = 1 } | — | ExecSplit { [1] = "default", default = nil }; Meta { GeneralDataVars = { [1] = { [1] = "animName", [2] = "ANIMATION" } } } |
-| `GetAnimLength` | `function` | animName: string | value: float | Pure; Meta { GeneralDataVars = { [1] = { [1] = "animName", [2] = "ANIMATION" } } } |
-| `GetAnimVisualLength` | `function` | animName: string | value: float | Pure; Meta { GeneralDataVars = { [1] = { [1] = "animName", [2] = "ANIMATION" } } } |
+| `AddAnim` | `function` | animName: { enum = "Enums.Animation", valueType = "string" }; position: sf.Vector2f = { [1] = 0, [2] = 0 }; rotation: float = 0; scale: sf.Vector2f = { [1] = 1, [2] = 1 } | — | ExecSplit { [1] = "default", default = nil } |
+| `AddAnimOn` | `function` | animName: { enum = "Enums.Animation", valueType = "string" }; actorTag: string; rotation: float = 0; scale: sf.Vector2f = { [1] = 1, [2] = 1 } | — | ExecSplit { [1] = "default", default = nil } |
+| `GetAnimLength` | `function` | animName: { enum = "Enums.Animation", valueType = "string" } | value: float | Pure |
+| `GetAnimVisualLength` | `function` | animName: { enum = "Enums.Animation", valueType = "string" } | value: float | Pure |
 | `SUPER` | `function` | obj: any; params: any[] = {  } | value: bool | ExecSplit { [1] = "default", default = nil } |
 | `SELF` | `function` | — | value: any | Pure |
 | `GetAttrRef` | `function` | obj: any; attrName: string | value: any | Pure |

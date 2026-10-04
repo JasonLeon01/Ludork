@@ -8,12 +8,12 @@ Source: `Data/General/State.json`
 
 ## Schema
 
-| Field | Type | Default | Description | Reference |
-|---|---|---|---|---|
-| `name` | `string` | `""` | The display name of this state. | `—` |
-| `desc` | `string` | `""` | The display description of this state. | `—` |
-| `icon` | `file` | `""` | Full logical icon path. The selector root is `/Game/Assets/Icons`. | `—` |
-| `stackable` | `bool` | `false` | Whether adding this state again increases the existing state's stack count. | `—` |
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `name` | `string` | `""` | The display name of this state. |
+| `desc` | `string` | `""` | The display description of this state. |
+| `icon` | `file` | `""` | Full logical icon path. The selector root is `/Game/Assets/Icons`. |
+| `stackable` | `bool` | `false` | Whether adding this state again increases the existing state's stack count. |
 
 ## Editing notes
 

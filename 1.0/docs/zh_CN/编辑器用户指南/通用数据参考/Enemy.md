@@ -8,18 +8,18 @@
 
 ## Schema
 
-| 字段 | 类型 | 默认值 | 描述 | 引用 |
-|---|---|---|---|---|
-| `name` | `string` | `"NEW ENEMY"` | 该敌人的显示名称。 | `—` |
-| `desc` | `string` | `"NEW ENEMY DESC"` | 该敌人的显示说明。 | `—` |
-| `MAXHP` | `int` | `0` | 敌人的最大 HP。 | `—` |
-| `ATK` | `int` | `0` | 敌人的攻击力。 | `—` |
-| `DEF` | `int` | `0` | 敌人的防御力。 | `—` |
-| `EXP` | `int` | `0` | 击败该敌人时给予的经验值。 | `—` |
-| `GOLD` | `int` | `0` | 击败该敌人时给予的金币。 | `—` |
-| `drops` | `Dict[string, sf.Vector2i]` | `{}` | Item 蓝图类路径到地图格偏移的映射，偏移以敌人被击败的位置为基准。 | `—` |
-| `special` | `Dict[string, any]` | `{}` | Special 成员 ID 到其带类型参数的映射。 | `general:Special` |
-| `ANIMATION_KEY` | `string` | `""` | 敌人攻击时播放的动画。 | `animation` |
+| 字段 | 类型 | 默认值 | 描述 |
+|---|---|---|---|
+| `name` | `string` | `"NEW ENEMY"` | 该敌人的显示名称。 |
+| `desc` | `string` | `"NEW ENEMY DESC"` | 该敌人的显示说明。 |
+| `MAXHP` | `int` | `0` | 敌人的最大 HP。 |
+| `ATK` | `int` | `0` | 敌人的攻击力。 |
+| `DEF` | `int` | `0` | 敌人的防御力。 |
+| `EXP` | `int` | `0` | 击败该敌人时给予的经验值。 |
+| `GOLD` | `int` | `0` | 击败该敌人时给予的金币。 |
+| `drops` | `Dict[string, sf.Vector2i]` | `{}` | Item 蓝图类路径到地图格偏移的映射，偏移以敌人被击败的位置为基准。 |
+| `special` | `{ dict = "any", key = { enum = "Enums.GeneralData.Special", valueType = "string" } }` | `{}` | Special 成员 ID 到其带类型参数的映射。 |
+| `ANIMATION_KEY` | `{ enum = "Enums.Animation", valueType = "string" }` | `""` | 敌人攻击时播放的动画。 |
 
 ## 编辑说明
 

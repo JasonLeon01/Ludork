@@ -8,8 +8,6 @@ Metadata source: `Scripts/Source/MapActors/EnemyDamageText_meta.lua`
 
 Direct metadata bases: `{ "Engine", "Actor" }`
 
-Meta: `{ GeneralDataVars = { [1] = { [1] = "requiredItemID", [2] = "Item" } } }`
-
 `EnemyDamageText.EnemyDamageHintLevel` is the shared runtime setting. Load `Enums.DamageHintLevel` to choose `NONE = 0`, `BATTLE = 1` (default), or `MAP = 2`. `NONE` hides expected-damage hints; `MAP` also enables movement-danger cell totals. The required Item still gates hints, and actual damage particles are unaffected.
 
 ### Properties
@@ -18,7 +16,7 @@ Meta: `{ GeneralDataVars = { [1] = { [1] = "requiredItemID", [2] = "Item" } } }`
 |---|---|---|---|
 | `tickable` | `bool` | `true` | — |
 | `collisionEnabled` | `bool` | `false` | — |
-| `requiredItemID` | `string` | `"EnemyBook"` | Meta { GeneralDataVars = "Item" } |
+| `requiredItemID` | `{ enum = "Enums.GeneralData.Item", valueType = "string" }` | `"EnemyBook"` | — |
 | `textConfig` | `string` | `"Enemy/DamageReadout"` | — |
 | `damageTextOffset` | `sf.Vector2f` | `{ [1] = 0, [2] = 0 }` | — |
 

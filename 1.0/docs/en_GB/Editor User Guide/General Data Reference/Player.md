@@ -8,19 +8,19 @@ Source: `Data/General/Player.json`
 
 ## Schema
 
-| Field | Type | Default | Description | Reference |
-|---|---|---|---|---|
-| `name` | `string` | `""` | The display name of this player preset. | `—` |
-| `desc` | `string` | `""` | The display description of this player preset. | `—` |
-| `CLASS` | `string` | `""` | The `Class` member ID that defines the player's equipment slots and initial equipment. | `general:Class` |
-| `MAXHP` | `int` | `1000` | The player's starting maximum HP. | `—` |
-| `HP` | `int` | `1000` | The player's starting current HP. | `—` |
-| `ATK` | `int` | `10` | The player's starting attack value. | `—` |
-| `DEF` | `int` | `10` | The player's starting defence value. | `—` |
-| `EXP` | `int` | `0` | The player's starting experience. | `—` |
-| `GOLD` | `int` | `0` | The player's starting gold. | `—` |
-| `LEVEL` | `int` | `1` | The player's starting level. | `—` |
-| `ANIMATION_KEY` | `string` | `""` | The animation played when the player attacks. | `animation` |
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `name` | `string` | `""` | The display name of this player preset. |
+| `desc` | `string` | `""` | The display description of this player preset. |
+| `CLASS` | `{ enum = "Enums.GeneralData.Class", valueType = "string" }` | `""` | The `Class` member ID that defines the player's equipment slots and initial equipment. |
+| `MAXHP` | `int` | `1000` | The player's starting maximum HP. |
+| `HP` | `int` | `1000` | The player's starting current HP. |
+| `ATK` | `int` | `10` | The player's starting attack value. |
+| `DEF` | `int` | `10` | The player's starting defence value. |
+| `EXP` | `int` | `0` | The player's starting experience. |
+| `GOLD` | `int` | `0` | The player's starting gold. |
+| `LEVEL` | `int` | `1` | The player's starting level. |
+| `ANIMATION_KEY` | `{ enum = "Enums.Animation", valueType = "string" }` | `""` | The animation played when the player attacks. |
 
 ## Editing notes
 

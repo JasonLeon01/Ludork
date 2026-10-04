@@ -9,11 +9,11 @@ Source: `Data/General/Special.json`
 
 ## Schema
 
-| Field | Type | Default | Description | Reference |
-|---|---|---|---|---|
-| `name` | `string` | `""` | The display name of this special. | `—` |
-| `desc` | `string` | `""` | The display description of this special. | `—` |
-| `icon` | `file` | `""` | Full logical icon path. The selector root is `/Game/Assets/Icons`. | `—` |
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `name` | `string` | `""` | The display name of this special. |
+| `desc` | `string` | `""` | The display description of this special. |
+| `icon` | `file` | `""` | Full logical icon path. The selector root is `/Game/Assets/Icons`. |
 
 ## Editing notes
 

@@ -84,7 +84,7 @@ return _METADATA
 
 ## 枚举 schema
 
-枚举引用 `Scripts/Enums` 下的一个模块，源码包含一张非空的具名标量字面量 table 及其 EmmyLua 注解：
+枚举引用 `Scripts/Enums` 下的一个模块，源码包含一张具名标量字面量 table 及其 EmmyLua 注解：
 
 ```lua
 -- Scripts/Enums/StairDirection.lua
@@ -111,13 +111,26 @@ stairDirection = {
 
 静态读取器接受直接返回字面量表，或声明一个局部字面量表后返回同名变量。允许注释、注解和可选分号，也允许用一层括号包裹标量字面量以附带行内类型注解。调用（包括 `require`）、计算表达式、表修改、返回其他变量及额外语句都会被拒绝，编辑器不会执行模块。
 
-键必须是非空字符串，值必须属于同一类别：字符串、布尔值或有限数字。数值枚举的全部字面量都是整数时，底层类型为 `int`；只要存在浮点字面量，包括 `1.0`，底层类型就是 `float`。
+键必须是非空字符串，值必须属于同一类别：字符串、布尔值或有限数字。未指定 `valueType` 时，全部为整数字面量的枚举使用 `int`；只要包含浮点字面量（包括 `1.0`），就使用 `float`。
+
+可选的 `valueType` 显式声明 `string`、`bool`、`int` 或 `float`，例如 `{ enum = "Enums.GeneralData.Item", valueType = "string" }`。它允许常量表为空，并在出现选项之前确定类型。非空常量必须与声明一致；整数常量也可以显式使用 `float`。空源码模块未声明 `valueType`、常量类型冲突、未知 schema 属性或模块缺失都会报错，嵌套容器中也一样。`valueType` 描述标量类型，不要求取值属于选项列表。
 
 选择器按 ordinal 顺序显示键，保存选中键对应的值本身，不保存键名或 Lua 表达式，也无需 `Meta.DropBox`。多个键对应同一个值时，回显第一个匹配的键。当前常量表不再包含的已有值会保留保存，并显示未知值提示。只要它仍符合底层标量类型，就仍是有效值；枚举不在运行时强制限定取值集合。
 
-显式默认值填写实际标量值，并优先使用。没有默认值时，新节点输入和容器项使用第一个选项。未声明默认值的属性在存在保存值之前仍只提供 schema。
+显式默认值填写实际标量值，并优先使用。未声明时，新节点输入和容器项使用第一个选项；空枚举使用声明标量的默认值（`""`、`false` 或 `0`）。未声明默认值的属性在存在保存值之前仍只提供 schema。字符串枚举选择器包含 **— 不选择 —**，保存为 `""`；未知的非空取值仍会显示并保留。
 
-编辑器在字段显示或下拉框打开时读取当前文件，返回该窗口时同样刷新。它不会跨这些读取缓存枚举定义，也不会执行玩法模块来发现取值。文件缺失或枚举无效时，错误会指出模块路径，并保留当前值。
+普通枚举在字段显示或下拉框打开时读取当前文件，返回窗口时同样刷新，不执行玩法模块。项目托管枚举则读取当前项目目录，包括未保存的数据：`Enums.GeneralDataKey` 选择通用数据类型，`Enums.GeneralData.<TypeName>` 选择该类型的成员，`Enums.Animation` 选择动画键，`Enums.Particle` 选择粒子键。这四类均使用 `valueType = "string"`，生成源码之前也能选择。已删除的托管模块会报错，即使磁盘上仍留有旧生成文件。枚举无效时，错误指出模块路径，并保留当前值。
+
+字典 schema 可独立于值类型声明字符串枚举键：
+
+```lua
+type = {
+    dict = "int",
+    key = { enum = "Enums.GeneralData.Item", valueType = "string" },
+}
+```
+
+省略 `key` 时仍使用普通字符串键。显式键只能是 `string`，或声明了 `valueType = "string"` 的枚举；数值、布尔、容器和未声明底层类型的枚举键都会被拒绝。值仍保留自身的递归类型。JSON 仍是以选中的标量字符串为键的对象。新增枚举键行时，必须先选中非空且唯一的键才会修改保存数据；重复键会被拒绝。`DictKeyMeta` 仍可细化其他键控件，但不替换声明的键类型。
 
 **转换为普通输入框** 按底层 `string`、`bool`、`int` 或 `float` 的普通规则编辑标量值。整数枚举需要输入数字，而不是显示的键。schema 中仍保留枚举身份，联合类型的 `$type` 分支描述也一样；保存的取值仍是标量。[连线的类型规则](<执行流、事件与变量.md#连线的类型规则>)同样使用该底层类型。
 
@@ -198,7 +211,7 @@ calculate = {
 
 `ADD`、`IADD` 等运算符节点是例外。标识符格式化无法表达目标标签时，它们可以使用直接字面量 `Meta.DisplayName`，例如 `+` 或 `+=`。不得用 `LOC(...)` 包装字面量，也不得添加默认的 `DisplayDesc`。
 
-`Meta` 保存无法从声明类型推断的编辑器语义，例如 `DropBox`、`PathVars`、`ProgressVars`、`SliderVars`、`RangeVars`、`MoveRouteVars`、`Transfer`、`BlueprintClassVars`、`CommonFunctionVars`、`GeneralDataVars` 与 `ConfigVars`。
+`Meta` 保存无法从声明类型推断的编辑器语义，例如 `DropBox`、`PathVars`、`ProgressVars`、`SliderVars`、`RangeVars`、`MoveRouteVars`、`Transfer`、`BlueprintClassVars`、`CommonFunctionVars` 与 `ConfigVars`。
 
 游戏资源用 `PathVars` 给出完整的选择根，例如 `/Game/Assets/Sounds`，字段保存完整逻辑路径。`PathRoot = "Project"` 则改为选择 Script Mixin 之类的原生工程文件。`PathRoot = "Data"` 在项目相对的 `PathVars` 目录（如 `Data/Subtitles`）下选择数据文件，并保存完整的项目相对 `Data/...` 路径。JSON 文档使用 `PathFilter = "*.json"`。数据引用必须位于选择目录内，不允许目录越界。函数元数据按参数名指定，例如 `PathRoot = { subtitleFileName = "Data" }`。
 

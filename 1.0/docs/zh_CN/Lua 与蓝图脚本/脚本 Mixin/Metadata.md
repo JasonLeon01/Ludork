@@ -10,11 +10,8 @@ local _METADATA = {
             "needKeyCount",
         },
         needKeyID = {
-            type = "string",
+            type = { enum = "Enums.GeneralData.Item", valueType = "string" },
             default = "",
-            Meta = {
-                GeneralDataVars = "Item",
-            },
         },
         needKeyCount = {
             type = "int",
@@ -33,7 +30,7 @@ return _METADATA
 - `default` 如果存在，必须是有限、无环、可转换为 JSON 的纯数据。
 - `bases` 缺省，或为空 table。基类由蓝图继承提供。
 - 根 table 中不得出现第二个类型、函数、userdata、协程或外部状态访问。
-- `Meta.GeneralDataVars`、`Meta.PathVars`、`Meta.ConfigVars` 等 decorator 只细化编辑器控件，不改变运行时值。`Meta.InstVar` 选择一个已声明的游戏变量名，可用 `types` 过滤。`Meta.InstVarValue` 指名同级字段，由该字段选中的声明决定值编辑器。
+- `Meta.PathVars`、`Meta.ConfigVars` 等 decorator 只细化编辑器控件，不改变运行时值。`Meta.InstVar` 选择一个已声明的游戏变量名，可用 `types` 过滤。`Meta.InstVarValue` 指名同级字段，由该字段选中的声明决定值编辑器。
 
 Mixin metadata 已为蓝图声明其字段，本地值写入 `attrs`，不要在 `attrDefs` 中重复声明。`attrDefs` 只用于蓝图额外新增的字段，其类型与默认值由派生类继承。缺少声明，或与继承字段、Mixin 字段冲突时都会拒绝加载。参见[蓝图属性声明](<../蓝图脚本/Metadata 结构与 Decorator.md#蓝图属性声明>)。
 

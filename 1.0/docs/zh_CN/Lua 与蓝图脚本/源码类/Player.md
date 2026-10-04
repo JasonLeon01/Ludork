@@ -6,15 +6,13 @@ Metadata 来源：`Scripts/Source/MapActors/Player_meta.lua`
 
 直接 metadata 基类：`{ "Engine", "Character" }`、`{ "Source.Battler", "Battler" }`
 
-Meta：`{ GeneralDataVars = { { "ID", "Player" } } }`
-
 编辑器会显示生成的 `PlayerAttributeSet` 只读预览。该预览不会序列化到 Blueprint JSON 中。
 
 ## 属性
 
 | 名称 | 类型 | 默认值 | Metadata |
 |---|---|---|---|
-| `ID` | `string` | `"FILL_IT_BY_YOURSELF"` | GeneralDataVars = `Player` |
+| `ID` | `{ enum = "Enums.GeneralData.Player", valueType = "string" }` | `"FILL_IT_BY_YOURSELF"` | — |
 | `tickable` | `bool` | `true` | — |
 | `collisionEnabled` | `bool` | `true` | — |
 | `animatable` | `bool` | `true` | — |

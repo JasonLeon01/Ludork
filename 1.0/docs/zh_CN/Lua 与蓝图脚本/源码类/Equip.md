@@ -14,7 +14,7 @@ Metadata 来源：`Scripts/Source/MapActors/Equip_meta.lua`
 
 | 名称 | 类型 | 默认值 | Metadata |
 |---|---|---|---|
-| `ID` | `string` | `"FILL_IT_BY_YOURSELF"` | GeneralDataVars = `Equip` |
+| `ID` | `{ enum = "Enums.GeneralData.Equip", valueType = "string" }` | `"FILL_IT_BY_YOURSELF"` | — |
 | `getSE` | `string` | `""` | `Sounds` 路径；回退到 `Audio.getSE` |
 
 ## 运行时 API

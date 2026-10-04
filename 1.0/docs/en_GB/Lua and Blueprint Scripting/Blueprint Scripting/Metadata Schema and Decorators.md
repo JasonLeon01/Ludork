@@ -84,7 +84,7 @@ Every saved attribute and nested typed record member must be declared, and its v
 
 ## Enum schemas
 
-An enum references one module under `Scripts/Enums`. The source contains a nonempty table of named scalar literals and its EmmyLua annotation:
+An enum references one module under `Scripts/Enums`. The source contains a table of named scalar literals and its EmmyLua annotation:
 
 ```lua
 -- Scripts/Enums/StairDirection.lua
@@ -111,13 +111,26 @@ The same `{ enum = "Enums.StairDirection" }` schema works directly in a function
 
 The static reader accepts either a directly returned literal table or one local literal table followed by `return` of the same variable. Comments, annotations and optional semicolons are allowed, as is one pair of parentheses around a scalar literal for an inline type annotation. Calls (including `require`), calculations, table mutations, other returned variables and extra statements are rejected. The editor never executes the module.
 
-Keys must be nonempty strings, and values must share one category: strings, booleans or finite numbers. A numeric enum is `int` when every literal is an integer; any floating-point literal, including `1.0`, makes it `float`.
+Keys must be nonempty strings, and values must share one category: strings, booleans or finite numbers. Without `valueType`, an enum containing only integer literals is `int`; any floating-point literal, including `1.0`, makes it `float`.
+
+The optional `valueType` declares `string`, `bool`, `int` or `float`, for example `{ enum = "Enums.GeneralData.Item", valueType = "string" }`. It allows an empty constant table and fixes the type before any options exist. Nonempty constants must agree with it; integer constants may also use an explicit `float` type. An empty source module without `valueType`, an incompatible constant, an unknown schema property or a missing module is an error, including inside a nested container. `valueType` describes the scalar type, not membership in the option list.
 
 The selector displays keys in ordinal order and saves the selected value itself. It stores neither the key nor a Lua expression, and needs no `Meta.DropBox`. Equal values select the first matching key for display. Existing values absent from the current table remain saved and show an unknown-value message. They remain valid if their underlying scalar type is valid; an enum does not impose runtime membership checks.
 
-An explicit default is the actual scalar value and takes priority. Without one, new node inputs and container items use the first option. An attribute without a default remains schema-only until it has a saved value.
+An explicit default is the actual scalar value and takes priority. Without one, new node inputs and container items use the first option, or the declared scalar's default when the enum is empty (`""`, `false` or `0`). An attribute without a default remains schema-only until it has a saved value. String enum selectors include **— None —**, which stores `""`; unknown nonempty values remain visible and preserved.
 
-The editor reads the current file whenever the field is displayed or the selector opens, including after returning to the window. It does not cache enum definitions across these reads or execute gameplay modules to discover their values. A missing file or invalid enum reports its module path and preserves the current value.
+For ordinary enums, the editor reads the current file whenever the field is displayed or its selector opens, including after returning to the window. It does not execute gameplay modules. Project-managed enums instead use the current project catalog, including unsaved data: `Enums.GeneralDataKey` selects General Data types, `Enums.GeneralData.<TypeName>` selects their members, `Enums.Animation` selects animation keys, and `Enums.Particle` selects particle keys. All four use `valueType = "string"`; their selectors work before source generation. A deleted managed module is an error even if an old generated file remains on disk. An invalid enum reports its module path and preserves the current value.
+
+Dictionary schemas accept a string enum key independently of their value schema:
+
+```lua
+type = {
+    dict = "int",
+    key = { enum = "Enums.GeneralData.Item", valueType = "string" },
+}
+```
+
+Omitting `key` keeps ordinary string keys. Explicit keys must be `string` or an enum declaring `valueType = "string"`; numeric, boolean, container and untyped enum keys are rejected. Values retain their own recursive type. JSON remains an object with the selected scalar strings as keys. Adding an enum-keyed row waits for a nonempty unique key before changing saved data; duplicate keys are rejected. `DictKeyMeta` continues to refine unrelated key controls without replacing the declared key type.
 
 **Convert to Plain Text Inputs** edits the underlying scalar value using its ordinary `string`, `bool`, `int` or `float` rules. For an integer enum, enter the number rather than the displayed key. Enum identity remains in the schema, including a union's `$type` branch descriptor; the stored value is still the scalar. [Typed connections](<Execution Flow Events and Variables.md#typed-connections>) use that underlying type as well.
 
@@ -198,7 +211,7 @@ Do not declare `DisplayName`, `DisplayDesc`, `VariableDisplayNames`, `VariableDi
 
 Operator nodes such as `ADD` and `IADD` are the exception. They may use a direct literal `Meta.DisplayName`, such as `+` or `+=`, when identifier formatting cannot express the intended label. Do not wrap the literal in `LOC(...)`, and do not add a default `DisplayDesc`.
 
-`Meta` retains editor semantics that cannot be inferred from the declared type, such as `DropBox`, `PathVars`, `ProgressVars`, `SliderVars`, `RangeVars`, `MoveRouteVars`, `Transfer`, `BlueprintClassVars`, `CommonFunctionVars`, `GeneralDataVars` and `ConfigVars`.
+`Meta` retains editor semantics that cannot be inferred from the declared type, such as `DropBox`, `PathVars`, `ProgressVars`, `SliderVars`, `RangeVars`, `MoveRouteVars`, `Transfer`, `BlueprintClassVars`, `CommonFunctionVars` and `ConfigVars`.
 
 For game resources, `PathVars` supplies a full selector root such as `/Game/Assets/Sounds`, and the field stores the complete logical path. `PathRoot = "Project"` instead selects native project files such as Script Mixins. `PathRoot = "Data"` selects data files beneath a project-relative `PathVars` directory such as `Data/Subtitles`, and stores the full project-relative `Data/...` path. Use `PathFilter = "*.json"` for JSON documents. Data references must remain within the selector directory and cannot contain traversal segments. Function metadata targets a parameter by name, for example `PathRoot = { subtitleFileName = "Data" }`.
 

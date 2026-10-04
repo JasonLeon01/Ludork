@@ -21,11 +21,11 @@ Direct metadata bases: —
 | `GetNumericAttribute` | `target: Battler; attribute: string` | `value: any` | Pure; dynamic numeric pin |
 | `SetNumericAttributeBase` | `target: Battler; attribute: string; value: any` | — | default execution output; dynamic numeric pin |
 | `ApplyAttributeDelta` | `target: Battler; attribute: string; magnitude: any` | — | default execution output; dynamic numeric pin |
-| `ApplyState` | `target: Battler; stateID: string; stacks: int = 1` | `handle: int` | default execution output; State selector |
-| `RemoveState` | `target: Battler; stateID: string` | — | success/failed split; State selector |
-| `ReduceState` | `target: Battler; stateID: string; stacks: int = 1` | — | success/failed split; State selector |
-| `RemovePlayerState` | `stateID: string` | — | default execution output; State selector |
-| `ReducePlayerState` | `stateID: string; stacks: int = 1` | — | default execution output; State selector |
+| `ApplyState` | `target: Battler; stateID: string; stacks: int = 1` | `handle: int` | default execution output; `Enums.GeneralData.State` string enum selector |
+| `RemoveState` | `target: Battler; stateID: string` | — | success/failed split; `Enums.GeneralData.State` string enum selector |
+| `ReduceState` | `target: Battler; stateID: string; stacks: int = 1` | — | success/failed split; `Enums.GeneralData.State` string enum selector |
+| `RemovePlayerState` | `stateID: string` | — | default execution output; `Enums.GeneralData.State` string enum selector |
+| `ReducePlayerState` | `stateID: string; stacks: int = 1` | — | default execution output; `Enums.GeneralData.State` string enum selector |
 | `SendEvent` | `target: Battler; eventTag: string; payload: any = {}` | `results: any` | default execution output |
 | `ApplyEffect` | `target: Battler; effect: any; stacks: int = 1; sourceKey: any` | `handle: int` | default execution output |
 

@@ -24,7 +24,7 @@ Keep immutable definitions in Blueprint, Config or General Data files, and keep 
 
 `Data.GetClassData(path)` exposes the shared session definition; see [Execution Flow, Events and Variables](<../Blueprint Scripting/Execution Flow Events and Variables.md#class-definitions-and-session-lifetime>).
 
-Construct General Data Attribute Sets with `Source.Configs.GeneralDataTypes.Create`. Load type keys from `Enums.GeneralDataKey` and member keys from `Enums.GeneralData.<TypeName>`, such as `Enums.GeneralData.Item`. These modules are regenerated when General Data is saved. The [General Data and Text Config](<../../Editor User Guide/General Data and Text Config.md>) page describes value conversion and defaults.
+Construct General Data Attribute Sets with `Source.Configs.GeneralDataTypes.Create`. Load type keys from `Enums.GeneralDataKey` and member keys from `Enums.GeneralData.<TypeName>`, such as `Enums.GeneralData.Item`. The editor resolves these enums from live, possibly unsaved project data. Saving regenerates their runtime sources alongside `Enums.Animation` and `Enums.Particle`; runtime callers see the saved modules. The [General Data and Text Config](<../../Editor User Guide/General Data and Text Config.md>) page describes value conversion and defaults.
 
 ### Players
 

@@ -8,15 +8,13 @@ Metadata 来源：`Scripts/Source/MapActors/Enemy_meta.lua`
 
 继承的可见性条件见 [Source.MapActors.ConditionalActor](<ConditionalActor.md>)。
 
-Meta：`{ GeneralDataVars = { { "ID", "Enemy" } } }`
-
 Blueprint 编辑器会合成 `Source.Configs.GeneralDataTypes.EnemyAttributeSet` 的只读 `attributes` 预览。该预览不会序列化到 Blueprint JSON 中。
 
 ## 属性
 
 | 名称 | 类型 | 默认值 | Metadata |
 |---|---|---|---|
-| `ID` | `string` | `"FILL_IT_BY_YOURSELF"` | GeneralDataVars = `Enemy` |
+| `ID` | `{ enum = "Enums.GeneralData.Enemy", valueType = "string" }` | `"FILL_IT_BY_YOURSELF"` | — |
 | `childActorComp` | `Source.Components.ChildActorComponent` | 伤害文本子 Actor | component |
 | `collisionEnabled` | `bool` | `true` | — |
 | `animatable` | `bool` | `true` | — |

@@ -8,15 +8,13 @@ Direct metadata bases: `{ "Source.MapActors.ConditionalActor", "ConditionalActor
 
 Inherited visibility conditions: [Source.MapActors.ConditionalActor](<ConditionalActor.md>).
 
-Meta: `{ GeneralDataVars = { { "ID", "Enemy" } } }`
-
 The Blueprint editor synthesises a read-only `attributes` preview of `Source.Configs.GeneralDataTypes.EnemyAttributeSet`. The preview is not serialised into the Blueprint JSON.
 
 ## Properties
 
 | Name | Type | Default | Metadata |
 |---|---|---|---|
-| `ID` | `string` | `"FILL_IT_BY_YOURSELF"` | GeneralDataVars = `Enemy` |
+| `ID` | `{ enum = "Enums.GeneralData.Enemy", valueType = "string" }` | `"FILL_IT_BY_YOURSELF"` | — |
 | `childActorComp` | `Source.Components.ChildActorComponent` | damage-text child | component |
 | `collisionEnabled` | `bool` | `true` | — |
 | `animatable` | `bool` | `true` | — |

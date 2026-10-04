@@ -8,18 +8,18 @@ Source: `Data/General/Enemy.json`
 
 ## Schema
 
-| Field | Type | Default | Description | Reference |
-|---|---|---|---|---|
-| `name` | `string` | `"NEW ENEMY"` | The display name of this enemy. | `—` |
-| `desc` | `string` | `"NEW ENEMY DESC"` | The display description of this enemy. | `—` |
-| `MAXHP` | `int` | `0` | The enemy's maximum HP. | `—` |
-| `ATK` | `int` | `0` | The enemy's attack value. | `—` |
-| `DEF` | `int` | `0` | The enemy's defence value. | `—` |
-| `EXP` | `int` | `0` | The experience granted when the enemy is defeated. | `—` |
-| `GOLD` | `int` | `0` | The gold granted when the enemy is defeated. | `—` |
-| `drops` | `Dict[string, sf.Vector2i]` | `{}` | Item Blueprint class paths mapped to map-cell offsets from the defeated enemy. | `—` |
-| `special` | `Dict[string, any]` | `{}` | Special member IDs mapped to their typed parameters. | `general:Special` |
-| `ANIMATION_KEY` | `string` | `""` | The animation played when the enemy attacks. | `animation` |
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `name` | `string` | `"NEW ENEMY"` | The display name of this enemy. |
+| `desc` | `string` | `"NEW ENEMY DESC"` | The display description of this enemy. |
+| `MAXHP` | `int` | `0` | The enemy's maximum HP. |
+| `ATK` | `int` | `0` | The enemy's attack value. |
+| `DEF` | `int` | `0` | The enemy's defence value. |
+| `EXP` | `int` | `0` | The experience granted when the enemy is defeated. |
+| `GOLD` | `int` | `0` | The gold granted when the enemy is defeated. |
+| `drops` | `Dict[string, sf.Vector2i]` | `{}` | Item Blueprint class paths mapped to map-cell offsets from the defeated enemy. |
+| `special` | `{ dict = "any", key = { enum = "Enums.GeneralData.Special", valueType = "string" } }` | `{}` | Special member IDs mapped to their typed parameters. |
+| `ANIMATION_KEY` | `{ enum = "Enums.Animation", valueType = "string" }` | `""` | The animation played when the enemy attacks. |
 
 ## Editing notes
 

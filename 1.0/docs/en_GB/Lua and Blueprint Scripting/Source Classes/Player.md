@@ -6,15 +6,13 @@ Metadata source: `Scripts/Source/MapActors/Player_meta.lua`
 
 Direct metadata bases: `{ "Engine", "Character" }`, `{ "Source.Battler", "Battler" }`
 
-Meta: `{ GeneralDataVars = { { "ID", "Player" } } }`
-
 The editor shows a read-only generated `PlayerAttributeSet` preview. The preview is not serialised into the Blueprint JSON.
 
 ## Properties
 
 | Name | Type | Default | Metadata |
 |---|---|---|---|
-| `ID` | `string` | `"FILL_IT_BY_YOURSELF"` | GeneralDataVars = `Player` |
+| `ID` | `{ enum = "Enums.GeneralData.Player", valueType = "string" }` | `"FILL_IT_BY_YOURSELF"` | — |
 | `tickable` | `bool` | `true` | — |
 | `collisionEnabled` | `bool` | `true` | — |
 | `animatable` | `bool` | `true` | — |

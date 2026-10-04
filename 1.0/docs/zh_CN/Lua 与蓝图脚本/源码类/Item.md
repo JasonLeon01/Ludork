@@ -14,7 +14,7 @@ Metadata 来源：`Scripts/Source/MapActors/Item_meta.lua`
 
 | 名称 | 类型 | 默认值 | Metadata |
 |---|---|---|---|
-| `ID` | `string` | `""` | GeneralDataVars = `Item` |
+| `ID` | `{ enum = "Enums.GeneralData.Item", valueType = "string" }` | `""` | — |
 | `count` | `int` | `1` | — |
 | `getSE` | `string` | `""` | `Sounds` 路径；回退到 `Audio.getSE` |
 
