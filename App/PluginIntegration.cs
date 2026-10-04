@@ -16,19 +16,19 @@ namespace Ludork;
 
 public partial class App
 {
-    private PluginHost? pluginHost;
-    private bool pluginFailuresShown;
+    private PluginWorkspace? pluginWorkspace;
+    private readonly HashSet<PluginHost> notifiedPluginHosts = [];
 
     public async Task importPluginAsync(Window owner)
     {
-        if (pluginHost is not null)
-            await PluginManagerWindow.ImportPluginAsync(owner, pluginHost);
+        if (pluginWorkspace is not null)
+            await PluginManagerWindow.ImportPluginAsync(owner, pluginWorkspace, (owner as MainWindow)?.ProjectPath);
     }
 
     public async Task showPluginManagerAsync(Window owner)
     {
-        if (pluginHost is not null)
-            await PluginManagerWindow.ShowAsync(owner, pluginHost);
+        if (pluginWorkspace is not null)
+            await PluginManagerWindow.ShowAsync(owner, pluginWorkspace, (owner as MainWindow)?.ProjectPath);
     }
 
     internal void installPluginMenus(
@@ -36,9 +36,9 @@ public partial class App
         string? projectPath,
         params (PluginMenuLocation Location, NativeMenu Menu)[] targets)
     {
-        if (pluginHost is null)
+        if (pluginWorkspace is null)
             return;
-        IReadOnlyList<RegisteredPluginMenuCommand> registrations = pluginHost.MenuCommands;
+        IReadOnlyList<RegisteredPluginMenuCommand> registrations = pluginWorkspace.GetMenuCommands(projectPath);
         foreach ((PluginMenuLocation location, NativeMenu menu) in targets)
         {
             RegisteredPluginMenuCommand[] commands = registrations
@@ -67,10 +67,10 @@ public partial class App
         string mapKey,
         IMapEditorHost mapEditorHost)
     {
-        if (pluginHost is null)
+        if (pluginWorkspace is null)
             return;
         IReadOnlyList<RegisteredPluginMapContextMenuCommand> registrations =
-            pluginHost.MapContextMenuCommands;
+            pluginWorkspace.GetMapContextMenuCommands(mapEditorHost.ProjectPath);
         if (registrations.Count == 0)
             return;
         if (menu.Items.Count != 0)
@@ -104,7 +104,7 @@ public partial class App
             registration.PluginDataDirectory,
             userInterface,
             TextHintService.Refresh,
-            new PluginSecretStore(registration.PluginId),
+            new PluginSecretStore(registration.SecretStoreId),
             owner is MainWindow mainWindow
                 ? mainWindow.CreateBlueprintAssistantHost()
                 : null,
@@ -133,7 +133,7 @@ public partial class App
             registration.PluginDataDirectory,
             userInterface,
             TextHintService.Refresh,
-            new PluginSecretStore(registration.PluginId),
+            new PluginSecretStore(registration.SecretStoreId),
             mapEditorHost,
             CancellationToken.None);
         await executePluginOperationAsync(
@@ -174,17 +174,27 @@ public partial class App
 
     private void registerPluginFailureNotification(Window window)
     {
-        if (pluginHost is null || !pluginHost.HasStartupFailures)
+        if (pluginWorkspace is null)
             return;
+        List<PluginHost> hosts = [pluginWorkspace.GlobalHost];
+        PluginHost? project = pluginWorkspace.GetProjectHost((window as MainWindow)?.ProjectPath);
+        if (project is not null)
+            hosts.Add(project);
         window.Opened += async (_, _) =>
         {
-            if (pluginFailuresShown || pluginHost is null)
+            PluginHost[] failures = hosts.Where(host => host.HasStartupFailures
+                && !notifiedPluginHosts.Contains(host)).ToArray();
+            if (failures.Length == 0)
                 return;
-            pluginFailuresShown = true;
+            foreach (PluginHost host in failures)
+                notifiedPluginHosts.Add(host);
+            string message = string.Join(Environment.NewLine + Environment.NewLine,
+                failures.Select(host => host.Environment.RegistryPath + Environment.NewLine
+                    + host.StartupFailureSummary));
             await AlertDialog.ShowAsync(
                 window,
                 LocaleService.Get("PLUGIN_STARTUP_FAILURES_TITLE"),
-                pluginHost.StartupFailureSummary);
+                message);
         };
     }
 

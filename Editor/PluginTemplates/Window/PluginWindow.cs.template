@@ -1,0 +1,17 @@
+using Avalonia.Controls;
+using Ludork.Plugin.Avalonia;
+
+namespace Ludork.UserPlugins;
+
+public sealed class PluginWindow : Window
+{
+    public PluginWindow()
+    {
+        Title = {{PluginTitle}};
+        Width = 640;
+        Height = 420;
+        WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        Background = PluginTheme.Brush("Background");
+        FontFamily = PluginTheme.FontFamily;
+    }
+}

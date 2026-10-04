@@ -831,6 +831,50 @@
     "zh_CN": "引入插件...",
     "en_GB": "Import Plugin..."
   },
+  "CREATE_PLUGIN": {
+    "zh_CN": "新建插件...",
+    "en_GB": "New Plugin..."
+  },
+  "PLUGIN_NAME": {
+    "zh_CN": "插件名称",
+    "en_GB": "Plugin Name"
+  },
+  "PLUGIN_TEMPLATE": {
+    "zh_CN": "插件类型",
+    "en_GB": "Plugin Type"
+  },
+  "PLUGIN_TEMPLATE_WINDOW": {
+    "zh_CN": "带界面",
+    "en_GB": "With a Window"
+  },
+  "PLUGIN_TEMPLATE_LOGIC": {
+    "zh_CN": "不带界面",
+    "en_GB": "Logic Only"
+  },
+  "PLUGIN_SCOPE": {
+    "zh_CN": "作用范围",
+    "en_GB": "Scope"
+  },
+  "PLUGIN_SCOPE_GLOBAL": {
+    "zh_CN": "全局插件",
+    "en_GB": "Global Plugins"
+  },
+  "PLUGIN_SCOPE_PROJECT": {
+    "zh_CN": "当前项目插件",
+    "en_GB": "Current Project Plugins"
+  },
+  "PLUGIN_CREATE_REQUIRED": {
+    "zh_CN": "请填写插件名称和唯一 ID。",
+    "en_GB": "Enter a plugin name and unique ID."
+  },
+  "PLUGIN_CREATE_SUCCESS": {
+    "zh_CN": "插件已创建",
+    "en_GB": "Plugin Created"
+  },
+  "PLUGIN_OPEN_DIRECTORY_FAILED": {
+    "zh_CN": "无法自动打开源码目录，请手动打开：",
+    "en_GB": "Could not open the source directory automatically. Open it manually:"
+  },
   "MANAGE_PLUGINS": {
     "zh_CN": "插件管理...",
     "en_GB": "Manage Plugins..."
@@ -840,8 +884,8 @@
     "en_GB": "Plugin Manager"
   },
   "PLUGIN_EMPTY": {
-    "zh_CN": "尚未引入任何插件。",
-    "en_GB": "No plugins have been imported."
+    "zh_CN": "尚无已注册的插件。",
+    "en_GB": "No plugins are registered."
   },
   "PLUGIN_FULL_TRUST_TITLE": {
     "zh_CN": "确认引入插件",

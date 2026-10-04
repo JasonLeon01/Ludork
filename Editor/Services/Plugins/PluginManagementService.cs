@@ -33,7 +33,37 @@ public sealed class PluginManagementService
 
     public IReadOnlyList<string> StartupDiagnostics => startupDiagnostics;
 
+    internal Func<string, bool>? IsIdReserved { get; set; }
+
     internal PluginRegistryDocument Registry => state.Document.Clone();
+
+    public async Task<PluginManagementResult> CreateAsync(
+        PluginCreationRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (!PluginPackageInspector.IsValidIdentifier(request.Id)
+            || !PluginPackageInspector.IsSafeDirectoryName(request.Id))
+            return PluginManagementResult.Failed($"Invalid plugin ID: {request.Id}");
+        if (string.IsNullOrWhiteSpace(request.Name))
+            return PluginManagementResult.Failed("Plugin name is required.");
+        string temporary = Path.Combine(Path.GetTempPath(), $"ludork-plugin-{Guid.NewGuid():N}");
+        try
+        {
+            string source = Path.Combine(temporary, request.Id);
+            await PluginTemplateWriter.WriteAsync(source, request, cancellationToken);
+            return await ImportAsync(source, cancellationToken);
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
+        {
+            return PluginManagementResult.Failed(exception.Message);
+        }
+        finally
+        {
+            if (Directory.Exists(temporary))
+                Directory.Delete(temporary, true);
+        }
+    }
 
     internal async Task InitializeAsync(CancellationToken cancellationToken)
     {
@@ -82,6 +112,7 @@ public sealed class PluginManagementService
             if (!state.IsValid)
                 return PluginManagementResult.Failed(state.Diagnostic);
 
+            PluginPaths.EnsureEnvironmentIsSafe(environment);
             PluginImportPreview preview = validateImport(sourcePath);
             if (!preview.Success)
                 return PluginManagementResult.Failed(preview.Error);
@@ -350,7 +381,11 @@ public sealed class PluginManagementService
             bool sourceIsImmediateChild = pathsEqual(
                 Path.GetDirectoryName(source),
                 environment.PluginsDirectory);
-            if (sourceInsideManagedRoot && !sourceIsImmediateChild)
+            string projectPluginsRoot = Path.Combine(environment.RootDirectory, "Plugins", PluginPaths.ProjectPluginsDirectoryName);
+            bool sourceIsProjectPlugin = pathIsInside(source, projectPluginsRoot)
+                && PluginPackageInspector.IsSafeDirectoryName(Path.GetFileName(source))
+                && pathsEqual(Path.GetDirectoryName(Path.GetDirectoryName(source)), projectPluginsRoot);
+            if (sourceInsideManagedRoot && !sourceIsImmediateChild && !sourceIsProjectPlugin)
             {
                 throw new InvalidDataException(
                     "A plugin inside the managed Plugins directory must be an immediate child directory.");
@@ -370,6 +405,8 @@ public sealed class PluginManagementService
                 throw new InvalidDataException(
                     $"Plugin ID is already registered: {package.Manifest.Id}");
             }
+            if (IsIdReserved?.Invoke(package.Manifest.Id) == true)
+                throw new InvalidDataException($"Plugin ID conflicts with another active scope: {package.Manifest.Id}");
             if (state.Document.Plugins.Any(entry =>
                     directoriesEqual(entry.Directory, directory)))
             {

@@ -26,17 +26,11 @@ internal sealed class PluginRegistryStore
 
     public async Task<PluginRegistryState> LoadAsync(CancellationToken cancellationToken)
     {
-        if (!File.Exists(environment.RegistryPath))
-        {
-            return new PluginRegistryState(
-                false,
-                true,
-                new PluginRegistryDocument(),
-                string.Empty);
-        }
-
         try
         {
+            PluginPaths.EnsureEnvironmentIsSafe(environment);
+            if (!File.Exists(environment.RegistryPath))
+                return new PluginRegistryState(false, true, new PluginRegistryDocument(), string.Empty);
             string json = await File.ReadAllTextAsync(
                 environment.RegistryPath,
                 Encoding.UTF8,
@@ -67,6 +61,7 @@ internal sealed class PluginRegistryStore
         PluginRegistryDocument document,
         CancellationToken cancellationToken)
     {
+        PluginPaths.EnsureEnvironmentIsSafe(environment);
         validate(document);
         string json = JsonSerializer.Serialize(document, SerializerOptions) + Environment.NewLine;
         await FilePersistence.WriteAllTextAtomicAsync(environment.RegistryPath, json, cancellationToken);

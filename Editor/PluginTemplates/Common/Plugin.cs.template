@@ -1,0 +1,10 @@
+using Ludork.Plugin.Abstractions;
+
+namespace Ludork.UserPlugins;
+
+public sealed class Plugin : IEditorPlugin
+{
+    public void Register(IPluginRegistrar registrar)
+    {
+    }
+}

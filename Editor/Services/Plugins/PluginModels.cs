@@ -20,6 +20,7 @@ public sealed record PluginEnvironment(
     string RegistryPath)
 {
     public string DataDirectory => Path.Combine(PluginsDirectory, ".data");
+    public string? ProjectKey { get; init; }
 }
 
 public sealed record PluginRuntimeInfo(
@@ -36,6 +37,7 @@ public sealed record RegisteredPluginMenuCommand(
     string PluginName,
     string PluginDirectory,
     string PluginDataDirectory,
+    string SecretStoreId,
     PluginMenuCommand Command);
 
 public sealed record RegisteredPluginMapContextMenuCommand(
@@ -43,6 +45,7 @@ public sealed record RegisteredPluginMapContextMenuCommand(
     string PluginName,
     string PluginDirectory,
     string PluginDataDirectory,
+    string SecretStoreId,
     PluginMapContextMenuCommand Command);
 
 public sealed record RegisteredTextHintProvider(

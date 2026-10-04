@@ -9,6 +9,7 @@ using Ludork.Services.Plugins;
 using Ludork.Views.Utils;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -17,7 +18,8 @@ namespace Ludork.Views;
 
 public sealed class PluginManagerWindow : Window
 {
-    private readonly PluginHost pluginHost;
+    private readonly PluginWorkspace workspace;
+    private readonly string? projectPath;
     private readonly StackPanel pluginList = new() { Spacing = 10 };
     private readonly TextBlock registryDiagnostic = new()
     {
@@ -25,18 +27,13 @@ public sealed class PluginManagerWindow : Window
         TextWrapping = TextWrapping.Wrap,
         IsVisible = false,
     };
-    private readonly TextBlock emptyMessage = new()
-    {
-        HorizontalAlignment = HorizontalAlignment.Center,
-        VerticalAlignment = VerticalAlignment.Center,
-        Foreground = new SolidColorBrush(Color.Parse("#9e9e9e")),
-        IsVisible = false,
-    };
     private readonly Button importButton = new();
+    private readonly Button createButton = new();
 
-    public PluginManagerWindow(PluginHost pluginHost)
+    public PluginManagerWindow(PluginWorkspace workspace, string? projectPath)
     {
-        this.pluginHost = pluginHost;
+        this.workspace = workspace;
+        this.projectPath = projectPath;
         Title = LocaleService.Get("PLUGIN_MANAGER_TITLE");
         Width = 820;
         Height = 620;
@@ -48,6 +45,8 @@ public sealed class PluginManagerWindow : Window
         EditorWindowIcon.Apply(this);
         EditorLayoutService.AttachWindow(this, nameof(PluginManagerWindow));
 
+        createButton.Content = LocaleService.Get("CREATE_PLUGIN");
+        createButton.Click += onCreate;
         importButton.Content = LocaleService.Get("IMPORT_PLUGIN");
         importButton.Click += onImport;
         Button closeButton = new()
@@ -63,17 +62,16 @@ public sealed class PluginManagerWindow : Window
             HorizontalAlignment = HorizontalAlignment.Right,
             Spacing = 8,
         };
+        buttons.Children.Add(createButton);
         buttons.Children.Add(importButton);
         buttons.Children.Add(closeButton);
 
-        emptyMessage.Text = LocaleService.Get("PLUGIN_EMPTY");
         Grid listGrid = new();
         listGrid.Children.Add(new ScrollViewer
         {
             Content = pluginList,
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
         });
-        listGrid.Children.Add(emptyMessage);
 
         Grid content = new()
         {
@@ -91,18 +89,26 @@ public sealed class PluginManagerWindow : Window
         KeyDown += onKeyDown;
     }
 
-    public static Task ShowAsync(Window owner, PluginHost pluginHost)
+    public static Task ShowAsync(Window owner, PluginWorkspace workspace, string? projectPath)
     {
-        return new PluginManagerWindow(pluginHost).ShowDialog(owner);
+        return new PluginManagerWindow(workspace, projectPath).ShowDialog(owner);
     }
 
     public static async Task<bool> ImportPluginAsync(
         Window owner,
-        PluginHost pluginHost)
+        PluginWorkspace workspace,
+        string? projectPath)
     {
-        IStorageFolder? suggested = Directory.Exists(pluginHost.Environment.PluginsDirectory)
+        bool? isProject = string.IsNullOrWhiteSpace(projectPath)
+            ? false
+            : await PluginScopeDialog.ShowAsync(owner);
+        if (isProject is null)
+            return false;
+        PluginManagementService management = workspace.GetManagement(isProject.Value ? projectPath : null);
+        string scope = LocaleService.Get(isProject.Value ? "PLUGIN_SCOPE_PROJECT" : "PLUGIN_SCOPE_GLOBAL");
+        IStorageFolder? suggested = Directory.Exists(management.Environment.PluginsDirectory)
             ? await owner.StorageProvider.TryGetFolderFromPathAsync(
-                new Uri(pluginHost.Environment.PluginsDirectory))
+                new Uri(management.Environment.PluginsDirectory))
             : null;
         IReadOnlyList<IStorageFolder> folders =
             await owner.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
@@ -116,20 +122,22 @@ public sealed class PluginManagerWindow : Window
 
         string sourcePath = folders[0].Path.LocalPath;
         PluginImportPreview preview =
-            await pluginHost.Management.PreviewImportAsync(sourcePath);
+            await management.PreviewImportAsync(sourcePath);
         if (!preview.Success)
         {
             await AlertDialog.ShowAsync(
                 owner,
                 LocaleService.Get("PLUGIN_IMPORT_FAILED"),
-                preview.Error);
+                $"{scope}: {preview.Error}");
             return false;
         }
 
         string warning = LocaleService.Get("PLUGIN_FULL_TRUST_WARNING")
             .Replace("{name}", preview.Name, StringComparison.Ordinal)
             .Replace("{id}", preview.Id, StringComparison.Ordinal)
-            .Replace("{path}", preview.SourcePath, StringComparison.Ordinal);
+            .Replace("{path}", preview.SourcePath, StringComparison.Ordinal)
+            + Environment.NewLine + Environment.NewLine
+            + LocaleService.Get("PLUGIN_SCOPE") + ": " + scope;
         bool confirmed = await ConfirmationDialog.ShowAsync(
             owner,
             LocaleService.Get("PLUGIN_FULL_TRUST_TITLE"),
@@ -138,13 +146,13 @@ public sealed class PluginManagerWindow : Window
             return false;
 
         PluginManagementResult result =
-            await pluginHost.Management.ImportAsync(preview.SourcePath);
+            await management.ImportAsync(preview.SourcePath);
         if (!result.Success)
         {
             await AlertDialog.ShowAsync(
                 owner,
                 LocaleService.Get("PLUGIN_IMPORT_FAILED"),
-                result.Error);
+                $"{scope}: {result.Error}");
             return false;
         }
 
@@ -157,37 +165,96 @@ public sealed class PluginManagerWindow : Window
 
     private async void onImport(object? sender, Avalonia.Interactivity.RoutedEventArgs args)
     {
-        importButton.IsEnabled = false;
+        setActionsEnabled(false);
         try
         {
-            if (await ImportPluginAsync(this, pluginHost))
+            if (await ImportPluginAsync(this, workspace, projectPath))
                 await refreshAsync();
         }
         finally
         {
-            importButton.IsEnabled = true;
+            setActionsEnabled(true);
         }
+    }
+
+    private async void onCreate(object? sender, Avalonia.Interactivity.RoutedEventArgs args)
+    {
+        setActionsEnabled(false);
+        try
+        {
+            string? sourcePath = await PluginCreationDialog.ShowAsync(this, workspace, projectPath);
+            if (sourcePath is null)
+                return;
+            await refreshAsync();
+            string message = LocaleService.Get("PLUGIN_RESTART_REQUIRED");
+            try
+            {
+                Process.Start(new ProcessStartInfo(sourcePath) { UseShellExecute = true });
+            }
+            catch (Exception exception) when (exception is System.ComponentModel.Win32Exception
+                or InvalidOperationException)
+            {
+                message += Environment.NewLine + Environment.NewLine
+                    + LocaleService.Get("PLUGIN_OPEN_DIRECTORY_FAILED")
+                    + Environment.NewLine + sourcePath
+                    + Environment.NewLine + exception.Message;
+            }
+            await AlertDialog.ShowAsync(this, LocaleService.Get("PLUGIN_CREATE_SUCCESS"), message);
+        }
+        finally
+        {
+            setActionsEnabled(true);
+        }
+    }
+
+    private void setActionsEnabled(bool enabled)
+    {
+        createButton.IsEnabled = enabled;
+        importButton.IsEnabled = enabled;
     }
 
     private async Task refreshAsync()
     {
-        IReadOnlyList<PluginManagementItem> items =
-            await pluginHost.GetManagementItemsAsync();
-        List<string> diagnostics = [];
-        if (pluginHost.Management.RegistryDiagnostic.Length != 0)
-            diagnostics.Add(pluginHost.Management.RegistryDiagnostic);
-        diagnostics.AddRange(pluginHost.Management.StartupDiagnostics);
-        registryDiagnostic.Text = string.Join(
-            Environment.NewLine,
-            diagnostics.Distinct(StringComparer.Ordinal));
-        registryDiagnostic.IsVisible = registryDiagnostic.Text.Length != 0;
         pluginList.Children.Clear();
-        foreach (PluginManagementItem item in items)
-            pluginList.Children.Add(createPluginCard(item));
-        emptyMessage.IsVisible = items.Count == 0;
+        List<string> diagnostics = [];
+        await addScopeAsync(workspace.GlobalHost, "PLUGIN_SCOPE_GLOBAL", diagnostics);
+        PluginHost? projectHost = workspace.GetProjectHost(projectPath);
+        if (projectHost is not null)
+            await addScopeAsync(projectHost, "PLUGIN_SCOPE_PROJECT", diagnostics);
+        registryDiagnostic.Text = string.Join(Environment.NewLine, diagnostics);
+        registryDiagnostic.IsVisible = registryDiagnostic.Text.Length != 0;
     }
 
-    private Control createPluginCard(PluginManagementItem item)
+    private async Task addScopeAsync(PluginHost host, string scopeKey, List<string> diagnostics)
+    {
+        string scope = LocaleService.Get(scopeKey);
+        List<string> scopeDiagnostics = [];
+        if (host.Management.RegistryDiagnostic.Length != 0)
+            scopeDiagnostics.Add(host.Management.RegistryDiagnostic);
+        scopeDiagnostics.AddRange(host.Management.StartupDiagnostics);
+        diagnostics.AddRange(scopeDiagnostics.Distinct(StringComparer.Ordinal)
+            .Select(diagnostic => $"{scope}: {diagnostic}"));
+        pluginList.Children.Add(new TextBlock
+        {
+            Text = scope,
+            FontSize = 18,
+            FontWeight = FontWeight.SemiBold,
+            Margin = new Thickness(0, 6, 0, 2),
+        });
+        IReadOnlyList<PluginManagementItem> items = await host.GetManagementItemsAsync();
+        if (items.Count == 0)
+        {
+            pluginList.Children.Add(new TextBlock
+            {
+                Text = LocaleService.Get("PLUGIN_EMPTY"),
+                Foreground = EditorTheme.Brush("TextMuted"),
+            });
+        }
+        foreach (PluginManagementItem item in items)
+            pluginList.Children.Add(createPluginCard(item, host.Management, scope));
+    }
+
+    private Control createPluginCard(PluginManagementItem item, PluginManagementService management, string scope)
     {
         TextBlock title = new()
         {
@@ -248,9 +315,8 @@ public sealed class PluginManagerWindow : Window
             {
                 Content = LocaleService.Get("PLUGIN_UNINSTALL"),
                 HorizontalAlignment = HorizontalAlignment.Right,
-                Tag = item,
             };
-            uninstall.Click += onUninstall;
+            uninstall.Click += async (_, _) => await uninstallAsync(uninstall, item, management, scope);
             cardContent.Children.Add(uninstall);
         }
         return new Border
@@ -287,15 +353,17 @@ public sealed class PluginManagerWindow : Window
         return row;
     }
 
-    private async void onUninstall(object? sender, Avalonia.Interactivity.RoutedEventArgs args)
+    private async Task uninstallAsync(
+        Button button,
+        PluginManagementItem item,
+        PluginManagementService management,
+        string scope)
     {
-        if (sender is not Button { Tag: PluginManagementItem item } button)
-            return;
         PluginUninstallChoice? choice = await PluginUninstallDialog.ShowAsync(this, item);
         if (choice is null)
             return;
         button.IsEnabled = false;
-        PluginManagementResult result = await pluginHost.Management.UnregisterAsync(
+        PluginManagementResult result = await management.UnregisterAsync(
             item.Id,
             choice == PluginUninstallChoice.UnregisterAndDelete);
         if (!result.Success)
@@ -304,7 +372,7 @@ public sealed class PluginManagerWindow : Window
             await AlertDialog.ShowAsync(
                 this,
                 LocaleService.Get("PLUGIN_OPERATION_FAILED"),
-                result.Error);
+                $"{scope}: {result.Error}");
             return;
         }
         await AlertDialog.ShowAsync(

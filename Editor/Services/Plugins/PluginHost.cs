@@ -31,6 +31,8 @@ public sealed class PluginHost : IEditorPluginRuntime, IDisposable
 
     public PluginManagementService Management { get; }
 
+    internal PluginHost? GlobalHost { get; init; }
+
     public bool IsInitialized => initialized;
 
     public IReadOnlyList<PluginRuntimeInfo> Plugins =>
@@ -47,6 +49,7 @@ public sealed class PluginHost : IEditorPluginRuntime, IDisposable
                     PluginPaths.GetPluginDataDirectory(
                         Environment,
                         plugin.RegistryEntry.Id),
+                    PluginPaths.GetSecretStoreId(Environment, plugin.RegistryEntry.Id),
                     command)))
             .OrderBy(command => command.Command.Location)
             .ThenBy(command => command.Command.Order)
@@ -63,6 +66,7 @@ public sealed class PluginHost : IEditorPluginRuntime, IDisposable
                     PluginPaths.GetPluginDataDirectory(
                         Environment,
                         plugin.RegistryEntry.Id),
+                    PluginPaths.GetSecretStoreId(Environment, plugin.RegistryEntry.Id),
                     command)))
             .OrderBy(command => command.Command.Order)
             .ToArray();
@@ -144,6 +148,11 @@ public sealed class PluginHost : IEditorPluginRuntime, IDisposable
             await Management.InitializeAsync(cancellationToken);
             PluginRegistryDocument registry = Management.Registry;
             HashSet<string> commandIds = new(StringComparer.Ordinal);
+            if (GlobalHost is not null)
+            {
+                commandIds.UnionWith(GlobalHost.MenuCommands.Select(value => value.Command.Id));
+                commandIds.UnionWith(GlobalHost.MapContextMenuCommands.Select(value => value.Command.Id));
+            }
             for (int index = 0; index < registry.Plugins.Count; index++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -213,6 +222,8 @@ public sealed class PluginHost : IEditorPluginRuntime, IDisposable
                         plugin.Version,
                         hookType.FullName ?? hookType.Name,
                         hookType.Assembly.ManifestModule.ModuleVersionId.ToString("D"));
+                    if (Environment.ProjectKey is not null)
+                        identity = Environment.ProjectKey + ":" + identity;
                     participants.Add(new ProjectExportParticipant(identity, files));
                 }
                 catch (OperationCanceledException)
@@ -301,6 +312,13 @@ public sealed class PluginHost : IEditorPluginRuntime, IDisposable
         PluginCompilation? compilation = null;
         try
         {
+            if (GlobalHost is not null
+                && (GlobalHost.Plugins.Any(value => value.Id == registryEntry.Id)
+                    || GlobalHost.Management.Registry.Plugins.Any(value => value.Id == registryEntry.Id)))
+            {
+                throw new InvalidDataException($"Plugin ID conflicts with a global plugin: {registryEntry.Id}");
+            }
+            PluginPaths.EnsureEnvironmentIsSafe(Environment);
             PluginPackageInspector.EnsureManagedDirectoryIsSafe(
                 Environment.PluginsDirectory,
                 registryEntry.Directory);

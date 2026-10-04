@@ -43,10 +43,10 @@ public partial class App : Application
             editorSettings.SaveFailed += (_, message) => showSettingsError(message);
             desktop.Exit += (_, _) => EditorLayoutService.Save();
             LocaleService.Initialize(editorSettings.Language);
-            pluginHost = new PluginHost(LocaleService.CurrentLanguage);
-            Task.Run(() => pluginHost.InitializeAsync()).GetAwaiter().GetResult();
-            TextHintService.Configure(pluginHost);
-            desktop.Exit += (_, _) => pluginHost?.Dispose();
+            pluginWorkspace = new PluginWorkspace(LocaleService.CurrentLanguage);
+            Task.Run(() => pluginWorkspace.InitializeAsync()).GetAwaiter().GetResult();
+            TextHintService.Configure(pluginWorkspace);
+            desktop.Exit += (_, _) => pluginWorkspace?.Dispose();
             NativeMenu? applicationMenu = NativeMenu.GetMenu(this);
             if (applicationMenu?.Items.FirstOrDefault() is NativeMenuItem aboutMenuItem)
                 aboutMenuItem.Header = LocaleService.Get("ABOUT_TITLE");
@@ -158,6 +158,8 @@ public partial class App : Application
         if (string.IsNullOrWhiteSpace(projectPath))
             return null;
 
+        if (pluginWorkspace is not null)
+            Task.Run(() => pluginWorkspace.InitializeProjectAsync(projectPath)).GetAwaiter().GetResult();
         TextHintService.SetProjectPath(projectPath);
         EditorProjectSession session = new EditorProjectSession(projectPath);
         MainWindow mainWindow = new MainWindow(editorSettings, session);

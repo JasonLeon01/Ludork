@@ -96,6 +96,11 @@ public sealed class PluginSecretStore : IPluginSecretStore
 
     private string getEnvironmentName(string name)
     {
+        if (pluginId.StartsWith("ProjectPlugins/", StringComparison.Ordinal))
+        {
+            string hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(pluginId + "/" + name.Trim())));
+            return "LUDORK_PROJECT_PLUGIN_SECRET_" + hash;
+        }
         StringBuilder result = new("LUDORK_PLUGIN_SECRET_");
         foreach (char character in pluginId + "_" + name)
         {

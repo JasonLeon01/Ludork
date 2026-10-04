@@ -45,6 +45,8 @@ internal static class PluginPackageInspector
             || directory == "."
             || directory == ".."
             || directory.Equals(".data", StringComparison.OrdinalIgnoreCase)
+            || directory.Equals(PluginPaths.ProjectPluginsDirectoryName, StringComparison.OrdinalIgnoreCase)
+            || directory.Equals("plugins.json", StringComparison.OrdinalIgnoreCase)
             || Path.IsPathRooted(directory)
             || directory.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0
             || directory.Contains(Path.DirectorySeparatorChar)
