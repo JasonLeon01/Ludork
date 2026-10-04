@@ -2,15 +2,47 @@
 
 ## Goal
 
-Create a C# 13 source plug-in that adds one Help menu command and can be imported by Ludork 1.0.0.
+Start with a generated C# 13 template, or write a complete source plug-in that adds one Help menu command and can be imported by Ludork 1.0.0.
 
 ## Prerequisites
 
-- .NET 9 SDK for IDE diagnostics and local compilation.
+- .NET 9 SDK if using an IDE project for diagnostics and local compilation.
 - Access to `Ludork.Plugin.Abstractions` from this repository or the editor development kit.
-- A unique plug-in ID and CLR namespace.
+- A plug-in ID unique in its effective scope and a CLR namespace.
 
-## Source directory
+## Generated template
+
+**Plugins → Manage Plugins → New Plugin...** creates this source directory in the selected global or current-project scope:
+
+```text
+<plugin-id>/
+├── plugin.json
+├── Plugin.cs
+└── PluginWindow.cs   (With a Window only)
+```
+
+The generated manifest uses version `1.0.0`, the current editor version as `minimumEditorVersion`, and `Ludork.UserPlugins.Plugin` as `entryType`. Each plug-in compiles into its own assembly, so generated templates can share this CLR type name. The entry class is:
+
+```csharp
+using Ludork.Plugin.Abstractions;
+
+namespace Ludork.UserPlugins;
+
+public sealed class Plugin : IEditorPlugin
+{
+    public void Register(IPluginRegistrar registrar)
+    {
+    }
+}
+```
+
+**With a Window**, the default, also creates an independent `PluginWindow : Window` class using the host theme. **Logic Only** creates only the manifest and entry class. Neither template registers commands; the window is not opened automatically. No XAML or IDE project is generated. Add your logic and registrations, then restart to load the edited source.
+
+## Hand-written command example
+
+The following complete example adds one Help menu command. Its optional project file supports IDE diagnostics.
+
+### Source directory
 
 ```text
 MyPlugin/
@@ -20,8 +52,6 @@ MyPlugin/
 ```
 
 There is one source-directory plug-in format. Sources are compiled in relative-path order with C# 13, nullable enabled, unsafe allowed and release optimisation. The host does not restore NuGet packages. It does not load a prebuilt entry assembly either.
-
-## Steps
 
 ### Write `plugin.json`
 
@@ -83,7 +113,7 @@ public sealed class Plugin : IEditorPlugin
 }
 ```
 
-The entry type must be public, non-abstract, implement `IEditorPlugin` and have a public parameterless constructor. Command IDs must be globally unique.
+The entry type must be public, non-abstract, implement `IEditorPlugin` and have a public parameterless constructor. Plug-in IDs and command IDs must be unique within the effective global-plus-current-project set. Independent project scopes may reuse IDs.
 
 ### Add an optional IDE project
 
@@ -107,7 +137,7 @@ Adjust the reference to match the source layout. Official plug-ins in this repos
 
 ### Import and restart
 
-Choose **Plugins → Import Plugin**, select `MyPlugin` and accept the full-trust confirmation, then restart Ludork.
+Choose **Plugins → Import Plugin**, select the target scope and `MyPlugin` and accept the full-trust confirmation, then restart Ludork.
 
 ## Related pages
 

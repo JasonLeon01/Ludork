@@ -12,6 +12,8 @@ Open a plug-in-owned Avalonia window, store a secret through the host credential
 
 ## Steps
 
+The **With a Window** creation template supplies an empty `PluginWindow` in pure C#, already using `PluginTheme`. The entry class’s `Register` method remains empty. Add a command that constructs and opens the window when you are ready to expose it.
+
 ### Obtain the real owner
 
 ```csharp
@@ -37,7 +39,7 @@ Use `Ludork.Plugin.Avalonia.PluginTheme` for the editor’s shared appearance: `
 
 ### Separate program and data paths
 
-`PluginDirectory` contains imported program content and must be treated as read-only. Write settings, caches and history beneath `PluginDataDirectory`. Do not derive either path from the current working directory.
+`PluginDirectory` contains imported program content and must be treated as read-only. Write settings, caches and history beneath `PluginDataDirectory`. Both paths refer to the plug-in’s installation scope: project plug-ins have their own project-scoped data directory, while global plug-ins retain their shared data. Do not derive either path from the current working directory.
 
 `Ludork.Plugin.Abstractions.FilePersistence` provides `WriteAllTextAtomic` and `WriteAllTextAtomicAsync` for UTF-8 without BOM, and stream-based `WriteAtomic` / `WriteAtomicAsync` for other formats. They write a same-directory temporary file, flush it to storage and replace the destination, cleaning up on failure. Async writes check cancellation before replacement; the synchronous `beforeCommit` callback runs after closing the temporary file. Callers retain validation and multi-file transaction/rollback ownership.
 
@@ -57,7 +59,7 @@ string? stored = await context.SecretStore.ReadAsync(
     context.CancellationToken);
 ```
 
-`ContainsAsync`, `ReadAsync`, `WriteAsync` and `DeleteAsync` use the operating-system credential service supplied by the host. Never copy a returned secret into ordinary settings, diagnostics, URLs or conversation logs. Keep the logical key stable and scope it to one purpose.
+`ContainsAsync`, `ReadAsync`, `WriteAsync` and `DeleteAsync` use Windows Credential Manager or macOS Keychain. Global credentials keep their existing plug-in-ID scope. Project credentials additionally include the project scope, so identical plug-in IDs and secret names in different projects do not share values. On Linux, reads use environment variables and writes/deletes are unsupported; the exception reports the required variable name. Project variables use `LUDORK_PROJECT_PLUGIN_SECRET_` followed by a hash of the scoped key, separate from global `LUDORK_PLUGIN_SECRET_` variables. Never copy a returned secret into ordinary settings, diagnostics, URLs or conversation logs. Keep the logical key stable and scope it to one purpose.
 
 ### Localise plug-in UI
 

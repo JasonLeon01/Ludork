@@ -1,16 +1,22 @@
 # 注册点与 Hook 参考
 
-注册只能在 `IEditorPlugin.Register` 中进行。API 共提供六个注册方法。
+注册只能在 `IEditorPlugin.Register` 中进行。API 共提供六个注册方法；新建模板中留空的 `Register` 也是有效的。
+
+## 作用域与执行顺序
+
+启动页使用全局插件。项目上下文只组合全局插件与对应项目的插件。普通菜单、地图右键菜单、文本提示、Export／Run／Pack Hook 和导出参与者指纹都遵循该作用域；切换项目后不会继续调用前一个项目的注册内容。
+
+provider 与 Hook 先执行全局插件，再执行项目插件。菜单仍按位置和 `Order` 排序，相同排序值时全局命令在前。插件 ID 与命令 ID 必须在有效的“全局＋当前项目”集合内唯一，普通菜单与地图右键菜单共用命令 ID 命名空间。冲突会报告注册失败，不会覆盖已有注册。不同项目作用域可以使用相同 ID。某个项目的加载错误不会阻止全局插件或其他项目插件加载。
 
 ## 菜单命令
 
-`RegisterMenuCommand(PluginMenuCommand)` 把命令插入 `File`、`Edit`、`Game`、`Database`、`Help` 或 `Plugins` 菜单。ID 必须非空且全局唯一。`Order` 决定同一位置内命令的排序。
+`RegisterMenuCommand(PluginMenuCommand)` 把命令插入 `File`、`Edit`、`Game`、`Database`、`Help` 或 `Plugins` 菜单。ID 必须非空且在有效集合内唯一。`Order` 决定同一位置内命令的排序。
 
 handler 会收到可选的项目路径、编辑器语言、只读的插件目录、可写的插件数据目录、消息 UI、文本提示失效、按插件隔离的密钥存储、可选的蓝图助手宿主桥，以及取消信号。引用 `Ludork.Plugin.Avalonia` 的 Avalonia 源码插件可以把消息 UI 转换为 `IAvaloniaPluginUserInterface`，从而为插件自有窗口取得真正的所有者窗口。成功时返回 `PluginResult.Completed()`；已处理的失败返回 `PluginResult.Failed(error)`。
 
 | `PluginMenuCommand` 字段 | 含义 |
 |---|---|
-| `Id` | 非空全局命令 ID |
+| `Id` | 非空、在有效集合内唯一的命令 ID |
 | `Location` | 六个菜单位置之一 |
 | `Order` | 数值排序键 |
 | `Label` | 显示的命令文本 |
@@ -18,11 +24,11 @@ handler 会收到可选的项目路径、编辑器语言、只读的插件目录
 
 ## 地图项右键菜单命令
 
-`RegisterMapContextMenuCommand(PluginMapContextMenuCommand)` 在真实地图项的右键菜单中，把插件命令追加到内置命令之后。用户右键点击地图列表空白处时，该命令不会出现。命令 ID 必须非空，并且在普通菜单命令与地图右键菜单命令之间全局唯一。`Order` 决定插件命令的排序，`Label` 是已经本地化的显示文本。
+`RegisterMapContextMenuCommand(PluginMapContextMenuCommand)` 在真实地图项的右键菜单中，把插件命令追加到内置命令之后。用户右键点击地图列表空白处时，该命令不会出现。命令 ID 必须非空，并且在有效集合的普通菜单命令与地图右键菜单命令之间唯一。`Order` 决定插件命令的排序，`Label` 是已经本地化的显示文本。
 
 | `PluginMapContextMenuCommand` 字段 | 含义 |
 |---|---|
-| `Id` | 非空全局命令 ID |
+| `Id` | 非空、在有效集合内唯一的命令 ID |
 | `Order` | 数值排序键 |
 | `Label` | 显示的命令文本 |
 | `Handler` | 异步 `PluginMapContextMenuHandler` |
@@ -58,7 +64,7 @@ handler 会收到 `PluginMapContextMenuContext`。`MapKey` 是被右键点击的
 
 `RegisterBeforeExportHook(IProjectExportHook)` 注册导出步骤。`IProjectExportHook` 继承 `IProjectOperationHook`，新增 `ProjectExportFiles GetFiles(string projectPath)`。返回记录包含 `IReadOnlyList<string> InputPaths` 与 `IReadOnlyList<string> OutputPaths`，使用项目相对的具体文件路径，路径不能重复，输入与输出不能交叉。暂时缺失的输入也必须列出，以便编辑器检测其后续创建。`GetFiles` 描述当前输入和生成文件，不修改它们；`ExecuteAsync` 执行导出。
 
-导出先保存并校验项目，依次执行 Export Hook，生成 UI 文件，最后记录成功结果。编辑器对声明的文件和导出插件身份计算指纹，判断是否需要重新导出。导出按钮、确认后的 **导出后运行**，以及编辑器每次打包都执行 Export Hook。before-Run Hook 若修改导出输入，运行会在实际启动前要求再次导出。完整流程见[编译、导出与运行](<../编辑器用户指南/运行、调试与打包.md#编译导出与运行>)。
+导出先保存并校验项目，依次执行 Export Hook，生成 UI 文件，最后记录成功结果。编辑器对声明的文件和导出插件身份计算指纹，判断是否需要重新导出；项目插件身份还包含项目作用域。导出按钮、确认后的 **导出后运行**，以及编辑器每次打包都执行 Export Hook。before-Run Hook 若修改导出输入，运行会在实际启动前要求再次导出。完整流程见[编译、导出与运行](<../编辑器用户指南/运行、调试与打包.md#编译导出与运行>)。
 
 `RegisterBeforeRunHook` 与 `RegisterBeforePackHook` 接受 `IProjectOperationHook`，在各自目标操作之前依次执行；编辑器打包会先完整导出，再执行 before-Pack Hook。所有 Hook 的 context 都提供项目路径、语言、操作类型、输出写入器、文本提示失效与取消信号。结果失败或抛出异常会终止后续 Hook 并阻止操作。Hook 必须响应取消请求，并通过 `IPluginOutput` 写出进度。
 
@@ -89,7 +95,7 @@ Official Locale Tools 在 Pack 时调用 `ExcludeFile("Data/Locale/Locale.xlsx")
 
 `IBlueprintAssistantSession` 固定绑定一个已有蓝图，并暴露其基础 revision 与 `IBlueprintAssistantWorkspace`。workspace 可以列出和读取蓝图、查询 API 清单、搜索或读取白名单内的项目源码、校验候选内容并生成提案。它不能应用改动，也不能访问任意编辑器服务。插件 UI 持有 session，在用户批准后显式调用其应用或放弃方法。应用会重新校验基础 revision 与候选有效性，记录一份编辑器 Undo 快照，把项目数据标记为脏，并刷新已打开的蓝图编辑器，但不会写入磁盘。
 
-API key 一律通过 `PluginMenuContext.SecretStore` 保存。它按插件 ID 隔离，使用操作系统的凭据存储，不会退化为明文文件。
+API key 一律通过 `PluginMenuContext.SecretStore` 保存。它按插件 ID 隔离，项目插件还按项目作用域隔离。Windows 和 macOS 使用操作系统凭据存储，不会退化为明文文件；Linux 支持从环境变量读取。参见 [Avalonia UI、密钥与本地化](<Avalonia UI、密钥与本地化.md#保存密钥>)。
 
 ## 资源清理
 

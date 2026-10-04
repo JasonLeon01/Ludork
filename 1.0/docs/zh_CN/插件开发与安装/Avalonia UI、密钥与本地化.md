@@ -12,6 +12,8 @@
 
 ## 步骤
 
+**带界面** 新建模板提供纯 C# 的空 `PluginWindow`，已经使用 `PluginTheme`，但 `Register` 仍为空。需要向用户展示时，再添加创建并打开窗口的命令。
+
 ### 取得真正的所有者窗口
 
 ```csharp
@@ -37,7 +39,7 @@ return PluginResult.Completed();
 
 ### 分离程序路径与数据路径
 
-`PluginDirectory` 存放引入的程序内容，必须按只读目录处理。设置、缓存与历史写入 `PluginDataDirectory`。两条路径都不得从当前工作目录推导。
+`PluginDirectory` 存放引入的程序内容，必须按只读目录处理。设置、缓存与历史写入 `PluginDataDirectory`。两条路径都对应插件的安装作用域：项目插件有各自的项目数据目录，全局插件保留共享数据。两条路径都不得从当前工作目录推导。
 
 `Ludork.Plugin.Abstractions.FilePersistence` 提供无 BOM UTF-8 文本方法 `WriteAllTextAtomic` / `WriteAllTextAtomicAsync`，以及用于其他格式的流方法 `WriteAtomic` / `WriteAtomicAsync`。它们写入同目录临时文件、刷新到存储后替换目标，并在失败时清理临时文件。异步写入在替换前检查取消；同步 `beforeCommit` 回调在临时文件关闭后执行。业务校验和多文件事务、回滚仍由调用方负责。
 
@@ -57,7 +59,7 @@ string? stored = await context.SecretStore.ReadAsync(
     context.CancellationToken);
 ```
 
-`ContainsAsync`、`ReadAsync`、`WriteAsync` 与 `DeleteAsync` 使用宿主提供的操作系统凭据服务。返回的密钥不得复制到普通设置、诊断信息、URL 或会话日志中。逻辑 key 必须保持稳定，并且只服务于一个用途。
+`ContainsAsync`、`ReadAsync`、`WriteAsync` 与 `DeleteAsync` 使用 Windows 凭据管理器或 macOS 钥匙串。全局凭据保持已有的插件 ID 作用域；项目凭据额外包含项目作用域，因此不同项目中相同的插件 ID 与密钥名称不会共享值。Linux 从环境变量读取，不支持写入和删除，异常会给出所需变量名。项目变量使用 `LUDORK_PROJECT_PLUGIN_SECRET_` 加作用域密钥的哈希，与全局 `LUDORK_PLUGIN_SECRET_` 变量分开。返回的密钥不得复制到普通设置、诊断信息、URL 或会话日志中。逻辑 key 必须保持稳定，并且只服务于一个用途。
 
 ### 本地化插件 UI
 
