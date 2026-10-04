@@ -10,6 +10,8 @@ An Actor can configure `emitterComp` as an `Engine.EmitterComponent` to attach a
 
 An Actor can configure `billboardComp` as an [Engine.BillboardComponent](<../Global and Core Modules/Core Modules/Engine/Gameplay Types.md#billboardcomponent>) to display images and text above its head when the player approaches.
 
+Editor configuration for these fields and attached lights is described in [Actor Components](<../../Editor User Guide/Actor Components/Overview.md>). Default Gameplay Enemy also declares `childActorComp` for its damage readout; see [ChildActor Component](<../../Editor User Guide/Actor Components/ChildActor.md>).
+
 ### Conditional appearance
 
 [Source.MapActors.ConditionalActor](<../Source Classes/ConditionalActor.md>) adds `conditionVariable`, `conditionOperator` and `conditionValue`. Select a declared numeric, boolean or string variable, a comparison operator and a value. The editor chooses the value control from the variable type. An empty name disables condition control. Numbers support `==`, `~=`, `>`, `>=`, `<` and `<=`. Booleans and strings support only `==` and `~=`. Invalid data raises an error without conversion.

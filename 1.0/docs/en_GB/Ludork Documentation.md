@@ -16,6 +16,7 @@ Ludork is a game-development environment for building map-driven 2D games. It co
 |---|---|
 | Make a playable project | [Create Your First Project](<Getting Started/Create Your First Project.md>) |
 | Author maps, assets and project data | [Start Page, Workspace and Shortcuts](<Editor User Guide/Start Page Workspace and Shortcuts.md>) |
+| Configure Actor labels, lights, particles and child Actors | [Actor Components](<Editor User Guide/Actor Components/Overview.md>) |
 | Look up what each Palette control does | [UI Controls in the Palette](<Editor User Guide/UI Controls in the Palette.md>) |
 | Build GPU particle effects for Actors and UI | [Common Particles](<Editor User Guide/Common Particles.md>) |
 | Add timed subtitles to videos | [Video Subtitles](<Editor User Guide/Video Subtitles.md>) |
@@ -25,7 +26,7 @@ Ludork is a game-development environment for building map-driven 2D games. It co
 | Install or write a trusted editor extension | [Installing and Managing Plug-ins](<Plug-in Development and Installation/Installing and Managing Plug-ins.md>) |
 | Find unreferenced project resources | [Official Resource Cleanup](<Plug-in Development and Installation/Official Plug-ins/Resource Cleanup.md>) |
 
-The first three entries need no implementation knowledge. Read the native and plug-in entries only when the project needs those extension points.
+The editor authoring entries need no implementation knowledge. Read the native and plug-in entries only when the project needs those extension points.
 
 Before preparing a release, review [Supported platforms](#editors) and the licence boundaries below.
 

@@ -20,7 +20,7 @@ A Blueprint key is its case-preserving path relative to `Data/Blueprints`, with 
 
 Class attributes provide defaults for every instance, and a map Actor may override individual values. Components are declared by metadata and appear as structured fields. Hidden fields from `InvalidVars` are not ordinary editable properties.
 
-The Blueprint editor resolves variable and component declarations through the complete inheritance chain of Blueprints and Lua/native metadata classes. When a child omits a field, it inherits the value from its ancestors; a child's explicit value takes precedence. Optional components remain available in **Components** even when no ancestor supplies a default value. Use **+** to add one, then double-click it to edit its fields. Unset components without defaults are omitted from a new Blueprint's JSON.
+The Blueprint editor resolves variable and component declarations through the complete inheritance chain. A child’s explicit value takes precedence over inherited defaults. See [Actor Components](<Actor Components/Overview.md>) for available components, adding and editing them, and instance overrides.
 
 In the Blueprint editor and **Actor Info**, ordinary variables are grouped in grey dashed frames beneath the component list. Each frame names the class that first declared its fields, and hovering over the grey heading shows the full class reference. Inherited fields appear only in their original group, even when a child overrides their values. Fields contributed by a Script Mixin and custom Blueprint fields are attributed to the first Script Mixin or Blueprint that declares them.
 
@@ -35,12 +35,6 @@ Use **Add Attribute** to enter a name, choose its type and set the initial value
 A new field saves its declaration in `attrDefs` and its initial value in `attrs`. If the name already belongs to an inherited field with no local value, the dialog fixes the type to that declaration and adds only an `attrs` override. Child Blueprints inherit the type and default; they cannot redeclare the inherited field. Removing an inherited override restores its inherited default. Deleting a field introduced by the current Blueprint removes both its declaration and local value, and is rejected while a descendant or map Actor override still depends on it.
 
 See [Blueprint attribute declarations](<../Lua and Blueprint Scripting/Blueprint Scripting/Metadata Schema and Decorators.md#blueprint-attribute-declarations>) for the JSON shape. Map Actor overrides use that same inherited type and introduce no new fields.
-
-## Billboard component
-
-Add `billboardComp` through **Components** to configure `items` and the display range `showRange`. Use **+** and **-** to manage items and the **...** button beside each summary to edit it.
-
-Select `text` to edit content, font size (default `12`) and colour, or `image` to choose an image through `path`. Switching kinds preserves the hidden values. See [BillboardComponent](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Gameplay Types.md#billboardcomponent>) for layout and visibility rules.
 
 ## Actor Library and Actor Info
 

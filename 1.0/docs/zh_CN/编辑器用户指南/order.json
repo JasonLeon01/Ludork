@@ -17,6 +17,32 @@
       "path": "蓝图、公共函数与 Actor.md"
     },
     {
+      "key": "02/13",
+      "path": "Actor 组件",
+      "children": [
+        {
+          "key": "02/13/00",
+          "path": "概述.md"
+        },
+        {
+          "key": "02/13/01",
+          "path": "Billboard.md"
+        },
+        {
+          "key": "02/13/02",
+          "path": "Light.md"
+        },
+        {
+          "key": "02/13/03",
+          "path": "Emitter.md"
+        },
+        {
+          "key": "02/13/04",
+          "path": "ChildActor.md"
+        }
+      ]
+    },
+    {
       "key": "02/05",
       "path": "通用数据与文本配置.md"
     },

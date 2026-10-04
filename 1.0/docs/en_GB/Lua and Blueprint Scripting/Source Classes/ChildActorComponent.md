@@ -2,6 +2,8 @@
 
 `ChildActorComponent` declares a class name and a relative position for a child Actor.
 
+The editable `childActorComp` field is declared by Default Gameplay Enemy and inherited by its descendants. See [ChildActor Component](<../../Editor User Guide/Actor Components/ChildActor.md>) for editor configuration.
+
 Metadata source: `Scripts/Source/Components/ChildActorComponent_meta.lua`
 
 ## ChildActorComponent

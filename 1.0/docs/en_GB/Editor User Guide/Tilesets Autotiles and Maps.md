@@ -72,6 +72,8 @@ Saving during a stroke starts a new Undo step for subsequent movement. Undo and 
 
 ## Lights and actors
 
+For Blueprint light defaults and component fields, see [Light Component](<Actor Components/Light.md>).
+
 Switch to Light mode to place and edit lights, including their position, colour and radius. Switch to Actor mode to place a Blueprint instance, move it and edit its exposed attributes. The selected instance may override class defaults without changing the Blueprint itself.
 
 Selecting a fixed map light in Light mode shows its position, RGBA colour, radius and intensity in the right panel. Press Enter or leave a field to apply an edit. Moving the light or changing its radius on the map updates the panel, and edits support Undo/Redo. Selecting empty space clears the fields; selecting an Actor light switches to Actor Info.

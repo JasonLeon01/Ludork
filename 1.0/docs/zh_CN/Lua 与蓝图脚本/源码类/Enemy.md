@@ -42,3 +42,4 @@ Enemy 继承 Actor 默认的 `tickable = false`。
 
 - [Source Gameplay API](<Gameplay.md>)
 - [Enemy](<../../编辑器用户指南/通用数据参考/Enemy.md>)
+- [ChildActor 组件配置](<../../编辑器用户指南/Actor 组件/ChildActor.md>)

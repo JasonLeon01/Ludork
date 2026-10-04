@@ -42,3 +42,4 @@ After a win animation, the Actor Blueprint `onDefeat` hook runs before mandatory
 
 - [Source Gameplay API](<Gameplay.md>)
 - [Enemy](<../../Editor User Guide/General Data Reference/Enemy.md>)
+- [ChildActor component configuration](<../../Editor User Guide/Actor Components/ChildActor.md>)

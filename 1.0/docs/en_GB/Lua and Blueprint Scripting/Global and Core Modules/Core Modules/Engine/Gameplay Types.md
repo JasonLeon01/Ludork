@@ -210,6 +210,8 @@ No editable properties are declared.
 
 ## BillboardComponent
 
+For editor configuration, see [Billboard Component](<../../../../Editor User Guide/Actor Components/Billboard.md>).
+
 `Engine.BillboardComponent` derives from `Component` and is assigned to `Actor.billboardComp`.
 
 | Property | Type | Default | Meaning |
@@ -245,6 +247,8 @@ Entrance and exit both rise and fade over `0.35` seconds, controlled by four sys
 Animation opacity multiplies item alpha. Reversing a transition continues smoothly from its current position and opacity over a new `0.35` seconds. Leaving the Camera view, hiding or sleeping resets the display; returning starts a fresh entrance.
 
 ## LightComponent
+
+For editor configuration, see [Light Component](<../../../../Editor User Guide/Actor Components/Light.md>).
 
 Direct metadata bases: `{ "Engine", "Component" }`
 

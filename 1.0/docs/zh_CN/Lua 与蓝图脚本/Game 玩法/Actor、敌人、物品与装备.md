@@ -10,6 +10,8 @@ Actor 可以将 `emitterComp` 配置为 `Engine.EmitterComponent`，附着 [通�
 
 Actor 可通过 `billboardComp` 配置 [Engine.BillboardComponent](<../全局与 Core 模块/Core Modules/Engine/玩法类型.md#billboardcomponent>)，在玩家靠近时显示头顶图片和文字。
 
+这些字段与挂载光源的编辑操作见 [Actor 组件](<../../编辑器用户指南/Actor 组件/概述.md>)。默认玩法 Enemy 还声明了用于伤害提示的 `childActorComp`，配置见 [ChildActor 组件](<../../编辑器用户指南/Actor 组件/ChildActor.md>)。
+
 ### 条件出现
 
 [Source.MapActors.ConditionalActor](<../源码类/ConditionalActor.md>) 增加了 `conditionVariable`、`conditionOperator` 和 `conditionValue`。先选择一个已声明的数值、布尔或字符串变量，再选择比较运算符和比较值；比较值的控件由变量类型决定。变量名为空时不进行条件控制。数值支持 `==`、`~=`、`>`、`>=`、`<`、`<=`，布尔和字符串只支持 `==`、`~=`。非法数据直接报错，不做类型转换。

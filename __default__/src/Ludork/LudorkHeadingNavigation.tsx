@@ -5,6 +5,28 @@ import { LUDORK_SITE_MESSAGES } from './ludorkSiteMessages'
 
 type Heading = { id: string; title: string; level: number }
 
+const DESKTOP_OPEN_KEY = 'ludork:heading-navigation:desktop-open'
+const MOBILE_OPEN_KEY = 'ludork:heading-navigation:mobile-open'
+
+function readOpenPreference(key: string, defaultOpen: boolean): boolean {
+  try {
+    const value = window.localStorage.getItem(key)
+    if (value === 'true') return true
+    if (value === 'false') return false
+  } catch {
+    // Browser storage can be unavailable in restricted browsing contexts.
+  }
+  return defaultOpen
+}
+
+function saveOpenPreference(key: string, open: boolean): void {
+  try {
+    window.localStorage.setItem(key, String(open))
+  } catch {
+    // Keep the navigation usable when the browser cannot save preferences.
+  }
+}
+
 type LudorkHeadingNavigationProps = {
   contentRef: RefObject<HTMLDivElement | null>
   language: LanguageKey
@@ -15,8 +37,8 @@ type LudorkHeadingNavigationProps = {
 export default function LudorkHeadingNavigation({ contentRef, language, getHref, onNavigate }: LudorkHeadingNavigationProps) {
   const theme = useTheme()
   const isNarrow = useMediaQuery(theme.breakpoints.down('md'))
-  const [desktopOpen, setDesktopOpen] = useState(true)
-  const [mobileOpen, setMobileOpen] = useState(false)
+  const [desktopOpen, setDesktopOpen] = useState(() => readOpenPreference(DESKTOP_OPEN_KEY, true))
+  const [mobileOpen, setMobileOpen] = useState(() => readOpenPreference(MOBILE_OPEN_KEY, false))
   const [headings, setHeadings] = useState<Heading[]>([])
   const [activeId, setActiveId] = useState('')
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -70,8 +92,13 @@ export default function LudorkHeadingNavigation({ contentRef, language, getHref,
   if (!headings.length) return null
 
   const setExpanded = isNarrow ? setMobileOpen : setDesktopOpen
-  const close = () => {
+  const setPreferredExpanded = (open: boolean) => {
+    setExpanded(open)
+    saveOpenPreference(isNarrow ? MOBILE_OPEN_KEY : DESKTOP_OPEN_KEY, open)
+  }
+  const close = (remember: boolean) => {
     setExpanded(false)
+    if (remember) saveOpenPreference(isNarrow ? MOBILE_OPEN_KEY : DESKTOP_OPEN_KEY, false)
     buttonRef.current?.focus({ preventScroll: true })
   }
 
@@ -83,7 +110,7 @@ export default function LudorkHeadingNavigation({ contentRef, language, getHref,
       onKeyDown={(event) => {
         if (event.key === 'Escape' && expanded) {
           event.preventDefault()
-          close()
+          close(true)
         }
       }}
     >
@@ -94,7 +121,7 @@ export default function LudorkHeadingNavigation({ contentRef, language, getHref,
         aria-expanded={expanded}
         aria-controls={listId}
         aria-label={expanded ? messages.collapseHeadings : messages.expandHeadings}
-        onClick={() => setExpanded((previous) => !previous)}
+        onClick={() => setPreferredExpanded(!expanded)}
       >
         <svg viewBox="0 0 10 18" width="10" height="18" fill="none" aria-hidden="true">
           <path d={expanded ? 'M2 1l6 8-6 8' : 'M8 1L2 9l6 8'} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -111,7 +138,7 @@ export default function LudorkHeadingNavigation({ contentRef, language, getHref,
                 aria-current={heading.id === activeId ? 'location' : undefined}
                 onClick={(event) => {
                   onNavigate(event, hash)
-                  if (event.defaultPrevented && isNarrow) close()
+                  if (event.defaultPrevented && isNarrow) close(false)
                 }}
               >
                 {heading.title}

@@ -226,6 +226,8 @@ An unavailable renderer, count or timing result stays `nil`; it is not filled wi
 
 ## EmitterComponent
 
+For editor configuration, see [Emitter Component](<../../../../Editor User Guide/Actor Components/Emitter.md>).
+
 Blueprint instance-method nodes expose `self: Engine.EmitterComponent`; leaving it unset selects the graph owner.
 
 `Engine.EmitterComponent` derives from `Component` and occupies `Actor.emitterComp`. It follows the existing Component attachment protocol and accepts only an Actor owner. `getEmitter()` lazily returns its `Engine.Emitter`; replacing or clearing `resource` releases the previous instance. Runtime particle state is not serialized.

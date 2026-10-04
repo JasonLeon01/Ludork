@@ -93,7 +93,7 @@ In `local` space, existing particles follow the current host transform. In `worl
 
 `hierarchy` applies the full host and track scale to shape, motion and particle size. `local` scale mode removes host scale while retaining track scale. `shape` applies the combined scale only to the spawn shape, retaining unscaled particle size and motion.
 
-Set an Actor's `emitterComp` to an `EmitterComponent` through the normal Component configuration. Its normalized bounds anchor defaults to `[0.5,0.5]`; offset, rotation and scale are relative to the Actor. `beforeActor = false` draws immediately after the owner; `true` draws immediately before it. Both ordinary maps and composite worlds preserve their existing Actor-list and layer order. This feature introduces no Y sorting.
+To attach a particle resource to an Actor, follow [Emitter Component](<Actor Components/Emitter.md>). It covers resource selection, placement relative to the Actor and drawing order.
 
 Add `Engine.EmitterView` as a visual UI node under an existing Canvas or List container, or construct it in code. Configure `particle`, `size`, `anchor` and `autoPlay`; `getEmitter()` returns its playback object. The UI node owns its normal layout and clipping through `ControlBase` and its parent. It does not require an Actor.
 
