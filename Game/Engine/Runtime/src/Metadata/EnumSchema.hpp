@@ -9,6 +9,6 @@ namespace ludork::runtime::detail {
 
 void validateEnumModuleName(const std::string& moduleName);
 TypeSchema enumValueType(RuntimeValueView values,
-                         const std::string& moduleName);
+                         const TypeSchema& enumeration);
 
 }  // namespace ludork::runtime::detail

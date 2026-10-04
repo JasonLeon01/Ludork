@@ -8,5 +8,5 @@ public sealed record LuaEnumDefinition(
     IReadOnlyList<BlueprintVariableOption> Options,
     string? Error)
 {
-    public bool IsValid => Error is null && ValueType is not null && Options.Count > 0;
+    public bool IsValid => Error is null && ValueType is not null;
 }

@@ -27,7 +27,8 @@ internal sealed class BlueprintStructureWindow : Window
         int cellSize,
         IGameVariableCatalog? gameVariables,
         bool readOnly,
-        Func<JsonObject, IReadOnlyList<BlueprintVariableField>>? createFields)
+        Func<JsonObject, IReadOnlyList<BlueprintVariableField>>? createFields,
+        LuaEnumService? enums)
     {
         Title = title;
         double contentHeight = Math.Max(200, fields.Count * 38 + 68);
@@ -46,6 +47,7 @@ internal sealed class BlueprintStructureWindow : Window
             ProjectDirectory = Path.GetDirectoryName(assetsDirectory) ?? string.Empty,
             CellSize = cellSize,
             GameVariables = gameVariables,
+            EnumService = enums,
             IsReadOnly = readOnly,
         };
         variableForm.ValueChanged += (_, args) =>
@@ -109,7 +111,8 @@ internal sealed class BlueprintStructureWindow : Window
         int cellSize,
         IGameVariableCatalog? gameVariables,
         bool readOnly,
-        Func<JsonObject, IReadOnlyList<BlueprintVariableField>>? createFields = null)
+        Func<JsonObject, IReadOnlyList<BlueprintVariableField>>? createFields = null,
+        LuaEnumService? enums = null)
     {
         BlueprintStructureWindow window = new(
             title,
@@ -119,7 +122,8 @@ internal sealed class BlueprintStructureWindow : Window
             cellSize,
             gameVariables,
             readOnly,
-            createFields);
+            createFields,
+            enums);
         return window.ShowDialog<JsonObject?>(owner);
     }
 }

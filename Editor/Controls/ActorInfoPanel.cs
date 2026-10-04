@@ -99,6 +99,7 @@ public sealed partial class ActorInfoPanel : UserControl
         editorPanel = nextEditorPanel;
         ClassForm.AssetsDirectory = Path.Combine(nextGameData.ProjectPath, "Assets");
         ClassForm.ProjectDirectory = nextGameData.ProjectPath;
+        ClassForm.EnumService = nextGameData.Enums;
         ClassForm.CellSize = nextGameData.Configs.getCellSize();
         ClassForm.GameVariables = nextGameVariables;
         viewModel.Configure(nextGameData, nextMetadataService, nextClassResolver);

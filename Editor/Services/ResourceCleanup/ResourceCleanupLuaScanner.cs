@@ -52,6 +52,8 @@ internal static class ResourceCleanupLuaScanner
             && !relativePath.StartsWith("Scripts/Enums/GlobalFunctions/", StringComparison.Ordinal)
             && !relativePath.StartsWith("Scripts/Enums/sf/", StringComparison.Ordinal)
             && relativePath is not "Scripts/Enums/GeneralDataKey.lua"
+                and not "Scripts/Enums/Animation.lua"
+                and not "Scripts/Enums/Particle.lua"
                 and not "Scripts/Source/Configs/GeneralDataTypes.lua"
                 and not "Scripts/Engine_meta.lua" and not "Scripts/GlobalCore_meta.lua"
                 and not "Scripts/GlobalFunctions_meta.lua";

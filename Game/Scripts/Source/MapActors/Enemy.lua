@@ -70,6 +70,7 @@ function Enemy:init(texture, rect, tag)
     local abilitySystem = self:getAbilitySystemComponent()
     abilitySystem:giveAbility(MotaBattleAbility.new(), "Builtin.MotaBattle")
     for _, specialID in ipairs(table.orderedStringKeys(self.attributes.special)) do
+        ---@cast specialID Enums.GeneralData.Special
         local effect = SpecialAbilities.CreateEffect(specialID, self.attributes.special[specialID])
         abilitySystem:applyGameplayEffectSpec(
             GameplayEffectSpec.new(

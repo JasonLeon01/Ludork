@@ -27,7 +27,7 @@ local _METADATA = {
             parameters = {
                 "itemID",
                 "count",
-                itemID = "string",
+                itemID = { enum = "Enums.GeneralData.Item", valueType = "string" },
                 count = "int"
             },
             default = {
@@ -37,14 +37,6 @@ local _METADATA = {
             ExecSplit = {
                 "default",
                 default = "nil"
-            },
-            Meta = {
-                GeneralDataVars = {
-                    {
-                        "itemID",
-                        "Item"
-                    }
-                }
             }
         },
         RemoveItem = {
@@ -52,7 +44,7 @@ local _METADATA = {
             parameters = {
                 "itemID",
                 "count",
-                itemID = "string",
+                itemID = { enum = "Enums.GeneralData.Item", valueType = "string" },
                 count = "int"
             },
             default = {
@@ -70,14 +62,6 @@ local _METADATA = {
                 },
                 Failed = {
                     1
-                }
-            },
-            Meta = {
-                GeneralDataVars = {
-                    {
-                        "itemID",
-                        "Item"
-                    }
                 }
             }
         },
@@ -85,48 +69,32 @@ local _METADATA = {
             type = "function",
             parameters = {
                 "itemID",
-                itemID = "string"
+                itemID = { enum = "Enums.GeneralData.Item", valueType = "string" }
             },
             ["return"] = {
                 "value",
                 value = "bool"
             },
-            Pure = true,
-            Meta = {
-                GeneralDataVars = {
-                    {
-                        "itemID",
-                        "Item"
-                    }
-                }
-            }
+            Pure = true
         },
         GetItemCount = {
             type = "function",
             parameters = {
                 "itemID",
-                itemID = "string"
+                itemID = { enum = "Enums.GeneralData.Item", valueType = "string" }
             },
             ["return"] = {
                 "count",
                 count = "int"
             },
-            Pure = true,
-            Meta = {
-                GeneralDataVars = {
-                    {
-                        "itemID",
-                        "Item"
-                    }
-                }
-            }
+            Pure = true
         },
         AddEquip = {
             type = "function",
             parameters = {
                 "equipID",
                 "count",
-                equipID = "string",
+                equipID = { enum = "Enums.GeneralData.Equip", valueType = "string" },
                 count = "int"
             },
             default = {
@@ -136,14 +104,6 @@ local _METADATA = {
             ExecSplit = {
                 "default",
                 default = "nil"
-            },
-            Meta = {
-                GeneralDataVars = {
-                    {
-                        "equipID",
-                        "Equip"
-                    }
-                }
             }
         },
         RemoveEquip = {
@@ -151,7 +111,7 @@ local _METADATA = {
             parameters = {
                 "equipID",
                 "count",
-                equipID = "string",
+                equipID = { enum = "Enums.GeneralData.Equip", valueType = "string" },
                 count = "int"
             },
             default = {
@@ -170,54 +130,30 @@ local _METADATA = {
                 Failed = {
                     1
                 }
-            },
-            Meta = {
-                GeneralDataVars = {
-                    {
-                        "equipID",
-                        "Equip"
-                    }
-                }
             }
         },
         HasEquip = {
             type = "function",
             parameters = {
                 "equipID",
-                equipID = "string"
+                equipID = { enum = "Enums.GeneralData.Equip", valueType = "string" }
             },
             ["return"] = {
                 "value",
                 value = "bool"
             },
-            Pure = true,
-            Meta = {
-                GeneralDataVars = {
-                    {
-                        "equipID",
-                        "Equip"
-                    }
-                }
-            }
+            Pure = true
         },
         EquipItem = {
             type = "function",
             parameters = {
                 "equipID",
-                equipID = "string"
+                equipID = { enum = "Enums.GeneralData.Equip", valueType = "string" }
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
                 default = "nil"
-            },
-            Meta = {
-                GeneralDataVars = {
-                    {
-                        "equipID",
-                        "Equip"
-                    }
-                }
             }
         },
         UnequipSlot = {

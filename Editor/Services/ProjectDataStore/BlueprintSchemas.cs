@@ -57,7 +57,7 @@ public sealed partial class ProjectDataStore
 
     private BlueprintClassResolver createBlueprintSchemaResolver(IReadOnlyDictionary<string, JsonObject>? blueprints = null)
     {
-        LuaMetadataService metadata = new(ProjectPath, strictReads: true, loadCancellationToken);
+        LuaMetadataService metadata = new(ProjectPath, strictReads: true, loadCancellationToken, enums: Enums);
         return new BlueprintClassResolver(metadata, key => blueprints is null
             ? sections["Blueprints"].GetValueOrDefault(key)
             : blueprints.GetValueOrDefault(key));

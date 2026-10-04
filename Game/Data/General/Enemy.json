@@ -42,22 +42,23 @@
       "valueType": "sf.Vector2i"
     },
     "special": {
-      "type": "dict",
+      "type": {
+        "dict": "any",
+        "key": {
+          "enum": "Enums.GeneralData.Special",
+          "valueType": "string"
+        }
+      },
       "comment": "Special member IDs mapped to integer parameters, boolean flags or the Reborn Blueprint class path.",
-      "defaultValue": {},
-      "valueType": "any",
-      "reference": {
-        "kind": "general",
-        "key": "Special"
-      }
+      "defaultValue": {}
     },
     "ANIMATION_KEY": {
-      "type": "string",
+      "type": {
+        "enum": "Enums.Animation",
+        "valueType": "string"
+      },
       "comment": "The animation played when the enemy attacks.",
-      "defaultValue": "",
-      "reference": {
-        "kind": "animation"
-      }
+      "defaultValue": ""
     }
   },
   "members": {

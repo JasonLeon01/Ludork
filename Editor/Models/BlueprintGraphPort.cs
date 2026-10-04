@@ -25,7 +25,7 @@ public sealed class BlueprintGraphPort : INotifyPropertyChanged
         bool supportsEditor,
         JsonNode? value,
         JsonObject? meta = null,
-        Func<string, LuaEnumDefinition>? resolveEnum = null)
+        Func<LuaMetadataType, LuaEnumDefinition>? resolveEnum = null)
     {
         ResolveEnum = resolveEnum;
         Id = id;
@@ -44,7 +44,7 @@ public sealed class BlueprintGraphPort : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public Func<string, LuaEnumDefinition>? ResolveEnum { get; }
+    public Func<LuaMetadataType, LuaEnumDefinition>? ResolveEnum { get; }
     public Guid Id { get; }
     public Guid NodeId { get; }
     public string Name { get; }

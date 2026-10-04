@@ -9,11 +9,8 @@ local _METADATA = {
             { "Source.MapActors.ConditionalActor", "ConditionalActor" }
         },
         ID = {
-            type = "string",
-            default = "FILL_IT_BY_YOURSELF",
-            Meta = {
-                GeneralDataVars = "Equip"
-            }
+            type = { enum = "Enums.GeneralData.Equip", valueType = "string" },
+            default = "FILL_IT_BY_YOURSELF"
         },
         getSE = {
             type = "string",
@@ -24,9 +21,7 @@ local _METADATA = {
             }
         },
         Meta = {
-            GeneralDataVars = {
-                { "ID", "Equip" }
-            },
+
             PathVars = {
                 { "getSE", "/Game/Assets/Sounds" }
             },

@@ -113,7 +113,7 @@ local _METADATA = {
                 "stateID",
                 "stacks",
                 target = { "Source.Battler", "Battler" },
-                stateID = "string",
+                stateID = { enum = "Enums.GeneralData.State", valueType = "string" },
                 stacks = "int"
             },
             default = {
@@ -122,11 +122,6 @@ local _METADATA = {
             ["return"] = {
                 "handle",
                 handle = "int"
-            },
-            Meta = {
-                GeneralDataVars = {
-                    { "stateID", "State" }
-                }
             }
         },
         RemoveState = {
@@ -135,7 +130,7 @@ local _METADATA = {
                 "target",
                 "stateID",
                 target = { "Source.Battler", "Battler" },
-                stateID = "string"
+                stateID = { enum = "Enums.GeneralData.State", valueType = "string" }
             },
             ["return"] = {},
             ExecSplit = {
@@ -143,11 +138,6 @@ local _METADATA = {
                 "failed",
                 success = true,
                 failed = false
-            },
-            Meta = {
-                GeneralDataVars = {
-                    { "stateID", "State" }
-                }
             }
         },
         ReduceState = {
@@ -157,7 +147,7 @@ local _METADATA = {
                 "stateID",
                 "stacks",
                 target = { "Source.Battler", "Battler" },
-                stateID = "string",
+                stateID = { enum = "Enums.GeneralData.State", valueType = "string" },
                 stacks = "int"
             },
             default = {
@@ -169,28 +159,18 @@ local _METADATA = {
                 "failed",
                 success = true,
                 failed = false
-            },
-            Meta = {
-                GeneralDataVars = {
-                    { "stateID", "State" }
-                }
             }
         },
         RemovePlayerState = {
             type = "function",
             parameters = {
                 "stateID",
-                stateID = "string"
+                stateID = { enum = "Enums.GeneralData.State", valueType = "string" }
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
                 default = "nil"
-            },
-            Meta = {
-                GeneralDataVars = {
-                    { "stateID", "State" }
-                }
             }
         },
         ReducePlayerState = {
@@ -198,7 +178,7 @@ local _METADATA = {
             parameters = {
                 "stateID",
                 "stacks",
-                stateID = "string",
+                stateID = { enum = "Enums.GeneralData.State", valueType = "string" },
                 stacks = "int"
             },
             default = {
@@ -208,11 +188,6 @@ local _METADATA = {
             ExecSplit = {
                 "default",
                 default = "nil"
-            },
-            Meta = {
-                GeneralDataVars = {
-                    { "stateID", "State" }
-                }
             }
         },
         SendEvent = {

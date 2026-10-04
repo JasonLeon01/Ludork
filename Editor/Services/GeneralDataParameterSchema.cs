@@ -1,41 +1,18 @@
 using Ludork.Models;
 using System;
 using System.Globalization;
+using System.IO;
 using System.Text.Json.Nodes;
 
 namespace Ludork.Services;
 
 internal static class GeneralDataParameterSchema
 {
-    public static bool IsParamReferenceAllowed(JsonObject? paramDef)
-    {
-        if (paramDef is null)
-            return false;
-        string type = ReadTypeName(paramDef["type"]);
-        return type == "string"
-            || type == "dict"
-            || (type == "list" && GetContainerItemType(paramDef, "itemType") == "string");
-    }
-
-    public static JsonObject? GetParamReference(JsonObject? paramDef)
-    {
-        if (!IsParamReferenceAllowed(paramDef)
-            || paramDef!["reference"] is not JsonObject reference)
-        {
-            return null;
-        }
-        string kind = reference["kind"]?.GetValue<string>() ?? string.Empty;
-        if (kind == "animation")
-            return reference;
-        string key = reference["key"]?.GetValue<string>() ?? string.Empty;
-        return kind == "general" && key.Length > 0 ? reference : null;
-    }
-
     public static string GetContainerItemType(JsonObject paramDef, string name)
     {
         string? value = paramDef[name] is null ? null : ReadTypeName(paramDef[name]);
         if (string.IsNullOrWhiteSpace(value))
-            throw new InvalidOperationException($"General Data container is missing {name}");
+            throw new InvalidDataException($"General Data container is missing {name}");
         return value;
     }
 
@@ -46,9 +23,25 @@ internal static class GeneralDataParameterSchema
         return type is null ? "string" : LuaMetadataType.Parse(type).ToString();
     }
 
-    private static JsonNode CanonicalTypeNode(string type)
+    public static LuaMetadataType GetValueSchema(JsonObject definition)
     {
-        return type is "list" or "dict" ? JsonValue.Create(type)! : LuaMetadataType.Parse(type).ToSchema();
+        string type = ReadTypeName(definition["type"]);
+        return type switch
+        {
+            "list" => LuaMetadataType.Parse(new JsonObject { ["list"] = LuaMetadataType.Parse(GetContainerItemType(definition, "itemType")).ToSchema() }),
+            "dict" => LuaMetadataType.Parse(new JsonObject { ["dict"] = LuaMetadataType.Parse(GetContainerItemType(definition, "valueType")).ToSchema() }),
+            _ => LuaMetadataType.Parse(definition["type"]),
+        };
+    }
+
+    private static LuaMetadataType GetType(GeneralDataParamCreation value)
+    {
+        return value.Type switch
+        {
+            "list" => LuaMetadataType.Parse(new JsonObject { ["list"] = LuaMetadataType.Parse(value.ItemType ?? "any").ToSchema() }),
+            "dict" => LuaMetadataType.Parse(new JsonObject { ["dict"] = LuaMetadataType.Parse(value.ValueType ?? "any").ToSchema() }),
+            _ => LuaMetadataType.Parse(value.Type),
+        };
     }
 
     public static bool IsSfType(string type)
@@ -56,30 +49,26 @@ internal static class GeneralDataParameterSchema
         return type.StartsWith("sf.", StringComparison.Ordinal);
     }
 
-    private static JsonNode? CreateTypedDefault(string type, Func<string, LuaEnumDefinition>? resolveEnum)
+    private static JsonNode? CreateTypedDefault(string type, Func<LuaMetadataType, LuaEnumDefinition>? resolveEnum)
     {
         return LuaMetadataValueDefaults.Create(
             LuaMetadataType.Parse(type),
             _ => JsonValue.Create(string.Empty), resolveEnum);
     }
 
-    public static JsonObject BuildParamDefinition(GeneralDataParamCreation value, Func<string, LuaEnumDefinition>? resolveEnum = null)
+    public static JsonObject BuildParamDefinition(GeneralDataParamCreation value, Func<LuaMetadataType, LuaEnumDefinition>? resolveEnum = null)
     {
         JsonObject definition = new()
         {
-            ["type"] = CanonicalTypeNode(value.Type),
+            ["type"] = GetType(value).ToSchema(),
             ["defaultValue"] = value.Type == "file"
                 ? JsonValue.Create(string.Empty)
-                : ParseDefaultValue(value.Type, value.DefaultText, resolveEnum),
+                : ParseDefaultValue(GetType(value).ToString(), value.DefaultText, resolveEnum),
         };
         if (value.Type == "file" && value.DefaultText.Trim().Length != 0)
             definition["base"] = value.DefaultText.Trim();
         if (value.Comment.Length > 0)
             definition["comment"] = value.Comment;
-        if (value.ItemType is not null)
-            definition["itemType"] = CanonicalTypeNode(value.ItemType);
-        if (value.ValueType is not null)
-            definition["valueType"] = CanonicalTypeNode(value.ValueType);
         return definition;
     }
 
@@ -87,19 +76,20 @@ internal static class GeneralDataParameterSchema
         JsonObject currentDefinition,
         GeneralDataParamCreation initialValue,
         GeneralDataParamCreation value,
-        Func<string, LuaEnumDefinition>? resolveEnum = null)
+        Func<LuaMetadataType, LuaEnumDefinition>? resolveEnum = null)
     {
         JsonObject definition = (JsonObject)currentDefinition.DeepClone();
         bool typeChanged = HasValueTypeChanged(initialValue, value);
-        if (initialValue.Type != value.Type)
-            definition["type"] = CanonicalTypeNode(value.Type);
+        definition["type"] = GetType(value).ToSchema();
+        definition.Remove("itemType");
+        definition.Remove("valueType");
         if (typeChanged || initialValue.DefaultText != value.DefaultText)
         {
             if (typeChanged || value.Type != "file")
             {
                 definition["defaultValue"] = value.Type == "file"
                     ? JsonValue.Create(string.Empty)
-                    : ParseDefaultValue(value.Type, value.DefaultText, resolveEnum);
+                    : ParseDefaultValue(GetType(value).ToString(), value.DefaultText, resolveEnum);
             }
             if (value.Type == "file" && value.DefaultText.Trim().Length != 0)
                 definition["base"] = value.DefaultText.Trim();
@@ -113,22 +103,6 @@ internal static class GeneralDataParameterSchema
             else
                 definition["comment"] = value.Comment;
         }
-        if (initialValue.ItemType != value.ItemType)
-        {
-            if (value.ItemType is null)
-                definition.Remove("itemType");
-            else
-                definition["itemType"] = CanonicalTypeNode(value.ItemType);
-        }
-        if (initialValue.ValueType != value.ValueType)
-        {
-            if (value.ValueType is null)
-                definition.Remove("valueType");
-            else
-                definition["valueType"] = CanonicalTypeNode(value.ValueType);
-        }
-        if (typeChanged && !IsParamReferenceAllowed(definition))
-            definition.Remove("reference");
         return definition;
     }
 
@@ -152,14 +126,7 @@ internal static class GeneralDataParameterSchema
         GeneralDataParamCreation current,
         GeneralDataParamCreation next)
     {
-        if (current.Type != next.Type)
-            return true;
-        return current.Type switch
-        {
-            "list" => current.ItemType != next.ItemType,
-            "dict" => current.ValueType != next.ValueType,
-            _ => false,
-        };
+        return !JsonNode.DeepEquals(GetType(current).ToSchema(), GetType(next).ToSchema());
     }
 
     private static string FormatDefaultValue(string type, JsonNode? value)
@@ -176,7 +143,7 @@ internal static class GeneralDataParameterSchema
         };
     }
 
-    private static JsonNode? ParseDefaultValue(string type, string text, Func<string, LuaEnumDefinition>? resolveEnum)
+    private static JsonNode? ParseDefaultValue(string type, string text, Func<LuaMetadataType, LuaEnumDefinition>? resolveEnum)
     {
         return type switch
         {

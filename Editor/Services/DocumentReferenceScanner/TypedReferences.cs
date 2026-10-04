@@ -37,14 +37,27 @@ internal sealed partial class DocumentReferenceScanner
         string? defaultModule,
         string path,
         string kind,
-        HashSet<(string Type, JsonNode? Value)> resolving)
+        HashSet<(string Type, JsonNode? Value)> resolving,
+        bool isDictionaryKey = false)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        scanEnumDependencies(sourceId, type, defaultModule, path, []);
         scanAnnotatedReference(sourceId, value, name, meta, ownerMeta, path, kind);
+        if (type.Kind == LuaMetadataTypeKind.Enum)
+        {
+            scanEnumReference(sourceId, type, value, path, kind, isDictionaryKey);
+            return;
+        }
+        if (type.Kind == LuaMetadataTypeKind.Named && type.Name == "file")
+        {
+            addAssetReference(sourceId, value, kind, path);
+            return;
+        }
         if (type.Kind == LuaMetadataTypeKind.Union)
         {
             if (value is JsonObject wrapper && wrapper.ContainsKey("$type") && wrapper.ContainsKey("$value"))
             {
+                scanEnumSchemaReferences(sourceId, wrapper["$type"], path + ".$type");
                 LuaMetadataType? branch = type.Arguments.FirstOrDefault(candidate =>
                     JsonNode.DeepEquals(candidate.ToSchema(), wrapper["$type"]));
                 if (branch is not null)
@@ -72,8 +85,12 @@ internal sealed partial class DocumentReferenceScanner
             if (value is JsonObject dictionary)
             {
                 foreach (KeyValuePair<string, JsonNode?> item in dictionary)
+                {
+                    scanTypedReferences(sourceId, type.Arguments[0], JsonValue.Create(item.Key), name, null, null,
+                        defaultModule, $"{path}.{item.Key}", kind, resolving, true);
                     scanTypedReferences(sourceId, type.Arguments[1], item.Value, name, meta, ownerMeta,
                         defaultModule, $"{path}.{item.Key}", kind, resolving);
+                }
             }
             return;
         }
@@ -137,16 +154,69 @@ internal sealed partial class DocumentReferenceScanner
         if (getReference("CommonFunctionVars") is not null
             && ReferenceIdentity.NormalizeParameter(value) is string functionName)
             addReference(sourceId, ReferenceIdentity.NodeId("commonFunction", functionName), kind, path);
-        if (getReference("GeneralDataVars") is string generalType
-            && ReferenceIdentity.NormalizeParameter(value) is string generalValue)
+    }
+
+    private void scanEnumReference(string sourceId, LuaMetadataType type, JsonNode? value,
+        string path, string kind, bool isDictionaryKey)
+    {
+        if (!projectEnums.References.TryGetValue(type.Name, out ProjectEnumReference? reference)
+            || JsonScalar.String(value) is not string text || text.Length == 0)
+            return;
+        string target = reference.Kind switch
         {
-            string target = generalType.ToUpperInvariant() switch
-            {
-                "ANIMATION" => ReferenceIdentity.NodeId("animation", generalValue),
-                "PARTICLE" => ReferenceIdentity.NodeId("particle", generalValue),
-                _ => generalMemberNodeId(generalType, generalValue),
-            };
-            addReference(sourceId, target, kind, path);
+            "generalType" => ReferenceIdentity.NodeId("general", text),
+            "generalMember" => generalMemberNodeId(reference.Key!, text),
+            _ => ReferenceIdentity.NodeId(reference.Kind, text),
+        };
+        addReference(sourceId, target, reference.Kind == "generalType" ? "generalTypeValue" : kind, path, isDictionaryKey);
+    }
+
+    private void scanEnumDependencies(string sourceId, LuaMetadataType type, string? defaultModule,
+        string path, HashSet<string> resolving)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (type.Kind == LuaMetadataTypeKind.Enum)
+        {
+            if (projectEnums.References.TryGetValue(type.Name, out ProjectEnumReference? reference)
+                && reference.Kind == "generalMember")
+                addReference(sourceId, ReferenceIdentity.NodeId("general", reference.Key!), "generalTypeDependency", path);
+            return;
+        }
+        foreach (LuaMetadataType argument in type.Arguments)
+            scanEnumDependencies(sourceId, argument, defaultModule, path, resolving);
+        if (type.Kind != LuaMetadataTypeKind.Named)
+            return;
+        LuaTypeReference typeReference = LuaTypeReference.FromSchema(type).WithDefaultModule(defaultModule);
+        if (metadataService.GetType(typeReference) is null || !resolving.Add(typeReference.QualifiedName))
+            return;
+        try
+        {
+            ResolvedBlueprintClass structure = classResolver.Resolve(typeReference.QualifiedName);
+            foreach (ResolvedBlueprintField field in structure.Fields)
+                scanEnumDependencies(sourceId, field.Type.Schema, field.Metadata?.DeclaringType.ModuleName,
+                    path + "." + field.Name, resolving);
+        }
+        finally
+        {
+            resolving.Remove(typeReference.QualifiedName);
+        }
+    }
+
+    private void scanEnumSchemaReferences(string sourceId, JsonNode? schema, string path)
+    {
+        if (schema is JsonObject map)
+        {
+            if (JsonScalar.String(map["enum"]) is string module
+                && projectEnums.References.TryGetValue(module, out ProjectEnumReference? reference)
+                && reference.Kind == "generalMember")
+                addReference(sourceId, ReferenceIdentity.NodeId("general", reference.Key!), "generalType", path + ".enum");
+            foreach (KeyValuePair<string, JsonNode?> pair in map)
+                scanEnumSchemaReferences(sourceId, pair.Value, path + "." + pair.Key);
+        }
+        else if (schema is JsonArray array)
+        {
+            for (int index = 0; index < array.Count; index++)
+                scanEnumSchemaReferences(sourceId, array[index], $"{path}[{index}]");
         }
     }
 }

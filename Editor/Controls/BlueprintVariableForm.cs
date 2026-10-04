@@ -115,6 +115,8 @@ public sealed partial class BlueprintVariableForm : UserControl, IDisposable
         }
     }
 
+    public LuaEnumService? EnumService { get; set; }
+
     public string AssetsDirectory
     {
         get => assetsDirectory;
@@ -356,7 +358,8 @@ public sealed partial class BlueprintVariableForm : UserControl, IDisposable
                 AssetsDirectory,
                 CellSize,
                 GameVariables,
-                isReadOnly || field.IsReadOnly);
+                isReadOnly || field.IsReadOnly,
+                enums: EnumService);
             if (result is not null)
                 commit(field, result, true);
         };
@@ -569,7 +572,8 @@ public sealed partial class BlueprintVariableForm : UserControl, IDisposable
                 AssetsDirectory,
                 CellSize,
                 GameVariables,
-                isReadOnly || field.IsReadOnly);
+                isReadOnly || field.IsReadOnly,
+                enums: EnumService);
         }
 
         string? rectSource = getRectSourceField(field);
@@ -613,7 +617,8 @@ public sealed partial class BlueprintVariableForm : UserControl, IDisposable
                 valueType.Arguments[1],
                 displayValue as JsonObject,
                 changed,
-                dictionaryKey);
+                dictionaryKey,
+                valueType.Arguments[0]);
         }
         if (valueType.Kind == LuaMetadataTypeKind.Table)
         {

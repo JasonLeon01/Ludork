@@ -25,6 +25,7 @@ public sealed class GameVariableManagerWindow : Window
 
     private readonly GameVariableService gameVariables;
     private readonly ProjectSaveService projectSave;
+    private readonly LuaEnumService enums;
     private readonly TextBox variableSearchBox;
     private readonly ListBox variableList;
     private readonly StackPanel detailPanel;
@@ -39,10 +40,11 @@ public sealed class GameVariableManagerWindow : Window
     private bool applyingServiceChange;
     private long gestureId;
 
-    public GameVariableManagerWindow(GameVariableService gameVariables, ProjectSaveService projectSave)
+    public GameVariableManagerWindow(GameVariableService gameVariables, ProjectSaveService projectSave, LuaEnumService enums)
     {
         this.gameVariables = gameVariables;
         this.projectSave = projectSave;
+        this.enums = enums;
         updateTitle();
         Width = 900;
         Height = 620;
@@ -269,6 +271,7 @@ public sealed class GameVariableManagerWindow : Window
         BlueprintVariableForm form = new()
         {
             ShowFieldNames = false,
+            EnumService = enums,
             MinWidth = 220,
         };
         BlueprintVariableField field = new(

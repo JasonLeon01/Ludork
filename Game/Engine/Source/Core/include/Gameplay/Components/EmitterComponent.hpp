@@ -23,7 +23,8 @@ public:
     BIND_METHOD()
     std::shared_ptr<Emitter> getEmitter();
 
-    BIND_PROPERTY(default = "", meta(GeneralDataVars = PARTICLE))
+    BIND_PROPERTY(default = "", metadata_type = {enum = "Enums.Particle",
+                                                 valueType = "string"})
     std::string resource;
 
     BIND_PROPERTY(default = {0.5, 0.5})

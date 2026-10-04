@@ -10,7 +10,7 @@ namespace Ludork.Services;
 internal static class GeneralDataSchemaValidation
 {
     public static IReadOnlyList<string> Validate(IReadOnlyDictionary<string, JsonObject> generalData,
-        Func<string, LuaEnumDefinition>? resolveEnum = null)
+        Func<LuaMetadataType, LuaEnumDefinition>? resolveEnum = null)
     {
         List<string> errors = [];
         foreach (KeyValuePair<string, JsonObject> entry in generalData.OrderBy(pair => pair.Key, StringComparer.Ordinal))
@@ -19,7 +19,7 @@ internal static class GeneralDataSchemaValidation
     }
 
     private static void validateType(string typeName, JsonObject typeData, ICollection<string> errors,
-        Func<string, LuaEnumDefinition>? resolveEnum)
+        Func<LuaMetadataType, LuaEnumDefinition>? resolveEnum)
     {
         string path = "General/" + typeName;
         if (typeData.ContainsKey("linkedType"))
@@ -75,7 +75,7 @@ internal static class GeneralDataSchemaValidation
         string path,
         JsonObject parameters,
         ICollection<string> errors,
-        Func<string, LuaEnumDefinition>? resolveEnum)
+        Func<LuaMetadataType, LuaEnumDefinition>? resolveEnum)
     {
         foreach (KeyValuePair<string, JsonNode?> entry in parameters)
         {
@@ -83,7 +83,10 @@ internal static class GeneralDataSchemaValidation
                 continue;
             LuaMetadataType? schema = readParameterSchema(definition, path + ".params." + entry.Key, errors);
             if (schema is not null)
+            {
                 LuaMetadataLiteralValidation.ValidateUnions(schema, definition["defaultValue"], path + ".params." + entry.Key + ".defaultValue", errors, resolveEnum);
+                validateTypedAssetPaths(schema, definition["defaultValue"], path + ".params." + entry.Key + ".defaultValue", errors);
+            }
             if (getString(definition["type"]) != "file")
                 continue;
             if (getString(definition["defaultValue"]) is not "")
@@ -99,36 +102,46 @@ internal static class GeneralDataSchemaValidation
         JsonObject parameters,
         JsonObject member,
         ICollection<string> errors,
-        Func<string, LuaEnumDefinition>? resolveEnum)
+        Func<LuaMetadataType, LuaEnumDefinition>? resolveEnum)
     {
         foreach (KeyValuePair<string, JsonNode?> entry in parameters)
         {
             if (entry.Value is not JsonObject definition)
                 continue;
-            string? type = getString(definition["type"]);
             LuaMetadataType? schema = readParameterSchema(definition, path + "." + entry.Key, errors);
-            if (schema is not null)
-                LuaMetadataLiteralValidation.ValidateUnions(schema, member[entry.Key], path + "." + entry.Key, errors, resolveEnum);
-            if (type == "file")
-            {
-                validateAssetPath(path + "." + entry.Key, member[entry.Key], errors);
+            if (schema is null)
                 continue;
-            }
-            if (type == "list"
-                && getString(definition["itemType"]) == "file"
-                && member[entry.Key] is JsonArray items)
-            {
-                for (int index = 0; index < items.Count; index++)
-                    validateAssetPath(path + $".{entry.Key}[{index}]", items[index], errors);
-                continue;
-            }
-            if (type == "dict"
-                && getString(definition["valueType"]) == "file"
-                && member[entry.Key] is JsonObject values)
-            {
-                foreach (KeyValuePair<string, JsonNode?> item in values)
-                    validateAssetPath(path + $".{entry.Key}.{item.Key}", item.Value, errors);
-            }
+            LuaMetadataLiteralValidation.ValidateUnions(schema, member[entry.Key], path + "." + entry.Key, errors, resolveEnum);
+            validateTypedAssetPaths(schema, member[entry.Key], path + "." + entry.Key, errors);
+        }
+    }
+
+    private static void validateTypedAssetPaths(LuaMetadataType schema, JsonNode? value, string path, ICollection<string> errors)
+    {
+        if (schema.Kind == LuaMetadataTypeKind.Named && schema.Name == "file")
+        {
+            validateAssetPath(path, value, errors);
+        }
+        else if (schema.Kind == LuaMetadataTypeKind.List && value is JsonArray items)
+        {
+            for (int index = 0; index < items.Count; index++)
+                validateTypedAssetPaths(schema.Arguments[0], items[index], $"{path}[{index}]", errors);
+        }
+        else if (schema.Kind == LuaMetadataTypeKind.Dictionary && value is JsonObject entries)
+        {
+            foreach (KeyValuePair<string, JsonNode?> entry in entries)
+                validateTypedAssetPaths(schema.Arguments[1], entry.Value, path + "." + entry.Key, errors);
+        }
+        else if (schema.Kind == LuaMetadataTypeKind.Tuple && value is JsonArray tuple)
+        {
+            for (int index = 0; index < Math.Min(schema.Arguments.Count, tuple.Count); index++)
+                validateTypedAssetPaths(schema.Arguments[index], tuple[index], $"{path}[{index}]", errors);
+        }
+        else if (schema.Kind == LuaMetadataTypeKind.Union && value is JsonObject wrapper)
+        {
+            LuaMetadataType? branch = schema.Arguments.FirstOrDefault(candidate => JsonNode.DeepEquals(candidate.ToSchema(), wrapper["$type"]));
+            if (branch is not null)
+                validateTypedAssetPaths(branch, wrapper["$value"], path + ".$value", errors);
         }
     }
 
@@ -138,12 +151,7 @@ internal static class GeneralDataSchemaValidation
             return null;
         try
         {
-            return getString(definition["type"]) switch
-            {
-                "list" when definition["itemType"] is not null => LuaMetadataType.Parse(new JsonObject { ["list"] = definition["itemType"]!.DeepClone() }),
-                "dict" when definition["valueType"] is not null => LuaMetadataType.Parse(new JsonObject { ["dict"] = definition["valueType"]!.DeepClone() }),
-                _ => LuaMetadataType.Parse(definition["type"]),
-            };
+            return GeneralDataParameterSchema.GetValueSchema(definition);
         }
         catch (InvalidDataException exception)
         {

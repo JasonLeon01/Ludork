@@ -63,7 +63,7 @@ public sealed partial class ProjectDataStore : IDisposable
 
     private bool isModified;
 
-    private bool generalDataGenerationPending;
+    private bool projectEnumGenerationPending;
 
     private bool disposed;
     internal bool IsDisposed => disposed;
@@ -76,6 +76,7 @@ public sealed partial class ProjectDataStore : IDisposable
         this.loadProgress = loadProgress;
         ProjectPath = Path.GetFullPath(projectPath);
         Directory.CreateDirectory(Path.Combine(ProjectPath, "Data", "Subtitles"));
+        Enums = new LuaEnumService(ProjectPath, GetProjectEnumCatalog);
         generalEnums = new GeneralEnumService(ProjectPath);
 
         foreach ((string sectionName, EditorDocumentCollection collection) in sections)
@@ -90,6 +91,10 @@ public sealed partial class ProjectDataStore : IDisposable
         Subtitles = new SubtitleDataService(this, sections["Subtitles"]);
         loadAll();
     }
+
+    public LuaEnumService Enums { get; }
+
+    public ProjectEnumCatalog GetProjectEnumCatalog() => new(sections["General"], sections["Animations"].Keys, sections["Particles"].Keys);
 
     internal void reportDataRead(string path)
     {

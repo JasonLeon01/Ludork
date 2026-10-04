@@ -37,8 +37,17 @@ void validateEnumModuleName(const std::string& moduleName) {
 }
 
 TypeSchema enumValueType(RuntimeValueView values,
-                         const std::string& moduleName) {
+                         const TypeSchema& enumeration) {
+    const std::string& moduleName = enumeration.name;
+    const TypeSchema* declared = enumeration.arguments.empty()
+                                     ? nullptr
+                                     : &enumeration.arguments.front();
     const std::optional<RuntimeMapView> entries = values.map();
+    const std::optional<RuntimeArrayView> sequence = values.array();
+    if (declared != nullptr &&
+        ((entries && entries->empty()) || (sequence && sequence->empty()))) {
+        return *declared;
+    }
     if (!entries || entries->empty()) {
         throw std::invalid_argument("Enum must contain named scalar values: " +
                                     moduleName);
@@ -73,6 +82,14 @@ TypeSchema enumValueType(RuntimeValueView values,
     }
     TypeSchema result;
     result.name = category == "number" ? (integer ? "int" : "float") : category;
+    if (declared != nullptr) {
+        if (result != *declared &&
+            !(result.name == "int" && declared->name == "float")) {
+            throw std::invalid_argument(
+                "Enum values conflict with valueType: " + moduleName);
+        }
+        return *declared;
+    }
     return result;
 }
 

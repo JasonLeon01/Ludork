@@ -166,24 +166,6 @@ public sealed partial class GeneralDataService
         return true;
     }
 
-    public bool UpdateGeneralParameterReference(string typeKey, string name, JsonObject? reference)
-    {
-        if (!generalDocuments.TryGetValue(typeKey, out JsonObject? type)
-            || type["params"]?[name] is not JsonObject parameter
-            || JsonNode.DeepEquals(parameter["reference"], reference))
-        {
-            return false;
-        }
-        JsonObject? next = reference?.DeepClone() as JsonObject;
-        generalDocuments.RecordChange(typeKey);
-        if (next is null)
-            parameter.Remove("reference");
-        else
-            parameter["reference"] = next;
-        store.refreshModifiedState();
-        return true;
-    }
-
     public bool AddGeneralEvent(string typeKey, string name)
     {
         string eventName = name.Trim();
@@ -289,9 +271,9 @@ public sealed partial class GeneralDataService
             data.Add(entry.Key == oldName ? newName : entry.Key, entry.Key == oldName ? value : entry.Value);
     }
 
-    internal LuaEnumDefinition ReadEnum(string moduleName)
+    internal LuaEnumDefinition ReadEnum(LuaMetadataType schema)
     {
-        return new LuaEnumService(store.ProjectPath).Read(moduleName);
+        return store.Enums.Read(schema);
     }
 
     private JsonNode? createGeneralMemberDefaultValue(JsonObject definition)

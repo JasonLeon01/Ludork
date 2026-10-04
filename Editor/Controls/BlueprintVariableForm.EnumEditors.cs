@@ -14,9 +14,9 @@ namespace Ludork.Controls;
 
 public sealed partial class BlueprintVariableForm
 {
-    private LuaEnumDefinition readEnum(string moduleName)
+    private LuaEnumDefinition readEnum(LuaMetadataType type)
     {
-        return new LuaEnumService(ProjectDirectory).Read(moduleName);
+        return (EnumService ?? throw new InvalidOperationException("An enum service is required for enum fields.")).Read(type);
     }
 
     private Control createEnumEditor(
@@ -36,11 +36,18 @@ public sealed partial class BlueprintVariableForm
         };
         StackPanel panel = new() { Spacing = 3, Children = { selector, diagnostic } };
         bool refreshing = false;
+        BlueprintVariableOption empty = new(LocaleService.Get("GENERAL_DATA_PLACEHOLDER"), JsonValue.Create(string.Empty));
+        IReadOnlyList<BlueprintVariableOption> options(LuaEnumDefinition definition)
+        {
+            return definition.ValueType?.Name == "string"
+                ? new[] { empty }.Concat(definition.Options.Where(option => !JsonNode.DeepEquals(option.Value, empty.Value))).ToArray()
+                : definition.Options;
+        }
         void refresh(LuaEnumDefinition definition)
         {
             refreshing = true;
-            selector.ItemsSource = definition.Options;
-            BlueprintVariableOption? selected = definition.Options.FirstOrDefault(option => JsonNode.DeepEquals(option.Value, value));
+            selector.ItemsSource = options(definition);
+            BlueprintVariableOption? selected = options(definition).FirstOrDefault(option => JsonNode.DeepEquals(option.Value, value));
             selector.SelectedItem = selected;
             selector.PlaceholderText = value is null ? LocaleService.Get("ENUM_SELECT_VALUE") : getText(value);
             diagnostic.Text = definition.Error
@@ -53,14 +60,14 @@ public sealed partial class BlueprintVariableForm
         void visibilityChanged(object? sender, AvaloniaPropertyChangedEventArgs args)
         {
             if (args.Property == IsVisibleProperty && selector.IsEffectivelyVisible)
-                refresh(readEnum(type.Name));
+                refresh(readEnum(type));
         }
         void refreshVisible(object? sender, EventArgs args)
         {
             if (selector.IsEffectivelyVisible)
-                refresh(readEnum(type.Name));
+                refresh(readEnum(type));
         }
-        selector.DropDownOpened += (_, _) => refresh(readEnum(type.Name));
+        selector.DropDownOpened += (_, _) => refresh(readEnum(type));
         selector.AttachedToVisualTree += (_, _) =>
         {
             ancestors = selector.GetVisualAncestors().ToList();
@@ -69,7 +76,7 @@ public sealed partial class BlueprintVariableForm
             window = TopLevel.GetTopLevel(selector) as Window;
             if (window is not null)
                 window.Activated += refreshVisible;
-            refresh(readEnum(type.Name));
+            refresh(readEnum(type));
         };
         selector.DetachedFromVisualTree += (_, _) =>
         {
@@ -85,8 +92,8 @@ public sealed partial class BlueprintVariableForm
         {
             if (refreshing || selector.SelectedItem is not BlueprintVariableOption selection)
                 return;
-            LuaEnumDefinition current = readEnum(type.Name);
-            BlueprintVariableOption? chosen = current.Options.FirstOrDefault(option => option.Label == selection.Label);
+            LuaEnumDefinition current = readEnum(type);
+            BlueprintVariableOption? chosen = options(current).FirstOrDefault(option => option.Label == selection.Label);
             if (chosen is not null && !JsonNode.DeepEquals(value, chosen.Value))
             {
                 value = chosen.Value?.DeepClone();
@@ -94,7 +101,7 @@ public sealed partial class BlueprintVariableForm
             }
             refresh(current);
         };
-        refresh(readEnum(type.Name));
+        refresh(readEnum(type));
         return panel;
     }
 }

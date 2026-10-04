@@ -10,7 +10,7 @@ public sealed partial class ProjectDataStore
     private BlueprintClassResolver? blueprintClasses;
     private ReferenceIndexService? referenceIndex;
 
-    public LuaMetadataService Metadata => metadata ??= new LuaMetadataService(ProjectPath);
+    public LuaMetadataService Metadata => metadata ??= new LuaMetadataService(ProjectPath, enums: Enums);
     public BlueprintClassResolver BlueprintClasses => blueprintClasses ??= new BlueprintClassResolver(this, Metadata);
     public ReferenceIndexService ReferenceIndex => referenceIndex ??= new ReferenceIndexService(this, Metadata, BlueprintClasses);
 

@@ -10,6 +10,8 @@ namespace Ludork.Services;
 internal sealed partial class DocumentReferenceScanner
 {
     private readonly LuaMetadataService metadataService;
+    private readonly Func<ProjectEnumCatalog> getProjectEnums;
+    private ProjectEnumCatalog projectEnums = new(new Dictionary<string, JsonObject>(), [], []);
     private readonly BlueprintClassResolver classResolver;
     private readonly CancellationToken cancellationToken;
     private readonly BlueprintNodeDefinitionCatalog globalDefinitions;
@@ -21,9 +23,11 @@ internal sealed partial class DocumentReferenceScanner
     public DocumentReferenceScanner(
         LuaMetadataService metadataService,
         BlueprintClassResolver classResolver,
+        Func<ProjectEnumCatalog> getProjectEnums,
         CancellationToken cancellationToken = default)
     {
         this.metadataService = metadataService;
+        this.getProjectEnums = getProjectEnums;
         this.classResolver = classResolver;
         this.cancellationToken = cancellationToken;
         globalDefinitions = new BlueprintNodeDefinitionCatalog(metadataService, classResolver);
@@ -33,6 +37,7 @@ internal sealed partial class DocumentReferenceScanner
     public DocumentReferenceResult Scan(string section, string key, JsonObject data)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        projectEnums = getProjectEnums();
         references.Clear();
         seen.Clear();
         generalMemberTypes.Clear();
@@ -108,12 +113,12 @@ internal sealed partial class DocumentReferenceScanner
             addReference(sourceId, ReferenceIdentity.NodeId("subtitle", key), kind, path);
     }
 
-    private void addReference(string sourceId, string targetId, string kind, string path)
+    private void addReference(string sourceId, string targetId, string kind, string path, bool isDictionaryKey = false)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (sourceId.Length == 0 || targetId.Length == 0 || sourceId == targetId && kind != "generalType")
+        if (sourceId.Length == 0 || targetId.Length == 0 || sourceId == targetId && kind is not "generalType" and not "generalTypeValue" and not "generalTypeDependency")
             return;
-        ReferenceRecord reference = new(sourceId, targetId, kind, path);
+        ReferenceRecord reference = new(sourceId, targetId, kind, path, isDictionaryKey);
         if (seen.Add(reference))
             references.Add(reference);
     }

@@ -17,7 +17,8 @@ internal sealed class BillboardItemEditor : UserControl
         string assetsDirectory,
         int cellSize,
         IGameVariableCatalog? gameVariables,
-        bool readOnly)
+        bool readOnly,
+        LuaEnumService? enums = null)
     {
         JsonObject current = request.Value?.DeepClone() as JsonObject ?? [];
         TextBox summary = EditorInputs.CreateReadOnlyTextBox(formatSummary(current));
@@ -59,7 +60,8 @@ internal sealed class BillboardItemEditor : UserControl
                 cellSize,
                 gameVariables,
                 readOnly,
-                createFields);
+                createFields,
+                enums);
             if (selected is null || TopLevel.GetTopLevel(this) != owner || !IsEffectivelyEnabled)
                 return;
             if (selected.TryGetPropertyValue("path", out JsonNode? selectedPath))

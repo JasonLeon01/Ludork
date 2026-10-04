@@ -9,26 +9,45 @@ namespace Ludork.Models;
 internal static class LuaMetadataLiteralValidation
 {
     public static void ValidateLiteral(LuaMetadataType type, JsonNode? value, string path, ICollection<string> errors,
-        Func<string, LuaEnumDefinition>? resolveEnum = null)
+        Func<LuaMetadataType, LuaEnumDefinition>? resolveEnum = null)
     {
-        validate(type, value, path, errors, true, resolveEnum);
+        if (ValidateSchema(type, path, errors, resolveEnum))
+            validate(type, value, path, errors, true, resolveEnum);
     }
 
     public static void ValidateNodeParameter(LuaMetadataType type, JsonNode? value, string path, ICollection<string> errors,
-        Func<string, LuaEnumDefinition>? resolveEnum = null)
+        Func<LuaMetadataType, LuaEnumDefinition>? resolveEnum = null)
     {
-        if (value is not null)
+        if (ValidateSchema(type, path, errors, resolveEnum) && value is not null)
             validate(type, value, path, errors, true, resolveEnum);
     }
 
     public static void ValidateUnions(LuaMetadataType type, JsonNode? value, string path, ICollection<string> errors,
-        Func<string, LuaEnumDefinition>? resolveEnum = null)
+        Func<LuaMetadataType, LuaEnumDefinition>? resolveEnum = null)
     {
-        if ((type.ContainsUnion || type.ContainsEnum) && value is not null)
+        if (ValidateSchema(type, path, errors, resolveEnum)
+            && (type.ContainsUnion || type.ContainsEnum) && value is not null)
             validate(type, value, path, errors, false, resolveEnum);
     }
 
-    private static void validate(LuaMetadataType type, JsonNode? value, string path, ICollection<string> errors, bool strict, Func<string, LuaEnumDefinition>? resolveEnum)
+    public static bool ValidateSchema(LuaMetadataType type, string path, ICollection<string> errors,
+        Func<LuaMetadataType, LuaEnumDefinition>? resolveEnum = null)
+    {
+        if (type.Kind == LuaMetadataTypeKind.Enum)
+        {
+            LuaEnumDefinition? definition = resolveEnum?.Invoke(type);
+            if (definition?.IsValid == true)
+                return true;
+            errors.Add(path + ": " + (definition?.Error ?? "Enum resolver is unavailable for " + type.Name));
+            return false;
+        }
+        bool valid = true;
+        foreach (LuaMetadataType argument in type.Arguments)
+            valid &= ValidateSchema(argument, path, errors, resolveEnum);
+        return valid;
+    }
+
+    private static void validate(LuaMetadataType type, JsonNode? value, string path, ICollection<string> errors, bool strict, Func<LuaMetadataType, LuaEnumDefinition>? resolveEnum)
     {
         if (type.Kind == LuaMetadataTypeKind.Union)
         {
@@ -71,8 +90,8 @@ internal static class LuaMetadataLiteralValidation
         }
         if (type.Kind == LuaMetadataTypeKind.Enum)
         {
-            LuaEnumDefinition? definition = resolveEnum?.Invoke(type.Name);
-            if (definition?.ValueType is not LuaMetadataType valueType)
+            LuaEnumDefinition? definition = resolveEnum?.Invoke(type);
+            if (definition?.IsValid != true || definition.ValueType is not LuaMetadataType valueType)
             {
                 errors.Add(path + ": " + (definition?.Error ?? "Enum resolver is unavailable for " + type.Name));
                 return;

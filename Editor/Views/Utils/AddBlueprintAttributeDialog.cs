@@ -30,13 +30,14 @@ public sealed class AddBlueprintAttributeDialog : Window
 
     private AddBlueprintAttributeDialog(
         string projectPath,
+        LuaEnumService enums,
         IEnumerable<string> existingNames,
         Func<string, BlueprintFieldMetadata?>? resolveDeclaredField)
     {
         this.existingNames = new HashSet<string>(existingNames, StringComparer.Ordinal);
         this.resolveDeclaredField = resolveDeclaredField;
-        type = new MetadataTypeSelector(projectPath);
-        value = new MetadataValueEditor(projectPath);
+        type = new MetadataTypeSelector(enums);
+        value = new MetadataValueEditor(projectPath, enums);
         Title = LocaleService.Get("ADD_ATTRIBUTE");
         Width = 560;
         Height = 540;
@@ -79,10 +80,11 @@ public sealed class AddBlueprintAttributeDialog : Window
     public static Task<BlueprintAttributeCreation?> ShowAsync(
         Window owner,
         string projectPath,
+        LuaEnumService enums,
         IEnumerable<string> existingNames,
         Func<string, BlueprintFieldMetadata?>? resolveDeclaredField = null)
     {
-        return new AddBlueprintAttributeDialog(projectPath, existingNames, resolveDeclaredField)
+        return new AddBlueprintAttributeDialog(projectPath, enums, existingNames, resolveDeclaredField)
             .ShowDialog<BlueprintAttributeCreation?>(owner);
     }
 

@@ -63,9 +63,11 @@ public sealed class BlueprintVariableFieldBuilder
         return result;
     }
 
-    public LuaEnumDefinition ReadEnum(string moduleName)
+    public LuaEnumService EnumService => metadataService.Enums;
+
+    public LuaEnumDefinition ReadEnum(LuaMetadataType schema)
     {
-        return metadataService.Enums.Read(moduleName);
+        return metadataService.Enums.Read(schema);
     }
 
     public bool IsTypeAssignable(string source, string target)
@@ -78,7 +80,7 @@ public sealed class BlueprintVariableFieldBuilder
         if (!string.Equals(fieldName, "ID", StringComparison.Ordinal))
             return false;
         ResolvedBlueprintField? field = resolved.GetField(fieldName);
-        string? dataType = getGeneralDataType(field?.Metadata?.Meta["GeneralDataVars"]);
+        string? dataType = getGeneralDataType(field);
         return dataType is not null && gameData.General.GeneralData.ContainsKey(dataType);
     }
 
@@ -217,7 +219,6 @@ public sealed class BlueprintVariableFieldBuilder
             IsReadOnly = isReadOnly,
             PreserveNullValue = field.Value is null,
             RectSourceField = rectSource,
-            Options = getGeneralDataOptions(meta),
             Fields = nestedFields,
         };
     }
@@ -375,7 +376,7 @@ public sealed class BlueprintVariableFieldBuilder
     private GeneralDataFieldSource? getGeneralDataFields(ResolvedBlueprintClass resolved)
     {
         ResolvedBlueprintField? idField = resolved.GetField("ID");
-        string? dataType = getGeneralDataType(idField?.Metadata?.Meta["GeneralDataVars"]);
+        string? dataType = getGeneralDataType(idField);
         if (dataType is null
             || !gameData.General.GeneralData.TryGetValue(dataType, out GeneralDataTypeSnapshot? data)
             || !data.HasParameters)
@@ -411,39 +412,6 @@ public sealed class BlueprintVariableFieldBuilder
         return new GeneralDataFieldSource(previewValues, fields);
     }
 
-    private IReadOnlyList<BlueprintVariableOption> getGeneralDataOptions(JsonObject meta)
-    {
-        string? dataType = getGeneralDataType(meta["GeneralDataVars"]);
-        if (dataType is null)
-            return [];
-        List<BlueprintVariableOption> options =
-        [
-            new BlueprintVariableOption(
-                LocaleService.Get("GENERAL_DATA_PLACEHOLDER"),
-                JsonValue.Create(string.Empty)),
-        ];
-        IEnumerable<string> keys;
-        if (string.Equals(dataType, "ANIMATION", StringComparison.OrdinalIgnoreCase))
-        {
-            keys = gameData.Assets.AnimationsData.Keys;
-        }
-        else if (string.Equals(dataType, "PARTICLE", StringComparison.OrdinalIgnoreCase))
-        {
-            keys = gameData.Assets.ParticlesData.Keys;
-        }
-        else if (gameData.General.GeneralData.TryGetValue(dataType, out GeneralDataTypeSnapshot? data))
-        {
-            keys = data.Members.Keys;
-        }
-        else
-        {
-            keys = [];
-        }
-        foreach (string key in keys)
-            options.Add(new BlueprintVariableOption(key, JsonValue.Create(key)));
-        return options;
-    }
-
     private IReadOnlyList<BlueprintVariableOption> getNodeParameterOptions(
         string parameterName,
         JsonObject meta)
@@ -461,7 +429,7 @@ public sealed class BlueprintVariableFieldBuilder
             }
             return options;
         }
-        return getGeneralDataOptions(meta);
+        return [];
     }
 
     private static string? getNodeAssetSubdirectory(JsonNode? value)
@@ -510,20 +478,14 @@ public sealed class BlueprintVariableFieldBuilder
         return new LuaTypeReference(null, "any");
     }
 
-    private static string? getGeneralDataType(JsonNode? value)
+    private string? getGeneralDataType(ResolvedBlueprintField? field)
     {
-        if (getString(value) is string direct)
-            return direct;
-        if (value is JsonArray array)
-        {
-            if (array.Count == 1)
-                return getString(array[0]);
-            if (array.Count >= 2)
-                return getString(array[1]) ?? getString(array[0]);
-        }
-        if (value is JsonObject data)
-            return getString(data["type"] ?? data["dataType"] ?? data["key"]);
-        return null;
+        if (field is null)
+            return null;
+        LuaMetadataType schema = LuaMetadataType.Parse(field.Type.ToString());
+        return schema.Kind == LuaMetadataTypeKind.Enum
+            && metadataService.Enums.TryGetReference(schema.Name, out ProjectEnumReference? reference)
+            && reference?.Kind == "generalMember" ? reference.Key : null;
     }
 
     private static (string Config, string Setting)? getConfigReference(JsonNode? value, string fieldName)

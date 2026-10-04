@@ -176,7 +176,7 @@ public sealed partial class ProjectDataStore
     internal void refreshDocumentStatus()
     {
         UndoRedoStateChanged?.Invoke(this, EventArgs.Empty);
-        bool modified = generalDataGenerationPending || Documents.IsModified;
+        bool modified = projectEnumGenerationPending || Documents.IsModified;
         if (modified == isModified)
             return;
         isModified = modified;

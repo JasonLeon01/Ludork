@@ -215,7 +215,7 @@ public sealed partial class ProjectDataStore
         using BlueprintClassResolver resolver = new(Metadata, key =>
             document.Section == "Blueprints" && document.Key == key
                 ? (JsonObject)candidate.DeepClone() : ReadReferenceBlueprint(key));
-        DocumentReferenceScanner scanner = new(Metadata, resolver);
+        DocumentReferenceScanner scanner = new(Metadata, resolver, GetProjectEnumCatalog);
         DocumentReferenceResult result = scanner.Scan(document.Section, document.Key, candidate);
         foreach (ReferenceRecord reference in result.References)
         {

@@ -12,8 +12,8 @@ public sealed partial class ProjectDataStore
     public IReadOnlyList<string> GetUnsavedDocumentPaths()
     {
         IEnumerable<string> paths = Documents.ModifiedDocuments.Select(document => document.Path);
-        if (generalDataGenerationPending)
-            paths = paths.Concat(generalEnums.GetOutputPaths(sections["General"]));
+        if (projectEnumGenerationPending)
+            paths = paths.Concat(generalEnums.GetOutputPaths(GetProjectEnumCatalog()));
         return paths.Distinct(StringComparer.Ordinal).OrderBy(path => path, StringComparer.Ordinal).ToArray();
     }
 
@@ -192,12 +192,15 @@ public sealed partial class ProjectDataStore
             batch.DeleteDirectory(Path.GetDirectoryName(document.SavedPath)!);
         foreach (string savedPath in savedPaths)
             batch.Delete(savedPath);
-        if (section == "General")
+        if (section is "General" or "Animations" or "Particles")
         {
             Dictionary<string, JsonObject> savedGeneral = originData["General"]
-                .Where(pair => pair.Key != document.SavedState.Key)
+                .Where(pair => section != "General" || pair.Key != document.SavedState.Key)
                 .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
-            generalEnums.AddToSaveBatch(batch, savedGeneral);
+            ProjectEnumCatalog catalog = new(savedGeneral,
+                originData["Animations"].Keys.Where(value => section != "Animations" || value != document.SavedState.Key),
+                originData["Particles"].Keys.Where(value => section != "Particles" || value != document.SavedState.Key));
+            generalEnums.AddToSaveBatch(batch, savedGeneral, catalog);
         }
         SaveResult result = batch.Execute();
         if (!result.Success)

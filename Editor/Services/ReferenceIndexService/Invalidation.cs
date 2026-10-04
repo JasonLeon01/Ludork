@@ -11,7 +11,7 @@ public sealed partial class ReferenceIndexService
     private void onContentInvalidated(object? sender, EditorDocumentsChangedEventArgs args)
     {
         if (args.Reset || args.Changes.Any(change =>
-                (change.Section is "Blueprints" or "General") && (change.ContentChanged || change.IdentityChanged)))
+                (change.Section is "Blueprints" or "General" or "Animations" or "Particles") && (change.ContentChanged || change.IdentityChanged)))
         {
             MarkDirty();
             return;

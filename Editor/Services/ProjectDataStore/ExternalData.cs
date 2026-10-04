@@ -75,8 +75,8 @@ public sealed partial class ProjectDataStore
         rejectInvalidBlueprints();
         Worlds.loadMapsAndWorldMaps();
         originData = cloneAllData();
-        generalDataGenerationPending = generalEnums.NeedsGeneration(sections["General"]);
-        isModified = generalDataGenerationPending;
+        projectEnumGenerationPending = generalEnums.NeedsGeneration(GetProjectEnumCatalog());
+        isModified = projectEnumGenerationPending;
         clearHistoryGesture();
         InitializeDocuments();
         UndoRedoStateChanged?.Invoke(this, EventArgs.Empty);

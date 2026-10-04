@@ -44,18 +44,18 @@ void validateExtraType(const TypeSchema& type) {
         throw std::invalid_argument(
             "optional is not an attribute declaration schema");
     }
-    if (!type.arguments.empty()) {
-        for (const TypeSchema& argument : type.arguments) {
-            validateExtraType(argument);
-        }
-        return;
-    }
     if (type.kind == TypeSchema::Kind::Enum) {
         const RuntimeValue typeSchema(
             RuntimeValue::Map{{"enum", RuntimeValue(type.name)}});
         const RuntimeValue constants = reference::snapshot(
             typedDataService().resolveMetadataType(typeSchema));
-        static_cast<void>(detail::enumValueType(constants.view(), type.name));
+        static_cast<void>(detail::enumValueType(constants.view(), type));
+        return;
+    }
+    if (!type.arguments.empty()) {
+        for (const TypeSchema& argument : type.arguments) {
+            validateExtraType(argument);
+        }
         return;
     }
     const std::string name =

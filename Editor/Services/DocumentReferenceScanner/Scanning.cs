@@ -211,6 +211,11 @@ internal sealed partial class DocumentReferenceScanner
         if (parentId is not null)
             addReference(sourceId, parentId, "parent", $"Blueprints/{key}.parent");
 
+        if (data["attrDefs"] is JsonObject declarations)
+        {
+            foreach (KeyValuePair<string, JsonNode?> declaration in declarations)
+                scanEnumSchemaReferences(sourceId, declaration.Value?["type"], $"Blueprints/{key}.attrDefs.{declaration.Key}.type");
+        }
         JsonObject attrs = data["attrs"] as JsonObject ?? [];
         ResolvedBlueprintClass resolved = classResolver.ResolveBlueprint(data, key);
         scanResolvedFieldReferences(sourceId, resolved, $"Blueprints/{key}.attrs", "attribute");
@@ -279,15 +284,13 @@ internal sealed partial class DocumentReferenceScanner
         JsonObject parameterSchema = data["params"] as JsonObject ?? [];
         foreach (KeyValuePair<string, JsonNode?> parameter in parameterSchema)
         {
-            if (parameter.Value is JsonObject definition
-                && definition["reference"] is JsonObject reference
-                && JsonScalar.String(reference["kind"]) == "general"
-                && JsonScalar.String(reference["key"]) is string referencedType
-                && !string.IsNullOrWhiteSpace(referencedType))
-            {
-                addReference(sourceId, ReferenceIdentity.NodeId("general", referencedType), "generalType",
-                    $"General/{key}.params.{parameter.Key}.reference.key");
-            }
+            if (parameter.Value is not JsonObject definition)
+                continue;
+            foreach (string property in new[] { "type", "itemType", "valueType" })
+                scanEnumSchemaReferences(sourceId, definition[property], $"General/{key}.params.{parameter.Key}.{property}");
+            scanTypedReferences(sourceId, GeneralDataParameterSchema.GetValueSchema(definition),
+                definition["defaultValue"], parameter.Key, null, null, null,
+                $"General/{key}.params.{parameter.Key}.defaultValue", "defaultValue", []);
         }
         if (data["members"] is not JsonObject members)
             return;
@@ -325,75 +328,10 @@ internal sealed partial class DocumentReferenceScanner
         {
             if (pair.Value is not JsonObject definition)
                 continue;
-            string type = JsonScalar.String(definition["type"]) ?? "string";
-            if (type == "file")
-            {
-                addAssetReference(
-                    sourceId,
-                    member[pair.Key],
-                    "asset",
-                    $"General/{dataKey}/{memberKey}.{pair.Key}");
-                continue;
-            }
-            if (type is not "string" and not "list" and not "dict")
-                continue;
-            JsonNode? value = member[pair.Key];
-            if (type == "list" && value is JsonArray list)
-            {
-                for (int index = 0; index < list.Count; index++)
-                {
-                    if (JsonScalar.String(definition["itemType"]) == "file")
-                    {
-                        addAssetReference(
-                            sourceId,
-                            list[index],
-                            "asset",
-                            $"General/{dataKey}/{memberKey}.{pair.Key}[{index}]");
-                    }
-                    addGeneralParameterReference(sourceId, definition, list[index], $"General/{dataKey}/{memberKey}.{pair.Key}[{index}]");
-                }
-                continue;
-            }
-            if (type == "dict" && value is JsonObject dictionary)
-            {
-                foreach (KeyValuePair<string, JsonNode?> item in dictionary)
-                {
-                    if (JsonScalar.String(definition["valueType"]) == "file")
-                    {
-                        addAssetReference(
-                            sourceId,
-                            item.Value,
-                            "asset",
-                            $"General/{dataKey}/{memberKey}.{pair.Key}.{item.Key}");
-                    }
-                    string itemKey = item.Key;
-                    addGeneralParameterReference(sourceId, definition, JsonValue.Create(itemKey), $"General/{dataKey}/{memberKey}.{pair.Key}.{itemKey}");
-                }
-                continue;
-            }
-            addGeneralParameterReference(sourceId, definition, value, $"General/{dataKey}/{memberKey}.{pair.Key}");
+            LuaMetadataType type = GeneralDataParameterSchema.GetValueSchema(definition);
+            scanTypedReferences(sourceId, type, member[pair.Key], pair.Key, null, null, null,
+                $"General/{dataKey}/{memberKey}.{pair.Key}", "member", []);
         }
-    }
-
-    private void addGeneralParameterReference(
-        string sourceId,
-        JsonObject definition,
-        JsonNode? value,
-        string path)
-    {
-        if (definition["reference"] is not JsonObject reference)
-            return;
-        string? kind = JsonScalar.String(reference["kind"]);
-        string? text = ReferenceIdentity.NormalizeParameter(value);
-        if (string.IsNullOrWhiteSpace(text))
-            return;
-        if (kind == "animation")
-        {
-            addReference(sourceId, ReferenceIdentity.NodeId("animation", text), "reference", path);
-            return;
-        }
-        if (kind == "general" && JsonScalar.String(reference["key"]) is string generalKey)
-            addReference(sourceId, generalMemberNodeId(generalKey, text), "member", path);
     }
 
     private void scanNodeGraphReferences(
@@ -460,20 +398,17 @@ internal sealed partial class DocumentReferenceScanner
         if (isKnownMapNodeReference(nodeFunction))
             addMapReference(sourceId, parameterAt(parameters, 0), "nodeParam", $"{path}.params[0]");
 
-        (string[] Suffixes, int Parameter, string Type, string Base)[] rules =
+        (string[] Suffixes, int Parameter, string Type)[] rules =
         [
-            ([".AddPlayerByClass", ".RemovePlayerByClass", ".CreateActorFromBPPath", ".CreateActorFromBPPathWithDefaults"], 0, "blueprint", ""),
-            ([".AddAnim", ".AddAnimOn", ".GetAnimLength"], 0, "animation", ""),
-            ([".RunCommonFunction"], 0, "commonFunction", ""),
-            ([".PlaySound"], 0, "asset", "Sounds"),
-            ([".ShowVoiceMessageByTag", ".ShowVoiceMessage"], 2, "asset", "Voices"),
-            ([".PlayMusic"], 0, "asset", "Musics"),
-            ([".PlayVideo"], 0, "asset", "Videos"),
-            ([".PlayVideo"], 3, "subtitle", ""),
-            ([".GetItemCount", ".AddItem", ".RemoveItem", ".HasItem"], 0, "generalMember", "Item"),
-            ([".AddEquip", ".RemoveEquip", ".HasEquip", ".EquipItem"], 0, "generalMember", "Equip"),
+            ([".AddPlayerByClass", ".RemovePlayerByClass", ".CreateActorFromBPPath", ".CreateActorFromBPPathWithDefaults"], 0, "blueprint"),
+            ([".RunCommonFunction"], 0, "commonFunction"),
+            ([".PlaySound"], 0, "asset"),
+            ([".ShowVoiceMessageByTag", ".ShowVoiceMessage"], 2, "asset"),
+            ([".PlayMusic"], 0, "asset"),
+            ([".PlayVideo"], 0, "asset"),
+            ([".PlayVideo"], 3, "subtitle"),
         ];
-        foreach ((string[] suffixes, int parameter, string type, string baseValue) in rules)
+        foreach ((string[] suffixes, int parameter, string type) in rules)
         {
             if (!suffixes.Any(suffix => nodeFunction.EndsWith(suffix, StringComparison.Ordinal)))
                 continue;
@@ -495,10 +430,6 @@ internal sealed partial class DocumentReferenceScanner
             else if (type == "subtitle")
             {
                 addSubtitleReference(sourceId, value, "nodeParam", referencePath);
-            }
-            else if (type == "generalMember")
-            {
-                addReference(sourceId, generalMemberNodeId(baseValue, text), "nodeParam", referencePath);
             }
             else
             {

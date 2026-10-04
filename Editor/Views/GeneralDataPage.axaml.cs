@@ -313,24 +313,11 @@ internal sealed partial class GeneralDataPage : UserControl
                 viewModel.UpdateMemberValue(row.Member, column.Name, JsonValue.Create(next));
             });
         }
-        if (type is "int" or "float")
-            return buildTypedFieldEditor(column.Name, column.Definition, rawValue, row.Member, null);
+        if (type is "int" or "float" || LuaMetadataType.Parse(type).Kind == LuaMetadataTypeKind.Enum)
+            return buildTypedFieldEditor(column.Name, column.Definition, rawValue, row.Member);
         if (type == "string")
         {
             string current = rawValue?.GetValue<string>() ?? string.Empty;
-            JsonObject? reference = GeneralDataParameterSchema.GetParamReference(column.Definition);
-            string refKind = reference?["kind"]?.GetValue<string>() ?? string.Empty;
-            string refKey = reference?["key"]?.GetValue<string>() ?? string.Empty;
-            List<string>? options = getRefOptions(refKind, refKey);
-            if (options is not null)
-            {
-                return createReferenceEditor(current, options, next =>
-                {
-                    if ((row.Member[column.Name]?.GetValue<string>() ?? string.Empty) == next)
-                        return;
-                    viewModel.UpdateMemberValue(row.Member, column.Name, JsonValue.Create(next));
-                });
-            }
             return createTextEditor(current, next =>
             {
                 if ((row.Member[column.Name]?.GetValue<string>() ?? string.Empty) == next)
@@ -648,8 +635,6 @@ internal sealed partial class GeneralDataPage : UserControl
     private Control buildFormRow(string label, Control editor, JsonObject? paramsObj, string? paramName)
     {
         JsonObject? paramDef = paramName is not null ? paramsObj?[paramName] as JsonObject : null;
-        JsonObject? reference = GeneralDataParameterSchema.GetParamReference(paramDef);
-        string referenceLabel = reference is null ? string.Empty : formatReferenceLabel(reference);
         Grid row = new()
         {
             ColumnDefinitions = new ColumnDefinitions("150,8,*,Auto"),
@@ -657,19 +642,13 @@ internal sealed partial class GeneralDataPage : UserControl
         };
         TextBlock labelBlock = new()
         {
-            Text = referenceLabel.Length == 0 ? label : label + " [" + referenceLabel + "]",
+            Text = label,
             VerticalAlignment = VerticalAlignment.Center,
             TextWrapping = TextWrapping.Wrap,
         };
         string comment = paramDef?["comment"]?.GetValue<string>() ?? string.Empty;
-        if (comment.Length > 0 || referenceLabel.Length > 0)
-        {
-            ToolTip.SetTip(
-                labelBlock,
-                comment.Length > 0 && referenceLabel.Length > 0
-                    ? comment + Environment.NewLine + referenceLabel
-                    : comment + referenceLabel);
-        }
+        if (comment.Length > 0)
+            ToolTip.SetTip(labelBlock, comment);
         if (paramName is not null && paramsObj is not null)
         {
             labelBlock.AddHandler(ContextRequestedEvent, (s, e) =>
@@ -712,63 +691,13 @@ internal sealed partial class GeneralDataPage : UserControl
         editItem.Click += async (_, _) => await onEditParamAsync(paramName);
         menu.Items.Add(editItem);
 
-        if (!GeneralDataParameterSchema.IsParamReferenceAllowed(paramDef))
-        {
-            menu.Open(anchor);
-            return;
-        }
-
-        menu.Items.Add(new Separator());
-        MenuItem addReferenceItem = new() { Header = LocaleService.Get("ADD_REFERENCE") };
-        foreach (string key in viewModel.ReferenceTypeKeys)
-        {
-            string targetKey = key;
-            MenuItem targetItem = new() { Header = targetKey };
-            targetItem.Click += (_, _) => setParamReference(
-                paramDef!,
-                new JsonObject
-                {
-                    ["kind"] = "general",
-                    ["key"] = targetKey,
-                });
-            addReferenceItem.Items.Add(targetItem);
-        }
-        addReferenceItem.Items.Add(new Separator());
-        MenuItem animationItem = new() { Header = LocaleService.Get("REFERENCE_TYPE_ANIMATION") };
-        animationItem.Click += (_, _) => setParamReference(
-            paramDef!,
-            new JsonObject { ["kind"] = "animation" });
-        addReferenceItem.Items.Add(animationItem);
-        menu.Items.Add(addReferenceItem);
-
-        if (GeneralDataParameterSchema.GetParamReference(paramDef) is not null)
-        {
-            menu.Items.Add(new Separator());
-            MenuItem removeRefItem = new() { Header = LocaleService.Get("REMOVE_REFERENCE") };
-            removeRefItem.Click += (_, _) => setParamReference(paramDef!, null);
-            menu.Items.Add(removeRefItem);
-        }
         menu.Open(anchor);
-    }
-
-    private void setParamReference(JsonObject paramDef, JsonObject? reference)
-    {
-        if (!viewModel.UpdateParameterReference(paramDef, reference))
-            return;
-        buildForm(selectedMemberId);
-    }
-
-    private static string formatReferenceLabel(JsonObject reference)
-    {
-        return reference["kind"]?.GetValue<string>() == "animation"
-            ? LocaleService.Get("REFERENCE_TYPE_ANIMATION")
-            : reference["key"]?.GetValue<string>() ?? string.Empty;
     }
 
     private async Task onAddParamAsync(string memberId)
     {
         GeneralDataParamCreation? result = await AddParamDialog.ShowAsync(
-            owner, viewModel.ParameterNames, gameData.ProjectPath);
+            owner, viewModel.ParameterNames, gameData.ProjectPath, gameData.Enums);
         if (result is null)
             return;
         if (!viewModel.AddParameter(result))
@@ -784,7 +713,7 @@ internal sealed partial class GeneralDataPage : UserControl
         GeneralDataParamCreation? result = await AddParamDialog.ShowEditAsync(
             owner,
             viewModel.ParameterNames.Where(name => name != paramName),
-            initialValue, gameData.ProjectPath);
+            initialValue, gameData.ProjectPath, gameData.Enums);
         if (result is null)
             return;
 
@@ -824,11 +753,8 @@ internal sealed partial class GeneralDataPage : UserControl
             || type.StartsWith("Tuple[", StringComparison.Ordinal)
             || paramDef["type"] is JsonObject)
         {
-            return buildTypedFieldEditor(paramName, paramDef, rawValue, member, null);
+            return buildTypedFieldEditor(paramName, paramDef, rawValue, member);
         }
-        JsonObject? reference = GeneralDataParameterSchema.GetParamReference(paramDef);
-        string refKind = reference?["kind"]?.GetValue<string>() ?? string.Empty;
-        string refKey = reference?["key"]?.GetValue<string>() ?? string.Empty;
 
         if (type == "bool")
         {
@@ -844,7 +770,7 @@ internal sealed partial class GeneralDataPage : UserControl
         }
 
         if (type is "int" or "float")
-            return buildTypedFieldEditor(paramName, paramDef, rawValue, member, null);
+            return buildTypedFieldEditor(paramName, paramDef, rawValue, member);
 
         if (type == "file")
         {
@@ -904,15 +830,13 @@ internal sealed partial class GeneralDataPage : UserControl
         if (type == "list")
         {
             JsonArray current = rawValue is JsonArray arr ? (JsonArray)arr.DeepClone() : new JsonArray();
-            List<string>? refOptions = getRefOptions(refKind, refKey);
-            return buildTypedFieldEditor(paramName, paramDef, current, member, refOptions);
+            return buildTypedFieldEditor(paramName, paramDef, current, member);
         }
 
         if (type == "dict")
         {
             JsonObject current = rawValue is JsonObject obj ? (JsonObject)obj.DeepClone() : new JsonObject();
-            List<string>? refOptions = getRefOptions(refKind, refKey);
-            return buildTypedFieldEditor(paramName, paramDef, current, member, refOptions);
+            return buildTypedFieldEditor(paramName, paramDef, current, member);
         }
 
         if (type.StartsWith("tuple", StringComparison.Ordinal) &&
@@ -944,22 +868,10 @@ internal sealed partial class GeneralDataPage : UserControl
         }
 
         if (GeneralDataParameterSchema.IsSfType(type))
-            return buildTypedFieldEditor(paramName, paramDef, rawValue, member, null);
+            return buildTypedFieldEditor(paramName, paramDef, rawValue, member);
 
         {
             string current = rawValue?.GetValue<string>() ?? string.Empty;
-            List<string>? refOptions = getRefOptions(refKind, refKey);
-            if (refOptions is not null)
-            {
-                return createReferenceEditor(current, refOptions, next =>
-                {
-                    if ((rawValue?.GetValue<string>() ?? string.Empty) == next)
-                        return;
-                    if (!viewModel.UpdateMemberValue(member, paramName, JsonValue.Create(next)))
-                        return;
-                    rawValue = member[paramName];
-                });
-            }
             return createTextEditor(current, next =>
             {
                 if ((rawValue?.GetValue<string>() ?? string.Empty) == next)
@@ -990,31 +902,14 @@ internal sealed partial class GeneralDataPage : UserControl
         return text;
     }
 
-    private static ComboBox createReferenceEditor(
-        string current,
-        IReadOnlyList<string> options,
-        Action<string> commit)
-    {
-        ComboBox combo = GeneralDataReferenceInputs.Create(current, options);
-        combo.SelectionChanged += (_, _) => commit(GeneralDataReferenceInputs.GetValue(combo));
-        return combo;
-    }
-
     private Control buildTypedFieldEditor(
         string paramName,
         JsonObject paramDef,
         JsonNode? rawValue,
-        JsonObject member,
-        IReadOnlyList<string>? referenceOptions)
+        JsonObject member)
     {
-        string type = GeneralDataParameterSchema.ReadTypeName(paramDef["type"]);
-        string editorType = type switch
-        {
-            "list" => GeneralDataParameterSchema.GetContainerItemType(paramDef, "itemType") + "[]",
-            "dict" => "Dict[string, " + GeneralDataParameterSchema.GetContainerItemType(paramDef, "valueType") + "]",
-            _ => type,
-        };
-        JsonObject meta = buildTypedFieldMeta(type, paramDef, referenceOptions);
+        string editorType = GeneralDataParameterSchema.GetValueSchema(paramDef).ToString();
+        JsonObject meta = buildTypedFieldMeta(LuaMetadataType.Parse(editorType));
         BlueprintVariableField field = new(paramName, editorType, rawValue)
         {
             Meta = meta,
@@ -1026,7 +921,7 @@ internal sealed partial class GeneralDataPage : UserControl
             CellSize = gameData.Configs.getCellSize(),
             HistoryGameData = gameData,
             ShowFieldNames = false,
-            CustomValueEditorFactory = createGeneralDataReferenceEditor,
+            EnumService = gameData.Enums,
         };
         form.SetFields([field]);
         form.ValueChanged += (_, args) =>
@@ -1038,63 +933,17 @@ internal sealed partial class GeneralDataPage : UserControl
         return form;
     }
 
-    private static JsonObject buildTypedFieldMeta(
-        string type,
-        JsonObject paramDef,
-        IReadOnlyList<string>? referenceOptions)
+    private static JsonObject buildTypedFieldMeta(LuaMetadataType type)
     {
         JsonObject meta = [];
-        if (type == "list")
+        if (type.Kind == LuaMetadataTypeKind.Named && type.Name == "file")
+            meta["PathVars"] = GameAssetPath.Root;
+        else if (type.Kind is LuaMetadataTypeKind.List or LuaMetadataTypeKind.Dictionary)
         {
-            JsonObject itemMeta = [];
-            if (GeneralDataParameterSchema.GetContainerItemType(paramDef, "itemType") == "file")
-                itemMeta["PathVars"] = GameAssetPath.Root;
-            if (referenceOptions is not null)
-                itemMeta["GeneralDataReference"] = buildReferenceOptions(referenceOptions);
+            JsonObject itemMeta = buildTypedFieldMeta(type.Arguments[type.Kind == LuaMetadataTypeKind.List ? 0 : 1]);
             if (itemMeta.Count > 0)
                 meta["ItemMeta"] = itemMeta;
         }
-        else if (type == "dict")
-        {
-            if (GeneralDataParameterSchema.GetContainerItemType(paramDef, "valueType") == "file")
-                meta["ItemMeta"] = new JsonObject { ["PathVars"] = GameAssetPath.Root };
-            if (referenceOptions is not null)
-            {
-                meta["DictKeyMeta"] = new JsonObject
-                {
-                    ["GeneralDataReference"] = buildReferenceOptions(referenceOptions),
-                };
-            }
-        }
         return meta;
     }
-
-    private static JsonArray buildReferenceOptions(IEnumerable<string> options)
-    {
-        JsonArray result = [];
-        foreach (string option in options)
-            result.Add(option);
-        return result;
-    }
-
-    private static Control? createGeneralDataReferenceEditor(BlueprintVariableEditorRequest request)
-    {
-        if (request.Field.Meta["GeneralDataReference"] is not JsonArray rawOptions)
-            return null;
-        List<string> options = rawOptions
-            .Select(option => option?.GetValue<string>() ?? string.Empty)
-            .ToList();
-        string current = request.Value?.GetValue<string>() ?? string.Empty;
-        return createReferenceEditor(current, options, next => request.Commit(JsonValue.Create(next), false));
-    }
-
-    private List<string>? getRefOptions(string refKind, string refKey)
-    {
-        if (refKind == "animation")
-            return gameData.Assets.AnimationsData.Keys.OrderBy(k => k, StringComparer.Ordinal).ToList();
-        if (refKind == "general" && !string.IsNullOrEmpty(refKey))
-            return viewModel.GetReferenceMemberIds(refKey);
-        return null;
-    }
-
 }

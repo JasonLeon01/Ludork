@@ -142,6 +142,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         previewPlaceholder.Text = LocaleService.Get("PREVIEW");
         variableForm.AssetsDirectory = Path.Combine(gameData.ProjectPath, "Assets");
         variableForm.ProjectDirectory = gameData.ProjectPath;
+        variableForm.EnumService = gameData.Enums;
         variableForm.CellSize = gameData.Configs.getCellSize();
         variableForm.GameVariables = projectSave.GameVariables;
         variableForm.IsReadOnly = !document.CanEditAttributes;
@@ -354,7 +355,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
     {
         ResolvedBlueprintClass resolved = viewModel.ResolveClass();
         BlueprintAttributeCreation? creation = await AddBlueprintAttributeDialog.ShowAsync(
-            this, gameData.ProjectPath,
+            this, gameData.ProjectPath, gameData.Enums,
             resolved.Fields.Where(field => field.HasBlueprintDefaultValue).Select(field => field.Name),
             name => resolved.DeclaredFields.GetValueOrDefault(name));
         if (creation is null)

@@ -42,7 +42,7 @@ public sealed partial class ReferenceIndexService : IDisposable
         this.classResolver = classResolver;
         this.cancellationToken = cancellationToken;
         this.progress = progress;
-        scanner = new DocumentReferenceScanner(metadataService, classResolver, cancellationToken);
+        scanner = new DocumentReferenceScanner(metadataService, classResolver, gameData.GetProjectEnumCatalog, cancellationToken);
         gameData.Documents.ContentInvalidated += onContentInvalidated;
     }
 
@@ -294,7 +294,7 @@ public sealed partial class ReferenceIndexService : IDisposable
         if (gameData.Documents.HasPendingNotifications)
         {
             using BlueprintClassResolver resolver = new(metadataService, gameData.ReadReferenceBlueprint);
-            transactionScanner = new DocumentReferenceScanner(metadataService, resolver, cancellationToken);
+            transactionScanner = new DocumentReferenceScanner(metadataService, resolver, gameData.GetProjectEnumCatalog, cancellationToken);
             try
             {
                 ReferenceInputFiles transactionalFiles = ReferenceInputFiles.Capture(gameData.ProjectPath, unloadedMapPaths());
@@ -421,16 +421,16 @@ public sealed partial class ReferenceIndexService : IDisposable
         foreach (KeyValuePair<string, string> member in result.GeneralMemberTypes)
             generalMemberTypes[member.Key] = member.Value;
         foreach (ReferenceRecord reference in result.References)
-            addReference(reference.Source, reference.Target, reference.Kind, reference.Path);
+            addReference(reference.Source, reference.Target, reference.Kind, reference.Path, reference.IsDictionaryKey);
     }
 
-    private void addReference(string sourceId, string targetId, string kind, string path)
+    private void addReference(string sourceId, string targetId, string kind, string path, bool isDictionaryKey = false)
     {
-        if (sourceId.Length == 0 || targetId.Length == 0 || sourceId == targetId && kind != "generalType")
+        if (sourceId.Length == 0 || targetId.Length == 0 || sourceId == targetId && kind is not "generalType" and not "generalTypeValue" and not "generalTypeDependency")
             return;
         ensureNode(sourceId);
         ensureNode(targetId);
-        ReferenceRecord record = new(sourceId, targetId, kind, path);
+        ReferenceRecord record = new(sourceId, targetId, kind, path, isDictionaryKey);
         if (!seen.Add(record))
             return;
         if (!referencesBySource.TryGetValue(sourceId, out List<ReferenceRecord>? outgoing))

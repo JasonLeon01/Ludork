@@ -14,7 +14,8 @@ public sealed record ReferenceRecord(
     string Source,
     string Target,
     string Kind,
-    string Path
+    string Path,
+    bool IsDictionaryKey = false
 );
 
 public sealed record ReferenceTreeItem(

@@ -20,11 +20,8 @@ local _METADATA = {
             default = false
         },
         requiredItemID = {
-            type = "string",
-            default = "EnemyBook",
-            Meta = {
-                GeneralDataVars = "Item"
-            }
+            type = { enum = "Enums.GeneralData.Item", valueType = "string" },
+            default = "EnemyBook"
         },
         textConfig = {
             type = "string",
@@ -44,11 +41,6 @@ local _METADATA = {
             ExecSplit = {
                 "default",
                 default = "nil"
-            }
-        },
-        Meta = {
-            GeneralDataVars = {
-                { "requiredItemID", "Item" }
             }
         }
     }

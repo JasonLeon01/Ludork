@@ -50,7 +50,7 @@ public sealed partial class BlueprintDataService
 
     private void validateAttributeChange(string key, JsonObject candidate)
     {
-        attributeMetadata ??= new LuaMetadataService(store.ProjectPath, strictReads: true);
+        attributeMetadata ??= new LuaMetadataService(store.ProjectPath, strictReads: true, enums: store.Enums);
         using BlueprintClassResolver resolver = new(attributeMetadata, reference => reference == key
             ? candidate : blueprintDocuments.TryGetValue(reference, out JsonObject? document) ? document : null);
         resolver.ResolveBlueprint(candidate, key);

@@ -11,13 +11,12 @@
             "defaultValue": ""
         },
         "CLASS": {
-            "type": "string",
+            "type": {
+                "enum": "Enums.GeneralData.Class",
+                "valueType": "string"
+            },
             "comment": "The Class member ID that defines the player's equipment slots and initial equipment.",
-            "defaultValue": "",
-            "reference": {
-                "kind": "general",
-                "key": "Class"
-            }
+            "defaultValue": ""
         },
         "MAXHP": {
             "type": "int",
@@ -55,12 +54,12 @@
             "defaultValue": 1
         },
         "ANIMATION_KEY": {
-            "type": "string",
+            "type": {
+                "enum": "Enums.Animation",
+                "valueType": "string"
+            },
             "comment": "The animation played when the player attacks.",
-            "defaultValue": "",
-            "reference": {
-                "kind": "animation"
-            }
+            "defaultValue": ""
         }
     },
     "members": {

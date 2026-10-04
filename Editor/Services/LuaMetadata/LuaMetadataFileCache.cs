@@ -11,6 +11,7 @@ namespace Ludork.Services;
 internal sealed class LuaMetadataFileCache
 {
     private readonly string scriptsPath;
+    private readonly LuaEnumService enums;
     private readonly bool strictReads;
     private readonly CancellationToken cancellationToken;
     private readonly Dictionary<string, CachedMetadataFile> fileCache = new(StringComparer.OrdinalIgnoreCase);
@@ -22,8 +23,9 @@ internal sealed class LuaMetadataFileCache
     private int strictReadDepth;
     private long revision;
 
-    public LuaMetadataFileCache(string projectPath, bool strictReads = false, CancellationToken cancellationToken = default)
+    public LuaMetadataFileCache(string projectPath, LuaEnumService enums, bool strictReads = false, CancellationToken cancellationToken = default)
     {
+        this.enums = enums;
         this.strictReads = strictReads;
         this.cancellationToken = cancellationToken;
         ProjectPath = Path.GetFullPath(projectPath);
@@ -173,7 +175,7 @@ internal sealed class LuaMetadataFileCache
             metadataPath,
             ScriptMixinPaths.GetModuleName(normalized),
             ScriptMixinPaths.GetTypeName(normalized),
-            new LuaEnumService(ProjectPath).Read);
+            enums.Read);
         scriptMixinCache[metadataPath] = new CachedScriptMixinMetadata(metadataPath, stamp, metadata);
         return metadata;
     }
@@ -354,7 +356,7 @@ internal sealed class LuaMetadataFileCache
         {
             try
             {
-                types = LuaMetadataParser.ReadFile(path, moduleName, new LuaEnumService(ProjectPath).Read);
+                types = LuaMetadataParser.ReadFile(path, moduleName, enums.Read);
             }
             catch (Exception exception) when (exception is InterpreterException or InvalidDataException or IOException or UnauthorizedAccessException)
             {

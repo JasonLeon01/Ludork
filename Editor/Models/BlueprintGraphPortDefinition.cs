@@ -29,7 +29,7 @@ public sealed class BlueprintGraphPortDefinition
         bool supportsEditor = false,
         JsonNode? defaultValue = null,
         JsonObject? meta = null,
-        Func<string, LuaEnumDefinition>? resolveEnum = null,
+        Func<LuaMetadataType, LuaEnumDefinition>? resolveEnum = null,
         Func<JsonNode?>? createDefault = null)
     {
         Name = name;
@@ -52,7 +52,7 @@ public sealed class BlueprintGraphPortDefinition
     public string TypeName { get; }
     public int? ParameterIndex { get; }
     public bool SupportsEditor { get; }
-    public Func<string, LuaEnumDefinition>? ResolveEnum { get; }
+    public Func<LuaMetadataType, LuaEnumDefinition>? ResolveEnum { get; }
     public Func<JsonNode?>? CreateDefault { get; }
     public JsonNode? DefaultValue => CreateDefault is null ? defaultValue?.DeepClone() : CreateDefault();
     public JsonObject Meta { get; }

@@ -15,13 +15,14 @@ public sealed class MetadataValueEditor : UserControl, IDisposable
     private LuaMetadataType type = LuaMetadataType.Parse("string");
     private JsonNode? value;
 
-    public MetadataValueEditor(string projectPath)
+    public MetadataValueEditor(string projectPath, LuaEnumService enums)
     {
-        enums = new LuaEnumService(projectPath);
+        this.enums = enums;
         form = new BlueprintVariableForm
         {
             AssetsDirectory = Path.Combine(projectPath, "Assets"),
             ProjectDirectory = projectPath,
+            EnumService = enums,
             ShowFieldNames = false,
         };
         form.ValueChanged += (_, args) =>
@@ -73,7 +74,7 @@ public sealed class MetadataValueEditor : UserControl, IDisposable
     {
         if (schema.Kind == LuaMetadataTypeKind.Enum)
         {
-            LuaEnumDefinition definition = enums.Read(schema.Name);
+            LuaEnumDefinition definition = enums.Read(schema);
             if (definition.Error is not null)
                 errors.Add(definition.Error);
         }

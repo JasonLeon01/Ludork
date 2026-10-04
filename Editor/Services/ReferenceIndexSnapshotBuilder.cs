@@ -14,12 +14,16 @@ internal sealed class ReferenceIndexSnapshotBuilder : IDisposable
     private readonly BlueprintClassResolver resolver;
     private IReadOnlyDictionary<string, JsonObject> blueprints = new Dictionary<string, JsonObject>();
     private Dictionary<(string Section, string Key), CachedDocument> cache = [];
+    private ProjectEnumCatalog projectEnums = new(new Dictionary<string, JsonObject>(), [], []);
+    private ReferenceBuildDocument[] catalogInputs = [];
+    private ReferenceInputFiles? previousFiles;
     private long schemaVersion = -1;
     private long metadataRevision = -1;
 
     internal ReferenceIndexSnapshotBuilder(string projectPath)
     {
-        metadata = new LuaMetadataService(projectPath, strictReads: true);
+        metadata = new LuaMetadataService(projectPath, strictReads: true,
+            enums: new LuaEnumService(projectPath, () => projectEnums));
         resolver = new BlueprintClassResolver(metadata, key => blueprints.TryGetValue(key, out JsonObject? value)
             ? (JsonObject)value.DeepClone() : null);
     }
@@ -28,12 +32,28 @@ internal sealed class ReferenceIndexSnapshotBuilder : IDisposable
     {
         ReferenceInputFiles files = ReferenceInputFiles.Capture(input.ProjectPath,
             input.Documents.Where(document => document.Data is null).Select(document => document.Path));
-        bool rebuild = schemaVersion != input.SchemaVersion || metadataRevision != metadata.Revision;
+        ReferenceBuildDocument[] nextCatalogInputs = input.Documents
+            .Where(document => document.Section is "General" or "Animations" or "Particles")
+            .OrderBy(document => document.Section, StringComparer.Ordinal)
+            .ThenBy(document => document.Key, StringComparer.Ordinal).ToArray();
+        bool catalogChanged = catalogInputs.Length != nextCatalogInputs.Length
+            || catalogInputs.Where((document, index) => document.Section != nextCatalogInputs[index].Section
+                || document.Key != nextCatalogInputs[index].Key
+                || document.Section == "General" && !ReferenceEquals(document.Data, nextCatalogInputs[index].Data)).Any();
+        bool filesChanged = previousFiles is not null && !previousFiles.IsCurrent();
+        projectEnums = new ProjectEnumCatalog(
+            nextCatalogInputs.Where(document => document.Section == "General")
+                .ToDictionary(document => document.Key, document => document.Data!, StringComparer.Ordinal),
+            nextCatalogInputs.Where(document => document.Section == "Animations").Select(document => document.Key),
+            nextCatalogInputs.Where(document => document.Section == "Particles").Select(document => document.Key));
+        if (catalogChanged || filesChanged)
+            metadata.ClearCache();
+        bool rebuild = catalogChanged || filesChanged || schemaVersion != input.SchemaVersion || metadataRevision != metadata.Revision;
         if (rebuild)
             resolver.Invalidate();
         blueprints = input.Documents.Where(document => document.Section == "Blueprints" && document.Data is not null)
             .ToDictionary(document => document.Key, document => document.Data!, StringComparer.Ordinal);
-        DocumentReferenceScanner scanner = new(metadata, resolver, token);
+        DocumentReferenceScanner scanner = new(metadata, resolver, () => projectEnums, token);
         Dictionary<(string Section, string Key), CachedDocument> next = [];
         Dictionary<string, ReferenceNode> nodes = new(StringComparer.Ordinal);
         HashSet<string> declared = new(StringComparer.Ordinal);
@@ -80,6 +100,8 @@ internal sealed class ReferenceIndexSnapshotBuilder : IDisposable
             throw new IOException("Reference inputs changed during indexing.");
         ReferenceIndexSnapshot snapshot = new(input.ProjectPath, input.Version, nodes.Values, references, members, declared);
         cache = next;
+        catalogInputs = nextCatalogInputs;
+        previousFiles = files;
         schemaVersion = input.SchemaVersion;
         metadataRevision = metadata.Revision;
         return new Result(snapshot, files);

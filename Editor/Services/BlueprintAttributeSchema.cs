@@ -57,7 +57,7 @@ internal sealed class BlueprintAttributeSchema(LuaMetadataService metadata)
     {
         if (type.Kind == LuaMetadataTypeKind.Enum)
         {
-            LuaEnumDefinition definition = metadata.Enums.Read(type.Name);
+            LuaEnumDefinition definition = metadata.Enums.Read(type);
             if (definition.ValueType is null)
                 throw Error(blueprint, path + ": " + definition.Error);
         }

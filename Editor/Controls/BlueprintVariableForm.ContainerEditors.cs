@@ -219,10 +219,13 @@ public sealed partial class BlueprintVariableForm
         LuaMetadataType valueType,
         JsonObject? value,
         Action<JsonNode?, bool> changed,
-        string? parentDictionaryKey)
+        string? parentDictionaryKey,
+        LuaMetadataType? keyType = null)
     {
         JsonObject items = (value)?.DeepClone() as JsonObject ?? [];
+        keyType ??= LuaMetadataType.Parse("string");
         JsonObject? keyMeta = getMetadataObject(field, "DictKeyMeta");
+        bool selectedKey = keyType.Kind == LuaMetadataTypeKind.Enum || keyMeta is not null;
         JsonObject itemMeta = getMetadataObject(field, "ItemMeta") ?? [];
         bool hasDraft = false;
         StackPanel panel = new()
@@ -242,7 +245,7 @@ public sealed partial class BlueprintVariableForm
             JsonNode? rowValue = (initialValue)?.DeepClone()
                 ?? createContainerDefaultNode(valueField, currentKey);
             Control keyEditor;
-            if (keyMeta is null)
+            if (!selectedKey)
             {
                 TextBox keyBox = EditorInputs.CreateEditableTextBox(currentKey);
                 attachHistory(keyBox);
@@ -268,9 +271,9 @@ public sealed partial class BlueprintVariableForm
                     items.Select(entry => entry.Key),
                     StringComparer.Ordinal);
                 excludedNames.Remove(currentKey);
-                BlueprintVariableField keyField = new(string.Empty, "string", JsonValue.Create(currentKey))
+                BlueprintVariableField keyField = new(string.Empty, keyType.ToString(), JsonValue.Create(currentKey))
                 {
-                    Meta = keyMeta.DeepClone() as JsonObject ?? [],
+                    Meta = keyMeta?.DeepClone() as JsonObject ?? [],
                     PreserveNullValue = false,
                 };
                 keyEditor = createValueEditor(
@@ -280,7 +283,8 @@ public sealed partial class BlueprintVariableForm
                     {
                         if (!JsonScalar.TryGetString(next, out string nextKey))
                             return;
-                        nextKey = nextKey.Trim();
+                        if (keyType.Kind != LuaMetadataTypeKind.Enum)
+                            nextKey = nextKey.Trim();
                         if (string.Equals(nextKey, currentKey, StringComparison.Ordinal))
                             return;
                         if (nextKey.Length == 0)
@@ -413,11 +417,11 @@ public sealed partial class BlueprintVariableForm
                 MinWidth = 24,
                 Padding = new Thickness(0),
                 HorizontalAlignment = HorizontalAlignment.Left,
-                IsEnabled = keyMeta is null || !hasDraft,
+                IsEnabled = !selectedKey || !hasDraft,
             };
             add.Click += (_, _) =>
             {
-                if (keyMeta is not null)
+                if (selectedKey)
                 {
                     hasDraft = true;
                     rebuild();
@@ -448,6 +452,7 @@ public sealed partial class BlueprintVariableForm
         {
             AssetsDirectory = AssetsDirectory,
             ProjectDirectory = ProjectDirectory,
+            EnumService = EnumService,
             CellSize = CellSize,
             GameVariables = GameVariables,
             IsReadOnly = isReadOnly || field.IsReadOnly,

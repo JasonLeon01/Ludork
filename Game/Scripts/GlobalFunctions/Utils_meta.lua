@@ -5,25 +5,25 @@ local _METADATA = {
             type = "function",
             parameters = {
                 "condition",
-                condition = "bool",
+                condition = "bool"
             },
             default = {
-                [1] = false,
+                [1] = false
             },
             ["return"] = {
                 "return",
-                ["return"] = "int",
+                ["return"] = "int"
             },
             ExecSplit = {
                 "TRUE",
                 "FALSE",
                 TRUE = {
-                    0,
+                    0
                 },
                 FALSE = {
-                    1,
-                },
-            },
+                    1
+                }
+            }
         },
         SetLocalValue = {
             type = "function",
@@ -31,13 +31,13 @@ local _METADATA = {
                 "valueName",
                 "value",
                 valueName = "string",
-                value = "any",
+                value = "any"
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         GetLocalValue = {
             type = "function",
@@ -45,13 +45,13 @@ local _METADATA = {
                 "valueName",
                 "default",
                 valueName = "string",
-                default = "any",
+                default = "any"
             },
             ["return"] = {
                 "value",
-                value = "any",
+                value = "any"
             },
-            Pure = true,
+            Pure = true
         },
         GetLocalValueRef = {
             type = "function",
@@ -59,13 +59,13 @@ local _METADATA = {
                 "valueName",
                 "default",
                 valueName = "string",
-                default = "any",
+                default = "any"
             },
             ["return"] = {
                 "value",
-                value = "any",
+                value = "any"
             },
-            Pure = true,
+            Pure = true
         },
         SetGameVariable = {
             type = "function",
@@ -73,21 +73,21 @@ local _METADATA = {
                 "valueName",
                 "value",
                 valueName = "string",
-                value = "any",
+                value = "any"
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
+                default = "nil"
             },
             Meta = {
                 InstVar = {
-                    "valueName",
+                    "valueName"
                 },
                 InstVarValue = {
-                    value = "valueName",
-                },
-            },
+                    value = "valueName"
+                }
+            }
         },
         GetGameVariable = {
             type = "function",
@@ -95,21 +95,21 @@ local _METADATA = {
                 "valueName",
                 "default",
                 valueName = "string",
-                default = "any",
+                default = "any"
             },
             ["return"] = {
                 "value",
-                value = "any",
+                value = "any"
             },
             Pure = true,
             Meta = {
                 InstVar = {
-                    "valueName",
+                    "valueName"
                 },
                 InstVarValue = {
-                    default = "valueName",
-                },
-            },
+                    default = "valueName"
+                }
+            }
         },
         GetGameVariableRef = {
             type = "function",
@@ -117,21 +117,21 @@ local _METADATA = {
                 "valueName",
                 "default",
                 valueName = "string",
-                default = "any",
+                default = "any"
             },
             ["return"] = {
                 "value",
-                value = "any",
+                value = "any"
             },
             Pure = true,
             Meta = {
                 InstVar = {
-                    "valueName",
+                    "valueName"
                 },
                 InstVarValue = {
-                    default = "valueName",
-                },
-            },
+                    default = "valueName"
+                }
+            }
         },
         AddPlayerByClass = {
             type = "function",
@@ -141,68 +141,68 @@ local _METADATA = {
                 "position",
                 playerClass = "string",
                 mapPath = "string",
-                position = "sf.Vector2i",
+                position = "sf.Vector2i"
             },
             default = {
                 [1] = "",
-                [2] = "",
+                [2] = ""
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
+                default = "nil"
             },
             Meta = {
                 BlueprintClassVars = {
-                    "playerClass",
+                    "playerClass"
                 },
                 Transfer = {
                     {
                         "position",
-                        "mapPath",
-                    },
-                },
-            },
+                        "mapPath"
+                    }
+                }
+            }
         },
         SetPlayerByClass = {
             type = "function",
             parameters = {
                 "playerClass",
-                playerClass = "string",
+                playerClass = "string"
             },
             default = {
-                [1] = "",
+                [1] = ""
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
+                default = "nil"
             },
             Meta = {
                 BlueprintClassVars = {
-                    "playerClass",
-                },
-            },
+                    "playerClass"
+                }
+            }
         },
         RemovePlayerByClass = {
             type = "function",
             parameters = {
                 "playerClass",
-                playerClass = "string",
+                playerClass = "string"
             },
             default = {
-                [1] = "",
+                [1] = ""
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
+                default = "nil"
             },
             Meta = {
                 BlueprintClassVars = {
-                    "playerClass",
-                },
-            },
+                    "playerClass"
+                }
+            }
         },
         AddAnim = {
             type = "function",
@@ -211,35 +211,27 @@ local _METADATA = {
                 "position",
                 "rotation",
                 "scale",
-                animName = "string",
+                animName = { enum = "Enums.Animation", valueType = "string" },
                 position = "sf.Vector2f",
                 rotation = "float",
-                scale = "sf.Vector2f",
+                scale = "sf.Vector2f"
             },
             default = {
                 [2] = {
                     0.0,
-                    0.0,
+                    0.0
                 },
                 [3] = 0.0,
                 [4] = {
                     1.0,
-                    1.0,
-                },
+                    1.0
+                }
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
-            Meta = {
-                GeneralDataVars = {
-                    {
-                        "animName",
-                        "ANIMATION",
-                    },
-                },
-            },
+                default = "nil"
+            }
         },
         AddAnimOn = {
             type = "function",
@@ -248,71 +240,47 @@ local _METADATA = {
                 "actorTag",
                 "rotation",
                 "scale",
-                animName = "string",
+                animName = { enum = "Enums.Animation", valueType = "string" },
                 actorTag = "string",
                 rotation = "float",
-                scale = "sf.Vector2f",
+                scale = "sf.Vector2f"
             },
             default = {
                 [3] = 0.0,
                 [4] = {
                     1.0,
-                    1.0,
-                },
+                    1.0
+                }
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
-            Meta = {
-                GeneralDataVars = {
-                    {
-                        "animName",
-                        "ANIMATION",
-                    },
-                },
-            },
+                default = "nil"
+            }
         },
         GetAnimLength = {
             type = "function",
             parameters = {
                 "animName",
-                animName = "string",
+                animName = { enum = "Enums.Animation", valueType = "string" }
             },
             ["return"] = {
                 "value",
-                value = "float",
+                value = "float"
             },
-            Pure = true,
-            Meta = {
-                GeneralDataVars = {
-                    {
-                        "animName",
-                        "ANIMATION",
-                    },
-                },
-            },
+            Pure = true
         },
         GetAnimVisualLength = {
             type = "function",
             parameters = {
                 "animName",
-                animName = "string",
+                animName = { enum = "Enums.Animation", valueType = "string" }
             },
             ["return"] = {
                 "value",
-                value = "float",
+                value = "float"
             },
-            Pure = true,
-            Meta = {
-                GeneralDataVars = {
-                    {
-                        "animName",
-                        "ANIMATION",
-                    },
-                },
-            },
+            Pure = true
         },
         SUPER = {
             type = "function",
@@ -320,29 +288,28 @@ local _METADATA = {
                 "obj",
                 "params",
                 obj = "any",
-                params = "any[]",
+                params = "any[]"
             },
             default = {
-                [2] = {},
+                [2] = {}
             },
             ["return"] = {
                 "value",
-                value = "bool",
+                value = "bool"
             },
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         SELF = {
             type = "function",
-            parameters = {
-            },
+            parameters = {},
             ["return"] = {
                 "value",
-                value = "any",
+                value = "any"
             },
-            Pure = true,
+            Pure = true
         },
         GetAttrRef = {
             type = "function",
@@ -350,13 +317,13 @@ local _METADATA = {
                 "obj",
                 "attrName",
                 obj = "any",
-                attrName = "string",
+                attrName = "string"
             },
             ["return"] = {
                 "value",
-                value = "any",
+                value = "any"
             },
-            Pure = true,
+            Pure = true
         },
         GetAttr = {
             type = "function",
@@ -364,13 +331,13 @@ local _METADATA = {
                 "obj",
                 "attrName",
                 obj = "any",
-                attrName = "string",
+                attrName = "string"
             },
             ["return"] = {
                 "value",
-                value = "any",
+                value = "any"
             },
-            Pure = true,
+            Pure = true
         },
         SetAttr = {
             type = "function",
@@ -380,76 +347,75 @@ local _METADATA = {
                 "value",
                 obj = "any",
                 attrName = "string",
-                value = "any",
+                value = "any"
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         GetScene = {
             type = "function",
-            parameters = {
-            },
+            parameters = {},
             ["return"] = {
                 "value",
                 value = {
                     "GlobalCore",
-                    "SceneBase",
-                },
+                    "SceneBase"
+                }
             },
-            Pure = true,
+            Pure = true
         },
         IsValidValue = {
             type = "function",
             parameters = {
                 "value",
-                value = "any",
+                value = "any"
             },
             ["return"] = {
                 "value",
-                value = "bool",
+                value = "bool"
             },
-            Pure = true,
+            Pure = true
         },
         ToShortNumber = {
             type = "function",
             parameters = {
                 "value",
-                value = "any",
+                value = "any"
             },
             default = {
-                [1] = 0,
+                [1] = 0
             },
             ["return"] = {
                 "value",
-                value = "any",
+                value = "any"
             },
-            Pure = true,
+            Pure = true
         },
         RunCommonFunction = {
             type = "function",
             parameters = {
                 "commonFunctionName",
-                commonFunctionName = "string",
+                commonFunctionName = "string"
             },
             default = {
-                [1] = "",
+                [1] = ""
             },
             ["return"] = {
                 "return",
-                ["return"] = "any",
+                ["return"] = "any"
             },
             ExecSplit = {
                 "default",
-                default = "nil",
+                default = "nil"
             },
             Meta = {
                 CommonFunctionVars = {
-                    "commonFunctionName",
-                },
-            },
+                    "commonFunctionName"
+                }
+            }
         },
         RegisterEventBus = {
             type = "function",
@@ -459,13 +425,13 @@ local _METADATA = {
                 "functionName",
                 key = "string",
                 obj = "any",
-                functionName = "string",
+                functionName = "string"
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         RegisterEventBusEvent = {
             type = "function",
@@ -475,28 +441,28 @@ local _METADATA = {
                 "eventName",
                 key = "string",
                 obj = "any",
-                eventName = "string",
+                eventName = "string"
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         UnregisterEventBus = {
             type = "function",
             parameters = {
                 "key",
-                key = "string",
+                key = "string"
             },
             ["return"] = {
                 "value",
-                value = "bool",
+                value = "bool"
             },
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         UnregisterEventBusEvent = {
             type = "function",
@@ -504,16 +470,16 @@ local _METADATA = {
                 "key",
                 "obj",
                 key = "string",
-                obj = "any",
+                obj = "any"
             },
             ["return"] = {
                 "value",
-                value = "bool",
+                value = "bool"
             },
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         TriggerEventBus = {
             type = "function",
@@ -521,16 +487,16 @@ local _METADATA = {
                 "key",
                 "kwargs",
                 key = "string",
-                kwargs = "any",
+                kwargs = "any"
             },
             default = {
-                [2] = {},
+                [2] = {}
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         TriggerBlueprintEvent = {
             type = "function",
@@ -538,65 +504,64 @@ local _METADATA = {
                 "obj",
                 "eventName",
                 obj = "any",
-                eventName = "string",
+                eventName = "string"
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         BackToTitle = {
             type = "function",
-            parameters = {
-            },
+            parameters = {},
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         Print = {
             type = "function",
             parameters = {
                 "message",
-                message = "any",
+                message = "any"
             },
             default = {
-                [1] = "",
+                [1] = ""
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         EXEC = {
             type = "function",
             parameters = {
                 "script",
-                script = "string",
+                script = "string"
             },
             default = {
-                [1] = "",
+                [1] = ""
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         GetSelfAttr = {
             type = "function",
             parameters = {
                 "attrName",
-                attrName = "string",
+                attrName = "string"
             },
             ["return"] = {
                 "value",
-                value = "any",
+                value = "any"
             },
-            Pure = true,
+            Pure = true
         },
         SetSelfAttr = {
             type = "function",
@@ -604,23 +569,22 @@ local _METADATA = {
                 "attrName",
                 "value",
                 attrName = "string",
-                value = "any",
+                value = "any"
             },
             ["return"] = {},
             ExecSplit = {
                 "default",
-                default = "nil",
-            },
+                default = "nil"
+            }
         },
         IfPlayerOverlaps = {
             type = "function",
-            parameters = {
-            },
+            parameters = {},
             ["return"] = {
                 "value",
-                value = "bool",
+                value = "bool"
             },
-            Pure = true,
+            Pure = true
         },
         IfGameVar = {
             type = "function",
@@ -630,25 +594,25 @@ local _METADATA = {
                 "value",
                 varName = "string",
                 op = "string",
-                value = "any",
+                value = "any"
             },
             default = {
                 [1] = "",
-                [2] = "==",
+                [2] = "=="
             },
             ["return"] = {
                 "return",
-                ["return"] = "bool",
+                ["return"] = "bool"
             },
             ExecSplit = {
                 "TRUE",
                 "FALSE",
                 TRUE = {
-                    true,
+                    true
                 },
                 FALSE = {
-                    false,
-                },
+                    false
+                }
             },
             Meta = {
                 DropBox = {
@@ -658,18 +622,18 @@ local _METADATA = {
                         "<",
                         "<=",
                         ">",
-                        ">=",
-                    },
+                        ">="
+                    }
                 },
                 InstVar = {
-                    "varName",
+                    "varName"
                 },
                 InstVarValue = {
-                    value = "varName",
-                },
-            },
-        },
-    },
+                    value = "varName"
+                }
+            }
+        }
+    }
 }
 
 return _METADATA

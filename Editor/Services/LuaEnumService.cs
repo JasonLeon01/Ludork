@@ -18,31 +18,55 @@ public sealed class LuaEnumService
         TimeSpan.FromSeconds(1));
     private readonly string projectPath;
 
-    public LuaEnumService(string projectPath)
+    private readonly Func<ProjectEnumCatalog>? catalog;
+
+    public LuaEnumService(string projectPath, Func<ProjectEnumCatalog>? catalog = null)
     {
         this.projectPath = projectPath;
+        this.catalog = catalog;
     }
 
     public IReadOnlyList<string> EnumerateModules()
     {
         string root = Path.Combine(projectPath, "Scripts", "Enums");
-        if (!Directory.Exists(root))
-            return [];
-        return Directory.EnumerateFiles(root, "*.lua", SearchOption.AllDirectories)
+        return (Directory.Exists(root) ? Directory.EnumerateFiles(root, "*.lua", SearchOption.AllDirectories) : [])
             .Select(path => Path.GetRelativePath(root, path)[..^4])
             .Where(path => path.Split(Path.DirectorySeparatorChar).All(part => part.Length > 0
                 && (char.IsAsciiLetter(part[0]) || part[0] == '_')
                 && part.All(character => char.IsAsciiLetterOrDigit(character) || character == '_')))
             .Select(path => "Enums." + path.Replace(Path.DirectorySeparatorChar, '.'))
+            .Where(module => catalog is null || !ProjectEnumCatalog.IsManagedModule(module))
+            .Concat(catalog?.Invoke().Definitions.Keys ?? [])
+            .Distinct(StringComparer.Ordinal)
             .OrderBy(module => module, StringComparer.Ordinal)
             .ToArray();
     }
 
-    public LuaEnumDefinition Read(string moduleName)
+    public bool IsProjectModule(string moduleName) => catalog?.Invoke().Definitions.ContainsKey(moduleName) == true;
+
+    public bool TryGetReference(string moduleName, out ProjectEnumReference? reference)
     {
+        reference = null;
+        return catalog?.Invoke().References.TryGetValue(moduleName, out reference) == true;
+    }
+
+    public LuaEnumDefinition Read(string moduleName) => Read(LuaMetadataType.Parse(new JsonObject { ["enum"] = moduleName }));
+
+    public LuaEnumDefinition Read(LuaMetadataType schema)
+    {
+        string moduleName = schema.Name;
         try
         {
             LuaMetadataType.ValidateEnumModule(moduleName);
+            LuaMetadataType? declared = schema.EnumValueType;
+            if (catalog is not null && ProjectEnumCatalog.IsManagedModule(moduleName))
+            {
+                if (!catalog().Definitions.TryGetValue(moduleName, out LuaEnumDefinition? managed))
+                    throw new InvalidDataException("Project enum does not exist.");
+                if (declared is not null && declared.Name != "string")
+                    throw new InvalidDataException("Project enum values require string valueType.");
+                return managed;
+            }
             string path = Path.Combine(projectPath, "Scripts", moduleName.Replace('.', Path.DirectorySeparatorChar) + ".lua");
             string source = File.ReadAllText(path);
             Script script = new(CoreModules.None);
@@ -65,9 +89,15 @@ public sealed class LuaEnumService
                 options.Add(new BlueprintVariableOption(pair.Key, value));
             }
             if (options.Count == 0)
-                throw new InvalidDataException("Enum module must contain at least one constant.");
+            {
+                if (declared is null)
+                    throw new InvalidDataException("Empty enum module requires an explicit valueType.");
+                return new LuaEnumDefinition(moduleName, declared, [], null);
+            }
             string valueType = valueKind == "string" ? "string" : valueKind == "bool" ? "bool" : integers ? "int" : "float";
-            return new LuaEnumDefinition(moduleName, LuaMetadataType.Parse(valueType), options.OrderBy(option => option.Label, StringComparer.Ordinal).ToArray(), null);
+            if (declared is not null && declared.Name != valueType && !(declared.Name == "float" && valueType == "int"))
+                throw new InvalidDataException("Enum constants conflict with the declared valueType.");
+            return new LuaEnumDefinition(moduleName, declared ?? LuaMetadataType.Parse(valueType), options.OrderBy(option => option.Label, StringComparer.Ordinal).ToArray(), null);
         }
         catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or InterpreterException or ArgumentException or RegexMatchTimeoutException)
         {

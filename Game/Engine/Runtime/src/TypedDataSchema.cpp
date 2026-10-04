@@ -72,12 +72,41 @@ TypeSchema composite(TypeSchema::Kind kind, std::vector<TypeSchema> arguments) {
     return type;
 }
 
-TypeSchema enumeration(std::string moduleName) {
+TypeSchema enumeration(std::string moduleName,
+                       std::vector<TypeSchema> arguments = {}) {
     ludork::runtime::detail::validateEnumModuleName(moduleName);
     TypeSchema type;
     type.kind = TypeSchema::Kind::Enum;
     type.name = std::move(moduleName);
+    if (arguments.size() > 1 ||
+        (!arguments.empty() &&
+         (arguments.front().kind != TypeSchema::Kind::Named ||
+          !arguments.front().module.empty() ||
+          (arguments.front().name != "string" &&
+           arguments.front().name != "bool" &&
+           arguments.front().name != "int" &&
+           arguments.front().name != "float")))) {
+        throw std::invalid_argument(
+            "Enum valueType must be string, bool, int or float");
+    }
+    type.arguments = std::move(arguments);
     return type;
+}
+
+TypeSchema dictionary(TypeSchema value, TypeSchema key = named("string")) {
+    const bool stringKey =
+        key == named("string") ||
+        (key.kind == TypeSchema::Kind::Enum && key.arguments.size() == 1 &&
+         key.arguments.front() == named("string"));
+    if (!stringKey) {
+        throw std::invalid_argument(
+            "Dictionary keys must be strings or enums with valueType string");
+    }
+    if (key == named("string")) {
+        return composite(TypeSchema::Kind::Dictionary, {std::move(value)});
+    }
+    return composite(TypeSchema::Kind::Dictionary,
+                     {std::move(value), std::move(key)});
 }
 
 TypeSchema parseText(std::string text) {
@@ -103,8 +132,22 @@ TypeSchema parseText(std::string text) {
     }
     if (ludork::standard::lowercase(ludork::standard::trimCharacters(
             text.substr(0, opening))) == "enum") {
-        return enumeration(ludork::standard::trimCharacters(
-            text.substr(opening + 1, text.size() - opening - 2)));
+        const std::string body = ludork::standard::trimCharacters(
+            text.substr(opening + 1, text.size() - opening - 2));
+        const std::size_t comma = body.find(',');
+        if (comma == std::string::npos) {
+            return enumeration(body);
+        }
+        const std::string scalar =
+            ludork::standard::trimCharacters(body.substr(comma + 1));
+        if (scalar != "string" && scalar != "bool" && scalar != "int" &&
+            scalar != "float") {
+            throw std::invalid_argument(
+                "Enum valueType must be string, bool, int or float");
+        }
+        return enumeration(
+            ludork::standard::trimCharacters(body.substr(0, comma)),
+            {named(scalar)});
     }
     std::vector<TypeSchema> arguments;
     std::size_t begin = opening + 1;
@@ -133,9 +176,8 @@ TypeSchema parseText(std::string text) {
     }
     if ((container == "dict" || container == "dictionary" ||
          container == "map") &&
-        arguments.size() == 2 && arguments[0] == named("string")) {
-        return composite(TypeSchema::Kind::Dictionary,
-                         {std::move(arguments[1])});
+        arguments.size() == 2) {
+        return dictionary(std::move(arguments[1]), std::move(arguments[0]));
     }
     if (container == "tuple") {
         return composite(TypeSchema::Kind::Tuple, std::move(arguments));
@@ -179,25 +221,62 @@ TypeSchema parseSchema(RuntimeValueView value) {
             "Metadata type reference requires module and type names");
     }
     const std::optional<RuntimeMapView> map = value.map();
-    if (!map || map->size() != 1) {
+    if (!map || map->empty()) {
         throw std::invalid_argument(
             "Metadata type must be a name, module reference or composite "
             "schema");
     }
     for (const auto& [key, argument] : *map) {
         if (key == "enum") {
+            for (const auto& [property, ignored] : *map) {
+                if (property != "enum" && property != "valueType") {
+                    throw std::invalid_argument(
+                        "Unknown enum schema property: " + property);
+                }
+            }
             const std::string* moduleName = argument.getIf<std::string>();
             if (moduleName == nullptr) {
                 throw std::invalid_argument(
                     "Enum schema requires a module name");
             }
-            return enumeration(*moduleName);
+            std::vector<TypeSchema> arguments;
+            for (const auto& [property, declared] : *map) {
+                if (property == "valueType") {
+                    const std::string* scalar = declared.getIf<std::string>();
+                    if (scalar == nullptr ||
+                        (*scalar != "string" && *scalar != "bool" &&
+                         *scalar != "int" && *scalar != "float")) {
+                        throw std::invalid_argument(
+                            "Enum valueType must be string, bool, int or "
+                            "float");
+                    }
+                    arguments.push_back(named(*scalar));
+                }
+            }
+            return enumeration(*moduleName, std::move(arguments));
         }
-        if (key == "optional" || key == "list" || key == "dict") {
-            const TypeSchema::Kind kind =
-                key == "optional" ? TypeSchema::Kind::Optional
-                : key == "list"   ? TypeSchema::Kind::List
-                                  : TypeSchema::Kind::Dictionary;
+        if (key == "dict") {
+            TypeSchema keyType = named("string");
+            for (const auto& [property, declared] : *map) {
+                if (property == "key") {
+                    keyType = parseSchema(declared);
+                } else if (property != "dict") {
+                    throw std::invalid_argument(
+                        "Unknown dictionary schema property: " + property);
+                }
+            }
+            return dictionary(parseSchema(argument), std::move(keyType));
+        }
+    }
+    if (map->size() != 1) {
+        throw std::invalid_argument(
+            "Metadata composite schema requires one type property");
+    }
+    for (const auto& [key, argument] : *map) {
+        if (key == "optional" || key == "list") {
+            const TypeSchema::Kind kind = key == "optional"
+                                              ? TypeSchema::Kind::Optional
+                                              : TypeSchema::Kind::List;
             return composite(kind, {parseSchema(argument)});
         }
         if (key == "union" || key == "tuple") {
@@ -220,8 +299,11 @@ TypeSchema parseSchema(RuntimeValueView value) {
 
 RuntimeValue schemaValue(const TypeSchema& type) {
     if (type.kind == TypeSchema::Kind::Enum) {
-        return RuntimeValue(
-            RuntimeValue::Map{{"enum", RuntimeValue(type.name)}});
+        RuntimeValue::Map result{{"enum", RuntimeValue(type.name)}};
+        if (!type.arguments.empty()) {
+            result.emplace("valueType", schemaValue(type.arguments.front()));
+        }
+        return RuntimeValue(std::move(result));
     }
     if (type.kind == TypeSchema::Kind::Named) {
         if (type.module.empty()) {
@@ -239,8 +321,12 @@ RuntimeValue schemaValue(const TypeSchema& type) {
         const char* key = type.kind == TypeSchema::Kind::Optional ? "optional"
                           : type.kind == TypeSchema::Kind::List   ? "list"
                                                                   : "dict";
-        return RuntimeValue(
-            RuntimeValue::Map{{key, schemaValue(type.arguments.front())}});
+        RuntimeValue::Map result{{key, schemaValue(type.arguments.front())}};
+        if (type.kind == TypeSchema::Kind::Dictionary &&
+            type.arguments.size() == 2) {
+            result.emplace("key", schemaValue(type.arguments[1]));
+        }
+        return RuntimeValue(std::move(result));
     }
     RuntimeValue::Array arguments;
     for (const TypeSchema& argument : type.arguments) {
@@ -253,17 +339,25 @@ RuntimeValue schemaValue(const TypeSchema& type) {
 
 std::string schemaName(const TypeSchema& type) {
     if (type.kind == TypeSchema::Kind::Enum) {
-        return "Enum[" + type.name + "]";
+        return "Enum[" + type.name +
+               (type.arguments.empty()
+                    ? ""
+                    : ", " + schemaName(type.arguments.front())) +
+               "]";
     }
     if (type.kind == TypeSchema::Kind::Named) {
         return type.module.empty() ? type.name : type.module + "." + type.name;
     }
+    if (type.kind == TypeSchema::Kind::Dictionary) {
+        return "Dict[" +
+               (type.arguments.size() == 2 ? schemaName(type.arguments[1])
+                                           : "string") +
+               ", " + schemaName(type.arguments.front()) + "]";
+    }
     std::string result = type.kind == TypeSchema::Kind::Union   ? "Union["
                          : type.kind == TypeSchema::Kind::Tuple ? "Tuple["
                          : type.kind == TypeSchema::Kind::List  ? "List["
-                         : type.kind == TypeSchema::Kind::Dictionary
-                             ? "Dict[string, "
-                             : "Optional[";
+                                                                : "Optional[";
     for (std::size_t index = 0; index < type.arguments.size(); ++index) {
         if (index != 0) {
             result += ", ";

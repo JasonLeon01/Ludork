@@ -3847,14 +3847,6 @@
     "zh_CN": "字段 '{}' 的类型或容器元素/值类型已更改。确认后会使用新的默认值重置所有已有成员中的该字段值。是否继续？",
     "en_GB": "The type or container item type of field '{}' has changed. Continuing will reset this field in every existing member to the new default value. Continue?"
   },
-  "ADD_REFERENCE": {
-    "zh_CN": "增加引用",
-    "en_GB": "Add Reference"
-  },
-  "REMOVE_REFERENCE": {
-    "zh_CN": "移除引用",
-    "en_GB": "Remove Reference"
-  },
   "EDIT_BLUEPRINT": {
     "zh_CN": "编辑蓝图",
     "en_GB": "Edit Blueprint"
@@ -4646,5 +4638,21 @@
   "MAP_TARGET_REFERENCED": {
     "zh_CN": "该地图目标仍被以下结构化字段引用，无法删除或取消摆放：",
     "en_GB": "This map target is still used by the following structured references and cannot be deleted or unplaced:"
+  },
+  "ENUM_VALUE_TYPE": {
+    "en_GB": "Enum value type",
+    "zh_CN": "枚举值类型"
+  },
+  "ENUM_INFER_TYPE": {
+    "en_GB": "Infer automatically",
+    "zh_CN": "自动推断"
+  },
+  "DICT_KEY_TYPE": {
+    "en_GB": "Key type",
+    "zh_CN": "键类型"
+  },
+  "DICT_KEY_ENUM": {
+    "en_GB": "Key enum",
+    "zh_CN": "键枚举"
   }
 }

@@ -81,7 +81,17 @@ TypeSchema enumValueType(const TypeSchema& type) {
     const RuntimeValue source =
         metadataRuntime().resolveType(schemaValue(type), {});
     const RuntimeValue values = ludork::runtime::reference::snapshot(source);
-    return ludork::runtime::detail::enumValueType(values.view(), type.name);
+    return ludork::runtime::detail::enumValueType(values.view(), type);
+}
+
+void validateEnumSchemas(const TypeSchema& type) {
+    if (type.kind == TypeSchema::Kind::Enum) {
+        static_cast<void>(enumValueType(type));
+        return;
+    }
+    for (const TypeSchema& argument : type.arguments) {
+        validateEnumSchemas(argument);
+    }
 }
 
 bool matchesRuntime(const RuntimeValue& value, const TypeSchema& type,
@@ -230,6 +240,7 @@ RuntimeValue resolveStored(const TypedDataService& service,
                            const std::string& declaringModule,
                            const std::string& path, bool strict,
                            bool evaluateAnyExpressions) {
+    validateEnumSchemas(type);
     if (type.kind == TypeSchema::Kind::Enum) {
         return resolveStored(service, value, enumValueType(type), environment,
                              declaringModule, path, strict, false);
@@ -382,7 +393,9 @@ RuntimeValue resolveStored(const TypedDataService& service,
 
 ludork::runtime::TypeSchema TypedDataService::compileType(
     RuntimeValueView valueType) const {
-    return parseSchema(valueType);
+    TypeSchema schema = parseSchema(valueType);
+    validateEnumSchemas(schema);
+    return schema;
 }
 
 bool TypedDataService::isContainerValueType(RuntimeValueView valueType) const {
@@ -530,6 +543,7 @@ RuntimeValue TypedDataService::resolveTypedDataValue(
 RuntimeValue TypedDataService::resolveRuntimeTypedValue(
     const RuntimeValue& value, const TypeSchema& schema,
     const std::string& declaringModule) const {
+    validateEnumSchemas(schema);
     if ((!value.isNil() || schema.kind == TypeSchema::Kind::Union) &&
         !matchesRuntime(value, schema, declaringModule)) {
         valueTypeError("runtime value", schema);

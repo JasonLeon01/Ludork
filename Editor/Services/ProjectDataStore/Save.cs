@@ -17,7 +17,7 @@ public sealed partial class ProjectDataStore
         IReadOnlyList<string> blueprintErrors = ValidateBlueprintSchemas();
         if (blueprintErrors.Count != 0)
             return new SaveResult(false, string.Join(Environment.NewLine, blueprintErrors));
-        IReadOnlyList<string> errors = GeneralDataSchemaValidation.Validate(sections["General"], new LuaEnumService(ProjectPath).Read);
+        IReadOnlyList<string> errors = GeneralDataSchemaValidation.Validate(sections["General"], Enums.Read);
         if (errors.Count != 0)
             return new SaveResult(false, string.Join(Environment.NewLine, errors));
         IReadOnlyList<string> pathErrors = validateGameAssetPaths();
@@ -58,12 +58,12 @@ public sealed partial class ProjectDataStore
                     batch.Delete(savedPath);
             }
         }
-        bool generateGeneral = generalDataGenerationPending || modified.Any(document => document.Section == "General");
-        if (generateGeneral)
+        bool generateProjectEnums = projectEnumGenerationPending || modified.Any(document => document.Section is "General" or "Animations" or "Particles");
+        if (generateProjectEnums)
         {
             try
             {
-                generalEnums.AddToSaveBatch(batch, sections["General"]);
+                generalEnums.AddToSaveBatch(batch, sections["General"], GetProjectEnumCatalog());
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
             {
@@ -83,8 +83,8 @@ public sealed partial class ProjectDataStore
             if (document.Section == "Maps" && document.InternalData is JsonObject map)
                 Maps.updateLoadedMapMetadata(document.Key, map, document.Path);
         }
-        if (generateGeneral)
-            generalDataGenerationPending = false;
+        if (generateProjectEnums)
+            projectEnumGenerationPending = false;
         originData["MapCatalog"] = sections["MapCatalog"].ToDictionary(
             pair => pair.Key, pair => (JsonObject)pair.Value.DeepClone(), StringComparer.Ordinal);
         Worlds.ClearPendingDirectoryMoves();

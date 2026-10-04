@@ -135,9 +135,10 @@ individual failures and returns a nonzero exit code if any file failed.
 
 The editor **Construct** button runs `build_cpp` for C++ Source projects.
 **Export** generates UI Lua files and runs project export hooks, including
-Official Locale Tools. General Data and game variable Lua files still update
-when their data is saved. **Play** requires a successful Export and, for C++
-Source projects, a successful Debug Construct. Its disabled hint and pre-run
+Official Locale Tools. General Data classes, project enums (General Data, animation
+and particle keys), and game variable Lua files update when their data is saved.
+**Play** requires a successful Export and, for C++ Source projects, a successful
+Debug Construct. Its disabled hint and pre-run
 checks consider Construct first, then Export. After the first success, changed
 native inputs prompt to construct and play; changed export inputs or outputs
 prompt to export and play. Editor **Pack** runs Export before packaging and
@@ -146,8 +147,8 @@ stops if export fails. The editor workflow is in
 
 The project export record is local state in `EditorCache/ProjectExport.json`. Templates
 exclude that record, generated UI Views and declarations, and generated locale
-catalogues. They retain handwritten Lua, General Data and variable exports, the
-locale workbook and `Source/Locale/Core.lua`, and native binding stubs/metadata.
+catalogues. They retain handwritten Lua, project enums, General Data classes and
+variable exports, the locale workbook and `Source/Locale/Core.lua`, and native binding stubs/metadata.
 
 Both repository and installed-editor `build_cpp` scripts record the latest
 successful native build with `ScriptTools native-build-state`, in

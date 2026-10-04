@@ -11,15 +11,15 @@ namespace Ludork.Services;
 
 internal sealed class LuaMetadataParser
 {
-    private readonly Func<string, LuaEnumDefinition>? resolveEnum;
+    private readonly Func<LuaMetadataType, LuaEnumDefinition>? resolveEnum;
 
-    private LuaMetadataParser(Func<string, LuaEnumDefinition>? resolveEnum)
+    private LuaMetadataParser(Func<LuaMetadataType, LuaEnumDefinition>? resolveEnum)
     {
         this.resolveEnum = resolveEnum;
     }
 
     public static IReadOnlyDictionary<string, LuaTypeMetadata> ReadFile(string path, string moduleName,
-        Func<string, LuaEnumDefinition>? resolveEnum = null)
+        Func<LuaMetadataType, LuaEnumDefinition>? resolveEnum = null)
     {
         LuaMetadataParser parser = new(resolveEnum);
         Table root = parser.readRoot(path);
@@ -27,7 +27,7 @@ internal sealed class LuaMetadataParser
     }
 
     public static LuaTypeMetadata ReadScriptMixin(string path, string moduleName, string typeName,
-        Func<string, LuaEnumDefinition>? resolveEnum = null)
+        Func<LuaMetadataType, LuaEnumDefinition>? resolveEnum = null)
     {
         LuaMetadataParser parser = new(resolveEnum);
         Table root = parser.readRoot(path);

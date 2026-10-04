@@ -251,7 +251,7 @@ public sealed partial class ReferenceIndexService
             generalMemberTypes[member.Key] = member.Value;
         declaredNodes.UnionWith(snapshot.DeclaredNodes);
         foreach (ReferenceRecord record in snapshot.References)
-            addReference(record.Source, record.Target, record.Kind, record.Path);
+            addReference(record.Source, record.Target, record.Kind, record.Path, record.IsDictionaryKey);
         foreach (MapCatalogEntry entry in gameData.Maps.MapCatalog.Where(entry => entry.Kind == MapCatalogEntryKind.WorldChildMap))
             mapReferenceCache[entry.Key] = snapshot.GetOutgoing(ReferenceIdentity.NodeId("map", entry.Key));
         allWorldChildMapReferencesBuilt = true;

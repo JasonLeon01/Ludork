@@ -9,10 +9,16 @@ internal static class LuaMetadataValueDefaults
     public static JsonNode? Create(
         LuaMetadataType type,
         Func<string, JsonNode?> createUnknownDefault,
-        Func<string, LuaEnumDefinition>? resolveEnum = null)
+        Func<LuaMetadataType, LuaEnumDefinition>? resolveEnum = null)
     {
         if (type.Kind == LuaMetadataTypeKind.Enum)
-            return resolveEnum?.Invoke(type.Name).Options.FirstOrDefault()?.Value?.DeepClone();
+        {
+            LuaEnumDefinition? definition = resolveEnum?.Invoke(type);
+            if (definition?.IsValid != true)
+                return null;
+            return definition.Options.FirstOrDefault()?.Value?.DeepClone()
+                ?? Create(definition.ValueType!, createUnknownDefault, resolveEnum);
+        }
         if (type.Kind == LuaMetadataTypeKind.Union)
         {
             foreach (LuaMetadataType branch in type.Arguments)
@@ -47,7 +53,7 @@ internal static class LuaMetadataValueDefaults
     }
 
     public static bool TryCreateLiteral(LuaMetadataType type, out JsonNode? value,
-        Func<string, LuaEnumDefinition>? resolveEnum = null)
+        Func<LuaMetadataType, LuaEnumDefinition>? resolveEnum = null)
     {
         value = null;
         if (type.Kind == LuaMetadataTypeKind.Enum)

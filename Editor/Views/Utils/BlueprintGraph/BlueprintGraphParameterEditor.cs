@@ -61,6 +61,7 @@ public sealed class BlueprintGraphParameterEditor : ContentControl
             ProjectDirectory = Path.GetDirectoryName(context.AssetsDirectory) ?? string.Empty,
             CellSize = context.CellSize,
             GameVariables = context.Variables,
+            EnumService = context.Data.Enums,
             HistoryGameData = context.Data,
             IsReadOnly = model.IsReadOnly,
             ShowFieldNames = false,

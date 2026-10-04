@@ -95,7 +95,6 @@ internal sealed class GeneralDataPageViewModel : ViewModelBase
     public bool HasEvents => typeData.Events.Count != 0;
     public IEnumerable<string> MemberIds => members.Keys;
     public IEnumerable<string> ParameterNames => parameters.Select(entry => entry.Key);
-    public IEnumerable<string> ReferenceTypeKeys => generalData.GeneralData.Keys.OrderBy(key => key, StringComparer.Ordinal);
 
     public void Activate()
     {
@@ -214,15 +213,6 @@ internal sealed class GeneralDataPageViewModel : ViewModelBase
 
     public bool DeleteParameter(string name) => reloadAfter(generalData.DeleteGeneralParameter(TypeKey, name));
 
-    public bool UpdateParameterReference(JsonObject definition, JsonObject? reference)
-    {
-        if (JsonNode.DeepEquals(definition["reference"], reference))
-            return false;
-        string? name = parameters.FirstOrDefault(
-            entry => ReferenceEquals(entry.Value, definition)).Key;
-        return name is not null && reloadAfter(generalData.UpdateGeneralParameterReference(TypeKey, name, reference));
-    }
-
     public bool UpdateMemberValue(JsonObject member, string name, JsonNode? value)
     {
         if (!memberKeys.TryGetValue(member, out string? memberId)
@@ -231,13 +221,6 @@ internal sealed class GeneralDataPageViewModel : ViewModelBase
         member[name] = value?.DeepClone();
         typeData.ApplyMemberValue(memberId, name, value);
         return true;
-    }
-
-    public List<string> GetReferenceMemberIds(string typeKey)
-    {
-        return generalData.GeneralData.TryGetValue(typeKey, out GeneralDataTypeSnapshot? data)
-            ? data.Members.Keys.OrderBy(key => key, StringComparer.Ordinal).ToList()
-            : [];
     }
 
     private bool reloadAfter(bool changed)

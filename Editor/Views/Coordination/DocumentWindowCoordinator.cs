@@ -446,7 +446,7 @@ internal sealed class DocumentWindowCoordinator : IDisposable
             gameVariableManager.Activate();
             return;
         }
-        gameVariableManager = new GameVariableManagerWindow(mainViewModel.GameVariables, mainViewModel.ProjectSave);
+        gameVariableManager = new GameVariableManagerWindow(mainViewModel.GameVariables, mainViewModel.ProjectSave, mainViewModel.GameData.Enums);
         gameVariableManager.Closed += (_, _) => gameVariableManager = null;
         gameVariableManager.Show(owner);
     }

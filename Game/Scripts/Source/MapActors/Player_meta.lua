@@ -13,11 +13,8 @@ local _METADATA = {
             { "Source.Battler", "Battler" }
         },
         ID = {
-            type = "string",
-            default = "FILL_IT_BY_YOURSELF",
-            Meta = {
-                GeneralDataVars = "Player"
-            }
+            type = { enum = "Enums.GeneralData.Player", valueType = "string" },
+            default = "FILL_IT_BY_YOURSELF"
         },
         tickable = {
             type = "bool",
@@ -80,7 +77,7 @@ local _METADATA = {
                 "itemID",
                 "count",
                 self = { "Source.MapActors.Player", "Player" },
-                itemID = "string",
+                itemID = { enum = "Enums.GeneralData.Item", valueType = "string" },
                 count = "int"
             },
             default = {
@@ -91,11 +88,6 @@ local _METADATA = {
             ExecSplit = {
                 "default",
                 default = "nil"
-            },
-            Meta = {
-                GeneralDataVars = {
-                    { "itemID", "Item" }
-                }
             }
         },
         removeItem = {
@@ -105,7 +97,7 @@ local _METADATA = {
                 "itemID",
                 "count",
                 self = { "Source.MapActors.Player", "Player" },
-                itemID = "string",
+                itemID = { enum = "Enums.GeneralData.Item", valueType = "string" },
                 count = "int"
             },
             default = {
@@ -121,11 +113,6 @@ local _METADATA = {
                 "failed",
                 success = { true },
                 failed = { false }
-            },
-            Meta = {
-                GeneralDataVars = {
-                    { "itemID", "Item" }
-                }
             }
         },
         getItemCount = {
@@ -134,7 +121,7 @@ local _METADATA = {
                 "self",
                 "itemID",
                 self = { "Source.MapActors.Player", "Player" },
-                itemID = "string"
+                itemID = { enum = "Enums.GeneralData.Item", valueType = "string" }
             },
             default = {
                 [1] = "self"
@@ -143,12 +130,7 @@ local _METADATA = {
                 "count",
                 count = "int"
             },
-            Pure = true,
-            Meta = {
-                GeneralDataVars = {
-                    { "itemID", "Item" }
-                }
-            }
+            Pure = true
         },
         hasItem = {
             type = "function",
@@ -156,7 +138,7 @@ local _METADATA = {
                 "self",
                 "itemID",
                 self = { "Source.MapActors.Player", "Player" },
-                itemID = "string"
+                itemID = { enum = "Enums.GeneralData.Item", valueType = "string" }
             },
             default = {
                 [1] = "self"
@@ -165,12 +147,7 @@ local _METADATA = {
                 "value",
                 value = "bool"
             },
-            Pure = true,
-            Meta = {
-                GeneralDataVars = {
-                    { "itemID", "Item" }
-                }
-            }
+            Pure = true
         },
         addEquip = {
             type = "function",
@@ -179,7 +156,7 @@ local _METADATA = {
                 "equipID",
                 "count",
                 self = { "Source.MapActors.Player", "Player" },
-                equipID = "string",
+                equipID = { enum = "Enums.GeneralData.Equip", valueType = "string" },
                 count = "int"
             },
             default = {
@@ -190,11 +167,6 @@ local _METADATA = {
             ExecSplit = {
                 "default",
                 default = "nil"
-            },
-            Meta = {
-                GeneralDataVars = {
-                    { "equipID", "Equip" }
-                }
             }
         },
         removeEquip = {
@@ -204,7 +176,7 @@ local _METADATA = {
                 "equipID",
                 "count",
                 self = { "Source.MapActors.Player", "Player" },
-                equipID = "string",
+                equipID = { enum = "Enums.GeneralData.Equip", valueType = "string" },
                 count = "int"
             },
             default = {
@@ -220,11 +192,6 @@ local _METADATA = {
                 "failed",
                 success = { true },
                 failed = { false }
-            },
-            Meta = {
-                GeneralDataVars = {
-                    { "equipID", "Equip" }
-                }
             }
         },
         equip = {
@@ -233,7 +200,7 @@ local _METADATA = {
                 "self",
                 "equipID",
                 self = { "Source.MapActors.Player", "Player" },
-                equipID = "string"
+                equipID = { enum = "Enums.GeneralData.Equip", valueType = "string" }
             },
             default = {
                 [1] = "self"
@@ -242,11 +209,6 @@ local _METADATA = {
             ExecSplit = {
                 "default",
                 default = "nil"
-            },
-            Meta = {
-                GeneralDataVars = {
-                    { "equipID", "Equip" }
-                }
             }
         },
         unequip = {
@@ -272,7 +234,7 @@ local _METADATA = {
                 "self",
                 "equipID",
                 self = { "Source.MapActors.Player", "Player" },
-                equipID = "string"
+                equipID = { enum = "Enums.GeneralData.Equip", valueType = "string" }
             },
             default = {
                 [1] = "self"
@@ -281,12 +243,7 @@ local _METADATA = {
                 "count",
                 count = "int"
             },
-            Pure = true,
-            Meta = {
-                GeneralDataVars = {
-                    { "equipID", "Equip" }
-                }
-            }
+            Pure = true
         },
         hasEquip = {
             type = "function",
@@ -294,7 +251,7 @@ local _METADATA = {
                 "self",
                 "equipID",
                 self = { "Source.MapActors.Player", "Player" },
-                equipID = "string"
+                equipID = { enum = "Enums.GeneralData.Equip", valueType = "string" }
             },
             default = {
                 [1] = "self"
@@ -303,12 +260,7 @@ local _METADATA = {
                 "value",
                 value = "bool"
             },
-            Pure = true,
-            Meta = {
-                GeneralDataVars = {
-                    { "equipID", "Equip" }
-                }
-            }
+            Pure = true
         },
         getEquipInfo = {
             type = "function",
@@ -357,11 +309,6 @@ local _METADATA = {
             ExecSplit = {
                 "default",
                 default = "nil"
-            }
-        },
-        Meta = {
-            GeneralDataVars = {
-                { "ID", "Player" }
             }
         }
     }

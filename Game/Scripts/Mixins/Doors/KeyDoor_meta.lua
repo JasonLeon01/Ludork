@@ -2,25 +2,17 @@ local _METADATA = {
     KeyDoor = {
         attrs = {
             "needKeyID",
-            "needKeyCount",
+            "needKeyCount"
         },
         needKeyID = {
-            type = "string",
-            default = "",
-            Meta = {
-                GeneralDataVars = "Item",
-            },
+            type = { enum = "Enums.GeneralData.Item", valueType = "string" },
+            default = ""
         },
         needKeyCount = {
             type = "int",
-            default = 1,
-        },
-        Meta = {
-            GeneralDataVars = {
-                { "needKeyID", "Item" },
-            },
-        },
-    },
+            default = 1
+        }
+    }
 }
 
 return _METADATA

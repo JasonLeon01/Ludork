@@ -14,11 +14,8 @@ local _METADATA = {
             { "Source.Battler", "Battler" }
         },
         ID = {
-            type = "string",
-            default = "FILL_IT_BY_YOURSELF",
-            Meta = {
-                GeneralDataVars = "Enemy"
-            }
+            type = { enum = "Enums.GeneralData.Enemy", valueType = "string" },
+            default = "FILL_IT_BY_YOURSELF"
         },
         childActorComp = {
             type = {
@@ -95,11 +92,6 @@ local _METADATA = {
             ExecSplit = {
                 "default",
                 default = "nil"
-            }
-        },
-        Meta = {
-            GeneralDataVars = {
-                { "ID", "Enemy" }
             }
         }
     }

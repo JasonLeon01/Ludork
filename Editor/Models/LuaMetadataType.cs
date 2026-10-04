@@ -32,6 +32,9 @@ public sealed class LuaMetadataType
     public LuaMetadataTypeKind Kind { get; }
     public string Name { get; }
     public IReadOnlyList<LuaMetadataType> Arguments { get; }
+    public LuaMetadataType? EnumValueType => Kind == LuaMetadataTypeKind.Enum && Arguments.Count > 0 ? Arguments[0] : null;
+    public bool IsStringKey => Kind == LuaMetadataTypeKind.Named && string.Equals(Name, "string", StringComparison.OrdinalIgnoreCase)
+        || Kind == LuaMetadataTypeKind.Enum && EnumValueType?.Name == "string";
     public bool IsAny => Kind == LuaMetadataTypeKind.Named
         && string.Equals(Name, "any", StringComparison.OrdinalIgnoreCase);
 
@@ -61,18 +64,29 @@ public sealed class LuaMetadataType
         {
             return Parse($"{moduleName}.{typeName}");
         }
-        if (schema is not JsonObject map || map.Count != 1)
+        if (schema is not JsonObject map)
             throw new InvalidDataException("Metadata type must be a name, module reference or structured schema.");
         if (map.TryGetPropertyValue("enum", out JsonNode? enumModule))
         {
             if (enumModule is not JsonValue moduleValue || !moduleValue.TryGetValue(out string? enumModuleName))
                 throw new InvalidDataException("Metadata enum requires an Enums module name.");
-            return createEnum(enumModuleName ?? string.Empty);
+            if (map.Any(entry => entry.Key is not "enum" and not "valueType"))
+                throw new InvalidDataException("Unknown metadata enum schema property.");
+            LuaMetadataType? valueType = map.TryGetPropertyValue("valueType", out JsonNode? declaredType)
+                ? Parse(declaredType) : null;
+            return createEnum(enumModuleName ?? string.Empty, valueType);
         }
+        if (map.TryGetPropertyValue("dict", out JsonNode? dictionary))
+        {
+            if (map.Any(entry => entry.Key is not "dict" and not "key"))
+                throw new InvalidDataException("Unknown metadata dictionary schema property.");
+            return createDictionary(map.TryGetPropertyValue("key", out JsonNode? key)
+                ? Parse(key) : createNamed("string"), Parse(dictionary));
+        }
+        if (map.Count != 1)
+            throw new InvalidDataException("Metadata composite schema requires one type property.");
         if (map.TryGetPropertyValue("list", out JsonNode? list))
             return createList(Parse(list));
-        if (map.TryGetPropertyValue("dict", out JsonNode? dictionary))
-            return createDictionary(createNamed("string"), Parse(dictionary));
         foreach ((string key, LuaMetadataTypeKind kind) in new[]
         {
             ("union", LuaMetadataTypeKind.Union),
@@ -98,9 +112,13 @@ public sealed class LuaMetadataType
     {
         return Kind switch
         {
-            LuaMetadataTypeKind.Enum => new JsonObject { ["enum"] = Name },
+            LuaMetadataTypeKind.Enum => EnumValueType is null
+                ? new JsonObject { ["enum"] = Name }
+                : new JsonObject { ["enum"] = Name, ["valueType"] = EnumValueType.ToSchema() },
             LuaMetadataTypeKind.List => new JsonObject { ["list"] = Arguments[0].ToSchema() },
-            LuaMetadataTypeKind.Dictionary => new JsonObject { ["dict"] = Arguments[1].ToSchema() },
+            LuaMetadataTypeKind.Dictionary => Arguments[0].Kind == LuaMetadataTypeKind.Named
+                ? new JsonObject { ["dict"] = Arguments[1].ToSchema() }
+                : new JsonObject { ["dict"] = Arguments[1].ToSchema(), ["key"] = Arguments[0].ToSchema() },
             LuaMetadataTypeKind.Tuple => new JsonObject { ["tuple"] = new JsonArray(Arguments.Select(argument => argument.ToSchema()).ToArray()) },
             LuaMetadataTypeKind.Union => new JsonObject { ["union"] = new JsonArray(Arguments.Select(argument => argument.ToSchema()).ToArray()) },
             _ => JsonValue.Create(Name)!,
@@ -112,14 +130,14 @@ public sealed class LuaMetadataType
     public bool ContainsEnum => Kind == LuaMetadataTypeKind.Enum || Arguments.Any(argument => argument.ContainsEnum);
 
     public bool IsAssignableTo(LuaMetadataType target, Func<string, string, bool>? isDerived = null,
-        Func<string, LuaEnumDefinition>? resolveEnum = null)
+        Func<LuaMetadataType, LuaEnumDefinition>? resolveEnum = null)
     {
         if (IsAny || target.IsAny)
             return true;
         if (Kind == LuaMetadataTypeKind.Enum || target.Kind == LuaMetadataTypeKind.Enum)
         {
-            LuaMetadataType? sourceValue = Kind == LuaMetadataTypeKind.Enum ? resolveEnum?.Invoke(Name).ValueType : this;
-            LuaMetadataType? targetValue = target.Kind == LuaMetadataTypeKind.Enum ? resolveEnum?.Invoke(target.Name).ValueType : target;
+            LuaMetadataType? sourceValue = Kind == LuaMetadataTypeKind.Enum ? resolveEnum?.Invoke(this).ValueType : this;
+            LuaMetadataType? targetValue = target.Kind == LuaMetadataTypeKind.Enum ? resolveEnum?.Invoke(target).ValueType : target;
             return sourceValue is not null && targetValue is not null
                 && sourceValue.IsAssignableTo(targetValue, isDerived, resolveEnum);
         }
@@ -141,7 +159,7 @@ public sealed class LuaMetadataType
     {
         return Kind switch
         {
-            LuaMetadataTypeKind.Enum => $"Enum[{Name}]",
+            LuaMetadataTypeKind.Enum => EnumValueType is null ? $"Enum[{Name}]" : $"Enum[{Name}, {EnumValueType}]",
             LuaMetadataTypeKind.List => $"{Arguments[0]}[]",
             LuaMetadataTypeKind.Dictionary => $"Dict[{Arguments[0]}, {Arguments[1]}]",
             LuaMetadataTypeKind.Tuple => $"Tuple[{string.Join(", ", Arguments)}]",
@@ -174,9 +192,13 @@ public sealed class LuaMetadataType
             return createNamed(text);
         string containerName = text[..open].Trim();
         string body = text[(open + 1)..^1];
-        if (string.Equals(containerName, "Enum", StringComparison.Ordinal))
-            return createEnum(body.Trim());
         IReadOnlyList<string>? parts = splitArguments(body);
+        if (string.Equals(containerName, "Enum", StringComparison.Ordinal))
+        {
+            if (parts is null || parts.Count is < 1 or > 2)
+                throw new InvalidDataException("Enum requires a module and an optional scalar value type.");
+            return createEnum(parts[0], parts.Count == 2 ? Parse(parts[1]) : null);
+        }
         if (parts is null)
             return createNamed(text);
         List<LuaMetadataType> arguments = [];
@@ -192,9 +214,7 @@ public sealed class LuaMetadataType
         if ((string.Equals(containerName, "Dict", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(containerName, "Dictionary", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(containerName, "Map", StringComparison.OrdinalIgnoreCase))
-            && arguments.Count == 2
-            && arguments[0].Kind == LuaMetadataTypeKind.Named
-            && string.Equals(arguments[0].Name, "string", StringComparison.OrdinalIgnoreCase))
+            && arguments.Count == 2)
         {
             return createDictionary(arguments[0], arguments[1]);
         }
@@ -259,10 +279,13 @@ public sealed class LuaMetadataType
         }
     }
 
-    private static LuaMetadataType createEnum(string moduleName)
+    private static LuaMetadataType createEnum(string moduleName, LuaMetadataType? valueType = null)
     {
         ValidateEnumModule(moduleName);
-        return new LuaMetadataType(LuaMetadataTypeKind.Enum, moduleName, []);
+        if (valueType is not null && (valueType.Kind != LuaMetadataTypeKind.Named
+            || valueType.Name is not "string" and not "bool" and not "int" and not "float"))
+            throw new InvalidDataException("Enum valueType must be string, bool, int or float.");
+        return new LuaMetadataType(LuaMetadataTypeKind.Enum, moduleName, valueType is null ? [] : [valueType]);
     }
 
     private static LuaMetadataType createNamed(string name)
@@ -280,6 +303,8 @@ public sealed class LuaMetadataType
         LuaMetadataType keyType,
         LuaMetadataType valueType)
     {
+        if (!keyType.IsStringKey)
+            throw new InvalidDataException("Dictionary keys must be strings or enums with valueType string.");
         return new LuaMetadataType(
             LuaMetadataTypeKind.Dictionary,
             "Dict",

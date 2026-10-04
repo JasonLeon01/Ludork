@@ -10,11 +10,11 @@ namespace Ludork.Services;
 
 internal static class BlueprintNodeTextValues
 {
-    public static string Format(string typeName, JsonNode? value, Func<string, LuaEnumDefinition>? resolveEnum = null)
+    public static string Format(string typeName, JsonNode? value, Func<LuaMetadataType, LuaEnumDefinition>? resolveEnum = null)
     {
         LuaMetadataType type = LuaMetadataType.Parse(typeName);
         if (type.Kind == LuaMetadataTypeKind.Enum)
-            type = resolveEnum?.Invoke(type.Name).ValueType ?? type;
+            type = resolveEnum?.Invoke(type).ValueType ?? type;
         if (value is null)
             return type.IsAny ? "null" : string.Empty;
         if (type.Kind == LuaMetadataTypeKind.Named
@@ -26,14 +26,14 @@ internal static class BlueprintNodeTextValues
     }
 
     public static bool TryParse(string typeName, string text, out JsonNode? value, out string? error,
-        Func<string, LuaEnumDefinition>? resolveEnum = null)
+        Func<LuaMetadataType, LuaEnumDefinition>? resolveEnum = null)
     {
         LuaMetadataType type = LuaMetadataType.Parse(typeName);
         value = null;
         error = null;
         if (type.Kind == LuaMetadataTypeKind.Enum)
         {
-            LuaEnumDefinition? definition = resolveEnum?.Invoke(type.Name);
+            LuaEnumDefinition? definition = resolveEnum?.Invoke(type);
             if (definition?.ValueType is not LuaMetadataType valueType)
             {
                 error = definition?.Error ?? "Enum resolver is unavailable for " + type.Name;

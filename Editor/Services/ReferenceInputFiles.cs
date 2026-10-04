@@ -24,7 +24,10 @@ internal sealed class ReferenceInputFiles
         string scripts = Path.Combine(projectPath, "Scripts");
         IEnumerable<string> metadata = Directory.Exists(scripts)
             ? Directory.EnumerateFiles(scripts, "*_meta.lua", SearchOption.AllDirectories) : [];
-        Dictionary<string, Stamp> stamps = metadata.Concat(paths).Distinct(StringComparer.Ordinal)
+        string enumRoot = Path.Combine(scripts, "Enums");
+        IEnumerable<string> enums = Directory.Exists(enumRoot)
+            ? Directory.EnumerateFiles(enumRoot, "*.lua", SearchOption.AllDirectories) : [];
+        Dictionary<string, Stamp> stamps = metadata.Concat(enums).Concat(paths).Distinct(StringComparer.Ordinal)
             .ToDictionary(path => path, Read, StringComparer.Ordinal);
         return new ReferenceInputFiles(projectPath, paths, stamps);
     }
