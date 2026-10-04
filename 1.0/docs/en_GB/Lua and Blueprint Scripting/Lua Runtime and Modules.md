@@ -51,11 +51,18 @@ Access private members only through `self` or same-instance `super(..., self)` d
 
 ## Enum modules
 
-Each public enum has its own module beneath `Scripts/Enums`, with a matching declaration beneath `Scripts/stub/Enums`. A module directly returns a table of string keys and scalar literal values. It has no dependencies, functions or class construction:
+Each public enum has its own module beneath `Scripts/Enums`. Its constants, EmmyLua annotations and API documentation stay together in the source file, without a mirrored enum stub. A handwritten enum declares a local table of string keys and scalar literals, then returns that table. It has no dependencies, functions or class construction:
 
 ```lua
 -- Scripts/Enums/StairDirection.lua
-return { None = "None", Up = "Up", Down = "Down" }
+---@enum Enums.StairDirection
+local StairDirection = {
+    None = "None",
+    Up = "Up",
+    Down = "Down",
+}
+
+return StairDirection
 ```
 
 Runtime callers load the enum directly, for example `local StairDirection = require("Enums.StairDirection")`, then use `StairDirection.Up`. Normal Lua module caching applies at runtime. Blueprint metadata references the module with `type = { enum = "Enums.StairDirection" }`; the editor rereads the file whenever the value editor is viewed or its selector is opened, shows the keys, and stores their actual values. See [Metadata Schema and Decorators](<Blueprint Scripting/Metadata Schema and Decorators.md>) for schema composition and validation.
@@ -113,13 +120,17 @@ Engine providers are installed explicitly during [startup](<Default Gameplay/Def
 
 Lua files have separate owners:
 
-- `.lua` files contain runtime behaviour and implementation-only annotations.
-- Mirrored `Scripts/stub/**/*.d.lua` files contain public documentation and LuaLS declarations, with no runtime side effects or `require`.
+- `.lua` files contain runtime behaviour and implementation-only annotations. Pure-data enum modules also carry their public type annotations and documentation.
+- Mirrored `Scripts/stub/**/*.d.lua` files contain other public documentation and LuaLS declarations, with no runtime side effects or `require`. Native API enum types remain in their owning declarations, such as `Engine.d.lua` and `LuaSF.d.lua`.
 - Same-name `_meta.lua` files contain pure editor metadata and never run as gameplay scripts.
 
 A requireable declaration uses `---@meta` with its module path; for example, `Global/Pool.d.lua` declares `---@meta Global.Pool`. Global-only `Standard.d.lua`, `Class.d.lua` and `LuaSF.d.lua` use a bare `---@meta`.
 
-The EmmyLua workspace indexes `Scripts/stub`. Templates retain declarations except the generated UI declarations, which Export recreates in each project. Packaging removes it, Lua compilation ignores `.d.lua`, and shipped packages must contain none. Standalone and C++ Source templates include a Windows VS Code configuration named `Ludork: EmmyLua Attach (Windows)` that attaches the `tangzx.emmylua` `emmylua_attach` debugger to a running `Main.exe`. C++ Source templates also keep the native `cppvsdbg` and `lldb` launch and attach configurations. The EmmyLua attach debugger supports Windows only.
+The EmmyLua workspace keeps `Scripts/stub` as its module root and library. In `.emmyrc.json`, `workspace.moduleMap` maps `^Scripts[.]Enums[.](.*)$` to `Enums.$1`, allowing enum imports to resolve to their annotated sources while other public imports retain their stub declarations. Enum sources do not use `---@meta`.
+
+Templates retain declarations except the generated UI declarations, which Export recreates in each project. Packaging removes `Scripts/stub`, Lua compilation ignores `.d.lua`, and shipped packages must contain no declaration files.
+
+Standalone and C++ Source templates include a Windows VS Code configuration named `Ludork: EmmyLua Attach (Windows)` that attaches the `tangzx.emmylua` `emmylua_attach` debugger to a running `Main.exe`. C++ Source templates also keep the native `cppvsdbg` and `lldb` launch and attach configurations. The EmmyLua attach debugger supports Windows only.
 
 ## Related pages
 

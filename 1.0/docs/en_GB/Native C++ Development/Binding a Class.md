@@ -143,7 +143,7 @@ enum class WeatherType {
 };
 ```
 
-Bindgen generates `Module.WeatherType` and its LuaLS type. The native build also generates `Scripts/Enums/Module/WeatherType.lua`, which directly returns its named integer constants, and the mirrored enum stub. Blueprint fields and signatures use `{ enum = "Enums.Module.WeatherType" }`; Lua calls and saved Blueprint values retain the underlying integers. Do not duplicate enumerators as module properties. The original native table remains available and shares its compiled values with the pure enum module.
+Bindgen generates `Module.WeatherType` and its LuaLS type. The native build also generates `Scripts/Enums/Module/WeatherType.lua`, which returns its named integer constants with source annotations. The module retains the `Enums.Module.WeatherType` table type and uses inline annotations to give its members the original `Module.WeatherType` API value type; it has no mirrored enum stub. Blueprint fields and signatures use `{ enum = "Enums.Module.WeatherType" }`; Lua calls and saved Blueprint values retain the underlying integers. Do not duplicate enumerators as module properties. The original native table remains available and shares its compiled values with the pure enum module.
 
 An existing const map can supply a scalar enum without introducing a C++ enum:
 

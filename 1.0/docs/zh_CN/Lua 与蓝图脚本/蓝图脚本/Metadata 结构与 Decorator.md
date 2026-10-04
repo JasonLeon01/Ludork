@@ -84,11 +84,18 @@ return _METADATA
 
 ## 枚举 schema
 
-枚举引用 `Scripts/Enums` 下的一个模块，该模块直接返回一张非空的具名标量字面量 table：
+枚举引用 `Scripts/Enums` 下的一个模块，源码包含一张非空的具名标量字面量 table 及其 EmmyLua 注解：
 
 ```lua
 -- Scripts/Enums/StairDirection.lua
-return { None = "None", Up = "Up", Down = "Down" }
+---@enum Enums.StairDirection
+local StairDirection = {
+    None = "None",
+    Up = "Up",
+    Down = "Down",
+}
+
+return StairDirection
 ```
 
 在递归 schema 中填写它的 require 路径：
@@ -100,7 +107,11 @@ stairDirection = {
 }
 ```
 
-同一个 `{ enum = "Enums.StairDirection" }` schema 可直接用作函数参数、返回项，也可嵌入 `list`、`dict`、`tuple` 或 `union`。每个枚举独占一个文件，并有对应的 `Scripts/stub/Enums/...d.lua`。枚举模块不能把常量表包装为类或模块成员，不能调用 `require`，也不能加入函数、表达式或初始化代码。允许注释与标量字面量。键必须是非空字符串，值必须属于同一类别：字符串、布尔值或有限数字。数值枚举的全部字面量都是整数时，底层类型为 `int`；只要存在浮点字面量，包括 `1.0`，底层类型就是 `float`。
+同一个 `{ enum = "Enums.StairDirection" }` schema 可直接用作函数参数、返回项，也可嵌入 `list`、`dict`、`tuple` 或 `union`。每个枚举的类型注解保留在源码文件中，不提供镜像 stub。
+
+静态读取器接受直接返回字面量表，或声明一个局部字面量表后返回同名变量。允许注释、注解和可选分号，也允许用一层括号包裹标量字面量以附带行内类型注解。调用（包括 `require`）、计算表达式、表修改、返回其他变量及额外语句都会被拒绝，编辑器不会执行模块。
+
+键必须是非空字符串，值必须属于同一类别：字符串、布尔值或有限数字。数值枚举的全部字面量都是整数时，底层类型为 `int`；只要存在浮点字面量，包括 `1.0`，底层类型就是 `float`。
 
 选择器按 ordinal 顺序显示键，保存选中键对应的值本身，不保存键名或 Lua 表达式，也无需 `Meta.DropBox`。多个键对应同一个值时，回显第一个匹配的键。当前常量表不再包含的已有值会保留保存，并显示未知值提示。只要它仍符合底层标量类型，就仍是有效值；枚举不在运行时强制限定取值集合。
 

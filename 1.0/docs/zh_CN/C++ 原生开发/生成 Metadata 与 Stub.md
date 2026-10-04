@@ -8,7 +8,7 @@
 2. 供 Lua 语言工具使用的 `Scripts/stub/<Module>.d.lua`；
 3. 供编辑器使用的 `Scripts/<Module>_meta.lua`；
 4. `<Module>.traits.auto.hpp`，内含该模块私有的转换特征；
-5. 绑定枚举与带标记常量映射对应的纯模块 `Scripts/Enums/<Module>/<Name>.lua`，以及配套声明 `Scripts/stub/Enums/<Module>/<Name>.d.lua`。
+5. 绑定枚举与带标记常量映射对应的纯模块 `Scripts/Enums/<Module>/<Name>.lua`，类型注解保留在源码中。
 
 这些输出必须在规范模块路径、类名、函数分组与参数顺序上保持一致。Metadata 还携带蓝图执行信息与编辑器信息。
 
@@ -49,13 +49,15 @@ LuaSF 通过 `LUASF_CALLBACK_CODECS_FILE` 提供具有特殊调用约定的回�
 
 ## 生成枚举模块
 
-桌面原生构建使用 `NativeStubDump` 调用 `<Module>_write_enum_catalogue`。编译后的 writer 从实际 C++ 枚举项取得整数值，从带 `BIND_MODULE_PROPERTY(enum = true)` 标记的 const 映射取得标量值，在 `Intermediate` 下写入 catalogue，不创建 Lua VM。随后 `ScriptTools enum-modules` 在 `Enums.Engine`、`Enums.GlobalCore` 或所属原生模块的命名空间下，为每个枚举生成直接返回常量 table 的独立模块。既有原生 table 导出继续使用同一份源值。
+桌面原生构建使用 `NativeStubDump` 调用 `<Module>_write_enum_catalogue`。编译后的 writer 从实际 C++ 枚举项取得整数值，从带 `BIND_MODULE_PROPERTY(enum = true)` 标记的 const 映射取得标量值，在 `Intermediate` 下写入 catalogue，不创建 Lua VM。随后 `ScriptTools enum-modules` 在 `Enums.Engine`、`Enums.GlobalCore` 或所属原生模块的命名空间下，为每个枚举生成包含带注解的局部常量表及返回语句的独立模块。既有原生 table 导出继续使用同一份源值。
 
-`Enums.sf` 下的 LuaSF 枚举模块来自 `sfml_api.json`。嵌套名称形成目录，例如 `Enums/sf/Keyboard/Scan.lua`；`Scancode` 别名解析为规范 schema `Enums.sf.Keyboard.Scan`。这项生成不会额外公开蓝图节点。stub 用 `---@meta Enums.<Module>.<Name>` 声明 require 路径，并保留对应的 LuaLS 值类型。
+`Enums.sf` 下的 LuaSF 枚举模块来自 `sfml_api.json`。嵌套名称形成目录，例如 `Enums/sf/Keyboard/Scan.lua`；`Scancode` 别名解析为规范 schema `Enums.sf.Keyboard.Scan`。这项生成不会额外公开蓝图节点。
 
-生成器只写入变化的内容，只清理带有自身生成标记的过期输出，并拒绝覆盖同路径的手写文件。编辑器模板与原生缓存同时包含枚举源码模块和 stub。游戏包保留枚举源码模块，排除 stub 目录树。
+枚举模块自行携带注解，不提供镜像枚举 stub。原生枚举用 `---@class` 保留公开的 `Enums.<Module>.<Name>` 表类型，每个标量常量用行内注解保留原生 API 值类型，例如 `A = (0 --[[@as sf.Keyboard.Key]])`。原生枚举定义仍位于 `Engine.d.lua`、`LuaSF.d.lua` 等所属 API stub 中。值为基础类型的常量映射同样保留 `---@class` 表类型，成员的标量类型直接从值推导。所有形式都只保存一份常量值，并返回该局部表；不使用 `---@meta`，也不构造运行时类。
 
-交叉构建与静态 Lua 模块构建需要已有的桌面原生构建产出的枚举源码模块及镜像 stub。生成文件缺失时，预检会列出路径并失败，不会猜测 C++ 常量值。修改原生枚举声明或带标记映射后，应先在桌面重新构建，再准备这些构建。
+生成器只写入变化的内容，只清理带有自身生成标记的过期输出，同时清理带有自身标记的旧枚举 stub，并拒绝覆盖同路径的手写文件。编辑器模板与原生缓存包含枚举源码模块，不包含枚举 stub 目录树；其他原生 API stub 仍然保留。游戏包保留枚举源码模块，排除 stub 目录树。
+
+交叉构建与静态 Lua 模块构建需要已有的桌面原生构建产出的枚举源码模块。生成文件缺失时，预检会列出路径并失败，不会猜测 C++ 常量值。修改原生枚举声明或带标记映射后，应先在桌面重新构建，再准备这些构建。
 
 ## 重新生成
 

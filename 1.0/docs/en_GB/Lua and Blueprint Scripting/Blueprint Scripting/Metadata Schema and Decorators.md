@@ -84,11 +84,18 @@ Every saved attribute and nested typed record member must be declared, and its v
 
 ## Enum schemas
 
-An enum references one module under `Scripts/Enums`. The module directly returns a nonempty table of named scalar literals:
+An enum references one module under `Scripts/Enums`. The source contains a nonempty table of named scalar literals and its EmmyLua annotation:
 
 ```lua
 -- Scripts/Enums/StairDirection.lua
-return { None = "None", Up = "Up", Down = "Down" }
+---@enum Enums.StairDirection
+local StairDirection = {
+    None = "None",
+    Up = "Up",
+    Down = "Down",
+}
+
+return StairDirection
 ```
 
 Use its require path in the recursive schema:
@@ -100,7 +107,11 @@ stairDirection = {
 }
 ```
 
-The same `{ enum = "Enums.StairDirection" }` schema works directly in a function parameter or return entry and inside `list`, `dict`, `tuple` or `union`. Each enum has its own file and corresponding `Scripts/stub/Enums/...d.lua`. Do not wrap the constant table in a class or module member, call `require`, or add functions, expressions or initialization code to the enum module. Comments and scalar literals are accepted. Keys must be nonempty strings, and values must share one category: strings, booleans or finite numbers. A numeric enum is `int` when every literal is an integer; any floating-point literal, including `1.0`, makes it `float`.
+The same `{ enum = "Enums.StairDirection" }` schema works directly in a function parameter or return entry and inside `list`, `dict`, `tuple` or `union`. Each enum keeps its type annotation in its source file, without a mirrored stub.
+
+The static reader accepts either a directly returned literal table or one local literal table followed by `return` of the same variable. Comments, annotations and optional semicolons are allowed, as is one pair of parentheses around a scalar literal for an inline type annotation. Calls (including `require`), calculations, table mutations, other returned variables and extra statements are rejected. The editor never executes the module.
+
+Keys must be nonempty strings, and values must share one category: strings, booleans or finite numbers. A numeric enum is `int` when every literal is an integer; any floating-point literal, including `1.0`, makes it `float`.
 
 The selector displays keys in ordinal order and saves the selected value itself. It stores neither the key nor a Lua expression, and needs no `Meta.DropBox`. Equal values select the first matching key for display. Existing values absent from the current table remain saved and show an unknown-value message. They remain valid if their underlying scalar type is valid; an enum does not impose runtime membership checks.
 

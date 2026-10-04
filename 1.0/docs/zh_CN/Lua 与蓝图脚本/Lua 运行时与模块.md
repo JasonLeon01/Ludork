@@ -51,11 +51,18 @@ local ManagerFunctions = GlobalFunctions.Manager
 
 ## 枚举模块
 
-每个公开枚举在 `Scripts/Enums` 下拥有独立模块，并在 `Scripts/stub/Enums` 下提供对应声明。模块直接返回以字符串为键、标量字面值为值的表，不加载依赖、不定义函数，也不构造类：
+每个公开枚举在 `Scripts/Enums` 下拥有独立模块，常量、EmmyLua 注解和 API 说明都保留在源码中，不再提供镜像枚举 stub。手写枚举声明以字符串为键、标量字面值为值的局部表，再返回该表；不加载依赖、不定义函数，也不构造类：
 
 ```lua
 -- Scripts/Enums/StairDirection.lua
-return { None = "None", Up = "Up", Down = "Down" }
+---@enum Enums.StairDirection
+local StairDirection = {
+    None = "None",
+    Up = "Up",
+    Down = "Down",
+}
+
+return StairDirection
 ```
 
 运行时直接加载枚举，例如 `local StairDirection = require("Enums.StairDirection")`，随后使用 `StairDirection.Up`。运行时遵循常规 Lua 模块缓存。蓝图 metadata 通过 `type = { enum = "Enums.StairDirection" }` 引用模块；编辑器每次查看值编辑器或展开选择器时重新读取文件，显示 key，并保存对应的实际值。schema 的组合与校验规则见 [Metadata 结构与 Decorator](<蓝图脚本/Metadata 结构与 Decorator.md>)。
@@ -113,13 +120,17 @@ Engine 提供程序在[启动](<Game 玩法/默认模板概述.md#入口与模�
 
 Lua 文件分工如下：
 
-- `.lua` 文件保存运行时行为，以及仅供实现使用的注解。
-- 镜像路径 `Scripts/stub/**/*.d.lua` 保存公开文档与 LuaLS 声明，不含运行时副作用，也不含 `require`。
+- `.lua` 文件保存运行时行为，以及仅供实现使用的注解。纯数据枚举模块同时保存自己的公开类型注解与说明。
+- 镜像路径 `Scripts/stub/**/*.d.lua` 保存其他公开文档与 LuaLS 声明，不含运行时副作用，也不含 `require`。原生 API 的枚举类型仍保留在 `Engine.d.lua`、`LuaSF.d.lua` 等所属声明中。
 - 同名 `_meta.lua` 文件保存纯编辑器 metadata，绝不作为玩法脚本运行。
 
 可 `require` 的声明用 `---@meta` 写出模块路径，例如 `Global/Pool.d.lua` 声明 `---@meta Global.Pool`。只声明全局 API 的 `Standard.d.lua`、`Class.d.lua` 与 `LuaSF.d.lua` 使用裸 `---@meta`。
 
-EmmyLua 工作区索引 `Scripts/stub`。除生成的 UI 声明外，模板保留其余声明；各项目通过导出重建 UI 声明。打包会删除它，Lua 编译忽略 `.d.lua`，发行包中不得残留任何声明文件。Standalone 与 C++ Source 模板都提供名为 `Ludork: EmmyLua Attach (Windows)` 的 VS Code 配置，通过 `tangzx.emmylua` 的 `emmylua_attach` 调试器附加到正在运行的 `Main.exe`。C++ Source 模板另外保留原有的 `cppvsdbg` 与 `lldb` 原生启动和附加配置。EmmyLua 附加调试仅支持 Windows。
+EmmyLua 工作区保留 `Scripts/stub` 作为模块根和 library。在 `.emmyrc.json` 中，`workspace.moduleMap` 把 `^Scripts[.]Enums[.](.*)$` 映射为 `Enums.$1`，使枚举导入解析到带注解的源码，其他公开导入仍使用 stub 声明。枚举源码不使用 `---@meta`。
+
+除生成的 UI 声明外，模板保留其余声明；各项目通过导出重建 UI 声明。打包会删除 `Scripts/stub`，Lua 编译忽略 `.d.lua`，发行包中不得残留任何声明文件。
+
+Standalone 与 C++ Source 模板都提供名为 `Ludork: EmmyLua Attach (Windows)` 的 VS Code 配置，通过 `tangzx.emmylua` 的 `emmylua_attach` 调试器附加到正在运行的 `Main.exe`。C++ Source 模板另外保留原有的 `cppvsdbg` 与 `lldb` 原生启动和附加配置。EmmyLua 附加调试仅支持 Windows。
 
 ## 相关页面
 
