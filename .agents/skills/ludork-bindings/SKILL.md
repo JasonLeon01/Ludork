@@ -20,6 +20,8 @@ Use those pages as the protocol reference; do not maintain a second macro/decora
 
 Lua implementation belongs in `.lua`, public LuaLS declarations in mirrored `Scripts/stub/**/*.d.lua`, and handwritten editor metadata in sibling `_meta.lua`. Metadata must return pure-data `_METADATA` and execute only in a separate editor Lua state. It must not run gameplay, use runtime objects, or depend on external side effects.
 
+Pure-data enum modules under `Scripts/Enums` contain their own EmmyLua annotations and have no mirrored enum stubs. Keep native API enum types in their owning native declarations.
+
 Core metadata and stubs are generated from annotated C++ declarations. Edit those declarations or `ScriptTools/core_bindgen/`, then regenerate through the normal build. Never hand-edit `Game/Scripts/Engine_meta.lua`, `GlobalCore_meta.lua`, `GlobalFunctions_meta.lua` or generated native stubs.
 
 Generic conversions belong in recursive adapters, traits or declarative annotations under `LudorkRuntimeBinding`; bindgen must not special-case business module/type/member names. Include full declarations for cross-module dependencies. Keep C++ registration, LuaLS stubs and metadata consistent, including free-function grouping and `metadata = false` exclusions.

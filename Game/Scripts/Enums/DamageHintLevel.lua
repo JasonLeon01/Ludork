@@ -1,1 +1,8 @@
-return { NONE = 0, BATTLE = 1, MAP = 2 }
+---@enum Enums.DamageHintLevel
+local DamageHintLevel = {
+    NONE = 0,
+    BATTLE = 1,
+    MAP = 2
+}
+
+return DamageHintLevel

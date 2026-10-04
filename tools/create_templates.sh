@@ -220,6 +220,7 @@ copy_cpp_template() {
         --exclude '/Scripts/Internal/UI/' \
         --exclude '/Scripts/stub/Internal/UI/' \
         --exclude '/Scripts/stub/Internal/UIWindows/' \
+        --exclude '/Scripts/stub/Enums/' \
         --include '/Scripts/Source/Locale/Core.lua' \
         --exclude '/Scripts/Source/Locale/*'
     if [ "$include_ffmpeg" -ne 1 ]; then

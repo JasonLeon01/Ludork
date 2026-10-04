@@ -13,7 +13,7 @@ namespace Ludork.Services;
 public sealed class LuaEnumService
 {
     private static readonly Regex Tokens = new(
-        "\\G(?:(?<space>\\s+|--\\[(?<commentEquals>=*)\\[[\\s\\S]*?\\]\\k<commentEquals>\\]|--[^\\r\\n]*)|(?<text>\"(?:\\\\[\\s\\S]|[^\"\\\\])*\"|'(?:\\\\[\\s\\S]|[^'\\\\])*'|\\[(?<stringEquals>=*)\\[[\\s\\S]*?\\]\\k<stringEquals>\\])|(?<number>(?:0[xX][0-9a-fA-F]+(?:\\.[0-9a-fA-F]*)?(?:[pP][+-]?[0-9]+)?|(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)(?:[eE][+-]?[0-9]+)?))|(?<name>[a-zA-Z_][a-zA-Z_0-9]*)|(?<symbol>[{}\\[\\]=,;+-]))",
+        "\\G(?:(?<space>\\s+|--\\[(?<commentEquals>=*)\\[[\\s\\S]*?\\]\\k<commentEquals>\\]|--[^\\r\\n]*)|(?<text>\"(?:\\\\[\\s\\S]|[^\"\\\\])*\"|'(?:\\\\[\\s\\S]|[^'\\\\])*'|\\[(?<stringEquals>=*)\\[[\\s\\S]*?\\]\\k<stringEquals>\\])|(?<number>(?:0[xX][0-9a-fA-F]+(?:\\.[0-9a-fA-F]*)?(?:[pP][+-]?[0-9]+)?|(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)(?:[eE][+-]?[0-9]+)?))|(?<name>[a-zA-Z_][a-zA-Z_0-9]*)|(?<symbol>[{}()\\[\\]=,;+-]))",
         RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(1));
     private readonly string projectPath;
@@ -103,7 +103,18 @@ public sealed class LuaEnumService
             if (!take(expected))
                 throw new InvalidDataException("Enum module may contain only a returned table of scalar literals.");
         }
-        require("return");
+        string? localName = null;
+        if (take("local"))
+        {
+            if (index >= tokens.Count || tokens[index].Kind != "name")
+                throw new InvalidDataException("Enum module must declare one local constant table.");
+            localName = tokens[index++].Text;
+            require("=");
+        }
+        else
+        {
+            require("return");
+        }
         require("{");
         while (!take("}"))
         {
@@ -122,6 +133,7 @@ public sealed class LuaEnumService
                 key = tokens[index++].Text;
             }
             require("=");
+            bool parenthesized = take("(");
             bool negative = take("-");
             if (index >= tokens.Count)
                 throw new InvalidDataException("Enum value is missing.");
@@ -135,6 +147,8 @@ public sealed class LuaEnumService
                 ? JsonValue.Create(script.DoString("return " + value.Text).String)!
                 : value.Kind == "number" ? readNumber((negative ? "-" : string.Empty) + value.Text, script)
                 : JsonValue.Create(value.Text == "true")!;
+            if (parenthesized)
+                require(")");
             constants[key] = literal;
             if (!take(",") && !take(";"))
             {
@@ -143,8 +157,14 @@ public sealed class LuaEnumService
             }
         }
         take(";");
+        if (localName is not null)
+        {
+            require("return");
+            require(localName);
+            take(";");
+        }
         if (index != tokens.Count)
-            throw new InvalidDataException("Enum module must directly return its constant table.");
+            throw new InvalidDataException("Enum module must return only its constant table.");
         return constants;
     }
 

@@ -1,1 +1,7 @@
-return { STARTED = 0, FINISHED = 1 }
+---@enum Enums.MovementLatentOutput
+local MovementLatentOutput = {
+    STARTED = 0,
+    FINISHED = 1
+}
+
+return MovementLatentOutput

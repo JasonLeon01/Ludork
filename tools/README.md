@@ -976,14 +976,17 @@ Desktop Core builds use `Game/Engine/Tools/NativeStubDump` to load each module's
 
 The same build exports each module's compiled enum catalogue and runs
 `ScriptTools enum-modules` to generate one pure constant module per enum beneath
-`Scripts/Enums/<Module>/`, with matching declarations under `Scripts/stub/Enums`.
+`Scripts/Enums/<Module>/`, with EmmyLua annotations in those source files and no
+mirrored enum stubs.
 LuaSF enums are generated from its API manifest beneath `Enums/sf`. The editor
 reads these files directly whenever an enum selector is displayed or opened;
 it does not load native libraries or gameplay modules to obtain choices.
 
-Native template caches include both enum source and declaration directories.
+Native template caches include the enum source directories; templates exclude
+`Scripts/stub/Enums`. Native API declarations such as `Engine.d.lua` and
+`LuaSF.d.lua` remain in the ordinary stub tree.
 Cross-compilation and static-module builds require the generated native enum
 modules from a desktop build and report missing files before generating bindings.
-Game packages retain enum source or compiled Lua modules and exclude their stubs
-with the rest of the stub tree. Regenerate native enums through the build rather
+Game packages retain enum source or compiled Lua modules and exclude the
+ordinary stub tree. Regenerate native enums through the build rather
 than editing generated constant files.

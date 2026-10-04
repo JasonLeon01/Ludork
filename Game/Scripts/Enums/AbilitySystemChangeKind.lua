@@ -1,1 +1,7 @@
-return { Attribute = "Attribute", State = "State" }
+---@enum Enums.AbilitySystemChangeKind
+local AbilitySystemChangeKind = {
+    Attribute = "Attribute",
+    State = "State"
+}
+
+return AbilitySystemChangeKind

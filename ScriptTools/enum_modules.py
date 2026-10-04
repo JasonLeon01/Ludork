@@ -102,19 +102,17 @@ def generate_modules(scripts: Path, module: str, catalogue: dict[str, object]) -
         value_type = record.get("valueType", inferred)
         if not isinstance(value_type, str) or not all(IDENTIFIER.fullmatch(part) for part in value_type.split(".")):
             raise ValueError(f"invalid enum LuaLS value type: {name}")
-        runtime = [GENERATED_MARKER, "return {"]
-        runtime.extend(
-            f"    {lua_key(key)} = {scalar_literal(float(value) if value_type == 'number' else value)},"
-            for key, value in sorted(values.items())
-        )
-        runtime.extend(["}", ""])
         enum_type = f"Enums.{module}.{name}"
-        stub = [GENERATED_MARKER, f"---@meta {enum_type}", "", f"---@class {enum_type}"]
-        stub.extend(f"---@field {lua_key(key)} {value_type}" for key in sorted(values))
-        stub.extend([f"---@type {enum_type}", "local enum = {}", "", "return enum", ""])
+        value_annotation = f" --[[@as {value_type}]]" if "." in value_type else ""
+        runtime = [GENERATED_MARKER, f"---@class {enum_type}", "local enum = {"]
+        for key, value in sorted(values.items()):
+            literal = scalar_literal(float(value) if value_type == "number" else value)
+            if value_annotation:
+                literal = f"({literal}{value_annotation})"
+            runtime.append(f"    {lua_key(key)} = {literal},")
+        runtime.extend(["}", "", "return enum", ""])
         relative = Path(*parts)
         outputs[(roots[0] / relative).with_suffix(".lua")] = "\n".join(runtime)
-        outputs[(roots[1] / relative).with_suffix(".d.lua")] = "\n".join(stub)
 
     stale: list[Path] = []
     for root in roots:
@@ -124,8 +122,7 @@ def generate_modules(scripts: Path, module: str, catalogue: dict[str, object]) -
     for path in outputs:
         if path.exists() and not path.read_text(encoding="utf-8").startswith(GENERATED_MARKER):
             raise ValueError(f"refusing to overwrite handwritten enum module: {path}")
-    for root in roots:
-        root.mkdir(parents=True, exist_ok=True)
+    roots[0].mkdir(parents=True, exist_ok=True)
     for path, contents in outputs.items():
         if path.exists():
             current = path.read_text(encoding="utf-8")
@@ -140,16 +137,20 @@ def generate_modules(scripts: Path, module: str, catalogue: dict[str, object]) -
             for directory in sorted((path for path in root.rglob("*") if path.is_dir()), reverse=True):
                 if not any(directory.iterdir()):
                     directory.rmdir()
+            if root == roots[1] and not any(root.iterdir()):
+                root.rmdir()
+    legacy_root = scripts / "stub" / "Enums"
+    if legacy_root.exists() and not any(legacy_root.iterdir()):
+        legacy_root.rmdir()
 
 
 def check_native_modules(scripts: Path, module: str, names: list[str]) -> None:
     missing: list[Path] = []
     for name in names:
         relative = Path(*name.split("."))
-        for prefix, suffix in (("Enums", ".lua"), ("stub/Enums", ".d.lua")):
-            path = (scripts / prefix / module / relative).with_suffix(suffix)
-            if not path.is_file() or not path.read_text(encoding="utf-8").startswith(GENERATED_MARKER):
-                missing.append(path)
+        path = (scripts / "Enums" / module / relative).with_suffix(".lua")
+        if not path.is_file() or not path.read_text(encoding="utf-8").startswith(GENERATED_MARKER):
+            missing.append(path)
     if missing:
         paths = "\n".join(f"  {path}" for path in missing)
         raise ValueError(
@@ -159,7 +160,7 @@ def check_native_modules(scripts: Path, module: str, names: list[str]) -> None:
 
 
 def main(arguments: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Generate pure Lua enum modules and their declarations")
+    parser = argparse.ArgumentParser(description="Generate annotated pure Lua enum modules")
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--catalogue", type=Path)
     source.add_argument("--sfml-api", type=Path)

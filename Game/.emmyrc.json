@@ -19,6 +19,12 @@
         "workspaceRoots": [
             "./Scripts/stub"
         ],
+        "moduleMap": [
+            {
+                "pattern": "^Scripts[.]Enums[.](.*)$",
+                "replace": "Enums.$1"
+            }
+        ],
         "library": [
             "./Scripts/stub"
         ]
