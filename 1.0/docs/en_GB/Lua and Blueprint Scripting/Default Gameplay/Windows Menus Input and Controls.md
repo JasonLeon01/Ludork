@@ -70,6 +70,8 @@ Floor previews evaluate [ConditionalActor](<../Source Classes/ConditionalActor.m
 
 Attribute shops expose display snapshots through `getOffers()` and validate purchases through `purchaseAttribute(key)`. A scalar price reference is shared by all offers, while an array sets per-offer prices. A purchase increments the corresponding price.
 
+Dialogue, tutorial and window APIs return `Engine.AsyncOperation`. See [Scene operations](<../Node Functions/Scene.md#lua-waiting-and-results>) for completion results and [Lua asynchronous tasks](<../../Getting Started/Ludork Lua Advanced.md>) for sequential waiting.
+
 ### Map introduction
 
 `Map_01` uses the invisible `BP_MapIntroduction` Actor to introduce the HUD menu portrait and representative Actors after the map transition. It runs the guides in order, then records and destroys itself.

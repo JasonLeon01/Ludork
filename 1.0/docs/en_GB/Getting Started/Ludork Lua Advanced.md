@@ -212,7 +212,23 @@ Standard also installs binary-safe codec globals:
 
 ## Cooperative tasks and file batches
 
-`asyncio.create_task(callback, ...)` starts a cooperative task. `asyncio.sleep(seconds)` yields it, and `asyncio.cancel_task(task)` requests cancellation.
+`asyncio.create_task(callback, ...)` starts a cooperative task. Inside it, use `asyncio.sleep(seconds)` for a delay or `asyncio.await(operation)` to wait for an asynchronous result without blocking the game loop. Both require a task created by `asyncio.create_task`.
+
+For example, while a `SceneMap` is active, these configured tutorials run in order:
+
+```lua
+local Scene = require("GlobalFunctions.Scene")
+
+local task = asyncio.create_task(function ()
+    asyncio.await(Scene.ShowTutorial("Map01Menu"))
+    asyncio.await(Scene.ShowTutorial("Map01Dialogue"))
+    asyncio.await(Scene.ShowMessage("Guide", "Ready to continue."))
+end)
+```
+
+`await` returns the operation's final result. If the operation is cancelled, the task ends without running the next statement. To stop only this task, call `asyncio.cancel_task(task)`; the shared operation and its other waiters remain active. Task completion and cancellation run Lua `__close` cleanup.
+
+See [AsyncOperation](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Events and Module Root.md#asyncoperation>) for the operation API and [Lua Runtime and Modules](<../Lua and Blueprint Scripting/Lua Runtime and Modules.md#asynchronous-operation-updates>) for custom-entry initialization.
 
 For larger reads, `asyncio.start_file_batch(specs)` scans and reads at most four files concurrently while preserving manifest order. Logical `Data/...` roots support packed Data. Other roots use the physical filesystem. `asyncio.poll_file_batch(job, maxItems?)` returns progress, delivered items and a structured failure. `asyncio.cancel_file_batch(job)` cancels the job.
 

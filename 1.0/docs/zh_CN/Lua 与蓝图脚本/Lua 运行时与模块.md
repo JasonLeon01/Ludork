@@ -88,6 +88,10 @@ return StairDirection
 
 LuaSF 注册全局 `sf`。API 声明 `sf.Vector2i`、`sf.Vector2f`、`sf.Color` 等类型时，必须传入对应的原生值，例如 `sf.Vector2i.new(...)`、`sf.Vector2f.new(...)`、`sf.Color.new(...)`。原生容器与普通 table 不会隐式充当 vector。
 
+## 异步操作更新
+
+默认的 `Scripts/Entry.lua` 调用 `GlobalFunctions.NodeGraph.initLatent()` 启用操作更新。自定义入口也需调用，包括只使用脚本的游戏。用法见 [Lua 等待示例](<../快速入门/Ludork Lua 进阶.md#协作任务与文件批次>)及[蓝图执行](<蓝图脚本/执行流、事件与变量.md>)。
+
 ## 会话生命周期
 
 同一个 Lua VM 中的主线程与协程共享一个原生会话。被捕获的回调与不透明值可以跨 yield 存活，但不能跨越 VM，会话关闭后即告失效。原生宿主接入见[会话与模块生命周期](<../C++ 原生开发/构建与模块布局.md#会话与模块生命周期>)。

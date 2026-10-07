@@ -212,7 +212,23 @@ Standard 还会安装以下二进制安全的编解码全局对象：
 
 ## 协作任务与文件批次
 
-`asyncio.create_task(callback, ...)` 启动一个协作式任务，`asyncio.sleep(seconds)` 让它让出执行，`asyncio.cancel_task(task)` 请求取消该任务。
+`asyncio.create_task(callback, ...)` 启动协作式任务。在任务中，用 `asyncio.sleep(seconds)` 延时，或用 `asyncio.await(operation)` 等待异步结果，都不会阻塞游戏循环。两者只能在 `asyncio.create_task` 创建的任务内使用。
+
+例如，在活动的 `SceneMap` 中，按顺序播放以下已配置的教程：
+
+```lua
+local Scene = require("GlobalFunctions.Scene")
+
+local task = asyncio.create_task(function ()
+    asyncio.await(Scene.ShowTutorial("Map01Menu"))
+    asyncio.await(Scene.ShowTutorial("Map01Dialogue"))
+    asyncio.await(Scene.ShowMessage("向导", "可以继续了。"))
+end)
+```
+
+`await` 返回操作的最终结果；操作被取消时，任务结束，不执行下一句。若只需停止这个任务，调用 `asyncio.cancel_task(task)`，共享操作及其他等待者仍继续运行。任务完成或取消时会执行 Lua `__close` 清理。
+
+操作 API 见 [AsyncOperation](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/事件与模块根.md#asyncoperation>)，自定义入口的初始化见 [Lua 运行时与模块](<../Lua 与蓝图脚本/Lua 运行时与模块.md#异步操作更新>)。
 
 读取量较大时，用 `asyncio.start_file_batch(specs)` 处理：最多并发扫描并读取四个文件，交付时仍保持 manifest 顺序。逻辑 `Data/...` 根路径支持已打包的 Data，其余根路径使用物理文件系统。`asyncio.poll_file_batch(job, maxItems?)` 返回进度、已交付条目与结构化错误，`asyncio.cancel_file_batch(job)` 取消整个任务。
 

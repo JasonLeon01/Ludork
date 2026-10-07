@@ -8,6 +8,12 @@ Closing the window during runtime or input processing ends the current frame bef
 
 On Android and iOS, losing focus pauses scene and UI updates, rendering, runtime callbacks and scene timers while the loop continues processing system events. Returning to the foreground in the same process preserves the scene and Lua state, resets the frame and fixed-update timing, and resumes without catching up on time spent in the background. An actual close still follows the normal exit lifecycle.
 
+### Scene timers
+
+`scene:addTimer(interval, task, params, blocking)` returns an `Engine.AsyncOperation`. On expiry, it runs `task` before completing with `true` and resuming the Blueprint `TimeUp` branch. Callback errors propagate.
+
+The Lua-only `scene:cancelTimers()` cancels unfinished timers and clears their input blocking. Calling it from a timer callback also cancels the current operation and skips any remaining callbacks. Scene exit or destruction cancels timers automatically.
+
 ### Properties
 
 No editable properties are declared.
@@ -17,7 +23,7 @@ No editable properties are declared.
 | Name | Kind | Parameters | Returns | Execution and metadata |
 |---|---|---|---|---|
 | `getUIManager` | `function` | self: { "GlobalCore", "SceneBase" } = "self" | return: { "GlobalCore", "UIManager" } | Pure |
-| `addTimer` | `function` | self: { "GlobalCore", "SceneBase" } = "self"; interval: float = nil; task: function = nil; params: any[] = {  }; blocking: bool = false | return: function | Latent; LatentStates { [1] = "TimeUp", TimeUp = true } |
+| `addTimer` | `function` | self: { "GlobalCore", "SceneBase" } = "self"; interval: float = nil; task: function = nil; params: any[] = {  }; blocking: bool = false | return: { "Engine", "AsyncOperation" } | Latent; LatentStates { [1] = "TimeUp", TimeUp = true } |
 | `isInputBlocked` | `function` | self: { "GlobalCore", "SceneBase" } = "self" | blocked: bool | Pure |
 | `addAnim` | `function` | self: { "GlobalCore", "SceneBase" } = "self"; anim: { "GlobalCore", "Animation" } | — | ExecSplit { [1] = "default", default = nil } |
 | `getAnims` | `function` | self: { "GlobalCore", "SceneBase" } = "self" | anims: { "GlobalCore", "Animation[]" } | Pure |
@@ -158,16 +164,20 @@ Graphics canvas textures use premultiplied alpha. Custom full-screen shaders mus
 
 `GlobalCore.Transition` owns transition requests and frozen backgrounds. `requestTransition` accepts an empty optional value or a complete `/Game/Assets/Transitions/...` logical path without adding a prefix. Freeze requests complete when the outgoing frame has been captured; transition completion is confirmed after the final frame has been submitted.
 
+`setTransition`, `freezeTransitionBackground` and `requestTransition` return `Engine.AsyncOperation` with a successful result of `true`. For Blueprint `Frozen` / `Finished` branches, use the [Transition nodes](<../../../Node Functions/Transition.md>).
+
+A new request of the same kind cancels the previous unfinished operation. `cancelTransitionBackgroundFreeze()` cancels the freeze operation and clears the frozen state. `cancelPendingTransition()` cancels only a not-yet-applied request, leaving an already-running transition intact. Runtime reset or shutdown cancels remaining operations.
+
 ### Functions and events
 
 | Name | Kind | Parameters | Returns | Execution and metadata |
 |---|---|---|---|---|
-| `setTransition` | `function` | transitionResource: sf.Texture = nil; transitionTime: float = 1 | — | — |
-| `freezeTransitionBackground` | `function` | — | — | — |
+| `setTransition` | `function` | transitionResource: sf.Texture = nil; transitionTime: float = 1 | return: { "Engine", "AsyncOperation" } | — |
+| `freezeTransitionBackground` | `function` | — | return: { "Engine", "AsyncOperation" } | — |
 | `isTransitionBackgroundFrozen` | `function` | — | return: bool | Pure |
 | `isTransitionBackgroundFreezePending` | `function` | — | return: bool | Pure |
 | `cancelTransitionBackgroundFreeze` | `function` | — | — | — |
-| `requestTransition` | `function` | transitionName: string = nil; transitionTime: float = 1 | — | — |
+| `requestTransition` | `function` | transitionName: string = nil; transitionTime: float = 1 | return: { "Engine", "AsyncOperation" } | — |
 | `cancelPendingTransition` | `function` | — | — | — |
 | `isTransitionPending` | `function` | — | return: bool | Pure |
 | `isInTransition` | `function` | — | return: bool | Pure |

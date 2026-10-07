@@ -4,7 +4,9 @@
 
 Metadata source: `Scripts/Source/MapActors/DoorBase_meta.lua`
 
-Its two-stage latent conditions use `Enums.MovementLatentOutput.STARTED` (`0`) and `FINISHED` (`1`), shared with the movement nodes. These values are execution output indices.
+`openDoor()` and `closeDoor()` return `Engine.AsyncOperation`. Animation start emits `Enums.MovementLatentOutput.STARTED` (`0`); completion returns `FINISHED` (`1`), matching the Blueprint `Started` / `Finished` branches.
+
+Repeated requests in the same direction share the pending operation; reversing cancels it. Opening an already-open door or closing an already-closed door completes immediately. Normal opening completes before the door destroys itself; other destruction cancels an unfinished operation.
 
 ## DoorBase
 
@@ -28,6 +30,6 @@ Meta: `{ PathVars = { [1] = { [1] = "gateSE", [2] = "/Game/Assets/Sounds" } }, C
 
 | Name | Kind | Parameters | Returns | Execution and metadata |
 |---|---|---|---|---|
-| `openDoor` | `function` | self: { "Source.MapActors.DoorBase", "DoorBase" } = "self" | return: function | Latent true; LatentStates { [1] = "Started", [2] = "Finished", Started = { [1] = 0 }, Finished = { [1] = 1 } } |
-| `closeDoor` | `function` | self: { "Source.MapActors.DoorBase", "DoorBase" } = "self" | return: function | Latent true; LatentStates { [1] = "Started", [2] = "Finished", Started = { [1] = 0 }, Finished = { [1] = 1 } } |
+| `openDoor` | `function` | self: { "Source.MapActors.DoorBase", "DoorBase" } = "self" | return: { "Engine", "AsyncOperation" } | Latent true; LatentStates { [1] = "Started", [2] = "Finished", Started = { [1] = 0 }, Finished = { [1] = 1 } } |
+| `closeDoor` | `function` | self: { "Source.MapActors.DoorBase", "DoorBase" } = "self" | return: { "Engine", "AsyncOperation" } | Latent true; LatentStates { [1] = "Started", [2] = "Finished", Started = { [1] = 0 }, Finished = { [1] = 1 } } |
 | `onTick` | `event` | deltaTime: float | — | ExecSplit { [1] = "default", default = nil } |

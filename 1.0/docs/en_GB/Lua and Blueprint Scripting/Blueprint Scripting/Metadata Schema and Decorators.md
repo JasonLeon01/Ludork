@@ -197,7 +197,7 @@ Use `defaultUnset = { "parameterName" }` for a parameter whose initial value mus
 ## Execution declarations
 
 - `ExecSplit = { "success", "fail", success = true, fail = false }` orders execution outputs and maps them to runtime result values.
-- `Latent = true` marks suspension; ordered `LatentStates` declares the resume outputs and their value types.
+- `Latent = true` marks suspension; ordered `LatentStates` maps resume outputs to stage values. Declare the return type as `{ "Engine", "AsyncOperation" }`; see [execution flow](<Execution Flow Events and Variables.md#execution-semantics>) for runtime behaviour.
 - `Loop = true` marks a loop node; `LoopNode = "ForEach"` or `"ForLoop"` selects the runtime protocol.
 - `type = "event"` creates an event entry only. Its parameters and returns use the same signature format. Without an explicit split, the event receives `ExecSplit = { "default", default = "nil" }`; the string `"nil"` is the metadata token for the default branch.
 

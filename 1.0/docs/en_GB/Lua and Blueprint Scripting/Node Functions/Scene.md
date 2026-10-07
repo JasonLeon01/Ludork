@@ -18,15 +18,15 @@ No editable properties are declared.
 |---|---|---|---|---|
 | `GotoMap` | `function` | mapPath: string = ""; blockTransition: bool = false; position: sf.Vector2i | — | ExecSplit { [1] = "default", default = nil }; Meta { Transfer = { [1] = { [1] = "position", [2] = "mapPath" } } } |
 | `GameOver` | `function` | — | — | ExecSplit { [1] = "default", default = nil } |
-| `AddTimer` | `function` | interval: float; blocking: bool = false | return: function | Latent true; LatentStates { [1] = "TimeUp", TimeUp = { [1] = true } } |
+| `AddTimer` | `function` | interval: float; blocking: bool = false | return: { "Engine", "AsyncOperation" } | Latent true; LatentStates { [1] = "TimeUp", TimeUp = { [1] = true } } |
 | `ShowEnemyBook` | `function` | — | — | ExecSplit { [1] = "default", default = nil } |
-| `ShowTutorial` | `function` | key: string | return: function | Latent true; LatentStates { [1] = "Finished", Finished = { [1] = true } } |
-| `ShowMessageByTag` | `function` | name: string; message: string; refActorTag: string = "" | return: function | Latent true; LatentStates { [1] = "FinishedDialogue", FinishedDialogue = { [1] = true } } |
-| `ShowMessage` | `function` | name: string; message: string; actor: { "Engine", "Actor" } | return: function | Latent true; LatentStates { [1] = "FinishedDialogue", FinishedDialogue = { [1] = true } } |
-| `ShowVoiceMessageByTag` | `function` | name: string; message: string; voiceFileName: string; refActorTag: string = "" | return: function | Latent true; LatentStates { [1] = "FinishedDialogue", FinishedDialogue = { [1] = true } }; Meta { PathVars = { [1] = { [1] = "voiceFileName", [2] = "/Game/Assets/Voices" } } } |
-| `ShowVoiceMessage` | `function` | name: string; message: string; voiceFileName: string; refActor: { "Engine", "Actor" }; minDistance: float = 64 | return: function | Latent true; LatentStates { [1] = "FinishedDialogue", FinishedDialogue = { [1] = true } }; Meta { PathVars = { [1] = { [1] = "voiceFileName", [2] = "/Game/Assets/Voices" } } } |
-| `ShowSelection` | `function` | name: string = ""; options: string[] = {  }; refActorTag: string = ""; allowCancel: bool = true | return: function | Latent true; LatentStates { [1] = "Selected0", [2] = "Selected1", [3] = "Selected2", [4] = "Selected3", [5] = "Cancelled", Selected0 = { [1] = 0 }, Selected1 = { [1] = 1 }, Selected2 = { [1] = 2 }, Selected3 = { [1] = 3 }, Cancelled = { [1] = -1 } } |
-| `ShowRefSelection` | `function` | name: string = ""; options: string[] = {  }; refActor: { "Engine", "Actor" }; allowCancel: bool = true | return: function | Latent true; LatentStates { [1] = "Selected0", [2] = "Selected1", [3] = "Selected2", [4] = "Selected3", [5] = "Cancelled", Selected0 = { [1] = 0 }, Selected1 = { [1] = 1 }, Selected2 = { [1] = 2 }, Selected3 = { [1] = 3 }, Cancelled = { [1] = -1 } } |
+| `ShowTutorial` | `function` | key: string | return: { "Engine", "AsyncOperation" } | Latent true; LatentStates { [1] = "Finished", Finished = { [1] = true } } |
+| `ShowMessageByTag` | `function` | name: string; message: string; refActorTag: string = "" | return: { "Engine", "AsyncOperation" } | Latent true; LatentStates { [1] = "FinishedDialogue", FinishedDialogue = { [1] = true } } |
+| `ShowMessage` | `function` | name: string; message: string; actor: { "Engine", "Actor" } | return: { "Engine", "AsyncOperation" } | Latent true; LatentStates { [1] = "FinishedDialogue", FinishedDialogue = { [1] = true } } |
+| `ShowVoiceMessageByTag` | `function` | name: string; message: string; voiceFileName: string; refActorTag: string = "" | return: { "Engine", "AsyncOperation" } | Latent true; LatentStates { [1] = "FinishedDialogue", FinishedDialogue = { [1] = true } }; Meta { PathVars = { [1] = { [1] = "voiceFileName", [2] = "/Game/Assets/Voices" } } } |
+| `ShowVoiceMessage` | `function` | name: string; message: string; voiceFileName: string; refActor: { "Engine", "Actor" }; minDistance: float = 64 | return: { "Engine", "AsyncOperation" } | Latent true; LatentStates { [1] = "FinishedDialogue", FinishedDialogue = { [1] = true } }; Meta { PathVars = { [1] = { [1] = "voiceFileName", [2] = "/Game/Assets/Voices" } } } |
+| `ShowSelection` | `function` | name: string = ""; options: string[] = {  }; refActorTag: string = ""; allowCancel: bool = true | return: { "Engine", "AsyncOperation" } | Latent true; LatentStates { [1] = "Selected0", [2] = "Selected1", [3] = "Selected2", [4] = "Selected3", [5] = "Cancelled", Selected0 = { [1] = 0 }, Selected1 = { [1] = 1 }, Selected2 = { [1] = 2 }, Selected3 = { [1] = 3 }, Cancelled = { [1] = -1 } } |
+| `ShowRefSelection` | `function` | name: string = ""; options: string[] = {  }; refActor: { "Engine", "Actor" }; allowCancel: bool = true | return: { "Engine", "AsyncOperation" } | Latent true; LatentStates { [1] = "Selected0", [2] = "Selected1", [3] = "Selected2", [4] = "Selected3", [5] = "Cancelled", Selected0 = { [1] = 0 }, Selected1 = { [1] = 1 }, Selected2 = { [1] = 2 }, Selected3 = { [1] = 3 }, Cancelled = { [1] = -1 } } |
 | `LockCamera` | `function` | — | — | ExecSplit { [1] = "default", default = nil } |
 | `UnlockCamera` | `function` | — | — | ExecSplit { [1] = "default", default = nil } |
 | `AttachCamera` | `function` | actor: { "Engine", "Actor" } | — | ExecSplit { [1] = "default", default = nil } |
@@ -46,10 +46,16 @@ No editable properties are declared.
 | `SelfRecordDestroyed` | `function` | — | — | ExecSplit { [1] = "default", default = nil } |
 | `RecordAndDestroyActor` | `function` | actor: { "Engine", "Actor" } | — | ExecSplit { [1] = "default", default = nil } |
 | `SelfRecordAndDestroy` | `function` | — | — | ExecSplit { [1] = "default", default = nil } |
-| `OpenPlayerName` | `function` | — | return: function | Latent Closed |
-| `OpenShop` | `function` | items: string[] = {  }; canSell: bool = true | return: function | Latent true; LatentStates { [1] = "Closed", Closed = { [1] = true } } |
-| `OpenAttrShop` | `function` | actor: { "Engine", "Actor" }; shopName: string = ""; shopDescription: string = ""; abilities: any = {  }; price: any = 0; priceIncrement: int = 1; moneyName: string = "GOLD" | return: function | Latent true; LatentStates { [1] = "Closed", Closed = { [1] = true } } |
-| `OpenAttrShopByTag` | `function` | actorTag: string = ""; shopName: string = ""; shopDescription: string = ""; abilities: any = {  }; price: any = 0; priceIncrement: int = 1; moneyName: string = "GOLD" | return: function | Latent true; LatentStates { [1] = "Closed", Closed = { [1] = true } } |
+| `OpenPlayerName` | `function` | — | return: { "Engine", "AsyncOperation" } | Latent Closed |
+| `OpenShop` | `function` | items: string[] = {  }; canSell: bool = true | return: { "Engine", "AsyncOperation" } | Latent true; LatentStates { [1] = "Closed", Closed = { [1] = true } } |
+| `OpenAttrShop` | `function` | actor: { "Engine", "Actor" }; shopName: string = ""; shopDescription: string = ""; abilities: any = {  }; price: any = 0; priceIncrement: int = 1; moneyName: string = "GOLD" | return: { "Engine", "AsyncOperation" } | Latent true; LatentStates { [1] = "Closed", Closed = { [1] = true } } |
+| `OpenAttrShopByTag` | `function` | actorTag: string = ""; shopName: string = ""; shopDescription: string = ""; abilities: any = {  }; price: any = 0; priceIncrement: int = 1; moneyName: string = "GOLD" | return: { "Engine", "AsyncOperation" } | Latent true; LatentStates { [1] = "Closed", Closed = { [1] = true } } |
+
+### Lua waiting and results
+
+Latent functions return `Engine.AsyncOperation`; see [Lua asynchronous tasks](<../../Getting Started/Ludork Lua Advanced.md>) for sequential waiting. Tutorials, messages, timers and window-close operations complete with `true`. Selections return a zero-based index or `-1` for player cancellation, which follows the Blueprint `Cancelled` output rather than cancelling the operation.
+
+Messages and windows complete after their closing animation. A new message or selection cancels the previous dialogue operation; reopening a shop replaces its operation, while repeated requests for the open player-name window share one operation. Voice playback stops when its dialogue completes or is cancelled. Scene and map cleanup follows [SceneMap](<../Source Classes/SceneMap.md#script-operations-and-lifetime>).
 
 ### GotoMap world destinations
 
@@ -61,9 +67,9 @@ No editable properties are declared.
 
 ### Tutorials
 
-`ShowTutorial(key)` displays the configured guide and resumes `Finished` with `true` after confirmation. Recorded keys complete immediately; unknown keys raise an error. Different keys queue in order, and pending duplicates share one presentation.
+`ShowTutorial(key)` displays the configured guide and completes with `true` after confirmation. Pending requests for the same key share an operation, even if the key has already been recorded; otherwise, recorded keys complete immediately. Different keys queue in order, and unknown keys raise an error.
 
-Leaving or destroying the scene, or replacing its map, cancels waiting Blueprint executions without following `Finished`; direct Lua wait conditions complete. Recording rules are described under [Saves](<../Default Gameplay/Runtime Data Configuration and Saves.md#saves>).
+When a request reaches the front of the queue, empty localised text (`""`) skips presentation and recording and completes through `Finished`. Recording rules are described under [Saves](<../Default Gameplay/Runtime Data Configuration and Saves.md#saves>).
 
 Blueprints choose the keys and their execution order. The `Map_01` example supplies an ordered key array to `ForEach` and calls `ShowTutorial` in the loop body. See [Map introduction](<../Default Gameplay/Windows Menus Input and Controls.md#map-introduction>) for configuration.
 

@@ -23,9 +23,9 @@ Scene 直接创建 HUD 与 Region Title。由 `Source.Windows` 导出的可选�
 | 名称 | 种类 | 参数 | 返回 | 执行语义与 metadata |
 |---|---|---|---|---|
 | `getGameMap` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self" | gameMap: { "Global.GameMap", "GameMap" } | Pure |
-| `openPlayerName` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self" | return: function | Latent Closed |
-| `showMessage` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self"; name: string; message: string; refActor: { "Engine", "Actor" }; localeArgs: Dict[string, any] = {  } | return: function | Latent true; LatentStates { [1] = "FinishedDialogue", FinishedDialogue = { [1] = true } } |
-| `showSelection` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self"; name: string; options: string[]; refActor: { "Engine", "Actor" }; allowCancel: bool = true; localeArgs: Dict[string, any] = {  } | return: function | Latent true; LatentStates { [1] = "Selected0", [2] = "Selected1", [3] = "Selected2", [4] = "Selected3", [5] = "Cancelled", Selected0 = { [1] = 0 }, Selected1 = { [1] = 1 }, Selected2 = { [1] = 2 }, Selected3 = { [1] = 3 }, Cancelled = { [1] = -1 } } |
+| `openPlayerName` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self" | return: { "Engine", "AsyncOperation" } | Latent Closed |
+| `showMessage` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self"; name: string; message: string; refActor: { "Engine", "Actor" }; localeArgs: Dict[string, any] = {  } | return: { "Engine", "AsyncOperation" } | Latent true; LatentStates { [1] = "FinishedDialogue", FinishedDialogue = { [1] = true } } |
+| `showSelection` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self"; name: string; options: string[]; refActor: { "Engine", "Actor" }; allowCancel: bool = true; localeArgs: Dict[string, any] = {  } | return: { "Engine", "AsyncOperation" } | Latent true; LatentStates { [1] = "Selected0", [2] = "Selected1", [3] = "Selected2", [4] = "Selected3", [5] = "Cancelled", Selected0 = { [1] = 0 }, Selected1 = { [1] = 1 }, Selected2 = { [1] = 2 }, Selected3 = { [1] = 3 }, Cancelled = { [1] = -1 } } |
 | `applyLoadedGame` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self"; inst: { "Source.GameInstance", "GameInstance" } | — | ExecSplit { [1] = "default", default = nil } |
 | `showEnemyBook` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self" | — | ExecSplit { [1] = "default", default = nil } |
 | `showFloorTeleporter` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self" | — | ExecSplit { [1] = "default", default = nil } |
@@ -33,6 +33,14 @@ Scene 直接创建 HUD 与 Region Title。由 `Source.Windows` 导出的可选�
 | `recordAddedActor` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self"; actor: { "Engine", "Actor" } | — | ExecSplit { [1] = "default", default = nil } |
 | `recordActorPosition` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self"; actor: { "Engine", "Actor" }; position: sf.Vector2i = nil | — | ExecSplit { [1] = "default", default = nil } |
 | `recordDestroyedActor` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self"; actor: { "Engine", "Actor" } | — | ExecSplit { [1] = "default", default = nil } |
+
+### 脚本操作与生命周期
+
+`showMessage`、`showSelection`、`openPlayerName`、`openShop` 和 `openAttrShop` 返回 `Engine.AsyncOperation`。完成结果与窗口替换规则同 [Scene 节点](<../节点函数/Scene.md#lua-等待与结果>)。
+
+Lua 还可调用 `showVoiceMessage(name, message, voiceFileName, refActor, minDistance, spatial)`。`spatial = true` 时，语音以 `refActor` 定位，并将 `minDistance` 传给音频管理器；传 `false` 时播放非空间语音。参考 Actor 仍用于定位消息窗口。
+
+退出场景、销毁场景和替换地图会取消未完成的教程、对话、商店、改名窗口及场景计时器，关闭窗口并解除输入阻塞。离开地图的 Actor 所注册的操作（包括移动与门动画）也会取消。等待中的 Lua 任务与蓝图事件随之停止，不执行后续语句或完成出口。
 
 ### 组合式大地图行为
 

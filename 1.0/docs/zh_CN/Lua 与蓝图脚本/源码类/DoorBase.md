@@ -4,7 +4,9 @@
 
 Metadata 来源：`Scripts/Source/MapActors/DoorBase_meta.lua`
 
-它的两阶段 latent 条件与移动节点共享 `Enums.MovementLatentOutput.STARTED`（`0`）和 `FINISHED`（`1`）；这些值表示执行输出索引。
+`openDoor()` 与 `closeDoor()` 返回 `Engine.AsyncOperation`。动画开始时发布 `Enums.MovementLatentOutput.STARTED`（`0`），结束时以 `FINISHED`（`1`）完成，对应蓝图的 `Started` / `Finished` 分支。
+
+同方向的重复请求共享未完成操作，反向播放会取消原操作。对已打开的门开门、对已关闭的门关门都会立即完成。正常开门在门销毁自身之前完成，其他销毁情形取消未完成操作。
 
 ## DoorBase
 
@@ -28,6 +30,6 @@ Meta：`{ PathVars = { [1] = { [1] = "gateSE", [2] = "/Game/Assets/Sounds" } }, 
 
 | 名称 | 种类 | 参数 | 返回 | 执行语义与 metadata |
 |---|---|---|---|---|
-| `openDoor` | `function` | self: { "Source.MapActors.DoorBase", "DoorBase" } = "self" | return: function | Latent true; LatentStates { [1] = "Started", [2] = "Finished", Started = { [1] = 0 }, Finished = { [1] = 1 } } |
-| `closeDoor` | `function` | self: { "Source.MapActors.DoorBase", "DoorBase" } = "self" | return: function | Latent true; LatentStates { [1] = "Started", [2] = "Finished", Started = { [1] = 0 }, Finished = { [1] = 1 } } |
+| `openDoor` | `function` | self: { "Source.MapActors.DoorBase", "DoorBase" } = "self" | return: { "Engine", "AsyncOperation" } | Latent true; LatentStates { [1] = "Started", [2] = "Finished", Started = { [1] = 0 }, Finished = { [1] = 1 } } |
+| `closeDoor` | `function` | self: { "Source.MapActors.DoorBase", "DoorBase" } = "self" | return: { "Engine", "AsyncOperation" } | Latent true; LatentStates { [1] = "Started", [2] = "Finished", Started = { [1] = 0 }, Finished = { [1] = 1 } } |
 | `onTick` | `event` | deltaTime: float | — | ExecSplit { [1] = "default", default = nil } |

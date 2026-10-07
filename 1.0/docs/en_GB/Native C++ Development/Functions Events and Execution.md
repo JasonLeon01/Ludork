@@ -73,13 +73,14 @@ bool tryMove();
 For latent work, place the resume states inside `latent(...)`:
 
 ```cpp
-BIND_METHOD(latent(TimeUp = true),
+BIND_METHOD(nonnull_return = true, latent(TimeUp = true),
             defaults = {nil, nil, {}, false},
             parameter_types = {float, function, any[], bool})
-TimerHandle addTimer(float interval,
-                     RuntimeIdentityPtr task = {},
-                     RuntimeValue::Array params = {},
-                     bool blocking = false);
+std::shared_ptr<AsyncOperation> addTimer(
+    float interval,
+    RuntimeIdentityPtr task = {},
+    RuntimeValue::Array params = {},
+    bool blocking = false);
 ```
 
 `defaults` describes parameter defaults and is unrelated to `outpins(default = nil)`. The list form also applies to constructor and free-function `defaults`. Lowercase tokens and brace-enclosed option lists follow [Macro Reference](<Macro Reference.md>).
@@ -87,6 +88,10 @@ TimerHandle addTimer(float interval,
 `Pure = true` cannot combine with an execution protocol. A getter-backed property cannot carry one, and its singular top-level `default` remains the property default. Inline `loop_node(ForEach)` declares a loop, while standalone `BIND_REGISTER_EVENT()` creates an event entry. An event without explicit outputs receives the default branch value `nil`.
 
 Place display, editor and execution information in `BIND_METHOD(...)` or the corresponding function or property annotation. Independent metadata, purity, execution-split and latent markers are not supported.
+
+`nonnull_return = true` declares that a method or free function returns one non-null `std::shared_ptr` result. Bindgen removes the outer `nil` alternative from its Lua declaration and raises a binding error if native code returns null. It does not change the C++ type or Blueprint execution pins.
+
+Native latent implementations return `std::shared_ptr<AsyncOperation>` from `<Runtime/Async/AsyncOperation.hpp>`. Construct with `AsyncOperation::create(poll?)`, publish intermediate states with `emit`, and settle with `complete` or `cancel`.
 
 ### Declare strict callbacks
 

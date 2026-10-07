@@ -42,13 +42,14 @@ BIND_REGISTER_EVENT()
 BIND_METHOD()
 virtual void onCreate();
 
-BIND_METHOD(latent(TimeUp = true),
+BIND_METHOD(nonnull_return = true, latent(TimeUp = true),
             defaults = {nil, nil, {}, false},
             parameter_types = {float, function, any[], bool})
-TimerHandle addTimer(float interval,
-                     RuntimeIdentityPtr task = {},
-                     RuntimeValue::Array params = {},
-                     bool blocking = false);
+std::shared_ptr<AsyncOperation> addTimer(
+    float interval,
+    RuntimeIdentityPtr task = {},
+    RuntimeValue::Array params = {},
+    bool blocking = false);
 
 BIND_METHOD(loop_node(ForEach))
 void forEach(const RuntimeValue::Array &values);

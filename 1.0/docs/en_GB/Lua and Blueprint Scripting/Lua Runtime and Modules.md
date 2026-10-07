@@ -88,6 +88,10 @@ Standard globals such as `os.createDirectories`, `os.removeFile`, `zlib` and `ba
 
 LuaSF registers the global `sf`. Use exact native values such as `sf.Vector2i.new(...)`, `sf.Vector2f.new(...)` and `sf.Color.new(...)` when an API declares those types. Native containers and ordinary tables are not implicit vector adapters.
 
+## Asynchronous operation updates
+
+The default `Scripts/Entry.lua` calls `GlobalFunctions.NodeGraph.initLatent()` to enable operation updates. Custom entry points must also call it, including for script-only gameplay. See [Lua waiting examples](<../Getting Started/Ludork Lua Advanced.md#cooperative-tasks-and-file-batches>) and [Blueprint execution](<Blueprint Scripting/Execution Flow Events and Variables.md>).
+
 ## Session lifetime
 
 The main thread and coroutines in one Lua VM share a native session. Captured callbacks and opaque values survive yields but cannot cross VMs, and session shutdown invalidates them. Native host integration is covered in [Session and module lifetime](<../Native C++ Development/Build and Module Layout.md#session-and-module-lifetime>).

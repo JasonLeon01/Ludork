@@ -33,6 +33,8 @@ Variadic `BIND_*` markers compile to nothing. Bindgen reads raw tokens such as `
 
 Bound classes, ungrouped functions and module properties use exactly one module-root path. Grouped functions use their group table. `BIND_INJECT(global = ...)` uses `global` as the injection-source identifier. `variadic = true` is restricted to matching vector-in and vector-out `std::function` injection. It maps the trailing vector directly to Lua stack arguments and results.
 
+For `nonnull_return = true`, see [Functions, Events and Execution](<Functions Events and Execution.md#declare-execution-behaviour>).
+
 ## Native cast declarations
 
 In a class's public section, use `LUDORK_CAST_ROOT(Type)` for a query root or `LUDORK_CAST_DERIVED(Type, Bases...)` for a derived type, listing its participating direct bases. Each dynamic cast target and each polymorphic bound class must declare its own macro; an inherited declaration does not register a new type. Non-polymorphic value types need no cast declaration. Generated Lua adapters declare the protocol automatically; their public host classes must declare it themselves.

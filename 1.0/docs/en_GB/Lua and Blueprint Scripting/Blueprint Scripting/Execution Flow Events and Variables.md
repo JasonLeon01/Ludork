@@ -39,7 +39,7 @@ Open **Database → Common Functions** (F8). A Common Function owns one reusable
 
 - `Pure = true` removes the execution input and output pins. Return values do not imply purity.
 - `ExecSplit` maps named execution outputs to result values.
-- `Latent` nodes suspend the graph and later resume through declared states.
+- `Latent` nodes return an `Engine.AsyncOperation`, suspend the graph and resume through declared states.
 - Every Blueprint event drops repeated triggers for the same graph instance and event key while latent nodes from the current execution remain pending. A new trigger is accepted after all latent work of that execution resolves. Different graph instances and event keys remain independent.
 - `LoopNode` describes loop-body and completion behaviour.
 - Data links connect compatible typed pins, and execution links connect flow pins.
@@ -48,7 +48,7 @@ Runtime event queries and execution use native `Engine.Graph` userdata. Raw Grap
 
 ### Cancelling latent execution
 
-`Engine.latentManager:cancel(condition)` cancels event executions waiting on that same function, including their pending nodes and loops, without running outputs or completion callbacks. Other events are unaffected; unregistered or completed conditions are ignored. Call it before disposing of an asynchronous operation whose Blueprint must not resume.
+`operation:cancel()` or `Engine.latentManager:cancel(operation)` cancels the waiting event executions, including their pending nodes and loops, without running outputs or completion callbacks. See [AsyncOperation](<../Global and Core Modules/Core Modules/Engine/Events and Module Root.md#asyncoperation>) for the shared Lua and Blueprint operation contract.
 
 ## Instance method receivers
 

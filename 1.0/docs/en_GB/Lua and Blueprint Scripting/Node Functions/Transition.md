@@ -1,10 +1,10 @@
 # GlobalFunctions.Transition
 
-The callable wait conditions live in `GlobalFunctions.FrozenCondition` and `GlobalFunctions.TransitionCondition`. Freeze waits for capture; a transition wait finishes only after observing that transition pending/running has begun and then ended.
+Both functions return `Engine.AsyncOperation` and complete with `true`: freeze waits for capture of the outgoing frame (`Frozen`), and transition waits for submission of its final frame (`Finished`). Replacement and cancellation follow [GlobalCore.Transition](<../Global and Core Modules/Core Modules/GlobalCore/Scenes and System.md#transition>).
 
 Metadata source: `Scripts/GlobalFunctions/Transition_meta.lua`
 
 | Name | Kind | Parameters | Returns | Execution and metadata |
 |---|---|---|---|---|
-| `FreezeTransitionBackground` | `function` | — | return: function | Latent true; LatentStates { [1] = "Frozen", Frozen = { [1] = true } } |
-| `RequestTransition` | `function` | transitionName: string = ""; transitionTime: float = 1 | return: function | Latent true; LatentStates { [1] = "Finished", Finished = { [1] = true } }; Meta { PathVars = { [1] = { [1] = "transitionName", [2] = "/Game/Assets/Transitions" } } } |
+| `FreezeTransitionBackground` | `function` | — | return: { "Engine", "AsyncOperation" } | Latent true; LatentStates { [1] = "Frozen", Frozen = { [1] = true } } |
+| `RequestTransition` | `function` | transitionName: string = ""; transitionTime: float = 1 | return: { "Engine", "AsyncOperation" } | Latent true; LatentStates { [1] = "Finished", Finished = { [1] = true } }; Meta { PathVars = { [1] = { [1] = "transitionName", [2] = "/Game/Assets/Transitions" } } } |

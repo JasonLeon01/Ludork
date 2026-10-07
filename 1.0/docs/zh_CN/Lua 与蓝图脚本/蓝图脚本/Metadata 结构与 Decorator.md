@@ -197,7 +197,7 @@ calculate = {
 ## 执行声明
 
 - `ExecSplit = { "success", "fail", success = true, fail = false }` 固定执行输出的顺序，并把它们映射到运行时结果值。
-- `Latent = true` 标记挂起；有序的 `LatentStates` 声明恢复输出及其值类型。
+- `Latent = true` 标记挂起；有序的 `LatentStates` 将恢复输出映射到阶段值。返回值类型声明为 `{ "Engine", "AsyncOperation" }`，运行行为见[执行语义](<执行流、事件与变量.md#执行语义>)。
 - `Loop = true` 标记循环节点；`LoopNode = "ForEach"` 或 `"ForLoop"` 选择运行时协议。
 - `type = "event"` 只创建事件入口，其参数与返回值使用相同的签名格式。未显式声明 `ExecSplit` 时，事件会得到 `ExecSplit = { "default", default = "nil" }`；字符串 `"nil"` 是默认分支的 metadata 标记。
 

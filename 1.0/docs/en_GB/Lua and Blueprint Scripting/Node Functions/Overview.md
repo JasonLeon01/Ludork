@@ -21,7 +21,7 @@ Each page in this chapter documents one Blueprint node module under the `GlobalF
 | `GlobalFunctions.Video` | The `PlayVideo` node; its `mute`, `skipable` and `subtitleFileName` arguments are optional. | [Video.md](<Video.md>) |
 | `GlobalFunctions.Weather` | The `SetWeather` and `ClearWeather` nodes; the selector shows `NONE`, `RAIN`, `STORM` or `SNOW` and stores its `Enums.GlobalCore.WeatherType` value. | [Weather.md](<Weather.md>) |
 | `GlobalFunctions.ScreenEffects` | Screen flash, tone and shake nodes, with the calls that stop or clear them. | [ScreenEffects.md](<ScreenEffects.md>) |
-| `GlobalFunctions.Transition` | Freeze and transition-wait nodes; their callable wait conditions live in `GlobalFunctions.FrozenCondition` and `GlobalFunctions.TransitionCondition`. | [Transition.md](<Transition.md>) |
+| `GlobalFunctions.Transition` | Freeze and transition-wait nodes returning `Engine.AsyncOperation`, shared by Blueprint execution and Lua `asyncio.await`. | [Transition.md](<Transition.md>) |
 
 ## Looking up a node
 

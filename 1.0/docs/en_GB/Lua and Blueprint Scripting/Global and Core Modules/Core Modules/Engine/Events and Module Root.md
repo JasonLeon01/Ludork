@@ -1,5 +1,22 @@
 # Engine: Events and Module Root
 
+## AsyncOperation
+
+`Engine.AsyncOperation` represents asynchronous work shared by Lua and Blueprint. Lua callers wait with `asyncio.await(operation)` inside a task; Blueprint latent nodes resume through their declared stages.
+
+| API | Contract |
+|---|---|
+| `AsyncOperation.new(poll?)` | Create a pending operation. Optional `poll(operation)` runs once per logic update until completion or cancellation. |
+| `operation:emit(value)` | Publish an intermediate Blueprint stage without completing Lua waiters. |
+| `operation:complete(result?)` | Complete with one retained result, also used as the final Blueprint stage value. `nil`, `false` and `0` are valid results. |
+| `operation:cancel()` | Cancel the operation and its waiting executions. Completed or cancelled operations remain unchanged. |
+| `operation:getStatus()` | Return `"pending"`, `"completed"` or `"cancelled"`. |
+| `operation:getResult()` | Read the completed result; pending or cancelled operations raise an error. |
+
+Multiple waiters can share an operation without consuming one another's stages. A completed operation can be awaited repeatedly; new Blueprint waiters receive only its final result. Poll callbacks run on the logic thread, must not yield, and propagate errors to the host.
+
+The operation's owner handles resource cleanup; cancellation alone does not undo business side effects. See [Lua task usage and cancellation](<../../../../Getting Started/Ludork Lua Advanced.md#cooperative-tasks-and-file-batches>) and [Blueprint cancellation](<../../../Blueprint Scripting/Execution Flow Events and Variables.md#cancelling-latent-execution>).
+
 ## EventBus
 
 Direct metadata bases: —

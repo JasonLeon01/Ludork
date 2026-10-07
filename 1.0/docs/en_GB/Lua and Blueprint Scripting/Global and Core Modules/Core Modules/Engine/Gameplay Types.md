@@ -10,6 +10,19 @@ Direct metadata bases: —
 
 `visible` is an editable boolean field that defaults to `true`, and `getVisible()` returns its current value. `isVisibleInHierarchy()` also checks every ancestor. An invisible Actor keeps its instance, lifecycle and configured Tick behaviour, but contributes no drawing, no attached light or light blocking, and no collision, overlap or pathfinding obstruction. Rendering, interaction and gameplay caches account for the current visibility. `setVisible(value, applyToChildren = true)` also sets the descendants' own flags by default. Pass `false` to retain them, while the parent's visibility still gates the hierarchy. Direct assignment changes only the Actor's own flag.
 
+### Routes and operation lifetime
+
+`actor:setRoute(route)` returns an `Engine.AsyncOperation`: it emits `0` on start and completes with `1` when the route and current movement finish. The native `setRoute` Blueprint node continues through `default` immediately; use [Movement nodes](<../../../Node Functions/Movement.md>) for `Started` / `Finished` branches.
+
+A new route, `stop()`, disabling movement, destroying the Actor or changing its map cancels an unfinished route operation.
+
+The following Lua-only methods manage additional operations, such as door animations:
+
+| Method | Behaviour |
+|---|---|
+| `trackAsyncOperation(operation)` | Register an operation for cancellation when the Actor is destroyed, released or changes map; cancel immediately if already destroyed. |
+| `cancelAsyncOperations()` | Cancel route and registered operations without stopping their underlying animations. |
+
 ### Properties
 
 | Name | Type | Default | Metadata |
@@ -136,7 +149,7 @@ Direct metadata bases: —
 | `intersects` | `function` | self: { "Engine", "Actor" } = "self"; other: { "Engine", "Actor" } | intersects: bool | Pure |
 | `isMoving` | `function` | self: { "Engine", "Actor" } = "self" | isMoving: bool | Pure |
 | `isInRoute` | `function` | self: { "Engine", "Actor" } = "self" | isInRoute: bool | Pure |
-| `setRoute` | `function` | self: { "Engine", "Actor" } = "self"; route: sf.Vector2i[] = {  } | — | Meta { MoveRouteVars = { [1] = "route" } }; ExecSplit { [1] = "default", default = nil } |
+| `setRoute` | `function` | self: { "Engine", "Actor" } = "self"; route: sf.Vector2i[] = {  } | return: { "Engine", "AsyncOperation" } | Meta { MoveRouteVars = { [1] = "route" } }; ExecSplit { [1] = "default", default = nil } |
 | `getRoute` | `function` | self: { "Engine", "Actor" } = "self" | route: sf.Vector2i[] | Pure |
 | `getMoveEnabled` | `function` | self: { "Engine", "Actor" } = "self" | moveEnabled: bool | Pure |
 | `setMoveEnabled` | `function` | self: { "Engine", "Actor" } = "self"; enabled: bool | — | ExecSplit { [1] = "default", default = nil } |
