@@ -29,7 +29,23 @@ void TransitionImpl::cacheTransitionBackground() {
     transition_->display();
 }
 
-void TransitionImpl::setTransition(
+std::shared_ptr<AsyncOperation> TransitionImpl::setTransition(
+    const std::shared_ptr<sf::Texture>& resource, float duration) {
+    cancelPendingTransition();
+    if (transitionOperation_ != nullptr) {
+        transitionOperation_->cancel();
+    }
+    transitionOperation_ =
+        AsyncOperation::create([this](AsyncOperation& operation) {
+            if (!isTransitionPending() && !isInTransition()) {
+                operation.complete(RuntimeValue(true));
+            }
+        });
+    startTransition(resource, duration);
+    return transitionOperation_;
+}
+
+void TransitionImpl::startTransition(
     const std::shared_ptr<sf::Texture>& transitionResource,
     float transitionTime) {
     const std::lock_guard<std::mutex> lock(presentMutex_);
@@ -39,6 +55,7 @@ void TransitionImpl::setTransition(
         cacheTransitionBackground();
         transitionFreezePending_ = false;
         transitionFrozen_ = true;
+        freezeCompleted_ = true;
     }
     if (transitionResource_ != nullptr && transitionMaskTexture_ != nullptr) {
         const sf::Vector2u sourceSize = transitionResource_->getSize();
@@ -72,8 +89,19 @@ void TransitionImpl::setTransition(
     }
 }
 
-void TransitionImpl::freezeTransitionBackground() {
+std::shared_ptr<AsyncOperation> TransitionImpl::freezeTransitionBackground() {
+    if (freezeOperation_ != nullptr) {
+        freezeOperation_->cancel();
+    }
     transitionFreezePending_ = true;
+    freezeCompleted_ = false;
+    freezeOperation_ =
+        AsyncOperation::create([this](AsyncOperation& operation) {
+            if (freezeCompleted_) {
+                operation.complete(RuntimeValue(true));
+            }
+        });
+    return freezeOperation_;
 }
 
 bool TransitionImpl::isTransitionBackgroundFrozen() {
@@ -85,19 +113,35 @@ bool TransitionImpl::isTransitionBackgroundFreezePending() {
 }
 
 void TransitionImpl::cancelTransitionBackgroundFreeze() {
+    if (freezeOperation_ != nullptr) {
+        freezeOperation_->cancel();
+    }
     transitionFreezePending_ = false;
     transitionFrozen_ = false;
 }
 
-void TransitionImpl::requestTransition(
+std::shared_ptr<AsyncOperation> TransitionImpl::requestTransition(
     std::optional<std::string> transitionName, float transitionTime) {
     const std::lock_guard<std::mutex> lock(transitionMutex_);
+    if (transitionOperation_ != nullptr) {
+        transitionOperation_->cancel();
+    }
     pendingTransition_ =
         PendingTransition{std::move(transitionName), transitionTime};
+    transitionOperation_ =
+        AsyncOperation::create([this](AsyncOperation& operation) {
+            if (!isTransitionPending() && !isInTransition()) {
+                operation.complete(RuntimeValue(true));
+            }
+        });
+    return transitionOperation_;
 }
 
 void TransitionImpl::cancelPendingTransition() {
     const std::lock_guard<std::mutex> lock(transitionMutex_);
+    if (pendingTransition_.has_value() && transitionOperation_ != nullptr) {
+        transitionOperation_->cancel();
+    }
     pendingTransition_.reset();
 }
 
@@ -123,7 +167,7 @@ void TransitionImpl::applyPendingTransition() {
     if (pending->name.has_value() && !pending->name->empty()) {
         resource = TextureManager::load(*pending->name);
     }
-    setTransition(resource, pending->time);
+    startTransition(resource, pending->time);
 }
 
 void TransitionImpl::initializeTargets(const sf::Vector2u& size) {
@@ -196,6 +240,7 @@ void TransitionImpl::finishComposition() {
         cacheTransitionBackground();
         transitionFreezePending_ = false;
         transitionFrozen_ = true;
+        freezeCompleted_ = true;
     }
     composedTransitionRevision_ = transitionRevision_;
     transitionCompletionPending_ =
@@ -259,6 +304,14 @@ void TransitionImpl::rebuildTargets(const sf::Vector2u& size) {
 }
 
 void TransitionImpl::reset() {
+    if (transitionOperation_ != nullptr) {
+        transitionOperation_->cancel();
+        transitionOperation_.reset();
+    }
+    if (freezeOperation_ != nullptr) {
+        freezeOperation_->cancel();
+        freezeOperation_.reset();
+    }
     {
         const std::lock_guard<std::mutex> lock(transitionMutex_);
         pendingTransition_.reset();
@@ -276,6 +329,14 @@ void TransitionImpl::reset() {
 }
 
 void TransitionImpl::shutdown() noexcept {
+    if (transitionOperation_ != nullptr) {
+        transitionOperation_->cancel();
+        transitionOperation_.reset();
+    }
+    if (freezeOperation_ != nullptr) {
+        freezeOperation_->cancel();
+        freezeOperation_.reset();
+    }
     {
         const std::lock_guard<std::mutex> lock(transitionMutex_);
         pendingTransition_.reset();

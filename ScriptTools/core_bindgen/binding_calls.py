@@ -17,6 +17,7 @@ from .cpp_types import (
     class_property_type,
     cpp_value_type,
     exposed_type_name,
+    has_nonnull_return,
     is_bound_pointer,
     is_const_method,
     is_data_type,
@@ -382,6 +383,10 @@ def callable_lambda(
         else ("lua_glue::Object" if converted_return else return_type)
     )
     body = list(preludes)
+    if not constructor and has_nonnull_return(context, member):
+        body.append(f"auto nonnullResult = {call};")
+        body.append('if (!nonnullResult) { throw std::runtime_error("Binding returned null for nonnull_return"); }')
+        call = "nonnullResult"
     if constructor:
         owner_types = [type_name, *(owning_bases or [])]
         base_arguments = f"<{', '.join(owner_types)}>"

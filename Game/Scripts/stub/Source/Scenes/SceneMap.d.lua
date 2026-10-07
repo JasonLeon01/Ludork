@@ -57,6 +57,12 @@
 ---@field _regionTitleUI                        Source.Scenes.SceneMap.RegionTitle.Controller
 ---@field _regionTitleText                      Engine.PlainText
 ---@field _localeChangedToken                   integer | nil
+---@field _dialogueOperation                    Engine.AsyncOperation | nil
+---@field _dialogueVoice                        sf.Sound | nil
+---@field _dialogueRestoreMovement              fun() | nil
+---@field _shopOperation                        Engine.AsyncOperation | nil
+---@field _attrShopOperation                    Engine.AsyncOperation | nil
+---@field _playerNameOperation                  Engine.AsyncOperation | nil
 ---@field _dialogueLocaleSource                 Source.Scenes.SceneMap.DialogueMessageLocaleSource | Source.Scenes.SceneMap.DialogueSelectionLocaleSource | nil
 ---@field _gameMap                              GameMap | nil
 ---@field _cachedMapFile                        string | nil
@@ -88,7 +94,7 @@ function Scene:_isInDialogue() end
 ---@return boolean
 function Scene:_isMenuBlocking() end
 
----@return fun(): boolean
+---@return Engine.AsyncOperation
 function Scene:openPlayerName() end
 
 ---@private
@@ -173,13 +179,23 @@ function Scene:requestGameOver(player, delay) end
 --- - @param message Message text.
 --- - @param refActor Optional reference actor for positioning.
 --- - @param localeArgs Optional raw locale values inserted after translating the message template.
---- - @return A callable condition function that returns True when dialogue finishes.
+--- - @return An operation completing with true when dialogue finishes.
 ---@param name        string
 ---@param message     string
----@param refActor    Engine.Actor | nil
+---@param refActor?   Engine.Actor | nil
 ---@param localeArgs? table<string, any>
----@return function
+---@return Engine.AsyncOperation
 function Scene:showMessage(name, message, refActor, localeArgs) end
+
+--- Play a voice clip owned by this dialogue, stopping it on completion or cancellation.
+---@param name          string
+---@param message       string
+---@param voiceFileName string
+---@param refActor      Engine.Actor | nil
+---@param minDistance   number | nil
+---@param spatial       boolean
+---@return Engine.AsyncOperation
+function Scene:showVoiceMessage(name, message, voiceFileName, refActor, minDistance, spatial) end
 
 ---@brief Show a selection window with multiple options.
 ---
@@ -188,13 +204,13 @@ function Scene:showMessage(name, message, refActor, localeArgs) end
 --- - @param refActor Optional reference actor for positioning.
 --- - @param allowCancel Whether the player can cancel.
 --- - @param localeArgs Optional raw locale values inserted after translating each text template.
---- - @return A callable that returns the selected option index, or -1 for cancel.
----@param name        string
----@param options     string[]
----@param refActor    Engine.Actor | nil
----@param allowCancel boolean
----@param localeArgs? table<string, any>
----@return function
+--- - @return An operation completing with the selected option index, or -1 for player cancellation.
+---@param name         string
+---@param options      string[]
+---@param refActor?    Engine.Actor | nil
+---@param allowCancel? boolean
+---@param localeArgs?  table<string, any>
+---@return Engine.AsyncOperation
 function Scene:showSelection(name, options, refActor, allowCancel, localeArgs) end
 
 ---@brief Apply a loaded game instance and force-reload the cached map.
@@ -246,10 +262,10 @@ function Scene:quickLoad() end
 ---
 --- - @param buyItemIDs Item IDs available for purchase.
 --- - @param canSell Whether selling is available.
---- - @return A condition callable that becomes True when the shop closes.
+--- - @return An operation completing with true when the shop closes.
 ---@param buyItemIDs string[]
 ---@param canSell    boolean
----@return function
+---@return Engine.AsyncOperation
 function Scene:openShop(buyItemIDs, canSell) end
 
 ---@brief Open the map-bound attribute shop and wait until it closes.
@@ -261,7 +277,7 @@ function Scene:openShop(buyItemIDs, canSell) end
 --- - @param priceRef Mutable reference containing a shared price or ordered price list.
 --- - @param priceIncrement Amount added to the price after each purchase.
 --- - @param moneyName Player info component attribute used as currency.
---- - @return A condition callable that becomes True when the shop closes.
+--- - @return An operation completing with true when the shop closes.
 ---@param actor           Engine.Actor
 ---@param shopName        string
 ---@param shopDescription string
@@ -269,7 +285,7 @@ function Scene:openShop(buyItemIDs, canSell) end
 ---@param priceRef        GlobalFunctions.Utils.NodeReference<integer | integer[]>
 ---@param priceIncrement  integer
 ---@param moneyName       string
----@return function
+---@return Engine.AsyncOperation
 function Scene:openAttrShop(actor, shopName, shopDescription, abilities, priceRef, priceIncrement, moneyName) end
 
 ---@param targetMap             string

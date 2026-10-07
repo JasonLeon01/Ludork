@@ -6,7 +6,7 @@
 ---@field attributes                 Source.Configs.GeneralDataTypes.EnemyAttributeSet
 ---@field childActorComp             Source.Components.ChildActorComponent
 ---@field afterBattleVarChanges      table<string, { [1]: string, [2]: any }>
----@field private _battleCondition   fun(): boolean | nil
+---@field private _battleCondition   Engine.AsyncOperation | nil
 ---@field private _defeatFinalising  boolean
 ---@field private _defeatFinalised   boolean
 ---@field new                        fun(texture?: sf.Texture, rect?: sf.IntRect, tag?: string): Source.MapActors.Enemy

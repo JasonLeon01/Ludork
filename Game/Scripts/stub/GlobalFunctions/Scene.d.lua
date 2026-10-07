@@ -1,9 +1,10 @@
 ---@meta GlobalFunctions.Scene
 
---- Show a configured tutorial and suspend execution until confirmation.
---- Already-triggered keys finish immediately; unknown keys raise an error.
+--- Request a configured tutorial; await the returned operation for confirmation.
+--- Pending duplicate keys share an operation; otherwise recorded keys finish immediately.
+--- Unknown keys raise an error.
 ---@param key string
----@return fun(): boolean
+---@return Engine.AsyncOperation
 function Scene.ShowTutorial(key) end
 
 ---@brief Transition to a map and optionally place the player at a tile coordinate.
@@ -23,64 +24,64 @@ function Scene.GameOver() end
 ---
 --- - @param interval Time in seconds before the timer fires.
 --- - @param blocking Whether scene input should be blocked until the timer fires.
---- - @return A condition callable that becomes True when the timer fires.
----@param interval number
----@param blocking boolean
----@return function
+--- - @return An operation completing with true after the timer callback.
+---@param interval  number
+---@param blocking? boolean
+---@return Engine.AsyncOperation
 function Scene.AddTimer(interval, blocking) end
 
 ---@brief Open the current-map monster handbook when the player owns it and the scene allows opening an overlay.
 function Scene.ShowEnemyBook() end
 
 ---@brief Show a dialogue message on the current map scene by actor tag.
----@param name        string
----@param message     string
----@param refActorTag string
----@return function
+---@param name         string
+---@param message      string
+---@param refActorTag? string
+---@return Engine.AsyncOperation
 function Scene.ShowMessageByTag(name, message, refActorTag) end
 
 ---@brief Show a dialogue message on the current map scene positioned by a direct actor reference.
 ---@param name    string
 ---@param message string
----@param actor   Engine.Actor
----@return function
+---@param actor?  Engine.Actor
+---@return Engine.AsyncOperation
 function Scene.ShowMessage(name, message, actor) end
 
 ---@brief Play a non-spatial voice clip and show a dialogue message on the current map scene by actor tag.
 ---
---- The returned latent condition stops the Voice handle started by this call before reporting that the dialogue finished.
+--- The operation stops its Voice handle on completion, replacement, or scene cancellation.
 ---@param name          string
 ---@param message       string
 ---@param voiceFileName string
----@param refActorTag   string
----@return function
+---@param refActorTag?  string
+---@return Engine.AsyncOperation
 function Scene.ShowVoiceMessageByTag(name, message, voiceFileName, refActorTag) end
 
 ---@brief Play a spatial voice clip relative to an actor and show a dialogue message on the current map scene.
 ---
---- The returned latent condition stops the Voice handle started by this call before reporting that the dialogue finished.
+--- The operation stops its Voice handle on completion, replacement, or scene cancellation.
 ---@param name          string
 ---@param message       string
 ---@param voiceFileName string
----@param refActor      Engine.Actor
----@param minDistance   number
----@return function
+---@param refActor?     Engine.Actor
+---@param minDistance?  number
+---@return Engine.AsyncOperation
 function Scene.ShowVoiceMessage(name, message, voiceFileName, refActor, minDistance) end
 
 ---@brief Show a selection window on the current map scene.
----@param name        string
----@param options     string[]
----@param refActorTag string
----@param allowCancel boolean
----@return function
+---@param name?        string
+---@param options?     string[]
+---@param refActorTag? string
+---@param allowCancel? boolean
+---@return Engine.AsyncOperation
 function Scene.ShowSelection(name, options, refActorTag, allowCancel) end
 
 ---@brief Show a selection window on the current map scene positioned by a direct actor reference.
----@param name        string
----@param options     string[]
----@param refActor    Engine.Actor | nil
----@param allowCancel boolean
----@return function
+---@param name?        string
+---@param options?     string[]
+---@param refActor?    Engine.Actor | nil
+---@param allowCancel? boolean
+---@return Engine.AsyncOperation
 function Scene.ShowRefSelection(name, options, refActor, allowCancel) end
 
 ---@brief Lock the current map camera to the player.
@@ -227,14 +228,14 @@ function Scene.SelfRecordAndDestroy() end
 ---
 --- - @param items Item IDs available for purchase.
 --- - @param canSell Whether selling is available.
---- - @return A condition callable that becomes True when the shop closes.
----@param items   string[]
----@param canSell boolean
----@return function
+--- - @return An operation completing with true when the shop closes.
+---@param items?   string[]
+---@param canSell? boolean
+---@return Engine.AsyncOperation
 function Scene.OpenShop(items, canSell) end
 
 ---@brief Open the primary player name window. Completion occurs after confirmation or cancellation closes the window.
----@return fun(): boolean
+---@return Engine.AsyncOperation
 function Scene.OpenPlayerName() end
 
 ---@brief Open an attribute shop on the current map scene.
@@ -246,15 +247,15 @@ function Scene.OpenPlayerName() end
 --- - @param price Shared price, ordered price list, or game variable name containing either.
 --- - @param priceIncrement Amount added to the price after each purchase.
 --- - @param moneyName Player info component attribute used as currency.
---- - @return A condition callable that becomes True when the shop closes.
----@param actor           Engine.Actor | nil
----@param shopName        string
----@param shopDescription string
----@param abilities       table<string, integer>
----@param price           integer | integer[]
----@param priceIncrement  integer
----@param moneyName       string
----@return function
+--- - @return An operation completing with true when the shop closes.
+---@param actor?           Engine.Actor | nil
+---@param shopName?        string
+---@param shopDescription? string
+---@param abilities?       table<string, integer>
+---@param price?           integer | integer[]
+---@param priceIncrement?  integer
+---@param moneyName?       string
+---@return Engine.AsyncOperation
 function Scene.OpenAttrShop(actor, shopName, shopDescription, abilities, price, priceIncrement, moneyName) end
 
 ---@brief Open an attribute shop on the current map scene.
@@ -266,15 +267,15 @@ function Scene.OpenAttrShop(actor, shopName, shopDescription, abilities, price, 
 --- - @param price Shared price, ordered price list, or game variable name containing either.
 --- - @param priceIncrement Amount added to the price after each purchase.
 --- - @param moneyName Player info component attribute used as currency.
---- - @return A condition callable that becomes True when the shop closes.
----@param actorTag        string
----@param shopName        string
----@param shopDescription string
----@param abilities       table<string, integer>
----@param price           integer | integer[]
----@param priceIncrement  integer
----@param moneyName       string
----@return function
+--- - @return An operation completing with true when the shop closes.
+---@param actorTag?        string
+---@param shopName?        string
+---@param shopDescription? string
+---@param abilities?       table<string, integer>
+---@param price?           integer | integer[]
+---@param priceIncrement?  integer
+---@param moneyName?       string
+---@return Engine.AsyncOperation
 function Scene.OpenAttrShopByTag(actorTag, shopName, shopDescription, abilities, price, priceIncrement, moneyName) end
 
 return Scene

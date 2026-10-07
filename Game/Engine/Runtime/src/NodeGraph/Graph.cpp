@@ -9,6 +9,7 @@
 #include <Runtime/NodeGraph/DataNode.hpp>
 #include <Runtime/NodeGraph/GraphLink.hpp>
 #include <Runtime/RuntimeObject.hpp>
+#include <Runtime/RuntimeReference.hpp>
 
 #include <Runtime/NodeGraph/LatentManager.hpp>
 #include "NodeGraphRuntime/NodeGraphRuntimeInternal.hpp"
@@ -495,13 +496,20 @@ NodeResult Graph::executeResult(const std::string& key,
         const std::shared_ptr<Node>& node = nodeEvent->second[current];
         const NodeMemberMetadata& metadata = node->getMemberMetadata();
         if (metadata.latent || !metadata.latentStates.empty()) {
-            RuntimeIdentityPtr condition =
+            const RuntimeValue value =
                 result.count == 0 || result.values.empty()
-                    ? nullptr
-                    : identityValue(&result.values.front());
-            if (condition == nullptr) {
+                    ? RuntimeValue()
+                    : result.values.front();
+            const RuntimeValue::Object* native =
+                value.getIf<RuntimeValue::Object>();
+            const std::shared_ptr<AsyncOperation> operation =
+                native != nullptr
+                    ? ludork::Cast<AsyncOperation>(*native)
+                    : ludork::Cast<AsyncOperation>(
+                          ludork::runtime::reference::object(value));
+            if (operation == nullptr) {
                 throw std::runtime_error(
-                    "Latent node did not return a condition");
+                    "Latent node must return an Engine.AsyncOperation");
             }
             if (!latentManager().isInitialised()) {
                 throw std::runtime_error(
@@ -509,9 +517,11 @@ NodeResult Graph::executeResult(const std::string& key,
             }
             std::shared_ptr<Graph> self =
                 ludork::Cast<Graph>(shared_from_this());
-            latentManager().add(self, key, condition, localGraph, current,
+            latentManager().add(self, key, operation, localGraph, current,
                                 cache);
-            executionState_->suspendedByLatent = true;
+            if (executionRevision(key) == revision) {
+                executionState_->suspendedByLatent = true;
+            }
             return result;
         }
 

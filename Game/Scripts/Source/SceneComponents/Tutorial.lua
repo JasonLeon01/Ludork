@@ -12,19 +12,17 @@ local LOC = Locale.ApplyStringLocaleFormat
 ---@param finished boolean
 ---@return Source.SceneComponents.Tutorial.Request
 local function createRequest(key, finished)
-    local request = { key = key, finished = finished }
-    request.condition = function ()
-        return request.finished
+    local operation = Engine.AsyncOperation.new()
+    if finished then
+        operation:complete(true)
     end
-    return request
+    return { key = key, operation = operation }
 end
 
 ---@param requests table<string, Source.SceneComponents.Tutorial.Request>
 local function cancelRequests(requests)
-    local latentManager = assert(Engine.latentManager)
     for _, request in pairs(requests) do
-        latentManager:cancel(request.condition)
-        request.finished = true
+        request.operation:cancel()
     end
 end
 
@@ -59,13 +57,17 @@ end
 function TutorialController:request(key)
     assert(not self._disposed, "Tutorial controller has been disposed")
     assert(Config[key] ~= nil, "Unknown tutorial key: " .. tostring(key))
+    local pending = self._requests[key]
+    if pending ~= nil and pending.operation:getStatus() == "pending" then
+        return pending.operation
+    end
     if self:getScene():getGameInstance():hasTriggeredTutorial(key) then
         local recordedRequest = self._recordedRequests[key]
         if recordedRequest == nil then
             recordedRequest = createRequest(key, true)
             self._recordedRequests[key] = recordedRequest
         end
-        return recordedRequest.condition
+        return recordedRequest.operation
     end
     local request = self._requests[key]
     if request == nil then
@@ -73,7 +75,7 @@ function TutorialController:request(key)
         self._requests[key] = request
         self._queue[#self._queue + 1] = request
     end
-    return request.condition
+    return request.operation
 end
 
 function TutorialController:update()
@@ -82,7 +84,8 @@ function TutorialController:update()
     end
     local window = self._window:peek()
     if self._current ~= nil and window ~= nil and window:isFinished() then
-        self._current.finished = true
+        self._current.operation:complete(true)
+        self._requests[self._current.key] = nil
         self._current = nil
     end
     if self._current ~= nil then
@@ -98,11 +101,20 @@ function TutorialController:update()
     local scene = self:getScene()
     local request = table.remove(self._queue, 1)
     if scene:getGameInstance():hasTriggeredTutorial(request.key) then
-        request.finished = true
+        request.operation:complete(true)
         return
     end
     local config = Config[request.key]
-    self._window:get():open(config.rect, LOC(config.text))
+    local text = LOC(config.text)
+    if text == "" then
+        request.operation:complete(true)
+        self._requests[request.key] = nil
+        if #self._queue == 0 then
+            self:_restoreMovement()
+        end
+        return
+    end
+    self._window:get():open(config.rect, text)
     if self._player == nil then
         self._player = scene:getGameMap():getPlayer()
         if self._player ~= nil then

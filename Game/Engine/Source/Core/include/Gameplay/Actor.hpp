@@ -8,6 +8,7 @@
 #include <Gameplay/AutoSoundParams.hpp>
 #include <Gameplay/ActorUpdateBatch.hpp>
 #include <Runtime/Blueprint/BPBase.hpp>
+#include <Runtime/Async/AsyncOperation.hpp>
 #include <Runtime/NodeGraph/Graph.hpp>
 #include <Gameplay/Components/LightComponent.hpp>
 #include <Gameplay/Components/EmitterComponent.hpp>
@@ -469,13 +470,20 @@ public:
     BIND_METHOD(Pure = true, returns = "isInRoute")
     bool isInRoute() const;
 
-    BIND_METHOD(defaults = {{}}, meta(MoveRouteVars = {"route"}),
-                outpins(default = nil))
-    void setRoute(const std::optional<std::vector<sf::Vector2i>>& route =
-                      std::vector<sf::Vector2i>{});
+    BIND_METHOD(nonnull_return = true, defaults = {{}},
+                meta(MoveRouteVars = {"route"}), outpins(default = nil))
+    std::shared_ptr<AsyncOperation> setRoute(
+        const std::optional<std::vector<sf::Vector2i>>& route =
+            std::vector<sf::Vector2i>{});
 
     BIND_METHOD(Pure = true, returns = "route")
     std::optional<std::vector<sf::Vector2i>> getRoute() const;
+
+    BIND_METHOD(metadata = false)
+    void cancelAsyncOperations();
+
+    BIND_METHOD(metadata = false)
+    void trackAsyncOperation(const std::shared_ptr<AsyncOperation>& operation);
 
     BIND_METHOD(Pure = true, returns = "moveEnabled")
     bool getMoveEnabled() const;

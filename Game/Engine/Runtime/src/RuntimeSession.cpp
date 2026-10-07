@@ -41,6 +41,7 @@ void setModuleState(
 void clearRuntimeState(lua_State* state) noexcept {
     using namespace ludork::runtime;
     shutdownHotReload(state);
+    AsyncOperation::clearAll(state);
     latentManager().clear();
     latentManager().setInitialised(false);
     class_runtime_detail::shutdownClassRuntime(state);

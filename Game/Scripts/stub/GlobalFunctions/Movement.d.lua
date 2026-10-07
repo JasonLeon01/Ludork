@@ -1,20 +1,6 @@
 ---@meta GlobalFunctions.Movement
 
----@class GlobalFunctions.Movement.Condition
----@field _actor          Engine.Actor | nil
----@field _startedEmitted boolean
----@field _finished       boolean
----@operator call: integer[]
-local MovementCondition = {}
-
----@param actor Engine.Actor | nil
-function MovementCondition:init(actor) end
-
----@return integer[]
-function MovementCondition:poll() end
-
----@return boolean
-function MovementCondition:isFinished() end
+local Movement = {}
 
 ---@brief Enable or disable movement for an actor identified by tag.
 ---
@@ -28,30 +14,30 @@ function Movement.SetMoveEnabledByTag(tag, enabled) end
 ---
 --- - @param actor The actor to move.
 --- - @param route List of `sf.Vector2i` grid offsets, or `nil` to clear the route.
---- - @return A condition callable that emits Started immediately and Finished after movement ends.
+--- - @return An operation that emits Started and completes with Finished after movement ends.
 ---@param actor Engine.Actor
 ---@param route sf.Vector2i[]
----@return GlobalFunctions.Movement.Condition
+---@return Engine.AsyncOperation
 function Movement.SetMoveRoute(actor, route) end
 
 ---@brief Pathfind an actor to a destination and wait until movement finishes.
 ---
 --- - @param actor The actor to move.
 --- - @param destination Target map position as an `sf.Vector2i`.
---- - @return A condition callable that emits Started immediately and Finished after movement ends.
+--- - @return An operation that emits Started and completes with Finished after movement ends.
 ---@param actor       Engine.Actor
 ---@param destination sf.Vector2i
----@return GlobalFunctions.Movement.Condition
+---@return Engine.AsyncOperation
 function Movement.SetAutoPathToDestination(actor, destination) end
 
 ---@brief Pathfind an actor identified by tag to a destination and wait until movement finishes.
 ---
 --- - @param tag The tag of the actor to move.
 --- - @param destination Target map position as an `sf.Vector2i`.
---- - @return A condition callable that emits Started immediately and Finished after movement ends.
+--- - @return An operation that emits Started and completes with Finished after movement ends.
 ---@param tag         string
 ---@param destination sf.Vector2i
----@return GlobalFunctions.Movement.Condition
+---@return Engine.AsyncOperation
 function Movement.SetAutoPathToDestinationByTag(tag, destination) end
 
 return Movement

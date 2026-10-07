@@ -56,6 +56,9 @@ function Controller:isClosed() end
 ---@param canSell    boolean
 function Controller:open(buyItemIDs, canSell) end
 
+--- Immediately dismiss the window without invoking its completion callback.
+function Controller:dismiss() end
+
 ---@param onHidden function | nil
 function Controller:close(onHidden) end
 

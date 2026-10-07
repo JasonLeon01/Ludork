@@ -23,6 +23,9 @@ function Controller:setPlayer(player) end
 ---@brief Start a fresh draft with an initially inactive text editor.
 function Controller:open() end
 
+--- Immediately dismiss the window without invoking its completion callback.
+function Controller:dismiss() end
+
 ---@brief Discard input editing state and finish the closing animation before notifying the owner.
 function Controller:close() end
 

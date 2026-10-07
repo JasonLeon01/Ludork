@@ -1,4 +1,5 @@
 #include <Runtime/NodeGraph/LatentManager.hpp>
+#include "LatentManagerImpl.hpp"
 
 #include <Runtime/NodeGraph/Graph.hpp>
 #include <Runtime/NodeGraph/Node.hpp>
@@ -11,33 +12,6 @@
 #include <utility>
 
 namespace {
-class UpdateScope {
-public:
-    explicit UpdateScope(bool& updating) : updating_(updating) {
-        updating_ = true;
-    }
-
-    ~UpdateScope() {
-        updating_ = false;
-    }
-
-    UpdateScope(const UpdateScope&) = delete;
-    UpdateScope& operator=(const UpdateScope&) = delete;
-
-private:
-    bool& updating_;
-};
-
-LatentManager::ConditionResult pollCondition(
-    const RuntimeIdentityPtr& condition) {
-    ludork::runtime::RuntimeScope scope;
-    NodeGraphConditionResult result =
-        ludork::runtime::node_graph_detail::evaluateNodeGraphCondition(
-            scope, RuntimeHandle(condition));
-    return {std::move(result.result.values), result.result.count,
-            result.finished};
-}
-
 bool runtimeEqual(const RuntimeValue& left, const RuntimeValue& right) {
     return runtimeReflection().equal(left, right);
 }
@@ -53,93 +27,81 @@ RuntimeValue normaliseMatchValue(const RuntimeValue& value) {
     return value;
 }
 
-std::vector<int> latentExecIndexes(
-    const NodeMemberMetadata& metadata,
-    const LatentManager::ConditionResult& condition) {
+std::vector<int> latentExecIndexes(const NodeMemberMetadata& metadata,
+                                   const RuntimeValue& value) {
     std::vector<int> result;
-    for (std::size_t valueIndex = 0; valueIndex < condition.count;
-         ++valueIndex) {
-        const RuntimeValue value = valueIndex < condition.values.size()
-                                       ? condition.values[valueIndex]
-                                       : RuntimeValue();
-        for (std::size_t stateIndex = 0;
-             stateIndex < metadata.latentStates.size(); ++stateIndex) {
-            const NodeNamedValues& state = metadata.latentStates[stateIndex];
-            const bool matched = std::any_of(
-                state.values.begin(), state.values.end(),
-                [&value](const RuntimeValue& candidate) {
-                    return runtimeEqual(value, normaliseMatchValue(candidate));
-                });
-            if (matched &&
-                std::find(result.begin(), result.end(),
-                          static_cast<int>(stateIndex)) == result.end()) {
-                result.push_back(static_cast<int>(stateIndex));
-            }
+    for (std::size_t stateIndex = 0; stateIndex < metadata.latentStates.size();
+         ++stateIndex) {
+        const NodeNamedValues& state = metadata.latentStates[stateIndex];
+        const bool matched = std::any_of(
+            state.values.begin(), state.values.end(),
+            [&value](const RuntimeValue& candidate) {
+                return runtimeEqual(value, normaliseMatchValue(candidate));
+            });
+        if (matched) {
+            result.push_back(static_cast<int>(stateIndex));
         }
     }
     return result;
 }
 
-class LocalGraphScope {
-public:
-    LocalGraphScope(Graph& graph, RuntimeIdentityPtr replacement,
-                    std::string eventKey)
-        : graph_(graph),
-          previous_(graph.getLocalGraph()),
-          context_(replacement),
-          eventKey_(std::move(eventKey)) {
-        graph_.setLocalGraph(std::move(replacement));
-        if (context_ == nullptr) {
-            return;
-        }
+}  // namespace
+
+namespace ludork::runtime::latent_detail {
+
+UpdateScope::UpdateScope(bool& updating) : updating_(updating) {
+    updating_ = true;
+}
+UpdateScope::~UpdateScope() {
+    updating_ = false;
+}
+
+LocalGraphScope::LocalGraphScope(Graph& graph, RuntimeIdentityPtr replacement,
+                                 std::string eventKey)
+    : graph_(graph),
+      previous_(graph.getLocalGraph()),
+      context_(replacement),
+      eventKey_(std::move(eventKey)) {
+    graph_.setLocalGraph(std::move(replacement));
+    if (context_ == nullptr) {
+        return;
+    }
+    try {
+        ludork::runtime::RuntimeScope scope;
+        previousContextGraph_ =
+            ludork::runtime::node_graph_detail::getNodeGraphContextValue(
+                scope, RuntimeHandle(context_), "__graph__");
+        ludork::runtime::node_graph_detail::setNodeGraphContextValue(
+            scope, RuntimeHandle(context_), "__graph__",
+            graph_.getGraphContext());
+        contextGraphSet_ = true;
+    } catch (...) {
+        graph_.setLocalGraph(std::move(previous_));
+        throw;
+    }
+}
+
+LocalGraphScope::~LocalGraphScope() noexcept {
+    if (contextGraphSet_) {
         try {
             ludork::runtime::RuntimeScope scope;
-            previousContextGraph_ =
-                ludork::runtime::node_graph_detail::getNodeGraphContextValue(
-                    scope, RuntimeHandle(context_), "__graph__");
             ludork::runtime::node_graph_detail::setNodeGraphContextValue(
                 scope, RuntimeHandle(context_), "__graph__",
-                graph_.getGraphContext());
-            contextGraphSet_ = true;
+                previousContextGraph_);
+        } catch (const std::exception& error) {
+            std::cerr << "WARNING:Latent event '" << eventKey_
+                      << "' failed to restore context key '__graph__': "
+                      << error.what() << '\n';
         } catch (...) {
-            graph_.setLocalGraph(std::move(previous_));
-            throw;
+            std::cerr << "WARNING:Latent event '" << eventKey_
+                      << "' failed to restore context key '__graph__': "
+                         "unknown error\n";
         }
     }
+    graph_.setLocalGraph(std::move(previous_));
+}
 
-    ~LocalGraphScope() noexcept {
-        if (contextGraphSet_) {
-            try {
-                ludork::runtime::RuntimeScope scope;
-                ludork::runtime::node_graph_detail::setNodeGraphContextValue(
-                    scope, RuntimeHandle(context_), "__graph__",
-                    previousContextGraph_);
-            } catch (const std::exception& error) {
-                std::cerr << "WARNING:Latent event '" << eventKey_
-                          << "' failed to restore context key '__graph__': "
-                          << error.what() << '\n';
-            } catch (...) {
-                std::cerr << "WARNING:Latent event '" << eventKey_
-                          << "' failed to restore context key '__graph__': "
-                             "unknown error\n";
-            }
-        }
-        graph_.setLocalGraph(std::move(previous_));
-    }
-
-    LocalGraphScope(const LocalGraphScope&) = delete;
-    LocalGraphScope& operator=(const LocalGraphScope&) = delete;
-
-private:
-    Graph& graph_;
-    RuntimeIdentityPtr previous_;
-    RuntimeIdentityPtr context_;
-    std::string eventKey_;
-    RuntimeValue previousContextGraph_;
-    bool contextGraphSet_ = false;
-};
-
-}  // namespace
+}  // namespace ludork::runtime::latent_detail
 
 const std::shared_ptr<LatentManager> latentManagerInstance =
     std::make_shared<LatentManager>();
@@ -149,31 +111,45 @@ LatentManager& latentManager() {
 }
 
 void LatentManager::add(const std::shared_ptr<Graph>& graph,
-                        const std::string& key, RuntimeIdentityPtr condition,
+                        const std::string& key,
+                        std::shared_ptr<AsyncOperation> operation,
                         RuntimeIdentityPtr localRef, int index,
                         NodeCache cache) {
     if (graph == nullptr) {
         throw std::invalid_argument("Latent graph cannot be null");
     }
-    if (condition == nullptr) {
-        throw std::invalid_argument("Latent condition cannot be null");
+    if (operation == nullptr) {
+        throw std::invalid_argument("Latent operation cannot be null");
     }
     graph->onLatentAdded(key);
     std::shared_ptr<Entry> entry = std::make_shared<Entry>();
     entry->graph = graph;
     entry->key = key;
-    entry->condition = std::move(condition);
+    entry->operation = std::move(operation);
+    if (entry->operation->getStatus() == "completed") {
+        entry->nextEvent = entry->operation->eventCount() - 1;
+    }
     entry->localRef = std::move(localRef);
     entry->index = index;
     entry->cache = std::move(cache);
-    entries_.push_back(std::move(entry));
+    entries_.push_back(entry);
+    const std::weak_ptr<LatentManager> manager = weak_from_this();
+    const std::weak_ptr<Entry> registration = entry;
+    entry->operation->onCancelled([manager, registration] {
+        const std::shared_ptr<LatentManager> activeManager = manager.lock();
+        const std::shared_ptr<Entry> activeEntry = registration.lock();
+        if (activeManager != nullptr && activeEntry != nullptr) {
+            activeManager->cancel(activeEntry->operation);
+        }
+    });
 }
 
 void LatentManager::update() {
     if (updating_) {
         return;
     }
-    const UpdateScope updateScope(updating_);
+    const ludork::runtime::latent_detail::UpdateScope updateScope(updating_);
+    AsyncOperation::updateAll();
     const std::vector<std::shared_ptr<Entry>> snapshot = entries_;
     for (const std::shared_ptr<Entry>& entry : snapshot) {
         const auto isPending = [this, &entry]() {
@@ -190,9 +166,8 @@ void LatentManager::update() {
             continue;
         }
 
-        const LatentManager::ConditionResult condition =
-            pollCondition(entry->condition);
-        if (!isPending()) {
+        if (entry->operation->getStatus() == "cancelled") {
+            cancel(entry->operation);
             continue;
         }
         const std::vector<std::shared_ptr<Node>> nodes =
@@ -207,18 +182,20 @@ void LatentManager::update() {
         }
         const NodeMemberMetadata& metadata =
             nodes[static_cast<std::size_t>(entry->index)]->getMemberMetadata();
-        const std::vector<int> execIndexes =
-            latentExecIndexes(metadata, condition);
-        if (execIndexes.empty() || !isPending()) {
-            continue;
-        }
-
-        {
-            LocalGraphScope localGraph(*graph, entry->localRef, entry->key);
+        const std::size_t eventCount = entry->operation->eventCount();
+        while (entry->nextEvent < eventCount && isPending() &&
+               entry->operation->getStatus() != "cancelled") {
+            const RuntimeValue value =
+                entry->operation->eventAt(entry->nextEvent++);
+            const std::vector<int> execIndexes =
+                latentExecIndexes(metadata, value);
+            ludork::runtime::latent_detail::LocalGraphScope localGraph(
+                *graph, entry->localRef, entry->key);
             const Graph::PinNexts& nexts =
                 graph->getNodeNexts(entry->key, entry->index);
             for (const int execIndex : execIndexes) {
-                if (!isPending()) {
+                if (!isPending() ||
+                    entry->operation->getStatus() == "cancelled") {
                     break;
                 }
                 const auto next = nexts.find(execIndex);
@@ -234,10 +211,15 @@ void LatentManager::update() {
                                      &entry->cache);
             }
         }
+        if (entry->operation->getStatus() == "cancelled") {
+            cancel(entry->operation);
+            continue;
+        }
 
-        if (condition.finished && isPending()) {
+        if (entry->operation->getStatus() == "completed" &&
+            entry->nextEvent == entry->operation->eventCount() && isPending()) {
             const std::uint64_t revision = graph->executionRevision(entry->key);
-            removeLatentsForNode(graph, entry->key, entry->index);
+            std::erase(entries_, entry);
             graph->onLatentResolved(entry->key);
             if (graph->getLatentPendingCount(entry->key) == 0) {
                 graph->resumeSuspendedLoops(entry->key);
@@ -249,16 +231,22 @@ void LatentManager::update() {
     }
 }
 
-void LatentManager::cancel(const RuntimeIdentityPtr& condition) {
-    if (condition == nullptr) {
-        throw std::invalid_argument("Latent condition cannot be null");
+void LatentManager::cancel(const std::shared_ptr<AsyncOperation>& operation) {
+    if (operation == nullptr) {
+        throw std::invalid_argument("Latent operation cannot be null");
+    }
+    if (operation->isPending()) {
+        operation->cancel();
+        return;
+    }
+    if (operation->getStatus() != "cancelled") {
+        return;
     }
     std::vector<std::shared_ptr<Entry>> matches;
     std::vector<std::pair<std::shared_ptr<Graph>, std::string>> executions;
     const std::vector<std::shared_ptr<Entry>> snapshot = entries_;
     for (const std::shared_ptr<Entry>& entry : snapshot) {
-        if (entry->condition != condition &&
-            !entry->condition->equals(*condition)) {
+        if (entry->operation != operation) {
             continue;
         }
         matches.push_back(entry);

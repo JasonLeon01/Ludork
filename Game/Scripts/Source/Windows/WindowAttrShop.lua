@@ -133,6 +133,7 @@ function Controller:refreshItems()
 end
 
 function Controller:close(notify)
+    notify = notify ~= false
     self.host:setActive(false)
     self.host:hideWithAnimation("FadeOut", function ()
         self._closed = true
@@ -140,6 +141,12 @@ function Controller:close(notify)
             self._onCloseCallback()
         end
     end)
+end
+
+function Controller:dismiss()
+    self.host:setActive(false)
+    self.host:hideImmediate()
+    self._closed = true
 end
 
 function Controller:closeByCancel()

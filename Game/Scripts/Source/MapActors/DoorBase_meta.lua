@@ -46,7 +46,7 @@ local _METADATA = {
             },
             ["return"] = {
                 "return",
-                ["return"] = "function"
+                ["return"] = { "Engine", "AsyncOperation" }
             },
             Latent = true,
             LatentStates = {
@@ -67,7 +67,7 @@ local _METADATA = {
             },
             ["return"] = {
                 "return",
-                ["return"] = "function"
+                ["return"] = { "Engine", "AsyncOperation" }
             },
             Latent = true,
             LatentStates = {

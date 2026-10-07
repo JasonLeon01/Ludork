@@ -1,6 +1,7 @@
 #pragma once
 
 #include <SFML/System/Vector2.hpp>
+#include <Runtime/Async/AsyncOperation.hpp>
 
 #include <optional>
 #include <vector>
@@ -8,6 +9,8 @@
 namespace ludork::engine::actor_impl {
 
 struct MovementImpl {
+    ~MovementImpl();
+    std::shared_ptr<AsyncOperation> operation;
     bool moving = false;
     bool inRoute = false;
     std::optional<std::vector<sf::Vector2i>> route =
@@ -19,7 +22,8 @@ struct MovementImpl {
     float realSpeed = 0.0f;
 
     bool isMoving() const;
-    void setRoute(const std::optional<std::vector<sf::Vector2i>>& nextRoute);
+    std::shared_ptr<AsyncOperation> setRoute(
+        const std::optional<std::vector<sf::Vector2i>>& nextRoute);
     std::optional<sf::Vector2i> takeNextRouteStep();
     void cancelRoute();
     void stop();

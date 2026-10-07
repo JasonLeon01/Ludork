@@ -65,10 +65,10 @@ void addCompletionCallback(ExecutionState& state, const std::string& key,
 
 std::vector<std::function<void()>> completeExecution(ExecutionState& state,
                                                      const std::string& key) {
-    state.locked[key] = false;
     if (latentCount(state, key) > 0) {
         return {};
     }
+    state.locked[key] = false;
     const auto callbacks = state.completionCallbacks.find(key);
     if (callbacks == state.completionCallbacks.end()) {
         return {};

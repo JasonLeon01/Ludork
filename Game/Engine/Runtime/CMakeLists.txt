@@ -13,6 +13,7 @@ if(LUDORK_WITH_LUA)
         ".*/src/(LuaServices|Metadata|Graphics|WebView)/.*\\.cpp$")
 else()
     set(LUDORK_RUNTIME_SOURCES
+        src/Async/AsyncOperation.cpp
         src/RuntimeData.cpp
         src/RuntimeValue.cpp
         src/RuntimeObject.cpp

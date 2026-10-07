@@ -34,17 +34,17 @@ local _METADATA = {
             },
             ["return"] = {
                 "return",
-                ["return"] = "function"
+                ["return"] = { "Engine", "AsyncOperation" }
             },
             Latent = true,
             LatentStates = {
                 "Started",
                 "Finished",
                 Started = {
-                    "_LATENT_STARTED"
+                    0
                 },
                 Finished = {
-                    "_LATENT_FINISHED"
+                    1
                 }
             },
             Meta = {
@@ -72,17 +72,17 @@ local _METADATA = {
             },
             ["return"] = {
                 "return",
-                ["return"] = "function"
+                ["return"] = { "Engine", "AsyncOperation" }
             },
             Latent = true,
             LatentStates = {
                 "Started",
                 "Finished",
                 Started = {
-                    "_LATENT_STARTED"
+                    0
                 },
                 Finished = {
-                    "_LATENT_FINISHED"
+                    1
                 }
             }
         },
@@ -102,17 +102,17 @@ local _METADATA = {
             },
             ["return"] = {
                 "return",
-                ["return"] = "function"
+                ["return"] = { "Engine", "AsyncOperation" }
             },
             Latent = true,
             LatentStates = {
                 "Started",
                 "Finished",
                 Started = {
-                    "_LATENT_STARTED"
+                    0
                 },
                 Finished = {
-                    "_LATENT_FINISHED"
+                    1
                 }
             }
         }

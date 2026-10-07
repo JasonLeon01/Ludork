@@ -277,58 +277,6 @@ RuntimeHandle nodeGraphRefLocal(RuntimeScope& scope,
     return capture(detail::registryTable(lua, NODEGRAPH_REF_LOCALS_KEY, "k")
                        .raw_get<lua_glue::Object>(write(lua, callable)));
 }
-NodeGraphConditionResult evaluateNodeGraphCondition(
-    RuntimeScope& scope, const RuntimeHandle& condition) {
-    lua_glue::StateView lua(scope.state());
-    const lua_glue::Object callable = write(lua, condition);
-    if (!isCallable(lua, callable)) {
-        throw std::invalid_argument("Runtime value is not callable");
-    }
-    const int base = lua_gettop(scope.state());
-    StackRestore restore{scope.state(), base};
-    const int count = detail::invokeRuntimeFunction(scope.state(), callable, {},
-                                                    "node graph condition");
-    NodeGraphConditionResult result;
-    if (count != 0 && !lua_isnil(scope.state(), base + 1)) {
-        const lua_glue::Object first =
-            lua_glue::Read<lua_glue::Object>(scope.state(), base + 1);
-        if (first.is<lua_glue::Table>()) {
-            const lua_glue::Table table = first.as<lua_glue::Table>();
-            std::int64_t length = 0;
-            if ((binding::luaIntegerValue(table.raw_get<lua_glue::Object>("n"),
-                                          length) &&
-                 length >= 0) ||
-                table.size() > 0) {
-                result.result = readPacked(first);
-            } else {
-                for (const auto& entry : table) {
-                    result.result.values.push_back(snapshot(entry.second));
-                }
-                result.result.count = result.result.values.size();
-            }
-        } else {
-            result.result = {{snapshot(first)}, 1};
-        }
-    }
-    lua_settop(scope.state(), base);
-    if (callable.is<lua_glue::Table>()) {
-        const lua_glue::Object finished = detail::runtimeIndex(
-            lua, callable, lua_glue::MakeObject(lua, "isFinished"), false);
-        if (isCallable(lua, finished)) {
-            const int finishedCount = detail::invokeRuntimeFunction(
-                scope.state(), finished, {callable},
-                "node graph condition isFinished");
-            if (finishedCount != 1 ||
-                lua_type(scope.state(), base + 1) != LUA_TBOOLEAN) {
-                throw std::runtime_error(
-                    "Node graph condition isFinished must return exactly one "
-                    "boolean");
-            }
-            result.finished = lua_toboolean(scope.state(), base + 1) != 0;
-        }
-    }
-    return result;
-}
 NodeCache readNodeGraphCache(RuntimeScope& scope, const RuntimeHandle& cache) {
     lua_glue::StateView lua(scope.state());
     const lua_glue::Object table = write(lua, cache);

@@ -25,8 +25,3 @@ struct NodeResult {
 };
 
 using NodeCache = std::unordered_map<NodeIndex, NodeResult, NodeIndexHash>;
-
-struct NodeGraphConditionResult {
-    NodeResult result;
-    bool finished = true;
-};

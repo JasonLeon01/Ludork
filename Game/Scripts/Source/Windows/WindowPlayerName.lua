@@ -54,6 +54,12 @@ function Controller:close()
     end)
 end
 
+function Controller:dismiss()
+    self:cancelEditing()
+    self.host:setActive(false)
+    self.host:hideImmediate()
+end
+
 function Controller:onReturn()
     self:cancel()
 end

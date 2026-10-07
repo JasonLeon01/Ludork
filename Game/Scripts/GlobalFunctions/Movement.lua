@@ -47,15 +47,6 @@ end
 
 ---@param actor Engine.Actor | nil
 ---@return boolean
-local function isMovementFinished(actor)
-    if actor == nil or actor:isDestroyed() then
-        return true
-    end
-    return not actor:isMoving() and not actor:isInRoute()
-end
-
----@param actor Engine.Actor | nil
----@return boolean
 local function isMovementBlocked(actor)
     if actor == nil then
         return true
@@ -76,33 +67,14 @@ local function isMovementBlocked(actor)
     return scene ~= nil and scene:isInputBlocked()
 end
 
-local MovementCondition = {}
-
-function MovementCondition:init(actor)
-    self._actor = actor
-    ---@type boolean
-    self._startedEmitted = false
-    self._finished = false
+---@return Engine.AsyncOperation
+local function skippedMovement()
+    local Engine = require("Engine")
+    local operation = Engine.AsyncOperation.new()
+    operation:emit(loadMovementLatentOutput().STARTED)
+    operation:complete(loadMovementLatentOutput().FINISHED)
+    return operation
 end
-
-function MovementCondition:poll()
-    if not self._startedEmitted then
-        self._startedEmitted = true
-        return { loadMovementLatentOutput().STARTED }
-    end
-    if isMovementFinished(self._actor) then
-        self._finished = true
-        return { loadMovementLatentOutput().FINISHED }
-    end
-    return {}
-end
-
-function MovementCondition:isFinished()
-    return self._finished
-end
-
-local FinalMovementCondition = class(MovementCondition)
-FinalMovementCondition.__call = MovementCondition.poll
 
 function Movement.SetMoveEnabledByTag(tag, enabled)
     enabled = enabled == nil and true or enabled
@@ -116,17 +88,17 @@ end
 function Movement.SetMoveRoute(actor, route)
     route = route or {}
     if actor ~= nil and not isMovementBlocked(actor) then
-        actor:setRoute(route)
+        return actor:setRoute(route)
     end
-    return FinalMovementCondition.new(actor)
+    return skippedMovement()
 end
 
 function Movement.SetAutoPathToDestination(actor, destination)
     destination = destination or sf.Vector2i.new(0, 0)
     if actor ~= nil and not isMovementBlocked(actor) then
-        actor:setRoute(buildRouteToDestination(actor, destination))
+        return actor:setRoute(buildRouteToDestination(actor, destination))
     end
-    return FinalMovementCondition.new(actor)
+    return skippedMovement()
 end
 
 function Movement.SetAutoPathToDestinationByTag(tag, destination)

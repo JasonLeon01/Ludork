@@ -102,6 +102,9 @@ function Controller:refreshItems() end
 ---@brief Refresh localised shop text, price text, and ability rows without changing the current selection.
 function Controller:refreshLocale() end
 
+--- Immediately dismiss the window without invoking its completion callback.
+function Controller:dismiss() end
+
 ---@brief Close and deactivate the attribute shop.
 ---@param notify boolean | nil
 function Controller:close(notify) end

@@ -552,6 +552,12 @@ function asyncio.cancel_task(task) end
 ---@param seconds number
 function asyncio.sleep(seconds) end
 
+--- Wait for an operation inside an asyncio task. Cancellation terminates the task.
+---@generic T
+---@param operation { getStatus: fun(self: any): string, getResult: fun(self: any): T }
+---@return T
+function asyncio.await(operation) end
+
 ---@class FileBatchSpec
 ---@field category       string
 ---@field root           string

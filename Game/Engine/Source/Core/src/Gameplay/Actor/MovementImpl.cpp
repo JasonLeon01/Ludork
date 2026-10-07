@@ -13,14 +13,30 @@ int directionComponent(int value) {
 
 }  // namespace
 
+MovementImpl::~MovementImpl() {
+    if (operation != nullptr) {
+        operation->cancel();
+    }
+}
+
 bool MovementImpl::isMoving() const {
     return moving || realSpeed > 0.0f || inRoute;
 }
 
-void MovementImpl::setRoute(
+std::shared_ptr<AsyncOperation> MovementImpl::setRoute(
     const std::optional<std::vector<sf::Vector2i>>& nextRoute) {
+    if (operation != nullptr) {
+        operation->cancel();
+    }
     route = nextRoute;
     inRoute = route.has_value() && !route->empty();
+    operation = AsyncOperation::create([this](AsyncOperation& current) {
+        if (!isMoving()) {
+            current.complete(RuntimeValue(std::int64_t{1}));
+        }
+    });
+    operation->emit(RuntimeValue(std::int64_t{0}));
+    return operation;
 }
 
 std::optional<sf::Vector2i> MovementImpl::takeNextRouteStep() {
@@ -42,6 +58,9 @@ void MovementImpl::cancelRoute() {
 }
 
 void MovementImpl::stop() {
+    if (operation != nullptr) {
+        operation->cancel();
+    }
     moving = false;
     inRoute = false;
     route.reset();

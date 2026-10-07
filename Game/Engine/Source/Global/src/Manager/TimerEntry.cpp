@@ -10,14 +10,20 @@ TimerEntry::TimerEntry(float timeValue, RuntimeIdentityPtr taskValue,
       blocking(blockingValue) {}
 
 bool TimerEntry::isReady() const {
-    return time <= 0.0f;
+    return time <= 0.0f || isCancelled();
 }
 
 bool TimerEntry::isCancelled() const {
-    return cancelled_;
+    return cancelled_ ||
+           (operation != nullptr && operation->getStatus() == "cancelled");
 }
 
 void TimerEntry::cancel() {
+    if (operation != nullptr) {
+        operation->cancel();
+    }
+    task.reset();
+    params.clear();
     cancelled_ = true;
     time = 0.0f;
 }

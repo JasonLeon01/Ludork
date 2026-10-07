@@ -6,35 +6,6 @@ local MovementLatentOutput = require("Enums.MovementLatentOutput")
 local SoundFilter = Engine.SoundFilter
 local AudioManager = GlobalCore.AudioManager
 
----@param isComplete fun(): boolean
----@return Source.MapActors.DoorBase.DoorAnimationCondition
-local function newDoorAnimationCondition(isComplete)
-    local condition = { _isComplete = isComplete, _startedEmitted = false, _finished = false }
-    ---@return boolean
-    function condition:isFinished()
-        return self._finished
-    end
-    function condition:finish()
-        self._finished = true
-    end
-    return setmetatable(condition, {
-        __call = function (self)
-            if self._finished then
-                return { MovementLatentOutput.FINISHED }
-            end
-            if not self._startedEmitted then
-                self._startedEmitted = true
-                return { MovementLatentOutput.STARTED }
-            end
-            if self._isComplete() then
-                self._finished = true
-                return { MovementLatentOutput.FINISHED }
-            end
-            return {}
-        end
-    })
-end
-
 ---@class Source.MapActors.DoorBase.DoorBase: Source.MapActors.ConditionalActor
 local DoorBase = {}
 
@@ -64,16 +35,18 @@ function DoorBase:setTextureRect(rect)
 end
 
 function DoorBase:openDoor()
-    if self._openFinished or self:isDestroyed() or self.opening then
-        local condition = newDoorAnimationCondition(function ()
-            return self._openFinished
-        end)
-        condition:finish()
-        return condition
+    if self._openFinished then
+        local operation = Engine.AsyncOperation.new()
+        operation:complete(MovementLatentOutput.FINISHED)
+        return operation
     end
-    if self.closing then
-        self.closing = false
-        self._closeFinished = false
+    if self.opening and self._doorOperation ~= nil and self._doorOperation:getStatus() == "pending" then
+        return self._doorOperation
+    end
+    local operation = self:_newDoorOperation()
+    if self:isDestroyed() then
+        operation:cancel()
+        return operation
     end
     self:_playGateSE()
     self.opening = true
@@ -84,24 +57,22 @@ function DoorBase:openDoor()
     self._closeFinished = false
     self:setTickable(true, false)
     self:_advanceToFrame(0)
-    return newDoorAnimationCondition(function ()
-        return self._openFinished
-    end)
+    operation:emit(MovementLatentOutput.STARTED)
+    return operation
 end
 
 function DoorBase:closeDoor()
-    if self:isDestroyed() or self._openFinished or self.closing then
-        local condition = newDoorAnimationCondition(function ()
-            return self._closeFinished
-        end)
-        condition:finish()
-        return condition
+    if self.closing and self._doorOperation ~= nil and self._doorOperation:getStatus() == "pending" then
+        return self._doorOperation
+    end
+    local operation = self:_newDoorOperation()
+    if self:isDestroyed() then
+        operation:cancel()
+        return operation
     end
     local wasOpening = self.opening
-    if wasOpening then
-        self.opening = false
-        self._openFinished = false
-    end
+    self.opening = false
+    self._openFinished = false
     self:_resolveFrameLayout()
     local currentIndex = self:_getCurrentFrameIndex()
     if currentIndex <= 0 then
@@ -112,23 +83,27 @@ function DoorBase:closeDoor()
         if wasOpening then
             self:setTickable(false, false)
         end
-        local condition = newDoorAnimationCondition(function ()
-            return self._closeFinished
-        end)
-        condition:finish()
-        return condition
+        operation:complete(MovementLatentOutput.FINISHED)
+        return operation
     end
     self:_playGateSE()
     self.closing = true
-    self.opening = false
     self._frameIndex = currentIndex
     self._animTimer = 0.0
     self._closeFinished = false
-    self._openFinished = false
     self:setTickable(true, false)
-    return newDoorAnimationCondition(function ()
-        return self._closeFinished
-    end)
+    operation:emit(MovementLatentOutput.STARTED)
+    return operation
+end
+
+---@return Engine.AsyncOperation
+function DoorBase:_newDoorOperation()
+    if self._doorOperation ~= nil then
+        self._doorOperation:cancel()
+    end
+    self._doorOperation = Engine.AsyncOperation.new()
+    self:trackAsyncOperation(self._doorOperation)
+    return self._doorOperation
 end
 
 function DoorBase:onTick(deltaTime)
@@ -140,6 +115,9 @@ function DoorBase:onTick(deltaTime)
 end
 
 function DoorBase:onDestroy()
+    if self._doorOperation ~= nil then
+        self._doorOperation:cancel()
+    end
     self:setTickable(false, false)
     super(DoorBase, self).onDestroy()
 end
@@ -251,6 +229,9 @@ function DoorBase:_finishOpening()
     self._openFinished = true
     self.opening = false
     self:setTickable(false, false)
+    if self._doorOperation ~= nil then
+        self._doorOperation:complete(MovementLatentOutput.FINISHED)
+    end
     self:destroy()
     local gameMap = self:getMap()
     ---@cast gameMap GameMap
@@ -261,6 +242,9 @@ end
 
 function DoorBase:_finishClosing()
     self._closeFinished = true
+    if self._doorOperation ~= nil then
+        self._doorOperation:complete(MovementLatentOutput.FINISHED)
+    end
     self.closing = false
     self._frameIndex = 0
     self:setTickable(false, false)

@@ -43,8 +43,6 @@ NodeResult invokeNodeGraphCallable(RuntimeScope& scope,
                                    const RuntimeHandle& context);
 RuntimeHandle nodeGraphRefLocal(RuntimeScope& scope,
                                 const RuntimeHandle& callable);
-NodeGraphConditionResult evaluateNodeGraphCondition(
-    RuntimeScope& scope, const RuntimeHandle& condition);
 NodeCache readNodeGraphCache(RuntimeScope& scope, const RuntimeHandle& cache);
 void writeNodeGraphCache(RuntimeScope& scope, const RuntimeHandle& cache,
                          const NodeCache& values);

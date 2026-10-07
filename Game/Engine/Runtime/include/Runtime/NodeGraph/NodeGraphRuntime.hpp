@@ -37,8 +37,6 @@ public:
                       const RuntimeValue::Array& arguments,
                       const RuntimeIdentityPtr& context) const;
     RuntimeIdentityPtr refLocal(const RuntimeIdentityPtr& callable) const;
-    NodeGraphConditionResult evaluateCondition(
-        const RuntimeIdentityPtr& condition) const;
     NodeCache readCache(const RuntimeIdentityPtr& cache) const;
     void writeCache(const RuntimeIdentityPtr& cache,
                     const NodeCache& values) const;

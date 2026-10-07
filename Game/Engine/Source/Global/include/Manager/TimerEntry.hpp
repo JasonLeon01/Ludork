@@ -1,6 +1,7 @@
 #pragma once
 
 #include <CoreMinimal.hpp>
+#include <Runtime/Async/AsyncOperation.hpp>
 
 BIND_CLASS()
 class TimerEntry {
@@ -20,6 +21,8 @@ public:
 
     BIND_PROPERTY()
     bool blocking;
+
+    std::shared_ptr<AsyncOperation> operation;
 
     BIND_METHOD()
     bool isReady() const;

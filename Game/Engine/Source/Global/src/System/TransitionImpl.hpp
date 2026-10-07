@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Runtime/Async/AsyncOperation.hpp>
+
 #include <SFML/Graphics.hpp>
 #include <cstddef>
 #include <memory>
@@ -12,14 +14,15 @@ namespace ludork::global::system_impl {
 class TransitionImpl {
 public:
     explicit TransitionImpl(std::mutex& presentMutex);
-    void setTransition(const std::shared_ptr<sf::Texture>& transitionResource,
-                       float transitionTime);
-    void freezeTransitionBackground();
+    std::shared_ptr<AsyncOperation> setTransition(
+        const std::shared_ptr<sf::Texture>& transitionResource,
+        float transitionTime);
+    std::shared_ptr<AsyncOperation> freezeTransitionBackground();
     bool isTransitionBackgroundFrozen();
     bool isTransitionBackgroundFreezePending();
     void cancelTransitionBackgroundFreeze();
-    void requestTransition(std::optional<std::string> transitionName,
-                           float transitionTime);
+    std::shared_ptr<AsyncOperation> requestTransition(
+        std::optional<std::string> transitionName, float transitionTime);
     void cancelPendingTransition();
     bool isTransitionPending();
     bool isInTransition();
@@ -36,6 +39,11 @@ public:
     void shutdown() noexcept;
 
 private:
+    void startTransition(const std::shared_ptr<sf::Texture>& resource,
+                         float duration);
+    std::shared_ptr<AsyncOperation> transitionOperation_;
+    std::shared_ptr<AsyncOperation> freezeOperation_;
+    bool freezeCompleted_ = false;
     float advanceElapsed(float elapsed, float duration, float deltaTime);
     bool isComplete(float elapsed, float duration);
     void cacheTransitionBackground();

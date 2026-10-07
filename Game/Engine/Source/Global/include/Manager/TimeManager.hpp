@@ -5,8 +5,6 @@
 #include <atomic>
 #include <mutex>
 
-using TimerHandle = std::function<bool()>;
-
 BIND_CLASS()
 class TimeManager {
 public:

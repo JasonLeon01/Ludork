@@ -2,15 +2,16 @@
 #include "System/FramePipelineImpl.hpp"
 #include <utility>
 
-void Transition::setTransition(
+std::shared_ptr<AsyncOperation> Transition::setTransition(
     const std::shared_ptr<sf::Texture>& transitionResource,
     float transitionTime) {
-    ludork::global::system_impl::framePipelineImpl().transition().setTransition(
-        transitionResource, transitionTime);
+    return ludork::global::system_impl::framePipelineImpl()
+        .transition()
+        .setTransition(transitionResource, transitionTime);
 }
 
-void Transition::freezeTransitionBackground() {
-    ludork::global::system_impl::framePipelineImpl()
+std::shared_ptr<AsyncOperation> Transition::freezeTransitionBackground() {
+    return ludork::global::system_impl::framePipelineImpl()
         .transition()
         .freezeTransitionBackground();
 }
@@ -33,9 +34,9 @@ void Transition::cancelTransitionBackgroundFreeze() {
         .cancelTransitionBackgroundFreeze();
 }
 
-void Transition::requestTransition(std::optional<std::string> transitionName,
-                                   float transitionTime) {
-    ludork::global::system_impl::framePipelineImpl()
+std::shared_ptr<AsyncOperation> Transition::requestTransition(
+    std::optional<std::string> transitionName, float transitionTime) {
+    return ludork::global::system_impl::framePipelineImpl()
         .transition()
         .requestTransition(std::move(transitionName), transitionTime);
 }

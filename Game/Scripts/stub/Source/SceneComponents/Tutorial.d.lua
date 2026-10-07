@@ -2,8 +2,7 @@
 
 ---@class Source.SceneComponents.Tutorial.Request
 ---@field key       string
----@field finished  boolean
----@field condition fun(): boolean
+---@field operation Engine.AsyncOperation
 
 ---@class Source.SceneComponents.Tutorial
 ---@field new               fun(scene: Source.Scenes.SceneMap.SceneMap): Source.SceneComponents.Tutorial
@@ -25,12 +24,13 @@ function TutorialController:init(scene) end
 ---@return Source.Scenes.SceneMap.SceneMap
 function TutorialController:getScene() end
 
---- Queue a configured key; already-triggered keys immediately complete.
+--- Share a pending request or queue a configured key; otherwise recorded keys immediately complete.
 ---@param key string
----@return fun(): boolean
+---@return Engine.AsyncOperation
 function TutorialController:request(key) end
 
 --- Advance the queue after scene transitions; record a key only when its contraction starts.
+--- Empty final localised text completes the request without displaying or recording it.
 function TutorialController:update() end
 
 function TutorialController:refreshLocale() end
@@ -49,7 +49,7 @@ function TutorialController:isBlocking() end
 function TutorialController:_restoreMovement() end
 
 --- Cancel the originating graph events without resuming loops or execution outputs, then release capture.
---- Conditions held by direct Lua callers complete; queued keys remain unrecorded.
+--- Direct Lua waiters are cancelled; queued keys remain unrecorded.
 function TutorialController:cancel() end
 
 function TutorialController:dispose() end

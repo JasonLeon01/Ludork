@@ -8,6 +8,7 @@
 namespace ludork::engine::actor_impl {
 
 struct ActorImpl {
+    std::vector<std::shared_ptr<AsyncOperation>> asyncOperations;
     MovementImpl movement;
     AudioImpl audio;
     mutable SpatialImpl spatial;

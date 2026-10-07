@@ -39,8 +39,10 @@ local function suspendPlayerMovement(player, blockInput)
             return
         end
         restored = true
-        player:setMoveEnabled(moveEnabled)
-        blockInput()
+        if not player:isDestroyed() then
+            player:setMoveEnabled(moveEnabled)
+            blockInput()
+        end
     end
 end
 
@@ -112,7 +114,71 @@ function Scene.GetGameMap(self)
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
+local function releaseDialogue(self)
+    local released = { voice = self._dialogueVoice, restore = self._dialogueRestoreMovement }
+    self._dialogueVoice = nil
+    self._dialogueRestoreMovement = nil
+    self._dialogueLocaleSource = nil
+    if released.voice ~= nil then
+        released.voice:stop()
+    end
+    if released.restore ~= nil then
+        released.restore()
+    end
+end
+
+---@param self Source.Scenes.SceneMap.SceneMap
+local function cancelDialogue(self)
+    if self._dialogueOperation ~= nil then
+        self._dialogueOperation:cancel()
+        self._dialogueOperation = nil
+    end
+    local window = self._messageWindow:peek()
+    if window ~= nil then
+        window:cancelDialogue()
+    end
+    releaseDialogue(self)
+end
+
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.CancelAsyncOperations(self)
+    cancelDialogue(self)
+    local windows = {
+        { operation = self._shopOperation, window = self._windowShop, moveEnabled = self._shopMoveEnabledBeforeOpen },
+        {
+            operation = self._attrShopOperation,
+            window = self._windowAttrShop,
+            moveEnabled = self._attrShopMoveEnabledBeforeOpen
+        },
+        {
+            operation = self._playerNameOperation,
+            window = self._windowPlayerName,
+            moveEnabled = self._playerNameMoveEnabledBeforeOpen
+        }
+    }
+    self._shopOperation = nil
+    self._attrShopOperation = nil
+    self._playerNameOperation = nil
+    for _, entry in ipairs(windows) do
+        if entry.operation ~= nil then
+            entry.operation:cancel()
+            local window = entry.window:peek()
+            if window ~= nil then
+                window:dismiss()
+            end
+            restorePlayerMovement(self, entry.moveEnabled, WINDOW_CLOSE_INPUT_BLOCK_FRAMES)
+        end
+    end
+    if self._gameMap ~= nil then
+        for _, actor in ipairs(self._gameMap:getAllActors()) do
+            actor:cancelAsyncOperations()
+        end
+    end
+end
+
+---@param self Source.Scenes.SceneMap.SceneMap
 function Scene.ShowMessage(self, name, message, refActor, localeArgs)
+    cancelDialogue(self)
     local refPosition = nil
     if refActor ~= nil then
         local gameMap = self:getGameMap()
@@ -130,18 +196,31 @@ function Scene.ShowMessage(self, name, message, refActor, localeArgs)
     self._dialogueLocaleSource = dialogueSource
     local formattedName, formattedMessage = Scene.FormatDialogueMessageSource(dialogueSource)
     local messageWindow = self._messageWindow:get()
-    messageWindow:setMessage(refPosition, formattedName, formattedMessage, restoreMove)
-    return function ()
-        if messageWindow:isInDialogue() then
-            return false
-        end
-        restoreMove()
-        return true
+    local operation = Engine.AsyncOperation.new()
+    self._dialogueOperation = operation
+    self._dialogueRestoreMovement = restoreMove
+    messageWindow:setMessage(refPosition, formattedName, formattedMessage, function ()
+        self._dialogueOperation = nil
+        releaseDialogue(self)
+        operation:complete(true)
+    end)
+    return operation
+end
+
+---@param self Source.Scenes.SceneMap.SceneMap
+function Scene.ShowVoiceMessage(self, name, message, voiceFileName, refActor, minDistance, spatial)
+    local operation = Scene.ShowMessage(self, name, message, refActor)
+    if spatial then
+        self._dialogueVoice = AudioManager.playVoice(voiceFileName, nil, refActor, minDistance)
+    else
+        self._dialogueVoice = AudioManager.playVoice(voiceFileName)
     end
+    return operation
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
 function Scene.ShowSelection(self, name, options, refActor, allowCancel, localeArgs)
+    cancelDialogue(self)
     if allowCancel == nil then
         allowCancel = true
     end
@@ -162,15 +241,17 @@ function Scene.ShowSelection(self, name, options, refActor, allowCancel, localeA
     self._dialogueLocaleSource = dialogueSource
     local formattedName, formattedOptions = Scene.FormatDialogueSelectionSource(dialogueSource)
     local messageWindow = self._messageWindow:get()
-    messageWindow:setSelection(refPosition, formattedName, formattedOptions, allowCancel, restoreMove)
-    return function ()
-        local selectionResult = messageWindow:getSelectionResult()
-        if selectionResult == nil then
-            return nil
-        end
-        restoreMove()
-        return selectionResult
-    end
+    local operation = Engine.AsyncOperation.new()
+    self._dialogueOperation = operation
+    self._dialogueRestoreMovement = restoreMove
+    messageWindow:setSelection(refPosition, formattedName, formattedOptions, allowCancel, function ()
+        local result = messageWindow:getSelectionResult()
+        assert(result ~= nil, "Selection finished without a result")
+        self._dialogueOperation = nil
+        releaseDialogue(self)
+        operation:complete(result)
+    end)
+    return operation
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
@@ -389,6 +470,10 @@ end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
 function Scene.OpenPlayerName(self)
+    if self._playerNameOperation ~= nil and self._playerNameOperation:getStatus() == "pending" then
+        return self._playerNameOperation
+    end
+    self._playerNameOperation = Engine.AsyncOperation.new()
     local window = self._windowPlayerName:get()
     if not window:getVisible() then
         self._playerNameMoveEnabledBeforeOpen = self.player:getMoveEnabled()
@@ -396,46 +481,62 @@ function Scene.OpenPlayerName(self)
         window:open()
         self:_blockMapInput(MAP_INPUT_BLOCK_FRAMES)
     end
-    return function ()
-        return not window:getVisible()
-    end
+    return self._playerNameOperation
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
 function Scene.OpenShop(self, buyItemIDs, canSell)
-    self._shopMoveEnabledBeforeOpen = self:_isMenuBlocking() or self.player:getMoveEnabled()
+    if self._shopOperation ~= nil then
+        self._shopOperation:cancel()
+    else
+        self._shopMoveEnabledBeforeOpen = self:_isMenuBlocking() or self.player:getMoveEnabled()
+    end
+    self._shopOperation = Engine.AsyncOperation.new()
     self.player:setMoveEnabled(false)
     local window = self._windowShop:get()
     window:open(buyItemIDs, canSell)
-    return function ()
-        return not window:getVisible()
-    end
+    return self._shopOperation
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
 function Scene.OpenAttrShop(self, actor, shopName, shopDescription, abilities, priceRef, priceIncrement, moneyName)
-    self._attrShopMoveEnabledBeforeOpen = self:_isMenuBlocking() or self.player:getMoveEnabled()
+    if self._attrShopOperation ~= nil then
+        self._attrShopOperation:cancel()
+    else
+        self._attrShopMoveEnabledBeforeOpen = self:_isMenuBlocking() or self.player:getMoveEnabled()
+    end
+    self._attrShopOperation = Engine.AsyncOperation.new()
     self.player:setMoveEnabled(false)
     local window = self._windowAttrShop:get()
     window:open(actor, shopName, shopDescription, abilities, priceRef, priceIncrement, moneyName)
-    return function ()
-        return not window:getVisible()
-    end
+    return self._attrShopOperation
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
 function Scene.OnShopClose(self)
     restorePlayerMovement(self, self._shopMoveEnabledBeforeOpen, WINDOW_CLOSE_INPUT_BLOCK_FRAMES)
+    if self._shopOperation ~= nil then
+        self._shopOperation:complete(true)
+        self._shopOperation = nil
+    end
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
 function Scene.OnPlayerNameClose(self)
     restorePlayerMovement(self, self._playerNameMoveEnabledBeforeOpen, MAP_INPUT_BLOCK_FRAMES)
+    if self._playerNameOperation ~= nil then
+        self._playerNameOperation:complete(true)
+        self._playerNameOperation = nil
+    end
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap
 function Scene.OnAttrShopClose(self)
     restorePlayerMovement(self, self._attrShopMoveEnabledBeforeOpen, WINDOW_CLOSE_INPUT_BLOCK_FRAMES)
+    if self._attrShopOperation ~= nil then
+        self._attrShopOperation:complete(true)
+        self._attrShopOperation = nil
+    end
 end
 
 ---@param self Source.Scenes.SceneMap.SceneMap

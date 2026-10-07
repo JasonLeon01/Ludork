@@ -398,6 +398,7 @@ def parse_binding_options(
         "metadata_parameters",
         "metadata_returns",
         "multiple_returns",
+        "nonnull_return",
         "name",
         "parameter_types",
         "property",

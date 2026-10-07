@@ -35,21 +35,6 @@ local function getActorByTag(scene, refActorTag)
     return scene:getGameMap():getActorByTag(refActorTag)
 end
 
----@param condition fun(): boolean
----@param voice     sf.Sound | nil
----@return fun(): boolean
-local function stopVoiceAfterDialogue(condition, voice)
-    return function ()
-        if not condition() then
-            return false
-        end
-        if voice ~= nil then
-            voice:stop()
-        end
-        return true
-    end
-end
-
 ---@param camera GlobalCore.Camera
 ---@param actor  Engine.Actor
 local function snapCameraToActor(camera, actor)
@@ -86,9 +71,11 @@ function Scene.AddTimer(interval, blocking)
         end, blocking
         )
     end
-    return function ()
-        return true
-    end
+    local Engine = require("Engine")
+
+    local operation = Engine.AsyncOperation.new()
+    operation:complete(true)
+    return operation
 end
 
 function Scene.ShowEnemyBook()
@@ -114,17 +101,13 @@ end
 function Scene.ShowVoiceMessageByTag(name, message, voiceFileName, refActorTag)
     refActorTag = refActorTag == nil and "" or refActorTag
     local scene = loadContext().RequireSceneMap()
-    local voice = loadGlobalCore().AudioManager.playVoice(voiceFileName)
-    local dialogueFinished = scene:showMessage(name, message, getActorByTag(scene, refActorTag))
-    return stopVoiceAfterDialogue(dialogueFinished, voice)
+    return scene:showVoiceMessage(name, message, voiceFileName, getActorByTag(scene, refActorTag), nil, false)
 end
 
 function Scene.ShowVoiceMessage(name, message, voiceFileName, refActor, minDistance)
     minDistance = minDistance == nil and 64.0 or minDistance
     local scene = loadContext().RequireSceneMap()
-    local voice = loadGlobalCore().AudioManager.playVoice(voiceFileName, nil, refActor, minDistance)
-    local dialogueFinished = scene:showMessage(name, message, refActor)
-    return stopVoiceAfterDialogue(dialogueFinished, voice)
+    return scene:showVoiceMessage(name, message, voiceFileName, refActor, minDistance, true)
 end
 
 function Scene.ShowSelection(name, options, refActorTag, allowCancel)

@@ -55,11 +55,6 @@ RuntimeIdentityPtr NodeGraphRuntimeFacade::refLocal(
     RuntimeScope scope;
     return nodeGraphRefLocal(scope, RuntimeHandle(callable)).identity();
 }
-NodeGraphConditionResult NodeGraphRuntimeFacade::evaluateCondition(
-    const RuntimeIdentityPtr& condition) const {
-    RuntimeScope scope;
-    return evaluateNodeGraphCondition(scope, RuntimeHandle(condition));
-}
 NodeCache NodeGraphRuntimeFacade::readCache(
     const RuntimeIdentityPtr& cache) const {
     RuntimeScope scope;

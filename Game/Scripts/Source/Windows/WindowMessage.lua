@@ -136,6 +136,18 @@ function Controller:confirmMessage()
     return true
 end
 
+function Controller:cancelDialogue()
+    self._onFinished = nil
+    self._inDialogue = false
+    self._selectionResult = nil
+    self._pendingLayout = false
+    self._pendingFadeIn = false
+    self._pendingRefPosition = nil
+    self:setConfirmLayerActive(false)
+    self.host:setActive(false)
+    self.host:hideImmediate()
+end
+
 function Controller:getSelectionResult()
     return self._selectionResult
 end

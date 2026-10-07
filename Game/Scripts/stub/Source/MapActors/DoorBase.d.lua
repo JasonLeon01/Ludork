@@ -1,12 +1,5 @@
 ---@meta Source.MapActors.DoorBase
 
----@class Source.MapActors.DoorBase.DoorAnimationCondition
----@field _isComplete     fun(): boolean
----@field _startedEmitted boolean
----@field _finished       boolean
----@field isFinished      fun(self: Source.MapActors.DoorBase.DoorAnimationCondition): boolean
----@field finish          fun(self: Source.MapActors.DoorBase.DoorAnimationCondition)
-
 --- Base door actor that plays sprite-sheet open and close animations.
 ---
 --- The texture should contain frames arranged horizontally (left to right).
@@ -20,13 +13,15 @@
 --- `tickable` keeps the Actor default `False`; valid open/close playback
 --- enables it only until the animation completes or the Actor is destroyed.
 --- Calling `openDoor()` or `closeDoor()` while the same animation is already
---- running is a safe no-op.
+--- running returns its pending operation. Reversing the animation cancels the
+--- previous operation. Destroying the actor cancels unfinished operations.
 ---@class Source.MapActors.DoorBase.DoorBase: Source.MapActors.ConditionalActor
 ---@field opening          boolean
 ---@field closing          boolean
 ---@field collisionEnabled boolean
 ---@field openInterval     number
 ---@field gateSE           string
+---@field _doorOperation   Engine.AsyncOperation | nil
 ---@field _frameIndex      integer
 ---@field _animTimer       number
 ---@field _openFinished    boolean
@@ -57,22 +52,23 @@ function DoorBase:setTextureRect(rect) end
 --- Start the door-open animation (latent).
 ---
 --- Advances through each frame every `openInterval` seconds, then
---- self-destructs. Calling while already opening or destroyed is a safe
---- no-op. Interrupts an in-progress close animation.
+--- self-destructs after completing its operation. Repeated calls while opening
+--- share the operation. Destroyed actors return a cancelled operation unless
+--- opening already finished. Interrupts an in-progress close animation.
 ---
---- - @return A condition callable for the LatentManager to poll
----@return Source.MapActors.DoorBase.DoorAnimationCondition
+--- - @return An operation that emits Started and completes with Finished.
+---@return Engine.AsyncOperation
 function DoorBase:openDoor() end
 
 --- Start the door-close animation (latent).
 ---
 --- Animates from the current frame back to the first frame every
---- `openInterval` seconds. Calling while already closing, destroyed, or
---- already on the first frame is a safe no-op. Interrupts an in-progress
---- open animation.
+--- `openInterval` seconds. Repeated calls while closing share the operation.
+--- Destroyed actors return a cancelled operation; already-closed actors return
+--- a completed operation. Interrupts an in-progress open animation.
 ---
---- - @return A condition callable for the LatentManager to poll
----@return Source.MapActors.DoorBase.DoorAnimationCondition
+--- - @return An operation that emits Started and completes with Finished.
+---@return Engine.AsyncOperation
 function DoorBase:closeDoor() end
 
 --- Blueprint event: drive open/close animations when active.

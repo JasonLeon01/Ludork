@@ -16,10 +16,6 @@ std::vector<std::shared_ptr<TimerEntry>> advanceTimers(
         }
     }
     for (const std::shared_ptr<TimerEntry>& entry : ready) {
-        const auto iterator = std::find(entries.begin(), entries.end(), entry);
-        if (iterator != entries.end()) {
-            entries.erase(iterator);
-        }
         if (entry != nullptr && entry->blocking) {
             entry->blocking = false;
             blockingTimerCount = std::max(0, blockingTimerCount - 1);

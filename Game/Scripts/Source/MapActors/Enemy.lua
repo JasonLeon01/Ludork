@@ -185,7 +185,8 @@ function Enemy:onCollision(other)
     local gameMap = self:getMap()
     ---@cast gameMap GameMap | nil
     local player = Player.MeetPlayer(other, gameMap ~= nil and gameMap:getPlayer() or nil)
-    if player == nil or self._defeatFinalising or (self._battleCondition ~= nil and not self._battleCondition()) then
+    if player == nil or self._defeatFinalising
+        or (self._battleCondition ~= nil and self._battleCondition:getStatus() == "pending") then
         return
     end
     assert(gameMap ~= nil, "Enemy combat requires an owning map")

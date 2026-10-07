@@ -592,9 +592,29 @@ def return_outputs(context: GeneratorContext, member: Member) -> list[tuple[str,
     return list(zip(names, types))
 
 
+def has_nonnull_return(context: GeneratorContext, member: Member) -> bool:
+    value = member.options.get("nonnull_return", "false")
+    if value not in {"true", "false"}:
+        raise ValueError(f"nonnull_return on {member.name} must be true or false")
+    if value == "false":
+        return False
+    types = exposed_return_types(context, member)
+    if len(types) != 1 or not is_shared_pointer(context, types[0]):
+        raise ValueError(f"nonnull_return on {member.name} requires one shared_ptr result")
+    return True
+
+
+def stub_member_return_type(context: GeneratorContext, member: Member, value: str) -> str:
+    result = lua_type(context, value)
+    if has_nonnull_return(context, member):
+        return "|".join(part for part in result.split("|") if part != "nil")
+    return result
+
+
 def stub_return_annotation(context: GeneratorContext, member: Member) -> str:
     return ", ".join(
-        lua_type(context, value) for value in exposed_return_types(context, member)
+        stub_member_return_type(context, member, value)
+        for value in exposed_return_types(context, member)
     )
 
 
@@ -603,7 +623,7 @@ def stub_return_lines(context: GeneratorContext, member: Member) -> list[str]:
     if names is None:
         return [f"---@return {stub_return_annotation(context, member)}"]
     return [
-        f"---@return {lua_type(context, type_name)} {name}"
+        f"---@return {stub_member_return_type(context, member, type_name)} {name}"
         for name, type_name in return_outputs(context, member)
     ]
 

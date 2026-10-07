@@ -77,6 +77,9 @@ function Controller:confirmMessage() end
 ---@brief Get the result of a selection dialogue.
 ---
 --- - @return The selected option index, or nil if no selection has been made.
+--- Dismiss an interrupted dialogue without invoking its completion callback.
+function Controller:cancelDialogue() end
+
 ---@return integer | nil
 function Controller:getSelectionResult() end
 

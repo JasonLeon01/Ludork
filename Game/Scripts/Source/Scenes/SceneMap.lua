@@ -107,6 +107,7 @@ function Scene:onCreate()
 end
 
 function Scene:onQuit()
+    SceneMapInteractions.CancelAsyncOperations(self)
     self._tutorials:cancel()
     ManagerFunctions.stopVoice()
     self._mapAudio:stopMapAudio()
@@ -116,6 +117,7 @@ function Scene:onQuit()
 end
 
 function Scene:onDestroy()
+    SceneMapInteractions.CancelAsyncOperations(self)
     self._tutorials:dispose()
     LiveDebug.UnbindScene(self)
     self._gameplayRequestsActive = false
@@ -236,6 +238,8 @@ function Scene:onLateTick(deltaTime)
 end
 
 function Scene:loadMap(mapPath, initialPosition)
+    self:cancelTimers()
+    SceneMapInteractions.CancelAsyncOperations(self)
     self._tutorials:cancel()
     Logging.info("Loading map: %s", mapPath)
     local startTime = perfCounter()
@@ -650,6 +654,10 @@ end
 
 function Scene:showMessage(name, message, refActor, localeArgs)
     return SceneMapInteractions.ShowMessage(self, name, message, refActor, localeArgs)
+end
+
+function Scene:showVoiceMessage(name, message, voiceFileName, refActor, minDistance, spatial)
+    return SceneMapInteractions.ShowVoiceMessage(self, name, message, voiceFileName, refActor, minDistance, spatial)
 end
 
 function Scene:showSelection(name, options, refActor, allowCancel, localeArgs)

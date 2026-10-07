@@ -108,10 +108,24 @@ function Controller:close(onHidden)
         self._itemWindow:setVisible(false)
         self._detailWindow:setVisible(false)
         self._closed = true
+        if self._onCloseCallback ~= nil then
+            self._onCloseCallback()
+        end
         if onHidden ~= nil then
             onHidden()
         end
     end)
+end
+
+function Controller:dismiss()
+    self._transition:hideImmediate()
+    self._tabWindow:setActive(false)
+    self._itemWindow:setActive(false)
+    self._detailWindow:setActive(false)
+    self._tabWindow:setVisible(false)
+    self._itemWindow:setVisible(false)
+    self._detailWindow:setVisible(false)
+    self._closed = true
 end
 
 function Controller:closeByCancel()
@@ -278,11 +292,7 @@ function Controller:_sellItem(itemID)
 end
 
 function Controller:_closeAndNotify()
-    self:close(function ()
-        if self._onCloseCallback ~= nil then
-            self._onCloseCallback()
-        end
-    end)
+    self:close()
 end
 
 function Controller:dispose()

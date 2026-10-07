@@ -95,6 +95,7 @@ bool Actor::isDestroyed() const {
 }
 
 Actor::~Actor() {
+    cancelAsyncOperations();
     releaseEmitter();
     releaseBillboard();
 }
@@ -102,6 +103,8 @@ Actor::~Actor() {
 void Actor::markDestroyed(bool destroyed) {
     destroyed_ = destroyed;
     if (destroyed_) {
+        cancelAsyncOperations();
+        impl_.get().movement.stop();
         releaseEmitter();
         releaseBillboard();
     }
@@ -449,8 +452,40 @@ bool Actor::isInRoute() const {
     return impl_.get().movement.inRoute;
 }
 
-void Actor::setRoute(const std::optional<std::vector<sf::Vector2i>>& route) {
-    impl_.get().movement.setRoute(route);
+std::shared_ptr<AsyncOperation> Actor::setRoute(
+    const std::optional<std::vector<sf::Vector2i>>& route) {
+    const std::shared_ptr<AsyncOperation> operation =
+        impl_.get().movement.setRoute(route);
+    if (isDestroyed()) {
+        operation->cancel();
+    }
+    return operation;
+}
+
+void Actor::cancelAsyncOperations() {
+    if (impl_.get().movement.operation != nullptr) {
+        impl_.get().movement.operation->cancel();
+    }
+    for (const std::shared_ptr<AsyncOperation>& operation :
+         impl_.get().asyncOperations) {
+        operation->cancel();
+    }
+    impl_.get().asyncOperations.clear();
+}
+
+void Actor::trackAsyncOperation(
+    const std::shared_ptr<AsyncOperation>& operation) {
+    if (operation == nullptr) {
+        throw std::invalid_argument("Async operation cannot be null");
+    }
+    if (isDestroyed()) {
+        operation->cancel();
+        return;
+    }
+    std::erase_if(impl_.get().asyncOperations, [](const auto& existing) {
+        return existing->getStatus() != "pending";
+    });
+    impl_.get().asyncOperations.push_back(operation);
 }
 
 std::optional<std::vector<sf::Vector2i>> Actor::getRoute() const {
@@ -764,6 +799,8 @@ std::shared_ptr<ActorMapService> Actor::getMap() const {
 void Actor::setMap(const std::shared_ptr<ActorMapService>& inMap) {
     if (const std::shared_ptr<ActorMapService> previous = map_.lock();
         previous != nullptr && previous != inMap) {
+        cancelAsyncOperations();
+        impl_.get().movement.stop();
         releaseEmitter();
         releaseBillboard();
     }

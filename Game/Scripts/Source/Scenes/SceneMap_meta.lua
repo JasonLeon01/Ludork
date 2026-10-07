@@ -29,7 +29,7 @@ local _METADATA = {
             default = {
                 [1] = "self"
             },
-            ["return"] = { "return", ["return"] = "function" },
+            ["return"] = { "return", ["return"] = { "Engine", "AsyncOperation" } },
             Latent = true,
             LatentStates = { "Closed", Closed = { true } }
         },
@@ -53,7 +53,7 @@ local _METADATA = {
             },
             ["return"] = {
                 "return",
-                ["return"] = "function"
+                ["return"] = { "Engine", "AsyncOperation" }
             },
             Latent = true,
             LatentStates = {
@@ -84,7 +84,7 @@ local _METADATA = {
             },
             ["return"] = {
                 "return",
-                ["return"] = "function"
+                ["return"] = { "Engine", "AsyncOperation" }
             },
             Latent = true,
             LatentStates = {

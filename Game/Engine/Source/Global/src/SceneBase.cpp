@@ -57,10 +57,19 @@ void SceneBase::setEmitterMap(const std::shared_ptr<GameMapBase>& map) {
     emitterMap_ = ludork::runtime::detail::canonicalRuntimeOwner(map);
 }
 
-TimerHandle SceneBase::addTimer(float interval, RuntimeIdentityPtr task,
-                                RuntimeValue::Array params, bool blocking) {
+std::shared_ptr<AsyncOperation> SceneBase::addTimer(float interval,
+                                                    RuntimeIdentityPtr task,
+                                                    RuntimeValue::Array params,
+                                                    bool blocking) {
     const std::shared_ptr<TimerEntry> entry = std::make_shared<TimerEntry>(
         interval, std::move(task), std::move(params), blocking);
+    entry->operation = AsyncOperation::create();
+    const std::weak_ptr<TimerEntry> weakEntry = entry;
+    entry->operation->onCancelled([weakEntry]() {
+        if (const std::shared_ptr<TimerEntry> active = weakEntry.lock()) {
+            active->cancel();
+        }
+    });
     {
         const std::lock_guard<std::recursive_mutex> lock(logicDataMutex_);
         timerEntries_.push_back(entry);
@@ -68,16 +77,22 @@ TimerHandle SceneBase::addTimer(float interval, RuntimeIdentityPtr task,
             ++blockingTimerCount_;
         }
     }
-    const std::weak_ptr<TimerEntry> weakEntry = entry;
-    return [weakEntry]() {
-        const std::shared_ptr<TimerEntry> activeEntry = weakEntry.lock();
-        return activeEntry == nullptr || activeEntry->isReady();
-    };
+    return entry->operation;
 }
 
-TimerHandle SceneBase::addTimer(float interval, RuntimeIdentityPtr task,
-                                bool blocking) {
+std::shared_ptr<AsyncOperation> SceneBase::addTimer(float interval,
+                                                    RuntimeIdentityPtr task,
+                                                    bool blocking) {
     return addTimer(interval, std::move(task), {}, blocking);
+}
+
+void SceneBase::cancelTimers() {
+    const std::lock_guard<std::recursive_mutex> lock(logicDataMutex_);
+    for (const std::shared_ptr<TimerEntry>& entry : timerEntries_) {
+        entry->cancel();
+    }
+    timerEntries_.clear();
+    blockingTimerCount_ = 0;
 }
 
 bool SceneBase::isInputBlocked() const {
@@ -365,6 +380,7 @@ void SceneBase::systemQuit() {
         return;
     }
     lifecycleImpl_->markExited();
+    cancelTimers();
     onQuit();
 }
 
@@ -478,6 +494,18 @@ void SceneBase::logicHandle(float deltaTime) {
                 ludork::runtime::reference::intern(RuntimeValue(entry->task)),
                 entry->params);
         }
+        if (!entry->isCancelled()) {
+            entry->operation->complete(RuntimeValue(true));
+        }
+        entry->task.reset();
+        entry->params.clear();
+    }
+    {
+        const std::lock_guard<std::recursive_mutex> lock(logicDataMutex_);
+        std::erase_if(timerEntries_, [&readyTimers](const auto& entry) {
+            return std::find(readyTimers.begin(), readyTimers.end(), entry) !=
+                   readyTimers.end();
+        });
     }
     std::vector<std::shared_ptr<Animation>> finishedAnimations;
     std::vector<std::shared_ptr<Animation>> activeAnimations;
@@ -715,6 +743,9 @@ void SceneBase::clearRuntimeState() noexcept {
     {
         const std::lock_guard<std::recursive_mutex> lock(logicDataMutex_);
         timerEntries.swap(timerEntries_);
+        for (const std::shared_ptr<TimerEntry>& entry : timerEntries) {
+            entry->cancel();
+        }
         animations.swap(animations_);
         commonTipController = std::move(commonTipController_);
         commonTipParticleSystem = std::move(commonTipParticleSystem_);

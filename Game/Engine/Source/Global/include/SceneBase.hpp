@@ -38,15 +38,21 @@ public:
     BIND_METHOD(metadata = false)
     void setEmitterMap(const std::shared_ptr<GameMapBase>& map);
 
-    BIND_METHOD(latent(TimeUp = true), defaults = {nil, nil, {}, false},
+    BIND_METHOD(nonnull_return = true, latent(TimeUp = true),
+                defaults = {nil, nil, {}, false},
                 parameter_types = {float, function, any[], bool})
-    TimerHandle addTimer(float interval, RuntimeIdentityPtr task = {},
-                         RuntimeValue::Array params = {},
-                         bool blocking = false);
+    std::shared_ptr<AsyncOperation> addTimer(float interval,
+                                             RuntimeIdentityPtr task = {},
+                                             RuntimeValue::Array params = {},
+                                             bool blocking = false);
+
+    BIND_METHOD(metadata = false, nonnull_return = true)
+    std::shared_ptr<AsyncOperation> addTimer(float interval,
+                                             RuntimeIdentityPtr task,
+                                             bool blocking);
 
     BIND_METHOD(metadata = false)
-    TimerHandle addTimer(float interval, RuntimeIdentityPtr task,
-                         bool blocking);
+    void cancelTimers();
 
     BIND_METHOD(Pure = true, returns = "blocked")
     bool isInputBlocked() const;
