@@ -27,9 +27,21 @@ Build a validated event graph with explicit execution flow, typed data pins, reu
 
 ## Events
 
-An event is an entry point declared with `type = "event"`. It supplies ordered data pins and execution outputs. An event without an explicit split receives the default execution output.
+An event is declared with `type = "event"`. The editor combines its ordered parameter outputs and one execution output in a built-in Event entry. The execution connection selects the start node; without it, the local graph does not execute. A class Blueprint then searches its parent chain for the event implementation, continuing past empty ancestor graphs. Common Functions and General Data graphs have no inherited-event fallback.
+
+The saved shape remains `nodes`, `links` and `startNodes`. The entry and its execution connection are editor projections, not ordinary saved nodes or links; the selected target remains in `startNodes[eventName]`. Entry parameter links retain their `default_N` source and data output index `0`. Entry positions are not saved. Loading an existing graph projects these values without inserting a Parent node or rewriting the graph.
 
 General Data member graphs are synchronous abilities, not inherited or implicit Blueprint events. `Source.Gameplay.GeneralDataGraphAbility` activates a selected graph with `GameplayEventData` as parent. A `null` start returns `NoGraph`. Latent nodes are invalid, and errors propagate to the caller.
+
+## Parent event calls
+
+New graph-mode Blueprints and explicitly added local event graphs initialise `Event → Parent` when the parent chain declares the same event. Initial data links forward each event parameter to the corresponding Parent input. A parent Blueprint's custom event without a metadata signature has no parameter inputs. Existing graphs are not populated automatically; Script Mixin graphs remain inactive.
+
+A Parent node is saved as `nodeFunction = "super.<eventName>"` using the ordinary node, parameter and link fields. It has one execution input/output, typed event parameter inputs, and no receiver or return-data pins. The compiler adapts those inputs to the existing `GlobalFunctions.Utils.SUPER` call, supplying the graph owner, argument array, caller context and event name. Parent lookup starts above the class that owns the current graph, avoiding a restart from the most-derived instance class in multi-level inheritance.
+
+Each input supplies its current connected value or ordinary unconnected default. The argument array follows the existing SUPER length and fallback rules: missing or nil arguments may be filled from the caller's event context. A nil input does not explicitly clear the original event argument; values after a nil hole are subject to the same array-length boundary. Non-nil arguments within that boundary, including `false`, override the corresponding event values. Context restoration and parent-call execution timing remain unchanged.
+
+[GlobalFunctions.Utils.SUPER](<../Node Functions/Utils.md>) retains its two Blueprint inputs and existing `SUPER(obj, params)` behaviour. Its optional context and event-name arguments are used by the compiled Parent adapter; omitted arguments select the current node context and event. Ordinary instance-method nodes still expose their `self` receiver as described below.
 
 ## Common Functions
 

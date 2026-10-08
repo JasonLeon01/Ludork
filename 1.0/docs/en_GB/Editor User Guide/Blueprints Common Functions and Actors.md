@@ -12,7 +12,7 @@ Create a graph-mode Blueprint, set class defaults, add a valid event graph and p
 
 ## Create a Blueprint
 
-Use **Game → New Blueprint**, or the equivalent command in the file explorer. Choose a parent that ultimately inherits `BPBase`, then choose a path beneath `Data/Blueprints`. Parent defaults and supported events are resolved when the editor opens the class.
+Use **Game → New Blueprint**, or the equivalent command in the file explorer. Choose a parent that ultimately inherits `BPBase`, then choose a path beneath `Data/Blueprints`. Parent defaults and supported events are resolved from the inheritance chain. A new graph-mode Blueprint starts each inherited event with `Event → Parent`, including the event parameter connections.
 
 A Blueprint key is its case-preserving path relative to `Data/Blueprints`, with `/` separators and no `.json` extension, such as `Actors/Guard`. Its class reference is `Data.Blueprints.Actors.Guard`. Key inputs accept an optional `.json` extension and normalise backslashes and surrounding whitespace. In a full class reference, every dot separates a module segment: `Data.Blueprints.Actors.json` refers to the key `Actors/json`.
 
@@ -54,9 +54,15 @@ Placing and deleting Actor instances can be undone in their map document. Deleti
 
 Enabling **Script Mixin** hides the entire right-hand graph and preview area, and the variables fill the available width. Disabling it restores that area and the previous column widths immediately. The same layout follows the inherited mode, Undo/Redo and reload, and existing graph data is retained.
 
-Each event owns a node list and links. Add nodes from the picker, connect execution pins and data pins with compatible types, and set literal defaults for unconnected input pins. Pure nodes have data pins only, and execution nodes must be reachable from the event start.
+Each Blueprint, Common Function and General Data graph has one built-in red **Event** entry, including events without parameters. Its execution output selects the start node by connecting to that node's execution input. Its data outputs provide the ordered event parameters. Reconnecting the execution output replaces the start; disconnecting it or deleting its target clears the start. Pure nodes have data pins only.
 
-An execution output pin holds one link, so connecting it again replaces the existing link, while an execution input pin accepts links from several nodes. A data output pin may fan out, and a data input pin holds one link. Right-click a node to set or clear the event start, disconnect every input or output link, copy or delete it; right-click empty canvas to add a node, paste, or organise the graph.
+An unconnected entry is translucent and shows a persistent notice above it. A Blueprint says, “This event graph will not execute. An inherited implementation will be called if one exists.” Common Function and General Data graphs say, “This graph has no entry connection and will not execute.” Reconnecting the entry restores its normal appearance.
+
+Use **New Event** to add a local graph. The name input offers inherited events that have no local graph; an existing local graph, even an empty one, cannot be added again. If the parent chain has the event, the new graph starts with a brown **Parent: Event Name** node connected to the entry and its parameters. This is one Undo operation. Opening an inherited event tab only displays it and does not initialise an override or modify saved data.
+
+A Parent node is an ordinary editable node with execution input/output and one input per event parameter. Move, copy or delete it, change its parameter connections, or add it again from the node picker. Unconnected parameter inputs use their typed editors and defaults. Parent event nodes are available only in graph-mode class Blueprints. Add other nodes from the picker and connect compatible execution and data pins as needed.
+
+An execution output pin holds one link, so connecting it again replaces the existing link, while an execution input pin accepts links from several nodes. A data output pin may fan out, and a data input pin holds one link. Right-click an editable node to disconnect every input or output link, copy or delete it; right-click empty canvas to add a node, paste, or organise the graph.
 
 Right-click an editable node and choose **Convert to Plain Text Inputs** to replace all its editable parameter controls with text boxes. Connected inputs retain their usual display and pin types. Use **Restore Typed Inputs** to return to the type-specific controls. This works in Blueprint, Common Function and General Data graphs.
 
@@ -79,7 +85,7 @@ The primary modifier is `Ctrl` on Windows and `Command` on macOS.
 | `Delete` | Delete selected editable nodes |
 | `Ctrl+drag` on empty canvas | Box-select nodes; drag further to enclose more nodes, release to apply |
 
-Inherited and event-parameter nodes are virtual, so they are excluded from select-all, movement, duplication and deletion. Graph shortcuts do not replace keyboard input while a parameter editor or another input control has focus, and mutating shortcuts are disabled for read-only graphs.
+The built-in entry is virtual and automatically positioned, so it is excluded from select-all, manual movement, duplication and deletion. Parent call nodes remain editable. Graph shortcuts do not replace keyboard input while a parameter editor or another input control has focus, and mutating shortcuts are disabled for read-only graphs.
 
 Common Functions provide reusable graphs. They are preferable to copying identical node sequences into many Blueprints.
 

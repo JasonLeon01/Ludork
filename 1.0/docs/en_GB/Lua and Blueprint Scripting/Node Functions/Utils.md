@@ -6,6 +6,8 @@ Metadata source: `Scripts/GlobalFunctions/Utils_meta.lua`
 
 `RunCommonFunction` shares the caller's local context and graph owner, including nested calls. `SELF` returns that owner, which is also the default for unconnected instance-method receivers inside the Common Function.
 
+`SUPER(obj, params)` calls the current Blueprint event on its parent using the existing object and parameter-list interface. The class Blueprint's **Parent: Event Name** node adapts its individually editable inputs to this same function, using optional `refLocal` and `eventName` arguments. These do not add Blueprint pins to the original SUPER node. The Parent node is stored as `super.<eventName>` and has no receiver input. Both forms retain the existing parameter-array length and nil fallback behaviour. See [Parent event calls](<../Blueprint Scripting/Execution Flow Events and Variables.md#parent-event-calls>) for inheritance and argument rules.
+
 ## Utils
 
 Direct metadata bases: —

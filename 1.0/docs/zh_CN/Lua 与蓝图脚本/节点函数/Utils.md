@@ -6,6 +6,8 @@ Metadata 来源：`Scripts/GlobalFunctions/Utils_meta.lua`
 
 `RunCommonFunction` 共享调用方的局部上下文与图 owner，嵌套调用时也一样。`SELF` 返回该 owner，公共函数内部未连接的实例方法接收者也默认使用它。
 
+`SUPER(obj, params)` 沿用对象与参数列表接口，调用当前蓝图事件的父实现。类蓝图中的 **Parent: 事件名** 节点把逐项可编辑的输入适配到这个函数，通过可选的 `refLocal` 和 `eventName` 参数提供上下文和目标事件；原 SUPER 节点不会因此增加蓝图引脚。Parent 节点以 `super.<eventName>` 保存，不带接收者输入。两种形式都沿用原参数数组的长度与 nil 回填行为。继承与参数规则见[父事件调用](<../蓝图脚本/执行流、事件与变量.md#父事件调用>)。
+
 ## Utils
 
 直接 metadata 基类：—

@@ -16,7 +16,7 @@ Actor 可通过 `billboardComp` 配置 [Engine.BillboardComponent](<../全局与
 
 [Source.MapActors.ConditionalActor](<../源码类/ConditionalActor.md>) 增加了 `conditionVariable`、`conditionOperator` 和 `conditionValue`。先选择一个已声明的数值、布尔或字符串变量，再选择比较运算符和比较值；比较值的控件由变量类型决定。变量名为空时不进行条件控制。数值支持 `==`、`~=`、`>`、`>=`、`<`、`<=`，布尔和字符串只支持 `==`、`~=`。非法数据直接报错，不做类型转换。
 
-Enemy、Item、Equip、DoorBase、Teleporter 以及 Game 项目中直接放置在地图上的 Actor 蓝图都继承这一行为，Bottle 和 Gem 则保留各自的 Script Mixin。`onCreate` 完成订阅并立即求值；之后再写入变量会更新可见性，条件转为不成立时 Actor 重新隐藏。隐藏期间 Actor 仍在监听。`onDestroy` 和大地图休眠会退订，大地图唤醒则重新订阅并求值。覆盖生命周期时必须继续调用父事件。EnemyDamageText 保留自己独立的提示行为与 Tick 策略。
+Enemy、Item、Equip、DoorBase、Teleporter 以及 Game 项目中直接放置在地图上的 Actor 蓝图都继承这一行为，Bottle 和 Gem 则保留各自的 Script Mixin。`onCreate` 完成订阅并立即求值；之后再写入变量会更新可见性，条件转为不成立时 Actor 重新隐藏。隐藏期间 Actor 仍在监听。`onDestroy` 和大地图休眠会退订，大地图唤醒则重新订阅并求值。覆盖生命周期时必须继续调用父事件；图模式蓝图应在执行路径中保留对应的[父事件调用](<../蓝图脚本/执行流、事件与变量.md#父事件调用>)。EnemyDamageText 保留自己独立的提示行为与 Tick 策略。
 
 普通地图加载会先绑定 Scene、当前地图身份和玩家位置，恢复 added、moved 与 destroyed 记录，然后在地图的 Player 就绪之后初始化存活的 Actor。切图与 Scene 销毁会释放旧订阅，且不产生销毁或拾取事件。存档保存变量当前值，但不保存订阅，也不保存由条件推导出的可见性。已拾取的 Actor 继续沿用原有的销毁记录保持缺失。
 
