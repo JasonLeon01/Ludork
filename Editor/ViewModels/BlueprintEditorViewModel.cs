@@ -196,7 +196,23 @@ internal sealed class BlueprintEditorViewModel : ViewModelBase, IDisposable
     public bool CommitAttribute(string name, JsonNode? value) => Document.CommitAttribute(name, value);
     public bool RemoveAttribute(string name) => Document.RemoveAttribute(name);
     public bool CommitParent(string parent) => Document.CommitParent(parent);
-    public bool AddEvent(string name) => Document.AddEvent(name);
+    public bool AddEvent(string name)
+    {
+        if (!IsBlueprint || IsGraphReadOnly)
+            return false;
+        nodeCatalog ??= new BlueprintNodeDefinitionCatalog(metadata, resolver);
+        BlueprintGraphNodeDefinition? parentEvent = nodeCatalog.GetParentEventDefinitions(ParentReference)
+            .FirstOrDefault(definition => string.Equals(definition.MemberName, name.Trim(), StringComparison.Ordinal));
+        return Document.AddEvent(name, BlueprintEventGraphInitializer.Create(parentEvent));
+    }
+
+    public IReadOnlyList<string> GetLocalGraphNames()
+    {
+        return Document.Data["graph"]?["nodeGraph"] is JsonObject localGraphs
+            ? localGraphs.Select(entry => entry.Key).ToArray()
+            : [];
+    }
+
     public bool RenameEvent(string name, string nextName) => Document.RenameEvent(name, nextName);
     public bool DeleteEvent(string name) => Document.DeleteEvent(name);
     public BlueprintValidationResult Validate(string key) => validation.ValidateBlueprint(key);
@@ -246,7 +262,7 @@ internal sealed class BlueprintEditorViewModel : ViewModelBase, IDisposable
                 out IReadOnlyList<BlueprintGraphEventParameterDefinition>? parameters) ? parameters : [];
         }
         BlueprintGraphDocument graph = BlueprintGraphCodec.Load(
-            eventName, eventGraph, Document.Data["graph"]?["startNodes"]?[eventName], definitions, eventParameters);
+            eventName, eventGraph, Document.Data["graph"]?["startNodes"]?[eventName], definitions, eventParameters, IsBlueprint);
         IReadOnlyList<BlueprintGraphNodeDefinition> available = Document.IsGraphOnly
             ? definitions.Definitions.Where(definition => !definition.IsLatent).ToArray()
             : definitions.Definitions;

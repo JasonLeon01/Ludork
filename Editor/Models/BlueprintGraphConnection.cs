@@ -15,7 +15,8 @@ public sealed class BlueprintGraphConnection
         BlueprintGraphPortKind kind,
         int sourcePinIndex,
         int targetPinIndex,
-        JsonObject rawData)
+        JsonObject rawData,
+        bool isEntryConnection = false)
     {
         Id = id;
         OriginalIndex = originalIndex;
@@ -27,9 +28,11 @@ public sealed class BlueprintGraphConnection
         SourcePinIndex = sourcePinIndex;
         TargetPinIndex = targetPinIndex;
         RawData = (JsonObject)rawData.DeepClone();
+        IsEntryConnection = isEntryConnection;
     }
 
     public Guid Id { get; }
+    public bool IsEntryConnection { get; }
     public int? OriginalIndex { get; }
     public BlueprintGraphEndpoint Source { get; }
     public BlueprintGraphEndpoint Target { get; }

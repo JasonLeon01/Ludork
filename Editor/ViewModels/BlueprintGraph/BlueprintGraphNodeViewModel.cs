@@ -5,6 +5,7 @@ using Ludork.Services;
 using NodifyM.Avalonia.ViewModelBase;
 using System;
 using System.ComponentModel;
+using System.Linq;
 
 namespace Ludork.ViewModels.BlueprintGraph;
 
@@ -25,12 +26,15 @@ public sealed class BlueprintGraphNodeViewModel : NodeViewModelBase, IDisposable
         Title = model.Title;
         Location = new Point(model.X, model.Y);
         PropertyChanged += onViewModelPropertyChanged;
-        model.PropertyChanged += onModelPropertyChanged;
+        document.Changed += onDocumentChanged;
     }
 
     public BlueprintGraphNode Model { get; }
     public bool UsePlainTextInputs { get; internal set; }
-    public string StartMarker => Model.IsStart ? "S" : string.Empty;
+    public bool IsInactiveEntry => Model.IsEntry && !document.Connections.Any(connection => connection.IsEntryConnection);
+    public double NodeOpacity => IsInactiveEntry ? 0.5 : 1;
+    public string EntryNotice => LocaleService.Get(document.InheritsEvents
+        ? "BLUEPRINT_EVENT_INACTIVE_INHERITED" : "BLUEPRINT_EVENT_INACTIVE");
     public bool IsUnresolved => !Model.IsResolved;
     public string ToolTip => Model.IsResolved
         ? string.IsNullOrWhiteSpace(Model.Description)
@@ -39,7 +43,11 @@ public sealed class BlueprintGraphNodeViewModel : NodeViewModelBase, IDisposable
         : string.IsNullOrWhiteSpace(Model.Description)
             ? $"{Model.NodeFunction}\n{LocaleService.Get("NODE_UNRESOLVED")}"
             : $"{Model.NodeFunction}\n\n{Model.Description}\n\n{LocaleService.Get("NODE_UNRESOLVED")}";
-    public IBrush HeaderBrush => Model.IsVirtual
+    public IBrush HeaderBrush => Model.IsEntry
+        ? BlueprintGraphBrushes.EventHeader
+        : Model.IsResolved && Model.NodeFunction.StartsWith("super.", StringComparison.Ordinal)
+            ? BlueprintGraphBrushes.ParentHeader
+        : Model.IsVirtual
         ? BlueprintGraphBrushes.VirtualHeader
         : Model.IsResolved
             ? BlueprintGraphBrushes.ResolvedHeader
@@ -48,20 +56,27 @@ public sealed class BlueprintGraphNodeViewModel : NodeViewModelBase, IDisposable
     public void Dispose()
     {
         PropertyChanged -= onViewModelPropertyChanged;
-        Model.PropertyChanged -= onModelPropertyChanged;
+        document.Changed -= onDocumentChanged;
     }
 
     public void RefreshReadOnly()
     {
-        if (isReadOnly())
+        if (isReadOnly() || Model.IsVirtual)
             restoreLocation();
+    }
+
+    internal void SetLayoutLocation(Point location)
+    {
+        Model.X = location.X;
+        Model.Y = location.Y;
+        Location = location;
     }
 
     private void onViewModelPropertyChanged(object? sender, PropertyChangedEventArgs args)
     {
         if (!string.Equals(args.PropertyName, nameof(Location), StringComparison.Ordinal))
             return;
-        if (isReadOnly())
+        if (isReadOnly() || Model.IsVirtual)
         {
             restoreLocation();
             return;
@@ -86,9 +101,11 @@ public sealed class BlueprintGraphNodeViewModel : NodeViewModelBase, IDisposable
         restoringLocation = false;
     }
 
-    private void onModelPropertyChanged(object? sender, PropertyChangedEventArgs args)
+    private void onDocumentChanged(object? sender, EventArgs args)
     {
-        if (string.Equals(args.PropertyName, nameof(BlueprintGraphNode.IsStart), StringComparison.Ordinal))
-            OnPropertyChanged(nameof(StartMarker));
+        if (!Model.IsEntry)
+            return;
+        OnPropertyChanged(nameof(IsInactiveEntry));
+        OnPropertyChanged(nameof(NodeOpacity));
     }
 }

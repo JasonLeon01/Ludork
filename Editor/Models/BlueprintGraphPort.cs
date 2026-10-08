@@ -48,6 +48,7 @@ public sealed class BlueprintGraphPort : INotifyPropertyChanged
     public Guid Id { get; }
     public Guid NodeId { get; }
     public string Name { get; }
+    public string? ExternalKey { get; init; }
     public BlueprintGraphPortKind Kind { get; }
     public BlueprintGraphPortDirection Direction { get; }
     public int PinIndex { get; }

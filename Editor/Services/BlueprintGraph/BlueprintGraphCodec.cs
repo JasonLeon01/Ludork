@@ -21,14 +21,15 @@ public static class BlueprintGraphCodec
         JsonObject eventGraph,
         JsonNode? startNode = null,
         BlueprintNodeDefinitionSet? definitionSet = null,
-        IReadOnlyList<BlueprintGraphEventParameterDefinition>? eventParameters = null)
+        IReadOnlyList<BlueprintGraphEventParameterDefinition>? eventParameters = null,
+        bool inheritsEvents = false)
     {
         IReadOnlyDictionary<string, BlueprintGraphNodeDefinition> definitionsByPath =
             definitionSet?.RuntimeLookup ?? EmptyDefinitionLookup;
         Dictionary<string, BlueprintGraphEventParameterDefinition> parametersByKey = (eventParameters ?? [])
             .GroupBy(parameter => parameter.ExternalKey, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.Last(), StringComparer.Ordinal);
-        BlueprintGraphDocument document = new(eventName, eventGraph);
+        BlueprintGraphDocument document = new(eventName, eventGraph) { InheritsEvents = inheritsEvents };
         Guid graphId = createStableId(eventName);
         Dictionary<int, BlueprintGraphNode> nodesByIndex = [];
         Dictionary<Guid, BlueprintGraphNode> nodesById = [];
@@ -62,18 +63,11 @@ public static class BlueprintGraphCodec
             nodesById[node.Id] = node;
         }
 
-        foreach (BlueprintGraphEventParameterDefinition parameter in (eventParameters ?? [])
-            .OrderBy(parameter => parameter.Index))
-        {
-            getEndpoint(
-                JsonValue.Create(parameter.ExternalKey),
-                eventName,
-                nodesByIndex,
-                externalNodes,
-                parametersByKey,
-                nodesById,
-                document);
-        }
+        BlueprintGraphNode entry = createEntry(document, eventParameters ?? []);
+        document.Nodes.Add(entry);
+        nodesById[entry.Id] = entry;
+        foreach (BlueprintGraphEventParameterDefinition parameter in eventParameters ?? [])
+            externalNodes[parameter.ExternalKey] = entry;
 
         JsonArray links = eventGraph["links"] as JsonArray ?? [];
         for (int index = 0; index < links.Count; index++)
@@ -121,11 +115,16 @@ public static class BlueprintGraphCodec
             BlueprintGraphPortKind kind = kindName == "Exec"
                 ? BlueprintGraphPortKind.Exec
                 : BlueprintGraphPortKind.Params;
+            if (sourceNode.IsEntry && (kind != BlueprintGraphPortKind.Params || sourcePinIndex != 0))
+            {
+                document.UnresolvedConnections.Add(new BlueprintGraphUnresolvedConnection(index, rawLink, sourceNodeIdReference, targetNodeIdReference));
+                continue;
+            }
             BlueprintGraphPort sourcePort = getOrAddPort(
                 sourceNode,
                 BlueprintGraphPortDirection.Output,
                 kind,
-                sourcePinIndex);
+                sourceNode.IsEntry ? parametersByKey[source.ExternalKey!].Index : sourcePinIndex);
             BlueprintGraphPort targetPort = getOrAddPort(
                 targetNode,
                 BlueprintGraphPortDirection.Input,
@@ -155,7 +154,42 @@ public static class BlueprintGraphCodec
             nodesById,
             document);
         document.SetLoadedStart(start, startNode);
+        if (start?.NodeId is Guid startId && start.ExternalKey is null)
+        {
+            BlueprintGraphPort startPort = getOrAddPort(nodesById[startId], BlueprintGraphPortDirection.Input,
+                BlueprintGraphPortKind.Exec, 0);
+            BlueprintGraphPort entryPort = entry.FindPort(BlueprintGraphPortDirection.Output,
+                BlueprintGraphPortKind.Exec, 0)!;
+            document.AddLoadedConnection(new BlueprintGraphConnection(
+                createStableId($"{eventName}:entry:connection"), null,
+                BlueprintGraphEndpoint.Node(entry.Id), start, entryPort.Id, startPort.Id,
+                BlueprintGraphPortKind.Exec, 0, 0, [], true));
+        }
         return document;
+    }
+
+    private static BlueprintGraphNode createEntry(
+        BlueprintGraphDocument document,
+        IReadOnlyList<BlueprintGraphEventParameterDefinition> parameters)
+    {
+        BlueprintGraphNode? first = document.Nodes.OrderBy(node => node.X).FirstOrDefault();
+        Guid id = createStableId($"{document.EventName}:entry");
+        BlueprintGraphNode entry = new(id, null, document.EventName,
+            $"{LocaleService.Get("BLUEPRINT_EVENT_ENTRY")}: {EditorDisplayName.Format(document.EventName)}",
+            first is null ? 0 : first.X - 440, first?.Y ?? 0, true, true, null, [], []) { IsEntry = true };
+        entry.AddPort(new BlueprintGraphPort(createPortId(id, BlueprintGraphPortDirection.Output,
+            BlueprintGraphPortKind.Exec, 0), id, "", BlueprintGraphPortKind.Exec,
+            BlueprintGraphPortDirection.Output, 0, "any", null, false, null));
+        foreach (BlueprintGraphEventParameterDefinition parameter in parameters.OrderBy(parameter => parameter.Index))
+        {
+            entry.AddPort(new BlueprintGraphPort(createPortId(id, BlueprintGraphPortDirection.Output,
+                BlueprintGraphPortKind.Params, parameter.Index), id, parameter.Name, BlueprintGraphPortKind.Params,
+                BlueprintGraphPortDirection.Output, parameter.Index, parameter.TypeName, null, false, null)
+            {
+                ExternalKey = parameter.ExternalKey,
+            });
+        }
+        return entry;
     }
 
     public static BlueprintGraphSaveResult Save(BlueprintGraphDocument document)
@@ -211,6 +245,8 @@ public static class BlueprintGraphCodec
         List<JsonNode?> newLinks = [];
         foreach (BlueprintGraphConnection connection in document.Connections)
         {
+            if (connection.IsEntryConnection)
+                continue;
             JsonObject rawLink = (JsonObject)connection.RawData.DeepClone();
             rawLink["left"] = serializeEndpoint(connection.Source, nodeIndices);
             rawLink["right"] = serializeEndpoint(connection.Target, nodeIndices);

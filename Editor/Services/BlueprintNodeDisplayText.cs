@@ -8,6 +8,8 @@ public static class BlueprintNodeDisplayText
 {
     public static string GetTitle(BlueprintGraphNodeDefinition definition)
     {
+        if (definition.RuntimePath.StartsWith("super.", StringComparison.Ordinal))
+            return "Parent: " + EditorDisplayName.Format(definition.MemberName);
         return getExplicitDisplayName(definition)
             ?? formatMemberName(definition.MemberName, definition.IsParent);
     }
@@ -16,6 +18,8 @@ public static class BlueprintNodeDisplayText
         string nodeFunction,
         BlueprintGraphNodeDefinition? definition)
     {
+        if (nodeFunction.StartsWith("super.", StringComparison.Ordinal))
+            return "Parent: " + EditorDisplayName.Format(nodeFunction[6..]);
         if (getExplicitDisplayName(definition) is string displayName)
             return displayName;
         int separator = nodeFunction.LastIndexOf('.');

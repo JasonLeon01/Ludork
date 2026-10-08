@@ -2,7 +2,6 @@ using Ludork.Models;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text.Json.Nodes;
 
 namespace Ludork.Services;
@@ -83,28 +82,14 @@ public sealed class BlueprintCreationService
             }
         }
 
-        SortedSet<string> events = new(StringComparer.Ordinal);
-        collectBlueprintEvents(parent, events, new HashSet<string>(StringComparer.Ordinal));
-        if (resolved.RootType is not null)
-        {
-            foreach (LuaNodeMemberMetadata member in metadataService.GetNodeMembers(
-                resolved.RootType,
-                LuaNodeMemberKind.Event))
-            {
-                events.Add(member.Name);
-            }
-        }
-
+        BlueprintNodeDefinitionCatalog catalog = new(metadataService, classResolver);
         JsonObject nodeGraph = [];
         JsonObject startNodes = [];
-        foreach (string eventName in events)
+        foreach (BlueprintGraphNodeDefinition parentEvent in catalog.GetParentEventDefinitions(parent))
         {
-            nodeGraph[eventName] = new JsonObject
-            {
-                ["nodes"] = new JsonArray(),
-                ["links"] = new JsonArray(),
-            };
-            startNodes[eventName] = null;
+            BlueprintGraphSaveResult initial = BlueprintEventGraphInitializer.Create(parentEvent);
+            nodeGraph[parentEvent.MemberName] = initial.EventGraph;
+            startNodes[parentEvent.MemberName] = initial.StartNode?.DeepClone();
         }
         JsonObject blueprint = new()
         {
@@ -126,26 +111,6 @@ public sealed class BlueprintCreationService
     private bool isValidParent(string parentClass)
     {
         return classResolver.IsDerivedFrom(parentClass, "Engine.Actor");
-    }
-
-    private void collectBlueprintEvents(
-        string reference,
-        ISet<string> events,
-        ISet<string> visited)
-    {
-        if (!BlueprintReference.IsReference(reference))
-            return;
-        string key = BlueprintReference.NormalizeKey(reference);
-        if (!visited.Add(key)
-            || !gameData.Blueprints.BlueprintsData.TryGetValue(key, out BlueprintDefinitionSnapshot? blueprint))
-        {
-            return;
-        }
-        string? parent = blueprint.Parent;
-        if (!string.IsNullOrWhiteSpace(parent))
-            collectBlueprintEvents(parent, events, visited);
-        foreach (string eventName in blueprint.Graph.Events.Keys)
-            events.Add(eventName);
     }
 }
 

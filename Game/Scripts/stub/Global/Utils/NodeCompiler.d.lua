@@ -40,6 +40,8 @@
 ---@field displayName     string
 ---@field declaringModule string
 
+--- Compiles ordinary node functions or a named parent event using `super.<eventName>`.
+--- Parent event inputs follow the event signature; events without metadata have no inputs.
 ---@param functionName string
 ---@param parentClass  Class.ClassType<any> | nil
 ---@param context      NodeCompiler.Context | nil

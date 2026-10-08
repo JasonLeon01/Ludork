@@ -18,6 +18,7 @@ public sealed class BlueprintGraphDocument
     public event EventHandler? Changed;
 
     public string EventName { get; }
+    public bool InheritsEvents { get; init; }
     public Func<string, string, bool>? IsTypeAssignable { get; set; }
 
     public bool ArePortTypesCompatible(BlueprintGraphPort source, BlueprintGraphPort target)
@@ -46,12 +47,8 @@ public sealed class BlueprintGraphDocument
             {
                 return;
             }
-            if (start?.NodeId is Guid previousId && FindNode(previousId) is BlueprintGraphNode previous)
-                previous.IsStart = false;
             start = value;
             UnresolvedStartNode = null;
-            if (start?.NodeId is Guid nextId && FindNode(nextId) is BlueprintGraphNode next)
-                next.IsStart = true;
             Changed?.Invoke(this, EventArgs.Empty);
         }
     }
@@ -90,6 +87,11 @@ public sealed class BlueprintGraphDocument
         Connections.Add(connection);
         source.AttachConnection();
         target.AttachConnection();
+        if (connection.IsEntryConnection)
+        {
+            start = connection.Target;
+            UnresolvedStartNode = null;
+        }
         Changed?.Invoke(this, EventArgs.Empty);
         return true;
     }
@@ -102,6 +104,11 @@ public sealed class BlueprintGraphDocument
         FindPort(connection.SourcePortId)?.DetachConnection();
         FindPort(connection.TargetPortId)?.DetachConnection();
         Connections.Remove(connection);
+        if (connection.IsEntryConnection)
+        {
+            start = null;
+            UnresolvedStartNode = null;
+        }
         Changed?.Invoke(this, EventArgs.Empty);
         return true;
     }

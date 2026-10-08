@@ -341,11 +341,11 @@ function Utils.GetAnimVisualLength(animName)
     return getAnimationDataVisualDuration(animData)
 end
 
-function Utils.SUPER(obj, params)
+function Utils.SUPER(obj, params, refLocal, eventName)
     params = params or {}
-    local refLocal = loadContext().GetRefLocal(Utils.SUPER)
+    refLocal = refLocal or loadContext().GetRefLocal(Utils.SUPER)
     local graphContext = refLocal.__graph__
-    local eventName = refLocal.__key__
+    eventName = eventName or refLocal.__key__
     if graphContext == nil or not bool(eventName) then
         error("SUPER must be called from a blueprint event graph")
     end

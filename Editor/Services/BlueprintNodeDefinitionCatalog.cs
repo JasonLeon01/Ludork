@@ -97,6 +97,14 @@ public sealed class BlueprintNodeDefinitionCatalog
             }
         }
 
+        if (context?.Data["parent"] is JsonValue parentValue
+            && parentValue.TryGetValue(out string? parent)
+            && !string.IsNullOrWhiteSpace(parent)
+            && resolved?.ScriptMixin != true)
+        {
+            result.AddRange(GetParentEventDefinitions(parent));
+        }
+
         BlueprintGraphNodeDefinition[] definitions = result.ToArray();
         eventParameters.Clear();
         if (resolved?.RootType is not null)
@@ -115,6 +123,34 @@ public sealed class BlueprintNodeDefinitionCatalog
             eventParameters);
         cachedMetadataRevision = metadataService.Revision;
         return cachedDefinitionSet;
+    }
+
+    public IReadOnlyList<BlueprintGraphNodeDefinition> GetParentEventDefinitions(string parent)
+    {
+        using IDisposable metadataRead = metadataService.BeginRead();
+        ResolvedBlueprintClass resolved = classResolver.Resolve(parent);
+        if (resolved.ScriptMixin)
+            return [];
+        IReadOnlyList<LuaNodeMemberMetadata> members = resolved.RootType is null
+            ? []
+            : metadataService.GetNodeMembers(resolved.RootType, LuaNodeMemberKind.Event);
+        List<BlueprintGraphNodeDefinition> definitions = [];
+        foreach (string eventName in classResolver.GetEventNames(parent))
+        {
+            string runtimePath = "super." + eventName;
+            LuaNodeMemberMetadata? member = members.FirstOrDefault(value => value.Name == eventName);
+            List<BlueprintGraphPortDefinition> ports = member is null
+                ? [new BlueprintGraphPortDefinition("in", BlueprintGraphPortKind.Exec, BlueprintGraphPortDirection.Input, 0)]
+                : createDefinition(member, runtimePath, [], true, true).Ports
+                    .Where(port => port.Direction == BlueprintGraphPortDirection.Input).ToList();
+            if (!ports.Any(port => port.Kind == BlueprintGraphPortKind.Exec))
+                ports.Insert(0, new BlueprintGraphPortDefinition("in", BlueprintGraphPortKind.Exec, BlueprintGraphPortDirection.Input, 0));
+            ports.Add(new BlueprintGraphPortDefinition("default", BlueprintGraphPortKind.Exec, BlueprintGraphPortDirection.Output, 0));
+            definitions.Add(new BlueprintGraphNodeDefinition(
+                runtimePath, ports, member?.Meta, memberName: eventName,
+                declaringType: member?.DeclaringType, isParent: true, isContextRelevant: true));
+        }
+        return definitions;
     }
 
     private static IReadOnlyDictionary<string, BlueprintGraphNodeDefinition> createDefinitionLookup(

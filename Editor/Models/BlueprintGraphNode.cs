@@ -12,7 +12,6 @@ public sealed class BlueprintGraphNode : INotifyPropertyChanged
 {
     private double x;
     private double y;
-    private bool isStart;
 
     public BlueprintGraphNode(
         Guid id,
@@ -50,6 +49,7 @@ public sealed class BlueprintGraphNode : INotifyPropertyChanged
     public string Title { get; set; }
     public bool IsResolved { get; }
     public bool IsVirtual { get; }
+    public bool IsEntry { get; init; }
     public string? ExternalKey { get; }
     public JsonObject RawData { get; }
     public JsonArray Parameters { get; }
@@ -75,17 +75,6 @@ public sealed class BlueprintGraphNode : INotifyPropertyChanged
             if (Math.Abs(y - value) < double.Epsilon)
                 return;
             y = value;
-            notifyPropertyChanged();
-        }
-    }
-    public bool IsStart
-    {
-        get => isStart;
-        internal set
-        {
-            if (isStart == value)
-                return;
-            isStart = value;
             notifyPropertyChanged();
         }
     }

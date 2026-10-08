@@ -389,6 +389,42 @@ end
 
 function NodeCompiler.Compile(functionName, parentClass, context)
     context = context or {}
+    if functionName:sub(1, 6) == "super." then
+        local eventName = functionName:sub(7)
+        if parentClass == nil or eventName == "" then
+            return nil
+        end
+        local eventMetadata, declaringModule = resolveMetadata(eventName, parentClass, context)
+        if eventMetadata ~= nil and eventMetadata.type ~= "event" then
+            return nil
+        end
+        local memberMeta = normaliseMemberMetadata({
+            type = "function",
+            parameters = eventMetadata ~= nil and eventMetadata.parameters or {},
+            default = eventMetadata ~= nil and eventMetadata.default or {},
+            ExecSplit = { "default", default = "nil" }
+        })
+        local paramNames = {}
+        for _, parameter in ipairs(memberMeta.parameters) do
+            paramNames[#paramNames + 1] = parameter.name
+        end
+        local callable
+        local Utils = require("GlobalFunctions.Utils")
+        callable = function (...)
+            local refLocal = Engine.Node.getRefLocal(callable)
+            assert(refLocal ~= nil, "Parent event requires a blueprint graph context")
+            local graphContext = refLocal.__graph__
+            assert(graphContext ~= nil, "Parent event requires a blueprint graph context")
+            Utils.SUPER(graphContext.parent, { ... }, refLocal, eventName)
+        end
+        return {
+            callable = callable,
+            memberMeta = memberMeta,
+            paramNames = paramNames,
+            displayName = "Parent: " .. eventName,
+            declaringModule = declaringModule or ""
+        }
+    end
     local callable, declaringModule = resolveCallable(functionName, parentClass, context)
     if callable == nil then
         return nil

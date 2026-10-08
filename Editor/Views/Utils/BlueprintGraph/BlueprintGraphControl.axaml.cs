@@ -261,7 +261,7 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         if (nodes.Length == 0 || Bounds.Width <= 0 || Bounds.Height <= 0)
             return;
         double left = nodes.Min(node => node.Location.X);
-        double top = nodes.Min(node => node.Location.Y);
+        double top = nodes.Min(node => node.Location.Y - (node.Model.IsEntry ? 110 : 0));
         double right = nodes.Max(node => node.Location.X + 320);
         double bottom = nodes.Max(node => node.Location.Y + estimateNodeHeight(node.Model));
         const double padding = 48;
@@ -281,7 +281,7 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
 
     private static double estimateNodeHeight(BlueprintGraphNode node)
     {
-        return 120 + Math.Max(node.Inputs.Count, 1) * 34;
+        return 120 + Math.Max(Math.Max(node.Inputs.Count, node.Outputs.Count), 1) * 34;
     }
 
     private void onChangeTimer(object? sender, EventArgs args)
@@ -485,30 +485,6 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
             plainInputs.Click += (_, _) => viewModel.TogglePlainTextInputs(contextNode);
             menu.Items.Add(plainInputs);
         }
-
-        MenuItem setStart = new()
-        {
-            Header = LocaleService.Get("SET_AS_START"),
-            IsEnabled = viewModel.CanSetAsStart(contextNode),
-        };
-        setStart.Click += (_, _) =>
-        {
-            if (contextNode is not null)
-                viewModel.SetAsStart(contextNode);
-        };
-        menu.Items.Add(setStart);
-
-        MenuItem cancelStart = new()
-        {
-            Header = LocaleService.Get("CANCEL_START_NODE"),
-            IsEnabled = viewModel.CanClearStart(contextNode),
-        };
-        cancelStart.Click += (_, _) =>
-        {
-            if (contextNode is not null)
-                viewModel.ClearStart(contextNode);
-        };
-        menu.Items.Add(cancelStart);
 
         MenuItem disconnectInputs = new()
         {

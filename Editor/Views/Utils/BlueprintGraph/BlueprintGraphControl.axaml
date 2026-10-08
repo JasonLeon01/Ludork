@@ -6,7 +6,17 @@
              xmlns:vm="clr-namespace:Ludork.ViewModels.BlueprintGraph"
              x:Class="Ludork.Views.Utils.BlueprintGraph.BlueprintGraphControl"
              x:DataType="vm:BlueprintGraphEditorViewModel"
-             Focusable="True">
+            Focusable="True">
+    <UserControl.Resources>
+        <ControlTemplate x:Key="BlueprintConnectorTemplate" x:DataType="vm:BlueprintGraphPortViewModel">
+            <Grid Width="14" Height="14">
+                <Path IsVisible="{Binding IsExecution}" Data="M 1,1 L 8,1 L 13,7 L 8,13 L 1,13 Z"
+                      Stroke="{Binding Brush}" Fill="{Binding ConnectorFill}" StrokeThickness="1" />
+                <Ellipse IsVisible="{Binding IsData}" Width="12" Height="12"
+                         Stroke="{Binding Brush}" Fill="{Binding ConnectorFill}" StrokeThickness="1" />
+            </Grid>
+        </ControlTemplate>
+    </UserControl.Resources>
     <Grid Background="{DynamicResource Editor.BackgroundBrush}">
         <nodify:NodifyEditor x:Name="Editor"
                              ItemsSource="{Binding Nodes}"
@@ -64,26 +74,30 @@
                                  Output="{Binding Output}"
                                  Location="{Binding Location, Mode=TwoWay}"
                                  HeaderBrush="{Binding HeaderBrush}"
+                                 Opacity="{Binding NodeOpacity}"
                                  IsResize="False"
+                                 ClipToBounds="False"
                                  ToolTip.Tip="{Binding ToolTip}">
                         <nodify:Node.ContentBrush>
                             <SolidColorBrush Color="{DynamicResource Editor.SurfaceColor}" />
                         </nodify:Node.ContentBrush>
                         <nodify:Node.Header>
-                            <Grid ColumnDefinitions="24,*,Auto"
+                            <Grid ColumnDefinitions="*,Auto"
                                   MinWidth="190">
+                                <Border IsVisible="{Binding IsInactiveEntry}" Width="300" Height="64" Padding="10,7"
+                                        Grid.ColumnSpan="2" Margin="0,-76,0,0" VerticalAlignment="Top"
+                                        HorizontalAlignment="Left" CornerRadius="7"
+                                        BorderThickness="1" BorderBrush="{DynamicResource Editor.TextMutedBrush}"
+                                        Background="{DynamicResource Editor.SurfaceBrush}">
+                                    <TextBlock Text="{Binding EntryNotice}" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource Editor.TextBrush}" />
+                                </Border>
                                 <TextBlock Grid.Column="0"
-                                           Text="{Binding StartMarker}"
-                                           Foreground="{DynamicResource Editor.AccentBrush}"
-                                           FontSize="16"
-                                           FontWeight="Bold"
-                                           VerticalAlignment="Center" />
-                                <TextBlock Grid.Column="1"
                                            Text="{Binding Title}"
                                            FontWeight="SemiBold"
                                            TextTrimming="CharacterEllipsis"
                                            VerticalAlignment="Center" />
-                                <TextBlock Grid.Column="2"
+                                <TextBlock Grid.Column="1"
                                            Text="!"
                                            IsVisible="{Binding IsUnresolved}"
                                            Foreground="{DynamicResource Editor.ErrorBrush}"
@@ -95,6 +109,7 @@
                         <nodify:Node.InputConnectorTemplate>
                             <DataTemplate x:DataType="vm:BlueprintGraphPortViewModel">
                                 <nodify:NodeInput IsConnected="{Binding IsConnected}"
+                                                  ConnectorTemplate="{StaticResource BlueprintConnectorTemplate}"
                                                   Anchor="{Binding Anchor, Mode=OneWayToSource}"
                                                   BorderBrush="{Binding Brush}">
                                     <nodify:NodeInput.Header>
@@ -115,6 +130,7 @@
                         <nodify:Node.OutputConnectorTemplate>
                             <DataTemplate x:DataType="vm:BlueprintGraphPortViewModel">
                                 <nodify:NodeOutput IsConnected="{Binding IsConnected}"
+                                                   ConnectorTemplate="{StaticResource BlueprintConnectorTemplate}"
                                                    Anchor="{Binding Anchor, Mode=OneWayToSource}"
                                                    BorderBrush="{Binding Brush}">
                                     <nodify:NodeOutput.Header>

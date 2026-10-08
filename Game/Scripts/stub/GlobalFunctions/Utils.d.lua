@@ -190,10 +190,12 @@ function Utils.GetAnimVisualLength(animName) end
 --- - @param obj    The object instance calling super.
 --- - @param params Positional arguments forwarded to the parent event.
 --- - @return True if a parent graph or method handled the event.
----@param obj    table
----@param params table
+---@param obj        table
+---@param params     table
+---@param refLocal?  GlobalFunctions.Context.RefLocal Optional context supplied by a compiled node adapter.
+---@param eventName? string                           Defaults to the current blueprint event.
 ---@return boolean
-function Utils.SUPER(obj, params) end
+function Utils.SUPER(obj, params, refLocal, eventName) end
 
 ---@return table
 function Utils.SELF() end

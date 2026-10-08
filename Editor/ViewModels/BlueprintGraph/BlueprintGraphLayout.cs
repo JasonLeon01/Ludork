@@ -24,7 +24,7 @@ internal static class BlueprintGraphLayout
             .ThenBy(node => node.Title, StringComparer.Ordinal)
             .ToArray();
         BlueprintGraphNode[] virtualNodes = document.Nodes
-            .Where(node => node.IsVirtual)
+            .Where(node => node.IsVirtual && !node.IsEntry)
             .OrderBy(node => node.ExternalKey, StringComparer.Ordinal)
             .ToArray();
         Dictionary<Guid, BlueprintGraphNode> regularById = regularNodes
@@ -86,6 +86,14 @@ internal static class BlueprintGraphLayout
             nextLane);
         layoutRemainingNodes(regularNodes, positions, startY, parameterLaneCount);
         resolveColumnOverlaps(regularNodes, positions);
+        BlueprintGraphNode? entry = document.Nodes.FirstOrDefault(node => node.IsEntry);
+        if (entry is not null)
+        {
+            double firstX = positions.Count == 0 ? 440 : positions.Values.Min(position => position.X);
+            double entryY = startId is Guid startNodeId && positions.TryGetValue(startNodeId, out Point startPosition)
+                ? startPosition.Y : positions.Count == 0 ? 0 : positions.Values.Min(position => position.Y);
+            positions[entry.Id] = new Point(firstX - 440, entryY);
+        }
         return positions;
     }
 

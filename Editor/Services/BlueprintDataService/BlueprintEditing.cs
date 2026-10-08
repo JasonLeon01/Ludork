@@ -59,18 +59,18 @@ public sealed partial class BlueprintDataService
             && updateEventGraph("Blueprints", key, blueprint, "graph", eventName, result);
     }
 
-    public bool AddBlueprintEvent(string key, string name)
+    public bool AddBlueprintEvent(string key, string name, BlueprintGraphSaveResult initial)
     {
         string eventName = name.Trim();
         if (eventName.Length == 0 || char.IsDigit(eventName[0])
             || !blueprintDocuments.TryGetValue(ProjectDataStore.normalizeJsonKey(key), out JsonObject? blueprint)
-            || GetBlueprintGraphNames(key).Contains(eventName, StringComparer.Ordinal))
+            || blueprint["graph"]?["nodeGraph"] is JsonObject localGraphs && localGraphs.ContainsKey(eventName))
         {
             return false;
         }
         JsonObject graph = blueprint["graph"]?.DeepClone() as JsonObject ?? [];
-        ensureBlueprintObject(graph, "nodeGraph")[eventName] = createBlueprintEventGraph();
-        ensureBlueprintObject(graph, "startNodes")[eventName] = null;
+        ensureBlueprintObject(graph, "nodeGraph")[eventName] = initial.EventGraph.DeepClone();
+        ensureBlueprintObject(graph, "startNodes")[eventName] = initial.StartNode?.DeepClone();
         blueprintDocuments.RecordChange(key);
         blueprint["graph"] = graph;
         store.refreshModifiedState();

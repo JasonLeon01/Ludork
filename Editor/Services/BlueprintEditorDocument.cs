@@ -241,16 +241,16 @@ public sealed class BlueprintEditorDocument : IDisposable
         return true;
     }
 
-    public bool AddEvent(string name)
+    public bool AddEvent(string name, BlueprintGraphSaveResult initial)
     {
-        if (!CanEditGraphEvents || blueprintKey is null || !mutate(() => gameData.Blueprints.AddBlueprintEvent(blueprintKey, name)))
+        if (!CanEditGraphEvents || blueprintKey is null || !mutate(() => gameData.Blueprints.AddBlueprintEvent(blueprintKey, name, initial)))
         {
             return false;
         }
         string eventName = name.Trim();
         JsonObject graph = ensureGraph(data);
-        ensureObject(graph, "nodeGraph")[eventName] = createEmptyEventGraph();
-        ensureObject(graph, "startNodes")[eventName] = null;
+        ensureObject(graph, "nodeGraph")[eventName] = initial.EventGraph.DeepClone();
+        ensureObject(graph, "startNodes")[eventName] = initial.StartNode?.DeepClone();
         Changed?.Invoke(this, EventArgs.Empty);
         return true;
     }

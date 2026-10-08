@@ -757,14 +757,17 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
             this,
             LocaleService.Get("NEW_EVENT"),
             LocaleService.Get("ENTER_EVENT_NAME"),
-            viewModel.GetAvailableGraphNames());
+            viewModel.GetLocalGraphNames(),
+            suggestions: viewModel.GetAvailableGraphNames().Except(viewModel.GetLocalGraphNames(), StringComparer.Ordinal));
         if (string.IsNullOrWhiteSpace(name))
             return;
+        flushGraphView(name.Trim());
         if (!viewModel.AddEvent(name))
         {
             await AlertDialog.ShowAsync(this, LocaleService.Get("ERROR"), LocaleService.Get("INVALID_NAME"));
             return;
         }
+        removeGraphView(name.Trim());
         refreshGraphList(name.Trim(), false);
     }
 

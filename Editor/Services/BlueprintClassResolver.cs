@@ -92,6 +92,33 @@ public sealed class BlueprintClassResolver : IDisposable
         return template.Materialize(overrides, revision);
     }
 
+    public IReadOnlyList<string> GetEventNames(string classReference)
+    {
+        using IDisposable metadataRead = metadataService.BeginRead();
+        SortedSet<string> names = new(StringComparer.Ordinal);
+        ResolvedBlueprintClass resolved = Resolve(classReference);
+        if (resolved.RootType is not null)
+        {
+            foreach (LuaNodeMemberMetadata member in metadataService.GetNodeMembers(resolved.RootType, LuaNodeMemberKind.Event))
+                names.Add(member.Name);
+        }
+        HashSet<string> visited = new(StringComparer.Ordinal);
+        string? reference = classReference;
+        while (BlueprintReference.IsReference(reference))
+        {
+            string key = BlueprintReference.NormalizeKey(reference);
+            if (!visited.Add(key) || readBlueprint(key) is not JsonObject blueprint)
+                break;
+            if (blueprint["graph"]?["nodeGraph"] is JsonObject nodeGraph)
+            {
+                foreach (string eventName in nodeGraph.Select(entry => entry.Key))
+                    names.Add(eventName);
+            }
+            reference = blueprint["parent"]?.GetValue<string>();
+        }
+        return names.ToArray();
+    }
+
     public JsonNode? GetValue(string classReference, string fieldName)
     {
         return Resolve(classReference).GetValue(fieldName);

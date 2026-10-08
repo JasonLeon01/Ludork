@@ -1,4 +1,16 @@
 {
+  "BLUEPRINT_EVENT_ENTRY": {
+    "zh_CN": "事件",
+    "en_GB": "Event"
+  },
+  "BLUEPRINT_EVENT_INACTIVE_INHERITED": {
+    "zh_CN": "当前事件图不会执行；若父类存在该事件实现，将沿继承链调用。",
+    "en_GB": "This event graph will not execute. An inherited implementation will be called if one exists."
+  },
+  "BLUEPRINT_EVENT_INACTIVE": {
+    "zh_CN": "当前节点图未连接入口，不会执行。",
+    "en_GB": "This graph has no entry connection and will not execute."
+  },
   "NEW_SUBTITLE": {
     "zh_CN": "新建字幕",
     "en_GB": "New Subtitle"
@@ -2918,14 +2930,6 @@
   "ADD_NODE": {
     "zh_CN": "添加节点",
     "en_GB": "Add Node"
-  },
-  "SET_AS_START": {
-    "zh_CN": "设置为起始节点",
-    "en_GB": "Set as Start Node"
-  },
-  "CANCEL_START_NODE": {
-    "zh_CN": "取消起始节点",
-    "en_GB": "Cancel Start Node"
   },
   "DISCONNECT_ALL_INPUTS": {
     "zh_CN": "断开所有输入连线",

@@ -178,14 +178,15 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
         BlueprintGraphConnection connection = new(
             Guid.NewGuid(),
             null,
-            createEndpoint(sourceNode),
+            createEndpoint(sourceNode, source.Model),
             createEndpoint(targetNode),
             source.Model.Id,
             target.Model.Id,
             source.Model.Kind,
-            source.Model.PinIndex,
+            source.Model.ExternalKey is null ? source.Model.PinIndex : 0,
             target.Model.PinIndex,
-            []);
+            [],
+            sourceNode.IsEntry && source.Model.Kind == BlueprintGraphPortKind.Exec);
         if (document.AddConnection(connection))
             addConnectionViewModel(connection);
     }
@@ -287,32 +288,6 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
             .OfType<BlueprintGraphPortViewModel>()
             .Select(port => port.Model.Id)
             .ToHashSet();
-    }
-
-    public bool CanSetAsStart(BlueprintGraphNodeViewModel? node)
-    {
-        return !IsReadOnly
-            && node is not null
-            && !node.Model.IsVirtual
-            && !node.Model.IsStart
-            && node.Model.Outputs.Any(port => port.Kind == BlueprintGraphPortKind.Exec);
-    }
-
-    public bool CanClearStart(BlueprintGraphNodeViewModel? node)
-    {
-        return !IsReadOnly && node is not null && !node.Model.IsVirtual && node.Model.IsStart;
-    }
-
-    public void SetAsStart(BlueprintGraphNodeViewModel node)
-    {
-        if (CanSetAsStart(node))
-            document.Start = BlueprintGraphEndpoint.Node(node.Model.Id);
-    }
-
-    public void ClearStart(BlueprintGraphNodeViewModel node)
-    {
-        if (CanClearStart(node))
-            document.Start = null;
     }
 
     public void CopySelected()
@@ -451,7 +426,7 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
         foreach (BlueprintGraphNodeViewModel node in Nodes.OfType<BlueprintGraphNodeViewModel>())
         {
             if (positions.TryGetValue(node.Model.Id, out Point position))
-                node.Location = position;
+                node.SetLayoutLocation(position);
         }
         document.NotifyChanged();
     }
@@ -629,8 +604,10 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
         return parameters;
     }
 
-    private static BlueprintGraphEndpoint createEndpoint(BlueprintGraphNode node)
+    private static BlueprintGraphEndpoint createEndpoint(BlueprintGraphNode node, BlueprintGraphPort? port = null)
     {
+        if (port?.ExternalKey is string key)
+            return BlueprintGraphEndpoint.External(key, node.Id);
         return node.IsVirtual && node.ExternalKey is not null
             ? BlueprintGraphEndpoint.External(node.ExternalKey, node.Id)
             : BlueprintGraphEndpoint.Node(node.Id);

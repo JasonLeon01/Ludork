@@ -63,6 +63,9 @@ public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDispo
         ? $"{Title} ({displayTypeName})" + ((textDraft?.Error ?? Model.ValueDiagnostic) is string diagnostic ? Environment.NewLine + diagnostic : string.Empty)
         : Title;
     public bool IsEditorVisible => Model.IsEditorVisible || HasInputError;
+    public bool IsExecution => Model.Kind == BlueprintGraphPortKind.Exec;
+    public bool IsData => !IsExecution;
+    public IBrush ConnectorFill => IsConnected ? Brush : Brushes.Transparent;
     public IBrush Brush => HasInputError || Model.ValueDiagnostic is not null ? Brushes.OrangeRed
         : Model.Kind == BlueprintGraphPortKind.Exec ? BlueprintGraphBrushes.Execution : BlueprintGraphBrushes.Parameter;
 
@@ -129,6 +132,7 @@ public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDispo
         OnPropertyChanged(nameof(DisplayTitle));
         OnPropertyChanged(nameof(IsEditorVisible));
         OnPropertyChanged(nameof(Brush));
+        OnPropertyChanged(nameof(ConnectorFill));
     }
 
     private void onModelPropertyChanged(object? sender, PropertyChangedEventArgs args)
@@ -136,6 +140,7 @@ public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDispo
         if (args.PropertyName == nameof(BlueprintGraphPort.IsConnected))
         {
             IsConnected = Model.IsConnected;
+            OnPropertyChanged(nameof(ConnectorFill));
             OnPropertyChanged(nameof(IsEditorVisible));
             ParameterValueChanged?.Invoke(this, EventArgs.Empty);
         }
