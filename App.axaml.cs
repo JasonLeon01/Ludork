@@ -21,6 +21,7 @@ public partial class App : Application
     private EditorSettings? editorSettings;
     private AboutDialog? aboutDialog;
     private string? pendingProjectPath;
+    internal EditorNotificationService? Notifications { get; private set; }
 
     public override void Initialize()
     {
@@ -43,6 +44,8 @@ public partial class App : Application
             editorSettings.SaveFailed += (_, message) => showSettingsError(message);
             desktop.Exit += (_, _) => EditorLayoutService.Save();
             LocaleService.Initialize(editorSettings.Language);
+            Notifications = new EditorNotificationService(desktop);
+            desktop.Exit += (_, _) => Notifications.Dispose();
             pluginWorkspace = new PluginWorkspace(LocaleService.CurrentLanguage);
             Task.Run(() => pluginWorkspace.InitializeAsync()).GetAwaiter().GetResult();
             TextHintService.Configure(pluginWorkspace);

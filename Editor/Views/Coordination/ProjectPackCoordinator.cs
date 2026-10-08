@@ -1,5 +1,6 @@
 using Ludork.Composition;
 using Avalonia.Controls;
+using Avalonia;
 using Ludork.Services;
 using Ludork.Views.Utils;
 using System.IO;
@@ -69,6 +70,9 @@ internal sealed class ProjectPackCoordinator(Window owner, EditorProjectSession 
             closed = logDialog.ShowDialog(owner);
             ProjectPackResult result = await packService.PackAsync(options, token);
             logDialog.Finish(result);
+            if (!token.IsCancellationRequested && result.Failure != ProjectPackFailure.Cancelled)
+                (Application.Current as App)?.Notifications?.ShowCompleted(
+                    owner, logDialog, session.ProjectPath, "PACK_TITLE", result.Success);
         });
         if (closed is not null)
             await closed;

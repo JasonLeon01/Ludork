@@ -15,6 +15,8 @@ Android 打包使用的 Gradle wrapper 在各 C++ Source 模板的 `Engine/Platf
 
 编辑器的 `Avalonia.Controls.WebView` 12.1.0 使用 [MIT 许可证正文](EditorPackages/Avalonia.Controls.WebView-LICENSE.txt)，原文来自 [NuGet 包标识的上游提交](https://github.com/AvaloniaUI/Avalonia.Controls.WebView/blob/b45e042d21d96371bb6d07822a55c85ee5f74d2f/LICENSE)。
 
+编辑器的 `Avalonia.Labs.Notifications` 12.0.2 使用 [MIT 许可证正文](EditorPackages/Avalonia.Labs.Notifications-LICENSE.txt)，原文来自其 [NuGet 源码提交](https://github.com/AvaloniaUI/Avalonia.Labs/blob/fe1fd16ba0f18540afcdc5007b57f4dbb8528712/LICENSE)，用于任务完成时的原生系统通知。
+
 编辑器 SVG 依赖中，`Svg.Controls.Avalonia`、`Svg.Model`、`Svg.SceneGraph` 与 `ShimSkiaSharp` 使用 [Svg.Skia 的 MIT 正文](EditorPackages/Svg.Skia-LICENSE.txt)；`Svg.Custom` 使用 [Microsoft Public License 正文](EditorPackages/Svg.Custom-LICENSE.txt)；`ExCSS` 使用其 [MIT 正文](EditorPackages/ExCSS-LICENSE.txt)。这些正文均从已还原 NuGet 包标识的仓库提交原样复制，对应提交链接列在第三方声明表中。
 
 法律正文保持其随附语言，不翻译、不改写。说明性索引不能替代法律正文。

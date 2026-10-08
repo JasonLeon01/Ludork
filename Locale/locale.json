@@ -1,4 +1,12 @@
 {
+  "TASK_NOTIFICATION_SUCCESS": {
+    "zh_CN": "{0}已完成",
+    "en_GB": "{0} completed"
+  },
+  "TASK_NOTIFICATION_FAILED": {
+    "zh_CN": "{0}失败，请查看日志。",
+    "en_GB": "{0} failed. See the log for details."
+  },
   "BLUEPRINT_EVENT_ENTRY": {
     "zh_CN": "事件",
     "en_GB": "Event"

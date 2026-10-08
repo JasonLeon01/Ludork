@@ -11,6 +11,7 @@ public interface IProjectOperationInteraction
     void PrepareRun();
     void BeginOutput();
     void EndOutput();
+    void NotifyOperationCompleted(EditorProjectOperationKind operation, ProjectRunResult result);
     void RestoreViewport();
     Task<bool> SaveAsync(bool needsBuild);
     Task<bool> ConfirmRebuildAsync(CancellationToken cancellationToken);

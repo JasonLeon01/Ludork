@@ -77,6 +77,7 @@ public sealed class ProjectOperationCoordinator : IDisposable
             if (action == EditorProjectOperationKind.Export)
             {
                 result = await interaction.ExportAsync(token);
+                notifyCompleted(EditorProjectOperationKind.Export, result);
                 return;
             }
             while (true)
@@ -103,6 +104,7 @@ public sealed class ProjectOperationCoordinator : IDisposable
                 if (needsBuild)
                 {
                     result = await runner.BuildAsync(token);
+                    notifyCompleted(EditorProjectOperationKind.Construct, result);
                     token.ThrowIfCancellationRequested();
                     if (!result.Success || action == EditorProjectOperationKind.Construct)
                         return;
@@ -119,6 +121,7 @@ public sealed class ProjectOperationCoordinator : IDisposable
                     }
                     setState(ProjectRunState.Exporting);
                     result = await interaction.ExportAsync(token);
+                    notifyCompleted(EditorProjectOperationKind.Export, result);
                     token.ThrowIfCancellationRequested();
                     if (!result.Success)
                         return;
@@ -184,6 +187,12 @@ public sealed class ProjectOperationCoordinator : IDisposable
 
     private bool canBegin() => !disposed && !IsPending
         && runner.State == ProjectRunState.Idle && State == ProjectRunState.Idle;
+
+    private void notifyCompleted(EditorProjectOperationKind operation, ProjectRunResult result)
+    {
+        if (!disposed && !interaction.IsClosing && !result.Cancelled && cancellation?.IsCancellationRequested != true)
+            interaction.NotifyOperationCompleted(operation, result);
+    }
 
     private TaskCompletionSource begin(CancellationTokenSource source)
     {

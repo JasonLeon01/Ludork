@@ -152,6 +152,15 @@ public partial class MainWindow
             appendConsoleLine("[Console] Failed to close the log file: " + error);
     }
 
+    void IProjectOperationInteraction.NotifyOperationCompleted(EditorProjectOperationKind operation, ProjectRunResult result)
+    {
+        if (closingPrompt || closeConfirmed)
+            return;
+        (Application.Current as App)?.Notifications?.ShowCompleted(this, this, ProjectPath,
+            operation == EditorProjectOperationKind.Construct ? "CONSTRUCT" : "EXPORT", result.Success,
+            () => BottomTabs.SelectedItem = ConsoleTab);
+    }
+
     Task IProjectOperationInteraction.ShowFailureAsync(ProjectRunResult result, bool building)
     {
         string title = result.Failure == ProjectRunFailure.ExportFailed ? "EXPORT_FAILED_TITLE"
