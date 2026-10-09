@@ -31,11 +31,11 @@ Controllers own callbacks, localisation, model queries, commands and display sta
 
 ## Observe model fields and bind callbacks
 
-`Controller:watch(target, field, method, immediate?)` observes a table or userdata field through native `Class.monitor`. Pass an unbound Controller method. It receives `(controller, newValue, oldValue)`. By default it also runs immediately, receiving the current value and `Class.MISSING` as the old value. Pass `false` for `immediate` to wait for a change. The returned `stop()` cancels this one subscription. Controller disposal cancels every owned watch automatically.
+`Controller:watch(target, field, method, immediate?)` observes a table or userdata field through native `Class.monitor`. Pass an unbound Controller method. It receives `(controller, newValue, oldValue)`. By default it also runs immediately, receiving the current value and `Class.MISSING` as the old value. Pass `false` for `immediate` to wait for a change. The returned `stop()` cancels this one subscription. Controller disposal or collection-row recycling cancels every owned watch automatically.
 
 Monitoring is shallow, so changes inside a table-valued field need separate watches or an explicit refresh event. Equality, `nil` assignments and notification errors follow [Ludork Lua Advanced](<../../Getting Started/Ludork Lua Advanced.md#class-utilities>).
 
-`Controller:bindCallback(method)` binds a class method such as `self:bindCallback(Controller.confirm)` through a weak reference. The callback supplies `self` and preserves incoming arguments and returned values. Calls stop after Controller disposal or collection. Input interpretation and actions stay in the Controller.
+`Controller:bindCallback(method)` binds a class method such as `self:bindCallback(Controller.confirm)` through a weak reference. The callback supplies `self` and preserves incoming arguments and returned values. Calls stop after Controller disposal, garbage collection or row recycling; an old callback remains inert when its Controller is reused. Input interpretation and actions stay in the Controller.
 
 ## Preparation, child windows and mounting
 
@@ -51,7 +51,7 @@ For direct View use, `View:prepare(logicalSize?)` reflows the existing tree and 
 
 `Controller:attachTo` and `Controller:mount` prepare the Controller once, then attach with `View:attachPreparedTo(parent)` or `View:mountPrepared(uiManager)` so geometry applied after the Controller's base preparation is kept.
 
-`Controller:prepare(logicalSize?)` calls `bind` once, subscribes declared refresh events, registers the asset update channel, calls `refresh`, then prepares the View. Later preparations repeat refresh and reflow. Omitting `logicalSize` reuses the size supplied by the owner on the previous preparation. Row Controllers use that supplied size for dynamic layout and locale refreshes. Controllers for the same asset share an update channel, created on first preparation. Loading a module or creating a View alone does not subscribe to that channel.
+`Controller:prepare(logicalSize?)` calls `bind` once per binding lifetime, subscribes declared refresh events, registers the asset update channel, calls `refresh`, then prepares the View. Later preparations repeat refresh and reflow. Reusing a collection row starts a new binding lifetime. Omitting `logicalSize` reuses the size supplied by the owner on the previous preparation within that lifetime. Row Controllers use that supplied size for dynamic layout and locale refreshes. Controllers for the same asset share an update channel, created on first preparation. Loading a module or creating a View alone does not subscribe to that channel.
 
 For content-dependent dimensions, `AssetInstance:reflowControl(localName, logicalSize)` resizes a local system control and lays out its authored descendants while preserving its position. A later parent reflow restores its authored Slot. Static layout remains in JSON; Controllers retain content measurement, dynamic placement and mode changes such as hiding shop tabs in buy-only mode.
 
@@ -69,7 +69,13 @@ At the end of the owner's lifetime, `handle:dispose()` releases the created wind
 
 `view:createCollection(container, RowControllerClass)` creates one owned `UiCollection` for a Canvas or ListView. Controllers expose the same method through `self:createCollection(...)`. Creating the collection detaches authored preview children from that container.
 
-`collection:add(model, logicalSize?)` creates a row Controller, prepares it, attaches its generated root to the container, and returns the Controller. `collection.items` holds the Controllers in insertion order. Call `collection:layout()` after a batch to recompute ListView positions. `collection:clear()` disposes the row Controllers and their Views, removes their roots, and empties `items`, leaving the collection available for the next batch. Disposing the owning View also disposes the collection.
+`collection:add(model, logicalSize?)` takes an idle row or creates one, binds the new model, prepares and attaches its generated root, and returns the Controller. `collection.items` contains only active Controllers in insertion order. Call `collection:layout()` after a batch to recompute ListView positions.
+
+`collection:clear()` empties `items`, hides and detaches the roots, clears native callbacks and animations, cancels watches and event subscriptions, and drops the old models and supplied logical sizes. Each collection retains up to 64 idle Controller/View/native-control trees; excess rows are disposed. Pools are not shared across containers or windows. Repeated clearing is safe. `collection:dispose()` terminally releases both active and idle rows, as does disposal of the owning View. Do not retain row references across `clear()` or dispose collection-owned rows directly.
+
+Row `init()` runs once per instance: capture template colours, fixed dimensions and static references there, and create any owned collections there. `bind()` runs for each new model: validate its data and establish its callbacks, watches and subscriptions. `refresh()` must overwrite model-dependent text, characters, colours, visibility and dimensions, including transitions from populated to empty content. Do not cache model-owned objects in instance-lifetime fields. Business Controllers keep using `clear/add/layout`; only the foundation calls `releaseForReuse()` and `reuse(model)`.
+
+Authored child Views keep their parents and regain their previous root visibility and activity before refresh. A bound child Controller also loses its old model and bindings when the row is recycled. Its owner assigns the child's new `model` and calls `prepare()` in the parent's `bind()`. Nested dynamic collections are cleared and reused with their owner. Windows themselves retain their existing lifetime and are not pooled.
 
 Bind fixed JSON children through `assets`. Use collections for model-dependent row counts.
 

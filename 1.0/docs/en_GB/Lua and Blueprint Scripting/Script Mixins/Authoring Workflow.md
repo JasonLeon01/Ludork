@@ -18,14 +18,16 @@ Attach a new Lua behaviour to an editor-authored Blueprint.
 
 ## Steps
 
-1. Create a Lua file beneath `Scripts/Mixins`, for example `Doors/KeyDoor.lua`.
-2. Return one plain definition table from the file. Put editable defaults on the table and behaviour in methods.
-3. Create `KeyDoor_meta.lua` beside it and return one `_METADATA` type named `KeyDoor`.
-4. Create or open a Blueprint whose parent supplies the lifecycle and native members the mixin uses.
-5. Enable **Script Mixin** on the first Blueprint in the chain.
-6. Select `Doors/KeyDoor.lua` for **Script Path**. Stored paths are relative to `Scripts/Mixins`.
-7. Refresh or reopen the Blueprint, edit the exposed fields, then validate and save.
-8. Place an instance on a map and verify the behaviour in a running game.
+1. Create or open a Blueprint whose parent supplies the lifecycle and native members the mixin uses.
+2. Enable **Script Mixin** on the first Blueprint in the chain.
+3. When **Script Path** is empty and editable, click **+** before **...**. Choose a directory beneath `Scripts/Mixins` and enter a file name, for example `Doors/KeyDoor.lua`. The editor adds `.lua` if no extension is entered.
+4. Save to create the script and its same-name `_meta.lua` companion. The editor selects the new script automatically and hides **+**. To attach an existing script, use **...** instead. Stored paths are relative to `Scripts/Mixins`.
+5. Edit the generated event methods and add any editable defaults and metadata fields. Refresh or reopen the Blueprint after editing the files, then validate and save.
+6. Place an instance on a map and verify the behaviour in a running game.
+
+The script name, without `.lua`, becomes the returned table name. It must start with an ASCII letter or underscore, contain only ASCII letters, digits and underscores, and must not be a Lua keyword. Creation does not overwrite either existing file. Cancelling leaves the script selection unchanged. Undo and redo restore the selection without deleting the created files. An inherited, non-empty script path also hides **+**.
+
+The template contains all Events declared for the resolved Actor type, including inherited Events with the most-derived signature. Each method forwards its parameters to the parent event through `super()` and forwards any return values. Ordinary methods and `init` are not generated. The companion metadata declares only the matching type and an empty `attrs` table; add editable fields as needed.
 
 ## File pair
 
@@ -38,6 +40,20 @@ Scripts/
 ```
 
 The metadata file is an editor declaration and does not supply runtime methods. The runtime file is the source of behaviour, and it must not load its metadata companion.
+
+The generated empty metadata is already valid:
+
+```lua
+local _METADATA = {
+    KeyDoor = {
+        attrs = {}
+    }
+}
+
+return _METADATA
+```
+
+You can also create the pair manually: return a plain definition table from the script and one matching `_METADATA` type from its companion.
 
 ## Inherited scripts
 

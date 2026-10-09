@@ -141,7 +141,8 @@ row:prepare()
 根据 `self.model.items` 填充 `ItemList`：
 
 ```lua
-function Controller:bind()
+function Controller:init(model, ui)
+    super(Controller, self).init(model, ui)
     self.rows = self:createCollection(self.ui.controls.ItemList, ItemRowController)
 end
 
@@ -154,7 +155,7 @@ function Controller:refresh()
 end
 ```
 
-`ItemRowController` 要与其他依赖一起 `require`。集合会替换预览子项，并掌管这些行的生命周期。集合的生命周期见[声明式 UI 运行时契约](<运行时契约.md#动态集合>)。
+本例使用独立的 `Ui.Define` Controller。对于 `Ui.DefineWindow` Controller，在业务 `init(...)` 中创建集合即可，不调用基类初始化，因为窗口工厂已经构造了 View。`ItemRowController` 要与其他依赖一起 `require`。集合替换预览子项，并在 `clear/add` 之间自动复用行，行 Controller 不调用 Pool。初始化、重新绑定与最终销毁的规则见[声明式 UI 运行时契约](<运行时契约.md#动态集合>)。
 
 ## 发布更新
 
