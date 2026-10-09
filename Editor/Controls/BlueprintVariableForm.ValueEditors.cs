@@ -494,14 +494,36 @@ public sealed partial class BlueprintVariableForm
             box.Text = storedPath;
             changed(JsonValue.Create(storedPath), false);
         };
+        Control? action = PathActionFactory?.Invoke(new BlueprintVariableEditorRequest(field, value, changed));
+        StackPanel buttons = new()
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 4,
+        };
+        if (action is not null)
+        {
+            void updateActionVisibility()
+            {
+                action.IsVisible = browse.IsEffectivelyEnabled && string.IsNullOrWhiteSpace(box.Text);
+            }
+            browse.PropertyChanged += (_, args) =>
+            {
+                if (args.Property == IsEffectivelyEnabledProperty)
+                    updateActionVisibility();
+            };
+            box.TextChanged += (_, _) => updateActionVisibility();
+            updateActionVisibility();
+            buttons.Children.Add(action);
+        }
+        buttons.Children.Add(browse);
         Grid grid = new()
         {
             ColumnDefinitions = new ColumnDefinitions("*,Auto"),
             ColumnSpacing = 4,
         };
         grid.Children.Add(box);
-        Grid.SetColumn(browse, 1);
-        grid.Children.Add(browse);
+        Grid.SetColumn(buttons, 1);
+        grid.Children.Add(buttons);
         return grid;
     }
 

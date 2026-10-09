@@ -18,11 +18,6 @@ internal sealed class GeneralEnumService
     private const string AttributeSetModule = "GlobalCore";
     private readonly string projectPath;
     private static readonly UTF8Encoding utf8 = new(false, true);
-    private static readonly HashSet<string> luaKeywords = new(StringComparer.Ordinal)
-    {
-        "and", "break", "do", "else", "elseif", "end", "false", "for", "function", "global", "goto", "if",
-        "in", "local", "nil", "not", "or", "repeat", "return", "then", "true", "until", "while",
-    };
 
     public GeneralEnumService(string projectPath)
     {
@@ -419,25 +414,15 @@ internal sealed class GeneralEnumService
 
     private static string luaDocFieldName(string name)
     {
-        return isLuaIdentifier(name) ? name : "[" + LuaStringLiteral.Quote(name) + "]";
+        return LuaIdentifier.IsValid(name) ? name : "[" + LuaStringLiteral.Quote(name) + "]";
     }
 
     private static void appendLuaTableKey(StringBuilder builder, string key)
     {
-        if (isLuaIdentifier(key))
+        if (LuaIdentifier.IsValid(key))
             builder.Append(key);
         else
             builder.Append('[').Append(LuaStringLiteral.Quote(key)).Append(']');
-    }
-
-    private static bool isLuaIdentifier(string value)
-    {
-        if (value.Length == 0 || luaKeywords.Contains(value)
-            || value[0] != '_' && !char.IsLetter(value[0]))
-        {
-            return false;
-        }
-        return value.Skip(1).All(character => character == '_' || char.IsLetterOrDigit(character));
     }
 
     private static void appendLuaValue(StringBuilder builder, JsonNode? value)

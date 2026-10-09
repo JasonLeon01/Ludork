@@ -149,6 +149,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         variableForm.ShowSourceGroups = document.Kind == BlueprintEditorDocumentKind.Blueprint;
         variableForm.HistoryGameData = gameData;
         variableForm.FieldActionFactory = createAttributeAction;
+        variableForm.PathActionFactory = createPathAction;
         variableForm.CanRemoveComponent = field => viewModel.HasLocalAttribute(field.Name);
         variableForm.ValueChanged += onVariableChanged;
         variableForm.ComponentAddRequested += onComponentAddRequested;
@@ -309,6 +310,43 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         clearGraphViews();
         if (await tryChangeAttributesAsync(() => viewModel.CommitParent(selected)))
             refreshAll();
+    }
+
+    private Control? createPathAction(BlueprintVariableEditorRequest request)
+    {
+        if (!viewModel.IsBlueprint || request.Field.Name != "scriptPath")
+            return null;
+        Button create = new()
+        {
+            Content = "+",
+            Width = 24,
+            MinWidth = 24,
+            Padding = new Thickness(0),
+        };
+        ToolTip.SetTip(create, LocaleService.Get("NEW_SCRIPT_MIXIN"));
+        create.Click += async (_, _) => await createScriptMixinAsync();
+        return create;
+    }
+
+    private async Task createScriptMixinAsync()
+    {
+        try
+        {
+            string root = ScriptMixinPaths.GetMixinsRoot(gameData.ProjectPath);
+            Directory.CreateDirectory(root);
+            string? selected = await FileSelectorDialog.ShowAsync(
+                this, root, FileSelectorDialog.FilesFilter("*.lua"),
+                LocaleService.Get("NEW_SCRIPT_MIXIN"), save: true);
+            if (selected is null || viewModel.ResolveClass().RootType is not LuaTypeReference actorType)
+                return;
+            ScriptMixinCreationService creation = new(metadataService);
+            string path = creation.Create(selected, actorType);
+            await commitScriptPathAsync(JsonValue.Create(path));
+        }
+        catch (Exception exception) when (exception is InvalidDataException or IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            await AlertDialog.ShowAsync(this, LocaleService.Get("ERROR"), exception.Message);
+        }
     }
 
     private async Task commitScriptPathAsync(JsonNode? value)

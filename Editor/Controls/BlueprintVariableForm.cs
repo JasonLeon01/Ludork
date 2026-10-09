@@ -72,6 +72,7 @@ public sealed partial class BlueprintVariableForm : UserControl, IDisposable
     public IReadOnlyList<BlueprintVariableField> Fields => fields;
 
     public Func<BlueprintVariableField, Control?>? FieldActionFactory { get; set; }
+    public Func<BlueprintVariableEditorRequest, Control?>? PathActionFactory { get; set; }
     public Func<BlueprintVariableEditorRequest, Control?>? CustomValueEditorFactory { get; set; }
     public Func<BlueprintVariableEditorRequest, Control>? PlainTextEditorFactory { get; set; }
     public Func<BlueprintVariableField, bool>? CanRemoveComponent { get; set; }
