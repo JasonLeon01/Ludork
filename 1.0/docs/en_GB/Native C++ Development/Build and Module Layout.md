@@ -18,6 +18,8 @@ The `LUDORK_OPTIMIZE_DEBUG` setting also controls Debug interprocedural optimiza
 
 Windows MSVC Release builds use deterministic compilation and `/Brepro` linking with incremental linking disabled, including the SFML and Lua dependencies. The separate FFmpeg build uses the same linker policy. This removes build-time timestamp differences from rebuilt EXE/DLL files when updating a Standalone project's `Binaries`. The first rebuild with these settings changes existing binaries once; changes to native inputs, dependencies, compiler, SDK or build settings can still change their contents. Packages continue to omit PDB files; retain the matching build symbols for debugging.
 
+Windows editor tools follow the same reproducibility goal: the independent `luac.exe` build uses deterministic MSVC Release compilation and linking, `gnumake.exe` uses deterministic non-incremental linking, and `ScriptTools.exe` enables Nuitka reproducible builds. Clean rebuilds through the same packaging path produce identical tool binaries when sources, dependencies and the toolchain, including Python, are unchanged. The first rebuild changes existing tool binaries once. Editor-only and template-inclusive packages use different Lua build projects, so their `luac.exe` files need not match each other. This guarantee does not extend to complete installers or macOS signed bundles.
+
 ## Steps
 
 ### Choose a module
