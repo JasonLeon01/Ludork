@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
+using System.Threading.Tasks;
 
 namespace Ludork.ViewModels;
 
@@ -85,9 +86,9 @@ public sealed partial class MapWorkspaceViewModel
         .Where(key => !string.Equals(key, worldKey, StringComparison.Ordinal))
         .Concat(GameData.Maps.MapCatalog.Where(entry => entry.Kind == MapCatalogEntryKind.StandaloneMap).Select(entry => entry.Key)).ToArray();
 
-    public bool RenameWorld(string worldKey, string newKey)
+    public async Task<bool> RenameWorldAsync(string worldKey, string newKey, IProgress<EditorOperationProgress>? progress = null)
     {
-        if (!CanEdit || !GameData.Worlds.RenameWorldMap(worldKey, newKey))
+        if (!await GameData.Worlds.RenameWorldMapAsync(worldKey, newKey, progress))
             return false;
         refreshMaps(newKey);
         return true;
@@ -120,13 +121,11 @@ public sealed partial class MapWorkspaceViewModel
         return (info, world);
     }
 
-    public bool UpdateMap(string key, MapInfo info, string? worldKey)
+    public async Task<bool> UpdateMapAsync(string key, MapInfo info, string? worldKey, IProgress<EditorOperationProgress>? progress = null)
     {
-        if (!CanEdit)
-            return false;
         if (worldKey is not null)
             info.FileName = worldKey + "/" + Path.GetFileName(info.FileName);
-        if (!GameData.Maps.UpdateMap(key, info))
+        if (!await GameData.Maps.UpdateMapAsync(key, info, progress))
             return false;
         refreshMaps(normaliseMapKey(info.FileName));
         return true;

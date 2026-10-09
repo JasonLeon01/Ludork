@@ -45,7 +45,13 @@ public sealed class UiAssetValidationService
         StringComparer.Ordinal);
 
     private readonly ProjectDataStore gameData;
-    private readonly UiControlRegistryService controlRegistry;
+    private readonly UiControlRegistryService? controlRegistry;
+    private readonly IReadOnlyList<UiControlDescriptor> capturedControls = [];
+    private readonly bool capturedReady;
+    private readonly string capturedStatus = string.Empty;
+    private bool RegistryReady => controlRegistry?.IsReady ?? capturedReady;
+    private string RegistryStatus => controlRegistry?.Runtime.StatusMessage ?? capturedStatus;
+    private IReadOnlyList<UiControlDescriptor> SystemDescriptors => controlRegistry?.SystemDescriptors ?? capturedControls;
 
     public UiAssetValidationService(
         ProjectDataStore gameData,
@@ -53,6 +59,18 @@ public sealed class UiAssetValidationService
     {
         this.gameData = gameData;
         this.controlRegistry = controlRegistry;
+    }
+
+    internal UiAssetValidationService(
+        ProjectDataStore gameData,
+        IReadOnlyList<UiControlDescriptor> controls,
+        bool ready,
+        string status)
+    {
+        this.gameData = gameData;
+        capturedControls = controls;
+        capturedReady = ready;
+        capturedStatus = status;
     }
 
     public UiAssetValidationResult ValidateAsset(string assetKey, JsonObject? data = null)
@@ -75,10 +93,10 @@ public sealed class UiAssetValidationService
         }
         IReadOnlyDictionary<string, UiControlDescriptor> controls =
             createNativeControlLookup();
-        if (!controlRegistry.IsReady)
-            add(issues, "registryUnavailable", string.Empty, controlRegistry.Runtime.StatusMessage);
+        if (!RegistryReady)
+            add(issues, "registryUnavailable", string.Empty, RegistryStatus);
         UiAssetDependencyGraph dependencies = new UiAssetDependencyGraph(assets, normalizedKey, data);
-        validateAssetStructure(normalizedKey, data, controls, issues, !controlRegistry.IsReady, dependencies);
+        validateAssetStructure(normalizedKey, data, controls, issues, !RegistryReady, dependencies);
         foreach (UiAssetDependencyGraph.CycleIssue cycle in dependencies.FindCycles(normalizedKey))
         {
             string path = string.Equals(cycle.AssetKey, normalizedKey, StringComparison.Ordinal)
@@ -110,9 +128,9 @@ public sealed class UiAssetValidationService
                     string.Empty,
                     "UI assets must be stored under Data/UI/Assets");
             }
-            if (!structuralOnly && !controlRegistry.IsReady)
-                add(issues, "registryUnavailable", string.Empty, controlRegistry.Runtime.StatusMessage);
-            validateAssetStructure(logicalKey, pair.Value.ToJson(), controls, issues, structuralOnly || !controlRegistry.IsReady, dependencies);
+            if (!structuralOnly && !RegistryReady)
+                add(issues, "registryUnavailable", string.Empty, RegistryStatus);
+            validateAssetStructure(logicalKey, pair.Value.ToJson(), controls, issues, structuralOnly || !RegistryReady, dependencies);
             issuesByKey[logicalKey.Length == 0 ? pair.Key : logicalKey] = issues;
         }
         foreach (UiAssetDependencyGraph.CycleIssue cycle in dependencies.FindCycles())
@@ -138,7 +156,7 @@ public sealed class UiAssetValidationService
 
     private IReadOnlyDictionary<string, UiControlDescriptor> createNativeControlLookup()
     {
-        return controlRegistry.SystemDescriptors
+        return SystemDescriptors
             .GroupBy(descriptor => descriptor.ControlId, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
     }
@@ -684,7 +702,12 @@ public sealed class UiAssetValidationService
         string path,
         ICollection<UiValidationIssue> issues)
     {
-        string? expectedType = controlRegistry.ExpectedTextConfigType(controlId);
+        string? expectedType = SystemDescriptors.FirstOrDefault(control => control.ControlId == controlId)?.TextKind switch
+        {
+            "plain" => "plainTextConfig",
+            "rich" => "richTextConfig",
+            _ => null,
+        };
         if (expectedType is not null
             && textConfig.Type != expectedType)
         {

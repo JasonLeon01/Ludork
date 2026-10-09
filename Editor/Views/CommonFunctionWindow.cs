@@ -338,7 +338,11 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
             return;
         }
         flushGraph();
-        if (!gameData.Blueprints.RenameCommonFunction(oldName, newName))
+        bool? renamed = await EditorEditWorkflow.RunAsync<bool?>(this, gameData, LocaleService.Get("EDIT_OPERATION_RENAMING"),
+            async progress => await gameData.RenameDocumentResourceAsync("CommonFunctions", oldName, newName.Trim(), progress), null);
+        if (renamed is null)
+            return;
+        if (!renamed.Value)
         {
             toast.ShowMessage(LocaleService.Get("FUNC_NAME_EXISTS"));
             return;
@@ -372,6 +376,11 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
 
     private async void onKeyDown(object? sender, KeyEventArgs args)
     {
+        if (projectSave.GameData.EditOperations.IsBusy)
+        {
+            args.Handled = true;
+            return;
+        }
         if (!initializer.IsInitialized)
             return;
         if (functionList.IsKeyboardFocusWithin)

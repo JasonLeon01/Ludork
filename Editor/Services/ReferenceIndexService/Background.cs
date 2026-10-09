@@ -16,6 +16,7 @@ public sealed partial class ReferenceIndexService
     private long schemaVersion;
     private long publication;
     private bool activated;
+    private bool foregroundRefresh;
     private DispatcherTimer? refreshTimer;
     private DispatcherTimer? fileTimer;
     private CancellationTokenSource? backgroundCancellation;
@@ -94,7 +95,7 @@ public sealed partial class ReferenceIndexService
 
     private void onFileTick(object? sender, EventArgs args)
     {
-        if (disposed || backgroundTask is not null || gameData.Documents.HasPendingNotifications)
+        if (disposed || foregroundRefresh || gameData.EditOperations.IsBusy || backgroundTask is not null || gameData.Documents.HasPendingNotifications)
             return;
         try
         {
@@ -113,7 +114,7 @@ public sealed partial class ReferenceIndexService
         refreshTimer!.Stop();
         if (disposed)
             return;
-        if (backgroundTask is not null || gameData.Documents.HasPendingNotifications)
+        if (foregroundRefresh || gameData.EditOperations.IsBusy || backgroundTask is not null || gameData.Documents.HasPendingNotifications)
         {
             refreshTimer.Start();
             return;
@@ -160,7 +161,7 @@ public sealed partial class ReferenceIndexService
         backgroundTask = null;
         if (disposed)
             return;
-        if (canceled || requestedVersion != version || previousPublication != publication)
+        if (canceled || gameData.EditOperations.IsBusy || requestedVersion != version || previousPublication != publication)
         {
             if (CurrentSnapshot?.Version != version || dirty || pendingDocuments.Count != 0)
                 scheduleRefresh();
@@ -217,7 +218,7 @@ public sealed partial class ReferenceIndexService
                 string path = ReferenceIndexSnapshot.ResolvePath(gameData.ProjectPath, ReferenceIdentity.NodeId(type, nodeKey),
                     new Dictionary<string, string>());
                 captured = new CapturedDocument(data, revision,
-                    new ReferenceBuildDocument(section, key, path, (JsonObject)data.DeepClone()));
+                    new ReferenceBuildDocument(section, key, path, document?.CaptureState().InternalData ?? (JsonObject)data.DeepClone()));
                 capturedDocuments[(section, key)] = captured;
             }
             documents.Add(captured.Input);

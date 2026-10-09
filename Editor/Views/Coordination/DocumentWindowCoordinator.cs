@@ -140,10 +140,10 @@ internal sealed class DocumentWindowCoordinator : IDisposable
                 showUiAssetEditor(viewModel, key);
                 break;
             case EditorActionKind.Undo:
-                viewModel.UndoChanges();
+                await viewModel.UndoChangesAsync();
                 break;
             case EditorActionKind.Redo:
-                viewModel.RedoChanges();
+                await viewModel.RedoChangesAsync();
                 break;
         }
     }

@@ -119,12 +119,12 @@ public sealed class EditorDocumentRegistry
 
     internal IEnumerable<EditorDocument> PendingDocuments => documents.Where(document => document.PendingState is not null);
 
-    internal EditorDocument Register(string section, string key, string path, JsonObject? data, bool isNew = false)
+    internal EditorDocument Register(string section, string key, string path, JsonObject? data, bool isNew = false, Guid? id = null, EditorDocumentState? state = null)
     {
         EditorDocument? existing = Find(section, key) ?? FindByPath(path);
         if (existing is not null)
             return existing;
-        EditorDocument document = new(section, key, Path.GetFullPath(path), data, isNew);
+        EditorDocument document = new(section, key, Path.GetFullPath(path), data, isNew, id, state);
         TrackDocument(document);
         documents.Add(document);
         Index(document);
@@ -197,12 +197,12 @@ public sealed class EditorDocumentRegistry
         return true;
     }
 
-    internal void MarkSaved(EditorDocument document)
+    internal void MarkSaved(EditorDocument document, EditorDocumentState? savedState = null)
     {
         TrackDocument(document);
-        if (document.UndoEntries.Count != 0)
+        if (document.UndoEntries.Count != 0 && (savedState is null || ReferenceEquals(savedState, document.CurrentState)))
             document.UndoEntries[^1] = document.UndoEntries[^1] with { GestureId = 0 };
-        document.SavedState = document.CaptureState();
+        document.SavedState = savedState ?? document.CaptureState();
         document.UpdateModified();
         Notify(document);
     }
@@ -258,6 +258,15 @@ public sealed class EditorDocumentRegistry
             Publish(scope);
     }
 
+    internal void NotifyPrepared(EditorDocument document, EditorDocumentState before,
+        EditorDocumentState after, bool contentChanged)
+    {
+        NotificationScope scope = notificationScopes.Peek();
+        scope.Changed.Add(document);
+        scope.AddContent(document, before, after);
+        scope.PreparedContentChanges[document] = contentChanged;
+    }
+
     internal void ValidateNotificationScope(object owner)
     {
         if (!notificationScopes.TryPeek(out NotificationScope? scope) || !ReferenceEquals(scope.Owner, owner))
@@ -278,6 +287,8 @@ public sealed class EditorDocumentRegistry
         parent.Changed.UnionWith(scope.Changed);
         foreach (KeyValuePair<EditorDocument, (EditorDocumentState Before, EditorDocumentState After)> pair in scope.Content)
             parent.AddContent(pair.Key, pair.Value.Before, pair.Value.After);
+        foreach (KeyValuePair<EditorDocument, bool> change in scope.PreparedContentChanges)
+            parent.PreparedContentChanges[change.Key] = change.Value;
         parent.Reset |= scope.Reset;
         parent.AfterNotifications.AddRange(scope.AfterNotifications);
     }
@@ -309,7 +320,8 @@ public sealed class EditorDocumentRegistry
                 pair.Value.After.InternalData is null ? null : pair.Value.After.Key,
                 pair.Value.Before.InternalData is null ? null : pair.Value.Before.Path,
                 pair.Value.After.InternalData is null ? null : pair.Value.After.Path,
-                !JsonNode.DeepEquals(pair.Value.Before.InternalData, pair.Value.After.InternalData));
+                scope.PreparedContentChanges.TryGetValue(pair.Key, out bool changed)
+                    ? changed : !JsonNode.DeepEquals(pair.Value.Before.InternalData, pair.Value.After.InternalData));
             if (change.ContentChanged || change.IdentityChanged)
                 pair.Key.LastContentChangeRevision = Revision;
             return change;
@@ -433,6 +445,7 @@ public sealed class EditorDocumentRegistry
         public HashSet<EditorDocument> Changed { get; } = [];
         public Dictionary<EditorDocument, (EditorDocumentState Before, EditorDocumentState After)> Content { get; } = [];
         public List<Action> AfterNotifications { get; } = [];
+        public Dictionary<EditorDocument, bool> PreparedContentChanges { get; } = [];
         public bool Reset { get; set; }
 
         public void AddContent(EditorDocument document, EditorDocumentState before, EditorDocumentState after)

@@ -1,4 +1,40 @@
 {
+  "EDIT_OPERATION_PREPARING": {
+    "zh_CN": "正在整理输入…",
+    "en_GB": "Preparing inputs…"
+  },
+  "EDIT_OPERATION_VALIDATING": {
+    "zh_CN": "正在校验…",
+    "en_GB": "Validating…"
+  },
+  "EDIT_OPERATION_GENERATING": {
+    "zh_CN": "正在生成和序列化…",
+    "en_GB": "Generating and serializing…"
+  },
+  "EDIT_OPERATION_WRITING": {
+    "zh_CN": "正在写入文件…",
+    "en_GB": "Writing files…"
+  },
+  "EDIT_OPERATION_APPLYING": {
+    "zh_CN": "正在更新状态…",
+    "en_GB": "Updating state…"
+  },
+  "EDIT_OPERATION_REFERENCES": {
+    "zh_CN": "正在扫描资源引用…",
+    "en_GB": "Scanning resource references…"
+  },
+  "EDIT_OPERATION_RENAMING": {
+    "zh_CN": "重命名资源",
+    "en_GB": "Renaming resource"
+  },
+  "EDIT_OPERATION_SAVING": {
+    "zh_CN": "保存项目",
+    "en_GB": "Saving project"
+  },
+  "EDIT_OPERATION_INPUTS_CHANGED": {
+    "zh_CN": "数据或外部文件已变化，请重试。",
+    "en_GB": "Data or external files changed. Please retry."
+  },
   "TASK_NOTIFICATION_SUCCESS": {
     "zh_CN": "{0}已完成",
     "en_GB": "{0} completed"

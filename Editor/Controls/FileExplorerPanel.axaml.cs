@@ -661,8 +661,12 @@ public partial class FileExplorerPanel : UserControl
         if (TopLevel.GetTopLevel(this) is not Window owner)
             return;
         string? name = await SingleRowDialog.ShowAsync(owner, LocaleService.Get("RENAME_FILE"), LocaleService.Get("RENAME_FILE"), viewModel.GetSiblingNames(item), item.Name);
-        if (!string.IsNullOrWhiteSpace(name))
-            await showOperationErrors(viewModel.RenameSelected(name), LocaleService.Get("RENAME_FAILED"));
+        if (!string.IsNullOrWhiteSpace(name) && !viewModel.IsReadOnly)
+        {
+            FileOperationResult result = await EditorEditWorkflow.RunAsync(owner, viewModel.GameData,
+                LocaleService.Get("EDIT_OPERATION_RENAMING"), progress => viewModel.RenameSelectedAsync(name, progress), FileOperationResult.Empty);
+            await showOperationErrors(result, LocaleService.Get("RENAME_FAILED"));
+        }
     }
 
     private static bool isImage(string path) => new[] { ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp" }

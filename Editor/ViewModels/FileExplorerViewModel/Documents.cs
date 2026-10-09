@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
+using Ludork.Models;
 
 namespace Ludork.ViewModels;
 
@@ -23,6 +25,22 @@ public sealed partial class FileExplorerViewModel
         {
             error = exception.Message;
             return true;
+        }
+    }
+
+    private async Task<(bool Handled, string? Error)> tryMoveManagedPathAsync(string source, string destination,
+        IProgress<EditorOperationProgress>? progress)
+    {
+        if (!gameData.IsManagedPath(source))
+            return (false, null);
+        try
+        {
+            changing(new FileExplorerFilesChangedEventArgs([], [(source, destination)], []));
+            return await gameData.TryRenameManagedPathAsync(source, destination, progress);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or IOException or UnauthorizedAccessException)
+        {
+            return (true, exception.Message);
         }
     }
 

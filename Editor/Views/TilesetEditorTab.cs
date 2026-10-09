@@ -98,7 +98,11 @@ internal sealed class TilesetEditorTab : Grid
             return;
         if (!isAutoTile)
         {
-            if (!gameData.Assets.RenameTileset(oldKey, nextKey))
+            bool? renamed = await EditorEditWorkflow.RunAsync<bool?>(owner, gameData, renameTitle,
+                async progress => await gameData.RenameDocumentResourceAsync("Tilesets", oldKey, nextKey, progress), null);
+            if (renamed is null)
+                return;
+            if (!renamed.Value)
             {
                 await AlertDialog.ShowAsync(
                     owner,
@@ -110,7 +114,8 @@ internal sealed class TilesetEditorTab : Grid
             refreshAll(nextKey);
             return;
         }
-        if (gameData.Assets.RenameAutoTile(oldKey, nextKey))
+        if (await EditorEditWorkflow.RunAsync(owner, gameData, renameTitle,
+                progress => gameData.RenameDocumentResourceAsync("AutoTiles", oldKey, nextKey, progress), false))
             refreshAll(nextKey);
     }
 

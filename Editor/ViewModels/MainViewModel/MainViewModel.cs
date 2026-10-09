@@ -8,6 +8,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
+using System.Threading.Tasks;
 
 namespace Ludork.ViewModels;
 
@@ -50,9 +51,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         MapWorkspace.PropertyChanged += onMapWorkspacePropertyChanged;
         MapWorkspace.SelectedMapChanged += onUndoRedoStateChanged;
         SaveCommand = new RelayCommand(() => SaveRequested?.Invoke(this, EventArgs.Empty), () => CanEdit && IsModified);
-        NewProjectCommand = new RelayCommand(() => NewProjectRequested?.Invoke(this, EventArgs.Empty));
-        OpenProjectCommand = new RelayCommand(() => OpenProjectRequested?.Invoke(this, EventArgs.Empty));
-        ExitCommand = new RelayCommand(() => ExitRequested?.Invoke(this, EventArgs.Empty));
+        NewProjectCommand = new RelayCommand(() => NewProjectRequested?.Invoke(this, EventArgs.Empty), () => !GameData.EditOperations.IsBusy);
+        OpenProjectCommand = new RelayCommand(() => OpenProjectRequested?.Invoke(this, EventArgs.Empty), () => !GameData.EditOperations.IsBusy);
+        ExitCommand = new RelayCommand(() => ExitRequested?.Invoke(this, EventArgs.Empty), () => !GameData.EditOperations.IsBusy);
         TileModeCommand = new RelayCommand(() => PreviewModeRequested?.Invoke(this, 0), () => MapWorkspace.CanUseMapTools);
         LightModeCommand = new RelayCommand(() => PreviewModeRequested?.Invoke(this, 1), () => CanEdit);
         ActorModeCommand = new RelayCommand(() => PreviewModeRequested?.Invoke(this, 2), () => MapWorkspace.CanUseMapTools);
@@ -72,11 +73,11 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         CommonFunctionsCommand = new RelayCommand(() => Actions.OpenCommonFunctions(), () => CanEdit);
         GameVariablesCommand = new RelayCommand(Actions.OpenGameVariables, () => CanEdit);
         GeneralDataCommand = new RelayCommand(() => Actions.OpenGeneralData(), () => CanEdit);
-        UndoCommand = new RelayCommand(executeUndo, () => CanEdit && ActiveDocument?.CanAttemptUndo == true);
-        RedoCommand = new RelayCommand(executeRedo, () => CanEdit && ActiveDocument?.CanRedo == true);
+        UndoCommand = new AsyncRelayCommand(() => UndoChangesAsync(), () => CanEdit && ActiveDocument?.CanAttemptUndo == true);
+        RedoCommand = new AsyncRelayCommand(() => RedoChangesAsync(), () => CanEdit && ActiveDocument?.CanRedo == true);
         editingCommands =
         [
-            SaveCommand, UndoCommand, RedoCommand, TileModeCommand, LightModeCommand, ActorModeCommand,
+            SaveCommand, NewProjectCommand, OpenProjectCommand, ExitCommand, UndoCommand, RedoCommand, TileModeCommand, LightModeCommand, ActorModeCommand,
             NewBlueprintCommand, NewAnimationCommand, NewParticleCommand, NewSubtitleCommand, NewCurveCommand, NewTextConfigCommand, NewUiAssetCommand,
             GameConfigCommand, SystemConfigCommand, AnimationOverviewCommand, ParticleOverviewCommand, TilesetsDataCommand,
             CommonFunctionsCommand, GameVariablesCommand, GeneralDataCommand,
@@ -86,6 +87,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         FileExplorerPanel.FileOpened += onExplorerFileOpened;
         FileExplorerPanel.FilesChanged += onExplorerFilesChanged;
         GameData.ModifiedChanged += onModifiedChanged;
+        GameData.EditOperations.Changed += onEditOperationChanged;
         ProjectSave.PendingInputsChanged += onModifiedChanged;
         GameConfig.Changed += onModifiedChanged;
         GameVariables.Changed += onModifiedChanged;
@@ -95,7 +97,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     }
 
     public event EventHandler? SaveRequested;
-    public event EventHandler<SaveResult>? SaveCompleted;
     public event EventHandler<HistoryCompletedEventArgs>? HistoryCompleted;
     public event EventHandler? NewProjectRequested;
     public event EventHandler? OpenProjectRequested;
@@ -170,15 +171,13 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     }
     public bool CanEdit
     {
-        get => canEdit;
+        get => canEdit && !GameData.EditOperations.IsBusy;
         set
         {
-            if (!SetProperty(ref canEdit, value))
+            if (canEdit == value)
                 return;
-            OnPropertyChanged(nameof(CanConfigureIndividualWindow));
-            MapWorkspace.CanEdit = value;
-            foreach (IRelayCommand command in editingCommands)
-                command.NotifyCanExecuteChanged();
+            canEdit = value;
+            onEditOperationChanged(this, EventArgs.Empty);
         }
     }
     public bool CanConfigureIndividualWindow => CanEdit && ProjectConfig.CanConfigureIndividualWindow;
@@ -195,32 +194,35 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     }
     public string WindowTitle => GameData.Configs.getGameTitle() + (IsModified ? " *" : string.Empty);
 
-    public SaveResult SaveChanges(bool notify = true)
-    {
-        SaveResult result = ProjectSave.TrySave().Result;
-        if (notify)
-            SaveCompleted?.Invoke(this, result);
-        return result;
-    }
+    public Func<bool, Task<HistoryResult>>? HistoryOperation { get; set; }
 
-    public HistoryResult UndoChanges()
+    public async Task<HistoryResult> UndoChangesAsync()
     {
-        if (!CanEdit)
+        if (!CanEdit || HistoryOperation is null)
             return new HistoryResult(false);
-        EditorDocument? document = ActiveDocument;
-        HistoryResult result = document is null ? new HistoryResult(false) : GameData.Undo(document.Section, document.Key);
+        HistoryResult result = await HistoryOperation(true);
         HistoryCompleted?.Invoke(this, new HistoryCompletedEventArgs("Undo", result));
         return result;
     }
 
-    public HistoryResult RedoChanges()
+    public async Task<HistoryResult> RedoChangesAsync()
     {
-        if (!CanEdit)
+        if (!CanEdit || HistoryOperation is null)
             return new HistoryResult(false);
-        EditorDocument? document = ActiveDocument;
-        HistoryResult result = document is null ? new HistoryResult(false) : GameData.Redo(document.Section, document.Key);
+        HistoryResult result = await HistoryOperation(false);
         HistoryCompleted?.Invoke(this, new HistoryCompletedEventArgs("Redo", result));
         return result;
+    }
+
+    private void onEditOperationChanged(object? sender, EventArgs args)
+    {
+        OnPropertyChanged(nameof(CanEdit));
+        OnPropertyChanged(nameof(CanConfigureIndividualWindow));
+        MapWorkspace.CanEdit = CanEdit;
+        FileExplorerPanel.IsReadOnly = !CanEdit;
+        ActorQueue.IsReadOnly = !CanEdit;
+        foreach (IRelayCommand command in editingCommands)
+            command.NotifyCanExecuteChanged();
     }
 
     public void Dispose()
@@ -230,6 +232,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         disposed = true;
         ProjectSave.PendingInputsChanged -= onModifiedChanged;
         GameData.ModifiedChanged -= onModifiedChanged;
+        GameData.EditOperations.Changed -= onEditOperationChanged;
         GameData.Documents.Changed -= onDocumentsChanged;
         GameData.DataRestored -= onDataRestored;
         GameConfig.Changed -= onModifiedChanged;
@@ -250,10 +253,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             ActorModeCommand.NotifyCanExecuteChanged();
         }
     }
-
-    private void executeUndo() => UndoChanges();
-
-    private void executeRedo() => RedoChanges();
 
     private void onModifiedChanged(object? sender, EventArgs args)
     {

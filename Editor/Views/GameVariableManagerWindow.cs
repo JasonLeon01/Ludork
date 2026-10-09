@@ -428,6 +428,11 @@ public sealed class GameVariableManagerWindow : Window
 
     private async void onKeyDown(object? sender, KeyEventArgs args)
     {
+        if (projectSave.GameData.EditOperations.IsBusy)
+        {
+            args.Handled = true;
+            return;
+        }
         if (EditorShortcuts.HasPrimaryModifier(args.KeyModifiers) && args.Key == Key.S)
         {
             args.Handled = true;

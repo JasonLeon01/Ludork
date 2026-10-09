@@ -12,6 +12,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Ludork.ViewModels;
 
@@ -298,10 +299,8 @@ public sealed partial class FileExplorerViewModel
         }
     }
 
-    public FileOperationResult RenameSelected(string newName)
+    public async Task<FileOperationResult> RenameSelectedAsync(string newName, IProgress<EditorOperationProgress>? progress = null)
     {
-        if (IsReadOnly)
-            return FileOperationResult.Empty;
         if (SelectedEntry is null)
             return FileOperationResult.Empty;
         string oldPath = SelectedEntry.FullPath;
@@ -316,7 +315,8 @@ public sealed partial class FileExplorerViewModel
         bool caseOnlyRename = isCaseOnlyPathChange(oldPath, newPath);
         if (!caseOnlyRename && pathExists(newPath))
             return new FileOperationResult(false, [LocaleService.Get("FILE_ALREADY_EXISTS").Replace("{name}", trimmedName)]);
-        if (tryMoveManagedPath(oldPath, newPath, out string? managedError))
+        (bool managed, string? managedError) = await tryMoveManagedPathAsync(oldPath, newPath, progress);
+        if (managed)
         {
             if (managedError is not null)
                 return new FileOperationResult(false, [managedError]);

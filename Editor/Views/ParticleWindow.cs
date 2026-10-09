@@ -45,6 +45,11 @@ public sealed class ParticleWindow : Window
 
     private async void onKeyDown(object? sender, KeyEventArgs args)
     {
+        if (projectSave.GameData.EditOperations.IsBusy)
+        {
+            args.Handled = true;
+            return;
+        }
         await binding.HandleShortcutAsync(args, projectSave, toast);
     }
 }

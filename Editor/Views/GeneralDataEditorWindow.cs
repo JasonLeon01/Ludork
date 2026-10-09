@@ -247,6 +247,11 @@ public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
 
     private async void onKeyDown(object? sender, KeyEventArgs args)
     {
+        if (projectSave.GameData.EditOperations.IsBusy)
+        {
+            args.Handled = true;
+            return;
+        }
         if (EditorShortcuts.HasPrimaryModifier(args.KeyModifiers) && args.Key == Key.S)
             FlushBlueprintEditors();
         await documentBinding.HandleShortcutAsync(args, projectSave, toast);
@@ -328,7 +333,9 @@ public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
             typeKey);
         if (string.IsNullOrWhiteSpace(newName) || newName == typeKey)
             return;
-        gameData.General.RenameGeneralType(typeKey, newName);
+        if (!await EditorEditWorkflow.RunAsync(this, gameData, LocaleService.Get("EDIT_OPERATION_RENAMING"),
+                progress => gameData.RenameDocumentResourceAsync("General", typeKey, newName, progress), false))
+            return;
         if (pageStates.Remove(typeKey, out GeneralDataPageSessionState? state))
             pageStates[newName] = state;
         buildTabs(newName);

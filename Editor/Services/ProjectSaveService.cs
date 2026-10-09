@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
+using System.Threading.Tasks;
 using Ludork.Models;
 
 namespace Ludork.Services;
@@ -44,7 +46,6 @@ public sealed class ProjectSaveService
     private readonly ProjectDataStore gameData;
     private readonly ProjectConfigService projectConfig;
     private readonly GameVariableService gameVariables;
-    private readonly BlueprintValidationService blueprintValidation;
     private readonly UiControlRegistryService uiControlRegistry;
     private readonly UiAssetValidationService uiAssetValidation;
     private readonly List<IProjectSaveParticipant> participants = [];
@@ -52,13 +53,11 @@ public sealed class ProjectSaveService
     public ProjectSaveService(
         ProjectDataStore gameData,
         GameVariableService gameVariables,
-        BlueprintValidationService blueprintValidation,
         ProjectConfigService projectConfig)
     {
         this.gameData = gameData;
         this.projectConfig = projectConfig;
         this.gameVariables = gameVariables;
-        this.blueprintValidation = blueprintValidation;
         uiControlRegistry = new UiControlRegistryService(gameData);
         uiAssetValidation = new UiAssetValidationService(gameData, uiControlRegistry);
     }
@@ -72,6 +71,7 @@ public sealed class ProjectSaveService
     public UiControlRegistryService UiControlRegistry => uiControlRegistry;
     public UiAssetValidationService UiAssetValidation => uiAssetValidation;
     public GameVariableService GameVariables => gameVariables;
+    public ProjectDataStore GameData => gameData;
 
     public void RegisterParticipant(IProjectSaveParticipant participant)
     {
@@ -93,8 +93,12 @@ public sealed class ProjectSaveService
         gameData.BreakHistoryGesture();
     }
 
-    public ProjectSaveAttempt TrySave(bool allowInvalidBlueprints = false, bool beforeNativeBuild = false)
+    public async Task<ProjectSaveAttempt> TrySaveAsync(
+        bool allowInvalidBlueprints = false,
+        bool beforeNativeBuild = false,
+        IProgress<EditorOperationProgress>? progress = null)
     {
+        progress?.Report(new EditorOperationProgress("EDIT_OPERATION_PREPARING"));
         FlushPendingChanges();
         IReadOnlyList<string> inputErrors = PendingInputErrors;
         if (inputErrors.Count != 0)
@@ -102,98 +106,110 @@ public sealed class ProjectSaveService
             return new ProjectSaveAttempt(false, false, [],
                 new SaveResult(false, LocaleService.Get("BLUEPRINT_TEXT_SAVE_BLOCKED") + Environment.NewLine + string.Join(Environment.NewLine, inputErrors)));
         }
-        GameVariableSaveResult gameVariableResult = GameVariableSaveResult.Completed(string.Empty);
-        IReadOnlyList<string> blueprintSchemaErrors = gameData.ValidateBlueprintSchemas();
+        ProjectOperationSnapshot snapshot = gameData.CaptureOperationSnapshot();
+        EditorDocument[] modified = gameData.Documents.ModifiedDocuments
+            .Where(document => document.Section != "GameVariables").ToArray();
+        Func<GameVariableSaveResult>? saveVariables = gameVariables.CapturePendingSave();
+        EditorDocumentState variableState = gameVariables.Document.CaptureState();
+        UiControlDescriptor[] controls = uiControlRegistry.SystemDescriptors.ToArray();
+        bool registryReady = uiControlRegistry.IsReady;
+        string registryStatus = uiControlRegistry.Runtime.StatusMessage;
+        bool structuralOnly = beforeNativeBuild || !registryReady && !projectConfig.IsStandalone;
+        string[] inputPaths = snapshot.Documents.SelectMany(document => new[] { document.Current.Path, document.Saved.Path })
+            .Concat(snapshot.MapCatalog.Select(entry => Path.Combine(snapshot.ProjectPath, "Data", "Maps",
+                entry.Key.Replace('/', Path.DirectorySeparatorChar) + (entry.Kind == MapCatalogEntryKind.WorldMap ? "/_world.json" : ".json"))))
+            .Concat(new[] { gameVariables.RuntimePath, gameVariables.MetadataPath }).Distinct(StringComparer.Ordinal).ToArray();
+        ReferenceInputFiles files = await Task.Run(() => ReferenceInputFiles.Capture(snapshot.ProjectPath, inputPaths));
+        Dictionary<string, ReferenceInputFiles.Stamp> dataFiles = await Task.Run(() => inputPaths
+            .Where(path => !path.EndsWith(".lua", StringComparison.Ordinal))
+            .ToDictionary(path => path, ReferenceInputFiles.Read, StringComparer.Ordinal));
+        using ProjectDataStore captured = await Task.Run(snapshot.CreateStore);
+        ProjectSaveAttempt attempt = await Task.Run(() =>
+        {
+            progress?.Report(new EditorOperationProgress("EDIT_OPERATION_VALIDATING"));
+            LuaMetadataService metadata = new(captured.ProjectPath, enums: captured.Enums);
+            using BlueprintClassResolver resolver = new(captured, metadata);
+            BlueprintValidationService validation = new(captured, metadata, resolver);
+            UiAssetValidationService uiValidation = new(captured, controls, registryReady, registryStatus);
+            return validateCaptured(captured, validation, uiValidation, structuralOnly, allowInvalidBlueprints, progress);
+        });
+        if (!attempt.Success)
+            return attempt;
+        if (gameData.Documents.Revision != snapshot.Revision)
+            return new ProjectSaveAttempt(false, false, [], new SaveResult(false, LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED")));
+        bool filesCurrent = await Task.Run(files.IsCurrent);
+        if (!filesCurrent || gameData.Documents.Revision != snapshot.Revision)
+            return new ProjectSaveAttempt(false, false, [], new SaveResult(false, LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED")));
+        GameVariableSaveResult variableResult = await Task.Run(() =>
+        {
+            progress?.Report(new EditorOperationProgress("EDIT_OPERATION_GENERATING"));
+            return saveVariables?.Invoke() ?? GameVariableSaveResult.Completed(string.Empty);
+        });
+        if (saveVariables is not null && variableResult.Success)
+            gameVariables.CompletePendingSave(variableState);
+        if (!variableResult.Success)
+            return attempt with { Success = false, GameVariableResult = variableResult };
+        SaveResult dataResult = await Task.Run(() => captured.SaveAllModified(true, progress,
+            () => dataFiles.All(pair => ReferenceInputFiles.Read(pair.Key) == pair.Value)));
+        attempt = attempt with { Success = dataResult.Success, DataResult = dataResult, GameVariableResult = variableResult };
+        if (attempt.Success)
+            await gameData.CompleteOperationSaveAsync(captured, modified, progress);
+        if (attempt.Success && structuralOnly && attempt.UiValidationResults.Count != 0)
+        {
+            attempt = attempt with
+            {
+                DataResult = attempt.DataResult with
+                {
+                    Details = string.Join(Environment.NewLine,
+                        new[] { attempt.DataResult.Details, LocaleService.Get("UI_SAVE_NATIVE_VALIDATION_PENDING") }
+                            .Where(value => !string.IsNullOrWhiteSpace(value))),
+                },
+            };
+        }
+        return attempt;
+    }
+
+    private static ProjectSaveAttempt validateCaptured(
+        ProjectDataStore captured,
+        BlueprintValidationService validation,
+        UiAssetValidationService uiValidation,
+        bool structuralOnly,
+        bool allowInvalidBlueprints,
+        IProgress<EditorOperationProgress>? progress)
+    {
+        IReadOnlyList<string> blueprintSchemaErrors = captured.ValidateBlueprintSchemas();
         if (blueprintSchemaErrors.Count != 0)
         {
             return new ProjectSaveAttempt(false, false, [],
                 new SaveResult(false, string.Join(Environment.NewLine, blueprintSchemaErrors)));
         }
-        bool structuralOnly = beforeNativeBuild || !uiControlRegistry.IsReady && !projectConfig.IsStandalone;
-        IReadOnlyList<UiAssetValidationResult> uiValidationResults = uiAssetValidation.ValidateAll(structuralOnly);
-        bool hasUiValidationErrors = uiValidationResults.Any(result => !result.IsValid);
-        if (hasUiValidationErrors)
+        IReadOnlyList<UiAssetValidationResult> uiValidationResults = uiValidation.ValidateAll(structuralOnly);
+        if (uiValidationResults.Any(result => !result.IsValid))
         {
-            string detail = string.Join(
-                Environment.NewLine,
-                uiValidationResults
-                    .Where(result => !result.IsValid)
-                    .SelectMany(result => result.Errors.Select(error => $"UI/{result.AssetKey}: {error}")));
-            return new ProjectSaveAttempt(
-                false,
-                true,
-                [],
-                new SaveResult(false, detail))
+            string detail = string.Join(Environment.NewLine, uiValidationResults
+                .Where(result => !result.IsValid)
+                .SelectMany(result => result.Errors.Select(error => $"UI/{result.AssetKey}: {error}")));
+            return new ProjectSaveAttempt(false, true, [], new SaveResult(false, detail))
             {
                 UiValidationResults = uiValidationResults,
-                GameVariableResult = gameVariableResult,
             };
         }
-        IReadOnlyList<BlueprintValidationResult> blueprintValidationResults =
-            blueprintValidation.ValidateBlueprints(gameData.Blueprints.GetModifiedBlueprintKeys());
-        IReadOnlyList<BlueprintValidationResult> generalDataValidationResults =
-            blueprintValidation.ValidateGeneralDataGraphs();
-        BlueprintValidationResult[] validationResults = blueprintValidationResults
-            .Concat(generalDataValidationResults)
-            .ToArray();
-        bool hasBlueprintValidationErrors = blueprintValidationResults.Any(result => !result.IsValid);
-        bool hasGeneralDataValidationErrors = generalDataValidationResults.Any(result => !result.IsValid);
-        if (hasGeneralDataValidationErrors || hasBlueprintValidationErrors && !allowInvalidBlueprints)
+        IReadOnlyList<BlueprintValidationResult> blueprintResults =
+            validation.ValidateBlueprints(captured.Blueprints.GetModifiedBlueprintKeys(), progress);
+        IReadOnlyList<BlueprintValidationResult> generalResults =
+            validation.ValidateGeneralDataGraphs(captured.GeneralSaveData, progress);
+        BlueprintValidationResult[] results = blueprintResults.Concat(generalResults).ToArray();
+        if (generalResults.Any(result => !result.IsValid)
+            || !allowInvalidBlueprints && blueprintResults.Any(result => !result.IsValid))
         {
-            return new ProjectSaveAttempt(
-                false,
-                true,
-                validationResults,
-                new SaveResult(false, string.Empty))
+            return new ProjectSaveAttempt(false, true, results, new SaveResult(false, string.Empty))
             {
                 UiValidationResults = uiValidationResults,
-                GameVariableResult = gameVariableResult,
             };
         }
-
-        gameVariableResult = gameVariables.SavePending();
-        if (!gameVariableResult.Success)
-        {
-            return new ProjectSaveAttempt(
-                false,
-                false,
-                [],
-                new SaveResult(false, string.Empty))
-            {
-                GameVariableResult = gameVariableResult,
-            };
-        }
-        SaveResult dataResult = gameData.SaveAllModified();
-        if (!dataResult.Success)
-        {
-            return new ProjectSaveAttempt(
-                false,
-                false,
-                validationResults,
-                dataResult)
-            {
-                UiValidationResults = uiValidationResults,
-                GameVariableResult = gameVariableResult,
-            };
-        }
-
-        if (structuralOnly && uiValidationResults.Count != 0)
-        {
-            dataResult = dataResult with
-            {
-                Details = string.Join(Environment.NewLine,
-                    new[] { dataResult.Details, LocaleService.Get("UI_SAVE_NATIVE_VALIDATION_PENDING") }
-                        .Where(value => !string.IsNullOrWhiteSpace(value))),
-            };
-        }
-        return new ProjectSaveAttempt(
-            true,
-            false,
-            validationResults,
-            dataResult)
+        return new ProjectSaveAttempt(true, false, results, new SaveResult(true, string.Empty))
         {
             UiValidationResults = uiValidationResults,
-            GameVariableResult = gameVariableResult,
         };
     }
 }

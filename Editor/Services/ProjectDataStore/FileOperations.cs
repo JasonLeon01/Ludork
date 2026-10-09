@@ -19,7 +19,10 @@ public sealed partial class ProjectDataStore
 
     public bool IsManagedPath(string path)
     {
-        return GetDocumentByPath(path) is not null
+        return Documents.FindByPath(path) is not null
+            || tryGetDataLocation(path, out string section, out string relative)
+                && (section == "Maps" ? Maps.containsMapKey(normalizeJsonKey(relative))
+                    : sections[section].ContainsKey(normalizeJsonKey(relative)))
             || Documents.All.Any(document => pathsEqual(document.SavedPath, path)
                 || isDocumentInsidePath(document.Path, path))
             || sections["WorldMaps"].Keys.Any(key => pathsEqual(Worlds.getWorldDirectory(key), path));

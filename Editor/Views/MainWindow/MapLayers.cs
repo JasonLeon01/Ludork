@@ -44,7 +44,7 @@ public partial class MainWindow
 
     private async void onNewProjectRequested(object? sender, EventArgs args)
     {
-        if (editorSettings is null || !await confirmLeaveAsync())
+        if (viewModel?.GameData.EditOperations.IsBusy == true || editorSettings is null || !await confirmLeaveAsync())
             return;
         string? projectFilePath = await NewProjectWindow.ShowAsync(this, editorSettings);
         if (projectFilePath is null)
@@ -55,7 +55,7 @@ public partial class MainWindow
 
     private async void onOpenProjectRequested(object? sender, EventArgs args)
     {
-        if (editorSettings is null)
+        if (viewModel?.GameData.EditOperations.IsBusy == true || editorSettings is null)
             return;
         string root = Path.GetFullPath(editorSettings.getLastPathOrHome());
         if (!Directory.Exists(root))
@@ -103,6 +103,8 @@ public partial class MainWindow
 
     private async Task<bool> confirmLeaveAsync()
     {
+        if (viewModel?.GameData.EditOperations.IsBusy == true)
+            return false;
         viewModel?.ProjectSave.FlushPendingChanges();
         if (viewModel?.IsModified != true)
             return true;
@@ -463,6 +465,11 @@ public partial class MainWindow
 
     private async void onClosing(object? sender, WindowClosingEventArgs args)
     {
+        if (viewModel?.GameData.EditOperations.IsBusy == true)
+        {
+            args.Cancel = true;
+            return;
+        }
         if (closeConfirmed)
             return;
         if (projectOperations?.IsPending == true)

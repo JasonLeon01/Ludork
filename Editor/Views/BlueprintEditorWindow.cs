@@ -927,6 +927,11 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
 
     private async void onKeyDown(object? sender, KeyEventArgs args)
     {
+        if (projectSave.GameData.EditOperations.IsBusy)
+        {
+            args.Handled = true;
+            return;
+        }
         if (!initializer.IsInitialized)
             return;
         if (args.Key == Key.F2 && graphList.IsKeyboardFocusWithin)

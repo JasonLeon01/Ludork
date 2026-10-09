@@ -117,9 +117,9 @@ public partial class MainWindow
             viewModel.ActorQueue.BlueprintOpenRequested -= onActorQueueBlueprintOpenRequested;
             viewModel.ActorQueue.BlueprintLocateRequested -= onBlueprintLocateRequested;
             viewModel.LanguageChangeRequested -= onLanguageChangeRequested;
-            viewModel.SaveCompleted -= onSaveCompleted;
             viewModel.SaveRequested -= onSaveRequested;
             viewModel.HistoryCompleted -= onHistoryCompleted;
+            viewModel.HistoryOperation = null;
             viewModel.TileSelect.PropertyChanged -= onTileSelectPropertyChanged;
 
             viewModel.NewProjectRequested -= onNewProjectRequested;
@@ -154,9 +154,18 @@ public partial class MainWindow
         viewModel.ActorQueue.BlueprintOpenRequested += onActorQueueBlueprintOpenRequested;
         viewModel.ActorQueue.BlueprintLocateRequested += onBlueprintLocateRequested;
         viewModel.LanguageChangeRequested += onLanguageChangeRequested;
-        viewModel.SaveCompleted += onSaveCompleted;
         viewModel.SaveRequested += onSaveRequested;
         viewModel.HistoryCompleted += onHistoryCompleted;
+        viewModel.HistoryOperation = async undo =>
+        {
+            EditorDocument? document = viewModel.ActiveDocument;
+            if (document is null)
+                return new HistoryResult(false);
+            return await EditorEditWorkflow.RunAsync(this, viewModel.GameData,
+                LocaleService.Get(undo ? "UNDO" : "REDO"), progress => undo
+                    ? viewModel.GameData.UndoAsync(document.Section, document.Key, progress)
+                    : viewModel.GameData.RedoAsync(document.Section, document.Key, progress), new HistoryResult(false));
+        };
         tileSelect.PropertyChanged += onTileSelectPropertyChanged;
 
         viewModel.NewProjectRequested += onNewProjectRequested;
@@ -335,11 +344,6 @@ public partial class MainWindow
     private void onActorQueueSelectionChanged(object? sender, string? reference)
     {
         EditorPanel.setPendingActor(reference);
-    }
-
-    private async void onSaveCompleted(object? sender, SaveResult result)
-    {
-        await EditorFeedback.ShowSaveResultAsync(this, result);
     }
 
     private async void onSaveRequested(object? sender, EventArgs args)

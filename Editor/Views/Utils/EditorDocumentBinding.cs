@@ -36,6 +36,7 @@ public sealed class EditorDocumentBinding : IDisposable
         this.refresh = refresh;
         this.closeWhenDeleted = closeWhenDeleted;
         gameData.Documents.ContentChanged += onRegistryChanged;
+        gameData.EditOperations.Changed += onEditOperationChanged;
         owner.Closed += onClosed;
         owner.Activated += onWindowActivated;
         owner.Deactivated += onWindowActivityChanged;
@@ -62,16 +63,18 @@ public sealed class EditorDocumentBinding : IDisposable
         updateTitle();
     }
 
-    public HistoryResult Undo()
-    {
-        Refresh();
-        return document is null ? new HistoryResult(false) : gameData.Undo(document.Section, document.Key);
-    }
+    public Task<HistoryResult> UndoAsync() => changeHistoryAsync(true);
 
-    public HistoryResult Redo()
+    public Task<HistoryResult> RedoAsync() => changeHistoryAsync(false);
+
+    private Task<HistoryResult> changeHistoryAsync(bool undo)
     {
         Refresh();
-        return document is null ? new HistoryResult(false) : gameData.Redo(document.Section, document.Key);
+        EditorDocument? target = document;
+        return target is null ? Task.FromResult(new HistoryResult(false))
+            : EditorEditWorkflow.RunAsync(owner, gameData, LocaleService.Get(undo ? "UNDO" : "REDO"), progress => undo
+                ? gameData.UndoAsync(target.Section, target.Key, progress)
+                : gameData.RedoAsync(target.Section, target.Key, progress), new HistoryResult(false));
     }
 
     public async Task HandleShortcutAsync(
@@ -80,6 +83,11 @@ public sealed class EditorDocumentBinding : IDisposable
         Toast? toast,
         Func<Task<bool>>? prepareSave = null)
     {
+        if (gameData.EditOperations.IsBusy)
+        {
+            args.Handled = true;
+            return;
+        }
         if (!EditorShortcuts.HasPrimaryModifier(args.KeyModifiers))
             return;
         if (args.Key == Key.S)
@@ -90,12 +98,12 @@ public sealed class EditorDocumentBinding : IDisposable
         else if (EditorShortcuts.IsUndo(args.Key, args.KeyModifiers))
         {
             if (toast is not null)
-                EditorFeedback.ShowHistory(toast, "Undo", Undo());
+                EditorFeedback.ShowHistory(toast, "Undo", await UndoAsync());
         }
         else if (EditorShortcuts.IsRedo(args.Key, args.KeyModifiers))
         {
             if (toast is not null)
-                EditorFeedback.ShowHistory(toast, "Redo", Redo());
+                EditorFeedback.ShowHistory(toast, "Redo", await RedoAsync());
         }
         else
             return;
@@ -108,6 +116,7 @@ public sealed class EditorDocumentBinding : IDisposable
             return;
         disposed = true;
         gameData.Documents.ContentChanged -= onRegistryChanged;
+        gameData.EditOperations.Changed -= onEditOperationChanged;
         owner.Closed -= onClosed;
         owner.Activated -= onWindowActivated;
         owner.Deactivated -= onWindowActivityChanged;
@@ -125,10 +134,17 @@ public sealed class EditorDocumentBinding : IDisposable
     {
         if (closeWhenDeleted && document is { Exists: false })
         {
-            owner.Close();
+            if (!gameData.EditOperations.IsBusy)
+                owner.Close();
             return;
         }
         updateTitle();
+    }
+
+    private void onEditOperationChanged(object? sender, EventArgs args)
+    {
+        if (!gameData.EditOperations.IsBusy && closeWhenDeleted && document is { Exists: false })
+            owner.Close();
     }
 
     private void onRegistryChanged(object? sender, EditorDocumentsChangedEventArgs args)

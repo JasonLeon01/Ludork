@@ -5,21 +5,30 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json.Nodes;
+using System.Threading.Tasks;
 
 namespace Ludork.Services;
 
 public sealed partial class ProjectDataStore
 {
-    public SaveResult SaveAllModified()
+    public SaveResult SaveAllModified() => SaveAllModified(false);
+
+    internal IReadOnlyDictionary<string, JsonObject> GeneralSaveData => sections["General"];
+
+    internal SaveResult SaveAllModified(bool schemasValidated, IProgress<EditorOperationProgress>? progress = null,
+        Func<bool>? canWrite = null)
     {
         BreakHistoryGesture();
         CompleteDocumentChanges();
-        IReadOnlyList<string> blueprintErrors = ValidateBlueprintSchemas();
-        if (blueprintErrors.Count != 0)
-            return new SaveResult(false, string.Join(Environment.NewLine, blueprintErrors));
-        IReadOnlyList<string> errors = GeneralDataSchemaValidation.Validate(sections["General"], Enums.Read);
-        if (errors.Count != 0)
-            return new SaveResult(false, string.Join(Environment.NewLine, errors));
+        if (!schemasValidated)
+        {
+            IReadOnlyList<string> blueprintErrors = ValidateBlueprintSchemas();
+            if (blueprintErrors.Count != 0)
+                return new SaveResult(false, string.Join(Environment.NewLine, blueprintErrors));
+            IReadOnlyList<string> errors = GeneralDataSchemaValidation.Validate(sections["General"], Enums.Read);
+            if (errors.Count != 0)
+                return new SaveResult(false, string.Join(Environment.NewLine, errors));
+        }
         IReadOnlyList<string> pathErrors = validateGameAssetPaths();
         if (pathErrors.Count != 0)
             return new SaveResult(false, string.Join(Environment.NewLine, pathErrors));
@@ -40,8 +49,10 @@ public sealed partial class ProjectDataStore
                 batch.MoveDirectory(source, destination);
             }
         }
+        int generated = 0;
         foreach (EditorDocument document in modified)
         {
+            progress?.Report(new EditorOperationProgress("EDIT_OPERATION_GENERATING", document.Path, generated++, modified.Length));
             foreach (KeyValuePair<string, byte[]> output in document.PrepareSave())
                 batch.Write(output.Key, output.Value);
             if (document.SavedState.InternalData is not null)
@@ -70,15 +81,18 @@ public sealed partial class ProjectDataStore
                 return new SaveResult(false, exception.Message);
             }
         }
-        SaveResult result = batch.Execute();
+        if (canWrite is not null && !canWrite())
+            return new SaveResult(false, LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
+        SaveResult result = batch.Execute(progress);
         if (!result.Success)
             return result;
+        using EditorDocumentNotificationBatch notifications = Documents.BeginNotificationBatch();
         foreach (EditorDocument document in modified)
             originData[document.SavedState.Section].Remove(document.SavedState.Key);
         foreach (EditorDocument document in modified)
         {
-            if (document.InternalData is JsonObject data)
-                originData[document.Section][document.Key] = (JsonObject)data.DeepClone();
+            if (document.CaptureState().InternalData is JsonObject data)
+                originData[document.Section][document.Key] = data;
             MarkDocumentSaved(document.Section, document.Key);
             if (document.Section == "Maps" && document.InternalData is JsonObject map)
                 Maps.updateLoadedMapMetadata(document.Key, map, document.Path);
@@ -89,9 +103,48 @@ public sealed partial class ProjectDataStore
             pair => pair.Key, pair => (JsonObject)pair.Value.DeepClone(), StringComparer.Ordinal);
         Worlds.ClearPendingDirectoryMoves();
         refreshModifiedState();
+        notifications.Commit();
         DataSaved?.Invoke(this, EventArgs.Empty);
         return new SaveResult(true, string.Join(Environment.NewLine,
             modified.Select(document => document.Path).Append(result.Details).Where(value => !string.IsNullOrEmpty(value))));
+    }
+
+    internal async Task CompleteOperationSaveAsync(
+        ProjectDataStore savedStore,
+        IReadOnlyList<EditorDocument> savedDocuments,
+        IProgress<EditorOperationProgress>? progress)
+    {
+        Dictionary<Guid, EditorDocumentState> states = savedStore.Documents.All
+            .ToDictionary(document => document.Id, document => document.SavedState);
+        bool unchanged = Documents.All.Where(document => sections.ContainsKey(document.Section)).All(document =>
+            states.TryGetValue(document.Id, out EditorDocumentState? state)
+                && ReferenceEquals(document.CaptureState(), state));
+        using EditorDocumentNotificationBatch notifications = Documents.BeginNotificationBatch();
+        foreach (EditorDocument document in savedDocuments)
+            originData[document.SavedState.Section].Remove(document.SavedState.Key);
+        EditorUiBatch batch = new();
+        int completed = 0;
+        foreach (EditorDocument document in savedDocuments)
+        {
+            EditorDocumentState state = states[document.Id];
+            progress?.Report(new EditorOperationProgress("EDIT_OPERATION_APPLYING", state.Path, completed++, savedDocuments.Count));
+            if (savedStore.originData[state.Section].TryGetValue(state.Key, out JsonObject? data))
+                originData[state.Section][state.Key] = data;
+            Documents.MarkSaved(document, state);
+            if (document.Section == "Maps" && document.InternalData is JsonObject map)
+                Maps.updateLoadedMapMetadata(document.Key, map, state.Path);
+            await batch.YieldIfNeededAsync();
+        }
+        originData["MapCatalog"] = savedStore.originData["MapCatalog"];
+        if (unchanged)
+            projectEnumGenerationPending = savedStore.projectEnumGenerationPending;
+        Worlds.ClearPendingDirectoryMoves();
+        foreach (EditorDocument world in Documents.All.Where(document => document.Section == "WorldMaps"))
+            if (world.SavedState.InternalData is not null && world.SavedPath != world.Path)
+                Worlds.UpdatePendingDirectoryMove(world.Key, world.Key, Path.GetDirectoryName(world.SavedPath));
+        refreshModifiedState();
+        notifications.Commit();
+        DataSaved?.Invoke(this, EventArgs.Empty);
     }
 
     internal IReadOnlyDictionary<string, byte[]> SerializeDocument(EditorDocument document)

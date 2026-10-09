@@ -40,6 +40,7 @@ public sealed partial class ProjectDataStore
         bool renamed = !string.Equals(oldKey, newKey, StringComparison.Ordinal);
         if (renamed && (GetDocument(section, newKey) is EditorDocument occupied && !ReferenceEquals(occupied, source)
             || File.Exists(getSectionDataPath(section, newKey))
+                && !FileSystemPathIdentity.RefersToSameEntry(source.SavedPath, getSectionDataPath(section, newKey))
                 && !Documents.All.Any(document => pathsEqual(document.SavedPath, getSectionDataPath(section, newKey)))))
             return false;
         Dictionary<EditorDocument, (string Key, JsonObject Data)> changes = new()

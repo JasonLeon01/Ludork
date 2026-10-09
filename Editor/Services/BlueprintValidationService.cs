@@ -190,56 +190,66 @@ public sealed class BlueprintValidationService
         }
     }
 
-    public IReadOnlyList<BlueprintValidationResult> ValidateBlueprints(IEnumerable<string> blueprintKeys)
+    public IReadOnlyList<BlueprintValidationResult> ValidateBlueprints(
+        IEnumerable<string> blueprintKeys,
+        IProgress<EditorOperationProgress>? progress = null)
     {
-        return blueprintKeys
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(key => key, StringComparer.Ordinal)
-            .Select(key => ValidateBlueprint(key))
-            .ToArray();
+        string[] keys = blueprintKeys.Distinct(StringComparer.Ordinal)
+            .OrderBy(key => key, StringComparer.Ordinal).ToArray();
+        List<BlueprintValidationResult> results = [];
+        foreach (string key in keys)
+        {
+            progress?.Report(new EditorOperationProgress("EDIT_OPERATION_VALIDATING", key, results.Count, keys.Length));
+            results.Add(ValidateBlueprint(key));
+        }
+        return results;
     }
 
     public IReadOnlyList<BlueprintValidationResult> ValidateGeneralDataGraphs()
     {
+        return ValidateGeneralDataGraphs(SnapshotJson.ToDictionary(gameData.General.GeneralData));
+    }
+
+    internal IReadOnlyList<BlueprintValidationResult> ValidateGeneralDataGraphs(
+        IReadOnlyDictionary<string, JsonObject> generalData,
+        IProgress<EditorOperationProgress>? progress = null)
+    {
         List<BlueprintValidationResult> results = [];
-        IReadOnlyList<string> schemaErrors = GeneralDataSchemaValidation.Validate(SnapshotJson.ToDictionary(gameData.General.GeneralData), metadataService.Enums.Read);
+        progress?.Report(new EditorOperationProgress("EDIT_OPERATION_VALIDATING", "General"));
+        IReadOnlyList<string> schemaErrors = GeneralDataSchemaValidation.Validate(generalData, metadataService.Enums.Read);
         if (schemaErrors.Count != 0)
             results.Add(new BlueprintValidationResult("GeneralData", false, schemaErrors));
-
-        using IDisposable metadataBatch = classResolver.BeginBatch();
-        BlueprintNodeDefinitionSet definitionSet = new BlueprintNodeDefinitionCatalog(metadataService, classResolver)
-            .GetNodeDefinitionSet();
-        foreach (KeyValuePair<string, JsonObject> typeEntry in SnapshotJson.ToDictionary(gameData.General.GeneralData)
-            .OrderBy(entry => entry.Key, StringComparer.Ordinal))
+        List<(string Key, JsonObject Graph)> graphs = [];
+        foreach (KeyValuePair<string, JsonObject> typeEntry in generalData.OrderBy(entry => entry.Key, StringComparer.Ordinal))
         {
             if (typeEntry.Value["members"] is not JsonObject members)
                 continue;
             foreach (KeyValuePair<string, JsonNode?> memberEntry in members)
+                if (memberEntry.Value?["_graph"] is JsonObject graph)
+                    graphs.Add(($"General/{typeEntry.Key}/{memberEntry.Key}", graph));
+        }
+        if (graphs.Count == 0)
+            return results;
+        using IDisposable metadataBatch = classResolver.BeginBatch();
+        BlueprintNodeDefinitionSet definitionSet = new BlueprintNodeDefinitionCatalog(metadataService, classResolver)
+            .GetNodeDefinitionSet();
+        int completed = 0;
+        foreach ((string key, JsonObject graph) in graphs)
+        {
+            progress?.Report(new EditorOperationProgress("EDIT_OPERATION_VALIDATING", key, completed++, graphs.Count));
+            List<string> errors = [];
+            validateGraphStructure(graph, errors);
+            if (errors.Count == 0)
             {
-                if (memberEntry.Value?["_graph"] is not JsonObject graph)
-                    continue;
-                List<string> errors = [];
-                validateGraphStructure(graph, errors);
-                if (errors.Count == 0)
+                JsonObject graphDocument = new()
                 {
-                    JsonObject graphDocument = new()
-                    {
-                        ["attrs"] = new JsonObject(),
-                        ["graph"] = graph.DeepClone(),
-                    };
-                    validateGraphDefinitions(
-                        $"General/{typeEntry.Key}/{memberEntry.Key}",
-                        graphDocument,
-                        graph,
-                        errors,
-                        "GlobalCore.GameplayEventData");
-                    validateGeneralDataLatentNodes(graph, definitionSet.RuntimeLookup, errors);
-                }
-                results.Add(new BlueprintValidationResult(
-                    $"General/{typeEntry.Key}/{memberEntry.Key}",
-                    errors.Count == 0,
-                    errors));
+                    ["attrs"] = new JsonObject(),
+                    ["graph"] = graph.DeepClone(),
+                };
+                validateGraphDefinitions(key, graphDocument, graph, errors, "GlobalCore.GameplayEventData");
+                validateGeneralDataLatentNodes(graph, definitionSet.RuntimeLookup, errors);
             }
+            results.Add(new BlueprintValidationResult(key, errors.Count == 0, errors));
         }
         return results;
     }

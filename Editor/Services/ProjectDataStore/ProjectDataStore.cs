@@ -70,12 +70,19 @@ public sealed partial class ProjectDataStore : IDisposable
 
     public ProjectDataStore(string projectPath, bool cacheMapCatalog = true,
         CancellationToken loadCancellationToken = default, Action<string>? loadProgress = null)
+        : this(projectPath, cacheMapCatalog, loadCancellationToken, loadProgress, true)
+    {
+    }
+
+    private ProjectDataStore(string projectPath, bool cacheMapCatalog,
+        CancellationToken loadCancellationToken, Action<string>? loadProgress, bool load)
     {
         this.cacheMapCatalog = cacheMapCatalog;
         this.loadCancellationToken = loadCancellationToken;
         this.loadProgress = loadProgress;
         ProjectPath = Path.GetFullPath(projectPath);
-        Directory.CreateDirectory(Path.Combine(ProjectPath, "Data", "Subtitles"));
+        if (load)
+            Directory.CreateDirectory(Path.Combine(ProjectPath, "Data", "Subtitles"));
         Enums = new LuaEnumService(ProjectPath, GetProjectEnumCatalog);
         generalEnums = new GeneralEnumService(ProjectPath);
 
@@ -89,10 +96,13 @@ public sealed partial class ProjectDataStore : IDisposable
         Assets = new AssetDataService(this, sections["Tilesets"], sections["AutoTiles"], sections["Animations"], sections["Particles"], sections["Curves"], sections["TextConfigs"]);
         UiAssets = new UiAssetDataService(this, sections["UI"]);
         Subtitles = new SubtitleDataService(this, sections["Subtitles"]);
-        loadAll();
+        if (load)
+            loadAll();
     }
 
     public LuaEnumService Enums { get; }
+
+    public EditorEditOperationService EditOperations { get; } = new();
 
     public ProjectEnumCatalog GetProjectEnumCatalog() => new(sections["General"], sections["Animations"].Keys, sections["Particles"].Keys);
 

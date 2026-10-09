@@ -137,7 +137,9 @@ public sealed class ParticleOverviewWindow : Window
         string? key = await askNameAsync(LocaleService.Get("PARTICLE_RENAME"), oldKey, true);
         if (key is null || key == oldKey)
             return;
-        if (!gameData.RenameDocumentResource("Particles", oldKey, key))
+        bool? renamed = await EditorEditWorkflow.RunAsync<bool?>(this, gameData, LocaleService.Get("EDIT_OPERATION_RENAMING"),
+            async progress => await gameData.RenameDocumentResourceAsync("Particles", oldKey, key, progress), null);
+        if (renamed == false)
             await AlertDialog.ShowAsync(this, LocaleService.Get("ERROR"), LocaleService.Get("PARTICLE_EXISTS"));
     }
 
@@ -167,6 +169,11 @@ public sealed class ParticleOverviewWindow : Window
 
     private async void onKeyDown(object? sender, KeyEventArgs args)
     {
+        if (projectSave.GameData.EditOperations.IsBusy)
+        {
+            args.Handled = true;
+            return;
+        }
         await binding.HandleShortcutAsync(args, projectSave, toast);
     }
 }

@@ -23,14 +23,14 @@ public sealed class EditorDocument
     internal Action<EditorDocument>? IdentityChanged;
     private bool modified;
 
-    internal EditorDocument(string section, string key, string path, JsonObject? data, bool isNew)
+    internal EditorDocument(string section, string key, string path, JsonObject? data, bool isNew, Guid? id = null, EditorDocumentState? state = null)
     {
-        Id = Guid.NewGuid();
+        Id = id ?? Guid.NewGuid();
         Section = section;
         Key = key;
         Path = path;
         InternalData = data;
-        CurrentState = new EditorDocumentState(section, key, path, data);
+        CurrentState = state ?? new EditorDocumentState(section, key, path, data);
         SavedState = isNew ? new EditorDocumentState(section, key, path, null) : CurrentState;
         UpdateModified();
     }
@@ -88,6 +88,8 @@ public sealed class EditorDocument
     }
 
     internal void NotifyChanged() => Changed?.Invoke(this, EventArgs.Empty);
+
+    internal void SetPreparedModified(bool value) => modified = value;
 
     internal void UpdateModified()
     {

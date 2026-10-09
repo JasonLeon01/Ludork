@@ -28,7 +28,7 @@ internal sealed class ReferenceIndexSnapshotBuilder : IDisposable
             ? (JsonObject)value.DeepClone() : null);
     }
 
-    internal Result Build(ReferenceBuildInput input, CancellationToken token)
+    internal Result Build(ReferenceBuildInput input, CancellationToken token, IProgress<EditorOperationProgress>? progress = null)
     {
         ReferenceInputFiles files = ReferenceInputFiles.Capture(input.ProjectPath,
             input.Documents.Where(document => document.Data is null).Select(document => document.Path));
@@ -60,9 +60,11 @@ internal sealed class ReferenceIndexSnapshotBuilder : IDisposable
         Dictionary<string, string> members = new(StringComparer.Ordinal);
         List<ReferenceRecord> references = [];
         using IDisposable read = metadata.BeginReferenceRead();
+        int completed = 0;
         foreach (ReferenceBuildDocument document in input.Documents)
         {
             token.ThrowIfCancellationRequested();
+            progress?.Report(new EditorOperationProgress("EDIT_OPERATION_REFERENCES", document.Path, completed++, input.Documents.Count));
             (string Section, string Key) key = (document.Section, document.Key);
             ReferenceInputFiles.Stamp stamp = document.Data is null ? ReferenceInputFiles.Read(document.Path) : default;
             CachedDocument cached;

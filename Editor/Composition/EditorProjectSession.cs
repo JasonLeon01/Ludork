@@ -20,7 +20,7 @@ public sealed class EditorProjectSession : IDisposable
         GameConfig = new GameConfigService(ProjectPath);
         ProjectRunner = new ProjectRunnerService(ProjectPath);
         BlueprintValidation = new BlueprintValidationService(GameData, Metadata, BlueprintClasses);
-        ProjectSave = new ProjectSaveService(GameData, GameVariables, BlueprintValidation, ProjectConfig);
+        ProjectSave = new ProjectSaveService(GameData, GameVariables, ProjectConfig);
         ReferenceIndex = GameData.ReferenceIndex;
         ReferenceIndex.EnableBackgroundUpdates();
         BlueprintCreation = new BlueprintCreationService(GameData, Metadata, BlueprintClasses);
@@ -36,6 +36,7 @@ public sealed class EditorProjectSession : IDisposable
 
     public string ProjectPath { get; }
     public ProjectDataStore GameData { get; }
+    public EditorEditOperationService EditOperations => GameData.EditOperations;
     public ProjectConfigService ProjectConfig { get; }
     public LuaMetadataService Metadata { get; }
     public GameVariableService GameVariables { get; }

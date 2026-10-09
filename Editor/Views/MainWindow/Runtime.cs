@@ -472,8 +472,8 @@ public partial class MainWindow
         if (viewModel is not null)
         {
             viewModel.CanEdit = !active;
-            viewModel.FileExplorerPanel.IsReadOnly = active;
-            viewModel.ActorQueue.IsReadOnly = active;
+            viewModel.FileExplorerPanel.IsReadOnly = !viewModel.CanEdit;
+            viewModel.ActorQueue.IsReadOnly = !viewModel.CanEdit;
         }
         updateRunButtons();
         EditModeToggles.IsEnabled = !active;

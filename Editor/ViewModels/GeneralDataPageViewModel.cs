@@ -35,7 +35,7 @@ internal sealed class GeneralDataPageViewModel : ViewModelBase
         members = typeData.Members;
         parameters = typeData.ParameterDefinitions;
         this.session = session;
-        documentRevision = document?.Revision ?? 0;
+        documentRevision = document?.LastContentChangeRevision ?? 0;
         rebuildMemberKeys();
         FormViewCommand = new RelayCommand(() => ViewMode = GeneralDataViewMode.Form);
         TableViewCommand = new RelayCommand(() => ViewMode = GeneralDataViewMode.Table);
@@ -45,7 +45,7 @@ internal sealed class GeneralDataPageViewModel : ViewModelBase
     public JsonObject ParameterDefinitions => parameters;
     public JsonObject? GetMember(string? memberId) => memberId is null ? null : members.GetValueOrDefault(memberId);
     public long DocumentRevision => documentRevision;
-    public long CurrentDocumentRevision => document?.Revision ?? 0;
+    public long CurrentDocumentRevision => document?.LastContentChangeRevision ?? 0;
     public IRelayCommand FormViewCommand { get; }
     public IRelayCommand TableViewCommand { get; }
     public event EventHandler? DocumentChanged;
@@ -121,11 +121,9 @@ internal sealed class GeneralDataPageViewModel : ViewModelBase
 
     public bool RefreshFromDocument()
     {
-        if (document is null || documentRevision == document.Revision || document.Data is not JsonObject current)
+        if (document is null || documentRevision == document.LastContentChangeRevision || document.Data is not JsonObject current)
             return false;
-        documentRevision = document.Revision;
-        if (JsonNode.DeepEquals(current, typeData.ToJson()))
-            return false;
+        documentRevision = document.LastContentChangeRevision;
         setTypeData(new GeneralDataTypeSnapshot(current));
         return true;
     }
@@ -235,7 +233,7 @@ internal sealed class GeneralDataPageViewModel : ViewModelBase
         typeData = current;
         members = current.Members;
         parameters = current.ParameterDefinitions;
-        documentRevision = document?.Revision ?? documentRevision;
+        documentRevision = document?.LastContentChangeRevision ?? documentRevision;
         rebuildMemberKeys();
         OnPropertyChanged(nameof(HasEvents));
         OnPropertyChanged(nameof(CanEditSelectedAbilityGraph));

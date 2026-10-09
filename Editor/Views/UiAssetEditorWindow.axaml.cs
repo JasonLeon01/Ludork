@@ -237,6 +237,11 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
 
     private async void onDocumentKeyDown(object? sender, KeyEventArgs args)
     {
+        if (projectSave.GameData.EditOperations.IsBusy)
+        {
+            args.Handled = true;
+            return;
+        }
         bool save = EditorShortcuts.HasPrimaryModifier(args.KeyModifiers) && args.Key == Key.S;
         bool undo = EditorShortcuts.IsUndo(args.Key, args.KeyModifiers);
         if (!save && !undo && !EditorShortcuts.IsRedo(args.Key, args.KeyModifiers))

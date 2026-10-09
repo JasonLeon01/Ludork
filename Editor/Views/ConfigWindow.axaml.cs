@@ -53,6 +53,11 @@ public partial class ConfigWindow : Window
 
     private async void onKeyDown(object? sender, KeyEventArgs args)
     {
+        if (projectSave?.GameData.EditOperations.IsBusy == true)
+        {
+            args.Handled = true;
+            return;
+        }
         if (gameData is null || projectSave is null
             || !EditorShortcuts.HasPrimaryModifier(args.KeyModifiers))
             return;

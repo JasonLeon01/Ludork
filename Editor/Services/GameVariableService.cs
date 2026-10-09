@@ -195,38 +195,47 @@ public sealed class GameVariableService : IGameVariableCatalog
         return commitMutation(index);
     }
 
-    public GameVariableSaveResult SavePending()
+    internal Func<GameVariableSaveResult>? CapturePendingSave()
     {
-        try
+        if (!IsModified)
+            return null;
+        GameVariableDefinition[] captured = variables.ToArray();
+        return () =>
         {
-            if (!IsModified)
-                return GameVariableSaveResult.Completed(string.Empty);
-            IReadOnlyDictionary<string, byte[]> outputs = Document.PrepareSave();
-            writePair(outputs[RuntimePath], outputs[MetadataPath]);
-        }
-        catch (Exception exception) when (isSaveException(exception))
-        {
-            return GameVariableSaveResult.Failed(formatFailure(exception));
-        }
+            try
+            {
+                IReadOnlyDictionary<string, byte[]> outputs = prepareSaveOutputs(captured);
+                writePair(outputs[RuntimePath], outputs[MetadataPath]);
+                return GameVariableSaveResult.Completed(
+                    RuntimeRelativePath + Environment.NewLine + MetadataRelativePath);
+            }
+            catch (Exception exception) when (isSaveException(exception))
+            {
+                return GameVariableSaveResult.Failed(formatFailure(exception));
+            }
+        };
+    }
 
-        documents.MarkSaved(Document);
+    internal void CompletePendingSave(EditorDocumentState savedState)
+    {
+        documents.MarkSaved(Document, savedState);
         metadataService.ClearCache();
         Saved?.Invoke(this, EventArgs.Empty);
         Changed?.Invoke(this, EventArgs.Empty);
-        return GameVariableSaveResult.Completed(
-            RuntimeRelativePath + Environment.NewLine + MetadataRelativePath);
     }
 
-    private IReadOnlyDictionary<string, byte[]> prepareSaveOutputs()
+    private IReadOnlyDictionary<string, byte[]> prepareSaveOutputs() => prepareSaveOutputs(variables);
+
+    private IReadOnlyDictionary<string, byte[]> prepareSaveOutputs(IReadOnlyList<GameVariableDefinition> captured)
     {
-        string runtimeText = GameVariableLuaCodec.RenderRuntime(variables);
-        string metadataText = GameVariableLuaCodec.RenderMetadata(variables);
+        string runtimeText = GameVariableLuaCodec.RenderRuntime(captured);
+        string metadataText = GameVariableLuaCodec.RenderMetadata(captured);
         IReadOnlyList<GameVariableDefinition> parsed = GameVariableLuaCodec.Parse(
             runtimeText,
             metadataText,
             RuntimePath,
             MetadataPath);
-        ensureEquivalent(parsed);
+        ensureEquivalent(parsed, captured);
         return new Dictionary<string, byte[]>(StringComparer.Ordinal)
         {
             [RuntimePath] = utf8.GetBytes(runtimeText),
@@ -409,13 +418,13 @@ public sealed class GameVariableService : IGameVariableCatalog
             throw new InvalidDataException($"{path} is not owned by the game variable manager");
     }
 
-    private void ensureEquivalent(IReadOnlyList<GameVariableDefinition> parsed)
+    private static void ensureEquivalent(IReadOnlyList<GameVariableDefinition> parsed, IReadOnlyList<GameVariableDefinition> expectedVariables)
     {
-        if (parsed.Count != variables.Count)
+        if (parsed.Count != expectedVariables.Count)
             throw new InvalidDataException("Generated game variable files failed validation");
-        for (int index = 0; index < variables.Count; index += 1)
+        for (int index = 0; index < expectedVariables.Count; index += 1)
         {
-            GameVariableDefinition expected = variables[index];
+            GameVariableDefinition expected = expectedVariables[index];
             GameVariableDefinition actual = parsed[index];
             if (!string.Equals(expected.Name, actual.Name, StringComparison.Ordinal)
                 || expected.Type != actual.Type

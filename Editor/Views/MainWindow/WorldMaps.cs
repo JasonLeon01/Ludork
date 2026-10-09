@@ -320,8 +320,11 @@ public partial class MainWindow
             worldKey);
         if (result is null || string.Equals(result, worldKey, StringComparison.Ordinal))
             return;
-        bool renamed = viewModel.MapWorkspace.RenameWorld(worldKey, result);
-        if (!renamed)
+        bool? renamed = await EditorEditWorkflow.RunAsync<bool?>(this, viewModel.GameData, LocaleService.Get("EDIT_OPERATION_RENAMING"),
+            async progress => await viewModel.MapWorkspace.RenameWorldAsync(worldKey, result, progress), null);
+        if (renamed is null)
+            return;
+        if (!renamed.Value)
         {
             await AlertDialog.ShowAsync(
                 this,
@@ -379,8 +382,11 @@ public partial class MainWindow
             worldKey);
         if (result is null)
             return;
-        bool updated = viewModel.MapWorkspace.UpdateMap(key, result, worldKey);
-        if (!updated)
+        bool? updated = await EditorEditWorkflow.RunAsync<bool?>(this, viewModel.GameData, LocaleService.Get("EDIT_OPERATION_RENAMING"),
+            async progress => await viewModel.MapWorkspace.UpdateMapAsync(key, result, worldKey, progress), null);
+        if (updated is null)
+            return;
+        if (!updated.Value)
         {
             if (worldKey is not null)
             {

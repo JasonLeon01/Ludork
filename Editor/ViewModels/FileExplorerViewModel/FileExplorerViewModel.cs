@@ -24,6 +24,7 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
     private readonly string projectPath;
     private readonly ProjectConfigService projectConfig;
     private readonly ProjectDataStore gameData;
+    public ProjectDataStore GameData => gameData;
     private readonly BlueprintPreviewService previewService;
     private readonly ReferenceIndexService referenceIndex;
     private readonly ExternalIdeService externalIdeService;
