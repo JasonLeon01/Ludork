@@ -112,6 +112,8 @@ def build(project: pathlib.Path) -> None:
         "--output-folder-name=ScriptTools", f"--output-dir={intermediate}",
         f"--output-filename={executable_name()}", str(source / "__main__.py"),
     ]
+    if sys.platform == "win32":
+        command.append("--reproducible=yes")
     print("Building ScriptTools runtime bundle...", flush=True)
     subprocess.run(command, cwd=project, check=True)
     _smoke(distribution, intermediate)

@@ -54,6 +54,7 @@ if not exist "%SOURCE_DIR%\build_w32.bat" (
 
 call "%VS_PATH%\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul
 if errorlevel 1 exit /b %errorlevel%
+set "LINK=%LINK% /Brepro /INCREMENTAL:NO"
 pushd "%SOURCE_DIR%"
 call build_w32.bat
 set "BUILD_RESULT=%ERRORLEVEL%"

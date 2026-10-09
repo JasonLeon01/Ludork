@@ -488,6 +488,17 @@ Development build and packaging commands consume the prepared runtime bundle;
 rerun `init` or `build_script_tools` explicitly after changing its sources.
 An installed editor uses its bundled runtime and needs no system Python.
 
+Windows tool builds also use reproducible output settings: the standalone Lua
+compiler uses deterministic MSVC Release compilation and `/Brepro` linking with
+incremental linking disabled; GNU Make receives the same linker settings through
+the local `LINK` environment; ScriptTools enables Nuitka `--reproducible=yes`.
+Clean rebuilds using the same packaging path, sources, dependencies and toolchain
+produce identical tool binaries. The first rebuild with these settings changes
+existing binaries once. Python, compiler, SDK or dependency updates can still
+change them. Editor-only and template-inclusive packages build Lua through
+different projects, so their `luac.exe` files need not match each other. This
+does not make complete installers or macOS signed bundles byte-identical.
+
 `ScriptTools/packaging_constants.py` owns the shared packaging exit codes,
 editor-cache directory, licence lists, template names, generated native Lua
 files, and common mobile project/dependency-cache

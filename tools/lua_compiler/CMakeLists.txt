@@ -19,6 +19,16 @@ set_target_properties(luac PROPERTIES
     C_STANDARD_REQUIRED ON
     MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
+if(MSVC)
+    target_compile_options(luac PRIVATE
+        "$<$<CONFIG:Release>:/experimental:deterministic>"
+        "$<$<CONFIG:Release>:/pathmap:${LUDORK_LUA_SOURCE_DIR}=.>"
+        "$<$<CONFIG:Release>:/pathmap:${CMAKE_BINARY_DIR}=.>")
+    target_link_options(luac PRIVATE
+        "$<$<CONFIG:Release>:/Brepro>"
+        "$<$<CONFIG:Release>:/INCREMENTAL:NO>")
+endif()
+
 if(APPLE)
     target_compile_definitions(luac PRIVATE LUA_USE_MACOSX)
 elseif(UNIX)
