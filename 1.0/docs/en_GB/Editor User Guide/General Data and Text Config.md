@@ -46,6 +46,8 @@ Saving regenerates `Enums.GeneralDataKey` (type keys), one `Enums.GeneralData.<T
 
 Saving managed data, including animation and particle changes, updates its enum sources in the same atomic file batch. A failed batch leaves the existing files intact. Renaming or deleting a data type replaces or removes its owned enum files; handwritten files are not deleted. Generated type names are distinct even on filesystems that ignore case; member keys retain case. Use `GeneralDataTypes.Create(typeName, memberID, memberData)` to restore a stored member with its ID and field types. Edit database records to change these generated outputs.
 
+Large General Data saves use the shared [save progress window](<Start Page Workspace and Shortcuts.md#editing-and-saving>) while validating members and graphs, generating outputs and writing files. When only the saved status changes, the page stays in place without rebuilding its content; the search, selected member, Form/Table view and scroll positions are preserved.
+
 Editing a field can change its name, type, container item or value type, default and comment. Renaming preserves each member's current field value. Changing the field type, a list's item type or a dictionary's key or value type first asks for confirmation, then resets that field in every existing member to the new default value. Changing only the default does not overwrite existing members. Removing a field removes its meaning but does not automatically repair the scripts that read it.
 
 ## Search and views
