@@ -29,6 +29,9 @@ void GameMapRendererImpl::drawContent(
     bool applyPlayerCover, float shaderTime, int materialRevision,
     const std::function<void(const std::string&)>& drawLayerEffects) {
     prepareVisibleLayers();
+    if (previewSpritesInstalled) {
+        refreshPreviewVisibility();
+    }
     const int playerLayer = applyPlayerCover ? playerLayerIndex() : -1;
     sf::Vector2i playerPosition;
     const bool refreshCover =
@@ -50,8 +53,12 @@ void GameMapRendererImpl::drawContent(
             layerStates.shader = shader.get();
         }
         target.draw(*layer, layerStates);
-        drawLayerActors(target, states, layerName, static_cast<int>(index),
-                        playerLayer, applyPlayerCover, shaderTime);
+        if (previewSpritesInstalled) {
+            drawPreviewLayer(target, states, layerName);
+        } else {
+            drawLayerActors(target, states, layerName, static_cast<int>(index),
+                            playerLayer, applyPlayerCover, shaderTime);
+        }
         if (drawLayerEffects) {
             drawLayerEffects(layerName);
         }
@@ -193,8 +200,8 @@ void GameMapRendererImpl::drawActor(sf::RenderTarget& target,
     }
     const std::uint8_t alpha =
         static_cast<std::uint8_t>(std::clamp(actorAlpha, 0, 255));
-    const float hue = normaliseHue(actor->hue);
-    const bool hasHue = actorHueShader && !neutralHue(hue);
+    const float hue = drawableHue(actor->hue);
+    const bool hasHue = hue != 0.0f;
     if (actor->hasShaderError()) {
         actor->setColor({255, 0, 255, alpha});
         target.draw(*actor, states);
@@ -207,23 +214,14 @@ void GameMapRendererImpl::drawActor(sf::RenderTarget& target,
         if (!texture) {
             throw std::runtime_error("Actor shader texture must not be nil");
         }
-        const sf::Vector2u textureSize = texture->getSize();
         const sf::IntRect rect = actor->getTextureRect();
-        actorShader->setUniform("texture", sf::Shader::CurrentTexture);
-        actorShader->setUniform("time", shaderTime);
-        actorShader->setUniform(
-            "textureSize", sf::Vector2f{static_cast<float>(textureSize.x),
-                                        static_cast<float>(textureSize.y)});
-        actorShader->setUniform(
-            "textureRect", sf::Glsl::Vec4(static_cast<float>(rect.position.x),
-                                          static_cast<float>(rect.position.y),
-                                          static_cast<float>(rect.size.x),
-                                          static_cast<float>(rect.size.y)));
-        if (hasHue &&
-            drawActorShaderWithHue(target, *actor, *actorShader, hue, alpha)) {
+        setSpriteShaderUniforms(*actorShader, *texture, rect, shaderTime);
+        if (hasHue && drawSpriteShaderWithHue(target, states, *texture, rect,
+                                              actor->getTransform(),
+                                              *actorShader, hue, alpha)) {
             return;
         }
-        sf::RenderStates actorStates;
+        sf::RenderStates actorStates = states;
         actorStates.shader = actorShader.get();
         target.draw(*actor, actorStates);
         return;
@@ -238,28 +236,44 @@ void GameMapRendererImpl::drawActor(sf::RenderTarget& target,
     target.draw(*actor, states);
 }
 
-bool GameMapRendererImpl::drawActorShaderWithHue(sf::RenderTarget& target,
-                                                 Actor& actor,
-                                                 sf::Shader& actorShader,
-                                                 float hue,
-                                                 std::uint8_t actorAlpha) {
+float GameMapRendererImpl::drawableHue(float hue) const {
+    const float normalised = normaliseHue(hue);
+    return actorHueShader && !neutralHue(normalised) ? normalised : 0.0f;
+}
+
+void GameMapRendererImpl::setSpriteShaderUniforms(sf::Shader& shader,
+                                                  const sf::Texture& texture,
+                                                  const sf::IntRect& rect,
+                                                  float time) {
+    const sf::Vector2u size = texture.getSize();
+    shader.setUniform("texture", sf::Shader::CurrentTexture);
+    shader.setUniform("time", time);
+    shader.setUniform("textureSize", sf::Vector2f{static_cast<float>(size.x),
+                                                  static_cast<float>(size.y)});
+    shader.setUniform("textureRect",
+                      sf::Glsl::Vec4(static_cast<float>(rect.position.x),
+                                     static_cast<float>(rect.position.y),
+                                     static_cast<float>(rect.size.x),
+                                     static_cast<float>(rect.size.y)));
+}
+
+bool GameMapRendererImpl::drawSpriteShaderWithHue(
+    sf::RenderTarget& target, const sf::RenderStates& states,
+    const sf::Texture& texture, const sf::IntRect& rect,
+    const sf::Transform& transform, sf::Shader& actorShader, float hue,
+    std::uint8_t actorAlpha) {
     if (!actorHueShader) {
         return false;
     }
-    const std::shared_ptr<sf::Texture> texture = actor.getTexture();
-    if (!texture) {
-        return false;
-    }
-    const sf::IntRect rect = actor.getTextureRect();
     const sf::Vector2u size{
         static_cast<unsigned int>(
-            std::max(1.0f, std::floor(static_cast<float>(rect.size.x)))),
+            std::max(1.0f, std::abs(static_cast<float>(rect.size.x)))),
         static_cast<unsigned int>(
-            std::max(1.0f, std::floor(static_cast<float>(rect.size.y)))),
+            std::max(1.0f, std::abs(static_cast<float>(rect.size.y)))),
     };
     sf::RenderTexture& shaderBuffer = ensureActorShaderBuffer(size);
     sf::RenderTexture& hueBuffer = ensureActorHueBuffer(size);
-    sf::Sprite localSprite(*texture, rect);
+    sf::Sprite localSprite(texture, rect);
     localSprite.setColor({255, 255, 255, actorAlpha});
     sf::RenderStates shaderStates;
     shaderStates.shader = &actorShader;
@@ -279,8 +293,8 @@ bool GameMapRendererImpl::drawActorShaderWithHue(sf::RenderTarget& target,
     hueBuffer.display();
 
     sf::Sprite resultSprite(hueBuffer.getTexture());
-    sf::RenderStates resultStates;
-    resultStates.transform.combine(actor.getTransform());
+    sf::RenderStates resultStates = states;
+    resultStates.transform.combine(transform);
     target.draw(resultSprite, resultStates);
     return true;
 }

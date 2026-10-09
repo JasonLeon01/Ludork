@@ -14,8 +14,8 @@ function Controller:init(owner)
     self._commands = self:createCollection(self.ui.controls["CommandList"], CommandRowController)
 end
 
-function Controller:refreshMaps(entries)
-    local previousMapKey = self:getCurrentMapKey()
+function Controller:refreshMaps(entries, selectedMapKey)
+    local previousMapKey = selectedMapKey or self:getCurrentMapKey()
     self._mapKeys = {}
     self._commands:clear()
     local itemSize = self.ui.controls["CommandList"]:getDefaultItemSize()
@@ -29,6 +29,9 @@ function Controller:refreshMaps(entries)
         }, rowSize)
     end
     self._commands:layout()
+    if selectedMapKey ~= nil or previousMapKey == nil then
+        self.host:resetSelection()
+    end
     if not bool(self._mapKeys) then
         self.host.index = nil
     else
@@ -39,7 +42,7 @@ function Controller:refreshMaps(entries)
                 previousIndex = index - 1
             end
         end
-        self.host.index = previousIndex or 0
+        self.host:selectIndex(previousIndex or 0, true)
     end
     self:notifyMapIndexMaybeChanged(self.host.index)
 end

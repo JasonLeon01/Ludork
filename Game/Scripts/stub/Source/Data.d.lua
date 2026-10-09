@@ -413,4 +413,13 @@ function Data.GenActorFromClassName(className, tag) end
 ---@return Engine.Actor | nil
 function Data.GenActorFromData(actorData, layerName, classVarChanges) end
 
+--- Read static first-frame appearance without creating an Actor or instantiating its graph.
+---@param classPath       string
+---@param classVarChanges table<string, Source.Data.ClassVarValue> | nil
+---@return Source.Data.ActorPreviewData | nil
+function Data.GetActorPreviewData(classPath, classVarChanges) end
+
+--- Release class appearance templates at the end of a preview cache lifetime.
+function Data.ClearActorPreviewCache() end
+
 return Data

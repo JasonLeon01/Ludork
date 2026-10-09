@@ -4,6 +4,7 @@
 
 #include <GlobalRuntimeApi.hpp>
 #include <Light.hpp>
+#include <PreviewSprite.hpp>
 
 class Actor;
 class Camera;
@@ -30,6 +31,12 @@ public:
     void setCamera(std::shared_ptr<Camera> camera);
 
     BIND_METHOD(metadata = false)
+    void setPreviewSprites(const std::vector<PreviewSprite>& sprites);
+
+    BIND_METHOD(metadata = false)
+    void setPreviewVisibility(const std::vector<bool>& visibility);
+
+    BIND_METHOD(metadata = false, allow_nil = "drawLayerEffects")
     void drawContent(sf::RenderTarget& target, const sf::RenderStates& states,
                      bool applyPlayerCover, float shaderTime,
                      int materialRevision,

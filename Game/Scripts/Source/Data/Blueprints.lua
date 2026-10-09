@@ -6,6 +6,7 @@ local Logging = require("Global.Utils.Logging")
 ---@type Global.Utils.Path.Module
 local Path = require("Global.Utils.Path")
 local BlueprintActorOverrides = require("Source.Data.BlueprintActorOverrides")
+local ActorPreviews = require("Source.Data.ActorPreviews")
 
 local ResourceFileConstants = Engine.ResourceFileConstants
 local RuntimeProviders = Engine.RuntimeProviders
@@ -44,6 +45,17 @@ function DataBlueprints:init(data, loading, classDict)
     self._classDict = classDict
     self._loading = loading
     self._graphTemplates = {}
+    self._actorPreviews = ActorPreviews.new(classDict, function (classPath)
+        return self:resolveClassPath(classPath)
+    end)
+end
+
+function DataBlueprints:getActorPreviewData(classPath, classVarChanges)
+    return self._actorPreviews:get(classPath, classVarChanges)
+end
+
+function DataBlueprints:clearActorPreviewCache()
+    self._actorPreviews:clear()
 end
 
 function DataBlueprints:clearGraphTemplates()

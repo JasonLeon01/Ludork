@@ -247,6 +247,14 @@ function Data.GenActorFromClassPath(classPath, tag, classVarChanges)
     return dataBlueprints:genActorFromClassPath(classPath, tag, classVarChanges)
 end
 
+function Data.GetActorPreviewData(classPath, classVarChanges)
+    return dataBlueprints:getActorPreviewData(classPath, classVarChanges)
+end
+
+function Data.ClearActorPreviewCache()
+    dataBlueprints:clearActorPreviewCache()
+end
+
 function Data.GenActorFromClassName(className, tag)
     return dataBlueprints:genActorFromClassName(className, tag)
 end

@@ -353,6 +353,10 @@ public:
     BIND_METHOD(Pure = true)
     bool isActorVisibleOnMap(const Actor& actor) const;
 
+    bool isSpriteVisibleOnMap(const sf::Vector2i& position,
+                              const sf::FloatRect& bounds,
+                              const sf::Transform& transform) const;
+
     /// \brief Revision of terrain and the observed connected region, refreshed
     /// on query.
     BIND_METHOD(Pure = true)

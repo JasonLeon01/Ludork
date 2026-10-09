@@ -7,7 +7,7 @@ local WorldGeometry = require("Global.WorldGeometry")
 local PathPreviewComponent = require("Global.Components.PathPreviewComponent")
 local PathRouteState = require("Global.Components.PathRouteState")
 local Data = require("Source.Data")
-local ConditionalActor = require("Source.MapActors.ConditionalActor")
+local FloorMapPreview = require("Source.SceneComponents.FloorMapPreview")
 local MapPath = require("Source.Utils.MapPath")
 local MapClickAutoPath = require("Source.SceneComponents.MapClickAutoPath")
 local MovementDangerPreviewComponent = require("Source.SceneComponents.MovementDangerPreviewComponent")
@@ -37,13 +37,14 @@ function SceneMapBuilder.BuildAmbientLight(data)
 end
 
 function SceneMapBuilder:init()
-    self._floorMapPreviewGameMaps = {}
+    self._floorMapPreviews = {}
     self._floorMapPreviewConditions = {}
     self._floorMapPreviewConditionRevision = 0
 end
 
 function SceneMapBuilder:clearFloorMapPreviewCache()
-    self._floorMapPreviewGameMaps = {}
+    Data.ClearActorPreviewCache()
+    self._floorMapPreviews = {}
     self._floorMapPreviewConditions = {}
     self._floorMapPreviewConditionRevision = self._floorMapPreviewConditionRevision + 1
 end
@@ -63,19 +64,11 @@ function SceneMapBuilder:getFloorMapPreviewConditionRevision(inst)
     return self._floorMapPreviewConditionRevision
 end
 
-function SceneMapBuilder:applyFloorMapPreviewConditions(gameMap, inst)
+function SceneMapBuilder:applyFloorMapPreviewConditions(preview, inst)
     local variables = inst:getVariables()
-    for _, root in ipairs(gameMap:getAllActors()) do
-        for _, actor in ipairs(root:collectTree()) do
-            if Class.isInstance(actor, ConditionalActor) then
-                ---@cast actor Source.MapActors.ConditionalActor
-                actor:applyConditionVisibility(variables)
-                local name = actor.conditionVariable
-                if name ~= "" then
-                    self._floorMapPreviewConditions[name] = { value = variables[name] }
-                end
-            end
-        end
+    preview:applyConditions(variables)
+    for name in pairs(preview:getConditionVariables()) do
+        self._floorMapPreviewConditions[name] = { value = variables[name] }
     end
 end
 
@@ -347,15 +340,15 @@ function SceneMapBuilder:buildFloorMapPreview(
     local mapPath = self:resolveMapPath(mapKey, currentMap)
     local isCurrentMap = currentMap ~= nil and mapPath == self:resolveMapPath(currentMap, nil)
     local visibilityRevision = isCurrentMap and activeMap ~= nil and activeMap:getVisibilityRevision() or 0
-    local cached = self._floorMapPreviewGameMaps[mapPath]
+    local cached = self._floorMapPreviews[mapPath]
     if cached ~= nil and cached.visibilityRevision ~= visibilityRevision then
-        self._floorMapPreviewGameMaps[mapPath] = nil
+        self._floorMapPreviews[mapPath] = nil
     end
-    if self._floorMapPreviewGameMaps[mapPath] == nil then
+    if self._floorMapPreviews[mapPath] == nil then
         local resolvedPath, mapData = self:loadMapData(mapPath, currentMap)
         mapPath = resolvedPath
         if mapData.type == "worldMap" then
-            self._floorMapPreviewGameMaps[mapPath] = {
+            self._floorMapPreviews[mapPath] = {
                 mapData = mapData,
                 regions = {},
                 visibilityRevision = visibilityRevision
@@ -373,18 +366,25 @@ function SceneMapBuilder:buildFloorMapPreview(
                 end
                 tilemap = Engine.Tilemap.new(layers)
             end
-            local gameMap = self:generateGameMap(mapData, nil, false, true, tilemap)
+            local copiedTerrain = tilemap ~= nil
+            tilemap = tilemap
+                or SceneMapBuilder.GenerateTilemap(mapData.layers, mapData.layerOrder, mapData.width, mapData.height)
+            local content = FloorMapPreview.new(tilemap, mapData, {
+                addedActors = inst:getAddedActors(mapPath),
+                actorPositions = inst:getActorPositions(mapPath),
+                destroyedActors = inst:getDestroyedActors(mapPath),
+                excludedActors = {}
+            })
+            local hideDisconnectedRegions = GameMap.HideDisconnectedRegions
             if isCurrentMap and activeMap ~= nil then
-                gameMap:setHideDisconnectedRegions(activeMap:getHideDisconnectedRegions())
+                hideDisconnectedRegions = activeMap:getHideDisconnectedRegions()
             end
-            if tilemap == nil then
-                gameMap:applyTerrainDestructions(inst:getTerrainDestructions(mapPath))
+            content:setHideDisconnectedRegions(hideDisconnectedRegions)
+            if not copiedTerrain then
+                content:applyTerrainDestructions(inst:getTerrainDestructions(mapPath))
             end
-            self:applyAddedActors(gameMap, inst:getAddedActors(mapPath), false)
-            gameMap:applyActorPositions(inst:getActorPositions(mapPath))
-            gameMap:removeActorsByTags(inst:getDestroyedActors(mapPath))
-            self._floorMapPreviewGameMaps[mapPath] = {
-                gameMap = gameMap,
+            self._floorMapPreviews[mapPath] = {
+                content = content,
                 mapData = mapData,
                 visibilityRevision = visibilityRevision
             }
@@ -397,8 +397,8 @@ function SceneMapBuilder:buildFloorMapPreview(
     target:clear(sf.Color.Transparent)
     local viewSize = sf.Vector2f.new(previewSize / scale, previewSize / scale)
     local mapPixelSize = sf.Vector2f.new(
-        self._floorMapPreviewGameMaps[mapPath].mapData.width * Engine.GetCellSize(),
-        self._floorMapPreviewGameMaps[mapPath].mapData.height * Engine.GetCellSize()
+        self._floorMapPreviews[mapPath].mapData.width * Engine.GetCellSize(),
+        self._floorMapPreviews[mapPath].mapData.height * Engine.GetCellSize()
     )
     local centre = sf.Vector2f.new(
         mapPixelSize.x >= viewSize.x and viewSize.x / 2.0 or mapPixelSize.x / 2.0,
@@ -418,7 +418,7 @@ function SceneMapBuilder:buildFloorMapPreview(
         or mapPixelSize.y / 2.0
     target:setView(sf.View.new(centre, viewSize))
     local states = Engine.CanvasRenderStates()
-    local preview = self._floorMapPreviewGameMaps[mapPath]
+    local preview = self._floorMapPreviews[mapPath]
     if preview.mapData.type == "worldMap" then
         ---@cast preview Source.SceneComponents.WorldFloorMapPreview
         local visibleLeft = math.floor((centre.x - halfView.x) / Engine.GetCellSize())
@@ -444,10 +444,6 @@ function SceneMapBuilder:buildFloorMapPreview(
                         regionData.type ~= "worldMap", "World preview child cannot be a world manifest: " .. region.path
                     )
                     ---@cast regionData Source.SceneComponents.MapData
-                    local regionMap = self:generateGameMap(regionData, nil, false, true)
-                    regionMap:setHideDisconnectedRegions(false)
-                    regionMap:applyTerrainDestructions(inst:getTerrainDestructions(region.path))
-                    regionMap:removeActorsByTags(movedActorTags)
                     local persistedActors = {}
                     for _, actorRecord in ipairs(WorldActorRecords.SelectAdded(preview.mapData, inst, mapPath, region)) do
                         ---@type Source.GameInstance.AddedActorRecord
@@ -473,7 +469,6 @@ function SceneMapBuilder:buildFloorMapPreview(
                         localRecord.position = localPosition
                         persistedActors[#persistedActors + 1] = localRecord
                     end
-                    self:applyAddedActors(regionMap, persistedActors, false)
                     local localActorPositions = {}
                     for tag, position in pairs(inst:getActorPositions(mapPath)) do
                         local localX = position.x - region.x
@@ -482,9 +477,18 @@ function SceneMapBuilder:buildFloorMapPreview(
                         ---@cast localY integer
                         localActorPositions[tag] = sf.Vector2i.new(localX, localY)
                     end
-                    regionMap:applyActorPositions(localActorPositions)
-                    regionMap:removeActorsByTags(inst:getDestroyedActors(mapPath))
-                    preview.regions[region.path] = regionMap
+                    local tilemap = SceneMapBuilder.GenerateTilemap(
+                        regionData.layers, regionData.layerOrder, regionData.width, regionData.height
+                    )
+                    local content = FloorMapPreview.new(tilemap, regionData, {
+                        addedActors = persistedActors,
+                        actorPositions = localActorPositions,
+                        destroyedActors = inst:getDestroyedActors(mapPath),
+                        excludedActors = movedActorTags
+                    })
+                    content:setHideDisconnectedRegions(false)
+                    content:applyTerrainDestructions(inst:getTerrainDestructions(region.path))
+                    preview.regions[region.path] = content
                 end
                 local regionStates = Engine.CanvasRenderStates()
                 regionStates.transform:translate(
@@ -501,9 +505,9 @@ function SceneMapBuilder:buildFloorMapPreview(
         if isCurrentMap then
             observer = inst:getPlayer():getMapPosition()
         end
-        preview.gameMap:setVisibilityObserver(observer)
-        self:applyFloorMapPreviewConditions(preview.gameMap, inst)
-        preview.gameMap:drawMapContent(target, states)
+        preview.content:setVisibilityObserver(observer)
+        self:applyFloorMapPreviewConditions(preview.content, inst)
+        preview.content:drawMapContent(target, states)
     end
     if showTelepointMarker then
         local marker = sf.RectangleShape.new(sf.Vector2f.new(Engine.GetCellSize(), Engine.GetCellSize()))

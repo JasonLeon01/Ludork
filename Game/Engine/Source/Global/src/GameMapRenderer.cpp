@@ -36,6 +36,16 @@ void GameMapRenderer::setCamera(std::shared_ptr<Camera> camera) {
     impl_->setCamera(std::move(camera));
 }
 
+void GameMapRenderer::setPreviewSprites(
+    const std::vector<PreviewSprite>& sprites) {
+    impl_->setPreviewSprites(sprites);
+}
+
+void GameMapRenderer::setPreviewVisibility(
+    const std::vector<bool>& visibility) {
+    impl_->setPreviewVisibility(visibility);
+}
+
 void GameMapRenderer::drawContent(
     sf::RenderTarget& target, const sf::RenderStates& states,
     bool applyPlayerCover, float shaderTime, int materialRevision,

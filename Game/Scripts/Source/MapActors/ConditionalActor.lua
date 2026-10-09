@@ -1,5 +1,6 @@
 local Engine = require("Engine")
 local GameplayScene = require("Source.Gameplay.GameplayScene")
+local ActorVisibility = require("Source.Utils.ActorVisibility")
 
 local Actor = Engine.Actor
 
@@ -14,44 +15,12 @@ ConditionalActor.conditionOperator = "=="
 ConditionalActor.conditionValue = 0
 
 function ConditionalActor:applyConditionVisibility(variables)
-    assert(Class.isInstance(self.conditionVariable, "string"), "ConditionalActor variable name must be a string")
-    if self.conditionVariable == "" then
-        return
-    end
-    local current = variables[self.conditionVariable]
-    assert(current ~= nil, "ConditionalActor variable is missing: " .. self.conditionVariable)
-    local comparison = self.conditionValue
-    local isNumber = Class.isInstance(current, "number") and Class.isInstance(comparison, "number")
-    local isBoolean = Class.isInstance(current, "boolean") and Class.isInstance(comparison, "boolean")
-    local isString = Class.isInstance(current, "string") and Class.isInstance(comparison, "string")
-    assert(
-        isNumber or isBoolean or isString,
-        "ConditionalActor comparison requires matching number, boolean or string values"
+    local visible = ActorVisibility.Evaluate(
+        self.conditionVariable, self.conditionOperator, self.conditionValue, self:getVisible(), variables
     )
-    local operator = self.conditionOperator
-    ---@cast operator string
-    local visible
-    if operator == "==" then
-        visible = current == comparison
-    elseif operator == "~=" then
-        visible = current ~= comparison
-    else
-        assert(isNumber, "ConditionalActor ordering requires numeric values")
-        ---@cast current number
-        ---@cast comparison number
-        if operator == ">" then
-            visible = current > comparison
-        elseif operator == ">=" then
-            visible = current >= comparison
-        elseif operator == "<" then
-            visible = current < comparison
-        elseif operator == "<=" then
-            visible = current <= comparison
-        else
-            error("Unsupported ConditionalActor operator: " .. tostring(operator))
-        end
+    if self.conditionVariable ~= "" then
+        self:setVisible(visible, false)
     end
-    self:setVisible(visible, false)
 end
 
 function ConditionalActor:_updateConditionVisibility()

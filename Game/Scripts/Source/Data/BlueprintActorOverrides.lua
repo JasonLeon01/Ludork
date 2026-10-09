@@ -7,7 +7,7 @@ local TextureManager = GlobalCore.TextureManager
 
 local BlueprintActorOverrides = {}
 
-local function resolveValue(actorType, key, value, descriptor)
+function BlueprintActorOverrides.ResolveValue(actorType, key, value, descriptor)
     if Class.isInstance(value, "string") and not bool(value) then
         local configName, settingName = Engine.resolveConfigVar(actorType, key)
         if configName ~= nil then
@@ -20,7 +20,7 @@ local function resolveValue(actorType, key, value, descriptor)
     return deepcopy(Engine.resolveTypedDataValue(value, descriptor.type, nil, descriptor.module))
 end
 
-local function isBlueprintOnly(descriptor)
+function BlueprintActorOverrides.IsBlueprintOnly(descriptor)
     local fieldMetadata = descriptor ~= nil and descriptor.metadata or nil
     local value = fieldMetadata ~= nil and fieldMetadata.Meta ~= nil and fieldMetadata.Meta.BlueprintOnly or nil
     return value == true
@@ -100,13 +100,15 @@ function BlueprintActorOverrides.ApplyChanges(actor, changes)
     for key, value in pairs(changes) do
         if Class.isInstance(key, "string") then
             local descriptor = descriptors[key]
-            if not isBlueprintOnly(descriptor) then
+            if not BlueprintActorOverrides.IsBlueprintOnly(descriptor) then
                 storedChanges[key] = deepcopy(value)
                 local componentType = componentTypes[key]
                 if componentType ~= nil then
                     applyComponentChange(actor, key, componentType, value)
                 else
-                    Engine.setRuntimeTypedAttribute(actor, key, resolveValue(actorType, key, value, descriptor))
+                    Engine.setRuntimeTypedAttribute(
+                        actor, key, BlueprintActorOverrides.ResolveValue(actorType, key, value, descriptor)
+                    )
                 end
             end
         end

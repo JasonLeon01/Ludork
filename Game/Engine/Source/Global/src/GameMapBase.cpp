@@ -1059,14 +1059,25 @@ bool GameMapBase::isActorVisibleOnMap(const Actor& actor) const {
     std::shared_ptr<Actor> parent;
     for (const Actor* current = &actor; current != nullptr;
          current = parent.get()) {
-        if (!regionVisibility_->isActorVisible(
-                current->getMapPosition(), current->getLocalBounds(),
-                current->getTransform(), EngineState::CellSize)) {
+        if (!isSpriteVisibleOnMap(current->getMapPosition(),
+                                  current->getLocalBounds(),
+                                  current->getTransform())) {
             return false;
         }
         parent = current->getParent();
     }
     return true;
+}
+
+bool GameMapBase::isSpriteVisibleOnMap(const sf::Vector2i& position,
+                                       const sf::FloatRect& bounds,
+                                       const sf::Transform& transform) const {
+    if (!hideDisconnectedRegions_) {
+        return true;
+    }
+    ensureVisibilityCache();
+    return regionVisibility_->isActorVisible(position, bounds, transform,
+                                             EngineState::CellSize);
 }
 
 std::size_t GameMapBase::getVisibilityRevision() const {

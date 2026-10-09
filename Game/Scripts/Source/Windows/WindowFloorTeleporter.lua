@@ -84,18 +84,17 @@ function Controller:open(inst)
     self._lastMapKey = nil
     self:getCommandWindow().index = nil
     local entries = self:getVisitedRegionEntries()
-    self:getCommandWindow():refreshMaps(entries)
-    self:getCommandWindow():resetSelection()
     local currentMapKey = self:getGameInstance():getCurrentMapPath() ~= nil
         and MapPath.WithoutExtension(self:getGameInstance():getCurrentMapPath())
         or nil
-    for index, entry in ipairs(entries) do
+    local selectedMapKey = nil
+    for _, entry in ipairs(entries) do
         if MapPath.WithoutExtension(entry[1]) == currentMapKey then
-            self:getCommandWindow():selectIndex(index - 1)
+            selectedMapKey = entry[1]
             break
         end
     end
-    self:notifyMapIndexMaybeChanged(self:getCommandWindow().index)
+    self:getCommandWindow():refreshMaps(entries, selectedMapKey)
     if self:getCommandWindow().index == nil then
         self:refreshPreview()
     end

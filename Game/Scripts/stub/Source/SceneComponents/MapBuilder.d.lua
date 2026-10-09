@@ -140,22 +140,22 @@
 
 ---@class Source.SceneComponents.SingleFloorMapPreview
 ---@field visibilityRevision integer
----@field gameMap            GameMap
+---@field content            Source.SceneComponents.FloorMapPreview
 ---@field mapData            Source.SceneComponents.MapData
 
 ---@class Source.SceneComponents.WorldFloorMapPreview
 ---@field visibilityRevision integer
 ---@field mapData            Source.SceneComponents.WorldMapData
----@field regions            table<string, GameMap>
+---@field regions            table<string, Source.SceneComponents.FloorMapPreview>
 
----@alias Source.SceneComponents.FloorMapPreview Source.SceneComponents.SingleFloorMapPreview | Source.SceneComponents.WorldFloorMapPreview
+---@alias Source.SceneComponents.FloorMapPreviewCacheEntry Source.SceneComponents.SingleFloorMapPreview | Source.SceneComponents.WorldFloorMapPreview
 
 ---@class Source.SceneComponents.FloorMapPreviewCondition
 ---@field value Source.GameInstance.RecordValue | nil
 
 ---@brief Build map runtime objects and floor-map previews for SceneMap.
 ---@class Source.SceneComponents.SceneMapBuilder
----@field _floorMapPreviewGameMaps          table<string, Source.SceneComponents.FloorMapPreview>
+---@field _floorMapPreviews                 table<string, Source.SceneComponents.FloorMapPreviewCacheEntry>
 ---@field _floorMapPreviewConditions        table<string, Source.SceneComponents.FloorMapPreviewCondition>
 ---@field _floorMapPreviewConditionRevision integer
 local SceneMapBuilder = {}
@@ -167,15 +167,15 @@ function SceneMapBuilder:init() end
 
 function SceneMapBuilder:clearFloorMapPreviewCache() end
 
---- Refresh the snapshot of variables used by cached preview Actors and return its revision.
+--- Refresh the snapshot of variables used by cached static previews and return its revision.
 ---@param inst Source.GameInstance.GameInstance
 ---@return integer
 function SceneMapBuilder:getFloorMapPreviewConditionRevision(inst) end
 
---- Apply conditions to preview Actor trees without lifecycle events or live subscriptions.
----@param gameMap GameMap
+--- Apply conditions to static preview records without lifecycle events or live subscriptions.
+---@param preview Source.SceneComponents.FloorMapPreview
 ---@param inst    Source.GameInstance.GameInstance
-function SceneMapBuilder:applyFloorMapPreviewConditions(gameMap, inst) end
+function SceneMapBuilder:applyFloorMapPreviewConditions(preview, inst) end
 
 ---@param data integer[] | nil
 ---@return sf.Color

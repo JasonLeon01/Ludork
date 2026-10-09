@@ -4,6 +4,7 @@
 #include <LightOcclusionResult.hpp>
 
 #include <GameMapBase.hpp>
+#include <PreviewSprite.hpp>
 
 #include <Camera.hpp>
 #include <Gameplay/Actor.hpp>
@@ -23,6 +24,15 @@
 
 class GameMapRendererImpl {
 public:
+    struct PreviewState {
+        PreviewSprite data;
+        sf::Transform transform;
+        sf::FloatRect bounds;
+        std::shared_ptr<sf::Shader> shader;
+        bool shaderError = false;
+        bool visibleOnMap = false;
+    };
+
     struct ActorState {
         Actor* actor = nullptr;
         const sf::Texture* texture = nullptr;
@@ -81,6 +91,12 @@ public:
                         std::size_t maximumShaderLights);
 
     void setCamera(std::shared_ptr<Camera> value);
+    void setPreviewSprites(const std::vector<PreviewSprite>& sprites);
+    void setPreviewVisibility(const std::vector<bool>& visibility);
+    void refreshPreviewVisibility();
+    void drawPreviewLayer(sf::RenderTarget& target,
+                          const sf::RenderStates& states,
+                          const std::string& layer);
     void prepareVisibleLayers();
     void drawContent(
         sf::RenderTarget& target, const sf::RenderStates& states,
@@ -169,9 +185,17 @@ public:
                          const std::string& layerName, int layerIndex,
                          int playerLayerIndex, bool applyPlayerCover,
                          float shaderTime);
-    bool drawActorShaderWithHue(sf::RenderTarget& target, Actor& actor,
-                                sf::Shader& actorShader, float hue,
-                                std::uint8_t actorAlpha);
+    bool drawSpriteShaderWithHue(sf::RenderTarget& target,
+                                 const sf::RenderStates& states,
+                                 const sf::Texture& texture,
+                                 const sf::IntRect& rect,
+                                 const sf::Transform& transform,
+                                 sf::Shader& shader, float hue,
+                                 std::uint8_t alpha);
+    static void setSpriteShaderUniforms(sf::Shader& shader,
+                                        const sf::Texture& texture,
+                                        const sf::IntRect& rect, float time);
+    float drawableHue(float hue) const;
     sf::RenderTexture& ensureActorShaderBuffer(const sf::Vector2u& size);
     sf::RenderTexture& ensureActorHueBuffer(const sf::Vector2u& size);
     sf::Sprite& ensureActorHueSourceSprite(const sf::Texture& texture);
@@ -193,6 +217,8 @@ public:
     std::vector<std::string> layerNames;
     std::uint8_t coverAlpha;
     bool previewOnly;
+    bool previewSpritesInstalled = false;
+    std::vector<PreviewState> previewSprites;
     const std::size_t maximumShaderLights;
 
     std::shared_ptr<sf::Shader> materialShader;

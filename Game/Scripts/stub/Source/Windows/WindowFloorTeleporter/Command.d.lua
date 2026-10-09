@@ -18,8 +18,9 @@ function Controller:init(owner) end
 ---@brief Rebuild the list from map key/name pairs.
 ---
 --- - @param entries Region map entries to display.
----@param entries table
-function Controller:refreshMaps(entries) end
+---@param entries        table
+---@param selectedMapKey string | nil Final selection before the preview is refreshed.
+function Controller:refreshMaps(entries, selectedMapKey) end
 
 ---@brief Get the selected region map key.
 ---
