@@ -6,7 +6,8 @@ local _DISABLED_COLOUR = sf.Color.new(160, 160, 160, 255)
 ---@class Source.Windows.WindowAttrShop.AttrShopRow.Controller
 local AttrShopRowController = {}
 
-function AttrShopRowController:bind()
+function AttrShopRowController:init(model)
+    super(AttrShopRowController, self).init(model)
     self._labelColour = self.ui.controls["Label"]:getColour():copy()
 end
 

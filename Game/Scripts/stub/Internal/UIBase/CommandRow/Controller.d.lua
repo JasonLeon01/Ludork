@@ -18,10 +18,6 @@
 ---@field new   fun(model: Internal.UIBase.CommandRow.Controller.Model, ui: Internal.UI.Parts.Shared.CommandRow | nil): Internal.UIBase.CommandRow.Controller
 local CommandRowController = {}
 
----@param model Internal.UIBase.CommandRow.Controller.Model
----@param ui    Internal.UI.Parts.Shared.CommandRow | nil
-function CommandRowController:init(model, ui) end
-
 function CommandRowController:bind() end
 
 function CommandRowController:refresh() end

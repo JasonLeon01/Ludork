@@ -21,6 +21,7 @@
 ---@field _viewUpdateUnregister function | nil
 ---@field _bound                boolean
 ---@field _disposed             boolean
+---@field _released             boolean
 local UiController = {}
 
 ---@param model any
@@ -38,7 +39,18 @@ function UiController:createChild(name, windowClass, ...) end
 --- Runs after init, bind and the first refresh.
 function UiController:ready() end
 
+--- Bind the current model. Runs again after a collection reuses this row; init runs only once.
 function UiController:bind() end
+
+function UiController:_releaseBindings() end
+
+--- Collection infrastructure: detach the View and release model callbacks, watches and subscriptions without disposal.
+---@param detachRoot? boolean
+function UiController:releaseForReuse(detachRoot) end
+
+--- Collection infrastructure: start a fresh binding lifetime on a released Controller. Prepare binds the new model.
+---@param model any
+function UiController:reuse(model) end
 
 function UiController:refresh() end
 
@@ -49,7 +61,7 @@ function UiController:refreshFromEvent(payload) end
 function UiController:subscribe(eventName, handler, priority) end
 
 --- Observe one model field, immediately applying its current value by default.
---- Later writes use native Class.monitor; all subscriptions stop on disposal.
+--- Later writes use native Class.monitor; all subscriptions stop on disposal or row recycling.
 ---@generic T: Internal.UIBase.UiController, V
 ---@param self       T
 ---@param target     table | userdata
@@ -60,7 +72,8 @@ function UiController:subscribe(eventName, handler, priority) end
 function UiController:watch(target, field, method, immediate) end
 
 --- Bind an unbound Controller method without retaining the Controller.
---- Arguments and return values are preserved; disposal or collection makes the callback inert.
+--- Arguments and return values are preserved; disposal, garbage collection or row recycling makes the callback inert.
+--- Reusing the Controller does not reactivate callbacks from its previous binding lifetime.
 ---@generic T: Internal.UIBase.UiController
 ---@param self   T
 ---@param method fun(controller: T, ...: any): any

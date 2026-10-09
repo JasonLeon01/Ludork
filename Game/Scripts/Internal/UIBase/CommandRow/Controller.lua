@@ -8,12 +8,11 @@ local LOC = LocaleCore.ApplyStringLocaleFormat
 ---@class Internal.UIBase.CommandRow.Controller
 local CommandRowController = {}
 
-function CommandRowController:init(model, ui)
-    assert((model.text ~= nil) ~= (model.localeKey ~= nil), "Command row requires exactly one of text or localeKey")
-    super(CommandRowController, self).init(model, ui)
-end
-
 function CommandRowController:bind()
+    assert(
+        (self.model.text ~= nil) ~= (self.model.localeKey ~= nil),
+        "Command row requires exactly one of text or localeKey"
+    )
     if self.model.callback ~= nil then
         ---@cast self.root Engine.Canvas
         self.root:addConfirmCallback(self.model.callback)

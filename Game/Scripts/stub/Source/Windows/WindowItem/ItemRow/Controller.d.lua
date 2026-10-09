@@ -13,7 +13,8 @@
 ---@field _iconColour sf.Color
 local ItemRowController = {}
 
-function ItemRowController:bind() end
+---@param model Source.Windows.WindowItem.ItemRow.Controller.Model
+function ItemRowController:init(model) end
 
 function ItemRowController:refresh() end
 

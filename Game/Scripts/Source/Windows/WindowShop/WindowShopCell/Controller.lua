@@ -8,9 +8,13 @@ local _SHOP_DISABLED_TEXT_COLOUR = sf.Color.new(160, 160, 160, 255)
 ---@class (partial) Source.Windows.WindowShop.WindowShopCell.Controller
 local WindowShopCellController = {}
 
-function WindowShopCellController:bind()
+function WindowShopCellController:init(model)
+    super(WindowShopCellController, self).init(model)
     self._iconColour = self.ui.controls["Icon"]:getColour():copy()
     self._valueColour = self.ui.controls["ValueText"]:getColour():copy()
+end
+
+function WindowShopCellController:bind()
     if self.model.callback ~= nil then
         self.root:addConfirmCallback(function (obj, kwargs)
             self.model.callback(obj, kwargs)

@@ -16,6 +16,9 @@
 ---@field _valueColour sf.Color
 local WindowShopCellController = {}
 
+---@param model Source.Windows.WindowShop.WindowShopCell.Controller.Model
+function WindowShopCellController:init(model) end
+
 function WindowShopCellController:bind() end
 
 function WindowShopCellController:refresh() end

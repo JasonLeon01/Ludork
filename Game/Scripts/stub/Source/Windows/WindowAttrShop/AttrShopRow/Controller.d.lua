@@ -8,7 +8,8 @@
 ---@field _labelColour sf.Color
 local AttrShopRowController = {}
 
-function AttrShopRowController:bind() end
+---@param model { text: string, available: boolean }
+function AttrShopRowController:init(model) end
 
 function AttrShopRowController:refresh() end
 

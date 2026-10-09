@@ -6,6 +6,9 @@
 ---@field items            T[]
 ---@field _controllerClass { new: fun(model: any): T }
 ---@field _disposers       (fun(controller: T))[]
+---@field _idle            T[]
+---@field _idleDisposers   (fun(controller: T))[]
+---@field _disposed        boolean
 local UiCollection = {}
 
 ---@generic T: Internal.UIBase.UiController
@@ -14,7 +17,7 @@ local UiCollection = {}
 ---@return Internal.UIBase.UiCollection<T>
 function UiCollection.new(container, controllerClass) end
 
---- Create, prepare and attach a row. Its Controller is owned by this collection.
+--- Reuse an idle row or create one, then bind, prepare and attach it. Its Controller is owned by this collection.
 ---@param model       any
 ---@param logicalSize sf.Vector2u | nil
 ---@return T
@@ -23,9 +26,10 @@ function UiCollection:add(model, logicalSize) end
 --- Recompute ListView positions after a batch of changes.
 function UiCollection:layout() end
 
---- Release row callbacks, subscriptions and Views, then remove their controls.
+--- Detach all rows and release their bindings. Retain up to 64 idle rows locally; dispose of excess rows.
 function UiCollection:clear() end
 
+--- Terminally dispose of every active and idle row.
 function UiCollection:dispose() end
 
 return UiCollection

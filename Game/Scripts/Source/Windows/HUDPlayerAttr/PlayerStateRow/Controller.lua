@@ -9,9 +9,12 @@ local PlayerStateRowController = {}
 
 function PlayerStateRowController:init(model)
     super(PlayerStateRowController, self).init(model)
-    self._logicalSize = sf.Vector2u.new(math.floor(self.ui.designSize.x), math.floor(self.ui.designSize.y))
     self._contentPadding = self.ui.designSize.x - self.ui.controls["StateContent"]:getSize().x
     self._iconSize = self.ui.controls["IconArea"]:getSize().x
+end
+
+function PlayerStateRowController:bind()
+    self._logicalSize = sf.Vector2u.new(math.floor(self.ui.designSize.x), math.floor(self.ui.designSize.y))
     self._width = self._iconSize + self._contentPadding
 end
 

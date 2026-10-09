@@ -6,18 +6,12 @@
 --- instead of being referenced directly, so the same UI can serve the in-game
 --- menu, the title screen, or any other entry point.
 ---@class Source.Windows.WindowSaveLoad.Controller: Internal.UIBase.UiController
----@field host              Source.Windows.WindowSaveLoad
----@field _mode             "load" | "save"
----@field _tabWindow        Source.Windows.WindowSaveTabs | nil
----@field ui                Internal.UI.WindowSaveLoad
----@field _scanReader       Engine.SavePreviewReader
----@field _scanPending      boolean
----@field _latestSlot       integer | nil
----@field _selectionTouched boolean
----@field _opening          boolean
----@field _openClock        sf.Clock
----@field _openedBefore     boolean
----@field _reportedOpen     boolean
+---@field host          Source.Windows.WindowSaveLoad
+---@field _mode         "load" | "save"
+---@field _tabWindow    Source.Windows.WindowSaveTabs | nil
+---@field ui            Internal.UI.WindowSaveLoad
+---@field _openClock    sf.Clock
+---@field _openedBefore boolean
 local Controller = {}
 
 ---@brief Construct the save/load UI coordinator and child windows.
@@ -65,18 +59,11 @@ function Controller:setVisible(visible) end
 ---@brief Open the save/load UI with the slot list focused.
 ---
 --- Defaults to Load. Pass `"save"` to open the Save tab when tabs are present.
---- Selects the latest existing save, or the first slot when none exists.
+--- Selects the latest existing save before showing the window, or the first slot when none exists.
 ---@param transitionProfile Enums.WindowTransitionProfile | nil
 ---@param initialMode       "load" | "save" | nil
 ---@param dockPosition      sf.Vector2f | nil
 function Controller:open(transitionProfile, initialMode, dockPosition) end
-
----@param _ number
-function Controller:onTick(_) end
-
-function Controller:onSlotsReady() end
-
-function Controller:_applyLatestSlot() end
 
 ---@brief Close the save/load UI and deactivate all child windows.
 ---@param onHidden function | nil

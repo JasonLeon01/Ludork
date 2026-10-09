@@ -17,6 +17,9 @@
 ---@field _uiManager            GlobalCore.UIManager | nil
 ---@field _mounted              boolean
 ---@field _disposed             boolean
+---@field _released             boolean
+---@field _reuseVisible         boolean
+---@field _reuseActive          boolean | nil
 ---@field _logicalSize          sf.Vector2u | nil
 ---@field _animationBindings    table<string, { name: string, target: string | nil }>
 ---@field _animationGenerations table<string, integer>
@@ -114,6 +117,19 @@ function UiView:mount(uiManager, logicalSize) end
 function UiView:mountPrepared(uiManager) end
 
 function UiView:unmount() end
+
+function UiView:_stopAnimations() end
+
+--- Clear callbacks, animations and dynamic rows while retaining the authored control tree.
+--- Nested Views keep their authored parent when detachRoot is false.
+---@param detachRoot?        boolean
+---@param releaseController? boolean
+function UiView:releaseForReuse(detachRoot, releaseController) end
+
+--- Restore the root state of a released View and its nested Views before refreshing the new model.
+--- Nested Controllers resume without a model; their owner binds and prepares them for the new row model.
+---@param reuseController? boolean
+function UiView:reuse(reuseController) end
 
 --- Terminally release the complete owned tree and its business callbacks, and detach the root.
 function UiView:dispose() end

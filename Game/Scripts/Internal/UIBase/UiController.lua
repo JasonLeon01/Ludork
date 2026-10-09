@@ -30,6 +30,7 @@ function UiController:init(model, ui)
     self._viewUpdateUnregister = nil
     self._bound = false
     self._disposed = false
+    self._released = false
 end
 
 function UiController:createChild(name, windowClass, ...)
@@ -122,6 +123,7 @@ end
 
 function UiController:prepare(logicalSize)
     assert(self._disposed ~= true, "Disposed UiController cannot be prepared")
+    assert(not self._released, "Released UiController cannot be prepared")
     if logicalSize ~= nil then
         self._viewLogicalSize = logicalSize
     end
@@ -219,14 +221,11 @@ function UiController:setText(name, text)
     self.view:setText(name, text)
 end
 
-function UiController:dispose()
-    if self._disposed == true then
-        return
-    end
-    self._disposed = true
-    self._observerDispose(self._observer)
+function UiController:_releaseBindings()
+    self._bound = false
     if self._callbackTarget ~= nil then
         self._callbackTarget[1] = nil
+        self._observerDispose(self._observer)
     end
     self._callbackTarget = nil
     if self._viewUpdateUnregister ~= nil then
@@ -237,6 +236,36 @@ function UiController:dispose()
         Engine.unsubscribe(token)
     end
     self._eventSubscriptions = {}
+end
+
+function UiController:releaseForReuse(detachRoot)
+    assert(not self._disposed, "Disposed UiController cannot be released")
+    if self._released then
+        return
+    end
+    self._released = true
+    self:_releaseBindings()
+    self.ui:releaseForReuse(detachRoot)
+    self.model = nil
+    self._viewLogicalSize = nil
+end
+
+function UiController:reuse(model)
+    assert(not self._disposed and self._released, "Only a released UiController can be reused")
+    self.model = model
+    self._callbackTarget = setmetatable({ self }, { __mode = "v" })
+    self._observer = UiObserver.new(self)
+    self._observerDispose = self._observer.dispose
+    self.ui:reuse()
+    self._released = false
+end
+
+function UiController:dispose()
+    if self._disposed == true then
+        return
+    end
+    self._disposed = true
+    self:_releaseBindings()
     self.ui:dispose()
     if self._hostDispose ~= nil then
         self._hostDispose(self.host)

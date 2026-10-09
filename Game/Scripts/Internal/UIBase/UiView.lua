@@ -34,13 +34,37 @@ local function clearControlCallbacks(control)
         ---@cast control Engine.TextBox
         control:setOnTextChanged(nil)
         control:setOnEditingChanged(nil)
-    elseif Class.isInstance(control, Engine.WrapBox) then
+    end
+end
+
+local function disposeControlResources(control)
+    if Class.isInstance(control, Engine.WrapBox) then
         ---@cast control Engine.WrapBox
         control:dispose()
     elseif Class.isInstance(control, Engine.EmitterView) then
         ---@cast control Engine.EmitterView
         control:dispose()
     end
+end
+
+local function clearTreeCallbacks(control)
+    clearControlCallbacks(control)
+    for _, child in ipairs(control:getChildren()) do
+        clearTreeCallbacks(child)
+    end
+end
+
+---@param control Engine.ControlBase
+---@param active  boolean
+---@return boolean | nil
+local function setControlActive(control, active)
+    if Class.isInstance(control, Engine.FunctionalBase) then
+        ---@cast control Engine.ControlBase & Engine.FunctionalBase
+        local previous = control:getActive()
+        control:setActive(active)
+        return previous
+    end
+    return nil
 end
 
 ---@class Internal.UIBase.UiView
@@ -66,6 +90,9 @@ function UiView:init(instance)
     self._uiManager = nil
     self._mounted = false
     self._disposed = false
+    self._released = false
+    self._reuseVisible = false
+    self._reuseActive = nil
     self._logicalSize = nil
     self._animationBindings = {}
     self._animationGenerations = {}
@@ -237,6 +264,58 @@ function UiView:unmount()
     self._mounted = false
 end
 
+function UiView:_stopAnimations()
+    for key, binding in pairs(self._animationBindings) do
+        self._animationGenerations[key] = (self._animationGenerations[key] or 0) + 1
+        self.instance:stopAnimation(binding.name, binding.target)
+    end
+    self._animationBindings = {}
+end
+
+function UiView:releaseForReuse(detachRoot, releaseController)
+    if releaseController and self._controller ~= nil then
+        self._controller:releaseForReuse(detachRoot)
+        return
+    end
+    assert(not self._disposed, "Disposed UiView cannot be released")
+    if self._released then
+        return
+    end
+    self._released = true
+    self:_stopAnimations()
+    clearTreeCallbacks(self.root)
+    self._reuseVisible = self.root:getVisible()
+    self._reuseActive = setControlActive(self.root, false)
+    self.root:setVisible(false)
+    self:unmount()
+    if detachRoot ~= false then
+        self:detachControl(self.root)
+    end
+    for _, collection in pairs(self._collections) do
+        collection:clear()
+    end
+    for _, child in pairs(self.assets) do
+        child:releaseForReuse(false, true)
+    end
+    self._logicalSize = nil
+end
+
+function UiView:reuse(reuseController)
+    if reuseController and self._controller ~= nil then
+        self._controller:reuse(nil)
+        return
+    end
+    assert(not self._disposed and self._released, "Only a released UiView can be reused")
+    for _, child in pairs(self.assets) do
+        child:reuse(true)
+    end
+    self.root:setVisible(self._reuseVisible)
+    if self._reuseActive ~= nil then
+        setControlActive(self.root, self._reuseActive)
+    end
+    self._released = false
+end
+
 function UiView:dispose()
     if self._disposed then
         return
@@ -246,12 +325,10 @@ function UiView:dispose()
         self._controllerDispose(self._controller)
     end
     self:unmount()
-    for key, binding in pairs(self._animationBindings) do
-        self._animationGenerations[key] = (self._animationGenerations[key] or 0) + 1
-        self.instance:stopAnimation(binding.name, binding.target)
-    end
+    self:_stopAnimations()
     for _, control in pairs(self.controls) do
         clearControlCallbacks(control)
+        disposeControlResources(control)
     end
     for child, dispose in pairs(self._owned) do
         dispose(child)

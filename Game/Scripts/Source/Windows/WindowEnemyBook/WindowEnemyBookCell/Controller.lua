@@ -59,13 +59,8 @@ local _STAT_FIELDS = {
 local WindowEnemyBookCellController = {}
 
 function WindowEnemyBookCellController:init(model)
-    local entry = model.entry
-    self._specialDisplays = entry.specialDisplays or {}
     self._specialDisplayTexts = {}
     super(WindowEnemyBookCellController, self).init(model, nil)
-end
-
-function WindowEnemyBookCellController:bind()
     self._statColours = {}
     for _, stat in ipairs(_STAT_FIELDS) do
         local label = self.ui.controls[stat.labelControl]
@@ -82,10 +77,9 @@ function WindowEnemyBookCellController:bind()
         self._specialPadding[index] = ui.root:getSize().x - ui.controls["Content"]:getSize().x
         self._specialNameWidths[index] = ui.designSize.x - self._specialPadding[index]
     end
-    self.ui.controls["EnemyIcon"]:setCharacter(
-        self.model.entry.texture, self.model.entry.rect, self.model.entry.scale, self.model.entry.animatable,
-        self.model.entry.switchInterval, self.model.entry.shaderPath or "", self.model.entry.hue or 0.0
-    )
+end
+
+function WindowEnemyBookCellController:bind()
     if self.model.callback ~= nil then
         self.root:addConfirmCallback(function (obj, kwargs)
             self.model.callback(obj, kwargs)
@@ -94,6 +88,10 @@ function WindowEnemyBookCellController:bind()
 end
 
 function WindowEnemyBookCellController:refresh()
+    self.ui.controls["EnemyIcon"]:setCharacter(
+        self.model.entry.texture, self.model.entry.rect, self.model.entry.scale, self.model.entry.animatable,
+        self.model.entry.switchInterval, self.model.entry.shaderPath or "", self.model.entry.hue or 0.0
+    )
     for _, stat in ipairs(_STAT_FIELDS) do
         local value = tostring(ToShortNumber(self.model.entry[stat.field] or stat.default))
         self:setText(stat.labelControl, LOC(stat.locale))
@@ -113,7 +111,7 @@ function WindowEnemyBookCellController:refresh()
         ui.controls["Text"]:setVisible(false)
         ui.instance:setText("Text", "")
         self._specialDisplayTexts[index] = ""
-        local item = self._specialDisplays[index]
+        local item = self.model.entry.specialDisplays[index]
         ui.root:setVisible(item ~= nil)
         if item ~= nil then
             if item.texture ~= nil then
@@ -150,8 +148,8 @@ end
 
 function WindowEnemyBookCellController:_layoutSpecials()
     local currentX = self.root:getSize().x + 0.0
-    for index = math.min(#self._specialDisplays, #self._specialViews), 1, -1 do
-        local item = assert(self._specialDisplays[index])
+    for index = math.min(#self.model.entry.specialDisplays, #self._specialViews), 1, -1 do
+        local item = assert(self.model.entry.specialDisplays[index])
         local ui = assert(self._specialViews[index])
         local padding = assert(self._specialPadding[index])
         local width = item.texture ~= nil and ui.controls["IconArea"]:getSize().x

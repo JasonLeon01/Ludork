@@ -7,7 +7,8 @@ local _UNUSABLE_ICON_ALPHA = 160
 ---@class (partial) Source.Windows.WindowItem.ItemRow.Controller
 local ItemRowController = {}
 
-function ItemRowController:bind()
+function ItemRowController:init(model)
+    super(ItemRowController, self).init(model)
     self._iconColour = self.ui.controls["Icon"]:getColour():copy()
 end
 
