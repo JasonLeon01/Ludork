@@ -90,6 +90,24 @@ For ordinary finite maps, `setHideDisconnectedRegions(enabled)` enables or disab
 
 Changing terrain rebuilds connectivity and replacement sources. Moving within one region reuses the mask; moving to another region updates rendering and lighting. The renderer uses separate display layers, keeping the original tilemap intact. The selection rule and gameplay effects are documented in [Global.GameMap](<../../Global APIs/GameMap.md#disconnected-regions>).
 
+## Static preview rendering
+
+`GlobalCore.PreviewSprite` and `GlobalCore.GameMapRenderer` are runtime-only Lua APIs (`metadata = false`), not Blueprint nodes. `PreviewSprite.new(table)` accepts these display fields:
+
+| Fields | Meaning and defaults |
+|---|---|
+| `layer`, `texture`, `rect` | Layer name, retained `sf.Texture` or `nil`, and `sf.IntRect` source rectangle. |
+| `position`, `mapPosition`, `translation` | Pixel anchor, region-visibility cell, and pixel display offset. |
+| `rotation`, `scale`, `origin` | Degrees (default `0`), scale (default `{1, 1}`), and pixel origin. |
+| `visible`, `parentIndex` | Own visibility (default `true`); zero-based earlier record index, or `-1` for a root. |
+| `hue`, `shaderPath` | Hue in degrees (default `0`) and fragment shader path (default empty). |
+
+`renderer:setPreviewSprites(records)` requires a renderer constructed with `previewOnly = true`. It retains the display resources and preserves record order within each configured layer. Parents must precede children; invalid parent indices fail without replacing the installed records. Explicitly installing an empty array draws no static sprites. Until records are installed, the renderer retains its ordinary Actor rendering contract.
+
+`renderer:setPreviewVisibility(flags)` requires installed records and exactly one boolean per record, in the same order. It updates own visibility; effective visibility also includes ancestors and the map's region rules. A `nil` texture draws nothing but retains the record's geometry and parent role. Geometry is already resolved into map coordinates; `parentIndex` controls visibility, not transform composition.
+
+Static shader drawing supports hue, uses `texture`, `textureSize`, `textureRect` and `time = 0`, and combines sprite transforms with the caller's render states, including world offsets. A shader-load failure reports the error and draws the image in magenta. The native-only `GameMapBase::isSpriteVisibleOnMap(position, bounds, transform)` shares the geometry visibility test with live Actors; it is not a Lua binding.
+
 ## WorldStreamingState
 
 `WorldRegionState` exposes `Unloaded`, `Reading`, `Prepared`, `Active` and `Dormant`. `WorldRegionDemand` exposes `None`, `Prepared` and `Active`. `WorldStreamingState` uses 1-based indices and owns the demand queues, Camera ordering, last-used and cache accounting, eviction and statistics. Camera ordering places Active regions first, then orders by squared centre distance and breaks ties by region index. The methods of `WorldStreamingState` are `metadata = false`. Blueprint uses contextual world-map nodes.

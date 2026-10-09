@@ -56,7 +56,7 @@ The message window uses a full-screen Canvas and a transparent `FunctionalImage`
 
 Language changes, loaded-player rebinding, visibility queries and input checks only inspect already-created windows through `peek()`. An unused window does not block map input or acquire focus, and its factory reads the current player, game instance and configuration when it is eventually opened. Destroying a scene disposes its handles, releasing existing windows without constructing unused ones.
 
-The Teleporter opens with the current map's floor entry selected and scrolled into view, falling back to the first entry when the current map is absent. An empty list uses `nil`. Telepoint selection starts at the first entry. Its left slot alternates between the floor and telepoint lists, and cancelling telepoint selection restores the floors. The telepoint list scrolls without moving the right-side preview. A composite manifest remains one floor identity, with child maps composed at world offsets.
+The Teleporter opens with the current map's floor entry selected and scrolled into view, falling back to the first entry when the current map is absent. An empty list uses `nil` and hides the preview. Opening resolves the final floor selection before generating its single preview. Telepoint selection starts at the first entry. Its left slot alternates between the floor and telepoint lists, and cancelling telepoint selection restores the floors. The telepoint list scrolls without moving the right-side preview. A composite manifest remains one floor identity, with child maps composed at world offsets.
 
 Stair transfers arrive at the nearest stair of the opposite direction: up to `Down`, down to `Up`. Set the `stairDirection` enum in each stair Blueprint; ordinary `None` teleporters are excluded from these arrivals. See [Source.MapActors.Teleporter](<../Source Classes/Teleporter.md>).
 
@@ -66,7 +66,11 @@ Telepoint labels resolve the recorded tag through `LOC`. Empty or automatically 
 
 Keyboard, mouse and touch selection update the destination and preview before confirmation. The preview keeps a fixed scale and stays within map bounds, centring axes smaller than the view. Composite previews use the full manifest bounds.
 
-Floor previews evaluate [ConditionalActor](<../Source Classes/ConditionalActor.md>) visibility using the current game variables, including on other floors and composite-world children. Evaluation follows restoration of added, moved and destroyed Actor records and includes child Actors, without running lifecycle events or subscribing preview Actors to live variables. Changes to variables used by cached previews invalidate their textures; the next draw reevaluates visibility on the cached map. Reopening the window clears its preview maps and textures.
+Floor previews use static display records without constructing gameplay Actors or instantiating event graphs. They preserve the configured texture, first-frame rectangle, layer, position, translation, rotation, scale, origin, hue and shader; shader `time` is fixed at `0`. Shader and hue can be combined. Actor constructors, lifecycle callbacks, combat systems, particles, sounds and dynamic damage text do not run, so appearances created only by gameplay scripts are absent.
+
+Destroyed tags and their child trees are filtered before display records or textures are created. Added and moved records and terrain destruction are restored; declarative `childActorComp` children retain their offsets, tags and ancestor visibility without running component callbacks. Ordinary maps retain their region-hiding rules, and composite children retain world offsets.
+
+The static records evaluate [ConditionalActor](<../Source Classes/ConditionalActor.md>) visibility against current game variables, including on other floors and composite-world children, without subscriptions on preview objects. Changes to variables used by cached previews invalidate their textures; the next draw reevaluates the cached records. Reopening the window clears its preview models, textures and class display templates.
 
 Attribute shops expose display snapshots through `getOffers()` and validate purchases through `purchaseAttribute(key)`. A scalar price reference is shared by all offers, while an array sets per-offer prices. A purchase increments the corresponding price.
 

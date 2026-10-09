@@ -18,7 +18,9 @@ An empty variable name leaves the authored `visible` value unchanged. Otherwise,
 
 The condition continuously controls `setVisible(result, false)`: a false result hides the Actor again. Child Actors retain their own visibility settings and follow their ancestors' effective visibility. Hidden Actors retain their instances and subscriptions, and Tick remains governed by `tickable` and world streaming.
 
-`applyConditionVisibility(variables)` evaluates the same condition against the supplied game-variable table and applies visibility once. It requires no owning Scene, registers no subscription and dispatches no lifecycle events. Floor previews call it for surviving Actor trees after restoring map records; an empty condition preserves the Actor’s existing visibility.
+`applyConditionVisibility(variables)` evaluates the same condition against the supplied game-variable table and applies visibility once. It requires no owning Scene, registers no subscription and dispatches no lifecycle events. An empty condition preserves the Actor’s existing visibility.
+
+Live Actors and floor previews share the scalar evaluator `Source.Utils.ActorVisibility.Evaluate(variable, operator, comparison, authoredVisible, variables)`. Previews apply its result to static display records after restoring map records, without creating Actors or subscriptions. A hidden record remains cached for later reevaluation, and a child's effective visibility also requires its ancestors to be visible.
 
 ## Lifecycle
 

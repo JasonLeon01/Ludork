@@ -26,6 +26,14 @@ Keep immutable definitions in Blueprint, Config or General Data files, and keep 
 
 Construct General Data Attribute Sets with `Source.Configs.GeneralDataTypes.Create`. Load type keys from `Enums.GeneralDataKey` and member keys from `Enums.GeneralData.<TypeName>`, such as `Enums.GeneralData.Item`. The editor resolves these enums from live, possibly unsaved project data. Saving regenerates their runtime sources alongside `Enums.Animation` and `Enums.Particle`; runtime callers see the saved modules. The [General Data and Text Config](<../../Editor User Guide/General Data and Text Config.md>) page describes value conversion and defaults.
 
+### Static Actor display data
+
+`Source.Data.GetActorPreviewData(classPath, classVarChanges?)` returns `Source.Data.ActorPreviewData`, or `nil` for an empty class path. Invalid class paths raise an error. It resolves inherited Blueprint and Script Mixin defaults, then applies declared display and condition overrides with their existing typed conversion. Unknown override names fail; unrelated gameplay values and `BlueprintOnly` overrides are not applied. A resolved class must derive from `Engine.Actor`.
+
+The record contains texture and shader paths, the configured first-frame `rect`, `translation`, rotation in degrees, `scale`, `origin`, `visible`, `hue`, condition fields, and optional recursive `child` with its `childOffset`. Declarative `childActorComp` supplies child class and offset; cyclic child references fail. Each call returns independent records and copied mutable `sf` rectangles and vectors, so callers cannot alter shared class defaults or cached templates.
+
+Extraction does not construct gameplay Actors, instantiate event graphs, load the referenced textures, dispatch component or lifecycle callbacks, or initialise combat state. `Source.Data.ClearActorPreviewCache()` discards the class display templates without altering shared class definitions; clearing the floor-preview cache calls it automatically.
+
 ### Players
 
 `GameInstance` stores player order in `_playerKeys` and player objects in `_players`, keyed by the stable Player General Data key from `Player.ID`. Player keys must be non-empty and unique. `getPlayers()` returns the live keyed dictionary, while `getPlayerKeys()` returns the live ordered key array. Its first key identifies the primary player used by `getPlayer()`. `getPlayerByIndex()` resolves a zero-based index through the same order, `setPlayer(playerKey)` moves an existing key to the first position, and `setPlayerByClass(playerClass)` does the same after resolving the class path.
