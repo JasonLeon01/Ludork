@@ -25,6 +25,7 @@ Platform preparation differs as well. Windows and macOS use shared FFmpeg librar
 
 ## Template targets
 
+- [Ludork Server](<../Simple Server/Deployment and Editor Settings.md>) requires C++ Source. Its Game test-server menu and Pack configuration are hidden for Standalone. All generated templates start with the server disabled and contain no test or production credentials.
 - Exporting mobile packages (iOS, Android and HarmonyOS) requires a C++ Source template.
 - Script compilation, shader encryption, data encryption, save encryption and **Archive Assets, Data and Scripts (.ldpak)** are packaging options, not template types. See [Run, Debug and Package](<../Editor User Guide/Run Debug and Package.md>) for the complete option behaviour.
 

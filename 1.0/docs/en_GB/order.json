@@ -21,6 +21,10 @@
       "path": "Native C++ Development"
     },
     {
+      "key": "06",
+      "path": "Simple Server"
+    },
+    {
       "key": "05",
       "path": "Plug-in Development and Installation"
     }

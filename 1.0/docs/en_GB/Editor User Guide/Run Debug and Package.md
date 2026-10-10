@@ -28,6 +28,10 @@ These operations keep the current tab selected; open **Console** manually to vie
 
 Failures are reported in the operation dialog and Console. An export failure prevents Play or Pack from continuing; correct the first validation, hook or generation error and export again.
 
+## Test server
+
+For a C++ Source project's remote data tests, use **Game → Test Server Settings** and rebuild Debug. **Pack Project → Enable Ludork Server** configures a separate Release connection and starts blank each time; dev packages still use Release. Standalone hides both options. Deployment, local settings paths and the shared-key boundary are documented in [Simple Server](<../Simple Server/Deployment and Editor Settings.md>).
+
 ## Live Debug
 
 Enable **Edit → Development Tools and Settings → Live Debug** before Play to edit the running map from the editor. The project preference defaults to off and cannot change during preparation or running. It requires **Individual Window**; selecting embedded mode clears and disables it. Preparation, Construct and Export keep their normal editing locks.

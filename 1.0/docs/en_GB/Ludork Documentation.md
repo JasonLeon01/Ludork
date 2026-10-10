@@ -23,6 +23,7 @@ Ludork is a game-development environment for building map-driven 2D games. It co
 | Learn Lua | [Lua Basics](<Getting Started/Lua Basics.md>) |
 | Write gameplay in Lua or Blueprint | [Lua Runtime and Modules](<Lua and Blueprint Scripting/Lua Runtime and Modules.md>) |
 | Add or change native runtime APIs | [Build and Module Layout](<Native C++ Development/Build and Module Layout.md>) |
+| Deploy optional remote account storage | [Simple Server](<Simple Server/Deployment and Editor Settings.md>) |
 | Install or write a trusted editor extension | [Installing and Managing Plug-ins](<Plug-in Development and Installation/Installing and Managing Plug-ins.md>) |
 | Find unreferenced project resources | [Official Resource Cleanup](<Plug-in Development and Installation/Official Plug-ins/Resource Cleanup.md>) |
 

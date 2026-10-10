@@ -2,6 +2,8 @@
 
 ## Configuration
 
+Optional [remote account dictionaries](<../../Simple Server/Native Client API.md>) are a separate service. They do not automatically upload, download or replace the local saves described here; gameplay chooses which fields to read and write.
+
 `Data/Configs` contains game configuration JSON. `Main.ini` contains mutable launch and user settings. Use the configuration APIs and editor fields so unknown sections and keys survive a round trip.
 
 Resource-valued Config `file` fields store complete `/Game/Assets/...` paths, while `base` and `ext` only constrain the selector. Data references remain separate. `System.json` keeps `startPlayerBlueprint` relative to `Data/Blueprints` with `root = "Data"` and converts it to `Data.Blueprints.*`. `startRegion` names the initial region. Both affect new games only, and saves retain their player class and region.

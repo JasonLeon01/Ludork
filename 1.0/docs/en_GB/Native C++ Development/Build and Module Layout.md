@@ -22,6 +22,8 @@ Windows editor tools follow the same reproducibility goal: the independent `luac
 
 ## Steps
 
+The optional [`GlobalCore.Server` API](<../Simple Server/Native Client API.md>) compiles its SFML transport only when the generated per-configuration header defines `LUDORK_SERVER_AVAILABLE`. Debug uses the local test configuration; Release uses explicit packaging environment values and never reads that test file. Native build-state fingerprints include the effective configuration, so changing the test URL/key requires a Debug rebuild. See [server build settings](<../Simple Server/Deployment and Editor Settings.md>) for the source-project-only editor and CLI contract. The Lua API remains callable with a typed Disabled result when the transport is absent.
+
 ### Choose a module
 
 | Module | Responsibility | Native dependency direction |
