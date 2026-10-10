@@ -1,0 +1,15 @@
+node_modules/
+config/
+data/
+logs/
+frontend/.vite/
+dist/
+coverage/
+*.log
+*.tmp
+.env
+.env.*
+start.sh
+start.bat
+.DS_Store
+Thumbs.db
