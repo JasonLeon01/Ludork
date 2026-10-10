@@ -1,7 +1,14 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-async function shouldRun({ github, context, core }, workflow, markerName) {
+async function resolveServerCommit({ github, context, core }) {
+  const { data } = await github.rest.repos.getCommit({ ...context.repo, ref: 'Server' });
+  if (!/^[0-9a-f]{40}$/.test(data.sha)) throw new Error('Server did not resolve to a commit.');
+  core.setOutput('server_sha', data.sha);
+  return data.sha;
+}
+
+async function shouldRun({ github, context, core }, workflow, markerName, serverSha) {
   if (context.eventName !== 'schedule') {
     core.setOutput('should_build', true);
     return true;
@@ -36,7 +43,8 @@ async function shouldRun({ github, context, core }, workflow, markerName) {
           per_page: 100,
           page: jobPage,
         });
-        marker = jobs.jobs.find(job => job.name === markerName
+        marker = jobs.jobs.find(job => (job.name === markerName
+          || (serverSha && job.name.startsWith(`${markerName} (`) && job.name.endsWith(')')))
           && job.conclusion === 'success');
         if (marker || jobs.jobs.length < 100) break;
       }
@@ -47,7 +55,8 @@ async function shouldRun({ github, context, core }, workflow, markerName) {
       }
       if (!latestPackage || completedAt > latestPackage.completedAt
           || (completedAt === latestPackage.completedAt && run.id > latestPackage.run.id)) {
-        latestPackage = { run, completedAt };
+        latestPackage = { run, completedAt,
+          serverSha: marker.name.slice(markerName.length + 2, -1) };
       }
     }
     if (data.workflow_runs.length < 100) break;
@@ -55,7 +64,8 @@ async function shouldRun({ github, context, core }, workflow, markerName) {
 
   if (latestPackage) {
     const { run } = latestPackage;
-    const build = run.head_sha !== context.sha;
+    const build = run.head_sha !== context.sha
+      || (serverSha !== undefined && latestPackage.serverSha !== serverSha);
     core.info(`Latest successful default-branch package: ${run.head_sha} (run ${run.id}).`);
     core.setOutput('should_build', build);
     return build;
@@ -72,17 +82,24 @@ async function publishRelease({ github, context, core }, assetDirectory) {
   }
 
   const entries = fs.readdirSync(assetDirectory, { withFileTypes: true });
-  if (entries.length !== 2 || entries.some(entry => !entry.isFile())
+  if (entries.length !== 3 || entries.some(entry => !entry.isFile())
       || entries.filter(entry => entry.name.endsWith('.msi')).length !== 1
-      || entries.filter(entry => entry.name.endsWith('.dmg')).length !== 1) {
-    throw new Error('Release assets must contain exactly one Windows MSI and one macOS DMG.');
+      || entries.filter(entry => entry.name.endsWith('.dmg')).length !== 1
+      || entries.filter(entry => /^LudorkServer-source-[0-9a-f]{40}\.zip$/.test(entry.name)).length !== 1) {
+    throw new Error('Release assets must contain one Windows MSI, one macOS DMG and one LudorkServer source ZIP.');
+  }
+  const windowsName = entries.find(entry => entry.name.endsWith('.msi')).name;
+  const version = /^Ludork-(\d+\.\d+\.\d+)-windows-x64\.msi$/.exec(windowsName)?.[1];
+  if (!version || !entries.some(entry => entry.name === `Ludork-${version}-macos-arm64.dmg`)) {
+    throw new Error('Release installers must use the same editor release version.');
   }
   const assets = entries.map(entry => {
     const filename = path.join(assetDirectory, entry.name);
     const size = fs.statSync(filename).size;
     if (size === 0) throw new Error(`Release asset is empty: ${entry.name}`);
     fs.accessSync(filename, fs.constants.R_OK);
-    return { name: entry.name, filename, size };
+    const name = entry.name.endsWith('.zip') ? `LudorkServer-source-${version}.zip` : entry.name;
+    return { name, filename, size };
   });
 
   const tag = context.ref.slice('refs/tags/'.length);
@@ -120,7 +137,8 @@ async function publishRelease({ github, context, core }, assetDirectory) {
   });
   for (const asset of previousAssets) {
     if (!assets.some(current => current.name === asset.name)
-        && !/^Ludork-.+-(windows-x64\.msi|macos-arm64\.dmg)$/.test(asset.name)) continue;
+        && !/^Ludork-.+-(windows-x64\.msi|macos-arm64\.dmg)$/.test(asset.name)
+        && !/^LudorkServer-source-(?:[0-9a-f]{40}|\d+\.\d+\.\d+)\.zip$/.test(asset.name)) continue;
     await ensureDraft();
     await github.rest.repos.deleteReleaseAsset({ ...context.repo, asset_id: asset.id });
   }
@@ -131,7 +149,8 @@ async function publishRelease({ github, context, core }, assetDirectory) {
       release_id: release.id,
       name: asset.name,
       headers: {
-        'content-type': asset.name.endsWith('.msi') ? 'application/x-msi' : 'application/x-apple-diskimage',
+        'content-type': asset.name.endsWith('.zip') ? 'application/zip'
+          : asset.name.endsWith('.msi') ? 'application/x-msi' : 'application/x-apple-diskimage',
         'content-length': asset.size,
       },
       data: fs.createReadStream(asset.filename),
@@ -140,4 +159,4 @@ async function publishRelease({ github, context, core }, assetDirectory) {
   core.info(`Draft release ready: ${release.html_url}`);
 }
 
-module.exports = { shouldRun, publishRelease };
+module.exports = { shouldRun, publishRelease, resolveServerCommit };

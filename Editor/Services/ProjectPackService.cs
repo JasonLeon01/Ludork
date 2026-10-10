@@ -36,6 +36,9 @@ public enum ProjectPackFailure
     AndroidSigningUnavailable,
     AndroidProjectUnsupported,
     SaveEncryptionProjectUnsupported,
+    ServerConfigurationInvalid,
+    ServerProjectUnsupported,
+    ServerCleanupFailed,
     PackFailed,
 }
 
@@ -124,6 +127,7 @@ public sealed record ProjectPackOptions(
     public HarmonySigningOptions? HarmonySigning { get; init; }
     public MacOSSigningOptions? MacOSSigning { get; init; }
     public IOSSigningOptions? IOSSigning { get; init; }
+    public LudorkServerSettings Server { get; init; } = LudorkServerSettings.Disabled;
 }
 
 public sealed record ProjectPackResult(
@@ -174,6 +178,27 @@ public sealed class ProjectPackService
     public async Task<ProjectPackResult> PackAsync(
         ProjectPackOptions options,
         CancellationToken cancellationToken = default)
+    {
+        ProjectPackResult result;
+        string? cleanupError;
+        try
+        {
+            result = await packAsync(options, cancellationToken);
+        }
+        finally
+        {
+            cleanupError = options.Server.Enabled
+                ? await cleanupServerConfigurationAsync(options)
+                : null;
+        }
+        return cleanupError is null
+            ? result
+            : ProjectPackResult.Failed(ProjectPackFailure.ServerCleanupFailed, cleanupError);
+    }
+
+    private async Task<ProjectPackResult> packAsync(
+        ProjectPackOptions options,
+        CancellationToken cancellationToken)
     {
         string projectFilePath = Path.Combine(projectPath, "Main.proj");
         if (!Directory.Exists(projectPath))
@@ -292,8 +317,13 @@ public sealed class ProjectPackService
             out bool isStandalone);
         if (projectFailure is not null)
             return projectFailure;
+        string? serverError = options.Server.GetValidationError();
+        if (serverError is not null)
+            return ProjectPackResult.Failed(ProjectPackFailure.ServerConfigurationInvalid, LocaleService.Get(serverError));
         if (!isStandalone)
             return null;
+        if (options.Server.Enabled)
+            return ProjectPackResult.Failed(ProjectPackFailure.ServerProjectUnsupported, string.Empty);
         if (options.EncryptSaves)
         {
             return ProjectPackResult.Failed(
@@ -547,6 +577,7 @@ public sealed class ProjectPackService
             packaging,
             options);
         using Process process = createProcess(startInfo);
+        bool started = false;
         Task outputTask = Task.CompletedTask;
         Task errorTask = Task.CompletedTask;
         string optionText = " --version " + options.Version
@@ -573,6 +604,7 @@ public sealed class ProjectPackService
         {
             if (!process.Start())
                 return ScriptExecutionResult.LaunchFailed(startInfo.FileName);
+            started = true;
             process.StandardInput.NewLine = "\n";
             foreach (string secret in signing.Secrets())
             {
@@ -580,8 +612,8 @@ public sealed class ProjectPackService
             }
             await process.StandardInput.FlushAsync(cancellationToken).ConfigureAwait(false);
             process.StandardInput.Close();
-            outputTask = readOutputAsync(process.StandardOutput, signing);
-            errorTask = readOutputAsync(process.StandardError, signing);
+            outputTask = readOutputAsync(process.StandardOutput, signing, options.Server);
+            errorTask = readOutputAsync(process.StandardError, signing, options.Server);
             await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
             await Task.WhenAll(outputTask, errorTask).ConfigureAwait(false);
             return ScriptExecutionResult.Exited(process.ExitCode);
@@ -595,19 +627,77 @@ public sealed class ProjectPackService
         catch (Win32Exception exception)
         {
             return ScriptExecutionResult.LaunchFailed(
-                redactSigning(exception.Message, signing));
+                redactSensitiveValues(exception.Message, signing, options.Server));
         }
         catch (InvalidOperationException exception)
         {
             return ScriptExecutionResult.LaunchFailed(
-                redactSigning(exception.Message, signing));
+                redactSensitiveValues(exception.Message, signing, options.Server));
         }
         catch (IOException exception)
         {
             stopProcess(process);
             return ScriptExecutionResult.LaunchFailed(
-                redactSigning(exception.Message, signing));
+                redactSensitiveValues(exception.Message, signing, options.Server));
         }
+        finally
+        {
+            if (started)
+            {
+                stopProcess(process);
+                await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+    }
+
+    private async Task<string?> cleanupServerConfigurationAsync(ProjectPackOptions options)
+    {
+        string? tool = EditorRuntimePaths.FindScriptTools();
+        string detail = string.Empty;
+        if (tool is not null)
+        {
+            ProcessStartInfo startInfo = new()
+            {
+                FileName = tool,
+                WorkingDirectory = Path.GetDirectoryName(tool)!,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                StandardOutputEncoding = utf8,
+                StandardErrorEncoding = utf8,
+            };
+            startInfo.ArgumentList.Add("server-config");
+            startInfo.ArgumentList.Add("cleanup");
+            startInfo.ArgumentList.Add(projectPath);
+            startInfo.Environment["PYTHONUTF8"] = "1";
+            startInfo.Environment["PYTHONIOENCODING"] = "utf-8";
+            LudorkServerConfiguration.ApplyPackEnvironment(startInfo, LudorkServerSettings.Disabled);
+            try
+            {
+                using Process process = createProcess(startInfo);
+                if (process.Start())
+                {
+                    Task<string> output = process.StandardOutput.ReadToEndAsync(CancellationToken.None);
+                    Task<string> error = process.StandardError.ReadToEndAsync(CancellationToken.None);
+                    await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+                    string outputText = (await output.ConfigureAwait(false)).Trim();
+                    string errorText = (await error.ConfigureAwait(false)).Trim();
+                    if (process.ExitCode == 0)
+                        return null;
+                    detail = errorText.Length != 0 ? errorText : outputText;
+                }
+            }
+            catch (Exception exception) when (exception is Win32Exception or IOException or InvalidOperationException)
+            {
+                detail = exception.Message;
+            }
+        }
+        string message = LocaleService.Get("LUDORK_SERVER_CLEANUP_FAILED");
+        if (detail.Length != 0)
+            message += Environment.NewLine + redactSensitiveValues(detail, createSigning(options), options.Server);
+        writeOutput(message);
+        return message;
     }
 
     private static ProjectPackResult? executionFailure(
@@ -734,6 +824,7 @@ public sealed class ProjectPackService
         };
         startInfo.Environment["PYTHONUTF8"] = "1";
         startInfo.Environment["PYTHONIOENCODING"] = "utf-8";
+        LudorkServerConfiguration.ApplyPackEnvironment(startInfo, options.Server);
         startInfo.Environment.Remove(ProjectToolConstants.CompileLuaDirectoriesEnvironment);
         startInfo.Environment.Remove(ProjectToolConstants.ExcludedFilesEnvironment);
         if (packaging.CompileLuaDirectories.Count != 0)
@@ -906,15 +997,17 @@ public sealed class ProjectPackService
 
     private async Task readOutputAsync(
         StreamReader reader,
-        PackSigning signing)
+        PackSigning signing,
+        LudorkServerSettings server)
     {
         while (await reader.ReadLineAsync().ConfigureAwait(false) is { } line)
-            writeOutput(redactSigning(line, signing));
+            writeOutput(redactSensitiveValues(line, signing, server));
     }
 
-    private static string redactSigning(string text, PackSigning signing)
+    private static string redactSensitiveValues(string text, PackSigning signing, LudorkServerSettings server)
     {
         foreach (string value in signing.SensitiveValues()
+            .Append(server.Key)
             .Where(value => value.Length != 0)
             .Distinct(StringComparer.Ordinal)
             .OrderByDescending(value => value.Length))

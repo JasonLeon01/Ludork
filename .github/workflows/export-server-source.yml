@@ -1,0 +1,56 @@
+name: Export Server Source
+
+on:
+  workflow_call:
+    inputs:
+      source_commit:
+        type: string
+        default: ''
+    outputs:
+      artifact_name:
+        value: ${{ jobs.source.outputs.artifact_name }}
+
+permissions:
+  contents: read
+
+jobs:
+  source:
+    name: Archive Server source
+    runs-on: ubuntu-latest
+    outputs:
+      artifact_name: LudorkServer-source-${{ steps.revision.outputs.server_sha }}.zip
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Resolve the source revision
+        id: revision
+        uses: actions/github-script@v8
+        env:
+          SOURCE_COMMIT: ${{ inputs.source_commit }}
+        with:
+          script: |
+            const revision = process.env.SOURCE_COMMIT;
+            if (revision) {
+              if (!/^[0-9a-f]{40}$/.test(revision)) throw new Error('A full Server commit SHA is required.');
+              core.setOutput('server_sha', revision);
+            } else {
+              const { resolveServerCommit } = require('./.github/scripts/package_control.cjs');
+              await resolveServerCommit({ github, context, core });
+            }
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.revision.outputs.server_sha }}
+          path: obj/server-source
+          persist-credentials: false
+      - name: Create the source-only ZIP
+        env:
+          SERVER_SHA: ${{ steps.revision.outputs.server_sha }}
+        run: python3 .github/scripts/archive_server_source.py obj/server-source "$SERVER_SHA" obj/server-artifact
+      - uses: actions/upload-artifact@v7
+        with:
+          name: LudorkServer-source-${{ steps.revision.outputs.server_sha }}
+          path: obj/server-artifact/*.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 7

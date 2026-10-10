@@ -181,6 +181,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         }
     }
     public bool CanConfigureIndividualWindow => CanEdit && ProjectConfig.CanConfigureIndividualWindow;
+    public bool IsSourceProject => !ProjectConfig.IsStandalone;
     public event EventHandler? LanguageChangeRequested;
     public bool IsModified => GameData.IsModified || GameData.Documents.IsModified || ProjectSave.HasPendingInputErrors;
     public EditorDocument? ActiveDocument => activeDocument is { Exists: true } ? activeDocument : null;
@@ -477,6 +478,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public string Redo => LocaleService.Get("REDO");
     public string Game => LocaleService.Get("GAME");
     public string GameConfigLabel => LocaleService.Get("GAME_CONFIG");
+    public string TestServerSettingsLabel => LocaleService.Get("LUDORK_SERVER_TEST_SETTINGS");
     public string PerformanceMonitor => LocaleService.Get("PERFORMANCE_MONITOR");
     public string ReloadModule => LocaleService.Get("RELOAD_MODULE");
     public string NewBlueprint => LocaleService.Get("NEW_BLUEPRINT");

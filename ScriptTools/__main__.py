@@ -26,6 +26,7 @@ from ScriptTools import project_state_worker
 from ScriptTools import project_runtime_mode
 from ScriptTools import runtime_constants
 from ScriptTools import runtime_bundle
+from ScriptTools import server_config
 from ScriptTools import prune_editor_macos_publish
 from ScriptTools import prune_editor_windows_publish
 from ScriptTools import ui_adapter_check
@@ -57,6 +58,7 @@ COMMANDS: dict[str, Command] = {
     "project-runtime-mode": project_runtime_mode.main,
     "runtime-bundle": runtime_bundle.main,
     "runtime-constants": runtime_constants.main,
+    "server-config": server_config.main,
     "macos-bundle": macos_bundle.main,
     "macos-sign": macos_sign.main,
     "native-build-state": native_build_state.main,

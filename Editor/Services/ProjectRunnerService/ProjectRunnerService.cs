@@ -492,6 +492,7 @@ public sealed partial class ProjectRunnerService : IDisposable
         startInfo.ArgumentList.Add(Path.GetFullPath(buildScript));
         startInfo.ArgumentList.Add(projectPath);
         startInfo.ArgumentList.Add("Debug");
+        LudorkServerConfiguration.ApplyTestEnvironment(startInfo, projectPath);
         return startInfo;
     }
 

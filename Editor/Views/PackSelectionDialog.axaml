@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:utils="using:Ludork.Views.Utils"
         x:Class="Ludork.Views.PackSelectionDialog"
         Width="400"
         SizeToContent="Height"
@@ -27,6 +28,7 @@
                                Foreground="{DynamicResource Editor.ErrorBrush}"
                                TextWrapping="Wrap" />
                 </StackPanel>
+                <utils:LudorkServerInputs x:Name="ServerOptions" IsVisible="False" />
                 <RadioButton x:Name="Win32Option"
                              GroupName="PackPlatform"
                              IsVisible="False" />

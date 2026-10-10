@@ -1,5 +1,7 @@
 #!/usr/bin/env sh
 set -eu
+export LUDORK_SERVER_ENABLED=0
+unset LUDORK_SERVER_CONFIG_FILE LUDORK_SERVER_URL LUDORK_SERVER_KEY
 
 . "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)/common.sh"
 . "$PROJECT_ROOT/versions.conf"

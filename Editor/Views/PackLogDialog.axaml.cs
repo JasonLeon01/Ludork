@@ -67,6 +67,7 @@ public partial class PackLogDialog : Window
                 ProjectPackFailure.AndroidSigningUnavailable => LocaleService.Get("PACK_ANDROID_SIGNING_UNAVAILABLE"),
                 ProjectPackFailure.AndroidProjectUnsupported => LocaleService.Get("PACK_ANDROID_PROJECT_UNSUPPORTED"),
                 ProjectPackFailure.SaveEncryptionProjectUnsupported => LocaleService.Get("PACK_ENCRYPT_SAVES_PROJECT_UNSUPPORTED"),
+                ProjectPackFailure.ServerProjectUnsupported => LocaleService.Get("LUDORK_SERVER_SOURCE_REQUIRED"),
                 ProjectPackFailure.PackFailed => string.Format(LocaleService.Get("PACK_EXIT_CODE"), result.Detail),
                 _ => result.Detail,
             };

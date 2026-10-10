@@ -42,6 +42,7 @@ public partial class PackSelectionDialog : Window
         VersionBox.Text = projectConfig?.PackagingVersion ?? "1.0.0";
         DevOption.IsVisible = !isStandalone;
         DevOption.IsChecked = !isStandalone && projectConfig?.PackagingDev == true;
+        ServerOptions.IsVisible = !isStandalone;
         VersionBox.TextChanged += async (_, _) => await validateVersionAsync();
         DevOption.IsCheckedChanged += async (_, _) => await validateVersionAsync();
         Closed += (_, _) =>
@@ -217,6 +218,9 @@ public partial class PackSelectionDialog : Window
         {
             if (!await validateVersionAsync(true))
                 return;
+            LudorkServerSettings serverSettings = LudorkServerSettings.Disabled;
+            if (!isStandalone && !ServerOptions.TryGetSettings(out serverSettings))
+                return;
             ProjectPackPlatform? platform = Win32Option.IsChecked == true ? ProjectPackPlatform.Win32
                 : MacOSOption.IsChecked == true ? ProjectPackPlatform.MacOS
                 : IosOption.IsChecked == true ? ProjectPackPlatform.IOS
@@ -282,6 +286,7 @@ public partial class PackSelectionDialog : Window
                 HarmonySigning = harmonySigning,
                 MacOSSigning = macOSSigning,
                 IOSSigning = iosSigning,
+                Server = serverSettings,
             };
             projectConfig?.SetPackaging(options.Version, options.Dev);
             Close(options);

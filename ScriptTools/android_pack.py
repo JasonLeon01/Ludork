@@ -19,6 +19,7 @@ from dataclasses import dataclass, replace
 from typing import BinaryIO, TextIO
 
 from .resource_constants import ANIMATION_CACHE_SUFFIX
+from . import server_config
 from .pack_error import PackError
 from .packaging_constants import (
     MOBILE_PROJECT_DIRECTORIES,
@@ -1910,6 +1911,8 @@ def main(arguments: list[str] | None = None) -> int:
             message = redact_signing_diagnostic(message, signing)
         print(message, file=sys.stderr)
         return 1
+    finally:
+        server_config.cleanup(parsed.project_folder.expanduser())
 
 
 if __name__ == "__main__":

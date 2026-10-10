@@ -14,6 +14,7 @@
 #include <Manager/TimeManager.hpp>
 #include <Manager/UiAudioBridge.hpp>
 #include <RuntimeSession.hpp>
+#include <Server.hpp>
 #include <SFML/Window/WindowEnums.hpp>
 #include <System.hpp>
 #include <UIManager.hpp>
@@ -61,6 +62,7 @@ void initializeGlobalLifecycle(lua_State* state) {
     ludork::standard::registerRuntimeCleanup(state, ludork::global::shutdown);
     PerformanceProfiler::setEnabled(false);
     System::initializeRuntimeSession();
+    ludork::global::initializeServer();
     AudioManager::initialize(state);
     initializeActorAudioBridge();
     initializeUiAudioBridge();
@@ -91,6 +93,7 @@ void shutdown(lua_State* state) noexcept {
     ludork::standard::LuaExecutionPause pause;
     shutdownVideoPlayback();
     System::shutdownRuntime();
+    shutdownServer();
     PerformanceProfiler::shutdown();
     UIManager::shutdown();
     WeatherController::shutdown();

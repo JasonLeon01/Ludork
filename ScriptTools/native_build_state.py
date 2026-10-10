@@ -10,6 +10,7 @@ import sys
 import tempfile
 
 from .packaging_constants import EDITOR_CACHE_DIRECTORY
+from . import server_config
 
 
 SOURCE_EXTENSIONS = {
@@ -58,7 +59,7 @@ def _source_paths(project: pathlib.Path) -> list[pathlib.Path]:
     return sorted(paths, key=lambda path: path.relative_to(project).as_posix())
 
 
-def _inputs(project: pathlib.Path) -> dict:
+def _inputs(project: pathlib.Path, build_configuration: str) -> dict:
     digest = hashlib.sha256()
     states = {}
     for path in _source_paths(project):
@@ -79,6 +80,7 @@ def _inputs(project: pathlib.Path) -> dict:
     if not isinstance(configuration, dict):
         raise ValueError("Main.proj must contain an object.")
     digest.update(b"ffmpeg:1" if configuration.get("ffmpeg") is True else b"ffmpeg:0")
+    digest.update(b"server:" + server_config.fingerprint(build_configuration).encode("ascii"))
     return {
         "digest": digest.hexdigest(),
         "files": states,
@@ -137,13 +139,13 @@ def _write(path: pathlib.Path, value: dict) -> None:
 def begin(project: pathlib.Path, configuration: str) -> None:
     _, pending_path = _paths(project, configuration)
     _write(pending_path, _context(configuration))
-    _write(pending_path, {**_context(configuration), "inputs": _inputs(project)})
+    _write(pending_path, {**_context(configuration), "inputs": _inputs(project, configuration)})
 
 
 def complete(project: pathlib.Path, configuration: str) -> bool:
     complete_path, pending_path = _paths(project, configuration)
     pending = json.loads(pending_path.read_text(encoding="utf-8"))
-    current = _inputs(project)
+    current = _inputs(project, configuration)
     if pending != {**_context(configuration), "inputs": current}:
         print("Native inputs changed during the build; compile the project again.", file=sys.stderr)
         return False
@@ -165,7 +167,7 @@ def check(project: pathlib.Path, configuration: str) -> tuple[bool, str]:
         saved.get(key) != value for key, value in _context(configuration).items()
     ):
         return False, "Compile this configuration for the current platform."
-    if saved.get("inputs") != _inputs(project)["digest"]:
+    if saved.get("inputs") != _inputs(project, configuration)["digest"]:
         return False, "Native sources changed; compile the project again."
     try:
         artifacts = _artifacts(project, configuration)

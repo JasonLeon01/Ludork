@@ -16,6 +16,7 @@ import zipfile
 from dataclasses import dataclass, replace
 
 from .resource_constants import ANIMATION_CACHE_SUFFIX
+from . import server_config
 from .pack_error import PackError
 from .harmony_signing import (
     HarmonySigningOptions,
@@ -1670,6 +1671,8 @@ def main(arguments: list[str] | None = None) -> int:
         if isinstance(exception, PackError):
             return exception.exit_code
         return EXIT_PROJECT if isinstance(exception, (LdPakError, UiAssetError)) else 1
+    finally:
+        server_config.cleanup(parsed.project_folder.expanduser())
 
 
 if __name__ == "__main__":

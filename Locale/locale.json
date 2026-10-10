@@ -1,4 +1,48 @@
 {
+  "LUDORK_SERVER_TEST_SETTINGS": {
+    "zh_CN": "设置测试服务器",
+    "en_GB": "Test Server Settings"
+  },
+  "LUDORK_SERVER_ENABLE": {
+    "zh_CN": "启用 Ludork 服务器",
+    "en_GB": "Enable Ludork Server"
+  },
+  "LUDORK_SERVER_URL": {
+    "zh_CN": "服务器 URL",
+    "en_GB": "Server URL"
+  },
+  "LUDORK_SERVER_URL_HINT": {
+    "zh_CN": "http://localhost:7777/项目名",
+    "en_GB": "http://localhost:7777/project"
+  },
+  "LUDORK_SERVER_KEY": {
+    "zh_CN": "密钥",
+    "en_GB": "Key"
+  },
+  "LUDORK_SERVER_URL_INVALID": {
+    "zh_CN": "请输入 http://主机:端口/项目名，不包含用户名、查询参数或片段。",
+    "en_GB": "Enter http://host:port/project without credentials, query parameters or a fragment."
+  },
+  "LUDORK_SERVER_KEY_REQUIRED": {
+    "zh_CN": "密钥须为 1 至 4096 个 ASCII 可见字符，不能包含空格。",
+    "en_GB": "The key must contain 1–4096 visible ASCII characters without spaces."
+  },
+  "LUDORK_SERVER_TEST_LOAD_FAILED": {
+    "zh_CN": "无法读取测试服务器设置，请检查本机配置文件。",
+    "en_GB": "Unable to read test server settings. Check the local configuration file."
+  },
+  "LUDORK_SERVER_TEST_SAVE_FAILED": {
+    "zh_CN": "无法保存测试服务器设置，请检查本机目录的写入权限。",
+    "en_GB": "Unable to save test server settings. Check write access to the local directory."
+  },
+  "LUDORK_SERVER_SOURCE_REQUIRED": {
+    "zh_CN": "Ludork 服务器需要 C++ Source 工程。",
+    "en_GB": "Ludork Server requires a C++ Source project."
+  },
+  "LUDORK_SERVER_CLEANUP_FAILED": {
+    "zh_CN": "无法清理正式服务器的构建配置，生产密钥可能仍保留在生成的文件中。",
+    "en_GB": "Unable to remove the production server build configuration. The key may remain in generated files."
+  },
   "EDIT_OPERATION_PREPARING": {
     "zh_CN": "正在整理输入…",
     "en_GB": "Preparing inputs…"

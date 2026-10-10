@@ -22,6 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       should_build: ${{ steps.decision.outputs.should_build }}
+      server_sha: ${{ steps.decision.outputs.server_sha }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -31,8 +32,17 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
-            const { shouldRun } = require('./.github/scripts/package_control.cjs');
-            await shouldRun({ github, context, core }, 'export-package.yml', 'Record successful package');
+            const { shouldRun, resolveServerCommit } = require('./.github/scripts/package_control.cjs');
+            const serverSha = await resolveServerCommit({ github, context, core });
+            await shouldRun({ github, context, core }, 'export-package.yml', 'Record successful package', serverSha);
+
+  server_source:
+    name: Server source
+    needs: package_decision
+    if: needs.package_decision.outputs.should_build == 'true'
+    uses: ./.github/workflows/export-server-source.yml
+    with:
+      source_commit: ${{ needs.package_decision.outputs.server_sha }}
 
   windows:
     name: Windows x64
@@ -41,6 +51,7 @@ jobs:
     uses: ./.github/workflows/export-package-windows.yml
     with:
       release: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+      server_source_prepared: true
 
   macos:
     name: macOS ARM64
@@ -49,22 +60,24 @@ jobs:
     uses: ./.github/workflows/export-package-macos.yml
     with:
       release: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+      server_source_prepared: true
     secrets: inherit
 
   package_complete:
-    name: Record successful package
-    needs: [windows, macos]
+    name: Record successful package (${{ needs.package_decision.outputs.server_sha }})
+    needs: [package_decision, windows, macos, server_source]
     if: github.event_name != 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
     steps:
       - name: Record the packaged commit
         env:
           PACKAGE_SHA: ${{ github.sha }}
-        run: echo "Both platform packages completed for $PACKAGE_SHA" >> "$GITHUB_STEP_SUMMARY"
+          SERVER_SHA: ${{ needs.package_decision.outputs.server_sha }}
+        run: echo "Both platform packages completed for $PACKAGE_SHA; server source $SERVER_SHA" >> "$GITHUB_STEP_SUMMARY"
 
   release:
     name: Update draft release
-    needs: [windows, macos]
+    needs: [windows, macos, server_source]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
@@ -84,6 +97,12 @@ jobs:
         with:
           name: Ludork-macos-arm64-${{ github.sha }}
           path: obj/release/assets
+      - name: Download server source
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.server_source.outputs.artifact_name }}
+          path: obj/release/assets
+          skip-decompress: true
       - name: Create or update the draft
         uses: actions/github-script@v8
         with:

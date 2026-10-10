@@ -1,5 +1,9 @@
 @echo off
 setlocal EnableExtensions
+set "LUDORK_SERVER_ENABLED=0"
+set "LUDORK_SERVER_CONFIG_FILE="
+set "LUDORK_SERVER_URL="
+set "LUDORK_SERVER_KEY="
 cd /d "%~dp0.."
 set "ROOT_DIR=%CD%"
 

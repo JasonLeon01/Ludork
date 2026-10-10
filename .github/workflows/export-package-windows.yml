@@ -7,12 +7,19 @@ on:
       release:
         type: boolean
         default: false
+      server_source_prepared:
+        type: boolean
+        default: false
 
 permissions:
   contents: read
   actions: read
 
 jobs:
+  server_source:
+    name: Server source
+    if: inputs.server_source_prepared != true
+    uses: ./.github/workflows/export-server-source.yml
   windows:
     name: Windows package
     uses: ./.github/workflows/export-editor-windows.yml

@@ -246,6 +246,50 @@ dialog shows `fullVersion`. Binary version fields hold the base version, because
 Windows resources and .NET assembly versions reject components above 65535; the full
 version names the DMG, its volume and the packaging log line.
 
+### Ludork Server
+
+The independent orphan `Server` branch contains the Node.js 24 backend,
+React/TypeScript viewer and `deploy.sh` / `deploy.bat`. Deploy its source on the
+server, not in the game client. From that checkout, run
+`sh deploy.sh <project> <key> <password>` or
+`deploy.bat <project> <key> <password>`, with arguments quoted for the shell,
+then the generated `start.sh` / `start.bat`. Deployment runs `npm ci` without a
+frontend build. Projects share backend port 7777 and viewer port 3333; their
+URLs are `http://host:7777/<project>` and `http://host:3333/<project>/`.
+
+Only C++ Source projects expose **Game → Test Server Settings** and the server
+toggle in **Pack Project**. Debug build and native-build-state checks receive
+`LUDORK_SERVER_CONFIG_FILE` pointing to the local `test.json`. On Windows it is
+`.localserver/<project-directory-name>/test.json` beside `Ludork.ini`; other editor
+platforms use `~/Ludork/.localserver/<project-directory-name>/test.json`. Its JSON
+fields are `enabled`, `url` and `key`. A missing file or a false `enabled` disables
+the integration. Effective configuration changes invalidate that configuration's
+native-build record. The editor keeps test settings out of `Main.proj` and Lua.
+
+Game packaging builds Release even with `--dev`. Release ignores the Debug
+configuration file and requires explicit process environment values
+`LUDORK_SERVER_ENABLED=1`, `LUDORK_SERVER_URL` and `LUDORK_SERVER_KEY` to enable
+the client; omission or `LUDORK_SERVER_ENABLED=0` disables it. Supply production
+values from your CI secret store. The editor's Pack dialog starts blank each
+time and passes values through the child environment, without saving them or
+putting the key in command-line arguments or logs.
+
+`server-config generate <directory> <configuration>` generates the private
+`LudorkGenerated/ServerConfig.hpp` consumed by the native build. An enabled
+configuration defines `LUDORK_SERVER_AVAILABLE`; the disabled configuration
+does not. Public methods remain available and complete with a typed Disabled
+result when the transport is excluded. `server-config cleanup <project>` removes
+generated Release configuration headers after packaging; the editor also runs
+it after cancellation. Template generation explicitly clears server credentials
+and builds with the integration disabled. Generated headers are not public
+configuration inputs and must not be edited manually.
+
+The transport is HTTP only. Shared project keys allow access across that
+project's accounts and can be extracted from a distributed client binary.
+There is no account-authentication, multiplayer or RPC layer. Deployment,
+typed asynchronous APIs and the wire contract are documented in
+[Simple Server](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=06%2F01).
+
 ### Pull requests and automated packages
 
 PR validation selects checks from changed paths, including added, deleted and
@@ -287,9 +331,10 @@ changing branch protection requires repository administration permission.
 [Export Package](../.github/workflows/export-package.yml) packages the default branch
 at 02:00 and 14:00 UTC+8 (`0 6,18 * * *` UTC), or a selected ref on manual dispatch.
 Ordinary pushes and PRs do not create complete editor packages. Temporary package
-runs are serialized; after acquiring that slot, a scheduled run skips when its
-commit equals the latest successful dual-platform temporary package of the
-default branch. Manual runs always build, including the same commit. Successful
+runs are serialized; after acquiring that slot, a scheduled run skips when both
+its main commit and the resolved remote `Server` commit equal the latest
+successful dual-platform temporary package of the default branch. Manual runs
+always build, including the same commits. Successful
 manual default-branch packages update that baseline; skipped, failed, cancelled,
 other-branch and tag runs do not. Scheduled and manual runs package both platforms
 with `--dev`, so their artifacts carry the dated full version. Temporary artifacts
@@ -305,6 +350,18 @@ or `MACOS_NOTARY_KEY` as a base64-encoded `.p8` with `MACOS_NOTARY_KEY_ID` and
 [Export Package Windows](../.github/workflows/export-package-windows.yml) and
 [Export Package macOS](../.github/workflows/export-package-macos.yml) manually
 produce the same complete package for one platform, including all four templates.
+
+These three complete-package entries also upload an independent CI artifact,
+`LudorkServer-source-<40-character-server-SHA>.zip`, retained for seven days.
+The combined entry resolves remote branch `Server` once and shares that exact
+source artifact across the run; each standalone platform entry prepares its own
+source artifact. The archive is made from the resolved Git tree and rejects
+tracked user data, configuration, dependencies and generated launchers. It is not
+embedded in the editor's 7z, MSI or DMG. Download and extract it on the server,
+then deploy it there. The first source archive requires the repository owner to
+make the `Server` branch available remotely; an uncommitted local worktree cannot
+satisfy a CI checkout. The template-free Export Editor entries do not include this
+artifact.
 
 For tests that do not need project templates, run
 [Export Editor](../.github/workflows/export-editor.yml) for both platforms,
@@ -335,7 +392,7 @@ unexpired exact-name artifact, and continue to earlier runs when unavailable.
 The combined `Export Editor` also runs at 02:00 and 14:00 UTC+8, using the same
 cron as `Export Package`. Each mode deduplicates scheduled runs against its own
 latest successful default-branch dual-platform run, recorded by `Record successful
-editor` or `Record successful package`; legacy complete-package runs under the old
+editor` or `Record successful package (<server-SHA>)`; legacy complete-package runs under the old
 Export Editor name do not count as editor-only successes. Manual runs always build.
 
 The six entries reuse each platform's packaging steps and build on clean runners
@@ -348,16 +405,20 @@ native cache. Concurrency groups are
 separate for each platform and package mode, so full packages do not hold up
 scheduled editor-only builds. Scheduled and manual runs use `--dev`. Only a `v*`
 tag push to `Export Package` uses `--release` and creates or updates a draft Release
-with complete Windows MSI and macOS DMG packages, both including templates.
+with complete Windows MSI and macOS DMG packages, both including templates,
+plus the separate server source ZIP.
 
-Consumers of the combined `Export Package` workflow must select a run whose `Record successful package` job
+Consumers of the combined `Export Package` workflow must select a run whose `Record successful package (<server-SHA>)` job
 succeeded and whose requested artifact is still available and unexpired. Selecting
 only the latest successful workflow is insufficient: a scheduled run skipped for
 an unchanged commit also succeeds, but produces no package artifacts.
 
 Pushing a `v*` tag packages both platforms with `--release`, builds the Windows MSI
-and then creates a draft GitHub Release with generated release notes, that MSI and
-the macOS DMG. The tag only selects the packaging mode; the version always comes
+and then creates a draft GitHub Release with generated release notes, that MSI,
+the macOS DMG and `LudorkServer-source-<EDITOR_VERSION>.zip`. The server attachment
+uses the same version as both editor installers; its contents remain the archived
+Server commit. The tag only
+selects the packaging mode; the version always comes
 from `EDITOR_VERSION`, and the tag name is never parsed. A rerun updates the
 existing draft; an already published release is not overwritten. No release
 is automatically published, and only the release-upload job has `contents: write`.

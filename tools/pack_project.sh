@@ -14,6 +14,9 @@ USAGE="Usage: tools/pack_project.sh [--version X.Y.Z] [--dev|--release] [--compi
 TEMPORARY_DIR=$(mktemp -d "${TMPDIR:-/tmp}/ludork-pack.XXXXXX")
 
 cleanup_temporary() {
+    if [ -n "${SCRIPT_TOOLS:-}" ] && [ -n "${PROJECT_DIR:-}" ]; then
+        "$SCRIPT_TOOLS" server-config cleanup "$PROJECT_DIR"
+    fi
     rm -rf "$TEMPORARY_DIR"
 }
 

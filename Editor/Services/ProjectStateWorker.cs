@@ -147,6 +147,7 @@ public sealed class ProjectStateWorker : IDisposable
         startInfo.ArgumentList.Add(projectPath);
         startInfo.Environment["PYTHONUTF8"] = "1";
         startInfo.Environment["PYTHONIOENCODING"] = "utf-8";
+        LudorkServerConfiguration.ApplyTestEnvironment(startInfo, projectPath);
         process = new Process { StartInfo = startInfo };
         process.Start();
         errorOutput = process.StandardError.ReadToEndAsync();

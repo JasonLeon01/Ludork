@@ -143,6 +143,8 @@ set "LUDORK_VALIDATE_LDPAK_SOURCE=%USE_LDPAK%"
 set "LUDORK_SAVE_AS_LDC=%ENCRYPT_SAVES%"
 call "%TOOLS_DIR%\build_standalone.bat" "%PROJECT_DIR%" "%%DIST_DIR%%" Release
 set "STANDALONE_EXIT_CODE=%ERRORLEVEL%"
+"%SCRIPT_TOOLS%" server-config cleanup "%PROJECT_DIR%"
+if errorlevel 1 exit /b 1
 set "LUDORK_VALIDATE_LDPAK_SOURCE="
 set "LUDORK_SAVE_AS_LDC="
 if not "%STANDALONE_EXIT_CODE%"=="0" exit /b %STANDALONE_EXIT_CODE%

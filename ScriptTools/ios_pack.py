@@ -25,6 +25,7 @@ from .apple_signing import (
     select_identity,
 )
 from .resource_constants import ANIMATION_CACHE_SUFFIX
+from . import server_config
 from .pack_error import PackError
 from .packaging_constants import (
     COMMON_DEPENDENCY_CACHE_DIRECTORIES,
@@ -751,6 +752,8 @@ def main(arguments: list[str] | None = None) -> int:
     except KeyboardInterrupt:
         print("iOS packaging cancelled.", file=sys.stderr, flush=True)
         return 130
+    finally:
+        server_config.cleanup(pathlib.Path(arguments.project_folder).expanduser())
 
 
 if __name__ == "__main__":
