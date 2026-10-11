@@ -41,7 +41,7 @@ local ManagerFunctions = GlobalFunctions.Manager
 
 每个 Lua state 都通过 `package.preload` 暴露项目模块，同时不覆盖原生模块。Script Mixin 仍在每次执行时重新加载。Standard 文件系统 API 不会暴露归档内容。
 
-打包后的 Data 仍通过相同的逻辑 `Data/...` 路径访问，加密的 `.ldc` 替代文件同样如此。这是只读的运行时边界，不是通用归档文件系统。
+打包后的 Data 仍通过相同的逻辑 `Data/...` 路径访问。`Engine.loadData` 与 `Engine.dataExists` 会为不存在的 `.json` 路径查找二进制 `.ldc` 替代文件；JSON 平台 API 只使用指定路径。这是只读的运行时边界，不是通用归档文件系统。
 
 每个可独立复用的类都有自己的模块，由该模块返回类本身。窗口模块可以内含私有 Controller，并通过 `Ui.DefineWindow` 导出 UI，详见[声明式 UI 编写工作流](<声明式 UI/编写工作流.md>)。工具模块可以收拢相关的辅助函数。
 

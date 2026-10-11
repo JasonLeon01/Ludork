@@ -115,9 +115,24 @@ macOS and iOS use WKWebView, Android the system WebView, HarmonyOS ArkWeb, and W
 
 ## JSON data
 
+JSON APIs address the exact path in loose or packed Data and never select or decode an LDC alternative. `Engine.getJSONData(path)` parses JSON; `Engine.getJSONText(path)` reads the file as text; `Engine.jsonExists(path)` checks only that path. `Engine.writeJSON(path, value)` always writes JSON text, regardless of the filename extension.
+
 `Engine.writeJSON(filePath, value)` and `Engine.getJSONData(filePath)` use the native pure-data boundary. Writing accepts registered JSON array markers, including empty arrays from Standard containers' `toTable()`, and `cjson.null`. Native objects, functions, cycles and unrecognised metatables are rejected. Convert Standard containers explicitly before writing.
 
 Reading returns ordinary Lua values. Arrays include a non-negative integer `n` for their logical length; null array slots are absent keys, while null object fields retain `cjson.null`. Array validators must account for `n`, and consumers must check each required element rather than treating length metadata as an element.
+
+## Data files
+
+Use these APIs for game resources and saves:
+
+| API | Contract |
+|---|---|
+| `Engine.loadData(path)` | Read JSON or binary LDC. Prefer the exact path; only a missing `.json` path resolves to the matching `.ldc`. Explicit `.ldc` paths never resolve back to JSON. |
+| `Engine.saveData(path, value)` | Write JSON to `.json` or binary LDC to `.ldc`. Reject other extensions and never rename the supplied path. |
+| `Engine.dataExists(path)` | Check existence using the same path resolution as `loadData`. |
+| `Engine.decodeData(bytes)` | Decode complete JSON or LDC file bytes, including raw file-batch content. An `LDDC` header selects LDC exclusively; invalid LDC never falls back to JSON. |
+
+These APIs use the same pure-data boundary and Lua array/null representation as the JSON APIs. LDC is decoded directly into `RuntimeData`, then into Lua values, without generating or parsing intermediate JSON text. Its payload is compressed and obfuscated; see the [native format contract](<../../../../Native C++ Development/Build and Module Layout.md#ldc-binary-data>) for encoding and limits. Old LDC files containing compressed JSON are unsupported and must be regenerated from their source data.
 
 ## SavePreviewReader
 

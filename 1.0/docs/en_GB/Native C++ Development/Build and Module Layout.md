@@ -64,11 +64,28 @@ Source preview and game binaries share `bin/<configuration>`. Desktop builds gen
 
 ### Shared format and rendering constants
 
-`ScriptTools/runtime_formats.py` owns the `.ldpak` and encrypted-payload layouts, versions and codec constants; `ScriptTools/resource_constants.py` owns resource groups, paths and suffixes. CMake runs `ScriptTools runtime-constants cpp <project-root> <output-directory>` to generate neutral C++ headers under `Intermediate/<build-name>-<hash>/RuntimeConstants/LudorkGenerated`. Native consumers link `Ludork::RuntimeConstants`; implementation layers never include a parent host's private headers to obtain these values. Engine exposes the four data and animation suffixes through `ResourceFileConstants`.
+`ScriptTools/runtime_formats.py` owns the `.ldpak` and encrypted-payload layouts, versions, binary data tags and codec limits; `ScriptTools/resource_constants.py` owns resource groups, paths and suffixes. CMake runs `ScriptTools runtime-constants cpp <project-root> <output-directory>` to generate neutral C++ headers under `Intermediate/<build-name>-<hash>/RuntimeConstants/LudorkGenerated`. Native consumers link `Ludork::RuntimeConstants`; implementation layers never include a parent host's private headers to obtain these values. Engine exposes the four data and animation suffixes through `ResourceFileConstants`.
 
 `Assets/Shaders/Global/UnoccludedLightPass.frag` contains the sole `LUDORK_MAX_SHADER_LIGHTS` definition: one decimal integer in `1..256`, currently `64`. The upper bound follows from the batched light pass carrying each light's index in the vertex colour alpha, which holds one byte. Generation rejects missing, repeated or invalid definitions. Changing this limit requires rebuilding the native project so the shader, native renderer and read-only `GlobalCore.Light.MAX_SHADER_LIGHTS` agree. Ordinary shader reload alone does not update the compiled limit.
 
 Generation runs for game, desktop Preview and `LUDORK_WITH_LUA=OFF` builds. C++ Source templates retain the shader source and build wiring; their normal build regenerates the headers. Generated headers are build outputs and are not edited or shipped as template sources.
+
+### LDC binary data
+
+`Runtime/Data.hpp` owns `loadData`, `saveData`, `dataExists`, `decodeData` and the binary payload reader `parseBinaryData`; file APIs accept `std::filesystem::path` or UTF-8 strings. Lua exposes the four data-file APIs on `Engine`; `parseBinaryData` is a C++ payload-level API. `Runtime/Json.hpp` retains exact-path JSON text operations. Standard owns file access, path resolution and payload compression/obfuscation; it does not depend on Runtime or interpret the binary value tree.
+
+LDC retains the `LDDC` envelope, version `1`, zlib compression, stream obfuscation and checksum. Source length and checksum describe the uncompressed binary payload. A one-byte tag precedes each value:
+
+| Tag | Value and payload |
+|---|---|
+| `0`, `1`, `2` | Null, false and true, with no following payload. |
+| `3` | Little-endian signed 64-bit integer. |
+| `4` | Little-endian finite IEEE 754 binary64 number. |
+| `5` | Little-endian uint32 byte length, followed by string bytes. |
+| `6` | Little-endian uint32 count, followed by tagged array values. |
+| `7` | Little-endian uint32 count, followed by string keys and tagged values. Keys use the string length/bytes encoding without a tag and are written in UTF-8 byte order. |
+
+Empty arrays and maps remain distinct. The decoded payload is limited to 512 MiB and nesting to 256. Invalid tags, truncation, invalid lengths, duplicate keys, non-finite numbers and trailing bytes fail decoding. Functions, objects, cycles and reference restoration are outside this pure-data format. Old LDC payloads containing JSON text are rejected without fallback or migration; regenerate them from source data. Shader payloads keep their separate format.
 
 ### GPU particle ownership
 

@@ -10,7 +10,7 @@ The runtime resolves logical paths to loose files or `.ldpak` entries, while sta
 
 Animation sources live in `Data/Animations`. `Engine.getAnimationCacheRoot()` creates `Cache/Animations` under `Engine.getUserDataPath()` for both loose and archived Data. On Windows, the user-data root is the runtime working directory. Other platforms use their application user-data location.
 
-Initialisation generates missing `.anim.json`/`.anim.ldc` caches and rebuilds them when source data or referenced frame assets change, preserving paths relative to `Data/Animations`. Caches are disposable and excluded from templates and player packages.
+Initialisation generates missing `.anim.json`/`.anim.ldc` caches and rebuilds them when source data or referenced frame assets change, preserving paths relative to `Data/Animations`. Caches are disposable and excluded from templates and player packages. Sources are decoded through `Engine.decodeData` and caches are written through `Engine.saveData`; `.anim.ldc` contains binary data, with no intermediate JSON conversion. Delete old caches containing compressed JSON so initialization regenerates them.
 
 ## Audio
 

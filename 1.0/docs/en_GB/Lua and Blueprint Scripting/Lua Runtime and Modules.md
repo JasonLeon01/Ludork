@@ -41,7 +41,7 @@ At runtime, scripts use exactly one storage form: loose `Scripts` during develop
 
 Every Lua state exposes project modules through `package.preload` without replacing native modules. Script Mixins still load fresh on every execution. Standard filesystem APIs do not expose archive contents.
 
-Packed Data remains available through the same logical `Data/...` paths, including encrypted `.ldc` alternatives. This is a read-only runtime boundary, not a general archive filesystem.
+Packed Data remains available through the same logical `Data/...` paths. `Engine.loadData` and `Engine.dataExists` resolve missing `.json` paths to binary `.ldc` alternatives; JSON platform APIs use only the exact path. This is a read-only runtime boundary, not a general archive filesystem.
 
 Each independently reusable class has its own module, and that module returns the class. A window module may contain its private Controller and export the UI through `Ui.DefineWindow`; see the [Declarative UI Authoring Workflow](<Declarative UI/Authoring Workflow.md>). Utility modules may group related helpers.
 

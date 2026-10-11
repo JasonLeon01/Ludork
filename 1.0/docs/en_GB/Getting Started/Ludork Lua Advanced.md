@@ -232,9 +232,9 @@ See [AsyncOperation](<../Lua and Blueprint Scripting/Global and Core Modules/Cor
 
 For larger reads, `asyncio.start_file_batch(specs)` scans and reads at most four files concurrently while preserving manifest order. Logical `Data/...` roots support packed Data. Other roots use the physical filesystem. `asyncio.poll_file_batch(job, maxItems?)` returns progress, delivered items and a structured failure. `asyncio.cancel_file_batch(job)` cancels the job.
 
-With `parseJson = true`, every selected file must use `.json`. Polling returns a `FileBatchJsonConversion`. Parse failures use `operation = "parse"`. Advance the conversion on the Lua logic thread with `asyncio.step_file_batch_json(conversion, maxNodes, maxMilliseconds)`, using positive budgets. It returns `completed, processed, data`, with data delivered once on completion. Decoded arrays carry their logical length in `n`, while JSON null entries are absent keys. `asyncio.clear_file_batch_json` releases the conversion idempotently. Cancellation, collection and shutdown also invalidate it. Conversions cannot cross Lua VMs or threads.
+With `parseData = true`, the suffix must end in `.json` or `.ldc`; workers decode JSON or binary LDC and polling returns a `FileBatchDataConversion`. Decode failures use `operation = "parse"`. Advance the conversion on the Lua logic thread with `asyncio.step_file_batch_data(conversion, maxNodes, maxMilliseconds)`, using positive budgets. It returns `completed, processed, data`, with data delivered once on completion. Arrays carry their logical length in `n`; root null is nil, null array slots are absent keys, and null object fields retain `cjson.null`, matching `Engine.loadData`. `contentBytes` is the decoded payload byte count, before conversion into Lua values. `asyncio.clear_file_batch_data` releases the conversion idempotently. Cancellation, collection and shutdown also invalidate it. Conversions cannot cross Lua VMs or threads.
 
-Without `parseJson`, file bytes remain in `item.content`.
+Without `parseData`, `item.content` contains the original file bytes, including the LDC header and encoded payload. Pass them to `Engine.decodeData` when the data is needed. Blueprint caches retain these bytes for deferred decoding.
 
 ## Timing and memory diagnostics
 

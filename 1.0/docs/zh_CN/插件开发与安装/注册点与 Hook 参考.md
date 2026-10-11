@@ -50,6 +50,10 @@ handler 会收到 `PluginMapContextMenuContext`。`MapKey` 是被右键点击的
 
 `PluginMapSnapshot` 包含标识、尺寸、不透明的 `Revision`，以及由矩形 `Tiles` 和 `AutoTiles` 组成的有序图层。图块集与 Actor 的 `AssetPath` 始终保持大小写精确的 `/Game/Assets/...` 路径。只在最终原生文件 I/O 时调用 `ResolveAssetFile`，不要为快照或中间缓存调用它。图块集快照还包含图块尺寸、数量与可通行性。写入请求中的 revision 必须原样照抄。
 
+每个图层还包含不可变的 `PluginMapActorSnapshot`。宿主通过与地图编辑器相同的外观解析器读取蓝图类、脚本类及实例覆盖。`SourceRect` 是解析后的静态贴图矩形，已包含角色朝向对应的首帧，使用方不应再次推导角色图集布局。位移、缩放、原点、旋转、色相和 `PreviewOpacity` 均为解析后的值；不可见 Actor 的透明度为 0.25，可见 Actor 为 1.0。外观缺失时 `AssetPath` 为空、`SourceRect` 为 null，可据此绘制单格占位。绘制以 `CellSize` 为源坐标缩放基准，不使用图块集尺寸。快照不包含动画播放或 shader 执行。
+
+局部编辑应复制快照中的完整矩阵，只替换目标矩形，再提交现有图层写入请求。宿主仍校验完整图层及其 revision，没有独立的区域写入 API。
+
 `PluginMapLayerWriteRequest` 指定地图与图层，回传 `BaseRevision` 和 `ExpectedTilesetKey`，并提供两份矩阵，形状必须与快照的 `Height × Width` 完全一致。`PluginMapWriteResult` 区分成功、revision 或图块集冲突，以及带错误信息的失败，同时返回当前 revision。校验或写入错误不会改动编辑器内存、Undo 状态或界面。
 
 写入成功时，宿主只替换当前内存地图中的该图层，并且只原子保存 `Data/Maps/<mapKey>.json`。它会在该地图的历史中记录一步 Undo，推进已保存的 revision，并刷新目标地图与图层。同一张地图上已有的未保存改动会一并进入这次直接保存。其他地图和项目数据不会保存，脏状态也不会被清除。Undo 会恢复写入前的内存状态，并把该地图标记为需要保存。Undo 不会自动保存。

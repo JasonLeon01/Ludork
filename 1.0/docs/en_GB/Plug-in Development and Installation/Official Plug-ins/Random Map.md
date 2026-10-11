@@ -20,9 +20,28 @@ The handler receives `PluginMapContextMenuContext`, checks for `IAvaloniaPluginU
 
 1. Right-click a map item and choose the Random Map command.
 2. Select the target map and layer. The plug-in reads `PluginMapSnapshot` and `PluginTilesetSnapshot` values.
-3. Select a valid wall tile, choose the generation mode, and place or clear the required markers.
-4. Select **Generate and Save** to replace and save the selected layer. The plug-in sends `PluginMapLayerWriteRequest` with the original `BaseRevision` and `ExpectedTilesetKey` to reject conflicting changes, and complete `Height × Width` Tile and AutoTile matrices.
-5. Review the saved result in the map preview. **Generate Again** generates and saves another layout.
+3. Select a valid wall tile. The preview starts with the full map selected. Choose **Select region** and drag between two cells to select a rectangle, or choose **Full map** to restore the whole map. Both endpoint cells are included; dragging beyond the map clamps to its edges. The displayed origin uses zero-based map coordinates.
+4. Select **Next**, choose the layout and wall density limit, then use **Place markers** to toggle required open cells within the region. Markers are optional and are not saved. Shrinking the region removes markers outside it. Switching layers retains the region and markers; switching maps resets to the full map.
+5. Select **Generate and Save** to generate inside the region and save the selected layer. Outside the rectangle, both Tile and AutoTile values remain unchanged. Inside it, generated wall tiles or empty cells replace Tiles and clear AutoTiles. Other layers and all Actors remain unchanged. Local generation does not inspect or connect to paths outside the rectangle.
+6. Review the saved result. **Generate Again** retains the region and generates another layout. The reported density is measured within that region. Generation locks the controls until completion; a revision conflict reloads the map and resets the workflow.
+
+## Actor preview
+
+The preview draws static Actor images in their map layers using the editor's visual resolver for Blueprint and script classes, including per-instance overrides. Character direction selects the first frame of that direction. Texture rectangles, translation, scale, origin, rotation, hue and visibility opacity follow the editor's resolved values; missing resources display a placeholder. Actor dimensions use the host's source cell size, independent of the selected tileset.
+
+Actor positions are visual references only. Add a marker explicitly when an Actor's cell must remain open. The preview does not play animations or execute Actor shaders.
+
+## Layouts and density
+
+**Lattice** creates separated single-cell walls and straight wall segments of two or three cells. Different components do not touch orthogonally, and the layout does not carve rooms or build room rings. All empty cells remain connected by four-way movement, markers remain open, and the generator rejects solid 2 × 2 wall blocks and completely empty 4 × 4 areas. Dense marker arrangements can make these requirements impossible; generation then reports a failure without saving.
+
+**Rooms** retains its room-and-corridor generation rules. Lattice requires a region of at least 7 × 7 cells; Rooms requires a short side of at least 7 cells and an area of at least 81 cells. Smaller rectangles can be selected but cannot be generated.
+
+The 35–75% setting is a wall density upper limit. The generator approaches it only while preserving the selected style and connectivity. Lattice layouts may be substantially below the limit because their wall components must stay short and separate. The same dimensions, markers, mode, limit and seed reproduce the same result.
+
+## Saving contract
+
+The plug-in merges its local result into copies of the snapshot's complete `Height × Width` Tile and AutoTile matrices, then submits `PluginMapLayerWriteRequest` with the original `BaseRevision` and `ExpectedTilesetKey`. The host rejects conflicting changes. Failed generation or saving does not apply a partial region.
 
 ## Limitations
 

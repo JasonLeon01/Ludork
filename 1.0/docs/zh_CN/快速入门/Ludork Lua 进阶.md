@@ -232,9 +232,9 @@ end)
 
 读取量较大时，用 `asyncio.start_file_batch(specs)` 处理：最多并发扫描并读取四个文件，交付时仍保持 manifest 顺序。逻辑 `Data/...` 根路径支持已打包的 Data，其余根路径使用物理文件系统。`asyncio.poll_file_batch(job, maxItems?)` 返回进度、已交付条目与结构化错误，`asyncio.cancel_file_batch(job)` 取消整个任务。
 
-开启 `parseJson = true` 后，所选文件必须都是 `.json`。轮询会返回 `FileBatchJsonConversion`，解析失败时 `operation = "parse"`。在 Lua 逻辑线程上用 `asyncio.step_file_batch_json(conversion, maxNodes, maxMilliseconds)` 推进转换，两个预算值都要为正。它返回 `completed, processed, data`，data 在完成时交付一次。解码出的数组用 `n` 记录逻辑长度，JSON 中的 null 项表现为缺失的键。`asyncio.clear_file_batch_json` 可以重复释放转换，取消、回收与 shutdown 也会让它失效。转换不能跨 Lua VM 或线程使用。
+开启 `parseData = true` 后，后缀必须以 `.json` 或 `.ldc` 结尾；后台线程解码 JSON 或二进制 LDC，轮询返回 `FileBatchDataConversion`。解码失败时 `operation = "parse"`。在 Lua 逻辑线程上用 `asyncio.step_file_batch_data(conversion, maxNodes, maxMilliseconds)` 推进转换，两个预算值都要为正。它返回 `completed, processed, data`，data 在完成时交付一次。数组用 `n` 记录逻辑长度；根 null 为 nil，数组 null 槽位不保留键，对象 null 字段保留为 `cjson.null`，与 `Engine.loadData` 一致。`contentBytes` 表示解包后、转换为 Lua 值前的载荷字节数。`asyncio.clear_file_batch_data` 可以重复释放转换，取消、回收与 shutdown 也会让它失效。转换不能跨 Lua VM 或线程使用。
 
-不开启 `parseJson` 时，文件字节留在 `item.content` 中。
+不开启 `parseData` 时，`item.content` 保留原始文件字节，包括 LDC 文件头与编码后的载荷；需要数据时交给 `Engine.decodeData` 解码。蓝图缓存保留这些字节以延迟解码。
 
 ## 计时与内存诊断
 

@@ -96,11 +96,13 @@ Save schema versions are independent of application release versions and the pac
 
 `map` is an object keyed by player key. Every `playerKeys` entry must have exactly one non-empty normalised map path, and extra keys fail loading. `GameInstance:getCurrentMapPath()` returns the primary player's stored map or `nil`. `applyMapInfo` writes that same entry. `getVisitedMapPaths()` returns sorted telepoint map paths, and `getTelepointsForMap(key)` ignores the extension when matching. Both collection queries return copies. `restoreFromData(data)` restores a validated save into the instance.
 
-`SAVE_AS_LDC` selects plain `.json` saves (`false`, the default) or encrypted `.ldc` saves (`true`). **Encrypt save contents** sets the native default for C++ Source packages. Any project, including Standalone, can override it with the global assignment `SAVE_AS_LDC = true` or `false` at the top of `Scripts/Entry.lua`, before all `require` calls. `Source.Save` captures the format on first load, and later assignments have no effect.
+`SAVE_AS_LDC` selects plain `.json` saves (`false`, the default) or compressed, obfuscated binary `.ldc` saves (`true`). **Encrypt save contents** sets the native default for C++ Source packages. Any project, including Standalone, can override it with the global assignment `SAVE_AS_LDC = true` or `false` at the top of `Scripts/Entry.lua`, before all `require` calls. `Source.Save` captures the format on first load, and later assignments have no effect.
+
+`Source.Save` uses `Engine.saveData` and `Engine.loadData`; LDC is decoded directly into runtime data without JSON text. Old LDC saves containing compressed JSON are unsupported; changing `SAVE_AS_LDC` does not migrate them.
 
 `GetSavePath(slot)` selects the extension for a 1-based slot number. Use stable slot numbers, validate data before serialisation, handle missing files explicitly, and avoid hard-coded save directories.
 
-Save-slot previews use `Engine.SavePreviewReader`: file metadata, JSON/LDC reading and decryption, parsing, image decoding and thumbnail resizing run on a native worker. Only a native image bounded to 224 × 168 pixels reaches the game thread for texture upload; no gameplay objects or large Lua byte arrays are created. Confirming a load continues to call `Save.LoadGame(filePath)` for full restoration.
+Save-slot previews use `Engine.SavePreviewReader`: file metadata, JSON parsing or LDC decompression and binary decoding, image decoding and thumbnail resizing run on a native worker. Only a native image bounded to 224 × 168 pixels reaches the game thread for texture upload; no gameplay objects or large Lua byte arrays are created. Confirming a load continues to call `Save.LoadGame(filePath)` for full restoration.
 
 The window displays loading, empty and failed states, checks the selected file once a second while open, and caches eight previews by path, modification time and size. Saving invalidates that path immediately. Switching slots or closing cancels pending results without waiting for I/O; shutdown joins the worker before native runtime teardown. The window constructs all 100 slot rows once and reuses them on subsequent openings. Before each opening animation, it selects the most recently modified existing save, or the first slot when no save exists, and sets the matching preview target. Row construction and file metadata lookup finish before the window is shown; preview contents continue loading asynchronously. When the opening animation completes, the selected slot receives keyboard focus, including on the first opening from the title screen.
 
@@ -110,14 +112,14 @@ Save encryption is independent of project JSON encryption, although Pack Options
 
 ## Native containers at data boundaries
 
-Convert Standard `list`, `tuple` and `dict` values to Lua tables before saving them as JSON:
+Convert Standard `list`, `tuple` and `dict` values to Lua tables before saving them as JSON or LDC:
 
 ```lua
-local cjson = require("cjson")
-local encoded = cjson.encode(payload:toTable())
+local Engine = require("Engine")
+Engine.saveData("slot.ldc", payload:toTable())
 ```
 
-Decoding JSON yields ordinary Lua tables. Tuple-key strings, `cjson.null` nil slots and record-array reconstruction are in [Ludork Lua Advanced](<../../Getting Started/Ludork Lua Advanced.md>). Never persist an internal tuple hash.
+Decoding either format yields ordinary Lua tables. Arrays include their logical length in `n`; root null and null array slots become nil, while null object fields retain `cjson.null`. Tuple-key strings, `cjson.null` nil slots and record-array reconstruction are in [Ludork Lua Advanced](<../../Getting Started/Ludork Lua Advanced.md>). Never persist an internal tuple hash.
 
 ## Limitations
 
