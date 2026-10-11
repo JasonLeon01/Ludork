@@ -72,7 +72,7 @@ Canvas Slot 根据控件的本地 bounds 定位，并计入 bounds 的非零偏�
 
 `Engine.CharacterView` 序列化 `size`、`texture`、可选 `textureRect`、`characterScale`、`animatable`、`switchInterval`、`shader`、`hue` 与 `colour`，不接受子节点。`shader` 为空，或是一条完整的 `/Game/Assets/Shaders/...` 逻辑路径。裁剪、动画、Actor 缩放适配、Shader 与 Hue 合成以及固定边界都由该控件负责。它不是输入控件。
 
-编辑器与 Preview Host 会拒绝 adapter fingerprint 和完整 Registry 摘要不匹配的情况。文件资源使用规范逻辑路径，UI 资产身份仍相对 `Data/UI/Assets`。
+编辑器与 Preview Host 要求 adapter fingerprint 和完整 Registry 摘要匹配。Standalone 会在使用前重新生成过期的预览元数据，详见[校验与打包](<校验与打包.md>)。文件资源使用规范逻辑路径，UI 资产身份仍相对 `Data/UI/Assets`。
 
 ## 相关页面
 

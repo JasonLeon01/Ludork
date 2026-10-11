@@ -68,7 +68,7 @@ Image 的 `drawAs` 使用绑定的 C++ `Image::DrawAs` 枚举，导出名为 `En
 
 每个项目使用自己的 Host。`EditorCache/UiPreview.json` 指定项目相对的运行目录：源码构建为 `bin/<configuration>`，Standalone 为 `Binaries`。编译出的 `UiPreviewHost --describe` 提供 `EditorCache/UiPreview.registry.json`，供编辑器与 ScriptTools 共用。
 
-源码构建在编译前断开已有的预览连接。配套 Host 与 registry 成功发布之前，预览一直不可用，因此 C++ UI 改动必须重新构建。此后即使 UI 资产校验失败，新预览仍然保留，便于修正资产。Standalone 可以用 `ui-preview ensure` 从随附的 Host 恢复缺失的 JSON。损坏或不匹配的产物会被拒绝。
+源码构建在编译前断开已有的预览连接。配套 Host 与 registry 成功发布之前，预览一直不可用，因此 C++ UI 改动必须重新构建。此后即使 UI 资产校验失败，新预览仍然保留，便于修正资产。Standalone 在预览、保存、导出与 `ui-preview ensure` 时，根据当前随附的 Host 自动重新生成缺失、损坏或不匹配的预览 JSON，恢复失败时才提示，并保留其他缓存文件。恢复范围见[校验与打包](<../Lua 与蓝图脚本/声明式 UI/校验与打包.md>)。
 
 ## 限制
 

@@ -174,7 +174,7 @@ A clickable button with hover and pressed tints and an optional gamepad binding.
 |---|---|---|---|
 | Input | none | — | `texture`, `textureRect`, `colour`, `hoverColour`, `pressedColour`, `gamepadButton`, `gamepadLongPress` |
 
-An empty `texture` uses the current window skin's selection-Rect image. While a gamepad is connected that default background is hidden, but size, global bounds, hit area and separate text controls stay unchanged; a custom texture stays visible, and disconnecting the gamepad restores the default. `gamepadButton` is a logical name such as `"X"` and defaults to empty; `gamepadLongPress` defaults to false. A Button accepts no children, so its label is a separate text control. See [Engine: Runtime Values and Functional Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Runtime Values and Functional Controls.md#button>).
+An empty `texture` uses the current window skin's selection-Rect image. Default and custom backgrounds remain visible for every input device. The bound gamepad glyph is shown when `Engine.Input.getInputHintDevice()` selects Gamepad; size, global bounds, hit area and separate text controls stay unchanged. `gamepadButton` is a logical name such as `"X"` and defaults to empty; `gamepadLongPress` defaults to false. A Button accepts no children, so its label is a separate text control. See [Engine: Runtime Values and Functional Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Runtime Values and Functional Controls.md#button>).
 
 ### Engine.CheckBox
 

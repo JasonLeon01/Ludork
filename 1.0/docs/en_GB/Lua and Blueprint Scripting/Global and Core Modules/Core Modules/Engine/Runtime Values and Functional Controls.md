@@ -21,11 +21,11 @@ No editable properties are declared.
 
 Direct metadata bases: `{ "Engine", "Image" }`, `{ "Engine", "FunctionalBase" }`
 
-A declarative Button with an empty `texture` uses the current window skin's selection-Rect image. While a gamepad is connected, that default background is hidden; size, global bounds, hit area and separate text controls stay unchanged. A custom texture stays visible, and disconnecting the gamepad restores the default background.
+A declarative Button with an empty `texture` uses the current window skin's selection-Rect image. The default background and custom textures remain visible for every input device; size, global bounds, hit area and separate text controls stay unchanged.
 
 `gamepadButton` and `gamepadLongPress` add a gamepad binding. JSON stores a logical name such as `"X"`; `""` means unbound and long press defaults to `false`. Lua uses `button:setGamepadButton(Engine.JoystickButton.getX())` and `button:setGamepadLongPress(true)`; pass `nil` to clear the binding.
 
-With a gamepad connected, the bound key is a 16 logical-pixel circle inside the button's right edge, vertically centred and independent of background stretching. It shares the white background, black key glyph and green clockwise long-press progress with [`GamepadHintBar`](<Interactive and Declarative UI Controls.md#gamepadhintbar>). A short press invokes `onConfirm` / `addConfirmCallback` once; a long press invokes it once at one second and needs a release before another trigger. The button need not have focus, but it and its owning window must be visible and interactive. Disabling or hiding either, deactivating the window or disconnecting the gamepad clears progress. A disabled button's visible hint is grey.
+While `Engine.Input.getInputHintDevice()` is `Engine.InputHintDevice.Gamepad`, the bound key is a 16 logical-pixel circle inside the button's right edge, vertically centred and independent of background stretching. It shares the white background, black key glyph and green clockwise long-press progress with [`GamepadHintBar`](<Interactive and Declarative UI Controls.md#gamepadhintbar>). A short press invokes `onConfirm` / `addConfirmCallback` once; a long press invokes it once at one second and needs a release before another trigger. The button need not have focus, but it and its owning window must be visible and interactive. Disabling or hiding either, deactivating the window or disconnecting the gamepad clears progress. A disabled button's visible hint is grey.
 
 ### Properties
 

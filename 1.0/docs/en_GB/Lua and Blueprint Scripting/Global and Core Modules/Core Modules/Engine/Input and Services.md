@@ -98,6 +98,14 @@ Direct metadata bases: —
 
 No Blueprint functions or events are declared.
 
+## Input hint device
+
+`Engine.Input.getInputHintDevice()` returns `Engine.InputHintDevice.KeyboardMouse`, `Gamepad` or `Touch`. This presentation state is independent of `isMouseInputMode()`, which still distinguishes pointer interaction from keyboard/gamepad navigation.
+
+An already connected controller selects Gamepad at startup. Connecting a controller selects Gamepad immediately. Disconnecting a controller keeps Gamepad while another remains; disconnecting the last restores the platform default: Touch on mobile, KeyboardMouse on desktop, including desktop HarmonyOS. Valid keyboard/mouse, controller or touch activity then selects its own device. The latest valid activity wins over connection changes within the same frame. Stick motion inside the dead zone, touch-generated mouse cancellation, and events from disconnected controllers do not switch the hint device.
+
+Read this value when resolving Tutorial text, help lists or other input instructions, and refresh visible text when it changes. Connecting a controller does not permanently lock presentation to it.
+
 ## Raw touch ownership
 
 The input service does not assume that the platform's first finger has raw ID `0`. When no accepted raw touches are being tracked, the first `TouchBegan` inside the current pointer viewport becomes the primary finger. Only that finger drives the single-touch began, moved, ended, active, dragged, tap, position and delta APIs. If the primary finger ends while another tracked finger remains down, the secondary finger is not promoted. A new primary can be chosen only after every tracked finger has ended, and only when a later valid `TouchBegan` starts another gesture.
@@ -105,6 +113,8 @@ The input service does not assume that the platform's first finger has raw ID `0
 Beginning a second accepted finger uses the two-finger cancel protocol. It immediately suppresses and cancels the active single-touch gesture, and emits the synthetic right-mouse press and release used by menu cancellation. Movement or release from a secondary finger cannot resume the cancelled gesture, become the primary finger or produce a tap.
 
 `cancelTouchGesture` is the explicit teardown path for a gesture owner that becomes unable to finish an accepted primary gesture. It cancels that single-touch gesture and suppresses its remaining began, moved, ended and tap state until all raw touches belonging to the physical gesture have ended. Those held fingers are not promoted or re-accepted. Once every held finger has been released, the next valid `TouchBegan` starts a new gesture normally.
+
+`isTouchLongPressed(handled = false)` reports a primary touch held for at least 600 ms without exceeding the existing eight logical-pixel drag tolerance. It is emitted in one input frame only and cannot fire again until a new physical gesture begins. `getTouchLongPressPosition()` returns the position in the same window-view coordinates as `getTouchTapPosition()`, or nil outside the long-press frame. Passing `true` consumes the event and suppresses the later release tap; observing without consuming preserves the normal tap contract. Dragging, a second finger, focus loss, input capture, touch blocking, window recreation or `cancelTouchGesture()` cancels recognition.
 
 ## WebView input capture
 
@@ -159,6 +169,7 @@ No editable properties are declared.
 | `update` | `function` | self: { "Engine", "Service" } = "self"; window: sf.RenderWindow | — | — |
 | `injectEvent` | `function` | self: { "Engine", "Service" } = "self"; event: { "Engine", "InjectedInputEvent" } | — | — |
 | `setUseInjectedMouseOnly` | `function` | self: { "Engine", "Service" } = "self"; value: bool | — | — |
+| `getInputHintDevice` | `function` | self: { "Engine", "Service" } = "self" | return: { enum = "Enums.Engine.InputHintDevice" } | Pure |
 | `isFocused` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
 | `isFocusLost` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
 | `isFocusGained` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
@@ -185,6 +196,8 @@ No editable properties are declared.
 | `isMouseLeft` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
 | `isTouchBegan` | `function` | self: { "Engine", "Service" } = "self"; handled: bool | return: bool | — |
 | `isTouchTap` | `function` | self: { "Engine", "Service" } = "self"; handled: bool | return: bool | — |
+| `isTouchLongPressed` | `function` | self: { "Engine", "Service" } = "self"; handled: bool = false | return: bool | — |
+| `getTouchLongPressPosition` | `function` | self: { "Engine", "Service" } = "self" | return: sf.Vector2i | Pure |
 | `isTouchEnded` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
 | `isTouchMoved` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |
 | `isTouchActive` | `function` | self: { "Engine", "Service" } = "self" | return: bool | Pure |

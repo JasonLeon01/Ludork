@@ -68,7 +68,7 @@ Image `drawAs` uses the bound C++ `Image::DrawAs` enum, exported as `Engine.Imag
 
 Each project uses its own Host. `EditorCache/UiPreview.json` selects its project-relative runtime directory: `bin/<configuration>` for source builds or `Binaries` for Standalone. The compiled `UiPreviewHost --describe` supplies `EditorCache/UiPreview.registry.json`, shared by the editor and ScriptTools.
 
-Source builds stop existing preview connections before compilation. Preview remains unavailable until the matching Host and registry are published successfully, so C++ UI changes require a rebuild. Later UI asset validation failures leave the new preview available for fixing assets. Standalone can restore missing JSON from its included Host through `ui-preview ensure`. Corrupt or mismatched artifacts are rejected.
+Source builds stop existing preview connections before compilation. Preview remains unavailable until the matching Host and registry are published successfully, so C++ UI changes require a rebuild. Later UI asset validation failures leave the new preview available for fixing assets. Standalone automatically regenerates missing, corrupt or mismatched preview JSON from its current included Host during preview, Save, Export and `ui-preview ensure`; it reports recovery failures and preserves other cache files. See [Validation and Packaging](<../Lua and Blueprint Scripting/Declarative UI/Validation and Packaging.md>) for the recovery boundary.
 
 ## Limitations
 

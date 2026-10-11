@@ -10,6 +10,8 @@ Direct metadata bases: —
 
 `visible` is an editable boolean field that defaults to `true`, and `getVisible()` returns its current value. `isVisibleInHierarchy()` also checks every ancestor. An invisible Actor keeps its instance, lifecycle and configured Tick behaviour, but contributes no drawing, no attached light or light blocking, and no collision, overlap or pathfinding obstruction. Rendering, interaction and gameplay caches account for the current visibility. `setVisible(value, applyToChildren = true)` also sets the descendants' own flags by default. Pass `false` to retain them, while the parent's visibility still gates the hierarchy. Direct assignment changes only the Actor's own flag.
 
+`getOccupiedMapCellsAtMapPosition(mapPosition)` computes the Actor footprint with its logical position placed exactly at `mapPosition * CellSize`. It preserves the current bounds relative to that position, including origin, translation, rotation and scale, but excludes the current movement offset within a cell. Empty bounds return the requested cell. `getOccupiedMapCells()` without an argument reports the actual current footprint, including cells crossed during movement.
+
 ### Routes and operation lifetime
 
 `actor:setRoute(route)` returns an `Engine.AsyncOperation`: it emits `0` on start and completes with `1` when the route and current movement finish. The native `setRoute` Blueprint node continues through `default` immediately; use [Movement nodes](<../../../Node Functions/Movement.md>) for `Started` / `Finished` branches.

@@ -174,7 +174,7 @@ Input 控件接受焦点与玩家输入。它们都是 `FunctionalBase`：只有
 |---|---|---|---|
 | Input | 无 | — | `texture`、`textureRect`、`colour`、`hoverColour`、`pressedColour`、`gamepadButton`、`gamepadLongPress` |
 
-`texture` 为空时使用当前窗口皮肤的选中 Rect 图像。接入手柄期间该默认背景隐藏，但尺寸、全局边界、命中区域与独立的文本控件都不变；自定义纹理始终可见，断开手柄后默认背景恢复。`gamepadButton` 是诸如 `"X"` 的逻辑名，默认为空；`gamepadLongPress` 默认为 false。Button 不接受子节点，因此它的文字标签是另一个文本控件。详见 [Engine：运行时值与功能控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/运行时值与功能控件.md#button>)。
+`texture` 为空时使用当前窗口皮肤的选中 Rect 图像。默认背景和自定义纹理在所有输入设备下均保持可见；`Engine.Input.getInputHintDevice()` 选择 Gamepad 时显示绑定的手柄图标，尺寸、全局边界、命中区域与独立的文本控件都不变。`gamepadButton` 是诸如 `"X"` 的逻辑名，默认为空；`gamepadLongPress` 默认为 false。Button 不接受子节点，因此它的文字标签是另一个文本控件。详见 [Engine：运行时值与功能控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/运行时值与功能控件.md#button>)。
 
 ### Engine.CheckBox
 

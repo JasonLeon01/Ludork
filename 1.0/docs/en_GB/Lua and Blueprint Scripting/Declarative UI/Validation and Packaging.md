@@ -20,7 +20,7 @@ ScriptTools ui-adapter-check <project-root>
 
 Before a source project's first preview build, and when saving before compilation, only descriptor-independent structure is checked, so native validation remains pending. Use `ScriptTools ui-assets validate <project-root> --structure-only` for this check. Builds generate preview artefacts before full UI validation. Invalid assets fail the build but leave the generated preview available for editing. Ordinary saves with an available registry perform full validation.
 
-Standalone restores missing preview JSON from its included Host through `ScriptTools ui-preview ensure <project-root>`, normal UI validation or `ui-preview registry`. Corrupt or mismatched metadata and missing binaries remain errors. Source projects must rebuild unavailable preview artefacts, because incomplete or failed native builds cannot be recovered automatically.
+Standalone automatically restores missing, corrupt or mismatched preview JSON during editor preview, Save and Export, normal UI validation, `ScriptTools ui-preview ensure <project-root>` or `ui-preview registry`. It deletes only `EditorCache/UiPreview.json` and `EditorCache/UiPreview.registry.json` and regenerates them from the current `Binaries/UiPreviewHost`, preserving other cache files. Save and Export wait for recovery before validating assets; a cache mismatch is reported only if recovery fails, for example because the Host or a dependency is missing. Source projects must rebuild unavailable preview artefacts, and a build-in-progress marker blocks recovery.
 
 ## Export and generated files
 

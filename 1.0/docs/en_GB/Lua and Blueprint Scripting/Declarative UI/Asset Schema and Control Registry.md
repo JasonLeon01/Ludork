@@ -72,7 +72,7 @@ The editor reads native descriptors from the current project's compiled `EditorC
 
 `Engine.CharacterView` serialises `size`, `texture`, optional `textureRect`, `characterScale`, `animatable`, `switchInterval`, `shader`, `hue` and `colour`, and accepts no children. `shader` is empty or a complete `/Game/Assets/Shaders/...` logical path. The control owns cropping, animation, actor-scale fitting, Shader and Hue composition and fixed bounds. It is not an input control.
 
-The editor and preview host reject adapter-fingerprint and complete registry-hash mismatches. File resources use canonical logical paths, and UI asset identities remain relative to `Data/UI/Assets`.
+The editor and preview host require matching adapter fingerprints and complete registry hashes. Standalone regenerates stale preview metadata before use, as described in [Validation and Packaging](<Validation and Packaging.md>). File resources use canonical logical paths, and UI asset identities remain relative to `Data/UI/Assets`.
 
 ## Related pages
 
