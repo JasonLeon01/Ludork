@@ -78,6 +78,8 @@ void InputImpl::resetFrameState() {
     keyboard_.pendingKeyTriggerReleases_.clear();
     keyboard_.pendingScanTriggerReleases_.clear();
     pointer_.pendingMouseTriggerReleases_.clear();
+    eventPump_.hintActivities_.clear();
+    eventPump_.hintConnectionsChanged_ = false;
     eventPump_.focusLost_ = false;
     eventPump_.focusGained_ = false;
     clearKeyboardFrameState();
@@ -98,6 +100,9 @@ void InputImpl::resetFrameState() {
     pointer_.touchEnded_ = false;
     pointer_.touchMoved_ = false;
     pointer_.touchBeganPosition_.reset();
+    pointer_.touchLongPress_ = false;
+    pointer_.touchLongPressHandled_ = false;
+    pointer_.touchLongPressPosition_.reset();
     pointer_.touchTap_ = false;
     pointer_.touchTapHandled_ = false;
     pointer_.touchTapPosition_.reset();
@@ -160,6 +165,7 @@ void InputImpl::update(sf::RenderWindow& window) {
         pointer_.injectedTransitionPending_.reset();
     }
     releasePendingTwoFingerCancel();
+    synchronizeHintConnections();
     processInjectedEvents();
     if (!eventPump_.useInjectedMouseOnly_) {
         setFocused(window.hasFocus());
@@ -178,6 +184,8 @@ void InputImpl::update(sf::RenderWindow& window) {
         }
     }
     ludork::engine::joystick_device::synchronize();
+    synchronizeHintConnections();
+    resolveInputHintDevice();
 
     if (!isInputCaptured() && !eventPump_.useInjectedMouseOnly_ &&
         window.hasFocus()) {
@@ -211,6 +219,7 @@ void InputImpl::update(sf::RenderWindow& window) {
         joystick_.axisTriggers_.clear();
     }
     if (!isInputCaptured()) {
+        updateTouchLongPress();
         updateJoystickDominantAxes();
         updateInputType(window);
         dispatchActionMappings();
@@ -283,6 +292,8 @@ void InputImpl::shutdown() noexcept {
     clearJoystickState();
     ludork::engine::joystick_device::reset();
     eventPump_.activeWindow_ = nullptr;
+    eventPump_.connectedJoysticks_.clear();
+    eventPump_.hintDevice_ = defaultInputHintDevice();
 }
 
 InputImpl& inputImpl() {

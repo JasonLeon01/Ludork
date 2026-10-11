@@ -5,6 +5,7 @@
 #include <EngineRuntimeApi.hpp>
 #include <Input/InputActionKey.hpp>
 #include <Input/InputCapture.hpp>
+#include <Input/InputHintDevice.hpp>
 #include <Input/InputNamedValue.hpp>
 #include <Input/InjectedInputEvent.hpp>
 #include <Input/JoystickAxisEvent.hpp>
@@ -44,6 +45,9 @@ public:
     void onWindowRecreated(sf::RenderWindow& window);
 
     static void requestSystemCancel() noexcept;
+
+    BIND_METHOD(Pure = true)
+    InputHintDevice getInputHintDevice() const;
 
     BIND_METHOD(Pure = true)
     bool isFocused() const;
@@ -133,6 +137,12 @@ public:
 
     BIND_METHOD()
     bool isTouchTap(bool handled = false) override;
+
+    BIND_METHOD()
+    bool isTouchLongPressed(bool handled = false);
+
+    BIND_METHOD(Pure = true)
+    std::optional<sf::Vector2i> getTouchLongPressPosition() const;
 
     BIND_METHOD(Pure = true)
     bool isTouchEnded() const override;

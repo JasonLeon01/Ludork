@@ -24,13 +24,11 @@ Button::~Button() = default;
 
 void Button::setTexture(std::shared_ptr<sf::Texture> texture, bool resetRect) {
     SpriteBase::setTexture(std::move(texture), resetRect);
-    impl_->defaultBackground = false;
 }
 
 void Button::setDefaultBackgroundTexture(std::shared_ptr<sf::Texture> texture,
                                          bool resetRect) {
     SpriteBase::setTexture(std::move(texture), resetRect);
-    impl_->defaultBackground = true;
 }
 
 void Button::setGamepadButton(const std::optional<InputNamedValue>& button) {
@@ -150,10 +148,9 @@ void Button::draw(sf::RenderTarget& target, sf::RenderStates states) const {
     if (!getVisible()) {
         return;
     }
-    const bool gamepad = ludork::engine::ui_interaction::anyJoystickConnected();
-    if (!gamepad || !impl_->defaultBackground) {
-        Image::draw(target, states);
-    }
+    const bool gamepad =
+        inputService().getInputHintDevice() == InputHintDevice::Gamepad;
+    Image::draw(target, states);
     const sf::Vector2f scale = getScale();
     if (!gamepad || impl_->keyHint == nullptr || scale.x <= 0.0f ||
         scale.y <= 0.0f) {

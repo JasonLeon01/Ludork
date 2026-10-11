@@ -303,6 +303,38 @@ bool InputImpl::isTouchTap(bool handled) {
     return true;
 }
 
+void InputImpl::updateTouchLongPress() {
+    if (!eventPump_.focused_ || isTouchBlocked() || !pointer_.touchActive_ ||
+        pointer_.touchDragged_ || pointer_.touchGestureSuppressed_ ||
+        pointer_.touchLongPressFired_ || pointer_.touchFingers_.size() != 1 ||
+        std::chrono::steady_clock::now() - pointer_.touchHoldStart_ <
+            std::chrono::milliseconds(600)) {
+        return;
+    }
+    pointer_.touchLongPressFired_ = true;
+    pointer_.touchLongPress_ = true;
+    pointer_.touchLongPressPosition_ = pointer_.touchPosition_;
+}
+
+bool InputImpl::isTouchLongPressed(bool handled) {
+    if (isTouchBlocked() || pointer_.touchGestureSuppressed_ ||
+        !pointer_.touchLongPress_ || pointer_.touchLongPressHandled_) {
+        return false;
+    }
+    if (handled) {
+        pointer_.touchLongPressHandled_ = true;
+        pointer_.touchLongPressConsumed_ = true;
+        pointer_.touchTrigger_.handled = true;
+    }
+    return true;
+}
+
+std::optional<sf::Vector2i> InputImpl::getTouchLongPressPosition() const {
+    return isTouchBlocked() || pointer_.touchGestureSuppressed_
+               ? std::nullopt
+               : pointer_.touchLongPressPosition_;
+}
+
 bool InputImpl::isTouchEnded() const {
     return pointer_.touchEnded_ && !isTouchBlocked() &&
            !pointer_.touchGestureSuppressed_;
@@ -345,6 +377,8 @@ std::optional<sf::Vector2i> InputImpl::getTouchMovedDelta() const {
 
 void InputImpl::cancelTouchGesture() noexcept {
     pointer_.touchGestureSuppressed_ = true;
+    pointer_.touchLongPress_ = false;
+    pointer_.touchLongPressPosition_.reset();
     pointer_.touchActive_ = false;
     pointer_.touchBeganHandled_ = true;
     pointer_.touchMoved_ = false;
@@ -375,6 +409,7 @@ bool InputImpl::isTouchBlocked() const {
 
 void InputImpl::blockTouch() {
     abortTwoFingerCancel();
+    cancelTouchGesture();
     pointer_.touchTravelDistance_ = 0.0f;
     pointer_.touchDragged_ = false;
     pointer_.touchGestureSuppressed_ = true;

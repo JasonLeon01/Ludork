@@ -200,6 +200,7 @@ void InputImpl::setFocused(bool focused) {
         ludork::engine::text_input::service().close();
     }
     abortTwoFingerCancel();
+    cancelTouchGesture();
     pointer_.touchTravelDistance_ = 0.0f;
     pointer_.touchDragged_ = false;
     pointer_.touchGestureSuppressed_ = true;
@@ -291,6 +292,10 @@ void InputImpl::processPlatformScrollEvents(sf::RenderWindow& window) {
         if (!acceptsPointerPixel(event.position)) {
             continue;
         }
+        observeInputHintEvent(sf::Event::MouseWheelScrolled{
+            sf::Mouse::Wheel::Vertical, event.delta.y, event.position});
+        observeInputHintEvent(sf::Event::MouseWheelScrolled{
+            sf::Mouse::Wheel::Horizontal, event.delta.x, event.position});
         const sf::Vector2i position = pixelToWorld(window, event.position);
         recordMouseWheel(sf::Mouse::Wheel::Vertical, event.delta.y, position,
                          event.precise);
@@ -321,6 +326,19 @@ void InputImpl::processInjectedEvents() {
             key = resolveKeyCode(key, scan);
         }
         const sf::Mouse::Button button = mouseButtonFromName(event.button);
+        if (event.type == "KeyPressed") {
+            observeInputHintEvent(
+                sf::Event::KeyPressed{key, scan, event.alt, event.control,
+                                      event.shift, event.system});
+        } else if (event.type == "MouseMoved") {
+            observeInputHintEvent(sf::Event::MouseMoved{{event.x, event.y}});
+        } else if (event.type == "MouseButtonPressed") {
+            observeInputHintEvent(
+                sf::Event::MouseButtonPressed{button, {event.x, event.y}});
+        } else if (event.type == "MouseWheelScrolled") {
+            observeInputHintEvent(sf::Event::MouseWheelScrolled{
+                sf::Mouse::Wheel::Vertical, event.delta, {event.x, event.y}});
+        }
         const sf::Vector2i pixel{event.x, event.y};
         const bool acceptsConfirmation =
             eventPump_.focused_ &&
@@ -358,6 +376,8 @@ void InputImpl::processInjectedEvents() {
                 if (!validScalar) {
                     continue;
                 }
+                observeInputHintEvent(sf::Event::TextEntered{
+                    static_cast<char32_t>(event.unicode)});
                 if (service.getState(id) != nullptr) {
                     service.processEvent(sf::Event::TextEntered{
                         static_cast<char32_t>(event.unicode)});
@@ -416,6 +436,7 @@ void InputImpl::processInjectedEvents() {
 
 bool InputImpl::processNativeEvent(sf::RenderWindow& window,
                                    const sf::Event& event) {
+    observeInputHintEvent(event);
     if (event.is<sf::Event::Closed>()) {
         window.close();
     }
@@ -427,6 +448,19 @@ bool InputImpl::processNativeEvent(sf::RenderWindow& window,
         clearJoystickDevice(device->joystickId);
         joystick_.connected_ = true;
         ludork::engine::joystick_device::synchronize();
+    }
+    const auto* pressedJoystick =
+        event.getIf<sf::Event::JoystickButtonPressed>();
+    const auto* releasedJoystick =
+        event.getIf<sf::Event::JoystickButtonReleased>();
+    const auto* movedJoystick = event.getIf<sf::Event::JoystickMoved>();
+    if ((pressedJoystick &&
+         !sf::Joystick::isConnected(pressedJoystick->joystickId)) ||
+        (releasedJoystick &&
+         !sf::Joystick::isConnected(releasedJoystick->joystickId)) ||
+        (movedJoystick &&
+         !sf::Joystick::isConnected(movedJoystick->joystickId))) {
+        return true;
     }
     if (const auto* button = event.getIf<sf::Event::JoystickButtonPressed>()) {
         ludork::engine::joystick_device::activity(button->joystickId);
@@ -549,6 +583,9 @@ bool InputImpl::processNativeEvent(sf::RenderWindow& window,
                 pointer_.touchTravelDistance_ = 0.0f;
                 pointer_.touchDragged_ = false;
                 pointer_.touchGestureSuppressed_ = false;
+                pointer_.touchHoldStart_ = std::chrono::steady_clock::now();
+                pointer_.touchLongPressFired_ = false;
+                pointer_.touchLongPressConsumed_ = false;
                 ++pointer_.touchTrigger_.count;
                 pointer_.touchTrigger_.handled = false;
             }
@@ -621,7 +658,8 @@ bool InputImpl::processNativeEvent(sf::RenderWindow& window,
                 pointer_.touchEndedPosition_ = position;
                 pointer_.touchPosition_ = position;
                 if (!pointer_.touchDragged_ &&
-                    !pointer_.touchGestureSuppressed_) {
+                    !pointer_.touchGestureSuppressed_ &&
+                    !pointer_.touchLongPressConsumed_) {
                     pointer_.touchTap_ = true;
                     pointer_.touchTapPosition_ = position;
                 }
@@ -684,6 +722,8 @@ void InputImpl::initializeNativePolling() {
     if (eventPump_.useInjectedMouseOnly_) {
         return;
     }
+    synchronizeHintConnections();
+    resolveInputHintDevice();
     static_cast<void>(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A));
     ludork::engine::platform_input::initialize();
 }

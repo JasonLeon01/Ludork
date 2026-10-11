@@ -47,6 +47,18 @@ void InputService::requestSystemCancel() noexcept {
     ludork::engine::input_impl::InputEventPumpImpl::requestSystemCancel();
 }
 
+InputHintDevice InputService::getInputHintDevice() const {
+    return ludork::engine::input_impl::inputImpl().getInputHintDevice();
+}
+
+bool InputService::isTouchLongPressed(bool handled) {
+    return ludork::engine::input_impl::inputImpl().isTouchLongPressed(handled);
+}
+
+std::optional<sf::Vector2i> InputService::getTouchLongPressPosition() const {
+    return ludork::engine::input_impl::inputImpl().getTouchLongPressPosition();
+}
+
 bool InputService::isFocused() const {
     return ludork::engine::input_impl::inputImpl().isFocused();
 }

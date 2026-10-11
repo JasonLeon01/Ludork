@@ -1,8 +1,10 @@
 #pragma once
 
 #include "ModalInputImpl.hpp"
+#include <LudorkPlatform.hpp>
 
 #include <Input/InputAction.hpp>
+#include <Input/InputHintDevice.hpp>
 #include <Input/InputActionKey.hpp>
 #include <Input/InputNamedValue.hpp>
 #include <Input/InjectedInputEvent.hpp>
@@ -68,6 +70,16 @@ private:
     bool focusLost_ = false;
     bool focusGained_ = false;
     InputType currentInputType_ = InputType::Mouse;
+    InputHintDevice hintDevice_ =
+#if defined(LUDORK_MOBILE)
+        InputHintDevice::Touch;
+#else
+        InputHintDevice::KeyboardMouse;
+#endif
+    std::vector<std::pair<InputHintDevice, std::optional<unsigned int>>>
+        hintActivities_;
+    std::unordered_set<unsigned int> connectedJoysticks_;
+    bool hintConnectionsChanged_ = false;
     bool useInjectedMouseOnly_ = false;
     std::mutex injectedEventsMutex_;
     std::deque<InjectedInputEvent> injectedEvents_;
@@ -129,6 +141,12 @@ private:
     bool touchActive_ = false;
     std::optional<sf::Vector2i> touchPosition_;
     std::optional<sf::Vector2i> touchBeganPosition_;
+    std::chrono::steady_clock::time_point touchHoldStart_{};
+    bool touchLongPressFired_ = false;
+    bool touchLongPress_ = false;
+    bool touchLongPressHandled_ = false;
+    bool touchLongPressConsumed_ = false;
+    std::optional<sf::Vector2i> touchLongPressPosition_;
     bool touchTap_ = false;
     bool touchTapHandled_ = false;
     std::optional<sf::Vector2i> touchTapPosition_;
@@ -206,6 +224,7 @@ public:
     std::shared_ptr<InputCapture> captureInput();
     void setCaptureConfirmEnabled(InputCapture& capture, bool enabled);
     bool consumeCaptureConfirm(InputCapture& capture);
+    InputHintDevice getInputHintDevice() const;
     bool isFocused() const;
     bool isFocusLost() const;
     bool isFocusGained() const;
@@ -239,6 +258,8 @@ public:
 
     bool isTouchBegan(bool handled);
     bool isTouchTap(bool handled);
+    bool isTouchLongPressed(bool handled);
+    std::optional<sf::Vector2i> getTouchLongPressPosition() const;
     bool isTouchEnded() const;
     bool isTouchMoved() const;
     bool isTouchDragged() const;
@@ -382,6 +403,11 @@ private:
     void clearJoystickDevice(unsigned int joystickId);
     void updateJoystickDominantAxes();
     void updateInputType(sf::WindowBase& window);
+    void observeInputHintEvent(const sf::Event& event);
+    void synchronizeHintConnections();
+    void resolveInputHintDevice();
+    static InputHintDevice defaultInputHintDevice();
+    void updateTouchLongPress();
     void dispatchActionMappings();
     bool triggerFromMap(
         std::unordered_map<std::string, InputTriggerEntry>& entries,
