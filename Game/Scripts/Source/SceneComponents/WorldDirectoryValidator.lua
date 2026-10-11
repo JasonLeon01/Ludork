@@ -21,7 +21,7 @@ function WorldDirectoryValidator.Validate(mapsRoot, manifestPath)
     local directoryPath = os.path.join(mapsRoot, directoryName)
     if not os.path.isdir(directoryPath) then
         local packedManifestPath = os.path.join(directoryPath, MapConstants.WORLD_MANIFEST_FILE)
-        assert(Engine.jsonExists(packedManifestPath), "World directory does not exist: " .. worldDirectory)
+        assert(Engine.dataExists(packedManifestPath), "World directory does not exist: " .. worldDirectory)
         return
     end
     local manifestCount = 0
@@ -30,7 +30,8 @@ function WorldDirectoryValidator.Validate(mapsRoot, manifestPath)
         assert(not os.path.isdir(entryPath), "World directories cannot contain nested directories: " .. entry)
         assert(os.path.isfile(entryPath), "World directory entry must be a regular file: " .. entry)
         local _, extension = os.path.splitext(entry)
-        if extension:lower() == ResourceFileConstants.DATA_EXTENSION and entry:lower() == MapConstants.WORLD_MANIFEST_FILE then
+        if extension:lower() == ResourceFileConstants.DATA_EXTENSION
+            and entry:lower() == MapConstants.WORLD_MANIFEST_FILE then
             manifestCount = manifestCount + 1
             assert(
                 entry == MapConstants.WORLD_MANIFEST_FILE,

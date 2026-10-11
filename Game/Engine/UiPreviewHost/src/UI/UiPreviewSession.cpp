@@ -72,10 +72,8 @@ std::string particleResourceStamp(
     }
     RuntimeData::Array stamps;
     for (const std::string& key : keys) {
-        const std::filesystem::path path =
-            ludork::standard::resolveJsonDataPath(
-                ludork::standard::pathFromUtf8("Data/Particles/" + key +
-                                               ".json"));
+        const std::filesystem::path path = ludork::standard::resolveDataPath(
+            ludork::standard::pathFromUtf8("Data/Particles/" + key + ".json"));
         const ludork::standard::ReadOnlyFileStatus status =
             ludork::standard::readOnlyFileStatus(path);
         RuntimeData size;

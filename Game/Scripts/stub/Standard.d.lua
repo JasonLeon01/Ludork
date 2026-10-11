@@ -565,18 +565,18 @@ function asyncio.await(operation) end
 ---@field excludeSuffix? string
 ---@field recursive?     boolean
 ---@field required?      boolean
----@field parseJson?     boolean
+---@field parseData?     boolean Decode JSON or LDC data in the background; suffix must end with .json or .ldc.
 
 ---@class FileBatchItem
 ---@field index         integer
 ---@field category      string
 ---@field relativePath  string
 ---@field content?      string
----@field conversion?   FileBatchJsonConversion
+---@field conversion?   FileBatchDataConversion
 ---@field contentBytes? integer
 ---@field encryptedData boolean
 
----@class FileBatchJsonConversion
+---@class FileBatchDataConversion
 
 ---@class FileBatchJob
 
@@ -609,17 +609,17 @@ function asyncio.poll_file_batch(job, maxItems) end
 ---@return boolean
 function asyncio.cancel_file_batch(job) end
 
----@param conversion      FileBatchJsonConversion
+---@param conversion      FileBatchDataConversion
 ---@param maxNodes        integer
 ---@param maxMilliseconds number
 ---@return boolean completed
 ---@return integer processed
 ---@return any data
-function asyncio.step_file_batch_json(conversion, maxNodes, maxMilliseconds) end
+function asyncio.step_file_batch_data(conversion, maxNodes, maxMilliseconds) end
 
----@param conversion FileBatchJsonConversion
+---@param conversion FileBatchDataConversion
 ---@return boolean
-function asyncio.clear_file_batch_json(conversion) end
+function asyncio.clear_file_batch_data(conversion) end
 
 ---@generic T
 ---@param value T

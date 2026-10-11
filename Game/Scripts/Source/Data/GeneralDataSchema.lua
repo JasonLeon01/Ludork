@@ -33,14 +33,16 @@ local function isArray(value)
     local count = 0
     local maximum = 0
     for key in pairs(value) do
-        if not Class.isInstance(key, "number") or math.type(key) ~= "integer" or key < 1 then
-            return false
+        if key ~= "n" then
+            if not Class.isInstance(key, "number") or math.type(key) ~= "integer" or key < 1 then
+                return false
+            end
+            ---@cast key integer
+            count = count + 1
+            maximum = math.max(maximum, key)
         end
-        ---@cast key integer
-        count = count + 1
-        maximum = math.max(maximum, key)
     end
-    return count == maximum
+    return count == maximum and (value.n == nil or value.n == count)
 end
 
 local function isDictionary(value)

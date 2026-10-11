@@ -161,10 +161,12 @@ std::string decodeEncryptedPayload(std::span<const std::uint8_t> encoded,
 
     std::string source(std::max<std::size_t>(1, sourceSize), '\0');
     uLongf destinationSize = static_cast<uLongf>(sourceSize);
+    uLong compressedSize = static_cast<uLong>(compressed.size());
     const int result =
-        uncompress(reinterpret_cast<Bytef*>(source.data()), &destinationSize,
-                   compressed.data(), static_cast<uLong>(compressed.size()));
-    if (result != Z_OK || destinationSize != sourceSize) {
+        uncompress2(reinterpret_cast<Bytef*>(source.data()), &destinationSize,
+                    compressed.data(), &compressedSize);
+    if (result != Z_OK || destinationSize != sourceSize ||
+        compressedSize != compressed.size()) {
         throw std::runtime_error(
             message(prefix + " payload could not be decompressed", context));
     }

@@ -18,6 +18,8 @@ else()
         src/RuntimeValue.cpp
         src/RuntimeObject.cpp
         src/RuntimeIdentity.cpp
+        src/Data.cpp
+        src/BinaryData.cpp
         src/Json.cpp
         src/AssetPath.cpp
         src/AssetStore.cpp

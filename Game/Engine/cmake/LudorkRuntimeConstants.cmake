@@ -21,6 +21,7 @@ add_custom_target(RuntimeConstantsGenerate
     COMMAND "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}" server-config generate
         "${LUDORK_SERVER_CONFIG_DIRECTORY}" "$<CONFIG>"
     BYPRODUCTS
+        "${LUDORK_RUNTIME_CONSTANTS_DIRECTORY}/LudorkGenerated/BinaryDataFormatConstants.hpp"
         "${LUDORK_RUNTIME_CONSTANTS_DIRECTORY}/LudorkGenerated/LdPakFormatConstants.hpp"
         "${LUDORK_RUNTIME_CONSTANTS_DIRECTORY}/LudorkGenerated/EncryptedPayloadConstants.hpp"
         "${LUDORK_RUNTIME_CONSTANTS_DIRECTORY}/LudorkGenerated/ResourceFileConstants.hpp"

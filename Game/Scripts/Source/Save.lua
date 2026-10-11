@@ -19,7 +19,7 @@ function Save.SaveGame(filePath, instance)
     assertConfiguredSavePath(filePath)
     local directory = os.path.dirname(os.path.abspath(filePath))
     os.createDirectories(directory)
-    Engine.writeJSON(filePath, instance:asDict())
+    Engine.saveData(filePath, instance:asDict())
     Engine.SavePreviewReader.invalidate(filePath)
     Logging.info("Saved game to %s", filePath)
 end
@@ -31,7 +31,7 @@ function Save.LoadGame(filePath)
     if not os.path.isfile(filePath) then
         return nil
     end
-    local data = Engine.getJSONData(filePath)
+    local data = Engine.loadData(filePath)
     assert(Class.isInstance(data, "table"), "Save data must be an object")
     ---@cast data Source.GameInstance.SaveData
     local instance = GameInstance.FromDict(data)

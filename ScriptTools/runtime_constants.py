@@ -83,6 +83,17 @@ def generate(project: pathlib.Path, output: pathlib.Path) -> None:
         _integer("std::uint32_t", "MaximumDataSize", formats.MAX_DATA_SIZE),
         *_layout("Header", formats.ENCRYPTED_HEADER_FIELDS),
     ]
+    data = [
+        _integer("std::size_t", "MaximumDepth", formats.DATA_MAXIMUM_DEPTH),
+        _integer("std::uint8_t", "NullTag", formats.DATA_NULL_TAG),
+        _integer("std::uint8_t", "FalseTag", formats.DATA_FALSE_TAG),
+        _integer("std::uint8_t", "TrueTag", formats.DATA_TRUE_TAG),
+        _integer("std::uint8_t", "IntegerTag", formats.DATA_INTEGER_TAG),
+        _integer("std::uint8_t", "FloatTag", formats.DATA_FLOAT_TAG),
+        _integer("std::uint8_t", "StringTag", formats.DATA_STRING_TAG),
+        _integer("std::uint8_t", "ArrayTag", formats.DATA_ARRAY_TAG),
+        _integer("std::uint8_t", "MapTag", formats.DATA_MAP_TAG),
+    ]
     names = {
         "AssetGroup": resources.ASSET_GROUP,
         "DataGroup": resources.DATA_GROUP,
@@ -110,6 +121,7 @@ def generate(project: pathlib.Path, output: pathlib.Path) -> None:
     files = {
         "LdPakFormatConstants.hpp": _header("ldpak", archive),
         "EncryptedPayloadConstants.hpp": _header("encrypted", encrypted),
+        "BinaryDataFormatConstants.hpp": _header("data", data),
         "ResourceFileConstants.hpp": _header("resources", resource_values),
         "LightingConstants.hpp": _header("lighting", [_integer("int", "MaximumShaderLights", lighting_limit)]),
     }

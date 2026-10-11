@@ -46,20 +46,20 @@ FileBatchRuntime::Impl::Impl() {
 }
 
 FileBatchRuntime::Impl::~Impl() {
-    clearJson();
+    clearData();
 }
 
 std::shared_ptr<FileBatchJob> FileBatchRuntime::Impl::start(
     std::vector<FileBatchSpec> specs) {
-    FileBatchJsonCallbacks callbacks = jsonRuntime_.callbacks();
-    const bool needsJson =
+    FileBatchDataCallbacks callbacks = dataRuntime_.callbacks();
+    const bool needsData =
         std::any_of(specs.begin(), specs.end(), [](const FileBatchSpec& spec) {
-            return spec.parseJson;
+            return spec.parseData;
         });
-    if (needsJson && (!callbacks.parser || !callbacks.begin ||
+    if (needsData && (!callbacks.parser || !callbacks.begin ||
                       !callbacks.step || !callbacks.clear)) {
         throw std::runtime_error(
-            "file batch JSON conversion is not configured");
+            "file batch data conversion is not configured");
     }
     std::shared_ptr<FileBatchJob> job = std::make_shared<FileBatchJob>(
         std::move(specs), static_cast<std::size_t>(workerCount_) * 2,
@@ -87,8 +87,8 @@ bool FileBatchRuntime::Impl::cancel(const std::shared_ptr<FileBatchJob>& job) {
     if (!job) {
         return false;
     }
-    const bool clearedConversion = jsonRuntime_.clearConversionsForJob(job);
-    std::vector<FileBatchJsonDisposal> disposals;
+    const bool clearedConversion = dataRuntime_.clearConversionsForJob(job);
+    std::vector<FileBatchDataDisposal> disposals;
     std::size_t removed = 0;
     bool cancelled = false;
     bool discardedResults = false;
@@ -96,7 +96,7 @@ bool FileBatchRuntime::Impl::cancel(const std::shared_ptr<FileBatchJob>& job) {
         std::lock_guard<std::mutex> queueLock(queueMutex_);
         std::lock_guard<std::mutex> jobLock(job->mutex);
         discardedResults = !job->results.empty();
-        takeParsedJsonDisposals(job->results, disposals);
+        takeParsedDataDisposals(job->results, disposals);
         job->results.clear();
         if (isTerminal(job->state) ||
             job->state == FileBatchState::Cancelling) {
@@ -119,7 +119,7 @@ bool FileBatchRuntime::Impl::cancel(const std::shared_ptr<FileBatchJob>& job) {
             }
         }
     }
-    jsonRuntime_.deferDisposals(std::move(disposals));
+    dataRuntime_.deferDisposals(std::move(disposals));
     job->resultSpace.notify_all();
     workReady_.notify_all();
     return cancelled || clearedConversion || discardedResults;
@@ -162,13 +162,13 @@ void FileBatchRuntime::Impl::release(
         return;
     }
     job->cancellationRequested.store(true, std::memory_order_release);
-    std::vector<FileBatchJsonDisposal> disposals;
+    std::vector<FileBatchDataDisposal> disposals;
     {
         std::lock_guard<std::mutex> jobLock(job->mutex);
-        takeParsedJsonDisposals(job->results, disposals);
+        takeParsedDataDisposals(job->results, disposals);
         job->results.clear();
     }
-    jsonRuntime_.deferDisposals(std::move(disposals));
+    dataRuntime_.deferDisposals(std::move(disposals));
     job->resultSpace.notify_all();
 }
 
@@ -215,15 +215,15 @@ void FileBatchRuntime::Impl::shutdown() {
     }
 }
 
-void FileBatchRuntime::Impl::configureJson(FileBatchJsonParser parser,
-                                           FileBatchJsonBegin begin,
-                                           FileBatchJsonStep step,
-                                           FileBatchJsonClear clear) {
-    jsonRuntime_.configure(std::move(parser), std::move(begin), std::move(step),
+void FileBatchRuntime::Impl::configureData(FileBatchDataParser parser,
+                                           FileBatchDataBegin begin,
+                                           FileBatchDataStep step,
+                                           FileBatchDataClear clear) {
+    dataRuntime_.configure(std::move(parser), std::move(begin), std::move(step),
                            std::move(clear));
 }
 
-void FileBatchRuntime::Impl::clearJson() noexcept {
+void FileBatchRuntime::Impl::clearData() noexcept {
     shutdown();
     std::vector<std::shared_ptr<FileBatchJob>> jobs;
     {
@@ -236,40 +236,40 @@ void FileBatchRuntime::Impl::clearJson() noexcept {
         jobs_.clear();
         work_.clear();
     }
-    jsonRuntime_.clearAllConversions();
-    std::vector<FileBatchJsonDisposal> disposals;
+    dataRuntime_.clearAllConversions();
+    std::vector<FileBatchDataDisposal> disposals;
     for (const std::shared_ptr<FileBatchJob>& job : jobs) {
         std::lock_guard<std::mutex> jobLock(job->mutex);
-        takeParsedJsonDisposals(job->results, disposals);
+        takeParsedDataDisposals(job->results, disposals);
         job->results.clear();
-        job->jsonParser = {};
-        job->jsonBegin = {};
-        job->jsonStep = {};
-        job->jsonClear = {};
+        job->dataParser = {};
+        job->dataBegin = {};
+        job->dataStep = {};
+        job->dataClear = {};
     }
-    jsonRuntime_.deferDisposals(std::move(disposals));
-    jsonRuntime_.reset();
+    dataRuntime_.deferDisposals(std::move(disposals));
+    dataRuntime_.reset();
     stopping_.store(false, std::memory_order_release);
 }
 
-std::shared_ptr<FileBatchJsonConversionState>
-FileBatchRuntime::Impl::beginJsonConversion(
+std::shared_ptr<FileBatchDataConversionState>
+FileBatchRuntime::Impl::beginDataConversion(
     lua_State* state, const std::shared_ptr<FileBatchJob>& job,
-    const FileBatchParsedJson& parsedJson) {
-    return jsonRuntime_.beginConversion(state, job, parsedJson);
+    const FileBatchParsedData& parsedData) {
+    return dataRuntime_.beginConversion(state, job, parsedData);
 }
 
-FileBatchJsonStepResult FileBatchRuntime::Impl::stepJsonConversion(
+FileBatchDataStepResult FileBatchRuntime::Impl::stepDataConversion(
     lua_State* state,
-    const std::shared_ptr<FileBatchJsonConversionState>& conversion,
+    const std::shared_ptr<FileBatchDataConversionState>& conversion,
     std::size_t maximumNodes, double maximumMilliseconds) {
-    return jsonRuntime_.stepConversion(state, conversion, maximumNodes,
+    return dataRuntime_.stepConversion(state, conversion, maximumNodes,
                                        maximumMilliseconds);
 }
 
-bool FileBatchRuntime::Impl::clearJsonConversion(
-    const std::shared_ptr<FileBatchJsonConversionState>& conversion) noexcept {
-    return jsonRuntime_.clearConversion(conversion);
+bool FileBatchRuntime::Impl::clearDataConversion(
+    const std::shared_ptr<FileBatchDataConversionState>& conversion) noexcept {
+    return dataRuntime_.clearConversion(conversion);
 }
 
 void FileBatchRuntime::Impl::ensureWorkersLocked() {
@@ -489,36 +489,36 @@ void FileBatchRuntime::shutdown() noexcept {
     impl_->shutdown();
 }
 
-void FileBatchRuntime::configureJson(FileBatchJsonParser parser,
-                                     FileBatchJsonBegin begin,
-                                     FileBatchJsonStep step,
-                                     FileBatchJsonClear clear) {
-    impl_->configureJson(std::move(parser), std::move(begin), std::move(step),
+void FileBatchRuntime::configureData(FileBatchDataParser parser,
+                                     FileBatchDataBegin begin,
+                                     FileBatchDataStep step,
+                                     FileBatchDataClear clear) {
+    impl_->configureData(std::move(parser), std::move(begin), std::move(step),
                          std::move(clear));
 }
 
-void FileBatchRuntime::clearJson() noexcept {
-    impl_->clearJson();
+void FileBatchRuntime::clearData() noexcept {
+    impl_->clearData();
 }
 
-std::shared_ptr<FileBatchJsonConversionState>
-FileBatchRuntime::beginJsonConversion(lua_State* state,
+std::shared_ptr<FileBatchDataConversionState>
+FileBatchRuntime::beginDataConversion(lua_State* state,
                                       const std::shared_ptr<FileBatchJob>& job,
-                                      const FileBatchParsedJson& parsedJson) {
-    return impl_->beginJsonConversion(state, job, parsedJson);
+                                      const FileBatchParsedData& parsedData) {
+    return impl_->beginDataConversion(state, job, parsedData);
 }
 
-FileBatchJsonStepResult FileBatchRuntime::stepJsonConversion(
+FileBatchDataStepResult FileBatchRuntime::stepDataConversion(
     lua_State* state,
-    const std::shared_ptr<FileBatchJsonConversionState>& conversion,
+    const std::shared_ptr<FileBatchDataConversionState>& conversion,
     std::size_t maximumNodes, double maximumMilliseconds) {
-    return impl_->stepJsonConversion(state, conversion, maximumNodes,
+    return impl_->stepDataConversion(state, conversion, maximumNodes,
                                      maximumMilliseconds);
 }
 
-bool FileBatchRuntime::clearJsonConversion(
-    const std::shared_ptr<FileBatchJsonConversionState>& conversion) noexcept {
-    return impl_->clearJsonConversion(conversion);
+bool FileBatchRuntime::clearDataConversion(
+    const std::shared_ptr<FileBatchDataConversionState>& conversion) noexcept {
+    return impl_->clearDataConversion(conversion);
 }
 
 }  // namespace ludork::standard

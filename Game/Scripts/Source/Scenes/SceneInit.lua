@@ -1,6 +1,5 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
-local cjson = require("cjson")
 local FileBatch = require("Global.Utils.FileBatch")
 local Logging = require("Global.Utils.Logging")
 local Data = require("Source.Data")
@@ -180,7 +179,7 @@ function Scene:_processAnimationSource(item, sourceRoot, cacheRoot)
     assert(bool(sourceKey), "Animation source filename must not be empty")
     assert(not self._animationSourceKeys[sourceKey], "Duplicate animation source key: " .. sourceKey)
     local content = assert(item.content, "Animation source content is missing: " .. relativePath)
-    local payload = cjson.decode(content)
+    local payload = Engine.decodeData(content)
     ---@cast payload Engine.AnimationSourceData
     assert(payload.type == "animation", "Animation source has invalid type: " .. relativePath)
     self._animationSourceKeys[sourceKey] = true
@@ -207,7 +206,7 @@ function Scene:_processAnimationSource(item, sourceRoot, cacheRoot)
         local compressed = Engine.compressAnimation(payload, "png")
         assert(Class.isInstance(compressed, "table"), "Compressed animation must be a data table")
         ---@cast compressed table<string, Engine.RuntimeDataValue>
-        Engine.writeJSON(cachePath, compressed)
+        Engine.saveData(cachePath, compressed)
     end
     local alternateCachePath = os.path.join(
         cacheRoot,

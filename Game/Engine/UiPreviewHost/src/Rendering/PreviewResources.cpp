@@ -2,7 +2,7 @@
 #include "PreviewFontResource.hpp"
 
 #include <Runtime/AssetStore.hpp>
-#include <Runtime/Json.hpp>
+#include <Runtime/Data.hpp>
 #include <Runtime/RuntimeDataReader.hpp>
 #include <UI/UIState.hpp>
 
@@ -39,7 +39,7 @@ std::int64_t settingInteger(const RuntimeData::Map& config,
 }  // namespace
 
 void configureUiResources() {
-    const RuntimeData configValue = getJSONData(
+    const RuntimeData configValue = loadData(
         std::filesystem::path(".") / "Data" / "Configs" / "System.json");
     const RuntimeData::Map& config = ludork::runtime::value_reader::requireMap(
         configValue, "Data/Configs/System.json");
@@ -75,7 +75,7 @@ void configureUiResources() {
 }
 
 sf::Vector2f previewGameSize() {
-    const RuntimeData configValue = getJSONData(
+    const RuntimeData configValue = loadData(
         std::filesystem::path(".") / "Data" / "Configs" / "System.json");
     const RuntimeData::Map& config =
         ludork::runtime::value_reader::requireMap(configValue, "System config");

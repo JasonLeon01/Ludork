@@ -59,25 +59,18 @@ std::uint64_t contentNonce(const std::filesystem::path& path,
     return result;
 }
 
-std::vector<std::uint8_t> encodeData(const std::filesystem::path& path,
-                                     const std::string& source) {
-    const std::uint64_t nonce = contentNonce(path, source);
-    return encodeEncryptedPayload(source, nonce, DataFormat, pathToUtf8(path),
-                                  "JSON data");
-}
-
 std::vector<std::uint8_t> readFile(const std::filesystem::path& path) {
     const ReadOnlyFileStatus virtualStatus = readOnlyFileStatus(path);
     if (virtualStatus.handled) {
         if (virtualStatus.type != ReadOnlyFileType::Regular) {
-            throw std::runtime_error("Failed to open JSON file: " +
+            throw std::runtime_error("Failed to open data file: " +
                                      pathToUtf8(path));
         }
         return readOnlyFileBytes(path);
     }
     std::ifstream input(path, std::ios::binary);
     if (!input) {
-        throw std::runtime_error("Failed to open JSON file: " +
+        throw std::runtime_error("Failed to open data file: " +
                                  pathToUtf8(path));
     }
     std::vector<std::uint8_t> contents{
@@ -85,20 +78,15 @@ std::vector<std::uint8_t> readFile(const std::filesystem::path& path) {
         std::istreambuf_iterator<char>(),
     };
     if (!input.eof() && input.fail()) {
-        throw std::runtime_error("Failed to read JSON file: " +
+        throw std::runtime_error("Failed to read data file: " +
                                  pathToUtf8(path));
     }
     return contents;
 }
 
-std::string decodeData(const std::filesystem::path& path,
-                       const std::vector<std::uint8_t>& encoded) {
-    return decodeEncryptedPayload(encoded, DataFormat, pathToUtf8(path));
-}
-
 }  // namespace
 
-std::filesystem::path resolveJsonDataPath(const std::filesystem::path& path) {
+std::filesystem::path resolveDataPath(const std::filesystem::path& path) {
     if (isRegularFile(path)) {
         return path;
     }
@@ -114,7 +102,7 @@ std::filesystem::path resolveJsonDataPath(const std::filesystem::path& path) {
     return path;
 }
 
-std::filesystem::path logicalJsonDataPath(const std::filesystem::path& path) {
+std::filesystem::path logicalDataPath(const std::filesystem::path& path) {
     if (!isEncryptedDataPath(path)) {
         return path;
     }
@@ -123,44 +111,52 @@ std::filesystem::path logicalJsonDataPath(const std::filesystem::path& path) {
     return logical;
 }
 
-bool jsonDataExists(const std::filesystem::path& path) {
-    return isRegularFile(resolveJsonDataPath(path));
+bool dataFileExists(const std::filesystem::path& path) {
+    return isRegularFile(resolveDataPath(path));
 }
 
-std::string readJsonText(const std::filesystem::path& path) {
-    const std::filesystem::path resolved = resolveJsonDataPath(path);
-    if (!isRegularFile(resolved)) {
-        throw std::runtime_error("Failed to open JSON file: " +
-                                 pathToUtf8(path));
-    }
-    const std::vector<std::uint8_t> contents = readFile(resolved);
-    if (isEncryptedDataPath(resolved)) {
-        return decodeData(resolved, contents);
-    }
+bool fileExists(const std::filesystem::path& path) {
+    return isRegularFile(path);
+}
+
+std::string readFileBytes(const std::filesystem::path& path) {
+    const std::vector<std::uint8_t> contents = readFile(path);
     return {contents.begin(), contents.end()};
 }
 
-void writeJsonText(const std::filesystem::path& path,
-                   const std::string& source) {
-    const bool encrypted = isEncryptedDataPath(path);
-    const std::vector<std::uint8_t> encoded =
-        encrypted ? encodeData(path, source) : std::vector<std::uint8_t>{};
+void writeFileBytes(const std::filesystem::path& path, std::string_view bytes) {
     std::ofstream output(path, std::ios::binary | std::ios::trunc);
     if (!output) {
-        throw std::runtime_error("Failed to open JSON file for writing: " +
+        throw std::runtime_error("Failed to open data file for writing: " +
                                  pathToUtf8(path));
     }
-    if (encrypted) {
-        output.write(reinterpret_cast<const char*>(encoded.data()),
-                     static_cast<std::streamsize>(encoded.size()));
-    } else {
-        output.write(source.data(),
-                     static_cast<std::streamsize>(source.size()));
-    }
+    output.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+    output.close();
     if (!output) {
-        throw std::runtime_error("Failed to write JSON file: " +
+        throw std::runtime_error("Failed to write data file: " +
                                  pathToUtf8(path));
     }
+}
+
+bool isLdcData(std::string_view bytes) {
+    return bytes.size() >= DataFormat.magic.size() &&
+           std::equal(DataFormat.magic.begin(), DataFormat.magic.end(),
+                      bytes.begin());
+}
+
+std::string decodeDataPayload(std::string_view bytes,
+                              std::string_view context) {
+    return decodeEncryptedPayload(
+        {reinterpret_cast<const std::uint8_t*>(bytes.data()), bytes.size()},
+        DataFormat, context);
+}
+
+std::string encodeDataPayload(const std::filesystem::path& path,
+                              const std::string& payload) {
+    const std::vector<std::uint8_t> encoded =
+        encodeEncryptedPayload(payload, contentNonce(path, payload), DataFormat,
+                               pathToUtf8(path), "binary data");
+    return {encoded.begin(), encoded.end()};
 }
 
 }  // namespace ludork::standard

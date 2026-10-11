@@ -2,7 +2,7 @@
 
 #include <DataFile.hpp>
 #include <Utf8Path.hpp>
-#include <Runtime/Json.hpp>
+#include <Runtime/Data.hpp>
 #include <Runtime/RuntimeDataReader.hpp>
 
 #include <algorithm>
@@ -115,7 +115,7 @@ SubtitleTrack SubtitleTrack::load(const std::string& dataPath) {
     const std::filesystem::path root =
         std::filesystem::current_path() / "Data" / "Subtitles";
     const std::filesystem::path resolved = std::filesystem::weakly_canonical(
-        std::filesystem::absolute(ludork::standard::resolveJsonDataPath(path)));
+        std::filesystem::absolute(ludork::standard::resolveDataPath(path)));
     const std::filesystem::path relative = resolved.lexically_relative(root);
     if (relative.empty() || relative.is_absolute() ||
         std::any_of(relative.begin(), relative.end(),
@@ -125,7 +125,7 @@ SubtitleTrack SubtitleTrack::load(const std::string& dataPath) {
         throw std::invalid_argument("Subtitle path escapes Data/Subtitles: " +
                                     dataPath);
     }
-    return parse(getJSONData(path));
+    return parse(loadData(path));
 }
 
 const std::vector<std::string>* SubtitleTrack::linesAt(

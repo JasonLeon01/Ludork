@@ -58,7 +58,7 @@
 
 ---@class Global.WorldGameMap.RegionPublishState
 ---@field builder         Global.WorldGameMap.RegionBuildState | nil
----@field conversion      FileBatchJsonConversion | nil
+---@field conversion      FileBatchDataConversion | nil
 ---@field contentBytes    integer | nil
 ---@field priorityRect    Global.WorldGeometry.CellRect | nil
 ---@field forceActivate   boolean

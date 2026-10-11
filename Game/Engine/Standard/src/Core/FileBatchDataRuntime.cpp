@@ -1,4 +1,4 @@
-#include "FileBatchJsonRuntime.hpp"
+#include "FileBatchDataRuntime.hpp"
 
 #include <algorithm>
 #include <stdexcept>
@@ -10,22 +10,22 @@ extern "C" {
 
 namespace ludork::standard {
 
-FileBatchJsonRuntime::~FileBatchJsonRuntime() {
+FileBatchDataRuntime::~FileBatchDataRuntime() {
     reset();
 }
 
-FileBatchJsonCallbacks FileBatchJsonRuntime::callbacks() const {
+FileBatchDataCallbacks FileBatchDataRuntime::callbacks() const {
     std::lock_guard<std::mutex> bridgeLock(bridgeMutex_);
     return {parser_, begin_, step_, clear_};
 }
 
-void FileBatchJsonRuntime::configure(FileBatchJsonParser parser,
-                                     FileBatchJsonBegin begin,
-                                     FileBatchJsonStep step,
-                                     FileBatchJsonClear clear) {
+void FileBatchDataRuntime::configure(FileBatchDataParser parser,
+                                     FileBatchDataBegin begin,
+                                     FileBatchDataStep step,
+                                     FileBatchDataClear clear) {
     if (!parser || !begin || !step || !clear) {
         throw std::invalid_argument(
-            "file batch JSON parser and conversion callbacks must be callable");
+            "file batch data parser and conversion callbacks must be callable");
     }
     startDisposalWorker();
     std::lock_guard<std::mutex> bridgeLock(bridgeMutex_);
@@ -35,7 +35,7 @@ void FileBatchJsonRuntime::configure(FileBatchJsonParser parser,
     clear_ = std::move(clear);
 }
 
-void FileBatchJsonRuntime::reset() noexcept {
+void FileBatchDataRuntime::reset() noexcept {
     clearAllConversions();
     stopDisposalWorker();
     std::lock_guard<std::mutex> bridgeLock(bridgeMutex_);
@@ -46,34 +46,34 @@ void FileBatchJsonRuntime::reset() noexcept {
     conversions_.clear();
 }
 
-std::shared_ptr<FileBatchJsonConversionState>
-FileBatchJsonRuntime::beginConversion(lua_State* state,
+std::shared_ptr<FileBatchDataConversionState>
+FileBatchDataRuntime::beginConversion(lua_State* state,
                                       const std::shared_ptr<FileBatchJob>& job,
-                                      const FileBatchParsedJson& parsedJson) {
-    if (state == nullptr || !job || !parsedJson) {
+                                      const FileBatchParsedData& parsedData) {
+    if (state == nullptr || !job || !parsedData) {
         throw std::invalid_argument(
-            "file batch JSON conversion input is invalid");
+            "file batch data conversion input is invalid");
     }
-    FileBatchJsonBegin begin;
-    FileBatchJsonStep step;
-    FileBatchJsonClear clear;
+    FileBatchDataBegin begin;
+    FileBatchDataStep step;
+    FileBatchDataClear clear;
     {
         std::lock_guard<std::mutex> jobLock(job->mutex);
-        begin = job->jsonBegin;
-        step = job->jsonStep;
-        clear = job->jsonClear;
+        begin = job->dataBegin;
+        step = job->dataStep;
+        clear = job->dataClear;
     }
     if (!begin || !step || !clear) {
         throw std::runtime_error(
-            "file batch JSON conversion is not configured");
+            "file batch data conversion is not configured");
     }
-    FileBatchJsonConversion conversion = begin(state, parsedJson);
+    FileBatchDataConversion conversion = begin(state, parsedData);
     if (!conversion) {
         throw std::runtime_error(
-            "file batch JSON conversion returned no state");
+            "file batch data conversion returned no state");
     }
-    std::shared_ptr<FileBatchJsonConversionState> result =
-        std::make_shared<FileBatchJsonConversionState>();
+    std::shared_ptr<FileBatchDataConversionState> result =
+        std::make_shared<FileBatchDataConversionState>();
     result->job = job;
     result->conversion = std::move(conversion);
     result->step = std::move(step);
@@ -86,41 +86,41 @@ FileBatchJsonRuntime::beginConversion(lua_State* state,
     return result;
 }
 
-FileBatchJsonStepResult FileBatchJsonRuntime::stepConversion(
+FileBatchDataStepResult FileBatchDataRuntime::stepConversion(
     lua_State* state,
-    const std::shared_ptr<FileBatchJsonConversionState>& conversion,
+    const std::shared_ptr<FileBatchDataConversionState>& conversion,
     std::size_t maximumNodes, double maximumMilliseconds) {
     if (state == nullptr || !conversion) {
-        throw std::invalid_argument("file batch JSON conversion is invalid");
+        throw std::invalid_argument("file batch data conversion is invalid");
     }
     if (maximumNodes == 0 || !(maximumMilliseconds > 0.0)) {
         throw std::invalid_argument(
-            "file batch JSON conversion budgets must be positive");
+            "file batch data conversion budgets must be positive");
     }
 
     const int stackBase = lua_gettop(state);
-    FileBatchJsonConversion nativeConversion;
-    FileBatchJsonClear clear;
-    FileBatchJsonStepResult result;
+    FileBatchDataConversion nativeConversion;
+    FileBatchDataClear clear;
+    FileBatchDataStepResult result;
     try {
         std::unique_lock<std::mutex> conversionLock(conversion->mutex);
         if (conversion->cleared) {
             throw std::runtime_error(
                 conversion->completed
-                    ? "file batch JSON conversion result was already delivered"
-                    : "file batch JSON conversion was cleared");
+                    ? "file batch data conversion result was already delivered"
+                    : "file batch data conversion was cleared");
         }
         result = conversion->step(state, conversion->conversion, maximumNodes,
                                   maximumMilliseconds);
         const int expectedTop = stackBase + (result.completed ? 1 : 0);
         if (lua_gettop(state) != expectedTop) {
             throw std::runtime_error(
-                "file batch JSON conversion returned an invalid Lua stack "
+                "file batch data conversion returned an invalid Lua stack "
                 "result");
         }
         if (result.processedNodes > maximumNodes) {
             throw std::runtime_error(
-                "file batch JSON conversion exceeded its node budget");
+                "file batch data conversion exceeded its node budget");
         }
         if (result.completed) {
             conversion->completed = true;
@@ -142,13 +142,13 @@ FileBatchJsonStepResult FileBatchJsonRuntime::stepConversion(
     return result;
 }
 
-bool FileBatchJsonRuntime::clearConversion(
-    const std::shared_ptr<FileBatchJsonConversionState>& conversion) noexcept {
+bool FileBatchDataRuntime::clearConversion(
+    const std::shared_ptr<FileBatchDataConversionState>& conversion) noexcept {
     if (!conversion) {
         return false;
     }
-    FileBatchJsonConversion nativeConversion;
-    FileBatchJsonClear clear;
+    FileBatchDataConversion nativeConversion;
+    FileBatchDataClear clear;
     {
         std::lock_guard<std::mutex> conversionLock(conversion->mutex);
         if (conversion->cleared) {
@@ -167,10 +167,10 @@ bool FileBatchJsonRuntime::clearConversion(
     return true;
 }
 
-bool FileBatchJsonRuntime::clearConversionsForJob(
+bool FileBatchDataRuntime::clearConversionsForJob(
     const std::shared_ptr<FileBatchJob>& job) noexcept {
     bool cleared = false;
-    for (const std::shared_ptr<FileBatchJsonConversionState>& conversion :
+    for (const std::shared_ptr<FileBatchDataConversionState>& conversion :
          liveConversions()) {
         if (conversion->job.lock() == job) {
             cleared = clearConversion(conversion) || cleared;
@@ -179,21 +179,21 @@ bool FileBatchJsonRuntime::clearConversionsForJob(
     return cleared;
 }
 
-void FileBatchJsonRuntime::clearAllConversions() noexcept {
-    for (const std::shared_ptr<FileBatchJsonConversionState>& conversion :
+void FileBatchDataRuntime::clearAllConversions() noexcept {
+    for (const std::shared_ptr<FileBatchDataConversionState>& conversion :
          liveConversions()) {
         clearConversion(conversion);
     }
 }
 
-void FileBatchJsonRuntime::deferDisposals(
-    std::vector<FileBatchJsonDisposal> disposals) noexcept {
-    for (FileBatchJsonDisposal& disposal : disposals) {
+void FileBatchDataRuntime::deferDisposals(
+    std::vector<FileBatchDataDisposal> disposals) noexcept {
+    for (FileBatchDataDisposal& disposal : disposals) {
         deferDisposal(std::move(disposal));
     }
 }
 
-void FileBatchJsonRuntime::startDisposalWorker() {
+void FileBatchDataRuntime::startDisposalWorker() {
     std::lock_guard<std::mutex> disposalLock(disposalMutex_);
     if (disposalWorker_.joinable()) {
         return;
@@ -204,8 +204,8 @@ void FileBatchJsonRuntime::startDisposalWorker() {
     });
 }
 
-void FileBatchJsonRuntime::deferDisposal(
-    FileBatchJsonDisposal disposal) noexcept {
+void FileBatchDataRuntime::deferDisposal(
+    FileBatchDataDisposal disposal) noexcept {
     if (!disposal) {
         return;
     }
@@ -221,7 +221,7 @@ void FileBatchJsonRuntime::deferDisposal(
     } catch (...) {}
 }
 
-void FileBatchJsonRuntime::stopDisposalWorker() noexcept {
+void FileBatchDataRuntime::stopDisposalWorker() noexcept {
     {
         std::lock_guard<std::mutex> disposalLock(disposalMutex_);
         disposalStopping_ = true;
@@ -234,9 +234,9 @@ void FileBatchJsonRuntime::stopDisposalWorker() noexcept {
     disposals_.clear();
 }
 
-void FileBatchJsonRuntime::disposalLoop() {
+void FileBatchDataRuntime::disposalLoop() {
     while (true) {
-        FileBatchJsonDisposal disposal;
+        FileBatchDataDisposal disposal;
         {
             std::unique_lock<std::mutex> disposalLock(disposalMutex_);
             disposalReady_.wait(disposalLock, [this]() {
@@ -255,23 +255,23 @@ void FileBatchJsonRuntime::disposalLoop() {
     }
 }
 
-void FileBatchJsonRuntime::pruneConversionsLocked() {
+void FileBatchDataRuntime::pruneConversionsLocked() {
     conversions_.erase(
         std::remove_if(
             conversions_.begin(), conversions_.end(),
-            [](const std::weak_ptr<FileBatchJsonConversionState>& conversion) {
+            [](const std::weak_ptr<FileBatchDataConversionState>& conversion) {
                 return conversion.expired();
             }),
         conversions_.end());
 }
 
-std::vector<std::shared_ptr<FileBatchJsonConversionState>>
-FileBatchJsonRuntime::liveConversions() {
-    std::vector<std::shared_ptr<FileBatchJsonConversionState>> result;
+std::vector<std::shared_ptr<FileBatchDataConversionState>>
+FileBatchDataRuntime::liveConversions() {
+    std::vector<std::shared_ptr<FileBatchDataConversionState>> result;
     std::lock_guard<std::mutex> bridgeLock(bridgeMutex_);
-    for (const std::weak_ptr<FileBatchJsonConversionState>& weakConversion :
+    for (const std::weak_ptr<FileBatchDataConversionState>& weakConversion :
          conversions_) {
-        if (std::shared_ptr<FileBatchJsonConversionState> conversion =
+        if (std::shared_ptr<FileBatchDataConversionState> conversion =
                 weakConversion.lock()) {
             result.push_back(std::move(conversion));
         }
@@ -280,12 +280,12 @@ FileBatchJsonRuntime::liveConversions() {
     return result;
 }
 
-void takeParsedJsonDisposals(std::map<std::size_t, FileBatchItem>& results,
-                             std::vector<FileBatchJsonDisposal>& disposals) {
+void takeParsedDataDisposals(std::map<std::size_t, FileBatchItem>& results,
+                             std::vector<FileBatchDataDisposal>& disposals) {
     for (auto& [index, item] : results) {
         static_cast<void>(index);
-        if (item.parsedJson) {
-            disposals.push_back(std::move(item.parsedJson));
+        if (item.parsedData) {
+            disposals.push_back(std::move(item.parsedData));
         }
     }
 }

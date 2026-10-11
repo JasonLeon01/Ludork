@@ -1,9 +1,11 @@
-#include "FileBatchJsonConversion.hpp"
-#include "FileBatchJsonConversionImpl.hpp"
+#include "FileBatchDataConversion.hpp"
+#include "FileBatchDataConversionImpl.hpp"
 
 #include <Runtime/RuntimeData.hpp>
 #include <RuntimeSession.hpp>
+#include <JsonRuntimeProtocol.hpp>
 #include <Runtime/Json.hpp>
+#include <Runtime/Data.hpp>
 
 extern "C" {
 #include <lua.h>
@@ -28,42 +30,42 @@ namespace {
 int checkedTableCapacity(std::size_t size) {
     if (size > static_cast<std::size_t>(INT_MAX)) {
         throw std::overflow_error(
-            "file batch JSON container exceeds the Lua table capacity");
+            "file batch data container exceeds the Lua table capacity");
     }
     return static_cast<int>(size);
 }
 
 }  // namespace
 
-namespace file_batch_json_conversion_impl {
+namespace file_batch_data_conversion_impl {
 
-IncrementalJsonConversion::IncrementalJsonConversion(
-    lua_State* state, ludork::standard::FileBatchJsonDisposal document,
+IncrementalDataConversion::IncrementalDataConversion(
+    lua_State* state, ludork::standard::FileBatchDataDisposal document,
     std::shared_ptr<const RuntimeData> root)
     : document_(std::move(document)), root_(std::move(root)) {
     if (state == nullptr || !root_) {
         throw std::invalid_argument(
-            "file batch JSON conversion root is invalid");
+            "file batch data conversion root is invalid");
     }
     lua_createtable(state, 1, 0);
     holder_ = ludork::standard::LuaRegistryReference(state, -1);
     lua_pop(state, 1);
     if (!holder_) {
         throw std::runtime_error(
-            "file batch JSON conversion could not retain its result");
+            "file batch data conversion could not retain its result");
     }
     frames_.emplace_back(PendingFrame{root_.get(), {}});
 }
 
-ludork::standard::FileBatchJsonStepResult IncrementalJsonConversion::step(
+ludork::standard::FileBatchDataStepResult IncrementalDataConversion::step(
     lua_State* state, std::size_t maximumNodes, double maximumMilliseconds) {
     if (completed_) {
         throw std::runtime_error(
-            "file batch JSON conversion is already complete");
+            "file batch data conversion is already complete");
     }
     if (state == nullptr || maximumNodes == 0 || !(maximumMilliseconds > 0.0)) {
         throw std::invalid_argument(
-            "file batch JSON conversion step is invalid");
+            "file batch data conversion step is invalid");
     }
     requireSameRuntime(state);
 
@@ -71,7 +73,7 @@ ludork::standard::FileBatchJsonStepResult IncrementalJsonConversion::step(
         Clock::now() +
         std::chrono::duration_cast<Clock::duration>(
             std::chrono::duration<double, std::milli>(maximumMilliseconds));
-    ludork::standard::FileBatchJsonStepResult result;
+    ludork::standard::FileBatchDataStepResult result;
     while (result.processedNodes < maximumNodes) {
         const AdvanceResult advance = advanceToPending(deadline);
         if (advance == AdvanceResult::Completed) {
@@ -98,7 +100,7 @@ ludork::standard::FileBatchJsonStepResult IncrementalJsonConversion::step(
     return result;
 }
 
-ludork::standard::FileBatchJsonDisposal IncrementalJsonConversion::clear() {
+ludork::standard::FileBatchDataDisposal IncrementalDataConversion::clear() {
     frames_.clear();
     holder_ = {};
     completed_ = true;
@@ -106,17 +108,17 @@ ludork::standard::FileBatchJsonDisposal IncrementalJsonConversion::clear() {
     return std::move(document_);
 }
 
-void IncrementalJsonConversion::requireSameRuntime(lua_State* state) const {
+void IncrementalDataConversion::requireSameRuntime(lua_State* state) const {
     if (!holder_.pushUnderExecutionScope(state)) {
         throw std::runtime_error(
-            "file batch JSON conversion must run on its owning Lua VM "
+            "file batch data conversion must run on its owning Lua VM "
             "logic thread");
     }
     lua_pop(state, 1);
 }
 
-IncrementalJsonConversion::AdvanceResult
-IncrementalJsonConversion::advanceToPending(Clock::time_point deadline) {
+IncrementalDataConversion::AdvanceResult
+IncrementalDataConversion::advanceToPending(Clock::time_point deadline) {
     while (!frames_.empty()) {
         if (std::holds_alternative<PendingFrame>(frames_.back())) {
             return AdvanceResult::Ready;
@@ -147,18 +149,29 @@ IncrementalJsonConversion::advanceToPending(Clock::time_point deadline) {
     return AdvanceResult::Completed;
 }
 
-void IncrementalJsonConversion::processPending(lua_State* state) {
+void IncrementalDataConversion::processPending(lua_State* state) {
     PendingFrame frame = std::move(std::get<PendingFrame>(frames_.back()));
     frames_.pop_back();
     if (frame.value == nullptr) {
         throw std::runtime_error(
-            "file batch JSON conversion encountered an invalid node");
+            "file batch data conversion encountered an invalid node");
     }
 
     frame.value->visit([&](const auto& value) {
         using Value = std::remove_cvref_t<decltype(value)>;
         if constexpr (std::is_same_v<Value, std::monostate>) {
-            lua_pushnil(state);
+            if (frame.attachment.kind == AttachmentKind::Map) {
+                lua_getfield(
+                    state, LUA_REGISTRYINDEX,
+                    ludork::standard::json_runtime::protocol::JSON_NULL_KEY);
+                if (lua_isnil(state, -1)) {
+                    lua_pop(state, 1);
+                    throw std::runtime_error(
+                        "Data null sentinel is unavailable");
+                }
+            } else {
+                lua_pushnil(state);
+            }
             attachTopValue(state, frame.attachment);
         } else if constexpr (std::is_same_v<Value, bool>) {
             lua_pushboolean(state, value ? 1 : 0);
@@ -191,18 +204,18 @@ void IncrementalJsonConversion::processPending(lua_State* state) {
             }
         } else {
             throw std::runtime_error(
-                "file batch JSON conversion encountered a non-JSON value");
+                "file batch data conversion encountered an unsupported value");
         }
     });
 }
 
-void IncrementalJsonConversion::attachTopValue(lua_State* state,
+void IncrementalDataConversion::attachTopValue(lua_State* state,
                                                const Attachment& attachment) {
     const ludork::standard::LuaRegistryReference* parent =
         attachment.kind == AttachmentKind::Root ? &holder_ : &attachment.parent;
     if (!parent->pushUnderExecutionScope(state)) {
         throw std::runtime_error(
-            "file batch JSON conversion lost its Lua result table");
+            "file batch data conversion lost its Lua result table");
     }
     lua_insert(state, -2);
     if (attachment.kind == AttachmentKind::Map) {
@@ -217,55 +230,55 @@ void IncrementalJsonConversion::attachTopValue(lua_State* state,
     lua_pop(state, 1);
 }
 
-void IncrementalJsonConversion::pushResult(lua_State* state) const {
+void IncrementalDataConversion::pushResult(lua_State* state) const {
     if (!holder_.pushUnderExecutionScope(state)) {
         throw std::runtime_error(
-            "file batch JSON conversion lost its Lua result table");
+            "file batch data conversion lost its Lua result table");
     }
     lua_rawgeti(state, -1, 1);
     lua_remove(state, -2);
 }
 
-RuntimeDataJsonDocument::RuntimeDataJsonDocument(RuntimeData value)
+RuntimeDataDataDocument::RuntimeDataDataDocument(RuntimeData value)
     : value_(std::make_shared<const RuntimeData>(std::move(value))) {}
 
-ludork::standard::FileBatchJsonConversion RuntimeDataJsonDocument::begin(
+ludork::standard::FileBatchDataConversion RuntimeDataDataDocument::begin(
     lua_State* state) const {
-    return std::make_shared<IncrementalJsonConversion>(
+    return std::make_shared<IncrementalDataConversion>(
         state, shared_from_this(), value_);
 }
 
-}  // namespace file_batch_json_conversion_impl
+}  // namespace file_batch_data_conversion_impl
 
-ludork::standard::FileBatchParsedJson parseFileBatchJsonDocument(
-    const std::string& content) {
-    return std::make_shared<ludork::engine::file_batch_json_conversion_impl::
-                                RuntimeDataJsonDocument>(
-        parseJSONText(content));
+ludork::standard::FileBatchParsedData parseFileBatchDataDocument(
+    const std::string& content, bool binary) {
+    return std::make_shared<ludork::engine::file_batch_data_conversion_impl::
+                                RuntimeDataDataDocument>(
+        binary ? parseBinaryData(content) : parseJSONText(content));
 }
 
-ludork::standard::FileBatchJsonConversion beginFileBatchJsonConversion(
-    lua_State* state, const ludork::standard::FileBatchParsedJson& parsedJson) {
-    if (!parsedJson) {
-        throw std::invalid_argument("file batch JSON document is invalid");
+ludork::standard::FileBatchDataConversion beginFileBatchDataConversion(
+    lua_State* state, const ludork::standard::FileBatchParsedData& parsedData) {
+    if (!parsedData) {
+        throw std::invalid_argument("file batch data document is invalid");
     }
-    return parsedJson->begin(state);
+    return parsedData->begin(state);
 }
 
-ludork::standard::FileBatchJsonStepResult stepFileBatchJsonConversion(
+ludork::standard::FileBatchDataStepResult stepFileBatchDataConversion(
     lua_State* state,
-    const ludork::standard::FileBatchJsonConversion& conversion,
+    const ludork::standard::FileBatchDataConversion& conversion,
     std::size_t maximumNodes, double maximumMilliseconds) {
     if (!conversion) {
         throw std::invalid_argument(
-            "file batch JSON conversion state is invalid");
+            "file batch data conversion state is invalid");
     }
     return conversion->step(state, maximumNodes, maximumMilliseconds);
 }
 
-ludork::standard::FileBatchJsonDisposal clearFileBatchJsonConversion(
-    ludork::standard::FileBatchJsonConversion& conversion) {
-    ludork::standard::FileBatchJsonDisposal document;
+ludork::standard::FileBatchDataDisposal clearFileBatchDataConversion(
+    ludork::standard::FileBatchDataConversion& conversion) {
+    ludork::standard::FileBatchDataDisposal document;
     if (conversion) {
         document = conversion->clear();
     }

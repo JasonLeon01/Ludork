@@ -4,7 +4,7 @@
 
 #include <AnimSprite.hpp>
 #include <EditorCommandServices.hpp>
-#include <FileBatchJson.hpp>
+#include <FileBatchData.hpp>
 #include <Gameplay/Actor.hpp>
 #include <Input/InputService.hpp>
 #include <EngineRuntimeServices.hpp>
@@ -22,7 +22,7 @@
 #include <Runtime/Json.hpp>
 #include <Utils/Inner.hpp>
 
-#include "Utils/FileBatchJsonConversion.hpp"
+#include "Utils/FileBatchDataConversion.hpp"
 
 #include <memory>
 
@@ -58,11 +58,11 @@ void unregisterEditorCommands(lua_State* state) noexcept {
 void initializeEngineLifecycle(lua_State* state) {
     ludork::standard::registerRuntimeCleanup(state, ludork::runtime::shutdown);
     ludork::standard::registerRuntimeCleanup(state, ludork::engine::shutdown);
-    ludork::standard::configureFileBatchJson(
-        state, ludork::engine::parseFileBatchJsonDocument,
-        ludork::engine::beginFileBatchJsonConversion,
-        ludork::engine::stepFileBatchJsonConversion,
-        ludork::engine::clearFileBatchJsonConversion);
+    ludork::standard::configureFileBatchData(
+        state, ludork::engine::parseFileBatchDataDocument,
+        ludork::engine::beginFileBatchDataConversion,
+        ludork::engine::stepFileBatchDataConversion,
+        ludork::engine::clearFileBatchDataConversion);
     registerEditorCommands(state);
 }
 
@@ -77,7 +77,7 @@ void shutdown(lua_State* state) noexcept {
         return;
     }
     shutdownSavePreviews();
-    ludork::standard::clearFileBatchJson(state);
+    ludork::standard::clearFileBatchData(state);
     unregisterEditorCommands(state);
     engineState().setGameRunning(false);
     shutdownEngineRuntimeServices(state);

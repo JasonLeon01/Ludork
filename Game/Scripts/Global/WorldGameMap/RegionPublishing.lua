@@ -64,7 +64,7 @@ function WorldGameMapRegionPublishing.CancelRegionPublish(self, region)
         return
     end
     if state.conversion ~= nil then
-        asyncio.clear_file_batch_json(state.conversion)
+        asyncio.clear_file_batch_data(state.conversion)
         state.conversion = nil
     end
     local indexedRoots = {}
@@ -104,7 +104,7 @@ function WorldGameMapRegionPublishing.BeginRegionPublish(self, region, data, for
 end
 
 ---@param region        Source.SceneComponents.WorldRegionData
----@param conversion    FileBatchJsonConversion
+---@param conversion    FileBatchDataConversion
 ---@param contentBytes  integer
 ---@param forceActivate boolean
 ---@param priorityRect  Global.WorldGeometry.CellRect | nil
@@ -114,7 +114,7 @@ function WorldGameMapRegionPublishing.BeginRegionConversion(
 )
     local state = beginRegionPublishState(self._worldStreamingState, region, forceActivate)
     if state == nil then
-        asyncio.clear_file_batch_json(conversion)
+        asyncio.clear_file_batch_data(conversion)
         return
     end
     state.conversion = conversion
@@ -163,7 +163,7 @@ function WorldGameMapRegionPublishing.StepRegionPublish(self, region, deadline)
             return false
         end
         local conversion = assert(state.conversion, "World region JSON conversion is unavailable")
-        local completed, _, data = asyncio.step_file_batch_json(
+        local completed, _, data = asyncio.step_file_batch_data(
             conversion, STREAM_CONVERSION_NODE_BUDGET, remainingMilliseconds
         )
         if not completed then

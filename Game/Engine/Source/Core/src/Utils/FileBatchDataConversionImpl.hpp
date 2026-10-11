@@ -1,6 +1,6 @@
 #pragma once
 
-#include "FileBatchJsonConversion.hpp"
+#include "FileBatchDataConversion.hpp"
 
 #include <Runtime/RuntimeData.hpp>
 #include <RuntimeSession.hpp>
@@ -12,7 +12,7 @@
 #include <variant>
 #include <vector>
 
-namespace ludork::engine::file_batch_json_conversion_impl {
+namespace ludork::engine::file_batch_data_conversion_impl {
 
 enum class AttachmentKind {
     Root,
@@ -27,18 +27,18 @@ struct Attachment {
     std::string key;
 };
 
-class IncrementalJsonConversion final
-    : public ludork::standard::FileBatchJsonConverter {
+class IncrementalDataConversion final
+    : public ludork::standard::FileBatchDataConverter {
 public:
-    IncrementalJsonConversion(lua_State* state,
-                              ludork::standard::FileBatchJsonDisposal document,
+    IncrementalDataConversion(lua_State* state,
+                              ludork::standard::FileBatchDataDisposal document,
                               std::shared_ptr<const RuntimeData> root);
 
-    ludork::standard::FileBatchJsonStepResult step(
+    ludork::standard::FileBatchDataStepResult step(
         lua_State* state, std::size_t maximumNodes,
         double maximumMilliseconds) override;
 
-    ludork::standard::FileBatchJsonDisposal clear() override;
+    ludork::standard::FileBatchDataDisposal clear() override;
 
 private:
     using Clock = std::chrono::steady_clock;
@@ -77,23 +77,23 @@ private:
 
     void pushResult(lua_State* state) const;
 
-    ludork::standard::FileBatchJsonDisposal document_;
+    ludork::standard::FileBatchDataDisposal document_;
     std::shared_ptr<const RuntimeData> root_;
     ludork::standard::LuaRegistryReference holder_;
     std::vector<ConversionFrame> frames_;
     bool completed_ = false;
 };
 
-class RuntimeDataJsonDocument final
-    : public ludork::standard::FileBatchJsonDocument {
+class RuntimeDataDataDocument final
+    : public ludork::standard::FileBatchDataDocument {
 public:
-    explicit RuntimeDataJsonDocument(RuntimeData value);
+    explicit RuntimeDataDataDocument(RuntimeData value);
 
-    ludork::standard::FileBatchJsonConversion begin(
+    ludork::standard::FileBatchDataConversion begin(
         lua_State* state) const override;
 
 private:
     std::shared_ptr<const RuntimeData> value_;
 };
 
-}  // namespace ludork::engine::file_batch_json_conversion_impl
+}  // namespace ludork::engine::file_batch_data_conversion_impl

@@ -14,7 +14,7 @@
 #include <Runtime/RuntimeValue.hpp>
 #include <Runtime/RuntimeSession.hpp>
 #include <Runtime/TypedDataService.hpp>
-#include <Runtime/Json.hpp>
+#include <Runtime/Data.hpp>
 
 #include <algorithm>
 #include <array>
@@ -228,12 +228,12 @@ std::tuple<RuntimeValue, RuntimeValue> resolveClass(
             filePath = as<std::string>(rawRoot) + "/" + filePath;
         }
         filePath += ".json";
-        if (!jsonExists(filePath)) {
+        if (!dataExists(filePath)) {
             throw std::runtime_error("Class " + classPath + " not found");
         }
         RuntimeScope scope;
         rawData = detail::readRuntimeReference(binding::writePureDataValue(
-            lua_glue::StateView(scope.state()), getJSONData(filePath)));
+            lua_glue::StateView(scope.state()), loadData(filePath)));
     }
     if (!isTable(rawData)) {
         throw std::runtime_error("Class data must be a table: " + classPath);

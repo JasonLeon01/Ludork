@@ -21,16 +21,16 @@ class FileBatchJob {
 public:
     explicit FileBatchJob(std::vector<FileBatchSpec> batchSpecs,
                           std::size_t capacity,
-                          FileBatchJsonParser batchJsonParser,
-                          FileBatchJsonBegin batchJsonBegin,
-                          FileBatchJsonStep batchJsonStep,
-                          FileBatchJsonClear batchJsonClear)
+                          FileBatchDataParser batchDataParser,
+                          FileBatchDataBegin batchDataBegin,
+                          FileBatchDataStep batchDataStep,
+                          FileBatchDataClear batchDataClear)
         : specs(std::move(batchSpecs)),
           resultCapacity(capacity),
-          jsonParser(std::move(batchJsonParser)),
-          jsonBegin(std::move(batchJsonBegin)),
-          jsonStep(std::move(batchJsonStep)),
-          jsonClear(std::move(batchJsonClear)) {}
+          dataParser(std::move(batchDataParser)),
+          dataBegin(std::move(batchDataBegin)),
+          dataStep(std::move(batchDataStep)),
+          dataClear(std::move(batchDataClear)) {}
 
     std::mutex mutex;
     std::condition_variable resultSpace;
@@ -45,19 +45,19 @@ public:
     std::size_t delivered = 0;
     std::size_t nextDeliveryIndex = 1;
     std::size_t pendingWork = 0;
-    FileBatchJsonParser jsonParser;
-    FileBatchJsonBegin jsonBegin;
-    FileBatchJsonStep jsonStep;
-    FileBatchJsonClear jsonClear;
+    FileBatchDataParser dataParser;
+    FileBatchDataBegin dataBegin;
+    FileBatchDataStep dataStep;
+    FileBatchDataClear dataClear;
 };
 
-class FileBatchJsonConversionState {
+class FileBatchDataConversionState {
 public:
     std::mutex mutex;
     std::weak_ptr<FileBatchJob> job;
-    FileBatchJsonConversion conversion;
-    FileBatchJsonStep step;
-    FileBatchJsonClear clear;
+    FileBatchDataConversion conversion;
+    FileBatchDataStep step;
+    FileBatchDataClear clear;
     bool completed = false;
     bool cleared = false;
 };
@@ -68,8 +68,8 @@ struct ManifestEntry {
     std::filesystem::path path;
     std::string relativePath;
     std::uintmax_t fileSize = 0;
-    bool jsonData = false;
-    bool parseJson = false;
+    bool dataFile = false;
+    bool parseData = false;
     bool encryptedData = false;
 };
 

@@ -77,10 +77,12 @@ bool appendDirectoryEntries(const FileBatchSpec& spec,
             const std::string storedRelativePath = pathToGenericUtf8(relative);
             const bool encryptedData = iterator->path().extension() == ".ldc";
             const bool includeEncryptedData =
-                encryptedData && jsonSuffix(spec.suffix);
+                encryptedData &&
+                (jsonSuffix(spec.suffix) ||
+                 suffixMatches(spec.suffix, ".ldc") || spec.suffix.empty());
             const std::string relativePath =
-                includeEncryptedData
-                    ? pathToGenericUtf8(logicalJsonDataPath(relative))
+                (encryptedData && jsonSuffix(spec.suffix))
+                    ? pathToGenericUtf8(logicalDataPath(relative))
                     : storedRelativePath;
             if (suffixMatches(relativePath, spec.suffix) &&
                 (spec.excludeSuffix.empty() ||
@@ -99,8 +101,9 @@ bool appendDirectoryEntries(const FileBatchSpec& spec,
                     iterator->path(),
                     relativePath,
                     fileSize,
-                    jsonSuffix(relativePath),
-                    spec.parseJson,
+                    (jsonSuffix(relativePath) ||
+                     suffixMatches(relativePath, ".ldc")),
+                    spec.parseData,
                     encryptedData,
                 });
             }
@@ -158,10 +161,12 @@ bool appendReadOnlyDirectoryEntries(const FileBatchSpec& spec,
             const std::string storedRelativePath = pathToGenericUtf8(relative);
             const bool encryptedData = child.extension() == ".ldc";
             const bool includeEncryptedData =
-                encryptedData && jsonSuffix(spec.suffix);
+                encryptedData &&
+                (jsonSuffix(spec.suffix) ||
+                 suffixMatches(spec.suffix, ".ldc") || spec.suffix.empty());
             const std::string relativePath =
-                includeEncryptedData
-                    ? pathToGenericUtf8(logicalJsonDataPath(relative))
+                (encryptedData && jsonSuffix(spec.suffix))
+                    ? pathToGenericUtf8(logicalDataPath(relative))
                     : storedRelativePath;
             if (suffixMatches(relativePath, spec.suffix) &&
                 (spec.excludeSuffix.empty() ||
@@ -173,8 +178,9 @@ bool appendReadOnlyDirectoryEntries(const FileBatchSpec& spec,
                     child,
                     relativePath,
                     status.size,
-                    jsonSuffix(relativePath),
-                    spec.parseJson,
+                    (jsonSuffix(relativePath) ||
+                     suffixMatches(relativePath, ".ldc")),
+                    spec.parseData,
                     encryptedData,
                 });
             }

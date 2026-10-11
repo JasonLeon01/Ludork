@@ -13,7 +13,7 @@
 #include <UI/UiControlAdapterRegistry.hpp>
 #include <UI/UiLayoutEngine.hpp>
 #include <UI/WrapBox.hpp>
-#include <Runtime/Json.hpp>
+#include <Runtime/Data.hpp>
 
 #include <algorithm>
 #include <functional>
@@ -545,7 +545,7 @@ std::shared_ptr<UiAssetInstance> UiAssetRuntime::instantiate(
     static_cast<void>(validateLogicalAssetKey(assetKey));
     ludork::engine::ui_asset_runtime_impl::AssetLoader loader =
         [](const std::string& requestedKey) {
-            return getJSONData(assetPath(requestedKey));
+            return loadData(assetPath(requestedKey));
         };
     return instantiateLoadedAsset(loader, assetKey, logicalSize, false);
 }

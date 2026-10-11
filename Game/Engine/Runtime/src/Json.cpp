@@ -401,7 +401,7 @@ std::string getJSONText(const std::string& filePath) {
 }
 
 std::string getJSONText(const std::filesystem::path& filePath) {
-    return ludork::standard::readJsonText(filePath);
+    return ludork::standard::readFileBytes(filePath);
 }
 
 bool jsonExists(const std::string& filePath) {
@@ -409,7 +409,7 @@ bool jsonExists(const std::string& filePath) {
 }
 
 bool jsonExists(const std::filesystem::path& filePath) {
-    return ludork::standard::jsonDataExists(filePath);
+    return ludork::standard::fileExists(filePath);
 }
 
 void writeJSON(const std::string& filePath, const RuntimeData& value) {
@@ -418,5 +418,5 @@ void writeJSON(const std::string& filePath, const RuntimeData& value) {
 
 void writeJSON(const std::filesystem::path& filePath,
                const RuntimeData& value) {
-    ludork::standard::writeJsonText(filePath, stringifyJSON(value));
+    ludork::standard::writeFileBytes(filePath, stringifyJSON(value));
 }

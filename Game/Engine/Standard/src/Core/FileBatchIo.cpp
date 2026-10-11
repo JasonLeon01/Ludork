@@ -44,30 +44,36 @@ FileBatchError parseError(const ManifestEntry& entry,
 ReadResult readFile(const std::shared_ptr<FileBatchJob>& job,
                     const ManifestEntry& entry) {
     ReadResult result;
-    if (entry.jsonData) {
+    if (entry.dataFile) {
         if (job->cancellationRequested.load(std::memory_order_relaxed)) {
             result.cancelled = true;
             return result;
         }
         try {
-            std::string content = readJsonText(entry.path);
+            std::string content = readFileBytes(entry.path);
             if (job->cancellationRequested.load(std::memory_order_relaxed)) {
                 result.cancelled = true;
                 return result;
             }
-            FileBatchParsedJson parsedJson;
+            FileBatchParsedData parsedData;
             std::size_t contentBytes = 0;
-            if (entry.parseJson) {
-                contentBytes = content.size();
+            if (entry.parseData) {
                 try {
-                    parsedJson = job->jsonParser(content);
+                    const bool binary =
+                        entry.encryptedData || isLdcData(content);
+                    if (binary) {
+                        content =
+                            decodeDataPayload(content, pathToUtf8(entry.path));
+                    }
+                    contentBytes = content.size();
+                    parsedData = job->dataParser(content, binary);
                 } catch (const std::exception& exception) {
                     result.error = parseError(entry, exception.what());
                     return result;
                 }
-                if (!parsedJson) {
+                if (!parsedData) {
                     result.error =
-                        parseError(entry, "JSON parser returned no data");
+                        parseError(entry, "Data parser returned no data");
                     return result;
                 }
                 std::string{}.swap(content);
@@ -78,7 +84,7 @@ ReadResult readFile(const std::shared_ptr<FileBatchJob>& job,
             }
             result.item = FileBatchItem{
                 entry.index,        entry.category,      entry.relativePath,
-                std::move(content), entry.encryptedData, std::move(parsedJson),
+                std::move(content), entry.encryptedData, std::move(parsedData),
                 contentBytes,
             };
         } catch (const std::exception& exception) {

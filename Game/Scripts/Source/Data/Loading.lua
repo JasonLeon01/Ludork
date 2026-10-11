@@ -46,17 +46,26 @@ function DataLoading:normaliseJsonNull(value, seen)
     end
     local result = {}
     seen[value] = result
+    local length = value.n
+    local hasLength = Class.isInstance(length, "number") and math.type(length) == "integer" and length >= 0
     local arrayValue = true
     for key in pairs(value) do
-        if not Class.isInstance(key, "number") or key < 1 or key % 1 ~= 0 then
-            arrayValue = false
-            break
+        if not (hasLength and key == "n") then
+            if not Class.isInstance(key, "number") or key < 1 or key % 1 ~= 0 or (hasLength and key > length) then
+                arrayValue = false
+                break
+            end
         end
     end
     if arrayValue then
-        for index = 1, #value do
+        if hasLength then
+            result.n = length
+        else
+            length = #value
+        end
+        for index = 1, length do
             local item = value[index]
-            result[index] = item == cjson.null and cjson.null or self:normaliseJsonNull(item, seen)
+            result[index] = (item == nil or item == cjson.null) and cjson.null or self:normaliseJsonNull(item, seen)
         end
         return result
     end
@@ -147,7 +156,7 @@ function DataLoading:applyInitialLoadItem(stage, item)
     local relativePath = item.relativePath
     local category = item.category
     Logging.debug("Loading %s: %s", category, relativePath)
-    local payload = self:normaliseJsonNull(cjson.decode(item.content))
+    local payload = self:normaliseJsonNull(Engine.decodeData(item.content))
     ---@cast payload table<string, Source.Data.JsonValue>
     local name = Path.NormaliseSeparators((os.path.splitext(relativePath)))
     if category == "animations" then

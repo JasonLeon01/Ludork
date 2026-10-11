@@ -18,7 +18,7 @@ void registerTable(lua_glue::StateView lua);
 void updateAsyncio(lua_glue::StateView lua);
 void shutdownAsyncio(lua_glue::StateView lua) noexcept;
 void shutdownFileBatch(lua_glue::StateView lua) noexcept;
-void clearFileBatchJsonRuntime(lua_State* state) noexcept;
+void clearFileBatchDataRuntime(lua_State* state) noexcept;
 void shutdownContainers(lua_State* state) noexcept;
 
 }  // namespace ludork::standard::binding

@@ -192,7 +192,7 @@ double modificationTime(const std::filesystem::path& value) {
     ReadOnlyFileStatus virtualStatus = readOnlyFileStatus(value);
     if (virtualStatus.handled &&
         virtualStatus.type == ReadOnlyFileType::Missing) {
-        const std::filesystem::path resolved = resolveJsonDataPath(value);
+        const std::filesystem::path resolved = resolveDataPath(value);
         if (resolved != value) {
             virtualStatus = readOnlyFileStatus(resolved);
         }

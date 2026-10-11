@@ -1,7 +1,7 @@
 #include <Emitters/EmitterResource.hpp>
 #include "EmitterCurveChannels.hpp"
 #include <Curve.hpp>
-#include <Runtime/Json.hpp>
+#include <Runtime/Data.hpp>
 #include <Runtime/RuntimeDataReader.hpp>
 #include <algorithm>
 #include <cmath>
@@ -98,7 +98,7 @@ std::array<float, 4> colour(const RuntimeData::Map& map, const std::string& key,
 Curve::CurveData curve(const RuntimeData& input, float fallback) {
     RuntimeData data = input;
     if (const std::string* key = data.getIf<std::string>()) {
-        data = getJSONData("Data/Curves/" + *key + ".json");
+        data = loadData("Data/Curves/" + *key + ".json");
     }
     const RuntimeData::Map& map =
         ludork::runtime::value_reader::requireMap(data, "particle.curve");
@@ -137,7 +137,7 @@ EmitterConfiguration loadEmitterConfiguration(const std::string& resourceKey) {
                                     resourceKey);
     }
     return parseEmitterConfiguration(
-        getJSONData("Data/Particles/" + resourceKey + ".json"));
+        loadData("Data/Particles/" + resourceKey + ".json"));
 }
 
 EmitterConfiguration parseEmitterConfiguration(const RuntimeData& data) {

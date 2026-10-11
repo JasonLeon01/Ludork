@@ -9,6 +9,7 @@ import shutil
 import tempfile
 import zlib
 
+from .binary_data import encode_data
 from .compile_lua import compile_scripts, lua_source_paths, resolve_luac
 from .file_replace import (
     copy_file,
@@ -224,21 +225,25 @@ def _reject_json_constant(value: str) -> None:
     raise ValueError(f"Invalid JSON constant: {value}")
 
 
-def _compact_json(source_path: pathlib.Path, source: bytes) -> bytes:
+def _json_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    value: dict[str, object] = {}
+    for key, child in pairs:
+        if key in value:
+            raise ValueError(f"Duplicate JSON data key: {key}")
+        value[key] = child
+    return value
+
+
+def _encode_json_data(source_path: pathlib.Path, source: bytes) -> bytes:
     try:
         value = json.loads(
             source.decode("utf-8-sig"),
             parse_constant=_reject_json_constant,
+            object_pairs_hook=_json_object,
         )
-        compact = json.dumps(
-            value,
-            ensure_ascii=False,
-            allow_nan=False,
-            separators=(",", ":"),
-        )
-    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exception:
-        raise DataCodecError(f"Invalid JSON data file: {source_path}") from exception
-    return compact.encode("utf-8")
+        return encode_data(value)
+    except (UnicodeError, ValueError, RecursionError) as exception:
+        raise DataCodecError(f"Invalid JSON data file: {source_path}: {exception}") from exception
 
 
 def encrypt_data(data_root: pathlib.Path) -> int:
@@ -252,18 +257,18 @@ def encrypt_data(data_root: pathlib.Path) -> int:
         if target_path.exists():
             raise DataCodecError(f"Encrypted data target already exists: {target_path}")
         relative_path = source_path.relative_to(data_root)
-        compact = _compact_json(source_path, source_path.read_bytes())
+        payload = _encode_json_data(source_path, source_path.read_bytes())
         jobs.append(
             (
                 source_path,
                 target_path,
                 _encode_bytes(
                     relative_path,
-                    compact,
+                    payload,
                     DATA_MAGIC,
                     MAX_DATA_SIZE,
                     DataCodecError,
-                    "JSON data",
+                    "Data",
                 ),
             )
         )

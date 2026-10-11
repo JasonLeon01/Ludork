@@ -1,6 +1,6 @@
 #pragma once
 
-#include <FileBatchJson.hpp>
+#include <FileBatchData.hpp>
 
 #include <atomic>
 #include <condition_variable>
@@ -31,7 +31,7 @@ struct FileBatchSpec {
     std::string excludeSuffix;
     bool recursive = false;
     bool required = true;
-    bool parseJson = false;
+    bool parseData = false;
 };
 
 struct FileBatchError {
@@ -48,7 +48,7 @@ struct FileBatchItem {
     std::string relativePath;
     std::string content;
     bool encryptedData = false;
-    FileBatchParsedJson parsedJson;
+    FileBatchParsedData parsedData;
     std::size_t contentBytes = 0;
 };
 
@@ -63,7 +63,7 @@ struct FileBatchSnapshot {
 };
 
 class FileBatchJob;
-class FileBatchJsonConversionState;
+class FileBatchDataConversionState;
 
 class FileBatchRuntime {
 public:
@@ -79,18 +79,18 @@ public:
     bool cancel(const std::shared_ptr<FileBatchJob>& job);
     void release(const std::shared_ptr<FileBatchJob>& job) noexcept;
     void shutdown() noexcept;
-    void configureJson(FileBatchJsonParser parser, FileBatchJsonBegin begin,
-                       FileBatchJsonStep step, FileBatchJsonClear clear);
-    void clearJson() noexcept;
-    std::shared_ptr<FileBatchJsonConversionState> beginJsonConversion(
+    void configureData(FileBatchDataParser parser, FileBatchDataBegin begin,
+                       FileBatchDataStep step, FileBatchDataClear clear);
+    void clearData() noexcept;
+    std::shared_ptr<FileBatchDataConversionState> beginDataConversion(
         lua_State* state, const std::shared_ptr<FileBatchJob>& job,
-        const FileBatchParsedJson& parsedJson);
-    FileBatchJsonStepResult stepJsonConversion(
+        const FileBatchParsedData& parsedData);
+    FileBatchDataStepResult stepDataConversion(
         lua_State* state,
-        const std::shared_ptr<FileBatchJsonConversionState>& conversion,
+        const std::shared_ptr<FileBatchDataConversionState>& conversion,
         std::size_t maximumNodes, double maximumMilliseconds);
-    bool clearJsonConversion(
-        const std::shared_ptr<FileBatchJsonConversionState>&
+    bool clearDataConversion(
+        const std::shared_ptr<FileBatchDataConversionState>&
             conversion) noexcept;
 
 private:

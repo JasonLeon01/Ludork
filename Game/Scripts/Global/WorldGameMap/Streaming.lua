@@ -224,7 +224,7 @@ function WorldGameMapStreaming.StartStreamingBatch(self)
             suffix = region.map,
             recursive = false,
             required = true,
-            parseJson = true
+            parseData = true
         }
     end
     if not bool(specs) then
@@ -242,7 +242,7 @@ function WorldGameMapStreaming.ConsumeStreamingItem(self, item)
     local conversion = assert(item.conversion, "World region JSON conversion is unavailable")
     local contentBytes = assert(item.contentBytes, "World region JSON byte size is unavailable")
     if region == nil or item.relativePath ~= region.map then
-        asyncio.clear_file_batch_json(conversion)
+        asyncio.clear_file_batch_data(conversion)
         error("World region file batch returned an unexpected item: " .. item.relativePath)
     end
     if region.payload == nil then
@@ -251,11 +251,11 @@ function WorldGameMapStreaming.ConsumeStreamingItem(self, item)
                 region, conversion, contentBytes, false, self._camera ~= nil and self:_getVisibleCellRect() or nil
             )
         else
-            asyncio.clear_file_batch_json(conversion)
+            asyncio.clear_file_batch_data(conversion)
             self._worldStreamingState:cancelRead(region.index, false)
         end
     else
-        asyncio.clear_file_batch_json(conversion)
+        asyncio.clear_file_batch_data(conversion)
     end
     self._worldStreamJobRegions[item.category] = nil
 end

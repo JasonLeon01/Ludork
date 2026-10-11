@@ -12,7 +12,7 @@
 #include <Runtime/RuntimeDataReader.hpp>
 #include <UI/UIState.hpp>
 #include <UI/UiVector4CurveResource.hpp>
-#include <Runtime/Json.hpp>
+#include <Runtime/Data.hpp>
 
 #include <Utf8Path.hpp>
 
@@ -302,7 +302,7 @@ RuntimeData loadConfigData(const std::string& textConfigKey) {
     }
     const std::filesystem::path path =
         std::filesystem::path(".") / "Data" / "TextConfigs" / relative;
-    RuntimeData data(getJSONData(path));
+    RuntimeData data(loadData(path));
     requireMap(data, ludork::standard::pathToUtf8(path));
     return data;
 }

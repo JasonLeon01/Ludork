@@ -121,7 +121,7 @@ std::filesystem::path assetPath(const std::string& assetKey) {
         }
         std::filesystem::path logicalPath = logicalRoot / relative;
         logicalPath += ".json";
-        if (!ludork::standard::jsonDataExists(logicalPath)) {
+        if (!ludork::standard::dataFileExists(logicalPath)) {
             throw std::out_of_range(
                 "UI asset key was not found or does not match filesystem "
                 "case: " +

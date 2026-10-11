@@ -76,7 +76,7 @@ end
 function SceneMapBuilder:resolveMapPath(mapPath, currentMap)
     local candidates = MapDataParser.GetPathCandidates(mapPath, currentMap)
     for _, candidate in ipairs(candidates) do
-        if Engine.jsonExists(SceneMapBuilder.GetMapDataPath(candidate)) then
+        if Engine.dataExists(SceneMapBuilder.GetMapDataPath(candidate)) then
             return candidate
         end
     end
@@ -94,7 +94,7 @@ function SceneMapBuilder:loadMapData(mapPath, currentMap)
     if isWorldManifest then
         WorldDirectoryValidator.Validate(MapDataParser.DATA_ROOT, resolvedPath)
     end
-    local data = cjson.decode(Engine.getJSONText(SceneMapBuilder.GetMapDataPath(resolvedPath)))
+    local data = Engine.loadData(SceneMapBuilder.GetMapDataPath(resolvedPath))
     ---@cast data table
     if isWorldManifest then
         assert(data.type == "worldMap", "_world.json must declare type as worldMap: " .. resolvedPath)
@@ -116,7 +116,7 @@ function SceneMapBuilder:resolveMapDestination(mapPath, currentMap, position)
         local parent = os.path.dirname(resolvedPath)
         if bool(parent) then
             local candidate = MapPath.Normalise(os.path.join(parent, MapConstants.WORLD_MANIFEST_FILE))
-            if Engine.jsonExists(SceneMapBuilder.GetMapDataPath(candidate)) then
+            if Engine.dataExists(SceneMapBuilder.GetMapDataPath(candidate)) then
                 worldManifestPath = candidate
             end
         end

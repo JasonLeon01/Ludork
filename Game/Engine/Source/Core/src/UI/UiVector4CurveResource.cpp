@@ -7,7 +7,7 @@
 #include <Vector4CurveData.hpp>
 #include <Vector4CurveKey.hpp>
 #include <Runtime/RuntimeDataReader.hpp>
-#include <Runtime/Json.hpp>
+#include <Runtime/Data.hpp>
 
 #include <Utf8Path.hpp>
 
@@ -214,7 +214,7 @@ std::filesystem::path curvePath(const std::filesystem::path& projectRoot,
                 "UI curve asset key escapes Data/Curves: " + assetKey);
         }
     }
-    if (!jsonExists(candidate)) {
+    if (!dataExists(candidate)) {
         throw std::runtime_error("UI curve was not found: " +
                                  ludork::standard::pathToUtf8(candidate));
     }
@@ -236,7 +236,7 @@ std::shared_ptr<Curve> loadUiCurveResource(
         curvePath(std::filesystem::weakly_canonical(projectRoot), assetKey);
     const std::string cacheKey = ludork::standard::pathToUtf8(path);
     return scalarCurveCache().getOrLoad(cacheKey, [&]() {
-        return Curve::fromData(scalarCurveData(getJSONData(path), cacheKey));
+        return Curve::fromData(scalarCurveData(loadData(path), cacheKey));
     });
 }
 
@@ -256,7 +256,7 @@ std::shared_ptr<Vector4Curve> loadUiVector4CurveResource(
     const std::string cacheKey = ludork::standard::pathToUtf8(path);
     return vector4CurveCache().getOrLoad(cacheKey, [&]() {
         return Vector4Curve::fromData(
-            vector4CurveData(getJSONData(path), cacheKey));
+            vector4CurveData(loadData(path), cacheKey));
     });
 }
 

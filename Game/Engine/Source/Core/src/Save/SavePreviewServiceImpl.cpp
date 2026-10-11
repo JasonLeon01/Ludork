@@ -1,6 +1,6 @@
 #include "SavePreviewServiceImpl.hpp"
 
-#include <Runtime/Json.hpp>
+#include <Runtime/Data.hpp>
 #include <Save/SavePreviewReader.hpp>
 #include <Utf8Path.hpp>
 
@@ -150,7 +150,7 @@ SavePreviewServiceImpl::Preview SavePreviewServiceImpl::read(
                 return preview;
             }
         }
-        preview.image = readImage(getJSONData(file), width, height);
+        preview.image = readImage(loadData(file), width, height);
         if (std::filesystem::last_write_time(file) != modified ||
             std::filesystem::file_size(file) != size) {
             throw std::runtime_error(

@@ -35,7 +35,7 @@ public:
         const int running = lua_gc(state, LUA_GCISRUNNING);
         if (running < 0) {
             throw std::runtime_error(
-                "file batch JSON conversion could not query Lua garbage "
+                "file batch data conversion could not query Lua garbage "
                 "collection");
         }
         wasRunning_ = running != 0;
@@ -86,21 +86,21 @@ private:
     std::shared_ptr<FileBatchJob> job_;
 };
 
-class FileBatchJsonHandle {
+class FileBatchDataHandle {
 public:
-    FileBatchJsonHandle(
+    FileBatchDataHandle(
         std::shared_ptr<FileBatchRuntime> runtime,
-        std::shared_ptr<FileBatchJsonConversionState> conversion)
+        std::shared_ptr<FileBatchDataConversionState> conversion)
         : runtime_(std::move(runtime)), conversion_(std::move(conversion)) {}
 
-    ~FileBatchJsonHandle() {
+    ~FileBatchDataHandle() {
         clear();
     }
 
-    FileBatchJsonHandle(const FileBatchJsonHandle&) = delete;
-    FileBatchJsonHandle& operator=(const FileBatchJsonHandle&) = delete;
-    FileBatchJsonHandle(FileBatchJsonHandle&&) noexcept = default;
-    FileBatchJsonHandle& operator=(FileBatchJsonHandle&& other) noexcept {
+    FileBatchDataHandle(const FileBatchDataHandle&) = delete;
+    FileBatchDataHandle& operator=(const FileBatchDataHandle&) = delete;
+    FileBatchDataHandle(FileBatchDataHandle&&) noexcept = default;
+    FileBatchDataHandle& operator=(FileBatchDataHandle&& other) noexcept {
         if (this != &other) {
             clear();
             runtime_ = std::move(other.runtime_);
@@ -109,25 +109,25 @@ public:
         return *this;
     }
 
-    FileBatchJsonStepResult step(lua_State* state, std::size_t maximumNodes,
+    FileBatchDataStepResult step(lua_State* state, std::size_t maximumNodes,
                                  double maximumMilliseconds) {
         if (!runtime_ || !conversion_) {
             throw std::runtime_error(
-                "file batch JSON conversion handle is invalid");
+                "file batch data conversion handle is invalid");
         }
-        return runtime_->stepJsonConversion(state, conversion_, maximumNodes,
+        return runtime_->stepDataConversion(state, conversion_, maximumNodes,
                                             maximumMilliseconds);
     }
 
     bool clear() noexcept {
         return runtime_ && conversion_
-                   ? runtime_->clearJsonConversion(conversion_)
+                   ? runtime_->clearDataConversion(conversion_)
                    : false;
     }
 
 private:
     std::shared_ptr<FileBatchRuntime> runtime_;
-    std::shared_ptr<FileBatchJsonConversionState> conversion_;
+    std::shared_ptr<FileBatchDataConversionState> conversion_;
 };
 
 std::string requiredString(const lua_glue::Table& table, const char* name) {
@@ -207,10 +207,11 @@ std::vector<FileBatchSpec> readSpecs(const lua_glue::Object& value) {
         spec.excludeSuffix = optionalString(specTable, "excludeSuffix");
         spec.recursive = optionalBoolean(specTable, "recursive", false);
         spec.required = optionalBoolean(specTable, "required", true);
-        spec.parseJson = optionalBoolean(specTable, "parseJson", false);
-        if (spec.parseJson && !spec.suffix.ends_with(".json")) {
+        spec.parseData = optionalBoolean(specTable, "parseData", false);
+        if (spec.parseData && !spec.suffix.ends_with(".json") &&
+            !spec.suffix.ends_with(".ldc")) {
             throw std::invalid_argument(
-                "file batch parseJson requires a .json suffix");
+                "file batch parseData requires a .json or .ldc suffix");
         }
         specs.push_back(std::move(spec));
     }
@@ -280,11 +281,11 @@ lua_glue::Table writeItem(lua_glue::StateView lua,
     lua_glue::Table result = lua.create_table_with(
         "index", item.index, "category", item.category, "relativePath",
         item.relativePath, "encryptedData", item.encryptedData);
-    if (item.parsedJson) {
+    if (item.parsedData) {
         result["contentBytes"] = item.contentBytes;
-        result["conversion"] = FileBatchJsonHandle(
-            runtime, runtime->beginJsonConversion(lua.lua_state(), job,
-                                                  item.parsedJson));
+        result["conversion"] = FileBatchDataHandle(
+            runtime, runtime->beginDataConversion(lua.lua_state(), job,
+                                                  item.parsedData));
     } else {
         result["content"] = item.content;
     }
@@ -326,11 +327,11 @@ void registerFileBatch(lua_glue::StateView lua) {
                                           "LudorkStandardFileBatchRuntime");
     lua_glue::BindClass<FileBatchHandle>(lua.globals(),
                                          "LudorkStandardFileBatchJob");
-    lua_glue::BindClass<FileBatchJsonHandle>(
-        lua.globals(), "LudorkStandardFileBatchJsonConversion");
+    lua_glue::BindClass<FileBatchDataHandle>(
+        lua.globals(), "LudorkStandardFileBatchDataConversion");
     lua["LudorkStandardFileBatchRuntime"] = lua_glue::nil;
     lua["LudorkStandardFileBatchJob"] = lua_glue::nil;
-    lua["LudorkStandardFileBatchJsonConversion"] = lua_glue::nil;
+    lua["LudorkStandardFileBatchDataConversion"] = lua_glue::nil;
 
     std::shared_ptr<FileBatchRuntime> runtime = runtimeFromRegistry(lua);
     if (!runtime) {
@@ -355,13 +356,13 @@ void registerFileBatch(lua_glue::StateView lua) {
                              return runtime->cancel(handle.job());
                          });
     asyncio.set_function(
-        "step_file_batch_json", [](FileBatchJsonHandle& conversion,
+        "step_file_batch_data", [](FileBatchDataHandle& conversion,
                                    const lua_glue::Object& maximumNodes,
                                    const lua_glue::Object& maximumMilliseconds,
                                    lua_glue::ThisState state) {
             lua_State* target = state;
             ScopedLuaGarbageCollectorPause garbageCollectorPause(target);
-            const FileBatchJsonStepResult step = conversion.step(
+            const FileBatchDataStepResult step = conversion.step(
                 target, readPositiveInteger(maximumNodes, "maxNodes"),
                 readPositiveNumber(maximumMilliseconds, "maxMilliseconds"));
             lua_glue::StateView lua(target);
@@ -375,17 +376,17 @@ void registerFileBatch(lua_glue::StateView lua) {
                 lua_glue::MakeObject(lua, step.processedNodes),
                 std::move(data)};
         });
-    asyncio.set_function("clear_file_batch_json",
-                         [](FileBatchJsonHandle& conversion) {
+    asyncio.set_function("clear_file_batch_data",
+                         [](FileBatchDataHandle& conversion) {
                              return conversion.clear();
                          });
     lua["asyncio"] = std::move(asyncio);
 }
 
-void configureFileBatchJsonRuntime(lua_State* state, FileBatchJsonParser parser,
-                                   FileBatchJsonBegin begin,
-                                   FileBatchJsonStep step,
-                                   FileBatchJsonClear clear) {
+void configureFileBatchDataRuntime(lua_State* state, FileBatchDataParser parser,
+                                   FileBatchDataBegin begin,
+                                   FileBatchDataStep step,
+                                   FileBatchDataClear clear) {
     if (state == nullptr) {
         throw std::invalid_argument("file batch Lua state must not be null");
     }
@@ -394,25 +395,25 @@ void configureFileBatchJsonRuntime(lua_State* state, FileBatchJsonParser parser,
     if (!runtime) {
         throw std::runtime_error("file batch runtime is not registered");
     }
-    runtime->configureJson(std::move(parser), std::move(begin), std::move(step),
+    runtime->configureData(std::move(parser), std::move(begin), std::move(step),
                            std::move(clear));
 }
 
-void clearFileBatchJsonRuntime(lua_State* state) noexcept {
+void clearFileBatchDataRuntime(lua_State* state) noexcept {
     if (state == nullptr) {
         return;
     }
     std::shared_ptr<FileBatchRuntime> runtime =
         runtimeFromRegistry(lua_glue::StateView(state));
     if (runtime) {
-        runtime->clearJson();
+        runtime->clearData();
     }
 }
 
 void shutdownFileBatch(lua_glue::StateView lua) noexcept {
     std::shared_ptr<FileBatchRuntime> runtime = runtimeFromRegistry(lua);
     if (runtime) {
-        runtime->clearJson();
+        runtime->clearData();
         runtime->shutdown();
     }
 }
@@ -421,16 +422,16 @@ void shutdownFileBatch(lua_glue::StateView lua) noexcept {
 
 namespace ludork::standard {
 
-void configureFileBatchJson(lua_State* state, FileBatchJsonParser parser,
-                            FileBatchJsonBegin begin, FileBatchJsonStep step,
-                            FileBatchJsonClear clear) {
-    binding::configureFileBatchJsonRuntime(state, std::move(parser),
+void configureFileBatchData(lua_State* state, FileBatchDataParser parser,
+                            FileBatchDataBegin begin, FileBatchDataStep step,
+                            FileBatchDataClear clear) {
+    binding::configureFileBatchDataRuntime(state, std::move(parser),
                                            std::move(begin), std::move(step),
                                            std::move(clear));
 }
 
-void clearFileBatchJson(lua_State* state) noexcept {
-    binding::clearFileBatchJsonRuntime(state);
+void clearFileBatchData(lua_State* state) noexcept {
+    binding::clearFileBatchDataRuntime(state);
 }
 
 }  // namespace ludork::standard

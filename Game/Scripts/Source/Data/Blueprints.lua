@@ -1,4 +1,3 @@
-local cjson = require("cjson")
 local Engine = require("Engine")
 local NodeCompiler = require("Global.Utils.NodeCompiler")
 local GlobalCore = require("GlobalCore")
@@ -133,8 +132,8 @@ end
 function DataBlueprints:getCommonFunction(name)
     if self._state.commonFunctionsData[name] == nil then
         local path = "./Data/CommonFunctions/" .. tostring(name) .. ResourceFileConstants.DATA_EXTENSION
-        assert(Engine.jsonExists(path), "Common function not found: " .. tostring(name))
-        local loadedData = self._loading:normaliseJsonNull(Engine.getJSONData(path))
+        assert(Engine.dataExists(path), "Common function not found: " .. tostring(name))
+        local loadedData = self._loading:normaliseJsonNull(Engine.loadData(path))
         ---@cast loadedData Source.Data.GraphData
         self._state.commonFunctionsData[name] = loadedData
     end
@@ -246,7 +245,7 @@ function DataBlueprints:resolveBlueprintData(classPath)
     end
     if Class.isInstance(self._state.blueprintClassData[classPath], "string") then
         local loadedData = prepareBlueprintData(
-            cjson.decode(tostring(self._state.blueprintClassData[classPath])), self._loading
+            Engine.decodeData(tostring(self._state.blueprintClassData[classPath])), self._loading
         )
         ---@cast loadedData table<string, Source.Data.JsonValue>
         self._state.blueprintClassData[classPath] = loadedData
@@ -259,10 +258,10 @@ function DataBlueprints:resolveBlueprintData(classPath)
         return nil
     end
     local path = "./Data/Blueprints/" .. relative:gsub("%.", "/") .. ResourceFileConstants.DATA_EXTENSION
-    if not Engine.jsonExists(path) then
+    if not Engine.dataExists(path) then
         return nil
     end
-    local loadedData = prepareBlueprintData(Engine.getJSONData(path), self._loading)
+    local loadedData = prepareBlueprintData(Engine.loadData(path), self._loading)
     ---@cast loadedData table<string, Source.Data.JsonValue>
     self._state.blueprintClassData[classPath] = loadedData
     return loadedData

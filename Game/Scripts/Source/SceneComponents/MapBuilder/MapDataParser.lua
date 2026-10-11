@@ -50,13 +50,14 @@ end
 local function requireArray(value, path)
     assert(Class.isInstance(value, "table"), path .. " must be an array")
     local length = #value
+    assert(value.n == nil or value.n == length, path .. " must be a dense array")
     for index = 1, length do
         assert(value[index] ~= nil, path .. " must be an array")
     end
     for key in pairs(value) do
         assert(
-            Class.isInstance(key, "number") and math.type(key) == "integer" and key >= 1 and key <= length,
-            path .. " must be an array"
+            key == "n" or (Class.isInstance(key, "number") and math.type(key) == "integer" and key >= 1
+                    and key <= length), path .. " must be an array"
         )
     end
 end
@@ -145,8 +146,7 @@ function MapDataParser.NormaliseWorld(data, manifestPath)
         local map = placement.map
         assert(
             Class.isInstance(map, "string") and bool(map),
-            "worldMap.placements[" .. index
-                .. "].map must be a non-empty string"
+            "worldMap.placements[" .. index .. "].map must be a non-empty string"
         )
         map = MapPath.Normalise(map)
         assert(os.path.dirname(map) == "", "World child map must be a direct file: " .. map)
@@ -168,7 +168,7 @@ function MapDataParser.NormaliseWorld(data, manifestPath)
             x + width <= data.width and y + height <= data.height, "World child map is outside world bounds: " .. map
         )
         local path = MapPath.Normalise(os.path.join(worldDirectory, map))
-        assert(Engine.jsonExists(MapDataParser.GetDataPath(path)), "World child map does not exist: " .. path)
+        assert(Engine.dataExists(MapDataParser.GetDataPath(path)), "World child map does not exist: " .. path)
         local region = {
             index = index,
             map = map,
@@ -189,7 +189,7 @@ function MapDataParser.NormaliseWorld(data, manifestPath)
         regions[#regions + 1] = region
     end
     if not bool(regions) then
-        assert(not bool(data.layerOrder), "worldMap.layerOrder must be empty when no child maps are placed")
+        assert(#data.layerOrder == 0, "worldMap.layerOrder must be empty when no child maps are placed")
     end
     data.manifestPath = manifestPath
     data.dataRoot = MapDataParser.GetDataPath(worldDirectory)

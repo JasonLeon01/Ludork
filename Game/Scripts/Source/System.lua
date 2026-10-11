@@ -60,7 +60,7 @@ local function blueprintRelativePathToClassPath(relativePath)
 end
 
 function System.Init()
-    local systemData = Engine.getJSONData("./Data/Configs/System.json")
+    local systemData = Engine.loadData("./Data/Configs/System.json")
     assert(Class.isInstance(systemData, "table"), "System configuration must be an object")
     ---@cast systemData Source.System.ConfigData
     systemState.title = systemData.title.value
@@ -98,7 +98,7 @@ function System.Init()
     Engine.DefaultFontSize = systemState.fontSize
     Engine.DefaultWindowskinName = systemState.windowskinName
     GameMap.DefaultCoverAlpha = coverOpaqueAlpha
-    local audioData = Engine.getJSONData("./Data/Configs/Audio.json")
+    local audioData = Engine.loadData("./Data/Configs/Audio.json")
     systemState.audioConfigValues = extractConfigValues(audioData)
     systemState.cursorSE = tostring(systemState.audioConfigValues.cursorSE or "")
     systemState.decisionSE = tostring(systemState.audioConfigValues.decisionSE or "")
