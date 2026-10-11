@@ -826,41 +826,27 @@ def ensure_preview(project: pathlib.Path) -> UiPreviewSnapshot:
     _require_not_building(project)
     root = _artifact_root(project, METADATA_DIRECTORY)
     paths = [root / MANIFEST_NAME, root / REGISTRY_NAME]
-    if all(os.path.lexists(path) for path in paths):
+    try:
         return load_preview(project)
-    project_file = project / "Main.proj"
-    config = strict_json(project_file.read_bytes()) if project_file.is_file() else None
-    if not isinstance(config, dict) or config.get("Cpp") is not False:
-        return load_preview(project)
+    except (UiRegistryError, OSError):
+        project_file = project / "Main.proj"
+        config = strict_json(project_file.read_bytes()) if project_file.is_file() else None
+        if not isinstance(config, dict) or config.get("Cpp") is not False:
+            raise
     with _metadata_lock(project):
         _require_not_building(project)
-        if all(os.path.lexists(path) for path in paths):
+        try:
             return load_preview(project)
+        except (UiRegistryError, OSError):
+            pass
         for path in paths:
             if os.path.lexists(path) and (_is_link(path) or not path.is_file()):
                 raise UiRegistryError(
                     f"Preview metadata must be a regular file: {path}"
                 )
+        for path in paths:
+            path.unlink(missing_ok=True)
         snapshot = _describe_snapshot(project, _artifact_root(project))
-        if paths[0].exists():
-            existing = require_fields(
-                strict_json(paths[0].read_bytes()), MANIFEST_FIELDS, "Preview manifest"
-            )
-            if (
-                type(existing["formatVersion"]) is not int
-                or existing["formatVersion"] != 1
-            ):
-                raise UiRegistryError(
-                    "Unsupported preview manifest format; update the project preview"
-                )
-            if existing != snapshot.manifest:
-                raise UiRegistryError(
-                    "The remaining preview manifest does not match the compiled Host"
-                )
-        if paths[1].exists() and load_registry(paths[1]).raw != snapshot.registry.raw:
-            raise UiRegistryError(
-                "The remaining preview registry does not match the compiled Host"
-            )
         return _install_snapshot(
             project,
             snapshot.runtime_directory,

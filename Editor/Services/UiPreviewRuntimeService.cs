@@ -59,14 +59,7 @@ public sealed class UiPreviewRuntimeService : IDisposable, IAsyncDisposable
             try
             {
                 SnapshotReadResult next =
-                    await Task.Run(readCurrent, cancellationToken).ConfigureAwait(false);
-                if (next.MetadataMissing)
-                {
-                    if (!sourceUnavailable || recoveryError is null)
-                        applyState(next, LocaleService.Get("UI_PREVIEW_COMPILE_REQUIRED"));
-                    if (await Task.Run(recoverStandaloneRegistry, cancellationToken).ConfigureAwait(false))
-                        next = await Task.Run(readCurrent, cancellationToken).ConfigureAwait(false);
-                }
+                    await Task.Run(readCurrentWithRecovery, cancellationToken).ConfigureAwait(false);
                 applyState(next, next.Building ? LocaleService.Get("UI_PREVIEW_BUILD_REQUIRED")
                     : next.Snapshot is null ? LocaleService.Get("UI_PREVIEW_COMPILE_REQUIRED") : string.Empty);
             }
@@ -155,6 +148,22 @@ public sealed class UiPreviewRuntimeService : IDisposable, IAsyncDisposable
     {
         if (refreshLock.CurrentCount != 0)
             await RefreshAsync();
+    }
+
+    private SnapshotReadResult readCurrentWithRecovery()
+    {
+        SnapshotReadResult next;
+        try
+        {
+            next = readCurrent();
+        }
+        catch (Exception exception) when (IsSnapshotException(exception))
+        {
+            if (!recoverStandaloneRegistry())
+                throw;
+            return readCurrent();
+        }
+        return next.MetadataMissing && recoverStandaloneRegistry() ? readCurrent() : next;
     }
 
     private SnapshotReadResult readCurrent()
@@ -338,14 +347,18 @@ public sealed class UiPreviewRuntimeService : IDisposable, IAsyncDisposable
             paths.Add(toolPath);
         if (Directory.Exists(binaryRoot))
             paths.AddRange(Directory.EnumerateFiles(binaryRoot));
-        StringBuilder stamp = new();
-        foreach (string path in paths.OrderBy(path => path, Utf8NameComparer.Instance))
+        string createRecoveryStamp()
         {
-            FileInfo file = new(path);
-            stamp.Append(path).Append('\0').Append(file.Exists ? file.Length : -1)
-                .Append(':').Append(file.LastWriteTimeUtc.Ticks).Append(':').Append(file.LinkTarget).Append('\0');
+            StringBuilder stamp = new();
+            foreach (string path in paths.OrderBy(path => path, Utf8NameComparer.Instance))
+            {
+                FileInfo file = new(path);
+                stamp.Append(path).Append('\0').Append(file.Exists ? file.Length : -1)
+                    .Append(':').Append(file.LastWriteTimeUtc.Ticks).Append(':').Append(file.LinkTarget).Append('\0');
+            }
+            return stamp.ToString();
         }
-        string nextStamp = stamp.ToString();
+        string nextStamp = createRecoveryStamp();
         if (recoveryAttemptStamp == nextStamp)
         {
             require(recoveryError is null, recoveryError ?? string.Empty);
@@ -389,6 +402,7 @@ public sealed class UiPreviewRuntimeService : IDisposable, IAsyncDisposable
         }
         catch (Exception exception) when (IsSnapshotException(exception))
         {
+            recoveryAttemptStamp = createRecoveryStamp();
             recoveryError = exception.Message;
             throw;
         }

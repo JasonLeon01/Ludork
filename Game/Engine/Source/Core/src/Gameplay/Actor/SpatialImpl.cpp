@@ -27,13 +27,11 @@ void SpatialImpl::syncBounds(const sf::FloatRect& bounds, int cellSize) {
 
 std::vector<sf::Vector2i> SpatialImpl::occupiedCellsAtMapPosition(
     const sf::Vector2i& target, int cellSize) const {
-    const sf::Vector2i delta = target - mapPosition;
-    const sf::Vector2f worldPosition(
-        position.x + static_cast<float>(delta.x * cellSize),
-        position.y + static_cast<float>(delta.y * cellSize));
+    const sf::Vector2f worldPosition(static_cast<float>(target.x * cellSize),
+                                     static_cast<float>(target.y * cellSize));
     sf::FloatRect bounds = globalBounds;
     bounds.position += worldPosition - position;
-    return computeOccupiedCells(bounds, cellSize);
+    return ludork::engine::actor_impl::occupiedCells(bounds, target, cellSize);
 }
 
 std::vector<sf::Vector2i> SpatialImpl::computeOccupiedCells(

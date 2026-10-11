@@ -106,6 +106,8 @@ public sealed class ProjectSaveService
             return new ProjectSaveAttempt(false, false, [],
                 new SaveResult(false, LocaleService.Get("BLUEPRINT_TEXT_SAVE_BLOCKED") + Environment.NewLine + string.Join(Environment.NewLine, inputErrors)));
         }
+        if (projectConfig.IsStandalone && !beforeNativeBuild)
+            await uiControlRegistry.Runtime.RefreshAsync();
         ProjectOperationSnapshot snapshot = gameData.CaptureOperationSnapshot();
         EditorDocument[] modified = gameData.Documents.ModifiedDocuments
             .Where(document => document.Section != "GameVariables").ToArray();

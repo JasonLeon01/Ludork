@@ -711,11 +711,14 @@ ScriptTools ui-adapter-check <project-root>
 ```
 
 `ScriptTools ui-assets validate <project-root>` performs full asset validation.
-For Standalone, it first restores missing preview JSON when necessary, as do
-`ui-preview ensure <project-root>` and `ui-preview registry <project-root>`.
-Restoration reads the existing `Binaries/UiPreviewHost`; damaged or mismatched
-metadata and missing binaries remain errors. Source projects require a build
-when their selected preview metadata is unavailable.
+For Standalone, it first restores missing, damaged or mismatched preview JSON,
+as do editor preview, Save and Export, `ui-preview ensure <project-root>` and
+`ui-preview registry <project-root>`. Recovery deletes only `EditorCache/UiPreview.json`
+and `EditorCache/UiPreview.registry.json`, then regenerates them from the current
+`Binaries/UiPreviewHost`, preserving other cache files. Save and Export wait for
+recovery before validating assets. Recovery failures, including missing Host binaries
+or dependencies, remain errors. Source projects require a build when their selected
+preview metadata is unavailable.
 
 The build runs `ScriptTools ui-preview publish <project-root> <bin-directory>
 --configuration <Debug|Release>` after linking and dependency preparation. The
