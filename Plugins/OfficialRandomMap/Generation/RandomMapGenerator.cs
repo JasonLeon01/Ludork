@@ -90,7 +90,13 @@ public static partial class RandomMapGenerator
             cancellationToken.ThrowIfCancellationRequested();
             StableRandom random = new StableRandom(DeriveSeed(seed, candidateIndex));
             GenerationCandidate candidate = mode == RandomMapMode.Lattice
-                ? GenerateLattice(workingWidth, workingHeight, random)
+                ? GenerateLattice(
+                    workingWidth,
+                    workingHeight,
+                    workingMarkers,
+                    targetWalls,
+                    random,
+                    cancellationToken)
                 : GenerateRooms(workingWidth, workingHeight, workingMarkers, random);
 
             if (!RepairAndValidate(
@@ -938,11 +944,6 @@ public static partial class RandomMapGenerator
         return value;
     }
 
-    private readonly record struct LatticeEdge(
-        RandomMapPoint From,
-        RandomMapPoint To,
-        int Direction);
-
     private readonly record struct InteriorGraphMetrics(
         int Vertices,
         int Edges,
@@ -956,7 +957,6 @@ public static partial class RandomMapGenerator
 
     private sealed record GenerationCandidate(
         bool[,] Walls,
-        int LatticeNodeCount,
         IReadOnlyList<MapRect> Rooms,
         HashSet<RandomMapPoint> MainPath,
         Dictionary<MapRect, IReadOnlyList<RandomMapPoint>> RoomDoors,

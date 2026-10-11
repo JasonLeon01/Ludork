@@ -14,11 +14,16 @@ public static partial class RandomMapGenerator
         StableRandom random,
         out string failure)
     {
+        if (mode == RandomMapMode.Lattice)
+        {
+            return ValidateLattice(candidate.Walls, markers, targetWalls, out failure);
+        }
+
         failure = string.Empty;
         bool[,] walls = candidate.Walls;
         int height = walls.GetLength(0);
         int width = walls.GetLength(1);
-        int windowSize = mode == RandomMapMode.Lattice ? 4 : 8;
+        const int windowSize = 8;
 
         SealVirtualBoundary(walls);
         foreach (RandomMapPoint marker in markers)
@@ -26,14 +31,7 @@ public static partial class RandomMapGenerator
             walls[marker.Y, marker.X] = false;
         }
 
-        if (mode == RandomMapMode.Lattice && !ConnectEmptyComponents(walls))
-        {
-            failure = "noConnectedLayout";
-            return false;
-        }
-
-        if (mode == RandomMapMode.Rooms
-            && !RepairRoomOpenings(candidate, markers, random, out failure))
+        if (!RepairRoomOpenings(candidate, markers, random, out failure))
         {
             return false;
         }
@@ -60,15 +58,9 @@ public static partial class RandomMapGenerator
         }
 
         Func<bool>? styleValidator = null;
-        if (mode == RandomMapMode.Lattice && HasValidLatticeStyle(candidate))
+        if (HasValidRoomStyle(candidate, markers, out _))
         {
-            styleValidator = () => HasValidLatticeStyle(candidate);
-        }
-        else if (mode == RandomMapMode.Rooms
-            && HasValidRoomStyle(candidate, markers, out _))
-        {
-            styleValidator =
-                () => HasValidRoomStyle(candidate, markers, out _);
+            styleValidator = () => HasValidRoomStyle(candidate, markers, out _);
         }
 
         int wallCount = CountWalls(walls);
@@ -136,24 +128,7 @@ public static partial class RandomMapGenerator
             return false;
         }
 
-        bool validStyle;
-        if (mode == RandomMapMode.Lattice)
-        {
-            validStyle = HasValidLatticeStyle(candidate);
-        }
-        else
-        {
-            validStyle = HasValidRoomStyle(candidate, markers, out failure);
-        }
-
-        if (!validStyle)
-        {
-            failure = mode == RandomMapMode.Lattice
-                ? "latticeStyleFailed"
-                : failure;
-        }
-
-        return validStyle;
+        return HasValidRoomStyle(candidate, markers, out failure);
     }
 
     private static HashSet<RandomMapPoint> CollectProtectedEmptyCells(

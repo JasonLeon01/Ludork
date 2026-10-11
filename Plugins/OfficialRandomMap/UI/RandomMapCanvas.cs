@@ -17,8 +17,6 @@ internal sealed class RandomMapCanvas : Control, IDisposable
     private const int MinimumCellSize = 12;
     private const int MaximumCellSize = 96;
     private const int CellSizeStep = 4;
-    private const int CharacterSheetColumns = 4;
-    private const int CharacterSheetRows = 4;
     private static readonly IBrush BackgroundBrush =
         PluginTheme.Brush("Surface");
     private static readonly IBrush EmptyBrush =
@@ -57,6 +55,11 @@ internal sealed class RandomMapCanvas : Control, IDisposable
     private int cellSize = 32;
     private double continuousCellSize = 32;
     private bool markerMode;
+    private bool selectionMode;
+    private MapRegion region;
+    private (int X, int Y)? selectionStart;
+    private MapRegion? pendingRegion;
+    private IPointer? selectionPointer;
     private readonly EditorZoomAnchor pendingMapZoomAnchor = new();
 
     public RandomMapCanvas(IMapEditorHost host)
@@ -69,6 +72,18 @@ internal sealed class RandomMapCanvas : Control, IDisposable
     }
 
     public event EventHandler<MapMarkerEventArgs>? MarkerToggled;
+    public event EventHandler<MapRegionEventArgs>? RegionChanged;
+
+    public void SetRegion(MapRegion nextRegion, bool nextSelectionMode)
+    {
+        selectionPointer?.Capture(null);
+        selectionPointer = null;
+        region = nextRegion;
+        selectionMode = nextSelectionMode;
+        selectionStart = null;
+        pendingRegion = null;
+        InvalidateVisual();
+    }
 
     public void SetMap(
         PluginMapSnapshot? nextSnapshot,
@@ -128,10 +143,11 @@ internal sealed class RandomMapCanvas : Control, IDisposable
                         selectedLayerName,
                         StringComparison.Ordinal)
                     ? 1.0
-                    : 0.38;
+                    : 0.5;
                 using (context.PushOpacity(opacity))
                     drawLayer(context, layer, visibleMapRect);
             }
+            drawSelection(context, localMapRect);
             drawGrid(context, visibleMapRect);
             drawMarkers(context, visibleMapRect);
         }
@@ -166,20 +182,85 @@ internal sealed class RandomMapCanvas : Control, IDisposable
     protected override void OnPointerPressed(PointerPressedEventArgs args)
     {
         base.OnPointerPressed(args);
-        if (!markerMode || snapshot is null)
+        if (snapshot is null || (!selectionMode && !markerMode))
             return;
         PointerPoint point = args.GetCurrentPoint(this);
-        if (!point.Properties.IsLeftButtonPressed)
+        if (!point.Properties.IsLeftButtonPressed || !getMapRect().Contains(point.Position))
             return;
-        Rect mapRect = getMapRect();
-        if (!mapRect.Contains(point.Position))
-            return;
-        int x = (int)((point.Position.X - mapRect.X) / cellSize);
-        int y = (int)((point.Position.Y - mapRect.Y) / cellSize);
-        if (x < 0 || y < 0 || x >= snapshot.Width || y >= snapshot.Height)
-            return;
-        MarkerToggled?.Invoke(this, new MapMarkerEventArgs(x, y));
+        (int x, int y) = getCell(point.Position);
+        if (selectionMode)
+        {
+            selectionStart = (x, y);
+            pendingRegion = MapRegion.FromPoints(x, y, x, y);
+            selectionPointer = args.Pointer;
+            args.Pointer.Capture(this);
+            Focus();
+            InvalidateVisual();
+        }
+        else if (region.Contains(x, y))
+        {
+            MarkerToggled?.Invoke(this, new MapMarkerEventArgs(x, y));
+        }
         args.Handled = true;
+    }
+
+    protected override void OnPointerMoved(PointerEventArgs args)
+    {
+        base.OnPointerMoved(args);
+        if (selectionStart is not { } start)
+            return;
+        (int x, int y) = getCell(args.GetPosition(this));
+        pendingRegion = MapRegion.FromPoints(start.X, start.Y, x, y);
+        InvalidateVisual();
+        args.Handled = true;
+    }
+
+    protected override void OnPointerReleased(PointerReleasedEventArgs args)
+    {
+        base.OnPointerReleased(args);
+        if (selectionStart is not { } start || args.InitialPressMouseButton != MouseButton.Left)
+            return;
+        (int x, int y) = getCell(args.GetPosition(this));
+        MapRegion selected = MapRegion.FromPoints(start.X, start.Y, x, y);
+        selectionStart = null;
+        pendingRegion = null;
+        selectionPointer = null;
+        args.Pointer.Capture(null);
+        RegionChanged?.Invoke(this, new MapRegionEventArgs(selected));
+        InvalidateVisual();
+        args.Handled = true;
+    }
+
+    protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs args)
+    {
+        base.OnPointerCaptureLost(args);
+        selectionStart = null;
+        pendingRegion = null;
+        selectionPointer = null;
+        InvalidateVisual();
+    }
+
+    private (int X, int Y) getCell(Point point)
+    {
+        Rect mapRect = getMapRect();
+        return (
+            Math.Clamp((int)Math.Floor((point.X - mapRect.X) / cellSize), 0, snapshot!.Width - 1),
+            Math.Clamp((int)Math.Floor((point.Y - mapRect.Y) / cellSize), 0, snapshot!.Height - 1));
+    }
+
+    private void drawSelection(DrawingContext context, Rect mapRect)
+    {
+        MapRegion selected = pendingRegion ?? region;
+        if (selected.Width <= 0 || selected.Height <= 0)
+            return;
+        Rect selection = new(selected.X * (double)cellSize, selected.Y * (double)cellSize,
+            selected.Width * (double)cellSize, selected.Height * (double)cellSize);
+        IBrush shade = new SolidColorBrush(Color.FromArgb(85, 0, 0, 0));
+        context.FillRectangle(shade, new Rect(0, 0, mapRect.Width, selection.Top));
+        context.FillRectangle(shade, new Rect(0, selection.Bottom, mapRect.Width, mapRect.Height - selection.Bottom));
+        context.FillRectangle(shade, new Rect(0, selection.Top, selection.Left, selection.Height));
+        context.FillRectangle(shade, new Rect(selection.Right, selection.Top, mapRect.Width - selection.Right, selection.Height));
+        context.DrawRectangle(null, new Pen(MarkerBrush, 2), selection.Deflate(1));
     }
 
     protected override void OnPointerWheelChanged(PointerWheelEventArgs args)
@@ -370,9 +451,7 @@ internal sealed class RandomMapCanvas : Control, IDisposable
                 }
             }
         }
-        int sourceCellSize = tileset is null
-            ? host.CellSize
-            : Math.Max(1, tileset.TileWidth);
+        int sourceCellSize = Math.Max(1, host.CellSize);
         drawActors(
             context,
             layer.Actors,
@@ -390,7 +469,7 @@ internal sealed class RandomMapCanvas : Control, IDisposable
         {
             Bitmap? sourceBitmap = getBitmap(actor.AssetPath);
             PluginMapActorRectSnapshot sourceRect =
-                getActorSourceRect(actor, sourceBitmap);
+                actor.SourceRect ?? new PluginMapActorRectSnapshot(0, 0, host.CellSize, host.CellSize);
             Rect destination = new(
                 -actor.OriginX,
                 -actor.OriginY,
@@ -410,14 +489,15 @@ internal sealed class RandomMapCanvas : Control, IDisposable
                             actor.AssetPath,
                             sourceBitmap!,
                             actor.Hue);
-                        context.DrawImage(
-                            drawBitmap,
-                            new Rect(
-                                sourceRect.X,
-                                sourceRect.Y,
-                                sourceRect.Width,
-                                sourceRect.Height),
-                            destination);
+                        using (context.PushOpacity(actor.PreviewOpacity))
+                            context.DrawImage(
+                                drawBitmap,
+                                new Rect(
+                                    sourceRect.X,
+                                    sourceRect.Y,
+                                    sourceRect.Width,
+                                    sourceRect.Height),
+                                destination);
                     }
                     else
                     {
@@ -498,36 +578,6 @@ internal sealed class RandomMapCanvas : Control, IDisposable
             Math.Max(topLeft.Y, topRight.Y),
             Math.Max(bottomLeft.Y, bottomRight.Y));
         return new Rect(left, top, right - left, bottom - top);
-    }
-
-    private PluginMapActorRectSnapshot getActorSourceRect(
-        PluginMapActorSnapshot actor,
-        Bitmap? bitmap)
-    {
-        if (actor.IsCharacter && bitmap is not null)
-        {
-            int width = Math.Max(
-                1,
-                bitmap.PixelSize.Width / CharacterSheetColumns);
-            int height = Math.Max(
-                1,
-                bitmap.PixelSize.Height / CharacterSheetRows);
-            int direction = Math.Clamp(
-                actor.Direction,
-                0,
-                CharacterSheetRows - 1);
-            return new PluginMapActorRectSnapshot(
-                0,
-                direction * height,
-                width,
-                height);
-        }
-        return actor.SourceRect
-            ?? new PluginMapActorRectSnapshot(
-                0,
-                0,
-                host.CellSize,
-                host.CellSize);
     }
 
     private static bool isValidSourceRect(

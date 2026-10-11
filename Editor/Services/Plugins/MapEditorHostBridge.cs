@@ -137,72 +137,33 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
             {
                 continue;
             }
-            string blueprintReference = readString(actor["bp"]);
-            string texturePath = readString(
-                getActorAttribute(map, actor, blueprintReference, "texturePath"));
-            string assetPath = GameAssetPath.IsCanonical(texturePath)
-                ? texturePath
+            ActorVisualDescriptor? visual = previewService.tryResolveMapActorVisual(map, actor);
+            string assetPath = visual is not null && GameAssetPath.IsCanonical(visual.TexturePath)
+                ? visual.TexturePath
                 : string.Empty;
-            PluginMapActorRectSnapshot? sourceRect = readActorRect(
-                getActorAttribute(map, actor, blueprintReference, "defaultRect"));
-            bool isCharacter = previewService.isCharacterBlueprint(blueprintReference);
-            int direction = Math.Clamp(
-                readInt(
-                    getActorAttribute(map, actor, blueprintReference, "direction"),
-                    0),
-                0,
-                3);
-            (double translationX, double translationY) = readVector(
-                getActorAttribute(map, actor, blueprintReference, "defaultTranslation"),
-                0,
-                0);
-            (double scaleX, double scaleY) = readVector(
-                getActorAttribute(map, actor, blueprintReference, "defaultScale"),
-                1,
-                1);
-            (double originX, double originY) = readVector(
-                getActorAttribute(map, actor, blueprintReference, "defaultOrigin"),
-                0,
-                0);
-            double rotation = readDouble(
-                getActorAttribute(map, actor, blueprintReference, "defaultRotation"),
-                0);
-            double hue = readDouble(
-                getActorAttribute(map, actor, blueprintReference, "hue"),
-                0);
+            PluginMapActorRectSnapshot? sourceRect = visual is null
+                ? null
+                : new PluginMapActorRectSnapshot(
+                    visual.BaseTextureRect.X,
+                    visual.BaseTextureRect.Y,
+                    visual.BaseTextureRect.Width,
+                    visual.BaseTextureRect.Height);
             snapshots.Add(new PluginMapActorSnapshot(
                 x,
                 y,
                 assetPath,
                 sourceRect,
-                isCharacter,
-                direction,
-                translationX,
-                translationY,
-                scaleX,
-                scaleY,
-                originX,
-                originY,
-                rotation,
-                hue));
+                visual?.Translation.X ?? 0,
+                visual?.Translation.Y ?? 0,
+                visual?.Scale.X ?? 1,
+                visual?.Scale.Y ?? 1,
+                visual?.Origin.X ?? 0,
+                visual?.Origin.Y ?? 0,
+                visual?.Rotation ?? 0,
+                visual?.Hue ?? 0,
+                visual?.MapPreviewOpacity ?? 1));
         }
         return snapshots.AsReadOnly();
-    }
-
-    private JsonNode? getActorAttribute(
-        JsonObject map,
-        JsonObject actor,
-        string blueprintReference,
-        string name)
-    {
-        string tag = readString(actor["tag"]);
-        if (tag.Length != 0
-            && map["BPClassVarChanged"]?[tag] is JsonObject overrides
-            && overrides.TryGetPropertyValue(name, out JsonNode? overridden))
-        {
-            return overridden;
-        }
-        return previewService.getBlueprintAttr(blueprintReference, name);
     }
 
     private static bool tryReadActorPosition(
@@ -222,39 +183,6 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
             return false;
         }
         return x >= 0 && y >= 0 && x < mapWidth && y < mapHeight;
-    }
-
-    private static PluginMapActorRectSnapshot? readActorRect(JsonNode? value)
-    {
-        if (value is not JsonArray values
-            || values.Count == 0
-            || values[0] is not JsonArray arguments
-            || arguments.Count < 4
-            || !tryReadInt(arguments[0], out int x)
-            || !tryReadInt(arguments[1], out int y)
-            || !tryReadInt(arguments[2], out int width)
-            || !tryReadInt(arguments[3], out int height)
-            || width <= 0
-            || height <= 0)
-        {
-            return null;
-        }
-        return new PluginMapActorRectSnapshot(x, y, width, height);
-    }
-
-    private static (double X, double Y) readVector(
-        JsonNode? value,
-        double fallbackX,
-        double fallbackY)
-    {
-        if (value is JsonArray array
-            && array.Count >= 2
-            && tryReadDouble(array[0], out double x)
-            && tryReadDouble(array[1], out double y))
-        {
-            return (x, y);
-        }
-        return (fallbackX, fallbackY);
     }
 
     private PluginTilesetSnapshot readTileset(string tilesetKey)
@@ -482,21 +410,6 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
             NumberStyles.Integer,
             CultureInfo.InvariantCulture,
             out parsed);
-    }
-
-    private static double readDouble(JsonNode? value, double fallback)
-    {
-        return tryReadDouble(value, out double parsed) ? parsed : fallback;
-    }
-
-    private static bool tryReadDouble(JsonNode? value, out double parsed)
-    {
-        bool success = double.TryParse(
-            value?.ToString(),
-            NumberStyles.Float,
-            CultureInfo.InvariantCulture,
-            out parsed);
-        return success && double.IsFinite(parsed);
     }
 
     private static string readString(JsonNode? value)

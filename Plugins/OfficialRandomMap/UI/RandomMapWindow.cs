@@ -88,6 +88,17 @@ internal sealed class RandomMapWindow : Window
     private int? selectedTile;
     private bool refreshingSelections;
     private bool markerStep;
+    private bool generating;
+    private MapRegion region;
+    private readonly RadioButton selectionModeButton = new();
+    private readonly RadioButton markerModeButton = new();
+    private readonly Button fullMapButton = new();
+    private readonly TextBlock regionText = new() { TextWrapping = TextWrapping.Wrap };
+    private readonly TextBlock regionWarning = new()
+    {
+        Foreground = PluginTheme.Brush("Warning"),
+        TextWrapping = TextWrapping.Wrap,
+    };
 
     public RandomMapWindow(
         IMapEditorHost host,
@@ -128,6 +139,18 @@ internal sealed class RandomMapWindow : Window
         layerSelector.HorizontalAlignment = HorizontalAlignment.Stretch;
         layerSelector.SelectionChanged += (_, _) => onLayerSelectionChanged();
         mapCanvas.MarkerToggled += onMarkerToggled;
+        mapCanvas.RegionChanged += (_, args) => setRegion(args.Region);
+        selectionModeButton.Content = localizer.Text("selectRegion");
+        markerModeButton.Content = localizer.Text("setMarkers");
+        selectionModeButton.GroupName = "RandomMapInteraction";
+        markerModeButton.GroupName = "RandomMapInteraction";
+        selectionModeButton.IsChecked = true;
+        selectionModeButton.IsCheckedChanged += (_, _) => updateCanvasInteraction();
+        markerModeButton.IsCheckedChanged += (_, _) => updateCanvasInteraction();
+        fullMapButton.Content = localizer.Text("fullMap");
+        fullMapButton.Click += (_, _) => setRegion(fullMapRegion());
+        latticeButton.IsCheckedChanged += (_, _) => updateRegionState();
+        roomsButton.IsCheckedChanged += (_, _) => updateRegionState();
 
         tileButton.HorizontalAlignment = HorizontalAlignment.Stretch;
         tileButton.HorizontalContentAlignment = HorizontalAlignment.Center;
@@ -207,11 +230,23 @@ internal sealed class RandomMapWindow : Window
         Grid previewPanel = new()
         {
             Margin = new Thickness(12),
-            RowDefinitions = new RowDefinitions("Auto,*"),
+            RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto,*"),
             RowSpacing = 8,
         };
         previewPanel.Children.Add(previewTitle);
-        Grid.SetRow(mapScroll, 1);
+        WrapPanel previewTools = new() { Orientation = Orientation.Horizontal };
+        selectionModeButton.Margin = new Thickness(0, 0, 16, 0);
+        markerModeButton.Margin = new Thickness(0, 0, 16, 0);
+        previewTools.Children.Add(selectionModeButton);
+        previewTools.Children.Add(markerModeButton);
+        previewTools.Children.Add(fullMapButton);
+        Grid.SetRow(previewTools, 1);
+        previewPanel.Children.Add(previewTools);
+        Grid.SetRow(regionText, 2);
+        previewPanel.Children.Add(regionText);
+        Grid.SetRow(regionWarning, 3);
+        previewPanel.Children.Add(regionWarning);
+        Grid.SetRow(mapScroll, 4);
         previewPanel.Children.Add(mapScroll);
 
         Grid rightPanel = new()
@@ -220,7 +255,12 @@ internal sealed class RandomMapWindow : Window
             RowDefinitions = new RowDefinitions("*,Auto"),
             RowSpacing = 12,
         };
-        rightPanel.Children.Add(stepPanel);
+        rightPanel.Children.Add(new ScrollViewer
+        {
+            Content = stepPanel,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+        });
         Border statusBorder = new()
         {
             Padding = new Thickness(12),
@@ -359,6 +399,8 @@ internal sealed class RandomMapWindow : Window
             currentLayer?.Name,
             markers,
             markerStep);
+        updateCanvasInteraction();
+        updateRegionState();
         statusText.Text = currentLayer is null
             ? localizer.Text("chooseLayer")
             : currentTileset is null
@@ -407,7 +449,8 @@ internal sealed class RandomMapWindow : Window
     private void showTileStep()
     {
         markerStep = false;
-        mapCanvas.SetMarkers(markers, false);
+        selectionModeButton.IsChecked = true;
+        updateCanvasInteraction();
         rebuildTileStep();
     }
 
@@ -419,7 +462,8 @@ internal sealed class RandomMapWindow : Window
             return;
         }
         markerStep = true;
-        mapCanvas.SetMarkers(markers, true);
+        markerModeButton.IsChecked = true;
+        updateCanvasInteraction();
         rebuildMarkerStep();
     }
 
@@ -462,6 +506,7 @@ internal sealed class RandomMapWindow : Window
         stepPanel.Children.Add(densityHint);
         stepPanel.Children.Add(markerActionPanel);
         updateMarkerState();
+        updateRegionState();
     }
 
     private async Task generateAsync()
@@ -480,6 +525,17 @@ internal sealed class RandomMapWindow : Window
             return;
         }
 
+        string? regionError = getRegionError();
+        if (regionError is not null)
+        {
+            statusText.Text = localizer.Text(regionError);
+            return;
+        }
+        MapRegion generationRegion = region;
+        PluginMapSnapshot generationMap = currentMap;
+        PluginMapLayerSnapshot generationLayer = currentLayer;
+        generating = true;
+        updateRegionState();
         generateButton.IsEnabled = false;
         backButton.IsEnabled = false;
         mapList.IsEnabled = false;
@@ -495,12 +551,12 @@ internal sealed class RandomMapWindow : Window
             ? RandomMapMode.Rooms
             : RandomMapMode.Lattice;
         RandomMapPoint[] points = markers
-            .Select(marker => new RandomMapPoint(marker.X, marker.Y))
+            .Select(marker => new RandomMapPoint(marker.X - generationRegion.X, marker.Y - generationRegion.Y))
             .ToArray();
         RandomMapGenerationResult generated = await Task.Run(
             () => RandomMapGenerator.Generate(
-                currentMap.Width,
-                currentMap.Height,
+                generationRegion.Width,
+                generationRegion.Height,
                 wallTile,
                 points,
                 mode,
@@ -517,19 +573,8 @@ internal sealed class RandomMapWindow : Window
             return;
         }
 
-        List<IReadOnlyList<string?>> autoTiles = new(currentMap.Height);
-        for (int y = 0; y < currentMap.Height; y++)
-        {
-            string?[] row = new string?[currentMap.Width];
-            autoTiles.Add(row);
-        }
-        PluginMapLayerWriteRequest request = new(
-            currentMap.Key,
-            currentLayer.Name,
-            currentMap.Revision,
-            currentLayer.TilesetKey,
-            generated.Tiles,
-            autoTiles);
+        PluginMapLayerWriteRequest request = RandomMapLayerPatch.Create(
+            generationMap, generationLayer, generationRegion, generated.Tiles);
         PluginMapWriteResult result = await host.ReplaceLayerAndSaveAsync(
             request,
             cancellation.Token);
@@ -567,6 +612,7 @@ internal sealed class RandomMapWindow : Window
             currentLayer.Name,
             markers,
             true);
+        updateCanvasInteraction();
         generateButton.Content = localizer.Text("regenerate");
         statusText.Text = localizer.Format(
             "saved",
@@ -577,7 +623,8 @@ internal sealed class RandomMapWindow : Window
 
     private void finishGeneration()
     {
-        generateButton.IsEnabled = true;
+        generating = false;
+        updateRegionState();
         backButton.IsEnabled = true;
         mapList.IsEnabled = true;
         mapCanvas.IsEnabled = true;
@@ -591,6 +638,8 @@ internal sealed class RandomMapWindow : Window
         object? sender,
         MapMarkerEventArgs args)
     {
+        if (!region.Contains(args.X, args.Y) || generating)
+            return;
         (int X, int Y) marker = (args.X, args.Y);
         if (!markers.Add(marker))
             markers.Remove(marker);
@@ -603,12 +652,15 @@ internal sealed class RandomMapWindow : Window
             "markers",
             markers.Count);
         clearMarkersButton.IsEnabled = markers.Count != 0;
-        mapCanvas.SetMarkers(markers, markerStep);
+        updateCanvasInteraction();
     }
 
     private void resetWorkflow()
     {
         markers.Clear();
+        region = fullMapRegion();
+        generating = false;
+        selectionModeButton.IsChecked = true;
         selectedTile = null;
         currentLayer = null;
         currentTileset = null;
@@ -624,6 +676,50 @@ internal sealed class RandomMapWindow : Window
         tilePreview.SetTile(null, null);
         rebuildTileStep();
         mapCanvas.SetMap(currentMap, null, markers, false);
+        updateCanvasInteraction();
+        updateRegionState();
+    }
+
+    private MapRegion fullMapRegion()
+    {
+        return currentMap is null ? default : new MapRegion(0, 0, currentMap.Width, currentMap.Height);
+    }
+
+    private void setRegion(MapRegion nextRegion)
+    {
+        if (generating)
+            return;
+        region = nextRegion;
+        markers.RemoveWhere(marker => !region.Contains(marker.X, marker.Y));
+        updateMarkerState();
+        updateRegionState();
+    }
+
+    private void updateCanvasInteraction()
+    {
+        mapCanvas.SetRegion(region, selectionModeButton.IsChecked == true);
+        mapCanvas.SetMarkers(markers, markerStep && markerModeButton.IsChecked == true);
+        markerModeButton.IsEnabled = markerStep && !generating;
+    }
+
+    private string? getRegionError()
+    {
+        if (roomsButton.IsChecked == true)
+            return Math.Min(region.Width, region.Height) < 7 || (long)region.Width * region.Height < 81
+                ? "roomsTooSmall" : null;
+        return region.Width < 7 || region.Height < 7 ? "latticeTooSmall" : null;
+    }
+
+    private void updateRegionState()
+    {
+        string? error = getRegionError();
+        regionText.Text = localizer.Format("region", region.X, region.Y, region.Width, region.Height);
+        regionWarning.Text = currentMap is not null && error is not null ? localizer.Text(error) : string.Empty;
+        regionWarning.IsVisible = currentMap is not null && error is not null;
+        generateButton.IsEnabled = !generating && currentLayer is not null && selectedTile is not null && error is null;
+        selectionModeButton.IsEnabled = currentMap is not null && !generating;
+        markerModeButton.IsEnabled = currentMap is not null && markerStep && !generating;
+        fullMapButton.IsEnabled = currentMap is not null && !generating;
     }
 
     private void updateTileButtonContent()

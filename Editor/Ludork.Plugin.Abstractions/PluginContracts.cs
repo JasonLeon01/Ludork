@@ -368,8 +368,6 @@ public sealed record PluginMapActorSnapshot(
     int Y,
     string AssetPath,
     PluginMapActorRectSnapshot? SourceRect,
-    bool IsCharacter,
-    int Direction,
     double TranslationX,
     double TranslationY,
     double ScaleX,
@@ -377,7 +375,8 @@ public sealed record PluginMapActorSnapshot(
     double OriginX,
     double OriginY,
     double Rotation,
-    double Hue);
+    double Hue,
+    double PreviewOpacity);
 
 public sealed record PluginTilesetSnapshot(
     string Key,
