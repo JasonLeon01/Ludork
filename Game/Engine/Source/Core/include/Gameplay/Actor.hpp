@@ -491,6 +491,12 @@ public:
     BIND_METHOD(outpins(default = nil))
     void setMoveEnabled(bool enabled);
 
+    /// \brief Cancel movement and snap to the nearest map cell.
+    ///
+    /// An interrupted step that enters a new cell dispatches overlap and
+    /// arrival callbacks once, after movement is cleared and occupancy is
+    /// updated. Stopping without entering a new cell does not dispatch arrival
+    /// callbacks.
     BIND_METHOD(outpins(default = nil))
     void stop();
 
@@ -549,8 +555,10 @@ protected:
     virtual void _onArrivedAtMapCell();
 
     float processMoving(float deltaTime);
+    bool dispatchMapCellArrival(const std::shared_ptr<ActorMapService>& map,
+                                const sf::Vector2f& position);
     void tryStartNextRouteStep();
-    void autoFixMapPosition();
+    sf::Vector2f autoFixMapPosition(const sf::Vector2f& position);
     float autoSoundListenerDistance() const;
     void updateAutoSound(float deltaTime);
     void playAutoSound();

@@ -181,8 +181,8 @@ end
 function MapClickAutoPath:_replanForDangerChange(player)
     local goal = self._activeGoal ~= nil and self._activeGoal:copy() or nil
     local stablePosition = player:getMapPosition()
-    player:stop()
     player:setMapPosition(stablePosition)
+    player:stop()
     self._parent:updateActorOccupancy(player)
     self._autoPathing = false
     self._routeState:clear()
@@ -211,8 +211,9 @@ function MapClickAutoPath:_finishAutoPathImmediately(player, start)
     local route = self._routeState:getRoute()
     ---@cast route sf.Vector2i[]
     local walkedPath = player:consumeMovementSpecialPath()
+    player:setMapPosition(start)
+    player:stop()
     if not bool(route) then
-        player:stop()
         self:_dispatchInstantMoveOverlaps(player)
         local pathPositions = bool(walkedPath) and walkedPath or { start:copy() }
         MovementSpecials.NotifyPlayerMovementFinished(player, pathPositions)
@@ -220,7 +221,6 @@ function MapClickAutoPath:_finishAutoPathImmediately(player, start)
     end
     local goal = route[#route]
     local goalPassable = self._parent:isPassable(player, goal)
-    player:stop()
     local destination = goalPassable and goal or (#route >= 2 and route[#route - 1] or start)
     local walkCount = MapClickAutoPathRuntime.GetInstantWalkCount(route, destination)
     local teleportPath = MapClickAutoPathRuntime.GetTeleportPathPositions(route, destination)

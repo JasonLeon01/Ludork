@@ -504,8 +504,24 @@ void Actor::setMoveEnabled(bool enabled) {
 }
 
 void Actor::stop() {
-    impl_.get().movement.stop();
-    autoFixMapPosition();
+    ludork::engine::actor_impl::MovementImpl& movement = impl_.get().movement;
+    const std::optional<sf::Vector2i> origin =
+        movement.moving ? movement.moveOriginMapPosition : std::nullopt;
+    const std::shared_ptr<ActorMapService> map = getMap();
+    const sf::Vector2u cell = ludork::engine::actor_impl::snappedMapPosition(
+        getPosition(), EngineState::CellSize);
+    const sf::Vector2f position =
+        sf::Vector2f(cell) * static_cast<float>(EngineState::CellSize);
+    const std::shared_ptr<AsyncOperation> operation =
+        std::exchange(movement.operation, nullptr);
+    movement.stop();
+    autoFixMapPosition(position);
+    if (operation != nullptr) {
+        operation->cancel();
+    }
+    if (origin.has_value() && sf::Vector2i(cell) != *origin) {
+        dispatchMapCellArrival(map, position);
+    }
 }
 
 std::optional<sf::Vector2f> Actor::getVelocity() const {
@@ -541,25 +557,50 @@ float Actor::processMoving(float deltaTime) {
         move(advance.position - getPosition());
         return 0.0f;
     }
-    setPosition(advance.position);
     impl.arrive();
-    autoFixMapPosition();
+    const sf::Vector2f position = autoFixMapPosition(advance.position);
+    return dispatchMapCellArrival(map, position) ? advance.remainingTime : 0.0f;
+}
+
+bool Actor::dispatchMapCellArrival(const std::shared_ptr<ActorMapService>& map,
+                                   const sf::Vector2f& position) {
+    const auto stillAtArrival = [&]() {
+        return map != nullptr && !isDestroyed() && isVisibleInHierarchy() &&
+               getMap() == map && getPosition() == position;
+    };
+    if (!stillAtArrival()) {
+        return false;
+    }
     const std::vector<Actor*> overlaps = map->getOverlaps(*this);
+    // Keep contacts alive when a preceding callback removes them from the map.
+    std::vector<std::shared_ptr<RuntimeObject>> overlapOwners;
+    overlapOwners.reserve(overlaps.size());
+    for (Actor* overlap : overlaps) {
+        if (overlap != nullptr) {
+            std::shared_ptr<RuntimeObject> owner = overlap->runtimeOwner();
+            overlapOwners.push_back(owner != nullptr
+                                        ? std::move(owner)
+                                        : overlap->weak_from_this().lock());
+        }
+    }
     if (!overlaps.empty()) {
         dispatchActorOverlap(*this, overlaps);
         const std::vector<Actor*> self{this};
         for (Actor* overlap : overlaps) {
-            if (isDestroyed() || !isVisibleInHierarchy()) {
-                break;
+            if (!stillAtArrival()) {
+                return false;
             }
             if (overlap != nullptr && !overlap->isDestroyed() &&
-                overlap->isVisibleInHierarchy()) {
+                overlap->isVisibleInHierarchy() && overlap->getMap() == map) {
                 dispatchActorOverlap(*overlap, self);
             }
         }
     }
+    if (!stillAtArrival()) {
+        return false;
+    }
     _onArrivedAtMapCell();
-    return advance.remainingTime;
+    return stillAtArrival();
 }
 
 void Actor::tryStartNextRouteStep() {
@@ -570,15 +611,18 @@ void Actor::tryStartNextRouteStep() {
     }
 }
 
-void Actor::autoFixMapPosition() {
-    const sf::Vector2f position = getPosition();
+sf::Vector2f Actor::autoFixMapPosition(const sf::Vector2f& position) {
+    const sf::Vector2u cell = ludork::engine::actor_impl::snappedMapPosition(
+        position, EngineState::CellSize);
+    const sf::Vector2f fixedPosition =
+        sf::Vector2f(cell) * static_cast<float>(EngineState::CellSize);
     impl_.get().movement.moveOriginMapPosition.reset();
-    setMapPosition(ludork::engine::actor_impl::snappedMapPosition(
-        position, EngineState::CellSize));
+    setPosition(fixedPosition);
     const std::shared_ptr<ActorMapService> map = getMap();
     if (map) {
         map->updateActorOccupancy(*this);
     }
+    return fixedPosition;
 }
 
 sf::Vector2f Actor::getPosition() const {

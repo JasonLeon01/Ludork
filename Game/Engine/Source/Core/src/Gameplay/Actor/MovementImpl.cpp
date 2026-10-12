@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <stdexcept>
+#include <utility>
 
 namespace ludork::engine::actor_impl {
 
@@ -58,9 +59,8 @@ void MovementImpl::cancelRoute() {
 }
 
 void MovementImpl::stop() {
-    if (operation != nullptr) {
-        operation->cancel();
-    }
+    const std::shared_ptr<AsyncOperation> cancelled =
+        std::exchange(operation, nullptr);
     moving = false;
     inRoute = false;
     route.reset();
@@ -68,6 +68,9 @@ void MovementImpl::stop() {
     destination.reset();
     moveOriginMapPosition.reset();
     realSpeed = 0.0f;
+    if (cancelled != nullptr) {
+        cancelled->cancel();
+    }
 }
 
 void MovementImpl::arrive() {
