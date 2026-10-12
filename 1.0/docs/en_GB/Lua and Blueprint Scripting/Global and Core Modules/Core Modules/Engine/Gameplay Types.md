@@ -18,6 +18,10 @@ Direct metadata bases: —
 
 A new route, `stop()`, disabling movement, destroying the Actor or changing its map cancels an unfinished route operation.
 
+`stop()` and `setMoveEnabled(false)` snap to the nearest map cell. If an interrupted step lands in a different cell from its departure cell, movement is cleared and occupancy is updated before the normal arrival sequence runs once: the moving Actor's `onOverlap`, each remaining valid contact's `onOverlap`, then `_onArrivedAtMapCell()`. Stopping in the departure cell, stopping an unstarted route or repeating `stop()` does not produce an arrival notification.
+
+Both normal and interrupted arrivals stop dispatching the old cell's notifications if a callback destroys or hides the moving Actor, changes its map or moves it away from the arrival position. Normal movement also discards the remaining time for that update in these cases. Stopping clears the old movement before cancellation callbacks run, so a route started by a callback is retained.
+
 The following Lua-only methods manage additional operations, such as door animations:
 
 | Method | Behaviour |
