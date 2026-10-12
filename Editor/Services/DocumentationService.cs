@@ -12,6 +12,22 @@ public static class DocumentationService
     public static Uri About => createUri("about/");
     public static Uri Notices => createUri("notices/");
 
+    internal static Uri GetSearchIndexUri(string version, string language)
+    {
+        return new Uri(siteRoot,
+            $"docs/v{Uri.EscapeDataString(version)}/search-index.{Uri.EscapeDataString(language)}.json");
+    }
+
+    internal static Uri GetDocumentUri(string version, string language, string documentKey)
+    {
+        UriBuilder builder = new(new Uri(siteRoot, $"docs/v{Uri.EscapeDataString(version)}/"));
+        NameValueCollection query = HttpUtility.ParseQueryString(string.Empty);
+        query["lang"] = language;
+        query["doc"] = documentKey;
+        builder.Query = query.ToString();
+        return builder.Uri;
+    }
+
     public static bool IsEmbeddedPage(Uri uri)
     {
         if (!siteRoot.IsBaseOf(uri))

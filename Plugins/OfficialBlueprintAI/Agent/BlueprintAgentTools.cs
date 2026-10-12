@@ -10,22 +10,13 @@ namespace Ludork.Plugins.OfficialBlueprintAI.Agent;
 
 internal sealed class BlueprintAgentTools : IAgentToolExecutor
 {
-    private const int ToolResultCharacterLimit = 12000;
-
     private static readonly HashSet<string> ReadBlueprintProperties =
         new HashSet<string>(StringComparer.Ordinal)
         {
             "blueprint_key",
         };
 
-    private static readonly HashSet<string> SearchProjectProperties =
-        new HashSet<string>(StringComparer.Ordinal)
-        {
-            "query",
-            "max_results",
-        };
-
-    private static readonly HashSet<string> ApiCatalogProperties =
+    private static readonly HashSet<string> SearchProperties =
         new HashSet<string>(StringComparer.Ordinal)
         {
             "query",
@@ -36,6 +27,14 @@ internal sealed class BlueprintAgentTools : IAgentToolExecutor
         new HashSet<string>(StringComparer.Ordinal)
         {
             "path",
+            "start_line",
+            "line_count",
+        };
+
+    private static readonly HashSet<string> ReadDocumentationProperties =
+        new HashSet<string>(StringComparer.Ordinal)
+        {
+            "document_key",
             "start_line",
             "line_count",
         };
@@ -105,6 +104,14 @@ internal sealed class BlueprintAgentTools : IAgentToolExecutor
                     root,
                     workspace,
                     cancellationToken),
+                "search_documentation" => await SearchDocumentationAsync(
+                    root,
+                    workspace,
+                    cancellationToken),
+                "read_documentation" => await ReadDocumentationAsync(
+                    root,
+                    workspace,
+                    cancellationToken),
                 "search_project" => await SearchProjectAsync(
                     root,
                     workspace,
@@ -171,7 +178,7 @@ internal sealed class BlueprintAgentTools : IAgentToolExecutor
         IBlueprintAssistantWorkspace workspace,
         CancellationToken cancellationToken)
     {
-        string? error = ValidateProperties(root, ApiCatalogProperties);
+        string? error = ValidateProperties(root, SearchProperties);
         if (error is not null)
         {
             return FormatError(error);
@@ -198,7 +205,7 @@ internal sealed class BlueprintAgentTools : IAgentToolExecutor
         IBlueprintAssistantWorkspace workspace,
         CancellationToken cancellationToken)
     {
-        string? error = ValidateProperties(root, SearchProjectProperties);
+        string? error = ValidateProperties(root, SearchProperties);
         if (error is not null)
         {
             return FormatError(error);
@@ -216,6 +223,65 @@ internal sealed class BlueprintAgentTools : IAgentToolExecutor
             await workspace.SearchProjectAsync(
                 query,
                 maxResults,
+                cancellationToken);
+        return FromReadResult(result);
+    }
+
+    private static async Task<AgentToolExecution> SearchDocumentationAsync(
+        JsonElement root,
+        IBlueprintAssistantWorkspace workspace,
+        CancellationToken cancellationToken)
+    {
+        string? error = ValidateProperties(root, SearchProperties);
+        if (error is not null)
+        {
+            return FormatError(error);
+        }
+        if (!TryGetRequiredString(root, "query", out string query))
+        {
+            return FormatError("query must be a non-empty string.");
+        }
+        if (!TryGetRequiredInteger(root, "max_results", 1, 10, out int maxResults))
+        {
+            return FormatError("max_results must be an integer from 1 to 10.");
+        }
+
+        BlueprintAssistantToolResult result =
+            await workspace.SearchDocumentationAsync(
+                query,
+                maxResults,
+                cancellationToken);
+        return FromReadResult(result);
+    }
+
+    private static async Task<AgentToolExecution> ReadDocumentationAsync(
+        JsonElement root,
+        IBlueprintAssistantWorkspace workspace,
+        CancellationToken cancellationToken)
+    {
+        string? error = ValidateProperties(root, ReadDocumentationProperties);
+        if (error is not null)
+        {
+            return FormatError(error);
+        }
+        if (!TryGetRequiredString(root, "document_key", out string documentKey))
+        {
+            return FormatError("document_key must be a non-empty string returned by search_documentation.");
+        }
+        if (!TryGetRequiredInteger(root, "start_line", 1, int.MaxValue, out int startLine))
+        {
+            return FormatError("start_line must be a positive integer.");
+        }
+        if (!TryGetRequiredInteger(root, "line_count", 1, 400, out int lineCount))
+        {
+            return FormatError("line_count must be an integer from 1 to 400.");
+        }
+
+        BlueprintAssistantToolResult result =
+            await workspace.ReadDocumentationAsync(
+                documentKey,
+                startLine,
+                lineCount,
                 cancellationToken);
         return FromReadResult(result);
     }
@@ -485,13 +551,13 @@ internal sealed class BlueprintAgentTools : IAgentToolExecutor
 
     private static string Truncate(string content)
     {
-        if (content.Length <= ToolResultCharacterLimit)
+        if (content.Length <= BlueprintAssistantToolResult.MaximumContentCharacters)
         {
             return content;
         }
 
-        int omitted = content.Length - ToolResultCharacterLimit;
-        return $"{content[..ToolResultCharacterLimit]}\n...[truncated {omitted} characters]";
+        int omitted = content.Length - BlueprintAssistantToolResult.MaximumContentCharacters;
+        return $"{content[..BlueprintAssistantToolResult.MaximumContentCharacters]}\n...[truncated {omitted} characters]";
     }
 
     private static IReadOnlyList<AgentToolDefinition> CreateDefinitions()
@@ -545,8 +611,52 @@ internal sealed class BlueprintAgentTools : IAgentToolExecutor
                 }
                 """),
             new AgentToolDefinition(
+                "search_documentation",
+                "Search official documentation for the editor's documentation version and language by title, path, and Markdown content. Returns document keys, matching excerpts, and official page URLs. Use read_documentation to inspect relevant passages.",
+                """
+                {
+                  "type": "object",
+                  "properties": {
+                    "query": {
+                      "type": "string"
+                    },
+                    "max_results": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10
+                    }
+                  },
+                  "required": ["query", "max_results"],
+                  "additionalProperties": false
+                }
+                """),
+            new AgentToolDefinition(
+                "read_documentation",
+                "Read a bounded line range from an official documentation page using its exact search result key. Returns numbered Markdown, the official page URL, and the next line when more content remains. Uses the same version and language as search_documentation.",
+                """
+                {
+                  "type": "object",
+                  "properties": {
+                    "document_key": {
+                      "type": "string"
+                    },
+                    "start_line": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "line_count": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 400
+                    }
+                  },
+                  "required": ["document_key", "start_line", "line_count"],
+                  "additionalProperties": false
+                }
+                """),
+            new AgentToolDefinition(
                 "search_project",
-                "Search allowed Blueprint, Lua, C, C++, metadata, JSON, and documentation text without modifying files.",
+                "Search allowed Blueprint, Lua, C, C++, metadata, JSON, and Markdown text in the current project without modifying files. Use search_documentation for official engine documentation.",
                 """
                 {
                   "type": "object",

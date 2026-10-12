@@ -210,6 +210,8 @@ internal sealed class BlueprintAgent
             "list_blueprints" or
             "read_blueprint" or
             "get_api_catalog" or
+            "search_documentation" or
+            "read_documentation" or
             "search_project" or
             "read_file" or
             "validate_blueprint";

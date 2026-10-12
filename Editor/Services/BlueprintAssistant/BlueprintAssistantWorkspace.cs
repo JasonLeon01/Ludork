@@ -94,6 +94,7 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
     private readonly string targetBlueprintKey;
     private readonly JsonObject baseBlueprint;
     private readonly string baseRevision;
+    private readonly BlueprintAssistantDocumentationService documentation = new();
     private readonly Dictionary<string, JsonObject> proposals = new(StringComparer.Ordinal);
 
     public BlueprintAssistantWorkspace(
@@ -400,6 +401,23 @@ public sealed class BlueprintAssistantWorkspace : IBlueprintAssistantWorkspace
                 targetBlueprintKey,
                 query,
                 Math.Clamp(maxResults, 1, 100))));
+    }
+
+    public Task<BlueprintAssistantToolResult> SearchDocumentationAsync(
+        string query,
+        int maxResults,
+        System.Threading.CancellationToken cancellationToken)
+    {
+        return documentation.SearchAsync(query, maxResults, cancellationToken);
+    }
+
+    public Task<BlueprintAssistantToolResult> ReadDocumentationAsync(
+        string documentKey,
+        int startLine,
+        int lineCount,
+        System.Threading.CancellationToken cancellationToken)
+    {
+        return documentation.ReadAsync(documentKey, startLine, lineCount, cancellationToken);
     }
 
     public Task<BlueprintAssistantToolResult> SearchProjectAsync(

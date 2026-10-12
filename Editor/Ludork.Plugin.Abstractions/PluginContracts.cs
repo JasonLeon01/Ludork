@@ -127,6 +127,17 @@ public interface IBlueprintAssistantWorkspace
         int maxResults,
         CancellationToken cancellationToken);
 
+    Task<BlueprintAssistantToolResult> SearchDocumentationAsync(
+        string query,
+        int maxResults,
+        CancellationToken cancellationToken);
+
+    Task<BlueprintAssistantToolResult> ReadDocumentationAsync(
+        string documentKey,
+        int startLine,
+        int lineCount,
+        CancellationToken cancellationToken);
+
     Task<BlueprintAssistantToolResult> SearchProjectAsync(
         string query,
         int maxResults,
@@ -592,6 +603,8 @@ public sealed record BlueprintAssistantToolResult(
     string Content,
     string Error)
 {
+    public const int MaximumContentCharacters = 12000;
+
     public static BlueprintAssistantToolResult Completed(string content)
     {
         return new BlueprintAssistantToolResult(true, content, string.Empty);
