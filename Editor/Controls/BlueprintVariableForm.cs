@@ -23,7 +23,6 @@ public sealed partial class BlueprintVariableForm : UserControl, IDisposable
     private readonly Dictionary<string, JsonNode?> values = new(StringComparer.Ordinal);
     private readonly Dictionary<string, JsonNode?> contextValues = new(StringComparer.Ordinal);
     private readonly Dictionary<string, BlueprintVariableRow> rows = new(StringComparer.Ordinal);
-    private readonly HashSet<string> dependencySources = new(StringComparer.Ordinal);
     private readonly HashSet<string> instanceVariableSources = new(StringComparer.Ordinal);
     private readonly List<Control> historyControls = [];
     private readonly List<BlueprintVariableForm> nestedHistoryForms = [];
@@ -206,7 +205,6 @@ public sealed partial class BlueprintVariableForm : UserControl, IDisposable
         fields.AddRange(nextFields.Select(field => field.Clone()));
         values.Clear();
         rows.Clear();
-        dependencySources.Clear();
         instanceVariableSources.Clear();
         foreach (Control control in historyControls)
             HistoryMergeBehavior.Detach(control);
@@ -217,9 +215,6 @@ public sealed partial class BlueprintVariableForm : UserControl, IDisposable
         foreach (BlueprintVariableField field in fields)
         {
             values[field.Name] = (getFieldValue(field))?.DeepClone();
-            BlueprintVariableDependency? dependency = getDependency(field);
-            if (dependency is not null && !string.IsNullOrWhiteSpace(dependency.Source))
-                dependencySources.Add(dependency.Source);
             string? instanceVariableSource = getMetadataString(field, "InstVarValue");
             if (!string.IsNullOrWhiteSpace(instanceVariableSource))
                 instanceVariableSources.Add(instanceVariableSource);
@@ -719,10 +714,9 @@ public sealed partial class BlueprintVariableForm : UserControl, IDisposable
         refreshDependencyStates();
         if (building)
             return;
-        bool requiresRefresh = refresh || dependencySources.Contains(field.Name);
         ValueChanged?.Invoke(
             this,
-            new BlueprintVariableValueChangedEventArgs(field.Name, (next)?.DeepClone(), requiresRefresh));
+            new BlueprintVariableValueChangedEventArgs(field.Name, (next)?.DeepClone(), refresh));
         if (instanceVariableSources.Contains(field.Name))
         {
             string? previousType = resolveInstanceVariableType(previous);

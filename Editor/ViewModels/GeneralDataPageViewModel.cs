@@ -213,11 +213,14 @@ internal sealed class GeneralDataPageViewModel : ViewModelBase
 
     public bool UpdateMemberValue(JsonObject member, string name, JsonNode? value)
     {
+        bool wasCurrent = documentRevision == CurrentDocumentRevision;
         if (!memberKeys.TryGetValue(member, out string? memberId)
             || !generalData.UpdateGeneralMemberValue(TypeKey, memberId, name, value))
             return false;
         member[name] = value?.DeepClone();
         typeData.ApplyMemberValue(memberId, name, value);
+        if (wasCurrent)
+            documentRevision = CurrentDocumentRevision;
         return true;
     }
 

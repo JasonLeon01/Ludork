@@ -81,7 +81,7 @@ public sealed class GameVariableService : IGameVariableCatalog
     public string MetadataPath { get; }
     public EditorDocument Document { get; }
     public IReadOnlyList<GameVariableDefinition> Variables => readonlyVariables;
-    public long Revision => Document.Revision;
+    public long Revision => Document.LastContentChangeRevision;
     public bool IsModified => Document.IsModified;
     public event EventHandler? Changed;
     public event EventHandler? Saved;

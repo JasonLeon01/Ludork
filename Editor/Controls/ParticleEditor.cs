@@ -71,7 +71,7 @@ public sealed partial class ParticleEditor : UserControl
 
     private void onDocumentChanged(object? sender, EventArgs args)
     {
-        if (committing || document.Data is not JsonObject next)
+        if (committing || document.Data is not JsonObject next || JsonNode.DeepEquals(next, data))
             return;
         data = next;
         refreshTracks(selectedTrack);

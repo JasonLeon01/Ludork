@@ -325,6 +325,11 @@ public sealed partial class SubtitleWindow : Window, IProjectSaveParticipant
     {
         if (committing || document.Data is not JsonObject next)
             return;
+        if (JsonNode.DeepEquals(next, data))
+        {
+            updateValidation();
+            return;
+        }
         data = next;
         inputErrors.Clear();
         projectSave.NotifyPendingInputsChanged();

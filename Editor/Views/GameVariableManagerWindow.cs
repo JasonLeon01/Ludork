@@ -38,6 +38,7 @@ public sealed class GameVariableManagerWindow : Window
     private readonly Button deleteButton;
     private bool loading;
     private bool applyingServiceChange;
+    private long displayedRevision;
     private long gestureId;
 
     public GameVariableManagerWindow(GameVariableService gameVariables, ProjectSaveService projectSave, LuaEnumService enums)
@@ -205,6 +206,7 @@ public sealed class GameVariableManagerWindow : Window
         AddHandler(LostFocusEvent, onLostFocus, RoutingStrategies.Bubble);
 
         rebuildVariableList(null);
+        displayedRevision = gameVariables.Revision;
     }
 
     private static void addDetailRow(Grid form, int row, string label, Control editor)
@@ -405,6 +407,9 @@ public sealed class GameVariableManagerWindow : Window
     private void onVariablesChanged(object? sender, EventArgs args)
     {
         updateTitle();
+        if (displayedRevision == gameVariables.Revision)
+            return;
+        displayedRevision = gameVariables.Revision;
         if (!applyingServiceChange)
             rebuildVariableList(null);
     }
