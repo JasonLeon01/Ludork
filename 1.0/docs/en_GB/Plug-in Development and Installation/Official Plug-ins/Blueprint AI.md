@@ -32,7 +32,7 @@ Removing the plug-in source directory does not remove `Plugins/.data/Ludork.Offi
 
 ## Scope and permissions
 
-Each conversation is bound to one project and one existing Blueprint. The assistant can inspect other Blueprints, Lua metadata and allowlisted Lua/C/C++ source files to understand the available APIs. It cannot create, rename or delete Blueprints, modify more than one Blueprint, write source code, run a shell or start processes.
+Each conversation is bound to one project and one existing Blueprint. The assistant can inspect other Blueprints, Lua metadata and allowlisted Lua/C/C++ source files to understand the available APIs, and search and read official engine documentation. It cannot create, rename or delete Blueprints, modify more than one Blueprint, write source code, run a shell or start processes.
 
 The model can only stage a Blueprint proposal. The editor validates the candidate and shows a generated diff. Nothing changes until the user selects **Apply**. Apply re-reads the editor working copy and compares its revision with the proposal base. A successful Apply creates one normal Undo step, leaves the project dirty and refreshes every open editor for that Blueprint. The Blueprint is not written to disk until the normal project Save operation.
 
@@ -54,9 +54,15 @@ OpenAI Responses requests use `store:false`, and the plug-in does not rely on pr
 
 An unfinished request is recorded as interrupted. Its completed local records remain available after a restart, but the in-flight request is not resumed automatically.
 
-## Safe code inspection
+## Project source inspection
 
 Project search and file reading only accept project-relative paths under the configured runtime and API source roots, with supported text extensions. Build outputs, logs, VCS data, INI files, plug-in data, credentials and paths outside the project are rejected. Symbolic links, broken links and reparse points are rejected throughout the path, including the project root. File-system failures during reading or searching are returned as tool errors. File contents are treated as data, not as instructions that can expand assistant permissions.
+
+## Official documentation
+
+`search_documentation` searches titles, paths and Markdown text by keyword; `read_documentation` reads numbered lines using a returned document key. Both return official page links for source references, with bounded output and continuation or truncation information. They use the editor's current major.minor documentation version and language: editor `1.0.7`, for example, reads documentation `1.0`. Each request's workspace loads the index on first use and shares that snapshot between searches and reads.
+
+Documentation is fetched from the fixed Ludork website, independently of project-relative source reading. These tools accept no arbitrary URL or filesystem path. An unavailable index, network failure or invalid response returns a tool error for the selected version and language; it does not switch to another version or language. The matching index must be published with the website before it can be queried. Documentation explains usage and behaviour; the current project's API catalogue and metadata remain authoritative for concrete nodes, types, serialized names and pins. Document content is reference data, not permission to change the assistant's instructions.
 
 ## Troubleshooting
 

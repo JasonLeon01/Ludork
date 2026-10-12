@@ -97,7 +97,16 @@ Official Locale Tools 在 Pack 时调用 `ExcludeFile("Data/Locale/Locale.xlsx")
 
 蓝图助手注册一条普通的 `PluginMenuCommand`，并自行携带 UI、设置与会话历史。宿主不提供助手窗口或控件，`IAvaloniaPluginUserInterface` 只为插件自有窗口提供一个可选的所有者窗口。在项目窗口中，可选的 `PluginMenuContext.BlueprintAssistantHost` 提供项目路径、当前建议的蓝图、可用蓝图 key 与 `CreateSession`。
 
-`IBlueprintAssistantSession` 固定绑定一个已有蓝图，并暴露其基础 revision 与 `IBlueprintAssistantWorkspace`。workspace 可以列出和读取蓝图、查询 API 清单、搜索或读取白名单内的项目源码、校验候选内容并生成提案。它不能应用改动，也不能访问任意编辑器服务。插件 UI 持有 session，在用户批准后显式调用其应用或放弃方法。应用会重新校验基础 revision 与候选有效性，记录一份编辑器 Undo 快照，把项目数据标记为脏，并刷新已打开的蓝图编辑器，但不会写入磁盘。
+`IBlueprintAssistantSession` 固定绑定一个已有蓝图，并暴露其基础 revision 与 `IBlueprintAssistantWorkspace`。workspace 可以列出和读取蓝图、查询 API 清单、搜索或读取白名单内的项目源码、查询官方文档、校验候选内容并生成提案。它不能应用改动，也不能访问任意编辑器服务。插件 UI 持有 session，在用户批准后显式调用其应用或放弃方法。应用会重新校验基础 revision 与候选有效性，记录一份编辑器 Undo 快照，把项目数据标记为脏，并刷新已打开的蓝图编辑器，但不会写入磁盘。
+
+| 文档成员 | 结果 |
+|---|---|
+| `SearchDocumentationAsync(query, maxResults, cancellationToken)` | 按关键词匹配标题、路径和完整 Markdown，返回文档 key、摘要与官方页面 URL |
+| `ReadDocumentationAsync(documentKey, startLine, lineCount, cancellationToken)` | 按文档 key 和从 1 开始的行范围返回带行号的 Markdown，以及官方页面 URL |
+
+这些方法按需从固定官网加载当前编辑器 major.minor 版本与语言的索引，每轮请求的 workspace 内共用同一份快照。它们接受文档查询与 key，不接受项目路径或任意 URL。索引缺失、无效或网络失败时返回工具错误，不会改变所选版本或语言。具体蓝图 API 仍以 API 清单的 metadata 为准；参见 [Official Blueprint AI](<Official 插件/Blueprint AI.md#官方文档>)。
+
+文档结果最多输出 12,000 个字符。有 `nextLine` 时从该行继续读取；`truncatedLine` 明确表示超长单行的尾部已省略，续读从下一行开始。
 
 API key 一律通过 `PluginMenuContext.SecretStore` 保存。它按插件 ID 隔离，项目插件还按项目作用域隔离。Windows 和 macOS 使用操作系统凭据存储，不会退化为明文文件；Linux 支持从环境变量读取。参见 [Avalonia UI、密钥与本地化](<Avalonia UI、密钥与本地化.md#保存密钥>)。
 

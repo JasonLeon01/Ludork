@@ -97,7 +97,16 @@ Official Locale Tools calls `ExcludeFile("Data/Locale/Locale.xlsx")` during Pack
 
 A Blueprint assistant registers an ordinary `PluginMenuCommand` and owns its UI, settings and conversation history. The host contributes no assistant window and no controls. `IAvaloniaPluginUserInterface` only supplies an optional owner for a plug-in-owned window. In a project window, the optional `PluginMenuContext.BlueprintAssistantHost` exposes the project path, the suggested current Blueprint, available Blueprint keys and `CreateSession`.
 
-An `IBlueprintAssistantSession` fixes one existing Blueprint and exposes its base revision plus an `IBlueprintAssistantWorkspace`. The workspace can list and read Blueprints, query the API catalogue, search or read allowlisted project source, validate candidates and create proposals. It cannot apply changes or reach arbitrary editor services. The plug-in UI retains the session and explicitly calls its apply or discard methods after user approval. Apply rechecks the base revision and the candidate validity, records one editor Undo snapshot, marks project data dirty and refreshes an open Blueprint editor without saving to disk.
+An `IBlueprintAssistantSession` fixes one existing Blueprint and exposes its base revision plus an `IBlueprintAssistantWorkspace`. The workspace can list and read Blueprints, query the API catalogue, search or read allowlisted project source, query official documentation, validate candidates and create proposals. It cannot apply changes or reach arbitrary editor services. The plug-in UI retains the session and explicitly calls its apply or discard methods after user approval. Apply rechecks the base revision and the candidate validity, records one editor Undo snapshot, marks project data dirty and refreshes an open Blueprint editor without saving to disk.
+
+| Documentation member | Result |
+|---|---|
+| `SearchDocumentationAsync(query, maxResults, cancellationToken)` | Keyword matches against titles, paths and full Markdown, with document keys, excerpts and official page URLs |
+| `ReadDocumentationAsync(documentKey, startLine, lineCount, cancellationToken)` | Numbered Markdown from a document key and one-based line range, with its official page URL |
+
+These methods load the fixed website's index on demand for the editor's current major.minor version and language, sharing one snapshot within each request's workspace. They take document queries and keys rather than project paths or arbitrary URLs. Missing or invalid indexes and network failures produce tool errors without changing the selected version or language. API catalogue metadata remains authoritative for concrete Blueprint APIs; see [Official Blueprint AI](<Official Plug-ins/Blueprint AI.md#official-documentation>).
+
+Documentation results are capped at 12,000 characters. Continue reads from `nextLine` when it is present. `truncatedLine` explicitly reports when an oversized line's tail was omitted; the continuation starts at the following line.
 
 Use `PluginMenuContext.SecretStore` for API keys. It is scoped by plug-in ID and, for project plug-ins, the project scope. Windows and macOS use the operating-system credential store, without a plaintext-file fallback; Linux supports environment-variable reads. See [Avalonia UI, Secrets and Localisation](<Avalonia UI Secrets and Localisation.md#store-secrets>).
 

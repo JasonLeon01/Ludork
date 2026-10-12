@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react'
 import sirv from 'sirv'
 import { defineConfig, type Plugin } from 'vite'
 import { readDocsManifest } from './build/readDocsManifest.ts'
+import { readDocsSearchIndexes } from './build/readDocsSearchIndexes.ts'
 
 const VIRTUAL_MODULE_ID = 'virtual:ludork-doc-manifest'
 const RESOLVED_VIRTUAL_MODULE_ID = `\0${VIRTUAL_MODULE_ID}`
@@ -18,6 +19,16 @@ function ludorkDocsPlugin(): Plugin {
     name: 'ludork-local-docs',
     resolveId(id) { if (id === VIRTUAL_MODULE_ID) return RESOLVED_VIRTUAL_MODULE_ID },
     load(id) { if (id === RESOLVED_VIRTUAL_MODULE_ID) return `export default ${JSON.stringify(readDocsManifest(SITE_DIRECTORY, versions))}` },
+    generateBundle() {
+      const manifests = readDocsManifest(SITE_DIRECTORY, versions)
+      for (const index of readDocsSearchIndexes(SITE_DIRECTORY, manifests)) {
+        this.emitFile({
+          type: 'asset',
+          fileName: `docs/v${index.version}/search-index.${index.language}.json`,
+          source: `${JSON.stringify(index)}\n`,
+        })
+      }
+    },
     configureServer(server) {
       for (const version of versions) {
         const source = resolve(SITE_DIRECTORY, version)
