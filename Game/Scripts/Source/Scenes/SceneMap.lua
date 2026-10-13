@@ -21,7 +21,6 @@ local SceneMapWindows = require("Source.Scenes.SceneMap.Windows")
 local TutorialController = require("Source.SceneComponents.Tutorial")
 
 local Display = GlobalCore.Display
-local FogController = GlobalCore.FogController
 local Graphics = GlobalCore.Graphics
 local PanoramaController = GlobalCore.PanoramaController
 local SceneManager = GlobalCore.SceneManager
@@ -112,7 +111,6 @@ function Scene:onQuit()
     ManagerFunctions.stopVoice()
     self._mapAudio:stopMapAudio()
     WeatherController.clearWeather()
-    FogController.clearFog()
     PanoramaController.clear()
 end
 
@@ -277,14 +275,7 @@ function Scene:loadMap(mapPath, initialPosition)
     if not gameMap:isWorldMap() then
         ---@cast mapData Source.SceneComponents.MapData
         self._mapAudio:playMapAudio(mapData)
-        FogController.clearFog()
-        FogController.applyFromMapData(GlobalCore.MapFogSettings.new({
-                fog = mapData.fog,
-                fogPower = mapData.fogPower,
-                fogOx = mapData.fogOx,
-                fogOy = mapData.fogOy,
-                fogDistort = mapData.fogDistort
-            }))
+        gameMap:setFogSettings(mapData.fog)
         PanoramaController.clear()
         PanoramaController.applyFromMapData(GlobalCore.MapPanoramaSettings.new({
                 panorama = mapData.panorama

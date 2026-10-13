@@ -16,10 +16,6 @@ public sealed class WorldMapValidationService
         "width",
         "height",
         "fog",
-        "fogPower",
-        "fogOx",
-        "fogOy",
-        "fogDistort",
         "panorama",
         "layerOrder",
         "placements",
@@ -115,12 +111,36 @@ public sealed class WorldMapValidationService
 
     private static void validateFog(JsonObject manifest, ICollection<WorldMapValidationIssue> issues)
     {
-        if (manifest["fog"] is not JsonValue fog || !fog.TryGetValue(out string? _))
-            issues.Add(new WorldMapValidationIssue("invalidFog", "fog must be a string."));
-        readInt(manifest["fogPower"], "fogPower", issues);
-        readFiniteDouble(manifest["fogOx"], "fogOx", issues);
-        readFiniteDouble(manifest["fogOy"], "fogOy", issues);
-        readInt(manifest["fogDistort"], "fogDistort", issues);
+        if (manifest["fog"] is not JsonObject fog)
+        {
+            issues.Add(new WorldMapValidationIssue("invalidFog", "fog must be an object."));
+            return;
+        }
+        string[] fields = ["enabled", "colour", "density", "scale", "velocity", "turbulence", "seed"];
+        if (fog.Count != fields.Length || fields.Any(field => !fog.ContainsKey(field)))
+            issues.Add(new WorldMapValidationIssue("invalidFog", "fog must contain only enabled, colour, density, scale, velocity, turbulence and seed."));
+        if (fog["enabled"] is not JsonValue enabled || !enabled.TryGetValue(out bool _))
+            issues.Add(new WorldMapValidationIssue("invalidFogEnabled", "fog.enabled must be a boolean."));
+        if (fog["colour"] is not JsonArray { Count: 4 } colour
+            || colour.Any(channel => !JsonScalar.TryGetFiniteNumber(channel, out double value)
+                || value is < 0 or > 255 || value != Math.Truncate(value)))
+            issues.Add(new WorldMapValidationIssue("invalidFogColour", "fog.colour must contain four integers from 0 to 255."));
+        foreach (string field in new[] { "density", "turbulence" })
+        {
+            double value = readFiniteDouble(fog[field], "fog." + field, issues);
+            if (value is < 0 or > 1)
+                issues.Add(new WorldMapValidationIssue("invalidFog" + field, $"fog.{field} must be from 0 to 1."));
+        }
+        if (readFiniteDouble(fog["scale"], "fog.scale", issues) <= 0)
+            issues.Add(new WorldMapValidationIssue("invalidFogScale", "fog.scale must be positive."));
+        if (fog["velocity"] is JsonArray { Count: 2 } velocity)
+        {
+            readFiniteDouble(velocity[0], "fog.velocity[0]", issues);
+            readFiniteDouble(velocity[1], "fog.velocity[1]", issues);
+        }
+        else
+            issues.Add(new WorldMapValidationIssue("invalidFogVelocity", "fog.velocity must contain two finite numbers."));
+        readInt(fog["seed"], "fog.seed", issues);
     }
 
     private static void validatePanorama(JsonObject manifest, ICollection<WorldMapValidationIssue> issues)
@@ -372,12 +392,10 @@ public sealed class WorldMapValidationService
         string field,
         ICollection<WorldMapValidationIssue> issues)
     {
-        if (value is not JsonValue scalar
-            || !scalar.TryGetValue(out double result)
-            || !double.IsFinite(result))
+        if (!JsonScalar.TryGetFiniteNumber(value, out double result))
         {
             issues.Add(new WorldMapValidationIssue("invalid" + field, $"{field} must be a finite number."));
-            return 0.0;
+            return double.NaN;
         }
         return result;
     }

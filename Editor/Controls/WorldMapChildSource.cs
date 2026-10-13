@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Threading;
 using Ludork.Models;
 using Ludork.Services;
@@ -36,6 +37,7 @@ public sealed class WorldMapChildSource : IDisposable
     public int Width { get; }
     public int Height { get; }
     public IReadOnlyList<string> LayerOrder { get; }
+    public Rect? PreviewLightBounds => gameData.Maps.GetPreviewLightBounds(Key);
 
     public JsonObject? RequestData(object consumer)
     {
@@ -124,6 +126,12 @@ public sealed class WorldMapChildSource : IDisposable
             return;
         if (!args.ReloadData || args.MapKey is not null && !string.Equals(args.MapKey, Key, StringComparison.Ordinal))
             return;
+        if (args.Edit is not null && snapshot is not null)
+        {
+            args.Edit.ApplyTo(snapshot);
+            DataChanged?.Invoke(this, args);
+            return;
+        }
         clearData();
         DataChanged?.Invoke(this, EventArgs.Empty);
     }

@@ -38,8 +38,6 @@ public partial class MainWindow
     private void onLiveDebugStarted(object? sender, EventArgs args)
     {
         refreshMapPanel();
-        if (EditorPanel.EditMode == MapEditMode.Light)
-            selectPreviewMode(MapEditMode.Tile);
     }
 
     private void onLiveDebugContextChanged(object? sender, EventArgs args) => EditorPanel.CancelInteractions();
@@ -62,7 +60,6 @@ public partial class MainWindow
             EditModeToggles.IsEnabled = editable;
             TileModeToggle.IsEnabled = editable;
             ActorModeToggle.IsEnabled = editable;
-            LightModeToggle.IsEnabled = false;
             EditorPanel.IsEnabled = editable;
             LayerTabs.IsEnabled = editable;
             RightList.IsEnabled = editable;
@@ -78,7 +75,6 @@ public partial class MainWindow
         {
             TileModeToggle.IsEnabled = true;
             ActorModeToggle.IsEnabled = true;
-            LightModeToggle.IsEnabled = true;
         }
         LiveDebugBanner.IsVisible = active;
         LiveDebugStatus.Text = active

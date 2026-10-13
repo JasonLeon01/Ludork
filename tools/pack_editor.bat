@@ -150,7 +150,7 @@ set "SCRIPT_TOOLS_VERSION_REPORT=%SCRIPT_TOOLS_DIRECTORY%\runtime-versions.txt"
 set "FFMPEG_SOURCE_ARCHIVE=%ROOT_DIR%\Game\ThirdPartySource\ffmpeg-%FFMPEG_VERSION%.tar.gz"
 
 for %%F in (
-    "%ROOT_DIR%\tools\build_ui_preview_host.bat"
+    "%ROOT_DIR%\tools\build_preview_host.bat"
     "%ROOT_DIR%\tools\editor_runtime\build_cpp.bat"
     "%ROOT_DIR%\tools\build_standalone.bat"
     "%ROOT_DIR%\tools\pack_project.bat"
@@ -285,7 +285,7 @@ if errorlevel 1 goto failed
 mkdir "%STAGE_DIR%\tools" >nul 2>nul
 copy /Y "%ROOT_DIR%\tools\editor_runtime\build_cpp.bat" "%STAGE_DIR%\tools\build_cpp.bat" >nul
 if errorlevel 1 goto failed
-for %%F in (build_standalone.bat build_ui_preview_host.bat pack_project.bat) do (
+for %%F in (build_standalone.bat build_preview_host.bat pack_project.bat) do (
     copy /Y "%ROOT_DIR%\tools\%%F" "%STAGE_DIR%\tools\%%F" >nul
     if errorlevel 1 goto failed
 )
@@ -422,7 +422,7 @@ call :validate_script_tools_bundle "%PACKAGE_DIR%\tools\ScriptTools"
 if errorlevel 1 exit /b 1
 call :require_file "%PACKAGE_DIR%\tools\luac.exe"
 if errorlevel 1 exit /b 1
-call :require_file "%PACKAGE_DIR%\tools\build_ui_preview_host.bat"
+call :require_file "%PACKAGE_DIR%\tools\build_preview_host.bat"
 if errorlevel 1 exit /b 1
 call :require_file "%PACKAGE_DIR%\tools\gnu-make\gnumake.exe"
 if errorlevel 1 exit /b 1
@@ -673,7 +673,7 @@ for %%T in (%FFMPEG_TEMPLATE_NAMES%) do for %%F in (
 for %%T in (%CPP_TEMPLATE_NAMES%) do (
     if exist "%PACKAGE_DIR%\Templates\%%T\Binaries" exit /b 1
     if exist "%PACKAGE_DIR%\Templates\%%T\%EDITOR_CACHE_DIRECTORY%" exit /b 1
-    call :require_file "%PACKAGE_DIR%\Templates\%%T\Engine\UiPreviewHost\CMakeLists.txt"
+    call :require_file "%PACKAGE_DIR%\Templates\%%T\Engine\PreviewHost\CMakeLists.txt"
     if errorlevel 1 exit /b 1
     for %%F in (
         "gradlew"
@@ -748,9 +748,9 @@ if "%STANDALONE_RUNTIME_LIBRARY_FOUND%"=="0" (
     echo Standalone template contains no runtime libraries in Binaries: %~1
     exit /b 1
 )
-"%SCRIPT_TOOLS%" ui-preview validate "%~1"
+"%SCRIPT_TOOLS%" preview validate "%~1"
 if errorlevel 1 exit /b %errorlevel%
-for /f "delims=" %%F in ('dir /B /A "%~1\%EDITOR_CACHE_DIRECTORY%"') do if not "%%F"=="UiPreview.json" if not "%%F"=="UiPreview.registry.json" (
+for /f "delims=" %%F in ('dir /B /A "%~1\%EDITOR_CACHE_DIRECTORY%"') do if not "%%F"=="Preview.json" if not "%%F"=="UiPreview.registry.json" (
     echo Unexpected template %EDITOR_CACHE_DIRECTORY% entry: %~1\%EDITOR_CACHE_DIRECTORY%\%%F
     exit /b 1
 )

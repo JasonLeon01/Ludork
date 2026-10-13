@@ -33,7 +33,6 @@ public partial class MainWindow
             return;
         MapEditMode mode = modeIndex switch
         {
-            1 => MapEditMode.Light,
             2 => MapEditMode.Actor,
             _ => MapEditMode.Tile,
         };
@@ -122,94 +121,24 @@ public partial class MainWindow
 
     private void selectPreviewMode(MapEditMode mode)
     {
-        if (viewModel?.MapWorkspace.IsLiveDebugActive == true && mode == MapEditMode.Light)
-            return;
-        bool tileMode = mode == MapEditMode.Tile;
-        bool lightMode = mode == MapEditMode.Light;
         bool actorMode = mode == MapEditMode.Actor;
-        bool wasLightMode = EditorPanel.EditMode == MapEditMode.Light;
-        if (lightMode && LightActorSelectionToggle.IsChecked != true)
-            suspendLightLayerSelection();
-        else if (wasLightMode && !lightMode && viewModel?.MapWorkspace.SelectedLayerTab is null
-            || lightMode && !wasLightMode)
-            restoreLightLayerSelection();
-        TileModeToggle.IsChecked = tileMode;
-        LightModeToggle.IsChecked = lightMode;
+        TileModeToggle.IsChecked = !actorMode;
         ActorModeToggle.IsChecked = actorMode;
         EditorPanel.setEditMode(mode);
-        updateLightModeControls();
+        LayerTabs.IsEnabled = viewModel?.MapWorkspace.CanUseMapTools == true;
         updateMapModePanels();
-        if (lightMode)
-        {
-            EditorPanel.clearLightSelection();
-            LightInfoPanel.setLight(null);
-        }
         if (actorMode)
             viewModel?.MapWorkspace.refreshActorOutliner();
         refreshMapPanelState();
     }
 
-    private void onLightActorSelectionClick(object? sender, RoutedEventArgs args)
-    {
-        if (editorSettings is not null)
-        {
-            editorSettings.LightActorSelection = LightActorSelectionToggle.IsChecked == true;
-            EditorLayoutService.Save();
-        }
-        EditorPanel.setLightActorSelectionEnabled(LightActorSelectionToggle.IsChecked == true);
-        if (LightActorSelectionToggle.IsChecked == true)
-            restoreLightLayerSelection();
-        else
-            suspendLightLayerSelection();
-        updateLightModeControls();
-        updateMapModePanels();
-        refreshMapPanelState();
-    }
-
-    private void suspendLightLayerSelection()
-    {
-        if (viewModel is null)
-            return;
-        if (viewModel.MapWorkspace.SelectedLayerTab is { IsOverview: false } layer)
-        {
-            lightSelectionMapKey = viewModel.MapWorkspace.SelectedMap?.Key;
-            lightSelectionLayerName = layer.Name;
-        }
-        viewModel.MapWorkspace.SelectedLayerTab = null;
-    }
-
-    private void restoreLightLayerSelection()
-    {
-        if (viewModel is null || viewModel.MapWorkspace.SelectedLayerTab is { IsOverview: false })
-            return;
-        viewModel.MapWorkspace.SelectedLayerTab = viewModel.MapWorkspace.LayerTabs.FirstOrDefault(layer =>
-            !layer.IsOverview
-            && lightSelectionMapKey == viewModel.MapWorkspace.SelectedMap?.Key && layer.Name == lightSelectionLayerName)
-            ?? viewModel.MapWorkspace.LayerTabs.FirstOrDefault(layer => layer.IsOverview);
-    }
-
-    private void updateLightModeControls()
-    {
-        bool lightMode = EditorPanel.EditMode == MapEditMode.Light;
-        LightActorSelectionToggle.IsVisible = lightMode && viewModel?.MapWorkspace.SelectedMap is { IsMap: true };
-        LightActorSelectionToggle.IsEnabled = viewModel?.CanEdit == true;
-        LayerTabs.IsEnabled = viewModel?.MapWorkspace.CanUseMapTools == true
-            && (!lightMode || LightActorSelectionToggle.IsChecked == true);
-    }
-
     private void updateMapModePanels()
     {
         bool actorMode = EditorPanel.EditMode == MapEditMode.Actor;
-        bool lightMode = EditorPanel.EditMode == MapEditMode.Light;
-        bool lightActorSelected = lightMode
-            && EditorPanel.LightActorSelectionEnabled && EditorPanel.SelectedActorIndex is not null;
-        RightList.IsVisible = EditorPanel.EditMode == MapEditMode.Tile;
-        LightInfoPanel.IsVisible = lightMode && !lightActorSelected;
-        ActorModePanel.IsVisible = actorMode || lightActorSelected;
+        RightList.IsVisible = !actorMode;
+        ActorModePanel.IsVisible = actorMode;
         ActorOutlinerPanel.IsVisible = actorMode;
         ActorOutlinerSplitter.IsVisible = actorMode;
-        Grid.SetRow(ActorInfoPanel, actorMode ? 2 : 0);
-        Grid.SetRowSpan(ActorInfoPanel, actorMode ? 1 : 3);
     }
 
     private void onLayerPointerPressed(object? sender, PointerPressedEventArgs args)

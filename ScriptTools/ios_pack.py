@@ -40,7 +40,7 @@ from .packaging_metadata import PackageMetadata, add_package_arguments, read_pac
 from .resource_constants import RESOURCE_GROUPS
 from .compile_lua import resolve_luac
 from .ui_property_values import UiAssetError
-from .ui_preview import prepare_registry
+from .preview import prepare_registry
 from .finalize_package import finalize_package
 from .ldpak import (
     LdPakError,
@@ -575,7 +575,7 @@ def configure_and_build(
         "-DCMAKE_OSX_ARCHITECTURES=arm64",
         "-DCMAKE_OSX_DEPLOYMENT_TARGET=16.3",
         f"-DLUDORK_SCRIPT_TOOLS_EXECUTABLE={script_tools}",
-        "-DLUDORK_BUILD_UI_PREVIEW_HOST=OFF",
+        "-DLUDORK_BUILD_PREVIEW_HOST=OFF",
         f"-DLUDORK_UI_REGISTRY_PATH={ui_registry}",
         *resource_options,
         "-DLUASF_BUILD_SHARED_SFML=OFF",

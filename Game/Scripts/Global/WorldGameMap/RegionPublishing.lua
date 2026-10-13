@@ -230,7 +230,6 @@ function WorldGameMapRegionPublishing.StepRegionPublish(self, region, deadline)
     end
     region.payload = payload
     region.geometryRevision = state.builder ~= nil and state.builder.geometryRevision or 0
-    region.lightingRevision = state.builder ~= nil and state.builder.lightingRevision or 0
     if state.builder ~= nil and not state.builder.completed then
         region.backgroundBuilder = state.builder
     end
@@ -407,10 +406,6 @@ function WorldGameMapRegionPublishing.PumpRegionBackgroundBuilds(self, deadline)
     local actorsAreReady = builder.areActorsReady()
     if not actorsWereReady and actorsAreReady then
         self:setSparseWorldRegionActorsReady(region.index)
-    end
-    if region.lightingRevision ~= builder.lightingRevision then
-        region.lightingRevision = builder.lightingRevision
-        self:_refreshWorldLights()
     end
     if self._worldStreamingState:getRegionState(region.index) == WorldRegionState.Active
         and (region.geometryRevision ~= previousGeometryRevision or not actorsWereReady and actorsAreReady) then

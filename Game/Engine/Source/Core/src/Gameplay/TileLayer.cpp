@@ -65,6 +65,23 @@ void TileLayer::writeBlock(int x, int y, const TileGrid& tileBlock,
     data_.validateBlock(x, y, tileBlock, autoTileBlock);
     writePendingBlock(x, y, tileBlock, autoTileBlock);
     data_.writeBlock(x, y, tileBlock, autoTileBlock);
+    invalidateMaterialImages();
+}
+
+void TileLayer::updateBlock(int x, int y, const TileGrid& tileBlock,
+                            const AutoTileGrid& autoTileBlock) {
+    data_.validateBlock(x, y, tileBlock, autoTileBlock);
+    updateGraphicsBlock(x, y, tileBlock, autoTileBlock);
+    data_.writeBlock(x, y, tileBlock, autoTileBlock);
+    invalidateMaterialImages();
+}
+
+void TileLayer::setAnimationTime(float seconds, float frameInterval) {
+    TileLayerGraphics::setAnimationTime(seconds, frameInterval);
+    shaderTime_ = seconds;
+}
+
+void TileLayer::invalidateMaterialImages() {
     ++contentRevision_;
     lightBlockMapCache_.reset();
     reflectionStrengthMapCache_.reset();

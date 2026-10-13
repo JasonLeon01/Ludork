@@ -1,46 +1,36 @@
 #pragma once
 
 #include <CoreMinimal.hpp>
-#include <Fog/MapFogSettings.hpp>
-
-class Camera;
+#include <Graphics/MapFogSettings.hpp>
+#include <Graphics/MapRenderer.hpp>
 
 BIND_CLASS()
 class FogController {
 public:
+    BIND_INIT()
+    FogController();
+    ~FogController();
+    FogController(const FogController&) = delete;
+    FogController& operator=(const FogController&) = delete;
     BIND_METHOD()
-    static void applyFromMapData(const MapFogSettings& mapData);
-
+    void applyFromMapData(const MapFogSettings& settings);
     BIND_METHOD(metadata = false)
-    static void applyWorldFromMapData(const MapFogSettings& mapData);
-
+    void applyWorldFromMapData(const MapFogSettings& settings);
     BIND_METHOD(metadata = false)
-    static void setWorldRegionFog(const std::string& key,
-                                  const sf::IntRect& cellRect,
-                                  const std::string& graphic, float power,
-                                  float scrollX, float scrollY, float distort);
-
+    void setWorldRegionFog(const std::string& key, const sf::IntRect& cellRect,
+                           const MapFogSettings& settings);
     BIND_METHOD(metadata = false)
-    static void removeWorldRegionFog(const std::string& key);
-
-    BIND_METHOD(metadata = false)
-    static void drawWorldOverlay(Camera& camera);
-
+    void removeWorldRegionFog(const std::string& key);
     BIND_METHOD()
-    static void clearFog();
-
-    BIND_METHOD()
-    static void update(float deltaTime);
-
-    BIND_METHOD()
-    static void drawOverlay();
-
-    static void shutdown() noexcept;
+    void clearFog();
+    BIND_METHOD(Pure = true)
+    MapFogSettings getSettings();
+    BIND_METHOD(metadata = false)
+    std::optional<MapFogSettings> getWorldRegionSettings(
+        const std::string& key);
+    void applyToScene(MapRenderer::Scene& scene);
 
 private:
-    static bool loadFogTexture();
-    static void ensureShader();
-    static void drawShaderOverlay(sf::RenderTexture& canvas);
-    static sf::RenderTexture& ensureBuffer(const sf::Vector2u& size);
-    static sf::Sprite& ensureBufferSprite();
+    class Impl;
+    std::unique_ptr<Impl> impl_;
 };

@@ -79,6 +79,10 @@ void TileLayerGraphics::setTileColor(int x, int y, sf::Color color) {
     }
     const int start =
         ludork::engine::tilemap_graphics_impl::tileVertexOffset(chunk, x, y);
+    if ((*chunk.vertexArray)[start].color == color) {
+        return;
+    }
+    ++drawRevision_;
     for (int i = 0; i < 6; ++i) {
         (*chunk.vertexArray)[start + i].color = color;
     }
@@ -295,8 +299,72 @@ void TileLayerGraphics::updateAutoTileAnimation(float deltaTime,
         int previous = autoTileCurrentFrames_[i];
         int next = (previous + steps) % frameCount;
         if (next != previous) {
+            ++drawRevision_;
             autoTileCurrentFrames_[i] = next;
             refreshAutoTileTexCoords(static_cast<int>(i));
+        }
+    }
+}
+
+void TileLayerGraphics::setAnimationTime(float seconds, float frameInterval) {
+    if (!std::isfinite(seconds) || !std::isfinite(frameInterval) ||
+        frameInterval <= 0.0f) {
+        throw std::invalid_argument(
+            "Tile animation time must be finite and interval positive");
+    }
+    const double steps =
+        std::floor(static_cast<double>(seconds) / frameInterval);
+    for (std::size_t index = 0; index < autoTileCurrentFrames_.size();
+         ++index) {
+        const int count = index < autoTileFrameCounts_.size()
+                              ? autoTileFrameCounts_[index]
+                              : 1;
+        if (count <= 1) {
+            continue;
+        }
+        const int frame =
+            static_cast<int>(std::fmod(std::fmod(steps, count) + count, count));
+        if (autoTileCurrentFrames_[index] != frame) {
+            ++drawRevision_;
+            autoTileCurrentFrames_[index] = frame;
+            refreshAutoTileTexCoords(static_cast<int>(index));
+        }
+    }
+}
+
+void TileLayerGraphics::updateGraphicsBlock(int x, int y,
+                                            const TileGrid& tileBlock,
+                                            const AutoTileGrid& autoTileBlock) {
+    if (tileBlock.empty() || tileBlock.front().empty()) {
+        return;
+    }
+    ++drawRevision_;
+    for (std::size_t row = 0; row < tileBlock.size(); ++row) {
+        std::copy(tileBlock[row].begin(), tileBlock[row].end(),
+                  tiles_[y + row].begin() + x);
+        std::copy(autoTileBlock[row].begin(), autoTileBlock[row].end(),
+                  autoTiles_[y + row].begin() + x);
+    }
+    const int firstX = std::max(0, x - 1) / ChunkSize;
+    const int firstY = std::max(0, y - 1) / ChunkSize;
+    const int lastX = std::min(static_cast<int>(size_.x) - 1,
+                               x + static_cast<int>(tileBlock.front().size())) /
+                      ChunkSize;
+    const int lastY = std::min(static_cast<int>(size_.y) - 1,
+                               y + static_cast<int>(tileBlock.size())) /
+                      ChunkSize;
+    for (int chunkY = firstY; chunkY <= lastY; ++chunkY) {
+        for (int chunkX = firstX; chunkX <= lastX; ++chunkX) {
+            const std::size_t index =
+                ludork::engine::tilemap_graphics_impl::chunkIndex(
+                    chunkX, chunkY, chunkColumns_);
+            if (!builtChunks_[index]) {
+                continue;
+            }
+            TileChunk& chunk = chunks_[index];
+            chunk.vertexArray.reset();
+            buildStaticChunk(chunk);
+            buildAutoTileChunk(chunk);
         }
     }
 }
@@ -325,6 +393,7 @@ void TileLayerGraphics::copyAutoTileAnimation(const TileLayerGraphics& source) {
     for (std::size_t pool = 0; pool < autoTileCurrentFrames_.size(); ++pool) {
         if (autoTileCurrentFrames_[pool] !=
             source.autoTileCurrentFrames_[pool]) {
+            ++drawRevision_;
             autoTileCurrentFrames_[pool] = source.autoTileCurrentFrames_[pool];
             refreshAutoTileTexCoords(static_cast<int>(pool));
         }
@@ -443,6 +512,7 @@ bool TileLayerGraphics::buildChunk(int chunkX, int chunkY) {
     buildAutoTileChunk(chunk);
     builtChunks_[index] = true;
     ++builtChunkCount_;
+    ++drawRevision_;
     while (nextBuildChunk_ < builtChunks_.size() &&
            builtChunks_[nextBuildChunk_]) {
         ++nextBuildChunk_;
@@ -471,6 +541,10 @@ bool TileLayerGraphics::isCellBuilt(const sf::Vector2i& position) const {
 
 bool TileLayerGraphics::isBuildComplete() const {
     return buildComplete_;
+}
+
+std::size_t TileLayerGraphics::getDrawRevision() const {
+    return drawRevision_;
 }
 
 void TileLayerGraphics::writePendingBlock(int x, int y,

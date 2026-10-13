@@ -9,6 +9,8 @@ namespace Ludork.Services;
 public sealed partial class MapDataService
 {
     private long catalogRevision = -1;
+    private long catalogBlueprintRevision = -1;
+    private long catalogResourceRevision = -1;
     private IReadOnlyList<MapCatalogEntry> catalogEntries = [];
     private IReadOnlyList<string> allMapKeys = [];
     private readonly Dictionary<string, MapCatalogEntry> catalogByKey = new(StringComparer.Ordinal);
@@ -20,13 +22,20 @@ public sealed partial class MapDataService
 
     private void ensureCatalogProjection()
     {
-        if (catalogRevision == catalogDocuments.Revision)
+        BlueprintPreviewService? previews = store.BlueprintPreviews;
+        using IDisposable? batch = previews?.BeginResolutionBatch();
+        long blueprintRevision = previews?.ResolutionRevision ?? -1;
+        long resourceRevision = previews?.MapPreviews.ResourceRevision ?? -1;
+        if (catalogRevision == catalogDocuments.Revision
+            && catalogBlueprintRevision == blueprintRevision
+            && catalogResourceRevision == resourceRevision)
             return;
         MapCatalogEntry[] entries = catalogDocuments.Values.Select(readMapCatalogEntry)
             .OfType<MapCatalogEntry>().Select(entry => entry with
             {
                 LayerOrder = Array.AsReadOnly(entry.LayerOrder.ToArray()),
                 ActorTags = Array.AsReadOnly(entry.ActorTags.ToArray()),
+                PreviewLightBounds = calculatePreviewLightBounds(entry.PreviewLightSources, previews),
             })
             .OrderBy(entry => entry.Kind == MapCatalogEntryKind.WorldChildMap ? 1 : 0)
             .ThenBy(entry => entry.Key, StringComparer.Ordinal).ToArray();
@@ -60,6 +69,8 @@ public sealed partial class MapDataService
             worldTagMaps[world.Key] = tags;
         }
         catalogRevision = catalogDocuments.Revision;
+        catalogBlueprintRevision = blueprintRevision;
+        catalogResourceRevision = resourceRevision;
     }
 
     internal IReadOnlyDictionary<string, MapCatalogEntry> getWorldCatalog(string worldKey)

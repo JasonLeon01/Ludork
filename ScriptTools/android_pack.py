@@ -36,7 +36,7 @@ from .packaging_names import read_app_name
 from .packaging_metadata import PackageMetadata, add_package_arguments, read_package_metadata
 from .resource_constants import RESOURCE_GROUPS
 from .ui_property_values import UiAssetError
-from ScriptTools.ui_preview import prepare_registry
+from ScriptTools.preview import prepare_registry
 from ScriptTools.compile_lua import resolve_luac
 from ScriptTools.finalize_package import finalize_package
 from ScriptTools.ldpak import (
@@ -943,7 +943,7 @@ def native_configure_command(
         f"-DLUDORK_RUNTIME_OUTPUT_DIRECTORY={context.native_output_dir}",
         f"-DLUDORK_ANDROID_RUNTIME_HASH={runtime_hash}",
         f"-DLUDORK_SCRIPT_TOOLS_EXECUTABLE={context.script_tools}",
-        "-DLUDORK_BUILD_UI_PREVIEW_HOST=OFF",
+        "-DLUDORK_BUILD_PREVIEW_HOST=OFF",
         f"-DLUDORK_UI_REGISTRY_PATH={context.registry}",
         f"-DLUDORK_SAVE_AS_LDC={'ON' if context.encrypt_saves else 'OFF'}",
     ]

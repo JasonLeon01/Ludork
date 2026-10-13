@@ -49,7 +49,12 @@ from .runtime_formats import (
 )
 from .ui_assets import validate_assets
 from .ui_control_registry import UiControlRegistry, load_registry
-from .ui_preview import PREVIEW_DIRECTORY, ensure_preview, is_preview_development_file
+from .preview import (
+    PREVIEW_DIRECTORY,
+    ensure_preview,
+    is_preview_development_file,
+    is_preview_development_path,
+)
 
 
 UINT64_MASK = 0xFFFFFFFFFFFFFFFF
@@ -409,6 +414,15 @@ def prune_package(
     for relative_path in excluded_files:
         if _remove_path(_package_path(resource_root, relative_path)):
             removed += 1
+    preview_paths = sorted(
+        (path for path in resource_root.rglob("*")
+         if is_preview_development_path(path.relative_to(resource_root).as_posix())),
+        key=lambda path: len(path.parts),
+        reverse=True,
+    )
+    for path in preview_paths:
+        if _remove_path(path):
+            removed += 1
     return removed
 
 
@@ -476,8 +490,10 @@ def _finalize_package_in_place(
         for path in binaries.iterdir()
     ):
         raise RuntimeError(
-            "Build tools or UI preview development files remain in the game package Binaries"
+            "Build tools or preview development files remain in the game package Binaries"
         )
+    if any(is_preview_development_path(path.relative_to(root).as_posix()) for path in root.rglob("*")):
+        raise RuntimeError("Preview development files remain in the game package")
     packed_groups = pack_ldpak(root) if use_ldpak else 0
     expected_entry = "Entry.luac" if scripts_compiled else "Entry.lua"
     validate_runtime_ldpak_layout(root, use_ldpak, expected_entry)

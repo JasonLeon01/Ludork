@@ -5,12 +5,12 @@ local RegionTerrain = require("Global.GameMap.RegionTerrain")
 local WorldGeometry = require("Global.WorldGeometry")
 local WorldMapConstants = require("Global.WorldMapConstants")
 local Data = require("Source.Data")
+local MapDataParser = require("Source.SceneComponents.MapBuilder.MapDataParser")
 
 local TextureManager = GlobalCore.TextureManager
 local WORLD_REGION_FIXED_CACHE_BYTES = WorldMapConstants.REGION_FIXED_CACHE_BYTES
 local WORLD_REGION_LAYER_CELL_CACHE_BYTES = WorldMapConstants.REGION_LAYER_CELL_CACHE_BYTES
 local WORLD_REGION_ACTOR_CACHE_BYTES = 16 * 1024
-local WORLD_REGION_LIGHT_CACHE_BYTES = 4 * 1024
 local WORLD_REGION_BUILD_CHUNK_SIZE = WorldMapConstants.REGION_BUILD_CHUNK_SIZE
 local WORLD_TILE_GRAPHICS_CHUNK_SIZE = WorldMapConstants.SPATIAL_CHUNK_SIZE
 ---@type table<Source.SceneComponents.WorldMapData, Source.SceneComponents.WorldLayerValidationState>
@@ -131,7 +131,6 @@ local function createWorldRegionBuildCoroutine(
         validateWorldRegionData(worldData, region, data)
         local ambientLight = builder.BuildAmbientLight(data.ambientLight)
         local serializedActors = data.actors or {}
-        local serializedLights = data.lights or {}
         coroutine.yield("initialise")
 
         local rowMajorChunks, priorityChunks, priorityDataChunkCount = builder:createWorldRegionChunks(
@@ -410,57 +409,6 @@ local function createWorldRegionBuildCoroutine(
         for _, descriptor in ipairs(priorityActorDescriptors) do
             buildActorDescriptor(descriptor, false)
         end
-        ---@type GlobalCore.Light[]
-        local lights = {}
-        ---@type Source.SceneComponents.MapLightData[]
-        local priorityLights = {}
-        ---@type Source.SceneComponents.MapLightData[]
-        local backgroundLights = {}
-        for _, lightData in ipairs(serializedLights) do
-            local rawPosition = lightData.position or { 0.0, 0.0 }
-            local radius = tonumber(lightData.radius) or 0.0
-            local worldX = region.x + (tonumber(rawPosition[1]) or 0.0) / Engine.GetCellSize()
-            local worldY = region.y + (tonumber(rawPosition[2]) or 0.0) / Engine.GetCellSize()
-            local cellRadius = radius / Engine.GetCellSize()
-            local priority = priorityRect == nil
-                or worldX + cellRadius >= priorityRect.x and worldY + cellRadius >= priorityRect.y
-                    and worldX - cellRadius < priorityRect.x + priorityRect.width
-                    and worldY - cellRadius < priorityRect.y + priorityRect.height
-            local destination = priority and priorityLights or backgroundLights
-            destination[#destination + 1] = lightData
-        end
-        ---@param lightData  Source.SceneComponents.MapLightData
-        ---@param background boolean
-        ---@async
-        local function buildLight(lightData, background)
-            ---@type table<string, number | integer | number[] | integer[]>
-            local values = {}
-            if lightData.position ~= nil then
-                values.position = lightData.position
-            end
-            if lightData.color ~= nil then
-                values.color = lightData.color
-            end
-            if lightData.radius ~= nil then
-                values.radius = lightData.radius
-            end
-            if lightData.intensity ~= nil then
-                values.intensity = lightData.intensity
-            end
-            local light = GlobalCore.Light.fromDict(values)
-            local translated = copy(light)
-            translated.position = sf.Vector2f.new(
-                light.position.x + region.x * Engine.GetCellSize(), light.position.y + region.y * Engine.GetCellSize()
-            )
-            lights[#lights + 1] = translated
-            if background then
-                coroutine.yield("lightReady")
-            end
-            coroutine.yield("createLight")
-        end
-        for _, lightData in ipairs(priorityLights) do
-            buildLight(lightData, false)
-        end
         ---@type Source.SceneComponents.WorldRegionEnvironmentData
         local environmentData = {
             ambientLight = ambientLight,
@@ -468,18 +416,13 @@ local function createWorldRegionBuildCoroutine(
             bgs = data.bgs,
             bgmFilter = data.bgmFilter,
             bgsFilter = data.bgsFilter,
-            fog = data.fog,
-            fogPower = data.fogPower,
-            fogOx = data.fogOx,
-            fogOy = data.fogOy,
-            fogDistort = data.fogDistort
+            fog = MapDataParser.BuildFog(data.fog)
         }
         ---@type Global.WorldGameMap.RegionPayload
         local payload = {
             tilemap = tilemap,
             terrain = terrain,
             actors = actors,
-            lights = lights,
             mapData = environmentData,
             actorSet = {},
             definitionRegions = definitionRegions,
@@ -488,17 +431,12 @@ local function createWorldRegionBuildCoroutine(
             estimatedRuntimeBytes = WORLD_REGION_FIXED_CACHE_BYTES + data.width * data.height
                     * #data.layerOrder * WORLD_REGION_LAYER_CELL_CACHE_BYTES
                 + (#priorityActorDescriptors + #backgroundActorDescriptors) * WORLD_REGION_ACTOR_CACHE_BYTES
-                + #serializedLights * WORLD_REGION_LIGHT_CACHE_BYTES
         }
         coroutine.yield("readyPayload", payload, layerBuildStates)
         for _, descriptor in ipairs(backgroundActorDescriptors) do
             buildActorDescriptor(descriptor, true)
         end
         coroutine.yield("actorPhaseComplete")
-        for _, lightData in ipairs(backgroundLights) do
-            buildLight(lightData, true)
-        end
-        coroutine.yield("lightPhaseComplete")
         for _, layerBuildState in ipairs(layerBuildStates) do
             for chunkIndex = priorityDataChunkCount + 1, #priorityChunks do
                 builder:writeWorldLayerDataChunk(layerBuildState, priorityChunks[chunkIndex])
@@ -533,7 +471,7 @@ function WorldRegionBuildState.Create(
     )
     ---@type Global.WorldGameMap.RegionBuildState
     local state
-    local function advance(deadline, stopAfterActorPhase, stopAfterLightPhase)
+    local function advance(deadline, stopAfterActorPhase)
         state.lastStepMaximumStage = "idle"
         state.lastStepMaximumMilliseconds = 0.0
         state.lastStepResumeCount = 0
@@ -583,16 +521,9 @@ function WorldRegionBuildState.Create(
                 }
                 return nil
             end
-            if stage == "lightReady" then
-                state.lightingRevision = state.lightingRevision + 1
-            elseif stage == "actorPhaseComplete" then
+            if stage == "actorPhaseComplete" then
                 state.actorPhaseComplete = true
                 if stopAfterActorPhase then
-                    return nil
-                end
-            elseif stage == "lightPhaseComplete" then
-                state.lightPhaseComplete = true
-                if stopAfterLightPhase then
                     return nil
                 end
             end
@@ -606,9 +537,7 @@ function WorldRegionBuildState.Create(
         completed = false,
         ready = false,
         geometryRevision = 0,
-        lightingRevision = 0,
         actorPhaseComplete = false,
-        lightPhaseComplete = false,
         readyActorRoots = {},
         maximumStepMilliseconds = 0.0,
         stageMaximumMilliseconds = {},
@@ -624,7 +553,7 @@ function WorldRegionBuildState.Create(
             if state.actorPhaseComplete then
                 return true
             end
-            advance(deadline, true, false)
+            advance(deadline, true)
             return state.actorPhaseComplete
         end,
         isCellReady = function (position)
@@ -647,7 +576,7 @@ function WorldRegionBuildState.Create(
             return true
         end,
         isRectReady = function (rect)
-            if state.layerBuildStates == nil or not state.actorPhaseComplete or not state.lightPhaseComplete
+            if state.layerBuildStates == nil or not state.actorPhaseComplete
                 or bool(state.readyActorRoots) or state.actorPublishQueue ~= nil then
                 return false
             end
@@ -670,10 +599,10 @@ function WorldRegionBuildState.Create(
             if state.layerBuildStates == nil then
                 return false
             end
-            if not state.actorPhaseComplete or not state.lightPhaseComplete
+            if not state.actorPhaseComplete
                 or bool(state.readyActorRoots) or state.actorPublishQueue ~= nil then
-                advance(deadline, false, true)
-                if not state.actorPhaseComplete or not state.lightPhaseComplete
+                advance(deadline, true)
+                if not state.actorPhaseComplete
                     or bool(state.readyActorRoots) or state.actorPublishQueue ~= nil then
                     return false
                 end
@@ -701,7 +630,7 @@ function WorldRegionBuildState.Create(
             return true
         end,
         step = function (deadline)
-            return advance(deadline, false, false)
+            return advance(deadline, false)
         end
     }
     return state

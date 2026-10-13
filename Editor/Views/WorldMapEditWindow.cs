@@ -49,7 +49,7 @@ public sealed class WorldMapEditWindow : Window
         worldNameBox.Text = initial.WorldName;
         widthBox.Value = initial.Width;
         heightBox.Value = initial.Height;
-        fogEditor = new MapFogEditor(MapVisualSettings.From(initial));
+        fogEditor = new MapFogEditor(this, MapVisualSettings.From(initial));
 
         Grid form = new() { RowSpacing = 8 };
         if (isNew)
@@ -58,7 +58,7 @@ public sealed class WorldMapEditWindow : Window
         EditorFormRows.Add(form, LocaleService.Get("MAP_WIDTH"), widthBox);
         EditorFormRows.Add(form, LocaleService.Get("MAP_HEIGHT"), heightBox);
         EditorFormRows.Add(form, LocaleService.Get("MAP_PANORAMA"), createFileRow(fogEditor.PanoramaBox, "Panoramas"));
-        EditorFormRows.Add(form, LocaleService.Get("MAP_FOG"), createFileRow(fogEditor.PathBox, "Fogs"));
+        EditorFormRows.Add(form, LocaleService.Get("MAP_FOG"), fogEditor.Enabled);
         EditorFormRows.Add(form, string.Empty, fogEditor.Options);
 
         Button confirm = new() { Content = LocaleService.Get("CONFIRM"), MinWidth = 80 };
@@ -164,13 +164,7 @@ public sealed class WorldMapEditWindow : Window
             errorText.Text = LocaleService.Get("WORLD_NAME_EMPTY");
             return;
         }
-        string fog = fogEditor.PathBox.Text?.Trim() ?? string.Empty;
         string panorama = fogEditor.PanoramaBox.Text?.Trim() ?? string.Empty;
-        if (fog.Length != 0 && !GameAssetPath.IsCanonical(fog))
-        {
-            errorText.Text = $"Invalid game asset path: {fog}";
-            return;
-        }
         if (panorama.Length != 0 && !GameAssetPath.IsCanonical(panorama))
         {
             errorText.Text = $"Invalid game asset path: {panorama}";
@@ -182,11 +176,7 @@ public sealed class WorldMapEditWindow : Window
             WorldName = worldName,
             Width = decimal.ToInt32(widthBox.Value ?? 0),
             Height = decimal.ToInt32(heightBox.Value ?? 0),
-            Fog = fog,
-            FogPower = fogEditor.Power,
-            FogOx = fogEditor.Ox,
-            FogOy = fogEditor.Oy,
-            FogDistort = fogEditor.Distort,
+            Fog = fogEditor.Value,
             Panorama = panorama,
         });
     }

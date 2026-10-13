@@ -31,7 +31,11 @@ public sealed partial class MapDataService
         if (mapDocuments.TryGetValue(mapKey, out JsonObject? map)
             && tryGetMapCatalogEntry(mapKey, out MapCatalogEntry entry))
         {
-            setMapCatalogEntry(entry with { ActorTags = readActorTags(map) });
+            setMapCatalogEntry(entry with
+            {
+                ActorTags = readActorTags(map),
+                PreviewLightSources = MapPreviewCatalogCapture.Extract(map),
+            });
         }
     }
 

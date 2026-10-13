@@ -18,13 +18,7 @@ namespace Ludork.Controls;
 public enum MapEditMode
 {
     Tile,
-    Light,
     Actor,
-}
-
-public interface IMapLayerShaderRenderer
-{
-    void renderLayer(DrawingContext context, MapLayerSnapshot layer, Rect layerBounds);
 }
 
 public sealed partial class MapPanel : Control
@@ -34,33 +28,23 @@ public sealed partial class MapPanel : Control
     private const int MaxTileSize = 128;
     private const int TileSizeStep = 4;
     private const int TileBrushRenderInterval = 16;
-    private const double OtherLayerOpacity = 0.5;
-    private const double LightEdgeTolerance = 8.0;
 
     private static readonly IBrush CheckerLightBrush = new SolidColorBrush(Color.FromRgb(220, 220, 220));
     private static readonly IBrush CheckerDarkBrush = new SolidColorBrush(Color.FromRgb(180, 180, 180));
     private static readonly IBrush MissingActorBrush = new SolidColorBrush(Color.FromArgb(160, 0, 120, 255));
-    private static readonly IBrush ActorOriginBrush = new SolidColorBrush(Color.FromArgb(220, 0, 255, 0));
     private static readonly Pen HoverPen = new(new SolidColorBrush(Colors.Black), 1);
     private static readonly Pen SelectedActorPen = new(new SolidColorBrush(Color.FromRgb(255, 220, 0)), 2);
 
     private readonly Stopwatch animationClock = Stopwatch.StartNew();
-    private readonly DispatcherTimer animationTimer;
     private readonly DispatcherTimer tileBrushRenderTimer;
     private readonly Dictionary<string, CachedBitmap> bitmapCache = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, Bitmap> hueCache = new(StringComparer.Ordinal);
     private readonly List<Bitmap> retiredBitmaps = [];
-    private readonly Dictionary<string, LayerRenderCache> layerRenderCaches = new(StringComparer.Ordinal);
     private readonly Dictionary<string, List<ActorRenderState>> actorRenderStates = new(StringComparer.Ordinal);
-    private readonly HashSet<string> dirtyLayerNames = new(StringComparer.Ordinal);
     private readonly HashSet<string> pendingBrushLayerNames = new(StringComparer.Ordinal);
-    private readonly HashSet<string> animatedAutoTileLayerNames = new(StringComparer.Ordinal);
     private readonly EditorZoomInput zoomInput = new();
     private ProjectDataStore? gameData;
     private IMapEditingContext? editingContext;
     private BlueprintPreviewService? previewService;
-    private AutoTileRenderer? autoTileRenderer;
-    private IMapLayerShaderRenderer? layerShaderRenderer;
     private string? selectedLayerName;
     private bool selectedLayerEditable;
     private TileSelection? selectedTiles;
@@ -74,14 +58,9 @@ public sealed partial class MapPanel : Control
     private long mapEditGesture;
     private IPointer? capturedPointer;
     private readonly Dictionary<string, string?> tilesetPaths = new(StringComparer.Ordinal);
-    private int? selectedLightIndex;
     private int? selectedActorIndex;
     private string? selectedActorLayer;
     private string? selectedRuntimeActorId;
-    private bool lightMoveDragging;
-    private bool lightRadiusDragging;
-    private Vector lightDragOffset;
-    private Point lightDragCenter;
     private int? actorMoveIndex;
     private string? actorMoveLayer;
     private string? movingRuntimeActorId;
@@ -94,18 +73,13 @@ public sealed partial class MapPanel : Control
     private ScrollViewer? hostScrollViewer;
     private bool actorRenderStatesDirty = true;
     private bool pendingActorRenderStateDirty = true;
-    private bool animationStateDirty = true;
-    private bool hasAnimatedActors;
     private bool actorPreviewActivityUpdatePending;
-    private int renderedAutoTileFrame;
     private readonly EditorZoomAnchor pendingMapZoomAnchor = new();
 
     public MapPanel()
     {
         Focusable = true;
         ClipToBounds = true;
-        animationTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
-        animationTimer.Tick += onAnimationTick;
         tileBrushRenderTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(TileBrushRenderInterval) };
         tileBrushRenderTimer.Tick += onTileBrushRenderTick;
         propertyWheelTimer.Tick += (_, _) => endMapGesture();
@@ -123,7 +97,6 @@ public sealed partial class MapPanel : Control
     public string? SelectedActorLayer => selectedActorLayer;
     public int? SelectedActorIndex => selectedActorIndex;
     public string? SelectedRuntimeActorId => selectedRuntimeActorId;
-    public bool LightActorSelectionEnabled { get; private set; }
     public bool IsSelectedLayerEditable => selectedLayerEditable;
     public bool IsRuntimeEditing => editingContext?.IsRuntime == true;
     private bool canEditMap => selectedLayerEditable && editingContext?.IsEditable == true;
@@ -132,8 +105,6 @@ public sealed partial class MapPanel : Control
     public event EventHandler<ActorSelectionChangedEventArgs>? ActorSelectionChanged;
     public event EventHandler<string>? BlueprintLocateRequested;
     public event EventHandler? ActorDataChanged;
-    public event EventHandler<LightSelectionChangedEventArgs>? LightSelectionChanged;
-    public event EventHandler<LightDataChangedEventArgs>? LightDataChanged;
     public event EventHandler<string>? EditFeedbackRequested;
 
     public void configure(ProjectDataStore nextGameData, BlueprintPreviewService nextPreviewService)
@@ -141,10 +112,13 @@ public sealed partial class MapPanel : Control
         if (ReferenceEquals(gameData, nextGameData) && ReferenceEquals(previewService, nextPreviewService))
             return;
         if (previewService is not null)
+        {
             previewService.VisualsInvalidated -= onActorVisualsInvalidated;
+            previewService.MapPreviews.Invalidated -= onNativePreviewInvalidated;
+            previewService.MapPreviews.OptionsChanged -= onNativeFrameChanged;
+        }
         if (gameData is not null)
         {
-            gameData.Documents.ContentChanged -= onActorLightSourcesChanged;
             gameData.DataReloaded -= onMapImagesRestored;
             gameData.DataRestored -= onMapImagesRestored;
         }
@@ -152,26 +126,20 @@ public sealed partial class MapPanel : Control
         invalidateActorRenderStates();
         invalidatePendingActorRenderState();
         disposeCachedBitmaps();
-        autoTileRenderer?.Dispose();
         endMapGesture();
         gameData = nextGameData;
-        gameData.Documents.ContentChanged += onActorLightSourcesChanged;
         gameData.DataReloaded += onMapImagesRestored;
         gameData.DataRestored += onMapImagesRestored;
         ConfigureEditingContext(new ProjectMapEditingContext(nextGameData));
         tilesetPaths.Clear();
         previewService = nextPreviewService;
         previewService.VisualsInvalidated += onActorVisualsInvalidated;
-        autoTileRenderer = new AutoTileRenderer(nextGameData);
+        previewService.MapPreviews.Invalidated += onNativePreviewInvalidated;
+        previewService.MapPreviews.OptionsChanged += onNativeFrameChanged;
+        configureNativePreview();
         tileSize = Math.Clamp(nextGameData.Configs.getCellSize(), MinTileSize, MaxTileSize);
         continuousTileSize = tileSize;
         InvalidateMeasure();
-        InvalidateVisual();
-    }
-
-    public void setLayerShaderRenderer(IMapLayerShaderRenderer? renderer)
-    {
-        layerShaderRenderer = renderer;
         InvalidateVisual();
     }
 
@@ -232,13 +200,18 @@ public sealed partial class MapPanel : Control
         cancelMapGesture();
         CurrentMapKey = mapKey;
         CurrentMapDocument = document;
+        nativeScene = null;
+        if (nativePreview is not null)
+        {
+            nativePreview.Invalidate();
+            nativePreview.IsActive = document is not null;
+        }
         RefreshCount += 1;
         disposeMapRenderCaches();
         invalidateActorRenderStates();
         invalidatePendingActorRenderState();
         hoverGrid = null;
         rectangleStart = null;
-        setSelectedLightIndex(null);
         setSelectedActor(null, null, true, true);
         InvalidateMeasure();
         InvalidateVisual();
@@ -259,11 +232,6 @@ public sealed partial class MapPanel : Control
         selectedLayerEditable = editable;
         if (!editable && (actorPropertyDrag is not null || propertyWheelTarget is not null))
             CancelInteractions();
-        if (!editable && EditMode == MapEditMode.Light)
-        {
-            CancelInteractions();
-            setSelectedActor(null, null, true);
-        }
         flushPendingBrushLayers();
         disposeMapRenderCaches();
         scheduleActorPreviewActivityUpdate();
@@ -284,8 +252,6 @@ public sealed partial class MapPanel : Control
         rectangleStart = null;
         tileBrushDragging = false;
         flushPendingBrushLayers();
-        lightMoveDragging = false;
-        lightRadiusDragging = false;
         actorMoveIndex = null;
         actorMoveLayer = null;
         movingRuntimeActorId = null;
@@ -294,25 +260,8 @@ public sealed partial class MapPanel : Control
         InvalidateVisual();
     }
 
-    public void setLightActorSelectionEnabled(bool enabled)
-    {
-        if (LightActorSelectionEnabled == enabled)
-            return;
-        CancelInteractions();
-        LightActorSelectionEnabled = enabled;
-        if (EditMode == MapEditMode.Light)
-            setSelectedActor(null, null, true);
-        InvalidateVisual();
-    }
-
-    public void clearLightSelection()
-    {
-        setSelectedLightIndex(null);
-    }
-
     public void refreshSelectedActor()
     {
-        invalidateActorLightRenderStates();
         if (actorRenderStatesDirty)
         {
             InvalidateVisual();
@@ -334,7 +283,6 @@ public sealed partial class MapPanel : Control
         }
         disposeActorPreviewLease(states[index].PreviewLease);
         states[index] = createActorRenderState(actor);
-        animationStateDirty = true;
         scheduleActorPreviewActivityUpdate();
         InvalidateVisual();
     }
@@ -347,21 +295,6 @@ public sealed partial class MapPanel : Control
             return;
         }
         setSelectedActor(layerName, actorIndex, true);
-        InvalidateVisual();
-    }
-
-    public void updateSelectedLight(JsonObject lightData)
-    {
-        if (IsRuntimeEditing || editingContext?.IsEditable != true)
-            return;
-        if (selectedLightIndex is not int index || CurrentMapDocument?.Lights is not IReadOnlyList<MapLightSnapshot> lights || index < 0 || index >= lights.Count || lights[index] is not MapLightSnapshot light)
-            return;
-        JsonObject next = (JsonObject)lightData.DeepClone();
-        if (JsonNode.DeepEquals(light.ToJson(), next))
-            return;
-        if (gameData is null || CurrentMapKey is null || !gameData.Maps.UpdateMapLight(CurrentMapKey, index, light.ToJson(), next))
-            return;
-        LightDataChanged?.Invoke(this, new LightDataChangedEventArgs(CurrentMapKey ?? string.Empty, index, next));
         InvalidateVisual();
     }
 

@@ -141,7 +141,7 @@ for legal_name in $RUNTIME_LEGAL_FILES; do
 done
 
 rm -rf "$STANDALONE_DIR/$EDITOR_CACHE_DIRECTORY"
-"$SCRIPT_TOOLS" ui-preview copy "$CPP_DIR" "$STANDALONE_DIR"
+"$SCRIPT_TOOLS" preview copy "$CPP_DIR" "$STANDALONE_DIR"
 rm -rf "$STANDALONE_DIR/Cache"
 
 unexpected_runtime=$(find "$STANDALONE_DIR" \

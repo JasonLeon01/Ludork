@@ -42,6 +42,10 @@ public:
     void writeBlock(int x, int y, const TileGrid& tileBlock,
                     const AutoTileGrid& autoTileBlock);
 
+    void updateBlock(int x, int y, const TileGrid& tileBlock,
+                     const AutoTileGrid& autoTileBlock);
+    void setAnimationTime(float seconds, float frameInterval = 0.5f);
+
     BIND_METHOD(metadata = false)
     std::vector<std::shared_ptr<sf::Texture>> getAutoTileTextures() const;
 
@@ -142,6 +146,7 @@ private:
         const std::optional<MaterialValue>& value);
 
     void loadShader();
+    void invalidateMaterialImages();
     std::shared_ptr<sf::Image> buildMaterialImage(
         const std::vector<std::vector<float>>& values) const;
 

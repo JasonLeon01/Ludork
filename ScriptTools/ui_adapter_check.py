@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import pathlib
 
-from .ui_preview import describe_host, load_preview
+from .preview import describe_host, load_preview
 from .ui_property_values import UiAssetError
 
 

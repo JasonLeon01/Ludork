@@ -727,7 +727,7 @@ def validate_assets(
     root = project_root.expanduser().resolve()
     if not structure_only:
         if registry is None:
-            from .ui_preview import ensure_preview
+            from .preview import ensure_preview
 
             registry = ensure_preview(root).registry
         elif isinstance(registry, pathlib.Path):

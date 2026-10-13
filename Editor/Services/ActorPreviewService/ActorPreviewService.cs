@@ -86,7 +86,7 @@ public sealed partial class ActorPreviewService : IDisposable
     private Task? renderTask;
     private DateTime nextConnectionAttempt = DateTime.MinValue;
 
-    public ActorPreviewService(UiPreviewRuntimeService runtime, EditorThumbnailService thumbnails)
+    public ActorPreviewService(PreviewRuntimeService runtime, EditorThumbnailService thumbnails)
     {
         this.thumbnails = thumbnails;
         projectPath = runtime.ProjectPath;
@@ -101,7 +101,7 @@ public sealed partial class ActorPreviewService : IDisposable
     public TimeSpan Elapsed => clock.Elapsed;
     public bool IsAvailable => connection.IsReady && connection.Capabilities.Contains("actor");
     public string StatusMessage => connection.IsReady && !connection.Capabilities.Contains("actor")
-        ? "UiPreviewHost does not support actor preview."
+        ? "PreviewHost does not support actor preview."
         : connection.StatusMessage;
 
     public ActorPreviewLease Acquire(ActorVisualDescriptor descriptor)

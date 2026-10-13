@@ -119,37 +119,6 @@ public sealed partial class MapDataService
         return commitMapEdits(mapKey, map, edits);
     }
 
-    public int? AddMapLight(string mapKey, double x, double y)
-    {
-        if (getMap(mapKey) is not JsonObject map || !double.IsFinite(x) || !double.IsFinite(y))
-            return null;
-        int index = (map["lights"] as JsonArray)?.Count ?? 0;
-        JsonObject light = new()
-        {
-            ["position"] = new JsonArray(x, y),
-            ["color"] = new JsonArray(255, 255, 255, 255),
-            ["radius"] = 256.0,
-            ["intensity"] = 1.0,
-        };
-        return commitMapEdits(mapKey, map, [new(JsonDataEdit.Operation.Insert, ["lights", index], light)]) ? index : null;
-    }
-
-    public bool UpdateMapLight(string mapKey, int index, JsonObject expected, JsonObject light)
-    {
-        return getMap(mapKey) is JsonObject map
-            && map["lights"] is JsonArray lights && index >= 0 && index < lights.Count
-            && JsonNode.DeepEquals(lights[index], expected)
-            && commitMapEdits(mapKey, map, [new(JsonDataEdit.Operation.Set, ["lights", index], light)]);
-    }
-
-    public bool DeleteMapLight(string mapKey, int index, JsonObject expected)
-    {
-        return getMap(mapKey) is JsonObject map
-            && map["lights"] is JsonArray lights && index >= 0 && index < lights.Count
-            && JsonNode.DeepEquals(lights[index], expected)
-            && commitMapEdits(mapKey, map, [new(JsonDataEdit.Operation.Remove, ["lights", index])]);
-    }
-
     public bool MapActorTagExists(string mapKey, string tag, string? ignoredLayerName = null, int? ignoredActorIndex = null)
     {
         return getMap(mapKey) is JsonObject map && MapTagService.ContainsTag(map, tag, ignoredLayerName, ignoredActorIndex);

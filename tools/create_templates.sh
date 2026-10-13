@@ -134,7 +134,7 @@ validate_native_cache() (
         echo "Native cache contains no runtime libraries: $cache_entry" >&2
         exit 1
     fi
-    "$SCRIPT_TOOLS" ui-preview validate "$cache_entry"
+    "$SCRIPT_TOOLS" preview validate "$cache_entry"
 )
 
 copy_native_outputs() (
@@ -149,7 +149,7 @@ copy_native_outputs() (
         mkdir -p "$native_target/Scripts/$enum_directory"
         rsync -a --delete "$native_source/Scripts/$enum_directory/" "$native_target/Scripts/$enum_directory/"
     done
-    "$SCRIPT_TOOLS" ui-preview copy --runtime-directory "bin/$CONFIG" "$native_source" "$native_target"
+    "$SCRIPT_TOOLS" preview copy --runtime-directory "bin/$CONFIG" "$native_source" "$native_target"
 )
 
 if [ -n "$NATIVE_CACHE" ]; then
@@ -317,7 +317,7 @@ finalize_template_pair() {
     rm -rf "$source_template_dir/build" "$source_template_dir/bin" \
         "$source_template_dir/Intermediate" "$source_template_dir/$EDITOR_CACHE_DIRECTORY" "$source_template_dir/Cache"
     rm -rf "$source_template_dir/Binaries"
-    "$SCRIPT_TOOLS" ui-preview validate "$standalone_template_dir"
+    "$SCRIPT_TOOLS" preview validate "$standalone_template_dir"
     if [ "$include_ffmpeg" -eq 1 ]; then
         echo "C++ FFmpeg source template is ready: $source_template_dir"
         echo "Standalone FFmpeg template is ready: $standalone_template_dir/Main"

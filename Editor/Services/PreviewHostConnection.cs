@@ -1,4 +1,5 @@
 using Ludork.Models;
+using Microsoft.Win32.SafeHandles;
 using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
@@ -7,6 +8,8 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -28,21 +31,24 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
     public const int ProtocolVersion = 1;
 
     private readonly string projectPath;
-    private readonly UiPreviewRuntimeService runtime;
+    private readonly PreviewRuntimeService runtime;
     private readonly SemaphoreSlim startLock = new(1, 1);
-    private UiPreviewRuntimeSnapshot? activeSnapshot;
+    private PreviewRuntimeSnapshot? activeSnapshot;
     private readonly SemaphoreSlim protocolLock = new(1, 1);
     private readonly object processSync = new();
     private readonly TaskCompletionSource shutdownCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly object sharedMemorySync = new();
     private readonly HashSet<string> sharedMemoryFiles = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, (MemoryMappedFile Mapping, MemoryMappedViewAccessor View, long Capacity)> sharedMemoryMappings = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Queue<string> sharedMemoryMappingOrder = new();
+    private readonly ConditionalWeakTable<JsonObject, byte[]> framePixels = new();
     private Process? process;
     private Stream? input;
     private Stream? output;
     private string? lastStandardError;
     private volatile bool disposed;
 
-    public PreviewHostConnection(UiPreviewRuntimeService runtime)
+    public PreviewHostConnection(PreviewRuntimeService runtime)
     {
         this.runtime = runtime;
         projectPath = runtime.ProjectPath;
@@ -86,7 +92,7 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
             if (process is { HasExited: false } && input is not null && output is not null && IsReady)
                 return true;
         }
-        UiPreviewRuntimeSnapshot? snapshot = runtime.Current;
+        PreviewRuntimeSnapshot? snapshot = runtime.Current;
         if (snapshot is null || !runtime.IsReady)
         {
             await stopConnectedProcessAsync(cancellationToken).ConfigureAwait(false);
@@ -123,7 +129,7 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
                 process = Process.Start(startInfo);
                 if (process is null)
                 {
-                    setState(PreviewHostConnectionState.Unavailable, "UiPreviewHost could not be started.");
+                    setState(PreviewHostConnectionState.Unavailable, "PreviewHost could not be started.");
                     return false;
                 }
                 process.EnableRaisingEvents = true;
@@ -170,7 +176,7 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
                 await stopProcessAsync().ConfigureAwait(false);
                 setState(
                     PreviewHostConnectionState.Faulted,
-                    getString(response, "message", "UiPreviewHost protocol is incompatible."));
+                    getString(response, "message", "PreviewHost protocol is incompatible."));
                 return false;
             }
             Capabilities = response["capabilities"] is JsonArray capabilityData
@@ -180,6 +186,13 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
                     .Select(value => value!)
                     .ToHashSet(StringComparer.Ordinal)
                 : new HashSet<string>(StringComparer.Ordinal);
+            if (!Capabilities.Contains("persistentFrames"))
+            {
+                await stopProcessAsync().ConfigureAwait(false);
+                Capabilities = new HashSet<string>(StringComparer.Ordinal);
+                setState(PreviewHostConnectionState.Faulted, LocaleService.Get("UI_PREVIEW_SNAPSHOT_INVALID"));
+                return false;
+            }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -216,12 +229,14 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
             Stream currentOutput;
             lock (processSync)
             {
-                currentInput = input ?? throw new IOException("UiPreviewHost is not connected.");
-                currentOutput = output ?? throw new IOException("UiPreviewHost is not connected.");
+                currentInput = input ?? throw new IOException("PreviewHost is not connected.");
+                currentOutput = output ?? throw new IOException("PreviewHost is not connected.");
             }
+            long exchangeStarted = Stopwatch.GetTimestamp();
             byte[] payload = Encoding.UTF8.GetBytes(request.ToJsonString());
             byte[] length = new byte[sizeof(int)];
             BinaryPrimitives.WriteInt32LittleEndian(length, payload.Length);
+            double serializeMilliseconds = Stopwatch.GetElapsedTime(exchangeStarted).TotalMilliseconds;
             await currentInput.WriteAsync(length, cancellationToken).ConfigureAwait(false);
             await currentInput.WriteAsync(payload, cancellationToken).ConfigureAwait(false);
             await currentInput.FlushAsync(cancellationToken).ConfigureAwait(false);
@@ -229,11 +244,21 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
             await readExactlyAsync(currentOutput, length, cancellationToken).ConfigureAwait(false);
             int responseLength = BinaryPrimitives.ReadInt32LittleEndian(length);
             if (responseLength <= 0 || responseLength > 64 * 1024 * 1024)
-                throw new InvalidDataException("UiPreviewHost returned an invalid message length.");
+                throw new InvalidDataException("PreviewHost returned an invalid message length.");
             byte[] responsePayload = new byte[responseLength];
             await readExactlyAsync(currentOutput, responsePayload, cancellationToken).ConfigureAwait(false);
-            return JsonNode.Parse(responsePayload) as JsonObject
-                ?? throw new InvalidDataException("UiPreviewHost returned invalid JSON.");
+            JsonObject response = JsonNode.Parse(responsePayload) as JsonObject
+                ?? throw new InvalidDataException("PreviewHost returned invalid JSON.");
+            response["previewSerializeMs"] = serializeMilliseconds;
+            response["previewExchangeMs"] = Stopwatch.GetElapsedTime(exchangeStarted).TotalMilliseconds;
+            double pixelReadMilliseconds = await Task.Run(() =>
+            {
+                long started = Stopwatch.GetTimestamp();
+                captureFramePixels(response);
+                return Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+            }, cancellationToken).ConfigureAwait(false);
+            response["previewPixelReadMs"] = pixelReadMilliseconds;
+            return response;
         }
         catch (Exception exception) when (IsProtocolException(exception))
         {
@@ -248,52 +273,119 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
 
     public byte[] ReadPixels(JsonObject response, int byteLength)
     {
+        if (!framePixels.TryGetValue(response, out byte[]? pixels) || pixels.Length != byteLength)
+            throw new InvalidDataException("PreviewHost returned missing or truncated frame pixels.");
+        return pixels;
+    }
+
+    private void captureFramePixels(JsonObject response)
+    {
+        if (response.ContainsKey("sharedMemory") || response.ContainsKey("pixels"))
+            captureFrame(response);
+        if (response["pages"] is JsonArray pages)
+        {
+            foreach (JsonObject page in pages.OfType<JsonObject>())
+                captureFrame(page);
+        }
+    }
+
+    private void captureFrame(JsonObject response)
+    {
+        int width = response["width"]?.GetValue<int>() ?? 0;
+        int height = response["height"]?.GetValue<int>() ?? 0;
+        int minimumStride = checked(width * 4);
+        int stride = response["stride"]?.GetValue<int>() ?? minimumStride;
+        if (width <= 0 || height <= 0 || stride < minimumStride)
+            throw new InvalidDataException("PreviewHost returned invalid frame dimensions.");
+        framePixels.Add(response, readPixels(response, checked(stride * height)));
+    }
+
+    private byte[] readPixels(JsonObject response, int byteLength)
+    {
         string base64 = getString(response, "pixels");
         if (base64.Length != 0)
         {
             byte[] pixels = Convert.FromBase64String(base64);
             if (pixels.Length != byteLength)
-                throw new InvalidDataException("UiPreviewHost returned a truncated frame.");
+                throw new InvalidDataException("PreviewHost returned a truncated frame.");
             return pixels;
         }
         if (response["sharedMemory"] is not JsonObject sharedMemory)
-            throw new InvalidDataException("UiPreviewHost did not return frame pixels.");
+            throw new InvalidDataException("PreviewHost did not return frame pixels.");
         string filePath = getString(sharedMemory, "filePath");
         long offset = sharedMemory["offset"]?.GetValue<long>() ?? 0;
         if (offset < 0 || byteLength < 0)
-            throw new InvalidDataException("UiPreviewHost returned invalid shared memory bounds.");
+            throw new InvalidDataException("PreviewHost returned invalid shared memory bounds.");
         if (filePath.Length != 0)
         {
             string fullPath = validateSharedMemoryPath(filePath);
-            FileInfo info = new(fullPath);
-            if (!info.Exists || offset > info.Length || byteLength > info.Length - offset)
-                throw new InvalidDataException("UiPreviewHost returned truncated shared memory.");
-            using MemoryMappedFile fileBackedMapping = MemoryMappedFile.CreateFromFile(
-                fullPath,
-                FileMode.Open,
-                null,
-                0,
-                MemoryMappedFileAccess.Read);
-            using MemoryMappedViewAccessor fileBackedView = fileBackedMapping.CreateViewAccessor(
-                offset,
-                byteLength,
-                MemoryMappedFileAccess.Read);
-            byte[] fileBackedResult = new byte[byteLength];
-            fileBackedView.ReadArray(0, fileBackedResult, 0, fileBackedResult.Length);
             lock (sharedMemorySync)
+            {
+                ObjectDisposedException.ThrowIf(disposed, this);
+                if (!sharedMemoryMappings.TryGetValue(fullPath, out (MemoryMappedFile Mapping, MemoryMappedViewAccessor View, long Capacity) mapped))
+                {
+                    FileStream stream = new(fullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                    using (stream)
+                    {
+                        if (offset > stream.Length || byteLength > stream.Length - offset)
+                            throw new InvalidDataException("PreviewHost returned truncated shared memory.");
+                        MemoryMappedFile mapping = MemoryMappedFile.CreateFromFile(
+                            stream, null, 0, MemoryMappedFileAccess.Read, HandleInheritability.None, true);
+                        try
+                        {
+                            mapped = (mapping, mapping.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read), stream.Length);
+                        }
+                        catch
+                        {
+                            mapping.Dispose();
+                            throw;
+                        }
+                    }
+                    sharedMemoryMappings.Add(fullPath, mapped);
+                    sharedMemoryMappingOrder.Enqueue(fullPath);
+                    while (sharedMemoryMappingOrder.Count > 2)
+                    {
+                        string retiredPath = sharedMemoryMappingOrder.Dequeue();
+                        (MemoryMappedFile Mapping, MemoryMappedViewAccessor View, long Capacity) retired = sharedMemoryMappings[retiredPath];
+                        retired.View.Dispose();
+                        retired.Mapping.Dispose();
+                        sharedMemoryMappings.Remove(retiredPath);
+                    }
+                }
+                if (offset > mapped.Capacity || byteLength > mapped.Capacity - offset)
+                    throw new InvalidDataException("PreviewHost returned truncated shared memory.");
+                byte[] fileBackedResult = copyPixels(mapped.View, offset, byteLength);
                 sharedMemoryFiles.Add(fullPath);
-            return fileBackedResult;
+                return fileBackedResult;
+            }
         }
         string name = getString(sharedMemory, "name");
         if (name.Length == 0)
-            throw new InvalidDataException("UiPreviewHost returned an invalid shared memory name.");
+            throw new InvalidDataException("PreviewHost returned an invalid shared memory name.");
         if (!OperatingSystem.IsWindows())
-            throw new InvalidDataException("UiPreviewHost must return file-backed shared memory on this platform.");
+            throw new InvalidDataException("PreviewHost must return file-backed shared memory on this platform.");
         using MemoryMappedFile file = MemoryMappedFile.OpenExisting(name, MemoryMappedFileRights.Read);
         using MemoryMappedViewAccessor view = file.CreateViewAccessor(offset, byteLength, MemoryMappedFileAccess.Read);
-        byte[] result = new byte[byteLength];
-        view.ReadArray(0, result, 0, result.Length);
-        return result;
+        return copyPixels(view, 0, byteLength);
+    }
+
+    private static byte[] copyPixels(MemoryMappedViewAccessor view, long offset, int byteLength)
+    {
+        byte[] pixels = GC.AllocateUninitializedArray<byte>(byteLength);
+        SafeMemoryMappedViewHandle handle = view.SafeMemoryMappedViewHandle;
+        bool referenceAdded = false;
+        try
+        {
+            handle.DangerousAddRef(ref referenceAdded);
+            nint address = checked(handle.DangerousGetHandle() + (nint)(view.PointerOffset + offset));
+            Marshal.Copy(address, pixels, 0, byteLength);
+        }
+        finally
+        {
+            if (referenceAdded)
+                handle.DangerousRelease();
+        }
+        return pixels;
     }
 
     public void Dispose()
@@ -364,7 +456,7 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
         {
             int count = await stream.ReadAsync(target[offset..], cancellationToken).ConfigureAwait(false);
             if (count == 0)
-                throw new EndOfStreamException("UiPreviewHost closed the protocol stream.");
+                throw new EndOfStreamException("PreviewHost closed the protocol stream.");
             offset += count;
         }
     }
@@ -399,7 +491,7 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
     private void onProcessExited(object? sender, EventArgs args)
     {
         string message = string.IsNullOrWhiteSpace(lastStandardError)
-            ? "UiPreviewHost exited."
+            ? "PreviewHost exited."
             : lastStandardError;
         setState(PreviewHostConnectionState.Faulted, message);
         cleanupSharedMemoryFiles();
@@ -482,10 +574,10 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
             : StringComparison.Ordinal;
         string name = Path.GetFileName(path);
         if (!string.Equals(directory?.TrimEnd(Path.DirectorySeparatorChar), temporary, comparison)
-            || !name.StartsWith("LudorkUiPreview-", StringComparison.Ordinal)
+            || !name.StartsWith("LudorkPreview-", StringComparison.Ordinal)
             || !name.EndsWith(".bin", StringComparison.Ordinal))
         {
-            throw new InvalidDataException("UiPreviewHost returned an invalid shared memory path.");
+            throw new InvalidDataException("PreviewHost returned an invalid shared memory path.");
         }
         return path;
     }
@@ -495,6 +587,13 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
         string[] paths;
         lock (sharedMemorySync)
         {
+            foreach ((MemoryMappedFile mapping, MemoryMappedViewAccessor view, long _) in sharedMemoryMappings.Values)
+            {
+                view.Dispose();
+                mapping.Dispose();
+            }
+            sharedMemoryMappings.Clear();
+            sharedMemoryMappingOrder.Clear();
             paths = sharedMemoryFiles.ToArray();
             sharedMemoryFiles.Clear();
         }

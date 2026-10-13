@@ -1,524 +1,200 @@
 using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
-using Avalonia.Threading;
-using Ludork.Models;
 using Ludork.Services;
+using Ludork.Models;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.Json.Nodes;
 
 namespace Ludork.Controls;
 
-internal sealed partial class WorldMapPreviewRenderer : IDisposable
+internal sealed class WorldMapPreviewRenderer : IDisposable
 {
-    private static readonly IBrush MissingTilesetBrush = new SolidColorBrush(Color.FromArgb(90, 90, 120, 150));
-    private static readonly IBrush ActorMarkerBrush = new SolidColorBrush(Color.FromArgb(220, 255, 196, 64));
-    private static readonly Pen ActorMarkerPen = new(new SolidColorBrush(Color.FromArgb(230, 40, 30, 10)), 1);
     private readonly ProjectDataStore gameData;
-    private readonly AutoTileRenderer autoTileRenderer;
-    private readonly WorldMapActorPreviewRenderer? actorRenderer;
-    private readonly Dictionary<PreviewChunkKey, CachedPreviewChunk> previewCache = [];
-    private readonly Dictionary<PreviewChunkKey, PendingPreviewChunk> pendingChunks = [];
-    private readonly Queue<PreviewChunkKey> chunkQueue = [];
-    private long previewAccessOrder;
-    private long previewCacheBytes;
-    private bool chunkWorkScheduled;
-    private bool disposed;
+    private readonly BlueprintPreviewService? preview;
+    private readonly Dictionary<string, CachedMap> thumbnails = new(StringComparer.Ordinal);
+    private readonly MapPreviewLease? world;
+    private JsonObject? worldScene;
+    private string worldSignature = string.Empty;
+    private long worldRevision;
+    private long contentRevision = -1;
+    private long revision;
 
-    public WorldMapPreviewRenderer(
-        ProjectDataStore gameData,
-        BlueprintPreviewService? previewService = null)
+    public WorldMapPreviewRenderer(ProjectDataStore gameData, BlueprintPreviewService? previewService = null)
     {
         this.gameData = gameData;
-        autoTileRenderer = new AutoTileRenderer(gameData, key => getResourceImage(true, key));
-        if (previewService is not null)
+        gameData.Maps.MapPreviewChanged += onMapChanged;
+        preview = previewService ?? gameData.BlueprintPreviews;
+        if (preview is not null)
         {
-            actorRenderer = new WorldMapActorPreviewRenderer(previewService);
-            actorRenderer.PreviewChanged += onActorPreviewChanged;
+            world = preview.MapPreviews.Acquire();
+            world.FrameChanged += onFrameChanged;
+            preview.MapPreviews.Invalidated += onInvalidated;
+            preview.MapPreviews.OptionsChanged += onFrameChanged;
         }
-        gameData.Maps.MapPreviewChanged += onMapPreviewChanged;
-        initializeResourceWatcher();
     }
 
     public event EventHandler? PreviewChanged;
-
-    public void DrawMap(
-        DrawingContext context,
-        string mapKey,
-        JsonObject map,
-        Point origin,
-        double cellSize,
-        Rect clip)
+    public bool IsLit => preview?.MapPreviews.Options.Lit == true;
+    public int SourceCellSize => gameData.Configs.getCellSize();
+    public void SetVisibility(Func<bool> visible)
     {
-        JsonObject? layers = map["layers"] as JsonObject;
-        HashSet<string> renderedActorGroups = new(StringComparer.Ordinal);
-        IReadOnlyList<string> layerOrder = layers is null ? [] : getLayerOrder(map, layers);
-        foreach (string layerName in layerOrder)
-        {
-            renderedActorGroups.Add(layerName);
-            DrawMapLayer(context, mapKey, map, layerName, origin, cellSize, clip);
-        }
-        DrawRemainingActors(context, mapKey, map, renderedActorGroups, origin, cellSize, clip);
-        CompleteFrame();
+        if (world is not null)
+            world.Visible = visible;
     }
 
-    public void DrawMapLayer(
-        DrawingContext context,
-        string mapKey,
-        JsonObject map,
-        string layerName,
-        Point origin,
-        double cellSize,
-        Rect clip)
+    public void DrawMap(DrawingContext context, string key, JsonObject map, Point origin, double cellSize, Rect clip, double renderScale, Func<bool> visible)
     {
-        if (!tryGetPreviewViewport(map, origin, cellSize, clip, out PreviewViewport viewport))
+        if (preview is null)
             return;
-        JsonObject? layer = map["layers"]?[layerName] as JsonObject;
-        if (layer?["visible"]?.GetValue<bool?>() == false)
-            return;
-        if (layer is not null)
+        if (!thumbnails.TryGetValue(key, out CachedMap? cached))
         {
-            int firstChunkX = viewport.MinX / viewport.ChunkCellCount;
-            int firstChunkY = viewport.MinY / viewport.ChunkCellCount;
-            int lastChunkX = (viewport.MaxX - 1) / viewport.ChunkCellCount;
-            int lastChunkY = (viewport.MaxY - 1) / viewport.ChunkCellCount;
-            for (int chunkY = firstChunkY; chunkY <= lastChunkY; chunkY += 1)
-            {
-                for (int chunkX = firstChunkX; chunkX <= lastChunkX; chunkX += 1)
-                {
-                    int chunkMinX = chunkX * viewport.ChunkCellCount;
-                    int chunkMinY = chunkY * viewport.ChunkCellCount;
-                    int chunkMaxX = Math.Min(viewport.Width, chunkMinX + viewport.ChunkCellCount);
-                    int chunkMaxY = Math.Min(viewport.Height, chunkMinY + viewport.ChunkCellCount);
-                    PreviewChunkKey key = new(
-                        mapKey,
-                        layerName,
-                        viewport.ScaleBucket,
-                        viewport.ChunkCellCount,
-                        chunkX,
-                        chunkY);
-                    CachedPreviewChunk? chunk = getPreviewChunk(
-                        key,
-                        layer,
-                        viewport.RenderCellSize,
-                        chunkMinX,
-                        chunkMinY,
-                        chunkMaxX,
-                        chunkMaxY);
-                    if (chunk is null)
-                        continue;
-                    Rect source = new(0, 0, chunk.Bitmap.PixelSize.Width, chunk.Bitmap.PixelSize.Height);
-                    Rect destination = new(
-                        origin.X + chunkMinX * cellSize,
-                        origin.Y + chunkMinY * cellSize,
-                        (chunkMaxX - chunkMinX) * cellSize,
-                        (chunkMaxY - chunkMinY) * cellSize);
-                    context.DrawImage(chunk.Bitmap, source, destination);
-                }
-            }
+            cached = new CachedMap(preview.MapPreviews.Acquire(true));
+            cached.Lease.FrameChanged += onFrameChanged;
+            thumbnails.Add(key, cached);
         }
-        drawActorGroup(
-            context,
-            mapKey,
-            map,
-            map["actors"]?[layerName] as JsonArray,
-            origin,
-            cellSize,
-            clip);
+        cached.Lease.Visible = visible;
+        if (cached.Scene is null || cached.Source != map || cached.ContentRevision != preview.MapPreviews.ContentRevision)
+        {
+            long started = Stopwatch.GetTimestamp();
+            cached.Scene = preview.MapScenes.Build(key, map);
+            cached.Lease.RecordSceneUpdate(started);
+            cached.Source = map;
+            cached.ContentRevision = preview.MapPreviews.ContentRevision;
+            cached.Revision = ++revision;
+        }
+        Rect mapRect = new(origin, new Size(number(map["width"]) * cellSize, number(map["height"]) * cellSize));
+        draw(context, cached.Lease, cached.Scene, cached.Revision, origin, cellSize, mapRect.Intersect(clip), renderScale);
     }
 
-    public void DrawRemainingActors(
-        DrawingContext context,
-        string mapKey,
-        JsonObject map,
-        IReadOnlySet<string> renderedActorGroups,
-        Point origin,
-        double cellSize,
-        Rect clip)
+    public void DrawWorld(DrawingContext context, JsonObject manifest,
+        IReadOnlyList<(string Key, int X, int Y, int Priority, JsonObject Map)> maps,
+        Point origin, double cellSize, Rect clip, double renderScale)
     {
-        if (map["actors"] is not JsonObject actorGroups)
+        if (preview is null || world is null)
             return;
-        foreach (KeyValuePair<string, JsonNode?> group in actorGroups)
+        string signature = string.Join(";", maps.Select(map => FormattableString.Invariant($"{map.Key}:{map.X}:{map.Y}:{map.Priority}")));
+        if (worldScene is null || worldSignature != signature || contentRevision != preview.MapPreviews.ContentRevision)
         {
-            if (renderedActorGroups.Contains(group.Key) || group.Value is not JsonArray actors)
-                continue;
-            drawActorGroup(context, mapKey, map, actors, origin, cellSize, clip);
+            long started = Stopwatch.GetTimestamp();
+            worldScene = preview.MapScenes.Build(manifest, maps);
+            world.RecordSceneUpdate(started);
+            worldSignature = signature;
+            contentRevision = preview.MapPreviews.ContentRevision;
+            worldRevision = ++revision;
+        }
+        draw(context, world, worldScene, worldRevision, origin, cellSize, clip, renderScale);
+    }
+
+    private void draw(DrawingContext context, MapPreviewLease lease, JsonObject scene, long sceneRevision,
+        Point origin, double cellSize, Rect clip, double renderScale)
+    {
+        if (clip.Width <= 0 || clip.Height <= 0 || preview is null)
+            return;
+        double scale = cellSize / gameData.Configs.getCellSize();
+        Rect view = new((clip.X - origin.X) / scale, (clip.Y - origin.Y) / scale, clip.Width / scale, clip.Height / scale);
+        PixelSize size = new(Math.Clamp((int)Math.Ceiling(clip.Width * renderScale), 1, 4096),
+            Math.Clamp((int)Math.Ceiling(clip.Height * renderScale), 1, 4096));
+        lease.Request(scene, sceneRevision, view, size, preview.MapPreviews.Options);
+        if (lease.Frame is Bitmap bitmap)
+        {
+            Rect frame = lease.FrameView;
+            context.DrawImage(bitmap, new Rect(0, 0, bitmap.PixelSize.Width, bitmap.PixelSize.Height),
+                new Rect(origin.X + frame.X * scale, origin.Y + frame.Y * scale, frame.Width * scale, frame.Height * scale));
+            if (!lease.IsThumbnail)
+                MapPreviewOverlays.Draw(context, scene, origin, scale, preview.MapPreviews.Options, true);
+        }
+        else if (lease.Error.Length != 0)
+        {
+            FormattedText text = new(lease.Error, CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
+                new Typeface("Arial"), 12, EditorTheme.Brush("Text")) { MaxTextWidth = Math.Max(40, clip.Width - 16) };
+            context.DrawText(text, clip.TopLeft + new Vector(8, 40));
         }
     }
 
-    public void CompleteFrame()
+    public void ReleaseMap(string key)
     {
-        actorRenderer?.TrimCache();
+        if (thumbnails.Remove(key, out CachedMap? cached))
+            cached.Lease.Dispose();
     }
 
-    public void ClearPendingWork()
+    public void SetActive(bool active)
     {
-        actorRenderer?.ClearPendingWork();
-        pendingChunks.Clear();
-        chunkQueue.Clear();
+        if (world is not null)
+            world.IsActive = active;
     }
 
+    public void SetInteracting(bool interacting)
+    {
+        if (world is not null)
+            world.IsInteracting = interacting;
+    }
+
+    public void TrimMapCache(IReadOnlyCollection<string> pinnedMapKeys) => gameData.Maps.TrimWorldChildCache(pinnedMapKeys);
+    public void ClearPendingWork() => SetActive(false);
     public void ResetView()
     {
-        ClearPendingWork();
-        clearResourceCache();
-        actorRenderer?.InvalidateMap(null);
+        worldScene = null;
+        world?.Invalidate();
+        SetActive(false);
     }
 
-    public void TrimMapCache(IReadOnlyCollection<string> pinnedMapKeys)
+    private void onMapChanged(object? sender, MapPreviewChangedEventArgs args)
     {
-        gameData.Maps.TrimWorldChildCache(pinnedMapKeys);
+        if (preview is null || args.MapKey is not string key || args.Edit is null
+            || !MapPreviewSceneBuilder.IsActorEdit(args.Edit))
+            return;
+        JsonObject? map = gameData.Maps.getMap(key);
+        if (map is null)
+            return;
+        long started = Stopwatch.GetTimestamp();
+        if (worldScene is not null && preview.MapScenes.UpdateActors(worldScene, key, map, args.Edit))
+        {
+            worldRevision = ++revision;
+            world?.RecordSceneUpdate(started);
+        }
+        if (thumbnails.TryGetValue(key, out CachedMap? cached) && cached.Scene is not null
+            && preview.MapScenes.UpdateActors(cached.Scene, key, map, args.Edit))
+        {
+            cached.Revision = ++revision;
+            cached.Lease.RecordSceneUpdate(started);
+        }
+        PreviewChanged?.Invoke(this, EventArgs.Empty);
     }
+
+    private void onInvalidated(object? sender, EventArgs args)
+    {
+        worldScene = null;
+        PreviewChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void onFrameChanged(object? sender, EventArgs args) => PreviewChanged?.Invoke(this, EventArgs.Empty);
+    private static int number(JsonNode? value) => value?.GetValue<int>() ?? 0;
 
     public void Dispose()
     {
-        if (disposed)
-            return;
-        disposed = true;
-        disposeResourceWatcher();
-        ClearPendingWork();
-        gameData.Maps.MapPreviewChanged -= onMapPreviewChanged;
-        if (actorRenderer is not null)
+        gameData.Maps.MapPreviewChanged -= onMapChanged;
+        world?.Dispose();
+        foreach (CachedMap cached in thumbnails.Values)
+            cached.Lease.Dispose();
+        thumbnails.Clear();
+        if (preview is not null)
         {
-            actorRenderer.PreviewChanged -= onActorPreviewChanged;
-            actorRenderer.Dispose();
-        }
-        autoTileRenderer.Dispose();
-        clearPreviewCache();
-    }
-
-    private static bool tryGetPreviewViewport(
-        JsonObject map,
-        Point origin,
-        double cellSize,
-        Rect clip,
-        out PreviewViewport viewport)
-    {
-        int width = JsonScalar.IntegerFromText(map["width"]);
-        int height = JsonScalar.IntegerFromText(map["height"]);
-        if (width <= 0 || height <= 0 || cellSize <= 0)
-        {
-            viewport = default;
-            return false;
-        }
-        Rect mapBounds = new(origin, new Size(width * cellSize, height * cellSize));
-        Rect visible = mapBounds.Intersect(clip);
-        if (visible.Width <= 0 || visible.Height <= 0)
-        {
-            viewport = default;
-            return false;
-        }
-        int minX = Math.Clamp((int)Math.Floor((visible.Left - origin.X) / cellSize), 0, width - 1);
-        int minY = Math.Clamp((int)Math.Floor((visible.Top - origin.Y) / cellSize), 0, height - 1);
-        int maxX = Math.Clamp((int)Math.Ceiling((visible.Right - origin.X) / cellSize), minX + 1, width);
-        int maxY = Math.Clamp((int)Math.Ceiling((visible.Bottom - origin.Y) / cellSize), minY + 1, height);
-        double renderCellSize = Math.Clamp(Math.Round(cellSize * 2) / 2, 0.5, 96);
-        int chunkCellCount = Math.Clamp((int)Math.Floor(384 / renderCellSize), 1, 32);
-        viewport = new PreviewViewport(
-            width,
-            height,
-            minX,
-            minY,
-            maxX,
-            maxY,
-            renderCellSize,
-            chunkCellCount,
-            (int)Math.Round(renderCellSize * 2));
-        return true;
-    }
-
-    private CachedPreviewChunk? getPreviewChunk(
-        PreviewChunkKey key,
-        JsonObject layer,
-        double cellSize,
-        int minX,
-        int minY,
-        int maxX,
-        int maxY)
-    {
-        previewAccessOrder += 1;
-        if (previewCache.TryGetValue(key, out CachedPreviewChunk? cached))
-        {
-            cached.LastUsed = previewAccessOrder;
-            return cached;
-        }
-        if (!disposed && pendingChunks.Count < 128 && !pendingChunks.ContainsKey(key))
-        {
-            pendingChunks[key] = new PendingPreviewChunk(layer, cellSize, minX, minY, maxX, maxY);
-            chunkQueue.Enqueue(key);
-            scheduleChunkWork();
-        }
-        return null;
-    }
-
-    private void scheduleChunkWork()
-    {
-        if (disposed || chunkWorkScheduled || chunkQueue.Count == 0)
-            return;
-        chunkWorkScheduled = true;
-        Dispatcher.UIThread.Post(buildPendingChunks, DispatcherPriority.Background);
-    }
-
-    private void buildPendingChunks()
-    {
-        chunkWorkScheduled = false;
-        if (disposed)
-            return;
-        Stopwatch budget = Stopwatch.StartNew();
-        bool changed = false;
-        while (chunkQueue.TryDequeue(out PreviewChunkKey key))
-        {
-            if (!pendingChunks.Remove(key, out PendingPreviewChunk? request))
-                continue;
-            CachedPreviewChunk chunk = createPreviewChunk(request);
-            previewCache[key] = chunk;
-            previewCacheBytes += chunk.Bytes;
-            changed = true;
-            if (budget.Elapsed.TotalMilliseconds >= 4)
-                break;
-        }
-        trimPreviewCache();
-        releaseRetiredResources();
-        if (changed)
-            PreviewChanged?.Invoke(this, EventArgs.Empty);
-        scheduleChunkWork();
-    }
-
-    private CachedPreviewChunk createPreviewChunk(PendingPreviewChunk request)
-    {
-        (JsonObject layer, double cellSize, int minX, int minY, int maxX, int maxY) = request;
-        int width = Math.Max(1, (int)Math.Ceiling((maxX - minX) * cellSize));
-        int height = Math.Max(1, (int)Math.Ceiling((maxY - minY) * cellSize));
-        RenderTargetBitmap bitmap = new(new PixelSize(width, height), new Vector(96, 96));
-        using (DrawingContext context = bitmap.CreateDrawingContext())
-        {
-            Point origin = new(-minX * cellSize, -minY * cellSize);
-            drawLayer(context, layer, origin, cellSize, minX, minY, maxX, maxY);
-        }
-        return new CachedPreviewChunk(bitmap, (long)width * height * 4, ++previewAccessOrder);
-    }
-
-    private void trimPreviewCache()
-    {
-        const int maximumChunks = 4096;
-        const long maximumBytes = 128L * 1024L * 1024L;
-        if (previewCache.Count <= maximumChunks && previewCacheBytes <= maximumBytes)
-            return;
-        foreach (PreviewChunkKey key in previewCache
-                     .OrderBy(item => item.Value.LastUsed)
-                     .Select(item => item.Key)
-                     .ToArray())
-        {
-            if (previewCache.Count <= maximumChunks && previewCacheBytes <= maximumBytes)
-                break;
-            CachedPreviewChunk chunk = previewCache[key];
-            previewCache.Remove(key);
-            previewCacheBytes -= chunk.Bytes;
-            chunk.Bitmap.Dispose();
+            preview.MapPreviews.Invalidated -= onInvalidated;
+            preview.MapPreviews.OptionsChanged -= onFrameChanged;
         }
     }
 
-    private void onMapPreviewChanged(object? sender, MapPreviewChangedEventArgs args)
+    private sealed class CachedMap(MapPreviewLease lease)
     {
-        if (!Dispatcher.UIThread.CheckAccess())
-        {
-            Dispatcher.UIThread.Post(() => onMapPreviewChanged(sender, args));
-            return;
-        }
-        if (disposed)
-            return;
-        actorRenderer?.InvalidateMap(args.MapKey);
-        if (args.MapKey is null)
-        {
-            clearResourceCache();
-            ClearPendingWork();
-            clearPreviewCache();
-        }
-        else
-        {
-            foreach (PreviewChunkKey key in pendingChunks.Keys
-                         .Where(key => string.Equals(key.MapKey, args.MapKey, StringComparison.Ordinal)).ToArray())
-                pendingChunks.Remove(key);
-            foreach (PreviewChunkKey key in previewCache.Keys
-                         .Where(key => string.Equals(key.MapKey, args.MapKey, StringComparison.Ordinal))
-                         .ToArray())
-            {
-                CachedPreviewChunk chunk = previewCache[key];
-                previewCache.Remove(key);
-                previewCacheBytes -= chunk.Bytes;
-                chunk.Bitmap.Dispose();
-            }
-        }
-        PreviewChanged?.Invoke(this, EventArgs.Empty);
-    }
-
-    private void onActorPreviewChanged(object? sender, EventArgs args)
-    {
-        PreviewChanged?.Invoke(this, EventArgs.Empty);
-    }
-
-    private void clearPreviewCache()
-    {
-        foreach (CachedPreviewChunk chunk in previewCache.Values)
-            chunk.Bitmap.Dispose();
-        previewCache.Clear();
-        previewCacheBytes = 0;
-    }
-
-    private void drawLayer(
-        DrawingContext context,
-        JsonObject layer,
-        Point origin,
-        double cellSize,
-        int minX,
-        int minY,
-        int maxX,
-        int maxY)
-    {
-        if (layer["visible"]?.GetValue<bool?>() == false)
-            return;
-        JsonArray? tiles = layer["tiles"] as JsonArray;
-        JsonArray? autoTiles = layer["autoTiles"] as JsonArray;
-        Bitmap? tileset = getResourceImage(false, JsonScalar.String(layer["layerTileset"]));
-        int sourceTileSize = Math.Max(1, gameData.Configs.getCellSize());
-        for (int y = minY; y < maxY; y++)
-        {
-            JsonArray? tileRow = getRow(tiles, y);
-            JsonArray? autoTileRow = getRow(autoTiles, y);
-            for (int x = minX; x < maxX; x++)
-            {
-                Rect destination = new(
-                    origin.X + x * cellSize,
-                    origin.Y + y * cellSize,
-                    cellSize,
-                    cellSize);
-                string? autoTileKey = JsonScalar.String(getValue(autoTileRow, x));
-                if (!string.IsNullOrWhiteSpace(autoTileKey) && autoTiles is not null)
-                {
-                    autoTileRenderer.drawTile(context, autoTileKey, autoTiles, x, y, destination, 0);
-                    continue;
-                }
-                if (!JsonScalar.TryGetIntegerFromText(getValue(tileRow, x), out int tileNumber) || tileNumber < 0)
-                    continue;
-                if (tileset is null)
-                {
-                    context.FillRectangle(MissingTilesetBrush, destination);
-                    continue;
-                }
-                int columns = Math.Max(1, tileset.PixelSize.Width / sourceTileSize);
-                int sourceX = tileNumber % columns * sourceTileSize;
-                int sourceY = tileNumber / columns * sourceTileSize;
-                Rect source = new(sourceX, sourceY, sourceTileSize, sourceTileSize);
-                if (source.Right <= tileset.PixelSize.Width && source.Bottom <= tileset.PixelSize.Height)
-                    context.DrawImage(tileset, source, destination);
-            }
-        }
-    }
-
-    private void drawActorGroup(
-        DrawingContext context,
-        string mapKey,
-        JsonObject map,
-        JsonArray? actors,
-        Point origin,
-        double cellSize,
-        Rect clip)
-    {
-        if (actorRenderer is not null)
-        {
-            actorRenderer.DrawActorGroup(context, mapKey, map, actors, origin, cellSize, clip);
-            return;
-        }
-        if (actors is null)
-            return;
-        double markerSize = Math.Clamp(cellSize * 0.42, 2, 9);
-        foreach (JsonNode? node in actors)
-        {
-            if (node is not JsonObject actor
-                || actor["position"] is not JsonArray { Count: >= 2 } position
-                || !JsonScalar.TryGetIntegerFromText(position[0], out int x)
-                || !JsonScalar.TryGetIntegerFromText(position[1], out int y))
-            {
-                continue;
-            }
-            Point center = new(
-                origin.X + (x + 0.5) * cellSize,
-                origin.Y + (y + 0.5) * cellSize);
-            if (!clip.Contains(center))
-                continue;
-            context.DrawEllipse(
-                ActorMarkerBrush,
-                ActorMarkerPen,
-                center,
-                markerSize / 2,
-                markerSize / 2);
-        }
-    }
-
-    private static IReadOnlyList<string> getLayerOrder(JsonObject map, JsonObject layers)
-    {
-        List<string> result = [];
-        if (map["layerOrder"] is JsonArray order)
-        {
-            foreach (JsonNode? node in order)
-            {
-                string? name = JsonScalar.String(node);
-                if (!string.IsNullOrWhiteSpace(name) && layers.ContainsKey(name) && !result.Contains(name, StringComparer.Ordinal))
-                    result.Add(name);
-            }
-        }
-        foreach (string name in layers.Select(entry => entry.Key))
-        {
-            if (!result.Contains(name, StringComparer.Ordinal))
-                result.Add(name);
-        }
-        return result;
-    }
-
-    private static JsonArray? getRow(JsonArray? grid, int index)
-    {
-        return grid is not null && index >= 0 && index < grid.Count
-            ? grid[index] as JsonArray
-            : null;
-    }
-
-    private static JsonNode? getValue(JsonArray? row, int index)
-    {
-        return row is not null && index >= 0 && index < row.Count ? row[index] : null;
-    }
-
-    private readonly record struct PreviewChunkKey(
-        string MapKey,
-        string LayerName,
-        int ScaleBucket,
-        int ChunkCellCount,
-        int X,
-        int Y);
-
-    private sealed record PendingPreviewChunk(JsonObject Layer, double CellSize, int MinX, int MinY, int MaxX, int MaxY);
-
-    private readonly record struct PreviewViewport(
-        int Width,
-        int Height,
-        int MinX,
-        int MinY,
-        int MaxX,
-        int MaxY,
-        double RenderCellSize,
-        int ChunkCellCount,
-        int ScaleBucket);
-
-    private sealed class CachedPreviewChunk(
-        RenderTargetBitmap bitmap,
-        long bytes,
-        long lastUsed)
-    {
-        public RenderTargetBitmap Bitmap { get; } = bitmap;
-        public long Bytes { get; } = bytes;
-        public long LastUsed { get; set; } = lastUsed;
+        public MapPreviewLease Lease { get; } = lease;
+        public JsonObject? Scene { get; set; }
+        public JsonObject? Source { get; set; }
+        public long Revision { get; set; }
+        public long ContentRevision { get; set; }
     }
 }

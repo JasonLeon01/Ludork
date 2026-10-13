@@ -227,7 +227,6 @@ function WorldGameMapActorStreaming.ActivateRegion(self, region)
     region.wasActive = true
     self._worldStreamingState:markActive(region.index)
     self:_syncRegionActorActivation(region)
-    self:_refreshWorldLights()
     return true
 end
 
@@ -256,7 +255,6 @@ function WorldGameMapActorStreaming.DeactivateRegion(self, region, state)
     region.sleepTime = perfCounter()
     self._worldStreamingState:markInactive(region.index, state)
     region.activeChunkGeneration = nil
-    self:_refreshWorldLights()
 end
 
 ---@param region Source.SceneComponents.WorldRegionData
@@ -300,9 +298,7 @@ function WorldGameMapActorStreaming.EvictRegion(self, region)
     payload.activeRoots = {}
     payload.actors = {}
     payload.definitionRegions = {}
-    payload.lights = {}
-    GlobalCore.FogController.removeWorldRegionFog(region.path)
-    self:_releaseWorldRegionTileMaskCache(region)
+    self._fogController:removeWorldRegionFog(region.path)
     self:detachSparseWorldRegion(region.index)
     region.backgroundBuilder = nil
     region.payload = nil

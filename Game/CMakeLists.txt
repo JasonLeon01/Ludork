@@ -22,12 +22,12 @@ if(CMAKE_CROSSCOMPILING OR ANDROID OR CMAKE_SYSTEM_NAME STREQUAL "iOS"
    OR CMAKE_SYSTEM_NAME STREQUAL "OHOS")
     set(LUDORK_DESKTOP_PREVIEW_AVAILABLE OFF)
 endif()
-option(LUDORK_BUILD_UI_PREVIEW_HOST
-    "Build the project's desktop UI preview host"
+option(LUDORK_BUILD_PREVIEW_HOST
+    "Build the project's desktop preview host"
     ${LUDORK_DESKTOP_PREVIEW_AVAILABLE})
 if(NOT LUDORK_DESKTOP_PREVIEW_AVAILABLE)
-    set(LUDORK_BUILD_UI_PREVIEW_HOST OFF CACHE BOOL
-        "Build the project's desktop UI preview host" FORCE)
+    set(LUDORK_BUILD_PREVIEW_HOST OFF CACHE BOOL
+        "Build the project's desktop preview host" FORCE)
 endif()
 set(LUDORK_UI_REGISTRY_PATH "" CACHE FILEPATH
     "Desktop UI registry JSON used to validate cross-compiled project assets")
@@ -63,7 +63,7 @@ else()
 endif()
 
 set(LUDORK_ENABLE_FFMPEG OFF)
-if(LUDORK_BUILD_GAME_APPLICATION OR LUDORK_BUILD_UI_PREVIEW_HOST)
+if(LUDORK_BUILD_GAME_APPLICATION OR LUDORK_BUILD_PREVIEW_HOST)
     set(LUDORK_PROJECT_FILE "${CMAKE_CURRENT_SOURCE_DIR}/Main.proj")
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
         "${LUDORK_PROJECT_FILE}")
@@ -96,8 +96,8 @@ add_subdirectory(Engine/Runtime)
 
 add_subdirectory(Engine/Source)
 
-if(LUDORK_BUILD_UI_PREVIEW_HOST)
-    add_subdirectory(Engine/UiPreviewHost)
+if(LUDORK_BUILD_PREVIEW_HOST)
+    add_subdirectory(Engine/PreviewHost)
 endif()
 
 if(LUDORK_BUILD_GAME_APPLICATION)

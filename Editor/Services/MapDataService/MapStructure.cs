@@ -60,11 +60,7 @@ public sealed partial class MapDataService
             ["bgmFilter"] = ProjectDataStore.cloneObject(info.BgmFilter),
             ["bgs"] = info.Bgs.Trim(),
             ["bgsFilter"] = ProjectDataStore.cloneObject(info.BgsFilter),
-            ["fog"] = info.Fog.Trim(),
-            ["fogPower"] = string.IsNullOrWhiteSpace(info.Fog) ? 0 : info.FogPower,
-            ["fogOx"] = string.IsNullOrWhiteSpace(info.Fog) ? 0.0 : info.FogOx,
-            ["fogOy"] = string.IsNullOrWhiteSpace(info.Fog) ? 0.0 : info.FogOy,
-            ["fogDistort"] = string.IsNullOrWhiteSpace(info.Fog) ? 0 : info.FogDistort,
+            ["fog"] = info.Fog.DeepClone(),
             ["panorama"] = info.Panorama.Trim(),
             ["layerOrder"] = new JsonArray("floor", "default"),
             ["layers"] = new JsonObject

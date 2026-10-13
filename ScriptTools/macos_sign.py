@@ -27,7 +27,7 @@ from .apple_signing import (
 )
 from .pack_error import PackError
 from .packaging_constants import EXIT_SIGNING, STANDALONE_TEMPLATE_NAMES, TEMPLATE_NAMES
-from .ui_preview import load_preview, reseal_signed_preview, verify_preview_host
+from .preview import load_preview, reseal_signed_preview, verify_preview_host
 from .ui_property_values import UiAssetError
 
 
@@ -55,7 +55,7 @@ def create_parser() -> argparse.ArgumentParser:
             "[--entitlements PATH.plist] [--notarize] [--notary-apple-id EMAIL] "
             "[--notary-team-id TEAMID] [--notary-key PATH.p8] [--notary-key-id ID] "
             "[--notary-key-issuer UUID] [--runtime-bundle PATH] "
-            "[--ui-preview-template PATH] [--templates] [--check] <target>"
+            "[--preview-template PATH] [--templates] [--check] <target>"
         ),
     )
     parser.add_argument("target", type=pathlib.Path)
@@ -63,7 +63,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument("--certificate", type=pathlib.Path)
     parser.add_argument("--entitlements", type=pathlib.Path)
     parser.add_argument("--runtime-bundle", type=pathlib.Path, action="append", default=[])
-    parser.add_argument("--ui-preview-template", type=pathlib.Path, action="append", default=[])
+    parser.add_argument("--preview-template", type=pathlib.Path, action="append", default=[])
     parser.add_argument("--templates", action="store_true")
     parser.add_argument("--notarize", action="store_true")
     parser.add_argument("--notary-apple-id")
@@ -91,7 +91,7 @@ def create_session(parsed: argparse.Namespace) -> SigningSession:
     if not parsed.check and not target.exists():
         raise PackError(f"The signing target was not found: {target}", EXIT_SIGNING)
     if parsed.templates:
-        if parsed.notarize or parsed.runtime_bundle or parsed.ui_preview_template or parsed.check:
+        if parsed.notarize or parsed.runtime_bundle or parsed.preview_template or parsed.check:
             raise PackError("Template signing cannot use application-only options or notarisation.", EXIT_SIGNING)
         if any(not (target / name / "Main.proj").is_file() for name in TEMPLATE_NAMES):
             raise PackError(f"The four project templates were not found: {target}", EXIT_SIGNING)
@@ -146,7 +146,7 @@ def create_session(parsed: argparse.Namespace) -> SigningSession:
         entitlements,
         tuple(directory.expanduser().absolute() for directory in parsed.runtime_bundle),
         (tuple(target / name for name in STANDALONE_TEMPLATE_NAMES) if parsed.templates
-         else tuple(directory.expanduser().absolute() for directory in parsed.ui_preview_template)),
+         else tuple(directory.expanduser().absolute() for directory in parsed.preview_template)),
         credentials,
         notary_password,
         parsed.check,

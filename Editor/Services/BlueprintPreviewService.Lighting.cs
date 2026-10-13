@@ -14,7 +14,11 @@ public sealed partial class BlueprintPreviewService
         if (BlueprintReference.IsReference(blueprintReference)
             && !gameData.Blueprints.BlueprintsData.ContainsKey(BlueprintReference.NormalizeKey(blueprintReference)))
             return null;
-        ResolvedBlueprintClass resolved = classResolver.Resolve(blueprintReference, overrides);
+        return tryResolveActorLight(classResolver.Resolve(blueprintReference, overrides));
+    }
+
+    internal ActorLightDescriptor? tryResolveActorLight(ResolvedBlueprintClass resolved)
+    {
         ResolvedBlueprintField? field = resolved.GetField("lightComp");
         if (field?.Value is not JsonObject light || !getBool(getResolvedValue(resolved, "visible"), true))
             return null;

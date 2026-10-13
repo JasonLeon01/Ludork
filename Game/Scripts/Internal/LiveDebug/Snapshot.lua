@@ -51,15 +51,56 @@ local function vector(value)
     return { value.x, value.y }
 end
 
+---@param value sf.Color
+---@return integer[]
+local function colour(value)
+    return { value.r, value.g, value.b, value.a }
+end
+
 ---@param actor Engine.Actor
+---@param view  Internal.LiveDebug.View
+---@return Internal.LiveDebug.Light | lightuserdata
+local function light(actor, view)
+    local component = actor.lightComp
+    if component == nil or component.lightRadius <= 0 or not actor:isVisibleInHierarchy() then
+        return cjson.null
+    end
+    local bounds = actor:getLocalBounds()
+    local position = actor:getTransform():transformPoint(bounds.position + bounds.size * 0.5 + component.lightOffset)
+    local cellSize = Engine.GetCellSize()
+    return {
+        position = { position.x - view.x * cellSize, position.y - view.y * cellSize },
+        colour = colour(component.lightColour),
+        radius = component.lightRadius,
+        intensity = 1
+    }
+end
+
+---@param settings Engine.MapFogSettings
+---@return table<string, any>
+local function fog(settings)
+    return {
+        enabled = settings.enabled,
+        colour = colour(settings.colour),
+        density = settings.density,
+        scale = settings.scale,
+        velocity = vector(settings.velocity),
+        turbulence = settings.turbulence,
+        seed = settings.seed
+    }
+end
+
+---@param actor Engine.Actor
+---@param view  Internal.LiveDebug.View
 ---@return Internal.LiveDebug.Visual
-local function visual(actor)
+local function visual(actor, view)
     local rectangle = actor:getTextureRect()
     local texture = actor:getTexture()
     local position = actor:getPosition()
     local cellPosition = actor:getMapPosition()
     local translation = actor:getTranslation()
     local cellSize = Engine.GetCellSize()
+    local material = actor:getMaterial()
     return {
         texturePath = texture ~= nil and GlobalCore.TextureManager.getPath(texture) or "",
         textureRect = { rectangle.position.x, rectangle.position.y, rectangle.size.x, rectangle.size.y },
@@ -72,7 +113,16 @@ local function visual(actor)
         rotation = actor:getRotation():asDegrees(),
         hue = actor.hue,
         visible = actor:isVisibleInHierarchy(),
-        shaderPath = actor:getShaderPath()
+        shaderPath = actor:getShaderPath(),
+        material = {
+            lightBlock = material.lightBlock,
+            mirror = material.mirror,
+            reflectionStrength = material.reflectionStrength,
+            opacity = material.opacity,
+            speedRate = material.speedRate,
+            ignoreLighting = material.ignoreLighting
+        },
+        light = light(actor, view)
     }
 end
 
@@ -123,7 +173,7 @@ function Snapshot.Actors(view)
                 runtimeId = actorId(actor),
                 parentRuntimeId = parent ~= nil and actorId(parent) or nil,
                 position = { position.x - view.x, position.y - view.y },
-                visual = visual(actor)
+                visual = visual(actor, view)
             }
         end
         for _, child in ipairs(actor:getChildren()) do
@@ -172,6 +222,8 @@ function Snapshot.Map(view, actors)
             shaderPath = data.shaderPath
         }
     end
+    local worldSize = view.gameMap:getSize()
+    local regionSettings = view.region ~= nil and view.gameMap:getRegionFogSettings(view.region.path) or nil
     return {
         mapName = view.gameMap.mapName,
         width = view.width,
@@ -179,7 +231,13 @@ function Snapshot.Map(view, actors)
         layerOrder = order,
         layers = layers,
         actors = actors,
-        BPClassVarChanged = {}
+        BPClassVarChanged = {},
+        ambientLight = colour(view.gameMap:getAmbientLight()),
+        panorama = GlobalCore.PanoramaController.getPath(),
+        fog = fog(view.gameMap:getFogSettings()),
+        renderOrigin = view.region ~= nil and { view.x, view.y } or nil,
+        renderWorldSize = view.region ~= nil and { worldSize.x, worldSize.y } or nil,
+        regionFog = regionSettings ~= nil and fog(regionSettings) or nil
     }
 end
 

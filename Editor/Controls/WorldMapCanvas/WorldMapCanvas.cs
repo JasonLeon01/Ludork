@@ -200,6 +200,7 @@ public sealed partial class WorldMapCanvas : Control, IDisposable
 
     public override void Render(DrawingContext context)
     {
+        renderer?.SetInteracting(movingPlacement is not null || panning);
         Rect visibleCanvas = getVisibleCanvasRect();
         context.FillRectangle(OutsideBrush, visibleCanvas);
         if (WorldWidth <= 0 || WorldHeight <= 0)
@@ -215,62 +216,23 @@ public sealed partial class WorldMapCanvas : Control, IDisposable
                 .Intersects(visibleCanvas))
             .OrderBy(placement => placement == selectedPlacement)
             .ToArray();
-        bool drawDetailedMaps = cellSize >= 1 && visiblePlacements.Length <= 32;
-        HashSet<string> pinnedMaps = drawDetailedMaps
-            ? visiblePlacements.Select(placement => placement.Child.Key).ToHashSet(StringComparer.Ordinal)
-            : new HashSet<string>(StringComparer.Ordinal);
+        WorldMapPlacementPreview[] requestedPlacements = getPreviewPlacements(worldRect, visibleCanvas, visiblePlacements);
+        HashSet<string> pinnedMaps = requestedPlacements.Select(placement => placement.Child.Key).ToHashSet(StringComparer.Ordinal);
         foreach (WorldMapPlacementPreview placement in placements)
-        {
             if (!pinnedMaps.Contains(placement.Child.Key))
                 placement.Child.ReleaseData(this);
-        }
         renderer?.TrimMapCache(pinnedMaps);
         using (context.PushClip(worldRect.Intersect(visibleCanvas)))
         {
-            List<(WorldMapPlacementPreview Placement, JsonObject Map)> detailedPlacements = [];
-            foreach (WorldMapPlacementPreview placement in visiblePlacements)
+            List<(string Key, int X, int Y, int Priority, JsonObject Map)> maps = [];
+            foreach (WorldMapPlacementPreview placement in requestedPlacements)
             {
-                if (movingPlacement == placement)
-                    continue;
-                Rect placementRect = getPlacementRect(placement);
-                context.FillRectangle(WorldBrush, placementRect);
-                if (drawDetailedMaps
-                    && placement.Child.RequestData(this) is JsonObject map)
-                {
-                    detailedPlacements.Add((placement, map));
-                }
+                if (movingPlacement != placement && placement.Child.RequestData(this) is JsonObject map)
+                    maps.Add((placement.Child.Key, placement.X, placement.Y, placement == selectedPlacement ? 1 : 0, map));
             }
-            IReadOnlyList<string> layerOrder = getWorldLayerOrder(visiblePlacements);
-            if (renderer is not null)
-            {
-                foreach (string layerName in layerOrder)
-                {
-                    foreach ((WorldMapPlacementPreview placement, JsonObject map) in detailedPlacements)
-                    {
-                        renderer.DrawMapLayer(
-                            context,
-                            placement.Child.Key,
-                            map,
-                            layerName,
-                            getPlacementRect(placement).TopLeft,
-                            cellSize,
-                            visibleCanvas);
-                    }
-                }
-                HashSet<string> renderedActorGroups = layerOrder.ToHashSet(StringComparer.Ordinal);
-                foreach ((WorldMapPlacementPreview placement, JsonObject map) in detailedPlacements)
-                {
-                    renderer.DrawRemainingActors(
-                        context,
-                        placement.Child.Key,
-                        map,
-                        renderedActorGroups,
-                        getPlacementRect(placement).TopLeft,
-                        cellSize,
-                        visibleCanvas);
-                }
-                renderer.CompleteFrame();
-            }
+            if (Manifest is not null)
+                renderer?.DrawWorld(context, Manifest, maps, worldRect.TopLeft, cellSize,
+                    worldRect.Intersect(visibleCanvas), TopLevel.GetTopLevel(this)?.RenderScaling ?? 1);
             foreach (WorldMapPlacementPreview placement in visiblePlacements)
             {
                 if (movingPlacement != placement)
@@ -282,6 +244,33 @@ public sealed partial class WorldMapCanvas : Control, IDisposable
                 drawGhost(context, ghost);
         }
         context.DrawRectangle(null, WorldBorderPen, worldRect);
+    }
+
+    private WorldMapPlacementPreview[] getPreviewPlacements(Rect worldRect, Rect viewport, WorldMapPlacementPreview[] visible)
+    {
+        if (renderer?.IsLit != true)
+            return visible;
+        double sourceCellSize = renderer.SourceCellSize;
+        double scale = sourceCellSize / cellSize;
+        Rect clipped = viewport.Intersect(worldRect);
+        Rect worldView = new((clipped.X - worldRect.X) * scale, (clipped.Y - worldRect.Y) * scale,
+            clipped.Width * scale, clipped.Height * scale);
+        Rect lightingBounds = worldView;
+        HashSet<string> contributingMaps = new(StringComparer.Ordinal);
+        foreach (WorldMapPlacementPreview placement in placements)
+        {
+            if (placement.Child.PreviewLightBounds is not Rect bounds)
+                continue;
+            Rect worldBounds = bounds.Translate(new Vector(placement.X * sourceCellSize, placement.Y * sourceCellSize));
+            if (worldBounds.Intersects(worldView))
+            {
+                contributingMaps.Add(placement.Child.Key);
+                lightingBounds = lightingBounds.Union(worldBounds);
+            }
+        }
+        return placements.Where(placement => contributingMaps.Contains(placement.Child.Key)
+            || new Rect(placement.X * sourceCellSize, placement.Y * sourceCellSize,
+                placement.Width * sourceCellSize, placement.Height * sourceCellSize).Intersects(lightingBounds)).ToArray();
     }
 
     protected override void OnPointerPressed(PointerPressedEventArgs args)
@@ -488,33 +477,6 @@ public sealed partial class WorldMapCanvas : Control, IDisposable
             placement.Y,
             placement.Width,
             placement.Height));
-    }
-
-    private IReadOnlyList<string> getWorldLayerOrder(
-        IReadOnlyList<WorldMapPlacementPreview> visiblePlacements)
-    {
-        List<string> result = [];
-        if (Manifest?["layerOrder"] is JsonArray manifestOrder)
-        {
-            foreach (JsonNode? node in manifestOrder)
-            {
-                string? layerName = getString(node);
-                if (!string.IsNullOrWhiteSpace(layerName)
-                    && !result.Contains(layerName, StringComparer.Ordinal))
-                {
-                    result.Add(layerName);
-                }
-            }
-        }
-        foreach (WorldMapPlacementPreview placement in visiblePlacements)
-        {
-            foreach (string layerName in placement.Child.LayerOrder)
-            {
-                if (!result.Contains(layerName, StringComparer.Ordinal))
-                    result.Add(layerName);
-            }
-        }
-        return result;
     }
 
     private void drawGhost(DrawingContext context, WorldMapGhost value)
@@ -728,6 +690,7 @@ public sealed partial class WorldMapCanvas : Control, IDisposable
         if (previousRenderer is not null)
             previousRenderer.PreviewChanged -= onPreviewChanged;
         renderer = nextRenderer;
+        renderer?.SetVisibility(() => MapPreviewService.IsVisible(this));
         ownsRenderer = ownsNextRenderer;
         if (renderer is not null)
             renderer.PreviewChanged += onPreviewChanged;
@@ -749,6 +712,8 @@ public sealed partial class WorldMapCanvas : Control, IDisposable
 
     private void onChildDataChanged(object? sender, EventArgs args)
     {
+        if (args is not MapPreviewChangedEventArgs { Edit: not null } change || !MapPreviewSceneBuilder.IsActorEdit(change.Edit))
+            renderer?.ResetView();
         if (!disposed)
             InvalidateVisual();
     }

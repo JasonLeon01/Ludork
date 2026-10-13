@@ -1,6 +1,7 @@
 #pragma once
 
 #include <CoreMinimal.hpp>
+#include <EngineRuntimeApi.hpp>
 
 #include <General/AutoTile.hpp>
 #include <General/Tileset.hpp>
@@ -17,7 +18,7 @@ using AutoTileGrid = std::vector<std::vector<AutoTileCell>>;
 /// preview data may temporarily store autotile keys as strings.
 ////////////////////////////////////////////////////////////
 BIND_CLASS(copyable = true)
-struct TileLayerData {
+struct LUDORK_ENGINE_API TileLayerData {
     BIND_PROPERTY()
     std::string layerName = "";  ///< Layer name
 

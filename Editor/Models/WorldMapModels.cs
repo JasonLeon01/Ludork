@@ -1,4 +1,6 @@
+using Avalonia;
 using System.Collections.Generic;
+using System.Text.Json.Nodes;
 
 namespace Ludork.Models;
 
@@ -17,7 +19,11 @@ public sealed record MapCatalogEntry(
     int Width,
     int Height,
     IReadOnlyList<string> LayerOrder,
-    IReadOnlyList<string> ActorTags);
+    IReadOnlyList<string> ActorTags)
+{
+    public Rect? PreviewLightBounds { get; init; }
+    internal JsonObject PreviewLightSources { get; init; } = new();
+}
 
 public readonly record struct WorldMapRect(int X, int Y, int Width, int Height)
 {

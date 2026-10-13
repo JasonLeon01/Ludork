@@ -15,10 +15,10 @@ public sealed class UiControlRegistryService : IDisposable
     public UiControlRegistryService(ProjectDataStore gameData)
     {
         this.gameData = gameData;
-        Runtime = new UiPreviewRuntimeService(gameData.ProjectPath);
+        Runtime = new PreviewRuntimeService(gameData.ProjectPath);
     }
 
-    public UiPreviewRuntimeService Runtime { get; }
+    public PreviewRuntimeService Runtime { get; }
     public bool IsReady => Runtime.IsReady;
     public IReadOnlyList<UiControlDescriptor> SystemDescriptors => Runtime.Current?.Controls ?? [];
     public string? ExpectedTextConfigType(string controlId) => SystemDescriptors

@@ -23,18 +23,24 @@ public sealed partial class BlueprintPreviewService : IDisposable
         string projectPath,
         ProjectDataStore gameData,
         BlueprintClassResolver classResolver,
-        UiPreviewRuntimeService runtime)
+        PreviewRuntimeService runtime,
+        ProjectConfigService projectConfig)
     {
         this.projectPath = Path.GetFullPath(projectPath);
         this.gameData = gameData;
         this.classResolver = classResolver;
         ActorPreviews = new ActorPreviewService(runtime, gameData.Thumbnails);
+        MapPreviews = new MapPreviewService(gameData, runtime, projectConfig);
+        MapScenes = new MapPreviewSceneBuilder(gameData, this);
+        gameData.BlueprintPreviews = this;
         gameData.DataReloaded += onVisualSourceDataChanged;
         gameData.DataRestored += onVisualSourceDataChanged;
         gameData.Documents.ContentChanged += onDocumentsChanged;
     }
 
     public ActorPreviewService ActorPreviews { get; }
+    public MapPreviewService MapPreviews { get; }
+    public MapPreviewSceneBuilder MapScenes { get; }
     public long ResolutionRevision => classResolver.Revision;
     public event EventHandler? VisualsInvalidated;
     public event EventHandler? LiveVisualsInvalidated;
@@ -53,6 +59,7 @@ public sealed partial class BlueprintPreviewService : IDisposable
 
     public void InvalidateVisuals()
     {
+        MapPreviews.InvalidateScene();
         VisualsInvalidated?.Invoke(this, EventArgs.Empty);
         LiveVisualsInvalidated?.Invoke(this, EventArgs.Empty);
     }
@@ -117,6 +124,9 @@ public sealed partial class BlueprintPreviewService : IDisposable
         gameData.DataRestored -= onVisualSourceDataChanged;
         gameData.Documents.ContentChanged -= onDocumentsChanged;
         ActorPreviews.Dispose();
+        MapPreviews.Dispose();
+        if (ReferenceEquals(gameData.BlueprintPreviews, this))
+            gameData.BlueprintPreviews = null;
         sourceImageInfoCache.Clear();
     }
 

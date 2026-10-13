@@ -28,12 +28,18 @@ internal sealed class WorldMapThumbnail : Control
     private static readonly Pen BorderPen = new(EditorTheme.Brush("Border"), 1);
     private readonly WorldMapPreviewRenderer? renderer;
     private readonly WorldMapChildSource child;
+    private Rect viewport;
 
     public WorldMapThumbnail(WorldMapPreviewRenderer? renderer, WorldMapChildSource child)
     {
         this.renderer = renderer;
         this.child = child;
         ClipToBounds = true;
+        EffectiveViewportChanged += (_, args) =>
+        {
+            viewport = args.EffectiveViewport;
+            InvalidateVisual();
+        };
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs args)
@@ -48,6 +54,7 @@ internal sealed class WorldMapThumbnail : Control
     {
         child.DataChanged -= onPreviewChanged;
         child.ReleaseData(this);
+        renderer?.ReleaseMap(child.Key);
         if (renderer is not null)
             renderer.PreviewChanged -= onPreviewChanged;
         base.OnDetachedFromVisualTree(args);
@@ -67,7 +74,8 @@ internal sealed class WorldMapThumbnail : Control
             width * cellSize,
             height * cellSize);
         if (child.RequestData(this) is JsonObject map)
-            renderer?.DrawMap(context, child.Key, map, mapRect.TopLeft, cellSize, Bounds);
+            renderer?.DrawMap(context, child.Key, map, mapRect.TopLeft, cellSize, Bounds, TopLevel.GetTopLevel(this)?.RenderScaling ?? 1,
+                () => MapPreviewService.IsVisible(this) && viewport.Intersects(new Rect(Bounds.Size)));
         context.DrawRectangle(null, BorderPen, mapRect);
     }
 

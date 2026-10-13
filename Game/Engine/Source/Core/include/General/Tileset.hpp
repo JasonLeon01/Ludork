@@ -1,6 +1,7 @@
 #pragma once
 
 #include <CoreMinimal.hpp>
+#include <EngineRuntimeApi.hpp>
 
 #include <General/Material.hpp>
 
@@ -15,7 +16,7 @@ using TilesetData = std::unordered_map<std::string, TilesetValue>;
 /// Defines a tileset image and per-tile properties.
 ////////////////////////////////////////////////////////////
 BIND_CLASS(copyable = true)
-struct Tileset {
+struct LUDORK_ENGINE_API Tileset {
     BIND_PROPERTY()
     std::string name = "";  ///< Tileset name
 

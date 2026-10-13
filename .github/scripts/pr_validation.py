@@ -28,7 +28,7 @@ NATIVE_INPUTS = (
     "Game/Assets/System/icon.ico",
     "tools/build_cpp.*",
     "tools/build_standalone.*",
-    "tools/build_ui_preview_host.*",
+    "tools/build_preview_host.*",
     "tools/create_templates*",
 )
 MANAGED_INPUTS = (

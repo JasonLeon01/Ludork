@@ -2,7 +2,7 @@
 #include <Curve.hpp>
 
 #include <EngineState.hpp>
-#if defined(LUDORK_UI_PREVIEW_HOST_RUNTIME)
+#if defined(LUDORK_PREVIEW_HOST_RUNTIME)
 #include <UI/UiVector4CurveResource.hpp>
 #else
 #include <EngineDataProviders.hpp>
@@ -121,7 +121,7 @@ std::shared_ptr<Curve> Rect::resolveOpacityCurve(const std::string& key) {
         return cached->second;
     }
     const std::shared_ptr<Curve> curve =
-#if defined(LUDORK_UI_PREVIEW_HOST_RUNTIME)
+#if defined(LUDORK_PREVIEW_HOST_RUNTIME)
         loadUiCurveResource(key);
 #else
         EngineDataProviders::curve(key);

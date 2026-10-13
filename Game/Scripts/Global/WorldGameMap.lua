@@ -1,23 +1,17 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
-local cjson = require("cjson")
 local GameMap = require("Global.GameMap")
 local TerrainValue = require("Global.GameMap.TerrainValue")
 local WorldGeometry = require("Global.WorldGeometry")
 local WorldMapConstants = require("Global.WorldMapConstants")
 local WorldGameMapActors = require("Global.WorldGameMap.Actors")
 local WorldGameMapActorStreaming = require("Global.WorldGameMap.ActorStreaming")
-local WorldGameMapActorRendering = require("Global.WorldGameMap.ActorRendering")
-local WorldGameMapLighting = require("Global.WorldGameMap.Lighting")
-local WorldGameMapLightingPass = require("Global.WorldGameMap.LightingPass")
 local WorldGameMapRendering = require("Global.WorldGameMap.Rendering")
 local WorldGameMapRegionPublishing = require("Global.WorldGameMap.RegionPublishing")
 local WorldGameMapStreaming = require("Global.WorldGameMap.Streaming")
 local Logging = require("Global.Utils.Logging")
 local ActorMapService = Engine.ActorMapService
-local FogController = GlobalCore.FogController
 local PanoramaController = GlobalCore.PanoramaController
-local WorldRegionState = GlobalCore.WorldRegionState
 local WorldStreamingState = GlobalCore.WorldStreamingState
 
 local STREAM_PUBLISH_BUDGET_SECONDS = 0.00025
@@ -84,7 +78,6 @@ function WorldGameMap:init(config, regionFactory, reservedTags)
     self._worldPublishBudgetWarningEmitted = false
     self._worldUrgentBuildCursor = 0
     self._worldBackgroundBuildCursor = 0
-    self._worldShaderPrewarmTarget = nil
     self._worldShadersPrewarmed = false
     self._worldPrewarmMilliseconds = 0.0
     self._worldPrewarmReadbackMilliseconds = 0.0
@@ -108,9 +101,11 @@ function WorldGameMap:init(config, regionFactory, reservedTags)
     local sparseWorldConfig = { size = worldSize, layerOrder = config.layerOrder, regionRects = regionRects }
     GameMap.init(self, config.worldName, Engine.Tilemap.new({}), nil, false, sparseWorldConfig)
     self._layerNames = self._worldLayerOrder
+    assert(self._renderer):setActorVisibilityFilter(function(actor, layerName)
+        return self:_isWorldActorLayerVisible(actor, layerName)
+    end)
     self._worldLastReadyCameraPosition = nil
-    self._worldRuntimeLights = {}
-    FogController.applyWorldFromMapData(GlobalCore.MapFogSettings.new(config))
+    self._fogController:applyWorldFromMapData(config.fog)
     PanoramaController.applyWorldFromMapData(GlobalCore.MapPanoramaSettings.new(config))
 end
 
@@ -155,7 +150,7 @@ function WorldGameMap:disposeStreaming()
     self:clearSparseWorld()
     for _, region in ipairs(self._worldRegions) do
         if region.payload ~= nil then
-            FogController.removeWorldRegionFog(region.path)
+            self._fogController:removeWorldRegionFog(region.path)
             region.payload = nil
             region.backgroundBuilder = nil
         end
@@ -177,8 +172,6 @@ function WorldGameMap:disposeStreaming()
     self._worldActiveChunkReconcilePending = false
     self._worldLooseActiveChunkGeneration = -1
     self._worldActivationDeferred = false
-    self._layerMaskTextureCache = {}
-    self._worldShaderPrewarmTarget = nil
 end
 
 ---@param region   Source.SceneComponents.WorldRegionData
@@ -206,33 +199,7 @@ function WorldGameMap:_completeRegionInstall(region, activate, payloadBytes)
     self:setSparseWorldRegion(region.index, payload.tilemap, builder == nil or builder.areActorsReady())
     local regionRect = sf.IntRect.new(region.x, region.y, region.width, region.height)
     ---@cast regionRect sf.IntRect
-    local fog = payload.mapData.fog
-    if fog == cjson.null then
-        fog = nil
-    end
-    assert(fog == nil or Class.isInstance(fog, "string"), "mapData.fog must be a string")
-    local fogPower = payload.mapData.fogPower
-    if fogPower == nil or fogPower == cjson.null then
-        fogPower = 0
-    end
-    if bool(fog) and fogPower > 0 then
-        local fogOx = payload.mapData.fogOx
-        local fogOy = payload.mapData.fogOy
-        local fogDistort = payload.mapData.fogDistort
-        if fogOx == nil or fogOx == cjson.null then
-            fogOx = 0
-        end
-        if fogOy == nil or fogOy == cjson.null then
-            fogOy = 0
-        end
-        if fogDistort == nil or fogDistort == cjson.null then
-            fogDistort = 0
-        end
-        ---@cast fog string
-        FogController.setWorldRegionFog(region.path, regionRect, fog, fogPower, fogOx, fogOy, fogDistort)
-    else
-        FogController.removeWorldRegionFog(region.path)
-    end
+    self._fogController:setWorldRegionFog(region.path, regionRect, payload.mapData.fog)
     local sourceBytes = payloadBytes or asizeof(payload)
     local runtimeBytes = payload.estimatedRuntimeBytes
         or WorldMapConstants.REGION_FIXED_CACHE_BYTES
@@ -345,30 +312,6 @@ function WorldGameMap:onTick(deltaTime)
     self:_recordStreamingProfile()
 end
 
-function WorldGameMap:getLights()
-    return self._lights
-end
-
-function WorldGameMap:setLights(lights)
-    self._worldRuntimeLights = copy(lights)
-    self:_refreshWorldLights()
-end
-
-function WorldGameMap:addLight(light)
-    self._worldRuntimeLights[#self._worldRuntimeLights + 1] = light
-    self:_refreshWorldLights()
-end
-
-function WorldGameMap:removeLight(light)
-    local index = table.index(self._worldRuntimeLights, light)
-    if index ~= nil then
-        table.remove(self._worldRuntimeLights, index)
-        self:_refreshWorldLights()
-        return
-    end
-    error("Light not found in world map", 2)
-end
-
 function WorldGameMap:isPassable(actor, targetPosition)
     if not isActorPositionReady(self, actor, targetPosition) then
         return false
@@ -461,9 +404,7 @@ function WorldGameMap:setTerrainTiles(layerName, positions, tileID)
         if bool(localChanges) then
             payload.tilemap = payload.terrain:getTilemap()
             self:setSparseWorldRegion(batch.region.index, payload.tilemap, true)
-            if payload.prewarmedLayerShaders ~= nil then
-                payload.prewarmedLayerShaders[layerName] = nil
-            end
+            payload.prewarmedGeometryRevision = nil
             for _, localPosition in ipairs(localChanges) do
                 changedKeys[WorldGeometry.GridKey(localPosition.x + batch.region.x, localPosition.y + batch.region.y)] = true
             end
@@ -481,18 +422,6 @@ function WorldGameMap:setTerrainTiles(layerName, positions, tileID)
         self:markPassabilityDirty()
     end
     return changed
-end
-
-function WorldGameMap:_refreshWorldLights()
-    local lights = copy(self._worldRuntimeLights)
-    for _, region in ipairs(self._worldRegions) do
-        if region.payload ~= nil and self._worldStreamingState:getRegionState(region.index) == WorldRegionState.Active then
-            for _, light in ipairs(region.payload.lights) do
-                lights[#lights + 1] = light
-            end
-        end
-    end
-    self._lights = lights
 end
 
 function WorldGameMap:_initialiseWorldActorState(config, reservedTags)
@@ -675,42 +604,6 @@ function WorldGameMap:_pruneDestroyedRegionActors()
     return WorldGameMapActorStreaming.PruneDestroyedRegionActors(self)
 end
 
-function WorldGameMap:drawMapFogOverlay()
-    return WorldGameMapRendering.DrawMapFogOverlay(self)
-end
-
-function WorldGameMap:_ensureWorldLightingTargets()
-    return WorldGameMapRendering.EnsureWorldLightingTargets(self)
-end
-
-function WorldGameMap:_drawWorldTileMaskLayer(
-    target, baseStates, layerName, layer, region, viewPosition, viewSize, viewRotation
-)
-    return WorldGameMapRendering.DrawWorldTileMaskLayer(
-        self, target, baseStates, layerName, layer, region, viewPosition, viewSize, viewRotation
-    )
-end
-
-function WorldGameMap:_releaseWorldRegionTileMaskCache(region)
-    return WorldGameMapRendering.ReleaseWorldRegionTileMaskCache(self, region)
-end
-
-function WorldGameMap:_rebuildStaticTransmission(activeLights, _staticActors)
-    return WorldGameMapRendering.RebuildStaticTransmission(self, activeLights, _staticActors)
-end
-
-function WorldGameMap:_renderSurfaceMask()
-    return WorldGameMapRendering.RenderSurfaceMask(self)
-end
-
-function WorldGameMap:_getWorldShaderPrewarmTarget()
-    return WorldGameMapRendering.GetWorldShaderPrewarmTarget(self)
-end
-
-function WorldGameMap:_prewarmWorldShaderPrograms(target)
-    return WorldGameMapRendering.PrewarmWorldShaderPrograms(self, target)
-end
-
 function WorldGameMap:_prewarmWorldViewport(visibleRect, _drain)
     return WorldGameMapRendering.PrewarmWorldViewport(self, visibleRect, _drain)
 end
@@ -733,224 +626,6 @@ end
 
 function WorldGameMap:drawMapContent(target, states, _applyPlayerCover)
     return WorldGameMapRendering.DrawMapContent(self, target, states, _applyPlayerCover)
-end
-
-function WorldGameMap:_preparePlayerCover(layerKeys, playerLayerIndex)
-    return WorldGameMapActorRendering.PreparePlayerCover(self, layerKeys, playerLayerIndex)
-end
-
-function WorldGameMap:_resetTransparentTiles()
-    return WorldGameMapActorRendering.ResetTransparentTiles(self)
-end
-
-function WorldGameMap:_getPlayerLayerIndex(layerKeys)
-    return WorldGameMapActorRendering.GetPlayerLayerIndex(self, layerKeys)
-end
-
-function WorldGameMap:_applyPlayerCover(layer, layerIndex, playerLayerIndex, playerPosition)
-    return WorldGameMapActorRendering.ApplyPlayerCover(self, layer, layerIndex, playerLayerIndex, playerPosition)
-end
-
-function WorldGameMap:_drawLayerActors(target, states, layerName, layerIndex, playerLayerIndex, applyPlayerCover)
-    return WorldGameMapActorRendering.DrawLayerActors(
-        self, target, states, layerName, layerIndex, playerLayerIndex, applyPlayerCover
-    )
-end
-
-function WorldGameMap:_prepareActorPixelShatterEffects()
-    return WorldGameMapActorRendering.PrepareActorPixelShatterEffects(self)
-end
-
-function WorldGameMap:_drawActorPixelShatterEffects(target, layerName)
-    return WorldGameMapActorRendering.DrawActorPixelShatterEffects(self, target, layerName)
-end
-
-function WorldGameMap:_drawActor(target, states, actor, actorAlpha)
-    return WorldGameMapActorRendering.DrawActor(self, target, states, actor, actorAlpha)
-end
-
-function WorldGameMap:_drawActorShaderWithHue(target, actor, actorShader, hue, actorAlpha)
-    return WorldGameMapActorRendering.DrawActorShaderWithHue(self, target, actor, actorShader, hue, actorAlpha)
-end
-
-function WorldGameMap:_ensureActorShaderBuffer(size)
-    return WorldGameMapActorRendering.EnsureActorShaderBuffer(self, size)
-end
-
-function WorldGameMap:_ensureActorHueBuffer(size)
-    return WorldGameMapActorRendering.EnsureActorHueBuffer(self, size)
-end
-
-function WorldGameMap:_ensureActorHueSourceSprite(texture)
-    return WorldGameMapActorRendering.EnsureActorHueSourceSprite(self, texture)
-end
-
-function WorldGameMap:_applyActorHueUniform(hue)
-    return WorldGameMapActorRendering.ApplyActorHueUniform(self, hue)
-end
-
-function WorldGameMap:_initialiseWorldRendering()
-    return WorldGameMapLighting.InitialiseWorldRendering(self)
-end
-
-function WorldGameMap:_getMaterialShader()
-    return WorldGameMapLighting.GetMaterialShader(self)
-end
-
-function WorldGameMap:refreshShader()
-    return WorldGameMapLighting.RefreshShader(self)
-end
-
-function WorldGameMap:_lightingShadersAvailable()
-    return WorldGameMapLighting.LightingShadersAvailable(self)
-end
-
-function WorldGameMap:_partitionLightBlockingActors(visibleActors)
-    return WorldGameMapLighting.PartitionLightBlockingActors(self, visibleActors)
-end
-
-function WorldGameMap:_staticTransmissionActorsMatch(actors)
-    return WorldGameMapLighting.StaticTransmissionActorsMatch(self, actors)
-end
-
-function WorldGameMap:_cacheStaticTransmissionActors(actors)
-    return WorldGameMapLighting.CacheStaticTransmissionActors(self, actors)
-end
-
-function WorldGameMap:_surfaceMaskActorsMatch(actors)
-    return WorldGameMapLighting.SurfaceMaskActorsMatch(self, actors)
-end
-
-function WorldGameMap:_cacheSurfaceMaskActors(actors)
-    return WorldGameMapLighting.CacheSurfaceMaskActors(self, actors)
-end
-
-function WorldGameMap:_renderedLightingMatches(activeLights, dynamicOccluders)
-    return WorldGameMapLighting.RenderedLightingMatches(self, activeLights, dynamicOccluders)
-end
-
-function WorldGameMap:_cacheRenderedLighting(activeLights, dynamicOccluders)
-    return WorldGameMapLighting.CacheRenderedLighting(self, activeLights, dynamicOccluders)
-end
-
-function WorldGameMap:_renderDynamicLighting(activeLights, analyses)
-    return WorldGameMapLighting.RenderDynamicLighting(self, activeLights, analyses)
-end
-
-function WorldGameMap:_renderCachedLighting(activeLights, analyses)
-    return WorldGameMapLighting.RenderCachedLighting(self, activeLights, analyses)
-end
-
-function WorldGameMap:_getStaticTransmissionSignature()
-    return WorldGameMapLighting.GetStaticTransmissionSignature(self)
-end
-
-function WorldGameMap:_setTileMaskUniforms(cacheKey, layer, worldMask, regionRevision)
-    return WorldGameMapLighting.SetTileMaskUniforms(self, cacheKey, layer, worldMask, regionRevision)
-end
-
-function WorldGameMap:_setActorMaskUniforms(actor)
-    return WorldGameMapLighting.SetActorMaskUniforms(self, actor)
-end
-
-function WorldGameMap:_renderLighting(activeLights)
-    return WorldGameMapLightingPass.RenderLighting(self, activeLights)
-end
-
-function WorldGameMap:_ensureDynamicTransmission(activeLights)
-    return WorldGameMapLightingPass.EnsureDynamicTransmission(self, activeLights)
-end
-
-function WorldGameMap:_ensureDirectLight()
-    return WorldGameMapLightingPass.EnsureDirectLight(self)
-end
-
-function WorldGameMap:_ensureStaticDirectLight()
-    return WorldGameMapLightingPass.EnsureStaticDirectLight(self)
-end
-
-function WorldGameMap:_setLightPassCommonUniforms()
-    return WorldGameMapLightingPass.SetLightPassCommonUniforms(self)
-end
-
-function WorldGameMap:_setLightPassWorldUniforms()
-    return WorldGameMapLightingPass.SetLightPassWorldUniforms(self)
-end
-
-function WorldGameMap:_setLightPassCacheUniforms(target, light)
-    return WorldGameMapLightingPass.SetLightPassCacheUniforms(self, target, light)
-end
-
-function WorldGameMap:_ensureStaticLightCache(index, entry)
-    return WorldGameMapLightingPass.EnsureStaticLightCache(self, index, entry)
-end
-
-function WorldGameMap:_setLightPassTextureUniforms()
-    return WorldGameMapLightingPass.SetLightPassTextureUniforms(self)
-end
-
-function WorldGameMap:_setViewShaderUniforms(shader, screenSize, mapViewOffset, usesFragmentCoordinates)
-    return WorldGameMapLightingPass.SetViewShaderUniforms(
-        self, shader, screenSize, mapViewOffset, usesFragmentCoordinates
-    )
-end
-
-function WorldGameMap:_renderLight(entry, dynamicOrigin, dynamicSize, traceStatic, traceDynamic, target)
-    return WorldGameMapLightingPass.RenderLight(
-        self, entry, dynamicOrigin, dynamicSize, traceStatic, traceDynamic, target
-    )
-end
-
-function WorldGameMap:_renderStaticLights(entries, target)
-    return WorldGameMapLightingPass.RenderStaticLights(self, entries, target)
-end
-
-function WorldGameMap:_renderUnobstructedLights(entries, target)
-    return WorldGameMapLightingPass.RenderUnobstructedLights(self, entries, target)
-end
-
-function WorldGameMap:_lightsMatchCache(entries, cache)
-    return WorldGameMapLightingPass.LightsMatchCache(self, entries, cache)
-end
-
-function WorldGameMap:_cacheUnobstructedLights(entries)
-    return WorldGameMapLightingPass.CacheUnobstructedLights(self, entries)
-end
-
-function WorldGameMap:_cacheLightValues(light)
-    return WorldGameMapLightingPass.CacheLightValues(self, light)
-end
-
-function WorldGameMap:_cacheLightList(entries)
-    return WorldGameMapLightingPass.CacheLightList(self, entries)
-end
-
-function WorldGameMap:_appendLightBatch(vertices, vertex, light, index)
-    return WorldGameMapLightingPass.AppendLightBatch(self, vertices, vertex, light, index)
-end
-
-function WorldGameMap:_appendLightBatchVertex(vertices, vertex, x, y, textureX, textureY, colour)
-    return WorldGameMapLightingPass.AppendLightBatchVertex(self, vertices, vertex, x, y, textureX, textureY, colour)
-end
-
-function WorldGameMap:_renderDynamicTransmission(analysis)
-    return WorldGameMapLightingPass.RenderDynamicTransmission(self, analysis)
-end
-
-function WorldGameMap:_getActiveLights()
-    return WorldGameMapLightingPass.GetActiveLights(self)
-end
-
-function WorldGameMap:_getActorLightPosition(actor, lightComp, result)
-    return WorldGameMapLightingPass.GetActorLightPosition(self, actor, lightComp, result)
-end
-
-function WorldGameMap:_isLightVisible(position, radius, left, top, right, bottom)
-    return WorldGameMapLightingPass.IsLightVisible(self, position, radius, left, top, right, bottom)
-end
-
-function WorldGameMap:_toShaderColour(colour, applyAlpha)
-    return WorldGameMapLightingPass.ToShaderColour(self, colour, applyAlpha)
 end
 
 function WorldGameMap:_cancelRegionPublish(region)

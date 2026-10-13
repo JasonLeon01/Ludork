@@ -4,7 +4,6 @@
 
 #include <CustomParticles/CommonTipController.hpp>
 #include <EditorCommandServices.hpp>
-#include <Fog/FogController.hpp>
 #include <Panorama/PanoramaController.hpp>
 #include <Manager/ActorAudioBridge.hpp>
 #include <Manager/AudioManager.hpp>
@@ -97,7 +96,6 @@ void shutdown(lua_State* state) noexcept {
     PerformanceProfiler::shutdown();
     UIManager::shutdown();
     WeatherController::shutdown();
-    FogController::shutdown();
     PanoramaController::shutdown();
     shutdownUiAudioBridge();
     AudioManager::shutdown();

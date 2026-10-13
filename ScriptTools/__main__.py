@@ -33,7 +33,7 @@ from ScriptTools import prune_editor_macos_publish
 from ScriptTools import prune_editor_windows_publish
 from ScriptTools import ui_adapter_check
 from ScriptTools import ui_assets
-from ScriptTools import ui_preview
+from ScriptTools import preview
 from ScriptTools.core_bindgen import generate
 from ScriptTools.core_bindgen import layout
 
@@ -72,7 +72,7 @@ COMMANDS: dict[str, Command] = {
     "prune-editor-windows-publish": prune_editor_windows_publish.main,
     "ui-adapter-check": ui_adapter_check.main,
     "ui-assets": ui_assets.main,
-    "ui-preview": ui_preview.main,
+    "preview": preview.main,
     "validate-ldpak-source": ldpak.main,
 }
 

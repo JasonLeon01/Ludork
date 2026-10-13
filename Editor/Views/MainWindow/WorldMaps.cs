@@ -79,6 +79,7 @@ public partial class MainWindow
     private void refreshMapPanel()
     {
         bool worldMode = viewModel?.MapWorkspace.SelectedMap is { IsWorld: true };
+        ViewportOptionsButton.IsVisible = !worldMode && !GameViewport.IsVisible;
         LayerTabsScroll.IsVisible = !worldMode;
         EditModeToggles.IsVisible = !worldMode;
         EditorScroll.IsVisible = !worldMode;
@@ -96,7 +97,6 @@ public partial class MainWindow
             EditorPanel.refreshMap(viewModel?.MapWorkspace.SelectedMap?.Key, viewModel?.MapWorkspace.SelectedMapData);
             selectPreviewMode(EditorPanel.EditMode);
         }
-        updateLightModeControls();
         refreshMapPanelState();
     }
 

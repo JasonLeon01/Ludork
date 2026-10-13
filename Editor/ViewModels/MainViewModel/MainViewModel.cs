@@ -55,7 +55,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         OpenProjectCommand = new RelayCommand(() => OpenProjectRequested?.Invoke(this, EventArgs.Empty), () => !GameData.EditOperations.IsBusy);
         ExitCommand = new RelayCommand(() => ExitRequested?.Invoke(this, EventArgs.Empty), () => !GameData.EditOperations.IsBusy);
         TileModeCommand = new RelayCommand(() => PreviewModeRequested?.Invoke(this, 0), () => MapWorkspace.CanUseMapTools);
-        LightModeCommand = new RelayCommand(() => PreviewModeRequested?.Invoke(this, 1), () => CanEdit);
         ActorModeCommand = new RelayCommand(() => PreviewModeRequested?.Invoke(this, 2), () => MapWorkspace.CanUseMapTools);
         HelpCommand = new RelayCommand(Actions.OpenHelp);
         NewBlueprintCommand = new RelayCommand(() => Actions.NewBlueprint(), () => CanEdit);
@@ -77,7 +76,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         RedoCommand = new AsyncRelayCommand(() => RedoChangesAsync(), () => CanEdit && ActiveDocument?.CanRedo == true);
         editingCommands =
         [
-            SaveCommand, NewProjectCommand, OpenProjectCommand, ExitCommand, UndoCommand, RedoCommand, TileModeCommand, LightModeCommand, ActorModeCommand,
+            SaveCommand, NewProjectCommand, OpenProjectCommand, ExitCommand, UndoCommand, RedoCommand, TileModeCommand, ActorModeCommand,
             NewBlueprintCommand, NewAnimationCommand, NewParticleCommand, NewSubtitleCommand, NewCurveCommand, NewTextConfigCommand, NewUiAssetCommand,
             GameConfigCommand, SystemConfigCommand, AnimationOverviewCommand, ParticleOverviewCommand, TilesetsDataCommand,
             CommonFunctionsCommand, GameVariablesCommand, GeneralDataCommand,
@@ -122,7 +121,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public IRelayCommand OpenProjectCommand { get; }
     public IRelayCommand ExitCommand { get; }
     public IRelayCommand TileModeCommand { get; }
-    public IRelayCommand LightModeCommand { get; }
     public IRelayCommand ActorModeCommand { get; }
     public IRelayCommand HelpCommand { get; }
     public IRelayCommand NewBlueprintCommand { get; }

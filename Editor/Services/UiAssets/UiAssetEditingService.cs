@@ -27,7 +27,7 @@ public sealed class UiAssetEditingService
     private readonly ProjectDataStore gameData;
     private readonly UiControlRegistryService controlRegistry;
     private IReadOnlyDictionary<string, UiControlDescriptor>? controls;
-    private UiPreviewRuntimeSnapshot? runtimeRegistry;
+    private PreviewRuntimeSnapshot? runtimeRegistry;
     private UiAssetDependencyGraph? dependencyGraph;
     private readonly Dictionary<string, Failure> insertionFailures = new(StringComparer.Ordinal);
 

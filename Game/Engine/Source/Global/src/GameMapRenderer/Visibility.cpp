@@ -19,12 +19,7 @@ void GameMapRendererImpl::prepareVisibleLayers() {
             tilemap = sourceTilemap;
         }
         displayVisibilityRevision = revision;
-        layerMaskTextures.clear();
-        staticTransmissionRevision = -1;
-        surfaceMaskRevision = -1;
-        renderedLightingValid = false;
-        cachedStaticMaterialRevision = -1;
-        unobstructedLightCacheValid = false;
+        renderer.reset();
     }
     if (tilemap != sourceTilemap) {
         for (const std::string& name : layerNames) {

@@ -35,7 +35,6 @@ public sealed class EditorSettings
     public bool ActorLibraryIconView { get; set; } = true;
     public bool FileExplorerSourcesExpanded { get; set; }
     public EditorExternalOpenTarget FileExplorerOpenTarget { get; set; }
-    public bool LightActorSelection { get; set; }
     public IReadOnlyList<string> RecentProjectPaths => recentProjectPaths;
     public string? LastError { get; private set; }
     public event EventHandler<string>? SaveFailed;
@@ -87,7 +86,6 @@ public sealed class EditorSettings
         if (Enum.TryParse(readText(explorer, "opentarget", "Folder"), true, out EditorExternalOpenTarget target)
             && Enum.IsDefined(target))
             settings.FileExplorerOpenTarget = target;
-        settings.LightActorSelection = readBool(settings.section("MapEditor"), "lightactorselection", false);
         return settings;
     }
 
@@ -259,7 +257,6 @@ public sealed class EditorSettings
         section("ActorLibrary")["iconview"] = ActorLibraryIconView.ToString();
         explorer["sourcesexpanded"] = FileExplorerSourcesExpanded.ToString();
         explorer["opentarget"] = FileExplorerOpenTarget.ToString();
-        section("MapEditor")["lightactorselection"] = LightActorSelection.ToString();
         StringBuilder text = new();
         foreach (KeyValuePair<string, Dictionary<string, string>> entry in sections)
         {

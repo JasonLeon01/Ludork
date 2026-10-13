@@ -263,14 +263,6 @@
     "zh_CN": "无法保存编辑器设置：{0}",
     "en_GB": "Could not save editor settings: {0}"
   },
-  "LIGHT_SELECT_ACTORS": {
-    "zh_CN": "可选中 Actor",
-    "en_GB": "Select Actors"
-  },
-  "LIGHT_SELECT_ACTORS_HINT": {
-    "zh_CN": "允许选择当前图层中带光源的 Actor，按格移动并编辑实例属性",
-    "en_GB": "Select Actors with lights on the current layer, move them on the grid and edit instance properties"
-  },
   "RETRY": {
     "zh_CN": "重试",
     "en_GB": "Retry"
@@ -2255,10 +2247,6 @@
     "zh_CN": "图块模式",
     "en_GB": "Tile Mode"
   },
-  "LIGHT_MODE": {
-    "zh_CN": "光源模式",
-    "en_GB": "Light Source Mode"
-  },
   "ACTOR_MODE": {
     "zh_CN": "角色模式",
     "en_GB": "Actor Mode"
@@ -2640,28 +2628,12 @@
     "en_GB": "BGS"
   },
   "MAP_FOG": {
-    "zh_CN": "雾效贴图",
-    "en_GB": "Fog Texture"
+    "zh_CN": "程序雾",
+    "en_GB": "Procedural Fog"
   },
   "MAP_PANORAMA": {
     "zh_CN": "远景",
     "en_GB": "Panorama"
-  },
-  "MAP_FOG_POWER": {
-    "zh_CN": "雾强度",
-    "en_GB": "Fog Strength"
-  },
-  "MAP_FOG_OX": {
-    "zh_CN": "雾 X 速度",
-    "en_GB": "Fog Scroll X"
-  },
-  "MAP_FOG_OY": {
-    "zh_CN": "雾 Y 速度",
-    "en_GB": "Fog Scroll Y"
-  },
-  "MAP_FOG_DISTORT": {
-    "zh_CN": "雾扰动强度",
-    "en_GB": "Fog Distortion"
   },
   "CLEAR": {
     "zh_CN": "清除",
@@ -3098,10 +3070,6 @@
   "UNABLE_TO_SET_START_NODE": {
     "zh_CN": "无法设置起始节点，起始节点需要是Exec或Latent类型节点",
     "en_GB": "Unable to set start node. Start node must be of Exec or Latent type."
-  },
-  "NEW_LIGHT_SOURCE": {
-    "zh_CN": "新建光源",
-    "en_GB": "Create New Light Source"
   },
   "INVALID_DATA_FILE": {
     "zh_CN": "数据文件无效",
@@ -4488,20 +4456,20 @@
     "en_GB": "Native preview unavailable"
   },
   "UI_PREVIEW_COMPILE_REQUIRED": {
-    "zh_CN": "UI 预览尚未就绪。源码工程请先编译；Standalone 工程若仍无法预览，请更新配套预览程序。",
-    "en_GB": "UI preview is not ready. Build source projects first; if a Standalone preview remains unavailable, update its matching preview runtime."
+    "zh_CN": "原生预览尚未就绪。源码工程请先编译；Standalone 工程若仍无法预览，请更新配套预览程序。",
+    "en_GB": "Native preview is not ready. Build source projects first; if a Standalone preview remains unavailable, update its matching preview runtime."
   },
   "UI_PREVIEW_BUILD_REQUIRED": {
-    "zh_CN": "工程正在编译或上次编译未成功；编译成功后才能编辑和预览 UI。",
-    "en_GB": "The project is building or its last build failed. A successful build is required to edit and preview UI."
+    "zh_CN": "工程正在编译或上次编译未成功；成功发布后将恢复原生预览。",
+    "en_GB": "The project is building or its last build failed. Native preview resumes after a successful build and publication."
   },
   "UI_SAVE_NATIVE_VALIDATION_PENDING": {
     "zh_CN": "UI 资产仅通过结构检查，尚未执行原生控件校验。请编译 C++ 工程完成校验。",
     "en_GB": "UI assets passed structural checks only. Native control validation has not run; build the C++ project to complete validation."
   },
   "UI_PREVIEW_SNAPSHOT_INVALID": {
-    "zh_CN": "UI 注册表或预览程序无效或不匹配。源码工程请重新编译；Standalone 工程请更新 EditorCache 中的预览 JSON 和 Binaries 中的配套程序。",
-    "en_GB": "The UI registry or preview runtime is invalid or mismatched. Rebuild source projects; for Standalone, update the preview JSON in EditorCache and matching runtime in Binaries."
+    "zh_CN": "预览程序或其 UI 注册表无效或不匹配。源码工程请重新编译；Standalone 工程请更新 EditorCache 中的预览 JSON 和 Binaries 中的配套程序。",
+    "en_GB": "The preview runtime or its UI registry is invalid or mismatched. Rebuild source projects; for Standalone, update the preview JSON in EditorCache and matching runtime in Binaries."
   },
   "UI_REGISTRY_CANVAS_REQUIRED": {
     "zh_CN": "此项目的 UI 注册表缺少 Engine.Canvas，无法创建默认 UI 根节点。请恢复该原生控件并重新编译。",
@@ -4802,5 +4770,73 @@
   "DICT_KEY_ENUM": {
     "en_GB": "Key enum",
     "zh_CN": "键枚举"
+  },
+  "MAP_FOG_COLOUR": {
+    "zh_CN": "雾颜色",
+    "en_GB": "Fog Colour"
+  },
+  "MAP_FOG_DENSITY": {
+    "zh_CN": "雾密度",
+    "en_GB": "Fog Density"
+  },
+  "MAP_FOG_SCALE": {
+    "zh_CN": "雾尺度（像素）",
+    "en_GB": "Fog Scale (pixels)"
+  },
+  "MAP_FOG_VELOCITY_X": {
+    "zh_CN": "雾 X 速度（像素/秒）",
+    "en_GB": "Fog Velocity X (pixels/s)"
+  },
+  "MAP_FOG_VELOCITY_Y": {
+    "zh_CN": "雾 Y 速度（像素/秒）",
+    "en_GB": "Fog Velocity Y (pixels/s)"
+  },
+  "MAP_FOG_TURBULENCE": {
+    "zh_CN": "雾湍流强度",
+    "en_GB": "Fog Turbulence"
+  },
+  "MAP_FOG_SEED": {
+    "zh_CN": "雾随机种子",
+    "en_GB": "Fog Seed"
+  },
+  "MAP_PREVIEW_UNAVAILABLE": {
+    "zh_CN": "当前预览程序不支持地图预览。源码工程请重新编译；Standalone 工程请更新配套预览程序。",
+    "en_GB": "The preview runtime does not support map preview. Rebuild source projects; for Standalone, update the matching preview runtime."
+  },
+  "MAP_VIEWPORT_OPTIONS": {
+    "zh_CN": "视口选项",
+    "en_GB": "Viewport Options"
+  },
+  "MAP_VIEW_MODE": {
+    "zh_CN": "视图模式",
+    "en_GB": "View Mode"
+  },
+  "MAP_VIEW_LIT": {
+    "zh_CN": "光照（Lit）",
+    "en_GB": "Lit"
+  },
+  "MAP_VIEW_UNLIT": {
+    "zh_CN": "无光照（Unlit）",
+    "en_GB": "Unlit"
+  },
+  "MAP_VIEW_REALTIME": {
+    "zh_CN": "实时预览",
+    "en_GB": "Realtime"
+  },
+  "MAP_VIEW_FOG": {
+    "zh_CN": "显示雾效",
+    "en_GB": "Show Fog"
+  },
+  "MAP_VIEW_PANORAMA": {
+    "zh_CN": "显示远景",
+    "en_GB": "Show Panorama"
+  },
+  "MAP_VIEW_ACTOR_ORIGINS": {
+    "zh_CN": "显示 Actor 原点",
+    "en_GB": "Show Actor Origins"
+  },
+  "MAP_VIEW_LIGHT_BOUNDS": {
+    "zh_CN": "显示光源范围",
+    "en_GB": "Show Light Bounds"
   }
 }

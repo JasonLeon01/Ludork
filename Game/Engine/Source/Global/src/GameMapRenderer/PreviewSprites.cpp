@@ -83,37 +83,3 @@ void GameMapRendererImpl::refreshPreviewVisibility() {
                                      sprite.transform);
     }
 }
-
-void GameMapRendererImpl::drawPreviewLayer(sf::RenderTarget& target,
-                                           const sf::RenderStates& states,
-                                           const std::string& layer) {
-    for (const PreviewState& entry : previewSprites) {
-        const PreviewSprite& data = entry.data;
-        if (!entry.visibleOnMap || !data.texture || data.layer != layer) {
-            continue;
-        }
-        sf::Sprite sprite(*data.texture, data.rect);
-        sf::RenderStates spriteStates = states;
-        spriteStates.transform.combine(entry.transform);
-        if (entry.shaderError) {
-            sprite.setColor(sf::Color::Magenta);
-            target.draw(sprite, spriteStates);
-            continue;
-        }
-        const float hue = drawableHue(data.hue);
-        if (entry.shader) {
-            setSpriteShaderUniforms(*entry.shader, *data.texture, data.rect,
-                                    0.0f);
-            if (hue != 0.0f && drawSpriteShaderWithHue(
-                                   target, states, *data.texture, data.rect,
-                                   entry.transform, *entry.shader, hue, 255)) {
-                continue;
-            }
-            spriteStates.shader = entry.shader.get();
-        } else if (hue != 0.0f) {
-            applyActorHueUniform(hue);
-            spriteStates.shader = actorHueShader.get();
-        }
-        target.draw(sprite, spriteStates);
-    }
-}

@@ -280,9 +280,6 @@ function SceneMapBuilder:generateGameMap(data, camera, emitCreateEvents, preview
     if not previewOnly then
         self:_configureInteractiveMap(result)
         result:setAmbientLight(data.ambientLight)
-        for _, light in ipairs(data.lights) do
-            result:addLight(light)
-        end
     end
     local actors = SceneMapBuilder.GenerateActors(data)
     result:beginActorBatch()

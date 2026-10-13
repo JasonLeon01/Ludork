@@ -163,18 +163,13 @@ public sealed partial class WorldDataService
         foreach (string name in layerOrder)
             layerOrderData.Add(name);
         JsonArray placementData = createPlacementData(placements);
-        string fog = info.Fog.Trim();
         return new JsonObject
         {
             ["type"] = "worldMap",
             ["worldName"] = info.WorldName.Trim(),
             ["width"] = info.Width,
             ["height"] = info.Height,
-            ["fog"] = fog,
-            ["fogPower"] = fog.Length == 0 ? 0 : info.FogPower,
-            ["fogOx"] = fog.Length == 0 ? 0.0 : info.FogOx,
-            ["fogOy"] = fog.Length == 0 ? 0.0 : info.FogOy,
-            ["fogDistort"] = fog.Length == 0 ? 0 : info.FogDistort,
+            ["fog"] = info.Fog.DeepClone(),
             ["panorama"] = info.Panorama.Trim(),
             ["layerOrder"] = layerOrderData,
             ["placements"] = placementData,

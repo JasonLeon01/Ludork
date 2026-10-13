@@ -1483,36 +1483,6 @@
     96,
     192
   ],
-  "lights": [
-    {
-      "position": [
-        207.0,
-        365.0
-      ],
-      "color": [
-        255,
-        220,
-        180,
-        255
-      ],
-      "radius": 256.0,
-      "intensity": 1.0
-    },
-    {
-      "position": [
-        207.0,
-        114.0
-      ],
-      "color": [
-        255,
-        110,
-        60,
-        255
-      ],
-      "radius": 145.6193668438371,
-      "intensity": 1.0
-    }
-  ],
   "actors": {
     "floor": [],
     "default": [
@@ -1882,11 +1852,23 @@
   "bgmFilter": {},
   "bgs": "",
   "bgsFilter": {},
-  "fog": "",
-  "fogPower": 0,
-  "fogOx": 0,
-  "fogOy": 0,
-  "fogDistort": 0,
+  "fog": {
+    "enabled": false,
+    "colour": [
+      255,
+      255,
+      255,
+      255
+    ],
+    "density": 0.5,
+    "scale": 256,
+    "velocity": [
+      15,
+      15
+    ],
+    "turbulence": 0.5,
+    "seed": 0
+  },
   "BPClassVarChanged": {
     "Upstair 2": {
       "Offset": [

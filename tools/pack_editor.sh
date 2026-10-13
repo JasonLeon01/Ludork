@@ -343,7 +343,7 @@ run_macos_sign() {
         set -- "$@" --runtime-bundle "$RESOURCES_DIR/tools/ScriptTools"
         if [ "$WITHOUT_TEMPLATES" -eq 0 ]; then
             for template_name in $STANDALONE_TEMPLATE_NAMES; do
-                set -- "$@" --ui-preview-template "$RESOURCES_DIR/Templates/$template_name"
+                set -- "$@" --preview-template "$RESOURCES_DIR/Templates/$template_name"
             done
         fi
     fi
@@ -772,19 +772,19 @@ validate_package() {
     require_package_file "$package_resources/tools/common.sh"
     validate_script_tools_bundle "$package_resources/tools/ScriptTools"
     require_package_executable "$package_resources/tools/luac"
-    require_package_executable "$package_resources/tools/build_ui_preview_host.sh"
+    require_package_executable "$package_resources/tools/build_preview_host.sh"
     if [ "$WITHOUT_TEMPLATES" -eq 0 ]; then
         for template_name in $STANDALONE_TEMPLATE_NAMES; do
-            "$SCRIPT_TOOLS" ui-preview validate "$package_resources/Templates/$template_name"
+            "$SCRIPT_TOOLS" preview validate "$package_resources/Templates/$template_name"
             unexpected_temp=$(find "$package_resources/Templates/$template_name/$EDITOR_CACHE_DIRECTORY" \
-                -mindepth 1 -maxdepth 1 ! -name UiPreview.json ! -name UiPreview.registry.json -print -quit)
+                -mindepth 1 -maxdepth 1 ! -name Preview.json ! -name UiPreview.registry.json -print -quit)
             if [ -n "$unexpected_temp" ]; then
                 echo "Unexpected template $EDITOR_CACHE_DIRECTORY entry: $unexpected_temp" >&2
                 exit 1
             fi
         done
         for template_name in $CPP_TEMPLATE_NAMES; do
-            require_package_file "$package_resources/Templates/$template_name/Engine/UiPreviewHost/CMakeLists.txt"
+            require_package_file "$package_resources/Templates/$template_name/Engine/PreviewHost/CMakeLists.txt"
             for wrapper_path in \
                 gradlew \
                 gradle/wrapper/gradle-wrapper.jar \
@@ -1157,7 +1157,7 @@ require_file /usr/bin/lipo
 if [ "$WITHOUT_TEMPLATES" -eq 0 ]; then
     require_file "$PROJECT_ROOT/tools/create_templates.sh"
 fi
-require_file "$PROJECT_ROOT/tools/build_ui_preview_host.sh"
+require_file "$PROJECT_ROOT/tools/build_preview_host.sh"
 require_file "$PROJECT_ROOT/tools/common.sh"
 require_file "$PROJECT_ROOT/tools/editor_runtime/build_cpp.sh"
 require_file "$PROJECT_ROOT/tools/build_standalone.sh"
@@ -1306,7 +1306,7 @@ mkdir -p "$RESOURCES_DIR/tools"
 cp "$PROJECT_ROOT/tools/common.sh" "$RESOURCES_DIR/tools/common.sh"
 cp "$PROJECT_ROOT/tools/editor_runtime/build_cpp.sh" "$RESOURCES_DIR/tools/build_cpp.sh"
 cp "$PROJECT_ROOT/tools/build_standalone.sh" "$RESOURCES_DIR/tools/build_standalone.sh"
-cp "$PROJECT_ROOT/tools/build_ui_preview_host.sh" "$RESOURCES_DIR/tools/build_ui_preview_host.sh"
+cp "$PROJECT_ROOT/tools/build_preview_host.sh" "$RESOURCES_DIR/tools/build_preview_host.sh"
 cp "$PROJECT_ROOT/tools/pack_project.sh" "$RESOURCES_DIR/tools/pack_project.sh"
 cp "$PROJECT_ROOT/tools/editor_runtime/pack_ios.sh" "$RESOURCES_DIR/tools/pack_ios.sh"
 cp "$PROJECT_ROOT/tools/editor_runtime/pack_harmony.sh" "$RESOURCES_DIR/tools/pack_harmony.sh"
@@ -1318,7 +1318,7 @@ cp "$LUAC" "$RESOURCES_DIR/tools/luac"
 chmod +x \
     "$RESOURCES_DIR/tools/build_cpp.sh" \
     "$RESOURCES_DIR/tools/build_standalone.sh" \
-    "$RESOURCES_DIR/tools/build_ui_preview_host.sh" \
+    "$RESOURCES_DIR/tools/build_preview_host.sh" \
     "$RESOURCES_DIR/tools/pack_project.sh" \
     "$RESOURCES_DIR/tools/pack_ios.sh" \
     "$RESOURCES_DIR/tools/pack_harmony.sh" \

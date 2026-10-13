@@ -23,70 +23,6 @@ namespace Ludork.Controls;
 
 public sealed partial class MapPanel
 {
-    private void handleLightPointerPressed(PointerPressedEventArgs args, Point position, int width, int height)
-    {
-        PointerPoint pointer = args.GetCurrentPoint(this);
-        if (!pointer.Properties.IsLeftButtonPressed || pointer.Properties.IsRightButtonPressed
-            || getMapBasePosition(position, width, height) is not { } basePosition)
-            return;
-        int? actorHit = hitTestLightActor(position, basePosition, width, height, out int? hit);
-        if (actorHit is int actorIndex && selectedLayerName is not null)
-        {
-            setSelectedLightIndex(null);
-            setSelectedActor(selectedLayerName, actorIndex, true);
-            if (pointer.Properties.IsLeftButtonPressed && canEditMap
-                && getGridPosition(position, width, height) is { } grid
-                && getSelectedActor() is MapActorSnapshot actor
-                && tryGetActorPosition(actor, out int actorX, out int actorY))
-            {
-                actorMoveIndex = actorIndex;
-                actorMoveLayer = selectedLayerName;
-                actorMoveOffset = (grid.X - actorX, grid.Y - actorY);
-                capturePointer(args.Pointer);
-            }
-            args.Handled = true;
-            InvalidateVisual();
-            return;
-        }
-        setSelectedActor(null, null, true);
-        setSelectedLightIndex(hit);
-        if (hit is not int index || CurrentMapDocument?.Lights is not IReadOnlyList<MapLightSnapshot> lights || lights[index] is not MapLightSnapshot light || !tryGetLight(light, out Point center, out double radius))
-        {
-            InvalidateVisual();
-            return;
-        }
-        double distance = getDistance(basePosition, center);
-        capturePointer(args.Pointer);
-        if (Math.Abs(distance - radius) <= LightEdgeTolerance)
-        {
-            lightRadiusDragging = true;
-            lightDragCenter = center;
-        }
-        else
-        {
-            lightMoveDragging = true;
-            lightDragOffset = basePosition - center;
-        }
-        args.Handled = true;
-        InvalidateVisual();
-    }
-
-    private void updateLightDrag(Point position, int width, int height)
-    {
-        if (IsRuntimeEditing || editingContext?.IsEditable != true)
-            return;
-        if (!lightMoveDragging && !lightRadiusDragging || selectedLightIndex is not int index || getMapBasePosition(position, width, height) is not { } basePosition || CurrentMapDocument?.Lights is not IReadOnlyList<MapLightSnapshot> lights || index < 0 || index >= lights.Count || lights[index] is not MapLightSnapshot light)
-            return;
-        MapPoint? nextPosition = lightMoveDragging
-            ? new MapPoint(basePosition.X - lightDragOffset.X, basePosition.Y - lightDragOffset.Y) : null;
-        double? nextRadius = lightMoveDragging ? null : Math.Max(0, getDistance(basePosition, lightDragCenter));
-        if (gameData is null || CurrentMapKey is null || !gameData.Maps.UpdateMapLight(CurrentMapKey, index, light, nextPosition, nextRadius))
-            return;
-        if (getLight(index) is MapLightSnapshot changedLight)
-            LightDataChanged?.Invoke(this, new LightDataChangedEventArgs(CurrentMapKey, index, changedLight.ToJson()));
-        InvalidateVisual();
-    }
-
     private void handleActorPointerPressed(PointerPressedEventArgs args, (int X, int Y) grid)
     {
         if (selectedLayerName is null)
@@ -136,7 +72,7 @@ public sealed partial class MapPanel
             if (actor.ParentRuntimeId is not null)
                 return;
         }
-        if (IsRuntimeEditing || EditMode == MapEditMode.Light)
+        if (IsRuntimeEditing)
             grid = (grid.X - actorMoveOffset.X, grid.Y - actorMoveOffset.Y);
         if (tryGetActorPosition(actor, out int oldX, out int oldY) && oldX == grid.X && oldY == grid.Y)
             return;

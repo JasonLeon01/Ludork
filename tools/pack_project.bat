@@ -122,7 +122,7 @@ if "%USE_LDPAK%"=="1" (
     "%SCRIPT_TOOLS%" validate-ldpak-source "%PROJECT_DIR%"
     if errorlevel 1 exit /b 1
 )
-robocopy "%PROJECT_DIR%" "%DIST_DIR%" /E /XF *.proj *.pdb *.anim.json *.py *.pyc *.pyo "%PROJECT_DIR%\Binaries\UiPreviewHost.exe" "%PROJECT_DIR%\Binaries\UiPreviewHostRuntime.dll" /XD "%DIST_ROOT%" "%DIST_DIR%" "%PROJECT_DIR%\%EDITOR_CACHE_DIRECTORY%" "%PROJECT_DIR%\Cache" build bin dist dist-luac .venv __pycache__ /NFL /NDL /NJH /NJS /NP
+robocopy "%PROJECT_DIR%" "%DIST_DIR%" /E /XF *.proj *.pdb *.anim.json *.py *.pyc *.pyo LudorkPreview-*.bin LudorkUiPreview-*.bin "%PROJECT_DIR%\Binaries\PreviewHost.exe" "%PROJECT_DIR%\Binaries\PreviewHostRuntime.dll" "%PROJECT_DIR%\Binaries\UiPreviewHost.exe" "%PROJECT_DIR%\Binaries\UiPreviewHostRuntime.dll" /XD "%DIST_ROOT%" "%DIST_DIR%" "%PROJECT_DIR%\%EDITOR_CACHE_DIRECTORY%" "%PROJECT_DIR%\Cache" "%PROJECT_DIR%\Engine\PreviewHost" "%PROJECT_DIR%\Engine\UiPreviewHost" build bin dist dist-luac .venv __pycache__ /NFL /NDL /NJH /NJS /NP
 if errorlevel 8 exit /b %errorlevel%
 
 if not exist "%DIST_DIR%\Main.exe" (
@@ -168,7 +168,7 @@ exit /b 0
 
 :finalize_package
 set "UI_REGISTRY="
-for /f "usebackq delims=" %%R in (`call "%SCRIPT_TOOLS%" ui-preview registry "%PROJECT_DIR%"`) do set "UI_REGISTRY=%%R"
+for /f "usebackq delims=" %%R in (`call "%SCRIPT_TOOLS%" preview registry "%PROJECT_DIR%"`) do set "UI_REGISTRY=%%R"
 if not defined UI_REGISTRY exit /b 1
 set "FINALIZE_OPTIONS="
 if "%USE_LUAC%"=="1" set "FINALIZE_OPTIONS=%FINALIZE_OPTIONS% --compile-lua"
@@ -177,7 +177,7 @@ if "%ENCRYPT_DATA%"=="1" set "FINALIZE_OPTIONS=%FINALIZE_OPTIONS% --encrypt-data
 if "%USE_LDPAK%"=="1" set "FINALIZE_OPTIONS=%FINALIZE_OPTIONS% --use-ldpak"
 "%SCRIPT_TOOLS%" finalize-package %FINALIZE_OPTIONS% --registry "%UI_REGISTRY%" "%DIST_DIR%"
 if errorlevel 1 exit /b %errorlevel%
-for %%F in (UiPreviewHost.exe UiPreviewHostRuntime.dll) do if exist "%DIST_DIR%\Binaries\%%F" exit /b 1
+for %%F in (PreviewHost.exe PreviewHostRuntime.dll UiPreviewHost.exe UiPreviewHostRuntime.dll) do if exist "%DIST_DIR%\Binaries\%%F" exit /b 1
 if exist "%DIST_DIR%\%EDITOR_CACHE_DIRECTORY%" exit /b 1
 exit /b %errorlevel%
 

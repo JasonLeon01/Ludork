@@ -171,6 +171,8 @@ public:
     BIND_METHOD()
     void updateAutoTileAnimation(float deltaTime, float frameInterval);
 
+    void setAnimationTime(float seconds, float frameInterval = 0.5f);
+
     ////////////////////////////////////////////////////////////
     /// \brief Return the unique chunks submitted by the latest draw
     ///
@@ -217,6 +219,8 @@ public:
     BIND_METHOD(metadata = false)
     bool isBuildComplete() const;
 
+    std::size_t getDrawRevision() const;
+
 protected:
     void copyDisplayAutoTileMasks(
         const TileLayerGraphics& source,
@@ -225,6 +229,9 @@ protected:
 
     void writePendingBlock(int x, int y, const TileGrid& tileBlock,
                            const AutoTileGrid& autoTileBlock);
+
+    void updateGraphicsBlock(int x, int y, const TileGrid& tileBlock,
+                             const AutoTileGrid& autoTileBlock);
 
     virtual void draw(sf::RenderTarget& target,
                       sf::RenderStates states) const override;
@@ -318,6 +325,7 @@ private:
     std::size_t builtChunkCount_ = 0;
     std::vector<bool> builtChunks_;
     bool buildComplete_ = false;
+    std::size_t drawRevision_ = 0;
     std::vector<std::vector<std::optional<int>>> tiles_;
     std::vector<bool> passable_;
     std::vector<Material> materials_;

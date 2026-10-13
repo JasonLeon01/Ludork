@@ -34,6 +34,13 @@ public sealed partial class MapPanel
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
+        if (previewService is not null)
+        {
+            previewService.MapPreviews.Invalidated -= onNativePreviewInvalidated;
+            previewService.MapPreviews.Invalidated += onNativePreviewInvalidated;
+            previewService.MapPreviews.OptionsChanged -= onNativeFrameChanged;
+            previewService.MapPreviews.OptionsChanged += onNativeFrameChanged;
+        }
         if (editingContext is not null)
         {
             editingContext.Changed -= onMapDataChanged;
@@ -46,6 +53,8 @@ public sealed partial class MapPanel
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         CancelInteractions();
+        if (nativePreview is not null)
+            nativePreview.IsActive = false;
         LayoutUpdated -= onLayoutUpdated;
         pendingMapZoomAnchor.Clear();
         bindHostScrollViewer(null);
@@ -54,7 +63,7 @@ public sealed partial class MapPanel
 
     public override void Render(DrawingContext context)
     {
-        if (CurrentMapDocument is null || gameData is null || autoTileRenderer is null || !tryGetMapSize(out int mapWidth, out int mapHeight))
+        if (CurrentMapDocument is null || gameData is null || !tryGetMapSize(out int mapWidth, out int mapHeight))
             return;
 
         Rect mapRect = getMapRect(mapWidth, mapHeight);
@@ -66,25 +75,10 @@ public sealed partial class MapPanel
         using (context.PushTransform(Matrix.CreateTranslation(mapRect.X, mapRect.Y)))
         {
             drawCheckerboard(context);
-            IReadOnlyDictionary<string, MapLayerSnapshot> layers = CurrentMapDocument.Layers;
-            if (CurrentMapDocument.LayerOrder is IReadOnlyList<string> layerOrder)
-            {
-                foreach (string layerName in layerOrder)
-                {
-                    if (!layers.TryGetValue(layerName, out MapLayerSnapshot? layer) || !isLayerVisible(layer))
-                        continue;
-                    double opacity = selectedLayerName is null || layerName == selectedLayerName ? 1.0 : OtherLayerOpacity;
-                    using (context.PushOpacity(opacity))
-                    {
-                        drawLayer(context, layerName);
-                        layerShaderRenderer?.renderLayer(context, layer, getLocalMapRect(mapWidth, mapHeight));
-                        drawActors(context, layerName);
-                    }
-                }
-            }
-
-            if (EditMode == MapEditMode.Light)
-                drawLightOverlay(context);
+            drawNativeMap(context, visibleMapRect);
+            foreach (string layerName in CurrentMapDocument.LayerOrder)
+                if (getLayer(layerName) is MapLayerSnapshot layer && isLayerVisible(layer))
+                    drawActorHelpers(context, layerName);
             drawHoverAndPlacement(context);
         }
     }
@@ -101,14 +95,6 @@ public sealed partial class MapPanel
         if (point.Properties.IsLeftButtonPressed && !IsRuntimeEditing)
             mapEditGesture = gameData.BeginHistoryGesture();
         Point position = point.Position;
-        if (EditMode == MapEditMode.Light)
-        {
-            if (IsRuntimeEditing)
-                return;
-            handleLightPointerPressed(args, position, width, height);
-            return;
-        }
-
         if (getGridPosition(position, width, height) is not { } grid)
             return;
         hoverGrid = grid;
@@ -159,24 +145,7 @@ public sealed partial class MapPanel
         {
             return;
         }
-        if (EditMode == MapEditMode.Light)
-        {
-            if (IsRuntimeEditing || getMapBasePosition(position, width, height) is not { } basePosition)
-                return;
-            int? actorHit = hitTestLightActor(position, basePosition, width, height, out int? lightHit);
-            if (actorHit is int actorIndex && selectedLayerName is not null)
-            {
-                setSelectedLightIndex(null);
-                setSelectedActor(selectedLayerName, actorIndex, true);
-            }
-            else
-            {
-                setSelectedActor(null, null, true);
-                setSelectedLightIndex(lightHit);
-                showLightContextMenu(position, width, height);
-            }
-        }
-        else if (getGridPosition(position, width, height) is { } grid)
+        if (getGridPosition(position, width, height) is { } grid)
         {
             if (EditMode == MapEditMode.Actor && selectedLayerName is not null)
             {
@@ -213,14 +182,6 @@ public sealed partial class MapPanel
             hoverGrid = grid;
             InvalidateVisual();
         }
-        if (EditMode == MapEditMode.Light)
-        {
-            if (LightActorSelectionEnabled && grid is not null && actorMoveIndex is not null)
-                moveSelectedActor(grid.Value);
-            else
-                updateLightDrag(position, width, height);
-            return;
-        }
         if (grid is null)
             return;
         if (EditMode == MapEditMode.Actor)
@@ -243,8 +204,6 @@ public sealed partial class MapPanel
         }
         rectangleStart = null;
         tileBrushDragging = false;
-        lightMoveDragging = false;
-        lightRadiusDragging = false;
         actorMoveIndex = null;
         actorMoveLayer = null;
         movingRuntimeActorId = null;
@@ -260,8 +219,6 @@ public sealed partial class MapPanel
         actorPropertyDrag = null;
         endMapGesture();
         tileBrushDragging = false;
-        lightMoveDragging = false;
-        lightRadiusDragging = false;
         actorMoveIndex = null;
         actorMoveLayer = null;
         movingRuntimeActorId = null;
@@ -275,8 +232,6 @@ public sealed partial class MapPanel
         base.OnPointerExited(args);
         if (!tileBrushDragging
             && rectangleStart is null
-            && !lightMoveDragging
-            && !lightRadiusDragging
             && actorPropertyDrag is null
             && actorMoveIndex is null)
         {
@@ -306,11 +261,6 @@ public sealed partial class MapPanel
             deleteSelectedActor();
             args.Handled = true;
             return;
-        }
-        if (args.Key == Key.Delete && EditMode == MapEditMode.Light)
-        {
-            deleteSelectedLight();
-            args.Handled = true;
         }
     }
 

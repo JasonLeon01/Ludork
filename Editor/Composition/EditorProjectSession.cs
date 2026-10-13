@@ -24,7 +24,7 @@ public sealed class EditorProjectSession : IDisposable
         ReferenceIndex = GameData.ReferenceIndex;
         ReferenceIndex.EnableBackgroundUpdates();
         BlueprintCreation = new BlueprintCreationService(GameData, Metadata, BlueprintClasses);
-        PreviewService = new BlueprintPreviewService(ProjectPath, GameData, BlueprintClasses, UiControlRegistry.Runtime);
+        PreviewService = new BlueprintPreviewService(ProjectPath, GameData, BlueprintClasses, UiControlRegistry.Runtime, ProjectConfig);
         TileSelect = new TileSelectViewModel(GameData);
         ActorQueue = new ActorQueueViewModel(GameData, ProjectConfig, BlueprintClasses, PreviewService);
         FileExplorer = new FileExplorerViewModel(ProjectPath, ProjectConfig, GameData, PreviewService, ReferenceIndex);

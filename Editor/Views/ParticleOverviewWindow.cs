@@ -17,7 +17,7 @@ public sealed class ParticleOverviewWindow : Window
 {
     private readonly ProjectDataStore gameData;
     private readonly ProjectSaveService projectSave;
-    private readonly UiPreviewRuntimeService runtime;
+    private readonly PreviewRuntimeService runtime;
     private readonly ListBox resources = new();
     private readonly ContentControl editorHost = new();
     private readonly TextBox search = EditorInputs.CreateEditableTextBox();
@@ -27,7 +27,7 @@ public sealed class ParticleOverviewWindow : Window
     private bool refreshing;
 
     public ParticleOverviewWindow(ProjectDataStore gameData, ProjectSaveService projectSave,
-        UiPreviewRuntimeService runtime, Func<Task> create)
+        PreviewRuntimeService runtime, Func<Task> create)
     {
         this.gameData = gameData;
         this.projectSave = projectSave;

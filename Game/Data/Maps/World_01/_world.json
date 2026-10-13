@@ -3,11 +3,23 @@
   "worldName": "{WORLD_01}",
   "width": 40,
   "height": 30,
-  "fog": "",
-  "fogPower": 0,
-  "fogOx": 0,
-  "fogOy": 0,
-  "fogDistort": 0,
+  "fog": {
+    "enabled": false,
+    "colour": [
+      255,
+      255,
+      255,
+      255
+    ],
+    "density": 0.5,
+    "scale": 256,
+    "velocity": [
+      15,
+      15
+    ],
+    "turbulence": 0.5,
+    "seed": 0
+  },
   "panorama": "",
   "layerOrder": [
     "floor",

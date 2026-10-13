@@ -53,11 +53,7 @@ public sealed partial class MapDataService
             BgmFilter = ProjectDataStore.cloneObject(map["bgmFilter"]),
             Bgs = map["bgs"]?.GetValue<string>() ?? string.Empty,
             BgsFilter = ProjectDataStore.cloneObject(map["bgsFilter"]),
-            Fog = map["fog"]?.GetValue<string>() ?? string.Empty,
-            FogPower = map["fogPower"]?.GetValue<int?>() ?? 0,
-            FogOx = map["fogOx"]?.GetValue<double?>() ?? 0.0,
-            FogOy = map["fogOy"]?.GetValue<double?>() ?? 0.0,
-            FogDistort = map["fogDistort"]?.GetValue<int?>() ?? 0,
+            Fog = map["fog"]?.DeepClone() as JsonObject ?? MapFogSettings.CreateDefault(),
             Panorama = map["panorama"]?.GetValue<string>() ?? string.Empty,
         };
     }

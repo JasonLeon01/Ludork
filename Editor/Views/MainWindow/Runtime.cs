@@ -41,23 +41,6 @@ public partial class MainWindow
         syncTileSelection();
     }
 
-    private void onLightSelectionChanged(object? sender, LightSelectionChangedEventArgs args)
-    {
-        if (EditorPanel.EditMode == MapEditMode.Light)
-            LightInfoPanel.setLight(args.LightData);
-    }
-
-    private void onLightDataChanged(object? sender, LightDataChangedEventArgs args)
-    {
-        if (EditorPanel.EditMode == MapEditMode.Light)
-            LightInfoPanel.updateLight(args.LightData);
-    }
-
-    private void onLightEdited(object? sender, LightInfoEditedEventArgs args)
-    {
-        EditorPanel.updateSelectedLight(args.LightData);
-    }
-
     private void onTileSelectPropertyChanged(object? sender, PropertyChangedEventArgs args)
     {
         if (args.PropertyName is nameof(TileSelectViewModel.SelectedTiles) or nameof(TileSelectViewModel.SelectedAutoTile))
@@ -88,7 +71,6 @@ public partial class MainWindow
 
     private void onTileModeClick(object? sender, RoutedEventArgs args) => selectPreviewMode(MapEditMode.Tile);
 
-    private void onLightModeClick(object? sender, RoutedEventArgs args) => selectPreviewMode(MapEditMode.Light);
 
     private void onActorModeClick(object? sender, RoutedEventArgs args) => selectPreviewMode(MapEditMode.Actor);
 
@@ -480,9 +462,7 @@ public partial class MainWindow
         EditorPanel.IsEnabled = !active;
         WorldEditorPanel.IsEnabled = !active;
         MapList.IsEnabled = !active;
-        updateLightModeControls();
         RightList.IsEnabled = !active;
-        LightInfoPanel.IsEnabled = !active;
         ActorInfoPanel.IsEnabled = !active;
         RightModePanel.IsEnabled = !active;
         FileExplorerPanel.IsEnabled = !active;
@@ -511,6 +491,7 @@ public partial class MainWindow
             return nint.Zero;
         EditorPanel.IsVisible = false;
         GameViewport.IsVisible = true;
+        ViewportOptionsButton.IsVisible = false;
         GameViewport.InvalidateMeasure();
         await Dispatcher.UIThread.InvokeAsync(
             () => GamePanel.TryUpdateNativeControlPosition(),
@@ -566,6 +547,7 @@ public partial class MainWindow
     {
         GamePanel.SetInputEnabled(false);
         GameViewport.IsVisible = false;
+        ViewportOptionsButton.IsVisible = viewModel?.MapWorkspace.SelectedMap is { IsWorld: false };
         EditorPanel.IsVisible = true;
         activeWindowMode = null;
         if (gameLayoutLocked)

@@ -2,12 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace Ludork.Services;
 
 public sealed class ProjectConfigService
 {
+    private static readonly JsonSerializerOptions ViewportJsonOptions = new(JsonSerializerDefaults.Web);
     private readonly string configPath;
     private JsonObject data;
 
@@ -128,6 +130,18 @@ public sealed class ProjectConfigService
     }
 
     public bool CanConfigureIndividualWindow => OperatingSystem.IsWindows();
+
+    public MapPreviewOptions ViewportOptions
+    {
+        get => getEditor(false)?["mapViewport"]?.Deserialize<MapPreviewOptions>(ViewportJsonOptions) ?? new();
+        set
+        {
+            if (ViewportOptions == value)
+                return;
+            getEditor(true)!["mapViewport"] = JsonSerializer.SerializeToNode(value, ViewportJsonOptions);
+            save();
+        }
+    }
 
     public bool LiveDebug
     {

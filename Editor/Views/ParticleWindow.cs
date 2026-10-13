@@ -16,7 +16,7 @@ public sealed class ParticleWindow : Window
     private readonly Toast toast;
 
     public ParticleWindow(ProjectDataStore gameData, ProjectSaveService projectSave,
-        UiPreviewRuntimeService runtime, string key)
+        PreviewRuntimeService runtime, string key)
     {
         this.projectSave = projectSave;
         document = gameData.GetDocument("Particles", key);

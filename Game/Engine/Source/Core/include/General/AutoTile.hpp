@@ -1,6 +1,7 @@
 #pragma once
 
 #include <CoreMinimal.hpp>
+#include <EngineRuntimeApi.hpp>
 
 #include <General/Material.hpp>
 
@@ -20,7 +21,7 @@ using AutoTileData = std::unordered_map<std::string, AutoTileValue>;
 /// material because the whole entry behaves as one tile in gameplay.
 ////////////////////////////////////////////////////////////
 BIND_CLASS(copyable = true)
-struct AutoTile {
+struct LUDORK_ENGINE_API AutoTile {
     BIND_PROPERTY()
     std::string name = "";  ///< AutoTile name
 

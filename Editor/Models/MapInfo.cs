@@ -13,10 +13,6 @@ public sealed class MapInfo
     public JsonObject BgmFilter { get; set; } = new JsonObject();
     public string Bgs { get; set; } = string.Empty;
     public JsonObject BgsFilter { get; set; } = new JsonObject();
-    public string Fog { get; set; } = string.Empty;
-    public int FogPower { get; set; }
-    public double FogOx { get; set; }
-    public double FogOy { get; set; }
-    public int FogDistort { get; set; }
+    public JsonObject Fog { get; set; } = MapFogSettings.CreateDefault();
     public string Panorama { get; set; } = string.Empty;
 }

@@ -45,8 +45,6 @@ public partial class MainWindow : Window, IProjectOperationInteraction
     private LayerTabViewModel? draggedLayer;
     private Point dragStart;
     private bool isDraggingLayer;
-    private string? lightSelectionMapKey;
-    private string? lightSelectionLayerName;
     private bool closeConfirmed;
     private bool closingPrompt;
     private bool layoutReady;

@@ -1,400 +1,80 @@
-#include <Graphics.hpp>
-#include <StringUtils.hpp>
 #include <Fog/FogController.hpp>
-
-#include "FogController/FogRenderImpl.hpp"
-#include "FogController/WorldFogImpl.hpp"
-
-#include <Camera.hpp>
-#include <Manager/ShaderManager.hpp>
-#include <Manager/TextureManager.hpp>
-#include <EngineState.hpp>
-#include <Utils/Render.hpp>
+#include <Gameplay/Tilemap/Tilemap.hpp>
+#include "FogControllerImpl.hpp"
 
 #include <algorithm>
-#include <cmath>
-#include <exception>
-#include <iostream>
-#include <stdexcept>
-#include <utility>
 
-namespace {
-void validateMapFogSettings(const MapFogSettings& mapData) {
-    const auto requireFinite = [](float value, const char* name) {
-        if (!std::isfinite(value)) {
-            throw std::invalid_argument(std::string("mapData.") + name +
-                                        " must be finite");
-        }
-    };
-    requireFinite(mapData.fogPower, "fogPower");
-    requireFinite(mapData.fogOx, "fogOx");
-    requireFinite(mapData.fogOy, "fogOy");
-    requireFinite(mapData.fogDistort, "fogDistort");
+FogController::FogController() : impl_(std::make_unique<Impl>()) {}
+FogController::~FogController() = default;
+
+void FogController::applyFromMapData(const MapFogSettings& settings) {
+    impl_->settings = settings;
 }
 
-using ludork::global::fog_controller_impl::WorldFogLayer;
-
-auto& worldFogState = ludork::global::fog_controller_impl::worldFogImpl().state;
-auto& graphic_ = ludork::global::fog_controller_impl::fogRenderImpl().graphic;
-auto& power_ = ludork::global::fog_controller_impl::fogRenderImpl().power;
-auto& scroll_ = ludork::global::fog_controller_impl::fogRenderImpl().scroll;
-auto& distort_ = ludork::global::fog_controller_impl::fogRenderImpl().distort;
-auto& offset_ = ludork::global::fog_controller_impl::fogRenderImpl().offset;
-auto& time_ = ludork::global::fog_controller_impl::fogRenderImpl().time;
-auto& active_ = ludork::global::fog_controller_impl::fogRenderImpl().active;
-auto& fogTexture_ =
-    ludork::global::fog_controller_impl::fogRenderImpl().fogTexture;
-auto& fogShader_ =
-    ludork::global::fog_controller_impl::fogRenderImpl().fogShader;
-auto& fogBuffer_ =
-    ludork::global::fog_controller_impl::fogRenderImpl().fogBuffer;
-auto& bufferSprite_ =
-    ludork::global::fog_controller_impl::fogRenderImpl().bufferSprite;
-
-std::optional<WorldFogLayer> makeWorldFogLayer(std::string graphic, float power,
-                                               const sf::Vector2f& scroll,
-                                               float distort,
-                                               const sf::IntRect& cellRect) {
-    if (!std::isfinite(power) || !std::isfinite(scroll.x) ||
-        !std::isfinite(scroll.y) || !std::isfinite(distort)) {
-        throw std::invalid_argument("world fog values must be finite");
-    }
-    graphic = ludork::standard::trimCharacters(graphic);
-    power = std::clamp(std::floor(power), 0.0f, 100.0f);
-    if (graphic.empty() || power <= 0.0f) {
-        return std::nullopt;
-    }
-    WorldFogLayer layer;
-    layer.graphic = graphic;
-    layer.power = power;
-    layer.scroll = scroll;
-    layer.distort = std::clamp(std::floor(distort), 0.0f, 100.0f);
-    layer.cellRect = cellRect;
-    try {
-        layer.texture =
-            TextureManager::load(graphic, false, std::nullopt, true);
-        if (layer.texture == nullptr) {
-            return std::nullopt;
-        }
-        layer.texture->setRepeated(true);
-    } catch (const std::exception& error) {
-        std::cerr << "Failed to load fog texture '" << graphic
-                  << "': " << error.what() << '\n';
-        return std::nullopt;
-    }
-    return layer;
-}
-
-std::optional<WorldFogLayer> makeWorldFogLayer(const MapFogSettings& mapData,
-                                               const sf::IntRect& cellRect) {
-    validateMapFogSettings(mapData);
-    return makeWorldFogLayer(mapData.fog, mapData.fogPower,
-                             {mapData.fogOx, mapData.fogOy}, mapData.fogDistort,
-                             cellRect);
-}
-
-std::optional<sf::FloatRect> worldFogRect(const WorldFogLayer& layer,
-                                          const sf::FloatRect& viewBounds,
-                                          bool base) {
-    if (base) {
-        return viewBounds;
-    }
-    const sf::FloatRect worldRect(
-        sf::Vector2f(static_cast<float>(layer.cellRect.position.x *
-                                        EngineState::CellSize),
-                     static_cast<float>(layer.cellRect.position.y *
-                                        EngineState::CellSize)),
-        sf::Vector2f(
-            static_cast<float>(layer.cellRect.size.x * EngineState::CellSize),
-            static_cast<float>(layer.cellRect.size.y * EngineState::CellSize)));
-    const float left = std::max(worldRect.position.x, viewBounds.position.x);
-    const float top = std::max(worldRect.position.y, viewBounds.position.y);
-    const float right = std::min(worldRect.position.x + worldRect.size.x,
-                                 viewBounds.position.x + viewBounds.size.x);
-    const float bottom = std::min(worldRect.position.y + worldRect.size.y,
-                                  viewBounds.position.y + viewBounds.size.y);
-    if (left >= right || top >= bottom || viewBounds.size.x <= 0.0f ||
-        viewBounds.size.y <= 0.0f) {
-        return std::nullopt;
-    }
-    return worldRect;
-}
-
-}  // namespace
-
-void FogController::applyFromMapData(const MapFogSettings& mapData) {
+void FogController::applyWorldFromMapData(const MapFogSettings& settings) {
     clearFog();
-    validateMapFogSettings(mapData);
-    const std::string graphic = ludork::standard::trimCharacters(mapData.fog);
-    const float power = std::clamp(std::floor(mapData.fogPower), 0.0f, 100.0f);
-    const sf::Vector2f scroll{mapData.fogOx, mapData.fogOy};
-    const float distort =
-        std::clamp(std::floor(mapData.fogDistort), 0.0f, 100.0f);
-    if (graphic.empty() || power <= 0.0f) {
-        return;
-    }
-    graphic_ = graphic;
-    power_ = power;
-    scroll_ = scroll;
-    distort_ = distort;
-    offset_ = {};
-    time_ = 0.0f;
-    if (!loadFogTexture()) {
-        clearFog();
-        return;
-    }
-    active_ = true;
-    ensureShader();
-}
-
-void FogController::applyWorldFromMapData(const MapFogSettings& mapData) {
-    clearFog();
-    worldFogState.emplace();
-    worldFogState->base = makeWorldFogLayer(mapData, {});
-    ensureShader();
+    applyFromMapData(settings);
 }
 
 void FogController::setWorldRegionFog(const std::string& key,
                                       const sf::IntRect& cellRect,
-                                      const std::string& graphic, float power,
-                                      float scrollX, float scrollY,
-                                      float distort) {
-    if (!worldFogState.has_value()) {
-        return;
-    }
-    std::optional<WorldFogLayer> layer = makeWorldFogLayer(
-        graphic, power, {scrollX, scrollY}, distort, cellRect);
-    if (layer.has_value()) {
-        worldFogState->regions.insert_or_assign(key, std::move(*layer));
+                                      const MapFogSettings& settings) {
+    auto& regions = impl_->regions;
+    const auto found = std::find_if(regions.begin(), regions.end(),
+                                    [&key](const auto& region) {
+                                        return region.key == key;
+                                    });
+    if (found == regions.end()) {
+        regions.push_back({key, cellRect, settings});
     } else {
-        worldFogState->regions.erase(key);
+        *found = {key, cellRect, settings};
     }
-    ensureShader();
 }
 
 void FogController::removeWorldRegionFog(const std::string& key) {
-    if (!worldFogState.has_value()) {
-        return;
-    }
-    worldFogState->regions.erase(key);
+    auto& regions = impl_->regions;
+    std::erase_if(regions, [&key](const auto& region) {
+        return region.key == key;
+    });
 }
 
 void FogController::clearFog() {
-    worldFogState.reset();
-    active_ = false;
-    graphic_.clear();
-    power_ = 0.0f;
-    scroll_ = {};
-    distort_ = 0.0f;
-    offset_ = {};
-    time_ = 0.0f;
-    fogTexture_.reset();
+    *impl_ = {};
 }
 
-void FogController::shutdown() noexcept {
-    clearFog();
-    bufferSprite_.reset();
-    fogBuffer_.reset();
-    fogShader_.reset();
+MapFogSettings FogController::getSettings() {
+    return impl_->settings;
 }
 
-void FogController::update(float deltaTime) {
-    if (worldFogState.has_value()) {
-        worldFogState->time += deltaTime;
-        return;
-    }
-    if (!active_ || power_ <= 0.0f) {
-        return;
-    }
-    time_ += deltaTime;
-    offset_ += scroll_ * deltaTime;
+std::optional<MapFogSettings> FogController::getWorldRegionSettings(
+    const std::string& key) {
+    const auto& regions = impl_->regions;
+    const auto found = std::find_if(regions.begin(), regions.end(),
+                                    [&key](const auto& region) {
+                                        return region.key == key;
+                                    });
+    return found == regions.end()
+               ? std::nullopt
+               : std::optional<MapFogSettings>(found->settings);
 }
 
-void FogController::drawOverlay() {
-    if (worldFogState.has_value()) {
-        return;
-    }
-    if (!active_ || power_ <= 0.0f || fogTexture_ == nullptr) {
-        return;
-    }
-    sf::RenderTexture* canvas = Graphics::getCanvas();
-    if (canvas == nullptr) {
-        return;
-    }
-    drawShaderOverlay(*canvas);
-}
-
-void FogController::drawWorldOverlay(Camera& camera) {
-    if (!worldFogState.has_value()) {
-        return;
-    }
-    const std::optional<sf::FloatRect> viewValue = camera.getViewport();
-    const std::shared_ptr<sf::RenderTexture> target = camera.getRenderTexture();
-    if (!viewValue.has_value() || target == nullptr) {
-        return;
-    }
-    const sf::Vector2u targetSize = target->getSize();
-    if (targetSize.x == 0 || targetSize.y == 0) {
-        return;
-    }
-    const sf::View targetView = target->getView();
-    const sf::Vector2f topLeft = target->mapPixelToCoords({0, 0}, targetView);
-    const sf::Vector2f topRight = target->mapPixelToCoords(
-        {static_cast<int>(targetSize.x), 0}, targetView);
-    const sf::Vector2f bottomLeft = target->mapPixelToCoords(
-        {0, static_cast<int>(targetSize.y)}, targetView);
-    const sf::Vector2f bottomRight = target->mapPixelToCoords(
-        {static_cast<int>(targetSize.x), static_cast<int>(targetSize.y)},
-        targetView);
-    const float minimumX =
-        std::min({topLeft.x, topRight.x, bottomLeft.x, bottomRight.x});
-    const float minimumY =
-        std::min({topLeft.y, topRight.y, bottomLeft.y, bottomRight.y});
-    const float maximumX =
-        std::max({topLeft.x, topRight.x, bottomLeft.x, bottomRight.x});
-    const float maximumY =
-        std::max({topLeft.y, topRight.y, bottomLeft.y, bottomRight.y});
-    const sf::FloatRect viewBounds({minimumX, minimumY},
-                                   {maximumX - minimumX, maximumY - minimumY});
-    const sf::Vector2f worldAxisX = topRight - topLeft;
-    const sf::Vector2f worldAxisY = bottomLeft - topLeft;
-    const float worldTime = worldFogState->time;
-    const auto drawLayer = [&](WorldFogLayer& layer, bool base) {
-        const std::optional<sf::FloatRect> layerRect =
-            worldFogRect(layer, viewBounds, base);
-        if (!layerRect.has_value() || layer.texture == nullptr) {
-            return;
+void FogController::applyToScene(MapRenderer::Scene& scene) {
+    const auto& state = *impl_;
+    scene.fog = state.settings;
+    for (MapRenderer::Region& region : scene.regions) {
+        region.fog.reset();
+        if (!region.tilemap) {
+            continue;
         }
-        target->display();
-        const sf::Vector2u size = target->getSize();
-        sf::RenderTexture& buffer = ensureBuffer(size);
-        sf::Sprite& sprite = ensureBufferSprite();
-        const sf::Texture& sourceTexture = target->getTexture();
-        sprite.setTexture(sourceTexture, true);
-        sprite.setTextureRect(
-            {{0, 0}, {static_cast<int>(size.x), static_cast<int>(size.y)}});
-        sprite.setPosition({0.0f, 0.0f});
-        sprite.setScale({1.0f, 1.0f});
-        const sf::Vector2u fogSize = layer.texture->getSize();
-        fogShader_->setUniform("screenTex", sourceTexture);
-        fogShader_->setUniform("fogTex", *layer.texture);
-        fogShader_->setUniform(
-            "fogScroll",
-            sf::Vector2f(layer.scroll.x * worldTime /
-                             static_cast<float>(std::max(1u, fogSize.x)),
-                         layer.scroll.y * worldTime /
-                             static_cast<float>(std::max(1u, fogSize.y))));
-        fogShader_->setUniform("power", layer.power / 100.0f);
-        fogShader_->setUniform("distort", layer.distort / 100.0f);
-        fogShader_->setUniform("time", worldTime);
-        fogShader_->setUniform("worldMode", 1.0f);
-        fogShader_->setUniform("worldOrigin", topLeft);
-        fogShader_->setUniform("worldAxisX", worldAxisX);
-        fogShader_->setUniform("worldAxisY", worldAxisY);
-        fogShader_->setUniform(
-            "fogTextureSize",
-            sf::Vector2f(static_cast<float>(std::max(1u, fogSize.x)),
-                         static_cast<float>(std::max(1u, fogSize.y))));
-        fogShader_->setUniform("clipMin", layerRect->position);
-        fogShader_->setUniform("clipMax",
-                               layerRect->position + layerRect->size);
-        buffer.setView(buffer.getDefaultView());
-        buffer.clear(sf::Color::Transparent);
-        sf::RenderStates states = canvasRenderStates();
-        states.shader = fogShader_.get();
-        buffer.draw(sprite, states);
-        buffer.display();
-        const sf::View savedView = target->getView();
-        target->setView(target->getDefaultView());
-        target->clear(sf::Color::Transparent);
-        sprite.setTexture(buffer.getTexture(), true);
-        target->draw(sprite, canvasRenderStates());
-        target->setView(savedView);
-        target->display();
-    };
-    if (worldFogState->base.has_value()) {
-        drawLayer(*worldFogState->base, true);
-    }
-    for (auto& [_, layer] : worldFogState->regions) {
-        drawLayer(layer, false);
-    }
-}
-
-bool FogController::loadFogTexture() {
-    try {
-        fogTexture_ = TextureManager::load(graphic_, false, std::nullopt, true);
-        if (fogTexture_ == nullptr) {
-            return false;
+        const sf::IntRect rect(region.cellOrigin,
+                               sf::Vector2i(region.tilemap->getSize()));
+        const auto found =
+            std::find_if(state.regions.begin(), state.regions.end(),
+                         [&rect](const auto& entry) {
+                             return entry.cellRect == rect;
+                         });
+        if (found != state.regions.end()) {
+            region.fog = found->settings;
         }
-        fogTexture_->setRepeated(true);
-        return true;
-    } catch (const std::exception& error) {
-        std::cerr << "Failed to load fog texture '" << graphic_
-                  << "': " << error.what() << '\n';
-        return false;
     }
-}
-
-void FogController::ensureShader() {
-    if (fogShader_ != nullptr) {
-        return;
-    }
-    fogShader_ = ShaderManager::load("/Game/Assets/Shaders/Global/Fog.frag");
-}
-
-void FogController::drawShaderOverlay(sf::RenderTexture& canvas) {
-    if (fogTexture_ == nullptr) {
-        return;
-    }
-    const sf::Vector2u size = canvas.getSize();
-    sf::RenderTexture& buffer = ensureBuffer(size);
-    sf::Sprite& sprite = ensureBufferSprite();
-    const sf::Texture& sourceTexture = canvas.getTexture();
-    sprite.setTexture(sourceTexture, true);
-    sprite.setPosition({0.0f, 0.0f});
-    sprite.setScale({1.0f, 1.0f});
-    const sf::Vector2u textureSize = fogTexture_->getSize();
-    const sf::Vector2f fogScroll{
-        offset_.x / static_cast<float>(std::max(1u, textureSize.x)),
-        offset_.y / static_cast<float>(std::max(1u, textureSize.y)),
-    };
-    fogShader_->setUniform("screenTex", sourceTexture);
-    fogShader_->setUniform("fogTex", *fogTexture_);
-    fogShader_->setUniform("fogScroll", fogScroll);
-    fogShader_->setUniform("power", power_ / 100.0f);
-    fogShader_->setUniform("distort", distort_ / 100.0f);
-    fogShader_->setUniform("time", time_);
-    fogShader_->setUniform("worldMode", 0.0f);
-    buffer.clear(sf::Color::Transparent);
-    sf::RenderStates states = canvasRenderStates();
-    states.shader = fogShader_.get();
-    buffer.draw(sprite, states);
-    buffer.display();
-    const sf::View savedView = canvas.getView();
-    const sf::IntRect viewport = canvas.getViewport(savedView);
-    const sf::Vector2f viewSize = savedView.getSize();
-    canvas.clear(sf::Color::Transparent);
-    sprite.setTexture(buffer.getTexture(), true);
-    sprite.setTextureRect(viewport);
-    sprite.setPosition({0.0f, 0.0f});
-    sprite.setScale({viewSize.x / static_cast<float>(viewport.size.x),
-                     viewSize.y / static_cast<float>(viewport.size.y)});
-    canvas.setView(savedView);
-    canvas.draw(sprite, canvasRenderStates());
-    canvas.display();
-}
-
-sf::RenderTexture& FogController::ensureBuffer(const sf::Vector2u& size) {
-    if (fogBuffer_ == nullptr || fogBuffer_->getSize() != size) {
-        fogBuffer_ = std::make_unique<sf::RenderTexture>(size);
-        bufferSprite_.emplace(fogBuffer_->getTexture());
-    }
-    return *fogBuffer_;
-}
-
-sf::Sprite& FogController::ensureBufferSprite() {
-    if (!bufferSprite_.has_value()) {
-        bufferSprite_.emplace(fogBuffer_->getTexture());
-    }
-    return *bufferSprite_;
 }

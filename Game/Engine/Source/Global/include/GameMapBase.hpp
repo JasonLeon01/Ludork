@@ -1,4 +1,6 @@
 #pragma once
+
+#include <Graphics/MapRenderer.hpp>
 #include <Gameplay/ActorMapService.hpp>
 #include <Gameplay/TileLayer.hpp>
 #include <Gameplay/Tilemap/Tilemap.hpp>
@@ -7,8 +9,6 @@
 #include <Gameplay/Actor.hpp>
 #include <General/Material.hpp>
 #include <Light.hpp>
-#include <LightOcclusionInput.hpp>
-#include <LightOcclusionResult.hpp>
 
 using ActorPtr = std::shared_ptr<Actor>;
 using ActorDict = std::unordered_map<std::string, std::vector<ActorPtr>>;
@@ -21,7 +21,6 @@ namespace ludork::global::game_map_base_impl {
 class ActorRegistryImpl;
 class OccupancyIndexImpl;
 class SparseWorldImpl;
-class LightOcclusionImpl;
 class RegionVisibilityImpl;
 }  // namespace ludork::global::game_map_base_impl
 
@@ -266,16 +265,6 @@ public:
     BIND_METHOD(metadata = false)
     std::size_t getSparseOccupancyPageCount() const;
 
-    BIND_METHOD(metadata = false)
-    std::shared_ptr<sf::Texture> rebuildStaticLightOccupancy(
-        const sf::Vector2i& origin, const sf::Vector2u& size,
-        const std::vector<std::shared_ptr<Actor>>& actors);
-
-    BIND_METHOD(metadata = false)
-    std::vector<LightOcclusionResult> analyseLightOcclusion(
-        const std::vector<LightOcclusionInput>& inputs,
-        const std::vector<std::shared_ptr<Actor>>& visibleActors);
-
     ////////////////////////////////////////////////////////////
     /// \brief Synchronise cached actor pointers from typed actor lists
     ///
@@ -365,11 +354,9 @@ public:
     BIND_METHOD(metadata = false)
     bool getHideDisconnectedRegions() const;
     std::vector<std::vector<sf::Vector2i>> getDisplayTileSources() const;
-    std::shared_ptr<sf::Texture> rebuildRenderLightOccupancy(
-        const std::shared_ptr<Tilemap>& displayTilemap,
-        const std::vector<std::shared_ptr<Actor>>& actors);
 
     const ActorDict& getMaterialActorsForRenderer() const;
+    std::vector<MapRenderer::Region> getRenderRegions() const;
 
     const ActorPtr& getPlayerActorForRenderer() const;
 
@@ -498,8 +485,6 @@ private:
     std::shared_ptr<Tilemap> tilemap_;
     std::unique_ptr<ludork::global::game_map_base_impl::SparseWorldImpl>
         sparseWorld_;
-    std::unique_ptr<ludork::global::game_map_base_impl::LightOcclusionImpl>
-        lightOcclusion_;
     std::vector<std::vector<bool>> tilePassableGrid_;
     bool passabilityDirty_ = true;
     std::unique_ptr<ludork::global::game_map_base_impl::OccupancyIndexImpl>

@@ -169,7 +169,7 @@ fi
 if [ "$USE_LDPAK" -eq 1 ]; then
     set -- "$@" --use-ldpak
 fi
-UI_REGISTRY=$("$SCRIPT_TOOLS" ui-preview registry "$PROJECT_DIR")
+UI_REGISTRY=$("$SCRIPT_TOOLS" preview registry "$PROJECT_DIR")
 "$SCRIPT_TOOLS" finalize-package "$@" --registry "$UI_REGISTRY" \
     "$APP_PATH/Contents/Resources"
 plutil -lint "$APP_PATH/Contents/Info.plist"

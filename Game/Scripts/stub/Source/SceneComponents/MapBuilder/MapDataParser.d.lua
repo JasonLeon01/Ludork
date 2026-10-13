@@ -12,6 +12,10 @@ function MapDataParser.GetDataPath(mapPath) end
 ---@return boolean
 function MapDataParser.IsWorldManifest(mapPath) end
 
+---@param data Source.SceneComponents.SerializedMapFogSettings
+---@return Engine.MapFogSettings
+function MapDataParser.BuildFog(data) end
+
 ---@param mapPath    string
 ---@param currentMap string | nil
 ---@return string[]

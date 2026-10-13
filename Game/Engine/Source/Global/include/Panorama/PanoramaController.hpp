@@ -20,8 +20,10 @@ public:
     BIND_METHOD(Pure = true)
     static bool isActive();
 
-    BIND_METHOD(metadata = false)
-    static void drawUnderlay(Camera& camera, const sf::Color& ambientLight);
+    BIND_METHOD(Pure = true)
+    static std::string getPath();
+
+    static std::shared_ptr<sf::Texture> getTexture();
 
     static void shutdown() noexcept;
 };

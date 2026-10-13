@@ -97,6 +97,15 @@ public sealed class WorldMapPanel : Grid, IDisposable
             Content = canvas,
         };
         previewArea.Children.Add(canvasScroll);
+        Button options = new()
+        {
+            Content = "▾", Width = 28, Height = 24, Padding = new Thickness(0), Margin = new Thickness(8),
+            HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top,
+        };
+        ToolTip.SetTip(options, LocaleService.Get("MAP_VIEWPORT_OPTIONS"));
+        Avalonia.Automation.AutomationProperties.SetName(options, LocaleService.Get("MAP_VIEWPORT_OPTIONS"));
+        options.Click += (_, _) => ViewportOptionsRequested?.Invoke(options, EventArgs.Empty);
+        previewArea.Children.Add(options);
         Grid.SetRow(statusText, 1);
         previewArea.Children.Add(statusText);
         Grid.SetColumn(previewArea, 2);
@@ -111,6 +120,7 @@ public sealed class WorldMapPanel : Grid, IDisposable
     public event EventHandler<WorldMapPlacementChangedEventArgs>? PlacementChanged;
     public event EventHandler<WorldMapPlacementRemovedEventArgs>? PlacementRemoved;
     public event EventHandler<string>? ChildMapOpenRequested;
+    public event EventHandler? ViewportOptionsRequested;
 
     public WorldMapViewportState CaptureViewport() => canvas.CaptureViewport();
 

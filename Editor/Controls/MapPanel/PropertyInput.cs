@@ -98,63 +98,20 @@ public sealed partial class MapPanel
         if (EditMode == MapEditMode.Actor && modifiers.HasFlag(KeyModifiers.Alt))
             return tryRotateSelectedActor(rotationDelta);
         if (!EditorZoomInput.HasPrimaryModifier(modifiers) || IsRuntimeEditing
-            || editingContext?.IsEditable != true || gameData is null || CurrentMapKey is null)
-            return false;
-        if (EditMode == MapEditMode.Light && selectedActorIndex is null
-            && selectedLightIndex is int index && CurrentMapDocument?.Lights is IReadOnlyList<MapLightSnapshot> lights
-            && index >= 0 && index < lights.Count && lights[index] is MapLightSnapshot light)
-        {
-            double radius = light.Radius;
-            if (!double.IsFinite(radius) || radius < 0)
-                return false;
-            if (!canScaleProperty(factor))
-                return true;
-            double nextRadius = Math.Max(1, Math.Max(1, radius) * factor);
-            if (!double.IsFinite(nextRadius) || nextRadius == radius)
-                return true;
-            beginPropertyWheelGesture((null, null, index, "radius"));
-            if (gameData.Maps.UpdateMapLight(CurrentMapKey, index, light, radius: nextRadius)
-                && getLight(index) is MapLightSnapshot changedLight)
-                LightDataChanged?.Invoke(this, new LightDataChangedEventArgs(CurrentMapKey, index, changedLight.ToJson()));
-            return true;
-        }
-        if (EditMode != MapEditMode.Actor && (EditMode != MapEditMode.Light || !LightActorSelectionEnabled)
+            || editingContext?.IsEditable != true || gameData is null || CurrentMapKey is null
+            || EditMode != MapEditMode.Actor
             || !tryGetEditableActorClass(out MapActorSnapshot actor, out ResolvedBlueprintClass resolved))
             return false;
-        string property;
-        JsonNode value;
-        if (EditMode == MapEditMode.Actor)
-        {
-            property = "defaultScale";
-            if (!tryGetPropertyVector(resolved.GetField(property), out Vector scale))
-                return false;
-            if (!canScaleProperty(factor))
-                return true;
-            Vector next = scale * factor;
-            if (!isFinite(next) || next == scale)
-                return true;
-            value = new JsonArray(next.X, next.Y);
-        }
-        else
-        {
-            property = "lightComp";
-            if (resolved.GetField(property) is not ResolvedBlueprintField field || field.Value is not JsonObject component
-                || previewService?.tryResolveActorLight(actor.Blueprint,
-                    CurrentMapDocument?.ReadActorOverrides(actor.Tag)) is not ActorLightDescriptor descriptor)
-                return false;
-            if (!canScaleProperty(factor))
-                return true;
-            double nextRadius = Math.Max(1, descriptor.Radius * factor);
-            if (!double.IsFinite(nextRadius) || nextRadius == descriptor.Radius)
-                return true;
-            JsonObject next = field.BlueprintDefaultValue?.DeepClone() as JsonObject ?? [];
-            foreach (KeyValuePair<string, JsonNode?> entry in component)
-                next[entry.Key] = entry.Value?.DeepClone();
-            next["lightRadius"] = nextRadius;
-            value = next;
-        }
+        const string property = "defaultScale";
+        if (!tryGetPropertyVector(resolved.GetField(property), out Vector scale))
+            return false;
+        if (!canScaleProperty(factor))
+            return true;
+        Vector next = scale * factor;
+        if (!isFinite(next) || next == scale)
+            return true;
         beginPropertyWheelGesture((selectedActorLayer, actor.Tag, null, property));
-        setActorProperty(actor, property, value);
+        setActorProperty(actor, property, new JsonArray(next.X, next.Y));
         return true;
     }
 
@@ -180,7 +137,7 @@ public sealed partial class MapPanel
     private bool canScaleProperty(double factor)
     {
         return double.IsFinite(factor) && factor > 0 && factor != 1
-            && actorPropertyDrag is null && actorMoveIndex is null && !lightMoveDragging && !lightRadiusDragging;
+            && actorPropertyDrag is null && actorMoveIndex is null;
     }
 
     private void setActorProperty(MapActorSnapshot actor, string property, JsonNode value)

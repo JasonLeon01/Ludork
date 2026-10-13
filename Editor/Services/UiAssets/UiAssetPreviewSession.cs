@@ -12,7 +12,7 @@ internal sealed class UiAssetPreviewSession : IAsyncDisposable
 {
     private readonly UiAssetEditorDocument document;
     private readonly ProjectDataStore gameData;
-    private readonly UiPreviewRuntimeService runtime;
+    private readonly PreviewRuntimeService runtime;
     private readonly UiPreviewClient client;
     private readonly CancellationTokenSource lifetime = new();
     private CancellationTokenSource? debounceCancellation;
@@ -37,7 +37,7 @@ internal sealed class UiAssetPreviewSession : IAsyncDisposable
     public UiAssetPreviewSession(
         UiAssetEditorDocument document,
         ProjectDataStore gameData,
-        UiPreviewRuntimeService runtime)
+        PreviewRuntimeService runtime)
     {
         Dispatcher.UIThread.VerifyAccess();
         this.document = document;
@@ -123,7 +123,7 @@ internal sealed class UiAssetPreviewSession : IAsyncDisposable
             return false;
         if (ReferenceEquals(document.FindParent(nodeName), document.FindNode(parentName)))
             return document.MoveNode(nodeName, parentName, index);
-        UiPreviewRuntimeSnapshot? snapshot = runtime.Current;
+        PreviewRuntimeSnapshot? snapshot = runtime.Current;
         if (!runtime.IsReady || snapshot is null)
             return false;
         AssetSnapshot source = captureAssetSnapshot();
@@ -252,7 +252,7 @@ internal sealed class UiAssetPreviewSession : IAsyncDisposable
 
     private async Task renderAsync()
     {
-        UiPreviewRuntimeSnapshot? snapshot = runtime.Current;
+        PreviewRuntimeSnapshot? snapshot = runtime.Current;
         if (disposed || !runtime.IsReady || snapshot is null)
             return;
         long version = requestVersion;

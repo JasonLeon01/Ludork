@@ -14,5 +14,4 @@ public static class MapDocumentCodec
     public static JsonObject Encode(MapDocumentSnapshot document) => document.ToJson();
     public static MapActorSnapshot CreateActor(string blueprint) => new(new JsonObject { ["bp"] = blueprint });
     public static MapActorSnapshot DecodeActor(JsonObject actor) => new((JsonObject)actor.DeepClone());
-    public static MapLightSnapshot DecodeLight(JsonObject light) => new((JsonObject)light.DeepClone());
 }

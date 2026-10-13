@@ -31,15 +31,7 @@ public sealed partial class MapPanel
         context.DrawImage(checkerboardRenderCache.Bitmap, new Rect(0, 0, pixelSize.Width, pixelSize.Height), checkerboardRenderCache.Viewport);
     }
 
-    private void drawLayer(DrawingContext context, string layerName)
-    {
-        if (!layerRenderCaches.TryGetValue(layerName, out LayerRenderCache? cache))
-            return;
-        PixelSize pixelSize = cache.Bitmap.PixelSize;
-        context.DrawImage(cache.Bitmap, new Rect(0, 0, pixelSize.Width, pixelSize.Height), cache.Viewport);
-    }
-
-    private void drawActors(DrawingContext context, string layerName)
+    private void drawActorHelpers(DrawingContext context, string layerName)
     {
         if (!actorRenderStates.TryGetValue(layerName, out List<ActorRenderState>? actors))
             return;
@@ -48,10 +40,12 @@ public sealed partial class MapPanel
             ActorRenderState actor = actors[index];
             if (!tryGetActorPosition(actor.Actor, out int gridX, out int gridY))
                 continue;
-            Bitmap? image = actor.PreviewLease?.Frame ?? actor.Image;
-            if (image is null)
+            if (actor.Image is null)
             {
-                context.FillRectangle(MissingActorBrush, getLocalTileRect(gridX, gridY));
+                Rect placeholder = getLocalTileRect(gridX, gridY);
+                context.FillRectangle(MissingActorBrush, placeholder);
+                if (selectedActorLayer == layerName && selectedActorIndex == index)
+                    context.DrawRectangle(null, SelectedActorPen, placeholder);
                 continue;
             }
             Rect source = getActorRenderSource(actor);
@@ -59,33 +53,9 @@ public sealed partial class MapPanel
             using (context.PushTransform(transform))
             {
                 Rect destination = new Rect(-actor.Origin.X, -actor.Origin.Y, source.Width, source.Height);
-                using (context.PushOpacity(actor.MapPreviewOpacity))
-                    context.DrawImage(image, source, destination);
                 if (selectedActorLayer == layerName && selectedActorIndex == index)
                     context.DrawRectangle(null, SelectedActorPen, destination);
             }
-            Rect cell = getLocalTileRect(gridX, gridY);
-            context.DrawEllipse(ActorOriginBrush, null, cell.Center, 3, 3);
-        }
-    }
-
-    private void drawLightOverlay(DrawingContext context)
-    {
-        drawActorLightOverlay(context);
-        if (CurrentMapDocument?.Lights is not IReadOnlyList<MapLightSnapshot> lights)
-            return;
-        double scale = tileSize / (double)SourceTileSize;
-        for (int index = 0; index < lights.Count; index++)
-        {
-            if (lights[index] is not MapLightSnapshot light || !tryGetLight(light, out Point center, out double radius))
-                continue;
-            Point displayCenter = new(snapToDevicePixel(center.X * scale), snapToDevicePixel(center.Y * scale));
-            double displayRadius = radius * scale;
-            bool selected = selectedLightIndex == index;
-            Color outline = selected ? Color.FromRgb(255, 220, 0) : Color.FromRgb(0, 200, 0);
-            Color fill = getLightFill(light);
-            context.DrawEllipse(new SolidColorBrush(fill), new Pen(new SolidColorBrush(outline), 2), displayCenter, displayRadius, displayRadius);
-            context.DrawEllipse(new SolidColorBrush(outline), null, displayCenter, 3, 3);
         }
     }
 
@@ -124,8 +94,6 @@ public sealed partial class MapPanel
     private void ensureRenderCaches(int mapWidth, int mapHeight, Rect viewport)
     {
         double renderScale = getRenderScaling();
-        if (animationStateDirty)
-            renderedAutoTileFrame = getAutoTileFrame();
         CacheGeometry nextGeometry = new(mapWidth, mapHeight, tileSize, renderScale, viewport);
         if (cacheGeometry != nextGeometry)
         {
@@ -136,30 +104,6 @@ public sealed partial class MapPanel
         ensureActorRenderStates();
         ensurePendingActorRenderState();
         scheduleActorPreviewActivityUpdate();
-        IReadOnlyDictionary<string, MapLayerSnapshot>? layers = CurrentMapDocument?.Layers;
-        if (layers is not null)
-        {
-            HashSet<string> activeLayers = new(StringComparer.Ordinal);
-            foreach (KeyValuePair<string, MapLayerSnapshot> entry in layers)
-            {
-                if (entry.Value is not MapLayerSnapshot layer || !isLayerVisible(layer))
-                    continue;
-                activeLayers.Add(entry.Key);
-                if (!layerRenderCaches.ContainsKey(entry.Key) || dirtyLayerNames.Contains(entry.Key))
-                {
-                    if (layerRenderCaches.Remove(entry.Key, out LayerRenderCache? previous))
-                        previous.Dispose();
-                    layerRenderCaches[entry.Key] = buildLayerRenderCache(layer, mapWidth, mapHeight, viewport, renderScale);
-                    dirtyLayerNames.Remove(entry.Key);
-                }
-            }
-            foreach (string layerName in new List<string>(layerRenderCaches.Keys))
-            {
-                if (!activeLayers.Contains(layerName) && layerRenderCaches.Remove(layerName, out LayerRenderCache? removed))
-                    removed.Dispose();
-            }
-        }
-        rebuildAnimationStateIfNeeded();
     }
 
     private ViewportRenderCache buildCheckerboardRenderCache(Rect viewport, double renderScale)
@@ -187,48 +131,6 @@ public sealed partial class MapPanel
             }
         }
         return new ViewportRenderCache(bitmap, viewport);
-    }
-
-    private LayerRenderCache buildLayerRenderCache(MapLayerSnapshot layer, int mapWidth, int mapHeight, Rect viewport, double renderScale)
-    {
-        RenderTargetBitmap bitmap = createRenderTarget(viewport, renderScale);
-        using DrawingContext context = bitmap.CreateDrawingContext();
-        using (context.PushTransform(Matrix.CreateTranslation(-viewport.X, -viewport.Y)))
-            drawLayerCells(context, layer, mapWidth, mapHeight, viewport);
-        return new LayerRenderCache(bitmap, viewport);
-    }
-
-    private void drawLayerCells(DrawingContext context, MapLayerSnapshot layer, int mapWidth, int mapHeight, Rect viewport)
-    {
-        if (gameData is null || autoTileRenderer is null)
-            return;
-        string? tilesetKey = layer.Tileset;
-        Bitmap? tileset = getTileset(tilesetKey);
-        int minX = Math.Max(0, (int)Math.Floor(viewport.X / tileSize));
-        int minY = Math.Max(0, (int)Math.Floor(viewport.Y / tileSize));
-        int maxX = Math.Min(mapWidth, (int)Math.Ceiling(viewport.Right / tileSize));
-        int maxY = Math.Min(mapHeight, (int)Math.Ceiling(viewport.Bottom / tileSize));
-        for (int y = minY; y < maxY; y++)
-        {
-            for (int x = minX; x < maxX; x++)
-            {
-                Rect destination = getLocalTileRect(x, y);
-                string? autoKey = layer.AutoTileAt(x, y);
-                if (!string.IsNullOrWhiteSpace(autoKey))
-                {
-                    autoTileRenderer.drawTile(context, autoKey, layer, x, y, destination, renderedAutoTileFrame);
-                    continue;
-                }
-                if (tileset is null || layer.TileAt(x, y) is not int number)
-                    continue;
-                int columns = Math.Max(1, tileset.PixelSize.Width / SourceTileSize);
-                int sourceX = number % columns * SourceTileSize;
-                int sourceY = number / columns * SourceTileSize;
-                Rect source = new(sourceX, sourceY, SourceTileSize, SourceTileSize);
-                if (source.Right <= tileset.PixelSize.Width && source.Bottom <= tileset.PixelSize.Height)
-                    context.DrawImage(tileset, source, destination);
-            }
-        }
     }
 
     private static RenderTargetBitmap createRenderTarget(Rect viewport, double renderScale)
@@ -261,7 +163,6 @@ public sealed partial class MapPanel
             }
         }
         actorRenderStatesDirty = false;
-        animationStateDirty = true;
     }
 
     private ActorRenderState createActorRenderState(MapActorSnapshot actor)
@@ -316,14 +217,7 @@ public sealed partial class MapPanel
         Rect source = new(textureRect.X, textureRect.Y, textureRect.Width, textureRect.Height);
         if (source.Width <= 0 || source.Height <= 0 || source.Right > image.PixelSize.Width || source.Bottom > image.PixelSize.Height)
             return ActorRenderState.Missing(actor);
-        if (!EditorBitmapEffects.IsNeutralHue(descriptor.Hue))
-            image = getHueImage(descriptor.TexturePath, image, descriptor.Hue);
         ActorPreviewLease? previewLease = null;
-        if (descriptor.RequiresNativePreview && previewService is not null)
-        {
-            previewLease = previewService.ActorPreviews.Acquire(descriptor, 0, false);
-            previewLease.FrameChanged += onActorPreviewFrameChanged;
-        }
         return new ActorRenderState(
             actor,
             image,
@@ -348,7 +242,7 @@ public sealed partial class MapPanel
         }
         if (!actor.Animated || actor.FrameCount <= 1 || actor.Image is null)
             return actor.BaseSource;
-        TimeSpan elapsed = previewService?.ActorPreviews.Elapsed ?? animationClock.Elapsed;
+        TimeSpan elapsed = TimeSpan.FromSeconds(previewService?.MapPreviews.AnimationTime ?? animationClock.Elapsed.TotalSeconds);
         int frame = (int)(elapsed.TotalSeconds / actor.Interval) % actor.FrameCount;
         double sourceX = (actor.BaseSource.X + frame * actor.BaseSource.Width) % actor.Image.PixelSize.Width;
         return new Rect(sourceX, actor.BaseSource.Y, actor.BaseSource.Width, actor.BaseSource.Height);
@@ -407,7 +301,8 @@ public sealed partial class MapPanel
             }
         }
         if (pendingActorRenderState?.PreviewLease is { } pendingLease)
-            pendingLease.IsActive = panelActive && EditMode == MapEditMode.Actor && hoverGrid is not null;
+            pendingLease.IsActive = panelActive && previewService?.MapPreviews.Options.Realtime == true
+                && EditMode == MapEditMode.Actor && hoverGrid is not null;
     }
 
     private Rect getActorPreviewBounds(ActorRenderState actor, int gridX, int gridY)
@@ -447,49 +342,6 @@ public sealed partial class MapPanel
             return;
         lease.FrameChanged -= onActorPreviewFrameChanged;
         lease.Dispose();
-    }
-
-    private void rebuildAnimationStateIfNeeded()
-    {
-        if (!animationStateDirty || autoTileRenderer is null)
-            return;
-        animatedAutoTileLayerNames.Clear();
-        if (CurrentMapDocument?.Layers is IReadOnlyDictionary<string, MapLayerSnapshot> layers)
-        {
-            foreach (KeyValuePair<string, MapLayerSnapshot> entry in layers)
-            {
-                IEnumerable<string> keys = entry.Value.AutoTileKeys;
-                foreach (string key in keys)
-                {
-                    if (autoTileRenderer.getFrameCount(key) > 1)
-                    {
-                        animatedAutoTileLayerNames.Add(entry.Key);
-                        break;
-                    }
-                }
-            }
-        }
-        hasAnimatedActors = pendingActorRenderState is { Animated: true, FrameCount: > 1 };
-        if (!hasAnimatedActors)
-        {
-            foreach (List<ActorRenderState> states in actorRenderStates.Values)
-            {
-                if (states.Exists(actor => actor.Animated && actor.FrameCount > 1))
-                {
-                    hasAnimatedActors = true;
-                    break;
-                }
-            }
-        }
-        renderedAutoTileFrame = getAutoTileFrame();
-        animationStateDirty = false;
-        if (hasAnimatedActors || animatedAutoTileLayerNames.Count > 0)
-        {
-            if (!animationTimer.IsEnabled)
-                animationTimer.Start();
-        }
-        else
-            animationTimer.Stop();
     }
 
 }

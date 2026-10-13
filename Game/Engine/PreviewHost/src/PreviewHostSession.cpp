@@ -1,0 +1,141 @@
+#include "PreviewHostSession.hpp"
+
+#include "Protocol/PreviewProtocol.hpp"
+
+#include <EngineState.hpp>
+#include <Runtime/AssetStore.hpp>
+#include <Runtime/RuntimeDataReader.hpp>
+#include <UI/UiControlAdapterRegistry.hpp>
+#include <UI/UiResources.hpp>
+#include <UI/UiVector4CurveResource.hpp>
+#include <Utf8Path.hpp>
+
+#include <filesystem>
+#include <stdexcept>
+#include <string>
+#include <utility>
+
+namespace ludork::preview_host {
+
+PreviewHostSession::PreviewHostSession(std::string_view adapterFingerprint,
+                                       std::string_view registryHash)
+    : adapterFingerprint_(adapterFingerprint), registryHash_(registryHash) {}
+
+PreviewHostSession::~PreviewHostSession() noexcept {
+    mapSession_.reset();
+    subtitleSession_.reset();
+    particleSession_.reset();
+    uiSession_.reset();
+    clearUiVector4CurveResourceCache();
+    clearUiControlAdapterResourceCache();
+    uiResources().reset();
+}
+
+RuntimeData PreviewHostSession::handle(const RuntimeData& requestValue) {
+    const RuntimeData::Map& request = ludork::runtime::value_reader::requireMap(
+        requestValue, "Preview request");
+    const std::string& type = ludork::runtime::value_reader::requireString(
+        ludork::runtime::value_reader::requireValue(request, "type",
+                                                    "Preview request"),
+        "Preview request.type");
+    if (type == "handshake") {
+        return handshake(request);
+    }
+    if (!accepted_) {
+        throw std::runtime_error(
+            "Preview protocol handshake has not completed");
+    }
+    if (type == "render") {
+        return uiSession_.render(request, frameFiles_);
+    }
+    if (type == "hitTest") {
+        return uiSession_.hitTest(request);
+    }
+    if (type == "resolveReparent") {
+        return uiSession_.resolveReparent(request);
+    }
+    if (type == "renderActorBatch") {
+        engineState().setScale(1.0f);
+        return actorRenderer_.render(request, frameFiles_);
+    }
+    if (type == "renderMap") {
+        engineState().setScale(1.0f);
+        return mapSession_.render(request, frameFiles_);
+    }
+    if (type == "renderParticle") {
+        engineState().setScale(1.0f);
+        return particleSession_.render(request, frameFiles_);
+    }
+    if (type == "renderSubtitle") {
+        return subtitleSession_.render(request, frameFiles_);
+    }
+    throw std::invalid_argument("Unknown preview request type: " + type);
+}
+
+RuntimeData PreviewHostSession::handshake(const RuntimeData::Map& request) {
+    mapSession_.reset();
+    subtitleSession_.reset();
+    particleSession_.reset();
+    clearUiVector4CurveResourceCache();
+    accepted_ = false;
+    uiSession_.reset();
+    const std::int64_t requestedProtocol =
+        ludork::runtime::value_reader::requireInteger(
+            ludork::runtime::value_reader::requireValue(
+                request, "protocolVersion", "Handshake"),
+            "Handshake.protocolVersion");
+    const std::string& requestedFingerprint =
+        ludork::runtime::value_reader::requireString(
+            ludork::runtime::value_reader::requireValue(
+                request, "adapterFingerprint", "Handshake"),
+            "Handshake.adapterFingerprint");
+    const bool accepted = requestedProtocol == protocolVersion &&
+                          requestedFingerprint == adapterFingerprint_ &&
+                          ludork::runtime::value_reader::requireString(
+                              ludork::runtime::value_reader::requireValue(
+                                  request, "registryHash", "Handshake"),
+                              "Handshake.registryHash") == registryHash_;
+    std::string message;
+    if (!accepted) {
+        message =
+            "PreviewHost protocol, adapter fingerprint or registry hash is "
+            "incompatible.";
+    } else {
+        const std::string& projectPath =
+            ludork::runtime::value_reader::requireString(
+                ludork::runtime::value_reader::requireValue(
+                    request, "projectPath", "Handshake"),
+                "Handshake.projectPath");
+        const std::filesystem::path project = std::filesystem::weakly_canonical(
+            ludork::standard::pathFromUtf8(projectPath));
+        if (!std::filesystem::is_directory(project)) {
+            throw std::invalid_argument(
+                "Handshake projectPath is not a directory");
+        }
+        std::filesystem::current_path(project);
+        ludork::runtime::assetStore().configure(project);
+        engineState().setScale(1.0f);
+        actorRenderer_.reset(project);
+        accepted_ = true;
+    }
+    RuntimeData::Array capabilities;
+    capabilities.emplace_back(RuntimeData("ui"));
+    capabilities.emplace_back(RuntimeData("actor"));
+    capabilities.emplace_back(RuntimeData("particle"));
+    capabilities.emplace_back(RuntimeData("subtitle"));
+    capabilities.emplace_back(RuntimeData("map"));
+    capabilities.emplace_back(RuntimeData("mapActorChanges"));
+    capabilities.emplace_back(RuntimeData("persistentFrames"));
+    return RuntimeData(object({
+        {"type", RuntimeData("handshake")},
+        {"accepted", RuntimeData(accepted)},
+        {"protocolVersion", RuntimeData(protocolVersion)},
+        {"adapterFingerprint", RuntimeData(adapterFingerprint_)},
+        {"registryHash", RuntimeData(registryHash_)},
+        {"capabilities", RuntimeData(std::move(capabilities))},
+        {"ffmpeg", RuntimeData(LUDORK_HAS_FFMPEG != 0)},
+        {"message", RuntimeData(std::move(message))},
+    }));
+}
+
+}  // namespace ludork::preview_host

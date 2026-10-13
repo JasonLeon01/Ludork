@@ -1,7 +1,7 @@
 {
   "parent": "Source.MapActors.ConditionalActor.ConditionalActor",
   "attrs": {
-    "animatable": false,
+    "animatable": true,
     "collisionEnabled": true,
     "tickable": false,
     "texturePath": "/Game/Assets/Characters/npcs/classic-npcs-50F-single.png",
@@ -34,12 +34,30 @@
         {
           "kind": "text",
           "text": "EmitterShowcase",
-          "color": [255, 255, 255, 255]
+          "color": [
+            255,
+            255,
+            255,
+            255
+          ]
         }
       ],
       "showRange": 128
     },
-    "tag": ""
+    "tag": "",
+    "lightComp": {
+      "lightColour": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "lightRadius": 48,
+      "lightOffset": [
+        0,
+        0
+      ]
+    }
   },
   "graph": {
     "nodeGraph": {},

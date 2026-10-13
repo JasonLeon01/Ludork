@@ -122,8 +122,7 @@
         <KeyBinding Gesture="{OnPlatform Default=Ctrl+O, macOS=Meta+O}" Command="{Binding OpenProjectCommand}" />
         <KeyBinding Gesture="{OnPlatform Default=Ctrl+W, macOS=Meta+W}" Command="{Binding ExitCommand}" />
         <KeyBinding Gesture="{OnPlatform Default=Ctrl+D1, macOS=Meta+D1}" Command="{Binding TileModeCommand}" />
-        <KeyBinding Gesture="{OnPlatform Default=Ctrl+D2, macOS=Meta+D2}" Command="{Binding LightModeCommand}" />
-        <KeyBinding Gesture="{OnPlatform Default=Ctrl+D3, macOS=Meta+D3}" Command="{Binding ActorModeCommand}" />
+        <KeyBinding Gesture="{OnPlatform Default=Ctrl+D2, macOS=Meta+D2}" Command="{Binding ActorModeCommand}" />
         <KeyBinding Gesture="F1" Command="{Binding HelpCommand}" />
         <KeyBinding Gesture="F3" Command="{Binding GameConfigCommand}" />
         <KeyBinding Gesture="F4" Command="{Binding SystemConfigCommand}" />
@@ -308,15 +307,6 @@
                             </TabStrip>
                         </ScrollViewer>
 
-                        <ToggleButton x:Name="LightActorSelectionToggle"
-                                      Grid.Column="1"
-                                      Height="28"
-                                      IsVisible="False"
-                                      IsChecked="False"
-                                      Margin="8,0,0,0"
-                                      VerticalAlignment="Center"
-                                      Click="onLightActorSelectionClick" />
-
                         <StackPanel x:Name="RunButtons"
                                     Grid.Column="2"
                                     Orientation="Horizontal"
@@ -340,7 +330,7 @@
                     <Grid Grid.Row="1" ColumnDefinitions="Auto,*">
                         <Grid x:Name="EditModeToggles"
                               Grid.Column="0"
-                              RowDefinitions="48,48,48"
+                              RowDefinitions="48,48"
                               Width="48"
                               VerticalAlignment="Top">
                             <ToggleButton x:Name="TileModeToggle" Grid.Row="0" Classes="mode" IsChecked="True" Click="onTileModeClick">
@@ -349,16 +339,10 @@
                                     <TextBlock Grid.Row="1" Text="{OnPlatform Default=Ctrl+1, macOS=⌘1}" FontSize="12" Foreground="{DynamicResource Editor.TextMutedBrush}" HorizontalAlignment="Center" />
                                 </Grid>
                             </ToggleButton>
-                            <ToggleButton x:Name="LightModeToggle" Grid.Row="1" Classes="mode" Click="onLightModeClick">
-                                <Grid RowDefinitions="28,16">
-                                    <Image Grid.Row="0" Width="16" Height="16" Source="{StaticResource EditorImage.ModeLight}" />
-                                    <TextBlock Grid.Row="1" Text="{OnPlatform Default=Ctrl+2, macOS=⌘2}" FontSize="12" Foreground="{DynamicResource Editor.TextMutedBrush}" HorizontalAlignment="Center" />
-                                </Grid>
-                            </ToggleButton>
-                            <ToggleButton x:Name="ActorModeToggle" Grid.Row="2" Classes="mode" Click="onActorModeClick">
+                            <ToggleButton x:Name="ActorModeToggle" Grid.Row="1" Classes="mode" Click="onActorModeClick">
                                 <Grid RowDefinitions="28,16">
                                     <Image Grid.Row="0" Width="16" Height="16" Source="{StaticResource EditorImage.ModeActor}" />
-                                    <TextBlock Grid.Row="1" Text="{OnPlatform Default=Ctrl+3, macOS=⌘3}" FontSize="12" Foreground="{DynamicResource Editor.TextMutedBrush}" HorizontalAlignment="Center" />
+                                    <TextBlock Grid.Row="1" Text="{OnPlatform Default=Ctrl+2, macOS=⌘2}" FontSize="12" Foreground="{DynamicResource Editor.TextMutedBrush}" HorizontalAlignment="Center" />
                                 </Grid>
                             </ToggleButton>
                         </Grid>
@@ -372,9 +356,13 @@
                         <controls:WorldMapPanel x:Name="WorldEditorPanel"
                                                 Grid.Column="1"
                                                 IsVisible="False" />
+                        <Button x:Name="ViewportOptionsButton" Grid.Column="1"
+                                HorizontalAlignment="Left" VerticalAlignment="Top"
+                                Width="28" Height="24" Padding="0" Margin="8"
+                                Content="▾" Click="onViewportOptionsClick" />
                         <Border x:Name="LiveDebugBanner" Grid.Column="1"
                                 HorizontalAlignment="Left" VerticalAlignment="Top"
-                                Background="{DynamicResource Editor.OverlayBrush}" CornerRadius="4" Padding="10,6" Margin="8"
+                                Background="{DynamicResource Editor.OverlayBrush}" CornerRadius="4" Padding="10,6" Margin="44,8,8,8"
                                 IsVisible="False" IsHitTestVisible="False">
                             <TextBlock x:Name="LiveDebugStatus" Foreground="{DynamicResource Editor.TextMutedBrush}" />
                         </Border>
@@ -452,8 +440,6 @@
                   MinWidth="320">
                 <views:TileSelectPanel x:Name="RightList"
                                        DataContext="{Binding TileSelect}" />
-                <controls:LightInfoPanel x:Name="LightInfoPanel"
-                                         IsVisible="False" />
                 <Grid x:Name="ActorModePanel"
                       RowDefinitions="*,4,2*"
                       IsVisible="False">

@@ -63,7 +63,6 @@ public sealed partial class MapPanel
                 return cached.Image;
             }
             retiredBitmaps.Add(cached.Image);
-            retireHueImages(cacheKey);
             bitmapCache.Remove(cacheKey);
         }
         if (!file.Exists)
@@ -74,104 +73,6 @@ public sealed partial class MapPanel
             file.Length,
             image);
         return image;
-    }
-
-    private Bitmap getHueImage(string assetPath, Bitmap source, double hue)
-    {
-        double normalizedHue = EditorBitmapEffects.NormalizeHue(hue);
-        string cacheKey = assetPath + "|" + normalizedHue.ToString("R", CultureInfo.InvariantCulture);
-        if (hueCache.TryGetValue(cacheKey, out Bitmap? cached))
-            return cached;
-        Bitmap result = EditorBitmapEffects.CreateHueShiftedBitmap(source, normalizedHue);
-        hueCache[cacheKey] = result;
-        return result;
-    }
-
-    private void retireHueImages(string assetPath)
-    {
-        string prefix = assetPath + "|";
-        foreach (string key in hueCache.Keys
-            .Where(key => key.StartsWith(prefix, StringComparison.Ordinal))
-            .ToArray())
-        {
-            retiredBitmaps.Add(hueCache[key]);
-            hueCache.Remove(key);
-        }
-    }
-
-    private void showLightContextMenu(Point position, int width, int height)
-    {
-        if (IsRuntimeEditing || editingContext?.IsEditable != true)
-            return;
-        if (getMapBasePosition(position, width, height) is not { } basePosition)
-            return;
-        MenuItem add = new() { Header = LocaleService.Get("NEW_LIGHT_SOURCE") };
-        add.Click += (_, _) =>
-        {
-            if (IsRuntimeEditing || editingContext?.IsEditable != true || gameData is null || CurrentMapKey is null)
-                return;
-            int? index = gameData.Maps.AddMapLight(CurrentMapKey, basePosition.X, basePosition.Y);
-            if (index is not null)
-                setSelectedLightIndex(index);
-            InvalidateVisual();
-        };
-        MenuItem delete = new() { Header = LocaleService.Get("DELETE"), IsEnabled = selectedLightIndex is not null };
-        delete.Click += (_, _) => deleteSelectedLight();
-        new ContextMenu { ItemsSource = new object[] { add, delete } }.Open(this);
-    }
-
-    private void deleteSelectedLight()
-    {
-        if (IsRuntimeEditing || editingContext?.IsEditable != true)
-            return;
-        if (selectedLightIndex is not int index
-            || CurrentMapDocument?.Lights is not IReadOnlyList<MapLightSnapshot> lights
-            || index < 0
-            || index >= lights.Count)
-        {
-            return;
-        }
-        if (gameData is null || CurrentMapKey is null || lights[index] is not MapLightSnapshot light
-            || !gameData.Maps.DeleteMapLight(CurrentMapKey, index, light))
-            return;
-        setSelectedLightIndex(null);
-        InvalidateVisual();
-    }
-
-    private int? hitTestLight(Point position)
-    {
-        if (CurrentMapDocument?.Lights is not IReadOnlyList<MapLightSnapshot> lights)
-            return null;
-        int? best = null;
-        double bestDistance = double.MaxValue;
-        for (int index = 0; index < lights.Count; index++)
-        {
-            if (lights[index] is not MapLightSnapshot light || !tryGetLight(light, out Point center, out double radius))
-                continue;
-            double distance = getDistance(position, center);
-            if (distance <= radius && (distance < bestDistance
-                || LightActorSelectionEnabled && distance == bestDistance))
-            {
-                best = index;
-                bestDistance = distance;
-            }
-        }
-        return best;
-    }
-
-    private void setSelectedLightIndex(int? index, bool force = false)
-    {
-        MapLightSnapshot? light = null;
-        if (index is int value && CurrentMapDocument?.Lights is IReadOnlyList<MapLightSnapshot> lights && value >= 0 && value < lights.Count)
-            light = lights[value];
-        int? nextIndex = light is null ? null : index;
-        if (selectedLightIndex == nextIndex && !force)
-            return;
-        if (propertyWheelTarget is not null)
-            endMapGesture();
-        selectedLightIndex = nextIndex;
-        LightSelectionChanged?.Invoke(this, new LightSelectionChangedEventArgs(CurrentMapKey ?? string.Empty, selectedLightIndex, light?.ToJson()));
-        InvalidateVisual();
     }
 
     private int? hitTestActor(string layerName, Point mapPosition, HashSet<MapActorSnapshot>? allowedActors = null)
@@ -337,23 +238,6 @@ public sealed partial class MapPanel
         return mapRect.Contains(position) ? new Point(position.X - mapRect.X, position.Y - mapRect.Y) : null;
     }
 
-    private int getAutoTileFrame() => (int)(animationClock.ElapsedMilliseconds / 500) % 1024;
-
-    private void onAnimationTick(object? sender, EventArgs args)
-    {
-        bool redraw = hasAnimatedActors;
-        int autoTileFrame = getAutoTileFrame();
-        if (animatedAutoTileLayerNames.Count > 0 && autoTileFrame != renderedAutoTileFrame)
-        {
-            renderedAutoTileFrame = autoTileFrame;
-            foreach (string layerName in animatedAutoTileLayerNames)
-                dirtyLayerNames.Add(layerName);
-            redraw = true;
-        }
-        if (redraw)
-            InvalidateVisual();
-    }
-
     private void onTileBrushRenderTick(object? sender, EventArgs args)
     {
         flushPendingBrushLayers();
@@ -362,7 +246,6 @@ public sealed partial class MapPanel
     private void scheduleBrushLayerRefresh(string layerName)
     {
         pendingBrushLayerNames.Add(layerName);
-        animationStateDirty = true;
         if (!tileBrushRenderTimer.IsEnabled)
             tileBrushRenderTimer.Start();
     }
@@ -372,47 +255,17 @@ public sealed partial class MapPanel
         tileBrushRenderTimer.Stop();
         if (pendingBrushLayerNames.Count == 0)
             return;
-        foreach (string layerName in pendingBrushLayerNames)
-            dirtyLayerNames.Add(layerName);
         pendingBrushLayerNames.Clear();
         InvalidateVisual();
     }
 
-    private static double getDistance(Point first, Point second)
-    {
-        double dx = first.X - second.X;
-        double dy = first.Y - second.Y;
-        return Math.Sqrt(dx * dx + dy * dy);
-    }
-
     private MapLayerSnapshot? getLayer(string name) => CurrentMapDocument?.Layers.GetValueOrDefault(name);
-
-    private MapLightSnapshot? getLight(int index) => CurrentMapDocument is not null && index >= 0 && index < CurrentMapDocument.Lights.Count
-        ? CurrentMapDocument.Lights[index] : null;
 
     private static bool isLayerVisible(MapLayerSnapshot layer) => layer.Visible;
 
     private static bool tryGetInt(JsonNode? value, out int result) => int.TryParse(value?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out result);
 
     private static bool tryGetActorPosition(MapActorSnapshot actor, out int x, out int y) => actor.TryGetGridPosition(out x, out y);
-
-    private static bool tryGetLight(MapLightSnapshot light, out Point center, out double radius)
-    {
-        center = new Point(light.Position.X, light.Position.Y);
-        radius = light.Radius;
-        return light.HasPosition && radius > 0;
-    }
-
-    private static Color getLightFill(MapLightSnapshot light)
-    {
-        MapColour colour = light.Colour;
-        return getLightFill(Color.FromArgb(colour.A, colour.R, colour.G, colour.B));
-    }
-
-    private static Color getLightFill(Color colour)
-    {
-        return Color.FromArgb((byte)Math.Clamp((int)(colour.A * 0.15), 12, 80), colour.R, colour.G, colour.B);
-    }
 
     private static double getDouble(JsonNode? node, double fallback)
     {
@@ -421,6 +274,8 @@ public sealed partial class MapPanel
 
     private void endMapGesture()
     {
+        if (nativePreview is not null)
+            nativePreview.IsInteracting = false;
         propertyWheelTimer.Stop();
         propertyWheelTarget = null;
         if (mapEditGesture != 0)
@@ -434,8 +289,6 @@ public sealed partial class MapPanel
         actorPropertyDrag = null;
         rectangleStart = null;
         tileBrushDragging = false;
-        lightMoveDragging = false;
-        lightRadiusDragging = false;
         actorMoveIndex = null;
         actorMoveLayer = null;
         movingRuntimeActorId = null;
@@ -448,12 +301,16 @@ public sealed partial class MapPanel
             return;
         if (args.Edit is not null && CurrentMapDocument is not null)
         {
+            long started = Stopwatch.GetTimestamp();
             MapDocumentCodec.ApplyEdits(CurrentMapDocument, args.Edit);
-            if (!IsRuntimeEditing && args.Edit.Edits.Any(edit => edit.Kind != JsonDataEdit.Operation.Set && edit.Path[0] is "actors" or "lights"))
+            if (nativeScene is not null && previewService?.MapScenes.UpdateActors(nativeScene, CurrentMapKey, CurrentMapDocument.Data, args.Edit) == true)
+                nativeSceneRevision++;
+            else
+                nativeScene = null;
+            nativePreview?.RecordSceneUpdate(started);
+            if (!IsRuntimeEditing && args.Edit.Edits.Any(edit => edit.Kind != JsonDataEdit.Operation.Set && edit.Path[0] is "actors"))
             {
                 cancelMapGesture();
-                if (EditMode == MapEditMode.Light)
-                    setSelectedActor(null, null, true);
             }
             foreach (string layer in args.Edit.Layers)
                 scheduleBrushLayerRefresh(layer);
@@ -461,13 +318,13 @@ public sealed partial class MapPanel
             {
                 if (IsRuntimeEditing)
                     reconcileRuntimeActorSelection();
-                invalidateActorRenderStates();
-                reconcileLightActorSelection();
+                updateActorRenderStates(args.Edit);
                 ActorDataChanged?.Invoke(this, EventArgs.Empty);
             }
         }
         else
         {
+            nativeScene = null;
             if (args.ReloadData)
             {
                 cancelMapGesture();
@@ -478,13 +335,9 @@ public sealed partial class MapPanel
             disposeMapRenderCaches();
             invalidateActorRenderStates();
             tilesetPaths.Clear();
-            autoTileRenderer?.Dispose();
-            autoTileRenderer = new AutoTileRenderer(gameData);
             if (args.ReloadData)
             {
                 setSelectedActor(selectedActorLayer, selectedActorIndex, true, true);
-                setSelectedLightIndex(selectedLightIndex, true);
-                reconcileLightActorSelection();
                 ActorDataChanged?.Invoke(this, EventArgs.Empty);
             }
             InvalidateMeasure();
@@ -494,11 +347,9 @@ public sealed partial class MapPanel
 
     private void invalidateActorRenderStates()
     {
-        invalidateActorLightRenderStates();
         disposeActorPreviewLeases();
         actorRenderStates.Clear();
         actorRenderStatesDirty = true;
-        animationStateDirty = true;
     }
 
     private void invalidatePendingActorRenderState()
@@ -511,37 +362,34 @@ public sealed partial class MapPanel
         pendingActorImage?.Dispose();
         pendingActorImage = null;
         pendingActorRenderStateDirty = true;
-        animationStateDirty = true;
     }
 
     private void disposeViewportRenderCaches()
     {
         checkerboardRenderCache?.Dispose();
         checkerboardRenderCache = null;
-        foreach (LayerRenderCache cache in layerRenderCaches.Values)
-            cache.Dispose();
-        layerRenderCaches.Clear();
-        dirtyLayerNames.Clear();
         cacheGeometry = null;
     }
 
     private void disposeMapRenderCaches()
     {
-        animationTimer.Stop();
         tileBrushRenderTimer.Stop();
         pendingBrushLayerNames.Clear();
-        animatedAutoTileLayerNames.Clear();
-        hasAnimatedActors = false;
-        animationStateDirty = true;
         disposeViewportRenderCaches();
     }
 
     private void disposeRenderResources()
     {
+        nativePreview?.Dispose();
+        nativePreview = null;
+        if (previewService is not null)
+        {
+            previewService.MapPreviews.Invalidated -= onNativePreviewInvalidated;
+            previewService.MapPreviews.OptionsChanged -= onNativeFrameChanged;
+        }
         cancelMapGesture();
         if (gameData is not null)
         {
-            gameData.Documents.ContentChanged -= onActorLightSourcesChanged;
             gameData.DataReloaded -= onMapImagesRestored;
             gameData.DataRestored -= onMapImagesRestored;
         }
@@ -551,19 +399,15 @@ public sealed partial class MapPanel
         invalidateActorRenderStates();
         invalidatePendingActorRenderState();
         disposeCachedBitmaps();
-        autoTileRenderer?.Dispose();
     }
 
     private void disposeCachedBitmaps()
     {
         foreach (CachedBitmap bitmap in bitmapCache.Values)
             bitmap.Image.Dispose();
-        foreach (Bitmap bitmap in hueCache.Values)
-            bitmap.Dispose();
         foreach (Bitmap bitmap in retiredBitmaps)
             bitmap.Dispose();
         bitmapCache.Clear();
-        hueCache.Clear();
         retiredBitmaps.Clear();
     }
 
@@ -592,17 +436,6 @@ public sealed partial class MapPanel
     }
 
     private readonly record struct CachedBitmap(DateTime ModifiedAt, long Length, Bitmap Image);
-
-    private sealed class LayerRenderCache(RenderTargetBitmap bitmap, Rect viewport) : IDisposable
-    {
-        public RenderTargetBitmap Bitmap { get; } = bitmap;
-        public Rect Viewport { get; } = viewport;
-
-        public void Dispose()
-        {
-            Bitmap.Dispose();
-        }
-    }
 
     private sealed class ActorRenderState(
         MapActorSnapshot actor,

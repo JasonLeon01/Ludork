@@ -13,11 +13,23 @@
     255,
     255
   ],
-  "fog": "/Game/Assets/Fogs/fog.png",
-  "fogPower": 50,
-  "fogOx": 15.0,
-  "fogOy": 15.0,
-  "fogDistort": 80,
+  "fog": {
+    "enabled": true,
+    "colour": [
+      0,
+      0,
+      0,
+      128
+    ],
+    "density": 0.5,
+    "scale": 128,
+    "velocity": [
+      15,
+      15
+    ],
+    "turbulence": 0.8,
+    "seed": 0
+  },
   "layers": {
     "floor": {
       "layerName": "floor",

@@ -203,7 +203,7 @@ if exist "%CPP_TARGET%\Cache" rmdir /S /Q "%CPP_TARGET%\Cache"
 if exist "%CPP_TARGET%\Cache" exit /b 1
 if exist "%CPP_TARGET%\Binaries" rmdir /S /Q "%CPP_TARGET%\Binaries"
 if exist "%CPP_TARGET%\Binaries" exit /b 1
-"%SCRIPT_TOOLS%" ui-preview validate "%STANDALONE_TARGET%"
+"%SCRIPT_TOOLS%" preview validate "%STANDALONE_TARGET%"
 if errorlevel 1 exit /b 1
 if "%INCLUDE_FFMPEG%"=="1" (
     echo C++ FFmpeg source template is ready: %CPP_TARGET%
@@ -256,7 +256,7 @@ for %%D in (%GENERATED_ENUM_DIRECTORIES%) do (
     robocopy "%~1\Scripts\%%D" "%~2\Scripts\%%D" /MIR /NFL /NDL /NJH /NJS /NP
     if errorlevel 8 exit /b 1
 )
-"%SCRIPT_TOOLS%" ui-preview copy --runtime-directory "bin/%CONFIG%" "%~1" "%~2"
+"%SCRIPT_TOOLS%" preview copy --runtime-directory "bin/%CONFIG%" "%~1" "%~2"
 exit /b %errorlevel%
 
 :validate_native_cache
@@ -276,7 +276,7 @@ for %%D in (%GENERATED_ENUM_DIRECTORIES%) do (
         exit /b 1
     )
 )
-"%SCRIPT_TOOLS%" ui-preview validate "%~1"
+"%SCRIPT_TOOLS%" preview validate "%~1"
 exit /b %errorlevel%
 
 :require_native_file

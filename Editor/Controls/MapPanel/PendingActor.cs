@@ -79,7 +79,6 @@ public sealed partial class MapPanel
                 descriptor.Translation, descriptor.Scale, descriptor.Origin, descriptor.Rotation,
                 descriptor.MapPreviewOpacity, descriptor.Animated, descriptor.SwitchInterval,
                 descriptor.FrameCount, previewLease);
-            animationStateDirty = true;
             scheduleActorPreviewActivityUpdate();
             InvalidateVisual();
         }

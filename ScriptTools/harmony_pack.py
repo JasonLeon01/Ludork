@@ -43,7 +43,7 @@ from .packaging_metadata import PackageMetadata, add_package_arguments, read_pac
 from .resource_constants import RESOURCE_GROUPS, RESOURCE_PACKAGES
 from .ui_property_values import UiAssetError
 from ScriptTools.compile_lua import resolve_luac
-from ScriptTools.ui_preview import prepare_registry
+from ScriptTools.preview import prepare_registry
 from ScriptTools.finalize_package import finalize_package
 from ScriptTools.ldpak import (
     LdPakError,
@@ -673,7 +673,7 @@ def cmake_configuration(context: PackContext) -> str:
         f"set(LUDORK_PROJECT_DIR {cmake_bracket_literal(str(context.project_dir))})",
         "set(LUDORK_SCRIPT_TOOLS_EXECUTABLE "
         f"{cmake_bracket_literal(str(context.script_tools))} CACHE FILEPATH \"\" FORCE)",
-        "set(LUDORK_BUILD_UI_PREVIEW_HOST OFF CACHE BOOL \"\" FORCE)",
+        "set(LUDORK_BUILD_PREVIEW_HOST OFF CACHE BOOL \"\" FORCE)",
         "set(LUDORK_UI_REGISTRY_PATH "
         f"{cmake_bracket_literal(str(context.registry))} CACHE FILEPATH \"\" FORCE)",
         "set(LUDORK_SAVE_AS_LDC "

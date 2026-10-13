@@ -67,7 +67,7 @@ public sealed class MapEditWindow : Window
         heightBox.Value = initial.Height;
         bgmBox.Text = initial.Bgm;
         bgsBox.Text = initial.Bgs;
-        fogEditor = new MapFogEditor(MapVisualSettings.From(initial));
+        fogEditor = new MapFogEditor(this, MapVisualSettings.From(initial));
         ambientButton.Content = new StackPanel
         {
             Orientation = Orientation.Horizontal,
@@ -101,7 +101,7 @@ public sealed class MapEditWindow : Window
         EditorFormRows.Add(form, LocaleService.Get("MAP_BGM"), createFileRow(bgmBox, "Musics", true));
         EditorFormRows.Add(form, LocaleService.Get("MAP_BGS"), createFileRow(bgsBox, "Musics", false));
         EditorFormRows.Add(form, LocaleService.Get("MAP_PANORAMA"), createFileRow(fogEditor.PanoramaBox, "Panoramas", null));
-        EditorFormRows.Add(form, LocaleService.Get("MAP_FOG"), createFileRow(fogEditor.PathBox, "Fogs", null));
+        EditorFormRows.Add(form, LocaleService.Get("MAP_FOG"), fogEditor.Enabled);
         EditorFormRows.Add(form, string.Empty, fogEditor.Options);
 
         Button confirm = new() { Content = LocaleService.Get("CONFIRM"), MinWidth = 80 };
@@ -140,7 +140,7 @@ public sealed class MapEditWindow : Window
         browse.Click += async (_, _) => await selectFileAsync(
             textBox,
             rootName,
-            rootName is "Fogs" or "Panoramas"
+            rootName is "Panoramas"
                 ? FileSelectorDialog.ImageFilesFilter()
                 : FileSelectorDialog.AudioFilesFilter());
         Grid row = new() { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 6 };
@@ -229,7 +229,6 @@ public sealed class MapEditWindow : Window
                  {
                      bgmBox.Text ?? string.Empty,
                      bgsBox.Text ?? string.Empty,
-                     fogEditor.PathBox.Text ?? string.Empty,
                      fogEditor.PanoramaBox.Text ?? string.Empty,
                  })
         {
@@ -254,11 +253,7 @@ public sealed class MapEditWindow : Window
             BgmFilter = cloneObject(bgmFilter),
             Bgs = bgsBox.Text?.Trim() ?? string.Empty,
             BgsFilter = cloneObject(bgsFilter),
-            Fog = fogEditor.PathBox.Text?.Trim() ?? string.Empty,
-            FogPower = fogEditor.Power,
-            FogOx = fogEditor.Ox,
-            FogOy = fogEditor.Oy,
-            FogDistort = fogEditor.Distort,
+            Fog = fogEditor.Value,
             Panorama = fogEditor.PanoramaBox.Text?.Trim() ?? string.Empty,
         });
     }

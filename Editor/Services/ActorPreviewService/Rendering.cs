@@ -56,12 +56,12 @@ public sealed partial class ActorPreviewService
         JsonObject response = await connection.ExchangeAsync(request, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         if (!string.Equals(getString(response, "type"), "actorFrame", StringComparison.Ordinal))
-            throw new InvalidDataException(getString(response, "message", "UiPreviewHost returned an invalid actor frame."));
+            throw new InvalidDataException(getString(response, "message", "PreviewHost returned an invalid actor frame."));
         long responseGeneration = response["generation"]?.GetValue<long>() ?? 0;
         if (responseGeneration != requestGeneration)
             return null;
         if (!string.Equals(getString(response, "pixelFormat"), "Bgra8888Premultiplied", StringComparison.Ordinal))
-            throw new InvalidDataException("UiPreviewHost returned an unsupported actor pixel format.");
+            throw new InvalidDataException("PreviewHost returned an unsupported actor pixel format.");
         List<ActorPreviewAtlasPage> pages = [];
         if (response["pages"] is JsonArray pageData)
         {
@@ -72,7 +72,7 @@ public sealed partial class ActorPreviewService
                 int height = page["height"]?.GetValue<int>() ?? 0;
                 int stride = page["stride"]?.GetValue<int>() ?? width * 4;
                 if (width <= 0 || height <= 0 || stride < width * 4)
-                    throw new InvalidDataException("UiPreviewHost returned invalid actor atlas dimensions.");
+                    throw new InvalidDataException("PreviewHost returned invalid actor atlas dimensions.");
                 pages.Add(new ActorPreviewAtlasPage(
                     width,
                     height,
@@ -123,7 +123,7 @@ public sealed partial class ActorPreviewService
             {
                 if (lease.IsStatic && descriptor.ShaderPath.Length != 0)
                 {
-                    string message = "UiPreviewHost did not return the actor shader preview.";
+                    string message = "PreviewHost did not return the actor shader preview.";
                     if (lease.Frame is not null)
                         lease.publishRenderError(textureRect, message);
                     else if (!updateFallback(lease, textureRect, true, message))
@@ -136,7 +136,7 @@ public sealed partial class ActorPreviewService
             ActorPreviewAtlasPage page = frame.Pages[item.Page];
             if (item.Rect.X < 0 || item.Rect.Y < 0
                 || item.Rect.Right > page.Width || item.Rect.Bottom > page.Height)
-                throw new InvalidDataException("UiPreviewHost returned an actor atlas item outside its page.");
+                throw new InvalidDataException("PreviewHost returned an actor atlas item outside its page.");
             publications.Add((lease, item, textureRect, page));
         }
         bool needsAtlas = active.Any(lease => lease.UsesAtlas);

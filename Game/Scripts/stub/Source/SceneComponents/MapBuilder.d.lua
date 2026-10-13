@@ -5,13 +5,18 @@
 ---@field bgmFilter Source.SceneComponents.MusicFilterData | nil
 ---@field bgsFilter Source.SceneComponents.MusicFilterData | nil
 
+---@class Source.SceneComponents.SerializedMapFogSettings
+---@field enabled    boolean
+---@field colour     integer[]
+---@field density    number
+---@field scale      number
+---@field velocity   number[]
+---@field turbulence number
+---@field seed       integer
+
 ---@class Source.SceneComponents.MapEnvironmentData: Source.SceneComponents.MapAudioData
----@field fog        string | nil
----@field fogPower   number | nil
----@field fogOx      number | nil
----@field fogOy      number | nil
----@field fogDistort number | nil
----@field panorama   string | nil
+---@field fog      Engine.MapFogSettings
+---@field panorama string | nil
 
 ---@alias Source.SceneComponents.SerializedTileCell integer | lightuserdata
 ---@alias Source.SceneComponents.SerializedAutoTileCell integer | string | lightuserdata
@@ -32,13 +37,7 @@
 ---@field autoTiles    Source.SceneComponents.SerializedAutoTileRow[] | nil
 ---@field shaderPath   string | nil
 
----@class Source.SceneComponents.MapLightData
----@field position  number[] | nil
----@field color     number[] | nil
----@field radius    number | nil
----@field intensity number | nil
-
----@class Source.SceneComponents.MapDataBase: Source.SceneComponents.MapEnvironmentData
+---@class Source.SceneComponents.MapDataBase: Source.SceneComponents.MapAudioData
 ---@field type              "map" | nil
 ---@field mapName           string
 ---@field width             integer
@@ -50,12 +49,12 @@
 ---@class Source.SceneComponents.SerializedMapData: Source.SceneComponents.MapDataBase
 ---@field actors       table<string, Source.Data.SerializedActorData[]> | nil
 ---@field ambientLight integer[] | nil
----@field lights       Source.SceneComponents.MapLightData[] | nil
+---@field fog          Source.SceneComponents.SerializedMapFogSettings
+---@field panorama     string | nil
 
----@class Source.SceneComponents.MapData: Source.SceneComponents.MapDataBase
+---@class Source.SceneComponents.MapData: Source.SceneComponents.MapDataBase, Source.SceneComponents.MapEnvironmentData
 ---@field actors       table<string, Source.Data.ActorData[]>
 ---@field ambientLight sf.Color
----@field lights       GlobalCore.Light[]
 
 ---@class Source.SceneComponents.WorldRegionEnvironmentData: Source.SceneComponents.MapEnvironmentData
 ---@field ambientLight sf.Color
@@ -131,11 +130,7 @@
 ---@field height       integer
 ---@field layerOrder   string[]
 ---@field regions      Source.SceneComponents.WorldRegionData[]
----@field fog          string
----@field fogPower     integer
----@field fogOx        number
----@field fogOy        number
----@field fogDistort   integer
+---@field fog          Engine.MapFogSettings
 ---@field panorama     string
 
 ---@class Source.SceneComponents.SingleFloorMapPreview

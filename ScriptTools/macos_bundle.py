@@ -15,7 +15,7 @@ from .packaging_constants import (
 from .packaging_names import prepare_directory
 from .packaging_metadata import add_package_arguments, load_package_metadata, read_package_metadata
 from .resource_constants import RESOURCE_GROUPS
-from .ui_preview import is_preview_development_file
+from .preview import is_preview_development_file
 
 
 def is_runtime_library(path: pathlib.Path) -> bool:

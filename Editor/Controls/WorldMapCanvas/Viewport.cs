@@ -63,6 +63,7 @@ public sealed partial class WorldMapCanvas
     protected override void OnDetachedFromVisualTree(
         VisualTreeAttachmentEventArgs args)
     {
+        renderer?.SetActive(false);
         LayoutUpdated -= onLayoutUpdated;
         foreach (WorldMapChildSource child in childMaps.Values)
             child.ReleaseData(this);
@@ -294,6 +295,7 @@ public sealed partial class WorldMapCanvas
     private void disposeViewport()
     {
         PointerTouchPadGestureMagnify -= onPointerTouchPadGestureMagnify;
+        renderer?.SetActive(false);
         LayoutUpdated -= onLayoutUpdated;
         pendingZoomAnchor.Clear();
         bindHostScrollViewer(null);

@@ -1,7 +1,6 @@
 #include "FramePipelineImpl.hpp"
 #include "DisplayImpl.hpp"
 #include <EngineState.hpp>
-#include <Fog/FogController.hpp>
 #include <Utils/Inner.hpp>
 #include <Utils/Render.hpp>
 #include <Weather/WeatherController.hpp>
@@ -91,7 +90,6 @@ void FramePipelineImpl::composeFrame(float deltaTime,
     transitionImpl_.advance(deltaTime);
     screenEffectsImpl_.update(deltaTime);
     WeatherController::update(deltaTime);
-    FogController::update(deltaTime);
     transitionImpl_.applyPendingTransition();
     canvas_->display();
     sf::RenderTexture* finalCanvas = canvas_.get();

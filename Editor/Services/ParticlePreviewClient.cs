@@ -11,7 +11,7 @@ public sealed class ParticlePreviewClient : IAsyncDisposable
     private readonly PreviewHostConnection connection;
     private readonly string sessionId = Guid.NewGuid().ToString("N");
 
-    public ParticlePreviewClient(UiPreviewRuntimeService runtime)
+    public ParticlePreviewClient(PreviewRuntimeService runtime)
     {
         connection = new PreviewHostConnection(runtime);
     }

@@ -30,6 +30,7 @@ class LuaBoundary:
 CPP_SUFFIXES = {".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".hxx", ".mm"}
 HOST_MEMBER_CANDIDATE = re.compile(
     r"^[ \t]*(?:[^;(){}\n]+[ \t]+)?([A-Za-z_]\w*)\s*::\s*"
+    r"(?:[A-Za-z_]\w*\s*::\s*)*"
     r"(?:~?\w+|operator\s*[^\s(]+)\s*\(",
     re.MULTILINE,
 )

@@ -7,7 +7,7 @@ All scripts switch to the repository root before doing work. Use `.bat` on Windo
 | `init` | Prepare the generator environment and native dependencies |
 | `setup_python` | Create `.venv` and install build-time Python requirements |
 | `build_script_tools` | Build the ScriptTools runtime bundle under `.tools/ScriptTools`; compiler outputs stay under `.tools/build/ScriptTools` |
-| `build_ui_preview_host` | Build and publish a project's native preview snapshot |
+| `build_preview_host` | Build and publish a project's native preview snapshot |
 | `init_cpp_dependencies` | Download dependencies for a C++ project folder; per-package scripts live under `tools/cpp_dependencies` |
 | `run_editor` | Start the editor from the repository root |
 | `animation_to_mp4` | Export source animation JSON files to H.264/AAC MP4, individually or recursively in a batch |
@@ -588,7 +588,7 @@ with the signed files without accepting an incomplete input bundle. The option
 may be repeated for runtime directories inside the application's resources;
 it is not passed when signing the DMG.
 Development editor packages also pass each bundled Standalone template through
-`macos-sign --ui-preview-template <directory>`. The signer validates each preview
+`macos-sign --preview-template <directory>`. The signer validates each preview
 before signing nested binaries, refreshes only its build ID against the signed
 runtime, validates the resulting snapshot, then seals the editor app and checks
 the signed Host description. Editor-only packages do not pass template paths.
@@ -701,7 +701,7 @@ sources or generated headers.
 
 System UI descriptors are owned by each project's
 `Engine/Source/Core/include/UI/UiControlAdapterDescriptors.hpp`. The compiled
-project Host exports them with `UiPreviewHost --describe`. C# and global
+project Host exports them with `PreviewHost --describe`. C# and global
 ScriptTools load the resulting project JSON; neither embeds a generated control
 table, and adding controls with supported property types does not require
 rebuilding those tools.
@@ -756,7 +756,7 @@ retain handwritten declarations and native binding stubs; game packaging
 removes all of `Scripts/stub` before optional Lua compilation.
 
 Desktop `build_cpp` builds the project preview before full UI validation.
-`build_ui_preview_host <project-folder> <Debug|Release>` builds that target
+`build_preview_host <project-folder> <Debug|Release>` builds that target
 without launching the game. Both repository and installed-editor tools support
 this project-based workflow. A source project without preview artifacts can
 still save/build after descriptor-independent structural checks:
@@ -768,25 +768,25 @@ ScriptTools ui-assets validate <project-root> --structure-only
 After compilation, use these read-only checks:
 
 ```text
-ScriptTools ui-preview validate <project-root>
+ScriptTools preview validate <project-root>
 ScriptTools ui-adapter-check <project-root>
 ```
 
 `ScriptTools ui-assets validate <project-root>` performs full asset validation.
 For Standalone, it first restores missing, damaged or mismatched preview JSON,
-as do editor preview, Save and Export, `ui-preview ensure <project-root>` and
-`ui-preview registry <project-root>`. Recovery deletes only `EditorCache/UiPreview.json`
+as do editor preview, Save and Export, `preview ensure <project-root>` and
+`preview registry <project-root>`. Recovery deletes only `EditorCache/Preview.json`
 and `EditorCache/UiPreview.registry.json`, then regenerates them from the current
-`Binaries/UiPreviewHost`, preserving other cache files. Save and Export wait for
+`Binaries/PreviewHost`, preserving other cache files. Save and Export wait for
 recovery before validating assets. Recovery failures, including missing Host binaries
 or dependencies, remain errors. Source projects require a build when their selected
 preview metadata is unavailable.
 
-The build runs `ScriptTools ui-preview publish <project-root> <bin-directory>
+The build runs `ScriptTools preview publish <project-root> <bin-directory>
 --configuration <Debug|Release>` after linking and dependency preparation. The
 Host's `--build-info` embeds its exact dependency filenames, platform, architecture
 and configuration; `--describe` exports the native UI descriptors. Publication
-reads both outputs and writes only `EditorCache/UiPreview.json` and
+reads both outputs and writes only `EditorCache/Preview.json` and
 `EditorCache/UiPreview.registry.json`, without copying the source runtime to `Binaries`.
 Manifest v3 records a safe project-relative `runtimeDirectory`, binary filenames,
 configuration and registry identity. The build ID hashes the declared binaries
@@ -794,21 +794,21 @@ and the exact UTF-8 registry bytes, including the final LF, under the fixed
 `UiPreview.registry.json` name. Unrelated game files are preserved and identical
 content does not rewrite the JSON.
 
-Before source compilation, `UiPreviewPrepare` calls `ui-preview begin-build`, stops
-existing project preview connections and creates `EditorCache/UiPreview.building`.
+Before source compilation, `PreviewPrepare` calls `preview begin-build`, stops
+existing project preview connections and creates `EditorCache/Preview.building`.
 Compilation, linking, description or publication failure leaves preview unavailable;
 the next successful publication clears the marker. Full UI asset validation runs
 after publication, so asset errors fail the build while preserving the new preview
 for editing. The building marker also blocks metadata recovery.
 
-`ui-preview copy <source-project> <target-project>` installs the matched binaries
+`preview copy <source-project> <target-project>` installs the matched binaries
 in the target's `Binaries` and both JSON files in its `EditorCache`, rewriting
 `runtimeDirectory` to `Binaries`. It retains identical shared game libraries and
 unrelated target EditorCache content, and rejects mismatched dependency versions.
 Template native-cache transfers use
-`ui-preview copy --runtime-directory bin/<configuration> <source> <target>` after
+`preview copy --runtime-directory bin/<configuration> <source> <target>` after
 copying the game build outputs, reusing that bin directory without an extra
-`Binaries` copy. `ui-preview registry <project-root>` prints the ensured registry
+`Binaries` copy. `preview registry <project-root>` prints the ensured registry
 path. Staging validation receives
 `--registry <source-project>/EditorCache/UiPreview.registry.json` explicitly rather than
 looking for development data in the final game package.
@@ -1063,16 +1063,18 @@ HarmonyOS retain their toolchain section garbage collection without extra global
 
 `LUDORK_WITH_LUA` defaults to `ON` for game projects. The desktop project
 preview target leaves the setting unchanged and reuses the project's Runtime,
-Standard and SFML dependencies. Its dedicated `UiPreviewHostRuntime` compiles
-the project's native UI sources with preview resource loading; the Host neither
-links the full Engine target nor starts gameplay or Lua Controllers.
+Standard and SFML dependencies. Its dedicated `PreviewHostRuntime` compiles
+the project's shared native map, UI and visual-effect rendering sources with preview
+resource loading; the Host neither links the full Engine target nor starts gameplay
+or Lua Controllers. Preview sessions, protocol handling, pixel readback and frame
+transfer remain in `Engine/PreviewHost`, outside the shared game rendering sources.
 
 Source preview and game linker outputs share `bin/Debug` or `bin/Release`.
 The editor launches the Host directly from the directory selected by the manifest,
 using the JSON files in project `EditorCache`. Ordinary source builds publish metadata
 only; Standalone generation copies the matched runtime to `Binaries`. C++ UI
 changes take effect after recompilation. A source build stops the project's old
-preview connections before compiling and refreshes UI and Actor previews after
+preview connections before compiling and refreshes active previews after
 successful publication. Each project owns its registry and processes.
 
 On macOS the Host and its dylib dependencies retain `@loader_path` and relative
@@ -1090,10 +1092,10 @@ in their native implementations.
 `Templates/Cpp` carries preview source and requires a first build.
 `Templates/Standalone` carries the corresponding prebuilt preview snapshot,
 including for the FFmpeg variant. Template native caches include the current
-snapshot in `bin/<configuration>` and exactly `EditorCache/UiPreview.json` plus
+snapshot in `bin/<configuration>` and exactly `EditorCache/Preview.json` plus
 `EditorCache/UiPreview.registry.json`. Template generation excludes other project EditorCache
 content; C++ templates remove both compiled binaries and JSON before distribution.
-Native caches use the same layout and must be republished by `ui-preview publish`
+Native caches use the same layout and must be republished by `preview publish`
 before reuse when their metadata layout is outdated; no old-path reads are used.
 There is no editor-global Host distribution or compatibility fallback. Existing
 source projects need updated project build files and a rebuild; Standalone
@@ -1105,7 +1107,9 @@ refreshes those materials in C++ templates and derives Standalone templates
 from them. Editor, managed-runtime and build-tool notices are available on the
 website; their licence texts remain in the editor distribution. Final game packages remove preview-specific files and the
 `LudorkNativeStubDump` / `LudorkNativeStubDump.exe` build tool from `Binaries`,
-retain shared libraries, and exclude root `EditorCache` and `Cache`. macOS
+retain shared game libraries, and exclude root `EditorCache` and `Cache`, preview
+source directories, preview metadata and temporary frame files. The same exclusions
+cover obsolete preview artifact names when a project still contains build leftovers. macOS
 excludes the build tool before validating and copying app runtime libraries.
 
 LuaSF source archives contain two sibling CMake projects, `LuaSF/` and `LuaGlue/`. For local dependency and template checks, set `LUASF_SOURCE_ARCHIVE` to the generated `.tar.gz` (`.zip` on Windows) before `init_cpp_dependencies`. For an existing build, configure `LUDORK_LUASF_SOURCE_DIR` with the generator's `output/LuaSF` directory; LuaGlue is found next to it. Desktop native packages include the shared LuaGlue runtime; mobile builds use its static target.

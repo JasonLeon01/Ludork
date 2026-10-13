@@ -11,8 +11,6 @@ local Display = GlobalCore.Display
 local Graphics = GlobalCore.Graphics
 local ShaderManager = GlobalCore.ShaderManager
 local WeatherController = GlobalCore.WeatherController
-local FogController = GlobalCore.FogController
-local PanoramaController = GlobalCore.PanoramaController
 
 local Actor = Engine.Actor
 local Camera = GlobalCore.Camera
@@ -97,7 +95,6 @@ function GameMap:init(mapName, tilemap, camera, previewOnly, sparseWorldConfig)
     if not self._previewOnly then
         self._camera = camera or Camera.new()
     end
-    self._lights = {}
     self._ambientLight = sf.Color.new(255, 255, 255, 255)
     self._materialDirty = true
     self._materialRevision = 0
@@ -109,18 +106,15 @@ function GameMap:init(mapName, tilemap, camera, previewOnly, sparseWorldConfig)
     self._damageTextSpeedCurve = nil
     self._damageTextConfig = nil
     self._renderer = nil
+    self._fogController = GlobalCore.FogController.new()
     self:setTilemap(self._tilemap)
     if self._camera ~= nil then
         configureCamera(self, self._camera)
     end
-    if sparseWorldConfig ~= nil then
-        ---@diagnostic disable-next-line: undefined-field
-        self:_initialiseWorldRendering()
-    else
-        self._renderer = GameMapRenderer.new(
-            self, self._tilemap, self._camera, self._layerNames, self.DefaultCoverAlpha, self._previewOnly
-        )
-    end
+    self._renderer = GameMapRenderer.new(
+        self, self._tilemap, self._camera, self._layerNames, self.DefaultCoverAlpha, self._previewOnly
+    )
+    self._renderer:setFogController(self._fogController)
     ---@type GameMap[]
     local selfRef = setmetatable({ self }, {
         __mode = "v"
@@ -165,9 +159,6 @@ function GameMap:disposeStreaming()
 end
 
 ---@diagnostic disable-next-line: unused
-function GameMap:drawMapFogOverlay()
-end
-
 function GameMap:addComponent(component)
     assert(component ~= nil, "GameMap component must not be nil")
     self._components[#self._components + 1] = component
@@ -362,24 +353,15 @@ function GameMap:show()
         for _, component in ipairs(self._components) do
             component:onRender(self._camera)
         end
-        if self:_lightingShadersAvailable() then
-            self:_renderLighting(self:_getActiveLights())
-        end
-        self:drawMapFogOverlay()
-        if self._camera ~= nil then
-            self._camera:display()
-        end
         self:refreshShader()
         if self._camera ~= nil then
+            self._camera:display()
+            assert(self._renderer):composeFrame(self._ambientLight, self._shaderTime)
             WeatherController.drawShaderOverlay(self._camera)
         end
     end
-    if self._camera ~= nil then
-        PanoramaController.drawUnderlay(self._camera, self._ambientLight)
-    end
     ---@diagnostic disable-next-line: param-type-mismatch
-    Graphics.draw(self._camera, self:_getMaterialShader())
-    FogController.drawOverlay()
+    Graphics.draw(self._camera)
     ---@cast self._particleSystem Engine.ParticleSystem
     Graphics.draw(self._particleSystem)
     Graphics.setWindowDefaultView()
@@ -533,40 +515,16 @@ function GameMap:_rebuildPassabilityCache()
     return GameMapTerrain.RebuildPassabilityCache(self)
 end
 
-function GameMap:getLights()
-    return GameMapLighting.GetLights(self)
+function GameMap:getFogSettings()
+    return self._fogController:getSettings()
 end
 
-function GameMap:setLights(lights)
-    return GameMapLighting.SetLights(self, lights)
+function GameMap:setFogSettings(settings)
+    self._fogController:applyFromMapData(settings)
 end
 
-function GameMap:addLight(light)
-    return GameMapLighting.AddLight(self, light)
-end
-
-function GameMap:removeLight(light)
-    return GameMapLighting.RemoveLight(self, light)
-end
-
-function GameMap:_requireLight(light)
-    return GameMapLighting.RequireLight(self, light)
-end
-
-function GameMap:setLightPosition(light, position)
-    return GameMapLighting.SetLightPosition(self, light, position)
-end
-
-function GameMap:setLightColour(light, colour)
-    return GameMapLighting.SetLightColour(self, light, colour)
-end
-
-function GameMap:setLightRadius(light, radius)
-    return GameMapLighting.SetLightRadius(self, light, radius)
-end
-
-function GameMap:setLightIntensity(light, intensity)
-    return GameMapLighting.SetLightIntensity(self, light, intensity)
+function GameMap:getRegionFogSettings(path)
+    return self._fogController:getWorldRegionSettings(path)
 end
 
 function GameMap:getAmbientLight()
@@ -585,24 +543,8 @@ function GameMap:getActorLayerLightBlockMap(layerName, size)
     return GameMapLighting.GetActorLayerLightBlockMap(self, layerName, size)
 end
 
-function GameMap:_lightingShadersAvailable()
-    return GameMapLighting.LightingShadersAvailable(self)
-end
-
-function GameMap:_getActiveLights()
-    return GameMapLighting.GetActiveLights(self)
-end
-
-function GameMap:_renderLighting(mapLights)
-    return GameMapLighting.RenderLighting(self, mapLights)
-end
-
 function GameMap:refreshShader()
     return GameMapLighting.RefreshShader(self)
-end
-
-function GameMap:_getMaterialShader()
-    return GameMapLighting.GetMaterialShader(self)
 end
 
 function GameMap:getPlayer()

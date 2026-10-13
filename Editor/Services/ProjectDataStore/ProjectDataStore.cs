@@ -13,6 +13,7 @@ namespace Ludork.Services;
 
 public sealed partial class ProjectDataStore : IDisposable
 {
+    internal BlueprintPreviewService? BlueprintPreviews { get; set; }
     public MapDataService Maps { get; }
     public WorldDataService Worlds { get; }
     public BlueprintDataService Blueprints { get; }

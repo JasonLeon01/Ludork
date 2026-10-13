@@ -113,6 +113,7 @@ public sealed partial class MapDataService
                 && cached["lastWriteUtcTicks"]?.GetValue<long?>() == file.LastWriteTimeUtc.Ticks
                 && cached["creationUtcTicks"]?.GetValue<long?>() == file.CreationTimeUtc.Ticks
                 && cached["entry"] is JsonObject cachedEntry
+                && cachedEntry["previewLightSources"] is JsonObject
                 && readMapCatalogEntry(cachedEntry) is MapCatalogEntry parsedCache
                 && parsedCache.Kind == MapCatalogEntryKind.WorldChildMap
                 && string.Equals(parsedCache.WorldKey, worldKey, StringComparison.Ordinal))
@@ -152,6 +153,7 @@ public sealed partial class MapDataService
             Dictionary<string, MapCatalogLayerShape> layerShapes = new(StringComparer.Ordinal);
             bool rootStarted = false;
             bool rootEnded = false;
+            using MapPreviewCatalogCapture previewCapture = new();
             using FileStream stream = new FileStream(
                 path,
                 FileMode.Open,
@@ -172,6 +174,7 @@ public sealed partial class MapDataService
                     state);
                 while (reader.Read())
                 {
+                    previewCapture.Append(ref reader, currentLayerName);
                     if (reader.TokenType == JsonTokenType.PropertyName)
                     {
                         string? nestedProperty = reader.GetString();
@@ -453,7 +456,10 @@ public sealed partial class MapDataService
                 width,
                 height,
                 layerOrder,
-                actorTags);
+                actorTags)
+            {
+                PreviewLightSources = previewCapture.Data,
+            };
             nextMapCatalogCache[cacheKey] = new JsonObject
             {
                 ["length"] = file.Length,
@@ -541,6 +547,7 @@ public sealed partial class MapDataService
             ["height"] = entry.Height,
             ["layerOrder"] = layerOrder,
             ["actorTags"] = actorTags,
+            ["previewLightSources"] = entry.PreviewLightSources.DeepClone(),
         };
         if (entry.WorldKey is not null)
             data["worldKey"] = entry.WorldKey;
@@ -576,7 +583,11 @@ public sealed partial class MapDataService
             data["width"]?.GetValue<int?>() ?? 0,
             data["height"]?.GetValue<int?>() ?? 0,
             readStringArray(data["layerOrder"]),
-            readStringArray(data["actorTags"]));
+            readStringArray(data["actorTags"]))
+        {
+            PreviewLightSources = data["previewLightSources"] is JsonObject sources
+                ? (JsonObject)sources.DeepClone() : new JsonObject(),
+        };
     }
 
     internal static MapCatalogEntry createMapCatalogEntry(
@@ -595,7 +606,10 @@ public sealed partial class MapDataService
             width,
             height,
             layerOrder,
-            readActorTags(map));
+            readActorTags(map))
+        {
+            PreviewLightSources = MapPreviewCatalogCapture.Extract(map),
+        };
     }
 
     internal static IReadOnlyList<string> readActorTags(JsonObject map)

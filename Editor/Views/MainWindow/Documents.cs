@@ -69,7 +69,6 @@ public partial class MainWindow
             || isInsideHistoryControl(visual, ActorInfoPanel)
             || isInsideHistoryControl(visual, ActorOutliner)
             || isInsideHistoryControl(visual, EditModeToggles)
-            || isInsideHistoryControl(visual, LightInfoPanel)
             || isInsideHistoryControl(visual, RightList);
         MapListItemViewModel? selected = viewModel.MapWorkspace.SelectedMap;
         viewModel.SetActiveDocument(mapContext && selected is not null

@@ -29,11 +29,14 @@ public partial class MainWindow
 {
     private void initializeInteraction()
     {
-        LightActorSelectionToggle.IsChecked = editorSettings?.LightActorSelection ?? false;
-        EditorPanel.setLightActorSelectionEnabled(LightActorSelectionToggle.IsChecked == true);
+        ToolTip.SetTip(ViewportOptionsButton, LocaleService.Get("MAP_VIEWPORT_OPTIONS"));
+        Avalonia.Automation.AutomationProperties.SetName(ViewportOptionsButton, LocaleService.Get("MAP_VIEWPORT_OPTIONS"));
+        WorldEditorPanel.ViewportOptionsRequested += (sender, _) =>
+        {
+            if (sender is Control target)
+                showViewportOptions(target);
+        };
         EditorLayoutService.BindRows(ActorModePanel, ActorOutlinerSplitter, "Main.ActorRows", 0, 2);
-        LightActorSelectionToggle.Content = LocaleService.Get("LIGHT_SELECT_ACTORS");
-        ToolTip.SetTip(LightActorSelectionToggle, LocaleService.Get("LIGHT_SELECT_ACTORS_HINT"));
         EditorInputs.ApplyEditable(ConsoleInput);
         ConsoleInput.PlaceholderText = LocaleService.Get("SEND_HINT");
         ConsoleSendButton.Content = LocaleService.Get("SEND");
@@ -74,15 +77,12 @@ public partial class MainWindow
         EditorPanel.BlueprintLocateRequested += onBlueprintLocateRequested;
         EditorPanel.ActorDataChanged += onActorDataChanged;
         EditorPanel.ActorPropertiesChanged += (_, _) => ActorInfoPanel.refreshActorProperties();
-        EditorPanel.LightSelectionChanged += onLightSelectionChanged;
-        EditorPanel.LightDataChanged += onLightDataChanged;
         EditorPanel.EditFeedbackRequested += (_, message) => toast.ShowMessage(message, 3000);
         WorldEditorPanel.PlacementChanged += onWorldPlacementChanged;
         WorldEditorPanel.PlacementRemoved += onWorldPlacementRemoved;
         WorldEditorPanel.ChildMapOpenRequested += onWorldChildMapOpenRequested;
         GamePanel.InputBatchReady += onGameInputBatchReady;
         Deactivated += (_, _) => GamePanel.NotifyHostFocusLost();
-        LightInfoPanel.LightEdited += onLightEdited;
         ActorInfoPanel.ActorTagChanged += onActorTagChanged;
         ActorInfoPanel.BlueprintOpenRequested += (_, reference) => viewModel?.Actions.OpenBlueprint(reference);
         ActorInfoPanel.BlueprintLocateRequested += onBlueprintLocateRequested;

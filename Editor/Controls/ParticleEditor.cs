@@ -17,7 +17,7 @@ namespace Ludork.Controls;
 public sealed partial class ParticleEditor : UserControl
 {
     private readonly ProjectDataStore gameData;
-    private readonly UiPreviewRuntimeService runtime;
+    private readonly PreviewRuntimeService runtime;
     private readonly EditorDocument document;
     private readonly ListBox trackList = new();
     private readonly StackPanel properties = new() { Spacing = 8, Margin = new Thickness(8) };
@@ -28,7 +28,7 @@ public sealed partial class ParticleEditor : UserControl
     private bool refreshing;
     private bool committing;
 
-    public ParticleEditor(ProjectDataStore gameData, UiPreviewRuntimeService runtime, string key)
+    public ParticleEditor(ProjectDataStore gameData, PreviewRuntimeService runtime, string key)
     {
         this.gameData = gameData;
         this.runtime = runtime;

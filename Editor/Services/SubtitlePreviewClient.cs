@@ -11,7 +11,7 @@ public sealed class SubtitlePreviewClient : IAsyncDisposable
     private readonly PreviewHostConnection connection;
     private readonly string sessionId = Guid.NewGuid().ToString("N");
 
-    public SubtitlePreviewClient(UiPreviewRuntimeService runtime) => connection = new PreviewHostConnection(runtime);
+    public SubtitlePreviewClient(PreviewRuntimeService runtime) => connection = new PreviewHostConnection(runtime);
 
     public async Task<SubtitlePreviewFrame?> RenderAsync(string command, long generation, int width, int height,
         JsonObject? asset, string language, string videoPath, bool mute, double time, CancellationToken cancellationToken)

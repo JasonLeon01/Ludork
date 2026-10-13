@@ -1,5 +1,4 @@
 local Engine = require("Engine")
-local GlobalCore = require("GlobalCore")
 local WorldGeometry = require("Global.WorldGeometry")
 local MapPath = require("Source.Utils.MapPath")
 local System = require("Source.System")
@@ -13,15 +12,20 @@ local WORLD_MANIFEST_FIELDS = {
     width = true,
     height = true,
     fog = true,
-    fogPower = true,
-    fogOx = true,
-    fogOy = true,
-    fogDistort = true,
     panorama = true,
     layerOrder = true,
     placements = true
 }
 local WORLD_PLACEMENT_FIELDS = { map = true, rect = true }
+local FOG_FIELDS = {
+    enabled = true,
+    colour = true,
+    density = true,
+    scale = true,
+    velocity = true,
+    turbulence = true,
+    seed = true
+}
 
 local MapDataParser = {}
 MapDataParser.DATA_ROOT = os.path.join(".", "Data", "Maps")
@@ -70,6 +74,39 @@ function MapDataParser.IsWorldManifest(mapPath)
     return os.path.basename(mapPath) == MapConstants.WORLD_MANIFEST_FILE
 end
 
+function MapDataParser.BuildFog(data)
+    assert(Class.isInstance(data, "table"), "fog must be an object")
+    rejectUnknownFields(data, FOG_FIELDS, "fog")
+    assert(Class.isInstance(data.enabled, "boolean"), "fog.enabled must be a boolean")
+    requireArray(data.colour, "fog.colour")
+    assert(#data.colour == 4, "fog.colour must contain four colour channels")
+    for index, channel in ipairs(data.colour) do
+        local value = requireInteger(channel, "fog.colour[" .. index .. "]", 0)
+        assert(value <= 255, "fog.colour channels must be at most 255")
+    end
+    local density = requireFiniteNumber(data.density, "fog.density")
+    local scale = requireFiniteNumber(data.scale, "fog.scale")
+    local turbulence = requireFiniteNumber(data.turbulence, "fog.turbulence")
+    assert(density >= 0 and density <= 1, "fog.density must be from 0 to 1")
+    assert(scale > 0, "fog.scale must be positive")
+    assert(turbulence >= 0 and turbulence <= 1, "fog.turbulence must be from 0 to 1")
+    requireArray(data.velocity, "fog.velocity")
+    assert(#data.velocity == 2, "fog.velocity must contain two numbers")
+    local velocityX = requireFiniteNumber(data.velocity[1], "fog.velocity[1]")
+    local velocityY = requireFiniteNumber(data.velocity[2], "fog.velocity[2]")
+    local seed = requireInteger(data.seed, "fog.seed", -2147483648)
+    assert(seed <= 2147483647, "fog.seed must fit a signed 32-bit integer")
+    return Engine.MapFogSettings.new({
+        enabled = data.enabled,
+        colour = sf.Color.new(data.colour[1], data.colour[2], data.colour[3], data.colour[4]),
+        density = density,
+        scale = scale,
+        velocity = sf.Vector2f.new(velocityX, velocityY),
+        turbulence = turbulence,
+        seed = seed
+    })
+end
+
 function MapDataParser.GetPathCandidates(mapPath, currentMap)
     mapPath = MapPath.Normalise(mapPath)
     if not bool(mapPath) then
@@ -113,11 +150,7 @@ function MapDataParser.NormaliseWorld(data, manifestPath)
     )
     data.width = requireInteger(data.width, "worldMap.width", 1)
     data.height = requireInteger(data.height, "worldMap.height", 1)
-    assert(Class.isInstance(data.fog, "string"), "worldMap.fog must be a string")
-    data.fogPower = requireInteger(data.fogPower, "worldMap.fogPower", 0)
-    data.fogOx = requireFiniteNumber(data.fogOx, "worldMap.fogOx")
-    data.fogOy = requireFiniteNumber(data.fogOy, "worldMap.fogOy")
-    data.fogDistort = requireInteger(data.fogDistort, "worldMap.fogDistort", 0)
+    data.fog = MapDataParser.BuildFog(data.fog)
     if data.panorama == nil then
         data.panorama = ""
     else
@@ -209,10 +242,6 @@ function MapDataParser.NormaliseMap(data, buildAmbientLight)
     for layerName in pairs(data.actors or {}) do
         assert(seenLayers[layerName], "Map actor group is missing from layerOrder: " .. layerName)
     end
-    local lights = {}
-    for index, lightData in ipairs(data.lights or {}) do
-        lights[index] = GlobalCore.Light.fromDict(lightData)
-    end
     local serializedActors = data.actors or {}
     ---@type table<string, Source.Data.ActorData[]>
     local actors = {}
@@ -237,16 +266,11 @@ function MapDataParser.NormaliseMap(data, buildAmbientLight)
         actors = actors,
         BPClassVarChanged = data.BPClassVarChanged,
         ambientLight = buildAmbientLight(data.ambientLight),
-        lights = lights,
         bgm = data.bgm,
         bgs = data.bgs,
         bgmFilter = data.bgmFilter,
         bgsFilter = data.bgsFilter,
-        fog = data.fog,
-        fogPower = data.fogPower,
-        fogOx = data.fogOx,
-        fogOy = data.fogOy,
-        fogDistort = data.fogDistort,
+        fog = MapDataParser.BuildFog(data.fog),
         panorama = data.panorama
     }
     for key, value in pairs(data) do

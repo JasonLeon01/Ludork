@@ -1,6 +1,5 @@
 #include "GameMapBase/ActorRegistryImpl.hpp"
 #include "GameMapBase/RegionVisibilityImpl.hpp"
-#include "GameMapBase/LightOcclusionImpl.hpp"
 #include "GameMapBase/OccupancyIndexImpl.hpp"
 #include "GameMapBase/SparseWorldImpl.hpp"
 #include "GameMapBase/GridPointHash.hpp"
@@ -8,8 +7,6 @@
 #include <Gameplay/ActorMapService.hpp>
 #include <Gameplay/TileLayer.hpp>
 #include <Gameplay/Tilemap/Tilemap.hpp>
-#include <LightOcclusionInput.hpp>
-#include <LightOcclusionResult.hpp>
 #include <GameMapBase.hpp>
 #include <Camera.hpp>
 #include <Gameplay/Components/BillboardComponent.hpp>
@@ -98,9 +95,6 @@ GameMapBase::GameMapBase()
               ludork::global::game_map_base_impl::RegionVisibilityImpl>()),
       sparseWorld_(std::make_unique<
                    ludork::global::game_map_base_impl::SparseWorldImpl>()),
-      lightOcclusion_(
-          std::make_unique<
-              ludork::global::game_map_base_impl::LightOcclusionImpl>()),
       occupancy_(std::make_unique<
                  ludork::global::game_map_base_impl::OccupancyIndexImpl>()),
       actorRegistry_(std::make_unique<
@@ -164,6 +158,19 @@ void GameMapBase::_updateBillboards(
 
 const ActorDict& GameMapBase::getMaterialActorsForRenderer() const {
     return actorRegistry_->materialActors();
+}
+
+std::vector<MapRenderer::Region> GameMapBase::getRenderRegions() const {
+    std::vector<MapRenderer::Region> result;
+    const auto& regions = sparseWorld_->regions();
+    for (std::size_t index = 0; index < regions.size(); ++index) {
+        const auto& region = regions[index];
+        if (region.tilemap) {
+            result.push_back(
+                {std::to_string(index), region.rect.position, region.tilemap});
+        }
+    }
+    return result;
 }
 
 const ActorPtr& GameMapBase::getPlayerActorForRenderer() const {
@@ -316,22 +323,6 @@ void GameMapBase::setActorDestroyer(std::function<void(Actor&)> destroyer) {
 
 void GameMapBase::setPlayerActor(ActorPtr actor) {
     actorRegistry_->setPlayerActor(std::move(actor));
-}
-
-std::shared_ptr<sf::Texture> GameMapBase::rebuildStaticLightOccupancy(
-    const sf::Vector2i& origin, const sf::Vector2u& size,
-    const std::vector<std::shared_ptr<Actor>>& actors) {
-    return lightOcclusion_->rebuildStaticLightOccupancy(
-        origin, size, actors, *sparseWorld_, tilemap_, EngineState::CellSize);
-}
-
-std::vector<LightOcclusionResult> GameMapBase::analyseLightOcclusion(
-    const std::vector<LightOcclusionInput>& inputs,
-    const std::vector<std::shared_ptr<Actor>>& visibleActors) {
-    ensurePassabilityCache();
-    return lightOcclusion_->analyseLightOcclusion(
-        inputs, visibleActors, *occupancy_, sparseWorld_->size(),
-        EngineState::CellSize);
 }
 
 GameMapBase::PathResult GameMapBase::findPathExt(
@@ -490,7 +481,6 @@ void GameMapBase::configureSparseWorld(
             "Disconnected-region hiding requires an ordinary tile map");
     }
     sparseWorld_->configureSparseWorld(size, layerOrder, regionRects);
-    lightOcclusion_->clearStaticLightOccupancy();
     occupancy_->clearActorOccupancy();
     occupancy_->clearRegisteredCells();
     tilePassableGrid_.clear();
@@ -502,7 +492,6 @@ void GameMapBase::setSparseWorldRegion(int regionIndex,
                                        bool actorsReady) {
     sparseWorld_->setSparseWorldRegion(regionIndex, std::move(tilemap),
                                        actorsReady);
-    lightOcclusion_->clearStaticLightOccupancy();
 }
 
 void GameMapBase::setSparseWorldRegionActorsReady(int regionIndex) {
@@ -510,9 +499,7 @@ void GameMapBase::setSparseWorldRegionActorsReady(int regionIndex) {
 }
 
 void GameMapBase::detachSparseWorldRegion(int regionIndex) {
-    if (sparseWorld_->detachSparseWorldRegion(regionIndex)) {
-        lightOcclusion_->clearStaticLightOccupancy();
-    }
+    sparseWorld_->detachSparseWorldRegion(regionIndex);
 }
 
 void GameMapBase::setSparseWorldPreparedRect(std::optional<sf::IntRect> rect) {
@@ -535,7 +522,6 @@ std::optional<int> GameMapBase::getSparseWorldRegionIndexAt(
 
 void GameMapBase::clearSparseWorld() {
     sparseWorld_->clearSparseWorld();
-    lightOcclusion_->clearStaticLightOccupancy();
     occupancy_->clearActorOccupancy();
     occupancy_->clearRegisteredCells();
     tilePassableGrid_.clear();
@@ -1104,12 +1090,4 @@ std::vector<std::vector<sf::Vector2i>> GameMapBase::getDisplayTileSources()
         }
     }
     return sources;
-}
-
-std::shared_ptr<sf::Texture> GameMapBase::rebuildRenderLightOccupancy(
-    const std::shared_ptr<Tilemap>& displayTilemap,
-    const std::vector<std::shared_ptr<Actor>>& actors) {
-    return lightOcclusion_->rebuildStaticLightOccupancy(
-        {0, 0}, displayTilemap->getSize(), actors, *sparseWorld_,
-        displayTilemap, EngineState::CellSize);
 }

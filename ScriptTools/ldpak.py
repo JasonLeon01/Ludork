@@ -32,7 +32,7 @@ from .runtime_formats import (
     LDPK_MAGIC as MAGIC,
     LDPK_VERSION as VERSION,
 )
-from .ui_preview import is_preview_development_file
+from .preview import is_preview_development_file, is_preview_development_path
 
 
 class LdPakError(RuntimeError):
@@ -745,8 +745,10 @@ def validate_runtime_resource_paths(
         for name in names
     ):
         raise LdPakError(
-            "Runtime must not contain build tools or UI preview development files in Binaries"
+            "Runtime must not contain build tools or preview development files in Binaries"
         )
+    if any(is_preview_development_path(name) for name in names):
+        raise LdPakError("Runtime must not contain preview development files")
     for group, package in zip(RESOURCE_GROUPS, RESOURCE_PACKAGES, strict=True):
         has_loose = group + "/" in paths or any(
             name.startswith(group + "/") for name in names

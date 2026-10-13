@@ -57,7 +57,7 @@ public sealed class UiPreviewClient : IAsyncDisposable
     private bool disposed;
     private bool rendering;
 
-    public UiPreviewClient(UiPreviewRuntimeService runtime)
+    public UiPreviewClient(PreviewRuntimeService runtime)
     {
         connection = new PreviewHostConnection(runtime);
         StatusMessage = runtime.StatusMessage;
@@ -78,7 +78,7 @@ public sealed class UiPreviewClient : IAsyncDisposable
             return false;
         if (connection.Capabilities.Contains("ui"))
             return true;
-        setState(UiPreviewClientState.Faulted, "UiPreviewHost does not support UI preview.");
+        setState(UiPreviewClientState.Faulted, "PreviewHost does not support UI preview.");
         return false;
     }
 
@@ -150,7 +150,7 @@ public sealed class UiPreviewClient : IAsyncDisposable
             if (!string.Equals(getString(response, "type"), "frame", StringComparison.Ordinal))
             {
                 throw new InvalidDataException(
-                    getString(response, "message", "UiPreviewHost returned an invalid response."));
+                    getString(response, "message", "PreviewHost returned an invalid response."));
             }
             long responseGeneration = response["generation"]?.GetValue<long>() ?? 0;
             return responseGeneration == requestGeneration
@@ -246,7 +246,7 @@ public sealed class UiPreviewClient : IAsyncDisposable
             if (getString(response, "type") != "reparentSlot" || response["slot"] is not JsonObject slot)
             {
                 setState(UiPreviewClientState.Faulted,
-                    getString(response, "message", "UiPreviewHost returned an invalid reparent Slot."));
+                    getString(response, "message", "PreviewHost returned an invalid reparent Slot."));
                 return null;
             }
             return (JsonObject)slot.DeepClone();
@@ -285,7 +285,7 @@ public sealed class UiPreviewClient : IAsyncDisposable
             || renderScale <= 0
             || stride < minimumStride)
         {
-            throw new InvalidDataException("UiPreviewHost returned invalid frame dimensions.");
+            throw new InvalidDataException("PreviewHost returned invalid frame dimensions.");
         }
         int byteLength = checked(stride * height);
         byte[] pixels = connection.ReadPixels(response, byteLength);

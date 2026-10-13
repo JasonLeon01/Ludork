@@ -19,7 +19,7 @@ public sealed partial class SubtitleWindow : Window, IProjectSaveParticipant
 {
     private readonly ProjectDataStore gameData;
     private readonly ProjectSaveService projectSave;
-    private readonly UiPreviewRuntimeService runtime;
+    private readonly PreviewRuntimeService runtime;
     private readonly EditorDocument document;
     private readonly EditorDocumentBinding binding;
     private readonly Toast toast;
@@ -37,7 +37,7 @@ public sealed partial class SubtitleWindow : Window, IProjectSaveParticipant
     private bool confirmingClose;
     private long gesture;
 
-    public SubtitleWindow(ProjectDataStore gameData, ProjectSaveService projectSave, string key, UiPreviewRuntimeService runtime)
+    public SubtitleWindow(ProjectDataStore gameData, ProjectSaveService projectSave, string key, PreviewRuntimeService runtime)
     {
         this.gameData = gameData;
         this.projectSave = projectSave;

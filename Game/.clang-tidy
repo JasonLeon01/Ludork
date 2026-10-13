@@ -28,6 +28,6 @@ Checks: >-
   modernize-use-override,
   readability-redundant-declaration
 WarningsAsErrors: ''
-HeaderFilterRegex: '(^|[\\/])(Game[\\/](Application|Engine[\\/](Runtime|Standard|Source|UiPreviewHost|PlatformHosts))|tools[\\/]editor_launcher)[\\/]'
+HeaderFilterRegex: '(^|[\\/])(Game[\\/](Application|Engine[\\/](Runtime|Standard|Source|PreviewHost|PlatformHosts))|tools[\\/]editor_launcher)[\\/]'
 SystemHeaders: false
 FormatStyle: file
