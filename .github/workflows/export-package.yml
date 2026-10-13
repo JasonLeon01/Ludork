@@ -32,7 +32,8 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
-            const { shouldRun, resolveServerCommit } = require('./.github/scripts/package_control.cjs');
+            const { shouldRun, resolveServerCommit, validateReleaseTag } = require('./.github/scripts/package_control.cjs');
+            if (context.eventName === 'push') validateReleaseTag(context);
             const serverSha = await resolveServerCommit({ github, context, core });
             await shouldRun({ github, context, core }, 'export-package.yml', 'Record successful package', serverSha);
 
@@ -102,6 +103,13 @@ jobs:
         with:
           name: ${{ needs.server_source.outputs.artifact_name }}
           path: obj/release/assets
+          skip-decompress: true
+      - name: Download project templates
+        uses: actions/download-artifact@v8
+        with:
+          pattern: game-*
+          path: obj/release/assets
+          merge-multiple: true
           skip-decompress: true
       - name: Create or update the draft
         uses: actions/github-script@v8

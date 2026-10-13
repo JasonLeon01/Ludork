@@ -11,8 +11,16 @@ set "VARIANT=all"
 set "NATIVE_CACHE="
 set "CONFIG="
 set "OUTPUT_FOLDER="
+set "TEMPLATE_VERSION_OPTION="
 :parse_args
 if "%~1"=="" goto args_parsed
+if /I "%~1"=="--version" (
+    if "%~2"=="" goto usage
+    set "TEMPLATE_VERSION_OPTION=--version %~2"
+    shift
+    shift
+    goto parse_args
+)
 set "ARG=%~1"
 set "OPTION_VALUE=%~2"
 if /I "%~1"=="--variant" (
@@ -147,7 +155,7 @@ if errorlevel 1 exit /b 1
 exit /b 0
 
 :usage
-echo Usage: tools\create_templates.bat [--variant all^|plain^|ffmpeg] [--native-cache ^<folder^>] [Debug^|Release] [output-folder]
+echo Usage: tools\create_templates.bat [--version X.Y.Z] [--variant all^|plain^|ffmpeg] [--native-cache ^<folder^>] [Debug^|Release] [output-folder]
 exit /b 1
 
 :create_template_pair
@@ -163,7 +171,7 @@ for %%T in ("%CPP_TARGET%" "%STANDALONE_TARGET%") do (
 )
 call :copy_cpp_template "%CPP_TARGET%" "%INCLUDE_FFMPEG%"
 if errorlevel 1 exit /b %errorlevel%
-"%SCRIPT_TOOLS%" configure-project-template "%CPP_TARGET%\Main.proj" true %FFMPEG_ENABLED%
+"%SCRIPT_TOOLS%" configure-project-template "%CPP_TARGET%\Main.proj" true %FFMPEG_ENABLED% --versions-config "%ROOT_DIR%\versions.conf" %TEMPLATE_VERSION_OPTION%
 if errorlevel 1 exit /b %errorlevel%
 call :copy_runtime_legal_files "%CPP_TARGET%" "%INCLUDE_FFMPEG%"
 if errorlevel 1 exit /b %errorlevel%
@@ -177,7 +185,7 @@ call "%CD%\tools\build_standalone.bat" %CURRENT_BUILD_OPTION% "%CPP_TARGET%" "%S
 if errorlevel 1 exit /b %errorlevel%
 call :copy_standalone_files "%CPP_TARGET%" "%STANDALONE_TARGET%"
 if errorlevel 1 exit /b %errorlevel%
-"%SCRIPT_TOOLS%" configure-project-template "%STANDALONE_TARGET%\Main.proj" false %FFMPEG_ENABLED%
+"%SCRIPT_TOOLS%" configure-project-template "%STANDALONE_TARGET%\Main.proj" false %FFMPEG_ENABLED% --versions-config "%ROOT_DIR%\versions.conf" %TEMPLATE_VERSION_OPTION%
 if errorlevel 1 exit /b %errorlevel%
 if defined CACHE_ENTRY if not defined CURRENT_BUILD_OPTION (
     call :copy_native_outputs "%CPP_TARGET%" "%CACHE_ENTRY%"
@@ -287,7 +295,7 @@ set COPY_TEMPLATE_EXCLUDED_DIRECTORIES="%SOURCE_DIR%\Binaries" "%SOURCE_DIR%\.ve
 set COPY_TEMPLATE_EXCLUDED_DIRECTORIES=%COPY_TEMPLATE_EXCLUDED_DIRECTORIES% "%SOURCE_DIR%\Scripts\Internal\UI" "%SOURCE_DIR%\Scripts\stub\Internal\UI" "%SOURCE_DIR%\Scripts\stub\Internal\UIWindows" "%SOURCE_DIR%\Scripts\stub\Enums" "%SOURCE_DIR%\Scripts\Source\Locale"
 set COPY_TEMPLATE_EXCLUDED_DIRECTORIES=%COPY_TEMPLATE_EXCLUDED_DIRECTORIES% "%SOURCE_DIR%\Engine\ThirdParty\SFML\test"
 if "%~2"=="0" set COPY_TEMPLATE_EXCLUDED_DIRECTORIES=%COPY_TEMPLATE_EXCLUDED_DIRECTORIES% "%SOURCE_DIR%\Engine\ThirdParty\ffmpeg"
-robocopy "%SOURCE_DIR%" "%~1" /E /XD %COPY_TEMPLATE_EXCLUDED_DIRECTORIES% /XF *.anim.json *.py *.pyc *.pyo *.log Main.ini Ludork.ini CMakeUserPresets.json generate_clion.sh standalone-launch.json standalone-extensions.json /NFL /NDL /NJH /NJS /NP
+robocopy "%SOURCE_DIR%" "%~1" /E /XD %COPY_TEMPLATE_EXCLUDED_DIRECTORIES% /XF *.anim.json *.py *.pyc *.pyo *.log BuildInfo.json Main.ini Ludork.ini CMakeUserPresets.json generate_clion.sh standalone-launch.json standalone-extensions.json /NFL /NDL /NJH /NJS /NP
 if errorlevel 8 exit /b %errorlevel%
 if exist "%SOURCE_DIR%\Scripts\Source\Locale\Core.lua" (
     if not exist "%~1\Scripts\Source\Locale" mkdir "%~1\Scripts\Source\Locale"

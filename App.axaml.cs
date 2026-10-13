@@ -56,9 +56,10 @@ public partial class App : Application
             string? projectArgument = pendingProjectPath ?? (desktop.Args ?? Array.Empty<string>())
                 .FirstOrDefault(argument => !string.IsNullOrWhiteSpace(argument) && !argument.StartsWith("--"));
             pendingProjectPath = null;
+            string? projectError = null;
             MainWindow? projectWindow = string.IsNullOrWhiteSpace(projectArgument)
                 ? null
-                : createProjectWindow(projectArgument);
+                : createProjectWindow(projectArgument, out projectError);
             if (projectWindow is not null)
             {
                 desktop.MainWindow = projectWindow;
@@ -70,6 +71,12 @@ public partial class App : Application
                     DataContext = new StartViewModel(editorSettings),
                 };
                 registerPluginFailureNotification(startWindow);
+                if (projectError is not null)
+                {
+                    string message = projectError;
+                    startWindow.Opened += async (_, _) =>
+                        await AlertDialog.ShowAsync(startWindow, LocaleService.Get("ERROR"), message);
+                }
                 desktop.MainWindow = startWindow;
             }
         }
@@ -137,9 +144,13 @@ public partial class App : Application
     {
         if (ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
             return false;
-        MainWindow? mainWindow = createProjectWindow(projectFilePath);
+        MainWindow? mainWindow = createProjectWindow(projectFilePath, out string? error);
         if (mainWindow is null)
+        {
+            if (error is not null)
+                _ = AlertDialog.ShowAsync(currentWindow, LocaleService.Get("ERROR"), error);
             return false;
+        }
 
         desktop.MainWindow = mainWindow;
         mainWindow.Show();
@@ -150,8 +161,9 @@ public partial class App : Application
         return true;
     }
 
-    private MainWindow? createProjectWindow(string projectFilePath)
+    private MainWindow? createProjectWindow(string projectFilePath, out string? error)
     {
+        error = null;
         if (editorSettings is null || !Path.IsPathFullyQualified(projectFilePath))
             return null;
         string fullPath = Path.GetFullPath(projectFilePath);
@@ -159,6 +171,10 @@ public partial class App : Application
             return null;
         string? projectPath = Path.GetDirectoryName(fullPath);
         if (string.IsNullOrWhiteSpace(projectPath))
+            return null;
+
+        error = ProjectVersionService.GetOpenError(fullPath);
+        if (error is not null)
             return null;
 
         if (pluginWorkspace is not null)

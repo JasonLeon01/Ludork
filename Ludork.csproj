@@ -91,6 +91,27 @@
   </Target>
 
   <Target
+      Name="GenerateEditorBuildMetadata"
+      DependsOnTargets="GenerateEngineConstants">
+    <PropertyGroup>
+      <LudorkBuildInfoArgument Condition="'$(LudorkBuildInfo)' != ''">--build-info &quot;$(LudorkBuildInfo)&quot;</LudorkBuildInfoArgument>
+    </PropertyGroup>
+    <Exec Command="&quot;$(LudorkScriptTools)&quot; editor-build-metadata csharp &quot;$(MSBuildProjectDirectory)/versions.conf&quot; &quot;$(IntermediateOutputPath)EditorBuildMetadata.g.cs&quot; --version &quot;$(Version)&quot; $(LudorkBuildInfoArgument)" />
+    <ItemGroup>
+      <FileWrites Include="$(IntermediateOutputPath)EditorBuildMetadata.g.cs" />
+    </ItemGroup>
+  </Target>
+
+  <Target
+      Name="IncludeEditorBuildMetadata"
+      BeforeTargets="BeforeCompile"
+      DependsOnTargets="GenerateEditorBuildMetadata">
+    <ItemGroup>
+      <Compile Include="$(IntermediateOutputPath)EditorBuildMetadata.g.cs" />
+    </ItemGroup>
+  </Target>
+
+  <Target
       Name="GenerateEngineConstants"
       Inputs="$(MSBuildProjectDirectory)/Game/Engine/Source/Core/include/EngineState.hpp;$(MSBuildProjectDirectory)/ScriptTools/engine_constants.py;$(MSBuildProjectFullPath)"
       Outputs="$(IntermediateOutputPath)EngineConstants.g.cs">

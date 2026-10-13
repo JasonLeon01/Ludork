@@ -58,13 +58,22 @@ if /I "%~1"=="--launcher" (
 goto usage
 
 :arguments_ready
+if not defined PACKAGE_CHANNEL set "PACKAGE_CHANNEL=--dev"
+if "%PACKAGE_CHANNEL%"=="--release" (
+    set "WITHOUT_TEMPLATES=1"
+    if defined PREBUILT_TEMPLATES_DIR (
+        echo Release editors download templates and cannot bundle --templates.
+        exit /b 1
+    )
+)
 if "%WITHOUT_TEMPLATES%"=="1" if defined PREBUILT_TEMPLATES_DIR (
     echo --templates and --without-templates are mutually exclusive.
     exit /b 1
 )
-if not defined PACKAGE_CHANNEL set "PACKAGE_CHANNEL=--dev"
 set "PROJECT_FILE=%ROOT_DIR%\Ludork.csproj"
 set "WORK_DIR=%ROOT_DIR%\obj\editor-package"
+set "METADATA_DIR=%ROOT_DIR%\obj\editor-package-metadata"
+set "BUILD_INFO=%METADATA_DIR%\BuildInfo.json"
 set "STAGE_DIR=%WORK_DIR%\dist"
 set "BINARIES_DIR=%STAGE_DIR%\Binaries"
 set "LAUNCHER_BUILD_DIR=%WORK_DIR%\launcher"
@@ -197,8 +206,12 @@ mkdir "%STAGE_DIR%"
 if errorlevel 1 goto failed
 
 set "FULL_VERSION="
-for /f "delims=" %%V in ('""%SCRIPT_TOOLS%" packaging-constants release-build-info "%STAGE_DIR%" --version "%PRODUCT_VERSION%" %PACKAGE_CHANNEL%"') do set "FULL_VERSION=%%V"
+for /f "delims=" %%V in ('""%SCRIPT_TOOLS%" packaging-constants release-build-info "%METADATA_DIR%" --version "%PRODUCT_VERSION%" %PACKAGE_CHANNEL%"') do set "FULL_VERSION=%%V"
 if not defined FULL_VERSION goto failed
+if "%PACKAGE_CHANNEL%"=="--dev" (
+    copy /Y "%BUILD_INFO%" "%STAGE_DIR%\BuildInfo.json" >nul
+    if errorlevel 1 goto failed
+)
 echo Packaging Ludork %FULL_VERSION% for Windows x64...
 
 if defined PREBUILT_LAUNCHER (
@@ -220,7 +233,9 @@ if defined EDITOR_PUBLISH_OPTIONS (
     dotnet restore "%PROJECT_FILE%" -r win-x64 -p:Configuration=Release -p:SelfContained=true -p:PublishSingleFile=false -p:PublishTrimmed=false -p:PublishAot=false -p:DebugSymbols=false -p:DebugType=None
     if errorlevel 1 goto failed
 )
-dotnet publish "%PROJECT_FILE%" %EDITOR_PUBLISH_OPTIONS% -c Release -r win-x64 --self-contained true -o "%BINARIES_DIR%" -p:PublishSingleFile=false -p:PublishTrimmed=false -p:PublishAot=false -p:DebugSymbols=false -p:DebugType=None
+dotnet publish "%PROJECT_FILE%" %EDITOR_PUBLISH_OPTIONS% -c Release -r win-x64 --self-contained true -o "%BINARIES_DIR%" -p:PublishSingleFile=false -p:PublishTrimmed=false -p:PublishAot=false -p:DebugSymbols=false -p:DebugType=None "-p:Version=%PRODUCT_VERSION%" "-p:LudorkBuildInfo=%BUILD_INFO%"
+if errorlevel 1 goto failed
+"%BINARIES_DIR%\Ludork.exe" --check-build-info "%BUILD_INFO%"
 if errorlevel 1 goto failed
 
 "%SCRIPT_TOOLS%" prune-editor-windows-publish "%BINARIES_DIR%"
@@ -258,7 +273,7 @@ if "%WITHOUT_TEMPLATES%"=="0" (
         if errorlevel 1 goto failed
     ) else (
         echo Generating editor project templates...
-        call "%ROOT_DIR%\tools\create_templates.bat" Release "%STAGE_DIR%\Templates"
+        call "%ROOT_DIR%\tools\create_templates.bat" --version "%PRODUCT_VERSION%" Release "%STAGE_DIR%\Templates"
         if errorlevel 1 goto failed
     )
 )
@@ -415,7 +430,7 @@ call :require_file "%PACKAGE_DIR%\tools\gnu-make\make-%GNU_MAKE_VERSION%.tar.gz"
 if errorlevel 1 exit /b 1
 call :require_file "%PACKAGE_DIR%\tools\gnu-make\COPYING"
 if errorlevel 1 exit /b 1
-call :require_file "%PACKAGE_DIR%\BuildInfo.json"
+"%SCRIPT_TOOLS%" editor-build-metadata validate-payload "%PACKAGE_DIR%" --build-info "%BUILD_INFO%"
 if errorlevel 1 exit /b 1
 call :require_file "%PACKAGE_DIR%\LICENSE.md"
 if errorlevel 1 exit /b 1

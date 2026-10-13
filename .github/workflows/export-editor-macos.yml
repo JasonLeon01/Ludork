@@ -111,9 +111,63 @@ jobs:
             echo "notaryKey=$RUNNER_TEMP/ludork-notary.p8" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Sign independent project templates
+        if: inputs.templates && steps.signing.outputs.enabled == 'true'
+        env:
+          MACOS_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_SIGNING_CERTIFICATE_PASSWORD }}
+          LUDORK_MACOS_SIGNING_CERTIFICATE: ${{ steps.signing.outputs.certificate }}
+          LUDORK_MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+        run: |
+          printf '%s\n' "$MACOS_SIGNING_CERTIFICATE_PASSWORD" |
+            .tools/ScriptTools/ScriptTools macos-sign --templates obj/editor-inputs/Templates
+
+      - name: Archive project templates
+        if: inputs.templates
+        run: .tools/ScriptTools/ScriptTools template-archive obj/editor-inputs/Templates obj/export-template-assets --platform macos
+
+      - name: Upload Source template
+        if: inputs.templates
+        uses: actions/upload-artifact@v7
+        with:
+          name: game-source.tar.gz
+          path: obj/export-template-assets/game-source.tar.gz
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload Source FFmpeg template
+        if: inputs.templates
+        uses: actions/upload-artifact@v7
+        with:
+          name: game-source-ffmpeg.tar.gz
+          path: obj/export-template-assets/game-source-ffmpeg.tar.gz
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload Standalone template
+        if: inputs.templates
+        uses: actions/upload-artifact@v7
+        with:
+          name: game-standalone.tar.gz
+          path: obj/export-template-assets/game-standalone.tar.gz
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload Standalone FFmpeg template
+        if: inputs.templates
+        uses: actions/upload-artifact@v7
+        with:
+          name: game-standalone-ffmpeg.tar.gz
+          path: obj/export-template-assets/game-standalone-ffmpeg.tar.gz
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Package editor DMG
         env:
-          INCLUDE_TEMPLATES: ${{ inputs.templates }}
+          INCLUDE_TEMPLATES: ${{ inputs.templates && !inputs.release }}
           SIGNING_ENABLED: ${{ steps.signing.outputs.enabled }}
           MACOS_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_SIGNING_CERTIFICATE_PASSWORD }}
           MACOS_NOTARY_PASSWORD: ${{ secrets.MACOS_NOTARY_PASSWORD }}

@@ -39,4 +39,10 @@ public static class EditorPaths
     }
 
     public static string IniFilePath => Path.Combine(IniDirectory, $"{AppName}.ini");
+
+    public static string TemplateCacheDirectory => Path.Combine(
+        OperatingSystem.IsWindows()
+            ? EditorRuntimePaths.ContentRoot
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), AppName),
+        "Templates", "v" + EditorVersionService.BaseVersion);
 }

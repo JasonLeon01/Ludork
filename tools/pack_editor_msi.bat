@@ -4,7 +4,8 @@ chcp 65001>nul
 
 for %%I in ("%~dp0..") do set "ROOT_DIR=%%~fI"
 set "DIST_DIR=%ROOT_DIR%\dist"
-set "BUILD_INFO=%DIST_DIR%\BuildInfo.json"
+set "BUILD_INFO=%ROOT_DIR%\obj\editor-package-metadata\BuildInfo.json"
+set "OUTPUT_MSI="
 set "SCRIPT_TOOLS=%ROOT_DIR%\.tools\ScriptTools\ScriptTools.exe"
 set "WIX_SOURCE=%ROOT_DIR%\tools\installer\Ludork.wxs"
 set "PAYLOAD_GENERATOR=%ROOT_DIR%\tools\installer\generate_installer_payload.ps1"
@@ -14,6 +15,24 @@ set "WIX_EXE=%WIX_DIR%\wix.exe"
 set "WORK_DIR=%ROOT_DIR%\obj\editor-msi"
 set "WORK_MSI=%WORK_DIR%\Ludork.msi"
 set "PAYLOAD_SOURCE=%WORK_DIR%\EditorPayload.wxs"
+
+:parse_arguments
+if "%~1"=="" goto arguments_ready
+if /I "%~1"=="--build-info" (
+    if "%~2"=="" goto usage
+    for %%I in ("%~2") do set "BUILD_INFO=%%~fI"
+    shift
+    shift
+    goto parse_arguments
+)
+set "ARG=%~1"
+if "%ARG:~0,2%"=="--" goto usage
+if defined OUTPUT_MSI goto usage
+for %%I in ("%~1") do set "OUTPUT_MSI=%%~fI"
+shift
+goto parse_arguments
+
+:arguments_ready
 
 if not exist "%SCRIPT_TOOLS%" (
     echo ScriptTools was not found: %SCRIPT_TOOLS%
@@ -53,17 +72,11 @@ if errorlevel 1 (
 )
 
 set "WIX_VERSION="
-set "EDITOR_VERSION="
 for /f "usebackq eol=# tokens=1,2 delims==" %%A in ("%ROOT_DIR%\versions.conf") do (
     if /I "%%A"=="WIX_VERSION" set "WIX_VERSION=%%B"
-    if /I "%%A"=="EDITOR_VERSION" set "EDITOR_VERSION=%%B"
 )
 if not defined WIX_VERSION (
     echo WIX_VERSION is not set in versions.conf.
-    exit /b 1
-)
-if not defined EDITOR_VERSION (
-    echo EDITOR_VERSION is not set in versions.conf.
     exit /b 1
 )
 
@@ -79,15 +92,13 @@ if not defined PRODUCT_VERSION (
     echo The packaged editor version could not be read: %BUILD_INFO%
     exit /b 1
 )
-if not "%PRODUCT_VERSION%"=="%EDITOR_VERSION%" (
-    echo The packaged editor version %PRODUCT_VERSION% does not match EDITOR_VERSION=%EDITOR_VERSION%.
-    exit /b 1
-)
+"%DIST_DIR%\Binaries\Ludork.exe" --check-build-info "%BUILD_INFO%"
+if errorlevel 1 exit /b 1
+"%SCRIPT_TOOLS%" editor-build-metadata validate-payload "%DIST_DIR%" --build-info "%BUILD_INFO%"
+if errorlevel 1 exit /b 1
 
-if "%~1"=="" (
+if not defined OUTPUT_MSI (
     set "OUTPUT_MSI=%ROOT_DIR%\Ludork-%PRODUCT_VERSION%-windows-x64.msi"
-) else (
-    for %%I in ("%~1") do set "OUTPUT_MSI=%%~fI"
 )
 for %%I in ("%OUTPUT_MSI%") do (
     if /I not "%%~xI"==".msi" (
@@ -155,6 +166,10 @@ if errorlevel 1 goto failed
 if exist "%WORK_DIR%" rmdir /S /Q "%WORK_DIR%"
 echo Editor MSI complete: %OUTPUT_MSI%
 exit /b 0
+
+:usage
+echo Usage: tools\pack_editor_msi.bat [--build-info ^<file^>] [output.msi]
+exit /b 1
 
 :failed
 set "PACK_RESULT=%ERRORLEVEL%"

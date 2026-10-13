@@ -36,9 +36,11 @@ Ludork 1.0.0 不提供 Linux 或 Intel Mac 编辑器安装包。
 
 正式安装包为自包含发布，无需另外安装 .NET 运行时。macOS 可能会要求确认是否信任从互联网下载的应用。
 
-Windows 请运行安装根目录中的 `Ludork.exe`。该启动器会打开 `Binaries` 中的实际编辑器；DLL 与 .NET 运行时文件也保存在 `Binaries` 中。`Locale`、`Templates`、`tools`、`Plugins`、`plugins.json` 及许可证仍位于安装根目录。编辑器设置保存到根目录的 `Ludork.ini`，插件数据保存在 `Plugins/.data` 下。移动便携安装时，请保留完整的软件包目录。
+Windows 请运行安装根目录中的 `Ludork.exe`。该启动器会打开 `Binaries` 中的实际编辑器；DLL 与 .NET 运行时文件也保存在 `Binaries` 中。`Locale`、`tools`、`Plugins`、`plugins.json` 及许可证仍位于安装根目录。正式版将下载的模板压缩包缓存到 `Templates/v<编辑器版本>/`；开发版 Package 内置本地模板。编辑器设置保存到根目录的 `Ludork.ini`，插件数据保存在 `Plugins/.data` 下。移动便携安装时，请保留完整的软件包目录。
 
 ## 选择工程模板
+
+正式版从对应版本的 GitHub Release 下载所选模板，有效缓存可离线复用；macOS 缓存位于 `~/Ludork/Templates/v<编辑器版本>/`。新建窗口显示进度并支持取消。开发版使用本地模板，缺失时直接提示。新工程使用编辑器当前的 `v<主版本>.<次版本>`；打开工程时，`Main.proj` 顶层 `version` 必须格式合法且属于编辑器支持范围。支持范围内的旧工程直接打开，不自动迁移。
 
 | 模板 | 适用场景 | 开发环境要求 |
 | --- | --- | --- |
@@ -99,7 +101,7 @@ macOS：
 
 初始化脚本会准备原生依赖和编辑器专用的 UI preview host，但不会构建 Game 游戏。请另外使用 `tools\build_cpp.bat Game Debug` 或 `./tools/build_cpp.sh Game Debug` 构建 Game。
 
-GitHub Actions 提供六个打包入口。[Export Package](.github/workflows/export-package.yml)、[Export Package Windows](.github/workflows/export-package-windows.yml) 和 [Export Package macOS](.github/workflows/export-package-macos.yml) 包含项目模板，双平台入口保留定时与标签 Release 打包。[Export Editor](.github/workflows/export-editor.yml)、[Export Editor Windows](.github/workflows/export-editor-windows.yml) 和 [Export Editor macOS](.github/workflows/export-editor-macos.yml) 打包编辑器及其工具，不编译、不包含模板，供测试和已有项目使用。双平台 Export Package 和 Export Editor 都在北京时间 02:00、14:00 定时运行，分别判断提交是否已成功打包。推送标签只运行 Export Package，并创建包含完整包的 Release 草稿。两种 macOS 包共用签名与公证流程。每次导出都在干净的 runner 中重新构建，不恢复或保存依赖及构建缓存；详见[自动打包说明](tools/README.md#pull-requests-and-automated-packages)。
+GitHub Actions 提供六个打包入口。[Export Package](.github/workflows/export-package.yml)、[Export Package Windows](.github/workflows/export-package-windows.yml) 和 [Export Package macOS](.github/workflows/export-package-macos.yml) 构建项目模板，开发包内置模板，每个平台另上传四个独立模板归档。[Export Editor](.github/workflows/export-editor.yml)、[Export Editor Windows](.github/workflows/export-editor-windows.yml) 和 [Export Editor macOS](.github/workflows/export-editor-macos.yml) 打包编辑器及其工具，不构建、不内置模板。双平台 Export Package 和 Export Editor 都在北京时间 02:00、14:00 定时运行，分别判断提交是否已成功打包。与 `v<EDITOR_VERSION>` 一致的标签触发 Export Package，创建包含 11 项资产的 Release 草稿：MSI、DMG、Server 源码 tar.gz 和八个模板归档。正式安装包不内置模板，所有正式资产均不包含生成的 `BuildInfo.json`；开发编辑器包仍保留该文件。两种 macOS 编辑器包共用签名与公证流程。每次导出都在干净的 runner 中重新构建，不恢复或保存依赖及构建缓存；详见[自动打包说明](tools/README.md#pull-requests-and-automated-packages)。
 
 ## 文档与支持
 

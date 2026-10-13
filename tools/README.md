@@ -189,18 +189,21 @@ changing third-party dependencies or external CMake cache options. Direct
 `create_templates` accepts `--variant plain` or `--variant ffmpeg` to build one
 source/Standalone pair; the matching `create_templates_plain` and
 `create_templates_ffmpeg` scripts are thin entry points for automation. Without
-`--variant`, it rebuilds all four templates.
+`--variant`, it rebuilds all four templates. `--version X.Y.Z` overrides the editor
+base version for this invocation. Every generated `Main.proj` receives a top-level
+`version` such as `v1.0`; `packaging.version` remains the game's release version.
 
 Both editor packers accept `--without-templates` to produce an editor and its
 build/package tools without a `Templates` directory. It is mutually exclusive with
-`--templates <folder>`; omitting both keeps normal template generation. This mode
+`--templates <folder>`. Development packaging generates templates when both are
+omitted. Release packaging always omits templates and rejects `--templates`. This mode
 still requires ScriptTools, the host Lua compiler and the Windows GNU Make tool,
 but does not require the Game native dependency tree or FFmpeg source archive.
 
-Windows and macOS automation may pass `--templates <folder>` to copy an already
+Windows and macOS development packaging may pass `--templates <folder>` to copy an already
 generated set of four editor templates. Each Standalone template must contain
 its own matched preview snapshot; C++ templates contain preview source only.
-The normal command regenerates the templates before packaging the editor.
+The default development command regenerates the templates before packaging the editor.
 The prepared template folder must remain outside `obj/editor-package`, which is
 recreated during packaging.
 
@@ -219,9 +222,17 @@ change. `build_standalone --use-current-build` packages the matching existing
 `dotnet publish --no-build` against matching Release outputs for the editor and
 its two contract projects. It still refreshes Content and compiles current locale
 data in a clean staging directory. Windows also accepts `--launcher <file>` for
-a prepared editor launcher outside that staging directory.
+a prepared editor launcher outside that staging directory. The published editor
+must have the same embedded base version, full version and channel as this
+invocation's metadata snapshot; a mismatch requires rebuilding the editor.
 
-`EDITOR_VERSION` in `versions.conf` is the editor's own base version. `Ludork.csproj`
+`EDITOR_VERSION` in `versions.conf` is the editor's own base version.
+`GAME_VERSIONS='["v1.0"]'` lists the project versions this editor can open. The
+current `v<major>.<minor>` must be in that array. New projects always use that
+current version. Opening an unsupported, missing or malformed project version
+fails before project plug-ins or session initialisation, without modifying the
+project. Supported older projects retain their version; no migration is performed.
+`Ludork.csproj`
 derives its `<Version>` from that entry, so the assembly, Windows launcher resource,
 macOS bundle metadata and installer all report the same number. Both editor packers
 accept `--version <base-version>` and mutually exclusive `--dev` / `--release`,
@@ -232,19 +243,34 @@ a formal package keeps the base version, and a dev package appends the UTC+8
 
 ```bat
 tools\pack_editor.bat --release
-tools\pack_editor.bat --version 1.1.0 --dev
+tools\pack_editor.bat --version 1.0.1 --dev
 ```
 
 ```sh
 ./tools/pack_editor.sh --release
 ```
 
-Each package receives `BuildInfo.json` at its content root, which is the package
-root on Windows and `Contents/Resources` inside the macOS app bundle, with the same
-`version`, `fullVersion`, `dev` and `builtAt` fields as a game package. The About
-dialog shows `fullVersion`. Binary version fields hold the base version, because
+Each invocation freezes `obj/editor-package-metadata/BuildInfo.json` outside the
+package. The assembly metadata, filenames, MSI and macOS bundle use that snapshot.
+Only development packages copy it to the Windows package root or the macOS app's
+`Contents/Resources`. Formal editor directories, MSI, DMG, template archives and
+Server archives contain no generated `BuildInfo.json`; the external snapshot is
+not uploaded. About and channel detection read the embedded metadata, and direct
+source runs default to development regardless of Debug/Release configuration.
+The About dialog shows `fullVersion`. Binary version fields hold the base version, because
 Windows resources and .NET assembly versions reject components above 65535; the full
-version names the DMG, its volume and the packaging log line.
+version names the DMG, its volume and the packaging log line. Game packaging's
+`Data/BuildInfo.json` contract is unchanged.
+
+Release editors download the selected platform and variant from
+`https://github.com/JasonLeon01/Ludork/releases/download/v<base-version>/<asset>`.
+They retain the compressed archive in `<installation-root>/Templates/v<base-version>/`
+on Windows or `~/Ludork/Templates/v<base-version>/` on macOS. Valid cached archives
+can create projects offline; every creation extracts into a fresh project.
+Development editors copy bundled templates and never download missing ones.
+The creation window reports download, extraction and copy progress and supports
+cancellation. A missing release asset reports that this version's template is not
+yet available; there is no fallback to another release or CI artifact.
 
 ### Ludork Server
 
@@ -349,15 +375,18 @@ or `MACOS_NOTARY_KEY` as a base64-encoded `.p8` with `MACOS_NOTARY_KEY_ID` and
 
 [Export Package Windows](../.github/workflows/export-package-windows.yml) and
 [Export Package macOS](../.github/workflows/export-package-macos.yml) manually
-produce the same complete package for one platform, including all four templates.
+produce the same development package for one platform, including all four templates
+and four separate template archives.
 
 These three complete-package entries also upload an independent CI artifact,
-`LudorkServer-source-<40-character-server-SHA>.zip`, retained for seven days.
+`LudorkServer-source-<40-character-server-SHA>.tar.gz`, retained for seven days.
 The combined entry resolves remote branch `Server` once and shares that exact
 source artifact across the run; each standalone platform entry prepares its own
 source artifact. The archive is made from the resolved Git tree and rejects
 tracked user data, configuration, dependencies and generated launchers. It is not
-embedded in the editor's 7z, MSI or DMG. Download and extract it on the server,
+embedded in the editor's 7z, MSI or DMG. It preserves the `LudorkServer/` top-level
+directory and Git file permissions. Download and extract it on Linux with
+`tar -xzf LudorkServer-source-<version>.tar.gz`,
 then deploy it there. The first source archive requires the repository owner to
 make the `Server` branch available remotely; an uncommitted local worktree cannot
 satisfy a CI checkout. The template-free Export Editor entries do not include this
@@ -372,7 +401,8 @@ template downloads or `Templates` directory. They retain the editor, official
 plug-ins and build/package tools for existing projects. Tool preparation builds
 ScriptTools and a standalone `luac`, plus GNU Make on Windows, without configuring
 Game or downloading its SFML/LuaSF/FFmpeg dependencies. Creating a new project
-requires templates from a complete package. Both macOS modes use the same signing
+in these development editors requires local templates from a development Package
+build. Release editors obtain templates from their matching Release. Both macOS modes use the same signing
 and notarisation secrets and DMG verification.
 
 The macOS artifacts are `Ludork-editor-macos-arm64-<sha>` without templates and
@@ -405,8 +435,8 @@ native cache. Concurrency groups are
 separate for each platform and package mode, so full packages do not hold up
 scheduled editor-only builds. Scheduled and manual runs use `--dev`. Only a `v*`
 tag push to `Export Package` uses `--release` and creates or updates a draft Release
-with complete Windows MSI and macOS DMG packages, both including templates,
-plus the separate server source ZIP.
+with Windows MSI and macOS DMG packages that omit templates, plus eight template
+archives and the separate Server source tar.gz.
 
 Consumers of the combined `Export Package` workflow must select a run whose `Record successful package (<server-SHA>)` job
 succeeded and whose requested artifact is still available and unexpired. Selecting
@@ -415,17 +445,34 @@ an unchanged commit also succeeds, but produces no package artifacts.
 
 Pushing a `v*` tag packages both platforms with `--release`, builds the Windows MSI
 and then creates a draft GitHub Release with generated release notes, that MSI,
-the macOS DMG and `LudorkServer-source-<EDITOR_VERSION>.zip`. The server attachment
+the macOS DMG, eight template archives and
+`LudorkServer-source-<EDITOR_VERSION>.tar.gz`. The server attachment
 uses the same version as both editor installers; its contents remain the archived
-Server commit. The tag only
-selects the packaging mode; the version always comes
-from `EDITOR_VERSION`, and the tag name is never parsed. A rerun updates the
-existing draft; an already published release is not overwritten. No release
+Server commit. The tag must equal `v<EDITOR_VERSION>`, for example `v1.0.0`.
+The upload validates exactly these 11 assets and their type-specific names.
+A rerun updates the existing draft and removes this workflow's obsolete Server
+ZIP attachments; an already published release is not overwritten. No release
 is automatically published, and only the release-upload job has `contents: write`.
 
-Complete packages include the selected commit's Game templates; both modes
-include its editor, tools, plug-ins, locale and licence texts. Local syntax and build checks do not
+Package builds always generate the selected commit's Game templates. Development
+packages embed them; release packages keep them separate. Both modes
+include the editor, tools, plug-ins, locale and licence texts. Local syntax and build checks do not
 replace successful hosted Actions runs or confirmation of the `main` merge rule.
+
+Each Package platform uploads four archives directly, without an outer archive.
+Windows x64 uses `.zip`; macOS ARM64 uses `.tar.gz`:
+
+| Template | Windows asset | macOS asset |
+| --- | --- | --- |
+| Source | `game-source.zip` | `game-source.tar.gz` |
+| Source + FFmpeg | `game-source-ffmpeg.zip` | `game-source-ffmpeg.tar.gz` |
+| Standalone | `game-standalone.zip` | `game-standalone.tar.gz` |
+| Standalone + FFmpeg | `game-standalone-ffmpeg.zip` | `game-standalone-ffmpeg.tar.gz` |
+
+Archive roots contain the project files, including hidden configuration, licence
+materials and matching preview data. The output directory stays outside the
+editor payload. macOS archives preserve executable permissions and relative
+library links. Export Editor neither builds nor uploads these archives.
 
 Both editor packaging scripts use the shared ScriptTools command
 `editor-official-plugins prepare <source> <output-root>` to clean-copy the fixed
@@ -440,7 +487,7 @@ the self-contained editor under `Binaries`. Its output has this layout:
 ```text
 dist/
 ├── Ludork.exe                 # Native launcher
-├── BuildInfo.json
+├── BuildInfo.json             # Development packages only
 ├── Binaries/
 │   ├── Ludork.exe             # Actual editor
 │   ├── Ludork.dll
@@ -448,7 +495,7 @@ dist/
 │   ├── Ludork.runtimeconfig.json
 │   └── …                      # DLLs and .NET runtime files
 ├── Locale/
-├── Templates/
+├── Templates/                # Bundled in development Package builds only
 ├── tools/
 │   └── ScriptTools/
 │       ├── ScriptTools.exe
@@ -479,8 +526,9 @@ configuration against the installation root even when started directly from
 own packaging layout.
 
 `pack_editor_msi.bat` wraps the current `dist` package into the Windows Installer
-database with the pinned WiX toolset. It reads `dist\BuildInfo.json`, refuses a dev
-package and requires the packaged version to match `EDITOR_VERSION`, so run
+database with the pinned WiX toolset. It reads the external snapshot selected by
+`--build-info <file>` (default `obj\editor-package-metadata\BuildInfo.json`), refuses a dev
+package and validates the editor's embedded version and channel against it, so run
 `tools\pack_editor.bat --release` first. Without an argument it writes
 `Ludork-<version>-windows-x64.msi` to the repository root; an argument selects a
 different `.msi` path.
@@ -502,9 +550,10 @@ removed. An ordinary failure rolls back to the previous installation; if
 rollback itself cannot finish, the installer reports recovery details instead
 of claiming that the old installation is intact. The app registers Ludork
 `.proj` files with Finder and includes their document icon.
-Editor content, templates, licence texts, and runtime tools are stored under
+Editor content, development templates, licence texts, and runtime tools are stored under
 `Contents/Resources`; `Contents/MacOS` only contains the executable and its .NET
-runtime dependencies. The app and installer are not signed or notarised.
+runtime dependencies. Signing and notarisation are optional and use the configured
+identity and notary credentials.
 
 The macOS association is owned by the app bundle and becomes unusable when the
 app is removed. An installer or manual uninstall can explicitly remove the
@@ -538,11 +587,16 @@ the enclosing app afterwards. This keeps the recorded sizes and hashes aligned
 with the signed files without accepting an incomplete input bundle. The option
 may be repeated for runtime directories inside the application's resources;
 it is not passed when signing the DMG.
-Complete editor packages also pass each Standalone template through
+Development editor packages also pass each bundled Standalone template through
 `macos-sign --ui-preview-template <directory>`. The signer validates each preview
 before signing nested binaries, refreshes only its build ID against the signed
 runtime, validates the resulting snapshot, then seals the editor app and checks
 the signed Host description. Editor-only packages do not pass template paths.
+Before creating independent archives, Package workflows run
+`macos-sign --templates <template-root>` with the same signing identity settings.
+This signs nested template binaries and refreshes and validates Standalone preview
+snapshots. Independent templates are not separately notarised; editor DMG
+signing and notarisation retain their existing flow.
 
 Python is needed only when `init` or `build_script_tools` compiles ScriptTools.
 Development build and packaging commands consume the prepared runtime bundle;
@@ -604,6 +658,14 @@ and prints the full version, and `build-info <file> --field <name>` prints one
 resolved field of an existing `BuildInfo.json`, including `fullVersion`, `dev` and
 `appleBuildVersion`. Both reject a file whose fields disagree with its own version
 and build time.
+
+`editor-build-metadata csharp <versions.conf> <output.cs> [--build-info <snapshot>]`
+generates the editor's assembly metadata; without a snapshot it generates
+development metadata. `editor-build-metadata validate-payload <root> --build-info
+<snapshot> [--content-root <directory>]` checks development/release BuildInfo placement.
+`template-archive <templates-root> <output-directory> --platform windows|macos`
+archives the four generated template directories. `configure-project-template`
+requires `--versions-config <versions.conf>` and accepts `--version X.Y.Z`.
 
 Packers call `resolve-metadata <project-root> <output-json> [overrides]` once to
 freeze the metadata for that invocation. `package-name --metadata <snapshot-json>`

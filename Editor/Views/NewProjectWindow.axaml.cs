@@ -7,7 +7,8 @@ using Ludork.Views.Utils;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text.Json.Nodes;
+using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Ludork.Views;
@@ -42,6 +43,7 @@ public partial class NewProjectWindow : Window
     private readonly EditorSettings editorSettings;
     private bool standalone = true;
     private bool creating;
+    private CancellationTokenSource? creationCancellation;
 
     public NewProjectWindow() : this(EditorLayoutService.Settings ?? new EditorSettings())
     {
@@ -141,8 +143,7 @@ public partial class NewProjectWindow : Window
 
     private string getTemplateName()
     {
-        string templateName = standalone ? "Standalone" : "Cpp";
-        return FfmpegToggle.IsChecked == true ? templateName + "-ffmpeg" : templateName;
+        return ProjectTemplateService.GetLocalTemplateName(standalone, FfmpegToggle.IsChecked == true);
     }
 
     private void onStandaloneTemplateClick(object? sender, RoutedEventArgs args)
@@ -178,7 +179,14 @@ public partial class NewProjectWindow : Window
     private async void onKeyDown(object? sender, KeyEventArgs args)
     {
         if (creating)
+        {
+            if (args.Key == Key.Escape)
+            {
+                creationCancellation?.Cancel();
+                args.Handled = true;
+            }
             return;
+        }
         if (args.Key == Key.Escape)
         {
             Close((string?)null);
@@ -210,12 +218,17 @@ public partial class NewProjectWindow : Window
     private void onClosing(object? sender, WindowClosingEventArgs args)
     {
         if (creating)
+        {
             args.Cancel = true;
+            creationCancellation?.Cancel();
+        }
     }
 
     private void onCancel(object? sender, RoutedEventArgs args)
     {
-        if (!creating)
+        if (creating)
+            creationCancellation?.Cancel();
+        else
             Close((string?)null);
     }
 
@@ -249,7 +262,8 @@ public partial class NewProjectWindow : Window
             return LocaleService.Get("PROJECT_EXISTS");
 
         string templateName = getTemplateName();
-        if (EditorRuntimePaths.FindDirectory(Path.Combine("Templates", templateName)) is null)
+        if (EditorVersionService.IsDevelopment
+            && EditorRuntimePaths.FindDirectory(Path.Combine("Templates", templateName)) is null)
             return LocaleService.Get("PROJECT_TEMPLATE_MISSING");
         return null;
     }
@@ -284,17 +298,23 @@ public partial class NewProjectWindow : Window
         creating = value;
         TemplateAndDetails.IsEnabled = !value;
         ProjectSettingsPanel.IsEnabled = !value;
-        CancelButton.IsEnabled = !value;
         CopyProgress.IsVisible = value;
         ProgressText.IsVisible = value;
         if (value)
+        {
             CreateButton.IsEnabled = false;
+            CopyProgress.IsIndeterminate = true;
+            CopyProgress.Value = 0;
+            ProgressText.Text = LocaleService.Get("NEW_PROJECT_CREATING");
+        }
         else
             updateValidation();
     }
 
     private async Task createProjectAsync()
     {
+        if (creating)
+            return;
         string? validationMessage = getValidationMessage();
         if (validationMessage is not null)
         {
@@ -302,85 +322,70 @@ public partial class NewProjectWindow : Window
             return;
         }
 
-        string templateName = getTemplateName();
-        string templatePath = EditorRuntimePaths.FindDirectory(
-            Path.Combine("Templates", templateName)
-        )!;
         string targetPath = getTargetPath();
+        using CancellationTokenSource cancellation = new();
+        creationCancellation = cancellation;
         setCreating(true);
 
         try
         {
-            await Task.Run(() => copyDirectory(templatePath, targetPath));
-            if (standalone && OperatingSystem.IsMacOS())
-            {
-                string executablePath = Path.Combine(targetPath, "Main");
-                UnixFileMode mode = File.GetUnixFileMode(executablePath);
-                File.SetUnixFileMode(
-                    executablePath,
-                    mode | UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute
-                );
-            }
-            JsonObject config = new()
-            {
-                ["Cpp"] = !standalone,
-                ["lastFileExplorerPath"] = "Assets",
-            };
-            if (FfmpegToggle.IsChecked == true)
-                config["ffmpeg"] = true;
-            config["packaging"] = new JsonObject
-            {
-                ["version"] = "1.0.0",
-                ["dev"] = false,
-            };
-            string projectFilePath = Path.Combine(targetPath, "Main.proj");
-            await File.WriteAllTextAsync(
-                projectFilePath,
-                config.ToJsonString(new() { WriteIndented = true })
-            );
+            ProjectTemplateService service = new();
+            Progress<ProjectTemplateProgress> progress = new(updateProgress);
+            string projectFilePath = await service.CreateAsync(targetPath, standalone,
+                FfmpegToggle.IsChecked == true, progress, cancellation.Token);
             creating = false;
             Close(projectFilePath);
         }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+            creating = false;
+            Close((string?)null);
+        }
         catch (Exception exception) when (
             exception is IOException
+                or InvalidDataException
                 or UnauthorizedAccessException
                 or ArgumentException
                 or NotSupportedException
+                or HttpRequestException
         )
         {
-            removePartialProject(targetPath);
             setCreating(false);
             await AlertDialog.ShowAsync(
                 this,
                 LocaleService.Get("ERROR"),
-                LocaleService.Get("COPY_FAILED") + Environment.NewLine + exception.Message
+                LocaleService.Get("NEW_PROJECT_FAILED") + Environment.NewLine + exception.Message
             );
         }
+        finally
+        {
+            creationCancellation = null;
+        }
     }
 
-    private static void copyDirectory(string sourcePath, string targetPath)
+    private void updateProgress(ProjectTemplateProgress progress)
     {
-        DirectoryInfo source = new(sourcePath);
-        DirectoryInfo target = Directory.CreateDirectory(targetPath);
-        foreach (FileInfo file in source.GetFiles())
-            file.CopyTo(Path.Combine(target.FullName, file.Name), true);
-        foreach (DirectoryInfo directory in source.GetDirectories())
-            copyDirectory(directory.FullName, Path.Combine(target.FullName, directory.Name));
-    }
-
-    private static void removePartialProject(string targetPath)
-    {
-        if (!Directory.Exists(targetPath))
+        if (!creating)
             return;
-        try
+        string stage = LocaleService.Get(progress.Stage switch
         {
-            Directory.Delete(targetPath, true);
+            ProjectTemplateStage.Downloading => "NEW_PROJECT_DOWNLOADING",
+            ProjectTemplateStage.Extracting => "NEW_PROJECT_EXTRACTING",
+            _ => "NEW_PROJECT_COPYING",
+        });
+        double completed = progress.CompletedBytes / 1048576d;
+        if (progress.TotalBytes is > 0)
+        {
+            double percent = Math.Clamp(progress.CompletedBytes * 100d / progress.TotalBytes.Value, 0, 100);
+            CopyProgress.IsIndeterminate = false;
+            CopyProgress.Value = percent;
+            ProgressText.Text = string.Format(LocaleService.Get("NEW_PROJECT_PROGRESS"),
+                stage, percent, completed, progress.TotalBytes.Value / 1048576d);
         }
-        catch (IOException)
+        else
         {
-        }
-        catch (UnauthorizedAccessException)
-        {
+            CopyProgress.IsIndeterminate = true;
+            ProgressText.Text = string.Format(LocaleService.Get("NEW_PROJECT_PROGRESS_UNKNOWN"), stage, completed);
         }
     }
 

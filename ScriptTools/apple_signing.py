@@ -451,6 +451,52 @@ def verify_signature(target: pathlib.Path, environment: dict[str, str]) -> None:
         )
 
 
+def sign_nested_artifacts(
+    target: pathlib.Path,
+    *,
+    identity: str,
+    environment: dict[str, str],
+    keychain: pathlib.Path | None = None,
+    runtime_bundles: tuple[pathlib.Path, ...] = (),
+    after_nested_sign: Callable[[], None] | None = None,
+) -> tuple[pathlib.Path, ...]:
+    target = target.resolve()
+    if not target.is_dir():
+        raise PackError(f"The nested signing directory was not found: {target}", EXIT_SIGNING)
+    hardened = identity != AD_HOC_IDENTITY
+    targets = nested_sign_targets(target)
+    runtime_directories: set[pathlib.Path] = set()
+    for directory in runtime_bundles:
+        resolved = directory.resolve()
+        if resolved == target or not resolved.is_relative_to(target):
+            raise PackError(f"Runtime bundle must be inside the signing target: {directory}", EXIT_SIGNING)
+        if resolved in targets or resolved / MANIFEST_NAME in targets:
+            raise PackError(f"Runtime bundle must occupy a resource location: {directory}", EXIT_SIGNING)
+        try:
+            validate_bundle(directory)
+        except (OSError, ValueError, RuntimeError) as exception:
+            raise PackError(f"Runtime bundle validation failed for {directory}: {exception}", EXIT_SIGNING) from exception
+        runtime_directories.add(resolved)
+    for nested in sorted([*targets, *sorted(runtime_directories)], key=_depth, reverse=True):
+        if nested in runtime_directories:
+            try:
+                write_manifest(nested)
+                validate_bundle(nested)
+            except (OSError, ValueError, RuntimeError) as exception:
+                raise PackError(f"Runtime bundle finalisation failed for {nested}: {exception}", EXIT_SIGNING) from exception
+            continue
+        _codesign(
+            nested,
+            identity=identity,
+            environment=environment,
+            hardened_runtime=hardened,
+            keychain=keychain,
+        )
+    if after_nested_sign is not None:
+        after_nested_sign()
+    return tuple(targets)
+
+
 def sign_artifact(
     target: pathlib.Path,
     *,
@@ -471,36 +517,14 @@ def sign_artifact(
         raise PackError("Nested signing requires an application target.", EXIT_SIGNING)
     hardened = identity != AD_HOC_IDENTITY
     if target.is_dir():
-        targets = nested_sign_targets(target)
-        runtime_directories: set[pathlib.Path] = set()
-        for directory in runtime_bundles:
-            resolved = directory.resolve()
-            if resolved == target or not resolved.is_relative_to(target):
-                raise PackError(f"Runtime bundle must be inside the signing target: {directory}", EXIT_SIGNING)
-            if resolved in targets or resolved / MANIFEST_NAME in targets:
-                raise PackError(f"Runtime bundle must occupy a resource location: {directory}", EXIT_SIGNING)
-            try:
-                validate_bundle(directory)
-            except (OSError, ValueError, RuntimeError) as exception:
-                raise PackError(f"Runtime bundle validation failed for {directory}: {exception}", EXIT_SIGNING) from exception
-            runtime_directories.add(resolved)
-        for nested in sorted([*targets, *sorted(runtime_directories)], key=_depth, reverse=True):
-            if nested in runtime_directories:
-                try:
-                    write_manifest(nested)
-                    validate_bundle(nested)
-                except (OSError, ValueError, RuntimeError) as exception:
-                    raise PackError(f"Runtime bundle finalisation failed for {nested}: {exception}", EXIT_SIGNING) from exception
-                continue
-            _codesign(
-                nested,
-                identity=identity,
-                environment=environment,
-                hardened_runtime=hardened,
-                keychain=keychain,
-            )
-        if after_nested_sign is not None:
-            after_nested_sign()
+        sign_nested_artifacts(
+            target,
+            identity=identity,
+            environment=environment,
+            keychain=keychain,
+            runtime_bundles=runtime_bundles,
+            after_nested_sign=after_nested_sign,
+        )
         _codesign(
             target,
             identity=identity,

@@ -21,11 +21,12 @@ from .apple_signing import (
     resolve_notary_credentials,
     select_identity,
     sign_artifact,
+    sign_nested_artifacts,
     store_notary_credentials,
     verify_signature,
 )
 from .pack_error import PackError
-from .packaging_constants import EXIT_SIGNING
+from .packaging_constants import EXIT_SIGNING, STANDALONE_TEMPLATE_NAMES, TEMPLATE_NAMES
 from .ui_preview import load_preview, reseal_signed_preview, verify_preview_host
 from .ui_property_values import UiAssetError
 
@@ -43,6 +44,7 @@ class SigningSession:
     notary_password: str
     check_only: bool
     environment: dict[str, str]
+    templates_only: bool = False
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -53,7 +55,7 @@ def create_parser() -> argparse.ArgumentParser:
             "[--entitlements PATH.plist] [--notarize] [--notary-apple-id EMAIL] "
             "[--notary-team-id TEAMID] [--notary-key PATH.p8] [--notary-key-id ID] "
             "[--notary-key-issuer UUID] [--runtime-bundle PATH] "
-            "[--ui-preview-template PATH] [--check] <app-or-dmg>"
+            "[--ui-preview-template PATH] [--templates] [--check] <target>"
         ),
     )
     parser.add_argument("target", type=pathlib.Path)
@@ -62,6 +64,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument("--entitlements", type=pathlib.Path)
     parser.add_argument("--runtime-bundle", type=pathlib.Path, action="append", default=[])
     parser.add_argument("--ui-preview-template", type=pathlib.Path, action="append", default=[])
+    parser.add_argument("--templates", action="store_true")
     parser.add_argument("--notarize", action="store_true")
     parser.add_argument("--notary-apple-id")
     parser.add_argument("--notary-team-id")
@@ -87,6 +90,11 @@ def create_session(parsed: argparse.Namespace) -> SigningSession:
     target = parsed.target.expanduser().resolve()
     if not parsed.check and not target.exists():
         raise PackError(f"The signing target was not found: {target}", EXIT_SIGNING)
+    if parsed.templates:
+        if parsed.notarize or parsed.runtime_bundle or parsed.ui_preview_template or parsed.check:
+            raise PackError("Template signing cannot use application-only options or notarisation.", EXIT_SIGNING)
+        if any(not (target / name / "Main.proj").is_file() for name in TEMPLATE_NAMES):
+            raise PackError(f"The four project templates were not found: {target}", EXIT_SIGNING)
     source = OptionSource(parsed.ignore_environment)
     certificate = _optional_path(
         source.value(
@@ -137,11 +145,13 @@ def create_session(parsed: argparse.Namespace) -> SigningSession:
         certificate_password,
         entitlements,
         tuple(directory.expanduser().absolute() for directory in parsed.runtime_bundle),
-        tuple(directory.expanduser().absolute() for directory in parsed.ui_preview_template),
+        (tuple(target / name for name in STANDALONE_TEMPLATE_NAMES) if parsed.templates
+         else tuple(directory.expanduser().absolute() for directory in parsed.ui_preview_template)),
         credentials,
         notary_password,
         parsed.check,
         os.environ.copy(),
+        parsed.templates,
     )
 
 
@@ -162,14 +172,15 @@ def _describe(session: SigningSession, identity: str) -> None:
 
 
 def perform(session: SigningSession, keychain: TemporaryKeychain | None) -> None:
-    if session.preview_templates and (session.check_only or session.target.suffix != ".app"):
+    if session.preview_templates and (session.check_only or (
+            session.target.suffix != ".app" and not session.templates_only)):
         raise PackError("UI preview templates require an application signing target.", EXIT_SIGNING)
     snapshots = []
     seen_templates: set[pathlib.Path] = set()
     for template in session.preview_templates:
         if template.is_symlink() or not template.resolve().is_relative_to(session.target):
             raise PackError(
-                f"UI preview template must be inside the application: {template}",
+                f"UI preview template must be inside the signing target: {template}",
                 EXIT_SIGNING,
             )
         resolved = template.resolve()
@@ -217,15 +228,27 @@ def perform(session: SigningSession, keychain: TemporaryKeychain | None) -> None
         else:
             print("Signing material is ready.", flush=True)
         return
-    sign_artifact(
-        session.target,
-        identity=identity,
-        environment=session.environment,
-        entitlements=session.entitlements,
-        runtime_bundles=session.runtime_bundles,
-        after_nested_sign=reseal_templates if snapshots else None,
-        keychain=keychain.path if keychain is not None and session.certificate is not None else None,
-    )
+    signing_keychain = keychain.path if keychain is not None and session.certificate is not None else None
+    if session.templates_only:
+        targets = sign_nested_artifacts(
+            session.target,
+            identity=identity,
+            environment=session.environment,
+            after_nested_sign=reseal_templates,
+            keychain=signing_keychain,
+        )
+        for target in targets:
+            verify_signature(target, session.environment)
+    else:
+        sign_artifact(
+            session.target,
+            identity=identity,
+            environment=session.environment,
+            entitlements=session.entitlements,
+            runtime_bundles=session.runtime_bundles,
+            after_nested_sign=reseal_templates if snapshots else None,
+            keychain=signing_keychain,
+        )
     for template, _ in snapshots:
         try:
             verify_preview_host(template)
@@ -234,7 +257,7 @@ def perform(session: SigningSession, keychain: TemporaryKeychain | None) -> None
                 f"Signed UI preview Host is invalid: {template}: {exception}",
                 EXIT_SIGNING,
             ) from exception
-    if snapshots:
+    if snapshots and not session.templates_only:
         verify_signature(session.target, session.environment)
     if session.credentials is not None:
         if keychain is None:

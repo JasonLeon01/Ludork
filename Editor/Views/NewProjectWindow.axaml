@@ -237,7 +237,8 @@
                 BorderThickness="0,1,0,0" Padding="28,14">
             <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
                 <StackPanel VerticalAlignment="Center" Spacing="5">
-                    <TextBlock x:Name="ProgressText" Foreground="{DynamicResource Editor.TextMutedBrush}" IsVisible="False" />
+                    <TextBlock x:Name="ProgressText" Foreground="{DynamicResource Editor.TextMutedBrush}" IsVisible="False"
+                               TextWrapping="Wrap" />
                     <ProgressBar x:Name="CopyProgress" Width="260" Height="4"
                                  HorizontalAlignment="Left" IsIndeterminate="True" IsVisible="False" />
                 </StackPanel>

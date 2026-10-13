@@ -121,12 +121,19 @@ while [ "$#" -gt 0 ]; do
             ;;
     esac
 done
+if [ -z "$PACKAGE_CHANNEL" ]; then
+    PACKAGE_CHANNEL=--dev
+fi
+if [ "$PACKAGE_CHANNEL" = --release ]; then
+    if [ -n "$PREBUILT_TEMPLATES_DIR" ]; then
+        echo "Release editors download templates and cannot bundle --templates." >&2
+        exit 1
+    fi
+    WITHOUT_TEMPLATES=1
+fi
 if [ "$WITHOUT_TEMPLATES" -eq 1 ] && [ -n "$PREBUILT_TEMPLATES_DIR" ]; then
     echo "--templates and --without-templates are mutually exclusive." >&2
     exit 1
-fi
-if [ -z "$PACKAGE_CHANNEL" ]; then
-    PACKAGE_CHANNEL=--dev
 fi
 
 SIGNING_IDENTITY=${LUDORK_MACOS_SIGNING_IDENTITY:-$SIGNING_IDENTITY}
@@ -732,7 +739,8 @@ validate_package() {
         codesign --verify --deep --strict "$package_app"
     fi
     require_package_file "$info_plist"
-    require_package_file "$package_resources/BuildInfo.json"
+    "$SCRIPT_TOOLS" editor-build-metadata validate-payload "$package_app" \
+        --content-root "$package_resources" --build-info "$BUILD_INFO"
     require_package_file "$package_resources/AppIcon.icns"
     require_package_file "$package_resources/ProjectIcon.icns"
     require_package_file "$package_resources/Locale/en_GB"
@@ -901,7 +909,7 @@ validate_package() {
         exit 1
     fi
     "$SCRIPT_TOOLS" editor-macos-metadata validate "$info_plist" \
-        --build-info "$package_resources/BuildInfo.json"
+        --build-info "$BUILD_INFO"
 
     for forbidden_path in \
         "$package_macos/Game" \
@@ -1224,9 +1232,13 @@ fi
 WORK_DIR_OWNED=1
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$STAGE_DIR"
 
-BUILD_INFO="$RESOURCES_DIR/BuildInfo.json"
-FULL_VERSION=$("$SCRIPT_TOOLS" packaging-constants release-build-info "$RESOURCES_DIR" \
+METADATA_DIR="$PROJECT_ROOT/obj/editor-package-metadata"
+BUILD_INFO="$METADATA_DIR/BuildInfo.json"
+FULL_VERSION=$("$SCRIPT_TOOLS" packaging-constants release-build-info "$METADATA_DIR" \
     --version "$PRODUCT_VERSION" "$PACKAGE_CHANNEL")
+if [ "$PACKAGE_CHANNEL" = --dev ]; then
+    cp "$BUILD_INFO" "$RESOURCES_DIR/BuildInfo.json"
+fi
 DMG_FILE_NAME="Ludork-$FULL_VERSION-macos-arm64.dmg"
 DMG_VOLUME_NAME="Ludork $FULL_VERSION"
 STAGE_DMG="$STAGE_DIR/$DMG_FILE_NAME"
@@ -1251,7 +1263,11 @@ dotnet publish "$PROJECT_FILE" \
     -p:PublishTrimmed=false \
     -p:PublishAot=false \
     -p:DebugSymbols=false \
-    -p:DebugType=None
+    -p:DebugType=None \
+    "-p:Version=$PRODUCT_VERSION" \
+    "-p:LudorkBuildInfo=$BUILD_INFO"
+
+"$MACOS_DIR/Ludork" --check-build-info "$BUILD_INFO"
 
 "$SCRIPT_TOOLS" prune-editor-macos-publish "$MACOS_DIR"
 
@@ -1277,7 +1293,7 @@ if [ "$WITHOUT_TEMPLATES" -eq 0 ]; then
         copy_directory "$PREBUILT_TEMPLATES_DIR" "$RESOURCES_DIR/Templates"
     else
         echo "Generating editor project templates..."
-        sh "$PROJECT_ROOT/tools/create_templates.sh" Release "$RESOURCES_DIR/Templates"
+        sh "$PROJECT_ROOT/tools/create_templates.sh" --version "$PRODUCT_VERSION" Release "$RESOURCES_DIR/Templates"
     fi
 fi
 
@@ -1321,6 +1337,8 @@ if [ "$WITHOUT_TEMPLATES" -eq 0 ]; then
     purge_template_runtime_state "$RESOURCES_DIR/Templates"
 fi
 find "$APP_DIR" -name '.DS_Store' -delete
+"$SCRIPT_TOOLS" editor-build-metadata validate-payload "$APP_DIR" \
+    --content-root "$RESOURCES_DIR" --build-info "$BUILD_INFO"
 
 if [ -n "$SIGNING_IDENTITY$SIGNING_CERTIFICATE" ]; then
     SIGNING_ENTITLEMENTS=${SIGNING_ENTITLEMENTS:-$DMG_ASSET_DIR/Editor.entitlements}

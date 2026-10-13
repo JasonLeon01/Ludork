@@ -114,15 +114,60 @@ jobs:
 
       - name: Package editor
         env:
-          TEMPLATE_OPTION: ${{ inputs.templates && '--templates' || '--without-templates' }}
-          TEMPLATE_DIRECTORY: ${{ inputs.templates && 'obj/editor-inputs/Templates' || '' }}
+          TEMPLATE_OPTION: ${{ inputs.templates && !inputs.release && '--templates' || '--without-templates' }}
+          TEMPLATE_DIRECTORY: ${{ inputs.templates && !inputs.release && 'obj/editor-inputs/Templates' || '' }}
         shell: cmd
         run: tools\pack_editor.bat %TEMPLATE_OPTION% %TEMPLATE_DIRECTORY% --launcher "%CD%\obj\editor-launcher\bin\Release\Ludork.exe" %EDITOR_CHANNEL%
 
       - name: Build editor MSI
         if: inputs.release && inputs.templates
         shell: cmd
-        run: tools\pack_editor_msi.bat
+        run: tools\pack_editor_msi.bat --build-info obj\editor-package-metadata\BuildInfo.json
+
+      - name: Archive project templates
+        if: inputs.templates
+        shell: cmd
+        run: .tools\ScriptTools\ScriptTools.exe template-archive obj\editor-inputs\Templates obj\export-template-assets --platform windows
+
+      - name: Upload Source template
+        if: inputs.templates
+        uses: actions/upload-artifact@v7
+        with:
+          name: game-source.zip
+          path: obj/export-template-assets/game-source.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload Source FFmpeg template
+        if: inputs.templates
+        uses: actions/upload-artifact@v7
+        with:
+          name: game-source-ffmpeg.zip
+          path: obj/export-template-assets/game-source-ffmpeg.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload Standalone template
+        if: inputs.templates
+        uses: actions/upload-artifact@v7
+        with:
+          name: game-standalone.zip
+          path: obj/export-template-assets/game-standalone.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload Standalone FFmpeg template
+        if: inputs.templates
+        uses: actions/upload-artifact@v7
+        with:
+          name: game-standalone-ffmpeg.zip
+          path: obj/export-template-assets/game-standalone-ffmpeg.zip
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Archive daily editor package
         if: ${{ !inputs.release }}
@@ -131,7 +176,7 @@ jobs:
           ARCHIVE_PREFIX: ${{ inputs.templates && 'Ludork' || 'Ludork-editor' }}
         shell: pwsh
         run: |
-          $version = (Get-Content -LiteralPath dist/BuildInfo.json -Raw | ConvertFrom-Json).fullVersion
+          $version = (Get-Content -LiteralPath obj/editor-package-metadata/BuildInfo.json -Raw | ConvertFrom-Json).fullVersion
           $archiveName = "$env:ARCHIVE_PREFIX-$version-windows-x64.7z"
           $archivePath = Join-Path $PWD $archiveName
           Push-Location dist

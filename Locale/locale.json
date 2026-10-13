@@ -1207,6 +1207,50 @@
     "zh_CN": "正在创建工程...",
     "en_GB": "Creating project..."
   },
+  "NEW_PROJECT_DOWNLOADING": {
+    "zh_CN": "正在下载模板",
+    "en_GB": "Downloading template"
+  },
+  "NEW_PROJECT_EXTRACTING": {
+    "zh_CN": "正在解压模板",
+    "en_GB": "Extracting template"
+  },
+  "NEW_PROJECT_COPYING": {
+    "zh_CN": "正在复制模板",
+    "en_GB": "Copying template"
+  },
+  "NEW_PROJECT_PROGRESS": {
+    "zh_CN": "{0} · {1:0}% · {2:0.0} / {3:0.0} MiB",
+    "en_GB": "{0} · {1:0}% · {2:0.0} / {3:0.0} MiB"
+  },
+  "NEW_PROJECT_PROGRESS_UNKNOWN": {
+    "zh_CN": "{0} · {1:0.0} MiB",
+    "en_GB": "{0} · {1:0.0} MiB"
+  },
+  "NEW_PROJECT_FAILED": {
+    "zh_CN": "创建工程失败。",
+    "en_GB": "Failed to create the project."
+  },
+  "NEW_PROJECT_TEMPLATE_UNAVAILABLE": {
+    "zh_CN": "Ludork {0} 的模板 {1} 尚未发布，请稍后重试。",
+    "en_GB": "Template {1} for Ludork {0} is not available yet. Please try again later."
+  },
+  "NEW_PROJECT_DOWNLOAD_INCOMPLETE": {
+    "zh_CN": "模板下载不完整，请重试。",
+    "en_GB": "The template download is incomplete. Please try again."
+  },
+  "NEW_PROJECT_TEMPLATE_INVALID": {
+    "zh_CN": "模板压缩包损坏或与所选工程类型及版本不符。",
+    "en_GB": "The template archive is damaged or does not match the selected project type and version."
+  },
+  "PROJECT_VERSION_INVALID": {
+    "zh_CN": "工程版本标识缺失或无效。当前编辑器支持：{0}。",
+    "en_GB": "The project version is missing or invalid. This editor supports: {0}."
+  },
+  "PROJECT_VERSION_UNSUPPORTED": {
+    "zh_CN": "当前编辑器不支持工程版本 {0}。支持的版本：{1}。",
+    "en_GB": "This editor does not support project version {0}. Supported versions: {1}."
+  },
   "NEW_PROJECT_NAME_INVALID": {
     "zh_CN": "工程名称包含无效字符。",
     "en_GB": "The project name contains invalid characters."

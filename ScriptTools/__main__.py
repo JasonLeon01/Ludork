@@ -7,6 +7,7 @@ from ScriptTools import android_pack
 from ScriptTools import animation_mp4
 from ScriptTools import compile_lua
 from ScriptTools import configure_project_template
+from ScriptTools import editor_build_metadata
 from ScriptTools import editor_macos_metadata
 from ScriptTools import editor_official_plugins
 from ScriptTools import engine_constants
@@ -27,6 +28,7 @@ from ScriptTools import project_runtime_mode
 from ScriptTools import runtime_constants
 from ScriptTools import runtime_bundle
 from ScriptTools import server_config
+from ScriptTools import template_archive
 from ScriptTools import prune_editor_macos_publish
 from ScriptTools import prune_editor_windows_publish
 from ScriptTools import ui_adapter_check
@@ -44,6 +46,7 @@ COMMANDS: dict[str, Command] = {
     "core-bindgen": generate.main,
     "core-bindgen-layout": layout.main,
     "configure-project-template": configure_project_template.main,
+    "editor-build-metadata": editor_build_metadata.main,
     "editor-macos-metadata": editor_macos_metadata.main,
     "editor-official-plugins": editor_official_plugins.main,
     "engine-constants": engine_constants.main,
@@ -59,6 +62,7 @@ COMMANDS: dict[str, Command] = {
     "runtime-bundle": runtime_bundle.main,
     "runtime-constants": runtime_constants.main,
     "server-config": server_config.main,
+    "template-archive": template_archive.main,
     "macos-bundle": macos_bundle.main,
     "macos-sign": macos_sign.main,
     "native-build-state": native_build_state.main,

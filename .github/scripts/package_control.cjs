@@ -1,6 +1,19 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
+const templateAssets = ['source', 'source-ffmpeg', 'standalone', 'standalone-ffmpeg']
+  .flatMap(name => [`game-${name}.zip`, `game-${name}.tar.gz`]);
+const serverAssetPattern = /^LudorkServer-source-[0-9a-f]{40}\.tar\.gz$/;
+
+function validateReleaseTag(context) {
+  const configuration = fs.readFileSync(path.join(__dirname, '../../versions.conf'), 'utf8');
+  const version = /^EDITOR_VERSION=(\d+\.\d+\.\d+)\s*$/m.exec(configuration)?.[1];
+  if (!version || context.ref !== `refs/tags/v${version}`) {
+    throw new Error('The release tag must match v<EDITOR_VERSION> from versions.conf.');
+  }
+  return version;
+}
+
 async function resolveServerCommit({ github, context, core }) {
   const { data } = await github.rest.repos.getCommit({ ...context.repo, ref: 'Server' });
   if (!/^[0-9a-f]{40}$/.test(data.sha)) throw new Error('Server did not resolve to a commit.');
@@ -80,25 +93,23 @@ async function publishRelease({ github, context, core }, assetDirectory) {
   if (context.eventName !== 'push' || !context.ref.startsWith('refs/tags/v')) {
     throw new Error('Draft releases require a push of a v-prefixed tag.');
   }
+  const version = validateReleaseTag(context);
 
   const entries = fs.readdirSync(assetDirectory, { withFileTypes: true });
-  if (entries.length !== 3 || entries.some(entry => !entry.isFile())
-      || entries.filter(entry => entry.name.endsWith('.msi')).length !== 1
-      || entries.filter(entry => entry.name.endsWith('.dmg')).length !== 1
-      || entries.filter(entry => /^LudorkServer-source-[0-9a-f]{40}\.zip$/.test(entry.name)).length !== 1) {
-    throw new Error('Release assets must contain one Windows MSI, one macOS DMG and one LudorkServer source ZIP.');
-  }
-  const windowsName = entries.find(entry => entry.name.endsWith('.msi')).name;
-  const version = /^Ludork-(\d+\.\d+\.\d+)-windows-x64\.msi$/.exec(windowsName)?.[1];
-  if (!version || !entries.some(entry => entry.name === `Ludork-${version}-macos-arm64.dmg`)) {
-    throw new Error('Release installers must use the same editor release version.');
+  const expected = new Set([
+    `Ludork-${version}-windows-x64.msi`, `Ludork-${version}-macos-arm64.dmg`, ...templateAssets,
+  ]);
+  if (entries.length !== expected.size + 1 || entries.some(entry => !entry.isFile())
+      || entries.filter(entry => serverAssetPattern.test(entry.name)).length !== 1
+      || entries.some(entry => !expected.has(entry.name) && !serverAssetPattern.test(entry.name))) {
+    throw new Error('Release assets must contain the matching Windows MSI, macOS DMG, Server tar.gz and eight project templates.');
   }
   const assets = entries.map(entry => {
     const filename = path.join(assetDirectory, entry.name);
     const size = fs.statSync(filename).size;
     if (size === 0) throw new Error(`Release asset is empty: ${entry.name}`);
     fs.accessSync(filename, fs.constants.R_OK);
-    const name = entry.name.endsWith('.zip') ? `LudorkServer-source-${version}.zip` : entry.name;
+    const name = serverAssetPattern.test(entry.name) ? `LudorkServer-source-${version}.tar.gz` : entry.name;
     return { name, filename, size };
   });
 
@@ -138,7 +149,7 @@ async function publishRelease({ github, context, core }, assetDirectory) {
   for (const asset of previousAssets) {
     if (!assets.some(current => current.name === asset.name)
         && !/^Ludork-.+-(windows-x64\.msi|macos-arm64\.dmg)$/.test(asset.name)
-        && !/^LudorkServer-source-(?:[0-9a-f]{40}|\d+\.\d+\.\d+)\.zip$/.test(asset.name)) continue;
+        && !/^LudorkServer-source-(?:[0-9a-f]{40}|\d+\.\d+\.\d+)\.(?:zip|tar\.gz)$/.test(asset.name)) continue;
     await ensureDraft();
     await github.rest.repos.deleteReleaseAsset({ ...context.repo, asset_id: asset.id });
   }
@@ -150,6 +161,7 @@ async function publishRelease({ github, context, core }, assetDirectory) {
       name: asset.name,
       headers: {
         'content-type': asset.name.endsWith('.zip') ? 'application/zip'
+          : asset.name.endsWith('.tar.gz') ? 'application/gzip'
           : asset.name.endsWith('.msi') ? 'application/x-msi' : 'application/x-apple-diskimage',
         'content-length': asset.size,
       },
@@ -159,4 +171,4 @@ async function publishRelease({ github, context, core }, assetDirectory) {
   core.info(`Draft release ready: ${release.html_url}`);
 }
 
-module.exports = { shouldRun, publishRelease, resolveServerCommit };
+module.exports = { shouldRun, publishRelease, resolveServerCommit, validateReleaseTag };

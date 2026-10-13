@@ -10,17 +10,22 @@ VARIANT=all
 NATIVE_CACHE=
 CONFIG=Release
 OUTPUT_FOLDER=
+TEMPLATE_VERSION=$EDITOR_VERSION
 POSITIONAL_COUNT=0
 usage() {
-    echo "Usage: tools/create_templates.sh [--variant all|plain|ffmpeg] [--native-cache <folder>] [Debug|Release] [output-folder]" >&2
+    echo "Usage: tools/create_templates.sh [--version X.Y.Z] [--variant all|plain|ffmpeg] [--native-cache <folder>] [Debug|Release] [output-folder]" >&2
     exit 1
 }
 while [ "$#" -gt 0 ]; do
     case "$1" in
-        --variant | --native-cache)
+        --variant | --native-cache | --version)
             [ "$#" -ge 2 ] && [ -n "$2" ] || usage
             case "$2" in --*) usage ;; esac
-            if [ "$1" = "--variant" ]; then VARIANT=$2; else NATIVE_CACHE=$2; fi
+            case "$1" in
+                --variant) VARIANT=$2 ;;
+                --native-cache) NATIVE_CACHE=$2 ;;
+                --version) TEMPLATE_VERSION=$2 ;;
+            esac
             shift 2
             ;;
         --*) usage ;;
@@ -205,6 +210,7 @@ copy_cpp_template() {
         --exclude '*.pyc' \
         --exclude '*.pyo' \
         --exclude '*.log' \
+        --exclude 'BuildInfo.json' \
         --exclude 'Main.ini' \
         --exclude 'Ludork.ini' \
         --exclude 'Ludork-startup-error.log' \
@@ -260,7 +266,8 @@ prepare_template_pair() {
         ffmpeg_enabled=false
     fi
     "$SCRIPT_TOOLS" configure-project-template \
-        "$source_template_dir/Main.proj" true "$ffmpeg_enabled"
+        "$source_template_dir/Main.proj" true "$ffmpeg_enabled" \
+        --versions-config "$PROJECT_ROOT/versions.conf" --version "$TEMPLATE_VERSION"
     copy_runtime_legal_files "$source_template_dir" "$include_ffmpeg"
 }
 
@@ -291,7 +298,8 @@ build_template_pair() {
         ffmpeg_enabled=false
     fi
     "$SCRIPT_TOOLS" configure-project-template \
-        "$standalone_template_dir/Main.proj" false "$ffmpeg_enabled"
+        "$standalone_template_dir/Main.proj" false "$ffmpeg_enabled" \
+        --versions-config "$PROJECT_ROOT/versions.conf" --version "$TEMPLATE_VERSION"
 }
 
 finalize_template_pair() {
