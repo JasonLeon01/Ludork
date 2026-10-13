@@ -40,7 +40,7 @@ Defaults are icon view in both panels, 100% File Explorer zoom, a collapsed sour
 
 Window layouts adapt to the current monitors. For each window type, the most recent adjustment is restored; minimised state is not restored.
 
-[Viewport Options](<Tilesets Autotiles and Maps.md#viewport>) are shared only for the current project session. They start in Unlit with Realtime, fog, panorama and Actor origins enabled, and light bounds disabled.
+[Viewport Options](<Tilesets Autotiles and Maps.md#viewport>) are saved immediately in the project's `Main.proj` under `editor.mapViewport` and restored when the project is reopened. Projects without saved options start in Unlit with Realtime, fog, panorama and Actor origins enabled, and light bounds disabled.
 
 ## Global shortcuts
 
@@ -55,7 +55,7 @@ The primary modifier is `Ctrl` on Windows and `Command` on macOS.
 | `Ctrl/Command+Shift+Z` or `Ctrl/Command+Y` | Redo |
 | `Ctrl/Command+W` | Exit or close the project window |
 | `Ctrl/Command+1` | Tile mode |
-| `Ctrl/Command+3` | Actor mode |
+| `Ctrl/Command+2` | Actor mode |
 | `F1` | Ludork Documentation |
 | `F3` | Game Config |
 | `F4` | System Config |
