@@ -25,29 +25,21 @@ Drag a Palette control onto the middle of a container's Hierarchy row to add a c
 
 Moving a node to a Canvas preserves its visual position and fixed dimensions; stretched axes follow the new parent’s available size. Rotation and scale are retained, so a differently transformed parent can change the result. Reordering within one parent preserves the Slot. Each reparenting or indent/outdent action is one Undo step.
 
-A WrapBox has one child template. The Designer displays every repetition, but editing any repetition changes the same template. See [UI Controls in the Palette](<UI Controls in the Palette.md>) for control properties and child rules.
+Nested project assets cannot be expanded or edited from their parent. Open the original asset to change its contents.
+
+A WrapBox has one child template. The Designer displays every repetition, but editing any repetition changes the same template. See [UI Controls in the Palette](<UI Controls in the Palette.md>) for control properties and child rules, and the [WrapBox API](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#wrapbox>) to access repeated instances.
 
 ## Timeline
 
 The Timeline lists animations on the left and starts with no selection, an empty detail area and the authored UI appearance. Right-click to add or delete a local animation, then select one to edit its name, target, duration, pivot, tracks and keys. Clicking blank list space clears the selection. Colour keys use integer RGBA components.
 
-Use play, pause, stop and scrubbing to preview an animation without changing the saved Slot layout.
+Animation playback and scrubbing are described in [UI previews](<../PreviewHost/UI Actor Particle and Subtitle Previews.md#ui-previews>).
 
 A nested project node lists the Global animations inherited from its asset. Use the override action to create a same-name animation targeted at this instance, and then edit it locally, because inherited definitions themselves remain read-only.
 
 ## Asset paths and node names
 
 The asset identity is the exact-case path relative to `Data/UI/Assets`, with forward slashes and no extension. Moving or renaming an asset rewrites managed JSON nesting references. The next Export regenerates its View and declarations, so update handwritten `require` paths and references to renamed nodes before exporting. The full key contract is in [UI Asset Schema and Control Registry](<../Lua and Blueprint Scripting/Declarative UI/Asset Schema and Control Registry.md>).
-
-## Preview behaviour
-
-After changing C++ UI code, use **Construct** before previewing it. Preview is unavailable while the native runtime is building. Use **Refresh Preview** to display pending edits.
-
-The Designer displays the asset without running its Lua Controller. Include representative placeholder content and use `previewText` for text that code supplies at runtime. The `editor` data is used only for design.
-
-Nested project assets cannot be expanded or edited from their parent. Open the original asset to change its contents.
-
-See the [WrapBox API](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#wrapbox>) to access repeated instances.
 
 ## Related pages
 

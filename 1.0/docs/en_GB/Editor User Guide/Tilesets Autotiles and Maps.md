@@ -38,9 +38,7 @@ The selected placement is drawn above the others within each layer and takes pri
 
 *Child-map thumbnails show placement coordinates; the canvas previews how the maps fit together.*
 
-The canvas and thumbnails appear as child maps load. A missing or unreadable child does not prevent the others from appearing. Editing maps or changing images updates their previews.
-
-Scroll or pan the canvas. Use Ctrl+wheel on Windows/Linux or Command+wheel/pinch on macOS to zoom. The world canvas shares the game renderer with ordinary maps, including animated tiles and Actors, materials, layer shaders, lighting, fog and panorama. Child-map thumbnails use the same renderer at time zero. Only children needed for the visible area and its lighting are loaded for the canvas.
+Scroll or pan the canvas. Use Ctrl+wheel on Windows/Linux or Command+wheel/pinch on macOS to zoom. For rendering, child-map thumbnails and display options, see [Map and World Previews](<../PreviewHost/Map and World Previews.md>).
 
 Resizing cannot place a child outside the world. Before deleting a placed child file, remove its placement and save. Non-JSON regular files are ignored, and Actor tags must be unique across the world.
 
@@ -54,17 +52,7 @@ Use the browse button beside BGM, BGS or panorama and select **Clear** to remove
 
 Map Properties also selects an optional **Panorama** image from `Assets/Panoramas`. The runtime Cover-scales that image to fill `GameMap.MapViewRect`, then crops any overflow using the Camera's position as a fraction of the map's scrollable range. The left edge of the map shows the left of the panorama, and the right edge shows the right. An axis that cannot scroll uses the centre of that overflow. Ambient light tints the image, and point lights do not. A blank path disables the panorama. A world manifest may set a global panorama that covers the world Camera, while a child's `panorama` applies only when that child is loaded as a standalone map.
 
-## Viewport
-
-The small dropdown button at the upper left of the ordinary-map or world canvas opens **Viewport Options**. **View Mode** starts at **Unlit**: textures, materials and shaders keep their appearance under neutral lighting. Choose **Lit** to preview ambient light, Actor lights and their occlusion with the game renderer.
-
-**Realtime**, **Show Fog**, **Show Panorama** and **Show Actor Origins** start enabled. Realtime advances preview animations and fog; disabling it freezes preview time while edits still refresh the image. **Show Light Bounds** starts disabled and is available only in Unlit. It displays read-only ranges with a black outline, white dashes, a faint light-coloured fill and a contrasting centre marker, without changing Actor selection or editing gestures. Origins and ranges are editor overlays and do not appear in thumbnails.
-
-View Mode, fog and panorama choices also apply to child-map thumbnails, which remain at time zero. All six viewport options are shared within the project and saved immediately in `Main.proj` under `editor.mapViewport`. Reopening the project restores them; they do not change map data or create Undo steps. Previewing resolves the current map and Blueprint data without running gameplay scripts, constructors or Actor lifecycle callbacks. Hidden views stop requesting frames. If the native preview runtime is unavailable, the viewport shows its status; see [Construct, Export and Play](<Run Debug and Package.md#construct-export-and-play>).
-
-The native viewport refreshes at up to 30 FPS and keeps the same output resolution during dragging. Continuous edits replace the next pending request while completed frames keep the view moving; releasing the drag displays the final state. New thumbnail work pauses during interaction.
-
-### Fog
+## Fog
 
 Map Properties and World Map Properties provide the same **Fog** settings. Enable fog to reveal its controls. The GPU generates the fog pattern in world coordinates; no fog image is required. Panning or zooming does not attach the pattern to the screen. A world can combine its global fog with fog inside each child region, using the same world coordinates across region boundaries.
 
@@ -80,7 +68,7 @@ Map Properties and World Map Properties provide the same **Fog** settings. Enabl
 
 The noise pattern has distinct sparse and dense areas. Density controls coverage, colour alpha controls opacity, and a smaller Scale produces smaller cloud patches. Black fog darkens the scene while retaining those variations. The supplied `Map_02` uses black `(0, 0, 0, 128)` fog with Density `0.5`, Scale `128`, Velocity `[15, 15]` and Turbulence `0.8`; the standard Scale default remains `256`.
 
-Lit uses scene lighting for the fog; Unlit uses neutral illumination. **Show Fog** only controls its editor preview and leaves the authored settings unchanged. Fog is saved as the `fog` object shown in [Map and world-map assets](<Project Settings and Asset Layout.md#map-and-world-map-assets>).
+Preview visibility and lighting are described in [Viewport options](<../PreviewHost/Map and World Previews.md#viewport-options>). Fog is saved as the `fog` object shown in [Map and world-map assets](<Project Settings and Asset Layout.md#map-and-world-map-assets>).
 
 ## Layers and painting
 
@@ -106,15 +94,13 @@ In Actor mode, Alt/Option+wheel or Option+trackpad pinch adjusts the selected Ac
 
 Each property drag is one Undo step. Consecutive wheel or pinch changes to the same property and selection are grouped. Changing selection, map, layer or mode ends the interaction; saving starts a new Undo step for subsequent changes.
 
-Ordinary maps and world previews draw an Actor whose resolved `visible` value is `false` at 25% opacity, including inherited defaults and instance overrides. Texture alpha, material opacity and the 50% dimming of non-current layers on an ordinary map still multiply this opacity. Selection outlines and error markers stay clear, and the Actor remains selectable and movable. These invisible Actors contribute neither lighting nor light occlusion. Hidden layers remain invisible, while placement ghosts and missing-texture placeholders retain their normal appearance. This behaviour is an editor preview aid, and invisible Actors remain hidden at runtime.
+For invisible Actors, layer dimming and light-range overlays, see [Actor and layer assistance](<../PreviewHost/Map and World Previews.md#actor-and-layer-assistance>).
 
 ![Actor editing mode](../../../images/editor/actor-mode.png)
 
 *Actor mode edits a placed Blueprint instance without changing its class defaults.*
 
 An Actor light uses `LightComponent.lightOffset` relative to the centre of the Actor's local bounds. The complete Actor transform is applied to the offset, so the emitter follows rotation and scale. For a wall-mounted torch, place the offset at the visible flame on the room side of the wall, because the renderer does not move an emitter to a nearby passable cell.
-
-The editor also previews lights on Actors without a texture. Actor scaling changes the emitter position, while the circular range keeps its `lightRadius` in map pixels and scales only with the editor's zoom.
 
 `Material.lightBlock` is an opacity in the inclusive range `[0, 1]` for one `CellSize` of penetration. `0` is fully transmissive, `1` blocks direct light completely, and intermediate values compound by physical path length. For example, a value of `0.5` transmits approximately `0.707`, `0.5`, and `0.25` through half, one and two cells respectively.
 

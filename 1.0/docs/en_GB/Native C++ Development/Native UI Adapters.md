@@ -51,15 +51,7 @@ Image `drawAs` uses the bound C++ `Image::DrawAs` enum, exported as `Engine.Imag
 
 `Engine.CharacterView` is the childless animated Visual example. Its adapter constructs the native preview state from `size`, texture/Rect, actor scale, animation, Shader and Hue properties. Its class owns cropping, frame advancement and effect composition, while the adapter owns resource-path conversion and property assignment.
 
-## Project preview artefacts
-
-A desktop native build produces `PreviewHost`, its `PreviewHostRuntime` library, `EditorCache/Preview.json` and the UI-specific `EditorCache/UiPreview.registry.json`. Source builds place binaries in `bin/<configuration>`; Standalone projects use `Binaries`. The host serves maps, Actors, particles, subtitles and UI. `Preview.json` describes the matching binaries and registry; `Preview.building` suspends editor connections during a rebuild, which reconnect after publication.
-
-Use `tools/build_preview_host.bat Game Debug` on Windows or `sh tools/build_preview_host.sh Game Debug` on macOS to build the host. The tool command family is `ScriptTools preview`; for example, `ScriptTools preview validate Game` checks a published project runtime. The CMake switch is `LUDORK_BUILD_PREVIEW_HOST`. UI-specific client/session types and `UiPreview.registry.json` retain their names.
-
-Source and Standalone editable projects and templates retain these preview capabilities. Final game packaging excludes preview executables, dedicated runtime libraries, manifests, build markers, temporary frames and the `Engine/PreviewHost` source tree. The game executable and its runtime libraries do not link `PreviewHostRuntime`.
-
-Rebuild the project after changing native UI controls. Preview is unavailable until the matching Host and registry have been produced. See the [Declarative UI Authoring Workflow](<../Lua and Blueprint Scripting/Declarative UI/Authoring Workflow.md>) for using the updated controls.
+Preview build artefacts, registry publication and packaging rules are described in [PreviewHost: Build, Publish and Troubleshooting](<../PreviewHost/Build Publish and Troubleshooting.md>).
 
 ## Limitations
 

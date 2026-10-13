@@ -40,7 +40,7 @@ Defaults are icon view in both panels, 100% File Explorer zoom, a collapsed sour
 
 Window layouts adapt to the current monitors. For each window type, the most recent adjustment is restored; minimised state is not restored.
 
-[Viewport Options](<Tilesets Autotiles and Maps.md#viewport>) are saved immediately in the project's `Main.proj` under `editor.mapViewport` and restored when the project is reopened. Projects without saved options start in Unlit with Realtime, fog, panorama and Actor origins enabled, and light bounds disabled.
+Project-specific display preferences are described in [Viewport options](<../PreviewHost/Map and World Previews.md#viewport-options>).
 
 ## Global shortcuts
 
@@ -102,7 +102,7 @@ Search matches file names in the current directory and its subdirectories, ignor
 
 Use `Ctrl/Command` with the mouse wheel or the bottom-right slider to scale icons and text from 50% to 200%. Press F5 to refresh external file changes.
 
-Image and video entries show thumbnails when the format is supported. Selecting a Blueprint JSON file in a file selector previews its current appearance and animation, including unsaved changes; a missing appearance or texture displays the file icon.
+Image and video entries show thumbnails when the format is supported. For Blueprint JSON entries, see [Actor previews](<../PreviewHost/UI Actor Particle and Subtitle Previews.md>).
 
 Select an image, audio or video file in File Explorer and press **Space** to preview it. File selectors also preview audio and video in their right-hand pane. Playback starts paused; use the playback, seeking and volume controls, or **Escape** to close the preview or cancel selection.
 

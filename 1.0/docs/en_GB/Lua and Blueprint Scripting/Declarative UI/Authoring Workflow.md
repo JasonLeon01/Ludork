@@ -64,7 +64,7 @@ After moving an asset or renaming nodes, update handwritten `require` calls and 
 
 Every visible screen has one top-level asset. Multi-pane screens nest owner-specific assets from `Parts/<TopLevelName>/`. Nested parts use `palette.exposed = true`, while runtime-only helpers may remain unexposed.
 
-Use representative `#TAB` and `#ITEM` children and Game visuals as preview data only, and never as fallback game data. Before display, business code localises tab labels and fills dynamic collections. Fixed controls and rows remain the instances created from JSON. Literal `text` is reserved for permanent, language-independent symbols.
+Before display, business code localises tab labels and fills dynamic collections. Fixed controls and rows remain the instances created from JSON. Literal `text` is reserved for permanent, language-independent symbols. See [UI previews](<../../PreviewHost/UI Actor Particle and Subtitle Previews.md#ui-previews>) for design-only placeholder content.
 
 Use `Engine.CharacterView` for frame-animated characters and enemies. Assets provide preview values, and the runtime passes the real texture, Rect, scale, animation, Shader and Hue to `setCharacter`. Lua does not crop or compose the actor visual.
 

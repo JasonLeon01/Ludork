@@ -68,7 +68,7 @@ This section is the JSON field authority for the controls it names: what a node 
 
 Only assets with `palette.exposed = true` appear as project controls.
 
-`Engine.TabView` serialises `size`, `windowSkin`, the construction-only non-empty `items: string[]` and the same inline text style or optional `textConfig` as plain text, and has no children or Slot of its own. Assets normally use `#TAB 1...` values so the native preview shows each tab. Before the first visible frame, the Controller supplies localised labels and binds selection behaviour through [Engine: Interactive and Declarative UI Controls](<../Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#tabview>). `selectedIndex` and key-hint tables are runtime-only, and `tabCount` is not accepted.
+`Engine.TabView` serialises `size`, `windowSkin`, the construction-only non-empty `items: string[]` and the same inline text style or optional `textConfig` as plain text, and has no children or Slot of its own. Before the first visible frame, the Controller supplies localised labels and binds selection behaviour through [Engine: Interactive and Declarative UI Controls](<../Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#tabview>). `selectedIndex` and key-hint tables are runtime-only, and `tabCount` is not accepted.
 
 `Engine.CharacterView` serialises `size`, `texture`, optional `textureRect`, `characterScale`, `animatable`, `switchInterval`, `shader`, `hue` and `colour`, and accepts no children. `shader` is empty or a complete `/Game/Assets/Shaders/...` logical path. The control owns cropping, animation, actor-scale fitting, Shader and Hue composition and fixed bounds. It is not an input control.
 

@@ -34,7 +34,7 @@ User-authored Actor and layer shaders remain optional. Check `sf.Shader.isAvaila
 
 Actor fragment shaders are cached by exact shader path for the lifetime of the Engine runtime. Actors using the same path therefore receive the same `sf.Shader` from `Actor:getShader()`. The standard `texture`, `time`, `textureSize` and `textureRect` uniforms are rebound immediately before each Actor map or preview draw. Other uniforms remain shared mutable shader state and must not be treated as persistent per-Actor values. A shader that fails to load is not cached. The affected Actor reports `Actor:hasShaderError()` and continues through the existing fallback rendering path.
 
-Fog is generated on the GPU from world coordinates, absolute time and a deterministic seed. Four noise layers produce sparse and dense patches; density controls coverage and colour alpha scales their opacity without adding a uniform veil. Smaller scales produce smaller patches, including for black fog. Map data store an object with `enabled`, `colour`, `density`, `scale`, `velocity`, `turbulence` and `seed`; there is no fog texture. The shared renderer composites fog after materials and lighting, before foreground weather and particles. Lit fog responds to scene light; Unlit fog retains its configured colour. Each map session owns its fog state.
+Fog is generated on the GPU from world coordinates, absolute time and a deterministic seed. Four noise layers produce sparse and dense patches; density controls coverage and colour alpha scales their opacity without adding a uniform veil. Smaller scales produce smaller patches, including for black fog. Map data store an object with `enabled`, `colour`, `density`, `scale`, `velocity`, `turbulence` and `seed`; there is no fog texture. The shared renderer composites fog after materials and lighting, before foreground weather and particles. Fog responds to scene light. Each map session owns its fog state.
 
 See [FogController](<../Global and Core Modules/Core Modules/GlobalCore/Map and Fog.md#fogcontroller>) for fog fields, defaults and accepted values.
 
@@ -67,7 +67,7 @@ Shader availability is determined by the runtime graphics environment, and a suc
 
 World lighting uses world coordinates, so Actor lights illuminate and cast shadows across child boundaries. Tile masks remain clipped to their placements, and holes contribute neither surfaces nor blockers. Fixed map light records and their map management APIs are removed; attach a `LightComponent` to an Actor to create a light.
 
-Editor ordinary maps, world canvases and thumbnails use the same native map renderer. Unlit is the default: white ambient and no direct light or shadows, with opacity, reflections, shaders and hue preserved. Lit uses actual light inputs, and the editor world canvas uses each child's ambient colour. Panorama and fog have independent display switches. The game retains its player-region ambient transition described above.
+Editor display options are described in [PreviewHost: Map and World Previews](<../../PreviewHost/Map and World Previews.md>).
 
 ## Related pages
 

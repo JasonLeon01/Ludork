@@ -254,7 +254,7 @@ A row of selectable tabs.
 |---|---|---|---|
 | Input | none | — | `size`, `windowSkin`, `items`, *text style* |
 
-`items` is a construction-only, non-empty `string[]`. Assets normally use `#TAB 1...` placeholder values so the native preview shows each tab; before the first visible frame the Controller supplies localised labels and binds selection behaviour. `selectedIndex` and key-hint tables are runtime-only, and `tabCount` is not accepted. See [Engine: Interactive and Declarative UI Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#tabview>).
+`items` is a construction-only, non-empty `string[]`. Before the first visible frame the Controller supplies localised labels and binds selection behaviour. `selectedIndex` and key-hint tables are runtime-only, and `tabCount` is not accepted. See [Engine: Interactive and Declarative UI Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#tabview>).
 
 ### Engine.TextBox
 

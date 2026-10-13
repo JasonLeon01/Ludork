@@ -247,7 +247,7 @@ Input 控件接受焦点与玩家输入。它们都是 `FunctionalBase`：只有
 |---|---|---|---|
 | Input | 无 | — | `size`、`windowSkin`、`items`、*文本样式* |
 
-`items` 是仅构造期生效的非空 `string[]`。资产通常写 `#TAB 1...` 之类的占位值，便于预览各标签；在第一帧可见之前，由 Controller 提供本地化标签文字并绑定选择行为。`selectedIndex` 与按键提示表只在运行时存在，且不接受 `tabCount`。详见 [Engine：交互与声明式 UI 控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/交互与声明式 UI 控件.md#tabview>)。
+`items` 是仅构造期生效的非空 `string[]`。在第一帧可见之前，由 Controller 提供本地化标签文字并绑定选择行为。`selectedIndex` 与按键提示表只在运行时存在，且不接受 `tabCount`。详见 [Engine：交互与声明式 UI 控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/交互与声明式 UI 控件.md#tabview>)。
 
 ### Engine.TextBox
 

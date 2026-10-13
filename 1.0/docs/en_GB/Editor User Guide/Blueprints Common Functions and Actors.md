@@ -28,7 +28,7 @@ Every saved attribute needs a declaration in metadata, an active Script Mixin or
 
 ## Actor Library and Actor Info
 
-The **Actor Library** lists Actor Blueprints in icon or list view. Select an entry for placement, or double-click it to open the Blueprint.
+The **Actor Library** lists Actor Blueprints in icon or list view. Select an entry for placement, or double-click it to open the Blueprint. Visual checks are described in [Actor previews](<../PreviewHost/UI Actor Particle and Subtitle Previews.md#actor-previews>).
 
 Filter by top-level folder and **All**, **Favourites** or **Recent** (the last 20 selected or placed Actors). Search matches names or Blueprint paths across all Actors, ignoring case; category and scope filters are disabled until the search is cleared.
 

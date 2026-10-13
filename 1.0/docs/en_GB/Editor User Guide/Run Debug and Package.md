@@ -6,7 +6,7 @@ Run a project, edit its live state and package it for a supported platform.
 
 The toolbar orders its actions as **Construct → Export → Play**. Standalone projects hide Construct. **Construct** saves the project and builds the Debug executable and preview runtime without launching the game. Native binding generation remains part of the build; UI and locale export is a separate operation.
 
-Ordinary-map, world and thumbnail previews use this native preview runtime. C++ Source projects prepare it through Construct; Standalone projects use the matching bundled runtime. A missing or incompatible runtime is reported in the viewport. Map previewing does not start gameplay and does not require Play or an Export after each map edit.
+Preview runtime preparation is described in [PreviewHost: Build, Publish and Troubleshooting](<../PreviewHost/Build Publish and Troubleshooting.md>).
 
 **Export** saves the project, runs Export plug-in hooks and generates UI Views, declarations and locale files. Export again after changing the inputs or removing generated files. A failed or cancelled export does not count as a successful export.
 
@@ -36,7 +36,7 @@ Enable **Edit → Development Tools and Settings → Live Debug** before Play to
 
 Once the game is running, the editor follows the player's current ordinary map or the current child of a composite world. Manual map switching is disabled. World holes, maps that are still loading, scenes without a live player and an unavailable connection are read-only. **File Explorer** can browse and locate resources; creating, renaming, moving, deleting and editing project files remain disabled.
 
-The native viewport reflects the live Actors' appearance, transforms, materials and lights, together with the map's fog, panorama and ambient light. A world child retains world coordinates for these effects. [Viewport Options](<Tilesets Autotiles and Maps.md#viewport>), including Lit/Unlit, affect the editor image only; they do not change the running game or grant additional editing permissions.
+Live viewport display rules are described in [Map and World Previews](<../PreviewHost/Map and World Previews.md#viewport-options>); editing permissions remain as specified below.
 
 On existing editable layers, Live Debug allows:
 
@@ -44,7 +44,7 @@ On existing editable layers, Live Debug allows:
 - Selecting and deleting live Actors, including the player, runtime-spawned Actors and child Actors, and moving top-level Actors. The editor cannot add, paste or duplicate Actors.
 - Reading **Actor Info** and changing ordinary variables, including `Optional[T]` when `T` is supported. Optional values accept `nil`; non-nil values still require the declared type. **Components**, the parent class, Blueprint identity and map tags stay read-only.
 
-Actor positions, creation, destruction and inspected values follow the running game. Moving an Actor cancels its current movement route. Deletion uses normal Actor destruction and its existing lifecycle callbacks. Hidden Actors remain inspectable according to the [map preview rules](<Tilesets Autotiles and Maps.md#lights-and-actors>); hidden layers stay read-only. Live edits have no Undo/Redo and do not write project documents or mark them modified.
+Actor positions, creation, destruction and inspected values follow the running game. Moving an Actor cancels its current movement route. Deletion uses normal Actor destruction and its existing lifecycle callbacks. Hidden Actors remain inspectable according to the [map preview rules](<../PreviewHost/Map and World Previews.md#actor-and-layer-assistance>); hidden layers stay read-only. Live edits have no Undo/Redo and do not write project documents or mark them modified.
 
 **World Outliner** nests child Actors under their current parents. Clicking or dragging a child on the map selects its top-level owner; dragging moves that owner and its descendants. Select a child in **World Outliner** to inspect or edit ordinary variables, or to delete it through its normal lifecycle. Direct child movement, including **Actor Info** coordinates, is disabled.
 
@@ -72,9 +72,9 @@ Each editor Pack performs one complete Export, including Export hooks and UI gen
 
 **Encrypt game data** controls script compilation and shader, JSON and save encryption, and a partial selection shows its indeterminate state. **Encrypt save contents** sets the C++ Source runtime default. Standalone projects configure it through `SAVE_AS_LDC` in `Scripts/Entry.lua`. See [Saves](<../Lua and Blueprint Scripting/Default Gameplay/Runtime Data Configuration and Saves.md#saves>) for the timing and format rules. The `.ldpak` option is independent of encryption. Data encryption converts staged JSON values to compressed, obfuscated binary `.ldc`; source JSON stays editable. Rebuild packages containing the old compressed-JSON LDC format.
 
-Packaging requires a valid project preview registry. See [Project preview artefacts](<../Native C++ Development/Native UI Adapters.md#project-preview-artefacts>) for preparing the preview runtime.
+Preview registry validation and exclusions are described in [PreviewHost packaging rules](<../PreviewHost/Build Publish and Troubleshooting.md#editable-templates-and-final-packages>).
 
-Packaging works on a staging copy and leaves project sources unchanged. It removes development files, preview-only binaries, project-root `EditorCache`/`Cache` and UI `editor` design data. UI asset keys remain extensionless and Controller references keep their logical Lua module paths, whether Data is stored as JSON, encrypted `.ldc` or in an archive. Directories named `EditorCache` or `Cache` inside `Assets`, `Data` or `Scripts` remain ordinary project content.
+Packaging works on a staging copy and leaves project sources unchanged. It removes development files, project-root `EditorCache`/`Cache` and UI `editor` design data. UI asset keys remain extensionless and Controller references keep their logical Lua module paths, whether Data is stored as JSON, encrypted `.ldc` or in an archive. Directories named `EditorCache` or `Cache` inside `Assets`, `Data` or `Scripts` remain ordinary project content.
 
 ### Release version and internal packages
 

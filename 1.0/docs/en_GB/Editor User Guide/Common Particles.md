@@ -2,17 +2,17 @@
 
 Common Particle assets contain ordered GPU emitter tracks. Use them on an Actor through `EmitterComponent`, or in a UI through `Engine.EmitterView`.
 
-## Author and preview
+## Authoring
 
-Choose **Game → New Common Particle** or create a particle in the project file explorer. **Database → Common Particle Overview** (`F6`) lists the resources under `Data/Particles`. Select a resource to edit its tracks, properties and lifetime curves. Right-click the track list to add a track; right-click a track to select it and enable Duplicate Track and Remove Track for that item. Those two actions are disabled when opening the menu on empty space. The preview can isolate the selected track. Track order also determines drawing order within an emitter.
+Choose **Game → New Common Particle** or create a particle in the project file explorer. **Database → Common Particle Overview** (`F6`) lists the resources under `Data/Particles`. Select a resource to edit its tracks, properties and lifetime curves. Right-click the track list to add a track; right-click a track to select it and enable Duplicate Track and Remove Track for that item. Those two actions are disabled when opening the menu on empty space. Track order also determines drawing order within an emitter.
 
 ![Common particle editor showing a resident-loop effect](../../../images/editor/common-particle-editor.png)
 
 *The track list is on the left, the preview and lifetime curve are in the centre, and properties are on the right.*
 
-The Texture Rect fields set the texture region’s position and size. Preview controls include Play/Pause, Stop, Restart, a single simulation step, time entry, seeking, playback speed and zoom. A step advances `1 / simulationRate` seconds. Seeking pauses playback and can take longer for later times; preview controls do not change the saved resource.
+The Texture Rect fields set the texture region’s position and size. Playback, track isolation and seeking are described in [Particle previews](<../PreviewHost/UI Actor Particle and Subtitle Previews.md#particle-previews>).
 
-Resource edits follow the shared [save and Undo rules](<Start Page Workspace and Shortcuts.md#editing-and-saving>). After C++ changes, use **Construct** to update the preview. Missing resources or unsupported GPU capabilities display an error.
+Resource edits follow the shared [save and Undo rules](<Start Page Workspace and Shortcuts.md#editing-and-saving>).
 
 ## Resource identity and schema
 

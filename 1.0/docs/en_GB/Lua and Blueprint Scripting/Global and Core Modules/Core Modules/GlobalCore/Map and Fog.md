@@ -77,7 +77,7 @@ Changing terrain rebuilds connectivity and replacement sources. Moving within on
 
 `GlobalCore.GameMapRenderer` adapts live map and Actor state to the Core `MapRenderer`; it does not own a second lighting algorithm. `drawContent` preserves the supplied render states and draws the ordered content. `composeFrame(ambientLight, time)` combines that Camera content with materials, lighting, panorama and fog. `prewarm(ambientLight, time)` warms the same rendering path. `setFogController(controller)` attaches the map's instance; `setLayerOrder(names)` follows world layer changes.
 
-The Core renderer accepts scene, region, sprite, light and view records without Actor or Lua dependencies and retains its render targets and light caches between frames. Ordinary editor maps, world canvases and thumbnails use that same renderer through PreviewHost. Unlit uses white ambient with no direct light or shadows while preserving opacity, reflections, Actor/layer shaders and hue. Panorama and fog are independent display options. Lit uses the supplied ambient and Actor lights.
+The shared renderer and editor preview data flow are described in [PreviewHost: Architecture and Data Flow](<../../../../PreviewHost/Architecture and Data Flow.md>). Editor display options are documented in [Map and World Previews](<../../../../PreviewHost/Map and World Previews.md>).
 
 ## Static preview rendering
 

@@ -2,7 +2,7 @@
 
 Create a subtitle document in the project file explorer under `Data/Subtitles`, or double-click an existing subtitle JSON file to open its editor. Subdirectories are supported. Subtitle documents use the normal Save, Undo/Redo, unsaved-change and close-confirmation workflow.
 
-## Edit and preview
+## Editing sections
 
 The upper-left area previews the picture and subtitles, the upper-right area edits the selected section, and the timeline spans the bottom. Select a section by its array position; sections have no separate name or identifier.
 
@@ -18,11 +18,7 @@ Within a section, all languages have the same number of text rows; different sec
 
 When opening existing data, the editor combines the language keys and pads missing languages or shorter arrays to each section's longest array with empty strings, preserving existing text. This is one unsaved, undoable change. Undo restores the original data; padding runs again only with the next content edit and shares that edit's undo step.
 
-Use Play/Pause, Stop, the current time and preview language to check timing. Without a reference video, playback uses a plain background and ends at the last section's end time. An empty subtitle document remains editable.
-
-Choose a project video for temporary reference, or clear it to return to the plain background. Video preserves its aspect ratio and plays synchronised audio, with a mute control. Seeking pauses audio and restores the previous playback state when positioning finishes. Preview duration is the longer of the video and subtitle durations; after video ends, remaining subtitles appear on the plain background. A project without FFmpeg reports that it is not an FFmpeg project when a video is selected; subtitle editing and plain-background preview remain available.
-
-The reference video, preview language, playhead and mute setting belong to the window session and are not saved in the subtitle document.
+Playback, reference video, preview language and window-session settings are described in [Subtitle previews](<../PreviewHost/UI Actor Particle and Subtitle Previews.md#subtitle-previews>).
 
 ## Data format
 

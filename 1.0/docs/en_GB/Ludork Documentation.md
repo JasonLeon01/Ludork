@@ -22,6 +22,7 @@ Ludork combines a visual editor, Blueprint graphs, Lua scripts and an extensible
 | Write gameplay in Lua or Blueprint | [Lua Runtime and Modules](<Lua and Blueprint Scripting/Lua Runtime and Modules.md>) |
 | Add or change native runtime APIs | [Build and Module Layout](<Native C++ Development/Build and Module Layout.md>) |
 | Deploy optional remote account storage | [Simple Server](<Simple Server/Deployment and Editor Settings.md>) |
+| Preview maps and assets or prepare the native preview host | [PreviewHost](<PreviewHost/Overview.md>) |
 | Install or write a trusted editor extension | [Installing and Managing Plug-ins](<Plug-in Development and Installation/Installing and Managing Plug-ins.md>) |
 | Find unreferenced project resources | [Official Resource Cleanup](<Plug-in Development and Installation/Official Plug-ins/Resource Cleanup.md>) |
 

@@ -25,6 +25,10 @@
       "path": "Simple Server"
     },
     {
+      "key": "07",
+      "path": "PreviewHost"
+    },
+    {
       "key": "05",
       "path": "Plug-in Development and Installation"
     }
