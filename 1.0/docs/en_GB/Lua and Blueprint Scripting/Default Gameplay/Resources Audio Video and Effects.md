@@ -30,19 +30,19 @@ After hot reload, start a new playback to use updated audio code; see [Lua Runti
 
 ## Shaders, fog and transitions
 
-User-authored Actor and layer shaders remain optional. Check `sf.Shader.isAvailable()` or `sf.Shader.isGeometryAvailable()` when gameplay can run without them. Built-in weather and fog instead require their shared cross-platform shader assets and propagate load or compilation failures. World entry warms each world or Active-layer shader once, and a rebuilt shader object warms again. HarmonyOS skips the artificial 1×1 prewarm and compiles each shader during its first normal draw, after the complete render state and uniforms are bound. HarmonyOS OpenGL ES treats unversioned shaders as ESSL 1.00 and preserves the public `setUniform("texture", ...)` name. Explicit versions must match the backend.
+User-authored Actor and layer shaders remain optional. Check `sf.Shader.isAvailable()` or `sf.Shader.isGeometryAvailable()` when gameplay can run without them. Built-in weather and fog instead require their shared cross-platform shader assets and propagate load or compilation failures. World entry prewarms the shared map compositor for the current viewport and repeats when regional geometry changes. HarmonyOS skips explicit prewarming and compiles each shader during its first normal draw, after the complete render state and uniforms are bound. HarmonyOS OpenGL ES treats unversioned shaders as ESSL 1.00 and preserves the public `setUniform("texture", ...)` name. Explicit versions must match the backend.
 
 Actor fragment shaders are cached by exact shader path for the lifetime of the Engine runtime. Actors using the same path therefore receive the same `sf.Shader` from `Actor:getShader()`. The standard `texture`, `time`, `textureSize` and `textureRect` uniforms are rebound immediately before each Actor map or preview draw. Other uniforms remain shared mutable shader state and must not be treated as persistent per-Actor values. A shader that fails to load is not cached. The affected Actor reports `Actor:hasShaderError()` and continues through the existing fallback rendering path.
 
-Fog textures use ordinary RGBA semantics: RGB supplies the colour, alpha supplies per-pixel density, and `fogPower` scales opacity. The same shader handles ordinary maps and clipped composite-world regions on every supported graphics backend.
+Fog is generated on the GPU from world coordinates, absolute time and a deterministic seed. Map data store an object with `enabled`, `colour`, `density`, `scale`, `velocity`, `turbulence` and `seed`; there is no fog texture. The shared renderer composites fog after materials and lighting, before foreground weather and particles. Lit fog responds to scene light; Unlit fog retains its configured colour. Each map session owns its fog state.
 
 See [FogController](<../Global and Core Modules/Core Modules/GlobalCore/Map and Fog.md#fogcontroller>) for fog fields, defaults and accepted values.
 
-Map panorama data uses the same optional-string protocol. `panorama` is a canonical `/Game/Assets/...` path, and panorama is disabled when it is missing, `nil` or blank. The image Cover-scales to fill `GameMap.MapViewRect` while preserving the aspect ratio, and then crops the overflow using the Camera origin as a fraction of `(mapPixels - viewPixels)` on each axis. An axis with no camera travel uses `0.5`. Transparent tiles and canvas margins reveal the panorama multiplied by ambient light only, while point lights still apply to opaque tiles. A missing texture is a required-resource failure.
+Map panorama data uses an optional-string protocol. `panorama` is a canonical `/Game/Assets/...` path, and panorama is disabled when it is missing, `nil` or blank. The image Cover-scales to fill `GameMap.MapViewRect` while preserving the aspect ratio, and then crops the overflow using the Camera origin as a fraction of `(mapPixels - viewPixels)` on each axis. An axis with no camera travel uses `0.5`. Transparent tiles and canvas margins reveal the panorama multiplied by ambient light only, while point lights still apply to opaque tiles. A missing texture is a required-resource failure.
 
 ### Composite-world environment
 
-A world manifest may define global fog and a global panorama, but not BGM, BGS, audio filters or ambient light. Global fog covers the Camera. Child fog is clipped to its placement and sampled in world coordinates, and evicting a child removes its regional fog until reload. Global panorama covers the world Camera using the world size for scroll. A child's `panorama` applies only when that child is loaded as a standalone map.
+A world manifest may define global fog and a global panorama, but not BGM, BGS, audio filters or ambient light. Global fog covers the world bounds, including holes. Child fog is clipped to its placement and sampled in the same world coordinates and time. It is composed after global fog in stable placement order; matching settings remain continuous across adjacent regions. Evicting a child removes its regional fog until reload. Global panorama covers the world Camera using the world size for scroll. A child's `panorama` applies only when that child is loaded as a standalone map.
 
 BGM, BGS and ambient light follow the child beneath the player. Audio switches fade for 0.5 seconds, and returning during a fade-out restores that source. Later ambient changes also blend for 0.5 seconds, using white in holes. World fog and panorama remain active there.
 
@@ -65,7 +65,9 @@ Video.PlayVideo("/Game/Assets/Videos/intro.mp4", false, true, "Data/Subtitles/in
 
 Shader availability is determined by the runtime graphics environment, and a successful editor preview does not guarantee equivalent target hardware support.
 
-World lighting uses world coordinates, so Active Actor and child static lights can illuminate or cast shadows across child boundaries. Tile masks remain clipped to their placements, and holes contribute neither surfaces nor blockers. The editor composition preview omits fog, panorama and lighting.
+World lighting uses world coordinates, so Actor lights illuminate and cast shadows across child boundaries. Tile masks remain clipped to their placements, and holes contribute neither surfaces nor blockers. Fixed map light records and their map management APIs are removed; attach a `LightComponent` to an Actor to create a light.
+
+Editor ordinary maps, world canvases and thumbnails use the same native map renderer. Unlit is the default: white ambient and no direct light or shadows, with opacity, reflections, shaders and hue preserved. Lit uses actual light inputs, and the editor world canvas uses each child's ambient colour. Panorama and fog have independent display switches. The game retains its player-region ambient transition described above.
 
 ## Related pages
 

@@ -40,7 +40,7 @@ The selected placement is drawn above the others within each layer and takes pri
 
 The canvas and thumbnails appear as child maps load. A missing or unreadable child does not prevent the others from appearing. Editing maps or changing images updates their previews.
 
-Scroll or pan the canvas. Use Ctrl+wheel on Windows/Linux or Command+wheel/pinch on macOS to zoom. The read-only preview shows tiles, the first autotile frame and static Actor images at time zero. It does not animate Actors or render lights, fog, panorama or map-layer shaders.
+Scroll or pan the canvas. Use Ctrl+wheel on Windows/Linux or Command+wheel/pinch on macOS to zoom. The world canvas shares the game renderer with ordinary maps, including animated tiles and Actors, materials, layer shaders, lighting, fog and panorama. Child-map thumbnails use the same renderer at time zero. Only children needed for the visible area and its lighting are loaded for the canvas.
 
 Resizing cannot place a child outside the world. Before deleting a placed child file, remove its placement and save. Non-JSON regular files are ignored, and Actor tags must be unique across the world.
 
@@ -48,13 +48,35 @@ A rename updates the recognised references listed in [Project Settings and Asset
 
 Creating an ordinary map or a world child pre-fills Map Properties from the most recently modified ordinary map or world child in the project. This includes dimensions, ambient light, BGM/BGS and their filters, fog and all its parameters, and panorama. The file name and map name receive new defaults. Current-session edits, including unsaved changes and Undo/Redo, take priority; when no map has been edited in the session, the source is chosen by file modification time. Opening or saving a map does not change the session's edit order. With no existing map, the standard defaults apply. These settings are independent copies, so changing the new map's defaults leaves the source map unchanged.
 
-![Map properties window](../../../images/editor/map-properties.png)
+The Ambient Light button shows a colour swatch and its ARGB value; a checkerboard indicates transparency. Click it to choose a colour.
 
-*The Ambient Light button shows a colour swatch and its ARGB value; a checkerboard indicates transparency. Click it to choose a colour.*
-
-Use the browse button beside BGM, BGS, fog or panorama and select **Clear** to remove the file reference. World Map Properties uses the same selector for fog and panorama. Confirm the properties dialog to apply the change.
+Use the browse button beside BGM, BGS or panorama and select **Clear** to remove the file reference. World Map Properties uses the same selector for panorama. Confirm the properties dialog to apply the change.
 
 Map Properties also selects an optional **Panorama** image from `Assets/Panoramas`. The runtime Cover-scales that image to fill `GameMap.MapViewRect`, then crops any overflow using the Camera's position as a fraction of the map's scrollable range. The left edge of the map shows the left of the panorama, and the right edge shows the right. An axis that cannot scroll uses the centre of that overflow. Ambient light tints the image, and point lights do not. A blank path disables the panorama. A world manifest may set a global panorama that covers the world Camera, while a child's `panorama` applies only when that child is loaded as a standalone map.
+
+## Viewport
+
+The small dropdown button at the upper left of the ordinary-map or world canvas opens **Viewport Options**. **View Mode** starts at **Unlit**: textures, materials and shaders keep their appearance under neutral lighting. Choose **Lit** to preview ambient light, Actor lights and their occlusion with the game renderer.
+
+**Realtime**, **Show Fog**, **Show Panorama** and **Show Actor Origins** start enabled. Realtime advances preview animations and fog; disabling it freezes preview time while edits still refresh the image. **Show Light Bounds** starts disabled and is available only in Unlit. It displays read-only dashed ranges without changing Actor selection or editing gestures. Origins and ranges are editor overlays and do not appear in thumbnails.
+
+View Mode, fog and panorama choices also apply to child-map thumbnails, which remain at time zero. These options are shared for the current project session, do not change map data and do not create Undo steps. Previewing resolves the current map and Blueprint data without running gameplay scripts, constructors or Actor lifecycle callbacks. Hidden views stop requesting frames. If the native preview runtime is unavailable, the viewport shows its status; see [Construct, Export and Play](<Run Debug and Package.md#construct-export-and-play>).
+
+### Fog
+
+Map Properties and World Map Properties provide the same **Fog** settings. Enable fog to reveal its controls. The GPU generates the fog pattern in world coordinates; no fog image is required. Panning or zooming does not attach the pattern to the screen. A world can combine its global fog with fog inside each child region, using the same world coordinates across region boundaries.
+
+| Setting | Meaning | Standard default |
+|---|---|---|
+| Enabled | Store whether the map renders fog. | Off |
+| Colour | RGBA tint and alpha. | White, fully opaque |
+| Density | Fog coverage from 0 to 1. | 0.5 |
+| Scale | Pattern size in map pixels. | 256 |
+| Velocity X / Y | Pattern movement in map pixels per second. | 15 / 15 |
+| Turbulence | Pattern variation from 0 to 1. | 0.5 |
+| Seed | Non-negative integer selecting a repeatable pattern. | 0 |
+
+Lit uses scene lighting for the fog; Unlit uses neutral illumination. **Show Fog** only controls its editor preview and leaves the authored settings unchanged. Fog is saved as the `fog` object shown in [Map and world-map assets](<Project Settings and Asset Layout.md#map-and-world-map-assets>).
 
 ## Layers and painting
 
@@ -70,29 +92,17 @@ Saving during a stroke starts a new Undo step for subsequent movement. Undo and 
 
 For Blueprint light defaults and component fields, see [Light Component](<Actor Components/Light.md>).
 
-Switch to Light mode to place and edit lights, including their position, colour and radius. Switch to Actor mode to place a Blueprint instance, move it and edit its exposed attributes. The selected instance may override class defaults without changing the Blueprint itself.
-
-Selecting a fixed map light in Light mode shows its position, RGBA colour, radius and intensity in the right panel. Press Enter or leave a field to apply an edit. Moving the light or changing its radius on the map updates the panel, and edits support Undo/Redo. Selecting empty space clears the fields; selecting an Actor light switches to Actor Info.
+Use Actor mode to place a Blueprint instance, move it and edit its exposed attributes. The selected instance may override class defaults without changing the Blueprint itself. Add lighting through the Actor's `lightComp`; select the Actor normally and edit the component in **Actor Info**. Maps do not contain separate fixed-light objects or a Light editing mode.
 
 In project editing, hold Ctrl on Windows/Linux or Command on macOS while left-dragging an Actor to select it and adjust its translation continuously in map pixels, without changing its grid position. Alt/Option+left-drag adjusts only its origin in local coordinates, accounting for rotation and scale; translation stays unchanged, so the image moves opposite the drag. Alt/Option takes precedence when both modifiers are held. A transform with a zero scale axis cannot be used for origin dragging. These operations write the instance's `defaultTranslation` and `defaultOrigin` overrides.
 
-Ctrl/Command+wheel, or Command+trackpad pinch on macOS, scales the selected Actor in Actor mode and changes the selected light's radius in Light mode. Actor scaling writes `defaultScale`, preserving the ratio and signs of its axes, including zero axes. Each wheel unit multiplies the value by 1.1; pinch changes it continuously. Radius cannot fall below one map pixel with this shortcut, and a zero-radius fixed light can grow from one pixel. With no eligible editable selection, the gesture zooms the map instead. Pinching without modifiers still zooms the map. These property shortcuts do not apply in Live Debug.
+Ctrl/Command+wheel, or Command+trackpad pinch on macOS, scales the selected Actor in Actor mode. Scaling writes `defaultScale`, preserving the ratio and signs of its axes, including zero axes. Each wheel unit multiplies the value by 1.1; pinch changes it continuously. With no eligible editable Actor, the gesture zooms the map instead. Pinching without modifiers still zooms the map. These property shortcuts do not apply in Live Debug.
 
 In Actor mode, Alt/Option+wheel or Option+trackpad pinch adjusts the selected Actor's `defaultRotation` instance override. Positive wheel movement and pinching outward rotate clockwise; negative movement and pinching inward rotate counterclockwise. Each wheel unit adds 15 degrees, and each 0.1 pinch increment adds 18 degrees. Alt/Option takes precedence over Ctrl/Command for rotation. Without an eligible editable Actor, these gestures retain their viewport behaviour.
 
 Each property drag is one Undo step. Consecutive wheel or pinch changes to the same property and selection are grouped. Changing selection, map, layer or mode ends the interaction; saving starts a new Undo step for subsequent changes.
 
-Light mode also shows placed Actors' `lightComp` ranges with coloured fills and grey dashed outlines. These ranges use inherited defaults and instance overrides and update with Actor edits and Undo/Redo. **Select Actors**, to the right of the layer tabs, is off by default and saves its state in the global `Ludork.ini` preferences across projects and editor restarts. With it off, layers cannot be changed and Actor ranges are read-only. Enabling it restores the previous layer, or Overview if that layer no longer exists, and allows selecting Actors with lights on the current editable layer by clicking their image or range. A restored hidden layer remains read-only. Overview and hidden layers cannot select them; Actors without lights remain unavailable in this mode.
-
-The selected Actor's range is highlighted and the right panel shows **Actor Info**, without the Actor outliner. Edit its instance attributes there, including `lightComp`; these remain map instance overrides. With **Select Actors** enabled, Ctrl/Command+wheel or Command+pinch changes the selected Actor's `lightComp.lightRadius`, preserving its other light settings. In Actor mode the same shortcut changes Actor scale instead. Dragging its image or range moves the Actor and light together in whole grid steps, preserving the initial grab offset and the component's light offset. One drag is one Undo step. Actor ranges have no separate radius drag or Delete action. Switching layers, disabling selection or losing the Actor's visible light clears the selection.
-
-When lights overlap, an eligible Actor image takes priority, followed by the selected fixed light's radius handle. Otherwise the nearest emitter wins, with ties resolved in favour of the object drawn on top. Fixed lights retain their free movement, radius editing and deletion. Invisible Actors, hidden layers and components with a non-positive radius show no range. This is a range preview, without runtime lighting or shadows; world composition previews and Live Debug do not add these ranges.
-
-Ordinary maps and world previews draw an Actor whose resolved `visible` value is `false` at 25% opacity, including inherited defaults and instance overrides. Texture alpha and the 50% dimming of non-current layers on an ordinary map still multiply this opacity. Selection outlines and error markers stay clear, and the Actor remains selectable and movable. Hidden layers remain invisible, while placement ghosts and missing-texture placeholders retain their normal appearance. This behaviour is an editor preview aid, and invisible Actors remain hidden at runtime.
-
-![Light editing mode](../../../images/editor/light-mode.png)
-
-*Light mode visualises the selected emitter and its radius over the map.*
+Ordinary maps and world previews draw an Actor whose resolved `visible` value is `false` at 25% opacity, including inherited defaults and instance overrides. Texture alpha, material opacity and the 50% dimming of non-current layers on an ordinary map still multiply this opacity. Selection outlines and error markers stay clear, and the Actor remains selectable and movable. These invisible Actors contribute neither lighting nor light occlusion. Hidden layers remain invisible, while placement ghosts and missing-texture placeholders retain their normal appearance. This behaviour is an editor preview aid, and invisible Actors remain hidden at runtime.
 
 ![Actor editing mode](../../../images/editor/actor-mode.png)
 

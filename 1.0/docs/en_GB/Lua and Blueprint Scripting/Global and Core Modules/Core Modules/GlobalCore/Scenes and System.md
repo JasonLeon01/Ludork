@@ -195,4 +195,4 @@ A new request of the same kind cancels the previous unfinished operation. `cance
 
 `RuntimeDiagnostics.isPerformanceProfilerEnabled()` queries whether profiling is enabled. `recordWorldStreamingPerformance(queueDepth, reading, prepared, active, dormant, cacheBytes, publishMilliseconds, visibleTileChunks, activeActors)` records a streaming sample. Both methods are available to Lua and excluded from Blueprint metadata.
 
-Weather, fog and panorama use `WeatherController`, `FogController` and `PanoramaController` directly; see [Map and Fog](<Map and Fog.md>). Audio switches and volumes belong to [AudioManager](<Resource Managers.md#audiomanager>).
+Weather and panorama use `WeatherController` and `PanoramaController`. Each `GameMap` owns its own `FogController`; use `gameMap:getFogSettings()` and `gameMap:setFogSettings(settings)` for that map. The shared map compositor renders its fog before foreground weather and particles; see [Map and Fog](<Map and Fog.md>). Audio switches and volumes belong to [AudioManager](<Resource Managers.md#audiomanager>).

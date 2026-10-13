@@ -58,11 +58,21 @@ Game builds generate native bindings and validate UI assets through the project 
 
 Source preview and game binaries share `bin/<configuration>`. Desktop builds generate the [project preview artefacts](<Native UI Adapters.md#project-preview-artefacts>). Mobile cross-builds use an explicitly supplied desktop registry.
 
+### Shared map rendering and preview boundary
+
+`Engine/Source/Core/include/Graphics/MapRenderer.hpp` defines the common native map renderer. Engine and PreviewHostRuntime compile the same Core Graphics implementation. `Scene` contains ordered layers, placed tilemap regions, resolved sprite appearances, component lights, ambient light, panorama and fog. `View` and `Options` carry the camera, output dimensions, time and display options. The result is an `sf::RenderTexture`; the renderer does not parse editor requests or read pixels back to the CPU.
+
+Ordinary maps use one region. Worlds draw regions within each authoritative layer, preserving placement priority and cross-region lighting and occlusion. `GlobalCore.GameMapRenderer` adapts gameplay state and supplies emitter, billboard, layer-effect and ordinary-map player-cover hooks. Native `TileLayer::updateBlock` rebuilds affected chunks and autotile neighbours and invalidates material and occlusion caches. Streaming retains `writeBlock` and its normal build stages. Animation uses the explicit frame time.
+
+`Engine/PreviewHost` owns request parsing, editor sessions, process communication, BGRA readback and temporary frame transport, outside Core's recursive source collection. The editor sends resolved visual records without running Actor creation, Tick or Blueprint gameplay events. A full scene initialises a session; subsequent changes update scene fields and regions, while camera and animation requests reuse the installed scene. Game modules neither include this implementation nor link its dedicated runtime library. `LudorkRuntime` keeps its downward dependency boundary without depending on map gameplay objects.
+
+A preview-only CMake build enables `LUDORK_BUILD_PREVIEW_HOST` and disables `LUDORK_BUILD_GAME_APPLICATION`. A game-only build disables the preview switch and supplies `LUDORK_UI_REGISTRY_PATH` with a matching desktop UI registry for asset validation. Full desktop development builds enable both targets. See [project preview artefacts](<Native UI Adapters.md#project-preview-artefacts>) for tools and packaging rules.
+
 ### Shared format and rendering constants
 
 `ScriptTools/runtime_formats.py` owns the `.ldpak` and encrypted-payload layouts, versions, binary data tags and codec limits; `ScriptTools/resource_constants.py` owns resource groups, paths and suffixes. CMake runs `ScriptTools runtime-constants cpp <project-root> <output-directory>` to generate neutral C++ headers under `Intermediate/<build-name>-<hash>/RuntimeConstants/LudorkGenerated`. Native consumers link `Ludork::RuntimeConstants`; implementation layers never include a parent host's private headers to obtain these values. Engine exposes the four data and animation suffixes through `ResourceFileConstants`.
 
-`Assets/Shaders/Global/UnoccludedLightPass.frag` contains the sole `LUDORK_MAX_SHADER_LIGHTS` definition: one decimal integer in `1..256`, currently `64`. The upper bound follows from the batched light pass carrying each light's index in the vertex colour alpha, which holds one byte. Generation rejects missing, repeated or invalid definitions. Changing this limit requires rebuilding the native project so the shader, native renderer and read-only `GlobalCore.Light.MAX_SHADER_LIGHTS` agree. Ordinary shader reload alone does not update the compiled limit.
+`Assets/Shaders/Global/UnoccludedLightPass.frag` contains the sole `LUDORK_MAX_SHADER_LIGHTS` definition: one decimal integer in `1..256`, currently `64`. Generation rejects missing, repeated or invalid definitions. Changing this limit requires rebuilding the native project so the shader, native renderer and read-only `GlobalCore.Light.MAX_SHADER_LIGHTS` agree. Ordinary shader reload alone does not update the compiled limit.
 
 Generation runs for game, desktop Preview and `LUDORK_WITH_LUA=OFF` builds. C++ Source templates retain the shader source and build wiring; their normal build regenerates the headers. Generated headers are build outputs and are not edited or shipped as template sources.
 

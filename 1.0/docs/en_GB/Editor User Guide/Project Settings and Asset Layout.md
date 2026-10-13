@@ -66,7 +66,7 @@ Authoring files live under the physical `Assets` directory. Stored resources use
 
 Resource resolution rejects symbolic links, broken links and reparse points from the target through the project root. An inaccessible path is rejected. Path conversion and picker roots may name a file or directory that has not been created yet, provided the existing ancestors pass the same checks. Stored resource paths remain case-sensitive on every platform.
 
-Keep the conventional first-level folders so that selectors can filter correctly: `Tilesets`, `Autotiles`, `Characters`, `Animations`, `Particles`, `Icons`, `Fonts`, `Musics`, `Sounds`, `Voices`, `Shaders`, `Fogs`, `Panoramas`, `Transitions`, `System` and `Videos`. The `.ldpak` option archives the complete `Assets` tree as root `Assets.ldpak`, including ordinary files directly under `Assets`. Logical resource paths remain unchanged.
+Keep the conventional first-level folders so that selectors can filter correctly: `Tilesets`, `Autotiles`, `Characters`, `Animations`, `Particles`, `Icons`, `Fonts`, `Musics`, `Sounds`, `Voices`, `Shaders`, `Panoramas`, `Transitions`, `System` and `Videos`. The `.ldpak` option archives the complete `Assets` tree as root `Assets.ldpak`, including ordinary files directly under `Assets`. Logical resource paths remain unchanged.
 
 Moving an asset does not automatically repair every stored reference. Open its reference tree before moving or deleting it, then update the affected data manually.
 
@@ -96,11 +96,15 @@ The manifest has this closed editor-owned shape:
   "worldName": "{WORLD_01}",
   "width": 256,
   "height": 192,
-  "fog": "",
-  "fogPower": 0,
-  "fogOx": 0.0,
-  "fogOy": 0.0,
-  "fogDistort": 0,
+  "fog": {
+    "enabled": false,
+    "colour": [255, 255, 255, 255],
+    "density": 0.5,
+    "scale": 256,
+    "velocity": [15, 15],
+    "turbulence": 0.5,
+    "seed": 0
+  },
   "panorama": "",
   "layerOrder": ["floor", "default"],
   "placements": [
@@ -115,6 +119,8 @@ The manifest has this closed editor-owned shape:
 `width`, `height` and `[x, y, width, height]` placement rects use zero-based cells. A rect must match the size of its child, and each child may appear once. Placements may touch, and uncovered cells are valid holes. Placements cannot extend beyond the world. The editor allows temporary overlaps while arranging maps, but rejects Save until they are resolved; saved manifests cannot contain overlapping placements.
 
 `worldName` is a required non-empty display name. `layerOrder` is derived from the placed children and rejects contradictory cycles. The manifest owns the world display name, size, composition, global fog and global panorama, while audio, filters and ambient light remain child data.
+
+Ordinary maps and worlds store fog in the same `fog` object. Configure its procedural world-space pattern through [Fog](<Tilesets Autotiles and Maps.md#fog>); it does not reference an asset image.
 
 ## Limitations
 

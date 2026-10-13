@@ -53,7 +53,11 @@ Image 的 `drawAs` 使用绑定的 C++ `Image::DrawAs` 枚举，导出名为 `En
 
 ## 项目预览文件
 
-桌面原生构建会生成项目的预览宿主和 `EditorCache/UiPreview.registry.json`。源码项目的运行目录为 `bin/<configuration>`，Standalone 项目使用 `Binaries`。
+桌面原生构建会生成 `PreviewHost`、专用的 `PreviewHostRuntime` 库、`EditorCache/Preview.json`，以及 UI 专用的 `EditorCache/UiPreview.registry.json`。源码项目的二进制目录为 `bin/<configuration>`，Standalone 项目使用 `Binaries`。宿主支持地图、Actor、粒子、字幕与 UI 预览。`Preview.json` 描述配套二进制和注册表；重建期间由 `Preview.building` 暂停编辑器连接，发布后重新连接。
+
+Windows 使用 `tools/build_preview_host.bat Game Debug`，macOS 使用 `sh tools/build_preview_host.sh Game Debug` 构建宿主。工具命令统一为 `ScriptTools preview`，例如 `ScriptTools preview validate Game` 校验项目已发布的预览运行时；CMake 开关为 `LUDORK_BUILD_PREVIEW_HOST`。UI 专用的客户端、会话类型和 `UiPreview.registry.json` 保留原名。
+
+Source、Standalone 可编辑项目及模板保留预览能力。最终游戏打包会排除预览可执行文件、专用运行库、清单、构建标记、临时帧和 `Engine/PreviewHost` 源码目录。游戏程序与运行库不链接 `PreviewHostRuntime`。
 
 修改原生 UI 控件后须重新构建项目。配套的预览宿主和控件注册表生成前，预览不可用。更新后的控件如何使用，见[声明式 UI 编写工作流](<../Lua 与蓝图脚本/声明式 UI/编写工作流.md>)。
 

@@ -2,16 +2,21 @@
 
 ## FogController
 
-### Functions and events
+Construct `GlobalCore.FogController.new()` for each map session. The controller owns configuration; the shared renderer owns its GPU resources. The Game project creates and attaches one controller per `GameMap`, so configuring one map cannot overwrite another map's fog.
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `applyFromMapData` | `function` | mapData: { "GlobalCore", "MapFogSettings" } | — | — |
-| `clearFog` | `function` | — | — | — |
-| `update` | `function` | deltaTime: float | — | — |
-| `drawOverlay` | `function` | — | — | — |
+| Instance method | Parameters | Returns |
+|---|---|---|
+| `applyFromMapData` | `settings: Engine.MapFogSettings` | — |
+| `applyWorldFromMapData` | `settings: Engine.MapFogSettings` | — |
+| `setWorldRegionFog` | `key: string`, `cellRect: sf.IntRect`, `settings: Engine.MapFogSettings` | — |
+| `removeWorldRegionFog` | `key: string` | — |
+| `clearFog` | — | — |
+| `getSettings` | — | `Engine.MapFogSettings` copy |
+| `getWorldRegionSettings` | `key: string` | settings copy or `nil` |
 
-`MapFogSettings` accepts a Lua table with a `fog` string and the numbers `fogPower`, `fogOx`, `fogOy` and `fogDistort`, each of which must be finite and inside the float range. A missing or nil `fog` defaults to `""`, and a missing or nil number defaults to `0`. Extra map fields are ignored. An invalid type or an out-of-range value raises an error. A blank `fog` string or a `fogPower` of `0` or less disables fog. `fogPower` and `fogDistort` are floored and clamped to `0..100`. `fogOx` and `fogOy` set the scroll speed. `applyFromMapData` and `applyWorldFromMapData` share this configuration.
+The region methods and `applyWorldFromMapData` are runtime-only Lua APIs. `applyFromMapData` replaces the base configuration while retaining regions. `applyWorldFromMapData` starts a world configuration by clearing prior regions; `clearFog` clears both the base and regional configuration. There are no global `update` or `drawOverlay` calls. Map composition samples fog at the frame's absolute time, after material and light composition and before foreground weather and particles.
+
+Fog uses GPU procedural noise in world coordinates. It needs no texture path. The base world fog is composed first; resident child fog is clipped to its placement and composed in stable placement order. Matching settings and time produce continuous noise across neighbouring placements. Lit fog samples the scene's ambient and direct light; Unlit uses its configured colour. See [Engine.MapFogSettings](<../Engine/Maps and Materials.md#mapfogsettings>) for fields and defaults.
 
 ## PanoramaController
 
@@ -24,6 +29,8 @@
 | `isActive` | `function` | — | return: bool | Pure |
 
 `MapPanoramaSettings` accepts a Lua table with a `panorama` string. A missing or nil `panorama` defaults to `""`. Extra map fields are ignored. An invalid type raises an error. A blank `panorama` disables the underlay. `applyFromMapData` and `applyWorldFromMapData` share this configuration. A non-blank path loads the texture immediately, and a load failure propagates.
+
+`getPath()` returns the current panorama path. Panorama rendering uses the shared compositor and keeps Cover scaling and Camera-dependent scrolling.
 
 ## PathResult
 
@@ -58,13 +65,19 @@
 | `isActorVisibleOnMap` | `function` | self: { "GlobalCore", "GameMapBase" } = "self"; actor: { "Engine", "Actor" } | return: bool | Pure |
 | `getVisibilityRevision` | `function` | self: { "GlobalCore", "GameMapBase" } = "self" | return: int | Pure |
 
-The runtime-only methods of `GameMapBase` (`metadata = false`) cover sparse-region readiness, the 1-based `getSparseWorldRegionIndexAt(position)`, static-light occupancy and batched occlusion.
+The runtime-only methods of `GameMapBase` (`metadata = false`) cover sparse-region readiness, the 1-based `getSparseWorldRegionIndexAt(position)`, region installation and removal.
 
 ### Region visibility
 
 For ordinary finite maps, `setHideDisconnectedRegions(enabled)` enables or disables region hiding. `setVisibilityObserver(position)` accepts an `sf.Vector2i` cell for previews; passing `nil` resumes following the player. `isCellVisible(position)` queries the tile display mask, where impassable cells remain visible. `isActorVisibleOnMap(actor)` checks the Actor and each ancestor using their visibility flags and region rules: passable anchors use their region, while impassable anchors require the transformed image rectangle to overlap a visible passable cell. `getHideDisconnectedRegions()` is a runtime-only getter for the current switch. `getVisibilityRevision()` returns the current revision for display and preview caches, tracking terrain changes even while hiding is disabled. Visibility queries update pending changes before returning.
 
 Changing terrain rebuilds connectivity and replacement sources. Moving within one region reuses the mask; moving to another region updates rendering and lighting. The renderer uses separate display layers, keeping the original tilemap intact. The selection rule and gameplay effects are documented in [Global.GameMap](<../../Global APIs/GameMap.md#disconnected-regions>).
+
+## Shared map rendering
+
+`GlobalCore.GameMapRenderer` adapts live map and Actor state to the Core `MapRenderer`; it does not own a second lighting algorithm. `drawContent` preserves the supplied render states and draws the ordered content. `composeFrame(ambientLight, time)` combines that Camera content with materials, lighting, panorama and fog. `prewarm(ambientLight, time)` warms the same rendering path. `setFogController(controller)` attaches the map's instance; `setLayerOrder(names)` follows world layer changes.
+
+The Core renderer accepts scene, region, sprite, light and view records without Actor or Lua dependencies and retains its render targets and light caches between frames. Ordinary editor maps, world canvases and thumbnails use that same renderer through PreviewHost. Unlit uses white ambient with no direct light or shadows while preserving opacity, reflections, Actor/layer shaders and hue. Panorama and fog are independent display options. Lit uses the supplied ambient and Actor lights.
 
 ## Static preview rendering
 
@@ -82,7 +95,7 @@ Changing terrain rebuilds connectivity and replacement sources. Moving within on
 
 `renderer:setPreviewVisibility(flags)` requires installed records and exactly one boolean per record, in the same order. It updates own visibility; effective visibility also includes ancestors and the map's region rules. A `nil` texture draws nothing but retains the record's geometry and parent role. Geometry is already resolved into map coordinates; `parentIndex` controls visibility, not transform composition.
 
-Static shader drawing supports hue, uses `texture`, `textureSize`, `textureRect` and `time = 0`, and combines sprite transforms with the caller's render states, including world offsets. A shader-load failure reports the error and draws the image in magenta. The native-only `GameMapBase::isSpriteVisibleOnMap(position, bounds, transform)` shares the geometry visibility test with live Actors; it is not a Lua binding.
+Static shader drawing supports hue, uses `texture`, `textureSize`, `textureRect` and the supplied absolute `time` (`0` for floor previews), and combines sprite transforms with the caller's render states, including world offsets. A shader-load failure reports the error and draws the image in magenta. The native-only `GameMapBase::isSpriteVisibleOnMap(position, bounds, transform)` shares the geometry visibility test with live Actors; it is not a Lua binding.
 
 ## WorldStreamingState
 

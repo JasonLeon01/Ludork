@@ -1,6 +1,6 @@
 # Global.GameMap
 
-`GameMap` 声明地图层级的 API：Player 与 Actor 查询、Actor 创建与销毁、通行判定、摄像机、Tilemap、地形图块与地图灯光。
+`GameMap` 声明地图层级的 API：Player 与 Actor 查询、Actor 创建与销毁、通行判定、摄像机、Tilemap、地形图块与地图环境。
 
 Metadata 来源：`Scripts/Global/GameMap_meta.lua`
 
@@ -27,6 +27,14 @@ Metadata 来源：`Scripts/Global/GameMap_meta.lua`
 `getGameplayCellRect()` 返回一份格子矩形副本，不触发区域加载。普通地图的结果是完整边界；大地图的结果是 Active 边界，Active 区域尚未建立时退回可见边界。
 
 `prepareViewportAt` 同步准备并绘制所需的 Camera 邻域，外围摆放仍保持异步。必需子地图、Actor 或发布环节失败时，错误会向外传播。
+
+### 渲染与雾效
+
+普通地图、组合式大地图与楼层预览将地图内容交给共用的原生 `MapRenderer` 绘制。游戏适配层保留 Actor 回调、粒子、Billboard、图层特效和普通地图的玩家遮挡。大地图按全局图层顺序绘制各区域，Actor 灯光与 Tile 遮挡共享大地图坐标，因此光照可以跨越摆放边界。
+
+地图灯光来自 `Actor.lightComp`。固定 `lights` 数组及地图的 `getLights`、`setLights`、`addLight`、`removeLight`、`setLight*` API 已移除。环境光仍由 `getAmbientLight` 和 `setAmbientLight` 控制。
+
+每个 `GameMap` 独立持有一个雾控制器。运行时 Lua 方法 `getFogSettings()` 返回 `Engine.MapFogSettings` 的副本，`setFogSettings(settings)` 替换本地图的配置。`getRegionFogSettings(path)` 返回大地图子区域的配置，没有驻留配置时返回 `nil`。修改读出的配置值不会直接影响地图；修改后应传给 `setFogSettings`。
 
 ### Actor 可见性
 
@@ -66,14 +74,6 @@ Metadata 来源：`Scripts/Global/GameMap_meta.lua`
 | `getTerrainTilePositions` | `function` | self: { "Global.GameMap", "GameMap" } = "self"; layerName: string; tileID: any | positions: sf.Vector2i[] | Pure |
 | `setTerrainTile` | `function` | self: { "Global.GameMap", "GameMap" } = "self"; layerName: string; position: sf.Vector2i; tileID: any | success: bool | ExecSplit { [1] = "default", default = nil } |
 | `setTerrainTiles` | `function` | self: { "Global.GameMap", "GameMap" } = "self"; layerName: string; positions: sf.Vector2i[]; tileID: any | positions: sf.Vector2i[] | ExecSplit { [1] = "default", default = nil } |
-| `getLights` | `function` | self: { "Global.GameMap", "GameMap" } = "self" | lights: { "GlobalCore", "Light[]" } | Pure |
-| `setLights` | `function` | self: { "Global.GameMap", "GameMap" } = "self"; lights: { "GlobalCore", "Light[]" } | — | ExecSplit { [1] = "default", default = nil } |
-| `addLight` | `function` | self: { "Global.GameMap", "GameMap" } = "self"; light: { "GlobalCore", "Light" } | — | ExecSplit { [1] = "default", default = nil } |
-| `removeLight` | `function` | self: { "Global.GameMap", "GameMap" } = "self"; light: { "GlobalCore", "Light" } | — | ExecSplit { [1] = "default", default = nil } |
-| `setLightPosition` | `function` | self: { "Global.GameMap", "GameMap" } = "self"; light: { "GlobalCore", "Light" }; position: sf.Vector2f | — | ExecSplit { [1] = "default", default = nil } |
-| `setLightColour` | `function` | self: { "Global.GameMap", "GameMap" } = "self"; light: { "GlobalCore", "Light" }; colour: sf.Color | — | ExecSplit { [1] = "default", default = nil } |
-| `setLightRadius` | `function` | self: { "Global.GameMap", "GameMap" } = "self"; light: { "GlobalCore", "Light" }; radius: float | — | ExecSplit { [1] = "default", default = nil } |
-| `setLightIntensity` | `function` | self: { "Global.GameMap", "GameMap" } = "self"; light: { "GlobalCore", "Light" }; intensity: float | — | ExecSplit { [1] = "default", default = nil } |
 | `getAmbientLight` | `function` | self: { "Global.GameMap", "GameMap" } = "self" | ambientLight: sf.Color | Pure |
 | `setAmbientLight` | `function` | self: { "Global.GameMap", "GameMap" } = "self"; ambientLight: sf.Color | — | ExecSplit { [1] = "default", default = nil } |
 | `getSize` | `function` | self: { "Global.GameMap", "GameMap" } = "self" | size: sf.Vector2u | Pure |

@@ -10,7 +10,7 @@ An unsupported project version cannot be opened. See [Main.proj](<Project Settin
 
 ## Main workspace
 
-The main window contains the map list, map canvas, editing-mode inspector and **World Outliner**, with **File Explorer**, **Actor Library** and **Console** tabs below. Tile, Light and Actor mode controls sit beside the canvas and are hidden for world maps. The toolbar provides **Construct → Export → Play** / **Stop**; Standalone projects hide Construct. See [Run, Debug and Package](<Run Debug and Package.md>).
+The main window contains the map list, map canvas, editing-mode inspector and **World Outliner**, with **File Explorer**, **Actor Library** and **Console** tabs below. Tile and Actor mode controls sit beside the canvas and are hidden for world maps. The toolbar provides **Construct → Export → Play** / **Stop**; Standalone projects hide Construct. See [Run, Debug and Package](<Run Debug and Package.md>).
 
 Resource windows display a loading indicator while opening. If loading fails, use **Retry**.
 
@@ -33,13 +33,14 @@ The embedded pages hide website navigation. Documentation links stay in the wind
 | Main window | Normal position and size, maximised state, map-list and inspector widths, lower-area height, Actor outliner/inspector proportions and the world-map child-list width. |
 | File Explorer | Icon/list view, content zoom, expanded/collapsed source list and preferred external open target. |
 | Actor Library | Icon/list view. |
-| Map tools | Light mode's **Select Actors** switch. |
 | Tool windows | Position, normal size and maximised state for each window type. |
 | Tool content | Existing adjustable split widths or proportions, the UI timeline and system-control category expansion, and particle configuration section expansion. |
 
-Defaults are icon view in both panels, 100% File Explorer zoom, a collapsed source list, the system file manager and **Select Actors** disabled. Missing or invalid preferences use defaults. Project browsing and map selection stay in `Main.proj`; global preferences do not modify project resources or restore search text, input drafts, layer selection or canvas view state.
+Defaults are icon view in both panels, 100% File Explorer zoom, a collapsed source list and the system file manager. Missing or invalid preferences use defaults. Project browsing and map selection stay in `Main.proj`; global preferences do not modify project resources or restore search text, input drafts, layer selection or canvas view state.
 
 Window layouts adapt to the current monitors. For each window type, the most recent adjustment is restored; minimised state is not restored.
+
+[Viewport Options](<Tilesets Autotiles and Maps.md#viewport>) are shared only for the current project session. They start in Unlit with Realtime, fog, panorama and Actor origins enabled, and light bounds disabled.
 
 ## Global shortcuts
 
@@ -54,7 +55,6 @@ The primary modifier is `Ctrl` on Windows and `Command` on macOS.
 | `Ctrl/Command+Shift+Z` or `Ctrl/Command+Y` | Redo |
 | `Ctrl/Command+W` | Exit or close the project window |
 | `Ctrl/Command+1` | Tile mode |
-| `Ctrl/Command+2` | Light mode |
 | `Ctrl/Command+3` | Actor mode |
 | `F1` | Ludork Documentation |
 | `F3` | Game Config |

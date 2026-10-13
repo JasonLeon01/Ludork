@@ -2,6 +2,35 @@
 
 Resource fields store complete logical paths. `TileLayer.shaderPath` and `TileLayerData.shaderPath` use `/Game/Assets/Shaders/...`, while `AutoTile.fileName` and `Tileset.fileName` use their `Autotiles` and `Tilesets` groups. Shader paths may be empty, and category-relative values are invalid.
 
+## MapFogSettings
+
+`Engine.MapFogSettings.new(table)` creates the typed fog configuration used by maps and the native renderer. Omitted constructor fields keep these defaults:
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `enabled` | `bool` | `false` | Enable the fog layer. |
+| `colour` | `sf.Color` | white `(255, 255, 255, 255)` | Fog colour and alpha. |
+| `density` | `float` | `0.5` | Density in `[0, 1]`; zero has no visible effect. |
+| `scale` | `float` | `256` | Positive noise scale in world pixels. |
+| `velocity` | `sf.Vector2f` | `(15, 15)` | Motion in world pixels per second. |
+| `turbulence` | `float` | `0.5` | Noise warping strength in `[0, 1]`. |
+| `seed` | `int` | `0` | Signed 32-bit deterministic seed. |
+
+Numerical fields must be finite. Native Lua construction uses `sf.Color` and `sf.Vector2f` values. Serialized map and world data store a complete `fog` object with all seven fields; `colour` is four integer channels in `[0, 255]`, and `velocity` is a two-number array. Unknown fields and the old texture fog format are not accepted by the map data parser.
+
+```lua
+local settings = Engine.MapFogSettings.new({
+    enabled = true,
+    colour = sf.Color.new(210, 225, 240, 255),
+    density = 0.4,
+    scale = 256,
+    velocity = sf.Vector2f.new(15, 15),
+    turbulence = 0.5,
+    seed = 42
+})
+gameMap:setFogSettings(settings)
+```
+
 ## TileLayer
 
 Direct metadata bases: `{ "Engine", "TileLayerGraphics" }`
@@ -45,6 +74,8 @@ Sparse-world streaming reuses Tile graphics chunk readiness through `isCellBuilt
 | `buildChunk` | `function` | chunkX: int; chunkY: int | return: bool | Runtime only |
 | `isChunkBuilt` | `function` | chunkX: int; chunkY: int | return: bool | Runtime only |
 | `isBuildComplete` | `function` | — | return: bool | Runtime only |
+
+The native-only `TileLayer::updateBlock` updates an existing rectangular block and rebuilds affected built chunks, including autotile neighbours. `setAnimationTime(seconds, interval)` samples animation absolutely, so rendering a thumbnail at time zero does not advance another view. These are C++ renderer APIs, not Lua bindings. Tile geometry, colour changes and actual animation frame changes invalidate the relevant rendering caches.
 
 ## Tilemap
 

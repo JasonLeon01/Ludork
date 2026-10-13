@@ -6,6 +6,8 @@ Run a project, edit its live state and package it for a supported platform.
 
 The toolbar orders its actions as **Construct → Export → Play**. Standalone projects hide Construct. **Construct** saves the project and builds the Debug executable and preview runtime without launching the game. Native binding generation remains part of the build; UI and locale export is a separate operation.
 
+Ordinary-map, world and thumbnail previews use this native preview runtime. C++ Source projects prepare it through Construct; Standalone projects use the matching bundled runtime. A missing or incompatible runtime is reported in the viewport. Map previewing does not start gameplay and does not require Play or an Export after each map edit.
+
 **Export** saves the project, runs Export plug-in hooks and generates UI Views, declarations and locale files. Export again after changing the inputs or removing generated files. A failed or cancelled export does not count as a successful export.
 
 Variables and General Data still take effect on Save; their Lua files remain under version control and are outside Export. Ordinary Save, Construct, direct run and template creation do not generate UI files. The explicit `ui-assets generate` command produces UI files only; it does not run Export hooks or publish a complete editor export record.
@@ -34,9 +36,11 @@ Enable **Edit → Development Tools and Settings → Live Debug** before Play to
 
 Once the game is running, the editor follows the player's current ordinary map or the current child of a composite world. Manual map switching is disabled. World holes, maps that are still loading, scenes without a live player and an unavailable connection are read-only. **File Explorer** can browse and locate resources; creating, renaming, moving, deleting and editing project files remain disabled.
 
+The native viewport reflects the live Actors' appearance, transforms, materials and lights, together with the map's fog, panorama and ambient light. A world child retains world coordinates for these effects. [Viewport Options](<Tilesets Autotiles and Maps.md#viewport>), including Lit/Unlit, affect the editor image only; they do not change the running game or grant additional editing permissions.
+
 On existing editable layers, Live Debug allows:
 
-- The same tile brush as [project map editing](<Tilesets Autotiles and Maps.md#layers-and-painting>): paint, erase, sample and fill. Layer structure, visibility, tileset assignment, map properties, lights and world placements stay locked.
+- The same tile brush as [project map editing](<Tilesets Autotiles and Maps.md#layers-and-painting>): paint, erase, sample and fill. Layer structure, visibility, tileset assignment, map properties and world placements stay locked.
 - Selecting and deleting live Actors, including the player, runtime-spawned Actors and child Actors, and moving top-level Actors. The editor cannot add, paste or duplicate Actors.
 - Reading **Actor Info** and changing ordinary variables, including `Optional[T]` when `T` is supported. Optional values accept `nil`; non-nil values still require the declared type. **Components**, the parent class, Blueprint identity and map tags stay read-only.
 

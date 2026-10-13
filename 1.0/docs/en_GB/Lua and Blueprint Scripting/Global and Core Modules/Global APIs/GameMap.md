@@ -1,6 +1,6 @@
 # Global.GameMap
 
-`GameMap` declares the map-level API: Player and Actor lookup, Actor creation and destruction, passability, the camera, the tilemap, terrain tiles and map lights.
+`GameMap` declares the map-level API: Player and Actor lookup, Actor creation and destruction, passability, the camera, the tilemap, terrain tiles and the map environment.
 
 Metadata source: `Scripts/Global/GameMap_meta.lua`
 
@@ -27,6 +27,14 @@ For world manifests, `WorldGameMap` exposes world coordinates. A native sparse-r
 `getGameplayCellRect()` returns a copied cell rectangle without loading regions. The result is the full bounds for an ordinary map. For a world map it is the Active bounds, and it falls back to the visible bounds until the Active area exists.
 
 `prepareViewportAt` prepares and renders the required camera neighbourhood synchronously, while surrounding placements remain asynchronous. Failures of required children, Actors or publications propagate.
+
+### Rendering and fog
+
+Ordinary maps, composite worlds and floor previews delegate map content to the shared native `MapRenderer`. The game adapter preserves Actor callbacks, particles, billboards, layer effects and ordinary-map player cover. World regions are drawn in global layer order, and their Actor lights and tile blockers share world coordinates, so lighting crosses placement boundaries.
+
+Map lights come from `Actor.lightComp`. Fixed `lights` arrays and the `getLights`, `setLights`, `addLight`, `removeLight` and `setLight*` map APIs are removed. Ambient light remains controlled by `getAmbientLight` and `setAmbientLight`.
+
+Each `GameMap` owns a separate fog controller. The runtime Lua methods `getFogSettings()` and `setFogSettings(settings)` read a copy of, or replace, its `Engine.MapFogSettings`. `getRegionFogSettings(path)` returns a world child's settings, or `nil` when it has no resident configuration. Mutating a returned settings value does not change the map; pass the changed value to `setFogSettings`.
 
 ### Actor visibility
 
@@ -66,14 +74,6 @@ Visibility queries refresh after terrain edits or observer movement without wait
 | `getTerrainTilePositions` | `function` | self: { "Global.GameMap", "GameMap" } = "self"; layerName: string; tileID: any | positions: sf.Vector2i[] | Pure |
 | `setTerrainTile` | `function` | self: { "Global.GameMap", "GameMap" } = "self"; layerName: string; position: sf.Vector2i; tileID: any | success: bool | ExecSplit { [1] = "default", default = nil } |
 | `setTerrainTiles` | `function` | self: { "Global.GameMap", "GameMap" } = "self"; layerName: string; positions: sf.Vector2i[]; tileID: any | positions: sf.Vector2i[] | ExecSplit { [1] = "default", default = nil } |
-| `getLights` | `function` | self: { "Global.GameMap", "GameMap" } = "self" | lights: { "GlobalCore", "Light[]" } | Pure |
-| `setLights` | `function` | self: { "Global.GameMap", "GameMap" } = "self"; lights: { "GlobalCore", "Light[]" } | — | ExecSplit { [1] = "default", default = nil } |
-| `addLight` | `function` | self: { "Global.GameMap", "GameMap" } = "self"; light: { "GlobalCore", "Light" } | — | ExecSplit { [1] = "default", default = nil } |
-| `removeLight` | `function` | self: { "Global.GameMap", "GameMap" } = "self"; light: { "GlobalCore", "Light" } | — | ExecSplit { [1] = "default", default = nil } |
-| `setLightPosition` | `function` | self: { "Global.GameMap", "GameMap" } = "self"; light: { "GlobalCore", "Light" }; position: sf.Vector2f | — | ExecSplit { [1] = "default", default = nil } |
-| `setLightColour` | `function` | self: { "Global.GameMap", "GameMap" } = "self"; light: { "GlobalCore", "Light" }; colour: sf.Color | — | ExecSplit { [1] = "default", default = nil } |
-| `setLightRadius` | `function` | self: { "Global.GameMap", "GameMap" } = "self"; light: { "GlobalCore", "Light" }; radius: float | — | ExecSplit { [1] = "default", default = nil } |
-| `setLightIntensity` | `function` | self: { "Global.GameMap", "GameMap" } = "self"; light: { "GlobalCore", "Light" }; intensity: float | — | ExecSplit { [1] = "default", default = nil } |
 | `getAmbientLight` | `function` | self: { "Global.GameMap", "GameMap" } = "self" | ambientLight: sf.Color | Pure |
 | `setAmbientLight` | `function` | self: { "Global.GameMap", "GameMap" } = "self"; ambientLight: sf.Color | — | ExecSplit { [1] = "default", default = nil } |
 | `getSize` | `function` | self: { "Global.GameMap", "GameMap" } = "self" | size: sf.Vector2u | Pure |
