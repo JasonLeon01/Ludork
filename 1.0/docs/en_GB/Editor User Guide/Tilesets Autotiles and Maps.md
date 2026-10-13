@@ -62,6 +62,8 @@ The small dropdown button at the upper left of the ordinary-map or world canvas 
 
 View Mode, fog and panorama choices also apply to child-map thumbnails, which remain at time zero. All six viewport options are shared within the project and saved immediately in `Main.proj` under `editor.mapViewport`. Reopening the project restores them; they do not change map data or create Undo steps. Previewing resolves the current map and Blueprint data without running gameplay scripts, constructors or Actor lifecycle callbacks. Hidden views stop requesting frames. If the native preview runtime is unavailable, the viewport shows its status; see [Construct, Export and Play](<Run Debug and Package.md#construct-export-and-play>).
 
+The native viewport refreshes at up to 30 FPS and keeps the same output resolution during dragging. Continuous edits replace the next pending request while completed frames keep the view moving; releasing the drag displays the final state. New thumbnail work pauses during interaction.
+
 ### Fog
 
 Map Properties and World Map Properties provide the same **Fog** settings. Enable fog to reveal its controls. The GPU generates the fog pattern in world coordinates; no fog image is required. Panning or zooming does not attach the pattern to the screen. A world can combine its global fog with fog inside each child region, using the same world coordinates across region boundaries.
@@ -75,6 +77,8 @@ Map Properties and World Map Properties provide the same **Fog** settings. Enabl
 | Velocity X / Y | Pattern movement in map pixels per second. | 15 / 15 |
 | Turbulence | Pattern variation from 0 to 1. | 0.5 |
 | Seed | Non-negative integer selecting a repeatable pattern. | 0 |
+
+The noise pattern has distinct sparse and dense areas. Density controls coverage, colour alpha controls opacity, and a smaller Scale produces smaller cloud patches. Black fog darkens the scene while retaining those variations. The supplied `Map_02` uses black `(0, 0, 0, 128)` fog with Density `0.5`, Scale `128`, Velocity `[15, 15]` and Turbulence `0.8`; the standard Scale default remains `256`.
 
 Lit uses scene lighting for the fog; Unlit uses neutral illumination. **Show Fog** only controls its editor preview and leaves the authored settings unchanged. Fog is saved as the `fog` object shown in [Map and world-map assets](<Project Settings and Asset Layout.md#map-and-world-map-assets>).
 
