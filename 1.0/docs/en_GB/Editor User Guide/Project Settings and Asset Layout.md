@@ -8,6 +8,7 @@ A project combines editor and packaging capabilities in `Main.proj`, game-facing
 
 ```json
 {
+  "version": "v1.0",
   "Cpp": true,
   "ffmpeg": true,
   "IndividualWindow": true,
@@ -19,7 +20,11 @@ A project combines editor and packaging capabilities in `Main.proj`, game-facing
 }
 ```
 
-`packaging.version` stores the base release version and `packaging.dev` selects internal test packages. Missing values default to `"1.0.0"` and `false`. Use Pack Options to save them, or override them for one command-line invocation; see [Release version and internal packages](<Run Debug and Package.md#release-version-and-internal-packages>).
+The required top-level `version` is the project's engine compatibility version, in `v<major>.<minor>` form. Templates and New Project derive it from the editor's base version without the patch component: editor `1.0.7` creates `"v1.0"`. The build configuration `GAME_VERSIONS` in `versions.conf` declares the exact versions the editor can open; its current value is `["v1.0"]`, and the editor's current project version must be included. This list is embedded during the editor build.
+
+The editor rejects a project whose `version` is missing, malformed or absent from that list before loading project plug-ins or creating a session. Opening an allowed older version does not rewrite its version or migrate its content. New Project creates only the current version, even when the supported list includes older versions.
+
+`packaging.version` independently stores the **game's** base release version, and `packaging.dev` selects internal test packages. Missing packaging values default to `"1.0.0"` and `false`; these defaults do not apply to the required top-level project version. Use Pack Options to save packaging settings, or override them for one command-line invocation; see [Release version and internal packages](<Run Debug and Package.md#release-version-and-internal-packages>).
 
 Treat unknown keys as editor-owned state and preserve them. Choose the FFmpeg template to match the `ffmpeg` setting.
 

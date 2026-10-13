@@ -6,9 +6,16 @@ Deploy the backend and frontend on a server or a separate test instance. A game 
 
 ## Obtain the source
 
-Open [Ludork Releases](https://github.com/JasonLeon01/Ludork/releases) and download `LudorkServer-source-<version>.zip` from the release's **Assets**. Its version matches the editor packages in the same release; for example, editor version `1.0.0` uses `LudorkServer-source-1.0.0.zip`.
+Open [Ludork Releases](https://github.com/JasonLeon01/Ludork/releases) and download `LudorkServer-source-<version>.tar.gz` from the release's **Assets**. Its version matches the editor packages in the same release; for example, editor version `1.0.0` uses `LudorkServer-source-1.0.0.tar.gz`.
 
-The archive contains the backend, frontend and deployment scripts. Extract it on the server, open the extracted directory and follow the deployment steps below.
+The archive contains the backend, frontend and deployment scripts under a `LudorkServer/` directory, preserving source file permissions. It contains source from the release's locked Server commit and no generated `BuildInfo.json`. On Linux, extract it and enter that directory:
+
+```sh
+tar -xzf LudorkServer-source-1.0.0.tar.gz
+cd LudorkServer
+```
+
+Use the downloaded version's filename, then follow the deployment steps below. The CI handoff archive uses `LudorkServer-source-<Server SHA>.tar.gz`; the published Release uses the editor-version name above.
 
 ## Deploy and start
 

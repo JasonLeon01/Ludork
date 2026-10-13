@@ -13,9 +13,36 @@ The picker presents two template cards, **Standalone** and **C++ Source**, and a
 | Standalone | No | No | Authoring Lua, Blueprint, data and assets with the supplied runtime. |
 | C++ Source | Yes | Yes | Changing native services, bindings or building an iOS, HarmonyOS or Android target. |
 
-Each combination of card and switch has its own generated template folder: `Standalone`, `Cpp`, `Standalone-ffmpeg` and `Cpp-ffmpeg`. The template establishes the project baseline. Changing it later is a source-management task, not an editor toggle.
+Each combination of card and switch has its own template. The template establishes the project baseline. Changing it later is a source-management task, not an editor toggle.
 
 C++ Source templates include a project-root `.clang-format` for native source formatting. Use **Construct** for the first Debug build so the executable, preview binaries and metadata exist, then **Export** before the first Play. Standalone projects need Export before their first Play as well. The build and export checks, and how **Stop** works, are described in [Run, Debug and Package](<../Editor User Guide/Run Debug and Package.md>). Standalone templates include the preview runtime in `Binaries` and its metadata in `EditorCache/UiPreview.json` and `EditorCache/UiPreview.registry.json`.
+
+## Obtaining templates
+
+Development packages copy the selected local template from `Templates/Standalone`, `Templates/Cpp`, `Templates/Standalone-ffmpeg` or `Templates/Cpp-ffmpeg`. A missing development template is reported without downloading a replacement. Source builds also use development mode, independently of the Debug or Release compiler configuration.
+
+Release editors obtain templates from the matching GitHub Release. Windows x64 uses ZIP archives; macOS ARM64 uses tar.gz archives. Each release provides eight separate template assets:
+
+| Template | Windows x64 | macOS ARM64 |
+|---|---|---|
+| C++ Source | `game-source.zip` | `game-source.tar.gz` |
+| C++ Source with FFmpeg | `game-source-ffmpeg.zip` | `game-source-ffmpeg.tar.gz` |
+| Standalone | `game-standalone.zip` | `game-standalone.tar.gz` |
+| Standalone with FFmpeg | `game-standalone-ffmpeg.zip` | `game-standalone-ffmpeg.tar.gz` |
+
+The fixed download URL uses the editor's complete base version, including its patch number:
+
+```text
+https://github.com/JasonLeon01/Ludork/releases/download/v<base-version>/<asset-name>
+```
+
+For example, macOS editor `1.0.0` requests `v1.0.0/game-source-ffmpeg.tar.gz` for the Source/FFmpeg combination. If that release or asset has not been published, New Project reports that the current version's template is unavailable. Retry after it is published; the editor does not substitute another version or a CI artifact.
+
+Downloaded archives are cached in `<Ludork installation directory>/Templates/v<base-version>/` on Windows and `~/Ludork/Templates/v<base-version>/` on macOS. A valid cached archive can be reused offline. Each project is extracted into its own directory and keeps its own runtime and resources; it does not run directly from the cache. Archives are checked for integrity, safe paths and matching project version, template type and FFmpeg setting before becoming reusable cache entries.
+
+New Project shows download or copy progress and extraction progress. **Cancel**, or closing the window during creation, cancels the operation and removes its unfinished project and download files. Completed, valid cache entries remain available for later use.
+
+New Project always creates the editor's current major.minor project version, such as `v1.0` for editor `1.0.7`. It offers no older-version creation option. Opening supported older projects is a separate [project-version check](<../Editor User Guide/Project Settings and Asset Layout.md#mainproj>).
 
 ## FFmpeg option
 

@@ -98,9 +98,21 @@ The packer captures one UTC+8 build time at the start and reuses it through ever
 
 Build dates are restricted to 2000–2099 and platform limits are validated before replacing an output. Rebuilding within the same hour uses the same build number; wait until the next hour when a new store build record is required. Package paths use `<game-name>-<full-version>` before the existing platform, architecture, variant and signing suffixes. Repacking the same identifier replaces that artifact; other versions and unrelated files remain.
 
-The staging copy receives `Data/BuildInfo.json` containing `version`, `fullVersion`, `dev` and `builtAt` (an ISO 8601 timestamp with `+08:00`). It follows the normal Data encryption and `.ldpak` flow into the package and is never written back into source Data. Application release versions are independent of [save schema versions](<../Lua and Blueprint Scripting/Default Gameplay/Runtime Data Configuration and Saves.md#saves>).
+The staging copy receives `Data/BuildInfo.json` containing `version`, `fullVersion`, `dev` and `builtAt` (an ISO 8601 timestamp with `+08:00`). Both dev and release **game packages** retain this file through the normal Data encryption and `.ldpak` flow; it is never written back into source Data. Application release versions are independent of the top-level [project compatibility version](<Project Settings and Asset Layout.md#mainproj>) and [save schema versions](<../Lua and Blueprint Scripting/Default Gameplay/Runtime Data Configuration and Saves.md#saves>).
 
-The editor's own package follows the same identifier rules independently of the projects it contains. Scheduled and manually triggered editor packages use dev; only a `v*` tag-triggered package uses release. Standalone templates inside either editor package remain release projects. The editor base version comes from `EDITOR_VERSION` in the repository `versions.conf`, and the **About Ludork** window shows the full version of the installed package. See [tools/README.md](https://github.com/JasonLeon01/Ludork/blob/main/tools/README.md) for those repository commands.
+### Editor distribution
+
+The editor's own package follows the same version-identifier rules independently of game packages. Scheduled and manually triggered editor packages use dev; `v*` tag-triggered Export Package runs use release, with the tag required to equal `v<EDITOR_VERSION>`, such as `v1.0.0`. The editor base version comes from `EDITOR_VERSION` in the repository `versions.conf`. Its base version, full display version, development channel and supported project versions are embedded in the editor assembly; **About Ludork** shows that full display version.
+
+| Build entry | Templates inside the editor | Separate template archives |
+|---|---|---|
+| Export Editor | None | None |
+| Export Package, dev | Four local templates | Eight, across Windows and macOS |
+| Export Package, release | None | Eight, across Windows and macOS |
+
+Export Package reuses the Export Editor build flow and produces the template archives separately. Formal Releases contain exactly eleven assets: the Windows x64 MSI, macOS ARM64 DMG, `LudorkServer-source-<editor-version>.tar.gz`, and the [eight template archives](<../Getting Started/Project Templates.md#obtaining-templates>). CI creates or updates a draft Release; its assets become available to the editor's fixed download URLs after publication. A release editor downloads only the selected template, while a development editor uses its local templates. New Standalone projects retain `packaging.dev=false` in both channels.
+
+Editor dev packages retain `BuildInfo.json` at the Windows content root or the macOS app's `Contents/Resources`. Formal editor packages, template archives and the Server source archive do not include this generated file. Editor packaging uses one external metadata snapshot for the assembly, names and installers; removing the JSON from a formal package does not change its version display or download channel. The game `Data/BuildInfo.json` rule above remains unchanged. See [tools/README.md](https://github.com/JasonLeon01/Ludork/blob/main/tools/README.md) for repository packaging commands.
 
 ### Loose and packed output
 

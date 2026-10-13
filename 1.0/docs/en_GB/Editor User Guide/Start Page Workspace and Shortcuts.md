@@ -18,6 +18,8 @@ The Start page lists up to three recently opened projects and provides **New Pro
 
 Dropping an existing `.proj` file anywhere on the Start page opens it. When several files are dropped, the editor uses the first existing `.proj` file and ignores the others.
 
+Every opening route, including recent projects, file associations and command-line startup, checks the top-level `version` in the project file before loading project plug-ins or creating a project session. Missing, malformed or unsupported versions show an error and the supported range; the rejected project is not modified and the current window remains open. A supported older project opens with its existing version unchanged. See [Main.proj](<Project Settings and Asset Layout.md#mainproj>) for the version contract.
+
 ## Main workspace
 
 The main window contains the map list, map canvas, editing-mode inspector and **World Outliner**, with **File Explorer**, **Actor Library** and **Console** tabs below. Tile, Light and Actor mode controls sit beside the canvas and are hidden for world maps. The toolbar provides **Construct → Export → Play** / **Stop**; Standalone projects hide Construct. See [Run, Debug and Package](<Run Debug and Package.md>).

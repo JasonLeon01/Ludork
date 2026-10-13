@@ -17,7 +17,9 @@ Create a Standalone project, open its initial map and run it.
 2. Select **Standalone**.
 3. Leave the FFmpeg option disabled unless the game must play video.
 4. Choose an existing destination directory and enter a new project name.
-5. Review the final path, then choose **Create**. Ludork copies the selected template and opens `Main.proj`.
+5. Review the final path, then choose **Create**. A release editor downloads the matching template or reuses its cached archive; a development editor copies its local template. Ludork opens `Main.proj` when creation finishes.
+
+The first download requires an internet connection and a published template for this editor version. Progress appears at the bottom of the window; **Cancel** stops creation and removes unfinished files. See [Obtaining templates](<Project Templates.md#obtaining-templates>) for cache locations and unavailable-release handling. New projects always use the current editor's major.minor project version.
 
 ![New Project window with the Standalone template selected](../../../images/getting-started/new-project.png)
 
@@ -37,7 +39,7 @@ The table lists the files present in a working project.
 
 | Path | Purpose |
 |---|---|
-| `Main.proj` | Project capabilities such as C++ source, FFmpeg and the run-window preference. |
+| `Main.proj` | Project compatibility version, C++ source and FFmpeg capabilities, packaging settings and run-window preference. |
 | `Main.ini` | Runtime settings, including the entry script, language, audio and display values. |
 | `Scripts/Entry.lua` | Lua entry point. |
 | `Data/` | Maps, Blueprints, General Data, animation, curves, Text Config and UI assets. |
