@@ -1,12 +1,10 @@
 # Ludork 文档
 
-通过[在线文档](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=zh_CN)阅读本指南，或访问 [Ludork 官网](https://jasonleon01.github.io/Ludork/?lang=zh_CN)了解下载与项目信息。[第三方声明](https://jasonleon01.github.io/Ludork/notices/?version=1.0&lang=zh_CN)也可从官网页脚打开。文档的语言和版本选择器位于章节 tabs 行右侧；当前版本对应 Ludork 1.0。
+本指南适用于 Ludork 1.0，可在[在线文档](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=zh_CN)阅读。下载与项目信息见 [Ludork 官网](https://jasonleon01.github.io/Ludork/?lang=zh_CN)，[第三方声明](https://jasonleon01.github.io/Ludork/notices/?version=1.0&lang=zh_CN)也可从官网页脚打开。章节标签右侧可切换文档语言和版本。
 
-右下角的淡蓝色小标题导航可跳转到当前页的小标题。移动端默认收起，点击箭头展开后，可滑动查看小标题列表。
+Ludork 集可视化编辑器、蓝图、Lua 脚本和可扩展的 C++20 运行时于一体，用于制作以地图为基础的 2D 游戏。可在编辑器中配置项目，制作地图、Actor、数据、动画和界面，再运行和打包游戏。
 
-Ludork 是制作地图驱动型 2D 游戏的开发环境，集可视化编辑器、蓝图、Lua 脚本与可扩展的 C++20 运行时于一体。从项目配置、地图、Actor、数据、动画、用户界面，到测试与打包，编辑器用同一套工作流覆盖全部环节。
-
-![已打开 Game 项目 地图的 Ludork 编辑器工作区](../../images/overview/editor-workspace.png)
+![打开 Game 项目地图的 Ludork 编辑器工作区](../../images/overview/editor-workspace.png)
 
 *主工作区把地图画布、编辑模式、项目数据和运行工具组合在一起。*
 
@@ -27,10 +25,6 @@ Ludork 是制作地图驱动型 2D 游戏的开发环境，集可视化编辑器
 | 安装或编写可信的编辑器扩展 | [安装与管理插件](<插件开发与安装/安装与管理插件.md>) |
 | 查找无引用的项目资源 | [Official Resource Cleanup](<插件开发与安装/Official 插件/Resource Cleanup.md>) |
 
-编辑器创作相关条目不需要了解实现细节。只有项目确实需要相应扩展点时，才需要阅读原生开发与插件开发这两项。
-
-准备发行前，先查看[支持的平台](#编辑器)与下文说明的许可边界。
-
 ## 支持的平台
 
 ### 编辑器
@@ -46,20 +40,18 @@ Ludork 是制作地图驱动型 2D 游戏的开发环境，集可视化编辑器
 |---|---|---|
 | Windows | Windows 10，x64 | |
 | macOS | Apple Silicon，macOS 13.3 | |
-| iOS | iOS 16.3，arm64 | 打包需要 C++ Source 项目、完整 Xcode，以及自动的 Apple Development team 签名。 |
-| HarmonyOS | HarmonyOS 6.0.2 / API 22，arm64-v8a | Mobile 使用 OpenGL ES。2in1 默认使用 OpenGL，也可以改选 OpenGL ES。HAP 打包需要 C++ Source 项目与 DevEco Studio。 |
-| Android | Android 7.0 / API 24，arm64-v8a | APK 打包需要 C++ Source 项目、Android Studio、SDK Platform 36、Build Tools 36.0.0、NDK r27 或更高版本，以及本机 CMake 3.28 或更高版本。默认输出未签名 APK，也可选用已有的 JKS 或 PKCS12 keystore 签名。 |
+| iOS | iOS 16.3，arm64 | 需要 C++ Source 项目。 |
+| HarmonyOS | HarmonyOS 6.0.2 / API 22，arm64-v8a | 支持 Mobile 和 2in1，需要 C++ Source 项目。 |
+| Android | Android 7.0 / API 24，arm64-v8a | 需要 C++ Source 项目。 |
 
-iOS、HarmonyOS 与 Android 发行包都在 Apple Silicon macOS 上生成。其他 CMake 平台尚未通过发行验证。Standalone 项目使用编辑器所在主机的预构建运行时；需要改动原生代码，或需要产出 iOS、HarmonyOS、Android 目标时，应选择 C++ Source。
+移动端发行包在 Apple Silicon macOS 上生成。Standalone 项目使用与编辑器所在平台相同的预构建运行时。平台工具和签名选项见[运行、调试与打包](<编辑器用户指南/运行、调试与打包.md>)。
 
 ## 文档约定
 
 - 除非页面另有说明，路径均相对于项目根目录。
 - 菜单命令与字段标签按编辑器界面中的实际写法书写。
 - 底层平台区分大小写时，代码、文件名与 API 标识符同样区分大小写。
-- **注意**用于补充背景信息，**警告**表示可能阻止操作、损坏数据或泄露项目数据的条件。
-- 任务页在有必要区分时，会写明目标、前置条件、步骤与预期结果。
 
 ## 软件与内容许可
 
-Ludork 的软件许可、第三方声明与 Game 资产条款彼此独立。重新分发编辑器包，或用 Game 项目 内容发布游戏之前，必须分别阅读这三份文本。安装插件同样会以编辑器进程的权限运行可信代码，导入前应先检查插件的源码与来源。
+Ludork 软件、第三方组件和 Game 项目资产各有自己的许可条款。重新分发编辑器或使用 Game 资产发布游戏时，需要分别遵守这些条款。插件会以编辑器的权限运行，请只安装来源可信的插件。

@@ -8,12 +8,6 @@ For scalar maths behaviour, see [Math extensions](<../../Getting Started/Ludork 
 
 ## Math
 
-Direct metadata bases: —
-
-### Properties
-
-No editable properties are declared.
-
 ### Functions and events
 
 | Name | Kind | Parameters | Returns | Execution and metadata |

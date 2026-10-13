@@ -1,6 +1,6 @@
 # Metadata 结构与 Decorator
 
-`_METADATA` 是描述蓝图字段、签名、编辑器控件与执行协议的纯数据 schema。它告诉编辑器哪些 Lua 与 C++ 成员可以编辑，哪些可以作为蓝图节点使用。metadata 文件在隔离的 Lua state 中运行，最后必须返回一张名为 `_METADATA` 的纯数据 table。
+`_METADATA` 是描述蓝图字段、签名、编辑器控件与执行协议的纯数据结构定义。它告诉编辑器哪些 Lua 与 C++ 成员可以编辑，哪些可以作为蓝图节点使用。元数据文件必须返回一个名为 `_METADATA` 的纯数据表。
 
 ```lua
 local _METADATA = {
@@ -33,23 +33,23 @@ return _METADATA
 
 ## 类型与字段
 
-每张类型 table 都含有序的 `attrs`。不要依赖 Lua table 的键顺序。字段必须声明 `type`。只有当蓝图已经保存该字段，或 metadata 提供了 `default` 时，它才以普通值的形式出现。
+每张类型表都含有序的 `attrs`。不要依赖 Lua 表的键顺序。字段必须声明 `type`。只有当蓝图已经保存该字段，或 metadata 提供了 `default` 时，它才以普通值的形式出现。
 
 基础类型名包括 `bool`、`int`、`float`、`string`、`function`、`event`、`any` 与 `Pair`。SFML 值使用 `sf.` 前缀。Core 类型写成 `{ "Module", "Type" }`，数组则在第二项上加 `[]`。
 
 容器类型可以递归组合。`T[]` 是单一元素类型的可变长度列表，`Dict[string, T]` 是以字符串为键的字典，`Tuple[T1, T2, ...]` 是固定长度的异构数组。例如 `Dict[string, Tuple[string, any]]`、`Dict[string, int[]]` 与 `int[][]`。
 
-大写的 `Dict[...]` 与 `Tuple[...]` 只是 metadata schema 的描述，并不是 Standard 运行时里小写的 `dict`、`tuple` 容器的构造函数。metadata 默认值必须是可转换为 JSON 的纯数据。容器默认值使用普通 Lua table，不能用原生 `list`、`tuple` 或 `dict` 值。接受原生容器的运行时节点引脚必须声明其完整类型，例如 `{ "_G", "list" }`，或者把它们写进联合类型。`T[]` 引脚接受 Lua 数组；要把原生 list 传进去，需使用显式的转换节点。
+大写的 `Dict[...]` 与 `Tuple[...]` 只是 metadata 结构定义的描述，并不是 Standard 运行时里小写的 `dict`、`tuple` 容器的构造函数。metadata 默认值必须是可转换为 JSON 的纯数据。容器默认值使用普通 Lua 表，不能用原生 `list`、`tuple` 或 `dict` 值。接受原生容器的运行时节点引脚必须声明其完整类型，例如 `{ "_G", "list" }`，或者把它们写进联合类型。`T[]` 引脚接受 Lua 数组；要把原生 list 传进去，需使用显式的转换节点。
 
 `string` 字段原样保留文本，包括 `"nil"`。整值表达式只求值一次，因此 `any` 表达式中的 `nil` 会得到 Lua nil。已保存容器内层嵌套的字符串仍按字面处理。
 
 未设置的节点输入保存为 JSON `null`，有声明默认值时采用该默认值。JSON 值编辑框可以直接输入 `null`。清空函数表达式即可让它保持未设置。`any` 输入以文本编辑：失焦时，能解析为 JSON 字面量（如数字）的文本按该字面量保存，其余文本保存为表达式字符串。
 
-节点的 **转换为普通输入框** 绕过选择器与数字控件，但保留声明 schema。`string` 和 `file` 原样保留全部文本，包括空白和 `null`；`int` 必须是无小数部分的有符号 64 位整数；`float`、`double` 和 `number` 必须是使用小数点的有限数字。布尔值接受 `true` 或 `false`。输入留空表示未设置，但 `string`、`file` 与 `any` 会把空白保留为文本。容器与复合值必须使用有效 JSON：向量与 `Pair` 使用分量数组，`sf.Color` 使用四个 0 至 255 的整数通道，`sf.FloatRect` 使用四个数字，`sf.IntRect` 使用 `[[0, 0, 32, 32]]` 这样的嵌套数组。联合类型保留声明的 `$type`/`$value` 封装，容器内部同样如此。
+节点的 **转换为普通输入框** 绕过选择器与数字控件，但保留声明结构定义。`string` 和 `file` 原样保留全部文本，包括空白和 `null`；`int` 必须是无小数部分的有符号 64 位整数；`float`、`double` 和 `number` 必须是使用小数点的有限数字。布尔值接受 `true` 或 `false`。输入留空表示未设置，但 `string`、`file` 与 `any` 会把空白保留为文本。容器与复合值必须使用有效 JSON：向量与 `Pair` 使用分量数组，`sf.Color` 使用四个 0 至 255 的整数通道，`sf.FloatRect` 使用四个数字，`sf.IntRect` 使用 `[[0, 0, 32, 32]]` 这样的嵌套数组。联合类型保留声明的 `$type`/`$value` 封装，容器内部同样如此。
 
 普通 `any` 输入沿用现有 JSON 字面量或表达式转换，空白及带引号的 JSON 字符串仍保留输入原文；输入 `null` 表示未设置。函数／事件表达式与对象引用保持原有运行时语义。无效文本只作为编辑会话草稿保留，不能写入参数值；修正前无法保存或恢复类型输入框。模式与草稿属于当前窗口，不改变 metadata 或蓝图 JSON。
 
-声明 schema 的优先级高于当前 Lua table 或 JSON 值的形状，空容器也不例外。`Dict` 序列化为 JSON object，列表与 `Tuple` 序列化为 JSON array。已知形状的 metadata 必须使用显式的递归类型。
+声明结构定义的优先级高于当前 Lua 表或 JSON 值的形状，空容器也不例外。`Dict` 序列化为 JSON 对象，列表与 `Tuple` 序列化为 JSON 数组。已知形状的 metadata 必须使用显式的递归类型。
 
 运行时调用必须传入声明类型的值。转换规则见[运行时值边界](<../../C++ 原生开发/运行时值边界.md>)。
 
@@ -57,7 +57,7 @@ return _METADATA
 
 ## 蓝图属性声明
 
-蓝图 JSON 在 `attrs` 中保存值，并通过同级 `attrDefs` 对象声明本蓝图新增的字段。没有新增字段时可以省略 `attrDefs`。每条定义必须提供 `type`，支持与 metadata 相同的基础类型、限定类型、枚举和递归 schema。只有 `file` 类型可以附加 `base` 限定资源选择目录；字段值仍保存完整的 `/Game/Assets/...` 路径。
+蓝图 JSON 在 `attrs` 中保存值，并通过同级 `attrDefs` 对象声明本蓝图新增的字段。没有新增字段时可以省略 `attrDefs`。每条定义必须提供 `type`，支持与 metadata 相同的基础类型、限定类型、枚举和递归结构定义。只有 `file` 类型可以附加 `base` 限定资源选择目录；字段值仍保存完整的 `/Game/Assets/...` 路径。
 
 ```json
 {
@@ -80,11 +80,11 @@ return _METADATA
 
 先解析 Lua／原生 metadata、启用的 Script Mixin 与祖先蓝图的声明，再加入本地 `attrDefs`。子类同时继承类型与默认值，可以在 `attrs` 中覆盖值，但不能在 `attrDefs` 中重复声明或改写继承类型。本地名称不能与已有字段、方法或运行时保留名称冲突。例如，继承的 `speed` 或 Mixin 的 `needKeyCount` 都是值覆盖，无须新增声明。
 
-所有已保存属性以及带类型记录的嵌套成员都必须有声明，值必须符合对应 schema。未知字段、缺少声明、无效 schema 和冲突声明会拒绝加载，并指出蓝图路径及字段。编辑器与运行时不会推断缺失声明，也不会转换旧的无类型格式。地图 `BPClassVarChanged` 同样只保存值，使用 Actor 类继承得到的 schema。公共函数与通用数据成员的纯图文档没有类声明。
+所有已保存属性以及带类型记录的嵌套成员都必须有声明，值必须符合对应结构定义。未知字段、缺少声明、无效结构定义和冲突声明会拒绝加载，并指出蓝图路径及字段。编辑器与运行时不会推断缺失声明，也不会转换旧的无类型格式。地图 `BPClassVarChanged` 同样只保存值，使用 Actor 类继承得到的结构定义。公共函数与通用数据成员的纯图文档没有类声明。
 
 ## 枚举 schema
 
-枚举引用 `Scripts/Enums` 下的一个模块，源码包含一张具名标量字面量 table 及其 EmmyLua 注解：
+枚举引用 `Scripts/Enums` 下的一个模块，源码包含一个由具名标量字面量组成的表及其 EmmyLua 注解：
 
 ```lua
 -- Scripts/Enums/StairDirection.lua
@@ -98,7 +98,7 @@ local StairDirection = {
 return StairDirection
 ```
 
-在递归 schema 中填写它的 require 路径：
+在递归结构定义中填写它的 require 路径：
 
 ```lua
 stairDirection = {
@@ -107,21 +107,21 @@ stairDirection = {
 }
 ```
 
-同一个 `{ enum = "Enums.StairDirection" }` schema 可直接用作函数参数、返回项，也可嵌入 `list`、`dict`、`tuple` 或 `union`。每个枚举的类型注解保留在源码文件中，不提供镜像 stub。
+同一个 `{ enum = "Enums.StairDirection" }` 结构定义可直接用作函数参数、返回项，也可嵌入 `list`、`dict`、`tuple` 或 `union`。每个枚举的类型注解保留在源码文件中，不提供镜像 stub。
 
-静态读取器接受直接返回字面量表，或声明一个局部字面量表后返回同名变量。允许注释、注解和可选分号，也允许用一层括号包裹标量字面量以附带行内类型注解。调用（包括 `require`）、计算表达式、表修改、返回其他变量及额外语句都会被拒绝，编辑器不会执行模块。
+枚举模块可以直接返回字面量表，也可以先声明一个局部字面量表，再返回该变量。允许注释、注解、可选分号，以及标量字面量外的一层括号。不允许调用函数（包括 `require`）、计算表达式、修改表、返回其他变量或添加额外语句。
 
 键必须是非空字符串，值必须属于同一类别：字符串、布尔值或有限数字。未指定 `valueType` 时，全部为整数字面量的枚举使用 `int`；只要包含浮点字面量（包括 `1.0`），就使用 `float`。
 
-可选的 `valueType` 显式声明 `string`、`bool`、`int` 或 `float`，例如 `{ enum = "Enums.GeneralData.Item", valueType = "string" }`。它允许常量表为空，并在出现选项之前确定类型。非空常量必须与声明一致；整数常量也可以显式使用 `float`。空源码模块未声明 `valueType`、常量类型冲突、未知 schema 属性或模块缺失都会报错，嵌套容器中也一样。`valueType` 描述标量类型，不要求取值属于选项列表。
+可选的 `valueType` 显式声明 `string`、`bool`、`int` 或 `float`，例如 `{ enum = "Enums.GeneralData.Item", valueType = "string" }`。它允许常量表为空，并在出现选项之前确定类型。非空常量必须与声明一致；整数常量也可以显式使用 `float`。空源码模块未声明 `valueType`、常量类型冲突、未知结构定义属性或模块缺失都会报错，嵌套容器中也一样。`valueType` 描述标量类型，不要求取值属于选项列表。
 
-选择器按 ordinal 顺序显示键，保存选中键对应的值本身，不保存键名或 Lua 表达式，也无需 `Meta.DropBox`。多个键对应同一个值时，回显第一个匹配的键。当前常量表不再包含的已有值会保留保存，并显示未知值提示。只要它仍符合底层标量类型，就仍是有效值；枚举不在运行时强制限定取值集合。
+选择器按字符序显示键，保存选中键对应的值本身，不保存键名或 Lua 表达式，也无需 `Meta.DropBox`。多个键对应同一个值时，回显第一个匹配的键。当前常量表不再包含的已有值仍会保留，并显示未知值提示。只要它仍符合底层标量类型，就仍是有效值；枚举不在运行时强制限定取值集合。
 
-显式默认值填写实际标量值，并优先使用。未声明时，新节点输入和容器项使用第一个选项；空枚举使用声明标量的默认值（`""`、`false` 或 `0`）。未声明默认值的属性在存在保存值之前仍只提供 schema。字符串枚举选择器包含 **— 不选择 —**，保存为 `""`；未知的非空取值仍会显示并保留。
+显式默认值填写实际标量值，并优先使用。未声明时，新节点输入和容器项使用第一个选项；空枚举使用声明标量的默认值（`""`、`false` 或 `0`）。未声明默认值的属性在存在保存值之前仍只提供结构定义。字符串枚举选择器包含 **— 不选择 —**，保存为 `""`；未知的非空取值仍会显示并保留。
 
 普通枚举在字段显示或下拉框打开时读取当前文件，返回窗口时同样刷新，不执行玩法模块。项目托管枚举则读取当前项目目录，包括未保存的数据：`Enums.GeneralDataKey` 选择通用数据类型，`Enums.GeneralData.<TypeName>` 选择该类型的成员，`Enums.Animation` 选择动画键，`Enums.Particle` 选择粒子键。这四类均使用 `valueType = "string"`，生成源码之前也能选择。已删除的托管模块会报错，即使磁盘上仍留有旧生成文件。枚举无效时，错误指出模块路径，并保留当前值。
 
-字典 schema 可独立于值类型声明字符串枚举键：
+字典结构定义可独立于值类型声明字符串枚举键：
 
 ```lua
 type = {
@@ -132,7 +132,7 @@ type = {
 
 省略 `key` 时仍使用普通字符串键。显式键只能是 `string`，或声明了 `valueType = "string"` 的枚举；数值、布尔、容器和未声明底层类型的枚举键都会被拒绝。值仍保留自身的递归类型。JSON 仍是以选中的标量字符串为键的对象。新增枚举键行时，必须先选中非空且唯一的键才会修改保存数据；重复键会被拒绝。`DictKeyMeta` 仍可细化其他键控件，但不替换声明的键类型。
 
-**转换为普通输入框** 按底层 `string`、`bool`、`int` 或 `float` 的普通规则编辑标量值。整数枚举需要输入数字，而不是显示的键。schema 中仍保留枚举身份，联合类型的 `$type` 分支描述也一样；保存的取值仍是标量。[连线的类型规则](<执行流、事件与变量.md#连线的类型规则>)同样使用该底层类型。
+**转换为普通输入框** 按底层 `string`、`bool`、`int` 或 `float` 的普通规则编辑标量值。整数枚举需要输入数字，而不是显示的键。结构定义中仍保留枚举身份，联合类型的 `$type` 分支描述也一样；保存的取值仍是标量。[连线的类型规则](<执行流、事件与变量.md#连线的类型规则>)同样使用该底层类型。
 
 原生枚举与带标记的常量映射会生成同等形式的模块，例如 `Enums.Engine.Direction`、`Enums.GlobalCore.WeatherType` 与 `Enums.sf.Keyboard.Scan`。生成方式与文件归属见[生成 Metadata 与 Stub](<../../C++ 原生开发/生成 Metadata 与 Stub.md#生成枚举模块>)。
 
@@ -147,11 +147,11 @@ type = { union = { "sf.Vector2f", "sf.Vector2u", "nil" } },
 default = { ["$type"] = "sf.Vector2u", ["$value"] = { 64, 32 } },
 ```
 
-它保存为 `{ "$type": "sf.Vector2u", "$value": [64, 32] }`。`$type` 用完整类型名或递归容器 schema（如 `{ "list": "sf.Vector2u" }`）标识分支，从而区分存储形状相同的类型。
+它保存为 `{ "$type": "sf.Vector2u", "$value": [64, 32] }`。`$type` 用完整类型名或递归容器结构定义（如 `{ "list": "sf.Vector2u" }`）标识分支，从而区分存储形状相同的类型。
 
 显式 nil 在 JSON 中写作 `{ "$type": "nil", "$value": null }`，在 Lua metadata 中写作 `{ ["$type"] = "nil" }`。它与未设置的值含义不同，后者会采用普通默认值。
 
-只有 schema 声明了联合类型的位置才使用这种封装，嵌套联合类型同样适用。运行时调用收到的是还原后的值，不含封装。值无效时，错误会指出受影响的字段或节点参数。
+只有结构定义声明了联合类型的位置才使用这种封装，嵌套联合类型同样适用。运行时调用收到的是还原后的值，不含封装。值无效时，错误会指出受影响的字段或节点参数。
 
 ## 继承
 
@@ -161,9 +161,9 @@ Lua 模块直接返回类时，在该类的 metadata 表中声明 `moduleReturn 
 
 ## 函数与事件
 
-`parameters` 与 `["return"]` 都包含有序的名称数组与名称到类型的映射。可选的 `default` 数组与参数一一对齐。`Pure` 必须显式声明。`ExecSplit`、`Latent`、`LoopNode` 与事件声明描述的执行协议由 graph 运行时消费。
+`parameters` 与 `["return"]` 都包含有序的名称数组与名称到类型的映射。可选的 `default` 数组与参数一一对齐。`Pure` 必须显式声明。`ExecSplit`、`Latent`、`LoopNode` 与事件声明描述的执行协议规定节点图的执行方式。
 
-普通实例方法必须把 `"self"` 声明为首个参数，类型使用所属类的完整模块／类型引用，并设置 `default[1] = "self"`。首个示例描述的是 `Source.SoundFilter` 所返回类的实例方法。无论当前蓝图继承自哪个类，该接收者引脚都保持可见。连接实例即可调用另一个对象；未连接且未填写时使用当前图的 owner。owner 缺失、类型不兼容，或显式连入 nil 接收者时均报错。静态函数和事件入口不声明接收者参数。Lua 冒号调用签名与原生方法声明仍使用原有的参数列表。
+普通实例方法必须把 `"self"` 声明为首个参数，类型使用所属类的完整模块／类型引用，并设置 `default[1] = "self"`。首个示例描述的是 `Source.SoundFilter` 所返回类的实例方法。无论当前蓝图继承自哪个类，该接收者引脚都保持可见。连接实例即可调用另一个对象；未连接且未填写时使用当前图的所属对象。所属对象缺失、类型不兼容，或显式连入 nil 接收者时均报错。静态函数和事件入口不声明接收者参数。Lua 冒号调用签名与原生方法声明仍使用原有的参数列表。
 
 接收者与业务参数共用一份有序参数数组。默认值位置与保存参数位置都要计入接收者；即使 `moduleReturn = true`，metadata 类型名仍须明确。例如 SceneMap 的接收者类型是 `{ "Source.Scenes.SceneMap", "Scene" }`。
 
@@ -190,7 +190,7 @@ calculate = {
 }
 ```
 
-数组部分固定引脚顺序，字符串键固定引脚类型。每个参数默认值占据与其参数相同的位置，`nil` 表示没有默认值。在 `["return"]` 中具名写出的 `nil` 仍然是一个输出引脚，空 table 才表示没有输出。只有 `Pure = true` 会移除执行引脚。
+数组部分固定引脚顺序，字符串键固定引脚类型。每个参数默认值占据与其参数相同的位置，`nil` 表示没有默认值。在 `["return"]` 中具名写出的 `nil` 仍然是一个输出引脚，空表才表示没有输出。只有 `Pure = true` 会移除执行引脚。
 
 需要让参数初值保持 nil、避免编辑器生成普通字面量时，使用 `defaultUnset = { "parameterName" }`。例如 `Scene.recordActorPosition` 声明 `position: sf.Vector2i` 与 `defaultUnset = { "position" }`，保留省略坐标时记录 Actor 当前位置的 API 语义。`defaultUnset` 按参数名声明，不受接收者导致的索引移动影响。
 
@@ -205,9 +205,9 @@ calculate = {
 
 ## 编辑器名称与 decorator
 
-普通类型、字段、函数、事件、引脚与蓝图变量的标签都由编辑器根据标识符推导。编辑器按 camel case、Pascal case 与下划线边界拆分，再把每个显示单词的首字母大写。例如 `textureRect` 显示为 `Texture Rect`。这只改变呈现方式，metadata 键、运行时成员名与蓝图序列化名称都保持不变。
+类型、字段、函数、事件、引脚和蓝图变量的标签来自其标识符，例如 `textureRect` 显示为 `Texture Rect`。元数据键、运行时成员名和已保存的蓝图名称保持不变。
 
-普通成员不得声明 `DisplayName`、`DisplayDesc`、`VariableDisplayNames`、`VariableDisplayDescs`、`ParameterDisplayNames` 或 `ParameterDisplayDescs`。编辑器不会求值 `LOC(...)` 或其他表达式来获取 schema 标签与默认说明。
+普通成员不得声明 `DisplayName`、`DisplayDesc`、`VariableDisplayNames`、`VariableDisplayDescs`、`ParameterDisplayNames` 或 `ParameterDisplayDescs`。编辑器不会求值 `LOC(...)` 或其他表达式来获取结构定义标签与默认说明。
 
 `ADD`、`IADD` 等运算符节点是例外。标识符格式化无法表达目标标签时，它们可以使用直接字面量 `Meta.DisplayName`，例如 `+` 或 `+=`。不得用 `LOC(...)` 包装字面量，也不得添加默认的 `DisplayDesc`。
 
@@ -215,9 +215,9 @@ calculate = {
 
 游戏资源用 `PathVars` 给出完整的选择根，例如 `/Game/Assets/Sounds`，字段保存完整逻辑路径。`PathRoot = "Project"` 则改为选择 Script Mixin 之类的原生工程文件。`PathRoot = "Data"` 在项目相对的 `PathVars` 目录（如 `Data/Subtitles`）下选择数据文件，并保存完整的项目相对 `Data/...` 路径。JSON 文档使用 `PathFilter = "*.json"`。数据引用必须位于选择目录内，不允许目录越界。函数元数据按参数名指定，例如 `PathRoot = { subtitleFileName = "Data" }`。
 
-`InstVar` 把 string 字段或参数标记为游戏变量名。编辑器用可搜索的选择器取代自由文本输入，数据来自当前的游戏变量声明，包括尚未保存的修改。直接字段使用 `InstVar = true`；只保留指定 metadata 类型的声明时，使用 `InstVar = { types = { "int", "float" } }`。函数 metadata table 通过 `InstVar = { "valueName" }` 把 decorator 投影到具名参数上。
+`InstVar` 把 string 字段或参数标记为游戏变量名。编辑器用可搜索的选择器取代自由文本输入，数据来自当前的游戏变量声明，包括尚未保存的修改。直接字段使用 `InstVar = true`；只保留指定 metadata 类型的声明时，使用 `InstVar = { types = { "int", "float" } }`。函数 metadata 表通过 `InstVar = { "valueName" }` 把 decorator 投影到具名参数上。
 
-`InstVarValue` 把另一个字段或参数关联到已选中的名称。直接字段把同级字段名写成字符串，例如 `InstVarValue = "openConditionName"`；函数则用 table 投影参数关联，例如 `InstVarValue = { value = "valueName" }`。选中名称后，关联值使用该声明类型的普通编辑器。decorator 只改变编辑器的选择与输入控件，运行时的读写仍由实际的游戏变量实现完成。
+`InstVarValue` 把另一个字段或参数关联到已选中的名称。直接字段把同级字段名写成字符串，例如 `InstVarValue = "openConditionName"`；函数则用表投影参数关联，例如 `InstVarValue = { value = "valueName" }`。选中名称后，关联值使用该声明类型的普通编辑器。decorator 只改变编辑器的选择与输入控件，运行时的读写仍由实际的游戏变量实现完成。
 
 ```lua
 openConditionName = {
@@ -239,7 +239,7 @@ openConditionVal = {
 }
 ```
 
-容器 metadata 在紧邻的容器层细化编辑器，不改变声明 schema 或序列化形状。`DictKeyMeta` 把自身的编辑器 decorator 应用到每个字符串键，`ItemMeta` 应用到每个直接的列表项或字典值。若该项是 `Tuple`，`ItemMeta.TupleMeta` 按从 1 开始的元组位置分别指定 decorator。没有共享枚举模块时，`DropBox` 提供下拉框的有序字面量取值；选项已经属于枚举模块时使用枚举 schema。在字典值的 `TupleMeta` 内，保留引用 `InstVarValue = "$dictKey"` 解析为该行的字典键。它不是字段名，离开该行就没有意义。
+容器 metadata 在紧邻的容器层细化编辑器，不改变声明结构定义或序列化形状。`DictKeyMeta` 把自身的编辑器 decorator 应用到每个字符串键，`ItemMeta` 应用到每个直接的列表项或字典值。若该项是 `Tuple`，`ItemMeta.TupleMeta` 按从 1 开始的元组位置分别指定 decorator。没有共享枚举模块时，`DropBox` 提供下拉框的有序字面量取值；选项已经属于枚举模块时使用枚举结构定义。在字典值的 `TupleMeta` 内，保留引用 `InstVarValue = "$dictKey"` 解析为该行的字典键。它不是字段名，离开该行就没有意义。
 
 ```lua
 afterBattleVarChanges = {
@@ -265,7 +265,7 @@ afterBattleVarChanges = {
 }
 ```
 
-这个示例仍然保存为 JSON object，其值是两元素的 JSON array。键选择器只列出已声明的 `int` 与 `float` 游戏变量，元组第一项是运算符下拉框，第二项使用所选键对应的数值编辑器。metadata 只约束创作阶段，运行时游戏变量 table 不会强制声明类型。
+这个示例仍然保存为 JSON 对象，其值是两元素的 JSON 数组。键选择器只列出已声明的 `int` 与 `float` 游戏变量，元组第一项是运算符下拉框，第二项使用所选键对应的数值编辑器。metadata 只约束创作阶段，运行时游戏变量表不会强制声明类型。
 
 `InvalidVars` 列出对普通蓝图属性编辑器与序列化隐藏的字段。`RectRangeVars` 把 `sf.IntRect` 与图片区域选择器所需的纹理/范围字段关联起来。decorator 名称及其有序数据都会原样保留。不要另造 `fields`、`nodes`、`events` 之类的包装结构。
 

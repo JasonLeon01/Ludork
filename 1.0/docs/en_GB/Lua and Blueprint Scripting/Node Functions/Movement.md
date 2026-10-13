@@ -8,12 +8,6 @@ Route and pathfinding functions return `Engine.AsyncOperation`. They emit `Enums
 
 ## Movement
 
-Direct metadata bases: —
-
-### Properties
-
-No editable properties are declared.
-
 ### Functions and events
 
 | Name | Kind | Parameters | Returns | Execution and metadata |

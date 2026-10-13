@@ -1,25 +1,12 @@
 # Default Template Overview
 
-The Game project is both a playable reference and the source of the reusable templates. It demonstrates the expected project shape rather than a minimal empty application. Use it to learn ownership and data flow, and copy a pattern only after identifying its dependencies.
-
-The Game project is source material, not an implicit engine contract. Confirm public behaviour in metadata, LuaLS stubs and the API reference before depending on it in another project.
+The Game project provides playable default gameplay and supplies the project templates. Use it as a starting point for your own game rules, interfaces and resources.
 
 ## Entry and modules
 
 Entry retains the static `APP_NAME` for application identity and package filenames. Release version and dev settings belong to `Main.proj` and Pack Options, while mobile and macOS display names come from the System title. See [Packaging](<../../Editor User Guide/Run Debug and Package.md#packaging>) for the shared rules.
 
-`Scripts/Entry.lua` initialises the game and enters the native loop. It loads Core modules in this order:
-
-```lua
-local Engine = require("Engine")
-local GlobalCore = require("GlobalCore")
-local GlobalFunctions = require("GlobalFunctions")
-
-local Components = GlobalFunctions.Components
-local UI = GlobalFunctions.UI
-local NodeGraph = GlobalFunctions.NodeGraph
-local Manager = GlobalFunctions.Manager
-```
+`Scripts/Entry.lua` initialises the game and enters the native loop. Its module loading order is described in [Lua Runtime and Modules](<../Lua Runtime and Modules.md#entry-and-module-order>).
 
 Startup calls the following functions explicitly. Requiring their modules does not initialise services:
 
@@ -47,11 +34,7 @@ On Android and iOS, returning from the background in the same process resumes th
 - `Data/Maps` and `Data/Tilesets` provide the playable world.
 - `Engine/` contains the native runtime, modules and dependencies.
 
-Some public Lua modules group private implementation services under directories of the same name; Game's Enemy and GameInstance helpers live under `Source.Utils` instead. These helpers neither require nor extend their host. Modules with their own `.d.lua` contract remain independent.
-
 [Build and Module Layout](<../../Native C++ Development/Build and Module Layout.md>) describes native source ownership and dependencies.
-
-`Source.Data.Blueprints` compiles Blueprint, Common Function and General Data graph definitions into native `Engine.Graph` templates, and then creates instances with `instantiate`.
 
 ## Template variants
 

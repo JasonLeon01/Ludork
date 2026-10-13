@@ -59,7 +59,7 @@ LuaSF 通过 `LUASF_CALLBACK_CODECS_FILE` 提供具有特殊调用约定的回�
 
 交叉构建与静态 Lua 模块构建需要已有的桌面原生构建产出的枚举源码模块。生成文件缺失时，预检会列出路径并失败，不会猜测 C++ 常量值。修改原生枚举声明或带标记映射后，应先在桌面重新构建，再准备这些构建。
 
-项目拥有的枚举以通用数据、动画和粒子文档为来源。保存流程把 `Enums.GeneralDataKey`、`Enums.GeneralData.*`、`Enums.Animation` 与 `Enums.Particle` 和数据放入同一原子批次生成。原生 metadata 可通过 `metadata_type = { enum = "Enums.Particle", valueType = "string" }` 引用它们，不改变 C++ 字符串参数或 Lua API 取值。编辑器使用实时项目目录，运行时使用已保存模块。文件归属与重命名规则见[通用数据与文本配置](<../编辑器用户指南/通用数据与文本配置.md>)。
+项目枚举来自通用数据、动画和粒子文档。原生 metadata 可以用 `metadata_type = { enum = "Enums.Particle", valueType = "string" }` 引用它们，不改变 C++ 字符串参数或 Lua API 取值。生成模块和重命名规则见[通用数据与文本配置](<../编辑器用户指南/通用数据与文本配置.md>)。
 
 ## 重新生成
 
@@ -69,7 +69,7 @@ LuaSF 通过 `LUASF_CALLBACK_CODECS_FILE` 提供具有特殊调用约定的回�
 
 ## 生成 UI View
 
-UI View 与窗口声明由独立生成器 `ScriptTools ui-assets generate <project-root>` 处理。生成文件的归属见[声明式 UI 编写工作流](<../Lua 与蓝图脚本/声明式 UI/编写工作流.md>)。命令与检查见[声明式 UI 校验与打包](<../Lua 与蓝图脚本/声明式 UI/校验与打包.md>)。
+UI View 与窗口声明由独立生成器 `ScriptTools ui-assets generate <project-root>` 处理。生成文件的归属与导出步骤见[声明式 UI 编写工作流](<../Lua 与蓝图脚本/声明式 UI/编写工作流.md>)。
 
 ## 相关页面
 

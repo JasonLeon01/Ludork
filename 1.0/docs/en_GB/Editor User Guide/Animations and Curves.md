@@ -1,18 +1,14 @@
 # Animations and Curves
 
-## Goal
-
-Create animation and curve assets, preview their timing and reference their stable project keys from data or scripts.
-
 ## Animations
 
 Open **Database → Animation Overview** (`F5`) to browse animation data. **Game → New Animation** creates a JSON asset beneath `Data/Animations`. The editor exposes the frames, timing, visual resources and event data of the animation format.
 
-Keep source images under `Assets/Animations` or another intended asset folder. Non-empty image and sound entries store complete `/Game/Assets/...` paths. Preview timing before relying on an animation's total or visual duration.
+Keep source images under `Assets/Animations` or another intended asset folder. Non-empty image and sound entries store complete `/Game/Assets/...` paths.
 
 ![Animation editor showing frame timing and preview controls](../../../images/editor/animation.png)
 
-*Preview animation frames, timing and events before using the asset in gameplay.*
+*The animation editor provides frame editing and playback preview.*
 
 ### Exporting MP4 locally
 
@@ -46,18 +42,14 @@ Use the curve editor to add, move and remove keys. Keep key times ordered. Avoid
 
 ![Curve editor showing ordered keys and interpolation](../../../images/editor/curve.png)
 
-*Inspect curve keys and interpolation before referencing the curve in gameplay.*
+*The curve editor displays keys and interpolation.*
 
 ## Referencing data
 
 Metadata-driven selectors can reference animation and curve keys from Blueprints or General Data. Renaming the JSON file changes the logical key derived from its path, so inspect the reference tree first.
 
-## Testing
-
-Test zero-key and one-key curves, animation completion, frame events and transitions at the target frame rate. Check curves used for fades or movement at low and high frame rates as well.
-
 ## Related pages
 
-- [Common Particles](<Common Particles.md>) — GPU emitter tracks, atlas playback and normalized lifetime curves.
+- [Common Particles](<Common Particles.md>) — GPU emitter tracks, atlas playback and normalised lifetime curves.
 - [Project Settings and Asset Layout](<Project Settings and Asset Layout.md>)
 - [Execution Flow, Events and Variables](<../Lua and Blueprint Scripting/Blueprint Scripting/Execution Flow Events and Variables.md>)

@@ -2,8 +2,6 @@
 
 ## Actor
 
-Direct metadata bases: —
-
 `collectTree()` (`metadata = false`) returns a root-first BFS snapshot that preserves child order and ownership. Duplicates or cycles raise an error.
 
 `setGraph` stores an `Engine.Graph` instance, which `getGraph` returns. Passing nil clears the graph, after which `getGraph` returns nil.
@@ -170,12 +168,6 @@ The following Lua-only methods manage additional operations, such as door animat
 
 ## BPBase
 
-Direct metadata bases: —
-
-### Properties
-
-No editable properties are declared.
-
 ### Functions and events
 
 | Name | Kind | Parameters | Returns | Execution and metadata |
@@ -214,12 +206,6 @@ InvalidVars: `{ "defaultRect" }`
 | `GenActor` | `function` | actorModel: any; texture: any = nil; textureRect: any = nil; tag: string = nil | return: any | — |
 
 ## Component
-
-Direct metadata bases: —
-
-### Properties
-
-No editable properties are declared.
 
 ### Functions and events
 
@@ -280,7 +266,3 @@ Direct metadata bases: `{ "Engine", "Component" }`
 | `lightOffset` | `sf.Vector2f` | `{ [1] = 0, [2] = 0 }` | — |
 
 `lightOffset` is measured from the centre of the Actor's local bounds and follows its complete transform. A wall-mounted emitter must use a separate Actor and place this offset at the flame on the room side, because the renderer does not search for a passable cell.
-
-### Functions and events
-
-No Blueprint functions or events are declared.

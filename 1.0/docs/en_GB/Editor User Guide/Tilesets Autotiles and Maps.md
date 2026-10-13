@@ -1,9 +1,5 @@
 # Tilesets, Autotiles and Maps
 
-## Goal
-
-Create a map with verified tilesets, ordered layers, lights and placed Actor instances, then save and run it without invalid references.
-
 ## Tilesets and autotiles
 
 Open **Database → Tilesets** (`F7`) to define a tileset image and its tile properties. Autotile data describes animated or connected tiles assembled from an autotile source. Keep images under `Assets/Tilesets` or `Assets/Autotiles`, and store the JSON definitions under the corresponding `Data` directory.
@@ -20,11 +16,11 @@ The map palette labels tileset tabs with `name`, while the JSON file name is the
 
 *Autotile properties apply to the complete source rather than to each displayed source cell.*
 
-Verify tile size and source regions before painting. Changing a tileset definition after maps have been authored can change the meaning of existing tile indices. Test large changes to map dimensions, layer order or tileset identity immediately.
+Changing a tileset definition after maps have been authored can change what existing tile indices display.
 
 Map JSON requires a `layerOrder` string array, which is the authoritative draw and Actor-processing sequence. `layers` and `actors` remain dictionaries keyed by those names, and the editor keeps the array synchronised. Runtime loading rejects missing, duplicate or unlisted layers. It never infers order from JSON object keys.
 
-An ordinary tileset provides the **Passable**, **Material** and **Dir4** modes. Left-click toggles one tile's passability, opens its material editor or toggles the direction nearest the clicked edge. Shift+left-drag copies the pressed source tile's property through every crossed cell. The current mode chooses the copied value: Passable copies the boolean, Material deep-copies the complete material, and Dir4 copies all four directions. Sparse pointer movement is joined without gaps, and one drag is one Undo step. Autotiles provide **Passable** and **Material** for the whole asset and do not support this batch brush.
+An ordinary tileset provides the **Passable**, **Material** and **Dir4** modes. Left-click toggles one tile's passability, opens its material editor or toggles the direction nearest the clicked edge. Shift+left-drag copies the pressed source tile's property through every crossed cell. The current mode chooses the copied value: Passable copies the boolean, Material deep-copies the complete material, and Dir4 copies all four directions. One drag is one Undo step. Autotiles provide **Passable** and **Material** for the whole asset and do not support this batch brush.
 
 ![Tile palette and layer list in the map editor](../../../images/editor/tile-layers.png)
 
@@ -42,11 +38,11 @@ The selected placement is drawn above the others within each layer and takes pri
 
 *Child-map thumbnails show placement coordinates; the canvas previews how the maps fit together.*
 
-Child-map data and preview images load progressively. The canvas and thumbnails update automatically as each child becomes ready, including the first time the world is opened. A missing or unreadable child does not prevent the others from loading. Map edits, Undo/Redo and image changes refresh the affected previews.
+The canvas and thumbnails appear as child maps load. A missing or unreadable child does not prevent the others from appearing. Editing maps or changing images updates their previews.
 
 Scroll or pan the canvas. Use Ctrl+wheel on Windows/Linux or Command+wheel/pinch on macOS to zoom. The read-only preview shows tiles, the first autotile frame and static Actor images at time zero. It does not animate Actors or render lights, fog, panorama or map-layer shaders.
 
-Validation covers the manifest, the flat directory shape, direct JSON maps, placements, layer order and world-wide Actor-tag uniqueness. Non-JSON regular files are ignored. An invalidating resize is rejected rather than moving or cropping a placement. Before deleting a placed child file, remove its placement and save, because the manifest's reference otherwise blocks deletion.
+Resizing cannot place a child outside the world. Before deleting a placed child file, remove its placement and save. Non-JSON regular files are ignored, and Actor tags must be unique across the world.
 
 A rename updates the recognised references listed in [Project Settings and Asset Layout](<Project Settings and Asset Layout.md>). The world manifest and its child maps have separate histories, and automatic reference, placement and layer-order corrections create Undo barriers. The file explorer preserves the `Data/Maps` hierarchy, so root maps, world folders and children cannot move between levels or worlds. Create and delete them through the Map List.
 
@@ -54,7 +50,7 @@ Creating an ordinary map or a world child pre-fills Map Properties from the most
 
 ![Map properties window](../../../images/editor/map-properties.png)
 
-*Review map dimensions and ambient light before authoring layers. The Ambient Light button shows a colour swatch and its ARGB value; a checkerboard indicates transparency. Click it to choose a colour.*
+*The Ambient Light button shows a colour swatch and its ARGB value; a checkerboard indicates transparency. Click it to choose a colour.*
 
 Use the browse button beside BGM, BGS, fog or panorama and select **Clear** to remove the file reference. World Map Properties uses the same selector for fog and panorama. Confirm the properties dialog to apply the change.
 
@@ -84,7 +80,7 @@ Ctrl/Command+wheel, or Command+trackpad pinch on macOS, scales the selected Acto
 
 In Actor mode, Alt/Option+wheel or Option+trackpad pinch adjusts the selected Actor's `defaultRotation` instance override. Positive wheel movement and pinching outward rotate clockwise; negative movement and pinching inward rotate counterclockwise. Each wheel unit adds 15 degrees, and each 0.1 pinch increment adds 18 degrees. Alt/Option takes precedence over Ctrl/Command for rotation. Without an eligible editable Actor, these gestures retain their viewport behaviour.
 
-Each property drag is one Undo step. Consecutive wheel or pinch changes to the same property and selection merge until 300 ms of inactivity. Changing selection, map, layer or mode, or leaving the editor's focus ends the gesture. Saving starts a new Undo step for subsequent input; Undo/Redo ends the current interaction. The preview and property panel update together.
+Each property drag is one Undo step. Consecutive wheel or pinch changes to the same property and selection are grouped. Changing selection, map, layer or mode ends the interaction; saving starts a new Undo step for subsequent changes.
 
 Light mode also shows placed Actors' `lightComp` ranges with coloured fills and grey dashed outlines. These ranges use inherited defaults and instance overrides and update with Actor edits and Undo/Redo. **Select Actors**, to the right of the layer tabs, is off by default and saves its state in the global `Ludork.ini` preferences across projects and editor restarts. With it off, layers cannot be changed and Actor ranges are read-only. Enabling it restores the previous layer, or Overview if that layer no longer exists, and allows selecting Actors with lights on the current editable layer by clicking their image or range. A restored hidden layer remains read-only. Overview and hidden layers cannot select them; Actors without lights remain unavailable in this mode.
 

@@ -51,7 +51,7 @@ Store UTF-8 JSON beneath `Data/Subtitles` and reference it with a project-relati
 
 Times are finite numbers in seconds with `0 ≤ startTime < endTime`. A section is active from its start time, inclusive, to its end time, exclusive. Sections may touch but cannot overlap; gaps display no subtitles. An empty `sections` array is valid.
 
-`content` is either a string array used directly or a dictionary of language keys to string arrays. The dictionary first selects the current game language, then `en_GB` if that key is missing. If neither exists, no subtitle is displayed. An existing empty array explicitly displays nothing and does not fall back. Native C++ represents these alternatives as `std::variant<std::vector<std::string>, std::unordered_map<std::string, std::vector<std::string>>>`.
+`content` is either a string array used directly or a dictionary of language keys to string arrays. The dictionary first selects the current game language, then `en_GB` if that key is missing. If neither exists, no subtitle is displayed. An existing empty array explicitly displays nothing and does not fall back.
 
 ## Playback and layout
 

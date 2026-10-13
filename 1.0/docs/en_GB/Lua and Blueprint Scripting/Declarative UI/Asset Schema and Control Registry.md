@@ -1,8 +1,8 @@
-# UI Asset Schema and Control Registry
+# UI Asset Schema
 
 ## Asset key and structure
 
-A UI asset uses `type = "uiAsset"` and follows the field contract below. It does not carry a schema-version field. Its only asset identity is the exact-case path relative to `Data/UI/Assets`, with forward slashes and no extension. `Title.json` has key `Title`, and `Parts/Shared/WindowChrome.json` has key `Parts/Shared/WindowChrome`.
+A UI asset uses `type = "uiAsset"` and follows the field contract below. It does not carry a schema-version field. Unknown fields are rejected. Its only asset identity is the exact-case path relative to `Data/UI/Assets`, with forward slashes and no extension. `Title.json` has key `Title`, and `Parts/Shared/WindowChrome.json` has key `Parts/Shared/WindowChrome`.
 
 Keys cannot be absolute, contain backslashes, empty segments, `.` or `..`, include an extension, or repeat prefixes such as `Assets/` or `UI/Assets/`. Every path segment must be free of dots, so its generated Lua module has an unambiguous require path. Spaces, hyphens and Unicode names remain supported. The asset object contains `designSize`, `palette` and one `root` node. Neither assets nor nodes contain UUID fields.
 
@@ -66,13 +66,11 @@ This section is the JSON field authority for the controls it names: what a node 
 
 `Engine.TextBox` serialises `size`, `windowSkin`, `text`, the standard plain-text properties and editor-only `previewText`, and accepts no children. Editing and callbacks are described in [Engine: Interactive and Declarative UI Controls](<../Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#textbox>).
 
-The editor reads native descriptors from the current project's compiled `EditorCache/UiPreview.registry.json`, checked against `EditorCache/UiPreview.json`, and merges them with project UI assets. Only assets with `palette.exposed = true` appear as project controls. The game uses its compiled native descriptors rather than this development JSON.
+Only assets with `palette.exposed = true` appear as project controls.
 
 `Engine.TabView` serialises `size`, `windowSkin`, the construction-only non-empty `items: string[]` and the same inline text style or optional `textConfig` as plain text, and has no children or Slot of its own. Assets normally use `#TAB 1...` values so the native preview shows each tab. Before the first visible frame, the Controller supplies localised labels and binds selection behaviour through [Engine: Interactive and Declarative UI Controls](<../Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#tabview>). `selectedIndex` and key-hint tables are runtime-only, and `tabCount` is not accepted.
 
 `Engine.CharacterView` serialises `size`, `texture`, optional `textureRect`, `characterScale`, `animatable`, `switchInterval`, `shader`, `hue` and `colour`, and accepts no children. `shader` is empty or a complete `/Game/Assets/Shaders/...` logical path. The control owns cropping, animation, actor-scale fitting, Shader and Hue composition and fixed bounds. It is not an input control.
-
-The editor and preview host require matching adapter fingerprints and complete registry hashes. Standalone regenerates stale preview metadata before use, as described in [Validation and Packaging](<Validation and Packaging.md>). File resources use canonical logical paths, and UI asset identities remain relative to `Data/UI/Assets`.
 
 ## Related pages
 

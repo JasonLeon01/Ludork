@@ -1,34 +1,20 @@
 # Official Blueprint AI
 
-## Goal
+Configure the official Blueprint AI plug-in, discuss changes to one Blueprint and review its proposal before applying it.
 
-Use the official source plug-in distributed with Ludork, configure a provider securely, and apply a validated one-Blueprint proposal through the editor's review boundary.
-
-The plug-in ID is `Ludork.OfficialBlueprintAI`, fixed at `Plugins/OfficialBlueprintAI` in the repository. After a restart, the editor compiles the installed source again and exposes the plug-in through **Game → Blueprint AI**.
+The plug-in ID is `Ludork.OfficialBlueprintAI`; its repository source is `Plugins/OfficialBlueprintAI`. Open it through **Game → Blueprint AI**.
 
 ## Workflow
 
-1. Install the plug-in for the environment in use, as described in Locations and ownership below.
+1. Install the plug-in as described in [Installing and Managing Plug-ins](<../Installing and Managing Plug-ins.md#official-release-plug-ins>).
 2. Open a project and select **Game → Blueprint AI**.
 3. Configure the provider, model, endpoint and secret from **Settings**.
 4. Create a conversation for one existing Blueprint and review the staged proposal and generated diff.
 5. Select **Apply** only after validation succeeds, then use the normal project Save command when the change is ready for disk.
 
-## Locations and ownership
+## Local data
 
-| Environment | Program or source location | Writable data location |
-|---|---|---|
-| Repository checkout | `./Plugins/OfficialBlueprintAI` source; imported directories are copied directly below `./Plugins` using the selected directory name | `./Plugins/.data/Ludork.OfficialBlueprintAI` |
-| Published Windows editor | `<installation-root>/Plugins/OfficialBlueprintAI` | `<installation-root>/Plugins/.data/Ludork.OfficialBlueprintAI` |
-| Published macOS editor | `~/Ludork/Plugins/OfficialBlueprintAI` installed from the DMG's hidden payload | `~/Ludork/Plugins/.data/Ludork.OfficialBlueprintAI` |
-
-On Windows, `<installation-root>` is the directory containing the root `Ludork.exe` launcher, and the editor itself is in its `Binaries` subdirectory.
-
-The macOS DMG installer transactionally replaces the existing `~/Ludork/Plugins` and `~/Ludork/plugins.json` as a complete set. An ordinary failure rolls back to the previous set, but success deletes existing third-party plug-in source, registrations and all data below `Plugins/.data`. There is no merge and no retained backup, so preserve required files before confirming.
-
-The plug-in owns the menu command, Avalonia windows, settings UI, localisation, provider clients and conversation history. The editor does not contain a Blueprint AI window. It only supplies an optional `IAvaloniaPluginUserInterface` owner for the plug-in window and, while a project is open, a restricted `IBlueprintAssistantHost` bridge. That bridge creates a session bound to one Blueprint and exposes the read, proposal, validation, Apply and Discard capabilities required by the workflow.
-
-Removing the plug-in source directory does not remove `Plugins/.data/Ludork.OfficialBlueprintAI`. Deleting settings or history is a separate explicit operation.
+Settings and conversation history are stored in `.data/Ludork.OfficialBlueprintAI` beneath the global plug-in root. Uninstalling the plug-in retains this data. See [Data and uninstall](<../Installing and Managing Plug-ins.md#data-and-uninstall>) for storage locations and removal.
 
 ## Scope and permissions
 
@@ -60,9 +46,9 @@ Project search and file reading only accept project-relative paths under the con
 
 ## Official documentation
 
-`search_documentation` searches titles, paths and Markdown text by keyword; `read_documentation` reads numbered lines using a returned document key. Both return official page links for source references, with bounded output and continuation or truncation information. They use the editor's current major.minor documentation version and language: editor `1.0.7`, for example, reads documentation `1.0`. Each request's workspace loads the index on first use and shares that snapshot between searches and reads.
+The assistant can search and read official documentation for the editor's current major.minor version and language. For example, editor `1.0.7` uses documentation `1.0`. Results include links to the source pages.
 
-Documentation is fetched from the fixed Ludork website, independently of project-relative source reading. These tools accept no arbitrary URL or filesystem path. An unavailable index, network failure or invalid response returns a tool error for the selected version and language; it does not switch to another version or language. The matching index must be published with the website before it can be queried. Documentation explains usage and behaviour; the current project's API catalogue and metadata remain authoritative for concrete nodes, types, serialized names and pins. Document content is reference data, not permission to change the assistant's instructions.
+If the matching documentation is unavailable, the assistant reports the problem without using a different version or language. The current project's API catalogue and metadata remain authoritative for concrete nodes, types, serialised names and pins. Public documentation methods are listed in [Registration and Hook Reference](<../Registration and Hook Reference.md#blueprint-assistants>).
 
 ## Troubleshooting
 
@@ -78,4 +64,4 @@ Documentation is fetched from the fixed Ludork website, independently of project
 
 - [Installing and Managing Plug-ins](<../Installing and Managing Plug-ins.md>)
 - [Avalonia UI, Secrets and Localisation](<../Avalonia UI Secrets and Localisation.md>)
-- [Testing and Distribution](<../Testing and Distribution.md>)
+- [Distribution](<../Distribution.md>)

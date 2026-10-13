@@ -1,7 +1,5 @@
 # Official Random Map
 
-## Goal
-
 Use the official Random Map plug-in as the reference for a map-item command that reads immutable editor snapshots, opens its own Avalonia workflow and replaces one layer with revision protection.
 
 ## Prerequisites
@@ -12,7 +10,7 @@ Use the official Random Map plug-in as the reference for a map-item command that
 
 ## Registration contract
 
-`OfficialRandomMapPlugin` registers exactly one `PluginMapContextMenuCommand`. It does not register a normal menu command, a text hint provider, a before-Export hook, a before-Run hook or a before-Pack hook. The command is displayed only when an actual map item is right-clicked.
+`OfficialRandomMapPlugin` registers one `PluginMapContextMenuCommand`, displayed when a map item is right-clicked.
 
 The handler receives `PluginMapContextMenuContext`, checks for `IAvaloniaPluginUserInterface`, and opens the plug-in-owned `RandomMapWindow` with the host's real owner. The window uses only `IMapEditorHost`. It does not receive an editor view model, a control or a mutable JSON object.
 
@@ -41,7 +39,7 @@ The 35–75% setting is a wall density upper limit. The generator approaches it 
 
 ## Saving contract
 
-The plug-in merges its local result into copies of the snapshot's complete `Height × Width` Tile and AutoTile matrices, then submits `PluginMapLayerWriteRequest` with the original `BaseRevision` and `ExpectedTilesetKey`. The host rejects conflicting changes. Failed generation or saving does not apply a partial region.
+The plug-in submits the generated layer through `PluginMapLayerWriteRequest`. Conflicting edits are rejected, and failed generation or saving does not apply a partial region. The full request and Undo rules are in [Map item context-menu commands](<../Registration and Hook Reference.md#map-item-context-menu-commands>).
 
 ## Limitations
 

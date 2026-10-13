@@ -1,24 +1,20 @@
 # Run, Debug and Package
 
-## Goal
-
-Run the project with actionable diagnostics, test the native executable and produce a complete package for a supported target.
+Run a project, edit its live state and package it for a supported platform.
 
 ## Construct, Export and Play
 
 The toolbar orders its actions as **Construct → Export → Play**. Standalone projects hide Construct. **Construct** saves the project and builds the Debug executable and preview runtime without launching the game. Native binding generation remains part of the build; UI and locale export is a separate operation.
 
-**Export** saves and validates the project, runs the Export plug-in hooks, generates UI Views and declarations, then records success in `EditorCache/ProjectExport.json`. Official Locale Tools exports the workbook through this hook. The record survives reopening the project and fingerprints the UI JSON, Lua modules and handwritten declarations used for window generation, plug-in-declared inputs, generated files, generator and export plug-ins. Added, modified or deleted inputs, missing or modified outputs, and changed generators or export plug-ins require another export. If inputs change during export, or export fails or is cancelled, that attempt does not publish a successful record.
+**Export** saves the project, runs Export plug-in hooks and generates UI Views, declarations and locale files. Export again after changing the inputs or removing generated files. A failed or cancelled export does not count as a successful export.
 
 Variables and General Data still take effect on Save; their Lua files remain under version control and are outside Export. Ordinary Save, Construct, direct run and template creation do not generate UI files. The explicit `ui-assets generate` command produces UI files only; it does not run Export hooks or publish a complete editor export record.
 
-Play stays disabled until the project has a successful Export record and, for C++ Source, a successful Debug build record. Its tooltip gives Construct priority over Export when both are missing. Standalone requires only Export. **Construct** and a successful Debug `tools/build_cpp` publish the shared build record; a bare CMake build does not.
+Play is enabled after the first successful Export and, for C++ Source, a successful Debug build through **Construct** or `tools/build_cpp`. A bare CMake build does not enable Play.
 
-The project-root `EditorCache/` contains build and export records, UI preview metadata, the editor map catalogue and the default animation MP4 output. Git ignores this directory. Removing its records requires another Construct for C++ Source and another Export before Play; the CMake build directory remains `build/`, and runtime animation caches remain under the game's user-data `Cache/Animations`.
+Deleting `EditorCache` requires another Construct for C++ Source and another Export before Play.
 
-Once those records exist, stale content does not disable Play. Clicking Play first checks Construct and offers **Build and Play** when native sources or outputs are stale. It then checks Export and offers **Export and Play** when export inputs or outputs are stale. Cancelling or failing either step ends the attempt. Play saves and validates the project and runs before-Run hooks, then rechecks Construct followed by Export before launch; changes during preparation require the same confirmations. Lua, UI JSON, game data and localisation changes do not require a native build. Source edits and window activation do not start background checks.
-
-Each project reuses a prewarmed process for read-only checks. Prewarming does not scan file contents; every requested check compares the current contents again. Cancelling a check or closing the project releases the process.
+After the first successful build and export, Play offers **Build and Play** or **Export and Play** when files have changed. Cancelling or failing either operation stops launch. Lua, UI JSON, game data and localisation edits do not require a native build.
 
 While Play is preparing or running the game, its button becomes **Stop**. Clicking Stop cancels preparation or stops the current process. Construct and Export disable repeated actions and project editing until completion. Natural exit, cancellation and failures restore editing; closing the project cancels active preparation.
 
@@ -28,9 +24,9 @@ These operations keep the current tab selected; open **Console** manually to vie
 
 Failures are reported in the operation dialog and Console. An export failure prevents Play or Pack from continuing; correct the first validation, hook or generation error and export again.
 
-## Test server
+## Server connections
 
-For a C++ Source project's remote data tests, use **Game → Test Server Settings** and rebuild Debug. **Pack Project → Enable Ludork Server** configures a separate Release connection and starts blank each time; dev packages still use Release. Standalone hides both options. Deployment, local settings paths and the shared-key boundary are documented in [Simple Server](<../Simple Server/Deployment and Editor Settings.md>).
+For a C++ Source project, configure the local development connection through **Game → Test Server Settings**, then rebuild Debug. **Pack Project → Enable Ludork Server** sets a separate Release connection and starts blank each time; dev packages also use Release. Standalone hides both options. See [Simple Server](<../Simple Server/Deployment and Editor Settings.md>) for deployment and connection settings.
 
 ## Live Debug
 
@@ -58,17 +54,11 @@ Save the changed Lua source files in your external editor, enter `$r` in the Con
 
 The Console reports the result. Changes to data or module structure may require a restart; see [Lua hot reload](<../Lua and Blueprint Scripting/Lua Runtime and Modules.md#lua-hot-reload>) for the supported changes and the failure handling.
 
-## Test layers
-
-- Validate modified Blueprints before saving.
-- Test maps in the editor with Console output visible.
-- Use the Performance Monitor for frame and logic timing.
-- Run the native executable outside the editor to catch working-directory assumptions.
-- Test the packaged result, because its writable settings and asset layout differ from editor mode.
-
 ## Packaging
 
 Choose **File → Pack Project**, select the target and follow the packaging log. The project must have a valid entry script and a compatible template. Define exactly one top-level `local APP_NAME` in `Scripts/Entry.lua` as a non-empty static string literal unique to the game, without control characters or later reassignment. Packaging rejects the sample value `LudorkSample`, a missing definition and expressions that require executing Lua to determine the name.
+
+If packaging reports that access to an output path was denied, close any running copy of the packaged game and File Explorer windows on the output folder, then retry. Language servers and antivirus software can also hold generated files open.
 
 The editor requires absolute signing-material paths without NUL, carriage returns or line feeds. Signing dialogs check that the files are readable before accepting them. Loading or saving a credential also validates its keystore or certificate path. Signing aliases and passwords must contain no NUL or line breaks.
 
@@ -78,9 +68,9 @@ Each editor Pack performs one complete Export, including Export hooks and UI gen
 
 **Encrypt game data** controls script compilation and shader, JSON and save encryption, and a partial selection shows its indeterminate state. **Encrypt save contents** sets the C++ Source runtime default. Standalone projects configure it through `SAVE_AS_LDC` in `Scripts/Entry.lua`. See [Saves](<../Lua and Blueprint Scripting/Default Gameplay/Runtime Data Configuration and Saves.md#saves>) for the timing and format rules. The `.ldpak` option is independent of encryption. Data encryption converts staged JSON values to compressed, obfuscated binary `.ldc`; source JSON stays editable. Rebuild packages containing the old compressed-JSON LDC format.
 
-Packaging requires a valid project preview registry. See [Declarative UI Validation and Packaging](<../Lua and Blueprint Scripting/Declarative UI/Validation and Packaging.md>) for the build and recovery requirements.
+Packaging requires a valid project preview registry. See [Project preview artefacts](<../Native C++ Development/Native UI Adapters.md#project-preview-artefacts>) for preparing the preview runtime.
 
-Finalisation validates a staging copy against the source project registry, then applies plug-in exclusions and the selected compilation, encryption and archiving. It removes development files, preview-specific binaries and project-root `EditorCache`/`Cache`, while retaining shared game dependencies. Directories named `EditorCache` or `Cache` inside `Assets`, `Data` or `Scripts` remain ordinary project content.
+Packaging works on a staging copy and leaves project sources unchanged. It removes development files, preview-only binaries, project-root `EditorCache`/`Cache` and UI `editor` design data. UI asset keys remain extensionless and Controller references keep their logical Lua module paths, whether Data is stored as JSON, encrypted `.ldc` or in an archive. Directories named `EditorCache` or `Cache` inside `Assets`, `Data` or `Scripts` remain ordinary project content.
 
 ### Release version and internal packages
 
@@ -96,33 +86,17 @@ The packer captures one UTC+8 build time at the start and reuses it through ever
 | Android/HarmonyOS `versionCode` | `YYMMDDHH` integer | `26010107` |
 | iOS/macOS `CFBundleVersion` | `YYMM.DD.HH` | `2601.1.7` |
 
-Build dates are restricted to 2000–2099 and platform limits are validated before replacing an output. Rebuilding within the same hour uses the same build number; wait until the next hour when a new store build record is required. Package paths use `<game-name>-<full-version>` before the existing platform, architecture, variant and signing suffixes. Repacking the same identifier replaces that artifact; other versions and unrelated files remain.
+Build dates are restricted to 2000–2099 and platform limits are validated before replacing an output. Rebuilding within the same hour uses the same build number; wait until the next hour when a new store build record is required. Package paths use `<game-name>-<full-version>` before the existing platform, architecture, variant and signing suffixes. Repacking the same identifier replaces that artefact; other versions and unrelated files remain.
 
 The staging copy receives `Data/BuildInfo.json` containing `version`, `fullVersion`, `dev` and `builtAt` (an ISO 8601 timestamp with `+08:00`). Both dev and release **game packages** retain this file through the normal Data encryption and `.ldpak` flow; it is never written back into source Data. Application release versions are independent of the top-level [project compatibility version](<Project Settings and Asset Layout.md#mainproj>) and [save schema versions](<../Lua and Blueprint Scripting/Default Gameplay/Runtime Data Configuration and Saves.md#saves>).
-
-### Editor distribution
-
-The editor's own package follows the same version-identifier rules independently of game packages. Scheduled and manually triggered editor packages use dev; `v*` tag-triggered Export Package runs use release, with the tag required to equal `v<EDITOR_VERSION>`, such as `v1.0.0`. The editor base version comes from `EDITOR_VERSION` in the repository `versions.conf`. Its base version, full display version, development channel and supported project versions are embedded in the editor assembly; **About Ludork** shows that full display version.
-
-| Build entry | Templates inside the editor | Separate template archives |
-|---|---|---|
-| Export Editor | None | None |
-| Export Package, dev | Four local templates | Eight, across Windows and macOS |
-| Export Package, release | None | Eight, across Windows and macOS |
-
-Export Package reuses the Export Editor build flow and produces the template archives separately. Formal Releases contain exactly eleven assets: the Windows x64 MSI, macOS ARM64 DMG, `LudorkServer-source-<editor-version>.tar.gz`, and the [eight template archives](<../Getting Started/Project Templates.md#obtaining-templates>). CI creates or updates a draft Release; its assets become available to the editor's fixed download URLs after publication. A release editor downloads only the selected template, while a development editor uses its local templates. New Standalone projects retain `packaging.dev=false` in both channels.
-
-Editor dev packages retain `BuildInfo.json` at the Windows content root or the macOS app's `Contents/Resources`. Formal editor packages, template archives and the Server source archive do not include this generated file. Editor packaging uses one external metadata snapshot for the assembly, names and installers; removing the JSON from a formal package does not change its version display or download channel. The game `Data/BuildInfo.json` rule above remains unchanged. See [tools/README.md](https://github.com/JasonLeon01/Ludork/blob/main/tools/README.md) for repository packaging commands.
 
 ### Loose and packed output
 
 Every platform keeps the runtime files, `Assets`, `Data` and the runtime `Scripts` as loose directories by default. The `.ldpak` option is clear by default. When it is selected, the complete contents of each directory become root `Assets.ldpak`, `Data.ldpak` and `Scripts.ldpak`. Archive entries retain paths relative to their original directory, so resource paths, Data paths and Lua module names stay unchanged. Encryption and Lua compilation run before archiving, and an archive does not encrypt its contents by itself. The option is independent of encryption. Mobile packages enforce the same loose-or-packed contract, and Android and HarmonyOS do not recompress `.ldpak`.
 
-Archives automatically split files into independent 1 MiB blocks, using zlib level 6 when a compressed block is smaller and storing other blocks unchanged. No separate compression option is required.
-
 Resource packaging rejects symbolic links, case collisions, illegal paths and output conflicts. A package contains either all three loose directories (`Assets`, `Data`, `Scripts`) or all three root archives. Corrupt archives, missing roots, mixed layouts and old per-group archives are rejected.
 
-Finalisation removes the development-only `Scripts/stub` tree. Any other `.d.lua` file left under `Scripts` fails packaging.
+Packaging removes the development-only `Scripts/stub` tree. Any other `.d.lua` file left under `Scripts` fails packaging.
 
 ### Windows and macOS
 
@@ -130,29 +104,11 @@ Windows output is `dist/<game-name>-<full-version>/Main.exe` with its runtime fi
 
 Windows and macOS packages copy the runtime files, `Assets`, `Data` and the runtime `Scripts`. Standalone packages keep a root launcher and place the runtime binaries in the platform package directory (`Binaries` on Windows, `Contents/Frameworks` for a macOS app). FFmpeg notices and source-offer material are included where applicable; see [FFmpeg option](<../Getting Started/Project Templates.md#ffmpeg-option>) for the distribution requirements. Windows packages exclude PDB files; retain them with the corresponding build for debugging.
 
-Both desktop platforms exclude the Lua declaration generator `LudorkNativeStubDump` (`LudorkNativeStubDump.exe` on Windows) from game packages. macOS skips this build tool before validating and copying runtime libraries into the app; source build outputs retain it for declaration generation.
-
-For both C++ Source and Standalone projects, macOS packaging removes local native symbols with `strip -x` from the final app's Main executable and real dynamic-library files, skipping symbolic links. After dependency-path adjustments, the packer applies ad-hoc signatures to those binaries; after resource finalisation, it signs and verifies the whole app with the configured identity, or ad hoc when none is configured. A strip or signing failure stops packaging. Source build outputs, Standalone templates and shared preview libraries remain unstripped.
-
-Selecting macOS shows **Sign Application**, which is clear by default. Leave it clear to sign with the identity configured in this machine's environment variables, such as `LUDORK_MACOS_SIGNING_IDENTITY`, `LUDORK_MACOS_SIGNING_CERTIFICATE` and the `LUDORK_MACOS_NOTARY_*` credentials; without them the app receives an ad-hoc signature. Select it to choose a `.p12` certificate with its password, an optional signing identity, and optional notarisation with either an Apple ID, its team ID and an app-specific password, or an App Store Connect key with its key ID and issuer ID. The editor passes those values on the command line and ignores the environment variables for that run, so the dialog always decides. Notarisation signs with a real identity, submits the app to Apple, waits for the result and staples the ticket; it is rejected for an ad-hoc identity. Saved signing details are restored after selecting the same certificate. An ad-hoc signature provides neither distributor certificate signing nor notarisation.
-
-The macOS signer processes nested code and every regular file under each bundle's `Contents/MacOS` before signing the bundle and its main executable. This includes .NET assemblies and configuration files in editor packages. Signatures on non-Mach-O files use extended attributes, so preserve those attributes when copying signed apps; the editor DMG packer verifies the app again from the mounted image. The copied ScriptTools runtime is validated before signing, its file manifest is regenerated after its binaries are signed, and the enclosing app is signed last so both integrity checks cover the final contents. Developer ID signing enables Hardened Runtime for nested tools and template executables under `Contents/Resources` as well. A failed notarisation prints the submission ID and retrieves Apple's detailed log when available.
-
-If `codesign` reports that the timestamp service is unavailable, signing with a real identity retries that target after 5, 15 and 30 seconds, for at most four attempts. Each attempt keeps the timestamp and all signing options. Other signing errors and signature-verification failures stop immediately; exhausted retries report the final error.
-
-The editor DMG packer detaches the whole device for its image and confirms that the image is no longer attached before conversion or cleanup. An unmounted volume alone does not count as detached. If bounded forced retries fail, packaging stops and preserves the image and work directory.
-
-The GitHub Actions **Export Editor** and **Export Package** entries build on clean runners without restoring or saving dependency or build caches. Each export rebuilds the tools, editor and Windows launcher; complete packages also rebuild their native templates. Only artifacts produced within the current workflow run pass between jobs.
-
-Scheduled and manual Windows artifacts are uploaded directly as `Ludork-editor-<fullVersion>-windows-x64.7z` without templates or `Ludork-<fullVersion>-windows-x64.7z` with templates, with no outer ZIP. Each artifact uses its 7z filename as its name; download it and extract it once to obtain `Ludork.exe` at the root. Temporary artifacts expire after seven days. macOS uses DMG; tagged releases use MSI/DMG.
-
-For CI submissions, manually run **Query macOS Notarization** in GitHub Actions. Leave `submission_id` empty for recent history, or enter a submission UUID for its status and completed notary log. It reuses the repository notarisation secrets without rebuilding or resubmitting packages. Read the query step log for the Apple result; a successful workflow only means the query succeeded.
+Selecting macOS shows **Sign Application**, which is clear by default. Leave it clear to sign with the identity configured in this machine's environment variables, such as `LUDORK_MACOS_SIGNING_IDENTITY`, `LUDORK_MACOS_SIGNING_CERTIFICATE` and the `LUDORK_MACOS_NOTARY_*` credentials; without them the app receives an ad-hoc signature. Select it to choose a `.p12` certificate with its password, an optional signing identity, and optional notarisation with either an Apple ID, its team ID and an app-specific password, or an App Store Connect key with its key ID and issuer ID. For that run, the dialog settings take precedence over environment variables. Notarisation signs with a real identity, submits the app to Apple, waits for the result and staples the ticket; it is rejected for an ad-hoc identity. Saved signing details are restored after selecting the same certificate. An ad-hoc signature provides neither distributor certificate signing nor notarisation.
 
 ### iOS
 
-Selecting the iOS 16.3-or-newer target on macOS requires a C++ Source project, a full Xcode installation with the iPhoneOS SDK, and a completed first-launch Xcode setup. Selecting iOS shows **Sign Application**, which is clear by default. Leave it clear to use the signed-in Apple Development team, taken from `LUDORK_IOS_DEVELOPMENT_TEAM` when it is set, and let Xcode sign automatically. Select it to provide the team ID, a `.p12` certificate with its password and a `.mobileprovision` provisioning profile; the packer then signs manually with that identity and profile and rejects a profile whose team or application identifier does not match. The editor passes those values on the command line and ignores the environment variables for that run. The certificate and the profile are required together, and a saved record is restored after selecting the same certificate.
-
-The exported application uses a single-window `UIScene` host and declares iOS 16.3 as its minimum version. Xcode removes non-global symbols from the final Release application before signing. Static libraries used as link inputs are not stripped separately.
+Selecting the iOS 16.3-or-newer target on macOS requires a C++ Source project, a full Xcode installation with the iPhoneOS SDK, and a completed first-launch Xcode setup. Selecting iOS shows **Sign Application**, which is clear by default. Leave it clear to use the signed-in Apple Development team, taken from `LUDORK_IOS_DEVELOPMENT_TEAM` when it is set, and let Xcode sign automatically. Select it to provide the team ID, a `.p12` certificate with its password and a `.mobileprovision` provisioning profile; the packer then signs manually with that identity and profile and rejects a profile whose team or application identifier does not match. For that run, the dialog settings take precedence over environment variables. The certificate and the profile are required together, and a saved record is restored after selecting the same certificate.
 
 By default, iOS packaging only creates `dist/<game-name>-<full-version>.ipa`, and no iPhone needs to be connected. Select **Export to iPhone** to install and launch the app on the device as well. This mode requires exactly one physical device on the iPhoneOS platform, either an iPhone or an iPad, that `xcdevice` reports as available. Simulators do not qualify. Any unlock, trust or Developer Mode message comes from the device itself. After installation the device must also trust the developer profile, which currently surfaces as a signing error.
 
@@ -164,33 +120,25 @@ Selecting HarmonyOS shows **Sign HAP**, which is clear by default. Leave it clea
 
 Signing information can be saved on this machine and restored after selecting the same keystore. The editor saves the material paths and alias in `harmony-signing.json` beside `Ludork.ini`, under `~/Library/Application Support/Ludork` on macOS, and stores passwords in the system Keychain. Keep the signing materials outside the project and repository. Passwords and material details are redacted from packaging logs; no credentials or signing configuration are written to the generated HarmonyOS project.
 
-The packer builds an unsigned HAP, signs it with the supplied materials, verifies it, and then atomically replaces the final output. Verification covers the HAP signature, embedded Profile, bundle name, version and native libraries; a failure preserves an existing successful output. Both Debug and Release Profiles are supported, and their signature, validity period and bundle name must pass validation. Packaging uses DevEco's command-line tools without opening its GUI or waiting for automatic signing. Direct commands and CI use `--sign` with material paths and alias, and provide two passwords through standard input; see [tools/README.md](https://github.com/JasonLeon01/Ludork/blob/main/tools/README.md).
+Both Debug and Release Profiles are supported. The Profile must be valid, signed and match the project’s bundle name. If packaging or signing fails, the previous successful output is retained. Command-line options are documented in [tools/README.md](https://github.com/JasonLeon01/Ludork/blob/main/tools/README.md).
 
 Select **Export to matching HarmonyOS device** to enable signing and additionally install and launch the signed HAP. Only device export invokes HDC and checks the target device's Profile authorisation. Mobile export accepts a connected device that reports `default`, `phone` or `tablet`, although the mobile HAP itself declares `deviceTypes: ["phone","tablet"]`. The 2in1 export accepts only `2in1`. Exactly one connected device must match the selected form, and devices of the other form may remain connected. A connected device whose type cannot be read aborts the export even when it is of the other form. The 2in1 OpenGL package requires `libGLv4.so` on the device. Some emulators omit it. The app reports the missing module and does not fall back to OpenGL ES, so use the OpenGL ES package on those images.
 
-`Licenses` and root licence and notice files are not HAP-format prerequisites: the packer includes them when present but does not reject a project when they are absent.
-
-Hvigor strips native libraries while producing each Release HAP variant, before signing; the packer does not strip a signed HAP. Retain the matching native build outputs for debugging.
+Retain the matching native build outputs for debugging; the packaged native libraries have their symbols stripped.
 
 ### Android
 
-Android packaging is shown only for a C++ Source project on macOS when Android Studio is installed in `/Applications` or the current user's `Applications` directory. It requires SDK Platform 36, Build Tools 36.0.0, a complete stable NDK r27-or-newer toolchain under the locally installed SDK and host CMake 3.28 or newer. The packer selects the highest qualifying NDK from the `ndk` directory of that SDK. Neither a project package nor the editor package carries an SDK or NDK. The packer then uses host CMake with the selected toolchain, the bundled JBR of Android Studio as `JAVA_HOME`, and the Gradle wrapper maintained in the project’s `Engine/PlatformHosts/Android` template, which downloads Gradle 9.5.0 with Android Gradle Plugin 9.3.0 and runs `:app:lintRelease :app:assembleRelease`. The APK declares API 24 (Android 7.0) as its minimum, so it installs on Android 7.0 and later. Its `compileSdk` and `targetSdk` are 36. It identifies the application as a game and requests sensor-selected landscape orientation, so either landscape rotation is supported. Android packaging never invokes SDK Manager, AVD or `adb`, and neither signed nor unsigned packaging installs or launches the APK.
+Android packaging is available to C++ Source projects on macOS with Android Studio installed in `/Applications` or the current user’s `Applications` directory. It requires SDK Platform 36, Build Tools 36.0.0, a complete stable NDK r27 or newer and host CMake 3.28 or newer. The highest qualifying NDK in the local SDK is selected. SDK and NDK tools must be installed separately. The APK targets API 36 and runs on Android 7.0 / API 24 or later in either landscape orientation. Packaging creates an APK without installing or launching it.
 
 Selecting Android shows **Sign APK**, which is clear by default. Leave it clear to publish `dist/<game-name>-<full-version>-android-arm64-v8a-unsigned.apk`. Select it to choose a JKS or PKCS12 keystore, enter its alias and passwords, and optionally save the information on this device. The picker accepts `.keystore`, `.p12`, `.pfx` and `.pkcs12` files and detects the type automatically. The key password defaults to the keystore password, and a saved record restores the keystore path and alias automatically. Cancelling the dialog returns to Pack Options, and a successful signed run publishes only `dist/<game-name>-<full-version>-android-arm64-v8a-signed.apk`.
 
 Saved records live in the editor's per-user settings directory, as `android-signing.json` beside `Ludork.ini`, and on macOS under `~/Library/Application Support/Ludork`. A record stores the keystore path and alias only, while passwords use the credential store of the operating system. Passwords are never written to the project, Gradle files or logs. Android itself requires an update to an installed application to carry the same signing certificate, so the device rejects an update signed with a different key.
 
-Android resources use APK assets with a SHA-256 manifest and a versioned runtime directory, while retaining the platform-native binary layout. Generated projects use runtime texts from the top-level `Licenses`, not editor notices.
-
-The NDK's `llvm-strip --strip-unneeded` processes the staged `libludork.so` before Gradle packages it. The original native build output remains unstripped for debugging.
-
-## Failure checklist
-
-If Export, Play or Pack stops, read the first actionable error in its failure dialog, the Console or the pack log. Check plug-in hooks, `Main.proj`, the entry script, JSON syntax, Blueprint validation, generated native modules and missing assets. If the message is that access to a path was denied, close Explorer windows on the output folder and any still-running copy of the packaged game, then retry; a language server or antivirus scan holding generated Lua or binaries can cause the same error. For Android or HarmonyOS signing, verify the keystore path, alias and passwords, and correct stale saved values in the dialog. HarmonyOS also requires a matching certificate and a valid Profile for the project's bundle name; device export additionally requires device authorisation. For macOS and iOS signing, verify the certificate, identity, provisioning profile and notarisation credentials, and clear stale saved values in the signing dialog. Packaging cannot repair invalid project references or substitute for target-platform testing.
+Retain the matching native build outputs for debugging; the packaged native library has its symbols stripped.
 
 ## Related pages
 
 - [Project Templates](<../Getting Started/Project Templates.md>)
 - [Tilesets, Autotiles and Maps](<Tilesets Autotiles and Maps.md>)
-- [Testing and Distribution](<../Plug-in Development and Installation/Testing and Distribution.md>)
-- [Script Mixin Validation and Packaging](<../Lua and Blueprint Scripting/Script Mixins/Validation and Packaging.md>)
+- [Distribution](<../Plug-in Development and Installation/Distribution.md>)
+- [Script Mixin Authoring Workflow](<../Lua and Blueprint Scripting/Script Mixins/Authoring Workflow.md>)

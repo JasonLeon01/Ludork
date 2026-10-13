@@ -26,15 +26,11 @@ iOS, Android and HarmonyOS Mobile use a system input dialog, while HarmonyOS 2in
 
 `setOnTextChanged` reports committed-value changes, including `setString` and cancellation, while IME composition does not change `getString()`. Newlines and tabs become spaces, and other control characters are removed. Form validation belongs to the Controller.
 
-On Windows, both embedded play and individual windows support character input and IME composition. In embedded play the editor owns the IME and positions candidates using the game caret. Losing the bridge connection ends editing under the same committed-text rules as focus loss.
+On Windows, both embedded play and individual windows support character input and IME composition. Losing the bridge connection ends editing under the same committed-text rules as focus loss.
 
 ## CheckBox
 
 Direct metadata bases: `{ "Engine", "ControlBase" }`, `{ "Engine", "FunctionalBase" }`
-
-### Properties
-
-No editable properties are declared.
 
 ### Functions and events
 
@@ -59,10 +55,6 @@ No editable properties are declared.
 ## DropBox
 
 Direct metadata bases: `{ "Engine", "ControlBase" }`, `{ "Engine", "FunctionalBase" }`
-
-### Properties
-
-No editable properties are declared.
 
 ### Overlay and measurement
 
@@ -148,10 +140,6 @@ tabView:setKeyHint(
 
 Hints appear only where movement is possible. A connected joystick uses the `Joystick` hint, otherwise desktop, HarmonyOS 2in1 and HarmonyOS Mobile tablets use `Keyboard`, while Android, iOS and HarmonyOS phones hide hints. Hints never rebind or disable input.
 
-### Properties
-
-No editable properties are declared.
-
 ### Functions and events
 
 | Name | Kind | Parameters | Returns | Execution and metadata |
@@ -236,10 +224,6 @@ Progress ranges from 0 to 1; values outside that range are clamped and non-finit
 
 Each layer independently retains its `sf.Texture` resource. Passing `nil` to its texture setter clears the image and restores solid-colour rendering. Texture Rects use source pixels; `nil` selects the whole image. A layer's colour multiplies its image, so set it to white to preserve the original colours. Size and progress remain unchanged when images are replaced or cleared.
 
-### Properties
-
-No editable properties are declared.
-
 ### Functions and events
 
 | Name | Kind | Parameters | Returns | Execution and metadata |
@@ -270,10 +254,6 @@ Direct metadata bases: `{ "Engine", "ControlBase" }`, `{ "Engine", "FunctionalBa
 ### Touch interaction
 
 On touch capture, a Slider sets its value from the pointer's X position against its visual bounds, then continues updating and clamping until release, even outside the hit bounds. `setTouchHitBounds` changes only the touch target, not the visual or mouse bounds.
-
-### Properties
-
-No editable properties are declared.
 
 ### Functions and events
 
@@ -308,12 +288,6 @@ Generated Views expose this native object as `.instance`. Native `requireAsset` 
 `setProperty` requires the property's runtime type. For Image `drawAs`, pass `Engine.ImageDrawAs.Image` or `Engine.ImageDrawAs.Tile`; the strings used in JSON are not accepted here. WrapBox templates form independent instance boundaries, so use the WrapBox's `get(i)` to access a repeated root instead of looking up its template name in the enclosing asset.
 
 `reflowControl(localName, logicalSize)` applies a positive `sf.Vector2u` size to a named local system control and lays out its authored descendants while preserving that control's position. It does not cross a nested asset boundary; use that child instance for its own controls. The override lasts until a parent reflow applies the authored Slot again.
-
-Direct metadata bases: —
-
-### Properties
-
-No editable properties are declared.
 
 ### Functions and events
 

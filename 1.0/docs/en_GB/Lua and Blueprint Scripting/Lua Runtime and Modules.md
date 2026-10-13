@@ -31,11 +31,11 @@ local ManagerFunctions = GlobalFunctions.Manager
 
 The native `GlobalFunctions` module exposes `Components`, `UI`, `NodeGraph` and `Manager`. Lua Blueprint function libraries under `Scripts/GlobalFunctions` are separate modules, loaded with paths such as `require("GlobalFunctions.Math")`; they are not members of the native root table. Other modules use their full dotted path. Do not add directory-level `init.lua` aggregators. Outside Blueprint function libraries, delay a `require` to resolve a real dependency cycle, or at an explicit first-use boundary such as an optional window's factory. The owning scene or feature must define that lifecycle; ordinary dependencies remain direct imports.
 
-Runtime modules under `Scripts/GlobalFunctions` do not call `require` at module scope, including for native modules. They resolve dependencies from functions on first use so Blueprint function libraries can load without cycles. Their Lua paths and exported names must not occupy the same `GlobalFunctions` paths as C++ bindings. The repository's pre-commit hook checks the staged files; every PR runs the same check through `PR Validation`.
+Runtime modules under `Scripts/GlobalFunctions` do not call `require` at module scope, including for native modules. They resolve dependencies from functions on first use so Blueprint function libraries can load without cycles. Their Lua paths and exported names must not occupy the same `GlobalFunctions` paths as C++ bindings.
 
 Static dependencies flow from the root native modules through `Scripts/Global` to `Scripts/Source`. Global modules must not require Source. `Scripts/Internal` and `Scripts/GlobalFunctions` can depend on project modules in `Source`. Generic infrastructure can resolve opaque module names supplied by data, but it must not hard-code a higher-layer business module.
 
-Shared configuration constants belong to their owning domain. Native resource suffixes are exposed through `Engine.ResourceFileConstants`; game-specific map identities and Gameplay tags live in `Source.Configs.MapConstants` and `Source.Configs.GameplayConstants`. Public enums live in the independent `Enums.*` modules described below. Host-owned implementation settings are passed down as arguments. For example, `WorldGameMap` supplies its publication budget to its streaming and region-publishing modules; those modules do not require their host.
+Native resource suffixes are exposed through `Engine.ResourceFileConstants`; game map identities and Gameplay tags live in `Source.Configs.MapConstants` and `Source.Configs.GameplayConstants`. Public enums use the independent `Enums.*` modules described below.
 
 At runtime, scripts use exactly one storage form: loose `Scripts` during development, or a root `Scripts.ldpak` in a packed release. Mixed, missing or invalid layouts fail during startup. Logical module and entry paths are identical in both forms.
 
@@ -44,8 +44,6 @@ Every Lua state exposes project modules through `package.preload` without replac
 Packed Data remains available through the same logical `Data/...` paths. `Engine.loadData` and `Engine.dataExists` resolve missing `.json` paths to binary `.ldc` alternatives; JSON platform APIs use only the exact path. This is a read-only runtime boundary, not a general archive filesystem.
 
 Each independently reusable class has its own module, and that module returns the class. A window module may contain its private Controller and export the UI through `Ui.DefineWindow`; see the [Declarative UI Authoring Workflow](<Declarative UI/Authoring Workflow.md>). Utility modules may group related helpers.
-
-When a private implementation needs separate modules, a public module can host them in a same-name directory, such as `Global/GameMap.lua` and `Global/GameMap/*.lua`. Game's Enemy and GameInstance implementation helpers instead live under `Source/Utils`. The host owns its public methods and delegates to the implementation. Implementation modules must not require or extend the host. A helper with its own mirrored `.d.lua` declaration remains an independent module.
 
 Access private members only through `self` or same-instance `super(..., self)` dispatch. For other objects, including chained and dynamic access, use public getters, commands or data.
 
@@ -65,7 +63,7 @@ local StairDirection = {
 return StairDirection
 ```
 
-Runtime callers load the enum directly, for example `local StairDirection = require("Enums.StairDirection")`, then use `StairDirection.Up`. Normal Lua module caching applies at runtime. Blueprint metadata references the module with `type = { enum = "Enums.StairDirection" }`; the editor rereads the file whenever the value editor is viewed or its selector is opened, shows the keys, and stores their actual values. See [Metadata Schema and Decorators](<Blueprint Scripting/Metadata Schema and Decorators.md>) for schema composition and validation.
+Load an enum directly, for example `local StairDirection = require("Enums.StairDirection")`, then use `StairDirection.Up`. Blueprint metadata references it with `type = { enum = "Enums.StairDirection" }`; see [Metadata Schema and Decorators](<Blueprint Scripting/Metadata Schema and Decorators.md>) for the full rules.
 
 | Game enum module | Values or purpose |
 |---|---|
@@ -80,7 +78,7 @@ Runtime callers load the enum directly, for example `local StairDirection = requ
 | `Enums.PlayerChangeKind` | `Inventory`, `Name`, `Map` payload kinds |
 | `Enums.MovementLatentOutput` | `STARTED = 0`, `FINISHED = 1` execution output indices |
 
-Native builds generate `Enums.Engine.*`, `Enums.GlobalCore.*`, `Enums.GlobalFunctions.*` and `Enums.sf.*`. Project data saves generate `Enums.GeneralDataKey`, one `Enums.GeneralData.<TypeName>` module per data type, `Enums.Animation` and `Enums.Particle`. The editor resolves these string enums from the current project catalog before saving, including unsaved changes; runtime `require` reads the generated source modules. These generated modules retain their owning native declarations or database records as the source of truth; edit those sources and regenerate.
+Native builds generate `Enums.Engine.*`, `Enums.GlobalCore.*`, `Enums.GlobalFunctions.*` and `Enums.sf.*`. Project data saves generate `Enums.GeneralDataKey`, one `Enums.GeneralData.<TypeName>` module per data type, `Enums.Animation` and `Enums.Particle`. The editor resolves these string enums from the current project catalogue before saving, including unsaved changes; runtime `require` reads the generated source modules. These generated modules retain their owning native declarations or database records as the source of truth; edit those sources and regenerate.
 
 ## Native modules and values
 
@@ -98,9 +96,7 @@ The main thread and coroutines in one Lua VM share a native session. Captured ca
 
 ## Live Debug
 
-The default Game runtime installs `Internal.LiveDebug` only when the editor launches the game with Live Debug enabled: both `LUDORK_EDITOR` and `LUDORK_LIVE_DEBUG` must equal `1`. It registers through `Engine.EditorLiveDebug` and binds to the active `SceneMap`. Requests identify Actors by instance ID rather than map tag, so runtime-spawned Actors are included. The handler does not write project data or replay edits onto rebuilt instances.
-
-Project scripts should not replace this handler during normal play. See [Live Debug](<../Editor User Guide/Run Debug and Package.md#live-debug>) for the editor contract and [EditorLiveDebug](<Global and Core Modules/Core Modules/Engine/Events and Module Root.md#editorlivedebug>) for the native entry points.
+Live Debug lets you change Actor state in an editor-launched game, including Actors created at runtime. Changes are not saved to project data or reapplied when instances are rebuilt. See [Live Debug](<../Editor User Guide/Run Debug and Package.md#live-debug>) for the controls.
 
 ## Lua hot reload
 
@@ -132,7 +128,7 @@ A requireable declaration uses `---@meta` with its module path; for example, `Gl
 
 The EmmyLua workspace keeps `Scripts/stub` as its module root and library. In `.emmyrc.json`, `workspace.moduleMap` maps `^Scripts[.]Enums[.](.*)$` to `Enums.$1`, allowing enum imports to resolve to their annotated sources while other public imports retain their stub declarations. Enum sources do not use `---@meta`.
 
-Templates retain declarations except the generated UI declarations, which Export recreates in each project. Packaging removes `Scripts/stub`, Lua compilation ignores `.d.lua`, and shipped packages must contain no declaration files.
+See [Project Templates](<../Getting Started/Project Templates.md>) for which declarations templates and game packages include.
 
 Standalone and C++ Source templates include a Windows VS Code configuration named `Ludork: EmmyLua Attach (Windows)` that attaches the `tangzx.emmylua` `emmylua_attach` debugger to a running `Main.exe`. C++ Source templates also keep the native `cppvsdbg` and `lldb` launch and attach configurations. The EmmyLua attach debugger supports Windows only.
 

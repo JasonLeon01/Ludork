@@ -1,18 +1,8 @@
 # New Game, Title and Scene Flow
 
-The default entry creates `Source.Scenes.SceneInit` and then hands control to the native System loop. SceneInit prepares shared data and advances to the title flow. Its logic tick performs loading and transition checks. Its render-thread late tick publishes progress to the declarative UI, which prevents the logic thread from mutating GPU-backed controls. The title scene creates the command window for Start Game, Continue, Config and Exit Game. Save/Load and Config are created on first use and reused until the title scene is destroyed.
+The default entry creates `Source.Scenes.SceneInit` and then hands control to the native System loop. SceneInit prepares shared data and advances to the title flow. Loading progress appears in the initialisation screen. The title scene creates the command window for Start Game, Continue, Config and Exit Game. Save/Load and Config are created on first use and reused until the title scene is destroyed.
 
 Scene changes use `GlobalCore.SceneManager`; freezing and transition requests use `GlobalCore.Transition`. Screen flash, shake and tone use `GlobalCore.ScreenEffects`.
-
-## Goal
-
-Adapt the Game project title flow while preserving deterministic project initialisation, explicit save handling and safe scene transitions.
-
-## Prerequisites
-
-- A known initial map and player definition for the New Game path.
-
-## Steps
 
 ### Configure New Game
 
@@ -30,21 +20,13 @@ For a world, `Scene:getGameMap()` and `Actor:getMap()` expose one world-coordina
 
 The facade's `mapName` comes from the required `worldName` in `_world.json`, so UI such as the player HUD identifies the complete world rather than an individual streamed child. Child map JSON retains its own `mapName` for standalone use, but the HUD does not display that name while the child belongs to a loaded world.
 
-World placements are indexed natively. Installing, rebuilding or evicting a child updates the index. Actor publication and Tile-chunk readiness gate gameplay access. Navigation and material queries neither call Lua per cell nor load absent children.
-
 On entry, the runtime revalidates the flat world directory, the exact `_world.json`, the required world name, direct JSON child files, placements and layer order. Unrelated non-JSON regular files are ignored, and invalid data fails.
 
 Children progress through `Unloaded`, `Reading`, `Prepared`, `Active` and `Dormant`. Streaming prioritises the Camera neighbourhood and cancels obsolete reads. Only Active Actors simulate. Until every visible placement and Tile chunk is ready, the Camera retains its last complete frame, and colliding movement cannot enter the unprepared area.
 
-Streaming uses the continuous world-space bounds of all four Camera corners, including rotation. Active bounds extend one screen in every direction; Prepared bounds extend two screens, plus one extra screen along each movement axis. Bounds are rounded outward to cells and clipped to the world only after expansion, so fractional Camera movement does not change the screen size used for streaming.
-
-Active Actors outside the Camera's conservative world-space bounds continue to simulate but are omitted from the colour and lighting-surface render passes. Region-layer visibility is still applied before this viewport test. World scenes keep the ordinary automatic Lua garbage collector active. Streaming releases region references through its normal lifecycle, rather than stopping the global collector and advancing it with one manual step per tick.
+Active Actors outside the Camera view continue to simulate without rendering.
 
 With transitions enabled, world entry freezes the outgoing frame until the target viewport and the required Actors, lights and Tile chunks are ready. Required-data failures propagate before release. `blockTransition = true` skips the mask but keeps this readiness barrier. The surrounding preparation remains asynchronous.
-
-Non-Active payloads use a 32-region or estimated 256-MiB LRU. Dormant regions are evicted before Prepared ones. Active regions and pending destinations are pinned and may temporarily exceed the soft limit.
-
-The Performance Monitor exposes streaming state and logs one warning per world session when an asynchronous publish tick reaches 4 ms, including its slowest measured stage. See [Start Page, Workspace and Shortcuts](<../../Editor User Guide/Start Page Workspace and Shortcuts.md>).
 
 `RegionDict` remains floor-transfer data and does not define world composition or streaming.
 
@@ -60,7 +42,7 @@ Use the System and scene APIs documented in the API reference. The C++ runtime s
 
 ### Customise the title
 
-Edit the Lua scene and window composition and the corresponding data. Keep all text identifiers compatible with [Game Localisation Workflow](<../../Plug-in Development and Installation/Official Plug-ins/Game Localisation Workflow.md>). Test Start Game, Continue with and without a save, Config, Exit Game, and the return to the title screen from a running map.
+Edit the Lua scene and window composition and the corresponding data. Keep all text identifiers compatible with [Game Localisation Workflow](<../../Plug-in Development and Installation/Official Plug-ins/Game Localisation Workflow.md>).
 
 ## Limitations
 

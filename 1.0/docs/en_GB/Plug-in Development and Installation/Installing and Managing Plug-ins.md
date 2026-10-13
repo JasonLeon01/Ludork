@@ -1,18 +1,12 @@
 # Installing and Managing Plug-ins
 
-## Goal
-
-Create a source plug-in or import one for all projects or the current project. Inspect, update and uninstall plug-ins while keeping their program files separate from retained writable data.
-
-## Prerequisites
-
-- A copy of any plug-in data that must be preserved independently.
+Create, import, update or uninstall source plug-ins for all projects or the current project.
 
 Editor plug-ins are trusted code. They run with the permissions of the editor process and are not sandboxed. Import only directories whose source is trusted.
 
 The plug-in owns its source, windows, labels, settings, retained data and third-party notices. The host owns registration, life cycle, command contexts, the restricted map, Blueprint and resource-cleanup bridges, and operation sequencing.
 
-The API exposes six registration methods: ordinary menu commands, map-item context-menu commands, text hint providers, before-Export hooks, before-Run hooks and before-Pack hooks. Docked panels, toolbars, arbitrary host controls, data types and general editor events have no public registration. Runtime extension belongs in native C++ development, not in editor plug-ins. See [Build and Module Layout](<../Native C++ Development/Build and Module Layout.md>).
+Plug-ins can add commands, text hints and operation hooks through the [public registration API](<Registration and Hook Reference.md>). To extend the game runtime, use [native C++](<../Native C++ Development/Build and Module Layout.md>).
 
 ## Create a plug-in
 
@@ -36,13 +30,13 @@ Both templates leave `Register` empty. **With a Window** adds an empty Avalonia 
 
 *Select the directory containing `plugin.json`, not an individual source file or build output.*
 
-The editor validates the directory and its manifest, creates a safe staging copy below the managed plug-in root, compiles that copy dynamically with Roslyn, and validates the entry type. The copy moves into place and is registered for the next restart only after those checks succeed. The selected directory name is preserved. Compilation failures, duplicate IDs within the effective global-plus-project set and an existing target directory are rejected. `__ProjectPlugins` is reserved for host management and cannot be imported as an ordinary plug-in directory.
+The imported directory keeps its name. Invalid manifests, compilation failures, duplicate IDs within the effective global-plus-project set and existing target directories prevent installation. `__ProjectPlugins` is reserved for project plug-in storage and cannot be imported as an ordinary plug-in directory.
 
 The directory must contain `plugin.json` and at least one participating `.cs` source file. Inaccessible paths, links (including broken links), reparse points, embedded `.data`, host-shared DLLs, F# or VB projects, and loose Avalonia XAML source are rejected before installation. A C# project file may remain for IDE use, but the plug-in compiler does not execute it. Sources below `bin`, `obj`, `.git` and `.vs` are ignored.
 
 ## Global and project storage
 
-An editor build produced in a repository checkout carries an explicit development marker and uses `./Plugins` as its plug-in root and `./plugins.json` as its registry. A published Windows editor derives its root from the installation directory that contains the `Ludork.exe` launcher. Its plug-in source is below `<installation-root>/Plugins`, and `<installation-root>/plugins.json` is its registry. The editor itself and its dependencies are under `Binaries`. Starting the editor directly still uses the same installation root. A published macOS editor uses `~/Ludork/Plugins`, with its registry at `~/Ludork/plugins.json`. Published outputs omit the development marker even when the publish directory is inside a checkout. Windows does not fall back to, or merge with, `~/Ludork`.
+A development editor in a repository checkout uses `./Plugins` and `./plugins.json`. A published Windows editor uses `Plugins` and `plugins.json` beside the root `Ludork.exe` launcher, including when the editor in `Binaries` is started directly. A published macOS editor uses `~/Ludork/Plugins` and `~/Ludork/plugins.json`.
 
 The Windows installation root must remain writable, because `Ludork.ini`, registry updates and `Plugins/.data` are stored there. The per-user MSI location below `%LocalAppData%\Ludork` satisfies this requirement. A portable copy on read-only media does not support plug-in management or writable plug-in data.
 
@@ -57,7 +51,7 @@ Plugins/__ProjectPlugins/<project-key>/
     └── Plugin.cs
 ```
 
-`<project-key>` is `<safe-project-name>-<path-hash>`: the project directory name is made safe and limited to 48 characters; the hash is the first 16 lowercase hexadecimal digits of the SHA-256 of its normalised absolute path. Windows normalises the path to uppercase before hashing. Projects with the same name at different paths remain independent. Newly created plug-in directories use the plug-in ID; imported directories retain their original name.
+`<project-key>` identifies a project by its absolute path, so projects with the same directory name at different paths remain independent. Newly created plug-in directories use the plug-in ID; imported directories retain their original name.
 
 Each project scope has its own registry and data. The manager groups **Global Plugins** and **Current Project Plugins** separately, including their status and diagnostics. Project plug-ins apply only to that project's menus, map context menus, text hints and operation hooks. Moving or renaming a project directory creates a new scope: import its plug-ins into the new scope to use them again. There is no automatic migration.
 
@@ -95,5 +89,5 @@ Source compilation can reference the .NET runtime, `Ludork.Plugin.Abstractions`,
 
 - [Manifest and Minimal Plug-in](<Manifest and Minimal Plug-in.md>)
 - [Registration and Hook Reference](<Registration and Hook Reference.md>)
-- [Testing and Distribution](<Testing and Distribution.md>)
+- [Distribution](<Distribution.md>)
 - [Official Resource Cleanup](<Official Plug-ins/Resource Cleanup.md>)

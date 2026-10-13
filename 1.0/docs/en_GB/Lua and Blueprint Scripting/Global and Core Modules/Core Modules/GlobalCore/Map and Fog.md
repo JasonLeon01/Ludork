@@ -2,12 +2,6 @@
 
 ## FogController
 
-Direct metadata bases: —
-
-### Properties
-
-No editable properties are declared.
-
 ### Functions and events
 
 | Name | Kind | Parameters | Returns | Execution and metadata |
@@ -21,12 +15,6 @@ No editable properties are declared.
 
 ## PanoramaController
 
-Direct metadata bases: —
-
-### Properties
-
-No editable properties are declared.
-
 ### Functions and events
 
 | Name | Kind | Parameters | Returns | Execution and metadata |
@@ -39,8 +27,6 @@ No editable properties are declared.
 
 ## PathResult
 
-Direct metadata bases: —
-
 ### Properties
 
 | Name | Type | Default | Metadata |
@@ -49,17 +35,7 @@ Direct metadata bases: —
 | `points` | `sf.Vector2i[]` | — | — |
 | `route` | `sf.Vector2i[]` | — | — |
 
-### Functions and events
-
-No Blueprint functions or events are declared.
-
 ## GameMapBase
-
-Direct metadata bases: —
-
-### Properties
-
-No editable properties are declared.
 
 ### Functions and events
 

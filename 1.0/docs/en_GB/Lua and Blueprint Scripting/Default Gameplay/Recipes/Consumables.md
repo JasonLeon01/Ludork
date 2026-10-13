@@ -17,11 +17,8 @@ Use a Script Mixin when the item's behaviour is naturally expressed as an Actor 
 2. Attach `Consumables/Bottle.lua` or `Consumables/Gem.lua`.
 3. Set `HP_plus` for a healing bottle, or `ATTR_key` and `plus` for a gem.
 4. Select a sound, or leave the value empty to use the Audio configuration fallback.
-5. Place the Blueprint on a map and test collision with and without a player.
 
 The Bottle script applies an Instant Add Effect to `HP`. The Gem script applies an Instant Add Effect to an `int` or `float` Player attribute selected by `ATTR_key`. The shared pickup flow finds the Player, records the pickup as destroyed and then destroys it.
-
-For each recipe, test a successful path, an unmet-condition path and repeated activation.
 
 ## Game walkthrough
 

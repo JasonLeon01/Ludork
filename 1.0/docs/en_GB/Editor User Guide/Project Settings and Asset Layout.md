@@ -1,6 +1,6 @@
 # Project Settings and Asset Layout
 
-A project combines editor and packaging capabilities in `Main.proj`, game-facing runtime settings in `Main.ini`, file resources under `Assets`, authored data under `Data` and runtime code under `Scripts`. C++ Source templates keep `CMakeLists.txt` at the project root and place the game host under `Application/include/` and `Application/src/`. `Engine/` groups `Runtime/`, `Standard/`, `Source/{Core,Global,GlobalFunctions,Media}/` and `UiPreviewHost/`, together with third-party dependencies in `ThirdParty/`, platform hosts in `PlatformHosts/` and build support in `cmake/`. FFmpeg source archives reside in the top-level `ThirdPartySource/`. Standalone templates contain resources, licences and the packaged runtime. See [Build and Module Layout](<../Native C++ Development/Build and Module Layout.md>).
+A project stores editor and packaging settings in `Main.proj`, runtime settings in `Main.ini`, resources in `Assets`, authored data in `Data` and runtime code in `Scripts`. C++ Source projects also include the native sources described in [Build and Module Layout](<../Native C++ Development/Build and Module Layout.md>).
 
 ## Main.proj
 
@@ -20,9 +20,7 @@ A project combines editor and packaging capabilities in `Main.proj`, game-facing
 }
 ```
 
-The required top-level `version` is the project's engine compatibility version, in `v<major>.<minor>` form. Templates and New Project derive it from the editor's base version without the patch component: editor `1.0.7` creates `"v1.0"`. The build configuration `GAME_VERSIONS` in `versions.conf` declares the exact versions the editor can open; its current value is `["v1.0"]`, and the editor's current project version must be included. This list is embedded during the editor build.
-
-The editor rejects a project whose `version` is missing, malformed or absent from that list before loading project plug-ins or creating a session. Opening an allowed older version does not rewrite its version or migrate its content. New Project creates only the current version, even when the supported list includes older versions.
+The required top-level `version` is the engine compatibility version, written as `v<major>.<minor>`. For example, editor `1.0.7` creates `"v1.0"` projects. This edition supports `v1.0`. A missing, malformed or unsupported version prevents the project from opening. Opening a supported older project does not migrate its contents or change its version.
 
 `packaging.version` independently stores the **game's** base release version, and `packaging.dev` selects internal test packages. Missing packaging values default to `"1.0.0"` and `false`; these defaults do not apply to the required top-level project version. Use Pack Options to save packaging settings, or override them for one command-line invocation; see [Release version and internal packages](<Run Debug and Package.md#release-version-and-internal-packages>).
 
@@ -36,15 +34,15 @@ Editor appearance and tool preferences are shared through `Ludork.ini`, independ
 
 ## Main.ini
 
-`Main.ini` stores game-facing settings. Open **Game → Game Config** (`F3`) to edit them. The dialog presents fourteen rows in this order: script (read-only), language, scale, render limit, lighting render scale, frame rate, antialiasing level, vertical sync, music enabled, sound enabled, voice enabled, music volume, sound volume and voice volume.
+Open **Game → Game Config** (`F3`) to edit the game’s language, display and audio settings in `Main.ini`. The entry script is shown read-only.
 
 The language list uses the exported `Scripts/Source/Locale/*.lua` files, excluding `Core.lua`, and refreshes whenever Game Config opens. The current configured language remains available even if its export is missing. Export workbook changes before selecting a newly added language.
 
-**Confirm** writes `Main.ini` atomically, and only when a value differs from the stored configuration, so an unchanged confirmation writes nothing. The current configuration is updated only after the write succeeds. Write failures keep the dialog open with an error, and **Cancel** writes nothing. Game Config is excluded from document Undo and unsaved state.
+**Confirm** saves immediately; **Cancel** keeps the previous values. A failed write leaves the dialog open with an error. These settings are outside document Undo and unsaved changes.
 
 ![Game Config with display and audio settings](../../../images/editor/game-config.png)
 
-*Check the entry script, language and display settings before adjusting the three audio channels.*
+*Game Config contains the language, display and audio settings.*
 
 Game Config always shows Scale in the editor. The in-game Config window shows that row only when `Display.isDisplayScaleConfigurable()` reports that the host supports display scaling.
 
@@ -54,7 +52,7 @@ Editor runs use the project copy of `Main.ini`. A packaged Windows desktop game 
 
 Open **Database → System Config** (`F4`) to edit the configuration files under `Data/Configs`. The left-hand list shows each configuration by its relative key; selecting an entry such as **Audio** or **System** displays only that configuration's fields on the right.
 
-Discovery follows the existing rules: recursively read `*.json` files under `Data/Configs`, ordered by path, and use extensionless relative paths as keys. JSON objects with `type: "system"` or no `type` are accepted; other types, malformed JSON and animation-cache files do not become configuration entries. File-picker roots and extension filters still come from each field's existing `root`, `base` and `ext` settings.
+Configuration files use JSON objects with `type: "system"` or no `type`. Their keys are paths relative to `Data/Configs`, without the extension.
 
 Switching configurations keeps pending edits and does not save automatically. An asterisk in the list and window title marks changes. Use Ctrl+S on Windows or Command+S on macOS for global Save; Undo/Redo applies to the configuration selected in the list.
 
@@ -80,17 +78,11 @@ Moving an asset does not automatically repair every stored reference. Open its r
 
 `Data` contains JSON authored by the editor, and `Data/Locale/Locale.xlsx` is the localisation workbook managed by Official Locale Tools. Declarative UI assets live under `Data/UI/Assets`, while `Data/TextConfigs` holds shared or specialised text styles. Ordinary UI text styles are stored on their UI nodes.
 
-`Scripts` contains runtime Lua, generated Core metadata and LuaLS declarations. `Scripts/Global` holds shared runtime modules such as `GameMap` and `Pool`; `Scripts/GlobalFunctions` holds independent Blueprint function libraries; `Scripts/Source` holds gameplay classes and business controllers; and `Scripts/Internal` holds UI foundations and editor runtime support. Generated language modules live under `Scripts/Source/Locale`. `Scripts/Internal/UI` and its mirrored stubs are generated from UI JSON. UI file ownership is described in [Declarative UI Authoring Workflow](<../Lua and Blueprint Scripting/Declarative UI/Authoring Workflow.md>), and file-layer ownership (`.lua`, `stub/**/*.d.lua`, `_meta.lua`) is in [Lua Runtime and Modules](<../Lua and Blueprint Scripting/Lua Runtime and Modules.md>).
-
-`Scripts/Source` contains `Configs/`, `Locale/`, `Windows/`, `Scenes/`, `SceneComponents/`, `Components/`, `Data/`, `Gameplay/`, `MapActors/` and `Utils/`.
-
-Public enum modules live under `Scripts/Enums`, with one scalar table and its EmmyLua annotations per source module, without mirrored enum stubs. Native builds own the `Engine`, `GlobalCore`, `GlobalFunctions` and `sf` subdirectories. Handwritten project enums, such as `Enums.StairDirection`, keep their own source modules.
-
-The Game Variable Manager owns `Scripts/Source/Configs/GameVariables.lua` and `GameVariables_meta.lua`. Project data saves own `Scripts/Enums/GeneralDataKey.lua`, `Scripts/Enums/GeneralData/<TypeName>.lua`, `Scripts/Enums/Animation.lua`, `Scripts/Enums/Particle.lua`, `Scripts/Source/Configs/GeneralDataTypes.lua` and the mirrored declaration for `GeneralDataTypes`. Generated enum sources carry their own `---@enum` annotations. Do not edit generated outputs by hand. Their regeneration is described in [General Data and Text Config](<General Data and Text Config.md>).
+`Scripts` contains runtime Lua, metadata and declarations. See [Lua Runtime and Modules](<../Lua and Blueprint Scripting/Lua Runtime and Modules.md>) for module locations and ownership, and [Declarative UI Authoring Workflow](<../Lua and Blueprint Scripting/Declarative UI/Authoring Workflow.md>) for UI assets and generated Views. [General Data and Text Config](<General Data and Text Config.md>) describes the files generated when saving project data.
 
 Do not edit `Engine_meta.lua`, `GlobalCore_meta.lua`, `GlobalFunctions_meta.lua` or generated Core/LuaSF declarations by hand. Packaging removes `Scripts/stub` and rejects any misplaced `.d.lua`.
 
-Projects keep loose `Data` and `Scripts` while authoring. The `.ldpak` option changes only staging: the complete Data tree becomes root `Data.ldpak`, and the pruned runtime scripts become root `Scripts.ldpak`. Development declarations are never included. See [Run, Debug and Package](<Run Debug and Package.md>) for the validation rules.
+Keep `Data` and `Scripts` as loose directories while authoring. See [Run, Debug and Package](<Run Debug and Package.md#loose-and-packed-output>) for `.ldpak` output.
 
 ### Map and world-map assets
 
@@ -126,7 +118,7 @@ The manifest has this closed editor-owned shape:
 
 ## Limitations
 
-Map rename and move handling rewrites only recognised structured map references. These are Config settings whose `type` starts with `file` and whose selection root is exactly `root = Data`, `base = Maps`, plus `params[0]` on graph nodes whose `nodeFunction` ends in `.GotoMap` or `.RecordTelepoint`. Other string-based runtime references are not inferred or rewritten.
+Map renames and moves update recognised map-file settings and destinations in `GotoMap` and `RecordTelepoint` graph nodes. Arbitrary strings and dynamically constructed paths must be updated manually.
 
 ## Related pages
 

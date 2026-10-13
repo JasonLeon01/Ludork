@@ -2,12 +2,6 @@
 
 ## Clock
 
-Direct metadata bases: —
-
-### Properties
-
-No editable properties are declared.
-
 ### Functions and events
 
 | Name | Kind | Parameters | Returns | Execution and metadata |
@@ -16,12 +10,6 @@ No editable properties are declared.
 | `v_restart` | `function` | self: { "Engine", "Clock" } = "self" | return: float | — |
 
 ## RenderStates
-
-Direct metadata bases: —
-
-### Properties
-
-No editable properties are declared.
 
 ### Functions and events
 
@@ -51,8 +39,6 @@ Direct metadata bases: `{ "Engine", "ParticleBase" }`
 
 ## ParticleInfo
 
-Direct metadata bases: —
-
 ### Properties
 
 | Name | Type | Default | Metadata |
@@ -62,17 +48,7 @@ Direct metadata bases: —
 | `rotation` | `sf.Angle` | — | — |
 | `scale` | `sf.Vector2f` | — | — |
 
-### Functions and events
-
-No Blueprint functions or events are declared.
-
 ## ParticleBase
-
-Direct metadata bases: —
-
-### Properties
-
-No editable properties are declared.
 
 ### Functions and events
 
@@ -85,12 +61,6 @@ No editable properties are declared.
 | `getParent` | `function` | self: { "Engine", "ParticleBase" } = "self" | return: { "Engine", "ParticleSystem" } | — |
 
 ## ParticleSystem
-
-Direct metadata bases: —
-
-### Properties
-
-No editable properties are declared.
 
 ### Functions and events
 
@@ -117,10 +87,6 @@ For particles inside a UI, use [Canvas.getParticleSystem](<Runtime Values and Fu
 Direct metadata bases: `{ "Engine", "ParticleBase" }`
 
 `TextParticle.new(parent, moveFunction, countTime, text, config, logicalCoordinates = false)` calls `moveFunction(deltaTime, countTime, particle)` with an `Engine.TextParticle`. The callback can update its text/transform and pass it to `parent:removeText(particle)` even after the original Lua wrapper has been garbage-collected, while the particle system still owns the particle.
-
-### Properties
-
-No editable properties are declared.
 
 ### Functions and events
 
@@ -170,7 +136,7 @@ The native host API is `tick(float deltaTime)`, `draw(sf::RenderTarget&, sf::Ren
 
 ## EmitterConfiguration
 
-`Engine.EmitterConfiguration` describes a copyable configuration record, omitted from Blueprint metadata. C++ uses the struct; Lua getters produce ordinary field tables with this declared shape. A constructed native value or a Lua table initialized through its declared properties can be passed to `setConfiguration`.
+`Engine.EmitterConfiguration` describes a copyable configuration record, omitted from Blueprint metadata. C++ uses the struct; Lua getters produce ordinary field tables with this declared shape. A constructed native value or a Lua table initialised through its declared properties can be passed to `setConfiguration`.
 
 | Property | Type | Default and contract |
 |---|---|---|
@@ -198,11 +164,11 @@ There is no `type` property on this structure. The `"type": "particle"` marker b
 | `bursts` array | `Engine.EmitterBurst[]` |
 | Inline curves or curve resource keys | Resolved `Engine.EmitterCurves` with eight `Engine.CurveData` values. |
 
-Typed defaults are `resident = world = additive = false`, `shape = scaleMode = 0` and `count = 32`. Lowering `capacity` below 32 requires setting a valid `count` explicitly. The JSON loader separately defaults an omitted `count` to `min(32, capacity)`. Validation occurs when applying the complete configuration; numeric ranges must be finite and ordered, colours normalized, and enum integers within their supported ranges.
+Typed defaults are `resident = world = additive = false`, `shape = scaleMode = 0` and `count = 32`. Lowering `capacity` below 32 requires setting a valid `count` explicitly. The JSON loader separately defaults an omitted `count` to `min(32, capacity)`. Validation occurs when applying the complete configuration; numeric ranges must be finite and ordered, colours normalised, and enum integers within their supported ranges.
 
 ## EmitterCurves
 
-`Engine.EmitterCurves` has eight named properties: `speed`, `sizeX`, `sizeY`, `rotation`, `red`, `green`, `blue` and `alpha`. Every property is `Engine.CurveData` (`Curve::CurveData` in C++). The seven multiplier channels default to a constant 1; rotation defaults to a constant 0 and adds degrees. Curve key times use normalized lifetime `[0,1]`. `setConfiguration` validates the curves and bakes their GPU lookup samples before restarting; the backend receives the samples rather than Core curve objects or a dictionary.
+`Engine.EmitterCurves` has eight named properties: `speed`, `sizeX`, `sizeY`, `rotation`, `red`, `green`, `blue` and `alpha`. Every property is `Engine.CurveData` (`Curve::CurveData` in C++). The seven multiplier channels default to a constant 1; rotation defaults to a constant 0 and adds degrees. Curve key times use normalised lifetime `[0,1]`. `setConfiguration` applies valid curves and restarts playback.
 
 ## EmitterBurst
 
@@ -222,7 +188,7 @@ Typed defaults are `resident = world = additive = false`, `shape = scaleMode = 0
 | `gpuSimulationMs`, `gpuDrawMs` | `std::optional<double>` / number or `nil` | Latest available asynchronous GPU timings, in milliseconds. |
 | `simulationSample`, `drawSample` | `std::optional<std::int64_t>` / integer or `nil` | Timing sample identifiers; deduplicate each channel and pair equal identifiers when adding simulation and drawing time. |
 
-An unavailable renderer, count or timing result stays `nil`; it is not filled with an empty string or zero. Repeated polling may return the same completed sample. The editor's JSON message boundary omits unavailable optional values while retaining its existing protocol.
+An unavailable renderer, count or timing result stays `nil`; it is not filled with an empty string or zero. Repeated polling may return the same completed sample.
 
 ## EmitterComponent
 
@@ -230,7 +196,7 @@ For editor configuration, see [Emitter Component](<../../../../Editor User Guide
 
 Blueprint instance-method nodes expose `self: Engine.EmitterComponent`; leaving it unset selects the graph owner.
 
-`Engine.EmitterComponent` derives from `Component` and occupies `Actor.emitterComp`. It follows the existing Component attachment protocol and accepts only an Actor owner. `getEmitter()` lazily returns its `Engine.Emitter`; replacing or clearing `resource` releases the previous instance. Runtime particle state is not serialized.
+`Engine.EmitterComponent` derives from `Component` and occupies `Actor.emitterComp`. It follows the existing Component attachment protocol and accepts only an Actor owner. `getEmitter()` lazily returns its `Engine.Emitter`; replacing or clearing `resource` releases the previous instance. Runtime particle state is not serialised.
 
 Replacing `actor.emitterComp` or assigning `nil` immediately clears the previous component's playback, even if the Actor is dormant and another object still holds the old component or emitter. Normal map spawning invokes `onAttach(actor)` through the Component protocol. A component installed after spawning must also be attached through that protocol before it participates in Scene playback.
 

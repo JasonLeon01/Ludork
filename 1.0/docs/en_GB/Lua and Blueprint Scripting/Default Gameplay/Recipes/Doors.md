@@ -33,8 +33,6 @@ The key ID must match an Item member and its pickup Blueprint, such as `KEY_Y` a
 
 `openConditionName` uses a numeric-only `InstVar` selector, so it lists `int` and `float` declarations from the Game Variable Manager. `openConditionVal` uses `InstVarValue`, so it adopts the numeric editor of the selected declaration. The Game project's generated declarations include `MTExample = 0` for this workflow.
 
-Test the door with no key, with one key and with repeated collision while it opens. Also test a missing or renamed key, numeric selector filtering, a condition below, equal to and above the threshold, saved variable restoration and map reload. Open multiple placed doors, revisit the map, then save and load. Confirm that each door remains absent independently. Inspect references before renaming IDs.
-
 ## Limitations
 
 Door logic does not perform scene travel. Use Teleporter for map-to-map movement. Update every stored reference when a key or condition identifier is renamed.

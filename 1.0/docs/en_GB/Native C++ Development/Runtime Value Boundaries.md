@@ -18,7 +18,7 @@ Use `RuntimeValue` for open script boundaries such as event payloads, Blueprint 
 
 `<Runtime/TypeSchema.hpp>` defines the recursive native type description. `TypedDataService::compileType` parses a script description; the typed overloads of `resolveTypedDataValue` and `resolveRuntimeTypedValue` reuse that result. A compiled `NodeDefinition` holds ordered parameter descriptions shared by its DataNode, template and instances. Each parameter compiles its schema at its first required validation. Public calls receiving mutable type tables still parse the supplied description on each call.
 
-Blueprint event descriptors, generated-class initialization plans and component field mappings use native records. Native graph services pass `std::shared_ptr<Graph>`. Fixed Actor events retain their typed arguments until event dispatch needs script values. Open graph pins, defaults, multiple returns, shared local contexts and user fields retain their dynamic value semantics.
+Blueprint event descriptors, generated-class initialisation plans and component field mappings use native records. Native graph services pass `std::shared_ptr<Graph>`. Fixed Actor events retain their typed arguments until event dispatch needs script values. Open graph pins, defaults, multiple returns, shared local contexts and user fields retain their dynamic value semantics.
 
 Native component copies reconstruct record values from their declared types before validation; caller-supplied component writes remain strictly validated.
 

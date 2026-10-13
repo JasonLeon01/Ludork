@@ -6,12 +6,6 @@ Metadata source: `Scripts/GlobalFunctions/Save_meta.lua`
 
 ## Save
 
-Direct metadata bases: —
-
-### Properties
-
-No editable properties are declared.
-
 ### Functions and events
 
 | Name | Kind | Parameters | Returns | Execution and metadata |

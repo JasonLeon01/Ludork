@@ -1,6 +1,6 @@
 # Official Plug-ins Overview
 
-The official plug-ins are the four C# plug-ins distributed with the Ludork editor: Official Locale Tools, Official Random Map, Official Blueprint AI and Official Resource Cleanup. Locale Tools and Random Map are documented as reference implementations — the first for an ordinary menu command, a text hint provider and Export and before-Pack hooks, the second for a map-item command with its own Avalonia window — while Blueprint AI and Resource Cleanup show the narrow host bridges the editor exposes for those features. They reach the editor through the release installation rather than through the third-party import path, so a release installation does not show the trust confirmation for them.
+Ludork includes four official C# plug-ins: Official Locale Tools, Official Random Map, Official Blueprint AI and Official Resource Cleanup. Their source is also available as examples of the public plug-in API.
 
 ## The official plug-ins
 
@@ -15,13 +15,9 @@ The Windows distribution installs all four below the installation root's `Plugin
 
 [Game Localisation Workflow](<Game Localisation Workflow.md>) is the fifth page in this group. It is not a separate plug-in but the authoring task page for Official Locale Tools, covering the workbook, Export and the runtime resolution of `{ID}` strings.
 
-## Checking what is installed
+## Installation and management
 
-**Plugins → Manage Plugins** reports the Loaded, manifest-invalid, compile-failed, initialisation-failed and pending restart or deletion states with their diagnostics, and **Loaded** is the effective enabled state because there is no hot enable or disable switch. Plug-in source is compiled again at every startup and is never hot-loaded, so an import, an uninstall or a direct source edit needs a restart. See [Restart and status](<../Installing and Managing Plug-ins.md#restart-and-status>).
-
-## Trust and installation caveats
-
-Editor plug-ins are trusted code: they run with the permissions of the editor process and are not sandboxed, so only directories whose source is trusted should be imported. A release installation skips the third-party trust confirmation for the official plug-ins, and the macOS app and its installer remain unsigned and unnotarised. Ludork provides no plug-in marketplace, signature authority or dependency resolver, so distribution trust stays the publisher's responsibility. Read [Import a third-party plug-in](<../Installing and Managing Plug-ins.md#import-a-third-party-plug-in>) and [Testing and Distribution](<../Testing and Distribution.md#limitations>) before adding anything to the plug-in root.
+See [Installing and Managing Plug-ins](<../Installing and Managing Plug-ins.md>) for release installation, restart requirements, status and retained data. On macOS, **Install Official Plugins** replaces the existing plug-in installation, including its data; read the replacement notice before continuing.
 
 ## Related pages
 

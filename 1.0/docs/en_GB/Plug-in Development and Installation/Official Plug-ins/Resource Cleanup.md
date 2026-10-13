@@ -1,7 +1,5 @@
 # Official Resource Cleanup
 
-## Goal
-
 Review project resources for which no static reference can be found, protect resources loaded through dynamic paths, and move confirmed candidates to the operating-system Recycle Bin or Trash.
 
 ## Prerequisites

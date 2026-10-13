@@ -2,18 +2,12 @@
 
 ## AnimationPlayingSound
 
-Direct metadata bases: —
-
 ### Properties
 
 | Name | Type | Default | Metadata |
 |---|---|---|---|
 | `sound` | `sf.Sound` | — | — |
 | `endFrame` | `int` | `-1` | — |
-
-### Functions and events
-
-No Blueprint functions or events are declared.
 
 ## Animation
 
@@ -37,8 +31,6 @@ Direct metadata bases: `{ "Engine", "AnimSprite" }`
 | `stopSoundsAtFrame` | `function` | self: { "GlobalCore", "Animation" } = "self"; frameIndex: int | — | — |
 
 ## Light
-
-Direct metadata bases: —
 
 `GlobalCore.Light.MAX_SHADER_LIGHTS` is a static, read-only `int` giving the compiled light limit shared by ordinary-map rendering and Lua world rendering. Its current value is `64`. Every visible light is a candidate: map lights and Actor lights draw on the same budget, and the renderer keeps the ones whose centres lie nearest the view centre, so a light is discarded only when more than that many are visible at once. Equal distances break by position, so the selection never depends on Actor iteration order. The source and rebuild rules are in [Build and Module Layout](<../../../../Native C++ Development/Build and Module Layout.md#shared-format-and-rendering-constants>).
 

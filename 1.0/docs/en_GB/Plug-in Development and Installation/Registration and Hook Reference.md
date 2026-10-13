@@ -133,4 +133,4 @@ There are no public hooks for host-docked panels, toolbars, arbitrary context me
 - [Avalonia UI, Secrets and Localisation](<Avalonia UI Secrets and Localisation.md>)
 - [Official Random Map](<Official Plug-ins/Random Map.md>)
 - [Official Resource Cleanup](<Official Plug-ins/Resource Cleanup.md>)
-- [Testing and Distribution](<Testing and Distribution.md>)
+- [Distribution](<Distribution.md>)

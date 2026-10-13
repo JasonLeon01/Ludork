@@ -1,6 +1,6 @@
 # Game Script Mixins
 
-Game 项目里有五个职责各异的 mixin，可用作行为范本与验证夹具。只有当新的蓝图父类与数据依赖都吻合时，才照搬它们的契约形态。
+Game 项目提供以下 Mixin 示例。各脚本需要表中列出的父类功能，以及对应的元数据和项目配置。
 
 | 脚本 | 父类能力 | 行为 |
 |---|---|---|
@@ -9,20 +9,6 @@ Game 项目里有五个职责各异的 mixin，可用作行为范本与验证夹
 | `Doors/Door.lua` | `DoorBase` | 碰撞时开门，并防止重复开启。 |
 | `Doors/KeyDoor.lua` | Script Mixin 门蓝图 | 先要求并消耗已配置的通用数据物品，再继续执行父类碰撞方法。 |
 | `Doors/ConditionDoor.lua` | `DoorBase` | 只为已配置的游戏变量启用轮询，达到阈值时开门。 |
-
-## 消耗品模式
-
-`Bottle` 与 `Gem` 先检查 `self:isDestroyed()`，再处理碰撞：从场景中找出活动 Player，完成各自的数据修改，调用继承的碰撞行为，记录已销毁的 Actor，最后销毁拾取物。它们的声音字段为空时改用项目配置的回退值。
-
-## 门模式
-
-`Door` 自己负责碰撞开门。`KeyDoor` 要求 `MeetPlayer`、持有钥匙且未重复进入，之后才消耗钥匙。`ConditionDoor` 只在配置了 `openConditionName` 时轮询，达到阈值后调用 `openDoor`。
-
-Game 项目的拾取物蓝图与 `DoorBase` 继承 `ConditionalActor` 的出现条件。`ConditionDoor:onCreate` 先延续父类生命周期，再安装自己独立的开门行为。覆盖生命周期回调时必须保留这条订阅链。
-
-## 限制
-
-Game 项目的 ID、声音与通用数据记录都针对具体项目。复制来的 mixin 仍然需要匹配的 metadata、父类能力与运行时引用。
 
 ## 相关页面
 

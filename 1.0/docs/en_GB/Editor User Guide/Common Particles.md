@@ -1,6 +1,6 @@
 # Common Particles
 
-Common particle assets describe ordered GPU emitter tracks. An Actor uses an `EmitterComponent`, and a UI uses an `Engine.EmitterView` node. Both use the same `Emitter` playback implementation. Existing `Particle`, `TextParticle` and `ParticleSystem` remain available independently.
+Common Particle assets contain ordered GPU emitter tracks. Use them on an Actor through `EmitterComponent`, or in a UI through `Engine.EmitterView`.
 
 ## Author and preview
 
@@ -10,17 +10,15 @@ Choose **Game → New Common Particle** or create a particle in the project file
 
 *The track list is on the left, the preview and lifetime curve are in the centre, and properties are on the right.*
 
-The renderer's Texture Rect has a Position row for X/Y and a Size row for width/height. The properties pane starts at the measured width required by its labels and inputs, including complete numeric values. It takes that space from the central preview while keeping the window width unchanged. The splitter can widen the pane but cannot shrink it below its content requirement; expanding a section or changing a value updates that requirement. If the content cannot fit within the available window width, the pane stays inside the window and provides horizontal scrolling.
+The Texture Rect fields set the texture region’s position and size. Preview controls include Play/Pause, Stop, Restart, a single simulation step, time entry, seeking, playback speed and zoom. A step advances `1 / simulationRate` seconds. Seeking pauses playback and can take longer for later times; preview controls do not change the saved resource.
 
-The preview supports Play/Pause, Stop, Restart, one simulation step, time entry, dragging the time slider, playback speed and zoom. A step advances `1 / simulationRate` seconds. Seeking pauses playback and reconstructs the selected time by replaying the GPU simulation from the beginning; it does not read particle state back to the CPU. Long seeks therefore cost more than nearby playback. Preview controls do not modify the saved resource.
-
-Resource edits follow the normal in-memory document workflow: manual Save, shared views of the same file, and the active file's most recent 100 Undo/Redo entries. Changing a resource refreshes its preview. The project's native preview runtime must be ready and match its registry; an unsupported GPU capability or a missing resource is reported as an error.
+Resource edits follow the shared [save and Undo rules](<Start Page Workspace and Shortcuts.md#editing-and-saving>). After C++ changes, use **Construct** to update the preview. Missing resources or unsupported GPU capabilities display an error.
 
 ## Resource identity and schema
 
 Store definitions in `Data/Particles/<key>.json`. References use the exact-case key with `/` separators and no directory prefix or extension, for example `Combat/Hit`. Textures use complete `/Game/Assets/...` logical paths. Definitions have no version field.
 
-This schema is the resource-file and editor JSON format. Runtime code uses the fixed fields of `EmitterConfiguration`, `EmitterTrack`, `EmitterCurves` and `EmitterBurst` through `setConfiguration` and `getConfiguration`. The loader converts string choices to boolean/integer properties, divides RGBA values by 255, constructs SFML vectors/rectangles and resolves curve resource keys into `CurveData`. The [Emitter configuration API](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Time Rendering and Particles.md#emittertrack>) lists the mappings. Keep the JSON names and 0–255 colour units when authoring files; the editor continues to use this format and its existing preview messages.
+The following JSON format uses colour components in 0–255. For the corresponding runtime configuration types, see the [Emitter configuration API](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Time Rendering and Particles.md#emittertrack>).
 
 ```json
 {
@@ -79,7 +77,7 @@ This example requires the named texture in the project. An empty texture is tran
 
 Each burst is `{ "time": 0, "count": 16, "cycles": 1, "interval": 0 }`. Its first time is within `[0,duration)`, count is 0–1,000,000, cycles is 1–10,000, and interval is non-negative seconds, strictly positive for repeated bursts. Numeric inputs must be finite and minimum/maximum ranges ordered.
 
-Curves accept an inline scalar [Curve](<Animations and Curves.md>) or an extensionless key under `Data/Curves`. Their key times use normalized particle age `[0,1]`. Speed, size and RGBA channels multiply their base values and default to 1; rotation adds degrees and defaults to 0. Inline curves support `defaultValue`, `preInfinity`, `postInfinity` and `keys` containing `time`, `value`, `interpolation`, `arriveTangent` and `leaveTangent`. The runtime samples each channel into a 256-entry GPU lookup table, so rendered curves are an approximation of the source curve.
+Curves accept an inline scalar [Curve](<Animations and Curves.md>) or an extensionless key under `Data/Curves`. Their key times use normalised particle age `[0,1]`. Speed, size and RGBA channels multiply their base values and default to 1; rotation adds degrees and defaults to 0. Inline curves support `defaultValue`, `preInfinity`, `postInfinity` and `keys` containing `time`, `value`, `interpolation`, `arriveTangent` and `leaveTangent`. The runtime samples each channel into a 256-entry GPU lookup table, so rendered curves are an approximation of the source curve.
 
 ## Emission, space and ownership
 
@@ -97,19 +95,13 @@ To attach a particle resource to an Actor, follow [Emitter Component](<Actor Com
 
 Add `Engine.EmitterView` as a visual UI node under an existing Canvas or List container, or construct it in code. Configure `particle`, `size`, `anchor` and `autoPlay`; `getEmitter()` returns its playback object. The UI node owns its normal layout and clipping through `ControlBase` and its parent. It does not require an Actor.
 
-Each Scene collects active Actor and mounted visible UI emitters after UI updates/layout and advances each instance once before rendering, on the graphics thread. An invisible Actor, dormant world Actor, hidden UI subtree or unmounted view is omitted from that frame and retains its particle and playback state. Restoring it resumes the existing state without counting hidden movement as distance emission. A manually paused emitter remains paused. Destroying an Actor, evicting its world region, replacing its map, disposing its UI view or ending the Scene clears and releases the associated emitter. GPU state is transient and is not saved with map persistence.
+Particles pause while their Actor is invisible or dormant, or their UI is hidden or unmounted. Showing the owner resumes its state; movement while hidden does not produce distance-based emission. A manually paused emitter stays paused. Destroying the owner clears its particles, which are not included in map persistence.
 
-See [Emitter, EmitterComponent and EmitterView APIs](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Time Rendering and Particles.md#emitter>) for playback controls and native host integration.
+See [Emitter, EmitterComponent and EmitterView APIs](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Time Rendering and Particles.md#emitter>) for playback controls and performance statistics.
 
-## GPU support and performance statistics
+## GPU requirements
 
-Simulation keeps particle state in GPU buffers using transform feedback; rendering uses instanced textured quads. CPU work handles tracks, emission counts, host transforms and commands, without a per-particle CPU simulation or synchronous live-count readback. The backend requires transform feedback, instanced drawing/attributes, vertex texture sampling and floating-point curve textures. Missing capabilities produce a runtime error; there is no CPU fallback.
-
-Desktop builds use the compatible OpenGL shader path and query core/extension entry points. macOS legacy OpenGL provides `EXT_transform_feedback`, but the runtime must also find the remaining required capabilities; this is not a reason to force a core profile. Mobile GLES builds request OpenGL ES 3 before creating graphics resources. An OHOS SFML dependency must preserve that ES 3 request through context normalization, EGL configuration selection and context creation. An ES 2-only dependency cannot satisfy the particle backend. A source checkout can be selected with [LUDORK_SFML_SOURCE_DIR](<../Native C++ Development/Build and Module Layout.md#build-the-project>).
-
-Native hosts must activate a compatible shared SFML context before ticking or drawing. Game and preview use separate hosts and contexts; GPU resources remain owned by their runtime host. Destroying an emitter can queue resource release, and the graphics thread collects it while a context is active. The renderer preserves its raw OpenGL state around SFML drawing. These requirements follow [SFML's OpenGL interoperability guidance](https://www.sfml-dev.org/tutorials/3.1/window/opengl/), [Khronos OpenGL ES 3.0](https://registry.khronos.org/OpenGL/specs/es/3.0/es_spec_3.0.pdf) and [Apple's legacy shader-extension documentation](https://developer.apple.com/library/archive/documentation/GraphicsImaging/Conceptual/OpenGL-MacProgGuide/opengl_shaders/opengl_shaders.html).
-
-Profile CPU submission and asynchronous GPU timing separately. `getStatistics()` returns an `EmitterStatistics` struct in C++ and a fixed-field snapshot table in Lua. `capacity` and `time` are always present; `renderer`, live-count fields and timing fields are optional and read as `nil` in Lua when unavailable. `getCapacity()` and statistics `capacity` describe enabled-track capacity, not the exact live count. Available `aliveCount` is a delayed sample identified by `sampledTime`. GPU timings are delayed samples and may be unavailable when timer queries are unsupported or disjoint; unavailable values are not zero. Use `simulationSample` and `drawSample` to count each timing result once. Do not use blocking query reads or `glFinish` in the measured loop.
+Common Particles require a compatible GPU; mobile builds require OpenGL ES 3. Missing GPU capabilities produce an error, with no CPU fallback.
 
 ## Limitations
 

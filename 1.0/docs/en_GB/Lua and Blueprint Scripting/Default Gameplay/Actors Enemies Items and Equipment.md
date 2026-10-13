@@ -18,7 +18,7 @@ Editor configuration for these fields and attached lights is described in [Actor
 
 Enemy, Item, Equip, DoorBase, Teleporter and the Game project's direct map-Actor Blueprints inherit this behaviour. Bottle and Gem keep their Script Mixins. `onCreate` subscribes and evaluates immediately. Later writes to the variable update visibility, and a condition that becomes false hides the Actor again. Hidden Actors keep listening. `onDestroy` and world sleep unsubscribe, while world wake subscribes and reevaluates. Lifecycle overrides must continue the parent event. In graph-mode Blueprints, retain the corresponding [Parent event call](<../Blueprint Scripting/Execution Flow Events and Variables.md#parent-event-calls>) in the execution path. EnemyDamageText retains its separate hint behaviour and Tick policy.
 
-Ordinary map loading binds the Scene, the current map identity and the player position, restores added, moved and destroyed records, and then initialises surviving Actors with the map's Player available. Map replacement and Scene destruction release old subscriptions without generating destruction or pickup events. Saves preserve current variable values, but not subscriptions or condition-derived visibility. Collected Actors remain absent through their existing destruction records.
+See [SceneMap](<../Source Classes/SceneMap.md>) for map loading and lifecycle order, and [ConditionalActor](<../Source Classes/ConditionalActor.md>) for subscriptions and persistence.
 
 ### Actors in a composite world
 
@@ -30,8 +30,6 @@ Tile and Actor drawing follows the manifest `layerOrder`. Runtime-only layers ar
 
 `getActorByTag` searches Active Actors and resident roots that slept after activation, without loading a child. Evicted Actors remain absent until reload.
 
-Map indexing and streaming traverse Actor trees with native root-first BFS, preserving child order. Repeated Actors and cycles are errors.
-
 `SceneMap:recordDestroyedActorTag` suppresses that identity in resident and future child payloads without loading an absent child. A suppressed Actor cannot run its lifecycle, become queryable or reappear after eviction. The Actor-taking `recordDestroyedActor` API remains record-only.
 
 ## Movement, pathfinding and animation
@@ -40,17 +38,13 @@ Scripted [movement and pathfinding](<../Node Functions/Movement.md>) and [door a
 
 Stopping movement, including disabling it when opening a UI, still processes arrival if the player snaps into a new cell. That cell's overlaps and movement-step effects are not skipped. Danger-driven click-route replanning returns to the last complete cell before stopping. Instant route completion also returns there before stopping, then applies its destination overlaps and collected movement path once.
 
-`GameMap` caches tile passability and dynamic Actor occupancy. A change to the Actor list or to terrain rebuilds the relevant cache. Ordinary movement updates one Actor's occupancy, and pathfinding reconciles Actors whose occupied cells changed before it runs A*. A* and actual movement apply the same Dir4 edge rule: every newly entered leading cell must allow departure from its source tile and entry through the opposite direction of its destination tile. Click movement reuses the direct A* result for ordinary goals and for one-cell blocked targets. If the moving Actor's footprint prevents that direct result, click movement falls back to searching the target's adjacent cells. A colliding target remains the final attempted step, so its collision interaction still runs. When the fallback is used and the impassable goal has no collider, the player stops at the adjacent cell rather than bumping towards the goal. Pathfinding routes around non-colliding Actors that have an executable `onOverlap`, so they are not entered by accident during transit. When the player explicitly clicks such an Actor as a map destination, the full route to its cell is kept and the player enters it, triggering the overlap interaction — the same way a clicked Teleporter enters its cell and transfers the player.
+A* and actual movement apply the same Dir4 edge rule: every newly entered leading cell must allow departure from its source tile and entry through the opposite direction of its destination tile. Click movement reuses the direct A* result for ordinary goals and for one-cell blocked targets. If the moving Actor's footprint prevents that direct result, click movement falls back to searching the target's adjacent cells. A colliding target remains the final attempted step, so its collision interaction still runs. When the fallback is used and the impassable goal has no collider, the player stops at the adjacent cell rather than bumping towards the goal. Pathfinding routes around non-colliding Actors that have an executable `onOverlap`, so they are not entered by accident during transit. When the player explicitly clicks such an Actor as a map destination, the full route to its cell is kept and the player enters it, triggering the overlap interaction — the same way a clicked Teleporter enters its cell and transfers the player.
 
 Passability and pathfinding queries place the Actor footprint exactly on the requested grid cell, preserving its bounds while excluding the pixel offset of an ongoing move. This also keeps movement-hazard line checks independent of movement direction and progress.
 
 World pathfinding crosses loaded child boundaries but treats unloaded children as unavailable without implicit I/O. Holes remain passable with a `nil` top material.
 
-Sparse-world readiness, passability, Dir4 and top-material queries are native. Prepared bounds gate movement, while material queries keep separate readiness rules.
-
 `GameMap.MapViewRect` defines the logical-screen map canvas and defaults to `sf.IntRect.new(192, 32, 416, 416)`. Its position places the canvas, and its size sets both the clipped drawing area and the Camera view size. A map axis smaller than the canvas is centred within that axis, while a larger axis is clamped to its scrollable range. Map rendering, pointer conversion, world and UI positioning, animations, lighting, fog, panorama and weather share this rectangle. Pointer input outside the rectangle is ignored.
-
-`PathRouteState` owns a copy of its route and exposes a revision that changes with the route. The preview renderer refreshes its cached route only after that revision changes, reuses its rectangle shape, and trims the visible route when the player enters another map cell. Changing only an atlas frame's source position does not refresh Actor bounds when the texture-rectangle size stays the same. Changing the frame size still refreshes cached bounds and occupied cells.
 
 Domain, Flank and Blockade Effects grant `Gameplay.Movement.Hazard`. Both movement and `MovementDangerGrid` use `MovementSpecials.Preview`, which dispatches `Event.Movement.QueryHazard`. Keep their spatial rules on that path. Domain includes cells whose Manhattan distance is at most its range (minimum 1): `Domain = 1` reaches the four orthogonally adjacent cells, but not diagonal cells. Its per-round damage respects combat specials, so Magic ignores player defence. Flank requires enemies on opposite adjacent sides, and Blockade affects adjacent cells. Positive contributions add.
 

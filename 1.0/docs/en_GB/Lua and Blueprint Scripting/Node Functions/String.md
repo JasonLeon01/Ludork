@@ -6,12 +6,6 @@ Metadata source: `Scripts/GlobalFunctions/String_meta.lua`
 
 ## String
 
-Direct metadata bases: —
-
-### Properties
-
-No editable properties are declared.
-
 ### Functions and events
 
 | Name | Kind | Parameters | Returns | Execution and metadata |

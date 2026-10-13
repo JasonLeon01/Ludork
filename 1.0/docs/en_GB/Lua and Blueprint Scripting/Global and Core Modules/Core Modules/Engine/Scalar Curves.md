@@ -2,12 +2,6 @@
 
 ## AnimSprite
 
-Direct metadata bases: —
-
-### Properties
-
-No editable properties are declared.
-
 ### Functions and events
 
 | Name | Kind | Parameters | Returns | Execution and metadata |
@@ -23,8 +17,6 @@ No editable properties are declared.
 
 ## CurveKey
 
-Direct metadata bases: —
-
 ### Properties
 
 | Name | Type | Default | Metadata |
@@ -35,13 +27,7 @@ Direct metadata bases: —
 | `arriveTangent` | `float` | `0` | — |
 | `leaveTangent` | `float` | `0` | — |
 
-### Functions and events
-
-No Blueprint functions or events are declared.
-
 ## CurveData
-
-Direct metadata bases: —
 
 ### Properties
 
@@ -54,13 +40,7 @@ Direct metadata bases: —
 | `postInfinity` | `string` | `"constant"` | — |
 | `keys` | `{ "Engine", "CurveKey[]" }` | — | — |
 
-### Functions and events
-
-No Blueprint functions or events are declared.
-
 ## Curve
-
-Direct metadata bases: —
 
 ### Properties
 

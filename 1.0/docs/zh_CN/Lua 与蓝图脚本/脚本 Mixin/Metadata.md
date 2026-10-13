@@ -26,17 +26,17 @@ return _METADATA
 ## 规则
 
 - `attrs` 是稠密、有序的数组，其中的字段名互不重复且非空。
-- 列出的每个字段都是一张带有效 `type` 的 table。
+- 列出的每个字段都是一张带有效 `type` 的表。
 - `default` 如果存在，必须是有限、无环、可转换为 JSON 的纯数据。
-- `bases` 缺省，或为空 table。基类由蓝图继承提供。
-- 根 table 中不得出现第二个类型、函数、userdata、协程或外部状态访问。
+- `bases` 缺省，或为空表。基类由蓝图继承提供。
+- 根表中不得出现第二个类型、函数、userdata、协程或外部状态访问。
 - `Meta.PathVars`、`Meta.ConfigVars` 等 decorator 只细化编辑器控件，不改变运行时值。`Meta.InstVar` 选择一个已声明的游戏变量名，可用 `types` 过滤。`Meta.InstVarValue` 指名同级字段，由该字段选中的声明决定值编辑器。
 
 Mixin metadata 已为蓝图声明其字段，本地值写入 `attrs`，不要在 `attrDefs` 中重复声明。`attrDefs` 只用于蓝图额外新增的字段，其类型与默认值由派生类继承。缺少声明，或与继承字段、Mixin 字段冲突时都会拒绝加载。参见[蓝图属性声明](<../蓝图脚本/Metadata 结构与 Decorator.md#蓝图属性声明>)。
 
 ## 限制
 
-既没有出现在已保存 attribute 中、又没有 `default` 的字段，只存在于 schema 中。
+既没有出现在已保存属性中、又没有 `default` 的字段，只存在于结构定义中。
 
 ## 相关页面
 

@@ -1,7 +1,5 @@
 # Manifest 与最小插件
 
-## 目标
-
 从生成的 C# 13 模板开始，或手写一个为帮助菜单添加命令、能被 Ludork 1.0.0 引入的完整源码插件。
 
 ## 前置条件
@@ -37,8 +35,6 @@ public sealed class Plugin : IEditorPlugin
 ```
 
 默认的 **带界面** 模板还会生成独立的 `PluginWindow : Window` 类，并应用宿主主题。**不带界面** 只生成 manifest 与入口类。两种模板都不会注册命令，窗口也不会自动打开。不生成 XAML 或 IDE 项目。添加业务逻辑与注册代码后，重启以加载修改后的源码。
-
-编辑器内置模板源文件保存在仓库的 `Editor/PluginTemplates`：`Common` 包含清单和入口类，`Window` 包含窗口代码。模板作为资源嵌入发布后的编辑器程序集，新建插件时读取，再填入 ID、名称、最低编辑器版本以及经过转义的窗口标题。
 
 ## 手写命令示例
 
@@ -145,4 +141,4 @@ public sealed class Plugin : IEditorPlugin
 
 - [安装与管理插件](<安装与管理插件.md>)
 - [Avalonia UI、密钥与本地化](<Avalonia UI、密钥与本地化.md>)
-- [测试与分发](<测试与分发.md>)
+- [插件分发](<插件分发.md>)

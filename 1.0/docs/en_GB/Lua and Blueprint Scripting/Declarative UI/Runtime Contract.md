@@ -113,4 +113,4 @@ Disposed UI is terminal and must not be reused. Hot reload, described in [Lua Ru
 
 - [Declarative UI Authoring Workflow](<Authoring Workflow.md>)
 - [Declarative UI Controller Examples](<Controller Examples.md>)
-- [UI Asset Schema and Control Registry](<Asset Schema and Control Registry.md>)
+- [UI Asset Schema](<Asset Schema and Control Registry.md>)

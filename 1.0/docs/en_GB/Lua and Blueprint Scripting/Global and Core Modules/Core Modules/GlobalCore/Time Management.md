@@ -4,8 +4,6 @@
 
 `isReady()` means elapsed or cancelled; it does not mean the callback has finished. `cancel()` cancels the associated operation and prevents its expiry callback. To wait for completion, use the operation returned by [SceneBase.addTimer](<Scenes and System.md#scene-timers>).
 
-Direct metadata bases: —
-
 ### Properties
 
 | Name | Type | Default | Metadata |
@@ -25,13 +23,7 @@ Direct metadata bases: —
 
 ## TimeManager
 
-Direct metadata bases: —
-
-The runtime publishes the current time, the delta time and the speed atomically. Once `TimeManager` is initialised, the getters for these values do not acquire the `TimeManager` writer lock. `getDeltaTime` still applies the currently published speed.
-
-### Properties
-
-No editable properties are declared.
+`getDeltaTime` returns the time delta with the current speed applied.
 
 ### Functions and events
 

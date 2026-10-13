@@ -16,7 +16,3 @@ Metadata 来源：`Scripts/Source/Components/ChildActorComponent_meta.lua`
 |---|---|---|---|
 | `className` | `string` | `""` | — |
 | `relativePosition` | `sf.Vector2f` | `{ [1] = 0, [2] = 0 }` | — |
-
-### 函数与事件
-
-未声明任何 Blueprint 函数或事件。

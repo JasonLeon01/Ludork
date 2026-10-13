@@ -36,7 +36,7 @@
 | `calculate` | `(abilitySystem, eventData) -> GameplayAbilityResult` | 返回包含 graph data 的 `ExecutableGraph`，或表示成功的 `NoGraph` |
 | `activate` | `(abilitySystem, eventData) -> GameplayAbilityResult` | 构建并同步执行所选 event，返回 `GraphExecuted` 或 `NoGraph` |
 
-graph 的 parent 与 `eventData` 参数是同一个 `GameplayEventData`。它的 payload 会接收上述三个字段；对 State 图还会接收 `activeEffect`。执行通过 `Engine.BPBase.ExecuteGraph` 完成。通用数据 graph 没有 Actor 派发与继承，不能 latent，错误会直接传播。
+graph 的 parent 与 `eventData` 参数是同一个 `GameplayEventData`。它的数据会接收上述三个字段；对 State 图还会接收 `activeEffect`。执行通过 `Engine.BPBase.ExecuteGraph` 完成。通用数据 graph 没有 Actor 派发与继承，不能 latent，错误会直接传播。
 
 ## Effects
 
@@ -57,7 +57,7 @@ graph 的 parent 与 `eventData` 参数是同一个 `GameplayEventData`。它的
 | `GetStateIDs` | `(target) -> string[]` | 按稳定顺序返回生效中的 State ID |
 | `FindActiveEffectHandle` | `(abilitySystem, effectID) -> integer?` | 返回首个匹配的生效 handle |
 
-装备按稳定的 attribute 顺序使用 `attrPlus`。Weak 每层应用 `-1 ATK` 与 `-1 DEF`，最低为 `0`。Poisoned 授予其伤害 ability。State 可以授予 `onWalk` 与 `onHookTriggered` graph ability。
+装备按稳定的属性顺序使用 `attrPlus`。Weak 每层应用 `-1 ATK` 与 `-1 DEF`，最低为 `0`。Poisoned 授予其伤害 ability。State 可以授予 `onWalk` 与 `onHookTriggered` graph ability。
 
 ## MotaBattleAbility
 
@@ -88,7 +88,7 @@ Ability ID：`Ability.Combat.MotaBattle`
 
 模块：`Source.Configs.GameplayConstants`
 
-本模块统一声明共享 Gameplay 事件 tag 与标识前缀。事件派发方和 ability 订阅方使用同一组字段。
+本模块统一声明共享 Gameplay 事件标签与标识前缀。事件派发方和 ability 订阅方使用同一组字段。
 
 | 字段 | 值 |
 |---|---|
@@ -118,7 +118,7 @@ Ability ID：`Ability.Combat.MotaBattle`
 | `CreatePoisonedAbility` | `() -> GameplayAbility` | 创建 State Poisoned 的受到伤害 ability |
 | `GetMagnitude` | `(abilitySystem, specialID) -> any` | 读取 active special effect 上保存的 magnitude |
 
-Compete、Hard、Magic、MultiHit 与 Poisoned 使用各自的战斗结算事件。`GameplayConstants.BATTLE_RULES_EVENT` 汇集 Vampire 回复、First 伤害与 FixDmg。数值形式的 FixDmg 直接生效；字符串形式会在求值之前代入玩家与敌人的当前数值 attribute。Domain、Flank 与 Blockade 处理 `Event.Movement.QueryHazard`，并授予 `Gameplay.Movement.Hazard`。其他 ID 授予可查询的 passive tag。
+Compete、Hard、Magic、MultiHit 与 Poisoned 使用各自的战斗结算事件。`GameplayConstants.BATTLE_RULES_EVENT` 汇集 Vampire 回复、First 伤害与 FixDmg。数值形式的 FixDmg 直接生效；字符串形式会在求值之前代入玩家与敌人的当前数值属性。Domain、Flank 与 Blockade 处理 `Event.Movement.QueryHazard`，并授予 `Gameplay.Movement.Hazard`。其他 ID 授予可查询的 passive 标签。
 
 ## MovementSpecials 与移动危险
 
@@ -131,7 +131,7 @@ Compete、Hard、Magic、MultiHit 与 Poisoned 使用各自的战斗结算事件
 | `Commit` | `(player, pathPositions) -> GameplayAbilityResult` | 对每个经过的格子复用 `Preview`，应用总伤害并执行 Blockade 后退 |
 | `NotifyPlayerMovementFinished` | `(player, pathPositions?) -> GameplayAbilityResult` | 提交已完成的移动路径；缺省时提交当前格 |
 
-`Preview` 负责移动危险的几何计算。它派发 `Event.Movement.QueryHazard`，解析 Flank 与被忽略的敌人，并返回有序的来源与总伤害。Domain 在曼哈顿距离 `<= max(1, magnitude)` 时触发，包含范围边界，并通过 `MotaBattleAbility.CalculateDamagePerRound` 计算伤害，保留 Magic 等战斗特性。Danger grid 按 `Gameplay.Movement.Hazard` 筛选，并按需生成。`PreviewContext` 为未变化的快照缓存与位置无关的伤害，但不会跳过逐格事件。被忽略的 Flank 敌人只参与几何计算，不贡献伤害。Preview handler 不得修改 gameplay state。
+`Preview` 负责移动危险的几何计算。它派发 `Event.Movement.QueryHazard`，解析 Flank 与被忽略的敌人，并返回有序的来源与总伤害。Domain 在曼哈顿距离 `<= max(1, magnitude)` 时触发，包含范围边界，并通过 `MotaBattleAbility.CalculateDamagePerRound` 计算伤害，保留 Magic 等战斗特性。Danger grid 按 `Gameplay.Movement.Hazard` 筛选，并按需生成。`PreviewContext` 为未变化的快照缓存与位置无关的伤害，但不会跳过逐格事件。被忽略的 Flank 敌人只参与几何计算，不贡献伤害。Preview 处理函数不得修改 gameplay state。
 
 ## 生成的 GeneralDataTypes
 
@@ -139,7 +139,7 @@ Compete、Hard、Magic、MultiHit 与 Poisoned 使用各自的战斗结算事件
 
 通用数据生成器拥有该模块及其 stub。`Types` 与其中的命名字段导出每一个生成的 `<TypeName>AttributeSet`。类型键来自 `Enums.GeneralDataKey`，成员键来自对应的 `Enums.GeneralData.<TypeName>` 模块。
 
-`Create(typeName, memberID, memberData) -> AttributeSet` 深拷贝 schema 字段并设置 `ID`。以 ID 为起点时，改用 `Source.Data.CreateGeneralAttributeSet(typeName, memberID)`。
+`Create(typeName, memberID, memberData) -> AttributeSet` 深拷贝结构定义字段并设置 `ID`。以 ID 为起点时，改用 `Source.Data.CreateGeneralAttributeSet(typeName, memberID)`。
 
 ## 相关页面
 

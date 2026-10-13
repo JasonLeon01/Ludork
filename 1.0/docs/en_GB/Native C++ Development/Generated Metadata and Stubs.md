@@ -59,7 +59,7 @@ The generator writes changed content only and removes stale outputs only when th
 
 Cross-builds and builds with static Lua modules require the enum source modules from a prior desktop native build. Missing generated files fail the preflight with their paths; the build does not guess C++ constant values. Rebuild on desktop after changing native enum declarations or marked maps before preparing those builds.
 
-Project-owned enums use a different source of truth: General Data, animation and particle documents. Their save pipeline generates `Enums.GeneralDataKey`, `Enums.GeneralData.*`, `Enums.Animation` and `Enums.Particle` atomically with the data. Native metadata may reference these through `metadata_type = { enum = "Enums.Particle", valueType = "string" }` without changing the C++ string parameter or Lua API value. The editor uses the live project catalog, and the runtime uses saved modules. See [General Data and Text Config](<../Editor User Guide/General Data and Text Config.md>) for ownership and rename rules.
+Project-owned enums come from General Data, animation and particle documents. Native metadata can refer to them with `metadata_type = { enum = "Enums.Particle", valueType = "string" }` without changing the C++ string parameter or Lua API value. See [General Data and Text Config](<../Editor User Guide/General Data and Text Config.md>) for generated modules and rename rules.
 
 ## Regeneration
 
@@ -69,7 +69,7 @@ Changes to included headers may still recompile dependent class units even when 
 
 ## Generated UI Views
 
-UI Views and window declarations use a separate generator, `ScriptTools ui-assets generate <project-root>`. Generated file ownership is described in the [Declarative UI Authoring Workflow](<../Lua and Blueprint Scripting/Declarative UI/Authoring Workflow.md>). Commands and checks are in [Declarative UI Validation and Packaging](<../Lua and Blueprint Scripting/Declarative UI/Validation and Packaging.md>).
+UI Views and window declarations use a separate generator, `ScriptTools ui-assets generate <project-root>`. Generated file ownership and export steps are described in the [Declarative UI Authoring Workflow](<../Lua and Blueprint Scripting/Declarative UI/Authoring Workflow.md>).
 
 ## Related pages
 

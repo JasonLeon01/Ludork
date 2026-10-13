@@ -6,12 +6,6 @@ Metadata 来源：`Scripts/GlobalFunctions/Scene_meta.lua`
 
 ## Scene
 
-直接 metadata 基类：—
-
-### 属性
-
-未声明任何可编辑属性。
-
 ### 函数与事件
 
 | 名称 | 种类 | 参数 | 返回 | 执行语义与 metadata |
@@ -67,11 +61,11 @@ Metadata 来源：`Scripts/GlobalFunctions/Scene_meta.lua`
 
 ### 新手引导
 
-`ShowTutorial(key)` 展示配置的引导，确认后以 `true` 完成。同一 key 的未完成请求共享操作，即使该 key 已被记录；没有未完成请求时，已记录 key 立即完成。不同 key 按顺序排队，未知 key 报错。
+`ShowTutorial(key)` 展示配置的引导，确认后以 `true` 完成。同一键的未完成请求共享操作，即使该键已被记录；没有未完成请求时，已记录键立即完成。不同键按顺序排队，未知键报错。
 
 请求出队时，本地化文本为空字符串（`""`）会跳过展示与记录，直接继续 `Finished`。记录规则见[存档](<../Game 玩法/运行时数据、配置与存档.md#存档>)。
 
-蓝图负责选择引导 key 及其执行顺序。`Map_01` 示例将有序 key 数组传给 `ForEach`，在循环体内调用 `ShowTutorial`。配置说明见[地图新手引导](<../Game 玩法/窗口、菜单、输入与控件.md#地图新手引导>)。
+蓝图负责选择引导键及其执行顺序。`Map_01` 示例将有序键数组传给 `ForEach`，在循环体内调用 `ShowTutorial`。配置说明见[地图新手引导](<../Game 玩法/窗口、菜单、输入与控件.md#地图新手引导>)。
 
 ### OpenPlayerName
 

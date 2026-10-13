@@ -8,12 +8,6 @@ Archive compression is transparent to these APIs. Seekable streams decode one bl
 
 Music, sound and voice switches and volumes are configured here. `set*` applies and saves, while `save*` only persists the value.
 
-Direct metadata bases: —
-
-### Properties
-
-No editable properties are declared.
-
 ### Functions and events
 
 | Name | Kind | Parameters | Returns | Execution and metadata |
@@ -57,12 +51,6 @@ No editable properties are declared.
 
 ## FontManager
 
-Direct metadata bases: —
-
-### Properties
-
-No editable properties are declared.
-
 ### Functions and events
 
 | Name | Kind | Parameters | Returns | Execution and metadata |
@@ -77,12 +65,6 @@ No editable properties are declared.
 
 ## ShaderManager
 
-Direct metadata bases: —
-
-### Properties
-
-No editable properties are declared.
-
 ### Functions and events
 
 | Name | Kind | Parameters | Returns | Execution and metadata |
@@ -93,12 +75,6 @@ No editable properties are declared.
 | `getMemory` | `function` | — | return: int | — |
 
 ## TextureManager
-
-Direct metadata bases: —
-
-### Properties
-
-No editable properties are declared.
 
 ### Functions and events
 

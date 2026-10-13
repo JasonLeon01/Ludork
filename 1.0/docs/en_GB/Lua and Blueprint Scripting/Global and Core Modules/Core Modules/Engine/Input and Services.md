@@ -18,7 +18,7 @@ The table lists raw backend numbers. First-party PlayStation support is DUALSHOC
 
 On PlayStation, A/B/X/Y mean Cross/Circle/Square/Triangle, LB/RB mean L1/R1, LS/RS mean L3/R3, Menu means Options and XBox means PS. View means Share on DUALSHOCK 4 and Create on DualSense/Edge. Xbox Share has no PlayStation equivalent.
 
-Android, HarmonyOS and iOS already normalize supported controllers through their native backends, so they do not use the desktop PlayStation raw table. Left-stick `X/Y` and D-pad `PovX/PovY` retain the default direction rules below; other axes stay raw SFML axes.
+Android, HarmonyOS and iOS already normalise supported controllers through their native backends, so they do not use the desktop PlayStation raw table. Left-stick `X/Y` and D-pad `PovX/PovY` retain the default direction rules below; other axes stay raw SFML axes.
 
 Button, GamepadHintBar and TabView hints follow the most recently active controller, or the lowest connected slot before any activity. Logical names in assets and scripts stay unchanged. Changing or disconnecting a controller clears unfinished long-press progress; a one-second hold must come from one controller.
 
@@ -37,8 +37,6 @@ Both stick Y values are inverted from Apple's profile, while D-pad Y keeps Apple
 
 A JoystickButton action with a logical `name` uses that name and its getter token `code` for device-specific resolution. Use an empty `name` with a numeric `code` for a raw button binding. Default Confirm and Cancel actions retain their logical A/B bindings.
 
-Direct metadata bases: —
-
 ### Properties
 
 | Name | Type | Default | Metadata |
@@ -48,13 +46,7 @@ Direct metadata bases: —
 | `code` | `int` | `0` | — |
 | `threshold` | `float` | `0` | — |
 
-### Functions and events
-
-No Blueprint functions or events are declared.
-
 ## InjectedInputEvent
-
-Direct metadata bases: —
 
 ### Properties
 
@@ -77,15 +69,9 @@ Direct metadata bases: —
 | `preeditCaret` | `int` | `0` | — |
 | `composing` | `bool` | `false` | — |
 
-### Functions and events
-
-No Blueprint functions or events are declared.
-
 Text injection uses `TextEntered` with a Unicode scalar in `unicode`, `TextPreedit` with UTF-8 `text` and a UTF-8 byte offset in `preeditCaret`, and `TextComposition` with `composing`. Text editing requires the active session ID as a decimal string in `session`, and stale sessions are ignored. A `TextEntered` event without a session reaches gameplay only when editing is not blocking input. Text, composition, key and focus events retain injection order.
 
 ## JoystickAxisEvent
-
-Direct metadata bases: —
 
 ### Properties
 
@@ -93,10 +79,6 @@ Direct metadata bases: —
 |---|---|---|---|
 | `axis` | `sf.Joystick.Axis` | — | — |
 | `position` | `float` | `0` | — |
-
-### Functions and events
-
-No Blueprint functions or events are declared.
 
 ## Input hint device
 
@@ -155,12 +137,6 @@ Call `handle:release()` on cancellation or disposal; it is safe to repeat, and h
 ## Service
 
 `update(window)` requires an `sf.RenderWindow`. Mouse and touch positions use that window's current view to map pixels to world coordinates, and `setMousePosition(position)` maps world coordinates back to pixels. Native `onWindowRecreated(window)` also requires an `sf::RenderWindow&` and resets the active input window after recreation. The native `setMousePosition(position, sf::WindowBase&)` overload accepts pixel coordinates.
-
-Direct metadata bases: —
-
-### Properties
-
-No editable properties are declared.
 
 ### Functions and events
 

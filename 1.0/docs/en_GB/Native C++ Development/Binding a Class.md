@@ -1,7 +1,5 @@
 # Binding a Class
 
-## Goal
-
 Expose one C++20 class consistently to native Lua, LuaLS and the Blueprint metadata catalogue.
 
 ## Prerequisites

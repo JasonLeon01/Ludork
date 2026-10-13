@@ -1,7 +1,5 @@
 # Native UI Adapters
 
-## Goal
-
 Add a native control to Ludork's declarative UI contract so the runtime, preview host and editor's live control registry describe the same control.
 
 ## Prerequisites
@@ -40,7 +38,7 @@ Read asset JSON as `RuntimeData` and decode each property through its descriptor
 
 Image `drawAs` uses the bound C++ `Image::DrawAs` enum, exported as `Engine.ImageDrawAs`. JSON stores the member name, but native decoding and runtime setters carry the enum itself. A runtime `AssetInstance:setProperty` call therefore passes `Engine.ImageDrawAs.Tile`. Keep the decoder, property-value variant, Inspector enum selector, ScriptTools validation and generated declarations in agreement.
 
-`Engine.WrapBox` declares `UiChildPolicy::Single` and List Slots. Its one authored child is an instantiation template, not a single shared child object. Native asset construction owns each repeated subtree behind an independent instance boundary; generated Views stop at that boundary. Count changes append or release tail instances, and ordinary arrangement preserves them. Preview emits every repetition with the identity of its authored template node, so selecting or editing a repetition still targets the one template.
+`Engine.WrapBox` uses `UiChildPolicy::Single` and List Slots. Its authored child is a template for repeated instances; see the [UI Asset Schema and Control Registry](<../Lua and Blueprint Scripting/Declarative UI/Asset Schema and Control Registry.md>) for its child behaviour.
 
 ## Steps
 
@@ -49,26 +47,15 @@ Image `drawAs` uses the bound C++ `Image::DrawAs` enum, exported as `Engine.Imag
 3. Declare properties using the existing supported types and resource handling. A new property type also requires changes to the native decoder, editor and ScriptTools.
 4. Register the tag in `UiControlAdapterRegistry`. Supply the factory, setter, arranger and child functions required by the descriptor. The registry copies adapter-property IDs from the descriptor.
 5. Build the C++ project with the platform `tools/build_cpp` entry point to update the Host and registry and validate UI assets. Controls using supported property types do not require rebuilding the editor or ScriptTools.
-6. To validate separately, run:
-
-   ```bash
-   ScriptTools ui-adapter-check <project-root>
-   ScriptTools ui-assets validate <project-root>
-   ```
-
-   `ui-adapter-check` compares the registry with its Host's compiled description without modifying files.
-
-7. Open a representative asset in the UI Asset Editor and verify rendering and interaction.
-
 `Engine.TabView` is the childless Input example: serialise construction and visual resources only, and bind labels and callbacks at runtime. Details are in the [UI Asset Schema and Control Registry](<../Lua and Blueprint Scripting/Declarative UI/Asset Schema and Control Registry.md>) and [Engine: Interactive and Declarative UI Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md>).
 
 `Engine.CharacterView` is the childless animated Visual example. Its adapter constructs the native preview state from `size`, texture/Rect, actor scale, animation, Shader and Hue properties. Its class owns cropping, frame advancement and effect composition, while the adapter owns resource-path conversion and property assignment.
 
-## Project preview artifacts
+## Project preview artefacts
 
-Each project uses its own Host. `EditorCache/UiPreview.json` selects its project-relative runtime directory: `bin/<configuration>` for source builds or `Binaries` for Standalone. The compiled `UiPreviewHost --describe` supplies `EditorCache/UiPreview.registry.json`, shared by the editor and ScriptTools.
+A desktop native build produces the project preview Host and `EditorCache/UiPreview.registry.json`. Source builds place the runtime in `bin/<configuration>`; Standalone projects use `Binaries`.
 
-Source builds stop existing preview connections before compilation. Preview remains unavailable until the matching Host and registry are published successfully, so C++ UI changes require a rebuild. Later UI asset validation failures leave the new preview available for fixing assets. Standalone automatically regenerates missing, corrupt or mismatched preview JSON from its current included Host during preview, Save, Export and `ui-preview ensure`; it reports recovery failures and preserves other cache files. See [Validation and Packaging](<../Lua and Blueprint Scripting/Declarative UI/Validation and Packaging.md>) for the recovery boundary.
+Rebuild the project after changing native UI controls. Preview is unavailable until the matching Host and registry have been produced. See the [Declarative UI Authoring Workflow](<../Lua and Blueprint Scripting/Declarative UI/Authoring Workflow.md>) for using the updated controls.
 
 ## Limitations
 

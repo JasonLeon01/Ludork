@@ -53,10 +53,6 @@ Direct metadata bases: `{ "Engine", "ControlBase" }`, `{ "Engine", "FunctionalBa
 
 An invisible ListView skips drawing and does not prepare layout during that draw. Visible lists draw only visible children. Each update phase (`update`, `lateUpdate`, `fixedUpdate`) processes visible functional children before invoking the list's own corresponding tick hook.
 
-### Properties
-
-No editable properties are declared.
-
 ### Functions and events
 
 | Name | Kind | Parameters | Returns | Execution and metadata |
@@ -139,10 +135,6 @@ Indicators scale with the global UI `Scale`, use nearest-neighbour sampling, ren
 
 Direct metadata bases: `{ "Engine", "SpriteBase" }`
 
-### Properties
-
-No editable properties are declared.
-
 ### Functions and events
 
 | Name | Kind | Parameters | Returns | Execution and metadata |
@@ -156,10 +148,6 @@ No editable properties are declared.
 ## SolidRect
 
 Direct metadata bases: `{ "Engine", "ControlBase" }`
-
-### Properties
-
-No editable properties are declared.
 
 ### Functions and events
 
@@ -180,10 +168,6 @@ No editable properties are declared.
 ## SpriteBase
 
 Direct metadata bases: `{ "Engine", "ControlBase" }`
-
-### Properties
-
-No editable properties are declared.
 
 ### Functions and events
 

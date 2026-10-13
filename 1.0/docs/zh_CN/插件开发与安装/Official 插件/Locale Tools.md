@@ -1,6 +1,6 @@
 # Official Locale Tools
 
-`Plugins/OfficialLocaleTools` 是普通菜单命令、文本提示 provider，以及 Export Hook 与独立的 before-Pack 排除 Hook 的参考实现。它不注册地图项右键菜单命令。
+`Plugins/OfficialLocaleTools` 是普通菜单命令、文本提示提供器，以及 Export Hook 与独立的 before-Pack 排除 Hook 的参考实现。它不注册地图项右键菜单命令。
 
 Windows 发行版会预置并登记 Official Locale Tools。上述路径是它在仓库检出中的对应源码目录。macOS 上需按[安装与管理插件](<../安装与管理插件.md>)的说明运行 DMG 中的 **Install Official Plugins**。
 
@@ -13,23 +13,23 @@ Windows 发行版会预置并登记 Official Locale Tools。上述路径是它�
 - 通过 `RegisterBeforeExportHook` 注册的 `LocaleExportHook`
 - 只排除创作工作簿的 before-Pack Hook
 
-Export Hook 声明工作簿输入与语言 Lua 输出，用于修改检测。统一的编辑器导出流程会从导出按钮、确认后的导出后运行，以及每次打包之前执行一次该 Hook。每次导出尝试之后，Hook 都会让自身缓存与编辑器文本提示失效。
+Export Hook 把工作簿声明为输入，把语言 Lua 文件声明为输出，用于判断是否需要重新导出；每次尝试导出后都会刷新自身缓存与编辑器文本提示。
 
-工作簿始终位于 `Data/Locale/Locale.xlsx`，生成的语言模块写入 `Scripts/Source/Locale`。Pack 期间，独立的 before-Pack Hook 会在可选的 Data 归档之前排除创作工作簿。运行时 Scripts 目录树的编译与可选归档由打包器完成，而不是插件。
+工作簿编写、生成文件和打包规则见[游戏本地化工作流](<游戏本地化工作流.md>)。
 
 ## 菜单行为
 
-菜单 handler 要求项目已经打开，然后检查工作簿是否存在，并请求操作系统打开它。已处理的警告或错误通过 `IPluginUserInterface` 报告。
+菜单处理函数要求已有打开的项目，找到工作簿后调用操作系统打开。已处理的警告或错误通过 `IPluginUserInterface` 报告。
 
-## 语言分离
+## 插件语言与游戏语言
 
 `Plugins/OfficialLocaleTools/locale.json` 使用 `EditorLanguage` 本地化插件自己的菜单与诊断信息。它不是游戏的语言表。
 
-结构上的范例是：入口类型精简、注册显式、具体操作放在专用类中、错误以 `PluginResult` 返回，并且不依赖编辑器实现类型。
+开发插件时可参考它的组织方式：入口类负责注册，专用类执行具体操作，错误通过 `PluginResult` 返回，不依赖编辑器实现类型。
 
 ## 限制
 
-该插件只负责项目游戏文本的导出。它不本地化编辑器，不提供通用的电子表格编辑器，不注册 Random Map 功能，也不编译指定的 Lua 目录。
+该插件负责导出游戏文本；插件界面与游戏文本使用独立的语言资源。
 
 ## 相关页面
 

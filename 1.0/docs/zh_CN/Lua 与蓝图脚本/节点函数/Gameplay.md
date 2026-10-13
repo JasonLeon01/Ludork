@@ -6,8 +6,6 @@ Metadata 来源：`Scripts/GlobalFunctions/Gameplay_meta.lua`
 
 ## Gameplay
 
-直接 metadata 基类：—
-
 ### 函数
 
 | 名称 | 参数 | 返回 | 执行语义与 metadata |
@@ -29,11 +27,11 @@ Metadata 来源：`Scripts/GlobalFunctions/Gameplay_meta.lua`
 | `SendEvent` | `target: Battler; eventTag: string; payload: any = {}` | `results: any` | 默认执行输出 |
 | `ApplyEffect` | `target: Battler; effect: any; stacks: int = 1; sourceKey: any` | `handle: int` | 默认执行输出 |
 
-上下文读取节点与绑定上下文的变更节点，都要求通用数据图的 parent 为 `GameplayEventData`。在普通 Actor 图中使用它们会报错。`RemovePlayerState` 与 `ReducePlayerState` 作用于该上下文的 target；State 不存在时，两者仍只有单一执行输出。
+上下文读取节点与绑定上下文的变更节点，都要求通用数据图的 parent 为 `GameplayEventData`。在普通 Actor 图中使用它们会报错。`RemovePlayerState` 与 `ReducePlayerState` 作用于该上下文的目标；State 不存在时，两者仍只有单一执行输出。
 
-动态 attribute pin 的类型为 `any`，但 Ability System 仍要求它取所选 schema 类型下的有限数值。`SetNumericAttributeBase` 写入 Base。`ApplyAttributeDelta` 应用 Instant Add modifier。
+动态属性 pin 的类型为 `any`，但 Ability System 仍要求它取所选结构定义类型下的有限数值。`SetNumericAttributeBase` 写入 Base。`ApplyAttributeDelta` 应用 Instant Add 修饰项。
 
-`SendEvent` 同步保留 instigator，并以传入的 Battler 为 target。`ApplyEffect` 接受 `GameplayEffect`。Instant Effect 不返回持久 handle，也不能授予 tag 或 ability。
+`SendEvent` 同步保留 instigator，并以传入的 Battler 为目标。`ApplyEffect` 接受 `GameplayEffect`。Instant Effect 不返回持久 handle，也不能授予标签或 ability。
 
 ## 相关页面
 

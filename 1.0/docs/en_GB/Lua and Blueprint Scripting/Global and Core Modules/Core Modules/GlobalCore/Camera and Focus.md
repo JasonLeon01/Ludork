@@ -2,12 +2,6 @@
 
 ## Camera
 
-Direct metadata bases: —
-
-### Properties
-
-No editable properties are declared.
-
 ### Functions and events
 
 | Name | Kind | Parameters | Returns | Execution and metadata |
@@ -42,12 +36,6 @@ No editable properties are declared.
 
 ## CommonTipController
 
-Direct metadata bases: —
-
-### Properties
-
-No editable properties are declared.
-
 ### Functions and events
 
 | Name | Kind | Parameters | Returns | Execution and metadata |
@@ -56,8 +44,6 @@ No editable properties are declared.
 | `onTick` | `function` | self: { "GlobalCore", "CommonTipController" } = "self"; deltaTime: float | — | — |
 
 ## FocusNeighbor
-
-Direct metadata bases: —
 
 ### Properties
 
@@ -68,13 +54,7 @@ Direct metadata bases: —
 
 The `group` field is non-owning, so the `FocusManager` or the caller must retain its target. If the target is destroyed, the field reads as `nil` and the edge is ignored. Reciprocal neighbours do not extend the lifetime of either side.
 
-### Functions and events
-
-No Blueprint functions or events are declared.
-
 ## FocusGroup
-
-Direct metadata bases: —
 
 ### Properties
 
@@ -98,12 +78,6 @@ Direct metadata bases: —
 | `moveWithin` | `function` | self: { "GlobalCore", "FocusGroup" } = "self"; current: { "Engine", "FunctionalBase" }; direction: string | return: { "Engine", "FunctionalBase" } | — |
 
 ## FocusManager
-
-Direct metadata bases: —
-
-### Properties
-
-No editable properties are declared.
 
 ### Functions and events
 

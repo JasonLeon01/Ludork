@@ -19,12 +19,6 @@ The operation's owner handles resource cleanup; cancellation alone does not undo
 
 ## EventBus
 
-Direct metadata bases: —
-
-### Properties
-
-No editable properties are declared.
-
 ### Functions and events
 
 | Name | Kind | Parameters | Returns | Execution and metadata |
@@ -43,8 +37,6 @@ No editable properties are declared.
 | `flush` | `function` | self: { "Engine", "EventBus" } = "self"; limit: int = nil | return: int | — |
 
 ## Engine
-
-Direct metadata bases: —
 
 ### Properties
 
@@ -93,9 +85,9 @@ Direct metadata bases: —
 | `install` | handler: function | Installs or replaces the current VM's request handler. |
 | `uninstall` | — | Releases that handler; repeated calls are harmless. |
 
-The handler receives one request table and must return exactly one JSON-serializable table. Native dispatch does not interpret edit actions. Missing handlers, Lua errors, invalid return counts and encoding failures produce `success = false` with an `error` string. The default Game module owns registration; project scripts should not replace the handler during normal play. Installation does nothing without an editor bridge.
+The handler receives one request table and must return exactly one JSON-serialisable table. Missing handlers, Lua errors, invalid return counts and encoding failures produce `success = false` with an `error` string. The default Game module owns registration; project scripts should not replace the handler during normal play. Installation does nothing without an editor bridge.
 
-Registration belongs to the Lua VM and is released at shutdown. The editor feature is [Live Debug](<../../../../Editor User Guide/Run Debug and Package.md#live-debug>). Wire framing and call timing are in the [editor bridge boundary](<../../../../Native C++ Development/Build and Module Layout.md#editor-bridge-boundary>).
+Registration belongs to the Lua VM and is released at shutdown. See [Live Debug](<../../../../Editor User Guide/Run Debug and Package.md#live-debug>) for the editor controls.
 
 ## Native web pages
 

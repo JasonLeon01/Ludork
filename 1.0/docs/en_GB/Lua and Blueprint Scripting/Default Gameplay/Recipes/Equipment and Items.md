@@ -31,7 +31,7 @@ Item and Equip schemas separate reusable definitions from inventory instances.
 
 Owning an Item grants its `onUse` ability, and removing the last copy revokes it. `Player:activateItem` targets that Player, and the graph decides when to consume the Item. `cost` remains menu policy, not an Ability System cost.
 
-Test buying, selling, drops, use, equipment replacement and restoring a save. Loading rebuilds saved Item abilities and equipment Effects without replaying member graphs. Also test missing icons, unknown IDs, invalid slots and renamed members.
+Loading rebuilds saved Item abilities and equipment Effects without replaying member graphs.
 
 ## Limitations
 

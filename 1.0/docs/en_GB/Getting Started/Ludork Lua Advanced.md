@@ -54,7 +54,7 @@ An explicit `nil` restored from Blueprint, Component or General Data is an own f
 
 `Type.new(...)` constructs an instance and calls `init`. Finalised classes are also callable, but project code follows the style of the neighbouring module. A class without `init` accepts no arguments unless a single native root defines the constructor contract. Invoke required native-base initialisers explicitly. Lifecycle methods such as `onCreate`, `onTick` and `onDestroy` run only when their owning runtime contract calls them. `instance:dispose()` runs the resolved implementation at most once, releases native ownership and instance fields, and is not repeated by garbage collection.
 
-Before a native root is constructed, typed assignments to its properties are stored on the composite and applied during native-base initialization. Native property access uses that root; script getters and setters are resolved from script classes. Setter errors propagate to the caller.
+Before a native root is constructed, typed assignments to its properties are stored on the composite and applied during native-base initialisation. Native property access uses that root; script getters and setters are resolved from script classes. Setter errors propagate to the caller.
 
 Inside a method, `super()` resolves the next implementation from the defining class. Use `super(ClassName, self)` when an indirect callback makes ownership ambiguous. Multiple inheritance is supported, and declared base order must remain stable.
 
@@ -228,7 +228,7 @@ end)
 
 `await` returns the operation's final result. If the operation is cancelled, the task ends without running the next statement. To stop only this task, call `asyncio.cancel_task(task)`; the shared operation and its other waiters remain active. Task completion and cancellation run Lua `__close` cleanup.
 
-See [AsyncOperation](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Events and Module Root.md#asyncoperation>) for the operation API and [Lua Runtime and Modules](<../Lua and Blueprint Scripting/Lua Runtime and Modules.md#asynchronous-operation-updates>) for custom-entry initialization.
+See [AsyncOperation](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Events and Module Root.md#asyncoperation>) for the operation API and [Lua Runtime and Modules](<../Lua and Blueprint Scripting/Lua Runtime and Modules.md#asynchronous-operation-updates>) for custom-entry initialisation.
 
 For larger reads, `asyncio.start_file_batch(specs)` scans and reads at most four files concurrently while preserving manifest order. Logical `Data/...` roots support packed Data. Other roots use the physical filesystem. `asyncio.poll_file_batch(job, maxItems?)` returns progress, delivered items and a structured failure. `asyncio.cancel_file_batch(job)` cancels the job.
 

@@ -2,15 +2,9 @@
 
 ## UIManager
 
-直接 metadata 基类：—
-
 ### 堆叠与更新顺序
 
 `UIManager` 按 `Canvas.zOrder` 升序渲染并执行 late update，而 logic 与 fixed update 按相反顺序执行，因此前景 UI 会先消费输入。z-order 相同时，后加载的 UI 位于前层。
-
-### 属性
-
-未声明任何可编辑属性。
 
 ### 函数与事件
 
@@ -25,15 +19,9 @@
 
 ## WeatherType
 
-`GlobalCore.WeatherType` 定义 `NONE = 0`、`RAIN = 1`、`STORM = 2` 和 `SNOW = 3`。原生构建通过纯数据模块 `Enums.GlobalCore.WeatherType` 导出同一组值。Lua 签名保留 `GlobalCore.WeatherType`；蓝图输入和输出使用 `{ enum = "Enums.GlobalCore.WeatherType" }`，显示 key 并保存底层整数。
+`GlobalCore.WeatherType` 定义 `NONE = 0`、`RAIN = 1`、`STORM = 2` 和 `SNOW = 3`。原生构建通过纯数据模块 `Enums.GlobalCore.WeatherType` 导出同一组值。Lua 签名保留 `GlobalCore.WeatherType`；蓝图输入和输出使用 `{ enum = "Enums.GlobalCore.WeatherType" }`，显示键并保存底层整数。
 
 ## WeatherController
-
-直接 metadata 基类：—
-
-### 属性
-
-未声明任何可编辑属性。
 
 ### 函数与事件
 
@@ -47,12 +35,6 @@
 
 ## GlobalCore
 
-直接 metadata 基类：—
-
 ### 属性
 
 未声明任何可编辑属性。`WeatherType` 是 Lua 枚举表，不是 Blueprint 属性。
-
-### 函数与事件
-
-未声明任何 Blueprint 函数或事件。

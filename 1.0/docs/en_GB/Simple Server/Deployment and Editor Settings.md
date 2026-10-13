@@ -1,6 +1,6 @@
 # Simple Server: Deployment and Editor Settings
 
-Ludork Server is an optional HTTP data store. Each project contains accounts; each account contains category files, and each file is a JSON dictionary. The React/TypeScript management page lists accounts and files and displays their contents. It is read-only. The server provides neither multiplayer synchronization nor RPC, and it does not replace the game's local save system.
+Ludork Server is an optional HTTP data store. Each project contains accounts; each account contains category files, and each file is a JSON dictionary. The management website lists accounts and files and displays their contents. It is read-only. The server provides neither multiplayer synchronisation nor RPC, and it does not replace the game's local save system.
 
 Deploy the backend and frontend on a server or a separate test instance. A game client only needs a server URL and project key; it does not install Node.js or deploy the server. Client integration requires a **C++ Source** project. Standalone hides both server configuration entries.
 
@@ -8,14 +8,14 @@ Deploy the backend and frontend on a server or a separate test instance. A game 
 
 Open [Ludork Releases](https://github.com/JasonLeon01/Ludork/releases) and download `LudorkServer-source-<version>.tar.gz` from the release's **Assets**. Its version matches the editor packages in the same release; for example, editor version `1.0.0` uses `LudorkServer-source-1.0.0.tar.gz`.
 
-The archive contains the backend, frontend and deployment scripts under a `LudorkServer/` directory, preserving source file permissions. It contains source from the release's locked Server commit and no generated `BuildInfo.json`. On Linux, extract it and enter that directory:
+The archive contains the backend, frontend and deployment scripts under `LudorkServer/`. On Linux, extract it and enter that directory:
 
 ```sh
 tar -xzf LudorkServer-source-1.0.0.tar.gz
 cd LudorkServer
 ```
 
-Use the downloaded version's filename, then follow the deployment steps below. The CI handoff archive uses `LudorkServer-source-<Server SHA>.tar.gz`; the published Release uses the editor-version name above.
+Use the downloaded version's filename, then follow the deployment steps below.
 
 ## Deploy and start
 
@@ -58,11 +58,11 @@ Each project has an `ipWriteIntervalSeconds` field in `config/projects.json`, un
 
 This is a project-object fragment, not a replacement configuration file. Set the value to `0` for unlimited writes, or a nonnegative integer up to `9007199254740991` to choose another interval. Fractional values, strings, null and negative numbers are rejected. Redeploying a project preserves its existing interval and data. **Restart the server after editing the setting**; the current process does not reload it automatically.
 
-The interval is shared by all writes from the same TCP client IP to the same project, across accounts and categories. IPv4-mapped IPv6 addresses are normalized; `X-Forwarded-For` is ignored. Users sharing a NAT or reverse proxy may therefore share one write allowance. Other projects have independent allowances. Reads, list queries, token requests and management traffic do not use it.
+The interval applies to all writes from the same TCP client IP to the same project. Users sharing a NAT or reverse proxy may therefore share one write allowance. Other projects have independent allowances.
 
-The interval starts when a validated, authenticated write is admitted, before storage; a later storage failure still uses the allowance. Requests rejected before admission do not start it, and HTTP 429 does not extend an existing interval. Deadlines are kept in memory and reset on restart. A rate-limited write consumes its valid token, so wait for `retryAfterSeconds`, then acquire a fresh token before trying again. See the [HTTP rate-limit response](<HTTP Protocol.md#write-rate-limits>) and [native result handling](<Native Client API.md#token-and-timeout-behavior>).
+See [HTTP write rate limits](<HTTP Protocol.md#write-rate-limits>) for token consumption, rejected writes and restart behaviour, and [native result handling](<Native Client API.md#tokens-and-timeouts>) for retry guidance.
 
-## Configure a test client
+## Configure the development client
 
 In a C++ Source project, open **Game → Test Server Settings**. Enable Ludork Server and enter the test URL and key. The initial URL is `http://localhost:7777/<project-directory-name>`, with the directory name URL-encoded. Confirm saves; Cancel leaves the saved configuration unchanged. This window configures the client only; deploy and start the test server yourself.
 
@@ -81,7 +81,7 @@ The local file is:
 
 These are local settings, including a plaintext test key. They are ignored by Git and are not written to `Main.proj` or Lua. Projects with the same directory name share this local settings location. A missing file or `enabled: false` disables the integration.
 
-**Construct** builds Debug and **Play** runs Debug. Changing the effective test settings makes the native build stale, so construct again or accept Build and Play. Debug build and native-state checks read the file through `LUDORK_SERVER_CONFIG_FILE`; a prewarmed checker reads its current contents on each check.
+**Construct** builds Debug and **Play** runs Debug. Changing the effective settings requires a new native build, so construct again or accept Build and Play. Debug builds read the local file through `LUDORK_SERVER_CONFIG_FILE`.
 
 ## Configure a packaged client
 
@@ -101,7 +101,7 @@ For example, attach these environment values to your normal GitHub Actions game-
   run: tools\pack_project.bat --release Game
 ```
 
-An enabled build defines `LUDORK_SERVER_AVAILABLE` and compiles the transport with its URL/key. A disabled build leaves the macro undefined and excludes the network implementation; the Lua entry points remain available, print a disabled message and complete with `ServerErrorCode.Disabled`. Packaging removes the generated Release configuration header after execution, including editor cancellation. The resulting binary necessarily contains the credentials it needs.
+An enabled build defines `LUDORK_SERVER_AVAILABLE` and includes the transport with its URL and key. When disabled, the Lua entry points remain available and complete with `ServerErrorCode.Disabled`. The resulting binary contains the credentials it needs.
 
 ## Management and operational limits
 

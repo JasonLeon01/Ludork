@@ -114,7 +114,7 @@ Default movement and menu directions use only left-stick `X`/`Y` and D-pad `PovX
 
 ## Focus and navigation
 
-Keyboard and controller navigation needs an explicit focus order. A disabled or hidden control must not remain the active focus target. Test pointer activation and keyboard or controller activation independently.
+Keyboard and controller navigation needs an explicit focus order. A disabled or hidden control must not remain the active focus target.
 
 ## Configuration controls
 
@@ -129,10 +129,6 @@ An expanded Config DropBox overlays the settings rows and owns input until it co
 Save/Load uses one shared slot list. Switching the Load/Save tabs preserves its cursor, scroll and detail. Reopening defaults to Load and the newest existing save, or slot zero when none exists; map hotkey S opens Save instead. Cancel closes it. Title load-only mode omits the tabs and centres the remaining panes.
 
 Exact UI and input APIs are in the API reference, starting with [GlobalFunctions.Container](<../Node Functions/Container.md>). Game-localised labels follow [Game Localisation Workflow](<../../Plug-in Development and Installation/Official Plug-ins/Game Localisation Workflow.md>). Editor language switching is not part of this runtime section.
-
-## Limitations
-
-Embedded input forwarding is specific to supported Windows editor-run modes. A native standalone window remains the authoritative environment for final input, focus and controller testing.
 
 ## Related pages
 

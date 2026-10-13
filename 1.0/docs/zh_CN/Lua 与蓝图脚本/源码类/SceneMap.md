@@ -14,10 +14,6 @@ Scene 直接创建 HUD 与 Region Title。由 `Source.Windows` 导出的可选�
 
 加载普通地图时，先绑定 Scene、当前地图身份与 Player，再恢复地形与 Actor 记录，最后才执行存活 Actor 的 `onCreate`。替换地图或销毁 Scene 时，会释放离开地图的 ConditionalActor 订阅，既不派发 Actor 销毁事件，也不改动持久记录。
 
-### 属性
-
-未声明任何可编辑属性。
-
 ### 函数与事件
 
 | 名称 | 种类 | 参数 | 返回 | 执行语义与 metadata |

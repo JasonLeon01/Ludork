@@ -6,12 +6,6 @@ Metadata 来源：`Scripts/GlobalFunctions/Player_meta.lua`
 
 ## Player
 
-直接 metadata 基类：—
-
-### 属性
-
-未声明任何可编辑属性。
-
 ### 函数与事件
 
 | 名称 | 种类 | 参数 | 返回 | 执行语义与 metadata |

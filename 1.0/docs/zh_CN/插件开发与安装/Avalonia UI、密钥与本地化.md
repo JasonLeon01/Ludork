@@ -1,7 +1,5 @@
 # Avalonia UI、密钥与本地化
 
-## 目标
-
 打开一个插件自有的 Avalonia 窗口，通过宿主凭据服务保存密钥，并按当前编辑器语言显示标签，同时不依赖编辑器实现类型。
 
 ## 前置条件
@@ -14,7 +12,7 @@
 
 **带界面** 新建模板提供纯 C# 的空 `PluginWindow`，已经使用 `PluginTheme`，但 `Register` 仍为空。需要向用户展示时，再添加创建并打开窗口的命令。
 
-### 取得真正的所有者窗口
+### 获取父窗口
 
 ```csharp
 if (context.UserInterface is not IAvaloniaPluginUserInterface avaloniaUi)
@@ -47,7 +45,7 @@ return PluginResult.Completed();
 
 ### 保存密钥
 
-通过命令 context 中按插件隔离的 `SecretStore` 保存：
+通过命令上下文中按插件隔离的 `SecretStore` 保存：
 
 ```csharp
 await context.SecretStore.WriteAsync(
@@ -59,13 +57,13 @@ string? stored = await context.SecretStore.ReadAsync(
     context.CancellationToken);
 ```
 
-`ContainsAsync`、`ReadAsync`、`WriteAsync` 与 `DeleteAsync` 使用 Windows 凭据管理器或 macOS 钥匙串。全局凭据保持已有的插件 ID 作用域；项目凭据额外包含项目作用域，因此不同项目中相同的插件 ID 与密钥名称不会共享值。Linux 从环境变量读取，不支持写入和删除，异常会给出所需变量名。项目变量使用 `LUDORK_PROJECT_PLUGIN_SECRET_` 加作用域密钥的哈希，与全局 `LUDORK_PLUGIN_SECRET_` 变量分开。返回的密钥不得复制到普通设置、诊断信息、URL 或会话日志中。逻辑 key 必须保持稳定，并且只服务于一个用途。
+`ContainsAsync`、`ReadAsync`、`WriteAsync` 与 `DeleteAsync` 使用 Windows 凭据管理器或 macOS 钥匙串。全局凭据保持已有的插件 ID 作用域；项目凭据额外包含项目作用域，因此不同项目中相同的插件 ID 与密钥名称不会共享值。Linux 从环境变量读取，不支持写入和删除，异常会给出所需变量名。项目变量使用 `LUDORK_PROJECT_PLUGIN_SECRET_` 加作用域密钥的哈希，与全局 `LUDORK_PLUGIN_SECRET_` 变量分开。返回的密钥不得复制到普通设置、诊断信息、URL 或会话日志中。密钥名称应保持稳定，每个名称只对应一种用途。
 
 ### 本地化插件 UI
 
 注册期间读取 `IPluginRegistrar.EditorLanguage`，加载匹配的插件资源，并设置明确的回退语言，例如 `en_GB`。注册时，`PluginMenuCommand.Label` 与 `PluginMapContextMenuCommand.Label` 必须已经本地化。窗口标题、按钮、校验信息与诊断文本都由插件自行本地化。宿主不会翻译插件字符串。
 
-`Ludork.Plugin.Abstractions.PluginLocalizer.LoadDirectory(pluginDirectory, language)` 读取 `locales/<language>.json`，仅在目标文件不存在时回退到整个 `en_GB.json`。`LoadCatalog(localePath, language)` 读取按语言分组的单个 JSON 对象，并逐键回退到 `en_GB`。`Text(key)` 无法解析时返回原 key，`Format(key, arguments)` 使用当前文化格式化。资源格式和语言选择均由调用方明确指定。
+`Ludork.Plugin.Abstractions.PluginLocalizer.LoadDirectory(pluginDirectory, language)` 读取 `locales/<language>.json`，仅在目标文件不存在时回退到整个 `en_GB.json`。`LoadCatalog(localePath, language)` 读取按语言分组的单个 JSON 对象，并逐键回退到 `en_GB`。`Text(key)` 无法解析时返回原 key，`Format(key, arguments)` 使用当前语言区域的规则格式化。资源格式和语言选择均由调用方明确指定。
 
 游戏本地化是另一套数据工作流。不要把插件自己的 locale 资源当作项目的运行时文本表。
 
@@ -73,7 +71,7 @@ string? stored = await context.SecretStore.ReadAsync(
 
 ## 限制
 
-`IAvaloniaPluginUserInterface` 只暴露所有者窗口，不暴露编辑器控件、服务或样式。源码插件引入器不接受零散的 XAML 源码。宿主不为已经加载的插件提供实时语言切换。
+`IAvaloniaPluginUserInterface` 只提供父窗口，不暴露编辑器控件、服务或样式。源码插件引入器不接受零散的 XAML 源码。宿主不为已经加载的插件提供实时语言切换。
 
 ## 相关页面
 

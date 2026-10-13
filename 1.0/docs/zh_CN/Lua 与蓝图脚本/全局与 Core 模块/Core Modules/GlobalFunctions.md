@@ -1,23 +1,12 @@
 # GlobalFunctions Lua API
 
-`GlobalFunctions` 通过 `Components`、`Manager`、`NodeGraph` 与 `UI` 四个分组 table 暴露原生自由函数，其声明来自 `Scripts/stub/GlobalFunctions.d.lua` 与 `Engine/Source/GlobalFunctions/include/GlobalFunctions`。`Scripts/GlobalFunctions_meta.lua` 为空，因此这些函数属于 Lua API，而不是 Blueprint 节点。分组函数只出现在各自的分组 table 中。
+`GlobalFunctions` 通过 `Components`、`Manager`、`NodeGraph` 与 `UI` 四个分组表暴露原生自由函数，其声明来自 `Scripts/stub/GlobalFunctions.d.lua` 与 `Engine/Source/GlobalFunctions/include/GlobalFunctions`。`Scripts/GlobalFunctions_meta.lua` 为空，因此这些函数属于 Lua API，而不是 Blueprint 节点。分组函数只出现在各自的分组表中。
 
 `Scripts/GlobalFunctions` 中的 Lua 蓝图函数以独立模块加载，例如 `require("GlobalFunctions.Math")`，不会加入这个原生根表。
 
 ## 加载
 
-```lua
-local Engine = require("Engine")
-local GlobalCore = require("GlobalCore")
-local GlobalFunctions = require("GlobalFunctions")
-
-local Components = GlobalFunctions.Components
-local Manager = GlobalFunctions.Manager
-local NodeGraph = GlobalFunctions.NodeGraph
-local UI = GlobalFunctions.UI
-```
-
-按显示顺序加载三个玩法根模块。
+模块加载顺序见 [Lua 运行时与模块](<../../Lua 运行时与模块.md#入口与模块顺序>)。
 
 ## Components
 

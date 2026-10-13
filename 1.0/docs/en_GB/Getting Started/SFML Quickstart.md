@@ -24,7 +24,7 @@ Ludork does not hide SFML; it builds on top of it. The two layers have different
 | Ludork | Project data, maps, Actors, Blueprints, Scenes, the declarative UI asset system, resource managers and packaging. |
 | SFML | Graphics, audio, windowing, input devices and the geometry and value types those subsystems exchange. |
 
-Reach for `sf` when a value or a behaviour is genuinely graphical or numeric. Reach for `Engine`, `GlobalCore` and `GlobalFunctions` when it is about the project. `sf` contains no map, Actor, Blueprint or data concept.
+Use `sf` for graphics values and resources, and `Engine`, `GlobalCore` or `GlobalFunctions` for maps, Actors, Blueprints and project data.
 
 Most drawing in a project goes through Engine controls and Scenes rather than a hand-built `sf.RenderWindow`, because the runtime owns the window, the frame loop and the UI tree. The SFML layer is where the underlying values and resources come from.
 
@@ -102,7 +102,7 @@ local veil = sf.Color.new(0, 0, 0, 160)
 
 Predefined colours are fields of `sf.Color`: `Black`, `White`, `Red`, `Green`, `Blue`, `Yellow`, `Cyan`, `Magenta` and `Transparent`. `toInteger` returns the packed 32-bit value. `sf.Color` has no operators, so it cannot be added or compared; read and compare its components if that is needed.
 
-`sf.IntRect.new` and `sf.FloatRect.new` take a position and a size, and both also accept four numbers. The last two numbers are width and height, not the bottom-right corner, which is the mistake this constructor invites most often:
+`sf.IntRect.new` and `sf.FloatRect.new` take a position and a size, and both also accept four numbers. The last two numbers are width and height, not the bottom-right corner:
 
 ```lua
 local tile = sf.IntRect.new(sf.Vector2i.new(0, 0), sf.Vector2i.new(32, 32))
@@ -150,7 +150,7 @@ sf.Sprite : sf.Drawable, sf.Transformable
 sf.Text : sf.Drawable, sf.Transformable
 ```
 
-Every `sf.Transformable` exposes `setPosition` and `getPosition` with `sf.Vector2f`, `setRotation` and `getRotation` with `sf.Angle`, `setScale`, `getScale`, `setOrigin` and `getOrigin` with `sf.Vector2f`, plus `move`, `rotate`, `scale` and `getTransform`. That is the whole movement vocabulary for a sprite, a shape or a text object.
+Every `sf.Transformable` exposes `setPosition` and `getPosition` with `sf.Vector2f`, `setRotation` and `getRotation` with `sf.Angle`, `setScale`, `getScale`, `setOrigin` and `getOrigin` with `sf.Vector2f`, plus `move`, `rotate`, `scale` and `getTransform`.
 
 ```lua
 local cell = sf.RectangleShape.new(sf.Vector2f.new(32.0, 32.0))

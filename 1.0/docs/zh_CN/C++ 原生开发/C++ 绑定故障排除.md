@@ -8,11 +8,11 @@
 
 ## C++ 编译成功但 Lua 找不到成员
 
-检查 Lua 模块路径或规范函数组路径、生成的注册代码与 `require` 顺序。类、未分组函数与模块属性只存在于模块根。分组函数只存在于所属的 group table。
+检查 Lua 模块路径或规范函数组路径、生成的注册代码与 `require` 顺序。类、未分组函数与模块属性只存在于模块根。分组函数只存在于所属的分组表。
 
 ## LuaLS 可见但蓝图不可见
 
-确认该方法是否因内部 helper 或次要适配重载而被有意标记为 `metadata = false`。若没有，生成的根 `*_meta.lua` 应当收录每一个逻辑公开的 `BIND_METHOD`。阅读 bindgen 诊断，不要手写重复声明。
+确认该方法是否因内部辅助方法 或次要适配重载而被有意标记为 `metadata = false`。若没有，生成的根 `*_meta.lua` 应当收录每一个逻辑公开的 `BIND_METHOD`。阅读 bindgen 诊断，不要手写重复声明。
 
 ## Bindgen 报告 metadata 方法重名
 
@@ -20,11 +20,11 @@
 
 ## 类型转换失败
 
-使用受支持的基础类型、STL 类型、SFML 类型与已声明的 Core 类型。跨模块类型必须带完整声明。可复用的转换交给通用 adapter 或 trait 提供；绝不能让 bindgen 针对某个业务类或成员名分支。
+使用受支持的基础类型、STL 类型、SFML 类型与已声明的 Core 类型。跨模块类型必须带完整声明。可复用的转换交给通用适配器或类型特征 提供；绝不能让 bindgen 针对某个业务类或成员名分支。
 
 ## Metadata 默认值错误
 
-把属性或方法的 `Meta` 放进它自己的注解，并使用注解语法本身支持的 `default`（见[宏参考](<宏参考.md>)与[生成 Metadata 与 Stub](<生成 Metadata 与 Stub.md>)）。重新构建全部生成输出，并复查“Blueprint API 参考”的覆盖情况。
+把属性或方法的 `Meta` 放进它自己的注解，并使用注解语法本身支持的 `default`（见[宏参考](<宏参考.md>)与[生成 Metadata 与 Stub](<生成 Metadata 与 Stub.md>)）。重新构建以更新生成文件。
 
 方法或函数顶层的 `default`、`success` 或 `fail` 会触发校验诊断，要求改用 `outpins(...)`。`outpins` 与 `defaults` 的区别以及小写 token 规则见[函数、事件与执行](<函数、事件与执行.md>)与[宏参考](<宏参考.md>)。
 

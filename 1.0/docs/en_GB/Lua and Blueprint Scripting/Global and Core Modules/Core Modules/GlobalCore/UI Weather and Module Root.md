@@ -2,15 +2,9 @@
 
 ## UIManager
 
-Direct metadata bases: —
-
 ### Stacking and update order
 
 `UIManager` renders and late-updates in ascending `Canvas.zOrder`, but runs logic and fixed updates in reverse order, so that foreground UIs consume input first. At equal z-order, the later-loaded UI is in front.
-
-### Properties
-
-No editable properties are declared.
 
 ### Functions and events
 
@@ -29,12 +23,6 @@ No editable properties are declared.
 
 ## WeatherController
 
-Direct metadata bases: —
-
-### Properties
-
-No editable properties are declared.
-
 ### Functions and events
 
 | Name | Kind | Parameters | Returns | Execution and metadata |
@@ -47,12 +35,6 @@ No editable properties are declared.
 
 ## GlobalCore
 
-Direct metadata bases: —
-
 ### Properties
 
 No editable properties are declared. `WeatherType` is a Lua enum table, not a Blueprint property.
-
-### Functions and events
-
-No Blueprint functions or events are declared.

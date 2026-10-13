@@ -48,12 +48,6 @@ Sparse-world streaming reuses Tile graphics chunk readiness through `isCellBuilt
 
 ## Tilemap
 
-Direct metadata bases: —
-
-### Properties
-
-No editable properties are declared.
-
 ### Functions and events
 
 | Name | Kind | Parameters | Returns | Execution and metadata |
@@ -68,8 +62,6 @@ No editable properties are declared.
 | `updateAutoTileAnimation` | `function` | self: { "Engine", "Tilemap" } = "self"; deltaTime: float; frameInterval: float | — | — |
 
 ## AutoTile
-
-Direct metadata bases: —
 
 ### Properties
 
@@ -88,8 +80,6 @@ Direct metadata bases: —
 | `fromData` | `function` | data: any | return: { "Engine", "AutoTile" } | — |
 
 ## Material
-
-Direct metadata bases: —
 
 ### Properties
 
@@ -115,8 +105,6 @@ Direct metadata bases: —
 
 ## TileLayerData
 
-Direct metadata bases: —
-
 The incremental overload accepts dimensions, and `writeBlock` then fills zero-based rectangular blocks. Mismatched, ragged or out-of-bounds data fails.
 
 ### Properties
@@ -139,8 +127,6 @@ The incremental overload accepts dimensions, and `writeBlock` then fills zero-ba
 | `writeBlock` | `function` | x: int; y: int; tileBlock: int[][]; autoTileBlock: any[][] | — | Runtime only |
 
 ## Tileset
-
-Direct metadata bases: —
 
 ### Properties
 

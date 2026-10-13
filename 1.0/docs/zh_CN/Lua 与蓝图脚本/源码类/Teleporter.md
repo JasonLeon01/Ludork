@@ -1,6 +1,6 @@
 # Source.MapActors.Teleporter
 
-`Teleporter` 声明楼梯方向、偏移、音效、转场与计时属性，以及上下楼和指定地图传送节点。三个蓝图方法都保留有类型的 `self` 输入：不填写时使用当前 Teleporter 蓝图的 owner，也可以连接另一个 Teleporter 实例。
+`Teleporter` 声明楼梯方向、偏移、音效、转场与计时属性，以及上下楼和指定地图传送节点。三个蓝图方法都保留有类型的 `self` 输入：不填写时使用当前 Teleporter 蓝图的所属对象，也可以连接另一个 Teleporter 实例。
 
 Metadata 来源：`Scripts/Source/MapActors/Teleporter_meta.lua`
 

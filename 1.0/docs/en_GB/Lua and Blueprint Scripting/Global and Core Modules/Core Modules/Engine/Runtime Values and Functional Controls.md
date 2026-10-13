@@ -2,13 +2,7 @@
 
 ## RuntimeValue
 
-Direct metadata bases: —
-
 `RuntimeValue` is registered under `Engine` for dynamic native and Lua values, and Lua `any` values keep their ordinary representations. C++ ownership and conversion rules are in [Core headers and Runtime boundary](<../../../../Native C++ Development/Build and Module Layout.md#core-headers-and-runtime-boundary>).
-
-### Properties
-
-No editable properties are declared.
 
 ### Functions and events
 
@@ -51,10 +45,6 @@ Declarative properties include `gamepadButton` (empty by default) and `gamepadLo
 
 Direct metadata bases: `{ "Engine", "SpriteBase" }`, `{ "Engine", "FunctionalBase" }`
 
-### Properties
-
-No editable properties are declared.
-
 ### Functions and events
 
 | Name | Kind | Parameters | Returns | Execution and metadata |
@@ -96,12 +86,6 @@ Call `clear()` on this system when closing or resetting an effect owner. It rema
 
 ## ControlBase
 
-Direct metadata bases: —
-
-### Properties
-
-No editable properties are declared.
-
 ### Functions and events
 
 | Name | Kind | Parameters | Returns | Execution and metadata |
@@ -133,12 +117,6 @@ No editable properties are declared.
 | `draw` | `function` | self: { "Engine", "ControlBase" } = "self"; target: sf.RenderTarget; states: sf.RenderStates | — | — |
 
 ## FocusableMixin
-
-Direct metadata bases: —
-
-### Properties
-
-No editable properties are declared.
 
 ### Functions and events
 
@@ -174,10 +152,6 @@ An effectively enabled functional control captures a primary touch whose beginni
 ### Pointer click
 
 A mouse press begins pointer capture but does not invoke `onClick`. The click fires only when the pressed button is released while the pointer is still hovering the same control; a release after the pointer leaves the control clears the pressed state without a click. The click arguments carry the released `button`, so callbacks that only handle the left button can filter on it. A touch tap follows the touch-capture rules above and prefers `onConfirm` when a confirm callback is present.
-
-### Properties
-
-No editable properties are declared.
 
 ### Functions and events
 
@@ -229,34 +203,10 @@ No editable properties are declared.
 
 Direct metadata bases: `{ "Engine", "Image" }`, `{ "Engine", "FunctionalBase" }`
 
-### Properties
-
-No editable properties are declared.
-
-### Functions and events
-
-No Blueprint functions or events are declared.
-
 ## FunctionalPlainText
 
 Direct metadata bases: `{ "Engine", "PlainText" }`, `{ "Engine", "FunctionalBase" }`
 
-### Properties
-
-No editable properties are declared.
-
-### Functions and events
-
-No Blueprint functions or events are declared.
-
 ## FunctionalRichText
 
 Direct metadata bases: `{ "Engine", "RichText" }`, `{ "Engine", "FunctionalBase" }`
-
-### Properties
-
-No editable properties are declared.
-
-### Functions and events
-
-No Blueprint functions or events are declared.

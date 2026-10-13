@@ -1,10 +1,8 @@
 # Game Localisation Workflow
 
-Game localisation is owned by Official Locale Tools. It is deliberately separate from General Data and save data.
+Official Locale Tools exports the game's translations from a workbook.
 
-## Goal
-
-Author one workbook, use Export to produce deterministic Lua catalogues, and resolve the selected language in gameplay.
+Author one workbook, export Lua language tables and use them in gameplay.
 
 ## Prerequisites
 
@@ -13,13 +11,10 @@ Author one workbook, use Export to produce deterministic Lua catalogues, and res
 
 ## Steps
 
-1. Install the editor release. On macOS, also run **Install Official Plugins** from the DMG. Restart and verify that Official Locale Tools is **Loaded**.
-2. Add an ID and translations to the Game project workbook.
-3. Click **Export** and confirm the export message before running the project.
-4. Verify the generated Lua tables.
-5. Use `LOC("ID")` or store `{ID}` where format resolution is expected.
-6. Change the game language and verify that visible UI updates in place and that hidden UI uses the new language when next opened.
-7. Pack and verify that the same generated catalogues are present.
+1. Install Official Locale Tools through [the official plug-in installation](<../Installing and Managing Plug-ins.md#official-release-plug-ins>).
+2. Add an ID and translations to `Data/Locale/Locale.xlsx`.
+3. Click **Export** before running the project.
+4. Use `LOC("ID")` or `{ID}` as described below.
 
 ## Workbook
 
@@ -40,7 +35,7 @@ return {
 }
 ```
 
-Output files are written through temporary files and replace `Scripts/Source/Locale/<language>.lua`. Language names may not be blank or rooted, and may not contain separators or invalid filename characters. A missing workbook is a successful skipped export. A malformed workbook fails the operation.
+Export writes `Scripts/Source/Locale/<language>.lua`. Language names may not be blank or rooted, and may not contain separators or invalid filename characters. A missing workbook is skipped without error; a malformed workbook stops the operation.
 
 Export preserves Unicode text, including C1 control characters, in UTF-8. Quotes, backslashes and ASCII control characters use Lua escapes. The editor hints and the game therefore read the same string values from the generated catalogue.
 
@@ -72,7 +67,7 @@ local message = LOC(
 
 `Locale.SetLanguage` changes the active language and synchronously publishes `LocaleChanged`. The Config window saves the selection. Subscribed UI refreshes its text from the original locale keys without resetting the selection, the focus or an active dialogue.
 
-`Source.Configs.Main` writes default configuration only when the target `Main.ini` does not exist. A new file defaults to `en_GB`, and it uses the platform language only when that language exactly matches the supported list. When the file is created on a HarmonyOS Mobile tablet with free-window mode enabled, the Scale default written is `0`. Other hosts, including HarmonyOS 2in1, write `1`. Existing files are not rewritten during startup to fill missing keys or to overwrite the selected language.
+A new `Main.ini` uses the platform language when it exactly matches a supported language, otherwise `en_GB`. Existing language settings are preserved. See [Runtime Data, Configuration and Saves](<../../Lua and Blueprint Scripting/Default Gameplay/Runtime Data Configuration and Saves.md>) for configuration defaults.
 
 Lua compilation and **Archive Assets, Data and Scripts (.ldpak)** process Core and the generated language files with the rest of the Scripts tree. Official Locale Tools does not inspect either option or process the locale directory separately.
 

@@ -6,8 +6,6 @@ Metadata source: `Scripts/GlobalFunctions/Gameplay_meta.lua`
 
 ## Gameplay
 
-Direct metadata bases: —
-
 ### Functions
 
 | Name | Parameters | Returns | Execution and metadata |

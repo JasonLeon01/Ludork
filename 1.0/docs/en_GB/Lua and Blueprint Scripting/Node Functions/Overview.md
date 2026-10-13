@@ -1,6 +1,6 @@
 # Node Functions Overview
 
-Each page in this chapter documents one Blueprint node module under the `GlobalFunctions` namespace: the nodes that module makes available to Blueprint graphs. Every page names its metadata source on its `Metadata source:` line — a `Scripts/GlobalFunctions/<Name>_meta.lua` file — and its function tables list what that metadata declares.
+This chapter lists the Lua Blueprint nodes under `GlobalFunctions`, with their inputs, outputs and execution rules.
 
 ## Modules
 
@@ -25,19 +25,15 @@ Each page in this chapter documents one Blueprint node module under the `GlobalF
 
 ## Looking up a node
 
-Start from the node in the Blueprint graph, recover its metadata identifier, then use the responsibilities above to choose a module page and read that identifier's row.
-
-The editor derives a node's displayed label from its identifier by splitting camel case, Pascal case and underscore boundaries and capitalising each displayed word, so a `Name` such as `GetActorByTag` appears in the graph as separated, capitalised words. Operator nodes are the exception: they may carry a literal `Meta.DisplayName`, which is why the `+` node is `Math.ADD` and the `+=` node is `Math.IADD`. See [Editor names and decorators](<../Blueprint Scripting/Metadata Schema and Decorators.md#editor-names-and-decorators>).
+Choose a module by its purpose above, then look up the node identifier. For example, the `+` node is `Math.ADD`.
 
 The function tables on those pages use these columns:
 
 - `Name` — the metadata identifier of the function or event.
-- `Kind` — the declared metadata `type`, such as `function` or `event`. A few pages, including [GlobalFunctions.Gameplay](<Gameplay.md>), omit this column.
+- `Kind` — the declared metadata `type`, such as `function` or `event`.
 - `Parameters` — the ordered input pins as `name: type`, followed by `= value` when the metadata declares a default, or `—` when the node takes no parameters.
 - `Returns` — the output pins in the same form, or `—` when the declaration has no outputs.
-- `Execution and metadata` — the `Pure`, `ExecSplit`, `Latent`, `LatentStates`, `LoopNode` and `Meta` entries copied from the metadata. [Execution declarations](<../Blueprint Scripting/Metadata Schema and Decorators.md#execution-declarations>) explains what each one promises to the Blueprint runtime.
-
-Some pages add prose after the table for nodes whose behaviour the columns cannot express.
+- `Execution and metadata` — the `Pure`, `ExecSplit`, `Latent`, `LatentStates`, `LoopNode` and `Meta` declarations. [Execution declarations](<../Blueprint Scripting/Metadata Schema and Decorators.md#execution-declarations>) explains their execution rules.
 
 ## Relationship to the GlobalFunctions Lua API
 

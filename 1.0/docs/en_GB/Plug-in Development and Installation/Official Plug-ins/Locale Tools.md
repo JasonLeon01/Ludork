@@ -13,15 +13,15 @@ The public entry type loads the plug-in's own `locale.json`, then registers:
 - A `LocaleExportHook` through `RegisterBeforeExportHook`
 - A before-Pack hook that only excludes the authoring workbook
 
-The Export hook declares the workbook as input and language Lua files as outputs for change detection. The unified editor Export runs it from the Export button, confirmed Export and Play, and once before every Pack. The hook invalidates its own cache and the editor text hints after each export attempt.
+The Export hook declares the workbook as input and language Lua files as outputs for change detection, and refreshes its cache and editor text hints after each export attempt.
 
-The workbook remains at `Data/Locale/Locale.xlsx`, while generated language modules are written to `Scripts/Source/Locale`. During Pack, the separate before-Pack hook excludes the authoring workbook before optional Data archiving. The packer, not the plug-in, compiles and optionally archives the runtime Scripts tree.
+The [Game Localisation Workflow](<Game Localisation Workflow.md>) covers workbook authoring, generated files and packaging.
 
 ## Menu behaviour
 
 The menu handler requires an open project, checks that the workbook exists and asks the operating system to open it. It reports handled warnings and errors through `IPluginUserInterface`.
 
-## Separation of languages
+## Plug-in and game languages
 
 `Plugins/OfficialLocaleTools/locale.json` localises the plug-in's own menu and diagnostic messages using `EditorLanguage`. It is not the game's catalogue.
 
@@ -29,7 +29,7 @@ The structural pattern is a small entry type, explicit registrations, operation 
 
 ## Limitations
 
-The plug-in owns project game-text export only. It does not localise the editor, create a general spreadsheet editor, register Random Map functionality or compile selected Lua directories.
+The plug-in exports game text. Its own UI and the game use separate language resources.
 
 ## Related pages
 

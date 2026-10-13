@@ -27,10 +27,6 @@
         {
           "key": "03/02/04",
           "path": "Metadata.md"
-        },
-        {
-          "key": "03/02/05",
-          "path": "校验与打包.md"
         }
       ]
     },
@@ -67,10 +63,6 @@
         {
           "key": "03/04/04",
           "path": "资产 Schema 与 Control Registry.md"
-        },
-        {
-          "key": "03/04/05",
-          "path": "校验与打包.md"
         }
       ]
     },

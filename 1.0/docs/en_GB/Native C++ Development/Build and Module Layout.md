@@ -2,8 +2,6 @@
 
 Choose a C++ Source project when the Lua and Blueprint APIs are insufficient, when a new native UI adapter is required, or when producing an iOS, HarmonyOS or Android build. The runtime uses C++20, CMake and declaration-driven bindings.
 
-## Goal
-
 Choose the correct native module, build its generated bindings and load the resulting Lua modules in the supported order.
 
 ## Prerequisites
@@ -14,15 +12,13 @@ Choose the correct native module, build its generated bindings and load the resu
 
 Public headers contain ordinary C++ declarations plus `BIND_*` markers that expand to nothing at compile time. Core bindgen reads the module and shared Runtime declaration roots, then generates one stable LuaGlue source per class, one module aggregate and stub source, a LuaLS stub and editor metadata.
 
-The `LUDORK_OPTIMIZE_DEBUG` setting also controls Debug interprocedural optimization for LuaSF binding objects and the shared LuaGlue runtime.
+The `LUDORK_OPTIMIZE_DEBUG` setting also controls Debug interprocedural optimisation for LuaSF binding objects and the shared LuaGlue runtime.
 
 Windows MSVC Release builds use deterministic compilation and `/Brepro` linking with incremental linking disabled, including the SFML and Lua dependencies. The separate FFmpeg build uses the same linker policy. This removes build-time timestamp differences from rebuilt EXE/DLL files when updating a Standalone project's `Binaries`. The first rebuild with these settings changes existing binaries once; changes to native inputs, dependencies, compiler, SDK or build settings can still change their contents. Packages continue to omit PDB files; retain the matching build symbols for debugging.
 
-Windows editor tools follow the same reproducibility goal: the independent `luac.exe` build uses deterministic MSVC Release compilation and linking, `gnumake.exe` uses deterministic non-incremental linking, and `ScriptTools.exe` enables Nuitka reproducible builds. Clean rebuilds through the same packaging path produce identical tool binaries when sources, dependencies and the toolchain, including Python, are unchanged. The first rebuild changes existing tool binaries once. Editor-only and template-inclusive packages use different Lua build projects, so their `luac.exe` files need not match each other. This guarantee does not extend to complete installers or macOS signed bundles.
-
 ## Steps
 
-The optional [`GlobalCore.Server` API](<../Simple Server/Native Client API.md>) compiles its SFML transport only when the generated per-configuration header defines `LUDORK_SERVER_AVAILABLE`. Debug uses the local test configuration; Release uses explicit packaging environment values and never reads that test file. Native build-state fingerprints include the effective configuration, so changing the test URL/key requires a Debug rebuild. See [server build settings](<../Simple Server/Deployment and Editor Settings.md>) for the source-project-only editor and CLI contract. The Lua API remains callable with a typed Disabled result when the transport is absent.
+Enable the optional [`GlobalCore.Server` API](<../Simple Server/Native Client API.md>) through the [server build settings](<../Simple Server/Deployment and Editor Settings.md>). Changing its development URL or key requires a Debug rebuild. When disabled, the Lua API remains callable and returns `ServerErrorCode.Disabled`.
 
 ### Choose a module
 
@@ -34,7 +30,7 @@ The optional [`GlobalCore.Server` API](<../Simple Server/Native Client API.md>) 
 | `GlobalFunctions` | `Components`, `UI`, `NodeGraph` and `Manager` free-function groups | GlobalCore and SFML |
 | `LudorkVideo` | Shared video decoding, seeking and audio extraction under `Engine/Source/Media` | LudorkRuntime, SFML and FFmpeg when enabled |
 
-`LudorkVideo` (`Ludork::Video`) is a static implementation library shared by game playback and the subtitle preview host. It exposes no Lua root. Subtitle parsing, timeline queries and text drawing remain in the Core UI implementation, so both consumers use the same subtitle rules.
+`LudorkVideo` (`Ludork::Video`) is a static library for video playback. It exposes no Lua root.
 
 `LudorkRuntime` is shared on desktop and static on mobile, and it exposes no Lua root. Bindings remain under `Engine`. AssetStore, DataStore and ScriptStore define the read-only Asset, Data and Lua-module boundaries for both the loose layout and the `.ldpak` layout. Standard receives DataStore file access only, so script archives never appear through filesystem APIs. Private zlib handles archive decompression and CRC32. Gameplay modules keep a fixed load order, do not link back to `GlobalFunctions` and carry complete cross-module declarations.
 
@@ -56,11 +52,11 @@ The game application host lives in `Application/` (`include/` and `src/`). Andro
 
 `runtimeWindowStyle()` in `GlobalRuntime.cpp` defines the game window style once. Its fixed-window policy flows to SFML window creation and recreation, native work-area measurements and the HarmonyOS ArkTS host. Platform adapters translate the supplied style into window controls and frame dimensions; they do not choose a separate resize policy. Display Scale and fullscreen remain runtime settings.
 
-`LUDORK_WITH_LUA` defaults to `ON` and is required for game builds. The desktop preview target of a project leaves that setting unchanged. Its dedicated `UiPreviewHostRuntime` compiles the project's UI implementation with preview resource loading. The Host does not start the game or create Lua Controllers.
+`LUDORK_WITH_LUA` defaults to `ON` and is required for game builds.
 
 Game builds generate native bindings and validate UI assets through the project registry. UI Lua Views and declarations are generated separately by editor **Export** or explicit `ScriptTools ui-assets generate <project-root>`; builds do not generate them. The UI generator itself needs no desktop preview. The [Declarative UI Authoring Workflow](<../Lua and Blueprint Scripting/Declarative UI/Authoring Workflow.md>) describes generated and handwritten ownership.
 
-Source preview and game binaries share `bin/<configuration>`. Desktop builds generate the project preview artifacts described in [Native UI Adapters](<Native UI Adapters.md#project-preview-artifacts>). Mobile cross-builds use an explicitly supplied desktop registry.
+Source preview and game binaries share `bin/<configuration>`. Desktop builds generate the [project preview artefacts](<Native UI Adapters.md#project-preview-artefacts>). Mobile cross-builds use an explicitly supplied desktop registry.
 
 ### Shared format and rendering constants
 
@@ -91,7 +87,7 @@ Empty arrays and maps remain distinct. The decoded payload is limited to 512 MiB
 
 Core keeps the public `Emitter`, `EmitterComponent`, `EmitterView` and Scene scheduling interfaces. Its `EmitterConfiguration` contains `EmitterTrack` values, each combining Runtime's `EmitterTrackParameters` with Core's eight named `EmitterCurves` channels of `Curve::CurveData`. `setConfiguration` centrally validates these values, samples the existing `Curve` implementation into a 256 × 8 float lookup table per track and restarts playback. `Runtime/Graphics/GpuEmitterCurveLayout.hpp` owns this layout: 256 samples across eight channels, packed into two RGBA rows. CPU baking, GPU texture allocation and generated shader coordinates use the same sample counts and indexing. `getConfiguration` returns an independent value copy. The existing ParticleSystem remains in Core.
 
-Within the Emitter path, `RuntimeData` is confined to Core's `EmitterResource.hpp/.cpp` resource JSON input and the preview JSON message boundary. The resource adapter maps authored string choices, 0–255 colours, arrays and curve references to the fixed configuration fields. Emitter stores that configuration value; the backend stores its compiled configuration. Neither retains the resource as a dynamic dictionary. Resource files and preview messages continue to use their existing JSON schemas.
+Within the Emitter path, `RuntimeData` is confined to resource JSON input in Core's `EmitterResource.hpp/.cpp`. The resource adapter maps authored string choices, 0–255 colours, arrays and curve references to the fixed configuration fields. Emitter stores that configuration value; the backend stores its compiled configuration.
 
 `Runtime/Graphics/GpuEmitterConfiguration.hpp` carries Runtime track parameters and baked curve samples without Core types. The unbound `GpuEmitterBackend` in `Runtime/Graphics/GpuEmitterBackend.hpp` owns playback state, fixed simulation steps, GPU tracks, drawing, asynchronous statistics and deferred GPU release through a private implementation. It accepts resolved configuration and does not interpret `Data/Particles` keys or depend on Core Curve, Actor or UI classes. `EmitterStatistics` is a Runtime value record with required `capacity`/`time` and optional renderer, count and timing results. Core returns it directly; the Lua binding writes a declared-field snapshot table, preserving unavailable optional values as `nil`.
 
@@ -99,7 +95,7 @@ The public Core `Emitter` forwards playback operations to this backend. Configur
 
 GPU implementation files live under `Runtime/src/Graphics/Emitters`. Raw OpenGL functions, shaders, buffer/query identifiers and private GPU headers stay there. Texture reads reuse Runtime AssetStore and AssetInputStream, including the existing loose and packed layouts. Runtime depends on Standard and SFML; Core includes only Runtime's public graphics headers.
 
-The Runtime Graphics CMake subdirectory compiles this backend once in both full and `LUDORK_WITH_LUA=OFF` builds. UiPreviewHostRuntime compiles the Core resource adapter and UI code and links the same Runtime backend; it does not compile another GPU implementation. Existing Runtime library export and preview staging rules apply.
+The Runtime Graphics CMake subdirectory compiles this backend once in both full and `LUDORK_WITH_LUA=OFF` builds.
 
 Shared GPU resources are keyed by the active SFML context ID. Shutdown queues GPU objects without requiring a context on the caller's thread; collection runs with the matching resource context active. Scene and preview hosts retain ownership of windows/render targets and collect retired resources before destroying those contexts. This GPU lifetime is independent of the Lua VM lifetime.
 
@@ -107,7 +103,7 @@ Shared GPU resources are keyed by the active SFML context ID. Shutdown queues GP
 
 Standard owns the Lua session. `runtime::initialize` requires a running Standard session, and repeated calls preserve the attached Runtime state. After `runtime::shutdown` detaches Runtime, a restart requires a new Standard session and Lua VM.
 
-Standard shuts down modules in reverse dependency order (Global, Engine, Runtime) before releasing its state. The host owns the Lua VM, and it must wait for shutdown to finish on the thread that initiated it before calling `lua_close`. If LuaSF initialization or binding registration fails before Standard starts, the host must still call `LuaSF_quiesce_state` and `LuaSF_shutdown_state` before `lua_close` to release any partially initialized glue session.
+Standard shuts down modules in reverse dependency order (Global, Engine, Runtime) before releasing its state. The host owns the Lua VM, and it must wait for shutdown to finish on the thread that initiated it before calling `lua_close`. If LuaSF initialisation or binding registration fails before Standard starts, the host must still call `LuaSF_quiesce_state` and `LuaSF_shutdown_state` before `lua_close` to release any partially initialised glue session.
 
 AssetStore, DataStore, ScriptStore and the Standard read-only file provider are host configuration. They are independent of the VM session and survive session shutdown.
 
@@ -119,7 +115,7 @@ Each independent class or bound type uses a same-named header and, where needed,
 
 Host-private implementation stays under `src` and uses an `Impl` suffix, such as `HostImpl.hpp` for `Host::Impl`. Larger implementations may use a same-named subdirectory and contribute sources through `target_sources`. Dependencies flow from the host into its implementation. Child directories must not include parent-private headers, including through include-root shortcuts, and public headers must not include private headers.
 
-Core shares SpriteVisuals, joystick device tracking and text configuration codecs through `src/Shared/include/CoreShared`. Their implementation and state remain under `src/Shared/src`; consumers include only the narrow interface headers. Engine and UiPreviewHostRuntime use the same source list and interface include root. Neither target exposes Core `src` or `src/UI` as an include root. Host companion headers stay beside their host source and are not shared interfaces.
+Core shares SpriteVisuals, joystick device tracking and text configuration codecs through `src/Shared/include/CoreShared`. Their implementation and state remain under `src/Shared/src`; consumers include only the interface headers. Host companion headers stay beside their host source and are not shared interfaces.
 
 Shared Runtime Lua services live in `Runtime/src/LuaServices`. Pure ConfigVars parsing lives in `Runtime/src/Metadata`.
 
@@ -135,29 +131,17 @@ The boundary checker includes Standard and rejects upward layer includes, parent
 
 System privately composes Display, FramePipeline, SceneStack and Lifecycle. Display owns the window. FramePipeline owns the canvas, effects and transition targets. SceneStack owns queued operations and retired scenes. Lifecycle owns shutdown state. Components expose operations instead of mutable state aggregates. Frame presentation remains outside the scene logic lock, and render targets rebuild between frames.
 
-Each Scene logic worker creates and releases its own shared graphics context on that thread. The context stays alive throughout the logic loop, so rebuilding a Camera render texture on the render thread cannot destroy the logic worker's active context. The scene logic lock continues to serialize access to shared render textures.
+Each Scene logic worker creates and releases its own shared graphics context on that thread. The context stays alive throughout the logic loop, so rebuilding a Camera render texture on the render thread cannot destroy the logic worker's active context. The scene logic lock continues to serialise access to shared render textures.
 
-`EngineState::CellSize` is a positive C++ compile-time constant. Editor builds generate their matching `EngineConstants.CellSize` from this declaration through ScriptTools. Changing it requires a rebuild of the engine, the editor and the templates. There is no project-level or runtime override.
-
-### Editor bridge boundary
-
-Standard owns the localhost TCP editor bridge selected by `LUDORK_COMMAND_PORT`. The protocol uses newline-delimited JSON and the `v` field; editor and runtime versions must match. Console commands, injected input, shutdown, controls, text input and `liveDebug` share this connection. Performance telemetry and UiPreviewHost retain their separate protocols.
-
-`Engine.EditorLiveDebug` is the Lua entry point; see [EditorLiveDebug](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Events and Module Root.md#editorlivedebug>). Standard calls the installed handler at the existing `System::updateRuntime()` frame boundary while the scene logic mutex is held. Network workers do not call Lua or mutate map objects. Desktop window focus does not gate this boundary; Android and iOS suspend runtime callbacks while the game is in the background.
-
-A `liveDebug` request includes `v = 1`, `type = "liveDebug"`, and non-empty `requestId` and `run` strings. All other fields pass to the Lua handler unchanged. The handler returns one response table; protected dispatch converts request and encoding errors into failure responses. Map context and Actor instance validation belong to the game handler.
-
-Large responses may be split across several wire messages and are reassembled before decoding. Disconnect drops pending output. Handler registration remains tied to the VM until replacement, uninstallation or shutdown.
+`EngineState::CellSize` is a positive C++ compile-time constant. Changing it requires a rebuild of the engine, the editor and the templates. There is no project-level or runtime override.
 
 ### Native text input boundary
 
 Engine owns the edit session through `Input/TextInputService.hpp`. Platform hosts implement `Input/TextInputHost.hpp`. The contract uses UTF-8, byte offsets at grapheme boundaries and caret rectangles in window-client pixels. Hosts return session-tagged events through a thread-safe sink. Service operations run on the game thread or before it starts. Standard provides Unicode segmentation and whitespace handling through utf8proc.
 
-Windows embedded play keeps the HWND and IME context in the editor process. An embedded text host exchanges session-tagged text and composition events, together with client-pixel caret rectangles, over the editor bridge protocol. It never subclasses the editor HWND from the game process. The editor and the runtime must use matching bridge versions. Disconnecting closes the edit session, keeps committed text and discards composition. Reconnecting does not reopen the session.
-
 ### Native WebView boundary
 
-Runtime owns the native web-page service and the `Engine.OpenWebView(url)` binding. `Runtime/WebViewHost.hpp` defines the platform host factory, window attachment and session-tagged completion; `Runtime/WebViewService.hpp` supplies input blocking. Factories can be installed before VM initialization. Display attaches a host to the live native window and detaches it before replacement or destruction. Each open request has a new ID; the host navigates its existing layer, and a late completion for an older request cannot close the current session. A rejected request preserves the existing page and session.
+Runtime owns the native web-page service and the `Engine.OpenWebView(url)` binding. `Runtime/WebViewHost.hpp` defines the platform host factory, window attachment and session-tagged completion; `Runtime/WebViewService.hpp` supplies input blocking. Factories can be installed before VM initialisation. Display attaches a host to the live native window and detaches it before replacement or destruction. Each open request has a new ID; the host navigates its existing layer, and a late completion for an older request cannot close the current session. A rejected request preserves the existing page and session.
 
 Platform hosts run UI work asynchronously and do not wait in the game loop or call Lua from completion. macOS and iOS use WKWebView, Android the system WebView, HarmonyOS ArkWeb, and Windows the system Evergreen WebView2 Runtime.
 
@@ -191,41 +175,25 @@ tools\build_cpp.bat Game Debug
 tools\build_cpp.bat Game Release
 ```
 
-In the editor, **Construct** runs this Debug build for a C++ Source project. **Play** stays disabled until the first successful Debug build, then asks **Build and Play** when first-party native inputs are stale. Lua, UI and locale changes do not require Construct. The `Main.proj` FFmpeg switch is a native build input. Editor Play and `build_cpp` share that per-configuration record; a direct CMake build does not publish it, so run an incremental `build_cpp` afterwards. Third-party trees and external CMake cache settings are outside the check, so run **Construct** or `build_cpp` after changing them. The editor workflow is in [Run, Debug and Package](<../Editor User Guide/Run Debug and Package.md>).
+In the editor, **Construct** runs the Debug build for a C++ Source project. After a direct CMake build, run an incremental `build_cpp` to update the build record used by **Play**. Changes to third-party sources or external CMake settings also require **Construct** or `build_cpp`. See [Run, Debug and Package](<../Editor User Guide/Run Debug and Package.md>) for the editor workflow.
 
 `LUDORK_OPTIMIZE_DEBUG` defaults to `ON` and controls Debug optimisation. LuaGlue checks argument types and bounds in every configuration.
 
-First-party C++ must not use `dynamic_cast`, `std::dynamic_pointer_cast` or `typeid`. `Engine/cmake/LudorkCppOptions.cmake` disables RTTI for C++ and Objective-C++ in every configuration with `/GR-` on MSVC and `-fno-rtti` on GCC, Clang and AppleClang. This covers game, Preview, Lua-disabled builds, source-built dependencies and the independent Windows editor launcher. LuaGlue identifies types without RTTI; exception handling stays enabled. Rebuild all native modules together after changing this policy. Imported libraries and system frameworks retain their own settings.
+First-party C++ must not use `dynamic_cast`, `std::dynamic_pointer_cast` or `typeid`. `Engine/cmake/LudorkCppOptions.cmake` disables RTTI for C++ and Objective-C++ in every configuration with `/GR-` on MSVC and `-fno-rtti` on GCC, Clang and AppleClang. This covers game, Preview, Lua-disabled builds, source-built dependencies. LuaGlue identifies types without RTTI; exception handling stays enabled. Rebuild all native modules together after changing this policy. Imported libraries and system frameworks retain their own settings.
 
 Release builds enable IPO/LTO for Standard, its separate ClassRuntime OBJECT target and the final mobile application target, alongside Runtime and Core. MinGW keeps IPO disabled. ClassRuntime uses hidden symbols and hidden inline symbols, while explicit public exports remain available. On Apple platforms, the game application, Standard, Runtime and Core use `-dead_strip` for their final Release links. MSVC keeps separate PDB files and `/OPT:REF /OPT:ICF`; Android and HarmonyOS use their toolchain's section garbage collection. These Release settings do not change Debug optimisation or the public Lua API. Keep the matching unstripped build outputs and any generated debug-symbol files for diagnosing a release; [packaging](<../Editor User Guide/Run Debug and Package.md#packaging>) strips only the platform's final distribution output.
 
 On macOS, single-arm64 AppleClang Release builds compile the generated Core binding sources with `-Os`. Handwritten runtime sources and other platforms, architectures and configurations retain their existing optimisation levels.
 
-Validate host-to-implementation direction locally before building:
-
-```bash
-.tools/ScriptTools/ScriptTools impl-boundary-check Game
-```
-
-```text
-.tools\ScriptTools\ScriptTools.exe impl-boundary-check Game
-```
-
-Development commands use the complete runtime directory under `.tools/ScriptTools`. The installed editor keeps it under `tools/ScriptTools`, with `ScriptTools` on macOS or `ScriptTools.exe` on Windows as its entry point. Move or copy the whole directory, including its libraries and `runtime-versions.txt`; the installed tool needs no system Python.
-
-The command discovers C++ boundaries from a host source and its same-named directory. Lua boundaries use the matching host or module directory convention, and child modules with their own mirrored `.d.lua` count as independent hosts. CMake exposes the same validation as the `ImplBoundaryValidate` target and makes Engine depend on it. Windows and macOS CI also run the direct command during native input validation. Violations report their source file and line, so no second boundary manifest is needed. The check resolves private includes to reject parent-private dependencies through relative paths or include-root shortcuts, public-to-private includes, cross-host companion includes and access to shared internals outside their implementation layer. Includes must name literal header paths so the checker can resolve them; macro-computed includes are rejected. It also rejects LuaGlue usage and resolved transitive LuaGlue includes in handwritten Core.
-
-The repository-root `.clang-tidy` configures checks for handwritten C++. Run `clang-tidy <source.cpp> -p <build-directory>` with a `compile_commands.json` containing the target's actual flags, including its RTTI option. Do not select generated or third-party files as main translation units. Visual Studio generators do not export this compilation database.
-
 LuaSF is a binder only: it owns neither the Lua VM nor its dependencies. The game runtime creates the `lua_State` with `luaL_newstate` and `luaL_openlibs`, hands it to LuaSF with `LuaSF_initialize_state` and `LuaSF_register`, and tears it down through `ludork::standard::shutdown` and `lua_close`.
 
 CMake reads LuaSF, LuaGlue, SFML and Lua from their directories under `Game/Engine/ThirdParty`. Override them with `-DLUDORK_LUASF_SOURCE_DIR`, `-DLUDORK_LUAGLUE_SOURCE_DIR`, `-DLUDORK_SFML_SOURCE_DIR` and `-DLUDORK_LUA_SOURCE_DIR`. LuaGlue defaults to the sibling of the selected LuaSF source directory, so local generator integration uses `-DLUDORK_LUASF_SOURCE_DIR=/path/to/LuaSF-AutoGenerator/output/LuaSF`. Dependency initialisation installs the two projects from one source archive and writes matching `.ludork-version` markers.
 
-SFML is a required source project rather than an optional override, and LuaSF reuses the `sfml-*` targets Ludork builds from it. Mobile uses static SFML; desktop follows `LUASF_BUILD_SHARED_SFML`, defaulting to shared. `versions.conf` selects the SFML variant by repository and tag; the current pin is the SFML-ME `310-ME-OH-GLESVER` tag. OHOS GPU particles require an SFML source that preserves the GLES 3 context request; see [Common Particles](<../Editor User Guide/Common Particles.md#gpu-support-and-performance-statistics>).
+SFML is a required source project rather than an optional override, and LuaSF reuses the `sfml-*` targets Ludork builds from it. Mobile uses static SFML; desktop follows `LUASF_BUILD_SHARED_SFML`, defaulting to shared. `versions.conf` selects the SFML variant by repository and tag; the current pin is the SFML-ME `310-ME-OH-GLESVER` tag. OHOS GPU particles require an SFML source that preserves the GLES 3 context request; see [Common Particles](<../Editor User Guide/Common Particles.md>).
 
 Local source archives can be selected with `LUASF_SOURCE_ARCHIVE` before dependency initialisation: use a `.tar.gz` with the shell entry point or a `.zip` on Windows. The archive must extract directly to `LuaSF/` and `LuaGlue/`; older source layouts are rejected. Both projects consume one Lua 5.5 runtime. Desktop builds share LuaGlue; mobile targets link it statically.
 
-CMake runs `ScriptTools core-bindgen` automatically. Generated C++ files and compiled enum catalogues live under the top-level `Intermediate/` directory, grouped by build directory and module. LuaLS stubs, metadata and pure enum modules are written under `Scripts`. Desktop native builds generate annotated enum sources under `Enums/<Module>`, without mirrored enum stubs; LuaSF's API manifest supplies `Enums/sf`. Cross-builds and static Lua module builds require the previously generated native enum files and fail with missing paths when they are absent. See [Generated Metadata and Stubs](<Generated Metadata and Stubs.md>) for output, packaging and regeneration details.
+CMake runs `ScriptTools core-bindgen` automatically. See [Generated Metadata and Stubs](<Generated Metadata and Stubs.md>) for output locations, enum modules and cross-build requirements.
 
 `Intermediate/` is excluded from templates and recreated by a normal build when missing. `bin/` and `build/` remain at the project root.
 

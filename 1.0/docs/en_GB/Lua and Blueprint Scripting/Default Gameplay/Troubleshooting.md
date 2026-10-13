@@ -6,7 +6,7 @@ Check `Main.proj` and every loaded file beneath `Data` for valid JSON. Paths mus
 
 ## A Blueprint will not save
 
-Run Blueprint validation and address the first parent, cycle, graph, node, link, pin or default-value error. For Script Mixins, also check the relative path, the returned table and the same-name metadata.
+A save error identifies invalid parents, inheritance cycles, nodes, links, pins or defaults. Script Mixins also require a valid relative path, returned table and same-name metadata file. See [Script Mixin Authoring Workflow](<../Script Mixins/Authoring Workflow.md>) for those rules.
 
 ## The game will not start
 
@@ -22,13 +22,13 @@ Open the reference tree, find the invalid stored key or path, and update it manu
 
 ## Localised text is missing
 
-Use the Official Locale Tools checks in [Game Localisation Workflow](<../../Plug-in Development and Installation/Official Plug-ins/Game Localisation Workflow.md>): workbook headers, ID, exported language file, selected language, fallback and `LOC`/brace format.
+Language-file IDs, the active language and `LOC` formatting must match the project text. See [Game Localisation Workflow](<../../Plug-in Development and Installation/Official Plug-ins/Game Localisation Workflow.md>) for workbook and export settings.
 
 ## Packaged behaviour differs
 
 Check the package's assets, scripts, native modules, FFmpeg variant, writable `Main.ini` location and platform-specific path handling. Never infer the platform from path separators. Use the injected `PLATFORM` value.
 
-If Android is absent from Pack Options, confirm that Android Studio is installed at `/Applications/Android Studio.app` or `~/Applications/Android Studio.app` and that the project is C++ Source. An Android preflight failure lists every missing requirement: SDK Platform 36, Build Tools 36.0.0, a complete stable NDK r27 or newer under the local SDK's `ndk` directory, system CMake 3.28 or newer with Unix Makefiles support, and `/usr/bin/make`. The SDK is resolved from `ANDROID_SDK_ROOT`, then `ANDROID_HOME`, then `~/Library/Android/sdk`. The project does not contain an SDK or NDK. The packer does not install or download these components, and it never requires an emulator, AVD or adb.
+Android packaging requires a C++ Source project, a local Android Studio installation and its supporting tools. Packaging errors list missing requirements; see [Run, Debug and Package](<../../Editor User Guide/Run Debug and Package.md>) for installation paths and versions.
 
 If Android signing fails, check that the JKS or PKCS12 path is absolute and readable, that the alias exists, and that both passwords are correct. Correct stale saved values in the dialog, and enter unsaved values again. A failed run publishes neither its unsigned intermediate nor a partial signed APK. Use the same key for every later version that must update the installed application.
 
@@ -40,4 +40,4 @@ Native crashes, binding-generation failures and plug-in load failures require th
 
 - [Run, Debug and Package](<../../Editor User Guide/Run Debug and Package.md>)
 - [C++ Binding Troubleshooting](<../../Native C++ Development/C++ Binding Troubleshooting.md>)
-- [Testing and Distribution](<../../Plug-in Development and Installation/Testing and Distribution.md>)
+- [Distribution](<../../Plug-in Development and Installation/Distribution.md>)

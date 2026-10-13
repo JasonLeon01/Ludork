@@ -9,8 +9,6 @@
 
 ## AnimationKeyFrame
 
-Direct metadata bases: —
-
 ### Properties
 
 | Name | Type | Default | Metadata |
@@ -20,13 +18,7 @@ Direct metadata bases: —
 | `rotation` | `float` | `0` | — |
 | `scale` | `float[]` | — | — |
 
-### Functions and events
-
-No Blueprint functions or events are declared.
-
 ## AnimationSegment
-
-Direct metadata bases: —
 
 ### Properties
 
@@ -39,13 +31,7 @@ Direct metadata bases: —
 | `flipX` | `bool` | `false` | — |
 | `originalDuration` | `float` | — | — |
 
-### Functions and events
-
-No Blueprint functions or events are declared.
-
 ## AnimationTimeline
-
-Direct metadata bases: —
 
 ### Properties
 
@@ -53,13 +39,7 @@ Direct metadata bases: —
 |---|---|---|---|
 | `timeSegments` | `{ "Engine", "AnimationSegment[]" }` | — | — |
 
-### Functions and events
-
-No Blueprint functions or events are declared.
-
 ## AnimationTimeTag
-
-Direct metadata bases: —
 
 ### Properties
 
@@ -68,13 +48,7 @@ Direct metadata bases: —
 | `tag` | `string` | — | — |
 | `time` | `float` | `0` | — |
 
-### Functions and events
-
-No Blueprint functions or events are declared.
-
 ## AnimationSourceData
-
-Direct metadata bases: —
 
 Non-empty `assets` entries and the resulting `AnimationSoundEntry.asset` values retain complete `/Game/Assets/...` paths with exact casing.
 
@@ -93,13 +67,7 @@ Non-empty `assets` entries and the resulting `AnimationSoundEntry.asset` values 
 | `timeLines` | `{ "Engine", "AnimationTimeline[]" }` | — | — |
 | `assets` | `string[]` | — | — |
 
-### Functions and events
-
-No Blueprint functions or events are declared.
-
 ## AnimationSoundEntry
-
-Direct metadata bases: —
 
 ### Properties
 
@@ -111,13 +79,7 @@ Direct metadata bases: —
 | `originalDuration` | `float` | — | — |
 | `stopAtEndFrame` | `bool` | — | — |
 
-### Functions and events
-
-No Blueprint functions or events are declared.
-
 ## AnimationData
-
-Direct metadata bases: —
 
 ### Properties
 
@@ -135,17 +97,7 @@ Direct metadata bases: —
 | `frames` | `any[]` | — | — |
 | `sounds` | `{ "Engine", "AnimationSoundEntry[]" }` | — | — |
 
-### Functions and events
-
-No Blueprint functions or events are declared.
-
 ## RectBase
-
-Direct metadata bases: —
-
-### Properties
-
-No editable properties are declared.
 
 ### Functions and events
 
@@ -154,12 +106,6 @@ No editable properties are declared.
 | `render` | `function` | self: { "Engine", "RectBase" } = "self"; dst: sf.RenderTexture; edge: sf.RenderTexture; edgeSprite: sf.Sprite; backSprite: sf.Sprite; cachedCorners: sf.Texture[]; cachedEdges: sf.Texture[]; renderStates: sf.RenderStates | — | — |
 
 ## TileLayerGraphics
-
-Direct metadata bases: —
-
-### Properties
-
-No editable properties are declared.
 
 ### Functions and events
 

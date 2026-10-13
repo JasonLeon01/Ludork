@@ -27,8 +27,6 @@ Rich-text measurement and wrapping use the supplied control's authored configura
 
 ## TextOutlineConfig
 
-Direct metadata bases: —
-
 ### Properties
 
 | Name | Type | Default | Metadata |
@@ -36,13 +34,7 @@ Direct metadata bases: —
 | `color` | `sf.Color` | — | — |
 | `thickness` | `float` | `0` | — |
 
-### Functions and events
-
-No Blueprint functions or events are declared.
-
 ## TextGlowConfig
-
-Direct metadata bases: —
 
 ### Properties
 
@@ -53,13 +45,7 @@ Direct metadata bases: —
 | `radius` | `float` | `0` | — |
 | `intensity` | `float` | `0` | — |
 
-### Functions and events
-
-No Blueprint functions or events are declared.
-
 ## TextGradientConfig
-
-Direct metadata bases: —
 
 ### Properties
 
@@ -69,13 +55,7 @@ Direct metadata bases: —
 | `direction` | `string` | `"vertical"` | — |
 | `curve` | `{ "Engine", "Vector4Curve" }` | — | — |
 
-### Functions and events
-
-No Blueprint functions or events are declared.
-
 ## TextStyle
-
-Direct metadata bases: —
 
 ### Properties
 
@@ -101,8 +81,6 @@ Direct metadata bases: —
 
 ## PlainTextConfig
 
-Direct metadata bases: —
-
 ### Properties
 
 | Name | Type | Default | Metadata |
@@ -121,13 +99,7 @@ Direct metadata bases: —
 | `glow` | `{ "Engine", "TextGlowConfig" }` | — | — |
 | `gradient` | `{ "Engine", "TextGradientConfig" }` | — | — |
 
-### Functions and events
-
-No Blueprint functions or events are declared.
-
 ## RichTextConfig
-
-Direct metadata bases: —
 
 ### Properties
 
@@ -143,17 +115,9 @@ Direct metadata bases: —
 | `glow` | `{ "Engine", "TextGlowConfig" }` | — | — |
 | `gradient` | `{ "Engine", "TextGradientConfig" }` | — | — |
 
-### Functions and events
-
-No Blueprint functions or events are declared.
-
 ## PlainText
 
 Direct metadata bases: `{ "Engine", "ControlBase" }`
-
-### Properties
-
-No editable properties are declared.
 
 ### Functions and events
 
@@ -176,10 +140,6 @@ No editable properties are declared.
 
 Direct metadata bases: `{ "Engine", "ControlBase" }`
 
-### Properties
-
-No editable properties are declared.
-
 ### Functions and events
 
 | Name | Kind | Parameters | Returns | Execution and metadata |
@@ -200,11 +160,7 @@ No editable properties are declared.
 
 Direct metadata bases: `{ "Engine", "SpriteBase" }`
 
-`repeated` selects texture repetition for the background when true and stretching when false. Borders always tile between the corners, using one draw per non-empty edge regardless of its length. Window and selection Rect compose their skin into a cached texture when created, resized or given a new skin, including rebuilds for UI Scale changes; normal display reuses that texture. DropBox popups use the same Window rendering.
-
-### Properties
-
-No editable properties are declared.
+`repeated` tiles the background when true and stretches it when false. Borders always tile between the corners. DropBox popups use the same window-skin rules.
 
 ### Functions and events
 

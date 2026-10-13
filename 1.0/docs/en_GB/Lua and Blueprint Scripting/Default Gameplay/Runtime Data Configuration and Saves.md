@@ -100,13 +100,13 @@ Save schema versions are independent of application release versions and the pac
 
 `Source.Save` uses `Engine.saveData` and `Engine.loadData`; LDC is decoded directly into runtime data without JSON text. Old LDC saves containing compressed JSON are unsupported; changing `SAVE_AS_LDC` does not migrate them.
 
-`GetSavePath(slot)` selects the extension for a 1-based slot number. Use stable slot numbers, validate data before serialisation, handle missing files explicitly, and avoid hard-coded save directories.
+`GetSavePath(slot)` returns the save path for a 1-based slot number in the selected format.
 
-Save-slot previews use `Engine.SavePreviewReader`: file metadata, JSON parsing or LDC decompression and binary decoding, image decoding and thumbnail resizing run on a native worker. Only a native image bounded to 224 × 168 pixels reaches the game thread for texture upload; no gameplay objects or large Lua byte arrays are created. Confirming a load continues to call `Save.LoadGame(filePath)` for full restoration.
+Save previews load asynchronously without creating gameplay objects. Confirming a load calls `Save.LoadGame(filePath)` to restore the full game.
 
-The window displays loading, empty and failed states, checks the selected file once a second while open, and caches eight previews by path, modification time and size. Saving invalidates that path immediately. Switching slots or closing cancels pending results without waiting for I/O; shutdown joins the worker before native runtime teardown. The window constructs all 100 slot rows once and reuses them on subsequent openings. Before each opening animation, it selects the most recently modified existing save, or the first slot when no save exists, and sets the matching preview target. Row construction and file metadata lookup finish before the window is shown; preview contents continue loading asynchronously. When the opening animation completes, the selected slot receives keyboard focus, including on the first opening from the title screen.
+The window shows loading, empty or failed states. Each opening selects the most recently modified save, or the first slot if none exists. The selected slot receives keyboard focus after the opening animation.
 
-New save screenshots preserve aspect ratio and are captured at no more than 224 × 168 pixels before GPU readback. Existing larger screenshots remain readable. INFO timings distinguish first/repeated window opening, selected-slot preview latency and screenshot capture; asynchronous preview latency is not a blocked frame duration.
+New save screenshots preserve their aspect ratio and are no larger than 224 × 168 pixels. Existing larger screenshots remain readable.
 
 Save encryption is independent of project JSON encryption, although Pack Options groups both under **Encrypt game data**.
 

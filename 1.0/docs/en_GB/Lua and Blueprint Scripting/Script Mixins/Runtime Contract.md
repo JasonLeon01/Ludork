@@ -38,14 +38,15 @@ end
 return Door
 ```
 
-The parent class must provide every native property or method the mixin uses. The editor validates schema and path rules. Missing runtime members fail at the real call site.
+The parent class must provide the native properties and methods the mixin uses. Accessing a missing member raises an error.
 
 ## Hot reload
 
 Console `$r` updates existing methods in used Script Mixins without rerunning `onCreate` or teardown. Mixin defaults and instance state remain unchanged. Structural changes require a restart. See [Lua hot reload](<../Lua Runtime and Modules.md#lua-hot-reload>) for compatibility and failure rules.
 
+Lua compilation and `.ldpak` packaging preserve mixin module paths and fresh-load behaviour. See [Run, Debug and Package](<../../Editor User Guide/Run Debug and Package.md>) for packaging options.
+
 ## Related pages
 
 - [Script Mixin Authoring Workflow](<Authoring Workflow.md>)
 - [Ludork Lua Advanced](<../../Getting Started/Ludork Lua Advanced.md>)
-- [Script Mixin Validation and Packaging](<Validation and Packaging.md>)

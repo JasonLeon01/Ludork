@@ -2,11 +2,11 @@
 
 `require("GlobalCore")` 暴露原生能力系统，涵盖 `AttributeSet`、`AbilitySystemComponent`，以及能力、结果、事件、效果与 spec 等类型。
 
-下列签名描述 Lua 实例调用。对应的蓝图实例方法节点还会显式提供有类型的首个 `self` 输入，未设置时默认使用图 owner。需要调用其他 Attribute Set、Ability System Component 或 Ability 实例时，应连接该实例。
+下列签名描述 Lua 实例调用。对应的蓝图实例方法节点还会显式提供有类型的首个 `self` 输入，未设置时默认使用图的所属对象。需要调用其他 Attribute Set、Ability System Component 或 Ability 实例时，应连接该实例。
 
 ## AttributeSet
 
-`AttributeSet` 子类在 `ATTRIBUTE_NAMES` 中声明有序的属性名，并在 `SCHEMA` 中为各属性定义 `{ type, default }` 条目。`ID` 标识对应的通用数据成员。缺失字段取 schema 中的默认值，显式保存的 nil 分支则覆盖默认值。已保存的通用数据通过 `Source.Configs.GeneralDataTypes.Create` 加载。
+`AttributeSet` 子类在 `ATTRIBUTE_NAMES` 中声明有序的属性名，并在 `SCHEMA` 中为各属性定义 `{ type, default }` 条目。`ID` 标识对应的通用数据成员。缺失字段取结构定义中的默认值，显式保存的 nil 分支则覆盖默认值。已保存的通用数据通过 `Source.Configs.GeneralDataTypes.Create` 加载。
 
 | 成员 | 签名 | 行为 |
 |---|---|---|
@@ -37,7 +37,7 @@
 | `setNumericAttributeConstraint` | `(name, callback?)` | 设置或移除当前值的最终约束，并立即重算 |
 | `getRevision` | `() -> integer` | 返回随属性、能力或效果变化而递增的版本号。属性监听触发时已包含本次提交 |
 
-基础值 setter 会先校验完整的候选 Base 与 Current 状态，再提交修改。属性名未知、数值非有限或不符合 schema 时都会失败，不会留下部分修改。直接给数值字段赋值同样视为写入基础值。
+基础值设置方法会先校验完整的候选 Base 与 Current 状态，再提交修改。属性名未知、数值非有限或不符合结构定义时都会失败，不会留下部分修改。直接给数值字段赋值同样视为写入基础值。
 
 监听回调中的 `oldValue` 和 `newValue` 始终是当前值，第三个参数是 `AttributeChange` 上下文：
 
@@ -50,7 +50,7 @@
 
 附加参数 `params` 排在 `change` 之后传入回调。批量写入只通知最终状态。基础值写入即使没有改变当前值也会通知，效果和约束则只在当前值变化时通知。
 
-约束在修饰项聚合完成后接收 `(value, abilitySystem, resolvedValues)`，必须只返回一个符合 schema 的有限数值，并且绝不能写入基础值。传入 nil 即可移除约束。计算顺序遵循 `ATTRIBUTE_NAMES`，HP 排在最后；`resolvedValues` 包含本轮已经算出的字段。
+约束在修饰项聚合完成后接收 `(value, abilitySystem, resolvedValues)`，必须只返回一个符合结构定义的有限数值，并且绝不能写入基础值。传入 nil 即可移除约束。计算顺序遵循 `ATTRIBUTE_NAMES`，HP 排在最后；`resolvedValues` 包含本轮已经算出的字段。
 
 ### 能力与事件
 

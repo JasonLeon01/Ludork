@@ -31,11 +31,11 @@ local ManagerFunctions = GlobalFunctions.Manager
 
 原生 `GlobalFunctions` 模块暴露 `Components`、`UI`、`NodeGraph` 与 `Manager`。`Scripts/GlobalFunctions` 下的 Lua 蓝图函数库是独立模块，通过 `require("GlobalFunctions.Math")` 等路径加载，不会自动加入原生根表。其他模块一律使用完整点分路径。不要添加目录级的 `init.lua` 聚合模块。除蓝图函数库外，可以为解决实际依赖环，或在明确的首次使用入口（例如可选窗口工厂）中延迟 `require`。这类生命周期须由所属场景或功能明确控制；普通依赖仍直接导入。
 
-`Scripts/GlobalFunctions` 的运行时模块不得在模块作用域调用 `require`，包括加载原生模块；依赖在函数首次使用时解析，避免蓝图函数库加载成环。Lua 路径及导出名不得占用 C++ 绑定的同一 `GlobalFunctions` 路径。仓库的 pre-commit 钩子检查已暂存内容，每个 PR 都通过 `PR Validation` 运行同一检查。
+`Scripts/GlobalFunctions` 的运行时模块不得在模块作用域调用 `require`，包括加载原生模块；依赖在函数首次使用时解析，避免蓝图函数库加载成环。Lua 路径及导出名不得占用 C++ 绑定的同一 `GlobalFunctions` 路径。
 
-静态依赖从根原生模块流向 `Scripts/Global`，再流向 `Scripts/Source`。Global 模块不得 `require` Source。`Scripts/Internal` 与 `Scripts/GlobalFunctions` 可以依赖 `Source` 中的项目模块。通用设施可以解析数据给出的不透明模块名，但不得硬编码更高层的业务模块。
+静态依赖从根原生模块流向 `Scripts/Global`，再流向 `Scripts/Source`。Global 模块不得 `require` Source。`Scripts/Internal` 与 `Scripts/GlobalFunctions` 可以依赖 `Source` 中的项目模块。通用模块可以加载数据中指定的模块名，但不得硬编码更高层的业务模块。
 
-共享配置常数由对应领域统一声明。原生资源后缀通过 `Engine.ResourceFileConstants` 暴露；游戏的地图标识与 Gameplay tag 分别放在 `Source.Configs.MapConstants` 和 `Source.Configs.GameplayConstants`。公开枚举放在下文所述的独立 `Enums.*` 模块中。由 host 持有的实现参数通过函数参数向下传递。例如，`WorldGameMap` 把发布预算传给流式加载与区域发布模块，子模块不反向 require host。
+原生资源后缀由 `Engine.ResourceFileConstants` 提供，游戏地图标识与玩法事件标签分别位于 `Source.Configs.MapConstants` 和 `Source.Configs.GameplayConstants`。公开枚举使用下文的独立 `Enums.*` 模块。
 
 运行时脚本只采用一种存储形态：开发期用未打包的 `Scripts`，打包发行版用根级 `Scripts.ldpak`。两种形态混用、缺失或无效都会在启动阶段失败。两种形态下的逻辑模块路径与入口路径完全一致。
 
@@ -44,8 +44,6 @@ local ManagerFunctions = GlobalFunctions.Manager
 打包后的 Data 仍通过相同的逻辑 `Data/...` 路径访问。`Engine.loadData` 与 `Engine.dataExists` 会为不存在的 `.json` 路径查找二进制 `.ldc` 替代文件；JSON 平台 API 只使用指定路径。这是只读的运行时边界，不是通用归档文件系统。
 
 每个可独立复用的类都有自己的模块，由该模块返回类本身。窗口模块可以内含私有 Controller，并通过 `Ui.DefineWindow` 导出 UI，详见[声明式 UI 编写工作流](<声明式 UI/编写工作流.md>)。工具模块可以收拢相关的辅助函数。
-
-私有实现需要拆成多个模块时，可以由公开模块充当宿主，把它们放进同名目录，例如 `Global/GameMap.lua` 与 `Global/GameMap/*.lua`。Game 的 Enemy 与 GameInstance 实现辅助模块则放在 `Source/Utils` 下。宿主负责自己的公开方法，并委托给实现模块。实现模块不得 `require` 宿主，也不得扩展宿主。带有独立镜像 `.d.lua` 声明的辅助模块仍是独立模块。
 
 私有成员只能通过 `self` 或同实例的 `super(..., self)` 分派访问。访问其他对象时改用公开的读取方法、命令或数据，链式访问与动态索引同样如此。
 
@@ -65,7 +63,7 @@ local StairDirection = {
 return StairDirection
 ```
 
-运行时直接加载枚举，例如 `local StairDirection = require("Enums.StairDirection")`，随后使用 `StairDirection.Up`。运行时遵循常规 Lua 模块缓存。蓝图 metadata 通过 `type = { enum = "Enums.StairDirection" }` 引用模块；编辑器每次查看值编辑器或展开选择器时重新读取文件，显示 key，并保存对应的实际值。schema 的组合与校验规则见 [Metadata 结构与 Decorator](<蓝图脚本/Metadata 结构与 Decorator.md>)。
+运行时直接加载枚举，例如 `local StairDirection = require("Enums.StairDirection")`，随后使用 `StairDirection.Up`。蓝图元数据使用 `type = { enum = "Enums.StairDirection" }` 引用该模块，完整规则见 [Metadata 结构与 Decorator](<蓝图脚本/Metadata 结构与 Decorator.md>)。
 
 | Game 枚举模块 | 值或用途 |
 |---|---|
@@ -86,7 +84,7 @@ return StairDirection
 
 `os.createDirectories`、`os.removeFile`、`zlib`、`base64` 等 Standard 全局由宿主安装，不需要 `require`。宿主还会根据 `LUDORK_SAVE_AS_LDC` 安装 `SAVE_AS_LDC` 默认值，项目覆盖方式见[存档](<Game 玩法/运行时数据、配置与存档.md#存档>)。`LudorkRuntime` 是原生库，不是 Lua 模块。Core 绑定只通过 `Engine`、`GlobalCore` 与 `GlobalFunctions` 加载，也没有 `Runtime` 或 `CoreSystem` 别名。
 
-LuaSF 注册全局 `sf`。API 声明 `sf.Vector2i`、`sf.Vector2f`、`sf.Color` 等类型时，必须传入对应的原生值，例如 `sf.Vector2i.new(...)`、`sf.Vector2f.new(...)`、`sf.Color.new(...)`。原生容器与普通 table 不会隐式充当 vector。
+LuaSF 注册全局 `sf`。API 声明 `sf.Vector2i`、`sf.Vector2f`、`sf.Color` 等类型时，必须传入对应的原生值，例如 `sf.Vector2i.new(...)`、`sf.Vector2f.new(...)`、`sf.Color.new(...)`。原生容器与普通 Lua 表不会隐式转换为向量。
 
 ## 异步操作更新
 
@@ -98,9 +96,7 @@ LuaSF 注册全局 `sf`。API 声明 `sf.Vector2i`、`sf.Vector2f`、`sf.Color` 
 
 ## 实时调试
 
-默认 Game 运行时仅在编辑器启用实时调试后启动游戏时安装 `Internal.LiveDebug`，即 `LUDORK_EDITOR` 与 `LUDORK_LIVE_DEBUG` 都必须等于 `1`。它通过 `Engine.EditorLiveDebug` 注册，并绑定到活动 `SceneMap`。请求以实例 ID 而非地图 tag 识别 Actor，因此也包括运行时生成的 Actor。该 handler 不写回项目数据，也不向重建实例重放修改。
-
-普通玩法脚本不应在正常运行中替换此 handler。编辑器约定见 [实时调试](<../编辑器用户指南/运行、调试与打包.md#实时调试>)，原生入口见 [EditorLiveDebug](<全局与 Core 模块/Core Modules/Engine/事件与模块根.md#editorlivedebug>)。
+从编辑器启用实时调试后，可在游戏运行时修改 Actor 状态，包括运行时生成的 Actor。这些修改不写回项目数据，实例重建后也不会重新应用。操作说明见[实时调试](<../编辑器用户指南/运行、调试与打包.md#实时调试>)。
 
 ## Lua 热更新
 
@@ -128,11 +124,11 @@ Lua 文件分工如下：
 - 镜像路径 `Scripts/stub/**/*.d.lua` 保存其他公开文档与 LuaLS 声明，不含运行时副作用，也不含 `require`。原生 API 的枚举类型仍保留在 `Engine.d.lua`、`LuaSF.d.lua` 等所属声明中。
 - 同名 `_meta.lua` 文件保存纯编辑器 metadata，绝不作为玩法脚本运行。
 
-可 `require` 的声明用 `---@meta` 写出模块路径，例如 `Global/Pool.d.lua` 声明 `---@meta Global.Pool`。只声明全局 API 的 `Standard.d.lua`、`Class.d.lua` 与 `LuaSF.d.lua` 使用裸 `---@meta`。
+可 `require` 的声明用 `---@meta` 写出模块路径，例如 `Global/Pool.d.lua` 声明 `---@meta Global.Pool`。只声明全局 API 的 `Standard.d.lua`、`Class.d.lua` 与 `LuaSF.d.lua` 使用不带模块名的 `---@meta`。
 
-EmmyLua 工作区保留 `Scripts/stub` 作为模块根和 library。在 `.emmyrc.json` 中，`workspace.moduleMap` 把 `^Scripts[.]Enums[.](.*)$` 映射为 `Enums.$1`，使枚举导入解析到带注解的源码，其他公开导入仍使用 stub 声明。枚举源码不使用 `---@meta`。
+EmmyLua 工作区保留 `Scripts/stub` 作为模块根和库目录。在 `.emmyrc.json` 中，`workspace.moduleMap` 把 `^Scripts[.]Enums[.](.*)$` 映射为 `Enums.$1`，使枚举导入解析到带注解的源码，其他公开导入仍使用 stub 声明。枚举源码不使用 `---@meta`。
 
-除生成的 UI 声明外，模板保留其余声明；各项目通过导出重建 UI 声明。打包会删除 `Scripts/stub`，Lua 编译忽略 `.d.lua`，发行包中不得残留任何声明文件。
+模板与打包时的文件范围见[项目模板](<../快速入门/项目模板.md>)。
 
 Standalone 与 C++ Source 模板都提供名为 `Ludork: EmmyLua Attach (Windows)` 的 VS Code 配置，通过 `tangzx.emmylua` 的 `emmylua_attach` 调试器附加到正在运行的 `Main.exe`。C++ Source 模板另外保留原有的 `cppvsdbg` 与 `lldb` 原生启动和附加配置。EmmyLua 附加调试仅支持 Windows。
 

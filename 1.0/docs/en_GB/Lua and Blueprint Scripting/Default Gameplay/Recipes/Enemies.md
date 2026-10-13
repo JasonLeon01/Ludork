@@ -17,7 +17,6 @@ Create enemy definitions in General Data and enemy bodies as Blueprints.
 2. Create or derive an Enemy Blueprint and point it at the data member.
 3. Configure movement, collision and presentation defaults.
 4. Put custom defeat choreography in the Enemy Actor `onDefeat` hook or a subclass-granted Gameplay Ability. Enemy General Data has no events, so fixed settlement waits for `onDefeat`.
-5. Place the Blueprint and test combat, rewards, drops, save and load, and map reset.
 
 Shared combat algorithms belong in Gameplay Abilities, Gameplay Effects or Lua modules.
 

@@ -1,7 +1,5 @@
 # Declarative UI Authoring Workflow
 
-## Goal
-
 Declarative UI in Ludork generates Lua Views from JSON assets and keeps business behaviour in handwritten Controllers. Use the [UI Asset Editor](<../../Editor User Guide/UI Asset Editor.md>) for visual editing.
 
 | Layer | Owns |
@@ -51,7 +49,7 @@ The matching window stub declares only the private Controller, using bare `---@m
 
 1. Create the JSON asset in the UI Asset Editor and give runtime-accessed nodes stable names.
 2. Enable **Exposed** to make the asset appear in the Project Palette.
-3. Save the asset and resolve any validation diagnostics, then click **Export** to generate its View. Require that View in the window module.
+3. Save the asset, then click **Export** to generate its View. Require that View in the window module.
 4. Define a local Controller and return `Ui.DefineWindow(ViewClass, Controller, nativeBase?)`. Add business initialisation in `init`, callbacks in `bind`, and state updates through `watch` or `refresh`.
 5. Use `windowOptions` for initial window behaviour, `createChild` for authored child panes, and collections for model-dependent rows. See [Declarative UI Runtime Contract](<Runtime Contract.md>) and [Declarative UI Controller Examples](<Controller Examples.md>).
 6. Maintain the private Controller declaration and regenerate. Create and mount the window from its owner, then dispose of it when it is no longer needed. For optional popups, keep a separate `Internal.UIBase.LazyWindow` handle and perform complete construction, callback and focus configuration, and mounting in its factory. Use `get()` at the display entry and `peek()` for queries; see [first-use construction](<Runtime Contract.md#create-optional-windows-on-first-use>).
@@ -60,17 +58,7 @@ Assets using `WindowBase` or `WindowSelectable` include the shared `Parts/Shared
 
 ### Regenerate after asset changes
 
-After moving an asset or renaming nodes, update handwritten `require` calls and node references, then click **Export** or run `ScriptTools ui-assets generate <project-root>` for UI files only. Export ownership and read-only checks are described in [Declarative UI Validation and Packaging](<Validation and Packaging.md>).
-
-### Tiled images and repeated controls
-
-For a repeating background, add an `Engine.Image`, choose **Tile** for **Draw As**, and stretch its Canvas Slot across the intended area. Texture pixels retain their logical size as that area grows. Leave Draw As at **Image** when the picture should stretch.
-
-For repeated visual units such as status flames, add one `Engine.WrapBox` and give it a single child template. Set `count`, `size` and `spacing`; the child may be a complete Canvas subtree. The native control creates and lays out every instance, so Controllers access each unit with `wrapBox:get(i)` instead of constructing rows. Use dynamic collections when each row instead needs its own model and Controller. Runtime access and lifetime are described in [Declarative UI Runtime Contract](<Runtime Contract.md#repeated-template-controls>).
-
-### Scrollable content
-
-Put overflow-prone content in `Engine.ScrollBox`. Do not move a Canvas from Controller code. `size` defines the viewport, and an empty `windowSkin` uses the system skin. ScrollBox owns clipping, offsets, and wheel and touch input. It scrolls an axis only when the laid-out content overflows that axis. Indicator-atlas details are in [Engine: Layout and Image Controls](<../Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md>).
+After moving an asset or renaming nodes, update handwritten `require` calls and node references, then click **Export**. Alternatively, `ScriptTools ui-assets generate <project-root>` synchronises UI Views and declarations only and removes obsolete generated files. Ordinary Save and Construct do not generate them; export before running or packaging directly from the command line. See [Run, Debug and Package](<../../Editor User Guide/Run Debug and Package.md>) for the full export workflow.
 
 ## Limitations
 
@@ -84,6 +72,5 @@ Use `Engine.CharacterView` for frame-animated characters and enemies. Assets pro
 
 - [Declarative UI Runtime Contract](<Runtime Contract.md>)
 - [Declarative UI Controller Examples](<Controller Examples.md>)
-- [UI Asset Schema and Control Registry](<Asset Schema and Control Registry.md>)
-- [Declarative UI Validation and Packaging](<Validation and Packaging.md>)
+- [UI Asset Schema](<Asset Schema and Control Registry.md>)
 - [Script Mixins Overview](<../Script Mixins/Overview.md>)

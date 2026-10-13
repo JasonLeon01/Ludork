@@ -1,8 +1,8 @@
 # Ludork Lua 进阶
 
-Ludork 的 Standard 运行时用原生类、容器与工具函数扩展 Lua。这些 API 在 `Scripts/Entry.lua` 运行之前就已可用，也不需要 `Standard` 模块。它们与 API 参考中的 `Engine`、`GlobalCore`、`GlobalFunctions` 以及 LuaSF 绑定是两套不同的接口。
+Ludork 的 Standard 运行时为 Lua 增加原生类、容器和工具函数。这些 API 在 `Scripts/Entry.lua` 运行之前就已可用，也不需要 `Standard` 模块。它们与 API 参考中的 `Engine`、`GlobalCore`、`GlobalFunctions` 以及 LuaSF 绑定是两套不同的接口。
 
-开发期的精确签名声明在 `Scripts/stub/Standard.d.lua` 与 `Scripts/stub/Class.d.lua` 中。
+完整函数签名见 `Scripts/stub/Standard.d.lua` 与 `Scripts/stub/Class.d.lua` 中。
 
 ## Ludork 类
 
@@ -46,7 +46,7 @@ end
 return class(RouteFollower)
 ```
 
-不要把公开的默认值只写在 `init` 里。子类与蓝图的字段发现都要从类上读取它。
+不要把公开的默认值只写在 `init` 里。子类和蓝图都需要从类定义中读取这些默认值。
 
 从蓝图、组件或通用数据还原出来的显式 `nil` 是一个自有字段，会覆盖继承来的默认值。继承、`copy` 与 `deepcopy` 都会保留这个覆盖；在 Lua 中赋值为 `nil` 会清除覆盖，重新按继承链查找。原生属性以及 Lua 的 getter、setter 行为不变。
 
@@ -107,9 +107,9 @@ Lua 本身只把 `nil` 与 `false` 当作假。Ludork 的 `bool(value)` 还额�
 | `deepcopy(value)` | 递归复制键与值，同时保留别名与循环结构。 |
 | `asizeof(value)` | 估算一份 Lua 或原生值图占用的内存字节数。 |
 
-已知的绑定值类型直接使用 `value:copy()` 或 `value:deepcopy()`，例如 `position:copy()`、`rect:copy()` 和 `colour:copy()`，得到可独立修改的值。全局 `copy` 与 `deepcopy` 用于 Lua table 和动态数据图；遇到支持复制的绑定值时，调用同一套 LuaGlue 复制入口。没有值复制策略的资源保持原有身份。
+已知的绑定值类型直接使用 `value:copy()` 或 `value:deepcopy()`，例如 `position:copy()`、`rect:copy()` 和 `colour:copy()`，得到可独立修改的值。全局 `copy` 与 `deepcopy` 用于 Lua table 和动态数据结构；遇到支持复制的绑定值时，调用同一套 LuaGlue 复制入口。不支持值复制的资源仍引用原对象。
 
-被监听的 table，`copy` 与 `deepcopy` 会复制当前的逻辑字段值并保留原始元表，不带监听代理与订阅。复制出的值可以正常保存。订阅属于运行中的实例，读档后需要重新注册。
+被监听的 table，`copy` 与 `deepcopy` 会复制当前的逻辑字段值并保留原始元表，不带监听代理与订阅。复制后的值可以正常保存。订阅属于运行中的实例，读档后需要重新注册。
 
 ## 原生容器
 
@@ -230,15 +230,15 @@ end)
 
 操作 API 见 [AsyncOperation](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/事件与模块根.md#asyncoperation>)，自定义入口的初始化见 [Lua 运行时与模块](<../Lua 与蓝图脚本/Lua 运行时与模块.md#异步操作更新>)。
 
-读取量较大时，用 `asyncio.start_file_batch(specs)` 处理：最多并发扫描并读取四个文件，交付时仍保持 manifest 顺序。逻辑 `Data/...` 根路径支持已打包的 Data，其余根路径使用物理文件系统。`asyncio.poll_file_batch(job, maxItems?)` 返回进度、已交付条目与结构化错误，`asyncio.cancel_file_batch(job)` 取消整个任务。
+读取量较大时，用 `asyncio.start_file_batch(specs)` 处理：最多并发扫描并读取四个文件，返回结果时仍保持输入清单的顺序。逻辑 `Data/...` 根路径支持已打包的 Data，其余根路径使用物理文件系统。`asyncio.poll_file_batch(job, maxItems?)` 返回进度、已交付条目与结构化错误，`asyncio.cancel_file_batch(job)` 取消整个任务。
 
-开启 `parseData = true` 后，后缀必须以 `.json` 或 `.ldc` 结尾；后台线程解码 JSON 或二进制 LDC，轮询返回 `FileBatchDataConversion`。解码失败时 `operation = "parse"`。在 Lua 逻辑线程上用 `asyncio.step_file_batch_data(conversion, maxNodes, maxMilliseconds)` 推进转换，两个预算值都要为正。它返回 `completed, processed, data`，data 在完成时交付一次。数组用 `n` 记录逻辑长度；根 null 为 nil，数组 null 槽位不保留键，对象 null 字段保留为 `cjson.null`，与 `Engine.loadData` 一致。`contentBytes` 表示解包后、转换为 Lua 值前的载荷字节数。`asyncio.clear_file_batch_data` 可以重复释放转换，取消、回收与 shutdown 也会让它失效。转换不能跨 Lua VM 或线程使用。
+开启 `parseData = true` 后，后缀必须以 `.json` 或 `.ldc` 结尾；后台线程解码 JSON 或二进制 LDC，轮询返回 `FileBatchDataConversion`。解码失败时 `operation = "parse"`。在 Lua 逻辑线程上用 `asyncio.step_file_batch_data(conversion, maxNodes, maxMilliseconds)` 推进转换，两个预算值都要为正。它返回 `completed, processed, data`，data 在完成时交付一次。数组用 `n` 记录逻辑长度；根值为 null 时返回 nil，数组 null 槽位不保留键，对象 null 字段保留为 `cjson.null`，与 `Engine.loadData` 一致。`contentBytes` 表示解包后、转换为 Lua 值前的载荷字节数。`asyncio.clear_file_batch_data` 可重复调用以释放转换资源，取消、回收和运行时关闭 也会让它失效。转换不能跨 Lua VM 或线程使用。
 
 不开启 `parseData` 时，`item.content` 保留原始文件字节，包括 LDC 文件头与编码后的载荷；需要数据时交给 `Engine.decodeData` 解码。蓝图缓存保留这些字节以延迟解码。
 
 ## 计时与内存诊断
 
-`perfCounter()` 返回单调递增的高精度时间，单位为秒。`processMemoryMB()` 返回当前进程占用的内存，单位为 MiB。要估算某个值图自身占用的内存，用 `asizeof`，不要拿整个进程的内存代替。
+`perfCounter()` 返回单调递增的高精度时间，单位为秒。`processMemoryMB()` 返回当前进程占用的内存，单位为 MiB。估算某个值及其关联对象占用的内存时，使用 `asizeof`。
 
 ## 相关页面
 

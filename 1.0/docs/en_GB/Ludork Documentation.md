@@ -2,9 +2,7 @@
 
 Read this guide in the [online documentation](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB), or visit the [Ludork website](https://jasonleon01.github.io/Ludork/?lang=en_GB) for downloads and project information. The [third-party notices](https://jasonleon01.github.io/Ludork/notices/?version=1.0&lang=en_GB) are available on a separate page linked from the website footer. The documentation language and version selectors are on the right of the chapter tabs. This edition covers Ludork 1.0.
 
-Use the pale-blue heading navigator at the bottom right to jump to a subheading on the current page. On mobile, tap the arrow to expand it and scroll through the headings.
-
-Ludork is a game-development environment for building map-driven 2D games. It combines a visual editor, Blueprint graphs, Lua scripts and an extensible C++20 runtime. The editor covers project configuration, maps, actors, data, animation, user interfaces, testing and packaging in a single workflow.
+Ludork combines a visual editor, Blueprint graphs, Lua scripts and an extensible C++20 runtime for map-driven 2D games. Use the editor to configure projects and create maps, Actors, data, animation and user interfaces, then run and package the game.
 
 ![The Ludork editor workspace with a Game project map open](../../images/overview/editor-workspace.png)
 
@@ -27,10 +25,6 @@ Ludork is a game-development environment for building map-driven 2D games. It co
 | Install or write a trusted editor extension | [Installing and Managing Plug-ins](<Plug-in Development and Installation/Installing and Managing Plug-ins.md>) |
 | Find unreferenced project resources | [Official Resource Cleanup](<Plug-in Development and Installation/Official Plug-ins/Resource Cleanup.md>) |
 
-The editor authoring entries need no implementation knowledge. Read the native and plug-in entries only when the project needs those extension points.
-
-Before preparing a release, review [Supported platforms](#editors) and the licence boundaries below.
-
 ## Supported platforms
 
 ### Editors
@@ -46,19 +40,17 @@ Before preparing a release, review [Supported platforms](#editors) and the licen
 |---|---|---|
 | Windows | Windows 10, x64 | |
 | macOS | Apple Silicon, macOS 13.3 | |
-| iOS | iOS 16.3, arm64 | Packaging requires a C++ Source project, full Xcode and automatic Apple Development team signing. |
-| HarmonyOS | HarmonyOS 6.0.2 / API 22, arm64-v8a | Mobile uses OpenGL ES. 2in1 uses OpenGL by default and can select OpenGL ES. HAP packaging requires a C++ Source project and DevEco Studio. |
-| Android | Android 7.0 / API 24, arm64-v8a | APK packaging requires a C++ Source project, Android Studio, SDK Platform 36, Build Tools 36.0.0, NDK r27 or newer and host CMake 3.28 or newer. Output is unsigned by default, with optional signing from an existing JKS or PKCS12 keystore. |
+| iOS | iOS 16.3, arm64 | C++ Source project required. |
+| HarmonyOS | HarmonyOS 6.0.2 / API 22, arm64-v8a | Mobile and 2in1; C++ Source project required. |
+| Android | Android 7.0 / API 24, arm64-v8a | C++ Source project required. |
 
-iOS, HarmonyOS and Android packages are produced on Apple Silicon macOS. Other CMake platforms are not release-qualified. A Standalone project uses the prebuilt runtime for the host platform of the editor. Choose C++ Source when the project must change native code or must produce an iOS, HarmonyOS or Android target.
+Mobile packages are produced on Apple Silicon macOS. A Standalone project uses the prebuilt runtime for the editor’s host platform. See [Run, Debug and Package](<Editor User Guide/Run Debug and Package.md>) for platform tools and signing options.
 
 ## Documentation conventions
 
 - Paths are relative to the project root unless a page states otherwise.
 - Menu commands and field labels are written as they appear in the English editor.
 - `Code`, file names and API identifiers are case-sensitive where the underlying platform is case-sensitive.
-- A **Note** provides context. A **Warning** identifies a condition that can block, corrupt or expose project data.
-- Task pages state a goal, prerequisites, procedure and expected result where those distinctions are useful.
 
 ## Product and content licences
 

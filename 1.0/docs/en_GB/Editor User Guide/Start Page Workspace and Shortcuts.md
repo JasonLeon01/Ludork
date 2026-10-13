@@ -1,32 +1,18 @@
 # Start Page, Workspace and Shortcuts
 
-## Goal
-
-Open a project, identify the main workspace regions, use the global shortcuts and find diagnostics before editing project data.
-
-## Safe editing
-
-- Save before Play or Pack. Resolve validation errors at their source.
-- Create, rename, copy and move data-aware assets through the editor, so stable identifiers and tracked paths remain valid.
-- Use the reference tree to inspect indexed references. Map operations protect only recognised structured references, not arbitrary strings.
-- Keep file resources under `Assets`, authored project data under `Data` and runtime code under `Scripts`.
-- Review the Console whenever an operation invokes plug-in hooks, native builds or the game process.
-
 ## Start page
 
 The Start page lists up to three recently opened projects and provides **New Project** and **Open Project**. Opening a validated `.proj` file moves it to the top of the list. The Start page removes unavailable entries as it loads. Opening `Main.proj` replaces the current project only after the unsaved-work checks succeed.
 
 Dropping an existing `.proj` file anywhere on the Start page opens it. When several files are dropped, the editor uses the first existing `.proj` file and ignores the others.
 
-Every opening route, including recent projects, file associations and command-line startup, checks the top-level `version` in the project file before loading project plug-ins or creating a project session. Missing, malformed or unsupported versions show an error and the supported range; the rejected project is not modified and the current window remains open. A supported older project opens with its existing version unchanged. See [Main.proj](<Project Settings and Asset Layout.md#mainproj>) for the version contract.
+An unsupported project version cannot be opened. See [Main.proj](<Project Settings and Asset Layout.md#mainproj>) for supported versions.
 
 ## Main workspace
 
 The main window contains the map list, map canvas, editing-mode inspector and **World Outliner**, with **File Explorer**, **Actor Library** and **Console** tabs below. Tile, Light and Actor mode controls sit beside the canvas and are hidden for world maps. The toolbar provides **Construct → Export → Play** / **Stop**; Standalone projects hide Construct. See [Run, Debug and Package](<Run Debug and Package.md>).
 
-The editor uses a compact dark interface with blue selection and focus indicators. Text fields, numeric inputs, menus and toolbars share the same visual style. Map, Tileset, document and lower-panel tabs use consistent spacing and a single blue indicator; hovering an unselected tab shows a translucent indicator. Toolbar icons share a consistent size, and New Project and UI Asset Editor use their window titles without repeating a large heading in the content. Read-only path fields stay outside keyboard navigation.
-
-Resource editors first show a Loading view, then prepare their content in stages. Images load separately, and closing a window cancels its pending work. A failed initialisation offers Retry. General Data pages are cached for each data type, Tileset tabs are initialised once, and collapsed particle sections are created when first expanded. The Animation Overview constructs an editor when the selected animation changes and releases its playback resources when that editor closes.
+Resource windows display a loading indicator while opening. If loading fails, use **Retry**.
 
 ![The Ludork main workspace with its map and project panels](../../../images/overview/editor-workspace.png)
 
@@ -40,7 +26,7 @@ The embedded pages hide website navigation. Documentation links stay in the wind
 
 ## Global editor preferences
 
-`Ludork.ini` stores preferences shared by all projects and restored when the editor starts again. Existing language, recent-project and main-panel settings remain in `[Ludork]`; additional preferences and layouts use their own sections with stable identifiers.
+`Ludork.ini` stores preferences shared by all projects and restores them when the editor starts.
 
 | Area | Saved preferences |
 |---|---|
@@ -51,13 +37,9 @@ The embedded pages hide website navigation. Documentation links stay in the wind
 | Tool windows | Position, normal size and maximised state for each window type. |
 | Tool content | Existing adjustable split widths or proportions, the UI timeline and system-control category expansion, and particle configuration section expansion. |
 
-Tool-window records cover Blueprint, UI, Animation and its Overview, Common Particle and its Overview, Curve, Tileset, Text Config, General Data, Common Functions, Game Variables, System Config, Game Config, Map Properties, Material, struct-field and movement-route editors, plus Documentation, Reference Tree, Performance Monitor and Plug-in Management. Internal split records cover Blueprint properties; UI sidebars, vertical divisions and timeline tracks; particle lists and properties; Text Config; General Data; Game Variables; movement routes. Shared editing controls use the same preferences when hosted in different windows. Start, New Project, confirmation, picker, signing and packaging dialogs retain their existing layouts.
-
 Defaults are icon view in both panels, 100% File Explorer zoom, a collapsed source list, the system file manager and **Select Actors** disabled. Missing or invalid preferences use defaults. Project browsing and map selection stay in `Main.proj`; global preferences do not modify project resources or restore search text, input drafts, layer selection or canvas view state.
 
-Restoring a window respects its size limits and the current monitors' work areas and display scaling, keeping its title bar reachable, including on monitors with negative desktop coordinates. Maximising preserves its normal geometry; minimised state is not restored. The latest user adjustment wins for each window type without moving already-open windows, and closing an older window does not overwrite newer settings. Initialisation, hidden panels and temporary layout changes while a game runs do not replace the saved layout.
-
-Window movement and resizing are saved after 300 ms without another change. Splitter adjustments save when dragging ends or an arrow key changes the split, and preference changes save immediately; pending changes are flushed on exit. Unchanged content is not rewritten. Saving uses a temporary file in the same directory and atomic replacement; a failed write retains the previous file and reports the error. Numeric values use a fixed culture-independent format.
+Window layouts adapt to the current monitors. For each window type, the most recent adjustment is restored; minimised state is not restored.
 
 ## Global shortcuts
 
@@ -96,13 +78,11 @@ File fields that can be cleared offer **Clear** as the first item in the file se
 
 Managed resource changes stay in memory until Save. All Save buttons and `Ctrl/Command+S` write every modified document, including unopened resources, and Construct, Export, Play and Pack use the same workflow. Successful saves show no result dialog; a failed save reports only the failed items and their errors. Normal Save validates changed Blueprints, while forced saving can retain unfinished graphs. [Game Config](<Project Settings and Asset Layout.md#mainini>) writes immediately on confirmation.
 
-Save and managed-resource renames lock editing in the main window and every open resource window as soon as they start. Repeated operations, project switching and window closing are unavailable until completion. Operations lasting longer than 200 ms show a modal progress window with the operation, current stage and resource. Stages with known work counts show completed and total items; other stages show an activity indicator. The window closes automatically and has no Cancel action.
-
-Saving reports input preparation, validation, generation and serialization, file writing, and status updates. Resource renames, including Blueprint, map, world-map and General Data type names, prepare reference updates in the background before applying them together. Undo and Redo of a resource rename use the same progress workflow. If project data or relevant external files change during preparation, the operation stops and asks you to retry.
+Saving and renaming resources temporarily disable editing, project switching and window closing. Longer operations show progress and cannot be cancelled. If project data changes during an operation, the editor asks you to retry.
 
 Undo and Redo apply only to the active file, which keeps its 100 most recent entries. Windows that show the same file share its data and history, including after they are closed and reopened. Continuous text or numeric input in one field merges into a single step. Changing the control or the editing view, an automatic update, Save, Undo and Redo all end that step. Buttons, check boxes and selections each remain separate steps.
 
-Ordinary Undo and Redo restore the active document without rebuilding the project reference index. If resources have been deleted during the project session, the editor checks the candidate document and its resolution dependencies before restoring it. A step that would restore a reference to a deleted resource is rejected without changing the document or its history. Map edits refresh the affected map and retain the selected map, surviving layer selection and viewport; unrelated resource edits do not rebuild the map list or discard cached map images.
+Undo cannot restore a reference to a deleted resource; a rejected step leaves the document and history unchanged.
 
 Automatic reference updates create a marked Undo barrier in every changed target file, including unopened files. Later edits remain undoable, but Undo cannot cross the barrier and reports the barrier's source. Undoing or redoing the source rename updates references against the current target content and adds a new barrier, which preserves unrelated edits. Saving preserves the history and the barriers, so Undo can mark a saved file as modified again.
 
@@ -112,7 +92,7 @@ Modified files show `*` in the file explorer and in editor titles, and they are 
 
 File Explorer browses `Assets` and `Data` through the source sidebar and breadcrumbs. Up stops at the selected root. The last valid browsing directory is restored, defaulting to `Assets`.
 
-Right-click an entry for file operations or empty space for the current directory’s menu. List view leaves gaps between rows and along both sides for opening this directory menu; these gaps scale with the content zoom. Paste shortcuts target the current browsing directory.
+Right-click an entry for file operations or empty space for the current directory menu. Paste targets the current browsing directory.
 
 Right-click a file or folder and choose **Show in File Explorer** on Windows or **Show in Finder** on macOS to open its containing directory and select it. This also works in expanded folders and search results. With multiple entries selected, it reveals only the right-clicked entry. The action is disabled for entries that do not yet exist on disk and does not save pending changes.
 
@@ -122,17 +102,13 @@ Search matches file names in the current directory and its subdirectories, ignor
 
 Use `Ctrl/Command` with the mouse wheel or the bottom-right slider to scale icons and text from 50% to 200%. Press F5 to refresh external file changes.
 
-Previews load progressively; animated previews play only for visible entries. Audio entries use the platform audio icon, with a music-note icon when it is unavailable. Video entries load a cover frame in the background and preserve its aspect ratio in both icon and list views. Covers use macOS AVFoundation or the Windows shell thumbnail provider, so supported formats depend on the system. A video icon remains visible while loading or when no cover is available. Media thumbnails share the image cache and refresh when the file changes.
+Image and video entries show thumbnails when the format is supported. Selecting a Blueprint JSON file in a file selector previews its current appearance and animation, including unsaved changes; a missing appearance or texture displays the file icon.
 
-Selecting a project Blueprint JSON file in a file-selection dialog shows its actor appearance and animation in the right-hand pane, matching File Explorer. The preview reflects current unsaved edits and inherited properties. Blueprints without an appearance or with a missing texture show the file icon; ordinary JSON files still show text. Selecting another file, entering a directory, clearing the selection or closing the dialog cancels pending preview work and releases the previous preview.
+Select an image, audio or video file in File Explorer and press **Space** to preview it. File selectors also preview audio and video in their right-hand pane. Playback starts paused; use the playback, seeking and volume controls, or **Escape** to close the preview or cancel selection.
 
-Select an image, audio or video file in File Explorer and press **Space** to open its preview window. File-selection dialogs also preview the selected audio or video in their right-hand pane. Both use the same media player, with playback, pause, seeking and volume controls. Media starts paused; selecting another file, clearing the selection or closing the window stops playback and releases the file. **Escape** closes the preview window or cancels the file selector, including while the player has focus.
+Media previews support common audio and video formats, subject to the system’s codecs. Windows requires Microsoft Edge WebView2 Runtime. Previewing does not require the project’s FFmpeg option or a native game build, and files stay on your machine. Unsupported or damaged files display an error.
 
-Media previews recognise common audio files such as OGG, WAV, FLAC and MP3, and video containers such as MP4, MOV and WebM. Actual playback depends on the system WebView's codec support; a damaged file or unsupported format displays an error. Windows requires Microsoft Edge WebView2 Runtime; macOS uses WKWebView. Previewing does not require the project's FFmpeg option or a native game build, and files are served locally without uploading them.
-
-The file explorer manages project files and creates Blueprint, Animation, Common Particle, Curve, Text Config and UI assets. The reference tree shows incoming and outgoing references. Map operations update or guard recognised indexed references atomically, and arbitrary strings remain unmanaged.
-
-The project keeps one reference index in memory, builds it on first use and maintains it thereafter. The reference tree builds and refreshes in the background, combining changes within 150 ms. It shows a loading state initially and retains the previous graph with an updating indicator during refresh; successful refreshes preserve pan and zoom. A failed refresh displays an error. Deletion checks catch up with current project data. Renames wait for a current background reference snapshot before preparing changes, so an older displayed graph cannot authorise a resource operation.
+The reference tree shows which resources a file uses and which files use it. Create, rename and move managed resources through the editor to update recognised references. Arbitrary strings and references in source code must be updated manually.
 
 Creating or copying a managed resource leaves it unsaved and adds no Undo step for the creation. A rename appears immediately in the editor. Global Save then writes the new paths and the updated references together. Deletion requires every recognised reference to be removed and saved first. Confirmed deletion is immediate and cannot be undone.
 
@@ -167,10 +143,6 @@ When profiling a composite world, the Performance Monitor includes an optional `
 ![Performance Monitor waiting for runtime telemetry](../../../images/editor/console-performance.png)
 
 *A waiting monitor is normal when no compatible runtime session is active; the timeline fills after telemetry is connected.*
-
-## Limitations
-
-Context-specific windows can assign additional shortcuts, but they do not change the global `F3`–`F10` mapping.
 
 ## Related pages
 

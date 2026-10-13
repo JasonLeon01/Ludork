@@ -2,7 +2,7 @@
 
 ## TextBox
 
-方法表列出 Lua 业务参数。每个蓝图实例方法节点还保留首个 `self: Engine.TextBox` 输入，未设置时默认使用图 owner。静态 `new` 构造函数没有接收者。
+方法表列出 Lua 业务参数。每个蓝图实例方法节点还保留首个 `self: Engine.TextBox` 输入，未设置时默认使用图的所属对象。静态 `new` 构造函数没有接收者。
 
 直接 metadata 基类：`{ "Engine", "ControlBase" }`、`{ "Engine", "FunctionalBase" }`
 
@@ -26,15 +26,11 @@ iOS、Android 和 HarmonyOS Mobile 使用系统输入对话框，HarmonyOS 2in1 
 
 `setOnTextChanged` 会上报已提交值的变化，`setString` 与取消回滚同样计入；输入法组合不会改变 `getString()`。换行和制表符会变成空格，其他控制字符会被移除。表单校验由 Controller 负责。
 
-在 Windows 上，嵌入运行与独立窗口都支持字符输入和 IME 组合。嵌入运行时由编辑器持有 IME，并按游戏光标定位候选框。桥接连接断开时会结束编辑，已提交文本的处理规则与失焦相同。
+在 Windows 上，嵌入运行与独立窗口都支持字符输入和 IME 组合。桥接连接断开时会结束编辑，已提交文本的处理规则与失焦相同。
 
 ## CheckBox
 
 直接 metadata 基类：`{ "Engine", "ControlBase" }`、`{ "Engine", "FunctionalBase" }`
-
-### 属性
-
-未声明任何可编辑属性。
 
 ### 函数与事件
 
@@ -60,10 +56,6 @@ iOS、Android 和 HarmonyOS Mobile 使用系统输入对话框，HarmonyOS 2in1 
 
 直接 metadata 基类：`{ "Engine", "ControlBase" }`、`{ "Engine", "FunctionalBase" }`
 
-### 属性
-
-未声明任何可编辑属性。
-
 ### 浮层与尺寸测量
 
 DropBox 有 Canvas 祖先时，展开的列表绘制在最外层 Canvas 的浮层中，位于该 Canvas 的普通内容和动画之后。因此它不受中间各层 Canvas 裁剪的限制，也不会改变父布局中其他控件的尺寸或位置。
@@ -82,7 +74,7 @@ DropBox 有 Canvas 祖先时，展开的列表绘制在最外层 Canvas 的浮�
 
 ### 选择回调
 
-`setOnSelectedIndexChanged(callback)` 只在 `setSelectedIndex` 解析出不同的选择时触发，并传入新索引；在确认过程中，它先于确认回调执行。`setOnSelectionConfirmed(callback)` 在已展开且非空的 DropBox 确认时传入当前索引并触发，即使索引没有改变。通过代码选择或替换选项、取消，以及确认空列表都不会触发它。向任一 setter 传入 `nil` 都可清除对应回调。
+`setOnSelectedIndexChanged(callback)` 只在 `setSelectedIndex` 解析出不同的选择时触发，并传入新索引；在确认过程中，它先于确认回调执行。`setOnSelectionConfirmed(callback)` 在已展开且非空的 DropBox 确认时传入当前索引并触发，即使索引没有改变。通过代码选择或替换选项、取消，以及确认空列表都不会触发它。向任一设置方法传入 `nil` 都可清除对应回调。
 
 ### 函数与事件
 
@@ -148,10 +140,6 @@ tabView:setKeyHint(
 
 提示只在可以移动的位置显示。连接手柄时使用 `Joystick` 提示；未连接手柄时，桌面端、HarmonyOS 2in1 和 HarmonyOS Mobile 平板使用 `Keyboard` 提示，Android、iOS 和 HarmonyOS 手机则隐藏提示。提示不会重新绑定输入，也不会禁用输入。
 
-### 属性
-
-未声明任何可编辑属性。
-
 ### 函数与事件
 
 | 名称 | 种类 | 参数 | 返回 | 执行语义与 metadata |
@@ -183,7 +171,7 @@ tabView:setKeyHint(
 
 直接 metadata 基类：`{ "Engine", "ControlBase" }`、`{ "Engine", "FunctionalBase" }`
 
-GamepadHintBar 最多显示三条手柄提示，在自身尺寸内居中。它仅在连接手柄时绘制与响应。每条提示是一个 `Engine.GamepadHint`，包含 `Button`（`Engine.JoystickButton` getter 值）、`LongPress` 与 `Text`，`setHints` 会拒绝超过三条。默认窗口通过共用的 `WindowChrome` 资产把它放在底部边框，由 `WindowBase` 绑定回调。
+GamepadHintBar 最多显示三条手柄提示，在自身尺寸内居中。它仅在连接手柄时绘制与响应。每条提示是一个 `Engine.GamepadHint`，包含 `Button`（`Engine.JoystickButton` 读取方法值）、`LongPress` 与 `Text`，`setHints` 会拒绝超过三条。默认窗口通过共用的 `WindowChrome` 资产把它放在底部边框，由 `WindowBase` 绑定回调。
 
 短按提示在直径 16 逻辑像素的白色圆底上绘制当前手柄的按键图案，随后是文本。长按提示叠加一个绿色顺时针扇形，在一秒内填满。按住按键满一秒会在达标瞬间以零基下标调用一次 `setOnHintTriggered`，释放则重置进度。`setHintEnabled` 会使提示变灰、停止进度并阻止触发。
 
@@ -234,11 +222,7 @@ SectorShape 是基础图形而非 UI 控件，因此不出现在 Palette 中。�
 
 进度范围为 0 到 1，超出范围会被限制，非有限值按 0 处理。背景始终覆盖整个控件，填充层随进度增加显示图片对应的左侧部分，不会把整张填充图片压缩到当前宽度。显示缩放与表现层透明度同时作用于两层。
 
-两层分别持有自己的 `sf.Texture` 资源。向对应的图片 setter 传入 `nil` 会清除图片并恢复纯色绘制。图片 Rect 使用源图像素坐标，`nil` 表示整张图片。每层的颜色与图片相乘，保留原色时设为白色。替换或清除图片不改变尺寸与进度。
-
-### 属性
-
-未声明任何可编辑属性。
+两层分别持有自己的 `sf.Texture` 资源。向对应的图片设置方法传入 `nil` 会清除图片并恢复纯色绘制。图片 Rect 使用源图像素坐标，`nil` 表示整张图片。每层的颜色与图片相乘，保留原色时设为白色。替换或清除图片不改变尺寸与进度。
 
 ### 函数与事件
 
@@ -270,10 +254,6 @@ SectorShape 是基础图形而非 UI 控件，因此不出现在 Palette 中。�
 ### 触摸交互
 
 Slider 被触摸捕获时，会依据指针 X 坐标在可见范围内的位置设置数值，随后持续更新并钳制到有效区间，直到释放为止，即使指针移出命中范围也是如此。`setTouchHitBounds` 只改变触摸命中范围，不改变可见范围或鼠标命中范围。
-
-### 属性
-
-未声明任何可编辑属性。
 
 ### 函数与事件
 
@@ -308,12 +288,6 @@ Slider 被触摸捕获时，会依据指针 X 坐标在可见范围内的位置�
 `setProperty` 要求属性的运行时类型。设置 Image 的 `drawAs` 时，传入 `Engine.ImageDrawAs.Image` 或 `Engine.ImageDrawAs.Tile`；这里不接受 JSON 中使用的字符串。WrapBox 模板形成独立实例边界，应通过 WrapBox 的 `get(i)` 访问重复项根控件，不能在外层资产中查找模板名。
 
 `reflowControl(localName, logicalSize)` 为具名的本资产系统控件应用正的 `sf.Vector2u` 尺寸，按资产重新排列后代，并保留该控件的位置。它不跨越嵌套资产边界，子资产内部的控件应通过子实例处理。父级下次重新布局、应用资产 Slot 时，会替换这次尺寸覆盖。
-
-直接 metadata 基类：—
-
-### 属性
-
-未声明任何可编辑属性。
 
 ### 函数与事件
 

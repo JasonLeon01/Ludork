@@ -6,18 +6,7 @@ Lua Blueprint functions in `Scripts/GlobalFunctions` load as separate modules, s
 
 ## Loading
 
-```lua
-local Engine = require("Engine")
-local GlobalCore = require("GlobalCore")
-local GlobalFunctions = require("GlobalFunctions")
-
-local Components = GlobalFunctions.Components
-local Manager = GlobalFunctions.Manager
-local NodeGraph = GlobalFunctions.NodeGraph
-local UI = GlobalFunctions.UI
-```
-
-Load the three gameplay roots in the displayed order.
+See [Lua Runtime and Modules](<../../Lua Runtime and Modules.md#entry-and-module-order>) for module loading order.
 
 ## Components
 

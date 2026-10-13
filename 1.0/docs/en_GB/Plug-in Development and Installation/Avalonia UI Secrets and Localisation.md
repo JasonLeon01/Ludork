@@ -1,7 +1,5 @@
 # Avalonia UI, Secrets and Localisation
 
-## Goal
-
 Open a plug-in-owned Avalonia window, store a secret through the host credential service, and present labels in the current editor language without depending on editor implementation types.
 
 ## Prerequisites
@@ -14,7 +12,7 @@ Open a plug-in-owned Avalonia window, store a secret through the host credential
 
 The **With a Window** creation template supplies an empty `PluginWindow` in pure C#, already using `PluginTheme`. The entry class’s `Register` method remains empty. Add a command that constructs and opens the window when you are ready to expose it.
 
-### Obtain the real owner
+### Set the window owner
 
 ```csharp
 if (context.UserInterface is not IAvaloniaPluginUserInterface avaloniaUi)

@@ -1,6 +1,6 @@
 # Metadata Schema and Decorators
 
-`_METADATA` is the pure-data schema for Blueprint fields, signatures, editor controls and execution protocols. It tells the editor which Lua and C++ members can be edited or used as Blueprint nodes. A metadata file runs in an isolated Lua state and must finish with a pure-data table named `_METADATA`.
+`_METADATA` is the pure-data schema for Blueprint fields, signatures, editor controls and execution protocols. It tells the editor which Lua and C++ members can be edited or used as Blueprint nodes. A metadata file must return a pure-data table named `_METADATA`.
 
 ```lua
 local _METADATA = {
@@ -109,7 +109,7 @@ stairDirection = {
 
 The same `{ enum = "Enums.StairDirection" }` schema works directly in a function parameter or return entry and inside `list`, `dict`, `tuple` or `union`. Each enum keeps its type annotation in its source file, without a mirrored stub.
 
-The static reader accepts either a directly returned literal table or one local literal table followed by `return` of the same variable. Comments, annotations and optional semicolons are allowed, as is one pair of parentheses around a scalar literal for an inline type annotation. Calls (including `require`), calculations, table mutations, other returned variables and extra statements are rejected. The editor never executes the module.
+An enum module may return a literal table directly, or declare one local literal table and return that variable. Comments, annotations, optional semicolons and one pair of parentheses around a scalar literal are allowed. Calls (including `require`), calculations, table mutations, other returned variables and extra statements are not allowed.
 
 Keys must be nonempty strings, and values must share one category: strings, booleans or finite numbers. Without `valueType`, an enum containing only integer literals is `int`; any floating-point literal, including `1.0`, makes it `float`.
 
@@ -119,7 +119,7 @@ The selector displays keys in ordinal order and saves the selected value itself.
 
 An explicit default is the actual scalar value and takes priority. Without one, new node inputs and container items use the first option, or the declared scalar's default when the enum is empty (`""`, `false` or `0`). An attribute without a default remains schema-only until it has a saved value. String enum selectors include **— None —**, which stores `""`; unknown nonempty values remain visible and preserved.
 
-For ordinary enums, the editor reads the current file whenever the field is displayed or its selector opens, including after returning to the window. It does not execute gameplay modules. Project-managed enums instead use the current project catalog, including unsaved data: `Enums.GeneralDataKey` selects General Data types, `Enums.GeneralData.<TypeName>` selects their members, `Enums.Animation` selects animation keys, and `Enums.Particle` selects particle keys. All four use `valueType = "string"`; their selectors work before source generation. A deleted managed module is an error even if an old generated file remains on disk. An invalid enum reports its module path and preserves the current value.
+For ordinary enums, the editor reads the current file whenever the field is displayed or its selector opens, including after returning to the window. It does not execute gameplay modules. Project-managed enums instead use the current project catalogue, including unsaved data: `Enums.GeneralDataKey` selects General Data types, `Enums.GeneralData.<TypeName>` selects their members, `Enums.Animation` selects animation keys, and `Enums.Particle` selects particle keys. All four use `valueType = "string"`; their selectors work before source generation. A deleted managed module is an error even if an old generated file remains on disk. An invalid enum reports its module path and preserves the current value.
 
 Dictionary schemas accept a string enum key independently of their value schema:
 
@@ -205,7 +205,7 @@ These declarations are promises to the Blueprint runtime. The Lua or C++ impleme
 
 ## Editor names and decorators
 
-The editor derives ordinary type, field, function, event, pin and Blueprint-variable labels from their identifiers. It splits camel case, Pascal case and underscore boundaries, then capitalises each displayed word. For example, `textureRect` is displayed as `Texture Rect`. This changes presentation only. Metadata keys, runtime member names and serialised Blueprint names remain unchanged.
+Type, field, function, event, pin and Blueprint-variable labels follow their identifiers: for example, `textureRect` appears as `Texture Rect`. Metadata keys, runtime member names and saved Blueprint names remain unchanged.
 
 Do not declare `DisplayName`, `DisplayDesc`, `VariableDisplayNames`, `VariableDisplayDescs`, `ParameterDisplayNames` or `ParameterDisplayDescs` for ordinary members. The editor does not evaluate `LOC(...)` or any other expression to obtain schema labels or default descriptions.
 

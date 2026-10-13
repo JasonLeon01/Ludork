@@ -17,20 +17,20 @@ Ludork 通过 LuaSF 内嵌 SFML，由它注册全局的 `sf` 表。任何项目�
 
 ## Ludork 与 SFML 的分工
 
-Ludork 并不包装或隐藏 SFML，而是在它之上构建。两者职责不同。
+Ludork 在 SFML 的基础上提供游戏开发功能。
 
 | 层 | 负责内容 |
 |---|---|
 | Ludork | 项目数据、地图、Actor、蓝图、场景、声明式 UI 资产体系、资源管理器与打包。 |
 | SFML | 图形、音频、窗口、输入设备，以及这些子系统之间交换的几何与值类型。 |
 
-当一个值或行为本质上是图形或数值时，用 `sf`；当它属于项目本身时，用 `Engine`、`GlobalCore` 与 `GlobalFunctions`。`sf` 里没有地图、Actor、蓝图或数据的概念。
+图形值和资源使用 `sf`；地图、Actor、蓝图及项目数据使用 `Engine`、`GlobalCore` 或 `GlobalFunctions`。
 
 项目里的绘制大多走 Engine 控件与场景，而不是自己新建 `sf.RenderWindow`——窗口、帧循环与 UI 树都由运行时持有。SFML 层的价值在于提供底层的值与资源。
 
 ## sf 表
 
-`sf` 是一张普通的全局表，装着类、枚举和辅助函数。完整声明在 `Scripts/stub/LuaSF.d.lua`，EmmyLua 工作区会索引它，因此在编辑器里能获得补全与悬浮提示。
+`sf` 是一张普通的全局表，包含类、枚举和辅助函数。完整声明在 `Scripts/stub/LuaSF.d.lua`，EmmyLua 工作区会索引它，因此在编辑器里能获得补全与悬浮提示。
 
 | sf 分组 | 成员 |
 |---|---|
@@ -102,7 +102,7 @@ local veil = sf.Color.new(0, 0, 0, 160)
 
 预设颜色是 `sf.Color` 的字段：`Black`、`White`、`Red`、`Green`、`Blue`、`Yellow`、`Cyan`、`Magenta` 与 `Transparent`。`toInteger` 返回打包后的 32 位整数。`sf.Color` 没有任何运算符，不能相加也不能比较；需要时应读取并比较它的各个分量。
 
-`sf.IntRect.new` 与 `sf.FloatRect.new` 接收一个位置和一个尺寸，也接受四个数字。后两个数字是宽和高，不是右下角坐标——这是这个构造函数最容易踩的坑：
+`sf.IntRect.new` 与 `sf.FloatRect.new` 接收一个位置和一个尺寸，也接受四个数字。后两个数字是宽和高，不是右下角坐标：
 
 ```lua
 local tile = sf.IntRect.new(sf.Vector2i.new(0, 0), sf.Vector2i.new(32, 32))
@@ -150,7 +150,7 @@ sf.Sprite : sf.Drawable, sf.Transformable
 sf.Text : sf.Drawable, sf.Transformable
 ```
 
-所有 `sf.Transformable` 都提供：`setPosition`、`getPosition`（`sf.Vector2f`）、`setRotation`、`getRotation`（`sf.Angle`）、`setScale`、`getScale`、`setOrigin`、`getOrigin`（`sf.Vector2f`），以及 `move`、`rotate`、`scale` 和 `getTransform`。Sprite、Shape 与 Text 的位移操作就靠这一套方法。
+所有 `sf.Transformable` 都提供：`setPosition`、`getPosition`（`sf.Vector2f`）、`setRotation`、`getRotation`（`sf.Angle`）、`setScale`、`getScale`、`setOrigin`、`getOrigin`（`sf.Vector2f`），以及 `move`、`rotate`、`scale` 和 `getTransform`。
 
 ```lua
 local cell = sf.RectangleShape.new(sf.Vector2f.new(32.0, 32.0))
@@ -168,7 +168,7 @@ local bounds = cell:getGlobalBounds()
 
 上面列出的抽象基类都以表的形式存在，但没有 `new`：`sf.Drawable`、`sf.Shape`、`sf.RenderTarget`、`sf.InputStream`、`sf.SoundSource`、`sf.SoundStream`、`sf.SoundRecorder`、`sf.SoundFileReader`、`sf.SoundFileWriter` 与 `sf.Socket` 都无法构造。请改为构造具体的子类，并把基类当作参数或返回值所声明的类型来用。唯一的例外是 `sf.Drawable`：Lua 可以通过 `sf.LuaDrawable.new(drawCallback)` 实现它，`draw` 会在 Lua 中执行。
 
-事件的构造方向正好相反：`sf.Event_Closed`、`sf.Event_Resized` 这类载荷类型可以构造，而 `sf.Event.new` 要求传入其中一个作为参数。项目代码通常是接收事件，而不是自己构造。
+事件需要指定载荷类型：`sf.Event_Closed`、`sf.Event_Resized` 这类载荷类型可以构造，而 `sf.Event.new` 要求传入其中一个作为参数。项目代码通常是接收事件，而不是自己构造。
 
 ## 在项目中使用 SFML
 
@@ -193,7 +193,7 @@ if player ~= nil then
 end
 ```
 
-传值之前先看声明的类型。声明为 `sf.Vector2f` 的接口不会接受 `sf.Vector2i`，也不会接受 Standard 的 `tuple` 或普通 table，运行时更不会替你转换。
+传值之前先看声明的类型。声明为 `sf.Vector2f` 的接口不会接受 `sf.Vector2i`，也不会接受 Standard 的 `tuple` 或普通 table，也不会自动转换。
 
 JSON 与 metadata 只保存纯数据，而 `sf` 值是原生 userdata，因此两种形式之间的转换是显式的。Game 项目的存档编解码器把 `sf.Vector2i` 写成 `{ x, y }`，读取时再重建；它的记录归一化会把 `sf.Vector2i`、`sf.Vector3i`、`sf.IntRect`、`sf.FloatRect` 与 `sf.Color` 转成数字数组。只要目标是数据，就存分量，用到时再构造 `sf` 值。
 

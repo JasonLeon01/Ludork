@@ -38,7 +38,7 @@ Both query parameters are optional:
 
 If fewer accounts qualify than requested, return all qualifying accounts. No matches succeeds with `{"accounts":[]}`. Category filtering checks file presence, not JSON validity: malformed content still qualifies, but a later read fails with `StorageFailure`. Non-file category paths and inspection errors also fail the query. No accounts or files are created.
 
-The serialized response may not exceed 2 MiB. An all-account query or an oversized sample returns HTTP 400 `InvalidArgument` with `The account list exceeds 2 MiB. Request a smaller positive sampleCount.` It does not truncate the list or return an account cursor. Unknown, repeated, empty or invalid query parameters are rejected.
+The serialised response may not exceed 2 MiB. An all-account query or an oversized sample returns HTTP 400 `InvalidArgument` with `The account list exceeds 2 MiB. Request a smaller positive sampleCount.` It does not truncate the list or return an account cursor. Unknown, repeated, empty or invalid query parameters are rejected.
 
 ### Check account existence
 
@@ -76,7 +76,7 @@ X-Ludork-Key: project-key
 
 If more fields remain, `nextCursor` is the last returned key. Pass it unchanged as the next `before`, for example `?before=2026-10-10T12%3A20%3A00.123Z&limit=2`. Otherwise `nextCursor` is JSON null. Missing accounts/categories and exhausted ranges succeed with `{"entries":[],"nextCursor":null}`; malformed category contents return `StorageFailure`. Unknown or repeated query parameters are rejected.
 
-Each page reads the current category; pagination provides no snapshot across concurrent writes. Newly inserted keys larger than the current cursor require a refresh from the first page to enter the traversal. Generate fixed-width timestamp keys in your application if byte order should represent time, using one format and time zone. The server does not generate timestamps or sort field values; reusing a key replaces its value. Listing never creates data. A serialized page above 2 MiB returns HTTP 400 `InvalidArgument` and asks for a smaller limit.
+Each page reads the current category; pagination provides no snapshot across concurrent writes. Newly inserted keys larger than the current cursor require a refresh from the first page to enter the traversal. Generate fixed-width timestamp keys in your application if byte order should represent time, using one format and time zone. The server does not generate timestamps or sort field values; reusing a key replaces its value. Listing never creates data. A serialised page above 2 MiB returns HTTP 400 `InvalidArgument` and asks for a smaller limit.
 
 ### Read a field
 
@@ -110,13 +110,13 @@ Content-Type: application/json
 
 The body must be a JSON object with its own `value` member. Values can be JSON null, booleans, numbers, strings, arrays or objects. Null is a stored value, not deletion. The backend validates the request, synchronously consumes the matching token, checks the write interval, then awaits storage; concurrent uses cannot both succeed. A storage failure or HTTP 429 still consumes the token. Wrong-project/account requests do not consume a valid token belonging elsewhere. Restarting the backend invalidates all tokens.
 
-Requests and complete category files are limited to **1 MiB**, including the file's terminating newline. Updates to one file are serialized, so concurrent writes to different fields do not overwrite each other's changes. Saving replaces a temporary file; unrelated files can update independently. There are no cross-file transactions, delete endpoints or automatic backups. If a write response is lost, read first and acquire a new token only if another write is needed.
+Requests and complete category files are limited to **1 MiB**, including the file's terminating newline. Updates to one file are serialised, so concurrent writes to different fields do not overwrite each other's changes. Saving replaces a temporary file; unrelated files can update independently. There are no cross-file transactions, delete endpoints or automatic backups. If a write response is lost, read first and acquire a new token only if another write is needed.
 
-Node.js 24 parses original numeric literals and serializes them with native `JSON.rawJSON`. The backend retains integer digits, including signed and unsigned 64-bit values. The viewer uses the same native facility where available and otherwise displays the original JSON text, avoiding rounded display values. Ordinary object fields such as `rawJSON`, `isLosslessNumber` and `__proto__` remain ordinary data.
+The backend preserves JSON integer digits, including signed and unsigned 64-bit values. The management viewer also preserves their displayed digits. Object fields such as `rawJSON`, `isLosslessNumber` and `__proto__` remain ordinary data.
 
 ### Write rate limits
 
-The default write interval is 180 seconds per **project and TCP client IP**, shared by PUT requests across every account/category in that project. IPv4-mapped IPv6 addresses are normalized to IPv4. `X-Forwarded-For` is ignored, so clients behind the same NAT or reverse proxy can share a write allowance. Configure `ipWriteIntervalSeconds` as described in [Deployment and Editor Settings](<Deployment and Editor Settings.md#configure-the-write-interval>); `0` disables the interval.
+The default write interval is 180 seconds per **project and TCP client IP**, shared by PUT requests across every account/category in that project. IPv4-mapped IPv6 addresses are normalised to IPv4. `X-Forwarded-For` is ignored, so clients behind the same NAT or reverse proxy can share a write allowance. Configure `ipWriteIntervalSeconds` as described in [Deployment and Editor Settings](<Deployment and Editor Settings.md#configure-the-write-interval>); `0` disables the interval.
 
 Validation or authentication failures before admission do not start the interval. Once admitted, the write starts it before storage and uses the allowance even if storage later fails. Rejected writes do not extend the existing deadline. Reads, lists, account checks, health checks, token issuance and management requests do not count. Deadlines are held in memory and reset on backend restart.
 

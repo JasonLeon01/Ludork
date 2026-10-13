@@ -2,8 +2,6 @@
 
 ## SoundFilter
 
-Direct metadata bases: —
-
 ### Properties
 
 | Name | Type | Default | Metadata |
@@ -27,10 +25,6 @@ Direct metadata bases: —
 | `maxGain` | `float` | — | — |
 | `attenuation` | `float` | — | — |
 
-### Functions and events
-
-No Blueprint functions or events are declared.
-
 ## MusicFilter
 
 Direct metadata bases: `{ "Engine", "SoundFilter" }`
@@ -41,13 +35,7 @@ Direct metadata bases: `{ "Engine", "SoundFilter" }`
 |---|---|---|---|
 | `loopPoint` | `sf.Music.TimeSpan` | — | — |
 
-### Functions and events
-
-No Blueprint functions or events are declared.
-
 ## AutoSoundParams
-
-Direct metadata bases: —
 
 ### Properties
 
@@ -58,7 +46,3 @@ Direct metadata bases: —
 | `attenuation` | `float` | `1` | — |
 | `loop` | `bool` | `false` | — |
 | `maxDistance` | `float` | `0` | — |
-
-### Functions and events
-
-No Blueprint functions or events are declared.

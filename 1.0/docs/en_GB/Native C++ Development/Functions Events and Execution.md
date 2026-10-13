@@ -1,7 +1,5 @@
 # Functions, Events and Execution
 
-## Goal
-
 Expose methods, grouped free functions, events and Blueprint execution protocols from one declaration source.
 
 ## Prerequisites

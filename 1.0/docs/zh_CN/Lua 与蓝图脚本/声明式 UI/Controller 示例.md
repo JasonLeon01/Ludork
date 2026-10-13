@@ -23,7 +23,7 @@ local WindowInventory = require("Source.Windows.WindowInventory")
 local window = WindowInventory.new():mount(uiManager)
 ```
 
-窗口显示模板原有的内容与尺寸。拥有者持有这个窗口，不再需要时调用 `window:dispose()`。
+窗口显示模板原有的内容与尺寸。创建方持有窗口，不再需要时调用 `window:dispose()`。
 
 ## 替换内容并响应字段变化
 
@@ -94,7 +94,7 @@ function Controller:updateCount(count) end
 function Controller:onReturn() end
 ```
 
-运行 `ScriptTools ui-assets generate <project-root>` 派生公开窗口声明，再用 `require` 加载 `Source.Windows.WindowInventory`。`Source.Windows.WindowInventory.Controller` 是私有类型，不是模块。
+运行 `ScriptTools ui-assets generate <project-root>` 生成公开窗口声明，再用 `require` 加载 `Source.Windows.WindowInventory`。`Source.Windows.WindowInventory.Controller` 是私有类型，不是模块。
 
 ## 绑定原生回调
 
@@ -125,7 +125,7 @@ function Controller:init(inventory)
 end
 ```
 
-`createChild` 复用 `self.ui.assets.DetailsAsset` 及其已编写的布局，子窗口由父 View 拥有。
+`createChild` 复用 `self.ui.assets.DetailsAsset` 及其资产中的布局，子窗口由父 View 拥有。
 
 独立的固定行沿用原有的 Controller 路径：
 

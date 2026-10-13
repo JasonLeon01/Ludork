@@ -16,7 +16,3 @@ Direct metadata bases: `{ "Engine", "Component" }`
 |---|---|---|---|
 | `className` | `string` | `""` | — |
 | `relativePosition` | `sf.Vector2f` | `{ [1] = 0, [2] = 0 }` | — |
-
-### Functions and events
-
-No Blueprint functions or events are declared.

@@ -2,14 +2,6 @@
 
 A Blueprint is a JSON class definition beneath `Data/Blueprints`. It selects a native or Lua parent, stores editable attributes and, in graph mode, contains event graphs. Actor instances placed on maps refer to these classes.
 
-## Goal
-
-Create a graph-mode Blueprint, set class defaults, add a valid event graph and place an instance without mixing graph and Script Mixin inheritance modes.
-
-## Prerequisites
-
-- Generated or loaded metadata for every field and node in use.
-
 ## Create a Blueprint
 
 Use **Game → New Blueprint**, or the equivalent command in the file explorer. Choose a parent that ultimately inherits `BPBase`, then choose a path beneath `Data/Blueprints`. Parent defaults and supported events are resolved from the inheritance chain. A new graph-mode Blueprint starts each inherited event with `Event → Parent`, including the event parameter connections.
@@ -24,9 +16,7 @@ The Blueprint editor resolves variable and component declarations through the co
 
 In the Blueprint editor and **Actor Info**, ordinary variables are grouped in grey dashed frames beneath the component list. Each frame names the class that first declared its fields, and hovering over the grey heading shows the full class reference. Inherited fields appear only in their original group, even when a child overrides their values. Fields contributed by a Script Mixin and custom Blueprint fields are attributed to the first Script Mixin or Blueprint that declares them.
 
-The Blueprint editor initially sizes its variables pane to the minimum width needed by the fields, including nested structures and complete numeric values. It takes this space from the graph and preview area without widening the window. The divider can widen the variables pane, but cannot narrow it below the content's required width. When the window cannot fit that width, the pane stays within the window and scrolls horizontally to expose the remaining content.
-
-When a Blueprint's `ID` selects a General Data type, the editor shows a read-only `attributes` preview from the selected member. The preview is never saved to the Blueprint JSON. At runtime the generated Attribute Set is constructed through `Source.Configs.GeneralDataTypes.Create`, so edit its values in General Data.
+When a Blueprint’s `ID` selects a General Data member, its `attributes` are shown read-only. Edit those values in General Data.
 
 ### Add a typed attribute
 
@@ -34,7 +24,7 @@ Use **Add Attribute** to enter a name, choose its type and set the initial value
 
 A new field saves its declaration in `attrDefs` and its initial value in `attrs`. If the name already belongs to an inherited field with no local value, the dialog fixes the type to that declaration and adds only an `attrs` override. Child Blueprints inherit the type and default; they cannot redeclare the inherited field. Removing an inherited override restores its inherited default. Deleting a field introduced by the current Blueprint removes both its declaration and local value, and is rejected while a descendant or map Actor override still depends on it.
 
-See [Blueprint attribute declarations](<../Lua and Blueprint Scripting/Blueprint Scripting/Metadata Schema and Decorators.md#blueprint-attribute-declarations>) for the JSON shape. Map Actor overrides use that same inherited type and introduce no new fields.
+Every saved attribute needs a declaration in metadata, an active Script Mixin or inherited/local `attrDefs`. An invalid declaration prevents the Blueprint from loading or being saved; the error names the Blueprint and attribute. Parent changes and field removal cannot leave descendants or map overrides with incompatible declarations. **Save Invalid Blueprint** permits unfinished graphs, but cannot bypass attribute errors. See [Blueprint attribute declarations](<../Lua and Blueprint Scripting/Blueprint Scripting/Metadata Schema and Decorators.md#blueprint-attribute-declarations>) for the JSON format.
 
 ## Actor Library and Actor Info
 
@@ -70,7 +60,7 @@ Plain text inputs still convert values to the parameter's declared type. String 
 
 Invalid text remains visible as an unsaved draft with an error and does not replace the last valid parameter value. Correct it before restoring typed inputs or saving; **Save Invalid Blueprint** cannot bypass a draft error. Save errors identify the graph and parameter. The input mode and drafts survive graph switches and control refreshes only within the current editor window. Closing that window clears them; they are not written to the project or copied with nodes. New and copied nodes use typed inputs.
 
-New nodes, pasted nodes and duplicated selections use the current pointer position in the graph. The editor converts that visible position through the current pan and zoom when the action begins. If the pointer is outside the graph, it uses the viewport centre. A duplicated selection keeps its relative layout and internal links, with the selection's top-left bound placed at the target position.
+New, pasted and duplicated nodes are placed at the pointer, or at the viewport centre if the pointer is outside the graph. Duplicating a selection preserves its relative layout and internal links.
 
 The primary modifier is `Ctrl` on Windows and `Command` on macOS.
 
@@ -89,23 +79,11 @@ The built-in entry is virtual and automatically positioned, so it is excluded fr
 
 Common Functions provide reusable graphs. They are preferable to copying identical node sequences into many Blueprints.
 
-General Data member graphs are independent, synchronous abilities. Their graph-only editor uses the type's event list, hides class attributes and excludes latent nodes. At runtime, `Source.Gameplay.GeneralDataGraphAbility` activates them explicitly, with its `GameplayEventData` as the graph parent.
+General Data member graphs use the type’s event list, have no class attributes and cannot contain latent nodes. Their runtime behaviour is described in [General Data and Text Config](<General Data and Text Config.md>).
 
 ## Inheritance
 
 A child Blueprint inherits fields and behaviour. Changing a saved parent path can alter inherited fields, events and compatible component data, so treat such a change with care. A Blueprint inheritance chain must use either graph mode or Script Mixin mode throughout; see [Script Mixin Authoring Workflow](<../Lua and Blueprint Scripting/Script Mixins/Authoring Workflow.md>).
-
-## Validation
-
-Validation checks parent resolution, cycles, graph shape, event start nodes, node functions, links, pins and stored defaults. An empty optional event is valid, while a malformed or out-of-range link is not. Save after correcting all reported errors, then run a representative map.
-
-Class schema errors block loading, external reload, editing and saving. The diagnostic identifies the Blueprint and attribute; an invalid file remains on disk but is excluded from usable project data. Changing a parent or Script Mixin, deleting a declaration, renaming and Undo/Redo also reject changes that would invalidate a descendant or leave a map Actor override without a compatible declaration. Global Save checks all Blueprint schemas and map overrides, including unchanged documents. **Save Invalid Blueprint** applies to graph validation only and cannot bypass schema errors.
-
-A saved value without a declaration in metadata, an active Script Mixin or inherited/local `attrDefs` is invalid. There is no inference or compatibility conversion for untyped custom fields. General Data member graphs and Common Functions remain graph-only and require no `attrDefs`.
-
-## Limitations
-
-Validation cannot repair references to renamed runtime members or prove that every reachable gameplay state is correct.
 
 ## Related pages
 

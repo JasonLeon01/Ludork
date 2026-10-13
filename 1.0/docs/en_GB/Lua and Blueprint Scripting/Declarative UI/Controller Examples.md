@@ -155,7 +155,7 @@ function Controller:refresh()
 end
 ```
 
-This example uses an independent `Ui.Define` Controller. For a `Ui.DefineWindow` Controller, create the collection in its business `init(...)` without calling the base initializer, because the window factory has already constructed its View. Require `ItemRowController` alongside the other dependencies. The collection replaces preview children and automatically reuses rows across `clear/add`; row Controllers do not call Pool. See [Declarative UI Runtime Contract](<Runtime Contract.md#dynamic-collections>) for initialization, rebinding and terminal disposal.
+This example uses an independent `Ui.Define` Controller. For a `Ui.DefineWindow` Controller, create the collection in its business `init(...)` without calling the base initialiser, because the window factory has already constructed its View. Require `ItemRowController` alongside the other dependencies. The collection replaces preview children and automatically reuses rows across `clear/add`; row Controllers do not call Pool. See [Declarative UI Runtime Contract](<Runtime Contract.md#dynamic-collections>) for initialisation, rebinding and terminal disposal.
 
 ## Publish updates
 

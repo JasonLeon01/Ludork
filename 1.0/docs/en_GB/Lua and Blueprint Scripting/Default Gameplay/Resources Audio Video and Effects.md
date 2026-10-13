@@ -4,13 +4,13 @@
 
 Stored resources use exact-case `/Game/Assets/...` paths with `/` separators and extensions. Generic managers require that complete form. Category helpers such as `loadCharacter("actors/Hero.png")` and `playSE("cursor.ogg")` accept only category-relative arguments and add their own prefix.
 
-The runtime resolves logical paths to loose files or `.ldpak` entries, while standard filesystem APIs and direct LuaSF file constructors do not. Music and video stream seekable entries. Compressed entries keep only the current 1 MiB decoded block per stream; seeking uses the original byte positions without extracting a temporary file. Use `PLATFORM` only for real platform differences.
+The runtime reads loose files and `.ldpak` entries through the same logical paths, with streaming and seeking for music and video. Standard filesystem APIs and LuaSF file constructors do not resolve paths inside archives.
 
 ## Animation caches
 
 Animation sources live in `Data/Animations`. `Engine.getAnimationCacheRoot()` creates `Cache/Animations` under `Engine.getUserDataPath()` for both loose and archived Data. On Windows, the user-data root is the runtime working directory. Other platforms use their application user-data location.
 
-Initialisation generates missing `.anim.json`/`.anim.ldc` caches and rebuilds them when source data or referenced frame assets change, preserving paths relative to `Data/Animations`. Caches are disposable and excluded from templates and player packages. Sources are decoded through `Engine.decodeData` and caches are written through `Engine.saveData`; `.anim.ldc` contains binary data, with no intermediate JSON conversion. Delete old caches containing compressed JSON so initialization regenerates them.
+Initialisation generates missing `.anim.json`/`.anim.ldc` caches and rebuilds them when source data or referenced frame assets change, preserving paths relative to `Data/Animations`. Caches are disposable and excluded from templates and player packages. Sources are decoded through `Engine.decodeData` and caches are written through `Engine.saveData`; `.anim.ldc` contains binary data, with no intermediate JSON conversion. Delete old caches containing compressed JSON so initialisation regenerates them.
 
 ## Audio
 
@@ -36,7 +36,7 @@ Actor fragment shaders are cached by exact shader path for the lifetime of the E
 
 Fog textures use ordinary RGBA semantics: RGB supplies the colour, alpha supplies per-pixel density, and `fogPower` scales opacity. The same shader handles ordinary maps and clipped composite-world regions on every supported graphics backend.
 
-Map fog data uses a strict optional-field protocol. `fog` is a string, and fog is disabled when it is missing, `nil` or blank. `fogPower`, `fogOx`, `fogOy` and `fogDistort` are finite numbers within the float range and default to `0` only when missing or `nil`. A `fogPower` at or below `0` also disables fog. Power and distortion are floored and clamped to `0..100`, while the two offset fields control scrolling. Numeric strings and other scalar coercions are not accepted.
+See [FogController](<../Global and Core Modules/Core Modules/GlobalCore/Map and Fog.md#fogcontroller>) for fog fields, defaults and accepted values.
 
 Map panorama data uses the same optional-string protocol. `panorama` is a canonical `/Game/Assets/...` path, and panorama is disabled when it is missing, `nil` or blank. The image Cover-scales to fill `GameMap.MapViewRect` while preserving the aspect ratio, and then crops the overflow using the Camera origin as a fraction of `(mapPixels - viewPixels)` on each axis. An axis with no camera travel uses `0.5`. Transparent tiles and canvas margins reveal the panorama multiplied by ambient light only, while point lights still apply to opaque tiles. A missing texture is a required-resource failure.
 
@@ -66,8 +66,6 @@ Video.PlayVideo("/Game/Assets/Videos/intro.mp4", false, true, "Data/Subtitles/in
 Shader availability is determined by the runtime graphics environment, and a successful editor preview does not guarantee equivalent target hardware support.
 
 World lighting uses world coordinates, so Active Actor and child static lights can illuminate or cast shadows across child boundaries. Tile masks remain clipped to their placements, and holes contribute neither surfaces nor blockers. The editor composition preview omits fog, panorama and lighting.
-
-Visible Tile blockers are merged natively into an occupancy texture and an integral mask, and Actor occlusion is analysed once per light batch. Owner exclusion, layer visibility, blocker bounds and transmission padding are unchanged.
 
 ## Related pages
 

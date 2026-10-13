@@ -14,10 +14,6 @@ The Scene creates HUD and Region Title directly. Optional windows exported by `S
 
 Ordinary map loading binds the Scene, the current map identity and the Player. It restores terrain and Actor records, and only then runs surviving Actors' `onCreate`. Map replacement and Scene destruction release the departing map's ConditionalActor subscriptions without dispatching Actor destruction or altering persistent records.
 
-### Properties
-
-No editable properties are declared.
-
 ### Functions and events
 
 | Name | Kind | Parameters | Returns | Execution and metadata |

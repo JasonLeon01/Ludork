@@ -2,8 +2,6 @@
 
 ## Vector2CurveKey
 
-Direct metadata bases: —
-
 ### Properties
 
 | Name | Type | Default | Metadata |
@@ -14,13 +12,7 @@ Direct metadata bases: —
 | `arriveTangent` | `float[]` | — | — |
 | `leaveTangent` | `float[]` | — | — |
 
-### Functions and events
-
-No Blueprint functions or events are declared.
-
 ## Vector2CurveData
-
-Direct metadata bases: —
 
 ### Properties
 
@@ -33,13 +25,7 @@ Direct metadata bases: —
 | `postInfinity` | `string` | `"constant"` | — |
 | `keys` | `{ "Engine", "Vector2CurveKey[]" }` | — | — |
 
-### Functions and events
-
-No Blueprint functions or events are declared.
-
 ## Vector2Curve
-
-Direct metadata bases: —
 
 ### Properties
 
@@ -63,8 +49,6 @@ Direct metadata bases: —
 
 ## Vector3CurveKey
 
-Direct metadata bases: —
-
 ### Properties
 
 | Name | Type | Default | Metadata |
@@ -75,13 +59,7 @@ Direct metadata bases: —
 | `arriveTangent` | `float[]` | — | — |
 | `leaveTangent` | `float[]` | — | — |
 
-### Functions and events
-
-No Blueprint functions or events are declared.
-
 ## Vector3CurveData
-
-Direct metadata bases: —
 
 ### Properties
 
@@ -94,13 +72,7 @@ Direct metadata bases: —
 | `postInfinity` | `string` | `"constant"` | — |
 | `keys` | `{ "Engine", "Vector3CurveKey[]" }` | — | — |
 
-### Functions and events
-
-No Blueprint functions or events are declared.
-
 ## Vector3Curve
-
-Direct metadata bases: —
 
 ### Properties
 
@@ -124,8 +96,6 @@ Direct metadata bases: —
 
 ## Vector4CurveKey
 
-Direct metadata bases: —
-
 ### Properties
 
 | Name | Type | Default | Metadata |
@@ -136,13 +106,7 @@ Direct metadata bases: —
 | `arriveTangent` | `float[]` | — | — |
 | `leaveTangent` | `float[]` | — | — |
 
-### Functions and events
-
-No Blueprint functions or events are declared.
-
 ## Vector4CurveData
-
-Direct metadata bases: —
 
 ### Properties
 
@@ -155,13 +119,7 @@ Direct metadata bases: —
 | `postInfinity` | `string` | `"constant"` | — |
 | `keys` | `{ "Engine", "Vector4CurveKey[]" }` | — | — |
 
-### Functions and events
-
-No Blueprint functions or events are declared.
-
 ## Vector4Curve
-
-Direct metadata bases: —
 
 ### Properties
 

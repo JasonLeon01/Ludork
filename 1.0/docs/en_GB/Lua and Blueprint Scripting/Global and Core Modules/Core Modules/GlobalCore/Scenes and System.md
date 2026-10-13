@@ -2,8 +2,6 @@
 
 ## SceneBase
 
-Direct metadata bases: —
-
 Closing the window during runtime or input processing ends the current frame before further UI updates, emitter simulation or rendering. Closing it from an input or UI callback also skips the remaining frame work. The loop stops its logic thread and runs `onQuit` through the normal Scene exit lifecycle.
 
 On Android and iOS, losing focus pauses scene and UI updates, rendering, runtime callbacks and scene timers while the loop continues processing system events. Returning to the foreground in the same process preserves the scene and Lua state, resets the frame and fixed-update timing, and resumes without catching up on time spent in the background. An actual close still follows the normal exit lifecycle.
@@ -13,10 +11,6 @@ On Android and iOS, losing focus pauses scene and UI updates, rendering, runtime
 `scene:addTimer(interval, task, params, blocking)` returns an `Engine.AsyncOperation`. On expiry, it runs `task` before completing with `true` and resuming the Blueprint `TimeUp` branch. Callback errors propagate.
 
 The Lua-only `scene:cancelTimers()` cancels unfinished timers and clears their input blocking. Calling it from a timer callback also cancels the current operation and skips any remaining callbacks. Scene exit or destruction cancels timers automatically.
-
-### Properties
-
-No editable properties are declared.
 
 ### Functions and events
 

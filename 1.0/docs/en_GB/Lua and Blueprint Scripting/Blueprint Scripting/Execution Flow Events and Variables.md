@@ -1,35 +1,10 @@
 # Execution Flow, Events and Variables
 
-Blueprints store class defaults and a visual graph in `Data/Blueprints`. Common Functions store reusable graphs. The editor validates both against the current project metadata catalogue.
-
-Create a Blueprint from **Game → New Blueprint**, select a valid parent and add supported event entries. Connect execution and data pins, then validate and save. Open Common Functions with F8 when multiple graphs need the same operation. A Script Mixin Blueprint follows the separate [Script Mixin Authoring Workflow](<../Script Mixins/Authoring Workflow.md>) contract and does not execute its graph.
-
-![Blueprint Editor with an event graph and connected nodes](../../../../images/editor/blueprint-editor.png)
-
-*The graph expresses execution order through execution pins and values through typed data pins.*
-
-## Goal
-
-Build a validated event graph with explicit execution flow, typed data pins, reusable Common Functions and intentional defaults.
-
-## Prerequisites
-
-- A graph-mode Blueprint with current metadata.
-- A supported event entry and the node APIs required by the workflow.
-- Stable names for any Common Functions and referenced project data.
-
-## Steps
-
-1. Add one supported event entry.
-2. Add nodes, connect execution before data, and set every required unconnected input.
-3. Move repeated logic into a Common Function opened with F8.
-4. Validate and save, then run the event with the Console visible.
+Blueprints define class defaults and event graphs in `Data/Blueprints`; Common Functions provide reusable graphs. See [Blueprints, Common Functions and Actors](<../../Editor User Guide/Blueprints Common Functions and Actors.md>) for editing. Script Mixin Blueprints define events in [Lua](<../Script Mixins/Authoring Workflow.md>) and do not execute their graphs.
 
 ## Events
 
-An event is declared with `type = "event"`. The editor combines its ordered parameter outputs and one execution output in a built-in Event entry. The execution connection selects the start node; without it, the local graph does not execute. A class Blueprint then searches its parent chain for the event implementation, continuing past empty ancestor graphs. Common Functions and General Data graphs have no inherited-event fallback.
-
-The saved shape remains `nodes`, `links` and `startNodes`. The entry and its execution connection are editor projections, not ordinary saved nodes or links; the selected target remains in `startNodes[eventName]`. Entry parameter links retain their `default_N` source and data output index `0`. Entry positions are not saved. Loading an existing graph projects these values without inserting a Parent node or rewriting the graph.
+An event is declared with `type = "event"`. Its Event entry provides ordered parameter outputs and one execution output. The execution connection selects the start node; without it, the local graph does not execute. A class Blueprint then searches its parent chain for the event implementation, continuing past empty ancestor graphs. Common Functions and General Data graphs have no inherited-event fallback.
 
 General Data member graphs are synchronous abilities, not inherited or implicit Blueprint events. `Source.Gameplay.GeneralDataGraphAbility` activates a selected graph with `GameplayEventData` as parent. A `null` start returns `NoGraph`. Latent nodes are invalid, and errors propagate to the caller.
 
@@ -37,15 +12,15 @@ General Data member graphs are synchronous abilities, not inherited or implicit 
 
 New graph-mode Blueprints and explicitly added local event graphs initialise `Event → Parent` when the parent chain declares the same event. Initial data links forward each event parameter to the corresponding Parent input. A parent Blueprint's custom event without a metadata signature has no parameter inputs. Existing graphs are not populated automatically; Script Mixin graphs remain inactive.
 
-A Parent node is saved as `nodeFunction = "super.<eventName>"` using the ordinary node, parameter and link fields. It has one execution input/output, typed event parameter inputs, and no receiver or return-data pins. The compiler adapts those inputs to the existing `GlobalFunctions.Utils.SUPER` call, supplying the graph owner, argument array, caller context and event name. Parent lookup starts above the class that owns the current graph, avoiding a restart from the most-derived instance class in multi-level inheritance.
+A Parent node has one execution input and output, typed inputs for the event parameters, and no receiver or return-data pins. It looks for the event implementation above the class that owns the current graph.
 
-Each input supplies its current connected value or ordinary unconnected default. The argument array follows the existing SUPER length and fallback rules: missing or nil arguments may be filled from the caller's event context. A nil input does not explicitly clear the original event argument; values after a nil hole are subject to the same array-length boundary. Non-nil arguments within that boundary, including `false`, override the corresponding event values. Context restoration and parent-call execution timing remain unchanged.
+Each input supplies its current connected value or ordinary unconnected default. The argument array follows the SUPER length and fallback rules: missing or nil arguments may be filled from the caller's event context. A nil input does not explicitly clear the original event argument; values after a nil hole are subject to the same array-length boundary. Non-nil arguments within that boundary, including `false`, override the corresponding event values.
 
-[GlobalFunctions.Utils.SUPER](<../Node Functions/Utils.md>) retains its two Blueprint inputs and existing `SUPER(obj, params)` behaviour. Its optional context and event-name arguments are used by the compiled Parent adapter; omitted arguments select the current node context and event. Ordinary instance-method nodes still expose their `self` receiver as described below.
+[GlobalFunctions.Utils.SUPER](<../Node Functions/Utils.md>) calls a parent event through `SUPER(obj, params)`. Ordinary instance methods use the `self` input described below.
 
 ## Common Functions
 
-Open **Database → Common Functions** (F8). A Common Function owns one reusable graph. It can be created, renamed, copied, deleted, arranged and validated. Call it through the matching node instead of duplicating graph fragments. Calls share the caller's local context and graph owner, including nested Common Function calls. `SELF` and default instance receivers therefore refer to that same owner.
+Common Functions share the caller's local context and graph owner, including nested calls. `SELF` and default instance receivers therefore refer to that same owner.
 
 ## Execution semantics
 
@@ -97,14 +72,6 @@ ClassDict instances in one Lua VM share resolved classes, definition tables and 
 `ClassDict:getData(path)`, also exposed as `Data.GetClassData(path)` in the Game project, resolves through the same loading path as `get` before returning the resolver's JSON definition table. Unknown paths raise, and module classes without a JSON definition return nil. Repeated reads in one VM return the same table. Use `copy` or `deepcopy` when an independent table is needed.
 
 Editing that table is visible to later definition reads, but it does not update generated classes, instance-default records or compiled templates. New instances and executable-event queries continue to use the generated results.
-
-## Debugging
-
-Begin at the event start, follow execution links, then inspect data sources and unconnected defaults. Validate after moving or renaming node functions.
-
-## Limitations
-
-Graph validation checks structure and metadata contracts. It does not prove gameplay correctness or execute latent work.
 
 ## Related pages
 

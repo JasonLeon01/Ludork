@@ -1,8 +1,6 @@
 # Official Random Map
 
-## 目标
-
-以官方 Random Map 插件为参考，理解地图项命令如何读取不可变的编辑器快照、打开自带的 Avalonia 工作流，并在 revision 保护下替换单个图层。
+以官方 Random Map 插件为参考，理解地图项命令如何读取不可变的编辑器快照、打开自带的 Avalonia 工作流，并在版本检查通过后替换单个图层。
 
 ## 前置条件
 
@@ -12,9 +10,9 @@
 
 ## 注册契约
 
-`OfficialRandomMapPlugin` 只注册一个 `PluginMapContextMenuCommand`。它不注册普通菜单命令、文本提示 provider、before-Export hook、before-Run hook 或 before-Pack hook。只有右键点击真实存在的地图项时，才会显示该命令。
+`OfficialRandomMapPlugin` 注册一条 `PluginMapContextMenuCommand`，右键点击地图项时显示该命令。
 
-handler 收到 `PluginMapContextMenuContext`，检查 `IAvaloniaPluginUserInterface`，然后用宿主的真实所有者窗口打开插件自有的 `RandomMapWindow`。该窗口只使用 `IMapEditorHost`，拿不到编辑器 ViewModel、控件或可变 JSON 对象。
+处理函数收到 `PluginMapContextMenuContext`，检查 `IAvaloniaPluginUserInterface`，然后用宿主提供的父窗口打开插件自有的 `RandomMapWindow`。该窗口只使用 `IMapEditorHost`，拿不到编辑器 ViewModel、控件或可变 JSON 对象。
 
 ## 步骤
 
@@ -23,13 +21,13 @@ handler 收到 `PluginMapContextMenuContext`，检查 `IAvaloniaPluginUserInterf
 3. 选择有效的墙体 Tile。预览默认选中全图；切换到 **框选范围** 后，从一个格子拖到另一个格子即可选出矩形，点击 **恢复全图** 可重新选择整张地图。矩形包含起止格，拖出地图时会限制在地图边缘。显示的起点使用从 0 开始的地图坐标。
 4. 点击 **下一步**，选择布局与墙体密度上限，再用 **设置标点** 在范围内添加或移除必通格。标点可不设置，也不会保存。缩小范围会移除范围外标点；切换图层保留范围和标点，切换地图则重置为全图。
 5. 点击 **生成并保存**，只在范围内生成，然后保存所选图层。矩形外的 Tile 与 AutoTile 值不变；矩形内写入生成的墙体或空格，并清除 AutoTile。其他图层与所有 Actor 保持不变。局部生成不检查或连接矩形外的通路。
-6. 查看已保存结果。**再次生成** 会沿用当前范围生成新布局，实际密度也只统计该范围。生成期间操作控件锁定；发生 revision 冲突时重新读取地图并重置流程。
+6. 查看已保存结果。**再次生成** 会沿用当前范围生成新布局，实际密度也只统计该范围。生成期间操作控件锁定；发生版本冲突时重新读取地图并重置流程。
 
 ## Actor 预览
 
 预览按 Actor 所在图层显示静态贴图，使用编辑器统一的外观解析器读取蓝图类、脚本类及实例属性覆盖。角色朝向决定该方向的首帧；贴图矩形、位移、缩放、原点、旋转、色相与可见性透明度采用编辑器解析后的值，资源缺失时显示占位。Actor 尺寸以宿主的源格子尺寸为基准，与所选图块集无关。
 
-Actor 位置只作为视觉参考，需要保持其所在格为空时应手动放置标点。预览不播放动画，也不执行 Actor shader。
+Actor 位置只作为视觉参考，需要保持其所在格为空时应手动放置标点。预览不播放动画，也不执行 Actor 着色器。
 
 ## 布局与密度
 
@@ -37,15 +35,15 @@ Actor 位置只作为视觉参考，需要保持其所在格为空时应手动�
 
 **房间式** 保留原有的房间与走廊生成规则。点阵式要求绘制范围至少为 7 × 7 格；房间式要求短边至少为 7 格、面积至少为 81 格。更小的矩形仍可选中，但不能生成。
 
-35%～75% 的设置是墙体密度上限。生成器在保持布局风格和连通性的前提下尽量接近上限；点阵式需要保留短小、分散的墙体组件，因此实际密度可能明显低于上限。相同尺寸、标点、模式、密度上限与 seed 会得到相同结果。
+35%～75% 的设置是墙体密度上限。生成器在保持布局风格和连通性的前提下尽量接近上限；点阵式需要保留短小、分散的墙体组件，因此实际密度可能明显低于上限。相同尺寸、标点、模式、密度上限与随机种子 会得到相同结果。
 
 ## 保存契约
 
-插件把局部结果合并到快照中完整 `Height × Width` Tile 与 AutoTile 矩阵的副本，再发送 `PluginMapLayerWriteRequest`，携带原始 `BaseRevision` 与 `ExpectedTilesetKey`。宿主会拒绝冲突改动。生成或保存失败时不会应用部分区域。
+插件通过 `PluginMapLayerWriteRequest` 提交生成后的图层。有冲突的改动会被拒绝，生成或保存失败时不会只应用部分区域。完整的请求格式与撤销规则见[地图项右键菜单命令](<../注册点与 Hook 参考.md#地图项右键菜单命令>)。
 
 ## 限制
 
-`IMapEditorHost` 不能创建地图、修改尺寸、编辑 Actor、注入编辑器 UI，也不能绕过 revision 校验。Random Map 不承担打包职责，因此不得用 Pack hook 生成地图。
+`IMapEditorHost` 不能创建地图、修改尺寸、编辑 Actor、注入编辑器 UI，也不能绕过 版本检查。Random Map 不承担打包职责，因此不得用 Pack Hook 生成地图。
 
 ## 相关页面
 

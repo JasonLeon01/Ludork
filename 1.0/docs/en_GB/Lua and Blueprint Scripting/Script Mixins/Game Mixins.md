@@ -1,6 +1,6 @@
 # Game Script Mixins
 
-The Game project contains five mixins that demonstrate distinct responsibilities. Use them as behaviour patterns and verification fixtures. Copy their contract shape only when the new Blueprint parent and data dependencies match.
+The Game project provides the following mixin examples. Each requires the parent capabilities below, its matching metadata and the relevant project configuration.
 
 | Script | Parent capability | Behaviour |
 |---|---|---|
@@ -9,20 +9,6 @@ The Game project contains five mixins that demonstrate distinct responsibilities
 | `Doors/Door.lua` | `DoorBase` | Opens on collision and guards against repeated opening. |
 | `Doors/KeyDoor.lua` | Script Mixin door Blueprint | Requires and consumes a configured General Data item before continuing the parent collision method. |
 | `Doors/ConditionDoor.lua` | `DoorBase` | Enables polling only for a configured game variable and opens when it reaches the threshold. |
-
-## Consumable pattern
-
-`Bottle` and `Gem` check `self:isDestroyed()` before processing collision, find the active Player from the Scene, perform their data change, call the inherited collision behaviour, record the destroyed Actor and destroy the pickup. Their sound field uses a project configuration fallback when it is empty.
-
-## Door pattern
-
-`Door` owns collision opening. `KeyDoor` requires `MeetPlayer`, a key and no re-entry before consuming the key. `ConditionDoor` polls only when `openConditionName` is configured, then calls `openDoor` at the threshold.
-
-The Game project's pickup Blueprints and `DoorBase` inherit the appearance conditions of `ConditionalActor`. `ConditionDoor:onCreate` continues its parent lifecycle before installing its independent door-opening behaviour. Lifecycle overrides must preserve that subscription chain.
-
-## Limitations
-
-The Game project IDs, sounds and General Data records are project-specific. A copied mixin still requires matching metadata, parent capabilities and runtime references.
 
 ## Related pages
 
