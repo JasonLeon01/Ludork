@@ -65,7 +65,9 @@ Export covers every ordered base/layer combination, including a material layered
 
 The game loads the generated files, binds instance parameters and evaluates exported numeric analysis instructions; it no longer parses material graphs or assembles GLSL. The target GPU driver still compiles and links the shader programs. Missing, damaged or unsupported generated files fail explicitly. Material references and Lua parameter interfaces remain unchanged.
 
-The generated directory and its `export.json` record are ignored by version control and excluded from templates; Export recreates them. Game packages retain both the authored materials and generated files. Generated files support shader/data encryption and are stored in `Assets.ldpak` when archiving is enabled. See [Run, Debug and Package](<Run Debug and Package.md>) for export freshness and command-line checks.
+The generated directory is ignored by version control and excluded from templates; Export recreates it. Its root `export.json` records the format version, generator, input hashes and generated-file hashes. The editor uses it for export checks and ownership of obsolete files; command-line run and pack tools use it for preflight validation. The game does not read this record. Packaging validates it, then removes it from the staging copy before encryption or archiving, while preserving the source project’s copy.
+
+Game packages retain the authored materials, shaders and runtime metadata (`resource.json` and `program.json`). The runtime files support shader/data encryption and are stored in `Assets.ldpak` when archiving is enabled. See [Run, Debug and Package](<Run Debug and Package.md>) for export freshness and command-line checks.
 
 ## File shape
 
