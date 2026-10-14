@@ -6,6 +6,7 @@ using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Ludork.Plugin.Avalonia;
 using Ludork.Services;
 using Ludork.ViewModels.Materials;
 using Ludork.Views.Utils;
@@ -19,6 +20,7 @@ namespace Ludork.Controls;
 public sealed partial class MaterialGraphControl : UserControl
 {
     private readonly NodifyEditor editor;
+    private readonly EditorZoomInput zoomInput = new();
     private Point pointer;
     private long gesture;
     private bool pointerDown;
@@ -93,6 +95,8 @@ public sealed partial class MaterialGraphControl : UserControl
             SelectionChanged?.Invoke(this, EventArgs.Empty);
         }, RoutingStrategies.Bubble, true);
         AddHandler(ContextRequestedEvent, onContextRequested, RoutingStrategies.Tunnel);
+        AddHandler(PointerWheelChangedEvent, onPointerWheelChanged, RoutingStrategies.Tunnel);
+        editor.PointerTouchPadGestureMagnify += onPointerTouchPadGestureMagnify;
         viewGestureTimer.Tick += (_, _) => endGesture();
         DetachedFromVisualTree += (_, _) =>
         {
@@ -119,7 +123,7 @@ public sealed partial class MaterialGraphControl : UserControl
         {
             if (!viewportInitialized || restoringView || args.Property.Name is not ("Zoom" or "OffsetX" or "OffsetY") || DataContext is not MaterialGraphViewModel model)
                 return;
-            if (gesture == 0 && GameData is not null)
+            if (GameData is not null && !GameData.IsHistoryGestureActive(gesture))
                 gesture = GameData.BeginHistoryGesture();
             model.SetView(editor.Zoom, editor.OffsetX, editor.OffsetY);
             if (!pointerDown)
@@ -129,6 +133,47 @@ public sealed partial class MaterialGraphControl : UserControl
             }
         };
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
+    }
+
+    private void onPointerWheelChanged(object? sender, PointerWheelEventArgs args)
+    {
+        if (!EditorZoomInput.IsMacOS || isInputEditor(args.Source as Visual))
+            return;
+        pointer = args.GetPosition(editor);
+        if (zoomInput.ShouldSuppressWheel())
+        {
+            args.Handled = true;
+            return;
+        }
+        if (!EditorZoomInput.HasPrimaryModifier(args.KeyModifiers))
+        {
+            Vector translation = EditorZoomInput.GetPanTranslation(args.Delta) / Math.Max(0.0001, editor.Zoom);
+            editor.OffsetX += translation.X;
+            editor.OffsetY += translation.Y;
+            editor.ViewTranslateTransform.X = editor.OffsetX;
+            editor.ViewTranslateTransform.Y = editor.OffsetY;
+        }
+        else if (args.Delta.Y != 0)
+        {
+            applyZoom(pointer, args.Delta.Y > 0 ? 1.1 : 0.9);
+        }
+        args.Handled = true;
+    }
+
+    private void onPointerTouchPadGestureMagnify(object? sender, PointerDeltaEventArgs args)
+    {
+        if (!EditorZoomInput.IsMacOS)
+            return;
+        pointer = args.GetPosition(editor);
+        zoomInput.MarkMagnify();
+        applyZoom(pointer, EditorZoomInput.GetMagnifyFactor(args.Delta.Y));
+        args.Handled = true;
+    }
+
+    private void applyZoom(Point position, double factor)
+    {
+        editor.ZoomCenter = new RelativePoint(position, RelativeUnit.Absolute);
+        editor.Zoom = EditorZoomInput.ScaleByFactor(editor.Zoom, factor, 0.1, 10);
     }
 
     private void endGesture()
