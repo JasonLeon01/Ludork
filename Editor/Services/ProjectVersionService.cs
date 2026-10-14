@@ -1,6 +1,8 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -31,10 +33,24 @@ public static class ProjectVersionService
             return exception.Message;
         }
 
-        if (version is null || !Regex.IsMatch(version, @"\Av(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\z"))
+        if (!TryParse(version, out _))
             return string.Format(LocaleService.Get("PROJECT_VERSION_INVALID"), supported);
         return EditorVersionService.SupportedGameVersions.Contains(version, StringComparer.Ordinal)
             ? null
             : string.Format(LocaleService.Get("PROJECT_VERSION_UNSUPPORTED"), version, supported);
+    }
+
+    internal static bool TryParse(string? version, out (BigInteger Major, BigInteger Minor) result)
+    {
+        result = default;
+        if (version is null)
+            return false;
+        Match match = Regex.Match(version, @"\Av(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\z");
+        if (!match.Success)
+            return false;
+        result = (
+            BigInteger.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture),
+            BigInteger.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture));
+        return true;
     }
 }

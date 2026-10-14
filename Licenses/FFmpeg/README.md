@@ -1,51 +1,15 @@
 # FFmpeg notice
 
-The optional Ludork video playback component uses FFmpeg 8.1.2 from the
-official FFmpeg GitHub mirror at commit
-`38b88335f99e76ed89ff3c93f877fdefce736c13`. The project homepage is
-https://ffmpeg.org/. Windows and macOS builds use shared FFmpeg libraries.
-The C++ Source + FFmpeg template builds static FFmpeg archives for iOS,
-HarmonyOS and Android and links them into the application. Ludork does not
-provide a Standalone iOS, HarmonyOS or Android packaging path.
+Optional video playback uses [FFmpeg](https://ffmpeg.org/) 8.1.2 from the official GitHub mirror, commit `38b88335f99e76ed89ff3c93f877fdefce736c13`. Windows and macOS use shared libraries; C++ Source + FFmpeg templates link static libraries on iOS, HarmonyOS and Android. Standalone mobile packaging is unavailable.
 
-The bundled FFmpeg build is configured without GPL, version 3, or nonfree
-components and is distributed under the GNU Lesser General Public License
-version 2.1 or later. The generated FFmpeg templates include the complete
-LGPL 2.1 text as `Licenses/FFmpeg/COPYING.LGPLv2.1.txt`.
+The configured build excludes GPL, version 3 and nonfree components and is distributed under LGPL 2.1 or later. FFmpeg templates include the complete [LGPL 2.1 text](COPYING.LGPLv2.1.txt).
 
-Ludork also distributes the complete unmodified FFmpeg source archive. That
-archive contains files available under different members of FFmpeg's GPL/LGPL
-licence family, although the configured Ludork binary excludes GPL and
-version-3-only components. The upstream licensing summary and all four full
-licence texts are mirrored as `UPSTREAM-LICENSE.md`, `COPYING.GPLv2.txt`,
-`COPYING.GPLv3.txt`, `COPYING.LGPLv2.1.txt`, and `COPYING.LGPLv3.txt` in this
-directory and remain present in the distributed source tree.
+The complete unmodified source archive also contains files under other FFmpeg GPL/LGPL licences. This directory and the distributed source tree retain the [upstream summary](UPSTREAM-LICENSE.md) and all four texts: [GPL v2](COPYING.GPLv2.txt), [GPL v3](COPYING.GPLv3.txt), [LGPL v2.1](COPYING.LGPLv2.1.txt) and [LGPL v3](COPYING.LGPLv3.txt).
 
-Only the file protocol, MOV/MP4 demuxer, H.264 and AAC decoders and parsers,
-libswscale, and libswresample are enabled. The exact configure and build
-scripts are included in `Engine/cmake/FFmpeg` for C++ source projects and in
-`ThirdPartySource/FFmpeg-Build` for Standalone projects.
+Only the file protocol, MOV/MP4 demuxer, H.264/AAC decoders and parsers, libswscale and libswresample are enabled. Configure/build scripts live in `Engine/cmake/FFmpeg` for C++ Source projects and `ThirdPartySource/FFmpeg-Build` for Standalone projects.
 
-The FFmpeg-enabled project template includes the complete corresponding
-original FFmpeg source archive in `ThirdPartySource`. The desktop packaging
-workflow preserves that directory. The distributed
-`msvc-localized-output.patch` changes only MSVC identification so localised
-compiler banners are accepted. Preserve this notice, the LGPL text, the source
-archive, the patch, and the build scripts when redistributing an FFmpeg-enabled
-build.
+FFmpeg templates include the corresponding original source archive in `ThirdPartySource`, which desktop packaging preserves. The supplied `msvc-localized-output.patch` only enables MSVC identification from localised compiler banners. Redistributors must preserve this notice, the LGPL text, source archive, patch and build scripts.
 
-An iOS, HarmonyOS or Android application that statically links FFmpeg has
-additional LGPL requirements. Project templates include the licence notices,
-and the mobile packers preserve them when they are present, but they do not
-require them as a package-format prerequisite or embed the source archive or
-application relinking materials. Before distributing that application, the
-distributor must provide the required notices and materials by a compliant
-means, including the machine-readable materials that allow recipients to
-relink the application with a modified compatible FFmpeg build. The FFmpeg
-source archive alone is
-not a substitute for any required application object files or other relinking
-materials. Review the complete licence and the intended distribution channel
-before release.
+Static linking on iOS, HarmonyOS or Android adds LGPL obligations. Mobile packers preserve supplied notices but do not require them as package prerequisites or embed source archives or application relinking materials. Distributors must provide the required notices and materials by a compliant means, including machine-readable materials for relinking the application with a compatible modified FFmpeg. FFmpeg sources alone do not replace required application object files or other relinking materials. Review the full licence and intended distribution channel before release.
 
-FFmpeg is a trademark of Fabrice Bellard, originator of the FFmpeg project.
-Ludork is not affiliated with or endorsed by the FFmpeg project.
+FFmpeg is a trademark of Fabrice Bellard, the project's originator. Ludork is not affiliated with or endorsed by FFmpeg.

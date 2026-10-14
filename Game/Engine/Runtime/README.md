@@ -1,11 +1,12 @@
 # Ludork native runtime library
 
-`Game/Engine/Runtime` is the native foundation shared by Core modules and the editor preview host. It owns `RuntimeData`, `RuntimeHandle`, `RuntimeValue`, VM sessions, reflection, metadata and binding services. Blueprint class generation, Script Mixins, graph execution, latent scheduling, component data, typed-value conversion and JSON also live here. Compiled node definitions, ordered parameter schemas, generated-class initialization plans and weak component/event descriptors use native records; open script values remain dynamic. Engine owns the RuntimeProviders Lua facade and its typed data providers, delegating Blueprint and config providers to Runtime.
+`Game/Engine/Runtime` provides shared values, resources, graphics, native WebView, VM/binding services and Blueprint execution for Core modules and editor previews. Its CMake target is `LudorkRuntime` (`Ludork::Runtime`): shared on desktop and static on iOS, HarmonyOS and Android.
 
-The CMake target is `LudorkRuntime`, exposed as `Ludork::Runtime`. Desktop builds produce a shared `LudorkRuntime` library; iOS, HarmonyOS and Android use the same sources as a static library.
+Runtime depends on Standard, SFML and private zlib; it must not include or link Engine, GlobalCore or GlobalFunctions. Engine supplies gameplay components, Actor graph lookup, EventBus and frame-loop integration. Hosts disconnect callbacks before Runtime clears session work and providers.
 
-Runtime depends on Standard and SFML. The default `LUDORK_WITH_LUA=ON` mode also links LuaSF and builds VM, binding and Blueprint services. The editor-owned preview entry sets the option to `OFF`, selecting value, resource, graphics and native WebView services; this mode does not link Lua or LuaSF. It must not include or link Engine, GlobalCore or GlobalFunctions. Engine links Runtime publicly and supplies Actor graph lookup, EventBus and frame-loop connections, gameplay components and resource adapters. Hosts disconnect their callbacks before Runtime clears pending work, class/default resolvers, caches and providers.
+- `LUDORK_WITH_LUA=ON` (default): includes Lua, LuaSF, LuaGlue, VM, binding and Blueprint services; required for game builds.
+- `LUDORK_WITH_LUA=OFF`: the editor preview subset, with values, resources, graphics and native WebView but no Lua or LuaSF linkage.
 
-Runtime is not a Lua module. Runtime-owned `BIND_*` declarations are included in Engine binding generation and remain available only through `require("Engine")`.
+Runtime has no separate Lua module. Its `BIND_*` declarations are generated into `Engine` and accessed through `require("Engine")`.
 
-Runtime also owns `Engine.OpenWebView(url)` and the native WebView host contract. Platform UI runs above the game in its own layer while Runtime supplies session identity and input blocking. Desktop and Apple implementations live under `src/WebView`; Android and HarmonyOS register their platform-shell factories through `Runtime/WebViewHost.hpp`. WebView2 uses the installed Evergreen Runtime, and Apple links the system WebKit framework. No browser engine is packaged with Ludork.
+Build from the repository root with `tools/build_cpp.bat Game Debug` or `./tools/build_cpp.sh Game Debug`. See [Build and Module Layout](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=04%2F01) for dependency, session and platform-host contracts, and [Runtime Value Boundaries](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=04%2F08) for value ownership and conversion.

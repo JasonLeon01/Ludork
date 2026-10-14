@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -11,6 +12,7 @@ public sealed class ProjectConfigService
 {
     private static readonly JsonSerializerOptions ViewportJsonOptions = new(JsonSerializerDefaults.Web);
     private readonly string configPath;
+    private readonly (BigInteger Major, BigInteger Minor) projectVersion;
     private JsonObject data;
 
     public ProjectConfigService(string projectPath)
@@ -19,6 +21,11 @@ public sealed class ProjectConfigService
         data = File.Exists(configPath) && JsonNode.Parse(File.ReadAllText(configPath)) is JsonObject loaded
             ? loaded
             : [];
+        string? version = data["version"] is JsonValue versionValue && versionValue.TryGetValue(out string? text)
+            ? text : null;
+        if (!ProjectVersionService.TryParse(version, out projectVersion))
+            throw new InvalidDataException("The project version must use the v<major>.<minor> format.");
+        Version = version!;
         bool changed = false;
         if (data["editor"] is JsonObject editor)
         {
@@ -45,6 +52,21 @@ public sealed class ProjectConfigService
         }
         if (changed)
             save();
+    }
+
+    public string Version { get; }
+
+    public bool IsVersionInRange(string minimumVersion, string? maximumVersion = null)
+    {
+        if (!ProjectVersionService.TryParse(minimumVersion, out (BigInteger Major, BigInteger Minor) minimum))
+            throw new ArgumentException("The minimum version must use the v<major>.<minor> format.", nameof(minimumVersion));
+        if (string.IsNullOrWhiteSpace(maximumVersion))
+            return projectVersion.CompareTo(minimum) >= 0;
+        if (!ProjectVersionService.TryParse(maximumVersion, out (BigInteger Major, BigInteger Minor) maximum))
+            throw new ArgumentException("The maximum version must use the v<major>.<minor> format.", nameof(maximumVersion));
+        if (maximum.CompareTo(minimum) < 0)
+            throw new ArgumentException("The maximum version must not be lower than the minimum version.", nameof(maximumVersion));
+        return projectVersion.CompareTo(minimum) >= 0 && projectVersion.CompareTo(maximum) <= 0;
     }
 
     public bool IsStandalone

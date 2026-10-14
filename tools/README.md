@@ -51,58 +51,21 @@ tools\pack_project.bat Game
 tools\pack_editor.bat
 ```
 
-### Website and documentation
+For project workflows, see [Run, Debug and Package](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=02%2F11), [Project Templates](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=01%2F02) and [Native Build and Module Layout](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=04%2F01). The sections below cover command-line and repository maintenance details.
 
-The website and its source Markdown live on the independent `gh-pages` branch,
-served by GitHub Pages from that branch's root. Use a separate worktree and keep
-the business worktree on its current branch. Reuse the `gh-pages` checkout shown
-by `git worktree list`; if missing, create one from the existing branch (fetch it
-first when only the remote branch exists). AI agents use the managed worktree
-creation tool as described in [AGENTS.md](../AGENTS.md#documentation-workflow).
-Only the initial migration creates an orphan branch.
+## Website and documentation
 
-The first two components of `EDITOR_VERSION` select the documentation version:
-`1.0.7` uses `1.0/docs/en_GB`, `1.0/docs/zh_CN` and `1.0/images` in the documentation
-worktree. Shared About and notice Markdown also lives in `1.0/docs`. Read those
-sources directly, or use `git show "gh-pages:1.0/docs/<path>"` without switching
-branches. Complete code verification first, then update all affected languages,
-verify the site, and create a scoped local documentation commit. Preserve
-unrelated work and retain the worktree for later tasks; pushing is a separate,
-explicit action.
+Website sources live on `gh-pages`; use a separate worktree and follow [AGENTS.md](../AGENTS.md#documentation-workflow). `EDITOR_VERSION` in `versions.conf` selects `<major.minor>/docs` and `<major.minor>/images`. The branch's README covers the frontend, dependencies, development server and build hooks.
 
-The React/MUI/Vite frontend lives in `__default__` on `gh-pages`. Follow that
-branch's README for dependency setup, development, preview and hook installation.
-Run its root `build_docs.bat` on Windows or `sh build_docs.sh` on macOS to refresh
-generated pages and assets. The branch's `.githooks/pre-commit` runs the build and
-includes generated output in the same commit; it rejects failed builds and
-unstaged build inputs. Do not edit generated HTML or asset bundles by hand.
-The main worktree retains its own GlobalFunctions commit check.
+Run `build_docs.bat` or `sh build_docs.sh` in that worktree to regenerate the site. Its pre-commit hook builds and includes generated output, rejecting failed builds and unstaged inputs. Edit Markdown and navigation sources, not generated pages or bundles. Configure GitHub Pages as `gh-pages / (root)` and retain `.nojekyll`; no deployment workflow is needed.
 
-Public entries are `/Ludork/`, `/Ludork/docs/v1.0/`, `/Ludork/about/` and
-`/Ludork/notices/`; Download links to GitHub Releases. Pages support `lang=en_GB`
-or `lang=zh_CN`; documentation selection uses `doc` or `path` and optional heading
-fragments. About and notices take `version=1.0`. The editor adds `embedded=1` and
-opens the online pages for its major/minor version. Editor builds and packages do
-not include or download website Markdown, images, frontend sources or generated
-site assets. Configure GitHub Pages to deploy `gh-pages / (root)` and keep
-`.nojekyll` in the published output; no custom deployment workflow is needed.
+Public routes are `/Ludork/`, `/Ludork/docs/v1.0/`, `/Ludork/about/` and `/Ludork/notices/`. Pages accept `lang=en_GB` or `lang=zh_CN`; documentation accepts `doc` or `path` with optional heading fragments. About and notices accept `version=1.0`; the editor adds `embedded=1`. Editor packages contain local licence texts and runtime notices, but no website sources or generated site assets.
 
-`ScriptTools legal-resources editor <repository-root> <output-root>` writes the
-editor's root licence, READMEs and licence indexes. MSBuild and editor packaging
-invoke it after copying resources. `legal-resources template-index` takes the
-same two paths and writes only the two licence indexes, pointing to the template's
-own root runtime notices. Both commands leave source documents unchanged. Local
-licence texts and Game/template runtime notices remain part of their distributions.
+`ScriptTools legal-resources editor <repository-root> <output-root>` writes the editor licence, READMEs and licence indexes after resources are copied. `legal-resources template-index` takes the same arguments and writes only the two indexes, linked to the template's root runtime notices. Neither command modifies source documents.
 
-### Animation MP4 export
+## Animation MP4 export
 
-After changing ScriptTools, run `tools/setup_python` and `tools/build_script_tools`
-using the matching platform extension. The exporter uses Pillow from the Python
-requirements; the built ScriptTools executable includes it. Provide an FFmpeg
-executable with `libx264` and AAC on `PATH`, place it at
-`.tools/ffmpeg/ffmpeg.exe` (Windows) or `.tools/ffmpeg/ffmpeg` (macOS), or pass
-`--ffmpeg <executable>`. FFmpeg is a separate local prerequisite and is not bundled
-by editor packaging.
+Rebuild ScriptTools after source changes with `tools/setup_python` and `tools/build_script_tools` using the platform extension. The exporter uses Pillow from the Python requirements, included in the built bundle. Install FFmpeg with `libx264` and AAC on `PATH`, place it at `.tools/ffmpeg/ffmpeg.exe` (Windows) or `.tools/ffmpeg/ffmpeg` (macOS), or pass `--ffmpeg <executable>`. Editor packaging does not bundle this executable.
 
 ```bat
 tools\animation_to_mp4.bat
@@ -110,710 +73,222 @@ tools\animation_to_mp4.bat Game --input Game/Data/Animations/attack.json --outpu
 tools\animation_to_mp4.bat Game --size 512x512 --background "#202020" --overwrite
 ```
 
-On macOS, use `sh tools/animation_to_mp4.sh` with the same arguments. The direct
-command is `ScriptTools animation-mp4 [project] [options]`; the project defaults
-to `Game`. `--input` accepts one source JSON or a directory searched recursively,
-defaulting to `<project>/Data/Animations`. `--output` defaults to
-`<project>/EditorCache/AnimationMp4`; directory exports preserve relative subdirectories.
-Explicit input/output paths are relative to the repository root when using the
-wrappers. A single input also accepts an output `.mp4` filename.
+On macOS, use `sh tools/animation_to_mp4.sh` with the same arguments. The direct command is `ScriptTools animation-mp4 [project] [options]`; `project` defaults to `Game`.
 
-The exporter reads saved `type: animation` data and loose `/Game/Assets/...`
-files, retaining the source frame rate, timeline order, linear transforms,
-horizontal flip and sound timing/trimming. It exports one playback through the
-last image or sound segment, rounded up to whole frames; the remaining sound-only
-portion shows the background. The automatic even-sized canvas contains all
-sampled frames with the animation origin at its centre. `--size WIDTHxHEIGHT`
-sets an even-sized canvas without rescaling; content outside it is cropped.
-`--background "#RRGGBB"` selects the opaque background (black by default), and
-`--mute` removes audio while retaining the timeline duration. Time tags are not
-encoded as video events. Compressed caches and `.ldpak` packages are not inputs.
+| Option | Behaviour |
+|---|---|
+| `--input <path>` | One source JSON or a recursively searched directory; default `<project>/Data/Animations`. |
+| `--output <path>` | Default `<project>/EditorCache/AnimationMp4`; preserves relative subdirectories in a batch. A single input also accepts an `.mp4` filename. |
+| `--size WIDTHxHEIGHT` | Even-sized canvas, without rescaling; crops content outside it. The automatic canvas contains all sampled frames with the animation origin centred. |
+| `--background "#RRGGBB"` | Opaque background; black by default. |
+| `--mute` | Removes audio without changing the timeline duration. |
+| `--overwrite` | Allows replacing existing outputs. |
+| `--ffmpeg <executable>` | Selects the local encoder. |
 
-Existing outputs require `--overwrite`. Each file is encoded to a temporary
-location and published only after FFmpeg succeeds. Batch export continues after
-individual failures and returns a nonzero exit code if any file failed.
+Wrapper input/output paths are relative to the repository root. Inputs must be saved `type: animation` JSON and loose `/Game/Assets/...` files, not compressed caches or `.ldpak` packages. Export preserves frame rate, timeline order, linear transforms, horizontal flip and sound timing/trimming. It renders one playback through the last image or sound segment, rounded up to whole frames; sound-only tails show the background. Time tags are not video events.
 
-The editor **Construct** button runs `build_cpp` for C++ Source projects.
-**Export** generates UI Lua files and runs project export hooks, including
-Official Locale Tools. General Data classes, project enums (General Data, animation
-and particle keys), and game variable Lua files update when their data is saved.
-**Play** requires a successful Export and, for C++ Source projects, a successful
-Debug Construct. Its disabled hint and pre-run
-checks consider Construct first, then Export. After the first success, changed
-native inputs prompt to construct and play; changed export inputs or outputs
-prompt to export and play. Editor **Pack** runs Export before packaging and
-stops if export fails. The editor workflow is in
-[Running, Testing and Packaging](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=02%2F08).
+Each output is published only after FFmpeg succeeds. Batch export continues after individual failures and exits nonzero if any file fails.
 
-The project export record is local state in `EditorCache/ProjectExport.json`. Templates
-exclude that record, generated UI Views and declarations, and generated locale
-catalogues. They retain handwritten Lua, project enums, General Data classes and
-variable exports, the locale workbook and `Source/Locale/Core.lua`, and native binding stubs/metadata.
+## Native build state
 
-Both repository and installed-editor `build_cpp` scripts record the latest
-successful native build with `ScriptTools native-build-state`, in
-`EditorCache/NativeBuild-<configuration>.json`. Starting another build preserves that
-record and writes a pending marker. A failed or cancelled build, or inputs
-changed during compilation, leaves the marker in place and makes `check` report
-that compilation is required. Only a successful build with unchanged inputs
-replaces the successful record and clears the marker. A first build that fails
-does not create a successful record.
+`build_cpp` records successful builds in `EditorCache/NativeBuild-<configuration>.json`. A pending marker preserves the previous record while a build runs; failure, cancellation or changed inputs leaves the build out of date. Only successful completion with unchanged inputs clears it.
 
-`native-build-state check <project> <Debug|Release>` prints
-`{"current":true,"detail":""}` for a current build, or `current:false` with a
-reason. Both are normal checks with exit code 0; invalid input or an unreadable
-state returns 2. `begin` and `complete` are the build scripts' paired operations;
-`complete` returns 1 if inputs changed during compilation.
+| `ScriptTools native-build-state` command | Result |
+|---|---|
+| `check <project> <Debug\|Release>` | JSON `{"current":true,"detail":""}` or `current:false` with a reason. Both exit 0; invalid input or unreadable state exits 2. |
+| `begin <project> <Debug\|Release>` | Starts the build record operation. |
+| `complete <project> <Debug\|Release>` | Completes it; exits 1 if inputs changed during compilation. |
 
-The editor prewarms one read-only `ScriptTools project-state-worker <project>`
-process per open project. Requests and responses use JSON Lines over stdin and
-stdout. Each request has `version:1`, an integer `id`, and an `operation`:
-`ready`, `native-check` (with `configuration:Debug` or `Release`), or
-`ui-manifest`. Responses echo `id` with either `result` or `error`. Diagnostics
-use stderr. Every check reads current content; the process does not cache check
-results or write build/export records. The editor serialises requests, restarts
-the worker when the ScriptTools bundle changes or the process exits, and stops it on cancellation or
-project close. Play keeps its initial and final Construct → Export checks.
+Checks compare first-party native sources, CMake/resources, the `Main.proj` FFmpeg switch, Windows icon and executable/library identity. Lua, UI, locale, generated files and third-party trees are excluded. Records are specific to configuration, platform and architecture; editor Play requires Debug. Run `build_cpp` after third-party or external CMake changes, or after a direct `cmake --build`, to publish the result for Play. Restoring unchanged source contents can reuse a successful record when no build is pending.
 
-The check compares the paths and contents of first-party native source/header,
-CMake and resource files, the `Main.proj` FFmpeg switch, and the compiled Windows
-icon. It also checks the identity of the executable and dynamic libraries.
-Lua, UI, locale, generated files and third-party trees do not make Play require
-compilation. When no build is pending, restore the previous source contents to
-reuse an unchanged successful build. Build records are specific to configuration,
-platform and architecture; the editor requires Debug. Use `build_cpp` after
-changing third-party dependencies or external CMake cache options. Direct
-`cmake --build` does not publish this record; a subsequent incremental
-`build_cpp` makes its result available to editor Play.
+`ScriptTools project-state-worker <project>` provides read-only JSON Lines requests over stdin/stdout. Each request has `version:1`, integer `id`, and `operation`: `ready`, `native-check` (with `configuration:Debug` or `Release`), or `ui-manifest`. Responses echo `id` with `result` or `error`; diagnostics use stderr. It reads current files on every request and writes no build/export records. The editor serialises requests and restarts the worker after bundle changes or process exit, stopping it on cancellation or project close.
 
-`create_templates` accepts `--variant plain` or `--variant ffmpeg` to build one
-source/Standalone pair; the matching `create_templates_plain` and
-`create_templates_ffmpeg` scripts are thin entry points for automation. Without
-`--variant`, it rebuilds all four templates. `--version X.Y.Z` overrides the editor
-base version for this invocation. Every generated `Main.proj` receives a top-level
-`version` such as `v1.0`; `packaging.version` remains the game's release version.
+### IDE entry points
 
-Both editor packers accept `--without-templates` to produce an editor and its
-build/package tools without a `Templates` directory. It is mutually exclusive with
-`--templates <folder>`. Development packaging generates templates when both are
-omitted. Release packaging always omits templates and rejects `--templates`. This mode
-still requires ScriptTools, the host Lua compiler and the Windows GNU Make tool,
-but does not require the Game native dependency tree or FFmpeg source archive.
+From a C++ Source project root, run `generate_vs2022.bat` to create `Main.sln`, or `generate_clion.bat` / `./generate_clion.sh` for CLion's **Ludork Play** target. These generators configure CMake. Set `LUDORK_TOOLS_DIR` to the installed editor's `tools` directory if autodetection fails. IDE launches use the Debug `Main` target with the project root as working directory, without editor save handling, Before Run hooks, embedded viewport or editor bridges. See [Workspace and Shortcuts](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=02%2F01) for editor integration.
 
-Windows and macOS development packaging may pass `--templates <folder>` to copy an already
-generated set of four editor templates. Each Standalone template must contain
-its own matched preview snapshot; C++ templates contain preview source only.
-The default development command regenerates the templates before packaging the editor.
-The prepared template folder must remain outside `obj/editor-package`, which is
-recreated during packaging.
+## Templates and editor packages
 
-`create_templates --native-cache <folder>` stores native outputs separately by
-`plain`/`ffmpeg` and `Debug`/`Release`. A matching entry supplies runtime binaries,
-the Windows game launcher, and the seven generated Lua stub/metadata files;
-templates still copy current Game project content and run the packaging validations.
-Source templates omit SFML's upstream test fixtures, which are not used by the
-game build and have filenames that HFS+ normalizes during macOS DMG creation.
-Keep this folder outside both Game and the template output. The caller must
-invalidate it when native sources, bindings, dependencies or build options
-change. `build_standalone --use-current-build` packages the matching existing
-`bin/<configuration>` output and Windows `build/launcher/<configuration>`.
+| Command or option | Contract |
+|---|---|
+| `create_templates --variant plain\|ffmpeg` | Build one Source/Standalone pair; omission builds all four. `create_templates_plain` and `create_templates_ffmpeg` are shortcuts. |
+| `create_templates --version X.Y.Z` | Override the editor base version for this invocation; generated `Main.proj` uses `v<major.minor>`. |
+| `create_templates --native-cache <folder>` | Reuse native outputs by variant and Debug/Release configuration. Keep outside Game and template output; invalidate after native, binding, dependency or build-option changes. |
+| `build_standalone --use-current-build` | Package matching `bin/<configuration>` and Windows `build/launcher/<configuration>` outputs. |
+| `pack_editor --without-templates` | Package the editor, plug-ins and tools without templates; mutually exclusive with `--templates`. |
+| `pack_editor --templates <folder>` | Copy an existing four-template set in development mode. Keep outside the recreated `obj/editor-package` staging directory. |
+| `pack_editor --use-current-editor-build` | Restore NuGet and publish matching Release editor/contract outputs with `--no-build`; refresh Content and locale in clean staging. |
+| `pack_editor.bat --launcher <file>` | Use a prepared launcher outside staging. |
+| `pack_editor --version <base-version> --dev\|--release` | Override package metadata for this invocation; default channel is dev. |
 
-`pack_editor --use-current-editor-build` restores NuGet dependencies and runs
-`dotnet publish --no-build` against matching Release outputs for the editor and
-its two contract projects. It still refreshes Content and compiles current locale
-data in a clean staging directory. Windows also accepts `--launcher <file>` for
-a prepared editor launcher outside that staging directory. The published editor
-must have the same embedded base version, full version and channel as this
-invocation's metadata snapshot; a mismatch requires rebuilding the editor.
+Development packaging regenerates templates unless `--templates` or `--without-templates` is given. Release packaging always omits templates and rejects `--templates`. Both modes require ScriptTools and the host Lua compiler, plus GNU Make on Windows; template-free builds do not require Game dependencies or the FFmpeg source archive. Standalone templates must contain matched previews; Source templates contain preview source. Source templates omit unused SFML test fixtures whose filenames conflict with macOS filesystem normalisation.
 
-`EDITOR_VERSION` in `versions.conf` is the editor's own base version.
-`GAME_VERSIONS='["v1.0"]'` lists the project versions this editor can open. The
-current `v<major>.<minor>` must be in that array. New projects always use that
-current version. Opening an unsupported, missing or malformed project version
-fails before project plug-ins or session initialisation, without modifying the
-project. Supported older projects retain their version; no migration is performed.
-`Ludork.csproj`
-derives its `<Version>` from that entry, so the assembly, Windows launcher resource,
-macOS bundle metadata and installer all report the same number. Both editor packers
-accept `--version <base-version>` and mutually exclusive `--dev` / `--release`,
-defaulting to `--dev`; an override applies to that invocation only and does not
-change `versions.conf`. They follow the same identifier rules as the game packers:
-a formal package keeps the base version, and a dev package appends the UTC+8
-`YYYYMMDDHH` build hour, as in `1.0.0.2026010107`.
+Native caches supply runtime binaries, the Windows launcher and generated bindings, enums and preview data. Current Game content is still copied and validated. See [Project Templates](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=01%2F02) for retained files, export exclusions and release downloads.
+
+`EDITOR_VERSION` is the editor base version; `GAME_VERSIONS` lists supported project versions and must include the current `v<major.minor>`. New projects use that current version. These are separate from a game's `packaging.version`; see [project compatibility](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=02%2F02#mainproj).
 
 ```bat
 tools\pack_editor.bat --release
 tools\pack_editor.bat --version 1.0.1 --dev
+tools\pack_editor_msi.bat
 ```
 
 ```sh
 ./tools/pack_editor.sh --release
 ```
 
-Each invocation freezes `obj/editor-package-metadata/BuildInfo.json` outside the
-package. The assembly metadata, filenames, MSI and macOS bundle use that snapshot.
-Only development packages copy it to the Windows package root or the macOS app's
-`Contents/Resources`. Formal editor directories, MSI, DMG, template archives and
-Server archives contain no generated `BuildInfo.json`; the external snapshot is
-not uploaded. About and channel detection read the embedded metadata, and direct
-source runs default to development regardless of Debug/Release configuration.
-The About dialog shows `fullVersion`. Binary version fields hold the base version, because
-Windows resources and .NET assembly versions reject components above 65535; the full
-version names the DMG, its volume and the packaging log line. Game packaging's
-`Data/BuildInfo.json` contract is unchanged.
+Packers freeze `obj/editor-package-metadata/BuildInfo.json` for assembly metadata, filenames, MSI and macOS bundles. Dev full versions append the UTC+8 `YYYYMMDDHH` build hour; binary version fields retain the base version. Reused editor outputs must match the snapshot's base/full version and channel. Dev packages copy the snapshot to the Windows root or macOS `Contents/Resources`; formal editor, template and Server assets omit it. The external snapshot is not uploaded. About and channel detection use embedded metadata; direct source runs default to dev.
 
-Release editors download the selected platform and variant from
-`https://github.com/JasonLeon01/Ludork/releases/download/v<base-version>/<asset>`.
-They retain the compressed archive in `<installation-root>/Templates/v<base-version>/`
-on Windows or `~/Ludork/Templates/v<base-version>/` on macOS. Valid cached archives
-can create projects offline; every creation extracts into a fresh project.
-Development editors copy bundled templates and never download missing ones.
-The creation window reports download, extraction and copy progress and supports
-cancellation. A missing release asset reports that this version's template is not
-yet available; there is no fallback to another release or CI artifact.
+Windows packages place a native `Ludork.exe` launcher at the root and the self-contained editor under `Binaries`. Root resources include `Locale`, `Plugins`, `plugins.json`, `Licenses`, `tools/ScriptTools` and optional development `Templates`. The launcher forwards arguments, streams and exit status, using the installation root as the working directory. Packaging invokes `--compile-locale` through it, validates staging before replacing `dist`, and restores the previous package on replacement failure. MSI shortcuts and `.proj` associations target this launcher.
 
-### Ludork Server
+`pack_editor_msi.bat [output.msi]` requires a release `dist` and the pinned WiX toolset. `--build-info <file>` defaults to `obj\editor-package-metadata\BuildInfo.json`; the snapshot must match the embedded editor metadata. Default output is repository-root `Ludork-<version>-windows-x64.msi`.
 
-The independent orphan `Server` branch contains the Node.js 24 backend,
-React/TypeScript viewer and `deploy.sh` / `deploy.bat`. Deploy its source on the
-server, not in the game client. From that checkout, run
-`sh deploy.sh <project> <key> <password>` or
-`deploy.bat <project> <key> <password>`, with arguments quoted for the shell,
-then the generated `start.sh` / `start.bat`. Deployment runs `npm ci` without a
-frontend build. Projects share backend port 7777 and viewer port 3333; their
-URLs are `http://host:7777/<project>` and `http://host:3333/<project>/`.
-
-Only C++ Source projects expose **Game → Test Server Settings** and the server
-toggle in **Pack Project**. Debug build and native-build-state checks receive
-`LUDORK_SERVER_CONFIG_FILE` pointing to the local `test.json`. On Windows it is
-`.localserver/<project-directory-name>/test.json` beside `Ludork.ini`; other editor
-platforms use `~/Ludork/.localserver/<project-directory-name>/test.json`. Its JSON
-fields are `enabled`, `url` and `key`. A missing file or a false `enabled` disables
-the integration. Effective configuration changes invalidate that configuration's
-native-build record. The editor keeps test settings out of `Main.proj` and Lua.
-
-Game packaging builds Release even with `--dev`. Release ignores the Debug
-configuration file and requires explicit process environment values
-`LUDORK_SERVER_ENABLED=1`, `LUDORK_SERVER_URL` and `LUDORK_SERVER_KEY` to enable
-the client; omission or `LUDORK_SERVER_ENABLED=0` disables it. Supply production
-values from your CI secret store. The editor's Pack dialog starts blank each
-time and passes values through the child environment, without saving them or
-putting the key in command-line arguments or logs.
-
-`server-config generate <directory> <configuration>` generates the private
-`LudorkGenerated/ServerConfig.hpp` consumed by the native build. An enabled
-configuration defines `LUDORK_SERVER_AVAILABLE`; the disabled configuration
-does not. Public methods remain available and complete with a typed Disabled
-result when the transport is excluded. `server-config cleanup <project>` removes
-generated Release configuration headers after packaging; the editor also runs
-it after cancellation. Template generation explicitly clears server credentials
-and builds with the integration disabled. Generated headers are not public
-configuration inputs and must not be edited manually.
-
-The transport is HTTP only. Shared project keys allow access across that
-project's accounts and can be extracted from a distributed client binary.
-There is no account-authentication, multiplayer or RPC layer. Deployment,
-typed asynchronous APIs and the wire contract are documented in
-[Simple Server](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=06%2F01).
-
-### Pull requests and automated packages
-
-PR validation selects checks from changed paths, including added, deleted and
-renamed files. Engine and native build inputs require Release templates for
-Windows x64 and macOS ARM64, both plain and FFmpeg. Editor sources and their
-project, resource and generator dependencies require Avalonia builds on both
-platforms without packaging the editor. Scripts and EmmyLua configuration changes
-require full `Game` workspace diagnostics from a pinned EmmyLua version, with
-`--warnings-as-errors`. This check first obtains matching generated native stubs
-from the Windows plain template build, reusing that build when Engine validation
-also needs it, and generates the remaining workspace declarations before checking.
-Shared build and CI inputs select every affected check; the categories are additive.
-Every PR also checks the Lua modules in `Scripts/GlobalFunctions` against the
-native `GlobalFunctions` binding declarations. A Lua module must not occupy a
-native function-group or root-function path, and modules in this directory must
-resolve their `require` dependencies inside functions rather than at module scope.
-The check reads C++ annotations, including bindings hidden from Blueprint metadata.
-
-Install the repository's staged-file check once per clone:
-
-```sh
-git config --local core.hooksPath .githooks
-```
-
-The pre-commit hook runs `python -m ScriptTools.global_functions_check --staged`
-against the exact Git index. Run `python -m ScriptTools.global_functions_check`
-to inspect the current worktree without staging files. Python 3.12 or newer is required.
-
-The always-running `PR Validation` check succeeds only when every selected check
-succeeds and the GlobalFunctions check passes. A selected check that fails, is
-cancelled or unexpectedly skips blocks it; unselected checks may skip, and
-documentation-only PRs pass without builds.
-New commits cancel older validation runs for the same PR. In GitHub repository
-settings, edit the existing rule or ruleset targeting `main`, require status
-checks before merging, and add `PR Validation` from GitHub Actions while preserving
-the other protections. Workflow files alone do not enable this merge requirement;
-changing branch protection requires repository administration permission.
-
-[Export Package](../.github/workflows/export-package.yml) packages the default branch
-at 02:00 and 14:00 UTC+8 (`0 6,18 * * *` UTC), or a selected ref on manual dispatch.
-Ordinary pushes and PRs do not create complete editor packages. Temporary package
-runs are serialized; after acquiring that slot, a scheduled run skips when both
-its main commit and the resolved remote `Server` commit equal the latest
-successful dual-platform temporary package of the default branch. Manual runs
-always build, including the same commits. Successful
-manual default-branch packages update that baseline; skipped, failed, cancelled,
-other-branch and tag runs do not. Scheduled and manual runs package both platforms
-with `--dev`, so their artifacts carry the dated full version. Temporary artifacts
-retain their names and expire after seven days. The macOS artifact is named
-`Ludork-macos-arm64-<sha>` because the DMG is signed and notarised whenever the
-`MACOS_SIGNING_CERTIFICATE` secret is configured, and stays unsigned otherwise.
-Configure `MACOS_SIGNING_CERTIFICATE` as a base64-encoded `.p12` with its
-`MACOS_SIGNING_CERTIFICATE_PASSWORD` and optionally `MACOS_SIGNING_IDENTITY`, then
-either `MACOS_NOTARY_APPLE_ID`, `MACOS_NOTARY_TEAM_ID` and `MACOS_NOTARY_PASSWORD`,
-or `MACOS_NOTARY_KEY` as a base64-encoded `.p8` with `MACOS_NOTARY_KEY_ID` and
-`MACOS_NOTARY_KEY_ISSUER`. Missing secrets keep the unsigned package.
-
-[Export Package Windows](../.github/workflows/export-package-windows.yml) and
-[Export Package macOS](../.github/workflows/export-package-macos.yml) manually
-produce the same development package for one platform, including all four templates
-and four separate template archives.
-
-These three complete-package entries also upload an independent CI artifact,
-`LudorkServer-source-<40-character-server-SHA>.tar.gz`, retained for seven days.
-The combined entry resolves remote branch `Server` once and shares that exact
-source artifact across the run; each standalone platform entry prepares its own
-source artifact. The archive is made from the resolved Git tree and rejects
-tracked user data, configuration, dependencies and generated launchers. It is not
-embedded in the editor's 7z, MSI or DMG. It preserves the `LudorkServer/` top-level
-directory and Git file permissions. Download and extract it on Linux with
-`tar -xzf LudorkServer-source-<version>.tar.gz`,
-then deploy it there. The first source archive requires the repository owner to
-make the `Server` branch available remotely; an uncommitted local worktree cannot
-satisfy a CI checkout. The template-free Export Editor entries do not include this
-artifact.
-
-For tests that do not need project templates, run
-[Export Editor](../.github/workflows/export-editor.yml) for both platforms,
-[Export Editor Windows](../.github/workflows/export-editor-windows.yml), or
-[Export Editor macOS](../.github/workflows/export-editor-macos.yml). These
-entries pass `--without-templates`: no template generation, native template builds,
-template downloads or `Templates` directory. They retain the editor, official
-plug-ins and build/package tools for existing projects. Tool preparation builds
-ScriptTools and a standalone `luac`, plus GNU Make on Windows, without configuring
-Game or downloading its SFML/LuaSF/FFmpeg dependencies. Creating a new project
-in these development editors requires local templates from a development Package
-build. Release editors obtain templates from their matching Release. Both macOS modes use the same signing
-and notarisation secrets and DMG verification.
-
-The macOS artifacts are `Ludork-editor-macos-arm64-<sha>` without templates and
-`Ludork-macos-arm64-<sha>` with templates. All temporary artifacts expire after
-seven days. Each scheduled or manual Windows artifact is uploaded directly as
-a single 7z file, with no outer ZIP:
-`Ludork-editor-<fullVersion>-windows-x64.7z` without templates, or
-`Ludork-<fullVersion>-windows-x64.7z` with templates. The artifact name is the
-7z filename. Download it and extract it once; its root contains `Ludork.exe`.
-The archive uses LZMA2
-level 5 with multithreading and must pass `7z t` before upload. macOS keeps DMG,
-and tagged releases keep MSI/DMG.
-Consumers of template-free editors inspect the combined or matching single-platform
-Export Editor runs on `main`, require a successful target platform job and a unique,
-unexpired exact-name artifact, and continue to earlier runs when unavailable.
-
-The combined `Export Editor` also runs at 02:00 and 14:00 UTC+8, using the same
-cron as `Export Package`. Each mode deduplicates scheduled runs against its own
-latest successful default-branch dual-platform run, recorded by `Record successful
-editor` or `Record successful package (<server-SHA>)`; legacy complete-package runs under the old
-Export Editor name do not count as editor-only successes. Manual runs always build.
-
-The six entries reuse each platform's packaging steps and build on clean runners
-without restoring or saving caches. Every export builds ScriptTools, the Lua
-compiler, the editor and the Windows launcher anew; complete packages also
-rebuild both native template variants. pip and compiler caches are disabled.
-Artifacts pass the freshly prepared tools and templates between jobs of the
-current workflow run only; packaging never selects a previous editor build or
-native cache. Concurrency groups are
-separate for each platform and package mode, so full packages do not hold up
-scheduled editor-only builds. Scheduled and manual runs use `--dev`. Only a `v*`
-tag push to `Export Package` uses `--release` and creates or updates a draft Release
-with Windows MSI and macOS DMG packages that omit templates, plus eight template
-archives and the separate Server source tar.gz.
-
-Consumers of the combined `Export Package` workflow must select a run whose `Record successful package (<server-SHA>)` job
-succeeded and whose requested artifact is still available and unexpired. Selecting
-only the latest successful workflow is insufficient: a scheduled run skipped for
-an unchanged commit also succeeds, but produces no package artifacts.
-
-Pushing a `v*` tag packages both platforms with `--release`, builds the Windows MSI
-and then creates a draft GitHub Release with generated release notes, that MSI,
-the macOS DMG, eight template archives and
-`LudorkServer-source-<EDITOR_VERSION>.tar.gz`. The server attachment
-uses the same version as both editor installers; its contents remain the archived
-Server commit. The tag must equal `v<EDITOR_VERSION>`, for example `v1.0.0`.
-The upload validates exactly these 11 assets and their type-specific names.
-A rerun updates the existing draft and removes this workflow's obsolete Server
-ZIP attachments; an already published release is not overwritten. No release
-is automatically published, and only the release-upload job has `contents: write`.
-
-Package builds always generate the selected commit's Game templates. Development
-packages embed them; release packages keep them separate. Both modes
-include the editor, tools, plug-ins, locale and licence texts. Local syntax and build checks do not
-replace successful hosted Actions runs or confirmation of the `main` merge rule.
-
-Each Package platform uploads four archives directly, without an outer archive.
-Windows x64 uses `.zip`; macOS ARM64 uses `.tar.gz`:
-
-| Template | Windows asset | macOS asset |
-| --- | --- | --- |
-| Source | `game-source.zip` | `game-source.tar.gz` |
-| Source + FFmpeg | `game-source-ffmpeg.zip` | `game-source-ffmpeg.tar.gz` |
-| Standalone | `game-standalone.zip` | `game-standalone.tar.gz` |
-| Standalone + FFmpeg | `game-standalone-ffmpeg.zip` | `game-standalone-ffmpeg.tar.gz` |
-
-Archive roots contain the project files, including hidden configuration, licence
-materials and matching preview data. The output directory stays outside the
-editor payload. macOS archives preserve executable permissions and relative
-library links. Export Editor neither builds nor uploads these archives.
-
-Both editor packaging scripts use the shared ScriptTools command
-`editor-official-plugins prepare <source> <output-root>` to clean-copy the fixed
-official plug-ins and generate their registry. The matching
-`editor-official-plugins validate <output-root>` command verifies the exact
-directory set, manifests, generated index and excluded build or user-state
-artifacts.
-
-`pack_editor.bat` builds a native Windows launcher with a static CRT and publishes
-the self-contained editor under `Binaries`. Its output has this layout:
-
-```text
-dist/
-├── Ludork.exe                 # Native launcher
-├── BuildInfo.json             # Development packages only
-├── Binaries/
-│   ├── Ludork.exe             # Actual editor
-│   ├── Ludork.dll
-│   ├── Ludork.deps.json
-│   ├── Ludork.runtimeconfig.json
-│   └── …                      # DLLs and .NET runtime files
-├── Locale/
-├── Templates/                # Bundled in development Package builds only
-├── tools/
-│   └── ScriptTools/
-│       ├── ScriptTools.exe
-│       ├── runtime-versions.txt
-│       ├── runtime-files.json
-│       └── …                  # Bundled runtime dependencies
-├── Plugins/
-├── plugins.json
-├── Licenses/
-└── …                          # Readme and licence files
-```
-
-The installation root is the directory containing the launcher. It starts
-`Binaries\Ludork.exe` with that root as the working directory and forwards
-arguments, standard streams and the editor's exit code. Packaging invokes
-`--compile-locale` through the launcher, validates the complete layout before
-replacing `dist`, and restores the previous package if replacement fails. MSI
-shortcuts and `.proj` associations also target the root launcher.
-
-`OfficialBlueprintAI`, `OfficialLocaleTools`, `OfficialRandomMap`, and
-`OfficialResourceCleanup` are placed
-below the root `Plugins` directory, with `plugins.json` generated beside it from
-their manifests. The published editor resolves its resources, plug-ins and
-configuration against the installation root even when started directly from
-`Binaries`. Runtime settings use root `Ludork.ini`; writable plug-in data uses
-`Plugins/.data`. Repository development builds use `Plugins` and
-`plugins.json` with the development marker. Desktop game Standalone packages retain their
-own packaging layout.
-
-`pack_editor_msi.bat` wraps the current `dist` package into the Windows Installer
-database with the pinned WiX toolset. It reads the external snapshot selected by
-`--build-info <file>` (default `obj\editor-package-metadata\BuildInfo.json`), refuses a dev
-package and validates the editor's embedded version and channel against it, so run
-`tools\pack_editor.bat --release` first. Without an argument it writes
-`Ludork-<version>-windows-x64.msi` to the repository root; an argument selects a
-different `.msi` path.
-
-`pack_editor.sh` requires macOS on Apple Silicon with a logged-in Finder session,
-the .NET 9 SDK, CMake, ScriptTools and the host Lua compiler. Including templates
-also requires initialized Game project dependencies. It produces
-`dist/Ludork-<version>-macos-arm64.dmg` for macOS 13.3
-or newer. The mounted
-volume visibly contains `Ludork.app`, an `Applications` link, and **Install
-Official Plugins**; Finder hides the installer's `.command` extension. The user
-first drags the app to Applications, then double-clicks the installer and
-confirms the replacement. The official plug-in payload and generated registry
-are hidden support items outside the app bundle. The installer validates that
-payload and transactionally replaces `~/Ludork/Plugins` and
-`~/Ludork/plugins.json`; it does not merge or retain a backup after success, so
-existing third-party plug-in source, registrations, and `Plugins/.data` are
-removed. An ordinary failure rolls back to the previous installation; if
-rollback itself cannot finish, the installer reports recovery details instead
-of claiming that the old installation is intact. The app registers Ludork
-`.proj` files with Finder and includes their document icon.
-Editor content, development templates, licence texts, and runtime tools are stored under
-`Contents/Resources`; `Contents/MacOS` only contains the executable and its .NET
-runtime dependencies. Signing and notarisation are optional and use the configured
-identity and notary credentials.
-
-The macOS association is owned by the app bundle and becomes unusable when the
-app is removed. An installer or manual uninstall can explicitly remove the
-LaunchServices entry before deleting the app:
+`pack_editor.sh` requires Apple Silicon macOS, a logged-in Finder session, .NET 9 SDK, CMake and prepared tools. It writes `dist/Ludork-<version>-macos-arm64.dmg` for macOS 13.3+. Resources and tools live under `Contents/Resources`; executable/.NET dependencies under `Contents/MacOS`. The DMG includes `Ludork.app`, an Applications link and **Install Official Plugins**. The installer validates and replaces `~/Ludork/Plugins` and `~/Ludork/plugins.json`, including third-party plug-ins and `Plugins/.data`; failure attempts rollback and reports recovery details if rollback fails. To unregister file associations before removing the app:
 
 ```sh
 /Applications/Ludork.app/Contents/Resources/tools/unregister_editor.sh
 ```
 
-Shell files only coordinate commands. Metadata generation, project inspection,
-version checks, packaging helpers, and Lua bytecode compilation are implemented
-by the ScriptTools runtime bundle. Nuitka's standalone directory build publishes
-only runtime files under `.tools/ScriptTools`, with the development entry point
-`.tools/ScriptTools/ScriptTools` on macOS or
-`.tools\ScriptTools\ScriptTools.exe` on Windows. Compiler outputs and caches
-remain under `.tools/build/ScriptTools`.
+`editor-official-plugins prepare <source> <output-root>` copies the fixed official plug-ins and generates their registry. `editor-official-plugins validate <output-root>` checks exact directories, manifests, index and excluded user/build files. Published Windows resources resolve against the installation root, including `Ludork.ini` and `Plugins/.data`; repository builds use their development registry.
 
-Editor packaging copies the complete runtime directory to `tools/ScriptTools`
-inside the installation's resource root. The installed entry point is
-`tools/ScriptTools/ScriptTools` or `tools\ScriptTools\ScriptTools.exe`; keep its
-neighbouring libraries and data files together when copying or moving it.
-`runtime-versions.txt` records the build mode and dependency versions, while
-`runtime-files.json` records bundle contents for
-`ScriptTools runtime-bundle validate <bundle-directory>`. Package validation
-runs this command through the installed entry point. On macOS it also verifies
-the signatures of every Mach-O executable and library in the copied bundle.
-The macOS editor signer receives that copied directory through
-`macos-sign --runtime-bundle <directory>`. It validates the original manifest
-before signing, regenerates it after signing the runtime's binaries, and seals
-the enclosing app afterwards. This keeps the recorded sizes and hashes aligned
-with the signed files without accepting an incomplete input bundle. The option
-may be repeated for runtime directories inside the application's resources;
-it is not passed when signing the DMG.
-Development editor packages also pass each bundled Standalone template through
-`macos-sign --preview-template <directory>`. The signer validates each preview
-before signing nested binaries, refreshes only its build ID against the signed
-runtime, validates the resulting snapshot, then seals the editor app and checks
-the signed Host description. Editor-only packages do not pass template paths.
-Before creating independent archives, Package workflows run
-`macos-sign --templates <template-root>` with the same signing identity settings.
-This signs nested template binaries and refreshes and validates Standalone preview
-snapshots. Independent templates are not separately notarised; editor DMG
-signing and notarisation retain their existing flow.
+## Ludork Server
 
-Python is needed only when `init` or `build_script_tools` compiles ScriptTools.
-Development build and packaging commands consume the prepared runtime bundle;
-rerun `init` or `build_script_tools` explicitly after changing its sources.
-An installed editor uses its bundled runtime and needs no system Python.
+The independent `Server` branch contains the Node.js 24 backend, viewer and deployment scripts. See [Simple Server](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=06%2F01) for deployment, editor settings and production environment variables; [Native Client API](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=06%2F02) and [HTTP Protocol](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=06%2F03) cover client use.
 
-Windows tool builds also use reproducible output settings: the standalone Lua
-compiler uses deterministic MSVC Release compilation and `/Brepro` linking with
-incremental linking disabled; GNU Make receives the same linker settings through
-the local `LINK` environment; ScriptTools enables Nuitka `--reproducible=yes`.
-Clean rebuilds using the same packaging path, sources, dependencies and toolchain
-produce identical tool binaries. The first rebuild with these settings changes
-existing binaries once. Python, compiler, SDK or dependency updates can still
-change them. Editor-only and template-inclusive packages build Lua through
-different projects, so their `luac.exe` files need not match each other. This
-does not make complete installers or macOS signed bundles byte-identical.
+`ScriptTools server-config generate <directory> <configuration>` creates private `LudorkGenerated/ServerConfig.hpp`. Enabled builds define `LUDORK_SERVER_AVAILABLE`; disabled builds retain the public API with typed Disabled results. `server-config cleanup <project>` removes generated Release headers after packaging or cancellation. Templates explicitly clear credentials and disable integration. Do not edit generated headers.
 
-`ScriptTools/packaging_constants.py` owns the shared packaging exit codes,
-editor-cache directory, licence lists, template names, generated native Lua
-files, and common mobile project/dependency-cache
-inputs. `ScriptTools/packaging_names.py` reads the static `APP_NAME` string in
-`Scripts/Entry.lua` and owns package filename rules. `ScriptTools/packaging_metadata.py`
-resolves project release settings, the System title and one UTC+8 build timestamp
-for all platform metadata and artifacts. Its release-version half carries the
-version rules, derived platform build numbers and `BuildInfo.json` handling that
-editor packaging reuses without a project. The `packaging-constants`
-command and C# constant generation live in `ScriptTools/packaging_cli.py`, which
-consumes these shared modules; the shared constants have no dependency on the command or naming logic.
-`ScriptTools/resource_constants.py` owns resource groups, logical path prefixes,
-entry names and file extensions. Platform SDK, signing, bundle identifiers and
-platform archive formats remain in their platform packers. Mobile dependency-cache
-lookup keeps each platform's existing priority; the desktop native build retains its larger
-dependency list.
+## Pull requests and automated packages
 
-Shell and batch tools read fixed lists through
-`ScriptTools packaging-constants list <name>`. Supported names are
-`editor-cache-directory`, `package-cache-directories`, `resource-groups`,
-`runtime-legal-files`, `template-names`, `cpp-template-names`,
-`standalone-template-names`, `plain-template-names`, `ffmpeg-template-names` and
-`native-lua-files`. Output is one entry per line; `--separator space` emits a
-single line, and `--windows` changes path separators for batch consumers.
-`ScriptTools packaging-constants app-name <project-root>` prints the validated
-`APP_NAME`; add `--artifact` to print its safe filename form. Desktop and mobile
-packers share this reader and require exactly one top-level `local APP_NAME`
-declaration with a non-empty static Lua string literal. Expressions that need
-Lua execution are rejected.
+PR validation selects additive checks from added, changed, deleted and renamed paths:
 
-`ScriptTools packaging-constants check-package-metadata <project-root>` validates
-application identity, System title and release settings; it accepts `--version`
-and mutually exclusive `--dev` / `--release` overrides. It rejects the unchanged
-sample application name with exit code 24 and missing, unreadable or invalid
-project metadata with code 23. `release-version
---version <version> [--dev|--release]` prints the release preview as JSON without
-loading a project.
+| Changed inputs | Required check |
+|---|---|
+| Engine/native build | Release plain and FFmpeg templates on Windows x64 and macOS ARM64. |
+| Editor and its project/resource/generator dependencies | Avalonia builds on both platforms, without editor packaging. |
+| Lua or EmmyLua configuration | Full Game diagnostics with pinned EmmyLua and `--warnings-as-errors`; matching native stubs come from the Windows plain-template build. |
+| Shared build/CI inputs | Every affected category. |
+| Every PR | GlobalFunctions declaration and module-scope `require` check. |
 
-Editor packaging uses the same release rules without a project. `release-build-info
-<directory> --version <version> [--dev|--release]` writes `<directory>/BuildInfo.json`
-and prints the full version, and `build-info <file> --field <name>` prints one
-resolved field of an existing `BuildInfo.json`, including `fullVersion`, `dev` and
-`appleBuildVersion`. Both reject a file whose fields disagree with its own version
-and build time.
+`PR Validation` requires all selected checks to succeed. Failed, cancelled or unexpectedly skipped checks block it; unselected checks may skip, and documentation-only changes need no builds. New commits cancel older runs for the same PR. In the existing `main` branch rule or ruleset, require the GitHub Actions `PR Validation` status while preserving other protections; workflow files do not configure branch protection.
 
-`editor-build-metadata csharp <versions.conf> <output.cs> [--build-info <snapshot>]`
-generates the editor's assembly metadata; without a snapshot it generates
-development metadata. `editor-build-metadata validate-payload <root> --build-info
-<snapshot> [--content-root <directory>]` checks development/release BuildInfo placement.
-`template-archive <templates-root> <output-directory> --platform windows|macos`
-archives the four generated template directories. `configure-project-template`
-requires `--versions-config <versions.conf>` and accepts `--version X.Y.Z`.
+Install the local staged-file check once per clone:
 
-Packers call `resolve-metadata <project-root> <output-json> [overrides]` once to
-freeze the metadata for that invocation. `package-name --metadata <snapshot-json>`
-prints the versioned safe filename. `prepare-output <project-root> <dist-root>
---metadata <snapshot-json>` prepares and prints the Windows package directory
-`<dist-root>/<game>-<full-version>`, replacing only that child and preserving
-siblings. It rejects links in the output directory or any ancestor and paths
-that overlap protected project content. `write-build-info <runtime-root>
---metadata <snapshot-json>` writes staged `Data/BuildInfo.json` before data
-finalisation. These commands all belong to `ScriptTools packaging-constants`;
-reuse the same snapshot through the entire invocation rather than recapturing time.
-
-`ScriptTools packaging-constants csharp <output.cs>` generates
-`Ludork.Services.ProjectToolConstants` for the editor build. Generated constants
-are build outputs; edit the Python source and rebuild ScriptTools before
-building the editor or running packaging tools.
-
-`dotnet build` and `dotnet publish` generate `obj/.../EngineConstants.g.cs` with `ScriptTools engine-constants <EngineState.hpp> <output.cs>`. The C++ declaration is authoritative for the editor cell size; rebuild ScriptTools after changing the generator.
-
-`ScriptTools runtime-constants cpp <project-root> <output-directory>` generates
-C++ headers under `<output-directory>/LudorkGenerated`. `runtime_formats.py`
-owns LDPK and encrypted data/shader format values and field layouts;
-`resource_constants.py` owns shared resource names. The generator also reads the
-single `LUDORK_MAX_SHADER_LIGHTS` decimal definition from the project's
-`Assets/Shaders/Global/UnoccludedLightPass.frag`, requiring a value from 1 to 256.
-CMake runs the generator before its consumers in game, preview and no-Lua
-builds. Generated headers stay under `Intermediate`, are recreated when missing,
-and are not rewritten when their content is unchanged. Rebuild ScriptTools
-after editing the Python definitions, then rebuild the native project. Changing
-the shader limit also requires a native rebuild before packaging. Source
-projects use the installed tools bundle; runtime binaries do not read tool
-sources or generated headers.
-
-System UI descriptors are owned by each project's
-`Engine/Source/Core/include/UI/UiControlAdapterDescriptors.hpp`. The compiled
-project Host exports them with `PreviewHost --describe`. C# and global
-ScriptTools load the resulting project JSON; neither embeds a generated control
-table, and adding controls with supported property types does not require
-rebuilding those tools.
-
-`ScriptTools ui-assets generate <project-root>` generates all Lua Views under
-`Scripts/Internal/UI` and their typed declarations under `Scripts/stub/Internal/UI`
-from `Data/UI/Assets`. It also generates public window declarations under
-`Scripts/stub/Internal/UIWindows`, mirroring window modules below `Scripts/Source`.
-Each window module returns `Ui.DefineWindow(ViewClass, Controller, nativeBase?)`;
-its ordinary mirrored stub declares only the private Controller and business
-types, with bare `---@meta` and no return. The generated declaration uses the
-window's real module name and derives `new`, `FromView`, methods and constants
-from that Controller contract. An empty Controller needs no handwritten stub.
-Handwritten foundations live in `Internal.UIBase`; independent row and Scene
-Controllers use `Ui.Define(ViewClass, definition, base?)`.
-
-Generation reads asset structure, canonical `controlId` values and window
-declarations without executing Lua or requiring a Preview Host or registry.
-Declare window modules with direct `require` imports and one final
-`return Ui.DefineWindow(...)`; the optional native base defaults to
-`Engine.Canvas`. `--check` reports missing, stale or obsolete output and exits
-nonzero without writing. All inputs and output conflicts are checked before
-updating either Views or window declarations.
-
-`ScriptTools ui-assets manifest <project-root>` is a read-only description used
-by the editor's Export record. It emits JSON with project-relative input paths
-and their SHA-256 hashes, plus the expected and existing generated output paths.
-It includes window modules and their handwritten Controller declarations,
-including missing declarations. It neither runs plug-in hooks nor records a
-successful project Export.
-
-The editor's **Export** generates these files after saving project data.
-Ordinary saves, native builds and direct run or pack commands do not generate
-UI Lua. Export also invokes project export hooks and records the inputs and
-outputs only after they succeed. Editor Play checks whether export is current;
-editor Pack runs Export before invoking its pack hooks and platform tools.
-Generation errors stop Export and any Play or Pack that depends on it.
-
-Low-level `build_cpp`, `build_standalone`, `run_cpp` and desktop/mobile pack
-entry points consume existing exports and retain their existing UI validation.
-For command-line workflows, export in the editor first, or deliberately run
-`ui-assets generate` and prepare locale catalogues before running or packaging.
-Mobile `--check` performs preflight only. The standalone UI generator does not
-run editor plug-ins or publish the editor's project export record.
-
-Unchanged generated files retain their contents and timestamps; only obsolete
-files bearing the generation marker are removed from the generated trees.
-Handwritten file conflicts stop generation. `create_templates` excludes
-`Scripts/Internal/UI`, `Scripts/stub/Internal/UI` and `Scripts/stub/Internal/UIWindows`,
-even when these folders exist in Game or a native cache is reused. Templates
-retain handwritten declarations and native binding stubs; game packaging
-removes all of `Scripts/stub` before optional Lua compilation.
-
-Desktop `build_cpp` builds the project preview before full UI validation.
-`build_preview_host <project-folder> <Debug|Release>` builds that target
-without launching the game. Both repository and installed-editor tools support
-this project-based workflow. A source project without preview artifacts can
-still save/build after descriptor-independent structural checks:
-
-```text
-ScriptTools ui-assets validate <project-root> --structure-only
+```sh
+git config --local core.hooksPath .githooks
 ```
 
-After compilation, use these read-only checks:
+The hook runs `python -m ScriptTools.global_functions_check --staged` against the index. Omit `--staged` to check the worktree. Python 3.12+ is required. Lua modules under `Scripts/GlobalFunctions` must not occupy native function-group/root-function paths or call `require` at module scope; the check includes native declarations hidden from Blueprint metadata.
 
-```text
-ScriptTools preview validate <project-root>
-ScriptTools ui-adapter-check <project-root>
-```
+| Workflow | Development output |
+|---|---|
+| [Export Package](../.github/workflows/export-package.yml) | Both platforms, four embedded templates per platform, independent template archives and Server source. |
+| [Export Package Windows](../.github/workflows/export-package-windows.yml) / [macOS](../.github/workflows/export-package-macos.yml) | The same complete package for one platform. |
+| [Export Editor](../.github/workflows/export-editor.yml) | Both platforms with `--without-templates`. |
+| [Export Editor Windows](../.github/workflows/export-editor-windows.yml) / [macOS](../.github/workflows/export-editor-macos.yml) | The same template-free package for one platform. |
 
-`ScriptTools ui-assets validate <project-root>` performs full asset validation.
-For Standalone, it first restores missing, damaged or mismatched preview JSON,
-as do editor preview, Save and Export, `preview ensure <project-root>` and
-`preview registry <project-root>`. Recovery deletes only `EditorCache/Preview.json`
-and `EditorCache/UiPreview.registry.json`, then regenerates them from the current
-`Binaries/PreviewHost`, preserving other cache files. Save and Export wait for
-recovery before validating assets. Recovery failures, including missing Host binaries
-or dependencies, remain errors. Source projects require a build when their selected
-preview metadata is unavailable.
+Combined workflows run at 02:00 and 14:00 UTC+8 (`0 6,18 * * *` UTC); all six allow manual dispatch. Ordinary pushes and PRs do not create complete packages. Each mode serialises temporary runs and has its own successful default-branch dual-platform baseline. Scheduled runs skip unchanged main commits; complete packages also compare the resolved remote `Server` commit. Manual runs always build and update that baseline only on successful default-branch runs. Failed, cancelled, skipped, other-branch and tag runs do not update it; legacy complete-package runs named Export Editor do not count as editor-only successes.
 
-The build runs `ScriptTools preview publish <project-root> <bin-directory>
---configuration <Debug|Release>` after linking and dependency preparation. The
-Host's `--build-info` embeds its exact dependency filenames, platform, architecture
-and configuration; `--describe` exports the native UI descriptors. Publication
-reads both outputs and writes only `EditorCache/Preview.json` and
-`EditorCache/UiPreview.registry.json`, without copying the source runtime to `Binaries`.
-Manifest v3 records a safe project-relative `runtimeDirectory`, binary filenames,
-configuration and registry identity. The build ID hashes the declared binaries
-and the exact UTF-8 registry bytes, including the final LF, under the fixed
-`UiPreview.registry.json` name. Unrelated game files are preserved and identical
-content does not rewrite the JSON.
+All exports use clean runners without dependency/build caches. Tools, compiler, editor and Windows launcher are rebuilt; complete packages also rebuild both native template variants. Artifacts are passed only between jobs in the current run. Platform/mode concurrency groups are independent. Editor-only preparation builds ScriptTools, `luac` and Windows GNU Make without configuring Game or downloading its native dependencies.
 
-Before source compilation, `PreviewPrepare` calls `preview begin-build`, stops
-existing project preview connections and creates `EditorCache/Preview.building`.
-Compilation, linking, description or publication failure leaves preview unavailable;
-the next successful publication clears the marker. Full UI asset validation runs
-after publication, so asset errors fail the build while preserving the new preview
-for editing. The building marker also blocks metadata recovery.
+Temporary packages use `--dev` and expire after seven days:
 
-`preview copy <source-project> <target-project>` installs the matched binaries
-in the target's `Binaries` and both JSON files in its `EditorCache`, rewriting
-`runtimeDirectory` to `Binaries`. It retains identical shared game libraries and
-unrelated target EditorCache content, and rejects mismatched dependency versions.
-Template native-cache transfers use
-`preview copy --runtime-directory bin/<configuration> <source> <target>` after
-copying the game build outputs, reusing that bin directory without an extra
-`Binaries` copy. `preview registry <project-root>` prints the ensured registry
-path. Staging validation receives
-`--registry <source-project>/EditorCache/UiPreview.registry.json` explicitly rather than
-looking for development data in the final game package.
+| Artifact | Layout |
+|---|---|
+| `Ludork-editor-<fullVersion>-windows-x64.7z` | Template-free Windows package; filename is also the artifact name. |
+| `Ludork-<fullVersion>-windows-x64.7z` | Complete Windows package. |
+| `Ludork-editor-macos-arm64-<sha>` | Template-free macOS DMG artifact. |
+| `Ludork-macos-arm64-<sha>` | Complete macOS DMG artifact. |
+| `LudorkServer-source-<40-character-server-SHA>.tar.gz` | Separate Server source in complete-package runs only. |
 
-Validate convention-based C++ and Lua host-to-implementation boundaries, including the Standard ClassRuntime layer order, with:
+Windows 7z files have no outer ZIP, contain the root launcher, use multithreaded LZMA2 level 5 and pass `7z t` before upload. Template-free consumers select a successful target-platform job with a unique unexpired exact-name artifact, continuing to earlier runs if unavailable. Combined Package consumers also require `Record successful package (<server-SHA>)`; an unchanged scheduled run may succeed without producing artifacts. Editor-only baselines use `Record successful editor`.
+
+Complete-package runs resolve the remote `Server` tree, reject tracked user data/configuration/dependencies/generated launchers, and preserve `LudorkServer/` plus Git permissions in the source tar.gz. The combined run shares one exact Server source artifact; single-platform runs resolve their own. The archive is separate from editor payloads and needs a remotely available Server branch. Extract with `tar -xzf <archive>` before deployment.
+
+A `v*` tag must equal `v<EDITOR_VERSION>`. It runs Export Package with `--release` and creates or updates a **draft** Release with generated notes and exactly 11 assets: Windows MSI, macOS DMG, eight templates and `LudorkServer-source-<EDITOR_VERSION>.tar.gz`. Formal installers omit templates. Reruns remove the draft's obsolete Server ZIP attachments. Published releases are not overwritten, and drafts are never published automatically. Only the upload job has `contents: write`.
+
+Each Package platform uploads these four archives directly; Export Editor uploads none:
+
+| Template | Windows x64 | macOS ARM64 |
+|---|---|---|
+| Source | `game-source.zip` | `game-source.tar.gz` |
+| Source + FFmpeg | `game-source-ffmpeg.zip` | `game-source-ffmpeg.tar.gz` |
+| Standalone | `game-standalone.zip` | `game-standalone.tar.gz` |
+| Standalone + FFmpeg | `game-standalone-ffmpeg.zip` | `game-standalone-ffmpeg.tar.gz` |
+
+Archive roots contain project files, hidden configuration, licences and matching preview data. Keep archive output outside the editor payload; macOS preserves executable permissions and relative library links. Public downloads use [Release Assets](https://github.com/JasonLeon01/Ludork/releases). Local checks do not establish hosted workflow success or branch-protection configuration.
+
+### CI signing configuration
+
+Both macOS package modes use the same secrets. Set `MACOS_SIGNING_CERTIFICATE` to a base64 `.p12`, with `MACOS_SIGNING_CERTIFICATE_PASSWORD` and optional `MACOS_SIGNING_IDENTITY`. Notarisation uses either `MACOS_NOTARY_APPLE_ID`, `MACOS_NOTARY_TEAM_ID`, `MACOS_NOTARY_PASSWORD`, or a base64 `.p8` in `MACOS_NOTARY_KEY` with `MACOS_NOTARY_KEY_ID` and `MACOS_NOTARY_KEY_ISSUER`. Without signing secrets the package uses ad-hoc signing.
+
+## ScriptTools maintenance commands
+
+Shell/batch scripts coordinate the ScriptTools runtime bundle. Build it explicitly after source changes; build and packaging commands consume the prepared bundle. Development entry points are `.tools/ScriptTools/ScriptTools` or `.tools\ScriptTools\ScriptTools.exe`; compiler output stays in `.tools/build/ScriptTools`. Installed editors use `tools/ScriptTools` and need no system Python. Keep the entire bundle together.
+
+`runtime-versions.txt` records build/dependency versions; `runtime-files.json` records contents. `ScriptTools runtime-bundle validate <bundle-directory>` checks that manifest. Windows tool builds use deterministic MSVC compilation, `/Brepro`, disabled incremental linking and Nuitka `--reproducible=yes`; identical outputs require the same paths, sources, dependencies and toolchain. Editor-only and complete-package `luac` builds may differ; these settings do not make whole installers or signed macOS bundles byte-identical.
+
+### Packaging metadata
+
+`ScriptTools/packaging_constants.py` owns shared lists and exit codes; `packaging_names.py` owns static `APP_NAME` parsing and filenames; `packaging_metadata.py` owns release settings and the per-invocation timestamp. `resource_constants.py` owns resource groups, prefixes and extensions. Edit these sources and rebuild ScriptTools; generated C# constants are build outputs.
+
+The following are subcommands of `ScriptTools packaging-constants`:
+
+| Command | Purpose |
+|---|---|
+| `list <name> [--separator space] [--windows]` | Print a list, one entry per line by default; optionally use one line or Windows path separators. |
+| `app-name <project-root> [--artifact]` | Print the static application name or its safe filename form. |
+| `check-package-metadata <project-root> [--version <version>] [--dev\|--release]` | Validate identity, System title and release settings; sample app name exits 24, invalid/missing metadata exits 23. |
+| `release-version --version <version> [--dev\|--release]` | Print version-preview JSON without a project. |
+| `release-build-info <directory> --version <version> [--dev\|--release]` | Write `BuildInfo.json` and print its full version. |
+| `build-info <file> --field <name>` | Read a validated field, including `fullVersion`, `dev` or `appleBuildVersion`. |
+| `resolve-metadata <project-root> <output-json> [overrides]` | Freeze metadata once per packaging invocation. |
+| `package-name --metadata <snapshot-json>` | Print the versioned artifact name. |
+| `prepare-output <project-root> <dist-root> --metadata <snapshot-json>` | Prepare `<dist-root>/<game>-<full-version>`, preserving siblings; reject links/ancestors or protected-content overlap. |
+| `write-build-info <runtime-root> --metadata <snapshot-json>` | Write staged `Data/BuildInfo.json` before finalisation. |
+| `csharp <output.cs>` | Generate `Ludork.Services.ProjectToolConstants`. |
+
+List names are `editor-cache-directory`, `package-cache-directories`, `resource-groups`, `runtime-legal-files`, `template-names`, `cpp-template-names`, `standalone-template-names`, `plain-template-names`, `ffmpeg-template-names` and `native-lua-files`. Reuse one metadata snapshot throughout a pack; BuildInfo readers reject fields inconsistent with their version/time.
+
+Additional ScriptTools commands:
+
+| Command | Purpose |
+|---|---|
+| `editor-build-metadata csharp <versions.conf> <output.cs> [--build-info <snapshot>]` | Generate assembly metadata; without a snapshot, use development metadata. |
+| `editor-build-metadata validate-payload <root> --build-info <snapshot> [--content-root <directory>]` | Validate dev/release BuildInfo placement. |
+| `template-archive <templates-root> <output-directory> --platform windows\|macos` | Archive all four templates. |
+| `configure-project-template <Main.proj> <cpp:true\|false> <ffmpeg:true\|false> --versions-config <versions.conf> [--version X.Y.Z]` | Configure template version metadata. |
+| `engine-constants <EngineState.hpp> <output.cs>` | Generate editor constants during .NET builds; C++ owns the cell size. |
+| `runtime-constants cpp <project-root> <output-directory>` | Generate neutral headers under `LudorkGenerated`. |
+
+`runtime_formats.py` owns archive/encrypted-format values. Runtime constants also read the single decimal `LUDORK_MAX_SHADER_LIGHTS` definition (1–256) in `Assets/Shaders/Global/UnoccludedLightPass.frag`. CMake generates headers for game, preview and no-Lua builds under Intermediate, without rewriting identical output. Python-definition changes require rebuilding ScriptTools and native code; shader-limit changes require a native rebuild before packaging.
+
+### UI generation and previews
+
+See [UI Authoring Workflow](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=03%2F04%2F01) for View/Controller ownership and [PreviewHost Build and Publication](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=07%2F05) for Source/Standalone lifecycle and package exclusions.
+
+| ScriptTools command | Purpose |
+|---|---|
+| `ui-assets generate <project-root> [--check]` | Generate Lua Views and window declarations; `--check` reports missing, stale or obsolete output without writing. |
+| `ui-assets manifest <project-root>` | Read-only JSON of input paths/SHA-256 hashes and expected/existing output paths, including window modules and Controller declarations. |
+| `ui-assets validate <project-root> [--structure-only]` | Validate assets; structural mode needs no preview registry. |
+| `ui-adapter-check <project-root>` | Check native adapter consistency. |
+| `preview validate <project-root>` | Check published preview artifacts. |
+| `preview ensure <project-root>` | Recover missing or mismatched Standalone preview JSON. |
+| `preview registry <project-root>` | Ensure and print the project registry path. |
+| `preview begin-build <project-root> <bin-directory> --configuration <Debug\|Release>` | Stop project preview connections and mark a build pending. |
+| `preview publish <project-root> <bin-directory> --configuration <Debug\|Release>` | Publish matched metadata after linking and dependency preparation. |
+| `preview copy <source-project> <target-project>` | Copy matched binaries to `Binaries` and preview JSON to `EditorCache`. |
+| `preview copy --runtime-directory bin/<configuration> <source> <target>` | Reuse copied native-cache outputs without another `Binaries` copy. |
+
+UI generation reads assets and declarations without executing Lua or requiring a Host. Window modules need direct `require` imports and one final `return Ui.DefineWindow(...)`; the optional native base defaults to `Engine.Canvas`. Conflicts are checked before writes; unchanged files retain timestamps and only obsolete generator-marked files are removed. Neither `generate` nor `manifest` runs plug-in hooks or publishes a complete editor Export record. Low-level builds/run/pack commands consume existing UI and locale exports; mobile `--check` is preflight only.
+
+System descriptors belong to the project's `Engine/Source/Core/include/UI/UiControlAdapterDescriptors.hpp` and are exported by `PreviewHost --describe`; tools read project JSON rather than an embedded control table. Publication combines `--describe` with `--build-info`, writing only `EditorCache/Preview.json` and `EditorCache/UiPreview.registry.json`. Manifest v3 records a safe project-relative runtime directory, binary names, configuration and registry identity. The build ID hashes declared binaries and exact UTF-8 registry bytes, including the final LF under the fixed registry filename. Identical content is not rewritten.
+
+Preview copy preserves unrelated cache content and identical shared libraries, rejecting dependency mismatches. Standalone recovery replaces only the two JSON files and is blocked by `Preview.building`; Source metadata requires a rebuild. Staging validation passes `--registry <source-project>/EditorCache/UiPreview.registry.json` explicitly. Native caches need current publication metadata before reuse; no old-path fallback is provided.
+
+On macOS, preview binaries keep `@loader_path` and relative library links; publication checks dependencies/signatures without relocating shared libraries. Mobile packers prepare a local desktop registry and supply it to resource validation and cross-CMake; no mobile Host is executed or desktop preview included in the device package. Descriptors must be platform-independent.
+
+Validate host-to-implementation dependencies with:
 
 ```sh
 .tools/ScriptTools/ScriptTools impl-boundary-check Game
@@ -823,24 +298,44 @@ Validate convention-based C++ and Lua host-to-implementation boundaries, includi
 .tools\ScriptTools\ScriptTools.exe impl-boundary-check Game
 ```
 
-The command discovers C++ host/same-name-directory pairs from the source tree. For Lua it discovers the equivalent host/module directory pairs and excludes child modules that have their own mirrored `.d.lua` contract. It reports source locations for reverse dependencies, host member definitions in implementation folders, and Lua partial-class or mixin reuse. CMake exposes the same check through the `ImplBoundaryValidate` target.
+The checker discovers same-name C++ host/directory and Lua host/module pairs, excluding Lua children with their own mirrored declarations. It reports reverse dependencies, host definitions in implementation folders, Lua partial-class/mixin reuse and Standard ClassRuntime layer violations. CMake exposes `ImplBoundaryValidate`.
 
-Low-level build and pack scripts do not export `Data/Locale/Locale.xlsx`.
-Official Locale Tools exports through the editor's project export hook. Its
-pack hook excludes the workbook from game packages. Use **Export** or **Pack**
-in the editor, or provide an equivalent deliberate export step when automating
-outside it. Template creation keeps the workbook and handwritten locale Core
-while excluding generated language catalogues.
+## Game packaging options
 
-`pack_harmony.sh` produces an arm64-v8a HAP for HarmonyOS 6.0.2 / API 22 or newer. It requires Apple Silicon macOS, a C++ Source project, and DevEco Studio with the OpenHarmony native SDK. Its form/backend matrix is fixed: Mobile uses OpenGL ES, while 2in1 uses OpenGL by default and can instead use OpenGL ES. The editor passes both choices explicitly; direct commands use `--device-form mobile|2in1` and `--graphics-api opengl|opengl-es`. Omitting the graphics option selects OpenGL ES for Mobile and OpenGL for 2in1; explicitly selecting OpenGL for Mobile is rejected.
+For identity, release versions, output layouts, encryption and platform prerequisites, see [Run, Debug and Package](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=02%2F11). Direct commands consume existing UI/locale exports; run editor **Export** first or provide a deliberate equivalent export step.
+
+| Option | Behaviour |
+|---|---|
+| `--version <base-version>`, `--release` | Override project release settings for this invocation. |
+| `--dev` | Append the UTC+8 build hour; C++ Source only, still a Release native build. |
+| `--compile-lua` | Compile staged Lua with `luac -s` and rename to `.luac`. |
+| `--encrypt-saves` | Build a C++ Source runtime with `LUDORK_SAVE_AS_LDC=ON`; rejected for Standalone. |
+| `--use-ldpak` | Archive complete staged Assets/Data/pruned Scripts after encryption. |
+
+`ScriptTools validate-ldpak-source <runtime-root>` runs source preflight. Standalone save defaults use `SAVE_AS_LDC` before any `require` in Entry; see [Saves](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=03%2F05%2F06#saves). Retain matching unstripped native outputs and debug symbols for release diagnostics.
+
+Final distribution symbol handling is platform-specific:
+
+| Platform | Packaging step |
+|---|---|
+| Windows | Exclude separate PDB files; do not run a generic strip tool on EXE/DLL files. |
+| macOS | Apply `strip -x` to staged Main and real dynamic libraries, skipping symlinks, then sign. Preserve source `bin`, templates and shared preview libraries. |
+| iOS | Xcode strips before signing with `DEPLOYMENT_POSTPROCESSING=YES`, `STRIP_INSTALLED_PRODUCT=YES`, `STRIP_STYLE=non-global`; input static libraries remain intact. |
+| Android | Apply NDK `llvm-strip --strip-unneeded` to staged `libludork.so` before Gradle packaging. |
+| HarmonyOS | Hvigor strips Release native libraries before HAP signing; do not modify signed HAPs. |
+
+### HarmonyOS and Android CLI
+
+Both targets require Apple Silicon macOS and C++ Source projects. SDK prerequisites, device limits and output names are in [platform packaging](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=02%2F11#harmonyos).
 
 ```sh
 ./tools/pack_harmony.sh --device-form mobile --graphics-api opengl-es Game
 ./tools/pack_harmony.sh --device-form 2in1 --graphics-api opengl Game
 ./tools/pack_harmony.sh --device-form 2in1 --graphics-api opengl-es Game
+./tools/pack_android.sh --version 1.0.0 --release Game
 ```
 
-The three default outputs are `dist/<game>-<full-version>-harmony-mobile-unsigned.hap`, `dist/<game>-<full-version>-harmony-2in1-opengl-unsigned.hap` and `dist/<game>-<full-version>-harmony-2in1-opengl-es-unsigned.hap`. `pack_harmony.sh` delegates to `ScriptTools harmony-pack`. Add `--sign --keystore <absolute-p12-path> --certificate <absolute-cer-path> --profile <absolute-p7b-path> --key-alias <alias>` to publish the corresponding `-signed.hap`. Supply exactly two UTF-8, newline-delimited passwords on standard input: the keystore password, then the key password. Use the same value twice when they match. The command does not persist credentials. Keep signing materials outside the repository and project; CI can inject their absolute paths, alias and passwords through its secret variables:
+HarmonyOS defaults to OpenGL ES for Mobile and OpenGL for 2in1; Mobile rejects OpenGL. It targets API 22 and delegates to `ScriptTools harmony-pack`. Add `--sign --keystore <absolute-p12-path> --certificate <absolute-cer-path> --profile <absolute-p7b-path> --key-alias <alias>` for a signed HAP. Provide exactly two UTF-8 newline-delimited passwords on stdin: keystore password, then key password (repeat the value if equal).
 
 ```sh
 printf '%s\n%s\n' "$HOS_STORE_PASSWORD" "$HOS_KEY_PASSWORD" |
@@ -849,39 +344,15 @@ printf '%s\n%s\n' "$HOS_STORE_PASSWORD" "$HOS_KEY_PASSWORD" |
     --profile "$HOS_PROFILE" --key-alias "$HOS_KEY_ALIAS" /absolute/path/to/game
 ```
 
-Hvigor always builds an unsigned HAP without signing settings in the generated project. Signed packaging then invokes `hap-sign-tool.jar sign-app` with `localSign`, `SHA256withECDSA` and API 22, following Huawei's [command-line signing workflow](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/ide-command-line-building-app#section103321051433). It verifies the resulting signature, embedded Profile, bundle name, version and native libraries before atomically replacing the final HAP. A failed build, signature or verification leaves an existing successful output intact. Signing uses an external temporary work directory, cleans it on completion, and redacts passwords and signing material details from logs. It runs without opening DevEco Studio or waiting for automatic signing.
+Hvigor first builds unsigned. Signing invokes `hap-sign-tool.jar sign-app` with `localSign`, `SHA256withECDSA` and API 22, verifies signature/Profile/bundle/version/libraries, then atomically publishes the signed HAP. Failures retain existing successful output; temporary signing work is cleaned and credentials are not persisted. `--check` validates without building or publishing; with `--sign`, it consumes the same passwords and checks tools, key and valid matching Debug/Release Profile. Add `--export-to-device` with signing to install and launch; `--check --export-to-device --sign` checks device match/authorisation without installing.
 
-`--check` validates the environment and selected form/backend without building or publishing. With `--sign`, it also reads the same two passwords and checks signing tools, materials, the private key and the Profile's signature, validity period and bundle name. Valid Debug and Release Profiles are supported. Missing materials, invalid passwords and verification failures stop the command.
+Android delegates to `ScriptTools android-pack`. SDK lookup is `ANDROID_SDK_ROOT`, then `ANDROID_HOME`, then `~/Library/Android/sdk`; it selects the highest complete stable NDK r27+. `LUDORK_CMAKE` selects a host CMake executable (3.28+, Unix Makefiles and `/usr/bin/make` required). It does not use SDK CMake, Ninja, SDK Manager, emulators or adb. The host and Gradle wrapper come from `Game/Engine/PlatformHosts/Android`; preserve wrapper JAR/configuration/notices and macOS executable permissions. The wrapper selects Gradle 9.5.0 and AGP 9.3.0; macOS templates omit `gradlew.bat`.
 
-Unsigned and signed export both work without a device and do not invoke HDC. Add `--export-to-device` together with `--sign` and all signing options to install and launch the signed HAP as well. Only this mode checks device authorisation in the Profile. Mobile export accepts a connected target whose reported device type is `default`, `phone` or `tablet`; 2in1 export accepts only `2in1`. Exactly one connected device must match the requested form, while devices of the other form may remain connected. `--check --export-to-device --sign` also validates that matching-device requirement and authorisation without building, publishing, installing or launching a HAP.
+Android signing uses `--sign --keystore <absolute-path> --key-alias <alias>` and the same two-password stdin protocol. `--check` validates without publishing. Signed output is verified before publication, credentials are not persisted, and the command never installs or launches the APK. Reuse the same signing key for application updates.
 
-Every variant sets the HAP target and compatible SDK to `6.0.2(22)` and passes `OHOS_COMPATIBLE_SDK_VERSION=22` to the native build, producing the versioned compiler target `aarch64-linux-ohos22.0.0`. The Mobile CMake contract is `SFML_HARMONY_DEVICE_FORM=MOBILE` with `SFML_OPENGL_ES=ON`; the two 2in1 contracts use `SFML_HARMONY_DEVICE_FORM=2IN1` with `SFML_OPENGL_ES=OFF` for OpenGL or `ON` for OpenGL ES. FFmpeg-enabled builds use that same versioned target for compilation and linking.
+## macOS signing and notarisation
 
-The 2in1 OpenGL HAP requires the target image to provide HarmonyOS desktop OpenGL through `libGLv4.so` and the platform capability query. Some API 24 PC emulator images omit that runtime even though the compile SDK contains its import library. Such an image cannot load the OpenGL native module; the app reports the missing runtime and never silently falls back to OpenGL ES. Export the separate OpenGL ES variant for that image, or use a 2in1 device/image that provides desktop OpenGL to validate the OpenGL variant.
-
-`pack_android.sh` produces an arm64-v8a Release APK for Android 7.0 / API 24 or newer. It requires Apple Silicon macOS, Android Studio at one of its two standard application locations, SDK Platform 36, Build Tools 36.0.0, a complete stable NDK r27 or newer under the locally installed SDK, system CMake 3.28 or newer with Unix Makefiles support, and `/usr/bin/make`. The SDK is resolved from `ANDROID_SDK_ROOT`, then `ANDROID_HOME`, then `~/Library/Android/sdk`. The packer selects the highest complete stable NDK under that SDK's `ndk` directory; projects and editor packages never carry an SDK or NDK. Set `LUDORK_CMAKE` only when selecting a particular system CMake executable. The tool does not use an SDK-bundled CMake, Ninja, SDK Manager, an emulator, AVD or adb. It runs `ScriptTools android-pack`, packages the prebuilt `libludork.so` with Gradle and, by default, writes `dist/<game>-<full-version>-android-arm64-v8a-unsigned.apk` without installing or launching it.
-
-The Gradle wrapper lives in `Game/Engine/PlatformHosts/Android` alongside the Android host template and is included in both C++ Source template variants. Packaging copies and validates that template without reading third-party examples. `gradle/wrapper/gradle-wrapper.properties` selects Gradle 9.5.0; Android Gradle Plugin remains 9.3.0. The wrapper’s licence and source notice travel with it under `gradle/wrapper`. macOS packages retain `gradlew`, the wrapper JAR, configuration and notices; they omit the Windows-only `gradlew.bat`.
-
-Optional signing uses `--sign --keystore <absolute-path> --key-alias <alias>`. Supply exactly two UTF-8, newline-delimited passwords on standard input, using the same value twice when they match; never place them in command-line arguments. With `--check`, the same protocol validates the environment and credentials without publishing. A successful run signs and verifies the APK, then publishes only `dist/<game>-<full-version>-android-arm64-v8a-signed.apk`; the command does not persist credentials. Reuse the same signing key for later application updates. A signed package is not installed or launched.
-
-### macOS signing and notarisation
-
-macOS packaging always signs. Without any signing information it applies ad-hoc
-signatures exactly as before; with a signing identity it signs every Mach-O file
-in the bundle from the inside out, then seals the bundle. `pack_project.sh`
-exposes the same options through `ScriptTools macos-sign`, which `pack_editor.sh`
-also uses for the editor application and disk image. Files in a bundle's
-`Contents/MacOS`, including .NET assemblies and configuration files, are signed
-before the bundle; its main executable receives its signature and entitlements
-with the bundle. Non-Mach-O signatures use extended attributes, which must survive
-distribution. Editor packaging verifies the complete app before and after DMG
-creation, including the app mounted from the final disk image.
-
-The editor DMG packer detaches the whole device associated with its image file
-and confirms that the image is no longer attached before conversion or cleanup.
-An unmounted volume alone is not sufficient. Detach failures receive bounded
-forced retries; an unresolved attachment preserves the image and work directory.
+`pack_project.sh` and `pack_editor.sh` use `ScriptTools macos-sign`. With no identity they apply ad-hoc signatures. With a real identity they sign nested code before sealing the bundle, with hardened runtime and secure timestamps. Entitlements apply to the main executable. `Contents/MacOS` non-Mach-O signatures use extended attributes that must survive distribution. Editor packaging verifies the complete app before/after DMG creation and on the mounted final image.
 
 | Command line | Environment variable |
 |---|---|
@@ -894,60 +365,25 @@ forced retries; an unresolved attachment preserves the image and work directory.
 | `--notary-key-id ID` | `LUDORK_MACOS_NOTARY_KEY_ID` |
 | `--notary-key-issuer UUID` | `LUDORK_MACOS_NOTARY_KEY_ISSUER` |
 
-The environment variable wins over the command-line option when both are set, so
-a machine can carry local signing while CI passes the same values from secrets.
-`--notarize` is opt-in per run and has no environment variable. Add
-`--ignore-environment` to use only the command-line options.
+Environment values override CLI options; `--ignore-environment` disables that lookup. `--notarize` is opt-in with no environment equivalent. A `.p12` is imported into a temporary keychain using the first stdin password. `--signing-identity` selects among identities and accepts a SHA-1 fingerprint. Apple's `security import` requires that password in its process arguments; other password handling stays on stdin.
 
-A `--certificate` is imported into a temporary keychain that is removed afterwards;
-its password is the first password read from standard input. `--signing-identity`
-selects one identity when the certificate or keychain holds several, and accepts a
-SHA-1 fingerprint. A real identity adds the hardened runtime and a secure timestamp
-to all nested code, including helper tools and template executables under
-`Contents/Resources`; their location does not exempt them from notarisation
-requirements. `--entitlements` applies to the
-application's main executable. Apple does not offer a non-interactive alternative
-to passing the `.p12` password on the `security import` command line, so that one
-process argument is unavoidable; every other step keeps passwords on standard input.
+Notarisation requires a real identity and either Apple ID/team plus the app-specific password as the second stdin password, or an App Store Connect key/ID/issuer. It submits the DMG or a temporary app ZIP with `notarytool`, waits and staples the ticket. `--check` validates materials and performs a notarisation round trip without building. Failed submissions report the notary log when available while retaining the original failure status and submission ID.
 
-When `codesign` reports that the timestamp service is unavailable, real-identity
-signing retries only the failed target after 5, 15 and 30 seconds, for at most four
-attempts. Every attempt retains the timestamp and signing options. Other signing
-errors and verification failures stop immediately; exhausted retries retain the
-last diagnostic and signing failure status.
+Timestamp-service failures retry only the failed signing target after 5, 15 and 30 seconds, retaining signing options. Other signing/verification errors stop immediately. The DMG packer detaches the whole image device before conversion/cleanup; bounded forced retries preserve the image and work directory if detachment remains unresolved.
 
-`--notarize` submits the disk image directly, or a temporary ZIP of an application
-bundle, to `notarytool`, waits for the result and staples the ticket to the
-artifact. Pass either the Apple ID and its team plus the app-specific password as
-the second standard-input password, or the App Store Connect key file with its key
-ID and issuer ID, which needs no password. Notarisation requires a real signing
-identity; an ad-hoc identity is rejected. Without notarisation credentials the
-packaging signs only. With `--check`, the packaging validates the environment and
-the signing material, including a notarisation round trip, without building.
-If submission fails or is rejected, the signer retrieves the Apple notary log
-when a submission ID is available, prints its issues in the build log, and keeps
-the original failure status and ID even if that diagnostic download fails.
+Packaging uses these additional signer options:
 
-To inspect CI submissions without rebuilding, manually run
-[Query macOS Notarization](../.github/workflows/macos-notary-status.yml).
-Leave `submission_id` empty to list recent submissions, then run it again with
-one submission UUID to print its status and, once finished, its notary log.
-The workflow reuses the existing `MACOS_NOTARY_*` secrets (Apple ID or API key),
-needs no signing certificate, and does not submit, cancel or wait for notarisation.
-Results appear in the query step's Actions log; workflow success means the query
-succeeded, not that the selected package passed notarisation.
+| Option | Packaging use |
+|---|---|
+| `--runtime-bundle <directory>` | Validate the original manifest, sign nested binaries, refresh hashes/sizes, then seal the app. Repeatable for resource bundles; not passed for a DMG. |
+| `--preview-template <directory>` | Validate a bundled Standalone preview, sign its binaries, refresh its build ID and revalidate before sealing the editor. |
+| `--templates <template-root>` | Sign independent templates and refresh Standalone previews before archiving. These archives are not separately notarised. |
 
-### iOS signing
+[Query macOS Notarization](../.github/workflows/macos-notary-status.yml) reuses `MACOS_NOTARY_*` secrets without a certificate. Leave `submission_id` empty to list submissions, or supply a UUID for status and completed logs. It does not submit, cancel or wait; workflow success confirms the query, not package acceptance.
 
-Without a certificate, iOS packaging keeps using the signed-in Xcode account and
-automatic signing, with the team taken from `LUDORK_IOS_DEVELOPMENT_TEAM` or
-`--team-id`. Supplying `--certificate` and `--provisioning-profile` switches to
-manual signing: the certificate is imported into a temporary keychain, the profile
-is installed for the build and removed again when it was not already present, and
-Xcode builds with `CODE_SIGN_STYLE=Manual`, the imported identity and the profile
-name. The certificate password is read from standard input. The packer rejects a
-profile whose team or application identifier does not match the signing team and
-the derived bundle identifier.
+## iOS signing
+
+Without a certificate, `pack_ios.sh` uses the signed-in Xcode account and automatic signing. Supplying a certificate and provisioning profile selects manual signing, imports a temporary keychain and installs the profile for the build, removing it afterwards only if newly installed. The certificate password comes from stdin. Team/application mismatches are rejected.
 
 | Command line | Environment variable |
 |---|---|
@@ -956,179 +392,4 @@ the derived bundle identifier.
 | `--provisioning-profile PATH.mobileprovision` | `LUDORK_IOS_PROVISIONING_PROFILE` |
 | `--signing-identity NAME` | `LUDORK_IOS_SIGNING_IDENTITY` |
 
-The environment variable wins over the command-line option. Add
-`--ignore-environment` to use only the command-line options. Manual signing
-requires a team ID and both the certificate and the profile; `--check` validates
-them without building.
-
-All game packers derive application identifiers and the `<game>` filename
-component from the static `APP_NAME` in `Scripts/Entry.lua`. Set one top-level
-`local APP_NAME` to a unique non-empty string literal before packaging; the
-sample `LudorkSample`, missing definitions and dynamic expressions are rejected.
-Mobile and macOS display names use the non-empty, control-character-free raw
-`title.value` in `Data/Configs/System.json`. The project folder name is not used.
-Changing the title or version preserves installation identity; changing `APP_NAME`
-can require updated signing or provisioning.
-
-Game packers accept `--version <base-version>` and `--release`; C++ Source projects
-also accept `--dev`. Unspecified values come from `Main.proj` fields
-`packaging.version` and, for C++ Source projects, `packaging.dev`, whose defaults
-are `"1.0.0"` and `false`. Standalone projects always use release, ignore an older
-`packaging.dev=true`, and reject an explicit `--dev`. CLI overrides never write
-back to the project. Base versions contain three non-negative decimal components
-without leading zeroes, prefixes or suffixes, up to 127 bytes. The editor's Pack
-Options shows dev only for C++ Source projects and saves valid choices on
-confirmation; confirming a Standalone package clears an older dev value. Cancelling
-writes nothing. These settings do not belong in Entry.
-
-```sh
-./tools/pack_project.sh --version 1.0.0 --dev Game Game/dist
-./tools/pack_android.sh --version 1.0.0 --release Game
-./tools/pack_harmony.sh --version 1.0.0 --dev --device-form mobile Game
-```
-
-The full release identifier is the base version for formal packages, or
-`<base-version>.YYYYMMDDHH` for dev packages, using one UTC+8 timestamp captured
-at pack start. For example, `1.0.0` at `2026-01-01T07:00:00+08:00` produces
-`1.0.0.2026010107` in dev mode. The full rules, platform version/build-number
-mapping and `Data/BuildInfo.json` fields are documented in
-[Release version and internal packages](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=02%2F08#release-version-and-internal-packages).
-The dev flag does not change Release optimisation, signing or encryption.
-
-`<full-version>` in the output paths is this full release identifier.
-`pack_project` writes `dist/<game>-<full-version>/Main.exe` on Windows and
-`dist/<game>-<full-version>.app` on macOS; iOS writes
-`dist/<game>-<full-version>.ipa`. A custom output directory replaces `dist` as
-the parent. Repacking the same identifier replaces only its artifact, preserving
-other versions and unrelated files. A repeated dev build in the same hour has
-the same identifier and platform build number.
-
-With `--compile-lua`, every packaged `Scripts/**/*.lua` file is compiled with
-`luac -s`, renamed to `.luac`, and written to `dist`.
-With `--encrypt-saves`, a C++ Source package rebuilds Standard with
-`LUDORK_SAVE_AS_LDC=ON`, causing the runtime to inject `SAVE_AS_LDC = true`
-before Entry runs. This option is rejected for prebuilt Standalone projects.
-Standalone projects can instead assign the global `SAVE_AS_LDC = true` at the
-top of `Scripts/Entry.lua`, before all `require` calls; `Source.Save` caches it
-when first loaded. Set it to `false` to select plain JSON saves.
-With `--use-ldpak`, the complete `Assets`, `Data` and pruned `Scripts` trees in
-staging become root `Assets.ldpak`, `Data.ldpak` and `Scripts.ldpak`. Entries
-retain paths relative to their source directory. Use
-`ScriptTools validate-ldpak-source <runtime-root>` for the common source preflight.
-Encryption runs before archiving, and the source project remains loose and unchanged.
-Archives automatically split files into independent 1 MiB blocks and use zlib
-level 6 only when a compressed block is smaller; no extra option is needed.
-Seekable readers decompress only the current block, check each block's CRC32,
-and check the file CRC32 on complete reads. File sizes and seek positions use
-the original bytes.
-Packaging excludes the project-root `EditorCache` and `Cache` directories, with or
-without `--use-ldpak`. Nested directories with those names in runtime
-content remain included. Runtime rejects loose/archive conflicts and old per-group
-archives rather than merging them.
-
-Animation caches always use `Cache/Animations` beneath the application user-data
-root, including when Data is loose. Initialisation regenerates missing caches;
-project-root `Cache` is also excluded when generating templates.
-
-Desktop Standalone output keeps its launcher at the root and native dependencies
-under `Binaries`; a packaged macOS app uses its standard `Contents` layout.
-
-Release native builds enable IPO/LTO for Standard, its ClassRuntime OBJECT target
-and the final mobile application, alongside Runtime and Core; MinGW keeps IPO
-disabled. ClassRuntime hides ordinary and inline symbols while preserving explicit
-public exports. On Apple platforms, the game application, Standard, Runtime and
-Core use `-dead_strip` for their final Release links. Debug optimisation and
-symbol-stripping policies remain unchanged.
-
-On macOS, single-arm64 AppleClang Release builds compile generated Core binding
-sources with `-Os`. Handwritten runtime sources and other platforms, architectures
-and configurations retain their existing optimisation levels.
-
-Final native symbol handling is platform-specific:
-
-| Platform | Distribution output |
-|---|---|
-| macOS | C++ Source and Standalone packing apply `strip -x` to Main and real dynamic libraries in the final app, skipping symlinks. Binaries receive ad-hoc signatures after dependency-path changes; the complete app is signed and verified after resource finalisation with the configured identity, or ad hoc when none is configured. Strip or signing failure aborts packing. |
-| iOS | The Release application target uses `DEPLOYMENT_POSTPROCESSING=YES`, `STRIP_INSTALLED_PRODUCT=YES` and `STRIP_STYLE=non-global`, so Xcode strips before signing; input static libraries remain intact. |
-| Windows | MSVC generates separate PDB files with `/DEBUG:FULL` and keeps `/OPT:REF /OPT:ICF`. Packages exclude PDB files; EXE/DLL files are not passed through a generic strip tool. |
-| Android | NDK `llvm-strip --strip-unneeded` processes the staged `libludork.so` before Gradle builds the APK. |
-| HarmonyOS | Hvigor strips native libraries for Mobile and both 2in1 Release variants before HAP signing; signed HAP files are not modified afterwards. |
-
-Keep matching unstripped native outputs and any generated debug-symbol files for
-release diagnostics. macOS packing leaves source `bin` outputs, Standalone
-templates and shared preview libraries unstripped. Ad-hoc signatures provide
-neither distributor certificate signing nor notarisation; configure a Developer ID
-identity and notarisation credentials for a distributable package. Android and
-HarmonyOS retain their toolchain section garbage collection without extra global flags.
-
-`LUDORK_WITH_LUA` defaults to `ON` for game projects. The desktop project
-preview target leaves the setting unchanged and reuses the project's Runtime,
-Standard and SFML dependencies. Its dedicated `PreviewHostRuntime` compiles
-the project's shared native map, UI and visual-effect rendering sources with preview
-resource loading; the Host neither links the full Engine target nor starts gameplay
-or Lua Controllers. Preview sessions, protocol handling, pixel readback and frame
-transfer remain in `Engine/PreviewHost`, outside the shared game rendering sources.
-
-Source preview and game linker outputs share `bin/Debug` or `bin/Release`.
-The editor launches the Host directly from the directory selected by the manifest,
-using the JSON files in project `EditorCache`. Ordinary source builds publish metadata
-only; Standalone generation copies the matched runtime to `Binaries`. C++ UI
-changes take effect after recompilation. A source build stops the project's old
-preview connections before compiling and refreshes active previews after
-successful publication. Each project owns its registry and processes.
-
-On macOS the Host and its dylib dependencies retain `@loader_path` and relative
-SONAME links in the same directory. Dependency closure and signatures are checked
-before publication without rewriting shared libraries. Preview files do not use
-the game Main's root-launcher or app-Frameworks relocation rules.
-Mobile packaging first prepares the local desktop preview registry and passes
-it explicitly to resource validation and cross-CMake; it never executes a
-mobile Host or includes desktop preview artifacts in the device package.
-A desktop Preview build in the mobile packaging log is this registry preparation
-step; Lua View generation does not replace it.
-Control descriptors must be platform-independent; platform differences belong
-in their native implementations.
-
-`Templates/Cpp` carries preview source and requires a first build.
-`Templates/Standalone` carries the corresponding prebuilt preview snapshot,
-including for the FFmpeg variant. Template native caches include the current
-snapshot in `bin/<configuration>` and exactly `EditorCache/Preview.json` plus
-`EditorCache/UiPreview.registry.json`. Template generation excludes other project EditorCache
-content; C++ templates remove both compiled binaries and JSON before distribution.
-Native caches use the same layout and must be republished by `preview publish`
-before reuse when their metadata layout is outdated; no old-path reads are used.
-There is no editor-global Host distribution or compatibility fallback. Existing
-source projects need updated project build files and a rebuild; Standalone
-projects must be regenerated.
-
-`Game` carries the Ludork licence and game-runtime legal materials, including
-native dependencies, optional FFmpeg and bundled assets. Template generation
-refreshes those materials in C++ templates and derives Standalone templates
-from them. Editor, managed-runtime and build-tool notices are available on the
-website; their licence texts remain in the editor distribution. Final game packages remove preview-specific files and the
-`LudorkNativeStubDump` / `LudorkNativeStubDump.exe` build tool from `Binaries`,
-retain shared game libraries, and exclude root `EditorCache` and `Cache`, preview
-source directories, preview metadata and temporary frame files. The same exclusions
-cover obsolete preview artifact names when a project still contains build leftovers. macOS
-excludes the build tool before validating and copying app runtime libraries.
-
-LuaSF source archives contain two sibling CMake projects, `LuaSF/` and `LuaGlue/`. For local dependency and template checks, set `LUASF_SOURCE_ARCHIVE` to the generated `.tar.gz` (`.zip` on Windows) before `init_cpp_dependencies`. For an existing build, configure `LUDORK_LUASF_SOURCE_DIR` with the generator's `output/LuaSF` directory; LuaGlue is found next to it. Desktop native packages include the shared LuaGlue runtime; mobile builds use its static target.
-
-Desktop Core builds use `Game/Engine/Tools/NativeStubDump` to load each module's exported stub writer after linking and from the aggregate native build. The tool does not create a Lua VM and publishes the compiler-verified copy methods into the existing native `.d.lua` files. Its sources travel with the Engine tree in project templates.
-
-The same build exports each module's compiled enum catalogue and runs
-`ScriptTools enum-modules` to generate one pure constant module per enum beneath
-`Scripts/Enums/<Module>/`, with EmmyLua annotations in those source files and no
-mirrored enum stubs.
-LuaSF enums are generated from its API manifest beneath `Enums/sf`. The editor
-reads these files directly whenever an enum selector is displayed or opened;
-it does not load native libraries or gameplay modules to obtain choices.
-
-Native template caches include the enum source directories; templates exclude
-`Scripts/stub/Enums`. Native API declarations such as `Engine.d.lua` and
-`LuaSF.d.lua` remain in the ordinary stub tree.
-Cross-compilation and static-module builds require the generated native enum
-modules from a desktop build and report missing files before generating bindings.
-Game packages retain enum source or compiled Lua modules and exclude the
-ordinary stub tree. Regenerate native enums through the build rather
-than editing generated constant files.
+Environment values override CLI options; use `--ignore-environment` for CLI-only settings. Manual signing requires the team, certificate and profile together. `--check` validates without building. See [iOS packaging](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=02%2F11#ios) for SDK/device requirements.

@@ -1,18 +1,17 @@
 # Ludork Core modules
 
-`Game/Engine/Source` contains the C++20 Engine, GlobalCore and GlobalFunctions modules. Shared values, Lua-session services, binding infrastructure and Blueprint execution live in the `Game/Engine/Runtime` library.
-
-Supported release targets require Windows 10 or newer on x64, macOS 13.3 or newer on Apple Silicon, iOS 16.3 or newer on arm64, HarmonyOS 6.0.2 / API 22 or newer on arm64-v8a, or Android 7.0 / API 24 or newer on arm64-v8a.
+`Game/Engine/Source` contains the C++20 gameplay modules and video library. Shared values, resources, VM/binding services and Blueprint execution live in [Runtime](../Runtime/README.md).
 
 ## Modules and dependency direction
 
 | Module | Owns | Native dependency direction |
 |---|---|---|
 | `Engine` | engine types, services, state and game-specific Runtime connections | LudorkRuntime and SFML |
-| `GlobalCore` | global gameplay classes and services | Engine, Standard and SFML; optional platform/FFmpeg libraries |
+| `GlobalCore` | global gameplay classes and services | Engine, Standard, SFML and LudorkVideo; optional platform libraries |
 | `GlobalFunctions` | Components, UI, NodeGraph and Manager free functions | GlobalCore and SFML |
+| `LudorkVideo` | video decoding, seeking and audio extraction | LudorkRuntime, SFML and optional FFmpeg |
 
-Standard owns the low-level filesystem services, Base64 and shared zlib byte helpers used by its Lua globals and Engine animation compression.
+Standard owns low-level filesystem, Base64 and zlib helpers. `LudorkVideo` is a static library with no Lua root.
 
 Lua must load them in order:
 
@@ -20,29 +19,17 @@ Lua must load them in order:
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
-
-local Components = GlobalFunctions.Components
-local UI = GlobalFunctions.UI
-local NodeGraph = GlobalFunctions.NodeGraph
-local Manager = GlobalFunctions.Manager
 ```
 
-This load order is a runtime contract. Standard globals are installed before the entry script, and there is no `CoreSystem` module. No lower module links back to `GlobalFunctions`.
+This order is required. Standard globals are installed before the entry script; function groups are accessed as `GlobalFunctions.Components`, `.UI`, `.NodeGraph` and `.Manager`. Lower modules must not link back to `GlobalFunctions`.
 
-Headers declare public binding intent with `LudorkRuntimeBinding/Annotations.hpp`. Engine binding generation scans both `Engine/Runtime/include/Runtime` and `Engine/Source/Core/include`, so Runtime-owned values, Blueprint types and utilities register on the Engine Lua module rather than creating another Lua root. CMake invokes the standalone `ScriptTools` executable with the `core-bindgen` command, whose implementation lives under the repository's `ScriptTools/core_bindgen` directory. It produces generated C++ files under project-root `Intermediate/`, with one stable `<Module>.<NativeClass>.auto.cpp` registration unit per native class and exactly one `<Module>.stub.auto.cpp`, which is both the module aggregate and generated-stub writer; there is no separate `<Module>.auto.cpp`. It also produces `<Module>.traits.auto.hpp`, the module-level `Scripts/stub/<Module>.d.lua` and root `*_meta.lua` files. The traits header aggregates compile-time dynamic-value and opaque-identity selection from `BIND_CLASS`; CMake privately force-includes it in the corresponding complete Core module. Every generated declaration starts with `---@meta <Module>` so EmmyLua resolves it from the dedicated stub module root. Generated files must not be edited manually.
-
-Bindgen writes outputs only when their content changes, so adding or removing a class creates or deletes only its stable class unit and leaves unrelated class objects reusable. Classes declared together in one public header still share that ordinary C++ dependency and may recompile together when the header changes.
-
-A file-level `BIND_FUNCTION_GROUP(name = "...")` puts every `BIND_FUNCTION` in that header only into the named table. Ungrouped functions remain at the module root. Cross-module signatures include the complete declaration they require; generic conversions belong in the self-contained feature headers under `Engine/Runtime/include/LudorkRuntimeBinding/`, and bindgen includes only the features required by each generated module.
-
-`BIND_ENUM` exposes an `enum class` once at the owning module root, emits its LuaLS type and uses integer values at the Lua and Blueprint boundaries. Do not mirror the same enumerators through module properties.
+Declare public bindings with `BIND_*` annotations. CMake runs `ScriptTools core-bindgen` to generate C++ registrations, Lua declarations and editor metadata; Runtime bindings belong to `Engine`. Do not edit generated files. See [Binding a Class](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=04%2F02), [Macro Reference](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=04%2F06) and [Generated Metadata and Stubs](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=04%2F07).
 
 ## Host and implementation boundaries
 
-A `.cpp` that implements a public bound class is its host. Simple hosts do not need a same-name implementation directory. When one exists, the host is the only source allowed to define that class's `Host::...` members, and dependencies point only from the host down. Host-only state, ports, algorithms and runtime services below the directory must not include the host header, name the host type, use `../` includes or call back into the host contract. The host owns cross-component orchestration and passes explicit data or lower-level dependencies to those files.
+- Give each independent class or bound type its own header and any required source file. Public headers must compile independently and include direct dependencies.
+- Keep host-private implementation under `src` with an `Impl` suffix. Dependencies point from hosts into implementation layers; child directories must not include parent-private headers, and public headers must not include private headers.
+- Keep handwritten Core access to VM/binding services behind Runtime. RTTI is disabled; use `ludork::Cast<T>` for checked native casts.
+- CMake's `ImplBoundaryValidate` target and native CI run `ScriptTools impl-boundary-check Game`.
 
-Lua- and Blueprint-facing declarations belong in the public outer header. A bound class or companion must not live under its same-name implementation directory behind an include-only outer header. Private implementation headers expose only neutral implementation contracts.
-
-An independently bound companion remains its own host. Add a child `CMakeLists.txt` only for a real target boundary with an independent build contract; Engine and GlobalCore already discover ordinary implementation sources recursively. CMake's `ImplBoundaryValidate` target discovers host/same-name-directory boundaries and invokes `.tools/ScriptTools/ScriptTools impl-boundary-check Game` (or the Windows `.exe` path). Lua child modules with mirrored `.d.lua` declarations are excluded as independent hosts. The same validation runs in native CI, with no separate manifest.
-
-Build from the repository root with `tools/build_cpp.bat Game Debug` or `./tools/build_cpp.sh Game Debug`. See [Build and Module Layout](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=04%2F01) for class, property, method, event, function-group, metadata and troubleshooting examples.
+Build from the repository root with `tools/build_cpp.bat Game Debug` or `./tools/build_cpp.sh Game Debug`. See [Build and Module Layout](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=04%2F01) for supported platforms, source layout and build settings.

@@ -1,89 +1,47 @@
 # Ludork
 
-English ｜ [简体中文](README_zh_CN.md)
+English | [简体中文](README_zh_CN.md)
 
-Ludork is a game editor and native runtime for creating 2D role-playing games. It combines visual map and data authoring, Blueprint graphs, Lua scripting, and a C++20 runtime in one production workflow.
+Ludork is a 2D RPG editor with visual map and data editing, Blueprint graphs, Lua scripting and a C++20 runtime.
+
+This editor supports **v1.0 Game Runtime**.
 
 ![The Ludork editor workspace](https://jasonleon01.github.io/Ludork/1.0/images/overview/editor-workspace.png)
 
-## What Ludork provides
+## Platforms
 
-- A unified editor for projects, maps, tilesets, actors, animations, curves, general data, text configuration, and declarative UI assets.
-- Blueprint graphs for visual gameplay logic, with Lua modules and direct script attachments for code-driven systems.
-- A C++20 runtime built on LuaSF and SFML, with generated bindings, LuaLS definitions, and Blueprint metadata.
-- Four project templates: Standalone, Standalone with FFmpeg, C++ Source, and C++ Source with FFmpeg.
-- Fully trusted C# 13 editor plug-ins for adding commands, tools, project operations, and editor integrations.
+| Target | Minimum system |
+| --- | --- |
+| Editor and desktop games | Windows 10 x64; macOS 13.3 on Apple Silicon |
+| iOS games | iOS 16.3, arm64 |
+| HarmonyOS games | HarmonyOS 6.0.2 / API 22, arm64-v8a |
+| Android games | Android 7.0 / API 24, arm64-v8a |
 
-## Supported platforms
+Mobile packaging requires a C++ Source project and Apple Silicon macOS with the target platform's tools. Linux and Intel Mac editor packages are not provided. See [platform setup and packaging](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=02%2F11).
 
-| Area | Supported target | Notes |
-| --- | --- | --- |
-| Ludork editor | Windows 10 or newer, x64 | Distributed as a self-contained Windows package. |
-| Ludork editor | macOS 13.3 or newer, Apple Silicon | Distributed as a native `.app` bundle. |
-| Desktop game projects | Windows 10 or newer, x64; or macOS 13.3 or newer, Apple Silicon | A project is created from the template for the editor's host platform. |
-| iOS game projects | iOS 16.3 or newer, arm64 | Packaging requires a C++ Source project, Apple Silicon macOS, full Xcode, and Apple development signing. |
-| HarmonyOS game projects | HarmonyOS 6.0.2 / API 22 or newer, arm64-v8a | Mobile uses OpenGL ES; 2in1 uses OpenGL by default and can select OpenGL ES. HAP packaging requires a C++ Source project, Apple Silicon macOS, and DevEco Studio. |
-| Android game projects | Android 7.0 / API 24 or newer, arm64-v8a | APK packaging requires a C++ Source project, Apple Silicon macOS, Android Studio, SDK Platform 36, Build Tools 36.0.0, Android NDK r27 or newer, and host CMake 3.28 or newer. Output is unsigned by default and may optionally be signed with an existing JKS or PKCS12 keystore. |
+## Get started
 
-Linux and Intel-based macOS editor packages are not provided in Ludork 1.0.0.
+1. Download and install the package for your system from [GitHub Releases](https://github.com/JasonLeon01/Ludork/releases). Release packages include the .NET runtime.
+2. Create a **Standalone** project for Lua, Blueprint and asset editing, or **C++ Source** for native development and mobile targets. Enable **FFmpeg** if you need video playback.
+3. For C++ Source, run **Construct** first. Run **Export**, then **Play**.
+4. Before distribution, replace the default `APP_NAME` in `Scripts/Entry.lua`, then use **File → Pack Project**.
 
-## Install a release
+Release editors download templates from the matching release and reuse valid cached archives offline. Development packages use local templates.
 
-1. Open the [Ludork Releases page](https://github.com/JasonLeon01/Ludork/releases) and download the package for your computer.
-2. Install or extract the package as described in the release notes.
-3. Start Ludork and select a language.
-4. Create a project from the start page, or open an existing `Main.proj` file.
+| Guide | Covers |
+| --- | --- |
+| [First project](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=01%2F01) | Create, export and run |
+| [Project templates](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=01%2F02) | Standalone, C++ Source and FFmpeg |
+| [Workspace and IDEs](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=02%2F01) | Editor workspace and opening projects in an IDE |
+| [Run, debug and package](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=02%2F11) | Desktop/mobile output and signing |
+| [Native development](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=04%2F01) | Toolchains, modules and bindings |
+| [Editor plug-ins](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=05%2F01) | Installation and management |
 
-Release packages are self-contained; installing a separate .NET runtime is not required. macOS may ask you to confirm that you trust an application downloaded from the internet.
+Editor plug-ins run with your full user permissions. Install only trusted source and publishers.
 
-On Windows, start `Ludork.exe` in the installation root. This launcher opens the actual editor under `Binaries`, which also contains its DLLs and .NET runtime files. `Locale`, `tools`, `Plugins`, `plugins.json`, and licences remain in the installation root. Release editors cache downloaded template archives under `Templates/v<editor-version>/`; development Package builds bundle local templates. Editor settings are saved to `Ludork.ini` there; plug-in data is stored under `Plugins/.data`. Keep the complete package together when moving a portable installation.
+## Build from source
 
-## Choose a project template
-
-Release editors download the chosen template from the matching GitHub Release. Valid cached archives can be reused offline; on macOS the cache is `~/Ludork/Templates/v<editor-version>/`. The creation window reports progress and supports cancellation. Development editors use local templates and report an error if they are missing. New projects use the editor's current `v<major>.<minor>` version; opening a project requires a valid top-level `Main.proj.version` in the editor's supported list. Supported older projects are opened without migration.
-
-| Template | Choose it when | Development requirements |
-| --- | --- | --- |
-| **Standalone** | You want to author Lua, Blueprints, maps, data, and assets immediately. | No C++ toolchain is required. |
-| **Standalone + FFmpeg** | You need the Standalone workflow and H.264/AAC MP4 playback. | No C++ toolchain is required; FFmpeg notices and source materials are included. |
-| **C++ Source** | You need to change native engine code, add bindings, debug C++, or target iOS, HarmonyOS, or Android. | CMake 3.21 or newer and the platform compiler toolchain. Android packaging requires CMake 3.28 or newer. |
-| **C++ Source + FFmpeg** | You need native source access and video playback. | The C++ requirements above; the project contains the FFmpeg source and build configuration. |
-
-FFmpeg is disabled by default. The prebuilt FFmpeg Standalone templates target desktop platforms; use a C++ Source template for iOS, HarmonyOS or Android output. Those platform packages statically link their FFmpeg builds and therefore have additional LGPL relinking-material obligations; review the bundled FFmpeg notice before distribution.
-
-### Debug a C++ Source project in an IDE
-
-IDE configuration generators are included in the root of C++ Source projects. On Windows, run `generate_vs2022.bat` and open `Main.sln` from the project root, or run `generate_clion.bat` and open the project directory in CLion. On Apple Silicon macOS, run `./generate_clion.sh` and open the project directory in CLion. Both CLion generators configure the CMake project before returning, so **Ludork Play** can be selected and run immediately after the project opens.
-
-Visual Studio Run and Debug use the same Debug C++ build tool as editor Play, use the project root as the working directory, and start the same native individual-window flow. CLion builds the same `Main` target from its generated Debug profile. Editor-only save handling, plug-in Before Run hooks, embedded viewport integration, and editor command or performance bridges are not available when launching from an IDE.
-
-The generators find the tools installed with Ludork automatically. If the editor was moved or is used as a portable package, set `LUDORK_TOOLS_DIR` to its `tools` directory before running a generator. Generated `Main.sln`, `.vs`, `.idea`, CMake user presets, and CLion build output are local files and are excluded by the template `.gitignore`.
-
-## Create, run, and package your first project
-
-1. Select **New Project**, choose **Standalone** for a prebuilt desktop runtime or **C++ Source** when you need native source access or an iOS, HarmonyOS, or Android package, enter a project name and location, then select **Create**.
-2. Save your changes and use **Play** to run the project in the editor or in a separate game window.
-3. Before distribution, replace the default `LudorkSample` value assigned to `APP_NAME` in `Scripts/Entry.lua`.
-4. Select **File → Pack Project**, choose the target and options, and complete the platform-specific prompts.
-5. Test the resulting `dist` package on a clean target system before publishing it.
-
-Packaging through the editor runs registered plug-in preparation hooks. A Standalone project can be edited and packaged without compiling C++; a C++ Source project performs the required native build.
-
-For Android, leaving **Sign APK** clear creates `dist/<game-name>-android-arm64-v8a-unsigned.apk`. Selecting it opens the signing dialog for an existing JKS or PKCS12 keystore and can save the signing information on this device for later packaging. Passwords use the operating-system credential store and are never written to the project. A successful signed build publishes only `dist/<game-name>-android-arm64-v8a-signed.apk`. Reuse the same signing key for later versions of an installed application. Neither mode installs or launches the APK.
-
-For HarmonyOS, choose **Mobile** for the OpenGL ES phone/tablet host, or **2in1** and then choose OpenGL or OpenGL ES; OpenGL is the 2in1 default. An unsigned package is written as `dist/<game-name>-harmony-mobile-unsigned.hap`, `dist/<game-name>-harmony-2in1-opengl-unsigned.hap`, or `dist/<game-name>-harmony-2in1-opengl-es-unsigned.hap`. **Export to matching HarmonyOS device** signs the corresponding HAP, installs it on the single connected device whose form matches the selection, and launches it.
-
-## Build Ludork from source
-
-Source builds are intended for contributors and editor developers. End users should normally install a release package.
-
-Requirements:
-
-- .NET 9 SDK
-- CMake 3.21 or newer
-- Windows: Windows 10 or newer with Visual Studio 2022 and the MSVC x64 toolchain
-- macOS: Apple Silicon, Xcode Command Line Tools, and macOS 13.3 or newer
-- Python 3.12 for native binding-generation tools
+Requires .NET 9 SDK, Python 3.12 and CMake 3.21 or newer, plus Visual Studio 2022/MSVC x64 on Windows or Xcode Command Line Tools on Apple Silicon macOS.
 
 Windows:
 
@@ -99,29 +57,17 @@ macOS:
 ./tools/run_editor.sh
 ```
 
-The initialisation script prepares the native dependencies and the editor-owned UI preview host. It does not build the Game project game. Build the Game project separately with `tools\build_cpp.bat Game Debug` or `./tools/build_cpp.sh Game Debug`.
+Initialization prepares dependencies and the editor preview host. Build the Game project separately with `tools\build_cpp.bat Game Debug` or `./tools/build_cpp.sh Game Debug`.
 
-GitHub Actions provides six packaging entries. [Export Package](.github/workflows/export-package.yml), [Export Package Windows](.github/workflows/export-package-windows.yml) and [Export Package macOS](.github/workflows/export-package-macos.yml) build project templates, embed them in development packages, and upload four independent template archives per platform. [Export Editor](.github/workflows/export-editor.yml), [Export Editor Windows](.github/workflows/export-editor-windows.yml) and [Export Editor macOS](.github/workflows/export-editor-macos.yml) package the editor and its tools without building or including templates. The combined Export Package and Export Editor workflows both run at 02:00 and 14:00 UTC+8, with independent unchanged-commit checks. A tag matching `v<EDITOR_VERSION>` runs Export Package and creates a draft Release with 11 assets: MSI, DMG, Server source tar.gz and eight template archives. Formal installers omit templates, and all formal assets omit generated `BuildInfo.json`; development editor packages retain it. Both macOS editor modes use the same signing and notarisation. Each export builds from a clean runner without restoring or saving dependency or build caches; see [automated packages](tools/README.md#pull-requests-and-automated-packages).
+See the [tool reference](https://github.com/JasonLeon01/Ludork/blob/main/tools/README.md) for build commands, CI packages and documentation maintenance.
 
 ## Documentation and support
 
-- Visit the [Ludork website](https://jasonleon01.github.io/Ludork/?lang=en_GB) for an overview, downloads, and project information.
-- Start with the [Ludork documentation](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB).
-- Follow [Getting Started](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=01%2F01) for project creation, running, and packaging.
-- Report reproducible faults and request features through [GitHub Issues](https://github.com/JasonLeon01/Ludork/issues).
+- [Website](https://jasonleon01.github.io/Ludork/?lang=en_GB) · [Documentation](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB)
+- [GitHub Issues](https://github.com/JasonLeon01/Ludork/issues): include the editor version, OS, template, reproduction steps and relevant Console output.
 
-Documentation sources and the website live on the independent `gh-pages` branch. Contributors use a separate worktree and update all affected languages after code verification; see the [documentation workflow](tools/README.md#website-and-documentation). The editor opens the online documentation for its major/minor version.
+## Licence and assets
 
-When reporting a problem, include Ludork 1.0.0, your operating system, the selected template, the steps to reproduce the problem, and the relevant Console output. Do not attach projects containing credentials or content you cannot redistribute.
+Ludork uses the [Zlib License](LICENSE.md), including commercial use. Dependencies and assets retain their own terms; see [Third-Party Notices](https://jasonleon01.github.io/Ludork/notices/?lang=en_GB&version=1.0) and the [licence-text index](Licenses/README.md). Preserve applicable notices and licence texts when distributing your game; packaging does not verify their legal completeness.
 
-## Plug-in security
-
-Ludork editor plug-ins are C# source packages that execute with the editor process's full user permissions. Import and enable only plug-ins whose source and publisher you trust. Review updates before installing them, and never treat a plug-in package as sandboxed content.
-
-## Licences and asset rights
-
-Ludork itself is distributed under the [Zlib License](LICENSE.md), including commercial use. Dependencies and redistributed tools remain under their respective terms; see the [Third-Party Notices](https://jasonleon01.github.io/Ludork/notices/?lang=en_GB&version=1.0) and the [complete licence-text index](Licenses/README.md).
-
-Project templates carry the Ludork licence together with the applicable game-runtime, optional video-runtime and bundled-asset notices and complete local licence texts. Editor, managed-runtime, preview-host and build-tool notices are available on the website; their licence texts remain in the editor distribution and are not copied into projects. Packaging preserves project legal materials when they are present, but Android APK and HarmonyOS HAP packaging do not treat them as format prerequisites or verify legal completeness. Preserve the applicable materials, add notices for your own dependencies and assets, and review the result before distribution.
-
-The Game project's bundled music is not covered by the Ludork Zlib License. Its Suno Free Tier terms restrict use to personal, non-commercial purposes and do not establish permission to redistribute the raw track in a project template. Remove or replace the track, or obtain express redistribution rights, before publishing any package that contains it. The Game project font retains its supplied terms.
+The Game project's sample music is restricted to personal, non-commercial use under its supplied Suno Free Tier terms, which do not establish raw-track redistribution rights. Remove or replace it, or obtain express redistribution rights, before publishing a package containing it. The bundled font retains its supplied terms.

@@ -1,22 +1,30 @@
 # Licence Text Index
 
-Ludork uses the distribution-root [Zlib License](../LICENSE.md); third-party components and assets keep their own terms. See [THIRD_PARTY_NOTICES.md](https://jasonleon01.github.io/Ludork/notices/?version=1.0&lang=en_GB) for versions, sources, purposes and text paths.
+English | [简体中文](README_zh_CN.md)
 
-This is the canonical `Licenses` tree. The editor package receives it in full; templates receive this index, the common runtime directories, and `FFmpeg` only when enabled.
+Ludork uses the [Zlib License](../LICENSE.md); third-party components and assets retain their own terms. [THIRD_PARTY_NOTICES.md](https://jasonleon01.github.io/Ludork/notices/?version=1.0&lang=en_GB) lists versions, sources, purposes and licence paths.
 
-- `DotNet`, `DotNetPackages`, `Avalonia`, and `EditorPackages`: editor and managed-runtime notices.
-- `ScriptTools`: CPython, Nuitka runtime, OpenSSL, and Pillow with its incorporated-component notices for the packaged build tool runtime directory.
-- `Lua`, `LuaSF`, `SFML`, `LuaGlue`, `lua-cjson`, `zlib`, and `NativeDependencies`: common template runtime notices.
-- `FFmpeg`: optional video-runtime notices for FFmpeg templates.
-- `GNUMake` and `MicrosoftVisualCppRuntime`: editor/external redistribution terms, excluded from templates.
-- `HarmonyOSSans` and `SampleMusic`: canonical asset notices; template copies stay beside the assets.
+The editor package includes this canonical tree in full. Templates include this index, common runtime notices and `FFmpeg` when enabled.
 
-The Gradle wrapper used by Android packaging keeps its complete licence and bilingual source notice beside the tool in each C++ Source template, under `Engine/PlatformHosts/Android/gradle/wrapper`.
+| Directories | Contents |
+|---|---|
+| `DotNet`, `DotNetPackages`, `Avalonia`, `EditorPackages` | Editor and managed-runtime notices |
+| `ScriptTools` | Packaged CPython, Nuitka runtime, OpenSSL, Pillow and incorporated-component notices |
+| `Lua`, `LuaSF`, `SFML`, `LuaGlue`, `lua-cjson`, `zlib`, `NativeDependencies` | Common template runtime notices |
+| `FFmpeg` | Optional video-runtime notices |
+| `GNUMake`, `MicrosoftVisualCppRuntime` | Editor/external redistribution terms; excluded from templates |
+| `HarmonyOSSans`, `SampleMusic` | Asset notices; template copies stay beside the assets |
 
-The editor's `Avalonia.Controls.WebView` 12.1.0 uses the [MIT licence text](EditorPackages/Avalonia.Controls.WebView-LICENSE.txt) from the [upstream commit identified by its NuGet package](https://github.com/AvaloniaUI/Avalonia.Controls.WebView/blob/b45e042d21d96371bb6d07822a55c85ee5f74d2f/LICENSE).
+C++ Source templates retain the Android Gradle wrapper's complete licence and bilingual source notice beside it in `Engine/PlatformHosts/Android/gradle/wrapper`.
 
-The editor's `Avalonia.Labs.Notifications` 12.0.2 uses the [MIT licence text](EditorPackages/Avalonia.Labs.Notifications-LICENSE.txt) from its [NuGet source commit](https://github.com/AvaloniaUI/Avalonia.Labs/blob/fe1fd16ba0f18540afcdc5007b57f4dbb8528712/LICENSE) for native task-completion notifications.
+Editor package licence texts come unchanged from the source commits identified by their NuGet packages:
 
-The editor SVG dependencies use [Svg.Skia's MIT text](EditorPackages/Svg.Skia-LICENSE.txt) for `Svg.Controls.Avalonia`, `Svg.Model`, `Svg.SceneGraph`, and `ShimSkiaSharp`; [Svg.Custom's Microsoft Public License](EditorPackages/Svg.Custom-LICENSE.txt) for `Svg.Custom`; and [ExCSS's MIT text](EditorPackages/ExCSS-LICENSE.txt) for `ExCSS`. These texts are copied unchanged from the repository commits identified by the restored NuGet packages and linked in the notices table.
+| Packages | Licence text | Source |
+|---|---|---|
+| `Avalonia.Controls.WebView` 12.1.0 | [MIT](EditorPackages/Avalonia.Controls.WebView-LICENSE.txt) | [Upstream commit](https://github.com/AvaloniaUI/Avalonia.Controls.WebView/blob/b45e042d21d96371bb6d07822a55c85ee5f74d2f/LICENSE) |
+| `Avalonia.Labs.Notifications` 12.0.2 | [MIT](EditorPackages/Avalonia.Labs.Notifications-LICENSE.txt) | [Upstream commit](https://github.com/AvaloniaUI/Avalonia.Labs/blob/fe1fd16ba0f18540afcdc5007b57f4dbb8528712/LICENSE) |
+| `Svg.Controls.Avalonia`, `Svg.Model`, `Svg.SceneGraph`, `ShimSkiaSharp` | [Svg.Skia MIT](EditorPackages/Svg.Skia-LICENSE.txt) | Third-party notices |
+| `Svg.Custom` | [Microsoft Public License](EditorPackages/Svg.Custom-LICENSE.txt) | Third-party notices |
+| `ExCSS` | [MIT](EditorPackages/ExCSS-LICENSE.txt) | Third-party notices |
 
-Legal texts are retained in their supplied language and are not translated or rewritten. Explanatory indexes do not replace those texts.
+Legal texts retain their supplied language and are not rewritten. This index does not replace them.
