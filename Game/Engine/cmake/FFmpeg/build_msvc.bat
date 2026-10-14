@@ -6,6 +6,12 @@ for %%I in ("%~1") do set "SOURCE_DIR=%%~fI"
 for %%I in ("%~2") do set "BUILD_DIR=%%~fI"
 for %%I in ("%~3") do set "INSTALL_DIR=%%~fI"
 for %%I in ("%~4") do set "GNU_MAKE=%%~fI"
+set "FFMPEG_REVISION="
+if exist "%SOURCE_DIR%\RELEASE" set /p "FFMPEG_REVISION="<"%SOURCE_DIR%\RELEASE"
+if not defined FFMPEG_REVISION (
+    echo FFmpeg release version could not be read: %SOURCE_DIR%\RELEASE
+    exit /b 1
+)
 set "WORK_SOURCE_DIR=%BUILD_DIR%\src"
 set "BUILD_JOBS=%LUDORK_FFMPEG_BUILD_JOBS%"
 if not defined BUILD_JOBS set "BUILD_JOBS=%NUMBER_OF_PROCESSORS%"
@@ -102,7 +108,7 @@ if errorlevel 1 (
     popd
     exit /b !BUILD_RESULT!
 )
-"%GNU_MAKE%" -j%BUILD_JOBS% "SHELL=%BASH%" CCDEP= CXXDEP= ASDEP= HOSTCCDEP= install
+"%GNU_MAKE%" -j%BUILD_JOBS% "SHELL=%BASH%" "REVISION=%FFMPEG_REVISION%" CCDEP= CXXDEP= ASDEP= HOSTCCDEP= install
 set "BUILD_RESULT=!ERRORLEVEL!"
 popd
 exit /b !BUILD_RESULT!
