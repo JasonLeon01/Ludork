@@ -24,9 +24,15 @@ Edit the selected parameter's default value, display name, group and optional nu
 
 Open **Node Graph**, then right-click the canvas background to open the menu headed **Add Node**. Choose a category and then a node type to create it at that location. Drag its header to move it, and drag between ports to connect values. Edit unconnected literal inputs directly below their pins and node properties inside the node. Connected inputs hide their value controls. Declared defaults are displayed without writing an override; implicit and inherited inputs show **Default input** or **Pass-through**. Right-click an unconnected input pin and choose **Set Constant** to supply a value, or **Reset Input** to remove an explicit constant. Material-wide settings, including maximum vertex displacement, are in the initially collapsed **Rendering** section below the left parameter pane.
 
+![Crystallize material node graph with parameters on the left and connected nodes on the right](../../../images/editor/material-editor-nodegraph.png)
+
+*The parameter list and selected parameter’s details stay beside the graph; use **View Generated Shader** above the canvas to open the generated source.*
+
 Right-click an input pin to disconnect its link, or an output pin to disconnect all links from that pin. A node's context menu also offers **Disconnect All Inputs** and **Disconnect All Outputs**, affecting only that node. Unavailable disconnection actions are disabled, and a batch disconnection is restored by one Undo. Disconnected inputs return to their declared default or implicit/pass-through behaviour; earlier constants are not stored behind connections.
 
 Right-click a node to delete it. Right-clicking a node already in a multiple selection preserves that selection; right-clicking another node selects that node first. The `Surface` output cannot be deleted. Dragging with the right mouse button pans the canvas without opening a menu on release. Standard selection, Delete, Copy/Paste and Undo/Redo also apply. While a value control has focus, text editing and numeric adjustments operate on that control. Pasted nodes receive new IDs and keep connections within the copied selection.
+
+On macOS, two-finger scrolling pans the graph horizontally and vertically. Pinch or Command+wheel zooms around the pointer, from 10% to 1000%. Wheel input over a node’s input controls stays with those controls.
 
 Constrained node properties use dropdowns: Parameter references display parameter names while retaining their stable IDs, numeric values offer supported scalar/vector dimensions, and Compose allows 2, 3 or 4 components. Swizzle has an output-length selector and a dropdown for each component (`X/R`, `Y/G`, `Z/B`, `W/A`). The compiler still checks that selected channels exist in the input; invalid saved values remain visible as errors until corrected. Numeric fields apply declared bounds without imposing an extra range on unrestricted values.
 
@@ -46,6 +52,10 @@ Unconnected surface channels pass through the incoming surface; an unconnected `
 ## Preview and diagnose
 
 On **Preview**, choose **Preview Texture** and set the frame's integer X, Y, Width and Height fields. X and Y must be non-negative; Width and Height must be at least 1. Adjust preview ambient light and the optional point light to inspect lighting and emission. These preview settings are temporary. The preview reads the unsaved resource, and Actor, map and UI previews receive the same unsaved material snapshots.
+
+![Crystallize material preview with parameter controls and frame and lighting settings](../../../images/editor/material-editor-preview.png)
+
+*Parameters remain on the left. **Preview Settings** below the image contains the frame rectangle, ambient light and optional point light.*
 
 Compilation errors appear beneath the right-hand tabs and highlight the affected node when a node is known. Select an error to switch to **Node Graph** and focus it. **View Generated Shader** on the graph page displays the generated vertex and fragment GLSL for diagnosis. Fix missing parameters, invalid connections, incompatible values or unsupported stages in the graph. Graphs generate GLSL through the native compiler; they do not accept raw shader source. This version does not include normal maps, graph inheritance or subgraphs.
 

@@ -10,13 +10,13 @@ An unsupported project version cannot be opened. See [Main.proj](<Project Settin
 
 ## Main workspace
 
-The main window contains the map list, map canvas, editing-mode inspector and **World Outliner**, with **File Explorer**, **Actor Library** and **Console** tabs below. Tile and Actor mode controls sit beside the canvas and are hidden for world maps. The toolbar provides **Construct → Export → Play** / **Stop**; Standalone projects hide Construct. See [Run, Debug and Package](<Run Debug and Package.md>).
+The **Map List** is on the left, with the map canvas in the centre and layer tabs above it. The right panel shows the tile palette in Tile mode, or **World Outliner** and **Actor Info** in Actor mode. **File Explorer**, **Actor Library** and **Console** sit below the canvas. Tile and Actor mode controls sit beside the canvas and are hidden for world maps. The toolbar provides **Construct → Export → Play** / **Stop**; Standalone projects hide Construct. See [Run, Debug and Package](<Run Debug and Package.md>).
 
 Resource windows display a loading indicator while opening. If loading fails, use **Retry**.
 
-![The Ludork main workspace with its map and project panels](../../../images/overview/editor-workspace.png)
+![The main workspace showing Overview, layer tabs, the tile palette and File Explorer](../../../images/overview/editor-workspace.png)
 
-*The visible inspector and canvas interaction change with the selected editing mode.*
+*Overview shows the visible layers together. The tile palette is on the right, and File Explorer is below the map canvas.*
 
 ## Online documentation
 

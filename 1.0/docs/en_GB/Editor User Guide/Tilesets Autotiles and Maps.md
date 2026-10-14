@@ -22,9 +22,9 @@ Map JSON requires a `layerOrder` string array, which is the authoritative draw a
 
 An ordinary tileset provides the **Passable**, **Material** and **Dir4** modes. Left-click toggles one tile's passability, selects its [material resource](<Materials.md>) or toggles the direction nearest the clicked edge. Shift+left-drag copies the pressed source tile's property through every crossed cell. The current mode chooses the copied value: Passable copies the boolean, Material copies the resource reference, and Dir4 copies all four directions. One drag is one Undo step. Clearing a tile material removes its sparse entry and restores the default appearance. Autotiles provide **Passable** and **Material** for the whole asset and do not support this batch brush.
 
-![Tile palette and layer list in the map editor](../../../images/editor/tile-layers.png)
+![Map editor with layer tabs above the canvas and a tile palette on the right](../../../images/editor/tile-layers.png)
 
-*Use the tile palette together with the active layer; the selected layer receives every paint operation.*
+*Select a layer tab above the canvas, then paint from the palette on the right. The eye controls toggle each layer’s visibility.*
 
 ## Map list and composite worlds
 
@@ -84,7 +84,7 @@ Saving during a stroke starts a new Undo step for subsequent movement. Undo and 
 
 For Blueprint light defaults and component fields, see [Light Component](<Actor Components/Light.md>).
 
-Use Actor mode to place a Blueprint instance, move it and edit its exposed attributes. The selected instance may override class defaults without changing the Blueprint itself. Add lighting through the Actor's `lightComp`; select the Actor normally and edit the component in **Actor Info**. Maps do not contain separate fixed-light objects or a Light editing mode.
+Use Actor mode to place a Blueprint instance, move it and edit its exposed attributes. The selected instance may override class defaults without changing the Blueprint itself. Add lighting through the Actor's `lightComp`; select the Actor normally and edit the component in **Actor Info**.
 
 In project editing, hold Ctrl on Windows/Linux or Command on macOS while left-dragging an Actor to select it and adjust its translation continuously in map pixels, without changing its grid position. Alt/Option+left-drag adjusts only its origin in local coordinates, accounting for rotation and scale; translation stays unchanged, so the image moves opposite the drag. Alt/Option takes precedence when both modifiers are held. A transform with a zero scale axis cannot be used for origin dragging. These operations write the instance's `defaultTranslation` and `defaultOrigin` overrides.
 
@@ -96,9 +96,9 @@ Each property drag is one Undo step. Consecutive wheel or pinch changes to the s
 
 For invisible Actors, layer dimming and light-range overlays, see [Actor and layer assistance](<../PreviewHost/Map and World Previews.md#actor-and-layer-assistance>).
 
-![Actor editing mode](../../../images/editor/actor-mode.png)
+![Actor mode with the World Outliner and material parameter overrides in Actor Info](../../../images/editor/actor-mode.png)
 
-*Actor mode edits a placed Blueprint instance without changing its class defaults.*
+*Select the placed instance in **World Outliner** and edit it in **Actor Info**. The example overrides the Poison material’s `lightBlock` parameter for this Actor.*
 
 An Actor light uses `LightComponent.lightOffset` relative to the centre of the Actor's local bounds. The complete Actor transform is applied to the offset, so the emitter follows rotation and scale. For a wall-mounted torch, place the offset at the visible flame on the room side of the wall, because the renderer does not move an emitter to a nearby passable cell.
 

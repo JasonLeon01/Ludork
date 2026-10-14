@@ -4,9 +4,9 @@ Read this guide in the [online documentation](https://jasonleon01.github.io/Ludo
 
 Ludork combines a visual editor, Blueprint graphs, Lua scripts and an extensible C++20 runtime for map-driven 2D games. Use the editor to configure projects and create maps, Actors, data, animation and user interfaces, then run and package the game.
 
-![The Ludork editor workspace with a Game project map open](../../images/overview/editor-workspace.png)
+![The Ludork workspace with the Map List, layer tabs, map overview, tile palette and File Explorer](../../images/overview/editor-workspace.png)
 
-*The main workspace combines the map canvas, editing modes, project data and runtime tools.*
+*The Map List is on the left, the map overview and layer tabs are in the centre, and the tile palette is on the right. File Explorer sits below the canvas.*
 
 ## Choose a learning path
 
@@ -16,6 +16,7 @@ Ludork combines a visual editor, Blueprint graphs, Lua scripts and an extensible
 | Author maps, assets and project data | [Start Page, Workspace and Shortcuts](<Editor User Guide/Start Page Workspace and Shortcuts.md>) |
 | Configure Actor labels, lights, particles and child Actors | [Actor Components](<Editor User Guide/Actor Components/Overview.md>) |
 | Look up what each Palette control does | [UI Controls in the Palette](<Editor User Guide/UI Controls in the Palette.md>) |
+| Create material effects and instance parameter overrides | [Materials](<Editor User Guide/Materials.md>) |
 | Build GPU particle effects for Actors and UI | [Common Particles](<Editor User Guide/Common Particles.md>) |
 | Add timed subtitles to videos | [Video Subtitles](<Editor User Guide/Video Subtitles.md>) |
 | Learn Lua | [Lua Basics](<Getting Started/Lua Basics.md>) |
