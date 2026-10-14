@@ -30,7 +30,7 @@ After hot reload, start a new playback to use updated audio code; see [Lua Runti
 
 ## Shaders, fog and transitions
 
-Actors and tile layers draw through the official 2D material system; projects compose effects with general-purpose nodes. Export writes the material shaders and metadata to `Data/MaterialGenerated`. The game loads those files and evaluates the exported numeric analysis instructions with current instance parameters, without parsing graphs or assembling GLSL; the GPU driver still compiles the shaders. Missing or invalid generated files stop material loading, so export before running or packaging.
+Actors and tile layers draw through the official 2D material system; projects compose effects with general-purpose nodes. Export writes the material shaders and metadata to `Assets/Shaders/MaterialGenerated`. The game loads those files and evaluates the exported numeric analysis instructions with current instance parameters, without parsing graphs or assembling GLSL; the GPU driver still compiles the shaders. Missing or invalid generated files stop material loading, so export before running or packaging.
 
 Built-in weather and fog retain their cross-platform shader pipelines, and loading or compilation errors propagate. World entry prewarms the shared renderer for the current viewport and repeats after regional geometry changes. HarmonyOS compiles programs on their first normal draw after complete render-state and uniform binding.
 

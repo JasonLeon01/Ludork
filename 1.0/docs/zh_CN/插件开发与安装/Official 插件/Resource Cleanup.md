@@ -24,7 +24,7 @@
 
 扫描覆盖所有普通地图、世界子地图、Lua 源码与受支持的 Data 结构引用。先沿 Data 引用关系计算保留内容，再判断哪些 Assets 仍被使用。未被引用的 Data 不会使其依赖的资源继续保留。蓝图字段及地图实例覆盖值会按元数据递归扫描，包括组件和有类型的容器内部的资源引用。
 
-地图、`Data/General`、`Data/UI`、`Data/Configs` 和 `Data/Locale` 固定保留，它们通过受支持规则引用的内容也会保留。Data 候选只包括 Tilesets、AutoTiles、Blueprints、CommonFunctions、Animations、Particles、Curves 和 TextConfigs。未知 Data 格式不进入清理候选。Lua 只用于扫描引用，不会被删除。生成的 UI 镜像和声明 stub 不作为独立的使用依据。
+地图、`Data/General`、`Data/UI`、`Data/Configs` 和 `Data/Locale` 固定保留，它们通过受支持规则引用的内容也会保留。Data 候选只包括 Materials、Tilesets、AutoTiles、Blueprints、CommonFunctions、Animations、Particles、Curves 和 TextConfigs。未知 Data 格式不进入清理候选。Lua 只用于扫描引用，不会被删除。生成的 UI 镜像和声明 stub 不作为独立的使用依据。内置保留清单会保护 `Assets/Shaders/MaterialGenerated`，过期的材质生成文件由导出清理。
 
 已知资源 API 的参数支持字符串常量、括号、常量别名和 `and`/`or` 条件分支。扫描器保守保留所有分支中的常量路径，并继续追踪其 Data 依赖。
 

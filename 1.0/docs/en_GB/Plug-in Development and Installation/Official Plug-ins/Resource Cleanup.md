@@ -24,7 +24,7 @@ Additional keep paths are saved through the host in the project's `EditorCache/R
 
 The scan reads every ordinary map and world child map, Lua source and the supported structured Data references. It follows references through Data before deciding which Assets remain needed. Unreferenced Data does not keep its own asset dependencies alive. Blueprint fields and map-instance overrides are scanned recursively using their metadata, including resource references inside components and typed containers.
 
-Maps, `Data/General`, `Data/UI`, `Data/Configs` and `Data/Locale` remain protected; their supported references also remain protected. Data candidates are limited to Tilesets, AutoTiles, Blueprints, CommonFunctions, Animations, Particles, Curves and TextConfigs. Unknown Data formats are not cleanup candidates. Lua scripts are scanned for references, not deleted. Generated UI mirrors and declaration stubs do not establish independent usage.
+Maps, `Data/General`, `Data/UI`, `Data/Configs` and `Data/Locale` remain protected; their supported references also remain protected. Data candidates are limited to Materials, Tilesets, AutoTiles, Blueprints, CommonFunctions, Animations, Particles, Curves and TextConfigs. Unknown Data formats are not cleanup candidates. Lua scripts are scanned for references, not deleted. Generated UI mirrors and declaration stubs do not establish independent usage. The built-in keep list protects `Assets/Shaders/MaterialGenerated`; Export removes obsolete generated material files.
 
 Known resource API arguments can use string literals, parentheses, constant aliases and `and`/`or` conditional branches. The scanner conservatively retains the constant paths from every branch and follows their Data dependencies.
 

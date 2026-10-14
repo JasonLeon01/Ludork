@@ -76,7 +76,7 @@ Each editor Pack performs one complete Export, including Export hooks and UI/mat
 
 **Encrypt game data** controls script compilation and shader, JSON and save encryption, and a partial selection shows its indeterminate state. **Encrypt save contents** sets the C++ Source runtime default. Standalone projects configure it through `SAVE_AS_LDC` in `Scripts/Entry.lua`. See [Saves](<../Lua and Blueprint Scripting/Default Gameplay/Runtime Data Configuration and Saves.md#saves>) for the timing and format rules. The `.ldpak` option is independent of encryption. Data encryption converts staged JSON values to compressed, obfuscated binary `.ldc`; source JSON stays editable. Rebuild packages containing the old compressed-JSON LDC format.
 
-Shader encryption includes `Assets/Shaders` and `Data/MaterialGenerated`; data encryption includes generated material JSON metadata. The `.ldpak` option places the generated material files in `Data.ldpak`. Authored files under `Data/Materials` remain in game packages, while runtime material loading uses the generated files.
+Shader encryption covers `Assets/Shaders`, including `Assets/Shaders/MaterialGenerated`. Data encryption covers both ordinary Data JSON and generated material JSON metadata, using the same `.ldc` format. The `.ldpak` option places the generated material files in `Assets.ldpak`. Authored files under `Data/Materials` remain in game packages, while runtime material loading uses the generated files.
 
 Preview registry validation and exclusions are described in [PreviewHost packaging rules](<../PreviewHost/Build Publish and Troubleshooting.md#editable-templates-and-final-packages>).
 

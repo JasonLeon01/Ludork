@@ -10,7 +10,7 @@ A save error identifies invalid parents, inheritance cycles, nodes, links, pins 
 
 ## The game will not start
 
-Read the Console from the first failure. Complete Construct when required, then Export; Play checks these in that order. Export validation or plug-in failures block launch, as do before-Run hook failures. Check the generated UI and locale files, `Data/MaterialGenerated`, native modules, the `Main.ini` entry script, Core module order and runtime protocol diagnostics.
+Read the Console from the first failure. Complete Construct when required, then Export; Play checks these in that order. Export validation or plug-in failures block launch, as do before-Run hook failures. Check the generated UI and locale files, `Assets/Shaders/MaterialGenerated`, native modules, the `Main.ini` entry script, Core module order and runtime protocol diagnostics.
 
 ## A node is missing
 

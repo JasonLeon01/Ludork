@@ -30,7 +30,7 @@ On Android and iOS, returning from the background in the same process resumes th
 - `Scripts/Internal/UI` contains Views generated from `Data/UI/Assets` by Export. Generated UI and locale files are absent from templates and version control; export the project before its first run. Handwritten foundations live in `Internal.UIBase`, and business windows live in `Source.Windows`. See [Declarative UI Authoring Workflow](<../Declarative UI/Authoring Workflow.md>).
 - `Scripts/Mixins` contains directly attachable Lua behaviour.
 - `Data/Blueprints` contains game-specific Actor classes.
-- `Data/Materials` contains authored material graphs; Export generates runtime shaders and metadata in `Data/MaterialGenerated`. These outputs are ignored and excluded from templates.
+- `Data/Materials` contains authored material graphs; Export generates runtime shaders and metadata in `Assets/Shaders/MaterialGenerated`. These outputs are ignored and excluded from templates.
 - `Data/General` provides items, enemies, equipment, classes, players, states and special effects.
 - `Data/Maps` and `Data/Tilesets` provide the playable world.
 - `Engine/` contains the native runtime, modules and dependencies.
