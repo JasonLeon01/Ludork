@@ -14,7 +14,11 @@ Variables and General Data still take effect on Save; their Lua files remain und
 
 Play is enabled after the first successful Export and, for C++ Source, a successful Debug build through **Construct** or `tools/build_cpp`. A bare CMake build does not enable Play.
 
-Deleting `EditorCache` requires another Construct for C++ Source and another Export before Play.
+When opening a C++ Source project, the editor checks for generated native bindings, build and preview files, and exported UI and plug-in files before validating project data. Missing files or preparation records trigger a Debug build followed by Export automatically. A progress dialog shows the current operation; the full output is saved in `Log/Ludork.log`. This opening step builds and exports the files already on disk without saving partially loaded project data.
+
+If the generated files exist but Blueprint fields or map Actor overrides fail schema validation, the editor offers **Rebuild and Export Project**. Confirm to rebuild and export, then reload and check the data once more. Cancel exits the application. Errors that remain after this attempt are reported by the normal invalid-data dialog; the editor does not repeat the rebuild prompt. Invalid JSON alone does not trigger this recovery.
+
+A build or export failure stops opening the project and reports the log path. Source edits alone do not trigger automatic rebuilding on open. Deleting `EditorCache` makes a C++ Source project prepare again on its next open; Standalone projects still require an explicit Export before Play.
 
 After the first successful build and export, Play offers **Build and Play** or **Export and Play** when files have changed. Cancelling or failing either operation stops launch. Lua, UI JSON, game data and localisation edits do not require a native build.
 
