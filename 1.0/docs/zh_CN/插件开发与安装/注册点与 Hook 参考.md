@@ -68,7 +68,7 @@
 
 `RegisterBeforeExportHook(IProjectExportHook)` 注册导出步骤。`IProjectExportHook` 继承 `IProjectOperationHook`，新增 `ProjectExportFiles GetFiles(string projectPath)`。返回记录包含 `IReadOnlyList<string> InputPaths` 与 `IReadOnlyList<string> OutputPaths`，使用项目相对的具体文件路径，路径不能重复，输入与输出不能交叉。暂时缺失的输入也必须列出，以便编辑器检测其后续创建。`GetFiles` 描述当前输入和生成文件，不修改它们；`ExecuteAsync` 执行导出。
 
-导出先保存并校验项目，依次执行 Export Hook，生成 UI 文件，最后记录成功结果。编辑器对声明的文件和导出插件身份计算指纹，判断是否需要重新导出；项目插件身份还包含项目作用域。导出按钮、确认后的 **导出后运行**，以及编辑器每次打包都执行 Export Hook。before-Run Hook 若修改导出输入，运行会在实际启动前要求再次导出。完整流程见[编译、导出与运行](<../编辑器用户指南/运行、调试与打包.md#编译导出与运行>)。
+导出先保存并校验项目，依次执行 Export Hook，生成 UI 与材质运行文件，最后记录成功结果。编辑器对声明的文件和导出插件身份计算指纹，判断是否需要重新导出；项目插件身份还包含项目作用域。导出按钮、确认后的 **导出后运行**，以及编辑器每次打包都执行 Export Hook。before-Run Hook 若修改导出输入，运行会在实际启动前要求再次导出。完整流程见[编译、导出与运行](<../编辑器用户指南/运行、调试与打包.md#编译导出与运行>)。
 
 `RegisterBeforeRunHook` 与 `RegisterBeforePackHook` 接受 `IProjectOperationHook`，在各自目标操作之前依次执行；编辑器打包会先完整导出，再执行 before-Pack Hook。所有 Hook 的上下文 都提供项目路径、语言、操作类型、输出写入器、文本提示刷新接口与取消信号。结果失败或抛出异常会终止后续 Hook 并阻止操作。Hook 必须响应取消请求，并通过 `IPluginOutput` 写出进度。
 

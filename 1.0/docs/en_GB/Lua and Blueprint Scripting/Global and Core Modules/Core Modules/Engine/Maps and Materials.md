@@ -103,7 +103,9 @@ The native-only `TileLayer::updateBlock` updates an existing rectangular block a
 
 The shared standard resource is `Data/Materials/Global/Standard.json`. Effect examples and `Surfaces` presets remain directly under `Data/Materials` and its `Surfaces` directory.
 
-A material is a `Data/Materials/<name>.json` resource with `type: "material"` and `version: 1`. Actors, autotiles and layers reference it with a string. The empty reference selects the standard neutral material; an invalid non-empty reference fails. Material files use the normal Data loader, including encrypted data and `Data.ldpak`; auxiliary textures use canonical `/Game/Assets/...` paths. The host supplies the sprite texture, current frame, transform and time.
+An authored material is a `Data/Materials/<name>.json` graph with `type: "material"` and `version: 1`. Actors, autotiles and layers retain this string reference. The empty reference selects the built-in neutral material, separately from `Global/Standard.json`; an invalid non-empty reference fails. Export maps these references to shaders and runtime metadata under `Data/MaterialGenerated/Materials/<name>.json/`, or `Data/MaterialGenerated/Builtin/Default/` for the empty reference. Runtime loading uses those generated files, including encrypted data/shaders and `Data.ldpak`; it does not read the authored graph. Missing, damaged or unsupported outputs fail. Auxiliary textures retain canonical `/Game/Assets/...` paths, and the host supplies the sprite texture, current frame, transform and time.
+
+For native C++ callers, `MaterialResource::load` loads the exported runtime resource. `MaterialResource::fromData` creates a resource with an editing graph definition for Export and preview compilation. See [Material export](<../../../../Editor User Guide/Materials.md#export-for-runtime>) for generation, combinations and file layout.
 
 | File section | Contents |
 |---|---|

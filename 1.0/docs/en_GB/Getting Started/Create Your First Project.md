@@ -24,7 +24,7 @@ The first download needs an internet connection and an available template for yo
 ### Save and run
 
 1. Select a map in the map list.
-2. Click **Export** to save, validate and generate the UI and locale files. Resolve any errors before continuing; Play is disabled until the first successful export.
+2. Click **Export** to save, validate and generate the UI, locale and material runtime files. Resolve any errors before continuing; Play is disabled until the first successful export.
 3. Click **Play** on the toolbar. The game runs in the embedded panel or an **Individual Window**, according to **Edit → Development Tools and Settings → Individual Window**. The setting is available on Windows only. On other hosts, the game always opens in an **Individual Window**.
 4. Open **Console** to see runtime output. Project editing is disabled while the game runs unless [Live Debug](<../Editor User Guide/Run Debug and Package.md#live-debug>) was enabled before Play.
 5. Click the same button, now **Stop**, to stop the game and resume editing.

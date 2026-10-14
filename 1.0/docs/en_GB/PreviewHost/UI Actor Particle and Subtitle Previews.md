@@ -24,7 +24,9 @@ See [Blueprints, Common Functions and Actors](<../Editor User Guide/Blueprints C
 
 ## Material previews
 
-Open a material from `Data/Materials` to edit exposed defaults or its node graph. The native preview uses the same graph compiler and material renderer as the game, with the current unsaved document, preview texture, frame rectangle, ambient light and optional point light. Compilation errors identify the node and port where available; select an error to focus the node. The generated GLSL is available read-only. Invalid material previews report the failure instead of retaining a stale successful image. See [Materials](<../Editor User Guide/Materials.md>) for authoring and instance overrides.
+Open a material from `Data/Materials` to edit exposed defaults or its node graph. The native preview uses the same graph compiler as Export and the same material renderer as the game, with the current unsaved document, preview texture, frame rectangle, ambient light and optional point light. It compiles the snapshot in memory without reading or rewriting the exported shader files. Actor, map and UI previews also receive unsaved material snapshots; the game loads the files created by Export.
+
+Compilation errors identify the node and port where available; select an error to focus the node. The generated GLSL is available read-only. Invalid material previews report the failure instead of retaining a stale successful image. See [Materials](<../Editor User Guide/Materials.md>) for authoring and instance overrides.
 
 ## Particle previews
 

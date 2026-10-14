@@ -4,17 +4,17 @@ Run a project, edit its live state and package it for a supported platform.
 
 ## Construct, Export and Play
 
-The toolbar orders its actions as **Construct → Export → Play**. Standalone projects hide Construct. **Construct** saves the project and builds the Debug executable and preview runtime without launching the game. Native binding generation remains part of the build; UI and locale export is a separate operation.
+The toolbar orders its actions as **Construct → Export → Play**. Standalone projects hide Construct. **Construct** saves the project and builds the Debug executable and preview runtime without launching the game. Native binding generation remains part of the build; UI, locale and material export is a separate operation.
 
 Preview runtime preparation is described in [PreviewHost: Build, Publish and Troubleshooting](<../PreviewHost/Build Publish and Troubleshooting.md>).
 
-**Export** saves the project, runs Export plug-in hooks and generates UI Views, declarations and locale files. Export again after changing the inputs or removing generated files. A failed or cancelled export does not count as a successful export.
+**Export** saves the project, runs Export plug-in hooks and generates UI Views, declarations, locale files and [material programs](<Materials.md#export-for-runtime>). Material checks cover added, changed, moved or deleted source files, the published native compiler/preview identity, and missing or modified generated files. Export again when these inputs or outputs change. All material combinations must compile successfully before their files are installed and obsolete outputs are removed. A failed or cancelled export does not count as a successful export.
 
-Variables and General Data still take effect on Save; their Lua files remain under version control and are outside Export. Ordinary Save, Construct, direct run and template creation do not generate UI files. The explicit `ui-assets generate` command produces UI files only; it does not run Export hooks or publish a complete editor export record.
+Variables and General Data still take effect on Save; their Lua files remain under version control and are outside Export. Ordinary Save, Construct, direct run and template creation do not generate UI or material files. The explicit `ui-assets generate` command produces UI files only; it does not run Export hooks or publish a complete editor export record.
 
 Play is enabled after the first successful Export and, for C++ Source, a successful Debug build through **Construct** or `tools/build_cpp`. A bare CMake build does not enable Play.
 
-When opening a C++ Source project, the editor checks for generated native bindings, build and preview files, and exported UI and plug-in files before validating project data. Missing files or preparation records trigger a Debug build followed by Export automatically. A progress dialog shows the current operation; the full output is saved in `Log/Ludork.log`. This opening step builds and exports the files already on disk without saving partially loaded project data.
+When opening a C++ Source project, the editor checks for generated native bindings, build and preview files, and exported UI, material and plug-in files before validating project data. Missing files or preparation records trigger a Debug build followed by Export automatically. A progress dialog shows the current operation; the full output is saved in `Log/Ludork.log`. This opening step builds and exports the files already on disk without saving partially loaded project data.
 
 If the generated files exist but Blueprint fields or map Actor overrides fail schema validation, the editor offers **Rebuild and Export Project**. Confirm to rebuild and export, then reload and check the data once more. Cancel exits the application. Errors that remain after this attempt are reported by the normal invalid-data dialog; the editor does not repeat the rebuild prompt. Invalid JSON alone does not trigger this recovery.
 
@@ -72,9 +72,11 @@ The editor requires absolute signing-material paths without NUL, carriage return
 
 Mobile and macOS application display names use the raw `title.value` text from `Data/Configs/System.json`. The title must be non-empty and contain no control characters; packaging does not resolve localisation keys. `APP_NAME` supplies the stable application and bundle identifiers and the sanitised `<game-name>` filename component. Changing the title or version does not change the installed application's identity; changing `APP_NAME` can require new signing or provisioning setup.
 
-Each editor Pack performs one complete Export, including Export hooks and UI generation, before continuing with before-Pack hooks and packaging. Official Locale Tools uses its before-Pack hook only to exclude `Data/Locale/Locale.xlsx`. Direct command-line run and pack consume files exported beforehand; they keep their validation but do not perform complete Export or implicit UI generation.
+Each editor Pack performs one complete Export, including Export hooks and UI/material generation, before continuing with before-Pack hooks and packaging. Official Locale Tools uses its before-Pack hook only to exclude `Data/Locale/Locale.xlsx`. Direct command-line run and pack consume files exported beforehand and reject missing, modified or obsolete material outputs; they do not perform complete Export or implicit generation. `ScriptTools material-assets validate <project-root>` runs the material check without writing files. Generated GLSL can be exported with Debug and packaged with Release or another target platform; CLI validation does not require the export machine’s preview build identity.
 
 **Encrypt game data** controls script compilation and shader, JSON and save encryption, and a partial selection shows its indeterminate state. **Encrypt save contents** sets the C++ Source runtime default. Standalone projects configure it through `SAVE_AS_LDC` in `Scripts/Entry.lua`. See [Saves](<../Lua and Blueprint Scripting/Default Gameplay/Runtime Data Configuration and Saves.md#saves>) for the timing and format rules. The `.ldpak` option is independent of encryption. Data encryption converts staged JSON values to compressed, obfuscated binary `.ldc`; source JSON stays editable. Rebuild packages containing the old compressed-JSON LDC format.
+
+Shader encryption includes `Assets/Shaders` and `Data/MaterialGenerated`; data encryption includes generated material JSON metadata. The `.ldpak` option places the generated material files in `Data.ldpak`. Authored files under `Data/Materials` remain in game packages, while runtime material loading uses the generated files.
 
 Preview registry validation and exclusions are described in [PreviewHost packaging rules](<../PreviewHost/Build Publish and Troubleshooting.md#editable-templates-and-final-packages>).
 

@@ -72,7 +72,7 @@ Moving an asset does not automatically repair every stored reference. Open its r
 
 ## Data and Scripts
 
-`Data/Materials` stores [2D material](<Materials.md>) resources with `type: "material"` and `version: 1`. References use the complete project-relative `Data/Materials/...json` path. Materials are managed documents and travel with Data in loose, encrypted and `Data.ldpak` packages.
+`Data/Materials` stores authored [2D material](<Materials.md>) graphs with `type: "material"` and `version: 1`. References keep the complete project-relative `Data/Materials/...json` path. Export writes the runtime shaders and metadata under `Data/MaterialGenerated`, preserving the material-relative path, including `.json`, beneath `Materials/`; the empty reference uses `Builtin/Default/`. See [Material export](<Materials.md#export-for-runtime>) for the program layout. The generated directory is ignored and absent from templates. Game packages retain both directories; runtime loading reads the generated files, including encrypted data/shaders and `Data.ldpak`.
 
 `Data/Subtitles` stores [video subtitle](<Video Subtitles.md>) JSON documents with `type: "subtitle"` and a `sections` array. References use project-relative `Data/Subtitles/...json` paths. These managed editor documents are packaged with Data, including encrypted data and `Data.ldpak`.
 
