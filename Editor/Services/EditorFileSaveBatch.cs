@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security;
+using System.Threading;
 
 namespace Ludork.Services;
 
@@ -13,13 +14,28 @@ internal sealed class EditorFileSaveBatch
     private static readonly StringComparer pathComparer = OperatingSystem.IsWindows()
         ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
     private readonly Dictionary<string, byte[]> writes = new(pathComparer);
+    private readonly Dictionary<string, string> fileWrites = new(pathComparer);
     private readonly HashSet<string> deletions = new(pathComparer);
     private readonly HashSet<string> directoryDeletions = new(pathComparer);
     private readonly List<(string Source, string Destination)> moves = [];
+    private readonly HashSet<string> directorySpellings = new(StringComparer.Ordinal);
 
-    public void Write(string path, byte[] content) => writes[Path.GetFullPath(path)] = content;
+    public void Write(string path, byte[] content)
+    {
+        string fullPath = Path.GetFullPath(path);
+        fileWrites.Remove(fullPath);
+        writes[fullPath] = content;
+    }
+
+    public void WriteFromFile(string path, string source)
+    {
+        string fullPath = Path.GetFullPath(path);
+        writes.Remove(fullPath);
+        fileWrites[fullPath] = Path.GetFullPath(source);
+    }
     public void Delete(string path) => deletions.Add(Path.GetFullPath(path));
     public void DeleteDirectory(string path) => directoryDeletions.Add(Path.GetFullPath(path));
+    public void EnsureDirectoryCase(string path) => directorySpellings.Add(Path.GetFullPath(path));
 
     public void MoveDirectory(string source, string destination)
     {
@@ -27,11 +43,12 @@ internal sealed class EditorFileSaveBatch
             moves.Add((Path.GetFullPath(source), Path.GetFullPath(destination)));
     }
 
-    public SaveResult Execute(IProgress<EditorOperationProgress>? progress = null)
+    public SaveResult Execute(IProgress<EditorOperationProgress>? progress = null, CancellationToken cancellationToken = default)
     {
         string staging = Path.Combine(Path.GetTempPath(), "LudorkSave-" + Guid.NewGuid().ToString("N"));
         Dictionary<string, string> prepared = new(pathComparer);
-        Dictionary<string, byte[]?> originals = new(pathComparer);
+        Dictionary<string, string?> originals = new(pathComparer);
+        string[] writePaths = writes.Keys.Concat(fileWrites.Keys).ToArray();
         Dictionary<string, string> originalPaths = new(pathComparer);
         HashSet<string> replacedPaths = new(pathComparer);
         List<string> changedFiles = [];
@@ -42,10 +59,14 @@ internal sealed class EditorFileSaveBatch
         string currentPath = staging;
         bool committed = false;
         bool rollbackFailed = false;
+        bool cancelled = false;
         int completed = 0;
-        int total = writes.Count * 2 + moves.Count * 2 + directoryDeletions.Count + deletions.Count;
-        void report(string path) => progress?.Report(new EditorOperationProgress(
-            "EDIT_OPERATION_WRITING", path, completed++, total));
+        int total = writePaths.Length * 2 + moves.Count * 2 + directoryDeletions.Count + deletions.Count;
+        void report(string path)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            progress?.Report(new EditorOperationProgress("EDIT_OPERATION_WRITING", path, completed++, total));
+        }
         try
         {
             Directory.CreateDirectory(staging);
@@ -56,6 +77,30 @@ internal sealed class EditorFileSaveBatch
                 string temporary = Path.Combine(staging, "write-" + prepared.Count);
                 File.WriteAllBytes(temporary, write.Value);
                 prepared.Add(write.Key, temporary);
+            }
+            foreach (KeyValuePair<string, string> write in fileWrites)
+            {
+                currentPath = write.Key;
+                report(currentPath);
+                string temporary = Path.Combine(staging, "write-" + prepared.Count);
+                File.Copy(write.Value, temporary);
+                prepared.Add(write.Key, temporary);
+            }
+            foreach (string directory in directorySpellings.OrderBy(path => path.Length))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                string parent = Path.GetDirectoryName(directory)!;
+                if (!Directory.Exists(parent))
+                    continue;
+                string name = Path.GetFileName(directory);
+                string? existing = Directory.EnumerateDirectories(parent).FirstOrDefault(path =>
+                    Path.GetFileName(path).Equals(name, StringComparison.OrdinalIgnoreCase));
+                if (existing is null || Path.GetFileName(existing) == name)
+                    continue;
+                currentPath = directory;
+                string intermediate = createSiblingPath(existing);
+                moveDirectory(existing, intermediate, completedMoves);
+                moveDirectory(intermediate, directory, completedMoves);
             }
             (string Source, string Destination)[] existingMoves = moves
                 .Where(move => Directory.Exists(move.Source)).ToArray();
@@ -101,17 +146,21 @@ internal sealed class EditorFileSaveBatch
             }
             foreach (string path in deletions)
             {
-                string? replacement = writes.Keys.FirstOrDefault(destination =>
+                string? replacement = writePaths.FirstOrDefault(destination =>
                     FileSystemPathIdentity.RefersToSameEntry(path, destination));
                 if (replacement is null)
                     continue;
                 replacedPaths.Add(path);
                 originalPaths[replacement] = path;
             }
-            foreach (string path in writes.Keys.Concat(deletions).Distinct(pathComparer))
+            foreach (string path in writePaths.Concat(deletions).Distinct(pathComparer))
             {
                 currentPath = path;
-                originals[path] = File.Exists(path) ? File.ReadAllBytes(path) : null;
+                cancellationToken.ThrowIfCancellationRequested();
+                string? backup = File.Exists(path) ? Path.Combine(staging, "original-" + originals.Count) : null;
+                if (backup is not null)
+                    File.Copy(path, backup);
+                originals[path] = backup;
             }
             foreach (KeyValuePair<string, string> write in prepared)
             {
@@ -121,7 +170,7 @@ internal sealed class EditorFileSaveBatch
                 replaceFile(write.Value, write.Key, errors);
                 changedFiles.Add(write.Key);
             }
-            foreach (string path in deletions.Where(path => !writes.ContainsKey(path) && !replacedPaths.Contains(path)))
+            foreach (string path in deletions.Where(path => !prepared.ContainsKey(path) && !replacedPaths.Contains(path)))
             {
                 currentPath = path;
                 report(currentPath);
@@ -131,16 +180,18 @@ internal sealed class EditorFileSaveBatch
                 changedFiles.Add(path);
             }
             progress?.Report(new EditorOperationProgress("EDIT_OPERATION_WRITING", Completed: total, Total: total));
+            cancellationToken.ThrowIfCancellationRequested();
             committed = true;
         }
-        catch (Exception exception) when (isFileException(exception))
+        catch (Exception exception) when (isFileException(exception) || exception is OperationCanceledException)
         {
+            cancelled = exception is OperationCanceledException;
             errors.Insert(0, $"{currentPath}: {exception.Message}");
             foreach (string path in changedFiles.AsEnumerable().Reverse().Distinct(pathComparer))
             {
                 try
                 {
-                    byte[]? original = originals[path];
+                    string? original = originals[path];
                     if (original is null)
                     {
                         if (File.Exists(path))
@@ -148,9 +199,7 @@ internal sealed class EditorFileSaveBatch
                     }
                     else
                     {
-                        string temporary = Path.Combine(staging, "restore-" + Guid.NewGuid().ToString("N"));
-                        File.WriteAllBytes(temporary, original);
-                        replaceFile(temporary, originalPaths.GetValueOrDefault(path, path), errors);
+                        replaceFile(original, originalPaths.GetValueOrDefault(path, path), errors);
                     }
                 }
                 catch (Exception restoreError) when (isFileException(restoreError))
@@ -208,6 +257,8 @@ internal sealed class EditorFileSaveBatch
                         Directory.Delete(staging, true);
                 }, errors);
         }
+        if (cancelled && !rollbackFailed)
+            cancellationToken.ThrowIfCancellationRequested();
         return new SaveResult(committed, string.Join(Environment.NewLine, errors));
     }
 

@@ -1,4 +1,5 @@
 #include <Graphics/Materials/MaterialProgramCache.hpp>
+#include <Graphics/Materials/MaterialGenerated.hpp>
 #include "MaterialProgramCacheImpl.hpp"
 #include "ShaderLogCaptureImpl.hpp"
 
@@ -47,14 +48,19 @@ std::uint64_t MaterialProgramCache::bindCount() const {
 MaterialProgramCache::Impl::Program& MaterialProgramCache::Impl::program(
     const MaterialResource& material, const MaterialResource* layer,
     MaterialCompiler::Pass pass) {
-    const std::string key = material.signature() + '\0' +
-                            (layer ? layer->signature() : "") + '\0' +
-                            std::to_string(static_cast<int>(pass));
+    if (layer && layer->path().empty()) {
+        layer = nullptr;
+    }
+    const std::string key =
+        MaterialGenerated::programDirectory(material, layer) + '\0' +
+        material.signature() + '\0' + (layer ? layer->signature() : "") + '\0' +
+        std::to_string(static_cast<int>(pass)) +
+        (material.definition() ? "preview" : "runtime");
     if (const auto found = programs.find(key); found != programs.end()) {
         return found->second;
     }
     Program value;
-    value.sources = MaterialCompiler::compile(material, layer, pass);
+    value.sources = MaterialGenerated::sources(material, layer, pass);
     value.shader = std::make_shared<sf::Shader>();
     ShaderLogCaptureImpl diagnostics;
     if (!value.shader->loadFromMemory(value.sources.vertex,

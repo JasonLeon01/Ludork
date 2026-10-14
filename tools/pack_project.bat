@@ -86,6 +86,8 @@ if exist "%PACKAGE_METADATA%" del /Q "%PACKAGE_METADATA%"
 exit /b %PACK_EXIT_CODE%
 
 :pack_project
+"%SCRIPT_TOOLS%" material-assets validate "%PROJECT_DIR%"
+if errorlevel 1 exit /b %errorlevel%
 if defined PACKAGE_VERSION (
     "%SCRIPT_TOOLS%" packaging-constants resolve-metadata "%PROJECT_DIR%" "%PACKAGE_METADATA%" --version "%PACKAGE_VERSION%" %PACKAGE_CHANNEL%
 ) else (

@@ -24,6 +24,11 @@ from .ldpak import (
     validate_ldpak_source,
     validate_runtime_ldpak_layout,
 )
+from .material_assets import (
+    EXPORT_RECORD as MATERIAL_EXPORT_RECORD,
+    GENERATED_ROOT as MATERIAL_GENERATED_ROOT,
+    validate_generated as validate_materials,
+)
 from .packaging_constants import (
     COMPILE_LUA_DIRECTORIES_ENVIRONMENT,
     EXCLUDED_FILES_ENVIRONMENT,
@@ -379,6 +384,7 @@ def prune_package(
     for relative_path in (
         *(pathlib.Path(name) for name in PACKAGE_CACHE_DIRECTORIES),
         pathlib.Path("Scripts") / "stub",
+        MATERIAL_EXPORT_RECORD,
     ):
         target = resource_root / relative_path
         if _remove_path(target):
@@ -464,6 +470,7 @@ def _finalize_package_in_place(
     registry: UiControlRegistry | None = None,
 ) -> tuple[int, int, int, int, int]:
     validate_assets(root, registry)
+    validate_materials(root)
     if use_ldpak:
         validate_ldpak_source(root)
     removed = prune_package(root, excluded_files)
@@ -477,7 +484,10 @@ def _finalize_package_in_place(
         encrypt_shaders(root / "Assets" / "Shaders") if encrypt_shaders_enabled else 0
     )
     removed += strip_ui_editor_data(root / "Data")
-    encrypted_data = encrypt_data(root / "Data") if encrypt_data_enabled else 0
+    encrypted_data = (
+        sum(encrypt_data(directory) for directory in (root / "Data", root / MATERIAL_GENERATED_ROOT))
+        if encrypt_data_enabled else 0
+    )
     reject_declaration_files(root)
     for directory in PACKAGE_CACHE_DIRECTORIES:
         if os.path.lexists(root / directory):

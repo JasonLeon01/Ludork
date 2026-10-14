@@ -3,6 +3,7 @@ target_sources(PreviewHostExecutable PRIVATE
     Map/MapPreviewData.cpp
     Map/MapPreviewSession.cpp
     Material/MaterialPreviewSession.cpp
+    Material/MaterialExport.cpp
     Particle/ParticlePreviewSession.cpp
     PreviewBuildInfo.cpp
     PreviewHostSession.cpp

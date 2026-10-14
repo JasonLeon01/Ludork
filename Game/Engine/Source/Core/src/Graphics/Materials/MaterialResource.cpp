@@ -1,14 +1,22 @@
 #include <Graphics/Materials/MaterialResource.hpp>
 #include <Graphics/Materials/MaterialCompiler.hpp>
+#include <Graphics/Materials/MaterialGenerated.hpp>
 #include "MaterialSchema.hpp"
 
 #include <Runtime/ConcurrentResourceCache.hpp>
 #include <Runtime/Data.hpp>
 #include <Runtime/Json.hpp>
 #include <Runtime/RuntimeDataReader.hpp>
+#include <DataFile.hpp>
+#include <ReadOnlyFileProvider.hpp>
+#include <Utf8Path.hpp>
 
 #include <algorithm>
+#include <chrono>
 #include <stdexcept>
+#include <cstdint>
+#include <iomanip>
+#include <sstream>
 #include <tuple>
 #include <unordered_set>
 
@@ -25,6 +33,40 @@ resourceCache() {
                                                     true>
         cache;
     return cache;
+}
+
+ludork::runtime::ConcurrentResourceCache<const MaterialResource, true>&
+previewResourceCache() {
+    static ludork::runtime::ConcurrentResourceCache<const MaterialResource,
+                                                    true>
+        cache;
+    return cache;
+}
+
+std::string previewKey(const std::string& path) {
+    if (path.empty()) {
+        return {};
+    }
+    const std::filesystem::path resolved =
+        ludork::standard::resolveDataPath(ludork::standard::pathFromUtf8(path));
+    const auto status = ludork::standard::readOnlyFileStatus(resolved);
+    if (status.handled) {
+        return path + '\0' + std::to_string(status.size) + ':' +
+               std::to_string(status.modificationTime);
+    }
+    std::error_code error;
+    const std::uintmax_t size = std::filesystem::file_size(resolved, error);
+    if (error) {
+        return path + '\0' + "missing";
+    }
+    const auto time = std::filesystem::last_write_time(resolved, error);
+    if (error) {
+        return path + '\0' + "missing";
+    }
+    return path + '\0' + std::to_string(size) + ':' +
+           std::to_string(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                              time.time_since_epoch())
+                              .count());
 }
 
 const RuntimeData& required(const RuntimeData::Map& map,
@@ -72,13 +114,52 @@ void checkRange(const MaterialResource::Parameter& parameter,
     }
 }
 
+void appendCanonical(std::string& output, const RuntimeData& value) {
+    if (const auto* map = value.getIf<RuntimeData::Map>()) {
+        std::vector<std::string> keys;
+        keys.reserve(map->size());
+        for (const auto& [key, item] : *map) {
+            static_cast<void>(item);
+            keys.push_back(key);
+        }
+        std::sort(keys.begin(), keys.end());
+        output += '{';
+        for (const std::string& key : keys) {
+            output += stringifyJSON(RuntimeData(key));
+            output += ':';
+            appendCanonical(output, map->at(key));
+            output += ',';
+        }
+        output += '}';
+    } else if (const auto* array = value.getIf<RuntimeData::Array>()) {
+        output += '[';
+        for (const RuntimeData& item : *array) {
+            appendCanonical(output, item);
+            output += ',';
+        }
+        output += ']';
+    } else {
+        output += stringifyJSON(value);
+    }
+}
+
+std::string sourceSignature(const RuntimeData& value) {
+    std::string canonical;
+    appendCanonical(canonical, value);
+    std::uint64_t fingerprint = 14695981039346656037ull;
+    for (const unsigned char byte : canonical) {
+        fingerprint = (fingerprint ^ byte) * 1099511628211ull;
+    }
+    std::ostringstream output;
+    output << std::hex << std::setfill('0') << std::setw(16) << fingerprint;
+    return output.str();
+}
+
 }  // namespace
 
 std::shared_ptr<const MaterialResource> MaterialResource::load(
     const std::string& path) {
-    if (path.empty()) {
-        return defaultMaterial();
-    }
+    static_cast<void>(MaterialGenerated::resourceDirectory(path));
     for (auto scope = overrides.rbegin(); scope != overrides.rend(); ++scope) {
         if (const auto found = (*scope)->resources_.find(path);
             found != (*scope)->resources_.end()) {
@@ -91,8 +172,38 @@ std::shared_ptr<const MaterialResource> MaterialResource::load(
             return resource;
         }
     }
+    if (!overrides.empty()) {
+        auto& cache = previewResourceCache();
+        if (cache.entryCount() >= 256) {
+            cache.clear();
+        }
+        const auto resource = cache.getOrLoad(previewKey(path), [&path]() {
+            return fromData(path.empty() ? defaultDocument() : loadData(path),
+                            path);
+        });
+        overrides.back()->resources_.emplace(path, resource);
+        return resource;
+    }
     return resourceCache().getOrLoad(path, [&path]() {
-        return fromData(loadData(path), path);
+        const RuntimeData data = MaterialGenerated::loadMetadata(
+            MaterialGenerated::resourceDirectory(path) + "/resource.json");
+        const RuntimeData::Map& root =
+            reader::requireMap(data, "generated material");
+        if (text(root, "type") != "materialResource" ||
+            reader::requireInt(required(root, "version"),
+                               "generated material.version") != 1 ||
+            text(root, "generator") != "Ludork Material Export" ||
+            text(root, "material") != path) {
+            throw std::invalid_argument(
+                "Invalid generated material metadata: " + path);
+        }
+        const auto resource = readMetadata(data, path);
+        resource->signature_ = text(root, "signature");
+        if (resource->signature_.empty()) {
+            throw std::invalid_argument(
+                "Generated material signature is empty: " + path);
+        }
+        return resource;
     });
 }
 
@@ -113,20 +224,12 @@ MaterialResource::ScopedOverrides::~ScopedOverrides() {
     std::erase(overrides, this);
 }
 
-std::shared_ptr<const MaterialResource> MaterialResource::fromData(
+std::shared_ptr<MaterialResource> MaterialResource::readMetadata(
     const RuntimeData& data, std::string path) {
     const RuntimeData::Map& root = reader::requireMap(data, "material");
-    if (text(root, "type") != "material" ||
-        reader::requireInt(required(root, "version"), "material.version") !=
-            1) {
-        throw std::invalid_argument(
-            "Material requires type material and version 1");
-    }
     std::shared_ptr<MaterialResource> result(new MaterialResource());
-    result->data_ = data;
     result->path_ = std::move(path);
     std::unordered_set<std::string> parameterIds;
-    RuntimeData::Array parameterSignatures;
     for (const RuntimeData& entry : reader::requireArray(
              required(root, "parameters"), "material.parameters")) {
         const RuntimeData::Map& fields =
@@ -167,38 +270,7 @@ std::shared_ptr<const MaterialResource> MaterialResource::fromData(
                 parameter.id);
         }
         checkRange(parameter, parameter.defaultValue);
-        RuntimeData::Map signature = fields;
-        signature.erase("displayName");
-        signature.erase("group");
-        parameterSignatures.emplace_back(std::move(signature));
         result->parameters_.push_back(std::move(parameter));
-    }
-    const RuntimeData::Map& graph =
-        reader::requireMap(required(root, "graph"), "material.graph");
-    result->output_ = text(graph, "output");
-    std::unordered_set<std::string> nodeIds;
-    std::unordered_set<std::string> nodeTypes;
-    for (const RuntimeData& definition : schema::nodeDefinitions()) {
-        nodeTypes.insert(text(*definition.getIf<RuntimeData::Map>(), "type"));
-    }
-    for (const RuntimeData& entry : reader::requireArray(
-             required(graph, "nodes"), "material.graph.nodes")) {
-        const RuntimeData::Map& fields =
-            reader::requireMap(entry, "material node");
-        Node node;
-        node.id = text(fields, "id");
-        node.type = text(fields, "type");
-        identifier(node.id, "material node id");
-        if (!nodeIds.insert(node.id).second) {
-            throw std::invalid_argument("Duplicate material node: " + node.id);
-        }
-        if (!nodeTypes.contains(node.type)) {
-            throw std::invalid_argument("Unknown material node type: " +
-                                        node.type);
-        }
-        node.inputs = optionalMap(fields, "inputs");
-        node.properties = optionalMap(fields, "properties");
-        result->nodes_.push_back(std::move(node));
     }
     const RuntimeData::Map rendering = optionalMap(root, "rendering");
     if (const RuntimeData* offset =
@@ -215,18 +287,44 @@ std::shared_ptr<const MaterialResource> MaterialResource::fromData(
                 "Material maximum vertex offset must be non-negative");
         }
     }
-    result->signature_ = stringifyJSON(RuntimeData(RuntimeData::Map{
+    return result;
+}
+
+std::shared_ptr<const MaterialResource> MaterialResource::fromData(
+    const RuntimeData& data, std::string path) {
+    static_cast<void>(MaterialGenerated::resourceDirectory(path));
+    const RuntimeData::Map& root = reader::requireMap(data, "material");
+    if (text(root, "type") != "material" ||
+        reader::requireInt(required(root, "version"), "material.version") !=
+            1) {
+        throw std::invalid_argument(
+            "Material requires type material and version 1");
+    }
+    const auto result = readMetadata(data, std::move(path));
+    result->definition_ = MaterialDefinition::fromData(data);
+    RuntimeData::Array parameters;
+    for (const RuntimeData& value : reader::requireArray(
+             required(root, "parameters"), "material.parameters")) {
+        RuntimeData::Map parameter =
+            reader::requireMap(value, "material parameter");
+        parameter.erase("displayName");
+        parameter.erase("group");
+        parameters.emplace_back(std::move(parameter));
+    }
+    result->signature_ = sourceSignature(RuntimeData(RuntimeData::Map{
         {"graph", required(root, "graph")},
-        {"parameters", RuntimeData(std::move(parameterSignatures))},
-        {"rendering", RuntimeData(rendering)}}));
+        {"parameters", RuntimeData(std::move(parameters))},
+        {"rendering", RuntimeData(optionalMap(root, "rendering"))}}));
     static_cast<void>(MaterialCompiler::compile(*result));
     return result;
 }
 
 std::shared_ptr<const MaterialResource> MaterialResource::defaultMaterial() {
-    static const std::shared_ptr<const MaterialResource> value =
-        fromData(schema::defaultDocument());
-    return value;
+    return load("");
+}
+
+RuntimeData MaterialResource::defaultDocument() {
+    return schema::defaultDocument();
 }
 
 RuntimeData MaterialResource::nodeRegistry() {
@@ -279,22 +377,18 @@ RuntimeData MaterialResource::nodeRegistry() {
 
 void MaterialResource::clearCache() {
     resourceCache().clear();
+    previewResourceCache().clear();
+    MaterialGenerated::clearCache();
 }
 const std::string& MaterialResource::path() const {
     return path_;
 }
-const RuntimeData& MaterialResource::data() const {
-    return data_;
+const MaterialDefinition* MaterialResource::definition() const {
+    return definition_.get();
 }
 const std::vector<MaterialResource::Parameter>& MaterialResource::parameters()
     const {
     return parameters_;
-}
-const std::vector<MaterialResource::Node>& MaterialResource::nodes() const {
-    return nodes_;
-}
-const std::string& MaterialResource::output() const {
-    return output_;
 }
 sf::Vector2f MaterialResource::maximumVertexOffset() const {
     return maximumVertexOffset_;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <EngineRuntimeApi.hpp>
+#include <Graphics/Materials/MaterialDefinition.hpp>
 #include <Runtime/RuntimeData.hpp>
 #include <SFML/System/Vector2.hpp>
 
@@ -39,26 +40,18 @@ public:
         std::optional<float> maximum;
     };
 
-    struct Node {
-        std::string id;
-        std::string type;
-        RuntimeData::Map inputs;
-        RuntimeData::Map properties;
-    };
-
     static std::shared_ptr<const MaterialResource> load(
         const std::string& path);
     static std::shared_ptr<const MaterialResource> fromData(
         const RuntimeData& data, std::string path = {});
     static std::shared_ptr<const MaterialResource> defaultMaterial();
+    static RuntimeData defaultDocument();
     static RuntimeData nodeRegistry();
     static void clearCache();
 
     const std::string& path() const;
-    const RuntimeData& data() const;
+    const MaterialDefinition* definition() const;
     const std::vector<Parameter>& parameters() const;
-    const std::vector<Node>& nodes() const;
-    const std::string& output() const;
     sf::Vector2f maximumVertexOffset() const;
     const std::string& signature() const;
     RuntimeData::Map resolveParameters(const RuntimeData::Map& overrides) const;
@@ -66,11 +59,11 @@ public:
 
 private:
     MaterialResource() = default;
+    static std::shared_ptr<MaterialResource> readMetadata(
+        const RuntimeData& data, std::string path);
     std::string path_;
-    RuntimeData data_;
+    std::shared_ptr<const MaterialDefinition> definition_;
     std::vector<Parameter> parameters_;
-    std::vector<Node> nodes_;
-    std::string output_;
     sf::Vector2f maximumVertexOffset_;
     std::string signature_;
 };

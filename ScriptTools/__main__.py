@@ -21,6 +21,7 @@ from ScriptTools import ldpak
 from ScriptTools import legal_resources
 from ScriptTools import macos_bundle
 from ScriptTools import macos_sign
+from ScriptTools import material_assets
 from ScriptTools import native_build_state
 from ScriptTools import packaging_cli
 from ScriptTools import project_state_worker
@@ -65,6 +66,7 @@ COMMANDS: dict[str, Command] = {
     "template-archive": template_archive.main,
     "macos-bundle": macos_bundle.main,
     "macos-sign": macos_sign.main,
+    "material-assets": material_assets.main,
     "native-build-state": native_build_state.main,
     "ios-pack": ios_pack.main,
     "compile-lua": compile_lua.main,

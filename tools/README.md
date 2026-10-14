@@ -29,7 +29,7 @@ All scripts switch to the repository root before doing work. Use `.bat` on Windo
 Typical commands:
 
 Use the editor's **Export** before running or packaging a project with the
-command-line tools. These tools consume the exported UI and locale Lua files.
+command-line tools. These tools consume the exported UI and locale Lua files and material programs.
 
 ```sh
 ./tools/init.sh
@@ -101,7 +101,7 @@ Each output is published only after FFmpeg succeeds. Batch export continues afte
 
 Checks compare first-party native sources, CMake/resources, the `Main.proj` FFmpeg switch, Windows icon and executable/library identity. Lua, UI, locale, generated files and third-party trees are excluded. Records are specific to configuration, platform and architecture; editor Play requires Debug. Run `build_cpp` after third-party or external CMake changes, or after a direct `cmake --build`, to publish the result for Play. Restoring unchanged source contents can reuse a successful record when no build is pending.
 
-`ScriptTools project-state-worker <project>` provides read-only JSON Lines requests over stdin/stdout. Each request has `version:1`, integer `id`, and `operation`: `ready`, `native-check` (with `configuration:Debug` or `Release`), or `ui-manifest`. Responses echo `id` with `result` or `error`; diagnostics use stderr. It reads current files on every request and writes no build/export records. The editor serialises requests and restarts the worker after bundle changes or process exit, stopping it on cancellation or project close.
+`ScriptTools project-state-worker <project>` provides read-only JSON Lines requests over stdin/stdout. Each request has `version:1`, integer `id`, and `operation`: `ready`, `native-check` (with `configuration:Debug` or `Release`), `ui-manifest`, or `material-manifest`. Responses echo `id` with `result` or `error`; diagnostics use stderr. It reads current files on every request and writes no build/export records. The editor serialises requests and restarts the worker after bundle changes or process exit, stopping it on cancellation or project close.
 
 ### IDE entry points
 
@@ -123,7 +123,7 @@ From a C++ Source project root, run `generate_vs2022.bat` to create `Main.sln`, 
 
 Development packaging regenerates templates unless `--templates` or `--without-templates` is given. Release packaging always omits templates and rejects `--templates`. Both modes require ScriptTools and the host Lua compiler, plus GNU Make on Windows; template-free builds do not require Game dependencies or the FFmpeg source archive. Standalone templates must contain matched previews; Source templates contain preview source. Source templates omit unused SFML test fixtures whose filenames conflict with macOS filesystem normalisation.
 
-Native caches supply runtime binaries, the Windows launcher and generated bindings, enums and preview data. Current Game content is still copied and validated. See [Project Templates](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=01%2F02) for retained files, export exclusions and release downloads.
+Templates exclude `Assets/Shaders/MaterialGenerated`; the first editor Export creates the generated material programs. Native caches supply runtime binaries, the Windows launcher and generated bindings, enums and preview data. Current Game content is still copied and validated. See [Project Templates](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=01%2F02) for retained files, export exclusions and release downloads.
 
 `EDITOR_VERSION` is the editor base version; `GAME_VERSIONS` lists supported project versions and must include the current `v<major.minor>`. New projects use that current version. These are separate from a game's `packaging.version`; see [project compatibility](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=02%2F02#mainproj).
 
@@ -280,7 +280,7 @@ See [UI Authoring Workflow](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang
 | `preview copy <source-project> <target-project>` | Copy matched binaries to `Binaries` and preview JSON to `EditorCache`. |
 | `preview copy --runtime-directory bin/<configuration> <source> <target>` | Reuse copied native-cache outputs without another `Binaries` copy. |
 
-UI generation reads assets and declarations without executing Lua or requiring a Host. Window modules need direct `require` imports and one final `return Ui.DefineWindow(...)`; the optional native base defaults to `Engine.Canvas`. Conflicts are checked before writes; unchanged files retain timestamps and only obsolete generator-marked files are removed. Neither `generate` nor `manifest` runs plug-in hooks or publishes a complete editor Export record. Low-level builds/run/pack commands consume existing UI and locale exports; mobile `--check` is preflight only.
+UI generation reads assets and declarations without executing Lua or requiring a Host. Window modules need direct `require` imports and one final `return Ui.DefineWindow(...)`; the optional native base defaults to `Engine.Canvas`. Conflicts are checked before writes; unchanged files retain timestamps and only obsolete generator-marked files are removed. Neither `generate` nor `manifest` runs plug-in hooks or publishes a complete editor Export record. Low-level builds/run/pack commands consume existing UI, locale and material exports; mobile `--check` is preflight only.
 
 System descriptors belong to the project's `Engine/Source/Core/include/UI/UiControlAdapterDescriptors.hpp` and are exported by `PreviewHost --describe`; tools read project JSON rather than an embedded control table. Publication combines `--describe` with `--build-info`, writing only `EditorCache/Preview.json` and `EditorCache/UiPreview.registry.json`. Manifest v3 records a safe project-relative runtime directory, binary names, configuration and registry identity. The build ID hashes declared binaries and exact UTF-8 registry bytes, including the final LF under the fixed registry filename. Identical content is not rewritten.
 
@@ -300,9 +300,22 @@ Validate host-to-implementation dependencies with:
 
 The checker discovers same-name C++ host/directory and Lua host/module pairs, excluding Lua children with their own mirrored declarations. It reports reverse dependencies, host definitions in implementation folders, Lua partial-class/mixin reuse and Standard ClassRuntime layer violations. CMake exposes `ImplBoundaryValidate`.
 
+### Material export
+
+Editor **Export** compiles saved material graphs through the native PreviewHost after plug-in hooks, generating `Assets/Shaders/MaterialGenerated`. Ordinary Save and command-line build/run/pack tools do not generate material programs. Run and packaging preflight reject missing, modified or obsolete exports.
+
+| ScriptTools command | Purpose |
+|---|---|
+| `material-assets manifest <project-root>` | Read-only input SHA-256 hashes, material paths, expected outputs and the union of expected/existing output paths. |
+| `material-assets validate <project-root>` | Check source hashes, the export format and all generated file hashes without running a compiler or writing files. |
+
+`project-state-worker` exposes the same manifest as `material-manifest`. Manifest inputs include `EditorCache/Preview.json` so editor Export checks invalidate after preview/compiler publication changes. The export record is `Assets/Shaders/MaterialGenerated/export.json`, with `formatVersion: 1`, `generator: "Ludork Material Export"`, project-relative input hashes and output hashes excluding the record itself. CLI validation compares source content and generated files without requiring the export machine's preview build identity, allowing Debug exports to be packaged with Release or another target platform. This record is used by editor exports and tool validation; the game runtime never reads it. Its output list identifies owned files when the editor removes obsolete generated outputs. Packaging validates the record, then removes it from the staging copy before encryption and archiving. The source project's record remains available for later checks; game packages contain neither this root `export.json` record nor its encrypted `export.ldc` form.
+
+Generated programs live under `Materials/<path relative to Data/Materials, without the final .json>`; the empty material uses `Builtin/Default`. Each base directory contains `resource.json`, a `single` program and `layers/<layer path relative to Data/Materials, without the final .json>` programs. Every program has `vertex.vert`, `color.frag`, `surface.frag`, `transmission.frag`, `source.frag` and `program.json`. The editor owns transactional installation and obsolete-file cleanup; the native compiler owns GLSL and metadata. Templates omit all generated materials, while game packages retain their shaders and runtime metadata. `--encrypt-shaders` covers `Assets/Shaders`, including the generated shaders. `--encrypt-data` covers ordinary Data JSON and generated JSON metadata under `Assets/Shaders/MaterialGenerated`; both use the same encrypted data format. `--use-ldpak` stores the generated runtime files in `Assets.ldpak`. Material names that would make a base directory, program directory or output file collide after removing the final `.json` extension are rejected.
+
 ## Game packaging options
 
-For identity, release versions, output layouts, encryption and platform prerequisites, see [Run, Debug and Package](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=02%2F11). Direct commands consume existing UI/locale exports; run editor **Export** first or provide a deliberate equivalent export step.
+For identity, release versions, output layouts, encryption and platform prerequisites, see [Run, Debug and Package](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=02%2F11). Direct commands consume existing UI/locale/material exports; run editor **Export** first or provide a deliberate equivalent export step.
 
 | Option | Behaviour |
 |---|---|

@@ -1,6 +1,7 @@
 #include "PreviewHostSession.hpp"
 
 #include "Protocol/PreviewProtocol.hpp"
+#include "Material/MaterialExport.hpp"
 
 #include <EngineState.hpp>
 #include <Graphics/Materials/MaterialResource.hpp>
@@ -46,6 +47,9 @@ RuntimeData PreviewHostSession::handle(const RuntimeData& requestValue) {
     if (!accepted_) {
         throw std::runtime_error(
             "Preview protocol handshake has not completed");
+    }
+    if (type == "compileMaterial") {
+        return MaterialExport::compile(request);
     }
     const RuntimeData* materials =
         ludork::runtime::value_reader::findValue(request, "materials");
@@ -145,6 +149,7 @@ RuntimeData PreviewHostSession::handshake(const RuntimeData::Map& request) {
     capabilities.emplace_back(RuntimeData("subtitle"));
     capabilities.emplace_back(RuntimeData("map"));
     capabilities.emplace_back(RuntimeData("material"));
+    capabilities.emplace_back(RuntimeData("materialExport"));
     capabilities.emplace_back(RuntimeData("mapActorChanges"));
     capabilities.emplace_back(RuntimeData("persistentFrames"));
     return RuntimeData(object({

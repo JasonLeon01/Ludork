@@ -1,6 +1,8 @@
 #pragma once
 
 #include <Graphics/Materials/MaterialCompiler.hpp>
+#include <Graphics/Materials/MaterialAnalysisProgram.hpp>
+#include <Graphics/Materials/MaterialDefinition.hpp>
 
 #include <array>
 #include <optional>
@@ -17,32 +19,40 @@ public:
         bool time = false;
         bool zero = false;
         std::vector<float> constant;
+        std::optional<std::size_t> instruction;
     };
     using Surface = std::array<Expression, 7>;
 
     GraphCompilerImpl(const MaterialResource& resource, std::string prefix,
                       bool vertex, bool layer, Surface incoming,
-                      const RuntimeData::Map* parameters = nullptr);
+                      MaterialAnalysisProgram* analysisProgram = nullptr);
     Surface compile(unsigned int fields = 127);
     const std::string& body() const;
     const std::vector<MaterialCompiler::Uniform>& uniforms() const;
     static Surface initialSurface();
     static const std::array<const char*, 7>& surfaceFields();
     static std::string glslType(int width);
+    static std::size_t instruction(MaterialAnalysisProgram& program,
+                                   const Expression& expression);
 
 private:
-    Expression input(const MaterialResource::Node& node,
+    Expression record(Expression expression,
+                      MaterialAnalysisProgram::Operation operation,
+                      const std::vector<Expression>& inputs,
+                      std::string parameter = {},
+                      std::vector<int> channels = {});
+    Expression input(const MaterialDefinition::Node& node,
                      const std::string& port, Expression fallback);
     Expression value(const RuntimeData& data);
     Expression output(const std::string& id, const std::string& port);
-    Expression evaluate(const MaterialResource::Node& node,
+    Expression evaluate(const MaterialDefinition::Node& node,
                         const std::string& port);
     Expression expect(Expression value, int width, const std::string& source);
     Expression promote(Expression value, int width);
     void validateGraph();
     void visit(const std::string& id, std::unordered_set<std::string>& active,
                std::unordered_set<std::string>& complete) const;
-    std::string propertyString(const MaterialResource::Node& node,
+    std::string propertyString(const MaterialDefinition::Node& node,
                                const std::string& key,
                                const std::string& fallback) const;
     const MaterialResource& resource_;
@@ -50,8 +60,8 @@ private:
     bool vertex_;
     bool layer_;
     Surface incoming_;
-    const RuntimeData::Map* parameters_ = nullptr;
-    std::unordered_map<std::string, const MaterialResource::Node*> nodes_;
+    MaterialAnalysisProgram* analysisProgram_ = nullptr;
+    std::unordered_map<std::string, const MaterialDefinition::Node*> nodes_;
     std::unordered_map<std::string, Expression> expressions_;
     std::unordered_set<std::string> active_;
     std::vector<MaterialCompiler::Uniform> uniforms_;

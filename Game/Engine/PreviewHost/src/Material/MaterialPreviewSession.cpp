@@ -255,13 +255,12 @@ void MaterialPreviewSession::reset() {
     impl_ = std::make_unique<Impl>();
 }
 RuntimeData MaterialPreviewSession::describe() {
-    return RuntimeData(
-        object({{"type", RuntimeData("materialDescription")},
-                {"registry",
-                 ludork::engine::materials::MaterialResource::nodeRegistry()},
-                {"defaultMaterial",
-                 ludork::engine::materials::MaterialResource::defaultMaterial()
-                     ->data()}}));
+    return RuntimeData(object(
+        {{"type", RuntimeData("materialDescription")},
+         {"registry",
+          ludork::engine::materials::MaterialResource::nodeRegistry()},
+         {"defaultMaterial",
+          ludork::engine::materials::MaterialResource::defaultDocument()}}));
 }
 
 }  // namespace ludork::preview_host

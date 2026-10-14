@@ -1,9 +1,11 @@
 #include <Graphics/Materials/MaterialCompiler.hpp>
+#include <Graphics/Materials/MaterialGenerated.hpp>
 #include "MaterialCompilerImpl.hpp"
 #include "MaterialAnalysisCacheImpl.hpp"
 #include "MaterialSchema.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <iomanip>
 #include <locale>
 #include <sstream>
@@ -15,52 +17,6 @@ namespace {
 MaterialAnalysisCacheImpl& analysisCache() {
     static MaterialAnalysisCacheImpl cache;
     return cache;
-}
-
-RuntimeData relevantParameters(const MaterialResource& material,
-                               const RuntimeData::Map& values,
-                               unsigned int fields) {
-    std::unordered_map<std::string, const MaterialResource::Node*> nodes;
-    for (const MaterialResource::Node& node : material.nodes()) {
-        nodes.emplace(node.id, &node);
-    }
-    RuntimeData::Map result;
-    std::unordered_set<std::string> visited;
-    const auto visit = [&](const auto& self,
-                           const MaterialResource::Node& node) -> void {
-        if (!visited.insert(node.id).second) {
-            return;
-        }
-        if (node.type == "Parameter") {
-            const auto found = node.properties.find("id");
-            if (found != node.properties.end()) {
-                const std::string& id = *found->second.getIf<std::string>();
-                result.emplace(id, values.at(id));
-            }
-        }
-        for (const auto& [name, input] : node.inputs) {
-            static_cast<void>(name);
-            if (const RuntimeData::Map* link =
-                    input.getIf<RuntimeData::Map>()) {
-                self(self, *nodes.at(*link->at("node").getIf<std::string>()));
-            }
-        }
-    };
-    const MaterialResource::Node& output = *nodes.at(material.output());
-    for (std::size_t index = 0;
-         index < GraphCompilerImpl::surfaceFields().size(); ++index) {
-        if ((fields & (1u << index)) == 0) {
-            continue;
-        }
-        const auto value =
-            output.inputs.find(GraphCompilerImpl::surfaceFields()[index]);
-        if (value != output.inputs.end()) {
-            if (const auto* link = value->second.getIf<RuntimeData::Map>()) {
-                visit(visit, *nodes.at(*link->at("node").getIf<std::string>()));
-            }
-        }
-    }
-    return RuntimeData(std::move(result));
 }
 
 std::string floatText(float value) {
@@ -75,11 +31,12 @@ std::string floatText(float value) {
 }
 
 unsigned int layerInputs(const MaterialResource& layer, unsigned int fields) {
-    std::unordered_map<std::string, const MaterialResource::Node*> nodes;
-    for (const MaterialResource::Node& node : layer.nodes()) {
+    std::unordered_map<std::string, const MaterialDefinition::Node*> nodes;
+    for (const MaterialDefinition::Node& node : layer.definition()->nodes()) {
         nodes.emplace(node.id, &node);
     }
-    const MaterialResource::Node& surface = *nodes.at(layer.output());
+    const MaterialDefinition::Node& surface =
+        *nodes.at(layer.definition()->output());
     unsigned int required = 0;
     std::unordered_set<std::string> visited;
     const auto visit = [&](const auto& self, const RuntimeData& input) -> void {
@@ -89,7 +46,7 @@ unsigned int layerInputs(const MaterialResource& layer, unsigned int fields) {
         }
         const std::string& id = *link->at("node").getIf<std::string>();
         const std::string& port = *link->at("port").getIf<std::string>();
-        const MaterialResource::Node& node = *nodes.at(id);
+        const MaterialDefinition::Node& node = *nodes.at(id);
         if (node.type == "SurfaceInput") {
             const auto& names = GraphCompilerImpl::surfaceFields();
             for (std::size_t index = 0; index < names.size(); ++index) {
@@ -138,13 +95,13 @@ void appendUniforms(std::vector<MaterialCompiler::Uniform>& destination,
 MaterialCompiledStage compileStage(
     const MaterialResource& material, const MaterialResource* layer,
     bool vertex, unsigned int fields,
-    const RuntimeData::Map* parameters = nullptr,
-    const RuntimeData::Map* layerParameters = nullptr) {
+    MaterialAnalysisProgram* analysisProgram = nullptr) {
     MaterialCompiledStage stage;
     const unsigned int primaryFields =
         layer && !vertex ? layerInputs(*layer, fields) : fields;
     GraphCompilerImpl primary(material, "m", vertex, false,
-                              GraphCompilerImpl::initialSurface(), parameters);
+                              GraphCompilerImpl::initialSurface(),
+                              analysisProgram);
     stage.surface = primary.compile(primaryFields);
     stage.body = primary.body();
     appendUniforms(stage.uniforms, primary.uniforms());
@@ -158,6 +115,17 @@ MaterialCompiledStage compileStage(
             std::string expression = stage.surface[index].code;
             if (vertex) {
                 const sf::Vector2f maximum = resource.maximumVertexOffset();
+                if (analysisProgram) {
+                    MaterialAnalysisProgram::Instruction instruction;
+                    instruction.operation =
+                        MaterialAnalysisProgram::Operation::VertexClamp;
+                    instruction.width = 2;
+                    instruction.inputs = {GraphCompilerImpl::instruction(
+                        *analysisProgram, stage.surface[index])};
+                    instruction.value.constant = {maximum.x, maximum.y};
+                    stage.surface[index].instruction =
+                        analysisProgram->append(std::move(instruction));
+                }
                 const std::string limit = "vec2(" + floatText(maximum.x) + "," +
                                           floatText(maximum.y) + ")";
                 expression =
@@ -187,12 +155,24 @@ MaterialCompiledStage compileStage(
     if (layer) {
         const GraphCompilerImpl::Expression originalOffset = stage.surface[6];
         GraphCompilerImpl modifier(*layer, "l", vertex, true, stage.surface,
-                                   layerParameters);
+                                   analysisProgram);
         stage.surface = modifier.compile(fields);
         stage.body += modifier.body();
         appendUniforms(stage.uniforms, modifier.uniforms());
         assign(*layer, vertex, fields);
         if (vertex) {
+            if (analysisProgram) {
+                MaterialAnalysisProgram::Instruction instruction;
+                instruction.operation =
+                    MaterialAnalysisProgram::Operation::VertexAdd;
+                instruction.width = 2;
+                instruction.inputs = {GraphCompilerImpl::instruction(
+                                          *analysisProgram, originalOffset),
+                                      GraphCompilerImpl::instruction(
+                                          *analysisProgram, stage.surface[6])};
+                stage.surface[6].instruction =
+                    analysisProgram->append(std::move(instruction));
+            }
             stage.surface[6].time =
                 stage.surface[6].time || originalOffset.time;
             stage.surface[6].zero =
@@ -418,10 +398,24 @@ MaterialCompiler::Analysis analysisOf(const MaterialCompiledStage& fragment,
 MaterialCompiler::Sources MaterialCompiler::compile(
     const MaterialResource& material, const MaterialResource* layer,
     Pass pass) {
+    if (!material.definition() || (layer && !layer->definition())) {
+        throw std::invalid_argument(
+            "Material compilation requires editing definitions");
+    }
+    std::shared_ptr<MaterialAnalysisProgram> analysisProgram =
+        std::make_shared<MaterialAnalysisProgram>();
     const MaterialCompiledStage vertex =
-        compileStage(material, layer, true, 64);
+        compileStage(material, layer, true, 64, analysisProgram.get());
     const MaterialCompiledStage complete =
-        compileStage(material, layer, false, 63);
+        compileStage(material, layer, false, 63, analysisProgram.get());
+    std::array<std::size_t, 7> outputs;
+    for (std::size_t index = 0; index < 6; ++index) {
+        outputs[index] = GraphCompilerImpl::instruction(
+            *analysisProgram, complete.surface[index]);
+    }
+    outputs[6] =
+        GraphCompilerImpl::instruction(*analysisProgram, vertex.surface[6]);
+    analysisProgram->setOutputs(outputs);
     unsigned int fields = 63;
     if (pass == Pass::Transmission) {
         fields = 2 | 16;
@@ -440,6 +434,7 @@ MaterialCompiler::Sources MaterialCompiler::compile(
     appendUniforms(result.uniforms, vertex.uniforms);
     appendUniforms(result.uniforms, fragment.uniforms);
     result.analysis = analysisOf(complete, vertex);
+    result.analysisProgram = std::move(analysisProgram);
     return result;
 }
 
@@ -454,37 +449,32 @@ MaterialCompiler::Analysis MaterialCompiler::analyse(
     const RuntimeData::Map primary = material.resolveParameters(parameters);
     const RuntimeData::Map modifier =
         layer ? layer->resolveParameters(layerParameters) : RuntimeData::Map{};
-    constexpr unsigned int fields = 127;
-    const unsigned int primaryFields =
-        layer ? layerInputs(*layer, fields & 63) | 64 : fields;
+    const std::shared_ptr<const MaterialAnalysisProgram> program =
+        MaterialGenerated::analysisProgram(material, layer);
     const std::string key =
-        material.signature() + '\0' + (layer ? layer->signature() : "") + '\0' +
-        stringifyJSON(relevantParameters(material, primary, primaryFields)) +
-        '\0' +
-        (layer ? stringifyJSON(relevantParameters(*layer, modifier, fields))
-               : "");
+        std::to_string(reinterpret_cast<std::uintptr_t>(program.get())) + '\0' +
+        program->parameterKey(primary, modifier);
     MaterialAnalysisCacheImpl& cache = analysisCache();
     {
         const std::lock_guard lock(cache.mutex);
         if (const auto found = cache.entries.find(key);
             found != cache.entries.end()) {
-            return found->second;
+            return found->second.analysis;
         }
     }
-    const Analysis result = analysisOf(
-        compileStage(material, layer, false, 63, &primary, &modifier),
-        compileStage(material, layer, true, 64, &primary, &modifier));
+    const Analysis result = program->evaluate(primary, modifier);
     {
         const std::lock_guard lock(cache.mutex);
         if (cache.entries.contains(key)) {
-            return cache.entries.at(key);
+            return cache.entries.at(key).analysis;
         }
         if (cache.order.size() >= 256) {
             cache.entries.erase(cache.order.front());
             cache.order.pop_front();
         }
         cache.order.push_back(key);
-        cache.entries.emplace(key, result);
+        cache.entries.emplace(
+            key, MaterialAnalysisCacheImpl::Entry{program, result});
     }
     return result;
 }

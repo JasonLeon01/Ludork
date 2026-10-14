@@ -27,6 +27,8 @@ def _entries(root: pathlib.Path, platform: str) -> list[pathlib.Path]:
             raise ValueError(f"Unsupported template entry: {path}")
         if path.relative_to(root).as_posix() in ("BuildInfo.json", "Data/BuildInfo.json"):
             raise ValueError(f"Generated build information must not be in a template: {path}")
+        if path.relative_to(root).is_relative_to("Assets/Shaders/MaterialGenerated"):
+            raise ValueError(f"Generated materials must not be in a template: {path}")
     return entries
 
 

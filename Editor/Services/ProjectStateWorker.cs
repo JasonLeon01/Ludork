@@ -100,7 +100,7 @@ public sealed class ProjectStateWorker : IDisposable
             if (result.GetProperty("detail").ValueKind != JsonValueKind.String)
                 throw new InvalidDataException("Project state checker returned an invalid native build detail.");
         }
-        else if (operation == "ui-manifest")
+        else if (operation is "ui-manifest" or "material-manifest")
         {
             foreach (JsonProperty input in result.GetProperty("inputs").EnumerateObject())
             {

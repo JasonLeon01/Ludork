@@ -9,6 +9,7 @@ Assets/Shaders/Global/Tone.frag
 Assets/Shaders/Global/Transition.frag
 Assets/Shaders/Global/UnoccludedLightPass.frag
 Assets/Shaders/Global/Weather.frag
+Assets/Shaders/MaterialGenerated
 Assets/System/SliderHandle.png
 Assets/System/SliderLine.png
 Assets/System/icon.icns

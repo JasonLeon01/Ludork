@@ -67,27 +67,63 @@ std::string GraphCompilerImpl::glslType(int width) {
 GraphCompilerImpl::GraphCompilerImpl(const MaterialResource& resource,
                                      std::string prefix, bool vertex,
                                      bool layer, Surface incoming,
-                                     const RuntimeData::Map* parameters)
+                                     MaterialAnalysisProgram* analysisProgram)
     : resource_(resource),
       prefix_(std::move(prefix)),
       vertex_(vertex),
       layer_(layer),
       incoming_(std::move(incoming)),
-      parameters_(parameters) {
-    for (const MaterialResource::Node& node : resource.nodes()) {
+      analysisProgram_(analysisProgram) {
+    if (!resource.definition()) {
+        throw std::invalid_argument(
+            "Material compilation requires an editing definition");
+    }
+    for (const MaterialDefinition::Node& node :
+         resource.definition()->nodes()) {
         nodes_.emplace(node.id, &node);
     }
     validateGraph();
 }
 
+std::size_t GraphCompilerImpl::instruction(MaterialAnalysisProgram& program,
+                                           const Expression& expression) {
+    if (expression.instruction) {
+        return *expression.instruction;
+    }
+    MaterialAnalysisProgram::Instruction instruction;
+    instruction.width = expression.width;
+    instruction.value = {expression.time, expression.zero, expression.constant};
+    return program.append(std::move(instruction));
+}
+
+GraphCompilerImpl::Expression GraphCompilerImpl::record(
+    Expression expression, MaterialAnalysisProgram::Operation operation,
+    const std::vector<Expression>& inputs, std::string parameter,
+    std::vector<int> channels) {
+    if (analysisProgram_) {
+        MaterialAnalysisProgram::Instruction compiled;
+        compiled.operation = operation;
+        compiled.width = expression.width;
+        compiled.parameter = std::move(parameter);
+        compiled.layer = layer_;
+        compiled.channels = std::move(channels);
+        for (const Expression& input : inputs) {
+            compiled.inputs.push_back(instruction(*analysisProgram_, input));
+        }
+        expression.instruction = analysisProgram_->append(std::move(compiled));
+    }
+    return expression;
+}
+
 void GraphCompilerImpl::validateGraph() {
-    const auto root = nodes_.find(resource_.output());
+    const auto root = nodes_.find(resource_.definition()->output());
     if (root == nodes_.end() || root->second->type != "Surface") {
         throw std::invalid_argument(
             "Material graph.output must identify a Surface node");
     }
     const RuntimeData::Array definitions = schema::nodeDefinitions();
-    for (const MaterialResource::Node& node : resource_.nodes()) {
+    for (const MaterialDefinition::Node& node :
+         resource_.definition()->nodes()) {
         const RuntimeData::Map* definition = nullptr;
         for (const RuntimeData& item : definitions) {
             const RuntimeData::Map& fields = *item.getIf<RuntimeData::Map>();
@@ -166,7 +202,8 @@ void GraphCompilerImpl::validateGraph() {
     }
     std::unordered_set<std::string> active;
     std::unordered_set<std::string> complete;
-    for (const MaterialResource::Node& node : resource_.nodes()) {
+    for (const MaterialDefinition::Node& node :
+         resource_.definition()->nodes()) {
         visit(node.id, active, complete);
     }
 }
@@ -191,7 +228,7 @@ void GraphCompilerImpl::visit(const std::string& id,
 }
 
 std::string GraphCompilerImpl::propertyString(
-    const MaterialResource::Node& node, const std::string& key,
+    const MaterialDefinition::Node& node, const std::string& key,
     const std::string& fallback) const {
     const auto found = node.properties.find(key);
     return found == node.properties.end()
@@ -218,13 +255,15 @@ GraphCompilerImpl::Expression GraphCompilerImpl::promote(Expression expression,
         throw std::invalid_argument(
             "Material arithmetic requires matching vector widths or a scalar");
     }
+    const Expression source = expression;
     expression.code = glslType(width) + "(" + expression.code + ")";
     expression.width = width;
     if (!expression.constant.empty()) {
         expression.constant.resize(static_cast<std::size_t>(width),
                                    expression.constant.front());
     }
-    return expression;
+    return record(std::move(expression),
+                  MaterialAnalysisProgram::Operation::Promote, {source});
 }
 
 GraphCompilerImpl::Expression GraphCompilerImpl::value(
@@ -256,7 +295,7 @@ GraphCompilerImpl::Expression GraphCompilerImpl::value(
 }
 
 GraphCompilerImpl::Expression GraphCompilerImpl::input(
-    const MaterialResource::Node& node, const std::string& port,
+    const MaterialDefinition::Node& node, const std::string& port,
     Expression fallback) {
     const auto found = node.inputs.find(port);
     if (found == node.inputs.end()) {
@@ -300,7 +339,7 @@ GraphCompilerImpl::Expression GraphCompilerImpl::output(
 }
 
 GraphCompilerImpl::Expression GraphCompilerImpl::evaluate(
-    const MaterialResource::Node& node, const std::string& port) {
+    const MaterialDefinition::Node& node, const std::string& port) {
     const std::string& type = node.type;
     if (type == "Constant") {
         const auto found = node.properties.find("value");
@@ -320,9 +359,6 @@ GraphCompilerImpl::Expression GraphCompilerImpl::evaluate(
                                         ": " + id);
         }
         const int width = schema::typeWidth(found->type);
-        if (parameters_ && width >= 0) {
-            return value(parameters_->at(id));
-        }
         if (vertex_ && width < 0) {
             throw std::invalid_argument(
                 "Texture access is not available in VertexOffset: " + node.id);
@@ -335,7 +371,8 @@ GraphCompilerImpl::Expression GraphCompilerImpl::evaluate(
                          })) {
             uniforms_.push_back({name, id, found->type, layer_});
         }
-        return {name, width};
+        return record({name, width},
+                      MaterialAnalysisProgram::Operation::Parameter, {}, id);
     }
     if (type == "SurfaceInput") {
         const auto& fields = surfaceFields();
@@ -418,11 +455,13 @@ GraphCompilerImpl::Expression GraphCompilerImpl::evaluate(
         }
         Expression result{glslType(width) + "(", width, false, true};
         bool constant = true;
+        std::vector<Expression> inputs;
         static constexpr const char* channels[]{"X", "Y", "Z", "W"};
         for (int index = 0; index < width; ++index) {
             Expression channel =
                 expect(input(node, channels[index], scalar(index == 3 ? 1 : 0)),
                        1, node.id + "." + channels[index]);
+            inputs.push_back(channel);
             if (index) {
                 result.code += ',';
             }
@@ -439,7 +478,8 @@ GraphCompilerImpl::Expression GraphCompilerImpl::evaluate(
         if (!constant) {
             result.constant.clear();
         }
-        return result;
+        return record(std::move(result),
+                      MaterialAnalysisProgram::Operation::Compose, inputs);
     }
     if (type == "Swizzle") {
         Expression source = input(node, "Value", {"vec4(0.0,0.0,0.0,1.0)", 4});
@@ -452,6 +492,7 @@ GraphCompilerImpl::Expression GraphCompilerImpl::evaluate(
         const std::string_view xyzw = schema::positionChannels;
         const std::string_view rgba = schema::colorChannels;
         std::string canonicalChannels;
+        std::vector<int> indices;
         for (char channel : channels) {
             const std::size_t index = xyzw.find(channel) == std::string::npos
                                           ? rgba.find(channel)
@@ -461,6 +502,7 @@ GraphCompilerImpl::Expression GraphCompilerImpl::evaluate(
                     "Swizzle channel outside input width at " + node.id);
             }
             canonicalChannels += xyzw[index];
+            indices.push_back(static_cast<int>(index));
         }
         if (source.width == 1) {
             if (channels.size() > 1) {
@@ -484,18 +526,23 @@ GraphCompilerImpl::Expression GraphCompilerImpl::evaluate(
                                 return component == 0;
                             });
         }
-        return result;
+        return record(std::move(result),
+                      MaterialAnalysisProgram::Operation::Swizzle, {source}, {},
+                      std::move(indices));
     }
     if (type == "HueShift") {
         const Expression color = expect(input(node, "Color", {"vec3(1.0)", 3}),
                                         3, node.id + ".Color");
         const Expression hue =
             expect(input(node, "Hue", scalar(0)), 1, node.id + ".Hue");
-        return {"hueShift(" + color.code + "," + hue.code + ")", 3,
-                color.time || hue.time, color.zero};
+        return record({"hueShift(" + color.code + "," + hue.code + ")", 3,
+                       color.time || hue.time, color.zero},
+                      MaterialAnalysisProgram::Operation::HueShift,
+                      {color, hue});
     }
     if (type == "Abs" || type == "Floor" || type == "Fract" || type == "Sin") {
         Expression source = input(node, "Value", scalar(0));
+        const Expression operand = source;
         if (source.width < 1) {
             throw std::invalid_argument("Numeric input required at " + node.id);
         }
@@ -522,7 +569,12 @@ GraphCompilerImpl::Expression GraphCompilerImpl::evaluate(
                                 return component == 0;
                             });
         }
-        return source;
+        const MaterialAnalysisProgram::Operation operation =
+            type == "Abs"     ? MaterialAnalysisProgram::Operation::Abs
+            : type == "Floor" ? MaterialAnalysisProgram::Operation::Floor
+            : type == "Fract" ? MaterialAnalysisProgram::Operation::Fract
+                              : MaterialAnalysisProgram::Operation::Sin;
+        return record(std::move(source), operation, {operand});
     }
     const bool ternary =
         type == "Clamp" || type == "Smoothstep" || type == "Lerp";
@@ -639,11 +691,25 @@ GraphCompilerImpl::Expression GraphCompilerImpl::evaluate(
         result.code = function + "(" + a.code + "," + b.code +
                       (ternary ? "," + c.code : "") + ")";
     }
-    return result;
+    const MaterialAnalysisProgram::Operation operation =
+        type == "Add"          ? MaterialAnalysisProgram::Operation::Add
+        : type == "Subtract"   ? MaterialAnalysisProgram::Operation::Subtract
+        : type == "Multiply"   ? MaterialAnalysisProgram::Operation::Multiply
+        : type == "Divide"     ? MaterialAnalysisProgram::Operation::Divide
+        : type == "Min"        ? MaterialAnalysisProgram::Operation::Min
+        : type == "Max"        ? MaterialAnalysisProgram::Operation::Max
+        : type == "Dot"        ? MaterialAnalysisProgram::Operation::Dot
+        : type == "Clamp"      ? MaterialAnalysisProgram::Operation::Clamp
+        : type == "Smoothstep" ? MaterialAnalysisProgram::Operation::Smoothstep
+                               : MaterialAnalysisProgram::Operation::Lerp;
+    return record(std::move(result), operation,
+                  ternary ? std::vector<Expression>{a, b, c}
+                          : std::vector<Expression>{a, b});
 }
 
 GraphCompilerImpl::Surface GraphCompilerImpl::compile(unsigned int fields) {
-    const MaterialResource::Node& root = *nodes_.at(resource_.output());
+    const MaterialDefinition::Node& root =
+        *nodes_.at(resource_.definition()->output());
     Surface result = incoming_;
     for (std::size_t index = 0; index < result.size(); ++index) {
         if ((index == 6) != vertex_) {

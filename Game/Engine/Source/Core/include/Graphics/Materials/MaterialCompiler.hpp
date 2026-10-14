@@ -8,6 +8,8 @@
 
 namespace ludork::engine::materials {
 
+class MaterialAnalysisProgram;
+
 class LUDORK_ENGINE_API MaterialCompiler {
 public:
     enum class Pass {
@@ -37,6 +39,7 @@ public:
         std::string fragment;
         std::vector<Uniform> uniforms;
         Analysis analysis;
+        std::shared_ptr<const MaterialAnalysisProgram> analysisProgram;
     };
 
     static Sources compile(const MaterialResource& material,

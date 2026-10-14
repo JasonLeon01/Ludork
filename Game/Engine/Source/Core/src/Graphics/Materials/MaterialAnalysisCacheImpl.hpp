@@ -9,8 +9,13 @@
 namespace ludork::engine::materials {
 
 struct MaterialAnalysisCacheImpl {
+    struct Entry {
+        std::shared_ptr<const MaterialAnalysisProgram> program;
+        MaterialCompiler::Analysis analysis;
+    };
+
     std::mutex mutex;
-    std::unordered_map<std::string, MaterialCompiler::Analysis> entries;
+    std::unordered_map<std::string, Entry> entries;
     std::deque<std::string> order;
 };
 

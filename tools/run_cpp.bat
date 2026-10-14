@@ -30,6 +30,15 @@ if not exist "%GAME_EXE%" (
     exit /b 1
 )
 
+set "SCRIPT_TOOLS=%~dp0ScriptTools\ScriptTools.exe"
+if not exist "%SCRIPT_TOOLS%" set "SCRIPT_TOOLS=%~dp0..\.tools\ScriptTools\ScriptTools.exe"
+if not exist "%SCRIPT_TOOLS%" (
+    echo ScriptTools was not found. Run tools\init.bat first.
+    exit /b 1
+)
+"%SCRIPT_TOOLS%" material-assets validate "%CPP_DIR%"
+if errorlevel 1 exit /b %errorlevel%
+
 pushd "%CPP_DIR%"
 "%GAME_EXE%"
 set "EXIT_CODE=%ERRORLEVEL%"

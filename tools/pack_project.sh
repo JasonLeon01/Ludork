@@ -107,6 +107,8 @@ if [ ! -f "$PROJECT_FILE" ]; then
     exit 1
 fi
 
+"$SCRIPT_TOOLS" material-assets validate "$PROJECT_DIR"
+
 PACKAGE_METADATA="$TEMPORARY_DIR/package-metadata.json"
 set -- "$PROJECT_DIR" "$PACKAGE_METADATA"
 if [ -n "$PACKAGE_VERSION" ]; then

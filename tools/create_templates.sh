@@ -225,6 +225,7 @@ copy_cpp_template() {
         --exclude 'ThirdPartySource/' \
         --exclude '/Engine/ThirdParty/SFML/test/' \
         --exclude '/Binaries/' \
+        --exclude '/Assets/Shaders/MaterialGenerated/' \
         --exclude '/Scripts/Internal/UI/' \
         --exclude '/Scripts/stub/Internal/UI/' \
         --exclude '/Scripts/stub/Internal/UIWindows/' \
