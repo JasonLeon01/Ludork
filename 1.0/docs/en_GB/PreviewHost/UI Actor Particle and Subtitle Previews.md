@@ -16,11 +16,15 @@ For nested-asset and repeated-template editing, see the [UI Asset Editor](<../Ed
 
 Selecting a Blueprint JSON file in a file selector previews its current appearance and animation, including unsaved changes. A missing appearance or texture displays the file icon.
 
-The Actor Library and Blueprint editing surfaces use resolved Actor appearances. Texture regions, character frame animation, Shader and Hue come from the current Blueprint values. Map instances also apply their instance overrides. Changing inherited defaults, including Undo/Redo, refreshes the affected visuals.
+The Actor Library and Blueprint editing surfaces use resolved Actor appearances. Texture regions, character frame animation, `material` and `materialParameters` come from the current Blueprint values. Map instances also apply their instance overrides. Changing inherited defaults, including Undo/Redo, refreshes the affected visuals.
 
 This is a visual preview, not an Actor gameplay session: it does not execute Actor creation, Tick or Blueprint gameplay events. Use the game to validate behaviour driven by those events.
 
 See [Blueprints, Common Functions and Actors](<../Editor User Guide/Blueprints Common Functions and Actors.md>) for the Actor Library, class and instance editing, and [Map and World Previews](<Map and World Previews.md>) for map lighting, selection aids and Live Debug display.
+
+## Material previews
+
+Open a material from `Data/Materials` to edit exposed defaults or its node graph. The native preview uses the same graph compiler and material renderer as the game, with the current unsaved document, preview texture, frame rectangle, ambient light and optional point light. Compilation errors identify the node and port where available; select an error to focus the node. The generated GLSL is available read-only. Invalid material previews report the failure instead of retaining a stale successful image. See [Materials](<../Editor User Guide/Materials.md>) for authoring and instance overrides.
 
 ## Particle previews
 

@@ -96,9 +96,9 @@ Renders frame-animated character and enemy sheets inside fixed bounds.
 
 | Category | Children | Slot | Key properties |
 |---|---|---|---|
-| Visual | none | — | `size`, `texture`, `textureRect`, `characterScale`, `animatable`, `switchInterval`, `shader`, `hue`, `colour` |
+| Visual | none | — | `size`, `texture`, `textureRect`, `characterScale`, `animatable`, `switchInterval`, `material`, `materialParameters`, `colour` |
 
-`textureRect` selects the initial frame, and `characterScale` adjusts its size. Set `animatable` and a positive `switchInterval` to play equal-width horizontal frames. `shader` accepts a complete `/Game/Assets/Shaders/...` path or an empty string. See [Engine: Layout and Image Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#characterview>).
+`textureRect` selects the initial frame, and `characterScale` adjusts its size. Set `animatable` and a positive `switchInterval` to play equal-width horizontal frames. `material` accepts a complete `Data/Materials/...json` path or an empty string for the default material. `materialParameters` stores per-instance exposed-parameter overrides; changing the material clears them. The property panel uses the selected material's parameter controls. See [Engine: Layout and Image Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#characterview>).
 
 ### Engine.EmitterView
 

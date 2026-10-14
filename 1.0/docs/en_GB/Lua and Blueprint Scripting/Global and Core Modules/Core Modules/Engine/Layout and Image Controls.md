@@ -16,7 +16,7 @@ Direct metadata bases: `{ "Engine", "FunctionalImage" }`
 
 `CharacterView` renders frame-animated character and enemy sheets inside fixed `size` bounds. `textureRect` selects the initial frame, and `characterScale` is applied before the frame is centred and fitted without enlargement. A positive `switchInterval` advances equal-width horizontal frames when `animatable` is true, and a non-positive value pauses animation.
 
-`shader` is empty or a complete `/Game/Assets/Shaders/...` logical path. The control uses the actor uniforms `texture`, `time`, `textureSize` and `textureRect`, plus the world-actor Hue pass. A shader failure renders magenta. `setFrameRect` changes the reset frame, and changing the declarative `texture` resets it to the full texture. Asset properties (`size`, `texture`, optional `textureRect`, `characterScale`, `animatable`, `switchInterval`, `shader`, `hue`, `colour`) are preview data, and runtime calls `setCharacter` with the real snapshot.
+`material` is empty or references a complete `Data/Materials/...json` path; `materialParameters` holds this control's own overrides. The control draws the current frame through the formal material graph. `setFrameRect` changes the reset frame, and changing the declarative `texture` resets it to the full texture. Asset properties (`size`, `texture`, optional `textureRect`, `characterScale`, `animatable`, `switchInterval`, `material`, `materialParameters`, `colour`) provide preview data; runtime passes the real Actor resource and parameter snapshot to `setCharacter`. Apply a new material before its parameters; mutable parameter state is not shared with other Actors.
 
 An invisible CharacterView skips rendering, including direct draw calls.
 
@@ -24,7 +24,7 @@ An invisible CharacterView skips rendering, including direct draw calls.
 
 | Name | Kind | Parameters | Returns | Execution and metadata |
 |---|---|---|---|---|
-| `setCharacter` | `function` | self: { "Engine", "CharacterView" } = "self"; texture: sf.Texture; frameRect: sf.IntRect; characterScale: sf.Vector2f; animatable: bool; switchInterval: float; shaderPath: string = ""; hue: float = 0 | — | — |
+| `setCharacter` | `function` | self: { "Engine", "CharacterView" } = "self"; texture: sf.Texture; frameRect: sf.IntRect; characterScale: sf.Vector2f; animatable: bool; switchInterval: float; material: string = ""; materialParameters: Dict[string, any] = {} | — | — |
 | `setCharacterTexture` | `function` | self: { "Engine", "CharacterView" } = "self"; texture: sf.Texture | — | — |
 | `getCharacterScale` | `function` | self: { "Engine", "CharacterView" } = "self" | return: sf.Vector2f | Pure |
 | `setCharacterScale` | `function` | self: { "Engine", "CharacterView" } = "self"; scale: sf.Vector2f | — | — |
@@ -36,10 +36,10 @@ An invisible CharacterView skips rendering, including direct draw calls.
 | `getFrameRect` | `function` | self: { "Engine", "CharacterView" } = "self" | return: sf.IntRect | Pure |
 | `setFrameRect` | `function` | self: { "Engine", "CharacterView" } = "self"; frameRect: sf.IntRect | — | — |
 | `resetFrameRectToTexture` | `function` | self: { "Engine", "CharacterView" } = "self" | — | — |
-| `getShaderPath` | `function` | self: { "Engine", "CharacterView" } = "self" | return: string | Pure |
-| `setShaderPath` | `function` | self: { "Engine", "CharacterView" } = "self"; shaderPath: string | — | — |
-| `getHue` | `function` | self: { "Engine", "CharacterView" } = "self" | return: float | Pure |
-| `setHue` | `function` | self: { "Engine", "CharacterView" } = "self"; hue: float | — | — |
+| `getMaterial` | `function` | self: { "Engine", "CharacterView" } = "self" | return: string | Pure |
+| `setMaterial` | `function` | self: { "Engine", "CharacterView" } = "self"; material: string | — | — |
+| `getMaterialParameters` | `function` | self: { "Engine", "CharacterView" } = "self" | return: Dict[string, any] | Pure |
+| `setMaterialParameters` | `function` | self: { "Engine", "CharacterView" } = "self"; parameters: Dict[string, any] | — | — |
 | `resetAnimation` | `function` | self: { "Engine", "CharacterView" } = "self" | — | — |
 | `getSize` | `function` | self: { "Engine", "CharacterView" } = "self" | return: sf.Vector2f | Pure |
 | `getLocalBounds` | `function` | self: { "Engine", "CharacterView" } = "self" | return: sf.FloatRect | Pure |

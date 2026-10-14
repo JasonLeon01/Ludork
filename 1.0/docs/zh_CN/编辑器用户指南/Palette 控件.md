@@ -89,9 +89,9 @@ Visual 控件只负责绘制，不接受输入。`ProgressBar` 也归在这一�
 
 | 分类 | 子节点 | Slot | 关键属性 |
 |---|---|---|---|
-| Visual | 无 | — | `size`、`texture`、`textureRect`、`characterScale`、`animatable`、`switchInterval`、`shader`、`hue`、`colour` |
+| Visual | 无 | — | `size`、`texture`、`textureRect`、`characterScale`、`animatable`、`switchInterval`、`material`、`materialParameters`、`colour` |
 
-`textureRect` 选择初始帧，`characterScale` 调整画面大小。启用 `animatable` 并设置正数 `switchInterval` 后，会按顺序播放水平排列的等宽帧。`shader` 可以为空，也可使用完整的 `/Game/Assets/Shaders/...` 路径。详见 [Engine：布局与图像控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/布局与图像控件.md#characterview>)。
+`textureRect` 选择初始帧，`characterScale` 调整画面大小。启用 `animatable` 并设置正数 `switchInterval` 后，会按顺序播放水平排列的等宽帧。`material` 使用完整的 `Data/Materials/...json` 路径，空字符串表示默认材质；`materialParameters` 保存公开参数的实例覆盖，更换材质时清空。属性面板按所选材质提供参数控件。详见 [Engine：布局与图像控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/布局与图像控件.md#characterview>)。
 
 ### Engine.EmitterView
 

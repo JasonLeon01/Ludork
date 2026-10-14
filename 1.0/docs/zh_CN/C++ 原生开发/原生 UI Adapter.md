@@ -49,7 +49,7 @@ Image 的 `drawAs` 使用绑定的 C++ `Image::DrawAs` 枚举，导出名为 `En
 5. 用平台的 `tools/build_cpp` 入口构建 C++ 项目，以更新预览宿主与控件注册表 并校验 UI 资产。属性类型受支持的控件无须重建编辑器或 ScriptTools。
 `Engine.TabView` 是无子节点的 Input 示例：只序列化构造与视觉资源，标签与回调 在运行时绑定。细节见 [UI 资产 Schema 与 Control Registry](<../Lua 与蓝图脚本/声明式 UI/资产 Schema 与 Control Registry.md>)与 [Engine：交互与声明式 UI 控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/交互与声明式 UI 控件.md>)。
 
-`Engine.CharacterView` 是无子节点的动画 Visual 示例。适配器依据 `size`、纹理/Rect、Actor 缩放、动画、Shader 与 Hue 属性构造原生预览状态。裁切、逐帧推进与特效合成由控件类负责，资源路径转换与属性赋值则由适配器负责。
+`Engine.CharacterView` 是无子节点的动画 Visual 示例。适配器依据 `size`、纹理/Rect、Actor 缩放、动画、材质引用与实例参数构造原生预览状态。裁切、逐帧推进与特效合成由控件类负责，资源路径转换与属性赋值则由适配器负责。
 
 预览构建文件、注册表发布与打包规则见 [PreviewHost：构建、发布与排错](<../PreviewHost/构建、发布与排错.md>)。
 

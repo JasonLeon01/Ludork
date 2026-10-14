@@ -4,6 +4,8 @@
 
 `Actor` 提供地图归属、位置、生命周期以及与碰撞相关的行为。Character 类在此基础上增加移动与朝向。公开的类默认值应写在 Lua 类表上，`init` 只用于构造参数和私有运行时状态。
 
+Actor 通过 `material` 引用 `Data/Materials/...json`，通过 `materialParameters` 保存独立实例覆盖。相同材质可供多个 Actor 共享，改变一个 Actor 的参数不会修改其他对象。先设置材质再设置参数；临时修改仍需通过显式状态记录进入存档。材质不会改变移动速度。格式与 API 见[地图与材质](<../全局与 Core 模块/Core Modules/Engine/地图与材质.md#材质资源>)。
+
 `Actor.visible` 默认为 `true`。直接赋值只修改 Actor 自身的标记，`getVisible` 读取该值；`setVisible(value, applyToChildren = true)` 还可以一并更新子 Actor。自身或祖先隐藏时，Actor 不绘制、不遮挡光线、不碰撞、不触发 overlap、不占用寻路格，也不接受地图点击交互。隐藏的敌人不贡献移动危险，也不进入怪物手册列表。可见性变化会刷新受影响的缓存。隐藏会保留实例，不停止 Tick，也不改写碰撞与动画设置。
 
 Actor 可以将 `emitterComp` 配置为 `Engine.EmitterComponent`，附着 [通用粒子](<../../编辑器用户指南/通用粒子.md>) 效果。效果跟随 Actor 变换，按既有列表顺序紧接宿主之前或之后绘制。隐藏或休眠 Actor 冻结 GPU 播放，保留状态和用户手动暂停设置；销毁、世界逐出、地图替换和 Scene 退出会释放效果。Actor 玩法 Tick 保持原有可见性策略。

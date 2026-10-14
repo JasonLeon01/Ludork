@@ -70,7 +70,7 @@ Canvas Slot 根据控件的局部边界定位，并计入边界的非零偏移�
 
 `Engine.TabView` 序列化 `size`、`windowSkin`、仅构造期生效且非空的 `items: string[]`，以及与普通文本共用的内联文本样式或可选 `textConfig`；它不含子节点，也没有自身 Slot。Controller 必须在首个可见帧之前通过 [Engine：交互与声明式 UI 控件](<../全局与 Core 模块/Core Modules/Engine/交互与声明式 UI 控件.md#tabview>) 提供本地化标签并绑定选择行为。`selectedIndex` 与按键提示表只属于运行时，不接受 `tabCount`。
 
-`Engine.CharacterView` 序列化 `size`、`texture`、可选 `textureRect`、`characterScale`、`animatable`、`switchInterval`、`shader`、`hue` 与 `colour`，不接受子节点。`shader` 为空，或是一条完整的 `/Game/Assets/Shaders/...` 逻辑路径。裁剪、动画、Actor 缩放适配、Shader 与 Hue 合成以及固定边界都由该控件负责。它不是输入控件。
+`Engine.CharacterView` 序列化 `size`、`texture`、可选 `textureRect`、`characterScale`、`animatable`、`switchInterval`、`material`、`materialParameters` 与 `colour`，不接受子节点。`material` 为空，或是一条完整的 `Data/Materials/...json` 资源路径；`materialParameters` 是字符串键的纯数据参数覆盖字典。裁剪、动画、Actor 缩放适配、材质绘制与固定边界都由控件负责。
 
 ## 相关页面
 

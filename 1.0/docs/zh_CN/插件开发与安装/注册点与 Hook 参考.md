@@ -50,7 +50,7 @@
 
 `PluginMapSnapshot` 包含标识、尺寸、不透明的 `Revision`，以及由矩形 `Tiles` 和 `AutoTiles` 组成的有序图层。图块集与 Actor 的 `AssetPath` 始终保持大小写精确的 `/Game/Assets/...` 路径。只在实际读写文件 时调用 `ResolveAssetFile`，不要为快照或中间缓存调用它。图块集快照还包含图块尺寸、数量与可通行性。写入请求中的 revision 必须原样照抄。
 
-每个图层还包含不可变的 `PluginMapActorSnapshot`。宿主通过与地图编辑器相同的外观解析器读取蓝图类、脚本类及实例覆盖。`SourceRect` 是解析后的静态贴图矩形，已包含角色朝向对应的首帧，使用方不应再次推导角色图集布局。位移、缩放、原点、旋转、色相和 `PreviewOpacity` 均为解析后的值；不可见 Actor 的透明度为 0.25，可见 Actor 为 1.0。外观缺失时 `AssetPath` 为空、`SourceRect` 为 null，可据此绘制单格占位。绘制以 `CellSize` 为源坐标缩放基准，不使用图块集尺寸。快照不包含动画播放或 shader 执行。
+每个图层还包含不可变的 `PluginMapActorSnapshot`。宿主通过与地图编辑器相同的外观解析器读取蓝图类、脚本类及实例覆盖。`SourceRect` 是解析后的静态贴图矩形，已包含角色朝向对应的首帧，使用方不应再次推导角色图集布局。位移、缩放、原点、旋转、`Material`、`MaterialParameters` 和 `PreviewOpacity` 均为解析后的值；不可见 Actor 的透明度为 0.25，可见 Actor 为 1.0。外观缺失时 `AssetPath` 为空、`SourceRect` 为 null，可据此绘制单格占位。绘制以 `CellSize` 为源坐标缩放基准，不使用图块集尺寸。快照保存外观数据。调用 `IMapEditorHost.AcquireActorPreview(snapshot)` 可让原生材质渲染已解析的源帧；返回的 `IPluginActorPreview` 提供 `Changed` 事件，以及包含预乘 BGRA 像素、尺寸、`OffsetX`／`OffsetY` 和材质错误的 `Frame`。在 Actor 变换前，将偏移加到源帧原点；顶点位移可能扩大输出帧。隐藏时设置 `IsActive = false`，不再使用时释放句柄。源帧动画仍由使用方控制。
 
 局部编辑应复制快照中的完整矩阵，只替换目标矩形，再提交现有图层写入请求。宿主仍校验完整图层及其 revision，没有独立的区域写入 API。
 

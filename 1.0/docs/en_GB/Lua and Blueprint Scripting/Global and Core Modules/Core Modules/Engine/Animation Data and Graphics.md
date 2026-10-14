@@ -117,8 +117,5 @@ Non-empty `assets` entries and the resulting `AnimationSoundEntry.asset` values 
 | `get` | `function` | self: { "Engine", "TileLayerGraphics" } = "self"; position: sf.Vector2i | return: int | Pure |
 | `getAutoTileAt` | `function` | self: { "Engine", "TileLayerGraphics" } = "self"; position: sf.Vector2i | return: { "Engine", "AutoTile" } | Pure |
 | `isPassable` | `function` | self: { "Engine", "TileLayerGraphics" } = "self"; position: sf.Vector2i | return: bool | Pure |
-| `getMaterial` | `function` | self: { "Engine", "TileLayerGraphics" } = "self"; position: sf.Vector2i | return: { "Engine", "Material" } | Pure |
-| `getLightBlockMap` | `function` | self: { "Engine", "TileLayerGraphics" } = "self" | return: float[][] | — |
-| `getReflectionStrengthMap` | `function` | self: { "Engine", "TileLayerGraphics" } = "self" | return: float[][] | — |
-| `getIgnoreLightingMap` | `function` | self: { "Engine", "TileLayerGraphics" } = "self" | return: float[][] | — |
+| `getMaterial` | `function` | self: { "Engine", "TileLayerGraphics" } = "self"; position: sf.Vector2i | return: string? | Pure |
 | `updateAutoTileAnimation` | `function` | self: { "Engine", "TileLayerGraphics" } = "self"; deltaTime: float; frameInterval: float | — | — |

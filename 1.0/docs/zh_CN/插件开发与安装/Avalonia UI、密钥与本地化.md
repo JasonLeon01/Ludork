@@ -29,7 +29,7 @@ return PluginResult.Completed();
 
 通过 `Ludork.Plugin.Avalonia.PluginTheme` 使用编辑器的公共外观：`Brush("Surface")` 或 `Color("Accent")` 读取语义颜色，`FontFamily` 提供包含中文回退的界面字体。可用颜色键为 `Background`、`Surface`、`Input`、`Hover`、`Border`、`Text`、`TextMuted`、`TextDisabled`、`Accent`、`AccentMuted`、`AccentHover`、`AccentPressed`、`TextOnAccent`、`Error`、`Warning` 和 `Success`。在编辑器应用初始化后读取这些资源，并让标准控件继承宿主主题。
 
-`Ludork.Plugin.Avalonia.EditorBitmapEffects` 提供与编辑器预览相同的色相处理。`NormalizeHue(double)` 把角度归一化到 `[0, 360)`，非有限数以及距离整圈不超过 `0.0001` 度的偏移均视为零；`IsNeutralHue(double)` 使用相同规则。`CreateHueShiftedBitmap(Bitmap, double, CancellationToken)` 返回与源图尺寸、DPI 相同的新位图，零偏移时也返回新对象，由调用方负责释放。`ApplyHueShiftBgra(Span<byte>, int width, int height, int stride, double hue, CancellationToken)` 原地修改未预乘的 BGRA 缓冲区，保留 alpha、完全透明像素和行尾填充字节。两种处理方法都接受可选的取消令牌，统一使用 Avalonia 的双精度 HSV 转换与 RGB 最近整数舍入。颜色选择器使用相同转换，并在灰阶颜色下保留上一次色相。
+`Ludork.Plugin.Avalonia.EditorBitmapEffects` 提供用于插件 UI 图片的位图色相处理工具。`NormalizeHue(double)` 把角度归一化到 `[0, 360)`，非有限数以及距离整圈不超过 `0.0001` 度的偏移均视为零；`IsNeutralHue(double)` 使用相同规则。`CreateHueShiftedBitmap(Bitmap, double, CancellationToken)` 返回与源图尺寸、DPI 相同的新位图，零偏移时也返回新对象，由调用方负责释放。`ApplyHueShiftBgra(Span<byte>, int width, int height, int stride, double hue, CancellationToken)` 原地修改未预乘的 BGRA 缓冲区，保留 alpha、完全透明像素和行尾填充字节。两种处理方法都接受可选的取消令牌，统一使用 Avalonia 的双精度 HSV 转换与 RGB 最近整数舍入。颜色选择器使用相同转换，并在灰阶颜色下保留上一次色相。
 
 `EditorZoomInput.PrimaryModifier` 与 `HasPrimaryModifier` 在 macOS 选择 Command，其他平台选择 Control。`EditorZoomAnchor.Capture(contentPoint, viewportPoint, origin, scale)` 记录内容坐标中的光标锚点；布局更新后，`Apply(scrollViewer, origin, scale)` 消费锚点，并将新偏移限制在视口范围内。scale 必须为正有限数。坐标换算、布局订阅和视口复位由调用方负责，`IsPending` 与 `Clear()` 用于检查和清除待应用状态。
 

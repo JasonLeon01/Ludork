@@ -12,7 +12,7 @@ Ordinary maps use one region. Worlds draw regions within each authoritative laye
 
 ## Scene updates
 
-The editor sends current in-memory map data, including unsaved edits and Blueprint instance overrides. It resolves visual records without running Actor creation, Tick or Blueprint gameplay events. Lights remain visual records even when their Actor has no texture.
+The editor sends current in-memory map data, including unsaved edits and Blueprint instance overrides. Material, Actor, map and UI requests include the current material-document snapshots, so graph edits and exposed defaults appear without saving. The native registry supplies the material node and parameter schema; the editor does not maintain a separate shader model. It resolves visual records without running Actor creation, Tick or Blueprint gameplay events. Lights remain visual records even when their Actor has no texture.
 
 A full scene initialises a session. Subsequent changes update scene fields, regions and identified sprite/light records; camera and animation requests reuse the installed scene. Actor-only edits update cached visual records and affected lighting without rescanning terrain or reconstructing Tilemaps. Structural changes and resource refreshes rebuild the necessary scene state. The same rendering path handles ordinary maps, world canvases and thumbnails.
 

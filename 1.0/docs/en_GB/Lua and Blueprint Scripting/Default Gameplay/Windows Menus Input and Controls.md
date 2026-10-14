@@ -26,7 +26,7 @@ Top-level window transitions are linear and default to 0.2 seconds. Internal pan
 
 Related `FadeOut` transitions may run in parallel. Using an inventory item runs its completion callback after the item window is hidden; an open menu then closes and restores movement once no blocking window remains.
 
-Assets include representative `#TAB` and `#ITEM` children and Game visuals. Dynamic collections replace list placeholders before display, and Controllers localise TabView items without changing their count. Enemy Book and Encyclopedia use `CharacterView`. The runtime passes the real actor snapshot, while native code owns cropping, animation, scale and Shader/Hue effects. Enemy Book cells use their authored dimensions; Controllers measure names and special tags against those areas, including on language changes.
+Assets include representative `#TAB` and `#ITEM` children and Game visuals. Dynamic collections replace list placeholders before display, and Controllers localise TabView items without changing their count. Enemy Book and Encyclopedia use `CharacterView`. The runtime passes the real actor snapshot, while native code owns cropping, animation, scale and material effects. Enemy Book cells use their authored dimensions; Controllers measure names and special tags against those areas, including on language changes.
 
 `Source.Windows` modules export UI classes through `Ui.DefineWindow`, with business behaviour in private Controllers. The title's `WindowCommand` binds the four existing rows in `Parts/Title/CommandWindow`; its parent `Title` asset owns placement. UI authoring and file layout are described in [Declarative UI Authoring Workflow](<../Declarative UI/Authoring Workflow.md>).
 
@@ -66,7 +66,7 @@ Telepoint labels resolve the recorded tag through `LOC`. Empty or automatically 
 
 Keyboard, mouse and touch selection update the destination and preview before confirmation. The preview keeps a fixed scale and stays within map bounds, centring axes smaller than the view. Composite previews use the full manifest bounds.
 
-Floor previews use static display records without constructing gameplay Actors or instantiating event graphs. They preserve the configured texture, first-frame rectangle, layer, position, translation, rotation, scale, origin, hue and shader; shader `time` is fixed at `0`. Shader and hue can be combined. Actor constructors, lifecycle callbacks, combat systems, particles, sounds and dynamic damage text do not run, so appearances created only by gameplay scripts are absent.
+Floor previews use static display records without constructing gameplay Actors or instantiating event graphs. They preserve the configured texture, first-frame rectangle, layer, position, translation, rotation, scale, origin, material reference and instance parameters; material time is fixed at `0`. Actor constructors, lifecycle callbacks, combat systems, particles, sounds and dynamic damage text do not run, so appearances created only by gameplay scripts are absent.
 
 Destroyed tags and their child trees are filtered before display records or textures are created. Added and moved records and terrain destruction are restored; declarative `childActorComp` children retain their offsets, tags and ancestor visibility without running component callbacks. Ordinary maps retain their region-hiding rules, and composite children retain world offsets.
 

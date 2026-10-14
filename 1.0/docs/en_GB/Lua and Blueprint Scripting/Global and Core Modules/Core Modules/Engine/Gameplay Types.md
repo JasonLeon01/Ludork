@@ -2,6 +2,10 @@
 
 ## Actor
 
+`material` references a formal 2D material resource; `materialParameters` holds independent per-Actor overrides. Switching material clears the old overrides, and parameter writes are validated against the new resource. See [Maps and Materials](<Maps and Materials.md#material-resources>) for paths, defaults, lighting and masking.
+
+`getMaterialBounds()` (`metadata = false`) returns the world-space visual bounds, including the material's declared maximum vertex displacement and the Actor transform. Runtime capture effects use these bounds to avoid clipping displaced pixels. This method does not change collision bounds or occupied map cells.
+
 `collectTree()` (`metadata = false`) returns a root-first BFS snapshot that preserves child order and ownership. Duplicates or cycles raise an error.
 
 `setGraph` stores an `Engine.Graph` instance, which `getGraph` returns. Passing nil clears the graph, after which `getGraph` returns nil.
@@ -37,9 +41,8 @@ The following Lua-only methods manage additional operations, such as door animat
 | `switchInterval` | `float` | `0.2` | — |
 | `animatable` | `bool` | `false` | — |
 | `visible` | `bool` | `true` | — |
-| `material` | `{ "Engine", "Material" }` | `{  }` | — |
-| `shaderPath` | `string` | `""` | Meta { PathVars = "/Game/Assets/Shaders", PathFilter = "*.frag" } |
-| `hue` | `float` | `0` | Meta { ProgressVars = { [1] = 0, [2] = 360, [3] = 1 } } |
+| `material` | `string` | `""` | Data/Materials/*.json |
+| `materialParameters` | `Dict[string, any]` | `{}` | — |
 | `collisionEnabled` | `bool` | `false` | — |
 | `tickable` | `bool` | `false` | — |
 | `speed` | `float` | `64` | — |
@@ -66,10 +69,6 @@ The following Lua-only methods manage additional operations, such as door animat
 | `setPathfindingBlocks` | `function` | self: { "Engine", "Actor" } = "self"; blocks: bool | — | — |
 | `isDestroyed` | `function` | self: { "Engine", "Actor" } = "self" | return: bool | Pure |
 | `markDestroyed` | `function` | self: { "Engine", "Actor" } = "self"; destroyed: bool | — | — |
-| `setShaderPath` | `function` | self: { "Engine", "Actor" } = "self"; shaderPath: string | — | ExecSplit { [1] = "default", default = nil } |
-| `getShaderPath` | `function` | self: { "Engine", "Actor" } = "self" | shaderPath: string | Pure |
-| `getShader` | `function` | self: { "Engine", "Actor" } = "self" | shader: sf.Shader | Pure |
-| `hasShaderError` | `function` | self: { "Engine", "Actor" } = "self" | error: bool | Pure |
 | `update` | `function` | self: { "Engine", "Actor" } = "self"; deltaTime: float | — | — |
 | `lateUpdate` | `function` | self: { "Engine", "Actor" } = "self"; deltaTime: float | — | — |
 | `fixedUpdate` | `function` | self: { "Engine", "Actor" } = "self"; fixedDelta: float | — | — |
@@ -119,18 +118,11 @@ The following Lua-only methods manage additional operations, such as door animat
 | `setTexture` | `function` | self: { "Engine", "Actor" } = "self"; texture: sf.Texture = nil; resetRect: bool = false | — | ExecSplit { [1] = "default", default = nil } |
 | `setTextureRect` | `function` | self: { "Engine", "Actor" } = "self"; rectangle: sf.IntRect | — | — |
 | `getTextureRect` | `function` | self: { "Engine", "Actor" } = "self" | return: sf.IntRect | Pure |
-| `getMaterial` | `function` | self: { "Engine", "Actor" } = "self" | material: { "Engine", "Material" } | Pure |
-| `setMaterial` | `function` | self: { "Engine", "Actor" } = "self"; material: { "Engine", "Material" } | — | ExecSplit { [1] = "default", default = nil } |
-| `getLightBlock` | `function` | self: { "Engine", "Actor" } = "self" | lightBlock: float | Pure |
-| `setLightBlock` | `function` | self: { "Engine", "Actor" } = "self"; lightBlock: float | — | ExecSplit { [1] = "default", default = nil } |
-| `getMirror` | `function` | self: { "Engine", "Actor" } = "self" | mirror: bool | Pure |
-| `setMirror` | `function` | self: { "Engine", "Actor" } = "self"; mirror: bool | — | ExecSplit { [1] = "default", default = nil } |
-| `getReflectionStrength` | `function` | self: { "Engine", "Actor" } = "self" | reflectionStrength: float | Pure |
-| `setReflectionStrength` | `function` | self: { "Engine", "Actor" } = "self"; reflectionStrength: float | — | ExecSplit { [1] = "default", default = nil } |
-| `getOpacity` | `function` | self: { "Engine", "Actor" } = "self" | opacity: float | Pure |
-| `setOpacity` | `function` | self: { "Engine", "Actor" } = "self"; opacity: float | — | ExecSplit { [1] = "default", default = nil } |
-| `getIgnoreLighting` | `function` | self: { "Engine", "Actor" } = "self" | ignoreLighting: bool | Pure |
-| `setIgnoreLighting` | `function` | self: { "Engine", "Actor" } = "self"; ignoreLighting: bool | — | ExecSplit { [1] = "default", default = nil } |
+| `getMaterial` | `function` | self: { "Engine", "Actor" } = "self" | material: string | Pure |
+| `setMaterial` | `function` | self: { "Engine", "Actor" } = "self"; material: string | — | ExecSplit { [1] = "default", default = nil } |
+| `getMaterialParameter` | `function` | self: { "Engine", "Actor" } = "self"; id: string | return: any | Pure |
+| `setMaterialParameter` | `function` | self: { "Engine", "Actor" } = "self"; id: string; value: any | — | — |
+| `resetMaterialParameter` | `function` | self: { "Engine", "Actor" } = "self"; id: string | — | — |
 | `setGraph` | `function` | self: { "Engine", "Actor" } = "self"; graph: { "Engine", "Graph" } | — | ExecSplit { [1] = "default", default = nil } |
 | `getGraph` | `function` | self: { "Engine", "Actor" } = "self" | return: { "Engine", "Graph" } | Pure |
 | `hasGraph` | `function` | self: { "Engine", "Actor" } = "self" | return: bool | Pure |

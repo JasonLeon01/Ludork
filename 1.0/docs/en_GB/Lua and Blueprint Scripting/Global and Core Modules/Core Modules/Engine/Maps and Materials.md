@@ -1,6 +1,6 @@
 # Engine: Maps and Materials
 
-Resource fields store complete logical paths. `TileLayer.shaderPath` and `TileLayerData.shaderPath` use `/Game/Assets/Shaders/...`, while `AutoTile.fileName` and `Tileset.fileName` use their `Autotiles` and `Tilesets` groups. Shader paths may be empty, and category-relative values are invalid.
+Material references use complete `Data/Materials/...json` paths. `AutoTile.fileName` and `Tileset.fileName` continue to use their `/Game/Assets/Autotiles/...` and `/Game/Assets/Tilesets/...` texture paths.
 
 ## MapFogSettings
 
@@ -44,7 +44,7 @@ Sparse-world streaming reuses Tile graphics chunk readiness through `isCellBuilt
 | Name | Type | Default | Metadata |
 |---|---|---|---|
 | `visible` | `bool` | `true` | — |
-| `shaderPath` | `string` | — | — |
+| `material` | `string` | — | — |
 
 ### Functions and events
 
@@ -58,17 +58,6 @@ Sparse-world streaming reuses Tile graphics chunk readiness through `isCellBuilt
 | `setVisible` | `function` | self: { "Engine", "TileLayer" } = "self"; visible: bool | — | — |
 | `hasContent` | `function` | self: { "Engine", "TileLayer" } = "self"; position: sf.Vector2i | return: bool | Pure |
 | `isDirectionPassable` | `function` | self: { "Engine", "TileLayer" } = "self"; position: sf.Vector2i; directionIndex: int | return: bool | Pure |
-| `getMaterialProperty` | `function` | self: { "Engine", "TileLayer" } = "self"; position: sf.Vector2i; propertyName: string | return: any | Pure |
-| `getLightBlock` | `function` | self: { "Engine", "TileLayer" } = "self"; position: sf.Vector2i | lightBlock: float | Pure |
-| `getMirror` | `function` | self: { "Engine", "TileLayer" } = "self"; position: sf.Vector2i | mirror: bool | Pure |
-| `getReflectionStrength` | `function` | self: { "Engine", "TileLayer" } = "self"; position: sf.Vector2i | reflectionStrength: float | Pure |
-| `getIgnoreLighting` | `function` | self: { "Engine", "TileLayer" } = "self"; position: sf.Vector2i | ignoreLighting: bool | Pure |
-| `getSpeedRate` | `function` | self: { "Engine", "TileLayer" } = "self"; position: sf.Vector2i | speedRate: float | Pure |
-| `updateShader` | `function` | self: { "Engine", "TileLayer" } = "self"; deltaTime: float | — | — |
-| `getShader` | `function` | self: { "Engine", "TileLayer" } = "self" | return: sf.Shader | Pure |
-| `getLightBlockImage` | `function` | self: { "Engine", "TileLayer" } = "self" | return: sf.Image | Pure |
-| `getReflectionStrengthImage` | `function` | self: { "Engine", "TileLayer" } = "self" | return: sf.Image | Pure |
-| `getIgnoreLightingImage` | `function` | self: { "Engine", "TileLayer" } = "self" | return: sf.Image | Pure |
 | `getGridSize` | `function` | self: { "Engine", "TileLayer" } = "self" | return: sf.Vector2u | Pure |
 | `buildNextChunk` | `function` | — | return: bool | Runtime only |
 | `buildChunk` | `function` | chunkX: int; chunkY: int | return: bool | Runtime only |
@@ -101,7 +90,7 @@ The native-only `TileLayer::updateBlock` updates an existing rectangular block a
 | `name` | `string` | `""` | — |
 | `fileName` | `string` | `""` | — |
 | `passable` | `bool` | `true` | — |
-| `material` | `{ "Engine", "Material" }` | — | — |
+| `material` | `string` | `""` | — |
 
 ### Functions and events
 
@@ -110,29 +99,54 @@ The native-only `TileLayer::updateBlock` updates an existing rectangular block a
 | `asDict` | `function` | self: { "Engine", "AutoTile" } = "self" | return: any | — |
 | `fromData` | `function` | data: any | return: { "Engine", "AutoTile" } | — |
 
-## Material
+## Material resources
 
-### Properties
+The shared standard resource is `Data/Materials/Global/Standard.json`. Effect examples and `Surfaces` presets remain directly under `Data/Materials` and its `Surfaces` directory.
 
-| Name | Type | Default | Metadata |
-|---|---|---|---|
-| `lightBlock` | `float` | `0` | — |
-| `mirror` | `bool` | `false` | — |
-| `reflectionStrength` | `float` | `0.5` | — |
-| `opacity` | `float` | `1` | — |
-| `speedRate` | `float` | `1` | — |
-| `ignoreLighting` | `bool` | `false` | — |
+A material is a `Data/Materials/<name>.json` resource with `type: "material"` and `version: 1`. Actors, autotiles and layers reference it with a string. The empty reference selects the standard neutral material; an invalid non-empty reference fails. Material files use the normal Data loader, including encrypted data and `Data.ldpak`; auxiliary textures use canonical `/Game/Assets/...` paths. The host supplies the sprite texture, current frame, transform and time.
 
-`opacity` must be finite and in `[0, 1]`. Constructing a tile graphics layer validates every ordinary and autotile material, including deferred layers, and rejects invalid values with their material source and index. Valid values become alpha bytes by truncating `opacity * 255`.
+| File section | Contents |
+|---|---|
+| `parameters` | Array of stable `id`, `type`, `default`, optional `displayName`, `group`, `min` and `max`. |
+| `graph.nodes` | Nodes with `id`, official `type`, `inputs` and `properties`. An input is a literal or `{ "node": "id", "port": "output" }`. |
+| `graph.output` | The ID of the Surface output node. |
+| `rendering.maxVertexOffset` | Maximum absolute displacement `[x, y]` in local pixels; defaults to `[0, 0]`. |
+| `editor.positions` | Node ID to canvas position; editing data only. |
 
-`lightBlock` must be in `[0, 1]` and describes the blocked fraction across one `CellSize` of material. Partial blockers compound according to penetration length. A value of `0.5` transmits approximately `0.707`, `0.5` and `0.25` across half a cell, one cell and two cells.
+Parameter types are `bool`, `float`, `vec2`, `vec3`, `vec4`, `color` and `texture`. Vectors are numeric arrays; colors are four normalized channels in `[0, 1]`. The optional `displayName` changes the label shown in the editor; the stable `id` used by parameter nodes and instance overrides does not change. Invalid types, unknown parameter IDs and values outside declared ranges fail. The graph is a typed, acyclic data-flow graph; it has no gameplay execution pins or custom GLSL node.
 
-### Functions and events
+### Surface outputs
 
-| Name | Kind | Parameters | Returns | Execution and metadata |
-|---|---|---|---|---|
-| `asDict` | `function` | self: { "Engine", "Material" } = "self" | return: any | — |
-| `fromData` | `function` | data: any | return: { "Engine", "Material" } | — |
+| Output | Meaning and default |
+|---|---|
+| `BaseColor` | RGB sampled from the current sprite. |
+| `Alpha` | Sprite transparency; controls the final visible silhouette. |
+| `Emission` | Local RGB emission, default zero; does not illuminate other objects. |
+| `LightingWeight` | `1` accepts scene light, `0` draws unlit, intermediate values blend between them. |
+| `LightBlock` | Per-pixel light blocking, default `0`; combined with final Alpha to determine transmission through the visible silhouette. |
+| `ReflectionStrength` | Strength of the existing cell-mirror reflection, default `0`. |
+| `VertexOffset` | Local two-dimensional displacement, default zero. |
+
+Unconnected outputs preserve their Surface input. The ordinary root input is the sprite with no emission, blocking or reflection and full lighting weight. Host tint and presentation opacity are applied once by the renderer. Surface lighting, emission and reflection are composed before normal transparent blending, so foreground objects also cover emissive surfaces. Emission is LDR; HDR, Bloom, normal maps and PBR are not part of this format.
+
+Official nodes include Constant, Parameter, Time, LocalUV, LocalPosition, WorldPosition, FrameSize, SurfaceInput, SampleSprite, SampleTexture, scalar/vector arithmetic, Dot, Abs, Floor, Fract, Sin, Clamp, Smoothstep, Lerp, Compose, Swizzle and HueShift. `Parameter.properties.id` selects an exposed parameter. `HueShift` takes degrees. `SampleSprite` accepts frame-local UV and returns Color, Alpha and RGBA; samples outside the current frame return transparent and cannot reach another frame. For pixel offsets, divide by FrameSize before adding to LocalUV. Autotile sampling addresses the assembled complete cell, including across its half-cell seams.
+
+The VertexOffset dependency branch may use positions, time, parameters and mathematics, but cannot sample textures. Its result is clamped to `maxVertexOffset`, and culling includes that declared displacement. Tile material executes first, followed by the layer material using its Surface result. Their offsets are computed from the original coordinates and added. A layer material changes only its connected outputs and does not affect Actors on that layer. `WaterWind` therefore changes positions while preserving each tile's surface properties.
+
+### Actor parameters
+
+`Actor.material` is the shared resource reference; `Actor.materialParameters` is a JSON-compatible dictionary of instance overrides. Changing material clears old overrides, so apply the path before parameters. `getMaterialParameter(id)` returns the effective value; `setMaterialParameter(id, value)` changes only that Actor; `resetMaterialParameter(id)` restores its resource default. Assign the entire dictionary to replace the override set. Editing a returned dictionary alone does not update the Actor.
+
+```lua
+actor:setMaterial("Data/Materials/Frozen.json")
+actor:setMaterialParameter("opacity", 0.65)
+actor:setMaterialParameter("hue", 20)
+actor:resetMaterialParameter("hue")
+```
+
+Blueprint defaults and map-instance overrides can store the reference and parameter dictionary. Temporary runtime changes are not automatically saved; use the existing explicit state-recording workflow. Movement speed is Actor gameplay state and is not a material parameter contract.
+
+The project includes Standard, Rainbow, Frozen, Burning, Petrify, Ghost, Poison, Crystallize, Hologram and WaterWind materials. These are ordinary node graphs, not special Shader modes. The standard and character examples expose `opacity`, `hue`, `lightBlock`, `reflectionStrength` and `lightingWeight`. Shader program generation and binding are engine-owned; Actors do not expose a shader path or mutable shader handle.
 
 ## TileLayerData
 
@@ -149,7 +163,7 @@ The incremental overload accepts dimensions, and `writeBlock` then fills zero-ba
 | `autoTilePool` | `{ "Engine", "AutoTile[]" }` | — | — |
 | `autoTileKeys` | `string[]` | — | — |
 | `layerTilesetKey` | `string` | `""` | — |
-| `shaderPath` | `string` | `""` | — |
+| `material` | `string` | `""` | — |
 
 ### Functions and events
 
@@ -159,6 +173,8 @@ The incremental overload accepts dimensions, and `writeBlock` then fills zero-ba
 
 ## Tileset
 
+`materials` is a sparse map indexed by the existing zero-based tile number; JSON keys are decimal strings. Store only non-empty explicit references. An absent entry selects the standard default material; clear a material by removing its key. The editor saves keys in tile-number order. Tile count comes from the atlas dimensions, independently of the map size; `layer:getTilesetTileCount()` returns that valid tile count.
+
 ### Properties
 
 | Name | Type | Default | Metadata |
@@ -166,7 +182,7 @@ The incremental overload accepts dimensions, and `writeBlock` then fills zero-ba
 | `name` | `string` | `""` | — |
 | `fileName` | `string` | `""` | — |
 | `passable` | `bool[]` | — | — |
-| `materials` | `{ "Engine", "Material[]" }` | — | — |
+| `materials` | `Dict[int, string]` | `{}` | — |
 | `dir4` | `bool[][]` | — | — |
 
 ### Functions and events

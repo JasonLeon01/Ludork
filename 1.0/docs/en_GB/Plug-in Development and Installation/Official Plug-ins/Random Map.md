@@ -25,9 +25,9 @@ The handler receives `PluginMapContextMenuContext`, checks for `IAvaloniaPluginU
 
 ## Actor preview
 
-The preview draws static Actor images in their map layers using the editor's visual resolver for Blueprint and script classes, including per-instance overrides. Character direction selects the first frame of that direction. Texture rectangles, translation, scale, origin, rotation, hue and visibility opacity follow the editor's resolved values; missing resources display a placeholder. Actor dimensions use the host's source cell size, independent of the selected tileset.
+The preview draws static Actor images in their map layers using the editor's visual resolver for Blueprint and script classes, including per-instance overrides. Character direction selects the first frame of that direction. Texture rectangles, translation, scale, origin, rotation, material, parameter overrides and visibility opacity follow the editor's resolved values; missing resources display a placeholder. Actor dimensions use the host's source cell size, independent of the selected tileset.
 
-Actor positions are visual references only. Add a marker explicitly when an Actor's cell must remain open. The preview does not play animations or execute Actor shaders.
+Actor positions are visual references only. Add a marker explicitly when an Actor's cell must remain open. Character sprites retain their resolved first frame. Material effects use native preview rendering, including their time-dependent graph inputs and vertex displacement; the preview does not execute Actor gameplay.
 
 ## Layouts and density
 

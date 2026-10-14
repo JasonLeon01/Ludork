@@ -32,7 +32,7 @@ Construct General Data Attribute Sets with `Source.Configs.GeneralDataTypes.Crea
 
 `Source.Data.GetActorPreviewData(classPath, classVarChanges?)` returns `Source.Data.ActorPreviewData`, or `nil` for an empty class path. Invalid class paths raise an error. It resolves inherited Blueprint and Script Mixin defaults, then applies declared display and condition overrides with their existing typed conversion. Unknown override names fail; unrelated gameplay values and `BlueprintOnly` overrides are not applied. A resolved class must derive from `Engine.Actor`.
 
-The record contains texture and shader paths, the configured first-frame `rect`, `translation`, rotation in degrees, `scale`, `origin`, `visible`, `hue`, condition fields, and optional recursive `child` with its `childOffset`. Declarative `childActorComp` supplies child class and offset; cyclic child references fail. Each call returns independent records and copied mutable `sf` rectangles and vectors, so callers cannot alter shared class defaults or cached templates.
+The record contains texture and material resource paths, the configured first-frame `rect`, `translation`, rotation in degrees, `scale`, `origin`, `visible`, `materialParameters`, condition fields, and optional recursive `child` with its `childOffset`. Declarative `childActorComp` supplies child class and offset; cyclic child references fail. Each call returns independent records and copied parameter dictionaries and mutable `sf` rectangles and vectors, so callers cannot alter shared class defaults or cached templates.
 
 Extraction does not construct gameplay Actors, instantiate event graphs, load the referenced textures, dispatch component or lifecycle callbacks, or initialise combat state. `Source.Data.ClearActorPreviewCache()` discards the class display templates without altering shared class definitions; clearing the floor-preview cache calls it automatically.
 
@@ -106,7 +106,7 @@ Save previews load asynchronously without creating gameplay objects. Confirming 
 
 The window shows loading, empty or failed states. Each opening selects the most recently modified save, or the first slot if none exists. The selected slot receives keyboard focus after the opening animation.
 
-New save screenshots preserve their aspect ratio and are no larger than 224 × 168 pixels. Existing larger screenshots remain readable.
+New save screenshots preserve their aspect ratio and are no larger than 224 脳 168 pixels. Existing larger screenshots remain readable.
 
 Save encryption is independent of project JSON encryption, although Pack Options groups both under **Encrypt game data**.
 

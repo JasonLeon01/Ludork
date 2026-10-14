@@ -77,7 +77,7 @@ Metadata 来源：`Scripts/Global/GameMap_meta.lua`
 | `getAmbientLight` | `function` | self: { "Global.GameMap", "GameMap" } = "self" | ambientLight: sf.Color | Pure |
 | `setAmbientLight` | `function` | self: { "Global.GameMap", "GameMap" } = "self"; ambientLight: sf.Color | — | ExecSplit { [1] = "default", default = nil } |
 | `getSize` | `function` | self: { "Global.GameMap", "GameMap" } = "self" | size: sf.Vector2u | Pure |
-| `getTopMaterial` | `function` | self: { "Global.GameMap", "GameMap" } = "self"; pos: sf.Vector2i | topMaterial: { "Engine", "Material" } | Pure |
+| `getTopMaterial` | `function` | self: { "Global.GameMap", "GameMap" } = "self"; pos: sf.Vector2i | topMaterial: string? | Pure |
 | `findPath` | `function` | self: { "Global.GameMap", "GameMap" } = "self"; start: sf.Vector2i; goal: sf.Vector2i; actor: { "Engine", "Actor" }; excludedAnchors: sf.Vector2i[] = {  } | path: sf.Vector2i[] | Pure |
 | `isPathfindingPassable` | `function` | self: { "Global.GameMap", "GameMap" } = "self"; actor: { "Engine", "Actor" }; targetPosition: sf.Vector2i | passable: bool | Pure |
 | `hasPathBlockingOverlapActor` | `function` | self: { "Global.GameMap", "GameMap" } = "self"; actor: { "Engine", "Actor" }; targetPosition: sf.Vector2i | hasActor: bool | Pure |

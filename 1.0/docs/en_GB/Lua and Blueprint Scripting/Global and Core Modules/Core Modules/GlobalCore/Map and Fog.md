@@ -50,7 +50,6 @@ Fog uses GPU procedural noise in world coordinates. It needs no texture path. Th
 |---|---|---|---|---|
 | `generateDataFromMap` | `function` | self: { "GlobalCore", "GameMapBase" } = "self"; size: sf.Vector2u; materialMap: any[][]; smooth: bool | return: sf.Texture | — |
 | `findPathExt` | `function` | self: { "GlobalCore", "GameMapBase" } = "self"; start: sf.Vector2i; goal: sf.Vector2i; size: sf.Vector2u; movingActor: { "Engine", "Actor" }; excludedAnchors: sf.Vector2i[] = {  } | return: { "GlobalCore", "PathResult" } | — |
-| `getMaterialPropertyMapExt` | `function` | self: { "GlobalCore", "GameMapBase" } = "self"; width: int; height: int; propertyName: string; invalidValue: any | return: any[][] | — |
 | `rebuildPassabilityCache` | `function` | self: { "GlobalCore", "GameMapBase" } = "self"; size: sf.Vector2u | return: bool[][] | — |
 | `updateActorOccupancy` | `function` | self: { "GlobalCore", "GameMapBase" } = "self"; actor: { "Engine", "Actor" } | — | — |
 | `getActorsAt` | `function` | self: { "GlobalCore", "GameMapBase" } = "self"; x: int; y: int | return: { "Engine", "Actor[]" } | — |
@@ -75,7 +74,7 @@ Changing terrain rebuilds connectivity and replacement sources. Moving within on
 
 ## Shared map rendering
 
-`GlobalCore.GameMapRenderer` adapts live map and Actor state to the Core `MapRenderer`; it does not own a second lighting algorithm. `drawContent` preserves the supplied render states and draws the ordered content. `composeFrame(ambientLight, time)` combines that Camera content with materials, lighting, panorama and fog. `prewarm(ambientLight, time)` warms the same rendering path. `setFogController(controller)` attaches the map's instance; `setLayerOrder(names)` follows world layer changes.
+`GlobalCore.GameMapRenderer` adapts live map and Actor state to Core `MapRenderer`. `renderFrame(ambientLight, time, applyPlayerCover, materialRevision, drawLayerEffects, drawOverlay)` renders materials, lighting, reflection, panorama and fog. `drawLayerEffects(layerName, target, states)` runs once per layer per frame; when reflection is needed, the renderer captures and reuses its output. `drawOverlay()` runs once per frame for component overlays. These callbacks draw only; gameplay advances in the normal update phase. `drawContent` preserves the supplied render states for offscreen drawing. `prewarm(ambientLight, time)` warms the same path; `setFogController(controller)` attaches the map fog instance and `setLayerOrder(names)` follows world layer changes.
 
 The shared renderer and editor preview data flow are described in [PreviewHost: Architecture and Data Flow](<../../../../PreviewHost/Architecture and Data Flow.md>). Editor display options are documented in [Map and World Previews](<../../../../PreviewHost/Map and World Previews.md>).
 
@@ -89,13 +88,13 @@ The shared renderer and editor preview data flow are described in [PreviewHost: 
 | `position`, `mapPosition`, `translation` | Pixel anchor, region-visibility cell, and pixel display offset. |
 | `rotation`, `scale`, `origin` | Degrees (default `0`), scale (default `{1, 1}`), and pixel origin. |
 | `visible`, `parentIndex` | Own visibility (default `true`); zero-based earlier record index, or `-1` for a root. |
-| `hue`, `shaderPath` | Hue in degrees (default `0`) and fragment shader path (default empty). |
+| `material`, `materialParameters` | Material resource path (default empty) and instance parameter dictionary (default empty). |
 
 `renderer:setPreviewSprites(records)` requires a renderer constructed with `previewOnly = true`. It retains the display resources and preserves record order within each configured layer. Parents must precede children; invalid parent indices fail without replacing the installed records. Explicitly installing an empty array draws no static sprites. Until records are installed, the renderer retains its ordinary Actor rendering contract.
 
 `renderer:setPreviewVisibility(flags)` requires installed records and exactly one boolean per record, in the same order. It updates own visibility; effective visibility also includes ancestors and the map's region rules. A `nil` texture draws nothing but retains the record's geometry and parent role. Geometry is already resolved into map coordinates; `parentIndex` controls visibility, not transform composition.
 
-Static shader drawing supports hue, uses `texture`, `textureSize`, `textureRect` and the supplied absolute `time` (`0` for floor previews), and combines sprite transforms with the caller's render states, including world offsets. A shader-load failure reports the error and draws the image in magenta. The native-only `GameMapBase::isSpriteVisibleOnMap(position, bounds, transform)` shares the geometry visibility test with live Actors; it is not a Lua binding.
+Static material drawing uses the current frame, instance parameters and supplied absolute time (`0` for floor previews), combining sprite and caller transforms, including world offsets. Invalid materials report an error. The native-only `GameMapBase::isSpriteVisibleOnMap(position, bounds, transform)` shares the geometry visibility test with live Actors; it is not a Lua binding.
 
 ## WorldStreamingState
 

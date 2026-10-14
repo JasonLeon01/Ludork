@@ -49,7 +49,7 @@ Image `drawAs` uses the bound C++ `Image::DrawAs` enum, exported as `Engine.Imag
 5. Build the C++ project with the platform `tools/build_cpp` entry point to update the Host and registry and validate UI assets. Controls using supported property types do not require rebuilding the editor or ScriptTools.
 `Engine.TabView` is the childless Input example: serialise construction and visual resources only, and bind labels and callbacks at runtime. Details are in the [UI Asset Schema and Control Registry](<../Lua and Blueprint Scripting/Declarative UI/Asset Schema and Control Registry.md>) and [Engine: Interactive and Declarative UI Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md>).
 
-`Engine.CharacterView` is the childless animated Visual example. Its adapter constructs the native preview state from `size`, texture/Rect, actor scale, animation, Shader and Hue properties. Its class owns cropping, frame advancement and effect composition, while the adapter owns resource-path conversion and property assignment.
+`Engine.CharacterView` is the childless animated Visual example. Its adapter constructs the native preview state from `size`, texture/Rect, actor scale, animation, material reference and instance parameters. Its class owns cropping, frame advancement and effect composition, while the adapter owns resource-path conversion and property assignment.
 
 Preview build artefacts, registry publication and packaging rules are described in [PreviewHost: Build, Publish and Troubleshooting](<../PreviewHost/Build Publish and Troubleshooting.md>).
 

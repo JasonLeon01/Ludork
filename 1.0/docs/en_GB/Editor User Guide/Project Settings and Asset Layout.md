@@ -72,6 +72,8 @@ Moving an asset does not automatically repair every stored reference. Open its r
 
 ## Data and Scripts
 
+`Data/Materials` stores [2D material](<Materials.md>) resources with `type: "material"` and `version: 1`. References use the complete project-relative `Data/Materials/...json` path. Materials are managed documents and travel with Data in loose, encrypted and `Data.ldpak` packages.
+
 `Data/Subtitles` stores [video subtitle](<Video Subtitles.md>) JSON documents with `type: "subtitle"` and a `sections` array. References use project-relative `Data/Subtitles/...json` paths. These managed editor documents are packaged with Data, including encrypted data and `Data.ldpak`.
 
 `Data/Particles` stores [Common Particle](<Common Particles.md>) definitions. A particle reference is its extensionless relative key; particle textures use complete logical paths, conventionally under `/Game/Assets/Particles`.

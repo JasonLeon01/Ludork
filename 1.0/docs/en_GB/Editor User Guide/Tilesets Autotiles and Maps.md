@@ -20,7 +20,7 @@ Changing a tileset definition after maps have been authored can change what exis
 
 Map JSON requires a `layerOrder` string array, which is the authoritative draw and Actor-processing sequence. `layers` and `actors` remain dictionaries keyed by those names, and the editor keeps the array synchronised. Runtime loading rejects missing, duplicate or unlisted layers. It never infers order from JSON object keys.
 
-An ordinary tileset provides the **Passable**, **Material** and **Dir4** modes. Left-click toggles one tile's passability, opens its material editor or toggles the direction nearest the clicked edge. Shift+left-drag copies the pressed source tile's property through every crossed cell. The current mode chooses the copied value: Passable copies the boolean, Material deep-copies the complete material, and Dir4 copies all four directions. One drag is one Undo step. Autotiles provide **Passable** and **Material** for the whole asset and do not support this batch brush.
+An ordinary tileset provides the **Passable**, **Material** and **Dir4** modes. Left-click toggles one tile's passability, selects its [material resource](<Materials.md>) or toggles the direction nearest the clicked edge. Shift+left-drag copies the pressed source tile's property through every crossed cell. The current mode chooses the copied value: Passable copies the boolean, Material copies the resource reference, and Dir4 copies all four directions. One drag is one Undo step. Clearing a tile material removes its sparse entry and restores the default appearance. Autotiles provide **Passable** and **Material** for the whole asset and do not support this batch brush.
 
 ![Tile palette and layer list in the map editor](../../../images/editor/tile-layers.png)
 
@@ -72,7 +72,7 @@ Preview visibility and lighting are described in [Viewport options](<../PreviewH
 
 ## Layers and painting
 
-Tile mode supports layer creation, rename, reorder, copy, paste and deletion. A layer may have a shader. Selecting a tileset tab changes the active layer's tileset immediately, and its existing tile indices are then interpreted against that tileset. Select a tile or autotile in the palette, paint on the active layer, and use erase for removal. Zoom and pan do not alter map data.
+Tile mode supports layer creation, rename, reorder, copy, paste and deletion. A layer may reference a material: each tile or autotile material runs first, followed by the layer material. Actors use their own material. Selecting a tileset tab changes the active layer's tileset immediately, and its existing tile indices are then interpreted against that tileset. Select a tile or autotile in the palette, paint on the active layer, and use erase for removal. Zoom and pan do not alter map data.
 
 Each layer tab shows its name on the left and its visibility control on the right. Visibility is authored map data, so hidden layers are not rendered and are read-only. Layers and their Actors are drawn in the map's layer order. **Overview** shows all visible layers; selecting a layer dims the others without changing their stacking order.
 
@@ -102,7 +102,7 @@ For invisible Actors, layer dimming and light-range overlays, see [Actor and lay
 
 An Actor light uses `LightComponent.lightOffset` relative to the centre of the Actor's local bounds. The complete Actor transform is applied to the offset, so the emitter follows rotation and scale. For a wall-mounted torch, place the offset at the visible flame on the room side of the wall, because the renderer does not move an emitter to a nearby passable cell.
 
-`Material.lightBlock` is an opacity in the inclusive range `[0, 1]` for one `CellSize` of penetration. `0` is fully transmissive, `1` blocks direct light completely, and intermediate values compound by physical path length. For example, a value of `0.5` transmits approximately `0.707`, `0.5`, and `0.25` through half, one and two cells respectively.
+`Surface.LightBlock` in a material graph is an opacity in the inclusive range `[0, 1]` for one `CellSize` of penetration. `0` is fully transmissive, `1` blocks direct light completely, and intermediate values compound by physical path length. For example, a value of `0.5` transmits approximately `0.707`, `0.5`, and `0.25` through half, one and two cells respectively.
 
 An emitting Actor is excluded only from the dynamic occluders of its own light. It still blocks every other light, while tiles and other Actors at the same position remain occluders. Do not combine a wall and its torch emitter into one Actor. Use a wall occluder Actor and a separate torch Actor, because excluding the emitter also excludes the wall.
 

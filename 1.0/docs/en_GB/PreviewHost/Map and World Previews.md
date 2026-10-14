@@ -2,7 +2,7 @@
 
 ## Native map view
 
-Ordinary maps, the world composition canvas and child-map thumbnails share the game renderer, including animated tiles and Actors, materials, layer shaders, lighting, fog and panorama. Previewing resolves the current in-memory map and Blueprint data, including unsaved changes and instance overrides, without running gameplay scripts, constructors or Actor lifecycle callbacks.
+Ordinary maps, the world composition canvas and child-map thumbnails share the game renderer, including animated tiles and Actors, tile, layer and Actor materials, lighting, fog and panorama. Previewing resolves the current in-memory map, Blueprint and material data, including unsaved changes and instance overrides, without running gameplay scripts, constructors or Actor lifecycle callbacks.
 
 Open a map or world from the Map List to see its preview. Painting, selection, Actor transforms, Undo and world placement are described in [Tilesets, Autotiles and Maps](<../Editor User Guide/Tilesets Autotiles and Maps.md>). For runtime preparation and unavailable-host messages, see [Build, Publish and Troubleshooting](<Build Publish and Troubleshooting.md>).
 
@@ -19,7 +19,7 @@ The fixed, compact dropdown at the upper left of the ordinary-map or world canva
 | Show Light Bounds | Off | Shows light-range helpers in Unlit; disabled in Lit without clearing the saved choice. |
 | Show Actor Origins | On | Shows Actor origin helpers. |
 
-Unlit disables ambient-light tinting, point lights and shadows while retaining texture alpha, material appearance, hue, shaders and reflections. Lit presents the actual illumination without extra light-range circles. Fog uses scene lighting in Lit and its own colour under neutral illumination in Unlit. Fog and panorama switches do not create effects that the map has not configured. See the map guide for [fog settings](<../Editor User Guide/Tilesets Autotiles and Maps.md#fog>) and [panorama authoring](<../Editor User Guide/Tilesets Autotiles and Maps.md#map-list-and-composite-worlds>).
+Unlit disables ambient-light tinting, point lights and shadows while retaining texture alpha, material colour effects, local emission and reflections. Lit presents the actual illumination without extra light-range circles. Fog uses scene lighting in Lit and its own colour under neutral illumination in Unlit. Fog and panorama switches do not create effects that the map has not configured. See the map guide for [fog settings](<../Editor User Guide/Tilesets Autotiles and Maps.md#fog>) and [panorama authoring](<../Editor User Guide/Tilesets Autotiles and Maps.md#map-list-and-composite-worlds>).
 
 All six options are shared within the project and saved immediately in `Main.proj` under `editor.mapViewport`. Switching maps retains them, and reopening the project restores them. They do not change map data or create Undo steps. A project without saved options uses the defaults above.
 
