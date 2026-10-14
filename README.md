@@ -1,10 +1,12 @@
 # Ludork website and documentation
 
-This orphan `gh-pages` branch owns the website, versioned Markdown and images. The editor and engine remain on `main`. Use a separate worktree and keep it for later documentation tasks.
+English | [简体中文](README_zh_CN.md)
+
+The `gh-pages` branch owns the website, versioned Markdown and images. Keep it in a separate worktree; editor and engine sources remain on `main`.
 
 ## Develop and publish
 
-Use Node.js matching `__default__/package.json`, then run from this worktree:
+Use the Node.js version required by [`__default__/package.json`](__default__/package.json), then run:
 
 ```sh
 npm ci --prefix __default__
@@ -12,38 +14,38 @@ git config --local core.hooksPath .githooks
 npm run dev --prefix __default__
 ```
 
-Build with `sh build_docs.sh` on macOS/Linux or `build_docs.bat` on Windows. Both call `build_docs.mjs`; generated pages and assets live at the branch root. Never edit them by hand. `npm run preview --prefix __default__` previews the build and serves versioned content from this worktree.
+| Task | Command |
+| --- | --- |
+| Build on Windows | `build_docs.bat` |
+| Build on macOS/Linux | `sh build_docs.sh` |
+| Preview the build | `npm run preview --prefix __default__` |
 
-Stage the intended documentation and frontend changes before committing. On `gh-pages`, the pre-commit hook builds the site and stages only its generated outputs into the same commit. A failed build or unstaged/untracked build input stops the commit. It does not commit unrelated files, create another commit or push. Configure the hook in each new clone; this repository's `main` worktree uses its own `.githooks/pre-commit` for the existing code check.
+Both build scripts call `build_docs.mjs`. Edit frontend sources in `__default__` and versioned content, not generated HTML, assets or search indexes.
 
-Review and push `gh-pages` yourself. In GitHub Pages, select **Deploy from a branch**, **gh-pages**, **/(root)**. GitHub serves the committed static files; this branch has no custom build workflow. GitHub's web editor does not run local hooks, so build and commit locally before publishing frontend or document-tree changes.
+Stage the intended inputs before committing. The `gh-pages` pre-commit hook builds the site and includes generated outputs in the same commit; build failures or unstaged/untracked build inputs stop the commit. Configure the hook in each clone.
+
+After review, push `gh-pages` and set GitHub Pages to **Deploy from a branch → gh-pages → /(root)**. No custom build workflow is needed. GitHub's web editor does not run local hooks, so build and commit changes locally before publishing.
 
 ## Content and routes
 
-- `versions.json` lists available major.minor versions, newest/default first; currently `1.0`. Each version contains `docs/en_GB`, `docs/zh_CN`, shared About/notices Markdown, and `images`.
-- `/Ludork/docs/v1.0/` is the documentation entry. `lang`, `doc`, `path` and heading fragments select its language and content. `path` is relative to the version directory, such as `docs/en_GB/Ludork Documentation.md`.
-- Each language root has an `order.json` with `home` and ordered `sections`; each top-level chapter has an `order.json` with an ordered `items` tree. Every node has a fixed `key` and a `path` relative to its parent directory; folder nodes in the tree contain `children`. File and directory names have no ordering prefixes. Change array order to reorder the navigation, and preserve keys when renaming or reordering content. Matching English and Chinese pages and folders use the same keys; existing `doc=01/03` links remain valid.
-- The build publishes `/Ludork/docs/v{version}/search-index.{language}.json`, such as `/Ludork/docs/v1.0/search-index.en_GB.json`, for programmatic documentation queries. Its payload is `{ version, language, documents: [{ key, title, path, content }] }`: `title` is the filename without `.md`, `path` is relative to the version directory, and `content` is the complete Markdown with LF line endings. The same navigation manifest supplies the home page and every document in directory order. Consumers select the required version and language explicitly. The index adds no website search UI and becomes available online only after the generated site is published.
-- Sidebar folder groups use the same full-width rows as document links. Click a group or press Enter/Space to expand or collapse its children without navigating. Groups start expanded; navigating to a document or switching language expands its ancestors, which can still be collapsed manually.
-- The pale-blue heading navigator at the bottom right links to the current page's subheadings. On first use it is expanded on desktop and collapsed on narrow screens. The arrow and Escape save the open/closed preference in browser `localStorage`, separately for desktop and narrow screens, across documents, languages, versions and reloads. Selecting a heading on a narrow screen closes the list temporarily without changing that preference. If browser storage is unavailable, the controls still work for the current page.
-- `/Ludork/`, `/Ludork/about/` and `/Ludork/notices/` are the website entries. About and notices accept `version=1.0`; without it they use the default version.
-- `embedded=1` hides the website header and, on About/notices, its footer. Language/version navigation preserves the parameter. The editor supplies its current language and major.minor version.
-- To add a version, add its content directory and entry in `versions.json`; the build derives the documentation HTML entry and language manifests. Vite owns generated source entries under `__default__/docs/v*/` and publishes their compiled output under `docs/v*/`.
+- [`versions.json`](versions.json) lists major.minor versions, default first. Each version contains `docs/en_GB`, `docs/zh_CN`, shared About/notices Markdown and `images`. Add a content directory and version entry to introduce a version; the build generates its HTML entry and language manifests.
+- Each language's root `order.json` defines `home` and ordered `sections`. Each top-level chapter's `order.json` defines an ordered `items` tree. Nodes have a stable `key`, a `path` relative to their parent directory, and `children` for folders in the tree.
+- Use array order for navigation; filenames need no ordering prefixes. Preserve keys when renaming or reordering, and use the same keys for matching English and Chinese content so existing `doc` links stay valid.
 
-## 中文
+| Route or parameter | Purpose |
+| --- | --- |
+| `/Ludork/docs/v1.0/` | Documentation; `lang`, `doc`, `path` and heading fragments select content. `path` is relative to the version directory. |
+| `/Ludork/`, `/Ludork/about/`, `/Ludork/notices/` | Website entries; About and notices accept `version=1.0`, defaulting to the first version. |
+| `embedded=1` | Hides the website header and the About/notices footer; language and version navigation preserve it. |
 
-此 orphan `gh-pages` 分支保存官网、各版本 Markdown 和图片，编辑器与引擎代码位于 `main`。使用独立 worktree，并保留以供后续复用。
+The editor supplies its language and major.minor version when opening embedded pages.
 
-新 clone 先执行上方依赖安装及 hook 配置命令。Windows 使用 `build_docs.bat`，macOS/Linux 使用 `sh build_docs.sh` 构建；不要手改根目录生成的页面和资源。先暂存本次修改，再提交：hook 会构建并把生成文件纳入同一次提交；构建失败或存在未暂存、未跟踪的构建输入时停止提交，不自动 push。
+## Documentation search index
 
-自行 review 并 push 后，在 GitHub Pages 选择 **Deploy from a branch → gh-pages → /(root)**。无需自定义构建 CI。GitHub 网页编辑不会执行本地 hook，前端或文档目录变更需要在本地构建后提交。
+The build generates `/Ludork/docs/v{version}/search-index.{language}.json` for programmatic queries, using this schema:
 
-`versions.json` 按默认版本优先列出版本，目前只有 `1.0`；内容位于 `1.0/docs`，图片位于 `1.0/images`。新增版本时增加目录和版本项即可生成对应入口。文档路径为 `/Ludork/docs/v1.0/`，支持语言、章节、文件路径和标题锚点；关于和声明通过 `version=1.0` 指定版本。`embedded=1` 隐藏官网导航，供编辑器内嵌网页使用。
+```text
+{ version, language, documents: [{ key, title, path, content }] }
+```
 
-各语言根目录的 `order.json` 使用 `home` 指定首页，使用有序的 `sections` 列出顶级章节；每个顶级章节的 `order.json` 使用有序的 `items` 树维护其完整目录。每个节点包含固定的 `key` 和相对于父目录的 `path`，树中的目录节点还包含 `children`。文件名和目录名不带排序前缀，调整数组顺序即可调整导航顺序；重命名或排序时保留原有 `key`，中英文对应页面和目录使用相同的 `key`，现有 `doc=01/03` 链接仍然有效。
-
-构建会生成供程序查询文档的 `/Ludork/docs/v{version}/search-index.{language}.json`，例如 `/Ludork/docs/v1.0/search-index.en_GB.json`。数据结构为 `{ version, language, documents: [{ key, title, path, content }] }`：`title` 是去掉 `.md` 的文件名，`path` 相对于版本目录，`content` 是统一使用 LF 换行的完整 Markdown。索引复用导航 manifest，按目录顺序包含首页和全部文档；使用方显式选择所需版本与语言。该索引不增加网站搜索界面，生成站点发布后才可在线访问。
-
-侧栏目录分组与文档链接使用相同的整行样式，点击或按 Enter/Space 只展开、收起子项，不跳转页面。分组默认展开；跳转文档或切换语言时会展开当前文档的祖先分组，之后仍可手动收起。
-
-右下角的淡蓝色小标题导航可跳转到当前页的小标题；首次使用时桌面端展开、窄屏收起。箭头切换与 Escape 关闭会通过浏览器 `localStorage` 分别记住桌面端和窄屏的展开偏好，在切换文档、语言、版本及刷新后恢复。窄屏点击标题后仅临时收起，不覆盖偏好。浏览器存储不可用时，当前页面仍可正常展开和收起。
+It includes the home page and all documents in navigation order. `title` is the filename without `.md`, `path` is relative to the version directory, and `content` is the full Markdown with LF line endings. Select the required version and language explicitly. The index becomes available online after publishing; it does not add a website search UI.
