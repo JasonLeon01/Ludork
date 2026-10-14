@@ -13,6 +13,8 @@ public sealed partial class ProjectDataStore
     private readonly Dictionary<string, string> invalidLoadErrors = new(StringComparer.Ordinal);
     private readonly object invalidLoadLock = new();
 
+    public bool HasBlueprintSchemaLoadErrors { get; private set; }
+
     public IReadOnlyDictionary<string, string> InvalidLoadErrors
     {
         get
@@ -86,7 +88,9 @@ public sealed partial class ProjectDataStore
     {
         Dictionary<string, JsonObject> blueprints = sections["Blueprints"].ToDictionary(
             entry => entry.Key, entry => entry.Value, StringComparer.Ordinal);
-        foreach ((string key, string error) in getBlueprintSchemaErrors(blueprints))
+        Dictionary<string, string> errors = getBlueprintSchemaErrors(blueprints);
+        HasBlueprintSchemaLoadErrors = errors.Count != 0;
+        foreach ((string key, string error) in errors)
         {
             sections["Blueprints"].Remove(key);
             rejectDataFile(getSectionDataPath("Blueprints", key), error);
@@ -176,6 +180,7 @@ public sealed partial class ProjectDataStore
         }
         catch (Exception exception) when (exception is InvalidDataException or IOException or UnauthorizedAccessException)
         {
+            HasBlueprintSchemaLoadErrors = true;
             rejectDataFile(path, exception.Message);
             return false;
         }

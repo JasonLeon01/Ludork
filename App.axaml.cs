@@ -7,6 +7,7 @@ using Avalonia.Platform.Storage;
 using System;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Ludork.Services;
 using Ludork.Services.Plugins;
@@ -21,6 +22,7 @@ public partial class App : Application
     private EditorSettings? editorSettings;
     private AboutDialog? aboutDialog;
     private string? pendingProjectPath;
+    private bool openingProject;
     internal EditorNotificationService? Notifications { get; private set; }
 
     public override void Initialize()
@@ -56,29 +58,14 @@ public partial class App : Application
             string? projectArgument = pendingProjectPath ?? (desktop.Args ?? Array.Empty<string>())
                 .FirstOrDefault(argument => !string.IsNullOrWhiteSpace(argument) && !argument.StartsWith("--"));
             pendingProjectPath = null;
-            string? projectError = null;
-            MainWindow? projectWindow = string.IsNullOrWhiteSpace(projectArgument)
-                ? null
-                : createProjectWindow(projectArgument, out projectError);
-            if (projectWindow is not null)
+            StartWindow startWindow = new(editorSettings)
             {
-                desktop.MainWindow = projectWindow;
-            }
-            else
-            {
-                StartWindow startWindow = new StartWindow(editorSettings)
-                {
-                    DataContext = new StartViewModel(editorSettings),
-                };
-                registerPluginFailureNotification(startWindow);
-                if (projectError is not null)
-                {
-                    string message = projectError;
-                    startWindow.Opened += async (_, _) =>
-                        await AlertDialog.ShowAsync(startWindow, LocaleService.Get("ERROR"), message);
-                }
-                desktop.MainWindow = startWindow;
-            }
+                DataContext = new StartViewModel(editorSettings),
+            };
+            registerPluginFailureNotification(startWindow);
+            if (!string.IsNullOrWhiteSpace(projectArgument))
+                startWindow.Opened += (_, _) => openProject(startWindow, projectArgument);
+            desktop.MainWindow = startWindow;
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -140,30 +127,44 @@ public partial class App : Application
         openProject(desktop.MainWindow, projectPath);
     }
 
-    public bool openProject(Window currentWindow, string projectFilePath)
+    public async void openProject(Window currentWindow, string projectFilePath)
     {
-        if (ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
-            return false;
-        MainWindow? mainWindow = createProjectWindow(projectFilePath, out string? error);
-        if (mainWindow is null)
+        if (openingProject || ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
+            return;
+        openingProject = true;
+        using CancellationTokenSource cancellation = new();
+        void cancel(object? sender, EventArgs args) => cancellation.Cancel();
+        currentWindow.Closed += cancel;
+        try
         {
-            if (error is not null)
-                _ = AlertDialog.ShowAsync(currentWindow, LocaleService.Get("ERROR"), error);
-            return false;
+            MainWindow? mainWindow = await createProjectWindowAsync(currentWindow, projectFilePath, cancellation.Token);
+            if (mainWindow is null)
+                return;
+            desktop.MainWindow = mainWindow;
+            mainWindow.Show();
+            if (currentWindow is MainWindow previousMain)
+                previousMain.CloseForProjectSwitch();
+            else
+                currentWindow.Close();
         }
-
-        desktop.MainWindow = mainWindow;
-        mainWindow.Show();
-        if (currentWindow is MainWindow previousMain)
-            previousMain.CloseForProjectSwitch();
-        else
-            currentWindow.Close();
-        return true;
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+            or InvalidOperationException or System.Text.Json.JsonException or ProjectStateCheckException)
+        {
+            if (!cancellation.IsCancellationRequested)
+                await AlertDialog.ShowAsync(currentWindow, LocaleService.Get("ERROR"), exception.Message);
+        }
+        finally
+        {
+            currentWindow.Closed -= cancel;
+            openingProject = false;
+        }
     }
 
-    private MainWindow? createProjectWindow(string projectFilePath, out string? error)
+    private async Task<MainWindow?> createProjectWindowAsync(Window owner, string projectFilePath, CancellationToken token)
     {
-        error = null;
         if (editorSettings is null || !Path.IsPathFullyQualified(projectFilePath))
             return null;
         string fullPath = Path.GetFullPath(projectFilePath);
@@ -173,15 +174,29 @@ public partial class App : Application
         if (string.IsNullOrWhiteSpace(projectPath))
             return null;
 
-        error = ProjectVersionService.GetOpenError(fullPath);
+        string? error = ProjectVersionService.GetOpenError(fullPath);
         if (error is not null)
+        {
+            await AlertDialog.ShowAsync(owner, LocaleService.Get("ERROR"), error);
             return null;
-
+        }
         if (pluginWorkspace is not null)
-            Task.Run(() => pluginWorkspace.InitializeProjectAsync(projectPath)).GetAwaiter().GetResult();
+            await pluginWorkspace.InitializeProjectAsync(projectPath, token);
+        token.ThrowIfCancellationRequested();
+        ProjectDataStore? gameData = await EditorProjectOpenWorkflow.LoadAsync(owner, projectPath, token);
+        if (token.IsCancellationRequested)
+        {
+            gameData?.Dispose();
+            token.ThrowIfCancellationRequested();
+        }
+        if (gameData is null)
+        {
+            (ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.Shutdown();
+            return null;
+        }
         TextHintService.SetProjectPath(projectPath);
-        EditorProjectSession session = new EditorProjectSession(projectPath);
-        MainWindow mainWindow = new MainWindow(editorSettings, session);
+        EditorProjectSession session = new(gameData);
+        MainWindow mainWindow = new(editorSettings, session);
         registerPluginFailureNotification(mainWindow);
         editorSettings.recordOpenedProject(fullPath);
         return mainWindow;

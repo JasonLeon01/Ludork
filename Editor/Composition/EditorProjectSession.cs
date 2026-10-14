@@ -1,7 +1,6 @@
 using Ludork.ViewModels;
 using Ludork.Services;
 using System;
-using System.IO;
 
 namespace Ludork.Composition;
 
@@ -9,10 +8,10 @@ public sealed class EditorProjectSession : IDisposable
 {
     private bool disposed;
 
-    public EditorProjectSession(string projectPath)
+    public EditorProjectSession(ProjectDataStore gameData)
     {
-        ProjectPath = Path.GetFullPath(projectPath);
-        GameData = new ProjectDataStore(ProjectPath);
+        ProjectPath = gameData.ProjectPath;
+        GameData = gameData;
         ProjectConfig = new ProjectConfigService(ProjectPath);
         Metadata = GameData.Metadata;
         GameVariables = new GameVariableService(ProjectPath, Metadata, GameData.Documents);

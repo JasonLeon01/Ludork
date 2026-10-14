@@ -9,7 +9,9 @@
         FontFamily="{DynamicResource Editor.FontFamily}"
         Icon="/Editor/Assets/icon.ico">
     <Grid Margin="24" RowDefinitions="*,Auto">
-        <TextBlock x:Name="MessageText" TextWrapping="Wrap" VerticalAlignment="Center" />
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,0,12">
+            <TextBlock x:Name="MessageText" TextWrapping="Wrap" VerticalAlignment="Center" />
+        </ScrollViewer>
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
             <Button x:Name="ConfirmButton" Click="onConfirm" />
             <Button x:Name="CancelButton" Click="onCancel" />

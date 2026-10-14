@@ -3,6 +3,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Ludork.Services;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -14,21 +15,30 @@ public partial class ConfirmationDialog : Window
     {
     }
 
-    public ConfirmationDialog(string title, string message)
+    public ConfirmationDialog(string title, string message, string? details = null)
     {
         InitializeComponent();
         Title = title;
         MessageText.Text = message;
+        if (!string.IsNullOrWhiteSpace(details))
+        {
+            Width = 640;
+            Height = 420;
+            CanResize = true;
+            MinWidth = 440;
+            MinHeight = 240;
+            MessageText.Text += Environment.NewLine + Environment.NewLine + details;
+        }
         ConfirmButton.Content = LocaleService.Get("CONFIRM");
         CancelButton.Content = LocaleService.Get("CANCEL");
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
     }
 
     public static async Task<bool> ShowAsync(
-        Window owner, string title, string message, CancellationToken cancellationToken = default)
+        Window owner, string title, string message, CancellationToken cancellationToken = default, string? details = null)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        ConfirmationDialog dialog = new(title, message);
+        ConfirmationDialog dialog = new(title, message, details);
         using CancellationTokenRegistration registration = cancellationToken.Register(
             () => Dispatcher.UIThread.Post(() => dialog.Close(false)));
         return await dialog.ShowDialog<bool>(owner);

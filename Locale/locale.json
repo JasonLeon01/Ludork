@@ -3063,6 +3063,18 @@
     "zh_CN": "数据文件无效",
     "en_GB": "Invalid Data File"
   },
+  "PROJECT_OPEN_REBUILD_TITLE": {
+    "zh_CN": "重新构建并导出工程",
+    "en_GB": "Rebuild and Export Project"
+  },
+  "PROJECT_OPEN_REBUILD_CONFIRM": {
+    "zh_CN": "工程数据与 Blueprint 元数据不匹配，生成文件可能已过期。是否重新构建并导出，再检查一次？取消将退出程序。",
+    "en_GB": "Project data does not match the Blueprint metadata. Generated files may be out of date. Rebuild and export, then check again? Cancelling will exit the application."
+  },
+  "PROJECT_OPEN_PREPARATION_LOG": {
+    "zh_CN": "工程未打开。完整构建和导出日志：{0}",
+    "en_GB": "The project was not opened. Full build and export log: {0}"
+  },
   "INVALID_DATA_FILE_MESSAGE": {
     "zh_CN": "选中的 .dat 文件不是符合引擎规范的数据文件。",
     "en_GB": "The selected .dat file is not a valid engine data file."

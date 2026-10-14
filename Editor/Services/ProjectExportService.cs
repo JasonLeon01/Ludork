@@ -53,6 +53,29 @@ public sealed class ProjectExportService : IDisposable
     public string Detail { get; private set; } = string.Empty;
     public event EventHandler? Changed;
 
+    public async Task<bool> HasGeneratedFilesAsync(CancellationToken cancellationToken = default)
+    {
+        if (disposed)
+            return false;
+        using CancellationTokenSource cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lifetime.Token);
+        await operationLock.WaitAsync(cancellation.Token);
+        try
+        {
+            if (readRecord() is not { Complete: true })
+                return false;
+            ExportSnapshot snapshot = await captureSnapshotAsync(cancellation.Token);
+            return snapshot.Outputs.All(output => output.Value != "missing");
+        }
+        catch (Exception exception) when (isExportException(exception) || exception is ProjectStateCheckException)
+        {
+            return false;
+        }
+        finally
+        {
+            operationLock.Release();
+        }
+    }
+
     public void RefreshAvailability()
     {
         if (disposed)
