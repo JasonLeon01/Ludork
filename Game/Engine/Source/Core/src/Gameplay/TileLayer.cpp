@@ -2,7 +2,6 @@
 
 #include <EngineState.hpp>
 #include <Utils/Inner.hpp>
-#include <Utils/ShaderLoader.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -20,14 +19,14 @@ TileLayer::TileLayer(
                         normalizeFrameCounts(data, autoTileFrameCounts),
                         deferred),
       visible(visible),
-      shaderPath(data.shaderPath),
+      material(data.material),
       data_(data),
       width_(layerWidth(data)),
       height_(layerHeight(data)),
       texture_(std::move(texture)),
       autoTileTextures_(normalizeAutoTileTextures(data, autoTileTextures)),
       autoTileFrameCounts_(normalizeFrameCounts(data, autoTileFrameCounts)) {
-    loadShader();
+    getLayerMaterial();
 }
 
 TileLayer::~TileLayer() = default;
@@ -57,7 +56,9 @@ std::optional<std::string> TileLayer::getAutoTileKey(int poolIndex) const {
 }
 
 TileLayerData TileLayer::getData() const {
-    return data_;
+    TileLayerData result = data_;
+    result.material = material;
+    return result;
 }
 
 void TileLayer::writeBlock(int x, int y, const TileGrid& tileBlock,
@@ -65,7 +66,7 @@ void TileLayer::writeBlock(int x, int y, const TileGrid& tileBlock,
     data_.validateBlock(x, y, tileBlock, autoTileBlock);
     writePendingBlock(x, y, tileBlock, autoTileBlock);
     data_.writeBlock(x, y, tileBlock, autoTileBlock);
-    invalidateMaterialImages();
+    invalidateContent();
 }
 
 void TileLayer::updateBlock(int x, int y, const TileGrid& tileBlock,
@@ -73,22 +74,16 @@ void TileLayer::updateBlock(int x, int y, const TileGrid& tileBlock,
     data_.validateBlock(x, y, tileBlock, autoTileBlock);
     updateGraphicsBlock(x, y, tileBlock, autoTileBlock);
     data_.writeBlock(x, y, tileBlock, autoTileBlock);
-    invalidateMaterialImages();
+    invalidateContent();
 }
 
 void TileLayer::setAnimationTime(float seconds, float frameInterval) {
     TileLayerGraphics::setAnimationTime(seconds, frameInterval);
-    shaderTime_ = seconds;
+    materialTime_ = seconds;
 }
 
-void TileLayer::invalidateMaterialImages() {
+void TileLayer::invalidateContent() {
     ++contentRevision_;
-    lightBlockMapCache_.reset();
-    reflectionStrengthMapCache_.reset();
-    ignoreLightingMapCache_.reset();
-    lightBlockImageCache_.reset();
-    reflectionStrengthImageCache_.reset();
-    ignoreLightingImageCache_.reset();
 }
 
 std::vector<std::shared_ptr<sf::Texture>> TileLayer::getAutoTileTextures()
@@ -152,7 +147,7 @@ std::shared_ptr<TileLayer> TileLayer::createDisplayLayer(
 
 void TileLayer::syncDisplayAnimation(const TileLayer& source) {
     copyAutoTileAnimation(source);
-    shaderTime_ = source.shaderTime_;
+    materialTime_ = source.materialTime_;
 }
 
 bool TileLayer::getVisible() const {
@@ -187,86 +182,42 @@ bool TileLayer::isDirectionPassable(const sf::Vector2i& position,
     return directions[static_cast<std::size_t>(directionIndex)];
 }
 
-std::optional<MaterialValue> TileLayer::getMaterialProperty(
-    const sf::Vector2i& position, const std::string& propertyName) const {
-    const std::optional<Material> material = getMaterial(position);
-    if (!material.has_value()) {
-        return std::nullopt;
-    }
-
-    return material->getProperty(propertyName);
+std::shared_ptr<const ludork::engine::materials::MaterialResource>
+TileLayer::getLayerMaterial() const {
+    return ludork::engine::materials::MaterialResource::load(material);
 }
 
-std::optional<float> TileLayer::getLightBlock(
-    const sf::Vector2i& position) const {
-    return materialFloat(getMaterialProperty(position, "lightBlock"));
+void TileLayer::drawMaterialPass(
+    sf::RenderTarget& target, sf::RenderStates states,
+    ludork::engine::materials::MaterialProgramCache& programs,
+    ludork::engine::materials::MaterialCompiler::Pass pass,
+    ludork::engine::materials::MaterialProgramCache::Context context) const {
+    context.time = materialTime_;
+    const auto layer = getLayerMaterial();
+    TileLayerGraphics::drawMaterial(target, states, programs, layer.get(), pass,
+                                    context);
 }
 
-std::optional<bool> TileLayer::getMirror(const sf::Vector2i& position) const {
-    return materialBool(getMaterialProperty(position, "mirror"));
+bool TileLayer::hasReflectiveMaterial(const sf::FloatRect& bounds) const {
+    const auto layer = getLayerMaterial();
+    return TileLayerGraphics::hasReflectiveMaterial(
+        layer.get(), getInverseTransform().transformRect(bounds));
 }
 
-std::optional<float> TileLayer::getReflectionStrength(
-    const sf::Vector2i& position) const {
-    return materialFloat(getMaterialProperty(position, "reflectionStrength"));
+sf::Vector2f TileLayer::maximumMaterialOffset() const {
+    return TileLayerGraphics::maximumMaterialOffset() +
+           getLayerMaterial()->maximumVertexOffset();
 }
 
-std::optional<bool> TileLayer::getIgnoreLighting(
-    const sf::Vector2i& position) const {
-    return materialBool(getMaterialProperty(position, "ignoreLighting"));
-}
-
-std::optional<float> TileLayer::getSpeedRate(
-    const sf::Vector2i& position) const {
-    return materialFloat(getMaterialProperty(position, "speedRate"));
-}
-
-void TileLayer::updateShader(float deltaTime) {
-    if (shader == nullptr || !shaderUsesTime_) {
-        return;
-    }
-    shaderTime_ += deltaTime;
+bool TileLayer::hasAnimatedOcclusion() const {
+    const auto layer = getLayerMaterial();
+    return TileLayerGraphics::hasAnimatedOcclusion(layer.get());
 }
 
 void TileLayer::draw(sf::RenderTarget& target, sf::RenderStates states) const {
-    if (shader != nullptr && shaderUsesTime_ && states.shader == shader.get()) {
-        shader->setUniform("time", shaderTime_);
-    }
-    TileLayerGraphics::draw(target, states);
-}
-
-std::shared_ptr<sf::Shader> TileLayer::getShader() const {
-    return shader;
-}
-
-std::shared_ptr<sf::Image> TileLayer::getLightBlockImage() {
-    if (lightBlockImageCache_ == nullptr) {
-        lightBlockImageCache_ = buildMaterialImage(getLightBlockMapView());
-    }
-    return lightBlockImageCache_;
-}
-
-std::shared_ptr<sf::Image> TileLayer::getReflectionStrengthImage() {
-    if (reflectionStrengthImageCache_ == nullptr) {
-        if (!reflectionStrengthMapCache_.has_value()) {
-            reflectionStrengthMapCache_ =
-                TileLayerGraphics::getReflectionStrengthMap();
-        }
-        reflectionStrengthImageCache_ =
-            buildMaterialImage(*reflectionStrengthMapCache_);
-    }
-    return reflectionStrengthImageCache_;
-}
-
-std::shared_ptr<sf::Image> TileLayer::getIgnoreLightingImage() {
-    if (ignoreLightingImageCache_ == nullptr) {
-        if (!ignoreLightingMapCache_.has_value()) {
-            ignoreLightingMapCache_ = TileLayerGraphics::getIgnoreLightingMap();
-        }
-        ignoreLightingImageCache_ =
-            buildMaterialImage(*ignoreLightingMapCache_);
-    }
-    return ignoreLightingImageCache_;
+    drawMaterialPass(target, states, materialPrograms_,
+                     ludork::engine::materials::MaterialCompiler::Pass::Color,
+                     {});
 }
 
 sf::Vector2u TileLayer::getGridSize() const {
@@ -276,13 +227,6 @@ sf::Vector2u TileLayer::getGridSize() const {
 
 bool TileLayer::isCellBuilt(const sf::Vector2i& position) const {
     return TileLayerGraphics::isCellBuilt(position);
-}
-
-const std::vector<std::vector<float>>& TileLayer::getLightBlockMapView() {
-    if (!lightBlockMapCache_.has_value()) {
-        lightBlockMapCache_ = TileLayerGraphics::getLightBlockMap();
-    }
-    return *lightBlockMapCache_;
 }
 
 int TileLayer::layerWidth(const TileLayerData& data) {
@@ -319,64 +263,4 @@ std::vector<int> TileLayer::normalizeFrameCounts(
         }
     }
     return result;
-}
-
-std::optional<float> TileLayer::materialFloat(
-    const std::optional<MaterialValue>& value) {
-    if (!value.has_value()) {
-        return std::nullopt;
-    }
-    const float* number = std::get_if<float>(&*value);
-    return number == nullptr ? std::nullopt : std::optional<float>(*number);
-}
-
-std::optional<bool> TileLayer::materialBool(
-    const std::optional<MaterialValue>& value) {
-    if (!value.has_value()) {
-        return std::nullopt;
-    }
-    const bool* boolean = std::get_if<bool>(&*value);
-    return boolean == nullptr ? std::nullopt : std::optional<bool>(*boolean);
-}
-
-void TileLayer::loadShader() {
-    if (shaderPath.empty()) {
-        return;
-    }
-    const std::optional<sf::Shader::Type> shaderType =
-        ShaderLoader::inferType(shaderPath);
-    if (!shaderType.has_value()) {
-        std::cerr << "Unsupported tile layer shader extension: " << shaderPath
-                  << '\n';
-        return;
-    }
-
-    ShaderLoadResult result = ShaderLoader::load(shaderPath, *shaderType);
-    if (!result) {
-        std::cerr << result.error << '\n';
-        return;
-    }
-    shader = std::move(result.shader);
-    shaderUsesTime_ =
-        result.source.find("uniform float time") != std::string::npos;
-}
-
-std::shared_ptr<sf::Image> TileLayer::buildMaterialImage(
-    const std::vector<std::vector<float>>& values) const {
-    std::shared_ptr<sf::Image> image =
-        std::make_shared<sf::Image>(getGridSize());
-    for (int y = 0; y < height_; ++y) {
-        for (int x = 0; x < width_; ++x) {
-            const float value = y < static_cast<int>(values.size()) &&
-                                        x < static_cast<int>(values[y].size())
-                                    ? values[y][x]
-                                    : 0.0f;
-            const int channel = std::clamp(
-                static_cast<int>(std::floor(value * 255.0f)), 0, 255);
-            image->setPixel(
-                {static_cast<unsigned int>(x), static_cast<unsigned int>(y)},
-                sf::Color(channel, channel, channel));
-        }
-    }
-    return image;
 }

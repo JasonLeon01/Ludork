@@ -21,9 +21,8 @@ MapRenderer::Sprite GameMapRendererImpl::actorSprite(
     sprite.material = actor->getMaterial();
     sprite.colour = {255, 255, 255,
                      static_cast<std::uint8_t>(std::clamp(alpha, 0, 255))};
-    sprite.hue = actor->hue;
-    sprite.shader = actor->getShader();
-    sprite.shaderError = actor->hasShaderError();
+    sprite.materialParameters = actor->getMaterialParameters();
+    sprite.materialResource = actor->getMaterialResource();
     return sprite;
 }
 
@@ -48,9 +47,9 @@ void GameMapRendererImpl::buildScene(bool applyCover, int materialRevision) {
             sprite.texture = entry.data.texture;
             sprite.textureRect = entry.data.rect;
             sprite.transform = entry.transform;
-            sprite.hue = entry.data.hue;
-            sprite.shader = entry.shader;
-            sprite.shaderError = entry.shaderError;
+            sprite.material = entry.data.material;
+            sprite.materialParameters = entry.data.materialParameters;
+            sprite.materialResource = entry.materialResource;
             sprite.visible = entry.visibleOnMap;
             scene.sprites.push_back(std::move(sprite));
         }
@@ -111,10 +110,17 @@ void GameMapRendererImpl::buildScene(bool applyCover, int materialRevision) {
 void GameMapRendererImpl::drawContent(
     sf::RenderTarget& target, const sf::RenderStates& states, bool applyCover,
     float time, int materialRevision,
-    const std::function<void(const std::string&)>& effects) {
+    const std::function<void(const std::string&, sf::RenderTarget&,
+                             const sf::RenderStates&)>& effects) {
     buildScene(applyCover, materialRevision);
     MapRenderer::Options options;
     options.time = time;
+    renderer.drawContent(scene, target, states, options, drawHooks(effects));
+}
+
+MapRenderer::DrawHooks GameMapRendererImpl::drawHooks(
+    const std::function<void(const std::string&, sf::RenderTarget&,
+                             const sf::RenderStates&)>& effects) {
     MapRenderer::DrawHooks hooks;
     hooks.beforeSprite = [this](std::uint64_t id, sf::RenderTarget& output,
                                 const sf::RenderStates& drawStates) {
@@ -133,14 +139,8 @@ void GameMapRendererImpl::drawContent(
             found->second->drawBillboard(output, drawStates);
         }
     };
-    if (effects) {
-        hooks.afterLayer = [&effects](const std::string& layer,
-                                      sf::RenderTarget&,
-                                      const sf::RenderStates&) {
-            effects(layer);
-        };
-    }
-    renderer.drawContent(scene, target, states, options, hooks);
+    hooks.afterLayer = effects;
+    return hooks;
 }
 
 void GameMapRendererImpl::drawActor(sf::RenderTarget& target,
@@ -163,7 +163,13 @@ MapRenderer::View GameMapRendererImpl::renderView() const {
             camera->getRenderTexture()->getSize()};
 }
 
-void GameMapRendererImpl::composeFrame(const sf::Color& ambient, float time) {
+void GameMapRendererImpl::renderFrame(
+    const sf::Color& ambient, float time, bool applyPlayerCover,
+    int materialRevision,
+    const std::function<void(const std::string&, sf::RenderTarget&,
+                             const sf::RenderStates&)>& effects,
+    const std::function<void()>& overlays) {
+    buildScene(applyPlayerCover, materialRevision);
     scene.ambientLight = ambient;
     scene.panorama = PanoramaController::getTexture();
     if (fogController) {
@@ -174,10 +180,20 @@ void GameMapRendererImpl::composeFrame(const sf::Color& ambient, float time) {
     options.time = time;
     options.lightingScale = Graphics::getLightingRenderScale();
     const MapRenderer::View view = renderView();
-    const std::shared_ptr<sf::RenderTexture> canvas =
-        camera->getRenderTexture();
-    const sf::RenderTexture& result =
-        renderer.compose(scene, view, options, canvas->getTexture());
+    const auto canvas = camera->getRenderTexture();
+    const sf::Texture* overlayTexture = nullptr;
+    if (overlays) {
+        if (!overlay || overlay->getSize() != view.pixelSize) {
+            overlay = std::make_shared<sf::RenderTexture>(view.pixelSize);
+        }
+        overlay->setView(canvas->getView());
+        overlay->clear(sf::Color::Transparent);
+        camera->withRenderTarget(overlay, overlays);
+        overlay->display();
+        overlayTexture = &overlay->getTexture();
+    }
+    const sf::RenderTexture& result = renderer.render(
+        scene, view, options, drawHooks(effects), overlayTexture);
     const sf::View saved = canvas->getView();
     canvas->setView(canvas->getDefaultView());
     canvas->clear(sf::Color::Transparent);

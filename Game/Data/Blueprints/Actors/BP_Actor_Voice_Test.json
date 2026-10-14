@@ -5,16 +5,10 @@
     "scriptPath": "",
     "switchInterval": 0.2,
     "animatable": true,
-    "material": {
-      "lightBlock": 0.3,
-      "mirror": false,
-      "reflectionStrength": 0.5,
-      "opacity": 1,
-      "speedRate": 1,
-      "ignoreLighting": false
+    "material": "Data/Materials/Global/Standard.json",
+    "materialParameters": {
+      "lightBlock": 0.3
     },
-    "shaderPath": "",
-    "hue": 0,
     "tickable": false,
     "speed": 64,
     "autoSound": "",

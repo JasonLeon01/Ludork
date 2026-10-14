@@ -3,14 +3,15 @@
 #include <CoreMinimal.hpp>
 
 #include <EngineRuntimeApi.hpp>
-#include <General/Material.hpp>
+#include <Graphics/Materials/MaterialProgramCache.hpp>
 #include <General/TileLayerData.hpp>
 
 #include <atomic>
 
 namespace ludork::engine::tilemap_graphics_impl {
 struct TileChunk;
-}
+class AutoTileAtlas;
+}  // namespace ludork::engine::tilemap_graphics_impl
 
 ////////////////////////////////////////////////////////////
 /// \brief GPU-accelerated tile layer renderer using vertex arrays
@@ -131,31 +132,24 @@ public:
     /// - \return Material, or `std::nullopt`
     ////////////////////////////////////////////////////////////
     BIND_METHOD(Pure = true)
-    std::optional<Material> getMaterial(const sf::Vector2i& position) const;
+    std::optional<std::string> getMaterial(const sf::Vector2i& position) const;
 
-    ////////////////////////////////////////////////////////////
-    /// \brief Build a light-block grid
-    ///
-    /// - \return 2D light-block map
-    ////////////////////////////////////////////////////////////
-    BIND_METHOD()
-    std::vector<std::vector<float>> getLightBlockMap() const;
+    BIND_METHOD(Pure = true)
+    int getTilesetTileCount() const;
 
-    ////////////////////////////////////////////////////////////
-    /// \brief Build a reflection-strength grid
-    ///
-    /// - \return 2D reflection-strength map
-    ////////////////////////////////////////////////////////////
-    BIND_METHOD()
-    std::vector<std::vector<float>> getReflectionStrengthMap() const;
-
-    ////////////////////////////////////////////////////////////
-    /// \brief Build an ignore-lighting grid
-    ///
-    /// - \return 2D ignore-lighting map
-    ////////////////////////////////////////////////////////////
-    BIND_METHOD()
-    std::vector<std::vector<float>> getIgnoreLightingMap() const;
+    void drawMaterial(
+        sf::RenderTarget& target, sf::RenderStates states,
+        ludork::engine::materials::MaterialProgramCache& programs,
+        const ludork::engine::materials::MaterialResource* layer,
+        ludork::engine::materials::MaterialCompiler::Pass pass,
+        ludork::engine::materials::MaterialProgramCache::Context context) const;
+    bool mayBlockLight(const sf::Vector2i& position) const;
+    bool hasReflectiveMaterial(
+        const ludork::engine::materials::MaterialResource* layer,
+        const sf::FloatRect& bounds) const;
+    sf::Vector2f maximumMaterialOffset() const;
+    bool hasAnimatedOcclusion(
+        const ludork::engine::materials::MaterialResource* layer) const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Advance autotile animation by an elapsed time
@@ -328,12 +322,24 @@ private:
     std::size_t drawRevision_ = 0;
     std::vector<std::vector<std::optional<int>>> tiles_;
     std::vector<bool> passable_;
-    std::vector<Material> materials_;
+    std::unordered_map<int, std::string> materials_;
+    std::unordered_map<
+        int, std::shared_ptr<const ludork::engine::materials::MaterialResource>>
+        materialResources_;
+    std::shared_ptr<const ludork::engine::materials::MaterialResource>
+        defaultMaterial_;
+    sf::Vector2f maximumMaterialOffset_;
+    mutable ludork::engine::materials::MaterialProgramCache materialPrograms_;
 
     AutoTileGrid autoTiles_;
     std::vector<AutoTile> autoTilePool_;
     std::vector<std::shared_ptr<sf::Texture>> autoTileTextures_;
-    std::vector<Material> autoTileMaterials_;
+    std::vector<
+        std::shared_ptr<const ludork::engine::materials::MaterialResource>>
+        autoTileMaterials_;
+    std::vector<
+        std::shared_ptr<ludork::engine::tilemap_graphics_impl::AutoTileAtlas>>
+        autoTileAtlases_;
     std::vector<int> autoTileFrameCounts_;
     std::vector<int> autoTileCurrentFrames_;
     float autoTileAnimationAccum_;

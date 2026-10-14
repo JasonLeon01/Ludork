@@ -6,6 +6,7 @@ internal static class ReferenceTypeDisplay
     {
         string key = type switch
         {
+            "material" => "MATERIAL_EDITOR",
             "asset" => "REFERENCE_TYPE_ASSET",
             "autoTile" => "REFERENCE_TYPE_AUTOTILE",
             "blueprint" => "REFERENCE_TYPE_BLUEPRINT",

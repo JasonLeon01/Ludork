@@ -48,16 +48,6 @@ public sealed partial class MapPanel
             loaded = await data.Thumbnails.AcquireAsync(path, 0, cancellationToken);
             if (loaded is null)
                 return;
-            if (!EditorBitmapEffects.IsNeutralHue(descriptor.Hue))
-            {
-                EditorThumbnailLease? colored = await data.Thumbnails.AcquireDerivedAsync(path, 0,
-                    FormattableString.Invariant($"map-ghost-hue:{EditorBitmapEffects.NormalizeHue(descriptor.Hue):R}"), loaded,
-                    source => EditorBitmapEffects.CreateHueShiftedBitmap(source, descriptor.Hue), cancellationToken);
-                loaded.Dispose();
-                loaded = colored;
-                if (loaded is null)
-                    return;
-            }
             cancellationToken.ThrowIfCancellationRequested();
             if (VisualRoot is null || IsRuntimeEditing || !ReferenceEquals(gameData, data)
                 || !ReferenceEquals(previewService, previews) || CurrentMapKey != mapKey || pendingActor != reference)

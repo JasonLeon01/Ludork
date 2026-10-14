@@ -30,7 +30,7 @@ struct MovementImpl {
     void arrive();
     void recordRealSpeed(float distance, float fixedDelta);
     void setDestination(const sf::Vector2i& offset, int cellSize);
-    std::optional<sf::Vector2f> velocity(float speed, float speedRate) const;
+    std::optional<sf::Vector2f> velocity(float speed) const;
 };
 
 struct MovementAdvance {
@@ -42,8 +42,7 @@ struct MovementAdvance {
 sf::Vector2i normaliseDirection(const sf::Vector2i& direction);
 std::optional<sf::Vector2f> movementVelocity(
     const std::optional<sf::Vector2f>& departure,
-    const std::optional<sf::Vector2f>& destination, float speed,
-    float speedRate);
+    const std::optional<sf::Vector2f>& destination, float speed);
 MovementAdvance advanceMovement(const sf::Vector2f& position,
                                 const sf::Vector2f& destination,
                                 const sf::Vector2f& velocity, float deltaTime);

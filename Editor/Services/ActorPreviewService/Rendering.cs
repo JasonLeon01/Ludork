@@ -42,8 +42,8 @@ public sealed partial class ActorPreviewService
                     ["width"] = textureRect.Width,
                     ["height"] = textureRect.Height,
                 },
-                ["shaderPath"] = descriptor.ShaderPath,
-                ["hue"] = EditorBitmapEffects.NormalizeHue(descriptor.Hue),
+                ["material"] = descriptor.Material,
+                ["materialParameters"] = descriptor.MaterialParameters.DeepClone(),
             });
         }
         JsonObject request = new()
@@ -52,6 +52,7 @@ public sealed partial class ActorPreviewService
             ["generation"] = requestGeneration,
             ["time"] = elapsed.TotalSeconds,
             ["items"] = items,
+            ["materials"] = MaterialSnapshots?.Invoke() ?? new JsonObject(),
         };
         JsonObject response = await connection.ExchangeAsync(request, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
@@ -93,7 +94,8 @@ public sealed partial class ActorPreviewService
                         item["y"]?.GetValue<int>() ?? 0,
                         item["width"]?.GetValue<int>() ?? 0,
                         item["height"]?.GetValue<int>() ?? 0),
-                    item["shaderError"]?.GetValue<bool>() == true,
+                    new Vector(item["offsetX"]?.GetValue<double>() ?? 0, item["offsetY"]?.GetValue<double>() ?? 0),
+                    item["materialError"]?.GetValue<bool>() == true,
                     getString(item, "error")));
             }
         }
@@ -121,16 +123,16 @@ public sealed partial class ActorPreviewService
                 || item.Page < 0 || item.Page >= frame.Pages.Count
                 || item.Rect.Width <= 0 || item.Rect.Height <= 0)
             {
-                if (lease.IsStatic && descriptor.ShaderPath.Length != 0)
+                if (lease.IsStatic && descriptor.Material.Length != 0)
                 {
-                    string message = "PreviewHost did not return the actor shader preview.";
+                    string message = "PreviewHost did not return the actor material preview.";
                     if (lease.Frame is not null)
                         lease.publishRenderError(textureRect, message);
-                    else if (!updateFallback(lease, textureRect, true, message))
+                    else if (!updateFallback(lease, textureRect, message))
                         lease.clearFrame(textureRect, message);
                 }
                 else
-                    updateFallback(lease, textureRect, true);
+                    updateFallback(lease, textureRect);
                 continue;
             }
             ActorPreviewAtlasPage page = frame.Pages[item.Page];
@@ -152,14 +154,14 @@ public sealed partial class ActorPreviewService
         foreach ((ActorPreviewLease lease, ActorPreviewAtlasItem item, PixelRect textureRect, ActorPreviewAtlasPage page)
             in publications)
         {
-            string? shaderError = item.ShaderError ? item.Error : null;
+            string? materialError = item.MaterialError ? item.Error : null;
             if (lease.UsesAtlas)
             {
                 lease.publishAtlas(
                     nextAtlasPages[item.Page],
                     item.Rect,
                     textureRect,
-                    shaderError);
+                    materialError, item.Offset);
             }
             else
             {
@@ -172,7 +174,7 @@ public sealed partial class ActorPreviewService
                     item.Rect.X,
                     item.Rect.Y,
                     true,
-                    shaderError);
+                    materialError, item.Offset);
             }
         }
         retireAtlasPages(previousAtlasPages);

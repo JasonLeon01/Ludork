@@ -224,8 +224,13 @@ void UiControlAdapterRegistry::BuilderImpl::registerVisualAdapters(
             vector2fProperty(properties, "size", {32.0f, 32.0f}),
             boolProperty(properties, "animatable", true),
             floatProperty(properties, "switchInterval", 0.2f),
-            stringProperty(properties, "shader"),
-            floatProperty(properties, "hue", 0.0f));
+            stringProperty(properties, "material"));
+        if (const auto parameters = properties.find("materialParameters");
+            parameters != properties.end()) {
+            result->setMaterialParameters(
+                requirePropertyValue<RuntimeData::Map>(parameters->second,
+                                                       "materialParameters"));
+        }
         result->setCharacterScale(
             vector2fProperty(properties, "characterScale", {1.0f, 1.0f}));
         result->setColour(
@@ -254,10 +259,11 @@ void UiControlAdapterRegistry::BuilderImpl::registerVisualAdapters(
             view.setAnimatable(requireBool(value, "animatable"));
         } else if (propertyId == "switchInterval") {
             view.setSwitchInterval(requireFloat(value, "switchInterval"));
-        } else if (propertyId == "shader") {
-            view.setShaderPath(requireString(value, "shader"));
-        } else if (propertyId == "hue") {
-            view.setHue(requireFloat(value, "hue"));
+        } else if (propertyId == "material") {
+            view.setMaterial(requireString(value, "material"));
+        } else if (propertyId == "materialParameters") {
+            view.setMaterialParameters(requirePropertyValue<RuntimeData::Map>(
+                value, "materialParameters"));
         } else if (propertyId == "colour") {
             view.setColour(requireColor(value, "colour"));
         } else {

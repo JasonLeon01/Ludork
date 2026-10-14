@@ -25,23 +25,22 @@
 ---@field value       any
 
 ---@class Internal.LiveDebug.Light
----@field position number[]
----@field colour integer[]
----@field radius number
+---@field position  number[]
+---@field colour    integer[]
+---@field radius    number
 ---@field intensity number
 
 ---@class Internal.LiveDebug.Visual
----@field texturePath string
----@field textureRect number[]
----@field translation number[]
----@field scale       number[]
----@field origin      number[]
----@field rotation    number
----@field hue         number
----@field visible     boolean
----@field shaderPath  string
----@field material table<string, any>
----@field light Internal.LiveDebug.Light | lightuserdata
+---@field texturePath        string
+---@field textureRect        number[]
+---@field translation        number[]
+---@field scale              number[]
+---@field origin             number[]
+---@field rotation           number
+---@field visible            boolean
+---@field material           string
+---@field materialParameters table<string, any>
+---@field light              Internal.LiveDebug.Light | lightuserdata
 
 ---@class Internal.LiveDebug.Actor
 ---@field bp              string
@@ -79,12 +78,12 @@
 ---@field layers            table<string, Source.SceneComponents.MapLayerData>
 ---@field actors            table<string, Internal.LiveDebug.Actor[]>
 ---@field BPClassVarChanged table<string, table<string, any>>
----@field ambientLight integer[]
----@field panorama string
----@field fog table<string, any>
----@field renderOrigin integer[] | nil
----@field renderWorldSize integer[] | nil
----@field regionFog table<string, any> | nil
+---@field ambientLight      integer[]
+---@field panorama          string
+---@field fog               table<string, any>
+---@field renderOrigin      integer[] | nil
+---@field renderWorldSize   integer[] | nil
+---@field regionFog         table<string, any> | nil
 
 ---@class Internal.LiveDebug.View
 ---@field gameMap GameMap

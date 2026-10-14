@@ -1,5 +1,4 @@
 #include <UI/CharacterView.hpp>
-#include <Graphics/HueConstants.hpp>
 #include <UI/FunctionalImage.hpp>
 
 #include <CoreShared/SpriteVisuals.hpp>
@@ -15,8 +14,8 @@
 CharacterView::CharacterView(std::shared_ptr<sf::Texture> texture,
                              std::optional<sf::IntRect> frameRect,
                              std::optional<sf::Vector2f> size, bool animatable,
-                             float switchInterval, std::string shaderPath,
-                             float hue)
+                             float switchInterval, std::string material,
+                             RuntimeData::Map materialParameters)
     : FunctionalImage(texture,
                       frameRect.value_or(texture ? fullTextureRect(*texture)
                                                  : sf::IntRect{})),
@@ -28,19 +27,22 @@ CharacterView::CharacterView(std::shared_ptr<sf::Texture> texture,
       size_(size.value_or(defaultViewSize(frameRect_))),
       animatable_(animatable),
       switchInterval_(switchInterval),
-      shaderPath_(std::move(shaderPath)),
-      hue_(normaliseHue(hue)) {
+      material_(std::move(material)),
+      materialParameters_(std::move(materialParameters)) {
     if (characterTexture_ == nullptr) {
         throw std::invalid_argument("CharacterView texture must not be null");
     }
-    applyShaderPath();
+    materialResource_ =
+        ludork::engine::materials::MaterialResource::load(material_);
+    materialResource_->validateParameters(materialParameters_);
 }
 
 void CharacterView::setCharacter(std::shared_ptr<sf::Texture> texture,
                                  const sf::IntRect& frameRect,
                                  const sf::Vector2f& characterScale,
                                  bool animatable, float switchInterval,
-                                 const std::string& shaderPath, float hue) {
+                                 const std::string& material,
+                                 const RuntimeData::Map& materialParameters) {
     if (texture == nullptr) {
         throw std::invalid_argument("CharacterView texture must not be null");
     }
@@ -53,10 +55,9 @@ void CharacterView::setCharacter(std::shared_ptr<sf::Texture> texture,
     animatable_ = animatable;
     switchInterval_ = switchInterval;
     switchTimer_ = 0.0f;
-    shaderTime_ = 0.0f;
-    shaderPath_ = shaderPath;
-    hue_ = normaliseHue(hue);
-    applyShaderPath();
+    materialTime_ = 0.0f;
+    setMaterial(material);
+    setMaterialParameters(materialParameters);
 }
 
 void CharacterView::setCharacterTexture(std::shared_ptr<sf::Texture> texture) {
@@ -66,7 +67,7 @@ void CharacterView::setCharacterTexture(std::shared_ptr<sf::Texture> texture) {
     characterTexture_ = std::move(texture);
     SpriteBase::setTexture(characterTexture_, true);
     resetFrameRectToTexture();
-    shaderTime_ = 0.0f;
+    materialTime_ = 0.0f;
 }
 
 sf::Vector2f CharacterView::getCharacterScale() const {
@@ -116,28 +117,32 @@ void CharacterView::resetFrameRectToTexture() {
     setFrameRect(fullTextureRect(*characterTexture_));
 }
 
-const std::string& CharacterView::getShaderPath() const {
-    return shaderPath_;
+const std::string& CharacterView::getMaterial() const {
+    return material_;
 }
 
-void CharacterView::setShaderPath(const std::string& shaderPath) {
-    shaderPath_ = shaderPath;
-    shaderTime_ = 0.0f;
-    applyShaderPath();
+void CharacterView::setMaterial(const std::string& material) {
+    const auto resource =
+        ludork::engine::materials::MaterialResource::load(material);
+    if (material_ != material) {
+        materialParameters_.clear();
+        material_ = material;
+    }
+    materialResource_ = resource;
 }
 
-float CharacterView::getHue() const {
-    return hue_;
+RuntimeData::Map CharacterView::getMaterialParameters() const {
+    return materialParameters_;
 }
 
-void CharacterView::setHue(float hue) {
-    hue_ = normaliseHue(hue);
-    applyShaderPath();
+void CharacterView::setMaterialParameters(const RuntimeData::Map& parameters) {
+    materialResource_->validateParameters(parameters);
+    materialParameters_ = parameters;
 }
 
 void CharacterView::resetAnimation() {
     switchTimer_ = 0.0f;
-    shaderTime_ = 0.0f;
+    materialTime_ = 0.0f;
     frameRect_ = initialFrameRect_;
     SpriteBase::setTextureRect(frameRect_);
 }
@@ -163,7 +168,7 @@ void CharacterView::update(float deltaTime) {
     if (deltaTime <= 0.0f) {
         return;
     }
-    shaderTime_ += deltaTime;
+    materialTime_ += deltaTime;
     const int frameWidth = frameRect_.size.x;
     const unsigned int textureWidth = characterTexture_->getSize().x;
     if (!animatable_ || switchInterval_ <= 0.0f || frameWidth <= 0 ||
@@ -186,58 +191,19 @@ void CharacterView::draw(sf::RenderTarget& target,
     }
     _applyRenderStates(states);
     states.blendMode = getRenderStates().blendMode;
-    const sf::Color colour = shaderError_
-                                 ? sf::Color(255, 0, 255, presentedColour().a)
-                                 : presentedColour();
-    if (shaderError_) {
-        target.draw(finalSprite(*characterTexture_, frameRect_, colour),
-                    states);
-        return;
-    }
-
-    const bool hasHue = hueShader_ != nullptr && !neutralHue(hue_);
-    if (shader_ == nullptr) {
-        if (hasHue) {
-            hueShader_->setUniform("screenTex", sf::Shader::CurrentTexture);
-            hueShader_->setUniform("hue", hue_);
-            states.shader = hueShader_.get();
-        }
-        target.draw(finalSprite(*characterTexture_, frameRect_, colour),
-                    states);
-        return;
-    }
-
-    applyActorShaderUniforms();
-    if (!hasHue) {
-        states.shader = shader_.get();
-        target.draw(finalSprite(*characterTexture_, frameRect_, colour),
-                    states);
-        return;
-    }
-
-    const sf::Vector2u frameSize = bufferSize(frameRect_);
-    sf::RenderTexture& effect = ensureBuffer(effectBuffer_, frameSize);
-    sf::Sprite source(*characterTexture_, frameRect_);
-    sf::RenderStates shaderStates;
-    shaderStates.shader = shader_.get();
-    effect.clear(sf::Color::Transparent);
-    effect.draw(source, shaderStates);
-    effect.display();
-
-    sf::RenderTexture& hueBuffer = ensureBuffer(hueBuffer_, frameSize);
-    hueShader_->setUniform("screenTex", sf::Shader::CurrentTexture);
-    hueShader_->setUniform("hue", hue_);
-    sf::Sprite hueSource(effect.getTexture());
-    sf::RenderStates hueStates;
-    hueStates.shader = hueShader_.get();
-    hueBuffer.clear(sf::Color::Transparent);
-    hueBuffer.draw(hueSource, hueStates);
-    hueBuffer.display();
-
-    const sf::IntRect resultRect(
-        {0, 0}, {static_cast<int>(frameSize.x), static_cast<int>(frameSize.y)});
-    target.draw(finalSprite(hueBuffer.getTexture(), resultRect, colour),
-                states);
+    const sf::Sprite sprite =
+        finalSprite(*characterTexture_, frameRect_, presentedColour());
+    ludork::engine::materials::MaterialProgramCache::Context context;
+    context.textureSize = characterTexture_->getSize();
+    context.textureRect = frameRect_;
+    context.time = materialTime_;
+    context.targetSize = target.getSize();
+    context.worldTransform = states.transform * sprite.getTransform();
+    const auto program = materialPrograms_.bind(
+        *materialResource_, materialParameters_, nullptr, {},
+        ludork::engine::materials::MaterialCompiler::Pass::Color, context);
+    states.shader = program.get();
+    target.draw(sprite, states);
 }
 
 sf::IntRect CharacterView::fullTextureRect(const sf::Texture& texture) {
@@ -250,27 +216,6 @@ sf::Vector2f CharacterView::defaultViewSize(const sf::IntRect& frameRect) {
             static_cast<float>(std::max(1, std::abs(frameRect.size.y)))};
 }
 
-sf::Vector2u CharacterView::bufferSize(const sf::IntRect& frameRect) {
-    return {
-        static_cast<unsigned int>(std::max(1, std::abs(frameRect.size.x))),
-        static_cast<unsigned int>(std::max(1, std::abs(frameRect.size.y))),
-    };
-}
-
-float CharacterView::normaliseHue(float hue) {
-    float result = std::fmod(hue, ludork::engine::graphics::HuePeriod);
-    if (result < 0.0f) {
-        result += ludork::engine::graphics::HuePeriod;
-    }
-    return result;
-}
-
-bool CharacterView::neutralHue(float hue) {
-    return hue <= ludork::engine::graphics::HueEpsilon ||
-           std::abs(hue - ludork::engine::graphics::HuePeriod) <=
-               ludork::engine::graphics::HueEpsilon;
-}
-
 sf::Vector2f CharacterView::nonZeroScale(const sf::Vector2f& scale) {
     constexpr float minimum = 0.01f;
     const auto component = [](float value) {
@@ -280,47 +225,6 @@ sf::Vector2f CharacterView::nonZeroScale(const sf::Vector2f& scale) {
         return value < 0.0f ? -minimum : minimum;
     };
     return {component(scale.x), component(scale.y)};
-}
-
-void CharacterView::applyShaderPath() {
-    shader_.reset();
-    shaderError_ = false;
-    if (!shaderPath_.empty()) {
-        const ludork::engine::sprite_visuals::ShaderResult result =
-            ludork::engine::sprite_visuals::loadShader(shaderPath_);
-        shader_ = result.shader;
-        shaderError_ = result.failed;
-    }
-    hueShader_.reset();
-    if (!neutralHue(hue_) && sf::Shader::isAvailable()) {
-        hueShader_ = ludork::engine::sprite_visuals::loadShader(
-                         ludork::engine::graphics::HueShaderPath)
-                         .shader;
-    }
-}
-
-void CharacterView::applyActorShaderUniforms() const {
-    const sf::Vector2u textureSize = characterTexture_->getSize();
-    shader_->setUniform("texture", sf::Shader::CurrentTexture);
-    shader_->setUniform("time", shaderTime_);
-    shader_->setUniform("textureSize",
-                        sf::Vector2f{static_cast<float>(textureSize.x),
-                                     static_cast<float>(textureSize.y)});
-    shader_->setUniform(
-        "textureRect", sf::Glsl::Vec4(static_cast<float>(frameRect_.position.x),
-                                      static_cast<float>(frameRect_.position.y),
-                                      static_cast<float>(frameRect_.size.x),
-                                      static_cast<float>(frameRect_.size.y)));
-}
-
-sf::RenderTexture& CharacterView::ensureBuffer(
-    std::shared_ptr<sf::RenderTexture>& buffer,
-    const sf::Vector2u& size) const {
-    if (buffer == nullptr || buffer->getSize() != size) {
-        buffer = std::make_shared<sf::RenderTexture>(size);
-        buffer->setSmooth(false);
-    }
-    return *buffer;
 }
 
 sf::Sprite CharacterView::finalSprite(const sf::Texture& texture,

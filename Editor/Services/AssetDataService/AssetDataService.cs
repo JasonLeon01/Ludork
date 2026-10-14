@@ -13,10 +13,11 @@ public sealed partial class AssetDataService
     private readonly EditorDocumentCollection autoTileDocuments;
     private readonly EditorDocumentCollection animationDocuments;
     private readonly EditorDocumentCollection particleDocuments;
+    private readonly EditorDocumentCollection materialDocuments;
     private readonly EditorDocumentCollection curveDocuments;
     private readonly EditorDocumentCollection textConfigDocuments;
 
-    internal AssetDataService(ProjectDataStore store, EditorDocumentCollection tilesetDocuments, EditorDocumentCollection autoTileDocuments, EditorDocumentCollection animationDocuments, EditorDocumentCollection particleDocuments, EditorDocumentCollection curveDocuments, EditorDocumentCollection textConfigDocuments)
+    internal AssetDataService(ProjectDataStore store, EditorDocumentCollection tilesetDocuments, EditorDocumentCollection autoTileDocuments, EditorDocumentCollection animationDocuments, EditorDocumentCollection particleDocuments, EditorDocumentCollection curveDocuments, EditorDocumentCollection textConfigDocuments, EditorDocumentCollection materialDocuments)
     {
         this.store = store;
         this.tilesetDocuments = tilesetDocuments;
@@ -25,8 +26,11 @@ public sealed partial class AssetDataService
         this.particleDocuments = particleDocuments;
         this.curveDocuments = curveDocuments;
         this.textConfigDocuments = textConfigDocuments;
+        this.materialDocuments = materialDocuments;
 
     }
+
+    public IReadOnlyDictionary<string, MaterialSnapshot> MaterialsData => new DocumentSnapshotDictionary<MaterialSnapshot>(materialDocuments, value => new MaterialSnapshot(value));
 
     public IReadOnlyDictionary<string, TilesetSnapshot> TilesetData => new DocumentSnapshotDictionary<TilesetSnapshot>(tilesetDocuments, value => new TilesetSnapshot(value));
 

@@ -208,6 +208,8 @@ public sealed class BlueprintEditorDocument : IDisposable
             workingAttrs.Remove(name);
         foreach (KeyValuePair<string, JsonNode?> pair in updates)
             workingAttrs[pair.Key] = pair.Value?.DeepClone();
+        if (!updates.ContainsKey("materialParameters") && (updates.ContainsKey("material") || removedNames.Contains("material")))
+            workingAttrs["materialParameters"] = new JsonObject();
         Changed?.Invoke(this, EventArgs.Empty);
         return true;
     }

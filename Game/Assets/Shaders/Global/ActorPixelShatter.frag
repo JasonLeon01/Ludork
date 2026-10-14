@@ -11,6 +11,8 @@ varying float shatterProgress;
 
 uniform sampler2D texture;
 
+// LUDORK_SCENE_LIGHTING
+
 void main()
 {
     vec4 pixel = texture2D(texture, sf_TexCoord0.xy);
@@ -21,5 +23,5 @@ void main()
     }
     pixel *= sf_FrontColor;
     pixel.a *= 1.0 - smoothstep(0.58, 1.0, shatterProgress);
-    gl_FragColor = pixel;
+    gl_FragColor = vec4(applySceneLighting(pixel.rgb), pixel.a);
 }

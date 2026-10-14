@@ -1,41 +1,158 @@
 #include "MapRendererImpl.hpp"
 
 #include <EngineState.hpp>
+#include <Runtime/Graphics/ScopedSceneLighting.hpp>
 #include <Utils/Render.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
 
-const sf::RenderTexture& MapRenderer::Impl::compose(
-    const Scene& scene, const View& view, const Options& options,
-    const sf::Texture& content) {
+bool MapRenderer::Impl::hasReflection(const Scene& scene,
+                                      const View& view) const {
+    sf::Transform rotation;
+    rotation.rotate(view.rotation,
+                    view.worldRect.position + view.worldRect.size * 0.5f);
+    const sf::FloatRect visible = rotation.transformRect(view.worldRect);
+    for (const auto& sprite : scene.sprites) {
+        if (!sprite.texture || sprite.presentationOpacity <= 0.0f ||
+            !layerVisible(scene, sprite)) {
+            continue;
+        }
+        const auto resource =
+            sprite.materialResource
+                ? sprite.materialResource
+                : ludork::engine::materials::MaterialResource::load(
+                      sprite.material);
+        const sf::Vector2f offset = resource->maximumVertexOffset();
+        if (!sprite.transform
+                 .transformRect(
+                     {-offset,
+                      sf::Vector2f(std::abs(sprite.textureRect.size.x),
+                                   std::abs(sprite.textureRect.size.y)) +
+                          offset * 2.0f})
+                 .findIntersection(visible)) {
+            continue;
+        }
+        if (ludork::engine::materials::MaterialCompiler::analyse(
+                *resource, sprite.materialParameters)
+                .mayReflect) {
+            return true;
+        }
+    }
+    for (const auto& region : scene.regions) {
+        if (!region.tilemap) {
+            continue;
+        }
+        for (const auto& name : scene.layerOrder) {
+            const auto layer = region.tilemap->getLayer(name);
+            if (layer && layer->getVisible() &&
+                layer->hasReflectiveMaterial(
+                    {visible.position -
+                         sf::Vector2f(region.cellOrigin) *
+                             static_cast<float>(EngineState::CellSize),
+                     visible.size})) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+void MapRenderer::Impl::drawOverlay(const sf::Texture& overlay,
+                                    sf::RenderTarget& destination,
+                                    const View& view) {
+    Sprite sprite;
+    sprite.texture = std::shared_ptr<sf::Texture>(
+        const_cast<sf::Texture*>(&overlay), [](sf::Texture*) {});
+    sprite.textureRect = {{0, 0}, sf::Vector2i(overlay.getSize())};
+    sf::Transformable transform;
+    transform.setOrigin(sf::Vector2f(overlay.getSize()) * 0.5f);
+    transform.setPosition(view.worldRect.position + view.worldRect.size * 0.5f);
+    transform.setScale(
+        view.worldRect.size.componentWiseDiv(sf::Vector2f(overlay.getSize())));
+    transform.setRotation(view.rotation);
+    sprite.transform = transform.getTransform();
+    const auto saved = materialContext_;
+    materialContext_.premultipliedSource = true;
+    drawSprite(sprite, destination, canvasRenderStates(),
+               materialContext_.time);
+    materialContext_ = saved;
+}
+
+const sf::RenderTexture& MapRenderer::Impl::render(const Scene& scene,
+                                                   const View& view,
+                                                   const Options& options,
+                                                   const DrawHooks& hooks,
+                                                   const sf::Texture* overlay) {
     validate(scene, view, options);
+    statistics_ = {};
+    const std::uint64_t materialDraws = materialPrograms_.bindCount();
+    materialContext_ = {};
+    materialContext_.time = options.time;
+    materialContext_.worldView = view.worldRect;
+    materialContext_.viewRotation = view.rotation.asDegrees();
+    materialContext_.cellSize = static_cast<float>(EngineState::CellSize);
+    materialContext_.targetSize = view.pixelSize;
     renderAmbient(scene, view, options);
     renderMasks(scene, view);
     renderLighting(scene, view, options);
+    const bool reflection = hasReflection(scene, view);
+    DrawHooks frameHooks = hooks;
+    if (reflection && hooks.afterLayer) {
+        std::erase_if(layerCallbackBuffers_, [&scene](const auto& entry) {
+            return std::find(scene.layerOrder.begin(), scene.layerOrder.end(),
+                             entry.first) == scene.layerOrder.end();
+        });
+        const ludork::runtime::graphics::ScopedSceneLighting unlit({});
+        for (const std::string& name : scene.layerOrder) {
+            sf::RenderTexture& buffer =
+                target(layerCallbackBuffers_[name], view.pixelSize);
+            buffer.setView(nativeView(view));
+            buffer.clear(sf::Color::Transparent);
+            hooks.afterLayer(name, buffer, canvasRenderStates());
+            buffer.display();
+        }
+        frameHooks.afterLayer = [this, &view](const std::string& name,
+                                              sf::RenderTarget& destination,
+                                              const sf::RenderStates&) {
+            drawOverlay(layerCallbackBuffers_.at(name)->getTexture(),
+                        destination, view);
+        };
+    }
+    if (reflection) {
+        statistics_.reflectionPasses = 1;
+        sf::RenderTexture& source = target(content_, view.pixelSize);
+        source.setView(nativeView(view));
+        source.clear(sf::Color::Transparent);
+        materialPass_ =
+            ludork::engine::materials::MaterialCompiler::Pass::Source;
+        drawContent(scene, source, canvasRenderStates(), options, frameHooks);
+        if (overlay) {
+            drawOverlay(*overlay, source, view);
+        }
+        source.display();
+    }
     sf::RenderTexture& output = target(output_, view.pixelSize);
     output.setView(output.getDefaultView());
     output.clear(sf::Color::Transparent);
     if (options.showPanorama && scene.panorama) {
         drawPanorama(scene, view, options);
     }
-    const std::shared_ptr<sf::Shader> material =
-        shader("/Game/Assets/Shaders/Global/MapMaterial.frag");
-    setViewUniforms(*material, scene, view);
-    material->setUniform("texture", sf::Shader::CurrentTexture);
-    material->setUniform("surfaceMask", surface_->getTexture());
-    material->setUniform("directLight", directLight_->getTexture());
-    material->setUniform("staticDirectLight", directLight_->getTexture());
-    material->setUniform("useStaticDirectLight", 0.0f);
-    material->setUniform("ambientLight", ambient_->getTexture());
-    material->setUniform("preserveSourceAlpha", 1.0f);
-    sf::Sprite image(content);
-    image.setScale(sf::Vector2f(view.pixelSize)
-                       .componentWiseDiv(sf::Vector2f(content.getSize())));
-    sf::RenderStates states = premultipliedRenderStates();
-    states.shader = material.get();
-    output.draw(image, states);
+    output.setView(nativeView(view));
+    materialContext_.lighting = options.lighting == LightingMode::Lit;
+    materialContext_.ambientLight = &ambient_->getTexture();
+    materialContext_.directLight = &directLight_->getTexture();
+    materialContext_.surfaceMask = &surface_->getTexture();
+    materialContext_.reflectionSource =
+        reflection ? &content_->getTexture() : nullptr;
+    materialContext_.reflection = reflection;
+    materialPass_ = ludork::engine::materials::MaterialCompiler::Pass::Color;
+    drawContent(scene, output, canvasRenderStates(), options, frameHooks);
+    if (overlay) {
+        drawOverlay(*overlay, output, view);
+    }
+    output.setView(output.getDefaultView());
     if (options.showFog) {
         drawFog(scene.fog,
                 {{0.0f, 0.0f},
@@ -54,6 +171,24 @@ const sf::RenderTexture& MapRenderer::Impl::compose(
         }
     }
     output.display();
+    statistics_.materialDrawCalls =
+        materialPrograms_.bindCount() - materialDraws;
+    for (const auto* texture :
+         {content_.get(), output_.get(), surface_.get(), ambient_.get(),
+          transmission_.get(), dynamicTransmission_.get(), directLight_.get(),
+          layerEffect_.get()}) {
+        if (texture) {
+            ++statistics_.residentRenderTextures;
+        }
+    }
+    statistics_.residentRenderTextures +=
+        static_cast<unsigned int>(layerCallbackBuffers_.size());
+    for (const auto& cache : lightCaches_) {
+        if (cache.texture) {
+            ++statistics_.residentRenderTextures;
+        }
+    }
+    materialContext_ = {};
     return output;
 }
 

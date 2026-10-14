@@ -284,14 +284,14 @@ public partial class MainWindow
             copyItem.Click += (_, _) => viewModel.MapWorkspace.copyLayer(layer.Name);
             MenuItem pasteItem = new MenuItem { Header = LocaleService.Get("PASTE"), IsEnabled = viewModel.MapWorkspace.CanPasteLayer };
             pasteItem.Click += (_, _) => viewModel.MapWorkspace.pasteLayer(layer.Name);
-            MenuItem selectShaderItem = new MenuItem { Header = LocaleService.Get("SELECT_LAYER_SHADER") };
-            selectShaderItem.Click += async (_, _) => await selectLayerShaderAsync(layer.Name);
-            MenuItem clearShaderItem = new MenuItem
+            MenuItem selectMaterialItem = new MenuItem { Header = LocaleService.Get("SELECT_MATERIAL") };
+            selectMaterialItem.Click += async (_, _) => await selectLayerMaterialAsync(layer.Name);
+            MenuItem clearMaterialItem = new MenuItem
             {
-                Header = LocaleService.Get("CLEAR_LAYER_SHADER"),
-                IsEnabled = !string.IsNullOrWhiteSpace(viewModel.MapWorkspace.getLayerShaderPath(layer.Name)),
+                Header = LocaleService.Get("CLEAR_MATERIAL"),
+                IsEnabled = !string.IsNullOrWhiteSpace(viewModel.MapWorkspace.getLayerMaterial(layer.Name)),
             };
-            clearShaderItem.Click += (_, _) => viewModel.MapWorkspace.setLayerShaderPath(layer.Name, string.Empty);
+            clearMaterialItem.Click += (_, _) => viewModel.MapWorkspace.setLayerMaterial(layer.Name, string.Empty);
             MenuItem deleteItem = new MenuItem { Header = LocaleService.Get("DELETE") };
             deleteItem.Click += async (_, _) => await deleteLayerAsync(layer.Name);
             menu.Items.Add(visibilityItem);
@@ -302,8 +302,8 @@ public partial class MainWindow
             menu.Items.Add(copyItem);
             menu.Items.Add(pasteItem);
             menu.Items.Add(new Separator());
-            menu.Items.Add(selectShaderItem);
-            menu.Items.Add(clearShaderItem);
+            menu.Items.Add(selectMaterialItem);
+            menu.Items.Add(clearMaterialItem);
             menu.Items.Add(new Separator());
             menu.Items.Add(deleteItem);
         }
@@ -341,16 +341,16 @@ public partial class MainWindow
         }
     }
 
-    private async System.Threading.Tasks.Task selectLayerShaderAsync(string layerName)
+    private async System.Threading.Tasks.Task selectLayerMaterialAsync(string layerName)
     {
         if (viewModel is null)
             return;
-        string? shaderPath = await FileSelectorDialog.SelectLayerShaderAsync(
+        string? material = await FileSelectorDialog.SelectLayerMaterialAsync(
             this,
             viewModel.GameData.ProjectPath,
-            viewModel.MapWorkspace.getLayerShaderPath(layerName));
-        if (shaderPath is not null)
-            viewModel.MapWorkspace.setLayerShaderPath(layerName, shaderPath);
+            viewModel.MapWorkspace.getLayerMaterial(layerName));
+        if (material is not null)
+            viewModel.MapWorkspace.setLayerMaterial(layerName, material);
     }
 
     private async System.Threading.Tasks.Task deleteLayerAsync(string layerName)

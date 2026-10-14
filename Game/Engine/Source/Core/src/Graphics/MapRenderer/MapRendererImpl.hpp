@@ -8,13 +8,6 @@
 
 class MapRenderer::Impl {
 public:
-    struct LayerMasks {
-        std::size_t revision = 0;
-        std::shared_ptr<sf::Image> source;
-        std::shared_ptr<sf::Texture> lightBlock;
-        std::shared_ptr<sf::Texture> reflection;
-        std::shared_ptr<sf::Texture> ignoreLighting;
-    };
     struct StaticLightCache {
         Light light;
         std::size_t generation = 0;
@@ -22,13 +15,12 @@ public:
     };
 
     const sf::RenderTexture& render(const Scene& scene, const View& view,
-                                    const Options& options);
+                                    const Options& options,
+                                    const DrawHooks& hooks,
+                                    const sf::Texture* overlay);
     void drawContent(const Scene& scene, sf::RenderTarget& target,
                      const sf::RenderStates& states, const Options& options,
                      const DrawHooks& hooks);
-    const sf::RenderTexture& compose(const Scene& scene, const View& view,
-                                     const Options& options,
-                                     const sf::Texture& content);
     void drawSprite(const Sprite& sprite, sf::RenderTarget& target,
                     const sf::RenderStates& states, float time);
     void renderMasks(const Scene& scene, const View& view);
@@ -37,8 +29,6 @@ public:
     void renderTransmission(const Scene& scene, const View& view,
                             const std::vector<Light>& lights,
                             const Options& options);
-    void setTileMask(TileLayer& layer, const Region& region, const View& view,
-                     sf::RenderTarget& target, bool transmission);
     void drawSpriteMask(const Sprite& sprite, sf::RenderTarget& target,
                         bool transmission);
     void drawPanorama(const Scene& scene, const View& view,
@@ -48,8 +38,8 @@ public:
     void drawFog(const MapFogSettings& settings, const sf::FloatRect& bounds,
                  const Scene& scene, const View& view, const Options& options);
     std::shared_ptr<sf::Shader> shader(const std::string& path);
-    static sf::RenderTexture& target(std::unique_ptr<sf::RenderTexture>& value,
-                                     sf::Vector2u size);
+    sf::RenderTexture& target(std::unique_ptr<sf::RenderTexture>& value,
+                              sf::Vector2u size);
     static sf::View nativeView(const View& view);
     static sf::Vector3f colour(const sf::Color& value, bool alpha);
     static void setViewUniforms(sf::Shader& shader, const Scene& scene,
@@ -59,6 +49,7 @@ public:
     static void validate(const Scene& scene, const View& view,
                          const Options& options);
 
+    Statistics statistics_;
     std::unique_ptr<sf::RenderTexture> content_;
     std::unique_ptr<sf::RenderTexture> output_;
     std::unique_ptr<sf::RenderTexture> surface_;
@@ -66,11 +57,19 @@ public:
     std::unique_ptr<sf::RenderTexture> transmission_;
     std::unique_ptr<sf::RenderTexture> dynamicTransmission_;
     std::unique_ptr<sf::RenderTexture> directLight_;
-    std::unique_ptr<sf::RenderTexture> spriteEffect_;
-    std::unique_ptr<sf::RenderTexture> spriteHue_;
+
     std::unique_ptr<sf::RenderTexture> layerEffect_;
+    std::unordered_map<std::string, std::unique_ptr<sf::RenderTexture>>
+        layerCallbackBuffers_;
     std::unordered_map<std::string, std::shared_ptr<sf::Shader>> shaders_;
-    std::unordered_map<const TileLayer*, LayerMasks> layerMasks_;
+    ludork::engine::materials::MaterialProgramCache materialPrograms_;
+    ludork::engine::materials::MaterialProgramCache::Context materialContext_;
+    ludork::engine::materials::MaterialCompiler::Pass materialPass_ =
+        ludork::engine::materials::MaterialCompiler::Pass::Color;
+    bool hasReflection(const Scene& scene, const View& view) const;
+    void drawOverlay(const sf::Texture& overlay, sf::RenderTarget& target,
+                     const View& view);
+
     std::vector<StaticLightCache> lightCaches_;
     std::shared_ptr<sf::Texture> occupancy_;
     std::shared_ptr<sf::Texture> dynamicOccupancy_;

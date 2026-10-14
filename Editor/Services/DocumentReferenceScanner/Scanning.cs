@@ -68,7 +68,6 @@ internal sealed partial class DocumentReferenceScanner
                          "lineTexture",
                          "handleTexture",
                          "font",
-                         "shader",
                      })
             {
                 addAssetReference(
@@ -77,6 +76,8 @@ internal sealed partial class DocumentReferenceScanner
                     "uiResource",
                     $"UI/{key}.{path}.properties.{propertyName}");
             }
+            scanGenericReferences(sourceId, properties["material"], $"UI/{key}.{path}.properties.material");
+            scanGenericReferences(sourceId, properties["materialParameters"], $"UI/{key}.{path}.properties.materialParameters");
             if (ReferenceIdentity.NormalizeParameter(properties["textConfig"]) is string textConfig
                 && textConfig.Length != 0)
             {
@@ -219,7 +220,7 @@ internal sealed partial class DocumentReferenceScanner
         JsonObject attrs = data["attrs"] as JsonObject ?? [];
         ResolvedBlueprintClass resolved = classResolver.ResolveBlueprint(data, key);
         scanResolvedFieldReferences(sourceId, resolved, $"Blueprints/{key}.attrs", "attribute");
-        foreach (string name in new[] { "texturePath", "shaderPath" })
+        foreach (string name in new[] { "texturePath" })
         {
             JsonNode? value = attrs[name] ?? resolved.GetValue(name);
             if (value is not null)
@@ -443,6 +444,11 @@ internal sealed partial class DocumentReferenceScanner
         cancellationToken.ThrowIfCancellationRequested();
         if (JsonScalar.String(value) is string text)
         {
+            if (GameDataPath.TryGetMaterialKey(text, out string materialKey))
+            {
+                addReference(sourceId, ReferenceIdentity.NodeId("material", materialKey), "material", path);
+                return;
+            }
             if (GameDataPath.TryGetSubtitleKey(text, out string subtitleKey))
             {
                 addReference(sourceId, ReferenceIdentity.NodeId("subtitle", subtitleKey), "subtitle", path);

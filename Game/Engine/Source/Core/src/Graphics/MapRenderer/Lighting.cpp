@@ -128,14 +128,25 @@ void MapRenderer::Impl::renderLighting(const Scene& scene, const View& view,
         for (const Sprite& sprite : scene.sprites) {
             if (!sprite.texture || !sprite.affectsLighting ||
                 !layerVisible(scene, sprite) ||
-                sprite.material.lightBlock <= 0.0f ||
                 (light.emitterId && *light.emitterId == sprite.id)) {
                 continue;
             }
+            const auto resource =
+                sprite.materialResource
+                    ? sprite.materialResource
+                    : ludork::engine::materials::MaterialResource::load(
+                          sprite.material);
+            if (!ludork::engine::materials::MaterialCompiler::analyse(
+                     *resource, sprite.materialParameters)
+                     .mayBlockLight) {
+                continue;
+            }
+            const sf::Vector2f displacement = resource->maximumVertexOffset();
             const sf::FloatRect bounds = sprite.transform.transformRect(
-                {{0.0f, 0.0f},
-                 {std::abs(static_cast<float>(sprite.textureRect.size.x)),
-                  std::abs(static_cast<float>(sprite.textureRect.size.y))}});
+                {-displacement,
+                 sf::Vector2f(std::abs(sprite.textureRect.size.x),
+                              std::abs(sprite.textureRect.size.y)) +
+                     displacement * 2.0f});
             if (!bounds.findIntersection(lightRect)) {
                 continue;
             }

@@ -25,7 +25,7 @@ public sealed partial class BlueprintVariableForm
 
     private static string getDisplayName(BlueprintVariableField field)
     {
-        return EditorDisplayName.Format(field.Name);
+        return field.DisplayName ?? EditorDisplayName.Format(field.Name);
     }
 
     private static string createTooltip(

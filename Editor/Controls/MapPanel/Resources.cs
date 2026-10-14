@@ -99,7 +99,7 @@ public sealed partial class MapPanel
             if (!transform.TryInvert(out Matrix inverse))
                 continue;
             Point local = inverse.Transform(mapPosition);
-            if (new Rect(-actor.Origin.X, -actor.Origin.Y, source.Width, source.Height).Contains(local))
+            if (new Rect((actor.PreviewLease?.FrameOffset.X ?? 0) - actor.Origin.X, (actor.PreviewLease?.FrameOffset.Y ?? 0) - actor.Origin.Y, source.Width, source.Height).Contains(local))
                 return index;
         }
         return null;

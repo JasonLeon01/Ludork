@@ -40,7 +40,9 @@ public:
     void drawContent(sf::RenderTarget& target, const sf::RenderStates& states,
                      bool applyPlayerCover, float shaderTime,
                      int materialRevision,
-                     std::function<void(const std::string&)> drawLayerEffects);
+                     std::function<void(const std::string&, sf::RenderTarget&,
+                                        const sf::RenderStates&)>
+                         drawLayerEffects);
     BIND_METHOD(metadata = false)
     void drawActor(sf::RenderTarget& target, const sf::RenderStates& states,
                    const std::shared_ptr<Actor>& actor, int actorAlpha,
@@ -49,8 +51,13 @@ public:
     void setActorEffectHidden(const std::shared_ptr<Actor>& actor, bool hidden);
     BIND_METHOD(metadata = false)
     void resetTransparentTiles();
-    BIND_METHOD(metadata = false)
-    void composeFrame(const sf::Color& ambientLight, float shaderTime);
+    BIND_METHOD(metadata = false, allow_nil = "drawLayerEffects,drawOverlay")
+    void renderFrame(const sf::Color& ambientLight, float shaderTime,
+                     bool applyPlayerCover, int materialRevision,
+                     std::function<void(const std::string&, sf::RenderTarget&,
+                                        const sf::RenderStates&)>
+                         drawLayerEffects,
+                     std::function<void()> drawOverlay);
     BIND_METHOD(metadata = false)
     void prewarm(const sf::Color& ambientLight, float shaderTime);
 

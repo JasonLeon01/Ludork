@@ -39,7 +39,7 @@ internal sealed class RandomMapCanvas : Control, IDisposable
     private readonly IMapEditorHost host;
     private readonly Dictionary<string, Bitmap> bitmapCache =
         new(StringComparer.Ordinal);
-    private readonly Dictionary<ActorHueBitmapCacheKey, Bitmap> actorHueBitmapCache =
+    private readonly Dictionary<string, ActorMaterialPreview> actorMaterialPreviews =
         [];
     private readonly Dictionary<string, PluginTilesetSnapshot> tilesetCache =
         new(StringComparer.Ordinal);
@@ -69,6 +69,8 @@ internal sealed class RandomMapCanvas : Control, IDisposable
         MinHeight = 360;
         Focusable = true;
         PointerTouchPadGestureMagnify += onPointerTouchPadGestureMagnify;
+        AttachedToVisualTree += (_, _) => { foreach (ActorMaterialPreview preview in actorMaterialPreviews.Values) preview.IsActive = true; };
+        DetachedFromVisualTree += (_, _) => { foreach (ActorMaterialPreview preview in actorMaterialPreviews.Values) preview.IsActive = false; };
     }
 
     public event EventHandler<MapMarkerEventArgs>? MarkerToggled;
@@ -91,6 +93,12 @@ internal sealed class RandomMapCanvas : Control, IDisposable
         IEnumerable<(int X, int Y)> nextMarkers,
         bool nextMarkerMode)
     {
+        if (!ReferenceEquals(snapshot, nextSnapshot))
+        {
+            foreach (ActorMaterialPreview preview in actorMaterialPreviews.Values)
+                preview.Dispose();
+            actorMaterialPreviews.Clear();
+        }
         snapshot = nextSnapshot;
         selectedLayerName = nextSelectedLayerName;
         markerMode = nextMarkerMode;
@@ -362,9 +370,9 @@ internal sealed class RandomMapCanvas : Control, IDisposable
         LayoutUpdated -= onLayoutUpdated;
         pendingMapZoomAnchor.Clear();
         bindHostScrollViewer(null);
-        foreach (Bitmap bitmap in actorHueBitmapCache.Values)
-            bitmap.Dispose();
-        actorHueBitmapCache.Clear();
+        foreach (ActorMaterialPreview preview in actorMaterialPreviews.Values)
+            preview.Dispose();
+        actorMaterialPreviews.Clear();
         foreach (Bitmap bitmap in bitmapCache.Values)
             bitmap.Dispose();
         bitmapCache.Clear();
@@ -475,9 +483,17 @@ internal sealed class RandomMapCanvas : Control, IDisposable
                 -actor.OriginY,
                 sourceRect.Width,
                 sourceRect.Height);
+            ActorMaterialPreview? preview = getMaterialPreview(actor);
+            Bitmap? drawBitmap = preview?.Bitmap ?? sourceBitmap;
+            Rect drawnSource = preview?.Bitmap is not null
+                ? new Rect(0, 0, drawBitmap!.PixelSize.Width, drawBitmap.PixelSize.Height)
+                : new Rect(sourceRect.X, sourceRect.Y, sourceRect.Width, sourceRect.Height);
+            Rect drawnDestination = preview?.Bitmap is not null
+                ? new Rect(preview.Offset.X - actor.OriginX, preview.Offset.Y - actor.OriginY, drawnSource.Width, drawnSource.Height)
+                : destination;
             Matrix transform = createActorTransform(actor, sourceCellSize);
             Rect transformedBounds = getTransformedBounds(
-                destination,
+                drawnDestination,
                 transform);
             if (transformedBounds.Intersects(visibleMapRect))
             {
@@ -485,19 +501,11 @@ internal sealed class RandomMapCanvas : Control, IDisposable
                 {
                     if (isValidSourceRect(sourceBitmap, sourceRect))
                     {
-                        Bitmap drawBitmap = getHueBitmap(
-                            actor.AssetPath,
-                            sourceBitmap!,
-                            actor.Hue);
                         using (context.PushOpacity(actor.PreviewOpacity))
                             context.DrawImage(
-                                drawBitmap,
-                                new Rect(
-                                    sourceRect.X,
-                                    sourceRect.Y,
-                                    sourceRect.Width,
-                                    sourceRect.Height),
-                                destination);
+                                drawBitmap!,
+                                drawnSource,
+                                drawnDestination);
                     }
                     else
                     {
@@ -729,20 +737,17 @@ internal sealed class RandomMapCanvas : Control, IDisposable
         return bitmap;
     }
 
-    private Bitmap getHueBitmap(
-        string assetPath,
-        Bitmap source,
-        double hue)
+    private ActorMaterialPreview? getMaterialPreview(PluginMapActorSnapshot actor)
     {
-        double normalizedHue = EditorBitmapEffects.NormalizeHue(hue);
-        if (EditorBitmapEffects.IsNeutralHue(normalizedHue))
-            return source;
-        ActorHueBitmapCacheKey key = new(assetPath, normalizedHue);
-        if (actorHueBitmapCache.TryGetValue(key, out Bitmap? cached))
-            return cached;
-        Bitmap tinted = EditorBitmapEffects.CreateHueShiftedBitmap(source, normalizedHue);
-        actorHueBitmapCache[key] = tinted;
-        return tinted;
+        if (actor.Material.Length == 0)
+            return null;
+        string key = actor.AssetPath + "|" + actor.SourceRect + "|" + actor.Material + "|" + actor.MaterialParameters.ToJsonString();
+        if (!actorMaterialPreviews.TryGetValue(key, out ActorMaterialPreview? preview))
+        {
+            preview = new ActorMaterialPreview(host.AcquireActorPreview(actor), InvalidateVisual);
+            actorMaterialPreviews.Add(key, preview);
+        }
+        return preview;
     }
 
     private Rect getMapRect()
@@ -802,9 +807,5 @@ internal sealed class RandomMapCanvas : Control, IDisposable
     {
         InvalidateMeasure();
     }
-
-    private readonly record struct ActorHueBitmapCacheKey(
-        string AssetPath,
-        double Hue);
 
 }

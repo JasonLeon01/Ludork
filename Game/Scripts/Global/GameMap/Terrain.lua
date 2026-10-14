@@ -71,18 +71,6 @@ function GameMapTerrain.ReplaceTerrainLayer(self, _layerName, layer, layerData, 
     end
 end
 
----@param functionName string
----@param invalidValue number | boolean
----@param smooth       boolean
----@return sf.Texture
----@param self         GameMapImplState
-function GameMapTerrain.GetMaterialPropertyTexture(self, functionName, invalidValue, smooth)
-    ---@diagnostic disable-next-line: return-type-mismatch
-    return self:generateDataFromMap(
-        self._tilemap:getSize(), self:getMaterialPropertyMap(functionName, invalidValue), smooth == true
-    )
-end
-
 ---@param self GameMapImplState
 function GameMapTerrain.RebuildPassabilityCache(self)
     local size = self._tilemap:getSize()

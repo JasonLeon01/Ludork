@@ -13,9 +13,6 @@ void GameMapRendererImpl::setPreviewSprites(
     }
     std::vector<PreviewState> prepared;
     prepared.reserve(sprites.size());
-    std::unordered_map<std::string,
-                       std::pair<std::shared_ptr<sf::Shader>, bool>>
-        shaders;
     for (const PreviewSprite& sprite : sprites) {
         if (sprite.parentIndex < -1 ||
             (sprite.parentIndex >= 0 &&
@@ -34,20 +31,9 @@ void GameMapRendererImpl::setPreviewSprites(
         state.bounds = {{0.0f, 0.0f},
                         {std::abs(static_cast<float>(sprite.rect.size.x)),
                          std::abs(static_cast<float>(sprite.rect.size.y))}};
-        if (!sprite.shaderPath.empty()) {
-            auto [entry, inserted] = shaders.try_emplace(sprite.shaderPath);
-            if (inserted) {
-                try {
-                    entry->second.first = ShaderManager::load(
-                        sprite.shaderPath, sf::Shader::Type::Fragment);
-                } catch (const std::exception& error) {
-                    std::cerr << error.what() << '\n';
-                    entry->second.second = true;
-                }
-            }
-            state.shader = entry->second.first;
-            state.shaderError = entry->second.second;
-        }
+        state.materialResource =
+            ludork::engine::materials::MaterialResource::load(sprite.material);
+        state.materialResource->validateParameters(sprite.materialParameters);
         prepared.push_back(std::move(state));
     }
     previewSprites = std::move(prepared);

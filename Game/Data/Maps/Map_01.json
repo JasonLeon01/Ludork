@@ -1473,7 +1473,7 @@
           null
         ]
       ],
-      "shaderPath": "/Game/Assets/Shaders/WaterWind.vert",
+      "material": "Data/Materials/WaterWind.json",
       "actors": []
     }
   },

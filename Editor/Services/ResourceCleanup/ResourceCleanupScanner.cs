@@ -14,7 +14,7 @@ internal sealed class ResourceCleanupScanner
 {
     private static readonly IReadOnlySet<string> RemovableTypes = new HashSet<string>(StringComparer.Ordinal)
     {
-        "tileset", "autoTile", "blueprint", "commonFunction", "animation", "particle", "curve", "textConfig",
+        "material", "tileset", "autoTile", "blueprint", "commonFunction", "animation", "particle", "curve", "textConfig",
     };
 
     public ResourceCleanupSnapshot Scan(

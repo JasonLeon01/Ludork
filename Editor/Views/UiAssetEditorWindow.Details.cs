@@ -304,11 +304,15 @@ public partial class UiAssetEditorWindow
                     getString(value),
                     next => commit(JsonValue.Create(next)));
                 break;
-            case "string" when property.Id == "shader":
-                addShaderField(
-                    property.DisplayName,
-                    getString(value),
-                    next => commit(JsonValue.Create(next)));
+            case "string" when property.Id == "material":
+                Button chooseMaterial = new() { Content = getString(value) is { Length: > 0 } materialPath ? materialPath : LocaleService.Get("SELECT_MATERIAL") };
+                chooseMaterial.Click += async (_, _) =>
+                {
+                    string? path = await FileSelectorDialog.SelectMaterialAsync(this, gameData.ProjectPath, getString(value));
+                    if (path is not null)
+                        commit(JsonValue.Create(path));
+                };
+                DetailsPanel.Children.Add(createField(property.DisplayName, chooseMaterial));
                 break;
             case "bool":
                 addBoolField(
@@ -364,6 +368,10 @@ public partial class UiAssetEditorWindow
                 break;
             case "sf.Color":
                 addColorField(property.DisplayName, value, commit);
+                break;
+            case "Dict[string, any]" when property.Id == "materialParameters":
+                JsonObject? currentNode = document.FindNode(nodeName);
+                DetailsPanel.Children.Add(new MaterialInstanceParameterEditor(gameData, currentNode?["properties"]?["material"]?.GetValue<string>() ?? string.Empty, value, (next, _) => commit(next)));
                 break;
             case "string[]":
                 addStringArrayField(property.DisplayName, value, commit);
@@ -694,19 +702,6 @@ public partial class UiAssetEditorWindow
             value,
             Path.Combine(gameData.ProjectPath, "Assets", "Fonts"),
             FileSelectorDialog.FilesFilter("*.ttf", "*.otf"),
-            commit);
-    }
-
-    private void addShaderField(
-        string label,
-        string value,
-        Action<string> commit)
-    {
-        addAssetFileField(
-            label,
-            value,
-            Path.Combine(gameData.ProjectPath, "Assets", "Shaders"),
-            FileSelectorDialog.FilesFilter("*.vert", "*.frag", "*.geom"),
             commit);
     }
 

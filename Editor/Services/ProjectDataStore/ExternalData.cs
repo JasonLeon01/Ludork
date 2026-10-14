@@ -41,7 +41,7 @@ public sealed partial class ProjectDataStore
                 {
                     if (JsonNode.Parse(File.ReadAllText(path)) is not JsonObject data)
                     {
-                        if (pair.Key is "TextConfigs" or "UI" or "Subtitles" or "Blueprints")
+                        if (pair.Key is "TextConfigs" or "UI" or "Subtitles" or "Blueprints" or "Materials")
                             rejectDataFile(path, "Data must be a JSON object");
                         continue;
                     }
@@ -51,7 +51,7 @@ public sealed partial class ProjectDataStore
                             : null;
                     if (!pair.Value.AcceptsType(type))
                     {
-                        if (pair.Key is "TextConfigs" or "UI" or "Subtitles" or "Blueprints")
+                        if (pair.Key is "TextConfigs" or "UI" or "Subtitles" or "Blueprints" or "Materials")
                             rejectDataFile(path, "Unexpected data file type");
                         continue;
                     }

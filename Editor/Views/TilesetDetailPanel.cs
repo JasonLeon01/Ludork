@@ -50,7 +50,6 @@ internal sealed class TilesetDetailPanel : Grid
         {
             EditRequested = updateMetadata,
             DirectionEditRequested = updateDirection,
-            MaterialCommitRequested = updateMaterial,
             GestureStarted = () => brushGestureId = gameData.BeginHistoryGesture(),
             GestureCompleted = () => gameData.EndHistoryGesture(brushGestureId),
             MaterialEditRequested = editMaterial,
@@ -252,14 +251,6 @@ internal sealed class TilesetDetailPanel : Grid
         return completeMetadataEdit(gameData.Assets.UpdateTilesetDirection(key, assetPath, index, count, direction, value));
     }
 
-    private bool updateMaterial(int index, int count, JsonObject initial, JsonObject edited)
-    {
-        if (key is null || data is null)
-            return false;
-        string assetPath = data["fileName"]?.GetValue<string>() ?? string.Empty;
-        return completeMetadataEdit(gameData.Assets.UpdateTilesetMaterial(key, isAutoTile, assetPath, index, count, initial, edited));
-    }
-
     private bool completeMetadataEdit(bool changed)
     {
         if (changed)
@@ -277,9 +268,10 @@ internal sealed class TilesetDetailPanel : Grid
         setData(key, key is not null && entries.TryGetValue(key, out TilesetSnapshot? value) ? value.ToJson() : null);
     }
 
-    private void editMaterial(JsonObject material, Action<JsonObject> apply)
+    private async void editMaterial(string material, Action<string> apply)
     {
-        MaterialEditorWindow window = new(material, apply);
-        window.ShowDialog(owner);
+        string? selected = await FileSelectorDialog.SelectMaterialAsync(owner, gameData.ProjectPath, material);
+        if (selected is not null)
+            apply(selected);
     }
 }

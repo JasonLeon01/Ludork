@@ -8,6 +8,16 @@ public static class GameDataPath
 {
     public const string Root = "Data";
     public const string Subtitles = Root + "/Subtitles";
+    public const string Materials = Root + "/Materials";
+
+    public static bool TryGetMaterialKey(string? value, out string key)
+    {
+        key = string.Empty;
+        if (!IsCanonical(value, Materials) || !value!.EndsWith(".json", StringComparison.Ordinal))
+            return false;
+        key = value[(Materials.Length + 1)..^5];
+        return key.Length != 0;
+    }
 
     public static bool IsCanonical(string? value, string directory = Root)
     {

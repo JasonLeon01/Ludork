@@ -4,6 +4,7 @@
 #include <Runtime/AssetInputStream.hpp>
 #include <Runtime/ConcurrentResourceCache.hpp>
 #include <Runtime/Graphics/GpuEmitterCurveLayout.hpp>
+#include <Runtime/Graphics/SceneLighting.hpp>
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
@@ -302,6 +303,20 @@ void GpuTrackImpl::draw(sf::RenderTarget& target,
     const auto scalar = [&](const char* name, float value) {
         gl.Uniform1f(resources->uniform(program, name), value);
     };
+    const SceneLightingContext* lighting = currentSceneLighting();
+    const bool lit = lighting && lighting->enabled;
+    scalar("sceneLightingEnabled", lit ? 1.0f : 0.0f);
+    gl.Uniform2f(resources->uniform(program, "sceneTargetSize"),
+                 static_cast<float>(target.getSize().x),
+                 static_cast<float>(target.getSize().y));
+    if (lit) {
+        gl.ActiveTexture(0x84C2);
+        gl.BindTexture(0x0DE1, lighting->ambientLight->getNativeHandle());
+        gl.Uniform1i(resources->uniform(program, "sceneAmbientLight"), 2);
+        gl.ActiveTexture(0x84C3);
+        gl.BindTexture(0x0DE1, lighting->directLight->getNativeHandle());
+        gl.Uniform1i(resources->uniform(program, "sceneDirectLight"), 3);
+    }
     scalar("uWorld", definition.world ? 1.f : 0.f);
     scalar("uFrameRate", definition.frameRate);
     scalar("uFrameCount", static_cast<float>(definition.frameCount));

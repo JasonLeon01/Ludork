@@ -1,0 +1,725 @@
+{
+  "version": 1,
+  "parameters": [
+    {
+      "id": "hue",
+      "type": "float",
+      "default": 0.0,
+      "group": "Surface",
+      "min": -360.0,
+      "max": 360.0
+    },
+    {
+      "id": "opacity",
+      "type": "float",
+      "default": 1.0,
+      "group": "Surface",
+      "min": 0.0,
+      "max": 1.0
+    },
+    {
+      "id": "lightBlock",
+      "type": "float",
+      "default": 0.0,
+      "group": "Surface",
+      "min": 0.0,
+      "max": 1.0
+    },
+    {
+      "id": "reflectionStrength",
+      "type": "float",
+      "default": 0.0,
+      "group": "Surface",
+      "min": 0.0,
+      "max": 1.0
+    },
+    {
+      "id": "lightingWeight",
+      "type": "float",
+      "default": 1.0,
+      "group": "Surface",
+      "min": 0.0,
+      "max": 1.0
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "SampleSprite_1",
+        "type": "SampleSprite",
+        "inputs": {},
+        "properties": {}
+      },
+      {
+        "id": "LocalUV_2",
+        "type": "LocalUV",
+        "inputs": {},
+        "properties": {}
+      },
+      {
+        "id": "Time_3",
+        "type": "Time",
+        "inputs": {},
+        "properties": {}
+      },
+      {
+        "id": "Clamp_4",
+        "type": "Clamp",
+        "inputs": {
+          "Value": {
+            "node": "LocalUV_2",
+            "port": "Value"
+          },
+          "Min": 0.0,
+          "Max": 1.0
+        },
+        "properties": {}
+      },
+      {
+        "id": "Swizzle_5",
+        "type": "Swizzle",
+        "inputs": {
+          "Value": {
+            "node": "Clamp_4",
+            "port": "Value"
+          }
+        },
+        "properties": {
+          "channels": "x"
+        }
+      },
+      {
+        "id": "Swizzle_6",
+        "type": "Swizzle",
+        "inputs": {
+          "Value": {
+            "node": "Clamp_4",
+            "port": "Value"
+          }
+        },
+        "properties": {
+          "channels": "y"
+        }
+      },
+      {
+        "id": "Dot_7",
+        "type": "Dot",
+        "inputs": {
+          "A": {
+            "node": "SampleSprite_1",
+            "port": "Color"
+          },
+          "B": [
+            0.299,
+            0.587,
+            0.114
+          ]
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_8",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Time_3",
+            "port": "Value"
+          },
+          "B": 2.35
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_9",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Swizzle_6",
+            "port": "Value"
+          },
+          "B": 2.6
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_10",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Multiply_8",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Multiply_9",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Sin_11",
+        "type": "Sin",
+        "inputs": {
+          "Value": {
+            "node": "Add_10",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_12",
+        "type": "Multiply",
+        "inputs": {
+          "A": 0.5,
+          "B": {
+            "node": "Sin_11",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_13",
+        "type": "Add",
+        "inputs": {
+          "A": 0.5,
+          "B": {
+            "node": "Multiply_12",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_14",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Swizzle_6",
+            "port": "Value"
+          },
+          "B": 58.0
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_15",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Time_3",
+            "port": "Value"
+          },
+          "B": 5.2
+        },
+        "properties": {}
+      },
+      {
+        "id": "Subtract_16",
+        "type": "Subtract",
+        "inputs": {
+          "A": {
+            "node": "Multiply_14",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Multiply_15",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Sin_17",
+        "type": "Sin",
+        "inputs": {
+          "Value": {
+            "node": "Subtract_16",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_18",
+        "type": "Multiply",
+        "inputs": {
+          "A": 0.5,
+          "B": {
+            "node": "Sin_17",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_19",
+        "type": "Add",
+        "inputs": {
+          "A": 0.5,
+          "B": {
+            "node": "Multiply_18",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Lerp_20",
+        "type": "Lerp",
+        "inputs": {
+          "A": [
+            0.12,
+            0.57,
+            0.66
+          ],
+          "B": [
+            0.58,
+            1.0,
+            0.94
+          ],
+          "T": {
+            "node": "Dot_7",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Lerp_21",
+        "type": "Lerp",
+        "inputs": {
+          "A": {
+            "node": "SampleSprite_1",
+            "port": "Color"
+          },
+          "B": {
+            "node": "Lerp_20",
+            "port": "Value"
+          },
+          "T": 0.72
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_22",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Add_13",
+            "port": "Value"
+          },
+          "B": 0.55
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_23",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Add_19",
+            "port": "Value"
+          },
+          "B": 0.18
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_24",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Multiply_22",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Multiply_23",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_25",
+        "type": "Multiply",
+        "inputs": {
+          "A": [
+            0.08,
+            0.22,
+            0.22
+          ],
+          "B": {
+            "node": "Add_24",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_26",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Lerp_21",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Multiply_25",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_27",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Add_13",
+            "port": "Value"
+          },
+          "B": 0.24
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_28",
+        "type": "Add",
+        "inputs": {
+          "A": 0.48,
+          "B": {
+            "node": "Multiply_27",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_29",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Add_19",
+            "port": "Value"
+          },
+          "B": 0.08
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_30",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Add_28",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Multiply_29",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_31",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "SampleSprite_1",
+            "port": "Alpha"
+          },
+          "B": {
+            "node": "Add_30",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Clamp_32",
+        "type": "Clamp",
+        "inputs": {
+          "Value": {
+            "node": "Add_26",
+            "port": "Value"
+          },
+          "Min": 0.0,
+          "Max": 1.0
+        },
+        "properties": {}
+      },
+      {
+        "id": "hue",
+        "type": "Parameter",
+        "inputs": {},
+        "properties": {
+          "id": "hue"
+        }
+      },
+      {
+        "id": "opacity",
+        "type": "Parameter",
+        "inputs": {},
+        "properties": {
+          "id": "opacity"
+        }
+      },
+      {
+        "id": "HueShift_35",
+        "type": "HueShift",
+        "inputs": {
+          "Color": {
+            "node": "Clamp_32",
+            "port": "Value"
+          },
+          "Hue": {
+            "node": "hue",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_36",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Multiply_31",
+            "port": "Value"
+          },
+          "B": {
+            "node": "opacity",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "lightBlock",
+        "type": "Parameter",
+        "inputs": {},
+        "properties": {
+          "id": "lightBlock"
+        }
+      },
+      {
+        "id": "reflectionStrength",
+        "type": "Parameter",
+        "inputs": {},
+        "properties": {
+          "id": "reflectionStrength"
+        }
+      },
+      {
+        "id": "lightingWeight",
+        "type": "Parameter",
+        "inputs": {},
+        "properties": {
+          "id": "lightingWeight"
+        }
+      },
+      {
+        "id": "Surface",
+        "type": "Surface",
+        "inputs": {
+          "BaseColor": {
+            "node": "HueShift_35",
+            "port": "Value"
+          },
+          "Alpha": {
+            "node": "Multiply_36",
+            "port": "Value"
+          },
+          "LightBlock": {
+            "node": "lightBlock",
+            "port": "Value"
+          },
+          "ReflectionStrength": {
+            "node": "reflectionStrength",
+            "port": "Value"
+          },
+          "LightingWeight": {
+            "node": "lightingWeight",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      }
+    ],
+    "output": "Surface"
+  },
+  "rendering": {
+    "maxVertexOffset": [
+      0.0,
+      0.0
+    ]
+  },
+  "editor": {
+    "positions": {
+      "SampleSprite_1": [
+        0.0,
+        0.0
+      ],
+      "LocalUV_2": [
+        0.0,
+        180.0
+      ],
+      "Time_3": [
+        0.0,
+        360.0
+      ],
+      "Clamp_4": [
+        260.0,
+        0.0
+      ],
+      "Swizzle_5": [
+        520.0,
+        0.0
+      ],
+      "Swizzle_6": [
+        520.0,
+        180.0
+      ],
+      "Dot_7": [
+        260.0,
+        180.0
+      ],
+      "Multiply_8": [
+        260.0,
+        360.0
+      ],
+      "Multiply_9": [
+        780.0,
+        0.0
+      ],
+      "Add_10": [
+        1040.0,
+        0.0
+      ],
+      "Sin_11": [
+        1300.0,
+        0.0
+      ],
+      "Multiply_12": [
+        1560.0,
+        0.0
+      ],
+      "Add_13": [
+        1820.0,
+        0.0
+      ],
+      "Multiply_14": [
+        780.0,
+        180.0
+      ],
+      "Multiply_15": [
+        260.0,
+        540.0
+      ],
+      "Subtract_16": [
+        1040.0,
+        180.0
+      ],
+      "Sin_17": [
+        1300.0,
+        180.0
+      ],
+      "Multiply_18": [
+        1560.0,
+        180.0
+      ],
+      "Add_19": [
+        1820.0,
+        180.0
+      ],
+      "Lerp_20": [
+        520.0,
+        360.0
+      ],
+      "Lerp_21": [
+        780.0,
+        360.0
+      ],
+      "Multiply_22": [
+        2080.0,
+        0.0
+      ],
+      "Multiply_23": [
+        2080.0,
+        180.0
+      ],
+      "Add_24": [
+        2340.0,
+        0.0
+      ],
+      "Multiply_25": [
+        2600.0,
+        0.0
+      ],
+      "Add_26": [
+        2860.0,
+        0.0
+      ],
+      "Multiply_27": [
+        2080.0,
+        360.0
+      ],
+      "Add_28": [
+        2340.0,
+        180.0
+      ],
+      "Multiply_29": [
+        2080.0,
+        540.0
+      ],
+      "Add_30": [
+        2600.0,
+        180.0
+      ],
+      "Multiply_31": [
+        2860.0,
+        180.0
+      ],
+      "Clamp_32": [
+        3120.0,
+        0.0
+      ],
+      "hue": [
+        0.0,
+        540.0
+      ],
+      "opacity": [
+        0.0,
+        720.0
+      ],
+      "HueShift_35": [
+        3380.0,
+        0.0
+      ],
+      "Multiply_36": [
+        3120.0,
+        180.0
+      ],
+      "lightBlock": [
+        0.0,
+        900.0
+      ],
+      "reflectionStrength": [
+        0.0,
+        1080.0
+      ],
+      "lightingWeight": [
+        0.0,
+        1260.0
+      ],
+      "Surface": [
+        3640.0,
+        0.0
+      ]
+    }
+  },
+  "type": "material"
+}

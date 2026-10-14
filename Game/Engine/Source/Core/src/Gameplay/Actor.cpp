@@ -70,7 +70,7 @@ Actor::Actor(std::shared_ptr<sf::Texture> texture,
     if (rect.has_value()) {
         sf::Sprite::setTextureRect(*rect);
     }
-    ensureShaderLoaded();
+    ensureMaterialLoaded();
     syncMapCache();
 }
 
@@ -215,7 +215,7 @@ void Actor::ensureMapTag() {
 }
 
 void Actor::update(float deltaTime) {
-    ensureShaderLoaded();
+    ensureMaterialLoaded();
     if (animatable) {
         _animate(deltaTime);
     }
@@ -529,11 +529,8 @@ std::optional<sf::Vector2f> Actor::getVelocity() const {
     if (!map) {
         return std::nullopt;
     }
-    const std::optional<Material> topMaterial =
-        map->getTopMaterial(getMapPosition());
     const ludork::engine::actor_impl::MovementImpl& impl = impl_.get().movement;
-    return impl.velocity(
-        speed, topMaterial.has_value() ? topMaterial->speedRate : 1.0f);
+    return impl.velocity(speed);
 }
 
 std::optional<sf::Vector2i> Actor::_getContinueMoveOffset() {
@@ -1004,28 +1001,13 @@ const sf::Texture& Actor::textureOrBlank(
     return ludork::engine::sprite_visuals::textureOrBlank(texture);
 }
 
-void Actor::ensureShaderLoaded() const {
-    impl_.get().visual.ensureShaderLoaded(shaderPath);
+void Actor::ensureMaterialLoaded() const {
+    getMaterialResource()->validateParameters(materialParameters_);
 }
 
-void Actor::setShaderPath(const std::string& shaderPath) {
-    this->shaderPath = shaderPath;
-    impl_.get().visual.invalidateShader();
-    ensureShaderLoaded();
-}
-
-const std::string& Actor::getShaderPath() const {
-    return shaderPath;
-}
-
-std::shared_ptr<sf::Shader> Actor::getShader() const {
-    ensureShaderLoaded();
-    return impl_.get().visual.getShader();
-}
-
-bool Actor::hasShaderError() const {
-    ensureShaderLoaded();
-    return impl_.get().visual.hasShaderError();
+std::shared_ptr<const ludork::engine::materials::MaterialResource>
+Actor::getMaterialResource() const {
+    return impl_.get().visual.getMaterial(material_);
 }
 
 bool Actor::getVisible() const {
@@ -1102,52 +1084,59 @@ sf::IntRect Actor::getTextureRect() const {
     return sf::Sprite::getTextureRect();
 }
 
-Material Actor::getMaterial() const {
-    return material;
+const std::string& Actor::getMaterial() const {
+    return material_;
 }
 
-void Actor::setMaterial(const std::optional<Material>& material) {
-    this->material = material.value_or(Material{});
+sf::FloatRect Actor::getMaterialBounds() const {
+    const sf::Vector2f offset = getMaterialResource()->maximumVertexOffset();
+    const sf::FloatRect bounds = getLocalBounds();
+    return getTransform().transformRect(
+        {bounds.position - offset, bounds.size + offset * 2.0f});
 }
 
-float Actor::getLightBlock() const {
-    return material.lightBlock;
+void Actor::setMaterial(const std::string& value) {
+    ludork::engine::materials::MaterialResource::load(value);
+    if (material_ != value) {
+        material_ = value;
+        materialParameters_.clear();
+    }
 }
 
-void Actor::setLightBlock(float lightBlock) {
-    material.lightBlock = lightBlock;
+RuntimeData Actor::getMaterialParameter(const std::string& id) const {
+    const RuntimeData::Map values =
+        getMaterialResource()->resolveParameters(materialParameters_);
+    const auto found = values.find(id);
+    if (found == values.end()) {
+        throw std::invalid_argument("Unknown material parameter: " + id);
+    }
+    return found->second;
 }
 
-bool Actor::getMirror() const {
-    return material.mirror;
+void Actor::setMaterialParameter(const std::string& id,
+                                 const RuntimeData& value) {
+    RuntimeData::Map values = materialParameters_;
+    values.insert_or_assign(id, value);
+    getMaterialResource()->validateParameters(values);
+    materialParameters_ = std::move(values);
 }
 
-void Actor::setMirror(bool mirror) {
-    material.mirror = mirror;
+void Actor::resetMaterialParameter(const std::string& id) {
+    getMaterialParameter(id);
+    materialParameters_.erase(id);
 }
 
-float Actor::getReflectionStrength() const {
-    return material.reflectionStrength;
+const std::string& Actor::materialReference() const {
+    return getMaterial();
 }
 
-void Actor::setReflectionStrength(float reflectionStrength) {
-    material.reflectionStrength = reflectionStrength;
+RuntimeData::Map Actor::getMaterialParameters() const {
+    return materialParameters_;
 }
 
-float Actor::getOpacity() const {
-    return material.opacity;
-}
-
-void Actor::setOpacity(float opacity) {
-    material.opacity = opacity;
-}
-
-bool Actor::getIgnoreLighting() const {
-    return material.ignoreLighting;
-}
-
-void Actor::setIgnoreLighting(bool ignoreLighting) {
-    material.ignoreLighting = ignoreLighting;
+void Actor::setMaterialParameters(const RuntimeData::Map& parameters) {
+    getMaterialResource()->validateParameters(parameters);
+    materialParameters_ = parameters;
 }
 
 void Actor::_animate(float deltaTime) {

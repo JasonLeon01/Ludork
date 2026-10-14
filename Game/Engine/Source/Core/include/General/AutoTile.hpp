@@ -3,9 +3,7 @@
 #include <CoreMinimal.hpp>
 #include <EngineRuntimeApi.hpp>
 
-#include <General/Material.hpp>
-
-using AutoTileValue = std::variant<std::string, bool, MaterialData>;
+using AutoTileValue = std::variant<std::string, bool>;
 using AutoTileData = std::unordered_map<std::string, AutoTileValue>;
 
 ////////////////////////////////////////////////////////////
@@ -32,9 +30,9 @@ struct LUDORK_ENGINE_API AutoTile {
     BIND_PROPERTY()
     bool passable = true;  ///< Whether the auto-tile can be walked on
 
-    BIND_PROPERTY()
-    Material material =
-        Material();  ///< Material applied to the whole auto-tile
+    BIND_PROPERTY(meta(PathRoot = "Data", PathVars = "Data/Materials",
+                       PathFilter = "*.json"))
+    std::string material;  ///< Material resource applied to the whole auto-tile
 
     ////////////////////////////////////////////////////////////
     /// \brief Construct an auto-tile object
@@ -47,7 +45,7 @@ struct LUDORK_ENGINE_API AutoTile {
     ////////////////////////////////////////////////////////////
     BIND_INIT()
     AutoTile(std::string name = "", std::string fileName = "",
-             bool passable = true, Material material = Material());
+             bool passable = true, std::string material = "");
 
     ////////////////////////////////////////////////////////////
     /// \brief Serialize the material to a dictionary.

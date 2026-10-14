@@ -9,66 +9,35 @@
 #include <set>
 #include <unordered_set>
 
-void MapRenderer::Impl::setTileMask(TileLayer& layer, const Region& region,
-                                    const View& view, sf::RenderTarget& target,
-                                    bool transmission) {
-    LayerMasks& masks = layerMasks_[&layer];
-    const std::shared_ptr<sf::Image> block = layer.getLightBlockImage();
-    if (!masks.lightBlock || masks.revision != layer.getContentRevision() ||
-        masks.source != block) {
-        masks.revision = layer.getContentRevision();
-        masks.source = block;
-        masks.lightBlock = std::make_shared<sf::Texture>(*block);
-        masks.reflection =
-            std::make_shared<sf::Texture>(*layer.getReflectionStrengthImage());
-        masks.ignoreLighting =
-            std::make_shared<sf::Texture>(*layer.getIgnoreLightingImage());
-    }
-    const std::shared_ptr<sf::Shader> mask =
-        shader("/Game/Assets/Shaders/Global/TilemapLightMask.frag");
-    mask->setUniform("texture", sf::Shader::CurrentTexture);
-    mask->setUniform("lightBlockTex", *masks.lightBlock);
-    mask->setUniform("reflectionStrengthTex", *masks.reflection);
-    mask->setUniform("ignoreLightingTex", *masks.ignoreLighting);
-    mask->setUniform("lightBlockSize",
-                     sf::Vector2f(static_cast<float>(EngineState::CellSize),
-                                  static_cast<float>(EngineState::CellSize)));
-    mask->setUniform("mapSize", sf::Vector2f(layer.getGridSize()));
-    mask->setUniform("transmissionMode", transmission ? 1.0f : 0.0f);
-    mask->setUniform("worldMode", 1.0f);
-    mask->setUniform("maskTargetSize", sf::Vector2f(target.getSize()));
-    mask->setUniform("maskViewSize", view.worldRect.size);
-    mask->setUniform("maskViewPosition", view.worldRect.position);
-    mask->setUniform("maskViewRotation", view.rotation.asDegrees());
-    mask->setUniform("regionPosition",
-                     sf::Vector2f(region.cellOrigin) *
-                         static_cast<float>(EngineState::CellSize));
-}
-
 void MapRenderer::Impl::drawSpriteMask(const Sprite& sprite,
                                        sf::RenderTarget& target,
                                        bool transmission) {
     if (!sprite.texture || !sprite.visible || !sprite.affectsLighting) {
         return;
     }
-    const std::shared_ptr<sf::Shader> mask =
-        shader("/Game/Assets/Shaders/Global/LightMask.frag");
-    mask->setUniform("texture", sf::Shader::CurrentTexture);
-    mask->setUniform("lightBlock", sprite.material.lightBlock);
-    mask->setUniform(
-        "reflectionStrength",
-        sprite.material.mirror ? sprite.material.reflectionStrength : 0.0f);
-    mask->setUniform("ignoreLighting",
-                     sprite.material.ignoreLighting ? 1.0f : 0.0f);
-    mask->setUniform("transmissionMode", transmission ? 1.0f : 0.0f);
+    const auto resource =
+        sprite.materialResource
+            ? sprite.materialResource
+            : ludork::engine::materials::MaterialResource::load(
+                  sprite.material);
+    auto context = materialContext_;
+    context.textureSize = sprite.texture->getSize();
+    context.textureRect = sprite.textureRect;
+    context.worldTransform = sprite.transform;
+    context.targetSize = target.getSize();
+    context.lighting = false;
+    context.reflection = false;
+    const auto program = materialPrograms_.bind(
+        *resource, sprite.materialParameters, nullptr, {},
+        transmission
+            ? ludork::engine::materials::MaterialCompiler::Pass::Transmission
+            : ludork::engine::materials::MaterialCompiler::Pass::Surface,
+        context);
     sf::Sprite drawable(*sprite.texture, sprite.textureRect);
-    sf::Color tint = sprite.colour;
-    tint.a = static_cast<std::uint8_t>(
-        std::clamp(tint.a * sprite.material.opacity, 0.0f, 255.0f));
-    drawable.setColor(tint);
+    drawable.setColor(sprite.colour);
     sf::RenderStates states = transmission ? sf::RenderStates(sf::BlendMultiply)
                                            : canvasRenderStates();
-    states.shader = mask.get();
+    states.shader = program.get();
     states.transform = sprite.transform;
     target.draw(drawable, states);
 }
@@ -80,7 +49,6 @@ void MapRenderer::Impl::renderMasks(const Scene& scene, const View& view) {
     const std::vector<const Region*> regions = orderedRegions(scene);
     std::set<int> priorities{0};
     std::unordered_map<std::string, int> regionPriorities;
-    std::unordered_set<const TileLayer*> retainedLayers;
     for (const Region* region : regions) {
         priorities.insert(region->priority);
         regionPriorities.emplace(region->id, region->priority);
@@ -94,16 +62,15 @@ void MapRenderer::Impl::renderMasks(const Scene& scene, const View& view) {
                     !layer->getVisible()) {
                     continue;
                 }
-                retainedLayers.insert(layer.get());
-                setTileMask(*layer, *region, view, surface, false);
                 sf::RenderStates states = canvasRenderStates();
-                states.shader =
-                    shader("/Game/Assets/Shaders/Global/TilemapLightMask.frag")
-                        .get();
                 states.transform.translate(
                     sf::Vector2f(region->cellOrigin) *
                     static_cast<float>(EngineState::CellSize));
-                surface.draw(*layer, states);
+                layer->setAnimationTime(materialContext_.time);
+                layer->drawMaterialPass(
+                    surface, states, materialPrograms_,
+                    ludork::engine::materials::MaterialCompiler::Pass::Surface,
+                    materialContext_);
             }
             for (const Sprite& sprite : scene.sprites) {
                 const auto found = regionPriorities.find(sprite.regionId);
@@ -116,9 +83,6 @@ void MapRenderer::Impl::renderMasks(const Scene& scene, const View& view) {
             }
         }
     }
-    std::erase_if(layerMasks_, [&retainedLayers](const auto& entry) {
-        return !retainedLayers.contains(entry.first);
-    });
     surface.display();
 }
 
@@ -179,9 +143,14 @@ void MapRenderer::Impl::renderTransmission(const Scene& scene, const View& view,
                 region.tilemap->getLayer(name);
             mix(std::hash<const void*>{}(layer.get()));
             if (layer) {
+                layer->setAnimationTime(options.time);
+                mix(std::hash<std::string>{}(layer->material));
                 mix(layer->getContentRevision());
                 mix(layer->getDrawRevision());
                 mix(layer->getVisible());
+                if (layer->hasAnimatedOcclusion()) {
+                    mix(std::hash<float>{}(options.time));
+                }
             }
         }
     }
@@ -213,32 +182,51 @@ void MapRenderer::Impl::renderTransmission(const Scene& scene, const View& view,
                 continue;
             }
             layer->setAnimationTime(options.time);
-            setTileMask(*layer, region, maskView, transmission, true);
             sf::RenderStates states(sf::BlendMultiply);
-            states.shader =
-                shader("/Game/Assets/Shaders/Global/TilemapLightMask.frag")
-                    .get();
             states.transform.translate(sf::Vector2f(region.cellOrigin) * cell);
-            transmission.draw(*layer, states);
-            const auto& grid = layer->getLightBlockMapView();
-            const int startX = std::max(0, origin.x - region.cellOrigin.x);
-            const int startY = std::max(0, origin.y - region.cellOrigin.y);
-            const int endX = std::min(
-                static_cast<int>(layer->getGridSize().x),
-                origin.x + static_cast<int>(cells.x) - region.cellOrigin.x);
-            const int endY = std::min(
-                static_cast<int>(layer->getGridSize().y),
-                origin.y + static_cast<int>(cells.y) - region.cellOrigin.y);
+            auto context = materialContext_;
+            context.worldView = maskView.worldRect;
+            context.viewRotation = 0.0f;
+            layer->drawMaterialPass(
+                transmission, states, materialPrograms_,
+                ludork::engine::materials::MaterialCompiler::Pass::Transmission,
+                context);
+            const sf::Vector2f displacement = layer->maximumMaterialOffset();
+            const int paddingX =
+                static_cast<int>(std::ceil(displacement.x / cell));
+            const int paddingY =
+                static_cast<int>(std::ceil(displacement.y / cell));
+            const int startX =
+                std::max(0, origin.x - region.cellOrigin.x - paddingX);
+            const int startY =
+                std::max(0, origin.y - region.cellOrigin.y - paddingY);
+            const int endX = std::min(static_cast<int>(layer->getGridSize().x),
+                                      origin.x + static_cast<int>(cells.x) -
+                                          region.cellOrigin.x + paddingX);
+            const int endY = std::min(static_cast<int>(layer->getGridSize().y),
+                                      origin.y + static_cast<int>(cells.y) -
+                                          region.cellOrigin.y + paddingY);
             for (int y = startY; y < endY; ++y) {
                 for (int x = startX; x < endX; ++x) {
-                    if (grid[y][x] > 0.0f) {
-                        occupancy.setPixel(
-                            {static_cast<unsigned int>(x + region.cellOrigin.x -
-                                                       origin.x),
-                             cells.y - 1u -
-                                 static_cast<unsigned int>(
-                                     y + region.cellOrigin.y - origin.y)},
-                            sf::Color::White);
+                    if (layer->hasContent({x, y})) {
+                        const int centreX = x + region.cellOrigin.x - origin.x;
+                        const int centreY = y + region.cellOrigin.y - origin.y;
+                        for (int maskY = std::max(0, centreY - paddingY);
+                             maskY <= std::min(static_cast<int>(cells.y) - 1,
+                                               centreY + paddingY);
+                             ++maskY) {
+                            for (int maskX = std::max(0, centreX - paddingX);
+                                 maskX <=
+                                 std::min(static_cast<int>(cells.x) - 1,
+                                          centreX + paddingX);
+                                 ++maskX) {
+                                occupancy.setPixel(
+                                    {static_cast<unsigned>(maskX),
+                                     cells.y - 1u -
+                                         static_cast<unsigned>(maskY)},
+                                    sf::Color::White);
+                            }
+                        }
                     }
                 }
             }

@@ -225,7 +225,7 @@ public sealed class MapPreviewService : IDisposable
     internal void InvalidateScene() => invalidate(false);
     private void onDocumentsChanged(object? sender, EditorDocumentsChangedEventArgs args)
     {
-        if (args.Reset || args.Changes.Any(change => change.Section is "WorldMaps" or "Blueprints" or "Tilesets" or "AutoTiles" or "Configs" || change.Section == "Maps" && change.IdentityChanged))
+        if (args.Reset || args.Changes.Any(change => change.Section is "WorldMaps" or "Blueprints" or "Tilesets" or "AutoTiles" or "Materials" or "Configs" || change.Section == "Maps" && change.IdentityChanged))
             invalidate(false);
     }
     private void onMapChanged(object? sender, MapPreviewChangedEventArgs args)

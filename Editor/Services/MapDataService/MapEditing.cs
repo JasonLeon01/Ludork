@@ -305,23 +305,23 @@ public sealed partial class MapDataService
         return true;
     }
 
-    public string getLayerShaderPath(string mapKey, string layerName)
+    public string getLayerMaterial(string mapKey, string layerName)
     {
-        return getMap(mapKey)?["layers"]?[layerName]?["shaderPath"]?.GetValue<string>() ?? string.Empty;
+        return getMap(mapKey)?["layers"]?[layerName]?["material"]?.GetValue<string>() ?? string.Empty;
     }
 
-    public bool setLayerShaderPath(string mapKey, string layerName, string shaderPath)
+    public bool setLayerMaterial(string mapKey, string layerName, string material)
     {
         JsonObject? layer = getMap(mapKey)?["layers"]?[layerName] as JsonObject;
         if (layer is null)
             return false;
-        string normalizedPath = shaderPath ?? string.Empty;
+        string normalizedPath = material ?? string.Empty;
         if (normalizedPath.Length != 0 && !GameAssetPath.IsCanonical(normalizedPath))
             return false;
-        if (string.Equals(layer["shaderPath"]?.GetValue<string>() ?? string.Empty, normalizedPath, StringComparison.Ordinal))
+        if (string.Equals(layer["material"]?.GetValue<string>() ?? string.Empty, normalizedPath, StringComparison.Ordinal))
             return false;
         store.RecordMapSnapshot(mapKey);
-        layer["shaderPath"] = normalizedPath;
+        layer["material"] = normalizedPath;
         store.refreshModifiedState();
         return true;
     }

@@ -4,6 +4,7 @@
 #include "Protocol/FrameFiles.hpp"
 #include "Protocol/PreviewProtocol.hpp"
 #include "Rendering/PixelConversion.hpp"
+#include "Rendering/MapRenderStatistics.hpp"
 
 #include <EngineState.hpp>
 #include <Gameplay/Tilemap/Tilemap.hpp>
@@ -12,7 +13,7 @@
 #include <Runtime/Json.hpp>
 #include <Runtime/RuntimeDataReader.hpp>
 #include <Utf8Path.hpp>
-#include <Utils/ShaderLoader.hpp>
+#include <Graphics/Materials/MaterialResource.hpp>
 
 #include <algorithm>
 #include <chrono>
@@ -180,19 +181,20 @@ std::shared_ptr<TileLayer> MapPreviewSession::Impl::updateLayer(
             }
         }
     }
-    const std::string shaderPath = map_preview_data::text(layer, "shaderPath");
+    const std::string material = map_preview_data::text(layer, "material");
     const std::string signature = stringifyJSON(RuntimeData(object({
         {"width", RuntimeData(static_cast<std::int64_t>(width))},
         {"height", RuntimeData(static_cast<std::int64_t>(height))},
         {"tilesetKey", RuntimeData(tilesetKey)},
         {"tileset", tilesetValue == nullptr ? RuntimeData() : *tilesetValue},
         {"autoTiles", RuntimeData(std::move(autoSignature))},
-        {"shaderPath", RuntimeData(shaderPath)},
+        {"material", RuntimeData(material)},
+        {"materialSignature", RuntimeData(materialSignature)},
     })));
     Layer& cached = layers[cacheKey];
     if (!cached.graphics || cached.signature != signature) {
         TileLayerData data(layerName, tileSet, tileGrid, autoGrid, pool, keys,
-                           shaderPath);
+                           material);
         data.layerTilesetKey = tilesetKey;
         cached.graphics = std::make_shared<TileLayer>(
             data, texture(tileSet.fileName), autoTextures, frameCounts,
@@ -256,21 +258,14 @@ void MapPreviewSession::Impl::updateSprite(std::size_t index,
     sprite.presentationOpacity = map_preview_data::number(fields, "opacity", 1);
     sprite.affectsLighting = map_preview_data::boolean(fields, "visible", true);
     sprite.visible = true;
-    sprite.hue = map_preview_data::number(fields, "hue", 0);
-    sprite.shaderPath = map_preview_data::text(fields, "shaderPath");
-    if (!sprite.shaderPath.empty()) {
-        auto [entry, inserted] = shaders.try_emplace(sprite.shaderPath);
-        if (inserted) {
-            entry->second = ShaderLoader::load(sprite.shaderPath,
-                                               sf::Shader::Type::Fragment);
-        }
-        sprite.shader = entry->second.shader;
-        sprite.shaderError = !entry->second;
+    sprite.material = map_preview_data::text(fields, "material");
+    if (const RuntimeData* parameters =
+            map_preview_data::optional(fields, "materialParameters")) {
+        sprite.materialParameters = map_preview_data::map(*parameters);
     }
-    if (const RuntimeData* entry =
-            map_preview_data::optional(fields, "material")) {
-        sprite.material = map_preview_data::material(*entry);
-    }
+    sprite.materialResource =
+        ludork::engine::materials::MaterialResource::load(sprite.material);
+    sprite.materialResource->validateParameters(sprite.materialParameters);
     animations.erase(sprite.id);
     if (sprite.texture &&
         map_preview_data::boolean(fields, "animated", false)) {
@@ -482,6 +477,11 @@ RuntimeData MapPreviewSession::Impl::render(const RuntimeData::Map& request,
         revision(request, "resourceRevision");
     const std::string nextSceneKey =
         map_preview_data::text(request, "sceneKey");
+    const RuntimeData* materialValues =
+        map_preview_data::optional(request, "materials");
+    const std::string nextMaterialSignature =
+        materialValues == nullptr ? std::string{}
+                                  : stringifyJSON(*materialValues);
     if (nextResourceRevision != resourceRevision) {
         reset();
         resourceRevision = nextResourceRevision;
@@ -496,6 +496,8 @@ RuntimeData MapPreviewSession::Impl::render(const RuntimeData::Map& request,
         hasScene = false;
     }
     sceneKey = nextSceneKey;
+    const bool materialsChanged = materialSignature != nextMaterialSignature;
+    materialSignature = nextMaterialSignature;
     if (const RuntimeData* data =
             map_preview_data::optional(request, "scene")) {
         sceneData = map_preview_data::map(*data);
@@ -550,6 +552,10 @@ RuntimeData MapPreviewSession::Impl::render(const RuntimeData::Map& request,
     if (!hasScene) {
         throw std::invalid_argument(
             "Map preview needs a complete scene after opening or restarting");
+    }
+    if (materialsChanged) {
+        renderer.reset();
+        updateScene(sceneData);
     }
     const auto applyEnd = std::chrono::steady_clock::now();
     const int width = map_preview_data::integer(request, "width", 0);
@@ -623,6 +629,7 @@ RuntimeData MapPreviewSession::Impl::render(const RuntimeData::Map& request,
         {"previewReadbackMs",
          RuntimeData(milliseconds(readbackBegin, transferBegin))},
         {"previewTransferMs", RuntimeData(milliseconds(transferBegin, end))},
+        {"statistics", mapRenderStatistics(renderer.statistics())},
         {"sharedMemory",
          RuntimeData(object({
              {"filePath", RuntimeData(ludork::standard::pathToUtf8(path))},
@@ -637,7 +644,7 @@ void MapPreviewSession::Impl::reset() {
     sceneData.clear();
     layers.clear();
     textures.clear();
-    shaders.clear();
+    materialSignature.clear();
     spriteIds.clear();
     animations.clear();
     nextSpriteId = 1;

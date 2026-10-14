@@ -317,7 +317,7 @@ GpuStateGuard::GpuStateGuard(GpuApi& api) : api_(api) {
     api_.GetIntegerv(0x8C8F, &feedback_);
     api_.GetIntegeri_v(0x8C8F, 0, &feedbackBase_);
     api_.GetIntegerv(0x84E0, &activeTexture_);
-    for (int index = 0; index < 2; ++index) {
+    for (int index = 0; index < 4; ++index) {
         api_.ActiveTexture(0x84C0 + index);
         api_.GetIntegerv(0x8069, &textures_[index]);
     }
@@ -381,7 +381,7 @@ GpuStateGuard::~GpuStateGuard() {
     api_.BindBufferBase(0x8C8E, 0, feedbackBase_);
     api_.BindBuffer(0x8C8E, feedback_);
     api_.UseProgram(program_);
-    for (int index = 0; index < 2; ++index) {
+    for (int index = 0; index < 4; ++index) {
         api_.ActiveTexture(0x84C0 + index);
         api_.BindTexture(0x0DE1, textures_[index]);
     }

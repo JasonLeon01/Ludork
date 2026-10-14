@@ -41,8 +41,8 @@ function Controller:open(entry)
     self:clearEnemyControls()
     self._entry = entry
     self.ui.controls["Portrait"]:setCharacter(
-        entry.texture, entry.rect, entry.scale, entry.animatable, entry.switchInterval, entry.shaderPath or "",
-        entry.hue or 0.0
+        entry.texture, entry.rect, entry.scale, entry.animatable, entry.switchInterval, entry.material,
+        entry.materialParameters
     )
     self:setProperty("Portrait", "visible", true)
     self:_renderEntry(entry)

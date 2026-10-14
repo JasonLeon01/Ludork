@@ -38,7 +38,10 @@ void GameMapRenderer::setActorVisibilityFilter(
 }
 void GameMapRenderer::drawContent(
     sf::RenderTarget& target, const sf::RenderStates& states, bool cover,
-    float time, int revision, std::function<void(const std::string&)> effects) {
+    float time, int revision,
+    std::function<void(const std::string&, sf::RenderTarget&,
+                       const sf::RenderStates&)>
+        effects) {
     impl_->drawContent(target, states, cover, time, revision, effects);
 }
 void GameMapRenderer::drawActor(sf::RenderTarget& target,
@@ -61,8 +64,13 @@ void GameMapRenderer::setActorEffectHidden(const std::shared_ptr<Actor>& actor,
 void GameMapRenderer::resetTransparentTiles() {
     impl_->resetTransparentTiles();
 }
-void GameMapRenderer::composeFrame(const sf::Color& ambient, float time) {
-    impl_->composeFrame(ambient, time);
+void GameMapRenderer::renderFrame(
+    const sf::Color& ambient, float time, bool cover, int revision,
+    std::function<void(const std::string&, sf::RenderTarget&,
+                       const sf::RenderStates&)>
+        effects,
+    std::function<void()> overlays) {
+    impl_->renderFrame(ambient, time, cover, revision, effects, overlays);
 }
 void GameMapRenderer::prewarm(const sf::Color& ambient, float time) {
     impl_->prewarm(ambient, time);

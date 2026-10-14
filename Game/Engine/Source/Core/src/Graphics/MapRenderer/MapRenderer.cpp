@@ -14,8 +14,10 @@ MapRenderer::~MapRenderer() = default;
 
 const sf::RenderTexture& MapRenderer::render(const Scene& scene,
                                              const View& view,
-                                             const Options& options) {
-    return impl_->render(scene, view, options);
+                                             const Options& options,
+                                             const DrawHooks& hooks,
+                                             const sf::Texture* overlay) {
+    return impl_->render(scene, view, options, hooks, overlay);
 }
 
 void MapRenderer::drawContent(const Scene& scene, sf::RenderTarget& target,
@@ -24,16 +26,13 @@ void MapRenderer::drawContent(const Scene& scene, sf::RenderTarget& target,
     impl_->drawContent(scene, target, states, options, hooks);
 }
 
-const sf::RenderTexture& MapRenderer::compose(const Scene& scene,
-                                              const View& view,
-                                              const Options& options,
-                                              const sf::Texture& content) {
-    return impl_->compose(scene, view, options, content);
-}
-
 void MapRenderer::drawSprite(const Sprite& sprite, sf::RenderTarget& target,
                              const sf::RenderStates& states, float time) {
     impl_->drawSprite(sprite, target, states, time);
+}
+
+const MapRenderer::Statistics& MapRenderer::statistics() const {
+    return impl_->statistics_;
 }
 
 void MapRenderer::reset() {
@@ -44,6 +43,7 @@ sf::RenderTexture& MapRenderer::Impl::target(
     std::unique_ptr<sf::RenderTexture>& value, sf::Vector2u size) {
     if (!value || value->getSize() != size) {
         value = std::make_unique<sf::RenderTexture>(size);
+        ++statistics_.renderTextureAllocations;
         value->setSmooth(false);
     }
     return *value;
@@ -101,18 +101,6 @@ void MapRenderer::Impl::validate(const Scene& scene, const View& view,
         throw std::invalid_argument(
             "Map render scene and view must have finite positive dimensions");
     }
-}
-
-const sf::RenderTexture& MapRenderer::Impl::render(const Scene& scene,
-                                                   const View& view,
-                                                   const Options& options) {
-    validate(scene, view, options);
-    sf::RenderTexture& content = target(content_, view.pixelSize);
-    content.setView(nativeView(view));
-    content.clear(sf::Color::Transparent);
-    drawContent(scene, content, canvasRenderStates(), options, {});
-    content.display();
-    return compose(scene, view, options, content.getTexture());
 }
 
 std::vector<const MapRenderer::Region*> MapRenderer::Impl::orderedRegions(

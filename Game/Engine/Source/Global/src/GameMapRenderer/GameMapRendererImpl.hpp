@@ -15,8 +15,8 @@ public:
         PreviewSprite data;
         sf::Transform transform;
         sf::FloatRect bounds;
-        std::shared_ptr<sf::Shader> shader;
-        bool shaderError = false;
+        std::shared_ptr<const ludork::engine::materials::MaterialResource>
+            materialResource;
         bool visibleOnMap = false;
     };
     struct TransparentTile {
@@ -36,11 +36,20 @@ public:
     void drawContent(
         sf::RenderTarget& target, const sf::RenderStates& states,
         bool applyPlayerCover, float shaderTime, int materialRevision,
-        const std::function<void(const std::string&)>& drawLayerEffects);
+        const std::function<void(const std::string&, sf::RenderTarget&,
+                                 const sf::RenderStates&)>& drawLayerEffects);
     void drawActor(sf::RenderTarget& target, const sf::RenderStates& states,
                    const std::shared_ptr<Actor>& actor, int actorAlpha,
                    float shaderTime);
-    void composeFrame(const sf::Color& ambientLight, float shaderTime);
+    MapRenderer::DrawHooks drawHooks(
+        const std::function<void(const std::string&, sf::RenderTarget&,
+                                 const sf::RenderStates&)>& effects);
+    void renderFrame(
+        const sf::Color& ambientLight, float shaderTime, bool applyPlayerCover,
+        int materialRevision,
+        const std::function<void(const std::string&, sf::RenderTarget&,
+                                 const sf::RenderStates&)>& effects,
+        const std::function<void()>& overlays);
     void prewarm(const sf::Color& ambientLight, float shaderTime);
     void buildScene(bool applyPlayerCover, int materialRevision);
     MapRenderer::Sprite actorSprite(const std::shared_ptr<Actor>& actor,
@@ -68,6 +77,7 @@ public:
     std::unordered_map<std::uint64_t, std::shared_ptr<Actor>> actorOwners;
     std::shared_ptr<FogController> fogController;
     MapRenderer renderer;
+    std::shared_ptr<sf::RenderTexture> overlay;
     MapRenderer::Scene scene;
     std::vector<TransparentTile> transparentTiles;
     std::vector<std::pair<TileLayer*, bool>> coverLayers;

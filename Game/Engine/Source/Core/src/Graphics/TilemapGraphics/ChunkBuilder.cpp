@@ -9,24 +9,6 @@
 
 namespace ludork::engine::tilemap_graphics_impl {
 
-void validateMaterialOpacities(const std::vector<Material>& materials,
-                               std::string_view source) {
-    for (std::size_t index = 0; index < materials.size(); ++index) {
-        const float opacity = materials[index].opacity;
-        if (!std::isfinite(opacity) || opacity < 0.0f || opacity > 1.0f) {
-            throw std::invalid_argument(
-                std::string(source) + "[" + std::to_string(index) +
-                "].opacity must be finite and in [0, 1]");
-        }
-    }
-}
-
-sf::Color materialColour(float opacity) {
-    sf::Color colour = sf::Color::White;
-    colour.a = static_cast<std::uint8_t>(opacity * 255.0f);
-    return colour;
-}
-
 std::size_t chunkIndex(int x, int y, int columns) {
     return static_cast<std::size_t>(y * columns + x);
 }

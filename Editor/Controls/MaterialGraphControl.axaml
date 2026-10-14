@@ -1,0 +1,68 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:nodify="clr-namespace:NodifyM.Avalonia.Controls;assembly=NodifyM.Avalonia"
+             xmlns:vm="clr-namespace:Ludork.ViewModels.Materials"
+             xmlns:local="clr-namespace:Ludork.Controls"
+             x:Class="Ludork.Controls.MaterialGraphControl"
+             x:DataType="vm:MaterialGraphViewModel" Focusable="True" Background="{DynamicResource Editor.BackgroundBrush}">
+    <nodify:NodifyEditor x:Name="Editor" ItemsSource="{Binding Nodes}"
+                         SelectedItems="{Binding SelectedNodes}" Connections="{Binding Connections}"
+                         PendingConnection="{Binding PendingConnection}"
+                         DisconnectConnectorCommand="{Binding DisconnectConnectorCommand}">
+        <nodify:NodifyEditor.ViewTranslateTransform><TranslateTransform /></nodify:NodifyEditor.ViewTranslateTransform>
+        <nodify:NodifyEditor.GridLineTemplate>
+            <DataTemplate>
+                <nodify:LargeGridLine Width="{Binding $parent[nodify:NodifyEditor].Bounds.Width}"
+                    Height="{Binding $parent[nodify:NodifyEditor].Bounds.Height}"
+                    OffsetX="{Binding $parent[nodify:NodifyEditor].OffsetX}"
+                    OffsetY="{Binding $parent[nodify:NodifyEditor].OffsetY}"
+                    Zoom="{Binding $parent[nodify:NodifyEditor].Zoom}" Spacing="32" Thickness="0.5"
+                    Brush="{DynamicResource Editor.HoverBrush}" />
+            </DataTemplate>
+        </nodify:NodifyEditor.GridLineTemplate>
+        <nodify:NodifyEditor.ConnectionTemplate>
+            <DataTemplate x:DataType="vm:MaterialGraphConnectionViewModel">
+                <nodify:Connection Source="{Binding Source.Anchor}" Target="{Binding Target.Anchor}"
+                    Stroke="{DynamicResource Editor.AccentBrush}" StrokeThickness="3"
+                    DisconnectCommand="{Binding DisconnectConnectionCommand}" />
+            </DataTemplate>
+        </nodify:NodifyEditor.ConnectionTemplate>
+        <nodify:NodifyEditor.PendingConnectionTemplate>
+            <DataTemplate x:DataType="vm:MaterialGraphPendingConnectionViewModel">
+                <nodify:PendingConnection StartedCommand="{Binding StartCommand}"
+                    CompletedCommand="{Binding CompleteCommand}" EnablePreview="True" EnableSnapping="True"
+                    Stroke="{DynamicResource Editor.AccentBrush}"
+                    PreviewTarget="{Binding PreviewTarget, Mode=OneWayToSource}" />
+            </DataTemplate>
+        </nodify:NodifyEditor.PendingConnectionTemplate>
+        <nodify:NodifyEditor.ItemTemplate>
+            <DataTemplate x:DataType="vm:MaterialGraphNodeViewModel">
+                <nodify:Node Input="{Binding Input}" Output="{Binding Output}" Location="{Binding Location, Mode=TwoWay}"
+                    HeaderBrush="{Binding HeaderBrush}" IsResize="False" ToolTip.Tip="{Binding Diagnostic}">
+                    <nodify:Node.ContentBrush><SolidColorBrush Color="{DynamicResource Editor.SurfaceColor}" /></nodify:Node.ContentBrush>
+                    <nodify:Node.Header><TextBlock Text="{Binding Title}" MinWidth="150" FontWeight="SemiBold" /></nodify:Node.Header>
+                    <nodify:Node.Content><local:MaterialGraphInlineEditor Margin="4" /></nodify:Node.Content>
+                    <nodify:Node.InputConnectorTemplate>
+                        <DataTemplate x:DataType="vm:MaterialGraphPortViewModel">
+                            <nodify:NodeInput IsConnected="{Binding IsConnected}" Anchor="{Binding Anchor, Mode=OneWayToSource}">
+                                <nodify:NodeInput.Header>
+                                    <StackPanel Spacing="4" MinWidth="180" MaxWidth="260">
+                                        <TextBlock Text="{Binding Title}" Foreground="{DynamicResource Editor.TextBrush}" />
+                                        <local:MaterialGraphInlineEditor />
+                                    </StackPanel>
+                                </nodify:NodeInput.Header>
+                            </nodify:NodeInput>
+                        </DataTemplate>
+                    </nodify:Node.InputConnectorTemplate>
+                    <nodify:Node.OutputConnectorTemplate>
+                        <DataTemplate x:DataType="vm:MaterialGraphPortViewModel">
+                            <nodify:NodeOutput IsConnected="{Binding IsConnected}" Anchor="{Binding Anchor, Mode=OneWayToSource}">
+                                <nodify:NodeOutput.Header><TextBlock Text="{Binding Title}" Foreground="{DynamicResource Editor.TextBrush}" /></nodify:NodeOutput.Header>
+                            </nodify:NodeOutput>
+                        </DataTemplate>
+                    </nodify:Node.OutputConnectorTemplate>
+                </nodify:Node>
+            </DataTemplate>
+        </nodify:NodifyEditor.ItemTemplate>
+    </nodify:NodifyEditor>
+</UserControl>

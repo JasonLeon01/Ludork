@@ -2,7 +2,6 @@
 
 #include <CoreMinimal.hpp>
 #include <EngineRuntimeApi.hpp>
-#include <General/Material.hpp>
 
 class Actor;
 
@@ -28,7 +27,7 @@ public:
     virtual std::vector<Actor*> getOverlaps(Actor& actor) = 0;
 
     BIND_METHOD(Pure = true)
-    virtual std::optional<Material> getTopMaterial(
+    virtual std::optional<std::string> getTopMaterial(
         const sf::Vector2i& position) const = 0;
 
     BIND_METHOD()

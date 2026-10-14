@@ -3,7 +3,6 @@
 #include "GridPointHash.hpp"
 #include <Gameplay/TileLayer.hpp>
 #include <Gameplay/Tilemap/Tilemap.hpp>
-#include <General/Material.hpp>
 #include <optional>
 #include <unordered_map>
 #include <memory>
@@ -42,7 +41,7 @@ public:
         const sf::Vector2i& position) const;
     void clearSparseWorld();
     bool isSparseWorldTilePassable(const sf::Vector2i& position) const;
-    std::optional<Material> getSparseWorldTopMaterial(
+    std::optional<std::string> getSparseWorldTopMaterial(
         const sf::Vector2i& position, const ActorRegistryImpl& actors) const;
 
 private:

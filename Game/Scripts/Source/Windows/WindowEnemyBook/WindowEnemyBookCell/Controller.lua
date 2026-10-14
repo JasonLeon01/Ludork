@@ -90,7 +90,7 @@ end
 function WindowEnemyBookCellController:refresh()
     self.ui.controls["EnemyIcon"]:setCharacter(
         self.model.entry.texture, self.model.entry.rect, self.model.entry.scale, self.model.entry.animatable,
-        self.model.entry.switchInterval, self.model.entry.shaderPath or "", self.model.entry.hue or 0.0
+        self.model.entry.switchInterval, self.model.entry.material, self.model.entry.materialParameters
     )
     for _, stat in ipairs(_STAT_FIELDS) do
         local value = tostring(ToShortNumber(self.model.entry[stat.field] or stat.default))

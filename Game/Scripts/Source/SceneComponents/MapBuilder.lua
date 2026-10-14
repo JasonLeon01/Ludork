@@ -218,7 +218,7 @@ function SceneMapBuilder.GenerateTilemap(data, layerOrder, width, height)
             autoTileKeys[index + 1] = key
         end
         local tileLayerData = Engine.TileLayerData.new(
-            name, layerTileset, tiles, autoTileGrid, autoTilePool, autoTileKeys, tostring(layerData.shaderPath or "")
+            name, layerTileset, tiles, autoTileGrid, autoTilePool, autoTileKeys, tostring(layerData.material or "")
         )
         tileLayerData.layerTilesetKey = layerData.layerTileset
         local autoTileTextures = {}

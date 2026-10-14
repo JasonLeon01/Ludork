@@ -343,7 +343,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             if (closed)
                 return;
             string nextRevision = string.Join("\n", gameData.Documents.All
-                .Where(item => item.Section == "UI" && item != document.ResourceDocument)
+                .Where(item => item.Section is "UI" or "Materials" && item != document.ResourceDocument)
                 .Select(item => item.Id.ToString() + ":" + item.Revision.ToString(CultureInfo.InvariantCulture)));
             if (relatedAssetsRevision != nextRevision)
             {

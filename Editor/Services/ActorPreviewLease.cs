@@ -41,7 +41,8 @@ public sealed class ActorPreviewLease : IDisposable
     public ActorVisualDescriptor Descriptor { get; private set; }
     public Bitmap? Frame => frame;
     public PixelRect SourceRect { get; private set; }
-    public string? ShaderError { get; private set; }
+    public Vector FrameOffset { get; private set; }
+    public string? MaterialError { get; private set; }
     public bool IsActive
     {
         get => isActive;
@@ -62,7 +63,7 @@ public sealed class ActorPreviewLease : IDisposable
         PublicationRevision++;
         renderedTextureRect = default;
         nativeRenderDirty = descriptor.RequiresNativePreview;
-        ShaderError = null;
+        MaterialError = null;
         owner.onLeaseDescriptorChanged(this);
     }
 
@@ -104,7 +105,8 @@ public sealed class ActorPreviewLease : IDisposable
         int sourceX,
         int sourceY,
         bool premultiplied,
-        string? shaderError)
+        string? materialError,
+        Vector offset = default)
     {
         if (disposed || width <= 0 || height <= 0)
             return;
@@ -125,7 +127,7 @@ public sealed class ActorPreviewLease : IDisposable
                 publishedPixels,
                 width,
                 height,
-                Descriptor,
+                Descriptor with { Origin = Descriptor.Origin - offset },
                 presentationSize);
             sourceStride = width * 4;
             sourceX = 0;
@@ -156,9 +158,10 @@ public sealed class ActorPreviewLease : IDisposable
             Marshal.Copy(target, 0, locked.Address, target.Length);
         }
         SourceRect = new PixelRect(0, 0, width, height);
+        FrameOffset = presentationSize == 0 ? offset : default;
         renderedTextureRect = textureRect;
         nativeRenderDirty = false;
-        ShaderError = shaderError;
+        MaterialError = materialError;
         FrameChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -193,7 +196,7 @@ public sealed class ActorPreviewLease : IDisposable
         }
     }
 
-    internal void PublishFallback(WriteableBitmap bitmap, PixelRect textureRect, string? shaderError)
+    internal void PublishFallback(WriteableBitmap bitmap, PixelRect textureRect, string? materialError)
     {
         PublicationRevision++;
         WriteableBitmap? previous = ownedFrame;
@@ -201,9 +204,10 @@ public sealed class ActorPreviewLease : IDisposable
         frame = bitmap;
         frameAlphaFormat = AlphaFormat.Unpremul;
         SourceRect = new PixelRect(0, 0, bitmap.PixelSize.Width, bitmap.PixelSize.Height);
+        FrameOffset = default;
         renderedTextureRect = textureRect;
         nativeRenderDirty = false;
-        ShaderError = shaderError;
+        MaterialError = materialError;
         FrameChanged?.Invoke(this, EventArgs.Empty);
         previous?.Dispose();
     }
@@ -212,7 +216,8 @@ public sealed class ActorPreviewLease : IDisposable
         Bitmap atlas,
         PixelRect atlasRect,
         PixelRect textureRect,
-        string? shaderError)
+        string? materialError,
+        Vector offset = default)
     {
         if (disposed || presentationSize != 0)
             return;
@@ -222,9 +227,10 @@ public sealed class ActorPreviewLease : IDisposable
         frameAlphaFormat = null;
         frame = atlas;
         SourceRect = atlasRect;
+        FrameOffset = offset;
         renderedTextureRect = textureRect;
         nativeRenderDirty = false;
-        ShaderError = shaderError;
+        MaterialError = materialError;
         FrameChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -232,12 +238,12 @@ public sealed class ActorPreviewLease : IDisposable
 
     internal void clearFrame(
         PixelRect textureRect,
-        string? shaderError = null,
+        string? materialError = null,
         bool nativeRenderPending = false)
     {
         if (disposed)
             return;
-        bool changed = frame is not null || !string.Equals(ShaderError, shaderError, StringComparison.Ordinal);
+        bool changed = frame is not null || !string.Equals(MaterialError, materialError, StringComparison.Ordinal);
         PublicationRevision++;
         ownedFrame?.Dispose();
         ownedFrame = null;
@@ -246,20 +252,20 @@ public sealed class ActorPreviewLease : IDisposable
         SourceRect = new PixelRect(0, 0, textureRect.Width, textureRect.Height);
         renderedTextureRect = textureRect;
         nativeRenderDirty = nativeRenderPending;
-        ShaderError = shaderError;
+        MaterialError = materialError;
         if (changed)
             FrameChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    internal void publishRenderError(PixelRect textureRect, string shaderError)
+    internal void publishRenderError(PixelRect textureRect, string materialError)
     {
         if (disposed)
             return;
-        bool changed = !string.Equals(ShaderError, shaderError, StringComparison.Ordinal);
+        bool changed = !string.Equals(MaterialError, materialError, StringComparison.Ordinal);
         PublicationRevision++;
         renderedTextureRect = textureRect;
         nativeRenderDirty = false;
-        ShaderError = shaderError;
+        MaterialError = materialError;
         if (changed)
             FrameChanged?.Invoke(this, EventArgs.Empty);
     }

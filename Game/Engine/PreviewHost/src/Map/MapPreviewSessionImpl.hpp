@@ -4,7 +4,6 @@
 
 #include <Gameplay/TileLayer.hpp>
 #include <Graphics/MapRenderer.hpp>
-#include <Utils/ShaderLoader.hpp>
 
 #include <string>
 #include <unordered_map>
@@ -50,7 +49,7 @@ public:
     RuntimeData::Map sceneData;
     std::unordered_map<std::string, Layer> layers;
     std::unordered_map<std::string, std::shared_ptr<sf::Texture>> textures;
-    std::unordered_map<std::string, ShaderLoadResult> shaders;
+    std::string materialSignature;
     std::unordered_map<std::string, std::uint64_t> spriteIds;
     std::unordered_map<std::uint64_t, Animation> animations;
     std::uint64_t nextSpriteId = 1;

@@ -134,7 +134,7 @@ private:
     };
     GpuApi& api_;
     int program_, buffer_, feedback_, feedbackBase_, activeTexture_,
-        textures_[2];
+        textures_[4];
     int viewport_[4], blend_[6];
     bool blending_, discard_;
     int vertexArray_ = 0;

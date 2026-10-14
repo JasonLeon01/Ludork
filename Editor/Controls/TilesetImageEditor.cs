@@ -55,10 +55,9 @@ public sealed class TilesetImageEditor : Control, IDisposable
     public bool HasImage => image is not null;
     public Func<string, JsonNode, IReadOnlyList<int>, int, bool>? EditRequested { get; set; }
     public Func<int, int, int, bool, bool>? DirectionEditRequested { get; set; }
-    public Func<int, int, JsonObject, JsonObject, bool>? MaterialCommitRequested { get; set; }
     public Action? GestureStarted { get; set; }
     public Action? GestureCompleted { get; set; }
-    public Action<JsonObject, Action<JsonObject>>? MaterialEditRequested { get; set; }
+    public Action<string, Action<string>>? MaterialEditRequested { get; set; }
 
     public void setData(
         JsonObject? nextData,
@@ -242,7 +241,7 @@ public sealed class TilesetImageEditor : Control, IDisposable
                     drawPassable(context, cell, getBool(getArray("passable"), index, false));
                     break;
                 case TilesetEditMode.Material:
-                    if (!isDefaultMaterial(getObject(getArray("materials"), index)))
+                    if (!string.IsNullOrEmpty(data?["materials"]?[index.ToString()]?.GetValue<string>()))
                         drawMaterial(context, cell);
                     break;
                 case TilesetEditMode.Dir4:
@@ -258,7 +257,7 @@ public sealed class TilesetImageEditor : Control, IDisposable
             return;
         if (Mode == TilesetEditMode.Passable)
             drawAutoTileMarker(context, frame, data["passable"]?.GetValue<bool?>() ?? true ? "O" : "X");
-        else if (Mode == TilesetEditMode.Material && !isDefaultMaterial(data["material"] as JsonObject))
+        else if (Mode == TilesetEditMode.Material && !string.IsNullOrEmpty(data["material"]?.GetValue<string>()))
             drawAutoTileMarker(context, frame, "M");
     }
 
@@ -429,14 +428,13 @@ public sealed class TilesetImageEditor : Control, IDisposable
 
     private void requestMaterialEdit(JsonObject target, string property, int index, int count)
     {
-        JsonObject material = (JsonObject)TilesetMetadata.Read(target, property, index, isAutoTile);
+        string material = TilesetMetadata.Read(target, property, index, isAutoTile).GetValue<string>();
         MaterialEditRequested?.Invoke(material, edited =>
         {
-            if (!ReferenceEquals(data, target) || MaterialCommitRequested?.Invoke(index, count, material, edited) != true)
+            JsonNode value = JsonValue.Create(edited)!;
+            if (!ReferenceEquals(data, target) || EditRequested?.Invoke(property, value, isAutoTile ? [] : [index], count) != true)
                 return;
-            JsonObject current = (JsonObject)TilesetMetadata.Read(target, property, index, isAutoTile);
-            JsonObject merged = TilesetMetadata.MergeMaterial(current, material, edited);
-            TilesetMetadata.Apply(target, property, merged, isAutoTile ? [] : [index], count, isAutoTile);
+            TilesetMetadata.Apply(target, property, value, isAutoTile ? [] : [index], count, isAutoTile);
             InvalidateVisual();
         });
     }
@@ -483,13 +481,4 @@ public sealed class TilesetImageEditor : Control, IDisposable
         return edge switch { 0 => 3, 1 => 2, 2 => 0, _ => 1 };
     }
 
-    private static bool isDefaultMaterial(JsonObject? value)
-    {
-        return value is null
-            || (value["lightBlock"]?.GetValue<double?>() ?? 0.0) == 0.0
-            && !(value["mirror"]?.GetValue<bool?>() ?? false)
-            && (value["reflectionStrength"]?.GetValue<double?>() ?? 0.5) == 0.5
-            && (value["opacity"]?.GetValue<double?>() ?? 1.0) == 1.0
-            && (value["speedRate"]?.GetValue<double?>() ?? 1.0) == 1.0;
-    }
 }

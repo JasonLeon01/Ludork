@@ -3,6 +3,7 @@
 #include "Protocol/PreviewProtocol.hpp"
 
 #include <EngineState.hpp>
+#include <Graphics/Materials/MaterialResource.hpp>
 #include <Runtime/AssetStore.hpp>
 #include <Runtime/RuntimeDataReader.hpp>
 #include <UI/UiControlAdapterRegistry.hpp>
@@ -23,6 +24,7 @@ PreviewHostSession::PreviewHostSession(std::string_view adapterFingerprint,
 
 PreviewHostSession::~PreviewHostSession() noexcept {
     mapSession_.reset();
+    materialSession_.reset();
     subtitleSession_.reset();
     particleSession_.reset();
     uiSession_.reset();
@@ -44,6 +46,22 @@ RuntimeData PreviewHostSession::handle(const RuntimeData& requestValue) {
     if (!accepted_) {
         throw std::runtime_error(
             "Preview protocol handshake has not completed");
+    }
+    const RuntimeData* materials =
+        ludork::runtime::value_reader::findValue(request, "materials");
+    const RuntimeData::Map materialDocuments =
+        materials == nullptr || materials->isNil()
+            ? RuntimeData::Map{}
+            : ludork::runtime::value_reader::requireMap(
+                  *materials, "Preview request.materials");
+    const ludork::engine::materials::MaterialResource::ScopedOverrides
+        materialScope(materialDocuments);
+    if (type == "describeMaterials") {
+        return MaterialPreviewSession::describe();
+    }
+    if (type == "renderMaterial") {
+        engineState().setScale(1.0f);
+        return materialSession_.render(request, frameFiles_);
     }
     if (type == "render") {
         return uiSession_.render(request, frameFiles_);
@@ -74,6 +92,7 @@ RuntimeData PreviewHostSession::handle(const RuntimeData& requestValue) {
 
 RuntimeData PreviewHostSession::handshake(const RuntimeData::Map& request) {
     mapSession_.reset();
+    materialSession_.reset();
     subtitleSession_.reset();
     particleSession_.reset();
     clearUiVector4CurveResourceCache();
@@ -114,6 +133,7 @@ RuntimeData PreviewHostSession::handshake(const RuntimeData::Map& request) {
         }
         std::filesystem::current_path(project);
         ludork::runtime::assetStore().configure(project);
+        ludork::engine::materials::MaterialResource::clearCache();
         engineState().setScale(1.0f);
         actorRenderer_.reset(project);
         accepted_ = true;
@@ -124,6 +144,7 @@ RuntimeData PreviewHostSession::handshake(const RuntimeData::Map& request) {
     capabilities.emplace_back(RuntimeData("particle"));
     capabilities.emplace_back(RuntimeData("subtitle"));
     capabilities.emplace_back(RuntimeData("map"));
+    capabilities.emplace_back(RuntimeData("material"));
     capabilities.emplace_back(RuntimeData("mapActorChanges"));
     capabilities.emplace_back(RuntimeData("persistentFrames"));
     return RuntimeData(object({

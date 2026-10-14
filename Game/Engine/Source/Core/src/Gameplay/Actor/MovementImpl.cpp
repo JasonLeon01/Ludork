@@ -91,9 +91,8 @@ void MovementImpl::setDestination(const sf::Vector2i& offset, int cellSize) {
                                   static_cast<float>(offset.y * cellSize));
 }
 
-std::optional<sf::Vector2f> MovementImpl::velocity(float speed,
-                                                   float speedRate) const {
-    return movementVelocity(departure, destination, speed, speedRate);
+std::optional<sf::Vector2f> MovementImpl::velocity(float speed) const {
+    return movementVelocity(departure, destination, speed);
 }
 
 sf::Vector2i normaliseDirection(const sf::Vector2i& direction) {
@@ -102,12 +101,11 @@ sf::Vector2i normaliseDirection(const sf::Vector2i& direction) {
 
 std::optional<sf::Vector2f> movementVelocity(
     const std::optional<sf::Vector2f>& departure,
-    const std::optional<sf::Vector2f>& destination, float speed,
-    float speedRate) {
+    const std::optional<sf::Vector2f>& destination, float speed) {
     if (!departure.has_value() || !destination.has_value()) {
         return std::nullopt;
     }
-    const float actualSpeed = speed * speedRate;
+    const float actualSpeed = speed;
     if (actualSpeed == 0.0f) {
         throw std::runtime_error("attempt to divide by zero");
     }

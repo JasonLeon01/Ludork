@@ -13,7 +13,7 @@
 #include <Gameplay/Components/LightComponent.hpp>
 #include <Gameplay/Components/EmitterComponent.hpp>
 #include <Gameplay/Components/BillboardComponent.hpp>
-#include <General/Material.hpp>
+#include <Graphics/Materials/MaterialResource.hpp>
 
 #include <SFML/Audio/Sound.hpp>
 
@@ -57,15 +57,16 @@ public:
     BIND_PROPERTY()
     bool visible = true;
 
-    BIND_PROPERTY(default = {})
-    Material material;
+    BIND_METHOD(property = "material", setter = "setMaterial", default = "",
+                meta(PathRoot = "Data", PathVars = "Data/Materials",
+                     PathFilter = "*.json"))
+    const std::string& materialReference() const;
 
-    BIND_PROPERTY(meta(PathVars = "/Game/Assets/Shaders",
-                       PathFilter = "*.frag"))
-    std::string shaderPath = "";
+    BIND_METHOD(property = "materialParameters",
+                setter = "setMaterialParameters", default = {})
+    RuntimeData::Map getMaterialParameters() const;
 
-    BIND_PROPERTY(meta(ProgressVars = {0.0, 360.0, 1.0}))
-    float hue = 0.0f;
+    void setMaterialParameters(const RuntimeData::Map& parameters);
 
     BIND_PROPERTY()
     bool collisionEnabled = false;
@@ -87,18 +88,6 @@ public:
 
     BIND_METHOD()
     virtual void markDestroyed(bool destroyed);
-
-    BIND_METHOD(outpins(default = nil))
-    void setShaderPath(const std::string& shaderPath);
-
-    BIND_METHOD(Pure = true, returns = "shaderPath")
-    const std::string& getShaderPath() const;
-
-    BIND_METHOD(Pure = true, returns = "shader")
-    std::shared_ptr<sf::Shader> getShader() const;
-
-    BIND_METHOD(Pure = true, returns = "error")
-    bool hasShaderError() const;
 
     BIND_METHOD()
     virtual void update(float deltaTime);
@@ -271,40 +260,25 @@ public:
     sf::IntRect getTextureRect() const;
 
     BIND_METHOD(Pure = true, returns = "material")
-    virtual Material getMaterial() const;
+    virtual const std::string& getMaterial() const;
+
+    BIND_METHOD(metadata = false)
+    sf::FloatRect getMaterialBounds() const;
 
     BIND_METHOD(outpins(default = nil))
-    virtual void setMaterial(const std::optional<Material>& material);
+    virtual void setMaterial(const std::string& material);
 
-    BIND_METHOD(Pure = true, returns = "lightBlock")
-    virtual float getLightBlock() const;
+    BIND_METHOD(Pure = true)
+    RuntimeData getMaterialParameter(const std::string& id) const;
 
-    BIND_METHOD(outpins(default = nil))
-    virtual void setLightBlock(float lightBlock);
+    BIND_METHOD()
+    void setMaterialParameter(const std::string& id, const RuntimeData& value);
 
-    BIND_METHOD(Pure = true, returns = "mirror")
-    virtual bool getMirror() const;
+    BIND_METHOD()
+    void resetMaterialParameter(const std::string& id);
 
-    BIND_METHOD(outpins(default = nil))
-    virtual void setMirror(bool mirror);
-
-    BIND_METHOD(Pure = true, returns = "reflectionStrength")
-    virtual float getReflectionStrength() const;
-
-    BIND_METHOD(outpins(default = nil))
-    virtual void setReflectionStrength(float reflectionStrength);
-
-    BIND_METHOD(Pure = true, returns = "opacity")
-    virtual float getOpacity() const;
-
-    BIND_METHOD(outpins(default = nil))
-    virtual void setOpacity(float opacity);
-
-    BIND_METHOD(Pure = true, returns = "ignoreLighting")
-    virtual bool getIgnoreLighting() const;
-
-    BIND_METHOD(outpins(default = nil))
-    virtual void setIgnoreLighting(bool ignoreLighting);
+    std::shared_ptr<const ludork::engine::materials::MaterialResource>
+    getMaterialResource() const;
 
     BIND_METHOD(outpins(default = nil))
     virtual void setGraph(const std::shared_ptr<Graph>& graph);
@@ -586,7 +560,9 @@ private:
     static const sf::Texture& textureOrBlank(
         const std::shared_ptr<sf::Texture>& texture);
 
-    void ensureShaderLoaded() const;
+    void ensureMaterialLoaded() const;
+    std::string material_;
+    RuntimeData::Map materialParameters_;
 
     std::weak_ptr<ActorMapService> map_;
     std::shared_ptr<EmitterComponent> emitterComp_;

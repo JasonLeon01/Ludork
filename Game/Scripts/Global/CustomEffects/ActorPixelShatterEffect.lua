@@ -1,3 +1,5 @@
+local GlobalCore = require("GlobalCore")
+
 local DURATION = 0.65
 local STAGGER_DURATION = 0.1
 
@@ -39,7 +41,7 @@ function ActorPixelShatterEffect:prepare(drawActor)
         return
     end
     assert(self._sourceActor ~= nil, "ActorPixelShatterEffect source Actor is unavailable")
-    local bounds = self._sourceActor:getGlobalBounds()
+    local bounds = self._sourceActor:getMaterialBounds()
     local originX = math.floor(bounds.position.x)
     local originY = math.floor(bounds.position.y)
     local maximumX = math.ceil(bounds.position.x + bounds.size.x)
@@ -95,6 +97,7 @@ function ActorPixelShatterEffect:draw(target)
     self._shader:setUniform("snapshotOrigin", self._snapshotOrigin)
     self._shader:setUniform("snapshotSize", self._snapshotSize)
     self._shader:setUniform("seed", self._seed)
+    GlobalCore.ActorPixelShatterShader.bindLighting(self._shader)
     target:draw(self._vertices, self._renderStates)
 end
 

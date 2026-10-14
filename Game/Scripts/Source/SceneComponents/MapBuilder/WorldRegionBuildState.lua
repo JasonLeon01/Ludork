@@ -194,7 +194,7 @@ local function createWorldRegionBuildCoroutine(
             end
             local tileLayerData = Engine.TileLayerData.new(
                 layerData.layerName, layerTileset, data.width, data.height, autoTilePool, autoTileKeys,
-                tostring(layerData.shaderPath or "")
+                tostring(layerData.material or "")
             )
             tileLayerData.layerTilesetKey = layerData.layerTileset
             coroutine.yield("createTileLayerData")

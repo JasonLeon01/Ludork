@@ -35,7 +35,7 @@
 ---@field visible      boolean | nil
 ---@field tiles        Source.SceneComponents.SerializedTileRow[]
 ---@field autoTiles    Source.SceneComponents.SerializedAutoTileRow[] | nil
----@field shaderPath   string | nil
+---@field material     string | nil
 
 ---@class Source.SceneComponents.MapDataBase: Source.SceneComponents.MapAudioData
 ---@field type              "map" | nil

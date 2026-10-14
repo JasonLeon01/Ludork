@@ -14,6 +14,7 @@ public sealed class BlueprintVariableField
     }
 
     public string Name { get; init; }
+    public string? DisplayName { get; init; }
     public string Description { get; init; } = string.Empty;
     public string Type { get; init; }
     public string? Module { get; init; }
@@ -45,6 +46,7 @@ public sealed class BlueprintVariableField
     {
         return new BlueprintVariableField(name, Type, Value)
         {
+            DisplayName = DisplayName,
             Description = Description,
             Module = Module,
             TypeName = TypeName,

@@ -19,8 +19,8 @@ public sealed record ActorVisualDescriptor(
     string TexturePath,
     PixelSize TextureSize,
     PixelRect BaseTextureRect,
-    string ShaderPath,
-    double Hue,
+    string Material,
+    JsonObject MaterialParameters,
     Vector Translation,
     Vector Scale,
     Vector Origin,
@@ -32,8 +32,8 @@ public sealed record ActorVisualDescriptor(
     int FrameCount)
 {
     public double MapPreviewOpacity => Visible ? 1.0 : 0.25;
-    public bool RequiresRealtimePreview => Animated || ShaderPath.Length != 0;
-    public bool RequiresNativePreview => ShaderPath.Length != 0 || !EditorBitmapEffects.IsNeutralHue(Hue);
+    public bool RequiresRealtimePreview => Animated || Material.Length != 0;
+    public bool RequiresNativePreview => Material.Length != 0;
     public bool RequiresPreviewService => Animated || RequiresNativePreview;
 
     public PixelRect GetTextureRect(TimeSpan elapsed)
@@ -52,7 +52,8 @@ public sealed record ActorPreviewAtlasItem(
     string Id,
     int Page,
     PixelRect Rect,
-    bool ShaderError,
+    Vector Offset,
+    bool MaterialError,
     string Error);
 
 public sealed record ActorPreviewBatchFrame(
@@ -95,6 +96,8 @@ public sealed partial class ActorPreviewService : IDisposable
         timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1000.0 / 30.0) };
         timer.Tick += onTimerTick;
     }
+
+    public Func<JsonObject>? MaterialSnapshots { get; set; }
 
     public event EventHandler? StatusChanged;
 
@@ -139,8 +142,8 @@ public sealed partial class ActorPreviewService : IDisposable
         if (active && !lease.UsesAtlas)
         {
             PixelRect textureRect = lease.getTextureRect(clock.Elapsed);
-            if (!staticFrame || descriptor.ShaderPath.Length == 0)
-                updateFallback(lease, textureRect, true, forceSourceValidation: true);
+            if (!staticFrame || descriptor.Material.Length == 0)
+                updateFallback(lease, textureRect, forceSourceValidation: true);
         }
         ensureTimerState();
         if (active)
@@ -221,8 +224,8 @@ public sealed partial class ActorPreviewService : IDisposable
         PixelRect textureRect = lease.getTextureRect(clock.Elapsed);
         if (lease.UsesAtlas)
             lease.clearFrame(textureRect);
-        else if (lease.IsActive && (!lease.IsStatic || lease.Descriptor.ShaderPath.Length == 0))
-            updateFallback(lease, textureRect, true, forceSourceValidation: true);
+        else if (lease.IsActive && (!lease.IsStatic || lease.Descriptor.Material.Length == 0))
+            updateFallback(lease, textureRect, forceSourceValidation: true);
         ensureTimerState();
         Refresh();
     }
@@ -263,7 +266,7 @@ public sealed partial class ActorPreviewService : IDisposable
                         staticNative.Add(lease);
                 }
                 else if (lease.RenderedTextureRect != textureRect)
-                    updateFallback(lease, textureRect, true);
+                    updateFallback(lease, textureRect);
             }
             if (realtimeNative.Count == 0 && staticNative.Count == 0)
                 return;
@@ -325,8 +328,7 @@ public sealed partial class ActorPreviewService : IDisposable
     private bool updateFallback(
         ActorPreviewLease lease,
         PixelRect textureRect,
-        bool applyHue,
-        string? shaderError = null,
+        string? materialError = null,
         bool nativeRenderPending = false,
         bool forceSourceValidation = false)
     {
@@ -339,20 +341,20 @@ public sealed partial class ActorPreviewService : IDisposable
         }
         if (fallbackLoads.TryGetValue(lease, out FallbackLoad? pending))
         {
-            pending.ShaderError = shaderError ?? pending.ShaderError;
+            pending.MaterialError = materialError ?? pending.MaterialError;
             pending.NativeRenderPending |= nativeRenderPending;
         }
         else
         {
-            FallbackLoad request = new(CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token), shaderError, nativeRenderPending);
+            FallbackLoad request = new(CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token), materialError, nativeRenderPending);
             fallbackLoads.Add(lease, request);
-            prepareFallback(lease, lease.Descriptor, applyHue, forceSourceValidation, request);
+            prepareFallback(lease, lease.Descriptor, forceSourceValidation, request);
         }
         return true;
     }
 
     private async void prepareFallback(ActorPreviewLease lease, ActorVisualDescriptor descriptor,
-        bool applyHue, bool forceSourceValidation, FallbackLoad request)
+        bool forceSourceValidation, FallbackLoad request)
     {
         CancellationToken token = request.Cancellation.Token;
         WriteableBitmap? frame = null;
@@ -367,19 +369,19 @@ public sealed partial class ActorPreviewService : IDisposable
             if (source is null || textureRect.X < 0 || textureRect.Y < 0 || textureRect.Width <= 0 || textureRect.Height <= 0
                 || textureRect.Right > source.Width || textureRect.Bottom > source.Height)
             {
-                if (request.ShaderError is not null || request.NativeRenderPending)
-                    lease.clearFrame(textureRect, request.ShaderError, request.NativeRenderPending);
+                if (request.MaterialError is not null || request.NativeRenderPending)
+                    lease.clearFrame(textureRect, request.MaterialError, request.NativeRenderPending);
                 return;
             }
             frame = await Task.Run(() =>
             {
-                byte[] pixels = source.Copy(textureRect, applyHue ? descriptor.Hue : 0, token);
+                byte[] pixels = source.Copy(textureRect, 0, token);
                 return lease.PrepareFallback(pixels, textureRect.Width, textureRect.Height, descriptor, token);
             }, token);
             token.ThrowIfCancellationRequested();
             if (!canPublishFallback(lease, descriptor, publicationRevision, token))
                 return;
-            lease.PublishFallback(frame, textureRect, request.ShaderError);
+            lease.PublishFallback(frame, textureRect, request.MaterialError);
             frame = null;
             if (request.NativeRenderPending)
                 lease.markNativeRenderDirty();
@@ -391,7 +393,7 @@ public sealed partial class ActorPreviewService : IDisposable
             or ArgumentException or NotSupportedException or System.Runtime.InteropServices.ExternalException)
         {
             if (canPublishFallback(lease, descriptor, publicationRevision, token))
-                lease.clearFrame(lease.getTextureRect(clock.Elapsed), request.ShaderError, request.NativeRenderPending);
+                lease.clearFrame(lease.getTextureRect(clock.Elapsed), request.MaterialError, request.NativeRenderPending);
         }
         finally
         {
@@ -415,17 +417,17 @@ public sealed partial class ActorPreviewService : IDisposable
             && lease.Descriptor == descriptor && lease.PublicationRevision == revision;
     }
 
-    private sealed class FallbackLoad(CancellationTokenSource cancellation, string? shaderError, bool nativeRenderPending)
+    private sealed class FallbackLoad(CancellationTokenSource cancellation, string? materialError, bool nativeRenderPending)
     {
         public CancellationTokenSource Cancellation { get; } = cancellation;
-        public string? ShaderError { get; set; } = shaderError;
+        public string? MaterialError { get; set; } = materialError;
         public bool NativeRenderPending { get; set; } = nativeRenderPending;
     }
 
     private void publishUnavailableFallback(ActorPreviewLease lease, TimeSpan elapsed)
     {
         PixelRect textureRect = lease.getTextureRect(elapsed);
-        if (lease.IsStatic && lease.Descriptor.ShaderPath.Length != 0)
+        if (lease.IsStatic && lease.Descriptor.Material.Length != 0)
         {
             if (lease.Frame is not null)
             {
@@ -433,14 +435,14 @@ public sealed partial class ActorPreviewService : IDisposable
                 return;
             }
             string message = string.IsNullOrWhiteSpace(StatusMessage)
-                ? lease.ShaderError ?? "Actor shader preview is unavailable."
+                ? lease.MaterialError ?? "Actor shader preview is unavailable."
                 : StatusMessage;
-            if (!updateFallback(lease, textureRect, true, message, true))
+            if (!updateFallback(lease, textureRect, message, true))
                 lease.clearFrame(textureRect, message, true);
             return;
         }
         if (lease.RenderedTextureRect != textureRect)
-            updateFallback(lease, textureRect, true);
+            updateFallback(lease, textureRect);
     }
 
     private void ensureTimerState()
@@ -448,7 +450,7 @@ public sealed partial class ActorPreviewService : IDisposable
         bool realtime = !disposed && leases.Any(lease => lease.IsActive && !lease.IsDisposed
             && !lease.IsStatic
             && (lease.Descriptor.Animated
-                || IsAvailable && lease.Descriptor.ShaderPath.Length != 0));
+                || IsAvailable && lease.Descriptor.Material.Length != 0));
         bool retryConnection = !disposed && !IsAvailable
             && leases.Any(lease => lease.IsActive && !lease.IsDisposed
                 && lease.Descriptor.RequiresNativePreview
@@ -507,8 +509,8 @@ public sealed partial class ActorPreviewService : IDisposable
             rect.Y.ToString(CultureInfo.InvariantCulture),
             rect.Width.ToString(CultureInfo.InvariantCulture),
             rect.Height.ToString(CultureInfo.InvariantCulture),
-            descriptor.ShaderPath,
-            EditorBitmapEffects.NormalizeHue(descriptor.Hue).ToString("R", CultureInfo.InvariantCulture));
+            descriptor.Material,
+            descriptor.MaterialParameters.ToJsonString());
     }
 
     private static string getString(JsonObject value, string propertyName, string fallback = "")

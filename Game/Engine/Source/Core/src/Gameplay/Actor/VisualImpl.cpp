@@ -4,32 +4,13 @@
 
 namespace ludork::engine::actor_impl {
 
-void VisualImpl::ensureShaderLoaded(const std::string& path) {
-    if (loadedShaderPath_ == path) {
-        return;
+std::shared_ptr<const ludork::engine::materials::MaterialResource>
+VisualImpl::getMaterial(const std::string& path) {
+    if (!material_ || materialPath_ != path) {
+        material_ = ludork::engine::materials::MaterialResource::load(path);
+        materialPath_ = path;
     }
-    loadedShaderPath_ = path;
-    shader_.reset();
-    shaderError_ = false;
-    if (path.empty()) {
-        return;
-    }
-    const ludork::engine::sprite_visuals::ShaderResult result =
-        ludork::engine::sprite_visuals::loadShader(path);
-    shader_ = result.shader;
-    shaderError_ = result.failed;
-}
-
-void VisualImpl::invalidateShader() {
-    loadedShaderPath_.clear();
-}
-
-std::shared_ptr<sf::Shader> VisualImpl::getShader() const {
-    return shader_;
-}
-
-bool VisualImpl::hasShaderError() const {
-    return shaderError_;
+    return material_;
 }
 
 bool VisualImpl::advanceAnimation(float deltaTime, float interval) {

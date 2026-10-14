@@ -1,5 +1,6 @@
 #include "GpuShaders.hpp"
 #include <Runtime/Graphics/GpuEmitterCurveLayout.hpp>
+#include <Runtime/Graphics/SceneLighting.hpp>
 
 namespace ludork::runtime::graphics {
 namespace {
@@ -144,10 +145,15 @@ std::string emitterFragmentShader(bool embedded, bool textured) {
                    "RESULT resultColour\n"
                  : "#version 120\n#define IN varying\n#define TEX "
                    "texture2D\n#define RESULT gl_FragColor\n";
-    result += textured
-                  ? "IN vec2 vUv; IN vec4 vColour; uniform sampler2D uImage; "
-                    "void main(){ RESULT=TEX(uImage,vUv)*vColour; }\n"
-                  : "void main(){RESULT=vec4(0.0);}\n";
+    if (textured) {
+        result += sceneLightingGlsl("TEX");
+        result +=
+            "IN vec2 vUv; IN vec4 vColour; uniform sampler2D uImage; "
+            "void main(){ vec4 pixel=TEX(uImage,vUv)*vColour; "
+            "RESULT=vec4(applySceneLighting(pixel.rgb),pixel.a); }\n";
+    } else {
+        result += "void main(){RESULT=vec4(0.0);}\n";
+    }
     return result;
 }
 }  // namespace ludork::runtime::graphics

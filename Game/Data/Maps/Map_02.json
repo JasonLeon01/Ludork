@@ -1474,7 +1474,10 @@
         16.0,
         16.0
       ],
-      "shaderPath": "/Game/Assets/Shaders/Ghost.frag"
+      "material": "Data/Materials/Ghost.json",
+      "materialParameters": {
+        "lightBlock": 0.4
+      }
     },
     "Data.Blueprints.Enemies.BP_Enemy_Slime_default_8_7": {
       "afterBattleVarChanges": {
@@ -1496,7 +1499,10 @@
         16.0,
         16.0
       ],
-      "shaderPath": "/Game/Assets/Shaders/Frozen.frag"
+      "material": "Data/Materials/Frozen.json",
+      "materialParameters": {
+        "lightBlock": 0.4
+      }
     },
     "Data.Blueprints.Doors.ConditionDoors.BP_Door_Condition_default_5_7": {
       "openConditionName": "MTExample",
@@ -1511,7 +1517,10 @@
       "openConditionVal": 2
     },
     "Data.Blueprints.Enemies.BP_Enemy_BigWizard_default_6_5": {
-      "shaderPath": "/Game/Assets/Shaders/Poison.frag"
+      "material": "Data/Materials/Poison.json",
+      "materialParameters": {
+        "lightBlock": 0.4
+      }
     },
     "Data.Blueprints.Enemies.BP_Enemy_GreatIron_default_6_10": {
       "defaultTranslation": [
@@ -1526,16 +1535,28 @@
         3.0,
         3.0
       ],
-      "shaderPath": "/Game/Assets/Shaders/Hologram.frag"
+      "material": "Data/Materials/Hologram.json",
+      "materialParameters": {
+        "lightBlock": 0.4
+      }
     },
     "Data.Blueprints.Enemies.BP_Enemy_WhiteKing_default_0_6": {
-      "shaderPath": "/Game/Assets/Shaders/Burning.frag"
+      "material": "Data/Materials/Burning.json",
+      "materialParameters": {
+        "lightBlock": 0.4
+      }
     },
     "Data.Blueprints.Enemies.BP_Enemy_WhiteKing_default_12_6": {
-      "shaderPath": "/Game/Assets/Shaders/Crystallize.frag"
+      "material": "Data/Materials/Crystallize.json",
+      "materialParameters": {
+        "lightBlock": 0.4
+      }
     },
     "Data.Blueprints.Actors.BP_Actor_TestPath_default_6_1": {
-      "shaderPath": "/Game/Assets/Shaders/Petrify.frag"
+      "material": "Data/Materials/Petrify.json",
+      "materialParameters": {
+        "lightBlock": 0.4
+      }
     },
     "Consumables_BP_Gem_1_1_default_0_10": {
       "conditionVariable": "MTExample",

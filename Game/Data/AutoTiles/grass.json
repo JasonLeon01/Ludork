@@ -2,12 +2,6 @@
     "name": "grass",
     "fileName": "/Game/Assets/Autotiles/autotile.jpg",
     "passable": true,
-    "material": {
-        "lightBlock": 0.0,
-        "mirror": false,
-        "reflectionStrength": 0.5,
-        "opacity": 1.0,
-        "speedRate": 1.0
-    },
+    "material": "",
     "type": "autoTile"
 }

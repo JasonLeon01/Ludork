@@ -121,31 +121,20 @@ public sealed class FileSelectorDialog : Window
         return dialog.ShowDialog<string[]?>(owner);
     }
 
-    public static async Task<string?> SelectLayerShaderAsync(
-        Window owner,
-        string projectPath,
-        string currentPath)
+    public static Task<string?> SelectLayerMaterialAsync(Window owner, string projectPath, string currentPath)
+        => SelectMaterialAsync(owner, projectPath, currentPath);
+
+    public static async Task<string?> SelectMaterialAsync(Window owner, string projectPath, string currentPath)
     {
-        string root = Path.Combine(projectPath, "Assets", "Shaders");
+        string root = Path.Combine(projectPath, "Data", "Materials");
         Directory.CreateDirectory(root);
-        string? initialFilePath = GameAssetPath.TryResolveExistingFile(
-            projectPath,
-            currentPath,
-            out string resolvedCurrent)
-            ? resolvedCurrent
-            : null;
-        string? path = await ShowAsync(
-            owner,
-            root,
-            FilesFilter("*.vert", "*.frag"),
-            LocaleService.Get("SELECT_LAYER_SHADER"),
-            initialFilePath: initialFilePath,
-            allowEmpty: true);
+        string? initial = GameDataPath.TryResolveExistingFile(projectPath, currentPath, out string resolved) ? resolved : null;
+        string? path = await ShowAsync(owner, root, FilesFilter("*.json"), LocaleService.Get("SELECT_MATERIAL"),
+            initialFilePath: initial, allowEmpty: true);
         if (string.IsNullOrEmpty(path))
             return path;
-        return GameAssetPath.TryFromProjectFile(projectPath, path, out string assetPath)
-            ? assetPath
-            : null;
+        return GameDataPath.TryFromProjectFile(projectPath, path, out string stored) && GameDataPath.TryGetMaterialKey(stored, out _)
+            ? stored : null;
     }
 
     public FileSelectorDialog(

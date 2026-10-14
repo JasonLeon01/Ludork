@@ -1,5 +1,5 @@
 #include "Actor/ActorBatchRendererImpl.hpp"
-#include <Graphics/HueConstants.hpp>
+#include <Graphics/Materials/MaterialResource.hpp>
 #include <Runtime/AssetInputStream.hpp>
 
 #include "Protocol/FrameFiles.hpp"
@@ -10,7 +10,6 @@
 #include <Runtime/AssetStore.hpp>
 #include <Runtime/RuntimeDataReader.hpp>
 #include <Utf8Path.hpp>
-#include <Utils/ShaderLoader.hpp>
 
 #include <SFML/Graphics/Image.hpp>
 #include <SFML/Graphics/RenderTexture.hpp>
@@ -59,31 +58,13 @@ std::string actorTexturePath(const std::string& value) {
     return projectAssetPath(value, "Actor texturePath");
 }
 
-std::string actorShaderPath(const std::string& value) {
-    return projectAssetPath(value, "Actor shaderPath");
-}
-
-actor_batch_detail::FileStamp shaderStamp(const std::string& path) {
-    const actor_batch_detail::FileStamp requested = fileStamp(path);
-    if (requested.exists) {
-        return requested;
-    }
-    if (path.ends_with(".frag") || path.ends_with(".vert") ||
-        path.ends_with(".geom")) {
-        return fileStamp(path + 'c');
-    }
-    return requested;
-}
-
 }  // namespace
 
 void ActorBatchRenderer::Impl::reset(const std::filesystem::path& projectPath) {
     static_cast<void>(projectPath);
     textures_.clear();
-    shaders_.clear();
+    materials_.clear();
     pageBuffers_.clear();
-    effectBuffers_.clear();
-    activeEffectBufferKeys_.clear();
     errorShader_.reset();
 }
 
@@ -121,26 +102,12 @@ RuntimeData ActorBatchRenderer::Impl::render(const RuntimeData::Map& request,
     }
     std::vector<AtlasLayout> layouts = pack(visuals, limit);
     pageBuffers_.resize(layouts.size());
-    std::unordered_set<std::uint64_t> requestedEffectBufferKeys;
-    for (const PackedActorVisual& visual : visuals) {
-        const bool hasHue =
-            visual.visual.hue > ludork::engine::graphics::HueEpsilon &&
-            std::abs(visual.visual.hue - ludork::engine::graphics::HuePeriod) >
-                ludork::engine::graphics::HueEpsilon;
-        if (!visual.visual.shaderPath.empty() && hasHue) {
-            requestedEffectBufferKeys.insert(
-                effectBufferKey(visual.visual.textureRect.size));
-        }
-    }
-    pruneEffectBuffers(requestedEffectBufferKeys);
-    activeEffectBufferKeys_.clear();
     std::vector<std::vector<std::uint8_t>> pagePixels;
     pagePixels.reserve(layouts.size());
     for (std::size_t pageIndex = 0; pageIndex < layouts.size(); ++pageIndex) {
         pagePixels.push_back(
             renderPage(layouts[pageIndex], visuals, pageIndex, time));
     }
-    pruneEffectBuffers(activeEffectBufferKeys_);
     std::vector<std::uint8_t> sharedPixels;
     RuntimeData::Array pages;
     for (std::size_t pageIndex = 0; pageIndex < layouts.size(); ++pageIndex) {
@@ -176,11 +143,17 @@ RuntimeData ActorBatchRenderer::Impl::render(const RuntimeData::Map& request,
             {"page", RuntimeData(static_cast<std::int64_t>(visual.page))},
             {"x", RuntimeData(static_cast<std::int64_t>(visual.position.x))},
             {"y", RuntimeData(static_cast<std::int64_t>(visual.position.y))},
-            {"width", RuntimeData(static_cast<std::int64_t>(
-                          visual.visual.textureRect.size.x))},
-            {"height", RuntimeData(static_cast<std::int64_t>(
-                           visual.visual.textureRect.size.y))},
-            {"shaderError", RuntimeData(visual.shaderError)},
+            {"width",
+             RuntimeData(static_cast<std::int64_t>(
+                 visual.visual.textureRect.size.x + visual.padding.x * 2))},
+            {"height",
+             RuntimeData(static_cast<std::int64_t>(
+                 visual.visual.textureRect.size.y + visual.padding.y * 2))},
+            {"offsetX",
+             RuntimeData(-static_cast<std::int64_t>(visual.padding.x))},
+            {"offsetY",
+             RuntimeData(-static_cast<std::int64_t>(visual.padding.y))},
+            {"materialError", RuntimeData(visual.materialError)},
             {"error", RuntimeData(visual.error)},
         }));
     }
@@ -216,18 +189,19 @@ ActorBatchRenderer::Impl::parseVisual(const RuntimeData& value,
         throw std::invalid_argument(source +
                                     ".textureRect must have positive size");
     }
-    const std::string& shaderText =
-        ludork::runtime::value_reader::requireString(
-            ludork::runtime::value_reader::requireValue(item, "shaderPath",
-                                                        source),
-            source + ".shaderPath");
-    float hue = ludork::runtime::value_reader::requireFloat(
-        ludork::runtime::value_reader::requireValue(item, "hue", source),
-        source + ".hue");
-    hue = std::fmod(hue, ludork::engine::graphics::HuePeriod);
-    if (hue < 0.0f) {
-        hue += ludork::engine::graphics::HuePeriod;
-    }
+    const RuntimeData* materialValue =
+        ludork::runtime::value_reader::findValue(item, "material");
+    const std::string material =
+        materialValue == nullptr ? std::string{}
+                                 : ludork::runtime::value_reader::requireString(
+                                       *materialValue, source + ".material");
+    const RuntimeData* parametersValue =
+        ludork::runtime::value_reader::findValue(item, "materialParameters");
+    const RuntimeData::Map parameters =
+        parametersValue == nullptr
+            ? RuntimeData::Map{}
+            : ludork::runtime::value_reader::requireMap(
+                  *parametersValue, source + ".materialParameters");
     actor_batch_detail::ActorVisualRequest visual{
         ludork::runtime::value_reader::requireString(
             ludork::runtime::value_reader::requireValue(item, "id", source),
@@ -245,8 +219,25 @@ ActorBatchRenderer::Impl::parseVisual(const RuntimeData& value,
                              rect, "y", source + ".textureRect"),
                          source + ".textureRect.y")},
                     {width, height}),
-        shaderText.empty() ? std::string{} : actorShaderPath(shaderText), hue};
-    return {std::move(visual)};
+        material, parameters};
+    PackedActorVisual packed;
+    packed.visual = std::move(visual);
+    try {
+        packed.material = ludork::engine::materials::MaterialResource::load(
+            packed.visual.material);
+        packed.material->validateParameters(packed.visual.materialParameters);
+        const sf::Vector2f offset = packed.material->maximumVertexOffset();
+        if (offset.x > maximumAtlasSize || offset.y > maximumAtlasSize) {
+            throw std::invalid_argument(
+                "Actor material displacement exceeds the maximum atlas size");
+        }
+        packed.padding = {static_cast<unsigned int>(std::ceil(offset.x)),
+                          static_cast<unsigned int>(std::ceil(offset.y))};
+    } catch (const std::exception& exception) {
+        packed.materialError = true;
+        packed.error = exception.what();
+    }
+    return packed;
 }
 
 std::vector<ActorBatchRenderer::Impl::AtlasLayout>
@@ -263,9 +254,11 @@ ActorBatchRenderer::Impl::pack(std::vector<PackedActorVisual>& visuals,
     for (std::size_t index = 0; index < visuals.size(); ++index) {
         PackedActorVisual& visual = visuals[index];
         const unsigned int width =
-            static_cast<unsigned int>(visual.visual.textureRect.size.x);
+            static_cast<unsigned int>(visual.visual.textureRect.size.x) +
+            visual.padding.x * 2;
         const unsigned int height =
-            static_cast<unsigned int>(visual.visual.textureRect.size.y);
+            static_cast<unsigned int>(visual.visual.textureRect.size.y) +
+            visual.padding.y * 2;
         if (width + atlasGutter * 2 > limit ||
             height + atlasGutter * 2 > limit) {
             throw std::invalid_argument(
@@ -337,54 +330,31 @@ void ActorBatchRenderer::Impl::renderVisual(sf::RenderTexture& target,
         packed.error = "Actor textureRect is outside the texture";
         return;
     }
-    std::shared_ptr<sf::Shader> actorShader;
-    if (!packed.visual.shaderPath.empty()) {
-        const ShaderCacheEntry& shaderEntry =
-            loadShader(packed.visual.shaderPath);
-        actorShader = shaderEntry.shader;
-        if (actorShader == nullptr) {
-            packed.shaderError = true;
-            packed.error = shaderEntry.error;
-        }
-    }
-    const bool hasHue =
-        packed.visual.hue > ludork::engine::graphics::HueEpsilon &&
-        std::abs(packed.visual.hue - ludork::engine::graphics::HuePeriod) >
-            ludork::engine::graphics::HueEpsilon;
-    if (packed.shaderError) {
-        drawError(target, *textureEntry.texture, rect, packed.position);
-        return;
-    }
-    if (actorShader != nullptr && hasHue) {
-        sf::RenderTexture& effect = effectBuffer(rect.size);
-        effect.clear(sf::Color::Transparent);
-        sf::Sprite source(*textureEntry.texture, rect);
-        bindActorShader(*actorShader, *textureEntry.texture, rect, time);
-        sf::RenderStates actorStates;
-        actorStates.shader = actorShader.get();
-        effect.draw(source, actorStates);
-        effect.display();
-        sf::Sprite composed(effect.getTexture());
-        composed.setPosition(sf::Vector2f(packed.position));
-        sf::Shader& hueShader = requireHueShader();
-        bindHueShader(hueShader, packed.visual.hue);
-        sf::RenderStates hueStates;
-        hueStates.shader = &hueShader;
-        target.draw(composed, hueStates);
+    const sf::Vector2u sourcePosition = packed.position + packed.padding;
+    if (packed.materialError) {
+        drawError(target, *textureEntry.texture, rect, sourcePosition);
         return;
     }
     sf::Sprite source(*textureEntry.texture, rect);
-    source.setPosition(sf::Vector2f(packed.position));
-    sf::RenderStates states(sf::BlendNone);
-    if (actorShader != nullptr) {
-        bindActorShader(*actorShader, *textureEntry.texture, rect, time);
-        states.shader = actorShader.get();
-    } else if (hasHue) {
-        sf::Shader& hueShader = requireHueShader();
-        bindHueShader(hueShader, packed.visual.hue);
-        states.shader = &hueShader;
+    source.setPosition(sf::Vector2f(sourcePosition));
+    try {
+        ludork::engine::materials::MaterialProgramCache::Context context;
+        context.textureSize = textureSize;
+        context.textureRect = rect;
+        context.time = time;
+        context.worldTransform = source.getTransform();
+        context.targetSize = target.getSize();
+        const std::shared_ptr<sf::Shader> program = materials_.bind(
+            *packed.material, packed.visual.materialParameters, nullptr, {},
+            ludork::engine::materials::MaterialCompiler::Pass::Color, context);
+        sf::RenderStates states(sf::BlendNone);
+        states.shader = program.get();
+        target.draw(source, states);
+    } catch (const std::exception& exception) {
+        packed.materialError = true;
+        packed.error = exception.what();
+        drawError(target, *textureEntry.texture, rect, sourcePosition);
     }
-    target.draw(source, states);
 }
 
 const ActorBatchRenderer::Impl::TextureCacheEntry&
@@ -413,68 +383,6 @@ ActorBatchRenderer::Impl::loadTexture(const std::string& path) {
     return textures_.insert_or_assign(key, std::move(entry)).first->second;
 }
 
-const ActorBatchRenderer::Impl::ShaderCacheEntry&
-ActorBatchRenderer::Impl::loadShader(const std::string& path) {
-    const std::string& key = path;
-    const actor_batch_detail::FileStamp stamp = shaderStamp(path);
-    const auto iterator = shaders_.find(key);
-    if (iterator != shaders_.end() && iterator->second.stamp == stamp) {
-        return iterator->second;
-    }
-    ShaderCacheEntry entry;
-    entry.stamp = stamp;
-    const ShaderLoadResult result =
-        ShaderLoader::load(key, sf::Shader::Type::Fragment);
-    entry.shader = result.shader;
-    entry.error = result.error;
-    return shaders_.insert_or_assign(key, std::move(entry)).first->second;
-}
-
-sf::RenderTexture& ActorBatchRenderer::Impl::effectBuffer(
-    const sf::Vector2i& size) {
-    const std::uint64_t key = effectBufferKey(size);
-    activeEffectBufferKeys_.insert(key);
-    const auto iterator = effectBuffers_.find(key);
-    if (iterator != effectBuffers_.end()) {
-        return *iterator->second;
-    }
-    std::unique_ptr<sf::RenderTexture> buffer =
-        std::make_unique<sf::RenderTexture>(
-            sf::Vector2u(static_cast<unsigned int>(size.x),
-                         static_cast<unsigned int>(size.y)));
-    buffer->setSmooth(false);
-    return *effectBuffers_.emplace(key, std::move(buffer)).first->second;
-}
-
-std::uint64_t ActorBatchRenderer::Impl::effectBufferKey(
-    const sf::Vector2i& size) {
-    return static_cast<std::uint64_t>(static_cast<unsigned int>(size.x))
-               << 32u |
-           static_cast<unsigned int>(size.y);
-}
-
-void ActorBatchRenderer::Impl::pruneEffectBuffers(
-    const std::unordered_set<std::uint64_t>& retainedKeys) {
-    for (auto iterator = effectBuffers_.begin();
-         iterator != effectBuffers_.end();) {
-        if (!retainedKeys.contains(iterator->first)) {
-            iterator = effectBuffers_.erase(iterator);
-        } else {
-            ++iterator;
-        }
-    }
-}
-
-sf::Shader& ActorBatchRenderer::Impl::requireHueShader() {
-    const std::string path =
-        actorShaderPath(ludork::engine::graphics::HueShaderPath);
-    const ShaderCacheEntry& entry = loadShader(path);
-    if (entry.shader == nullptr) {
-        throw std::runtime_error(entry.error);
-    }
-    return *entry.shader;
-}
-
 sf::Shader& ActorBatchRenderer::Impl::requireErrorShader() {
     if (errorShader_ == nullptr) {
         constexpr const char* source = R"(
@@ -497,7 +405,7 @@ void main()
         if (!errorShader_->loadFromMemory(source, sf::Shader::Type::Fragment)) {
             errorShader_.reset();
             throw std::runtime_error(
-                "Failed to compile actor shader error renderer");
+                "Failed to compile actor material error renderer");
         }
     }
     return *errorShader_;
@@ -514,27 +422,6 @@ void ActorBatchRenderer::Impl::drawError(sf::RenderTexture& target,
     sf::RenderStates states(sf::BlendNone);
     states.shader = &shader;
     target.draw(source, states);
-}
-
-void ActorBatchRenderer::Impl::bindActorShader(sf::Shader& shader,
-                                               const sf::Texture& texture,
-                                               const sf::IntRect& rect,
-                                               float time) {
-    const sf::Vector2u size = texture.getSize();
-    shader.setUniform("texture", sf::Shader::CurrentTexture);
-    shader.setUniform("time", time);
-    shader.setUniform("textureSize", sf::Vector2f(static_cast<float>(size.x),
-                                                  static_cast<float>(size.y)));
-    shader.setUniform("textureRect",
-                      sf::Glsl::Vec4(static_cast<float>(rect.position.x),
-                                     static_cast<float>(rect.position.y),
-                                     static_cast<float>(rect.size.x),
-                                     static_cast<float>(rect.size.y)));
-}
-
-void ActorBatchRenderer::Impl::bindHueShader(sf::Shader& shader, float hue) {
-    shader.setUniform("screenTex", sf::Shader::CurrentTexture);
-    shader.setUniform("hue", hue);
 }
 
 ActorBatchRenderer::ActorBatchRenderer() : impl_(std::make_unique<Impl>()) {}

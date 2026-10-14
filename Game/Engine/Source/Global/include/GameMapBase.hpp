@@ -7,7 +7,6 @@
 
 #include <CoreMinimal.hpp>
 #include <Gameplay/Actor.hpp>
-#include <General/Material.hpp>
 #include <Light.hpp>
 
 using ActorPtr = std::shared_ptr<Actor>;
@@ -90,7 +89,7 @@ public:
     BIND_METHOD()
     std::shared_ptr<sf::Texture> generateDataFromMap(
         const sf::Vector2u& size,
-        const std::vector<std::vector<MaterialValue>>& materialMap,
+        const std::vector<std::vector<std::variant<bool, float>>>& materialMap,
         bool smooth = false);
 
     ////////////////////////////////////////////////////////////
@@ -110,22 +109,6 @@ public:
         const sf::Vector2i& start, const sf::Vector2i& goal,
         const sf::Vector2u& size, Actor& movingActor,
         const std::vector<sf::Vector2i>& excludedAnchors = {});
-
-    ////////////////////////////////////////////////////////////
-    /// \brief Build a 2D map of dynamic material property values
-    ///
-    /// - \param width Grid width
-    /// - \param height Grid height
-    /// - \param propertyName Material property name to evaluate
-    /// - \param invalidValue Fallback value for invalid positions
-    ///
-    /// - \return 2D property map
-    ///
-    ////////////////////////////////////////////////////////////
-    BIND_METHOD()
-    std::vector<std::vector<MaterialValue>> getMaterialPropertyMapExt(
-        int width, int height, const std::string& propertyName,
-        const MaterialValue& invalidValue);
 
     ////////////////////////////////////////////////////////////
     /// \brief Recompute tile passability and actor occupancy caches
@@ -161,7 +144,7 @@ public:
     std::vector<Actor*> getCollision(Actor& actor,
                                      const sf::Vector2i& position) override;
     std::vector<Actor*> getOverlaps(Actor& actor) override;
-    std::optional<Material> getTopMaterial(
+    std::optional<std::string> getTopMaterial(
         const sf::Vector2i& position) const override;
     void updateActorList() override;
     void destroyActor(Actor& actor) override;
@@ -436,9 +419,6 @@ private:
     /// - \return Property value or `invalidValue`
     ///
     ////////////////////////////////////////////////////////////
-    MaterialValue getMaterialProperty(const sf::Vector2i& pos,
-                                      const std::string& propertyName,
-                                      const MaterialValue& invalidValue) const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Resolve an actor's layer index in top-first layer order

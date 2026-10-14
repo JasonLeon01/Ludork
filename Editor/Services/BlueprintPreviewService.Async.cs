@@ -37,7 +37,6 @@ public sealed partial class BlueprintPreviewService
         (int sx, int sy, int w, int h)? rect;
         (double x, double y) origin;
         (double x, double y) scale;
-        double hue;
         using (classResolver.BeginBatch())
         {
             visual = createActorVisual(resolved, blueprintReference, source.Bitmap.PixelSize);
@@ -46,11 +45,10 @@ public sealed partial class BlueprintPreviewService
                     source.Bitmap.PixelSize.Width, source.Bitmap.PixelSize.Height);
             origin = parseVec2(getResolvedValue(resolved, "defaultOrigin"), 0, 0);
             scale = parseVec2(getResolvedValue(resolved, "defaultScale"), 1, 1);
-            hue = parseHue(getResolvedValue(resolved, "hue"));
         }
         if (rect is not { } crop)
             return (null, visual);
-        string variant = FormattableString.Invariant($"actor:{crop.sx},{crop.sy},{crop.w},{crop.h}:{origin.x},{origin.y}:{scale.x},{scale.y}:{hue}");
+        string variant = FormattableString.Invariant($"actor:{crop.sx},{crop.sy},{crop.w},{crop.h}:{origin.x},{origin.y}:{scale.x},{scale.y}");
         EditorThumbnailLease? thumbnail = await gameData.Thumbnails.AcquireDerivedAsync(path, size, variant, source, bitmap =>
         {
             int width = Math.Max(1, (int)(crop.w * scale.x));
@@ -59,12 +57,6 @@ public sealed partial class BlueprintPreviewService
                 origin.x, origin.y, scale.x, scale.y, width, height);
             if (preview is null)
                 return null;
-            if (!EditorBitmapEffects.IsNeutralHue(hue))
-            {
-                Bitmap colored = EditorBitmapEffects.CreateHueShiftedBitmap(preview, hue);
-                preview.Dispose();
-                preview = colored;
-            }
             Bitmap result = scaleToFit(preview, size);
             if (!ReferenceEquals(result, preview))
                 preview.Dispose();

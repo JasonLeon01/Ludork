@@ -34,6 +34,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
     private readonly LuaMetadataService metadataService;
     private readonly BlueprintClassResolver classResolver;
     private readonly BlueprintEditorPreviewSession previewSession;
+    private readonly PreviewRuntimeService previewRuntime;
     private readonly BlueprintNodeParameterEditorFactory nodeParameterEditorFactory;
     private BlueprintVariableForm variableForm = null!;
     private TextBox parentField = null!;
@@ -69,6 +70,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
     {
         viewModel = new BlueprintEditorViewModel(document, gameData, metadataService, classResolver);
         previewSession = new BlueprintEditorPreviewSession(previewService);
+        previewRuntime = previewService.Runtime;
         previewSession.FrameChanged += onPreviewFrameChanged;
         this.gameData = gameData;
         this.projectSave = projectSave;
@@ -314,6 +316,21 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
 
     private Control? createPathAction(BlueprintVariableEditorRequest request)
     {
+        if (request.Field.Name == "material")
+        {
+            Button createMaterial = new() { Content = "+", Width = 24, Padding = new Thickness(0) };
+            ToolTip.SetTip(createMaterial, LocaleService.Get("NEW_MATERIAL"));
+            createMaterial.Click += async (_, _) =>
+            {
+                string? key = await MaterialAuthoring.CreateAsync(this, gameData, previewRuntime);
+                if (key is not null)
+                {
+                    request.Commit(JsonValue.Create(GameDataPath.Materials + "/" + key + ".json"), true);
+                    new MaterialWindow(gameData, projectSave, previewRuntime, key).Show(this);
+                }
+            };
+            return createMaterial;
+        }
         if (!viewModel.IsBlueprint || request.Field.Name != "scriptPath")
             return null;
         Button create = new()
@@ -421,6 +438,20 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
     }
 
     private Control? createAttributeAction(BlueprintVariableField field)
+    {
+        Control? standard = createDefaultAttributeAction(field);
+        if (field.Name != "material" || !GameDataPath.TryGetMaterialKey(field.Value?.GetValue<string>(), out string key))
+            return standard;
+        StackPanel actions = new() { Orientation = Orientation.Horizontal, Spacing = 4 };
+        if (standard is not null)
+            actions.Children.Add(standard);
+        Button open = new() { Content = LocaleService.Get("OPEN_MATERIAL") };
+        open.Click += (_, _) => new MaterialWindow(gameData, projectSave, previewRuntime, key).Show(this);
+        actions.Children.Add(open);
+        return actions;
+    }
+
+    private Control? createDefaultAttributeAction(BlueprintVariableField field)
     {
         if (!document.CanEditAttributes || field.IsComponent || field.IsReadOnly)
             return null;

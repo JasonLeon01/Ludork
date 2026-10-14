@@ -40,6 +40,7 @@ public sealed partial class ProjectDataStore : IDisposable
         ["Blueprints"] = new("blueprint", true),
         ["Animations"] = new("animation", true),
         ["Particles"] = new("particle", true),
+        ["Materials"] = new("material", true),
         ["Subtitles"] = new([SubtitleAssetSchema.AssetType]),
         ["Curves"] = new(["curve", "vector2Curve", "vector3Curve", "vector4Curve"]),
         ["TextConfigs"] = new(["plainTextConfig", "richTextConfig"]),
@@ -94,7 +95,7 @@ public sealed partial class ProjectDataStore : IDisposable
         Blueprints = new BlueprintDataService(this, sections["Blueprints"], sections["CommonFunctions"]);
         General = new GeneralDataService(this, sections["General"]);
         Configs = new ConfigDataService(this, sections["Configs"]);
-        Assets = new AssetDataService(this, sections["Tilesets"], sections["AutoTiles"], sections["Animations"], sections["Particles"], sections["Curves"], sections["TextConfigs"]);
+        Assets = new AssetDataService(this, sections["Tilesets"], sections["AutoTiles"], sections["Animations"], sections["Particles"], sections["Curves"], sections["TextConfigs"], sections["Materials"]);
         UiAssets = new UiAssetDataService(this, sections["UI"]);
         Subtitles = new SubtitleDataService(this, sections["Subtitles"]);
         if (load)

@@ -72,7 +72,7 @@ public sealed partial class MapDataService
             ["layerTileset"] = tilesetKey,
             ["tiles"] = tiles,
             ["autoTiles"] = autoTiles,
-            ["shaderPath"] = string.Empty,
+            ["material"] = string.Empty,
             ["actors"] = new JsonArray(),
         };
     }

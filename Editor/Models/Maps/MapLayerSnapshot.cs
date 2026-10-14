@@ -11,7 +11,7 @@ public sealed class MapLayerSnapshot
     internal JsonObject Data { get; }
     public string Name => MapSnapshotValues.Text(Data["layerName"]);
     public string Tileset => MapSnapshotValues.Text(Data["layerTileset"]);
-    public string ShaderPath => MapSnapshotValues.Text(Data["shaderPath"]);
+    public string Material => MapSnapshotValues.Text(Data["material"]);
     public bool Visible => Data["visible"]?.GetValue<bool?>() ?? true;
     public int? TileAt(int x, int y) => int.TryParse(MapSnapshotValues.Cell(Data["tiles"], x, y)?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int value) ? value : null;
     public string? AutoTileAt(int x, int y) => MapSnapshotValues.Cell(Data["autoTiles"], x, y) is JsonNode value ? MapSnapshotValues.Text(value) : null;

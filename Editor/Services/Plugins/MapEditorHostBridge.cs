@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using Ludork.Models;
@@ -40,6 +41,16 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
     public int CellSize => gameData.Configs.getCellSize();
 
     public string? SuggestedMapKey { get; }
+
+    public IPluginActorPreview AcquireActorPreview(PluginMapActorSnapshot actor)
+    {
+        PluginMapActorRectSnapshot rect = actor.SourceRect ?? new(0, 0, CellSize, CellSize);
+        ActorVisualDescriptor descriptor = new(string.Empty, actor.AssetPath,
+            new PixelSize(rect.X + rect.Width, rect.Y + rect.Height), new PixelRect(rect.X, rect.Y, rect.Width, rect.Height),
+            actor.Material, (JsonObject)actor.MaterialParameters.DeepClone(), default, new Vector(1, 1), default,
+            0, true, false, false, 0.2, 1);
+        return new PluginActorPreview(previewService.ActorPreviews.Acquire(descriptor, 0, true));
+    }
 
     public IReadOnlyList<PluginMapSummary> ListMaps()
     {
@@ -160,7 +171,8 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
                 visual?.Origin.X ?? 0,
                 visual?.Origin.Y ?? 0,
                 visual?.Rotation ?? 0,
-                visual?.Hue ?? 0,
+                visual?.Material ?? string.Empty,
+                visual?.MaterialParameters.DeepClone() as JsonObject ?? new JsonObject(),
                 visual?.MapPreviewOpacity ?? 1));
         }
         return snapshots.AsReadOnly();

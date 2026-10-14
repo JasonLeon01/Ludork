@@ -551,6 +551,8 @@ public sealed partial class BlueprintVariableForm : UserControl, IDisposable
             input.PlaceholderText = "self";
             return input;
         }
+        if (field.Name == "materialParameters" && HistoryGameData is not null)
+            return new MaterialInstanceParameterEditor(HistoryGameData, values.GetValueOrDefault("material")?.GetValue<string>() ?? string.Empty, displayValue, changed);
         LuaMetadataType declaredType = LuaMetadataType.Parse(field.Type);
         if (declaredType.Kind == LuaMetadataTypeKind.Enum)
             return createEnumEditor(declaredType, displayValue, changed);
@@ -716,7 +718,7 @@ public sealed partial class BlueprintVariableForm : UserControl, IDisposable
             return;
         ValueChanged?.Invoke(
             this,
-            new BlueprintVariableValueChangedEventArgs(field.Name, (next)?.DeepClone(), refresh));
+            new BlueprintVariableValueChangedEventArgs(field.Name, (next)?.DeepClone(), refresh || field.Name == "material"));
         if (instanceVariableSources.Contains(field.Name))
         {
             string? previousType = resolveInstanceVariableType(previous);

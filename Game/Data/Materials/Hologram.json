@@ -1,0 +1,2981 @@
+{
+  "version": 1,
+  "parameters": [
+    {
+      "id": "hue",
+      "type": "float",
+      "default": 0.0,
+      "group": "Surface",
+      "min": -360.0,
+      "max": 360.0
+    },
+    {
+      "id": "opacity",
+      "type": "float",
+      "default": 1.0,
+      "group": "Surface",
+      "min": 0.0,
+      "max": 1.0
+    },
+    {
+      "id": "lightBlock",
+      "type": "float",
+      "default": 0.0,
+      "group": "Surface",
+      "min": 0.0,
+      "max": 1.0
+    },
+    {
+      "id": "reflectionStrength",
+      "type": "float",
+      "default": 0.0,
+      "group": "Surface",
+      "min": 0.0,
+      "max": 1.0
+    },
+    {
+      "id": "lightingWeight",
+      "type": "float",
+      "default": 1.0,
+      "group": "Surface",
+      "min": 0.0,
+      "max": 1.0
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "SampleSprite_1",
+        "type": "SampleSprite",
+        "inputs": {},
+        "properties": {}
+      },
+      {
+        "id": "LocalUV_2",
+        "type": "LocalUV",
+        "inputs": {},
+        "properties": {}
+      },
+      {
+        "id": "Time_3",
+        "type": "Time",
+        "inputs": {},
+        "properties": {}
+      },
+      {
+        "id": "Clamp_4",
+        "type": "Clamp",
+        "inputs": {
+          "Value": {
+            "node": "LocalUV_2",
+            "port": "Value"
+          },
+          "Min": 0.0,
+          "Max": 1.0
+        },
+        "properties": {}
+      },
+      {
+        "id": "Swizzle_5",
+        "type": "Swizzle",
+        "inputs": {
+          "Value": {
+            "node": "Clamp_4",
+            "port": "Value"
+          }
+        },
+        "properties": {
+          "channels": "x"
+        }
+      },
+      {
+        "id": "Swizzle_6",
+        "type": "Swizzle",
+        "inputs": {
+          "Value": {
+            "node": "Clamp_4",
+            "port": "Value"
+          }
+        },
+        "properties": {
+          "channels": "y"
+        }
+      },
+      {
+        "id": "Dot_7",
+        "type": "Dot",
+        "inputs": {
+          "A": {
+            "node": "SampleSprite_1",
+            "port": "Color"
+          },
+          "B": [
+            0.299,
+            0.587,
+            0.114
+          ]
+        },
+        "properties": {}
+      },
+      {
+        "id": "FrameSize_8",
+        "type": "FrameSize",
+        "inputs": {},
+        "properties": {}
+      },
+      {
+        "id": "Multiply_9",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Clamp_4",
+            "port": "Value"
+          },
+          "B": {
+            "node": "FrameSize_8",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Swizzle_10",
+        "type": "Swizzle",
+        "inputs": {
+          "Value": {
+            "node": "Multiply_9",
+            "port": "Value"
+          }
+        },
+        "properties": {
+          "channels": "y"
+        }
+      },
+      {
+        "id": "Swizzle_11",
+        "type": "Swizzle",
+        "inputs": {
+          "Value": {
+            "node": "FrameSize_8",
+            "port": "Value"
+          }
+        },
+        "properties": {
+          "channels": "y"
+        }
+      },
+      {
+        "id": "Multiply_12",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Time_3",
+            "port": "Value"
+          },
+          "B": 0.41
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_13",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Multiply_12",
+            "port": "Value"
+          },
+          "B": 0.7
+        },
+        "properties": {}
+      },
+      {
+        "id": "Sin_14",
+        "type": "Sin",
+        "inputs": {
+          "Value": {
+            "node": "Add_13",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_15",
+        "type": "Multiply",
+        "inputs": {
+          "A": 0.43,
+          "B": {
+            "node": "Sin_14",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_16",
+        "type": "Add",
+        "inputs": {
+          "A": 0.5,
+          "B": {
+            "node": "Multiply_15",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_17",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Swizzle_11",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Add_16",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_18",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Time_3",
+            "port": "Value"
+          },
+          "B": 0.29
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_19",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Multiply_18",
+            "port": "Value"
+          },
+          "B": 3.1
+        },
+        "properties": {}
+      },
+      {
+        "id": "Sin_20",
+        "type": "Sin",
+        "inputs": {
+          "Value": {
+            "node": "Add_19",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_21",
+        "type": "Multiply",
+        "inputs": {
+          "A": 0.44,
+          "B": {
+            "node": "Sin_20",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_22",
+        "type": "Add",
+        "inputs": {
+          "A": 0.5,
+          "B": {
+            "node": "Multiply_21",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_23",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Swizzle_11",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Add_22",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Subtract_24",
+        "type": "Subtract",
+        "inputs": {
+          "A": {
+            "node": "Swizzle_10",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Multiply_17",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Abs_25",
+        "type": "Abs",
+        "inputs": {
+          "Value": {
+            "node": "Subtract_24",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Smoothstep_26",
+        "type": "Smoothstep",
+        "inputs": {
+          "Min": 0.25,
+          "Max": 0.9,
+          "Value": {
+            "node": "Abs_25",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Subtract_27",
+        "type": "Subtract",
+        "inputs": {
+          "A": 1.0,
+          "B": {
+            "node": "Smoothstep_26",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Subtract_28",
+        "type": "Subtract",
+        "inputs": {
+          "A": {
+            "node": "Swizzle_10",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Multiply_23",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Abs_29",
+        "type": "Abs",
+        "inputs": {
+          "Value": {
+            "node": "Subtract_28",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Smoothstep_30",
+        "type": "Smoothstep",
+        "inputs": {
+          "Min": 0.2,
+          "Max": 0.75,
+          "Value": {
+            "node": "Abs_29",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Subtract_31",
+        "type": "Subtract",
+        "inputs": {
+          "A": 1.0,
+          "B": {
+            "node": "Smoothstep_30",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_32",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Time_3",
+            "port": "Value"
+          },
+          "B": 2.15
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_33",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Multiply_32",
+            "port": "Value"
+          },
+          "B": 0.4
+        },
+        "properties": {}
+      },
+      {
+        "id": "Sin_34",
+        "type": "Sin",
+        "inputs": {
+          "Value": {
+            "node": "Add_33",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_35",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Subtract_27",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Sin_34",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_36",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Multiply_35",
+            "port": "Value"
+          },
+          "B": 0.82
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_37",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Time_3",
+            "port": "Value"
+          },
+          "B": 1.73
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_38",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Multiply_37",
+            "port": "Value"
+          },
+          "B": 2.2
+        },
+        "properties": {}
+      },
+      {
+        "id": "Sin_39",
+        "type": "Sin",
+        "inputs": {
+          "Value": {
+            "node": "Add_38",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_40",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Subtract_31",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Sin_39",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_41",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Multiply_40",
+            "port": "Value"
+          },
+          "B": 0.38
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_42",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Multiply_36",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Multiply_41",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Clamp_43",
+        "type": "Clamp",
+        "inputs": {
+          "Value": {
+            "node": "Add_42",
+            "port": "Value"
+          },
+          "Min": -1.0,
+          "Max": 1.0
+        },
+        "properties": {}
+      },
+      {
+        "id": "Compose_44",
+        "type": "Compose",
+        "inputs": {
+          "X": {
+            "node": "Clamp_43",
+            "port": "Value"
+          },
+          "Y": 0.0
+        },
+        "properties": {
+          "size": 2
+        }
+      },
+      {
+        "id": "Divide_45",
+        "type": "Divide",
+        "inputs": {
+          "A": {
+            "node": "Compose_44",
+            "port": "Value"
+          },
+          "B": {
+            "node": "FrameSize_8",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_46",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Clamp_4",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Divide_45",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "SampleSprite_47",
+        "type": "SampleSprite",
+        "inputs": {
+          "UV": {
+            "node": "Add_46",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Divide_48",
+        "type": "Divide",
+        "inputs": {
+          "A": [
+            -1.0,
+            0.0
+          ],
+          "B": {
+            "node": "FrameSize_8",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_49",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Add_46",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Divide_48",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "SampleSprite_50",
+        "type": "SampleSprite",
+        "inputs": {
+          "UV": {
+            "node": "Add_49",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Divide_51",
+        "type": "Divide",
+        "inputs": {
+          "A": [
+            1.0,
+            0.0
+          ],
+          "B": {
+            "node": "FrameSize_8",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_52",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Add_46",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Divide_51",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "SampleSprite_53",
+        "type": "SampleSprite",
+        "inputs": {
+          "UV": {
+            "node": "Add_52",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Divide_54",
+        "type": "Divide",
+        "inputs": {
+          "A": [
+            0.0,
+            -1.0
+          ],
+          "B": {
+            "node": "FrameSize_8",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_55",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Add_46",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Divide_54",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "SampleSprite_56",
+        "type": "SampleSprite",
+        "inputs": {
+          "UV": {
+            "node": "Add_55",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Divide_57",
+        "type": "Divide",
+        "inputs": {
+          "A": [
+            0.0,
+            1.0
+          ],
+          "B": {
+            "node": "FrameSize_8",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_58",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Add_46",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Divide_57",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "SampleSprite_59",
+        "type": "SampleSprite",
+        "inputs": {
+          "UV": {
+            "node": "Add_58",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Divide_60",
+        "type": "Divide",
+        "inputs": {
+          "A": [
+            -1.0,
+            -1.0
+          ],
+          "B": {
+            "node": "FrameSize_8",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_61",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Add_46",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Divide_60",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "SampleSprite_62",
+        "type": "SampleSprite",
+        "inputs": {
+          "UV": {
+            "node": "Add_61",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Divide_63",
+        "type": "Divide",
+        "inputs": {
+          "A": [
+            1.0,
+            -1.0
+          ],
+          "B": {
+            "node": "FrameSize_8",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_64",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Add_46",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Divide_63",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "SampleSprite_65",
+        "type": "SampleSprite",
+        "inputs": {
+          "UV": {
+            "node": "Add_64",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Divide_66",
+        "type": "Divide",
+        "inputs": {
+          "A": [
+            -1.0,
+            1.0
+          ],
+          "B": {
+            "node": "FrameSize_8",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_67",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Add_46",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Divide_66",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "SampleSprite_68",
+        "type": "SampleSprite",
+        "inputs": {
+          "UV": {
+            "node": "Add_67",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Divide_69",
+        "type": "Divide",
+        "inputs": {
+          "A": [
+            1.0,
+            1.0
+          ],
+          "B": {
+            "node": "FrameSize_8",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_70",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Add_46",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Divide_69",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "SampleSprite_71",
+        "type": "SampleSprite",
+        "inputs": {
+          "UV": {
+            "node": "Add_70",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Divide_72",
+        "type": "Divide",
+        "inputs": {
+          "A": [
+            -2.0,
+            0.0
+          ],
+          "B": {
+            "node": "FrameSize_8",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_73",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Add_46",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Divide_72",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "SampleSprite_74",
+        "type": "SampleSprite",
+        "inputs": {
+          "UV": {
+            "node": "Add_73",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Divide_75",
+        "type": "Divide",
+        "inputs": {
+          "A": [
+            2.0,
+            0.0
+          ],
+          "B": {
+            "node": "FrameSize_8",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_76",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Add_46",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Divide_75",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "SampleSprite_77",
+        "type": "SampleSprite",
+        "inputs": {
+          "UV": {
+            "node": "Add_76",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Divide_78",
+        "type": "Divide",
+        "inputs": {
+          "A": [
+            0.0,
+            -2.0
+          ],
+          "B": {
+            "node": "FrameSize_8",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_79",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Add_46",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Divide_78",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "SampleSprite_80",
+        "type": "SampleSprite",
+        "inputs": {
+          "UV": {
+            "node": "Add_79",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Divide_81",
+        "type": "Divide",
+        "inputs": {
+          "A": [
+            0.0,
+            2.0
+          ],
+          "B": {
+            "node": "FrameSize_8",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_82",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Add_46",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Divide_81",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "SampleSprite_83",
+        "type": "SampleSprite",
+        "inputs": {
+          "UV": {
+            "node": "Add_82",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Max_84",
+        "type": "Max",
+        "inputs": {
+          "A": {
+            "node": "SampleSprite_50",
+            "port": "Alpha"
+          },
+          "B": {
+            "node": "SampleSprite_53",
+            "port": "Alpha"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Max_85",
+        "type": "Max",
+        "inputs": {
+          "A": {
+            "node": "SampleSprite_56",
+            "port": "Alpha"
+          },
+          "B": {
+            "node": "SampleSprite_59",
+            "port": "Alpha"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Max_86",
+        "type": "Max",
+        "inputs": {
+          "A": {
+            "node": "Max_84",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Max_85",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Max_87",
+        "type": "Max",
+        "inputs": {
+          "A": {
+            "node": "SampleSprite_62",
+            "port": "Alpha"
+          },
+          "B": {
+            "node": "SampleSprite_65",
+            "port": "Alpha"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Max_88",
+        "type": "Max",
+        "inputs": {
+          "A": {
+            "node": "SampleSprite_68",
+            "port": "Alpha"
+          },
+          "B": {
+            "node": "SampleSprite_71",
+            "port": "Alpha"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Max_89",
+        "type": "Max",
+        "inputs": {
+          "A": {
+            "node": "Max_87",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Max_88",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Max_90",
+        "type": "Max",
+        "inputs": {
+          "A": {
+            "node": "Max_86",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Max_89",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Min_91",
+        "type": "Min",
+        "inputs": {
+          "A": {
+            "node": "SampleSprite_50",
+            "port": "Alpha"
+          },
+          "B": {
+            "node": "SampleSprite_53",
+            "port": "Alpha"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Min_92",
+        "type": "Min",
+        "inputs": {
+          "A": {
+            "node": "SampleSprite_56",
+            "port": "Alpha"
+          },
+          "B": {
+            "node": "SampleSprite_59",
+            "port": "Alpha"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Min_93",
+        "type": "Min",
+        "inputs": {
+          "A": {
+            "node": "Min_91",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Min_92",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Max_94",
+        "type": "Max",
+        "inputs": {
+          "A": {
+            "node": "SampleSprite_74",
+            "port": "Alpha"
+          },
+          "B": {
+            "node": "SampleSprite_77",
+            "port": "Alpha"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Max_95",
+        "type": "Max",
+        "inputs": {
+          "A": {
+            "node": "SampleSprite_80",
+            "port": "Alpha"
+          },
+          "B": {
+            "node": "SampleSprite_83",
+            "port": "Alpha"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Max_96",
+        "type": "Max",
+        "inputs": {
+          "A": {
+            "node": "Max_94",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Max_95",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Subtract_97",
+        "type": "Subtract",
+        "inputs": {
+          "A": 1.0,
+          "B": {
+            "node": "Min_93",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_98",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "SampleSprite_47",
+            "port": "Alpha"
+          },
+          "B": {
+            "node": "Subtract_97",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Subtract_99",
+        "type": "Subtract",
+        "inputs": {
+          "A": {
+            "node": "Max_90",
+            "port": "Value"
+          },
+          "B": {
+            "node": "SampleSprite_47",
+            "port": "Alpha"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Clamp_100",
+        "type": "Clamp",
+        "inputs": {
+          "Value": {
+            "node": "Subtract_99",
+            "port": "Value"
+          },
+          "Min": 0.0,
+          "Max": 1.0
+        },
+        "properties": {}
+      },
+      {
+        "id": "Max_101",
+        "type": "Max",
+        "inputs": {
+          "A": {
+            "node": "SampleSprite_47",
+            "port": "Alpha"
+          },
+          "B": {
+            "node": "Max_90",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Subtract_102",
+        "type": "Subtract",
+        "inputs": {
+          "A": {
+            "node": "Max_96",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Max_101",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Clamp_103",
+        "type": "Clamp",
+        "inputs": {
+          "Value": {
+            "node": "Subtract_102",
+            "port": "Value"
+          },
+          "Min": 0.0,
+          "Max": 1.0
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_104",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Time_3",
+            "port": "Value"
+          },
+          "B": 3.0
+        },
+        "properties": {}
+      },
+      {
+        "id": "Subtract_105",
+        "type": "Subtract",
+        "inputs": {
+          "A": {
+            "node": "Swizzle_10",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Multiply_104",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_106",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Subtract_105",
+            "port": "Value"
+          },
+          "B": 0.25
+        },
+        "properties": {}
+      },
+      {
+        "id": "Fract_107",
+        "type": "Fract",
+        "inputs": {
+          "Value": {
+            "node": "Multiply_106",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Subtract_108",
+        "type": "Subtract",
+        "inputs": {
+          "A": {
+            "node": "Fract_107",
+            "port": "Value"
+          },
+          "B": 0.5
+        },
+        "properties": {}
+      },
+      {
+        "id": "Abs_109",
+        "type": "Abs",
+        "inputs": {
+          "Value": {
+            "node": "Subtract_108",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Smoothstep_110",
+        "type": "Smoothstep",
+        "inputs": {
+          "Min": 0.045,
+          "Max": 0.17,
+          "Value": {
+            "node": "Abs_109",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Subtract_111",
+        "type": "Subtract",
+        "inputs": {
+          "A": 1.0,
+          "B": {
+            "node": "Smoothstep_110",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_112",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Time_3",
+            "port": "Value"
+          },
+          "B": 0.31
+        },
+        "properties": {}
+      },
+      {
+        "id": "Subtract_113",
+        "type": "Subtract",
+        "inputs": {
+          "A": {
+            "node": "Multiply_112",
+            "port": "Value"
+          },
+          "B": 1.0
+        },
+        "properties": {}
+      },
+      {
+        "id": "Sin_114",
+        "type": "Sin",
+        "inputs": {
+          "Value": {
+            "node": "Subtract_113",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_115",
+        "type": "Multiply",
+        "inputs": {
+          "A": 0.62,
+          "B": {
+            "node": "Sin_114",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_116",
+        "type": "Add",
+        "inputs": {
+          "A": 0.5,
+          "B": {
+            "node": "Multiply_115",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Subtract_117",
+        "type": "Subtract",
+        "inputs": {
+          "A": {
+            "node": "Swizzle_6",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Add_116",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Abs_118",
+        "type": "Abs",
+        "inputs": {
+          "Value": {
+            "node": "Subtract_117",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Smoothstep_119",
+        "type": "Smoothstep",
+        "inputs": {
+          "Min": 0.025,
+          "Max": 0.16,
+          "Value": {
+            "node": "Abs_118",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Subtract_120",
+        "type": "Subtract",
+        "inputs": {
+          "A": 1.0,
+          "B": {
+            "node": "Smoothstep_119",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_121",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Time_3",
+            "port": "Value"
+          },
+          "B": 1.35
+        },
+        "properties": {}
+      },
+      {
+        "id": "Sin_122",
+        "type": "Sin",
+        "inputs": {
+          "Value": {
+            "node": "Multiply_121",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_123",
+        "type": "Multiply",
+        "inputs": {
+          "A": 0.5,
+          "B": {
+            "node": "Sin_122",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_124",
+        "type": "Add",
+        "inputs": {
+          "A": 0.5,
+          "B": {
+            "node": "Multiply_123",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Dot_125",
+        "type": "Dot",
+        "inputs": {
+          "A": {
+            "node": "SampleSprite_47",
+            "port": "Color"
+          },
+          "B": [
+            0.299,
+            0.587,
+            0.114
+          ]
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_126",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Dot_125",
+            "port": "Value"
+          },
+          "B": 1.1
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_127",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Multiply_126",
+            "port": "Value"
+          },
+          "B": 0.05
+        },
+        "properties": {}
+      },
+      {
+        "id": "Clamp_128",
+        "type": "Clamp",
+        "inputs": {
+          "Value": {
+            "node": "Add_127",
+            "port": "Value"
+          },
+          "Min": 0.0,
+          "Max": 1.0
+        },
+        "properties": {}
+      },
+      {
+        "id": "Lerp_129",
+        "type": "Lerp",
+        "inputs": {
+          "A": [
+            0.025,
+            0.24,
+            0.34
+          ],
+          "B": [
+            0.52,
+            0.95,
+            1.0
+          ],
+          "T": {
+            "node": "Clamp_128",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Lerp_130",
+        "type": "Lerp",
+        "inputs": {
+          "A": {
+            "node": "Lerp_129",
+            "port": "Value"
+          },
+          "B": {
+            "node": "SampleSprite_47",
+            "port": "Color"
+          },
+          "T": 0.14
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_131",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Add_124",
+            "port": "Value"
+          },
+          "B": 0.06
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_132",
+        "type": "Add",
+        "inputs": {
+          "A": 0.92,
+          "B": {
+            "node": "Multiply_131",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_133",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Subtract_111",
+            "port": "Value"
+          },
+          "B": 0.12
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_134",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Add_132",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Multiply_133",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_135",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Subtract_120",
+            "port": "Value"
+          },
+          "B": 0.12
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_136",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Add_134",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Multiply_135",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_137",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Lerp_130",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Add_136",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_138",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Multiply_98",
+            "port": "Value"
+          },
+          "B": 1.25
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_139",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Clamp_100",
+            "port": "Value"
+          },
+          "B": 1.35
+        },
+        "properties": {}
+      },
+      {
+        "id": "Max_140",
+        "type": "Max",
+        "inputs": {
+          "A": {
+            "node": "Multiply_138",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Multiply_139",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Clamp_141",
+        "type": "Clamp",
+        "inputs": {
+          "Value": {
+            "node": "Max_140",
+            "port": "Value"
+          },
+          "Min": 0.0,
+          "Max": 1.0
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_142",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Clamp_103",
+            "port": "Value"
+          },
+          "B": 0.58
+        },
+        "properties": {}
+      },
+      {
+        "id": "Clamp_143",
+        "type": "Clamp",
+        "inputs": {
+          "Value": {
+            "node": "Multiply_142",
+            "port": "Value"
+          },
+          "Min": 0.0,
+          "Max": 1.0
+        },
+        "properties": {}
+      },
+      {
+        "id": "Max_144",
+        "type": "Max",
+        "inputs": {
+          "A": {
+            "node": "Clamp_141",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Clamp_143",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Lerp_145",
+        "type": "Lerp",
+        "inputs": {
+          "A": {
+            "node": "Multiply_137",
+            "port": "Value"
+          },
+          "B": [
+            0.72,
+            1.0,
+            1.0
+          ],
+          "T": {
+            "node": "Max_144",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_146",
+        "type": "Multiply",
+        "inputs": {
+          "A": [
+            0.07,
+            0.14,
+            0.16
+          ],
+          "B": {
+            "node": "Clamp_141",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_147",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Lerp_145",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Multiply_146",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_148",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Add_124",
+            "port": "Value"
+          },
+          "B": 0.07
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_149",
+        "type": "Add",
+        "inputs": {
+          "A": 0.62,
+          "B": {
+            "node": "Multiply_148",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_150",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Subtract_111",
+            "port": "Value"
+          },
+          "B": 0.025
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_151",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Add_149",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Multiply_150",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_152",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Subtract_120",
+            "port": "Value"
+          },
+          "B": 0.025
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_153",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Add_151",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Multiply_152",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_154",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "SampleSprite_47",
+            "port": "Alpha"
+          },
+          "B": {
+            "node": "Add_153",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_155",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Multiply_98",
+            "port": "Value"
+          },
+          "B": 0.82
+        },
+        "properties": {}
+      },
+      {
+        "id": "Max_156",
+        "type": "Max",
+        "inputs": {
+          "A": {
+            "node": "Multiply_154",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Multiply_155",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_157",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Clamp_100",
+            "port": "Value"
+          },
+          "B": 0.7
+        },
+        "properties": {}
+      },
+      {
+        "id": "Max_158",
+        "type": "Max",
+        "inputs": {
+          "A": {
+            "node": "Max_156",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Multiply_157",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_159",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Clamp_103",
+            "port": "Value"
+          },
+          "B": 0.24
+        },
+        "properties": {}
+      },
+      {
+        "id": "Max_160",
+        "type": "Max",
+        "inputs": {
+          "A": {
+            "node": "Max_158",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Multiply_159",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Clamp_161",
+        "type": "Clamp",
+        "inputs": {
+          "Value": {
+            "node": "Max_160",
+            "port": "Value"
+          },
+          "Min": 0.0,
+          "Max": 1.0
+        },
+        "properties": {}
+      },
+      {
+        "id": "Clamp_162",
+        "type": "Clamp",
+        "inputs": {
+          "Value": {
+            "node": "Add_147",
+            "port": "Value"
+          },
+          "Min": 0.0,
+          "Max": 1.0
+        },
+        "properties": {}
+      },
+      {
+        "id": "hue",
+        "type": "Parameter",
+        "inputs": {},
+        "properties": {
+          "id": "hue"
+        }
+      },
+      {
+        "id": "opacity",
+        "type": "Parameter",
+        "inputs": {},
+        "properties": {
+          "id": "opacity"
+        }
+      },
+      {
+        "id": "HueShift_165",
+        "type": "HueShift",
+        "inputs": {
+          "Color": {
+            "node": "Clamp_162",
+            "port": "Value"
+          },
+          "Hue": {
+            "node": "hue",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_166",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Clamp_161",
+            "port": "Value"
+          },
+          "B": {
+            "node": "opacity",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "lightBlock",
+        "type": "Parameter",
+        "inputs": {},
+        "properties": {
+          "id": "lightBlock"
+        }
+      },
+      {
+        "id": "reflectionStrength",
+        "type": "Parameter",
+        "inputs": {},
+        "properties": {
+          "id": "reflectionStrength"
+        }
+      },
+      {
+        "id": "lightingWeight",
+        "type": "Parameter",
+        "inputs": {},
+        "properties": {
+          "id": "lightingWeight"
+        }
+      },
+      {
+        "id": "Surface",
+        "type": "Surface",
+        "inputs": {
+          "BaseColor": {
+            "node": "HueShift_165",
+            "port": "Value"
+          },
+          "Alpha": {
+            "node": "Multiply_166",
+            "port": "Value"
+          },
+          "LightBlock": {
+            "node": "lightBlock",
+            "port": "Value"
+          },
+          "ReflectionStrength": {
+            "node": "reflectionStrength",
+            "port": "Value"
+          },
+          "LightingWeight": {
+            "node": "lightingWeight",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      }
+    ],
+    "output": "Surface"
+  },
+  "rendering": {
+    "maxVertexOffset": [
+      0.0,
+      0.0
+    ]
+  },
+  "editor": {
+    "positions": {
+      "SampleSprite_1": [
+        0.0,
+        0.0
+      ],
+      "LocalUV_2": [
+        0.0,
+        180.0
+      ],
+      "Time_3": [
+        0.0,
+        360.0
+      ],
+      "Clamp_4": [
+        260.0,
+        0.0
+      ],
+      "Swizzle_5": [
+        520.0,
+        0.0
+      ],
+      "Swizzle_6": [
+        520.0,
+        180.0
+      ],
+      "Dot_7": [
+        260.0,
+        180.0
+      ],
+      "FrameSize_8": [
+        0.0,
+        540.0
+      ],
+      "Multiply_9": [
+        520.0,
+        360.0
+      ],
+      "Swizzle_10": [
+        780.0,
+        0.0
+      ],
+      "Swizzle_11": [
+        260.0,
+        360.0
+      ],
+      "Multiply_12": [
+        260.0,
+        540.0
+      ],
+      "Add_13": [
+        520.0,
+        540.0
+      ],
+      "Sin_14": [
+        780.0,
+        180.0
+      ],
+      "Multiply_15": [
+        1040.0,
+        0.0
+      ],
+      "Add_16": [
+        1300.0,
+        0.0
+      ],
+      "Multiply_17": [
+        1560.0,
+        0.0
+      ],
+      "Multiply_18": [
+        260.0,
+        720.0
+      ],
+      "Add_19": [
+        520.0,
+        720.0
+      ],
+      "Sin_20": [
+        780.0,
+        360.0
+      ],
+      "Multiply_21": [
+        1040.0,
+        180.0
+      ],
+      "Add_22": [
+        1300.0,
+        180.0
+      ],
+      "Multiply_23": [
+        1560.0,
+        180.0
+      ],
+      "Subtract_24": [
+        1820.0,
+        0.0
+      ],
+      "Abs_25": [
+        2080.0,
+        0.0
+      ],
+      "Smoothstep_26": [
+        2340.0,
+        0.0
+      ],
+      "Subtract_27": [
+        2600.0,
+        0.0
+      ],
+      "Subtract_28": [
+        1820.0,
+        180.0
+      ],
+      "Abs_29": [
+        2080.0,
+        180.0
+      ],
+      "Smoothstep_30": [
+        2340.0,
+        180.0
+      ],
+      "Subtract_31": [
+        2600.0,
+        180.0
+      ],
+      "Multiply_32": [
+        260.0,
+        900.0
+      ],
+      "Add_33": [
+        520.0,
+        900.0
+      ],
+      "Sin_34": [
+        780.0,
+        540.0
+      ],
+      "Multiply_35": [
+        2860.0,
+        0.0
+      ],
+      "Multiply_36": [
+        3120.0,
+        0.0
+      ],
+      "Multiply_37": [
+        260.0,
+        1080.0
+      ],
+      "Add_38": [
+        520.0,
+        1080.0
+      ],
+      "Sin_39": [
+        780.0,
+        720.0
+      ],
+      "Multiply_40": [
+        2860.0,
+        180.0
+      ],
+      "Multiply_41": [
+        3120.0,
+        180.0
+      ],
+      "Add_42": [
+        3380.0,
+        0.0
+      ],
+      "Clamp_43": [
+        3640.0,
+        0.0
+      ],
+      "Compose_44": [
+        3900.0,
+        0.0
+      ],
+      "Divide_45": [
+        4160.0,
+        0.0
+      ],
+      "Add_46": [
+        4420.0,
+        0.0
+      ],
+      "SampleSprite_47": [
+        4680.0,
+        0.0
+      ],
+      "Divide_48": [
+        260.0,
+        1260.0
+      ],
+      "Add_49": [
+        4680.0,
+        180.0
+      ],
+      "SampleSprite_50": [
+        4940.0,
+        0.0
+      ],
+      "Divide_51": [
+        260.0,
+        1440.0
+      ],
+      "Add_52": [
+        4680.0,
+        360.0
+      ],
+      "SampleSprite_53": [
+        4940.0,
+        180.0
+      ],
+      "Divide_54": [
+        260.0,
+        1620.0
+      ],
+      "Add_55": [
+        4680.0,
+        540.0
+      ],
+      "SampleSprite_56": [
+        4940.0,
+        360.0
+      ],
+      "Divide_57": [
+        260.0,
+        1800.0
+      ],
+      "Add_58": [
+        4680.0,
+        720.0
+      ],
+      "SampleSprite_59": [
+        4940.0,
+        540.0
+      ],
+      "Divide_60": [
+        260.0,
+        1980.0
+      ],
+      "Add_61": [
+        4680.0,
+        900.0
+      ],
+      "SampleSprite_62": [
+        4940.0,
+        720.0
+      ],
+      "Divide_63": [
+        260.0,
+        2160.0
+      ],
+      "Add_64": [
+        4680.0,
+        1080.0
+      ],
+      "SampleSprite_65": [
+        4940.0,
+        900.0
+      ],
+      "Divide_66": [
+        260.0,
+        2340.0
+      ],
+      "Add_67": [
+        4680.0,
+        1260.0
+      ],
+      "SampleSprite_68": [
+        4940.0,
+        1080.0
+      ],
+      "Divide_69": [
+        260.0,
+        2520.0
+      ],
+      "Add_70": [
+        4680.0,
+        1440.0
+      ],
+      "SampleSprite_71": [
+        4940.0,
+        1260.0
+      ],
+      "Divide_72": [
+        260.0,
+        2700.0
+      ],
+      "Add_73": [
+        4680.0,
+        1620.0
+      ],
+      "SampleSprite_74": [
+        4940.0,
+        1440.0
+      ],
+      "Divide_75": [
+        260.0,
+        2880.0
+      ],
+      "Add_76": [
+        4680.0,
+        1800.0
+      ],
+      "SampleSprite_77": [
+        4940.0,
+        1620.0
+      ],
+      "Divide_78": [
+        260.0,
+        3060.0
+      ],
+      "Add_79": [
+        4680.0,
+        1980.0
+      ],
+      "SampleSprite_80": [
+        4940.0,
+        1800.0
+      ],
+      "Divide_81": [
+        260.0,
+        3240.0
+      ],
+      "Add_82": [
+        4680.0,
+        2160.0
+      ],
+      "SampleSprite_83": [
+        4940.0,
+        1980.0
+      ],
+      "Max_84": [
+        5200.0,
+        0.0
+      ],
+      "Max_85": [
+        5200.0,
+        180.0
+      ],
+      "Max_86": [
+        5460.0,
+        0.0
+      ],
+      "Max_87": [
+        5200.0,
+        360.0
+      ],
+      "Max_88": [
+        5200.0,
+        540.0
+      ],
+      "Max_89": [
+        5460.0,
+        180.0
+      ],
+      "Max_90": [
+        5720.0,
+        0.0
+      ],
+      "Min_91": [
+        5200.0,
+        720.0
+      ],
+      "Min_92": [
+        5200.0,
+        900.0
+      ],
+      "Min_93": [
+        5460.0,
+        360.0
+      ],
+      "Max_94": [
+        5200.0,
+        1080.0
+      ],
+      "Max_95": [
+        5200.0,
+        1260.0
+      ],
+      "Max_96": [
+        5460.0,
+        540.0
+      ],
+      "Subtract_97": [
+        5720.0,
+        180.0
+      ],
+      "Multiply_98": [
+        5980.0,
+        0.0
+      ],
+      "Subtract_99": [
+        5980.0,
+        180.0
+      ],
+      "Clamp_100": [
+        6240.0,
+        0.0
+      ],
+      "Max_101": [
+        5980.0,
+        360.0
+      ],
+      "Subtract_102": [
+        6240.0,
+        180.0
+      ],
+      "Clamp_103": [
+        6500.0,
+        0.0
+      ],
+      "Multiply_104": [
+        260.0,
+        3420.0
+      ],
+      "Subtract_105": [
+        1040.0,
+        360.0
+      ],
+      "Multiply_106": [
+        1300.0,
+        360.0
+      ],
+      "Fract_107": [
+        1560.0,
+        360.0
+      ],
+      "Subtract_108": [
+        1820.0,
+        360.0
+      ],
+      "Abs_109": [
+        2080.0,
+        360.0
+      ],
+      "Smoothstep_110": [
+        2340.0,
+        360.0
+      ],
+      "Subtract_111": [
+        2600.0,
+        360.0
+      ],
+      "Multiply_112": [
+        260.0,
+        3600.0
+      ],
+      "Subtract_113": [
+        520.0,
+        1260.0
+      ],
+      "Sin_114": [
+        780.0,
+        900.0
+      ],
+      "Multiply_115": [
+        1040.0,
+        540.0
+      ],
+      "Add_116": [
+        1300.0,
+        540.0
+      ],
+      "Subtract_117": [
+        1560.0,
+        540.0
+      ],
+      "Abs_118": [
+        1820.0,
+        540.0
+      ],
+      "Smoothstep_119": [
+        2080.0,
+        540.0
+      ],
+      "Subtract_120": [
+        2340.0,
+        540.0
+      ],
+      "Multiply_121": [
+        260.0,
+        3780.0
+      ],
+      "Sin_122": [
+        520.0,
+        1440.0
+      ],
+      "Multiply_123": [
+        780.0,
+        1080.0
+      ],
+      "Add_124": [
+        1040.0,
+        720.0
+      ],
+      "Dot_125": [
+        4940.0,
+        2160.0
+      ],
+      "Multiply_126": [
+        5200.0,
+        1440.0
+      ],
+      "Add_127": [
+        5460.0,
+        720.0
+      ],
+      "Clamp_128": [
+        5720.0,
+        360.0
+      ],
+      "Lerp_129": [
+        5980.0,
+        540.0
+      ],
+      "Lerp_130": [
+        6240.0,
+        360.0
+      ],
+      "Multiply_131": [
+        1300.0,
+        720.0
+      ],
+      "Add_132": [
+        1560.0,
+        720.0
+      ],
+      "Multiply_133": [
+        2860.0,
+        360.0
+      ],
+      "Add_134": [
+        3120.0,
+        360.0
+      ],
+      "Multiply_135": [
+        2600.0,
+        540.0
+      ],
+      "Add_136": [
+        3380.0,
+        180.0
+      ],
+      "Multiply_137": [
+        6500.0,
+        180.0
+      ],
+      "Multiply_138": [
+        6240.0,
+        540.0
+      ],
+      "Multiply_139": [
+        6500.0,
+        360.0
+      ],
+      "Max_140": [
+        6760.0,
+        0.0
+      ],
+      "Clamp_141": [
+        7020.0,
+        0.0
+      ],
+      "Multiply_142": [
+        6760.0,
+        180.0
+      ],
+      "Clamp_143": [
+        7020.0,
+        180.0
+      ],
+      "Max_144": [
+        7280.0,
+        0.0
+      ],
+      "Lerp_145": [
+        7540.0,
+        0.0
+      ],
+      "Multiply_146": [
+        7280.0,
+        180.0
+      ],
+      "Add_147": [
+        7800.0,
+        0.0
+      ],
+      "Multiply_148": [
+        1300.0,
+        900.0
+      ],
+      "Add_149": [
+        1560.0,
+        900.0
+      ],
+      "Multiply_150": [
+        2860.0,
+        540.0
+      ],
+      "Add_151": [
+        3120.0,
+        540.0
+      ],
+      "Multiply_152": [
+        2600.0,
+        720.0
+      ],
+      "Add_153": [
+        3380.0,
+        360.0
+      ],
+      "Multiply_154": [
+        4940.0,
+        2340.0
+      ],
+      "Multiply_155": [
+        6240.0,
+        720.0
+      ],
+      "Max_156": [
+        6500.0,
+        540.0
+      ],
+      "Multiply_157": [
+        6500.0,
+        720.0
+      ],
+      "Max_158": [
+        6760.0,
+        360.0
+      ],
+      "Multiply_159": [
+        6760.0,
+        540.0
+      ],
+      "Max_160": [
+        7020.0,
+        360.0
+      ],
+      "Clamp_161": [
+        7280.0,
+        360.0
+      ],
+      "Clamp_162": [
+        8060.0,
+        0.0
+      ],
+      "hue": [
+        0.0,
+        720.0
+      ],
+      "opacity": [
+        0.0,
+        900.0
+      ],
+      "HueShift_165": [
+        8320.0,
+        0.0
+      ],
+      "Multiply_166": [
+        7540.0,
+        180.0
+      ],
+      "lightBlock": [
+        0.0,
+        1080.0
+      ],
+      "reflectionStrength": [
+        0.0,
+        1260.0
+      ],
+      "lightingWeight": [
+        0.0,
+        1440.0
+      ],
+      "Surface": [
+        8580.0,
+        0.0
+      ]
+    }
+  },
+  "type": "material"
+}

@@ -150,7 +150,7 @@ local function writeTile(layer, layerData, autoTileTextures, autoTileFrameCounts
         )
     else
         ---@cast tileID integer
-        if tileID < 0 or tileID >= #layerData.layerTileset.materials then
+        if tileID < 0 or tileID >= layer:getTilesetTileCount() then
             error("Tile ID " .. tileID .. " is out of range for layer '" .. layer:getName() .. "'", 2)
         end
         tilesRow[x] = tileID

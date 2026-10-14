@@ -1,7 +1,7 @@
+local cjson = require("cjson")
 local GlobalCore = require("GlobalCore")
 
 local Display = GlobalCore.Display
-local HUE_EPSILON = 0.0001
 
 local Render = {}
 
@@ -18,32 +18,18 @@ function Render.GetRealSize(inSize)
     return realSize * Display.getScale()
 end
 
-function Render.NormaliseActorHue(hue)
-    return hue % 360.0
-end
-
-function Render.IsNeutralActorHue(hue)
-    local normalisedHue = Render.NormaliseActorHue(hue)
-    return normalisedHue <= HUE_EPSILON or math.abs(normalisedHue - 360.0) <= HUE_EPSILON
-end
-
-function Render.BindActorShader(shader, texture, rect, time)
-    local textureSize = texture:getSize()
-    shader:setUniform("texture", sf.Shader.CurrentTexture)
-    shader:setUniform("time", time)
-    shader:setUniform("textureSize", sf.Vector2f.new(textureSize.x, textureSize.y))
-    shader:setUniform("textureRect", sf.Vector4f.new(rect.position.x, rect.position.y, rect.size.x, rect.size.y))
+local function materialParameterSignature(parameters)
+    local values = {}
+    for _, key in ipairs(table.orderedStringKeys(parameters)) do
+        values[#values + 1] = cjson.encode(key) .. ":" .. cjson.encode(parameters[key])
+    end
+    return table.concat(values, ",")
 end
 
 function Render.CaptureActorVisual(actor)
     local texture = actor:getTexture()
     local rect = actor:getTextureRect()
     local scale = actor:getScale()
-    local shaderError = actor:hasShaderError()
-    local shader = nil
-    if not shaderError then
-        shader = actor:getShader()
-    end
     local visualRect = rect:copy()
     return {
         texture = texture,
@@ -52,11 +38,8 @@ function Render.CaptureActorVisual(actor)
         rect = visualRect,
         textureRect = visualRect,
         scale = scale:copy(),
-        shader = shader,
-        shaderPath = tostring(actor:getShaderPath() or ""),
-        shaderError = shaderError,
-        hasShaderError = shaderError,
-        hue = Render.NormaliseActorHue(actor.hue or 0.0),
+        material = actor:getMaterial(),
+        materialParameters = deepcopy(actor.materialParameters),
         animatable = actor:getAnimatable(),
         switchInterval = actor.switchInterval
     }
@@ -70,18 +53,18 @@ function Render.GetActorVisualSignature(enemyID, visual)
         ---@type table<integer, string>
         local values = {
             tostring(enemyID), tostring(visual.texturePath or ""), tostring(textureHandle), tostring(rect.position.y),
-            tostring(rect.size.x), tostring(rect.size.y), "animated", tostring(visual.shaderPath or ""),
-            normaliseSignatureNumber(Render.NormaliseActorHue(visual.hue or 0.0)),
-            normaliseSignatureNumber(visual.scale.x), normaliseSignatureNumber(visual.scale.y)
+            tostring(rect.size.x), tostring(rect.size.y), "animated", visual.material,
+            materialParameterSignature(visual.materialParameters), normaliseSignatureNumber(visual.scale.x),
+            normaliseSignatureNumber(visual.scale.y)
         }
         return tuple(values)
     end
     ---@type table<integer, string>
     local values = {
         tostring(enemyID), tostring(visual.texturePath or ""), tostring(textureHandle), tostring(rect.position.y),
-        tostring(rect.size.x), tostring(rect.size.y), "static", tostring(rect.position.x),
-        tostring(visual.shaderPath or ""), normaliseSignatureNumber(Render.NormaliseActorHue(visual.hue or 0.0)),
-        normaliseSignatureNumber(visual.scale.x), normaliseSignatureNumber(visual.scale.y)
+        tostring(rect.size.x), tostring(rect.size.y), "static", tostring(rect.position.x), visual.material,
+        materialParameterSignature(visual.materialParameters), normaliseSignatureNumber(visual.scale.x),
+        normaliseSignatureNumber(visual.scale.y)
     }
     return tuple(values)
 end

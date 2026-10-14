@@ -2,6 +2,7 @@
 
 #include "Actor/ActorBatchRenderer.hpp"
 #include "Map/MapPreviewSession.hpp"
+#include "Material/MaterialPreviewSession.hpp"
 #include "Particle/ParticlePreviewSession.hpp"
 #include "Protocol/FrameFiles.hpp"
 #include "UI/UiPreviewSession.hpp"
@@ -35,6 +36,7 @@ private:
     FrameFiles frameFiles_;
     ActorBatchRenderer actorRenderer_;
     MapPreviewSession mapSession_;
+    MaterialPreviewSession materialSession_;
     UiPreviewSession uiSession_;
     ParticlePreviewSession particleSession_;
     SubtitlePreviewSession subtitleSession_;

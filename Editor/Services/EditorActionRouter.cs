@@ -35,6 +35,11 @@ public sealed class EditorActionRouter
         requestCreation(new EditorDataCreationRequest(EditorDataKind.Particle, destinationPath));
     }
 
+    public void NewMaterial(string? destinationPath = null)
+    {
+        requestCreation(new EditorDataCreationRequest(EditorDataKind.Material, destinationPath));
+    }
+
     public void NewSubtitle(string? destinationPath = null)
     {
         requestCreation(new EditorDataCreationRequest(EditorDataKind.Subtitle, destinationPath));
@@ -73,6 +78,7 @@ public sealed class EditorActionRouter
     public void OpenGameConfig() => request(EditorActionKind.GameConfig);
     public void OpenAnimationOverview() => request(EditorActionKind.AnimationOverview);
     public void OpenParticleOverview() => request(EditorActionKind.ParticleOverview);
+    public void OpenMaterial(string key) => request(EditorActionKind.Material, key);
     public void OpenParticle(string key) => request(EditorActionKind.Particle, key);
     public void OpenSubtitle(string key) => request(EditorActionKind.Subtitle, key);
     public void OpenAnimation(string key) => request(EditorActionKind.Animation, key);

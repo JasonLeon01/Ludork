@@ -3,12 +3,9 @@
   "attrs": {
     "scriptMixin": true,
     "scriptPath": "Doors/ConditionDoor.lua",
-    "material": {
-      "lightBlock": 0.64,
-      "mirror": false,
-      "reflectionStrength": 0.5,
-      "opacity": 1.0,
-      "speedRate": 1.0
+    "material": "Data/Materials/Global/Standard.json",
+    "materialParameters": {
+      "lightBlock": 0.64
     },
     "texturePath": "/Game/Assets/Characters/blocks/classic-doors-001-single.png",
     "defaultRect": [

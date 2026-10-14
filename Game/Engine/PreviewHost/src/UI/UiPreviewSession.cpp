@@ -208,6 +208,11 @@ RuntimeData UiPreviewSession::render(const RuntimeData::Map& request,
         {"assetKey", RuntimeData(assetKey)},
         {"asset", asset},
         {"dependencies", RuntimeData(dependencies)},
+        {"materials",
+         ludork::runtime::value_reader::findValue(request, "materials") !=
+                 nullptr
+             ? *ludork::runtime::value_reader::findValue(request, "materials")
+             : RuntimeData(RuntimeData::Map{})},
         {"renderScale", number(targetSpec.renderScale)},
         {"animationName", RuntimeData(animationName)},
         {"animationTarget", animationTarget.has_value()

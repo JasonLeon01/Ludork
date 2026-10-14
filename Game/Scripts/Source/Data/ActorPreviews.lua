@@ -13,8 +13,8 @@ local displayFields = {
     defaultScale = "scale",
     defaultOrigin = "origin",
     visible = "visible",
-    hue = "hue",
-    shaderPath = "shaderPath",
+    material = "material",
+    materialParameters = "materialParameters",
     conditionVariable = "conditionVariable",
     conditionOperator = "conditionOperator",
     conditionValue = "conditionValue"
@@ -44,8 +44,8 @@ local function copyData(source)
         scale = source.scale:copy(),
         origin = source.origin:copy(),
         visible = source.visible,
-        hue = source.hue,
-        shaderPath = source.shaderPath,
+        material = source.material,
+        materialParameters = deepcopy(source.materialParameters),
         conditionVariable = source.conditionVariable,
         conditionOperator = source.conditionOperator,
         conditionValue = source.conditionValue,
@@ -74,8 +74,8 @@ function ActorPreviews:_getTemplate(classPath)
         scale = classModel.defaultScale:copy(),
         origin = classModel.defaultOrigin:copy(),
         visible = classModel.visible,
-        hue = classModel.hue,
-        shaderPath = classModel.shaderPath or "",
+        material = classModel.material or "",
+        materialParameters = deepcopy(classModel.materialParameters or {}),
         conditionVariable = conditional and classModel.conditionVariable or "",
         conditionOperator = conditional and classModel.conditionOperator or "==",
         conditionValue = conditional and classModel.conditionValue or 0,
@@ -154,7 +154,8 @@ function ActorPreviews:_get(classPath, classVarChanges, ancestors)
     local childClassName = template.childClassName
     if classVarChanges ~= nil then
         assert(Class.isInstance(classVarChanges, "table"), "Blueprint instance overrides must be a table")
-        for key, value in pairs(classVarChanges) do
+        for _, key in ipairs(table.orderedStringKeys(classVarChanges, { "material", "materialParameters" })) do
+            local value = classVarChanges[key]
             assert(Class.isInstance(key, "string"), "Blueprint instance overrides must use string keys")
             local descriptor = Engine.resolveAttrMetadata(template.classModel, key)
             assert(descriptor ~= nil, "Undeclared Blueprint instance override '" .. key .. "'")
@@ -163,7 +164,11 @@ function ActorPreviews:_get(classPath, classVarChanges, ancestors)
                 local conditionField = key == "conditionVariable" or key == "conditionOperator"
                     or key == "conditionValue"
                 if target ~= nil and (not conditionField or template.conditional) then
-                    data[target] = BlueprintActorOverrides.ResolveValue(template.classModel, key, value, descriptor)
+                    local resolved = BlueprintActorOverrides.ResolveValue(template.classModel, key, value, descriptor)
+                    if key == "material" and data.material ~= resolved then
+                        data.materialParameters = {}
+                    end
+                    data[target] = resolved
                 elseif key == "childActorComp" and template.componentType ~= nil then
                     assert(
                         Class.isInstance(value, "table"), "Blueprint component override childActorComp must be a table"

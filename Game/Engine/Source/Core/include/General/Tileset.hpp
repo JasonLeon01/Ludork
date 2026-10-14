@@ -3,12 +3,7 @@
 #include <CoreMinimal.hpp>
 #include <EngineRuntimeApi.hpp>
 
-#include <General/Material.hpp>
-
-using TilesetValue =
-    std::variant<std::string, std::vector<bool>, std::vector<MaterialData>,
-                 std::vector<std::array<bool, 4>>>;
-using TilesetData = std::unordered_map<std::string, TilesetValue>;
+#include <Runtime/RuntimeData.hpp>
 
 ////////////////////////////////////////////////////////////
 /// \brief Tileset data object.
@@ -28,7 +23,9 @@ struct LUDORK_ENGINE_API Tileset {
     std::vector<bool> passable;  ///< Per-tile passability
 
     BIND_PROPERTY()
-    std::vector<Material> materials;  ///< Per-tile material values
+    std::unordered_map<int, std::string>
+        materials;  ///< Sparse material resource references by zero-based tile
+                    ///< number
 
     BIND_PROPERTY()
     std::vector<std::array<bool, 4>>
@@ -46,7 +43,7 @@ struct LUDORK_ENGINE_API Tileset {
     BIND_INIT()
     Tileset(std::string name = "", std::string fileName = "",
             std::vector<bool> passable = std::vector<bool>(),
-            std::vector<Material> materials = std::vector<Material>(),
+            std::unordered_map<int, std::string> materials = {},
             std::vector<std::array<bool, 4>> dir4 =
                 std::vector<std::array<bool, 4>>());
 
@@ -56,7 +53,7 @@ struct LUDORK_ENGINE_API Tileset {
     /// - \return Dictionary containing all tileset fields
     ////////////////////////////////////////////////////////////
     BIND_METHOD()
-    TilesetData asDict() const;
+    RuntimeData::Map asDict() const;
 
     ////////////////////////////////////////////////////////////
     /// \brief Create a tileset object from a raw data dictionary.
@@ -65,5 +62,5 @@ struct LUDORK_ENGINE_API Tileset {
     /// - \return The created tileset object
     ////////////////////////////////////////////////////////////
     BIND_METHOD()
-    static Tileset fromData(TilesetData data);
+    static Tileset fromData(const RuntimeData::Map& data);
 };

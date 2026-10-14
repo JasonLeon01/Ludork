@@ -1,4 +1,5 @@
 #include <General/AutoTile.hpp>
+#include <stdexcept>
 
 namespace {
 
@@ -13,13 +14,13 @@ bool assignIfPresent(const AutoTileData& data, const std::string& key,
         target = *value;
         return true;
     }
-    return false;
+    throw std::invalid_argument("Invalid AutoTile property type: " + key);
 }
 
 }  // namespace
 
 AutoTile::AutoTile(std::string name, std::string fileName, bool passable,
-                   Material material)
+                   std::string material)
     : name(name), fileName(fileName), passable(passable), material(material) {}
 
 AutoTileData AutoTile::asDict() const {
@@ -27,7 +28,7 @@ AutoTileData AutoTile::asDict() const {
         {"name", name},
         {"fileName", fileName},
         {"passable", passable},
-        {"material", material.asDict()},
+        {"material", material},
     };
 }
 
@@ -36,11 +37,6 @@ AutoTile AutoTile::fromData(AutoTileData data) {
     assignIfPresent(data, "name", autoTile.name);
     assignIfPresent(data, "fileName", autoTile.fileName);
     assignIfPresent(data, "passable", autoTile.passable);
-    auto it = data.find("material");
-    if (it != data.end()) {
-        if (const auto materialData = std::get_if<MaterialData>(&it->second)) {
-            autoTile.material = Material::fromData(*materialData);
-        }
-    }
+    assignIfPresent(data, "material", autoTile.material);
     return autoTile;
 }

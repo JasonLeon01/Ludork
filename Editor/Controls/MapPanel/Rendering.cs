@@ -52,7 +52,7 @@ public sealed partial class MapPanel
             Matrix transform = createActorTransform(gridX, gridY, actor.Translation, actor.Scale, actor.Rotation);
             using (context.PushTransform(transform))
             {
-                Rect destination = new Rect(-actor.Origin.X, -actor.Origin.Y, source.Width, source.Height);
+                Rect destination = new Rect((actor.PreviewLease?.FrameOffset.X ?? 0) - actor.Origin.X, (actor.PreviewLease?.FrameOffset.Y ?? 0) - actor.Origin.Y, source.Width, source.Height);
                 if (selectedActorLayer == layerName && selectedActorIndex == index)
                     context.DrawRectangle(null, SelectedActorPen, destination);
             }
@@ -88,7 +88,7 @@ public sealed partial class MapPanel
         Matrix transform = createActorTransform(grid.X, grid.Y, actor.Translation, actor.Scale, actor.Rotation);
         using (context.PushOpacity(0.5))
         using (context.PushTransform(transform))
-            context.DrawImage(image, source, new Rect(-actor.Origin.X, -actor.Origin.Y, source.Width, source.Height));
+            context.DrawImage(image, source, new Rect((actor.PreviewLease?.FrameOffset.X ?? 0) - actor.Origin.X, (actor.PreviewLease?.FrameOffset.Y ?? 0) - actor.Origin.Y, source.Width, source.Height));
     }
 
     private void ensureRenderCaches(int mapWidth, int mapHeight, Rect viewport)

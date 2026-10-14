@@ -7,11 +7,8 @@
 ---@field rect                sf.IntRect | nil
 ---@field textureRect         sf.IntRect | nil
 ---@field scale               sf.Vector2f
----@field shader              sf.Shader | nil
----@field shaderPath          string | nil
----@field shaderError         boolean | nil
----@field hasShaderError      boolean | nil
----@field hue                 number | nil
+---@field material            string
+---@field materialParameters  table<string, any>
 ---@field animatable          boolean | nil
 ---@field switchInterval      number | nil
 
@@ -27,20 +24,6 @@ local Render = {}
 ---@param inSize sf.Vector2i | sf.Vector2u | sf.Vector2f
 ---@return sf.Vector2f
 function Render.GetRealSize(inSize) end
-
----@param hue number
----@return number
-function Render.NormaliseActorHue(hue) end
-
----@param hue number
----@return boolean
-function Render.IsNeutralActorHue(hue) end
-
----@param shader  sf.Shader
----@param texture sf.Texture
----@param rect    sf.IntRect
----@param time    number
-function Render.BindActorShader(shader, texture, rect, time) end
 
 ---@param actor Engine.Actor
 ---@return Global.Utils.Render.ActorVisual

@@ -135,7 +135,7 @@ public sealed partial class AssetDataService
             ["name"] = key,
             ["fileName"] = string.Empty,
             ["passable"] = new JsonArray(),
-            ["materials"] = new JsonArray(),
+            ["materials"] = new JsonObject(),
             ["dir4"] = new JsonArray(),
         };
         store.refreshModifiedState();
@@ -154,7 +154,7 @@ public sealed partial class AssetDataService
             ["name"] = key,
             ["fileName"] = string.Empty,
             ["passable"] = true,
-            ["material"] = createDefaultMaterial(),
+            ["material"] = string.Empty,
         };
         store.refreshModifiedState();
         store.Maps.NotifyAllMapPreviewsChanged(false);

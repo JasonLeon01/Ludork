@@ -60,6 +60,7 @@ public sealed partial class MapPreviewSceneBuilder(ProjectDataStore gameData, Bl
             ["cellSize"] = gameData.Configs.getCellSize(), ["layerOrder"] = settings["layerOrder"]?.DeepClone(),
             ["regions"] = regions, ["sprites"] = sprites, ["lights"] = lights,
             ["tilesets"] = tilesets, ["autoTiles"] = autoTiles,
+            ["materials"] = gameData.Assets.CaptureMaterials(),
             ["ambientLight"] = settings["ambientLight"]?.DeepClone() ?? new JsonArray(255, 255, 255, 255),
             ["fog"] = settings["fog"]?.DeepClone(), ["panorama"] = settings["panorama"]?.DeepClone() ?? JsonValue.Create(string.Empty),
         };
@@ -88,7 +89,8 @@ public sealed partial class MapPreviewSceneBuilder(ProjectDataStore gameData, Bl
             ["translation"] = vector(visual?.Translation ?? default), ["scale"] = vector(visual?.Scale ?? new Vector(1, 1)),
             ["origin"] = vector(visual?.Origin ?? default), ["rotation"] = visual?.Rotation ?? 0,
             ["visible"] = visual?.Visible ?? true, ["opacity"] = visual?.MapPreviewOpacity ?? 1,
-            ["hue"] = visual?.Hue ?? 0, ["shaderPath"] = visual?.ShaderPath ?? string.Empty,
+            ["material"] = visual?.Material ?? string.Empty,
+            ["materialParameters"] = visual?.MaterialParameters.DeepClone() ?? new JsonObject(),
             ["animated"] = visual?.Animated ?? false, ["switchInterval"] = visual?.SwitchInterval ?? 0.2,
             ["frameCount"] = visual?.FrameCount ?? 1,
         };
@@ -104,7 +106,7 @@ public sealed partial class MapPreviewSceneBuilder(ProjectDataStore gameData, Bl
         }
         if (runtimeVisual is not null)
         {
-            foreach (string name in new[] { "texturePath", "textureRect", "translation", "scale", "origin", "rotation", "visible", "hue", "shaderPath", "material", "colour" })
+            foreach (string name in new[] { "texturePath", "textureRect", "translation", "scale", "origin", "rotation", "visible", "material", "materialParameters", "colour" })
                 if (runtimeVisual[name] is JsonNode value)
                     sprite[name] = value.DeepClone();
             sprite["opacity"] = runtimeVisual["visible"]?.GetValue<bool>() == false ? 0.25 : 1.0;

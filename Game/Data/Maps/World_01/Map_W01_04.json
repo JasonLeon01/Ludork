@@ -401,7 +401,7 @@
           null
         ]
       ],
-      "shaderPath": "",
+      "material": "",
       "actors": []
     },
     "default": {
@@ -771,7 +771,7 @@
           null
         ]
       ],
-      "shaderPath": "",
+      "material": "",
       "actors": []
     }
   },

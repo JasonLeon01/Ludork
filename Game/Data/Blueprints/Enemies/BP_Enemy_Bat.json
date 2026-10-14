@@ -1,12 +1,9 @@
 {
   "parent": "Source.MapActors.Enemy",
   "attrs": {
-    "material": {
-      "lightBlock": 0.4,
-      "mirror": false,
-      "reflectionStrength": 0.0,
-      "opacity": 1.0,
-      "speedRate": 1.5
+    "material": "Data/Materials/Global/Standard.json",
+    "materialParameters": {
+      "lightBlock": 0.4
     },
     "texturePath": "/Game/Assets/Characters/enemies/classic-enemies-03-bat-single.png",
     "ID": "Bat",

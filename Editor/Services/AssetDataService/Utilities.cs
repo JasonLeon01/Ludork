@@ -8,11 +8,6 @@ namespace Ludork.Services;
 
 public sealed partial class AssetDataService
 {
-    internal static JsonObject createDefaultMaterial()
-    {
-        return TilesetMetadata.CreateDefaultMaterial();
-    }
-
     internal static JsonObject createCurveKey(double time, JsonNode value)
     {
         int componentCount = value is JsonArray values ? values.Count : 1;

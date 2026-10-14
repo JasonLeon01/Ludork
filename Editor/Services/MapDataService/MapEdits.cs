@@ -106,8 +106,12 @@ public sealed partial class MapDataService
 
     public bool SetMapActorOverride(string mapKey, string layerName, int index, string expectedTag, string name, JsonNode? value)
     {
-        return tryGetEditableActor(mapKey, layerName, index, expectedTag, out JsonObject map, out _)
-            && commitMapEdits(mapKey, map, [new(JsonDataEdit.Operation.Set, ["BPClassVarChanged", expectedTag, name], value)]);
+        if (!tryGetEditableActor(mapKey, layerName, index, expectedTag, out JsonObject map, out _))
+            return false;
+        List<JsonDataEdit> edits = [new(JsonDataEdit.Operation.Set, ["BPClassVarChanged", expectedTag, name], value)];
+        if (name == "material" && edits[0].Changes(map))
+            edits.Add(new(JsonDataEdit.Operation.Set, ["BPClassVarChanged", expectedTag, "materialParameters"], new JsonObject()));
+        return commitMapEdits(mapKey, map, edits);
     }
 
     public bool RemoveMapActorOverrides(string mapKey, string layerName, int index, string expectedTag, string? name = null)
@@ -116,6 +120,8 @@ public sealed partial class MapDataService
             return false;
         List<JsonDataEdit> edits = [];
         addRemoveActorOverrides(map, expectedTag, name, edits);
+        if (name == "material")
+            edits.Add(new(JsonDataEdit.Operation.Set, ["BPClassVarChanged", expectedTag, "materialParameters"], new JsonObject()));
         return commitMapEdits(mapKey, map, edits);
     }
 

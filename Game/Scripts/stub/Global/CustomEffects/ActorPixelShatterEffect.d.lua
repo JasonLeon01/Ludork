@@ -42,6 +42,7 @@ function ActorPixelShatterEffect:isPrepared() end
 ---
 --- This method must be called for the first time on the render thread. After the callback returns, the effect
 --- owns the captured texture and releases its source Actor reference.
+--- The capture includes the material's declared maximum vertex displacement.
 ---
 --- - @param drawActor Callback that draws the supplied Actor into the configured render texture.
 ---@param drawActor fun(targetRenderTexture: sf.RenderTexture, actor: Engine.Actor)

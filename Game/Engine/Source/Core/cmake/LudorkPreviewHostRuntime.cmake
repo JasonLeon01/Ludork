@@ -5,6 +5,7 @@ function(ludork_add_preview_host_runtime target)
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Input/*.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Particles/*.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Graphics/MapRenderer/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/Graphics/Materials/*.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Graphics/TilemapGraphics/*.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/UI/*.cpp")
     list(APPEND preview_runtime_sources
@@ -23,7 +24,6 @@ function(ludork_add_preview_host_runtime target)
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Gameplay/TileLayer.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Gameplay/Tilemap/Tilemap.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/General/AutoTile.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/General/Material.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/General/TileLayerData.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/General/Tileset.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Graphics/RectBase.cpp"

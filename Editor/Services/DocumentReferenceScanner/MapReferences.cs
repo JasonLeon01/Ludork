@@ -28,11 +28,7 @@ internal sealed partial class DocumentReferenceScanner
                         "tileset",
                         $"Maps/{key}.layers.{pair.Key}.layerTileset");
                 }
-                addAssetReference(
-                    sourceId,
-                    layer["shaderPath"],
-                    "asset",
-                    $"Maps/{key}.layers.{pair.Key}.shaderPath");
+                scanGenericReferences(sourceId, layer["material"], $"Maps/{key}.layers.{pair.Key}.material");
                 scanAutoTileReferences(
                     sourceId,
                     layer["autoTiles"],

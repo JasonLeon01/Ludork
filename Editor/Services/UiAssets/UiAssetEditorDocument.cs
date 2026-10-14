@@ -327,6 +327,14 @@ public sealed class UiAssetEditorDocument : IDisposable
         if (node is null || isNestedAsset(node))
             return false;
         JsonObject properties = ensureObject(node, "properties");
+        if (propertyId == "material" && !JsonNode.DeepEquals(properties[propertyId], value))
+        {
+            JsonObject before = (JsonObject)data.DeepClone();
+            properties[propertyId] = value?.DeepClone();
+            properties["materialParameters"] = new JsonObject();
+            completeMutation(before);
+            return true;
+        }
         return setNodeValue(properties, propertyId, value);
     }
 

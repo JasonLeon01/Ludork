@@ -21,7 +21,6 @@ local identityFields = {
 }
 
 local dataValueTypes = {
-    ["Engine.Material"] = Engine.Material,
     ["Engine.AutoSoundParams"] = Engine.AutoSoundParams,
     ["Engine.SoundFilter"] = Engine.SoundFilter,
     ["Engine.MusicFilter"] = Engine.MusicFilter
@@ -517,10 +516,6 @@ function Values.Write(actor, name, value)
         actor:setScale(actor.defaultScale)
     elseif name == "defaultOrigin" then
         actor:setOrigin(actor.defaultOrigin)
-    elseif name == "shaderPath" then
-        actor:setShaderPath(actor.shaderPath)
-    elseif name == "material" then
-        actor:setMaterial(actor.material)
     elseif name == "visible" then
         actor:setVisible(actor.visible, false)
     elseif name == "animatable" then

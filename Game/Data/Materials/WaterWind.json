@@ -1,0 +1,450 @@
+{
+  "version": 1,
+  "parameters": [
+    {
+      "id": "strength",
+      "type": "float",
+      "default": 1.0,
+      "group": "Animation",
+      "min": 0.0,
+      "max": 1.0
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "LocalPosition_1",
+        "type": "LocalPosition",
+        "inputs": {},
+        "properties": {}
+      },
+      {
+        "id": "Swizzle_2",
+        "type": "Swizzle",
+        "inputs": {
+          "Value": {
+            "node": "LocalPosition_1",
+            "port": "Value"
+          }
+        },
+        "properties": {
+          "channels": "x"
+        }
+      },
+      {
+        "id": "Swizzle_3",
+        "type": "Swizzle",
+        "inputs": {
+          "Value": {
+            "node": "LocalPosition_1",
+            "port": "Value"
+          }
+        },
+        "properties": {
+          "channels": "y"
+        }
+      },
+      {
+        "id": "Time_4",
+        "type": "Time",
+        "inputs": {},
+        "properties": {}
+      },
+      {
+        "id": "strength",
+        "type": "Parameter",
+        "inputs": {},
+        "properties": {
+          "id": "strength"
+        }
+      },
+      {
+        "id": "Multiply_6",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Swizzle_3",
+            "port": "Value"
+          },
+          "B": 0.045
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_7",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Time_4",
+            "port": "Value"
+          },
+          "B": 1.5
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_8",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Multiply_6",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Multiply_7",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Sin_9",
+        "type": "Sin",
+        "inputs": {
+          "Value": {
+            "node": "Add_8",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_10",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Sin_9",
+            "port": "Value"
+          },
+          "B": 1.8
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_11",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Swizzle_3",
+            "port": "Value"
+          },
+          "B": 0.095
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_12",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Swizzle_2",
+            "port": "Value"
+          },
+          "B": 0.025
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_13",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Multiply_11",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Multiply_12",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_14",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Time_4",
+            "port": "Value"
+          },
+          "B": 2.1
+        },
+        "properties": {}
+      },
+      {
+        "id": "Subtract_15",
+        "type": "Subtract",
+        "inputs": {
+          "A": {
+            "node": "Add_13",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Multiply_14",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Sin_16",
+        "type": "Sin",
+        "inputs": {
+          "Value": {
+            "node": "Subtract_15",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_17",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Multiply_10",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Sin_16",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_18",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Swizzle_3",
+            "port": "Value"
+          },
+          "B": 0.19
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_19",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Time_4",
+            "port": "Value"
+          },
+          "B": 2.8
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_20",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Multiply_18",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Multiply_19",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Sin_21",
+        "type": "Sin",
+        "inputs": {
+          "Value": {
+            "node": "Add_20",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_22",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Sin_21",
+            "port": "Value"
+          },
+          "B": 0.4
+        },
+        "properties": {}
+      },
+      {
+        "id": "Add_23",
+        "type": "Add",
+        "inputs": {
+          "A": {
+            "node": "Add_17",
+            "port": "Value"
+          },
+          "B": {
+            "node": "Multiply_22",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Multiply_24",
+        "type": "Multiply",
+        "inputs": {
+          "A": {
+            "node": "Add_23",
+            "port": "Value"
+          },
+          "B": {
+            "node": "strength",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      },
+      {
+        "id": "Compose_25",
+        "type": "Compose",
+        "inputs": {
+          "X": {
+            "node": "Multiply_24",
+            "port": "Value"
+          },
+          "Y": 0.0
+        },
+        "properties": {
+          "size": 2
+        }
+      },
+      {
+        "id": "Surface",
+        "type": "Surface",
+        "inputs": {
+          "VertexOffset": {
+            "node": "Compose_25",
+            "port": "Value"
+          }
+        },
+        "properties": {}
+      }
+    ],
+    "output": "Surface"
+  },
+  "rendering": {
+    "maxVertexOffset": [
+      3.2,
+      0.0
+    ]
+  },
+  "editor": {
+    "positions": {
+      "LocalPosition_1": [
+        0.0,
+        0.0
+      ],
+      "Swizzle_2": [
+        260.0,
+        0.0
+      ],
+      "Swizzle_3": [
+        260.0,
+        180.0
+      ],
+      "Time_4": [
+        0.0,
+        180.0
+      ],
+      "strength": [
+        0.0,
+        360.0
+      ],
+      "Multiply_6": [
+        520.0,
+        0.0
+      ],
+      "Multiply_7": [
+        260.0,
+        360.0
+      ],
+      "Add_8": [
+        780.0,
+        0.0
+      ],
+      "Sin_9": [
+        1040.0,
+        0.0
+      ],
+      "Multiply_10": [
+        1300.0,
+        0.0
+      ],
+      "Multiply_11": [
+        520.0,
+        180.0
+      ],
+      "Multiply_12": [
+        520.0,
+        360.0
+      ],
+      "Add_13": [
+        780.0,
+        180.0
+      ],
+      "Multiply_14": [
+        260.0,
+        540.0
+      ],
+      "Subtract_15": [
+        1040.0,
+        180.0
+      ],
+      "Sin_16": [
+        1300.0,
+        180.0
+      ],
+      "Add_17": [
+        1560.0,
+        0.0
+      ],
+      "Multiply_18": [
+        520.0,
+        540.0
+      ],
+      "Multiply_19": [
+        260.0,
+        720.0
+      ],
+      "Add_20": [
+        780.0,
+        360.0
+      ],
+      "Sin_21": [
+        1040.0,
+        360.0
+      ],
+      "Multiply_22": [
+        1300.0,
+        360.0
+      ],
+      "Add_23": [
+        1820.0,
+        0.0
+      ],
+      "Multiply_24": [
+        2080.0,
+        0.0
+      ],
+      "Compose_25": [
+        2340.0,
+        0.0
+      ],
+      "Surface": [
+        2600.0,
+        0.0
+      ]
+    }
+  },
+  "type": "material"
+}

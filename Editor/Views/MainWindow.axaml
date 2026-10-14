@@ -63,6 +63,7 @@
                     <NativeMenuItemSeparator />
                     <NativeMenuItem Header="{Binding NewBlueprint}" Command="{Binding NewBlueprintCommand}" />
                     <NativeMenuItem Header="{Binding NewAnimation}" Command="{Binding NewAnimationCommand}" />
+                    <NativeMenuItem Header="{Binding NewMaterial}" Command="{Binding NewMaterialCommand}" />
                     <NativeMenuItem Header="{Binding NewParticle}" Command="{Binding NewParticleCommand}" />
                     <NativeMenuItem Header="{Binding NewSubtitle}" Command="{Binding NewSubtitleCommand}" />
                     <NativeMenuItem Header="{Binding NewCurve}" Command="{Binding NewCurveCommand}" />

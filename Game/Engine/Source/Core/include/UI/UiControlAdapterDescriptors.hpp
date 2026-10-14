@@ -324,8 +324,9 @@ struct UiControlAdapterTraits;
                             "true"),                                           \
         UI_CONTROL_PROPERTY("switchInterval", "Switch Interval", "float",      \
                             false, "0.2"),                                     \
-        UI_CONTROL_PROPERTY("shader", "Shader", "string", false, "\"\""),      \
-        UI_CONTROL_PROPERTY("hue", "Hue", "float", false, "0.0"),              \
+        UI_CONTROL_PROPERTY("material", "Material", "string", false, "\"\""),  \
+        UI_CONTROL_PROPERTY("materialParameters", "Material Parameters",       \
+                            "Dict[string, any]", false, "{}"),                 \
         UI_CONTROL_PROPERTY("colour", "Colour", "sf.Color", false,             \
                             "[255,255,255,255]"))                              \
     BIND_UI_CONTROL(                                                           \

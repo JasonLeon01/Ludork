@@ -138,8 +138,8 @@ function Controller:buildEntry(enemy, visual)
         scale = scale,
         animatable = bool(visual.animatable),
         switchInterval = visual.switchInterval or 0.2,
-        shaderPath = tostring(visual.shaderPath or ""),
-        hue = visual.hue or 0.0
+        material = visual.material,
+        materialParameters = deepcopy(visual.materialParameters)
     }
 end
 

@@ -74,6 +74,5 @@ void Tilemap::updateAutoTileAnimation(float deltaTime, float frameInterval) {
             continue;
         }
         layer->updateAutoTileAnimation(deltaTime, frameInterval);
-        layer->updateShader(deltaTime);
     }
 }

@@ -9,7 +9,7 @@ local GameMapRendering = require("Global.GameMap.Rendering")
 
 local Display = GlobalCore.Display
 local Graphics = GlobalCore.Graphics
-local ShaderManager = GlobalCore.ShaderManager
+local ActorPixelShatterShader = GlobalCore.ActorPixelShatterShader
 local WeatherController = GlobalCore.WeatherController
 
 local Actor = Engine.Actor
@@ -55,12 +55,7 @@ function GameMap:init(mapName, tilemap, camera, previewOnly, sparseWorldConfig)
     previewOnly = bool(previewOnly)
     local actorPixelShatterShader = nil
     if sf.Shader.isAvailable() and not previewOnly then
-        actorPixelShatterShader = assert(
-            ShaderManager.loadFull(
-                "/Game/Assets/Shaders/Global/ActorPixelShatter.vert",
-                "/Game/Assets/Shaders/Global/ActorPixelShatter.frag"
-            ), "Actor pixel shatter shader must not be nil"
-        )
+        actorPixelShatterShader = ActorPixelShatterShader.load()
     end
     GameMapBase.init(self)
     self:setHideDisconnectedRegions(self.HideDisconnectedRegions and sparseWorldConfig == nil)
@@ -120,10 +115,20 @@ function GameMap:init(mapName, tilemap, camera, previewOnly, sparseWorldConfig)
         __mode = "v"
     })
     self._renderEffectTarget = nil
-    self._drawLayerEffects = function (layerName)
+    self._drawLayerEffects = function (layerName, target, _states)
         local gameMap = selfRef[1]
         if gameMap ~= nil then
+            gameMap._renderEffectTarget = target
             gameMap:drawLayerEffects(layerName)
+            gameMap._renderEffectTarget = nil
+        end
+    end
+    self._drawOverlay = function ()
+        local gameMap = selfRef[1]
+        if gameMap ~= nil and gameMap._camera ~= nil then
+            for _, component in ipairs(gameMap._components) do
+                component:onRender(gameMap._camera)
+            end
         end
     end
     self._billboardLayerVisible = function (actor, layerName)
@@ -309,12 +314,10 @@ end
 function GameMap:drawMapContent(target, states, applyPlayerCover)
     self:_prepareActorPixelShatterEffects()
     assert(self._renderer ~= nil, "GameMap renderer is unavailable")
-    self._renderEffectTarget = target
     self._renderer:drawContent(
         target, states or sf.RenderStates.new(), bool(applyPlayerCover), self._shaderTime, self._materialRevision,
         self._drawLayerEffects
     )
-    self._renderEffectTarget = nil
 end
 
 ---@return boolean
@@ -343,20 +346,17 @@ function GameMap:show()
     if renderCameraFrame and self._camera ~= nil then
         self._camera:clear()
     end
-    if renderCameraFrame and self._camera ~= nil then
-        self:drawMapContent(assert(self._camera:getRenderTexture()), self._camera:getRenderStates(), true)
-    elseif renderCameraFrame then
-        self:_resetTransparentTiles()
-    end
-    ---@cast self._camera GlobalCore.Camera
     if renderCameraFrame then
-        for _, component in ipairs(self._components) do
-            component:onRender(self._camera)
+        if self._camera ~= nil then
+            self:_prepareActorPixelShatterEffects()
+            assert
+                (self._renderer)
+                :renderFrame(self._ambientLight, self._shaderTime, true, self._materialRevision, self._drawLayerEffects, self._drawOverlay)
+        else
+            self:_resetTransparentTiles()
         end
         self:refreshShader()
         if self._camera ~= nil then
-            self._camera:display()
-            assert(self._renderer):composeFrame(self._ambientLight, self._shaderTime)
             WeatherController.drawShaderOverlay(self._camera)
         end
     end
@@ -507,10 +507,6 @@ function GameMap:_replaceTerrainLayer(_layerName, layer, layerData, autoTileText
     return GameMapTerrain.ReplaceTerrainLayer(self, _layerName, layer, layerData, autoTileTextures, autoTileFrameCounts)
 end
 
-function GameMap:_getMaterialPropertyTexture(functionName, invalidValue, smooth)
-    return GameMapTerrain.GetMaterialPropertyTexture(self, functionName, invalidValue, smooth)
-end
-
 function GameMap:_rebuildPassabilityCache()
     return GameMapTerrain.RebuildPassabilityCache(self)
 end
@@ -533,14 +529,6 @@ end
 
 function GameMap:setAmbientLight(ambientLight)
     return GameMapLighting.SetAmbientLight(self, ambientLight)
-end
-
-function GameMap:getMaterialPropertyMap(functionName, invalidValue)
-    return GameMapLighting.GetMaterialPropertyMap(self, functionName, invalidValue)
-end
-
-function GameMap:getActorLayerLightBlockMap(layerName, size)
-    return GameMapLighting.GetActorLayerLightBlockMap(self, layerName, size)
 end
 
 function GameMap:refreshShader()

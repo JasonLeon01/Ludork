@@ -4,6 +4,7 @@
 #include <Gameplay/Actor.hpp>
 #include <Runtime/AssetInputStream.hpp>
 #include <Runtime/AssetStore.hpp>
+#include <Runtime/Graphics/SceneLighting.hpp>
 #include <Runtime/RuntimeReference.hpp>
 #include <UI/UiResources.hpp>
 
@@ -206,6 +207,15 @@ void BillboardComponent::Impl::advance(float deltaTime, bool inRange) {
 void BillboardComponent::Impl::draw(sf::RenderTarget& target,
                                     sf::RenderStates states,
                                     sf::Vector2f head) {
+    const ludork::runtime::graphics::SceneLightingContext* lighting =
+        ludork::runtime::graphics::currentSceneLighting();
+    const std::shared_ptr<sf::Shader> shader =
+        lighting && lighting->enabled
+            ? ludork::runtime::graphics::sceneLightingShader()
+            : nullptr;
+    if (shader) {
+        states.shader = shader.get();
+    }
     float top = head.y + y - height;
     for (ItemVisual& visual : visuals) {
         const sf::Vector2f position{visual.text != nullptr

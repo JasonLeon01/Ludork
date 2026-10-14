@@ -539,8 +539,16 @@ public sealed class UiAssetValidationService
             "sf.Vector2u" => validatePair(value, string.Empty, true, null) is not null,
             "sf.IntRect" => value is null || validateIntegerArray(value, 4, false),
             "sf.Color" => validateIntegerArray(value, 4, true),
+            "Dict[string, any]" => value is JsonObject materialValues && materialValues.All(pair => isMaterialValue(pair.Value)),
             _ => false,
         };
+    }
+
+    private static bool isMaterialValue(JsonNode? value)
+    {
+        if (value is JsonArray array)
+            return array.Count is >= 2 and <= 4 && array.All(item => tryGetFloatNumber(item, out _));
+        return value is JsonValue scalar && (scalar.TryGetValue<bool>(out _) || scalar.TryGetValue<string>(out _) || tryGetFloatNumber(scalar, out _));
     }
 
     private static void validatePropertySemantics(
@@ -625,7 +633,7 @@ public sealed class UiAssetValidationService
             return;
         if (propertyId is not ("texture" or "backgroundTexture" or "fillTexture"
             or "windowSkin" or "lineTexture" or "handleTexture"
-            or "font" or "shader" or "textConfig" or "opacityCurve" or "gradientCurve" or "particle"))
+            or "font" or "material" or "textConfig" or "opacityCurve" or "gradientCurve" or "particle"))
         {
             return;
         }
@@ -653,18 +661,10 @@ public sealed class UiAssetValidationService
             }
             return;
         }
-        if (propertyId == "shader")
+        if (propertyId == "material")
         {
-            if (!GameAssetPath.TryGetRelativePath(text, out string relative)
-                || !relative.StartsWith("Shaders/", StringComparison.Ordinal))
-            {
-                add(issues, "shaderPath", path, "Shader must use a canonical /Game/Assets/Shaders/ path");
-                return;
-            }
-            if (!GameAssetPath.TryResolveExistingFile(gameData.ProjectPath, text, out _))
-            {
-                add(issues, "missingResource", path, $"Shader \"{text}\" was not found");
-            }
+            if (!GameDataPath.TryGetMaterialKey(text, out string materialKey) || !gameData.Assets.MaterialsData.ContainsKey(materialKey))
+                add(issues, "material", path, "Material must reference an existing Data/Materials/*.json file");
             return;
         }
         if (propertyId == "textConfig")

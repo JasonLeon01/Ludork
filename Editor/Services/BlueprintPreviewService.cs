@@ -29,7 +29,8 @@ public sealed partial class BlueprintPreviewService : IDisposable
         this.projectPath = Path.GetFullPath(projectPath);
         this.gameData = gameData;
         this.classResolver = classResolver;
-        ActorPreviews = new ActorPreviewService(runtime, gameData.Thumbnails);
+        Runtime = runtime;
+        ActorPreviews = new ActorPreviewService(runtime, gameData.Thumbnails) { MaterialSnapshots = gameData.Assets.CaptureMaterials };
         MapPreviews = new MapPreviewService(gameData, runtime, projectConfig);
         MapScenes = new MapPreviewSceneBuilder(gameData, this);
         gameData.BlueprintPreviews = this;
@@ -38,6 +39,7 @@ public sealed partial class BlueprintPreviewService : IDisposable
         gameData.Documents.ContentChanged += onDocumentsChanged;
     }
 
+    public PreviewRuntimeService Runtime { get; }
     public ActorPreviewService ActorPreviews { get; }
     public MapPreviewService MapPreviews { get; }
     public MapPreviewSceneBuilder MapScenes { get; }
@@ -138,7 +140,7 @@ public sealed partial class BlueprintPreviewService : IDisposable
 
     private void onDocumentsChanged(object? sender, EditorDocumentsChangedEventArgs args)
     {
-        if (!args.Reset && args.AffectsSection("Blueprints"))
+        if (!args.Reset && (args.AffectsSection("Blueprints") || args.AffectsSection("Materials")))
             InvalidateVisuals();
     }
 
@@ -162,7 +164,6 @@ public sealed partial class BlueprintPreviewService : IDisposable
         (int sx, int sy, int w, int h)? rect = parseRect(getResolvedValue(resolved, "defaultRect"));
         (double x, double y) origin = parseVec2(getResolvedValue(resolved, "defaultOrigin"), 0, 0);
         (double x, double y) scale = parseVec2(getResolvedValue(resolved, "defaultScale"), 1, 1);
-        double hue = parseHue(getResolvedValue(resolved, "hue"));
         if (rect is null)
         {
             bool isCharacter = classResolver.IsDerivedFrom(resolved, "Engine.Character");
@@ -176,12 +177,6 @@ public sealed partial class BlueprintPreviewService : IDisposable
         Bitmap? preview = renderCrop(source, rectValue.sx, rectValue.sy, rectValue.w, rectValue.h, origin.x, origin.y, scale.x, scale.y, dw, dh);
         if (preview is null)
             return null;
-        if (!EditorBitmapEffects.IsNeutralHue(hue))
-        {
-            Bitmap huePreview = EditorBitmapEffects.CreateHueShiftedBitmap(preview, hue);
-            preview.Dispose();
-            preview = huePreview;
-        }
         Bitmap result = scaleToFit(preview, size);
         if (!ReferenceEquals(result, preview))
             preview.Dispose();
@@ -270,8 +265,8 @@ public sealed partial class BlueprintPreviewService : IDisposable
             texturePath,
             textureSize,
             rect,
-            getResolvedValue(resolved, "shaderPath")?.ToString() ?? string.Empty,
-            parseHue(getResolvedValue(resolved, "hue")),
+            getResolvedValue(resolved, "material")?.ToString() ?? string.Empty,
+            getResolvedValue(resolved, "materialParameters")?.DeepClone() as JsonObject ?? new JsonObject(),
             new Vector(translation.x, translation.y),
             new Vector(scale.x, scale.y),
             new Vector(origin.x, origin.y),
@@ -310,14 +305,6 @@ public sealed partial class BlueprintPreviewService : IDisposable
         return (defaultX, defaultY);
     }
 
-    private static double parseHue(JsonNode? value)
-    {
-        if (value is null)
-            return 0;
-        return double.TryParse(value.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out double hue)
-            ? EditorBitmapEffects.NormalizeHue(hue)
-            : 0;
-    }
 
     private static double getDouble(JsonNode? value, double fallback)
     {

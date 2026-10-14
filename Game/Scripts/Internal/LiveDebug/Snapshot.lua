@@ -100,7 +100,6 @@ local function visual(actor, view)
     local cellPosition = actor:getMapPosition()
     local translation = actor:getTranslation()
     local cellSize = Engine.GetCellSize()
-    local material = actor:getMaterial()
     return {
         texturePath = texture ~= nil and GlobalCore.TextureManager.getPath(texture) or "",
         textureRect = { rectangle.position.x, rectangle.position.y, rectangle.size.x, rectangle.size.y },
@@ -111,17 +110,9 @@ local function visual(actor, view)
         scale = vector(actor:getScale()),
         origin = vector(actor:getOrigin()),
         rotation = actor:getRotation():asDegrees(),
-        hue = actor.hue,
         visible = actor:isVisibleInHierarchy(),
-        shaderPath = actor:getShaderPath(),
-        material = {
-            lightBlock = material.lightBlock,
-            mirror = material.mirror,
-            reflectionStrength = material.reflectionStrength,
-            opacity = material.opacity,
-            speedRate = material.speedRate,
-            ignoreLighting = material.ignoreLighting
-        },
+        material = actor:getMaterial(),
+        materialParameters = deepcopy(actor.materialParameters),
         light = light(actor, view)
     }
 end
@@ -219,7 +210,7 @@ function Snapshot.Map(view, actors)
             visible = layer:getVisible(),
             tiles = tiles,
             autoTiles = autoTiles,
-            shaderPath = data.shaderPath
+            material = data.material
         }
     end
     local worldSize = view.gameMap:getSize()

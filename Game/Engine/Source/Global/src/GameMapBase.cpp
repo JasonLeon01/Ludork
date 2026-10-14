@@ -74,7 +74,7 @@ bool intersectsCamera(const sf::FloatRect& bounds,
     return true;
 }
 
-float materialValueToFloat(const MaterialValue& value) {
+float materialValueToFloat(const std::variant<bool, float>& value) {
     return std::visit(
         [](const auto& item) -> float {
             using Value = std::decay_t<decltype(item)>;
@@ -186,7 +186,8 @@ void GameMapBase::setTilemap(std::shared_ptr<Tilemap> tilemap) {
 
 std::shared_ptr<sf::Texture> GameMapBase::generateDataFromMap(
     const sf::Vector2u& size,
-    const std::vector<std::vector<MaterialValue>>& materialMap, bool smooth) {
+    const std::vector<std::vector<std::variant<bool, float>>>& materialMap,
+    bool smooth) {
     int dataLen = size.x * size.y * 4;
     std::vector<std::uint8_t> pixelData(dataLen);
     for (int y = 0; y < size.y; ++y) {
@@ -208,23 +209,6 @@ std::shared_ptr<sf::Texture> GameMapBase::generateDataFromMap(
     }
     texture->setSmooth(smooth);
     return texture;
-}
-
-std::vector<std::vector<MaterialValue>> GameMapBase::getMaterialPropertyMapExt(
-    int width, int height, const std::string& propertyName,
-    const MaterialValue& invalidValue) {
-    std::vector<std::vector<MaterialValue>> materialPropertyMap;
-    materialPropertyMap.reserve(static_cast<std::size_t>(std::max(height, 0)));
-    for (int y = 0; y < height; ++y) {
-        materialPropertyMap.push_back({});
-        materialPropertyMap.back().reserve(
-            static_cast<std::size_t>(std::max(width, 0)));
-        for (int x = 0; x < width; ++x) {
-            materialPropertyMap[y].push_back(getMaterialProperty(
-                {x, height - y - 1}, propertyName, invalidValue));
-        }
-    }
-    return materialPropertyMap;
 }
 
 void GameMapBase::syncActorsRef(const ActorDict& actors) {
@@ -670,7 +654,7 @@ std::vector<Actor*> GameMapBase::getOverlaps(Actor& actor) {
     return result;
 }
 
-std::optional<Material> GameMapBase::getTopMaterial(
+std::optional<std::string> GameMapBase::getTopMaterial(
     const sf::Vector2i& position) const {
     if (sparseWorld_->size().has_value()) {
         return sparseWorld_->getSparseWorldTopMaterial(position,
@@ -692,7 +676,8 @@ std::optional<Material> GameMapBase::getTopMaterial(
                 }
             }
         }
-        const std::optional<Material> material = layer->getMaterial(position);
+        const std::optional<std::string> material =
+            layer->getMaterial(position);
         if (material.has_value()) {
             return material;
         }
@@ -947,29 +932,6 @@ std::vector<std::string> GameMapBase::getTopFirstLayerNames() const {
     std::vector<std::string> layerNames = tilemap_->getLayerNameList();
     std::reverse(layerNames.begin(), layerNames.end());
     return layerNames;
-}
-
-MaterialValue GameMapBase::getMaterialProperty(
-    const sf::Vector2i& pos, const std::string& propertyName,
-    const MaterialValue& invalidValue) const {
-    if (sparseWorld_->size().has_value()) {
-        const std::optional<Material> material =
-            sparseWorld_->getSparseWorldTopMaterial(pos, *actorRegistry_);
-        if (!material.has_value()) {
-            return invalidValue;
-        }
-        return material->getProperty(propertyName).value_or(invalidValue);
-    }
-    for (const std::string& layerName : getTopFirstLayerNames()) {
-        const std::shared_ptr<TileLayer> layer = tilemap_->getLayer(layerName);
-        if (!layer || !layer->getVisible() || !layer->hasContent(pos)) {
-            continue;
-        }
-        const std::optional<MaterialValue> value =
-            layer->getMaterialProperty(pos, propertyName);
-        return value.value_or(invalidValue);
-    }
-    return invalidValue;
 }
 
 void GameMapBase::setHideDisconnectedRegions(bool enabled) {

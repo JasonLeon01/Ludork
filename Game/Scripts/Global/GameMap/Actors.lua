@@ -227,13 +227,6 @@ function GameMapActors.CreateActor(self, actorClass, layer, kwargs, emitCreateEv
         emitCreateEvent = true
     end
     local actor = Class.constructNamed(actorClass, kwargs or {})
-    if actor.material ~= nil and not Class.isInstance(actor.material, Engine.Material) then
-        local values = Engine.filterDataClassParams(actor.material, Engine.Material)
-        actor.material = Engine.Material.new(
-            values.lightBlock, values.mirror, values.reflectionStrength, values.opacity, values.speedRate,
-            values.ignoreLighting
-        )
-    end
     self:spawnActor(actor, layer, emitCreateEvent)
     return actor
 end

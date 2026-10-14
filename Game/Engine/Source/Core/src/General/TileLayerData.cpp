@@ -41,27 +41,27 @@ TileLayerData::TileLayerData(std::string layerName, Tileset layerTileset,
                              TileGrid tiles, AutoTileGrid autoTiles,
                              std::vector<AutoTile> autoTilePool,
                              std::vector<std::string> autoTileKeys,
-                             std::string shaderPath)
+                             std::string material)
     : layerName(std::move(layerName)),
       layerTileset(std::move(layerTileset)),
       tiles(std::move(tiles)),
       autoTiles(std::move(autoTiles)),
       autoTilePool(std::move(autoTilePool)),
       autoTileKeys(std::move(autoTileKeys)),
-      shaderPath(std::move(shaderPath)) {}
+      material(std::move(material)) {}
 
 TileLayerData::TileLayerData(std::string layerName, Tileset layerTileset,
                              int width, int height,
                              std::vector<AutoTile> autoTilePool,
                              std::vector<std::string> autoTileKeys,
-                             std::string shaderPath)
+                             std::string material)
     : layerName(std::move(layerName)),
       layerTileset(std::move(layerTileset)),
       tiles(makeTileGrid(width, height)),
       autoTiles(makeAutoTileGrid(width, height)),
       autoTilePool(std::move(autoTilePool)),
       autoTileKeys(std::move(autoTileKeys)),
-      shaderPath(std::move(shaderPath)) {}
+      material(std::move(material)) {}
 
 void TileLayerData::writeBlock(int x, int y, const TileGrid& tileBlock,
                                const AutoTileGrid& autoTileBlock) {

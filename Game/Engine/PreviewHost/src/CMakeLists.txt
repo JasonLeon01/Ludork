@@ -2,12 +2,14 @@ target_sources(PreviewHostExecutable PRIVATE
     Actor/ActorBatchRenderer.cpp
     Map/MapPreviewData.cpp
     Map/MapPreviewSession.cpp
+    Material/MaterialPreviewSession.cpp
     Particle/ParticlePreviewSession.cpp
     PreviewBuildInfo.cpp
     PreviewHostSession.cpp
     Protocol/FrameFiles.cpp
     Protocol/PreviewProtocol.cpp
     Rendering/PixelConversion.cpp
+    Rendering/MapRenderStatistics.cpp
     Rendering/PreviewResources.cpp
     Subtitle/SubtitlePreviewSession.cpp
     UI/UiPreviewDrawing.cpp

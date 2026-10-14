@@ -184,7 +184,7 @@ local function handle(request)
         assert(Class.isInstance(layerName, "string"), "Layer name must be a string")
         local layer = assert(view.tilemap:getLayer(layerName), "Layer is not present on the current map")
         assert(layer:getVisible(), "The selected tile layer is hidden")
-        local tileCount = #layer:getData().layerTileset.materials
+        local tileCount = layer:getTilesetTileCount()
         local tiles = assert(request.tiles, "Tiles are required")
         assert(Class.isInstance(tiles, "table"), "Tiles must be an array")
         assert(#tiles <= 128, "A tile request cannot contain more than 128 cells")

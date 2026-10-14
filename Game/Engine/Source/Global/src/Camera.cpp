@@ -359,3 +359,16 @@ void Camera::refreshView() {
         canvas->setView(view);
     }
 }
+
+void Camera::withRenderTarget(const std::shared_ptr<sf::RenderTexture>& target,
+                              const std::function<void()>& callback) {
+    struct RestoreTarget {
+        std::shared_ptr<sf::RenderTexture>& slot;
+        std::shared_ptr<sf::RenderTexture> previous;
+        ~RestoreTarget() {
+            slot = std::move(previous);
+        }
+    } restore{renderTexture_, renderTexture_};
+    renderTexture_ = target;
+    callback();
+}

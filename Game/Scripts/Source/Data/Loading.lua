@@ -172,11 +172,11 @@ function DataLoading:applyInitialLoadItem(stage, item)
         stage.commonFunctionsData[name] = payload
     elseif category == "tilesets" then
         payload.type = nil
-        ---@cast payload table<string, string | boolean[] | table<string, boolean | number>[] | boolean[][]>
+        ---@cast payload table<string, Engine.RuntimeDataValue>
         stage.tilesetData[name] = Engine.Tileset.fromData(payload)
     elseif category == "autoTiles" then
         payload.type = nil
-        ---@cast payload table<string, string | boolean | table<string, boolean | number>>
+        ---@cast payload table<string, string | boolean>
         stage.autoTileData[name] = Engine.AutoTile.fromData(payload)
     elseif category == "general" then
         payload.type = nil

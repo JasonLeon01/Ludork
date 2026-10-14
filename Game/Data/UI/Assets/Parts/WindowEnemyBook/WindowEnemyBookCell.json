@@ -41,8 +41,8 @@
           ],
           "animatable": true,
           "switchInterval": 0.2,
-          "shader": "",
-          "hue": 0.0
+          "material": "",
+          "materialParameters": {}
         },
         "slot": {
           "anchors": {

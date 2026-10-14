@@ -1,7 +1,7 @@
 #pragma once
 
 #include <EngineRuntimeApi.hpp>
-#include <General/Material.hpp>
+#include <Graphics/Materials/MaterialProgramCache.hpp>
 #include <Graphics/MapFogSettings.hpp>
 #include <SFML/Graphics.hpp>
 
@@ -39,12 +39,11 @@ public:
         sf::IntRect textureRect;
         sf::Transform transform;
         sf::Color colour = sf::Color::White;
-        Material material;
-        std::shared_ptr<sf::Shader> shader;
-        std::string shaderPath;
-        float hue = 0.0f;
+        std::string material;
+        RuntimeData::Map materialParameters;
+        std::shared_ptr<const ludork::engine::materials::MaterialResource>
+            materialResource;
         float presentationOpacity = 1.0f;
-        bool shaderError = false;
         bool visible = true;
         bool affectsLighting = true;
     };
@@ -96,19 +95,27 @@ public:
             afterLayer;
     };
 
+    struct Statistics {
+        std::uint64_t materialDrawCalls = 0;
+        unsigned int reflectionPasses = 0;
+        unsigned int renderTextureAllocations = 0;
+        unsigned int residentRenderTextures = 0;
+    };
+
+    const Statistics& statistics() const;
+
     MapRenderer();
     ~MapRenderer();
     MapRenderer(const MapRenderer&) = delete;
     MapRenderer& operator=(const MapRenderer&) = delete;
 
     const sf::RenderTexture& render(const Scene& scene, const View& view,
-                                    const Options& options);
+                                    const Options& options,
+                                    const DrawHooks& hooks = {},
+                                    const sf::Texture* overlay = nullptr);
     void drawContent(const Scene& scene, sf::RenderTarget& target,
                      const sf::RenderStates& states, const Options& options,
                      const DrawHooks& hooks = {});
-    const sf::RenderTexture& compose(const Scene& scene, const View& view,
-                                     const Options& options,
-                                     const sf::Texture& content);
     void drawSprite(const Sprite& sprite, sf::RenderTarget& target,
                     const sf::RenderStates& states, float time);
     void reset();

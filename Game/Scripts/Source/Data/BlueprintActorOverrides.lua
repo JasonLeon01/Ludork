@@ -41,13 +41,6 @@ local function applyTexture(actor, applyRect)
     end
 end
 
-local function normaliseObjects(actor)
-    if actor.material ~= nil and not Class.isInstance(actor.material, Engine.Material) then
-        actor.material = Engine.Material.fromData(actor.material)
-    end
-    actor:normaliseAutoSoundParams()
-end
-
 local function applyComponentChange(actor, componentName, componentType, value)
     assert(Class.isInstance(value, "table"), "Blueprint component override " .. componentName .. " must be a table")
     local component = actor[componentName]
@@ -97,7 +90,8 @@ function BlueprintActorOverrides.ApplyChanges(actor, changes)
         storedChanges = deepcopy(storedChanges)
     end
     local componentTypes = ComponentsFunctions.getComponentTypes(actorType)
-    for key, value in pairs(changes) do
+    for _, key in ipairs(table.orderedStringKeys(changes, { "material", "materialParameters" })) do
+        local value = changes[key]
         if Class.isInstance(key, "string") then
             local descriptor = descriptors[key]
             if not BlueprintActorOverrides.IsBlueprintOnly(descriptor) then
@@ -106,9 +100,11 @@ function BlueprintActorOverrides.ApplyChanges(actor, changes)
                 if componentType ~= nil then
                     applyComponentChange(actor, key, componentType, value)
                 else
-                    Engine.setRuntimeTypedAttribute(
-                        actor, key, BlueprintActorOverrides.ResolveValue(actorType, key, value, descriptor)
-                    )
+                    local resolved = BlueprintActorOverrides.ResolveValue(actorType, key, value, descriptor)
+                    if key == "material" and actor.material ~= resolved then
+                        storedChanges.materialParameters = nil
+                    end
+                    Engine.setRuntimeTypedAttribute(actor, key, resolved)
                 end
             end
         end
@@ -116,10 +112,7 @@ function BlueprintActorOverrides.ApplyChanges(actor, changes)
     if bool(storedChanges) then
         generatedActor.classVarChanges = storedChanges
     end
-    normaliseObjects(actor)
-    if changes.shaderPath ~= nil then
-        actor:setShaderPath(actor.shaderPath or "")
-    end
+    actor:normaliseAutoSoundParams()
     if changes.texturePath ~= nil or changes.defaultRect ~= nil then
         applyTexture(actor, true)
     end

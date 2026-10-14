@@ -1,6 +1,7 @@
 #pragma once
 
 #include <UI/Image.hpp>
+#include <Runtime/RuntimeData.hpp>
 
 #include <SFML/Graphics/Color.hpp>
 #include <SFML/Graphics/Rect.hpp>
@@ -14,6 +15,6 @@
 using UiControlPropertyValue =
     std::variant<std::monostate, Image::DrawAs, bool, double, std::int64_t,
                  std::string, sf::Vector2f, sf::Vector2u, sf::IntRect,
-                 sf::Color, std::vector<std::string>>;
+                 sf::Color, std::vector<std::string>, RuntimeData::Map>;
 using UiControlProperties =
     std::unordered_map<std::string, UiControlPropertyValue>;

@@ -13,8 +13,8 @@ internal static class BlueprintCompatibilityCatalog
             {
                 ["switchInterval"] = JsonValue.Create(0.2),
                 ["animatable"] = JsonValue.Create(false),
-                ["shaderPath"] = JsonValue.Create(string.Empty),
-                ["hue"] = JsonValue.Create(0.0),
+                ["material"] = JsonValue.Create(string.Empty),
+                ["materialParameters"] = new JsonObject(),
                 ["tickable"] = JsonValue.Create(false),
                 ["speed"] = JsonValue.Create(64.0),
                 ["autoSound"] = JsonValue.Create(string.Empty),

@@ -347,6 +347,7 @@ public sealed partial class ReferenceIndexService : IDisposable
             addNode("blueprint", BlueprintReference.ToReference(key));
         addSectionNodes("animation", gameData.Assets.AnimationsData.Keys);
         addSectionNodes("particle", gameData.Assets.ParticlesData.Keys);
+        addSectionNodes("material", gameData.Assets.MaterialsData.Keys);
         addSectionNodes("subtitle", gameData.Subtitles.Keys);
         addSectionNodes("curve", gameData.Assets.CurvesData.Keys);
         addSectionNodes("textConfig", gameData.Assets.TextConfigsData.Keys);

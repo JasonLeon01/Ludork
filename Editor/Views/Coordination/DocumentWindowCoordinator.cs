@@ -127,6 +127,9 @@ internal sealed class DocumentWindowCoordinator : IDisposable
             case EditorActionKind.Subtitle when request.ResourceKey is { } key:
                 showSubtitle(key, viewModel.GameData);
                 break;
+            case EditorActionKind.Material when request.ResourceKey is { } materialKey:
+                showMaterial(materialKey, viewModel.GameData);
+                break;
             case EditorActionKind.Particle when request.ResourceKey is { } key:
                 showParticle(key, viewModel.GameData);
                 break;
@@ -158,6 +161,8 @@ internal sealed class DocumentWindowCoordinator : IDisposable
             await createAnimationAsync(viewModel.GameData, request.DestinationPath);
         else if (request.Kind == EditorDataKind.Subtitle)
             await createSubtitleAsync(viewModel.GameData, request.DestinationPath);
+        else if (request.Kind == EditorDataKind.Material)
+            await createMaterialAsync(viewModel.GameData, request.DestinationPath);
         else if (request.Kind == EditorDataKind.Particle)
             await createParticleAsync(viewModel.GameData, request.DestinationPath);
         else if (request.Kind == EditorDataKind.Curve)
@@ -893,6 +898,22 @@ internal sealed class DocumentWindowCoordinator : IDisposable
             new SubtitleWindow(gameData, viewModel!.ProjectSave, key, projectSession!.UiControlRegistry.Runtime).Show(owner);
     }
 
+    private async Task createMaterialAsync(ProjectDataStore gameData, string? destinationPath = null)
+    {
+        string? key = await MaterialAuthoring.CreateAsync(owner, gameData, projectSession.UiControlRegistry.Runtime, destinationPath);
+        if (key is not null)
+            showMaterial(key, gameData);
+    }
+
+    private void showMaterial(string key, ProjectDataStore gameData)
+    {
+        MaterialWindow? existing = owner.OwnedWindows.OfType<MaterialWindow>().FirstOrDefault(window => window.Key == key);
+        if (existing is not null)
+            existing.Activate();
+        else if (gameData.Assets.MaterialsData.ContainsKey(key))
+            new MaterialWindow(gameData, viewModel.ProjectSave, projectSession.UiControlRegistry.Runtime, key).Show(owner);
+    }
+
     private async Task createParticleAsync(ProjectDataStore gameData, string? destinationPath = null)
     {
         string root = Path.Combine(gameData.ProjectPath, "Data", "Particles");
@@ -965,11 +986,13 @@ internal sealed class DocumentWindowCoordinator : IDisposable
         {
             if (!enabled && window is SubtitleWindow subtitle)
                 subtitle.PausePreview();
+            if (window is MaterialWindow material)
+                material.SetPreviewEnabled(enabled);
             if (!enabled && window is ParticleWindow particle)
                 particle.PausePreview();
             if (!enabled && window is ParticleOverviewWindow particles)
                 particles.PausePreview();
-            if (window is SubtitleWindow or AnimationOverviewWindow or AnimationWindow or ParticleOverviewWindow or ParticleWindow or TilesetEditorWindow
+            if (window is MaterialWindow or SubtitleWindow or AnimationOverviewWindow or AnimationWindow or ParticleOverviewWindow or ParticleWindow or TilesetEditorWindow
                 or GeneralDataEditorWindow or CommonFunctionWindow or GameVariableManagerWindow
                 or CurveWindow or TextConfigEditorWindow or BlueprintEditorWindow or UiAssetEditorWindow)
                 window.IsEnabled = enabled;

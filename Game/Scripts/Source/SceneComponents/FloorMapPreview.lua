@@ -6,7 +6,7 @@ local ActorVisibility = require("Source.Utils.ActorVisibility")
 
 local FloorMapPreview = {}
 
-local function drawLayerEffects(_layerName) end
+local function drawLayerEffects(_layerName, _target, _states) end
 
 function FloorMapPreview:init(tilemap, data, state)
     self._terrain = RegionTerrain.new(tilemap, Data.GetAutoTile)
@@ -82,8 +82,8 @@ function FloorMapPreview:_append(appearance, tag, layer, position, parentIndex, 
         scale = appearance.scale,
         origin = appearance.origin,
         visible = appearance.visible,
-        hue = appearance.hue,
-        shaderPath = appearance.shaderPath,
+        material = appearance.material,
+        materialParameters = appearance.materialParameters,
         parentIndex = parentIndex
     })
     local index = #self._sprites

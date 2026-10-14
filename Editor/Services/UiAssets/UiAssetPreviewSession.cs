@@ -43,7 +43,7 @@ internal sealed class UiAssetPreviewSession : IAsyncDisposable
         this.document = document;
         this.gameData = gameData;
         this.runtime = runtime;
-        client = new UiPreviewClient(runtime);
+        client = new UiPreviewClient(runtime) { MaterialSnapshots = gameData.Assets.CaptureMaterials };
         client.StateChanged += onClientStateChanged;
         runtime.Changed += onRuntimeChanged;
     }

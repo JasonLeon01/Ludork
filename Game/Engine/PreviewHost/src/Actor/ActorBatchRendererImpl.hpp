@@ -2,6 +2,8 @@
 
 #include "Actor/ActorBatchRenderer.hpp"
 
+#include <Graphics/Materials/MaterialProgramCache.hpp>
+
 #include <SFML/Graphics/Rect.hpp>
 #include <SFML/Graphics/RenderTexture.hpp>
 #include <SFML/Graphics/Shader.hpp>
@@ -11,7 +13,6 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 namespace ludork::preview_host::actor_batch_detail {
@@ -28,8 +29,8 @@ struct ActorVisualRequest {
     std::string id;
     std::string texturePath;
     sf::IntRect textureRect;
-    std::string shaderPath;
-    float hue = 0.0f;
+    std::string material;
+    RuntimeData::Map materialParameters;
 };
 
 }  // namespace ludork::preview_host::actor_batch_detail
@@ -45,7 +46,10 @@ private:
         actor_batch_detail::ActorVisualRequest visual;
         std::size_t page = 0;
         sf::Vector2u position;
-        bool shaderError = false;
+        sf::Vector2u padding;
+        std::shared_ptr<const ludork::engine::materials::MaterialResource>
+            material;
+        bool materialError = false;
         std::string error;
     };
 
@@ -57,12 +61,6 @@ private:
     struct TextureCacheEntry {
         actor_batch_detail::FileStamp stamp;
         std::shared_ptr<sf::Texture> texture;
-        std::string error;
-    };
-
-    struct ShaderCacheEntry {
-        actor_batch_detail::FileStamp stamp;
-        std::shared_ptr<sf::Shader> shader;
         std::string error;
     };
 
@@ -78,25 +76,13 @@ private:
     void renderVisual(sf::RenderTexture& target, PackedActorVisual& packed,
                       float time);
     const TextureCacheEntry& loadTexture(const std::string& path);
-    const ShaderCacheEntry& loadShader(const std::string& path);
-    sf::RenderTexture& effectBuffer(const sf::Vector2i& size);
-    static std::uint64_t effectBufferKey(const sf::Vector2i& size);
-    void pruneEffectBuffers(
-        const std::unordered_set<std::uint64_t>& retainedKeys);
-    sf::Shader& requireHueShader();
     sf::Shader& requireErrorShader();
     void drawError(sf::RenderTexture& target, const sf::Texture& texture,
                    const sf::IntRect& rect, const sf::Vector2u& position);
-    static void bindActorShader(sf::Shader& shader, const sf::Texture& texture,
-                                const sf::IntRect& rect, float time);
-    static void bindHueShader(sf::Shader& shader, float hue);
 
     std::unordered_map<std::string, TextureCacheEntry> textures_;
-    std::unordered_map<std::string, ShaderCacheEntry> shaders_;
+    ludork::engine::materials::MaterialProgramCache materials_;
     std::vector<std::unique_ptr<sf::RenderTexture>> pageBuffers_;
-    std::unordered_map<std::uint64_t, std::unique_ptr<sf::RenderTexture>>
-        effectBuffers_;
-    std::unordered_set<std::uint64_t> activeEffectBufferKeys_;
     std::shared_ptr<sf::Shader> errorShader_;
 };
 

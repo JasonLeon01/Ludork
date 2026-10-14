@@ -59,6 +59,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         HelpCommand = new RelayCommand(Actions.OpenHelp);
         NewBlueprintCommand = new RelayCommand(() => Actions.NewBlueprint(), () => CanEdit);
         NewAnimationCommand = new RelayCommand(Actions.NewAnimation, () => CanEdit);
+        NewMaterialCommand = new RelayCommand(() => Actions.NewMaterial(), () => CanEdit);
         NewParticleCommand = new RelayCommand(() => Actions.NewParticle(), () => CanEdit);
         NewSubtitleCommand = new RelayCommand(() => Actions.NewSubtitle(), () => CanEdit);
         NewCurveCommand = new RelayCommand(Actions.NewCurve, () => CanEdit);
@@ -77,7 +78,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         editingCommands =
         [
             SaveCommand, NewProjectCommand, OpenProjectCommand, ExitCommand, UndoCommand, RedoCommand, TileModeCommand, ActorModeCommand,
-            NewBlueprintCommand, NewAnimationCommand, NewParticleCommand, NewSubtitleCommand, NewCurveCommand, NewTextConfigCommand, NewUiAssetCommand,
+            NewBlueprintCommand, NewAnimationCommand, NewMaterialCommand, NewParticleCommand, NewSubtitleCommand, NewCurveCommand, NewTextConfigCommand, NewUiAssetCommand,
             GameConfigCommand, SystemConfigCommand, AnimationOverviewCommand, ParticleOverviewCommand, TilesetsDataCommand,
             CommonFunctionsCommand, GameVariablesCommand, GeneralDataCommand,
         ];
@@ -125,6 +126,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public IRelayCommand HelpCommand { get; }
     public IRelayCommand NewBlueprintCommand { get; }
     public IRelayCommand NewAnimationCommand { get; }
+    public IRelayCommand NewMaterialCommand { get; }
     public IRelayCommand NewParticleCommand { get; }
     public IRelayCommand NewSubtitleCommand { get; }
     public IRelayCommand NewCurveCommand { get; }
@@ -415,6 +417,9 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             case EditorDataOpenTarget.Subtitle:
                 Actions.OpenSubtitle(info.Key);
                 break;
+            case EditorDataOpenTarget.Material:
+                Actions.OpenMaterial(info.Key);
+                break;
             case EditorDataOpenTarget.Particle:
                 Actions.OpenParticle(info.Key);
                 break;
@@ -481,6 +486,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public string ReloadModule => LocaleService.Get("RELOAD_MODULE");
     public string NewBlueprint => LocaleService.Get("NEW_BLUEPRINT");
     public string NewAnimation => LocaleService.Get("NEW_ANIMATION");
+    public string NewMaterial => LocaleService.Get("NEW_MATERIAL");
     public string NewParticle => LocaleService.Get("NEW_PARTICLE");
     public string NewSubtitle => LocaleService.Get("NEW_SUBTITLE");
     public string NewCurve => LocaleService.Get("NEW_CURVE");

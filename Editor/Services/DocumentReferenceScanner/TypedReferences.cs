@@ -144,7 +144,7 @@ internal sealed partial class DocumentReferenceScanner
         {
             string? root = getReference("PathRoot");
             if (root == "Data")
-                addSubtitleReference(sourceId, value, kind, path);
+                scanGenericReferences(sourceId, value, path);
             else if (root != "Project")
                 addAssetReference(sourceId, value, kind, path);
         }

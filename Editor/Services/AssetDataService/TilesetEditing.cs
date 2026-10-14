@@ -57,7 +57,7 @@ public sealed partial class AssetDataService
         JsonObject next = (JsonObject)target.DeepClone();
         next["fileName"] = assetPath;
         if (isAutoTile)
-            next["material"] ??= TilesetMetadata.CreateDefaultMaterial();
+            next["material"] ??= JsonValue.Create(string.Empty);
         else
             TilesetMetadata.ResizeForImage(next, width / store.Configs.getCellSize() * (height / store.Configs.getCellSize()));
         if (JsonNode.DeepEquals(target, next))
@@ -95,16 +95,6 @@ public sealed partial class AssetDataService
         JsonArray directions = (JsonArray)TilesetMetadata.Read(target, "dir4", index, false);
         directions[direction] = value;
         return UpdateTilesetMetadata(key, false, expectedAssetPath, "dir4", directions, [index], tileCount);
-    }
-
-    public bool UpdateTilesetMaterial(string key, bool isAutoTile, string expectedAssetPath, int index, int tileCount, JsonObject initial, JsonObject edited)
-    {
-        if (!tryGetTilesetForEdit(key, isAutoTile, out JsonObject target))
-            return false;
-        string property = isAutoTile ? "material" : "materials";
-        JsonObject current = (JsonObject)TilesetMetadata.Read(target, property, index, isAutoTile);
-        JsonObject value = TilesetMetadata.MergeMaterial(current, initial, edited);
-        return UpdateTilesetMetadata(key, isAutoTile, expectedAssetPath, property, value, isAutoTile ? [] : [index], tileCount);
     }
 
     internal bool tryGetTilesetForEdit(string key, bool isAutoTile, out JsonObject target)

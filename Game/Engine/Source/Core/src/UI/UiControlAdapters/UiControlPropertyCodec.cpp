@@ -28,6 +28,9 @@ UiControlPropertyValue propertyValue(const RuntimeData& value,
     if (type == "sf.IntRect" && value.isNil()) {
         return std::monostate{};
     }
+    if (type == "Dict[string, any]") {
+        return ludork::runtime::value_reader::requireMap(value, source);
+    }
     if (type == "bool") {
         return ludork::runtime::value_reader::requireBool(value, source);
     }

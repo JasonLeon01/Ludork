@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 
 namespace Ludork.Plugin.Abstractions;
@@ -88,6 +89,7 @@ public interface IMapEditorHost
     PluginMapSnapshot ReadMap(string mapKey);
     PluginTilesetSnapshot ReadTileset(string tilesetKey);
     string ResolveAssetFile(string assetPath);
+    IPluginActorPreview AcquireActorPreview(PluginMapActorSnapshot actor);
 
     Task<PluginMapWriteResult> ReplaceLayerAndSaveAsync(
         PluginMapLayerWriteRequest request,
@@ -386,7 +388,8 @@ public sealed record PluginMapActorSnapshot(
     double OriginX,
     double OriginY,
     double Rotation,
-    double Hue,
+    string Material,
+    JsonObject MaterialParameters,
     double PreviewOpacity);
 
 public sealed record PluginTilesetSnapshot(

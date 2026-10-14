@@ -2,7 +2,6 @@
 
 #include <CoreMinimal.hpp>
 #include <EngineRuntimeApi.hpp>
-#include <General/Material.hpp>
 #include <General/TileLayerData.hpp>
 #include <Graphics/TilemapGraphics.hpp>
 
@@ -76,40 +75,16 @@ public:
     virtual bool isDirectionPassable(const sf::Vector2i& position,
                                      int directionIndex) const;
 
-    BIND_METHOD(Pure = true)
-    virtual std::optional<MaterialValue> getMaterialProperty(
-        const sf::Vector2i& position, const std::string& propertyName) const;
-
-    BIND_METHOD(Pure = true, returns = "lightBlock")
-    std::optional<float> getLightBlock(const sf::Vector2i& position) const;
-
-    BIND_METHOD(Pure = true, returns = "mirror")
-    std::optional<bool> getMirror(const sf::Vector2i& position) const;
-
-    BIND_METHOD(Pure = true, returns = "reflectionStrength")
-    std::optional<float> getReflectionStrength(
-        const sf::Vector2i& position) const;
-
-    BIND_METHOD(Pure = true, returns = "ignoreLighting")
-    std::optional<bool> getIgnoreLighting(const sf::Vector2i& position) const;
-
-    BIND_METHOD(Pure = true, returns = "speedRate")
-    std::optional<float> getSpeedRate(const sf::Vector2i& position) const;
-
-    BIND_METHOD()
-    virtual void updateShader(float deltaTime);
-
-    BIND_METHOD(Pure = true)
-    std::shared_ptr<sf::Shader> getShader() const;
-
-    BIND_METHOD(Pure = true)
-    std::shared_ptr<sf::Image> getLightBlockImage();
-
-    BIND_METHOD(Pure = true)
-    std::shared_ptr<sf::Image> getReflectionStrengthImage();
-
-    BIND_METHOD(Pure = true)
-    std::shared_ptr<sf::Image> getIgnoreLightingImage();
+    std::shared_ptr<const ludork::engine::materials::MaterialResource>
+    getLayerMaterial() const;
+    void drawMaterialPass(
+        sf::RenderTarget& target, sf::RenderStates states,
+        ludork::engine::materials::MaterialProgramCache& programs,
+        ludork::engine::materials::MaterialCompiler::Pass pass,
+        ludork::engine::materials::MaterialProgramCache::Context context) const;
+    bool hasReflectiveMaterial(const sf::FloatRect& bounds) const;
+    sf::Vector2f maximumMaterialOffset() const;
+    bool hasAnimatedOcclusion() const;
 
     BIND_METHOD(Pure = true)
     sf::Vector2u getGridSize() const;
@@ -117,17 +92,12 @@ public:
     BIND_METHOD(metadata = false)
     bool isCellBuilt(const sf::Vector2i& position) const;
 
-    const std::vector<std::vector<float>>& getLightBlockMapView();
-
     BIND_PROPERTY()
     bool visible = true;
 
-    BIND_PROPERTY(meta(PathVars = "/Game/Assets/Shaders",
-                       PathFilter = "*.frag"))
-    std::string shaderPath;
-
-    BIND_PROPERTY(metadata = false)
-    std::shared_ptr<sf::Shader> shader;
+    BIND_PROPERTY(meta(PathRoot = "Data", PathVars = "Data/Materials",
+                       PathFilter = "*.json"))
+    std::string material;
 
 private:
     void draw(sf::RenderTarget& target, sf::RenderStates states) const override;
@@ -140,15 +110,7 @@ private:
         const std::vector<std::shared_ptr<sf::Texture>>& textures);
     static std::vector<int> normalizeFrameCounts(
         const TileLayerData& data, const std::vector<int>& frameCounts);
-    static std::optional<float> materialFloat(
-        const std::optional<MaterialValue>& value);
-    static std::optional<bool> materialBool(
-        const std::optional<MaterialValue>& value);
-
-    void loadShader();
-    void invalidateMaterialImages();
-    std::shared_ptr<sf::Image> buildMaterialImage(
-        const std::vector<std::vector<float>>& values) const;
+    void invalidateContent();
 
     TileLayerData data_;
     std::size_t contentRevision_ = 0;
@@ -157,12 +119,6 @@ private:
     std::shared_ptr<sf::Texture> texture_;
     std::vector<std::shared_ptr<sf::Texture>> autoTileTextures_;
     std::vector<int> autoTileFrameCounts_;
-    float shaderTime_ = 0.0f;
-    bool shaderUsesTime_ = false;
-    std::optional<std::vector<std::vector<float>>> lightBlockMapCache_;
-    std::optional<std::vector<std::vector<float>>> reflectionStrengthMapCache_;
-    std::optional<std::vector<std::vector<float>>> ignoreLightingMapCache_;
-    std::shared_ptr<sf::Image> lightBlockImageCache_;
-    std::shared_ptr<sf::Image> reflectionStrengthImageCache_;
-    std::shared_ptr<sf::Image> ignoreLightingImageCache_;
+    float materialTime_ = 0.0f;
+    mutable ludork::engine::materials::MaterialProgramCache materialPrograms_;
 };

@@ -49,11 +49,16 @@ internal sealed partial class DocumentReferenceScanner
             case "Configs":
                 scanConfigReferences(ReferenceIdentity.NodeId("config", key), key, data);
                 break;
+            case "Materials":
+                scanGenericReferences(ReferenceIdentity.NodeId("material", key), data, $"Materials/{key}");
+                break;
             case "Tilesets":
                 addAssetReference(ReferenceIdentity.NodeId("tileset", key), data["fileName"], "asset", "fileName");
+                scanGenericReferences(ReferenceIdentity.NodeId("tileset", key), data["materials"], $"Tilesets/{key}.materials");
                 break;
             case "AutoTiles":
                 addAssetReference(ReferenceIdentity.NodeId("autoTile", key), data["fileName"], "asset", "fileName");
+                scanGenericReferences(ReferenceIdentity.NodeId("autoTile", key), data["material"], $"AutoTiles/{key}.material");
                 break;
             case "Maps":
                 scanMapReferences(ReferenceIdentity.NodeId("map", key), key, data);
@@ -135,6 +140,7 @@ internal sealed partial class DocumentReferenceScanner
             "COMMONFUNCTIONS" => "commonFunction",
             "ANIMATIONS" => "animation",
             "PARTICLES" => "particle",
+            "MATERIALS" => "material",
             "SUBTITLES" => "subtitle",
             "CURVES" => "curve",
             "TEXTCONFIGS" => "textConfig",

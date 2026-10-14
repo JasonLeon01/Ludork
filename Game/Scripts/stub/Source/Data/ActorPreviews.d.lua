@@ -1,20 +1,20 @@
 ---@meta Source.Data.ActorPreviews
 
 ---@class Source.Data.ActorPreviewData
----@field texturePath       string
----@field rect              sf.IntRect
----@field translation       sf.Vector2f
----@field rotation          number
----@field scale             sf.Vector2f
----@field origin            sf.Vector2f
----@field visible           boolean
----@field hue               number
----@field shaderPath        string
----@field conditionVariable string
----@field conditionOperator string
----@field conditionValue    number | boolean | string
----@field child             Source.Data.ActorPreviewData | nil
----@field childOffset       sf.Vector2f
+---@field texturePath        string
+---@field rect               sf.IntRect
+---@field translation        sf.Vector2f
+---@field rotation           number
+---@field scale              sf.Vector2f
+---@field origin             sf.Vector2f
+---@field visible            boolean
+---@field material           string
+---@field materialParameters table<string, any>
+---@field conditionVariable  string
+---@field conditionOperator  string
+---@field conditionValue     number | boolean | string
+---@field child              Source.Data.ActorPreviewData | nil
+---@field childOffset        sf.Vector2f
 
 ---@class Source.Data.ActorPreviewTemplate
 ---@field classModel     Class.ClassType<any>

@@ -291,6 +291,9 @@ public:
     BIND_METHOD(Pure = true, returns = "renderTexture")
     std::shared_ptr<sf::RenderTexture> getRenderTexture() const;
 
+    void withRenderTarget(const std::shared_ptr<sf::RenderTexture>& target,
+                          const std::function<void()>& callback);
+
     BIND_METHOD(metadata = false)
     sf::Image getImage() const;
 

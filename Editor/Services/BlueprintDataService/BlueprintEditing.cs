@@ -21,6 +21,8 @@ public sealed partial class BlueprintDataService
             next.Remove(name);
         foreach (KeyValuePair<string, JsonNode?> pair in updates)
             next[pair.Key] = pair.Value?.DeepClone();
+        if (!updates.ContainsKey("materialParameters") && !JsonNode.DeepEquals(current?["material"], next["material"]))
+            next["materialParameters"] = new JsonObject();
         if (current is null && next.Count == 0 || JsonNode.DeepEquals(current, next))
             return false;
         JsonObject candidate = (JsonObject)blueprint.DeepClone();

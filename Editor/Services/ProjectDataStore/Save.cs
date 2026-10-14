@@ -153,6 +153,9 @@ public sealed partial class ProjectDataStore
             return new Dictionary<string, byte[]>();
         JsonObject payload = document.Section == "Subtitles"
             ? SubtitleAssetSchema.SortSections(data) : (JsonObject)data.DeepClone();
+        if (document.Section == "Tilesets" && payload["materials"] is JsonObject materials)
+            payload["materials"] = new JsonObject(materials.OrderBy(pair => int.TryParse(pair.Key, out int index) ? index : int.MaxValue)
+                .Select(pair => new KeyValuePair<string, JsonNode?>(pair.Key, pair.Value?.DeepClone())));
         EditorDocumentCollection section = sections[document.Section];
         if (section.WriteType && section.ExpectedType is not null)
             payload["type"] = section.ExpectedType;
@@ -167,12 +170,28 @@ public sealed partial class ProjectDataStore
         List<string> errors = [];
         foreach (KeyValuePair<string, JsonObject> entry in sections["Subtitles"])
             errors.AddRange(SubtitleAssetSchema.Validate(entry.Value, entry.Key));
+        foreach (KeyValuePair<string, JsonObject> entry in sections["Materials"])
+            errors.AddRange(MaterialAssetSchema.Validate(entry.Value, entry.Key));
         foreach (KeyValuePair<string, JsonObject> entry in sections["Particles"])
             errors.AddRange(ParticleAssetSchema.Validate(entry.Value, entry.Key));
         foreach (KeyValuePair<string, JsonObject> entry in sections["Tilesets"])
+        {
             validateAssetPath(entry.Value["fileName"], $"Tilesets/{entry.Key}.fileName", errors);
+            if (entry.Value["materials"] is not JsonObject materials)
+                errors.Add($"Tilesets/{entry.Key}.materials must be a sparse object");
+            else
+                foreach ((string index, JsonNode? material) in materials)
+                {
+                    if (!int.TryParse(index, out int parsed) || parsed < 0 || parsed.ToString(System.Globalization.CultureInfo.InvariantCulture) != index)
+                        errors.Add($"Tilesets/{entry.Key}.materials contains an invalid tile index: {index}");
+                    MaterialAssetSchema.ValidateReference(material, $"Tilesets/{entry.Key}.materials.{index}", errors);
+                }
+        }
         foreach (KeyValuePair<string, JsonObject> entry in sections["AutoTiles"])
+        {
             validateAssetPath(entry.Value["fileName"], $"AutoTiles/{entry.Key}.fileName", errors);
+            MaterialAssetSchema.ValidateReference(entry.Value["material"], $"AutoTiles/{entry.Key}.material", errors);
+        }
         foreach (KeyValuePair<string, JsonObject> entry in sections["Animations"])
         {
             if (entry.Value["assets"] is not JsonArray assets)
@@ -239,10 +258,7 @@ public sealed partial class ProjectDataStore
         {
             if (entry.Value is JsonObject layer)
             {
-                validateAssetPath(
-                    layer["shaderPath"],
-                    $"Maps/{key}.layers.{entry.Key}.shaderPath",
-                    errors);
+                MaterialAssetSchema.ValidateReference(layer["material"], $"Maps/{key}.layers.{entry.Key}.material", errors);
             }
         }
     }

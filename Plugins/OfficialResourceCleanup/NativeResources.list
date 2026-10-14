@@ -2,12 +2,9 @@ Assets/Fonts/LICENSE.txt
 Assets/Musics/LICENSE.md
 Assets/Shaders/Global/Flash.frag
 Assets/Shaders/Global/Fog.frag
-Assets/Shaders/Global/Hue.frag
-Assets/Shaders/Global/LightMask.frag
 Assets/Shaders/Global/LightPass.frag
 Assets/Shaders/Global/Material.frag
 Assets/Shaders/Global/TextEffects.frag
-Assets/Shaders/Global/TilemapLightMask.frag
 Assets/Shaders/Global/Tone.frag
 Assets/Shaders/Global/Transition.frag
 Assets/Shaders/Global/UnoccludedLightPass.frag

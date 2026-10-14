@@ -65,6 +65,23 @@ def _validate_integer_array(
             raise UiAssetError(f"{label}[{index}] must be a signed 32-bit integer")
 
 
+def _validate_json_value(value: object, label: str) -> None:
+    if value is None or isinstance(value, (str, bool)):
+        return
+    if isinstance(value, (int, float)):
+        _finite_number(value, label)
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            _validate_json_value(item, f"{label}[{index}]")
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            if not isinstance(key, str):
+                raise UiAssetError(f"{label} must use string keys")
+            _validate_json_value(item, f"{label}.{key}")
+    else:
+        raise UiAssetError(f"{label} must contain only JSON data")
+
+
 def _validate_property_type(
     value: object,
     value_type: str,
@@ -106,6 +123,10 @@ def _validate_property_type(
             not isinstance(item, str) for item in value
         ):
             raise UiAssetError(f"{label} must be a string array")
+    elif value_type == "Dict[string, any]":
+        if not isinstance(value, dict):
+            raise UiAssetError(f"{label} must be a string-keyed dictionary")
+        _validate_json_value(value, label)
     elif value_type == "sf.Vector2f":
         _pair(value, label)
     elif value_type == "sf.Vector2u":

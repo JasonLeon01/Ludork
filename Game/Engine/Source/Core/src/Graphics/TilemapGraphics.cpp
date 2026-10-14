@@ -1,5 +1,7 @@
 #include <Graphics/TilemapGraphics.hpp>
 #include "TilemapGraphics/ChunkBuilder.hpp"
+#include "TilemapGraphics/AutoTileAtlas.hpp"
+#include <stdexcept>
 #include "TilemapGraphics/Pattern.hpp"
 #include "TilemapGraphics/RenderImpl.hpp"
 #include <SFML/Graphics/PrimitiveType.hpp>
@@ -12,6 +14,19 @@
 using ludork::engine::tilemap_graphics_impl::ChunkRange;
 using ludork::engine::tilemap_graphics_impl::composeCellPattern;
 using ludork::engine::tilemap_graphics_impl::TileChunk;
+
+namespace {
+sf::FloatRect combinedBounds(const sf::FloatRect& left,
+                             const sf::FloatRect& right) {
+    const sf::Vector2f minimum{std::min(left.position.x, right.position.x),
+                               std::min(left.position.y, right.position.y)};
+    const sf::Vector2f maximum{std::max(left.position.x + left.size.x,
+                                        right.position.x + right.size.x),
+                               std::max(left.position.y + left.size.y,
+                                        right.position.y + right.size.y)};
+    return {minimum, maximum - minimum};
+}
+}  // namespace
 
 TileLayerGraphics::TileLayerGraphics(
     int width, int height, int tileSize, std::shared_ptr<sf::Texture> texture,
@@ -29,14 +44,39 @@ TileLayerGraphics::TileLayerGraphics(
       autoTileTextures_(autoTileTextures),
       autoTileFrameCounts_(autoTileFrameCounts),
       autoTileAnimationAccum_(0.0f) {
-    autoTileMaterials_.reserve(autoTilePool_.size());
-    for (const auto& autoTile : autoTilePool_) {
-        autoTileMaterials_.push_back(autoTile.material);
+    defaultMaterial_ =
+        ludork::engine::materials::MaterialResource::defaultMaterial();
+    for (const auto& [index, path] : materials_) {
+        if (index < 0 || index >= getTilesetTileCount() || path.empty()) {
+            throw std::invalid_argument(
+                "Tileset material reference is outside the texture or empty");
+        }
+        const auto resource =
+            ludork::engine::materials::MaterialResource::load(path);
+        materialResources_.emplace(index, resource);
+        maximumMaterialOffset_.x = std::max(maximumMaterialOffset_.x,
+                                            resource->maximumVertexOffset().x);
+        maximumMaterialOffset_.y = std::max(maximumMaterialOffset_.y,
+                                            resource->maximumVertexOffset().y);
     }
-    ludork::engine::tilemap_graphics_impl::validateMaterialOpacities(
-        materials_, "layerTileset.materials");
-    ludork::engine::tilemap_graphics_impl::validateMaterialOpacities(
-        autoTileMaterials_, "autotile materials");
+    for (std::size_t index = 0; index < autoTilePool_.size(); ++index) {
+        const auto resource = ludork::engine::materials::MaterialResource::load(
+            autoTilePool_[index].material);
+        autoTileMaterials_.push_back(resource);
+        maximumMaterialOffset_.x = std::max(maximumMaterialOffset_.x,
+                                            resource->maximumVertexOffset().x);
+        maximumMaterialOffset_.y = std::max(maximumMaterialOffset_.y,
+                                            resource->maximumVertexOffset().y);
+        autoTileAtlases_.push_back(
+            index < autoTileTextures_.size() && autoTileTextures_[index]
+                ? std::make_shared<
+                      ludork::engine::tilemap_graphics_impl::AutoTileAtlas>(
+                      *autoTileTextures_[index], tileSize_,
+                      index < autoTileFrameCounts_.size()
+                          ? autoTileFrameCounts_[index]
+                          : 1)
+                : nullptr);
+    }
     autoTileCurrentFrames_.assign(autoTileTextures_.size(), 0);
     initChunks();
     if (deferred) {
@@ -98,16 +138,7 @@ void TileLayerGraphics::resetTileColor(int x, int y) {
         return;
     }
 
-    int tileNumber = tiles_[y][x].value();
-    if (tileNumber < 0 || tileNumber >= static_cast<int>(materials_.size())) {
-        return;
-    }
-
-    float opacity = materials_[tileNumber].opacity;
-    const sf::Color color =
-        ludork::engine::tilemap_graphics_impl::materialColour(opacity);
-
-    setTileColor(x, y, color);
+    setTileColor(x, y, sf::Color::White);
 }
 
 std::vector<sf::Vector2i> TileLayerGraphics::floodFillTransparent(
@@ -224,7 +255,7 @@ bool TileLayerGraphics::isPassable(const sf::Vector2i& position) const {
     return passable_[index];
 }
 
-std::optional<Material> TileLayerGraphics::getMaterial(
+std::optional<std::string> TileLayerGraphics::getMaterial(
     const sf::Vector2i& position) const {
     if (!inBounds(position)) {
         return std::nullopt;
@@ -237,46 +268,90 @@ std::optional<Material> TileLayerGraphics::getMaterial(
     if (!tileNumber.has_value()) {
         return std::nullopt;
     }
-    int index = tileNumber.value();
-    if (index < 0 || index >= static_cast<int>(materials_.size())) {
+    const int index = tileNumber.value();
+    if (index < 0 || index >= getTilesetTileCount()) {
         return std::nullopt;
     }
-    return materials_[index];
+    const auto found = materials_.find(index);
+    return found == materials_.end() ? std::string{} : found->second;
 }
 
-std::vector<std::vector<float>> TileLayerGraphics::getLightBlockMap() const {
-    return ludork::engine::tilemap_graphics_impl::materialMap(
-        static_cast<int>(size_.x), static_cast<int>(size_.y),
-        [this](const sf::Vector2i& position) {
-            return getMaterial(position);
-        },
-        [](const Material& material) {
-            return material.lightBlock;
-        });
+int TileLayerGraphics::getTilesetTileCount() const {
+    return texture_ && tileSize_ > 0
+               ? static_cast<int>(texture_->getSize().x / tileSize_ *
+                                  (texture_->getSize().y / tileSize_))
+               : 0;
 }
 
-std::vector<std::vector<float>> TileLayerGraphics::getReflectionStrengthMap()
-    const {
-    return ludork::engine::tilemap_graphics_impl::materialMap(
-        static_cast<int>(size_.x), static_cast<int>(size_.y),
-        [this](const sf::Vector2i& position) {
-            return getMaterial(position);
-        },
-        [](const Material& material) {
-            return material.mirror ? material.reflectionStrength : 0.0f;
-        });
+bool TileLayerGraphics::mayBlockLight(const sf::Vector2i& position) const {
+    const auto path = getMaterial(position);
+    return path.has_value() &&
+           ludork::engine::materials::MaterialCompiler::analyse(
+               *ludork::engine::materials::MaterialResource::load(*path))
+               .mayBlockLight;
 }
 
-std::vector<std::vector<float>> TileLayerGraphics::getIgnoreLightingMap()
-    const {
-    return ludork::engine::tilemap_graphics_impl::materialMap(
-        static_cast<int>(size_.x), static_cast<int>(size_.y),
-        [this](const sf::Vector2i& position) {
-            return getMaterial(position);
-        },
-        [](const Material& material) {
-            return material.ignoreLighting ? 1.0f : 0.0f;
+sf::Vector2f TileLayerGraphics::maximumMaterialOffset() const {
+    return maximumMaterialOffset_;
+}
+
+bool TileLayerGraphics::hasReflectiveMaterial(
+    const ludork::engine::materials::MaterialResource* layer,
+    const sf::FloatRect& bounds) const {
+    const sf::Vector2f offset =
+        maximumMaterialOffset_ +
+        (layer ? layer->maximumVertexOffset() : sf::Vector2f{});
+    const sf::FloatRect expanded{bounds.position - offset,
+                                 bounds.size + offset * 2.0f};
+    const auto reflects = [layer, &expanded](const auto& runs) {
+        return std::any_of(
+            runs.begin(), runs.end(), [layer, &expanded](const auto& run) {
+                return run.bounds.findIntersection(expanded).has_value() &&
+                       ludork::engine::materials::MaterialCompiler::analyse(
+                           *run.material, RuntimeData::Map{}, layer)
+                           .mayReflect;
+            });
+    };
+    for (const auto& chunk : chunks_) {
+        if (!sf::FloatRect(
+                 sf::Vector2f(chunk.x, chunk.y) * static_cast<float>(tileSize_),
+                 sf::Vector2f(chunk.width, chunk.height) *
+                     static_cast<float>(tileSize_))
+                 .findIntersection(expanded)) {
+            continue;
+        }
+        if (reflects(chunk.materialRuns)) {
+            return true;
+        }
+        for (const auto& runs : chunk.autoTileMaterialRuns) {
+            if (reflects(runs)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool TileLayerGraphics::hasAnimatedOcclusion(
+    const ludork::engine::materials::MaterialResource* layer) const {
+    const auto animated = [layer](const auto& runs) {
+        return std::any_of(runs.begin(), runs.end(), [layer](const auto& run) {
+            return ludork::engine::materials::MaterialCompiler::analyse(
+                       *run.material, RuntimeData::Map{}, layer)
+                .occlusionTimeDependent;
         });
+    };
+    for (const auto& chunk : chunks_) {
+        if (animated(chunk.materialRuns)) {
+            return true;
+        }
+        for (const auto& runs : chunk.autoTileMaterialRuns) {
+            if (animated(runs)) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 void TileLayerGraphics::updateAutoTileAnimation(float deltaTime,
@@ -406,71 +481,86 @@ int TileLayerGraphics::getLastVisibleChunkCount() const {
 
 void TileLayerGraphics::draw(sf::RenderTarget& target,
                              sf::RenderStates states) const {
+    ludork::engine::materials::MaterialProgramCache::Context context;
+    drawMaterial(target, states, materialPrograms_, nullptr,
+                 ludork::engine::materials::MaterialCompiler::Pass::Color,
+                 context);
+}
+
+void TileLayerGraphics::drawMaterial(
+    sf::RenderTarget& target, sf::RenderStates states,
+    ludork::engine::materials::MaterialProgramCache& programs,
+    const ludork::engine::materials::MaterialResource* layer,
+    ludork::engine::materials::MaterialCompiler::Pass pass,
+    ludork::engine::materials::MaterialProgramCache::Context context) const {
     lastVisibleChunkCount_.store(0, std::memory_order_relaxed);
     states.transform *= getTransform();
     if (chunkColumns_ == 0 || chunkRows_ == 0 || tileSize_ <= 0) {
         return;
     }
-    const auto visible = ludork::engine::tilemap_graphics_impl::localViewBounds(
+    auto visible = ludork::engine::tilemap_graphics_impl::localViewBounds(
         target, states.transform);
+    const sf::Vector2f offset =
+        maximumMaterialOffset_ +
+        (layer ? layer->maximumVertexOffset() : sf::Vector2f{});
+    visible.left -= offset.x;
+    visible.right += offset.x;
+    visible.top -= offset.y;
+    visible.bottom += offset.y;
     const ChunkRange range =
         ludork::engine::tilemap_graphics_impl::visibleChunkRange(
             visible, size_, tileSize_, ChunkSize, chunkColumns_, chunkRows_);
-    if (range.lastX < range.firstX || range.lastY < range.firstY) {
-        return;
-    }
-
-    int submittedChunks = 0;
-    for (int chunkY = range.firstY; chunkY <= range.lastY; ++chunkY) {
-        for (int chunkX = range.firstX; chunkX <= range.lastX; ++chunkX) {
-            const TileChunk& chunk =
+    context.tile = true;
+    context.cellSize = static_cast<float>(tileSize_);
+    context.worldTransform = states.transform;
+    context.targetSize = target.getSize();
+    const auto drawRuns = [&](const sf::VertexArray& vertices,
+                              const std::vector<TileChunk::MaterialRun>& runs) {
+        for (const auto& run : runs) {
+            context.textureSize = run.texture->getSize();
+            const auto program =
+                programs.bind(*run.material, {}, layer, {}, pass, context);
+            sf::RenderStates drawStates = states;
+            drawStates.shader = program.get();
+            drawStates.texture = run.texture.get();
+            target.draw(&vertices[run.first], run.count,
+                        sf::PrimitiveType::Triangles, drawStates);
+        }
+    };
+    int submitted = 0;
+    for (int y = range.firstY; y <= range.lastY; ++y) {
+        for (int x = range.firstX; x <= range.lastX; ++x) {
+            const auto& chunk =
                 chunks_[ludork::engine::tilemap_graphics_impl::chunkIndex(
-                    chunkX, chunkY, chunkColumns_)];
-            bool hasGeometry = chunk.vertexArray != nullptr;
-            if (!hasGeometry) {
-                for (const auto& autoTileVertexArray :
-                     chunk.autoTileVertexArrays) {
-                    if (autoTileVertexArray != nullptr) {
-                        hasGeometry = true;
-                        break;
-                    }
-                }
+                    x, y, chunkColumns_)];
+            if (chunk.vertexArray) {
+                drawRuns(*chunk.vertexArray, chunk.materialRuns);
             }
-            if (hasGeometry) {
-                ++submittedChunks;
+            if (!chunk.materialRuns.empty() ||
+                std::any_of(chunk.autoTileMaterialRuns.begin(),
+                            chunk.autoTileMaterialRuns.end(),
+                            [](const auto& runs) {
+                                return !runs.empty();
+                            })) {
+                ++submitted;
             }
         }
     }
-
-    sf::RenderStates tileStates = states;
-    tileStates.texture = texture_.get();
-    for (int chunkY = range.firstY; chunkY <= range.lastY; ++chunkY) {
-        for (int chunkX = range.firstX; chunkX <= range.lastX; ++chunkX) {
-            const TileChunk& chunk =
-                chunks_[ludork::engine::tilemap_graphics_impl::chunkIndex(
-                    chunkX, chunkY, chunkColumns_)];
-            if (chunk.vertexArray != nullptr) {
-                target.draw(*chunk.vertexArray, tileStates);
-            }
-        }
-    }
-    for (std::size_t i = 0; i < autoTileTextures_.size(); ++i) {
-        sf::RenderStates autoStates = states;
-        autoStates.texture = autoTileTextures_[i].get();
-        for (int chunkY = range.firstY; chunkY <= range.lastY; ++chunkY) {
-            for (int chunkX = range.firstX; chunkX <= range.lastX; ++chunkX) {
-                const TileChunk& chunk =
+    for (std::size_t pool = 0; pool < autoTileTextures_.size(); ++pool) {
+        for (int y = range.firstY; y <= range.lastY; ++y) {
+            for (int x = range.firstX; x <= range.lastX; ++x) {
+                const auto& chunk =
                     chunks_[ludork::engine::tilemap_graphics_impl::chunkIndex(
-                        chunkX, chunkY, chunkColumns_)];
-                if (i >= chunk.autoTileVertexArrays.size() ||
-                    chunk.autoTileVertexArrays[i] == nullptr) {
-                    continue;
+                        x, y, chunkColumns_)];
+                if (pool < chunk.autoTileVertexArrays.size() &&
+                    chunk.autoTileVertexArrays[pool]) {
+                    drawRuns(*chunk.autoTileVertexArrays[pool],
+                             chunk.autoTileMaterialRuns[pool]);
                 }
-                target.draw(*chunk.autoTileVertexArrays[i], autoStates);
             }
         }
     }
-    lastVisibleChunkCount_.store(submittedChunks, std::memory_order_relaxed);
+    lastVisibleChunkCount_.store(submitted, std::memory_order_relaxed);
 }
 
 void TileLayerGraphics::buildAllChunks() {
@@ -581,6 +671,7 @@ void TileLayerGraphics::writePendingBlock(int x, int y,
 }
 
 void TileLayerGraphics::buildStaticChunk(TileChunk& chunk) {
+    chunk.materialRuns.clear();
     if (texture_ == nullptr || tileSize_ <= 0) {
         return;
     }
@@ -595,12 +686,7 @@ void TileLayerGraphics::buildStaticChunk(TileChunk& chunk) {
                 continue;
             }
             const int tileNumber = *tileNumberValue;
-            if (tileNumber < 0 ||
-                tileNumber >= static_cast<int>(materials_.size())) {
-                continue;
-            }
-            const float opacity = materials_[tileNumber].opacity;
-            if (opacity <= 0.0f) {
+            if (tileNumber < 0 || tileNumber >= getTilesetTileCount()) {
                 continue;
             }
             if (chunk.vertexArray == nullptr) {
@@ -621,16 +707,32 @@ void TileLayerGraphics::buildStaticChunk(TileChunk& chunk) {
                 ludork::engine::tilemap_graphics_impl::rectangleVertices(
                     textureX * tileSize_, textureY * tileSize_,
                     (textureX + 1) * tileSize_, (textureY + 1) * tileSize_);
-            const sf::Color colour =
-                ludork::engine::tilemap_graphics_impl::materialColour(opacity);
+            const auto resource = materialResources_.find(tileNumber);
+            const auto selected = resource == materialResources_.end()
+                                      ? defaultMaterial_
+                                      : resource->second;
+            const sf::FloatRect cellBounds{{static_cast<float>(x * tileSize_),
+                                            static_cast<float>(y * tileSize_)},
+                                           sf::Vector2f(tileSize_, tileSize_)};
+            if (!chunk.materialRuns.empty() &&
+                chunk.materialRuns.back().material == selected &&
+                chunk.materialRuns.back().first +
+                        chunk.materialRuns.back().count ==
+                    static_cast<std::size_t>(start)) {
+                chunk.materialRuns.back().count += 6;
+                chunk.materialRuns.back().bounds = combinedBounds(
+                    chunk.materialRuns.back().bounds, cellBounds);
+            } else {
+                chunk.materialRuns.push_back({static_cast<std::size_t>(start),
+                                              6, selected, texture_,
+                                              cellBounds});
+            }
             for (int vertex = 0; vertex < 6; ++vertex) {
                 (*chunk.vertexArray)[start + vertex].position =
                     positions[vertex];
                 (*chunk.vertexArray)[start + vertex].texCoords =
                     textureCoordinates[vertex];
-                if (opacity < 1.0f) {
-                    (*chunk.vertexArray)[start + vertex].color = colour;
-                }
+                (*chunk.vertexArray)[start + vertex].color = sf::Color::White;
             }
         }
     }
@@ -640,6 +742,7 @@ void TileLayerGraphics::buildAutoTileChunk(TileChunk& chunk) {
     const std::size_t poolSize = autoTileTextures_.size();
     chunk.autoTileVertexArrays.clear();
     chunk.autoTileVertexArrays.resize(poolSize);
+    chunk.autoTileMaterialRuns.assign(poolSize, {});
     chunk.autoTileCells.assign(poolSize, {});
     chunk.autoTileMasks.assign(poolSize, {});
     if (poolSize == 0 || autoTiles_.empty()) {
@@ -696,18 +799,6 @@ void TileLayerGraphics::buildAutoTileChunk(TileChunk& chunk) {
                 }
             }
         }
-        const float opacity = poolIndex < autoTileMaterials_.size()
-                                  ? autoTileMaterials_[poolIndex].opacity
-                                  : 1.0f;
-        if (opacity < 1.0f) {
-            const sf::Color colour =
-                ludork::engine::tilemap_graphics_impl::materialColour(opacity);
-            sf::VertexArray& vertices = *chunk.autoTileVertexArrays[poolIndex];
-            for (std::size_t vertex = 0; vertex < vertices.getVertexCount();
-                 ++vertex) {
-                vertices[vertex].color = colour;
-            }
-        }
         refreshAutoTileTexCoords(chunk, static_cast<int>(poolIndex));
     }
 }
@@ -740,19 +831,32 @@ void TileLayerGraphics::refreshAutoTileTexCoords(TileChunk& chunk,
         frameCount = 1;
     }
     const int frame = autoTileCurrentFrames_[poolIndex] % frameCount;
-    const int frameOffsetX = frame * 3 * tileSize_;
+    if (!autoTileAtlases_[poolIndex]) {
+        return;
+    }
+    auto& runs = chunk.autoTileMaterialRuns[poolIndex];
+    runs.clear();
     const std::vector<int>& masks = chunk.autoTileMasks[poolIndex];
     for (std::size_t cell = 0; cell < masks.size(); ++cell) {
-        const std::array<int, 4> pattern = composeCellPattern(masks[cell]);
+        const auto& atlasFrame =
+            autoTileAtlases_[poolIndex]->frame(masks[cell], frame);
+        const auto& cellPosition = chunk.autoTileCells[poolIndex][cell];
+        const sf::FloatRect cellBounds{
+            sf::Vector2f(cellPosition.first, cellPosition.second) *
+                static_cast<float>(tileSize_),
+            sf::Vector2f(tileSize_, tileSize_)};
+        if (!runs.empty() && runs.back().texture == atlasFrame.texture) {
+            runs.back().count += 24;
+            runs.back().bounds = combinedBounds(runs.back().bounds, cellBounds);
+        } else {
+            runs.push_back({cell * 24, 24, autoTileMaterials_[poolIndex],
+                            atlasFrame.texture, cellBounds});
+        }
         for (int quadrant = 0; quadrant < 4; ++quadrant) {
-            const int patternCell = pattern[quadrant] - 1;
-            const int column = patternCell % 3;
-            const int row = patternCell / 3;
-            const int quadrantX = quadrant % 2;
-            const int quadrantY = quadrant / 2;
             const int sourceX =
-                column * tileSize_ + quadrantX * half + frameOffsetX;
-            const int sourceY = row * tileSize_ + quadrantY * half;
+                atlasFrame.rectangle.position.x + quadrant % 2 * half;
+            const int sourceY =
+                atlasFrame.rectangle.position.y + quadrant / 2 * half;
             const float left = static_cast<float>(sourceX);
             const float top = static_cast<float>(sourceY);
             const float right = left + static_cast<float>(half);

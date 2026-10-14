@@ -14,28 +14,28 @@
 ---@field desc       string
 
 ---@class Source.Windows.WindowEnemyBook.Entry
----@field nameSource      string
----@field descSource      string | nil
----@field name            string
----@field desc            string
----@field MAXHP           integer
----@field ATK             integer
----@field DEF             integer
----@field EXP             integer
----@field GOLD            integer
----@field damage          integer | string
----@field critical        GlobalCore.GameplayAbilityResult
----@field hitCount        integer | nil
----@field specialDisplays Source.Windows.WindowEnemyBook.SpecialDisplay[]
----@field specialDetails  Source.Windows.WindowEnemyBook.SpecialDetail[]
----@field texture         sf.Texture
----@field texturePath     string
----@field rect            sf.IntRect
----@field scale           sf.Vector2f
----@field animatable      boolean
----@field switchInterval  number
----@field shaderPath      string
----@field hue             number
+---@field nameSource         string
+---@field descSource         string | nil
+---@field name               string
+---@field desc               string
+---@field MAXHP              integer
+---@field ATK                integer
+---@field DEF                integer
+---@field EXP                integer
+---@field GOLD               integer
+---@field damage             integer | string
+---@field critical           GlobalCore.GameplayAbilityResult
+---@field hitCount           integer | nil
+---@field specialDisplays    Source.Windows.WindowEnemyBook.SpecialDisplay[]
+---@field specialDetails     Source.Windows.WindowEnemyBook.SpecialDetail[]
+---@field texture            sf.Texture
+---@field texturePath        string
+---@field rect               sf.IntRect
+---@field scale              sf.Vector2f
+---@field animatable         boolean
+---@field switchInterval     number
+---@field material           string
+---@field materialParameters table<string, any>
 
 ---@class Source.Windows.WindowEnemyBook.Controller: Internal.UIBase.UiController
 ---@field ui                 Internal.UI.WindowEnemyBook

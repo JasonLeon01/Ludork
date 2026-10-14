@@ -33,6 +33,7 @@ internal sealed class MapPreviewClient(PreviewRuntimeService runtime) : IDisposa
             request["scene"] = scene.DeepClone();
         else if (revision != nextRevision)
             request["sceneChanges"] = MapPreviewSceneDelta.Create(acceptedScene!, scene);
+        request["materials"] = scene["materials"]?.DeepClone() ?? new JsonObject();
         request["type"] = "renderMap";
         request["sessionId"] = sessionId;
         acceptedScene = null;

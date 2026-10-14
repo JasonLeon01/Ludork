@@ -2,12 +2,9 @@
   "parent": "Source.MapActors.ConditionalActor.ConditionalActor",
   "attrs": {
     "animatable": true,
-    "material": {
-      "lightBlock": 0.4,
-      "mirror": false,
-      "reflectionStrength": 0.5,
-      "opacity": 1.0,
-      "speedRate": 1.0
+    "material": "Data/Materials/Global/Standard.json",
+    "materialParameters": {
+      "lightBlock": 0.4
     },
     "collisionEnabled": true,
     "tickable": false,

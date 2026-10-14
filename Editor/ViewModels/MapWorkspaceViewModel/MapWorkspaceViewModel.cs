@@ -214,16 +214,16 @@ public sealed partial class MapWorkspaceViewModel : ViewModelBase, IDisposable
         return true;
     }
 
-    public string getLayerShaderPath(string layerName)
+    public string getLayerMaterial(string layerName)
     {
-        return SelectedMap is null ? string.Empty : GameData.Maps.getLayerShaderPath(SelectedMap.Key, layerName);
+        return SelectedMap is null ? string.Empty : GameData.Maps.getLayerMaterial(SelectedMap.Key, layerName);
     }
 
-    public bool setLayerShaderPath(string layerName, string shaderPath)
+    public bool setLayerMaterial(string layerName, string material)
     {
         if (!CanEdit)
             return false;
-        return SelectedMap is not null && GameData.Maps.setLayerShaderPath(SelectedMap.Key, layerName, shaderPath);
+        return SelectedMap is not null && GameData.Maps.setLayerMaterial(SelectedMap.Key, layerName, material);
     }
 
     public bool layerNameExists(string name, string? except = null)

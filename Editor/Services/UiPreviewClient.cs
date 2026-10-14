@@ -64,6 +64,8 @@ public sealed class UiPreviewClient : IAsyncDisposable
         connection.StateChanged += onConnectionStateChanged;
     }
 
+    public Func<JsonObject>? MaterialSnapshots { get; set; }
+
     public event EventHandler? StateChanged;
 
     public UiPreviewClientState State { get; private set; } = UiPreviewClientState.Unavailable;
@@ -120,6 +122,7 @@ public sealed class UiPreviewClient : IAsyncDisposable
             ["assetKey"] = normalizedAssetKey,
             ["asset"] = asset.DeepClone(),
             ["dependencies"] = dependencyData,
+            ["materials"] = MaterialSnapshots?.Invoke() ?? new JsonObject(),
             ["renderScale"] = renderScale,
         };
         if (animation is not null)
@@ -234,6 +237,7 @@ public sealed class UiPreviewClient : IAsyncDisposable
             ["assetKey"] = assetKey,
             ["asset"] = asset.DeepClone(),
             ["dependencies"] = dependencyData,
+            ["materials"] = MaterialSnapshots?.Invoke() ?? new JsonObject(),
             ["nodeName"] = nodeName,
             ["parentName"] = parentName,
             ["index"] = index,

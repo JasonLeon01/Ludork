@@ -2835,18 +2835,6 @@
     "zh_CN": "转场着色器路径",
     "en_GB": "Transition Shader Path"
   },
-  "tilemapLightMaskShaderPath": {
-    "zh_CN": "瓦片地图光照遮罩着色器路径",
-    "en_GB": "Tilemap Light Mask Shader Path"
-  },
-  "lightMaskShaderPath": {
-    "zh_CN": "光照遮罩着色器路径",
-    "en_GB": "Light Mask Shader Path"
-  },
-  "materialShaderPath": {
-    "zh_CN": "材质着色器路径",
-    "en_GB": "Material Shader Path"
-  },
   "cursorSE": {
     "zh_CN": "光标音效",
     "en_GB": "Cursor Sound"
@@ -4838,5 +4826,153 @@
   "MAP_VIEW_LIGHT_BOUNDS": {
     "zh_CN": "显示光源范围",
     "en_GB": "Show Light Bounds"
+  },
+  "NEW_MATERIAL": {
+    "zh_CN": "新建材质",
+    "en_GB": "New Material"
+  },
+  "SELECT_MATERIAL": {
+    "zh_CN": "选择材质",
+    "en_GB": "Select Material"
+  },
+  "CLEAR_MATERIAL": {
+    "zh_CN": "清除材质",
+    "en_GB": "Clear Material"
+  },
+  "MATERIAL_EDITOR": {
+    "zh_CN": "材质编辑器",
+    "en_GB": "Material Editor"
+  },
+  "MATERIAL_PARAMETERS": {
+    "zh_CN": "材质参数",
+    "en_GB": "Material Parameters"
+  },
+  "MATERIAL_PREVIEW_TEXTURE": {
+    "zh_CN": "预览贴图",
+    "en_GB": "Preview Texture"
+  },
+  "ADD_MATERIAL_NODE": {
+    "zh_CN": "添加节点",
+    "en_GB": "Add Node"
+  },
+  "MATERIAL_RESET_INPUT": {
+    "zh_CN": "恢复默认输入",
+    "en_GB": "Reset Input"
+  },
+  "MATERIAL_PREVIEW": {
+    "zh_CN": "预览设置",
+    "en_GB": "Preview Settings"
+  },
+  "MATERIAL_PREVIEW_LIGHT": {
+    "zh_CN": "启用预览点光源",
+    "en_GB": "Preview Point Light"
+  },
+  "MATERIAL_PARAMETER_NAME": {
+    "zh_CN": "参数名称",
+    "en_GB": "Parameter Name"
+  },
+  "MATERIAL_ADD_PARAMETER": {
+    "zh_CN": "添加参数",
+    "en_GB": "Add Parameter"
+  },
+  "MATERIAL_REMOVE_UNKNOWN": {
+    "zh_CN": "删除未知参数",
+    "en_GB": "Remove Unknown Parameter"
+  },
+  "MATERIAL_NO_PARAMETERS": {
+    "zh_CN": "材质没有公开参数",
+    "en_GB": "The material has no exposed parameters"
+  },
+  "MATERIAL_EXISTS": {
+    "zh_CN": "材质已存在",
+    "en_GB": "The material already exists"
+  },
+  "MATERIAL_PARAMETER_DISPLAY_NAME": {
+    "en_GB": "Display name",
+    "zh_CN": "显示名称"
+  },
+  "MATERIAL_RANGE": {
+    "zh_CN": "设置数值范围",
+    "en_GB": "Use Numeric Range"
+  },
+  "MATERIAL_GENERATED_SHADER": {
+    "zh_CN": "查看生成着色器",
+    "en_GB": "View Generated Shader"
+  },
+  "OPEN_MATERIAL": {
+    "zh_CN": "打开材质",
+    "en_GB": "Open Material"
+  },
+  "MATERIAL_NODE_GRAPH": {
+    "zh_CN": "节点图",
+    "en_GB": "Node Graph"
+  },
+  "MATERIAL_RENDERING": {
+    "zh_CN": "渲染配置",
+    "en_GB": "Rendering"
+  },
+  "MATERIAL_PARAMETER_ID": {
+    "zh_CN": "参数 ID",
+    "en_GB": "Parameter ID"
+  },
+  "MATERIAL_PARAMETER_ID_INVALID": {
+    "zh_CN": "请输入非空且未使用的参数 ID",
+    "en_GB": "Enter a non-empty, unique parameter ID"
+  },
+  "MATERIAL_PARAMETER_GROUP": {
+    "zh_CN": "分组",
+    "en_GB": "Group"
+  },
+  "MATERIAL_RANGE_MINIMUM": {
+    "zh_CN": "最小值",
+    "en_GB": "Minimum"
+  },
+  "MATERIAL_RANGE_MAXIMUM": {
+    "zh_CN": "最大值",
+    "en_GB": "Maximum"
+  },
+  "MATERIAL_RANGE_INVALID": {
+    "zh_CN": "最小值不能大于最大值",
+    "en_GB": "Minimum must not exceed maximum"
+  },
+  "MATERIAL_SWIZZLE_LENGTH": {
+    "zh_CN": "输出长度",
+    "en_GB": "Output Length"
+  },
+  "MATERIAL_SWIZZLE_INVALID": {
+    "zh_CN": "无效通道",
+    "en_GB": "Invalid channels"
+  },
+  "MATERIAL_INVALID_OPTION": {
+    "zh_CN": "无效选项",
+    "en_GB": "Invalid selection"
+  },
+  "MATERIAL_OUTSIDE_RANGE": {
+    "zh_CN": "数值超出范围",
+    "en_GB": "Value outside range"
+  },
+  "MATERIAL_PREVIEW_FRAME": {
+    "zh_CN": "动画帧区域（像素）",
+    "en_GB": "Frame Rectangle (pixels)"
+  },
+  "MATERIAL_DISCONNECT_INPUT": {
+    "en_GB": "Disconnect Input",
+    "zh_CN": "断开输入连线"
+  },
+  "MATERIAL_DISCONNECT_OUTPUT": {
+    "en_GB": "Disconnect Output Connections",
+    "zh_CN": "断开输出连线"
+  },
+  "MATERIAL_SET_CONSTANT": {
+    "en_GB": "Set Constant",
+    "zh_CN": "设置常量"
+  },
+  "MATERIAL_DEFAULT_INPUT": {
+    "en_GB": "Default input",
+    "zh_CN": "默认输入"
+  },
+  "MATERIAL_INHERITED_INPUT": {
+    "en_GB": "Pass-through",
+    "zh_CN": "透传输入"
   }
 }

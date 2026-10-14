@@ -250,7 +250,7 @@ function MapBuilderWorldTiles.WriteWorldLayerDataChunk(self, layerState, chunk)
                     autoTileRow[blockX] = layerState.autoTileIndexByKey[tileID]
                 elseif tileID ~= nil then
                     ---@cast tileID integer
-                    if tileID < 0 or tileID >= #layerState.layerTileset.materials then
+                    if tileID < 0 or tileID >= layerState.tileLayer:getTilesetTileCount() then
                         error("Tile ID " .. tileID
                                 .. " is out of range for layer '" .. layerState.layerData.layerName
                                 .. "'", 2)

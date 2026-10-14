@@ -289,7 +289,7 @@ bool SparseWorldImpl::isSparseWorldTilePassable(
     return true;
 }
 
-std::optional<Material> SparseWorldImpl::getSparseWorldTopMaterial(
+std::optional<std::string> SparseWorldImpl::getSparseWorldTopMaterial(
     const sf::Vector2i& position, const ActorRegistryImpl& actors) const {
     if (!isSparseWorldCellReady(position)) {
         return std::nullopt;
@@ -317,7 +317,7 @@ std::optional<Material> SparseWorldImpl::getSparseWorldTopMaterial(
         if (!layer->getVisible()) {
             continue;
         }
-        const std::optional<Material> material =
+        const std::optional<std::string> material =
             layer->getMaterial(localPosition);
         if (material.has_value()) {
             return material;

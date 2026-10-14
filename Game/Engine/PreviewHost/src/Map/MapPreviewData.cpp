@@ -123,48 +123,8 @@ sf::Color colour(const RuntimeData::Map& value, const std::string& key,
     return {channels[0], channels[1], channels[2], channels[3]};
 }
 
-Material material(const RuntimeData& value) {
-    const RuntimeData::Map& fields = map(value);
-    return Material(
-        number(fields, "lightBlock", 0), boolean(fields, "mirror", false),
-        number(fields, "reflectionStrength", 0.5f),
-        number(fields, "opacity", 1), number(fields, "speedRate", 1),
-        boolean(fields, "ignoreLighting", false));
-}
-
 Tileset tileset(const RuntimeData& value) {
-    const RuntimeData::Map& fields = map(value);
-    Tileset result;
-    result.name = text(fields, "name");
-    result.fileName = text(fields, "fileName");
-    if (const RuntimeData* values = optional(fields, "passable")) {
-        for (const RuntimeData& entry : array(*values)) {
-            result.passable.push_back(
-                ludork::runtime::value_reader::requireBool(entry,
-                                                           "Tileset passable"));
-        }
-    }
-    if (const RuntimeData* values = optional(fields, "materials")) {
-        for (const RuntimeData& entry : array(*values)) {
-            result.materials.push_back(material(entry));
-        }
-    }
-    if (const RuntimeData* values = optional(fields, "dir4")) {
-        for (const RuntimeData& entry : array(*values)) {
-            const RuntimeData::Array& directions = array(entry);
-            if (directions.size() != 4) {
-                throw std::invalid_argument(
-                    "Tileset dir4 must have four directions");
-            }
-            std::array<bool, 4> direction{};
-            for (std::size_t index = 0; index < direction.size(); ++index) {
-                direction[index] = ludork::runtime::value_reader::requireBool(
-                    directions[index], "Tileset dir4");
-            }
-            result.dir4.push_back(direction);
-        }
-    }
-    return result;
+    return Tileset::fromData(map(value));
 }
 
 AutoTile autoTile(const RuntimeData& value) {
@@ -173,9 +133,7 @@ AutoTile autoTile(const RuntimeData& value) {
     result.name = text(fields, "name");
     result.fileName = text(fields, "fileName");
     result.passable = boolean(fields, "passable", true);
-    if (const RuntimeData* entry = optional(fields, "material")) {
-        result.material = material(*entry);
-    }
+    result.material = text(fields, "material");
     return result;
 }
 

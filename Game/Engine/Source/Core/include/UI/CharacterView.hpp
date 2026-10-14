@@ -4,27 +4,29 @@
 
 #include <EngineRuntimeApi.hpp>
 #include <UI/FunctionalImage.hpp>
+#include <Graphics/Materials/MaterialProgramCache.hpp>
 
 BIND_CLASS(callbacks = true)
 class LUDORK_ENGINE_API CharacterView : public FunctionalImage {
 public:
     LUDORK_CAST_DERIVED(CharacterView, FunctionalImage)
 
-    BIND_INIT(defaults = {nil, nil, nil, true, 0.2, "", 0.0})
+    BIND_INIT(defaults = {nil, nil, nil, true, 0.2, "", {}})
     explicit CharacterView(std::shared_ptr<sf::Texture> texture,
                            std::optional<sf::IntRect> frameRect = std::nullopt,
                            std::optional<sf::Vector2f> size = std::nullopt,
                            bool animatable = true, float switchInterval = 0.2f,
-                           std::string shaderPath = "", float hue = 0.0f);
+                           std::string material = "",
+                           RuntimeData::Map materialParameters = {});
 
     ~CharacterView() override = default;
 
-    BIND_METHOD(defaults = {nil, nil, nil, nil, nil, "", 0.0})
+    BIND_METHOD(defaults = {nil, nil, nil, nil, nil, "", {}})
     void setCharacter(std::shared_ptr<sf::Texture> texture,
                       const sf::IntRect& frameRect,
                       const sf::Vector2f& characterScale, bool animatable,
-                      float switchInterval, const std::string& shaderPath = "",
-                      float hue = 0.0f);
+                      float switchInterval, const std::string& material = "",
+                      const RuntimeData::Map& materialParameters = {});
 
     BIND_METHOD()
     void setCharacterTexture(std::shared_ptr<sf::Texture> texture);
@@ -60,16 +62,16 @@ public:
     void resetFrameRectToTexture();
 
     BIND_METHOD(Pure = true)
-    const std::string& getShaderPath() const;
+    const std::string& getMaterial() const;
 
     BIND_METHOD()
-    void setShaderPath(const std::string& shaderPath);
+    void setMaterial(const std::string& material);
 
     BIND_METHOD(Pure = true)
-    float getHue() const;
+    RuntimeData::Map getMaterialParameters() const;
 
     BIND_METHOD()
-    void setHue(float hue);
+    void setMaterialParameters(const RuntimeData::Map& parameters);
 
     BIND_METHOD()
     void resetAnimation();
@@ -96,15 +98,8 @@ protected:
 private:
     static sf::IntRect fullTextureRect(const sf::Texture& texture);
     static sf::Vector2f defaultViewSize(const sf::IntRect& frameRect);
-    static sf::Vector2u bufferSize(const sf::IntRect& frameRect);
-    static float normaliseHue(float hue);
-    static bool neutralHue(float hue);
     static sf::Vector2f nonZeroScale(const sf::Vector2f& scale);
 
-    void applyShaderPath();
-    void applyActorShaderUniforms() const;
-    sf::RenderTexture& ensureBuffer(std::shared_ptr<sf::RenderTexture>& buffer,
-                                    const sf::Vector2u& size) const;
     sf::Sprite finalSprite(const sf::Texture& texture,
                            const sf::IntRect& textureRect,
                            const sf::Color& colour) const;
@@ -117,12 +112,10 @@ private:
     bool animatable_ = true;
     float switchInterval_ = 0.2f;
     float switchTimer_ = 0.0f;
-    float shaderTime_ = 0.0f;
-    std::string shaderPath_;
-    std::shared_ptr<sf::Shader> shader_;
-    std::shared_ptr<sf::Shader> hueShader_;
-    bool shaderError_ = false;
-    float hue_ = 0.0f;
-    mutable std::shared_ptr<sf::RenderTexture> effectBuffer_;
-    mutable std::shared_ptr<sf::RenderTexture> hueBuffer_;
+    float materialTime_ = 0.0f;
+    std::string material_;
+    RuntimeData::Map materialParameters_;
+    std::shared_ptr<const ludork::engine::materials::MaterialResource>
+        materialResource_;
+    mutable ludork::engine::materials::MaterialProgramCache materialPrograms_;
 };

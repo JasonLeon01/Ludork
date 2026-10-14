@@ -1,6 +1,7 @@
 #pragma once
 
 #include <CoreMinimal.hpp>
+#include <Runtime/RuntimeData.hpp>
 
 BIND_CLASS(copyable = true, table_init = true, metadata = false)
 struct PreviewSprite {
@@ -25,9 +26,9 @@ struct PreviewSprite {
     BIND_PROPERTY()
     bool visible = true;
     BIND_PROPERTY()
-    float hue = 0.0f;
-    BIND_PROPERTY()
-    std::string shaderPath;
+    std::string material;
+    BIND_PROPERTY(default = {})
+    RuntimeData::Map materialParameters;
     BIND_PROPERTY()
     int parentIndex = -1;
 };

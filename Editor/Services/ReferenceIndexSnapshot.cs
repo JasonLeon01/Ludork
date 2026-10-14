@@ -13,7 +13,7 @@ public sealed class ReferenceIndexSnapshot
     {
         ["config"] = "Configs", ["tileset"] = "Tilesets", ["autoTile"] = "AutoTiles", ["map"] = "Maps",
         ["worldMap"] = "WorldMaps", ["commonFunction"] = "CommonFunctions", ["blueprint"] = "Blueprints",
-        ["animation"] = "Animations", ["particle"] = "Particles", ["curve"] = "Curves", ["subtitle"] = "Subtitles",
+        ["material"] = "Materials", ["animation"] = "Animations", ["particle"] = "Particles", ["curve"] = "Curves", ["subtitle"] = "Subtitles",
         ["textConfig"] = "TextConfigs", ["uiAsset"] = "UI", ["general"] = "General",
     }.ToFrozenDictionary(StringComparer.Ordinal);
 

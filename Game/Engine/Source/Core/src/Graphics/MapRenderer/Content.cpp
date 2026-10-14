@@ -1,7 +1,7 @@
 #include "MapRendererImpl.hpp"
 
 #include <EngineState.hpp>
-#include <Graphics/HueConstants.hpp>
+#include <Runtime/Graphics/ScopedSceneLighting.hpp>
 #include <Utils/Render.hpp>
 
 #include <algorithm>
@@ -17,69 +17,24 @@ void MapRenderer::Impl::drawSprite(const Sprite& value,
     sf::Sprite sprite(*value.texture, value.textureRect);
     sf::Color tint = value.colour;
     tint.a = static_cast<std::uint8_t>(
-        std::clamp(tint.a * value.material.opacity * value.presentationOpacity,
-                   0.0f, 255.0f));
+        std::clamp(tint.a * value.presentationOpacity, 0.0f, 255.0f));
     sprite.setColor(tint);
     sf::RenderStates spriteStates = states;
     spriteStates.transform.combine(value.transform);
-    if (value.shaderError) {
-        sprite.setColor({255, 0, 255, tint.a});
-        target.draw(sprite, spriteStates);
-        return;
-    }
-    std::shared_ptr<sf::Shader> effect = value.shader;
-    if (!effect && !value.shaderPath.empty()) {
-        effect = shader(value.shaderPath);
-    }
-    const float hue = std::fmod(std::fmod(value.hue, 360.0f) + 360.0f, 360.0f);
-    std::shared_ptr<sf::Shader> hueShader;
-    if (hue > ludork::engine::graphics::HueEpsilon &&
-        360.0f - hue > ludork::engine::graphics::HueEpsilon) {
-        hueShader = shader(ludork::engine::graphics::HueShaderPath);
-        hueShader->setUniform("screenTex", sf::Shader::CurrentTexture);
-        hueShader->setUniform("hue", hue);
-    }
-    if (effect) {
-        effect->setUniform("texture", sf::Shader::CurrentTexture);
-        effect->setUniform("time", time);
-        effect->setUniform("textureSize",
-                           sf::Vector2f(value.texture->getSize()));
-        effect->setUniform(
-            "textureRect",
-            sf::Glsl::Vec4(static_cast<float>(value.textureRect.position.x),
-                           static_cast<float>(value.textureRect.position.y),
-                           static_cast<float>(value.textureRect.size.x),
-                           static_cast<float>(value.textureRect.size.y)));
-    }
-    if (effect || hueShader) {
-        const sf::Vector2u size(static_cast<unsigned int>(std::max(
-                                    1, std::abs(value.textureRect.size.x))),
-                                static_cast<unsigned int>(std::max(
-                                    1, std::abs(value.textureRect.size.y))));
-        sf::RenderTexture& buffer = Impl::target(spriteEffect_, size);
-        buffer.setView(buffer.getDefaultView());
-        buffer.clear(sf::Color::Transparent);
-        sprite.setColor(sf::Color::White);
-        sf::RenderStates effectStates(sf::BlendNone);
-        effectStates.shader = effect ? effect.get() : hueShader.get();
-        buffer.draw(sprite, effectStates);
-        buffer.display();
-        const sf::Texture* result = &buffer.getTexture();
-        if (effect && hueShader) {
-            sf::RenderTexture& hueBuffer = Impl::target(spriteHue_, size);
-            hueBuffer.setView(hueBuffer.getDefaultView());
-            hueBuffer.clear(sf::Color::Transparent);
-            effectStates.shader = hueShader.get();
-            hueBuffer.draw(sf::Sprite(buffer.getTexture()), effectStates);
-            hueBuffer.display();
-            result = &hueBuffer.getTexture();
-        }
-        sf::Sprite composed(*result);
-        composed.setColor(tint);
-        spriteStates.shader = nullptr;
-        target.draw(composed, spriteStates);
-        return;
-    }
+    const auto resource =
+        value.materialResource
+            ? value.materialResource
+            : ludork::engine::materials::MaterialResource::load(value.material);
+    auto context = materialContext_;
+    context.time = time;
+    context.textureSize = value.texture->getSize();
+    context.textureRect = value.textureRect;
+    context.targetSize = target.getSize();
+    context.worldTransform = spriteStates.transform;
+    const auto program =
+        materialPrograms_.bind(*resource, value.materialParameters, nullptr, {},
+                               materialPass_, context);
+    spriteStates.shader = program.get();
     target.draw(sprite, spriteStates);
 }
 
@@ -88,6 +43,15 @@ void MapRenderer::Impl::drawContent(const Scene& scene,
                                     const sf::RenderStates& states,
                                     const Options& options,
                                     const DrawHooks& hooks) {
+    ludork::runtime::graphics::SceneLightingContext lightingContext;
+    lightingContext.ambientLight = materialContext_.ambientLight;
+    lightingContext.directLight = materialContext_.directLight;
+    lightingContext.targetSize = target.getSize();
+    lightingContext.worldView = materialContext_.worldView;
+    lightingContext.viewRotation = materialContext_.viewRotation;
+    lightingContext.enabled = materialContext_.lighting;
+    const ludork::runtime::graphics::ScopedSceneLighting lightingScope(
+        lightingContext);
     const std::vector<const Region*> regions = orderedRegions(scene);
     std::set<int> priorities{0};
     std::unordered_map<std::string, int> regionPriorities;
@@ -123,8 +87,9 @@ void MapRenderer::Impl::drawContent(const Scene& scene,
                 layerStates.transform.translate(
                     sf::Vector2f(region->cellOrigin) *
                     static_cast<float>(EngineState::CellSize));
-                layerStates.shader = layer->getShader().get();
-                destination->draw(*layer, layerStates);
+                layer->drawMaterialPass(*destination, layerStates,
+                                        materialPrograms_, materialPass_,
+                                        materialContext_);
             }
             for (const Sprite& sprite : scene.sprites) {
                 const auto found = regionPriorities.find(sprite.regionId);

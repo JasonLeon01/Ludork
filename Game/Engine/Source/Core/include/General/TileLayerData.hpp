@@ -42,9 +42,9 @@ struct LUDORK_ENGINE_API TileLayerData {
     BIND_PROPERTY()
     std::string layerTilesetKey = "";  ///< Editor-side tileset data key
 
-    BIND_PROPERTY(meta(PathVars = "/Game/Assets/Shaders",
-                       PathFilter = "*.frag"))
-    std::string shaderPath = "";  ///< Canonical path under /Game/Assets/Shaders
+    BIND_PROPERTY(meta(PathRoot = "Data", PathVars = "Data/Materials",
+                       PathFilter = "*.json"))
+    std::string material = "";  ///< Material data resource path
 
     ////////////////////////////////////////////////////////////
     /// \brief Construct layer data
@@ -55,7 +55,7 @@ struct LUDORK_ENGINE_API TileLayerData {
     /// - \param autoTiles Autotile assignment grid
     /// - \param autoTilePool Autotile lookup pool
     /// - \param autoTileKeys Autotile data keys matching the pool
-    /// - \param shaderPath Canonical path under /Game/Assets/Shaders
+    /// - \param material Material data resource path
     ////////////////////////////////////////////////////////////
     BIND_INIT()
     TileLayerData(
@@ -63,7 +63,7 @@ struct LUDORK_ENGINE_API TileLayerData {
         TileGrid tiles = TileGrid(), AutoTileGrid autoTiles = AutoTileGrid(),
         std::vector<AutoTile> autoTilePool = std::vector<AutoTile>(),
         std::vector<std::string> autoTileKeys = std::vector<std::string>(),
-        std::string shaderPath = "");
+        std::string material = "");
 
     ////////////////////////////////////////////////////////////
     /// \brief Construct preallocated layer data for incremental writes
@@ -74,14 +74,14 @@ struct LUDORK_ENGINE_API TileLayerData {
     /// - \param height Grid height in cells
     /// - \param autoTilePool Autotile lookup pool
     /// - \param autoTileKeys Autotile data keys matching the pool
-    /// - \param shaderPath Canonical path under /Game/Assets/Shaders
+    /// - \param material Material data resource path
     ////////////////////////////////////////////////////////////
     BIND_INIT()
     TileLayerData(
         std::string layerName, Tileset layerTileset, int width, int height,
         std::vector<AutoTile> autoTilePool = std::vector<AutoTile>(),
         std::vector<std::string> autoTileKeys = std::vector<std::string>(),
-        std::string shaderPath = "");
+        std::string material = "");
 
     ////////////////////////////////////////////////////////////
     /// \brief Replace one rectangular block in both preallocated grids

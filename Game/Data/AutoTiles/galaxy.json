@@ -2,12 +2,6 @@
     "name": "galaxy",
     "fileName": "/Game/Assets/Autotiles/102-CF_Lava02.png",
     "passable": false,
-    "material": {
-        "lightBlock": 1.0,
-        "mirror": true,
-        "reflectionStrength": 0.5,
-        "opacity": 1.0,
-        "speedRate": 1.0
-    },
+    "material": "Data/Materials/Surfaces/Block100_Mirror50.json",
     "type": "autoTile"
 }

@@ -1,7 +1,6 @@
 #pragma once
 
 #include <General/AutoTile.hpp>
-#include <General/Material.hpp>
 #include <General/TileLayerData.hpp>
 #include <Graphics/MapFogSettings.hpp>
 #include <Runtime/RuntimeData.hpp>
@@ -28,7 +27,6 @@ sf::Vector2f vector(const RuntimeData::Map& value, const std::string& key,
                     sf::Vector2f fallback = {});
 sf::Color colour(const RuntimeData::Map& value, const std::string& key,
                  sf::Color fallback = sf::Color::White);
-Material material(const RuntimeData& value);
 Tileset tileset(const RuntimeData& value);
 AutoTile autoTile(const RuntimeData& value);
 MapFogSettings fog(const RuntimeData::Map& value);
