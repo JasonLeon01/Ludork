@@ -94,6 +94,8 @@ public sealed class MaterialGenerationService : IAsyncDisposable
                         ?? throw new InvalidDataException("Material compiler returned an invalid file: " + path));
                     if (!isGenerated(path, content))
                         throw new InvalidDataException("Material compiler omitted the generated marker: " + path);
+                    if (path.EndsWith(".json", StringComparison.Ordinal))
+                        content = canonicalizeJson(content);
                     string hash = Convert.ToHexStringLower(SHA256.HashData(content));
                     if (outputs.TryGetValue(path, out GeneratedFile? previous))
                     {
@@ -114,7 +116,9 @@ public sealed class MaterialGenerationService : IAsyncDisposable
             .Where(path => path != RecordPath).ToHashSet(StringComparer.Ordinal);
         if (!expected.SetEquals(outputs.Keys))
             throw new InvalidDataException("Material compiler outputs do not match the export manifest.");
-        JsonObject inputs = JsonNode.Parse(manifest.GetProperty("inputs").GetRawText())!.AsObject();
+        JsonObject inputs = new();
+        foreach (string path in materials.Keys.Order(StringComparer.Ordinal))
+            inputs[path] = manifest.GetProperty("inputs").GetProperty(path).GetString();
         JsonObject hashes = new();
         foreach (KeyValuePair<string, GeneratedFile> output in outputs)
             hashes[output.Key] = output.Value.Hash;
@@ -197,6 +201,39 @@ public sealed class MaterialGenerationService : IAsyncDisposable
             throw new InvalidDataException("Material export record contains an invalid output path.");
         owned.Add(RecordPath);
         return owned;
+    }
+
+    private static byte[] canonicalizeJson(byte[] data)
+    {
+        using JsonDocument document = JsonDocument.Parse(data);
+        using MemoryStream output = new();
+        using (Utf8JsonWriter writer = new(output))
+            writeCanonicalJson(writer, document.RootElement);
+        output.WriteByte((byte)'\n');
+        return output.ToArray();
+    }
+
+    private static void writeCanonicalJson(Utf8JsonWriter writer, JsonElement value)
+    {
+        if (value.ValueKind == JsonValueKind.Object)
+        {
+            writer.WriteStartObject();
+            foreach (JsonProperty property in value.EnumerateObject().OrderBy(property => property.Name, StringComparer.Ordinal))
+            {
+                writer.WritePropertyName(property.Name);
+                writeCanonicalJson(writer, property.Value);
+            }
+            writer.WriteEndObject();
+        }
+        else if (value.ValueKind == JsonValueKind.Array)
+        {
+            writer.WriteStartArray();
+            foreach (JsonElement item in value.EnumerateArray())
+                writeCanonicalJson(writer, item);
+            writer.WriteEndArray();
+        }
+        else
+            value.WriteTo(writer);
     }
 
     private static bool isGenerated(string path, byte[] data)
