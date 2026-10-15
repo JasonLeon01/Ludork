@@ -402,8 +402,8 @@ void MaterialResource::validateParameters(
     for (const auto& [id, value] : overrides) {
         const auto parameter =
             std::find_if(parameters_.begin(), parameters_.end(),
-                         [&id](const Parameter& candidate) {
-                             return candidate.id == id;
+                         [&parameterId = id](const Parameter& candidate) {
+                             return candidate.id == parameterId;
                          });
         if (parameter == parameters_.end()) {
             throw std::invalid_argument("Unknown material parameter: " + id);
