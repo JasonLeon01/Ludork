@@ -107,6 +107,8 @@ An authored material is a `Data/Materials/<name>.json` graph with `type: "materi
 
 For native C++ callers, `MaterialResource::load` loads the exported runtime resource. `MaterialResource::fromData` creates a resource with an editing graph definition for Export and preview compilation. See [Material export](<../../../../Editor User Guide/Materials.md#export-for-runtime>) for generation, combinations and file layout.
 
+All individual materials are exported, while base/layer combinations come from saved map usage and the editor's [additional combinations](<../../../../Editor User Guide/Materials.md#material-combinations>). Register a combination there before using it only through dynamically constructed maps or runtime layer-material changes. Actor/UI material switches and parameter changes need no additional entry. A missing combination fails at runtime; the game does not generate it from the graph.
+
 | File section | Contents |
 |---|---|
 | `parameters` | Array of stable `id`, `type`, `default`, optional `displayName`, `group`, `min` and `max`. |

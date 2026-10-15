@@ -74,6 +74,8 @@ Moving an asset does not automatically repair every stored reference. Open its r
 
 `Data/Materials` stores authored [2D material](<Materials.md>) graphs with `type: "material"` and `version: 1`. References keep the complete project-relative `Data/Materials/...json` path. Export writes the runtime shaders and metadata under `Assets/Shaders/MaterialGenerated`, preserving the material-relative path beneath `Materials/` and removing the final `.json` extension; the empty reference uses `Builtin/Default/`. See [Material export](<Materials.md#export-for-runtime>) for the program layout. The generated directory is ignored and absent from templates. Game packages retain both directories; runtime loading reads the generated files, including encrypted data/shaders and `Assets.ldpak`.
 
+The optional project-root `MaterialExport.json` stores additional base/layer combinations managed through [Game → Material Combinations](<Materials.md#material-combinations>). Ordinary map usage is detected automatically. Keep this file with source projects and templates when present; packaging removes it after validation.
+
 `Data/Subtitles` stores [video subtitle](<Video Subtitles.md>) JSON documents with `type: "subtitle"` and a `sections` array. References use project-relative `Data/Subtitles/...json` paths. These managed editor documents are packaged with Data, including encrypted data and `Data.ldpak`.
 
 `Data/Particles` stores [Common Particle](<Common Particles.md>) definitions. A particle reference is its extensionless relative key; particle textures use complete logical paths, conventionally under `/Game/Assets/Particles`.

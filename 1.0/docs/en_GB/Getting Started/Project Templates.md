@@ -48,6 +48,8 @@ Platform preparation differs as well. Windows and macOS use shared FFmpeg librar
 
 All four templates exclude Export outputs: `Scripts/Internal/UI/`, `Scripts/stub/Internal/UI/`, `Scripts/stub/Internal/UIWindows/`, generated locale language Lua files, `Assets/Shaders/MaterialGenerated/` and `EditorCache/ProjectExport.json`. The project `.gitignore` excludes the same generated files. Templates retain UI JSON, authored material graphs under `Data/Materials`, handwritten Controllers and declarations, `Scripts/Source/Locale/Core.lua`, General Data and variable Lua with their declarations, and native binding declarations. Export creates the UI, locale and material runtime files for the new project; Standalone uses its supplied preview compiler.
 
+Templates also retain the optional root `MaterialExport.json` for [additional material combinations](<../Editor User Guide/Materials.md#material-combinations>); Export combines those entries with the new project's map usage.
+
 The retained `Scripts/stub/**/*.d.lua` files support Lua language tools. They are removed from [game packages](<../Editor User Guide/Run Debug and Package.md#loose-and-packed-output>).
 
 Runtime licence texts are in `Licenses`; FFmpeg variants also include `Licenses/FFmpeg`. Asset notices remain beside their assets. Packaging includes available licence texts, but their completeness remains the distributor’s responsibility.
