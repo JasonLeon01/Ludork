@@ -4855,6 +4855,42 @@
     "zh_CN": "材质编辑器",
     "en_GB": "Material Editor"
   },
+  "MATERIAL_COMBINATIONS": {
+    "zh_CN": "材质组合",
+    "en_GB": "Material Combinations"
+  },
+  "MATERIAL_COMBINATION_MATERIAL": {
+    "zh_CN": "基础材质",
+    "en_GB": "Material"
+  },
+  "MATERIAL_COMBINATION_LAYER": {
+    "zh_CN": "图层材质",
+    "en_GB": "Layer"
+  },
+  "MATERIAL_COMBINATION_EXISTING": {
+    "zh_CN": "已有组合",
+    "en_GB": "Existing Combinations"
+  },
+  "MATERIAL_COMBINATION_ADD": {
+    "zh_CN": "添加",
+    "en_GB": "Add"
+  },
+  "MATERIAL_DEFAULT": {
+    "zh_CN": "默认材质",
+    "en_GB": "Default Material"
+  },
+  "MATERIAL_COMBINATION_MISSING": {
+    "zh_CN": "{0}（缺失）",
+    "en_GB": "{0} (missing)"
+  },
+  "MATERIAL_COMBINATIONS_LOAD_FAILED": {
+    "zh_CN": "无法读取 MaterialExport.json 中的材质组合。",
+    "en_GB": "Unable to read material combinations from MaterialExport.json."
+  },
+  "MATERIAL_COMBINATIONS_SAVE_FAILED": {
+    "zh_CN": "无法保存材质组合，已有组合保持不变。",
+    "en_GB": "Unable to save material combinations. Existing combinations have not changed."
+  },
   "MATERIAL_PARAMETERS": {
     "zh_CN": "材质参数",
     "en_GB": "Material Parameters"

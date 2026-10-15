@@ -66,6 +66,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         NewTextConfigCommand = new RelayCommand(() => Actions.NewTextConfig(), () => CanEdit);
         NewUiAssetCommand = new RelayCommand(() => Actions.NewUiAsset(), () => CanEdit);
         GameConfigCommand = new RelayCommand(Actions.OpenGameConfig, () => CanEdit);
+        MaterialCombinationsCommand = new RelayCommand(Actions.OpenMaterialCombinations, () => CanEdit);
         SystemConfigCommand = new RelayCommand(Actions.OpenSystemConfig, () => CanEdit);
         AnimationOverviewCommand = new RelayCommand(Actions.OpenAnimationOverview, () => CanEdit);
         ParticleOverviewCommand = new RelayCommand(Actions.OpenParticleOverview, () => CanEdit);
@@ -79,7 +80,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         [
             SaveCommand, NewProjectCommand, OpenProjectCommand, ExitCommand, UndoCommand, RedoCommand, TileModeCommand, ActorModeCommand,
             NewBlueprintCommand, NewAnimationCommand, NewMaterialCommand, NewParticleCommand, NewSubtitleCommand, NewCurveCommand, NewTextConfigCommand, NewUiAssetCommand,
-            GameConfigCommand, SystemConfigCommand, AnimationOverviewCommand, ParticleOverviewCommand, TilesetsDataCommand,
+            GameConfigCommand, MaterialCombinationsCommand, SystemConfigCommand, AnimationOverviewCommand, ParticleOverviewCommand, TilesetsDataCommand,
             CommonFunctionsCommand, GameVariablesCommand, GeneralDataCommand,
         ];
         ChangeLanguageCommand = new RelayCommand<string>(changeLanguage);
@@ -133,6 +134,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public IRelayCommand NewTextConfigCommand { get; }
     public IRelayCommand NewUiAssetCommand { get; }
     public IRelayCommand GameConfigCommand { get; }
+    public IRelayCommand MaterialCombinationsCommand { get; }
     public IRelayCommand SystemConfigCommand { get; }
     public IRelayCommand AnimationOverviewCommand { get; }
     public IRelayCommand ParticleOverviewCommand { get; }
@@ -481,6 +483,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public string Redo => LocaleService.Get("REDO");
     public string Game => LocaleService.Get("GAME");
     public string GameConfigLabel => LocaleService.Get("GAME_CONFIG");
+    public string MaterialCombinationsLabel => LocaleService.Get("MATERIAL_COMBINATIONS");
     public string TestServerSettingsLabel => LocaleService.Get("LUDORK_SERVER_TEST_SETTINGS");
     public string PerformanceMonitor => LocaleService.Get("PERFORMANCE_MONITOR");
     public string ReloadModule => LocaleService.Get("RELOAD_MODULE");

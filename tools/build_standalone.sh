@@ -140,6 +140,7 @@ for legal_name in $RUNTIME_LEGAL_FILES; do
     fi
 done
 
+"$SCRIPT_TOOLS" material-assets copy-inputs "$CPP_DIR" "$STANDALONE_DIR"
 rm -rf "$STANDALONE_DIR/$EDITOR_CACHE_DIRECTORY"
 "$SCRIPT_TOOLS" preview copy "$CPP_DIR" "$STANDALONE_DIR"
 rm -rf "$STANDALONE_DIR/Cache"

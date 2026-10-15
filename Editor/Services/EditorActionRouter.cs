@@ -79,6 +79,7 @@ public sealed class EditorActionRouter
     public void OpenAnimationOverview() => request(EditorActionKind.AnimationOverview);
     public void OpenParticleOverview() => request(EditorActionKind.ParticleOverview);
     public void OpenMaterial(string key) => request(EditorActionKind.Material, key);
+    public void OpenMaterialCombinations() => request(EditorActionKind.MaterialCombinations);
     public void OpenParticle(string key) => request(EditorActionKind.Particle, key);
     public void OpenSubtitle(string key) => request(EditorActionKind.Subtitle, key);
     public void OpenAnimation(string key) => request(EditorActionKind.Animation, key);

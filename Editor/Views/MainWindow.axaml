@@ -57,6 +57,7 @@
             <NativeMenuItem Header="{Binding Game}" IsEnabled="{Binding CanEdit}">
                 <NativeMenu>
                     <NativeMenuItem Header="{Binding GameConfigLabel}" Command="{Binding GameConfigCommand}" Gesture="F3" />
+                    <NativeMenuItem Header="{Binding MaterialCombinationsLabel}" Command="{Binding MaterialCombinationsCommand}" />
                     <NativeMenuItem Header="{Binding TestServerSettingsLabel}"
                                     IsVisible="{Binding IsSourceProject}"
                                     Click="onTestServerSettings" />

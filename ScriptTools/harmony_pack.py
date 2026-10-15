@@ -17,7 +17,7 @@ from dataclasses import dataclass, replace
 
 from .resource_constants import ANIMATION_CACHE_SUFFIX
 from . import server_config
-from .material_assets import MaterialAssetError, validate_generated as validate_materials
+from .material_assets import MaterialAssetError, copy_export_inputs, validate_generated as validate_materials
 from .pack_error import PackError
 from .harmony_signing import (
     HarmonySigningOptions,
@@ -515,6 +515,7 @@ def copy_runtime_resources(context: PackContext, destination: pathlib.Path) -> N
         source = context.project_dir / name
         if source.is_file():
             shutil.copy2(source, destination / name)
+    copy_export_inputs(context.project_dir, destination)
     context.metadata.write_build_info(destination)
     finalize_package(
         destination,

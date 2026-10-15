@@ -9,6 +9,7 @@ public enum EditorActionKind
     ParticleOverview,
     Particle,
     Material,
+    MaterialCombinations,
     Subtitle,
     Animation,
     Curve,

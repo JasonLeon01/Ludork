@@ -20,7 +20,7 @@ from typing import BinaryIO, TextIO
 
 from .resource_constants import ANIMATION_CACHE_SUFFIX
 from . import server_config
-from .material_assets import MaterialAssetError, validate_generated as validate_materials
+from .material_assets import MaterialAssetError, copy_export_inputs, validate_generated as validate_materials
 from .pack_error import PackError
 from .packaging_constants import (
     MOBILE_PROJECT_DIRECTORIES,
@@ -722,6 +722,7 @@ def copy_runtime_resources(context: PackContext) -> None:
         source = context.project_dir / name
         if source.is_file():
             shutil.copy2(source, context.runtime_dir / name)
+    copy_export_inputs(context.project_dir, context.runtime_dir)
     context.metadata.write_build_info(context.runtime_dir)
     finalize_package(
         context.runtime_dir,

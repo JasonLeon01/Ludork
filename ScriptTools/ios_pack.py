@@ -26,7 +26,7 @@ from .apple_signing import (
 )
 from .resource_constants import ANIMATION_CACHE_SUFFIX
 from . import server_config
-from .material_assets import MaterialAssetError, validate_generated as validate_materials
+from .material_assets import MaterialAssetError, copy_export_inputs, validate_generated as validate_materials
 from .pack_error import PackError
 from .packaging_constants import (
     COMMON_DEPENDENCY_CACHE_DIRECTORIES,
@@ -514,6 +514,7 @@ def copy_runtime_resources(
             resources_dir / directory_name,
             ignore=shutil.ignore_patterns(".DS_Store", "*" + ANIMATION_CACHE_SUFFIX),
         )
+    copy_export_inputs(context.project_dir, resources_dir)
 
 
 def configure_and_build(

@@ -66,50 +66,51 @@ public sealed class MaterialGenerationService : IAsyncDisposable
             materials.Add(path, JsonNode.Parse(await File.ReadAllTextAsync(resolve(path), cancellationToken)) as JsonObject
                 ?? throw new InvalidDataException("Material must be an object: " + path));
         }
-        string[] paths = new[] { string.Empty }.Concat(materials.Keys.Order(StringComparer.Ordinal)).ToArray();
+        JsonElement[] programs = manifest.GetProperty("programs").EnumerateArray().ToArray();
         SortedDictionary<string, GeneratedFile> outputs = new(StringComparer.Ordinal);
         int completed = 0;
-        foreach (string materialPath in paths)
+        foreach (JsonElement program in programs)
         {
-            foreach (string layerPath in paths)
+            string materialPath = program.GetProperty("material").GetString()
+                ?? throw new InvalidDataException("Invalid material program path.");
+            string layerPath = program.GetProperty("layer").GetString()
+                ?? throw new InvalidDataException("Invalid layer program path.");
+            cancellationToken.ThrowIfCancellationRequested();
+            JsonObject response = await connection.ExchangeAsync(new JsonObject
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                JsonObject response = await connection.ExchangeAsync(new JsonObject
+                ["type"] = "compileMaterial",
+                ["materialPath"] = materialPath,
+                ["asset"] = materialPath.Length == 0 ? null : materials[materialPath].DeepClone(),
+                ["layerPath"] = layerPath,
+                ["layerAsset"] = layerPath.Length == 0 ? null : materials[layerPath].DeepClone(),
+            }, cancellationToken);
+            if (response["type"]?.GetValue<string>() != "compiledMaterial" || response["files"] is not JsonObject files)
+                throw new InvalidDataException(response["message"]?.GetValue<string>() ?? "Material export returned an invalid response.");
+            foreach (KeyValuePair<string, JsonNode?> file in files)
+            {
+                string path = GeneratedRoot + file.Key;
+                resolve(path);
+                if (path == RecordPath)
+                    throw new InvalidDataException("Material compiler returned a reserved output path.");
+                byte[] content = utf8.GetBytes(file.Value?.GetValue<string>()
+                    ?? throw new InvalidDataException("Material compiler returned an invalid file: " + path));
+                if (!isGenerated(path, content))
+                    throw new InvalidDataException("Material compiler omitted the generated marker: " + path);
+                if (path.EndsWith(".json", StringComparison.Ordinal))
+                    content = canonicalizeJson(content);
+                string hash = Convert.ToHexStringLower(SHA256.HashData(content));
+                if (outputs.TryGetValue(path, out GeneratedFile? previous))
                 {
-                    ["type"] = "compileMaterial",
-                    ["materialPath"] = materialPath,
-                    ["asset"] = materialPath.Length == 0 ? null : materials[materialPath].DeepClone(),
-                    ["layerPath"] = layerPath,
-                    ["layerAsset"] = layerPath.Length == 0 ? null : materials[layerPath].DeepClone(),
-                }, cancellationToken);
-                if (response["type"]?.GetValue<string>() != "compiledMaterial" || response["files"] is not JsonObject files)
-                    throw new InvalidDataException(response["message"]?.GetValue<string>() ?? "Material export returned an invalid response.");
-                foreach (KeyValuePair<string, JsonNode?> file in files)
-                {
-                    string path = GeneratedRoot + file.Key;
-                    resolve(path);
-                    if (path == RecordPath)
-                        throw new InvalidDataException("Material compiler returned a reserved output path.");
-                    byte[] content = utf8.GetBytes(file.Value?.GetValue<string>()
-                        ?? throw new InvalidDataException("Material compiler returned an invalid file: " + path));
-                    if (!isGenerated(path, content))
-                        throw new InvalidDataException("Material compiler omitted the generated marker: " + path);
-                    if (path.EndsWith(".json", StringComparison.Ordinal))
-                        content = canonicalizeJson(content);
-                    string hash = Convert.ToHexStringLower(SHA256.HashData(content));
-                    if (outputs.TryGetValue(path, out GeneratedFile? previous))
-                    {
-                        if (previous.Hash != hash)
-                            throw new InvalidDataException("Material compiler returned conflicting output: " + path);
-                        continue;
-                    }
-                    string temporary = Path.Combine(staging, outputs.Count.ToString(System.Globalization.CultureInfo.InvariantCulture));
-                    await File.WriteAllBytesAsync(temporary, content, cancellationToken);
-                    outputs.Add(path, new GeneratedFile(temporary, hash));
+                    if (previous.Hash != hash)
+                        throw new InvalidDataException("Material compiler returned conflicting output: " + path);
+                    continue;
                 }
-                completed++;
+                string temporary = Path.Combine(staging, outputs.Count.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                await File.WriteAllBytesAsync(temporary, content, cancellationToken);
+                outputs.Add(path, new GeneratedFile(temporary, hash));
             }
-            writeOutput($"Material export: {completed}/{paths.Length * paths.Length} ({(materialPath.Length == 0 ? "built-in default" : materialPath)})");
+            completed++;
+            writeOutput($"Material export: {completed}/{programs.Length} ({(materialPath.Length == 0 ? "built-in default" : materialPath)})");
         }
         HashSet<string> expected = manifest.GetProperty("expectedOutputPaths").EnumerateArray()
             .Select(entry => entry.GetString() ?? throw new InvalidDataException("Invalid material output path."))
@@ -117,8 +118,11 @@ public sealed class MaterialGenerationService : IAsyncDisposable
         if (!expected.SetEquals(outputs.Keys))
             throw new InvalidDataException("Material compiler outputs do not match the export manifest.");
         JsonObject inputs = new();
-        foreach (string path in materials.Keys.Order(StringComparer.Ordinal))
-            inputs[path] = manifest.GetProperty("inputs").GetProperty(path).GetString();
+        foreach (JsonProperty input in manifest.GetProperty("inputs").EnumerateObject().OrderBy(value => value.Name, StringComparer.Ordinal))
+        {
+            if (input.Name != "EditorCache/Preview.json")
+                inputs[input.Name] = input.Value.GetString();
+        }
         JsonObject hashes = new();
         foreach (KeyValuePair<string, GeneratedFile> output in outputs)
             hashes[output.Key] = output.Value.Hash;

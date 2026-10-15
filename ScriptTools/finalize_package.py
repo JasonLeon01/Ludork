@@ -25,6 +25,7 @@ from .ldpak import (
     validate_runtime_ldpak_layout,
 )
 from .material_assets import (
+    COMBINATIONS_FILE as MATERIAL_COMBINATIONS_FILE,
     EXPORT_RECORD as MATERIAL_EXPORT_RECORD,
     GENERATED_ROOT as MATERIAL_GENERATED_ROOT,
     validate_generated as validate_materials,
@@ -385,6 +386,7 @@ def prune_package(
         *(pathlib.Path(name) for name in PACKAGE_CACHE_DIRECTORIES),
         pathlib.Path("Scripts") / "stub",
         MATERIAL_EXPORT_RECORD,
+        MATERIAL_COMBINATIONS_FILE,
     ):
         target = resource_root / relative_path
         if _remove_path(target):

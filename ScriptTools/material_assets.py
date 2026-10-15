@@ -6,6 +6,7 @@ import json
 import os
 import pathlib
 import re
+import shutil
 import sys
 
 
@@ -15,6 +16,8 @@ SOURCE_ROOT = pathlib.Path("Data/Materials")
 GENERATED_ROOT = pathlib.Path("Assets/Shaders/MaterialGenerated")
 EXPORT_RECORD = GENERATED_ROOT / "export.json"
 PREVIEW_MANIFEST = pathlib.Path("EditorCache/Preview.json")
+COMBINATIONS_FILE = pathlib.Path("MaterialExport.json")
+CONTENT_ROOTS = tuple(pathlib.Path("Data") / name for name in ("Maps", "Tilesets", "AutoTiles"))
 PROGRAM_FILES = (
     "vertex.vert", "color.frag", "surface.frag", "transmission.frag", "source.frag", "program.json",
 )
@@ -66,7 +69,120 @@ def _files(root: pathlib.Path, relative: pathlib.Path) -> list[pathlib.Path]:
     return sorted(result)
 
 
-def _expected_outputs(materials: list[pathlib.Path]) -> dict[str, tuple[pathlib.Path, str]]:
+def _read_object(root: pathlib.Path, path: pathlib.Path, inputs: dict[str, str]) -> dict:
+    contents = (root / path).read_bytes()
+    inputs[path.as_posix()] = hashlib.sha256(contents).hexdigest()
+    try:
+        value = json.loads(contents)
+    except (ValueError, UnicodeError) as exception:
+        raise MaterialAssetError(f"Invalid material export input {path}: {exception}") from exception
+    if not isinstance(value, dict):
+        raise MaterialAssetError(f"Material export input must be an object: {path}")
+    return value
+
+
+def _material_reference(value: object, materials: set[str], location: str, *, allow_default: bool = True) -> str:
+    if not isinstance(value, str) or (not value and not allow_default) or (value and value not in materials):
+        raise MaterialAssetError(f"Missing or invalid material reference at {location}: {value!r}")
+    return value
+
+
+def _grid_values(value: object, location: str):
+    if not isinstance(value, list):
+        raise MaterialAssetError(f"Expected a tile grid at {location}")
+    for y, row in enumerate(value):
+        if not isinstance(row, list):
+            raise MaterialAssetError(f"Expected a tile row at {location}[{y}]")
+        for x, cell in enumerate(row):
+            if cell is not None:
+                yield cell, f"{location}[{y}][{x}]"
+
+
+def _programs(root: pathlib.Path, materials: list[pathlib.Path], inputs: dict[str, str]) -> list[tuple[str, str]]:
+    material_paths = {path.as_posix() for path in materials}
+    programs = {(path, "") for path in material_paths | {""}}
+    content = {}
+    for directory in CONTENT_ROOTS[1:]:
+        content[directory.name] = {
+            path.relative_to(directory).with_suffix("").as_posix(): (path, _read_object(root, path, inputs))
+            for path in _files(root, directory) if path.suffix == ".json"
+        }
+    for path in _files(root, CONTENT_ROOTS[0]):
+        if path.suffix != ".json":
+            continue
+        document = _read_object(root, path, inputs)
+        if path.name == "_world.json":
+            continue
+        layers = document.get("layers", {})
+        if not isinstance(layers, dict):
+            raise MaterialAssetError(f"Expected map layers at {path}")
+        for name, layer in layers.items():
+            location = f"{path.as_posix()}.layers.{name}"
+            if not isinstance(layer, dict):
+                raise MaterialAssetError(f"Expected a map layer at {location}")
+            layer_material = _material_reference(layer.get("material", ""), material_paths, location + ".material")
+            if not layer_material:
+                continue
+            bases: set[str] = set()
+            assignments = None
+            for index, cell_location in _grid_values(layer.get("tiles", []), location + ".tiles"):
+                if type(index) is not int or index < 0:
+                    raise MaterialAssetError(f"Invalid tile index at {cell_location}: {index!r}")
+                if assignments is None:
+                    key = layer.get("layerTileset")
+                    if not isinstance(key, str) or key not in content["Tilesets"]:
+                        raise MaterialAssetError(f"Missing tileset at {location}.layerTileset: {key!r}")
+                    tileset_path, tileset = content["Tilesets"][key]
+                    assignments = tileset.get("materials", {})
+                    if not isinstance(assignments, dict):
+                        raise MaterialAssetError(f"Expected material assignments at {tileset_path}.materials")
+                bases.add(_material_reference(
+                    assignments.get(str(index), ""), material_paths,
+                    f"{tileset_path.as_posix()}.materials.{index} (used by {cell_location})",
+                ))
+            for key, cell_location in _grid_values(layer.get("autoTiles", []), location + ".autoTiles"):
+                if key == "":
+                    continue
+                if not isinstance(key, str) or key not in content["AutoTiles"]:
+                    raise MaterialAssetError(f"Missing autotile at {cell_location}: {key!r}")
+                autotile_path, autotile = content["AutoTiles"][key]
+                bases.add(_material_reference(
+                    autotile.get("material", ""), material_paths,
+                    f"{autotile_path.as_posix()}.material (used by {cell_location})",
+                ))
+            programs.update((base, layer_material) for base in bases)
+    _check_path(root, COMBINATIONS_FILE)
+    if (root / COMBINATIONS_FILE).exists():
+        document = _read_object(root, COMBINATIONS_FILE, inputs)
+        combinations = document.get("additionalCombinations")
+        if not isinstance(combinations, list):
+            raise MaterialAssetError(f"Expected additionalCombinations array in {COMBINATIONS_FILE}")
+        for index, pair in enumerate(combinations):
+            location = f"{COMBINATIONS_FILE}.additionalCombinations[{index}]"
+            if not isinstance(pair, dict):
+                raise MaterialAssetError(f"Expected a material combination at {location}")
+            programs.add((
+                _material_reference(pair.get("material"), material_paths, location + ".material"),
+                _material_reference(pair.get("layer"), material_paths, location + ".layer", allow_default=False),
+            ))
+    else:
+        inputs[COMBINATIONS_FILE.as_posix()] = "missing"
+    return sorted(programs)
+
+
+def copy_export_inputs(project_root: pathlib.Path, destination: pathlib.Path) -> None:
+    _check_path(project_root, COMBINATIONS_FILE)
+    _check_path(destination, COMBINATIONS_FILE)
+    source = project_root / COMBINATIONS_FILE
+    if source.exists():
+        shutil.copy2(source, destination / COMBINATIONS_FILE)
+    else:
+        (destination / COMBINATIONS_FILE).unlink(missing_ok=True)
+
+
+def _expected_outputs(
+    materials: list[pathlib.Path], programs: list[tuple[str, str]],
+) -> dict[str, tuple[pathlib.Path, str]]:
     entries: dict[str, tuple[pathlib.Path, str]] = {}
 
     def add(path: pathlib.Path, kind: str) -> None:
@@ -92,22 +208,23 @@ def _expected_outputs(materials: list[pathlib.Path]) -> dict[str, tuple[pathlib.
                 return
         entries[key] = path, kind
 
-    bases = [GENERATED_ROOT / "Builtin/Default"] + [
-        GENERATED_ROOT / "Materials" / path.relative_to(SOURCE_ROOT).with_suffix("") for path in materials
-    ]
-    layers = [pathlib.Path("single")] + [
-        pathlib.Path("layers") / path.relative_to(SOURCE_ROOT).with_suffix("") for path in materials
-    ]
+    bases = {"": GENERATED_ROOT / "Builtin/Default"} | {
+        path.as_posix(): GENERATED_ROOT / "Materials" / path.relative_to(SOURCE_ROOT).with_suffix("")
+        for path in materials
+    }
     add(EXPORT_RECORD, "file")
-    for base in bases:
+    for base in bases.values():
         add(base, "material directory")
         add(base / "resource.json", "file")
-    for base in bases:
-        for layer in layers:
-            program = base / layer
-            add(program, "program directory")
-            for name in PROGRAM_FILES:
-                add(program / name, "file")
+    for material, layer in programs:
+        suffix = (
+            pathlib.Path("layers") / pathlib.Path(layer).relative_to(SOURCE_ROOT).with_suffix("")
+            if layer else pathlib.Path("single")
+        )
+        program = bases[material] / suffix
+        add(program, "program directory")
+        for name in PROGRAM_FILES:
+            add(program / name, "file")
     return entries
 
 
@@ -134,7 +251,8 @@ def generation_manifest(project_root: pathlib.Path) -> dict[str, object]:
         inputs[PREVIEW_MANIFEST.as_posix()] = (
             hashlib.sha256(preview.read_bytes()).hexdigest() if preview.is_file() else "missing"
         )
-        entries = _expected_outputs(materials)
+        programs = _programs(root, materials, inputs)
+        entries = _expected_outputs(materials, programs)
         expected = {path for path, kind in entries.values() if kind == "file"}
         existing = set(_files(root, GENERATED_ROOT))
         for path in existing:
@@ -147,6 +265,7 @@ def generation_manifest(project_root: pathlib.Path) -> dict[str, object]:
         return {
             "inputs": inputs,
             "materialPaths": [path.as_posix() for path in materials],
+            "programs": [{"material": material, "layer": layer} for material, layer in programs],
             "expectedOutputPaths": [path.as_posix() for path in sorted(expected)],
             "outputPaths": [path.as_posix() for path in sorted(expected | existing)],
         }
@@ -184,13 +303,8 @@ def validate_generated(project_root: pathlib.Path) -> None:
         raise MaterialAssetError("Unsupported material export format; run editor Export again.")
     inputs = _hashes(record.get("inputs"), "inputs", allow_missing=True)
     expected_inputs = manifest["inputs"]
-    source_prefix = SOURCE_ROOT.as_posix() + "/"
-    if {
-        path: digest for path, digest in inputs.items() if path.startswith(source_prefix)
-    } != {
-        path: digest for path, digest in expected_inputs.items() if path.startswith(source_prefix)
-    }:
-        raise MaterialAssetError("Material source files changed; run editor Export again.")
+    if inputs != {path: digest for path, digest in expected_inputs.items() if path != PREVIEW_MANIFEST.as_posix()}:
+        raise MaterialAssetError("Material export inputs changed; run editor Export again.")
     outputs = _hashes(record.get("outputs"), "outputs")
     expected = set(manifest["expectedOutputPaths"]) - {EXPORT_RECORD.as_posix()}
     if outputs.keys() != expected:
@@ -208,16 +322,21 @@ def validate_generated(project_root: pathlib.Path) -> None:
 
 def main(arguments: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="ScriptTools material-assets")
-    parser.add_argument("operation", choices=("manifest", "validate"))
+    parser.add_argument("operation", choices=("manifest", "validate", "copy-inputs"))
     parser.add_argument("project_root", type=pathlib.Path)
+    parser.add_argument("destination", type=pathlib.Path, nargs="?")
     parsed = parser.parse_args(arguments)
+    if (parsed.operation == "copy-inputs") != (parsed.destination is not None):
+        parser.error("copy-inputs requires a destination; manifest and validate do not accept one")
     try:
-        if parsed.operation == "manifest":
+        if parsed.operation == "copy-inputs":
+            copy_export_inputs(parsed.project_root.expanduser().resolve(), parsed.destination.expanduser().resolve())
+        elif parsed.operation == "manifest":
             print(json.dumps(generation_manifest(parsed.project_root), ensure_ascii=False))
         else:
             validate_generated(parsed.project_root)
             print("Material export is up to date")
-    except MaterialAssetError as exception:
+    except (MaterialAssetError, OSError) as exception:
         print(str(exception), file=sys.stderr)
         return 1
     return 0

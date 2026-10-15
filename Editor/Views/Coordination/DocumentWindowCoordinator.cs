@@ -95,6 +95,9 @@ internal sealed class DocumentWindowCoordinator : IDisposable
             case EditorActionKind.GameConfig:
                 await GameConfigWindow.ShowAsync(owner, viewModel.GameConfig);
                 break;
+            case EditorActionKind.MaterialCombinations:
+                await MaterialCombinationWindow.ShowAsync(owner, viewModel.GameData);
+                break;
             case EditorActionKind.SystemConfig:
                 await new ConfigWindow(viewModel.GameData, viewModel.ProjectSave).ShowDialog(owner);
                 break;
