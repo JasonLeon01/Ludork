@@ -8,6 +8,7 @@ using Ludork.Services;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Text.Json.Nodes;
 
 namespace Ludork.Controls;
@@ -19,57 +20,61 @@ public sealed partial class MapPanel
     private readonly DispatcherTimer propertyWheelTimer = new() { Interval = TimeSpan.FromMilliseconds(300) };
     private ActorPropertyDrag? actorPropertyDrag;
     private long propertyWheelTimestamp;
-    private (string? Layer, string? Tag, int? Light, string Property)? propertyWheelTarget;
+    private (string Layer, string Selection, string Property)? propertyWheelTarget;
     internal event EventHandler? ActorPropertiesChanged;
 
-    private sealed record ActorPropertyDrag(
-        string Layer, string Tag, string Property, Point Start, Vector Value, Matrix Inverse);
+    private sealed record EditableActor(MapActorReference Reference, MapActorSnapshot Actor, ResolvedBlueprintClass Class);
+    private sealed record ActorPropertyDragTarget(MapActorReference Reference, Vector Value, Matrix Inverse);
+    private sealed record ActorPropertyDrag(Point Start, string Property, IReadOnlyList<ActorPropertyDragTarget> Targets);
 
-    private bool tryGetEditableActorClass(out MapActorSnapshot actor, out ResolvedBlueprintClass resolved)
+    private bool tryGetEditableActorClasses(out IReadOnlyList<EditableActor> actors)
     {
-        actor = null!;
-        resolved = null!;
+        List<EditableActor> result = [];
+        actors = result;
         if (IsRuntimeEditing || !canEditMap || CurrentMapDocument is null || CurrentMapKey is null
-            || selectedActorLayer is null || selectedActorLayer != selectedLayerName
-            || getLayer(selectedActorLayer) is not MapLayerSnapshot layer || !isLayerVisible(layer)
-            || getSelectedActor() is not MapActorSnapshot selected
-            || selected.Tag is not { Length: > 0 }
-            || previewService?.tryResolveMapActorClass(CurrentMapDocument, selected) is not ResolvedBlueprintClass value)
+            || selectedLayerName is null || getLayer(selectedLayerName) is not MapLayerSnapshot layer
+            || !isLayerVisible(layer) || selectedActors.Count == 0)
             return false;
-        actor = selected;
-        resolved = value;
+        foreach (MapActorReference reference in selectedActors)
+        {
+            if (reference.LayerName != selectedLayerName || findProjectActor(reference) is not int index
+                || getActorList(reference.LayerName)?[index] is not MapActorSnapshot actor
+                || previewService?.tryResolveMapActorClass(CurrentMapDocument, actor) is not ResolvedBlueprintClass resolved)
+                return false;
+            result.Add(new(reference, actor, resolved));
+        }
         return true;
     }
 
-    private bool beginActorPropertyDrag(PointerPressedEventArgs args)
+    private bool beginActorPropertyDrag(Point start, KeyModifiers modifiers)
     {
-        if (IsRuntimeEditing || !args.KeyModifiers.HasFlag(KeyModifiers.Alt)
-            && !EditorShortcuts.HasPrimaryModifier(args.KeyModifiers))
+        if (!tryGetEditableActorClasses(out IReadOnlyList<EditableActor> actors))
             return false;
-        if (!tryGetEditableActorClass(out MapActorSnapshot actor, out ResolvedBlueprintClass resolved))
-            return true;
-        bool origin = args.KeyModifiers.HasFlag(KeyModifiers.Alt);
+        bool origin = modifiers.HasFlag(KeyModifiers.Alt);
         string property = origin ? "defaultOrigin" : "defaultTranslation";
-        if (!tryGetPropertyVector(resolved.GetField(property), out Vector value))
-            return true;
         double displayScale = tileSize / (double)SourceTileSize;
-        Matrix transform = Matrix.CreateScale(displayScale, displayScale);
-        if (origin)
+        List<ActorPropertyDragTarget> targets = [];
+        foreach (EditableActor actor in actors)
         {
-            if (!tryGetPropertyVector(resolved.GetField("defaultScale"), out Vector scale))
-                return true;
-            double radians = getDouble(resolved.GetValue("defaultRotation"), 0) * Math.PI / 180;
-            if (!double.IsFinite(radians))
-                return true;
-            transform = new Matrix(
-                Math.Cos(radians) * scale.X * displayScale, Math.Sin(radians) * scale.X * displayScale,
-                -Math.Sin(radians) * scale.Y * displayScale, Math.Cos(radians) * scale.Y * displayScale, 0, 0);
+            if (!tryGetPropertyVector(actor.Class.GetField(property), out Vector value))
+                return false;
+            Matrix transform = Matrix.CreateScale(displayScale, displayScale);
+            if (origin)
+            {
+                if (!tryGetPropertyVector(actor.Class.GetField("defaultScale"), out Vector scale))
+                    return false;
+                double radians = getDouble(actor.Class.GetValue("defaultRotation"), 0) * Math.PI / 180;
+                if (!double.IsFinite(radians))
+                    return false;
+                transform = new Matrix(
+                    Math.Cos(radians) * scale.X * displayScale, Math.Sin(radians) * scale.X * displayScale,
+                    -Math.Sin(radians) * scale.Y * displayScale, Math.Cos(radians) * scale.Y * displayScale, 0, 0);
+            }
+            if (!transform.TryInvert(out Matrix inverse))
+                return false;
+            targets.Add(new(actor.Reference, value, inverse));
         }
-        if (!transform.TryInvert(out Matrix inverse))
-            return true;
-        actorPropertyDrag = new ActorPropertyDrag(selectedActorLayer!, actor.Tag,
-            property, args.GetPosition(this), value, inverse);
-        capturePointer(args.Pointer);
+        actorPropertyDrag = new(start, property, targets);
         return true;
     }
 
@@ -77,75 +82,78 @@ public sealed partial class MapPanel
     {
         if (actorPropertyDrag is not ActorPropertyDrag drag)
             return;
-        if (!tryGetEditableActorClass(out MapActorSnapshot actor, out ResolvedBlueprintClass resolved)
-            || selectedActorLayer != drag.Layer || actor.Tag != drag.Tag)
+        if (!tryGetEditableActorClasses(out IReadOnlyList<EditableActor> actors)
+            || !actors.Select(actor => actor.Reference).SequenceEqual(drag.Targets.Select(target => target.Reference)))
         {
             cancelMapGesture();
             return;
         }
+        List<MapActorOverrideEdit> edits = [];
         Vector delta = position - drag.Start;
-        Point local = drag.Inverse.Transform(new Point(delta.X, delta.Y));
-        Vector value = drag.Value + new Vector(local.X, local.Y);
-        if (!isFinite(value) || !tryGetPropertyVector(resolved.GetField(drag.Property), out Vector current)
-            || value == current)
-            return;
+        for (int index = 0; index < actors.Count; index++)
+        {
+            ActorPropertyDragTarget target = drag.Targets[index];
+            Point local = target.Inverse.Transform(new Point(delta.X, delta.Y));
+            Vector value = target.Value + new Vector(local.X, local.Y);
+            if (!isFinite(value))
+                return;
+            edits.Add(createActorPropertyEdit(actors[index], drag.Property, new JsonArray(value.X, value.Y)));
+        }
         ensurePropertyHistoryGesture();
-        setActorProperty(actor, drag.Property, new JsonArray(value.X, value.Y));
+        applyActorPropertyEdits(edits);
     }
 
     private bool tryAdjustSelectedProperty(KeyModifiers modifiers, double factor, double rotationDelta)
     {
-        if (EditMode == MapEditMode.Actor && modifiers.HasFlag(KeyModifiers.Alt))
-            return tryRotateSelectedActor(rotationDelta);
-        if (!EditorZoomInput.HasPrimaryModifier(modifiers) || IsRuntimeEditing
-            || editingContext?.IsEditable != true || gameData is null || CurrentMapKey is null
+        bool rotation = modifiers.HasFlag(KeyModifiers.Alt);
+        if (!rotation && !EditorZoomInput.HasPrimaryModifier(modifiers)
             || EditMode != MapEditMode.Actor
-            || !tryGetEditableActorClass(out MapActorSnapshot actor, out ResolvedBlueprintClass resolved))
+            || !tryGetEditableActorClasses(out IReadOnlyList<EditableActor> actors))
             return false;
-        const string property = "defaultScale";
-        if (!tryGetPropertyVector(resolved.GetField(property), out Vector scale))
-            return false;
-        if (!canScaleProperty(factor))
+        if (actorPointerGesture is not null || actorPropertyDrag is not null || actorMoveIndex is not null)
             return true;
-        Vector next = scale * factor;
-        if (!isFinite(next) || next == scale)
+        if (rotation ? !double.IsFinite(rotationDelta) || rotationDelta == 0
+            : !double.IsFinite(factor) || factor <= 0 || factor == 1)
             return true;
-        beginPropertyWheelGesture((selectedActorLayer, actor.Tag, null, property));
-        setActorProperty(actor, property, new JsonArray(next.X, next.Y));
+        string property = rotation ? "defaultRotation" : "defaultScale";
+        List<MapActorOverrideEdit> edits = [];
+        foreach (EditableActor actor in actors)
+        {
+            JsonNode value;
+            if (rotation)
+            {
+                double current = getDouble(actor.Class.GetValue(property), double.NaN);
+                if (!double.IsFinite(current) || !double.IsFinite(current + rotationDelta))
+                    return false;
+                value = JsonValue.Create(current + rotationDelta)!;
+            }
+            else
+            {
+                if (!tryGetPropertyVector(actor.Class.GetField(property), out Vector scale) || !isFinite(scale * factor))
+                    return false;
+                Vector next = scale * factor;
+                value = new JsonArray(next.X, next.Y);
+            }
+            edits.Add(createActorPropertyEdit(actor, property, value));
+        }
+        string selection = new JsonArray(selectedActors.OrderBy(actor => actor.Tag, StringComparer.Ordinal)
+            .Select(actor => (JsonNode?)JsonValue.Create(actor.Tag)).ToArray()).ToJsonString();
+        beginPropertyWheelGesture((selectedLayerName!, selection, property));
+        applyActorPropertyEdits(edits);
         return true;
     }
 
-    private bool tryRotateSelectedActor(double delta)
+    private static MapActorOverrideEdit createActorPropertyEdit(EditableActor actor, string property, JsonNode value)
     {
-        if (!tryGetEditableActorClass(out MapActorSnapshot actor, out ResolvedBlueprintClass resolved))
-            return false;
-        const string property = "defaultRotation";
-        double rotation = getDouble(resolved.GetValue(property), double.NaN);
-        if (!double.IsFinite(rotation))
-            return false;
-        if (!double.IsFinite(delta) || delta == 0
-            || actorPropertyDrag is not null || actorMoveIndex is not null)
-            return true;
-        double next = rotation + delta;
-        if (!double.IsFinite(next) || next == rotation)
-            return true;
-        beginPropertyWheelGesture((selectedActorLayer, actor.Tag, null, property));
-        setActorProperty(actor, property, JsonValue.Create(next)!);
-        return true;
+        ResolvedBlueprintField? field = actor.Class.GetField(property);
+        bool remove = field?.HasBlueprintDefaultValue == true && JsonNode.DeepEquals(field.BlueprintDefaultValue, value);
+        return new(actor.Reference, property, value, remove);
     }
 
-    private bool canScaleProperty(double factor)
+    private void applyActorPropertyEdits(IReadOnlyList<MapActorOverrideEdit> edits)
     {
-        return double.IsFinite(factor) && factor > 0 && factor != 1
-            && actorPropertyDrag is null && actorMoveIndex is null;
-    }
-
-    private void setActorProperty(MapActorSnapshot actor, string property, JsonNode value)
-    {
-        if (CurrentMapKey is null || selectedActorLayer is null)
-            return;
-        if (editingContext?.SetActorVariable(CurrentMapKey, selectedActorLayer,
-                actor.Tag, property, value) == true)
+        if (gameData is not null && CurrentMapKey is not null
+            && gameData.Maps.ApplyMapActorOverrides(CurrentMapKey, edits))
             ActorPropertiesChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -155,7 +163,7 @@ public sealed partial class MapPanel
             mapEditGesture = gameData.BeginHistoryGesture();
     }
 
-    private void beginPropertyWheelGesture((string? Layer, string? Tag, int? Light, string Property) target)
+    private void beginPropertyWheelGesture((string Layer, string Selection, string Property) target)
     {
         Focus();
         if (propertyWheelTarget != target

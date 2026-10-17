@@ -44,17 +44,6 @@ public sealed partial class MapPanel
             {
                 Rect placeholder = getLocalTileRect(gridX, gridY);
                 context.FillRectangle(MissingActorBrush, placeholder);
-                if (selectedActorLayer == layerName && selectedActorIndex == index)
-                    context.DrawRectangle(null, SelectedActorPen, placeholder);
-                continue;
-            }
-            Rect source = getActorRenderSource(actor);
-            Matrix transform = createActorTransform(gridX, gridY, actor.Translation, actor.Scale, actor.Rotation);
-            using (context.PushTransform(transform))
-            {
-                Rect destination = new Rect((actor.PreviewLease?.FrameOffset.X ?? 0) - actor.Origin.X, (actor.PreviewLease?.FrameOffset.Y ?? 0) - actor.Origin.Y, source.Width, source.Height);
-                if (selectedActorLayer == layerName && selectedActorIndex == index)
-                    context.DrawRectangle(null, SelectedActorPen, destination);
             }
         }
     }
@@ -73,7 +62,7 @@ public sealed partial class MapPanel
         Rect last = getLocalTileRect(maxX, maxY);
         double devicePixel = 1.0 / getRenderScaling();
         context.DrawRectangle(null, HoverPen, new Rect(first.X, first.Y, last.Right - first.X - devicePixel, last.Bottom - first.Y - devicePixel));
-        if (EditMode == MapEditMode.Actor && selectedLayerName is not null && !string.IsNullOrWhiteSpace(pendingActor))
+        if (EditMode == MapEditMode.Actor && selectedLayerName is not null && !string.IsNullOrWhiteSpace(pendingActor) && selectedActors.Count <= 1)
             drawPendingActor(context, grid);
     }
 

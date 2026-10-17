@@ -69,7 +69,7 @@ public sealed partial class ActorInfoPanel : UserControl
         ClassForm.ValueChanged += (_, args) =>
         {
             if (!loading)
-                viewModel.SetVariable(args.Name, args.Value, args.RequiresRefresh);
+                viewModel.SetVariable(args.Name, args.Value, args.RequiresRefresh, args.Path);
         };
         ScrollArea.ScrollChanged += (_, args) =>
         {
@@ -80,6 +80,7 @@ public sealed partial class ActorInfoPanel : UserControl
         viewModel.EditableStateChanged += (_, _) => updateEditableState();
         viewModel.OverridesChanged += (_, _) => updateResetActions();
         viewModel.FieldsChanged += (_, _) => updateClassFields();
+        viewModel.FieldStatesChanged += (_, _) => ClassForm.SetMultipleFieldStates(viewModel.FormFields);
         viewModel.ClassRefreshRequested += (_, _) => Dispatcher.UIThread.Post(viewModel.refreshClassDetail);
         viewModel.RefreshSelectedActorRequested += (_, _) => editorPanel?.refreshSelectedActor();
         viewModel.ActorTagChanged += (_, _) => ActorTagChanged?.Invoke(this,
@@ -115,6 +116,11 @@ public sealed partial class ActorInfoPanel : UserControl
     public void setActor(string mapKey, string? layerName, int? actorIndex, JsonObject? actorData)
         => viewModel.setActor(mapKey, layerName, actorIndex, actorData is null ? null : MapDocumentCodec.DecodeActor(actorData),
             PositionX.IsKeyboardFocusWithin || PositionY.IsKeyboardFocusWithin, ClassForm.IsKeyboardFocusWithin);
+
+    public void setActors(string mapKey, IReadOnlyList<MapActorReference> actors, MapActorReference? primary, bool preserveDrafts = true)
+        => viewModel.setActors(mapKey, actors, primary,
+            preserveDrafts && (PositionX.IsKeyboardFocusWithin || PositionY.IsKeyboardFocusWithin),
+            preserveDrafts && ClassForm.IsKeyboardFocusWithin);
 
     public void setLayerEditable(bool editable) => viewModel.setLayerEditable(editable);
 
@@ -155,14 +161,16 @@ public sealed partial class ActorInfoPanel : UserControl
         BlueprintPath.Text = viewModel.BlueprintReference;
         PositionX.Maximum = viewModel.MaximumX;
         PositionY.Maximum = viewModel.MaximumY;
-        PositionX.Value = viewModel.PositionX;
-        PositionY.Value = viewModel.PositionY;
+        PositionX.PlaceholderText = viewModel.IsPositionXMixed ? LocaleService.Get("MULTIPLE_CHOICES") : null;
+        PositionY.PlaceholderText = viewModel.IsPositionYMixed ? LocaleService.Get("MULTIPLE_CHOICES") : null;
+        PositionX.Value = viewModel.IsPositionXMixed ? null : viewModel.PositionX;
+        PositionY.Value = viewModel.IsPositionYMixed ? null : viewModel.PositionY;
         loading = false;
     }
 
     private void updateEditableState()
     {
-        if (viewModel.CanEdit && !viewModel.IsRuntime)
+        if (viewModel.CanEdit && !viewModel.IsRuntime && !viewModel.IsMultipleSelection)
             EditorInputs.ApplyEditable(TagEdit);
         else
             EditorInputs.ApplyReadOnly(TagEdit);
@@ -221,7 +229,7 @@ public sealed partial class ActorInfoPanel : UserControl
 
     private void onPositionChanged(object? sender, NumericUpDownValueChangedEventArgs args)
     {
-        if (!loading)
-            viewModel.SetPosition(decimal.ToInt32(PositionX.Value ?? 0), decimal.ToInt32(PositionY.Value ?? 0));
+        if (!loading && args.NewValue is decimal value)
+            viewModel.SetPositionAxis(ReferenceEquals(sender, PositionX), decimal.ToInt32(value));
     }
 }

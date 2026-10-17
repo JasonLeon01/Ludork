@@ -46,7 +46,11 @@ public partial class MainWindow
         updateConsoleInputState();
         DataContextChanged += (_, _) => attachViewModel(DataContext as MainViewModel);
         MapList.AddHandler(ContextRequestedEvent, onMapListContextRequested, RoutingStrategies.Tunnel);
+        ActorOutliner.SelectedItems = new Avalonia.Collections.AvaloniaList<object>();
         LayerTabs.AddHandler(PointerPressedEvent, onLayerPointerPressed, RoutingStrategies.Tunnel);
+        ActorOutliner.AddHandler(PointerPressedEvent, onActorOutlinerPointerPressed, RoutingStrategies.Tunnel);
+        ActorOutliner.AddHandler(ContextRequestedEvent, onActorOutlinerContextRequested, RoutingStrategies.Tunnel);
+        ActorOutliner.KeyDown += onActorOutlinerKeyDown;
         LayerTabs.AddHandler(ContextRequestedEvent, onLayerContextRequested, RoutingStrategies.Tunnel);
         LayerTabs.AddHandler(PointerMovedEvent, onLayerPointerMoved, RoutingStrategies.Tunnel);
         LayerTabs.AddHandler(PointerReleasedEvent, onLayerPointerReleased, RoutingStrategies.Tunnel);
@@ -362,10 +366,13 @@ public partial class MainWindow
         if (EditorPanel.IsRuntimeEditing && args.LayerName is not null && viewModel is not null
             && viewModel.MapWorkspace.SelectedLayerTab?.Name != args.LayerName)
             viewModel.MapWorkspace.SelectedLayerTab = viewModel.MapWorkspace.LayerTabs.FirstOrDefault(layer => layer.Name == args.LayerName);
-        ActorInfoPanel.setActor(args.MapKey, args.LayerName, args.Index, args.ActorData);
+        if (EditorPanel.IsRuntimeEditing)
+            ActorInfoPanel.setActor(args.MapKey, args.LayerName, args.Index, args.ActorData);
+        else
+            ActorInfoPanel.setActors(args.MapKey, args.Actors, args.PrimaryActor, !args.RefreshValues);
         updateMapModePanels();
         liveDebug?.SelectActor(args.ActorData?["runtimeId"]?.GetValue<string>());
-        if (viewModel?.CanEdit == true && !string.IsNullOrWhiteSpace(args.BlueprintReference))
+        if (viewModel?.CanEdit == true && args.Actors.Count <= 1 && !string.IsNullOrWhiteSpace(args.BlueprintReference))
             viewModel?.ActorQueue.AddOrPromote(args.BlueprintReference);
         syncActorOutlinerSelection();
     }
@@ -389,47 +396,6 @@ public partial class MainWindow
     private void onActorOutlinerChanged(object? sender, EventArgs args)
     {
         syncActorOutlinerSelection();
-    }
-
-    private void syncActorOutlinerSelection()
-    {
-        if (viewModel is null)
-            return;
-        string? layerName = EditorPanel.SelectedActorLayer
-            ?? (viewModel.MapWorkspace.SelectedLayerTab is { IsOverview: false } layer ? layer.Name : null);
-        ActorOutlinerItemViewModel? selection = null;
-        if (layerName is not null)
-        {
-            ActorOutlinerItemViewModel? layerItem = viewModel.MapWorkspace.ActorOutlinerItems
-                .FirstOrDefault(item => item.LayerName == layerName);
-            selection = EditorPanel.IsRuntimeEditing && EditorPanel.SelectedRuntimeActorId is string runtimeId
-                ? viewModel.MapWorkspace.ActorOutlinerItems.SelectMany(item => item.EnumerateDescendants())
-                    .FirstOrDefault(item => item.RuntimeId == runtimeId)
-                : EditorPanel.SelectedActorIndex is int actorIndex
-                    ? layerItem?.Children.FirstOrDefault(item => item.ActorIndex == actorIndex) : layerItem;
-        }
-        if (ReferenceEquals(ActorOutliner.SelectedItem, selection))
-            return;
-        updatingActorOutlinerSelection = true;
-        ActorOutliner.SelectedItem = selection;
-        updatingActorOutlinerSelection = false;
-    }
-
-    private void onActorOutlinerSelectionChanged(object? sender, SelectionChangedEventArgs args)
-    {
-        if (updatingActorOutlinerSelection
-            || viewModel is null
-            || viewModel.MapWorkspace.IsRefreshingActorOutliner
-            || ActorOutliner.SelectedItem is not ActorOutlinerItemViewModel item)
-        {
-            return;
-        }
-        LayerTabViewModel? layer = viewModel.MapWorkspace.LayerTabs
-            .FirstOrDefault(tab => !tab.IsOverview && tab.Name == item.LayerName);
-        if (layer is null)
-            return;
-        viewModel.MapWorkspace.SelectedLayerTab = layer;
-        EditorPanel.selectActor(item.LayerName, item.ActorIndex);
     }
 
     private async void onBlueprintLocateRequested(object? sender, string reference)

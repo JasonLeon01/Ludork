@@ -7,7 +7,7 @@ using System.Text.Json.Nodes;
 
 namespace Ludork.ViewModels;
 
-public sealed class ActorInfoViewModel
+public sealed partial class ActorInfoViewModel
 {
     private readonly Dictionary<string, JsonNode?> defaultValues = new(StringComparer.Ordinal);
     private readonly HashSet<string> fieldsWithDefaults = new(StringComparer.Ordinal);
@@ -35,7 +35,7 @@ public sealed class ActorInfoViewModel
     public bool HasSelection { get; private set; }
     public bool CanEdit => canEditActor && HasSelection;
     public bool CanMove => canMoveActor && HasSelection;
-    public bool HasProjectBlueprint => gameData?.Blueprints.ContainsReference(blueprintReference) == true;
+    public bool HasProjectBlueprint => !IsBlueprintMixed && gameData?.Blueprints.ContainsReference(blueprintReference) == true;
     public bool HasOverrides => overriddenFields.Count != 0;
     public bool ClassDetailVisible { get; private set; }
     public string Tag { get; private set; } = string.Empty;
@@ -52,6 +52,7 @@ public sealed class ActorInfoViewModel
     public bool IsOverridden(string name) => overriddenFields.Contains(name);
     public event EventHandler? HeaderChanged;
     public event EventHandler? FieldsChanged;
+    public event EventHandler? FieldStatesChanged;
     public event EventHandler? EditableStateChanged;
     public event EventHandler? OverridesChanged;
     public event EventHandler? RefreshSelectedActorRequested;
@@ -71,6 +72,8 @@ public sealed class ActorInfoViewModel
     {
         if (ReferenceEquals(editingContext, context))
             return false;
+        projectActors = [];
+        projectPrimary = null;
         editingContext = context;
         runtimeActorId = null;
         displayedRuntimeValues = null;
@@ -126,6 +129,11 @@ public sealed class ActorInfoViewModel
         int? nextActorIndex,
         MapActorSnapshot? actorData, bool preservePositionDraft = false, bool preserveClassDraft = false)
     {
+        projectActors = [];
+        projectPrimary = null;
+        IsPositionXMixed = false;
+        IsPositionYMixed = false;
+        IsBlueprintMixed = false;
         bool sameRuntimeActor = isRuntime && runtimeActorId is not null
             && string.Equals(runtimeActorId, actorData?.RuntimeId, StringComparison.Ordinal)
             && string.Equals(mapKey, nextMapKey, StringComparison.Ordinal);
@@ -186,6 +194,11 @@ public sealed class ActorInfoViewModel
             refreshRuntimeActorInfo(preservePositionDraft, preserveClassDraft);
             return;
         }
+        if (projectActors.Count > 1)
+        {
+            refreshProjectSelectionHeader();
+            return;
+        }
         MapActorSnapshot? actorData = getActorData();
         if (actorData is null)
             return;
@@ -217,6 +230,11 @@ public sealed class ActorInfoViewModel
 
     public void resetOverride(string name)
     {
+        if (projectActors.Count > 1)
+        {
+            resetProjectSelectionOverrides(name);
+            return;
+        }
         readMapSnapshot();
         if (isRuntime || !canEditActor || gameData is null || getEditableActorData() is not MapActorSnapshot actorData
             || getClassVarChanges(actorData) is not JsonObject changes
@@ -236,6 +254,11 @@ public sealed class ActorInfoViewModel
 
     public void resetAllOverrides()
     {
+        if (projectActors.Count > 1)
+        {
+            resetProjectSelectionOverrides(null);
+            return;
+        }
         readMapSnapshot();
         if (isRuntime || !canEditActor || gameData is null || getEditableActorData() is not MapActorSnapshot actorData
             || getClassVarChanges(actorData) is not JsonObject changes
@@ -256,6 +279,11 @@ public sealed class ActorInfoViewModel
     public void refreshClassDetail()
     {
         readMapSnapshot();
+        if (projectActors.Count > 1)
+        {
+            refreshProjectSelectionFields();
+            return;
+        }
         if (isRuntime)
         {
             refreshRuntimeClassDetail();
@@ -318,7 +346,7 @@ public sealed class ActorInfoViewModel
     public void SetTag(string nextTag)
     {
         readMapSnapshot();
-        if (isRuntime || !canEditActor || gameData is null
+        if (isRuntime || projectActors.Count > 1 || !canEditActor || gameData is null
             || mapKey is null || layerName is null || actorIndex is not int index || actorTag is null)
             return;
         string oldTag = actorTag;
@@ -329,17 +357,27 @@ public sealed class ActorInfoViewModel
             return;
         }
         actorTag = tag;
+        if (projectActors.Count == 1 && layerName is not null)
+        {
+            projectPrimary = new MapActorReference(layerName, tag);
+            projectActors = [projectPrimary];
+        }
         Tag = tag;
         readMapSnapshot();
         HeaderChanged?.Invoke(this, EventArgs.Empty);
         if (string.Equals(oldTag, tag, StringComparison.Ordinal))
             return;
-        RefreshSelectedActorRequested?.Invoke(this, EventArgs.Empty);
         ActorTagChanged?.Invoke(this, EventArgs.Empty);
+        RefreshSelectedActorRequested?.Invoke(this, EventArgs.Empty);
     }
 
-    public void SetVariable(string name, JsonNode? nextValue, bool requiresRefresh)
+    public void SetVariable(string name, JsonNode? nextValue, bool requiresRefresh, IReadOnlyList<string>? path = null)
     {
+        if (projectActors.Count > 1)
+        {
+            setProjectSelectionVariable(name, nextValue, path ?? [], requiresRefresh);
+            return;
+        }
         readMapSnapshot();
         if (isRuntime)
         {
@@ -412,12 +450,22 @@ public sealed class ActorInfoViewModel
         if (mapKey is null || layerName is null || actorIndex is not int index)
             return null;
         MapDocumentSnapshot? map = getMapData();
-        if (map is null || !map.Actors.TryGetValue(layerName, out IReadOnlyList<MapActorSnapshot>? actors)
-            || index < 0 || index >= actors.Count)
+        if (map is null || !map.Actors.TryGetValue(layerName, out IReadOnlyList<MapActorSnapshot>? actors))
         {
             return null;
         }
-        return actors[index];
+        if (!isRuntime && actorTag is not null)
+        {
+            for (int currentIndex = 0; currentIndex < actors.Count; currentIndex++)
+            {
+                if (!string.Equals(actors[currentIndex].Tag, actorTag, StringComparison.Ordinal))
+                    continue;
+                actorIndex = currentIndex;
+                return actors[currentIndex];
+            }
+            return null;
+        }
+        return index >= 0 && index < actors.Count ? actors[index] : null;
     }
 
     private MapActorSnapshot? getEditableActorData()
@@ -441,6 +489,11 @@ public sealed class ActorInfoViewModel
 
     private void refreshActorInfo()
     {
+        if (projectActors.Count > 0)
+        {
+            setActors(mapKey ?? string.Empty, projectActors, projectPrimary);
+            return;
+        }
         readMapSnapshot();
         setActor(mapKey ?? string.Empty, layerName, actorIndex, getActorData());
     }

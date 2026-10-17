@@ -25,6 +25,11 @@ public sealed partial class MapPanel
 {
     private void handleActorPointerPressed(PointerPressedEventArgs args, (int X, int Y) grid)
     {
+        if (!IsRuntimeEditing)
+        {
+            handleProjectActorPointerPressed(args, grid);
+            return;
+        }
         if (selectedLayerName is null)
             return;
         PointerPoint point = args.GetCurrentPoint(this);
@@ -39,12 +44,6 @@ public sealed partial class MapPanel
             setSelectedActor(selected.Layer, selected.Index, true);
             if (canEditMap)
             {
-                if (beginActorPropertyDrag(args))
-                {
-                    args.Handled = true;
-                    InvalidateVisual();
-                    return;
-                }
                 actorMoveIndex = selected.Index;
                 actorMoveLayer = selected.Layer;
                 movingRuntimeActorId = selectedRuntimeActorId;
@@ -186,16 +185,16 @@ public sealed partial class MapPanel
 
     private void pasteActor((int X, int Y) grid)
     {
-        if (IsRuntimeEditing || !canEditMap || actorClipboard is null || selectedLayerName is null || gameData is null || CurrentMapKey is null)
-            return;
-        int? index = gameData.Maps.AddMapActor(CurrentMapKey, selectedLayerName, actorClipboard, grid.X, grid.Y, actorClassVarChangesClipboard);
-        if (index is not null)
-            setSelectedActor(selectedLayerName, index, true);
-        InvalidateVisual();
+        pasteSelectedActors(grid);
     }
 
     private void deleteSelectedActor()
     {
+        if (!IsRuntimeEditing)
+        {
+            DeleteSelectedActors();
+            return;
+        }
         if (!canEditMap || selectedActorLayer is null || selectedActorIndex is null
             || getSelectedActor() is not MapActorSnapshot actor || editingContext is null || CurrentMapKey is null)
             return;
@@ -219,7 +218,7 @@ public sealed partial class MapPanel
         locate.Click += (_, _) => BlueprintLocateRequested?.Invoke(this, reference);
         MenuItem copy = new() { Header = LocaleService.Get("COPY"), IsEnabled = getSelectedActor() is not null };
         copy.Click += (_, _) => copySelectedActorToClipboard();
-        MenuItem paste = new() { Header = LocaleService.Get("PASTE"), IsEnabled = !IsRuntimeEditing && canEditMap && actorClipboard is not null && selectedLayerName is not null && !hasActorAt(selectedLayerName, grid) };
+        MenuItem paste = new() { Header = LocaleService.Get("PASTE"), IsEnabled = !IsRuntimeEditing && canEditMap && actorGroupClipboard.Count != 0 && selectedLayerName is not null };
         paste.Click += (_, _) => pasteActor(grid);
         MenuItem delete = new() { Header = LocaleService.Get("DELETE"), IsEnabled = canEditMap && getSelectedActor() is not null };
         delete.Click += (_, _) => deleteSelectedActor();
@@ -256,6 +255,15 @@ public sealed partial class MapPanel
             layerName = null;
             index = null;
         }
+        if (!IsRuntimeEditing)
+        {
+            MapActorReference? reference = actor is null || layerName is null ? null : new(layerName, actor.Tag);
+            setProjectActorSelection(reference is null ? [] : [reference], reference, reference, notify, force);
+            return;
+        }
+        selectedActors.Clear();
+        primarySelectedActor = null;
+        ActorSelectionAnchor = null;
         bool changed = !string.Equals(selectedActorLayer, layerName, StringComparison.Ordinal) || selectedActorIndex != index;
         if (changed && (actorPropertyDrag is not null || propertyWheelTarget is not null))
             cancelMapGesture();
@@ -273,14 +281,7 @@ public sealed partial class MapPanel
 
     private void copySelectedActorToClipboard()
     {
-        MapActorSnapshot? actor = getSelectedActor();
-        actorClipboard = actor is null ? null : MapDocumentCodec.DecodeActor(actor.ToJson());
-        actorClassVarChangesClipboard = null;
-        if (actor?.Tag is not string tag
-            || CurrentMapDocument?.ReadActorOverrides(tag) is not JsonObject changes
-            || changes.Count == 0)
-            return;
-        actorClassVarChangesClipboard = (JsonObject)changes.DeepClone();
+        CopySelectedActors();
     }
 
 }

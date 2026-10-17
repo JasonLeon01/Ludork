@@ -22,8 +22,16 @@ public sealed class BlueprintVariableField
     public string? SourceClass { get; init; }
     public JsonNode? Value { get; set; }
     public JsonNode? DefaultValue { get; init; }
+    public bool HasDefaultValue { get; init; }
     public JsonNode? DisplayValue { get; set; }
     public JsonObject Meta { get; init; } = [];
+    public bool IsMixedValue { get; set; }
+    public bool IsMultiSelection { get; set; }
+    public bool IsMultiEditReadOnly { get; set; }
+    public bool IsMultiEditContainer { get; set; }
+    public IReadOnlyList<string> EditPath { get; set; } = [];
+    public IReadOnlyList<JsonNode?> MultiEditValues { get; set; } = [];
+    public IReadOnlyList<BlueprintVariableField> MultiEditChildren { get; set; } = [];
     public bool IsComponent { get; init; }
     public bool IsReadOnly { get; init; }
     public bool UseJsonTableEditor { get; init; }
@@ -52,8 +60,16 @@ public sealed class BlueprintVariableField
             TypeName = TypeName,
             SourceClass = SourceClass,
             DefaultValue = DefaultValue?.DeepClone(),
+            HasDefaultValue = HasDefaultValue,
             DisplayValue = DisplayValue?.DeepClone(),
             Meta = Meta.DeepClone() as JsonObject ?? [],
+            IsMixedValue = IsMixedValue,
+            IsMultiSelection = IsMultiSelection,
+            IsMultiEditReadOnly = IsMultiEditReadOnly,
+            IsMultiEditContainer = IsMultiEditContainer,
+            EditPath = EditPath.ToArray(),
+            MultiEditValues = MultiEditValues.Select(value => value?.DeepClone()).ToArray(),
+            MultiEditChildren = MultiEditChildren.Select(field => field.Clone()).ToArray(),
             IsComponent = IsComponent,
             IsReadOnly = IsReadOnly,
             UseJsonTableEditor = UseJsonTableEditor,

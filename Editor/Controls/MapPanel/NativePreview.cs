@@ -59,7 +59,7 @@ public sealed partial class MapPanel
         double renderScale = getRenderScaling();
         PixelSize size = new(Math.Clamp((int)Math.Ceiling(viewport.Width * renderScale), 1, 4096),
             Math.Clamp((int)Math.Ceiling(viewport.Height * renderScale), 1, 4096));
-        nativePreview!.IsInteracting = actorPropertyDrag is not null || actorMoveIndex is not null || propertyWheelTarget is not null || tileBrushDragging || rectangleStart is not null;
+        nativePreview!.IsInteracting = actorPropertyDrag is not null || actorMoveIndex is not null || actorPointerGesture?.Dragging == true || propertyWheelTarget is not null || tileBrushDragging || rectangleStart is not null;
         nativePreview.Request(nativeScene, nativeSceneRevision, worldView, size, service.Options, selectedLayerName, CurrentMapKey);
         if (nativePreview.Frame is Bitmap bitmap)
         {

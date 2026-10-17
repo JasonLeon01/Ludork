@@ -1,4 +1,16 @@
 {
+  "MULTIPLE_CHOICES": {
+    "zh_CN": "正在多选中",
+    "en_GB": "Multiple choices"
+  },
+  "ACTOR_BATCH_PASTE_FAILED": {
+    "zh_CN": "无法粘贴整组 Actor：落点越界、被占用或实例数据无效。",
+    "en_GB": "Cannot paste the Actor group: a destination is outside the map, occupied, or an instance is invalid."
+  },
+  "ACTOR_GROUP_MOVE_FAILED": {
+    "zh_CN": "无法整体移动：选中的 Actor 超出了当前地图可容纳的范围。",
+    "en_GB": "Cannot move the Actor group: the selection does not fit within the current map bounds."
+  },
   "LUDORK_SERVER_TEST_SETTINGS": {
     "zh_CN": "设置测试服务器",
     "en_GB": "Test Server Settings"

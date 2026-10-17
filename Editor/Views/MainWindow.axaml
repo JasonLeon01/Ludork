@@ -452,6 +452,7 @@
                         <TreeView x:Name="ActorOutliner"
                                   Grid.Row="1"
                                   Classes="actorOutliner"
+                                  SelectionMode="Multiple"
                                   ItemsSource="{Binding MapWorkspace.ActorOutlinerItems}"
                                   SelectionChanged="onActorOutlinerSelectionChanged">
                             <TreeView.ItemTemplate>

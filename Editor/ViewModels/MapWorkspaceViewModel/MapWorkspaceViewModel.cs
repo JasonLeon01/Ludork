@@ -274,9 +274,9 @@ public sealed partial class MapWorkspaceViewModel : ViewModelBase, IDisposable
                             : $"#{index + 1}";
                     ActorOutlinerItemViewModel? item = runtimeId is not null
                         ? runtimeActors.GetValueOrDefault(runtimeId)
-                        : layerItem.Children.FirstOrDefault(child => child.ActorIndex == index);
-                    item ??= new(name, reference, layer.Name, index, [], runtimeId);
-                    item.Update(name, reference, layer.Name, index);
+                        : layerItem.Children.FirstOrDefault(child => child.ActorTag == tag);
+                    item ??= new(name, reference, layer.Name, index, [], runtimeId, tag);
+                    item.Update(name, reference, layer.Name, index, tag);
                     childrenToKeep[item] = [];
                     if (runtimeId is not null)
                         currentActors[runtimeId] = item;

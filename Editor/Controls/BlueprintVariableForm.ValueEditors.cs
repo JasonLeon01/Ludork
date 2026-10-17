@@ -385,6 +385,7 @@ public sealed partial class BlueprintVariableForm
         Action<JsonNode?, bool> changed)
     {
         TextBox box = EditorInputs.CreateReadOnlyTextBox(getText(value));
+        box.PlaceholderText = field.IsMixedValue ? LocaleService.Get("MULTIPLE_CHOICES") : null;
         Button browse = new()
         {
             Content = "...",
@@ -491,6 +492,7 @@ public sealed partial class BlueprintVariableForm
             {
                 return;
             }
+            box.PlaceholderText = null;
             box.Text = storedPath;
             changed(JsonValue.Create(storedPath), false);
         };

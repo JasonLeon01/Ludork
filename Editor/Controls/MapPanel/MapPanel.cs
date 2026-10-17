@@ -65,8 +65,6 @@ public sealed partial class MapPanel : Control
     private string? actorMoveLayer;
     private string? movingRuntimeActorId;
     private (int X, int Y) actorMoveOffset;
-    private MapActorSnapshot? actorClipboard;
-    private JsonObject? actorClassVarChangesClipboard;
     private ViewportRenderCache? checkerboardRenderCache;
     private CacheGeometry? cacheGeometry;
     private ActorRenderState? pendingActorRenderState;
@@ -230,7 +228,7 @@ public sealed partial class MapPanel : Control
     public void setSelectedLayerEditable(bool editable)
     {
         selectedLayerEditable = editable;
-        if (!editable && (actorPropertyDrag is not null || propertyWheelTarget is not null))
+        if (!editable && (actorPropertyDrag is not null || propertyWheelTarget is not null || actorPointerGesture is not null))
             CancelInteractions();
         flushPendingBrushLayers();
         disposeMapRenderCaches();
@@ -262,6 +260,11 @@ public sealed partial class MapPanel : Control
 
     public void refreshSelectedActor()
     {
+        if (!IsRuntimeEditing && selectedActors.Count > 1)
+        {
+            InvalidateVisual();
+            return;
+        }
         if (actorRenderStatesDirty)
         {
             InvalidateVisual();

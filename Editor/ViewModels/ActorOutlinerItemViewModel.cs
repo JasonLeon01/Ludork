@@ -9,7 +9,8 @@ public sealed class ActorOutlinerItemViewModel(
     string layerName,
     int? actorIndex,
     IReadOnlyList<ActorOutlinerItemViewModel> children,
-    string? runtimeId = null) : ViewModelBase
+    string? runtimeId = null,
+    string? actorTag = null) : ViewModelBase
 {
     private string name = name;
     private string description = description;
@@ -21,6 +22,7 @@ public sealed class ActorOutlinerItemViewModel(
     public string LayerName { get => layerName; private set => SetProperty(ref layerName, value); }
     public int? ActorIndex { get => actorIndex; private set => SetProperty(ref actorIndex, value); }
     public string? RuntimeId { get; } = runtimeId;
+    public string? ActorTag { get; private set; } = actorTag;
     public ObservableCollection<ActorOutlinerItemViewModel> Children { get; } = new(children);
 
     public IEnumerable<ActorOutlinerItemViewModel> EnumerateDescendants()
@@ -33,11 +35,12 @@ public sealed class ActorOutlinerItemViewModel(
         }
     }
 
-    public void Update(string nextName, string nextDescription, string nextLayerName, int nextActorIndex)
+    public void Update(string nextName, string nextDescription, string nextLayerName, int nextActorIndex, string nextActorTag)
     {
         Name = nextName;
         Description = nextDescription;
         LayerName = nextLayerName;
         ActorIndex = nextActorIndex;
+        ActorTag = nextActorTag;
     }
 }

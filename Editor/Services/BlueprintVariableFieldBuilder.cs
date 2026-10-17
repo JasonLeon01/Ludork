@@ -213,6 +213,7 @@ public sealed class BlueprintVariableFieldBuilder
             TypeName = displayType.TypeName,
             SourceClass = field.SourceClass,
             DefaultValue = hasDefault ? cloneNode(defaultValue) : null,
+            HasDefaultValue = hasDefault,
             DisplayValue = getConfigDisplayValue(field.Name, field.Value, meta),
             Meta = meta,
             IsComponent = fieldMetadata?.Component == true,

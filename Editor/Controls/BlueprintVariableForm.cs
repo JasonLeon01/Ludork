@@ -205,6 +205,7 @@ public sealed partial class BlueprintVariableForm : UserControl, IDisposable
         fields.AddRange(nextFields.Select(field => field.Clone()));
         values.Clear();
         rows.Clear();
+        multipleFieldEditors.Clear();
         instanceVariableSources.Clear();
         foreach (Control control in historyControls)
             HistoryMergeBehavior.Detach(control);
@@ -230,7 +231,7 @@ public sealed partial class BlueprintVariableForm : UserControl, IDisposable
     private IEnumerable<bool> buildFieldRows()
     {
         List<BlueprintVariableField> componentFields = fields
-            .Where(field => field.IsComponent)
+            .Where(field => field.IsComponent && !field.IsMultiSelection)
             .ToList();
         if (componentFields.Count > 0)
         {
@@ -238,7 +239,7 @@ public sealed partial class BlueprintVariableForm : UserControl, IDisposable
             yield return true;
         }
 
-        IEnumerable<BlueprintVariableField> variableFields = fields.Where(field => !field.IsComponent);
+        IEnumerable<BlueprintVariableField> variableFields = fields.Where(field => !field.IsComponent || field.IsMultiSelection);
         if (ShowSourceGroups)
         {
             foreach (IGrouping<string?, BlueprintVariableField> group in variableFields.GroupBy(
@@ -527,6 +528,8 @@ public sealed partial class BlueprintVariableForm : UserControl, IDisposable
         string? dictionaryKey = null,
         IReadOnlySet<string>? excludedInstanceVariableNames = null)
     {
+        if (field.IsMultiSelection)
+            return createMultipleValueEditor(field, field);
         if (PlainTextEditorFactory is not null)
         {
             BlueprintVariableField resolved = resolveInstanceVariableValueField(field, dictionaryKey);
@@ -736,7 +739,8 @@ public sealed partial class BlueprintVariableForm : UserControl, IDisposable
     {
         foreach (BlueprintVariableRow row in rows.Values)
         {
-            bool editable = !isReadOnly && !row.Field.IsReadOnly && dependencyMatches(row.Dependency);
+            bool editable = !isReadOnly && !row.Field.IsReadOnly && !row.Field.IsMultiEditReadOnly
+                && (row.Field.IsMultiSelection || dependencyMatches(row.Dependency));
             row.Editor.IsEnabled = editable;
             string tooltip = createTooltip(row.Description, editable ? null : row.Dependency);
             if (!string.IsNullOrWhiteSpace(tooltip))

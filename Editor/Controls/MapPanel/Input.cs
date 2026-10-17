@@ -80,6 +80,7 @@ public sealed partial class MapPanel
                 if (getLayer(layerName) is MapLayerSnapshot layer && isLayerVisible(layer))
                     drawActorHelpers(context, layerName);
             drawHoverAndPlacement(context);
+            drawSelectedActors(context);
         }
     }
 
@@ -92,7 +93,7 @@ public sealed partial class MapPanel
             return;
 
         PointerPoint point = args.GetCurrentPoint(this);
-        if (point.Properties.IsLeftButtonPressed && !IsRuntimeEditing)
+        if (point.Properties.IsLeftButtonPressed && !IsRuntimeEditing && EditMode != MapEditMode.Actor)
             mapEditGesture = gameData.BeginHistoryGesture();
         Point position = point.Position;
         if (getGridPosition(position, width, height) is not { } grid)
@@ -153,7 +154,10 @@ public sealed partial class MapPanel
                     ? hitTestActor(selectedLayerName, mapPosition)
                     : null;
                 (string Layer, int Index)? target = resolveMapActorHit(selectedLayerName, hit);
-                setSelectedActor(target?.Layer, target?.Index, true);
+                MapActorReference? reference = target is { } actorTarget && getActorList(actorTarget.Layer)?[actorTarget.Index] is MapActorSnapshot actor
+                    ? new(actorTarget.Layer, actor.Tag) : null;
+                if (IsRuntimeEditing || reference is null || !selectedActors.Contains(reference))
+                    setSelectedActor(target?.Layer, target?.Index, true);
                 showActorContextMenu(grid);
             }
             else if (EditMode == MapEditMode.Tile && selectedLayerName is not null
@@ -170,6 +174,11 @@ public sealed partial class MapPanel
         if (CurrentMapDocument is null || !tryGetMapSize(out int width, out int height))
             return;
         Point position = args.GetPosition(this);
+        if (!IsRuntimeEditing && actorPointerGesture is not null)
+        {
+            updateProjectActorGesture(args);
+            return;
+        }
         if (actorPropertyDrag is not null)
         {
             updateActorPropertyDrag(position);
@@ -196,6 +205,9 @@ public sealed partial class MapPanel
     protected override void OnPointerReleased(PointerReleasedEventArgs args)
     {
         base.OnPointerReleased(args);
+        if (!IsRuntimeEditing && args.InitialPressMouseButton == MouseButton.Left)
+            completeProjectActorGesture();
+        actorPointerGesture = null;
         if (CurrentMapDocument is not null && tryGetMapSize(out int width, out int height))
         {
             (int X, int Y)? grid = getGridPosition(args.GetPosition(this), width, height);
@@ -216,6 +228,7 @@ public sealed partial class MapPanel
 
     protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs args)
     {
+        actorPointerGesture = null;
         actorPropertyDrag = null;
         endMapGesture();
         tileBrushDragging = false;
@@ -233,6 +246,7 @@ public sealed partial class MapPanel
         if (!tileBrushDragging
             && rectangleStart is null
             && actorPropertyDrag is null
+            && actorPointerGesture is null
             && actorMoveIndex is null)
         {
             hoverGrid = null;
@@ -256,7 +270,7 @@ public sealed partial class MapPanel
             args.Handled = true;
             return;
         }
-        if (args.Key == Key.Delete && EditMode == MapEditMode.Actor)
+        if (args.Key is Key.Delete or Key.Back && EditMode == MapEditMode.Actor)
         {
             deleteSelectedActor();
             args.Handled = true;

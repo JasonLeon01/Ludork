@@ -287,6 +287,7 @@ public sealed partial class MapPanel
     {
         endMapGesture();
         actorPropertyDrag = null;
+        actorPointerGesture = null;
         rectangleStart = null;
         tileBrushDragging = false;
         actorMoveIndex = null;
@@ -302,7 +303,9 @@ public sealed partial class MapPanel
         if (args.Edit is not null && CurrentMapDocument is not null)
         {
             long started = Stopwatch.GetTimestamp();
+            Dictionary<MapActorReference, int> renamed = captureSelectedActorRenames(args.Edit);
             MapDocumentCodec.ApplyEdits(CurrentMapDocument, args.Edit);
+            remapSelectedActorTags(renamed);
             if (nativeScene is not null && previewService?.MapScenes.UpdateActors(nativeScene, CurrentMapKey, CurrentMapDocument.Data, args.Edit) == true)
                 nativeSceneRevision++;
             else
@@ -318,6 +321,8 @@ public sealed partial class MapPanel
             {
                 if (IsRuntimeEditing)
                     reconcileRuntimeActorSelection();
+                else
+                    reconcileProjectActorSelection(renamed.Count != 0);
                 updateActorRenderStates(args.Edit);
                 ActorDataChanged?.Invoke(this, EventArgs.Empty);
             }
@@ -337,7 +342,10 @@ public sealed partial class MapPanel
             tilesetPaths.Clear();
             if (args.ReloadData)
             {
-                setSelectedActor(selectedActorLayer, selectedActorIndex, true, true);
+                if (IsRuntimeEditing)
+                    setSelectedActor(selectedActorLayer, selectedActorIndex, true, true);
+                else
+                    reconcileProjectActorSelection(true);
                 ActorDataChanged?.Invoke(this, EventArgs.Empty);
             }
             InvalidateMeasure();
