@@ -100,6 +100,8 @@ public sealed partial class ProjectDataStore : IDisposable
         Subtitles = new SubtitleDataService(this, sections["Subtitles"]);
         if (load)
             loadAll();
+        this.loadCancellationToken = default;
+        this.loadProgress = null;
     }
 
     public LuaEnumService Enums { get; }

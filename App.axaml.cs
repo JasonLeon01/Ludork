@@ -140,6 +140,7 @@ public partial class App : Application
             MainWindow? mainWindow = await createProjectWindowAsync(currentWindow, projectFilePath, cancellation.Token);
             if (mainWindow is null)
                 return;
+            currentWindow.Closed -= cancel;
             desktop.MainWindow = mainWindow;
             mainWindow.Show();
             if (currentWindow is MainWindow previousMain)
