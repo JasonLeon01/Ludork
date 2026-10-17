@@ -37,7 +37,7 @@
 ---@field _gameplayRequestsActive               boolean
 ---@field _gameOverRequest                      { player: Source.MapActors.Player.Player, gameMap: GameMap } | nil
 ---@field _mapBuilder                           Source.SceneComponents.SceneMapBuilder
----@field _mapAudio                             Source.SceneComponents.SceneMapAudioController
+---@field _mapAudio                             Global.Audio.MapAudio
 ---@field _tutorials                            Source.SceneComponents.Tutorial
 ---@field _playerHUD                            Source.Windows.PlayerAttrHUD
 ---@field _messageWindow                        Internal.UIBase.LazyWindow<Source.Windows.WindowMessage>
@@ -373,7 +373,7 @@ function Scene:playBgm(bgm, bgmFilter) end
 --- - @param attr The filter attribute name.
 --- - @param value The filter attribute value.
 ---@param attr  string
----@param value Source.SceneComponents.MusicFilterValue
+---@param value Global.Audio.MusicFilterValue
 function Scene:setBgmFilter(attr, value) end
 
 ---@brief Set a filter attribute on the current BGS music.
@@ -381,7 +381,7 @@ function Scene:setBgmFilter(attr, value) end
 --- - @param attr The filter attribute name.
 --- - @param value The filter attribute value.
 ---@param attr  string
----@param value Source.SceneComponents.MusicFilterValue
+---@param value Global.Audio.MusicFilterValue
 function Scene:setBgsFilter(attr, value) end
 
 ---@param mapKey string

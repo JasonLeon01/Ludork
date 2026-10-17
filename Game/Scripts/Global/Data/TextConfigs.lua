@@ -1,13 +1,13 @@
 local Engine = require("Engine")
-local Validation = require("Source.Data.Validation")
+local Validation = require("Global.Data.Validation")
 
 local requireNamedValue = Validation.RequireNamedValue
 local TextConfig = Engine.TextConfig
 
----@class Source.Data.TextConfigs
+---@class Global.Data.TextConfigs
 local DataTextConfigs = {}
 
----@param data Source.Data.Cache
+---@param data Global.Data.Cache
 function DataTextConfigs:init(data)
     self._state = data
 end

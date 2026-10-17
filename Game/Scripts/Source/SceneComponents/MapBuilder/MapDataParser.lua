@@ -1,6 +1,6 @@
 local Engine = require("Engine")
 local WorldGeometry = require("Global.WorldGeometry")
-local MapPath = require("Source.Utils.MapPath")
+local MapPath = require("Global.Utils.MapPath")
 local System = require("Source.System")
 local MapConstants = require("Source.Configs.MapConstants")
 
@@ -59,10 +59,9 @@ local function requireArray(value, path)
         assert(value[index] ~= nil, path .. " must be an array")
     end
     for key in pairs(value) do
-        assert(
-            key == "n" or (Class.isInstance(key, "number") and math.type(key) == "integer" and key >= 1
-                    and key <= length), path .. " must be an array"
-        )
+        assert(key == "n"
+                or (Class.isInstance(key, "number") and math.type(key) == "integer"
+                    and key >= 1 and key <= length), path .. " must be an array")
     end
 end
 
@@ -243,7 +242,7 @@ function MapDataParser.NormaliseMap(data, buildAmbientLight)
         assert(seenLayers[layerName], "Map actor group is missing from layerOrder: " .. layerName)
     end
     local serializedActors = data.actors or {}
-    ---@type table<string, Source.Data.ActorData[]>
+    ---@type table<string, Global.Data.ActorData[]>
     local actors = {}
     for layerName, actorDatas in pairs(serializedActors) do
         local normalisedActorDatas = {}
@@ -255,7 +254,7 @@ function MapDataParser.NormaliseMap(data, buildAmbientLight)
             normalisedActorDatas[index] = { bp = actorData.bp, tag = actorData.tag, position = sf.Vector2u.new(x, y) }
         end
     end
-    ---@type Source.SceneComponents.MapData
+    ---@type Global.GameMap.MapData
     local mapData = {
         type = data.type,
         mapName = data.mapName,

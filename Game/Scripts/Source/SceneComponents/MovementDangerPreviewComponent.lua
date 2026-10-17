@@ -1,7 +1,7 @@
 local Engine = require("Engine")
 local DamageHintLevel = require("Enums.DamageHintLevel")
 local ComponentBase = require("Global.Components.ComponentBase")
-local Data = require("Source.Data")
+local Data = require("Global.Data")
 local EnemyDamageText = require("Source.MapActors.EnemyDamageText")
 local NumberFormat = require("Source.Utils.NumberFormat")
 

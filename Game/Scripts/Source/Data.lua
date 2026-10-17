@@ -1,168 +1,42 @@
 local Engine = require("Engine")
 local GeneralDataKey = require("Enums.GeneralDataKey")
+local GlobalData = require("Global.Data")
+local Validation = require("Global.Data.Validation")
 local GeneralDataTypes = require("Source.Configs.GeneralDataTypes")
-local DataLoading = require("Source.Data.Loading")
-local DataTextConfigs = require("Source.Data.TextConfigs")
-local DataBlueprints = require("Source.Data.Blueprints")
-local Validation = require("Source.Data.Validation")
+local ConditionalActor = require("Source.MapActors.ConditionalActor")
+local ChildActorComponent = require("Source.Components.ChildActorComponent")
+local SourceSystem = require("Source.System")
 
 local requireNamedValue = Validation.RequireNamedValue
-local RuntimeProviders = Engine.RuntimeProviders
 
 ---@class (partial) Source.Data
-local Data = {
-    dataKinds = 7
-}
-
----@type Source.Data.Cache
-local dataState = {
-    animationData = {},
-    curveData = {},
-    curveTypes = {},
-    textConfigData = {},
-    plainTextConfigs = {},
-    richTextConfigs = {},
-    commonFunctionsData = {},
-    tilesetData = {},
-    autoTileData = {},
-    generalData = {},
-    blueprintClassPaths = nil,
-    blueprintClassPathIndex = nil,
-    blueprintClassData = {}
-}
-
----@type Engine.ClassDict | nil
-local classDict
-
----@type Source.Data.Loading
-local dataLoading
----@type Source.Data.TextConfigs
-local dataTextConfigs
----@type Source.Data.Blueprints
-local dataBlueprints
+local Data = {}
 
 function Data.InitializeRuntime()
-    assert(classDict == nil, "Data runtime is already initialized")
-    classDict = Engine.ClassDict.new()
-    dataLoading = DataLoading.new(dataState)
-    dataTextConfigs = DataTextConfigs.new(dataState)
-    dataBlueprints = DataBlueprints.new(dataState, dataLoading, classDict)
-    RuntimeProviders.installData(function (name)
-        return Data.GetCurve(name)
-    end,
-        function (name)
-            return Data.GetPlainTextConfig(name)
-        end)
-    dataBlueprints:installRuntimeProviders()
-end
-
-function Data.BeginInitialLoad()
-    return dataLoading:beginInitialLoad()
-end
-
-function Data.ApplyInitialLoadItem(stage, item)
-    return dataLoading:applyInitialLoadItem(stage, item)
-end
-
-function Data.CommitInitialLoad(stage)
-    dataLoading:commitInitialLoad(stage, dataBlueprints)
-end
-
-function Data.AbortInitialLoad(stage)
-    dataLoading:abortInitialLoad(stage)
-end
-
-function Data.GetDataKinds()
-    return Data.dataKinds
-end
-
-function Data.CountLoadableFiles(dataRoot, needExt, _defaultType, recursive)
-    return dataLoading:countLoadableFiles(dataRoot, needExt, recursive)
-end
-
-function Data.LoadAnimations(onFileLoaded)
-    dataLoading:loadAnimations(onFileLoaded)
-end
-
-function Data.LoadCommonFunctions(onFileLoaded)
-    dataLoading:loadCommonFunctions(onFileLoaded)
-end
-
-function Data.LoadTilesets(onFileLoaded)
-    dataLoading:loadTilesets(onFileLoaded)
-end
-
-function Data.LoadAutoTiles(onFileLoaded)
-    dataLoading:loadAutoTiles(onFileLoaded)
-end
-
-function Data.LoadGeneralData(onFileLoaded)
-    dataLoading:loadGeneralData(onFileLoaded)
-end
-
-function Data.LoadCurves(onFileLoaded)
-    dataLoading:loadCurves(onFileLoaded)
-end
-
-function Data.LoadTextConfigs(onFileLoaded)
-    dataLoading:loadTextConfigs(onFileLoaded)
-end
-
-function Data.GetAnimation(name)
-    local animation = requireNamedValue(dataState.animationData, name, "Animation data not found: " .. tostring(name))
-    return copy(animation)
-end
-
-function Data.GetCurve(name)
-    assert(dataState.curveTypes[name] == "curve", "Float curve data not found: " .. tostring(name))
-    return requireNamedValue(dataState.curveData, name, "Float curve data not found: " .. tostring(name))
-end
-
-function Data.GetVector2Curve(name)
-    assert(dataState.curveTypes[name] == "vector2Curve", "Vector2 curve data not found: " .. tostring(name))
-    return requireNamedValue(dataState.curveData, name, "Vector2 curve data not found: " .. tostring(name))
-end
-
-function Data.GetVector3Curve(name)
-    assert(dataState.curveTypes[name] == "vector3Curve", "Vector3 curve data not found: " .. tostring(name))
-    return requireNamedValue(dataState.curveData, name, "Vector3 curve data not found: " .. tostring(name))
-end
-
-function Data.GetVector4Curve(name)
-    assert(dataState.curveTypes[name] == "vector4Curve", "Vector4 curve data not found: " .. tostring(name))
-    return requireNamedValue(dataState.curveData, name, "Vector4 curve data not found: " .. tostring(name))
-end
-
-function Data.GetPlainTextConfig(name)
-    return dataTextConfigs:getPlainTextConfig(name)
-end
-
-function Data.GetRichTextConfig(name)
-    return dataTextConfigs:getRichTextConfig(name)
-end
-
-function Data.GetTileset(name)
-    return requireNamedValue(dataState.tilesetData, name, "Tileset data not found: " .. tostring(name))
-end
-
-function Data.GetAutoTile(name)
-    return requireNamedValue(dataState.autoTileData, name, "AutoTile data not found: " .. tostring(name))
-end
-
-function Data.HasAutoTile(name)
-    return dataState.autoTileData[name] ~= nil
-end
-
-function Data.GetGeneralData(name)
-    return requireNamedValue(dataState.generalData, name, "General data not found: " .. tostring(name))
+    assert(Class.isSubclass(ConditionalActor, Engine.Actor), "ConditionalActor must derive from Engine.Actor")
+    assert(
+        Class.isSubclass(ChildActorComponent, Engine.Component), "ChildActorComponent must derive from Engine.Component"
+    )
+    ---@diagnostic disable-next-line: cast-type-mismatch, imported declarations describe instance fields rather than the validated class object
+    ---@cast ConditionalActor Class.ClassType<Engine.Actor>
+    ---@diagnostic disable-next-line: cast-type-mismatch, imported declarations describe instance fields rather than the validated class object
+    ---@cast ChildActorComponent Class.ClassType<Engine.Component>
+    GlobalData.InitializeRuntime({
+        configResolver = SourceSystem.GetConfigValue,
+        nodeModuleCandidates = function (prefix)
+            return { "Source." .. prefix, "Global." .. prefix }
+        end,
+        conditionalActorBase = ConditionalActor,
+        childActorComponentBase = ChildActorComponent
+    })
 end
 
 ---@param name string
----@return table<string, table<string, Source.Data.GeneralValue>>
+---@return table<string, table<string, Global.Data.GeneralValue>>
 local function generalMembers(name)
-    local data = Data.GetGeneralData(name)
+    local data = GlobalData.GetGeneralData(name)
     local members = requireNamedValue(data, "members", "General data members not found: " .. tostring(name))
-    ---@cast members table<string, table<string, Source.Data.GeneralValue>>
+    ---@cast members table<string, table<string, Global.Data.GeneralValue>>
     return members
 end
 
@@ -220,48 +94,6 @@ function Data.GetGeneralStateData(key)
     return requireNamedValue(
         generalMembers(GeneralDataKey.State), key, "General state data not found: " .. tostring(key)
     )
-end
-
-function Data.GetClass(classPath)
-    return assert(classDict, "Data runtime is not initialized"):get(classPath)
-end
-
-function Data.GetClassData(classPath)
-    return assert(classDict, "Data runtime is not initialized"):getData(classPath)
-end
-
-function Data.ResolveClassPath(className)
-    return dataBlueprints:resolveClassPath(className)
-end
-
-function Data.GetCommonFunction(name)
-    return dataBlueprints:getCommonFunction(name)
-end
-
-function Data.GenGraphFromData(data, parent, parentClass)
-    return dataBlueprints:genGraphFromData(data, parent, parentClass)
-end
-
----@param classVarChanges table<string, Source.Data.ClassVarValue> | nil
-function Data.GenActorFromClassPath(classPath, tag, classVarChanges)
-    return dataBlueprints:genActorFromClassPath(classPath, tag, classVarChanges)
-end
-
-function Data.GetActorPreviewData(classPath, classVarChanges)
-    return dataBlueprints:getActorPreviewData(classPath, classVarChanges)
-end
-
-function Data.ClearActorPreviewCache()
-    dataBlueprints:clearActorPreviewCache()
-end
-
-function Data.GenActorFromClassName(className, tag)
-    return dataBlueprints:genActorFromClassName(className, tag)
-end
-
----@param classVarChanges table<string, Source.Data.ClassVarValue> | nil
-function Data.GenActorFromData(actorData, layerName, classVarChanges)
-    return dataBlueprints:genActorFromData(actorData, layerName, classVarChanges)
 end
 
 return Data

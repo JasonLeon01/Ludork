@@ -61,7 +61,7 @@ public sealed partial class ProjectDataStore
                 }
             }
             else if (source.Section == "UI")
-                copies[0] = (source.Section, key, UiAssetSchema.CloneForCopy(source.Data!, Path.GetFileName(UiAssetSchema.ToLogicalAssetKey(key))));
+                copies[0] = (source.Section, key, UiAssetSchema.CloneForCopy(source.Data!, Path.GetFileName(key)));
             foreach ((string copySection, string copyKey, JsonObject _) in copies)
             {
                 if (GetDocument(copySection, copyKey) is not null || File.Exists(getSectionDataPath(copySection, copyKey)))

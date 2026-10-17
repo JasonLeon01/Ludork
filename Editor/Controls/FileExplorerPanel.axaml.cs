@@ -715,7 +715,7 @@ public partial class FileExplorerPanel : UserControl
             (EditorDataKind.Curve, "NEW_VECTOR3_CURVE", Path.Combine(viewModel.ProjectPath, "Data", "Curves"), "vector3Curve"),
             (EditorDataKind.Curve, "NEW_VECTOR4_CURVE", Path.Combine(viewModel.ProjectPath, "Data", "Curves"), "vector4Curve"),
             (EditorDataKind.TextConfig, "NEW_TEXT_CONFIG", Path.Combine(viewModel.ProjectPath, "Data", "TextConfigs"), null),
-            (EditorDataKind.UiAsset, "NEW_UI_ASSET", Path.Combine(viewModel.ProjectPath, "Data", "UI", "Assets"), null),
+            (EditorDataKind.UiAsset, "NEW_UI_ASSET", Path.Combine(viewModel.ProjectPath, "Data", "UI"), null),
         ];
         foreach ((EditorDataKind kind, string localeKey, string root, string? dataType) in roots)
         {

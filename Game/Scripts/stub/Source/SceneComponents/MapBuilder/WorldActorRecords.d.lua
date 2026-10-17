@@ -2,14 +2,14 @@
 
 local WorldActorRecords = {}
 
----@param worldData    Source.SceneComponents.WorldMapData
+---@param worldData    Global.WorldGameMap.WorldMapData
 ---@param inst         Source.GameInstance.GameInstance
 ---@param worldPath    string
----@param targetRegion Source.SceneComponents.WorldRegionData | nil
+---@param targetRegion Global.WorldGameMap.WorldRegionData | nil
 ---@return Source.GameInstance.AddedActorRecord[]
 function WorldActorRecords.SelectAdded(worldData, inst, worldPath, targetRegion) end
 
----@param worldData Source.SceneComponents.WorldMapData
+---@param worldData Global.WorldGameMap.WorldMapData
 ---@param inst      Source.GameInstance.GameInstance
 ---@param worldPath string
 ---@return Source.GameInstance.WorldMovedActorRecord[]

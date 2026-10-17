@@ -65,7 +65,7 @@ public sealed class UiControlRegistryService : IDisposable
         {
             UiAssetSnapshot asset = pair.Value;
             bool exposed = asset.Palette.Exposed;
-            string logicalKey = UiAssetSchema.ToLogicalAssetKey(pair.Key);
+            string logicalKey = UiAssetSchema.NormalizeAssetKey(pair.Key);
             if (logicalKey.Length == 0 || exposedOnly && !exposed)
             {
                 continue;

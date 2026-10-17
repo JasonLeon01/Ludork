@@ -878,7 +878,7 @@ end
 function Scene.IsMapPositionPassable(self, mapPath, actor, position)
     local mapFile, mapData = self._mapBuilder:loadMapData(mapPath, self:_getCurrentRegionMap())
     assert(mapData.type ~= "worldMap", "Floor passability preview does not support world manifests: " .. mapFile)
-    ---@cast mapData Source.SceneComponents.MapData
+    ---@cast mapData Global.GameMap.MapData
     local gameMap = self._mapBuilder:generateGameMap(mapData, nil, false, true)
     gameMap:applyTerrainDestructions(self.inst:getTerrainDestructions(mapFile))
     self._mapBuilder:applyAddedActors(gameMap, self.inst:getAddedActors(mapFile), false)

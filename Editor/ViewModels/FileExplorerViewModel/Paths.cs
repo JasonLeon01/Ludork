@@ -175,7 +175,7 @@ public sealed partial class FileExplorerViewModel
             getUiAssetTransferPaths(source, destination);
         if (uiAssetMoves.Count != 0)
         {
-            string uiAssetsRoot = Path.Combine(projectPath, "Data", "UI", "Assets");
+            string uiAssetsRoot = Path.Combine(projectPath, "Data", "UI");
             if (!EditorPathSandbox.IsSameOrChildPath(uiAssetsRoot, source)
                 || !EditorPathSandbox.IsSameOrChildPath(uiAssetsRoot, destination)
                 || uiAssetMoves.Any(move =>
@@ -191,7 +191,7 @@ public sealed partial class FileExplorerViewModel
 
     private bool tryGetUiAssetKeyForPath(string path, out string key)
     {
-        string root = Path.GetFullPath(Path.Combine(projectPath, "Data", "UI", "Assets"));
+        string root = Path.GetFullPath(Path.Combine(projectPath, "Data", "UI"));
         string relative = Path.GetRelativePath(root, Path.GetFullPath(path));
         key = string.Empty;
         if (!EditorPathSandbox.IsSameOrChildPath(root, path) || !string.Equals(Path.GetExtension(relative), DataConfig.DataFileExtension, StringComparison.Ordinal))
@@ -205,12 +205,12 @@ public sealed partial class FileExplorerViewModel
         string source,
         string destination)
     {
-        string uiAssetsRoot = Path.Combine(projectPath, "Data", "UI", "Assets");
+        string uiAssetsRoot = Path.Combine(projectPath, "Data", "UI");
         bool sourceIsFile = File.Exists(source);
         List<(string SourcePath, string DestinationPath)> result = [];
         foreach (string dataKey in gameData.UiAssets.GetUiAssetKeysForMove())
         {
-            string logicalKey = UiAssetSchema.ToLogicalAssetKey(dataKey);
+            string logicalKey = UiAssetSchema.NormalizeAssetKey(dataKey);
             if (logicalKey.Length == 0)
                 continue;
             string assetPath = Path.Combine(

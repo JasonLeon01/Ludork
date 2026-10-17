@@ -1,11 +1,11 @@
 local Engine = require("Engine")
-local NodeCompiler = require("Global.Utils.NodeCompiler")
 local GlobalCore = require("GlobalCore")
+local NodeCompiler = require("Global.Utils.NodeCompiler")
 local Logging = require("Global.Utils.Logging")
 ---@type Global.Utils.Path.Module
 local Path = require("Global.Utils.Path")
-local BlueprintActorOverrides = require("Source.Data.BlueprintActorOverrides")
-local ActorPreviews = require("Source.Data.ActorPreviews")
+local BlueprintActorOverrides = require("Global.Data.BlueprintActorOverrides")
+local ActorPreviews = require("Global.Data.ActorPreviews")
 
 local ResourceFileConstants = Engine.ResourceFileConstants
 local RuntimeProviders = Engine.RuntimeProviders
@@ -18,35 +18,36 @@ local function prepareBlueprintData(data, loading)
 end
 
 local nilGraphParentClass = {}
-local nodeCompilerContext = {
-    moduleCandidates = function (prefix)
-        return { "Source." .. prefix, "Global." .. prefix }
-    end,
-    roots = {
-        {
-            name = "Engine",
-            value = Engine
-        },
-        {
-            name = "GlobalCore",
-            value = GlobalCore
-        }
-    }
-}
 
----@class Source.Data.Blueprints
+---@class Global.Data.Blueprints
 local DataBlueprints = {}
 
----@param data      Source.Data.Cache
+---@param data      Global.Data.Cache
 ---@param classDict Engine.ClassDict
-function DataBlueprints:init(data, loading, classDict)
+---@param options   Global.Data.RuntimeOptions
+function DataBlueprints:init(data, loading, classDict, options)
     self._state = data
     self._classDict = classDict
     self._loading = loading
     self._graphTemplates = {}
+    self._configResolver = options.configResolver
+    self._nodeCompilerContext = {
+        moduleCandidates = options.nodeModuleCandidates,
+        roots = {
+            {
+                name = "Engine",
+                value = Engine
+            },
+            {
+                name = "GlobalCore",
+                value = GlobalCore
+            }
+        }
+    }
     self._actorPreviews = ActorPreviews.new(classDict, function (classPath)
         return self:resolveClassPath(classPath)
-    end)
+    end, options
+    )
 end
 
 function DataBlueprints:getActorPreviewData(classPath, classVarChanges)
@@ -134,13 +135,13 @@ function DataBlueprints:getCommonFunction(name)
         local path = "./Data/CommonFunctions/" .. tostring(name) .. ResourceFileConstants.DATA_EXTENSION
         assert(Engine.dataExists(path), "Common function not found: " .. tostring(name))
         local loadedData = self._loading:normaliseJsonNull(Engine.loadData(path))
-        ---@cast loadedData Source.Data.GraphData
+        ---@cast loadedData Global.Data.GraphData
         self._state.commonFunctionsData[name] = loadedData
     end
     return self:genGraphFromData(self._state.commonFunctionsData[name])
 end
 
----@param data        Source.Data.GraphData
+---@param data        Global.Data.GraphData
 ---@param parentClass Class.ClassType<any> | nil
 ---@return Engine.Graph
 function DataBlueprints:compileGraphTemplate(data, parentClass)
@@ -160,7 +161,9 @@ function DataBlueprints:compileGraphTemplate(data, parentClass)
         for _, node in ipairs(valueDict.nodes or {}) do
             local nodeData = deepcopy(node)
             nodeData.pos = nil
-            local resolvedDefinition = NodeCompiler.Compile(nodeData.nodeFunction, parentClass, nodeCompilerContext)
+            local resolvedDefinition = NodeCompiler.Compile(
+                nodeData.nodeFunction, parentClass, self._nodeCompilerContext
+            )
             assert(
                 resolvedDefinition ~= nil,
                 "Function " .. tostring(nodeData.nodeFunction) .. " not found while compiling graph"
@@ -171,8 +174,8 @@ function DataBlueprints:compileGraphTemplate(data, parentClass)
         end
         links[key] = deepcopy(valueDict.links or {})
         if eventParams[key] == nil and (#nodes[key] > 0 or startNodes[key] ~= nil) then
-            local eventDefinition = NodeCompiler.Compile(key, parentClass, nodeCompilerContext)
-                or NodeCompiler.Compile("self." .. key, parentClass, nodeCompilerContext)
+            local eventDefinition = NodeCompiler.Compile(key, parentClass, self._nodeCompilerContext)
+                or NodeCompiler.Compile("self." .. key, parentClass, self._nodeCompilerContext)
             local paramNames = eventDefinition ~= nil and eventDefinition.paramNames or nil
             if bool(paramNames) then
                 eventParams[key] = deepcopy(paramNames)
@@ -190,7 +193,7 @@ function DataBlueprints:genGraphFromData(data, parent, parentClass)
     return self:compileGraphTemplate(data, parentClass):instantiate(parent)
 end
 
----@param classVarChanges table<string, Source.Data.ClassVarValue> | nil
+---@param classVarChanges table<string, Global.Data.ClassVarValue> | nil
 function DataBlueprints:genActorFromClassPath(classPath, tag, classVarChanges)
     if not bool(classPath) then
         return nil
@@ -211,7 +214,7 @@ function DataBlueprints:genActorFromClassPath(classPath, tag, classVarChanges)
         actor:setGraph(graph)
     end
     if classVarChanges ~= nil then
-        BlueprintActorOverrides.ApplyChanges(actor, classVarChanges)
+        BlueprintActorOverrides.ApplyChanges(actor, classVarChanges, self._configResolver)
         BlueprintActorOverrides.ApplyGeneration(actor)
     end
     return actor
@@ -221,7 +224,7 @@ function DataBlueprints:genActorFromClassName(className, tag)
     return self:genActorFromClassPath(self:resolveClassPath(className), tag)
 end
 
----@param classVarChanges table<string, Source.Data.ClassVarValue> | nil
+---@param classVarChanges table<string, Global.Data.ClassVarValue> | nil
 function DataBlueprints:genActorFromData(actorData, layerName, classVarChanges)
     local tag = actorData.tag
     local position = actorData.position
@@ -247,7 +250,7 @@ function DataBlueprints:resolveBlueprintData(classPath)
         local loadedData = prepareBlueprintData(
             Engine.decodeData(tostring(self._state.blueprintClassData[classPath])), self._loading
         )
-        ---@cast loadedData table<string, Source.Data.JsonValue>
+        ---@cast loadedData table<string, Global.Data.JsonValue>
         self._state.blueprintClassData[classPath] = loadedData
     end
     if self._state.blueprintClassData[classPath] ~= nil then
@@ -262,7 +265,7 @@ function DataBlueprints:resolveBlueprintData(classPath)
         return nil
     end
     local loadedData = prepareBlueprintData(Engine.loadData(path), self._loading)
-    ---@cast loadedData table<string, Source.Data.JsonValue>
+    ---@cast loadedData table<string, Global.Data.JsonValue>
     self._state.blueprintClassData[classPath] = loadedData
     return loadedData
 end

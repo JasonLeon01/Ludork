@@ -96,12 +96,12 @@ std::filesystem::path validateLogicalAssetKey(const std::string& assetKey) {
         throw std::invalid_argument("UI asset key must be canonical: " +
                                     assetKey);
     }
-    static const std::vector<std::string> forbiddenPrefixes = {
-        "Assets", "UI/Assets", "Data/UI/Assets"};
+    static const std::vector<std::string> forbiddenPrefixes = {"Assets", "UI",
+                                                               "Data/UI"};
     for (const std::string& prefix : forbiddenPrefixes) {
         if (generic == prefix || generic.starts_with(prefix + "/")) {
             throw std::invalid_argument(
-                "UI asset key must be relative to Data/UI/Assets: " + assetKey);
+                "UI asset key must be relative to Data/UI: " + assetKey);
         }
     }
     return relative;
@@ -110,14 +110,14 @@ std::filesystem::path validateLogicalAssetKey(const std::string& assetKey) {
 std::filesystem::path assetPath(const std::string& assetKey) {
     const std::filesystem::path relative = validateLogicalAssetKey(assetKey);
     const std::filesystem::path logicalRoot =
-        std::filesystem::current_path() / "Data" / "UI" / "Assets";
+        std::filesystem::current_path() / "Data" / "UI";
     const ludork::standard::ReadOnlyFileStatus readOnlyStatus =
         ludork::standard::readOnlyFileStatus(logicalRoot);
     if (readOnlyStatus.handled) {
         if (readOnlyStatus.type !=
             ludork::standard::ReadOnlyFileType::Directory) {
             throw std::invalid_argument(
-                "UI asset directory was not found: Data/UI/Assets");
+                "UI asset directory was not found: Data/UI");
         }
         std::filesystem::path logicalPath = logicalRoot / relative;
         logicalPath += ".json";
@@ -133,7 +133,7 @@ std::filesystem::path assetPath(const std::string& assetKey) {
         std::filesystem::weakly_canonical(logicalRoot);
     if (!std::filesystem::is_directory(root)) {
         throw std::invalid_argument(
-            "UI asset directory was not found: Data/UI/Assets");
+            "UI asset directory was not found: Data/UI");
     }
     std::filesystem::path current = root;
     std::vector<std::string> parts;
@@ -158,7 +158,7 @@ std::filesystem::path assetPath(const std::string& assetKey) {
     const std::filesystem::path resolved =
         std::filesystem::weakly_canonical(*dataPath);
     if (!isWithinDirectory(resolved, root)) {
-        throw std::invalid_argument("UI asset path escapes Data/UI/Assets: " +
+        throw std::invalid_argument("UI asset path escapes Data/UI: " +
                                     assetKey);
     }
     std::filesystem::path logicalPath = *dataPath;

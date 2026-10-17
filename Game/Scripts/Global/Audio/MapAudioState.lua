@@ -144,7 +144,7 @@ function MapAudioState.Update(state, deltaTime)
         state.transition = nil
         return
     end
-    ---@cast transition Source.SceneComponents.SceneMapMusicFadeOutTransition
+    ---@cast transition Global.Audio.MapAudioState.FadeOutTransition
     local pendingFile = state.pendingFile
     local pendingFilter = state.pendingFilter
     local switchDuration = transition.switchDuration
@@ -165,7 +165,7 @@ function MapAudioState.BuildFilter(data)
     if not bool(data) then
         return nil
     end
-    ---@type Source.SceneComponents.MusicFilterValues
+    ---@type Global.Audio.MapAudioState.MusicFilterValues
     local values = {}
     for _, key in ipairs(MUSIC_FILTER_FIELDS) do
         if data[key] ~= nil then

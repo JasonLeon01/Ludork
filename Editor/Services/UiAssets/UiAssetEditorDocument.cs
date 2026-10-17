@@ -17,7 +17,7 @@ public sealed class UiAssetEditorDocument : IDisposable
     private long gestureId;
     private readonly EditorDocument? resourceDocument;
     private readonly string initialAssetKey;
-    private string assetKey => resourceDocument is null ? initialAssetKey : UiAssetSchema.ToLogicalAssetKey(resourceDocument.Key);
+    private string assetKey => resourceDocument is null ? initialAssetKey : resourceDocument.Key;
     private EditorDocumentState? sourceState;
     private bool committing;
 
@@ -30,7 +30,7 @@ public sealed class UiAssetEditorDocument : IDisposable
         this.gameData = gameData;
         editing = new UiAssetEditingService(gameData, controlRegistry);
         initialAssetKey = assetKey;
-        resourceDocument = gameData.GetDocument("UI", UiAssetSchema.ToAssetDataKey(assetKey));
+        resourceDocument = gameData.GetDocument("UI", assetKey);
         this.data = (JsonObject)data.DeepClone();
         sourceState = resourceDocument?.CaptureState();
         if (resourceDocument is not null)
@@ -53,8 +53,7 @@ public sealed class UiAssetEditorDocument : IDisposable
         string key)
     {
         string normalizedKey = NormalizeKey(key);
-        string dataKey = UiAssetSchema.ToAssetDataKey(normalizedKey);
-        return gameData.UiAssets.UiAssetsData.TryGetValue(dataKey, out UiAssetSnapshot? asset)
+        return gameData.UiAssets.UiAssetsData.TryGetValue(normalizedKey, out UiAssetSnapshot? asset)
             ? new UiAssetEditorDocument(gameData, controlRegistry, normalizedKey, asset.ToJson())
             : null;
     }
@@ -67,9 +66,8 @@ public sealed class UiAssetEditorDocument : IDisposable
     public bool Rekey(string key)
     {
         string normalizedKey = NormalizeKey(key);
-        string dataKey = UiAssetSchema.ToAssetDataKey(normalizedKey);
         if (normalizedKey.Length == 0
-            || !gameData.UiAssets.UiAssetsData.ContainsKey(dataKey))
+            || !gameData.UiAssets.UiAssetsData.ContainsKey(normalizedKey))
         {
             return false;
         }

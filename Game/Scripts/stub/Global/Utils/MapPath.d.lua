@@ -1,4 +1,6 @@
----@meta Source.Utils.MapPath
+---@meta Global.Utils.MapPath
+
+local MapPath = {}
 
 ---@param mapPath string | nil
 ---@return string

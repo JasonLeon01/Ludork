@@ -2,15 +2,15 @@ local Engine = require("Engine")
 ---@type Global.Utils.Path.Module
 local Path = require("Global.Utils.Path")
 
-local SceneInitAnimationCache = {}
+local AnimationCache = {}
 
-function SceneInitAnimationCache.SourceKey(value, suffix)
+function AnimationCache.SourceKey(value, suffix)
     local normalized = Path.NormaliseSeparators(value)
     assert(string.endsWith(normalized, suffix), "Unexpected animation file suffix: " .. normalized)
     return normalized:sub(1, #normalized - #suffix)
 end
 
-function SceneInitAnimationCache.GetFrameAssets(payload, relativePath)
+function AnimationCache.GetFrameAssets(payload, relativePath)
     local result = {}
     local seen = {}
     local assets = payload.assets or {}
@@ -37,7 +37,7 @@ function SceneInitAnimationCache.GetFrameAssets(payload, relativePath)
     return result
 end
 
-function SceneInitAnimationCache.NeedsCompression(sourcePath, cachePath, frameAssets)
+function AnimationCache.NeedsCompression(sourcePath, cachePath, frameAssets)
     if not os.path.isfile(cachePath) then
         return true
     end
@@ -56,4 +56,4 @@ function SceneInitAnimationCache.NeedsCompression(sourcePath, cachePath, frameAs
     return false
 end
 
-return SceneInitAnimationCache
+return AnimationCache

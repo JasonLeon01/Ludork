@@ -1,7 +1,7 @@
 local Engine = require("Engine")
 local cjson = require("cjson")
 local WorldGeometry = require("Global.WorldGeometry")
-local Data = require("Source.Data")
+local Data = require("Global.Data")
 
 local Records = {}
 
@@ -123,7 +123,7 @@ function Records.BuildAddedActorRecord(actor, layerName)
         return nil
     end
     local actorRecord = { bp = blueprintPath, layer = layerName, position = actorPosition:copy(), tag = actorTag }
-    ---@cast actor Source.Data.GeneratedActor
+    ---@cast actor Global.Data.GeneratedActor
     local classVarChanges = Records.NormaliseClassVarChanges(actor.classVarChanges)
     if bool(classVarChanges) then
         actorRecord.classVarChanges = classVarChanges

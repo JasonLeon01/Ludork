@@ -47,10 +47,9 @@ internal sealed partial class DocumentReferenceScanner
         if (controlId is not null
             && UiAssetSchema.TryGetProjectAssetKey(controlId, out string targetAssetKey))
         {
-            string targetKey = UiAssetSchema.ToAssetDataKey(targetAssetKey);
             addReference(
                 sourceId,
-                ReferenceIdentity.NodeId("uiAsset", targetKey),
+                ReferenceIdentity.NodeId("uiAsset", targetAssetKey),
                 "nestedUiAsset",
                 $"UI/{key}.{path}.controlId");
         }

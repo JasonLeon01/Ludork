@@ -403,8 +403,7 @@ public sealed class UiAnimationTimelineEditor : UserControl
             if (!UiAssetSchema.TryGetProjectAssetKey(controlId, out string assetKey))
                 continue;
             string target = stringValue(node["name"]);
-            string dataKey = UiAssetSchema.ToAssetDataKey(assetKey);
-            if (!gameData.UiAssets.UiAssetsData.TryGetValue(dataKey, out UiAssetSnapshot? asset))
+            if (!gameData.UiAssets.UiAssetsData.TryGetValue(assetKey, out UiAssetSnapshot? asset))
             {
                 continue;
             }

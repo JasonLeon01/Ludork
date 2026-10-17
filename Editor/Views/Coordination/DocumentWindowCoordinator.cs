@@ -254,8 +254,7 @@ internal sealed class DocumentWindowCoordinator : IDisposable
         string uiAssetsRoot = Path.Combine(
             viewModel.GameData.ProjectPath,
             "Data",
-            "UI",
-            "Assets");
+            "UI");
         bool uiAssetsChanged = args.Added
                 .Concat(args.Deleted)
                 .Any(path => EditorPathSandbox.IsSameOrChildPath(uiAssetsRoot, path))
@@ -309,8 +308,7 @@ internal sealed class DocumentWindowCoordinator : IDisposable
         string uiRoot = Path.Combine(
             viewModel.GameData.ProjectPath,
             "Data",
-            "UI",
-            "Assets");
+            "UI");
         foreach (UiAssetEditorWindow window in uiAssetWindows.Values
                      .Distinct()
                      .ToArray())
@@ -550,13 +548,12 @@ internal sealed class DocumentWindowCoordinator : IDisposable
             mainViewModel.GameData.ProjectPath,
             "Data",
             "UI");
-        string assetsRoot = Path.Combine(uiRoot, "Assets");
         string? selectedPath = await EditorResourceCreation.SelectJsonPathAsync(
-            owner, assetsRoot, destinationPath, "SELECT_UI_ASSET_PATH");
+            owner, uiRoot, destinationPath, "SELECT_UI_ASSET_PATH");
         if (selectedPath is null)
             return;
         bool validPath = EditorResourceCreation.TryGetJsonKey(
-            assetsRoot, selectedPath, out string relativeKey, StringComparison.Ordinal);
+            uiRoot, selectedPath, out string relativeKey, StringComparison.Ordinal);
         string key = UiAssetSchema.NormalizeAssetKey(relativeKey);
         if (!validPath || key.Length == 0
             || File.Exists(selectedPath)
@@ -980,7 +977,7 @@ internal sealed class DocumentWindowCoordinator : IDisposable
         key = UiAssetSchema.NormalizeAssetKey(
             Path.ChangeExtension(relative, null)!.Replace('\\', '/'));
         return key.Length != 0
-            && gameData.UiAssets.UiAssetsData.ContainsKey(UiAssetSchema.ToAssetDataKey(key));
+            && gameData.UiAssets.UiAssetsData.ContainsKey(key);
     }
 
     public void SetEnabled(bool enabled)

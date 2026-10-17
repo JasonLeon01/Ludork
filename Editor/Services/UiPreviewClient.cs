@@ -96,7 +96,7 @@ public sealed class UiPreviewClient : IAsyncDisposable
             throw new ArgumentOutOfRangeException(nameof(renderScale));
         string normalizedAssetKey = UiAssetSchema.NormalizeAssetKey(assetKey);
         if (!string.Equals(normalizedAssetKey, assetKey, StringComparison.Ordinal))
-            throw new ArgumentException("UI asset key must be relative to Data/UI/Assets.", nameof(assetKey));
+            throw new ArgumentException("UI asset key must be relative to Data/UI.", nameof(assetKey));
         if (!await StartAsync(cancellationToken))
             return null;
         cancellationToken.ThrowIfCancellationRequested();
@@ -110,7 +110,7 @@ public sealed class UiPreviewClient : IAsyncDisposable
                     StringComparison.Ordinal))
             {
                 throw new ArgumentException(
-                    "UI dependency keys must be relative to Data/UI/Assets.",
+                    "UI dependency keys must be relative to Data/UI.",
                     nameof(dependencies));
             }
             dependencyData[pair.Key] = pair.Value.DeepClone();

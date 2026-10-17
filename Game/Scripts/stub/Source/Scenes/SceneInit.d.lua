@@ -1,8 +1,4 @@
 ---@meta Source.Scenes.SceneInit
----@class Source.Scenes.SceneInit.FrameAsset
----@field name string
----@field path string
-
 ---@brief Initial loading scene that bootstraps game data.
 ---@class Source.Scenes.SceneInit.SceneInit: GlobalCore.SceneBase
 ---@field _ui                  Source.Scenes.SceneInit.Controller
@@ -14,7 +10,7 @@
 ---@field progressDone         boolean
 ---@field hasSwitched          boolean
 ---@field _loadCancelled       boolean
----@field _loadStage           Source.Data.InitialLoadStage | nil
+---@field _loadStage           Global.Data.InitialLoadStage | nil
 ---@field _activeBatch         FileBatchJob | nil
 ---@field _animationSourceKeys table<string, boolean>
 ---@field _loadTask            AsyncioTask | nil

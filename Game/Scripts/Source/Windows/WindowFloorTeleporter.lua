@@ -2,7 +2,7 @@ local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local RegionDict = require("Source.Configs.RegionDict")
 local LocaleCore = require("Source.Locale.Core")
-local MapPath = require("Source.Utils.MapPath")
+local MapPath = require("Global.Utils.MapPath")
 local SceneMapBuilder = require("Source.SceneComponents.MapBuilder")
 local GameSystem = require("Source.System")
 local TelepointKey = require("Source.Configs.TelepointKey")
@@ -84,9 +84,8 @@ function Controller:open(inst)
     self._lastMapKey = nil
     self:getCommandWindow().index = nil
     local entries = self:getVisitedRegionEntries()
-    local currentMapKey = self:getGameInstance():getCurrentMapPath() ~= nil
-        and MapPath.WithoutExtension(self:getGameInstance():getCurrentMapPath())
-        or nil
+    local currentMapPath = self:getGameInstance():getCurrentMapPath()
+    local currentMapKey = currentMapPath ~= nil and MapPath.WithoutExtension(currentMapPath) or nil
     local selectedMapKey = nil
     for _, entry in ipairs(entries) do
         if MapPath.WithoutExtension(entry[1]) == currentMapKey then
@@ -300,8 +299,9 @@ end
 
 function Controller:getVisitedMapNames()
     local visited = {}
-    if bool(self:getGameInstance():getCurrentMapPath()) then
-        visited[MapPath.WithoutExtension(self:getGameInstance():getCurrentMapPath())] = true
+    local currentMapPath = self:getGameInstance():getCurrentMapPath()
+    if currentMapPath ~= nil and bool(currentMapPath) then
+        visited[MapPath.WithoutExtension(currentMapPath)] = true
     end
     for _, mapPath in ipairs(self:getGameInstance():getVisitedMapPaths()) do
         visited[MapPath.WithoutExtension(tostring(mapPath))] = true

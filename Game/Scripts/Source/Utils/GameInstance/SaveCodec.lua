@@ -1,7 +1,7 @@
 local cjson = require("cjson")
-local Data = require("Source.Data")
+local Data = require("Global.Data")
 local Records = require("Source.Utils.GameInstance.Records")
-local MapPath = require("Source.Utils.MapPath")
+local MapPath = require("Global.Utils.MapPath")
 local MapConstants = require("Source.Configs.MapConstants")
 
 local SaveCodec = {}

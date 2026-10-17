@@ -20,7 +20,7 @@ function Records.UpsertTaggedRecord(records, record) end
 ---@param tag      string
 function Records.AppendUniqueTelepoint(points, position, tag) end
 
----@param changes table<string, Source.Data.ClassVarValue> | nil
+---@param changes table<string, Global.Data.ClassVarValue> | nil
 ---@return table<string, Source.GameInstance.RecordValue>
 function Records.NormaliseClassVarChanges(changes) end
 

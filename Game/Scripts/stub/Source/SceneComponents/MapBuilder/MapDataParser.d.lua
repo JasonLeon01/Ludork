@@ -12,7 +12,7 @@ function MapDataParser.GetDataPath(mapPath) end
 ---@return boolean
 function MapDataParser.IsWorldManifest(mapPath) end
 
----@param data Source.SceneComponents.SerializedMapFogSettings
+---@param data Global.GameMap.SerializedMapFogSettings
 ---@return Engine.MapFogSettings
 function MapDataParser.BuildFog(data) end
 
@@ -25,9 +25,9 @@ function MapDataParser.GetPathCandidates(mapPath, currentMap) end
 ---@param manifestPath string
 function MapDataParser.NormaliseWorld(data, manifestPath) end
 
----@param data              Source.SceneComponents.SerializedMapData
+---@param data              Global.GameMap.SerializedMapData
 ---@param buildAmbientLight fun(data: integer[] | nil): sf.Color
----@return Source.SceneComponents.MapData
+---@return Global.GameMap.MapData
 function MapDataParser.NormaliseMap(data, buildAmbientLight) end
 
 return MapDataParser

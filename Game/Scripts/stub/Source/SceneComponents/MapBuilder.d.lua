@@ -1,77 +1,4 @@
 ---@meta Source.SceneComponents.MapBuilder
----@class Source.SceneComponents.MapAudioData
----@field bgm       string | nil
----@field bgs       string | nil
----@field bgmFilter Source.SceneComponents.MusicFilterData | nil
----@field bgsFilter Source.SceneComponents.MusicFilterData | nil
-
----@class Source.SceneComponents.SerializedMapFogSettings
----@field enabled    boolean
----@field colour     integer[]
----@field density    number
----@field scale      number
----@field velocity   number[]
----@field turbulence number
----@field seed       integer
-
----@class Source.SceneComponents.MapEnvironmentData: Source.SceneComponents.MapAudioData
----@field fog      Engine.MapFogSettings
----@field panorama string | nil
-
----@alias Source.SceneComponents.SerializedTileCell integer | lightuserdata
----@alias Source.SceneComponents.SerializedAutoTileCell integer | string | lightuserdata
-
----@class Source.SceneComponents.SerializedTileRow
----@field n         integer | nil
----@field [integer] Source.SceneComponents.SerializedTileCell
-
----@class Source.SceneComponents.SerializedAutoTileRow
----@field n         integer | nil
----@field [integer] Source.SceneComponents.SerializedAutoTileCell
-
----@class Source.SceneComponents.MapLayerData
----@field layerName    string
----@field layerTileset string
----@field visible      boolean | nil
----@field tiles        Source.SceneComponents.SerializedTileRow[]
----@field autoTiles    Source.SceneComponents.SerializedAutoTileRow[] | nil
----@field material     string | nil
-
----@class Source.SceneComponents.MapDataBase: Source.SceneComponents.MapAudioData
----@field type              "map" | nil
----@field mapName           string
----@field width             integer
----@field height            integer
----@field layerOrder        string[]
----@field layers            table<string, Source.SceneComponents.MapLayerData>
----@field BPClassVarChanged table<string, table<string, Source.Data.ClassVarValue>> | nil
-
----@class Source.SceneComponents.SerializedMapData: Source.SceneComponents.MapDataBase
----@field actors       table<string, Source.Data.SerializedActorData[]> | nil
----@field ambientLight integer[] | nil
----@field fog          Source.SceneComponents.SerializedMapFogSettings
----@field panorama     string | nil
-
----@class Source.SceneComponents.MapData: Source.SceneComponents.MapDataBase, Source.SceneComponents.MapEnvironmentData
----@field actors       table<string, Source.Data.ActorData[]>
----@field ambientLight sf.Color
-
----@class Source.SceneComponents.WorldRegionEnvironmentData: Source.SceneComponents.MapEnvironmentData
----@field ambientLight sf.Color
-
----@class Source.SceneComponents.WorldRegionData: Global.WorldGeometry.CellRect
----@field index                 integer
----@field map                   string
----@field path                  string
----@field payload               Global.WorldGameMap.RegionPayload | nil
----@field sleepTime             number | nil
----@field wasActive             boolean
----@field wakeTags              table<string, number> | nil
----@field publishState          Global.WorldGameMap.RegionPublishState | nil
----@field backgroundBuilder     Global.WorldGameMap.RegionBuildState | nil
----@field geometryRevision      integer | nil
----@field lightingRevision      integer | nil
----@field activeChunkGeneration integer | nil
 
 ---@class Source.SceneComponents.WorldLayerValidationState
 ---@field layerOrders       table<integer, string[] | nil>
@@ -83,7 +10,7 @@
 
 ---@class Source.SceneComponents.WorldAuthoredActorDescriptor: Source.SceneComponents.WorldActorDescriptorBase
 ---@field kind       "authored"
----@field normalised Source.Data.ActorData
+---@field normalised Global.Data.ActorData
 
 ---@class Source.SceneComponents.WorldAddedActorDescriptor: Source.SceneComponents.WorldActorDescriptorBase
 ---@field kind   "added"
@@ -108,9 +35,9 @@
 
 ---@class Source.SceneComponents.WorldLayerBuildState
 ---@field tileLayer             Engine.TileLayer
----@field layerData             Source.SceneComponents.MapLayerData
+---@field layerData             Global.GameMap.MapLayerData
 ---@field layerTileset          Engine.Tileset
----@field rawAutoTiles          Source.SceneComponents.SerializedAutoTileRow[] | nil
+---@field rawAutoTiles          Global.GameMap.SerializedAutoTileRow[] | nil
 ---@field layerTerrainOverrides table<integer, table<integer, Source.SceneComponents.WorldTerrainOverride>>
 ---@field autoTileIndexByKey    table<string, integer>
 ---@field autoTilePoolSize      integer
@@ -121,26 +48,14 @@
 ---@field width                 integer
 ---@field height                integer
 
----@class Source.SceneComponents.WorldMapData
----@field type         "worldMap"
----@field worldName    string
----@field manifestPath string
----@field dataRoot     string
----@field width        integer
----@field height       integer
----@field layerOrder   string[]
----@field regions      Source.SceneComponents.WorldRegionData[]
----@field fog          Engine.MapFogSettings
----@field panorama     string
-
 ---@class Source.SceneComponents.SingleFloorMapPreview
 ---@field visibilityRevision integer
 ---@field content            Source.SceneComponents.FloorMapPreview
----@field mapData            Source.SceneComponents.MapData
+---@field mapData            Global.GameMap.MapData
 
 ---@class Source.SceneComponents.WorldFloorMapPreview
 ---@field visibilityRevision integer
----@field mapData            Source.SceneComponents.WorldMapData
+---@field mapData            Global.WorldGameMap.WorldMapData
 ---@field regions            table<string, Source.SceneComponents.FloorMapPreview>
 
 ---@alias Source.SceneComponents.FloorMapPreviewCacheEntry Source.SceneComponents.SingleFloorMapPreview | Source.SceneComponents.WorldFloorMapPreview
@@ -193,13 +108,13 @@ function SceneMapBuilder:resolveMapPath(mapPath, currentMap) end
 --- - @return Resolved map path and loaded map data.
 ---@param mapPath    string
 ---@param currentMap string | nil
----@return string, Source.SceneComponents.MapData | Source.SceneComponents.WorldMapData
+---@return string, Global.GameMap.MapData | Global.WorldGameMap.WorldMapData
 function SceneMapBuilder:loadMapData(mapPath, currentMap) end
 
 ---@param mapPath    string
 ---@param currentMap string | nil
 ---@param position   sf.Vector2i | nil
----@return string, sf.Vector2i | nil, boolean, Source.SceneComponents.WorldRegionData | nil
+---@return string, sf.Vector2i | nil, boolean, Global.WorldGameMap.WorldRegionData | nil
 function SceneMapBuilder:resolveMapDestination(mapPath, currentMap, position) end
 
 ---@brief Convert a map path to an on-disk path under ``Data/Maps``.
@@ -217,14 +132,14 @@ function SceneMapBuilder.GetMapDataPath(mapPath) end
 --- - @param width Map width in tiles.
 --- - @param height Map height in tiles.
 --- - @return Generated tilemap.
----@param data       table<string, Source.SceneComponents.MapLayerData>
+---@param data       table<string, Global.GameMap.MapLayerData>
 ---@param layerOrder string[]
 ---@param width      integer
 ---@param height     integer
 ---@return Engine.Tilemap
 function SceneMapBuilder.GenerateTilemap(data, layerOrder, width, height) end
 
----@param data Source.SceneComponents.MapData
+---@param data Global.GameMap.MapData
 ---@return table<string, Engine.Actor[]>
 function SceneMapBuilder.GenerateActors(data) end
 
@@ -235,29 +150,29 @@ function SceneMapBuilder.GenerateActors(data) end
 --- - @param emitCreateEvents Whether actor/component create events should run.
 --- - @param previewOnly Whether to skip resources only needed by the live map.
 --- - @return Generated game map.
----@param data              Source.SceneComponents.MapData
+---@param data              Global.GameMap.MapData
 ---@param camera            GlobalCore.Camera | nil
 ---@param emitCreateEvents? boolean
 ---@param previewOnly       boolean | nil
----@param tilemap           Engine.Tilemap | nil           Prebuilt terrain snapshot; omitted to generate from serialized map data.
+---@param tilemap           Engine.Tilemap | nil    Prebuilt terrain snapshot; omitted to generate from serialized map data.
 ---@return GameMap
 function SceneMapBuilder:generateGameMap(data, camera, emitCreateEvents, previewOnly, tilemap) end
 
----@param worldData    Source.SceneComponents.WorldMapData
----@param region       Source.SceneComponents.WorldRegionData
----@param data         Source.SceneComponents.SerializedMapData
+---@param worldData    Global.WorldGameMap.WorldMapData
+---@param region       Global.WorldGameMap.WorldRegionData
+---@param data         Global.GameMap.SerializedMapData
 ---@param inst         Source.GameInstance.GameInstance
 ---@param worldPath    string
 ---@param addedActors  Source.GameInstance.AddedActorRecord[]
 ---@param movedActors  Source.GameInstance.WorldMovedActorRecord[]
 ---@param priorityRect Global.WorldGeometry.CellRect | nil
----@return Global.WorldGameMap.RegionBuildState
+---@return Source.SceneComponents.MapBuilder.WorldRegionBuildState.State
 function SceneMapBuilder:createWorldRegionBuildState(
     worldData, region, data, inst, worldPath, addedActors, movedActors, priorityRect
 ) end
 
 ---@param worldPath       string
----@param worldData       Source.SceneComponents.WorldMapData
+---@param worldData       Global.WorldGameMap.WorldMapData
 ---@param inst            Source.GameInstance.GameInstance
 ---@param initialPosition sf.Vector2i | nil
 ---@return Global.WorldGameMap.WorldGameMap
@@ -302,7 +217,7 @@ function SceneMapBuilder:buildFloorMapPreview(
 function SceneMapBuilder:resolveRegionMapPath(mapKey, currentMap) end
 
 ---@param records      Source.GameInstance.WorldMovedActorRecord[]
----@param targetRegion Source.SceneComponents.WorldRegionData | nil
+---@param targetRegion Global.WorldGameMap.WorldRegionData | nil
 ---@return Source.GameInstance.WorldMovedActorRecord[]
 function SceneMapBuilder:selectWorldMovedActors(records, targetRegion) end
 
@@ -322,32 +237,32 @@ function SceneMapBuilder:generatePersistedActor(actorRecord, actorPositions, des
 ---@param root        Engine.Actor
 function SceneMapBuilder:indexActorTreeByTag(actorsByTag, root) end
 
----@param region       Source.SceneComponents.WorldRegionData
+---@param region       Global.WorldGameMap.WorldRegionData
 ---@param width        integer
 ---@param height       integer
 ---@param priorityRect Global.WorldGeometry.CellRect | nil
 ---@return Global.WorldGeometry.CellRect[], Global.WorldGeometry.CellRect[], integer
 function SceneMapBuilder:createWorldRegionChunks(region, width, height, priorityRect) end
 
----@param region       Source.SceneComponents.WorldRegionData
+---@param region       Global.WorldGameMap.WorldRegionData
 ---@param width        integer
 ---@param height       integer
 ---@param priorityRect Global.WorldGeometry.CellRect | nil
 ---@return Global.WorldGeometry.CellRect[], integer
 function SceneMapBuilder:createWorldTileGraphicsChunks(region, width, height, priorityRect) end
 
----@param data                Source.SceneComponents.SerializedMapData
+---@param data                Global.GameMap.SerializedMapData
 ---@param terrainDestructions table<string, table<string, Source.GameInstance.TerrainChangeRecord>>
 ---@param yieldStep           fun()
 ---@return table<string, table<integer, table<integer, Source.SceneComponents.WorldTerrainOverride>>>
 ---@async
 function SceneMapBuilder:createWorldTerrainOverrides(data, terrainDestructions, yieldStep) end
 
----@param actorData Source.Data.SerializedActorData
----@return Source.Data.ActorData
+---@param actorData Global.Data.SerializedActorData
+---@return Global.Data.ActorData
 function SceneMapBuilder:normaliseActorData(actorData) end
 
----@param data Source.SceneComponents.SerializedMapData
+---@param data Global.GameMap.SerializedMapData
 function SceneMapBuilder:validateIncrementalMapData(data) end
 
 ---@param layerState Source.SceneComponents.WorldLayerBuildState

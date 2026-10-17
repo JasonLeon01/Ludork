@@ -1,4 +1,4 @@
----@meta Source.Data.GeneralDataSchema
+---@meta Global.Data.GeneralDataSchema
 
 local GeneralDataSchema = {}
 

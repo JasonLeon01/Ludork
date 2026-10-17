@@ -33,7 +33,7 @@ end
 local Data
 local function loadData()
     if Data == nil then
-        Data = require("Source.Data")
+        Data = require("Global.Data")
     end
     return Data
 end
@@ -320,8 +320,8 @@ function Utils.AddAnimOn(animName, actorTag, rotation, scale)
         error("Actor with tag '" .. tostring(actorTag) .. "' not found")
     end
     spawnAnim(
-        animName, actor:getPosition() + sf.Vector2f.new(loadEngine().GetCellSize(), loadEngine().GetCellSize()) * 0.5, rotation,
-        scale
+        animName, actor:getPosition() + sf.Vector2f.new(loadEngine().GetCellSize(), loadEngine().GetCellSize()) * 0.5,
+        rotation, scale
     )
 end
 

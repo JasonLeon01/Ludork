@@ -1,7 +1,7 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local AbilitySystemChangeKind = require("Enums.AbilitySystemChangeKind")
-local Data = require("Source.Data")
+local Data = require("Global.Data")
 local EventKey = require("Enums.EventKey")
 
 local AbilitySystemComponent = GlobalCore.AbilitySystemComponent

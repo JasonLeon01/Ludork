@@ -246,7 +246,7 @@ function WorldGameMapActors.SuppressActorTag(self, tag)
     self:_applySuppressedActorTags()
 end
 
----@param region  Source.SceneComponents.WorldRegionData
+---@param region  Global.WorldGameMap.WorldRegionData
 ---@param payload Global.WorldGameMap.RegionPayload
 ---@param self    WorldGameMapImplState
 function WorldGameMapActors.FilterSuppressedRegionActors(self, region, payload)
@@ -329,7 +329,7 @@ function WorldGameMapActors.AllocateRuntimeTag(self, position)
 end
 
 ---@param payload Global.WorldGameMap.RegionPayload
----@param region  Source.SceneComponents.WorldRegionData
+---@param region  Global.WorldGameMap.WorldRegionData
 local function initialisePayloadActorState(payload, region)
     payload.worldRegion = region
     payload.actorSet = payload.actorSet or {}
@@ -340,7 +340,7 @@ end
 ---@param payload   Global.WorldGameMap.RegionPayload
 ---@param layerName string
 ---@param actor     Engine.Actor
----@param region    Source.SceneComponents.WorldRegionData | nil
+---@param region    Global.WorldGameMap.WorldRegionData | nil
 ---@param root      Engine.Actor | nil
 ---@return boolean
 ---@param self      WorldGameMapImplState
@@ -377,7 +377,7 @@ function WorldGameMapActors.IndexRegionActor(self, payload, layerName, actor, re
     return true
 end
 
----@param region Source.SceneComponents.WorldRegionData
+---@param region Global.WorldGameMap.WorldRegionData
 ---@param self   WorldGameMapImplState
 function WorldGameMapActors.IndexRegionActors(self, region)
     local payload = assert(region.payload)
@@ -433,7 +433,7 @@ function WorldGameMapActors.UnindexWorldActorTree(self, actor)
     self._worldObservedRootPositions[actor] = nil
 end
 
----@param region           Source.SceneComponents.WorldRegionData
+---@param region           Global.WorldGameMap.WorldRegionData
 ---@param actor            Engine.Actor
 ---@param layer            string
 ---@param definitionRegion string | nil
@@ -636,7 +636,7 @@ end
 ---@param self         WorldGameMapImplState
 function WorldGameMapActors.IsWorldActorLayerVisible(self, actor, layerName, visibleRect)
     local root = self._worldActorRoots[actor] or actor
-    ---@type Source.SceneComponents.WorldRegionData | nil
+    ---@type Global.WorldGameMap.WorldRegionData | nil
     local region = self._worldActorRegions[root]
     if region == nil and actor == self._player then
         local regionIndex = self:getSparseWorldRegionIndexAt(actor:getMapPosition())
@@ -745,7 +745,7 @@ function WorldGameMapActors.RemoveRegionRootMetadata(payload, root)
 end
 
 ---@param payload Global.WorldGameMap.RegionPayload
----@param region  Source.SceneComponents.WorldRegionData
+---@param region  Global.WorldGameMap.WorldRegionData
 function WorldGameMapActors.InitialiseRegionActorPayload(payload, region)
     initialisePayloadActorState(payload, region)
 end

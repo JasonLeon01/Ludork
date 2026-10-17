@@ -307,7 +307,8 @@ public sealed class PluginHost : IEditorPluginRuntime, IDisposable
         HashSet<string> commandIds,
         CancellationToken cancellationToken)
     {
-        string sourcePath = Path.Combine(Environment.PluginsDirectory, registryEntry.Directory);
+        PluginEnvironment sourceEnvironment = Management.GetSourceEnvironment(registryEntry.Id);
+        string sourcePath = Path.Combine(sourceEnvironment.PluginsDirectory, registryEntry.Directory);
         PluginRuntimeEntry runtime = new(registryIndex, registryEntry, sourcePath);
         PluginCompilation? compilation = null;
         try
@@ -318,9 +319,9 @@ public sealed class PluginHost : IEditorPluginRuntime, IDisposable
             {
                 throw new InvalidDataException($"Plugin ID conflicts with a global plugin: {registryEntry.Id}");
             }
-            PluginPaths.EnsureEnvironmentIsSafe(Environment);
+            PluginPaths.EnsureEnvironmentIsSafe(sourceEnvironment);
             PluginPackageInspector.EnsureManagedDirectoryIsSafe(
-                Environment.PluginsDirectory,
+                sourceEnvironment.PluginsDirectory,
                 registryEntry.Directory);
             PluginPackage package = PluginPackageInspector.Inspect(sourcePath);
             runtime.Name = package.Manifest.Name;

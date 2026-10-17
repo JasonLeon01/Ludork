@@ -1,5 +1,56 @@
 ---@meta Global.GameMap
 
+---@class Global.GameMap.SerializedMapFogSettings
+---@field enabled    boolean
+---@field colour     integer[]
+---@field density    number
+---@field scale      number
+---@field velocity   number[]
+---@field turbulence number
+---@field seed       integer
+
+---@class Global.GameMap.MapEnvironmentData: Global.Audio.MapAudioData
+---@field fog      Engine.MapFogSettings
+---@field panorama string | nil
+
+---@alias Global.GameMap.SerializedTileCell integer | lightuserdata
+---@alias Global.GameMap.SerializedAutoTileCell integer | string | lightuserdata
+
+---@class Global.GameMap.SerializedTileRow
+---@field n         integer | nil
+---@field [integer] Global.GameMap.SerializedTileCell
+
+---@class Global.GameMap.SerializedAutoTileRow
+---@field n         integer | nil
+---@field [integer] Global.GameMap.SerializedAutoTileCell
+
+---@class Global.GameMap.MapLayerData
+---@field layerName    string
+---@field layerTileset string
+---@field visible      boolean | nil
+---@field tiles        Global.GameMap.SerializedTileRow[]
+---@field autoTiles    Global.GameMap.SerializedAutoTileRow[] | nil
+---@field material     string | nil
+
+---@class Global.GameMap.MapDataBase: Global.Audio.MapAudioData
+---@field type              "map" | nil
+---@field mapName           string
+---@field width             integer
+---@field height            integer
+---@field layerOrder        string[]
+---@field layers            table<string, Global.GameMap.MapLayerData>
+---@field BPClassVarChanged table<string, table<string, Global.Data.ClassVarValue>> | nil
+
+---@class Global.GameMap.SerializedMapData: Global.GameMap.MapDataBase
+---@field actors       table<string, Global.Data.SerializedActorData[]> | nil
+---@field ambientLight integer[] | nil
+---@field fog          Global.GameMap.SerializedMapFogSettings
+---@field panorama     string | nil
+
+---@class Global.GameMap.MapData: Global.GameMap.MapDataBase, Global.GameMap.MapEnvironmentData
+---@field actors       table<string, Global.Data.ActorData[]>
+---@field ambientLight sf.Color
+
 ---@alias Global.GameMap.TerrainTileID integer | string | nil
 
 ---@brief Game map managing tile layers, actors, lights, collisions, and pathfinding.
@@ -59,7 +110,7 @@ function GameMap:init(mapName, tilemap, camera, previewOnly, sparseWorldConfig) 
 ---@return boolean
 function GameMap:isWorldMap() end
 
----@param actor Engine.Actor
+---@param actor     Engine.Actor
 ---@param layerName string
 ---@return boolean
 function GameMap:_isBillboardActorVisible(actor, layerName) end

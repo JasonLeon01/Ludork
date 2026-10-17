@@ -1,6 +1,7 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local PlayerChangeKind = require("Enums.PlayerChangeKind")
+local GlobalData = require("Global.Data")
 local Data = require("Source.Data")
 local Battler = require("Source.Battler")
 local Effects = require("Source.Gameplay.Effects")
@@ -259,7 +260,7 @@ function Player:asDict()
 end
 
 function Player.InitPlayer(playerPath, applyInitialEquipment)
-    local actor = assert(Data.GenActorFromClassPath(playerPath, "PLAYER"), "Player blueprint class is missing")
+    local actor = assert(GlobalData.GenActorFromClassPath(playerPath, "PLAYER"), "Player blueprint class is missing")
     ---@cast actor Source.MapActors.Player.Player
     actor:setClassPath(playerPath)
     actor:setAnimatable(true, true)

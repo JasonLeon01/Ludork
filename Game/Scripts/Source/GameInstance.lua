@@ -2,7 +2,7 @@ local GameVariables = require("Source.Configs.GameVariables")
 local GameInstanceRecords = require("Source.Utils.GameInstance.Records")
 local GameInstanceSaveCodec = require("Source.Utils.GameInstance.SaveCodec")
 local GameInstanceWorldPersistence = require("Source.Utils.GameInstance.WorldPersistence")
-local MapPath = require("Source.Utils.MapPath")
+local MapPath = require("Global.Utils.MapPath")
 ---@class (partial) Source.GameInstance.GameInstance
 local GameInstance = {}
 

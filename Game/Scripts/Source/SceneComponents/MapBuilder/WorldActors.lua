@@ -1,5 +1,5 @@
 local WorldGameMap = require("Global.WorldGameMap")
-local Data = require("Source.Data")
+local Data = require("Global.Data")
 local WorldActorRecords = require("Source.SceneComponents.MapBuilder.WorldActorRecords")
 
 ---@diagnostic disable-next-line: cast-type-mismatch, inherited constructor type does not retain the derived init signature
@@ -8,7 +8,7 @@ local WorldActorRecords = require("Source.SceneComponents.MapBuilder.WorldActorR
 local MapBuilderWorldActors = {}
 
 ---@param records      Source.GameInstance.WorldMovedActorRecord[]
----@param targetRegion Source.SceneComponents.WorldRegionData | nil
+---@param targetRegion Global.WorldGameMap.WorldRegionData | nil
 ---@return Source.GameInstance.WorldMovedActorRecord[]
 ---@diagnostic disable-next-line: unused
 ---@param self         Source.SceneComponents.SceneMapBuilder
@@ -94,8 +94,8 @@ function MapBuilderWorldActors.GenerateWorldGameMap(self, worldPath, worldData, 
     local holeAddedActors = WorldActorRecords.SelectAdded(worldData, inst, worldPath, nil)
     local initialMovedActors = WorldActorRecords.CollectMoved(worldData, inst, worldPath)
     local holeMovedActors = self:selectWorldMovedActors(initialMovedActors, nil)
-    ---@param region       Source.SceneComponents.WorldRegionData
-    ---@param data         Source.SceneComponents.SerializedMapData
+    ---@param region       Global.WorldGameMap.WorldRegionData
+    ---@param data         Global.GameMap.SerializedMapData
     ---@param priorityRect Global.WorldGeometry.CellRect | nil
     ---@return Global.WorldGameMap.RegionBuildState
     local function createRegionBuildState(region, data, priorityRect)

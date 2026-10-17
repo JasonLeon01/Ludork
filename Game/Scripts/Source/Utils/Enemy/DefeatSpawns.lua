@@ -1,6 +1,6 @@
 local Special = require("Enums.GeneralData.Special")
 local Logging = require("Global.Utils.Logging")
-local Data = require("Source.Data")
+local Data = require("Global.Data")
 local Item = require("Source.MapActors.Item")
 local SpecialAbilities = require("Source.Gameplay.SpecialAbilities")
 

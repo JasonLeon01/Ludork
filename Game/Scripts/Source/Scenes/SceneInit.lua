@@ -2,8 +2,8 @@ local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local FileBatch = require("Global.Utils.FileBatch")
 local Logging = require("Global.Utils.Logging")
-local Data = require("Source.Data")
-local SceneInitAnimationCache = require("Source.Scenes.SceneInitAnimationCache")
+local Data = require("Global.Data")
+local AnimationCache = require("Source.Utils.AnimationCache")
 local SceneInitController = require("Source.Scenes.SceneInit.Controller")
 
 local Display = GlobalCore.Display
@@ -174,7 +174,7 @@ end
 ---@param cacheRoot  string
 function Scene:_processAnimationSource(item, sourceRoot, cacheRoot)
     local relativePath = item.relativePath
-    local sourceKey = SceneInitAnimationCache.SourceKey(relativePath, ResourceFileConstants.DATA_EXTENSION)
+    local sourceKey = AnimationCache.SourceKey(relativePath, ResourceFileConstants.DATA_EXTENSION)
     local encryptedSource = item.encryptedData == true
     assert(bool(sourceKey), "Animation source filename must not be empty")
     assert(not self._animationSourceKeys[sourceKey], "Duplicate animation source key: " .. sourceKey)
@@ -191,8 +191,8 @@ function Scene:_processAnimationSource(item, sourceRoot, cacheRoot)
         .. (encryptedSource and ResourceFileConstants.ENCRYPTED_ANIMATION_CACHE_SUFFIX
             or ResourceFileConstants.ANIMATION_CACHE_SUFFIX)
     local cachePath = os.path.join(cacheRoot, cacheRelativePath)
-    local frameAssets = SceneInitAnimationCache.GetFrameAssets(payload, relativePath)
-    if SceneInitAnimationCache.NeedsCompression(sourcePath, cachePath, frameAssets) then
+    local frameAssets = AnimationCache.GetFrameAssets(payload, relativePath)
+    if AnimationCache.NeedsCompression(sourcePath, cachePath, frameAssets) then
         for _, asset in ipairs(frameAssets) do
             assert(
                 Engine.assetExists(asset.path),
@@ -266,7 +266,7 @@ function Scene:_removeOrphanedAnimation(item)
         return false
     end
     local relativePath = item.relativePath
-    local sourceKey = SceneInitAnimationCache.SourceKey(relativePath, ResourceFileConstants.ANIMATION_CACHE_SUFFIX)
+    local sourceKey = AnimationCache.SourceKey(relativePath, ResourceFileConstants.ANIMATION_CACHE_SUFFIX)
     if self._animationSourceKeys[sourceKey] then
         return false
     end
@@ -281,7 +281,7 @@ end
 
 function Scene:_pumpInitialLoad()
     ---@cast self._activeBatch FileBatchJob
-    ---@cast self._loadStage Source.Data.InitialLoadStage
+    ---@cast self._loadStage Global.Data.InitialLoadStage
     while not self._loadCancelled do
         local snapshot = asyncio.poll_file_batch(self._activeBatch, 1)
         self.progressTotal = snapshot.total

@@ -1,7 +1,7 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local RegionTerrain = require("Global.GameMap.RegionTerrain")
-local Data = require("Source.Data")
+local Data = require("Global.Data")
 local ActorVisibility = require("Source.Utils.ActorVisibility")
 
 local FloorMapPreview = {}

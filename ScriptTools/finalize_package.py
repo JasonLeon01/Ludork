@@ -303,7 +303,7 @@ def _strip_ui_editor_values(value: object) -> int:
 
 
 def strip_ui_editor_data(data_root: pathlib.Path) -> int:
-    assets_root = data_root / "UI" / "Assets"
+    assets_root = data_root / "UI"
     if not assets_root.is_dir():
         return 0
     removed = 0

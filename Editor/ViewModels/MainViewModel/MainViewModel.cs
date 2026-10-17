@@ -432,7 +432,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
                 Actions.OpenTextConfig(info.Key);
                 break;
             case EditorDataOpenTarget.UiAsset:
-                Actions.OpenUiAsset(UiAssetSchema.ToLogicalAssetKey(info.Key));
+                Actions.OpenUiAsset(info.Key);
                 break;
             case EditorDataOpenTarget.GeneralData:
                 Actions.OpenGeneralData(info.Key);

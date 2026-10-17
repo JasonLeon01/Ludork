@@ -21,6 +21,7 @@ public sealed record PluginEnvironment(
 {
     public string DataDirectory => Path.Combine(PluginsDirectory, ".data");
     public string? ProjectKey { get; init; }
+    public PluginEnvironment? WorkspaceEnvironment { get; init; }
 }
 
 public sealed record PluginRuntimeInfo(

@@ -8,7 +8,7 @@ local WORLD_TILE_GRAPHICS_CHUNK_SIZE = WorldMapConstants.SPATIAL_CHUNK_SIZE
 
 local MapBuilderWorldTiles = {}
 
----@param region       Source.SceneComponents.WorldRegionData
+---@param region       Global.WorldGameMap.WorldRegionData
 ---@param width        integer
 ---@param height       integer
 ---@param priorityRect Global.WorldGeometry.CellRect | nil
@@ -103,7 +103,7 @@ function MapBuilderWorldTiles.CreateWorldRegionChunks(self, region, width, heigh
     return rowMajor, priority, priorityCount
 end
 
----@param region       Source.SceneComponents.WorldRegionData
+---@param region       Global.WorldGameMap.WorldRegionData
 ---@param width        integer
 ---@param height       integer
 ---@param priorityRect Global.WorldGeometry.CellRect | nil
@@ -143,7 +143,7 @@ function MapBuilderWorldTiles.CreateWorldTileGraphicsChunks(self, region, width,
     return chunks, #priority
 end
 
----@param data                Source.SceneComponents.SerializedMapData
+---@param data                Global.GameMap.SerializedMapData
 ---@param terrainDestructions table<string, table<string, Source.GameInstance.TerrainChangeRecord>>
 ---@param yieldStep           fun()
 ---@return table<string, table<integer, table<integer, Source.SceneComponents.WorldTerrainOverride>>>
@@ -176,8 +176,8 @@ function MapBuilderWorldTiles.CreateWorldTerrainOverrides(self, data, terrainDes
     return result
 end
 
----@param actorData Source.Data.SerializedActorData
----@return Source.Data.ActorData
+---@param actorData Global.Data.SerializedActorData
+---@return Global.Data.ActorData
 ---@diagnostic disable-next-line: unused
 ---@param self      Source.SceneComponents.SceneMapBuilder
 function MapBuilderWorldTiles.NormaliseActorData(self, actorData)
@@ -189,7 +189,7 @@ function MapBuilderWorldTiles.NormaliseActorData(self, actorData)
     return { bp = actorData.bp, tag = actorData.tag, position = actorPosition }
 end
 
----@param data Source.SceneComponents.SerializedMapData
+---@param data Global.GameMap.SerializedMapData
 ---@diagnostic disable-next-line: unused
 ---@param self Source.SceneComponents.SceneMapBuilder
 function MapBuilderWorldTiles.ValidateIncrementalMapData(self, data)

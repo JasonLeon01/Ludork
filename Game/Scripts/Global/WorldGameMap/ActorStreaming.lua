@@ -22,8 +22,8 @@ end
 ---@param world             Global.WorldGameMap.WorldGameMap
 ---@param roots             Engine.Actor[]
 ---@param active            Global.WorldGeometry.CellRect | nil
----@param region            Source.SceneComponents.WorldRegionData | nil
----@param pendingRehomes    table<Engine.Actor, Source.SceneComponents.WorldRegionData>
+---@param region            Global.WorldGameMap.WorldRegionData | nil
+---@param pendingRehomes    table<Engine.Actor, Global.WorldGameMap.WorldRegionData>
 ---@param suppressedObjects table<Engine.Actor, boolean>
 ---@return table<Engine.Actor, boolean>, boolean
 local function collectDesiredRoots(world, roots, active, region, pendingRehomes, suppressedObjects)
@@ -60,8 +60,8 @@ end
 ---@param world             Global.WorldGameMap.WorldGameMap
 ---@param payload           Global.WorldGameMap.RegionPayload
 ---@param active            Global.WorldGeometry.CellRect | nil
----@param region            Source.SceneComponents.WorldRegionData
----@param pendingRehomes    table<Engine.Actor, Source.SceneComponents.WorldRegionData>
+---@param region            Global.WorldGameMap.WorldRegionData
+---@param pendingRehomes    table<Engine.Actor, Global.WorldGameMap.WorldRegionData>
 ---@param suppressedObjects table<Engine.Actor, boolean>
 ---@return table<Engine.Actor, boolean>, boolean
 local function collectDesiredRegionRoots(world, payload, active, region, pendingRehomes, suppressedObjects)
@@ -130,7 +130,7 @@ function WorldGameMapActorStreaming.SyncWorldActiveChunkActivation(self)
     self._worldActiveChunkReconcilePending = false
 end
 
----@param region Source.SceneComponents.WorldRegionData
+---@param region Global.WorldGameMap.WorldRegionData
 ---@param self   WorldGameMapImplState
 function WorldGameMapActorStreaming.SyncRegionActorActivation(self, region)
     local payload = assert(region.payload)
@@ -197,7 +197,7 @@ function WorldGameMapActorStreaming.SyncLooseRootActivation(self)
     self._worldLooseActiveChunkGeneration = self._worldActiveChunkGeneration
 end
 
----@param region Source.SceneComponents.WorldRegionData
+---@param region Global.WorldGameMap.WorldRegionData
 ---@return boolean
 ---@param self   WorldGameMapImplState
 function WorldGameMapActorStreaming.ActivateRegion(self, region)
@@ -230,7 +230,7 @@ function WorldGameMapActorStreaming.ActivateRegion(self, region)
     return true
 end
 
----@param region Source.SceneComponents.WorldRegionData
+---@param region Global.WorldGameMap.WorldRegionData
 ---@param state  GlobalCore.WorldRegionState
 ---@param self   WorldGameMapImplState
 function WorldGameMapActorStreaming.DeactivateRegion(self, region, state)
@@ -257,7 +257,7 @@ function WorldGameMapActorStreaming.DeactivateRegion(self, region, state)
     region.activeChunkGeneration = nil
 end
 
----@param region Source.SceneComponents.WorldRegionData
+---@param region Global.WorldGameMap.WorldRegionData
 ---@param self   WorldGameMapImplState
 function WorldGameMapActorStreaming.EvictRegion(self, region)
     assert(
@@ -326,7 +326,7 @@ function WorldGameMapActorStreaming.RefreshActorRegionDemands(self)
     return demands
 end
 
----@param _region Source.SceneComponents.WorldRegionData
+---@param _region Global.WorldGameMap.WorldRegionData
 ---@return table<string, boolean>
 ---@param self    WorldGameMapImplState
 function WorldGameMapActorStreaming.GetPendingWorldActorTags(self, _region)
@@ -340,7 +340,7 @@ function WorldGameMapActorStreaming.GetPendingWorldActorTags(self, _region)
     return tags
 end
 
----@param _region Source.SceneComponents.WorldRegionData
+---@param _region Global.WorldGameMap.WorldRegionData
 ---@param tag     string | nil
 ---@return boolean
 ---@param self    WorldGameMapImplState
@@ -366,11 +366,11 @@ local function recordRootPosition(self, root, regionPath, position)
 end
 
 ---@param root              Engine.Actor
----@param destinationRegion Source.SceneComponents.WorldRegionData
----@param sourceRegion      Source.SceneComponents.WorldRegionData | nil
+---@param destinationRegion Global.WorldGameMap.WorldRegionData
+---@param sourceRegion      Global.WorldGameMap.WorldRegionData | nil
 ---@param position          sf.Vector2i
----@param touchedRegions    table<Source.SceneComponents.WorldRegionData, boolean> | nil
----@return table<Source.SceneComponents.WorldRegionData, boolean> | nil, boolean
+---@param touchedRegions    table<Global.WorldGameMap.WorldRegionData, boolean> | nil
+---@return table<Global.WorldGameMap.WorldRegionData, boolean> | nil, boolean
 ---@param self              WorldGameMapImplState
 function WorldGameMapActorStreaming.QueuePendingWorldActorRehome(
     self, root, destinationRegion, sourceRegion, position, touchedRegions
@@ -396,12 +396,12 @@ function WorldGameMapActorStreaming.QueuePendingWorldActorRehome(
 end
 
 ---@param root              Engine.Actor
----@param sourceRegion      Source.SceneComponents.WorldRegionData | nil
----@param destinationRegion Source.SceneComponents.WorldRegionData | nil
+---@param sourceRegion      Global.WorldGameMap.WorldRegionData | nil
+---@param destinationRegion Global.WorldGameMap.WorldRegionData | nil
 ---@param layerName         string
 ---@param position          sf.Vector2i
----@param touchedRegions    table<Source.SceneComponents.WorldRegionData, boolean> | nil
----@return table<Source.SceneComponents.WorldRegionData, boolean> | nil, boolean
+---@param touchedRegions    table<Global.WorldGameMap.WorldRegionData, boolean> | nil
+---@return table<Global.WorldGameMap.WorldRegionData, boolean> | nil, boolean
 ---@param self              WorldGameMapImplState
 function WorldGameMapActorStreaming.TransferWorldActorRoot(
     self, root, sourceRegion, destinationRegion, layerName, position, touchedRegions
@@ -437,9 +437,9 @@ function WorldGameMapActorStreaming.TransferWorldActorRoot(
     return touchedRegions, looseTouched
 end
 
----@param touchedRegions table<Source.SceneComponents.WorldRegionData, boolean> | nil
+---@param touchedRegions table<Global.WorldGameMap.WorldRegionData, boolean> | nil
 ---@param looseTouched   boolean
----@return table<Source.SceneComponents.WorldRegionData, boolean> | nil, boolean
+---@return table<Global.WorldGameMap.WorldRegionData, boolean> | nil, boolean
 ---@param self           WorldGameMapImplState
 function WorldGameMapActorStreaming.AdvancePendingWorldActorRehomes(self, touchedRegions, looseTouched)
     if not bool(self._worldPendingRehomes) then
@@ -477,10 +477,10 @@ end
 
 ---@param root           Engine.Actor
 ---@param position       sf.Vector2i
----@param touchedRegions table<Source.SceneComponents.WorldRegionData, boolean> | nil
+---@param touchedRegions table<Global.WorldGameMap.WorldRegionData, boolean> | nil
 ---@param looseTouched   boolean
----@param sourceRegion   Source.SceneComponents.WorldRegionData | nil
----@return table<Source.SceneComponents.WorldRegionData, boolean> | nil, boolean
+---@param sourceRegion   Global.WorldGameMap.WorldRegionData | nil
+---@return table<Global.WorldGameMap.WorldRegionData, boolean> | nil, boolean
 ---@param self           WorldGameMapImplState
 function WorldGameMapActorStreaming.RehomeChangedWorldActorRoot(
     self, root, position, touchedRegions, looseTouched, sourceRegion

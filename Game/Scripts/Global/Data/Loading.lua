@@ -1,9 +1,9 @@
-local cjson = require("cjson")
 local Engine = require("Engine")
+local cjson = require("cjson")
 local FileBatch = require("Global.Utils.FileBatch")
 local Logging = require("Global.Utils.Logging")
 local Path = require("Global.Utils.Path")
-local GeneralDataSchema = require("Source.Data.GeneralDataSchema")
+local GeneralDataSchema = require("Global.Data.GeneralDataSchema")
 
 local ResourceFileConstants = Engine.ResourceFileConstants
 local Curve = Engine.Curve
@@ -21,17 +21,17 @@ local categoryFields = {
     textConfigs = "textConfigData"
 }
 
----@class Source.Data.Loading
+---@class Global.Data.Loading
 local DataLoading = {}
 
----@param data Source.Data.Cache
+---@param data Global.Data.Cache
 function DataLoading:init(data)
     self._state = data
 end
 
----@param value Source.Data.JsonValue | userdata
+---@param value Global.Data.JsonValue | userdata
 ---@param seen  table | nil
----@return Source.Data.JsonValue
+---@return Global.Data.JsonValue
 function DataLoading:normaliseJsonNull(value, seen)
     if value == cjson.null then
         return nil
@@ -157,7 +157,7 @@ function DataLoading:applyInitialLoadItem(stage, item)
     local category = item.category
     Logging.debug("Loading %s: %s", category, relativePath)
     local payload = self:normaliseJsonNull(Engine.decodeData(item.content))
-    ---@cast payload table<string, Source.Data.JsonValue>
+    ---@cast payload table<string, Global.Data.JsonValue>
     local name = Path.NormaliseSeparators((os.path.splitext(relativePath)))
     if category == "animations" then
         assert(payload.type == "compressedAnimation", "Invalid compressed animation type: " .. relativePath)

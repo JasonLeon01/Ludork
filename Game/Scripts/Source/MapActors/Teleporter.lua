@@ -1,7 +1,7 @@
 local Engine = require("Engine")
 local StairDirection = require("Enums.StairDirection")
 local ConditionalActor = require("Source.MapActors.ConditionalActor")
-local MapPath = require("Source.Utils.MapPath")
+local MapPath = require("Global.Utils.MapPath")
 local GameplayScene = require("Source.Gameplay.GameplayScene")
 
 local Teleporter = {}

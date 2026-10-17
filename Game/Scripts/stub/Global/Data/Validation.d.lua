@@ -1,6 +1,6 @@
----@meta Source.Data.Validation
+---@meta Global.Data.Validation
 
----@class Source.Data.Validation
+---@class Global.Data.Validation
 local Validation = {}
 
 ---@brief Read a required named value and fail with the supplied message when it is absent.

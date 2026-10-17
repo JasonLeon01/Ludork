@@ -4,7 +4,7 @@ local AutoTileRuntime = require("Global.GameMap.AutoTileRuntime")
 local RegionTerrain = require("Global.GameMap.RegionTerrain")
 local WorldGeometry = require("Global.WorldGeometry")
 local WorldMapConstants = require("Global.WorldMapConstants")
-local Data = require("Source.Data")
+local Data = require("Global.Data")
 local MapDataParser = require("Source.SceneComponents.MapBuilder.MapDataParser")
 
 local TextureManager = GlobalCore.TextureManager
@@ -13,12 +13,12 @@ local WORLD_REGION_LAYER_CELL_CACHE_BYTES = WorldMapConstants.REGION_LAYER_CELL_
 local WORLD_REGION_ACTOR_CACHE_BYTES = 16 * 1024
 local WORLD_REGION_BUILD_CHUNK_SIZE = WorldMapConstants.REGION_BUILD_CHUNK_SIZE
 local WORLD_TILE_GRAPHICS_CHUNK_SIZE = WorldMapConstants.SPATIAL_CHUNK_SIZE
----@type table<Source.SceneComponents.WorldMapData, Source.SceneComponents.WorldLayerValidationState>
+---@type table<Global.WorldGameMap.WorldMapData, Source.SceneComponents.WorldLayerValidationState>
 local worldLayerValidationStates = setmetatable({}, { __mode = "k" })
 
 local WorldRegionBuildState = {}
 
----@param worldData  Source.SceneComponents.WorldMapData
+---@param worldData  Global.WorldGameMap.WorldMapData
 ---@param validation Source.SceneComponents.WorldLayerValidationState
 ---@return string[]
 local function mergeValidatedLayerOrders(worldData, validation)
@@ -68,9 +68,9 @@ local function mergeValidatedLayerOrders(worldData, validation)
     return result
 end
 
----@param worldData Source.SceneComponents.WorldMapData
----@param region    Source.SceneComponents.WorldRegionData
----@param data      Source.SceneComponents.SerializedMapData
+---@param worldData Global.WorldGameMap.WorldMapData
+---@param region    Global.WorldGameMap.WorldRegionData
+---@param data      Global.GameMap.SerializedMapData
 local function validateWorldRegionData(worldData, region, data)
     assert(data.type ~= "worldMap", "World child map cannot be another world manifest: " .. region.path)
     assert(
@@ -114,9 +114,9 @@ local function validateWorldRegionData(worldData, region, data)
 end
 
 ---@param builder      Source.SceneComponents.SceneMapBuilder
----@param worldData    Source.SceneComponents.WorldMapData
----@param region       Source.SceneComponents.WorldRegionData
----@param data         Source.SceneComponents.SerializedMapData
+---@param worldData    Global.WorldGameMap.WorldMapData
+---@param region       Global.WorldGameMap.WorldRegionData
+---@param data         Global.GameMap.SerializedMapData
 ---@param inst         Source.GameInstance.GameInstance
 ---@param worldPath    string
 ---@param addedActors  Source.GameInstance.AddedActorRecord[]
@@ -409,7 +409,7 @@ local function createWorldRegionBuildCoroutine(
         for _, descriptor in ipairs(priorityActorDescriptors) do
             buildActorDescriptor(descriptor, false)
         end
-        ---@type Source.SceneComponents.WorldRegionEnvironmentData
+        ---@type Global.WorldGameMap.WorldRegionEnvironmentData
         local environmentData = {
             ambientLight = ambientLight,
             bgm = data.bgm,
@@ -454,22 +454,22 @@ local function createWorldRegionBuildCoroutine(
 end
 
 ---@diagnostic disable-next-line: unused
----@param worldData    Source.SceneComponents.WorldMapData
----@param region       Source.SceneComponents.WorldRegionData
----@param data         Source.SceneComponents.SerializedMapData
+---@param worldData    Global.WorldGameMap.WorldMapData
+---@param region       Global.WorldGameMap.WorldRegionData
+---@param data         Global.GameMap.SerializedMapData
 ---@param inst         Source.GameInstance.GameInstance
 ---@param worldPath    string
 ---@param addedActors  Source.GameInstance.AddedActorRecord[]
 ---@param movedActors  Source.GameInstance.WorldMovedActorRecord[]
 ---@param priorityRect Global.WorldGeometry.CellRect | nil
----@return Global.WorldGameMap.RegionBuildState
+---@return Source.SceneComponents.MapBuilder.WorldRegionBuildState.State
 function WorldRegionBuildState.Create(
     builder, worldData, region, data, inst, worldPath, addedActors, movedActors, priorityRect
 )
     local buildThread = createWorldRegionBuildCoroutine(
         builder, worldData, region, data, inst, worldPath, addedActors, movedActors, priorityRect
     )
-    ---@type Global.WorldGameMap.RegionBuildState
+    ---@type Source.SceneComponents.MapBuilder.WorldRegionBuildState.State
     local state
     local function advance(deadline, stopAfterActorPhase)
         state.lastStepMaximumStage = "idle"
@@ -599,11 +599,9 @@ function WorldRegionBuildState.Create(
             if state.layerBuildStates == nil then
                 return false
             end
-            if not state.actorPhaseComplete
-                or bool(state.readyActorRoots) or state.actorPublishQueue ~= nil then
+            if not state.actorPhaseComplete or bool(state.readyActorRoots) or state.actorPublishQueue ~= nil then
                 advance(deadline, true)
-                if not state.actorPhaseComplete
-                    or bool(state.readyActorRoots) or state.actorPublishQueue ~= nil then
+                if not state.actorPhaseComplete or bool(state.readyActorRoots) or state.actorPublishQueue ~= nil then
                     return false
                 end
             end

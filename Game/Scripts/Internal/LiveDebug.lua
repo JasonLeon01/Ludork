@@ -1,6 +1,6 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
-local Data = require("Source.Data")
+local Data = require("Global.Data")
 local Snapshot = require("Internal.LiveDebug.Snapshot")
 local TileUpdates = require("Internal.LiveDebug.Tiles")
 local Values = require("Internal.LiveDebug.Values")

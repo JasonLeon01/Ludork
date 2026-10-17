@@ -19,7 +19,7 @@ Ludork is a 2D RPG engine with an Avalonia/.NET 9 editor, a native C++ runtime a
 | Game application host | `Game/Application/` |
 | Native runtime and bindings | `Game/Engine/Runtime/`, `Game/Engine/Standard/`, `Game/Engine/Source/Core/` |
 | Lua implementation, public declarations, editor metadata | `Game/Scripts/**/*.lua`, mirrored `Game/Scripts/stub/**/*.d.lua`, sibling `*_meta.lua` |
-| Game data and UI | `Game/Data/`; declarative assets under `Game/Data/UI/Assets/` |
+| Game data and UI | `Game/Data/`; declarative assets under `Game/Data/UI/` |
 | Generators and build/pack entry points | `ScriptTools/`, [tools/README.md](tools/README.md) |
 | Architecture and runtime behaviour | [English docs](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB); sources on `gh-pages` under `<major.minor>/docs/` |
 

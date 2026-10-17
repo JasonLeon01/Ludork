@@ -158,7 +158,7 @@ function WorldGameMapStreaming.RefreshStreamingStates(self)
     end
 end
 
----@param region Source.SceneComponents.WorldRegionData
+---@param region Global.WorldGameMap.WorldRegionData
 ---@return boolean
 ---@param self   WorldGameMapImplState
 function WorldGameMapStreaming.IsRegionDemanded(self, region)

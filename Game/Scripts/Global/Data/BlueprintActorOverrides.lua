@@ -7,13 +7,11 @@ local TextureManager = GlobalCore.TextureManager
 
 local BlueprintActorOverrides = {}
 
-function BlueprintActorOverrides.ResolveValue(actorType, key, value, descriptor)
+function BlueprintActorOverrides.ResolveValue(actorType, key, value, descriptor, configResolver)
     if Class.isInstance(value, "string") and not bool(value) then
         local configName, settingName = Engine.resolveConfigVar(actorType, key)
         if configName ~= nil then
-            local SourceSystem = require("Source.System")
-
-            local resolved = SourceSystem.GetConfigValue(configName, settingName)
+            local resolved = configResolver(configName, settingName)
             return Class.isInstance(resolved, "string") and resolved or tostring(resolved)
         end
     end
@@ -71,7 +69,7 @@ function BlueprintActorOverrides.ApplyGeneration(actor)
     actor:setOrigin(actor.defaultOrigin)
 end
 
-function BlueprintActorOverrides.ApplyChanges(actor, changes)
+function BlueprintActorOverrides.ApplyChanges(actor, changes, configResolver)
     assert(Class.isInstance(changes, "table"), "Blueprint instance overrides must be a table")
     local actorType = Class.type(actor)
     local descriptors = {}
@@ -81,7 +79,7 @@ function BlueprintActorOverrides.ApplyChanges(actor, changes)
         assert(descriptor ~= nil, "Undeclared Blueprint instance override '" .. key .. "'")
         descriptors[key] = descriptor
     end
-    ---@type Source.Data.GeneratedActor
+    ---@type Global.Data.GeneratedActor
     local generatedActor = actor
     local storedChanges = generatedActor.classVarChanges
     if storedChanges == nil then
@@ -100,7 +98,9 @@ function BlueprintActorOverrides.ApplyChanges(actor, changes)
                 if componentType ~= nil then
                     applyComponentChange(actor, key, componentType, value)
                 else
-                    local resolved = BlueprintActorOverrides.ResolveValue(actorType, key, value, descriptor)
+                    local resolved = BlueprintActorOverrides.ResolveValue(
+                        actorType, key, value, descriptor, configResolver
+                    )
                     if key == "material" and actor.material ~= resolved then
                         storedChanges.materialParameters = nil
                     end

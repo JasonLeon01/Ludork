@@ -6,9 +6,9 @@ local AutoTileRuntime = require("Global.GameMap.AutoTileRuntime")
 local WorldGeometry = require("Global.WorldGeometry")
 local PathPreviewComponent = require("Global.Components.PathPreviewComponent")
 local PathRouteState = require("Global.Components.PathRouteState")
-local Data = require("Source.Data")
+local Data = require("Global.Data")
 local FloorMapPreview = require("Source.SceneComponents.FloorMapPreview")
-local MapPath = require("Source.Utils.MapPath")
+local MapPath = require("Global.Utils.MapPath")
 local MapClickAutoPath = require("Source.SceneComponents.MapClickAutoPath")
 local MovementDangerPreviewComponent = require("Source.SceneComponents.MovementDangerPreviewComponent")
 local MovementDangerState = require("Source.SceneComponents.MovementDangerState")
@@ -99,11 +99,11 @@ function SceneMapBuilder:loadMapData(mapPath, currentMap)
     if isWorldManifest then
         assert(data.type == "worldMap", "_world.json must declare type as worldMap: " .. resolvedPath)
         MapDataParser.NormaliseWorld(data, resolvedPath)
-        ---@cast data Source.SceneComponents.WorldMapData
+        ---@cast data Global.WorldGameMap.WorldMapData
         return resolvedPath, data
     end
     assert(data.type ~= "worldMap", "worldMap data must use the fixed _world.json filename: " .. resolvedPath)
-    ---@cast data Source.SceneComponents.SerializedMapData
+    ---@cast data Global.GameMap.SerializedMapData
     return resolvedPath, MapDataParser.NormaliseMap(data, SceneMapBuilder.BuildAmbientLight)
 end
 
@@ -125,7 +125,7 @@ function SceneMapBuilder:resolveMapDestination(mapPath, currentMap, position)
         return resolvedPath, position, false, nil
     end
     local manifestFile, manifest = self:loadMapData(worldManifestPath, currentMap)
-    ---@cast manifest Source.SceneComponents.WorldMapData
+    ---@cast manifest Global.WorldGameMap.WorldMapData
     if resolvedPath == manifestFile then
         if position ~= nil then
             local worldBounds = { x = 0, y = 0, width = manifest.width, height = manifest.height }
@@ -351,7 +351,7 @@ function SceneMapBuilder:buildFloorMapPreview(
                 visibilityRevision = visibilityRevision
             }
         else
-            ---@cast mapData Source.SceneComponents.MapData
+            ---@cast mapData Global.GameMap.MapData
             local tilemap = nil
             if isCurrentMap and activeMap ~= nil and not activeMap:isWorldMap() then
                 local layers = {}
@@ -440,7 +440,7 @@ function SceneMapBuilder:buildFloorMapPreview(
                     assert(
                         regionData.type ~= "worldMap", "World preview child cannot be a world manifest: " .. region.path
                     )
-                    ---@cast regionData Source.SceneComponents.MapData
+                    ---@cast regionData Global.GameMap.MapData
                     local persistedActors = {}
                     for _, actorRecord in ipairs(WorldActorRecords.SelectAdded(preview.mapData, inst, mapPath, region)) do
                         ---@type Source.GameInstance.AddedActorRecord

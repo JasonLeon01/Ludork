@@ -140,7 +140,7 @@ function Scene.CreateActorFromBPPath(bpPath, layerName, position, tag, emitCreat
 --- - @param emitCreateEvent Whether to run the actor's onCreate blueprint event.
 --- - @return The created actor instance, or nil when the actor cannot be created.
 ---@param bpPath          string
----@param defaults        table<string, Source.Data.ClassVarValue> | nil
+---@param defaults        table<string, Global.Data.ClassVarValue> | nil
 ---@param layerName       string
 ---@param position        sf.Vector2i | nil
 ---@param tag             string

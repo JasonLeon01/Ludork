@@ -75,7 +75,7 @@
 ---@field width             integer
 ---@field height            integer
 ---@field layerOrder        string[]
----@field layers            table<string, Source.SceneComponents.MapLayerData>
+---@field layers            table<string, Global.GameMap.MapLayerData>
 ---@field actors            table<string, Internal.LiveDebug.Actor[]>
 ---@field BPClassVarChanged table<string, table<string, any>>
 ---@field ambientLight      integer[]
@@ -89,7 +89,7 @@
 ---@field gameMap GameMap
 ---@field tilemap Engine.Tilemap
 ---@field player  Engine.Actor
----@field region  Source.SceneComponents.WorldRegionData | nil
+---@field region  Global.WorldGameMap.WorldRegionData | nil
 ---@field x       integer
 ---@field y       integer
 ---@field width   integer

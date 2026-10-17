@@ -52,8 +52,8 @@ local function createEmptyPathResult(world, actor)
     return world:findPathExt(invalidStart, invalidGoal, emptySize, actor, {})
 end
 
----@param config        Source.SceneComponents.WorldMapData
----@param regionFactory fun(region: Source.SceneComponents.WorldRegionData, data: Source.SceneComponents.SerializedMapData, priorityRect: Global.WorldGeometry.CellRect | nil): Global.WorldGameMap.RegionBuildState
+---@param config        Global.WorldGameMap.WorldMapData
+---@param regionFactory fun(region: Global.WorldGameMap.WorldRegionData, data: Global.GameMap.SerializedMapData, priorityRect: Global.WorldGeometry.CellRect | nil): Global.WorldGameMap.RegionBuildState
 ---@param reservedTags  string[] | nil
 function WorldGameMap:init(config, regionFactory, reservedTags)
     self._worldConfig = config
@@ -101,7 +101,7 @@ function WorldGameMap:init(config, regionFactory, reservedTags)
     local sparseWorldConfig = { size = worldSize, layerOrder = config.layerOrder, regionRects = regionRects }
     GameMap.init(self, config.worldName, Engine.Tilemap.new({}), nil, false, sparseWorldConfig)
     self._layerNames = self._worldLayerOrder
-    assert(self._renderer):setActorVisibilityFilter(function(actor, layerName)
+    assert(self._renderer):setActorVisibilityFilter(function (actor, layerName)
         return self:_isWorldActorLayerVisible(actor, layerName)
     end)
     self._worldLastReadyCameraPosition = nil
@@ -174,7 +174,7 @@ function WorldGameMap:disposeStreaming()
     self._worldActivationDeferred = false
 end
 
----@param region   Source.SceneComponents.WorldRegionData
+---@param region   Global.WorldGameMap.WorldRegionData
 ---@param payload  Global.WorldGameMap.RegionPayload
 ---@param activate boolean
 function WorldGameMap:installRegion(region, payload, activate)
@@ -186,7 +186,7 @@ function WorldGameMap:installRegion(region, payload, activate)
     self:_completeRegionInstall(region, activate)
 end
 
----@param region       Source.SceneComponents.WorldRegionData
+---@param region       Global.WorldGameMap.WorldRegionData
 ---@param activate     boolean
 ---@param payloadBytes integer | nil
 function WorldGameMap:_completeRegionInstall(region, activate, payloadBytes)
@@ -214,7 +214,7 @@ function WorldGameMap:_completeRegionInstall(region, activate, payloadBytes)
 end
 
 ---@param path string
----@return Source.SceneComponents.WorldRegionData | nil
+---@return Global.WorldGameMap.WorldRegionData | nil
 function WorldGameMap:getRegionByPath(path)
     for _, region in ipairs(self._worldRegions) do
         if region.path == path then
@@ -225,7 +225,7 @@ function WorldGameMap:getRegionByPath(path)
 end
 
 ---@param position sf.Vector2i
----@return Source.SceneComponents.WorldRegionData | nil, sf.Vector2i | nil
+---@return Global.WorldGameMap.WorldRegionData | nil, sf.Vector2i | nil
 function WorldGameMap:getRegionPosition(position)
     local regionIndex = self:getSparseWorldRegionIndexAt(position)
     local region = regionIndex ~= nil and self._worldRegions[regionIndex] or nil
@@ -242,7 +242,7 @@ function WorldGameMap:getRegionPosition(position)
 end
 
 ---@param position sf.Vector2i
----@return Source.SceneComponents.WorldRegionEnvironmentData | nil
+---@return Global.WorldGameMap.WorldRegionEnvironmentData | nil
 function WorldGameMap:getEnvironmentDataAt(position)
     local regionIndex = self:getSparseWorldRegionIndexAt(position)
     local region = regionIndex ~= nil and self._worldRegions[regionIndex] or nil
@@ -375,7 +375,7 @@ function WorldGameMap:setTerrainTiles(layerName, positions, tileID)
     local terrainTileID = TerrainValue.Normalise(tileID)
     ---@type Global.WorldGameMap.TerrainEditBatch[]
     local batches = {}
-    ---@type table<Source.SceneComponents.WorldRegionData, Global.WorldGameMap.TerrainEditBatch>
+    ---@type table<Global.WorldGameMap.WorldRegionData, Global.WorldGameMap.TerrainEditBatch>
     local regionBatches = {}
     for _, position in ipairs(positions) do
         local region, localPosition = self:getRegionPosition(position)

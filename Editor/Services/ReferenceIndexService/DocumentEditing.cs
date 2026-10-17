@@ -139,7 +139,7 @@ public sealed partial class ReferenceIndexService
         char? quote = text.Length >= 2 && text[0] == text[^1] && text[0] is '\'' or '"' ? text[0] : null;
         string content = quote is not null ? text[1..^1] : text;
         if (section == "UI" && content.StartsWith("Project:", StringComparison.Ordinal))
-            content = "Project:" + UiAssetSchema.ToLogicalAssetKey(newKey);
+            content = "Project:" + newKey;
         else if (section == "Blueprints" && BlueprintReference.IsReference(content))
             content = BlueprintReference.ToReference(newKey);
         else if (content.StartsWith("Data." + section + ".", StringComparison.Ordinal))

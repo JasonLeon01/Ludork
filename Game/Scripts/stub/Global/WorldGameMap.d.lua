@@ -1,9 +1,38 @@
 ---@meta Global.WorldGameMap
 
+---@class Global.WorldGameMap.WorldRegionEnvironmentData: Global.GameMap.MapEnvironmentData
+---@field ambientLight sf.Color
+
+---@class Global.WorldGameMap.WorldRegionData: Global.WorldGeometry.CellRect
+---@field index                 integer
+---@field map                   string
+---@field path                  string
+---@field payload               Global.WorldGameMap.RegionPayload | nil
+---@field sleepTime             number | nil
+---@field wasActive             boolean
+---@field wakeTags              table<string, number> | nil
+---@field publishState          Global.WorldGameMap.RegionPublishState | nil
+---@field backgroundBuilder     Global.WorldGameMap.RegionBuildState | nil
+---@field geometryRevision      integer | nil
+---@field lightingRevision      integer | nil
+---@field activeChunkGeneration integer | nil
+
+---@class Global.WorldGameMap.WorldMapData
+---@field type         "worldMap"
+---@field worldName    string
+---@field manifestPath string
+---@field dataRoot     string
+---@field width        integer
+---@field height       integer
+---@field layerOrder   string[]
+---@field regions      Global.WorldGameMap.WorldRegionData[]
+---@field fog          Engine.MapFogSettings
+---@field panorama     string
+
 ---@alias Global.WorldGameMap.StreamingStats GlobalCore.WorldStreamingStats
 
 ---@class Global.WorldGameMap.TerrainEditBatch
----@field region Source.SceneComponents.WorldRegionData
+---@field region Global.WorldGameMap.WorldRegionData
 ---@field positions sf.Vector2i[]
 ---@field keys table<string, boolean>
 
@@ -15,10 +44,10 @@
 ---@field tilemap           Engine.Tilemap
 ---@field terrain           Global.GameMap.RegionTerrain
 ---@field actors            table<string, Engine.Actor[]>
----@field mapData           Source.SceneComponents.WorldRegionEnvironmentData
+---@field mapData           Global.WorldGameMap.WorldRegionEnvironmentData
 ---@field actorSet          table<Engine.Actor, boolean>
 ---@field definitionRegions table<Engine.Actor, string>
----@field worldRegion       Source.SceneComponents.WorldRegionData | nil
+---@field worldRegion       Global.WorldGameMap.WorldRegionData | nil
 ---@field actorRoots        table<Engine.Actor, Engine.Actor>
 ---@field activeRoots       table<Engine.Actor, boolean>
 ---@field estimatedRuntimeBytes integer | nil
@@ -43,7 +72,6 @@
 ---@field lastStepResumeCount integer
 ---@field payload                Global.WorldGameMap.RegionPayload | nil
 ---@field tileLayers             Engine.TileLayer[] | nil
----@field layerBuildStates       Source.SceneComponents.WorldLayerBuildState[] | nil
 ---@field isCellReady            fun(position: sf.Vector2i): boolean
 ---@field isRectReady            fun(rect: Global.WorldGeometry.CellRect): boolean
 ---@field areActorsReady         fun(): boolean
@@ -70,22 +98,22 @@
 ---@field definitionRoots Engine.Actor[]
 
 ---@class Global.WorldGameMap.WorldGameMap: GameMap
----@field _worldConfig                 Source.SceneComponents.WorldMapData
+---@field _worldConfig                 Global.WorldGameMap.WorldMapData
 ---@field _worldManifestPath           string
 ---@field _worldDataRoot               string
 ---@field _worldBounds                 Global.WorldGeometry.CellRect
----@field _worldRegions                Source.SceneComponents.WorldRegionData[]
----@field _worldRegionFactory          fun(region: Source.SceneComponents.WorldRegionData, data: Source.SceneComponents.SerializedMapData, priorityRect: Global.WorldGeometry.CellRect | nil): Global.WorldGameMap.RegionBuildState
+---@field _worldRegions                Global.WorldGameMap.WorldRegionData[]
+---@field _worldRegionFactory          fun(region: Global.WorldGameMap.WorldRegionData, data: Global.GameMap.SerializedMapData, priorityRect: Global.WorldGeometry.CellRect | nil): Global.WorldGameMap.RegionBuildState
 ---@field _worldStreamingState         GlobalCore.WorldStreamingState
 ---@field _worldActorsByTag            table<string, Engine.Actor>
 ---@field _worldActorLayers            table<Engine.Actor, string>
 ---@field _worldActorDefinitionRegions table<Engine.Actor, string>
 ---@field _worldActorRoots             table<Engine.Actor, Engine.Actor>
----@field _worldActorRegions           table<Engine.Actor, Source.SceneComponents.WorldRegionData>
+---@field _worldActorRegions           table<Engine.Actor, Global.WorldGameMap.WorldRegionData>
 ---@field _worldRootStates             table<Engine.Actor, "NeverActive" | "Active" | "Dormant">
 ---@field _worldRootSleepTimes         table<Engine.Actor, number>
 ---@field _worldLooseRoots             Engine.Actor[]
----@field _worldPendingRehomes         table<Engine.Actor, Source.SceneComponents.WorldRegionData>
+---@field _worldPendingRehomes         table<Engine.Actor, Global.WorldGameMap.WorldRegionData>
 ---@field _worldObservedRootPositions  table<Engine.Actor, Global.WorldGameMap.ObservedRootPosition>
 ---@field _worldDestroyedRootsDirty    boolean
 ---@field _worldActiveChunkBounds      Global.WorldGeometry.CellRect | nil
@@ -103,8 +131,8 @@
 ---@field _worldLayerNames             table<string, boolean>
 ---@field _worldMovedActorRecorder     fun(actor: Engine.Actor, definitionRegion: string, currentRegion: string, layerName: string, position: sf.Vector2i) | nil
 ---@field _worldStreamJob              FileBatchJob | nil
----@field _worldStreamJobRegions       table<string, Source.SceneComponents.WorldRegionData>
----@field _worldStreamBatchRegions     Source.SceneComponents.WorldRegionData[]
+---@field _worldStreamJobRegions       table<string, Global.WorldGameMap.WorldRegionData>
+---@field _worldStreamBatchRegions     Global.WorldGameMap.WorldRegionData[]
 ---@field _worldActiveRect             Global.WorldGeometry.CellRect | nil
 ---@field _worldPreparedRect           Global.WorldGeometry.CellRect | nil
 ---@field _worldStreamingCameraPosition sf.Vector2f | nil
@@ -118,11 +146,11 @@
 ---@field _worldShadersPrewarmed         boolean
 ---@field _worldPrewarmMilliseconds      number
 ---@field _worldPrewarmReadbackMilliseconds number
----@field new                          fun(config: Source.SceneComponents.WorldMapData, regionFactory: fun(region: Source.SceneComponents.WorldRegionData, data: Source.SceneComponents.SerializedMapData, priorityRect: Global.WorldGeometry.CellRect | nil): Global.WorldGameMap.RegionBuildState, reservedTags?: string[]): Global.WorldGameMap.WorldGameMap
+---@field new                          fun(config: Global.WorldGameMap.WorldMapData, regionFactory: fun(region: Global.WorldGameMap.WorldRegionData, data: Global.GameMap.SerializedMapData, priorityRect: Global.WorldGeometry.CellRect | nil): Global.WorldGameMap.RegionBuildState, reservedTags?: string[]): Global.WorldGameMap.WorldGameMap
 local WorldGameMap = {}
 
----@param config        Source.SceneComponents.WorldMapData
----@param regionFactory fun(region: Source.SceneComponents.WorldRegionData, data: Source.SceneComponents.SerializedMapData, priorityRect: Global.WorldGeometry.CellRect | nil): Global.WorldGameMap.RegionBuildState
+---@param config        Global.WorldGameMap.WorldMapData
+---@param regionFactory fun(region: Global.WorldGameMap.WorldRegionData, data: Global.GameMap.SerializedMapData, priorityRect: Global.WorldGeometry.CellRect | nil): Global.WorldGameMap.RegionBuildState
 ---@param reservedTags? string[]
 function WorldGameMap:init(config, regionFactory, reservedTags) end
 
@@ -150,19 +178,19 @@ function WorldGameMap:getStreamingStats() end
 function WorldGameMap:disposeStreaming() end
 
 ---@param path string
----@return Source.SceneComponents.WorldRegionData | nil
+---@return Global.WorldGameMap.WorldRegionData | nil
 function WorldGameMap:getRegionByPath(path) end
 
 ---@param position sf.Vector2i
----@return Source.SceneComponents.WorldRegionData | nil, sf.Vector2i | nil
+---@return Global.WorldGameMap.WorldRegionData | nil, sf.Vector2i | nil
 function WorldGameMap:getRegionPosition(position) end
 
 ---@param position sf.Vector2i
----@return Source.SceneComponents.WorldRegionEnvironmentData | nil
+---@return Global.WorldGameMap.WorldRegionEnvironmentData | nil
 function WorldGameMap:getEnvironmentDataAt(position) end
 
 ---@param position sf.Vector2i
----@return Source.SceneComponents.WorldRegionData | nil
+---@return Global.WorldGameMap.WorldRegionData | nil
 function WorldGameMap:ensureRegionLoadedAt(position) end
 
 ---@brief Synchronously prepare the initial Active neighbourhood and render the camera viewport at the player destination.
@@ -194,35 +222,35 @@ function WorldGameMap:recordWorldActorPosition(actor, position) end
 
 ---@private
 ---@param root              Engine.Actor
----@param destinationRegion Source.SceneComponents.WorldRegionData
----@param sourceRegion      Source.SceneComponents.WorldRegionData | nil
+---@param destinationRegion Global.WorldGameMap.WorldRegionData
+---@param sourceRegion      Global.WorldGameMap.WorldRegionData | nil
 ---@param position          sf.Vector2i
----@param touchedRegions    table<Source.SceneComponents.WorldRegionData, boolean> | nil
----@return table<Source.SceneComponents.WorldRegionData, boolean> | nil, boolean
+---@param touchedRegions    table<Global.WorldGameMap.WorldRegionData, boolean> | nil
+---@return table<Global.WorldGameMap.WorldRegionData, boolean> | nil, boolean
 function WorldGameMap:_queuePendingWorldActorRehome(root, destinationRegion, sourceRegion, position, touchedRegions) end
 
 ---@private
 ---@param root              Engine.Actor
----@param sourceRegion      Source.SceneComponents.WorldRegionData | nil
----@param destinationRegion Source.SceneComponents.WorldRegionData | nil
+---@param sourceRegion      Global.WorldGameMap.WorldRegionData | nil
+---@param destinationRegion Global.WorldGameMap.WorldRegionData | nil
 ---@param layerName         string
 ---@param position          sf.Vector2i
----@param touchedRegions    table<Source.SceneComponents.WorldRegionData, boolean> | nil
----@return table<Source.SceneComponents.WorldRegionData, boolean> | nil, boolean
+---@param touchedRegions    table<Global.WorldGameMap.WorldRegionData, boolean> | nil
+---@return table<Global.WorldGameMap.WorldRegionData, boolean> | nil, boolean
 function WorldGameMap:_transferWorldActorRoot(root, sourceRegion, destinationRegion, layerName, position, touchedRegions) end
 
 ---@private
----@param touchedRegions table<Source.SceneComponents.WorldRegionData, boolean> | nil
+---@param touchedRegions table<Global.WorldGameMap.WorldRegionData, boolean> | nil
 ---@param looseTouched   boolean
----@return table<Source.SceneComponents.WorldRegionData, boolean> | nil, boolean
+---@return table<Global.WorldGameMap.WorldRegionData, boolean> | nil, boolean
 function WorldGameMap:_advancePendingWorldActorRehomes(touchedRegions, looseTouched) end
 
 ---@private
 ---@param root           Engine.Actor
 ---@param position       sf.Vector2i
----@param touchedRegions table<Source.SceneComponents.WorldRegionData, boolean> | nil
+---@param touchedRegions table<Global.WorldGameMap.WorldRegionData, boolean> | nil
 ---@param looseTouched   boolean
----@return table<Source.SceneComponents.WorldRegionData, boolean> | nil, boolean
+---@return table<Global.WorldGameMap.WorldRegionData, boolean> | nil, boolean
 function WorldGameMap:_rehomeChangedWorldActorRoot(root, position, touchedRegions, looseTouched) end
 
 ---@private
@@ -231,7 +259,7 @@ function WorldGameMap:_rehomeChangedWorldActorRoot(root, position, touchedRegion
 function WorldGameMap:_prepareWorldCameraPosition(position) end
 
 ---@private
----@param region       Source.SceneComponents.WorldRegionData
+---@param region       Global.WorldGameMap.WorldRegionData
 ---@param builder      Global.WorldGameMap.RegionBuildState
 ---@param requiredRect Global.WorldGeometry.CellRect
 function WorldGameMap:_prepareWorldRegionRect(region, builder, requiredRect) end

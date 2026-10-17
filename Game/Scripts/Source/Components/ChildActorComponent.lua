@@ -1,4 +1,5 @@
 local Engine = require("Engine")
+local Data = require("Global.Data")
 
 local Component = Engine.Component
 
@@ -34,8 +35,6 @@ function ChildActorComponent:onAttach(owner)
     if self._childActor ~= nil and not self._childActor:isDestroyed() then
         return {}
     end
-
-    local Data = require("Source.Data")
 
     local childActor = Data.GenActorFromClassName(className, makeChildTag(owner))
     if childActor == nil then

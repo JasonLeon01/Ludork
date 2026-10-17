@@ -186,7 +186,7 @@ function Scene.CreateActorFromBPPath(bpPath, layerName, position, tag, emitCreat
     if gameMap == nil then
         return nil
     end
-    local Data = require("Source.Data")
+    local Data = require("Global.Data")
 
     local actor = Data.GenActorFromClassPath(bpPath, tag)
     if actor == nil then
@@ -209,7 +209,7 @@ function Scene.CreateActorFromBPPathWithDefaults(bpPath, defaults, layerName, po
     if gameMap == nil then
         return nil
     end
-    local Data = require("Source.Data")
+    local Data = require("Global.Data")
 
     local actor = Data.GenActorFromClassPath(bpPath, tag, defaults)
     if actor == nil then

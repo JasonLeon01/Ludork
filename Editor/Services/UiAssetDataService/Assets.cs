@@ -27,9 +27,8 @@ public sealed partial class UiAssetDataService
     public bool CreateUiAsset(string key, JsonObject? asset = null)
     {
         string normalizedKey = UiAssetSchema.NormalizeAssetKey(key);
-        string dataKey = UiAssetSchema.ToAssetDataKey(normalizedKey);
         EditorDocumentCollection data = uiDocuments;
-        if (!store.canCreateDocument("UI", dataKey))
+        if (!store.canCreateDocument("UI", normalizedKey))
             return false;
         JsonObject value;
         if (asset is null)
@@ -42,8 +41,8 @@ public sealed partial class UiAssetDataService
             value = (JsonObject)asset.DeepClone();
             value["type"] = UiAssetSchema.UiAssetType;
         }
-        uiDocuments.RecordChange(dataKey);
-        data[dataKey] = value;
+        uiDocuments.RecordChange(normalizedKey);
+        data[normalizedKey] = value;
         store.refreshModifiedState();
         NotifyUiAssetsChanged();
         return true;
@@ -52,9 +51,8 @@ public sealed partial class UiAssetDataService
     public bool UpdateUiAsset(string key, JsonObject asset)
     {
         string normalizedKey = UiAssetSchema.NormalizeAssetKey(key);
-        string dataKey = UiAssetSchema.ToAssetDataKey(normalizedKey);
         EditorDocumentCollection data = uiDocuments;
-        if (!data.TryGetValue(dataKey, out JsonObject? current)
+        if (!data.TryGetValue(normalizedKey, out JsonObject? current)
             || !ProjectDataStore.isUiDataType(current, UiAssetSchema.UiAssetType))
         {
             return false;
@@ -63,8 +61,8 @@ public sealed partial class UiAssetDataService
         value["type"] = UiAssetSchema.UiAssetType;
         if (JsonNode.DeepEquals(current, value))
             return false;
-        uiDocuments.RecordChange(dataKey);
-        data[dataKey] = value;
+        uiDocuments.RecordChange(normalizedKey);
+        data[normalizedKey] = value;
         store.refreshModifiedState();
         NotifyUiAssetsChanged();
         return true;
@@ -74,43 +72,39 @@ public sealed partial class UiAssetDataService
     {
         string normalizedOldKey = UiAssetSchema.NormalizeAssetKey(oldKey);
         string normalizedNewKey = UiAssetSchema.NormalizeAssetKey(newKey);
-        string oldDataKey = UiAssetSchema.ToAssetDataKey(normalizedOldKey);
-        string newDataKey = UiAssetSchema.ToAssetDataKey(normalizedNewKey);
         if (normalizedOldKey.Length == 0
             || normalizedNewKey.Length == 0
-            || !uiDocuments.TryGetValue(oldDataKey, out JsonObject? source)
+            || !uiDocuments.TryGetValue(normalizedOldKey, out JsonObject? source)
             || !ProjectDataStore.isUiDataType(source, UiAssetSchema.UiAssetType))
         {
             return false;
         }
-        return store.renameDataEntry("UI", oldDataKey, newDataKey);
+        return store.renameDataEntry("UI", normalizedOldKey, normalizedNewKey);
     }
 
     public bool DeleteUiAsset(string key)
     {
         string normalizedKey = UiAssetSchema.NormalizeAssetKey(key);
-        string dataKey = UiAssetSchema.ToAssetDataKey(normalizedKey);
         return normalizedKey.Length != 0
-            && uiDocuments.TryGetValue(dataKey, out JsonObject? source)
+            && uiDocuments.TryGetValue(normalizedKey, out JsonObject? source)
             && ProjectDataStore.isUiDataType(source, UiAssetSchema.UiAssetType)
-            && store.deleteDataEntry("UI", dataKey);
+            && store.deleteDataEntry("UI", normalizedKey);
     }
 
     public string? CopyUiAsset(string key)
     {
         string normalizedKey = UiAssetSchema.NormalizeAssetKey(key);
-        string dataKey = UiAssetSchema.ToAssetDataKey(normalizedKey);
         EditorDocumentCollection data = uiDocuments;
-        if (!data.TryGetValue(dataKey, out JsonObject? source)
+        if (!data.TryGetValue(normalizedKey, out JsonObject? source)
             || !ProjectDataStore.isUiDataType(source, UiAssetSchema.UiAssetType))
         {
             return null;
         }
         string copyKey = normalizedKey + " (copy)";
-        if (!store.canCreateDocument("UI", UiAssetSchema.ToAssetDataKey(copyKey)))
+        if (!store.canCreateDocument("UI", copyKey))
         {
             int index = 1;
-            while (!store.canCreateDocument("UI", UiAssetSchema.ToAssetDataKey($"{copyKey}_{index}")))
+            while (!store.canCreateDocument("UI", $"{copyKey}_{index}"))
                 index += 1;
             copyKey = $"{copyKey}_{index}";
         }
@@ -121,13 +115,11 @@ public sealed partial class UiAssetDataService
     {
         string normalizedSourceKey = UiAssetSchema.NormalizeAssetKey(sourceKey);
         string normalizedDestinationKey = UiAssetSchema.NormalizeAssetKey(destinationKey);
-        string sourceDataKey = UiAssetSchema.ToAssetDataKey(normalizedSourceKey);
-        string destinationDataKey = UiAssetSchema.ToAssetDataKey(normalizedDestinationKey);
         EditorDocumentCollection data = uiDocuments;
         if (normalizedSourceKey.Length == 0
             || normalizedDestinationKey.Length == 0
-            || !store.canCreateDocument("UI", destinationDataKey)
-            || !data.TryGetValue(sourceDataKey, out JsonObject? source)
+            || !store.canCreateDocument("UI", normalizedDestinationKey)
+            || !data.TryGetValue(normalizedSourceKey, out JsonObject? source)
             || !ProjectDataStore.isUiDataType(source, UiAssetSchema.UiAssetType))
         {
             return false;

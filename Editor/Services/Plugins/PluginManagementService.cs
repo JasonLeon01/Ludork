@@ -12,6 +12,7 @@ public sealed class PluginManagementService
 {
     private readonly PluginEnvironment environment;
     private readonly PluginRegistryStore store;
+    private readonly PluginManagementService? workspaceManagement;
     private readonly SemaphoreSlim gate = new(1, 1);
     private readonly List<string> startupDiagnostics = [];
     private PluginRegistryState state = new(
@@ -25,17 +26,44 @@ public sealed class PluginManagementService
     {
         this.environment = environment;
         store = new PluginRegistryStore(environment);
+        if (environment.WorkspaceEnvironment is not null)
+        {
+            workspaceManagement = new PluginManagementService(environment.WorkspaceEnvironment);
+            workspaceManagement.IsIdReserved = id => state.Document.Plugins.Any(entry => entry.Id == id)
+                || IsIdReserved?.Invoke(id) == true;
+        }
     }
 
     public PluginEnvironment Environment => environment;
 
-    public string RegistryDiagnostic => state.Diagnostic;
+    public string RegistryDiagnostic => string.Join(System.Environment.NewLine,
+        new[] { workspaceManagement?.RegistryDiagnostic, state.Diagnostic }
+            .Where(value => !string.IsNullOrWhiteSpace(value)));
 
-    public IReadOnlyList<string> StartupDiagnostics => startupDiagnostics;
+    public IReadOnlyList<string> StartupDiagnostics => workspaceManagement is null
+        ? startupDiagnostics
+        : workspaceManagement.StartupDiagnostics.Concat(startupDiagnostics).ToArray();
 
     internal Func<string, bool>? IsIdReserved { get; set; }
 
-    internal PluginRegistryDocument Registry => state.Document.Clone();
+    internal PluginRegistryDocument Registry
+    {
+        get
+        {
+            PluginRegistryDocument registry = state.Document.Clone();
+            if (workspaceManagement is not null)
+                registry.Plugins = workspaceManagement.Registry.Plugins.Concat(registry.Plugins)
+                    .DistinctBy(entry => entry.Id, StringComparer.Ordinal).ToList();
+            return registry;
+        }
+    }
+
+    internal PluginEnvironment GetSourceEnvironment(string pluginId)
+    {
+        return workspaceManagement?.Registry.Plugins.Any(entry => entry.Id == pluginId) == true
+            ? workspaceManagement.Environment
+            : environment;
+    }
 
     public async Task<PluginManagementResult> CreateAsync(
         PluginCreationRequest request,
@@ -72,6 +100,8 @@ public sealed class PluginManagementService
         {
             if (initialized)
                 return;
+            if (workspaceManagement is not null)
+                await workspaceManagement.InitializeAsync(cancellationToken);
             state = await store.LoadAsync(cancellationToken);
             if (state.IsValid)
                 await processPendingDeletesAsync(cancellationToken);
@@ -88,6 +118,8 @@ public sealed class PluginManagementService
         CancellationToken cancellationToken = default)
     {
         await ensureInitializedAsync(cancellationToken);
+        if (isWorkspaceSource(sourcePath))
+            return await workspaceManagement!.PreviewImportAsync(sourcePath, cancellationToken);
         await gate.WaitAsync(cancellationToken);
         try
         {
@@ -106,6 +138,8 @@ public sealed class PluginManagementService
         CancellationToken cancellationToken = default)
     {
         await ensureInitializedAsync(cancellationToken);
+        if (isWorkspaceSource(sourcePath))
+            return await workspaceManagement!.ImportAsync(sourcePath, cancellationToken);
         await gate.WaitAsync(cancellationToken);
         try
         {
@@ -217,6 +251,8 @@ public sealed class PluginManagementService
         CancellationToken cancellationToken = default)
     {
         await ensureInitializedAsync(cancellationToken);
+        if (workspaceManagement?.Registry.Plugins.Any(entry => entry.Id == pluginId) == true)
+            return await workspaceManagement.UnregisterAsync(pluginId, deleteSource, cancellationToken);
         await gate.WaitAsync(cancellationToken);
         try
         {
@@ -262,6 +298,14 @@ public sealed class PluginManagementService
         CancellationToken cancellationToken = default)
     {
         await ensureInitializedAsync(cancellationToken);
+        IReadOnlyList<PluginManagementItem> workspaceItems = [];
+        if (workspaceManagement is not null)
+        {
+            workspaceItems = await workspaceManagement.GetItemsAsync(
+                runtimePlugins.Where(plugin => isWorkspaceSource(plugin.SourcePath)).ToArray(),
+                cancellationToken);
+            runtimePlugins = runtimePlugins.Where(plugin => !isWorkspaceSource(plugin.SourcePath)).ToArray();
+        }
         await gate.WaitAsync(cancellationToken);
         try
         {
@@ -350,7 +394,7 @@ public sealed class PluginManagementService
                     string.Empty,
                     false));
             }
-            return items;
+            return workspaceItems.Concat(items).DistinctBy(item => item.Id, StringComparer.Ordinal).ToArray();
         }
         finally
         {
@@ -362,6 +406,13 @@ public sealed class PluginManagementService
     {
         if (!initialized)
             await InitializeAsync(cancellationToken);
+    }
+
+    private bool isWorkspaceSource(string sourcePath)
+    {
+        return workspaceManagement is not null && pathsEqual(
+            Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(Path.GetFullPath(sourcePath))),
+            workspaceManagement.Environment.PluginsDirectory);
     }
 
     private PluginImportPreview validateImport(string sourcePath)
@@ -396,7 +447,7 @@ public sealed class PluginManagementService
                     "The managed Plugins directory cannot be inside the imported plugin directory.");
             }
 
-            if (state.Document.Plugins.Any(entry =>
+            if (Registry.Plugins.Any(entry =>
                     string.Equals(
                         entry.Id,
                         package.Manifest.Id,

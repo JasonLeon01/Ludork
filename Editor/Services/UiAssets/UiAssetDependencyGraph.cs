@@ -24,7 +24,7 @@ public sealed class UiAssetDependencyGraph
     {
         foreach (KeyValuePair<string, UiAssetSnapshot> pair in assets)
         {
-            string logicalKey = UiAssetSchema.ToLogicalAssetKey(pair.Key);
+            string logicalKey = UiAssetSchema.NormalizeAssetKey(pair.Key);
             if (logicalKey.Length != 0)
                 this.assets[logicalKey] = pair.Value.ToJson();
         }

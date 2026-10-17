@@ -1,6 +1,6 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
-local Data = require("Source.Data")
+local Data = require("Global.Data")
 local GameplayConstants = require("Source.Configs.GameplayConstants")
 local GameplayAbility = GlobalCore.GameplayAbility
 local GameplayAbilityResult = GlobalCore.GameplayAbilityResult

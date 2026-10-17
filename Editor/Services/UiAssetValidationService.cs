@@ -76,16 +76,15 @@ public sealed class UiAssetValidationService
     public UiAssetValidationResult ValidateAsset(string assetKey, JsonObject? data = null)
     {
         string normalizedKey = UiAssetSchema.NormalizeAssetKey(assetKey);
-        string dataKey = UiAssetSchema.ToAssetDataKey(normalizedKey);
         List<UiValidationIssue> issues = [];
         if (normalizedKey.Length == 0)
         {
-            add(issues, "assetKey", string.Empty, "UI asset key must be under Assets");
+            add(issues, "assetKey", string.Empty, "UI asset key must be relative to Data/UI");
             return new UiAssetValidationResult(assetKey, issues);
         }
         IReadOnlyDictionary<string, UiAssetSnapshot> assets = gameData.UiAssets.UiAssetsData;
         if (data is null)
-            data = assets.TryGetValue(dataKey, out UiAssetSnapshot? snapshot) ? snapshot.ToJson() : null;
+            data = assets.TryGetValue(normalizedKey, out UiAssetSnapshot? snapshot) ? snapshot.ToJson() : null;
         if (data is null)
         {
             add(issues, "missingAsset", string.Empty, $"UI asset \"{normalizedKey}\" was not found");
@@ -119,14 +118,14 @@ public sealed class UiAssetValidationService
                      .OrderBy(item => item.Key, StringComparer.Ordinal))
         {
             List<UiValidationIssue> issues = [];
-            string logicalKey = UiAssetSchema.ToLogicalAssetKey(pair.Key);
+            string logicalKey = UiAssetSchema.NormalizeAssetKey(pair.Key);
             if (logicalKey.Length == 0)
             {
                 add(
                     issues,
                     "assetKey",
                     string.Empty,
-                    "UI assets must be stored under Data/UI/Assets");
+                    "UI assets must be stored under Data/UI");
             }
             if (!structuralOnly && !RegistryReady)
                 add(issues, "registryUnavailable", string.Empty, RegistryStatus);

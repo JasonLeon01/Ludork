@@ -409,13 +409,15 @@ function NodeCompiler.Compile(functionName, parentClass, context)
             paramNames[#paramNames + 1] = parameter.name
         end
         local callable
-        local Utils = require("GlobalFunctions.Utils")
         callable = function (...)
             local refLocal = Engine.Node.getRefLocal(callable)
             assert(refLocal ~= nil, "Parent event requires a blueprint graph context")
             local graphContext = refLocal.__graph__
             assert(graphContext ~= nil, "Parent event requires a blueprint graph context")
-            Utils.SUPER(graphContext.parent, { ... }, refLocal, eventName)
+            Engine.BPBase.ExecuteParentEvent(
+                graphContext.parent, graphContext.parentClass or Class.type(graphContext.parent), eventName, { ... },
+                nil, refLocal
+            )
         end
         return {
             callable = callable,

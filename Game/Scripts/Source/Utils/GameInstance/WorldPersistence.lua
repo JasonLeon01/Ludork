@@ -1,4 +1,4 @@
-local MapPath = require("Source.Utils.MapPath")
+local MapPath = require("Global.Utils.MapPath")
 
 local GameInstanceWorldPersistence = {}
 

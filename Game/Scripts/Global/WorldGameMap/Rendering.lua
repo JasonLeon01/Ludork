@@ -8,8 +8,8 @@ local WorldRegionState = GlobalCore.WorldRegionState
 local WorldGameMapRendering = {}
 
 ---@param visibleRect Global.WorldGeometry.CellRect
----@param _drain boolean
----@param self WorldGameMapImplState
+---@param _drain      boolean
+---@param self        WorldGameMapImplState
 ---@return boolean
 function WorldGameMapRendering.PrewarmWorldViewport(self, visibleRect, _drain)
     if PLATFORM == "ohos" then
@@ -87,7 +87,7 @@ function WorldGameMapRendering.PrepareCameraFrame(self)
     return false
 end
 
----@param region       Source.SceneComponents.WorldRegionData
+---@param region       Global.WorldGameMap.WorldRegionData
 ---@param builder      Global.WorldGameMap.RegionBuildState
 ---@param requiredRect Global.WorldGeometry.CellRect
 ---@param self         WorldGameMapImplState
@@ -178,10 +178,10 @@ function WorldGameMapRendering.PrepareViewportAt(self, position)
     self:show()
 end
 
----@param target sf.RenderTarget
----@param states sf.RenderStates | nil
+---@param target            sf.RenderTarget
+---@param states            sf.RenderStates | nil
 ---@param _applyPlayerCover boolean
----@param self WorldGameMapImplState
+---@param self              WorldGameMapImplState
 function WorldGameMapRendering.DrawMapContent(self, target, states, _applyPlayerCover)
     assert(self._renderer):setLayerOrder(self._worldLayerOrder)
     return GameMap.drawMapContent(self, target, states, false)

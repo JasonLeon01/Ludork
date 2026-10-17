@@ -28,7 +28,7 @@ local function resetBuilderStage(builder)
 end
 
 ---@param streamingState GlobalCore.WorldStreamingState
----@param region         Source.SceneComponents.WorldRegionData
+---@param region         Global.WorldGameMap.WorldRegionData
 ---@param forceActivate  boolean
 ---@return Global.WorldGameMap.RegionPublishState | nil
 local function beginRegionPublishState(streamingState, region, forceActivate)
@@ -56,7 +56,7 @@ local function beginRegionPublishState(streamingState, region, forceActivate)
     return state
 end
 
----@param region Source.SceneComponents.WorldRegionData
+---@param region Global.WorldGameMap.WorldRegionData
 ---@param self   WorldGameMapImplState
 function WorldGameMapRegionPublishing.CancelRegionPublish(self, region)
     local state = region.publishState
@@ -89,8 +89,8 @@ function WorldGameMapRegionPublishing.CancelRegionPublish(self, region)
     end
 end
 
----@param region        Source.SceneComponents.WorldRegionData
----@param data          Source.SceneComponents.SerializedMapData
+---@param region        Global.WorldGameMap.WorldRegionData
+---@param data          Global.GameMap.SerializedMapData
 ---@param forceActivate boolean
 ---@param priorityRect  Global.WorldGeometry.CellRect | nil
 ---@param self          WorldGameMapImplState
@@ -103,7 +103,7 @@ function WorldGameMapRegionPublishing.BeginRegionPublish(self, region, data, for
     state.phase = "build"
 end
 
----@param region        Source.SceneComponents.WorldRegionData
+---@param region        Global.WorldGameMap.WorldRegionData
 ---@param conversion    FileBatchDataConversion
 ---@param contentBytes  integer
 ---@param forceActivate boolean
@@ -151,7 +151,7 @@ function WorldGameMapRegionPublishing.PrepareNextRegionRoot(self, state)
     return false
 end
 
----@param region   Source.SceneComponents.WorldRegionData
+---@param region   Global.WorldGameMap.WorldRegionData
 ---@param deadline number
 ---@return boolean
 ---@param self     WorldGameMapImplState
@@ -171,7 +171,7 @@ function WorldGameMapRegionPublishing.StepRegionPublish(self, region, deadline)
         end
         state.conversion = nil
         data = assert(data, "World region JSON root must be an object: " .. region.path)
-        ---@cast data Source.SceneComponents.SerializedMapData
+        ---@cast data Global.GameMap.SerializedMapData
         state.builder = self._worldRegionFactory(region, data, state.priorityRect)
         state.priorityRect = nil
         state.phase = "build"
@@ -259,7 +259,7 @@ local function payloadContainsRoot(payload, root)
     return false
 end
 
----@param region   Source.SceneComponents.WorldRegionData
+---@param region   Global.WorldGameMap.WorldRegionData
 ---@param builder  Global.WorldGameMap.RegionBuildState
 ---@param deadline number
 ---@return boolean
@@ -318,7 +318,7 @@ function WorldGameMapRegionPublishing.PumpRegionBackgroundActors(self, region, b
     return builder.actorPublishQueue == nil and not bool(builder.readyActorRoots)
 end
 
----@param region Source.SceneComponents.WorldRegionData
+---@param region Global.WorldGameMap.WorldRegionData
 ---@param self   WorldGameMapImplState
 function WorldGameMapRegionPublishing.DrainRegionActors(self, region)
     local builder = region.backgroundBuilder
@@ -362,7 +362,7 @@ function WorldGameMapRegionPublishing.PumpRegionBackgroundBuilds(self, deadline)
             background[#background + 1] = region
         end
     end
-    ---@type Source.SceneComponents.WorldRegionData | nil
+    ---@type Global.WorldGameMap.WorldRegionData | nil
     local region
     ---@type Global.WorldGeometry.CellRect | nil
     local priorityRect
@@ -378,7 +378,7 @@ function WorldGameMapRegionPublishing.PumpRegionBackgroundBuilds(self, deadline)
     else
         return
     end
-    ---@cast region Source.SceneComponents.WorldRegionData
+    ---@cast region Global.WorldGameMap.WorldRegionData
     local builder = assert(region.backgroundBuilder)
     ---@cast builder Global.WorldGameMap.RegionBuildState
     local started = perfCounter()
@@ -418,7 +418,7 @@ function WorldGameMapRegionPublishing.PumpRegionBackgroundBuilds(self, deadline)
     self._worldPublishMilliseconds = self._worldPublishMilliseconds + (perfCounter() - started) * 1000.0
 end
 
----@param region               Source.SceneComponents.WorldRegionData
+---@param region               Global.WorldGameMap.WorldRegionData
 ---@param self                 WorldGameMapImplState
 ---@param publishBudgetSeconds number
 function WorldGameMapRegionPublishing.DrainRegionPublish(self, region, publishBudgetSeconds)
@@ -454,8 +454,8 @@ function WorldGameMapRegionPublishing.PumpRegionPublishing(self, deadline)
     end
 end
 
----@param region   Source.SceneComponents.WorldRegionData
----@param data     Source.SceneComponents.SerializedMapData
+---@param region   Global.WorldGameMap.WorldRegionData
+---@param data     Global.GameMap.SerializedMapData
 ---@param activate boolean
 ---@param self     WorldGameMapImplState
 function WorldGameMapRegionPublishing.PublishRegion(self, region, data, activate)

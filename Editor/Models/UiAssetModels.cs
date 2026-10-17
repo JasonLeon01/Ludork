@@ -59,7 +59,6 @@ public sealed record UiAssetValidationResult(
 public static class UiAssetSchema
 {
     public const string UiAssetType = "uiAsset";
-    public const string AssetDataPrefix = "Assets/";
     public const string ProjectControlPrefix = "Project:";
 
     public static string NormalizeAssetKey(string key)
@@ -73,8 +72,8 @@ public static class UiAssetSchema
             || key.Contains("//", StringComparison.Ordinal)
             || Path.GetFileName(key).Contains('.')
             || HasPrefix(key, "Assets")
-            || HasPrefix(key, "UI/Assets")
-            || HasPrefix(key, "Data/UI/Assets"))
+            || HasPrefix(key, "UI")
+            || HasPrefix(key, "Data/UI"))
         {
             return string.Empty;
         }
@@ -92,23 +91,6 @@ public static class UiAssetSchema
     {
         return string.Equals(key, prefix, StringComparison.Ordinal)
             || key.StartsWith(prefix + "/", StringComparison.Ordinal);
-    }
-
-    public static string ToAssetDataKey(string key)
-    {
-        string normalized = NormalizeAssetKey(key);
-        return normalized.Length == 0 ? string.Empty : AssetDataPrefix + normalized;
-    }
-
-    public static string ToLogicalAssetKey(string key)
-    {
-        if (!key.StartsWith(AssetDataPrefix, StringComparison.Ordinal))
-            return string.Empty;
-        string logicalKey = key[AssetDataPrefix.Length..];
-        string normalized = NormalizeAssetKey(logicalKey);
-        return string.Equals(normalized, logicalKey, StringComparison.Ordinal)
-            ? logicalKey
-            : string.Empty;
     }
 
     public static string ToProjectControlId(string key)

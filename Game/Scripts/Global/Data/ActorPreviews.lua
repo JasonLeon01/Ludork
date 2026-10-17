@@ -1,6 +1,6 @@
 local Engine = require("Engine")
 local GlobalFunctions = require("GlobalFunctions")
-local BlueprintActorOverrides = require("Source.Data.BlueprintActorOverrides")
+local BlueprintActorOverrides = require("Global.Data.BlueprintActorOverrides")
 
 local ComponentsFunctions = GlobalFunctions.Components
 local Actor = Engine.Actor
@@ -20,12 +20,15 @@ local displayFields = {
     conditionValue = "conditionValue"
 }
 
----@class Source.Data.ActorPreviews
+---@class Global.Data.ActorPreviews
 local ActorPreviews = {}
 
-function ActorPreviews:init(classDict, resolveClassPath)
+function ActorPreviews:init(classDict, resolveClassPath, options)
     self._classDict = classDict
     self._resolveClassPath = resolveClassPath
+    self._configResolver = options.configResolver
+    self._conditionalActorBase = options.conditionalActorBase
+    self._childActorComponentBase = options.childActorComponentBase
     self:clear()
 end
 
@@ -33,8 +36,8 @@ function ActorPreviews:clear()
     self._templates = {}
 end
 
----@param source Source.Data.ActorPreviewData
----@return Source.Data.ActorPreviewData
+---@param source Global.Data.ActorPreviewData
+---@return Global.Data.ActorPreviewData
 local function copyData(source)
     return {
         texturePath = source.texturePath,
@@ -62,10 +65,8 @@ function ActorPreviews:_getTemplate(classPath)
         return nil
     end
     assert(Class.isSubclass(classModel, Actor), "Actor preview class must derive from Engine.Actor: " .. classPath)
-    local ConditionalActor = require("Source.MapActors.ConditionalActor")
-
-    local conditional = Class.isSubclass(classModel, ConditionalActor)
-    ---@type Source.Data.ActorPreviewData
+    local conditional = Class.isSubclass(classModel, self._conditionalActorBase)
+    ---@type Global.Data.ActorPreviewData
     local data = {
         texturePath = classModel.texturePath or "",
         rect = classModel.defaultRect:copy(),
@@ -87,9 +88,7 @@ function ActorPreviews:_getTemplate(classPath)
     local childClassName = ""
     local componentType = ComponentsFunctions.getComponentTypes(classModel).childActorComp
     if componentType ~= nil then
-        local ChildActorComponent = require("Source.Components.ChildActorComponent")
-
-        if Class.isSubclass(componentType, ChildActorComponent) then
+        if Class.isSubclass(componentType, self._childActorComponentBase) then
             local component = classModel.childActorComp
             local defaults = ComponentsFunctions.getComponentFieldDefaults(componentType)
             childClassName = component ~= nil and component.className or defaults.className
@@ -99,7 +98,7 @@ function ActorPreviews:_getTemplate(classPath)
             componentType = nil
         end
     end
-    ---@type Source.Data.ActorPreviewTemplate
+    ---@type Global.Data.ActorPreviewTemplate
     local template = {
         classModel = classModel,
         conditional = conditional,
@@ -111,9 +110,9 @@ function ActorPreviews:_getTemplate(classPath)
     return template
 end
 
----@param template Source.Data.ActorPreviewTemplate
----@param data     Source.Data.ActorPreviewData
----@param changes  table<string, Source.Data.ClassVarValue>
+---@param template Global.Data.ActorPreviewTemplate
+---@param data     Global.Data.ActorPreviewData
+---@param changes  table<string, Global.Data.ClassVarValue>
 ---@return string
 local function applyChildChanges(template, data, changes)
     assert(Class.isInstance(changes, "table"), "Blueprint component override childActorComp must be a table")
@@ -164,7 +163,9 @@ function ActorPreviews:_get(classPath, classVarChanges, ancestors)
                 local conditionField = key == "conditionVariable" or key == "conditionOperator"
                     or key == "conditionValue"
                 if target ~= nil and (not conditionField or template.conditional) then
-                    local resolved = BlueprintActorOverrides.ResolveValue(template.classModel, key, value, descriptor)
+                    local resolved = BlueprintActorOverrides.ResolveValue(
+                        template.classModel, key, value, descriptor, self._configResolver
+                    )
                     if key == "material" and data.material ~= resolved then
                         data.materialParameters = {}
                     end
@@ -173,7 +174,7 @@ function ActorPreviews:_get(classPath, classVarChanges, ancestors)
                     assert(
                         Class.isInstance(value, "table"), "Blueprint component override childActorComp must be a table"
                     )
-                    ---@cast value table<string, Source.Data.ClassVarValue>
+                    ---@cast value table<string, Global.Data.ClassVarValue>
                     childClassName = applyChildChanges(template, data, value)
                 end
             end

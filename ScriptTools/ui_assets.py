@@ -20,7 +20,7 @@ from .ui_property_values import (
 )
 
 
-ASSETS_RELATIVE_PATH = pathlib.Path("Data") / "UI" / "Assets"
+ASSETS_RELATIVE_PATH = pathlib.Path("Data") / "UI"
 
 
 def _is_link(path: pathlib.Path) -> bool:
@@ -100,12 +100,12 @@ def _validate_asset_key(value: object, label: str) -> str:
         raise UiAssetError(f"{label} must not include an extension")
     prefixes = (
         "Assets",
-        "UI/Assets",
-        "Data/UI/Assets",
+        "UI",
+        "Data/UI",
     )
     if any(value == prefix or value.startswith(prefix + "/") for prefix in prefixes):
         raise UiAssetError(
-            f"{label} must be relative to Data/UI/Assets without a prefix"
+            f"{label} must be relative to Data/UI without a prefix"
         )
     return value
 

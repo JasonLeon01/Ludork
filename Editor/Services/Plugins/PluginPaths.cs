@@ -14,6 +14,9 @@ public static class PluginPaths
         return new PluginEnvironment(global.RootDirectory, root, Path.Combine(root, "plugins.json"))
         {
             ProjectKey = key,
+            WorkspaceEnvironment = global.WorkspaceEnvironment is null
+                ? null
+                : ForProject(global.WorkspaceEnvironment, projectPath),
         };
     }
 
@@ -39,7 +42,24 @@ public static class PluginPaths
     public static PluginEnvironment Resolve()
     {
         string root = EditorPaths.UserDataDirectory;
-        return new PluginEnvironment(root, Path.Combine(root, "Plugins"), Path.Combine(root, "plugins.json"));
+        string workspaceRoot = Environment.CurrentDirectory;
+        string marker = Path.Combine(AppContext.BaseDirectory, ".ludork-development");
+        if (!File.Exists(Path.Combine(workspaceRoot, "plugins.json")) && File.Exists(marker))
+        {
+            string developmentRoot = File.ReadAllText(marker).Trim();
+            if (Path.IsPathFullyQualified(developmentRoot)
+                && File.Exists(Path.Combine(developmentRoot, "Ludork.csproj")))
+                workspaceRoot = developmentRoot;
+        }
+        PluginEnvironment? workspace = EditorProjectIdentity.NormalizePath(root)
+            == EditorProjectIdentity.NormalizePath(workspaceRoot)
+            ? null
+            : new PluginEnvironment(workspaceRoot, Path.Combine(workspaceRoot, "Plugins"),
+                Path.Combine(workspaceRoot, "plugins.json"));
+        return new PluginEnvironment(root, Path.Combine(root, "Plugins"), Path.Combine(root, "plugins.json"))
+        {
+            WorkspaceEnvironment = workspace,
+        };
     }
 
     public static string GetPluginDataDirectory(
