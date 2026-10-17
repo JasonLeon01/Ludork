@@ -12,9 +12,13 @@ Animation sources live in `Data/Animations`. `Engine.getAnimationCacheRoot()` cr
 
 Initialisation generates missing `.anim.json`/`.anim.ldc` caches and rebuilds them when source data or referenced frame assets change, preserving paths relative to `Data/Animations`. Caches are disposable and excluded from templates and player packages. Sources are decoded through `Engine.decodeData` and caches are written through `Engine.saveData`; `.anim.ldc` contains binary data, with no intermediate JSON conversion. Delete old caches containing compressed JSON so initialisation regenerates them.
 
+`Source.Utils.AnimationCache` provides source-key extraction, frame-asset discovery and staleness checks for the loading scene. `Global.Data.LoadAnimations()` loads the prepared caches.
+
 ## Audio
 
 Music, sound effects and voices have independent enable flags and volumes in `Main.ini`. The GlobalFunctions Manager group provides the gameplay-facing helpers. Handle missing optional sound paths deliberately. Repeatedly loading the same resource under different path spellings defeats caching.
+
+`Global.Audio.MapAudio` manages map BGM/BGS playback and filters, using `Global.Audio.MapAudioState` for source reuse and fades. A custom scene creates an instance with `MapAudio.new()`, calls its `playMapAudio(mapData, transitionSeconds?)`, advances transitions through `onTick(deltaTime)` and stops playback with `stopMapAudio()`.
 
 Audio effects used by the gameplay Manager and Blueprint nodes are Lua DSP processors defined by `Source.Utils.AudioEffects`. The Game project provides the case-sensitive `Echo`, `Distortion`, `Underwater` and `BehindWall` presets. Their defaults remain a 0.3-second/0.5-decay echo, a 2.0-drive/0.7-threshold distortion, a 0.7-depth/0.3-bubble underwater effect, and a 900-Hz/0.35-transmission behind-wall filter.
 

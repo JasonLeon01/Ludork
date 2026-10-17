@@ -20,21 +20,36 @@ In editor mode, `LUDORK_EDITOR=1` selects the project `Main.ini`. A normal packa
 
 An Android package mirrors its immutable runtime assets into `filesDir/ludork/runtime/<runtime-hash>` before native startup. Mutable configuration and saves use `filesDir/ludork/user-data`. They are never written back into that versioned runtime directory and do not require external-storage permission.
 
+## Data services
+
+`Global.Data` owns shared data loading, resource queries, Blueprint classes and graphs, Actor construction and static previews. Require it directly for these operations. `Source.Data` supplies project startup and the default game's General Data queries, such as `GetGeneralPlayerData` and `GetGeneralItemData`, plus `CreateGeneralAttributeSet(typeName, memberID)`.
+
+The default `Source.Data.InitializeRuntime()` calls `Global.Data.InitializeRuntime(options)` to create the shared services and install data and Blueprint providers before the first scene. Initialisation is required once per Lua session; a second call fails. Requiring either module does not initialise it. Custom projects supply all four fields of `Global.Data.RuntimeOptions` from their own startup:
+
+| Required option | Type and purpose |
+|---|---|
+| `configResolver` | `(configName: string, settingName: string) -> string`; resolves configuration references for empty string overrides. |
+| `nodeModuleCandidates` | `(prefix: string) -> string[]`; supplies additional node module paths in search order. The unprefixed module path is tried first. |
+| `conditionalActorBase` | `Class.ClassType<Engine.Actor>`; the Actor base whose subclasses expose `conditionVariable`, `conditionOperator` and `conditionValue` in previews. |
+| `childActorComponentBase` | `Class.ClassType<Engine.Component>`; the component base whose subclasses supply `className` and `relativePosition` through `childActorComp` in previews. |
+
+Pass finalised class objects for the two base options, not module-name strings or instances. They must satisfy `Class.isSubclass` against `Engine.Actor` and `Engine.Component`, respectively. The default project supplies `Source.System.GetConfigValue`, the ordered `Source.` and `Global.` node candidates, `Source.MapActors.ConditionalActor` and `Source.Components.ChildActorComponent`. These dependencies are supplied to Global; Global does not import Source. Configuration provider registration remains the separate `Source.System.InstallRuntimeProviders()` startup call.
+
 ## Runtime state
 
 Keep immutable definitions in Blueprint, Config or General Data files, and keep mutable play-session state on the game instance, actors or components. Avoid writing transient state back into source JSON.
 
-`Data.GetClassData(path)` exposes the shared session definition; see [Execution Flow, Events and Variables](<../Blueprint Scripting/Execution Flow Events and Variables.md#class-definitions-and-session-lifetime>).
+`Global.Data.GetClassData(path)` exposes the shared session definition; see [Execution Flow, Events and Variables](<../Blueprint Scripting/Execution Flow Events and Variables.md#class-definitions-and-session-lifetime>).
 
 Construct General Data Attribute Sets with `Source.Configs.GeneralDataTypes.Create`. Load type keys from `Enums.GeneralDataKey` and member keys from `Enums.GeneralData.<TypeName>`, such as `Enums.GeneralData.Item`. The editor resolves these enums from live, possibly unsaved project data. Saving regenerates their runtime sources alongside `Enums.Animation` and `Enums.Particle`; runtime callers see the saved modules. The [General Data and Text Config](<../../Editor User Guide/General Data and Text Config.md>) page describes value conversion and defaults.
 
 ### Static Actor display data
 
-`Source.Data.GetActorPreviewData(classPath, classVarChanges?)` returns `Source.Data.ActorPreviewData`, or `nil` for an empty class path. Invalid class paths raise an error. It resolves inherited Blueprint and Script Mixin defaults, then applies declared display and condition overrides with their existing typed conversion. Unknown override names fail; unrelated gameplay values and `BlueprintOnly` overrides are not applied. A resolved class must derive from `Engine.Actor`.
+`Global.Data.GetActorPreviewData(classPath, classVarChanges?)` returns `Global.Data.ActorPreviewData`, or `nil` for an empty class path. Invalid class paths raise an error. It resolves inherited Blueprint and Script Mixin defaults, then applies declared display and condition overrides with their existing typed conversion. Unknown override names fail; unrelated gameplay values and `BlueprintOnly` overrides are not applied. A resolved class must derive from `Engine.Actor`.
 
 The record contains texture and material resource paths, the configured first-frame `rect`, `translation`, rotation in degrees, `scale`, `origin`, `visible`, `materialParameters`, condition fields, and optional recursive `child` with its `childOffset`. Declarative `childActorComp` supplies child class and offset; cyclic child references fail. Each call returns independent records and copied parameter dictionaries and mutable `sf` rectangles and vectors, so callers cannot alter shared class defaults or cached templates.
 
-Extraction does not construct gameplay Actors, instantiate event graphs, load the referenced textures, dispatch component or lifecycle callbacks, or initialise combat state. `Source.Data.ClearActorPreviewCache()` discards the class display templates without altering shared class definitions; clearing the floor-preview cache calls it automatically.
+Extraction does not construct gameplay Actors, instantiate event graphs, load the referenced textures, dispatch component or lifecycle callbacks, or initialise combat state. `Global.Data.ClearActorPreviewCache()` discards the class display templates without altering shared class definitions; clearing the floor-preview cache calls it automatically.
 
 ### Players
 
@@ -60,7 +75,7 @@ Variable snapshots include the current logical values of monitored fields. `deep
 
 ### Map Actor identity
 
-The placement `tag` in map JSON becomes the Actor's map-persistence tag. `GameMap:getActorByTag` and `GameInstance` persistence records identify Actors only through `Actor:getMapTag()`, and `Actor.tag` remains independent. Actors without a map tag are not recorded, and map paths are normalised for these records.
+The placement `tag` in map JSON becomes the Actor's map-persistence tag. `GameMap:getActorByTag` and `GameInstance` persistence records identify Actors only through `Actor:getMapTag()`, and `Actor.tag` remains independent. Actors without a map tag are not recorded, and map paths are normalised for these records with `Global.Utils.MapPath.Normalise`.
 
 Runtime-spawned Actors that must survive a map rebuild are stored through the added-Actor record using their own generated map-placement tag. When such an Actor is later destroyed, its destroyed record suppresses the stored addition. Reborn enemies use this existing pair of records rather than reusing the original placement tag.
 

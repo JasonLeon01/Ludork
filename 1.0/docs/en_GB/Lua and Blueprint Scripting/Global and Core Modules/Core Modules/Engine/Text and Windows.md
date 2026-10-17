@@ -2,7 +2,7 @@
 
 ## Engine.TextConfig
 
-`Engine.TextConfig` builds validated plain and rich text configurations for `Source.Data` and Declarative UI. Input tables must be JSON-compatible, and functions, native objects and cycles are rejected. See [Text Config](<../../../../Editor User Guide/General Data and Text Config.md#text-config>) for editor usage.
+`Engine.TextConfig` builds validated plain and rich text configurations for `Global.Data` and Declarative UI. Input tables must be JSON-compatible, and functions, native objects and cycles are rejected. See [Text Config](<../../../../Editor User Guide/General Data and Text Config.md#text-config>) for editor usage.
 
 | Name | Parameters | Returns |
 |---|---|---|

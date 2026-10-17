@@ -69,7 +69,7 @@ Missing declarations, incompatible values and duplicate declarations fail both e
 
 ClassDict instances in one Lua VM share resolved classes, definition tables and compiled graph templates. Changes to JSON class definitions or graph templates require a restart. [Lua hot reload](<../Lua Runtime and Modules.md#lua-hot-reload>) updates only compatible script functions.
 
-`ClassDict:getData(path)`, also exposed as `Data.GetClassData(path)` in the Game project, resolves through the same loading path as `get` before returning the resolver's JSON definition table. Unknown paths raise, and module classes without a JSON definition return nil. Repeated reads in one VM return the same table. Use `copy` or `deepcopy` when an independent table is needed.
+`ClassDict:getData(path)`, also exposed as `Global.Data.GetClassData(path)` in the Game project, resolves through the same loading path as `get` before returning the resolver's JSON definition table. Unknown paths raise, and module classes without a JSON definition return nil. Repeated reads in one VM return the same table. Use `copy` or `deepcopy` when an independent table is needed.
 
 Editing that table is visible to later definition reads, but it does not update generated classes, instance-default records or compiled templates. New instances and executable-event queries continue to use the generated results.
 

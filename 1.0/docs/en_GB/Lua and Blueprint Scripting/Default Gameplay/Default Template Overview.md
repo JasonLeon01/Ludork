@@ -14,7 +14,7 @@ Startup calls the following functions explicitly. Requiring their modules does n
 |---|---|
 | `Source.Locale.Core.Init()` | Loads locale dictionaries before configuration loading and language selection. |
 | `Source.Configs.Main.LoadOrCreate()` | Reads `Main.ini`, creating it with default settings when absent. |
-| `Source.Data.InitializeRuntime()` | Initialises data services and registers data and Blueprint providers before the first scene. |
+| `Source.Data.InitializeRuntime()` | Supplies project callbacks and preview base classes to `Global.Data.InitializeRuntime(options)`, which creates shared data services and registers data and Blueprint providers before the first scene. |
 | `Source.System.InstallRuntimeProviders()` | Registers the configuration provider before the first scene. |
 | `Source.System.Init()` | Applies game and audio configuration and prepares display resources through `GlobalCore.Display` before the native loop. |
 
@@ -24,7 +24,8 @@ On Android and iOS, returning from the background in the same process resumes th
 
 ## Gameplay layout
 
-- `Scripts/Source/MapActors` contains the reusable map Actor classes. `Scripts/Source/Utils` contains gameplay helpers, including the Enemy and GameInstance implementation modules; scenes, business windows and components retain their own directories.
+- `Scripts/Global` contains shared infrastructure, including `Global.Data`, map audio under `Global.Audio` and `Global.Utils.MapPath`. The [data services](<Runtime Data Configuration and Saves.md#data-services>) contract separates these services from project startup and gameplay queries.
+- `Scripts/Source/MapActors` contains the reusable map Actor classes. `Scripts/Source/Utils` contains gameplay helpers, including the Enemy and GameInstance implementation modules and `Source.Utils.AnimationCache`; scenes, business windows and components retain their own directories.
 - `Scripts/GlobalFunctions` contains independent Lua Blueprint function libraries. Their paths in graph data begin with `GlobalFunctions.`; the native root module remains separate.
 - `Scripts/Internal` contains Live Debug and UI foundations, including the shared window base classes.
 - `Scripts/Internal/UI` contains Views generated from `Data/UI/Assets` by Export. Generated UI and locale files are absent from templates and version control; export the project before its first run. Handwritten foundations live in `Internal.UIBase`, and business windows live in `Source.Windows`. See [Declarative UI Authoring Workflow](<../Declarative UI/Authoring Workflow.md>).

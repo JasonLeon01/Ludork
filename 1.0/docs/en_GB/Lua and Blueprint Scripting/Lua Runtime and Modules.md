@@ -33,7 +33,7 @@ The native `GlobalFunctions` module exposes `Components`, `UI`, `NodeGraph` and 
 
 Runtime modules under `Scripts/GlobalFunctions` do not call `require` at module scope, including for native modules. They resolve dependencies from functions on first use so Blueprint function libraries can load without cycles. Their Lua paths and exported names must not occupy the same `GlobalFunctions` paths as C++ bindings.
 
-Static dependencies flow from the root native modules through `Scripts/Global` to `Scripts/Source`. Global modules must not require Source. `Scripts/Internal` and `Scripts/GlobalFunctions` can depend on project modules in `Source`. Generic infrastructure can resolve opaque module names supplied by data, but it must not hard-code a higher-layer business module.
+Static dependencies flow from the root native modules through `Scripts/Global` to `Scripts/Source`. Global modules must not require Source. `Scripts/Internal` and `Scripts/GlobalFunctions` can depend on project modules in `Source`. Generic infrastructure can resolve opaque module names supplied by data, but it must not hard-code a higher-layer business module. Project startup supplies callbacks and class objects when shared services need project behaviour; see [`Global.Data.InitializeRuntime(options)`](<Default Gameplay/Runtime Data Configuration and Saves.md#data-services>).
 
 Native resource suffixes are exposed through `Engine.ResourceFileConstants`; game map identities and Gameplay tags live in `Source.Configs.MapConstants` and `Source.Configs.GameplayConstants`. Public enums use the independent `Enums.*` modules described below.
 
