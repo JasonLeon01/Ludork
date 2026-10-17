@@ -19,17 +19,17 @@ Author fixed positions, dimensions, spacing and text styles in JSON. Controllers
 
 ### File layout
 
-The asset root is fixed at `Data/UI/Assets`:
+The asset root is fixed at `Data/UI`:
 
 ```text
-Data/UI/Assets/
+Data/UI/
     ├── Inventory.json
     └── Parts/
         ├── Inventory/ItemRow.json
         └── Shared/KeyPrompt.json
 ```
 
-Complete screens, windows, HUDs and overlays live directly below `Assets`. Put parts owned by one large UI in `Parts/<Owner>`, and parts shared by several UIs in `Parts/Shared`. Do not create directories organised only by control shape.
+Complete screens, windows, HUDs and overlays live directly below `Data/UI`. Put parts owned by one large UI in `Parts/<Owner>`, and parts shared by several UIs in `Parts/Shared`. Do not create directories organised only by control shape.
 
 Generated Lua Views mirror the asset hierarchy. Every file under `Scripts/Internal/UI` and `Scripts/stub/Internal/UI` is generator-owned:
 

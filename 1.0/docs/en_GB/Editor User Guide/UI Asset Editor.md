@@ -4,7 +4,7 @@ The UI Asset Editor lays out a declarative UI asset visually, with the Palette, 
 
 ## Open or create an asset
 
-Choose **Game → New UI Asset**, or create and open the JSON asset beneath `Data/UI/Assets` through the project file explorer. Asset ownership (`Parts/<Owner>` versus `Shared`) is described in [Declarative UI Authoring Workflow](<../Lua and Blueprint Scripting/Declarative UI/Authoring Workflow.md>).
+Choose **Game → New UI Asset**, or create and open the JSON asset beneath `Data/UI` through the project file explorer. Asset ownership (`Parts/<Owner>` versus `Shared`) is described in [Declarative UI Authoring Workflow](<../Lua and Blueprint Scripting/Declarative UI/Authoring Workflow.md>).
 
 ![UI Asset Editor showing Palette, Hierarchy, Designer and Inspector](../../../images/editor/ui-asset-editor.png)
 
@@ -39,7 +39,7 @@ A nested project node lists the Global animations inherited from its asset. Use 
 
 ## Asset paths and node names
 
-The asset identity is the exact-case path relative to `Data/UI/Assets`, with forward slashes and no extension. Moving or renaming an asset rewrites managed JSON nesting references. The next Export regenerates its View and declarations, so update handwritten `require` paths and references to renamed nodes before exporting. The full key contract is in [UI Asset Schema and Control Registry](<../Lua and Blueprint Scripting/Declarative UI/Asset Schema and Control Registry.md>).
+The asset identity is the exact-case path relative to `Data/UI`, with forward slashes and no extension. Moving or renaming an asset rewrites managed JSON nesting references. The next Export regenerates its View and declarations, so update handwritten `require` paths and references to renamed nodes before exporting. The full key contract is in [UI Asset Schema and Control Registry](<../Lua and Blueprint Scripting/Declarative UI/Asset Schema and Control Registry.md>).
 
 ## Related pages
 

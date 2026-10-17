@@ -2,9 +2,9 @@
 
 ## Asset key and structure
 
-A UI asset uses `type = "uiAsset"` and follows the field contract below. It does not carry a schema-version field. Unknown fields are rejected. Its only asset identity is the exact-case path relative to `Data/UI/Assets`, with forward slashes and no extension. `Title.json` has key `Title`, and `Parts/Shared/WindowChrome.json` has key `Parts/Shared/WindowChrome`.
+A UI asset uses `type = "uiAsset"` and follows the field contract below. It does not carry a schema-version field. Unknown fields are rejected. Its only asset identity is the exact-case path relative to `Data/UI`, with forward slashes and no extension. `Title.json` has key `Title`, and `Parts/Shared/WindowChrome.json` has key `Parts/Shared/WindowChrome`.
 
-Keys cannot be absolute, contain backslashes, empty segments, `.` or `..`, include an extension, or repeat prefixes such as `Assets/` or `UI/Assets/`. Every path segment must be free of dots, so its generated Lua module has an unambiguous require path. Spaces, hyphens and Unicode names remain supported. The asset object contains `designSize`, `palette` and one `root` node. Neither assets nor nodes contain UUID fields.
+Keys cannot be absolute, contain backslashes, empty segments, `.` or `..`, include an extension, or repeat prefixes such as `Assets/`, `UI/` or `Data/UI/`. Every path segment must be free of dots, so its generated Lua module has an unambiguous require path. Spaces, hyphens and Unicode names remain supported. The asset object contains `designSize`, `palette` and one `root` node. Neither assets nor nodes contain UUID fields.
 
 Each node contains:
 

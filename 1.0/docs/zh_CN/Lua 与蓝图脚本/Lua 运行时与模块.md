@@ -9,7 +9,7 @@ Ludork 运行 Lua 5.5，并提供 Standard 扩展、LuaSF 与项目原生模块�
 | 蓝图 graph | 可视化事件与执行流 | `Data/Blueprints/*.json` |
 | Lua 类 | 可复用系统与玩法类型 | `Scripts/**/*.lua` |
 | Script Mixin | 直接挂到蓝图类上的 Lua 行为 | `Scripts/Mixins/**/*.lua` 与同名 `_meta.lua` |
-| 声明式 UI | JSON 资产与生成的类型化 View 树 | `Data/UI/Assets/**/*.json`、生成的 `Scripts/Internal/UI/**/*.lua` 及对应 stub |
+| 声明式 UI | JSON 资产与生成的类型化 View 树 | `Data/UI/**/*.json`、生成的 `Scripts/Internal/UI/**/*.lua` 及对应 stub |
 | UI 行为 | 手写基础模块与业务 Controller | `Scripts/Internal/UIBase`；窗口模块内的私有 Controller；独立的行与 Scene `Controller.lua` 模块 |
 
 同一条蓝图继承链只能使用图模式或 Script Mixin 模式，不得中途切换。

@@ -6,6 +6,8 @@ Registration occurs only inside `IEditorPlugin.Register`. The API exposes six re
 
 The start page uses global plug-ins. A project context combines global plug-ins with only that project's plug-ins. Menus, map context menus, text hints, Export/Run/Pack hooks and export-participant fingerprints all follow this scope; switching projects does not keep the previous project's registrations active.
 
+Within each scope, working-directory and user registrations are merged by plug-in ID, with the working-directory copy taking priority. Only the selected copy contributes commands, providers and hooks.
+
 Global plug-ins precede project plug-ins in provider and hook execution. Menus still sort by location and `Order`, with global commands first when order values tie. Plug-in IDs and command IDs must be unique in the effective global-plus-current-project set; ordinary and map context-menu commands share the command-ID namespace. A conflicting registration reports a failure rather than replacing an existing registration. Different project scopes may reuse IDs. A project's loading errors do not prevent global or other-project plug-ins from loading.
 
 ## Menu commands

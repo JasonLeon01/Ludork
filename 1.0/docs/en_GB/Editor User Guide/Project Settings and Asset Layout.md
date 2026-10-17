@@ -80,7 +80,7 @@ The optional project-root `MaterialExport.json` stores additional base/layer com
 
 `Data/Particles` stores [Common Particle](<Common Particles.md>) definitions. A particle reference is its extensionless relative key; particle textures use complete logical paths, conventionally under `/Game/Assets/Particles`.
 
-`Data` contains JSON authored by the editor, and `Data/Locale/Locale.xlsx` is the localisation workbook managed by Official Locale Tools. Declarative UI assets live under `Data/UI/Assets`, while `Data/TextConfigs` holds shared or specialised text styles. Ordinary UI text styles are stored on their UI nodes.
+`Data` contains JSON authored by the editor, and `Data/Locale/Locale.xlsx` is the localisation workbook managed by Official Locale Tools. Declarative UI assets live under `Data/UI`, while `Data/TextConfigs` holds shared or specialised text styles. Ordinary UI text styles are stored on their UI nodes.
 
 `Scripts` contains runtime Lua, metadata and declarations. See [Lua Runtime and Modules](<../Lua and Blueprint Scripting/Lua Runtime and Modules.md>) for module locations and ownership, and [Declarative UI Authoring Workflow](<../Lua and Blueprint Scripting/Declarative UI/Authoring Workflow.md>) for UI assets and generated Views. [General Data and Text Config](<General Data and Text Config.md>) describes the files generated when saving project data.
 

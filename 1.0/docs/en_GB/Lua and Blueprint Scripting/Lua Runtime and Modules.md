@@ -9,7 +9,7 @@ Readers new to Lua can begin with [Lua Basics](<../Getting Started/Lua Basics.md
 | Blueprint graph | Visual event and execution flow | `Data/Blueprints/*.json` |
 | Lua class | Reusable systems and gameplay types | `Scripts/**/*.lua` |
 | Script Mixin | Lua behaviour attached directly to a Blueprint class | `Scripts/Mixins/**/*.lua` plus same-name `_meta.lua` |
-| Declarative UI | JSON assets and generated typed View trees | `Data/UI/Assets/**/*.json`, generated `Scripts/Internal/UI/**/*.lua` and matching stubs |
+| Declarative UI | JSON assets and generated typed View trees | `Data/UI/**/*.json`, generated `Scripts/Internal/UI/**/*.lua` and matching stubs |
 | UI behaviour | Handwritten foundations and business Controllers | `Scripts/Internal/UIBase`; private Controllers inside window modules; independent row and Scene `Controller.lua` modules |
 
 A Blueprint inheritance chain uses either graph mode or Script Mixin mode. Do not switch modes within one chain.

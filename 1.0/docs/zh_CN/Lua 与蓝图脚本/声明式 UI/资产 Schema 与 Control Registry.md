@@ -2,9 +2,9 @@
 
 ## 资产标识与结构
 
-UI 资产使用 `type = "uiAsset"`，并遵循下面的字段规则，不接受未知字段。它不保存结构定义版本字段。资产的唯一标识是相对 `Data/UI/Assets` 的路径：大小写精确、使用正斜杠、不带扩展名。`Title.json` 的键是 `Title`，`Parts/Shared/WindowChrome.json` 的键是 `Parts/Shared/WindowChrome`。
+UI 资产使用 `type = "uiAsset"`，并遵循下面的字段规则，不接受未知字段。它不保存结构定义版本字段。资产的唯一标识是相对 `Data/UI` 的路径：大小写精确、使用正斜杠、不带扩展名。`Title.json` 的键是 `Title`，`Parts/Shared/WindowChrome.json` 的键是 `Parts/Shared/WindowChrome`。
 
-键不得是绝对路径，也不得包含反斜杠、空段、`.`、`..`、扩展名，或 `Assets/`、`UI/Assets/` 这样的重复前缀。每个路径段都必须不含点号，生成的 Lua 模块才有无歧义的 require 路径。空格、连字符与 Unicode 名称仍然受支持。资产对象包含 `designSize`、`palette` 与一个 `root` 节点。资产和节点都不含 UUID 字段。
+键不得是绝对路径，也不得包含反斜杠、空段、`.`、`..`、扩展名，或 `Assets/`、`UI/`、`Data/UI/` 这样的重复前缀。每个路径段都必须不含点号，生成的 Lua 模块才有无歧义的 require 路径。空格、连字符与 Unicode 名称仍然受支持。资产对象包含 `designSize`、`palette` 与一个 `root` 节点。资产和节点都不含 UUID 字段。
 
 每个节点包含：
 

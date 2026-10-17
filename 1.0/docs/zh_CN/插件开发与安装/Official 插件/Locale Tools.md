@@ -2,7 +2,7 @@
 
 `Plugins/OfficialLocaleTools` 是普通菜单命令、文本提示提供器，以及 Export Hook 与独立的 before-Pack 排除 Hook 的参考实现。它不注册地图项右键菜单命令。
 
-Official Locale Tools 包含在官方插件安装内容中。Windows MSI 与 EXE 默认安装官方插件，macOS 用户需运行 DMG 中的 **Install Official Plugins**。从仓库或便携包运行时，需要显式安装到 `~/Ludork`；上面的仓库源码目录不会被自动加载。使用前请按[安装与管理插件](<../安装与管理插件.md>)完成安装。
+Official Locale Tools 包含在官方插件安装内容中。Windows MSI 与 EXE 默认安装官方插件，macOS 用户需运行 DMG 中的 **Install Official Plugins**。从仓库运行时，会通过检出目录的 `plugins.json` 加载上述源码，并优先于用户目录中的副本。便携包则需要显式安装到 `~/Ludork`。使用前请按[安装与管理插件](<../安装与管理插件.md>)完成安装。
 
 ## 注册
 

@@ -36,11 +36,15 @@ The directory must contain `plugin.json` and at least one participating `.cs` so
 
 ## Global and project storage
 
-All editor modes on Windows and macOS use `~/Ludork/Plugins` and `~/Ludork/plugins.json`, including repository runs, portable packages and direct startup from Windows `Binaries`. `~` is the current user's home directory, typically `C:\Users\<user>` on Windows. Plug-in management and retained data do not require write access to the editor installation directory.
+Newly created and imported plug-ins normally use `~/Ludork/Plugins` and `~/Ludork/plugins.json` on Windows and macOS. `~` is the current user's home directory, typically `C:\Users\<user>` on Windows. Retained plug-in data always uses this user directory.
 
-Repository `Plugins` sources and the Windows package's `tools/OfficialPlugins` payload are installation inputs. The editor loads only the user installation; startup never copies or replaces official plug-ins. See [User data directory](<../Editor User Guide/Start Page Workspace and Shortcuts.md#user-data-directory>) for other editor data and manual migration.
+At startup, the editor reads both the working directory's `plugins.json` with its sibling `Plugins` directory and the user installation. For a development build launched from another directory without a registry, it uses the repository identified by the build's development marker. Within each scope, working-directory registrations come first: the same plug-in ID loads only from that source, while IDs unique to either location also load. A selected plug-in's load error is reported without substituting the other copy. A missing registry contributes no plug-ins; an invalid registry reports a diagnostic while the other location can still load. Source directories must be registered; scanning does not automatically register every folder.
 
-Project plug-ins live below the same plug-in root:
+The manager shows the selected source and routes unregistration or source deletion to its own registry and directory. Selecting an unregistered immediate child of the working directory's plug-in root for import registers it in place; other imports and newly created plug-ins go to the user directory. If a user copy remains after removing a working-directory registration, it becomes active after restart.
+
+Repository official plug-ins can therefore load directly from the checkout. The Windows package's `tools/OfficialPlugins` payload remains an installation input; startup never copies or replaces official plug-ins. See [User data directory](<../Editor User Guide/Start Page Workspace and Shortcuts.md#user-data-directory>) for other editor data and manual migration.
+
+Project plug-ins use the following layout under either scanned root, with the same working-directory priority. Writable `.data` remains under the user root:
 
 ```text
 Plugins/__ProjectPlugins/<project-key>/
@@ -69,7 +73,7 @@ Do not drag plug-in files to Applications. The same complete-replacement rules a
 
 ### Repository and portable installation
 
-Run these commands from a repository checkout after building ScriptTools, with Ludork closed:
+Repository runs can load the checkout’s registered plug-ins directly. To install a separate user copy for use outside the checkout, run these commands after building ScriptTools, with Ludork closed:
 
 ```sh
 .tools/ScriptTools/ScriptTools editor-official-plugins prepare Plugins obj/official-plugins

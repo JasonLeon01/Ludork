@@ -28,7 +28,7 @@ On Android and iOS, returning from the background in the same process resumes th
 - `Scripts/Source/MapActors` contains the reusable map Actor classes. `Scripts/Source/Utils` contains gameplay helpers, including the Enemy and GameInstance implementation modules and `Source.Utils.AnimationCache`; scenes, business windows and components retain their own directories.
 - `Scripts/GlobalFunctions` contains independent Lua Blueprint function libraries. Their paths in graph data begin with `GlobalFunctions.`; the native root module remains separate.
 - `Scripts/Internal` contains Live Debug and UI foundations, including the shared window base classes.
-- `Scripts/Internal/UI` contains Views generated from `Data/UI/Assets` by Export. Generated UI and locale files are absent from templates and version control; export the project before its first run. Handwritten foundations live in `Internal.UIBase`, and business windows live in `Source.Windows`. See [Declarative UI Authoring Workflow](<../Declarative UI/Authoring Workflow.md>).
+- `Scripts/Internal/UI` contains Views generated from `Data/UI` by Export. Generated UI and locale files are absent from templates and version control; export the project before its first run. Handwritten foundations live in `Internal.UIBase`, and business windows live in `Source.Windows`. See [Declarative UI Authoring Workflow](<../Declarative UI/Authoring Workflow.md>).
 - `Scripts/Mixins` contains directly attachable Lua behaviour.
 - `Data/Blueprints` contains game-specific Actor classes.
 - `Data/Materials` contains authored material graphs; Export generates runtime shaders and metadata in `Assets/Shaders/MaterialGenerated`. These outputs are ignored and excluded from templates.

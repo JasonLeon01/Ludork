@@ -4,7 +4,7 @@ UI 资产编辑器用于直观地编排界面、窗口和可复用组件。窗�
 
 ## 打开或创建资产
 
-选择 **游戏 → 新建 UI 资产**，或从项目文件浏览器创建、打开 `Data/UI/Assets` 下的 JSON 资产。资产归属（`Parts/<Owner>` 与 `Shared`）见 [声明式 UI 编写工作流](<../Lua 与蓝图脚本/声明式 UI/编写工作流.md>)。
+选择 **游戏 → 新建 UI 资产**，或从项目文件浏览器创建、打开 `Data/UI` 下的 JSON 资产。资产归属（`Parts/<Owner>` 与 `Shared`）见 [声明式 UI 编写工作流](<../Lua 与蓝图脚本/声明式 UI/编写工作流.md>)。
 
 ![显示 Palette、Hierarchy、Designer 和 Inspector 的 UI 资产编辑器](../../../images/editor/ui-asset-editor.png)
 
@@ -39,7 +39,7 @@ WrapBox 只允许一个子模板。设计区会显示全部重复项，编辑其
 
 ## 资产路径与节点名称
 
-资产标识是相对于 `Data/UI/Assets` 的路径，区分大小写，使用正斜杠且不带扩展名。移动或重命名资产会更新受管 JSON 中的嵌套引用。手写的 `require` 路径和节点引用需要自行修改；之后导出会重新生成 View 和声明。完整规则见 [UI 资产 Schema 与 Control Registry](<../Lua 与蓝图脚本/声明式 UI/资产 Schema 与 Control Registry.md>)。
+资产标识是相对于 `Data/UI` 的路径，区分大小写，使用正斜杠且不带扩展名。移动或重命名资产会更新受管 JSON 中的嵌套引用。手写的 `require` 路径和节点引用需要自行修改；之后导出会重新生成 View 和声明。完整规则见 [UI 资产 Schema 与 Control Registry](<../Lua 与蓝图脚本/声明式 UI/资产 Schema 与 Control Registry.md>)。
 
 ## 相关页面
 

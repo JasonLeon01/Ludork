@@ -56,11 +56,13 @@ Windows and macOS editors use `~/Ludork` for persistent editor data, including i
 | Editor Console output for a project | `Log/<project-key>/Ludork.log` |
 | Windows embedded-browser data | `WebView2/` |
 
+Plug-in discovery also reads the working directory’s registry and sources, with working-directory IDs taking priority over user copies. Retained plug-in data stays in `~/Ludork`; see [Global and project storage](<../Plug-in Development and Installation/Installing and Managing Plug-ins.md#global-and-project-storage>).
+
 Project files, build output and `EditorCache` remain in each project. Game runtime settings and save files retain their own locations. Passwords continue to use the operating system's credential store; macOS manages its WebKit cache separately. Editor uninstall leaves the user data directory intact.
 
 ### Moving existing editor data
 
-Old storage locations are not read or migrated automatically. Close Ludork and back up anything needed **before uninstalling an older version**. Windows previously stored editor data in the installation directory, while repository runs could use the working directory for settings and the repository for plug-ins. macOS settings and signing indexes previously lived in `~/Library/Application Support/Ludork`; its published plug-ins and template cache already used `~/Ludork`.
+Apart from the documented working-directory plug-in scan, old storage locations are not read or migrated automatically. Close Ludork and back up anything needed **before uninstalling an older version**. Windows previously stored editor data in the installation directory, while repository runs could use the working directory for settings and the repository for plug-ins. macOS settings and signing indexes previously lived in `~/Library/Application Support/Ludork`; its published plug-ins and template cache already used `~/Ludork`.
 
 After the new installation finishes, restore the required `Ludork.ini`, signing indexes, template cache and local server settings to the matching locations above. Restore `Plugins` and `plugins.json` together from the same backup. To preserve existing plug-ins during installation, clear the EXE's **Install Official Plugins** option or pass `INSTALL_OFFICIAL_PLUGINS=0` to MSI, then restore the backup. Restoring plug-ins before an installation that retains the default plug-in option would replace them again. Back up any existing destination files before replacing them. System credential-store entries and project files do not need to move.
 
