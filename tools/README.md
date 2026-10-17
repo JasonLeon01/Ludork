@@ -25,6 +25,7 @@ All scripts switch to the repository root before doing work. Use `.bat` on Windo
 | `pack_editor.bat` | Publish and validate the self-contained Windows 10-or-newer x64 editor package with official plug-ins |
 | `pack_editor.sh` | Publish and validate the self-contained macOS Apple Silicon editor DMG, with optional signing and notarisation |
 | `pack_editor_msi.bat` | Wrap a release Windows editor package into the installer MSI |
+| `pack_editor_exe.bat` | Wrap the same release Windows editor package into the Inno Setup EXE |
 
 Typical commands:
 
@@ -129,19 +130,25 @@ Templates exclude `Assets/Shaders/MaterialGenerated`; the first editor Export cr
 
 ```bat
 tools\pack_editor.bat --release
-tools\pack_editor.bat --version 1.0.1 --dev
 tools\pack_editor_msi.bat
+tools\pack_editor_exe.bat
 ```
+
+For a development package, use `tools\pack_editor.bat --version 1.0.1 --dev` without the installer steps.
 
 ```sh
 ./tools/pack_editor.sh --release
 ```
 
-Packers freeze `obj/editor-package-metadata/BuildInfo.json` for assembly metadata, filenames, MSI and macOS bundles. Dev full versions append the UTC+8 `YYYYMMDDHH` build hour; binary version fields retain the base version. Reused editor outputs must match the snapshot's base/full version and channel. Dev packages copy the snapshot to the Windows root or macOS `Contents/Resources`; formal editor, template and Server assets omit it. The external snapshot is not uploaded. About and channel detection use embedded metadata; direct source runs default to dev.
+Packers freeze `obj/editor-package-metadata/BuildInfo.json` for assembly metadata, filenames, MSI, EXE and macOS bundles. Dev full versions append the UTC+8 `YYYYMMDDHH` build hour; binary version fields retain the base version. Reused editor outputs must match the snapshot's base/full version and channel. Dev packages copy the snapshot to the Windows root or macOS `Contents/Resources`; formal editor, template and Server assets omit it. The external snapshot is not uploaded. About and channel detection use embedded metadata; direct source runs default to dev.
 
-Windows packages place a native `Ludork.exe` launcher at the root and the self-contained editor under `Binaries`. Root resources include `Locale`, `Plugins`, `plugins.json`, `Licenses`, `tools/ScriptTools` and optional development `Templates`. The launcher forwards arguments, streams and exit status, using the installation root as the working directory. Packaging invokes `--compile-locale` through it, validates staging before replacing `dist`, and restores the previous package on replacement failure. MSI shortcuts and `.proj` associations target this launcher.
+Windows packages place a native `Ludork.exe` launcher at the root and the self-contained editor under `Binaries`. Root resources include `Locale`, `Licenses`, `tools/ScriptTools`, the read-only official plug-in source under `tools/OfficialPlugins/{Plugins,plugins.json}`, and optional development `Templates`. Packaging uses repository plug-in sources and never copies user data from `~/Ludork`. The launcher forwards arguments, streams and exit status, using the installation root as the working directory. Packaging invokes `--compile-locale` through it, validates staging before replacing `dist`, and restores the previous package on replacement failure. MSI and EXE shortcuts and `.proj` associations target this launcher.
 
-`pack_editor_msi.bat [output.msi]` requires a release `dist` and the pinned WiX toolset. `--build-info <file>` defaults to `obj\editor-package-metadata\BuildInfo.json`; the snapshot must match the embedded editor metadata. Default output is repository-root `Ludork-<version>-windows-x64.msi`.
+`pack_editor_msi.bat [output.msi]` and `pack_editor_exe.bat [output.exe]` require the same release `dist` and pinned WiX or Inno Setup toolset. Both accept `--build-info <file>`, defaulting to `obj\editor-package-metadata\BuildInfo.json`; the snapshot must match the embedded editor metadata. Default outputs are `obj/installer/output/Ludork-<version>-windows-x64.msi` and `.exe`. Definitions, the English agreement and helper sources stay under `tools/installer`; tool caches stay in `.tools` and intermediate files in `obj/installer/msi` or `obj/installer/exe`. Installer inputs and user data are rejected from editor payloads.
+
+Both formats request administrator permission and install for all users under the system `Program Files\Ludork` by default, with a selectable directory. They register `.proj` as `Ludork.Project`, using the quoted root launcher and project filename. Windows retains protected per-user default-app choices; choose Ludork in Windows Default Apps when another app was explicitly selected. EXE includes its own uninstaller and an entry in Installed apps. Uninstall removes Ludork's own association only while its open command belongs to that installation, preserves associations another app took over, and leaves `~/Ludork` and project files intact. Same-format upgrades are supported; downgrades and another-format or legacy per-user installations require uninstalling the existing installation first.
+
+The EXE **Install Official Plugins** option is selected by default. MSI also installs them by default; use `INSTALL_OFFICIAL_PLUGINS=0` to skip. Installing official plug-ins replaces the entire user plug-in directory and registry, including third-party and project plug-ins and their data. Close Ludork and preserve anything needed first. Skipping installation, repairing or uninstalling the editor does not reset plug-ins. Installation uses the invoking user's identity rather than another administrator's profile supplied during UAC; service-account installations must skip user plug-ins. Explicitly starting setup as another account instead targets that account. The `install-current-user` command saves operation and recovery details to `~/Ludork/Log/OfficialPluginInstall.log` when that directory is writable; failure to save this diagnostic log does not undo a completed installation.
 
 `pack_editor.sh` requires Apple Silicon macOS, a logged-in Finder session, .NET 9 SDK, CMake and prepared tools. It writes `dist/Ludork-<version>-macos-arm64.dmg` for macOS 13.3+. Resources and tools live under `Contents/Resources`; executable/.NET dependencies under `Contents/MacOS`. The DMG includes `Ludork.app`, an Applications link and **Install Official Plugins**. The installer validates and replaces `~/Ludork/Plugins` and `~/Ludork/plugins.json`, including third-party plug-ins and `Plugins/.data`; failure attempts rollback and reports recovery details if rollback fails. To unregister file associations before removing the app:
 
@@ -149,7 +156,30 @@ Windows packages place a native `Ludork.exe` launcher at the root and the self-c
 /Applications/Ludork.app/Contents/Resources/tools/unregister_editor.sh
 ```
 
-`editor-official-plugins prepare <source> <output-root>` copies the fixed official plug-ins and generates their registry. `editor-official-plugins validate <output-root>` checks exact directories, manifests, index and excluded user/build files. Published Windows resources resolve against the installation root, including `Ludork.ini` and `Plugins/.data`; repository builds use their development registry.
+`editor-official-plugins prepare <source> <output-root>` copies the fixed official plug-ins and generates their registry. `editor-official-plugins validate <output-root>` checks exact directories, manifests, index and excluded user/build files. `editor-official-plugins install-current-user <payload-root>` validates the prepared payload, requires Ludork to be closed, and replaces the current user's plug-ins with rollback on failure. A backup cleanup failure is reported separately. Ordinary editor startup never installs or replaces official plug-ins.
+
+For a repository checkout, explicitly prepare and install the official plug-ins after building ScriptTools:
+
+```sh
+.tools/ScriptTools/ScriptTools editor-official-plugins prepare Plugins obj/official-plugins
+.tools/ScriptTools/ScriptTools editor-official-plugins install-current-user obj/official-plugins
+```
+
+On Windows, use `.tools\ScriptTools\ScriptTools.exe` instead. For a Windows portable package, run `tools\ScriptTools\ScriptTools.exe editor-official-plugins install-current-user tools\OfficialPlugins` from the extracted package directory. These commands replace all existing user plug-ins and their data; they are deliberate installation operations, not startup commands.
+
+All editor modes on Windows and macOS, including repository runs, use the current user's `~/Ludork` directory for persistent data. Windows typically resolves this to `C:\Users\<user>\Ludork`. No editor operation needs write access to Program Files. The shared locations are:
+
+| Data | User-directory path |
+|---|---|
+| Settings, recent projects and window layout | `Ludork.ini` |
+| Plug-ins, registrations and retained data | `Plugins`, `plugins.json` |
+| Downloaded templates, all four variants | `Templates/v<base-version>` |
+| Signing profile indexes | `*-signing.json` |
+| Local server test configuration | `.localserver/<project-directory-name>` |
+| Editor console logs | `Log/<stable-project-key>` |
+| Windows WebView2 profile | `WebView2` |
+
+Template cache validation and offline reuse use that user directory. Bundled development templates remain read-only package inputs. Locale initialization reads packaged resources without rewriting them; `--compile-locale` is an explicit packaging command. Project files, build output and `EditorCache`, game runtime saves, system credentials and system-managed WebKit data retain their existing locations. Old paths are not automatically read or migrated: with Ludork closed, copy any settings, plug-ins and cache you need into the matching new locations before removing an old installation.
 
 ## Ludork Server
 
@@ -166,6 +196,7 @@ PR validation selects additive checks from added, changed, deleted and renamed p
 | Engine/native build | Release plain and FFmpeg templates on Windows x64 and macOS ARM64. |
 | Editor and its project/resource/generator dependencies | Avalonia builds on both platforms, without editor packaging. |
 | Lua or EmmyLua configuration | Full Game diagnostics with pinned EmmyLua and `--warnings-as-errors`; matching native stubs come from the Windows plain-template build. |
+| Windows installer definitions, helpers, packers and tool versions | Parse PowerShell/WiX XML, compile native actions and compile the real Inno definition with `/O-` on Windows. Full WiX linking and product-payload validation run during release packaging. |
 | Shared build/CI inputs | Every affected category. |
 | Every PR | GlobalFunctions declaration and module-scope `require` check. |
 
@@ -204,7 +235,7 @@ Windows 7z files have no outer ZIP, contain the root launcher, use multithreaded
 
 Complete-package runs resolve the remote `Server` tree, reject tracked user data/configuration/dependencies/generated launchers, and preserve `LudorkServer/` plus Git permissions in the source tar.gz. The combined run shares one exact Server source artifact; single-platform runs resolve their own. The archive is separate from editor payloads and needs a remotely available Server branch. Extract with `tar -xzf <archive>` before deployment.
 
-A `v*` tag must equal `v<EDITOR_VERSION>`. It runs Export Package with `--release` and creates or updates a **draft** Release with generated notes and exactly 11 assets: Windows MSI, macOS DMG, eight templates and `LudorkServer-source-<EDITOR_VERSION>.tar.gz`. Formal installers omit templates. Reruns remove the draft's obsolete Server ZIP attachments. Published releases are not overwritten, and drafts are never published automatically. Only the upload job has `contents: write`.
+A `v*` tag must equal `v<EDITOR_VERSION>`. It runs Export Package with `--release` and creates or updates a **draft** Release with generated notes and exactly 12 assets: Windows MSI and EXE, macOS DMG, eight templates and `LudorkServer-source-<EDITOR_VERSION>.tar.gz`. Formal installers omit templates. Both Windows installers reuse the same release payload and BuildInfo snapshot, and each has a separate seven-day workflow artifact. Installer creation and upload are restricted to formal tag runs. Reruns remove obsolete Windows installer, macOS DMG and Server attachments from the draft. Published releases are not overwritten, and drafts are never published automatically. Only the upload job has `contents: write`.
 
 Each Package platform uploads these four archives directly; Export Editor uploads none:
 

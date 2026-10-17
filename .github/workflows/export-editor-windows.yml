@@ -120,9 +120,14 @@ jobs:
         run: tools\pack_editor.bat %TEMPLATE_OPTION% %TEMPLATE_DIRECTORY% --launcher "%CD%\obj\editor-launcher\bin\Release\Ludork.exe" %EDITOR_CHANNEL%
 
       - name: Build editor MSI
-        if: inputs.release && inputs.templates
+        if: inputs.release && inputs.templates && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         shell: cmd
         run: tools\pack_editor_msi.bat --build-info obj\editor-package-metadata\BuildInfo.json
+
+      - name: Build editor EXE
+        if: inputs.release && inputs.templates && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        shell: cmd
+        run: tools\pack_editor_exe.bat --build-info obj\editor-package-metadata\BuildInfo.json
 
       - name: Archive project templates
         if: inputs.templates
@@ -202,11 +207,21 @@ jobs:
           retention-days: 7
 
       - name: Upload editor MSI
-        if: inputs.release && inputs.templates
+        if: inputs.release && inputs.templates && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-artifact@v7
         with:
           name: ${{ inputs.templates && 'Ludork' || 'Ludork-editor' }}-windows-x64-msi-${{ github.sha }}
-          path: Ludork-*-windows-x64.msi
+          path: obj/installer/output/Ludork-*-windows-x64.msi
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+
+      - name: Upload editor EXE
+        if: inputs.release && inputs.templates && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v7
+        with:
+          name: Ludork-windows-x64-exe-${{ github.sha }}
+          path: obj/installer/output/Ludork-*-windows-x64.exe
           if-no-files-found: error
           compression-level: 0
           retention-days: 7

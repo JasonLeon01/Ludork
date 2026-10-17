@@ -97,12 +97,13 @@ async function publishRelease({ github, context, core }, assetDirectory) {
 
   const entries = fs.readdirSync(assetDirectory, { withFileTypes: true });
   const expected = new Set([
-    `Ludork-${version}-windows-x64.msi`, `Ludork-${version}-macos-arm64.dmg`, ...templateAssets,
+    `Ludork-${version}-windows-x64.msi`, `Ludork-${version}-windows-x64.exe`,
+    `Ludork-${version}-macos-arm64.dmg`, ...templateAssets,
   ]);
   if (entries.length !== expected.size + 1 || entries.some(entry => !entry.isFile())
       || entries.filter(entry => serverAssetPattern.test(entry.name)).length !== 1
       || entries.some(entry => !expected.has(entry.name) && !serverAssetPattern.test(entry.name))) {
-    throw new Error('Release assets must contain the matching Windows MSI, macOS DMG, Server tar.gz and eight project templates.');
+    throw new Error('Release assets must contain the matching Windows MSI and EXE, macOS DMG, Server tar.gz and eight project templates.');
   }
   const assets = entries.map(entry => {
     const filename = path.join(assetDirectory, entry.name);
@@ -148,7 +149,7 @@ async function publishRelease({ github, context, core }, assetDirectory) {
   });
   for (const asset of previousAssets) {
     if (!assets.some(current => current.name === asset.name)
-        && !/^Ludork-.+-(windows-x64\.msi|macos-arm64\.dmg)$/.test(asset.name)
+        && !/^Ludork-.+-(windows-x64\.(?:msi|exe)|macos-arm64\.dmg)$/.test(asset.name)
         && !/^LudorkServer-source-(?:[0-9a-f]{40}|\d+\.\d+\.\d+)\.(?:zip|tar\.gz)$/.test(asset.name)) continue;
     await ensureDraft();
     await github.rest.repos.deleteReleaseAsset({ ...context.repo, asset_id: asset.id });
@@ -162,7 +163,9 @@ async function publishRelease({ github, context, core }, assetDirectory) {
       headers: {
         'content-type': asset.name.endsWith('.zip') ? 'application/zip'
           : asset.name.endsWith('.tar.gz') ? 'application/gzip'
-          : asset.name.endsWith('.msi') ? 'application/x-msi' : 'application/x-apple-diskimage',
+          : asset.name.endsWith('.msi') ? 'application/x-msi'
+          : asset.name.endsWith('.exe') ? 'application/vnd.microsoft.portable-executable'
+          : 'application/x-apple-diskimage',
         'content-length': asset.size,
       },
       data: fs.createReadStream(asset.filename),

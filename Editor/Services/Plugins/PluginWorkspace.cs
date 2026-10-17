@@ -30,7 +30,7 @@ public sealed class PluginWorkspace : IEditorPluginRuntime, IDisposable
 
     public async Task InitializeProjectAsync(string projectPath, CancellationToken cancellationToken = default)
     {
-        string key = PluginPaths.NormalizeProjectPath(projectPath);
+        string key = EditorProjectIdentity.NormalizePath(projectPath);
         await initializationGate.WaitAsync(cancellationToken);
         try
         {
@@ -67,7 +67,7 @@ public sealed class PluginWorkspace : IEditorPluginRuntime, IDisposable
         if (string.IsNullOrWhiteSpace(projectPath))
             return null;
         lock (projectLock)
-            return projects.GetValueOrDefault(PluginPaths.NormalizeProjectPath(projectPath));
+            return projects.GetValueOrDefault(EditorProjectIdentity.NormalizePath(projectPath));
     }
 
     public PluginManagementService GetManagement(string? projectPath)

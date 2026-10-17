@@ -21,9 +21,9 @@ internal sealed class ConsoleLogSession : IDisposable
                 return stopError;
             try
             {
-                string logDirectory = Path.Combine(projectPath, "Log");
+                string currentPath = EditorPaths.GetProjectLogFilePath(projectPath);
+                string logDirectory = Path.GetDirectoryName(currentPath)!;
                 Directory.CreateDirectory(logDirectory);
-                string currentPath = Path.Combine(logDirectory, "Ludork.log");
                 if (File.Exists(currentPath))
                     archiveCurrentLog(currentPath, logDirectory);
                 FileStream stream = new(

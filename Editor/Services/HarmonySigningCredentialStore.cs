@@ -11,7 +11,7 @@ internal sealed class HarmonySigningCredentialStore
     private readonly SigningCredentialStore<CredentialIndexEntry, StoredPasswords> store;
 
     public HarmonySigningCredentialStore() : this(
-        Path.Combine(EditorPaths.IniDirectory, "harmony-signing.json"),
+        Path.Combine(EditorPaths.UserDataDirectory, "harmony-signing.json"),
         new PluginSecretStore("editor/harmony-signing"))
     {
     }

@@ -11,7 +11,7 @@ internal sealed class AndroidSigningCredentialStore
     private readonly SigningCredentialStore<CredentialIndexEntry, StoredPasswords> store;
 
     public AndroidSigningCredentialStore() : this(
-        Path.Combine(EditorPaths.IniDirectory, "android-signing.json"),
+        Path.Combine(EditorPaths.UserDataDirectory, "android-signing.json"),
         new PluginSecretStore("editor/android-signing"))
     {
     }

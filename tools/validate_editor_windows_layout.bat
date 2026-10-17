@@ -29,6 +29,16 @@ for %%F in (
     "%PACKAGE_DIR%\*.dylib"
     "%PACKAGE_DIR%\*.deps.json"
     "%PACKAGE_DIR%\*.runtimeconfig*.json"
+    "%PACKAGE_DIR%\Plugins"
+    "%PACKAGE_DIR%\plugins.json"
+    "%PACKAGE_DIR%\Ludork.ini"
+    "%PACKAGE_DIR%\*-signing.json"
+    "%PACKAGE_DIR%\.localserver"
+    "%PACKAGE_DIR%\Log"
+    "%PACKAGE_DIR%\WebView2"
+    "%PACKAGE_DIR%\tools\installer"
+    "%PACKAGE_DIR%\tools\pack_editor_msi.bat"
+    "%PACKAGE_DIR%\tools\pack_editor_exe.bat"
 ) do if exist "%%~fF" (
     echo Unexpected file at the editor package root: %%~fF
     exit /b 1
@@ -52,6 +62,10 @@ for %%F in (
     "%PACKAGE_DIR%\Binaries\README*.md"
     "%PACKAGE_DIR%\Binaries\THIRD_PARTY_NOTICES*.md"
     "%PACKAGE_DIR%\Binaries\Ludork.ini"
+    "%PACKAGE_DIR%\Binaries\*-signing.json"
+    "%PACKAGE_DIR%\Binaries\.localserver"
+    "%PACKAGE_DIR%\Binaries\Log"
+    "%PACKAGE_DIR%\Binaries\WebView2"
     "%PACKAGE_DIR%\Binaries\.ludork-development"
 ) do if exist "%%~fF" (
     echo Non-binary editor content exists in Binaries: %%~fF

@@ -1,0 +1,10 @@
+Ludork Editor
+
+Ludork is an open-source 2D RPG engine and editor. The following Zlib
+License applies to Ludork. You may use it for commercial and non-commercial
+projects, and modify and redistribute it under the terms below.
+
+Third-party libraries, runtimes, plug-ins, fonts and sample assets retain
+their own licenses. See LICENSE.md and Licenses/README.md in the installed
+application for the license index and the included license texts. This
+notice does not replace or add restrictions to those licenses.

@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import json
 import pathlib
 import re
 import shutil
 import stat
+import sys
 import tempfile
+
+from ScriptTools.editor_user_environment import currentUserProfile, requireEditorClosed
 
 
 OFFICIAL_PLUGIN_DIRECTORIES = (
@@ -380,7 +385,47 @@ def prepare(source: pathlib.Path, outputRoot: pathlib.Path) -> None:
             raise
     finally:
         if not preserveTemporary:
-            shutil.rmtree(temporaryRoot)
+            try:
+                shutil.rmtree(temporaryRoot)
+            except OSError as exception:
+                print(
+                    f"Warning: Could not remove plug-in installation temporary files at "
+                    f"'{temporaryRoot}': {exception}",
+                    file=sys.stderr,
+                )
+
+
+def installCurrentUser(payloadRoot: pathlib.Path, expectedSid: str | None = None) -> None:
+    outputRoot = currentUserProfile(expectedSid) / "Ludork"
+    output = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(output), contextlib.redirect_stderr(output):
+            try:
+                validate(payloadRoot)
+                requireEditorClosed()
+                print(f"Replacing official plug-ins in '{outputRoot}'.")
+                prepare(payloadRoot / "Plugins", outputRoot)
+                print(f"Official plug-ins installed in '{outputRoot}'.")
+            except BaseException as exception:
+                print(f"Official plug-in installation failed: {exception}")
+                raise
+    finally:
+        details = output.getvalue()
+        print(details, end="")
+        try:
+            if not outputRoot.exists():
+                outputRoot.mkdir()
+            requireSafeDirectory(outputRoot)
+            logDirectory = outputRoot / "Log"
+            if not logDirectory.exists():
+                logDirectory.mkdir()
+            requireSafeDirectory(logDirectory)
+            logPath = logDirectory / "OfficialPluginInstall.log"
+            managedDestinationExists(logPath, False)
+            logPath.write_text(details, encoding="utf-8")
+            print(f"Installation details: {logPath}")
+        except (OSError, RuntimeError) as exception:
+            print(f"Warning: Could not save the plug-in installation log: {exception}", file=sys.stderr)
 
 
 def main(arguments: list[str] | None = None) -> int:
@@ -391,9 +436,18 @@ def main(arguments: list[str] | None = None) -> int:
     prepareParser.add_argument("output_root", type=pathlib.Path)
     validateParser = subparsers.add_parser("validate")
     validateParser.add_argument("output_root", type=pathlib.Path)
+    installParser = subparsers.add_parser("install-current-user")
+    installParser.add_argument("payload_root", type=pathlib.Path)
+    installParser.add_argument("--expected-user-sid")
     parsed = parser.parse_args(arguments)
-    if parsed.command == "prepare":
-        prepare(parsed.source.absolute(), parsed.output_root.absolute())
-    else:
-        validate(parsed.output_root.absolute())
+    try:
+        if parsed.command == "prepare":
+            prepare(parsed.source.absolute(), parsed.output_root.absolute())
+        elif parsed.command == "install-current-user":
+            installCurrentUser(parsed.payload_root.absolute(), parsed.expected_user_sid)
+        else:
+            validate(parsed.output_root.absolute())
+    except (OSError, RuntimeError, ValueError) as exception:
+        print(f"Official plug-in operation failed: {exception}", file=sys.stderr)
+        return 1
     return 0

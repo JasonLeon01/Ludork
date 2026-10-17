@@ -7,21 +7,14 @@ public static class EditorPaths
 {
     private const string AppName = "Ludork";
 
-    public static string IniDirectory
+    public static string UserDataDirectory
     {
         get
         {
-            if (OperatingSystem.IsWindows())
-                return EditorRuntimePaths.IsWindowsPackage
-                    ? EditorRuntimePaths.ContentRoot
-                    : Environment.CurrentDirectory;
-
-            string path = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                AppName
-            );
-            Directory.CreateDirectory(path);
-            return path;
+            string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            if (string.IsNullOrWhiteSpace(userProfile) || !Path.IsPathFullyQualified(userProfile))
+                throw new DirectoryNotFoundException("The current user's profile directory is unavailable.");
+            return Path.Combine(userProfile, AppName);
         }
     }
 
@@ -38,11 +31,13 @@ public static class EditorPaths
         }
     }
 
-    public static string IniFilePath => Path.Combine(IniDirectory, $"{AppName}.ini");
+    public static string IniFilePath => Path.Combine(UserDataDirectory, $"{AppName}.ini");
 
     public static string TemplateCacheDirectory => Path.Combine(
-        OperatingSystem.IsWindows()
-            ? EditorRuntimePaths.ContentRoot
-            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), AppName),
-        "Templates", "v" + EditorVersionService.BaseVersion);
+        UserDataDirectory, "Templates", "v" + EditorVersionService.BaseVersion);
+
+    public static string WebViewDataDirectory => Path.Combine(UserDataDirectory, "WebView2");
+
+    public static string GetProjectLogFilePath(string projectPath) => Path.Combine(
+        UserDataDirectory, "Log", EditorProjectIdentity.GetKey(projectPath), "Ludork.log");
 }

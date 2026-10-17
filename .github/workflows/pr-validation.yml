@@ -34,6 +34,7 @@ jobs:
       engine: ${{ steps.changes.outputs.engine }}
       editor: ${{ steps.changes.outputs.editor }}
       scripts: ${{ steps.changes.outputs.scripts }}
+      installer: ${{ steps.changes.outputs.installer }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -95,6 +96,24 @@ jobs:
       - name: Compile editor and referenced projects
         run: dotnet build Ludork.csproj --configuration Release
 
+  installer:
+    name: Windows installer definitions and native actions
+    needs: changes
+    if: needs.changes.outputs.installer == 'true'
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up MSVC command-line environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64
+      - name: Validate installation definitions and compile native actions
+        shell: pwsh
+        run: ./tools/installer/build_installer.ps1 -Format msi -ValidateOnly
+
   scripts:
     name: EmmyLua
     needs: [changes, templates]
@@ -148,7 +167,7 @@ jobs:
 
   validation:
     name: PR Validation
-    needs: [global_functions, changes, templates, editor, scripts]
+    needs: [global_functions, changes, templates, editor, scripts, installer]
     if: always()
     runs-on: ubuntu-latest
     steps:

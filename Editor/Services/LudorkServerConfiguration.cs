@@ -18,11 +18,8 @@ public static class LudorkServerConfiguration
 
     public static string GetTestConfigPath(string projectPath)
     {
-        string root = OperatingSystem.IsWindows()
-            ? EditorPaths.IniDirectory
-            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Ludork");
         string projectName = Path.GetFileName(Path.TrimEndingDirectorySeparator(Path.GetFullPath(projectPath)));
-        return Path.Combine(root, ".localserver", projectName, "test.json");
+        return Path.Combine(EditorPaths.UserDataDirectory, ".localserver", projectName, "test.json");
     }
 
     public static LudorkServerSettings ReadTestSettings(string projectPath)

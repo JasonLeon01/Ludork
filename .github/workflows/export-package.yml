@@ -88,10 +88,15 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - name: Download Windows installer
+      - name: Download Windows MSI
         uses: actions/download-artifact@v8
         with:
           name: Ludork-windows-x64-msi-${{ github.sha }}
+          path: obj/release/assets
+      - name: Download Windows EXE
+        uses: actions/download-artifact@v8
+        with:
+          name: Ludork-windows-x64-exe-${{ github.sha }}
           path: obj/release/assets
       - name: Download macOS DMG
         uses: actions/download-artifact@v8

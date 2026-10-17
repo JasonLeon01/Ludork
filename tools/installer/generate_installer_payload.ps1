@@ -120,7 +120,7 @@ foreach ($directory in $directories)
 
     $lines.Add("      <Component Id=`"$componentId`" Directory=`"$directoryId`" Guid=`"$componentGuid`">")
 
-    $lines.Add("        <RegistryValue Root=`"HKCU`" Key=`"Software\Ludork\Installer\Components`" Name=`"$componentId`" Type=`"integer`" Value=`"1`" KeyPath=`"yes`" />")
+    $lines.Add("        <RegistryValue Root=`"HKLM`" Key=`"Software\Ludork\Installer\Components`" Name=`"$componentId`" Type=`"integer`" Value=`"1`" KeyPath=`"yes`" />")
     $lines.Add("        <RemoveFolder Id=`"Remove_$componentSuffix`" On=`"uninstall`" />")
 
     if ($files.Count -eq 0)
@@ -136,7 +136,8 @@ foreach ($directory in $directories)
             [byte[]]$fileHash = Get-StableHash "Ludork.PayloadFile`0$normalizedFile"
             $fileSuffix = (Get-Hex $fileHash).Substring(0, 24)
             $escapedFile = [System.Security.SecurityElement]::Escape($relativeFile)
-            $lines.Add("        <File Id=`"PayloadFile_$fileSuffix`" Source=`"!(bindpath.dist)\$escapedFile`" />")
+            $fileId = if ($normalizedFile -eq 'tools\scripttools\scripttools.exe') { 'ScriptToolsExe' } else { "PayloadFile_$fileSuffix" }
+            $lines.Add("        <File Id=`"$fileId`" Source=`"!(bindpath.dist)\$escapedFile`" />")
         }
     }
 

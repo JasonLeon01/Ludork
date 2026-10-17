@@ -102,5 +102,5 @@ internal static class EditorProjectOpenWorkflow
 
     private static InvalidOperationException preparationError(string projectPath, string title, string detail) =>
         new(LocaleService.Get(title) + Environment.NewLine + detail + Environment.NewLine
-            + string.Format(LocaleService.Get("PROJECT_OPEN_PREPARATION_LOG"), Path.Combine(projectPath, "Log", "Ludork.log")));
+            + string.Format(LocaleService.Get("PROJECT_OPEN_PREPARATION_LOG"), EditorPaths.GetProjectLogFilePath(projectPath)));
 }

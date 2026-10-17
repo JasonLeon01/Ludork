@@ -32,7 +32,7 @@ internal sealed class AppleSigningCredentialStore<TRecord>
     private readonly SigningCredentialStore<CredentialIndexEntry, StoredSecrets> store;
 
     public AppleSigningCredentialStore(string fileName, string secretScope) : this(
-        Path.Combine(EditorPaths.IniDirectory, fileName),
+        Path.Combine(EditorPaths.UserDataDirectory, fileName),
         new PluginSecretStore(secretScope))
     {
     }

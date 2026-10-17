@@ -65,6 +65,11 @@ SCRIPT_INPUTS = (
     "Game/Scripts/*", "Game/.emmyrc.json", "Game/.emmyrc.lua", "Game/.luarc.json",
     "Game/Data/UI/*", "Game/Data/Locale/*", "Plugins/OfficialLocaleTools/*",
 )
+INSTALLER_INPUTS = (
+    "tools/installer/*", "tools/pack_editor_msi.bat", "tools/pack_editor_exe.bat",
+    "tools/pack_editor.bat", "tools/validate_editor_windows_layout.bat",
+    "versions.conf", "LICENSE.md", "Editor/Assets/icon.ico", "Editor/Assets/project-icon.ico",
+)
 
 
 def matches(path: str, patterns: tuple[str, ...]) -> bool:
@@ -77,6 +82,7 @@ def classify(paths: list[str]) -> dict[str, bool]:
         "engine": common or any(matches(path, ENVIRONMENT_INPUTS + NATIVE_INPUTS) for path in paths),
         "editor": common or any(matches(path, MANAGED_INPUTS + ("Editor/*", "Locale/*", "plugins.json")) for path in paths),
         "scripts": common or any(matches(path, SCRIPT_INPUTS) for path in paths),
+        "installer": common or any(matches(path, INSTALLER_INPUTS) for path in paths),
     }
 
 
@@ -92,12 +98,13 @@ def validate_results(needs: dict) -> None:
     if needs["changes"]["result"] != "success":
         raise ValueError("Change detection did not succeed")
     flags = needs["changes"]["outputs"]
-    if any(flags.get(name) not in ("true", "false") for name in ("engine", "editor", "scripts")):
+    if any(flags.get(name) not in ("true", "false") for name in ("engine", "editor", "scripts", "installer")):
         raise ValueError("Change detection outputs are missing or invalid")
     expected = {
         "templates": flags["engine"] == "true" or flags["scripts"] == "true",
         "editor": flags["editor"] == "true",
         "scripts": flags["scripts"] == "true",
+        "installer": flags["installer"] == "true",
     }
     for job, required in expected.items():
         result = needs[job]["result"]

@@ -5,7 +5,6 @@ using Avalonia.Platform;
 using Avalonia.Threading;
 using Ludork.Services;
 using System;
-using System.IO;
 
 namespace Ludork.Controls;
 
@@ -85,9 +84,7 @@ public partial class DocumentationView : UserControl
     private static void onEnvironmentRequested(object? sender, WebViewEnvironmentRequestedEventArgs args)
     {
         if (args is WindowsWebView2EnvironmentRequestedEventArgs windows)
-            windows.UserDataFolder = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "Ludork", "WebView2");
+            windows.UserDataFolder = EditorPaths.WebViewDataDirectory;
     }
 
     private void onNavigationStarted(object? sender, WebViewNavigationStartingEventArgs args)

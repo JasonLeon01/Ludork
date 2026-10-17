@@ -279,7 +279,7 @@ if "%WITHOUT_TEMPLATES%"=="0" (
 )
 
 echo Preparing official editor plugins...
-"%SCRIPT_TOOLS%" editor-official-plugins prepare "%ROOT_DIR%\Plugins" "%STAGE_DIR%"
+"%SCRIPT_TOOLS%" editor-official-plugins prepare "%ROOT_DIR%\Plugins" "%STAGE_DIR%\tools\OfficialPlugins"
 if errorlevel 1 goto failed
 
 mkdir "%STAGE_DIR%\tools" >nul 2>nul
@@ -440,7 +440,7 @@ call :require_file "%PACKAGE_DIR%\README_zh_CN.md"
 if errorlevel 1 exit /b 1
 call :require_directory "%PACKAGE_DIR%\Licenses"
 if errorlevel 1 exit /b 1
-"%SCRIPT_TOOLS%" editor-official-plugins validate "%PACKAGE_DIR%"
+"%SCRIPT_TOOLS%" editor-official-plugins validate "%PACKAGE_DIR%\tools\OfficialPlugins"
 if errorlevel 1 exit /b 1
 for %%F in (
     "DotNet\LICENSE.txt"
@@ -570,6 +570,7 @@ for %%P in (
     "%PACKAGE_DIR%\tools\ScriptTools-runtime-versions.txt"
     "%PACKAGE_DIR%\tools\pack_editor.bat"
     "%PACKAGE_DIR%\tools\pack_editor_msi.bat"
+    "%PACKAGE_DIR%\tools\pack_editor_exe.bat"
     "%PACKAGE_DIR%\tools\validate_editor_windows_layout.bat"
     "%PACKAGE_DIR%\tools\editor_launcher"
     "%PACKAGE_DIR%\tools\installer"

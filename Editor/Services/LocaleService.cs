@@ -18,14 +18,20 @@ public static class LocaleService
     {
         string localeDirectory = resolveLocaleDirectory(false);
         string jsonPath = Path.Combine(localeDirectory, "locale.json");
-        if (File.Exists(jsonPath))
-            exportJson(jsonPath, localeDirectory);
         localeData.Clear();
-        foreach (string path in Directory.EnumerateFiles(localeDirectory))
+        if (File.Exists(jsonPath))
         {
-            if (Path.HasExtension(path))
-                continue;
-            localeData[Path.GetFileName(path)] = LocaleBinarySerializer.Read(path);
+            foreach (KeyValuePair<string, Dictionary<string, string>> pair in readJson(jsonPath))
+                localeData[pair.Key] = pair.Value;
+        }
+        else
+        {
+            foreach (string path in Directory.EnumerateFiles(localeDirectory))
+            {
+                if (Path.HasExtension(path))
+                    continue;
+                localeData[Path.GetFileName(path)] = LocaleBinarySerializer.Read(path);
+            }
         }
         CurrentLanguage = localeData.ContainsKey(requestedLanguage) ? requestedLanguage : "en_GB";
     }
@@ -33,7 +39,8 @@ public static class LocaleService
     public static void Compile()
     {
         string localeDirectory = resolveLocaleDirectory(true);
-        exportJson(Path.Combine(localeDirectory, "locale.json"), localeDirectory);
+        foreach (KeyValuePair<string, Dictionary<string, string>> pair in readJson(Path.Combine(localeDirectory, "locale.json")))
+            LocaleBinarySerializer.Write(Path.Combine(localeDirectory, pair.Key), pair.Value);
     }
 
     public static string Get(string key)
@@ -91,7 +98,7 @@ public static class LocaleService
                 : "Compiled Locale data was not found.");
     }
 
-    private static void exportJson(string jsonPath, string outputDirectory)
+    private static Dictionary<string, Dictionary<string, string>> readJson(string jsonPath)
     {
         using JsonDocument document = JsonDocument.Parse(File.ReadAllText(jsonPath));
         Dictionary<string, Dictionary<string, string>> languageBuckets = new(StringComparer.Ordinal);
@@ -111,7 +118,6 @@ public static class LocaleService
                     : locale.Value.ToString();
             }
         }
-        foreach (KeyValuePair<string, Dictionary<string, string>> pair in languageBuckets)
-            LocaleBinarySerializer.Write(Path.Combine(outputDirectory, pair.Key), pair.Value);
+        return languageBuckets;
     }
 }

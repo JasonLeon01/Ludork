@@ -1,113 +1,86 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
-  <Package
-      Name="Ludork"
-      Manufacturer="Ludork"
-      Version="$(ProductVersion)"
-      UpgradeCode="7D581A67-D171-4ECB-A6F8-E62D9512E234"
-      Scope="perUser"
-      InstallerVersion="500"
-      Compressed="yes">
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <Package Name="Ludork" Manufacturer="Ludork" Version="$(ProductVersion)"
+           UpgradeCode="7D581A67-D171-4ECB-A6F8-E62D9512E234"
+           Scope="perMachine" InstallerVersion="500" Compressed="yes">
     <SummaryInformation Description="Ludork Editor" Manufacturer="Ludork" />
-    <MajorUpgrade DowngradeErrorMessage="A newer version of Ludork is already installed." />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Ludork is already installed."
+                  Schedule="afterInstallInitialize" AllowSameVersionUpgrades="yes" />
     <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
-    <Icon Id="LudorkProjectIcon" SourceFile="!(bindpath.assets)\icon.ico" />
-    <Property Id="ARPPRODUCTICON" Value="LudorkProjectIcon" />
-    <CustomAction
-        Id="NotifyShellAssociationChangedOnInstall"
-        FileRef="LudorkExe"
-        ExeCommand="--notify-shell-association-changed"
-        Execute="deferred"
-        Impersonate="yes"
-        Return="check" />
-    <CustomAction
-        Id="NotifyShellAssociationChangedOnUninstall"
-        FileRef="LudorkExe"
-        ExeCommand="--notify-shell-association-changed"
-        Execute="deferred"
-        Impersonate="yes"
-        Return="check" />
+    <Icon Id="LudorkIcon" SourceFile="!(bindpath.assets)\icon.ico" />
+    <Property Id="ARPPRODUCTICON" Value="LudorkIcon" />
+    <SetProperty Id="ARPINSTALLLOCATION" Value="[INSTALLFOLDER]"
+                 Before="InstallValidate" Sequence="execute" />
+    <Property Id="INSTALL_OFFICIAL_PLUGINS" Value="1" Secure="yes" />
+    <Property Id="INSTALLFOLDER" Secure="yes">
+      <RegistrySearch Id="PreviousInstallFolder" Root="HKLM"
+                      Key="Software\Ludork\Installer" Name="InstallDir"
+                      Type="raw" Bitness="always64" />
+    </Property>
+    <Launch Condition="INSTALL_OFFICIAL_PLUGINS = &quot;0&quot; OR INSTALL_OFFICIAL_PLUGINS = &quot;1&quot;"
+            Message="INSTALL_OFFICIAL_PLUGINS must be 0 or 1." />
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(LicenseRtf)" />
+    <Binary Id="InstallerActions" SourceFile="$(InstallerActions)" />
+    <CustomAction Id="Preflight" BinaryRef="InstallerActions" DllEntry="Preflight"
+                  Execute="immediate" Return="check" />
+    <CustomAction Id="PrepareAssociations" BinaryRef="InstallerActions"
+                  DllEntry="PrepareAssociations" Execute="immediate" Return="check" />
+    <CustomAction Id="RollbackAssociations" BinaryRef="InstallerActions"
+                  DllEntry="RollbackAssociations" Execute="rollback"
+                  Impersonate="no" Return="check" />
+    <CustomAction Id="ApplyAssociations" BinaryRef="InstallerActions"
+                  DllEntry="ApplyAssociations" Execute="deferred"
+                  Impersonate="no" Return="check" />
+    <CustomAction Id="InstallOfficialPlugins" FileRef="ScriptToolsExe"
+                  ExeCommand="editor-official-plugins install-current-user &quot;[INSTALLFOLDER]tools\OfficialPlugins&quot; --expected-user-sid &quot;[UserSID]&quot;"
+                  Execute="commit" Impersonate="yes" TerminalServerAware="yes" Return="check" />
     <InstallExecuteSequence>
-      <Custom
-          Action="NotifyShellAssociationChangedOnUninstall"
-          After="RemoveRegistryValues"
-          Condition="REMOVE ~= &quot;ALL&quot;" />
-      <Custom
-          Action="NotifyShellAssociationChangedOnInstall"
-          After="WriteRegistryValues"
-          Condition="NOT Installed" />
+      <Custom Action="Preflight" After="InstallValidate" />
+      <Custom Action="PrepareAssociations" After="Preflight"
+              Condition="NOT Installed OR REMOVE ~= &quot;ALL&quot;" />
+      <Custom Action="RollbackAssociations" After="WriteRegistryValues"
+              Condition="NOT Installed OR REMOVE ~= &quot;ALL&quot;" />
+      <Custom Action="ApplyAssociations" After="RollbackAssociations"
+              Condition="NOT Installed OR REMOVE ~= &quot;ALL&quot;" />
+      <Custom Action="InstallOfficialPlugins" Before="InstallFinalize"
+              Condition="NOT Installed AND NOT REMOVE AND INSTALL_OFFICIAL_PLUGINS = &quot;1&quot;" />
     </InstallExecuteSequence>
-
-    <StandardDirectory Id="LocalAppDataFolder">
+    <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="Ludork" />
     </StandardDirectory>
     <StandardDirectory Id="DesktopFolder" />
-
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="LudorkProgramMenuFolder" Name="Ludork" />
+    </StandardDirectory>
     <Feature Id="Complete" Title="Ludork" Level="1">
       <ComponentGroupRef Id="EditorFiles" />
-      <ComponentRef Id="ProjectAssociation" />
+      <ComponentRef Id="EditorLauncher" />
+      <ComponentRef Id="InstallerRegistration" />
     </Feature>
   </Package>
-
   <Fragment>
-    <Component
-        Id="ProjectAssociation"
-        Directory="INSTALLFOLDER"
-        Guid="055148B9-7369-5E31-934A-0EA040CA99D3">
-      <RegistryValue
-          Root="HKCU"
-          Key="Software\Ludork\Installer\Components"
-          Name="ProjectAssociation"
-          Type="integer"
-          Value="1"
-          KeyPath="yes" />
-      <RemoveRegistryKey
-          Id="RemoveInstallerRegistry"
-          Root="HKCU"
-          Key="Software\Ludork\Installer"
-          Action="removeOnUninstall" />
-      <RemoveRegistryKey
-          Id="RemoveProjectProgId"
-          Root="HKCU"
-          Key="Software\Classes\Ludork.Project"
-          Action="removeOnUninstall" />
-      <File Id="LudorkExe" Source="!(bindpath.dist)\Ludork.exe">
-        <Shortcut
-            Id="DesktopShortcut"
-            Directory="DesktopFolder"
-            Name="Ludork"
-            Description="Ludork Editor"
-            WorkingDirectory="INSTALLFOLDER" />
+    <Component Id="EditorLauncher" Directory="INSTALLFOLDER"
+               Guid="E19B478B-0562-48C0-927D-A89C64143865">
+      <File Id="LudorkExe" Source="!(bindpath.dist)\Ludork.exe" KeyPath="yes">
+        <Shortcut Id="DesktopShortcut" Directory="DesktopFolder" Name="Ludork"
+                  Description="Ludork Editor" WorkingDirectory="INSTALLFOLDER" />
+        <Shortcut Id="StartMenuShortcut" Directory="LudorkProgramMenuFolder" Name="Ludork"
+                  Description="Ludork Editor" WorkingDirectory="INSTALLFOLDER" />
       </File>
-      <File
-          Id="LudorkProjectFileIcon"
-          Source="!(bindpath.assets)\project-icon.ico"
-          Name="LudorkProject.ico" />
-      <RegistryValue
-          Root="HKCU"
-          Key="Software\Classes\.proj"
-          Type="string"
-          Value="Ludork.Project" />
-      <RegistryValue
-          Root="HKCU"
-          Key="Software\Classes\Ludork.Project"
-          Type="string"
-          Value="Ludork Project" />
-      <RegistryValue
-          Root="HKCU"
-          Key="Software\Classes\Ludork.Project\DefaultIcon"
-          Type="string"
-          Value="[INSTALLFOLDER]LudorkProject.ico,0" />
-      <RegistryValue
-          Root="HKCU"
-          Key="Software\Classes\Ludork.Project\shell\open"
-          Type="string"
-          Value="Open" />
-      <RegistryValue
-          Root="HKCU"
-          Key="Software\Classes\Ludork.Project\shell\open\command"
-          Type="string"
-          Value="&quot;[INSTALLFOLDER]Ludork.exe&quot; &quot;%1&quot;" />
+      <File Id="LudorkProjectFileIcon" Source="!(bindpath.assets)\project-icon.ico"
+            Name="LudorkProject.ico" />
+      <RemoveFolder Id="RemoveStartMenuFolder" Directory="LudorkProgramMenuFolder" On="uninstall" />
+    </Component>
+    <Component Id="InstallerRegistration" Directory="INSTALLFOLDER"
+               Guid="E85DE015-8CAC-4346-B008-BF8B94ACB169">
+      <RegistryValue Root="HKLM" Key="Software\Ludork\Installer" Name="Format"
+                     Type="string" Value="msi" KeyPath="yes" />
+      <RegistryValue Root="HKLM" Key="Software\Ludork\Installer" Name="InstallDir"
+                     Type="string" Value="[INSTALLFOLDER]" />
+      <RegistryValue Root="HKLM" Key="Software\Ludork\Installer" Name="Version"
+                     Type="string" Value="[ProductVersion]" />
     </Component>
   </Fragment>
 </Wix>
