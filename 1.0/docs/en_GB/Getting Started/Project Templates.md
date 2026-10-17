@@ -28,7 +28,7 @@ Release editors obtain templates from the matching GitHub Release. Windows x64 u
 
 Templates match the editor’s complete version, including its patch number. If a matching release or template has not been published, New Project reports that it is unavailable.
 
-Downloaded templates are cached in `<Ludork installation directory>/Templates/v<base-version>/` on Windows and `~/Ludork/Templates/v<base-version>/` on macOS, and can be reused offline. Each project is extracted into its own directory.
+Downloaded templates are cached in `~/Ludork/Templates/v<base-version>/` on both Windows and macOS. On Windows this is typically `C:\Users\<user>\Ludork\Templates\v<base-version>\`. All four variants use this user cache for downloads, validation and offline reuse, independently of the editor installation directory. Each project is extracted into its own directory. Bundled development templates remain read-only package inputs.
 
 New Project shows download or copy progress and extraction progress. **Cancel**, or closing the window during creation, cancels the operation and removes its unfinished project and download files. Completed, valid cache entries remain available for later use.
 

@@ -26,7 +26,7 @@ The embedded pages hide website navigation. Documentation links stay in the wind
 
 ## Global editor preferences
 
-`Ludork.ini` stores preferences shared by all projects and restores them when the editor starts.
+`~/Ludork/Ludork.ini` stores preferences shared by all projects and restores them when the editor starts.
 
 | Area | Saved preferences |
 |---|---|
@@ -41,6 +41,28 @@ Defaults are icon view in both panels, 100% File Explorer zoom, a collapsed sour
 Window layouts adapt to the current monitors. For each window type, the most recent adjustment is restored; minimised state is not restored.
 
 Project-specific display preferences are described in [Viewport options](<../PreviewHost/Map and World Previews.md#viewport-options>).
+
+## User data directory
+
+Windows and macOS editors use `~/Ludork` for persistent editor data, including installed, portable and repository runs. `~` means the current user's home directory: typically `C:\Users\<user>` on Windows and `/Users/<user>` on macOS. The editor can save this data without write access to its installation directory.
+
+| Data | Path below `~/Ludork` |
+|---|---|
+| Preferences, recent projects and window layouts | `Ludork.ini` |
+| Global and project plug-ins, registrations and retained data | `Plugins/` and `plugins.json` |
+| Downloaded templates, all four variants | `Templates/v<base-version>/` |
+| Signing profile indexes | `macos-signing.json`, `ios-signing.json`, `harmony-signing.json`, `android-signing.json` |
+| Local server test settings | `.localserver/<project-directory-name>/test.json` |
+| Editor Console output for a project | `Log/<project-key>/Ludork.log` |
+| Windows embedded-browser data | `WebView2/` |
+
+Project files, build output and `EditorCache` remain in each project. Game runtime settings and save files retain their own locations. Passwords continue to use the operating system's credential store; macOS manages its WebKit cache separately. Editor uninstall leaves the user data directory intact.
+
+### Moving existing editor data
+
+Old storage locations are not read or migrated automatically. Close Ludork and back up anything needed **before uninstalling an older version**. Windows previously stored editor data in the installation directory, while repository runs could use the working directory for settings and the repository for plug-ins. macOS settings and signing indexes previously lived in `~/Library/Application Support/Ludork`; its published plug-ins and template cache already used `~/Ludork`.
+
+After the new installation finishes, restore the required `Ludork.ini`, signing indexes, template cache and local server settings to the matching locations above. Restore `Plugins` and `plugins.json` together from the same backup. To preserve existing plug-ins during installation, clear the EXE's **Install Official Plugins** option or pass `INSTALL_OFFICIAL_PLUGINS=0` to MSI, then restore the backup. Restoring plug-ins before an installation that retains the default plug-in option would replace them again. Back up any existing destination files before replacing them. System credential-store entries and project files do not need to move.
 
 ## Global shortcuts
 
@@ -119,6 +141,8 @@ The open menu at the upper right always offers the system file manager, which op
 ## Console and performance monitor
 
 The Console collects plug-in, build and runtime output. Input can be sent only while a compatible runtime connection is ready. **Edit → Development Tools and Settings → Performance Monitor** displays recent frame, logic and memory samples while the game is running.
+
+Console output is saved to `~/Ludork/Log/<project-key>/Ludork.log`. The key is derived from the project's absolute path, so projects with the same directory name at different paths have separate logs. A new logging session archives the preceding log with its modification timestamp. Moving or renaming a project starts a different log directory; existing logs remain available.
 
 ### World-streaming samples
 

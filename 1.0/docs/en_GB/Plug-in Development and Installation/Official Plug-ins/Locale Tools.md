@@ -2,7 +2,7 @@
 
 `Plugins/OfficialLocaleTools` is the reference implementation for an ordinary menu command, a text hint provider, an Export hook and a separate before-Pack exclusion hook. It does not register a map-item context-menu command.
 
-Official Locale Tools is preinstalled and registered by the Windows release. The path above is the corresponding source directory in a repository checkout. On macOS, run **Install Official Plugins** from the DMG as described in [Installing and Managing Plug-ins](<../Installing and Managing Plug-ins.md>).
+Official Locale Tools is included in the official plug-in installation. Windows MSI and EXE select that installation by default; macOS users run **Install Official Plugins** from the DMG. Repository and portable runs require explicit installation into `~/Ludork`; the source directory above is not loaded automatically. Follow [Installing and Managing Plug-ins](<../Installing and Managing Plug-ins.md>) before using the plug-in.
 
 ## Registration
 

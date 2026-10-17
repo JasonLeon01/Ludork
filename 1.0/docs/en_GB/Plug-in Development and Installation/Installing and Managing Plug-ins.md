@@ -36,9 +36,9 @@ The directory must contain `plugin.json` and at least one participating `.cs` so
 
 ## Global and project storage
 
-A development editor in a repository checkout uses `./Plugins` and `./plugins.json`. A published Windows editor uses `Plugins` and `plugins.json` beside the root `Ludork.exe` launcher, including when the editor in `Binaries` is started directly. A published macOS editor uses `~/Ludork/Plugins` and `~/Ludork/plugins.json`.
+All editor modes on Windows and macOS use `~/Ludork/Plugins` and `~/Ludork/plugins.json`, including repository runs, portable packages and direct startup from Windows `Binaries`. `~` is the current user's home directory, typically `C:\Users\<user>` on Windows. Plug-in management and retained data do not require write access to the editor installation directory.
 
-The Windows installation root must remain writable, because `Ludork.ini`, registry updates and `Plugins/.data` are stored there. The per-user MSI location below `%LocalAppData%\Ludork` satisfies this requirement. A portable copy on read-only media does not support plug-in management or writable plug-in data.
+Repository `Plugins` sources and the Windows package's `tools/OfficialPlugins` payload are installation inputs. The editor loads only the user installation; startup never copies or replaces official plug-ins. See [User data directory](<../Editor User Guide/Start Page Workspace and Shortcuts.md#user-data-directory>) for other editor data and manual migration.
 
 Project plug-ins live below the same plug-in root:
 
@@ -57,11 +57,32 @@ Each project scope has its own registry and data. The manager groups **Global Pl
 
 ## Official release plug-ins
 
-Official Blueprint AI, Official Locale Tools, Official Random Map and [Official Resource Cleanup](<Official Plug-ins/Resource Cleanup.md>) are global plug-ins distributed with the editor. Project plug-ins are not included in official editor distributions. The Windows distribution installs all four below the installation root's `Plugins` folder and includes a `plugins.json` generated from their manifests. They are already registered and enabled, so a release installation does not show the third-party trust confirmation.
+Official Blueprint AI, Official Locale Tools, Official Random Map and [Official Resource Cleanup](<Official Plug-ins/Resource Cleanup.md>) are distributed as global plug-ins. Their prepared payload includes a `plugins.json` generated from their manifests; after installation they are registered for loading on the next editor start, without the third-party import trust dialog. Official editor distributions contain no project plug-ins.
+
+Both Windows installers install official plug-ins for the user who started setup by default. Clear **Install Official Plugins** in the EXE wizard or pass `INSTALL_OFFICIAL_PLUGINS=0` to MSI to skip this step without changing existing plug-ins. Start setup normally to keep plug-ins with your user account when another administrator supplies UAC credentials. If you explicitly launch setup as another account, that account becomes the installer user. Service-account installations must skip user plug-ins. Repair and editor uninstall preserve user plug-ins; an upgrade that installs official plug-ins replaces them again.
+
+Close Ludork and back up anything needed before installing official plug-ins. The operation replaces the complete `~/Ludork/Plugins` directory and `~/Ludork/plugins.json`; it does not merge them. This deletes existing third-party source, registrations and `Plugins/.data`, plus all project plug-ins, registries and data below `Plugins/__ProjectPlugins`. Other settings and template caches are preserved. An ordinary failure rolls back the previous installation. If rollback cannot finish, follow the reported recovery instructions. A successful replacement removes its backup; a failure to clean up the backup is reported separately.
 
 The macOS DMG keeps plug-ins outside `Ludork.app`. Finder displays `Ludork.app`, an `Applications` link and **Install Official Plugins**. The `.command` extension of the installer and the plug-in payload are hidden. Drag the app to Applications, keep Ludork closed, then double-click the installer. After the user accepts its explicit warning, the installer validates the hidden payload and transactionally replaces `~/Ludork/Plugins` and `~/Ludork/plugins.json` as one installation.
 
-Do not drag plug-in files to Applications. This macOS operation replaces the complete plug-in installation rather than merging with it. An ordinary failure rolls back to the previous installation. If the rollback itself cannot finish, follow the recovery details shown by the installer. Success does not retain a backup, and it deletes all existing third-party plug-in source, registrations and `Plugins/.data`, as well as all project plug-ins, their registries and data under `Plugins/__ProjectPlugins`. Preserve anything needed before selecting **Replace and Install**. The app and the installer remain unsigned and unnotarised.
+Do not drag plug-in files to Applications. The same complete-replacement rules apply: preserve anything needed before selecting **Replace and Install**.
+
+### Repository and portable installation
+
+Run these commands from a repository checkout after building ScriptTools, with Ludork closed:
+
+```sh
+.tools/ScriptTools/ScriptTools editor-official-plugins prepare Plugins obj/official-plugins
+.tools/ScriptTools/ScriptTools editor-official-plugins install-current-user obj/official-plugins
+```
+
+On Windows, use `.tools\ScriptTools\ScriptTools.exe` instead. From the root of an extracted Windows portable package, or from an installed editor directory when retrying a failed plug-in installation, run:
+
+```bat
+tools\ScriptTools\ScriptTools.exe editor-official-plugins install-current-user tools\OfficialPlugins
+```
+
+Run installation commands as your normal user, without **Run as administrator** or `sudo`. These commands replace all existing plug-ins and their data as described above. Windows installer plug-in operations and `install-current-user` commands save their latest output to `~/Ludork/Log/OfficialPluginInstall.log` when that location is writable. If an EXE installation reports that plug-ins failed, the editor itself remains installed; inspect this log and the installer output before retrying. If identity checks fail before the user directory can be resolved, use the installer output for details. The macOS DMG installer displays its own result and recovery details.
 
 ## Restart and status
 
@@ -75,7 +96,7 @@ A registered plug-in is enabled after restart, when its scope loads, and there i
 
 ## Data and uninstall
 
-Global plug-in writable state belongs in `Plugins/.data/<plugin-id>`, which the plug-in obtains from `PluginDataDirectory`. In a repository checkout that path is `./Plugins/.data/<plugin-id>`. In a published Windows editor it is `<installation-root>/Plugins/.data/<plugin-id>`, and in a published macOS editor it is `~/Ludork/Plugins/.data/<plugin-id>`. Official Blueprint AI therefore uses `Plugins/.data/Ludork.OfficialBlueprintAI` below the applicable root. Project plug-in data instead resides in `Plugins/__ProjectPlugins/<project-key>/.data/<plugin-id>`. The same plug-in ID in different project scopes has independent data and credentials. Always use `PluginDataDirectory` rather than writing settings or history into the plug-in source directory.
+Global plug-in writable state belongs in `~/Ludork/Plugins/.data/<plugin-id>` in every editor mode, and the plug-in obtains it from `PluginDataDirectory`. Official Blueprint AI therefore uses `~/Ludork/Plugins/.data/Ludork.OfficialBlueprintAI`. Project plug-in data instead resides in `~/Ludork/Plugins/__ProjectPlugins/<project-key>/.data/<plugin-id>`. The same plug-in ID in different project scopes has independent data and credentials. Always use `PluginDataDirectory` rather than writing settings or history into the plug-in source directory.
 
 Uninstall unregisters the plug-in and can schedule safe deletion of its installed files. A loaded directory may remain present until the restart, because its assembly is active. A plug-in that was unregistered without deletion can be registered again by selecting its existing immediate child directory under the same scope’s plug-in root. Plug-in data is retained in both uninstall modes, and deleting that data is a separate explicit operation. Do not edit the registry by hand while the editor is running.
 

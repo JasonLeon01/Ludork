@@ -52,7 +52,7 @@ If the matching documentation is unavailable, the assistant reports the problem 
 
 ## Troubleshooting
 
-- **Blueprint AI is missing from Game:** confirm that the preinstalled Windows plug-in or the macOS DMG installer completed, then restart the editor and inspect **Plugins → Manage Plugins** for pending-restart, manifest, dependency or initialisation diagnostics. An uninstalled plug-in intentionally contributes no menu item.
+- **Blueprint AI is missing from Game:** confirm that the official plug-in installation completed for your user account. Windows installers can skip it, and repository or portable runs require the explicit installation command; having the source directory alone does not install the plug-in. Restart the editor and inspect **Plugins → Manage Plugins** for pending-restart, manifest, dependency or initialisation diagnostics. An uninstalled plug-in intentionally contributes no menu item.
 - **No project or Blueprint is available:** open a project first. The host bridge is unavailable outside a project window. A project also needs at least one existing Blueprint. Opening the plug-in does not choose a target; the selector appears only after selecting **New**.
 - **The target was renamed or deleted:** the old conversation remains readable, but its target cannot be switched silently. Create a new conversation for an existing Blueprint.
 - **The API key is missing or the server returns 401:** replace the key in Settings and check that it belongs to the selected provider or profile. Also verify the endpoint and any OpenAI organisation or project values. The UI shows only a masked value, never the complete stored key.

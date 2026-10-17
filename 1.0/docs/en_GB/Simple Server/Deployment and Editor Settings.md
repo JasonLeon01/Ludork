@@ -66,10 +66,7 @@ See [HTTP write rate limits](<HTTP Protocol.md#write-rate-limits>) for token con
 
 In a C++ Source project, open **Game → Test Server Settings**. Enable Ludork Server and enter the test URL and key. The initial URL is `http://localhost:7777/<project-directory-name>`, with the directory name URL-encoded. Confirm saves; Cancel leaves the saved configuration unchanged. This window configures the client only; deploy and start the test server yourself.
 
-The local file is:
-
-- Windows: `.localserver/<project-directory-name>/test.json` beside `Ludork.ini`.
-- Other editor platforms: `~/Ludork/.localserver/<project-directory-name>/test.json`.
+The local file is `~/Ludork/.localserver/<project-directory-name>/test.json` in all editor modes on Windows and macOS, including repository runs. `~` refers to the current user's home directory; Windows does not write this configuration into the editor installation directory.
 
 ```json
 {
