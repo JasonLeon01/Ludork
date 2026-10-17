@@ -84,15 +84,45 @@ Saving during a stroke starts a new Undo step for subsequent movement. Undo and 
 
 For Blueprint light defaults and component fields, see [Light Component](<Actor Components/Light.md>).
 
-Use Actor mode to place a Blueprint instance, move it and edit its exposed attributes. The selected instance may override class defaults without changing the Blueprint itself. Add lighting through the Actor's `lightComp`; select the Actor normally and edit the component in **Actor Info**.
+Use Actor mode to place Blueprint instances, move them and edit their exposed attributes. Instance overrides leave Blueprint defaults unchanged. Add lighting through `lightComp` and edit it in **Actor Info**.
 
-In project editing, hold Ctrl on Windows/Linux or Command on macOS while left-dragging an Actor to select it and adjust its translation continuously in map pixels, without changing its grid position. Alt/Option+left-drag adjusts only its origin in local coordinates, accounting for rotation and scale; translation stays unchanged, so the image moves opposite the drag. Alt/Option takes precedence when both modifiers are held. A transform with a zero scale axis cannot be used for origin dragging. These operations write the instance's `defaultTranslation` and `defaultOrigin` overrides.
+### Selecting and editing Actors
 
-Ctrl/Command+wheel, or Command+trackpad pinch on macOS, scales the selected Actor in Actor mode. Scaling writes `defaultScale`, preserving the ratio and signs of its axes, including zero axes. Each wheel unit multiplies the value by 1.1; pinch changes it continuously. With no eligible editable Actor, the gesture zooms the map instead. Pinching without modifiers still zooms the map. These property shortcuts do not apply in Live Debug.
+Project editing supports one or several selected Actors in the current layer of an ordinary map or an independently opened world child. Live Debug keeps single selection.
 
-In Actor mode, Alt/Option+wheel or Option+trackpad pinch adjusts the selected Actor's `defaultRotation` instance override. Positive wheel movement and pinching outward rotate clockwise; negative movement and pinching inward rotate counterclockwise. Each wheel unit adds 15 degrees, and each 0.1 pinch increment adds 18 degrees. Alt/Option takes precedence over Ctrl/Command for rotation. Without an eligible editable Actor, these gestures retain their viewport behaviour.
+| Location and gesture | Selection |
+|---|---|
+| World Outliner: plain click | Replace the selection with that Actor. |
+| World Outliner: Ctrl-click on Windows/Linux or Command-click on macOS | Toggle that Actor. |
+| World Outliner: Shift-click | Select the range from the selection anchor; Ctrl/Command+Shift adds that range. |
+| World Outliner: click another layer's Actor or a layer row | Switch layers and select that Actor, or clear the Actor selection for a layer row. |
+| Map: plain click on a selected Actor | Keep the selection, ready to drag the group. |
+| Map: plain click on an unselected Actor | Replace the selection with that Actor. |
+| Map: Shift-click / Ctrl/Command-click | Add the Actor / toggle that Actor. |
 
-Each property drag is one Undo step. Consecutive wheel or pinch changes to the same property and selection are grouped. Changing selection, map, layer or mode ends the interaction; saving starts a new Undo step for subsequent changes.
+Map modifier clicks take effect on release. Moving at least 4 device-independent screen pixels on either axis starts a drag and cancels the click action. A modifier drag must start on an Actor that was already selected before pressing; otherwise the whole gesture, including release, does nothing. With several Actors selected, a plain click on empty map space clears the selection and consumes that click without placing an instance. Otherwise normal instance placement remains available. Selecting another map or leaving Actor mode clears the Actor selection.
+
+**Actor Info** shows only properties shared by every selected Actor, including common children of structures, components, lists and dictionaries. Matching properties must have compatible types and editing rules. Values include each Actor's inherited defaults and instance overrides; differing values display **multiple choices**. Editing one child, such as a vector's X, changes only that child on each Actor and retains its other values. A dependent property is editable only when its condition holds for every selected Actor.
+
+With multiple selection, Tag is read-only. Blueprint shows a shared reference with its Open and Locate actions, or **multiple choices** when references differ. Container add/remove and type-switching controls are unavailable. Resetting a property or all overrides restores each Actor's own defaults for the common editable values, preserving other values. Batch edits are applied to the complete selection or rejected without a partial change.
+
+### Moving and transforming Actors
+
+Drag a selected Actor to move the group by the same grid delta. The group stops at map edges while preserving relative positions. If the entire group cannot fit in the map, movement is rejected.
+
+Hold Ctrl on Windows/Linux or Command on macOS while left-dragging a selected Actor to adjust every selected Actor's translation continuously in map pixels, without changing grid positions. Alt/Option+left-drag adjusts each Actor's own origin in local coordinates, accounting for its rotation and scale; translation stays unchanged, so the image moves opposite the drag. Alt/Option takes precedence when both modifiers are held. A transform with a zero scale axis cannot be used for origin dragging. These operations write the instances' `defaultTranslation` and `defaultOrigin` overrides.
+
+Ctrl/Command+wheel, or Command+trackpad pinch on macOS, scales every selected Actor. Scaling writes `defaultScale`, preserving each Actor's axis ratio and signs, including zero axes. Each wheel unit multiplies the value by 1.1; pinch changes it continuously. With no eligible editable selection, the gesture zooms the map instead. Pinching without modifiers still zooms the map.
+
+Alt/Option+wheel or Option+trackpad pinch adjusts each selected Actor's `defaultRotation` around its own origin, leaving grid positions unchanged. Positive wheel movement and pinching outward rotate clockwise; negative movement and pinching inward rotate counterclockwise. Each wheel unit adds 15 degrees, and each 0.1 pinch increment adds 18 degrees. Alt/Option takes precedence over Ctrl/Command for rotation. Without an eligible editable selection, these gestures retain their viewport behaviour. These property shortcuts do not apply in Live Debug.
+
+A complete group drag, batch property change, reset, delete or paste is one Undo step. Consecutive wheel or pinch changes to the same property and selection are grouped. Changing selection, map, layer or mode ends the interaction; saving starts a new Undo step for subsequent changes.
+
+### Copying and deleting Actors
+
+Copy or delete the selection through either the World Outliner or map context menu, or use Ctrl/Command+C and Delete/Backspace. Right-clicking a selected Actor keeps the group; right-clicking an unselected Actor selects it alone before opening the menu.
+
+Paste through the map context menu or Ctrl/Command+V at the pointer's grid cell. The primary Actor is the paste anchor: its cell moves to that position while the other copied Actors retain their relative grid offsets. Paste targets the current layer, preserves instance overrides, assigns fresh tags unique within the map or world, and selects the new group. If any target is outside the map, already occupied, or occupied by another Actor in the copied group, the entire paste fails with feedback and leaves the map unchanged.
 
 For invisible Actors, layer dimming and light-range overlays, see [Actor and layer assistance](<../PreviewHost/Map and World Previews.md#actor-and-layer-assistance>).
 

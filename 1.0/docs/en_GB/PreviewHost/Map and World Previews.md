@@ -25,11 +25,13 @@ All six options are shared within the project and saved immediately in `Main.pro
 
 ## Actor and layer assistance
 
+In Actor mode on an ordinary map or independently opened world child, every selected Actor has a yellow outline with a black backdrop above the map rendering. Single and multiple selection use the same marker. The outline follows translation, rotation and scale; Actors with missing textures or degenerate dimensions use a grid-cell marker. Selection markers remain visible when **Show Actor Origins** is off. Selection and batch editing gestures are described in [Selecting and editing Actors](<../Editor User Guide/Tilesets Autotiles and Maps.md#selecting-and-editing-actors>).
+
 **Show Light Bounds** draws read-only ranges with a black outline, white dashes, a faint light-coloured fill and a contrasting centre marker. It does not change Actor selection or editing gestures. Lights on Actors without a texture are also previewed. Actor scaling changes the emitter position, while the circular range keeps its `lightRadius` in map pixels and scales only with the editor's zoom. Configure the emitter and its occlusion through [Light Component](<../Editor User Guide/Actor Components/Light.md>) and the map guide's [Lights and actors](<../Editor User Guide/Tilesets Autotiles and Maps.md#lights-and-actors>).
 
 Ordinary maps and world previews draw an Actor whose resolved `visible` value is `false` at 25% opacity, including inherited defaults and instance overrides. Texture alpha, material opacity and the 50% dimming of non-current layers on an ordinary map still multiply this opacity. Selection outlines and error markers stay clear, and the Actor remains selectable and movable. These invisible Actors contribute neither lighting nor light occlusion. Hidden layers remain invisible, while placement ghosts and missing-texture placeholders retain their normal appearance. This is an editor preview aid; invisible Actors remain hidden at runtime.
 
-Layer dimming preserves the authored layer order and does not reduce real light or occlusion strength. Actor origins and light ranges are editor overlays and do not appear in thumbnails.
+Layer dimming preserves the authored layer order and does not reduce real light or occlusion strength. Selection markers, Actor origins and light ranges are editor overlays and do not appear in thumbnails.
 
 ## Worlds and thumbnails
 
