@@ -30,6 +30,8 @@ With transitions enabled, world entry freezes the outgoing frame until the targe
 
 `RegionDict` remains floor-transfer data and does not define world composition or streaming.
 
+`Source.SceneComponents.MapBuilder` owns project map assembly and supplies the world region factory. Shared map data types and the `Global.WorldGameMap.RegionBuildState` interface belong to Global; project construction state remains in Source. See [Map data and region builders](<../Global and Core Modules/Global APIs/GameMap.md#map-data-and-region-builders>) when implementing a custom builder.
+
 ### Configure Continue
 
 When the title command window is first created, it checks the directory returned by `Engine.getSavePath()`. Any direct entry, including an unrelated file or a subdirectory, selects Continue (`index = 1`); a missing or empty directory selects Start Game (`index = 0`). This check does not parse saves or filter their format. Locale refreshes and returning from Config or Save/Load preserve the current selection. Creating a new title window checks the directory again.

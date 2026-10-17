@@ -4,6 +4,27 @@
 
 Metadata source: `Scripts/Global/GameMap_meta.lua`
 
+## Map data and region builders
+
+Shared map data declarations belong to `Global.GameMap.*` and `Global.WorldGameMap.*`, in their matching stubs. These are Lua annotation types; their names do not add constructors or change the map file format.
+
+| Namespace | Types |
+|---|---|
+| `Global.GameMap` | `MapDataBase`, `SerializedMapData`, `MapData`, `MapLayerData`, `MapEnvironmentData`, `SerializedMapFogSettings` |
+| `Global.GameMap` | `SerializedTileCell`, `SerializedAutoTileCell`, `SerializedTileRow`, `SerializedAutoTileRow` |
+| `Global.WorldGameMap` | `WorldMapData`, `WorldRegionData`, `WorldRegionEnvironmentData` |
+
+`SerializedMapData` describes loaded map records; `MapData` describes normalised Actor data and native environment values. The world facade receives `WorldMapData` and an injected factory with this contract:
+
+```lua
+---@param region Global.WorldGameMap.WorldRegionData
+---@param data Global.GameMap.SerializedMapData
+---@param priorityRect Global.WorldGeometry.CellRect | nil
+---@return Global.WorldGameMap.RegionBuildState
+```
+
+`RegionBuildState` exposes build progress, the region payload, and `step`, `prepareActors`, `prepareRect`, `areActorsReady`, `isCellReady` and `isRectReady`. Global consumes this interface without importing the project's builder. `Source.SceneComponents.MapBuilder.WorldRegionBuildState.State` extends it with `layerBuildStates`, whose elements are `Source.SceneComponents.WorldLayerBuildState`. Project Actor descriptors, persistence records, layer construction state and floor-preview caches remain in Source.
+
 ## GameMap
 
 Direct metadata bases: `{ "GlobalCore", "GameMapBase" }`

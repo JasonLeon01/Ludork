@@ -4,6 +4,27 @@
 
 Metadata 来源：`Scripts/Global/GameMap_meta.lua`
 
+## 地图数据与区域构建器
+
+通用地图数据类型归属 `Global.GameMap.*` 和 `Global.WorldGameMap.*`，声明位于各自对应的 stub 中。这些名称用于 Lua 类型注解，不提供额外构造函数，也不改变地图文件格式。
+
+| 命名空间 | 类型 |
+|---|---|
+| `Global.GameMap` | `MapDataBase`、`SerializedMapData`、`MapData`、`MapLayerData`、`MapEnvironmentData`、`SerializedMapFogSettings` |
+| `Global.GameMap` | `SerializedTileCell`、`SerializedAutoTileCell`、`SerializedTileRow`、`SerializedAutoTileRow` |
+| `Global.WorldGameMap` | `WorldMapData`、`WorldRegionData`、`WorldRegionEnvironmentData` |
+
+`SerializedMapData` 描述读入的地图记录；`MapData` 描述规范化后的 Actor 数据及原生环境值。大地图接口接收 `WorldMapData`，以及符合以下约定的区域工厂回调：
+
+```lua
+---@param region Global.WorldGameMap.WorldRegionData
+---@param data Global.GameMap.SerializedMapData
+---@param priorityRect Global.WorldGeometry.CellRect | nil
+---@return Global.WorldGameMap.RegionBuildState
+```
+
+`RegionBuildState` 提供构建进度、区域 payload，以及 `step`、`prepareActors`、`prepareRect`、`areActorsReady`、`isCellReady` 和 `isRectReady` 回调。Global 通过这个接口使用构建器，无需导入项目实现。`Source.SceneComponents.MapBuilder.WorldRegionBuildState.State` 继承该接口，并添加 `layerBuildStates` 字段，其元素类型为 `Source.SceneComponents.WorldLayerBuildState`。项目 Actor 构建描述、持久化记录、图层构建状态和楼层预览缓存仍归属 Source。
+
 ## GameMap
 
 直接 metadata 基类：`{ "GlobalCore", "GameMapBase" }`

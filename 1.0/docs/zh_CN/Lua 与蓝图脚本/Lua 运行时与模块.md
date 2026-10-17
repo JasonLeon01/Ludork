@@ -33,7 +33,7 @@ local ManagerFunctions = GlobalFunctions.Manager
 
 `Scripts/GlobalFunctions` 的运行时模块不得在模块作用域调用 `require`，包括加载原生模块；依赖在函数首次使用时解析，避免蓝图函数库加载成环。Lua 路径及导出名不得占用 C++ 绑定的同一 `GlobalFunctions` 路径。
 
-静态依赖从根原生模块流向 `Scripts/Global`，再流向 `Scripts/Source`。Global 模块不得 `require` Source。`Scripts/Internal` 与 `Scripts/GlobalFunctions` 可以依赖 `Source` 中的项目模块。通用模块可以加载数据中指定的模块名，但不得硬编码更高层的业务模块。共享服务需要项目行为时，由项目启动代码传入回调和类对象，参见 [`Global.Data.InitializeRuntime(options)`](<Game 玩法/运行时数据、配置与存档.md#数据服务>)。
+静态依赖从根原生模块流向 `Scripts/Global`，再流向 `Scripts/Source`。Global 的实现和声明不得 `require` Source 或引用其类型，也不得通过 `GlobalFunctions` 下依赖项目的 Lua 函数库间接引入 Source。原生根模块 `GlobalFunctions` 仍属于下层 API。`Scripts/Internal` 与 `Scripts/GlobalFunctions` 可以依赖 `Source` 中的项目模块。通用模块可以加载数据中指定的模块名，但不得硬编码更高层的业务模块。共享服务需要项目行为时，由项目启动代码传入回调和类对象，参见 [`Global.Data.InitializeRuntime(options)`](<Game 玩法/运行时数据、配置与存档.md#数据服务>)。
 
 原生资源后缀由 `Engine.ResourceFileConstants` 提供，游戏地图标识与玩法事件标签分别位于 `Source.Configs.MapConstants` 和 `Source.Configs.GameplayConstants`。公开枚举使用下文的独立 `Enums.*` 模块。
 
