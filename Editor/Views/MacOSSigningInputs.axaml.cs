@@ -13,26 +13,26 @@ using System.Threading.Tasks;
 
 namespace Ludork.Views;
 
-public sealed record MacOSSigningSelection(MacOSSigningOptions? Options)
-{
-    public static MacOSSigningSelection UseEnvironment { get; } =
-        new((MacOSSigningOptions?)null);
-}
-
-public partial class MacOSSigningDialog : Window
+public partial class MacOSSigningInputs : UserControl
 {
     private const string AppleIdMode = "apple-id";
     private const string ApiKeyMode = "api-key";
     private readonly AppleSigningCredentialStore<MacOSStoredSigning> credentialStore =
         new("macos-signing.json", "editor/macos-signing");
+    private readonly CancellationTokenSource lifetimeCancellation = new();
     private StoredAppleSigning<MacOSStoredSigning>? loadedSigning;
     private bool credentialOperationPending;
     private int certificateSelectionGeneration;
 
-    public MacOSSigningDialog()
+    public bool CanConfirm { get; private set; }
+
+    public event EventHandler? StateChanged;
+
+    public MacOSSigningOptions? Options { get; private set; }
+
+    public MacOSSigningInputs()
     {
         InitializeComponent();
-        Title = LocaleService.Get("PACK_MACOS_SIGNING_TITLE");
         DescriptionText.Text = LocaleService.Get("PACK_MACOS_SIGNING_DESCRIPTION");
         EnvironmentSigningOption.Content = LocaleService.Get("PACK_SIGNING_USE_ENVIRONMENT");
         SigningIdentityLabel.Text = LocaleService.Get("PACK_SIGNING_IDENTITY");
@@ -50,8 +50,6 @@ public partial class MacOSSigningDialog : Window
         SaveSigningOption.Content = LocaleService.Get("PACK_SIGNING_SAVE");
         BrowseCertificateButton.Content = LocaleService.Get("BROWSE");
         BrowseNotaryKeyButton.Content = LocaleService.Get("BROWSE");
-        ConfirmButton.Content = LocaleService.Get("CONFIRM");
-        CancelButton.Content = LocaleService.Get("CANCEL");
         EditorInputs.ApplyReadOnly(CertificatePathBox);
         EditorInputs.ApplyReadOnly(NotaryKeyPathBox);
         EditorInputs.ApplyEditable(SigningIdentityBox);
@@ -74,75 +72,71 @@ public partial class MacOSSigningDialog : Window
         NotaryKeyPathBox.TextChanged += (_, _) => updateValidation();
         NotaryKeyIdBox.TextChanged += (_, _) => updateValidation();
         NotaryKeyIssuerBox.TextChanged += (_, _) => updateValidation();
-        Opened += (_, _) => ConfirmButton.Focus();
+        DetachedFromVisualTree += (_, _) => CancelPendingOperations();
         updateSigningVisibility();
         updateNotarizationVisibility();
     }
 
     private async void onBrowseCertificate(object? sender, RoutedEventArgs args)
     {
-        IStorageFolder? startLocation = await getStartLocationAsync(CertificatePathBox.Text);
-        IReadOnlyList<IStorageFile> files = await StorageProvider.OpenFilePickerAsync(
-            new FilePickerOpenOptions
-            {
-                Title = LocaleService.Get("PACK_SIGNING_SELECT_CERTIFICATE"),
-                AllowMultiple = false,
-                SuggestedStartLocation = startLocation,
-                FileTypeFilter =
-                [
-                    new FilePickerFileType(LocaleService.Get("PACK_SIGNING_CERTIFICATE_FILES"))
-                    {
-                        Patterns = ["*.p12", "*.pfx", "*.pkcs12"],
-                    },
-                    new FilePickerFileType(LocaleService.Get("PACK_SIGNING_ALL_FILES"))
-                    {
-                        Patterns = ["*"],
-                    },
-                ],
-            });
-        if (files.Count == 0)
+        string? path = await selectFileAsync(CertificatePathBox.Text,
+            "PACK_SIGNING_SELECT_CERTIFICATE", "PACK_SIGNING_CERTIFICATE_FILES",
+            ["*.p12", "*.pfx", "*.pkcs12"]);
+        if (path is null || lifetimeCancellation.IsCancellationRequested)
             return;
-        string certificatePath = Path.GetFullPath(files[0].Path.LocalPath)
-            .Normalize(NormalizationForm.FormC);
-        CertificatePathBox.Text = certificatePath;
-        await loadSavedSigningAsync(certificatePath);
+        CertificatePathBox.Text = path;
+        await loadSavedSigningAsync(path);
     }
 
     private async void onBrowseNotaryKey(object? sender, RoutedEventArgs args)
     {
-        IStorageFolder? startLocation = await getStartLocationAsync(NotaryKeyPathBox.Text);
-        IReadOnlyList<IStorageFile> files = await StorageProvider.OpenFilePickerAsync(
-            new FilePickerOpenOptions
-            {
-                Title = LocaleService.Get("PACK_MACOS_SELECT_NOTARY_KEY"),
-                AllowMultiple = false,
-                SuggestedStartLocation = startLocation,
-                FileTypeFilter =
-                [
-                    new FilePickerFileType(LocaleService.Get("PACK_MACOS_NOTARY_KEY_FILES"))
-                    {
-                        Patterns = ["*.p8"],
-                    },
-                    new FilePickerFileType(LocaleService.Get("PACK_SIGNING_ALL_FILES"))
-                    {
-                        Patterns = ["*"],
-                    },
-                ],
-            });
-        if (files.Count == 0)
-            return;
-        NotaryKeyPathBox.Text = Path.GetFullPath(files[0].Path.LocalPath)
-            .Normalize(NormalizationForm.FormC);
-        updateValidation();
+        string? path = await selectFileAsync(NotaryKeyPathBox.Text,
+            "PACK_MACOS_SELECT_NOTARY_KEY", "PACK_MACOS_NOTARY_KEY_FILES", ["*.p8"]);
+        if (path is not null && !lifetimeCancellation.IsCancellationRequested)
+            NotaryKeyPathBox.Text = path;
     }
 
-    private async Task<IStorageFolder?> getStartLocationAsync(string? currentPath)
+    private async Task<string?> selectFileAsync(
+        string? currentPath, string titleKey, string fileTypeKey, string[] patterns)
     {
+        if (lifetimeCancellation.IsCancellationRequested || credentialOperationPending)
+            return null;
         string? directory = Path.GetDirectoryName(currentPath ?? string.Empty);
         if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
             directory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        return await StorageProvider.TryGetFolderFromPathAsync(
-            new Uri(Path.GetFullPath(directory)));
+        IStorageProvider storageProvider = TopLevel.GetTopLevel(this)!.StorageProvider;
+        credentialOperationPending = true;
+        updateValidation();
+        try
+        {
+            IStorageFolder? startLocation = await storageProvider.TryGetFolderFromPathAsync(
+                new Uri(Path.GetFullPath(directory)));
+            if (lifetimeCancellation.IsCancellationRequested)
+                return null;
+            IReadOnlyList<IStorageFile> files = await storageProvider.OpenFilePickerAsync(
+                new FilePickerOpenOptions
+                {
+                    Title = LocaleService.Get(titleKey),
+                    AllowMultiple = false,
+                    SuggestedStartLocation = startLocation,
+                    FileTypeFilter =
+                    [
+                        new FilePickerFileType(LocaleService.Get(fileTypeKey)) { Patterns = patterns },
+                        new FilePickerFileType(LocaleService.Get("PACK_SIGNING_ALL_FILES")) { Patterns = ["*"] },
+                    ],
+                });
+            return lifetimeCancellation.IsCancellationRequested || files.Count == 0
+                ? null
+                : Path.GetFullPath(files[0].Path.LocalPath).Normalize(NormalizationForm.FormC);
+        }
+        finally
+        {
+            if (!lifetimeCancellation.IsCancellationRequested)
+            {
+                credentialOperationPending = false;
+                updateValidation();
+            }
+        }
     }
 
     private void updateSigningVisibility()
@@ -164,19 +158,22 @@ public partial class MacOSSigningDialog : Window
 
     private void updateValidation()
     {
+        if (lifetimeCancellation.IsCancellationRequested)
+            return;
+        Options = null;
+        IsEnabled = !credentialOperationPending;
         bool environmentSigning = EnvironmentSigningOption.IsChecked == true;
         SaveSigningOption.IsVisible = !environmentSigning
             && !credentialOperationPending
             && SigningInput.IsReadableFile(CertificatePathBox.Text ?? string.Empty);
-        if (credentialOperationPending)
-        {
-            ValidationText.Text = string.Empty;
-            ConfirmButton.IsEnabled = false;
-            return;
-        }
-        string? validationMessage = getValidationMessage();
+        string? validationMessage = credentialOperationPending ? null : getValidationMessage();
         ValidationText.Text = validationMessage ?? string.Empty;
-        ConfirmButton.IsEnabled = validationMessage is null;
+        bool canConfirm = !credentialOperationPending && validationMessage is null;
+        if (CanConfirm != canConfirm)
+        {
+            CanConfirm = canConfirm;
+            StateChanged?.Invoke(this, EventArgs.Empty);
+        }
     }
 
     private string? getValidationMessage()
@@ -225,17 +222,20 @@ public partial class MacOSSigningDialog : Window
         return null;
     }
 
-    private async void onConfirm(object? sender, RoutedEventArgs args)
+    public async Task<bool> TryPrepareAsync(CancellationToken token)
     {
+        if (lifetimeCancellation.IsCancellationRequested || token.IsCancellationRequested
+            || credentialOperationPending)
+            return false;
+        Options = null;
         if (getValidationMessage() is not null)
         {
             updateValidation();
-            return;
+            return false;
         }
         if (EnvironmentSigningOption.IsChecked == true)
         {
-            Close(MacOSSigningSelection.UseEnvironment);
-            return;
+            return true;
         }
 
         MacOSNotarizationOptions? notarization = null;
@@ -274,6 +274,8 @@ public partial class MacOSSigningDialog : Window
         if ((SaveSigningOption.IsChecked == true || updateStoredSigning)
             && certificatePath.Length != 0)
         {
+            using CancellationTokenSource operationCancellation =
+                CancellationTokenSource.CreateLinkedTokenSource(token, lifetimeCancellation.Token);
             credentialOperationPending = true;
             CredentialStatusText.Text = string.Empty;
             updateValidation();
@@ -284,25 +286,43 @@ public partial class MacOSSigningDialog : Window
                     stored,
                     options.CertificatePassword,
                     notaryPassword,
-                    CancellationToken.None);
+                    operationCancellation.Token);
+            }
+            catch (OperationCanceledException) when (operationCancellation.IsCancellationRequested)
+            {
+                return false;
             }
             catch (Exception exception) when (isCredentialException(exception))
             {
+                if (lifetimeCancellation.IsCancellationRequested)
+                    return false;
                 loadedSigning = null;
                 SaveSigningOption.IsChecked = false;
                 CredentialStatusText.Text = string.Format(
                     LocaleService.Get("PACK_SIGNING_SAVE_FAILED"),
                     exception.Message);
-                credentialOperationPending = false;
-                updateValidation();
-                return;
+                return false;
+            }
+            finally
+            {
+                if (!lifetimeCancellation.IsCancellationRequested)
+                {
+                    credentialOperationPending = false;
+                    updateValidation();
+                }
             }
         }
-        Close(new MacOSSigningSelection(options));
+        if (lifetimeCancellation.IsCancellationRequested || token.IsCancellationRequested)
+            return false;
+        Options = options;
+        return true;
     }
 
     private async Task loadSavedSigningAsync(string certificatePath)
     {
+        if (lifetimeCancellation.IsCancellationRequested)
+            return;
+        credentialOperationPending = true;
         int generation = ++certificateSelectionGeneration;
         loadedSigning = null;
         SigningIdentityBox.Text = string.Empty;
@@ -317,25 +337,30 @@ public partial class MacOSSigningDialog : Window
         NotaryKeyIssuerBox.Text = string.Empty;
         SaveSigningOption.IsChecked = false;
         CredentialStatusText.Text = string.Empty;
-        credentialOperationPending = true;
         updateValidation();
         StoredAppleSigning<MacOSStoredSigning>? signing;
         try
         {
             signing = await credentialStore.FindAsync(
                 certificatePath,
-                CancellationToken.None);
+                lifetimeCancellation.Token);
+        }
+        catch (OperationCanceledException) when (lifetimeCancellation.IsCancellationRequested)
+        {
+            return;
         }
         catch (Exception exception) when (isCredentialException(exception))
         {
-            if (generation != certificateSelectionGeneration)
+            if (lifetimeCancellation.IsCancellationRequested
+                || generation != certificateSelectionGeneration)
                 return;
             CredentialStatusText.Text = string.Format(
                 LocaleService.Get("PACK_SIGNING_LOAD_FAILED"),
                 exception.Message);
             signing = null;
         }
-        if (generation != certificateSelectionGeneration)
+        if (lifetimeCancellation.IsCancellationRequested
+            || generation != certificateSelectionGeneration)
             return;
         loadedSigning = signing;
         if (signing is not null)
@@ -363,9 +388,18 @@ public partial class MacOSSigningDialog : Window
         updateNotarizationVisibility();
     }
 
-    private void onCancel(object? sender, RoutedEventArgs args)
+    public void CancelPendingOperations()
     {
-        Close((MacOSSigningSelection?)null);
+        if (lifetimeCancellation.IsCancellationRequested)
+            return;
+        lifetimeCancellation.Cancel();
+        certificateSelectionGeneration++;
+        Options = null;
+        if (CanConfirm)
+        {
+            CanConfirm = false;
+            StateChanged?.Invoke(this, EventArgs.Empty);
+        }
     }
 
     private static bool isCredentialException(Exception exception) =>

@@ -12,10 +12,27 @@ public sealed record ProjectPackageMetadataResult(int ExitCode, string Output, s
 
 public static class ProjectPackageMetadataService
 {
-    public static async Task<ProjectPackageMetadataResult> ExecuteAsync(
+    public static Task<ProjectPackageMetadataResult> ReadAppNameAsync(
+        string projectPath,
+        CancellationToken cancellationToken)
+    {
+        return executeAsync("app-name", projectPath, null, false, cancellationToken);
+    }
+
+    public static Task<ProjectPackageMetadataResult> ExecuteAsync(
         string operation,
         string? projectPath,
         string version,
+        bool dev,
+        CancellationToken cancellationToken)
+    {
+        return executeAsync(operation, projectPath, version, dev, cancellationToken);
+    }
+
+    private static async Task<ProjectPackageMetadataResult> executeAsync(
+        string operation,
+        string? projectPath,
+        string? version,
         bool dev,
         CancellationToken cancellationToken)
     {
@@ -37,9 +54,12 @@ public static class ProjectPackageMetadataService
         startInfo.ArgumentList.Add(operation);
         if (projectPath is not null)
             startInfo.ArgumentList.Add(projectPath);
-        startInfo.ArgumentList.Add("--version");
-        startInfo.ArgumentList.Add(version);
-        startInfo.ArgumentList.Add(dev ? "--dev" : "--release");
+        if (version is not null)
+        {
+            startInfo.ArgumentList.Add("--version");
+            startInfo.ArgumentList.Add(version);
+            startInfo.ArgumentList.Add(dev ? "--dev" : "--release");
+        }
         startInfo.Environment["PYTHONUTF8"] = "1";
         startInfo.Environment["PYTHONIOENCODING"] = "utf-8";
         cancellationToken.ThrowIfCancellationRequested();

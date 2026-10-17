@@ -2,164 +2,127 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:utils="using:Ludork.Views.Utils"
         x:Class="Ludork.Views.PackSelectionDialog"
-        Width="400"
-        SizeToContent="Height"
-        CanResize="False"
-        MaxHeight="800"
+        Width="880"
+        Height="720"
+        MinWidth="640"
+        MinHeight="400"
+        CanResize="True"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource Editor.BackgroundBrush}"
         FontFamily="{DynamicResource Editor.FontFamily}"
         Icon="/Editor/Assets/icon.ico">
-    <Grid Margin="24" RowDefinitions="*,Auto">
-        <ScrollViewer Grid.Row="0" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-            <StackPanel x:Name="OptionsPanel" Spacing="20">
-                <TextBlock x:Name="DescriptionText"
-                           TextWrapping="Wrap" />
-                <StackPanel Spacing="6">
-                    <TextBlock x:Name="VersionLabel" />
-                    <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
-                        <TextBox x:Name="VersionBox" />
-                        <CheckBox x:Name="DevOption"
-                                  Grid.Column="1"
-                                  VerticalAlignment="Center" />
-                    </Grid>
-                    <TextBlock x:Name="VersionErrorText"
-                               IsVisible="False"
-                               Foreground="{DynamicResource Editor.ErrorBrush}"
-                               TextWrapping="Wrap" />
-                </StackPanel>
-                <utils:LudorkServerInputs x:Name="ServerOptions" IsVisible="False" />
-                <RadioButton x:Name="Win32Option"
-                             GroupName="PackPlatform"
-                             IsVisible="False" />
-                <StackPanel x:Name="MacOSPanel"
-                            IsVisible="False"
-                            Spacing="4">
-                    <RadioButton x:Name="MacOSOption"
-                                 GroupName="PackPlatform" />
-                    <CheckBox x:Name="MacOSSigningOption"
-                              Margin="28,0,0,0"
-                              IsChecked="False"
-                              IsVisible="False" />
-                </StackPanel>
-                <StackPanel x:Name="IosPanel"
-                            IsVisible="False"
-                            Spacing="4">
-                    <RadioButton x:Name="IosOption"
-                                 GroupName="PackPlatform"
-                                 IsEnabled="True" />
-                    <TextBlock x:Name="IosStatusText"
-                               Margin="28,0,0,0"
-                               Foreground="{DynamicResource Editor.TextMutedBrush}"
-                               IsVisible="False"
-                               TextWrapping="Wrap" />
-                    <CheckBox x:Name="IosSigningOption"
-                              Margin="28,0,0,0"
-                              IsChecked="False"
-                              IsVisible="False" />
-                    <CheckBox x:Name="ExportToIPhoneOption"
-                              Margin="28,0,0,0"
-                              IsChecked="False"
-                              IsVisible="False" />
-                </StackPanel>
-                <StackPanel x:Name="HarmonyPanel"
-                            IsVisible="False"
-                            Spacing="4">
-                    <RadioButton x:Name="HarmonyOption"
-                                 GroupName="PackPlatform" />
-                    <StackPanel x:Name="HarmonyDevicePanel"
-                                Margin="28,0,0,0"
-                                IsVisible="False"
-                                Spacing="4">
+    <Grid Margin="24" RowDefinitions="Auto,*,Auto" RowSpacing="16">
+        <TextBlock x:Name="DescriptionText" TextWrapping="Wrap" />
+        <Grid x:Name="OptionsPanel" Grid.Row="1" ColumnDefinitions="170,*" ColumnSpacing="24">
+            <ListBox x:Name="PlatformList" SelectionMode="Single" />
+            <ScrollViewer x:Name="OptionsScroll" Grid.Column="1"
+                          HorizontalScrollBarVisibility="Disabled"
+                          VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="20" Margin="0,0,12,0">
+                    <TextBlock x:Name="PlatformTitle" FontSize="18" FontWeight="SemiBold" />
+                    <StackPanel x:Name="MacOSPanel" IsVisible="False" Spacing="8">
+                        <CheckBox x:Name="MacOSSigningOption" IsChecked="False" />
+                    </StackPanel>
+                    <StackPanel x:Name="IosPanel" IsVisible="False" Spacing="8">
+                        <TextBlock x:Name="IosStatusText"
+                                   Foreground="{DynamicResource Editor.TextMutedBrush}"
+                                   TextWrapping="Wrap" />
+                        <CheckBox x:Name="IosSigningOption" IsChecked="False" />
+                        <CheckBox x:Name="ExportToIPhoneOption" IsChecked="False" />
+                    </StackPanel>
+                    <StackPanel x:Name="HarmonyPanel" IsVisible="False" Spacing="8">
                         <RadioButton x:Name="HarmonyMobileOption"
-                                     GroupName="HarmonyDeviceForm"
-                                     IsChecked="True" />
-                        <RadioButton x:Name="HarmonyTwoInOneOption"
-                                     GroupName="HarmonyDeviceForm" />
-                        <StackPanel x:Name="HarmonyGraphicsApiPanel"
+                                     GroupName="HarmonyDeviceForm" IsChecked="True" />
+                        <RadioButton x:Name="HarmonyTwoInOneOption" GroupName="HarmonyDeviceForm" />
+                        <StackPanel x:Name="HarmonyGraphicsApiPanel" Margin="28,0,0,0"
+                                    IsVisible="False" Spacing="4">
+                            <TextBlock x:Name="HarmonyGraphicsApiText" />
+                            <RadioButton x:Name="HarmonyOpenGLOption"
+                                         GroupName="HarmonyGraphicsApi" IsChecked="True" />
+                            <RadioButton x:Name="HarmonyOpenGLESOption" GroupName="HarmonyGraphicsApi" />
+                        </StackPanel>
+                        <CheckBox x:Name="HarmonySigningOption" IsChecked="False" />
+                        <CheckBox x:Name="ExportToHarmonyDeviceOption" IsChecked="False" />
+                    </StackPanel>
+                    <StackPanel x:Name="AndroidPanel" IsVisible="False" Spacing="8">
+                        <CheckBox x:Name="AndroidSigningOption" IsChecked="False" />
+                    </StackPanel>
+                    <Border Height="1" Background="{DynamicResource Editor.BorderBrush}" />
+                    <StackPanel Spacing="6">
+                        <TextBlock x:Name="VersionLabel" />
+                        <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
+                            <TextBox x:Name="VersionBox" />
+                            <CheckBox x:Name="DevOption"
+                                      Grid.Column="1"
+                                      VerticalAlignment="Center" />
+                        </Grid>
+                        <TextBlock x:Name="VersionErrorText"
+                                   IsVisible="False"
+                                   Foreground="{DynamicResource Editor.ErrorBrush}"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                    <utils:LudorkServerInputs x:Name="ServerOptions" IsVisible="False" />
+                    <StackPanel Spacing="4">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                            <CheckBox x:Name="EncryptGameDataOption"
+                                      IsThreeState="True"
+                                      IsChecked="False"
+                                      VerticalAlignment="Center" />
+                            <Button x:Name="EncryptionOptionsToggle"
+                                    Grid.Column="1"
+                                    Classes="disclosure"
+                                    HorizontalAlignment="Left"
+                                    Click="onToggleEncryptionOptions">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Image x:Name="EncryptionOptionsChevron"
+                                           Width="12"
+                                           Height="12"
+                                           VerticalAlignment="Center"
+                                           Source="{StaticResource EditorImage.ChevronRight}">
+                                        <Image.RenderTransform>
+                                            <RotateTransform Angle="0" />
+                                        </Image.RenderTransform>
+                                    </Image>
+                                    <TextBlock x:Name="EncryptionOptionsTitle"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                        <StackPanel x:Name="EncryptionOptionsPanel"
                                     Margin="28,0,0,0"
                                     IsVisible="False"
                                     Spacing="4">
-                            <TextBlock x:Name="HarmonyGraphicsApiText" />
-                            <RadioButton x:Name="HarmonyOpenGLOption"
-                                         GroupName="HarmonyGraphicsApi"
-                                         IsChecked="True" />
-                            <RadioButton x:Name="HarmonyOpenGLESOption"
-                                         GroupName="HarmonyGraphicsApi" />
+                            <CheckBox x:Name="LuacOption"
+                                      IsChecked="False" />
+                            <CheckBox x:Name="EncryptShadersOption"
+                                      IsChecked="False" />
+                            <CheckBox x:Name="EncryptDataOption"
+                                      IsChecked="False" />
+                            <CheckBox x:Name="EncryptSavesOption"
+                                      IsChecked="False" />
+                            <TextBlock x:Name="EncryptSavesHintText"
+                                       Margin="28,0,0,0"
+                                       Foreground="{DynamicResource Editor.TextMutedBrush}"
+                                       IsVisible="False"
+                                       TextWrapping="Wrap" />
                         </StackPanel>
-                        <CheckBox x:Name="HarmonySigningOption"
-                                  Margin="28,0,0,0"
-                                  IsChecked="False" />
-                        <CheckBox x:Name="ExportToHarmonyDeviceOption"
-                                  Margin="28,0,0,0"
-                                  IsChecked="False" />
                     </StackPanel>
+                    <CheckBox x:Name="UseLdPakOption"
+                              IsChecked="False" />
+                    <Border x:Name="SigningSeparator" Height="1" IsVisible="False"
+                            Background="{DynamicResource Editor.BorderBrush}" />
+                    <ContentControl x:Name="MacOSSigningHost" IsVisible="False" />
+                    <ContentControl x:Name="IOSSigningHost" IsVisible="False" />
+                    <ContentControl x:Name="HarmonySigningHost" IsVisible="False" />
+                    <ContentControl x:Name="AndroidSigningHost" IsVisible="False" />
                 </StackPanel>
-                <StackPanel x:Name="AndroidPanel"
-                            IsVisible="False"
-                            Spacing="4">
-                    <RadioButton x:Name="AndroidOption"
-                                 GroupName="PackPlatform" />
-                    <CheckBox x:Name="AndroidSigningOption"
-                              Margin="28,0,0,0"
-                              IsChecked="False"
-                              IsVisible="False" />
-                </StackPanel>
-                <StackPanel Spacing="4">
-                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
-                        <CheckBox x:Name="EncryptGameDataOption"
-                                  IsThreeState="True"
-                                  IsChecked="False"
-                                  VerticalAlignment="Center" />
-                        <Button x:Name="EncryptionOptionsToggle"
-                                Grid.Column="1"
-                                Classes="disclosure"
-                                HorizontalAlignment="Left"
-                                Click="onToggleEncryptionOptions">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <Image x:Name="EncryptionOptionsChevron"
-                                       Width="12"
-                                       Height="12"
-                                       VerticalAlignment="Center"
-                                       Source="{StaticResource EditorImage.ChevronRight}">
-                                    <Image.RenderTransform>
-                                        <RotateTransform Angle="0" />
-                                    </Image.RenderTransform>
-                                </Image>
-                                <TextBlock x:Name="EncryptionOptionsTitle"
-                                           VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Button>
-                    </Grid>
-                    <StackPanel x:Name="EncryptionOptionsPanel"
-                                Margin="28,0,0,0"
-                                IsVisible="False"
-                                Spacing="4">
-                        <CheckBox x:Name="LuacOption"
-                                  IsChecked="False" />
-                        <CheckBox x:Name="EncryptShadersOption"
-                                  IsChecked="False" />
-                        <CheckBox x:Name="EncryptDataOption"
-                                  IsChecked="False" />
-                        <CheckBox x:Name="EncryptSavesOption"
-                                  IsChecked="False" />
-                        <TextBlock x:Name="EncryptSavesHintText"
-                                   Margin="28,0,0,0"
-                                   Foreground="{DynamicResource Editor.TextMutedBrush}"
-                                   IsVisible="False"
-                                   TextWrapping="Wrap" />
-                    </StackPanel>
-                </StackPanel>
-                <CheckBox x:Name="UseLdPakOption"
-                          IsChecked="False" />
-            </StackPanel>
-        </ScrollViewer>
-        <StackPanel Grid.Row="1"
-                    Margin="0,16,0,0"
-                    Orientation="Horizontal"
-                    HorizontalAlignment="Right"
-                    Spacing="8">
-            <Button x:Name="ConfirmButton" Click="onConfirm" />
+            </ScrollViewer>
+        </Grid>
+        <StackPanel Grid.Row="2" Orientation="Horizontal"
+                    HorizontalAlignment="Right" VerticalAlignment="Bottom" Spacing="8">
+            <Border x:Name="ConfirmButtonHint" Background="Transparent">
+                <Button x:Name="ConfirmButton" IsEnabled="False" Click="onConfirm" />
+            </Border>
             <Button x:Name="CancelButton" Click="onCancel" />
         </StackPanel>
     </Grid>

@@ -1,6 +1,5 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using Avalonia.Platform;
 using Avalonia.Platform.Storage;
 using Ludork.Services;
 using Ludork.Views.Utils;
@@ -14,23 +13,24 @@ using System.Threading.Tasks;
 
 namespace Ludork.Views;
 
-public partial class HarmonySigningDialog : Window
+public partial class HarmonySigningInputs : UserControl
 {
     private readonly HarmonySigningCredentialStore credentialStore = new();
+    private readonly CancellationTokenSource lifetimeCancellation = new();
     private readonly string? projectPath;
     private HarmonySigningOptions? loadedSigning;
     private bool credentialOperationPending;
+    private int keystoreSelectionGeneration;
     private bool closed;
 
-    public HarmonySigningDialog() : this(null)
+    public HarmonySigningInputs() : this(null)
     {
     }
 
-    public HarmonySigningDialog(string? projectPath)
+    public HarmonySigningInputs(string? projectPath)
     {
         this.projectPath = projectPath;
         InitializeComponent();
-        Title = LocaleService.Get("PACK_HARMONY_SIGNING_TITLE");
         DescriptionText.Text = LocaleService.Get("PACK_HARMONY_SIGNING_DESCRIPTION");
         KeystoreLabel.Text = LocaleService.Get("PACK_HARMONY_KEYSTORE");
         CertificateLabel.Text = LocaleService.Get("PACK_HARMONY_CERTIFICATE");
@@ -43,8 +43,6 @@ public partial class HarmonySigningDialog : Window
         BrowseButton.Content = LocaleService.Get("BROWSE");
         CertificateBrowseButton.Content = LocaleService.Get("BROWSE");
         ProfileBrowseButton.Content = LocaleService.Get("BROWSE");
-        ConfirmButton.Content = LocaleService.Get("CONFIRM");
-        CancelButton.Content = LocaleService.Get("CANCEL");
         EditorInputs.ApplyReadOnly(KeystorePathBox);
         EditorInputs.ApplyReadOnly(CertificatePathBox);
         EditorInputs.ApplyReadOnly(ProfilePathBox);
@@ -58,15 +56,26 @@ public partial class HarmonySigningDialog : Window
         KeystorePasswordBox.TextChanged += (_, _) => updateValidation();
         KeyPasswordBox.TextChanged += (_, _) => updateValidation();
         SameKeyPasswordOption.IsCheckedChanged += (_, _) => updateKeyPasswordVisibility();
-        Opened += (_, _) =>
-        {
-            Screen? screen = Screens.ScreenFromWindow(this) ?? Screens.Primary;
-            if (screen is not null)
-                MaxHeight = Math.Max(400, screen.WorkingArea.Height / screen.Scaling - 80);
-            BrowseButton.Focus();
-        };
-        Closed += (_, _) => closed = true;
+        DetachedFromVisualTree += (_, _) => CancelPendingOperations();
         updateKeyPasswordVisibility();
+    }
+
+    public bool CanConfirm { get; private set; }
+
+    public event EventHandler? StateChanged;
+
+    public HarmonySigningOptions? Options { get; private set; }
+
+    public void CancelPendingOperations()
+    {
+        if (closed)
+            return;
+        closed = true;
+        ++keystoreSelectionGeneration;
+        lifetimeCancellation.Cancel();
+        Options = null;
+        CanConfirm = false;
+        StateChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private async void onBrowse(object? sender, RoutedEventArgs args)
@@ -101,42 +110,66 @@ public partial class HarmonySigningDialog : Window
     private async Task<string?> selectFileAsync(
         string? currentPath, string titleKey, string fileTypeKey, string[] patterns)
     {
+        if (closed || credentialOperationPending)
+            return null;
         string? directory = Path.GetDirectoryName(currentPath);
         if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
             directory = Path.GetDirectoryName(KeystorePathBox.Text);
         if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
             directory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        IStorageFolder? startLocation = await StorageProvider.TryGetFolderFromPathAsync(
-            new Uri(Path.GetFullPath(directory)));
-        IReadOnlyList<IStorageFile> files = await StorageProvider.OpenFilePickerAsync(
-            new FilePickerOpenOptions
+        IStorageProvider storageProvider = TopLevel.GetTopLevel(this)!.StorageProvider;
+        credentialOperationPending = true;
+        updateValidation();
+        try
+        {
+            IStorageFolder? startLocation = await storageProvider.TryGetFolderFromPathAsync(
+                new Uri(Path.GetFullPath(directory)));
+            if (closed)
+                return null;
+            IReadOnlyList<IStorageFile> files = await storageProvider.OpenFilePickerAsync(
+                new FilePickerOpenOptions
+                {
+                    Title = LocaleService.Get(titleKey),
+                    AllowMultiple = false,
+                    SuggestedStartLocation = startLocation,
+                    FileTypeFilter =
+                    [
+                        new FilePickerFileType(LocaleService.Get(fileTypeKey)) { Patterns = patterns },
+                        new FilePickerFileType(LocaleService.Get("PACK_HARMONY_ALL_FILES")) { Patterns = ["*"] },
+                    ],
+                });
+            return closed || files.Count == 0
+                ? null
+                : Path.GetFullPath(files[0].Path.LocalPath).Normalize(NormalizationForm.FormC);
+        }
+        finally
+        {
+            if (!closed)
             {
-                Title = LocaleService.Get(titleKey),
-                AllowMultiple = false,
-                SuggestedStartLocation = startLocation,
-                FileTypeFilter =
-                [
-                    new FilePickerFileType(LocaleService.Get(fileTypeKey)) { Patterns = patterns },
-                    new FilePickerFileType(LocaleService.Get("PACK_HARMONY_ALL_FILES")) { Patterns = ["*"] },
-                ],
-            });
-        return files.Count == 0
-            ? null
-            : Path.GetFullPath(files[0].Path.LocalPath).Normalize(NormalizationForm.FormC);
+                credentialOperationPending = false;
+                updateValidation();
+            }
+        }
     }
 
     private void updateKeyPasswordVisibility()
     {
+        if (closed)
+            return;
         KeyPasswordPanel.IsVisible = SameKeyPasswordOption.IsChecked != true;
         updateValidation();
     }
 
     private void updateValidation()
     {
+        if (closed)
+            return;
+        Options = null;
         SigningPanel.IsEnabled = !credentialOperationPending;
         string? validationMessage = credentialOperationPending ? null : getValidationMessage();
         ValidationText.Text = validationMessage ?? string.Empty;
-        ConfirmButton.IsEnabled = !credentialOperationPending && validationMessage is null;
+        CanConfirm = !credentialOperationPending && validationMessage is null;
+        StateChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private string? getValidationMessage()
@@ -176,12 +209,15 @@ public partial class HarmonySigningDialog : Window
         return null;
     }
 
-    private async void onConfirm(object? sender, RoutedEventArgs args)
+    public async Task<bool> TryPrepareAsync(CancellationToken token)
     {
+        if (closed || token.IsCancellationRequested)
+            return false;
+        Options = null;
         if (credentialOperationPending || getValidationMessage() is not null)
         {
             updateValidation();
-            return;
+            return false;
         }
         string keystorePassword = KeystorePasswordBox.Text ?? string.Empty;
         HarmonySigningOptions signing = new(
@@ -193,33 +229,54 @@ public partial class HarmonySigningDialog : Window
             SameKeyPasswordOption.IsChecked == true ? keystorePassword : KeyPasswordBox.Text ?? string.Empty);
         if (SaveSigningOption.IsChecked == true || (loadedSigning is not null && signing != loadedSigning))
         {
+            using CancellationTokenSource cancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                token, lifetimeCancellation.Token);
             credentialOperationPending = true;
             CredentialStatusText.Text = string.Empty;
             updateValidation();
             try
             {
-                await credentialStore.SaveAsync(signing, CancellationToken.None);
+                await credentialStore.SaveAsync(signing, cancellation.Token);
+                if (cancellation.IsCancellationRequested)
+                    return false;
+                loadedSigning = signing;
             }
-            catch (Exception exception) when (
-                exception is IOException or UnauthorizedAccessException or InvalidDataException
-                or System.Text.Json.JsonException or InvalidOperationException or Win32Exception
-                or ArgumentException or NotSupportedException)
+            catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
             {
+                return false;
+            }
+            catch (Exception exception) when (isCredentialException(exception))
+            {
+                if (cancellation.IsCancellationRequested)
+                    return false;
                 loadedSigning = null;
                 SaveSigningOption.IsChecked = false;
                 SaveSigningOption.IsVisible = true;
                 CredentialStatusText.Text = LocaleService.Get("PACK_HARMONY_SIGNING_SAVE_FAILED");
-                credentialOperationPending = false;
-                updateValidation();
-                return;
+                return false;
+            }
+            finally
+            {
+                if (!closed)
+                {
+                    credentialOperationPending = false;
+                    updateValidation();
+                }
             }
         }
-        if (!closed)
-            Close(signing);
+        if (closed || token.IsCancellationRequested)
+            return false;
+        Options = signing;
+        return true;
     }
 
     private async Task loadSavedSigningAsync(string keystorePath)
     {
+        if (closed)
+            return;
+        int generation = ++keystoreSelectionGeneration;
+        CancellationToken cancellationToken = lifetimeCancellation.Token;
+        credentialOperationPending = true;
         loadedSigning = null;
         CertificatePathBox.Text = string.Empty;
         ProfilePathBox.Text = string.Empty;
@@ -230,22 +287,24 @@ public partial class HarmonySigningDialog : Window
         SaveSigningOption.IsChecked = false;
         SaveSigningOption.IsVisible = false;
         CredentialStatusText.Text = string.Empty;
-        credentialOperationPending = true;
         updateValidation();
         HarmonySigningOptions? signing;
         try
         {
-            signing = await credentialStore.FindAsync(keystorePath, CancellationToken.None);
+            signing = await credentialStore.FindAsync(keystorePath, cancellationToken);
         }
-        catch (Exception exception) when (
-            exception is IOException or UnauthorizedAccessException or InvalidDataException
-            or System.Text.Json.JsonException or InvalidOperationException or Win32Exception
-            or ArgumentException or NotSupportedException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            return;
+        }
+        catch (Exception exception) when (isCredentialException(exception))
+        {
+            if (closed || generation != keystoreSelectionGeneration)
+                return;
             CredentialStatusText.Text = LocaleService.Get("PACK_HARMONY_SIGNING_LOAD_FAILED");
             signing = null;
         }
-        if (closed)
+        if (closed || generation != keystoreSelectionGeneration)
             return;
         loadedSigning = signing;
         SaveSigningOption.IsVisible = signing is null;
@@ -263,8 +322,13 @@ public partial class HarmonySigningDialog : Window
         updateKeyPasswordVisibility();
     }
 
-    private void onCancel(object? sender, RoutedEventArgs args)
-    {
-        Close((HarmonySigningOptions?)null);
-    }
+    private static bool isCredentialException(Exception exception) =>
+        exception is IOException
+        or UnauthorizedAccessException
+        or InvalidDataException
+        or System.Text.Json.JsonException
+        or InvalidOperationException
+        or Win32Exception
+        or ArgumentException
+        or NotSupportedException;
 }

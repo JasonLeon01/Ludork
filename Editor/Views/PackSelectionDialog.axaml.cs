@@ -24,6 +24,18 @@ public partial class PackSelectionDialog : Window
     private readonly bool isStandalone;
     private CancellationTokenSource? validationCancellation;
     private int validationGeneration;
+    private readonly MacOSSigningInputs macOSSigning = new();
+    private readonly IOSSigningInputs iosSigning = new();
+    private readonly HarmonySigningInputs harmonySigning;
+    private readonly AndroidSigningInputs androidSigning = new();
+    private readonly CancellationTokenSource lifetimeCancellation = new();
+    private CancellationTokenSource? appNameCancellation;
+    private int appNameGeneration;
+    private string? appNameError;
+    private bool versionValid;
+    private bool appNameValid;
+    private bool confirming;
+    private bool opened;
     private bool closed;
 
     public PackSelectionDialog() : this(null)
@@ -36,6 +48,15 @@ public partial class PackSelectionDialog : Window
         this.projectPath = projectPath;
         isStandalone = projectConfig?.IsStandalone ?? true;
         InitializeComponent();
+        harmonySigning = new(projectPath);
+        MacOSSigningHost.Content = macOSSigning;
+        IOSSigningHost.Content = iosSigning;
+        HarmonySigningHost.Content = harmonySigning;
+        AndroidSigningHost.Content = androidSigning;
+        macOSSigning.StateChanged += (_, _) => updateConfirmState();
+        iosSigning.StateChanged += (_, _) => updateConfirmState();
+        harmonySigning.StateChanged += (_, _) => updateConfirmState();
+        androidSigning.StateChanged += (_, _) => updateConfirmState();
         VersionLabel.Text = LocaleService.Get("PACK_RELEASE_VERSION");
         DevOption.Content = LocaleService.Get("PACK_DEV");
         EditorInputs.ApplyEditable(VersionBox);
@@ -49,18 +70,26 @@ public partial class PackSelectionDialog : Window
         {
             closed = true;
             ++validationGeneration;
+            ++appNameGeneration;
             validationCancellation?.Cancel();
+            appNameCancellation?.Cancel();
+            lifetimeCancellation.Cancel();
+            macOSSigning.CancelPendingOperations();
+            iosSigning.CancelPendingOperations();
+            harmonySigning.CancelPendingOperations();
+            androidSigning.CancelPendingOperations();
+            lifetimeCancellation.Dispose();
         };
-        Opened += async (_, _) => await validateVersionAsync(true);
+        Activated += async (_, _) =>
+        {
+            if (opened && !confirming)
+                await validateAppNameAsync();
+        };
         Title = LocaleService.Get("PACK_PROJECT");
         DescriptionText.Text = LocaleService.Get("PACK_MODE_DESC");
-        Win32Option.Content = LocaleService.Get("PACK_PLATFORM_WIN32");
-        MacOSOption.Content = LocaleService.Get("PACK_PLATFORM_MACOS");
         MacOSSigningOption.Content = LocaleService.Get("PACK_MACOS_SIGN_APP");
-        IosOption.Content = LocaleService.Get("PACK_PLATFORM_IOS");
         IosSigningOption.Content = LocaleService.Get("PACK_IOS_SIGN_APP");
         IosStatusText.Text = LocaleService.Get("PACK_IOS_REQUIREMENTS");
-        HarmonyOption.Content = LocaleService.Get("PACK_PLATFORM_HARMONYOS");
         HarmonySigningOption.Content = LocaleService.Get("PACK_HARMONY_SIGN_HAP");
         HarmonyMobileOption.Content = LocaleService.Get("PACK_HARMONY_DEVICE_MOBILE");
         HarmonyTwoInOneOption.Content = LocaleService.Get("PACK_HARMONY_DEVICE_TWO_IN_ONE");
@@ -68,7 +97,6 @@ public partial class PackSelectionDialog : Window
         HarmonyOpenGLOption.Content = LocaleService.Get("PACK_HARMONY_GRAPHICS_OPENGL");
         HarmonyOpenGLESOption.Content = LocaleService.Get("PACK_HARMONY_GRAPHICS_OPENGL_ES");
         ExportToHarmonyDeviceOption.Content = LocaleService.Get("PACK_EXPORT_TO_HARMONY_DEVICE");
-        AndroidOption.Content = LocaleService.Get("PACK_PLATFORM_ANDROID");
         AndroidSigningOption.Content = LocaleService.Get("PACK_ANDROID_SIGN_APK");
         ExportToIPhoneOption.Content = LocaleService.Get("PACK_EXPORT_TO_IPHONE");
         EncryptionOptionsTitle.Text = LocaleService.Get("PACK_ENCRYPT_GAME_DATA");
@@ -82,43 +110,71 @@ public partial class PackSelectionDialog : Window
         EncryptSavesOption.IsEnabled = !isStandalone;
         EncryptSavesHintText.Text = LocaleService.Get("PACK_ENCRYPT_SAVES_STANDALONE_HINT");
         EncryptSavesHintText.IsVisible = isStandalone;
-        MacOSOption.IsCheckedChanged += (_, _) => updatePlatformOptionVisibility();
-        IosOption.IsCheckedChanged += (_, _) => updatePlatformOptionVisibility();
-        HarmonyOption.IsCheckedChanged += (_, _) => updateHarmonyDeviceVisibility();
-        HarmonyMobileOption.IsCheckedChanged += (_, _) => updateHarmonyDeviceVisibility();
-        HarmonyTwoInOneOption.IsCheckedChanged += (_, _) => updateHarmonyDeviceVisibility();
-        ExportToHarmonyDeviceOption.IsCheckedChanged += (_, _) => updateHarmonyDeviceVisibility();
-        AndroidOption.IsCheckedChanged += (_, _) => updateAndroidSigningVisibility();
+        PlatformList.SelectionChanged += (_, _) =>
+        {
+            updatePlatformOptions();
+            OptionsScroll.Offset = default;
+        };
+        MacOSSigningOption.IsCheckedChanged += (_, _) => updatePlatformOptions();
+        IosSigningOption.IsCheckedChanged += (_, _) => updatePlatformOptions();
+        HarmonySigningOption.IsCheckedChanged += (_, _) => updatePlatformOptions();
+        AndroidSigningOption.IsCheckedChanged += (_, _) => updatePlatformOptions();
+        HarmonyMobileOption.IsCheckedChanged += (_, _) => updatePlatformOptions();
+        HarmonyTwoInOneOption.IsCheckedChanged += (_, _) => updatePlatformOptions();
+        ExportToHarmonyDeviceOption.IsCheckedChanged += (_, _) => updatePlatformOptions();
         EncryptGameDataOption.Click += (_, _) => toggleEncryptionOptions();
         LuacOption.IsCheckedChanged += (_, _) => updateEncryptionOptionsState();
         EncryptShadersOption.IsCheckedChanged += (_, _) => updateEncryptionOptionsState();
         EncryptDataOption.IsCheckedChanged += (_, _) => updateEncryptionOptionsState();
         EncryptSavesOption.IsCheckedChanged += (_, _) => updateEncryptionOptionsState();
         updateEncryptionOptionsState();
-        Win32Option.IsVisible = OperatingSystem.IsWindows();
-        MacOSPanel.IsVisible = OperatingSystem.IsMacOS();
-        bool sourceProjectOnMacOS = OperatingSystem.IsMacOS() && !isStandalone;
-        IosPanel.IsVisible = sourceProjectOnMacOS;
-        HarmonyPanel.IsVisible = sourceProjectOnMacOS
-            && hasDevEcoStudio();
-        AndroidPanel.IsVisible = sourceProjectOnMacOS
-            && hasAndroidStudio();
         if (OperatingSystem.IsWindows())
-            Win32Option.IsChecked = true;
-        else if (OperatingSystem.IsMacOS())
-            MacOSOption.IsChecked = true;
-        else
-            ConfirmButton.IsEnabled = false;
-        Opened += (_, _) =>
+            addPlatform(ProjectPackPlatform.Win32, "PACK_PLATFORM_WIN32");
+        if (OperatingSystem.IsMacOS())
         {
+            addPlatform(ProjectPackPlatform.MacOS, "PACK_PLATFORM_MACOS");
+            if (!isStandalone)
+            {
+                addPlatform(ProjectPackPlatform.IOS, "PACK_PLATFORM_IOS");
+                if (hasDevEcoStudio())
+                    addPlatform(ProjectPackPlatform.HarmonyOS, "PACK_PLATFORM_HARMONYOS");
+                if (hasAndroidStudio())
+                    addPlatform(ProjectPackPlatform.Android, "PACK_PLATFORM_ANDROID");
+            }
+        }
+        PlatformList.SelectedIndex = PlatformList.ItemCount > 0 ? 0 : -1;
+        updatePlatformOptions();
+        Opened += async (_, _) =>
+        {
+            opened = true;
             Screen? screen = Screens.ScreenFromWindow(this) ?? Screens.Primary;
             if (screen is not null)
-                MaxHeight = Math.Max(400, screen.WorkingArea.Height / screen.Scaling - 80);
-            if (OperatingSystem.IsWindows())
-                Win32Option.Focus();
-            else if (OperatingSystem.IsMacOS())
-                MacOSOption.Focus();
+            {
+                MaxWidth = Math.Max(1, screen.WorkingArea.Width / screen.Scaling - 40);
+                MaxHeight = Math.Max(1, screen.WorkingArea.Height / screen.Scaling - 80);
+                MinWidth = Math.Min(MinWidth, MaxWidth);
+                MinHeight = Math.Min(MinHeight, MaxHeight);
+                Width = Math.Min(Width, MaxWidth);
+                Height = Math.Min(Height, MaxHeight);
+            }
+            if (PlatformList.SelectedItem is ListBoxItem selectedItem)
+                selectedItem.Focus();
+            else
+                PlatformList.Focus();
+            await Task.WhenAll(validateVersionAsync(true), validateAppNameAsync());
         };
+    }
+
+    private ProjectPackPlatform? selectedPlatform =>
+        PlatformList.SelectedItem is ListBoxItem { Tag: ProjectPackPlatform platform } ? platform : null;
+
+    private void addPlatform(ProjectPackPlatform platform, string localeKey)
+    {
+        PlatformList.Items.Add(new ListBoxItem
+        {
+            Content = LocaleService.Get(localeKey),
+            Tag = platform,
+        });
     }
 
     private static bool hasAndroidStudio()
@@ -158,11 +214,15 @@ public partial class PackSelectionDialog : Window
 
     private async Task<bool> validateVersionAsync(bool immediate = false)
     {
+        if (closed)
+            return false;
         int generation = ++validationGeneration;
         validationCancellation?.Cancel();
         using CancellationTokenSource cancellation = new();
         validationCancellation = cancellation;
+        versionValid = false;
         VersionErrorText.IsVisible = false;
+        updateConfirmState();
         try
         {
             if (!immediate)
@@ -185,6 +245,7 @@ public partial class PackSelectionDialog : Window
                 showVersionError(LocaleService.Get("PACK_VERSION_RESPONSE_INVALID"));
                 return false;
             }
+            versionValid = true;
             return true;
         }
         catch (OperationCanceledException)
@@ -201,7 +262,61 @@ public partial class PackSelectionDialog : Window
         {
             if (ReferenceEquals(validationCancellation, cancellation))
                 validationCancellation = null;
+            if (!closed && generation == validationGeneration)
+                updateConfirmState();
         }
+    }
+
+    private async Task<bool> validateAppNameAsync()
+    {
+        if (closed)
+            return false;
+        int generation = ++appNameGeneration;
+        appNameCancellation?.Cancel();
+        using CancellationTokenSource cancellation = new();
+        appNameCancellation = cancellation;
+        appNameValid = false;
+        updateConfirmState();
+        try
+        {
+            ProjectPackageMetadataResult result = string.IsNullOrWhiteSpace(projectPath)
+                ? new(-1, string.Empty, LocaleService.Get("PACK_NO_PROJECT"))
+                : await ProjectPackageMetadataService.ReadAppNameAsync(projectPath, cancellation.Token);
+            if (closed || generation != appNameGeneration)
+                return false;
+            appNameValid = result.ExitCode == 0;
+            appNameError = appNameValid ? null
+                : result.ExitCode == ProjectToolConstants.AppNameUnchangedExitCode
+                    ? LocaleService.Get("PACK_APP_NAME_UNCHANGED")
+                    : result.Error.Length != 0 ? result.Error : result.Output;
+            return appNameValid;
+        }
+        catch (OperationCanceledException)
+        {
+            return false;
+        }
+        finally
+        {
+            if (ReferenceEquals(appNameCancellation, cancellation))
+                appNameCancellation = null;
+            if (!closed && generation == appNameGeneration)
+                updateConfirmState();
+        }
+    }
+
+    private void updateConfirmState()
+    {
+        bool signingValid = selectedPlatform switch
+        {
+            ProjectPackPlatform.MacOS => MacOSSigningOption.IsChecked != true || macOSSigning.CanConfirm,
+            ProjectPackPlatform.IOS => IosSigningOption.IsChecked != true || iosSigning.CanConfirm,
+            ProjectPackPlatform.HarmonyOS => HarmonySigningOption.IsChecked != true || harmonySigning.CanConfirm,
+            ProjectPackPlatform.Android => AndroidSigningOption.IsChecked != true || androidSigning.CanConfirm,
+            _ => true,
+        };
+        ConfirmButton.IsEnabled = !closed && !confirming && appNameValid && versionValid
+            && selectedPlatform is not null && signingValid;
+        ToolTip.SetTip(ConfirmButtonHint, appNameValid ? null : appNameError);
     }
 
     private void showVersionError(string message)
@@ -212,63 +327,51 @@ public partial class PackSelectionDialog : Window
 
     private async void onConfirm(object? sender, RoutedEventArgs args)
     {
+        if (!ConfirmButton.IsEnabled || selectedPlatform is not ProjectPackPlatform platform)
+            return;
+        confirming = true;
         OptionsPanel.IsEnabled = false;
-        ConfirmButton.IsEnabled = false;
+        updateConfirmState();
         try
         {
-            if (!await validateVersionAsync(true))
+            if (!await validateAppNameAsync() || !await validateVersionAsync(true) || closed)
                 return;
             LudorkServerSettings serverSettings = LudorkServerSettings.Disabled;
             if (!isStandalone && !ServerOptions.TryGetSettings(out serverSettings))
                 return;
-            ProjectPackPlatform? platform = Win32Option.IsChecked == true ? ProjectPackPlatform.Win32
-                : MacOSOption.IsChecked == true ? ProjectPackPlatform.MacOS
-                : IosOption.IsChecked == true ? ProjectPackPlatform.IOS
-                : HarmonyOption.IsChecked == true ? ProjectPackPlatform.HarmonyOS
-                : AndroidOption.IsChecked == true ? ProjectPackPlatform.Android
-                : null;
-            if (platform is null)
-                return;
-            AndroidSigningOptions? signing = null;
-            HarmonySigningOptions? harmonySigning = null;
-            if (platform == ProjectPackPlatform.HarmonyOS
-                && (HarmonySigningOption.IsChecked == true || ExportToHarmonyDeviceOption.IsChecked == true))
+            CancellationToken token = lifetimeCancellation.Token;
+            AndroidSigningOptions? androidOptions = null;
+            HarmonySigningOptions? harmonyOptions = null;
+            MacOSSigningOptions? macOSOptions = null;
+            IOSSigningOptions? iosOptions = null;
+            if (platform == ProjectPackPlatform.HarmonyOS && HarmonySigningOption.IsChecked == true)
             {
-                HarmonySigningDialog signingDialog = new(projectPath);
-                harmonySigning = await signingDialog.ShowDialog<HarmonySigningOptions?>(this);
-                if (harmonySigning is null || closed)
+                if (!await harmonySigning.TryPrepareAsync(token) || closed)
                     return;
+                harmonyOptions = harmonySigning.Options;
             }
             if (platform == ProjectPackPlatform.Android && AndroidSigningOption.IsChecked == true)
             {
-                AndroidSigningDialog signingDialog = new();
-                signing = await signingDialog.ShowDialog<AndroidSigningOptions?>(this);
-                if (signing is null || closed)
+                if (!await androidSigning.TryPrepareAsync(token) || closed)
                     return;
+                androidOptions = androidSigning.Options;
             }
-            MacOSSigningOptions? macOSSigning = null;
             if (platform == ProjectPackPlatform.MacOS && MacOSSigningOption.IsChecked == true)
             {
-                MacOSSigningDialog signingDialog = new();
-                MacOSSigningSelection? selection = await signingDialog.ShowDialog<MacOSSigningSelection?>(this);
-                if (selection is null || closed)
+                if (!await macOSSigning.TryPrepareAsync(token) || closed)
                     return;
-                macOSSigning = selection.Options;
+                macOSOptions = macOSSigning.Options;
             }
-            IOSSigningOptions? iosSigning = null;
             if (platform == ProjectPackPlatform.IOS && IosSigningOption.IsChecked == true)
             {
-                IOSSigningDialog signingDialog = new();
-                IOSSigningSelection? selection = await signingDialog.ShowDialog<IOSSigningSelection?>(this);
-                if (selection is null || closed)
+                if (!await iosSigning.TryPrepareAsync(token) || closed)
                     return;
-                iosSigning = selection.Options;
+                iosOptions = iosSigning.Options;
             }
-            HarmonyDeviceForm deviceForm = HarmonyTwoInOneOption.IsChecked == true
-                ? HarmonyDeviceForm.TwoInOne
-                : HarmonyDeviceForm.Mobile;
+            HarmonyDeviceForm deviceForm = platform == ProjectPackPlatform.HarmonyOS
+                && HarmonyTwoInOneOption.IsChecked == true ? HarmonyDeviceForm.TwoInOne : HarmonyDeviceForm.Mobile;
             ProjectPackOptions options = new(
-                platform.Value,
+                platform,
                 LuacOption.IsChecked == true,
                 EncryptShadersOption.IsChecked == true,
                 EncryptDataOption.IsChecked == true,
@@ -277,19 +380,23 @@ public partial class PackSelectionDialog : Window
             {
                 Version = VersionBox.Text ?? string.Empty,
                 Dev = !isStandalone && DevOption.IsChecked == true,
-                ExportToIPhone = ExportToIPhoneOption.IsChecked == true,
-                ExportToHarmonyDevice = ExportToHarmonyDeviceOption.IsChecked == true,
+                ExportToIPhone = platform == ProjectPackPlatform.IOS && ExportToIPhoneOption.IsChecked == true,
+                ExportToHarmonyDevice = platform == ProjectPackPlatform.HarmonyOS
+                    && ExportToHarmonyDeviceOption.IsChecked == true,
                 HarmonyDeviceForm = deviceForm,
                 HarmonyGraphicsApi = deviceForm == HarmonyDeviceForm.Mobile || HarmonyOpenGLESOption.IsChecked == true
                     ? HarmonyGraphicsApi.OpenGLES : HarmonyGraphicsApi.OpenGL,
-                AndroidSigning = signing,
-                HarmonySigning = harmonySigning,
-                MacOSSigning = macOSSigning,
-                IOSSigning = iosSigning,
+                AndroidSigning = androidOptions,
+                HarmonySigning = harmonyOptions,
+                MacOSSigning = macOSOptions,
+                IOSSigning = iosOptions,
                 Server = serverSettings,
             };
             projectConfig?.SetPackaging(options.Version, options.Dev);
             Close(options);
+        }
+        catch (OperationCanceledException) when (closed)
+        {
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
@@ -299,8 +406,9 @@ public partial class PackSelectionDialog : Window
         {
             if (!closed)
             {
+                confirming = false;
                 OptionsPanel.IsEnabled = true;
-                ConfirmButton.IsEnabled = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS();
+                updateConfirmState();
             }
         }
     }
@@ -348,44 +456,25 @@ public partial class PackSelectionDialog : Window
         EncryptGameDataOption.IsChecked = encryptionOptionsState;
     }
 
-    private void updateAndroidSigningVisibility()
+    private void updatePlatformOptions()
     {
-        AndroidSigningOption.IsVisible = AndroidOption.IsVisible
-            && AndroidOption.IsChecked == true;
-    }
-
-    private void updateHarmonyDeviceVisibility()
-    {
-        HarmonyDevicePanel.IsVisible = HarmonyOption.IsVisible
-            && HarmonyOption.IsChecked == true;
-        HarmonyGraphicsApiPanel.IsVisible = HarmonyDevicePanel.IsVisible
-            && HarmonyTwoInOneOption.IsChecked == true;
-        ExportToHarmonyDeviceOption.IsVisible = HarmonyDevicePanel.IsVisible;
+        ProjectPackPlatform? platform = selectedPlatform;
+        PlatformTitle.Text = (PlatformList.SelectedItem as ListBoxItem)?.Content as string;
+        MacOSPanel.IsVisible = platform == ProjectPackPlatform.MacOS;
+        IosPanel.IsVisible = platform == ProjectPackPlatform.IOS;
+        HarmonyPanel.IsVisible = platform == ProjectPackPlatform.HarmonyOS;
+        AndroidPanel.IsVisible = platform == ProjectPackPlatform.Android;
+        HarmonyGraphicsApiPanel.IsVisible = HarmonyTwoInOneOption.IsChecked == true;
         if (ExportToHarmonyDeviceOption.IsChecked == true)
             HarmonySigningOption.IsChecked = true;
         HarmonySigningOption.IsEnabled = ExportToHarmonyDeviceOption.IsChecked != true;
-    }
-
-    private void updateIosDetailsVisibility()
-    {
-        bool isIosSelected = IosOption.IsVisible
-            && IosOption.IsChecked == true;
-        IosStatusText.IsVisible = isIosSelected;
-        ExportToIPhoneOption.IsVisible = isIosSelected;
-    }
-
-    private void updatePlatformOptionVisibility()
-    {
-        updateIosDetailsVisibility();
-        updateSigningOptionVisibility();
-    }
-
-    private void updateSigningOptionVisibility()
-    {
-        MacOSSigningOption.IsVisible = MacOSOption.IsVisible
-            && MacOSOption.IsChecked == true;
-        IosSigningOption.IsVisible = IosOption.IsVisible
-            && IosOption.IsChecked == true;
+        MacOSSigningHost.IsVisible = MacOSPanel.IsVisible && MacOSSigningOption.IsChecked == true;
+        IOSSigningHost.IsVisible = IosPanel.IsVisible && IosSigningOption.IsChecked == true;
+        HarmonySigningHost.IsVisible = HarmonyPanel.IsVisible && HarmonySigningOption.IsChecked == true;
+        AndroidSigningHost.IsVisible = AndroidPanel.IsVisible && AndroidSigningOption.IsChecked == true;
+        SigningSeparator.IsVisible = MacOSSigningHost.IsVisible || IOSSigningHost.IsVisible
+            || HarmonySigningHost.IsVisible || AndroidSigningHost.IsVisible;
+        updateConfirmState();
     }
 
     private void onCancel(object? sender, RoutedEventArgs args)
