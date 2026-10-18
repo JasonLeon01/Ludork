@@ -49,7 +49,15 @@ set_target_properties(LudorkEditorLauncher PROPERTIES
 if(MSVC)
     set_property(TARGET LudorkEditorLauncher PROPERTY
         MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    target_compile_options(LudorkEditorLauncher PRIVATE
+        "$<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:CXX>>:/experimental:deterministic>"
+        "$<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:CXX>>:/pathmap:${LUDORK_REPOSITORY_ROOT}=.>"
+        "$<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:CXX>>:/pathmap:${CMAKE_BINARY_DIR}=.>")
+    target_link_options(LudorkEditorLauncher PRIVATE
+        "$<$<CONFIG:Release>:/Brepro>"
+        "$<$<CONFIG:Release>:/INCREMENTAL:NO>")
 elseif(MINGW)
     target_link_options(LudorkEditorLauncher PRIVATE
-        -municode -static -static-libgcc -static-libstdc++)
+        -municode -static -static-libgcc -static-libstdc++
+        "$<$<CONFIG:Release>:-Wl,--no-insert-timestamp>")
 endif()

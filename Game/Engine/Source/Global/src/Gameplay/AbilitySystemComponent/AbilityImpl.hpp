@@ -1,6 +1,6 @@
 #pragma once
 #include "AbilitySystemImpl.hpp"
-#include <Gameplay/GameplayEventData.hpp>
+#include <string>
 
 namespace ludork::global::ability_system_impl {
 
@@ -23,5 +23,5 @@ std::vector<std::shared_ptr<GameplayAbilitySpec>> abilityCandidates(
     const AbilitySystemImpl& state, const std::string& abilityID);
 
 std::vector<std::shared_ptr<GameplayAbilitySpec>> eventCandidates(
-    const AbilitySystemImpl& state, const GameplayEventData& eventData);
+    const AbilitySystemImpl& state, const std::string& eventTag);
 }  // namespace ludork::global::ability_system_impl

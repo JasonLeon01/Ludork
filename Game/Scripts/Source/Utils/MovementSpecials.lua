@@ -61,12 +61,47 @@ local function queryEnemy(enemy, player, playerPosition, previewContext)
     return enemy:getAbilitySystemComponent():handleGameplayEvent(eventData)
 end
 
+---@param enemy  Source.MapActors.Enemy
+---@param player Source.MapActors.Player.Player
+---@return integer
+local function queryEnemyRadius(enemy, player)
+    local abilitySystem = enemy:getAbilitySystemComponent()
+    local queryAbilities = abilitySystem:getGameplayEventAbilities(GameplayConstants.MOVEMENT_QUERY_HAZARD_EVENT)
+    local boundsAbilities = abilitySystem:getGameplayEventAbilities(
+        GameplayConstants.MOVEMENT_QUERY_HAZARD_BOUNDS_EVENT
+    )
+    assert(bool(queryAbilities), "Movement hazard enemy must have a hazard query ability")
+    for _, spec in ipairs(queryAbilities) do
+        assert(table.contains(boundsAbilities, spec), "Every movement hazard ability must declare its query bounds")
+    end
+    local eventData = GameplayEventData.new(enemy, player, GameplayConstants.MOVEMENT_QUERY_HAZARD_BOUNDS_EVENT)
+    ---@type integer | nil
+    local radius
+    for _, result in ipairs(abilitySystem:handleGameplayEvent(eventData)) do
+        assert(
+            result.ok and result.code == "MovementHazardBounds",
+            "Movement hazard bounds query must return MovementHazardBounds"
+        )
+        local resultRadius = result.data.radius
+        assert(
+            Class.isInstance(resultRadius, "number") and math.type(resultRadius) == "integer" and resultRadius >= 0,
+            "Movement hazard bounds radius must be a non-negative integer"
+        )
+        ---@cast resultRadius integer
+        radius = math.max(radius or 0, resultRadius)
+    end
+    assert(radius, "Movement hazard enemy must declare its query bounds")
+    return radius
+end
+
 function MovementSpecials.CreatePreviewContext(enemies, player)
     local damageByEnemy = {}
+    local radiusByEnemy = {}
     for _, enemy in ipairs(enemies) do
+        radiusByEnemy[enemy] = queryEnemyRadius(enemy, player)
         damageByEnemy[enemy] = MotaBattleAbility.CalculateDamagePerRound(enemy, player)
     end
-    return { player = player, damageByEnemy = damageByEnemy }
+    return { player = player, damageByEnemy = damageByEnemy, radiusByEnemy = radiusByEnemy }
 end
 
 ---@param enemies        Source.MapActors.Enemy[]

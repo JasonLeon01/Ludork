@@ -88,13 +88,13 @@ std::vector<std::shared_ptr<GameplayAbilitySpec>> abilityCandidates(
 }
 
 std::vector<std::shared_ptr<GameplayAbilitySpec>> eventCandidates(
-    const AbilitySystemImpl& state, const GameplayEventData& eventData) {
+    const AbilitySystemImpl& state, const std::string& eventTag) {
     std::vector<std::shared_ptr<GameplayAbilitySpec>> matches;
     for (const std::shared_ptr<GameplayAbilitySpec>& spec : state.abilities) {
         if (std::any_of(spec->ability->triggerTags.begin(),
                         spec->ability->triggerTags.end(),
                         [&](const std::string& tag) {
-                            return tagMatches(eventData.eventTag, tag);
+                            return tagMatches(eventTag, tag);
                         })) {
             matches.push_back(spec);
         }

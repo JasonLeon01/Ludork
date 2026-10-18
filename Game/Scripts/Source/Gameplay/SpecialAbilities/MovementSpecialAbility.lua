@@ -13,16 +13,25 @@ local MovementSpecialAbility = {}
 function MovementSpecialAbility:init(specialID, magnitude)
     GameplayAbility.init(self, {})
     self.id = GameplayConstants.SPECIAL_PREFIX .. specialID
-    self.triggerTags = { GameplayConstants.MOVEMENT_QUERY_HAZARD_EVENT }
+    self.triggerTags = {
+        GameplayConstants.MOVEMENT_QUERY_HAZARD_EVENT, GameplayConstants.MOVEMENT_QUERY_HAZARD_BOUNDS_EVENT
+    }
     self._specialID = specialID
     self._magnitude = magnitude
 end
 
 function MovementSpecialAbility:activate(_abilitySystem, eventData)
-    local active = false
+    local radius = 1
     if self._specialID == Special.Domain then
         assert(math.type(self._magnitude) == "integer", "Domain special magnitude must be an integer")
-        active = eventData.payload.distance <= math.max(1, self._magnitude)
+        radius = math.max(1, self._magnitude)
+    end
+    if eventData.eventTag == GameplayConstants.MOVEMENT_QUERY_HAZARD_BOUNDS_EVENT then
+        return assert(GameplayAbilityResult.Success("MovementHazardBounds", { radius = radius }))
+    end
+    local active = false
+    if self._specialID == Special.Domain then
+        active = eventData.payload.distance <= radius
     elseif self._specialID == Special.Blockade then
         active = eventData.payload.distance == 1
     elseif self._specialID == Special.Flank then

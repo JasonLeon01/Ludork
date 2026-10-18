@@ -13,6 +13,8 @@ function MovementSpecialAbility:init(specialID, magnitude) end
 ---@param abilitySystem GlobalCore.AbilitySystemComponent
 ---@param eventData     GlobalCore.GameplayEventData
 ---@return GlobalCore.GameplayAbilityResult
+--- QueryHazardBounds returns MovementHazardBounds with a conservative non-negative
+--- integer radius around the enemy anchor. QueryHazard resolves the exact cell.
 function MovementSpecialAbility:activate(abilitySystem, eventData) end
 
 return MovementSpecialAbility

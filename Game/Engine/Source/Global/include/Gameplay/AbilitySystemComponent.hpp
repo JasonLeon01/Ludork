@@ -76,6 +76,15 @@ public:
         const std::string& abilityID,
         std::shared_ptr<GameplayEventData> eventData = {});
 
+    /// \brief Return granted abilities subscribed to an event tag
+    ///
+    /// Uses the same hierarchical tag matching and priority/grant ordering as
+    /// handleGameplayEvent, without invoking canActivate or activate. The
+    /// returned list contains the existing granted specs.
+    BIND_METHOD(Pure = true)
+    std::vector<std::shared_ptr<GameplayAbilitySpec>> getGameplayEventAbilities(
+        const std::string& eventTag) const;
+
     BIND_METHOD()
     std::vector<std::shared_ptr<GameplayAbilityResult>> handleGameplayEvent(
         const std::shared_ptr<GameplayEventData>& eventData);

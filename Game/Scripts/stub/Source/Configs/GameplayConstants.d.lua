@@ -5,6 +5,7 @@
 ---@field BATTLE_RULES_EVENT                   string
 ---@field MOVEMENT_STEP_EVENT                  string
 ---@field MOVEMENT_QUERY_HAZARD_EVENT          string
+---@field MOVEMENT_QUERY_HAZARD_BOUNDS_EVENT   string
 ---@field COMBAT_RESOLVE_ATTACK_EVENT          string
 ---@field COMBAT_RESOLVE_DEFENSE_EVENT         string
 ---@field COMBAT_RESOLVE_HIT_COUNT_EVENT       string

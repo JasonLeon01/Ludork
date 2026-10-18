@@ -153,18 +153,24 @@ AbilitySystemComponent::tryActivateAbility(
             {{"abilityID", RuntimeValue(abilityID)}}));
 }
 
+std::vector<std::shared_ptr<GameplayAbilitySpec>>
+AbilitySystemComponent::getGameplayEventAbilities(
+    const std::string& eventTag) const {
+    if (eventTag.empty()) {
+        throw std::invalid_argument("Gameplay Event Tag must not be empty");
+    }
+    return ludork::global::ability_system_impl::eventCandidates(impl_->state,
+                                                                eventTag);
+}
+
 std::vector<std::shared_ptr<GameplayAbilityResult>>
 AbilitySystemComponent::handleGameplayEvent(
     const std::shared_ptr<GameplayEventData>& eventData) {
     if (eventData == nullptr) {
         throw std::invalid_argument("Gameplay Event must be GameplayEventData");
     }
-    if (eventData->eventTag.empty()) {
-        throw std::invalid_argument("Gameplay Event Tag must not be empty");
-    }
     const std::vector<std::shared_ptr<GameplayAbilitySpec>> matches =
-        ludork::global::ability_system_impl::eventCandidates(impl_->state,
-                                                             *eventData);
+        getGameplayEventAbilities(eventData->eventTag);
     const std::shared_ptr<AbilitySystemComponent> self = impl_->self();
     std::vector<std::shared_ptr<GameplayAbilityResult>> results;
     results.reserve(matches.size());
