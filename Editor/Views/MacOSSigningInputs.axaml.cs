@@ -23,6 +23,19 @@ public partial class MacOSSigningInputs : UserControl
     private StoredAppleSigning<MacOSStoredSigning>? loadedSigning;
     private bool credentialOperationPending;
     private int certificateSelectionGeneration;
+    private bool supportsNotarization = true;
+
+    public bool SupportsNotarization
+    {
+        get => supportsNotarization;
+        set
+        {
+            if (supportsNotarization == value)
+                return;
+            supportsNotarization = value;
+            updateNotarizationVisibility();
+        }
+    }
 
     public bool CanConfirm { get; private set; }
 
@@ -33,7 +46,6 @@ public partial class MacOSSigningInputs : UserControl
     public MacOSSigningInputs()
     {
         InitializeComponent();
-        DescriptionText.Text = LocaleService.Get("PACK_MACOS_SIGNING_DESCRIPTION");
         EnvironmentSigningOption.Content = LocaleService.Get("PACK_SIGNING_USE_ENVIRONMENT");
         SigningIdentityLabel.Text = LocaleService.Get("PACK_SIGNING_IDENTITY");
         CertificateLabel.Text = LocaleService.Get("PACK_SIGNING_CERTIFICATE");
@@ -147,7 +159,10 @@ public partial class MacOSSigningInputs : UserControl
 
     private void updateNotarizationVisibility()
     {
-        bool notarize = EnvironmentSigningOption.IsChecked != true
+        DescriptionText.Text = LocaleService.Get(SupportsNotarization
+            ? "PACK_MACOS_SIGNING_DESCRIPTION" : "PACK_MACOS_STANDALONE_SIGNING_DESCRIPTION");
+        NotarizeOption.IsVisible = SupportsNotarization;
+        bool notarize = SupportsNotarization && EnvironmentSigningOption.IsChecked != true
             && NotarizeOption.IsChecked == true;
         NotarizationPanel.IsVisible = notarize;
         bool apiKey = ApiKeyOption.IsChecked == true;
@@ -196,7 +211,7 @@ public partial class MacOSSigningInputs : UserControl
                 return LocaleService.Get("PACK_SIGNING_PASSWORD_LINE_BREAK");
         }
 
-        if (NotarizeOption.IsChecked != true)
+        if (!SupportsNotarization || NotarizeOption.IsChecked != true)
             return null;
         if (identity.Length == 0 && certificatePath.Length == 0)
             return LocaleService.Get("PACK_MACOS_SIGNING_IDENTITY_REQUIRED");
@@ -239,7 +254,7 @@ public partial class MacOSSigningInputs : UserControl
         }
 
         MacOSNotarizationOptions? notarization = null;
-        if (NotarizeOption.IsChecked == true)
+        if (SupportsNotarization && NotarizeOption.IsChecked == true)
         {
             bool apiKey = ApiKeyOption.IsChecked == true;
             notarization = new MacOSNotarizationOptions(
@@ -266,7 +281,11 @@ public partial class MacOSSigningInputs : UserControl
             notarization?.KeyPath ?? string.Empty,
             notarization?.KeyId ?? string.Empty,
             notarization?.KeyIssuer ?? string.Empty);
-        string notaryPassword = notarization?.AppSpecificPassword ?? string.Empty;
+        if (!SupportsNotarization && loadedSigning is not null)
+            stored = loadedSigning.Record with { SigningIdentity = options.SigningIdentity };
+        string notaryPassword = !SupportsNotarization && loadedSigning is not null
+            ? loadedSigning.NotaryPassword
+            : notarization?.AppSpecificPassword ?? string.Empty;
         bool updateStoredSigning = loadedSigning is not null
             && (stored != loadedSigning.Record
                 || options.CertificatePassword != loadedSigning.CertificatePassword

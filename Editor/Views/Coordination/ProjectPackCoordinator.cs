@@ -51,7 +51,7 @@ internal sealed class ProjectPackCoordinator(Window owner, EditorProjectSession 
         packSelectionDialog = null;
         if (options is null)
             return;
-        string? scriptName = ProjectPackService.GetScriptName(options.Platform);
+        string? scriptName = ProjectPackService.GetScriptName(options.Platform, options.Kind);
         if (scriptName is null || EditorRuntimePaths.FindFile("tools", scriptName) is null)
         {
             await AlertDialog.ShowAsync(owner, LocaleService.Get("PACK_TITLE"), LocaleService.Get("PACK_SCRIPT_MISSING"));

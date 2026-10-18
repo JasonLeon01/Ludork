@@ -29,6 +29,7 @@ from ScriptTools import project_runtime_mode
 from ScriptTools import runtime_constants
 from ScriptTools import runtime_bundle
 from ScriptTools import server_config
+from ScriptTools import standalone_pack
 from ScriptTools import template_archive
 from ScriptTools import prune_editor_macos_publish
 from ScriptTools import prune_editor_windows_publish
@@ -63,6 +64,7 @@ COMMANDS: dict[str, Command] = {
     "runtime-bundle": runtime_bundle.main,
     "runtime-constants": runtime_constants.main,
     "server-config": server_config.main,
+    "standalone-pack": standalone_pack.main,
     "template-archive": template_archive.main,
     "macos-bundle": macos_bundle.main,
     "macos-sign": macos_sign.main,

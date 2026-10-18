@@ -22,6 +22,7 @@ from .apple_signing import (
     select_identity,
     sign_artifact,
     sign_nested_artifacts,
+    sign_standalone_project,
     store_notary_credentials,
     verify_signature,
 )
@@ -45,6 +46,7 @@ class SigningSession:
     check_only: bool
     environment: dict[str, str]
     templates_only: bool = False
+    standalone: bool = False
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -55,7 +57,7 @@ def create_parser() -> argparse.ArgumentParser:
             "[--entitlements PATH.plist] [--notarize] [--notary-apple-id EMAIL] "
             "[--notary-team-id TEAMID] [--notary-key PATH.p8] [--notary-key-id ID] "
             "[--notary-key-issuer UUID] [--runtime-bundle PATH] "
-            "[--preview-template PATH] [--templates] [--check] <target>"
+            "[--preview-template PATH] [--templates | --standalone] [--check] <target>"
         ),
     )
     parser.add_argument("target", type=pathlib.Path)
@@ -65,6 +67,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument("--runtime-bundle", type=pathlib.Path, action="append", default=[])
     parser.add_argument("--preview-template", type=pathlib.Path, action="append", default=[])
     parser.add_argument("--templates", action="store_true")
+    parser.add_argument("--standalone", action="store_true")
     parser.add_argument("--notarize", action="store_true")
     parser.add_argument("--notary-apple-id")
     parser.add_argument("--notary-team-id")
@@ -90,6 +93,15 @@ def create_session(parsed: argparse.Namespace) -> SigningSession:
     target = parsed.target.expanduser().resolve()
     if not parsed.check and not target.exists():
         raise PackError(f"The signing target was not found: {target}", EXIT_SIGNING)
+    if parsed.standalone:
+        if any((parsed.notarize, parsed.notary_apple_id is not None,
+                parsed.notary_team_id is not None, parsed.notary_key is not None,
+                parsed.notary_key_id is not None, parsed.notary_key_issuer is not None)):
+            raise PackError("Standalone project signing cannot use notarisation options.", EXIT_SIGNING)
+        if parsed.templates or parsed.runtime_bundle or parsed.preview_template:
+            raise PackError("Standalone project signing cannot use application or template options.", EXIT_SIGNING)
+        if not parsed.check and not (target / "Main.proj").is_file():
+            raise PackError(f"The Standalone project was not found: {target}", EXIT_SIGNING)
     if parsed.templates:
         if parsed.notarize or parsed.runtime_bundle or parsed.preview_template or parsed.check:
             raise PackError("Template signing cannot use application-only options or notarisation.", EXIT_SIGNING)
@@ -152,6 +164,7 @@ def create_session(parsed: argparse.Namespace) -> SigningSession:
         parsed.check,
         os.environ.copy(),
         parsed.templates,
+        parsed.standalone,
     )
 
 
@@ -172,12 +185,15 @@ def _describe(session: SigningSession, identity: str) -> None:
 
 
 def perform(session: SigningSession, keychain: TemporaryKeychain | None) -> None:
+    preview_templates = (
+        (session.target,) if session.standalone and not session.check_only else session.preview_templates
+    )
     if session.preview_templates and (session.check_only or (
-            session.target.suffix != ".app" and not session.templates_only)):
+            session.target.suffix != ".app" and not session.templates_only and not session.standalone)):
         raise PackError("UI preview templates require an application signing target.", EXIT_SIGNING)
     snapshots = []
     seen_templates: set[pathlib.Path] = set()
-    for template in session.preview_templates:
+    for template in preview_templates:
         if template.is_symlink() or not template.resolve().is_relative_to(session.target):
             raise PackError(
                 f"UI preview template must be inside the signing target: {template}",
@@ -229,7 +245,16 @@ def perform(session: SigningSession, keychain: TemporaryKeychain | None) -> None
             print("Signing material is ready.", flush=True)
         return
     signing_keychain = keychain.path if keychain is not None and session.certificate is not None else None
-    if session.templates_only:
+    if session.standalone:
+        sign_standalone_project(
+            session.target,
+            identity=identity,
+            environment=session.environment,
+            entitlements=session.entitlements,
+            after_nested_sign=reseal_templates,
+            keychain=signing_keychain,
+        )
+    elif session.templates_only:
         targets = sign_nested_artifacts(
             session.target,
             identity=identity,
@@ -257,7 +282,7 @@ def perform(session: SigningSession, keychain: TemporaryKeychain | None) -> None
                 f"Signed UI preview Host is invalid: {template}: {exception}",
                 EXIT_SIGNING,
             ) from exception
-    if snapshots and not session.templates_only:
+    if snapshots and not session.templates_only and not session.standalone:
         verify_signature(session.target, session.environment)
     if session.credentials is not None:
         if keychain is None:
@@ -270,16 +295,21 @@ def perform(session: SigningSession, keychain: TemporaryKeychain | None) -> None
         )
 
 
+def execute(session: SigningSession) -> None:
+    require_macos("macOS signing")
+    if _keychain_required(session):
+        with TemporaryKeychain() as keychain:
+            perform(session, keychain)
+    else:
+        perform(session, None)
+
+
 def main(arguments: list[str] | None = None) -> int:
     parsed = create_parser().parse_args(arguments)
     try:
         require_macos("macOS signing")
         session = create_session(parsed)
-        if _keychain_required(session):
-            with TemporaryKeychain() as keychain:
-                perform(session, keychain)
-        else:
-            perform(session, None)
+        execute(session)
         return 0
     except PackError as exception:
         print(f"Error: {exception}", file=sys.stderr, flush=True)

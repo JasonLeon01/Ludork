@@ -48,7 +48,7 @@
                         <CheckBox x:Name="AndroidSigningOption" IsChecked="False" />
                     </StackPanel>
                     <Border Height="1" Background="{DynamicResource Editor.BorderBrush}" />
-                    <StackPanel Spacing="6">
+                    <StackPanel x:Name="ReleaseOptionsPanel" Spacing="6">
                         <TextBlock x:Name="VersionLabel" />
                         <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
                             <TextBox x:Name="VersionBox" />
@@ -62,7 +62,7 @@
                                    TextWrapping="Wrap" />
                     </StackPanel>
                     <utils:LudorkServerInputs x:Name="ServerOptions" IsVisible="False" />
-                    <StackPanel Spacing="4">
+                    <StackPanel x:Name="GameEncryptionPanel" Spacing="4">
                         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
                             <CheckBox x:Name="EncryptGameDataOption"
                                       IsThreeState="True"

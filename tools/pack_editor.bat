@@ -153,6 +153,7 @@ for %%F in (
     "%ROOT_DIR%\tools\build_preview_host.bat"
     "%ROOT_DIR%\tools\editor_runtime\build_cpp.bat"
     "%ROOT_DIR%\tools\build_standalone.bat"
+    "%ROOT_DIR%\tools\pack_standalone.bat"
     "%ROOT_DIR%\tools\pack_project.bat"
     "%ROOT_DIR%\tools\validate_editor_windows_layout.bat"
     "%ROOT_DIR%\tools\editor_launcher\CMakeLists.txt"
@@ -285,7 +286,7 @@ if errorlevel 1 goto failed
 mkdir "%STAGE_DIR%\tools" >nul 2>nul
 copy /Y "%ROOT_DIR%\tools\editor_runtime\build_cpp.bat" "%STAGE_DIR%\tools\build_cpp.bat" >nul
 if errorlevel 1 goto failed
-for %%F in (build_standalone.bat build_preview_host.bat pack_project.bat) do (
+for %%F in (build_standalone.bat build_preview_host.bat pack_project.bat pack_standalone.bat) do (
     copy /Y "%ROOT_DIR%\tools\%%F" "%STAGE_DIR%\tools\%%F" >nul
     if errorlevel 1 goto failed
 )
@@ -415,6 +416,8 @@ if "%WITHOUT_TEMPLATES%"=="1" (
 call :require_file "%PACKAGE_DIR%\tools\build_cpp.bat"
 if errorlevel 1 exit /b 1
 call :require_file "%PACKAGE_DIR%\tools\build_standalone.bat"
+if errorlevel 1 exit /b 1
+call :require_file "%PACKAGE_DIR%\tools\pack_standalone.bat"
 if errorlevel 1 exit /b 1
 call :require_file "%PACKAGE_DIR%\tools\pack_project.bat"
 if errorlevel 1 exit /b 1

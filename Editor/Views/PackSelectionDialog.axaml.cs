@@ -142,6 +142,9 @@ public partial class PackSelectionDialog : Window
                     addPlatform(ProjectPackPlatform.Android, "PACK_PLATFORM_ANDROID");
             }
         }
+        if (!isStandalone && (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()))
+            addPlatform(OperatingSystem.IsWindows() ? ProjectPackPlatform.Win32 : ProjectPackPlatform.MacOS,
+                "PACK_KIND_STANDALONE", ProjectPackKind.Standalone);
         PlatformList.SelectedIndex = PlatformList.ItemCount > 0 ? 0 : -1;
         updatePlatformOptions();
         Opened += async (_, _) =>
@@ -166,14 +169,21 @@ public partial class PackSelectionDialog : Window
     }
 
     private ProjectPackPlatform? selectedPlatform =>
-        PlatformList.SelectedItem is ListBoxItem { Tag: ProjectPackPlatform platform } ? platform : null;
+        PlatformList.SelectedItem is ListBoxItem { Tag: ValueTuple<ProjectPackPlatform, ProjectPackKind> target }
+            ? target.Item1 : null;
 
-    private void addPlatform(ProjectPackPlatform platform, string localeKey)
+    private ProjectPackKind selectedKind =>
+        PlatformList.SelectedItem is ListBoxItem { Tag: ValueTuple<ProjectPackPlatform, ProjectPackKind> target }
+            ? target.Item2 : ProjectPackKind.Game;
+
+    private bool convertsToStandalone => selectedKind == ProjectPackKind.Standalone;
+
+    private void addPlatform(ProjectPackPlatform platform, string localeKey, ProjectPackKind kind = ProjectPackKind.Game)
     {
         PlatformList.Items.Add(new ListBoxItem
         {
             Content = LocaleService.Get(localeKey),
-            Tag = platform,
+            Tag = (platform, kind),
         });
     }
 
@@ -314,9 +324,9 @@ public partial class PackSelectionDialog : Window
             ProjectPackPlatform.Android => AndroidSigningOption.IsChecked != true || androidSigning.CanConfirm,
             _ => true,
         };
-        ConfirmButton.IsEnabled = !closed && !confirming && appNameValid && versionValid
+        ConfirmButton.IsEnabled = !closed && !confirming && (convertsToStandalone || (appNameValid && versionValid))
             && selectedPlatform is not null && signingValid;
-        ToolTip.SetTip(ConfirmButtonHint, appNameValid ? null : appNameError);
+        ToolTip.SetTip(ConfirmButtonHint, convertsToStandalone || appNameValid ? null : appNameError);
     }
 
     private void showVersionError(string message)
@@ -334,7 +344,7 @@ public partial class PackSelectionDialog : Window
         updateConfirmState();
         try
         {
-            if (!await validateAppNameAsync() || !await validateVersionAsync(true) || closed)
+            if ((!convertsToStandalone && (!await validateAppNameAsync() || !await validateVersionAsync(true))) || closed)
                 return;
             LudorkServerSettings serverSettings = LudorkServerSettings.Disabled;
             if (!isStandalone && !ServerOptions.TryGetSettings(out serverSettings))
@@ -372,14 +382,15 @@ public partial class PackSelectionDialog : Window
                 && HarmonyTwoInOneOption.IsChecked == true ? HarmonyDeviceForm.TwoInOne : HarmonyDeviceForm.Mobile;
             ProjectPackOptions options = new(
                 platform,
-                LuacOption.IsChecked == true,
-                EncryptShadersOption.IsChecked == true,
-                EncryptDataOption.IsChecked == true,
-                EncryptSavesOption.IsChecked == true,
-                UseLdPakOption.IsChecked == true)
+                !convertsToStandalone && LuacOption.IsChecked == true,
+                !convertsToStandalone && EncryptShadersOption.IsChecked == true,
+                !convertsToStandalone && EncryptDataOption.IsChecked == true,
+                !convertsToStandalone && EncryptSavesOption.IsChecked == true,
+                !convertsToStandalone && UseLdPakOption.IsChecked == true)
             {
+                Kind = selectedKind,
                 Version = VersionBox.Text ?? string.Empty,
-                Dev = !isStandalone && DevOption.IsChecked == true,
+                Dev = !convertsToStandalone && !isStandalone && DevOption.IsChecked == true,
                 ExportToIPhone = platform == ProjectPackPlatform.IOS && ExportToIPhoneOption.IsChecked == true,
                 ExportToHarmonyDevice = platform == ProjectPackPlatform.HarmonyOS
                     && ExportToHarmonyDeviceOption.IsChecked == true,
@@ -392,7 +403,8 @@ public partial class PackSelectionDialog : Window
                 IOSSigning = iosOptions,
                 Server = serverSettings,
             };
-            projectConfig?.SetPackaging(options.Version, options.Dev);
+            if (!convertsToStandalone)
+                projectConfig?.SetPackaging(options.Version, options.Dev);
             Close(options);
         }
         catch (OperationCanceledException) when (closed)
@@ -459,6 +471,12 @@ public partial class PackSelectionDialog : Window
     private void updatePlatformOptions()
     {
         ProjectPackPlatform? platform = selectedPlatform;
+        ReleaseOptionsPanel.IsVisible = !convertsToStandalone;
+        GameEncryptionPanel.IsVisible = !convertsToStandalone;
+        UseLdPakOption.IsVisible = !convertsToStandalone;
+        macOSSigning.SupportsNotarization = !convertsToStandalone;
+        MacOSSigningOption.Content = LocaleService.Get(convertsToStandalone
+            ? "PACK_MACOS_SIGN_STANDALONE" : "PACK_MACOS_SIGN_APP");
         PlatformTitle.Text = (PlatformList.SelectedItem as ListBoxItem)?.Content as string;
         MacOSPanel.IsVisible = platform == ProjectPackPlatform.MacOS;
         IosPanel.IsVisible = platform == ProjectPackPlatform.IOS;

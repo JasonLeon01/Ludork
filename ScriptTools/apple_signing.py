@@ -545,6 +545,36 @@ def sign_artifact(
     print(f"Signed: {target} [{identity}]", flush=True)
 
 
+def sign_standalone_project(
+    target: pathlib.Path,
+    *,
+    identity: str,
+    environment: dict[str, str],
+    entitlements: pathlib.Path | None = None,
+    keychain: pathlib.Path | None = None,
+    after_nested_sign: Callable[[], None] | None = None,
+) -> None:
+    target = target.resolve()
+    executable = target / "Main"
+    if not (target / "Main.proj").is_file() or executable.is_symlink() or not is_mach_o(executable):
+        raise PackError(f"The Standalone project executable was not found: {executable}", EXIT_SIGNING)
+    targets = nested_sign_targets(target)
+    for nested in targets:
+        _codesign(
+            nested,
+            identity=identity,
+            environment=environment,
+            hardened_runtime=identity != AD_HOC_IDENTITY,
+            entitlements=entitlements if nested == executable else None,
+            keychain=keychain,
+        )
+    if after_nested_sign is not None:
+        after_nested_sign()
+    for nested in targets:
+        verify_signature(nested, environment)
+    print(f"Signed Standalone project: {target} [{identity}]", flush=True)
+
+
 @dataclass(frozen=True)
 class NotaryCredentials:
     apple_id: str = ""

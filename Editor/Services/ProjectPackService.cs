@@ -115,6 +115,7 @@ public sealed record ProjectPackOptions(
     bool EncryptSaves,
     bool UseLdPak)
 {
+    public ProjectPackKind Kind { get; init; } = ProjectPackKind.Game;
     public string Version { get; init; } = "1.0.0";
     public bool Dev { get; init; }
     public bool ExportToIPhone { get; init; }
@@ -160,8 +161,16 @@ public sealed class ProjectPackService
 
     public event EventHandler<string>? OutputReceived;
 
-    public static string? GetScriptName(ProjectPackPlatform platform)
+    public static string? GetScriptName(ProjectPackPlatform platform, ProjectPackKind kind = ProjectPackKind.Game)
     {
+        if (kind == ProjectPackKind.Standalone)
+        {
+            if (platform == ProjectPackPlatform.Win32 && OperatingSystem.IsWindows())
+                return "pack_standalone.bat";
+            if (platform == ProjectPackPlatform.MacOS && OperatingSystem.IsMacOS())
+                return "pack_standalone.sh";
+            return null;
+        }
         if (platform == ProjectPackPlatform.Win32 && OperatingSystem.IsWindows())
             return "pack_project.bat";
         if (platform == ProjectPackPlatform.MacOS && OperatingSystem.IsMacOS())
@@ -210,11 +219,15 @@ public sealed class ProjectPackService
         if (optionsFailure is not null)
             return optionsFailure;
 
-        ProjectPackResult? metadataFailure = await validatePackageMetadataAsync(options, cancellationToken);
-        if (metadataFailure is not null)
-            return metadataFailure;
+        bool standalone = options.Kind == ProjectPackKind.Standalone;
+        if (!standalone)
+        {
+            ProjectPackResult? metadataFailure = await validatePackageMetadataAsync(options, cancellationToken);
+            if (metadataFailure is not null)
+                return metadataFailure;
+        }
 
-        string? scriptName = GetScriptName(options.Platform);
+        string? scriptName = GetScriptName(options.Platform, options.Kind);
         if (scriptName is null)
             return ProjectPackResult.Failed(ProjectPackFailure.PlatformUnsupported, options.Platform.ToString());
 
@@ -235,7 +248,7 @@ public sealed class ProjectPackService
                 : options.HarmonyGraphicsApi
             : null;
         PackSigning signing = createSigning(options);
-        bool requiresPreflight = options.Platform == ProjectPackPlatform.IOS
+        bool requiresPreflight = standalone || options.Platform == ProjectPackPlatform.IOS
             || options.Platform == ProjectPackPlatform.HarmonyOS
             || options.Platform == ProjectPackPlatform.Android
             || (options.Platform == ProjectPackPlatform.MacOS && signing.MacOS is not null);
@@ -254,7 +267,7 @@ public sealed class ProjectPackService
             packaging,
             options,
             cancellationToken);
-        if (requiresPreflight)
+        if (requiresPreflight && !standalone)
         {
             ScriptExecutionResult preflight = await executeAsync(true);
             ProjectPackResult? preflightFailure = executionFailure(preflight, options.Platform);
@@ -262,29 +275,31 @@ public sealed class ProjectPackService
                 return preflightFailure;
         }
 
-        PluginResult preparation;
         try
         {
             ProjectExportResult exported = await exportProject(writeOutput, cancellationToken);
             if (!exported.Success)
                 return ProjectPackResult.Failed(exported.Cancelled ? ProjectPackFailure.Cancelled : ProjectPackFailure.ExportFailed, exported.Detail);
-            preparation = await operationPipeline.ExecuteAsync(
-                ProjectOperationKind.Pack,
-                writeOutput,
-                cancellationToken,
-                packaging);
+            if (!standalone)
+            {
+                PluginResult preparation = await operationPipeline.ExecuteAsync(
+                    ProjectOperationKind.Pack,
+                    writeOutput,
+                    cancellationToken,
+                    packaging);
+                if (!preparation.Success)
+                {
+                    return ProjectPackResult.Failed(
+                        ProjectPackFailure.PluginPreparationFailed,
+                        preparation.Error);
+                }
+            }
         }
         catch (OperationCanceledException)
         {
             return ProjectPackResult.Failed(
                 ProjectPackFailure.Cancelled,
                 string.Empty);
-        }
-        if (!preparation.Success)
-        {
-            return ProjectPackResult.Failed(
-                ProjectPackFailure.PluginPreparationFailed,
-                preparation.Error);
         }
         if (cancellationToken.IsCancellationRequested)
             return ProjectPackResult.Failed(ProjectPackFailure.Cancelled, string.Empty);
@@ -320,6 +335,17 @@ public sealed class ProjectPackService
         string? serverError = options.Server.GetValidationError();
         if (serverError is not null)
             return ProjectPackResult.Failed(ProjectPackFailure.ServerConfigurationInvalid, LocaleService.Get(serverError));
+        if (options.Kind == ProjectPackKind.Standalone)
+        {
+            if (isStandalone)
+                return ProjectPackResult.Failed(ProjectPackFailure.ProjectInvalid, projectFilePath);
+            if (GetScriptName(options.Platform, options.Kind) is null)
+                return ProjectPackResult.Failed(ProjectPackFailure.PlatformUnsupported, options.Platform.ToString());
+            if (options.UseLuac || options.EncryptShaders || options.EncryptData
+                || options.EncryptSaves || options.UseLdPak || options.Dev
+                || options.ExportToIPhone || options.ExportToHarmonyDevice)
+                return ProjectPackResult.Failed(ProjectPackFailure.ProjectInvalid, "Standalone conversion does not support game package options.");
+        }
         if (!isStandalone)
             return null;
         if (options.Server.Enabled)
@@ -390,7 +416,12 @@ public sealed class ProjectPackService
             return null;
         }
         if (options.Platform == ProjectPackPlatform.MacOS)
-            return validateMacOSSigning(options.MacOSSigning);
+        {
+            MacOSSigningOptions? signing = options.MacOSSigning;
+            if (options.Kind == ProjectPackKind.Standalone && signing is not null)
+                signing = signing with { Notarization = null };
+            return validateMacOSSigning(signing);
+        }
         if (options.Platform == ProjectPackPlatform.IOS)
             return validateIOSSigning(options.IOSSigning);
         return null;
@@ -477,7 +508,7 @@ public sealed class ProjectPackService
             macOS = macOSSigning with
             {
                 CertificatePath = normalizeOptionalPath(macOSSigning.CertificatePath),
-                Notarization = macOSSigning.Notarization is { } notarization
+                Notarization = options.Kind == ProjectPackKind.Game && macOSSigning.Notarization is { } notarization
                     ? notarization with
                     {
                         KeyPath = normalizeOptionalPath(notarization.KeyPath),
@@ -580,7 +611,7 @@ public sealed class ProjectPackService
         bool started = false;
         Task outputTask = Task.CompletedTask;
         Task errorTask = Task.CompletedTask;
-        string optionText = " --version " + options.Version
+        string optionText = options.Kind == ProjectPackKind.Standalone ? string.Empty : " --version " + options.Version
             + (options.Dev ? " --dev" : " --release")
             + (options.UseLuac ? " --compile-lua" : string.Empty)
             + (options.EncryptShaders ? " --encrypt-shaders" : string.Empty)
@@ -845,9 +876,12 @@ public sealed class ProjectPackService
             startInfo.ArgumentList.Add("call");
         }
         startInfo.ArgumentList.Add(Path.GetFullPath(scriptPath));
-        startInfo.ArgumentList.Add("--version");
-        startInfo.ArgumentList.Add(options.Version);
-        startInfo.ArgumentList.Add(options.Dev ? "--dev" : "--release");
+        if (options.Kind == ProjectPackKind.Game)
+        {
+            startInfo.ArgumentList.Add("--version");
+            startInfo.ArgumentList.Add(options.Version);
+            startInfo.ArgumentList.Add(options.Dev ? "--dev" : "--release");
+        }
         if (checkOnly)
             startInfo.ArgumentList.Add("--check");
         if (options.UseLuac)

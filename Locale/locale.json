@@ -1443,6 +1443,10 @@
     "zh_CN": "Windows (Win32)",
     "en_GB": "Windows (Win32)"
   },
+  "PACK_KIND_STANDALONE": {
+    "zh_CN": "Standalone 工程",
+    "en_GB": "Standalone project"
+  },
   "PACK_PLATFORM_MACOS": {
     "zh_CN": "macOS (Apple Silicon)",
     "en_GB": "macOS (Apple Silicon)"
@@ -1595,6 +1599,10 @@
     "zh_CN": "无法读取已保存的签名信息：{0}",
     "en_GB": "Could not read the saved signing information: {0}"
   },
+  "PACK_MACOS_SIGN_STANDALONE": {
+    "zh_CN": "配置签名（默认 ad-hoc 自签名）",
+    "en_GB": "Configure signing (ad-hoc by default)"
+  },
   "PACK_MACOS_SIGN_APP": {
     "zh_CN": "签名应用",
     "en_GB": "Sign Application"
@@ -1602,6 +1610,10 @@
   "PACK_MACOS_SIGNING_TITLE": {
     "zh_CN": "macOS 签名与公证",
     "en_GB": "macOS Signing and Notarisation"
+  },
+  "PACK_MACOS_STANDALONE_SIGNING_DESCRIPTION": {
+    "zh_CN": "勾选后使用本机环境变量中的签名；取消勾选可指定证书与签名身份。未设置签名身份时使用 ad-hoc 自签名。",
+    "en_GB": "Enable this to use signing from this machine's environment variables. Clear it to provide a certificate and signing identity. Without an identity, signing defaults to ad-hoc."
   },
   "PACK_MACOS_SIGNING_DESCRIPTION": {
     "zh_CN": "勾选后使用本机环境变量中的签名（未设置时按 ad-hoc 签名）；取消勾选可指定证书、签名身份与公证信息，字段留空时按默认方式处理。",

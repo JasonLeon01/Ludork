@@ -19,6 +19,7 @@ All scripts switch to the repository root before doing work. Use `.bat` on Windo
 | `create_templates_plain` | Recreate only the non-FFmpeg Cpp and Standalone templates |
 | `create_templates_ffmpeg` | Recreate only the FFmpeg-enabled Cpp and Standalone templates |
 | `pack_project` | Produce the platform distribution layout, with optional macOS signing and notarisation |
+| `pack_standalone` | Convert a C++ Source project into an editable desktop Standalone project, retaining exported resources and preview support |
 | `pack_ios.sh` | Build an iOS 16.3-or-newer IPA from a C++ Source project, with optional manual signing |
 | `pack_harmony.sh` | Build a HarmonyOS API 22 Mobile or 2in1 arm64-v8a HAP, with optional signing and device export |
 | `pack_android.sh` | Build an Android arm64-v8a Release APK from a C++ Source project, unsigned by default with optional signing |
@@ -399,6 +400,27 @@ Android delegates to `ScriptTools android-pack`. SDK lookup is `ANDROID_SDK_ROOT
 
 Android signing uses `--sign --keystore <absolute-path> --key-alias <alias>` and the same two-password stdin protocol. `--check` validates without publishing. Signed output is verified before publication, credentials are not persisted, and the command never installs or launches the APK. Reuse the same signing key for application updates.
 
+## Editable Standalone projects
+
+Use `pack_standalone` for an exported C++ Source project. It builds the current desktop platform in Release through `build_standalone`, then publishes an editable project with its launcher, runtime libraries and matching preview. It does not create a game distribution or regenerate Export outputs.
+
+```sh
+sh tools/pack_standalone.sh --check /path/to/SourceProject
+sh tools/pack_standalone.sh /path/to/SourceProject /path/to/StandaloneProject
+```
+
+On Windows, use `tools\pack_standalone.bat <source-project> [standalone-directory]`. The optional destination is the exact project directory; its default is `<source-project>/dist/<source-directory-name>-standalone`. `--check` validates source configuration, existing UI/material exports, output paths and applicable signing materials without building or publishing. Both entry points call `ScriptTools standalone-pack --tools-directory <tools-directory>`; installed editor packages include the same tools.
+
+The output retains editable Assets, Data and Scripts, existing UI/locale/material exports, Lua declarations, the locale workbook, UI design data, optional `MaterialExport.json`, licences and applicable third-party source material. It retains `.emmyrc.json` when present and filters optional VS Code settings to Lua settings, EmmyLua attach configurations and the EmmyLua extension. `Main.proj` retains its settings except `Cpp=false` and `packaging.dev=false`. Native source/build trees, animation caches, local saves/logs and Git are excluded. Only preview publication metadata is copied into `EditorCache`; no `ProjectExport.json` is copied or fabricated. Existing exported files can run directly, while editor Play may require a new Export.
+
+Editor **Pack Project → Standalone project** saves and fully exports first, then calls this tool without before-Pack hooks. Conversion does not accept version/channel, encryption, Lua compilation or `.ldpak` options, and does not rewrite the source project's packaging preferences. CLI callers must export beforehand; missing or outdated UI/material outputs fail validation. `build_standalone` remains the lower-level runtime assembler used by templates and game packaging.
+
+macOS always signs the native code. It accepts `--signing-identity`, `--certificate`, `--entitlements` and `--ignore-environment` with the same environment/profile precedence and certificate-password stdin protocol as game packaging. Without an identity it uses ad-hoc signatures. It does not create an `.app`, seal the project directory or allow notarisation options. Entitlements apply only to root `Main`; signatures and the refreshed preview build ID are verified before publication. `ScriptTools macos-sign --standalone <project-directory>` provides the same signing operation for an existing project.
+
+Server integration is disabled by default. Explicit `LUDORK_SERVER_ENABLED=1`, `LUDORK_SERVER_URL` and `LUDORK_SERVER_KEY` compile the Release connection into the runtime; generated server configuration is cleaned up after the build. Changing that connection later requires another Source conversion. No signing or server secrets are written into project configuration.
+
+Assembly and validation use a staging directory. Failed builds, signing or validation leave the previous successful output intact. Output paths cannot replace the source project or its ancestors, and outputs inside the source must be beneath `dist`. Output ancestors must not be symbolic links or junctions. Close running copies before replacing an existing output.
+
 ## macOS signing and notarisation
 
 `pack_project.sh` and `pack_editor.sh` use `ScriptTools macos-sign`. With no identity they apply ad-hoc signatures. With a real identity they sign nested code before sealing the bundle, with hardened runtime and secure timestamps. Entitlements apply to the main executable. `Contents/MacOS` non-Mach-O signatures use extended attributes that must survive distribution. Editor packaging verifies the complete app before/after DMG creation and on the mounted final image.
@@ -427,6 +449,7 @@ Packaging uses these additional signer options:
 | `--runtime-bundle <directory>` | Validate the original manifest, sign nested binaries, refresh hashes/sizes, then seal the app. Repeatable for resource bundles; not passed for a DMG. |
 | `--preview-template <directory>` | Validate a bundled Standalone preview, sign its binaries, refresh its build ID and revalidate before sealing the editor. |
 | `--templates <template-root>` | Sign independent templates and refresh Standalone previews before archiving. These archives are not separately notarised. |
+| `--standalone <project-directory>` | Sign one editable Standalone project's native code and refresh/verify its preview, without an app bundle or notarisation. |
 
 [Query macOS Notarization](../.github/workflows/macos-notary-status.yml) reuses `MACOS_NOTARY_*` secrets without a certificate. Leave `submission_id` empty to list submissions, or supply a UUID for status and completed logs. It does not submit, cancel or wait; workflow success confirms the query, not package acceptance.
 

@@ -764,6 +764,7 @@ validate_package() {
     fi
     require_package_executable "$package_resources/tools/build_cpp.sh"
     require_package_executable "$package_resources/tools/build_standalone.sh"
+    require_package_executable "$package_resources/tools/pack_standalone.sh"
     require_package_executable "$package_resources/tools/pack_project.sh"
     require_package_executable "$package_resources/tools/pack_ios.sh"
     require_package_executable "$package_resources/tools/pack_harmony.sh"
@@ -1161,6 +1162,7 @@ require_file "$PROJECT_ROOT/tools/build_preview_host.sh"
 require_file "$PROJECT_ROOT/tools/common.sh"
 require_file "$PROJECT_ROOT/tools/editor_runtime/build_cpp.sh"
 require_file "$PROJECT_ROOT/tools/build_standalone.sh"
+require_file "$PROJECT_ROOT/tools/pack_standalone.sh"
 require_file "$PROJECT_ROOT/tools/pack_project.sh"
 require_file "$PROJECT_ROOT/tools/editor_runtime/pack_ios.sh"
 require_file "$PROJECT_ROOT/tools/editor_runtime/pack_harmony.sh"
@@ -1306,6 +1308,7 @@ mkdir -p "$RESOURCES_DIR/tools"
 cp "$PROJECT_ROOT/tools/common.sh" "$RESOURCES_DIR/tools/common.sh"
 cp "$PROJECT_ROOT/tools/editor_runtime/build_cpp.sh" "$RESOURCES_DIR/tools/build_cpp.sh"
 cp "$PROJECT_ROOT/tools/build_standalone.sh" "$RESOURCES_DIR/tools/build_standalone.sh"
+cp "$PROJECT_ROOT/tools/pack_standalone.sh" "$RESOURCES_DIR/tools/pack_standalone.sh"
 cp "$PROJECT_ROOT/tools/build_preview_host.sh" "$RESOURCES_DIR/tools/build_preview_host.sh"
 cp "$PROJECT_ROOT/tools/pack_project.sh" "$RESOURCES_DIR/tools/pack_project.sh"
 cp "$PROJECT_ROOT/tools/editor_runtime/pack_ios.sh" "$RESOURCES_DIR/tools/pack_ios.sh"
@@ -1318,6 +1321,7 @@ cp "$LUAC" "$RESOURCES_DIR/tools/luac"
 chmod +x \
     "$RESOURCES_DIR/tools/build_cpp.sh" \
     "$RESOURCES_DIR/tools/build_standalone.sh" \
+    "$RESOURCES_DIR/tools/pack_standalone.sh" \
     "$RESOURCES_DIR/tools/build_preview_host.sh" \
     "$RESOURCES_DIR/tools/pack_project.sh" \
     "$RESOURCES_DIR/tools/pack_ios.sh" \
