@@ -8,7 +8,7 @@ Optional [remote account dictionaries](<../../Simple Server/Native Client API.md
 
 Resource-valued Config `file` fields store complete `/Game/Assets/...` paths, while `base` and `ext` only constrain the selector. Data references remain separate. `System.json` keeps `startPlayerBlueprint` relative to `Data/Blueprints` with `root = "Data"` and converts it to `Data.Blueprints.*`. `startRegion` names the initial region. Both affect new games only, and saves retain their player class and region.
 
-Cell size is fixed by the compiled engine (`32` by default). Read it through `Engine.GetCellSize()`. `System.json` and the System Config editor do not configure it. A leftover `System/cellSize` field is neither used nor editable, and it is not converted into a runtime setting.
+Cell size is compiled into the engine (`32` by default). Read it with `Engine.GetCellSize()`; `System.json` does not configure it.
 
 Game Lua configuration modules live under `Scripts/Source/Configs` and are loaded through `Source.Configs.*`.
 
@@ -103,7 +103,7 @@ A world save requires `worldMovedActors` when any stored player map is a world m
 
 The Game project save schema remains v1, serialised as the number `1`. Only the current structure and version are supported. `SaveCodec` rejects incompatible saves without migration.
 
-Save schema versions are independent of application release versions and the packaging dev checkbox. A new save format under development uses `vN-dev`; freeze its structure and change it to `vN` before release. After releasing v1, start `v2-dev` only when the save format actually needs a version change, then freeze it as v2 for release. Ordinary game releases do not automatically advance the save version. This naming convention does not change the current numeric `1` format or introduce migration.
+Save schema versions are independent of application versions and the packaging dev checkbox. For a changed format, use `vN-dev` during development and freeze it as `vN` before release. Ordinary game releases do not advance the save version; the current format remains numeric `1`, with no migration.
 
 `telepoints` maps normalised map paths to ordered `{ position = {x, y}, tag = "raw tag" }` records. Runtime positions use `sf.Vector2u`, and tags remain unlocalised strings. `GameInstance:recordTelepoint(mapPath, position, tag)` preserves the first record for each map and position pair, and `getTelepoints(mapPath)` returns the records. World records use the manifest identity and world coordinates.
 

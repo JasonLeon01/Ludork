@@ -93,7 +93,7 @@ In `local` space, existing particles follow the current host transform. In `worl
 
 To attach a particle resource to an Actor, follow [Emitter Component](<Actor Components/Emitter.md>). It covers resource selection, placement relative to the Actor and drawing order.
 
-Add `Engine.EmitterView` as a visual UI node under an existing Canvas or List container, or construct it in code. Configure `particle`, `size`, `anchor` and `autoPlay`; `getEmitter()` returns its playback object. The UI node owns its normal layout and clipping through `ControlBase` and its parent. It does not require an Actor.
+For a UI effect, add [Engine.EmitterView](<UI Controls in the Palette.md#engineemitterview>) to the asset or construct it in code. Its `ControlBase` and parent own layout and clipping; `getEmitter()` returns the playback object.
 
 Particles pause while their Actor is invisible or dormant, or their UI is hidden or unmounted. Showing the owner resumes its state; movement while hidden does not produce distance-based emission. A manually paused emitter stays paused. Destroying the owner clears its particles, which are not included in map persistence.
 
@@ -109,7 +109,5 @@ Collision, trails, noise and sub-emitters are outside this particle feature.
 
 ## Related pages
 
-- [UI Controls in the Palette](<UI Controls in the Palette.md#engineemitterview>)
 - [Project Settings and Asset Layout](<Project Settings and Asset Layout.md>)
 - [Resources, Audio, Video and Effects](<../Lua and Blueprint Scripting/Default Gameplay/Resources Audio Video and Effects.md>)
-- [Engine: Time, Rendering and Particles](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Time Rendering and Particles.md>)

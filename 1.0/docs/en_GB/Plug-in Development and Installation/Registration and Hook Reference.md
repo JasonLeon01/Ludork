@@ -110,7 +110,7 @@ These methods load the fixed website's index on demand for the editor's current 
 
 Documentation results are capped at 12,000 characters. Continue reads from `nextLine` when it is present. `truncatedLine` explicitly reports when an oversized line's tail was omitted; the continuation starts at the following line.
 
-Use `PluginMenuContext.SecretStore` for API keys. It is scoped by plug-in ID and, for project plug-ins, the project scope. Windows and macOS use the operating-system credential store, without a plaintext-file fallback; Linux supports environment-variable reads. See [Avalonia UI, Secrets and Localisation](<Avalonia UI Secrets and Localisation.md#store-secrets>).
+Use the scoped `PluginMenuContext.SecretStore` for API keys; platform support and storage rules are in [Store secrets](<Avalonia UI Secrets and Localisation.md#store-secrets>).
 
 ## Resource cleanup
 
@@ -132,7 +132,5 @@ There are no public hooks for host-docked panels, toolbars, arbitrary context me
 ## Related pages
 
 - [Manifest and Minimal Plug-in](<Manifest and Minimal Plug-in.md>)
-- [Avalonia UI, Secrets and Localisation](<Avalonia UI Secrets and Localisation.md>)
 - [Official Random Map](<Official Plug-ins/Random Map.md>)
-- [Official Resource Cleanup](<Official Plug-ins/Resource Cleanup.md>)
 - [Distribution](<Distribution.md>)

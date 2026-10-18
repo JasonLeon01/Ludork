@@ -4,19 +4,7 @@ This group documents the General Data types that ship with the Game project. Eve
 
 ## Where the data lives
 
-General Data is stored in the project's `Data/General` directory, one JSON file per type. The Game project contains exactly the seven files below.
-
-| File | Page |
-|---|---|
-| `Data/General/Class.json` | [Class](<Class.md>) |
-| `Data/General/Enemy.json` | [Enemy](<Enemy.md>) |
-| `Data/General/Equip.json` | [Equip](<Equip.md>) |
-| `Data/General/Item.json` | [Item](<Item.md>) |
-| `Data/General/Player.json` | [Player](<Player.md>) |
-| `Data/General/Special.json` | [Special](<Special.md>) |
-| `Data/General/State.json` | [State](<State.md>) |
-
-For the type structure and field options, see [General Data and Text Config](<../General Data and Text Config.md#type-structure>).
+Each type is stored in `Data/General/<Type>.json`. Edit schemas, members and ability graphs through **Database → General Data** (`F10`); see [General Data and Text Config](<../General Data and Text Config.md#type-structure>) for field options and generated files.
 
 ## What each page documents
 
@@ -32,16 +20,12 @@ For the type structure and field options, see [General Data and Text Config](<..
 
 Project references are expressed directly in enum schemas: `Player.CLASS` uses `Enums.GeneralData.Class`, `Enemy.special` uses `Enums.GeneralData.Special` as its dictionary key, and attack animations use `Enums.Animation`. Their stored values remain strings.
 
+Member events are activated explicitly through `Source.Gameplay.GeneralDataGraphAbility`; a missing start node returns `NoGraph`. The individual pages describe type-specific callers and contexts.
+
 ## Brace-wrapped display strings
 
 Display fields can contain locale keys such as `{WARRIOR}`. Resolve them when displaying text; see [Game Localisation Workflow](<../../Plug-in Development and Installation/Official Plug-ins/Game Localisation Workflow.md#runtime>) for formatting and language changes.
 
-## Relation to the General Data editor
-
-Edit schemas, members and ability graphs in **Database → General Data** (`F10`). See [General Data and Text Config](<../General Data and Text Config.md>) for the workflow and generated files.
-
 ## Related pages
 
-- [General Data and Text Config](<../General Data and Text Config.md>) — the editor window, schema authoring and generated Lua
-- [Game Localisation Workflow](<../../Plug-in Development and Installation/Official Plug-ins/Game Localisation Workflow.md>) — workbook, Export and runtime resolution of `{ID}` tokens
 - [Blueprints, Common Functions and Actors](<../Blueprints Common Functions and Actors.md>) — Blueprint class paths referenced by these schemas

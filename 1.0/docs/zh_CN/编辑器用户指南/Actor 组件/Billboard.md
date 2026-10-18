@@ -1,10 +1,6 @@
 # Billboard 组件
 
-## 用途
-
 玩家靠近时，在 Actor 头顶显示一组图片与文字，例如名称或交互提示。
-
-## 适用范围
 
 `Engine.Actor` 及其派生类提供可选的 `billboardComp`，类型为 `Engine.BillboardComponent`。通过[组件配置流程](<概述.md#配置步骤>)进行编辑。
 
@@ -18,5 +14,4 @@
 
 ## 参考链接
 
-- [Actor 组件](<概述.md>)
 - [BillboardComponent 与 BillboardItem API](<../../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/玩法类型.md#billboardcomponent>)

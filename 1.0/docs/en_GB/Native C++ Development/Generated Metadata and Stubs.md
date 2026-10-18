@@ -73,6 +73,4 @@ UI Views and window declarations use a separate generator, `ScriptTools ui-asset
 
 ## Related pages
 
-- [Binding a Class](<Binding a Class.md>)
 - [C++ Binding Troubleshooting](<C++ Binding Troubleshooting.md>)
-- [Functions, Events and Execution](<Functions Events and Execution.md>)

@@ -131,10 +131,3 @@ EmmyLua 工作区保留 `Scripts/stub` 作为模块根和库目录。在 `.emmyr
 模板与打包时的文件范围见[项目模板](<../快速入门/项目模板.md>)。
 
 Standalone 与 C++ Source 模板都提供名为 `Ludork: EmmyLua Attach (Windows)` 的 VS Code 配置，通过 `tangzx.emmylua` 的 `emmylua_attach` 调试器附加到正在运行的 `Main.exe`。C++ Source 模板另外保留原有的 `cppvsdbg` 与 `lldb` 原生启动和附加配置。EmmyLua 附加调试仅支持 Windows。
-
-## 相关页面
-
-- [Lua 基础语法](<../快速入门/Lua 基础语法.md>)
-- [Ludork Lua 进阶](<../快速入门/Ludork Lua 进阶.md>)
-- [Metadata 结构与 Decorator](<蓝图脚本/Metadata 结构与 Decorator.md>)
-- [默认模板概述](<Game 玩法/默认模板概述.md>)

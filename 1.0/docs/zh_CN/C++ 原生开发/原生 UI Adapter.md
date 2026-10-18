@@ -60,6 +60,5 @@ Image 的 `drawAs` 使用绑定的 C++ `Image::DrawAs` 枚举，导出名为 `En
 ## 相关页面
 
 - [UI 资产编辑器](<../编辑器用户指南/UI 资产编辑器.md>)
-- [UI 资产 Schema 与 Control Registry](<../Lua 与蓝图脚本/声明式 UI/资产 Schema 与 Control Registry.md>)
 - [生成 Metadata 与 Stub](<生成 Metadata 与 Stub.md>)
 - [宏参考](<宏参考.md>)

@@ -1,6 +1,6 @@
 # Video Subtitles
 
-Create a subtitle document in the project file explorer under `Data/Subtitles`, or double-click an existing subtitle JSON file to open its editor. Subdirectories are supported. Subtitle documents use the normal Save, Undo/Redo, unsaved-change and close-confirmation workflow.
+Create a subtitle document in the project file explorer under `Data/Subtitles`, or double-click an existing subtitle JSON file to open its editor. Subdirectories are supported. Subtitle documents follow the shared [save and Undo rules](<Start Page Workspace and Shortcuts.md#editing-and-saving>).
 
 ## Editing sections
 
@@ -57,6 +57,5 @@ Subtitles follow the video's playback clock and disappear when playback ends or 
 
 ## Related pages
 
-- [GlobalFunctions.Video](<../Lua and Blueprint Scripting/Node Functions/Video.md>)
 - [Project Settings and Asset Layout](<Project Settings and Asset Layout.md>)
 - [Resources, Audio, Video and Effects](<../Lua and Blueprint Scripting/Default Gameplay/Resources Audio Video and Effects.md>)

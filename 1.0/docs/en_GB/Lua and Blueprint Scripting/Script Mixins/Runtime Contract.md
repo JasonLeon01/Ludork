@@ -42,7 +42,7 @@ The parent class must provide the native properties and methods the mixin uses. 
 
 ## Hot reload
 
-Console `$r` updates existing methods in used Script Mixins without rerunning `onCreate` or teardown. Mixin defaults and instance state remain unchanged. Structural changes require a restart. See [Lua hot reload](<../Lua Runtime and Modules.md#lua-hot-reload>) for compatibility and failure rules.
+[Lua hot reload](<../Lua Runtime and Modules.md#lua-hot-reload>) applies to used Script Mixins: `$r` updates compatible methods without rerunning lifecycle callbacks or replacing defaults and instance state. Structural changes require a restart.
 
 Lua compilation and `.ldpak` packaging preserve mixin module paths and fresh-load behaviour. See [Run, Debug and Package](<../../Editor User Guide/Run Debug and Package.md>) for packaging options.
 

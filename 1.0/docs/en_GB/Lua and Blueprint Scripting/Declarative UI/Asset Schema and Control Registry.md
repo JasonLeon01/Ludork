@@ -29,7 +29,7 @@ The asset may contain an `animations` array. Each entry has a non-empty `name`, 
 
 Translation is a local additive offset after layout. Rotation is a local angle increment. Scale multiplies the authored or layout scale. Colour multiplies the subtree's authored RGBA components. Presentation transforms are composed around the target's local bounds and pivot without modifying position, rotation, scale, origin or Slot data, so reflow does not accumulate animation offsets. Rendering, absolute bounds and hit testing share that composed transform. Canvas applies the subtree colour once at its composition boundary.
 
-A nested asset exports only its Global animations. A parent entry targeted at the nested node and using the same name is an instance override, and sibling instances remain independent. A parent Global animation can coexist with that override and does not automatically play it.
+A nested asset exports only its Global animations. Same-name parent animations targeted at that nested node override that instance; see [animation playback](<Runtime Contract.md#animation-playback>) for dispatch and completion rules.
 
 Renaming a node rewrites its animation targets. Deleting a node removes animations that target the deleted subtree. Duplicating a node copies those animations and retargets them to the copy.
 
@@ -56,7 +56,7 @@ This section is the JSON field authority for the controls it names: what a node 
 
 `Engine.Window` stores `size`, `windowSkin`, `repeated` and `colour` in the asset. `colour` is an RGBA tint, defaulting to `[255,255,255,255]`; set its alpha in JSON for translucent window frames.
 
-`Engine.Image` and `Engine.FunctionalImage` accept `drawAs`, defaulting to `"Image"`, with `"Tile"` as the other serialised enum member. The Inspector presents an enum selector. Runtime calls require the bound `Engine.ImageDrawAs` enum, including `AssetInstance:setProperty`; numeric and string values are not runtime substitutes. Tile repeats the selected texture region using SFML, including a cropped final tile, while global UI Scale scales the complete result. See [Engine: Layout and Image Controls](<../Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#image>).
+`Engine.Image` and `Engine.FunctionalImage` serialise `drawAs` as `"Image"` (default) or `"Tile"`. Runtime calls require `Engine.ImageDrawAs`; see [Image](<../Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#image>) for tiling and scaling behaviour.
 
 `Engine.EmitterView` serialises `particle` (extensionless key under `Data/Particles`, default `""`), `size` (default `[100,100]`), `anchor` (default `[0.5,0.5]`) and `autoPlay` (default `true`), and accepts no children. It uses its parent's existing Slot, ordering and clipping. Its GPU particles use the containing Canvas's logical domain, and `getEmitter()` exposes playback to code. Hidden/unmounted views freeze; disposal releases playback; switching Canvas resets the coordinate domain. See [Common Particles](<../../Editor User Guide/Common Particles.md>) for resource schema, timing and scaling.
 
@@ -75,5 +75,4 @@ Only assets with `palette.exposed = true` appear as project controls.
 ## Related pages
 
 - [UI Asset Editor](<../../Editor User Guide/UI Asset Editor.md>)
-- [UI Controls in the Palette](<../../Editor User Guide/UI Controls in the Palette.md>)
 - [Native UI Adapters](<../../Native C++ Development/Native UI Adapters.md>)

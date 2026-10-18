@@ -30,6 +30,7 @@ Common Functions share the caller's local context and graph owner, including nes
 - Every Blueprint event drops repeated triggers for the same graph instance and event key while latent nodes from the current execution remain pending. A new trigger is accepted after all latent work of that execution resolves. Different graph instances and event keys remain independent.
 - `LoopNode` describes loop-body and completion behaviour.
 - Data links connect compatible typed pins, and execution links connect flow pins.
+- Each execution output accepts one connection; execution inputs accept multiple. Data outputs accept multiple connections; each data input accepts one.
 
 Runtime event queries and execution use native `Engine.Graph` userdata. Raw GraphData supports definition-time event inspection. Local execution contexts hold invocation state and are not executable graphs.
 
@@ -75,6 +76,4 @@ Editing that table is visible to later definition reads, but it does not update 
 
 ## Related pages
 
-- [Metadata Schema and Decorators](<Metadata Schema and Decorators.md>)
-- [Blueprints, Common Functions and Actors](<../../Editor User Guide/Blueprints Common Functions and Actors.md>)
 - [GlobalFunctions.Container](<../Node Functions/Container.md>)

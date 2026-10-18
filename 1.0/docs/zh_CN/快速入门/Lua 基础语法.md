@@ -1,24 +1,20 @@
 # Lua 基础语法
 
-Ludork 内置 Lua 5.5。本页面向初次接触 Lua 的读者介绍这门语言。Ludork 在此基础上增加的原生能力另见 [Ludork Lua 进阶](<Ludork Lua 进阶.md>)，项目 Lua 能拿到的 SFML 类型见 [SFML 快速入门](<SFML 快速入门.md>)。
+Ludork 内置 Lua 5.5，本页介绍与 C 不同的语法和行为。引擎扩展见 [Ludork Lua 进阶](<Ludork Lua 进阶.md>)，图形与几何类型见 [SFML 快速入门](<SFML 快速入门.md>)。
 
 ## 文件、注释与局部变量
 
-Lua 文件使用 `.lua` 扩展名。`--` 开始单行注释，`--[[ ... ]]` 括住块注释。工作变量用 `local` 声明。未初始化的变量值为 `nil`。
+Lua 文件使用 `.lua` 扩展名，注释用 `--` 或 `--[[ ... ]]`。局部变量用 `local` 声明，未初始化时为 `nil`。
 
 ```lua
 -- 单行注释
 local playerName = "Hero"
-local level = 1
-local alive = true
-local target = nil
+local level, alive, target = 1, true, nil
 ```
 
 Lua 的值包括 `nil`、boolean、number、string、function、table、userdata 与 thread。`type(value)` 返回这些内建类别之一。由 table 或 userdata 表示的应用对象，仍然归入它底层的类别。
 
 ## 运算符
-
-常用运算符如下：
 
 | 类别 | 运算符 |
 |---|---|
@@ -59,7 +55,7 @@ items[#items + 1] = "Gem"
 player.hp = player.hp - 10
 ```
 
-把普通 table 的键赋值为 `nil`，就等于删除该键。数组中要避免 `nil` 空洞，因为 `#`、`ipairs` 与数组辅助函数遇到第一个空洞就会停下。
+给 table 的键赋值为 `nil` 即删除该键。数组应保持连续：空洞会使 `#` 的结果不可靠，`ipairs` 则在第一个 `nil` 处停止。
 
 ## 循环
 
@@ -71,14 +67,9 @@ end
 for key, value in pairs(player) do
     inspectValue(key, value)
 end
-
-local count = 3
-while count > 0 do
-    count = count - 1
-end
 ```
 
-稠密数组用 `ipairs` 遍历，字典用 `pairs` 遍历。数值型 `for` 循环会包含起点与终点，除非步长跳过最后一个值。
+稠密数组用 `ipairs`，字典用 `pairs`。数值循环写作 `for i = first, last, step do ... end`，步长能到达终点时包含终点；while 循环写作 `while condition do ... end`。
 
 ## 函数与方法
 
@@ -121,7 +112,7 @@ local Score = require("Source.Score")
 local total = Score.Add(10, 5)
 ```
 
-先写完所有直接 `require`，再声明别名。不要创建目录级的 `init.lua` 聚合模块。
+项目加载顺序和 `require` 约定见 [Lua 运行时与模块](<../Lua 与蓝图脚本/Lua 运行时与模块.md>)。
 
 ## 错误
 
@@ -129,6 +120,4 @@ local total = Score.Add(10, 5)
 
 ## 相关页面
 
-- [Ludork Lua 进阶](<Ludork Lua 进阶.md>) — 类、项目真值、原生容器与 Standard 扩展。
-- [Lua 运行时与模块](<../Lua 与蓝图脚本/Lua 运行时与模块.md>) — 项目模块顺序、文件分层与运行时契约。
 - [默认模板概述](<../Lua 与蓝图脚本/Game 玩法/默认模板概述.md>) — Game 项目如何使用这些规则。

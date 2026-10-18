@@ -111,6 +111,4 @@ Annotations describe an execution protocol but do not implement its runtime beha
 
 ## Related pages
 
-- [Macro Reference](<Macro Reference.md>)
 - [Advanced Binding Patterns](<Advanced Binding Patterns.md>)
-- [Runtime Value Boundaries](<Runtime Value Boundaries.md>)

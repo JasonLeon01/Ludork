@@ -19,21 +19,7 @@ public:
 
 `invalid_vars(...)` hides fields and `rect_range_vars(...)` links rectangles to resource or range fields. Both accept ordered identifiers, and only inside `BIND_CLASS`. Property-specific rectangle semantics remain `meta(RectRangeVars = "texturePath")` in `BIND_PROPERTY`. `metadata = false` does not disable a callback; use `callback = false` instead. See [Binding a Class](<Binding a Class.md>).
 
-Member-level editor decorators stay inside their owning annotation. Structured values use brace data rather than a complete JSON string:
-
-```cpp
-BIND_PROPERTY(
-    meta(Rely = {source = "autoSound", op = "!=", value = ""}))
-float autoSoundInterval = 0.0f;
-
-BIND_METHOD(defaults = {{}},
-            meta(MoveRouteVars = {"route"}),
-            outpins(default = nil))
-void setRoute(
-    const std::optional<std::vector<sf::Vector2i>>& route = {});
-```
-
-The first value is an object because it has named entries. The second is an array because its entries are positional. Full brace syntax and quoted-JSON rejection follow [Macro Reference](<Macro Reference.md>).
+Member-level decorators and structured brace values follow [Declare properties](<Binding a Class.md#declare-properties>).
 
 ## Events, latent work and loops
 
@@ -42,20 +28,11 @@ BIND_REGISTER_EVENT()
 BIND_METHOD()
 virtual void onCreate();
 
-BIND_METHOD(nonnull_return = true, latent(TimeUp = true),
-            defaults = {nil, nil, {}, false},
-            parameter_types = {float, function, any[], bool})
-std::shared_ptr<AsyncOperation> addTimer(
-    float interval,
-    RuntimeIdentityPtr task = {},
-    RuntimeValue::Array params = {},
-    bool blocking = false);
-
 BIND_METHOD(loop_node(ForEach))
 void forEach(const RuntimeValue::Array &values);
 ```
 
-Event, inline latent and loop annotations generate execution metadata. The C++ or Lua implementation must still carry out the promised runtime protocol (see [Functions, Events and Execution](<Functions Events and Execution.md>)).
+Event and loop annotations generate execution metadata; the C++ or Lua implementation must carry out the protocol. For latent operations and their return/default rules, see [Declare execution behaviour](<Functions Events and Execution.md#declare-execution-behaviour>).
 
 ## Values, reverse maps and helpers
 
@@ -91,7 +68,7 @@ BIND_CLASS(dynamic_value = true)
 class RuntimeValue {};
 ```
 
-`BIND_MODULE_INIT` runs while opening the module. `BIND_INJECT` connects a Lua global callback to a C++ setter and is valid only while that Lua state remains available. With `variadic = true`, the setter must accept `std::function<std::vector<T>(Fixed..., const std::vector<T>&)>`. Zero returns and interior or trailing `nil` remain distinct without envelope tables. The two `BIND_CLASS` flags select conversion and identity traits, and they cannot combine with incompatible table-value modes. Engine subsystems use typed runtime facades and fixed provider slots, not a generic string operation dispatcher.
+`BIND_MODULE_INIT` runs while opening the module. `BIND_INJECT` names its Lua source callback with `global` and connects it to a C++ setter and is valid only while that Lua state remains available. With `variadic = true`, the setter must accept `std::function<std::vector<T>(Fixed..., const std::vector<T>&)>`. Zero returns and interior or trailing `nil` remain distinct without envelope tables. The two `BIND_CLASS` flags select conversion and identity traits, and they cannot combine with incompatible table-value modes. Engine subsystems use typed runtime facades and fixed provider slots, not a generic string operation dispatcher.
 
 ## Limitations
 
@@ -101,4 +78,3 @@ Bindgen must remain declaration-driven. Do not introduce generator branches keye
 
 - [Macro Reference](<Macro Reference.md>)
 - [Generated Metadata and Stubs](<Generated Metadata and Stubs.md>)
-- [Functions, Events and Execution](<Functions Events and Execution.md>)

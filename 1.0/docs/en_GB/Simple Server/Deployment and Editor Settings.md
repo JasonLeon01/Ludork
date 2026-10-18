@@ -15,8 +15,6 @@ tar -xzf LudorkServer-source-1.0.0.tar.gz
 cd LudorkServer
 ```
 
-Use the downloaded version's filename, then follow the deployment steps below.
-
 ## Deploy and start
 
 Install **Node.js 24 with npm** on the server. In the extracted directory, run:
@@ -66,7 +64,7 @@ See [HTTP write rate limits](<HTTP Protocol.md#write-rate-limits>) for token con
 
 In a C++ Source project, open **Game → Test Server Settings**. Enable Ludork Server and enter the test URL and key. The initial URL is `http://localhost:7777/<project-directory-name>`, with the directory name URL-encoded. Confirm saves; Cancel leaves the saved configuration unchanged. This window configures the client only; deploy and start the test server yourself.
 
-The local file is `~/Ludork/.localserver/<project-directory-name>/test.json` in all editor modes on Windows and macOS, including repository runs. `~` refers to the current user's home directory; Windows does not write this configuration into the editor installation directory.
+The local file is `~/Ludork/.localserver/<project-directory-name>/test.json` on Windows and macOS, including repository runs. `~` is the current user's home directory.
 
 ```json
 {
@@ -104,7 +102,7 @@ An enabled build defines `LUDORK_SERVER_AVAILABLE` and includes the transport wi
 
 ## Management and operational limits
 
-Open the website and enter both the project key and management password. It supports account filtering, file selection, JSON display, refresh and logout. Sessions use a project-specific HttpOnly, SameSite=Strict cookie, expire after eight hours and become invalid on backend restart.
+Open the website and enter both the project key and management password. It supports account filtering, file selection, JSON display, refresh and logout. For cookie scope and session expiry, see [Read-only management](<HTTP Protocol.md#read-only-management>).
 
 Generated `config/`, user `data/`, logs, dependencies and start scripts are excluded from source archives. Back up `config/` and `data/` yourself and restrict local access to them. The backend holds a data-directory instance lock. A stale lock whose process has exited can be recovered automatically; for an incomplete lock or reused PID, first confirm that no instance is running before removing `data/.server.lock` manually.
 

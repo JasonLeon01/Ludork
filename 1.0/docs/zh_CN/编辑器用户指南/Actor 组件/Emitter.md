@@ -1,10 +1,6 @@
 # Emitter 组件
 
-## 用途
-
 为 Actor 挂载火焰、光环或火花等通用粒子效果。粒子的轨道、贴图与生命周期曲线在[通用粒子编辑器](<../通用粒子.md>)中制作。
-
-## 适用范围
 
 `Engine.Actor` 及其派生类提供可选的 `emitterComp`，类型为 `Engine.EmitterComponent`。UI 内的粒子效果使用 `Engine.EmitterView`。
 
@@ -19,7 +15,5 @@
 
 ## 参考链接
 
-- [Actor 组件](<概述.md>)
-- [通用粒子](<../通用粒子.md>)
 - [EmitterComponent API](<../../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/时间、渲染与粒子.md#emittercomponent>)
 - [UI 中的 EmitterView](<../Palette 控件.md#engineemitterview>)

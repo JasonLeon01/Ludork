@@ -20,7 +20,7 @@ Loading fails on a missing subtype, on a missing or unknown non-underscore membe
 
 `linkedType` is unsupported and rejected.
 
-Each field definition may store an optional English `comment`. Enter it through **Comment** when adding or editing a field, and an empty comment is omitted. Form field names and Table headers show the comment on hover. This schema comment is distinct from a member value stored in a field that happens to be named `desc`, and it is plain project text rather than a locale key.
+Each field definition may store an optional English `comment`. Enter it through **Comment** when adding or editing a field, and an empty comment is omitted. Form field names and Table headers show the comment on hover. Comments are plain project text, not locale keys or member data.
 
 String enum selectors include **— None —**, stored as an empty string. Unknown nonempty values are retained; enums validate scalar types rather than option membership. Empty managed collections remain valid string enums. An enum-keyed dictionary row remains pending until a nonempty, unique key is chosen, so no placeholder key is saved. The old `GeneralDataVars` decorator and General Data field `reference` protocol are unsupported; express these choices in the type schema.
 
@@ -44,7 +44,7 @@ Use `GeneralDataTypes.Create(typeName, memberID, memberData)` to restore a store
 
 Editing a field can change its name, type, container item or value type, default and comment. Renaming preserves each member's current field value. Changing the field type, a list's item type or a dictionary's key or value type first asks for confirmation, then resets that field in every existing member to the new default value. Changing only the default does not overwrite existing members. Removing a field removes its meaning but does not automatically repair the scripts that read it.
 
-Member graphs run synchronously through `Source.Gameplay.GeneralDataGraphAbility`, with `GameplayEventData` as their context. Use global nodes and that context; these graphs have no class inheritance, parent or self node. Only declared events are allowed, latent nodes are unavailable, and a missing start node returns `NoGraph`.
+Member graphs allow only declared events and synchronous nodes, with no class inheritance, Parent or self node. Use global nodes and the `GameplayEventData` context. Activation and results are described in [General Data event execution](<../Lua and Blueprint Scripting/Blueprint Scripting/Execution Flow Events and Variables.md#events>).
 
 ## Search and views
 
@@ -54,8 +54,6 @@ Form edits one member in full. Table shows the ID and schema fields in declarati
 
 ![General Data editor](../../../images/editor/general-data.png)
 
-*Define the schema before entering records so every member uses the intended field types.*
-
 ## Game Variable Manager
 
 Open **Database → Game Variables** (`F9`) to declare mutable values shared by Blueprint and the active game instance. The left side lists the declared variable names. Select one to edit its type, initial value and optional remark on the right, and the remark remains editor-only with no runtime effect. Variable names are runtime identifiers, so keep them stable once graphs, maps or scripts begin to reference them.
@@ -63,8 +61,6 @@ Open **Database → Game Variables** (`F9`) to declare mutable values shared by 
 Use the search box to filter variable names case-insensitively. **New Variable** adds a declaration after asking for its name and type, and **Delete Variable** removes the selected declaration after confirmation.
 
 ![Game Variable Manager with a selected integer variable](../../../images/editor/game-variables.png)
-
-*The selected declaration's type, initial value and editor-only remark are edited in the detail panel.*
 
 Choose the type when creating a variable. The manager offers `bool`, `int`, `float`, `string`, `list` and `dict`, and these are written to metadata as `bool`, `int`, `float`, `string`, `any[]` and `Dict[string, any]` respectively. Lists and dictionaries use ordinary Lua tables, not the native `list` or `dict` of Standard. Changing an existing variable's type clears its initial value and replaces it with the empty default of the new type.
 
@@ -78,11 +74,9 @@ Ordinary UI text is styled on its UI node. Use **Game → New Text Config** for 
 
 ![Text Config editor](../../../images/editor/text-config.png)
 
-*Text Config provides a focused editor for structured text data used by the project.*
-
 Display strings such as `{ITEM_NAME}` are resolved when presented, not when data is loaded. See [Game Localisation Workflow](<../Plug-in Development and Installation/Official Plug-ins/Game Localisation Workflow.md>) for authoring and using localised text.
 
-See the General Data Reference pages for the exact Game schemas.
+See [General Data Reference](<General Data Reference/Overview.md>) for the Game schemas.
 
 ## Limitations
 
@@ -92,4 +86,3 @@ Changing a schema or a game-variable declaration cannot automatically repair scr
 
 - [Class](<General Data Reference/Class.md>) — the Game project Class schema
 - [Blueprints, Common Functions and Actors](<Blueprints Common Functions and Actors.md>)
-- [Game Localisation Workflow](<../Plug-in Development and Installation/Official Plug-ins/Game Localisation Workflow.md>)

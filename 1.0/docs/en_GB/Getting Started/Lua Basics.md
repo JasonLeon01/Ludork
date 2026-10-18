@@ -1,24 +1,20 @@
 # Lua Basics
 
-Ludork runs Lua 5.5. This page introduces the language to readers who are new to Lua. Ludork's native additions are described separately in [Ludork Lua Advanced](<Ludork Lua Advanced.md>), and the SFML types that project Lua receives are in [SFML Quickstart](<SFML Quickstart.md>).
+Ludork runs Lua 5.5. This page covers the syntax and behaviour that differ from C. See [Ludork Lua Advanced](<Ludork Lua Advanced.md>) for Ludork's additions and [SFML Quickstart](<SFML Quickstart.md>) for graphics and geometry types.
 
 ## Files, comments and local variables
 
-Lua files use the `.lua` extension. `--` starts a line comment, and `--[[ ... ]]` encloses a block comment. Declare working values with `local`. An uninitialised variable is `nil`.
+Lua files use `.lua`; comments use `--` or `--[[ ... ]]`. Declare local variables with `local`; uninitialised variables are `nil`.
 
 ```lua
 -- One line
 local playerName = "Hero"
-local level = 1
-local alive = true
-local target = nil
+local level, alive, target = 1, true, nil
 ```
 
 Lua values include `nil`, booleans, numbers, strings, functions, tables, userdata and threads. `type(value)` returns one of these built-in categories. Application objects that are represented by tables or userdata still report that underlying category.
 
 ## Operators
-
-The common operators are:
 
 | Kind | Operators |
 |---|---|
@@ -59,7 +55,7 @@ items[#items + 1] = "Gem"
 player.hp = player.hp - 10
 ```
 
-Assigning `nil` removes an ordinary table key. Avoid `nil` holes in arrays, because `#`, `ipairs` and array helpers stop at the first missing slot.
+Assigning `nil` removes a table key. Keep arrays dense: holes make `#` unreliable, and `ipairs` stops at the first `nil`.
 
 ## Loops
 
@@ -71,14 +67,9 @@ end
 for key, value in pairs(player) do
     inspectValue(key, value)
 end
-
-local count = 3
-while count > 0 do
-    count = count - 1
-end
 ```
 
-Use `ipairs` for dense arrays and `pairs` for dictionaries. Numeric `for` loops include both endpoints unless the step skips the last value.
+Use `ipairs` for dense arrays and `pairs` for dictionaries. Numeric loops use `for i = first, last, step do ... end` and include both endpoints when reached by the step; while loops use `while condition do ... end`.
 
 ## Functions and methods
 
@@ -121,7 +112,7 @@ local Score = require("Source.Score")
 local total = Score.Add(10, 5)
 ```
 
-Complete direct `require` calls before declaring aliases. Do not create directory-level `init.lua` aggregators.
+Project loading order and `require` conventions are in [Lua Runtime and Modules](<../Lua and Blueprint Scripting/Lua Runtime and Modules.md>).
 
 ## Errors
 
@@ -129,6 +120,4 @@ Use `assert(condition, message)` for required conditions and `error(message)` fo
 
 ## Related pages
 
-- [Ludork Lua Advanced](<Ludork Lua Advanced.md>) — classes, project truth values, native containers and Standard extensions.
-- [Lua Runtime and Modules](<../Lua and Blueprint Scripting/Lua Runtime and Modules.md>) — project module order, file layers and runtime contracts.
 - [Default Template Overview](<../Lua and Blueprint Scripting/Default Gameplay/Default Template Overview.md>) — how the Game project uses these rules.

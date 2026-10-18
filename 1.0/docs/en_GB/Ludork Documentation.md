@@ -1,12 +1,10 @@
 # Ludork Documentation
 
-Read this guide in the [online documentation](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB), or visit the [Ludork website](https://jasonleon01.github.io/Ludork/?lang=en_GB) for downloads and project information. The [third-party notices](https://jasonleon01.github.io/Ludork/notices/?version=1.0&lang=en_GB) are available on a separate page linked from the website footer. The documentation language and version selectors are on the right of the chapter tabs. This edition covers Ludork 1.0.
+This guide covers Ludork 1.0. Downloads and project information are on the [Ludork website](https://jasonleon01.github.io/Ludork/?lang=en_GB); [third-party notices](https://jasonleon01.github.io/Ludork/notices/?version=1.0&lang=en_GB) are also linked from its footer.
 
 Ludork combines a visual editor, Blueprint graphs, Lua scripts and an extensible C++20 runtime for map-driven 2D games. Use the editor to configure projects and create maps, Actors, data, animation and user interfaces, then run and package the game.
 
 ![The Ludork workspace with the Map List, layer tabs, map overview, tile palette and File Explorer](../../images/overview/editor-workspace.png)
-
-*The Map List is on the left, the map overview and layer tabs are in the centre, and the tile palette is on the right. File Explorer sits below the canvas.*
 
 ## Choose a learning path
 
@@ -52,7 +50,6 @@ Mobile packages are produced on Apple Silicon macOS. A Standalone project uses t
 
 - Paths are relative to the project root unless a page states otherwise.
 - Menu commands and field labels are written as they appear in the English editor.
-- `Code`, file names and API identifiers are case-sensitive where the underlying platform is case-sensitive.
 
 ## Product and content licences
 

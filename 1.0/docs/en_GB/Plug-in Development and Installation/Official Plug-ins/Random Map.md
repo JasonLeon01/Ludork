@@ -4,7 +4,7 @@ Use the official Random Map plug-in as the reference for a map-item command that
 
 ## Prerequisites
 
-- Install the editor release. On macOS, also run **Install Official Plugins** from the DMG. Restart Ludork and confirm that Official Random Map is **Loaded**. `Plugins/OfficialRandomMap` is its source directory in a repository checkout.
+- Install [the official plug-ins](<../Installing and Managing Plug-ins.md#official-release-plug-ins>) and confirm Official Random Map is **Loaded**. Its repository source is `Plugins/OfficialRandomMap`.
 - Open a project containing at least one map, layer and valid tileset.
 - Save any unsaved edits in the target map, or accept that a successful plug-in write includes them in the direct save of that map.
 
@@ -25,9 +25,9 @@ The handler receives `PluginMapContextMenuContext`, checks for `IAvaloniaPluginU
 
 ## Actor preview
 
-The preview draws static Actor images in their map layers using the editor's visual resolver for Blueprint and script classes, including per-instance overrides. Character direction selects the first frame of that direction. Texture rectangles, translation, scale, origin, rotation, material, parameter overrides and visibility opacity follow the editor's resolved values; missing resources display a placeholder. Actor dimensions use the host's source cell size, independent of the selected tileset.
+The preview renders resolved [Actor snapshots](<../Registration and Hook Reference.md#map-item-context-menu-commands>) from Blueprint/script classes and instance overrides, with placeholders for missing resources. The reference defines transforms, opacity and cell-size scaling.
 
-Actor positions are visual references only. Add a marker explicitly when an Actor's cell must remain open. Character sprites retain their resolved first frame. Material effects use native preview rendering, including their time-dependent graph inputs and vertex displacement; the preview does not execute Actor gameplay.
+Actor positions are visual references: add a marker when an Actor's cell must remain open. Character sprites retain the first frame of their resolved direction. Native material previews include time-dependent graph inputs and vertex displacement without executing Actor gameplay.
 
 ## Layouts and density
 
@@ -47,6 +47,5 @@ The plug-in submits the generated layer through `PluginMapLayerWriteRequest`. Co
 
 ## Related pages
 
-- [Registration and Hook Reference](<../Registration and Hook Reference.md>)
 - [Avalonia UI, Secrets and Localisation](<../Avalonia UI Secrets and Localisation.md>)
 - [Tilesets, Autotiles and Maps](<../../Editor User Guide/Tilesets Autotiles and Maps.md>)

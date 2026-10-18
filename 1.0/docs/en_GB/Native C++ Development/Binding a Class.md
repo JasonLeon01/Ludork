@@ -2,11 +2,6 @@
 
 Expose one C++20 class consistently to native Lua, LuaLS and the Blueprint metadata catalogue.
 
-## Prerequisites
-
-- The owning module and dependency direction are already selected.
-- The class has a public header and implementation under that module.
-
 ## Steps
 
 ### Declare the class
@@ -141,7 +136,7 @@ enum class WeatherType {
 };
 ```
 
-Bindgen generates `Module.WeatherType` and its LuaLS type. The native build also generates `Scripts/Enums/Module/WeatherType.lua`, which returns its named integer constants with source annotations. The module retains the `Enums.Module.WeatherType` table type and uses inline annotations to give its members the original `Module.WeatherType` API value type; it has no mirrored enum stub. Blueprint fields and signatures use `{ enum = "Enums.Module.WeatherType" }`; Lua calls and saved Blueprint values retain the underlying integers. Do not duplicate enumerators as module properties. The original native table remains available and shares its compiled values with the pure enum module.
+Bindgen exposes `Module.WeatherType` and generates the matching `Enums.Module.WeatherType` module; `name` selects both names. Blueprint fields and signatures use `{ enum = "Enums.Module.WeatherType" }`; Lua calls and saved Blueprint values use the underlying integers. Do not duplicate enumerators as module properties. See [Generated enum modules](<Generated Metadata and Stubs.md#generated-enum-modules>) for source annotations, stubs and cross-build requirements.
 
 An existing const map can supply a scalar enum without introducing a C++ enum:
 
@@ -204,9 +199,3 @@ Use `BIND_CLASS(pure_data = true)` for recursive value containers such as `Runti
 ## Limitations
 
 Bindgen does not infer project-specific conversion rules or resolve incomplete cross-module types.
-
-## Related pages
-
-- [Generated Metadata and Stubs](<Generated Metadata and Stubs.md>)
-- [Macro Reference](<Macro Reference.md>)
-- [Runtime Value Boundaries](<Runtime Value Boundaries.md>)

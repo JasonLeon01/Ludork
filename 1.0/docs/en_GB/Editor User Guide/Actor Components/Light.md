@@ -1,10 +1,6 @@
 # Light Component
 
-## Purpose
-
 Attach a light to an Actor so its position follows the Actor's transform, for example a carried lamp or wall torch.
-
-## Applicability
 
 `Engine.Actor` and its derived classes expose `lightComp`, an optional `Engine.LightComponent`. Map lighting is authored through these Actor components, using the ordinary Actor selection and inspector.
 
@@ -17,6 +13,5 @@ Attach a light to an Actor so its position follows the Actor's transform, for ex
 
 ## References
 
-- [Actor Components](<Overview.md>)
 - [LightComponent API](<../../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Gameplay Types.md#lightcomponent>)
 - [Map light editing](<../Tilesets Autotiles and Maps.md#lights-and-actors>)

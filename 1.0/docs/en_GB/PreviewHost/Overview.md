@@ -18,8 +18,6 @@ Editor previews display the content being authored. Map and Actor appearance pre
 
 Use **Play** to test gameplay. **Live Debug** inspects an already running game and retains its own editing permissions; its map image follows the [map preview display rules](<Map and World Previews.md>). See [Run, Debug and Package](<../Editor User Guide/Run Debug and Package.md>) for game execution and live editing.
 
-Resource creation, saved data formats, properties and Undo remain documented in the corresponding editor and API guides. Save-slot thumbnails and gameplay prediction APIs are separate features, outside this chapter.
-
 ## Prepare or develop PreviewHost
 
 - [Build, Publish and Troubleshooting](<Build Publish and Troubleshooting.md>) explains Source and Standalone preparation, runtime files, rebuilds and final-game packaging.

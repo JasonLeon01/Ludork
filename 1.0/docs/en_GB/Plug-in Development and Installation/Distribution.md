@@ -8,7 +8,7 @@ Include `plugin.json`, the required `.cs` files, plug-in resources and licence n
 
 Exclude build outputs, local settings, credentials and `.data`. Do not include the surrounding `__ProjectPlugins` tree or its registry. Recipients choose their own installation scope; project plug-ins are not included in the official editor distribution.
 
-Ludork loads source plug-ins rather than prebuilt entry assemblies and does not restore NuGet packages. The optional IDE project is not part of the host's build process.
+Source compilation and the optional IDE project's role are described in [Manifest and Minimal Plug-in](<Manifest and Minimal Plug-in.md#source-directory>).
 
 ## Installation
 
@@ -16,5 +16,4 @@ Recipients import the complete source directory and restart Ludork. See [Install
 
 ## Related pages
 
-- [Manifest and Minimal Plug-in](<Manifest and Minimal Plug-in.md>)
 - [Registration and Hook Reference](<Registration and Hook Reference.md>)

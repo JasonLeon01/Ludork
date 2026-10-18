@@ -48,9 +48,7 @@ Creating an ordinary map or a world child pre-fills Map Properties from the most
 
 The Ambient Light button shows a colour swatch and its ARGB value; a checkerboard indicates transparency. Click it to choose a colour.
 
-Use the browse button beside BGM, BGS or panorama and select **Clear** to remove the file reference. World Map Properties uses the same selector for panorama. Confirm the properties dialog to apply the change.
-
-Map Properties also selects an optional **Panorama** image from `Assets/Panoramas`. The runtime Cover-scales that image to fill `GameMap.MapViewRect`, then crops any overflow using the Camera's position as a fraction of the map's scrollable range. The left edge of the map shows the left of the panorama, and the right edge shows the right. An axis that cannot scroll uses the centre of that overflow. Ambient light tints the image, and point lights do not. A blank path disables the panorama. A world manifest may set a global panorama that covers the world Camera, while a child's `panorama` applies only when that child is loaded as a standalone map.
+Use the browse button beside BGM, BGS or **Panorama** to select a resource; choose **Clear** to remove it, then confirm the properties dialog. Panorama images conventionally live in `Assets/Panoramas`. World Map Properties selects a global panorama in the same way. For scaling, camera cropping, lighting and child-map behaviour, see [Panorama rendering](<../Lua and Blueprint Scripting/Default Gameplay/Resources Audio Video and Effects.md#shaders-fog-and-transitions>).
 
 ## Fog
 
@@ -72,7 +70,7 @@ Preview visibility and lighting are described in [Viewport options](<../PreviewH
 
 ## Layers and painting
 
-Tile mode supports layer creation, rename, reorder, copy, paste and deletion. A layer may reference a material: each tile or autotile material runs first, followed by the layer material. Actors use their own material. Selecting a tileset tab changes the active layer's tileset immediately, and its existing tile indices are then interpreted against that tileset. Select a tile or autotile in the palette, paint on the active layer, and use erase for removal. Zoom and pan do not alter map data.
+Tile mode supports layer creation, rename, reorder, copy, paste and deletion. A layer may reference a [material](<Materials.md#create-and-assign>). Selecting a tileset tab changes the active layer's tileset immediately, and its existing tile indices are then interpreted against that tileset. Select a tile or autotile in the palette, paint on the active layer, and use erase for removal. Zoom and pan do not alter map data.
 
 Each layer tab shows its name on the left and its visibility control on the right. Visibility is authored map data, so hidden layers are not rendered and are read-only. Layers and their Actors are drawn in the map's layer order. **Overview** shows all visible layers; selecting a layer dims the others without changing their stacking order.
 
@@ -154,8 +152,6 @@ Arbitrary strings, custom protocols and dynamically constructed paths are not re
 
 ## Related pages
 
-- [Project Settings and Asset Layout](<Project Settings and Asset Layout.md>)
-- [Run, Debug and Package](<Run Debug and Package.md>)
 - [Blueprints, Common Functions and Actors](<Blueprints Common Functions and Actors.md>)
 - [New Game, Title and Scene Flow](<../Lua and Blueprint Scripting/Default Gameplay/New Game Title and Scene Flow.md>)
 - [Official Random Map](<../Plug-in Development and Installation/Official Plug-ins/Random Map.md>)

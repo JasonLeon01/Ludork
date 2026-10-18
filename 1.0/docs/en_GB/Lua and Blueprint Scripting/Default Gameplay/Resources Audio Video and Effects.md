@@ -16,7 +16,7 @@ Initialisation generates missing `.anim.json`/`.anim.ldc` caches and rebuilds th
 
 ## Audio
 
-Music, sound effects and voices have independent enable flags and volumes in `Main.ini`. The GlobalFunctions Manager group provides the gameplay-facing helpers. Handle missing optional sound paths deliberately. Repeatedly loading the same resource under different path spellings defeats caching.
+Music, sound effects and voices have independent enable flags and volumes in `Main.ini`. Use the [GlobalFunctions Manager helpers](<../Global and Core Modules/Core Modules/GlobalFunctions.md#manager>) for gameplay playback.
 
 `Global.Audio.MapAudio` manages map BGM/BGS playback and filters, using `Global.Audio.MapAudioState` for source reuse and fades. A custom scene creates an instance with `MapAudio.new()`, calls its `playMapAudio(mapData, transitionSeconds?)`, advances transitions through `onTick(deltaTime)` and stops playback with `stopMapAudio()`.
 
@@ -73,13 +73,11 @@ Video.PlayVideo("/Game/Assets/Videos/intro.mp4", false, true, "Data/Subtitles/in
 
 Shader availability is determined by the runtime graphics environment, and a successful editor preview does not guarantee equivalent target hardware support.
 
-World lighting uses world coordinates, so Actor lights illuminate and cast shadows across child boundaries. Tile masks remain clipped to their placements, and holes contribute neither surfaces nor blockers. Fixed map light records and their map management APIs are removed; attach a `LightComponent` to an Actor to create a light.
+World lighting uses world coordinates, so Actor lights illuminate and cast shadows across child boundaries. Tile masks remain clipped to their placements, and holes contribute neither surfaces nor blockers. Attach a `LightComponent` to an Actor to create a light.
 
 Editor display options are described in [PreviewHost: Map and World Previews](<../../PreviewHost/Map and World Previews.md>).
 
 ## Related pages
 
 - [Common Particles](<../../Editor User Guide/Common Particles.md>) — independent GPU emitter assets for Actor Components and UI; existing code-driven particles and effects remain available.
-- [Project Templates](<../../Getting Started/Project Templates.md>)
 - [Run, Debug and Package](<../../Editor User Guide/Run Debug and Package.md>)
-- [GlobalFunctions Lua API](<../Global and Core Modules/Core Modules/GlobalFunctions.md>)

@@ -57,7 +57,7 @@ The editor shows a read-only generated `PlayerAttributeSet` preview. The preview
 | `restoreFromData` | `(data)` | Restores saved state into a Player of the same Blueprint class without replaying member graphs |
 | `MeetPlayer` | `(actors, player) -> Player?` | Returns the specified player only when present in the Actor array |
 
-`InitPlayer` applies Class initial equipment. `FromDict` reconstructs saved equipment without replaying `onEquip`. A runtime equip or unequip changes the Infinite Effect before the corresponding graph runs. Movement completion sends `Event.Movement.Step`.
+A runtime equip or unequip changes the Infinite Effect before the corresponding graph runs. Movement completion sends `Event.Movement.Step`.
 
 HP Current is constrained to `0..MAXHP`. Permanent MAXHP and LEVEL growth uses Base deltas. Effect and Constraint changes never alter progression Bases.
 

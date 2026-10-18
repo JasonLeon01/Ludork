@@ -1,36 +1,18 @@
 # SFML Quickstart
 
-SFML is the multimedia library behind the Ludork runtime. It supplies the graphics, audio, window and input layer, and Ludork projects use its value types for positions, sizes, colours and rectangles.
-
-Ludork embeds SFML through LuaSF, which registers the global `sf` table. Every project script can use it without a `require`.
+SFML supplies Ludork's graphics, audio, windows, input and geometry types. LuaSF exposes it as the global `sf` table, available to project scripts without `require`.
 
 ## Official documentation
 
-| Resource | Address |
-|---|---|
-| SFML 3.1.0 API reference | <https://www.sfml-dev.org/documentation/3.1.0/> |
-| SFML 3.1 tutorials | <https://www.sfml-dev.org/tutorials/3.1/> |
-| SFML project home | <https://www.sfml-dev.org/> |
-| SFML source repository | <https://github.com/SFML/SFML> |
-
-The repository vendors **SFML 3.1.0**. Online material for SFML 2 is still common and uses a different constructor style, so prefer the 3.1 pages above.
+Use the [SFML 3.1.0 API reference](<https://www.sfml-dev.org/documentation/3.1.0/>) for member details and the [3.1 tutorials](<https://www.sfml-dev.org/tutorials/3.1/>) for graphics and audio concepts. Ludork vendors **SFML 3.1.0**; SFML 2 uses a different constructor style.
 
 ## What Ludork provides and what SFML provides
 
-Ludork does not hide SFML; it builds on top of it. The two layers have different jobs.
-
-| Layer | Responsibility |
-|---|---|
-| Ludork | Project data, maps, Actors, Blueprints, Scenes, the declarative UI asset system, resource managers and packaging. |
-| SFML | Graphics, audio, windowing, input devices and the geometry and value types those subsystems exchange. |
-
-Use `sf` for graphics values and resources, and `Engine`, `GlobalCore` or `GlobalFunctions` for maps, Actors, Blueprints and project data.
-
-Most drawing in a project goes through Engine controls and Scenes rather than a hand-built `sf.RenderWindow`, because the runtime owns the window, the frame loop and the UI tree. The SFML layer is where the underlying values and resources come from.
+Use `sf` for graphics values and resources; use `Engine`, `GlobalCore` and `GlobalFunctions` for maps, Actors, Blueprints, Scenes, UI and project data. The runtime owns the window, frame loop and UI tree, so project drawing normally uses Engine controls and Scenes rather than a separate `sf.RenderWindow`.
 
 ## The sf table
 
-`sf` is a plain global table of classes, enums and helper functions. The full declaration is in `Scripts/stub/LuaSF.d.lua`, which the EmmyLua workspace indexes, so completion and hover work inside the editor.
+`sf` contains classes, enums and helper functions:
 
 | sf group | Members |
 |---|---|
@@ -46,7 +28,7 @@ Helpers sit directly on `sf`: `sf.seconds`, `sf.milliseconds` and `sf.microsecon
 
 ## Value types
 
-Geometry values are native userdata, not Lua tables. Compare them with the Standard `list`, `tuple` and `dict` containers, which are a separate system and are not SFML values.
+Geometry values are native userdata, distinct from Lua tables and Standard containers.
 
 Construct them with `new`:
 
@@ -69,18 +51,14 @@ local amount = sf.Vector3f.new(1.0, 0.5, 0.0)
 local offset = sf.Vector4f.new(0.0, 0.0, 0.5, 1.0)
 ```
 
-Two-dimensional vectors support arithmetic operators, so movement and centring read naturally:
+Two-dimensional vectors support arithmetic:
 
 ```lua
 local start = sf.Vector2f.new(64.0, 64.0)
 local step = sf.Vector2f.new(16.0, 0.0)
 
 local moved = start + step * 2.0   -- Vector2f(96, 64)
-local back = moved - step
-local mirrored = -moved
-local half = moved / 2.0
-
-local isSame = moved == back + step -- true
+local isSame = moved == sf.Vector2f.new(96.0, 64.0) -- true
 ```
 
 Operators are `+`, `-`, unary `-`, `*` and `/` by a scalar number, and `==`. Only `==` is defined, so ordering comparisons such as `<` are not available on vectors. Multiplication between two vectors is a method rather than an operator. `lengthSquared`, `perpendicular`, `dot`, `cross`, `componentWiseMul`, `componentWiseDiv` and `unpack` exist on all three `Vector2` types, and `unpack` returns the components as separate values. The floating-point type adds `length`, `normalized`, `angle`, `angleTo`, `rotatedBy` and `projectedOnto`, which works in `sf.Angle` rather than degrees.
@@ -125,7 +103,7 @@ local degrees = facing.asDegrees()
 local wrapped = sf.degrees(450).wrapSigned().asDegrees() -- 90
 ```
 
-`wrapSigned` constrains an angle to `[-180°, 180°)` and `wrapUnsigned` to `[0°, 360°)`. Both are optional: an angle outside those ranges is still valid, so use them only when a comparison or a normalised display value needs the constrained form. `sf.Angle.new()` and `sf.Angle.Zero` are both zero.
+`wrapSigned` normalises to `[-180°, 180°)` and `wrapUnsigned` to `[0°, 360°)`. Other angles remain valid. `sf.Angle.new()` and `sf.Angle.Zero` are both zero.
 
 `sf.Time` carries a duration, and `sf.seconds`, `sf.milliseconds` and `sf.microseconds` build one:
 
@@ -175,6 +153,7 @@ Events follow the same pattern in reverse. The payload types such as `sf.Event_C
 Positions, sizes and rectangles travel across the Engine API as `sf` values, so converting between cell coordinates and world positions is ordinary vector arithmetic:
 
 ```lua
+local Engine = require("Engine")
 local Player = require("GlobalFunctions.Player")
 
 local CELL_SIZE = Engine.GetCellSize()
@@ -199,9 +178,7 @@ JSON and metadata hold pure data, while `sf` values are native userdata, so conv
 
 ## Where to read more
 
-- `Scripts/stub/LuaSF.d.lua` is the complete declaration of everything under `sf`, with the SFML documentation comment carried across.
-- The [SFML 3.1.0 API reference](<https://www.sfml-dev.org/documentation/3.1.0/>) describes the C++ side of the same classes. Names and argument order match closely, so it is the best place to look up a member this page does not list.
-- The [SFML 3.1 tutorials](<https://www.sfml-dev.org/tutorials/3.1/>) explain the concepts behind sprites, textures, views, shaders and audio.
+`Scripts/stub/LuaSF.d.lua` contains the complete Lua declarations and SFML comments, indexed by EmmyLua for completion and hover. The official C++ reference linked above uses closely matching member names and argument order.
 
 ## Related pages
 

@@ -112,11 +112,9 @@ The exact Game schemas and member lists are in the General Data Reference pages,
 
 ## Limitations
 
-General Data identifiers are project contracts and are not repaired automatically when renamed. The Game project's combat and inventory rules are examples, not mandatory engine behaviour.
+The Game project's combat and inventory rules are examples that projects may replace.
 
 ## Related pages
 
 - [Ludork Lua Advanced](<../../Getting Started/Ludork Lua Advanced.md>)
-- [Class](<../../Editor User Guide/General Data Reference/Class.md>)
 - [Source.Battler](<../Source Classes/Battler.md>)
-- [Consumables](<Recipes/Consumables.md>)

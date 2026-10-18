@@ -52,7 +52,7 @@ The matching window stub declares only the private Controller, using bare `---@m
 3. Save the asset, then click **Export** to generate its View. Require that View in the window module.
 4. Define a local Controller and return `Ui.DefineWindow(ViewClass, Controller, nativeBase?)`. Add business initialisation in `init`, callbacks in `bind`, and state updates through `watch` or `refresh`.
 5. Use `windowOptions` for initial window behaviour, `createChild` for authored child panes, and collections for model-dependent rows. See [Declarative UI Runtime Contract](<Runtime Contract.md>) and [Declarative UI Controller Examples](<Controller Examples.md>).
-6. Maintain the private Controller declaration and regenerate. Create and mount the window from its owner, then dispose of it when it is no longer needed. For optional popups, keep a separate `Internal.UIBase.LazyWindow` handle and perform complete construction, callback and focus configuration, and mounting in its factory. Use `get()` at the display entry and `peek()` for queries; see [first-use construction](<Runtime Contract.md#create-optional-windows-on-first-use>).
+6. Maintain the private Controller declaration and regenerate. Create, mount and eventually dispose of the window from its owner. For optional popups, follow [first-use construction](<Runtime Contract.md#create-optional-windows-on-first-use>).
 
 Assets using `WindowBase` or `WindowSelectable` include the shared `Parts/Shared/WindowChrome` and `Parts/Shared/WindowPauseMark` as nodes named `WindowChrome` and `WindowPauseMark`. Their Slots place the chrome over the window frame and the pause mark at the content's bottom edge. These assets own return-button, gamepad-hint and pause-mark layout; the window base binds their behaviour.
 
@@ -66,11 +66,9 @@ Every visible screen has one top-level asset. Multi-pane screens nest owner-spec
 
 Before display, business code localises tab labels and fills dynamic collections. Fixed controls and rows remain the instances created from JSON. Literal `text` is reserved for permanent, language-independent symbols. See [UI previews](<../../PreviewHost/UI Actor Particle and Subtitle Previews.md#ui-previews>) for design-only placeholder content.
 
-Use `Engine.CharacterView` for frame-animated characters and enemies. Assets provide preview values, and the runtime passes the real texture, Rect, scale, animation, material reference and instance parameters to `setCharacter`. Lua does not crop or compose the actor visual.
+Use [`Engine.CharacterView`](<../Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#characterview>) for frame-animated characters and enemies. Assets supply preview values; runtime code passes the real Actor visual to `setCharacter`.
 
 ## Related pages
 
-- [Declarative UI Runtime Contract](<Runtime Contract.md>)
-- [Declarative UI Controller Examples](<Controller Examples.md>)
 - [UI Asset Schema](<Asset Schema and Control Registry.md>)
 - [Script Mixins Overview](<../Script Mixins/Overview.md>)

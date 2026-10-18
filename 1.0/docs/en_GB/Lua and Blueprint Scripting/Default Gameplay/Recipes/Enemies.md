@@ -1,7 +1,5 @@
 # Enemies
 
-## Goal
-
 Create an enemy whose physical Blueprint and General Data combat definition remain independently reusable.
 
 ## Prerequisites
@@ -10,8 +8,6 @@ Create an enemy whose physical Blueprint and General Data combat definition rema
 - Existing Item Blueprint paths, special-effect identifiers and animation identifiers referenced by the new record.
 
 ## Steps
-
-Create enemy definitions in General Data and enemy bodies as Blueprints.
 
 1. Add an Enemy member with combat values, rewards, drops, special effects and animation key.
 2. Create or derive an Enemy Blueprint and point it at the data member.
@@ -24,13 +20,11 @@ Shared combat algorithms belong in Gameplay Abilities, Gameplay Effects or Lua m
 
 `BP_Enemy_Slime.json` derives from `Source.MapActors.Enemy` and sets `ID = "Slime"`. That ID resolves the `Slime` member in `Data/General/Enemy.json`. The Blueprint owns physical and presentation defaults such as the texture, source rectangle and material speed. The General Data member owns `MAXHP`, `ATK`, `DEF`, `EXP`, `GOLD`, `drops`, `special` and `ANIMATION_KEY`.
 
-The built-in defeat shatter is selected project-wide through `Enemy.DefeatShatterEffectEnabled`, which defaults to `true`. It is a global class setting, not a Blueprint field. When the setting is enabled, the enemy is recorded and destroyed immediately for gameplay. A non-colliding, non-light-blocking snapshot then scatters radially outward from the centre as world-space logical-pixel fragments for about 0.65 seconds. Set the class setting to `false`, or run without shader support, to retain immediate disappearance.
+Configure the optional [enemy-defeat shatter effect](<../Resources Audio Video and Effects.md#shaders-fog-and-transitions>) project-wide with `Enemy.DefeatShatterEffectEnabled`.
 
-Each `drops` key is a `Source.MapActors.Item` Blueprint path, not a General Data ID. Its `sf.Vector2i` value is the cell offset. The drop spawns on the enemy's layer and is persisted. It activates its `onDrop` `GeneralDataGraphAbility`. A duplicate persistent tag skips that drop.
+Set `drops` keys to Item Blueprint paths, with `sf.Vector2i` cell offsets. See [Enemies](<../Actors Enemies Items and Equipment.md#enemies>) for drop activation, persistence and defeat settlement.
 
-`GhostSoldier` demonstrates `special.Reborn = "Data.Blueprints.Enemies.BP_Enemy_Skeleton_01"`. During defeat settlement, the original is recorded and destroyed. The target Blueprint is then spawned on the same cell and layer with a new map-placement tag, and recorded as an added Actor. Do not reuse the defeated Actor's tag, because the destroyed record would remove the replacement when the map is rebuilt.
-
-To make a variant, duplicate an existing enemy Blueprint, create or select the matching Enemy member and update the Blueprint `ID`. Change presentation separately.
+`GhostSoldier` demonstrates `special.Reborn = "Data.Blueprints.Enemies.BP_Enemy_Skeleton_01"`. It replaces the defeated enemy on the same cell and layer; settlement assigns a fresh map-placement tag so the replacement survives map rebuilds.
 
 ## Limitations
 

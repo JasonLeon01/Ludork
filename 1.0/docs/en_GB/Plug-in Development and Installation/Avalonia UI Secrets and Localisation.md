@@ -10,7 +10,7 @@ Open a plug-in-owned Avalonia window, store a secret through the host credential
 
 ## Steps
 
-The **With a Window** creation template supplies an empty `PluginWindow` in pure C#, already using `PluginTheme`. The entry class’s `Register` method remains empty. Add a command that constructs and opens the window when you are ready to expose it.
+Start from the [With a Window template](<Manifest and Minimal Plug-in.md#generated-template>) and register a command that opens your window.
 
 ### Set the window owner
 
@@ -57,7 +57,7 @@ string? stored = await context.SecretStore.ReadAsync(
     context.CancellationToken);
 ```
 
-`ContainsAsync`, `ReadAsync`, `WriteAsync` and `DeleteAsync` use Windows Credential Manager or macOS Keychain. Global credentials keep their existing plug-in-ID scope. Project credentials additionally include the project scope, so identical plug-in IDs and secret names in different projects do not share values. On Linux, reads use environment variables and writes/deletes are unsupported; the exception reports the required variable name. Project variables use `LUDORK_PROJECT_PLUGIN_SECRET_` followed by a hash of the scoped key, separate from global `LUDORK_PLUGIN_SECRET_` variables. Never copy a returned secret into ordinary settings, diagnostics, URLs or conversation logs. Keep the logical key stable and scope it to one purpose.
+`ContainsAsync`, `ReadAsync`, `WriteAsync` and `DeleteAsync` use Windows Credential Manager or macOS Keychain, with no plaintext-file fallback. Global credentials keep their existing plug-in-ID scope. Project credentials additionally include the project scope, so identical plug-in IDs and secret names in different projects do not share values. On Linux, reads use environment variables and writes/deletes are unsupported; the exception reports the required variable name. Project variables use `LUDORK_PROJECT_PLUGIN_SECRET_` followed by a hash of the scoped key, separate from global `LUDORK_PLUGIN_SECRET_` variables. Never copy a returned secret into ordinary settings, diagnostics, URLs or conversation logs. Keep the logical key stable and scope it to one purpose.
 
 ### Localise plug-in UI
 
@@ -75,6 +75,5 @@ For generated Lua strings, use `Ludork.Plugin.Abstractions.LuaStringLiteral.Quot
 
 ## Related pages
 
-- [Manifest and Minimal Plug-in](<Manifest and Minimal Plug-in.md>)
 - [Registration and Hook Reference](<Registration and Hook Reference.md>)
 - [Game Localisation Workflow](<Official Plug-ins/Game Localisation Workflow.md>)

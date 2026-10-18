@@ -27,7 +27,7 @@ The factory exposes Controller instance methods (`camelCase`), static helpers (`
 
 `Controller.windowOptions` supplies optional host behaviour. Its `position`, `centered` and `screen` fields control root placement or full-screen extent. Its `hidden`, `returnButton` and `focusable` fields control initial interaction. Window bases use `frame` and `content` node names, defaulting to `WindowFrame` and `Content`. Selectable bases name `list` and `scroll`; selection and hit bounds come from the ListView's native item layout. `transitionTarget` selects a node animation target. The host size comes from the generated template unless full-screen behaviour is requested. These options do not reproduce the JSON hierarchy or run business expressions.
 
-Controllers own callbacks, localisation, model queries, commands and display state. Independent row and Scene Controllers retain `Ui.Define(viewClass, definition, baseClass?)` and `Controller.new(model, ui?)`. A supplied View must match the generated type and accepts one Controller. A purely declarative display may still create and mount the generated View directly.
+Independent row and Scene Controllers use `Ui.Define(viewClass, definition, baseClass?)` and `Controller.new(model, ui?)`. A supplied View must match the generated type and accepts one Controller.
 
 ## Observe model fields and bind callbacks
 
@@ -53,7 +53,7 @@ For direct View use, `View:prepare(logicalSize?)` reflows the existing tree and 
 
 `Controller:prepare(logicalSize?)` calls `bind` once per binding lifetime, subscribes declared refresh events, registers the asset update channel, calls `refresh`, then prepares the View. Later preparations repeat refresh and reflow. Reusing a collection row starts a new binding lifetime. Omitting `logicalSize` reuses the size supplied by the owner on the previous preparation within that lifetime. Row Controllers use that supplied size for dynamic layout and locale refreshes. Controllers for the same asset share an update channel, created on first preparation. Loading a module or creating a View alone does not subscribe to that channel.
 
-For content-dependent dimensions, `AssetInstance:reflowControl(localName, logicalSize)` resizes a local system control and lays out its authored descendants while preserving its position. A later parent reflow restores its authored Slot. Static layout remains in JSON; Controllers retain content measurement, dynamic placement and mode changes such as hiding shop tabs in buy-only mode.
+For content-dependent layout, use [`AssetInstance:reflowControl`](<../Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#assetinstance>). Controllers handle content measurement and mode changes; fixed layout remains in JSON.
 
 ## Create optional windows on first use
 
@@ -87,7 +87,7 @@ An authored `Engine.WrapBox` owns one template and creates `count` independent n
 
 ## Namespace and property values
 
-Generated `controls` contains only local system nodes, and `assets` contains local nested View boundaries. Each boundary exposes its own `controls` and `assets` for further access. `Controller:requireAsset(name)` returns that generated child View. The native `instance:requireControl(name)` and `instance:requireAsset(name)` retain their local namespace and return native objects. `instance:getNodeByName(name)` searches the actual control subtree and rejects ambiguous names. Generated references provide the exact boundary without such a search.
+Generated references follow the local `controls` and child `assets` boundaries described under [Create a View](<#create-a-view>). `Controller:requireAsset(name)` returns a generated child View. Native `instance:requireControl(name)` and `instance:requireAsset(name)` return local native objects. `instance:getNodeByName(name)` searches the actual subtree and rejects ambiguous names.
 
 `AssetInstance:setProperty(name, propertyId, value)` and `UiController:setProperty` accept the property's declared runtime type. Property types and the clearing of optional values are described in [Engine: Interactive and Declarative UI Controls](<../Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#assetinstance>). Nesting JSON cannot override a child's internal properties or hierarchy.
 
@@ -111,6 +111,5 @@ Disposed UI is terminal and must not be reused. Hot reload, described in [Lua Ru
 
 ## Related pages
 
-- [Declarative UI Authoring Workflow](<Authoring Workflow.md>)
 - [Declarative UI Controller Examples](<Controller Examples.md>)
 - [UI Asset Schema](<Asset Schema and Control Registry.md>)

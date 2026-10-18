@@ -10,7 +10,7 @@
 
 ## 步骤
 
-**带界面** 新建模板提供纯 C# 的空 `PluginWindow`，已经使用 `PluginTheme`，但 `Register` 仍为空。需要向用户展示时，再添加创建并打开窗口的命令。
+从[带界面模板](<Manifest 与最小插件.md#自动生成模板>)开始，注册一条打开自有窗口的命令。
 
 ### 获取父窗口
 
@@ -57,7 +57,7 @@ string? stored = await context.SecretStore.ReadAsync(
     context.CancellationToken);
 ```
 
-`ContainsAsync`、`ReadAsync`、`WriteAsync` 与 `DeleteAsync` 使用 Windows 凭据管理器或 macOS 钥匙串。全局凭据保持已有的插件 ID 作用域；项目凭据额外包含项目作用域，因此不同项目中相同的插件 ID 与密钥名称不会共享值。Linux 从环境变量读取，不支持写入和删除，异常会给出所需变量名。项目变量使用 `LUDORK_PROJECT_PLUGIN_SECRET_` 加作用域密钥的哈希，与全局 `LUDORK_PLUGIN_SECRET_` 变量分开。返回的密钥不得复制到普通设置、诊断信息、URL 或会话日志中。密钥名称应保持稳定，每个名称只对应一种用途。
+`ContainsAsync`、`ReadAsync`、`WriteAsync` 与 `DeleteAsync` 使用 Windows 凭据管理器或 macOS 钥匙串，不会退化为明文文件。全局凭据保持已有的插件 ID 作用域；项目凭据额外包含项目作用域，因此不同项目中相同的插件 ID 与密钥名称不会共享值。Linux 从环境变量读取，不支持写入和删除，异常会给出所需变量名。项目变量使用 `LUDORK_PROJECT_PLUGIN_SECRET_` 加作用域密钥的哈希，与全局 `LUDORK_PLUGIN_SECRET_` 变量分开。返回的密钥不得复制到普通设置、诊断信息、URL 或会话日志中。密钥名称应保持稳定，每个名称只对应一种用途。
 
 ### 本地化插件 UI
 
@@ -75,6 +75,5 @@ string? stored = await context.SecretStore.ReadAsync(
 
 ## 相关页面
 
-- [Manifest 与最小插件](<Manifest 与最小插件.md>)
 - [注册点与 Hook 参考](<注册点与 Hook 参考.md>)
 - [游戏本地化工作流](<Official 插件/游戏本地化工作流.md>)

@@ -131,10 +131,3 @@ The EmmyLua workspace keeps `Scripts/stub` as its module root and library. In `.
 See [Project Templates](<../Getting Started/Project Templates.md>) for which declarations templates and game packages include.
 
 Standalone and C++ Source templates include a Windows VS Code configuration named `Ludork: EmmyLua Attach (Windows)` that attaches the `tangzx.emmylua` `emmylua_attach` debugger to a running `Main.exe`. C++ Source templates also keep the native `cppvsdbg` and `lldb` launch and attach configurations. The EmmyLua attach debugger supports Windows only.
-
-## Related pages
-
-- [Lua Basics](<../Getting Started/Lua Basics.md>)
-- [Ludork Lua Advanced](<../Getting Started/Ludork Lua Advanced.md>)
-- [Metadata Schema and Decorators](<Blueprint Scripting/Metadata Schema and Decorators.md>)
-- [Default Template Overview](<Default Gameplay/Default Template Overview.md>)

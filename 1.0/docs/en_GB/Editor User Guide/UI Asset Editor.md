@@ -8,15 +8,13 @@ Choose **Game → New UI Asset**, or create and open the JSON asset beneath `Dat
 
 ![UI Asset Editor showing Palette, Hierarchy, Designer and Inspector](../../../images/editor/ui-asset-editor.png)
 
-*The UI Asset Editor separates available controls, tree structure, visual placement and selected-node properties.*
-
 ## Steps
 
 1. Set the design width and height for the asset.
 2. Add a root control. A new screen normally starts with `Engine.Canvas`.
 3. Drag system controls or exposed project assets from the Palette into the Hierarchy. [UI Controls in the Palette](<UI Controls in the Palette.md>) says what each control is for and helps you choose between them.
 4. Select each node and edit control properties in the Inspector.
-5. Configure the child Slot. Whether a container accepts children at all, and which Slot it supplies, is fixed by its `childPolicy` and `slotType`; the table is in [Children and Slots](<UI Controls in the Palette.md#children-and-slots>). Canvas children use anchors, offsets, alignment, auto-size and z-order, while List children use list-owned placement.
+5. Configure the child Slot according to the container's [child and Slot rules](<UI Controls in the Palette.md#children-and-slots>).
 6. Give every node a meaningful name that is unique within the asset. Generated Views preserve these names as typed control or child-View keys.
 7. Set **Exposed** only when the asset is a complete, reusable item intended to appear in the Project Palette.
 8. Save, then use **Export** in the main window to generate the Lua View and declarations.
@@ -27,7 +25,7 @@ Moving a node to a Canvas preserves its visual position and fixed dimensions; st
 
 Nested project assets cannot be expanded or edited from their parent. Open the original asset to change its contents.
 
-A WrapBox has one child template. The Designer displays every repetition, but editing any repetition changes the same template. See [UI Controls in the Palette](<UI Controls in the Palette.md>) for control properties and child rules, and the [WrapBox API](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#wrapbox>) to access repeated instances.
+A WrapBox has one child template. The Designer displays every repetition, but editing any repetition changes the same template. Use the [WrapBox API](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#wrapbox>) to access repeated instances.
 
 ## Timeline
 
@@ -43,7 +41,4 @@ The asset identity is the exact-case path relative to `Data/UI`, with forward sl
 
 ## Related pages
 
-- [UI Controls in the Palette](<UI Controls in the Palette.md>)
-- [Declarative UI Authoring Workflow](<../Lua and Blueprint Scripting/Declarative UI/Authoring Workflow.md>)
 - [Declarative UI Controller Examples](<../Lua and Blueprint Scripting/Declarative UI/Controller Examples.md>)
-- [UI Asset Schema and Control Registry](<../Lua and Blueprint Scripting/Declarative UI/Asset Schema and Control Registry.md>)

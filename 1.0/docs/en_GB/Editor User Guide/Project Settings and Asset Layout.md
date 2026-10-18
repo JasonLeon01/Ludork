@@ -42,8 +42,6 @@ The language list uses the exported `Scripts/Source/Locale/*.lua` files, excludi
 
 ![Game Config with display and audio settings](../../../images/editor/game-config.png)
 
-*Game Config contains the language, display and audio settings.*
-
 Game Config always shows Scale in the editor. The in-game Config window shows that row only when `Display.isDisplayScaleConfigurable()` reports that the host supports display scaling.
 
 Editor runs use the project copy of `Main.ini`. A packaged Windows desktop game writes `Main.ini` and `Save/` into its runtime root, beside `Assets`, `Data` and `Scripts`, because Windows resolves user data to the process working directory. macOS and Linux desktop builds use `$HOME/<AppName>`, iOS uses `~/Library/Application Support/<AppName>`, and HarmonyOS and Android use the app-private user-data root. See [Game Settings Reference](<../Lua and Blueprint Scripting/Default Gameplay/Game Settings Reference.md>) for the keys, choices, defaults and application timing.
@@ -72,15 +70,16 @@ Moving an asset does not automatically repair every stored reference. Open its r
 
 ## Data and Scripts
 
-`Data/Materials` stores authored [2D material](<Materials.md>) graphs with `type: "material"` and `version: 1`. References keep the complete project-relative `Data/Materials/...json` path. Export writes the runtime shaders and metadata under `Assets/Shaders/MaterialGenerated`, preserving the material-relative path beneath `Materials/` and removing the final `.json` extension; the empty reference uses `Builtin/Default/`. See [Material export](<Materials.md#export-for-runtime>) for the program layout. The generated directory is ignored and absent from templates. Game packages retain both directories; runtime loading reads the generated files, including encrypted data/shaders and `Assets.ldpak`.
+`Data` stores editor-authored JSON and the localisation workbook:
 
-The optional project-root `MaterialExport.json` stores additional base/layer combinations managed through [Game → Material Combinations](<Materials.md#material-combinations>). Ordinary map usage is detected automatically. Keep this file with source projects and templates when present; packaging removes it after validation.
-
-`Data/Subtitles` stores [video subtitle](<Video Subtitles.md>) JSON documents with `type: "subtitle"` and a `sections` array. References use project-relative `Data/Subtitles/...json` paths. These managed editor documents are packaged with Data, including encrypted data and `Data.ldpak`.
-
-`Data/Particles` stores [Common Particle](<Common Particles.md>) definitions. A particle reference is its extensionless relative key; particle textures use complete logical paths, conventionally under `/Game/Assets/Particles`.
-
-`Data` contains JSON authored by the editor, and `Data/Locale/Locale.xlsx` is the localisation workbook managed by Official Locale Tools. Declarative UI assets live under `Data/UI`, while `Data/TextConfigs` holds shared or specialised text styles. Ordinary UI text styles are stored on their UI nodes.
+| Location | References and purpose |
+|---|---|
+| `Data/Materials` | Full `Data/Materials/...json` paths; see [Materials](<Materials.md>) for graphs and runtime export. |
+| `Data/Subtitles` | Full `Data/Subtitles/...json` paths; see [Video Subtitles](<Video Subtitles.md>). |
+| `Data/Particles` | Extensionless relative keys such as `Combat/Hit`; see [Common Particles](<Common Particles.md>). |
+| `Data/UI` | Extensionless relative asset keys; see [UI Asset Editor](<UI Asset Editor.md>). |
+| `Data/TextConfigs` | Shared text styles and rich-text tags; ordinary UI text styles stay on their nodes. |
+| `Data/Locale/Locale.xlsx` | Workbook managed by [Official Locale Tools](<../Plug-in Development and Installation/Official Plug-ins/Locale Tools.md>). |
 
 `Scripts` contains runtime Lua, metadata and declarations. See [Lua Runtime and Modules](<../Lua and Blueprint Scripting/Lua Runtime and Modules.md>) for module locations and ownership, and [Declarative UI Authoring Workflow](<../Lua and Blueprint Scripting/Declarative UI/Authoring Workflow.md>) for UI assets and generated Views. [General Data and Text Config](<General Data and Text Config.md>) describes the files generated when saving project data.
 
@@ -133,5 +132,3 @@ Map renames and moves update recognised map-file settings and destinations in `G
 ## Related pages
 
 - [Project Templates](<../Getting Started/Project Templates.md>)
-- [Lua Runtime and Modules](<../Lua and Blueprint Scripting/Lua Runtime and Modules.md>)
-- [Run, Debug and Package](<Run Debug and Package.md>)

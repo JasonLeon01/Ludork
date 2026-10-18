@@ -8,8 +8,6 @@ Keep source images under `Assets/Animations` or another intended asset folder. N
 
 ![Animation editor showing frame timing and preview controls](../../../images/editor/animation.png)
 
-*The animation editor provides frame editing and playback preview.*
-
 ### Exporting MP4 locally
 
 Save the animation before exporting. From the repository root on Windows, run
@@ -41,8 +39,6 @@ assets, not compressed animation caches or `.ldpak` packages.
 Use the curve editor to add, move and remove keys. Keep key times ordered. Avoid duplicate times unless the intended interpolation explicitly supports the discontinuity.
 
 ![Curve editor showing ordered keys and interpolation](../../../images/editor/curve.png)
-
-*The curve editor displays keys and interpolation.*
 
 ## Referencing data
 

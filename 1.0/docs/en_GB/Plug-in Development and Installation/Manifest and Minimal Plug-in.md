@@ -135,10 +135,9 @@ Adjust the reference to match the source layout. Official plug-ins in this repos
 
 ### Import and restart
 
-Choose **Plugins → Import Plugin**, select the target scope and `MyPlugin` and accept the full-trust confirmation, then restart Ludork.
+[Import the complete `MyPlugin` directory and restart Ludork](<Installing and Managing Plug-ins.md#import-a-third-party-plug-in>).
 
 ## Related pages
 
-- [Installing and Managing Plug-ins](<Installing and Managing Plug-ins.md>)
 - [Avalonia UI, Secrets and Localisation](<Avalonia UI Secrets and Localisation.md>)
 - [Distribution](<Distribution.md>)

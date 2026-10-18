@@ -20,7 +20,7 @@ The template contains all Events declared for the resolved Actor type, including
 
 ## File pair
 
-`scriptPath` must be a non-empty `.lua` path relative to `Scripts/Mixins`, use forward slashes and name an existing file. Empty segments, `.`, `..`, drive prefixes, absolute roots and `_meta.lua` suffixes are not allowed. The first Script Mixin Blueprint in a chain must supply the path; children may omit it to inherit the parent script.
+`scriptPath` is an existing `.lua` file relative to `Scripts/Mixins`, using forward slashes. Empty segments, `.`, `..`, drive prefixes, absolute roots and `_meta.lua` suffixes are invalid. Inheritance is described [below](<#inherited-scripts>).
 
 ```text
 Scripts/
@@ -32,31 +32,13 @@ Scripts/
 
 The metadata file is an editor declaration and does not supply runtime methods. The runtime file is the source of behaviour, and it must not load its metadata companion.
 
-The generated empty metadata is already valid:
-
-```lua
-local _METADATA = {
-    KeyDoor = {
-        attrs = {}
-    }
-}
-
-return _METADATA
-```
-
-You can also create the pair manually: return a plain definition table from the script and one matching `_METADATA` type from its companion.
+You can create the pair manually using the [runtime table contract](<Runtime Contract.md#table-rules>) and [metadata example](<Metadata.md>). An empty `attrs` table is valid.
 
 ## Inherited scripts
 
 A child Blueprint may omit `scriptPath` to inherit the current mixin. Supplying another path merges a compatible child mixin over inherited members. Before replacing a script, check that field and function kinds remain compatible, and remove stale saved attributes that no longer belong to the resolved class.
 
-## Limitations
-
-A Script Mixin cannot declare `init`, metadata bases or a second metadata type.
-
 ## Related pages
 
 - [Script Mixins Overview](<Overview.md>)
-- [Script Mixin Runtime Contract](<Runtime Contract.md>)
 - [Game Script Mixins](<Game Mixins.md>)
-- [Script Mixin Metadata](<Metadata.md>)

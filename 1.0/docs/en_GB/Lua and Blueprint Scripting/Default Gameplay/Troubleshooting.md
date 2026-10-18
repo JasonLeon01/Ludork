@@ -38,6 +38,5 @@ Native crashes, binding-generation failures and plug-in load failures require th
 
 ## Related pages
 
-- [Run, Debug and Package](<../../Editor User Guide/Run Debug and Package.md>)
 - [C++ Binding Troubleshooting](<../../Native C++ Development/C++ Binding Troubleshooting.md>)
 - [Distribution](<../../Plug-in Development and Installation/Distribution.md>)

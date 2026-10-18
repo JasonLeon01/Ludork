@@ -60,6 +60,5 @@ Native controls must be added through the project's Core UI source and adapter r
 ## Related pages
 
 - [UI Asset Editor](<../Editor User Guide/UI Asset Editor.md>)
-- [UI Asset Schema and Control Registry](<../Lua and Blueprint Scripting/Declarative UI/Asset Schema and Control Registry.md>)
 - [Generated Metadata and Stubs](<Generated Metadata and Stubs.md>)
 - [Macro Reference](<Macro Reference.md>)

@@ -1,17 +1,10 @@
 # UI Controls in the Palette
 
-The Palette lists everything you can drag into a UI asset: the engine's built-in controls, followed by the project's own exposed assets. This page covers the built-in controls — what each one is for, whether it accepts children, which Slot its children use, and which properties matter first. Runtime APIs are linked from each entry instead of being repeated here.
+The Palette lists built-in controls and exposed project UI assets. Each entry below gives its purpose, child rules, key properties and runtime API.
 
 ## How to read this page
 
-Every entry is headed by the control's `controlId`, which is the exact value written into a node's `controlId` field. Entries are grouped by the Palette's own categories, and each carries one table:
-
-| Column | Meaning |
-|---|---|
-| Category | The Palette group the control appears under. |
-| Children | `childPolicy` — whether the control accepts child nodes, and how many. |
-| Slot | `slotType` — the kind of Slot this control supplies to each child. |
-| Key properties | The control's own serialised properties, excluding those every control shares. |
+Entries are grouped by Palette category and headed by the exact `controlId` saved in the node. Tables list the child policy, Slot type and control-specific serialised properties.
 
 ### Children and Slots
 
@@ -88,7 +81,7 @@ Items flow left to right and wrap at the available width. Editing repetitions is
 
 ## Visual controls
 
-Visual controls draw something and take no input. `ProgressBar` belongs to this group even though the value it displays changes at runtime.
+Visual controls draw content without accepting input.
 
 ### Engine.CharacterView
 
@@ -138,7 +131,7 @@ A rectangle drawn from a window skin — panels, frames and selection highlights
 |---|---|---|---|
 | Visual | none | — | `size`, `windowSkin`, `opacityCurve` |
 
-`opacityCurve` is relative to `Data/Curves`, with no directory prefix or extension, and resolves to a scalar curve. A Button with an empty `texture` uses the current window skin's selection-Rect image. See [Engine: Layout and Image Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#rect>).
+`opacityCurve` is relative to `Data/Curves`, with no directory prefix or extension, and resolves to a scalar curve. See [Engine: Layout and Image Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#rect>).
 
 ### Engine.SolidRect
 
@@ -163,8 +156,6 @@ A skinned window frame — the standard background for dialogs, menus and messag
 ## Input controls
 
 Input controls accept focus and player input. Each one is a `FunctionalBase`, which accepts focus and input only while it and every `FunctionalBase` ancestor are active, and while it and every `ControlBase` ancestor are visible.
-
-`FunctionalImage` is in this group rather than under Visual: it is an Image that also takes input.
 
 ### Engine.Button
 
@@ -290,40 +281,11 @@ Static text with named tag styles resolved through a TextConfig.
 
 See [Engine: Text and Windows](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Text and Windows.md#richtext>).
 
-## Choosing between controls
-
-| To do this | Use |
-|---|---|
-| Position children freely, or start a new screen | Canvas |
-| Flow children into rows and columns | ListView |
-| Scroll content that does not fit | ScrollBox |
-| Repeat one template at equal spacing | WrapBox |
-| Show a picture, stretched or tiled | Image, or FunctionalImage when it must take input |
-| Show an animated character or enemy sheet | CharacterView |
-| Show a particle effect | EmitterView |
-| Show progress from 0 to 1 | ProgressBar |
-| Draw a skinned dialog frame | Window |
-| Draw a skinned panel or selection highlight | Rect |
-| Draw a solid-colour block | SolidRect |
-| Show static text | PlainText, or RichText for named tag styles |
-| Show text that must be focusable | FunctionalPlainText or FunctionalRichText |
-| Accept a click | Button |
-| Accept a yes/no choice | CheckBox |
-| Accept one choice from a list | DropBox |
-| Accept a number within a range | Slider |
-| Accept typed text | TextBox |
-| Switch between pages | TabView |
-| Show gamepad button hints | GamepadHintBar |
-
 ## Runtime-only types
 
 `Engine.SectorShape` and `Engine.AssetInstance` are available to code but are not built-in Palette controls. See the [interactive control reference](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md>) for their APIs. Exposed project assets appear in the Palette by their own names, and their generated View exposes the runtime asset through `.instance`.
 
 ## Related pages
 
-- [UI Asset Editor](<UI Asset Editor.md>)
-- [UI Asset Schema and Control Registry](<../Lua and Blueprint Scripting/Declarative UI/Asset Schema and Control Registry.md>)
 - [Declarative UI Authoring Workflow](<../Lua and Blueprint Scripting/Declarative UI/Authoring Workflow.md>)
-- [Engine: Layout and Image Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md>)
-- [Engine: Interactive and Declarative UI Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md>)
 - [Native UI Adapters](<../Native C++ Development/Native UI Adapters.md>)

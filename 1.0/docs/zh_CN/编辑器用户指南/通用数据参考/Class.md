@@ -1,9 +1,5 @@
 # Class
 
-本参考依据 `Data/General` 下 Game 当前的 schema 生成。表中取值属于项目数据，不是引擎枚举。
-
-带花括号的显示字符串按 [游戏本地化工作流](<../../插件开发与安装/Official 插件/游戏本地化工作流.md>) 所述规则解析。
-
 来源：`Data/General/Class.json`
 
 | 属性 | 值 |

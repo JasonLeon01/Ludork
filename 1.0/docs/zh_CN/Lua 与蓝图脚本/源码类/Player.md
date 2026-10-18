@@ -57,7 +57,7 @@ Metadata 来源：`Scripts/Source/MapActors/Player_meta.lua`
 | `restoreFromData` | `(data)` | 将存档状态恢复到同一 Blueprint 类的 Player 中，不重放成员图 |
 | `MeetPlayer` | `(actors, player) -> Player?` | 仅当 Actor 数组中出现指定 player 时，才返回该 Player |
 
-`InitPlayer` 会应用 Class 的初始装备。`FromDict` 重建存档中的装备，但不重放 `onEquip`。运行时的装备与卸下先修改 Infinite Effect，再运行对应的图。移动完成时会发送 `Event.Movement.Step`。
+运行时装备或卸下时，先改变 Infinite Effect，再运行对应图。移动完成会发送 `Event.Movement.Step`。
 
 HP Current 限制在 `0..MAXHP` 范围内。永久 MAXHP 与 LEVEL 的成长通过 Base 增量实现。Effect 与 Constraint 的变化不会改动成长用的 Base。
 

@@ -1,16 +1,16 @@
 # Windows, Menus, Input and Controls
 
-The default Lua UI uses JSON assets and generated View trees. Scenes create windows, Views provide their complete controls and nested panes, and the UI manager controls stacking. Business Controllers add model updates and input callbacks.
+This page describes the default game's windows and input behaviour. To create your own UI, start with [Declarative UI Authoring Workflow](<../Declarative UI/Authoring Workflow.md>).
 
 ## Windows and menus
 
 Window views follow the [Declarative UI Runtime Contract](<../Declarative UI/Runtime Contract.md>). Menus keep stable command identifiers separate from displayed text. Long descriptions use the existing wrapping and formatting helpers.
 
-The title's Save/Load and Config windows and the map's optional windows use separate `Internal.UIBase.LazyWindow` handles. Map entry creates the HUD and Region Title directly; Menu, Item, Equip, shops, Save/Load, Config, Enemy Book, Encyclopedia, Floor Teleporter and Player Name are created on their first display. The message window is created by the first message or selection. Opening Menu does not create its Item, Equip, Save/Load or Config windows. Each window's complete authored child tree is built on that first use, then reused until the owning scene is destroyed.
+The title's Save/Load and Config windows and the map's optional windows use separate [`LazyWindow` handles](<../Declarative UI/Runtime Contract.md#create-optional-windows-on-first-use>). Map entry creates HUD and Region Title directly. Menu, Item, Equip, shops, Save/Load, Config, Enemy Book, Encyclopedia, Floor Teleporter and Player Name are created on first display; Message is created on the first message or selection. Opening Menu leaves its unused sub-windows uncreated.
 
 The in-game menu lists Items, Equipments, Files, Config and Return to Title. `WindowMenu.new(player, windows, onExit)` receives the scene's exit action and invokes it after the menu's closing animation. The scene owns the destination and assigns one stacking layer to the menu and its independent sub-windows. Selecting Config opens the shared Config window over the menu and deactivates the command list. Closing the Config window returns focus to the menu.
 
-Every visible default screen has one top-level asset: Init, Title, Game Over, Region Title, HUD, Menu, Config, Message, Item, Equip, Shop, Save/Load, Attribute Shop, Enemy Book, Encyclopedia, Floor Teleporter and Player Name. Multi-pane screens nest their panes under one root, and sibling input hosts reuse the nested lists and scroll boxes.
+Each default screen has one top-level asset; multi-pane screens nest their panes under that root. Sibling input hosts reuse the nested lists and scroll boxes.
 
 Top-level window transitions are linear and default to 0.2 seconds. Internal panes and tabs switch immediately. Input is disabled during playback, and close results run after `FadeOut` hides the root. Initialisation and disposal hide immediately.
 
@@ -26,9 +26,9 @@ Top-level window transitions are linear and default to 0.2 seconds. Internal pan
 
 Related `FadeOut` transitions may run in parallel. Using an inventory item runs its completion callback after the item window is hidden; an open menu then closes and restores movement once no blocking window remains.
 
-Assets include representative `#TAB` and `#ITEM` children and Game visuals. Dynamic collections replace list placeholders before display, and Controllers localise TabView items without changing their count. Enemy Book and Encyclopedia use `CharacterView`. The runtime passes the real actor snapshot, while native code owns cropping, animation, scale and material effects. Enemy Book cells use their authored dimensions; Controllers measure names and special tags against those areas, including on language changes.
+Default assets include `#TAB` and `#ITEM` preview children. Enemy Book and Encyclopedia use [`CharacterView`](<../Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#characterview>) with authored cell sizes; Controllers measure localised names and special tags within those areas.
 
-`Source.Windows` modules export UI classes through `Ui.DefineWindow`, with business behaviour in private Controllers. The title's `WindowCommand` binds the four existing rows in `Parts/Title/CommandWindow`; its parent `Title` asset owns placement. UI authoring and file layout are described in [Declarative UI Authoring Workflow](<../Declarative UI/Authoring Workflow.md>).
+The title's `WindowCommand` binds the four existing rows in `Parts/Title/CommandWindow`; its parent `Title` asset owns placement.
 
 When a selectable list gains focus, the current selection scrolls into view while the mouse pointer stays in place. This also applies when opening a window, switching panes or returning to a parent list.
 
@@ -48,25 +48,23 @@ Load `Enums.ShopMode` for the public `WindowShop:setMode(mode)` values `BUY = "b
 
 The shop keeps its two-column item list focused while Q/E, LB/RB, mouse or touch switches Buy/Sell. Switching tabs resets the cursor and scroll, while a transaction refresh preserves a still-valid selection. Buy and Sell cells show the icon and current owned count, and details show the localised name, description, a localised `Price` label and the right-aligned price. Selling grants `floor(price / 2)` GOLD and omits zero-price results. Buy-only shops hide the tabs and centre the remaining panes. Cancel closes the shop. Closing restores the prior movement state and blocks map input for one frame.
 
-Overflowing lists use `Engine.ScrollBox`. It clips rendering and hit testing, scrolls only overflowing axes, and keeps keyboard/controller selection visible. Native edge indicators show the remaining content. See [Engine: Layout and Image Controls](<../Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md>).
+Overflowing lists use [`Engine.ScrollBox`](<../Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#scrollbox>) for clipping, scrolling and keeping the selection visible.
 
 The message window uses a full-screen Canvas and a transparent `FunctionalImage` to consume one click or tap for plain-message confirmation. Choice mode disables that layer, so blank-space clicks cannot select an option. Its maximum of four options fits directly in the panel without a ScrollBox. `SceneMap` only blocks map input while dialogue is active.
 
 `SceneMap` owns one `LocaleChanged` subscription for its long-lived map windows. Active dialogue retains the raw speaker, message or options, explicit `localeArgs`, and snapshots of node-local and instance variables. It reruns template localisation and localises string `localeArgs`. It then applies those arguments and the two variable snapshots before updating the existing `WindowMessage` controls. Item and equipment details, shop tabs and details, attribute shops, Enemy Book, `WindowEnemyEncyclopedia`, and Teleporter (`WindowFloorTeleporter`) likewise refresh localised text in place while preserving their current selection, mode, focus and preview state. Hidden windows resolve the active language when they next open, while Config, save-slot and player-HUD controllers keep their own subscriptions. The player HUD also subscribes to `AbilitySystemChanged` and `PlayerChanged` from `Enums.EventKey`, ignores payloads whose `owner` is another battler, and refreshes only the affected controls when a signature of the current player changes. Change payloads use `Enums.AbilitySystemChangeKind` (`Attribute`, `State`) or `Enums.PlayerChangeKind` (`Inventory`, `Name`, `Map`); their shared record is declared as `Source.Configs.EventChangePayload`.
 
-Language changes, loaded-player rebinding, visibility queries and input checks only inspect already-created windows through `peek()`. An unused window does not block map input or acquire focus, and its factory reads the current player, game instance and configuration when it is eventually opened. Destroying a scene disposes its handles, releasing existing windows without constructing unused ones.
-
 The Teleporter opens with the current map's floor entry selected and scrolled into view, falling back to the first entry when the current map is absent. An empty list uses `nil` and hides the preview. Opening resolves the final floor selection before generating its single preview. Telepoint selection starts at the first entry. Its left slot alternates between the floor and telepoint lists, and cancelling telepoint selection restores the floors. The telepoint list scrolls without moving the right-side preview. A composite manifest remains one floor identity, with child maps composed at world offsets.
 
-Stair transfers arrive at the nearest stair of the opposite direction: up to `Down`, down to `Up`. Set the `stairDirection` enum in each stair Blueprint; ordinary `None` teleporters are excluded from these arrivals. See [Source.MapActors.Teleporter](<../Source Classes/Teleporter.md>).
+Set each stair Blueprint's `stairDirection` so transfers can find an opposite-direction arrival. See [Teleporter](<../Source Classes/Teleporter.md>) for selection and recording rules.
 
-Telepoints are discovered through stair transfers or `Teleporter:goToMap(mapPath, position, record)` with `record` omitted or `true`, even before the Teleporter item is acquired. `goToMap` records the source actor's offset position and the exact destination tile on their respective maps, without searching for a destination stair. Passing `false` records neither endpoint. The window lists only the current map's region; a map without a configured region has an empty floor list. Opening the window or approaching stairs does not record a visit. Record structure and deduplication are described in [Runtime Data, Configuration and Saves](<Runtime Data Configuration and Saves.md>).
+Telepoints are discovered through stair transfers or `Teleporter:goToMap`, even before the Teleporter item is acquired. Opening the window or approaching stairs does not record a visit. The window lists only the current region; a map without a region has no floor entries. See [Teleporter](<../Source Classes/Teleporter.md>) for endpoint recording and [Runtime Data, Configuration and Saves](<Runtime Data Configuration and Saves.md#saves>) for record structure and deduplication.
 
 Telepoint labels resolve the recorded tag through `LOC`. Empty or automatically generated tags use the localised `POINT` number format, and missing translations retain the raw tag.
 
 Keyboard, mouse and touch selection update the destination and preview before confirmation. The preview keeps a fixed scale and stays within map bounds, centring axes smaller than the view. Composite previews use the full manifest bounds.
 
-Floor previews use static display records without constructing gameplay Actors or instantiating event graphs. They preserve the configured texture, first-frame rectangle, layer, position, translation, rotation, scale, origin, material reference and instance parameters; material time is fixed at `0`. Actor constructors, lifecycle callbacks, combat systems, particles, sounds and dynamic damage text do not run, so appearances created only by gameplay scripts are absent.
+Floor previews use [static Actor display records](<Runtime Data Configuration and Saves.md#static-actor-display-data>), preserving configured visuals and material parameters with material time fixed at `0`. They do not run gameplay, so appearances created only by gameplay scripts are absent.
 
 Destroyed tags and their child trees are filtered before display records or textures are created. Added and moved records and terrain destruction are restored; declarative `childActorComp` children retain their offsets, tags and ancestor visibility without running component callbacks. Ordinary maps retain their region-hiding rules, and composite children retain world offsets.
 
@@ -129,8 +127,3 @@ An expanded Config DropBox overlays the settings rows and owns input until it co
 Save/Load uses one shared slot list. Switching the Load/Save tabs preserves its cursor, scroll and detail. Reopening defaults to Load and the newest existing save, or slot zero when none exists; map hotkey S opens Save instead. Cancel closes it. Title load-only mode omits the tabs and centres the remaining panes.
 
 Exact UI and input APIs are in the API reference, starting with [GlobalFunctions.Container](<../Node Functions/Container.md>). Game-localised labels follow [Game Localisation Workflow](<../../Plug-in Development and Installation/Official Plug-ins/Game Localisation Workflow.md>). Editor language switching is not part of this runtime section.
-
-## Related pages
-
-- [Declarative UI Authoring Workflow](<../Declarative UI/Authoring Workflow.md>)
-- [Engine: Interactive and Declarative UI Controls](<../Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md>)

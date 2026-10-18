@@ -1,6 +1,6 @@
 # UI, Actor, Particle and Subtitle Previews
 
-Open the relevant asset editor to inspect its appearance and timing. These previews use the project's visual resources; they do not replace running the game to test Controllers or Actor gameplay. For host availability, rebuilds and errors, see [Build, Publish and Troubleshooting](<Build Publish and Troubleshooting.md>).
+Open the relevant asset editor to inspect its appearance and timing. These previews follow the [preview/gameplay boundary](<Overview.md#preview-and-gameplay>). For host availability, rebuilds and errors, see [Build, Publish and Troubleshooting](<Build Publish and Troubleshooting.md>).
 
 ## UI previews
 
@@ -18,15 +18,11 @@ Selecting a Blueprint JSON file in a file selector previews its current appearan
 
 The Actor Library and Blueprint editing surfaces use resolved Actor appearances. Texture regions, character frame animation, `material` and `materialParameters` come from the current Blueprint values. Map instances also apply their instance overrides. Changing inherited defaults, including Undo/Redo, refreshes the affected visuals.
 
-This is a visual preview, not an Actor gameplay session: it does not execute Actor creation, Tick or Blueprint gameplay events. Use the game to validate behaviour driven by those events.
-
 See [Blueprints, Common Functions and Actors](<../Editor User Guide/Blueprints Common Functions and Actors.md>) for the Actor Library, class and instance editing, and [Map and World Previews](<Map and World Previews.md>) for map lighting, selection aids and Live Debug display.
 
 ## Material previews
 
-Open a material from `Data/Materials` to edit exposed defaults or its node graph. The native preview uses the same graph compiler as Export and the same material renderer as the game, with the current unsaved document, preview texture, frame rectangle, ambient light and optional point light. It compiles the snapshot in memory without reading or rewriting the exported shader files. Actor, map and UI previews also receive unsaved material snapshots; the game loads the files created by Export.
-
-Compilation errors identify the node and port where available; select an error to focus the node. The generated GLSL is available read-only. Invalid material previews report the failure instead of retaining a stale successful image. See [Materials](<../Editor User Guide/Materials.md>) for authoring and instance overrides.
+Material, Actor, map and UI previews receive unsaved material snapshots. The native host compiles them in memory without rewriting exported shaders; gameplay loads the exported files. Invalid previews report an error instead of retaining a stale successful image. For the shared compiler, preview controls, error navigation and GLSL view, see [Preview and diagnose](<../Editor User Guide/Materials.md#preview-and-diagnose>).
 
 ## Particle previews
 
@@ -48,6 +44,4 @@ Native preview and runtime playback share subtitle layout. Subtitle data, langua
 
 ## Related pages
 
-- [Overview](<Overview.md>)
 - [Architecture and Data Flow](<Architecture and Data Flow.md>)
-- [Build, Publish and Troubleshooting](<Build Publish and Troubleshooting.md>)

@@ -17,6 +17,4 @@ Source: `Data/General/Special.json`
 
 ## Editing notes
 
-Define fields before populating many members. A reference controls the selector, but the stored value keeps the declared JSON shape. When the type lists events, each member may store a graph under `_graph`. An absent start node means that the optional event has no implementation.
-
 Special records define presentation only. Parameters remain in `Enemy.special`. Presence-only specials use `""`. A special's description may contain one `{value}` placeholder. The Enemy Book localises `FixDmg` expression tokens before inserting the value into the description.

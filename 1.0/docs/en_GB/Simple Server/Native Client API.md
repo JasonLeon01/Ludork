@@ -53,17 +53,13 @@ GlobalCore.Server.CheckAccountExistsAsync("player-1", function(result)
 end)
 ```
 
-An account exists when its data directory exists, even if the directory is empty, matching the management account list. Checking existence, reading fields and acquiring write tokens do not create an account; the first write creates its directory as needed. A non-directory account path or failure to inspect it produces `StorageFailure`, not a successful `exists == false` result.
-
-This is an observation, not a reservation: another client may write after the check. It provides no atomic collision guarantee. Generate any UUID account identifiers in your own application; the Server API does not generate UUIDs.
+An account exists when its data directory exists, even if empty. The check does not create or reserve it, and provides no atomic collision guarantee. Generate UUID account identifiers in your application. Storage failures remain errors rather than `exists == false`; see [account-existence semantics](<HTTP Protocol.md#check-account-existence>).
 
 ## List accounts and fields
 
 ### List or sample accounts
 
-`ListAccountsAsync(nil, nil, onCompleted)` returns all account IDs in ascending UTF-8 byte order. `sampleCount == 0` has the same meaning. A positive count samples distinct eligible accounts without replacement, returning at most that count; if fewer exist, all eligible accounts are returned in random order. Counts must be nonnegative signed 64-bit integers, up to `9223372036854775807`.
-
-An optional `categoryFilter` selects accounts whose named category is present as a regular file, **before** sampling. It does not parse that file: malformed JSON still passes this presence filter, but reading it fails with `StorageFailure`. A non-file category path or inspection error also fails the list query. No matching accounts is a successful empty list.
+`ListAccountsAsync(nil, nil, onCompleted)` and `sampleCount == 0` return all eligible account IDs in ascending UTF-8 byte order. Positive counts sample distinct accounts in random order, up to that count. `categoryFilter` applies before sampling and tests file presence rather than JSON validity. See [List accounts](<HTTP Protocol.md#list-accounts>) for accepted ranges, storage errors and the 2 MiB response limit.
 
 This gameplay example samples up to ten accounts that have a `history` category:
 
@@ -83,7 +79,7 @@ GlobalCore.Server.ListAccountsAsync(10, "history", function(result)
 end)
 ```
 
-The serialised account-list response is limited to 2 MiB. An all-account query or an oversized sample fails with `InvalidArgument` and asks for a smaller positive `sampleCount`; it is not silently truncated. There is no account-list cursor.
+There is no account-list cursor. An oversized result fails with `InvalidArgument`; request a smaller positive `sampleCount`.
 
 ### Page through a category's fields
 
@@ -116,7 +112,7 @@ end
 readPage(nil)
 ```
 
-Pages do not form a snapshot: each request reads the current category, and concurrent writes can change later pages. Newly inserted keys larger than the current cursor are outside subsequent pages; refresh from the first page to include them. For newest-first history, generate fixed-width timestamp keys in your application, using one format and time zone, such as `2026-10-10T12:30:00.123Z`. The server neither creates timestamps nor sorts values; repeated keys replace their earlier values. Listing never creates data. A field-page response above 2 MiB fails with `InvalidArgument` and asks for a smaller limit.
+Pages do not form a snapshot across writes. Refresh from the first page to include newly inserted keys above the cursor. For timestamp-key design and response-size limits, see [List category fields](<HTTP Protocol.md#list-category-fields>).
 
 ## Read and write from Lua
 
@@ -160,19 +156,19 @@ Server.AcquireWriteTokenAsync("player-1", function(result)
 end)
 ```
 
-Account, category and field names contain 1–64 UTF-8 bytes, are case-sensitive, and cannot be empty, contain control characters, or equal `.` or `..`. Slash characters are allowed in these data names; the client encodes each name as one URL path segment. Project names have the stricter rule described on the deployment page.
+Pass account, category and field names without URL-encoding; the client encodes each path segment. Names must satisfy the [HTTP identifier rules](<HTTP Protocol.md>), including the 1–64 UTF-8 byte limit.
 
 Values follow the [RuntimeData conversion rules](<../Native C++ Development/Runtime Value Boundaries.md#lua-value-conversion>). A top-level null value stores null rather than deleting the field. The backend and viewer preserve the digits of JSON numbers; they cannot recover precision already lost by a caller's numeric conversion.
 
-A successful write creates the account/category as needed and replaces one top-level dictionary field. Requests and category files are limited to 1 MiB. There is no multi-field or cross-file transaction, delete operation or automatic save synchronisation.
+A successful write creates the account/category as needed and replaces one top-level dictionary field. The [write contract](<HTTP Protocol.md#acquire-and-use-a-token>) defines the 1 MiB request/file limit and transaction boundaries; there is no automatic save synchronisation.
 
 ## Tokens and timeouts
 
-A write token is bound to the project, account and current client session, lasts **at most 60 seconds**, and permits **one write**. Acquire another token for each subsequent write. The client marks a valid token consumed before sending the write; the backend also consumes it before awaiting storage. A failed or timed-out write is never retried automatically, and the token must not be reused. Read the field to establish its current value before deciding whether to acquire another token and write again. Backend restart invalidates its outstanding tokens.
+A write token is bound to the project, account and current client session, lasts **at most 60 seconds**, and permits **one write**. The client consumes a valid token before sending. Failed or timed-out writes are not retried automatically: read the field before deciding whether to acquire another token and write again. Backend token handling and restart invalidation follow the [HTTP write contract](<HTTP Protocol.md#acquire-and-use-a-token>).
 
 The server also applies a configurable write interval per project and client IP; see [HTTP write rate limits](<HTTP Protocol.md#write-rate-limits>) for the full rules.
 
-A denied write completes with `ServerErrorCode.RateLimited` and `retryAfterSeconds`, the remaining delay rounded up to whole seconds. Rejected requests do not extend the interval. **Its valid token has already been consumed**, including for HTTP 429. Wait at least the returned delay, then acquire a fresh token only when ready to write; the default interval is longer than a token's lifetime. There is no automatic retry.
+A denied write completes with `ServerErrorCode.RateLimited` and `retryAfterSeconds`, rounded up to whole seconds. **The valid token is already consumed.** Wait at least that delay, then acquire a fresh token when ready to write; the default interval exceeds the token lifetime.
 
 Ordinary operations have a ten-second deadline; the connection probe has a three-second deadline. Work executes away from the game logic thread, while completion is delivered on its next operation update. System DNS resolution may remain blocked after cancellation; stopping the game can wait for that resolver to return. No DNS cancellation or hard shutdown deadline is promised.
 

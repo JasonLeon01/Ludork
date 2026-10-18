@@ -73,6 +73,4 @@ UI View 与窗口声明由独立生成器 `ScriptTools ui-assets generate <proje
 
 ## 相关页面
 
-- [绑定类](<绑定类.md>)
 - [C++ 绑定故障排除](<C++ 绑定故障排除.md>)
-- [函数、事件与执行](<函数、事件与执行.md>)

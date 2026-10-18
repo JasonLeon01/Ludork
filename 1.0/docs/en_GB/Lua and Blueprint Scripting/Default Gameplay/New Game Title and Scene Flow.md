@@ -8,7 +8,7 @@ Scene changes use `GlobalCore.SceneManager`; freezing and transition requests us
 
 A new-game action creates or resets the game instance, selects the initial map and player data, and changes to the map scene. `Data/Configs/System.json` stores the player Blueprint under `startPlayerBlueprint` as a path relative to `Data/Blueprints`, and stores the initial region under `startRegion`. These values initialise new games only. Continue restores the player class and the current region saved in the selected slot.
 
-Map entry creates the HUD and Region Title, while optional popups and dialogue wait for their first display. This keeps unused window construction out of scene entry without changing transition durations. Window ownership and reuse are described in [Windows, Menus, Input and Controls](<Windows Menus Input and Controls.md>).
+Map-window creation and reuse follow [Windows, Menus, Input and Controls](<Windows Menus Input and Controls.md>).
 
 `startMap` may identify an ordinary map, a composite-world manifest such as `World_01/_world.json`, or a placed world child such as `World_01/Map_03.json`. `startPos` is a world coordinate for a manifest target and a child-local coordinate for a child target. The editor presents all three forms through one map tree and stores the selected string path.
 

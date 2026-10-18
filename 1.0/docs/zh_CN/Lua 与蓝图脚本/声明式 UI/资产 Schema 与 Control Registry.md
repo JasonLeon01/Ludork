@@ -29,7 +29,7 @@ UI 资产使用 `type = "uiAsset"`，并遵循下面的字段规则，不接受�
 
 `translation` 在布局结果上叠加局部位移，`rotation` 叠加局部旋转角度，`scale` 与原有缩放相乘，`colour` 与子树原有的 RGBA 分量相乘。动画围绕目标的局部边界和 `pivot` 应用变换，不修改原有的位置、旋转、缩放、原点或 Slot 数据，因此重新布局不会累积动画偏移。渲染、绝对边界和命中测试使用同一变换，Canvas 对子树颜色只应用一次。
 
-嵌套资产只导出自己的 Global 动画。父资产中针对该嵌套节点、使用同名动画的条目属于实例覆盖，兄弟实例之间互不影响。父资产的 Global 动画可以与这个覆盖并存，并且不会自动播放它。
+嵌套资产只导出 Global 动画。父资产针对嵌套节点的同名动画覆盖该实例；分派与完成规则见[动画播放](<运行时契约.md#动画播放>)。
 
 重命名节点会改写指向它的动画目标。删除节点会删除所有指向被删子树的动画。复制节点会连带复制这些动画，并把目标重定向到副本。
 
@@ -56,7 +56,7 @@ Canvas Slot 根据控件的局部边界定位，并计入边界的非零偏移�
 
 `Engine.Window` 在资产中保存 `size`、`windowSkin`、`repeated` 与 `colour`。`colour` 是 RGBA 乘色，默认为 `[255,255,255,255]`；需要半透明窗口边框时，在 JSON 中设置其 alpha。
 
-`Engine.Image` 与 `Engine.FunctionalImage` 接受 `drawAs`，默认序列化为 `"Image"`，另一个枚举成员为 `"Tile"`。Inspector 使用枚举下拉框。运行时调用（包括 `AssetInstance:setProperty`）必须使用绑定的 `Engine.ImageDrawAs` 枚举，不能以数字或字符串代替。Tile 通过 SFML 重复选定的纹理区域，末块允许裁切，全局 UI Scale 则整体缩放最终结果。详见 [Engine：布局与图像控件](<../全局与 Core 模块/Core Modules/Engine/布局与图像控件.md#image>)。
+`Engine.Image` 与 `Engine.FunctionalImage` 将 `drawAs` 保存为 `"Image"`（默认）或 `"Tile"`。运行时调用要求 `Engine.ImageDrawAs`，平铺与缩放行为见 [Image](<../全局与 Core 模块/Core Modules/Engine/布局与图像控件.md#image>)。
 
 `Engine.EmitterView` 序列化 `particle`（`Data/Particles` 下不带扩展名的键，默认 `""`）、`size`（默认 `[100,100]`）、`anchor`（默认 `[0.5,0.5]`）和 `autoPlay`（默认 `true`），不接受子节点。它沿用父节点的 Slot、排序与裁剪，GPU 粒子使用所属 Canvas 的逻辑坐标域，代码通过 `getEmitter()` 控制播放。隐藏或未挂载时冻结，释放时释放播放，切换 Canvas 时重置坐标域。资源 Schema、时序与缩放见 [通用粒子](<../../编辑器用户指南/通用粒子.md>)。
 
@@ -75,5 +75,4 @@ Canvas Slot 根据控件的局部边界定位，并计入边界的非零偏移�
 ## 相关页面
 
 - [UI 资产编辑器](<../../编辑器用户指南/UI 资产编辑器.md>)
-- [Palette 控件](<../../编辑器用户指南/Palette 控件.md>)
 - [原生 UI Adapter](<../../C++ 原生开发/原生 UI Adapter.md>)

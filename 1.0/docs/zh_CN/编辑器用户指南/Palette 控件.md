@@ -81,7 +81,7 @@ Canvas 决定内部控件的坐标空间和层叠顺序。详见 [Engine：运�
 
 ## Visual 控件
 
-Visual 控件只负责绘制，不接受输入。`ProgressBar` 也归在这一类，尽管它显示的数值会在运行时变化。
+Visual 控件只负责绘制，不接受输入。
 
 ### Engine.CharacterView
 
@@ -131,7 +131,7 @@ Visual 控件只负责绘制，不接受输入。`ProgressBar` 也归在这一�
 |---|---|---|---|
 | Visual | 无 | — | `size`、`windowSkin`、`opacityCurve` |
 
-`opacityCurve` 相对于 `Data/Curves`，不带目录前缀与扩展名，解析为一条标量曲线。`texture` 为空的 Button 使用当前窗口皮肤的选中 Rect 图像。详见 [Engine：布局与图像控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/布局与图像控件.md#rect>)。
+`opacityCurve` 相对于 `Data/Curves`，不带目录前缀与扩展名，解析为一条标量曲线。详见 [Engine：布局与图像控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/布局与图像控件.md#rect>)。
 
 ### Engine.SolidRect
 
@@ -156,8 +156,6 @@ Visual 控件只负责绘制，不接受输入。`ProgressBar` 也归在这一�
 ## Input 控件
 
 Input 控件接受焦点与玩家输入。它们都是 `FunctionalBase`：只有当自身与所有 `FunctionalBase` 祖先都处于 active、且自身与所有 `ControlBase` 祖先都可见时，才接受焦点与输入。
-
-`FunctionalImage` 是可接受输入的 Image，因此归入 Input。
 
 ### Engine.Button
 
@@ -283,40 +281,11 @@ Text 控件只绘制字符串，不接受输入。如果文本自身需要获得
 
 详见 [Engine：文本与窗口](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/文本与窗口.md#richtext>)。
 
-## 如何在控件之间选择
-
-| 要做的事 | 用哪个 |
-|---|---|
-| 自由定位子节点，或新建一个屏幕 | Canvas |
-| 把子节点排成行与列 | ListView |
-| 滚动放不下的内容 | ScrollBox |
-| 按等间距重复同一个模板 | WrapBox |
-| 显示一张图片，拉伸或平铺 | Image；需要接受输入时用 FunctionalImage |
-| 显示逐帧动画的角色或敌人图集 | CharacterView |
-| 显示粒子效果 | EmitterView |
-| 显示 0 到 1 的进度 | ProgressBar |
-| 画带皮肤的对话框窗框 | Window |
-| 画带皮肤的面板或选中高亮 | Rect |
-| 画纯色块 | SolidRect |
-| 显示静态文本 | PlainText；需要命名标签样式时用 RichText |
-| 显示需要获得焦点的文本 | FunctionalPlainText 或 FunctionalRichText |
-| 接受一次点击 | Button |
-| 接受是/否选择 | CheckBox |
-| 从列表中接受一个选择 | DropBox |
-| 接受范围内的一个数值 | Slider |
-| 接受键入的文本 | TextBox |
-| 在多个页面之间切换 | TabView |
-| 显示手柄按键提示 | GamepadHintBar |
-
 ## 仅供代码使用的类型
 
 `Engine.SectorShape` 和 `Engine.AssetInstance` 可在代码中使用，但不是内置 Palette 控件。API 见[交互控件参考](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/交互与声明式 UI 控件.md>)。已启用 Exposed 的项目资产以自己的名称出现在 Palette 中，生成的 View 通过 `.instance` 提供对运行时资产的访问。
 
 ## 相关页面
 
-- [UI 资产编辑器](<UI 资产编辑器.md>)
-- [UI 资产 Schema 与 Control Registry](<../Lua 与蓝图脚本/声明式 UI/资产 Schema 与 Control Registry.md>)
 - [声明式 UI 编写工作流](<../Lua 与蓝图脚本/声明式 UI/编写工作流.md>)
-- [Engine：布局与图像控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/布局与图像控件.md>)
-- [Engine：交互与声明式 UI 控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/交互与声明式 UI 控件.md>)
 - [原生 UI Adapter](<../C++ 原生开发/原生 UI Adapter.md>)

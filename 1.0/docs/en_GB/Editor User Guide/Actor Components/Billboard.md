@@ -1,10 +1,6 @@
 # Billboard Component
 
-## Purpose
-
 Show a stack of images and text above an Actor when the player approaches, such as a name or interaction hint.
-
-## Applicability
 
 `Engine.Actor` and its derived classes expose `billboardComp`, an optional `Engine.BillboardComponent`. Configure it through the [component workflow](<Overview.md#configuration>).
 
@@ -18,5 +14,4 @@ Show a stack of images and text above an Actor when the player approaches, such 
 
 ## References
 
-- [Actor Components](<Overview.md>)
 - [BillboardComponent and BillboardItem API](<../../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Gameplay Types.md#billboardcomponent>)

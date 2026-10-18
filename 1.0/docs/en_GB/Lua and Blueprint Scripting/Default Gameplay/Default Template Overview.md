@@ -4,7 +4,7 @@ The Game project provides playable default gameplay and supplies the project tem
 
 ## Entry and modules
 
-Entry retains the static `APP_NAME` for application identity and package filenames. Release version and dev settings belong to `Main.proj` and Pack Options, while mobile and macOS display names come from the System title. See [Packaging](<../../Editor User Guide/Run Debug and Package.md#packaging>) for the shared rules.
+Application naming and release settings follow [Packaging](<../../Editor User Guide/Run Debug and Package.md#packaging>).
 
 `Scripts/Entry.lua` initialises the game and enters the native loop. Its module loading order is described in [Lua Runtime and Modules](<../Lua Runtime and Modules.md#entry-and-module-order>).
 
@@ -20,7 +20,7 @@ Startup calls the following functions explicitly. Requiring their modules does n
 
 Entry also initialises latent graphs and the native System before it constructs `SceneInit`. Register providers once per session. Hot reload does not rerun startup; see [Lua Runtime and Modules](<../Lua Runtime and Modules.md#lua-hot-reload>). [Runtime Data, Configuration and Saves](<Runtime Data Configuration and Saves.md>) describes the configuration and save locations.
 
-On Android and iOS, returning from the background in the same process resumes the current scene and Lua state without rerunning Entry or catching up on background time; see the [SceneBase lifecycle](<../Global and Core Modules/Core Modules/GlobalCore/Scenes and System.md#scenebase>).
+Mobile background/resume behaviour follows the [SceneBase lifecycle](<../Global and Core Modules/Core Modules/GlobalCore/Scenes and System.md#scenebase>).
 
 ## Gameplay layout
 
@@ -28,7 +28,7 @@ On Android and iOS, returning from the background in the same process resumes th
 - `Scripts/Source/MapActors` contains the reusable map Actor classes. `Scripts/Source/Utils` contains gameplay helpers, including the Enemy and GameInstance implementation modules and `Source.Utils.AnimationCache`; scenes, business windows and components retain their own directories.
 - `Scripts/GlobalFunctions` contains independent Lua Blueprint function libraries. Their paths in graph data begin with `GlobalFunctions.`; the native root module remains separate.
 - `Scripts/Internal` contains Live Debug and UI foundations, including the shared window base classes.
-- `Scripts/Internal/UI` contains Views generated from `Data/UI` by Export. Generated UI and locale files are absent from templates and version control; export the project before its first run. Handwritten foundations live in `Internal.UIBase`, and business windows live in `Source.Windows`. See [Declarative UI Authoring Workflow](<../Declarative UI/Authoring Workflow.md>).
+- `Scripts/Internal/UI` contains Views generated from `Data/UI` by Export. Generated UI and locale files are absent from templates and version control; export the project before its first run. See [Declarative UI Authoring Workflow](<../Declarative UI/Authoring Workflow.md>).
 - `Scripts/Mixins` contains directly attachable Lua behaviour.
 - `Data/Blueprints` contains game-specific Actor classes.
 - `Data/Materials` contains authored material graphs; Export generates runtime shaders and metadata in `Assets/Shaders/MaterialGenerated`. These outputs are ignored and excluded from templates.
@@ -40,13 +40,8 @@ On Android and iOS, returning from the background in the same process resumes th
 
 ## Template variants
 
-`Cpp` keeps native sources and builds them per project. `Cpp-ffmpeg` adds video support. Standalone variants contain a built runtime for packaging. iOS, HarmonyOS and Android packages are built only from a C++ Source variant, and they use the FFmpeg-enabled C++ Source variant when video is enabled. Changing the Game project does not update an existing project, so regenerate the template or apply the required changes to that project explicitly.
+Choose a native-source or Standalone variant using [Project Templates](<../../Getting Started/Project Templates.md>). Changes to the Game project do not update existing projects; apply them to each project or regenerate its template.
 
-An existing Source project can also be [converted to Standalone](<../../Editor User Guide/Run Debug and Package.md#convert-source-to-a-standalone-project>). Conversion retains authored gameplay and current UI, locale and material export files, together with Lua declarations; it does not apply the fresh-template export exclusions.
+An existing Source project can also be [converted to Standalone](<../../Editor User Guide/Run Debug and Package.md#convert-source-to-a-standalone-project>), preserving its authored gameplay, declarations and current exports.
 
 Runtime Lua, `Scripts/stub` declarations and `_meta.lua` file-layer rules are in [Lua Runtime and Modules](<../Lua Runtime and Modules.md>).
-
-## Related pages
-
-- [Project Templates](<../../Getting Started/Project Templates.md>)
-- [Lua Runtime and Modules](<../Lua Runtime and Modules.md>)

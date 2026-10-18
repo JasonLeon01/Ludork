@@ -1,10 +1,6 @@
 # Emitter Component
 
-## Purpose
-
 Attach a Common Particle effect to an Actor, such as a flame, aura or sparks. Author the particle's tracks, textures and lifetime curves in the [Common Particle editor](<../Common Particles.md>).
-
-## Applicability
 
 `Engine.Actor` and its derived classes expose `emitterComp`, an optional `Engine.EmitterComponent`. For effects inside a UI, use `Engine.EmitterView` instead.
 
@@ -19,7 +15,5 @@ Attach a Common Particle effect to an Actor, such as a flame, aura or sparks. Au
 
 ## References
 
-- [Actor Components](<Overview.md>)
-- [Common Particles](<../Common Particles.md>)
 - [EmitterComponent API](<../../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Time Rendering and Particles.md#emittercomponent>)
 - [EmitterView for UI](<../UI Controls in the Palette.md#engineemitterview>)

@@ -1,7 +1,5 @@
 # Consumables
 
-## Goal
-
 Create a collision-driven healing or attribute pickup with a Script Mixin.
 
 ## Prerequisites
@@ -10,8 +8,6 @@ Create a collision-driven healing or attribute pickup with a Script Mixin.
 - A matching numeric field in the generated Player Attribute Set and a valid Audio configuration fallback.
 
 ## Steps
-
-Use a Script Mixin when the item's behaviour is naturally expressed as an Actor collision method.
 
 1. Create a Blueprint derived from `ConditionalActor` and enable Script Mixin.
 2. Attach `Consumables/Bottle.lua` or `Consumables/Gem.lua`.

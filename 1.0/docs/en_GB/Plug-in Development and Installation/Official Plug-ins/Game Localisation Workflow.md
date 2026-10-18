@@ -1,8 +1,6 @@
 # Game Localisation Workflow
 
-Official Locale Tools exports the game's translations from a workbook.
-
-Author one workbook, export Lua language tables and use them in gameplay.
+Use Official Locale Tools to export a translation workbook into Lua language tables for gameplay.
 
 ## Prerequisites
 
@@ -39,7 +37,7 @@ Export writes `Scripts/Source/Locale/<language>.lua`. Language names may not be 
 
 Export preserves Unicode text, including C1 control characters, in UTF-8. Quotes, backslashes and ASCII control characters use Lua escapes. The editor hints and the game therefore read the same string values from the generated catalogue.
 
-The workbook and generated language files participate in the export record. Editing the workbook or removing or modifying an output makes the next Play ask for Export; it does not export on ordinary Save or every unchanged Play. Editor game packaging performs a complete Export each time, then excludes the workbook. [Standalone project conversion](<../../Editor User Guide/Run Debug and Package.md#convert-source-to-a-standalone-project>) also exports, but retains both the workbook and generated language files for further editing. Direct command-line run or pack requires prior export. Generated language Lua files are ignored and excluded from templates, while handwritten `Core.lua` is retained. See [Construct, Export and Play](<../../Editor User Guide/Run Debug and Package.md#construct-export-and-play>).
+The workbook and generated catalogues participate in [Export change detection](<../../Editor User Guide/Run Debug and Package.md#construct-export-and-play>). Game packaging exports and excludes the workbook; [Standalone conversion](<../../Editor User Guide/Run Debug and Package.md#convert-source-to-a-standalone-project>) retains it and the generated catalogues. Direct command-line run or pack requires prior Export. Generated language files are ignored and excluded from templates; handwritten `Core.lua` is retained.
 
 ## Editor hints
 

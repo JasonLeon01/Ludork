@@ -16,8 +16,6 @@ Resource windows display a loading indicator while opening. If loading fails, us
 
 ![The main workspace showing Overview, layer tabs, the tile palette and File Explorer](../../../images/overview/editor-workspace.png)
 
-*Overview shows the visible layers together. The tile palette is on the right, and File Explorer is below the map canvas.*
-
 ## Online documentation
 
 **F1** opens the online manual inside the editor. The installed editor version selects its matching major.minor documentation: 1.0.7 opens `/Ludork/docs/v1.0/`. The current editor language is selected initially; language and version selectors remain available beside the chapter tabs. About and third-party notices also load online, while About retains the installed package version.
@@ -44,7 +42,7 @@ Project-specific display preferences are described in [Viewport options](<../Pre
 
 ## User data directory
 
-Windows and macOS editors use `~/Ludork` for persistent editor data, including installed, portable and repository runs. `~` means the current user's home directory: typically `C:\Users\<user>` on Windows and `/Users/<user>` on macOS. The editor can save this data without write access to its installation directory.
+Windows and macOS editors use `~/Ludork` for persistent data in installed, portable and repository runs. `~` is the current user's home directory: typically `C:\Users\<user>` on Windows and `/Users/<user>` on macOS.
 
 | Data | Path below `~/Ludork` |
 |---|---|
@@ -164,8 +162,6 @@ When profiling a composite world, the Performance Monitor includes an optional `
 
 ![Console output after a Game project run](../../../images/editor/console-output.png)
 
-*The Console records launch progress, runtime diagnostics and the final process result.*
-
 ![Performance Monitor waiting for runtime telemetry](../../../images/editor/console-performance.png)
 
 *A waiting monitor is normal when no compatible runtime session is active; the timeline fills after telemetry is connected.*
@@ -173,5 +169,3 @@ When profiling a composite world, the Performance Monitor includes an optional `
 ## Related pages
 
 - [Common Particles](<Common Particles.md>)
-- [Project Settings and Asset Layout](<Project Settings and Asset Layout.md>)
-- [Run, Debug and Package](<Run Debug and Package.md>)

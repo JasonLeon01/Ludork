@@ -65,7 +65,7 @@ Messages and windows complete after their closing animation. A new message or se
 
 When a request reaches the front of the queue, empty localised text (`""`) skips presentation and recording and completes through `Finished`. Recording rules are described under [Saves](<../Default Gameplay/Runtime Data Configuration and Saves.md#saves>).
 
-Blueprints choose the keys and their execution order. The `Map_01` example supplies an ordered key array to `ForEach` and calls `ShowTutorial` in the loop body. See [Map introduction](<../Default Gameplay/Windows Menus Input and Controls.md#map-introduction>) for configuration.
+Blueprints choose tutorial keys and their order; see [Map introduction](<../Default Gameplay/Windows Menus Input and Controls.md#map-introduction>) for the `Map_01` configuration.
 
 ### OpenPlayerName
 

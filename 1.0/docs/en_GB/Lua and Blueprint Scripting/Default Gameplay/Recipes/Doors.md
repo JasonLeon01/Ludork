@@ -1,7 +1,5 @@
 # Doors
 
-## Goal
-
 Create a door that opens through an inventory key or a named game-state condition.
 
 ## Prerequisites
@@ -10,8 +8,6 @@ Create a door that opens through an inventory key or a named game-state conditio
 - Matching Item or Game Variable identifiers for the selected workflow.
 
 ## Steps
-
-A door Blueprint combines collision behaviour, an opening animation, door state and an optional key or condition.
 
 When the opening animation finishes, `DoorBase` records its map-placement tag as destroyed, provided the tag is not empty. Rebuilt maps omit that placement, so the door remains absent across map transfers and save and load.
 

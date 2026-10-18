@@ -8,15 +8,13 @@ UI 资产编辑器用于直观地编排界面、窗口和可复用组件。窗�
 
 ![显示 Palette、Hierarchy、Designer 和 Inspector 的 UI 资产编辑器](../../../images/editor/ui-asset-editor.png)
 
-*UI 资产编辑器将可用控件、树结构、可视化布局与选中节点属性分开显示。*
-
 ## 步骤
 
 1. 设置资产的设计宽度与高度。
 2. 添加根控件。新屏幕通常以 `Engine.Canvas` 开头。
 3. 把系统控件或已暴露的项目资产从 Palette 拖入 Hierarchy。每个控件的用途以及如何在它们之间选择，见 [Palette 控件](<Palette 控件.md>)。
 4. 逐个选中节点，在 Inspector 中编辑控件属性。
-5. 配置子节点的 Slot。容器允许的子节点数量和布局方式见[子节点与 Slot](<Palette 控件.md#子节点与-slot>)。Canvas 使用锚点、偏移、对齐、自动尺寸和层叠顺序；List 负责排列自己的子节点。
+5. 根据容器的[子节点与 Slot 规则](<Palette 控件.md#子节点与-slot>)配置子节点的 Slot。
 6. 为每个节点设置名称，且名称在当前资产内必须唯一。生成的 View 使用这些名称访问控件或子 View。
 7. 只有当资产本身完整、可复用，并且应当出现在 Project Palette 中时，才启用 **Exposed**。
 8. 保存后，使用主窗口的**导出**操作生成 Lua View 和声明。
@@ -27,7 +25,7 @@ UI 资产编辑器用于直观地编排界面、窗口和可复用组件。窗�
 
 嵌套的项目资产不能在父资产中展开或编辑；修改内部内容时，需要打开原资产。
 
-WrapBox 只允许一个子模板。设计区会显示全部重复项，编辑其中任意一项都会修改同一模板。各控件的属性和子节点规则见 [Palette 控件](<Palette 控件.md>)，重复实例的访问方式见 [WrapBox API](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/布局与图像控件.md#wrapbox>)。
+WrapBox 只允许一个子模板。设计区会显示全部重复项，编辑其中任意一项都会修改同一模板。重复实例的访问方式见 [WrapBox API](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/布局与图像控件.md#wrapbox>)。
 
 ## Timeline
 
@@ -43,7 +41,4 @@ WrapBox 只允许一个子模板。设计区会显示全部重复项，编辑其
 
 ## 相关页面
 
-- [Palette 控件](<Palette 控件.md>)
-- [声明式 UI 编写工作流](<../Lua 与蓝图脚本/声明式 UI/编写工作流.md>)
 - [声明式 UI Controller 示例](<../Lua 与蓝图脚本/声明式 UI/Controller 示例.md>)
-- [UI 资产 Schema 与 Control Registry](<../Lua 与蓝图脚本/声明式 UI/资产 Schema 与 Control Registry.md>)

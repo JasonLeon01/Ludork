@@ -36,7 +36,7 @@ Both query parameters are optional:
 | `sampleCount` | Omitted or `0`: all eligible accounts in ascending UTF-8 byte order. Positive: sample distinct accounts without replacement, up to the requested count, in random order. Accepted decimal integers range from `0` to `9223372036854775807`. |
 | `category` | Only include accounts with this category present as a regular file; apply the filter before sampling. Encode its value as a query parameter. |
 
-If fewer accounts qualify than requested, return all qualifying accounts. No matches succeeds with `{"accounts":[]}`. Category filtering checks file presence, not JSON validity: malformed content still qualifies, but a later read fails with `StorageFailure`. Non-file category paths and inspection errors also fail the query. No accounts or files are created.
+If fewer accounts qualify than requested, return all qualifying accounts. No matches succeeds with `{"accounts":[]}`. Category filtering checks file presence, not JSON validity: malformed content still qualifies, but a later read fails with `StorageFailure`. Non-file category paths and inspection errors also fail the query.
 
 The serialised response may not exceed 2 MiB. An all-account query or an oversized sample returns HTTP 400 `InvalidArgument` with `The account list exceeds 2 MiB. Request a smaller positive sampleCount.` It does not truncate the list or return an account cursor. Unknown, repeated, empty or invalid query parameters are rejected.
 
@@ -76,7 +76,7 @@ X-Ludork-Key: project-key
 
 If more fields remain, `nextCursor` is the last returned key. Pass it unchanged as the next `before`, for example `?before=2026-10-10T12%3A20%3A00.123Z&limit=2`. Otherwise `nextCursor` is JSON null. Missing accounts/categories and exhausted ranges succeed with `{"entries":[],"nextCursor":null}`; malformed category contents return `StorageFailure`. Unknown or repeated query parameters are rejected.
 
-Each page reads the current category; pagination provides no snapshot across concurrent writes. Newly inserted keys larger than the current cursor require a refresh from the first page to enter the traversal. Generate fixed-width timestamp keys in your application if byte order should represent time, using one format and time zone. The server does not generate timestamps or sort field values; reusing a key replaces its value. Listing never creates data. A serialised page above 2 MiB returns HTTP 400 `InvalidArgument` and asks for a smaller limit.
+Each page reads the current category; pagination provides no snapshot across concurrent writes. Newly inserted keys larger than the current cursor require a refresh from the first page to enter the traversal. Generate fixed-width timestamp keys in your application if byte order should represent time, using one format and time zone. The server does not generate timestamps or sort field values; reusing a key replaces its value. A serialised page above 2 MiB returns HTTP 400 `InvalidArgument` and asks for a smaller limit.
 
 ### Read a field
 
@@ -89,7 +89,7 @@ X-Ludork-Key: project-key
 {"found":true,"value":100}
 ```
 
-A missing account, category or field returns `{"found":false,"value":null}`. Stored null returns `{"found":true,"value":null}`. Reading does not create files.
+A missing account, category or field returns `{"found":false,"value":null}`. Stored null returns `{"found":true,"value":null}`.
 
 ### Acquire and use a token
 
@@ -110,7 +110,7 @@ Content-Type: application/json
 
 The body must be a JSON object with its own `value` member. Values can be JSON null, booleans, numbers, strings, arrays or objects. Null is a stored value, not deletion. The backend validates the request, synchronously consumes the matching token, checks the write interval, then awaits storage; concurrent uses cannot both succeed. A storage failure or HTTP 429 still consumes the token. Wrong-project/account requests do not consume a valid token belonging elsewhere. Restarting the backend invalidates all tokens.
 
-Requests and complete category files are limited to **1 MiB**, including the file's terminating newline. Updates to one file are serialised, so concurrent writes to different fields do not overwrite each other's changes. Saving replaces a temporary file; unrelated files can update independently. There are no cross-file transactions, delete endpoints or automatic backups. If a write response is lost, read first and acquire a new token only if another write is needed.
+Requests and complete category files are limited to **1 MiB**, including the file's terminating newline. Updates to one file are serialised, so concurrent writes to different fields do not overwrite each other's changes. Saving replaces a temporary file; unrelated files can update independently. There are no multi-field or cross-file transactions, delete endpoints or automatic backups. If a write response is lost, read first and acquire a new token only if another write is needed.
 
 The backend preserves JSON integer digits, including signed and unsigned 64-bit values. The management viewer also preserves their displayed digits. Object fields such as `rawJSON`, `isLosslessNumber` and `__proto__` remain ordinary data.
 
@@ -164,4 +164,4 @@ Non-2xx responses contain a stable code and diagnostic message:
 | `429` | `RateLimited`: the project/IP write interval has not elapsed; includes `retryAfterSeconds` and `Retry-After`. |
 | `500` | `StorageFailure` or `ServerFailure`. |
 
-This protocol sends keys, tokens, cookies and data over plaintext HTTP. A project key permits access to every account in the project; it is not account authentication, and distributing the key inside a client does not protect it from extraction. See [deployment limits](<Deployment and Editor Settings.md#management-and-operational-limits>) before exposing the service outside a trusted network.
+Plaintext HTTP and the shared project key require a trusted network; review the [deployment trust boundary](<Deployment and Editor Settings.md#management-and-operational-limits>) before exposing the service.

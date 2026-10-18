@@ -110,7 +110,7 @@ Official Locale Tools 在生成游戏发行包时调用 `ExcludeFile("Data/Local
 
 文档结果最多输出 12,000 个字符。有 `nextLine` 时从该行继续读取；`truncatedLine` 明确表示超长单行的尾部已省略，续读从下一行开始。
 
-API 密钥 一律通过 `PluginMenuContext.SecretStore` 保存。它按插件 ID 隔离，项目插件还按项目作用域隔离。Windows 和 macOS 使用操作系统凭据存储，不会退化为明文文件；Linux 支持从环境变量读取。参见 [Avalonia UI、密钥与本地化](<Avalonia UI、密钥与本地化.md#保存密钥>)。
+API 密钥使用按作用域隔离的 `PluginMenuContext.SecretStore`；平台支持与存储规则见[保存密钥](<Avalonia UI、密钥与本地化.md#保存密钥>)。
 
 ## 资源清理
 
@@ -132,7 +132,5 @@ API 密钥 一律通过 `PluginMenuContext.SecretStore` 保存。它按插件 ID
 ## 相关页面
 
 - [Manifest 与最小插件](<Manifest 与最小插件.md>)
-- [Avalonia UI、密钥与本地化](<Avalonia UI、密钥与本地化.md>)
 - [Official Random Map](<Official 插件/Random Map.md>)
-- [Official Resource Cleanup](<Official 插件/Resource Cleanup.md>)
 - [插件分发](<插件分发.md>)

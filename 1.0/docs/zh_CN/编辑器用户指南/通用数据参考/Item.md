@@ -19,4 +19,4 @@
 
 ## 编辑说明
 
-背包以 Player 作为 `GameplayEventData.target` 激活 `onUse`。敌人掉落会激活一次 `onDrop`，target 是新生成的 Item。状态移除节点作用于 Player，因此要放在 `onUse` 中。Item schema 不声明 `onGet` 事件。图中没有起始节点时，激活返回 `NoGraph`。
+背包以 Player 作为 `GameplayEventData.target` 激活 `onUse`。敌人掉落会激活一次 `onDrop`，target 是新生成的 Item。状态移除节点作用于 Player，因此要放在 `onUse` 中。Item schema 不声明 `onGet` 事件。

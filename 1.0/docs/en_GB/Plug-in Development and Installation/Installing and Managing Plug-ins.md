@@ -16,7 +16,7 @@ Plug-ins can add commands, text hints and operation hooks through the [public re
 4. Create the plug-in. The editor generates and compiles the template, validates its entry type, then installs and registers it. An error leaves no partially created plug-in or overwritten directory.
 5. The source folder opens automatically. Edit the generated files, then restart Ludork to load your changes.
 
-Both templates leave `Register` empty. **With a Window** adds an empty Avalonia window, but does not register a menu or open it automatically. See [Manifest and Minimal Plug-in](<Manifest and Minimal Plug-in.md>) for the generated layout and a complete hand-written command example.
+Neither template registers commands or opens a window automatically. See [Generated template](<Manifest and Minimal Plug-in.md#generated-template>) for the layout and entry class.
 
 ## Import a third-party plug-in
 
@@ -112,7 +112,4 @@ Source compilation can reference the .NET runtime, `Ludork.Plugin.Abstractions`,
 
 ## Related pages
 
-- [Manifest and Minimal Plug-in](<Manifest and Minimal Plug-in.md>)
-- [Registration and Hook Reference](<Registration and Hook Reference.md>)
 - [Distribution](<Distribution.md>)
-- [Official Resource Cleanup](<Official Plug-ins/Resource Cleanup.md>)

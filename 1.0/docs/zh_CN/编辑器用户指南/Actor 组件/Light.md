@@ -1,10 +1,6 @@
 # Light 组件
 
-## 用途
-
 为 Actor 挂载随其变换移动的光源，例如手持灯或墙上火把。
-
-## 适用范围
 
 `Engine.Actor` 及其派生类提供可选的 `lightComp`，类型为 `Engine.LightComponent`。地图光照通过这些 Actor 组件配置，使用普通 Actor 的选择方式与属性面板。
 
@@ -17,6 +13,5 @@
 
 ## 参考链接
 
-- [Actor 组件](<概述.md>)
 - [LightComponent API](<../../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/玩法类型.md#lightcomponent>)
 - [地图灯光编辑](<../图块集、自动图块与地图.md#灯光与-actor>)

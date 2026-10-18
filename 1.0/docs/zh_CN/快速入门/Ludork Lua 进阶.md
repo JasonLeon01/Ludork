@@ -1,12 +1,10 @@
 # Ludork Lua 进阶
 
-Ludork 的 Standard 运行时为 Lua 增加原生类、容器和工具函数。这些 API 在 `Scripts/Entry.lua` 运行之前就已可用，也不需要 `Standard` 模块。它们与 API 参考中的 `Engine`、`GlobalCore`、`GlobalFunctions` 以及 LuaSF 绑定是两套不同的接口。
-
-完整函数签名见 `Scripts/stub/Standard.d.lua` 与 `Scripts/stub/Class.d.lua` 中。
+Standard 在 `Scripts/Entry.lua` 运行前提供原生类、容器和工具函数，无需 `require`。完整签名见 `Scripts/stub/Standard.d.lua` 与 `Scripts/stub/Class.d.lua`；`Engine`、`GlobalCore`、`GlobalFunctions` 和 LuaSF 另有各自的绑定。
 
 ## Ludork 类
 
-先写一张不带元表的普通定义表，加上默认值和方法，最后返回 `class(definition, ...)`。定义表不能已经定型。每个基类都必须是已定型的 Ludork 类或已注册的原生类型。重复的基类会被拒绝。基类顺序决定 C3 方法解析顺序。
+先写一张不带元表的普通定义表，加上默认值和方法，最后返回 `class(definition, ...)`。定义表不能已经定型。每个基类都必须是已定型的 Ludork 类或已注册的原生类型。重复的基类会被拒绝。基类顺序决定 C3 方法解析顺序，即查找继承成员时的顺序。
 
 ```lua
 local Engine = require("Engine")
@@ -58,7 +56,7 @@ return class(RouteFollower)
 
 在方法内部，`super()` 从定义该方法的类开始解析下一个实现。间接回调让归属变得不明确时，改用 `super(ClassName, self)`。Ludork 支持多重继承，但声明的基类顺序必须保持稳定。
 
-直接挂载的 Script Mixin 遵循各自独立的生命周期，不能声明 `init`。
+[脚本 Mixin](<../Lua 与蓝图脚本/脚本 Mixin/运行时契约.md>)使用生命周期回调，不能声明 `init`。
 
 ### Class 工具
 
@@ -75,7 +73,7 @@ return class(RouteFollower)
 | `Class.monitor` / `Class.unmonitor` | 为字段添加或移除具名订阅。 |
 | `Class.MISSING` | 被监听字段此前没有值时使用的哨兵值。 |
 
-`Class.monitor(target, name, callback, params?, notifyEqualWrites?, identifier?)` 订阅 table 或 userdata 上的字段，注册时不会立刻调用回调。`identifier` 默认为 `""`：标识相同就在原位替换订阅，标识不同则按注册顺序依次执行。`Class.unmonitor(target, name, identifier?)` 只移除对应的那条订阅，订阅不存在时不做处理。省略标识则保留单订阅行为。
+`Class.monitor(target, name, callback, params?, notifyEqualWrites?, identifier?)` 订阅 table 或 userdata 上的字段，注册时不会立刻调用回调。`identifier` 默认为 `""`：标识相同就在原位替换订阅，标识不同则按注册顺序依次执行。`Class.unmonitor(target, name, identifier?)` 只移除对应的那条订阅，订阅不存在时不做处理。
 
 被监听的字段拒绝 `nil` 赋值，默认只在可见值发生变化时通知；该订阅把 `notifyEqualWrites` 传为 `true` 后，等值写入也会收到通知。旧值缺失或是显式 `nil` 时，回调收到 `Class.MISSING`。每个回调收到的参数是 `(oldValue, newValue, ...)`，后面接着 `params` 中的各项。回调中再次赋值仍然生效，但每个订阅会抑制自身的递归。回调报错会终止本次分发并向外传播，不会回滚赋值。
 
@@ -99,7 +97,7 @@ target 用字符串时，判断保持 Lua `type` 的语义：原生容器是 use
 
 ## 项目真值与复制
 
-Lua 本身只把 `nil` 与 `false` 当作假。Ludork 的 `bool(value)` 还额外把 `0`、空字符串、空 table 与空的原生容器判为假。只有“缺失”本身是一个独立的协议值时，才需要显式比较 `nil`。
+Ludork 的 `bool(value)` 扩展了 [Lua 真值规则](<Lua 基础语法.md#运算符>)：`0`、空字符串、空 table 与空原生容器也为假。“缺失”是独立协议值时，才显式比较 `nil`。
 
 | API | 行为 |
 |---|---|
@@ -192,14 +190,12 @@ Standard 在 Lua 自带库的基础上补充了下列辅助函数：
 
 | API | 用途 |
 |---|---|
-| `os.getcwd`、`os.listdir` | 读取当前目录，或列出其中已排序的直接条目。 |
+| `os.getcwd`、`os.listdir` | 读取当前目录，或列出其中已排序的直接条目名（相对于该目录）。 |
 | `os.createDirectories` | 创建 UTF-8 目录路径及其缺失的父目录；目录已存在也视为成功。 |
 | `os.removeFile` | 删除一个 UTF-8 文件路径；文件不存在或操作失败都会报错。它不取代 `os.remove`。 |
 | `os.path.join`、`os.path.splitext`、`os.path.basename`、`os.path.dirname`、`os.path.abspath` | 拼接或解析路径。 |
 | `os.path.isdir`、`os.path.isfile` | 判断路径是否为已存在的目录或文件；路径不存在时返回 false，检查过程中的错误照常抛出。 |
 | `os.path.getmtime` | 返回文件的修改时间戳。 |
-
-`os.listdir` 返回的是条目名，测试前要先把名称与父目录拼接起来。
 
 `os.listdir`、`os.path.isdir`、`os.path.isfile` 与 `io.open` 只使用真实文件系统，`/Game/Assets/...` 只能交给 Ludork 资源 API。对于已打包的 Data，`os.path.getmtime("Data/...")` 返回所在 `.ldpak` 文件的修改时间戳；其他文件系统 API 不暴露归档条目。
 
@@ -242,8 +238,4 @@ end)
 
 ## 相关页面
 
-- [Lua 基础语法](<Lua 基础语法.md>)
 - [SFML 快速入门](<SFML 快速入门.md>)
-- [Lua 运行时与模块](<../Lua 与蓝图脚本/Lua 运行时与模块.md>)
-- [Script Mixin 运行时契约](<../Lua 与蓝图脚本/脚本 Mixin/运行时契约.md>)
-- [Engine：事件与模块根](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/事件与模块根.md>)

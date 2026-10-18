@@ -37,12 +37,10 @@ The function tables on those pages use these columns:
 
 ## Relationship to the GlobalFunctions Lua API
 
-These modules are not the native `GlobalFunctions` Lua root. That root exposes native free functions through the `Components`, `Manager`, `NodeGraph` and `UI` group tables, and `Scripts/GlobalFunctions_meta.lua` is empty, so those functions are Lua APIs rather than Blueprint nodes. A grouped function appears only in its group table. See [GlobalFunctions Lua API](<../Global and Core Modules/Core Modules/GlobalFunctions.md>).
+The native `GlobalFunctions` root exposes Lua APIs in `Components`, `Manager`, `NodeGraph` and `UI`; its empty metadata declares no Blueprint nodes. See [GlobalFunctions Lua API](<../Global and Core Modules/Core Modules/GlobalFunctions.md>).
 
-The modules documented here are the Lua Blueprint function libraries in `Scripts/GlobalFunctions`. They load as separate modules, such as `require("GlobalFunctions.Math")`, and are not added to the native root table. Module loading order and the `require` restrictions that apply to `Scripts/GlobalFunctions` are covered in [Lua Runtime and Modules](<../Lua Runtime and Modules.md>).
+The node libraries here load separately, for example `require("GlobalFunctions.Math")`, and are not members of that root table. Their loading and dependency rules are covered in [Lua Runtime and Modules](<../Lua Runtime and Modules.md#entry-and-module-order>).
 
 ## Related pages
 
-- [GlobalFunctions Lua API](<../Global and Core Modules/Core Modules/GlobalFunctions.md>)
 - [Execution Flow, Events and Variables](<../Blueprint Scripting/Execution Flow Events and Variables.md>)
-- [Lua Runtime and Modules](<../Lua Runtime and Modules.md>)

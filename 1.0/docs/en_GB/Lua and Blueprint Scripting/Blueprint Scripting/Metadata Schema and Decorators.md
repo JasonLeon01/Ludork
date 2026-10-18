@@ -163,7 +163,7 @@ When a Lua module directly returns its class, declare `moduleReturn = true` insi
 
 `parameters` and `["return"]` contain an ordered name array plus name-to-type entries. The optional `default` array aligns with parameters. `Pure` is explicit. `ExecSplit`, `Latent`, `LoopNode` and event declarations describe execution protocol consumed by the graph runtime.
 
-Every ordinary instance method declares `"self"` as its first parameter, with the owning class's full module/type reference and `default[1] = "self"`. The first example describes an instance method of the class returned by `Source.SoundFilter`. Its receiver pin remains visible in every Blueprint context. Connect an instance to call another object; an unconnected, unset receiver uses the current graph owner. A missing owner, an incompatible owner, or an explicitly connected nil receiver is an error. Static functions and event entries do not declare a receiver parameter. Lua colon-call signatures and native method declarations keep their usual argument lists.
+Every ordinary instance method declares `"self"` as its first parameter, with the owning class's full module/type reference and `default[1] = "self"`. Its receiver pin remains visible in every Blueprint context; [Instance method receivers](<Execution Flow Events and Variables.md#instance-method-receivers>) explains default ownership and validation. Static functions and events omit this parameter. Lua colon-call signatures and native method declarations keep their usual argument lists.
 
 Receiver and business arguments share one ordered parameter array. Include the receiver when positioning defaults and saved parameter values; metadata type names remain explicit even when `moduleReturn = true`. For example, a SceneMap receiver is `{ "Source.Scenes.SceneMap", "Scene" }`.
 
@@ -278,4 +278,3 @@ Core metadata is generated from `BIND_*` annotations. Never edit generated Core 
 ## Related pages
 
 - [Script Mixin Metadata](<../Script Mixins/Metadata.md>)
-- [Generated Metadata and Stubs](<../../Native C++ Development/Generated Metadata and Stubs.md>)

@@ -2,12 +2,9 @@
 
 Choose a C++ Source project when the Lua and Blueprint APIs are insufficient, when a new native UI adapter is required, or when producing an iOS, HarmonyOS or Android build. The runtime uses C++20, CMake and declaration-driven bindings.
 
-Choose the correct native module, build its generated bindings and load the resulting Lua modules in the supported order.
-
 ## Prerequisites
 
 - A C++ Source project with CMake, a C++20 toolchain and its platform dependencies installed.
-- A clean build configuration for the target platform.
 - A supported target: Windows 10 or newer on x64, macOS 13.3 or newer on Apple Silicon, iOS 16.3 or newer on arm64, HarmonyOS 6.0.2 / API 22 or newer on arm64-v8a, or Android 7.0 / API 24 or newer on arm64-v8a.
 
 Public headers contain ordinary C++ declarations plus `BIND_*` markers that expand to nothing at compile time. Core bindgen reads the module and shared Runtime declaration roots, then generates one stable LuaGlue source per class, one module aggregate and stub source, a LuaLS stub and editor metadata.
@@ -226,5 +223,3 @@ Load these three roots in the displayed order. `GlobalFunctions` groups are acce
 
 - [Binding a Class](<Binding a Class.md>)
 - [Functions, Events and Execution](<Functions Events and Execution.md>)
-- [Runtime Value Boundaries](<Runtime Value Boundaries.md>)
-- [Run, Debug and Package](<../Editor User Guide/Run Debug and Package.md>)

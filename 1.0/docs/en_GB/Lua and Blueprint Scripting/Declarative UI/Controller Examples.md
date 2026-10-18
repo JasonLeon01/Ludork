@@ -1,6 +1,6 @@
 # Declarative UI Controller Examples
 
-A window module contains one private business Controller and exports its UI class. The framework constructs and binds the generated View, while business behaviour lives in the Controller.
+These examples build an inventory window from an existing JSON asset. See [Authoring Workflow](<Authoring Workflow.md>) for file ownership and export steps.
 
 ## Start with the unchanged template
 
@@ -163,6 +163,4 @@ This example uses an independent `Ui.Define` Controller. For a `Ui.DefineWindow`
 
 ## Related pages
 
-- [Declarative UI Runtime Contract](<Runtime Contract.md>)
-- [Declarative UI Authoring Workflow](<Authoring Workflow.md>)
 - [Game Localisation Workflow](<../../Plug-in Development and Installation/Official Plug-ins/Game Localisation Workflow.md>)

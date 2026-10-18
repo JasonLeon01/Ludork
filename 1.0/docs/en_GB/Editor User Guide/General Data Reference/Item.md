@@ -19,4 +19,4 @@ Source: `Data/General/Item.json`
 
 ## Editing notes
 
-The inventory activates `onUse` with the Player as `GameplayEventData.target`. Enemy drops activate `onDrop` once, with the spawned Item as the target. State-removal nodes act on the Player, so place them in `onUse`. The Item schema declares no `onGet` event. Activation returns `NoGraph` when the graph has no start node.
+The inventory activates `onUse` with the Player as `GameplayEventData.target`. Enemy drops activate `onDrop` once, with the spawned Item as the target. State-removal nodes act on the Player, so place them in `onUse`. The Item schema declares no `onGet` event.

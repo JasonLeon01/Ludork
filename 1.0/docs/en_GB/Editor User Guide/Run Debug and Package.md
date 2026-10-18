@@ -1,14 +1,12 @@
 # Run, Debug and Package
 
-Run a project, edit its live state and package it for a supported platform.
-
 ## Construct, Export and Play
 
 The toolbar orders its actions as **Construct → Export → Play**. Standalone projects hide Construct. **Construct** saves the project and builds the Debug executable and preview runtime without launching the game. Native binding generation remains part of the build; UI, locale and material export is a separate operation.
 
 Preview runtime preparation is described in [PreviewHost: Build, Publish and Troubleshooting](<../PreviewHost/Build Publish and Troubleshooting.md>).
 
-**Export** saves the project, runs Export plug-in hooks and generates UI Views, declarations, locale files and [material programs](<Materials.md#export-for-runtime>). Material checks cover added, changed, moved or deleted materials, maps, tilesets, autotiles and the optional `MaterialExport.json`, the published native compiler/preview identity, and missing or modified generated files. Export again when these inputs or outputs change. All required material combinations must compile successfully before their files are installed and obsolete outputs are removed. A failed or cancelled export does not count as a successful export.
+**Export** saves the project, runs Export plug-in hooks and generates UI Views, declarations, locale files and [material programs](<Materials.md#export-for-runtime>). Export again when inputs, generated files or the native compiler/preview identity change. Material outputs are installed and obsolete files removed only after all required combinations compile successfully. A failed or cancelled operation does not count as a successful Export.
 
 Variables and General Data still take effect on Save; their Lua files remain under version control and are outside Export. Ordinary Save, Construct, direct run and template creation do not generate UI or material files. The explicit `ui-assets generate` command produces UI files only; it does not run Export hooks or publish a complete editor export record.
 
@@ -80,9 +78,9 @@ Mobile and macOS application display names use the raw `title.value` text from `
 
 Each editor Pack performs one complete Export, including Export hooks and UI/material generation. Game packaging then runs before-Pack hooks; Standalone project conversion skips them. Official Locale Tools uses its before-Pack hook only to exclude `Data/Locale/Locale.xlsx`. Direct command-line run and pack consume files exported beforehand and reject missing, modified or obsolete material outputs; they do not perform complete Export or implicit generation. `ScriptTools material-assets validate <project-root>` runs the material check without writing files. Generated GLSL can be exported with Debug and packaged with Release or another target platform; CLI validation does not require the export machine’s preview build identity.
 
-**Encrypt game data** controls script compilation and shader, JSON and save encryption, and a partial selection shows its indeterminate state. **Encrypt save contents** sets the C++ Source runtime default. Standalone projects configure it through `SAVE_AS_LDC` in `Scripts/Entry.lua`. See [Saves](<../Lua and Blueprint Scripting/Default Gameplay/Runtime Data Configuration and Saves.md#saves>) for the timing and format rules. The `.ldpak` option is independent of encryption. Data encryption converts staged JSON values to compressed, obfuscated binary `.ldc`; source JSON stays editable. Rebuild packages containing the old compressed-JSON LDC format.
+**Encrypt game data** controls script compilation and shader, JSON and save encryption, and a partial selection shows its indeterminate state. **Encrypt save contents** sets the C++ Source runtime default. Standalone projects configure it through `SAVE_AS_LDC` in `Scripts/Entry.lua`. See [Saves](<../Lua and Blueprint Scripting/Default Gameplay/Runtime Data Configuration and Saves.md#saves>) for the timing and format rules. Data encryption converts staged JSON values to compressed, obfuscated binary `.ldc`; source JSON stays editable. Rebuild packages containing the old compressed-JSON LDC format.
 
-Shader encryption covers `Assets/Shaders`, including `Assets/Shaders/MaterialGenerated`. Data encryption covers both ordinary Data JSON and generated runtime material metadata, using the same `.ldc` format. The `.ldpak` option places the generated runtime files in `Assets.ldpak`. Packaging carries the optional `MaterialExport.json` into staging for material validation, then removes it and the root material `export.json` record before encryption and archiving. Neither authoring/validation file nor an encrypted `export.ldc` enters the game package; the source project keeps its files. Authored files under `Data/Materials` remain in game packages, while runtime material loading uses the generated shaders, `resource.json` and `program.json`.
+Shader encryption covers `Assets/Shaders`; data encryption also covers generated material metadata. For material files retained in packages and authoring records removed during staging, see [Material export](<Materials.md#export-for-runtime>).
 
 Preview registry validation and exclusions are described in [PreviewHost packaging rules](<../PreviewHost/Build Publish and Troubleshooting.md#editable-templates-and-final-packages>).
 
@@ -122,7 +120,7 @@ The staging copy receives `Data/BuildInfo.json` containing `version`, `fullVersi
 
 ### Loose and packed output
 
-Every platform keeps the runtime files, `Assets`, `Data` and the runtime `Scripts` as loose directories by default. The `.ldpak` option is clear by default. When it is selected, the complete contents of each directory become root `Assets.ldpak`, `Data.ldpak` and `Scripts.ldpak`. Archive entries retain paths relative to their original directory, so resource paths, Data paths and Lua module names stay unchanged. Encryption and Lua compilation run before archiving, and an archive does not encrypt its contents by itself. The option is independent of encryption. Mobile packages enforce the same loose-or-packed contract, and Android and HarmonyOS do not recompress `.ldpak`.
+Every platform keeps the runtime files, `Assets`, `Data` and the runtime `Scripts` as loose directories by default. The `.ldpak` option is clear by default. When it is selected, the complete contents of each directory become root `Assets.ldpak`, `Data.ldpak` and `Scripts.ldpak`. Archive entries retain paths relative to their original directory, so resource paths, Data paths and Lua module names stay unchanged. Encryption and Lua compilation run before archiving, and an archive does not encrypt its contents by itself. Mobile packages enforce the same loose-or-packed contract, and Android and HarmonyOS do not recompress `.ldpak`.
 
 Resource packaging rejects symbolic links, case collisions, illegal paths and output conflicts. A package contains either all three loose directories (`Assets`, `Data`, `Scripts`) or all three root archives. Corrupt archives, missing roots, mixed layouts and old per-group archives are rejected.
 
@@ -170,7 +168,5 @@ Retain the matching native build outputs for debugging; the packaged native libr
 
 ## Related pages
 
-- [Project Templates](<../Getting Started/Project Templates.md>)
-- [Tilesets, Autotiles and Maps](<Tilesets Autotiles and Maps.md>)
 - [Distribution](<../Plug-in Development and Installation/Distribution.md>)
 - [Script Mixin Authoring Workflow](<../Lua and Blueprint Scripting/Script Mixins/Authoring Workflow.md>)

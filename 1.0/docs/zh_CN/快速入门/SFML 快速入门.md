@@ -1,36 +1,18 @@
 # SFML 快速入门
 
-SFML 是 Ludork 运行时底层的多媒体库，提供图形、音频、窗口与输入能力。项目里的位置、尺寸、颜色和矩形也用它的值类型表示。
-
-Ludork 通过 LuaSF 内嵌 SFML，由它注册全局的 `sf` 表。任何项目脚本都能直接使用，无需 `require`。
+SFML 提供 Ludork 的图形、音频、窗口、输入和几何类型。LuaSF 将它暴露为全局 `sf` 表，项目脚本无需 `require` 即可使用。
 
 ## 官方文档
 
-| 资源 | 地址 |
-|---|---|
-| SFML 3.1.0 API 参考 | <https://www.sfml-dev.org/documentation/3.1.0/> |
-| SFML 3.1 教程 | <https://www.sfml-dev.org/tutorials/3.1/> |
-| SFML 项目主页 | <https://www.sfml-dev.org/> |
-| SFML 源码仓库 | <https://github.com/SFML/SFML> |
-
-本仓库内置的是 **SFML 3.1.0**。网上仍有大量 SFML 2 的资料，它们的构造方式与 3.x 不同，请优先查阅上面的 3.1 页面。
+成员细节见 [SFML 3.1.0 API 参考](<https://www.sfml-dev.org/documentation/3.1.0/>)，图形与音频概念见 [3.1 教程](<https://www.sfml-dev.org/tutorials/3.1/>)。Ludork 内置 **SFML 3.1.0**，SFML 2 的构造方式与之不同。
 
 ## Ludork 与 SFML 的分工
 
-Ludork 在 SFML 的基础上提供游戏开发功能。
-
-| 层 | 负责内容 |
-|---|---|
-| Ludork | 项目数据、地图、Actor、蓝图、场景、声明式 UI 资产体系、资源管理器与打包。 |
-| SFML | 图形、音频、窗口、输入设备，以及这些子系统之间交换的几何与值类型。 |
-
-图形值和资源使用 `sf`；地图、Actor、蓝图及项目数据使用 `Engine`、`GlobalCore` 或 `GlobalFunctions`。
-
-项目里的绘制大多走 Engine 控件与场景，而不是自己新建 `sf.RenderWindow`——窗口、帧循环与 UI 树都由运行时持有。SFML 层的价值在于提供底层的值与资源。
+图形值与资源使用 `sf`；地图、Actor、蓝图、场景、UI 和项目数据使用 `Engine`、`GlobalCore` 或 `GlobalFunctions`。窗口、帧循环和 UI 树由运行时管理，项目通常通过 Engine 控件与场景绘制，无需另建 `sf.RenderWindow`。
 
 ## sf 表
 
-`sf` 是一张普通的全局表，包含类、枚举和辅助函数。完整声明在 `Scripts/stub/LuaSF.d.lua`，EmmyLua 工作区会索引它，因此在编辑器里能获得补全与悬浮提示。
+`sf` 包含类、枚举和辅助函数：
 
 | sf 分组 | 成员 |
 |---|---|
@@ -46,7 +28,7 @@ Ludork 在 SFML 的基础上提供游戏开发功能。
 
 ## 值类型
 
-几何值是原生 userdata，不是 Lua table。它们与 Standard 的 `list`、`tuple`、`dict` 是两套互不相通的体系。
+几何值是原生 userdata，与 Lua table 和 Standard 容器不同。
 
 用 `new` 构造：
 
@@ -69,18 +51,14 @@ local amount = sf.Vector3f.new(1.0, 0.5, 0.0)
 local offset = sf.Vector4f.new(0.0, 0.0, 0.5, 1.0)
 ```
 
-二维向量支持算术运算符，位移与居中的写法因此很直观：
+二维向量支持算术运算：
 
 ```lua
 local start = sf.Vector2f.new(64.0, 64.0)
 local step = sf.Vector2f.new(16.0, 0.0)
 
 local moved = start + step * 2.0   -- Vector2f(96, 64)
-local back = moved - step
-local mirrored = -moved
-local half = moved / 2.0
-
-local isSame = moved == back + step -- true
+local isSame = moved == sf.Vector2f.new(96.0, 64.0) -- true
 ```
 
 可用的运算符是 `+`、`-`、一元 `-`、与标量数字的 `*` 和 `/`，以及 `==`。仅定义了 `==`，因此 `<` 之类的比较不能用于向量。两个向量相乘是方法而不是运算符。三种 `Vector2` 都提供 `lengthSquared`、`perpendicular`、`dot`、`cross`、`componentWiseMul`、`componentWiseDiv` 与 `unpack`，其中 `unpack` 把各分量作为多个返回值返回。浮点类型另有 `length`、`normalized`、`angle`、`angleTo`、`rotatedBy` 与 `projectedOnto`，它们使用 `sf.Angle` 而不是角度值。
@@ -125,7 +103,7 @@ local degrees = facing.asDegrees()
 local wrapped = sf.degrees(450).wrapSigned().asDegrees() -- 90
 ```
 
-`wrapSigned` 把角度约束到 `[-180°, 180°)`，`wrapUnsigned` 约束到 `[0°, 360°)`。两者都是可选的：超出这两个范围的角度依然有效，只有需要比较或需要规范化的显示值时才用它们。`sf.Angle.new()` 与 `sf.Angle.Zero` 都是零。
+`wrapSigned` 将角度归一化到 `[-180°, 180°)`，`wrapUnsigned` 归一化到 `[0°, 360°)`；其他角度仍然有效。`sf.Angle.new()` 与 `sf.Angle.Zero` 都是零。
 
 `sf.Time` 表示时长，由 `sf.seconds`、`sf.milliseconds` 与 `sf.microseconds` 构造：
 
@@ -175,6 +153,7 @@ local bounds = cell:getGlobalBounds()
 位置、尺寸与矩形在 Engine API 中都以 `sf` 值传递，因此格坐标与世界坐标之间的换算就是普通的向量运算：
 
 ```lua
+local Engine = require("Engine")
 local Player = require("GlobalFunctions.Player")
 
 local CELL_SIZE = Engine.GetCellSize()
@@ -199,9 +178,7 @@ JSON 与 metadata 只保存纯数据，而 `sf` 值是原生 userdata，因此�
 
 ## 延伸阅读
 
-- `Scripts/stub/LuaSF.d.lua` 是 `sf` 下全部内容的完整声明，并保留了 SFML 的文档注释。
-- [SFML 3.1.0 API 参考](<https://www.sfml-dev.org/documentation/3.1.0/>) 描述同一批类的 C++ 侧接口。名称与参数顺序基本一致，查本页未列出的成员时最好用它。
-- [SFML 3.1 教程](<https://www.sfml-dev.org/tutorials/3.1/>) 讲解 sprite、texture、view、shader 与音频背后的概念。
+`Scripts/stub/LuaSF.d.lua` 包含完整 Lua 声明与 SFML 注释，EmmyLua 会索引它以提供补全和悬浮提示。上方官方 C++ 参考的成员名和参数顺序与 Lua 接口基本一致。
 
 ## 相关页面
 

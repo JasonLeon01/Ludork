@@ -135,10 +135,9 @@ public sealed class Plugin : IEditorPlugin
 
 ### 引入并重启
 
-选择 **插件 → 引入插件**，选择目标作用域和 `MyPlugin` 并接受完全信任确认，然后重启 Ludork。
+[引入完整的 `MyPlugin` 目录后重启 Ludork](<安装与管理插件.md#引入第三方插件>)。
 
 ## 相关页面
 
-- [安装与管理插件](<安装与管理插件.md>)
 - [Avalonia UI、密钥与本地化](<Avalonia UI、密钥与本地化.md>)
 - [插件分发](<插件分发.md>)

@@ -53,7 +53,7 @@ For world manifests, `WorldGameMap` exposes world coordinates. A native sparse-r
 
 Ordinary maps, composite worlds and floor previews delegate map content to the shared native `MapRenderer`. The game adapter preserves Actor callbacks, particles, billboards, layer effects and ordinary-map player cover. World regions are drawn in global layer order, and their Actor lights and tile blockers share world coordinates, so lighting crosses placement boundaries.
 
-Map lights come from `Actor.lightComp`. Fixed `lights` arrays and the `getLights`, `setLights`, `addLight`, `removeLight` and `setLight*` map APIs are removed. Ambient light remains controlled by `getAmbientLight` and `setAmbientLight`.
+Map lights come from `Actor.lightComp`. Ambient light uses `getAmbientLight` and `setAmbientLight`.
 
 Each `GameMap` owns a separate fog controller. The runtime Lua methods `getFogSettings()` and `setFogSettings(settings)` read a copy of, or replace, its `Engine.MapFogSettings`. `getRegionFogSettings(path)` returns a world child's settings, or `nil` when it has no resident configuration. Mutating a returned settings value does not change the map; pass the changed value to `setFogSettings`.
 

@@ -30,7 +30,7 @@ Open **Settings** in the Blueprint AI window to choose a provider, model and end
 
 An endpoint must be an absolute HTTPS URL. Plain HTTP is accepted only for a loopback address used during local development. Credentials, query strings and fragments are not accepted in endpoint URLs.
 
-API keys are not written to `settings.json`. On Windows they are stored in Credential Manager, and on macOS in Keychain. Other platforms read a plug-in-scoped environment variable and do not persist the secret. The settings window displays a stored key as its first three characters, a fixed mask and its final three characters. Short keys are fully hidden. The credential changes only when a new value is entered or removal is explicitly selected. Provider availability is external to Ludork.
+API keys use the [host secret store](<../Avalonia UI Secrets and Localisation.md#store-secrets>) and are not written to `settings.json`. The settings window displays a stored key as its first three characters, a fixed mask and its final three characters. Short keys are fully hidden. The credential changes only when a new value is entered or removal is explicitly selected. Provider availability is external to Ludork.
 
 ## Local conversations and provider state
 
@@ -52,7 +52,7 @@ If the matching documentation is unavailable, the assistant reports the problem 
 
 ## Troubleshooting
 
-- **Blueprint AI is missing from Game:** confirm that the plug-in is registered in the working directory or installed for your user account. Repository runs read the checkout’s `plugins.json` and prefer its source over a user copy. Windows installers can skip user installation, and portable packages require the explicit installation command; an unregistered source directory alone is not enough. Restart the editor and inspect **Plugins → Manage Plugins** for pending-restart, manifest, dependency or initialisation diagnostics. An uninstalled plug-in intentionally contributes no menu item.
+- **Blueprint AI is missing from Game:** follow [Installing and Managing Plug-ins](<../Installing and Managing Plug-ins.md#official-release-plug-ins>), restart the editor and inspect **Plugins → Manage Plugins** for registration or load diagnostics.
 - **No project or Blueprint is available:** open a project first. The host bridge is unavailable outside a project window. A project also needs at least one existing Blueprint. Opening the plug-in does not choose a target; the selector appears only after selecting **New**.
 - **The target was renamed or deleted:** the old conversation remains readable, but its target cannot be switched silently. Create a new conversation for an existing Blueprint.
 - **The API key is missing or the server returns 401:** replace the key in Settings and check that it belongs to the selected provider or profile. Also verify the endpoint and any OpenAI organisation or project values. The UI shows only a masked value, never the complete stored key.
@@ -62,6 +62,4 @@ If the matching documentation is unavailable, the assistant reports the problem 
 
 ## Related pages
 
-- [Installing and Managing Plug-ins](<../Installing and Managing Plug-ins.md>)
-- [Avalonia UI, Secrets and Localisation](<../Avalonia UI Secrets and Localisation.md>)
 - [Distribution](<../Distribution.md>)

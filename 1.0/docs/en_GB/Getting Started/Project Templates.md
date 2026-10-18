@@ -9,7 +9,7 @@ The picker presents two template cards, **Standalone** and **C++ Source**, and a
 | Standalone | No | No | Authoring Lua, Blueprint, data and assets with the supplied runtime. |
 | C++ Source | Yes | Yes | Changing native services, bindings or building an iOS, HarmonyOS or Android target. |
 
-Each combination of card and switch has its own template. The template establishes the project baseline. To turn an existing C++ Source project into an editable Standalone project, use [Pack Project → Standalone project](<../Editor User Guide/Run Debug and Package.md#convert-source-to-a-standalone-project>). This creates a separate project with its existing export outputs, rather than a fresh template.
+Each card/FFmpeg combination has its own template. To turn an existing C++ Source project into an editable Standalone project, use [Pack Project → Standalone project](<../Editor User Guide/Run Debug and Package.md#convert-source-to-a-standalone-project>). This creates a separate project with its existing export outputs, rather than a fresh template.
 
 Before the first Play, use **Construct** for C++ Source, then **Export**. Standalone needs only Export. See [Run, Debug and Package](<../Editor User Guide/Run Debug and Package.md>) for later builds and exports. C++ Source templates include a project-root `.clang-format` for native source formatting.
 
@@ -28,7 +28,7 @@ Release editors obtain templates from the matching GitHub Release. Windows x64 u
 
 Templates match the editor’s complete version, including its patch number. If a matching release or template has not been published, New Project reports that it is unavailable.
 
-Downloaded templates are cached in `~/Ludork/Templates/v<base-version>/` on both Windows and macOS. On Windows this is typically `C:\Users\<user>\Ludork\Templates\v<base-version>\`. All four variants use this user cache for downloads, validation and offline reuse, independently of the editor installation directory. Each project is extracted into its own directory. Bundled development templates remain read-only package inputs.
+All four downloaded variants use `~/Ludork/Templates/v<base-version>/` for validation and offline reuse on Windows and macOS, independently of the installation directory. See [User data directory](<../Editor User Guide/Start Page Workspace and Shortcuts.md#user-data-directory>) for the native path. Bundled development templates remain read-only inputs.
 
 New Project shows download or copy progress and extraction progress. **Cancel**, or closing the window during creation, cancels the operation and removes its unfinished project and download files. Completed, valid cache entries remain available for later use.
 
@@ -43,7 +43,6 @@ Platform preparation differs as well. Windows and macOS use shared FFmpeg librar
 ## Template targets
 
 - Configuring [Ludork Server](<../Simple Server/Deployment and Editor Settings.md>) requires C++ Source. Its Game test-server menu and Pack configuration are hidden for Standalone. All generated templates start with the server disabled and contain no test or production credentials. Converting an existing Source project can instead embed explicitly enabled Release server settings in its Standalone runtime.
-- Exporting mobile packages (iOS, Android and HarmonyOS) requires a C++ Source template.
 - Script compilation, shader encryption, data encryption, save encryption and **Archive Assets, Data and Scripts (.ldpak)** are packaging options, not template types. See [Run, Debug and Package](<../Editor User Guide/Run Debug and Package.md>) for the complete option behaviour.
 
 All four templates exclude Export outputs: `Scripts/Internal/UI/`, `Scripts/stub/Internal/UI/`, `Scripts/stub/Internal/UIWindows/`, generated locale language Lua files, `Assets/Shaders/MaterialGenerated/` and `EditorCache/ProjectExport.json`. The project `.gitignore` excludes the same generated files. Templates retain UI JSON, authored material graphs under `Data/Materials`, handwritten Controllers and declarations, `Scripts/Source/Locale/Core.lua`, General Data and variable Lua with their declarations, and native binding declarations. Export creates the UI, locale and material runtime files for the new project; Standalone uses its supplied preview compiler.
@@ -59,4 +58,3 @@ Runtime licence texts are in `Licenses`; FFmpeg variants also include `Licenses/
 - [Create Your First Project](<Create Your First Project.md>)
 - [Ludork Lua Advanced](<Ludork Lua Advanced.md>)
 - [Build and Module Layout](<../Native C++ Development/Build and Module Layout.md>)
-- [Run, Debug and Package](<../Editor User Guide/Run Debug and Package.md>)

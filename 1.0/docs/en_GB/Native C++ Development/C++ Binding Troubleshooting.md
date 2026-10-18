@@ -8,7 +8,7 @@ Confirm that the marker is on a public declaration parsed by the module, that th
 
 ## C++ compiles but Lua cannot find the member
 
-Check the Lua module or canonical function-group path, the generated registration and the `require` order. Classes, ungrouped functions and module properties exist only at the module root. A grouped function exists only in its group table.
+Check the generated registration, [module load order](<Build and Module Layout.md#load-the-runtime-modules>) and canonical path: the module root for classes and ungrouped functions, or the [function group](<Functions Events and Execution.md#assign-function-groups>) for grouped functions.
 
 ## LuaLS sees a member but Blueprint does not
 
@@ -28,12 +28,6 @@ Put the property or method `Meta` inside its own annotation and use an annotatio
 
 A top-level method or function `default`, `success` or `fail` is rejected with a validation diagnostic that requires `outpins(...)`. The `outpins` and `defaults` distinction and the lowercase-token rules follow [Functions, Events and Execution](<Functions Events and Execution.md>) and [Macro Reference](<Macro Reference.md>).
 
-## Limitations
-
-This page covers declaration and generation faults. Crashes or incorrect behaviour after a member is called require ordinary C++ runtime debugging.
-
 ## Related pages
 
-- [Generated Metadata and Stubs](<Generated Metadata and Stubs.md>)
 - [Advanced Binding Patterns](<Advanced Binding Patterns.md>)
-- [Macro Reference](<Macro Reference.md>)

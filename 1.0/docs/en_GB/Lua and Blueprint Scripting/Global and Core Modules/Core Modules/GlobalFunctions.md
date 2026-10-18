@@ -94,5 +94,4 @@ Category helpers accept only category-relative paths and add their `/Game/Assets
 
 ## Related pages
 
-- [Lua Runtime and Modules](<../../Lua Runtime and Modules.md>)
 - [Functions, Events and Execution](<../../../Native C++ Development/Functions Events and Execution.md>)

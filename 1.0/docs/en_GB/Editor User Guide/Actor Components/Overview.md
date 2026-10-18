@@ -1,10 +1,6 @@
 # Actor Components
 
-## Purpose
-
 Components add optional presentation or child-Actor behaviour to an Actor. Configure class defaults in a Blueprint and override them for individual map instances when needed.
-
-## Applicability
 
 | Component | Field | Available on | Use |
 |---|---|---|---|

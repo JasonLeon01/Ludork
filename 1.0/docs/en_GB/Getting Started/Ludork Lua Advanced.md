@@ -1,12 +1,10 @@
 # Ludork Lua Advanced
 
-Ludork's Standard runtime extends Lua with native classes, containers and utility functions. These APIs are available before `Scripts/Entry.lua` and do not require a `Standard` module. They are distinct from the `Engine`, `GlobalCore`, `GlobalFunctions` and LuaSF bindings documented in API Reference.
-
-Exact development-time signatures are declared in `Scripts/stub/Standard.d.lua` and `Scripts/stub/Class.d.lua`.
+Standard adds native classes, containers and utilities before `Scripts/Entry.lua` runs, without `require`. Its signatures are in `Scripts/stub/Standard.d.lua` and `Scripts/stub/Class.d.lua`; `Engine`, `GlobalCore`, `GlobalFunctions` and LuaSF have separate bindings.
 
 ## Ludork classes
 
-Create a plain definition table without a metatable, add defaults and methods, then return `class(definition, ...)`. The definition must not already be finalised. Every base must be a finalised Ludork class or a registered native type. Duplicate bases are rejected. Base order determines the C3 method-resolution order.
+Create a plain definition table without a metatable, add defaults and methods, then return `class(definition, ...)`. The definition must not already be finalised. Every base must be a finalised Ludork class or a registered native type. Duplicate bases are rejected. Base order determines the C3 method-resolution order: the search order for inherited members.
 
 ```lua
 local Engine = require("Engine")
@@ -58,7 +56,7 @@ Before a native root is constructed, typed assignments to its properties are sto
 
 Inside a method, `super()` resolves the next implementation from the defining class. Use `super(ClassName, self)` when an indirect callback makes ownership ambiguous. Multiple inheritance is supported, and declared base order must remain stable.
 
-Direct Script Mixins follow their separate lifecycle and must not declare `init`.
+[Script Mixins](<../Lua and Blueprint Scripting/Script Mixins/Runtime Contract.md>) use lifecycle callbacks instead of `init`.
 
 ### Class utilities
 
@@ -75,7 +73,7 @@ Direct Script Mixins follow their separate lifecycle and must not declare `init`
 | `Class.monitor` / `Class.unmonitor` | Add or remove a named subscription to a field. |
 | `Class.MISSING` | Sentinel used when a monitored field had no previous value. |
 
-`Class.monitor(target, name, callback, params?, notifyEqualWrites?, identifier?)` subscribes to a table or userdata field without immediately invoking the callback. `identifier` defaults to `""`. The same identifier replaces its subscription in place, while different identifiers run in registration order. `Class.unmonitor(target, name, identifier?)` removes only that subscription. A missing subscription is ignored. Omitting the identifier retains the single-subscription behaviour.
+`Class.monitor(target, name, callback, params?, notifyEqualWrites?, identifier?)` subscribes to a table or userdata field without immediately invoking the callback. `identifier` defaults to `""`. The same identifier replaces its subscription in place, while different identifiers run in registration order. `Class.unmonitor(target, name, identifier?)` removes only that subscription. A missing subscription is ignored.
 
 Monitored fields reject `nil` assignments and normally notify only when their visible value changes. Pass `true` as `notifyEqualWrites` to receive equal writes for that subscription. A previous missing or explicit `nil` value reports `Class.MISSING`. Each callback receives `(oldValue, newValue, ...)`, followed by the entries of `params`. Re-entrant assignments take effect, but each subscription suppresses its own recursion. Callback errors stop dispatch and propagate without rolling back the assignment.
 
@@ -99,7 +97,7 @@ String targets preserve Lua `type` semantics: native containers are userdata, an
 
 ## Project truth values and copies
 
-Lua itself treats only `nil` and `false` as false. Ludork's `bool(value)` additionally treats `0`, empty strings, empty tables and empty native containers as false. Use explicit `nil` comparisons only when absence is a distinct protocol value.
+Ludork's `bool(value)` extends [Lua truth values](<Lua Basics.md#operators>): `0`, empty strings, empty tables and empty native containers also count as false. Use explicit `nil` comparisons when absence is a distinct protocol value.
 
 | API | Behaviour |
 |---|---|
@@ -107,7 +105,7 @@ Lua itself treats only `nil` and `false` as false. Ludork's `bool(value)` additi
 | `deepcopy(value)` | Recursively copy keys and values while preserving aliases and cycles. |
 | `asizeof(value)` | Estimate the memory owned by a Lua or native value graph, in bytes. |
 
-For known bound value types, use `value:copy()` or `value:deepcopy()` directly, for example `position:copy()`, `rect:copy()` and `colour:copy()`. These methods produce independent values. Global `copy` and `deepcopy` serve Lua tables and dynamic value graphs; when they encounter a supported bound value, they use the same LuaGlue copy entry points. Resources without a value-copy policy retain identity.
+For known bound value types, use `value:copy()` or `value:deepcopy()` directly, for example `position:copy()`, `rect:copy()` and `colour:copy()`. These methods produce independent values. Global `copy` and `deepcopy` handle Lua tables and dynamic graphs, delegating supported bound values to the same LuaGlue entry points. Resources without a value-copy policy retain identity.
 
 For monitored tables, `copy` and `deepcopy` copy the current logical field values and preserve the original metatable, without the monitoring proxy or subscriptions. The copied values can be saved normally. Subscriptions belong to live instances and must be registered again after loading.
 
@@ -192,14 +190,12 @@ Filesystem extensions are:
 
 | API | Purpose |
 |---|---|
-| `os.getcwd`, `os.listdir` | Read the current directory, or sorted direct entries. |
+| `os.getcwd`, `os.listdir` | Read the current directory, or sorted direct entry names (relative to that directory). |
 | `os.createDirectories` | Create a UTF-8 directory path and its missing parents. Existing directories are accepted. |
 | `os.removeFile` | Remove one UTF-8 file path. Missing files and failures raise. This does not replace `os.remove`. |
 | `os.path.join`, `os.path.splitext`, `os.path.basename`, `os.path.dirname`, `os.path.abspath` | Build or inspect paths. |
 | `os.path.isdir`, `os.path.isfile` | Test existing directory or file paths. Missing paths return false, and inspection errors propagate. |
 | `os.path.getmtime` | Return a file modification timestamp. |
-
-Join `os.listdir` names to their parent before testing them.
 
 `os.listdir`, `os.path.isdir`, `os.path.isfile` and `io.open` use only the real filesystem. `/Game/Assets/...` works only with Ludork resource APIs. For packed Data, `os.path.getmtime("Data/...")` returns the timestamp of the containing `.ldpak` file. Other filesystem APIs do not expose archive entries.
 
@@ -242,8 +238,4 @@ Without `parseData`, `item.content` contains the original file bytes, including 
 
 ## Related pages
 
-- [Lua Basics](<Lua Basics.md>)
 - [SFML Quickstart](<SFML Quickstart.md>)
-- [Lua Runtime and Modules](<../Lua and Blueprint Scripting/Lua Runtime and Modules.md>)
-- [Script Mixin Runtime Contract](<../Lua and Blueprint Scripting/Script Mixins/Runtime Contract.md>)
-- [Engine: Events and Module Root](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Events and Module Root.md>)

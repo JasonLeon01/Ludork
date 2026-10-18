@@ -1,9 +1,5 @@
 # Class
 
-This reference is generated from the current Game project schema in `Data/General`. The values are project data, not an engine enumeration.
-
-Brace-wrapped display strings are resolved as described in [Game Localisation Workflow](<../../Plug-in Development and Installation/Official Plug-ins/Game Localisation Workflow.md>).
-
 Source: `Data/General/Class.json`
 
 | Property | Value |
