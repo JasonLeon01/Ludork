@@ -11,7 +11,7 @@ Official Locale Tools 包含在官方插件安装内容中。Windows MSI 与 EXE
 - 一条排序值为 900 的 **数据库** 菜单命令，用于打开 `Data/Locale/Locale.xlsx`
 - 一个 `LocaleTextHintProvider`
 - 通过 `RegisterBeforeExportHook` 注册的 `LocaleExportHook`
-- 只排除创作工作簿的 before-Pack Hook
+- 从游戏发行包中排除创作工作簿的 before-Pack Hook；Standalone 工程转换跳过此 Hook，保留工作簿
 
 Export Hook 把工作簿声明为输入，把语言 Lua 文件声明为输出，用于判断是否需要重新导出；每次尝试导出后都会刷新自身缓存与编辑器文本提示。
 

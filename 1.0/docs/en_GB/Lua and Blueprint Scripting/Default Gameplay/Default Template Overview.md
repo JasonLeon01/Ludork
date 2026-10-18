@@ -42,6 +42,8 @@ On Android and iOS, returning from the background in the same process resumes th
 
 `Cpp` keeps native sources and builds them per project. `Cpp-ffmpeg` adds video support. Standalone variants contain a built runtime for packaging. iOS, HarmonyOS and Android packages are built only from a C++ Source variant, and they use the FFmpeg-enabled C++ Source variant when video is enabled. Changing the Game project does not update an existing project, so regenerate the template or apply the required changes to that project explicitly.
 
+An existing Source project can also be [converted to Standalone](<../../Editor User Guide/Run Debug and Package.md#convert-source-to-a-standalone-project>). Conversion retains authored gameplay and current UI, locale and material export files, together with Lua declarations; it does not apply the fresh-template export exclusions.
+
 Runtime Lua, `Scripts/stub` declarations and `_meta.lua` file-layer rules are in [Lua Runtime and Modules](<../Lua Runtime and Modules.md>).
 
 ## Related pages

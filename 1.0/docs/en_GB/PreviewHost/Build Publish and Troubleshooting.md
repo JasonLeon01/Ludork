@@ -48,6 +48,8 @@ Missing, damaged or mismatched Standalone preview JSON is regenerated from the c
 
 ## Editable templates and final packages
 
+[Source-to-Standalone conversion](<../Editor User Guide/Run Debug and Package.md#convert-source-to-a-standalone-project>) builds and publishes the matching Release preview with the editable project. On macOS, signing refreshes the preview build identity and validates the host before publishing the output. Only preview metadata is retained in `EditorCache`; the source project’s Export record is not copied.
+
 Source and Standalone editable projects and templates retain preview capabilities. Final game packaging uses the valid project UI registry for asset validation, but excludes preview executables, dedicated runtime libraries (including versioned libraries), manifests, build markers, temporary frame files and the `Engine/PreviewHost` source tree. The game executable and its runtime libraries do not link `PreviewHostRuntime`.
 
 This exclusion applies to loose and `.ldpak` resource layouts and the platform binary/resource directories, including macOS application bundles. Packaging works on a staging copy and does not remove preview support from the editable project. General distribution, encryption and signing options remain in [Run, Debug and Package](<../Editor User Guide/Run Debug and Package.md#packaging>).

@@ -72,7 +72,7 @@
 
 导出先保存并校验项目，依次执行 Export Hook，生成 UI 与材质运行文件，最后记录成功结果。编辑器对声明的文件和导出插件身份计算指纹，判断是否需要重新导出；项目插件身份还包含项目作用域。导出按钮、确认后的 **导出后运行**，以及编辑器每次打包都执行 Export Hook。before-Run Hook 若修改导出输入，运行会在实际启动前要求再次导出。完整流程见[编译、导出与运行](<../编辑器用户指南/运行、调试与打包.md#编译导出与运行>)。
 
-`RegisterBeforeRunHook` 与 `RegisterBeforePackHook` 接受 `IProjectOperationHook`，在各自目标操作之前依次执行；编辑器打包会先完整导出，再执行 before-Pack Hook。所有 Hook 的上下文 都提供项目路径、语言、操作类型、输出写入器、文本提示刷新接口与取消信号。结果失败或抛出异常会终止后续 Hook 并阻止操作。Hook 必须响应取消请求，并通过 `IPluginOutput` 写出进度。
+`RegisterBeforeRunHook` 与 `RegisterBeforePackHook` 接受 `IProjectOperationHook`，在各自目标操作之前依次执行；编辑器生成游戏发行包时先完整导出，再执行 before-Pack Hook。[Standalone 工程转换](<../编辑器用户指南/运行、调试与打包.md#将-source-转换为-standalone-工程>)执行 Export Hook，但不调用 before-Pack Hook，也不应用其打包排除规则。所有 Hook 的上下文 都提供项目路径、语言、操作类型、输出写入器、文本提示刷新接口与取消信号。结果失败或抛出异常会终止后续 Hook 并阻止操作。Hook 必须响应取消请求，并通过 `IPluginOutput` 写出进度。
 
 | 操作上下文字段 | 含义 |
 |---|---|
@@ -93,7 +93,7 @@
 | `CompileLuaDirectory(relativePath)` | 把项目相对的 Lua 目录加入 Pack 编译集合 |
 | `ExcludeFile(relativePath)` | 从发行包中排除项目相对文件 |
 
-Official Locale Tools 在 Pack 时调用 `ExcludeFile("Data/Locale/Locale.xlsx")`，使创作用的本地化工作簿不被分发。语言文件由独立的 Export Hook 写入；Export 与 Run 期间 `Packaging` 为 null。
+Official Locale Tools 在生成游戏发行包时调用 `ExcludeFile("Data/Locale/Locale.xlsx")`，从游戏成品中排除创作用的本地化工作簿；Standalone 工程转换则保留工作簿。语言文件由独立的 Export Hook 写入；Export 与 Run 期间 `Packaging` 为 null。
 
 ## 蓝图助手
 

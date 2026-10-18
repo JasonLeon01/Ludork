@@ -72,7 +72,7 @@ Writes are refused while the target has an unsaved related path change. Complete
 
 Export saves and validates the project, executes Export hooks sequentially, generates UI and material runtime files and records success. The editor fingerprints the declared files and export plug-in identity, including project scope for project plug-ins, to check whether another export is required. Export hooks run for the Export button, confirmed **Export and Play**, and every editor Pack. A before-Run hook that changes export inputs makes Play require another Export before launch. See [Construct, Export and Play](<../Editor User Guide/Run Debug and Package.md#construct-export-and-play>).
 
-`RegisterBeforeRunHook` and `RegisterBeforePackHook` accept `IProjectOperationHook`. These hooks run sequentially before their requested operation; editor Pack runs its complete Export before the before-Pack hooks. All hooks receive the project path, language, operation kind, output writer, text-hint invalidation and cancellation. A failed result or exception stops the remaining hooks and blocks the operation. Honour cancellation and write progress through `IPluginOutput`.
+`RegisterBeforeRunHook` and `RegisterBeforePackHook` accept `IProjectOperationHook`. These hooks run sequentially before their requested operation; editor game packaging runs its complete Export before the before-Pack hooks. [Standalone project conversion](<../Editor User Guide/Run Debug and Package.md#convert-source-to-a-standalone-project>) runs Export hooks but does not invoke before-Pack hooks or apply their packaging exclusions. All hooks receive the project path, language, operation kind, output writer, text-hint invalidation and cancellation. A failed result or exception stops the remaining hooks and blocks the operation. Honour cancellation and write progress through `IPluginOutput`.
 
 | Operation context field | Meaning |
 |---|---|
@@ -93,7 +93,7 @@ When `Packaging` is available, it exposes only the packaging decisions below:
 | `CompileLuaDirectory(relativePath)` | Include a project-relative Lua directory in the Pack compilation set |
 | `ExcludeFile(relativePath)` | Omit a project-relative file from the package |
 
-Official Locale Tools calls `ExcludeFile("Data/Locale/Locale.xlsx")` during Pack, so the authoring workbook is not distributed. Its Export hook writes language files separately; `Packaging` is null during Export and Run.
+Official Locale Tools calls `ExcludeFile("Data/Locale/Locale.xlsx")` during game packaging, so the authoring workbook is excluded from the final game package. Standalone project conversion retains it. Its Export hook writes language files separately; `Packaging` is null during Export and Run.
 
 ## Blueprint assistants
 

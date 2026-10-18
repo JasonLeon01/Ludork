@@ -9,7 +9,7 @@ The picker presents two template cards, **Standalone** and **C++ Source**, and a
 | Standalone | No | No | Authoring Lua, Blueprint, data and assets with the supplied runtime. |
 | C++ Source | Yes | Yes | Changing native services, bindings or building an iOS, HarmonyOS or Android target. |
 
-Each combination of card and switch has its own template. The template establishes the project baseline. Changing it later is a source-management task, not an editor toggle.
+Each combination of card and switch has its own template. The template establishes the project baseline. To turn an existing C++ Source project into an editable Standalone project, use [Pack Project → Standalone project](<../Editor User Guide/Run Debug and Package.md#convert-source-to-a-standalone-project>). This creates a separate project with its existing export outputs, rather than a fresh template.
 
 Before the first Play, use **Construct** for C++ Source, then **Export**. Standalone needs only Export. See [Run, Debug and Package](<../Editor User Guide/Run Debug and Package.md>) for later builds and exports. C++ Source templates include a project-root `.clang-format` for native source formatting.
 
@@ -42,7 +42,7 @@ Platform preparation differs as well. Windows and macOS use shared FFmpeg librar
 
 ## Template targets
 
-- [Ludork Server](<../Simple Server/Deployment and Editor Settings.md>) requires C++ Source. Its Game test-server menu and Pack configuration are hidden for Standalone. All generated templates start with the server disabled and contain no test or production credentials.
+- Configuring [Ludork Server](<../Simple Server/Deployment and Editor Settings.md>) requires C++ Source. Its Game test-server menu and Pack configuration are hidden for Standalone. All generated templates start with the server disabled and contain no test or production credentials. Converting an existing Source project can instead embed explicitly enabled Release server settings in its Standalone runtime.
 - Exporting mobile packages (iOS, Android and HarmonyOS) requires a C++ Source template.
 - Script compilation, shader encryption, data encryption, save encryption and **Archive Assets, Data and Scripts (.ldpak)** are packaging options, not template types. See [Run, Debug and Package](<../Editor User Guide/Run Debug and Package.md>) for the complete option behaviour.
 

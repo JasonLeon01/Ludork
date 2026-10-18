@@ -2,7 +2,7 @@
 
 Ludork Server is an optional HTTP data store. Each project contains accounts; each account contains category files, and each file is a JSON dictionary. The management website lists accounts and files and displays their contents. It is read-only. The server provides neither multiplayer synchronisation nor RPC, and it does not replace the game's local save system.
 
-Deploy the backend and frontend on a server or a separate test instance. A game client only needs a server URL and project key; it does not install Node.js or deploy the server. Client integration requires a **C++ Source** project. Standalone hides both server configuration entries.
+Deploy the backend and frontend on a server or a separate test instance. A game client only needs a server URL and project key; it does not install Node.js or deploy the server. Configuring client integration requires a **C++ Source** project. A converted Standalone project can retain server settings compiled into its runtime, but hides both server configuration entries.
 
 ## Obtain the source
 
@@ -83,6 +83,8 @@ These are local settings, including a plaintext test key. They are ignored by Gi
 ## Configure a packaged client
 
 In **File → Pack Project**, select **Enable Ludork Server**, then enter the production URL and key. Each newly opened Pack window starts disabled with empty fields. Production settings are not cached or copied from test settings. Use `http://host:7777/project`, without `/api/v1`, credentials, query parameters or a fragment. HTTPS is not supported by this client integration.
+
+[Standalone project conversion](<../Editor User Guide/Run Debug and Package.md#convert-source-to-a-standalone-project>) offers the same opt-in Release configuration. The resulting editable project keeps the compiled connection and cannot modify it without another Source build.
 
 Pack always builds **Release**, including internal test packages marked dev. Release ignores `LUDORK_SERVER_CONFIG_FILE`. For command-line packaging or CI, supply `LUDORK_SERVER_ENABLED=1`, `LUDORK_SERVER_URL` and `LUDORK_SERVER_KEY` in that process's environment; omit enablement or set it to `0` to disable the feature. Obtain production values from your own secret store instead of putting literals in version-controlled commands.
 
