@@ -96,6 +96,7 @@ This module owns the shared Gameplay event tags and identifier prefixes. Event p
 | `BATTLE_RULES_EVENT` | `"Event.Combat.ResolveBattleRules"` |
 | `MOVEMENT_STEP_EVENT` | `"Event.Movement.Step"` |
 | `MOVEMENT_QUERY_HAZARD_EVENT` | `"Event.Movement.QueryHazard"` |
+| `MOVEMENT_QUERY_HAZARD_BOUNDS_EVENT` | `"Event.Movement.QueryHazardBounds"` |
 | `COMBAT_RESOLVE_ATTACK_EVENT` | `"Event.Combat.ResolveAttack"` |
 | `COMBAT_RESOLVE_DEFENSE_EVENT` | `"Event.Combat.ResolveDefense"` |
 | `COMBAT_RESOLVE_HIT_COUNT_EVENT` | `"Event.Combat.ResolveHitCount"` |
@@ -126,12 +127,16 @@ Module: `Source.Utils.MovementSpecials`
 
 | Function | Signature | Behaviour |
 |---|---|---|
-| `CreatePreviewContext` | `(enemies, player) -> PreviewContext` | Caches position-independent combat damage for one unchanged player/enemy snapshot |
+| `CreatePreviewContext` | `(enemies, player) -> PreviewContext` | Validates hazard coverage and caches combat damage and coverage radii for one unchanged player/enemy snapshot |
 | `Preview` | `(enemies, player, playerPosition, ignoredEnemies?, previewContext?) -> GameplayAbilityResult` | Resolves movement-hazard damage and contributing sources |
 | `Commit` | `(player, pathPositions) -> GameplayAbilityResult` | Reuses `Preview` for every traversed cell, applies total damage and performs Blockade retreat |
 | `NotifyPlayerMovementFinished` | `(player, pathPositions?) -> GameplayAbilityResult` | Commits a completed movement path or the current cell |
 
-`Preview` owns movement-hazard geometry. It dispatches `Event.Movement.QueryHazard`, resolves Flank and ignored enemies, and returns ordered sources and total damage. Domain activates when Manhattan distance is `<= max(1, magnitude)`, including the range boundary, and uses `MotaBattleAbility.CalculateDamagePerRound` with combat specials such as Magic. Danger grids filter by `Gameplay.Movement.Hazard` and materialise on demand. `PreviewContext` caches position-independent damage for an unchanged snapshot without skipping per-cell events. Ignored Flank enemies count for geometry, not for damage. Preview handlers must not mutate gameplay state.
+`Preview` owns movement-hazard geometry. It dispatches `Event.Movement.QueryHazard`, resolves Flank and ignored enemies, and returns ordered sources and total damage. Domain activates when Manhattan distance is `<= max(1, magnitude)`, including the range boundary, and uses `MotaBattleAbility.CalculateDamagePerRound` with combat specials such as Magic. Ignored Flank enemies count for geometry, not for damage.
+
+Pass movement-hazard enemies, such as those returned by `CollectEnemies`, to `CreatePreviewContext`. Every granted ability subscribed to `Event.Movement.QueryHazard` must also handle `Event.Movement.QueryHazardBounds`. The bounds event uses the enemy as `instigator`, the player as `target`, and an empty payload. Each handler must successfully return `GameplayAbilityResult.Success("MovementHazardBounds", { radius = n })`, where `n` is a non-negative integer. The inclusive square from `(enemy.x - n, enemy.y - n)` to `(enemy.x + n, enemy.y + n)` must contain every cell where that ability can contribute damage. Domain declares `max(1, magnitude)`; Blockade and Flank declare `1`. Missing subscriptions, rejected queries and malformed results raise, including when another ability on the same enemy supplies valid bounds. Bounds and damage previews must not mutate gameplay state.
+
+`PreviewContext` contains `player`, `damageByEnemy` and `radiusByEnemy`; the radius is the largest declared by that enemy's abilities. Recreate it when enemy membership, visibility, positions or player/enemy ability state changes. Danger grids filter by `Gameplay.Movement.Hazard` and materialise on demand. They clip coverage to the requested area, run `Preview` only for candidate cells and relevant enemies, and preserve source and row-major entry order. Coverage is conservative: per-cell events and Flank resolution still determine exact damage. Unchanged overlapping cells, including zero-damage cells, are reused when the area changes.
 
 ## Generated GeneralDataTypes
 

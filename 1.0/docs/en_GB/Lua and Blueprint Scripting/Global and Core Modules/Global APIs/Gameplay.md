@@ -59,9 +59,12 @@ A constraint receives `(value, abilitySystem, resolvedValues)` after modifier ag
 | `giveAbility` | `(ability, sourceKey?) -> GameplayAbilitySpec` | Grants an ability and records its source |
 | `removeAbilitiesBySource` | `(sourceKey)` | Removes every ability granted by that exact source |
 | `tryActivateAbility` | `(abilityID, eventData?) -> GameplayAbilityResult` | Activates the highest-priority eligible ability with that ID |
+| `getGameplayEventAbilities` | `(eventTag) -> GameplayAbilitySpec[]` | Returns subscribed granted specs in event execution order without calling gates or abilities |
 | `handleGameplayEvent` | `(eventData) -> GameplayAbilityResult[]` | Runs every ability whose trigger tag matches the event |
 
 Abilities run in descending `priority` order, then in grant order. Tags match hierarchically. Direct activation returns `AbilityNotFound` for a missing ID, or `AbilityNotActivated` when every matching ability fails its gate.
+
+`getGameplayEventAbilities` uses the same tag matching and ordering as `handleGameplayEvent`, including abilities granted directly or by Effects. It requires a non-empty event tag and returns an empty array when none match. The array contains the existing granted specs; changing the array does not grant or remove abilities. The query does not invoke `canActivate` or `activate` and does not change the component revision.
 
 ### Effects and tags
 

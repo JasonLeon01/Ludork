@@ -96,6 +96,7 @@ Ability ID：`Ability.Combat.MotaBattle`
 | `BATTLE_RULES_EVENT` | `"Event.Combat.ResolveBattleRules"` |
 | `MOVEMENT_STEP_EVENT` | `"Event.Movement.Step"` |
 | `MOVEMENT_QUERY_HAZARD_EVENT` | `"Event.Movement.QueryHazard"` |
+| `MOVEMENT_QUERY_HAZARD_BOUNDS_EVENT` | `"Event.Movement.QueryHazardBounds"` |
 | `COMBAT_RESOLVE_ATTACK_EVENT` | `"Event.Combat.ResolveAttack"` |
 | `COMBAT_RESOLVE_DEFENSE_EVENT` | `"Event.Combat.ResolveDefense"` |
 | `COMBAT_RESOLVE_HIT_COUNT_EVENT` | `"Event.Combat.ResolveHitCount"` |
@@ -126,12 +127,16 @@ Compete、Hard、Magic、MultiHit 与 Poisoned 使用各自的战斗结算事件
 
 | 函数 | 签名 | 行为 |
 |---|---|---|
-| `CreatePreviewContext` | `(enemies, player) -> PreviewContext` | 为一次未变化的玩家/敌人快照缓存与位置无关的战斗伤害 |
+| `CreatePreviewContext` | `(enemies, player) -> PreviewContext` | 校验危险覆盖声明，为未变化的玩家/敌人快照缓存战斗伤害和覆盖半径 |
 | `Preview` | `(enemies, player, playerPosition, ignoredEnemies?, previewContext?) -> GameplayAbilityResult` | 解析移动危险伤害与贡献来源 |
 | `Commit` | `(player, pathPositions) -> GameplayAbilityResult` | 对每个经过的格子复用 `Preview`，应用总伤害并执行 Blockade 后退 |
 | `NotifyPlayerMovementFinished` | `(player, pathPositions?) -> GameplayAbilityResult` | 提交已完成的移动路径；缺省时提交当前格 |
 
-`Preview` 负责移动危险的几何计算。它派发 `Event.Movement.QueryHazard`，解析 Flank 与被忽略的敌人，并返回有序的来源与总伤害。Domain 在曼哈顿距离 `<= max(1, magnitude)` 时触发，包含范围边界，并通过 `MotaBattleAbility.CalculateDamagePerRound` 计算伤害，保留 Magic 等战斗特性。Danger grid 按 `Gameplay.Movement.Hazard` 筛选，并按需生成。`PreviewContext` 为未变化的快照缓存与位置无关的伤害，但不会跳过逐格事件。被忽略的 Flank 敌人只参与几何计算，不贡献伤害。Preview 处理函数不得修改 gameplay state。
+`Preview` 负责移动危险的几何计算。它派发 `Event.Movement.QueryHazard`，解析 Flank 与被忽略的敌人，并返回有序的来源与总伤害。Domain 在曼哈顿距离 `<= max(1, magnitude)` 时触发，包含范围边界，并通过 `MotaBattleAbility.CalculateDamagePerRound` 计算伤害，保留 Magic 等战斗特性。被忽略的 Flank 敌人只参与几何计算，不贡献伤害。
+
+传给 `CreatePreviewContext` 的应是具有移动危险能力的敌人，例如 `CollectEnemies` 的返回结果。每个订阅 `Event.Movement.QueryHazard` 的已授予能力，都必须同时处理 `Event.Movement.QueryHazardBounds`。范围事件以敌人为 `instigator`、玩家为 `target`，payload 为空。每个处理函数必须成功返回 `GameplayAbilityResult.Success("MovementHazardBounds", { radius = n })`，其中 `n` 为非负整数。从 `(enemy.x - n, enemy.y - n)` 到 `(enemy.x + n, enemy.y + n)` 的闭合正方形必须覆盖该能力可能贡献伤害的全部格子。Domain 声明 `max(1, magnitude)`，Blockade 和 Flank 声明 `1`。缺少订阅、查询被拒绝或结果格式错误都会报错，即使同一敌人的其他能力已提供有效范围也不能省略。范围查询和伤害预览均不得修改玩法状态。
+
+`PreviewContext` 包含 `player`、`damageByEnemy` 和 `radiusByEnemy`；覆盖半径取同一敌人各能力声明中的最大值。敌人集合、可见性、位置或玩家/敌人的能力状态变化后，必须重新创建上下文。危险格网按 `Gameplay.Movement.Hazard` 筛选并按需生成，将覆盖范围裁剪到请求区域，仅对候选格及相关敌人调用 `Preview`，同时保留伤害来源顺序和格子按行排列的顺序。覆盖范围只是保守边界，准确伤害仍由逐格事件与 Flank 配对决定。区域变化时，未变化的重叠格会复用已有结果，包括零伤害格。
 
 ## 生成的 GeneralDataTypes
 

@@ -59,9 +59,12 @@
 | `giveAbility` | `(ability, sourceKey?) -> GameplayAbilitySpec` | 授予能力并记录来源 |
 | `removeAbilitiesBySource` | `(sourceKey)` | 移除由指定来源授予的全部能力 |
 | `tryActivateAbility` | `(abilityID, eventData?) -> GameplayAbilityResult` | 激活该 ID 下优先级最高且满足激活条件的能力 |
+| `getGameplayEventAbilities` | `(eventTag) -> GameplayAbilitySpec[]` | 按事件执行顺序返回已订阅的能力 Spec，不调用激活条件检查或能力 |
 | `handleGameplayEvent` | `(eventData) -> GameplayAbilityResult[]` | 执行触发标签与事件匹配的全部能力 |
 
 能力按 `priority` 从高到低执行，同优先级按授予顺序执行。标签支持层级匹配。直接激活时，ID 不存在则返回 `AbilityNotFound`，所有匹配能力均未满足激活条件则返回 `AbilityNotActivated`。
+
+`getGameplayEventAbilities` 与 `handleGameplayEvent` 使用相同的标签匹配和排序规则，包含直接授予及由 Effect 授予的能力。事件标签不能为空；没有匹配项时返回空数组。数组元素是现有的能力 Spec，修改返回数组不会授予或移除能力。该查询不调用 `canActivate` 或 `activate`，也不改变组件 revision。
 
 ### 效果与标签
 

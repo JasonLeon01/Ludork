@@ -54,7 +54,9 @@ After obtaining the Enemy Book, `EnemyDamageText.EnemyDamageHintLevel` uses `Enu
 
 Click routes exclude positive-danger cells even while hidden, except for an explicitly clicked destination. Clicking a Domain or Blockade enemy removes only that target's contributions, including its side of a Flank. Collision and overlap targets that the player will not occupy ignore destination-cell danger.
 
-Newly Active world chunks invalidate the danger cache. Full grids materialise only for map hints or click pathfinding. Single-cell queries remain local. A danger revision invalidates movement only when it affects the remaining path or an enterable enemy goal. Invalid routes return to the last complete cell and replan.
+World chunk activation and sleep invalidate the danger cache when the active hazard enemies change. Grids materialise only for map hints or click pathfinding, evaluating candidate cells inside declared enemy coverage and querying only the enemies that can affect each cell. Coverage comes from the read-only `Event.Movement.QueryHazardBounds` contract described in [MovementSpecials](<../Source Classes/Gameplay.md#movementspecials-and-movement-danger>); exact damage still uses `Preview`. Area changes reuse the overlapping results, including zero damage, while enemy and ability changes invalidate them. Ordinary maps reuse their stable cache, and single-cell queries remain local.
+
+A danger revision invalidates movement only when it affects the remaining path or an enterable enemy goal. Invalid routes return to the last complete cell and replan.
 
 ## Enemies
 
