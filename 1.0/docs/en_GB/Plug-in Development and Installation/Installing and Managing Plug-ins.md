@@ -42,7 +42,7 @@ At startup, the editor reads both the working directory's `plugins.json` with it
 
 The manager shows the selected source and routes unregistration or source deletion to its own registry and directory. Selecting an unregistered immediate child of the working directory's plug-in root for import registers it in place; other imports and newly created plug-ins go to the user directory. If a user copy remains after removing a working-directory registration, it becomes active after restart.
 
-Repository official plug-ins can therefore load directly from the checkout. The Windows package's `tools/OfficialPlugins` payload remains an installation input; startup never copies or replaces official plug-ins. See [User data directory](<../Editor User Guide/Start Page Workspace and Shortcuts.md#user-data-directory>) for other editor data and manual migration.
+Repository official plug-ins can therefore load directly from the checkout. Windows development archives likewise include `Plugins` and `plugins.json` beside the root `Ludork.exe`. Launching that executable sets the working directory to the extracted package root, so the bundled plug-ins load without installing a user copy. Windows release packages keep `tools/OfficialPlugins` as an installation input; startup never copies or replaces official plug-ins. See [User data directory](<../Editor User Guide/Start Page Workspace and Shortcuts.md#user-data-directory>) for other editor data and manual migration.
 
 Project plug-ins use the following layout under either scanned root, with the same working-directory priority. Writable `.data` remains under the user root:
 
@@ -63,7 +63,7 @@ Each project scope has its own registry and data. The manager groups **Global Pl
 
 Official Blueprint AI, Official Locale Tools, Official Random Map and [Official Resource Cleanup](<Official Plug-ins/Resource Cleanup.md>) are distributed as global plug-ins. Their prepared payload includes a `plugins.json` generated from their manifests; after installation they are registered for loading on the next editor start, without the third-party import trust dialog. Official editor distributions contain no project plug-ins.
 
-Both Windows installers install official plug-ins for the user who started setup by default. Clear **Install Official Plugins** in the EXE wizard or pass `INSTALL_OFFICIAL_PLUGINS=0` to MSI to skip this step without changing existing plug-ins. Start setup normally to keep plug-ins with your user account when another administrator supplies UAC credentials. If you explicitly launch setup as another account, that account becomes the installer user. Service-account installations must skip user plug-ins. Repair and editor uninstall preserve user plug-ins; an upgrade that installs official plug-ins replaces them again.
+Both Windows installers install official plug-ins for the user who started setup by default. Clear **Install Official Plugins** in the EXE wizard or pass `INSTALL_OFFICIAL_PLUGINS=0` to MSI to skip this step without changing existing plug-ins. Start setup normally to keep plug-ins with your user account when another administrator supplies UAC credentials. If you explicitly launch setup as another account, that account becomes the installer user. Service-account installations must skip user plug-ins. Repair preserves user plug-ins; an upgrade that installs official plug-ins replaces them again. Windows editor uninstall defaults to deleting user data, including plug-ins; clear **Delete user data** to retain it. See [User data directory](<../Editor User Guide/Start Page Workspace and Shortcuts.md#user-data-directory>) for the deletion scope, identity requirements and silent options.
 
 Close Ludork and back up anything needed before installing official plug-ins. The operation replaces the complete `~/Ludork/Plugins` directory and `~/Ludork/plugins.json`; it does not merge them. This deletes existing third-party source, registrations and `Plugins/.data`, plus all project plug-ins, registries and data below `Plugins/__ProjectPlugins`. Other settings and template caches are preserved. An ordinary failure rolls back the previous installation. If rollback cannot finish, follow the reported recovery instructions. A successful replacement removes its backup; a failure to clean up the backup is reported separately.
 
@@ -80,7 +80,7 @@ Repository runs can load the checkout’s registered plug-ins directly. To insta
 .tools/ScriptTools/ScriptTools editor-official-plugins install-current-user obj/official-plugins
 ```
 
-On Windows, use `.tools\ScriptTools\ScriptTools.exe` instead. From the root of an extracted Windows portable package, or from an installed editor directory when retrying a failed plug-in installation, run:
+On Windows, use `.tools\ScriptTools\ScriptTools.exe` instead. To retry a failed plug-in installation from an installed Windows release editor directory, run:
 
 ```bat
 tools\ScriptTools\ScriptTools.exe editor-official-plugins install-current-user tools\OfficialPlugins
@@ -102,7 +102,7 @@ A registered plug-in is enabled after restart, when its scope loads, and there i
 
 Global plug-in writable state belongs in `~/Ludork/Plugins/.data/<plugin-id>` in every editor mode, and the plug-in obtains it from `PluginDataDirectory`. Official Blueprint AI therefore uses `~/Ludork/Plugins/.data/Ludork.OfficialBlueprintAI`. Project plug-in data instead resides in `~/Ludork/Plugins/__ProjectPlugins/<project-key>/.data/<plugin-id>`. The same plug-in ID in different project scopes has independent data and credentials. Always use `PluginDataDirectory` rather than writing settings or history into the plug-in source directory.
 
-Uninstall unregisters the plug-in and can schedule safe deletion of its installed files. A loaded directory may remain present until the restart, because its assembly is active. A plug-in that was unregistered without deletion can be registered again by selecting its existing immediate child directory under the same scope’s plug-in root. Plug-in data is retained in both uninstall modes, and deleting that data is a separate explicit operation. Do not edit the registry by hand while the editor is running.
+Uninstalling a plug-in through the editor unregisters it and can schedule safe deletion of its installed files. A loaded directory may remain present until the restart, because its assembly is active. A plug-in that was unregistered without deletion can be registered again by selecting its existing immediate child directory under the same scope’s plug-in root. Plug-in data is retained in both plug-in uninstall modes, and deleting that data is a separate explicit operation. Do not edit the registry by hand while the editor is running.
 
 Resource Cleanup's project-specific additional keep list is managed by its host bridge in `EditorCache/ResourceCleanupKeep.list`. It belongs to the project and is separate from both plug-in program content and `PluginDataDirectory`.
 

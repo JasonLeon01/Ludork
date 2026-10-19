@@ -56,7 +56,13 @@ Windows and macOS editors use `~/Ludork` for persistent data in installed, porta
 
 Plug-in discovery also reads the working directory’s registry and sources, with working-directory IDs taking priority over user copies. Retained plug-in data stays in `~/Ludork`; see [Global and project storage](<../Plug-in Development and Installation/Installing and Managing Plug-ins.md#global-and-project-storage>).
 
-Project files, build output and `EditorCache` remain in each project. Game runtime settings and save files retain their own locations. Passwords continue to use the operating system's credential store; macOS manages its WebKit cache separately. Editor uninstall leaves the user data directory intact.
+Project files, build output and `EditorCache` remain in each project. Game runtime settings and save files retain their own locations. Passwords continue to use the operating system's credential store; macOS manages its WebKit cache separately.
+
+Windows MSI and EXE uninstallers offer **Delete user data**, selected by default. Keeping it selected deletes the verified initiating user's entire `~/Ludork` directory, including all plug-in sources, registrations and retained data, preferences, logs, template caches, browser data and signing indexes. Close Ludork and back up anything needed before uninstalling. Clear the option to retain this directory. Projects in `~/LudorkProjects` or other directories outside `~/Ludork`, and other users' data, are not deleted. Removing the macOS application continues to leave `~/Ludork` intact.
+
+For silent MSI removal, pass `REMOVE_USER_DATA=0` to retain data or `REMOVE_USER_DATA=1` to delete it; the default is `1`. Cleanup runs only for an explicit full uninstall, after the removal transaction commits. Repair and the removal of an older version during a major upgrade do not delete user data. A deletion failure is reported and may leave data requiring manual cleanup. Service accounts and uninstall sessions whose initiating user cannot be verified must use `REMOVE_USER_DATA=0`.
+
+The EXE uninstaller accepts `/REMOVEUSERDATA=0` or `/REMOVEUSERDATA=1`, also defaulting to `1`; silent removal honours the same choice. It retains the existing Windows uninstall entry. If another administrator's account supplies UAC credentials, no interactive desktop is available, or the initiating user's identity cannot be confirmed, it preserves user data and prompts for manual deletion, or records that instruction during silent removal. It does not substitute the administrator's or desktop user's directory. If manual cleanup is needed, sign in as the intended user and delete only that user's `~/Ludork` after preserving anything needed.
 
 ### Moving existing editor data
 
