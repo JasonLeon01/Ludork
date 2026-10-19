@@ -97,6 +97,8 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         Content = DeferredWindowInitializer.CreateLoadingContent();
 
         document.ExternalChanged += onDataRestored;
+        if (document.ResourceDocument is EditorDocument resourceDocument)
+            resourceDocument.DiskReloaded += onDiskReloaded;
         documentBinding = new EditorDocumentBinding(this, gameData, () => document.ResourceDocument, () => document.Title, closeWhenDeleted: true);
         documentBinding.HasPendingInputs = () => PendingInputErrors.Count != 0;
         BlueprintInputDraftCloseGuard.Attach(this, () => PendingInputErrors.Count != 0);
@@ -942,6 +944,13 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         reloadFromDataChange();
     }
 
+    private void onDiskReloaded(object? sender, EventArgs args)
+    {
+        clearGraphViews(true);
+        graphViewStates.Clear();
+        reloadFromDataChange();
+    }
+
     private void reloadFromDataChange()
     {
         inheritanceRefreshPending = false;
@@ -996,6 +1005,8 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         previewSession.Dispose();
         variableForm?.Dispose();
         document.ExternalChanged -= onDataRestored;
+        if (document.ResourceDocument is EditorDocument resourceDocument)
+            resourceDocument.DiskReloaded -= onDiskReloaded;
         viewModel.Dispose();
         projectSave.UnregisterParticipant(this);
         gameData.DataReloaded -= onDataReloaded;

@@ -72,6 +72,8 @@ public sealed class ProjectSaveService
     public UiAssetValidationService UiAssetValidation => uiAssetValidation;
     public GameVariableService GameVariables => gameVariables;
     public ProjectDataStore GameData => gameData;
+    public Func<Task<bool>>? ExternalChangeCheck { get; set; }
+    internal ProjectExternalChangeService? ExternalChanges { get; set; }
 
     public void RegisterParticipant(IProjectSaveParticipant participant)
     {
@@ -100,6 +102,8 @@ public sealed class ProjectSaveService
     {
         progress?.Report(new EditorOperationProgress("EDIT_OPERATION_PREPARING"));
         FlushPendingChanges();
+        if (ExternalChanges is not null && !await Task.Run(ExternalChanges.IsCurrent))
+            return new ProjectSaveAttempt(false, false, [], new SaveResult(false, LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED")));
         IReadOnlyList<string> inputErrors = PendingInputErrors;
         if (inputErrors.Count != 0)
         {
@@ -140,7 +144,8 @@ public sealed class ProjectSaveService
         if (gameData.Documents.Revision != snapshot.Revision)
             return new ProjectSaveAttempt(false, false, [], new SaveResult(false, LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED")));
         bool filesCurrent = await Task.Run(files.IsCurrent);
-        if (!filesCurrent || gameData.Documents.Revision != snapshot.Revision)
+        if (!filesCurrent || gameData.Documents.Revision != snapshot.Revision
+            || ExternalChanges is not null && !await Task.Run(ExternalChanges.IsCurrent))
             return new ProjectSaveAttempt(false, false, [], new SaveResult(false, LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED")));
         GameVariableSaveResult variableResult = await Task.Run(() =>
         {
@@ -152,7 +157,8 @@ public sealed class ProjectSaveService
         if (!variableResult.Success)
             return attempt with { Success = false, GameVariableResult = variableResult };
         SaveResult dataResult = await Task.Run(() => captured.SaveAllModified(true, progress,
-            () => dataFiles.All(pair => ReferenceInputFiles.Read(pair.Key) == pair.Value)));
+            () => dataFiles.All(pair => ReferenceInputFiles.Read(pair.Key) == pair.Value)
+                && (ExternalChanges?.IsCurrent() ?? true)));
         attempt = attempt with { Success = dataResult.Success, DataResult = dataResult, GameVariableResult = variableResult };
         if (attempt.Success)
             await gameData.CompleteOperationSaveAsync(captured, modified, progress);

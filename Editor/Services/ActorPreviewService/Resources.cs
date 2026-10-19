@@ -14,6 +14,35 @@ namespace Ludork.Services;
 
 public sealed partial class ActorPreviewService
 {
+    internal void InvalidateSources(IReadOnlyCollection<string> paths)
+    {
+        HashSet<string> changed = paths.Select(Path.GetFullPath).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        string[] assetPaths = sourceTextures.Keys.Concat(sourceLoads.Keys).Concat(sourceFailures.Keys)
+            .Concat(leases.Select(lease => lease.Descriptor.TexturePath)).Distinct(StringComparer.Ordinal).ToArray();
+        HashSet<string> changedAssets = assetPaths.Where(assetPath =>
+            GameAssetPath.TryToProjectFile(projectPath, assetPath, out string path) && changed.Contains(path))
+            .ToHashSet(StringComparer.Ordinal);
+        foreach (string assetPath in changedAssets)
+        {
+            if (sourceTextures.Remove(assetPath, out CachedSourceTexture? cached))
+                sourceTextureBytes -= cached.Texture.Bytes;
+            sourceFailures.Remove(assetPath);
+            if (sourceLoads.Remove(assetPath, out SourceLoad? load))
+                load.Cancellation.Cancel();
+        }
+        Interlocked.Increment(ref generation);
+        foreach (ActorPreviewLease lease in leases.ToArray())
+        {
+            lease.markNativeRenderDirty();
+            if (!changedAssets.Contains(lease.Descriptor.TexturePath))
+                continue;
+            cancelFallback(lease);
+            lease.clearFrame(lease.getTextureRect(clock.Elapsed), nativeRenderPending: lease.Descriptor.RequiresNativePreview);
+            updateFallback(lease, lease.getTextureRect(clock.Elapsed), forceSourceValidation: true);
+        }
+        Refresh();
+    }
+
     private async Task<SourceTexture?> getSourceTextureAsync(string assetPath, bool forceValidation, CancellationToken cancellationToken)
     {
         if (disposed)

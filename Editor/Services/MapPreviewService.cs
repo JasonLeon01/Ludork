@@ -223,6 +223,7 @@ public sealed class MapPreviewService : IDisposable
     }
 
     internal void InvalidateScene() => invalidate(false);
+    internal void InvalidateResources() => invalidate(true);
     private void onDocumentsChanged(object? sender, EditorDocumentsChangedEventArgs args)
     {
         if (args.Reset || args.Changes.Any(change => change.Section is "WorldMaps" or "Blueprints" or "Tilesets" or "AutoTiles" or "Materials" or "Configs" || change.Section == "Maps" && change.IdentityChanged))

@@ -25,6 +25,7 @@ public sealed class EditorDocumentRegistry
     public IReadOnlyList<EditorDocument> ModifiedDocuments => documents.Where(document => document.IsModified).ToArray();
     public bool IsModified => documents.Any(document => document.IsModified);
     public event EventHandler? Changed;
+    public event Action<EditorDocument>? DiskReloaded;
     internal event EventHandler<EditorDocumentsChangedEventArgs>? ContentInvalidated;
     public event EventHandler<EditorDocumentsChangedEventArgs>? ContentChanged;
 
@@ -116,6 +117,11 @@ public sealed class EditorDocumentRegistry
     internal bool IsRegistered(EditorDocument document) => identities.ContainsKey(document);
 
     internal bool HasPendingNotifications => notificationScopes.Count != 0;
+
+    internal void RequestDiskReload(EditorDocument document)
+    {
+        notificationScopes.Peek().DiskReloads.Add(document);
+    }
 
     internal IEnumerable<EditorDocument> PendingDocuments => documents.Where(document => document.PendingState is not null);
 
@@ -285,6 +291,7 @@ public sealed class EditorDocumentRegistry
             return;
         }
         parent.Changed.UnionWith(scope.Changed);
+        parent.DiskReloads.UnionWith(scope.DiskReloads);
         foreach (KeyValuePair<EditorDocument, (EditorDocumentState Before, EditorDocumentState After)> pair in scope.Content)
             parent.AddContent(pair.Key, pair.Value.Before, pair.Value.After);
         foreach (KeyValuePair<EditorDocument, bool> change in scope.PreparedContentChanges)
@@ -333,6 +340,11 @@ public sealed class EditorDocumentRegistry
             ContentInvalidated?.Invoke(this, content);
         foreach (EditorDocument document in scope.Changed)
             document.Revision++;
+        foreach (EditorDocument document in scope.DiskReloads)
+        {
+            document.NotifyDiskReloaded();
+            DiskReloaded?.Invoke(document);
+        }
         foreach (EditorDocument document in scope.Changed)
             document.NotifyChanged();
         if (scope.Changed.Count != 0 || scope.Reset)
@@ -443,6 +455,7 @@ public sealed class EditorDocumentRegistry
     {
         public object Owner { get; } = owner;
         public HashSet<EditorDocument> Changed { get; } = [];
+        public HashSet<EditorDocument> DiskReloads { get; } = [];
         public Dictionary<EditorDocument, (EditorDocumentState Before, EditorDocumentState After)> Content { get; } = [];
         public List<Action> AfterNotifications { get; } = [];
         public Dictionary<EditorDocument, bool> PreparedContentChanges { get; } = [];

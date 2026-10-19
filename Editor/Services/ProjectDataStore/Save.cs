@@ -81,9 +81,7 @@ public sealed partial class ProjectDataStore
                 return new SaveResult(false, exception.Message);
             }
         }
-        if (canWrite is not null && !canWrite())
-            return new SaveResult(false, LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
-        SaveResult result = batch.Execute(progress);
+        SaveResult result = batch.Execute(progress, canWrite: canWrite);
         if (!result.Success)
             return result;
         using EditorDocumentNotificationBatch notifications = Documents.BeginNotificationBatch();

@@ -229,7 +229,7 @@ public sealed partial class FileExplorerViewModel
         if (document is not null)
             entry.UpdateSource($"document:{document.Id}:{document.Revision}:{previewService.ResolutionRevision}:{visualVersion}", blueprint);
         else if (stamp is not null)
-            entry.UpdateSource(stamp, null);
+            entry.UpdateSource($"{stamp}:{gameData.Thumbnails.GetSourceRevision(entry.FullPath)}", null);
     }
 
     private DocumentPath[] captureDocumentPaths()

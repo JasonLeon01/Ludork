@@ -83,6 +83,24 @@ public sealed class TilesetImageEditor : Control, IDisposable
         setData(data, gameData.ProjectPath, path, isAutoTile);
     }
 
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs args)
+    {
+        base.OnAttachedToVisualTree(args);
+        gameData.Thumbnails.SourcesInvalidated += onSourcesInvalidated;
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs args)
+    {
+        gameData.Thumbnails.SourcesInvalidated -= onSourcesInvalidated;
+        base.OnDetachedFromVisualTree(args);
+    }
+
+    private void onSourcesInvalidated(object? sender, IReadOnlySet<string> paths)
+    {
+        if (GameAssetPath.TryToProjectFile(gameData.ProjectPath, imageAssetPath, out string path) && paths.Contains(path))
+            ReloadImage();
+    }
+
     private async void loadImage(string projectPath, string? assetPath, CancellationToken cancellationToken)
     {
         try

@@ -4,6 +4,8 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Ludork.Services;
 using System;
+using System.IO;
+using System.Runtime.InteropServices;
 
 namespace Ludork.Controls;
 
@@ -20,6 +22,11 @@ public sealed class AutoTilePreview : Control
 
     private static readonly IBrush EmptyBrush = new SolidColorBrush(Color.FromRgb(60, 60, 60));
     private Bitmap? bitmap;
+
+    public AutoTilePreview()
+    {
+        DataContextChanged += (_, _) => loadBitmap();
+    }
 
     public string? ProjectPath
     {
@@ -91,7 +98,15 @@ public sealed class AutoTilePreview : Control
                 AssetPath,
                 out string filePath))
         {
-            bitmap = new Bitmap(filePath);
+            try
+            {
+                bitmap = new Bitmap(filePath);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+                or ArgumentException or NotSupportedException or ExternalException)
+            {
+                bitmap = null;
+            }
         }
         InvalidateVisual();
     }

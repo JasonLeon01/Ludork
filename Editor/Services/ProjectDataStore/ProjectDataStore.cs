@@ -70,6 +70,8 @@ public sealed partial class ProjectDataStore : IDisposable
     private bool disposed;
     internal bool IsDisposed => disposed;
 
+    internal ProjectDiskSnapshot InitialDiskSnapshot { get; } = new();
+
     public ProjectDataStore(string projectPath, bool cacheMapCatalog = true,
         CancellationToken loadCancellationToken = default, Action<string>? loadProgress = null)
         : this(projectPath, cacheMapCatalog, loadCancellationToken, loadProgress, true)
@@ -99,7 +101,11 @@ public sealed partial class ProjectDataStore : IDisposable
         UiAssets = new UiAssetDataService(this, sections["UI"]);
         Subtitles = new SubtitleDataService(this, sections["Subtitles"]);
         if (load)
+        {
+            if (cacheMapCatalog)
+                InitialDiskSnapshot = ProjectDiskSnapshot.Capture(ProjectPath, loadCancellationToken, false);
             loadAll();
+        }
         this.loadCancellationToken = default;
         this.loadProgress = null;
     }

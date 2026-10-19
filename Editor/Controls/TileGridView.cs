@@ -7,6 +7,8 @@ using Ludork.Services;
 using Ludork.ViewModels;
 using System;
 using System.ComponentModel;
+using System.IO;
+using System.Runtime.InteropServices;
 
 namespace Ludork.Controls;
 
@@ -128,7 +130,15 @@ public sealed class TileGridView : Control
                 assetPath,
                 out string filePath))
         {
-            bitmap = new Bitmap(filePath);
+            try
+            {
+                bitmap = new Bitmap(filePath);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+                or ArgumentException or NotSupportedException or ExternalException)
+            {
+                bitmap = null;
+            }
         }
         InvalidateMeasure();
         InvalidateVisual();

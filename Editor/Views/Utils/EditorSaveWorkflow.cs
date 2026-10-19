@@ -12,6 +12,8 @@ public static class EditorSaveWorkflow
         ProjectSaveService saveService,
         bool beforeNativeBuild = false)
     {
+        if (saveService.ExternalChangeCheck is not null && !await saveService.ExternalChangeCheck())
+            return false;
         ProjectSaveAttempt? attempt = await EditorEditWorkflow.RunAsync<ProjectSaveAttempt?>(owner, saveService.GameData,
             LocaleService.Get("EDIT_OPERATION_SAVING"), async progress =>
             {
@@ -31,6 +33,8 @@ public static class EditorSaveWorkflow
                 owner,
                 attempt.ValidationResults);
             if (!continueSave)
+                return false;
+            if (saveService.ExternalChangeCheck is not null && !await saveService.ExternalChangeCheck())
                 return false;
             attempt = await EditorEditWorkflow.RunAsync<ProjectSaveAttempt?>(owner, saveService.GameData,
                 LocaleService.Get("EDIT_OPERATION_SAVING"), async progress => await saveService.TrySaveAsync(true, beforeNativeBuild, progress), null);

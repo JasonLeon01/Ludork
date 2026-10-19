@@ -11,6 +11,7 @@ namespace Ludork.Services;
 
 internal sealed class EditorFileSaveBatch
 {
+    internal static event Action<IReadOnlyDictionary<string, string?>>? FilesCommitted;
     private static readonly StringComparer pathComparer = OperatingSystem.IsWindows()
         ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
     private readonly Dictionary<string, byte[]> writes = new(pathComparer);
@@ -43,7 +44,8 @@ internal sealed class EditorFileSaveBatch
             moves.Add((Path.GetFullPath(source), Path.GetFullPath(destination)));
     }
 
-    public SaveResult Execute(IProgress<EditorOperationProgress>? progress = null, CancellationToken cancellationToken = default)
+    public SaveResult Execute(IProgress<EditorOperationProgress>? progress = null, CancellationToken cancellationToken = default,
+        Func<bool>? canWrite = null)
     {
         string staging = Path.Combine(Path.GetTempPath(), "LudorkSave-" + Guid.NewGuid().ToString("N"));
         Dictionary<string, string> prepared = new(pathComparer);
@@ -56,6 +58,8 @@ internal sealed class EditorFileSaveBatch
         List<(string Source, string Backup)> removedDirectories = [];
         List<string> createdDirectories = [];
         List<string> errors = [];
+        Dictionary<string, string?> fingerprints = new(pathComparer);
+        Dictionary<string, string?> expectedFiles = new(pathComparer);
         string currentPath = staging;
         bool committed = false;
         bool rollbackFailed = false;
@@ -86,6 +90,40 @@ internal sealed class EditorFileSaveBatch
                 File.Copy(write.Value, temporary);
                 prepared.Add(write.Key, temporary);
             }
+            if (FilesCommitted is not null || canWrite is not null)
+            {
+                foreach ((string source, string destination) in moves)
+                {
+                    if (!Directory.Exists(source))
+                        continue;
+                    foreach (string file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
+                    {
+                        fingerprints[file] = null;
+                        fingerprints[Path.Combine(destination, Path.GetRelativePath(source, file))] = ProjectDiskSnapshot.ReadFingerprint(file);
+                    }
+                }
+                foreach (string directory in directoryDeletions.Where(Directory.Exists))
+                    foreach (string file in Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories))
+                        fingerprints[file] = null;
+                foreach (string path in deletions)
+                    fingerprints[path] = null;
+                foreach (KeyValuePair<string, string> write in prepared)
+                    fingerprints[write.Key] = ProjectDiskSnapshot.ReadFingerprint(write.Value);
+            }
+            if (canWrite is not null)
+                foreach (string path in writePaths.Concat(deletions).Distinct(pathComparer))
+                {
+                    string sourcePath = path;
+                    foreach ((string source, string destination) in moves)
+                        if (ProjectDiskSnapshot.IsWithin(path, destination))
+                        {
+                            sourcePath = Path.Combine(source, Path.GetRelativePath(destination, path));
+                            break;
+                        }
+                    expectedFiles[path] = ProjectDiskSnapshot.ReadFingerprint(sourcePath);
+                }
+            if (canWrite is not null && !canWrite())
+                throw new IOException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
             foreach (string directory in directorySpellings.OrderBy(path => path.Length))
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -157,6 +195,7 @@ internal sealed class EditorFileSaveBatch
             {
                 currentPath = path;
                 cancellationToken.ThrowIfCancellationRequested();
+                verifyFile(path);
                 string? backup = File.Exists(path) ? Path.Combine(staging, "original-" + originals.Count) : null;
                 if (backup is not null)
                     File.Copy(path, backup);
@@ -166,6 +205,7 @@ internal sealed class EditorFileSaveBatch
             {
                 currentPath = write.Key;
                 report(currentPath);
+                verifyFile(write.Key);
                 ensureDirectory(Path.GetDirectoryName(write.Key)!, createdDirectories);
                 replaceFile(write.Value, write.Key, errors);
                 changedFiles.Add(write.Key);
@@ -174,6 +214,7 @@ internal sealed class EditorFileSaveBatch
             {
                 currentPath = path;
                 report(currentPath);
+                verifyFile(path);
                 if (!File.Exists(path))
                     continue;
                 FilePersistence.DeleteFile(path);
@@ -191,6 +232,8 @@ internal sealed class EditorFileSaveBatch
             {
                 try
                 {
+                    if (canWrite is not null && ProjectDiskSnapshot.ReadFingerprint(path) != fingerprints.GetValueOrDefault(path))
+                        throw new IOException($"The file changed after saving and was preserved: {path}");
                     string? original = originals[path];
                     if (original is null)
                     {
@@ -259,7 +302,15 @@ internal sealed class EditorFileSaveBatch
         }
         if (cancelled && !rollbackFailed)
             cancellationToken.ThrowIfCancellationRequested();
+        if (committed)
+            FilesCommitted?.Invoke(fingerprints);
         return new SaveResult(committed, string.Join(Environment.NewLine, errors));
+
+        void verifyFile(string path)
+        {
+            if (canWrite is not null && ProjectDiskSnapshot.ReadFingerprint(path) != expectedFiles.GetValueOrDefault(path))
+                throw new IOException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED") + Environment.NewLine + path);
+        }
     }
 
     private static void moveDirectory(string source, string destination,

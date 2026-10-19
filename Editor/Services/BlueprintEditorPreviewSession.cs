@@ -13,6 +13,7 @@ internal sealed class BlueprintEditorPreviewSession : IDisposable
     private EditorThumbnailLease? thumbnail;
     private CancellationTokenSource? request;
     private ActorVisualDescriptor? publishedDescriptor;
+    private ResolvedBlueprintClass? lastResolved;
     private bool descriptorPublished;
     private bool visible;
     private bool readOnly;
@@ -21,6 +22,7 @@ internal sealed class BlueprintEditorPreviewSession : IDisposable
     public BlueprintEditorPreviewSession(BlueprintPreviewService previews)
     {
         this.previews = previews;
+        previews.Runtime.ResourcesInvalidated += onResourcesInvalidated;
     }
 
     public event EventHandler? FrameChanged;
@@ -50,6 +52,7 @@ internal sealed class BlueprintEditorPreviewSession : IDisposable
     {
         if (disposed)
             return;
+        lastResolved = resolved;
         request?.Cancel();
         request?.Dispose();
         request = new CancellationTokenSource();
@@ -98,6 +101,7 @@ internal sealed class BlueprintEditorPreviewSession : IDisposable
         if (disposed)
             return;
         disposed = true;
+        previews.Runtime.ResourcesInvalidated -= onResourcesInvalidated;
         request?.Cancel();
         request?.Dispose();
         request = null;
@@ -110,6 +114,12 @@ internal sealed class BlueprintEditorPreviewSession : IDisposable
     {
         if (lease is not null)
             lease.IsActive = !disposed && visible && !readOnly;
+    }
+
+    private async void onResourcesInvalidated(object? sender, EventArgs args)
+    {
+        if (lastResolved is not null)
+            await RefreshAsync(lastResolved, true);
     }
 
     private void onFrameChanged(object? sender, EventArgs args)

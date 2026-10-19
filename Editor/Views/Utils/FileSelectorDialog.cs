@@ -369,6 +369,7 @@ public sealed class FileSelectorDialog : Window
 
         if (_blueprintPreviews is not null)
             _blueprintPreviews.VisualsInvalidated += onBlueprintVisualsInvalidated;
+        _thumbnails.SourcesInvalidated += onSourcesInvalidated;
         PropertyChanged += (_, args) =>
         {
             if (args.Property == IsVisibleProperty && _blueprintPreview is not null)
@@ -793,6 +794,15 @@ public sealed class FileSelectorDialog : Window
         });
     }
 
+    private void onSourcesInvalidated(object? sender, IReadOnlySet<string> paths)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!_closed && !string.IsNullOrEmpty(_selectedPath) && paths.Contains(_selectedPath))
+                _ = updatePreviewAsync(_selectedPath);
+        });
+    }
+
     private static Task<string?> readTextPreviewAsync(string path, CancellationToken token) => Task.Run(async () =>
     {
         await using FileStream stream = new(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite,
@@ -904,6 +914,7 @@ public sealed class FileSelectorDialog : Window
         _directoryCancellation.Cancel();
         _directoryCancellation.Dispose();
         clearPreview();
+        _thumbnails.SourcesInvalidated -= onSourcesInvalidated;
         if (_blueprintPreviews is not null)
             _blueprintPreviews.VisualsInvalidated -= onBlueprintVisualsInvalidated;
         if (_blueprintPreview is not null)

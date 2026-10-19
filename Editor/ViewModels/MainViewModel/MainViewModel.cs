@@ -289,6 +289,22 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         TileSelect.RefreshData();
     }
 
+    public void RefreshExternalFiles(IReadOnlyList<string> paths)
+    {
+        if (disposed || paths.Count == 0)
+            return;
+        string assetsRoot = Path.Combine(GameData.ProjectPath, "Assets");
+        string mapsRoot = Path.Combine(GameData.ProjectPath, "Data", "Maps");
+        string[] assets = paths.Where(path => EditorPathSandbox.IsSameOrChildPath(assetsRoot, path)).ToArray();
+        BlueprintPreviews.InvalidateExternalAssets(assets);
+        ReferenceIndex.MarkDirty();
+        if (paths.Any(path => EditorPathSandbox.IsSameOrChildPath(mapsRoot, path)))
+            MapWorkspace.refreshMaps();
+        TileSelect.RefreshExternalAssets(assets);
+        FileExplorerPanel.RequestRefresh();
+        onModifiedChanged(this, EventArgs.Empty);
+    }
+
     private void onExplorerFileClicked(object? sender, FileExplorerFileEventArgs args)
     {
         string path = args.Path;

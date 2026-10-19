@@ -34,6 +34,7 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
     private readonly PreviewRuntimeService runtime;
     private readonly SemaphoreSlim startLock = new(1, 1);
     private PreviewRuntimeSnapshot? activeSnapshot;
+    private long activeResourceRevision;
     private readonly SemaphoreSlim protocolLock = new(1, 1);
     private readonly object processSync = new();
     private readonly TaskCompletionSource shutdownCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -55,6 +56,7 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
         StatusMessage = runtime.StatusMessage;
         runtime.RegisterConnection(this);
         runtime.Changed += onRuntimeChanged;
+        runtime.ResourcesInvalidated += onRuntimeChanged;
     }
 
     public event EventHandler? StateChanged;
@@ -107,6 +109,7 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
             return false;
         cancellationToken.ThrowIfCancellationRequested();
         activeSnapshot = snapshot;
+        activeResourceRevision = runtime.ResourceRevision;
         setState(PreviewHostConnectionState.Starting, string.Empty);
         lastStandardError = null;
         ProcessStartInfo startInfo = new()
@@ -405,6 +408,7 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
             activeSnapshot = null;
         }
         runtime.Changed -= onRuntimeChanged;
+        runtime.ResourcesInvalidated -= onRuntimeChanged;
         currentInput?.Dispose();
         if (currentProcess is not null)
         {
@@ -522,6 +526,7 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
     }
 
     private bool matchesCurrentSnapshot() => runtime.IsReady
+        && activeResourceRevision == runtime.ResourceRevision
         && activeSnapshot is not null
         && activeSnapshot.BuildId == runtime.Current?.BuildId
         && activeSnapshot.RegistryHash == runtime.Current?.RegistryHash

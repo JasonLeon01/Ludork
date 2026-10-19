@@ -73,11 +73,13 @@ public sealed partial class SubtitleWindow : Window, IProjectSaveParticipant
         binding.HasPendingInputs = () => inputErrors.Count != 0;
         projectSave.RegisterParticipant(this);
         document.Changed += documentChanged;
+        document.DiskReloaded += onDiskReloaded;
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
         Opened += (_, _) => initializePreview();
         Closed += (_, _) =>
         {
             document.Changed -= documentChanged;
+            document.DiskReloaded -= onDiskReloaded;
             projectSave.UnregisterParticipant(this);
             disposePreview();
         };
@@ -330,6 +332,11 @@ public sealed partial class SubtitleWindow : Window, IProjectSaveParticipant
             updateValidation();
             return;
         }
+        reloadDocument(next);
+    }
+
+    private void reloadDocument(JsonObject next)
+    {
         data = next;
         inputErrors.Clear();
         projectSave.NotifyPendingInputsChanged();
@@ -337,6 +344,17 @@ public sealed partial class SubtitleWindow : Window, IProjectSaveParticipant
         updateValidation();
         assetDirty = true;
         requestPreview("render");
+    }
+
+    private void onDiskReloaded(object? sender, EventArgs args)
+    {
+        if (document.Data is JsonObject next)
+            reloadDocument(next);
+        else
+        {
+            inputErrors.Clear();
+            projectSave.NotifyPendingInputsChanged();
+        }
     }
 
     private async void onKeyDown(object? sender, KeyEventArgs args)

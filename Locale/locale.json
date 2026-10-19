@@ -1,4 +1,52 @@
 {
+  "EXTERNAL_RENAME_SELECTION": {
+    "en_GB": "Files belonging to the same unsaved rename must use the same choice. Choose either disk or memory for all of these files.",
+    "zh_CN": "同一次未保存重命名涉及的文件必须使用相同选择。请将以下文件统一选择为保留磁盘或保留内存。"
+  },
+  "EXTERNAL_CHANGES": {
+    "zh_CN": "外部文件变更",
+    "en_GB": "External file changes"
+  },
+  "EXTERNAL_SCANNING": {
+    "zh_CN": "正在扫描工程文件",
+    "en_GB": "Scanning project files"
+  },
+  "EXTERNAL_RECHECKING": {
+    "zh_CN": "正在复核磁盘版本",
+    "en_GB": "Checking disk versions"
+  },
+  "EXTERNAL_CHANGES_DESCRIPTION": {
+    "zh_CN": "此文件的磁盘内容和未保存内容存在冲突。使用磁盘数据将丢弃其未保存内容及撤销历史；保留内存数据将在下次保存时覆盖磁盘数据。",
+    "en_GB": "This file has external changes and unsaved edits. Using disk discards its unsaved edits and undo history; keeping memory overwrites disk on the next save."
+  },
+  "EXTERNAL_KEEP_MEMORY": {
+    "zh_CN": "保留内存数据",
+    "en_GB": "Keep memory"
+  },
+  "EXTERNAL_USE_DISK": {
+    "zh_CN": "使用磁盘数据",
+    "en_GB": "Use disk"
+  },
+  "EXTERNAL_CONFLICT_COUNTER": {
+    "zh_CN": "第 {current} / {total} 项冲突",
+    "en_GB": "Conflict {current} of {total}"
+  },
+  "EXTERNAL_APPLY_REMAINING": {
+    "zh_CN": "对剩余所有冲突执行此操作",
+    "en_GB": "Apply this action to all remaining conflicts"
+  },
+  "EXTERNAL_ADDED": {
+    "zh_CN": "磁盘新增",
+    "en_GB": "Added on disk"
+  },
+  "EXTERNAL_MODIFIED": {
+    "zh_CN": "磁盘修改",
+    "en_GB": "Modified on disk"
+  },
+  "EXTERNAL_DELETED": {
+    "zh_CN": "磁盘删除",
+    "en_GB": "Deleted on disk"
+  },
   "MULTIPLE_CHOICES": {
     "zh_CN": "正在多选中",
     "en_GB": "Multiple choices"

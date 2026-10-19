@@ -1,6 +1,7 @@
 using Ludork.ViewModels;
 using Ludork.Services;
 using System;
+using System.Linq;
 
 namespace Ludork.Composition;
 
@@ -31,6 +32,10 @@ public sealed class EditorProjectSession : IDisposable
         MapWorkspace = new MapWorkspaceViewModel(GameData, ProjectConfig, TileSelect, ReferenceIndex);
         MainViewModel = new MainViewModel(GameData, ProjectConfig, GameVariables, BlueprintClasses, PreviewService,
             GameConfig, ProjectSave, ReferenceIndex, TileSelect, ActorQueue, FileExplorer, Actions, MapWorkspace);
+        ExternalChanges = new ProjectExternalChangeService(GameData, ProjectSave);
+        ProjectSave.ExternalChanges = ExternalChanges;
+        ExternalChanges.Synchronized += onExternalFilesSynchronized;
+        FileExplorer.FilesChanged += onFilesChanged;
     }
 
     public string ProjectPath { get; }
@@ -54,6 +59,17 @@ public sealed class EditorProjectSession : IDisposable
     public ActorQueueViewModel ActorQueue { get; }
     public FileExplorerViewModel FileExplorer { get; }
     public MainViewModel MainViewModel { get; }
+    public ProjectExternalChangeService ExternalChanges { get; }
+
+    private void onExternalFilesSynchronized(object? sender, ExternalFilesSynchronizedEventArgs args)
+        => MainViewModel.RefreshExternalFiles(args.Paths);
+
+    private void onFilesChanged(object? sender, FileExplorerFilesChangedEventArgs args)
+        => ExternalChanges.AcceptFileOperations(args.Added.Concat(args.Deleted)
+            .Concat(args.Moved.SelectMany(move => new[] { move.OldPath, move.NewPath }))
+            .Where(path => !GameData.Documents.ModifiedDocuments.Any(document =>
+                ProjectDiskSnapshot.IsWithin(document.Path, path)
+                || ProjectDiskSnapshot.IsWithin(document.SavedPath, path))));
     public MapWorkspaceViewModel MapWorkspace { get; }
 
     public void Dispose()
@@ -61,6 +77,9 @@ public sealed class EditorProjectSession : IDisposable
         if (disposed)
             return;
         disposed = true;
+        FileExplorer.FilesChanged -= onFilesChanged;
+        ExternalChanges.Synchronized -= onExternalFilesSynchronized;
+        ExternalChanges.Dispose();
         MainViewModel.Dispose();
         MapWorkspace.Dispose();
         FileExplorer.Dispose();

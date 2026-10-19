@@ -493,6 +493,7 @@ public partial class MainWindow
         projectOperations?.Dispose();
         if (projectOperations is not null)
             projectOperations.StateChanged -= onProjectOperationStateChanged;
+        externalChanges?.Dispose();
         documentWindows?.Dispose();
         attachViewModel(null);
         projectSession?.Dispose();

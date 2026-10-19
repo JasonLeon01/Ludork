@@ -119,6 +119,7 @@ public sealed class AnimationEditor : UserControl
         base.OnAttachedToVisualTree(args);
         attached = true;
         gameData.DataReloaded += onAssetsReloaded;
+        gameData.Thumbnails.SourcesInvalidated += onSourcesInvalidated;
         if (resourceDocument is not null)
             resourceDocument.Changed += onDocumentChanged;
         onDocumentChanged(this, EventArgs.Empty);
@@ -132,6 +133,7 @@ public sealed class AnimationEditor : UserControl
         releaseAssets();
         preview.Dispose();
         gameData.DataReloaded -= onAssetsReloaded;
+        gameData.Thumbnails.SourcesInvalidated -= onSourcesInvalidated;
         if (resourceDocument is not null)
             resourceDocument.Changed -= onDocumentChanged;
         base.OnDetachedFromVisualTree(args);
@@ -996,6 +998,13 @@ public sealed class AnimationEditor : UserControl
     }
 
     private void onAssetsReloaded(object? sender, EventArgs args) => refreshAssets(true);
+
+    private void onSourcesInvalidated(object? sender, IReadOnlySet<string> paths)
+    {
+        if (displayedAssets.Any(asset => GameAssetPath.TryToProjectFile(gameData.ProjectPath, asset, out string path)
+            && paths.Contains(path)))
+            refreshAssets(true);
+    }
 
     private void refreshAssets(bool force = false)
     {

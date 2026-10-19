@@ -72,6 +72,7 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
         BlueprintInputDraftCloseGuard.Attach(this, () => PendingInputErrors.Count != 0);
         projectSave.RegisterParticipant(this);
         gameData.Documents.Changed += onDocumentsChanged;
+        gameData.Documents.DiskReloaded += onDocumentDiskReloaded;
         gameData.DataReloaded += onDataReloaded;
         Closed += onClosed;
         Deactivated += (_, _) => flushGraph();
@@ -463,6 +464,22 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
         refreshList(name);
     }
 
+    private void onDocumentDiskReloaded(EditorDocument resource)
+    {
+        if (resource.Section != "CommonFunctions")
+            return;
+        if (currentDocument?.ResourceDocument?.Id == resource.Id && initializer.IsInitialized)
+        {
+            string name = resource.Key;
+            disposeGraph(true);
+            graphViewStates.Remove(resource.Id);
+            refreshList(name);
+        }
+        else
+            graphViewStates.Remove(resource.Id);
+        projectSave.NotifyPendingInputsChanged();
+    }
+
     private void flushGraph()
     {
         graphControl?.FlushPendingChanges();
@@ -497,6 +514,7 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
     {
         projectSave.UnregisterParticipant(this);
         gameData.Documents.Changed -= onDocumentsChanged;
+        gameData.Documents.DiskReloaded -= onDocumentDiskReloaded;
         gameData.DataReloaded -= onDataReloaded;
         disposeGraph(false);
     }

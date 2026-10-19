@@ -46,6 +46,7 @@ internal sealed class UiAssetPreviewSession : IAsyncDisposable
         client = new UiPreviewClient(runtime) { MaterialSnapshots = gameData.Assets.CaptureMaterials };
         client.StateChanged += onClientStateChanged;
         runtime.Changed += onRuntimeChanged;
+        runtime.ResourcesInvalidated += onRuntimeChanged;
     }
 
     public event EventHandler<UiPreviewFrame>? FrameReady;
@@ -169,6 +170,7 @@ internal sealed class UiAssetPreviewSession : IAsyncDisposable
         lifetime.Cancel();
         client.StateChanged -= onClientStateChanged;
         runtime.Changed -= onRuntimeChanged;
+        runtime.ResourcesInvalidated -= onRuntimeChanged;
         disposalTask = disposeAsync();
         return new ValueTask(disposalTask);
     }

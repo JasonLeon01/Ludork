@@ -79,11 +79,11 @@ public sealed partial class MapWorkspaceViewModel
             refreshMaps(selectedChange?.Key ?? selectedKey);
             return;
         }
+        Dictionary<(string Key, bool IsWorld), MapListItemViewModel> items = Maps
+            .SelectMany(root => root.Children.Prepend(root)).ToDictionary(item => (item.Key, item.IsWorld));
         foreach (EditorDocumentChange change in changes)
         {
-            MapListItemViewModel? item = Maps.SelectMany(root => root.Children.Prepend(root))
-                .FirstOrDefault(item => item.Key == change.Key && item.IsWorld == (change.Section == "WorldMaps"));
-            if (item is null)
+            if (change.Key is null || !items.TryGetValue((change.Key, change.Section == "WorldMaps"), out MapListItemViewModel? item))
                 continue;
             if (item.IsWorld)
                 item.DisplayName = GameData.Worlds.ReadWorldMapSnapshot(item.Key)?["worldName"]?.GetValue<string>() ?? item.Key;
@@ -138,6 +138,9 @@ public sealed partial class MapWorkspaceViewModel
     {
         Maps.Clear();
         IReadOnlyList<MapCatalogEntry> catalog = GameData.Maps.MapCatalog;
+        ILookup<string?, MapCatalogEntry> children = catalog
+            .Where(item => item.Kind == MapCatalogEntryKind.WorldChildMap)
+            .ToLookup(item => item.WorldKey, StringComparer.Ordinal);
         foreach (MapCatalogEntry entry in catalog
             .Where(item => item.Kind is MapCatalogEntryKind.StandaloneMap or MapCatalogEntryKind.WorldMap)
             .OrderBy(item => item.Key, StringComparer.Ordinal))
@@ -150,9 +153,7 @@ public sealed partial class MapWorkspaceViewModel
             root.IsExpanded = expandedWorlds?.Contains(entry.Key) == true;
             if (entry.Kind == MapCatalogEntryKind.WorldMap)
             {
-                foreach (MapCatalogEntry child in catalog
-                    .Where(item => item.Kind == MapCatalogEntryKind.WorldChildMap
-                        && string.Equals(item.WorldKey, entry.Key, StringComparison.Ordinal))
+                foreach (MapCatalogEntry child in children[entry.Key]
                     .OrderBy(item => item.Key, StringComparer.Ordinal))
                 {
                     root.Children.Add(new MapListItemViewModel(

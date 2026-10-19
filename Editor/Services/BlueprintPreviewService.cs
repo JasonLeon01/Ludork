@@ -66,6 +66,20 @@ public sealed partial class BlueprintPreviewService : IDisposable
         LiveVisualsInvalidated?.Invoke(this, EventArgs.Empty);
     }
 
+    public void InvalidateExternalAssets(IReadOnlyCollection<string> paths)
+    {
+        if (paths.Count == 0)
+            return;
+        foreach (string path in paths)
+            sourceImageInfoCache.Remove(Path.GetFullPath(path));
+        gameData.Thumbnails.InvalidateSources(paths);
+        ActorPreviews.InvalidateSources(paths);
+        Runtime.InvalidateResources();
+        MapPreviews.InvalidateResources();
+        VisualsInvalidated?.Invoke(this, EventArgs.Empty);
+        LiveVisualsInvalidated?.Invoke(this, EventArgs.Empty);
+    }
+
     public ActorVisualDescriptor? tryResolveActorVisual(
         string blueprintReference,
         JsonObject? overrides = null)

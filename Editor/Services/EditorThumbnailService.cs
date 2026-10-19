@@ -14,10 +14,37 @@ public sealed class EditorThumbnailService : IDisposable
     private const long IdleByteLimit = 64L * 1024 * 1024;
     private readonly object sync = new();
     private readonly Dictionary<CacheKey, CacheEntry> entries = [];
+    private readonly Dictionary<string, long> sourceRevisions = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim workers = new(2, 2);
     private readonly CancellationTokenSource lifetime = new();
     private long sequence;
     private bool disposed;
+    public event EventHandler<IReadOnlySet<string>>? SourcesInvalidated;
+
+    public long GetSourceRevision(string path)
+    {
+        lock (sync)
+            return sourceRevisions.GetValueOrDefault(Path.GetFullPath(path));
+    }
+
+    public void InvalidateSources(IReadOnlyCollection<string> paths)
+    {
+        HashSet<string> changed = paths.Select(Path.GetFullPath).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        lock (sync)
+        {
+            if (disposed)
+                return;
+            foreach (string path in changed)
+                sourceRevisions[path] = sourceRevisions.GetValueOrDefault(path) + 1;
+            foreach (CacheEntry entry in entries.Values)
+            {
+                if (changed.Contains(entry.Key.Path))
+                    entry.Invalidated = true;
+            }
+            trim();
+        }
+        SourcesInvalidated?.Invoke(this, changed);
+    }
 
     public Task<EditorThumbnailLease?> AcquireAsync(
         string path,
@@ -70,6 +97,7 @@ public sealed class EditorThumbnailService : IDisposable
             lock (sync)
             {
                 request.Token.ThrowIfCancellationRequested();
+                key = key.Value with { Revision = sourceRevisions.GetValueOrDefault(key.Value.Path) };
                 if (!entries.TryGetValue(key.Value, out entry!))
                 {
                     entry = new CacheEntry(key.Value, CancellationTokenSource.CreateLinkedTokenSource(token));
@@ -192,7 +220,7 @@ public sealed class EditorThumbnailService : IDisposable
         long bytes = idle.Sum(entry => entry.Bytes);
         foreach (CacheEntry entry in idle)
         {
-            if (disposed || entry.Bitmap is null || bytes > IdleByteLimit)
+            if (disposed || entry.Invalidated || entry.Bitmap is null || bytes > IdleByteLimit)
             {
                 bytes -= entry.Bytes;
                 remove(entry);
@@ -214,7 +242,7 @@ public sealed class EditorThumbnailService : IDisposable
         {
             FileInfo info = new(path);
             return info.Exists
-                ? new CacheKey(info.FullName, pixelWidth, variant, info.Length, info.LastWriteTimeUtc.Ticks)
+                ? new CacheKey(info.FullName, pixelWidth, variant, info.Length, info.LastWriteTimeUtc.Ticks, 0)
                 : null;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
@@ -223,16 +251,17 @@ public sealed class EditorThumbnailService : IDisposable
         }
     }
 
-    private readonly record struct CacheKey(string Path, int Width, string Variant, long Length, long ModifiedAt);
+    private readonly record struct CacheKey(string Path, int Width, string Variant, long Length, long ModifiedAt, long Revision);
 
     private sealed class CacheEntry(CacheKey key, CancellationTokenSource request)
     {
         public CacheKey Key { get; } = key;
-        public string SourceVersion => $"{Key.ModifiedAt}:{Key.Length}";
+        public string SourceVersion => $"{Key.ModifiedAt}:{Key.Length}:{Key.Revision}";
         public CancellationTokenSource Request { get; } = request;
         public Task<Bitmap?> Loading { get; set; } = null!;
         public Bitmap? Bitmap { get; set; }
         public bool Completed { get; set; }
+        public bool Invalidated { get; set; }
         public bool Started { get; set; }
         public IDisposable? DecodeResource { get; set; }
         public int Users { get; set; }

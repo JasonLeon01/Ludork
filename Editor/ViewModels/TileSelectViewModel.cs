@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.IO;
 using System.Text.Json.Nodes;
 using Ludork.Services;
 
@@ -102,6 +103,25 @@ public sealed class TileSelectViewModel : ViewModelBase, IDisposable
         SelectedTileset = Tilesets.FirstOrDefault(item => item.Key == tilesetKey) ?? Tilesets.FirstOrDefault();
         syncingTilesetSelection = false;
         SelectedAutoTile = AutoTiles.FirstOrDefault(item => item.Key == autoTileKey);
+    }
+
+    public void RefreshExternalAssets(IReadOnlyCollection<string> paths)
+    {
+        if (paths.Count == 0)
+            return;
+        HashSet<string> changed = paths.Select(Path.GetFullPath).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        bool changedAsset(string? assetPath) =>
+            GameAssetPath.TryToProjectFile(GameData.ProjectPath, assetPath, out string path) && changed.Contains(path);
+        if (changedAsset(SelectedTileset?.AssetPath))
+            OnPropertyChanged(nameof(SelectedTileset));
+        string? selectedKey = SelectedAutoTile?.Key;
+        for (int index = 0; index < AutoTiles.Count; index++)
+        {
+            AutoTileItemViewModel item = AutoTiles[index];
+            if (changedAsset(item.AssetPath))
+                AutoTiles[index] = new AutoTileItemViewModel(item.Key, item.ProjectPath, item.AssetPath);
+        }
+        SelectedAutoTile = AutoTiles.FirstOrDefault(item => item.Key == selectedKey);
     }
 
     public void Dispose()

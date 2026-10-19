@@ -34,7 +34,10 @@ public sealed class UiAssetEditorDocument : IDisposable
         this.data = (JsonObject)data.DeepClone();
         sourceState = resourceDocument?.CaptureState();
         if (resourceDocument is not null)
+        {
             resourceDocument.Changed += onResourceChanged;
+            resourceDocument.DiskReloaded += onDiskReloaded;
+        }
         gameData.Documents.Changed += onRegistryChanged;
     }
 
@@ -456,8 +459,13 @@ public sealed class UiAssetEditorDocument : IDisposable
         endGesture();
         gameData.Documents.Changed -= onRegistryChanged;
         if (resourceDocument is not null)
+        {
             resourceDocument.Changed -= onResourceChanged;
+            resourceDocument.DiskReloaded -= onDiskReloaded;
+        }
     }
+
+    private void onDiskReloaded(object? sender, EventArgs args) => Reload();
 
     private void onResourceChanged(object? sender, EventArgs args)
     {

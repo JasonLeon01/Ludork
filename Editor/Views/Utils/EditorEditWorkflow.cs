@@ -17,11 +17,11 @@ namespace Ludork.Views.Utils;
 public static class EditorEditWorkflow
 {
     public static async Task<T> RunAsync<T>(Window owner, ProjectDataStore store, string title,
-        Func<IProgress<EditorOperationProgress>, Task<T>> action, T busyResult)
+        Func<IProgress<EditorOperationProgress>, Task<T>> action, T busyResult, bool showProgress = true)
     {
         try
         {
-            return await runAsync(owner, store, title, action, busyResult);
+            return await runAsync(owner, store, title, action, busyResult, showProgress);
         }
         catch (Exception exception) when (exception is InvalidOperationException or IOException or UnauthorizedAccessException)
         {
@@ -31,13 +31,11 @@ public static class EditorEditWorkflow
     }
 
     private static async Task<T> runAsync<T>(Window owner, ProjectDataStore store, string title,
-        Func<IProgress<EditorOperationProgress>, Task<T>> action, T busyResult)
+        Func<IProgress<EditorOperationProgress>, Task<T>> action, T busyResult, bool showProgress)
     {
         if (!store.EditOperations.TryBegin())
             return busyResult;
-        Task displayDelay = Task.Delay(200);
-        EditorOperationProgressWindow? dialog = null;
-        DispatcherTimer? progressTimer = null;
+        EditorOperationProgressPresenter progress = new(owner, title, showProgress);
         List<(Window Window, bool HitTestVisible)> windows = [];
         void blockClosing(object? sender, WindowClosingEventArgs args) => args.Cancel = true;
         void blockInput(object? sender, KeyEventArgs args) => args.Handled = true;
@@ -55,33 +53,12 @@ public static class EditorEditWorkflow
                 window.Closing += blockClosing;
                 window.AddHandler(InputElement.KeyDownEvent, blockInput, RoutingStrategies.Tunnel);
             }
-            EditorOperationProgressReporter progress = new();
-            EditorOperationProgress? displayed = null;
-            progressTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
-            progressTimer.Tick += (_, _) =>
-            {
-                EditorOperationProgress latest = progress.Current;
-                if (dialog is not null && !ReferenceEquals(displayed, latest))
-                {
-                    displayed = latest;
-                    dialog.Update(latest);
-                }
-            };
-            progressTimer.Start();
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
-            Task<T> operation = action(progress);
-            if (await Task.WhenAny(operation, displayDelay) != operation)
-            {
-                dialog = new EditorOperationProgressWindow(title);
-                dialog.Update(progress.Current);
-                _ = dialog.ShowDialog(owner);
-            }
-            return await operation;
+            return await action(progress);
         }
         finally
         {
-            progressTimer?.Stop();
-            dialog?.Finish();
+            progress.Dispose();
             foreach ((Window window, bool hitTestVisible) in windows)
             {
                 window.Closing -= blockClosing;
@@ -91,6 +68,10 @@ public static class EditorEditWorkflow
             store.EditOperations.Complete();
         }
     }
+
+    internal static Task<T> RunInteractionAsync<T>(IProgress<EditorOperationProgress> progress, Window owner,
+        Func<Window, Task<T>> interaction) => progress is EditorOperationProgressPresenter presenter
+            ? presenter.RunInteractionAsync(interaction) : interaction(owner);
 
     private static bool belongsTo(Window window, Window root)
     {

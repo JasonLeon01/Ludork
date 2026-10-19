@@ -53,6 +53,7 @@ public sealed class EditorDocument
     public string? UndoBlockedReason => CanAttemptUndo && !CanUndo ? UndoEntries[^1].Marker?.Reason : null;
     public IReadOnlyList<DocumentHistoryEntry> History => UndoEntries.ToArray();
     public event EventHandler? Changed;
+    public event EventHandler? DiskReloaded;
 
     internal EditorDocumentState CaptureState()
     {
@@ -88,6 +89,7 @@ public sealed class EditorDocument
     }
 
     internal void NotifyChanged() => Changed?.Invoke(this, EventArgs.Empty);
+    internal void NotifyDiskReloaded() => DiskReloaded?.Invoke(this, EventArgs.Empty);
 
     internal void SetPreparedModified(bool value) => modified = value;
 

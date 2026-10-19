@@ -34,6 +34,7 @@ public partial class MainWindow : Window, IProjectOperationInteraction
     private readonly PluginMenuCoordinator pluginMenus;
     private readonly EditorProjectSession? projectSession;
     private DocumentWindowCoordinator? documentWindows;
+    private ExternalChangesCoordinator? externalChanges;
     private readonly ProjectRunnerService? projectRunner;
     private readonly ProjectOperationCoordinator? projectOperations;
     private readonly ProjectPackCoordinator? projectPack;
@@ -112,6 +113,7 @@ public partial class MainWindow : Window, IProjectOperationInteraction
         initializeInteraction();
         documentWindows = new DocumentWindowCoordinator(this, session, showHelp);
         DataContext = session.MainViewModel;
+        externalChanges = new ExternalChangesCoordinator(this, session);
         Width = Math.Max(MinWidth, settings.Width);
         Height = Math.Max(MinHeight, settings.Height);
         leftColumn.Width = new GridLength(Math.Max(160, settings.UpperLeftWidth));

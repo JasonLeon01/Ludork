@@ -30,6 +30,7 @@ public sealed class PreviewRuntimeService : IDisposable, IAsyncDisposable
     private string? recoveryError;
     private bool sourceUnavailable = true;
     private volatile bool disposed;
+    private long resourceRevision;
 
     public PreviewRuntimeService(string projectPath)
     {
@@ -46,6 +47,16 @@ public sealed class PreviewRuntimeService : IDisposable, IAsyncDisposable
     public bool IsReady => !disposed && Current is not null && !sourceUnavailable;
     public string StatusMessage { get; private set; } = string.Empty;
     public event EventHandler? Changed;
+    public event EventHandler? ResourcesInvalidated;
+    internal long ResourceRevision => Interlocked.Read(ref resourceRevision);
+
+    public void InvalidateResources()
+    {
+        if (disposed)
+            return;
+        Interlocked.Increment(ref resourceRevision);
+        ResourcesInvalidated?.Invoke(this, EventArgs.Empty);
+    }
 
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
