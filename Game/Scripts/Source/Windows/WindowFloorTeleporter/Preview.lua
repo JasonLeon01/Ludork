@@ -27,6 +27,7 @@ function Controller:init(owner, loadPreview, resolvePreviewMapPath)
     self._currentListKey = nil
     self._currentPreviewKey = nil
     self._conditionRevision = 0
+    self._selectorVisible = false
     self._previewTextureCache = dict()
     self._rows = self:createCollection(self.ui.controls["TelepointList"], CommandRowController)
 end
@@ -98,14 +99,19 @@ function Controller:refresh()
 end
 
 function Controller:onActiveChanged(active, wasActive)
-    self.ui.controls["TelepointWindowFrame"]:setVisible(active)
-    self.ui.controls["TelepointContent"]:setVisible(active)
+    self:setSelectorVisible(active)
     if not active then
         self.host:hideSelectionCursor()
     end
     if active ~= wasActive then
         self:refreshSelectedPreview()
     end
+end
+
+function Controller:setSelectorVisible(visible)
+    self._selectorVisible = visible
+    self.ui.controls["TelepointWindowFrame"]:setVisible(visible)
+    self.ui.controls["TelepointContent"]:setVisible(visible)
 end
 
 function Controller:afterSelectionUpdate(previousIndex)
@@ -122,21 +128,21 @@ end
 function Controller:rebuildTelepointList(entries)
     self._rows:clear()
     local itemSize = self.ui.controls["TelepointList"]:getDefaultItemSize()
-    local logicalSize = sf.Vector2u.new(math.floor(itemSize.x), math.floor(itemSize.y))
-    ---@cast logicalSize sf.Vector2u
     for _, entry in ipairs(entries) do
-        self._rows:add({
+        local row = self._rows:add({
             text = entry[2],
             callback = self:bindCallback(Controller.confirmSelectedTelepoint)
-        }, logicalSize)
+        })
+        row:prepareForList(itemSize)
     end
+    self.ui.controls["TelepointList"]:invalidatePositions()
     self._rows:layout()
     self.ui:prepare()
 end
 
 function Controller:refreshSelectedPreview()
     local telepoint = self:getSelectedTelepoint()
-    local showMarker = self.host:getActive()
+    local showMarker = self._selectorVisible
     local mapPath = tostring(self._mapKey or "")
     local visibilityRevision = 0
     local conditionRevision = 0

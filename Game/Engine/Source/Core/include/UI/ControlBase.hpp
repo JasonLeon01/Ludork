@@ -175,8 +175,8 @@ protected:
     BIND_METHOD(callback = false, metadata = false)
     virtual sf::Transform _getScreenRenderTransform() const;
 
-    virtual std::optional<sf::FloatRect>
-    _getAbsoluteChildInteractionClipBounds() const;
+    virtual sf::FloatRect _clipChildInteractionBounds(
+        const ControlBase& child, const sf::FloatRect& bounds) const;
 
     virtual bool _ignoresAncestorInteractionClip() const;
 

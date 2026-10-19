@@ -102,10 +102,13 @@ void UiControlAdapterRegistry::BuilderImpl::registerLayoutAdapters(
         const bool fixItemHeight =
             boolProperty(properties, "fixItemHeight", false);
         const int columns = intProperty(properties, "columns", 1);
-        return std::make_shared<ListView>(
+        std::shared_ptr<ListView> list = std::make_shared<ListView>(
             sf::IntRect({0, 0}, {static_cast<int>(std::round(size.x)),
                                  static_cast<int>(std::round(size.y))}),
             defaultItemHeight, fixItemHeight, columns);
+        list->setChildScrollingEnabled(
+            boolProperty(properties, "childScrollingEnabled", false));
+        return list;
     };
     listView.setter = [](ControlBase& control, const std::string& propertyId,
                          const UiControlPropertyValue& value) {
@@ -117,6 +120,11 @@ void UiControlAdapterRegistry::BuilderImpl::registerLayoutAdapters(
         }
         if (propertyId == "columns") {
             list.setColumns(requireInt(value, "columns"));
+            return;
+        }
+        if (propertyId == "childScrollingEnabled") {
+            list.setChildScrollingEnabled(
+                requireBool(value, "childScrollingEnabled"));
             return;
         }
         throw std::invalid_argument(

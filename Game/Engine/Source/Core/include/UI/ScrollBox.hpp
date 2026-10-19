@@ -59,8 +59,8 @@ protected:
     bool acceptsTouchCapture() const override;
     void onTouchCaptureBegan(const sf::Vector2f& position) override;
     void onPointerInteractionReset() override;
-    std::optional<sf::FloatRect> _getAbsoluteChildInteractionClipBounds()
-        const override;
+    sf::FloatRect _clipChildInteractionBounds(
+        const ControlBase& child, const sf::FloatRect& bounds) const override;
 
 public:
     sf::FloatRect getAbsoluteBounds() const override;

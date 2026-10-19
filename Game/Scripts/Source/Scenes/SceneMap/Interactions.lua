@@ -316,11 +316,15 @@ function Scene.ShowFloorTeleporter(self)
         return false
     end
     local window = self._windowFloorTeleporter:get()
-    if not window:getVisible() then
-        self._floorTeleporterMoveEnabledBeforeOpen = self:_isMenuBlocking() or self.player:getMoveEnabled()
+    local wasVisible = window:getVisible()
+    local moveEnabledBeforeOpen = self:_isMenuBlocking() or self.player:getMoveEnabled()
+    if not window:open(self.inst) then
+        return false
+    end
+    if not wasVisible then
+        self._floorTeleporterMoveEnabledBeforeOpen = moveEnabledBeforeOpen
         self.player:setMoveEnabled(false)
     end
-    window:open(self.inst)
     self:_blockMapInput(MAP_INPUT_BLOCK_FRAMES)
     return true
 end

@@ -9,6 +9,7 @@
 ---@field _currentListKey        tuple<any> | nil
 ---@field _currentPreviewKey     tuple<any> | nil
 ---@field _conditionRevision     integer
+---@field _selectorVisible       boolean
 ---@field _previewTextureCache   dict<tuple<any>, sf.Texture>
 ---@field _loadPreview           function
 ---@field _resolvePreviewMapPath function | nil
@@ -61,6 +62,10 @@ function Controller:refresh() end
 ---@param active    boolean
 ---@param wasActive boolean
 function Controller:onActiveChanged(active, wasActive) end
+
+---@brief Set selector presentation before enabling input, including during the opening transition.
+---@param visible boolean
+function Controller:setSelectorVisible(visible) end
 
 ---@param previousIndex integer | nil
 function Controller:afterSelectionUpdate(previousIndex) end

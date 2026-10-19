@@ -1,10 +1,12 @@
 #include "Containers/ContainerSupport.hpp"
+#include "Containers/ChildClipGuard.hpp"
 #include <UI/ListView.hpp>
 
 #include <EngineState.hpp>
 #include <Utils/Render.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <stdexcept>
 
 ListView::ListView(const sf::IntRect& rect, int defaultItemHeight,
@@ -53,8 +55,13 @@ sf::Vector2f ListView::getSize() const {
 
 sf::FloatRect ListView::getContentBounds() const {
     const_cast<ListView*>(this)->applyPositions();
-    return ludork::engine::ui_container::aggregateContentBounds(
+    sf::FloatRect bounds = ludork::engine::ui_container::aggregateContentBounds(
         {{0.0f, 0.0f}, size_}, children_);
+    if (childScrollingEnabled_) {
+        bounds.position.x = 0.0f;
+        bounds.size.x = size_.x;
+    }
+    return bounds;
 }
 
 void ListView::setSize(const sf::Vector2i& size) {
@@ -77,6 +84,22 @@ void ListView::setColumns(int columns) {
     positionsSettled_ = false;
 }
 
+bool ListView::getChildScrollingEnabled() const {
+    return childScrollingEnabled_;
+}
+
+void ListView::setChildScrollingEnabled(bool enabled) {
+    if (childScrollingEnabled_ == enabled) {
+        return;
+    }
+    childScrollingEnabled_ = enabled;
+    for (ChildScrollState& state : childScrollStates_) {
+        state.elapsed = 0.0;
+    }
+    invalidatePositions();
+    applyPositions();
+}
+
 std::vector<std::shared_ptr<ControlBase>> ListView::getChildren() const {
     return children_;
 }
@@ -90,6 +113,7 @@ void ListView::addChild(const std::shared_ptr<ControlBase>& child) {
         throw std::logic_error("ListView owner is not shared");
     }
     children_.push_back(child);
+    childScrollStates_.emplace_back();
     child->setParent(self);
     positionsSettled_ = false;
 }
@@ -100,6 +124,8 @@ void ListView::removeChild(const std::shared_ptr<ControlBase>& child) {
         throw std::invalid_argument("ListView child not found");
     }
     (*iterator)->setParent(nullptr);
+    childScrollStates_.erase(childScrollStates_.begin() +
+                             std::distance(children_.begin(), iterator));
     children_.erase(iterator);
     positionsSettled_ = false;
 }
@@ -109,6 +135,7 @@ void ListView::clearChildren() {
         child->setParent(nullptr);
     }
     children_.clear();
+    childScrollStates_.clear();
     positionsSettled_ = false;
 }
 
@@ -120,6 +147,45 @@ void ListView::update(float deltaTime) {
     ludork::engine::ui_container::tickChildren(
         children_, &FunctionalBase::update, deltaTime);
     FunctionalBase::update(deltaTime);
+    updateChildScrolling(deltaTime);
+}
+
+void ListView::updateChildScrolling(float deltaTime) {
+    if (!childScrollingEnabled_ || !getVisible()) {
+        return;
+    }
+    for (std::shared_ptr<ControlBase> parent = getParent(); parent != nullptr;
+         parent = parent->getParent()) {
+        if (!parent->getVisible()) {
+            return;
+        }
+    }
+    invalidatePositions();
+    applyPositions();
+    if (!std::isfinite(deltaTime) || deltaTime <= 0.0f) {
+        return;
+    }
+    for (std::size_t index = 0; index < children_.size(); ++index) {
+        ChildScrollState& state = childScrollStates_[index];
+        if (children_[index]->getVisible() && state.distance > 0.0f) {
+            const double cycle =
+                2.0 * (ChildScrollPauseDuration +
+                       static_cast<double>(state.distance) / ChildScrollSpeed);
+            state.elapsed = std::fmod(state.elapsed + deltaTime, cycle);
+        }
+    }
+    invalidatePositions();
+    applyPositions();
+}
+
+float ListView::childScrollOffset(const ChildScrollState& state) {
+    const double travel =
+        static_cast<double>(state.distance) / ChildScrollSpeed;
+    const double forward =
+        std::clamp(state.elapsed - ChildScrollPauseDuration, 0.0, travel);
+    const double backward = std::clamp(
+        state.elapsed - 2.0 * ChildScrollPauseDuration - travel, 0.0, travel);
+    return static_cast<float>((forward - backward) * ChildScrollSpeed);
 }
 
 void ListView::lateUpdate(float deltaTime) {
@@ -165,14 +231,74 @@ void ListView::applyPositions() {
             itemLayoutRects_[index] = {{columnX, currentY},
                                        {columnWidth, rowHeight}};
             const sf::FloatRect bounds = child->getLocalBounds();
-            const float positionX = columnX + columnWidth / 2.0f -
-                                    (bounds.position.x + bounds.size.x / 2.0f -
-                                     child->getOrigin().x) *
-                                        child->getScale().x;
+            float positionX = columnX + columnWidth / 2.0f -
+                              (bounds.position.x + bounds.size.x / 2.0f -
+                               child->getOrigin().x) *
+                                  child->getScale().x;
+            if (childScrollingEnabled_) {
+                ChildScrollState& state = childScrollStates_[index];
+                const sf::Vector2f origin = child->getOrigin();
+                const sf::Vector2f scale = child->getScale();
+                if (state.bounds != bounds || state.origin != origin ||
+                    state.scale != scale || state.columnWidth != columnWidth) {
+                    state.bounds = bounds;
+                    state.origin = origin;
+                    state.scale = scale;
+                    state.columnWidth = columnWidth;
+                    state.elapsed = 0.0;
+                }
+                state.distance =
+                    std::max(0.0f, std::abs(bounds.size.x * scale.x) -
+                                       std::max(0.0f, columnWidth));
+                if (state.distance > 0.0f) {
+                    const float left = std::min(
+                        (bounds.position.x - origin.x) * scale.x,
+                        (bounds.position.x + bounds.size.x - origin.x) *
+                            scale.x);
+                    positionX = columnX - left - childScrollOffset(state);
+                }
+            }
             child->setPosition({positionX, currentY});
         }
         currentY += rowHeight;
     }
+}
+
+sf::FloatRect ListView::clipChildBounds(
+    const ControlBase& child, const sf::FloatRect& absoluteBounds) const {
+    if (!childScrollingEnabled_) {
+        return absoluteBounds;
+    }
+    const auto iterator =
+        std::find_if(children_.begin(), children_.end(),
+                     [&child](const std::shared_ptr<ControlBase>& item) {
+                         return item.get() == &child;
+                     });
+    if (iterator == children_.end()) {
+        return absoluteBounds;
+    }
+    const sf::FloatRect cell = getItemLayoutRect(
+        static_cast<int>(std::distance(children_.begin(), iterator)));
+    sf::Transform transform = screenRenderTransform();
+    const float scale = engineState().getScale();
+    transform.scale({scale, scale});
+    sf::FloatRect local = transform.getInverse().transformRect(absoluteBounds);
+    const float left = std::max(local.position.x, cell.position.x);
+    const float right = std::min(local.position.x + local.size.x,
+                                 cell.position.x + std::max(0.0f, cell.size.x));
+    if (right <= left) {
+        return {{0.0f, 0.0f}, {0.0f, 0.0f}};
+    }
+    local.position.x = left;
+    local.size.x = right - left;
+    return transform.transformRect(local)
+        .findIntersection(absoluteBounds)
+        .value_or(sf::FloatRect{});
+}
+
+sf::FloatRect ListView::_clipChildInteractionBounds(
+    const ControlBase& child, const sf::FloatRect& bounds) const {
+    return clipChildBounds(child, bounds);
 }
 
 void ListView::refreshDisplayScale() {
@@ -191,10 +317,14 @@ void ListView::draw(sf::RenderTarget& target, sf::RenderStates states) const {
         return;
     }
     const_cast<ListView*>(this)->applyPositions();
-    states.transform.combine(getTransform());
+    states.transform.combine(renderTransform());
     for (const std::shared_ptr<ControlBase>& child : children_) {
         if (child->getVisible()) {
-            target.draw(*child, states);
+            ludork::engine::ui_container::ChildClipGuard clip(target, *child,
+                                                              states.transform);
+            if (!clip.empty()) {
+                target.draw(*child, states);
+            }
         }
     }
 }

@@ -22,4 +22,8 @@ function CommandRowController:bind() end
 
 function CommandRowController:refresh() end
 
+---@brief Prepare a row using at least the list's item width, expanding to fit its label.
+---@param itemSize sf.Vector2f
+function CommandRowController:prepareForList(itemSize) end
+
 return CommandRowController

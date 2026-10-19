@@ -154,7 +154,10 @@ struct UiControlAdapterTraits;
                             false, "32"),                                      \
         UI_CONTROL_PROPERTY("fixItemHeight", "Fix Item Height", "bool", false, \
                             "false"),                                          \
-        UI_CONTROL_PROPERTY("columns", "Columns", "int", false, "1"))          \
+        UI_CONTROL_PROPERTY("columns", "Columns", "int", false, "1"),          \
+        UI_CONTROL_PROPERTY("childScrollingEnabled",                           \
+                            "Child Scrolling Enabled", "bool", false,          \
+                            "false"))                                          \
     BIND_UI_CONTROL(WrapBoxUiControlAdapterTag, "Engine.WrapBox",              \
                     "Engine.WrapBox", "Wrap Box", "Layout",                    \
                     UiChildPolicy::Single, UiControlSlotType::List,            \

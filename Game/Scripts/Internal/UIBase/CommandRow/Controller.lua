@@ -25,4 +25,12 @@ function CommandRowController:refresh()
     self:setText("Label", text)
 end
 
+function CommandRowController:prepareForList(itemSize)
+    self:prepare()
+    local textWidth = self.ui.controls["Label"]:getLocalBounds().size.x
+    local rowSize = sf.Vector2u.new(math.ceil(math.max(itemSize.x, textWidth)), math.floor(itemSize.y))
+    ---@cast rowSize sf.Vector2u
+    self:prepare(rowSize)
+end
+
 return Ui.Define(View, CommandRowController)

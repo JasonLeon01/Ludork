@@ -48,7 +48,7 @@
               {
                 "name": "CommandList",
                 "controlId": "Engine.ListView",
-                "properties": { "size": [144, 208], "defaultItemHeight": 32, "fixItemHeight": true, "columns": 1 },
+                "properties": { "size": [144, 208], "defaultItemHeight": 32, "fixItemHeight": true, "columns": 1, "childScrollingEnabled": true },
                 "slot": {}, "editor": {},
                 "children": [
                   { "name": "MapPlaceholder1", "controlId": "Project:Parts/Shared/CommandRow", "properties": {}, "slot": {}, "editor": {}, "children": [] },

@@ -194,9 +194,10 @@ void ScrollBox::onPointerInteractionReset() {
     FunctionalBase::onPointerInteractionReset();
 }
 
-std::optional<sf::FloatRect> ScrollBox::_getAbsoluteChildInteractionClipBounds()
-    const {
-    return getAbsoluteBounds();
+sf::FloatRect ScrollBox::_clipChildInteractionBounds(
+    const ControlBase&, const sf::FloatRect& bounds) const {
+    return bounds.findIntersection(getAbsoluteBounds())
+        .value_or(sf::FloatRect{});
 }
 
 sf::FloatRect ScrollBox::getAbsoluteBounds() const {

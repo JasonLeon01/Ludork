@@ -53,6 +53,7 @@ function Controller:init(inst, loadPreview, onConfirm, onClose, resolvePreviewMa
     self._onCloseCallback = onClose
     self._clearPreviewCacheCallback = clearPreviewCache
     self._lastMapKey = nil
+    self._skipMapSelection = false
     self._telepointIndexes = {}
     self._telepointEntriesCache = dict()
     self._previewWindow = self:createChild(
@@ -77,13 +78,25 @@ function Controller:open(inst)
     if inst ~= nil then
         self._inst = inst
     end
+    local entries = self:getVisitedRegionEntries()
+    if not bool(entries) then
+        AudioManager.playSound(GameSystem.GetBuzzerSE())
+        return false
+    end
+    self._skipMapSelection = #entries == 1
+    self:getPreviewWindow():setMapKeyAndTelepoints(nil, {}, 0)
+    self:getPreviewWindow():setActive(false)
+    self:getPreviewWindow():setSelectorVisible(self._skipMapSelection)
+    self:getPreviewWindow():resetSelection()
+    self:getCommandWindow():setActive(false)
+    self:getCommandWindow():setVisible(not self._skipMapSelection)
+    self:getPreviewWindow():setVisible(true)
     self:clearPreviewCache()
     self:getPreviewWindow():clearPreviewCache()
     self._telepointEntriesCache = dict()
     self._telepointIndexes = {}
     self._lastMapKey = nil
     self:getCommandWindow().index = nil
-    local entries = self:getVisitedRegionEntries()
     local currentMapPath = self:getGameInstance():getCurrentMapPath()
     local currentMapKey = currentMapPath ~= nil and MapPath.WithoutExtension(currentMapPath) or nil
     local selectedMapKey = nil
@@ -94,19 +107,17 @@ function Controller:open(inst)
         end
     end
     self:getCommandWindow():refreshMaps(entries, selectedMapKey)
-    if self:getCommandWindow().index == nil then
-        self:refreshPreview()
-    end
-    self:getPreviewWindow():resetSelection()
-    self:getCommandWindow():setVisible(true)
-    self:getCommandWindow():setActive(false)
-    self:getPreviewWindow():setVisible(true)
-    self:getPreviewWindow():setActive(false)
     self._transition:show("FadeIn", function ()
         self.host:setActive(true)
-        self:getCommandWindow():setActive(true)
-        self:getCommandWindow():requestKeyboardFocus()
+        if self._skipMapSelection then
+            self:getPreviewWindow():setActive(true)
+            self:getPreviewWindow():requestKeyboardFocusAtCursor()
+        else
+            self:getCommandWindow():setActive(true)
+            self:getCommandWindow():requestKeyboardFocus()
+        end
     end)
+    return true
 end
 
 function Controller:close(onHidden)
@@ -150,6 +161,10 @@ function Controller:activateTelepointSelector()
 end
 
 function Controller:activateMapList(playCancelSE)
+    if self._skipMapSelection then
+        self:closeByCancel()
+        return
+    end
     if bool(playCancelSE) then
         AudioManager.playSound(GameSystem.GetCancelSE())
     end

@@ -18,17 +18,14 @@ function Controller:refreshMaps(entries, selectedMapKey)
     local previousMapKey = selectedMapKey or self:getCurrentMapKey()
     self._mapKeys = {}
     self._commands:clear()
-    local itemSize = self.ui.controls["CommandList"]:getDefaultItemSize()
-    local rowSize = sf.Vector2u.new(math.floor(itemSize.x), math.floor(itemSize.y))
-    ---@cast rowSize sf.Vector2u
     for index, entry in ipairs(entries) do
         self._mapKeys[index] = entry[1]
         self._commands:add({
             text = entry[2],
             callback = self:bindCallback(Controller.activateTelepointSelector)
-        }, rowSize)
+        })
     end
-    self._commands:layout()
+    self:refreshRows()
     if selectedMapKey ~= nil or previousMapKey == nil then
         self.host:resetSelection()
     end
@@ -72,9 +69,12 @@ function Controller:notifyMapIndexMaybeChanged(index)
 end
 
 function Controller:refreshRows()
+    local itemSize = self.ui.controls["CommandList"]:getDefaultItemSize()
     for _, row in ipairs(self._commands.items) do
-        row:prepare()
+        row:prepareForList(itemSize)
     end
+    self.ui.controls["CommandList"]:invalidatePositions()
+    self._commands:layout()
 end
 
 function Controller:afterTick()

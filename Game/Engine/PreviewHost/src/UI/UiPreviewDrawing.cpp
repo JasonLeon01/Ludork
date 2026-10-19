@@ -5,6 +5,7 @@
 #include "Rendering/PixelConversion.hpp"
 
 #include <UI/Canvas.hpp>
+#include <UI/ListView.hpp>
 #include <UI/UiAssetRuntime.hpp>
 
 #include <SFML/Graphics/Image.hpp>
@@ -65,7 +66,12 @@ sf::FloatRect effectiveClip(const std::shared_ptr<ControlBase>& control,
                             const sf::FloatRect& rootClip) {
     sf::FloatRect clip = rootClip;
     std::shared_ptr<ControlBase> current = control;
+    const ControlBase* child = nullptr;
     while (current != nullptr) {
+        if (const ListView* list = ludork::Cast<ListView>(current.get());
+            list != nullptr && child != nullptr) {
+            clip = list->clipChildBounds(*child, clip);
+        }
         if (ludork::Cast<Canvas>(current) != nullptr) {
             const std::optional<sf::FloatRect> intersection =
                 clip.findIntersection(current->getAbsoluteBounds());
@@ -74,6 +80,7 @@ sf::FloatRect effectiveClip(const std::shared_ptr<ControlBase>& control,
             }
             clip = *intersection;
         }
+        child = current.get();
         current = current->getParent();
     }
     return clip;
@@ -82,7 +89,7 @@ sf::FloatRect effectiveClip(const std::shared_ptr<ControlBase>& control,
 bool insideEffectiveClip(const std::shared_ptr<ControlBase>& control,
                          const sf::Vector2f& point,
                          const sf::FloatRect& rootClip, float renderScale) {
-    if (!rootClip.contains(point)) {
+    if (!effectiveClip(control, rootClip).contains(point)) {
         return false;
     }
     std::shared_ptr<ControlBase> current = control;

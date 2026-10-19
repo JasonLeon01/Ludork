@@ -55,6 +55,12 @@ public:
     void setColumns(int columns);
 
     BIND_METHOD(Pure = true)
+    bool getChildScrollingEnabled() const;
+
+    BIND_METHOD()
+    void setChildScrollingEnabled(bool enabled);
+
+    BIND_METHOD(Pure = true)
     virtual std::vector<std::shared_ptr<ControlBase>> getChildren()
         const override;
 
@@ -87,13 +93,33 @@ public:
 
     void refreshDisplayScale() override;
 
+    sf::FloatRect clipChildBounds(const ControlBase& child,
+                                  const sf::FloatRect& absoluteBounds) const;
+
 protected:
+    static constexpr float ChildScrollSpeed = 30.0f;
+    static constexpr float ChildScrollPauseDuration = 1.0f;
+
+    sf::FloatRect _clipChildInteractionBounds(
+        const ControlBase& child, const sf::FloatRect& bounds) const override;
+
     BIND_METHOD()
     virtual void draw(sf::RenderTarget& target,
                       sf::RenderStates states) const override;
 
 private:
+    struct ChildScrollState {
+        sf::FloatRect bounds;
+        sf::Vector2f origin;
+        sf::Vector2f scale;
+        float columnWidth = 0.0f;
+        float distance = 0.0f;
+        double elapsed = 0.0;
+    };
+
     void setSizeValue(const sf::Vector2f& size);
+    void updateChildScrolling(float deltaTime);
+    static float childScrollOffset(const ChildScrollState& state);
 
     sf::Vector2f size_;
     int defaultItemHeight_ = 32;
@@ -101,6 +127,8 @@ private:
     int columns_ = 1;
     std::vector<std::shared_ptr<ControlBase>> children_;
     std::vector<sf::FloatRect> itemLayoutRects_;
+    std::vector<ChildScrollState> childScrollStates_;
+    bool childScrollingEnabled_ = false;
     sf::RenderStates renderStates_;
     bool positionsSettled_ = false;
     float displayScale_ = 1.0f;

@@ -179,7 +179,8 @@
                   ],
                   "defaultItemHeight": 32,
                   "fixItemHeight": true,
-                  "columns": 1
+                  "columns": 1,
+                  "childScrollingEnabled": true
                 },
                 "slot": {},
                 "editor": {},

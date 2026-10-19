@@ -1,4 +1,5 @@
 #include "Containers/ContainerSupport.hpp"
+#include "Containers/ChildClipGuard.hpp"
 #include <UI/Canvas.hpp>
 #include <UI/WrapBox.hpp>
 #include <AnimSprite.hpp>
@@ -201,7 +202,11 @@ void Canvas::render() {
     _buildRenderQueue();
     canvas_->clear(sf::Color::Transparent);
     for (const RenderEntry& entry : renderQueue_) {
-        canvas_->draw(*entry.node, entry.states);
+        ludork::engine::ui_container::ChildClipGuard clip(
+            *canvas_, *entry.node, entry.states.transform);
+        if (!clip.empty()) {
+            canvas_->draw(*entry.node, entry.states);
+        }
     }
     const std::vector<std::shared_ptr<AnimSprite>> snapshot = animations_;
     for (const std::shared_ptr<AnimSprite>& animation : snapshot) {
