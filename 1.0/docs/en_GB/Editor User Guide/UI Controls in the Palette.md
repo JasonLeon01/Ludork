@@ -55,9 +55,9 @@ A multi-child list that arranges children into rows and columns, and draws only 
 
 | Category | Children | Slot | Key properties |
 |---|---|---|---|
-| Layout | any number | list | `size`, `columns`, `defaultItemHeight`, `fixItemHeight` |
+| Layout | any number | list | `size`, `columns`, `defaultItemHeight`, `fixItemHeight`, `childScrollingEnabled` |
 
-`columns` defaults to 1 and `defaultItemHeight` to 32; `fixItemHeight` keeps every row at that height. See [Engine: Layout and Image Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#listview>).
+`columns` defaults to 1 and `defaultItemHeight` to 32; `fixItemHeight` keeps every row at that height. Enable `childScrollingEnabled` in the Inspector to scroll wide children within their columns; it is off by default. See [Engine: Layout and Image Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#listview>).
 
 ### Engine.ScrollBox
 

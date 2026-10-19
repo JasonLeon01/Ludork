@@ -55,9 +55,9 @@ Canvas 决定内部控件的坐标空间和层叠顺序。详见 [Engine：运�
 
 | 分类 | 子节点 | Slot | 关键属性 |
 |---|---|---|---|
-| Layout | 任意数量 | list | `size`、`columns`、`defaultItemHeight`、`fixItemHeight` |
+| Layout | 任意数量 | list | `size`、`columns`、`defaultItemHeight`、`fixItemHeight`、`childScrollingEnabled` |
 
-`columns` 默认为 1，`defaultItemHeight` 默认为 32；启用 `fixItemHeight` 后，每行使用固定高度。详见 [Engine：布局与图像控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/布局与图像控件.md#listview>)。
+`columns` 默认为 1，`defaultItemHeight` 默认为 32；启用 `fixItemHeight` 后，每行使用固定高度。在 Inspector 中开启 `childScrollingEnabled` 可让超宽子项在列内滚动显示，默认关闭。详见 [Engine：布局与图像控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/布局与图像控件.md#listview>)。
 
 ### Engine.ScrollBox
 

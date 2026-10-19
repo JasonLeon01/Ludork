@@ -54,6 +54,8 @@ Canvas Slot 根据控件的局部边界定位，并计入边界的非零偏移�
 
 本节列出控件的 JSON 字段及其运行时类型。控件的用途、能否接受子节点，以及 Inspector 中完整的属性集合，见 [Palette 控件](<../../编辑器用户指南/Palette 控件.md>)。
 
+`Engine.ListView` 的 `childScrollingEnabled` 使用 JSON 布尔值，默认为 `false`，也可在运行时赋值。子项滚动、裁剪与布局行为见 [ListView](<../全局与 Core 模块/Core Modules/Engine/布局与图像控件.md#listview>)。
+
 `Engine.Window` 在资产中保存 `size`、`windowSkin`、`repeated` 与 `colour`。`colour` 是 RGBA 乘色，默认为 `[255,255,255,255]`；需要半透明窗口边框时，在 JSON 中设置其 alpha。
 
 `Engine.Image` 与 `Engine.FunctionalImage` 将 `drawAs` 保存为 `"Image"`（默认）或 `"Tile"`。运行时调用要求 `Engine.ImageDrawAs`，平铺与缩放行为见 [Image](<../全局与 Core 模块/Core Modules/Engine/布局与图像控件.md#image>)。

@@ -60,6 +60,8 @@ An invisible ListView skips drawing and does not prepare layout during that draw
 | `getOrigin` | `function` | self: { "Engine", "ListView" } = "self" | return: sf.Vector2f | Pure |
 | `setOrigin` | `function` | self: { "Engine", "ListView" } = "self"; origin: sf.Vector2f | — | — |
 | `getColumns` | `function` | self: { "Engine", "ListView" } = "self" | return: int | Pure |
+| `getChildScrollingEnabled` | `function` | self: { "Engine", "ListView" } = "self" | return: bool | Pure |
+| `setChildScrollingEnabled` | `function` | self: { "Engine", "ListView" } = "self"; enabled: bool | — | — |
 | `getDefaultItemSize` | `function` | self: { "Engine", "ListView" } = "self" | return: sf.Vector2f | Pure |
 | `getItemLayoutRect` | `function` | self: { "Engine", "ListView" } = "self"; index: int | return: sf.FloatRect | Pure |
 | `getSize` | `function` | self: { "Engine", "ListView" } = "self" | return: sf.Vector2f | Pure |
@@ -77,9 +79,15 @@ An invisible ListView skips drawing and does not prepare layout during that draw
 | `applyPositions` | `function` | self: { "Engine", "ListView" } = "self" | — | — |
 | `draw` | `function` | self: { "Engine", "ListView" } = "self"; target: sf.RenderTarget; states: sf.RenderStates | — | — |
 
-`getContentBounds` returns the laid-out union of the visible children rather than only the declared ListView size. A scrolling parent uses that result after `applyPositions`, so a list becomes scrollable only when its real laid-out extent strictly exceeds the viewport.
+With child scrolling disabled, `getContentBounds` returns the laid-out union of the visible children rather than only the declared ListView size. A scrolling parent uses that result after `applyPositions`, so a list becomes scrollable only when its real laid-out extent strictly exceeds the viewport.
 
 `getDefaultItemSize()` returns the native column width and authored default row height in logical pixels. `getItemLayoutRect(index)` returns a zero-based item's cell in list-local coordinates, including the column width and the row's fixed height or tallest child height. It settles pending layout and rejects out-of-range indices. Use these values for dynamic row sizes, selection and hit testing instead of reproducing ListView's spacing in Lua.
+
+`childScrollingEnabled` defaults to `false`. Enable it through the UI Inspector or `setChildScrollingEnabled(true)` to reveal wide children without widening their cells. Each visible child whose scaled local width exceeds `(size.x - 32) / columns` scrolls independently: it starts with its left edge at the column's left edge, pauses for one second, moves left at 30 logical pixels per second until its right edge is visible, pauses for one second, then returns. Children that fit remain centred. Origin and scale are included when placing the content. The speed and pause are fixed native constants, not asset or script options.
+
+Only `update(deltaTime)` advances this motion; drawing and layout queries do not. Hiding a child, the list or an ancestor pauses it. A change to the child's local bounds, origin or scale restarts it from the left edge when the next update measures it, or when layout is explicitly refreshed with `invalidatePositions()` followed by `applyPositions()`. Changing the list size or column count invalidates layout; a changed column width restarts the affected motion. Disabling the property restores centred placement immediately; re-enabling starts again. Removing a child discards its scroll state.
+
+While enabled, child drawing and descendant hit areas are clipped horizontally to their column, intersected with enclosing clipping; popup overlays keep their existing behaviour. The item's cell and selection rectangle stay fixed while its content moves. `getContentBounds()` reports the declared ListView width on the horizontal axis, so this motion does not create horizontal overflow in an enclosing ScrollBox. Vertical content bounds and scrolling still follow the laid-out child heights.
 
 ## WrapBox
 

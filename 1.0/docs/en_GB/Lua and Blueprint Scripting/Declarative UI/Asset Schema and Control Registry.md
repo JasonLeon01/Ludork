@@ -54,6 +54,8 @@ Plain-text controls store font, character size, style, spacing, alignment, outli
 
 This section is the JSON field authority for the controls it names: what a node serialises, and which runtime type each value requires. For what a control is for, whether it accepts children, and its complete Inspector property set, see [UI Controls in the Palette](<../../Editor User Guide/UI Controls in the Palette.md>).
 
+`Engine.ListView` accepts `childScrollingEnabled` as a JSON boolean, defaulting to `false`. It can also be assigned at runtime. See [ListView](<../Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#listview>) for child scrolling, clipping and layout behaviour.
+
 `Engine.Window` stores `size`, `windowSkin`, `repeated` and `colour` in the asset. `colour` is an RGBA tint, defaulting to `[255,255,255,255]`; set its alpha in JSON for translucent window frames.
 
 `Engine.Image` and `Engine.FunctionalImage` serialise `drawAs` as `"Image"` (default) or `"Tile"`. Runtime calls require `Engine.ImageDrawAs`; see [Image](<../Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#image>) for tiling and scaling behaviour.
