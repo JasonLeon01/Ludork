@@ -36,9 +36,9 @@ function Require-File([string]$Path) {
     }
 }
 
-function Build-NativeActions([string]$Destination) {
+function Build-NativeActions([string]$Destination, [string]$Architecture = 'x64') {
     Invoke-Checked 'cmake.exe' @('-S', (Join-Path $PSScriptRoot 'native'), '-B', $Destination,
-        '-DCMAKE_BUILD_TYPE=Release')
+        '-A', $Architecture, '-DCMAKE_BUILD_TYPE=Release')
     Invoke-Checked 'cmake.exe' @('--build', $Destination, '--config', 'Release', '--target', 'LudorkInstallerActions')
     $nativeDll = Join-Path $Destination 'bin\Release\LudorkInstallerActions.dll'
     Require-File $nativeDll
@@ -64,6 +64,7 @@ function Write-PayloadManifest([string]$SourceDirectory, [string]$Destination) {
         }
         'LudorkProject.ico'
         'tools\InstallerPayload.txt'
+        if ($Format -eq 'exe') { 'tools\LudorkUninstallActions.dll' }
     ) | Sort-Object -Unique
     [IO.File]::WriteAllLines((Join-Path $Destination 'InstallerPayload.txt'), $payloadFiles, [Text.UTF8Encoding]::new($true))
 }
@@ -87,14 +88,10 @@ function Ensure-Inno {
             throw 'The Inno Setup download did not match its pinned SHA-256 digest.'
         }
         $process = Start-Process -FilePath $download -ArgumentList @('/CURRENTUSER', '/VERYSILENT',
-            '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', '/NOICONS', '/TASKS=', "/DIR=`"$innoDir`"") -Wait -PassThru
+            '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', '/NOICONS', '/TASKS=', "/DIR=`"$innoDir`"") -WindowStyle Hidden -Wait -PassThru
         if ($process.ExitCode -ne 0) { throw "Inno Setup installation failed: $($process.ExitCode)." }
     }
     Require-File $compiler
-    $compilerVersion = (Get-Item -LiteralPath $compiler).VersionInfo.ProductVersion
-    if ($compilerVersion -notmatch ('^' + [regex]::Escape($innoVersion) + '(\D|$)')) {
-        throw "The cached Inno Setup compiler is not version $innoVersion. Remove $innoDir and retry."
-    }
     return $compiler
 }
 
@@ -119,15 +116,17 @@ foreach ($script in Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.ps1') {
 
 $work = Join-Path $root "obj\installer\$Format"
 if ($ValidateOnly) {
-    Build-NativeActions (Join-Path $work 'native')
+    Build-NativeActions (Join-Path $work 'native-x64')
+    Build-NativeActions (Join-Path $work 'native-uninstall') 'Win32'
     $validationWork = Join-Path $root 'obj\installer\validate'
     [void](New-Item -ItemType Directory -Path $validationWork -Force)
     try {
         Write-License $validationWork
         Write-PayloadManifest $PSScriptRoot $validationWork
         $compiler = Ensure-Inno
-        Invoke-Checked $compiler @('/O-', "/DProductVersion=$($versions['EDITOR_VERSION'])",
+        Invoke-Checked $compiler @('/O-', "/DCompilerVersion=$($versions['INNO_SETUP_VERSION'])", "/DProductVersion=$($versions['EDITOR_VERSION'])",
             "/DDistDir=$PSScriptRoot", "/DWorkDir=$validationWork", "/DAssetsDir=$root\Editor\Assets",
+            "/DUninstallActions=$work\native-uninstall\bin\Release\LudorkInstallerActions.dll",
             (Join-Path $PSScriptRoot 'Ludork.iss'))
     } finally {
         Remove-Item -LiteralPath $validationWork -Recurse -Force
@@ -143,7 +142,7 @@ Require-File $buildInfo
 Require-File (Join-Path $dist 'Ludork.exe')
 Require-File (Join-Path $dist 'tools\ScriptTools\ScriptTools.exe')
 Require-File (Join-Path $dist 'tools\OfficialPlugins\plugins.json')
-Invoke-Checked (Join-Path $root 'tools\validate_editor_windows_layout.bat') @($dist)
+Invoke-Checked (Join-Path $root 'tools\validate_editor_windows_layout.bat') @($dist, '--release')
 $dev = & $scriptTools packaging-constants build-info $buildInfo --field dev
 if ($LASTEXITCODE -ne 0 -or $dev -ne 'false') {
     throw 'Windows installers require a release dist. Run tools\pack_editor.bat --release first.'
@@ -196,7 +195,7 @@ if ($Format -eq 'msi') {
     if (-not (Test-Path -LiteralPath $wix)) {
         Invoke-Checked 'dotnet.exe' @('tool', 'install', 'wix', '--tool-path', $wixDir, '--version', $wixVersion)
     }
-    Build-NativeActions (Join-Path $work 'native')
+    Build-NativeActions (Join-Path $work 'native-x64')
     $manifest = Join-Path $work 'EditorPayload.wxs'
     & (Join-Path $PSScriptRoot 'generate_installer_payload.ps1') -DistDir $dist -OutputPath $manifest -ProductVersion $productVersion
     $workPackage = Join-Path $work 'Ludork.msi'
@@ -206,15 +205,17 @@ if ($Format -eq 'msi') {
         Invoke-Checked $wix @('build', (Join-Path $PSScriptRoot 'Ludork.wxs'), $manifest,
             '-arch', 'x64', '-culture', 'en-US', '-ext', "WixToolset.UI.wixext/$wixVersion",
             '-define', "ProductVersion=$productVersion", '-define', "LicenseRtf=$work\License.en.rtf",
-            '-define', "InstallerActions=$work\native\bin\Release\LudorkInstallerActions.dll",
+            '-define', "InstallerActions=$work\native-x64\bin\Release\LudorkInstallerActions.dll",
             '-bindpath', "dist=$dist", '-bindpath', "assets=$root\Editor\Assets",
             '-intermediateFolder', "$work\intermediate", '-pdbtype', 'none', '-out', $workPackage)
         Invoke-Checked $wix @('msi', 'validate', $workPackage, '-sice', 'ICE60')
     } finally { Pop-Location }
 } else {
+    Build-NativeActions (Join-Path $work 'native-uninstall') 'Win32'
     $compiler = Ensure-Inno
-    Invoke-Checked $compiler @("/DProductVersion=$productVersion", "/DDistDir=$dist", "/DWorkDir=$work",
-        "/DAssetsDir=$root\Editor\Assets", (Join-Path $PSScriptRoot 'Ludork.iss'))
+    Invoke-Checked $compiler @("/DCompilerVersion=$($versions['INNO_SETUP_VERSION'])", "/DProductVersion=$productVersion", "/DDistDir=$dist", "/DWorkDir=$work",
+        "/DAssetsDir=$root\Editor\Assets", "/DUninstallActions=$work\native-uninstall\bin\Release\LudorkInstallerActions.dll",
+        (Join-Path $PSScriptRoot 'Ludork.iss'))
     $workPackage = Join-Path $work "Ludork-$productVersion-windows-x64.exe"
 }
 Require-File $workPackage

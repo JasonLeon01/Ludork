@@ -13,6 +13,7 @@
     <SetProperty Id="ARPINSTALLLOCATION" Value="[INSTALLFOLDER]"
                  Before="InstallValidate" Sequence="execute" />
     <Property Id="INSTALL_OFFICIAL_PLUGINS" Value="1" Secure="yes" />
+    <Property Id="REMOVE_USER_DATA" Value="1" Secure="yes" />
     <Property Id="INSTALLFOLDER" Secure="yes">
       <RegistrySearch Id="PreviousInstallFolder" Root="HKLM"
                       Key="Software\Ludork\Installer" Name="InstallDir"
@@ -20,11 +21,17 @@
     </Property>
     <Launch Condition="INSTALL_OFFICIAL_PLUGINS = &quot;0&quot; OR INSTALL_OFFICIAL_PLUGINS = &quot;1&quot;"
             Message="INSTALL_OFFICIAL_PLUGINS must be 0 or 1." />
+    <Launch Condition="REMOVE_USER_DATA = &quot;0&quot; OR REMOVE_USER_DATA = &quot;1&quot;"
+            Message="REMOVE_USER_DATA must be 0 or 1." />
     <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
     <WixVariable Id="WixUILicenseRtf" Value="$(LicenseRtf)" />
     <Binary Id="InstallerActions" SourceFile="$(InstallerActions)" />
     <CustomAction Id="Preflight" BinaryRef="InstallerActions" DllEntry="Preflight"
                   Execute="immediate" Return="check" />
+    <CustomAction Id="PrepareUserDataRemoval" BinaryRef="InstallerActions" DllEntry="PrepareUserDataRemoval"
+                  Execute="immediate" Return="check" />
+    <CustomAction Id="RemoveUserData" BinaryRef="InstallerActions" DllEntry="RemoveUserData"
+                  Execute="commit" Impersonate="yes" TerminalServerAware="yes" Return="check" />
     <CustomAction Id="PrepareAssociations" BinaryRef="InstallerActions"
                   DllEntry="PrepareAssociations" Execute="immediate" Return="check" />
     <CustomAction Id="RollbackAssociations" BinaryRef="InstallerActions"
@@ -38,7 +45,9 @@
                   Execute="commit" Impersonate="yes" TerminalServerAware="yes" Return="check" />
     <InstallExecuteSequence>
       <Custom Action="Preflight" After="InstallValidate" />
-      <Custom Action="PrepareAssociations" After="Preflight"
+      <Custom Action="PrepareUserDataRemoval" After="Preflight"
+              Condition="Installed AND REMOVE ~= &quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE" />
+      <Custom Action="PrepareAssociations" After="PrepareUserDataRemoval"
               Condition="NOT Installed OR REMOVE ~= &quot;ALL&quot;" />
       <Custom Action="RollbackAssociations" After="WriteRegistryValues"
               Condition="NOT Installed OR REMOVE ~= &quot;ALL&quot;" />
@@ -46,6 +55,8 @@
               Condition="NOT Installed OR REMOVE ~= &quot;ALL&quot;" />
       <Custom Action="InstallOfficialPlugins" Before="InstallFinalize"
               Condition="NOT Installed AND NOT REMOVE AND INSTALL_OFFICIAL_PLUGINS = &quot;1&quot;" />
+      <Custom Action="RemoveUserData" Before="InstallFinalize"
+              Condition="Installed AND REMOVE ~= &quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE AND REMOVE_USER_DATA = &quot;1&quot;" />
     </InstallExecuteSequence>
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="Ludork" />
@@ -65,9 +76,9 @@
                Guid="E19B478B-0562-48C0-927D-A89C64143865">
       <File Id="LudorkExe" Source="!(bindpath.dist)\Ludork.exe" KeyPath="yes">
         <Shortcut Id="DesktopShortcut" Directory="DesktopFolder" Name="Ludork"
-                  Description="Ludork Editor" WorkingDirectory="INSTALLFOLDER" />
+                  Description="Ludork Editor" WorkingDirectory="INSTALLFOLDER" Advertise="yes" />
         <Shortcut Id="StartMenuShortcut" Directory="LudorkProgramMenuFolder" Name="Ludork"
-                  Description="Ludork Editor" WorkingDirectory="INSTALLFOLDER" />
+                  Description="Ludork Editor" WorkingDirectory="INSTALLFOLDER" Advertise="yes" />
       </File>
       <File Id="LudorkProjectFileIcon" Source="!(bindpath.assets)\project-icon.ico"
             Name="LudorkProject.ico" />

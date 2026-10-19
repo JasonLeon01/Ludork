@@ -1,4 +1,5 @@
 #include "RegistrySnapshot.hpp"
+#include "UserDataRemoval.hpp"
 
 #include <Msi.h>
 #include <MsiQuery.h>
@@ -7,6 +8,7 @@
 #include <TlHelp32.h>
 
 #include <array>
+#include <algorithm>
 #include <cwchar>
 #include <cstring>
 #include <stdexcept>
@@ -260,6 +262,53 @@ std::array<std::wstring, 5> AssociationValues(std::wstring directory) {
 }
 }  // namespace
 
+extern "C" __declspec(dllexport) UINT __stdcall PrepareUserDataRemoval(
+    MSIHANDLE install) {
+    try {
+        bool remove = Property(install, L"REMOVE_USER_DATA") == L"1";
+        const std::wstring sid = Property(install, L"UserSID");
+        const bool interactive = std::stoi(Property(install, L"UILevel")) >= 3;
+        if (remove || interactive) {
+            const std::wstring directory =
+                ludork::installer::UserDataDirectory(sid);
+            if (interactive && !ludork::installer::ConfirmUserDataRemoval(
+                                   GetForegroundWindow(), directory, remove)) {
+                return ERROR_INSTALL_USEREXIT;
+            }
+        }
+        if (remove && !Property(install, L"RollbackDisabled").empty()) {
+            return Failure(install,
+                           L"Enable Windows Installer rollback or uninstall "
+                           L"with REMOVE_USER_DATA=0 to preserve user data.");
+        }
+        Check(MsiSetPropertyW(install, L"REMOVE_USER_DATA",
+                              remove ? L"1" : L"0"));
+        Check(MsiSetPropertyW(install, L"RemoveUserData",
+                              remove ? sid.c_str() : L""));
+        return ERROR_SUCCESS;
+    } catch (...) {
+        return Failure(
+            install,
+            L"Cannot safely identify the uninstalling user's data. "
+            L"Use REMOVE_USER_DATA=0 to keep it and remove it manually.");
+    }
+}
+
+extern "C" __declspec(dllexport) UINT __stdcall RemoveUserData(
+    MSIHANDLE install) {
+    try {
+        ludork::installer::RemoveUserData(
+            Property(install, L"CustomActionData"));
+        return ERROR_SUCCESS;
+    } catch (...) {
+        return Failure(
+            install,
+            L"User data could not be completely removed. "
+            L"Close applications using ~/Ludork and remove the remaining "
+            L"directory manually. Other user profiles were not selected.");
+    }
+}
+
 extern "C" __declspec(dllexport) UINT __stdcall Preflight(MSIHANDLE install) {
     try {
         if (EditorRunning()) {
@@ -306,6 +355,57 @@ extern "C" __declspec(dllexport) UINT __stdcall Preflight(MSIHANDLE install) {
         return Failure(install,
                        L"Ludork installer preflight failed. See the MSI "
                        L"log and check registry permissions.");
+    }
+}
+
+extern "C" __declspec(dllexport) UINT __stdcall PrepareExeUserDataRemoval(
+    HWND owner, BOOL silent, BOOL requestedRemoval, wchar_t* userSid,
+    DWORD capacity) {
+    if (userSid == nullptr || capacity == 0) {
+        return ERROR_INVALID_PARAMETER;
+    }
+    userSid[0] = L'\0';
+    try {
+        if (EditorRunning()) {
+            return ERROR_BUSY;
+        }
+        if (silent && !requestedRemoval) {
+            return ERROR_SUCCESS;
+        }
+        if (!ludork::installer::IsCurrentDesktopUser()) {
+            return ERROR_NOT_SUPPORTED;
+        }
+        const std::wstring sid = ludork::installer::CurrentUserSid();
+        const std::wstring directory =
+            ludork::installer::UserDataDirectory(sid);
+        bool remove = requestedRemoval != FALSE;
+        if (!silent && !ludork::installer::ConfirmUserDataRemoval(
+                           owner, directory, remove)) {
+            return ERROR_INSTALL_USEREXIT;
+        }
+        if (remove) {
+            if (sid.size() >= capacity) {
+                return ERROR_INSUFFICIENT_BUFFER;
+            }
+            std::copy(sid.begin(), sid.end(), userSid);
+            userSid[sid.size()] = L'\0';
+        }
+        return ERROR_SUCCESS;
+    } catch (...) {
+        return ERROR_INSTALL_FAILURE;
+    }
+}
+
+extern "C" __declspec(dllexport) UINT __stdcall RemoveExeUserData(
+    const wchar_t* userSid) {
+    try {
+        if (userSid == nullptr || userSid[0] == L'\0') {
+            return ERROR_INVALID_PARAMETER;
+        }
+        ludork::installer::RemoveUserData(userSid);
+        return ERROR_SUCCESS;
+    } catch (...) {
+        return ERROR_INSTALL_FAILURE;
     }
 }
 

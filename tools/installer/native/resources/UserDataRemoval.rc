@@ -1,0 +1,16 @@
+#include <windows.h>
+#include "UserDataRemovalResource.h"
+
+IDD_USER_DATA_REMOVAL DIALOGEX 0, 0, 340, 172
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Uninstall Ludork"
+FONT 9, "Segoe UI"
+BEGIN
+    LTEXT "Uninstall Ludork from this computer?", -1, 12, 12, 316, 14
+    LTEXT "The selected option permanently deletes this user's plug-ins, settings, logs and template cache from:", -1, 12, 34, 316, 28
+    EDITTEXT IDC_USER_DATA_DIRECTORY, 12, 64, 316, 30, ES_MULTILINE | ES_READONLY | ES_AUTOHSCROLL
+    CONTROL "Delete user data", IDC_REMOVE_USER_DATA, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 12, 102, 316, 14
+    LTEXT "Deleted data cannot be restored. Project directories outside this folder are preserved.", -1, 12, 121, 316, 23
+    DEFPUSHBUTTON "Uninstall", IDOK, 172, 150, 76, 14
+    PUSHBUTTON "Cancel", IDCANCEL, 252, 150, 76, 14
+END

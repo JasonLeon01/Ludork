@@ -80,6 +80,8 @@ set "LAUNCHER_BUILD_DIR=%WORK_DIR%\launcher"
 set "FINAL_DIR=%ROOT_DIR%\dist"
 set "BACKUP_DIR=%WORK_DIR%\previous-dist"
 set "DIST_BACKED_UP=0"
+set "OFFICIAL_PLUGINS_SUBDIRECTORY="
+if "%PACKAGE_CHANNEL%"=="--release" set "OFFICIAL_PLUGINS_SUBDIRECTORY=\tools\OfficialPlugins"
 
 if not exist "%PROJECT_FILE%" (
     echo Ludork.csproj was not found: %PROJECT_FILE%
@@ -256,7 +258,7 @@ if exist "%BINARIES_DIR%\Page" rmdir /S /Q "%BINARIES_DIR%\Page"
 "%SCRIPT_TOOLS%" legal-resources editor "%ROOT_DIR%" "%STAGE_DIR%"
 if errorlevel 1 goto failed
 
-call "%ROOT_DIR%\tools\validate_editor_windows_layout.bat" "%STAGE_DIR%"
+call "%ROOT_DIR%\tools\validate_editor_windows_layout.bat" "%STAGE_DIR%" %PACKAGE_CHANNEL%
 if errorlevel 1 goto failed
 
 echo Compiling packaged locale data...
@@ -280,7 +282,7 @@ if "%WITHOUT_TEMPLATES%"=="0" (
 )
 
 echo Preparing official editor plugins...
-"%SCRIPT_TOOLS%" editor-official-plugins prepare "%ROOT_DIR%\Plugins" "%STAGE_DIR%\tools\OfficialPlugins"
+"%SCRIPT_TOOLS%" editor-official-plugins prepare "%ROOT_DIR%\Plugins" "%STAGE_DIR%%OFFICIAL_PLUGINS_SUBDIRECTORY%"
 if errorlevel 1 goto failed
 
 mkdir "%STAGE_DIR%\tools" >nul 2>nul
@@ -388,7 +390,7 @@ exit /b %errorlevel%
 
 :validate_package
 set "PACKAGE_DIR=%~1"
-call "%ROOT_DIR%\tools\validate_editor_windows_layout.bat" "%PACKAGE_DIR%"
+call "%ROOT_DIR%\tools\validate_editor_windows_layout.bat" "%PACKAGE_DIR%" %PACKAGE_CHANNEL%
 if errorlevel 1 exit /b 1
 call :require_file "%PACKAGE_DIR%\Locale\en_GB"
 if errorlevel 1 exit /b 1
@@ -443,7 +445,7 @@ call :require_file "%PACKAGE_DIR%\README_zh_CN.md"
 if errorlevel 1 exit /b 1
 call :require_directory "%PACKAGE_DIR%\Licenses"
 if errorlevel 1 exit /b 1
-"%SCRIPT_TOOLS%" editor-official-plugins validate "%PACKAGE_DIR%\tools\OfficialPlugins"
+"%SCRIPT_TOOLS%" editor-official-plugins validate "%PACKAGE_DIR%%OFFICIAL_PLUGINS_SUBDIRECTORY%"
 if errorlevel 1 exit /b 1
 for %%F in (
     "DotNet\LICENSE.txt"

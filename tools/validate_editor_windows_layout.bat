@@ -2,7 +2,22 @@
 setlocal EnableExtensions DisableDelayedExpansion
 
 if "%~1"=="" exit /b 1
+if not "%~2"=="--dev" if not "%~2"=="--release" (
+    echo Specify --dev or --release for editor package layout validation.
+    exit /b 1
+)
 set "PACKAGE_DIR=%~f1"
+if "%~2"=="--release" (
+    for %%F in (Plugins plugins.json) do if exist "%PACKAGE_DIR%\%%F" (
+        echo Unexpected plugin content at the release package root: %PACKAGE_DIR%\%%F
+        exit /b 1
+    )
+) else (
+    if exist "%PACKAGE_DIR%\tools\OfficialPlugins" (
+        echo Unexpected installer plugin payload in a development package: %PACKAGE_DIR%\tools\OfficialPlugins
+        exit /b 1
+    )
+)
 for %%F in (
     Ludork.exe
     Binaries\Ludork.exe
@@ -29,8 +44,6 @@ for %%F in (
     "%PACKAGE_DIR%\*.dylib"
     "%PACKAGE_DIR%\*.deps.json"
     "%PACKAGE_DIR%\*.runtimeconfig*.json"
-    "%PACKAGE_DIR%\Plugins"
-    "%PACKAGE_DIR%\plugins.json"
     "%PACKAGE_DIR%\Ludork.ini"
     "%PACKAGE_DIR%\*-signing.json"
     "%PACKAGE_DIR%\.localserver"

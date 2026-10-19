@@ -1,3 +1,10 @@
+#ifndef CompilerVersion
+  #error CompilerVersion is required
+#endif
+#if DecodeVer(Ver) != CompilerVersion
+  #error The Inno Setup compiler version does not match versions.conf
+#endif
+
 #ifndef ProductVersion
   #error ProductVersion is required
 #endif
@@ -9,6 +16,9 @@
 #endif
 #ifndef AssetsDir
   #error AssetsDir is required
+#endif
+#ifndef UninstallActions
+  #error UninstallActions is required
 #endif
 
 [Setup]
@@ -56,6 +66,7 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 Source: "{#WorkDir}\InstallerPayload.txt"; DestDir: "{app}\tools"; Flags: ignoreversion
 Source: "{#DistDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#AssetsDir}\project-icon.ico"; DestDir: "{app}"; DestName: "LudorkProject.ico"; Flags: ignoreversion
+Source: "{#UninstallActions}"; DestDir: "{app}\tools"; DestName: "LudorkUninstallActions.dll"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\Ludork"; Filename: "{app}\Ludork.exe"; WorkingDir: "{app}"
@@ -83,6 +94,14 @@ const
 var
   PluginsFailed, PayloadInstalled: Boolean;
   ObsoleteFiles: TStringList;
+  UninstallUserSid: String;
+  UninstallActionsReady: Boolean;
+
+function PrepareExeUserDataRemoval(Owner: HWND; Silent, RequestedRemoval: Integer; UserSid: String; Capacity: Cardinal): Cardinal;
+  external 'PrepareExeUserDataRemoval@{tmp}\LudorkUninstallActions.dll stdcall uninstallonly delayload';
+
+function RemoveExeUserData(UserSid: String): Cardinal;
+  external 'RemoveExeUserData@{tmp}\LudorkUninstallActions.dll stdcall uninstallonly delayload';
 
 function InstallerFileAttributes(const FileName: String): Cardinal;
   external 'GetFileAttributesW@kernel32.dll stdcall';
@@ -302,6 +321,45 @@ begin
   end;
 end;
 
+function InitializeUninstall: Boolean;
+var
+  RemovalOption: String;
+  ActionResult: Cardinal;
+begin
+  Result := False;
+  RemovalOption := ExpandConstant('{param:REMOVEUSERDATA|1}');
+  if (RemovalOption <> '0') and (RemovalOption <> '1') then begin
+    SuppressibleMsgBox('REMOVEUSERDATA must be 0 or 1.', mbError, MB_OK, IDOK);
+    exit;
+  end;
+  if not CopyFile(ExpandConstant('{app}\tools\LudorkUninstallActions.dll'),
+                  ExpandConstant('{tmp}\LudorkUninstallActions.dll'), False) then begin
+    SuppressibleMsgBox('Cannot prepare the uninstall helper. Repair Ludork and retry uninstalling.', mbError, MB_OK, IDOK);
+    exit;
+  end;
+  SetLength(UninstallUserSid, 256);
+  ActionResult := PrepareExeUserDataRemoval(0, Ord(UninstallSilent), StrToInt(RemovalOption),
+                                           UninstallUserSid, Length(UninstallUserSid));
+  UninstallActionsReady := True;
+  UninstallUserSid := Copy(UninstallUserSid, 1, Pos(#0, UninstallUserSid) - 1);
+  if ActionResult = 1602 then exit;
+  if ActionResult = 50 then begin
+    UninstallUserSid := '';
+    Log('User data preserved: the initiating user could not be verified.');
+    SuppressibleMsgBox('The user who started uninstall could not be verified. All user data will be kept. After uninstall, remove your own ~/Ludork directory manually if desired; do not remove another account''s data.', mbInformation, MB_OK, IDOK);
+  end else if ActionResult <> 0 then begin
+    SuppressibleMsgBox('Cannot prepare user-data removal (code ' + IntToStr(ActionResult) + '). Close Ludork and other applications using its data, then retry.', mbError, MB_OK, IDOK);
+    exit;
+  end;
+  Result := True;
+end;
+
+procedure DeinitializeUninstall;
+begin
+  if UninstallActionsReady then
+    UnloadDLL(ExpandConstant('{tmp}\LudorkUninstallActions.dll'));
+end;
+
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   Command: String;
@@ -316,5 +374,9 @@ begin
       DeleteOwnedValue(ProjectKey + '\DefaultIcon', '"' + ExpandConstant('{app}\LudorkProject.ico') + '",0');
       DeleteOwnedValue(ProjectKey, 'Ludork Project');
     end;
+  end;
+  if (CurUninstallStep = usPostUninstall) and (UninstallUserSid <> '') then begin
+    if RemoveExeUserData(UninstallUserSid) <> 0 then
+      RaiseException('The editor was uninstalled, but user data could not be completely removed. Close applications using ~/Ludork and remove the remaining directory manually.');
   end;
 end;
