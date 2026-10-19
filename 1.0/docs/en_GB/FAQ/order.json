@@ -1,0 +1,24 @@
+{
+  "items": [
+    {
+      "key": "faq/projects",
+      "path": "Projects and Upgrades.md"
+    },
+    {
+      "key": "faq/gameplay",
+      "path": "Gameplay and Scripting.md"
+    },
+    {
+      "key": "faq/assets",
+      "path": "Assets and Localisation.md"
+    },
+    {
+      "key": "faq/running",
+      "path": "Running Debugging and Publishing.md"
+    },
+    {
+      "key": "faq/saves",
+      "path": "Saves and Server.md"
+    }
+  ]
+}

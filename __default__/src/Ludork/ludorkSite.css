@@ -71,6 +71,38 @@
   padding: 0 32px;
 }
 
+.ludork-header-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.ludork-navigation-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--ludork-line);
+  border-radius: 12px;
+  color: var(--ludork-ink);
+  background: var(--ludork-surface);
+  cursor: pointer;
+}
+
+.ludork-navigation-toggle:hover {
+  background: var(--ludork-hover);
+}
+
+@media (min-width: 1200px) {
+  .ludork-navigation-toggle {
+    display: none;
+  }
+}
+
 .ludork-brand {
   display: inline-flex;
   align-items: center;
@@ -117,6 +149,14 @@
   margin-left: auto;
 }
 
+.ludork-navigation-primary,
+.ludork-navigation-settings {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: 6px;
+}
+
 .ludork-navigation a {
   display: inline-flex;
   align-items: center;
@@ -129,6 +169,7 @@
   text-decoration: none;
   font-size: .8125rem;
   font-weight: 500;
+  white-space: nowrap;
   transition: color 180ms ease, background-color 180ms ease;
 }
 
@@ -143,7 +184,8 @@
 }
 
 .ludork-language {
-  min-width: 132px;
+  min-width: 152px;
+  flex-shrink: 0;
 }
 
 .ludork-language .MuiOutlinedInput-root {
@@ -177,6 +219,7 @@
 
 .ludork-site a:focus-visible,
 .ludork-header a:focus-visible,
+.ludork-header button:focus-visible,
 .ludork-docs-shell a:focus-visible {
   outline: 3px solid var(--ludork-focus);
   outline-offset: 3px;
@@ -726,12 +769,6 @@ html[lang="zh-CN"] .ludork-hero h1 {
   background: var(--ludork-surface);
 }
 
-.ludork-docs-tabs {
-  flex-shrink: 0;
-  border-bottom: 1px solid var(--ludork-line);
-  background: var(--ludork-header);
-}
-
 .ludork-docs-status {
   display: flex;
   flex-direction: column;
@@ -786,20 +823,20 @@ html[lang="zh-CN"] .ludork-hero h1 {
     padding: 10px 20px 8px;
   }
 
-  .ludork-header .ludork-brand {
-    flex: 1;
-  }
-
-  .ludork-language {
-    margin-left: auto;
+  .ludork-header-brand {
+    flex-basis: 100%;
   }
 
   .ludork-navigation {
-    order: 3;
+    flex-wrap: wrap;
     width: 100%;
     margin: 0;
-    gap: 4px;
+    gap: 6px;
     justify-content: space-between;
+  }
+
+  .ludork-navigation-settings {
+    margin-left: auto;
   }
 
   .ludork-navigation a {
@@ -863,6 +900,10 @@ html[lang="zh-CN"] .ludork-hero h1 {
     padding-inline: 6px;
     font-size: .75rem;
     white-space: nowrap;
+  }
+
+  .ludork-header-inner {
+    padding-inline: 16px;
   }
 
   .ludork-logo-track {

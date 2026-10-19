@@ -108,9 +108,11 @@ export default function LudorkContent({ path, hash, language, onNavigate }: Ludo
     if (!markdown) {
       return
     }
-    const frame = requestAnimationFrame(() => {
-      if (hash) scrollToHash(hash)
-      else contentRef.current?.closest('main')?.scrollTo({ top: 0 })
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => {
+        if (hash) scrollToHash(hash)
+        else contentRef.current?.closest('main')?.scrollTo({ top: 0 })
+      })
     })
     return () => cancelAnimationFrame(frame)
   }, [hash, markdown, path])
@@ -149,63 +151,65 @@ export default function LudorkContent({ path, hash, language, onNavigate }: Ludo
     }
   }
 
-  return (
-    <>
-      <Box key={path} ref={contentRef} className="ludork-markdown">
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
-          rehypePlugins={[rehypeSlug, rehypeHighlight]}
-          components={{
-            pre({ children }) {
-              return <pre tabIndex={0}>{children}</pre>
-            },
-            table({ children }) {
+  const content = (
+    <Box key={path} ref={contentRef} className="ludork-markdown">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeSlug, rehypeHighlight]}
+        components={{
+          pre({ children }) {
+            return <pre tabIndex={0}>{children}</pre>
+          },
+          table({ children }) {
+            return (
+              <div className="ludork-table-scroll" tabIndex={0}>
+                <table>{children}</table>
+              </div>
+            )
+          },
+          a({ href, children, ...rest }) {
+            const reference = href ? resolveDocsReference(path, href) : null
+            if (reference?.path.toLowerCase().endsWith('.md')) {
               return (
-                <div className="ludork-table-scroll" tabIndex={0}>
-                  <table>{children}</table>
-                </div>
+                <a
+                  href={getDocumentHref(reference.path, reference.hash)}
+                  onClick={(event) => navigateToDocument(event, reference.path, reference.hash)}
+                  {...rest}
+                >
+                  {children}
+                </a>
               )
-            },
-            a({ href, children, ...rest }) {
-              const reference = href ? resolveDocsReference(path, href) : null
-              if (reference?.path.toLowerCase().endsWith('.md')) {
-                return (
-                  <a
-                    href={getDocumentHref(reference.path, reference.hash)}
-                    onClick={(event) => navigateToDocument(event, reference.path, reference.hash)}
-                    {...rest}
-                  >
-                    {children}
-                  </a>
-                )
-              }
-              if (reference) {
-                return (
-                  <a href={getDocsUrl(reference.path, reference.search, reference.hash)} {...rest}>
-                    {children}
-                  </a>
-                )
-              }
-              return <a href={preserveEmbeddedMode(href)} {...rest}>{children}</a>
-            },
-            img({ src, ...rest }) {
-              const reference = src ? resolveDocsReference(path, src) : null
-              return <img src={reference ? getDocsUrl(reference.path, reference.search, reference.hash) : src} {...rest} />
-            },
-          }}
-        >
-          {markdown ?? ''}
-        </ReactMarkdown>
-      </Box>
-      {onNavigate && (
-        <LudorkHeadingNavigation
-          key={`headings:${path}`}
-          contentRef={contentRef}
-          language={language}
-          getHref={(targetHash) => getDocumentHref(path, targetHash)}
-          onNavigate={(event, targetHash) => navigateToDocument(event, path, targetHash)}
-        />
-      )}
-    </>
+            }
+            if (reference) {
+              return (
+                <a href={getDocsUrl(reference.path, reference.search, reference.hash)} {...rest}>
+                  {children}
+                </a>
+              )
+            }
+            return <a href={preserveEmbeddedMode(href)} {...rest}>{children}</a>
+          },
+          img({ src, ...rest }) {
+            const reference = src ? resolveDocsReference(path, src) : null
+            return <img src={reference ? getDocsUrl(reference.path, reference.search, reference.hash) : src} {...rest} />
+          },
+        }}
+      >
+        {markdown ?? ''}
+      </ReactMarkdown>
+    </Box>
   )
+
+  return onNavigate ? (
+    <div className="ludork-document-layout">
+      {content}
+      <LudorkHeadingNavigation
+        key={`headings:${path}`}
+        contentRef={contentRef}
+        language={language}
+        getHref={(targetHash) => getDocumentHref(path, targetHash)}
+        onNavigate={(event, targetHash) => navigateToDocument(event, path, targetHash)}
+      />
+    </div>
+  ) : content
 }

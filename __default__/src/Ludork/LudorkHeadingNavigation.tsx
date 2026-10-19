@@ -1,11 +1,11 @@
-import { useEffect, useId, useRef, useState, type MouseEvent, type RefObject } from 'react'
-import { useMediaQuery, useTheme } from '@mui/material'
+import { useEffect, useId, useRef, useState, type CSSProperties, type MouseEvent, type RefObject } from 'react'
+import { useMediaQuery } from '@mui/material'
 import type { LanguageKey } from './ludorkLanguages'
 import { LUDORK_SITE_MESSAGES } from './ludorkSiteMessages'
+import { ChevronLeftIcon } from './LudorkIcon'
 
 type Heading = { id: string; title: string; level: number }
 
-const DESKTOP_OPEN_KEY = 'ludork:heading-navigation:desktop-open'
 const MOBILE_OPEN_KEY = 'ludork:heading-navigation:mobile-open'
 
 function readOpenPreference(key: string, defaultOpen: boolean): boolean {
@@ -35,15 +35,14 @@ type LudorkHeadingNavigationProps = {
 }
 
 export default function LudorkHeadingNavigation({ contentRef, language, getHref, onNavigate }: LudorkHeadingNavigationProps) {
-  const theme = useTheme()
-  const isNarrow = useMediaQuery(theme.breakpoints.down('md'))
-  const [desktopOpen, setDesktopOpen] = useState(() => readOpenPreference(DESKTOP_OPEN_KEY, true))
+  const isMobilePortrait = useMediaQuery('(max-width: 899.95px) and (orientation: portrait)')
   const [mobileOpen, setMobileOpen] = useState(() => readOpenPreference(MOBILE_OPEN_KEY, false))
   const [headings, setHeadings] = useState<Heading[]>([])
   const [activeId, setActiveId] = useState('')
+  const [mainHeight, setMainHeight] = useState(0)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const listId = useId()
-  const expanded = isNarrow ? mobileOpen : desktopOpen
+  const expanded = !isMobilePortrait || mobileOpen
   const messages = LUDORK_SITE_MESSAGES[language].docs
 
   useEffect(() => {
@@ -70,6 +69,7 @@ export default function LudorkHeadingNavigation({ contentRef, language, getHref,
         active = elements.at(-1)?.id ?? active
       }
       setActiveId(active)
+      setMainHeight(main.clientHeight)
     }
     const scheduleUpdate = () => {
       if (!frame) frame = requestAnimationFrame(updateActive)
@@ -91,62 +91,68 @@ export default function LudorkHeadingNavigation({ contentRef, language, getHref,
 
   if (!headings.length) return null
 
-  const setExpanded = isNarrow ? setMobileOpen : setDesktopOpen
   const setPreferredExpanded = (open: boolean) => {
-    setExpanded(open)
-    saveOpenPreference(isNarrow ? MOBILE_OPEN_KEY : DESKTOP_OPEN_KEY, open)
+    setMobileOpen(open)
+    saveOpenPreference(MOBILE_OPEN_KEY, open)
   }
   const close = (remember: boolean) => {
-    setExpanded(false)
-    if (remember) saveOpenPreference(isNarrow ? MOBILE_OPEN_KEY : DESKTOP_OPEN_KEY, false)
+    setMobileOpen(false)
+    if (remember) saveOpenPreference(MOBILE_OPEN_KEY, false)
     buttonRef.current?.focus({ preventScroll: true })
   }
 
   return (
-    <nav
-      className="ludork-heading-navigation"
-      data-expanded={expanded}
-      aria-label={messages.onThisPage}
-      onKeyDown={(event) => {
-        if (event.key === 'Escape' && expanded) {
-          event.preventDefault()
-          close(true)
-        }
-      }}
+    <aside
+      className="ludork-heading-aside"
+      style={mainHeight ? { '--ludork-main-height': `${mainHeight}px` } as CSSProperties : undefined}
     >
-      <button
-        ref={buttonRef}
-        className="ludork-heading-toggle"
-        type="button"
-        aria-expanded={expanded}
-        aria-controls={listId}
-        aria-label={expanded ? messages.collapseHeadings : messages.expandHeadings}
-        onClick={() => setPreferredExpanded(!expanded)}
+      <nav
+        className="ludork-heading-navigation"
+        data-expanded={expanded}
+        aria-label={messages.onThisPage}
+        onKeyDown={(event) => {
+          if (isMobilePortrait && event.key === 'Escape' && expanded) {
+            event.preventDefault()
+            close(true)
+          }
+        }}
       >
-        <svg viewBox="0 0 10 18" width="10" height="18" fill="none" aria-hidden="true">
-          <path d={expanded ? 'M2 1l6 8-6 8' : 'M8 1L2 9l6 8'} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
-      <ul id={listId} className="ludork-heading-list" inert={!expanded} aria-hidden={!expanded}>
-        {headings.map((heading) => {
-          const hash = `#${encodeURIComponent(heading.id)}`
-          return (
-            <li key={heading.id}>
-              <a
-                href={getHref(hash)}
-                style={{ paddingInlineStart: `${12 + (heading.level - 2) * 12}px` }}
-                aria-current={heading.id === activeId ? 'location' : undefined}
-                onClick={(event) => {
-                  onNavigate(event, hash)
-                  if (event.defaultPrevented && isNarrow) close(false)
-                }}
-              >
-                {heading.title}
-              </a>
-            </li>
-          )
-        })}
-      </ul>
-    </nav>
+        {isMobilePortrait ? (
+          <button
+            ref={buttonRef}
+            className="ludork-heading-toggle"
+            type="button"
+            aria-expanded={expanded}
+            aria-controls={listId}
+            aria-label={expanded ? messages.collapseHeadings : messages.expandHeadings}
+            onClick={() => setPreferredExpanded(!expanded)}
+          >
+            <span style={{ display: 'inline-flex', transform: expanded ? 'rotate(180deg)' : undefined }}>
+              <ChevronLeftIcon size={18} />
+            </span>
+          </button>
+        ) : <p className="ludork-heading-title">{messages.onThisPage}</p>}
+        <ul id={listId} className="ludork-heading-list" inert={!expanded} aria-hidden={!expanded}>
+          {headings.map((heading) => {
+            const hash = `#${encodeURIComponent(heading.id)}`
+            return (
+              <li key={heading.id}>
+                <a
+                  href={getHref(hash)}
+                  style={{ paddingInlineStart: `${12 + (heading.level - 2) * 12}px` }}
+                  aria-current={heading.id === activeId ? 'location' : undefined}
+                  onClick={(event) => {
+                    onNavigate(event, hash)
+                    if (event.defaultPrevented && isMobilePortrait) close(false)
+                  }}
+                >
+                  {heading.title}
+                </a>
+              </li>
+            )
+          })}
+        </ul>
+      </nav>
+    </aside>
   )
 }

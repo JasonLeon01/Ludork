@@ -27,7 +27,7 @@ export function readDocsSearchIndexes(
     Object.entries(languages).map(([language, manifest]) => ({
       version,
       language,
-      documents: [manifest.home, ...documentEntries(manifest.sections)].map((entry) => {
+      documents: [manifest.home, ...documentEntries([manifest.faq, ...manifest.sections])].map((entry) => {
         const path = `docs/${language}/${entry.path}`
         return {
           key: entry.key,

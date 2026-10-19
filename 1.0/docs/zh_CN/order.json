@@ -3,6 +3,10 @@
     "key": "00",
     "path": "Ludork 文档.md"
   },
+  "faq": {
+    "key": "faq",
+    "path": "FAQ"
+  },
   "sections": [
     {
       "key": "01",

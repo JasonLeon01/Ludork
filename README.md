@@ -29,16 +29,20 @@ After review, push `gh-pages` and set GitHub Pages to **Deploy from a branch →
 ## Content and routes
 
 - [`versions.json`](versions.json) lists major.minor versions, default first. Each version contains `docs/en_GB`, `docs/zh_CN`, shared About/notices Markdown and `images`. Add a content directory and version entry to introduce a version; the build generates its HTML entry and language manifests.
-- Each language's root `order.json` defines `home` and ordered `sections`. Each top-level chapter's `order.json` defines an ordered `items` tree. Nodes have a stable `key`, a `path` relative to their parent directory, and `children` for folders in the tree.
+- Each language's root `order.json` defines the `home` Markdown entry, the `faq` tree root and ordered `sections`. FAQ uses `{"key":"faq","path":"FAQ"}`; its directory's `order.json` defines the scenario pages in an ordered `items` tree, using keys such as `faq/projects`. Each top-level chapter also has an `order.json` with an ordered `items` tree. Nodes have a stable `key`, a `path` relative to their parent directory, and `children` for folders in the tree.
+- Each version and language owns its own `docs/<language>/FAQ/` scenario pages. FAQ content is not shared across versions; its links point to the documentation in the same version and language.
 - Use array order for navigation; filenames need no ordering prefixes. Preserve keys when renaming or reordering, and use the same keys for matching English and Chinese content so existing `doc` links stay valid.
 
 | Route or parameter | Purpose |
 | --- | --- |
 | `/Ludork/docs/v1.0/` | Documentation; `lang`, `doc`, `path` and heading fragments select content. `path` is relative to the version directory. |
+| `/Ludork/docs/v1.0/?lang=en_GB&doc=faq/projects` | The selected version's Projects and Upgrades FAQ page; FAQ scenario keys select individual pages. |
 | `/Ludork/`, `/Ludork/about/`, `/Ludork/notices/` | Website entries; About and notices accept `version=1.0`, defaulting to the first version. |
 | `embedded=1` | Hides the website header and the About/notices footer; language and version navigation preserve it. |
 
 The editor supplies its language and major.minor version when opening embedded pages.
+
+The documentation sidebar provides a Documentation link and an expandable FAQ node with scenario pages. Below the version selector, the title filter narrows the current language's chapter tree within the selected version; it does not search FAQ or document contents. The former chapter tabs are the chapter tree's first-level nodes.
 
 ## Documentation search index
 
@@ -48,4 +52,4 @@ The build generates `/Ludork/docs/v{version}/search-index.{language}.json` for p
 { version, language, documents: [{ key, title, path, content }] }
 ```
 
-It includes the home page and all documents in navigation order. `title` is the filename without `.md`, `path` is relative to the version directory, and `content` is the full Markdown with LF line endings. Select the required version and language explicitly. The index becomes available online after publishing; it does not add a website search UI.
+It includes the home page, all FAQ scenario pages and all chapter documents in navigation order. `title` is the filename without `.md`, `path` is relative to the version directory, and `content` is the full Markdown with LF line endings. Select the required version and language explicitly. The index becomes available online after publishing and is independent of the sidebar's title filter.

@@ -10,13 +10,12 @@ export type DocEntry = {
 }
 
 export type DocTreeItem =
-  | { type: 'folder'; path: string; displayName: string; children: DocTreeItem[] }
+  | { type: 'folder'; key: string; displayName: string; children: DocTreeItem[] }
   | { type: 'doc'; entry: DocEntry }
 
 export type DocSection = {
   key: string
   displayName: string
-  includesHome: boolean
   items: DocTreeItem[]
 }
 
@@ -38,9 +37,9 @@ function normalizeDocPath(filename: string): string {
   return filename.replace(/\\/g, '/').replace(/^\/+/, '')
 }
 
-function getManifest(language: LanguageKey): DocsManifest {
-  const manifest = manifestsByVersion[getDocsVersion()]?.[language]
-  if (!manifest) throw new Error(`Missing local docs manifest for ${language}`)
+function getManifest(language: LanguageKey, version = getDocsVersion()): DocsManifest {
+  const manifest = manifestsByVersion[version]?.[language]
+  if (!manifest) throw new Error(`Missing local docs manifest for ${version}/${language}`)
   return manifest
 }
 
@@ -49,7 +48,7 @@ function docsFromManifest(nodes: DocManifestNode[]): DocTreeItem[] {
     const displayName = entryDisplayName(node.path.split('/').at(-1)!)
     return node.children === undefined
       ? { type: 'doc', entry: { key: node.key, filename: node.path, displayName } }
-      : { type: 'folder', path: node.path, displayName, children: docsFromManifest(node.children) }
+      : { type: 'folder', key: node.key, displayName, children: docsFromManifest(node.children) }
   })
 }
 
@@ -58,7 +57,8 @@ function flattenManifest(nodes: DocManifestNode[]): DocManifestNode[] {
 }
 
 export function getDocKeyByFilename(language: LanguageKey, filename: string): string | null {
-  return flattenManifest(getManifest(language).sections)
+  const manifest = getManifest(language)
+  return flattenManifest([manifest.faq, ...manifest.sections])
     .find((node) => node.path === normalizeDocPath(filename))?.key ?? null
 }
 
@@ -68,6 +68,15 @@ export function getDocsHomeFilename(language: LanguageKey): string {
 
 export function getDocsHomePath(language: LanguageKey): string {
   return `docs/${language}/${getDocsHomeFilename(language)}`
+}
+
+export function getDocsFaqTree(language: LanguageKey): Extract<DocTreeItem, { type: 'folder' }> {
+  const faq = getManifest(language).faq
+  return { type: 'folder', key: faq.key, displayName: faq.path, children: docsFromManifest(faq.children) }
+}
+
+export function isFaqDoc(language: LanguageKey, docKey: string): boolean {
+  return flattenManifest(getManifest(language).faq.children).some((node) => node.key === docKey)
 }
 
 export function resolveKnownDocPath(path: string): KnownDocPath | null {
@@ -85,42 +94,14 @@ export function resolveKnownDocPath(path: string): KnownDocPath | null {
 
 export function getDocsSections(language: LanguageKey): DocSection[] {
   const manifest = getManifest(language)
-  return [
-    {
-      key: manifest.home.key,
-      displayName: entryDisplayName(manifest.home.path),
-      includesHome: true,
-      items: [],
-    },
-    ...manifest.sections.map((section) => ({
-      key: section.key,
-      displayName: section.path,
-      includesHome: false,
-      items: docsFromManifest(section.children),
-    })),
-  ]
+  return manifest.sections.map((section) => ({
+    key: section.key,
+    displayName: section.path,
+    items: docsFromManifest(section.children),
+  }))
 }
 
-export function flattenDocFilenames(items: readonly DocTreeItem[]): string[] {
-  const filenames: string[] = []
-  for (const item of items) {
-    if (item.type === 'doc') {
-      filenames.push(item.entry.filename)
-    } else {
-      filenames.push(...flattenDocFilenames(item.children))
-    }
-  }
-  return filenames
-}
-
-export function resolveFilenameByDocKey(language: LanguageKey, docKey: string): string | null {
-  return flattenManifest(getManifest(language).sections).find((node) => node.key === docKey)?.path ?? null
-}
-
-export function findSectionByFilename(
-  sections: readonly DocSection[],
-  filename: string,
-): DocSection | null {
-  const normalized = normalizeDocPath(filename)
-  return sections.find((section) => flattenDocFilenames(section.items).includes(normalized)) ?? null
+export function resolveFilenameByDocKey(language: LanguageKey, docKey: string, version = getDocsVersion()): string | null {
+  const manifest = getManifest(language, version)
+  return flattenManifest([manifest.faq, ...manifest.sections]).find((node) => node.key === docKey)?.path ?? null
 }

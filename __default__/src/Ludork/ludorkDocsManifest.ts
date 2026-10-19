@@ -13,5 +13,6 @@ export type DocManifestSection = DocManifestEntry & {
 
 export type DocsManifest = {
   home: DocManifestEntry
+  faq: DocManifestSection
   sections: DocManifestSection[]
 }

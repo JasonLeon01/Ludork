@@ -5,6 +5,7 @@ import type { DocManifestEntry, DocManifestNode, DocsManifest } from '../src/Lud
 
 type RootOrder = {
   home: DocManifestEntry
+  faq: DocManifestEntry
   sections: DocManifestEntry[]
 }
 
@@ -49,16 +50,19 @@ function readLanguageManifest(directory: string): DocsManifest {
   }
 
   const home = entry(order.home, '', false)
-  const sections = order.sections.map((section) => {
+  if (order.faq?.key !== 'faq') throw new Error(`Expected FAQ key "faq" in ${directory}`)
+  function readSection(section: DocManifestEntry) {
     const current = entry(section, '', true)
     const chapter: { items: DocManifestNode[] } = JSON.parse(
       readFileSync(resolve(directory, current.path, 'order.json'), 'utf8'),
     )
     return { ...current, children: nodes(chapter.items, current.path) }
-  })
+  }
+  const faq = readSection(order.faq)
+  const sections = order.sections.map(readSection)
   const missing = readMarkdownFiles(directory).filter((path) => !documents.has(path))
   if (missing.length) throw new Error(`Documents missing from order.json in ${directory}: ${missing.join(', ')}`)
-  return { home, sections }
+  return { home, faq, sections }
 }
 
 function structure(manifest: DocsManifest): string {
@@ -68,7 +72,7 @@ function structure(manifest: DocsManifest): string {
       ...(node.children === undefined ? {} : { children: nodes(node.children) }),
     })).sort((a, b) => a.key.localeCompare(b.key))
   }
-  return JSON.stringify({ home: manifest.home.key, sections: nodes(manifest.sections) })
+  return JSON.stringify({ home: manifest.home.key, faq: nodes([manifest.faq]), sections: nodes(manifest.sections) })
 }
 
 export function readDocsManifest(siteDirectory: string, versions: readonly string[]) {

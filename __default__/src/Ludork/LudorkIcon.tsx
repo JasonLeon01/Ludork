@@ -1,7 +1,7 @@
 import { Box } from '@mui/material'
 import chevronLeftSvg from './icons/chevron-left.svg?raw'
 import githubSvg from './icons/github.svg?raw'
-import homeSvg from './icons/home.svg?raw'
+import globeSvg from './icons/globe.svg?raw'
 import menuSvg from './icons/menu.svg?raw'
 
 type LudorkIconProps = {
@@ -29,8 +29,8 @@ export function GitHubIcon(props: LudorkIconProps) {
   return <LudorkIcon svg={githubSvg} {...props} />
 }
 
-export function HomeIcon(props: LudorkIconProps) {
-  return <LudorkIcon svg={homeSvg} {...props} />
+export function GlobeIcon(props: LudorkIconProps) {
+  return <LudorkIcon svg={globeSvg} {...props} />
 }
 
 export function ChevronLeftIcon(props: LudorkIconProps) {

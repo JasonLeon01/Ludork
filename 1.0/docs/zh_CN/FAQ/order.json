@@ -1,0 +1,24 @@
+{
+  "items": [
+    {
+      "key": "faq/projects",
+      "path": "项目创建与升级.md"
+    },
+    {
+      "key": "faq/gameplay",
+      "path": "脚本与玩法.md"
+    },
+    {
+      "key": "faq/assets",
+      "path": "资源与本地化.md"
+    },
+    {
+      "key": "faq/running",
+      "path": "运行调试与发布.md"
+    },
+    {
+      "key": "faq/saves",
+      "path": "存档与服务器.md"
+    }
+  ]
+}
