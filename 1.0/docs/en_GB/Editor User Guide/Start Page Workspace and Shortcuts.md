@@ -24,7 +24,7 @@ The embedded pages hide website navigation. Documentation links stay in the wind
 
 ## Global editor preferences
 
-`~/Ludork/Ludork.ini` stores preferences shared by all projects and restores them when the editor starts.
+Preferences shared by all projects are stored in `~/Ludork/Ludork.plist` on macOS and `~/Ludork/Ludork.ini` on other platforms, and restored when the editor starts. The macOS file uses the [XML plist configuration structure](<../Getting Started/Ludork Lua Advanced.md#platform-configuration-and-files>). Its directory stays `~/Ludork`; an existing macOS `Ludork.ini` is neither read nor migrated. A missing plist starts with the default preferences.
 
 | Area | Saved preferences |
 |---|---|
@@ -34,7 +34,7 @@ The embedded pages hide website navigation. Documentation links stay in the wind
 | Tool windows | Position, normal size and maximised state for each window type. |
 | Tool content | Existing adjustable split widths or proportions, the UI timeline and system-control category expansion, and particle configuration section expansion. |
 
-Defaults are icon view in both panels, 100% File Explorer zoom, a collapsed source list and the system file manager. Missing or invalid preferences use defaults. Project browsing and map selection stay in `Main.proj`; global preferences do not modify project resources or restore search text, input drafts, layer selection or canvas view state.
+Defaults are icon view in both panels, 100% File Explorer zoom, a collapsed source list and the system file manager. Missing or invalid preference values use defaults. An unreadable or malformed plist is reported and is not overwritten by preference saves; repair it and restart the editor before saving preferences again. Project browsing and map selection stay in `Main.proj`; global preferences do not modify project resources or restore search text, input drafts, layer selection or canvas view state.
 
 Window layouts adapt to the current monitors. For each window type, the most recent adjustment is restored; minimised state is not restored.
 
@@ -46,7 +46,7 @@ Windows and macOS editors use `~/Ludork` for persistent data in installed, porta
 
 | Data | Path below `~/Ludork` |
 |---|---|
-| Preferences, recent projects and window layouts | `Ludork.ini` |
+| Preferences, recent projects and window layouts | `Ludork.plist` on macOS; `Ludork.ini` on other platforms |
 | Global and project plug-ins, registrations and retained data | `Plugins/` and `plugins.json` |
 | Downloaded templates, all four variants | `Templates/v<base-version>/` |
 | Signing profile indexes | `macos-signing.json`, `ios-signing.json`, `harmony-signing.json`, `android-signing.json` |
@@ -68,7 +68,7 @@ The EXE uninstaller accepts `/REMOVEUSERDATA=0` or `/REMOVEUSERDATA=1`, also def
 
 Apart from the documented working-directory plug-in scan, old storage locations are not read or migrated automatically. Close Ludork and back up anything needed **before uninstalling an older version**. Windows previously stored editor data in the installation directory, while repository runs could use the working directory for settings and the repository for plug-ins. macOS settings and signing indexes previously lived in `~/Library/Application Support/Ludork`; its published plug-ins and template cache already used `~/Ludork`.
 
-After the new installation finishes, restore the required `Ludork.ini`, signing indexes, template cache and local server settings to the matching locations above. Restore `Plugins` and `plugins.json` together from the same backup. To preserve existing plug-ins during installation, clear the EXE's **Install Official Plugins** option or pass `INSTALL_OFFICIAL_PLUGINS=0` to MSI, then restore the backup. Restoring plug-ins before an installation that retains the default plug-in option would replace them again. Back up any existing destination files before replacing them. System credential-store entries and project files do not need to move.
+After the new installation finishes, restore the required preferences file in the [current platform format](<#global-editor-preferences>), signing indexes, template cache and local server settings to the matching locations above. Restore `Plugins` and `plugins.json` together from the same backup. To preserve existing plug-ins during installation, clear the EXE's **Install Official Plugins** option or pass `INSTALL_OFFICIAL_PLUGINS=0` to MSI, then restore the backup. Restoring plug-ins before an installation that retains the default plug-in option would replace them again. Back up any existing destination files before replacing them. System credential-store entries and project files do not need to move.
 
 ## Global shortcuts
 
@@ -104,7 +104,7 @@ Displayed field defaults are written only when the field is edited.
 
 File fields that can be cleared offer **Clear** as the first item in the file selector, in every directory and for every file filter. Select it and choose **Open**, press Enter or double-click it to clear the field. **Cancel** or Escape keeps the previous value. Save dialogs, multi-file imports and selectors that require an actual file do not offer this item.
 
-Managed resource changes stay in memory until Save. All Save buttons and `Ctrl/Command+S` write every modified document, including unopened resources, and Construct, Export, Play and Pack use the same workflow. Successful saves show no result dialog; a failed save reports only the failed items and their errors. Normal Save validates changed Blueprints, while forced saving can retain unfinished graphs. [Game Config](<Project Settings and Asset Layout.md#mainini>) writes immediately on confirmation.
+Managed resource changes stay in memory until Save. All Save buttons and `Ctrl/Command+S` write every modified document, including unopened resources, and Construct, Export, Play and Pack use the same workflow. Successful saves show no result dialog; a failed save reports only the failed items and their errors. Normal Save validates changed Blueprints, while forced saving can retain unfinished graphs. [Game Config](<Project Settings and Asset Layout.md#game-configuration>) writes immediately on confirmation.
 
 Saving and renaming resources temporarily disable editing, project switching and window closing. Longer operations show progress and cannot be cancelled. If project data changes during an operation, the editor asks you to retry.
 

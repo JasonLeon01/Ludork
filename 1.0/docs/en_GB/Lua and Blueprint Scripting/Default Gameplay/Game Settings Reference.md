@@ -1,12 +1,11 @@
 # Game Settings Reference
 
-**Game Config** edits supported `[Main]` values in `Main.ini`.
+**Game Config** edits supported values in the `Main` section of the [game configuration](<../../Editor User Guide/Project Settings and Asset Layout.md#game-configuration>).
 
 ## Supported keys
 
 | Key | Type | Meaning |
 |---|---|---|
-| `script` | path | Lua entry script; normally `Scripts/Entry.lua` |
 | `language` | string | Game catalogue key; see Game Localisation Workflow |
 | `scale` | float | Display-scale preference; defaults to Fullscreen (`0`) |
 | `maxrenderscale` | float | Maximum internal render scale, default `2.0`; Unlimited (`0`) removes the cap |
@@ -21,7 +20,7 @@ The editor preserves unknown sections and keys. Invalid supported values fall ba
 
 `Main.proj` contains project and tooling flags rather than mutable game preferences. `Cpp` selects native-project behaviour, `ffmpeg` selects video-capable packaging, and `IndividualWindow` stores the preferred editor run mode. `packaging.version` and `packaging.dev` store release settings; see [Release version and internal packages](<../../Editor User Guide/Run Debug and Package.md#release-version-and-internal-packages>).
 
-Normal Save writes changed settings. New projects and missing settings use High (`2`, `60`, `8`, `1`) and Fullscreen (`scale = 0`); existing values are not overwritten.
+Normal Save writes changed settings. New user configurations and missing settings use High (`2`, `60`, `8`, `1`) and Fullscreen (`scale = 0`); existing values are not overwritten.
 
 **Scale** applies immediately on configurable displays. Desktop windows and HarmonyOS tablets in free-window mode use positive values for a fixed window size and `0` for fullscreen; other mobile displays omit this option. A new config writes `scale = 0`, while a missing key uses `0` in memory only. Negative or non-finite values resolve to `1`. See [Display](<../Global and Core Modules/Core Modules/GlobalCore/Scenes and System.md#display>) for platform behaviour and runtime methods.
 
@@ -49,7 +48,7 @@ Standalone desktop startup, including HarmonyOS 2in1, filters the positive Scale
 
 ## Limitations
 
-Supported keys are interpreted by the current Game project readers. Adding a project-specific key requires corresponding runtime handling; merely adding it to `Main.ini` does not create behaviour.
+Supported keys are interpreted by the current Game project readers. Adding a project-specific key requires corresponding runtime handling; merely adding it to the configuration file does not create behaviour.
 
 A configurable HarmonyOS Mobile host samples its maximum windowed dimensions when the native host is initialised, when free-window mode becomes enabled and when the app returns to the foreground with that mode enabled. While the app remains in the foreground, moving the window to another display or changing the display's available area does not automatically resample this maximum. The next foreground return, free-window mode re-enable or host reinitialisation updates the capacity used by the Scale choices. HarmonyOS 2in1 instead follows the ordinary desktop window and display queries.
 

@@ -8,7 +8,7 @@ The runtime reads loose files and `.ldpak` entries through the same logical path
 
 ## Animation caches
 
-Animation sources live in `Data/Animations`. `Engine.getAnimationCacheRoot()` creates `Cache/Animations` under `Engine.getUserDataPath()` for both loose and archived Data. On Windows, the user-data root is the runtime working directory. Other platforms use their application user-data location.
+Animation sources live in `Data/Animations`. `Engine.getAnimationCacheRoot()` creates `Cache/Animations` under `Engine.getUserDataPath()` for both loose and archived Data. All launch modes use the [application user-data location](<../../Editor User Guide/Project Settings and Asset Layout.md#game-configuration>).
 
 Initialisation generates missing `.anim.json`/`.anim.ldc` caches and rebuilds them when source data or referenced frame assets change, preserving paths relative to `Data/Animations`. Caches are disposable and excluded from templates and player packages. Sources are decoded through `Engine.decodeData` and caches are written through `Engine.saveData`; `.anim.ldc` contains binary data, with no intermediate JSON conversion. Delete old caches containing compressed JSON so initialisation regenerates them.
 
@@ -16,7 +16,7 @@ Initialisation generates missing `.anim.json`/`.anim.ldc` caches and rebuilds th
 
 ## Audio
 
-Music, sound effects and voices have independent enable flags and volumes in `Main.ini`. Use the [GlobalFunctions Manager helpers](<../Global and Core Modules/Core Modules/GlobalFunctions.md#manager>) for gameplay playback.
+Music, sound effects and voices have independent enable flags and volumes in the [game configuration](<../../Editor User Guide/Project Settings and Asset Layout.md#game-configuration>). Use the [GlobalFunctions Manager helpers](<../Global and Core Modules/Core Modules/GlobalFunctions.md#manager>) for gameplay playback.
 
 `Global.Audio.MapAudio` manages map BGM/BGS playback and filters, using `Global.Audio.MapAudioState` for source reuse and fades. A custom scene creates an instance with `MapAudio.new()`, calls its `playMapAudio(mapData, transitionSeconds?)`, advances transitions through `onTick(deltaTime)` and stops playback with `stopMapAudio()`.
 

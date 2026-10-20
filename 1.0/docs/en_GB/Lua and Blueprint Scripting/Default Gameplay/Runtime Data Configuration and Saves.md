@@ -4,7 +4,7 @@
 
 Optional [remote account dictionaries](<../../Simple Server/Native Client API.md>) are a separate service. They do not automatically upload, download or replace the local saves described here; gameplay chooses which fields to read and write.
 
-`Data/Configs` contains game configuration JSON. `Main.ini` contains mutable launch and user settings. Use the configuration APIs and editor fields so unknown sections and keys survive a round trip.
+`Data/Configs` contains game configuration JSON. Mutable user settings use the [platform game configuration](<../../Editor User Guide/Project Settings and Asset Layout.md#game-configuration>). Use the configuration APIs and editor fields so unknown sections and keys survive a round trip.
 
 Resource-valued Config `file` fields store complete `/Game/Assets/...` paths, while `base` and `ext` only constrain the selector. Data references remain separate. `System.json` keeps `startPlayerBlueprint` relative to `Data/Blueprints` with `root = "Data"` and converts it to `Data.Blueprints.*`. `startRegion` names the initial region. Both affect new games only, and saves retain their player class and region.
 
@@ -16,9 +16,11 @@ Game Lua configuration modules live under `Scripts/Source/Configs` and are loade
 
 Initial data keys use paths relative to their category directory, with `/` separators and only the final extension removed. Dots in directory and file names are preserved: `folder.v1/item.v2.json` becomes `folder.v1/item.v2`. Animation keys remove the complete `.anim.json` cache suffix.
 
-In editor mode, `LUDORK_EDITOR=1` selects the project `Main.ini`. A normal packaged run uses the platform user-data location, with the packaged configuration as the initial source where applicable.
+`Engine.getUserDataPath(appNameOverride?)`, `Engine.getMainConfigPath(appNameOverride?)` and `Engine.getSavePath(appNameOverride?)` resolve the application user-data directory, configuration file and `Save/` directory. Entry calls `Engine.setAppName(APP_NAME)` before loading settings or saves. The optional override selects another application name for that lookup without changing the active name. All launch modes follow the same [directory rules](<../../Editor User Guide/Project Settings and Asset Layout.md#game-configuration>); `LUDORK_EDITOR` does not redirect these paths.
 
-An Android package mirrors its immutable runtime assets into `filesDir/ludork/runtime/<runtime-hash>` before native startup. Mutable configuration and saves use `filesDir/ludork/user-data`. They are never written back into that versioned runtime directory and do not require external-storage permission.
+`Source.Configs.Main.LoadOrCreate()` returns the user configuration path and its `ConfigParser`. It reads an existing file or creates the platform file with defaults when absent. An unreadable or malformed plist raises an error instead of being replaced by default settings. Startup selects its script independently of these preferences; see [Entry and module order](<../Lua Runtime and Modules.md#entry-and-module-order>).
+
+An Android package mirrors its immutable runtime assets into `filesDir/ludork/runtime/<runtime-hash>` before native startup. Mutable configuration and saves use `filesDir/ludork/user-data/<APP_NAME>`. They are never written back into that versioned runtime directory and do not require external-storage permission.
 
 ## Data services
 

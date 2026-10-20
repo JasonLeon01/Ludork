@@ -16,7 +16,7 @@ Ludork 运行 Lua 5.5，并提供 Standard 扩展、LuaSF 与项目原生模块�
 
 ## 入口与模块顺序
 
-`Main.ini` 指定入口脚本，通常为 `Scripts/Entry.lua`。按下面的顺序加载根原生模块，先完成全部直接 `require`，再声明别名：
+原生宿主启动命令行第一个参数指定的脚本；未提供脚本时，启动 `Scripts/Entry.lua`。宿主不会读取项目本地配置或 `script` 设置来选择入口。按下面的顺序加载根原生模块，先完成全部直接 `require`，再声明别名：
 
 ```lua
 local Engine = require("Engine")

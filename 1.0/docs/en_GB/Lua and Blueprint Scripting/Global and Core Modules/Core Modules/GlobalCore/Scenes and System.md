@@ -34,20 +34,17 @@ The Lua-only `scene:cancelTimers()` cancels unfinished timers and clears their i
 | `onDestroy` | `function` | self: { "GlobalCore", "SceneBase" } = "self" | — | — |
 
 
-All runtime services below are static types under `GlobalCore`. Configuration keeps its existing INI keys and defaults; each service owns its values and apply/save behaviour.
+All runtime services below are static types under `GlobalCore`. The [game configuration](<../../../Default Gameplay/Runtime Data Configuration and Saves.md#configuration>) uses the same keys and defaults on every platform; each service owns its values and apply/save behaviour.
 
 ## System
 
-`GlobalCore.System` owns configuration startup, the main loop, runtime lifecycle and script/language settings. `System.run()` enters the loop from Lua and is excluded from Blueprint metadata.
+`GlobalCore.System` owns configuration startup, the main loop, runtime lifecycle and language settings. `System.run()` enters the loop from Lua and is excluded from Blueprint metadata.
 
 ### Functions and events
 
 | Name | Kind | Parameters | Returns | Execution and metadata |
 |---|---|---|---|---|
 | `init` | `function` | data: ludork::standard::ConfigParser; dataFilePath: string | — | — |
-| `getScript` | `function` | — | return: string | — |
-| `setScript` | `function` | value: string | — | — |
-| `saveScript` | `function` | value: string | — | — |
 | `getLanguage` | `function` | — | return: string | — |
 | `setLanguage` | `function` | value: string | — | — |
 | `saveLanguage` | `function` | value: string | — | — |

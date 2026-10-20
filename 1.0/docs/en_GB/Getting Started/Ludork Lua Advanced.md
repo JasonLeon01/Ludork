@@ -184,7 +184,29 @@ Standard adds these helpers to Lua's existing libraries:
 
 `PLATFORM` is the lower-case target name (`win32`, `darwin`, `ios`, `android`, `ohos` or the CMake system name). `LUDORK_MOBILE` and `LUDORK_DESKTOP` expose the runtime host category. Do not infer a platform from paths or environment variables.
 
-`configparser.ConfigParser()` reads and writes INI data. It provides `read`, `write`, `has_section`, `add_section`, `get`, `getfloat`, `getint`, `getboolean` and `set`. `locale.getdefaultlocale()` returns the host locale pair.
+`configparser.ConfigParser()` provides `read`, `write`, `has_section`, `add_section`, `get`, `getfloat`, `getint`, `getboolean` and `set`. `read(path)` and `write(path)` select XML plist for a `.plist` extension, ignoring extension case; that backend is available only on macOS. Other paths use INI, so explicit `.ini` files remain usable on macOS. Use [the game configuration path API](<../Lua and Blueprint Scripting/Default Gameplay/Runtime Data Configuration and Saves.md#configuration>) for the platform's default game file.
+
+Configuration plists contain one root dictionary whose keys name sections. Each section is a dictionary of keys and string values, including numbers and booleans written as text. For example:
+
+```xml
+<plist version="1.0">
+  <dict>
+    <key>Main</key>
+    <dict>
+      <key>scale</key><string>1.25</string>
+      <key>verticalsync</key><string>true</string>
+    </dict>
+  </dict>
+</plist>
+```
+
+Binary plists and non-string setting values such as `<integer>`, `<real>`, `<true/>`, arrays or nested dictionaries are unsupported. Empty sections and strings, Unicode text and whitespace inside values are preserved. XML characters such as `&` and `<` are escaped when writing. Keys that differ only in case within one plist section are rejected.
+
+The runtime parser treats section names as case-sensitive and setting keys as case-insensitive, preserving the last spelling supplied by `set`. All stored values are strings; `getfloat`, `getint` and `getboolean` convert on access. Boolean text accepts `1`, `yes`, `true`, `on` and `0`, `no`, `false`, `off`, ignoring case and surrounding whitespace. A missing value or failed conversion returns the supplied fallback, or `nil` when no fallback was supplied. Repeated successful reads merge into the existing sections and retain unrelated keys.
+
+`read` returns `false` when the file is absent; the INI reader also returns `false` if it cannot open the file. An existing plist that cannot be read, has invalid structure or uses an unsupported format raises an error. A failed plist parse leaves the parser's existing sections unchanged. `write` serializes before opening the destination, so serialization failures leave the existing file intact; file-writing errors also raise.
+
+`locale.getdefaultlocale()` returns the host locale pair.
 
 Filesystem extensions are:
 

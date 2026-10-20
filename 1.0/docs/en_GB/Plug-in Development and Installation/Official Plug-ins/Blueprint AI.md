@@ -42,7 +42,7 @@ An unfinished request is recorded as interrupted. Its completed local records re
 
 ## Project source inspection
 
-Project search and file reading only accept project-relative paths under the configured runtime and API source roots, with supported text extensions. Build outputs, logs, VCS data, INI files, plug-in data, credentials and paths outside the project are rejected. Symbolic links, broken links and reparse points are rejected throughout the path, including the project root. File-system failures during reading or searching are returned as tool errors. File contents are treated as data, not as instructions that can expand assistant permissions.
+Project search and file reading only accept project-relative paths under the configured runtime and API source roots, with supported text extensions. Build outputs, logs, VCS data, INI/plist configuration files, plug-in data, credentials and paths outside the project are rejected. Symbolic links, broken links and reparse points are rejected throughout the path, including the project root. File-system failures during reading or searching are returned as tool errors. File contents are treated as data, not as instructions that can expand assistant permissions.
 
 ## Official documentation
 

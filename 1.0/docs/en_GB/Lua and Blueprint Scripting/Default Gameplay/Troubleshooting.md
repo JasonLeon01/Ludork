@@ -10,7 +10,7 @@ A save error identifies invalid parents, inheritance cycles, nodes, links, pins 
 
 ## The game will not start
 
-Read the Console from the first failure. Complete Construct when required, then Export; Play checks these in that order. Export validation or plug-in failures block launch, as do before-Run hook failures. Check the generated UI and locale files, `Assets/Shaders/MaterialGenerated`, native modules, the `Main.ini` entry script, Core module order and runtime protocol diagnostics.
+Read the Console from the first failure. Complete Construct when required, then Export; Play checks these in that order. Export validation or plug-in failures block launch, as do before-Run hook failures. Check the generated UI and locale files, `Assets/Shaders/MaterialGenerated`, native modules, the [startup script](<../Lua Runtime and Modules.md#entry-and-module-order>), Core module order and runtime protocol diagnostics.
 
 ## A node is missing
 
@@ -26,7 +26,7 @@ Language-file IDs, the active language and `LOC` formatting must match the proje
 
 ## Packaged behaviour differs
 
-Check the package's assets, scripts, native modules, FFmpeg variant, writable `Main.ini` location and platform-specific path handling. Never infer the platform from path separators. Use the injected `PLATFORM` value.
+Check the package's assets, scripts, native modules, FFmpeg variant, [writable game configuration location](<../../Editor User Guide/Project Settings and Asset Layout.md#game-configuration>) and platform-specific path handling. Never infer the platform from path separators. Use the injected `PLATFORM` value.
 
 Android packaging requires a C++ Source project, a local Android Studio installation and its supporting tools. Packaging errors list missing requirements; see [Run, Debug and Package](<../../Editor User Guide/Run Debug and Package.md>) for installation paths and versions.
 

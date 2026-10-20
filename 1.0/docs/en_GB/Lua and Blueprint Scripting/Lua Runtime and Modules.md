@@ -16,7 +16,7 @@ A Blueprint inheritance chain uses either graph mode or Script Mixin mode. Do no
 
 ## Entry and module order
 
-`Main.ini` selects the entry script, normally `Scripts/Entry.lua`. Load the root native modules in the order shown below, finish the direct `require` calls, then declare aliases:
+Native startup runs the script passed as the first command-line argument, or `Scripts/Entry.lua` when no script is supplied. It does not read a project-local configuration or a `script` setting to select the entry. Load the root native modules in the order shown below, finish the direct `require` calls, then declare aliases:
 
 ```lua
 local Engine = require("Engine")

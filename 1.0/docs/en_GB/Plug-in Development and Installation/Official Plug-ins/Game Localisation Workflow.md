@@ -65,7 +65,7 @@ local message = LOC(
 
 `Locale.SetLanguage` changes the active language and synchronously publishes `LocaleChanged`. The Config window saves the selection. Subscribed UI refreshes its text from the original locale keys without resetting the selection, the focus or an active dialogue.
 
-A new `Main.ini` uses the platform language when it exactly matches a supported language, otherwise `en_GB`. Existing language settings are preserved. See [Runtime Data, Configuration and Saves](<../../Lua and Blueprint Scripting/Default Gameplay/Runtime Data Configuration and Saves.md>) for configuration defaults.
+A new game configuration uses the platform language when it exactly matches a supported language, otherwise `en_GB`. Existing language settings are preserved. See [Runtime configuration](<../../Lua and Blueprint Scripting/Default Gameplay/Runtime Data Configuration and Saves.md#configuration>) for loading and creation.
 
 Lua compilation and **Archive Assets, Data and Scripts (.ldpak)** process Core and the generated language files with the rest of the Scripts tree. Official Locale Tools does not inspect either option or process the locale directory separately.
 

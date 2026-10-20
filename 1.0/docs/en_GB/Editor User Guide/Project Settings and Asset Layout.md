@@ -1,6 +1,6 @@
 # Project Settings and Asset Layout
 
-A project stores editor and packaging settings in `Main.proj`, runtime settings in `Main.ini`, resources in `Assets`, authored data in `Data` and runtime code in `Scripts`. C++ Source projects also include the native sources described in [Build and Module Layout](<../Native C++ Development/Build and Module Layout.md>).
+A project stores editor and packaging settings in `Main.proj`, runtime settings in its [game configuration](<#game-configuration>), resources in `Assets`, authored data in `Data` and runtime code in `Scripts`. C++ Source projects also include the native sources described in [Build and Module Layout](<../Native C++ Development/Build and Module Layout.md>).
 
 ## Main.proj
 
@@ -30,21 +30,23 @@ Treat unknown keys as editor-owned state and preserve them. Choose the FFmpeg te
 
 The editor stores the last selected map key in `lastOpenedMapKey` and saves it immediately when the editing selection changes, without saving map content. Reopening the project restores that map, including world maps and their child maps. Missing or invalid records select the first available entry; an empty project has no selection. Live-debug map changes do not overwrite this preference.
 
-Editor appearance and tool preferences are shared through `Ludork.ini`, independently of this project workspace state. See [Global editor preferences](<Start Page Workspace and Shortcuts.md#global-editor-preferences>).
+Editor appearance and tool preferences are shared independently of this project workspace state. See [Global editor preferences](<Start Page Workspace and Shortcuts.md#global-editor-preferences>).
 
-## Main.ini
+## Game configuration
 
-Open **Game → Game Config** (`F3`) to edit the game’s language, display and audio settings in `Main.ini`. The entry script is shown read-only.
+Open **Game → Game Config** (`F3`) to edit the game’s language, display and audio settings.
+
+macOS stores these settings in `Main.plist`, using XML plist. Other platforms, including iOS, use `Main.ini`. The section names, keys and defaults are the same in both formats. macOS does not read or migrate an existing `Main.ini`; if `Main.plist` is absent, new settings use the defaults and the INI file is left untouched. The plist structure is described in [Platform, configuration and files](<../Getting Started/Ludork Lua Advanced.md#platform-configuration-and-files>).
 
 The language list uses the exported `Scripts/Source/Locale/*.lua` files, excluding `Core.lua`, and refreshes whenever Game Config opens. The current configured language remains available even if its export is missing. Export workbook changes before selecting a newly added language.
 
-**Confirm** saves immediately; **Cancel** keeps the previous values. A failed write leaves the dialog open with an error. These settings are outside document Undo and unsaved changes.
-
-![Game Config with display and audio settings](../../../images/editor/game-config.png)
+**Confirm** saves immediately; **Cancel** keeps the previous values. A failed write leaves the dialog open with an error. An unreadable or malformed plist is reported, and Confirm cannot overwrite it with defaults; repair the file before saving. These settings are outside document Undo and unsaved changes.
 
 Game Config always shows Scale in the editor. The in-game Config window shows that row only when `Display.isDisplayScaleConfigurable()` reports that the host supports display scaling.
 
-Editor runs use the project copy of `Main.ini`. A packaged Windows desktop game writes `Main.ini` and `Save/` into its runtime root, beside `Assets`, `Data` and `Scripts`, because Windows resolves user data to the process working directory. macOS and Linux desktop builds use `$HOME/<AppName>`, iOS uses `~/Library/Application Support/<AppName>`, and HarmonyOS and Android use the app-private user-data root. See [Game Settings Reference](<../Lua and Blueprint Scripting/Default Gameplay/Game Settings Reference.md>) for the keys, choices, defaults and application timing.
+Windows, macOS and Linux desktop games use `~/<APP_NAME>` for configuration, `Save/` and runtime caches in editor Play, IDE launches, direct runs and packaged games. `~` is the current user's home directory, typically `C:\Users\<user>` on Windows and `/Users/<user>` on macOS. iOS uses `~/Library/Application Support/<APP_NAME>`; HarmonyOS and Android use `<APP_NAME>` below their app-private user-data root.
+
+`APP_NAME` remains the static declaration in `Scripts/Entry.lua`, described in [Packaging](<Run Debug and Package.md#packaging>). Projects with the same name share configuration, saves and caches for the current user. Changing the name selects another directory; existing files are not migrated. Project-local configurations and `Save/` are neither read nor written, and an old local file does not supply defaults. Use [the runtime path APIs](<../Lua and Blueprint Scripting/Default Gameplay/Runtime Data Configuration and Saves.md#configuration>) to resolve these locations. See [Game Settings Reference](<../Lua and Blueprint Scripting/Default Gameplay/Game Settings Reference.md>) for the keys, choices, defaults and application timing.
 
 ## System Config
 

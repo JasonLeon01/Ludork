@@ -184,7 +184,29 @@ Standard 在 Lua 自带库的基础上补充了下列辅助函数：
 
 `PLATFORM` 是目标平台的小写名称（`win32`、`darwin`、`ios`、`android`、`ohos`，或 CMake 系统名）。`LUDORK_MOBILE` 与 `LUDORK_DESKTOP` 给出运行时宿主类别。不要从路径或环境变量推断平台。
 
-`configparser.ConfigParser()` 读写 INI 数据，提供 `read`、`write`、`has_section`、`add_section`、`get`、`getfloat`、`getint`、`getboolean` 与 `set`。`locale.getdefaultlocale()` 返回宿主 locale 对。
+`configparser.ConfigParser()` 提供 `read`、`write`、`has_section`、`add_section`、`get`、`getfloat`、`getint`、`getboolean` 与 `set`。`read(path)` 和 `write(path)` 在扩展名为 `.plist` 时选择 XML plist，扩展名不区分大小写；该后端仅在 macOS 上可用。其他路径使用 INI，因此 macOS 仍可显式读写 `.ini` 文件。默认游戏配置应通过[游戏配置路径 API](<../Lua 与蓝图脚本/Game 玩法/运行时数据、配置与存档.md#配置>)获取。
+
+配置 plist 包含一个根字典，根字典的键是配置节名称。每个配置节又是一个字典，其中的设置值全部为字符串，包括以文本保存的数值和布尔值。例如：
+
+```xml
+<plist version="1.0">
+  <dict>
+    <key>Main</key>
+    <dict>
+      <key>scale</key><string>1.25</string>
+      <key>verticalsync</key><string>true</string>
+    </dict>
+  </dict>
+</plist>
+```
+
+不支持二进制 plist，也不支持 `<integer>`、`<real>`、`<true/>`、数组或嵌套字典等非字符串设置值。空配置节、空字符串、Unicode 文本和值内部的空白都会保留，写入时会转义 `&`、`<` 等 XML 字符。同一 plist 配置节中，只有大小写不同的重复键会被拒绝。
+
+运行时解析器的配置节名称区分大小写，设置键不区分大小写，并保留最近一次 `set` 提供的键名拼写。所有值以字符串保存，`getfloat`、`getint` 与 `getboolean` 在读取时转换。布尔文本接受 `1`、`yes`、`true`、`on` 和 `0`、`no`、`false`、`off`，忽略大小写及两端空白。键缺失或转换失败时，返回传入的回退值；未传回退值则返回 `nil`。多次成功读取会合并到现有配置节中，并保留无关键。
+
+文件不存在时，`read` 返回 `false`；INI 读取器在无法打开文件时也返回 `false`。已有 plist 无法读取、结构无效或使用不支持的格式时会报错。plist 解析失败不会改变解析器已有的配置节。`write` 先完成序列化，再打开目标文件，因此序列化失败不会改动已有文件；文件写入错误也会报错。
+
+`locale.getdefaultlocale()` 返回宿主 locale 对。
 
 文件系统扩展如下：
 

@@ -25,7 +25,7 @@ Release editors download the matching template on first use. See [Obtaining temp
 4. Open **Console** to see runtime output. Project editing is disabled while the game runs unless [Live Debug](<../Editor User Guide/Run Debug and Package.md#live-debug>) was enabled before Play.
 5. Click the same button, now **Stop**, to stop the game and resume editing.
 
-A new project has no `Main.ini`; the runtime creates it on the first run. See [Project Settings and Asset Layout](<../Editor User Guide/Project Settings and Asset Layout.md>) for the project’s files and folders.
+The runtime creates user configuration when none exists for the project's `APP_NAME`; otherwise it reuses the existing settings. See [Game configuration](<../Editor User Guide/Project Settings and Asset Layout.md#game-configuration>) for its format, location and sharing rules.
 
 ## Related pages
 
