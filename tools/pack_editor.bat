@@ -369,12 +369,12 @@ del /S /Q "%~1\*.pdb" >nul 2>nul
 exit /b 0
 
 :purge_template_runtime_state
-for %%T in (%CPP_TEMPLATE_NAMES%) do (
+for %%T in (%TEMPLATE_NAMES%) do (
     if exist "%~1\%%T\Log" rmdir /S /Q "%~1\%%T\Log"
     if exist "%~1\%%T\Save" rmdir /S /Q "%~1\%%T\Save"
-    if exist "%~1\%%T\Main.ini" del /Q "%~1\%%T\Main.ini"
-    if exist "%~1\%%T\Ludork.ini" del /Q "%~1\%%T\Ludork.ini"
-    if exist "%~1\%%T\Ludork-startup-error.log" del /Q "%~1\%%T\Ludork-startup-error.log"
+    for %%F in (Main.ini Main.plist Ludork.ini Ludork.plist Ludork-startup-error.log) do (
+        if exist "%~1\%%T\%%F" del /Q "%~1\%%T\%%F"
+    )
 )
 exit /b 0
 
@@ -570,6 +570,7 @@ for %%P in (
     "%PACKAGE_DIR%\.tools"
     "%PACKAGE_DIR%\Page"
     "%PACKAGE_DIR%\Ludork.ini"
+    "%PACKAGE_DIR%\Ludork.plist"
     "%PACKAGE_DIR%\Locale\locale.json"
     "%PACKAGE_DIR%\tools\ScriptTools.exe"
     "%PACKAGE_DIR%\tools\ScriptTools-runtime-versions.txt"
@@ -660,6 +661,10 @@ for %%T in (%TEMPLATE_NAMES%) do (
         echo Non-runtime licence directory was found in a project template: %PACKAGE_DIR%\Templates\%%T\Licenses\%%L
         exit /b 1
     )
+    for %%F in (Main.ini Main.plist Ludork.ini Ludork.plist) do if exist "%PACKAGE_DIR%\Templates\%%T\%%F" (
+        echo Template runtime configuration was found: %PACKAGE_DIR%\Templates\%%T\%%F
+        exit /b 1
+    )
 )
 for %%T in (%PLAIN_TEMPLATE_NAMES%) do if exist "%PACKAGE_DIR%\Templates\%%T\Licenses\FFmpeg" (
     echo FFmpeg licence material was found in a non-FFmpeg template: %PACKAGE_DIR%\Templates\%%T\Licenses\FFmpeg
@@ -706,10 +711,6 @@ for %%T in (%CPP_TEMPLATE_NAMES%) do (
     )
     if exist "%PACKAGE_DIR%\Templates\%%T\Save" (
         echo Template runtime save directory was found: %PACKAGE_DIR%\Templates\%%T\Save
-        exit /b 1
-    )
-    if exist "%PACKAGE_DIR%\Templates\%%T\Main.ini" (
-        echo Template runtime configuration was found: %PACKAGE_DIR%\Templates\%%T\Main.ini
         exit /b 1
     )
     if exist "%PACKAGE_DIR%\Templates\%%T\Ludork-startup-error.log" (

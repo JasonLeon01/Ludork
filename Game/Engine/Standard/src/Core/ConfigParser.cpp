@@ -9,16 +9,38 @@
 #include <fstream>
 #include <map>
 #include <optional>
+#include <sstream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
+#include <system_error>
 #include <utility>
 
 namespace ludork::standard {
 
+std::string ConfigParser::defaultFileName(std::string_view stem) {
+    return std::string(stem) +
+           (std::string_view(LUDORK_PLATFORM) == "darwin" ? ".plist" : ".ini");
+}
+
 bool ConfigParser::read(const std::filesystem::path& path) {
+    const bool plist = lowercase(pathToUtf8(path.extension())) == ".plist";
     std::ifstream input(path, std::ios::binary);
     if (!input) {
+        if (plist) {
+            std::error_code error;
+            const bool exists = std::filesystem::exists(path, error);
+            if (exists || error) {
+                throw std::runtime_error(
+                    "Failed to open XML plist file for reading: " +
+                    pathToUtf8(path));
+            }
+        }
         return false;
+    }
+    if (plist) {
+        readPlist(input, path);
+        return true;
     }
     std::string section;
     std::string line;
@@ -147,25 +169,35 @@ void ConfigParser::set(const std::string& section, const std::string& key,
 }
 
 void ConfigParser::write(const std::filesystem::path& path) const {
+    std::string content;
+    if (lowercase(pathToUtf8(path.extension())) == ".plist") {
+        content = serializePlist(path);
+    } else {
+        std::ostringstream serialized;
+        bool first = true;
+        for (const auto& [section, values] : sections_) {
+            if (!first) {
+                serialized << '\n';
+            }
+            first = false;
+            serialized << '[' << section << "]\n";
+            for (const auto& [canonical, entry] : values) {
+                static_cast<void>(canonical);
+                serialized << entry.first << " = " << entry.second << '\n';
+            }
+        }
+        content = serialized.str();
+    }
     std::ofstream output(path, std::ios::binary | std::ios::trunc);
     if (!output) {
-        throw std::runtime_error("Failed to open INI file for writing: " +
-                                 pathToUtf8(path));
+        throw std::runtime_error(
+            "Failed to open configuration file for writing: " +
+            pathToUtf8(path));
     }
-    bool first = true;
-    for (const auto& [section, values] : sections_) {
-        if (!first) {
-            output << '\n';
-        }
-        first = false;
-        output << '[' << section << "]\n";
-        for (const auto& [canonical, entry] : values) {
-            static_cast<void>(canonical);
-            output << entry.first << " = " << entry.second << '\n';
-        }
-    }
+    output.write(content.data(), static_cast<std::streamsize>(content.size()));
+    output.flush();
     if (!output) {
-        throw std::runtime_error("Failed to write INI file: " +
+        throw std::runtime_error("Failed to write configuration file: " +
                                  pathToUtf8(path));
     }
 }

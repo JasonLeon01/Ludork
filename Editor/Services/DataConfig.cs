@@ -11,7 +11,7 @@ public static class DataConfig
 
     private static readonly string[] HiddenExtensions =
     [
-        ".ini", ".proj", ".csproj", ".vcxproj", ".log", ".tmp",
+        ".ini", ".plist", ".proj", ".csproj", ".vcxproj", ".log", ".tmp",
     ];
 
     public static bool shouldDisplay(string path)

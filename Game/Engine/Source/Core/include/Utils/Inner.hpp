@@ -22,8 +22,8 @@ BIND_FUNCTION(name = "getSavePath")
 std::string getSavePath(
     const std::optional<std::string>& appNameOverride = std::nullopt);
 
-BIND_FUNCTION(name = "getMainIniPath")
-std::string getMainIniPath(
+BIND_FUNCTION(name = "getMainConfigPath")
+std::string getMainConfigPath(
     const std::optional<std::string>& appNameOverride = std::nullopt);
 
 BIND_FUNCTION(name = "getAnimationSourceRoot")

@@ -295,7 +295,7 @@ set COPY_TEMPLATE_EXCLUDED_DIRECTORIES="%SOURCE_DIR%\Binaries" "%SOURCE_DIR%\.ve
 set COPY_TEMPLATE_EXCLUDED_DIRECTORIES=%COPY_TEMPLATE_EXCLUDED_DIRECTORIES% "%SOURCE_DIR%\Scripts\Internal\UI" "%SOURCE_DIR%\Scripts\stub\Internal\UI" "%SOURCE_DIR%\Scripts\stub\Internal\UIWindows" "%SOURCE_DIR%\Scripts\stub\Enums" "%SOURCE_DIR%\Scripts\Source\Locale"
 set COPY_TEMPLATE_EXCLUDED_DIRECTORIES=%COPY_TEMPLATE_EXCLUDED_DIRECTORIES% "%SOURCE_DIR%\Engine\ThirdParty\SFML\test" "%SOURCE_DIR%\Assets\Shaders\MaterialGenerated"
 if "%~2"=="0" set COPY_TEMPLATE_EXCLUDED_DIRECTORIES=%COPY_TEMPLATE_EXCLUDED_DIRECTORIES% "%SOURCE_DIR%\Engine\ThirdParty\ffmpeg"
-robocopy "%SOURCE_DIR%" "%~1" /E /XD %COPY_TEMPLATE_EXCLUDED_DIRECTORIES% /XF *.anim.json *.py *.pyc *.pyo *.log BuildInfo.json Main.ini Ludork.ini CMakeUserPresets.json generate_clion.sh standalone-launch.json standalone-extensions.json /NFL /NDL /NJH /NJS /NP
+robocopy "%SOURCE_DIR%" "%~1" /E /XD %COPY_TEMPLATE_EXCLUDED_DIRECTORIES% /XF *.anim.json *.py *.pyc *.pyo *.log BuildInfo.json Main.ini Main.plist Ludork.ini Ludork.plist CMakeUserPresets.json generate_clion.sh standalone-launch.json standalone-extensions.json /NFL /NDL /NJH /NJS /NP
 if errorlevel 8 exit /b %errorlevel%
 if exist "%SOURCE_DIR%\Scripts\Source\Locale\Core.lua" (
     if not exist "%~1\Scripts\Source\Locale" mkdir "%~1\Scripts\Source\Locale"

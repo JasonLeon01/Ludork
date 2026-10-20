@@ -450,7 +450,9 @@ purge_template_runtime_state() {
         rm -rf "$template_dir/Log" "$template_dir/Save"
         rm -f \
             "$template_dir/Main.ini" \
+            "$template_dir/Main.plist" \
             "$template_dir/Ludork.ini" \
+            "$template_dir/Ludork.plist" \
             "$template_dir/Ludork-startup-error.log"
     done
 }
@@ -933,6 +935,7 @@ validate_package() {
         "$package_macos/Licenses" \
         "$package_macos/tools" \
         "$package_macos/Ludork.ini" \
+        "$package_macos/Ludork.plist" \
         "$package_resources/Locale/locale.json" \
         "$package_resources"/About_*.md \
         "$package_resources"/THIRD_PARTY_NOTICES*.md \
@@ -1058,7 +1061,9 @@ validate_package() {
             "$template_dir/Log" \
             "$template_dir/Save" \
             "$template_dir/Main.ini" \
+            "$template_dir/Main.plist" \
             "$template_dir/Ludork.ini" \
+            "$template_dir/Ludork.plist" \
             "$template_dir/Ludork-startup-error.log"; do
             if [ -e "$runtime_path" ]; then
                 echo "Template runtime state was found: $runtime_path" >&2

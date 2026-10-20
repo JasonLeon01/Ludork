@@ -41,6 +41,9 @@ target_link_libraries(Engine
     PRIVATE
         Ludork::Standard)
 ludork_link_engine_platform(Engine)
+if(WIN32)
+    target_link_libraries(Engine PRIVATE shell32 ole32)
+endif()
 ludork_configure_core_library(
     Engine
     "${LUDORK_ENGINE_BINDINGS}"

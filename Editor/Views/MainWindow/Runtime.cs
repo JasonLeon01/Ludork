@@ -150,7 +150,17 @@ public partial class MainWindow
         return AlertDialog.ShowAsync(this, LocaleService.Get(title), getProjectRunFailureMessage(result));
     }
 
-    private void onProjectOperationStateChanged(object? sender, ProjectRunState state) => setProjectRunState(state);
+    private async void onProjectOperationStateChanged(object? sender, ProjectRunState state)
+    {
+        bool returnedFromRun = setProjectRunState(state);
+        if (!returnedFromRun || viewModel is null)
+            return;
+        GameConfigService gameConfig = viewModel.GameConfig;
+        await gameConfig.ReloadAsync();
+        if (!closingPrompt && !closeConfirmed && ReferenceEquals(viewModel?.GameConfig, gameConfig)
+            && gameConfig.LoadError is string loadError)
+            appendConsoleLine(LocaleService.Get("GAME_CONFIG_LOAD_FAILED") + Environment.NewLine + loadError);
+    }
 
     private async Task<ProjectRunResult> exportProjectAsync(Action<string> writeOutput, CancellationToken cancellationToken)
     {
@@ -443,7 +453,7 @@ public partial class MainWindow
         Avalonia.Automation.AutomationProperties.SetName(ConstructButton, LocaleService.Get("CONSTRUCT"));
     }
 
-    private void setProjectRunState(ProjectRunState state)
+    private bool setProjectRunState(ProjectRunState state)
     {
         bool active = state != ProjectRunState.Idle;
         if (state == ProjectRunState.Running)
@@ -472,8 +482,6 @@ public partial class MainWindow
         updateLiveDebugControls();
         if (!active)
         {
-            if (returnedFromRun && viewModel is not null)
-                viewModel.GameConfig.Reload();
             restoreEditorViewport();
         }
         else
@@ -482,6 +490,7 @@ public partial class MainWindow
                 && state == ProjectRunState.Running
                 && activeWindowMode == ProjectWindowMode.Embedded);
         updateConsoleInputState();
+        return returnedFromRun;
     }
 
     private async Task<nint> prepareGameViewportAsync(ProjectWindowMode windowMode)

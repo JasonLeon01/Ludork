@@ -19,6 +19,13 @@ public static class ProjectPackageMetadataService
         return executeAsync("app-name", projectPath, null, false, cancellationToken);
     }
 
+    public static Task<ProjectPackageMetadataResult> ReadRuntimeAppNameAsync(
+        string projectPath,
+        CancellationToken cancellationToken)
+    {
+        return executeAsync("runtime-app-name", projectPath, null, false, cancellationToken);
+    }
+
     public static Task<ProjectPackageMetadataResult> ExecuteAsync(
         string operation,
         string? projectPath,
@@ -71,7 +78,8 @@ public static class ProjectPackageMetadataService
             Task<string> error = process.StandardError.ReadToEndAsync();
             using CancellationTokenRegistration registration = cancellationToken.Register(() => stopProcess(process));
             await process.WaitForExitAsync().ConfigureAwait(false);
-            string outputText = (await output.ConfigureAwait(false)).Trim();
+            string outputText = await output.ConfigureAwait(false);
+            outputText = operation == "runtime-app-name" ? outputText.TrimEnd('\r', '\n') : outputText.Trim();
             string errorText = (await error.ConfigureAwait(false)).Trim();
             cancellationToken.ThrowIfCancellationRequested();
             return new(process.ExitCode, outputText, errorText);

@@ -407,9 +407,13 @@ function math.moveTowards(current, target, maxDelta) end
 ---@return number
 function perfCounter() end
 
+--- Reads and writes INI files, or XML plist files on macOS when the path ends in `.plist`.
+--- Plist configuration uses section dictionaries containing string values.
+--- Section names are case-sensitive; keys are case-insensitive.
 ---@class ConfigParser
 local ConfigParser = {}
 
+--- Merges a successfully parsed file into this parser. Invalid plist data raises an error without changing it.
 ---@param path string
 ---@return boolean
 function ConfigParser:read(path) end

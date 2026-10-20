@@ -10,10 +10,10 @@ local DISPLAY_SCALE_EPSILON = 0.0001
 local DISPLAY_SCALE_PRESETS = { 0.0, 1.0, 1.25, 1.5, 1.75, 2.0, 3.0, 4.0 }
 local MAXIMUM_RENDER_SCALE_PRESETS = { 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0, 0.0 }
 local DEFAULT_MAIN_ITEMS = {
-    { "script", "Scripts/Entry.lua" }, { "language", Locale.DEFAULT_LANGUAGE }, { "framerate", "60" },
-    { "maxrenderscale", "2.0" }, { "antialiasinglevel", "8" }, { "lightingrenderscale", "1.0" },
-    { "verticalsync", "true" }, { "musicon", "true" }, { "soundon", "true" }, { "voiceon", "true" },
-    { "musicvolume", "100.00" }, { "soundvolume", "100.00" }, { "voicevolume", "100.00" }
+    { "language", Locale.DEFAULT_LANGUAGE }, { "framerate", "60" }, { "maxrenderscale", "2.0" },
+    { "antialiasinglevel", "8" }, { "lightingrenderscale", "1.0" }, { "verticalsync", "true" }, { "musicon", "true" },
+    { "soundon", "true" }, { "voiceon", "true" }, { "musicvolume", "100.00" }, { "soundvolume", "100.00" },
+    { "voicevolume", "100.00" }
 }
 
 MainConfig.SupportedLanguages = { Locale.DEFAULT_LANGUAGE, "zh_CN" }
@@ -30,21 +30,14 @@ local function getInitialLanguage()
     return Locale.DEFAULT_LANGUAGE
 end
 
-local function getIniFilePath()
-    if os.getenv("LUDORK_EDITOR") == "1" then
-        return "./Main.ini"
-    end
-    return Engine.getMainIniPath()
-end
-
-local function createMainIni(iniFilePath, iniFile)
-    iniFile:add_section("Main")
+local function createMainConfig(configFilePath, configFile)
+    configFile:add_section("Main")
     for _, item in ipairs(DEFAULT_MAIN_ITEMS) do
-        iniFile:set("Main", item[1], item[2])
+        configFile:set("Main", item[1], item[2])
     end
-    iniFile:set("Main", "language", getInitialLanguage())
-    iniFile:set("Main", "scale", tostring(DEFAULT_DISPLAY_SCALE))
-    iniFile:write(iniFilePath)
+    configFile:set("Main", "language", getInitialLanguage())
+    configFile:set("Main", "scale", tostring(DEFAULT_DISPLAY_SCALE))
+    configFile:write(configFilePath)
 end
 
 local function scaleFits(scale, maximumScale)
@@ -124,19 +117,19 @@ function MainConfig.GetMaximumRenderScaleOptions(configuredScale)
 end
 
 function MainConfig.LoadOrCreate()
-    local iniFilePath = getIniFilePath()
-    local iniFile = configparser.ConfigParser()
-    if os.path.isfile(iniFilePath) then
-        iniFile:read(iniFilePath)
-        Logging.debug("Loaded main configuration: %s", iniFilePath)
+    local configFilePath = Engine.getMainConfigPath()
+    local configFile = configparser.ConfigParser()
+    if os.path.isfile(configFilePath) then
+        configFile:read(configFilePath)
+        Logging.debug("Loaded main configuration: %s", configFilePath)
     else
-        createMainIni(iniFilePath, iniFile)
-        Logging.info("Created main configuration: %s", iniFilePath)
+        createMainConfig(configFilePath, configFile)
+        Logging.info("Created main configuration: %s", configFilePath)
     end
-    if iniFile:get("Main", "scale", nil) == nil then
-        iniFile:set("Main", "scale", tostring(DEFAULT_DISPLAY_SCALE))
+    if configFile:get("Main", "scale", nil) == nil then
+        configFile:set("Main", "scale", tostring(DEFAULT_DISPLAY_SCALE))
     end
-    return iniFilePath, iniFile
+    return configFilePath, configFile
 end
 
 return MainConfig

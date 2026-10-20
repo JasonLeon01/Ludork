@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Ludork.Views;
@@ -21,6 +22,7 @@ public sealed class GameConfigWindow : Window
     private static readonly int[] frameRateValues = [30, 60, 90, 120, 0];
     private static readonly int[] antiAliasingLevelValues = [0, 2, 4, 8];
     private readonly GameConfigData initialData;
+    private readonly string initialConfigPath;
     private readonly GameConfigService service;
     private readonly ComboBox languageBox;
     private readonly ComboBox scaleBox;
@@ -37,20 +39,22 @@ public sealed class GameConfigWindow : Window
     private readonly NumericUpDown soundVolumeBox;
     private readonly NumericUpDown voiceVolumeBox;
     private readonly Button confirmButton;
+    private CancellationTokenSource? confirmationCancellation;
+    private bool closed;
 
     private GameConfigWindow(GameConfigService service, GameConfigData initialData, IReadOnlyList<string> languages)
     {
         this.service = service;
+        initialConfigPath = service.ConfigPath ?? throw new InvalidOperationException("Game configuration is not loaded.");
         Title = LocaleService.Get("GAME_CONFIG");
         Width = 560;
-        Height = 616;
+        Height = 576;
         MinWidth = 560;
         MinHeight = 320;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         EditorWindowIcon.Apply(this);
         EditorLayoutService.AttachWindow(this, nameof(GameConfigWindow));
 
-        TextBox scriptBox = EditorInputs.CreateReadOnlyTextBox(initialData.Script);
         languageBox = createComboBox(languages.Cast<object>().ToArray());
         languageBox.SelectedItem = languages.FirstOrDefault(
             language => language.Equals(initialData.Language, StringComparison.Ordinal));
@@ -121,7 +125,6 @@ public sealed class GameConfigWindow : Window
         voiceVolumeBox = createVolumeBox(initialData.VoiceVolume);
 
         Grid form = new() { RowSpacing = 8 };
-        EditorFormRows.Add(form, LocaleService.Get("script"), scriptBox);
         EditorFormRows.Add(form, LocaleService.Get("language"), languageBox);
         EditorFormRows.Add(form, LocaleService.Get("scale"), scaleBox);
         EditorFormRows.Add(form, LocaleService.Get("maxrenderscale"), maximumRenderScaleBox);
@@ -170,16 +173,39 @@ public sealed class GameConfigWindow : Window
         });
         Content = content;
         Opened += (_, _) => languageBox.Focus();
+        Closed += (_, _) =>
+        {
+            closed = true;
+            confirmationCancellation?.Cancel();
+        };
     }
 
     public static async Task<GameConfigData?> ShowAsync(Window owner, GameConfigService service)
     {
+        using CancellationTokenSource cancellation = new();
+        void onOwnerClosed(object? sender, EventArgs args) => cancellation.Cancel();
+        owner.Closed += onOwnerClosed;
+        try
+        {
+            await service.ReloadAsync(cancellation.Token);
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+            return null;
+        }
+        finally
+        {
+            owner.Closed -= onOwnerClosed;
+        }
+        if (cancellation.IsCancellationRequested || !owner.IsVisible)
+            return null;
         if (service.LoadError is string loadError)
         {
             await AlertDialog.ShowAsync(
                 owner,
                 LocaleService.Get("ERROR"),
                 LocaleService.Get("GAME_CONFIG_LOAD_FAILED") + Environment.NewLine + loadError);
+            return null;
         }
         GameConfigWindow window = new(service, service.CurrentData, service.GetLanguageOptions());
         return await window.ShowDialog<GameConfigData?>(owner);
@@ -187,6 +213,8 @@ public sealed class GameConfigWindow : Window
 
     private async Task confirmAsync()
     {
+        if (confirmationCancellation is not null || closed)
+            return;
         string language = languageBox.SelectedItem?.ToString()?.Trim() ?? string.Empty;
         if (language.Length == 0)
             return;
@@ -222,21 +250,40 @@ public sealed class GameConfigWindow : Window
             SoundVolume = decimal.ToDouble(soundVolumeBox.Value ?? 100),
             VoiceVolume = decimal.ToDouble(voiceVolumeBox.Value ?? 100),
         };
-        GameConfigSaveResult result = service.Confirm(data, initialData);
-        if (!result.Success)
+        using CancellationTokenSource cancellation = new();
+        confirmationCancellation = cancellation;
+        updateConfirmEnabled();
+        try
         {
-            await AlertDialog.ShowAsync(
-                this,
-                LocaleService.Get("ERROR"),
-                LocaleService.Get("GAME_CONFIG_SAVE_FAILED") + Environment.NewLine + result.Detail);
-            return;
+            GameConfigSaveResult result = await service.ConfirmAsync(
+                data, initialData, initialConfigPath, cancellation.Token);
+            if (closed)
+                return;
+            if (!result.Success)
+            {
+                await AlertDialog.ShowAsync(
+                    this,
+                    LocaleService.Get("ERROR"),
+                    LocaleService.Get("GAME_CONFIG_SAVE_FAILED") + Environment.NewLine + result.Detail);
+                return;
+            }
+            Close(service.CurrentData);
         }
-        Close(service.CurrentData);
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            confirmationCancellation = null;
+            if (!closed)
+                updateConfirmEnabled();
+        }
     }
 
     private void updateConfirmEnabled()
     {
-        confirmButton.IsEnabled = !string.IsNullOrWhiteSpace(languageBox.SelectedItem?.ToString());
+        confirmButton.IsEnabled = confirmationCancellation is null
+            && !string.IsNullOrWhiteSpace(languageBox.SelectedItem?.ToString());
     }
 
     private static ComboBox createComboBox(IReadOnlyList<object> items)

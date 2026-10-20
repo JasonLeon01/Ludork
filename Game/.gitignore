@@ -18,7 +18,5 @@
 !/Scripts/Source/Locale/Core.lua
 /Engine/ThirdParty/
 /ThirdPartySource/
-/Save/
 /CMakeUserPresets.json
-/Main.ini
 *.anim.json

@@ -1,4 +1,5 @@
 #include <Utils/Inner.hpp>
+#include <ConfigParser.hpp>
 #include <StringUtils.hpp>
 
 #include <LudorkPlatform.hpp>
@@ -14,68 +15,99 @@
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <unordered_set>
 
-namespace {
-
-#if defined(__APPLE__)
+#if defined(_WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <shlobj.h>
+#elif defined(__APPLE__)
 #include <TargetConditionals.h>
 #endif
+
+namespace {
 
 std::string appName;
 std::unordered_set<std::string> warnings;
 
+#if !defined(_WIN32)
 std::string environmentValue(const char* name) {
     const char* value = std::getenv(name);
     return value == nullptr ? std::string{} : std::string(value);
 }
+#endif
 
 std::filesystem::path homePath() {
-    std::string value = environmentValue("HOME");
-    if (value.empty()) {
-        value = environmentValue("USERPROFILE");
+#if defined(_WIN32)
+    PWSTR value = nullptr;
+    const HRESULT result = SHGetKnownFolderPath(
+        FOLDERID_Profile, KF_FLAG_DEFAULT, nullptr, &value);
+    const std::unique_ptr<wchar_t, decltype(&CoTaskMemFree)> owner(
+        value, &CoTaskMemFree);
+    if (FAILED(result) || value == nullptr || *value == L'\0') {
+        throw std::runtime_error(
+            "Current user profile directory is unavailable");
     }
+    const std::filesystem::path path(value);
+#else
+    const std::string value = environmentValue("HOME");
     if (value.empty()) {
         throw std::runtime_error("User home directory is not configured");
     }
-    return ludork::standard::pathFromUtf8(value);
+    const std::filesystem::path path = ludork::standard::pathFromUtf8(value);
+#endif
+    if (!path.is_absolute()) {
+        throw std::runtime_error(
+            "User home directory must be an absolute path");
+    }
+    return path;
+}
+
+std::string normalizeAppName(const std::string& value) {
+    const std::string normalized =
+        ludork::standard::trimCharacters(value, " \t\r\n\v\f");
+    if (normalized.empty() || normalized == "." || normalized == ".." ||
+        normalized.find_first_of("/\\:") != std::string::npos ||
+        std::any_of(normalized.begin(), normalized.end(),
+                    [](unsigned char character) {
+                        return character < 32 || character == 127;
+                    })) {
+        throw std::invalid_argument(
+            "Application name must be a non-empty directory name without "
+            "path separators, colons or control characters");
+    }
+    return normalized;
 }
 
 std::string resolveAppName(const std::optional<std::string>& appNameOverride) {
-    return appNameOverride.has_value() ? *appNameOverride : getAppName();
+    return appNameOverride.has_value() ? normalizeAppName(*appNameOverride)
+                                       : getAppName();
 }
 
 std::filesystem::path userDataPath(
     const std::optional<std::string>& appNameOverride) {
-#if defined(_WIN32)
-    static_cast<void>(appNameOverride);
-    return std::filesystem::current_path();
-#elif defined(__APPLE__) && TARGET_OS_IPHONE
     const std::filesystem::path resolvedName =
         ludork::standard::pathFromUtf8(resolveAppName(appNameOverride));
-    const std::filesystem::path path =
-        homePath() / "Library" / "Application Support" / resolvedName;
-    std::filesystem::create_directories(path);
-    return path;
+#if defined(__APPLE__) && TARGET_OS_IPHONE
+    const std::filesystem::path root =
+        homePath() / "Library" / "Application Support";
 #elif defined(SFML_SYSTEM_HARMONY) || defined(SFML_SYSTEM_ANDROID)
-    const std::string root = environmentValue("LUDORK_USER_DATA_ROOT");
-    if (root.empty()) {
+    const std::string rootValue = environmentValue("LUDORK_USER_DATA_ROOT");
+    if (rootValue.empty()) {
         throw std::runtime_error("User data root is not configured");
     }
-    const std::filesystem::path resolvedName =
-        ludork::standard::pathFromUtf8(resolveAppName(appNameOverride));
-    const std::filesystem::path path =
-        ludork::standard::pathFromUtf8(root) / resolvedName;
-    std::filesystem::create_directories(path);
-    return path;
+    const std::filesystem::path root =
+        ludork::standard::pathFromUtf8(rootValue);
 #else
-    const std::filesystem::path resolvedName =
-        ludork::standard::pathFromUtf8(resolveAppName(appNameOverride));
-    const std::filesystem::path path = homePath() / resolvedName;
+    const std::filesystem::path root = homePath();
+#endif
+    const std::filesystem::path path = root / resolvedName;
     std::filesystem::create_directories(path);
     return path;
-#endif
 }
 
 std::string runtimeValueString(const RuntimeValue& value) {
@@ -124,11 +156,7 @@ std::string runtimeValueString(const RuntimeValue& value) {
 }  // namespace
 
 void setAppName(const std::string& value) {
-    const std::string normalized = ludork::standard::trimWhitespace(value);
-    if (normalized.empty()) {
-        throw std::invalid_argument("Application name must not be empty");
-    }
-    appName = normalized;
+    appName = normalizeAppName(value);
 }
 
 const std::string& getAppName() {
@@ -152,15 +180,15 @@ std::string getUserDataPath(const std::optional<std::string>& appNameOverride) {
 
 std::string getSavePath(const std::optional<std::string>& appNameOverride) {
     const std::filesystem::path path = userDataPath(appNameOverride) / "Save";
-#if !defined(_WIN32)
     std::filesystem::create_directories(path);
-#endif
     return ludork::standard::pathToUtf8(path);
 }
 
-std::string getMainIniPath(const std::optional<std::string>& appNameOverride) {
-    return ludork::standard::pathToUtf8(userDataPath(appNameOverride) /
-                                        "Main.ini");
+std::string getMainConfigPath(
+    const std::optional<std::string>& appNameOverride) {
+    return ludork::standard::pathToUtf8(
+        userDataPath(appNameOverride) /
+        ludork::standard::ConfigParser::defaultFileName("Main"));
 }
 
 std::string getAnimationSourceRoot() {

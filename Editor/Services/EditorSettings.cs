@@ -17,6 +17,7 @@ public sealed class EditorSettings
     private readonly Dictionary<string, Dictionary<string, string>> sections = new(StringComparer.OrdinalIgnoreCase);
     private readonly string? configPath;
     private string? savedText;
+    private bool loadFailed;
 
     public EditorSettings(string? path = null)
     {
@@ -38,7 +39,7 @@ public sealed class EditorSettings
     public IReadOnlyList<string> RecentProjectPaths => recentProjectPaths;
     public string? LastError { get; private set; }
     public event EventHandler<string>? SaveFailed;
-    public static string ConfigPath => EditorPaths.IniFilePath;
+    public static string ConfigPath => EditorPaths.ConfigFilePath;
 
     public static EditorSettings Load(string? path = null)
     {
@@ -51,17 +52,24 @@ public sealed class EditorSettings
                 settings.Save();
                 return settings;
             }
-            string text = File.ReadAllText(resolvedPath, Encoding.UTF8);
+            string text = ConfigDocument.ReadText(resolvedPath);
             settings.readSections(text);
             settings.savedText = text;
         }
         catch (IOException exception)
         {
             settings.LastError = exception.Message;
+            settings.loadFailed = ConfigFileNames.IsPropertyList(path);
         }
         catch (UnauthorizedAccessException exception)
         {
             settings.LastError = exception.Message;
+            settings.loadFailed = ConfigFileNames.IsPropertyList(path);
+        }
+        catch (InvalidDataException exception)
+        {
+            settings.LastError = exception.Message;
+            settings.loadFailed = true;
         }
         Dictionary<string, string> values = settings.section(SectionName);
         settings.Width = readPositiveInt(values, "width", settings.Width);
@@ -209,6 +217,8 @@ public sealed class EditorSettings
 
     public bool Save()
     {
+        if (loadFailed)
+            return false;
         try
         {
             string path = configPath ?? ConfigPath;
@@ -226,6 +236,11 @@ public sealed class EditorSettings
             return false;
         }
         catch (UnauthorizedAccessException exception)
+        {
+            reportFailure(exception.Message);
+            return false;
+        }
+        catch (InvalidDataException exception)
         {
             reportFailure(exception.Message);
             return false;
@@ -265,6 +280,8 @@ public sealed class EditorSettings
         section("ActorLibrary")["iconview"] = ActorLibraryIconView.ToString();
         explorer["sourcesexpanded"] = FileExplorerSourcesExpanded.ToString();
         explorer["opentarget"] = FileExplorerOpenTarget.ToString();
+        if (ConfigFileNames.IsPropertyList(configPath))
+            return new PlistConfigDocument(sections).ToText();
         StringBuilder text = new();
         foreach (KeyValuePair<string, Dictionary<string, string>> entry in sections)
         {
@@ -300,6 +317,12 @@ public sealed class EditorSettings
 
     private void readSections(string text)
     {
+        if (ConfigFileNames.IsPropertyList(configPath))
+        {
+            foreach (KeyValuePair<string, Dictionary<string, string>> entry in PlistConfigDocument.Parse(text).Sections)
+                sections.Add(entry.Key, entry.Value);
+            return;
+        }
         Dictionary<string, string>? values = null;
         using StringReader reader = new(text);
         while (reader.ReadLine() is string rawLine)

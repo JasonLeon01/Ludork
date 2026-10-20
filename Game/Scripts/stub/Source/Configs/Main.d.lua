@@ -15,8 +15,8 @@ function MainConfig.GetDisplayScaleOptions(maximumScale, configuredScale) end
 ---@return number effectiveScale
 function MainConfig.GetMaximumRenderScaleOptions(configuredScale) end
 
----@return string iniFilePath
----@return ConfigParser iniFile
+---@return string configFilePath
+---@return ConfigParser configFile
 function MainConfig.LoadOrCreate() end
 
 return MainConfig

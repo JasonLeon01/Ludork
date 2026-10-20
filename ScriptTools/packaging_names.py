@@ -81,7 +81,7 @@ def _string_value(literal: str) -> str:
     return value.decode("utf-8")
 
 
-def read_app_name(project: pathlib.Path) -> str:
+def read_runtime_app_name(project: pathlib.Path) -> str:
     entry = project / "Scripts" / "Entry.lua"
     try:
         source = entry.read_text(encoding="utf-8-sig")
@@ -127,16 +127,25 @@ def read_app_name(project: pathlib.Path) -> str:
                 raise PackError(f"Invalid APP_NAME in {entry}: {error}", EXIT_PROJECT) from error
         if word in {"function", "then", "do", "repeat"}:
             depth += 1
-    if len(names) != 1 or not names[0].strip():
+    if len(names) != 1:
         raise PackError(f"Define exactly one non-empty local APP_NAME string at the top level of {entry}.", EXIT_PROJECT)
-    name = names[0]
+    name = names[0].strip(" \t\r\n\v\f")
+    if (not name or name in {".", ".."} or any(character in "/\\:" for character in name)
+            or any(ord(character) < 32 or ord(character) == 127 for character in name)):
+        raise PackError(
+            f"APP_NAME must be a single directory name without path separators, colons or control characters: {entry}",
+            EXIT_PROJECT,
+        )
+    return name
+
+
+def read_app_name(project: pathlib.Path) -> str:
+    name = read_runtime_app_name(project)
     if name == "LudorkSample":
         raise PackError(
             "Change APP_NAME in Scripts/Entry.lua from LudorkSample to a name unique to your game before packaging.",
             EXIT_APP_NAME_UNCHANGED,
         )
-    if any(ord(character) < 32 or ord(character) == 127 for character in name):
-        raise PackError(f"APP_NAME must not contain control characters: {entry}", EXIT_PROJECT)
     return name
 
 

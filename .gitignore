@@ -12,7 +12,6 @@ obj/
 Log/
 EditorCache/
 build-verify/
-Ludork.ini
 .localserver/
 /plugins.json
 /Plugins/.data/

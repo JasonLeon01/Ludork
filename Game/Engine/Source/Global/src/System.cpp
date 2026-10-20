@@ -29,18 +29,6 @@ void System::init(const std::shared_ptr<ludork::standard::ConfigParser>& data,
     TimeManager::init();
 }
 
-std::string System::getScript() {
-    return ludork::global::system_impl::SystemConfigImpl::getScript();
-}
-
-void System::setScript(const std::string& value) {
-    ludork::global::system_impl::SystemConfigImpl::setScript(value);
-}
-
-void System::saveScript(const std::string& value) {
-    ludork::global::system_impl::SystemConfigImpl::saveScript(value);
-}
-
 std::string System::getLanguage() {
     return ludork::global::system_impl::SystemConfigImpl::getLanguage();
 }

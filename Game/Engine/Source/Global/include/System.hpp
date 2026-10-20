@@ -12,15 +12,6 @@ public:
         const std::string& dataFilePath);
 
     BIND_METHOD()
-    static std::string getScript();
-
-    BIND_METHOD()
-    static void setScript(const std::string& value);
-
-    BIND_METHOD()
-    static void saveScript(const std::string& value);
-
-    BIND_METHOD()
     static std::string getLanguage();
 
     BIND_METHOD()

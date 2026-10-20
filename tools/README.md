@@ -181,13 +181,15 @@ All editor modes on Windows and macOS, including repository runs, use the curren
 
 | Data | User-directory path |
 |---|---|
-| Settings, recent projects and window layout | `Ludork.ini` |
+| Settings, recent projects and window layout | `Ludork.plist` on macOS; `Ludork.ini` on Windows |
 | Plug-ins, registrations and retained data | `Plugins`, `plugins.json` |
 | Downloaded templates, all four variants | `Templates/v<base-version>` |
 | Signing profile indexes | `*-signing.json` |
 | Local server test configuration | `.localserver/<project-directory-name>` |
 | Editor console logs | `Log/<stable-project-key>` |
 | Windows WebView2 profile | `WebView2` |
+
+The macOS settings file is an XML property list. Existing INI settings on macOS are not imported automatically.
 
 Template cache validation and offline reuse use that user directory. Bundled development templates remain read-only package inputs. Locale initialization reads packaged resources without rewriting them; `--compile-locale` is an explicit packaging command. Project files, build output and `EditorCache`, game runtime saves, system credentials and system-managed WebKit data retain their existing locations. Old paths are not automatically read or migrated: with Ludork closed, copy any settings, plug-ins and cache you need into the matching new locations before removing an old installation.
 
@@ -362,6 +364,8 @@ Generated programs live under `Materials/<path relative to Data/Materials, witho
 ## Game packaging options
 
 For identity, release versions, output layouts, encryption and platform prerequisites, see [Run, Debug and Package](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=02%2F11). Direct commands consume existing UI/locale/material exports; run editor **Export** first or provide a deliberate equivalent export step.
+
+Desktop game preferences and saves use `~/<APP_NAME>/` in editor Play, IDE launches, direct runs and packaged games: `Main.plist` on macOS, `Main.ini` on Windows and Linux, and `Save/` on all three. Projects with the same `APP_NAME` share this data for the current user. `APP_NAME` remains the static declaration in `Scripts/Entry.lua`; changing it selects a different user directory without migrating files. iOS retains `~/Library/Application Support/<APP_NAME>/`, and Android and HarmonyOS retain their app-private user-data roots. The runtime launches an explicit command-line script or `Scripts/Entry.lua`; it does not read a project-local configuration to choose the entry. Templates and game packages continue to exclude local settings and saves. See [Game configuration](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=02%2F02#game-configuration) for the path APIs and configuration behaviour.
 
 | Option | Behaviour |
 |---|---|

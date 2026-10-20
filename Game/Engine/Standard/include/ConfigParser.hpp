@@ -4,15 +4,19 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <iosfwd>
 #include <map>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 
 namespace ludork::standard {
 
 class LUDORK_STANDARD_API ConfigParser {
 public:
+    static std::string defaultFileName(std::string_view stem);
+
     bool read(const std::filesystem::path& path);
     bool hasSection(const std::string& section) const;
     void addSection(const std::string& section);
@@ -29,13 +33,15 @@ public:
     void write(const std::filesystem::path& path) const;
 
 private:
-    using IniValues =
+    using SectionValues =
         std::map<std::string, std::pair<std::string, std::string>>;
 
     const std::string* findValue(const std::string& section,
                                  const std::string& key) const;
+    void readPlist(std::istream& input, const std::filesystem::path& path);
+    std::string serializePlist(const std::filesystem::path& path) const;
 
-    std::map<std::string, IniValues> sections_;
+    std::map<std::string, SectionValues> sections_;
 };
 
 }  // namespace ludork::standard

@@ -2219,6 +2219,10 @@
     "zh_CN": "保存游戏配置失败",
     "en_GB": "Failed to save game config"
   },
+  "GAME_CONFIG_IDENTITY_CHANGED": {
+    "zh_CN": "游戏标识已更改。请关闭并重新打开游戏配置后再保存。",
+    "en_GB": "The game identity changed. Close and reopen Game Config before saving."
+  },
   "DATABASE": {
     "zh_CN": "数据库",
     "en_GB": "Database"

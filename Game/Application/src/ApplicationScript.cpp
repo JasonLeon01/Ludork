@@ -4,7 +4,6 @@
 #include "ApplicationPaths.hpp"
 #include "ApplicationPlatform.hpp"
 
-#include <ConfigParser.hpp>
 #include <LuaError.hpp>
 #include <Runtime/ScriptStore.hpp>
 #include <RuntimeSession.hpp>
@@ -15,7 +14,6 @@ extern "C" {
 }
 
 #include <filesystem>
-#include <optional>
 #include <string>
 
 namespace {
@@ -61,19 +59,6 @@ void setLuaArguments(lua_State* state, int argc, char** argv) {
         lua_rawseti(state, -2, index - 1);
     }
     lua_setglobal(state, "arg");
-}
-
-std::string configuredScriptPath() {
-    ludork::standard::ConfigParser iniFile;
-    if (!iniFile.read("Main.ini")) {
-        return (std::string(ludork::generated::resources::ScriptPathPrefix) +
-                ludork::generated::resources::ScriptEntrySource);
-    }
-    const std::optional<std::string> script = iniFile.get("Main", "script");
-    return script.has_value() && !script->empty()
-               ? *script
-               : (std::string(ludork::generated::resources::ScriptPathPrefix) +
-                  ludork::generated::resources::ScriptEntrySource);
 }
 
 int runEntryScript(lua_State* state, const std::filesystem::path& scriptPath) {
@@ -124,7 +109,10 @@ void configureApplicationScriptEnvironment(
 
 int runApplicationScript(lua_State* state, int argc, char** argv) {
     setLuaArguments(state, argc, argv);
-    const std::string scriptPath = argc > 1 ? argv[1] : configuredScriptPath();
+    const std::string scriptPath =
+        argc > 1 ? argv[1]
+                 : std::string(ludork::generated::resources::ScriptPathPrefix) +
+                       ludork::generated::resources::ScriptEntrySource;
     return runEntryScript(state, scriptPath);
 }
 

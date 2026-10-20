@@ -4,12 +4,12 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Ludork.Services;
 
 public sealed record GameConfigData(
-    string Script,
     string Language,
     double Scale,
     double MaximumRenderScale,
@@ -35,7 +35,6 @@ public sealed class GameConfigService
     private const int DefaultAntiAliasingLevel = 8;
     private const int SfmlDefaultAntiAliasingLevel = 0;
     private static readonly GameConfigData defaults = new(
-        "Scripts/Entry.lua",
         "en_GB",
         0.0,
         2.0,
@@ -50,8 +49,9 @@ public sealed class GameConfigService
         100.0,
         100.0);
     private readonly string projectPath;
-    private readonly string iniPath;
-    private GameConfigData savedData;
+    private readonly SemaphoreSlim operationGate = new(1, 1);
+    private string? configPath;
+    private GameConfigData savedData = defaults;
     private string? loadError;
 
     public GameConfigService(string projectPath)
@@ -59,11 +59,9 @@ public sealed class GameConfigService
         if (!Path.IsPathFullyQualified(projectPath))
             throw new ArgumentException(nameof(projectPath));
         this.projectPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(projectPath));
-        iniPath = Path.Combine(this.projectPath, "Main.ini");
-        savedData = loadData();
     }
 
-    public string IniPath => iniPath;
+    public string? ConfigPath => configPath;
     public GameConfigData SavedData => savedData;
     public GameConfigData CurrentData => savedData;
     public string? LoadError => loadError;
@@ -90,16 +88,36 @@ public sealed class GameConfigService
         return languages.ToArray();
     }
 
-    public GameConfigSaveResult Confirm(GameConfigData data, GameConfigData baseline)
+    public async Task<GameConfigSaveResult> ConfirmAsync(
+        GameConfigData data,
+        GameConfigData baseline,
+        string expectedConfigPath,
+        CancellationToken cancellationToken = default)
+    {
+        await operationGate.WaitAsync(cancellationToken);
+        try
+        {
+            await reloadAsync(cancellationToken);
+            if (loadError is not null)
+                return GameConfigSaveResult.Failed(loadError);
+            if (configPath is null || !configPath.Equals(expectedConfigPath, StringComparison.Ordinal))
+                return GameConfigSaveResult.Failed(LocaleService.Get("GAME_CONFIG_IDENTITY_CHANGED"));
+            cancellationToken.ThrowIfCancellationRequested();
+            return confirm(data, baseline, configPath);
+        }
+        finally
+        {
+            operationGate.Release();
+        }
+    }
+
+    private GameConfigSaveResult confirm(GameConfigData data, GameConfigData baseline, string path)
     {
         GameConfigData normalized = normalize(data);
         GameConfigData normalizedBaseline = normalize(baseline);
         GameConfigData current = CurrentData;
         GameConfigData confirmed = current with
         {
-            Script = normalized.Script == normalizedBaseline.Script
-                ? current.Script
-                : normalized.Script,
             Language = normalized.Language == normalizedBaseline.Language
                 ? current.Language
                 : normalized.Language,
@@ -141,59 +159,96 @@ public sealed class GameConfigService
                 ? current.VoiceVolume
                 : normalized.VoiceVolume,
         };
-        if (confirmed == savedData && File.Exists(iniPath))
+        if (confirmed == savedData && File.Exists(path))
             return GameConfigSaveResult.Completed(string.Empty);
 
         string? failure = null;
         try
         {
-            IniDocument document = loadDocument();
+            ConfigDocument document = loadDocument(path);
             setKnownValues(document, confirmed);
-            FilePersistence.WriteAllTextAtomic(iniPath, document.ToText());
+            FilePersistence.WriteAllTextAtomic(path, document.ToText());
         }
         catch (IOException exception)
         {
             failure = exception.Message;
         }
         catch (UnauthorizedAccessException exception)
+        {
+            failure = exception.Message;
+        }
+        catch (InvalidDataException exception)
         {
             failure = exception.Message;
         }
 
         if (failure is not null)
-            return GameConfigSaveResult.Failed($"Main.ini({failure})");
+            return GameConfigSaveResult.Failed($"{Path.GetFileName(path)}({failure})");
         savedData = confirmed;
         loadError = null;
         Changed?.Invoke(this, EventArgs.Empty);
-        return GameConfigSaveResult.Completed("Main.ini");
+        return GameConfigSaveResult.Completed(Path.GetFileName(path));
     }
 
-    public void Reload()
+    public async Task ReloadAsync(CancellationToken cancellationToken = default)
     {
-        savedData = loadData();
-        Changed?.Invoke(this, EventArgs.Empty);
-    }
-
-    private GameConfigData loadData()
-    {
-        loadError = null;
-        IniDocument document;
+        await operationGate.WaitAsync(cancellationToken);
         try
         {
-            document = loadDocument();
+            await reloadAsync(cancellationToken);
+        }
+        finally
+        {
+            operationGate.Release();
+        }
+    }
+
+    private async Task reloadAsync(CancellationToken cancellationToken)
+    {
+        string? path = null;
+        string? error = null;
+        GameConfigData data = defaults;
+        try
+        {
+            ProjectPackageMetadataResult result = await ProjectPackageMetadataService.ReadRuntimeAppNameAsync(
+                projectPath, cancellationToken);
+            if (result.ExitCode != 0)
+                error = !string.IsNullOrWhiteSpace(result.Error) ? result.Error
+                    : !string.IsNullOrWhiteSpace(result.Output) ? result.Output
+                    : "The game's APP_NAME could not be resolved.";
+            else if (result.Output.Length == 0)
+                error = "The game's APP_NAME could not be resolved.";
+            else
+            {
+                path = GameUserDataPaths.GetMainConfigPath(result.Output);
+                data = loadData(loadDocument(path));
+            }
         }
         catch (IOException exception)
         {
-            loadError = exception.Message;
-            document = IniDocument.Parse(string.Empty);
+            error = exception.Message;
         }
         catch (UnauthorizedAccessException exception)
         {
-            loadError = exception.Message;
-            document = IniDocument.Parse(string.Empty);
+            error = exception.Message;
         }
+        catch (InvalidDataException exception)
+        {
+            error = exception.Message;
+        }
+        catch (ArgumentException exception)
+        {
+            error = exception.Message;
+        }
+        configPath = path;
+        savedData = data;
+        loadError = error;
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    private static GameConfigData loadData(ConfigDocument document)
+    {
         return normalize(new GameConfigData(
-            text(document, "script", defaults.Script),
             text(document, "language", defaults.Language, true),
             number(document, "scale", defaults.Scale, 1.0),
             number(document, "maxrenderscale", defaults.MaximumRenderScale, 2.0),
@@ -213,20 +268,27 @@ public sealed class GameConfigService
             number(document, "voicevolume", defaults.VoiceVolume, 100.0)));
     }
 
-    private IniDocument loadDocument()
+    private static ConfigDocument loadDocument(string path)
     {
-        return File.Exists(iniPath)
-            ? IniDocument.Parse(File.ReadAllText(iniPath, Encoding.UTF8))
-            : IniDocument.Parse(string.Empty);
+        try
+        {
+            return ConfigDocument.Parse(path, ConfigDocument.ReadText(path));
+        }
+        catch (FileNotFoundException)
+        {
+            return ConfigDocument.Create(path);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return ConfigDocument.Create(path);
+        }
     }
 
     private static GameConfigData normalize(GameConfigData data)
     {
-        string script = data.Script.Trim();
         string language = data.Language.Trim();
         return data with
         {
-            Script = script.Length == 0 ? defaults.Script : script,
             Language = language,
             Scale = Math.Round(double.IsFinite(data.Scale) && data.Scale >= 0.0
                 ? data.Scale
@@ -256,7 +318,7 @@ public sealed class GameConfigService
     }
 
     private static string text(
-        IniDocument document,
+        ConfigDocument document,
         string key,
         string fallback,
         bool preserveEmpty = false)
@@ -269,7 +331,7 @@ public sealed class GameConfigService
     }
 
     private static double number(
-        IniDocument document,
+        ConfigDocument document,
         string key,
         double missingFallback,
         double invalidFallback)
@@ -284,7 +346,7 @@ public sealed class GameConfigService
     }
 
     private static int integer(
-        IniDocument document,
+        ConfigDocument document,
         string key,
         int missingFallback,
         int invalidFallback)
@@ -298,7 +360,7 @@ public sealed class GameConfigService
     }
 
     private static bool boolean(
-        IniDocument document,
+        ConfigDocument document,
         string key,
         bool missingFallback,
         bool invalidFallback)
@@ -320,9 +382,8 @@ public sealed class GameConfigService
         return invalidFallback;
     }
 
-    private static void setKnownValues(IniDocument document, GameConfigData data)
+    private static void setKnownValues(ConfigDocument document, GameConfigData data)
     {
-        document.SetValue("Main", "script", data.Script);
         document.SetValue("Main", "language", data.Language);
         document.SetValue("Main", "scale", data.Scale.ToString("F2", CultureInfo.InvariantCulture));
         document.SetValue(
@@ -348,117 +409,4 @@ public sealed class GameConfigService
     }
 
     private static string boolText(bool value) => value ? "true" : "false";
-
-    private sealed class IniDocument
-    {
-        private readonly List<string> lines;
-        private readonly string newline;
-        private bool trailingNewline;
-
-        private IniDocument(List<string> lines, string newline, bool trailingNewline)
-        {
-            this.lines = lines;
-            this.newline = newline;
-            this.trailingNewline = trailingNewline;
-        }
-
-        public static IniDocument Parse(string text)
-        {
-            string newline = text.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
-            bool trailingNewline = text.EndsWith("\n", StringComparison.Ordinal)
-                || text.EndsWith("\r", StringComparison.Ordinal);
-            string normalized = text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
-            List<string> lines = normalized.Length == 0
-                ? []
-                : normalized.Split('\n').ToList();
-            if (trailingNewline && lines.Count > 0 && lines[^1].Length == 0)
-                lines.RemoveAt(lines.Count - 1);
-            return new IniDocument(lines, newline, trailingNewline);
-        }
-
-        public string? GetValue(string section, string key)
-        {
-            if (!findSection(section, out int headerIndex, out int endIndex))
-                return null;
-            for (int index = headerIndex + 1; index < endIndex; index += 1)
-            {
-                if (tryReadKey(lines[index], out string candidate, out int separator)
-                    && candidate.Equals(key, StringComparison.OrdinalIgnoreCase))
-                {
-                    return lines[index][(separator + 1)..].Trim();
-                }
-            }
-            return null;
-        }
-
-        public void SetValue(string section, string key, string value)
-        {
-            if (!findSection(section, out int headerIndex, out int endIndex))
-            {
-                if (lines.Count > 0 && lines[^1].Length != 0)
-                    lines.Add(string.Empty);
-                lines.Add($"[{section}]");
-                lines.Add($"{key} = {value}");
-                trailingNewline = true;
-                return;
-            }
-            for (int index = headerIndex + 1; index < endIndex; index += 1)
-            {
-                string line = lines[index];
-                if (!tryReadKey(line, out string candidate, out int separator)
-                    || !candidate.Equals(key, StringComparison.OrdinalIgnoreCase))
-                    continue;
-                int valueIndex = separator + 1;
-                while (valueIndex < line.Length && char.IsWhiteSpace(line[valueIndex]))
-                    valueIndex += 1;
-                lines[index] = line[..(separator + 1)] + line[(separator + 1)..valueIndex] + value;
-                return;
-            }
-            lines.Insert(endIndex, $"{key} = {value}");
-            trailingNewline = true;
-        }
-
-        public string ToText()
-        {
-            string result = string.Join(newline, lines);
-            return trailingNewline && lines.Count > 0 ? result + newline : result;
-        }
-
-        private bool findSection(string section, out int headerIndex, out int endIndex)
-        {
-            headerIndex = -1;
-            endIndex = lines.Count;
-            for (int index = 0; index < lines.Count; index += 1)
-            {
-                string line = lines[index].Trim();
-                if (line.Length < 3 || line[0] != '[' || line[^1] != ']')
-                    continue;
-                if (headerIndex >= 0)
-                {
-                    endIndex = index;
-                    return true;
-                }
-                string name = line[1..^1].Trim();
-                if (name.Equals(section, StringComparison.OrdinalIgnoreCase))
-                    headerIndex = index;
-            }
-            return headerIndex >= 0;
-        }
-
-        private static bool tryReadKey(string line, out string key, out int separator)
-        {
-            key = string.Empty;
-            separator = -1;
-            string trimmed = line.TrimStart();
-            if (trimmed.Length == 0 || trimmed[0] is '#' or ';')
-                return false;
-            int equal = line.IndexOf('=');
-            int colon = line.IndexOf(':');
-            separator = equal < 0 ? colon : colon < 0 ? equal : Math.Min(equal, colon);
-            if (separator < 0)
-                return false;
-            key = line[..separator].Trim();
-            return key.Length != 0;
-        }
-    }
 }

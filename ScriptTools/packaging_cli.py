@@ -7,7 +7,7 @@ import sys
 
 from . import packaging_constants as constants
 from .pack_error import PackError
-from .packaging_names import artifact_name, prepare_output, read_app_name
+from .packaging_names import artifact_name, prepare_output, read_app_name, read_runtime_app_name
 from .packaging_metadata import (
     add_channel_arguments,
     add_package_arguments,
@@ -83,6 +83,8 @@ def main(arguments: list[str] | None = None) -> int:
     naming = operations.add_parser("app-name")
     naming.add_argument("project", type=pathlib.Path)
     naming.add_argument("--artifact", action="store_true")
+    runtime_naming = operations.add_parser("runtime-app-name")
+    runtime_naming.add_argument("project", type=pathlib.Path)
     preparing = operations.add_parser("prepare-output")
     preparing.add_argument("project", type=pathlib.Path)
     preparing.add_argument("dist", type=pathlib.Path)
@@ -113,6 +115,8 @@ def main(arguments: list[str] | None = None) -> int:
         elif parsed.operation == "app-name":
             name = read_app_name(parsed.project.expanduser().resolve())
             print(artifact_name(name) if parsed.artifact else name)
+        elif parsed.operation == "runtime-app-name":
+            print(read_runtime_app_name(parsed.project.expanduser().resolve()))
         elif parsed.operation == "prepare-output":
             metadata = load_package_metadata(parsed.metadata)
             print(prepare_output(parsed.project, parsed.dist, metadata.package_name))

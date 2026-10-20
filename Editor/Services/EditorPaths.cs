@@ -31,7 +31,7 @@ public static class EditorPaths
         }
     }
 
-    public static string IniFilePath => Path.Combine(UserDataDirectory, $"{AppName}.ini");
+    public static string ConfigFilePath => Path.Combine(UserDataDirectory, ConfigFileNames.GetFileName(AppName));
 
     public static string TemplateCacheDirectory => Path.Combine(
         UserDataDirectory, "Templates", "v" + EditorVersionService.BaseVersion);

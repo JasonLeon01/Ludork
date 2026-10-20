@@ -51,6 +51,11 @@ if(LUDORK_WITH_LUA)
         PRIVATE LuaSF::LuaSF LuaSF::Lua SFML::Network)
     if(WIN32)
         target_link_libraries(LudorkStandard PRIVATE Psapi)
+    elseif(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
+        find_library(LUDORK_STANDARD_COREFOUNDATION_FRAMEWORK
+            CoreFoundation REQUIRED)
+        target_link_libraries(LudorkStandard PRIVATE
+            "${LUDORK_STANDARD_COREFOUNDATION_FRAMEWORK}")
     endif()
 endif()
 

@@ -64,7 +64,7 @@ internal static class ResourceCleanupFileSystem
                 issues.Add(new ResourceCleanupIssue(directory, exception.Message));
             }
         }
-        foreach (string relative in new[] { "Main.ini", "Main.proj", KeepListPath,
+        foreach (string relative in new[] { "Main.proj", KeepListPath,
                      "Data.ldpak", "Scripts.ldpak", "Assets.ldpak" })
         {
             try

@@ -212,7 +212,9 @@ copy_cpp_template() {
         --exclude '*.log' \
         --exclude 'BuildInfo.json' \
         --exclude 'Main.ini' \
+        --exclude 'Main.plist' \
         --exclude 'Ludork.ini' \
+        --exclude 'Ludork.plist' \
         --exclude 'Ludork-startup-error.log' \
         --exclude '.vs/' \
         --exclude '.idea/' \
