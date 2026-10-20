@@ -3,6 +3,7 @@ obj/
 .venv/
 .tools/
 /.vscode/
+*.code-workspace
 **/__pycache__/
 **/test/
 **/tests/

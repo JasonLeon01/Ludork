@@ -5,6 +5,7 @@ All scripts switch to the repository root before doing work. Use `.bat` on Windo
 | Tool | Purpose |
 |---|---|
 | `init` | Prepare the generator environment and native dependencies |
+| `create_vsc_workspace` | Create a local VS Code workspace for the project and a configured branch worktree |
 | `setup_python` | Create `.venv` and install build-time Python requirements |
 | `build_script_tools` | Build the ScriptTools runtime bundle under `.tools/ScriptTools`; compiler outputs stay under `.tools/build/ScriptTools` |
 | `build_preview_host` | Build and publish a project's native preview snapshot |
@@ -58,6 +59,14 @@ For project workflows, see [Run, Debug and Package](https://jasonleon01.github.i
 ## Website and documentation
 
 Website sources live on `gh-pages`; use a separate worktree and follow [AGENTS.md](../AGENTS.md#documentation-workflow). `EDITOR_VERSION` in `versions.conf` selects `<major.minor>/docs` and `<major.minor>/images`. The branch's README covers the frontend, dependencies, development server and build hooks.
+
+Run `tools\create_vsc_workspace.bat` on Windows, or `sh tools/create_vsc_workspace.sh` on macOS/Linux, to generate `<project-directory-name>.code-workspace` in the project root. Both entries locate the project from their own location and require Git on `PATH`. Windows uses Windows PowerShell; the shell entry uses Python 3 (`python3` by default, or the executable specified by `PYTHON`). No build environment initialization is required.
+
+Set the `LUDORK_WORKSPACE_BRANCH` environment variable to select the branch; unset or empty defaults to `gh-pages`. For example, use `$env:LUDORK_WORKSPACE_BRANCH = 'Server'` in PowerShell or `LUDORK_WORKSPACE_BRANCH=Server sh tools/create_vsc_workspace.sh` in a shell. New worktrees use the sibling directory `Ludork-<branch>`, such as `Ludork-gh-pages` or `Ludork-Server`, regardless of the project directory's name. Slashes and Windows-invalid filename characters in the branch name become hyphens in the directory name; the Git branch name is unchanged.
+
+The script reuses an existing registered worktree for the selected branch without renaming it, even outside the project parent directory. Otherwise, it uses the local branch first, then tracks `origin/<branch>`; if that remote reference is missing, it fetches just that branch from `origin`. For a single-branch clone, it adds the missing branch fetch mapping to `origin` so upstream tracking works, retaining existing mappings. An occupied destination, invalid branch name or invalid registered worktree stops the operation. It does not switch or update the current worktree's branch.
+
+Each successful run replaces the workspace file with exactly two folders: the current project and selected branch worktrees. Paths are relative where possible and absolute across drives. Existing workspace settings are overwritten; `*.code-workspace` is ignored by Git for developer-local use. Open the generated file in VS Code.
 
 Run `build_docs.bat` or `sh build_docs.sh` in that worktree to regenerate the site. Its pre-commit hook builds and includes generated output, rejecting failed builds and unstaged inputs. Edit Markdown and navigation sources, not generated pages or bundles. Configure GitHub Pages as `gh-pages / (root)` and retain `.nojekyll`; no deployment workflow is needed.
 
