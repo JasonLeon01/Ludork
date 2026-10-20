@@ -71,7 +71,7 @@ internal sealed class WorldMapPreviewRenderer : IDisposable
         draw(context, cached.Lease, cached.Scene, cached.Revision, origin, cellSize, mapRect.Intersect(clip), renderScale);
     }
 
-    public void DrawWorld(DrawingContext context, JsonObject manifest,
+    public void DrawWorld(DrawingContext context, string worldKey, JsonObject manifest,
         IReadOnlyList<(string Key, int X, int Y, int Priority, JsonObject Map)> maps,
         Point origin, double cellSize, Rect clip, double renderScale)
     {
@@ -87,11 +87,11 @@ internal sealed class WorldMapPreviewRenderer : IDisposable
             contentRevision = preview.MapPreviews.ContentRevision;
             worldRevision = ++revision;
         }
-        draw(context, world, worldScene, worldRevision, origin, cellSize, clip, renderScale);
+        draw(context, world, worldScene, worldRevision, origin, cellSize, clip, renderScale, worldKey);
     }
 
     private void draw(DrawingContext context, MapPreviewLease lease, JsonObject scene, long sceneRevision,
-        Point origin, double cellSize, Rect clip, double renderScale)
+        Point origin, double cellSize, Rect clip, double renderScale, string? sceneIdentity = null)
     {
         if (clip.Width <= 0 || clip.Height <= 0 || preview is null)
             return;
@@ -99,7 +99,7 @@ internal sealed class WorldMapPreviewRenderer : IDisposable
         Rect view = new((clip.X - origin.X) / scale, (clip.Y - origin.Y) / scale, clip.Width / scale, clip.Height / scale);
         PixelSize size = new(Math.Clamp((int)Math.Ceiling(clip.Width * renderScale), 1, 4096),
             Math.Clamp((int)Math.Ceiling(clip.Height * renderScale), 1, 4096));
-        lease.Request(scene, sceneRevision, view, size, preview.MapPreviews.Options);
+        lease.Request(scene, sceneRevision, view, size, preview.MapPreviews.Options, sceneIdentity: sceneIdentity);
         if (lease.Frame is Bitmap bitmap)
         {
             Rect frame = lease.FrameView;

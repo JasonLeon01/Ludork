@@ -84,6 +84,9 @@ public sealed partial class MapPreviewSceneBuilder
                     if (actor.Light is not null)
                         outputLights.Add(actor.Light);
                 }
+        JsonObject particles = captureParticles(outputSprites, scene["particles"] as JsonObject);
+        if (!ReferenceEquals(scene["particles"], particles))
+            scene["particles"] = particles;
         return true;
     }
 

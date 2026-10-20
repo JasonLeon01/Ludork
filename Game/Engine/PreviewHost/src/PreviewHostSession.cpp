@@ -48,6 +48,24 @@ RuntimeData PreviewHostSession::handle(const RuntimeData& requestValue) {
         throw std::runtime_error(
             "Preview protocol handshake has not completed");
     }
+    if (type == "closeMap") {
+        const std::string& sessionId =
+            ludork::runtime::value_reader::requireString(
+                ludork::runtime::value_reader::requireValue(
+                    request, "sessionId", "Close map request"),
+                "Close map request.sessionId");
+        const std::string& sceneKey =
+            ludork::runtime::value_reader::requireString(
+                ludork::runtime::value_reader::requireValue(
+                    request, "sceneKey", "Close map request"),
+                "Close map request.sceneKey");
+        mapSession_.close(sceneKey);
+        return RuntimeData(object({
+            {"type", RuntimeData("mapClosed")},
+            {"sessionId", RuntimeData(sessionId)},
+            {"sceneKey", RuntimeData(sceneKey)},
+        }));
+    }
     if (type == "compileMaterial") {
         return MaterialExport::compile(request);
     }
@@ -151,6 +169,7 @@ RuntimeData PreviewHostSession::handshake(const RuntimeData::Map& request) {
     capabilities.emplace_back(RuntimeData("material"));
     capabilities.emplace_back(RuntimeData("materialExport"));
     capabilities.emplace_back(RuntimeData("mapActorChanges"));
+    capabilities.emplace_back(RuntimeData("mapEmitters"));
     capabilities.emplace_back(RuntimeData("persistentFrames"));
     return RuntimeData(object({
         {"type", RuntimeData("handshake")},

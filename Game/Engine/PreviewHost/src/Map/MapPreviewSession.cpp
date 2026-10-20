@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <iostream>
 #include <set>
 #include <span>
 #include <stdexcept>
@@ -91,6 +92,23 @@ RuntimeData::Array changedRecords(const RuntimeData::Array& before,
 }
 
 }  // namespace
+
+MapPreviewSession::Impl::~Impl() noexcept {
+    try {
+        reset();
+    } catch (const std::exception& exception) {
+        std::cerr << "Map preview shutdown: " << exception.what() << '\n';
+    }
+}
+
+void MapPreviewSession::Impl::activate() {
+    if (context == nullptr) {
+        context = std::make_unique<sf::Context>();
+    }
+    if (!context->setActive(true)) {
+        throw std::runtime_error("Failed to activate map preview context");
+    }
+}
 
 std::shared_ptr<sf::Texture> MapPreviewSession::Impl::texture(
     const std::string& path) {
@@ -470,7 +488,18 @@ void MapPreviewSession::Impl::updateScene(const RuntimeData::Map& data) {
 
 RuntimeData MapPreviewSession::Impl::render(const RuntimeData::Map& request,
                                             FrameFiles& frameFiles) {
+    activate();
     const auto applyBegin = std::chrono::steady_clock::now();
+    const float particleDelta = ludork::runtime::value_reader::requireFloat(
+        map_preview_data::required(request, "particleDelta"),
+        "Map request.particleDelta");
+    const bool resetParticleMotion = ludork::runtime::value_reader::requireBool(
+        map_preview_data::required(request, "resetParticleMotion"),
+        "Map request.resetParticleMotion");
+    if (particleDelta < 0 || particleDelta > 0.25f) {
+        throw std::invalid_argument(
+            "Map particle delta must be between 0 and 0.25 seconds");
+    }
     const std::string sessionId = map_preview_data::text(request, "sessionId");
     const std::int64_t generation = revision(request, "generation");
     const std::int64_t nextResourceRevision =
@@ -486,6 +515,7 @@ RuntimeData MapPreviewSession::Impl::render(const RuntimeData::Map& request,
         reset();
         resourceRevision = nextResourceRevision;
     } else if (sceneKey != nextSceneKey) {
+        emitters.clear();
         renderer.reset();
         scene = {};
         sceneData.clear();
@@ -498,10 +528,12 @@ RuntimeData MapPreviewSession::Impl::render(const RuntimeData::Map& request,
     sceneKey = nextSceneKey;
     const bool materialsChanged = materialSignature != nextMaterialSignature;
     materialSignature = nextMaterialSignature;
+    bool sceneChanged = false;
     if (const RuntimeData* data =
             map_preview_data::optional(request, "scene")) {
         sceneData = map_preview_data::map(*data);
         updateScene(sceneData);
+        sceneChanged = true;
     } else if (const RuntimeData* changes =
                    map_preview_data::optional(request, "sceneChanges")) {
         if (!hasScene) {
@@ -548,6 +580,7 @@ RuntimeData MapPreviewSession::Impl::render(const RuntimeData::Map& request,
         if (rebuild) {
             updateScene(sceneData);
         }
+        sceneChanged = true;
     }
     if (!hasScene) {
         throw std::invalid_argument(
@@ -556,6 +589,10 @@ RuntimeData MapPreviewSession::Impl::render(const RuntimeData::Map& request,
     if (materialsChanged) {
         renderer.reset();
         updateScene(sceneData);
+        sceneChanged = true;
+    }
+    if (sceneChanged) {
+        emitters.update(sceneData, scene);
     }
     const auto applyEnd = std::chrono::steady_clock::now();
     const int width = map_preview_data::integer(request, "width", 0);
@@ -605,7 +642,9 @@ RuntimeData MapPreviewSession::Impl::render(const RuntimeData::Map& request,
         }
     }
     const auto renderBegin = std::chrono::steady_clock::now();
-    const sf::RenderTexture& output = renderer.render(scene, view, options);
+    emitters.advance(particleDelta, resetParticleMotion);
+    const sf::RenderTexture& output =
+        renderer.render(scene, view, options, emitters.drawHooks());
     const auto readbackBegin = std::chrono::steady_clock::now();
     const sf::Image image = output.getTexture().copyToImage();
     const auto transferBegin = std::chrono::steady_clock::now();
@@ -639,6 +678,10 @@ RuntimeData MapPreviewSession::Impl::render(const RuntimeData::Map& request,
 }
 
 void MapPreviewSession::Impl::reset() {
+    if (context != nullptr) {
+        activate();
+    }
+    emitters.clear();
     renderer.reset();
     scene = {};
     sceneData.clear();
@@ -660,6 +703,12 @@ RuntimeData MapPreviewSession::render(const RuntimeData::Map& request,
 }
 void MapPreviewSession::reset() {
     impl_->reset();
+}
+
+void MapPreviewSession::close(const std::string& sceneKey) {
+    if (impl_->sceneKey == sceneKey) {
+        impl_->reset();
+    }
 }
 
 }  // namespace ludork::preview_host

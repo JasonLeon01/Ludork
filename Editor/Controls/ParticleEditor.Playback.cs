@@ -7,7 +7,6 @@ using Ludork.Services;
 using Ludork.Views.Utils;
 using System;
 using System.Diagnostics;
-using System.Linq;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
@@ -187,7 +186,9 @@ public sealed partial class ParticleEditor
 
     private JsonObject previewAsset()
     {
-        JsonObject asset = (JsonObject)data.DeepClone();
+        JsonObject asset = ParticlePreviewAssetBuilder.Build(data, gameData.Assets.CurvesData);
+        if (asset["previewError"] is JsonValue error)
+            throw new InvalidOperationException(error.GetValue<string>());
         JsonArray previewTracks = asset["tracks"] as JsonArray ?? new JsonArray();
         for (int index = 0; index < previewTracks.Count; index++)
         {
@@ -195,14 +196,6 @@ public sealed partial class ParticleEditor
                 continue;
             if (solo.IsChecked == true && index != selectedTrack)
                 item["enabled"] = false;
-            if (item["curves"] is not JsonObject curves)
-                continue;
-            foreach (string channel in curves.Select(pair => pair.Key).ToArray())
-            {
-                if (curves[channel] is JsonValue value && value.TryGetValue<string>(out string? key)
-                    && SnapshotJson.ToDictionary(gameData.Assets.CurvesData).TryGetValue(key, out JsonObject? curve))
-                    curves[channel] = curve.DeepClone();
-            }
         }
         return asset;
     }

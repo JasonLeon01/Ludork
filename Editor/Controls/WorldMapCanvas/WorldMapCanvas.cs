@@ -231,7 +231,7 @@ public sealed partial class WorldMapCanvas : Control, IDisposable
                     maps.Add((placement.Child.Key, placement.X, placement.Y, placement == selectedPlacement ? 1 : 0, map));
             }
             if (Manifest is not null)
-                renderer?.DrawWorld(context, Manifest, maps, worldRect.TopLeft, cellSize,
+                renderer?.DrawWorld(context, WorldKey ?? string.Empty, Manifest, maps, worldRect.TopLeft, cellSize,
                     worldRect.Intersect(visibleCanvas), TopLevel.GetTopLevel(this)?.RenderScaling ?? 1);
             foreach (WorldMapPlacementPreview placement in visiblePlacements)
             {

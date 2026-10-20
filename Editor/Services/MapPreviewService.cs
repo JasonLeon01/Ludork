@@ -86,7 +86,11 @@ public sealed class MapPreviewService : IDisposable
         projectConfig.ViewportOptions = options;
         Options = options;
         foreach (MapPreviewLease lease in leases)
+        {
+            if (!options.Realtime)
+                lease.SuspendParticles();
             lease.Invalidate();
+        }
         OptionsChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -94,6 +98,8 @@ public sealed class MapPreviewService : IDisposable
     {
         if (!lease.IsThumbnail)
         {
+            if (!ReferenceEquals(active, lease))
+                active?.SuspendParticles();
             active = lease;
             if (changed)
                 lastForegroundChange = clock.Elapsed.TotalSeconds;
@@ -109,6 +115,8 @@ public sealed class MapPreviewService : IDisposable
 
     private void scheduleForeground()
     {
+        if (active is { CanRender: false } || !Options.Realtime)
+            active?.SuspendParticles();
         if (disposed || foregroundBusy || active is not { CanRender: true, Scene: not null } current
             || !current.Pending && !Options.Realtime)
             return;
@@ -131,6 +139,8 @@ public sealed class MapPreviewService : IDisposable
         leases.Remove(lease);
         if (ReferenceEquals(active, lease))
             active = null;
+        if (!disposed)
+            _ = (lease.IsThumbnail ? thumbnails : foreground).CloseSceneAsync(lease.Id);
     }
 
     private void onTick(object? sender, EventArgs args)
@@ -170,13 +180,15 @@ public sealed class MapPreviewService : IDisposable
         MapPreviewOptions options = lease.Options;
         long changedAt = contentPending ? lease.ChangedAt : Stopwatch.GetTimestamp();
         double sceneMilliseconds = contentPending ? lease.SceneUpdateMilliseconds : 0;
+        (double particleDelta, bool resetParticleMotion) = lease.ParticleFrame(clock.Elapsed.TotalSeconds, options.Realtime);
         JsonObject request = new()
         {
-            ["generation"] = sequence, ["sceneKey"] = lease.Id, ["revision"] = lease.Revision,
+            ["generation"] = sequence, ["sceneKey"] = lease.SceneKey, ["revision"] = lease.Revision,
             ["resourceRevision"] = resourceRevision, ["width"] = size.Width, ["height"] = size.Height,
             ["view"] = new JsonObject { ["x"] = view.X, ["y"] = view.Y, ["width"] = view.Width, ["height"] = view.Height, ["rotation"] = 0 },
             ["time"] = thumbnail ? 0 : animationTime, ["lit"] = options.Lit, ["showFog"] = options.ShowFog,
             ["showPanorama"] = options.ShowPanorama, ["selectedLayer"] = lease.SelectedLayer, ["otherLayerOpacity"] = 0.5,
+            ["particleDelta"] = particleDelta, ["resetParticleMotion"] = resetParticleMotion,
         };
         try
         {
@@ -197,6 +209,7 @@ public sealed class MapPreviewService : IDisposable
         }
         catch (Exception exception) when (PreviewHostConnection.IsProtocolException(exception) || exception is InvalidOperationException or OperationCanceledException)
         {
+            lease.SuspendParticles();
             if (!disposed && !lease.Disposed && generation == lease.Generation)
             {
                 lease.Publish(null, view, exception.Message);
@@ -226,7 +239,7 @@ public sealed class MapPreviewService : IDisposable
     internal void InvalidateResources() => invalidate(true);
     private void onDocumentsChanged(object? sender, EditorDocumentsChangedEventArgs args)
     {
-        if (args.Reset || args.Changes.Any(change => change.Section is "WorldMaps" or "Blueprints" or "Tilesets" or "AutoTiles" or "Materials" or "Configs" || change.Section == "Maps" && change.IdentityChanged))
+        if (args.Reset || args.Changes.Any(change => change.Section is "WorldMaps" or "Blueprints" or "Tilesets" or "AutoTiles" or "Materials" or "Particles" or "Curves" or "Configs" || change.Section == "Maps" && change.IdentityChanged))
             invalidate(false);
     }
     private void onMapChanged(object? sender, MapPreviewChangedEventArgs args)

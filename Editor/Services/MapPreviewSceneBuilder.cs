@@ -61,6 +61,7 @@ public sealed partial class MapPreviewSceneBuilder(ProjectDataStore gameData, Bl
             ["regions"] = regions, ["sprites"] = sprites, ["lights"] = lights,
             ["tilesets"] = tilesets, ["autoTiles"] = autoTiles,
             ["materials"] = gameData.Assets.CaptureMaterials(),
+            ["particles"] = captureParticles(sprites),
             ["ambientLight"] = settings["ambientLight"]?.DeepClone() ?? new JsonArray(255, 255, 255, 255),
             ["fog"] = settings["fog"]?.DeepClone(), ["panorama"] = settings["panorama"]?.DeepClone() ?? JsonValue.Create(string.Empty),
         };
@@ -125,6 +126,16 @@ public sealed partial class MapPreviewSceneBuilder(ProjectDataStore gameData, Bl
             }
             return;
         }
+        ActorEmitterDescriptor? emitter = resolved is null ? null : preview.tryResolveActorEmitter(resolved);
+        if (emitter is not null)
+        {
+            sprite["emitter"] = new JsonObject
+            {
+                ["resource"] = emitter.Resource, ["anchor"] = vector(emitter.Anchor), ["offset"] = vector(emitter.Offset),
+                ["rotation"] = emitter.Rotation, ["scale"] = vector(emitter.Scale), ["beforeActor"] = emitter.BeforeActor,
+                ["bounds"] = new JsonArray(emitter.Bounds.Width, emitter.Bounds.Height),
+            };
+        }
         ActorLightDescriptor? light = resolved is null ? null : preview.tryResolveActorLight(resolved);
         if (light is null || map["layers"]?[layer]?["visible"]?.GetValue<bool>() == false)
             return;
@@ -136,6 +147,25 @@ public sealed partial class MapPreviewSceneBuilder(ProjectDataStore gameData, Bl
             ["colour"] = new JsonArray(light.Colour.R, light.Colour.G, light.Colour.B, light.Colour.A),
             ["radius"] = light.Radius, ["intensity"] = 1.0,
         });
+    }
+
+    private JsonObject captureParticles(JsonArray sprites, JsonObject? previous = null)
+    {
+        HashSet<string> resources = sprites.OfType<JsonObject>()
+            .Select(sprite => sprite["emitter"]?["resource"]?.GetValue<string>())
+            .OfType<string>().ToHashSet(StringComparer.Ordinal);
+        if (previous is not null && previous.Count == resources.Count && resources.All(previous.ContainsKey))
+            return previous;
+        JsonObject result = new();
+        foreach (string resource in resources)
+        {
+            if (previous is not null && previous.TryGetPropertyValue(resource, out JsonNode? cached))
+                result[resource] = cached?.DeepClone();
+            else
+                result[resource] = gameData.Assets.ParticlesData.TryGetValue(resource, out ParticleSnapshot? particle)
+                    ? ParticlePreviewAssetBuilder.Build(particle.ToJson(), gameData.Assets.CurvesData) : null;
+        }
+        return result;
     }
 
     private static JsonArray vector(Vector value) => new(value.X, value.Y);

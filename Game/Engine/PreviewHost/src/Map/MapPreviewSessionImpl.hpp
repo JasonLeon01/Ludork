@@ -1,9 +1,11 @@
 #pragma once
 
 #include "MapPreviewSession.hpp"
+#include "MapEmitterPreviewImpl.hpp"
 
 #include <Gameplay/TileLayer.hpp>
 #include <Graphics/MapRenderer.hpp>
+#include <SFML/Window/Context.hpp>
 
 #include <string>
 #include <unordered_map>
@@ -13,6 +15,8 @@ namespace ludork::preview_host {
 
 class MapPreviewSession::Impl {
 public:
+    ~Impl() noexcept;
+
     struct Layer {
         std::string signature;
         std::shared_ptr<TileLayer> graphics;
@@ -28,6 +32,7 @@ public:
     };
 
     RuntimeData render(const RuntimeData::Map& request, FrameFiles& frameFiles);
+    void activate();
     void reset();
     void updateScene(const RuntimeData::Map& data);
     std::shared_ptr<TileLayer> updateLayer(const std::string& cacheKey,
@@ -44,7 +49,9 @@ public:
                        const std::string& name);
     void updateSprites(const RuntimeData::Array& values);
 
+    std::unique_ptr<sf::Context> context;
     MapRenderer renderer;
+    MapEmitterPreviewImpl emitters;
     MapRenderer::Scene scene;
     RuntimeData::Map sceneData;
     std::unordered_map<std::string, Layer> layers;

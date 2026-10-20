@@ -15,6 +15,7 @@ internal sealed class MapPreviewClient(PreviewRuntimeService runtime) : IDisposa
 {
     private readonly PreviewHostConnection connection = new(runtime);
     private readonly string sessionId = Guid.NewGuid().ToString("N");
+    private readonly SemaphoreSlim requests = new(1, 1);
     private string? sceneKey;
     private long revision = -1;
     private long resourceRevision = -1;
@@ -22,6 +23,19 @@ internal sealed class MapPreviewClient(PreviewRuntimeService runtime) : IDisposa
     internal JsonObject? LastResponse { get; private set; }
 
     public async Task<Bitmap> RenderAsync(JsonObject request, JsonObject scene, CancellationToken cancellationToken)
+    {
+        await requests.WaitAsync(cancellationToken);
+        try
+        {
+            return await renderAsync(request, scene, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            requests.Release();
+        }
+    }
+
+    private async Task<Bitmap> renderAsync(JsonObject request, JsonObject scene, CancellationToken cancellationToken)
     {
         MapPreviewSceneDelta.Snapshot nextScene = new(scene);
         bool wasReady = connection.IsReady;
@@ -39,8 +53,10 @@ internal sealed class MapPreviewClient(PreviewRuntimeService runtime) : IDisposa
         acceptedScene = null;
         if (!wasReady && !await connection.StartAsync(cancellationToken).ConfigureAwait(false))
             throw new InvalidOperationException(connection.StatusMessage);
-        if (!connection.Capabilities.Contains("map") || !connection.Capabilities.Contains("mapActorChanges"))
+        if (!connection.Capabilities.Contains("map") || !connection.Capabilities.Contains("mapActorChanges")
+            || !connection.Capabilities.Contains("mapEmitters"))
             throw new InvalidOperationException(LocaleService.Get("MAP_PREVIEW_UNAVAILABLE"));
+        sceneKey = key;
         JsonObject response = await connection.ExchangeAsync(request, cancellationToken).ConfigureAwait(false);
         if (response["type"]?.GetValue<string>() != "mapFrame"
             || response["sessionId"]?.GetValue<string>() != sessionId
@@ -59,11 +75,38 @@ internal sealed class MapPreviewClient(PreviewRuntimeService runtime) : IDisposa
         Bitmap bitmap = createBitmap(pixels, new PixelSize(width, height));
         response["previewBitmapMs"] = Stopwatch.GetElapsedTime(bitmapStarted).TotalMilliseconds;
         LastResponse = response;
-        sceneKey = key;
         revision = nextRevision;
         resourceRevision = nextResourceRevision;
         acceptedScene = nextScene;
         return bitmap;
+    }
+
+    internal async Task CloseSceneAsync(string leaseId)
+    {
+        await requests.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            if (sceneKey is not string key || !key.StartsWith(leaseId + "/", StringComparison.Ordinal) || !connection.IsReady)
+                return;
+            acceptedScene = null;
+            sceneKey = null;
+            JsonObject response = await connection.ExchangeAsync(new JsonObject
+            {
+                ["type"] = "closeMap", ["sessionId"] = sessionId, ["sceneKey"] = key,
+            }, CancellationToken.None).ConfigureAwait(false);
+            if (response["type"]?.GetValue<string>() != "mapClosed"
+                || response["sessionId"]?.GetValue<string>() != sessionId
+                || response["sceneKey"]?.GetValue<string>() != key)
+                throw new InvalidDataException("Invalid map preview close response.");
+        }
+        catch (Exception exception) when (PreviewHostConnection.IsProtocolException(exception) || exception is InvalidOperationException)
+        {
+            Debug.WriteLine(exception);
+        }
+        finally
+        {
+            requests.Release();
+        }
     }
 
     private static Bitmap createBitmap(byte[] pixels, PixelSize size)

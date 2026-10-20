@@ -16,6 +16,7 @@ public sealed class MapPreviewLease : IDisposable
     }
 
     internal string Id { get; } = Guid.NewGuid().ToString("N");
+    internal string SceneKey => Id + "/" + identity;
     internal bool IsThumbnail { get; }
     internal bool Pending { get; set; }
     internal double RetryAfter { get; set; }
@@ -37,6 +38,8 @@ public sealed class MapPreviewLease : IDisposable
     internal long ChangedAt { get; private set; } = Stopwatch.GetTimestamp();
     internal double SceneUpdateMilliseconds { get; private set; }
     private bool changeRecorded;
+    private double? lastParticleFrame;
+    private bool resetParticleMotion = true;
     public bool IsActive { get; set; }
     public bool IsInteracting { get; set; }
     internal Func<bool>? Visible { get; set; }
@@ -54,6 +57,8 @@ public sealed class MapPreviewLease : IDisposable
             Epoch++;
             changed = true;
         }
+        if (identity != (sceneIdentity ?? string.Empty))
+            SuspendParticles();
         identity = sceneIdentity ?? string.Empty;
         Scene = scene;
         Revision = revision;
@@ -79,6 +84,23 @@ public sealed class MapPreviewLease : IDisposable
         ChangedAt = started;
         changeRecorded = true;
         SceneUpdateMilliseconds = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+    }
+
+    internal (double Delta, bool ResetMotion) ParticleFrame(double now, bool realtime)
+    {
+        bool advance = realtime && !IsThumbnail && CanRender;
+        double delta = advance && lastParticleFrame is double previous
+            ? Math.Clamp(now - previous, 0, 0.25) : 0;
+        bool reset = resetParticleMotion || !advance;
+        lastParticleFrame = advance ? now : null;
+        resetParticleMotion = !advance;
+        return (delta, reset);
+    }
+
+    internal void SuspendParticles()
+    {
+        lastParticleFrame = null;
+        resetParticleMotion = true;
     }
 
     internal void Publish(Bitmap? bitmap, Rect view, string error)

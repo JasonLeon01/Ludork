@@ -1,6 +1,7 @@
 target_sources(PreviewHostExecutable PRIVATE
     Actor/ActorBatchRenderer.cpp
     Map/MapPreviewData.cpp
+    Map/MapEmitterPreviewImpl.cpp
     Map/MapPreviewSession.cpp
     Material/MaterialPreviewSession.cpp
     Material/MaterialExport.cpp
