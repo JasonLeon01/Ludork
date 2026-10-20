@@ -25,7 +25,7 @@ All scripts switch to the repository root before doing work. Use `.bat` on Windo
 | `pack_harmony.sh` | Build a HarmonyOS API 22 Mobile or 2in1 arm64-v8a HAP, with optional signing and device export |
 | `pack_android.sh` | Build an Android arm64-v8a Release APK from a C++ Source project, unsigned by default with optional signing |
 | `pack_editor.bat` | Publish and validate the self-contained Windows 10-or-newer x64 editor package with official plug-ins |
-| `pack_editor.sh` | Publish and validate the self-contained macOS Apple Silicon editor DMG, with optional signing and notarisation |
+| `pack_editor.sh` | Publish and validate the self-contained macOS Apple Silicon editor DMG, with ad-hoc signing by default and optional Developer ID signing and notarisation |
 | `pack_editor_msi.bat` | Wrap a release Windows editor package into the installer MSI |
 | `pack_editor_exe.bat` | Wrap the same release Windows editor package into the Inno Setup EXE |
 
@@ -55,6 +55,8 @@ tools\pack_editor.bat
 ```
 
 For project workflows, see [Run, Debug and Package](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=02%2F11), [Project Templates](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=01%2F02) and [Native Build and Module Layout](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=04%2F01). The sections below cover command-line and repository maintenance details.
+
+On macOS, the default editor build creates and ad-hoc signs `bin/<configuration>/net9.0/Ludork.app`. Both `dotnet run` and `tools/run_editor.sh` launch its executable, so system notifications also work during development. Allow notifications for **Ludork Development** when macOS first requests permission; this development identity has separate notification settings from the installed **Ludork** application. IDE launch configurations must run `Ludork.app/Contents/MacOS/Ludork`; launching `Ludork.dll` through `dotnet` does not provide the required macOS application identity. Builds with an explicit runtime identifier or custom output directory retain their normal output layout and do not create this development bundle.
 
 ## Website and documentation
 

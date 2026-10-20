@@ -339,7 +339,9 @@ run_macos_sign() {
         set -- "$@" --notary-key-issuer "$SIGNING_NOTARY_KEY_ISSUER"
     fi
     if [ "$signing_mode" = "app" ]; then
-        set -- "$@" --entitlements "$SIGNING_ENTITLEMENTS"
+        if [ -n "$SIGNING_ENTITLEMENTS" ]; then
+            set -- "$@" --entitlements "$SIGNING_ENTITLEMENTS"
+        fi
         set -- "$@" --runtime-bundle "$RESOURCES_DIR/tools/ScriptTools"
         if [ "$WITHOUT_TEMPLATES" -eq 0 ]; then
             for template_name in $STANDALONE_TEMPLATE_NAMES; do
@@ -737,9 +739,7 @@ validate_package() {
     info_plist="$package_app/Contents/Info.plist"
 
     require_package_executable "$package_macos/Ludork"
-    if [ -n "$SIGNING_IDENTITY$SIGNING_CERTIFICATE" ]; then
-        codesign --verify --deep --strict "$package_app"
-    fi
+    codesign --verify --deep --strict "$package_app"
     require_package_file "$info_plist"
     "$SCRIPT_TOOLS" editor-build-metadata validate-payload "$package_app" \
         --content-root "$package_resources" --build-info "$BUILD_INFO"
@@ -1351,9 +1351,9 @@ find "$APP_DIR" -name '.DS_Store' -delete
 
 if [ -n "$SIGNING_IDENTITY$SIGNING_CERTIFICATE" ]; then
     SIGNING_ENTITLEMENTS=${SIGNING_ENTITLEMENTS:-$DMG_ASSET_DIR/Editor.entitlements}
-    echo "Signing the editor application..."
-    run_macos_sign app "$APP_DIR"
 fi
+echo "Signing the editor application..."
+run_macos_sign app "$APP_DIR"
 
 echo "Preparing official editor plugins..."
 "$SCRIPT_TOOLS" editor-official-plugins prepare \

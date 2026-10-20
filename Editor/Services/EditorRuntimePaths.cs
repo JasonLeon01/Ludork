@@ -20,12 +20,16 @@ public static class EditorRuntimePaths
             ? Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, ".."))
             : AppContext.BaseDirectory;
 
-    internal static string DevelopmentRoot => Path.GetFullPath(Path.Combine(
-        AppContext.BaseDirectory,
-        "..",
-        "..",
-        ".."
-    ));
+    internal static string DevelopmentRoot
+    {
+        get
+        {
+            string marker = Path.Combine(AppContext.BaseDirectory, ".ludork-development");
+            return File.Exists(marker)
+                ? Path.GetFullPath(File.ReadAllText(marker).Trim())
+                : AppContext.BaseDirectory;
+        }
+    }
 
     public static string? FindDirectory(string relativePath)
     {

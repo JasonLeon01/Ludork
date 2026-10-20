@@ -42,6 +42,8 @@ internal sealed class EditorNotificationService : IDisposable
                 options = new AppNotificationOptions { AppName = "Ludork", ClearOnAppClose = true };
             AppBuilder notifications = AppBuilder.Configure<App>().WithAppNotifications(options);
             notifications.AfterSetupCallback?.Invoke(notifications);
+            if (NativeNotificationManager.Current is null && OperatingSystem.IsMacOS())
+                Trace.WriteLine("System notifications require launching Ludork from its macOS .app bundle.");
             return NativeNotificationManager.Current;
         }
         catch (Exception exception)

@@ -35,6 +35,15 @@
     <DefineConstants>$(DefineConstants);LUDORK_WINDOWS</DefineConstants>
   </PropertyGroup>
 
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX')) and '$(RuntimeIdentifier)' == '' and '$(OutputPath)' == '' and '$(OutDir)' == ''">
+    <LudorkDevelopmentBundle>true</LudorkDevelopmentBundle>
+    <UseAppHost>true</UseAppHost>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <OutputPath>bin/$(Configuration)/$(TargetFramework)/Ludork.app/Contents/MacOS/</OutputPath>
+    <IntermediateOutputPath>$(BaseIntermediateOutputPath)$(Configuration)/$(TargetFramework)/</IntermediateOutputPath>
+    <PublishDir Condition="'$(PublishDir)' == ''">bin/$(Configuration)/$(TargetFramework)/publish/</PublishDir>
+  </PropertyGroup>
+
   <ItemGroup>
     <Compile Remove="Editor\Controls\MacOSAnimationAudioPlayback.cs" Condition="'$(LudorkTargetPlatform)' != 'macOS'" />
     <Compile Remove="Editor\Controls\WindowsAnimationAudioPlayback.cs" Condition="'$(LudorkTargetPlatform)' != 'Windows'" />
@@ -204,5 +213,16 @@
       Name="RemoveLudorkDevelopmentPluginMarkerFromPublish"
       AfterTargets="Publish">
     <Delete Files="$(PublishDir).ludork-development" />
+  </Target>
+
+  <Target
+      Name="PrepareLudorkDevelopmentBundle"
+      AfterTargets="Build"
+      DependsOnTargets="WriteLegalResourceOutput;WriteLudorkDevelopmentPluginMarker"
+      Condition="'$(LudorkDevelopmentBundle)' == 'true' and '$(DesignTimeBuild)' != 'true'">
+    <Exec Command="sh &quot;$(MSBuildProjectDirectory)/tools/editor_macos_development/prepare.sh&quot; &quot;$(TargetDir)&quot; &quot;$(Version)&quot; &quot;$(MSBuildProjectDirectory)/Editor/Assets/icon.png&quot; &quot;$(IntermediateOutputPath)&quot; &quot;$(LudorkScriptTools)&quot;" />
+    <ItemGroup>
+      <FileWrites Include="$(TargetDir)../Info.plist;$(TargetDir)../Resources/AppIcon.icns;$(TargetDir)../_CodeSignature/CodeResources" />
+    </ItemGroup>
   </Target>
 </Project>
