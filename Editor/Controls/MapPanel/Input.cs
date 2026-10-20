@@ -205,6 +205,9 @@ public sealed partial class MapPanel
     protected override void OnPointerReleased(PointerReleasedEventArgs args)
     {
         base.OnPointerReleased(args);
+        MapActorReference? committedActor = !IsRuntimeEditing && EditMode == MapEditMode.Actor
+            && args.InitialPressMouseButton == MouseButton.Left && actorPointerGesture is { Ignored: false } gesture
+            ? gesture.Hit : null;
         if (!IsRuntimeEditing && args.InitialPressMouseButton == MouseButton.Left)
             completeProjectActorGesture();
         actorPointerGesture = null;
@@ -224,6 +227,8 @@ public sealed partial class MapPanel
         args.Pointer.Capture(null);
         capturedPointer = null;
         InvalidateVisual();
+        if (committedActor is not null && selectedActors.Count == 1 && selectedActors[0] == committedActor)
+            ActorSelectionCommitted?.Invoke(this, EventArgs.Empty);
     }
 
     protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs args)

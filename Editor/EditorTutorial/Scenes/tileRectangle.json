@@ -1,0 +1,168 @@
+{
+  "id": "tileRectangle",
+  "trigger": "map.tileSelectionCommitted",
+  "anchor": "map.canvas",
+  "duration": 3,
+  "loop": true,
+  "elements": [
+    {
+      "id": "shiftHint",
+      "type": "group",
+      "x": { "offset": 16 },
+      "y": { "value": 0.36, "offset": -36 },
+      "width": { "value": 0.24, "offset": -24 },
+      "height": { "offset": 90 },
+      "children": [
+        {
+          "id": "holdLabel",
+          "type": "text",
+          "width": { "value": 1 },
+          "height": { "offset": 36 },
+          "textKey": "TUTORIAL_HOLD_SHIFT",
+          "fill": "Editor.TextBrush",
+          "fontSize": 16
+        },
+        {
+          "id": "shiftKeycap",
+          "type": "rectangle",
+          "x": { "value": 0.5, "offset": -34 },
+          "y": { "offset": 40 },
+          "width": { "offset": 68 },
+          "height": { "offset": 38 },
+          "fill": "Editor.SurfaceBrush",
+          "stroke": "Editor.BorderBrush",
+          "strokeThickness": 2
+        },
+        {
+          "id": "shiftKeyLabel",
+          "type": "text",
+          "x": { "value": 0.5, "offset": -34 },
+          "y": { "offset": 40 },
+          "width": { "offset": 68 },
+          "height": { "offset": 38 },
+          "textKey": "TUTORIAL_SHIFT_KEY",
+          "fill": "Editor.TextBrush",
+          "fontSize": 18
+        }
+      ]
+    },
+    {
+      "id": "demonstration",
+      "type": "group",
+      "x": { "value": 0.27, "offset": 8 },
+      "y": { "value": 0.1, "offset": 16 },
+      "width": { "value": 0.66, "offset": -32 },
+      "height": { "value": 0.68, "offset": -72 },
+      "children": [
+        {
+          "id": "selectionFill",
+          "type": "rectangle",
+          "fill": "Editor.AccentBrush",
+          "opacity": 0.25
+        },
+        {
+          "id": "selectionBorder",
+          "type": "rectangle",
+          "stroke": "Editor.AccentBrush",
+          "strokeThickness": 2
+        },
+        {
+          "id": "hand",
+          "type": "image",
+          "x": { "offset": -1.5 },
+          "y": { "offset": -1.5 },
+          "width": { "offset": 48 },
+          "height": { "offset": 64 },
+          "asset": "hand.svg"
+        }
+      ]
+    },
+    {
+      "id": "instructions",
+      "type": "group",
+      "x": { "value": 0.05 },
+      "y": { "value": 1, "offset": -96 },
+      "width": { "value": 0.9 },
+      "height": { "offset": 80 },
+      "children": [
+        {
+          "id": "description",
+          "type": "text",
+          "width": { "value": 1 },
+          "height": { "offset": 50 },
+          "textKey": "TUTORIAL_RECTANGLE_DESCRIPTION",
+          "fill": "Editor.TextBrush",
+          "fontSize": 18
+        },
+        {
+          "id": "dismissLabel",
+          "type": "text",
+          "y": { "offset": 52 },
+          "width": { "value": 1 },
+          "height": { "offset": 26 },
+          "textKey": "TUTORIAL_DISMISS",
+          "fill": "Editor.TextMutedBrush",
+          "fontSize": 14
+        }
+      ]
+    }
+  ],
+  "tracks": [
+    {
+      "target": "selectionFill",
+      "property": "width",
+      "keyframes": [
+        { "time": 0.4, "value": 0 },
+        { "time": 2, "value": 0.78, "easing": "smooth" }
+      ]
+    },
+    {
+      "target": "selectionFill",
+      "property": "height",
+      "keyframes": [
+        { "time": 0.4, "value": 0 },
+        { "time": 2, "value": 0.75, "easing": "smooth" }
+      ]
+    },
+    {
+      "target": "selectionBorder",
+      "property": "width",
+      "keyframes": [
+        { "time": 0.4, "value": 0 },
+        { "time": 2, "value": 0.78, "easing": "smooth" }
+      ]
+    },
+    {
+      "target": "selectionBorder",
+      "property": "height",
+      "keyframes": [
+        { "time": 0.4, "value": 0 },
+        { "time": 2, "value": 0.75, "easing": "smooth" }
+      ]
+    },
+    {
+      "target": "hand",
+      "property": "x",
+      "keyframes": [
+        { "time": 0.4, "value": 0, "offset": -1.5 },
+        { "time": 2, "value": 0.78, "offset": -1.5, "easing": "smooth" }
+      ]
+    },
+    {
+      "target": "hand",
+      "property": "y",
+      "keyframes": [
+        { "time": 0.4, "value": 0, "offset": -1.5 },
+        { "time": 2, "value": 0.75, "offset": -1.5, "easing": "smooth" }
+      ]
+    },
+    {
+      "target": "demonstration",
+      "property": "opacity",
+      "keyframes": [
+        { "time": 2.8, "value": 1 },
+        { "time": 3, "value": 0 }
+      ]
+    }
+  ]
+}

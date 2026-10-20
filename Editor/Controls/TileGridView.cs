@@ -14,6 +14,7 @@ namespace Ludork.Controls;
 
 public sealed class TileGridView : Control
 {
+    public event EventHandler? SelectionCommitted;
     private static readonly IBrush BackgroundBrush = new SolidColorBrush(Color.FromRgb(30, 30, 30));
     private static readonly Pen GridPen = new(new SolidColorBrush(Color.FromArgb(150, 80, 80, 80)), 1);
     private static readonly Pen SelectionPen = new(new SolidColorBrush(Color.FromRgb(255, 215, 64)), 2);
@@ -96,9 +97,13 @@ public sealed class TileGridView : Control
     protected override void OnPointerReleased(PointerReleasedEventArgs args)
     {
         base.OnPointerReleased(args);
+        bool committed = dragStartCell is not null && args.InitialPressMouseButton == MouseButton.Left
+            && viewModel?.SelectedTiles is not null;
         dragStartCell = null;
         lastDragCell = null;
         args.Pointer.Capture(null);
+        if (committed)
+            SelectionCommitted?.Invoke(this, EventArgs.Empty);
     }
 
     private void attachViewModel(TileSelectViewModel? next)

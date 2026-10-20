@@ -119,6 +119,7 @@ public partial class MainWindow : Window, IProjectOperationInteraction
         leftColumn.Width = new GridLength(Math.Max(160, settings.UpperLeftWidth));
         rightColumn.Width = new GridLength(Math.Max(320, settings.UpperRightWidth));
         EditorLayoutService.AttachWindow(this, "Main");
+        initializeTutorials();
     }
 
 }

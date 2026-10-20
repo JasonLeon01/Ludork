@@ -1,4 +1,64 @@
 {
+  "TUTORIAL_MODIFIER_KEY": {
+    "en_GB": "{0}",
+    "zh_CN": "{0}"
+  },
+  "TUTORIAL_LEFT_DRAG": {
+    "en_GB": "Left-button drag",
+    "zh_CN": "左键拖动"
+  },
+  "TUTORIAL_SCROLL_THREE": {
+    "en_GB": "Scroll 3 notches",
+    "zh_CN": "滚动三格"
+  },
+  "TUTORIAL_ACTOR_TRANSLATION_TITLE": {
+    "en_GB": "1 / 4  Translation",
+    "zh_CN": "1 / 4  视觉偏移（Translation）"
+  },
+  "TUTORIAL_ACTOR_TRANSLATION_DESCRIPTION": {
+    "en_GB": "Hold {0} and drag to move the image without changing its grid position.",
+    "zh_CN": "按住 {0} 并拖动：平移图像，格子位置保持不变。"
+  },
+  "TUTORIAL_ACTOR_ORIGIN_TITLE": {
+    "en_GB": "2 / 4  Origin",
+    "zh_CN": "2 / 4  原点（Origin）"
+  },
+  "TUTORIAL_ACTOR_ORIGIN_DESCRIPTION": {
+    "en_GB": "Hold {0} and drag to adjust the origin. The image moves in the opposite direction.",
+    "zh_CN": "按住 {0} 并拖动：调整原点，图像向拖动反方向偏移。"
+  },
+  "TUTORIAL_ACTOR_SCALE_TITLE": {
+    "en_GB": "3 / 4  Scale",
+    "zh_CN": "3 / 4  缩放（Scale）"
+  },
+  "TUTORIAL_ACTOR_SCALE_DESCRIPTION": {
+    "en_GB": "Hold {0} and scroll to scale the image. Each notch changes its size by a factor of 1.1.",
+    "zh_CN": "按住 {0} 并滚动滚轮：缩放图像，每格按 1.1 倍调整。"
+  },
+  "TUTORIAL_ACTOR_ROTATION_TITLE": {
+    "en_GB": "4 / 4  Rotation",
+    "zh_CN": "4 / 4  旋转（Rotation）"
+  },
+  "TUTORIAL_ACTOR_ROTATION_DESCRIPTION": {
+    "en_GB": "Hold {0} and scroll to rotate the image around its origin, 15° per notch.",
+    "zh_CN": "按住 {0} 并滚动滚轮：让图像绕原点旋转，每格 15°。"
+  },
+  "TUTORIAL_HOLD_SHIFT": {
+    "en_GB": "Hold",
+    "zh_CN": "按住"
+  },
+  "TUTORIAL_SHIFT_KEY": {
+    "en_GB": "Shift",
+    "zh_CN": "Shift"
+  },
+  "TUTORIAL_RECTANGLE_DESCRIPTION": {
+    "en_GB": "Hold Shift and drag to paint a rectangle.",
+    "zh_CN": "按住 Shift 并拖动鼠标，可进行矩形绘制。"
+  },
+  "TUTORIAL_DISMISS": {
+    "en_GB": "Click anywhere to continue",
+    "zh_CN": "点击任意处继续"
+  },
   "EXTERNAL_RENAME_SELECTION": {
     "en_GB": "Files belonging to the same unsaved rename must use the same choice. Choose either disk or memory for all of these files.",
     "zh_CN": "同一次未保存重命名涉及的文件必须使用相同选择。请将以下文件统一选择为保留磁盘或保留内存。"

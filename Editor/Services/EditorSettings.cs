@@ -152,6 +152,14 @@ public sealed class EditorSettings
 
     public void SetExpanded(string key, bool expanded) => section("Expanded")[key] = expanded.ToString();
 
+    public bool HasPlayedTutorial(string id) => readBool(section("Tutorials"), id, false);
+
+    public bool MarkTutorialPlayed(string id)
+    {
+        section("Tutorials")[id] = bool.TrueString;
+        return Save();
+    }
+
     public string getLastPathOrHome()
     {
         if (!string.IsNullOrWhiteSpace(LastOpenPath) && Directory.Exists(LastOpenPath))

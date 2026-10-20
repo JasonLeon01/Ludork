@@ -460,6 +460,7 @@ public partial class MainWindow
 
     protected override void OnClosed(EventArgs args)
     {
+        disposeTutorials();
         EditorLayoutService.Save();
         consoleLogView.Dispose();
         consoleLogSession.Dispose();

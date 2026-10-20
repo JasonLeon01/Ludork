@@ -122,27 +122,27 @@ public sealed partial class ActorPreviewService : IDisposable
         int presentationSize,
         bool active)
     {
-        return acquire(descriptor, presentationSize, active, false);
+        return acquire(descriptor, presentationSize, active, null);
     }
 
-    internal ActorPreviewLease AcquireStatic(ActorVisualDescriptor descriptor)
+    internal ActorPreviewLease AcquireStatic(ActorVisualDescriptor descriptor, TimeSpan elapsed)
     {
-        return acquire(descriptor, 0, true, true);
+        return acquire(descriptor, 0, true, elapsed);
     }
 
     private ActorPreviewLease acquire(
         ActorVisualDescriptor descriptor,
         int presentationSize,
         bool active,
-        bool staticFrame)
+        TimeSpan? staticTime)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
-        ActorPreviewLease lease = new(this, descriptor, presentationSize, active, staticFrame);
+        ActorPreviewLease lease = new(this, descriptor, presentationSize, active, staticTime);
         leases.Add(lease);
         if (active && !lease.UsesAtlas)
         {
             PixelRect textureRect = lease.getTextureRect(clock.Elapsed);
-            if (!staticFrame || descriptor.Material.Length == 0)
+            if (staticTime is null || descriptor.Material.Length == 0)
                 updateFallback(lease, textureRect, forceSourceValidation: true);
         }
         ensureTimerState();
@@ -283,14 +283,16 @@ public sealed partial class ActorPreviewService : IDisposable
                     publishUnavailableFallback(lease, elapsed);
                 return;
             }
-            if (staticNative.Count != 0)
+            foreach (IGrouping<TimeSpan?, ActorPreviewLease> group in staticNative.GroupBy(lease => lease.StaticTime))
             {
+                List<ActorPreviewLease> snapshots = group.ToList();
+                TimeSpan snapshotTime = group.Key!.Value;
                 ActorPreviewBatchFrame? staticFrame = await requestFrameAsync(
-                    staticNative,
-                    TimeSpan.Zero,
+                    snapshots,
+                    snapshotTime,
                     cancellationToken);
                 if (!disposed && !cancellationToken.IsCancellationRequested && IsAvailable && staticFrame is not null)
-                    publishFrame(staticFrame, staticNative, TimeSpan.Zero);
+                    publishFrame(staticFrame, snapshots, snapshotTime);
             }
             if (realtimeNative.Count != 0)
             {

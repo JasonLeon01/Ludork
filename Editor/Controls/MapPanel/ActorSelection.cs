@@ -13,6 +13,7 @@ public sealed partial class MapPanel
     public IReadOnlyList<MapActorReference> SelectedActors => selectedActors.AsReadOnly();
     public MapActorReference? PrimarySelectedActor => primarySelectedActor;
     public MapActorReference? ActorSelectionAnchor { get; private set; }
+    internal event EventHandler? ActorSelectionCommitted;
 
     public void SelectActors(IReadOnlyList<MapActorReference> actors, MapActorReference? primary,
         MapActorReference? anchor)

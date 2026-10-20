@@ -45,6 +45,8 @@
     <Compile Remove="Templates\**\*.cs" />
     <None Include="Plugins\**\*.cs" />
     <AvaloniaResource Include="Editor\Assets\**" />
+    <AvaloniaResource Include="Editor\EditorTutorial\Scenes\**\*.json" />
+    <AvaloniaResource Include="Editor\EditorTutorial\Assets\**" />
     <EmbeddedResource Include="Editor\PluginTemplates\**\*" WithCulture="false" />
     <Content Include="Locale\**" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="LICENSE.md" CopyToOutputDirectory="PreserveNewest" />

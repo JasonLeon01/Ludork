@@ -18,19 +18,19 @@ public sealed class ActorPreviewLease : IDisposable
     private bool nativeRenderDirty;
     private PixelRect renderedTextureRect;
     private readonly int presentationSize;
-    private readonly bool staticFrame;
+    private readonly TimeSpan? staticTime;
 
     internal ActorPreviewLease(
         ActorPreviewService owner,
         ActorVisualDescriptor descriptor,
         int presentationSize,
         bool active,
-        bool staticFrame)
+        TimeSpan? staticTime)
     {
         this.owner = owner;
         Descriptor = descriptor;
         this.presentationSize = Math.Max(0, presentationSize);
-        this.staticFrame = staticFrame;
+        this.staticTime = staticTime;
         isActive = active;
         nativeRenderDirty = descriptor.RequiresNativePreview;
         SourceRect = new PixelRect(0, 0, descriptor.BaseTextureRect.Width, descriptor.BaseTextureRect.Height);
@@ -81,18 +81,19 @@ public sealed class ActorPreviewLease : IDisposable
 
     internal long PublicationRevision { get; private set; }
     internal bool IsDisposed => disposed;
-    internal bool IsStatic => staticFrame;
+    internal bool IsStatic => staticTime is not null;
+    internal TimeSpan? StaticTime => staticTime;
     internal bool NeedsNativeRender => nativeRenderDirty;
     internal PixelRect RenderedTextureRect => renderedTextureRect;
 
     internal PixelRect getTextureRect(TimeSpan elapsed)
     {
-        return Descriptor.GetTextureRect(staticFrame ? TimeSpan.Zero : elapsed);
+        return Descriptor.GetTextureRect(staticTime ?? elapsed);
     }
 
     internal void markNativeRenderDirty()
     {
-        if (!disposed && staticFrame && Descriptor.RequiresNativePreview)
+        if (!disposed && IsStatic && Descriptor.RequiresNativePreview)
             nativeRenderDirty = true;
     }
 
@@ -234,7 +235,7 @@ public sealed class ActorPreviewLease : IDisposable
         FrameChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    internal bool UsesAtlas => presentationSize == 0 && !staticFrame;
+    internal bool UsesAtlas => presentationSize == 0 && !IsStatic;
 
     internal void clearFrame(
         PixelRect textureRect,

@@ -164,6 +164,17 @@ public sealed partial class MapPanel
         return new Rect(left - mapRect.X, top - mapRect.Y, right - left, bottom - top);
     }
 
+    internal Rect? GetVisibleMapBounds()
+    {
+        if (!tryGetMapSize(out int width, out int height))
+            return null;
+        Rect mapRect = getMapRect(width, height);
+        Rect visible = getVisibleLocalMapRect(mapRect);
+        return visible.Width > 0 && visible.Height > 0
+            ? new Rect(mapRect.X + visible.X, mapRect.Y + visible.Y, visible.Width, visible.Height)
+            : null;
+    }
+
     private Rect getScrollViewportRect()
     {
         if (hostScrollViewer is null)

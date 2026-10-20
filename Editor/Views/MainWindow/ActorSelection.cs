@@ -140,6 +140,7 @@ public partial class MainWindow
             EditorPanel.SelectActors([reference], reference, reference);
         container.Focus();
         syncActorOutlinerSelection();
+        beginTutorialOutlinerSelection(args, reference);
         args.Handled = true;
     }
 

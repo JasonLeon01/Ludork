@@ -1,5 +1,6 @@
 using Ludork.ViewModels;
 using Ludork.Services;
+using Ludork.EditorTutorial.Playback;
 using System;
 using System.Linq;
 
@@ -39,6 +40,7 @@ public sealed class EditorProjectSession : IDisposable
     }
 
     public string ProjectPath { get; }
+    public TutorialTriggerBus TutorialTriggers { get; } = new();
     public ProjectDataStore GameData { get; }
     public EditorEditOperationService EditOperations => GameData.EditOperations;
     public ProjectConfigService ProjectConfig { get; }
@@ -77,6 +79,7 @@ public sealed class EditorProjectSession : IDisposable
         if (disposed)
             return;
         disposed = true;
+        TutorialTriggers.Dispose();
         FileExplorer.FilesChanged -= onFilesChanged;
         ExternalChanges.Synchronized -= onExternalFilesSynchronized;
         ExternalChanges.Dispose();

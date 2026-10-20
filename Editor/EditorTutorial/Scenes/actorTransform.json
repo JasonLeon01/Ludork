@@ -1,0 +1,694 @@
+{
+  "id": "actorTransform",
+  "trigger": "map.actorSelectionCommitted",
+  "anchor": "map.canvas",
+  "duration": 16,
+  "loop": true,
+  "elements": [
+    {
+      "id": "translationCopy",
+      "type": "group",
+      "width": { "value": 1 },
+      "height": { "value": 1 },
+      "children": [
+        {
+          "id": "translationTitle",
+          "type": "text",
+          "x": { "value": 0.04 },
+          "y": { "offset": 12 },
+          "width": { "value": 0.92 },
+          "height": { "offset": 36 },
+          "textKey": "TUTORIAL_ACTOR_TRANSLATION_TITLE",
+          "fill": "Editor.TextBrush",
+          "fontSize": 20
+        },
+        {
+          "id": "translationDescription",
+          "type": "text",
+          "x": { "value": 0.04 },
+          "y": { "value": 1, "offset": -102 },
+          "width": { "value": 0.92 },
+          "height": { "offset": 70 },
+          "textKey": "TUTORIAL_ACTOR_TRANSLATION_DESCRIPTION",
+          "fill": "Editor.TextBrush",
+          "fontSize": 16,
+          "textArguments": [
+            "primaryModifier"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "originCopy",
+      "type": "group",
+      "width": { "value": 1 },
+      "height": { "value": 1 },
+      "children": [
+        {
+          "id": "originTitle",
+          "type": "text",
+          "x": { "value": 0.04 },
+          "y": { "offset": 12 },
+          "width": { "value": 0.92 },
+          "height": { "offset": 36 },
+          "textKey": "TUTORIAL_ACTOR_ORIGIN_TITLE",
+          "fill": "Editor.TextBrush",
+          "fontSize": 20
+        },
+        {
+          "id": "originDescription",
+          "type": "text",
+          "x": { "value": 0.04 },
+          "y": { "value": 1, "offset": -102 },
+          "width": { "value": 0.92 },
+          "height": { "offset": 70 },
+          "textKey": "TUTORIAL_ACTOR_ORIGIN_DESCRIPTION",
+          "fill": "Editor.TextBrush",
+          "fontSize": 16,
+          "textArguments": [
+            "alternateModifier"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "scaleCopy",
+      "type": "group",
+      "width": { "value": 1 },
+      "height": { "value": 1 },
+      "children": [
+        {
+          "id": "scaleTitle",
+          "type": "text",
+          "x": { "value": 0.04 },
+          "y": { "offset": 12 },
+          "width": { "value": 0.92 },
+          "height": { "offset": 36 },
+          "textKey": "TUTORIAL_ACTOR_SCALE_TITLE",
+          "fill": "Editor.TextBrush",
+          "fontSize": 20
+        },
+        {
+          "id": "scaleDescription",
+          "type": "text",
+          "x": { "value": 0.04 },
+          "y": { "value": 1, "offset": -102 },
+          "width": { "value": 0.92 },
+          "height": { "offset": 70 },
+          "textKey": "TUTORIAL_ACTOR_SCALE_DESCRIPTION",
+          "fill": "Editor.TextBrush",
+          "fontSize": 16,
+          "textArguments": [
+            "primaryModifier"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rotationCopy",
+      "type": "group",
+      "width": { "value": 1 },
+      "height": { "value": 1 },
+      "children": [
+        {
+          "id": "rotationTitle",
+          "type": "text",
+          "x": { "value": 0.04 },
+          "y": { "offset": 12 },
+          "width": { "value": 0.92 },
+          "height": { "offset": 36 },
+          "textKey": "TUTORIAL_ACTOR_ROTATION_TITLE",
+          "fill": "Editor.TextBrush",
+          "fontSize": 20
+        },
+        {
+          "id": "rotationDescription",
+          "type": "text",
+          "x": { "value": 0.04 },
+          "y": { "value": 1, "offset": -102 },
+          "width": { "value": 0.92 },
+          "height": { "offset": 70 },
+          "textKey": "TUTORIAL_ACTOR_ROTATION_DESCRIPTION",
+          "fill": "Editor.TextBrush",
+          "fontSize": 16,
+          "textArguments": [
+            "alternateModifier"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "inputHint",
+      "type": "group",
+      "layoutKey": "inputHint",
+      "children": [
+        {
+          "id": "holdLabel",
+          "type": "text",
+          "x": {},
+          "y": {},
+          "width": { "value": 1 },
+          "height": { "offset": 24 },
+          "textKey": "TUTORIAL_HOLD_SHIFT",
+          "fill": "Editor.TextBrush",
+          "fontSize": 16
+        },
+        {
+          "id": "keycap",
+          "type": "rectangle",
+          "y": { "offset": 28 },
+          "width": { "value": 1 },
+          "height": { "offset": 38 },
+          "fill": "Editor.SurfaceBrush",
+          "stroke": "Editor.BorderBrush",
+          "strokeThickness": 2
+        },
+        {
+          "id": "controlKey",
+          "type": "text",
+          "x": {},
+          "y": { "offset": 28 },
+          "width": { "value": 1 },
+          "height": { "offset": 38 },
+          "textKey": "TUTORIAL_MODIFIER_KEY",
+          "fill": "Editor.TextBrush",
+          "fontSize": 18,
+          "textArguments": [
+            "primaryModifier"
+          ]
+        },
+        {
+          "id": "altKey",
+          "type": "text",
+          "x": {},
+          "y": { "offset": 28 },
+          "width": { "value": 1 },
+          "height": { "offset": 38 },
+          "textKey": "TUTORIAL_MODIFIER_KEY",
+          "fill": "Editor.TextBrush",
+          "fontSize": 18,
+          "textArguments": [
+            "alternateModifier"
+          ]
+        },
+        {
+          "id": "mouseCue",
+          "type": "group",
+          "x": { "value": 0.5, "offset": -24 },
+          "y": { "offset": 80 },
+          "width": { "offset": 48 },
+          "height": { "offset": 68 },
+          "children": [
+            {
+              "id": "mouseBody",
+              "type": "image",
+              "width": { "value": 1 },
+              "height": { "value": 1 },
+              "asset": "mouse.svg"
+            },
+            {
+              "id": "leftButton",
+              "type": "ellipse",
+              "x": { "offset": 11 },
+              "y": { "offset": 12 },
+              "width": { "offset": 10 },
+              "height": { "offset": 10 },
+              "fill": "Editor.AccentBrush"
+            },
+            {
+              "id": "wheel",
+              "type": "ellipse",
+              "x": { "offset": 21 },
+              "y": { "offset": 9 },
+              "width": { "offset": 6 },
+              "height": { "offset": 12 },
+              "fill": "Editor.AccentBrush"
+            }
+          ]
+        },
+        {
+          "id": "dragLabel",
+          "type": "text",
+          "x": {},
+          "y": { "offset": 150 },
+          "width": { "value": 1 },
+          "height": { "offset": 36 },
+          "textKey": "TUTORIAL_LEFT_DRAG",
+          "fill": "Editor.TextBrush",
+          "fontSize": 15
+        },
+        {
+          "id": "scrollLabel",
+          "type": "text",
+          "x": {},
+          "y": { "offset": 150 },
+          "width": { "value": 1 },
+          "height": { "offset": 36 },
+          "textKey": "TUTORIAL_SCROLL_THREE",
+          "fill": "Editor.TextBrush",
+          "fontSize": 15
+        }
+      ]
+    },
+    {
+      "id": "demonstration",
+      "type": "group",
+      "children": [
+        {
+          "id": "gridMark",
+          "type": "group",
+          "children": [
+            {
+              "id": "gridCell",
+              "type": "rectangle",
+              "width": { "value": 1 },
+              "height": { "value": 1 },
+              "stroke": "Editor.TextMutedBrush",
+              "strokeThickness": 1.5
+            },
+            {
+              "id": "gridPosition",
+              "type": "ellipse",
+              "x": { "value": 0.5, "offset": -4 },
+              "y": { "value": 0.5, "offset": -4 },
+              "width": { "offset": 8 },
+              "height": { "offset": 8 },
+              "fill": "Editor.AccentBrush"
+            }
+          ],
+          "layoutKey": "actorGrid"
+        },
+        {
+          "id": "actor",
+          "type": "group",
+          "width": { "value": 1 },
+          "height": { "value": 1 },
+          "children": [
+            {
+              "id": "selectedActor",
+              "type": "image",
+              "imageKey": "selectedActor",
+              "layoutKey": "actorImage"
+            }
+          ]
+        },
+        {
+          "id": "pivot",
+          "type": "group",
+          "width": { "value": 1 },
+          "height": { "value": 1 },
+          "children": [
+            {
+              "id": "pivotRing",
+              "type": "ellipse",
+              "x": { "offset": -5 },
+              "y": { "offset": -5 },
+              "width": { "offset": 10 },
+              "height": { "offset": 10 },
+              "fill": "Editor.SurfaceBrush",
+              "stroke": "Editor.AccentBrush",
+              "strokeThickness": 2
+            },
+            {
+              "id": "pivotHorizontal",
+              "type": "line",
+              "x": { "offset": -11 },
+              "width": { "offset": 22 },
+              "stroke": "Editor.AccentBrush",
+              "strokeThickness": 2
+            },
+            {
+              "id": "pivotVertical",
+              "type": "line",
+              "y": { "offset": -11 },
+              "height": { "offset": 22 },
+              "stroke": "Editor.AccentBrush",
+              "strokeThickness": 2
+            }
+          ]
+        },
+        {
+          "id": "hand",
+          "type": "image",
+          "asset": "hand.svg",
+          "layoutKey": "actorContact",
+          "x": { "offset": -1.5 },
+          "y": { "offset": -1.5 }
+        }
+      ],
+      "layoutKey": "actorPlacement"
+    },
+    {
+      "id": "dismissLabel",
+      "type": "text",
+      "x": { "value": 0.04 },
+      "y": { "value": 1, "offset": -28 },
+      "width": { "value": 0.92 },
+      "height": { "offset": 24 },
+      "textKey": "TUTORIAL_DISMISS",
+      "fill": "Editor.TextMutedBrush",
+      "fontSize": 14
+    }
+  ],
+  "tracks": [
+    {
+      "target": "translationCopy",
+      "property": "opacity",
+      "keyframes": [
+        { "time": 0, "value": 0 },
+        { "time": 0.2, "value": 1 },
+        { "time": 3.8, "value": 1 },
+        { "time": 4, "value": 0 },
+        { "time": 16, "value": 0 }
+      ]
+    },
+    {
+      "target": "originCopy",
+      "property": "opacity",
+      "keyframes": [
+        { "time": 0, "value": 0 },
+        { "time": 4, "value": 0 },
+        { "time": 4.2, "value": 1 },
+        { "time": 7.8, "value": 1 },
+        { "time": 8, "value": 0 },
+        { "time": 16, "value": 0 }
+      ]
+    },
+    {
+      "target": "scaleCopy",
+      "property": "opacity",
+      "keyframes": [
+        { "time": 0, "value": 0 },
+        { "time": 8, "value": 0 },
+        { "time": 8.2, "value": 1 },
+        { "time": 11.8, "value": 1 },
+        { "time": 12, "value": 0 },
+        { "time": 16, "value": 0 }
+      ]
+    },
+    {
+      "target": "rotationCopy",
+      "property": "opacity",
+      "keyframes": [
+        { "time": 0, "value": 0 },
+        { "time": 12, "value": 0 },
+        { "time": 12.2, "value": 1 },
+        { "time": 15.8, "value": 1 },
+        { "time": 16, "value": 0 }
+      ]
+    },
+    {
+      "target": "controlKey",
+      "property": "opacity",
+      "keyframes": [
+        { "time": 0, "value": 0 },
+        { "time": 0.2, "value": 1 },
+        { "time": 3.8, "value": 1 },
+        { "time": 4, "value": 0 },
+        { "time": 8, "value": 0 },
+        { "time": 8.2, "value": 1 },
+        { "time": 11.8, "value": 1 },
+        { "time": 12, "value": 0 },
+        { "time": 16, "value": 0 }
+      ]
+    },
+    {
+      "target": "altKey",
+      "property": "opacity",
+      "keyframes": [
+        { "time": 0, "value": 0 },
+        { "time": 4, "value": 0 },
+        { "time": 4.2, "value": 1 },
+        { "time": 7.8, "value": 1 },
+        { "time": 8, "value": 0 },
+        { "time": 12, "value": 0 },
+        { "time": 12.2, "value": 1 },
+        { "time": 15.8, "value": 1 },
+        { "time": 16, "value": 0 }
+      ]
+    },
+    {
+      "target": "leftButton",
+      "property": "opacity",
+      "keyframes": [
+        { "time": 0, "value": 0 },
+        { "time": 0.2, "value": 1 },
+        { "time": 7.8, "value": 1 },
+        { "time": 8, "value": 0 },
+        { "time": 16, "value": 0 }
+      ]
+    },
+    {
+      "target": "wheel",
+      "property": "opacity",
+      "keyframes": [
+        { "time": 0, "value": 0 },
+        { "time": 8, "value": 0 },
+        { "time": 8.2, "value": 1 },
+        { "time": 15.8, "value": 1 },
+        { "time": 16, "value": 0 }
+      ]
+    },
+    {
+      "target": "dragLabel",
+      "property": "opacity",
+      "keyframes": [
+        { "time": 0, "value": 0 },
+        { "time": 0.2, "value": 1 },
+        { "time": 7.8, "value": 1 },
+        { "time": 8, "value": 0 },
+        { "time": 16, "value": 0 }
+      ]
+    },
+    {
+      "target": "scrollLabel",
+      "property": "opacity",
+      "keyframes": [
+        { "time": 0, "value": 0 },
+        { "time": 8, "value": 0 },
+        { "time": 8.2, "value": 1 },
+        { "time": 15.8, "value": 1 },
+        { "time": 16, "value": 0 }
+      ]
+    },
+    {
+      "target": "demonstration",
+      "property": "opacity",
+      "keyframes": [
+        { "time": 0, "value": 0 },
+        { "time": 0.2, "value": 1 },
+        { "time": 3.8, "value": 1 },
+        { "time": 4, "value": 0 },
+        { "time": 4.2, "value": 1 },
+        { "time": 7.8, "value": 1 },
+        { "time": 8, "value": 0 },
+        { "time": 8.2, "value": 1 },
+        { "time": 11.8, "value": 1 },
+        { "time": 12, "value": 0 },
+        { "time": 12.2, "value": 1 },
+        { "time": 15.8, "value": 1 },
+        { "time": 16, "value": 0 }
+      ]
+    },
+    {
+      "target": "gridMark",
+      "property": "opacity",
+      "keyframes": [
+        { "time": 0, "value": 0 },
+        { "time": 0.2, "value": 1 },
+        { "time": 3.8, "value": 1 },
+        { "time": 4, "value": 0 },
+        { "time": 16, "value": 0 }
+      ]
+    },
+    {
+      "target": "pivot",
+      "property": "opacity",
+      "keyframes": [
+        { "time": 0, "value": 0 },
+        { "time": 4, "value": 0 },
+        { "time": 4.2, "value": 1 },
+        { "time": 15.8, "value": 1 },
+        { "time": 16, "value": 0 }
+      ]
+    },
+    {
+      "target": "hand",
+      "property": "opacity",
+      "keyframes": [
+        { "time": 0, "value": 0 },
+        { "time": 0.2, "value": 1 },
+        { "time": 7.8, "value": 1 },
+        { "time": 8, "value": 0 },
+        { "time": 16, "value": 0 }
+      ]
+    },
+    {
+      "target": "actor",
+      "property": "x",
+      "keyframes": [
+        { "time": 0, "value": 0 },
+        { "time": 0.5, "value": 0 },
+        { "time": 2, "value": 0, "offset": 38, "easing": "smooth" },
+        { "time": 3.4, "value": 0, "easing": "smooth" },
+        { "time": 4.5, "value": 0 },
+        { "time": 6, "value": 0, "offset": -28, "easing": "smooth" },
+        { "time": 7.4, "value": 0, "easing": "smooth" },
+        { "time": 16, "value": 0 }
+      ]
+    },
+    {
+      "target": "actor",
+      "property": "y",
+      "keyframes": [
+        { "time": 0, "value": 0 },
+        { "time": 0.5, "value": 0 },
+        { "time": 2, "value": 0, "offset": -22, "easing": "smooth" },
+        { "time": 3.4, "value": 0, "easing": "smooth" },
+        { "time": 4.5, "value": 0 },
+        { "time": 6, "value": 0, "offset": 28, "easing": "smooth" },
+        { "time": 7.4, "value": 0, "easing": "smooth" },
+        { "time": 16, "value": 0 }
+      ]
+    },
+    {
+      "target": "hand",
+      "property": "x",
+      "keyframes": [
+        { "time": 0, "value": 0, "offset": -1.5 },
+        { "time": 0.5, "value": 0, "offset": -1.5 },
+        { "time": 2, "value": 0, "offset": 36.5, "easing": "smooth" },
+        { "time": 3.4, "value": 0, "offset": -1.5, "easing": "smooth" },
+        { "time": 3.8, "value": 0, "offset": -1.5 },
+        { "time": 4, "value": 0, "offset": -1.5 },
+        { "time": 4.5, "value": 0, "offset": -1.5 },
+        { "time": 6, "value": 0, "offset": 26.5, "easing": "smooth" },
+        { "time": 7.4, "value": 0, "offset": -1.5, "easing": "smooth" },
+        { "time": 16, "value": 0, "offset": -1.5 }
+      ]
+    },
+    {
+      "target": "hand",
+      "property": "y",
+      "keyframes": [
+        { "time": 0, "value": 0, "offset": -1.5 },
+        { "time": 0.5, "value": 0, "offset": -1.5 },
+        { "time": 2, "value": 0, "offset": -23.5, "easing": "smooth" },
+        { "time": 3.4, "value": 0, "offset": -1.5, "easing": "smooth" },
+        { "time": 3.8, "value": 0, "offset": -1.5 },
+        { "time": 4, "value": 0, "offset": -1.5 },
+        { "time": 4.5, "value": 0, "offset": -1.5 },
+        { "time": 6, "value": 0, "offset": -29.5, "easing": "smooth" },
+        { "time": 7.4, "value": 0, "offset": -1.5, "easing": "smooth" },
+        { "time": 16, "value": 0, "offset": -1.5 }
+      ]
+    },
+    {
+      "target": "actor",
+      "property": "scaleX",
+      "keyframes": [
+        { "time": 0, "value": 1 },
+        { "time": 8.5, "value": 1.0, "easing": "smooth" },
+        { "time": 8.65, "value": 1.1, "easing": "smooth" },
+        { "time": 9, "value": 1.1, "easing": "smooth" },
+        { "time": 9.15, "value": 1.21, "easing": "smooth" },
+        { "time": 9.5, "value": 1.21, "easing": "smooth" },
+        { "time": 9.65, "value": 1.331, "easing": "smooth" },
+        { "time": 10, "value": 1.331, "easing": "smooth" },
+        { "time": 10.15, "value": 1.21, "easing": "smooth" },
+        { "time": 10.4667, "value": 1.21, "easing": "smooth" },
+        { "time": 10.6167, "value": 1.1, "easing": "smooth" },
+        { "time": 10.9333, "value": 1.1, "easing": "smooth" },
+        { "time": 11.0833, "value": 1.0, "easing": "smooth" },
+        { "time": 11.4, "value": 1.0, "easing": "smooth" },
+        { "time": 16, "value": 1 }
+      ]
+    },
+    {
+      "target": "actor",
+      "property": "scaleY",
+      "keyframes": [
+        { "time": 0, "value": 1 },
+        { "time": 8.5, "value": 1.0, "easing": "smooth" },
+        { "time": 8.65, "value": 1.1, "easing": "smooth" },
+        { "time": 9, "value": 1.1, "easing": "smooth" },
+        { "time": 9.15, "value": 1.21, "easing": "smooth" },
+        { "time": 9.5, "value": 1.21, "easing": "smooth" },
+        { "time": 9.65, "value": 1.331, "easing": "smooth" },
+        { "time": 10, "value": 1.331, "easing": "smooth" },
+        { "time": 10.15, "value": 1.21, "easing": "smooth" },
+        { "time": 10.4667, "value": 1.21, "easing": "smooth" },
+        { "time": 10.6167, "value": 1.1, "easing": "smooth" },
+        { "time": 10.9333, "value": 1.1, "easing": "smooth" },
+        { "time": 11.0833, "value": 1.0, "easing": "smooth" },
+        { "time": 11.4, "value": 1.0, "easing": "smooth" },
+        { "time": 16, "value": 1 }
+      ]
+    },
+    {
+      "target": "actor",
+      "property": "rotation",
+      "keyframes": [
+        { "time": 0, "value": 0 },
+        { "time": 12.5, "value": 0, "easing": "smooth" },
+        { "time": 12.65, "value": 15, "easing": "smooth" },
+        { "time": 13, "value": 15, "easing": "smooth" },
+        { "time": 13.15, "value": 30, "easing": "smooth" },
+        { "time": 13.5, "value": 30, "easing": "smooth" },
+        { "time": 13.65, "value": 45, "easing": "smooth" },
+        { "time": 14, "value": 45, "easing": "smooth" },
+        { "time": 14.15, "value": 30, "easing": "smooth" },
+        { "time": 14.4667, "value": 30, "easing": "smooth" },
+        { "time": 14.6167, "value": 15, "easing": "smooth" },
+        { "time": 14.9333, "value": 15, "easing": "smooth" },
+        { "time": 15.0833, "value": 0, "easing": "smooth" },
+        { "time": 15.4, "value": 0, "easing": "smooth" },
+        { "time": 16, "value": 0 }
+      ]
+    },
+    {
+      "target": "wheel",
+      "property": "y",
+      "keyframes": [
+        { "time": 0, "value": 0, "offset": 9, "easing": "smooth" },
+        { "time": 8.5, "value": 0, "offset": 9, "easing": "smooth" },
+        { "time": 8.65, "value": 0, "offset": 5, "easing": "smooth" },
+        { "time": 8.8, "value": 0, "offset": 9, "easing": "smooth" },
+        { "time": 9, "value": 0, "offset": 9, "easing": "smooth" },
+        { "time": 9.15, "value": 0, "offset": 5, "easing": "smooth" },
+        { "time": 9.3, "value": 0, "offset": 9, "easing": "smooth" },
+        { "time": 9.5, "value": 0, "offset": 9, "easing": "smooth" },
+        { "time": 9.65, "value": 0, "offset": 5, "easing": "smooth" },
+        { "time": 9.8, "value": 0, "offset": 9, "easing": "smooth" },
+        { "time": 10, "value": 0, "offset": 9, "easing": "smooth" },
+        { "time": 10.15, "value": 0, "offset": 13, "easing": "smooth" },
+        { "time": 10.3, "value": 0, "offset": 9, "easing": "smooth" },
+        { "time": 10.4667, "value": 0, "offset": 9, "easing": "smooth" },
+        { "time": 10.6167, "value": 0, "offset": 13, "easing": "smooth" },
+        { "time": 10.7667, "value": 0, "offset": 9, "easing": "smooth" },
+        { "time": 10.9333, "value": 0, "offset": 9, "easing": "smooth" },
+        { "time": 11.0833, "value": 0, "offset": 13, "easing": "smooth" },
+        { "time": 11.2333, "value": 0, "offset": 9, "easing": "smooth" },
+        { "time": 12.5, "value": 0, "offset": 9, "easing": "smooth" },
+        { "time": 12.65, "value": 0, "offset": 5, "easing": "smooth" },
+        { "time": 12.8, "value": 0, "offset": 9, "easing": "smooth" },
+        { "time": 13, "value": 0, "offset": 9, "easing": "smooth" },
+        { "time": 13.15, "value": 0, "offset": 5, "easing": "smooth" },
+        { "time": 13.3, "value": 0, "offset": 9, "easing": "smooth" },
+        { "time": 13.5, "value": 0, "offset": 9, "easing": "smooth" },
+        { "time": 13.65, "value": 0, "offset": 5, "easing": "smooth" },
+        { "time": 13.8, "value": 0, "offset": 9, "easing": "smooth" },
+        { "time": 14, "value": 0, "offset": 9, "easing": "smooth" },
+        { "time": 14.15, "value": 0, "offset": 13, "easing": "smooth" },
+        { "time": 14.3, "value": 0, "offset": 9, "easing": "smooth" },
+        { "time": 14.4667, "value": 0, "offset": 9, "easing": "smooth" },
+        { "time": 14.6167, "value": 0, "offset": 13, "easing": "smooth" },
+        { "time": 14.7667, "value": 0, "offset": 9, "easing": "smooth" },
+        { "time": 14.9333, "value": 0, "offset": 9, "easing": "smooth" },
+        { "time": 15.0833, "value": 0, "offset": 13, "easing": "smooth" },
+        { "time": 15.2333, "value": 0, "offset": 9, "easing": "smooth" },
+        { "time": 16, "value": 0, "offset": 9, "easing": "smooth" }
+      ]
+    }
+  ]
+}

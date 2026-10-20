@@ -194,7 +194,8 @@
         </Style>
     </Window.Styles>
 
-    <DockPanel>
+    <Grid x:Name="WindowRoot">
+    <DockPanel x:Name="WindowContent">
         <NativeMenuBar DockPanel.Dock="Top" />
 
         <Grid x:Name="MainLayoutGrid" Margin="8,0,8,8">
@@ -473,4 +474,5 @@
             </Grid>
         </Grid>
     </DockPanel>
+    </Grid>
 </Window>
