@@ -12,7 +12,7 @@ Ordinary maps use one region. Worlds draw regions within each authoritative laye
 
 ## Scene updates
 
-The editor sends current in-memory map data, including unsaved edits and Blueprint instance overrides. Material, Actor, map and UI requests include the current material-document snapshots, so graph edits and exposed defaults appear without saving. The native registry supplies the material node and parameter schema; the editor does not maintain a separate shader model. It resolves visual records within the [preview/gameplay boundary](<Overview.md#preview-and-gameplay>). Lights remain visual records even when their Actor has no texture.
+The editor sends current in-memory map data, including unsaved edits and Blueprint instance overrides. Material, Actor, map and UI requests include the current material-document snapshots, so graph edits and exposed defaults appear without saving. Map editing also supplies the referenced particle resources with their curves resolved from current in-memory data. The native registry supplies the material node and parameter schema; the editor does not maintain a separate shader model. It resolves visual records within the [preview/gameplay boundary](<Overview.md#preview-and-gameplay>). Lights and Emitter effects remain available even when their Actor has no texture.
 
 A full scene initialises a session. Subsequent changes update scene fields, regions and identified sprite/light records; camera and animation requests reuse the installed scene. Actor-only edits update cached visual records and affected lighting without rescanning terrain or reconstructing Tilemaps. Structural changes and resource refreshes rebuild the necessary scene state. The same rendering path handles ordinary maps, world canvases and thumbnails.
 
@@ -28,6 +28,6 @@ Preview connections own two reusable file mappings for BGRA frames, growing them
 
 ## Capabilities and timing
 
-The connection validates the host protocol and advertised capabilities. `persistentFrames` is required for preview transport; map editing also requires `map` and `mapActorChanges`. An older host must be rebuilt or updated; map previews do not fall back to Avalonia drawing. See [Build, Publish and Troubleshooting](<Build Publish and Troubleshooting.md#troubleshooting>).
+The connection validates the host protocol and advertised capabilities. `persistentFrames` is required for preview transport; map editing also requires `map`, `mapActorChanges` and `mapEmitters`. An older host must be rebuilt or updated; map previews do not fall back to Avalonia drawing. See [Build, Publish and Troubleshooting](<Build Publish and Troubleshooting.md#troubleshooting>).
 
 `MapPreviewLease.LastFrameTiming` exposes change-to-publication latency and the scene update, serialization, native scene application, rendering, readback, transfer, client pixel read and bitmap creation stages. Change-to-publication ends when the editor publishes the frame; it does not measure physical input-to-display latency. Compare stages at the same scene, camera and output dimensions before attributing a delay to native drawing. A 3840 × 2160 frame has more than 33 MB of BGRA pixel data before transport overhead, regardless of the map's tile dimensions.
