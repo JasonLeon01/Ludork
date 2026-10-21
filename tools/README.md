@@ -216,6 +216,8 @@ PR validation selects additive checks from added, changed, deleted and renamed p
 
 `PR Validation` requires all selected checks to succeed. Failed, cancelled or unexpectedly skipped checks block it; unselected checks may skip, and documentation-only changes need no builds. New commits cancel older runs for the same PR. In the existing `main` branch rule or ruleset, require the GitHub Actions `PR Validation` status while preserving other protections; workflow files do not configure branch protection.
 
+macOS dependency downloads use at most four attempts, with a 15-second connection timeout, a five-minute limit per attempt and five seconds between retries. No new attempt starts after the 15-minute retry window. Timeouts, refused connections and curl's transient HTTP errors can retry; permanent HTTP errors and archive/hash validation failures stop immediately. The same policy applies to local shell dependency tools. macOS CI sets pip's connection retries to three and its socket timeout to 60 seconds. Artifact downloads retain the download action's built-in retries.
+
 Install the local staged-file check once per clone:
 
 ```sh
@@ -455,7 +457,7 @@ Environment values override CLI options; `--ignore-environment` disables that lo
 
 Notarisation requires a real identity and either Apple ID/team plus the app-specific password as the second stdin password, or an App Store Connect key/ID/issuer. It submits the DMG or a temporary app ZIP with `notarytool`, waits and staples the ticket. `--check` validates materials and performs a notarisation round trip without building. Failed submissions report the notary log when available while retaining the original failure status and submission ID.
 
-Timestamp-service failures retry only the failed signing target after 5, 15 and 30 seconds, retaining signing options. Other signing/verification errors stop immediately. The DMG packer detaches the whole image device before conversion/cleanup; bounded forced retries preserve the image and work directory if detachment remains unresolved.
+Signing, notarisation and ticket operations retry temporary network/service failures with bounded command timeouts. The same submission ID is retained when waiting for notarisation. See [macOS packaging](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=02%2F11#windows-and-macos) for retry counts, time limits and failure handling. The DMG packer detaches the whole image device before conversion/cleanup; bounded forced retries preserve the image and work directory if detachment remains unresolved.
 
 Packaging uses these additional signer options:
 

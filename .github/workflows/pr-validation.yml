@@ -90,6 +90,8 @@ jobs:
         if: runner.os == 'macOS'
         env:
           PYTHON: python3
+          PIP_RETRIES: "3"
+          PIP_TIMEOUT: "60"
         run: |
           sh tools/setup_python.sh
           sh tools/build_script_tools.sh

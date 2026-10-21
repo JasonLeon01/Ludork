@@ -37,9 +37,9 @@ trap 'rm -rf "$TEMP_DIR"' EXIT HUP INT TERM
 echo "Downloading Lua $LUA_VERSION..."
 mkdir -p "$CPP_DIR/Engine/ThirdParty"
 archive="$TEMP_DIR/lua.tar.gz"
-curl -L --fail --show-error \
+download_dependency \
     "https://www.lua.org/ftp/lua-$LUA_VERSION.tar.gz" \
-    -o "$archive"
+    "$archive"
 
 echo "Verifying Lua SHA-256..."
 if command -v sha256sum >/dev/null 2>&1; then

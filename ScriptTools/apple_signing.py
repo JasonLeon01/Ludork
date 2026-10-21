@@ -35,7 +35,7 @@ IOS_PROVISIONING_PROFILE_ENVIRONMENT = "LUDORK_IOS_PROVISIONING_PROFILE"
 AD_HOC_IDENTITY = "-"
 NOTARY_KEYCHAIN_PROFILE = "ludork-notary"
 KEYCHAIN_TIMEOUT_SECONDS = "21600"
-TIMESTAMP_RETRY_DELAYS_SECONDS = (5, 15, 30)
+SERVICE_RETRY_DELAYS_SECONDS = (5, 15, 30)
 
 _BUNDLE_SUFFIXES = frozenset({".app", ".appex", ".bundle", ".framework", ".plugin", ".xpc"})
 _MACH_O_MAGICS = frozenset(
@@ -127,8 +127,59 @@ def _run_capture(
             env=environment,
             timeout=timeout,
         )
-    except (OSError, subprocess.TimeoutExpired) as exception:
+    except subprocess.TimeoutExpired as exception:
+        output = exception.stdout or ""
+        if isinstance(output, bytes):
+            output = output.decode("utf-8", errors="replace")
+        return subprocess.CompletedProcess(command, 124, output + f"\nCommand timed out after {timeout} seconds.")
+    except OSError as exception:
         return subprocess.CompletedProcess(command, 1, str(exception))
+
+
+def _transient_service_failure(result: subprocess.CompletedProcess[str]) -> bool:
+    if result.returncode == 0:
+        return False
+    output = result.stdout.casefold()
+    return result.returncode == 124 or any(
+        marker in output
+        for marker in (
+            "timed out", "timestamp service is not available",
+            "service unavailable", "service is unavailable", "internal server error",
+            "bad gateway", "gateway timeout", "too many requests",
+            "connection reset", "connection refused", "connection was lost",
+            "could not connect to the server",
+            "could not resolve host", "internet connection appears to be offline",
+        )
+    ) or bool(re.search(
+        r"(?:http(?:/\d(?:\.\d)?)?(?: status| error)?(?: code)?[\s:=]+|status code[\s:=]+)"
+        r"(?:408|429|500|502|503|504)\b|nsurlerrordomain\s+code=-(?:1001|1003|1004|1005|1006|1009)\b",
+        output,
+    ))
+
+
+def _run_service_capture(
+    command: list[str],
+    description: str,
+    *,
+    environment: dict[str, str] | None = None,
+    input_text: str | None = None,
+    timeout: int = 120,
+    retry_if: Callable[[subprocess.CompletedProcess[str]], bool] = _transient_service_failure,
+) -> subprocess.CompletedProcess[str]:
+    for attempt in range(len(SERVICE_RETRY_DELAYS_SECONDS) + 1):
+        result = _run_capture(command, environment=environment, input_text=input_text, timeout=timeout)
+        if not retry_if(result) or attempt == len(SERVICE_RETRY_DELAYS_SECONDS):
+            return result
+        if result.stdout:
+            print(result.stdout.rstrip("\n"), flush=True)
+        delay = SERVICE_RETRY_DELAYS_SECONDS[attempt]
+        print(
+            f"{description}; retrying in {delay}s "
+            f"(attempt {attempt + 2}/{len(SERVICE_RETRY_DELAYS_SECONDS) + 1}).",
+            flush=True,
+        )
+        time.sleep(delay)
+    raise AssertionError("Unreachable service retry state")
 
 
 def _run_streaming(
@@ -414,24 +465,14 @@ def _codesign(
     if keychain is not None:
         command.extend(["--keychain", str(keychain)])
     command.append(str(target))
-    for attempt in range(len(TIMESTAMP_RETRY_DELAYS_SECONDS) + 1):
-        result = _run_capture(command, environment=environment)
-        if result.returncode == 0:
-            return
-        if (
-            identity == AD_HOC_IDENTITY
-            or "the timestamp service is not available" not in result.stdout.casefold()
-            or attempt == len(TIMESTAMP_RETRY_DELAYS_SECONDS)
-        ):
-            break
-        delay = TIMESTAMP_RETRY_DELAYS_SECONDS[attempt]
-        print(
-            f"Timestamp service unavailable while signing {target}; "
-            f"retrying in {delay}s "
-            f"(attempt {attempt + 2}/{len(TIMESTAMP_RETRY_DELAYS_SECONDS) + 1}).",
-            flush=True,
+    if identity == AD_HOC_IDENTITY:
+        result = _run_capture(command, environment=environment, timeout=120)
+    else:
+        result = _run_service_capture(
+            command, f"Temporary signing failure for {target}", environment=environment,
         )
-        time.sleep(delay)
+    if result.returncode == 0:
+        return
     raise PackError(
         f"Code signing failed for {target}.\n" + result.stdout.strip(),
         EXIT_SIGNING,
@@ -664,7 +705,7 @@ def store_notary_credentials(
     credentials: NotaryCredentials,
     password: str,
 ) -> None:
-    result = _run_capture(
+    result = _run_service_capture(
         [
             "xcrun",
             "notarytool",
@@ -677,6 +718,7 @@ def store_notary_credentials(
             "--keychain",
             str(keychain.path),
         ],
+        "Temporary notarisation credential validation failure",
         input_text=password + "\n",
         timeout=300,
     )
@@ -705,30 +747,52 @@ def notarize_and_staple(
                 ["ditto", "-c", "-k", "--norsrc", "--keepParent", str(artifact), str(submission)],
                 environment=environment,
             )
-        result = _run_streaming(
+        result = _run_service_capture(
             [
                 "xcrun",
                 "notarytool",
                 "submit",
                 str(submission),
                 *credentials.arguments(keychain.path),
-                "--wait",
+                "--no-wait",
                 "--output-format",
                 "json",
             ],
+            "Temporary notarisation upload failure",
             environment=environment,
-            check=False,
+            timeout=900,
+            retry_if=lambda result: not _notary_report(result.stdout).get("id") and _transient_service_failure(result),
         )
+    if result.stdout:
+        print(result.stdout.rstrip("\n"), flush=True)
     report = _notary_report(result.stdout)
+    submission_id = str(report.get("id", "")).strip()
     status = str(report.get("status", "")).strip()
+    if submission_id:
+        print(f"Submission ID: {submission_id}", flush=True)
+        if status not in ("Accepted", "Invalid", "Rejected"):
+            result = _run_service_capture(
+                [
+                    "xcrun", "notarytool", "wait", submission_id,
+                    *credentials.arguments(keychain.path),
+                    "--timeout", "15m", "--output-format", "json",
+                ],
+                f"Notarisation is still pending or temporarily unavailable for {submission_id}",
+                environment=environment,
+                timeout=930,
+                retry_if=_retry_notary_wait,
+            )
+            if result.stdout:
+                print(result.stdout.rstrip("\n"), flush=True)
+            report = _notary_report(result.stdout)
+            status = str(report.get("status", "")).strip()
     if result.returncode != 0 or status != "Accepted":
-        submission_id = str(report.get("id", "")).strip()
         if submission_id:
             print(f"Notarisation log for submission {submission_id}:", flush=True)
-            log = _run_capture(
+            log = _run_service_capture(
                 ["xcrun", "notarytool", "log", submission_id, *credentials.arguments(keychain.path)],
+                f"Temporary notarisation log download failure for {submission_id}",
                 environment=environment,
-                timeout=120,
             )
             if log.stdout:
                 print(log.stdout.rstrip("\n"), flush=True)
@@ -739,19 +803,28 @@ def notarize_and_staple(
         if submission_id:
             detail += f"\nSubmission ID: {submission_id}"
         if result.returncode != 0:
-            detail += f"\nSubmission command exit code: {result.returncode}"
+            detail += f"\nNotarisation command exit code: {result.returncode}"
+        if result.stdout.strip():
+            detail += f"\n{result.stdout.strip()}"
         raise PackError(
             f"Notarisation was not accepted for {artifact}: {status or 'unknown status'}{detail}",
             EXIT_SIGNING,
         )
-    _run_streaming(
-        ["xcrun", "stapler", "staple", str(artifact)],
-        environment=environment,
-    )
-    _run_streaming(
-        ["xcrun", "stapler", "validate", str(artifact)],
-        environment=environment,
-    )
+    for operation in ("staple", "validate"):
+        result = _run_service_capture(
+            ["xcrun", "stapler", operation, str(artifact)],
+            f"Temporary notarisation ticket {operation} failure for {artifact}",
+            environment=environment,
+            retry_if=lambda result: result.returncode == 68 or _transient_service_failure(result),
+        )
+        if result.stdout:
+            print(result.stdout.rstrip("\n"), flush=True)
+        if result.returncode != 0:
+            raise PackError(
+                f"Notarisation ticket {operation} failed for {artifact}.\n"
+                f"Submission ID: {submission_id}\n{result.stdout.strip()}",
+                EXIT_SIGNING,
+            )
     print(f"Notarised and stapled: {artifact}", flush=True)
 
 
@@ -765,3 +838,24 @@ def _notary_report(output: str) -> dict[str, object]:
     except json.JSONDecodeError:
         return {}
     return value if isinstance(value, dict) else {}
+
+
+def _retry_notary_wait(result: subprocess.CompletedProcess[str]) -> bool:
+    status = _notary_report(result.stdout).get("status")
+    if status in ("Accepted", "Invalid", "Rejected"):
+        return False
+    return status == "In Progress" or _transient_service_failure(result)
+
+
+def query_notary_service(
+    arguments: list[str],
+    credentials: NotaryCredentials,
+    keychain: TemporaryKeychain,
+) -> str:
+    result = _run_service_capture(
+        ["xcrun", "notarytool", *arguments, *credentials.arguments(keychain.path)],
+        "Temporary notarisation query failure",
+    )
+    if result.returncode != 0:
+        raise PackError("Notarisation query failed.\n" + result.stdout.strip(), EXIT_SIGNING)
+    return result.stdout

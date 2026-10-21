@@ -33,18 +33,9 @@ if [ ! -f "$SOURCE_ARCHIVE" ]; then
     fi
     rm -f "$SOURCE_PARTIAL"
     echo "Downloading FFmpeg $FFMPEG_VERSION..."
-    if curl \
-        --location \
-        --fail \
-        --show-error \
-        --retry 5 \
-        --retry-all-errors \
-        --retry-delay 5 \
-        --retry-max-time 900 \
-        --connect-timeout 15 \
-        --max-time 300 \
+    if download_dependency \
         "https://github.com/FFmpeg/FFmpeg/archive/$FFMPEG_COMMIT.tar.gz" \
-        --output "$SOURCE_PARTIAL"; then
+        "$SOURCE_PARTIAL"; then
         :
     else
         download_exit=$?

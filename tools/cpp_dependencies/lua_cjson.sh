@@ -36,9 +36,9 @@ trap 'rm -rf "$TEMP_DIR"' EXIT HUP INT TERM
 echo "Downloading lua-cjson $LUA_CJSON_VERSION..."
 mkdir -p "$CPP_DIR/Engine/ThirdParty"
 archive="$TEMP_DIR/lua-cjson.zip"
-curl -L --fail --show-error \
+download_dependency \
     "https://github.com/openresty/lua-cjson/archive/refs/tags/$LUA_CJSON_VERSION.zip" \
-    -o "$archive"
+    "$archive"
 unzip -q "$archive" -d "$TEMP_DIR"
 source_dir="$TEMP_DIR/lua-cjson-$LUA_CJSON_VERSION"
 if [ ! -f "$source_dir/lua_cjson.c" ]; then

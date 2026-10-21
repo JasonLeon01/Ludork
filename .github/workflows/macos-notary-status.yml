@@ -15,7 +15,7 @@ jobs:
   query:
     name: Query Apple notary service
     runs-on: macos-15
-    timeout-minutes: 10
+    timeout-minutes: 45
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -37,7 +37,6 @@ jobs:
           import json
           import os
           import pathlib
-          import subprocess
           import sys
           import tempfile
           import uuid
@@ -46,6 +45,7 @@ jobs:
           from ScriptTools.apple_signing import (
               OptionSource,
               TemporaryKeychain,
+              query_notary_service,
               resolve_notary_credentials,
               store_notary_credentials,
           )
@@ -75,18 +75,11 @@ jobs:
                       if not password:
                           raise SystemExit("MACOS_NOTARY_PASSWORD is required for Apple ID authentication.")
                       store_notary_credentials(keychain, credentials, password)
-                  authentication = credentials.arguments(keychain.path)
 
                   def query(*arguments):
-                      result = subprocess.run(
-                          ["xcrun", "notarytool", *arguments, *authentication],
-                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                          text=True, check=False, timeout=120,
-                      )
-                      print(result.stdout, flush=True)
-                      if result.returncode:
-                          raise SystemExit(result.returncode)
-                      return result.stdout
+                      output = query_notary_service(list(arguments), credentials, keychain)
+                      print(output, flush=True)
+                      return output
 
                   if submission_id:
                       report = json.loads(query("info", submission_id, "--output-format", "json"))

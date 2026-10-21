@@ -202,6 +202,8 @@ jobs:
       - name: Set up project Python environment
         env:
           PYTHON: python3
+          PIP_RETRIES: "3"
+          PIP_TIMEOUT: "60"
         timeout-minutes: 10
         run: sh tools/setup_python.sh
 
@@ -221,7 +223,7 @@ jobs:
 
       - name: Initialize C++ dependencies
         if: inputs.templates
-        timeout-minutes: 20
+        timeout-minutes: 25
         run: sh tools/init_cpp_dependencies.sh Game
 
       - name: Validate native build inputs

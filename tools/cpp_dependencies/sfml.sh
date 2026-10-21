@@ -37,9 +37,9 @@ trap 'rm -rf "$TEMP_DIR"' EXIT HUP INT TERM
 echo "Downloading SFML $SFML_TAG from $SFML_REPOSITORY..."
 mkdir -p "$CPP_DIR/Engine/ThirdParty"
 archive="$TEMP_DIR/sfml.tar.gz"
-curl -L --fail --show-error \
+download_dependency \
     "https://github.com/$SFML_REPOSITORY/archive/refs/tags/$SFML_TAG.tar.gz" \
-    -o "$archive"
+    "$archive"
 tar -xzf "$archive" -C "$TEMP_DIR"
 source_dir="$TEMP_DIR/${SFML_REPOSITORY##*/}-$SFML_TAG"
 if [ ! -f "$source_dir/CMakeLists.txt" ]; then

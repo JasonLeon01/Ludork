@@ -36,9 +36,9 @@ trap 'rm -rf "$TEMP_DIR"' EXIT HUP INT TERM
 echo "Downloading zlib $ZLIB_VERSION..."
 mkdir -p "$CPP_DIR/Engine/ThirdParty"
 archive="$TEMP_DIR/zlib.zip"
-curl -L --fail --show-error \
+download_dependency \
     "https://github.com/madler/zlib/archive/refs/tags/v$ZLIB_VERSION.zip" \
-    -o "$archive"
+    "$archive"
 unzip -q "$archive" -d "$TEMP_DIR"
 source_dir="$TEMP_DIR/zlib-$ZLIB_VERSION"
 if [ ! -f "$source_dir/CMakeLists.txt" ]; then

@@ -48,9 +48,9 @@ extract_dir="$TEMP_DIR/extract"
 if [ -n "${LUASF_SOURCE_ARCHIVE:-}" ]; then
     cp "$LUASF_SOURCE_ARCHIVE" "$archive"
 else
-    curl -L --fail --show-error \
+    download_dependency \
         "https://github.com/JasonLeon01/LuaSF-AutoGenerator/releases/download/$LUASF_VERSION/$LUASF_SOURCE_NAME.tar.gz" \
-        -o "$archive"
+        "$archive"
 fi
 tar -xzf "$archive" -C "$extract_dir"
 for source_project in LuaSF LuaGlue; do
