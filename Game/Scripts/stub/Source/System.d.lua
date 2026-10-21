@@ -48,7 +48,8 @@ local System = {}
 
 ---@brief Initialise the game system from configuration files.
 ---
---- Loads system.json, sets up the window, fonts, cursor, and global settings.
+--- Loads System.json, Audio.json and Gameplay.json, sets up the window, fonts,
+--- cursor and global settings, then applies shared Gameplay overrides before gameplay starts.
 function System.Init() end
 
 ---@brief Install the session configuration provider once before the first scene.

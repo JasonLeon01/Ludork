@@ -3,8 +3,10 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Ludork.Models;
 using Ludork.Services;
 using Ludork.Views.Utils;
+using MoonSharp.Interpreter;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -110,7 +112,9 @@ public sealed class ConfigDictPanel : Border
             Grid.SetColumn(label, 0);
             Grid.SetRow(label, row);
             form.Children.Add(label);
-            Control editor = isArray ? createArrayEditor(baseType, length, value) : createSingleEditor(baseType, value);
+            Control editor = value["nullable"]?.GetValue<bool>() == true
+                ? createNullableEditor(baseType, length, isArray, value)
+                : isArray ? createArrayEditor(baseType, length, value) : createSingleEditor(baseType, value);
             Grid.SetColumn(editor, 2);
             Grid.SetRow(editor, row);
             form.Children.Add(editor);
@@ -119,15 +123,92 @@ public sealed class ConfigDictPanel : Border
         content.Children.Add(form);
     }
 
-    private Control createSingleEditor(string type, JsonObject value)
+    private Control createNullableEditor(string type, int? length, bool isArray, JsonObject value)
     {
+        ContentControl input = new() { HorizontalContentAlignment = HorizontalAlignment.Stretch };
+        CheckBox useDefault = new()
+        {
+            Content = LocaleService.Get("CONFIG_USE_DEFAULT"),
+            VerticalAlignment = VerticalAlignment.Top,
+        };
+        TextBlock diagnostic = new()
+        {
+            Foreground = Brushes.OrangeRed,
+            TextWrapping = TextWrapping.Wrap,
+            IsVisible = false,
+        };
+        Grid row = new() { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 12 };
+        row.Children.Add(input);
+        Grid.SetColumn(useDefault, 1);
+        row.Children.Add(useDefault);
+        bool refreshing = false;
+        void refresh()
+        {
+            refreshing = true;
+            bool isDefault = value["value"] is null;
+            useDefault.IsChecked = isDefault;
+            input.IsVisible = !isDefault;
+            input.Content = isDefault ? null
+                : isArray ? createArrayEditor(type, length, value)
+                : createSingleEditor(type, value, () =>
+                {
+                    if (value["value"] is null)
+                        refresh();
+                });
+            refreshing = false;
+        }
+        useDefault.IsCheckedChanged += (_, _) =>
+        {
+            if (refreshing)
+                return;
+            diagnostic.IsVisible = false;
+            JsonNode? next = null;
+            if (useDefault.IsChecked != true)
+            {
+                try
+                {
+                    next = ConfigScriptDefaultService.Read(gameData.ProjectPath, gameData.Enums, value);
+                }
+                catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException
+                    or InterpreterException or InvalidOperationException or ArgumentException)
+                {
+                    diagnostic.Text = LocaleService.Get(fieldNames[value]) + ": " + exception.Message;
+                    diagnostic.IsVisible = true;
+                    refresh();
+                    return;
+                }
+            }
+            gameData.BreakHistoryGesture();
+            updateValue(value, next);
+            refresh();
+        };
+        refresh();
+        return new StackPanel { Spacing = 3, Children = { row, diagnostic } };
+    }
+
+    private Control createSingleEditor(string type, JsonObject value, Action? changed = null)
+    {
+        if (value["enum"]?.GetValue<string>() is { Length: > 0 } enumModule)
+            return new EnumValueEditor(() => gameData.Enums.Read(enumModule), value["value"], next => updateValue(value, next));
+        if (type == "bool")
+        {
+            CheckBox edit = new() { IsChecked = value["value"]?.GetValue<bool>() ?? false };
+            edit.IsCheckedChanged += (_, _) => updateValue(value, JsonValue.Create(edit.IsChecked == true));
+            return edit;
+        }
         if (type == "file")
             return createFileEditor(value, value["value"]?.GetValue<string>() ?? string.Empty, null, null, false, null);
         if (isNumericType(type))
         {
             NumericUpDown edit = createNumericUpDown(type, value["value"]);
+            if (type == "float" && value["nullable"]?.GetValue<bool>() == true)
+                edit.FormatString = "0.############################";
             HistoryMergeBehavior.Attach(edit, gameData);
-            edit.ValueChanged += (_, _) => updateScalar(type, edit.Value, value);
+            edit.ValueChanged += (_, _) =>
+            {
+                updateScalar(type, edit.Value, value);
+                changed?.Invoke();
+            };
             return edit;
         }
         TextBox text = createTextBox(value["value"]);
@@ -420,16 +501,19 @@ public sealed class ConfigDictPanel : Border
     private void updateScalar(string type, decimal? number, JsonObject value)
     {
         JsonNode? next = toJsonNumber(type, number);
-        if (next is null || JsonNode.DeepEquals(value["value"], next))
+        if (next is null && value["nullable"]?.GetValue<bool>() != true)
             return;
-        if (!gameData.Configs.UpdateConfigValue(fileName, fieldNames[value], next))
-            return;
-        value["value"] = next;
+        updateValue(value, next);
     }
 
     private void updateScalar(string? text, JsonObject value)
     {
         JsonNode next = JsonValue.Create(text ?? string.Empty)!;
+        updateValue(value, next);
+    }
+
+    private void updateValue(JsonObject value, JsonNode? next)
+    {
         if (JsonNode.DeepEquals(value["value"], next))
             return;
         if (!gameData.Configs.UpdateConfigValue(fileName, fieldNames[value], next))
@@ -500,6 +584,7 @@ public sealed class ConfigDictPanel : Border
 
     private static JsonNode defaultValue(string type) => type switch
     {
+        "bool" => JsonValue.Create(false)!,
         "int" => JsonValue.Create(0)!,
         "float" => JsonValue.Create(0.0)!,
         _ => JsonValue.Create(string.Empty)!,

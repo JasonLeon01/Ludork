@@ -14,7 +14,7 @@ local Controller = {}
 
 function Controller:init() end
 
---- Start a 0.25-second contraction. All input stays captured until confirmation or close.
+--- Start a contraction using SHRINK_DURATION. All input stays captured until confirmation or close.
 ---@param rect sf.IntRect
 ---@param text string
 function Controller:open(rect, text) end

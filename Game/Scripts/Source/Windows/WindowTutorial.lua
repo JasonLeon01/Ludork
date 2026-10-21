@@ -80,8 +80,8 @@ function Controller:onTick(deltaTime)
     local capture = assert(self._capture)
     if not self._ready then
         self._elapsed = self._elapsed + deltaTime
-        self:_layoutOpening(math.min(self._elapsed / Controller.SHRINK_DURATION, 1))
-        if self._elapsed >= Controller.SHRINK_DURATION then
+        self:_layoutOpening(math.min(self._elapsed / self.host.SHRINK_DURATION, 1))
+        if self._elapsed >= self.host.SHRINK_DURATION then
             self._ready = true
             self.ui.controls["Explanation"]:setVisible(true)
             self.ui.controls["Border"]:setVisible(true)

@@ -1,6 +1,7 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GameMap = require("Global.GameMap")
+local GameplayConfig = require("Source.Configs.Gameplay")
 local MainConfig = require("Source.Configs.Main")
 
 local Display = GlobalCore.Display
@@ -112,6 +113,7 @@ function System.Init()
     systemState.getSE = tostring(systemState.audioConfigValues.getSE or "")
     systemState.equipSE = tostring(systemState.audioConfigValues.equipSE or "")
     systemState.titleBGM = tostring(systemState.audioConfigValues.titleBGM or "")
+    GameplayConfig.Apply()
 end
 
 ---@param configData table<string, string | { value: string }>

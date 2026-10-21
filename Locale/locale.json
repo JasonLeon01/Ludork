@@ -2243,6 +2243,26 @@
     "zh_CN": "Data/Configs 中没有可用的系统配置。",
     "en_GB": "No system configurations found in Data/Configs."
   },
+  "CONFIG_USE_DEFAULT": {
+    "zh_CN": "使用默认值",
+    "en_GB": "Use default"
+  },
+  "enemyDamageHintLevel": {
+    "zh_CN": "伤害提示等级",
+    "en_GB": "Damage hint level"
+  },
+  "enemyDefeatShatterEffectEnabled": {
+    "zh_CN": "敌人击败碎裂效果",
+    "en_GB": "Enemy defeat shatter effect"
+  },
+  "maxSaveSlots": {
+    "zh_CN": "最大存档数量",
+    "en_GB": "Maximum save slots"
+  },
+  "tutorialShrinkDuration": {
+    "zh_CN": "教程遮罩收缩时长（秒）",
+    "en_GB": "Tutorial shrink duration (seconds)"
+  },
   "TILESETS_DATA": {
     "zh_CN": "图块集数据",
     "en_GB": "Tilesets Data"

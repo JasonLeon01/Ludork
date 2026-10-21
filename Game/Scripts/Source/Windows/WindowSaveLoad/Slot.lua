@@ -21,7 +21,7 @@ Controller.refreshEvents = { EventKey.LocaleChanged }
 function Controller:init(owner)
     self._owner = owner
     self._rows = self:createCollection(self.ui.controls["SlotList"], WindowSaveSlotRowController)
-    for slot = 0, self.MAX_SAVE_SLOTS - 1 do
+    for slot = 0, self.host.MAX_SAVE_SLOTS - 1 do
         self._rows:add({
             text = LOC("SAVEFILE"):pformat(slot + 1),
             callback = function (_obj, _kwargs)

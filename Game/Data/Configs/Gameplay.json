@@ -1,0 +1,40 @@
+{
+  "enemyDamageHintLevel": {
+    "type": "int",
+    "enum": "Enums.DamageHintLevel",
+    "nullable": true,
+    "scriptDefault": {
+      "module": "Source.MapActors.EnemyDamageText",
+      "field": "EnemyDamageText.EnemyDamageHintLevel"
+    },
+    "value": null
+  },
+  "enemyDefeatShatterEffectEnabled": {
+    "type": "bool",
+    "nullable": true,
+    "scriptDefault": {
+      "module": "Source.MapActors.Enemy",
+      "field": "Enemy.DefeatShatterEffectEnabled"
+    },
+    "value": null
+  },
+  "maxSaveSlots": {
+    "type": "int",
+    "nullable": true,
+    "scriptDefault": {
+      "module": "Source.Windows.WindowSaveLoad.Slot",
+      "field": "Controller.MAX_SAVE_SLOTS"
+    },
+    "value": null
+  },
+  "tutorialShrinkDuration": {
+    "type": "float",
+    "nullable": true,
+    "scriptDefault": {
+      "module": "Source.Windows.WindowTutorial",
+      "field": "Controller.SHRINK_DURATION"
+    },
+    "value": null
+  },
+  "type": "system"
+}
