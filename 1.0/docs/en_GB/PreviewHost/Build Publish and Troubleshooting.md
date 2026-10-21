@@ -59,7 +59,7 @@ This exclusion applies to loose and `.ldpak` resource layouts and the platform b
 | Symptom | Action |
 |---|---|
 | Host, manifest or registry is missing | Construct the C++ Source project. For Standalone, ensure its preview metadata; update the matching runtime if its binaries or dependencies are missing. Then validate the published artefacts. |
-| Protocol or capability is incompatible | Rebuild or update the host. Current transport requires `persistentFrames`; map edits also require `map` and `mapActorChanges`. There is no fallback map renderer. |
+| Protocol or capability is incompatible | Rebuild or update the host to supply the [required preview capabilities](<Architecture and Data Flow.md#capabilities-and-timing>). There is no fallback map renderer. |
 | Preview pauses during a build | Wait for publication and reconnection. If the build failed, correct the build error and rebuild before retrying preview. |
 | A newly added native control is unavailable | Rebuild its adapter and registry together; adding an editor palette entry alone does not register a native control. |
 | Packaging rejects UI assets or a registry | Correct the reported asset/registry mismatch using the matching desktop build; do not replace the registry with one from an unrelated project. |
