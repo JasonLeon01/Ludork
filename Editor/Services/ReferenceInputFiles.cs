@@ -10,15 +10,17 @@ internal sealed class ReferenceInputFiles
     private readonly string projectPath;
     private readonly string[] mapPaths;
     private readonly Dictionary<string, Stamp> stamps;
+    private readonly bool includeData;
 
-    private ReferenceInputFiles(string projectPath, string[] mapPaths, Dictionary<string, Stamp> stamps)
+    private ReferenceInputFiles(string projectPath, string[] mapPaths, Dictionary<string, Stamp> stamps, bool includeData)
     {
         this.projectPath = projectPath;
         this.mapPaths = mapPaths;
         this.stamps = stamps;
+        this.includeData = includeData;
     }
 
-    internal static ReferenceInputFiles Capture(string projectPath, IEnumerable<string> mapPaths)
+    internal static ReferenceInputFiles Capture(string projectPath, IEnumerable<string> mapPaths, bool includeData = false)
     {
         string[] paths = mapPaths.Distinct(StringComparer.Ordinal).OrderBy(path => path, StringComparer.Ordinal).ToArray();
         string scripts = Path.Combine(projectPath, "Scripts");
@@ -27,14 +29,18 @@ internal sealed class ReferenceInputFiles
         string enumRoot = Path.Combine(scripts, "Enums");
         IEnumerable<string> enums = Directory.Exists(enumRoot)
             ? Directory.EnumerateFiles(enumRoot, "*.lua", SearchOption.AllDirectories) : [];
-        Dictionary<string, Stamp> stamps = metadata.Concat(enums).Concat(paths).Distinct(StringComparer.Ordinal)
+        string dataRoot = Path.Combine(projectPath, "Data");
+        IEnumerable<string> data = includeData && Directory.Exists(dataRoot)
+            ? Directory.EnumerateFiles(dataRoot, "*.json", SearchOption.AllDirectories)
+                .Where(path => !DataConfig.isAnimationCache(path)) : [];
+        Dictionary<string, Stamp> stamps = metadata.Concat(enums).Concat(paths).Concat(data).Distinct(StringComparer.Ordinal)
             .ToDictionary(path => path, Read, StringComparer.Ordinal);
-        return new ReferenceInputFiles(projectPath, paths, stamps);
+        return new ReferenceInputFiles(projectPath, paths, stamps, includeData);
     }
 
     internal bool IsCurrent()
     {
-        ReferenceInputFiles current = Capture(projectPath, mapPaths);
+        ReferenceInputFiles current = Capture(projectPath, mapPaths, includeData);
         return stamps.Count == current.stamps.Count && stamps.All(pair =>
             current.stamps.TryGetValue(pair.Key, out Stamp value) && pair.Value == value);
     }

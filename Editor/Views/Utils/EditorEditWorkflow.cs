@@ -6,22 +6,35 @@ using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Ludork.Models;
 using Ludork.Services;
+using Ludork.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
 namespace Ludork.Views.Utils;
 
 public static class EditorEditWorkflow
 {
-    public static async Task<T> RunAsync<T>(Window owner, ProjectDataStore store, string title,
+    private static readonly ConditionalWeakTable<Window, EditorEditOperationService> windowOperations = new();
+
+    public static Task<T> RunAsync<T>(Window owner, ProjectDataStore store, string title,
         Func<IProgress<EditorOperationProgress>, Task<T>> action, T busyResult, bool showProgress = true)
+        => runWithFeedbackAsync(owner, store.EditOperations, title, action, busyResult, showProgress);
+
+    public static Task<T> RunAsync<T>(Window owner, string title,
+        Func<IProgress<EditorOperationProgress>, Task<T>> action, T busyResult, bool showProgress = true)
+        => runWithFeedbackAsync(owner, (getRoot(owner).DataContext as MainViewModel)?.GameData.EditOperations,
+            title, action, busyResult, showProgress);
+
+    private static async Task<T> runWithFeedbackAsync<T>(Window owner, EditorEditOperationService? operations,
+        string title, Func<IProgress<EditorOperationProgress>, Task<T>> action, T busyResult, bool showProgress)
     {
         try
         {
-            return await runAsync(owner, store, title, action, busyResult, showProgress);
+            return await runAsync(owner, operations, title, action, busyResult, showProgress);
         }
         catch (Exception exception) when (exception is InvalidOperationException or IOException or UnauthorizedAccessException)
         {
@@ -30,20 +43,21 @@ public static class EditorEditWorkflow
         }
     }
 
-    private static async Task<T> runAsync<T>(Window owner, ProjectDataStore store, string title,
+    private static async Task<T> runAsync<T>(Window owner, EditorEditOperationService? operations, string title,
         Func<IProgress<EditorOperationProgress>, Task<T>> action, T busyResult, bool showProgress)
     {
-        if (!store.EditOperations.TryBegin())
+        Window root = getRoot(owner);
+        EditorEditOperationService windowOperation = windowOperations.GetOrCreateValue(root);
+        if (windowOperation.IsBusy || operations?.IsBusy == true)
             return busyResult;
+        windowOperation.TryBegin();
+        operations?.TryBegin();
         EditorOperationProgressPresenter progress = new(owner, title, showProgress);
         List<(Window Window, bool HitTestVisible)> windows = [];
         void blockClosing(object? sender, WindowClosingEventArgs args) => args.Cancel = true;
         void blockInput(object? sender, KeyEventArgs args) => args.Handled = true;
         try
         {
-            Window root = owner;
-            while (root.Owner is Window parent)
-                root = parent;
             IEnumerable<Window> candidates = Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
                 ? desktop.Windows : new[] { owner };
             foreach (Window window in candidates.Where(window => belongsTo(window, root)).ToArray())
@@ -65,7 +79,8 @@ public static class EditorEditWorkflow
                 window.RemoveHandler(InputElement.KeyDownEvent, blockInput);
                 window.SetCurrentValue(InputElement.IsHitTestVisibleProperty, hitTestVisible);
             }
-            store.EditOperations.Complete();
+            windowOperation.Complete();
+            operations?.Complete();
         }
     }
 
@@ -79,5 +94,12 @@ public static class EditorEditWorkflow
             if (ReferenceEquals(current, root))
                 return true;
         return false;
+    }
+
+    private static Window getRoot(Window window)
+    {
+        while (window.Owner is Window parent)
+            window = parent;
+        return window;
     }
 }

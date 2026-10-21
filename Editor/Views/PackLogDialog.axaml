@@ -25,11 +25,14 @@
                                      HorizontalScrollBarVisibility="Auto"
                                      VerticalScrollBarVisibility="Auto" />
         </Border>
-        <Button x:Name="CloseButton"
-                Grid.Row="1"
-                Margin="0,12,0,0"
-                HorizontalAlignment="Right"
-                IsEnabled="False"
-                Click="onClose" />
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="16" Margin="0,12,0,0">
+            <ProgressBar x:Name="OperationProgress" Height="6" IsIndeterminate="True"
+                         VerticalAlignment="Center" />
+            <Button x:Name="CloseButton"
+                    Grid.Column="1"
+                    HorizontalAlignment="Right"
+                    IsEnabled="False"
+                    Click="onClose" />
+        </Grid>
     </Grid>
 </Window>

@@ -1,3 +1,4 @@
+using Ludork.Models;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -10,7 +11,7 @@ internal sealed class ProjectResourceDeletionValidation(string projectPath) : ID
     private ProjectDataStore? diskData;
     private Dictionary<string, ReferenceInputFiles.Stamp> inputs = new(StringComparer.Ordinal);
 
-    internal void AssertUnreferenced(IReadOnlyList<string> paths)
+    internal void AssertUnreferenced(IReadOnlyList<string> paths, IProgress<EditorOperationProgress>? progress = null)
     {
         Dictionary<string, ReferenceInputFiles.Stamp> current = captureInputs();
         if (diskData is null || inputs.Count != current.Count
@@ -19,9 +20,22 @@ internal sealed class ProjectResourceDeletionValidation(string projectPath) : ID
             diskData?.Dispose();
             diskData = null;
             inputs = current;
-            diskData = new ProjectDataStore(projectPath, cacheMapCatalog: false);
+            diskData = new ProjectDataStore(projectPath, cacheMapCatalog: false,
+                loadProgress: path => progress?.Report(new EditorOperationProgress("EDIT_OPERATION_REFERENCES", path)));
         }
+        progress?.Report(new EditorOperationProgress("EDIT_OPERATION_REFERENCES"));
         ProjectDataStore.assertDocumentsUnreferenced(diskData, paths);
+        if (!IsCurrent())
+            throw new IOException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
+    }
+
+    internal bool IsCurrent()
+    {
+        if (diskData is null)
+            return true;
+        Dictionary<string, ReferenceInputFiles.Stamp> current = captureInputs();
+        return inputs.Count == current.Count && inputs.All(pair =>
+            current.TryGetValue(pair.Key, out ReferenceInputFiles.Stamp value) && value == pair.Value);
     }
 
     internal void AcceptDeleted(IReadOnlyList<string> paths)
@@ -43,6 +57,9 @@ internal sealed class ProjectResourceDeletionValidation(string projectPath) : ID
         string scripts = Path.Combine(projectPath, "Scripts");
         if (Directory.Exists(scripts))
             files = files.Concat(Directory.EnumerateFiles(scripts, "*_meta.lua", SearchOption.AllDirectories));
+        string enums = Path.Combine(scripts, "Enums");
+        if (Directory.Exists(enums))
+            files = files.Concat(Directory.EnumerateFiles(enums, "*.lua", SearchOption.AllDirectories));
         return files.Distinct(StringComparer.Ordinal).ToDictionary(path => path, ReferenceInputFiles.Read, StringComparer.Ordinal);
     }
 

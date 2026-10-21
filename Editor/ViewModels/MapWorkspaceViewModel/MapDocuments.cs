@@ -94,19 +94,20 @@ public sealed partial class MapWorkspaceViewModel
         return true;
     }
 
-    public IReadOnlyList<ReferenceRecord> WorldDeleteReferences(string worldKey)
+    public Task<IReadOnlyList<ReferenceRecord>> WorldDeleteReferencesAsync(string worldKey,
+        IProgress<EditorOperationProgress>? progress = null)
     {
         IReadOnlyList<string> children = GameData.Worlds.getWorldChildren(worldKey);
         string[] paths = children.Select(GameData.Maps.GetMapRuntimePath)
             .Append(GameData.Worlds.GetWorldManifestRuntimePath(worldKey)).ToArray();
-        return references.GetExternalMapReferences(paths, children);
+        return references.GetExternalMapReferencesAsync(paths, children, progress);
     }
 
     public int WorldChildCount(string worldKey) => GameData.Worlds.getWorldChildren(worldKey).Count;
 
-    public bool DeleteWorld(string worldKey)
+    public async Task<bool> DeleteWorldAsync(string worldKey, IProgress<EditorOperationProgress>? progress = null)
     {
-        if (!CanEdit || !GameData.Worlds.DeleteWorldMap(worldKey))
+        if (!await GameData.DeleteDocumentResourceAsync("WorldMaps", worldKey, progress))
             return false;
         refreshMaps();
         return true;
@@ -151,30 +152,33 @@ public sealed partial class MapWorkspaceViewModel
             refreshMaps(key);
     }
 
-    public IReadOnlyList<ReferenceRecord> MapDeleteReferences(string key) =>
-        references.GetExternalMapReferences([GameData.Maps.GetMapRuntimePath(key)], [key]);
+    public Task<IReadOnlyList<ReferenceRecord>> MapDeleteReferencesAsync(string key,
+        IProgress<EditorOperationProgress>? progress = null) =>
+        references.GetExternalMapReferencesAsync([GameData.Maps.GetMapRuntimePath(key)], [key], progress);
 
-    public bool DeleteMap(string key)
+    public async Task<bool> DeleteMapAsync(string key, IProgress<EditorOperationProgress>? progress = null)
     {
-        if (!CanEdit || !GameData.Maps.DeleteMap(key))
+        if (!await GameData.DeleteDocumentResourceAsync("Maps", key, progress))
             return false;
         refreshMaps();
         return true;
     }
 
-    public IReadOnlyList<ReferenceRecord> PlacementRemoveReferences(string childKey) =>
-        references.GetExternalMapReferences([GameData.Maps.GetMapRuntimePath(childKey)]);
+    public Task<IReadOnlyList<ReferenceRecord>> PlacementRemoveReferencesAsync(string childKey,
+        IProgress<EditorOperationProgress>? progress = null) =>
+        references.GetExternalMapReferencesAsync([GameData.Maps.GetMapRuntimePath(childKey)], progress: progress);
 
     public WorldMapMutationResult UpdateWorldPlacement(string worldKey, string childKey, int x, int y) =>
         CanEdit ? GameData.Worlds.UpdateWorldPlacement(worldKey, childKey, x, y) : WorldMapMutationResult.Failed("The project is running.");
 
-    public WorldMapMutationResult RemoveWorldPlacement(string worldKey, string childKey) =>
-        CanEdit ? GameData.Worlds.RemoveWorldPlacement(worldKey, childKey) : WorldMapMutationResult.Failed("The project is running.");
+    public Task<WorldMapMutationResult> RemoveWorldPlacementAsync(string worldKey, string childKey,
+        IProgress<EditorOperationProgress>? progress = null) =>
+        GameData.Worlds.RemoveWorldPlacementAsync(worldKey, childKey, progress);
 
     public string DescribeReferences(IReadOnlyList<ReferenceRecord> entries) => string.Join(Environment.NewLine,
         entries.Select(reference =>
         {
-            ReferenceNode? source = references.GetNode(reference.Source);
+            ReferenceNode? source = Ludork.Services.ReferenceIndexSnapshot.ParseNode(reference.Source);
             return (source is null ? reference.Source : source.Type + ":" + source.Key) + " · " + reference.Path;
         }));
 

@@ -181,10 +181,7 @@ public partial class App : Application
             await AlertDialog.ShowAsync(owner, LocaleService.Get("ERROR"), error);
             return null;
         }
-        if (pluginWorkspace is not null)
-            await pluginWorkspace.InitializeProjectAsync(projectPath, token);
-        token.ThrowIfCancellationRequested();
-        ProjectDataStore? gameData = await EditorProjectOpenWorkflow.LoadAsync(owner, projectPath, token);
+        ProjectDataStore? gameData = await EditorProjectOpenWorkflow.LoadAsync(owner, projectPath, pluginWorkspace, token);
         if (token.IsCancellationRequested)
         {
             gameData?.Dispose();

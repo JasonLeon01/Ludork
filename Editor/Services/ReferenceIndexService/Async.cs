@@ -14,14 +14,16 @@ public sealed partial class ReferenceIndexService
         refreshTimer?.Stop();
         try
         {
+            backgroundCancellation?.Cancel();
+            if (backgroundTask is Task pending)
+                await pending;
             ReferenceInputFiles? files = inputFiles;
             long requestedVersion = version;
             if (!dirty && pendingDocuments.Count == 0 && CurrentSnapshot?.Version == requestedVersion
                 && files is not null && await Task.Run(files.IsCurrent)
-                && requestedVersion == version && metadataRevision == metadataService.Revision)
+                && requestedVersion == version && metadataRevision == metadataService.CacheRevision)
                 return new ReferenceIndexSnapshotBuilder.Result(CurrentSnapshot!, files);
-            backgroundCancellation?.Cancel();
-            ReferenceBuildInput input = captureBuildInput();
+            ReferenceBuildInput input = await captureBuildInputAsync(progress);
             using ReferenceIndexSnapshotBuilder builder = new(gameData.ProjectPath);
             ReferenceIndexSnapshotBuilder.Result result = await Task.Run(() => builder.Build(input, default, progress));
             if (input.Version != version)

@@ -10,4 +10,8 @@ public sealed partial class WorldDataService
         => isValidMapChildName(newKey)
             ? store.RenameDocumentResourceAsync("WorldMaps", normalizeWorldKey(currentKey), newKey, progress)
             : Task.FromResult(false);
+
+    public Task<WorldMapMutationResult> RemoveWorldPlacementAsync(string worldKey, string childKey,
+        IProgress<EditorOperationProgress>? progress = null)
+        => store.RemoveWorldPlacementAsync(worldKey, childKey, progress);
 }

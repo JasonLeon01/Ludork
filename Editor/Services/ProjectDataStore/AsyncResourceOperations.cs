@@ -31,8 +31,23 @@ public sealed partial class ProjectDataStore
         }, result => result.Handled && result.Error is null, progress);
     }
 
+    public Task<(bool Handled, string? Error)> TryCopyManagedPathAsync(string sourcePath, string destinationPath,
+        IProgress<EditorOperationProgress>? progress = null)
+    {
+        return runResourceOperationAsync(store =>
+        {
+            bool handled = store.TryCopyManagedPath(sourcePath, destinationPath, out string? error);
+            return (Handled: handled, Error: error);
+        }, result => result.Handled && result.Error is null, progress, "COPY");
+    }
+
     internal Task<bool> UpdateMapAsync(string key, MapInfo info, IProgress<EditorOperationProgress>? progress)
         => runResourceOperationAsync(store => store.Maps.UpdateMap(key, info), result => result, progress);
+
+    internal Task<WorldMapMutationResult> RemoveWorldPlacementAsync(string worldKey, string childKey,
+        IProgress<EditorOperationProgress>? progress)
+        => runResourceOperationAsync(store => store.Worlds.RemoveWorldPlacement(worldKey, childKey),
+            result => result.Success, progress, "EDIT_OPERATION_VALIDATING");
 
     public Task<HistoryResult> UndoAsync(string section, string key, IProgress<EditorOperationProgress>? progress = null)
         => replayResourceAsync(section, key, true, progress);
@@ -46,17 +61,18 @@ public sealed partial class ProjectDataStore
         EditorDocument? document = Documents.Find(section, normalizeJsonKey(key));
         DocumentHistoryEntry? entry = (undo ? document?.UndoEntries : document?.RedoEntries)?.LastOrDefault();
         if (document is null || entry is null || entry.Marker?.IsBarrier == true
-            || (undo ? entry.Before.Key : entry.After.Key) == document.Key)
+            || !sections.ContainsKey(document.Section))
             return Task.FromResult(undo ? Undo(section, key) : Redo(section, key));
         return runResourceOperationAsync(store => undo ? store.Undo(section, key) : store.Redo(section, key),
-            result => result.Success, progress);
+            result => result.Success, progress, undo ? "UNDO" : "REDO");
     }
 
     private async Task<T> runResourceOperationAsync<T>(Func<ProjectDataStore, T> operation,
-        Func<T, bool> succeeded, IProgress<EditorOperationProgress>? progress)
+        Func<T, bool> succeeded, IProgress<EditorOperationProgress>? progress,
+        string stage = "EDIT_OPERATION_RENAMING")
     {
         progress?.Report(new EditorOperationProgress("EDIT_OPERATION_PREPARING"));
-        ProjectOperationSnapshot snapshot = CaptureOperationSnapshot();
+        ProjectOperationSnapshot snapshot = await CaptureOperationSnapshotAsync(progress);
         string[] paths = snapshot.Documents.SelectMany(document => new[] { document.Current.Path, document.Saved.Path }).ToArray();
         ReferenceInputFiles inputs = await Task.Run(() => ReferenceInputFiles.Capture(ProjectPath, paths));
         ReferenceIndexSnapshotBuilder.Result references = await ReferenceIndex.GetCurrentAsync(progress);
@@ -66,12 +82,13 @@ public sealed partial class ProjectDataStore
                 throw new IOException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
             using ProjectDataStore working = snapshot.CreateStore();
             working.ReferenceIndex.UseOperationSnapshot(references);
-            progress?.Report(new EditorOperationProgress("EDIT_OPERATION_RENAMING"));
+            progress?.Report(new EditorOperationProgress(stage));
             T result = operation(working);
             if (!succeeded(result))
                 return (result, Array.Empty<PreparedResourceChange>());
             Dictionary<Guid, ProjectOperationDocument> originals = snapshot.Documents.ToDictionary(document => document.Id);
-            Dictionary<string, MapCatalogEntry> catalog = working.Maps.MapCatalog.ToDictionary(entry => entry.Key, StringComparer.Ordinal);
+            Dictionary<string, MapCatalogEntry> catalog = working.Maps.MapCatalog.ToDictionary(
+                entry => MapDataService.getMapCatalogDataKey(entry.Kind, entry.Key), StringComparer.Ordinal);
             List<PreparedResourceChange> changes = [];
             foreach (EditorDocument document in working.Documents.All)
             {
@@ -82,10 +99,13 @@ public sealed partial class ProjectDataStore
                     continue;
                 if (original is null && EditorDocument.StatesEqual(before, after))
                     continue;
+                MapCatalogEntryKind kind = document.Section == "WorldMaps" ? MapCatalogEntryKind.WorldMap
+                    : document.Key.Contains('/') ? MapCatalogEntryKind.WorldChildMap : MapCatalogEntryKind.StandaloneMap;
                 changes.Add(new PreparedResourceChange(document.Id, before, after, document.SavedState,
                     document.InternalData, document.UndoEntries.ToArray(), document.RedoEntries.ToArray(),
                     document.IsModified, !EditorDocumentState.ContentEquals(before, after),
-                    document.Section is "Maps" or "WorldMaps" ? catalog.GetValueOrDefault(document.Key) : null,
+                    document.Section is "Maps" or "WorldMaps"
+                        ? catalog.GetValueOrDefault(MapDataService.getMapCatalogDataKey(kind, document.Key)) : null,
                     document.Section == "Maps" ? working.Maps.GetOperationMapBytes(document.Key) : 0));
             }
             if (!references.Files.IsCurrent() || !inputs.IsCurrent())
@@ -106,17 +126,19 @@ public sealed partial class ProjectDataStore
     {
         Dictionary<Guid, EditorDocument> existing = Documents.All.ToDictionary(document => document.Id);
         List<Action> restoreEntries = [];
+        EditorUiBatch batch = new();
         foreach ((string section, string key) in changes.SelectMany(change => new[]
         {
             (change.Before.Section, change.Before.Key), (change.After.Section, change.After.Key),
         }).Distinct())
+        {
             captureExternalChange(section, key, restoreEntries);
+            await batch.YieldIfNeededAsync();
+        }
         bool committed = false;
         try
         {
-            using EditorDocumentTransaction transaction = Documents.BeginTransaction(
-                changes.Where(change => existing.ContainsKey(change.Id)).Select(change => existing[change.Id]));
-            EditorUiBatch batch = new();
+            using EditorDocumentTransaction transaction = Documents.BeginTransaction([]);
             int completed = 0;
             foreach (PreparedResourceChange change in changes)
             {
@@ -126,6 +148,8 @@ public sealed partial class ProjectDataStore
                         null, true, change.Id);
                     RegisterLoadedDocument(change.Before.Section, change.Before.Key);
                 }
+                else
+                    transaction.Capture(document);
                 string oldKey = document.Key;
                 sections[document.Section].Remove(oldKey);
                 document.SetIdentity(change.After.Section, change.After.Key, change.After.Path);
@@ -168,8 +192,8 @@ public sealed partial class ProjectDataStore
                 Maps.NotifyMapContentChanged(change.After.Key);
             if (changes.Any(change => change.After.Section == "UI"))
                 UiAssets.NotifyUiAssetsChanged();
-            transaction.Commit();
             committed = true;
+            transaction.Commit();
         }
         finally
         {

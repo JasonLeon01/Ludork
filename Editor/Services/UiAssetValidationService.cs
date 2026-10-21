@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Ludork.Services;
 
@@ -104,6 +106,24 @@ public sealed class UiAssetValidationService
             add(issues, "assetCycle", path, cycle.Message);
         }
         return new UiAssetValidationResult(normalizedKey, issues);
+    }
+
+    internal async Task<UiAssetValidationResult> ValidateAssetAsync(string assetKey,
+        IProgress<EditorOperationProgress>? progress = null, CancellationToken cancellationToken = default)
+    {
+        UiControlDescriptor[] controls = SystemDescriptors.ToArray();
+        bool ready = RegistryReady;
+        string status = RegistryStatus;
+        PreviewRuntimeSnapshot? runtime = controlRegistry?.Runtime.Current;
+        UiAssetValidationResult result = await ProjectSnapshotReader.ReadAsync(gameData,
+            captured => new UiAssetValidationService(captured, controls, ready, status).ValidateAsset(assetKey),
+            progress, cancellationToken);
+        if (ready != RegistryReady || status != RegistryStatus
+            || runtime?.BuildId != controlRegistry?.Runtime.Current?.BuildId
+            || runtime?.RegistryHash != controlRegistry?.Runtime.Current?.RegistryHash
+            || runtime?.HostPath != controlRegistry?.Runtime.Current?.HostPath)
+            throw new InvalidOperationException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
+        return result;
     }
 
     public IReadOnlyList<UiAssetValidationResult> ValidateAll(bool structuralOnly = false)

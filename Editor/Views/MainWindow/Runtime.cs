@@ -434,8 +434,19 @@ public partial class MainWindow
 
     private void updateRunButtons()
     {
-        bool busy = (projectOperations?.State ?? ProjectRunState.Idle) is ProjectRunState.Building or ProjectRunState.Exporting or ProjectRunState.Packing;
-        bool playing = (projectOperations?.State ?? ProjectRunState.Idle) is ProjectRunState.Preparing or ProjectRunState.Running;
+        ProjectRunState state = projectOperations?.State ?? ProjectRunState.Idle;
+        bool busy = state is ProjectRunState.Building or ProjectRunState.Exporting or ProjectRunState.Packing;
+        bool playing = state is ProjectRunState.Preparing or ProjectRunState.Running;
+        ProjectOperationProgress.IsVisible = busy || state == ProjectRunState.Preparing;
+        string operation = LocaleService.Get(state switch
+        {
+            ProjectRunState.Building => "CONSTRUCT",
+            ProjectRunState.Exporting => "EXPORT",
+            ProjectRunState.Packing => "PACK_TITLE",
+            _ => "EDIT_OPERATION_PREPARING",
+        });
+        ToolTip.SetTip(ProjectOperationProgress, operation);
+        Avalonia.Automation.AutomationProperties.SetName(ProjectOperationProgress, operation);
         bool sourceProject = viewModel?.ProjectConfig.IsStandalone == false;
         bool hasBuild = !sourceProject || projectRunner?.NativeBuildState.HasSuccessfulBuild == true;
         ConstructButton.IsVisible = sourceProject;

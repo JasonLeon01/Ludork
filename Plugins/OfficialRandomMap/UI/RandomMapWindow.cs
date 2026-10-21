@@ -40,6 +40,12 @@ internal sealed class RandomMapWindow : Window
         Foreground = PluginTheme.Brush("TextMuted"),
         TextWrapping = TextWrapping.Wrap,
     };
+    private readonly ProgressBar generationProgress = new()
+    {
+        Height = 6,
+        IsIndeterminate = true,
+        IsVisible = false,
+    };
     private readonly TextBlock passableWarning = new()
     {
         Foreground = PluginTheme.Brush("Warning"),
@@ -182,8 +188,12 @@ internal sealed class RandomMapWindow : Window
             }
             catch (Exception)
             {
-                finishGeneration();
                 statusText.Text = localizer.Text("unexpectedError");
+            }
+            finally
+            {
+                if (generating)
+                    finishGeneration();
             }
         };
         closeButton.Content = localizer.Text("close");
@@ -265,7 +275,11 @@ internal sealed class RandomMapWindow : Window
         {
             Padding = new Thickness(12),
             Background = PluginTheme.Brush("Surface"),
-            Child = statusText,
+            Child = new StackPanel
+            {
+                Spacing = 8,
+                Children = { statusText, generationProgress },
+            },
         };
         Grid.SetRow(statusBorder, 1);
         rightPanel.Children.Add(statusBorder);
@@ -535,6 +549,7 @@ internal sealed class RandomMapWindow : Window
         PluginMapSnapshot generationMap = currentMap;
         PluginMapLayerSnapshot generationLayer = currentLayer;
         generating = true;
+        generationProgress.IsVisible = true;
         updateRegionState();
         generateButton.IsEnabled = false;
         backButton.IsEnabled = false;
@@ -624,6 +639,7 @@ internal sealed class RandomMapWindow : Window
     private void finishGeneration()
     {
         generating = false;
+        generationProgress.IsVisible = false;
         updateRegionState();
         backButton.IsEnabled = true;
         mapList.IsEnabled = true;
@@ -660,6 +676,7 @@ internal sealed class RandomMapWindow : Window
         markers.Clear();
         region = fullMapRegion();
         generating = false;
+        generationProgress.IsVisible = false;
         selectionModeButton.IsChecked = true;
         selectedTile = null;
         currentLayer = null;

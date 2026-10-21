@@ -199,6 +199,14 @@
     "zh_CN": "重命名资源",
     "en_GB": "Renaming resource"
   },
+  "EDIT_OPERATION_MOVING": {
+    "en_GB": "Moving resources",
+    "zh_CN": "正在移动资源"
+  },
+  "EDIT_OPERATION_DELETING": {
+    "en_GB": "Deleting resources",
+    "zh_CN": "正在删除资源"
+  },
   "EDIT_OPERATION_SAVING": {
     "zh_CN": "保存项目",
     "en_GB": "Saving project"

@@ -144,7 +144,8 @@ internal sealed class TilesetEditorTab : Grid
         bool confirmed = await ConfirmationDialog.ShowAsync(owner, LocaleService.Get("CONFIRM_DELETE"), LocaleService.Get("DELETE_DOCUMENT_CONFIRMATION"));
         if (!confirmed)
             return;
-        if (await EditorResourceOperations.DeleteAsync(owner, () => gameData.Assets.DeleteTileset(key, isAutoTile)))
+        if (await EditorResourceOperations.DeleteAsync(owner, gameData,
+            progress => gameData.DeleteDocumentResourceAsync(isAutoTile ? "AutoTiles" : "Tilesets", key, progress)))
             refreshAll();
     }
 

@@ -49,10 +49,7 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
         this.gameData = gameData;
         this.projectSave = projectSave;
         fieldBuilder = new BlueprintVariableFieldBuilder(gameData, metadataService);
-        parameterEditorFactory = new BlueprintNodeParameterEditorFactory(
-            gameData,
-            metadataService,
-            classResolver);
+        parameterEditorFactory = new BlueprintNodeParameterEditorFactory(gameData);
         Title = LocaleService.Get("COMMON_FUNCTIONS");
         Width = 1200;
         Height = 800;
@@ -374,7 +371,8 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
         if (!confirmed)
             return;
         flushGraph();
-        if (await EditorResourceOperations.DeleteAsync(this, () => gameData.Blueprints.DeleteCommonFunction(name)))
+        if (await EditorResourceOperations.DeleteAsync(this, gameData,
+            progress => gameData.DeleteDocumentResourceAsync("CommonFunctions", name, progress)))
             refreshList(null);
     }
 

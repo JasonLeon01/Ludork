@@ -14,6 +14,7 @@ using Ludork.Views.Utils;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
 using System.Text;
@@ -43,6 +44,11 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     private bool contentInitialized;
     private bool closed;
     private bool refreshPending;
+    private readonly CancellationTokenSource validationCancellation = new();
+    private bool registryRefreshPending;
+    private bool registryValidationPending;
+    private bool registryValidationRunning;
+    private long registryValidationVersion;
     private string? paletteSignature;
     private string? hierarchySignature;
     private string? animationSignature;
@@ -76,6 +82,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         document.Changed += onDocumentChanged;
         controlRegistry.Runtime.Changed += onRegistryChanged;
         gameData.Documents.Changed += onProjectDocumentsChanged;
+        gameData.EditOperations.Changed += onEditOperationChanged;
         Closing += onClosing;
         Closed += onClosed;
         projectSave.RegisterParticipant(this);
@@ -201,11 +208,15 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     private async void onClosed(object? sender, EventArgs args)
     {
         closed = true;
+        validationCancellation.Cancel();
+        if (!registryValidationRunning)
+            validationCancellation.Dispose();
         document.Changed -= onDocumentChanged;
         document.Dispose();
         Deactivated -= onDeactivated;
         controlRegistry.Runtime.Changed -= onRegistryChanged;
         gameData.Documents.Changed -= onProjectDocumentsChanged;
+        gameData.EditOperations.Changed -= onEditOperationChanged;
         projectSave.UnregisterParticipant(this);
         Closing -= onClosing;
         Closed -= onClosed;
@@ -316,8 +327,19 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     {
         Dispatcher.UIThread.Post(() =>
         {
-            if (closed || !contentInitialized)
-                return;
+            registryValidationVersion++;
+            registryRefreshPending = true;
+            refreshRegistry();
+        });
+    }
+
+    private void refreshRegistry()
+    {
+        if (closed || !contentInitialized || gameData.EditOperations.IsBusy)
+            return;
+        if (registryRefreshPending)
+        {
+            registryRefreshPending = false;
             flushPendingField();
             if (!controlRegistry.IsReady)
                 timelineEditor.StopPlayback();
@@ -326,14 +348,60 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             detailsSignature = null;
             refreshAll();
             updatePreviewState();
-            UiAssetValidationResult result = validationService.ValidateAsset(document.AssetKey, document.Data);
-            setStatus(result.IsValid ? LocaleService.Get("UI_VALIDATION_SUCCEEDED")
-                : result.Errors.FirstOrDefault() ?? LocaleService.Get("UI_VALIDATION_FAILED"));
-        });
+            registryValidationPending = true;
+        }
+        _ = validateRegistryAsync();
+    }
+
+    private void onEditOperationChanged(object? sender, EventArgs args)
+    {
+        if (!gameData.EditOperations.IsBusy)
+            refreshRegistry();
+    }
+
+    private async Task validateRegistryAsync()
+    {
+        if (closed || registryValidationRunning || gameData.EditOperations.IsBusy)
+            return;
+        registryValidationRunning = true;
+        try
+        {
+            while (registryValidationPending && !closed && !gameData.EditOperations.IsBusy)
+            {
+                registryValidationPending = false;
+                long version = registryValidationVersion;
+                long revision = gameData.Documents.Revision;
+                try
+                {
+                    UiAssetValidationResult result = await validationService.ValidateAssetAsync(
+                        document.AssetKey, cancellationToken: validationCancellation.Token);
+                    if (!closed && version == registryValidationVersion && !gameData.EditOperations.IsBusy)
+                        setStatus(result.IsValid ? LocaleService.Get("UI_VALIDATION_SUCCEEDED")
+                            : result.Errors.FirstOrDefault() ?? LocaleService.Get("UI_VALIDATION_FAILED"));
+                }
+                catch (OperationCanceledException) when (validationCancellation.IsCancellationRequested)
+                {
+                    return;
+                }
+                catch (Exception exception) when (exception is InvalidOperationException or IOException or UnauthorizedAccessException)
+                {
+                    if (!closed && version == registryValidationVersion && revision == gameData.Documents.Revision
+                        && !gameData.EditOperations.IsBusy)
+                        setStatus(exception.Message);
+                }
+            }
+        }
+        finally
+        {
+            registryValidationRunning = false;
+            if (closed)
+                validationCancellation.Dispose();
+        }
     }
 
     private void onProjectDocumentsChanged(object? sender, EventArgs args)
     {
+        registryValidationVersion++;
         if (closed || !initializer.IsInitialized || refreshPending)
             return;
         refreshPending = true;
@@ -803,9 +871,12 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     private async void onValidate(object? sender, RoutedEventArgs args)
     {
         FlushPendingChanges();
-        UiAssetValidationResult result = validationService.ValidateAsset(
-            document.AssetKey,
-            document.Data);
+        registryValidationVersion++;
+        UiAssetValidationResult? result = await EditorEditWorkflow.RunAsync<UiAssetValidationResult?>(
+            this, gameData, LocaleService.Get("VALIDATE"),
+            async progress => await validationService.ValidateAssetAsync(document.AssetKey, progress), null);
+        if (result is null)
+            return;
         if (result.IsValid)
         {
             setStatus(LocaleService.Get("UI_VALIDATION_SUCCEEDED"));

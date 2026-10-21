@@ -31,11 +31,21 @@ internal sealed class DeferredWindowInitializer
     {
         return new Border
         {
-            Child = new TextBlock
+            Child = new StackPanel
             {
-                Text = LocaleService.Get("LOADING"),
+                Width = 180,
+                Spacing = 12,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
+                Children =
+                {
+                    new TextBlock
+                    {
+                        Text = LocaleService.Get("LOADING"),
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                    },
+                    new ProgressBar { Height = 6, IsIndeterminate = true },
+                },
             },
         };
     }

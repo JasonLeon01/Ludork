@@ -51,19 +51,24 @@ public partial class MainWindow
         object? sender,
         WorldMapPlacementRemovedEventArgs args)
     {
-        if (viewModel is null)
+        if (viewModel?.CanEdit != true)
             return;
-        IReadOnlyList<ReferenceRecord> references = viewModel.MapWorkspace.PlacementRemoveReferences(args.ChildMapKey);
-        if (references.Count != 0)
-        {
-            await showMapReferenceBlockAsync(references);
-            refreshWorldMapPanel();
-            return;
-        }
-        WorldMapMutationResult result = viewModel.MapWorkspace.RemoveWorldPlacement(
-            args.WorldKey,
-            args.ChildMapKey);
-        if (!result.Success)
+        WorldMapMutationResult? result = await EditorEditWorkflow.RunAsync<WorldMapMutationResult?>(
+            this, viewModel.GameData, LocaleService.Get("DELETE"), async progress =>
+            {
+                IReadOnlyList<ReferenceRecord> references = await viewModel.MapWorkspace.PlacementRemoveReferencesAsync(args.ChildMapKey, progress);
+                if (references.Count != 0)
+                {
+                    await EditorEditWorkflow.RunInteractionAsync(progress, this, async _ =>
+                    {
+                        await showMapReferenceBlockAsync(references);
+                        return false;
+                    });
+                    return null;
+                }
+                return await viewModel.MapWorkspace.RemoveWorldPlacementAsync(args.WorldKey, args.ChildMapKey, progress);
+            }, null);
+        if (result is { Success: false })
             toast.ShowMessage(result.Details, 4000);
         refreshWorldMapPanel();
     }
@@ -338,34 +343,27 @@ public partial class MainWindow
 
     private async Task deleteWorldMapAsync(string worldKey)
     {
-        if (viewModel is null)
+        if (viewModel?.CanEdit != true)
             return;
-        IReadOnlyList<ReferenceRecord> references = viewModel.MapWorkspace.WorldDeleteReferences(worldKey);
-        if (references.Count != 0)
+        await EditorResourceOperations.DeleteAsync(this, viewModel.GameData, async progress =>
         {
-            await showMapReferenceBlockAsync(references);
-            return;
-        }
-        int childCount = viewModel.MapWorkspace.WorldChildCount(worldKey);
-        string message = string.Format(
-            LocaleService.Get("WORLD_DELETE_CONFIRMATION"),
-            worldKey,
-            childCount) + Environment.NewLine + LocaleService.Get("DELETE_DOCUMENT_CONFIRMATION");
-        if (!await ConfirmationDialog.ShowAsync(
-                this,
-                LocaleService.Get("CONFIRM_DELETE"),
-                message))
-        {
-            return;
-        }
-        if (!await EditorResourceOperations.DeleteAsync(this, () => viewModel.MapWorkspace.DeleteWorld(worldKey)))
-        {
-            await AlertDialog.ShowAsync(
-                this,
-                LocaleService.Get("ERROR"),
-                LocaleService.Get("DELETE_FAILED"));
-            return;
-        }
+            IReadOnlyList<ReferenceRecord> references = await viewModel.MapWorkspace.WorldDeleteReferencesAsync(worldKey, progress);
+            if (references.Count != 0)
+            {
+                await EditorEditWorkflow.RunInteractionAsync(progress, this, async _ =>
+                {
+                    await showMapReferenceBlockAsync(references);
+                    return false;
+                });
+                return false;
+            }
+            int childCount = viewModel.MapWorkspace.WorldChildCount(worldKey);
+            string message = string.Format(LocaleService.Get("WORLD_DELETE_CONFIRMATION"), worldKey, childCount)
+                + Environment.NewLine + LocaleService.Get("DELETE_DOCUMENT_CONFIRMATION");
+            bool confirmed = await EditorEditWorkflow.RunInteractionAsync(progress, this,
+                owner => ConfirmationDialog.ShowAsync(owner, LocaleService.Get("CONFIRM_DELETE"), message));
+            return confirmed && await viewModel.MapWorkspace.DeleteWorldAsync(worldKey, progress);
+        });
     }
 
     private async Task editMapAsync(string key)
@@ -403,22 +401,25 @@ public partial class MainWindow
 
     private async Task deleteMapAsync(string key)
     {
-        if (viewModel is null)
+        if (viewModel?.CanEdit != true)
             return;
-        IReadOnlyList<ReferenceRecord> references = viewModel.MapWorkspace.MapDeleteReferences(key);
-        if (references.Count != 0)
+        await EditorResourceOperations.DeleteAsync(this, viewModel.GameData, async progress =>
         {
-            await showMapReferenceBlockAsync(references);
-            return;
-        }
-        if (!await ConfirmationDialog.ShowAsync(
-                this,
-                LocaleService.Get("CONFIRM_DELETE"),
-                LocaleService.Get("DELETE_DOCUMENT_CONFIRMATION")))
-        {
-            return;
-        }
-        await EditorResourceOperations.DeleteAsync(this, () => viewModel.MapWorkspace.DeleteMap(key));
+            IReadOnlyList<ReferenceRecord> references = await viewModel.MapWorkspace.MapDeleteReferencesAsync(key, progress);
+            if (references.Count != 0)
+            {
+                await EditorEditWorkflow.RunInteractionAsync(progress, this, async _ =>
+                {
+                    await showMapReferenceBlockAsync(references);
+                    return false;
+                });
+                return false;
+            }
+            bool confirmed = await EditorEditWorkflow.RunInteractionAsync(progress, this,
+                owner => ConfirmationDialog.ShowAsync(owner, LocaleService.Get("CONFIRM_DELETE"),
+                    LocaleService.Get("DELETE_DOCUMENT_CONFIRMATION")));
+            return confirmed && await viewModel.MapWorkspace.DeleteMapAsync(key, progress);
+        });
     }
 
     private async Task showMapReferenceBlockAsync(IReadOnlyList<ReferenceRecord> references)

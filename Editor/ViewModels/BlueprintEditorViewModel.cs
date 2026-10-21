@@ -13,7 +13,6 @@ internal sealed class BlueprintEditorViewModel : ViewModelBase, IDisposable
 {
     private readonly LuaMetadataService metadata;
     private readonly BlueprintClassResolver resolver;
-    private readonly BlueprintValidationService validation;
     private BlueprintNodeDefinitionCatalog? nodeCatalog;
     private BlueprintEditorTabItem? selectedTab;
 
@@ -26,7 +25,6 @@ internal sealed class BlueprintEditorViewModel : ViewModelBase, IDisposable
         Document = document;
         this.metadata = metadata;
         this.resolver = resolver;
-        validation = new BlueprintValidationService(data, metadata, resolver);
         FieldBuilder = new BlueprintVariableFieldBuilder(data, metadata);
     }
 
@@ -215,7 +213,6 @@ internal sealed class BlueprintEditorViewModel : ViewModelBase, IDisposable
 
     public bool RenameEvent(string name, string nextName) => Document.RenameEvent(name, nextName);
     public bool DeleteEvent(string name) => Document.DeleteEvent(name);
-    public BlueprintValidationResult Validate(string key) => validation.ValidateBlueprint(key);
 
     public IReadOnlyList<string> GetAvailableGraphNames()
     {

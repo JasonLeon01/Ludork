@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
+using Ludork.Models;
 using Ludork.Services;
 using Ludork.Services.Plugins;
 using Ludork.Views.Utils;
@@ -121,8 +122,14 @@ public sealed class PluginManagerWindow : Window
             return false;
 
         string sourcePath = folders[0].Path.LocalPath;
-        PluginImportPreview preview =
-            await management.PreviewImportAsync(sourcePath);
+        PluginImportPreview? preview = await EditorEditWorkflow.RunAsync<PluginImportPreview?>(owner,
+            LocaleService.Get("IMPORT_PLUGIN"), async progress =>
+            {
+                progress.Report(new EditorOperationProgress("EDIT_OPERATION_VALIDATING", sourcePath));
+                return await management.PreviewImportAsync(sourcePath);
+            }, null);
+        if (preview is null)
+            return false;
         if (!preview.Success)
         {
             await AlertDialog.ShowAsync(
@@ -145,8 +152,14 @@ public sealed class PluginManagerWindow : Window
         if (!confirmed)
             return false;
 
-        PluginManagementResult result =
-            await management.ImportAsync(preview.SourcePath);
+        PluginManagementResult? result = await EditorEditWorkflow.RunAsync<PluginManagementResult?>(owner,
+            LocaleService.Get("IMPORT_PLUGIN"), async progress =>
+            {
+                progress.Report(new EditorOperationProgress("EDIT_OPERATION_VALIDATING", preview.SourcePath));
+                return await management.ImportAsync(preview.SourcePath);
+            }, null);
+        if (result is null)
+            return false;
         if (!result.Success)
         {
             await AlertDialog.ShowAsync(
@@ -215,14 +228,19 @@ public sealed class PluginManagerWindow : Window
 
     private async Task refreshAsync()
     {
-        pluginList.Children.Clear();
-        List<string> diagnostics = [];
-        await addScopeAsync(workspace.GlobalHost, "PLUGIN_SCOPE_GLOBAL", diagnostics);
-        PluginHost? projectHost = workspace.GetProjectHost(projectPath);
-        if (projectHost is not null)
-            await addScopeAsync(projectHost, "PLUGIN_SCOPE_PROJECT", diagnostics);
-        registryDiagnostic.Text = string.Join(Environment.NewLine, diagnostics);
-        registryDiagnostic.IsVisible = registryDiagnostic.Text.Length != 0;
+        await EditorEditWorkflow.RunAsync(this, LocaleService.Get("PLUGIN_MANAGER_TITLE"), async progress =>
+        {
+            progress.Report(new EditorOperationProgress("EDIT_OPERATION_PREPARING"));
+            pluginList.Children.Clear();
+            List<string> diagnostics = [];
+            await addScopeAsync(workspace.GlobalHost, "PLUGIN_SCOPE_GLOBAL", diagnostics);
+            PluginHost? projectHost = workspace.GetProjectHost(projectPath);
+            if (projectHost is not null)
+                await addScopeAsync(projectHost, "PLUGIN_SCOPE_PROJECT", diagnostics);
+            registryDiagnostic.Text = string.Join(Environment.NewLine, diagnostics);
+            registryDiagnostic.IsVisible = registryDiagnostic.Text.Length != 0;
+            return true;
+        }, false);
     }
 
     private async Task addScopeAsync(PluginHost host, string scopeKey, List<string> diagnostics)
@@ -363,9 +381,17 @@ public sealed class PluginManagerWindow : Window
         if (choice is null)
             return;
         button.IsEnabled = false;
-        PluginManagementResult result = await management.UnregisterAsync(
-            item.Id,
-            choice == PluginUninstallChoice.UnregisterAndDelete);
+        PluginManagementResult? result = await EditorEditWorkflow.RunAsync<PluginManagementResult?>(this,
+            LocaleService.Get("PLUGIN_MANAGER_TITLE"), async progress =>
+            {
+                progress.Report(new EditorOperationProgress("EDIT_OPERATION_APPLYING", item.Id));
+                return await management.UnregisterAsync(item.Id, choice == PluginUninstallChoice.UnregisterAndDelete);
+            }, null);
+        if (result is null)
+        {
+            button.IsEnabled = true;
+            return;
+        }
         if (!result.Success)
         {
             button.IsEnabled = true;

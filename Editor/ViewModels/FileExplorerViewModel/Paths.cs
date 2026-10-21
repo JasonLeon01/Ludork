@@ -12,6 +12,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Ludork.ViewModels;
 
@@ -49,32 +50,27 @@ public sealed partial class FileExplorerViewModel
         }
     }
 
-    private Exception? applyFileChanges(
+    private async Task<Exception?> applyFileChangesAsync(
         IReadOnlyList<string> added,
         IReadOnlyList<(string OldPath, string NewPath)> moved,
         IReadOnlyList<string> deleted,
+        IProgress<EditorOperationProgress>? progress,
         IReadOnlyList<string>? changedDeleted = null)
     {
         if (added.Count == 0 && moved.Count == 0 && deleted.Count == 0)
             return null;
-        IReadOnlyDictionary<string, string> mapReplacements =
-            referenceIndex.CreateMapMoveReplacements(moved);
-        gameData.ApplyExternalFileChanges(
-            added,
-            moved,
-            deleted,
-            () => gameData.ReferenceIndex.PrepareMapReferenceRewrites(mapReplacements));
+        Exception? notificationError = await gameData.ApplyExternalFileChangesAsync(added, moved, deleted, progress);
         try
         {
             changed(new FileExplorerFilesChangedEventArgs(
                 added.ToArray(),
                 moved.ToArray(),
                 changedDeleted?.ToArray() ?? deleted.ToArray()));
-            return null;
+            return notificationError;
         }
         catch (Exception exception)
         {
-            return exception;
+            return notificationError is null ? exception : new AggregateException(notificationError, exception);
         }
     }
 
@@ -143,36 +139,37 @@ public sealed partial class FileExplorerViewModel
             && string.Equals(Path.GetDirectoryName(path), Path.GetFullPath(directory), StringComparison.OrdinalIgnoreCase);
     }
 
-    private bool canTransfer(string source, string targetDirectory, string destination, out string? error)
+    private async Task<(bool Allowed, string? Error)> canTransferAsync(string source, string targetDirectory, string destination)
     {
-        error = null;
-        if ((!File.Exists(source) && !Directory.Exists(source)) || !isEditablePath(source) || !isUnderRoot(targetDirectory))
-            return false;
+        if (!isEditablePath(source) || !isUnderRoot(targetDirectory))
+            return (false, null);
         if (string.Equals(Path.GetFullPath(source), Path.GetFullPath(destination), StringComparison.Ordinal))
-            return false;
-        if (Directory.Exists(source) && EditorPathSandbox.IsSameOrChildPath(source, targetDirectory))
+            return (false, null);
+        string project = projectPath;
+        (bool exists, bool directory, bool destinationExists, bool mapAllowed) = await Task.Run(() =>
         {
-            error = $"{Path.GetFileName(source)}: {LocaleService.Get("MOVE_FILE_FAILED")}";
-            return false;
-        }
-        if (!isCaseOnlyPathChange(source, destination)
-            && (File.Exists(destination) || Directory.Exists(destination)))
+            bool sourceDirectory = Directory.Exists(source);
+            return (File.Exists(source) || sourceDirectory, sourceDirectory,
+                File.Exists(destination) || Directory.Exists(destination),
+                new WorldMapPathPolicy(project).CanTransferPath(source, destination));
+        });
+        if (!exists)
+            return (false, null);
+        if (directory && EditorPathSandbox.IsSameOrChildPath(source, targetDirectory))
+            return (false, $"{Path.GetFileName(source)}: {LocaleService.Get("MOVE_FILE_FAILED")}");
+        if (!isCaseOnlyPathChange(source, destination) && destinationExists
+            || gameData.ContainsDataPath(destination, directory))
+            return (false, LocaleService.Get("FILE_ALREADY_EXISTS").Replace("{name}", Path.GetFileName(destination)));
+        if (!mapAllowed)
+            return (false, $"{Path.GetFileName(source)}: {LocaleService.Get("MOVE_FILE_FAILED")}");
+        ProjectOperationSnapshot snapshot = await gameData.CaptureOperationSnapshotAsync();
+        IReadOnlyList<(string SourcePath, string DestinationPath)> uiAssetMoves = await Task.Run(() =>
         {
-            error = LocaleService.Get("FILE_ALREADY_EXISTS").Replace("{name}", Path.GetFileName(destination));
-            return false;
-        }
-        if (gameData.ContainsDataPath(destination, Directory.Exists(source)))
-        {
-            error = LocaleService.Get("FILE_ALREADY_EXISTS").Replace("{name}", Path.GetFileName(destination));
-            return false;
-        }
-        if (!gameData.Worlds.MapPathPolicy.CanTransferPath(source, destination))
-        {
-            error = $"{Path.GetFileName(source)}: {LocaleService.Get("MOVE_FILE_FAILED")}";
-            return false;
-        }
-        IReadOnlyList<(string SourcePath, string DestinationPath)> uiAssetMoves =
-            getUiAssetTransferPaths(source, destination);
+            using ProjectDataStore captured = snapshot.CreateStore();
+            return getUiAssetTransferPaths(captured, source, destination);
+        });
+        if (gameData.Documents.Revision != snapshot.Revision)
+            throw new InvalidOperationException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
         if (uiAssetMoves.Count != 0)
         {
             string uiAssetsRoot = Path.Combine(projectPath, "Data", "UI");
@@ -182,11 +179,10 @@ public sealed partial class FileExplorerViewModel
                     !tryGetUiAssetKeyForPath(move.SourcePath, out _)
                     || !tryGetUiAssetKeyForPath(move.DestinationPath, out _)))
             {
-                error = $"{Path.GetFileName(source)}: {LocaleService.Get("MOVE_FILE_FAILED")}";
-                return false;
+                return (false, $"{Path.GetFileName(source)}: {LocaleService.Get("MOVE_FILE_FAILED")}");
             }
         }
-        return true;
+        return (true, null);
     }
 
     private bool tryGetUiAssetKeyForPath(string path, out string key)
@@ -201,14 +197,15 @@ public sealed partial class FileExplorerViewModel
             key.Replace('/', Path.DirectorySeparatorChar) + DataConfig.DataFileExtension, relative, StringComparison.Ordinal);
     }
 
-    private IReadOnlyList<(string SourcePath, string DestinationPath)> getUiAssetTransferPaths(
+    private static IReadOnlyList<(string SourcePath, string DestinationPath)> getUiAssetTransferPaths(
+        ProjectDataStore captured,
         string source,
         string destination)
     {
-        string uiAssetsRoot = Path.Combine(projectPath, "Data", "UI");
+        string uiAssetsRoot = Path.Combine(captured.ProjectPath, "Data", "UI");
         bool sourceIsFile = File.Exists(source);
         List<(string SourcePath, string DestinationPath)> result = [];
-        foreach (string dataKey in gameData.UiAssets.GetUiAssetKeysForMove())
+        foreach (string dataKey in captured.UiAssets.GetUiAssetKeysForMove())
         {
             string logicalKey = UiAssetSchema.NormalizeAssetKey(dataKey);
             if (logicalKey.Length == 0)
@@ -243,7 +240,7 @@ public sealed partial class FileExplorerViewModel
                 : [];
         foreach (string diskFile in diskFiles)
         {
-            if (gameData.TryLoadDataFile(diskFile)?.Type != UiAssetSchema.UiAssetType
+            if (captured.TryLoadDataFile(diskFile)?.Type != UiAssetSchema.UiAssetType
                 || result.Any(move => pathsEqual(move.SourcePath, diskFile)))
             {
                 continue;

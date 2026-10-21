@@ -11,23 +11,6 @@ namespace Ludork.ViewModels;
 public sealed partial class FileExplorerViewModel
 {
     private Dictionary<Guid, (string Path, bool Exists)> visibleDocumentPaths = [];
-    private bool tryMoveManagedPath(string source, string destination, out string? error)
-    {
-        error = null;
-        if (!gameData.IsManagedPath(source))
-            return false;
-        try
-        {
-            changing(new FileExplorerFilesChangedEventArgs([], [(source, destination)], []));
-            return gameData.TryRenameManagedPath(source, destination, out error);
-        }
-        catch (Exception exception) when (exception is InvalidOperationException or IOException or UnauthorizedAccessException)
-        {
-            error = exception.Message;
-            return true;
-        }
-    }
-
     private async Task<(bool Handled, string? Error)> tryMoveManagedPathAsync(string source, string destination,
         IProgress<EditorOperationProgress>? progress)
     {
@@ -44,20 +27,19 @@ public sealed partial class FileExplorerViewModel
         }
     }
 
-    private bool tryCopyManagedPath(string source, string destination, out string? error)
+    private async Task<(bool Handled, string? Error)> tryCopyManagedPathAsync(string source, string destination,
+        IProgress<EditorOperationProgress>? progress)
     {
-        error = null;
         if (!gameData.IsManagedPath(source))
-            return false;
+            return (false, null);
         try
         {
             changing(new FileExplorerFilesChangedEventArgs([destination], [], []));
-            return gameData.TryCopyManagedPath(source, destination, out error);
+            return await gameData.TryCopyManagedPathAsync(source, destination, progress);
         }
         catch (Exception exception) when (exception is InvalidOperationException or IOException or UnauthorizedAccessException)
         {
-            error = exception.Message;
-            return true;
+            return (true, exception.Message);
         }
     }
 

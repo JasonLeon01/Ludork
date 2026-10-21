@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Ludork.Models;
 using Ludork.Services;
 using Ludork.Services.Plugins;
 using Ludork.Views.Utils;
@@ -123,17 +124,24 @@ internal sealed class PluginCreationDialog : Window
         creating = true;
         form.IsEnabled = false;
         error.IsVisible = false;
-        PluginManagementResult result;
+        PluginManagementResult? result;
         try
         {
-            result = await management.CreateAsync(new PluginCreationRequest(
-                pluginId, pluginName, withWindow.IsChecked == true));
+            PluginCreationRequest request = new(pluginId, pluginName, withWindow.IsChecked == true);
+            result = await EditorEditWorkflow.RunAsync<PluginManagementResult?>(this,
+                LocaleService.Get("CREATE_PLUGIN"), async progress =>
+                {
+                    progress.Report(new EditorOperationProgress("EDIT_OPERATION_VALIDATING", pluginId));
+                    return await management.CreateAsync(request);
+                }, null);
         }
         finally
         {
             creating = false;
             form.IsEnabled = true;
         }
+        if (result is null)
+            return;
         if (!result.Success)
         {
             error.Text = result.Error;

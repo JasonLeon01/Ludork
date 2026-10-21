@@ -76,6 +76,7 @@ public partial class PackLogDialog : Window
         }
 
         closeEnabled = true;
+        OperationProgress.IsVisible = false;
         CloseButton.IsEnabled = true;
     }
 

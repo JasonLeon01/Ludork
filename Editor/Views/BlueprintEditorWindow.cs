@@ -77,10 +77,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         this.projectSave = projectSave;
         this.metadataService = metadataService;
         this.classResolver = classResolver;
-        nodeParameterEditorFactory = new BlueprintNodeParameterEditorFactory(
-            gameData,
-            metadataService,
-            classResolver);
+        nodeParameterEditorFactory = new BlueprintNodeParameterEditorFactory(gameData);
         DataContext = viewModel;
         Title = document.Title;
         Width = 1200;
@@ -255,7 +252,13 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
                 [new BlueprintValidationResult(key, false, PendingInputErrors)]);
             return;
         }
-        BlueprintValidationResult result = viewModel.Validate(key);
+        BlueprintValidationResult? result = await EditorEditWorkflow.RunAsync<BlueprintValidationResult?>(
+            this, gameData, LocaleService.Get("VALIDATE"), progress =>
+                ProjectSnapshotReader.ReadAsync<BlueprintValidationResult?>(gameData, captured =>
+                    new BlueprintValidationService(captured, captured.Metadata, captured.BlueprintClasses)
+                        .ValidateBlueprint(key), progress), null);
+        if (result is null)
+            return;
         if (result.IsValid)
         {
             toast.ShowMessage(LocaleService.Get("BLUEPRINT_VALIDATION_SUCCESS"));
@@ -303,8 +306,6 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         string? selected = await BlueprintClassSelector.ShowAsync(
             this,
             gameData,
-            metadataService,
-            classResolver,
             current,
             document.BlueprintKey,
             BlueprintClassSelectorMode.Parent);

@@ -18,36 +18,41 @@ public static class BlueprintClassSelector
 {
     private const string ActorRoot = "Engine.Actor";
 
-    public static Task<string?> ShowAsync(
+    public static async Task<string?> ShowAsync(
         Window owner,
         ProjectDataStore gameData,
-        LuaMetadataService metadataService,
-        BlueprintClassResolver classResolver,
         string current,
         string? blueprintKey,
         BlueprintClassSelectorMode mode)
     {
-        BlueprintClassOptions options = buildOptions(
-            gameData,
-            metadataService,
-            classResolver,
-            blueprintKey,
-            mode);
-        string initial = BlueprintReference.IsReference(current) ? BlueprintReference.ToReference(current) : current;
-        if (!BlueprintReference.IsReference(current))
-        {
-            ResolvedBlueprintClass resolved = classResolver.Resolve(current);
-            if (resolved.RootType is not null)
-                initial = metadataService.GetRuntimeClassReference(resolved.RootType);
-        }
-        return SearchSelectorDialog.ShowGroupedAsync(
+        (BlueprintClassOptions Options, string Initial)? selection =
+            await EditorEditWorkflow.RunAsync<(BlueprintClassOptions Options, string Initial)?>(
+                owner, gameData, LocaleService.Get("CLASS_SELECTOR"), progress =>
+                    ProjectSnapshotReader.ReadAsync<(BlueprintClassOptions Options, string Initial)?>(gameData, captured =>
+                    {
+                        LuaMetadataService metadata = captured.Metadata;
+                        BlueprintClassResolver resolver = captured.BlueprintClasses;
+                        using IDisposable read = resolver.BeginBatch();
+                        BlueprintClassOptions options = buildOptions(captured, metadata, resolver, blueprintKey, mode);
+                        string initial = BlueprintReference.IsReference(current) ? BlueprintReference.ToReference(current) : current;
+                        if (!BlueprintReference.IsReference(current))
+                        {
+                            ResolvedBlueprintClass resolved = resolver.Resolve(current);
+                            if (resolved.RootType is not null)
+                                initial = metadata.GetRuntimeClassReference(resolved.RootType);
+                        }
+                        return (options, initial);
+                    }, progress), null);
+        if (selection is null)
+            return null;
+        return await SearchSelectorDialog.ShowGroupedAsync(
             owner,
             LocaleService.Get("CLASS_SELECTOR"),
             [
-                new SearchSelectorGroup(LocaleService.Get("PROJECT_CLASSES"), options.Classes),
-                new SearchSelectorGroup(LocaleService.Get("PROJECT_BLUEPRINT"), options.Blueprints),
+                new SearchSelectorGroup(LocaleService.Get("PROJECT_CLASSES"), selection.Value.Options.Classes),
+                new SearchSelectorGroup(LocaleService.Get("PROJECT_BLUEPRINT"), selection.Value.Options.Blueprints),
             ],
-            initial);
+            selection.Value.Initial);
     }
 
     private static BlueprintClassOptions buildOptions(

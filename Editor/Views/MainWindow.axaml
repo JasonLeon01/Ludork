@@ -316,6 +316,10 @@
                                     Spacing="4"
                                     Margin="8,0"
                                     VerticalAlignment="Center">
+                            <ProgressBar x:Name="ProjectOperationProgress"
+                                         Width="48" Height="6" Margin="0,0,4,0"
+                                         VerticalAlignment="Center"
+                                         IsIndeterminate="True" IsVisible="False" />
                             <Button x:Name="ConstructButton" Classes="toolbar" IsVisible="False" Click="onConstructClick">
                                 <Image Width="16" Height="16" Source="{StaticResource EditorImage.Construct}" />
                             </Button>

@@ -20,7 +20,8 @@ public sealed partial class ReferenceIndexService
     private DispatcherTimer? refreshTimer;
     private DispatcherTimer? fileTimer;
     private CancellationTokenSource? backgroundCancellation;
-    private Task<ReferenceIndexSnapshotBuilder.Result>? backgroundTask;
+    private Task? backgroundTask;
+    private bool checkingFiles;
     private ReferenceIndexSnapshotBuilder? backgroundBuilder;
     private ReferenceInputFiles? inputFiles;
     private ReferenceInputFiles? observedFiles;
@@ -49,19 +50,12 @@ public sealed partial class ReferenceIndexService
             return;
         EnableBackgroundUpdates();
         activate();
-        try
-        {
-            if (UpdateError is not null || inputFiles is not null && !inputFiles.IsCurrent())
-                MarkDirty();
-            if (CurrentSnapshot is null || CurrentSnapshot.Version != version || dirty || pendingDocuments.Count != 0)
-                scheduleRefresh();
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            IsUpdating = false;
-            UpdateError = exception.Message;
-            SnapshotChanged?.Invoke(this, EventArgs.Empty);
-        }
+        if (UpdateError is not null)
+            MarkDirty();
+        if (CurrentSnapshot is null || CurrentSnapshot.Version != version || dirty || pendingDocuments.Count != 0)
+            scheduleRefresh();
+        else
+            onFileTick(null, EventArgs.Empty);
     }
 
     private void activate()
@@ -93,19 +87,35 @@ public sealed partial class ReferenceIndexService
         SnapshotChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    private void onFileTick(object? sender, EventArgs args)
+    private async void onFileTick(object? sender, EventArgs args)
     {
-        if (disposed || foregroundRefresh || gameData.EditOperations.IsBusy || backgroundTask is not null || gameData.Documents.HasPendingNotifications)
+        if (disposed || foregroundRefresh || gameData.EditOperations.IsBusy || backgroundTask is not null
+            || checkingFiles || gameData.Documents.HasPendingNotifications || observedFiles is not ReferenceInputFiles files)
             return;
+        checkingFiles = true;
+        long requestedVersion = version;
+        long previousPublication = publication;
         try
         {
-            if (observedFiles is not null && !observedFiles.IsCurrent())
+            bool current = await Task.Run(files.IsCurrent);
+            if (disposed || foregroundRefresh || gameData.EditOperations.IsBusy || requestedVersion != version
+                || previousPublication != publication || !ReferenceEquals(observedFiles, files))
+                return;
+            if (!current)
                 MarkDirty();
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            UpdateError = exception.Message;
-            SnapshotChanged?.Invoke(this, EventArgs.Empty);
+            if (!disposed && !foregroundRefresh && !gameData.EditOperations.IsBusy
+                && requestedVersion == version && previousPublication == publication && ReferenceEquals(observedFiles, files))
+            {
+                UpdateError = exception.Message;
+                SnapshotChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+        finally
+        {
+            checkingFiles = false;
         }
     }
 
@@ -125,64 +135,30 @@ public sealed partial class ReferenceIndexService
             SnapshotChanged?.Invoke(this, EventArgs.Empty);
             return;
         }
-        ReferenceBuildInput input;
-        try
-        {
-            input = captureBuildInput();
-            observedFiles = ReferenceInputFiles.Capture(gameData.ProjectPath,
-                input.Documents.Where(document => document.Data is null).Select(document => document.Path));
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
-        {
-            IsUpdating = false;
-            UpdateError = exception.Message;
-            SnapshotChanged?.Invoke(this, EventArgs.Empty);
-            return;
-        }
-        backgroundBuilder ??= new ReferenceIndexSnapshotBuilder(gameData.ProjectPath);
-        ReferenceIndexSnapshotBuilder builder = backgroundBuilder;
         CancellationTokenSource cancellation = new();
         backgroundCancellation = cancellation;
-        long previousPublication = publication;
-        Task<ReferenceIndexSnapshotBuilder.Result> task = Task.Run(() => builder.Build(input, cancellation.Token));
-        backgroundTask = task;
-        _ = task.ContinueWith(completed => Dispatcher.UIThread.Post(() =>
-            completeBackground(completed, cancellation, input.Version, previousPublication)), TaskScheduler.Default);
+        backgroundTask = Task.CompletedTask;
+        Task task = refreshBackgroundAsync(cancellation, version, publication);
+        if (ReferenceEquals(backgroundCancellation, cancellation))
+            backgroundTask = task;
     }
 
-    private void completeBackground(Task<ReferenceIndexSnapshotBuilder.Result> task,
-        CancellationTokenSource cancellation, long requestedVersion, long previousPublication)
+    private async Task refreshBackgroundAsync(CancellationTokenSource cancellation,
+        long requestedVersion, long previousPublication)
     {
-        bool canceled = cancellation.IsCancellationRequested;
-        Exception? failure = task.Exception?.GetBaseException();
-        cancellation.Dispose();
-        if (ReferenceEquals(backgroundCancellation, cancellation))
-            backgroundCancellation = null;
-        backgroundTask = null;
-        if (disposed)
-            return;
-        if (canceled || gameData.EditOperations.IsBusy || requestedVersion != version || previousPublication != publication)
-        {
-            if (CurrentSnapshot?.Version != version || dirty || pendingDocuments.Count != 0)
-                scheduleRefresh();
-            else
-            {
-                IsUpdating = false;
-                SnapshotChanged?.Invoke(this, EventArgs.Empty);
-            }
-            return;
-        }
-        if (failure is not null)
-        {
-            IsUpdating = false;
-            UpdateError = failure.Message;
-            SnapshotChanged?.Invoke(this, EventArgs.Empty);
-            return;
-        }
         try
         {
-            ReferenceIndexSnapshotBuilder.Result result = task.GetAwaiter().GetResult();
-            if (!result.Files.IsCurrent())
+            await EditorUiBatch.YieldAsync();
+            ReferenceBuildInput input = await captureBuildInputAsync(null, cancellation.Token);
+            backgroundBuilder ??= new ReferenceIndexSnapshotBuilder(gameData.ProjectPath);
+            ReferenceIndexSnapshotBuilder builder = backgroundBuilder;
+            ReferenceIndexSnapshotBuilder.Result result = await Task.Run(() => builder.Build(input, cancellation.Token), cancellation.Token);
+            bool filesCurrent = await Task.Run(result.Files.IsCurrent, cancellation.Token);
+            cancellation.Token.ThrowIfCancellationRequested();
+            if (disposed || foregroundRefresh || gameData.EditOperations.IsBusy
+                || requestedVersion != version || previousPublication != publication)
+                return;
+            if (!filesCurrent)
             {
                 MarkDirty();
                 return;
@@ -190,22 +166,43 @@ public sealed partial class ReferenceIndexService
             importSnapshot(result.Snapshot);
             inputFiles = result.Files;
             observedFiles = result.Files;
-            metadataRevision = metadataService.Revision;
+            metadataRevision = metadataService.CacheRevision;
             publish(result.Snapshot);
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
-            IsUpdating = false;
-            UpdateError = exception.Message;
-            SnapshotChanged?.Invoke(this, EventArgs.Empty);
+        }
+        catch (Exception exception)
+        {
+            if (!disposed && !cancellation.IsCancellationRequested
+                && requestedVersion == version && previousPublication == publication)
+            {
+                IsUpdating = false;
+                UpdateError = exception.Message;
+                SnapshotChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+        finally
+        {
+            if (ReferenceEquals(backgroundCancellation, cancellation))
+                backgroundCancellation = null;
+            backgroundTask = null;
+            cancellation.Dispose();
+            if (!disposed && UpdateError is null && (CurrentSnapshot?.Version != version || dirty || pendingDocuments.Count != 0))
+                scheduleRefresh();
         }
     }
 
-    private ReferenceBuildInput captureBuildInput()
+    private async Task<ReferenceBuildInput> captureBuildInputAsync(
+        IProgress<EditorOperationProgress>? progress, CancellationToken token = default)
     {
+        token.ThrowIfCancellationRequested();
+        long requestedVersion = version;
+        long requestedSchemaVersion = schemaVersion;
+        EditorUiBatch batch = new();
         List<ReferenceBuildDocument> documents = [];
         HashSet<(string Section, string Key)> present = [];
-        foreach ((string section, string key, JsonObject data) in gameData.ReferenceDocuments)
+        foreach ((string section, string key, JsonObject data) in gameData.ReferenceDocuments.ToArray())
         {
             present.Add((section, key));
             EditorDocument? document = gameData.Documents.Find(section, key);
@@ -222,13 +219,18 @@ public sealed partial class ReferenceIndexService
                 capturedDocuments[(section, key)] = captured;
             }
             documents.Add(captured.Input);
+            progress?.Report(new EditorOperationProgress("EDIT_OPERATION_PREPARING", captured.Input.Path));
+            await batch.YieldIfNeededAsync(token);
+            if (disposed || requestedVersion != version || gameData.Documents.HasPendingNotifications)
+                throw new InvalidOperationException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
         }
         foreach ((string Section, string Key) key in capturedDocuments.Keys.Where(key => !present.Contains(key)).ToArray())
             capturedDocuments.Remove(key);
         foreach (MapCatalogEntry entry in gameData.Maps.MapCatalog.Where(entry => entry.Kind == MapCatalogEntryKind.WorldChildMap))
             if (!present.Contains(("Maps", entry.Key)))
                 documents.Add(new ReferenceBuildDocument("Maps", entry.Key, gameData.Maps.getReadableMapDataPath(entry.Key), null, entry with { LayerOrder = entry.LayerOrder.ToArray(), ActorTags = entry.ActorTags.ToArray() }));
-        return new ReferenceBuildInput(gameData.ProjectPath, version, schemaVersion, documents);
+        token.ThrowIfCancellationRequested();
+        return new ReferenceBuildInput(gameData.ProjectPath, requestedVersion, requestedSchemaVersion, documents);
     }
 
     private IEnumerable<string> unloadedMapPaths() => gameData.Maps.MapCatalog
@@ -275,15 +277,13 @@ public sealed partial class ReferenceIndexService
         refreshTimer?.Stop();
         fileTimer?.Stop();
         backgroundCancellation?.Cancel();
-        if (backgroundTask is Task<ReferenceIndexSnapshotBuilder.Result> task)
+        if (backgroundTask is Task task)
         {
             ReferenceIndexSnapshotBuilder? builder = backgroundBuilder;
-            CancellationTokenSource? cancellation = backgroundCancellation;
             _ = task.ContinueWith(completed =>
             {
                 _ = completed.Exception;
                 builder?.Dispose();
-                cancellation?.Dispose();
             }, TaskScheduler.Default);
         }
         else

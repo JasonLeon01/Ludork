@@ -1,4 +1,5 @@
 using Ludork.Plugin.Abstractions;
+using Ludork.Models;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -137,7 +138,8 @@ public sealed class PluginHost : IEditorPluginRuntime, IDisposable
         }
     }
 
-    public async Task InitializeAsync(CancellationToken cancellationToken = default)
+    public async Task InitializeAsync(CancellationToken cancellationToken = default,
+        IProgress<EditorOperationProgress>? progress = null)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         await initializationGate.WaitAsync(cancellationToken);
@@ -145,6 +147,7 @@ public sealed class PluginHost : IEditorPluginRuntime, IDisposable
         {
             if (initialized)
                 return;
+            progress?.Report(new EditorOperationProgress("EDIT_OPERATION_PREPARING"));
             await Management.InitializeAsync(cancellationToken);
             PluginRegistryDocument registry = Management.Registry;
             HashSet<string> commandIds = new(StringComparer.Ordinal);
@@ -157,7 +160,8 @@ public sealed class PluginHost : IEditorPluginRuntime, IDisposable
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 PluginRegistryEntry registryEntry = registry.Plugins[index];
-                PluginRuntimeEntry runtime = loadPlugin(
+                progress?.Report(new EditorOperationProgress("EDIT_OPERATION_VALIDATING", registryEntry.Id));
+                PluginRuntimeEntry runtime = await loadPluginAsync(
                     registryEntry,
                     index,
                     commandIds,
@@ -301,7 +305,7 @@ public sealed class PluginHost : IEditorPluginRuntime, IDisposable
         initializationGate.Dispose();
     }
 
-    private PluginRuntimeEntry loadPlugin(
+    private async Task<PluginRuntimeEntry> loadPluginAsync(
         PluginRegistryEntry registryEntry,
         int registryIndex,
         HashSet<string> commandIds,
@@ -319,11 +323,14 @@ public sealed class PluginHost : IEditorPluginRuntime, IDisposable
             {
                 throw new InvalidDataException($"Plugin ID conflicts with a global plugin: {registryEntry.Id}");
             }
-            PluginPaths.EnsureEnvironmentIsSafe(sourceEnvironment);
-            PluginPackageInspector.EnsureManagedDirectoryIsSafe(
-                sourceEnvironment.PluginsDirectory,
-                registryEntry.Directory);
-            PluginPackage package = PluginPackageInspector.Inspect(sourcePath);
+            PluginPackage package = await Task.Run(() =>
+            {
+                PluginPaths.EnsureEnvironmentIsSafe(sourceEnvironment);
+                PluginPackageInspector.EnsureManagedDirectoryIsSafe(
+                    sourceEnvironment.PluginsDirectory,
+                    registryEntry.Directory);
+                return PluginPackageInspector.Inspect(sourcePath);
+            }, cancellationToken);
             runtime.Name = package.Manifest.Name;
             runtime.Version = package.Manifest.Version;
             if (!string.Equals(package.Manifest.Id, registryEntry.Id, StringComparison.Ordinal))
@@ -334,10 +341,10 @@ public sealed class PluginHost : IEditorPluginRuntime, IDisposable
 
             try
             {
-                compilation = PluginCompiler.Compile(
+                compilation = await Task.Run(() => PluginCompiler.Compile(
                     package,
                     registryIndex,
-                    cancellationToken);
+                    cancellationToken), cancellationToken);
             }
             catch (PluginCompilationException exception)
             {
@@ -346,6 +353,7 @@ public sealed class PluginHost : IEditorPluginRuntime, IDisposable
                 return runtime;
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
             runtime.AddDiagnostic(compilation.Diagnostics);
             ConstructorInfo constructor = PluginEntryPoint.GetConstructor(
                 package,

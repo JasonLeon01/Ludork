@@ -8,6 +8,7 @@ using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using Ludork.Services;
+using Ludork.Models;
 using Ludork.ViewModels;
 using Ludork.Views;
 using Ludork.Views.Utils;
@@ -477,7 +478,7 @@ public partial class FileExplorerPanel : UserControl
         if (viewModel.HasClipboard)
         {
             MenuItem paste = new MenuItem { Header = LocaleService.Get("PASTE") };
-            paste.Click += async (_, _) => await showOperationErrors(viewModel.Paste(targetDirectory), LocaleService.Get("ERROR"));
+            paste.Click += async (_, _) => await runFileOperationAsync(viewModel, "PASTE", progress => viewModel.PasteAsync(targetDirectory, progress));
             items.Add(paste);
         }
         if (item is not null)
@@ -511,9 +512,8 @@ public partial class FileExplorerPanel : UserControl
             if (selectedFiles.Count != 0)
             {
                 MenuItem duplicate = new MenuItem { Header = LocaleService.Get("DUPLICATE_FILE") };
-                duplicate.Click += async (_, _) => await showOperationErrors(
-                    viewModel.Duplicate(selectedFiles.Select(entry => entry.FullPath)),
-                    LocaleService.Get("DUPLICATE_FAILED"));
+                duplicate.Click += async (_, _) => await runFileOperationAsync(viewModel, "DUPLICATE_FILE",
+                    progress => viewModel.DuplicateAsync(selectedFiles.Select(entry => entry.FullPath), progress));
                 items.Add(duplicate);
             }
             if (selected.Count == 1)
@@ -593,11 +593,14 @@ public partial class FileExplorerPanel : UserControl
         }
         if (EditorShortcuts.HasPrimaryModifier(modifiers))
         {
+            if (args.Key is Key.C or Key.X or Key.V or Key.D or Key.A
+                || args.Key == Key.N && modifiers.HasFlag(KeyModifiers.Shift))
+                args.Handled = true;
             IReadOnlyList<FileExplorerEntryViewModel> selected = getSelectedEntries(activeEntries);
             if (args.Key == Key.C) viewModel.SetClipboard(selected.Select(entry => entry.FullPath), false);
             else if (args.Key == Key.X) viewModel.SetClipboard(selected.Select(entry => entry.FullPath), true);
-            else if (args.Key == Key.V) await showOperationErrors(viewModel.Paste(), LocaleService.Get("ERROR"));
-            else if (args.Key == Key.D) await showOperationErrors(viewModel.Duplicate(selected.Select(entry => entry.FullPath)), LocaleService.Get("DUPLICATE_FAILED"));
+            else if (args.Key == Key.V) await runFileOperationAsync(viewModel, "PASTE", progress => viewModel.PasteAsync(progress: progress));
+            else if (args.Key == Key.D) await runFileOperationAsync(viewModel, "DUPLICATE_FILE", progress => viewModel.DuplicateAsync(selected.Select(entry => entry.FullPath), progress));
             else if (args.Key == Key.N && modifiers.HasFlag(KeyModifiers.Shift)) await createFolder(viewModel, viewModel.CurrentPath);
             else if (args.Key == Key.A) activeEntries.SelectAll();
             else return;
@@ -613,6 +616,7 @@ public partial class FileExplorerPanel : UserControl
                 await viewModel.RefreshAsync();
                 break;
             case Key.Delete:
+                args.Handled = true;
                 await deleteSelected(viewModel, getSelectedEntries(activeEntries));
                 break;
             case Key.F2:
@@ -787,9 +791,8 @@ public partial class FileExplorerPanel : UserControl
             LocaleService.Get("DELETE_DOCUMENT_CONFIRMATION"));
         if (!confirmed)
             return;
-        await showOperationErrors(
-            viewModel.Delete(selected.Select(entry => entry.FullPath)),
-            LocaleService.Get("DELETE_FAILED"));
+        await runFileOperationAsync(viewModel, "DELETE",
+            progress => viewModel.DeleteAsync(selected.Select(entry => entry.FullPath), progress));
     }
 
     private async Task openFromSystem(string path)
@@ -803,6 +806,17 @@ public partial class FileExplorerPanel : UserControl
             if (TopLevel.GetTopLevel(this) is Window owner)
                 await AlertDialog.ShowAsync(owner, LocaleService.Get("ERROR"), exception.Message);
         }
+    }
+
+    private async Task runFileOperationAsync(FileExplorerViewModel viewModel, string titleKey,
+        Func<IProgress<EditorOperationProgress>, Task<FileOperationResult>> operation)
+    {
+        if (viewModel.IsReadOnly || TopLevel.GetTopLevel(this) is not Window owner)
+            return;
+        string title = LocaleService.Get(titleKey);
+        FileOperationResult result = await EditorEditWorkflow.RunAsync(owner, viewModel.GameData,
+            title, operation, FileOperationResult.Empty);
+        await showOperationErrors(result, title);
     }
 
     private async Task showOperationErrors(FileOperationResult result, string title)
@@ -896,8 +910,8 @@ public partial class FileExplorerPanel : UserControl
             return;
         }
         string targetDirectory = getDropTargetDirectory(list, args, viewModel);
-        await showOperationErrors(viewModel.Move(paths, targetDirectory), LocaleService.Get("MOVE_FILE_FAILED"));
         args.Handled = true;
+        await runFileOperationAsync(viewModel, "EDIT_OPERATION_MOVING", progress => viewModel.MoveAsync(paths, targetDirectory, progress));
     }
 
     private static IReadOnlyList<string>? getDraggedPaths(DragEventArgs args)

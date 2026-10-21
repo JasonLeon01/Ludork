@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Threading;
 using Ludork.Models;
 using Ludork.Services;
+using Ludork.Services.Plugins;
 using System;
 using System.IO;
 using System.Threading;
@@ -11,7 +12,8 @@ namespace Ludork.Views.Utils;
 
 internal static class EditorProjectOpenWorkflow
 {
-    public static async Task<ProjectDataStore?> LoadAsync(Window owner, string projectPath, CancellationToken token)
+    public static async Task<ProjectDataStore?> LoadAsync(Window owner, string projectPath,
+        PluginWorkspace? plugins, CancellationToken token)
     {
         ProjectConfigService config = new(projectPath);
         EditorOperationProgressWindow dialog = new(LocaleService.Get("OPEN_PROJECT"));
@@ -23,6 +25,9 @@ internal static class EditorProjectOpenWorkflow
         timer.Start();
         try
         {
+            if (plugins is not null)
+                await plugins.InitializeProjectAsync(projectPath, token, progress);
+            token.ThrowIfCancellationRequested();
             if (config.IsStandalone)
                 return await loadDataAsync(projectPath, progress, token);
             using ProjectRunnerService runner = new(projectPath);

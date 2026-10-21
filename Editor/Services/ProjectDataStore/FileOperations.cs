@@ -176,9 +176,26 @@ public sealed partial class ProjectDataStore
 
     private bool deleteDocumentResource(string section, string key, ProjectResourceDeletionValidation validation)
     {
+        PreparedResourceDeletion? deletion = prepareDocumentDeletion(section, key, validation, null);
+        if (deletion is null)
+            return false;
+        SaveResult result = deletion.Files.Execute(canWrite: validation.IsCurrent);
+        if (!result.Success)
+            throw new IOException(result.Details);
+        using EditorDocumentNotificationBatch notifications = Documents.BeginNotificationBatch();
+        foreach (PreparedResourceDeletion.Target target in deletion.Targets)
+            applyDocumentDeletion(target);
+        completeDocumentDeletion(deletion, notifications);
+        validation.AcceptDeleted(deletion.SavedPaths);
+        return true;
+    }
+
+    private PreparedResourceDeletion? prepareDocumentDeletion(string section, string key,
+        ProjectResourceDeletionValidation validation, IProgress<EditorOperationProgress>? progress)
+    {
         EditorDocument? document = GetDocument(section, key);
         if (document is null)
-            return false;
+            return null;
         List<EditorDocument> targets = [document];
         if (section == "WorldMaps")
         {
@@ -189,12 +206,15 @@ public sealed partial class ProjectDataStore
         string[] savedPaths = targets.Where(target => target.SavedState.InternalData is not null)
             .Select(target => target.SavedPath).ToArray();
         if (savedPaths.Length != 0)
-            validation.AssertUnreferenced(savedPaths);
+            validation.AssertUnreferenced(savedPaths, progress);
         EditorFileSaveBatch batch = new();
-        if (section == "WorldMaps" && document.SavedState.InternalData is not null)
-            batch.DeleteDirectory(Path.GetDirectoryName(document.SavedPath)!);
+        string? deletedDirectory = section == "WorldMaps" && document.SavedState.InternalData is not null
+            ? Path.GetDirectoryName(document.SavedPath) : null;
+        if (deletedDirectory is not null)
+            batch.DeleteDirectory(deletedDirectory);
         foreach (string savedPath in savedPaths)
-            batch.Delete(savedPath);
+            if (deletedDirectory is null || !isDocumentInsidePath(savedPath, deletedDirectory))
+                batch.Delete(savedPath);
         if (section is "General" or "Animations" or "Particles")
         {
             Dictionary<string, JsonObject> savedGeneral = originData["General"]
@@ -205,26 +225,28 @@ public sealed partial class ProjectDataStore
                 originData["Particles"].Keys.Where(value => section != "Particles" || value != document.SavedState.Key));
             generalEnums.AddToSaveBatch(batch, savedGeneral, catalog);
         }
-        SaveResult result = batch.Execute();
-        if (!result.Success)
-            throw new IOException(result.Details);
-        using EditorDocumentNotificationBatch notifications = Documents.BeginNotificationBatch();
-        foreach (EditorDocument target in targets)
-        {
-            deletedDocumentPaths.Add(target.Path);
-            deletedDocumentPaths.Add(target.SavedPath);
-            sections[target.Section].Remove(target.Key);
-            originData[target.Section].Remove(target.SavedState.Key);
-            updateDocumentCatalog(target.Section, target.Key, target.Key, null);
-            Documents.Remove(target);
-        }
+        return new PreparedResourceDeletion(section, targets.Select(target => new PreparedResourceDeletion.Target(
+            target.Section, target.Key, target.Path, target.SavedState.Key, target.SavedPath)).ToArray(), savedPaths, batch);
+    }
+
+    private void applyDocumentDeletion(PreparedResourceDeletion.Target target)
+    {
+        deletedDocumentPaths.Add(target.Path);
+        deletedDocumentPaths.Add(target.SavedPath);
+        sections[target.Section].Remove(target.Key);
+        originData[target.Section].Remove(target.SavedKey);
+        updateDocumentCatalog(target.Section, target.Key, target.Key, null);
+        if (Documents.Find(target.Section, target.Key) is EditorDocument document)
+            Documents.Remove(document);
+    }
+
+    private void completeDocumentDeletion(PreparedResourceDeletion deletion, EditorDocumentNotificationBatch notifications)
+    {
         refreshModifiedState();
         notifications.Commit();
-        validation.AcceptDeleted(savedPaths);
         NotifyDataRestored();
-        if (section == "UI")
+        if (deletion.Section == "UI")
             UiAssets.NotifyUiAssetsChanged();
-        return true;
     }
 
     internal static void assertDocumentsUnreferenced(ProjectDataStore data, IReadOnlyList<string> paths)

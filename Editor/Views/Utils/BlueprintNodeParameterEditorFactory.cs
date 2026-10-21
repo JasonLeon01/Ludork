@@ -12,17 +12,9 @@ namespace Ludork.Views.Utils;
 public sealed class BlueprintNodeParameterEditorFactory
 {
     private readonly ProjectDataStore gameData;
-    private readonly LuaMetadataService metadataService;
-    private readonly BlueprintClassResolver classResolver;
-
-    public BlueprintNodeParameterEditorFactory(
-        ProjectDataStore gameData,
-        LuaMetadataService metadataService,
-        BlueprintClassResolver classResolver)
+    public BlueprintNodeParameterEditorFactory(ProjectDataStore gameData)
     {
         this.gameData = gameData;
-        this.metadataService = metadataService;
-        this.classResolver = classResolver;
     }
 
     public Control? Create(
@@ -143,8 +135,6 @@ public sealed class BlueprintNodeParameterEditorFactory
             string? selected = await BlueprintClassSelector.ShowAsync(
                 owner,
                 gameData,
-                metadataService,
-                classResolver,
                 current,
                 null,
                 BlueprintClassSelectorMode.NodeParameter);

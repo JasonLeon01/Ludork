@@ -197,8 +197,6 @@ internal sealed class DocumentWindowCoordinator : IDisposable
             string? selectedParent = await BlueprintClassSelector.ShowAsync(
                 owner,
                 mainViewModel.GameData,
-                projectSession!.Metadata,
-                mainViewModel.BlueprintClasses,
                 "Engine.Actor",
                 null,
                 BlueprintClassSelectorMode.Parent);

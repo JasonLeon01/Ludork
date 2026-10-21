@@ -411,7 +411,8 @@ public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
         bool confirmed = await ConfirmationDialog.ShowAsync(this, LocaleService.Get("DELETE_DATA_TYPE"), msg);
         if (!confirmed)
             return;
-        if (!await EditorResourceOperations.DeleteAsync(this, () => gameData.General.DeleteGeneralType(typeKey)))
+        if (!await EditorResourceOperations.DeleteAsync(this, gameData,
+            progress => gameData.DeleteDocumentResourceAsync("General", typeKey, progress)))
             return;
         closeBlueprintEditors(typeKey);
         pageStates.Remove(typeKey);

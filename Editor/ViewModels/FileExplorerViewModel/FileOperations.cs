@@ -18,10 +18,8 @@ namespace Ludork.ViewModels;
 
 public sealed partial class FileExplorerViewModel
 {
-    public FileOperationResult Paste(string? targetDirectory = null)
+    public async Task<FileOperationResult> PasteAsync(string? targetDirectory = null, IProgress<EditorOperationProgress>? progress = null)
     {
-        if (IsReadOnly)
-            return FileOperationResult.Empty;
         string? target = getTargetDirectory(targetDirectory);
         if (target is null)
             return FileOperationResult.Empty;
@@ -35,7 +33,9 @@ public sealed partial class FileExplorerViewModel
             string destination = Path.Combine(target, Path.GetFileName(source));
             if (!clipboardCut && pathExists(destination))
                 destination = getDuplicatePath(source, target);
-            if (clipboardCut && tryMoveManagedPath(source, destination, out string? managedError))
+            (bool managed, string? managedError) = clipboardCut
+                ? await tryMoveManagedPathAsync(source, destination, progress) : (false, null);
+            if (managed)
             {
                 if (managedError is not null)
                     errors.Add(managedError);
@@ -43,7 +43,9 @@ public sealed partial class FileExplorerViewModel
                     managedMoved.Add((source, destination));
                 continue;
             }
-            if (!clipboardCut && tryCopyManagedPath(source, destination, out string? copyError))
+            (bool copied, string? copyError) = !clipboardCut
+                ? await tryCopyManagedPathAsync(source, destination, progress) : (false, null);
+            if (copied)
             {
                 if (copyError is not null)
                     errors.Add(copyError);
@@ -51,7 +53,8 @@ public sealed partial class FileExplorerViewModel
                     managedAdded.Add(destination);
                 continue;
             }
-            if (!canTransfer(source, target, destination, out string? error))
+            (bool allowed, string? error) = await canTransferAsync(source, target, destination);
+            if (!allowed)
             {
                 if (!string.IsNullOrWhiteSpace(error))
                     errors.Add(error);
@@ -65,12 +68,14 @@ public sealed partial class FileExplorerViewModel
                         [],
                         [(source, destination)],
                         []));
-                    movePath(source, destination);
+                    progress?.Report(new EditorOperationProgress("EDIT_OPERATION_MOVING", source));
+                    await Task.Run(() => movePath(source, destination));
                     moved.Add((source, destination));
                 }
                 else
                 {
-                    copyPath(source, destination);
+                    progress?.Report(new EditorOperationProgress("COPY", source));
+                    await Task.Run(() => copyPath(source, destination));
                     externalAdded.Add(destination);
                 }
             }
@@ -81,7 +86,7 @@ public sealed partial class FileExplorerViewModel
         }
         try
         {
-            Exception? notificationError = applyFileChanges(externalAdded, moved, []);
+            Exception? notificationError = await applyFileChangesAsync(externalAdded, moved, [], progress);
             if (notificationError is not null)
                 errors.Add(notificationError.Message);
             if (moved.Count != 0 || managedMoved.Count != 0)
@@ -92,12 +97,12 @@ public sealed partial class FileExplorerViewModel
         }
         catch (Exception exception)
         {
-            rollbackMoves(moved);
+            await Task.Run(() => rollbackMoves(moved));
             errors.Add(exception.Message);
             moved.Clear();
             if (externalAdded.Count != 0)
             {
-                Exception? notificationError = applyFileChanges(externalAdded, [], []);
+                Exception? notificationError = await applyFileChangesAsync(externalAdded, [], [], progress);
                 if (notificationError is not null)
                     errors.Add(notificationError.Message);
             }
@@ -116,10 +121,8 @@ public sealed partial class FileExplorerViewModel
             errors);
     }
 
-    public FileOperationResult Duplicate(IEnumerable<string> paths)
+    public async Task<FileOperationResult> DuplicateAsync(IEnumerable<string> paths, IProgress<EditorOperationProgress>? progress = null)
     {
-        if (IsReadOnly)
-            return FileOperationResult.Empty;
         List<string> errors = [];
         List<string> externalAdded = [];
         List<string> managedAdded = [];
@@ -132,7 +135,8 @@ public sealed partial class FileExplorerViewModel
                 continue;
             }
             string destination = getDuplicatePath(source);
-            if (tryCopyManagedPath(source, destination, out string? copyError))
+            (bool copied, string? copyError) = await tryCopyManagedPathAsync(source, destination, progress);
+            if (copied)
             {
                 if (copyError is not null)
                     errors.Add(copyError);
@@ -142,7 +146,8 @@ public sealed partial class FileExplorerViewModel
             }
             try
             {
-                File.Copy(source, destination);
+                progress?.Report(new EditorOperationProgress("COPY", source));
+                await Task.Run(() => File.Copy(source, destination));
                 externalAdded.Add(destination);
             }
             catch (Exception exception)
@@ -150,7 +155,7 @@ public sealed partial class FileExplorerViewModel
                 errors.Add($"{Path.GetFileName(source)}: {exception.Message}");
             }
         }
-        Exception? notificationError = applyFileChanges(externalAdded, [], []);
+        Exception? notificationError = await applyFileChangesAsync(externalAdded, [], [], progress);
         if (notificationError is not null)
             errors.Add(notificationError.Message);
         if (managedAdded.Count != 0)
@@ -165,17 +170,8 @@ public sealed partial class FileExplorerViewModel
             errors);
     }
 
-    public void DuplicateSelected()
+    public async Task<FileOperationResult> DeleteAsync(IEnumerable<string> paths, IProgress<EditorOperationProgress>? progress = null)
     {
-        if (SelectedEntry is null || SelectedEntry.IsDirectory)
-            return;
-        Duplicate([SelectedEntry.FullPath]);
-    }
-
-    public FileOperationResult Delete(IEnumerable<string> paths)
-    {
-        if (IsReadOnly)
-            return FileOperationResult.Empty;
         string[] normalizedPaths = normalizeTopLevelPaths(paths).Where(isEditablePath).ToArray();
         if (normalizedPaths.Length == 0)
             return FileOperationResult.Empty;
@@ -190,22 +186,19 @@ public sealed partial class FileExplorerViewModel
                     .Select(path => $"{Path.GetFileName(path)}: {LocaleService.Get("MAP_DELETE_USE_MAP_LIST")}")
                     .ToArray());
         }
-        ReferenceImpact impact = referenceIndex.GetImpactForPaths(normalizedPaths);
-        List<ReferenceRecord> uiIncoming = impact.Incoming
-            .Where(record => string.Equals(
-                    referenceIndex.GetNode(record.Source)?.Type,
-                    "uiAsset",
-                    StringComparison.Ordinal)
-                || string.Equals(
-                    referenceIndex.GetNode(record.Target)?.Type,
-                    "uiAsset",
-                    StringComparison.Ordinal))
-            .ToList();
-        if (uiIncoming.Count != 0)
+        string[] uiIncoming = await ProjectSnapshotReader.ReadAsync(gameData, store =>
+        {
+            ReferenceImpact impact = store.ReferenceIndex.GetImpactForPaths(normalizedPaths);
+            return impact.Incoming.Where(record => store.ReferenceIndex.GetNode(record.Source)?.Type == "uiAsset"
+                    || store.ReferenceIndex.GetNode(record.Target)?.Type == "uiAsset")
+                .Select(record => $"{store.ReferenceIndex.GetNode(record.Source)?.Key ?? record.Source} [{record.Kind}] {record.Path}")
+                .ToArray();
+        }, progress);
+        if (uiIncoming.Length != 0)
         {
             string references = string.Join(
                 Environment.NewLine,
-                uiIncoming.Select(formatIncomingReference));
+                uiIncoming);
             return new FileOperationResult(
                 false,
                 [
@@ -221,7 +214,8 @@ public sealed partial class FileExplorerViewModel
         {
             try
             {
-                if (gameData.TryDeleteManagedPath(path, deletionValidation, out string? managedError))
+                (bool managed, string? managedError) = await gameData.TryDeleteManagedPathAsync(path, deletionValidation, progress);
+                if (managed)
                 {
                     if (managedError is not null)
                         errors.Add(managedError);
@@ -229,11 +223,18 @@ public sealed partial class FileExplorerViewModel
                         deleted.Add(path);
                     continue;
                 }
-                if (Directory.Exists(path))
-                    Directory.Delete(path, true);
-                else if (File.Exists(path))
-                    File.Delete(path);
-                else
+                progress?.Report(new EditorOperationProgress("EDIT_OPERATION_DELETING", path));
+                bool removed = await Task.Run(() =>
+                {
+                    if (Directory.Exists(path))
+                        Directory.Delete(path, true);
+                    else if (File.Exists(path))
+                        File.Delete(path);
+                    else
+                        return false;
+                    return true;
+                });
+                if (!removed)
                     continue;
                 deleted.Add(path);
                 externalDeleted.Add(path);
@@ -245,28 +246,15 @@ public sealed partial class FileExplorerViewModel
         }
         if (externalDeleted.Count != 0)
         {
-            Exception? notificationError = applyFileChanges([], [], externalDeleted, deleted);
+            Exception? notificationError = await applyFileChangesAsync([], [], externalDeleted, progress, deleted);
             if (notificationError is not null)
                 errors.Add(notificationError.Message);
         }
         else if (deleted.Count != 0)
             changed(new FileExplorerFilesChangedEventArgs([], [], deleted));
         if (!isVisibleDirectory(CurrentPath))
-            _ = NavigateToAsync(CurrentRoot.Path);
+            await NavigateToAsync(CurrentRoot.Path);
         return new FileOperationResult(deleted.Count != 0, errors);
-    }
-
-    private string formatIncomingReference(ReferenceRecord record)
-    {
-        ReferenceNode? source = referenceIndex.GetNode(record.Source);
-        string sourceName = source?.Key ?? record.Source;
-        return $"{sourceName} [{record.Kind}] {record.Path}";
-    }
-
-    public void DeleteSelected()
-    {
-        if (SelectedEntry is not null)
-            Delete([SelectedEntry.FullPath]);
     }
 
     public FileOperationResult CreateDirectory(string name, string? targetDirectory = null)
@@ -324,7 +312,8 @@ public sealed partial class FileExplorerViewModel
             SelectedEntry = Entries.FirstOrDefault(entry => pathsEqual(entry.FullPath, newPath));
             return new FileOperationResult(true, []);
         }
-        if (!canTransfer(oldPath, directory, newPath, out string? transferError))
+        (bool allowed, string? transferError) = await canTransferAsync(oldPath, directory, newPath);
+        if (!allowed)
         {
             return new FileOperationResult(
                 false,
@@ -336,8 +325,9 @@ public sealed partial class FileExplorerViewModel
                 [],
                 [(oldPath, newPath)],
                 []));
-            movePath(oldPath, newPath);
-            Exception? notificationError = applyFileChanges([], [(oldPath, newPath)], []);
+            progress?.Report(new EditorOperationProgress("EDIT_OPERATION_MOVING", oldPath));
+            await Task.Run(() => movePath(oldPath, newPath));
+            Exception? notificationError = await applyFileChangesAsync([], [(oldPath, newPath)], [], progress);
             SelectedEntry = Entries.FirstOrDefault(entry => string.Equals(entry.FullPath, newPath, StringComparison.OrdinalIgnoreCase));
             return new FileOperationResult(
                 true,
@@ -345,15 +335,13 @@ public sealed partial class FileExplorerViewModel
         }
         catch (Exception exception)
         {
-            rollbackMoves([(oldPath, newPath)]);
+            await Task.Run(() => rollbackMoves([(oldPath, newPath)]));
             return new FileOperationResult(false, [$"{trimmedName}: {exception.Message}"]);
         }
     }
 
-    public FileOperationResult Move(IEnumerable<string> paths, string targetDirectory)
+    public async Task<FileOperationResult> MoveAsync(IEnumerable<string> paths, string targetDirectory, IProgress<EditorOperationProgress>? progress = null)
     {
-        if (IsReadOnly)
-            return FileOperationResult.Empty;
         string? target = getTargetDirectory(targetDirectory);
         if (target is null)
             return FileOperationResult.Empty;
@@ -363,7 +351,8 @@ public sealed partial class FileExplorerViewModel
         foreach (string source in normalizeTopLevelPaths(paths).Where(isEditablePath))
         {
             string destination = Path.Combine(target, Path.GetFileName(source));
-            if (tryMoveManagedPath(source, destination, out string? managedError))
+            (bool managed, string? managedError) = await tryMoveManagedPathAsync(source, destination, progress);
+            if (managed)
             {
                 if (managedError is not null)
                     errors.Add(managedError);
@@ -371,7 +360,8 @@ public sealed partial class FileExplorerViewModel
                     managedMoved.Add((source, destination));
                 continue;
             }
-            if (!canTransfer(source, target, destination, out string? error))
+            (bool allowed, string? error) = await canTransferAsync(source, target, destination);
+            if (!allowed)
             {
                 if (!string.IsNullOrWhiteSpace(error))
                     errors.Add(error);
@@ -383,7 +373,8 @@ public sealed partial class FileExplorerViewModel
                     [],
                     [(source, destination)],
                     []));
-                movePath(source, destination);
+                progress?.Report(new EditorOperationProgress("EDIT_OPERATION_MOVING", source));
+                await Task.Run(() => movePath(source, destination));
                 moved.Add((source, destination));
             }
             catch (Exception exception)
@@ -393,13 +384,13 @@ public sealed partial class FileExplorerViewModel
         }
         try
         {
-            Exception? notificationError = applyFileChanges([], moved, []);
+            Exception? notificationError = await applyFileChangesAsync([], moved, [], progress);
             if (notificationError is not null)
                 errors.Add(notificationError.Message);
         }
         catch (Exception exception)
         {
-            rollbackMoves(moved);
+            await Task.Run(() => rollbackMoves(moved));
             errors.Add(exception.Message);
             moved.Clear();
         }

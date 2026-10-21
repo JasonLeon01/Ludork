@@ -78,7 +78,7 @@ public sealed class PluginManagementService
         try
         {
             string source = Path.Combine(temporary, request.Id);
-            await PluginTemplateWriter.WriteAsync(source, request, cancellationToken);
+            await Task.Run(() => PluginTemplateWriter.WriteAsync(source, request, cancellationToken), cancellationToken);
             return await ImportAsync(source, cancellationToken);
         }
         catch (Exception exception) when (
@@ -88,8 +88,11 @@ public sealed class PluginManagementService
         }
         finally
         {
-            if (Directory.Exists(temporary))
-                Directory.Delete(temporary, true);
+            await Task.Run(() =>
+            {
+                if (Directory.Exists(temporary))
+                    Directory.Delete(temporary, true);
+            });
         }
     }
 
@@ -125,7 +128,7 @@ public sealed class PluginManagementService
         {
             if (!state.IsValid)
                 return failedPreview(sourcePath, state.Diagnostic);
-            return validateImport(sourcePath);
+            return await validateImportAsync(sourcePath, cancellationToken);
         }
         finally
         {
@@ -146,11 +149,11 @@ public sealed class PluginManagementService
             if (!state.IsValid)
                 return PluginManagementResult.Failed(state.Diagnostic);
 
-            PluginPaths.EnsureEnvironmentIsSafe(environment);
-            PluginImportPreview preview = validateImport(sourcePath);
+            await Task.Run(() => PluginPaths.EnsureEnvironmentIsSafe(environment), cancellationToken);
+            PluginImportPreview preview = await validateImportAsync(sourcePath, cancellationToken);
             if (!preview.Success)
                 return PluginManagementResult.Failed(preview.Error);
-            PluginPackage package = PluginPackageInspector.Inspect(preview.SourcePath);
+            PluginPackage package = await Task.Run(() => PluginPackageInspector.Inspect(preview.SourcePath), cancellationToken);
             string directory = Path.GetFileName(
                 Path.TrimEndingDirectorySeparator(package.SourcePath));
             string targetPath = Path.Combine(environment.PluginsDirectory, directory);
@@ -158,54 +161,43 @@ public sealed class PluginManagementService
                 Path.GetDirectoryName(package.SourcePath),
                 environment.PluginsDirectory);
             bool copied = false;
+            int registryIndex = state.Document.Plugins.Count;
 
             if (!alreadyManaged)
             {
-                Directory.CreateDirectory(environment.PluginsDirectory);
                 string stagingPath = Path.Combine(
                     environment.PluginsDirectory,
                     $".ludork-import-{Guid.NewGuid():N}");
                 try
                 {
-                    copyDirectory(package.SourcePath, stagingPath);
-                    PluginPackage stagedPackage =
-                        PluginPackageInspector.Inspect(stagingPath);
-                    if (!string.Equals(
-                            stagedPackage.Manifest.Id,
-                            package.Manifest.Id,
-                            StringComparison.Ordinal)
-                        || !string.Equals(
-                            stagedPackage.Manifest.Version,
-                            package.Manifest.Version,
-                            StringComparison.Ordinal))
+                    await Task.Run(() =>
                     {
-                        throw new InvalidDataException(
-                            "Copied plugin manifest does not match the selected directory.");
-                    }
-                    validateCompilation(
-                        stagedPackage,
-                        state.Document.Plugins.Count,
-                        cancellationToken);
-                    if (Directory.Exists(targetPath) || File.Exists(targetPath))
-                    {
-                        throw new IOException(
-                            $"Plugin target already exists: {targetPath}");
-                    }
-                    Directory.Move(stagingPath, targetPath);
+                        Directory.CreateDirectory(environment.PluginsDirectory);
+                        copyDirectory(package.SourcePath, stagingPath, cancellationToken);
+                        PluginPackage stagedPackage = PluginPackageInspector.Inspect(stagingPath);
+                        if (!string.Equals(stagedPackage.Manifest.Id, package.Manifest.Id, StringComparison.Ordinal)
+                            || !string.Equals(stagedPackage.Manifest.Version, package.Manifest.Version, StringComparison.Ordinal))
+                            throw new InvalidDataException("Copied plugin manifest does not match the selected directory.");
+                        validateCompilation(stagedPackage, registryIndex, cancellationToken);
+                        cancellationToken.ThrowIfCancellationRequested();
+                        if (Directory.Exists(targetPath) || File.Exists(targetPath))
+                            throw new IOException($"Plugin target already exists: {targetPath}");
+                        Directory.Move(stagingPath, targetPath);
+                    }, cancellationToken);
                     copied = true;
                 }
                 finally
                 {
-                    if (Directory.Exists(stagingPath))
-                        Directory.Delete(stagingPath, true);
+                    await Task.Run(() =>
+                    {
+                        if (Directory.Exists(stagingPath))
+                            Directory.Delete(stagingPath, true);
+                    });
                 }
             }
             else
             {
-                validateCompilation(
-                    package,
-                    state.Document.Plugins.Count,
-                    cancellationToken);
+                await Task.Run(() => validateCompilation(package, registryIndex, cancellationToken), cancellationToken);
             }
 
             PluginRegistryDocument updated = state.Document.Clone();
@@ -220,10 +212,15 @@ public sealed class PluginManagementService
             }
             catch
             {
-                if (copied && Directory.Exists(targetPath))
+                if (copied)
                 {
-                    PluginPackageInspector.EnsureDirectoryTreeIsSafe(targetPath);
-                    Directory.Delete(targetPath, true);
+                    await Task.Run(() =>
+                    {
+                        if (!Directory.Exists(targetPath))
+                            return;
+                        PluginPackageInspector.EnsureDirectoryTreeIsSafe(targetPath);
+                        Directory.Delete(targetPath, true);
+                    });
                 }
                 throw;
             }
@@ -270,9 +267,9 @@ public sealed class PluginManagementService
                     entry.Directory,
                     directoryComparer()))
             {
-                PluginPackageInspector.EnsureManagedDirectoryIsSafe(
+                await Task.Run(() => PluginPackageInspector.EnsureManagedDirectoryIsSafe(
                     environment.PluginsDirectory,
-                    entry.Directory);
+                    entry.Directory), cancellationToken);
                 updated.PendingDelete.Add(entry.Directory);
             }
 
@@ -326,7 +323,7 @@ public sealed class PluginManagementService
                 string sourcePath = Path.Combine(environment.PluginsDirectory, entry.Directory);
                 try
                 {
-                    PluginPackage package = PluginPackageInspector.Inspect(sourcePath);
+                    PluginPackage package = await Task.Run(() => PluginPackageInspector.Inspect(sourcePath), cancellationToken);
                     if (!string.Equals(package.Manifest.Id, entry.Id, StringComparison.Ordinal))
                     {
                         throw new InvalidDataException(
@@ -415,11 +412,11 @@ public sealed class PluginManagementService
             workspaceManagement.Environment.PluginsDirectory);
     }
 
-    private PluginImportPreview validateImport(string sourcePath)
+    private async Task<PluginImportPreview> validateImportAsync(string sourcePath, CancellationToken cancellationToken)
     {
         try
         {
-            PluginPackage package = PluginPackageInspector.Inspect(sourcePath);
+            PluginPackage package = await Task.Run(() => PluginPackageInspector.Inspect(sourcePath), cancellationToken);
             string source = package.SourcePath;
             string directory = Path.GetFileName(
                 Path.TrimEndingDirectorySeparator(source));
@@ -511,20 +508,18 @@ public sealed class PluginManagementService
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                PluginPackageInspector.EnsureManagedDirectoryIsSafe(
-                    environment.PluginsDirectory,
-                    directory);
-                string path = Path.Combine(environment.PluginsDirectory, directory);
-                if (Directory.Exists(path))
+                await Task.Run(() =>
                 {
-                    PluginPackageInspector.EnsureDirectoryTreeIsSafe(path);
-                    Directory.Delete(path, true);
-                }
-                else if (File.Exists(path))
-                {
-                    throw new InvalidDataException(
-                        $"Pending plugin path is not a directory: {path}");
-                }
+                    PluginPackageInspector.EnsureManagedDirectoryIsSafe(environment.PluginsDirectory, directory);
+                    string path = Path.Combine(environment.PluginsDirectory, directory);
+                    if (Directory.Exists(path))
+                    {
+                        PluginPackageInspector.EnsureDirectoryTreeIsSafe(path);
+                        Directory.Delete(path, true);
+                    }
+                    else if (File.Exists(path))
+                        throw new InvalidDataException($"Pending plugin path is not a directory: {path}");
+                }, cancellationToken);
             }
             catch (Exception exception) when (
                 exception is IOException
@@ -580,7 +575,7 @@ public sealed class PluginManagementService
         }
     }
 
-    private static void copyDirectory(string sourceRoot, string targetRoot)
+    private static void copyDirectory(string sourceRoot, string targetRoot, CancellationToken cancellationToken)
     {
         PluginPackageInspector.EnsureDirectoryTreeIsSafe(sourceRoot);
         Directory.CreateDirectory(targetRoot);
@@ -591,6 +586,7 @@ public sealed class PluginManagementService
             (string source, string target) = pending.Dequeue();
             foreach (string sourcePath in Directory.EnumerateFileSystemEntries(source))
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 FileAttributes attributes = File.GetAttributes(sourcePath);
                 if ((attributes & FileAttributes.ReparsePoint) != 0)
                     throw new InvalidDataException($"Symbolic links are not allowed: {sourcePath}");

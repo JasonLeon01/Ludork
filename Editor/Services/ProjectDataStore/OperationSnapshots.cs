@@ -4,25 +4,55 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
+using System.Threading.Tasks;
 
 namespace Ludork.Services;
 
 public sealed partial class ProjectDataStore
 {
-    internal ProjectOperationSnapshot CaptureOperationSnapshot()
+    internal async Task<ProjectOperationSnapshot> CaptureOperationSnapshotAsync(
+        IProgress<EditorOperationProgress>? progress = null)
     {
         BreakHistoryGesture();
-        CompleteDocumentChanges();
-        ProjectOperationDocument[] documents = Documents.All
-            .Where(document => sections.ContainsKey(document.Section))
-            .Select(document => new ProjectOperationDocument(document.Id, document.Revision,
+        if (EditOperations.IsBusy)
+        {
+            using EditorDocumentNotificationBatch notifications = Documents.BeginNotificationBatch();
+            EditorUiBatch preparation = new();
+            foreach (EditorDocument document in Documents.PendingDocuments.ToArray())
+            {
+                if (!sections.TryGetValue(document.Section, out EditorDocumentCollection? section))
+                    continue;
+                section.TryGetValue(document.Key, out JsonObject? data);
+                Documents.Commit(document, data);
+                progress?.Report(new EditorOperationProgress("EDIT_OPERATION_PREPARING", document.Path));
+                await preparation.YieldIfNeededAsync();
+            }
+            notifications.Commit();
+        }
+        else
+            CompleteDocumentChanges();
+        long revision = Documents.Revision;
+        bool busy = EditOperations.IsBusy;
+        EditorDocument[] sources = Documents.All.Where(document => sections.ContainsKey(document.Section)).ToArray();
+        List<ProjectOperationDocument> documents = new(sources.Length);
+        EditorUiBatch batch = new();
+        foreach (EditorDocument document in sources)
+        {
+            documents.Add(new ProjectOperationDocument(document.Id, document.Revision,
                 document.CaptureState(), document.SavedState,
-                document.UndoEntries.ToArray(), document.RedoEntries.ToArray())).ToArray();
+                document.UndoEntries.ToArray(), document.RedoEntries.ToArray()));
+            progress?.Report(new EditorOperationProgress("EDIT_OPERATION_PREPARING", document.Path,
+                documents.Count, sources.Length));
+            await batch.YieldIfNeededAsync();
+            if (IsDisposed || Documents.Revision != revision || EditOperations.IsBusy != busy
+                || Documents.HasPendingNotifications)
+                throw new InvalidOperationException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
+        }
         Dictionary<string, string> moves = new(StringComparer.Ordinal);
         foreach (string key in sections["WorldMaps"].Keys)
             if (Worlds.TryGetPendingDirectoryMove(key, out string? directory))
                 moves.Add(key, directory);
-        return new ProjectOperationSnapshot(ProjectPath, Documents.Revision, documents,
+        return new ProjectOperationSnapshot(ProjectPath, revision, documents,
             Maps.MapCatalog.ToArray(), moves, InvalidLoadPaths, InvalidLoadErrors, deletedDocumentPaths.ToArray(),
             projectEnumGenerationPending);
     }

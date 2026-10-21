@@ -1,4 +1,5 @@
 using Ludork.Plugin.Abstractions;
+using Ludork.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -28,7 +29,8 @@ public sealed class PluginWorkspace : IEditorPluginRuntime, IDisposable
         return GlobalHost.InitializeAsync(cancellationToken);
     }
 
-    public async Task InitializeProjectAsync(string projectPath, CancellationToken cancellationToken = default)
+    public async Task InitializeProjectAsync(string projectPath, CancellationToken cancellationToken = default,
+        IProgress<EditorOperationProgress>? progress = null)
     {
         string key = EditorProjectIdentity.NormalizePath(projectPath);
         await initializationGate.WaitAsync(cancellationToken);
@@ -36,7 +38,7 @@ public sealed class PluginWorkspace : IEditorPluginRuntime, IDisposable
         {
             if (GetProjectHost(key) is not null)
                 return;
-            await GlobalHost.InitializeAsync(cancellationToken);
+            await GlobalHost.InitializeAsync(cancellationToken, progress);
             PluginHost host = new(editorLanguage, PluginPaths.ForProject(GlobalHost.Environment, key))
             {
                 GlobalHost = GlobalHost,
@@ -46,7 +48,7 @@ public sealed class PluginWorkspace : IEditorPluginRuntime, IDisposable
                 || GlobalHost.Management.Registry.Plugins.Any(value => value.Id == id);
             try
             {
-                await host.InitializeAsync(cancellationToken);
+                await host.InitializeAsync(cancellationToken, progress);
                 lock (projectLock)
                     projects.Add(key, host);
             }

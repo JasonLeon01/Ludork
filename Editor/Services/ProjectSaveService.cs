@@ -112,7 +112,7 @@ public sealed class ProjectSaveService
         }
         if (projectConfig.IsStandalone && !beforeNativeBuild)
             await uiControlRegistry.Runtime.RefreshAsync();
-        ProjectOperationSnapshot snapshot = gameData.CaptureOperationSnapshot();
+        ProjectOperationSnapshot snapshot = await gameData.CaptureOperationSnapshotAsync(progress);
         EditorDocument[] modified = gameData.Documents.ModifiedDocuments
             .Where(document => document.Section != "GameVariables").ToArray();
         Func<GameVariableSaveResult>? saveVariables = gameVariables.CapturePendingSave();
