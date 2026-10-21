@@ -8,6 +8,8 @@ namespace Ludork.Models;
 public sealed class BlueprintGraphDocument
 {
     private BlueprintGraphEndpoint? start;
+    private int updateDepth;
+    private bool pendingChange;
 
     public BlueprintGraphDocument(string eventName, JsonObject rawEventGraph)
     {
@@ -49,7 +51,7 @@ public sealed class BlueprintGraphDocument
             }
             start = value;
             UnresolvedStartNode = null;
-            Changed?.Invoke(this, EventArgs.Empty);
+            NotifyChanged();
         }
     }
 
@@ -92,7 +94,7 @@ public sealed class BlueprintGraphDocument
             start = connection.Target;
             UnresolvedStartNode = null;
         }
-        Changed?.Invoke(this, EventArgs.Empty);
+        NotifyChanged();
         return true;
     }
 
@@ -109,7 +111,7 @@ public sealed class BlueprintGraphDocument
             start = null;
             UnresolvedStartNode = null;
         }
-        Changed?.Invoke(this, EventArgs.Empty);
+        NotifyChanged();
         return true;
     }
 
@@ -128,6 +130,32 @@ public sealed class BlueprintGraphDocument
 
     public void NotifyChanged()
     {
+        if (updateDepth != 0)
+        {
+            pendingChange = true;
+            return;
+        }
         Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    internal IDisposable BeginUpdate()
+    {
+        updateDepth++;
+        return new UpdateScope(this);
+    }
+
+    private sealed class UpdateScope(BlueprintGraphDocument document) : IDisposable
+    {
+        private BlueprintGraphDocument? owner = document;
+
+        public void Dispose()
+        {
+            BlueprintGraphDocument? current = owner;
+            owner = null;
+            if (current is null || --current.updateDepth != 0 || !current.pendingChange)
+                return;
+            current.pendingChange = false;
+            current.NotifyChanged();
+        }
     }
 }

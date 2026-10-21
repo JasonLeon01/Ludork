@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 
 namespace Ludork.Services;
 
@@ -24,6 +25,14 @@ internal sealed class LuaMetadataHierarchy
     {
         mroCache.Clear();
         stubTypeHierarchy = null;
+    }
+
+    public void AdoptPreparedState(LuaMetadataHierarchy prepared)
+    {
+        mroCache.Clear();
+        foreach (KeyValuePair<string, IReadOnlyList<LuaTypeMetadata>> entry in prepared.mroCache)
+            mroCache.Add(entry.Key, entry.Value);
+        stubTypeHierarchy = prepared.stubTypeHierarchy;
     }
 
     public bool IsDerivedType(string source, string target)
@@ -48,6 +57,46 @@ internal sealed class LuaMetadataHierarchy
                 pending.Push(parent);
         }
         return false;
+    }
+
+    public IReadOnlyDictionary<string, IReadOnlySet<string>> CaptureAncestors(
+        IReadOnlyList<LuaTypeMetadata> types, CancellationToken cancellationToken)
+    {
+        stubTypeHierarchy ??= new LuaStubTypeHierarchy(
+            Path.Combine(files.ProjectPath, "Scripts", "stub"), cancellationToken);
+        Dictionary<string, HashSet<string>> directBases = new(StringComparer.Ordinal);
+        foreach (string name in stubTypeHierarchy.TypeNames)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            directBases[name] = new HashSet<string>(stubTypeHierarchy.GetBases(name), StringComparer.Ordinal);
+        }
+        foreach (LuaTypeMetadata metadata in types)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!directBases.TryGetValue(metadata.Type.QualifiedName, out HashSet<string>? parents))
+            {
+                parents = new HashSet<string>(StringComparer.Ordinal);
+                directBases[metadata.Type.QualifiedName] = parents;
+            }
+            parents.UnionWith(metadata.Bases.Select(parent => parent.WithDefaultModule(metadata.Type.ModuleName).QualifiedName));
+        }
+        Dictionary<string, IReadOnlySet<string>> result = new(StringComparer.Ordinal);
+        foreach (string name in directBases.Keys)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            HashSet<string> ancestors = new(StringComparer.Ordinal);
+            Stack<string> pending = new(directBases[name]);
+            while (pending.TryPop(out string? current))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!ancestors.Add(current) || !directBases.TryGetValue(current, out HashSet<string>? parents))
+                    continue;
+                foreach (string parent in parents)
+                    pending.Push(parent);
+            }
+            result[name] = ancestors;
+        }
+        return result;
     }
 
     private IReadOnlyList<LuaTypeMetadata> resolveMro(

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 
 namespace Ludork.Models;
 
@@ -12,6 +13,7 @@ public sealed class BlueprintNodeDefinitionSet
         IReadOnlyDictionary<string, IReadOnlyList<BlueprintGraphEventParameterDefinition>> eventParameters)
     {
         Definitions = definitions;
+        NonLatentDefinitions = definitions.Where(definition => !definition.IsLatent).ToArray();
         RuntimeLookup = runtimeLookup;
         Dictionary<string, IReadOnlyList<BlueprintGraphEventParameterDefinition>> parameters =
             new(StringComparer.Ordinal);
@@ -21,6 +23,7 @@ public sealed class BlueprintNodeDefinitionSet
     }
 
     public IReadOnlyList<BlueprintGraphNodeDefinition> Definitions { get; }
+    public IReadOnlyList<BlueprintGraphNodeDefinition> NonLatentDefinitions { get; }
     public IReadOnlyDictionary<string, BlueprintGraphNodeDefinition> RuntimeLookup { get; }
     public IReadOnlyDictionary<string, IReadOnlyList<BlueprintGraphEventParameterDefinition>> EventParameters { get; }
 }

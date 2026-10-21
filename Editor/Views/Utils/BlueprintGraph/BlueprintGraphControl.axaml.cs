@@ -16,6 +16,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Nodes;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Ludork.Views.Utils.BlueprintGraph;
@@ -33,6 +34,11 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
     private ViewState? pendingViewState;
     private bool pickerOpen;
     private bool disposed;
+    private bool dropCanceled;
+    private readonly BlueprintNodePickerIndexCache pickerIndexes;
+    private readonly BlueprintNodeSearchService? nodeSearch;
+    private readonly ProjectDataStore gameData;
+    private CancellationTokenSource? pickerCancellation;
 
     public BlueprintGraphControl()
     {
@@ -40,6 +46,8 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         editor = this.FindControl<NodifyEditor>("Editor")
             ?? throw new InvalidOperationException("Blueprint graph editor was not created.");
         viewModel = null!;
+        pickerIndexes = null!;
+        gameData = null!;
         changeTimer = new DispatcherTimer
         {
             Interval = TimeSpan.FromMilliseconds(180),
@@ -64,18 +72,32 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         IGameVariableCatalog gameVariables,
         string assetsDirectory,
         int cellSize,
-        bool isReadOnly = false) : this()
+        bool isReadOnly,
+        BlueprintNodePickerIndexCache pickerIndexes) : this()
     {
+        this.gameData = gameData;
+        this.pickerIndexes = pickerIndexes;
+        nodeSearch = gameData.BlueprintNodeSearch;
         ParameterContext = new BlueprintGraphParameterContext(gameData, parameterEditorFactory, gameVariables, assetsDirectory, cellSize);
         viewModel = new BlueprintGraphEditorViewModel(
             document,
             definitions,
             fieldBuilder,
-            isReadOnly);
+            isReadOnly,
+            nodeSearch?.IsCurrent == true ? nodeSearch.Types : null);
         DataContext = viewModel;
         document.Changed += onDocumentChanged;
         viewModel.ParameterEdited += onParameterEdited;
         viewModel.InputDraftChanged += onInputDraftChanged;
+        viewModel.BlueprintPendingConnection.EmptyDropRequested += onEmptyDropRequested;
+        if (nodeSearch is not null)
+        {
+            nodeSearch.Invalidated += onSearchInvalidated;
+            nodeSearch.Changed += onSearchChanged;
+        }
+        LocaleService.LanguageChanged += onLanguageChanged;
+        pickerIndexes.Get(definitions, nodeSearch);
+        updateSearchError();
     }
 
     internal BlueprintGraphParameterContext? ParameterContext { get; }
@@ -107,9 +129,12 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
     {
         if (pendingViewState is not null)
             return pendingViewState with { InputStates = viewModel.CaptureInputStates() };
+        Dictionary<Guid, int> indexes = viewModel.Document.Nodes.Where(node => !node.IsVirtual)
+            .Select((node, index) => (node.Id, Index: index)).ToDictionary(entry => entry.Id, entry => entry.Index);
         return new ViewState(editor.Zoom, editor.OffsetX, editor.OffsetY,
             viewModel.SelectedNodes.OfType<BlueprintGraphNodeViewModel>()
-                .Select(node => (node.Model.OriginalIndex, node.Model.NodeFunction, node.Model.ExternalKey)).ToArray())
+                .Select(node => (indexes.TryGetValue(node.Model.Id, out int index) ? (int?)index : null,
+                    node.Model.NodeFunction, node.Model.ExternalKey)).ToArray())
         {
             InputStates = viewModel.CaptureInputStates(),
         };
@@ -169,12 +194,21 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         if (disposed)
             return;
         disposed = true;
+        pickerCancellation?.Cancel();
+        viewModel.BlueprintPendingConnection.ClearPickerPreview();
         FlushPendingChanges();
         changeTimer.Stop();
         Loaded -= onLoaded;
         Document.Changed -= onDocumentChanged;
         viewModel.ParameterEdited -= onParameterEdited;
         viewModel.InputDraftChanged -= onInputDraftChanged;
+        viewModel.BlueprintPendingConnection.EmptyDropRequested -= onEmptyDropRequested;
+        if (nodeSearch is not null)
+        {
+            nodeSearch.Invalidated -= onSearchInvalidated;
+            nodeSearch.Changed -= onSearchChanged;
+        }
+        LocaleService.LanguageChanged -= onLanguageChanged;
         RemoveHandler(PointerPressedEvent, onPointerPressed);
         RemoveHandler(ContextRequestedEvent, onContextRequested);
         RemoveHandler(PointerReleasedEvent, onPointerReleased);
@@ -291,6 +325,7 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
 
     private void onPointerPressed(object? sender, PointerPressedEventArgs args)
     {
+        dropCanceled = false;
         Focus();
         updatePointerPosition(args.GetPosition(editor));
         if (args.GetCurrentPoint(this).Properties.IsRightButtonPressed)
@@ -398,6 +433,8 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
 
     private async void onKeyDown(object? sender, KeyEventArgs args)
     {
+        if (args.Key == Key.Escape && viewModel.BlueprintPendingConnection.Source is not null)
+            dropCanceled = true;
         if (isInputControl(args.Source))
             return;
         if (args.KeyModifiers == KeyModifiers.None
@@ -544,19 +581,81 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
     }
 
     private async Task addNodeAsync(
-        (Point GraphPoint, PixelPoint ScreenPoint) insertionTarget)
+        (Point GraphPoint, PixelPoint ScreenPoint) insertionTarget,
+        BlueprintGraphPortViewModel? source = null)
     {
         Window? owner = TopLevel.GetTopLevel(this) as Window;
-        if (viewModel.IsReadOnly || owner is null || viewModel.Definitions.Count == 0 || pickerOpen)
+        if (disposed || viewModel.IsReadOnly || owner is null || pickerOpen || nodeSearch?.IsCurrent != true
+            || source is not null && !viewModel.ContainsPort(source))
             return;
+        BlueprintNodePickerIndex? index = pickerIndexes.Get(viewModel.Definitions, nodeSearch);
+        if (index is null)
+            return;
+        BlueprintNodePickerCandidates candidates = source is null ? index.All : index.QueryOutput(source.Model.Kind, source.Model.TypeName);
+        if (candidates.Count == 0)
+            return;
+        FlushPendingChanges();
         pickerOpen = true;
-        BlueprintGraphNodeDefinition? selected = await BlueprintNodePickerWindow.ShowAsync(
-            owner,
-            viewModel.Definitions,
-            insertionTarget.ScreenPoint);
-        pickerOpen = false;
-        if (!disposed && selected is not null)
-            viewModel.AddNode(selected, insertionTarget.GraphPoint);
+        using CancellationTokenSource cancellation = new();
+        pickerCancellation = cancellation;
+        try
+        {
+            if (source is not null)
+                viewModel.BlueprintPendingConnection.ShowPickerPreview(source, insertionTarget.GraphPoint);
+            BlueprintNodePickerSelection? selected = await BlueprintNodePickerWindow.ShowAsync(
+                owner, candidates, insertionTarget.ScreenPoint, source is null, cancellation.Token);
+            if (disposed || cancellation.IsCancellationRequested || selected is null || viewModel.IsReadOnly)
+                return;
+            FlushPendingChanges();
+            gameData.BreakHistoryGesture();
+            if (source is null)
+                viewModel.AddNode(selected.Definition, insertionTarget.GraphPoint);
+            else
+                viewModel.AddNodeAndConnect(selected, source, insertionTarget.GraphPoint);
+            FlushPendingChanges();
+            gameData.BreakHistoryGesture();
+        }
+        finally
+        {
+            viewModel.BlueprintPendingConnection.ClearPickerPreview();
+            pickerCancellation = null;
+            pickerOpen = false;
+        }
+    }
+
+    private async void onEmptyDropRequested(BlueprintGraphPortViewModel source)
+    {
+        if (dropCanceled || !new Rect(editor.Bounds.Size).Contains(pointerViewportPoint)
+            || findContextNode(editor.InputHitTest(pointerViewportPoint)) is not null)
+            return;
+        (Point GraphPoint, PixelPoint ScreenPoint) target =
+            (toGraphPoint(pointerViewportPoint), editor.PointToScreen(pointerViewportPoint));
+        await addNodeAsync(target, source);
+    }
+
+    private void onSearchInvalidated(object? sender, EventArgs args) => pickerCancellation?.Cancel();
+
+    private void onLanguageChanged(object? sender, EventArgs args)
+    {
+        if (disposed)
+            return;
+        pickerCancellation?.Cancel();
+        pickerIndexes.Get(viewModel.Definitions, nodeSearch);
+    }
+
+    private void onSearchChanged(object? sender, EventArgs args)
+    {
+        if (disposed)
+            return;
+        pickerCancellation?.Cancel();
+        updateSearchError();
+    }
+
+    private void updateSearchError()
+    {
+        TextBlock error = this.FindControl<TextBlock>("SearchError")!;
+        error.Text = nodeSearch?.Error;
+        error.IsVisible = !string.IsNullOrEmpty(error.Text);
     }
 
     private (Point GraphPoint, PixelPoint ScreenPoint) getInsertionTarget()
@@ -574,10 +673,9 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
 
     private Point toGraphPoint(Point viewportPoint)
     {
-        double zoom = Math.Abs(editor.Zoom) < double.Epsilon ? 1 : editor.Zoom;
         return new Point(
-            viewportPoint.X / zoom - editor.OffsetX,
-            viewportPoint.Y / zoom - editor.OffsetY);
+            viewportPoint.X - editor.OffsetX,
+            viewportPoint.Y - editor.OffsetY);
     }
 
     private static bool isInputControl(object? source)

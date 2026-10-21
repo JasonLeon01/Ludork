@@ -21,6 +21,7 @@ internal sealed class LuaMetadataFileCache
     private bool readDependenciesConsistent = true;
     private int readScopeDepth;
     private int strictReadDepth;
+    private int preparedReadDepth;
     private long revision;
 
     public LuaMetadataFileCache(string projectPath, LuaEnumService enums, bool strictReads = false, CancellationToken cancellationToken = default)
@@ -57,6 +58,20 @@ internal sealed class LuaMetadataFileCache
         return new MetadataReadScope(this, requireValid);
     }
 
+    public IDisposable BeginPreparedRead()
+    {
+        if (metadataFileSet is null)
+            throw new InvalidOperationException("Metadata must be captured before a prepared read.");
+        if (readScopeDepth == 0)
+        {
+            readDependencyStamps = new Dictionary<string, LuaMetadataFileStamp>(StringComparer.OrdinalIgnoreCase);
+            readDependenciesConsistent = true;
+        }
+        preparedReadDepth++;
+        readScopeDepth++;
+        return new MetadataReadScope(this, false, true);
+    }
+
     internal LuaMetadataDependencySnapshot CaptureDependencies(
         IEnumerable<LuaTypeReference> types,
         IEnumerable<string> scriptMixins)
@@ -80,31 +95,31 @@ internal sealed class LuaMetadataFileCache
         {
             bool cachedByFile = fileCache.ContainsKey(path);
             bool cachedByMixin = scriptMixinCache.TryGetValue(path, out CachedScriptMixinMetadata? cachedMixin);
-            if (!cachedByFile && !cachedByMixin)
+            if (!cachedByFile && !cachedByMixin && preparedReadDepth == 0)
                 coveredByReadSnapshot = false;
             if (readDependencyStamps?.TryGetValue(path, out LuaMetadataFileStamp readStamp) == true)
             {
                 stamps[path] = readStamp;
-                if (readStamp != getFileStamp(path))
+                if (preparedReadDepth == 0 && readStamp != getFileStamp(path))
                     consistent = false;
                 continue;
             }
             if (fileCache.TryGetValue(path, out CachedMetadataFile? cachedFile))
             {
                 stamps[path] = cachedFile.Stamp;
-                if (cachedFile.Stamp != getFileStamp(path))
+                if (preparedReadDepth == 0 && cachedFile.Stamp != getFileStamp(path))
                     consistent = false;
                 continue;
             }
             if (cachedMixin is not null)
             {
                 stamps[path] = cachedMixin.Stamp;
-                if (cachedMixin.Stamp != getFileStamp(path))
+                if (preparedReadDepth == 0 && cachedMixin.Stamp != getFileStamp(path))
                     consistent = false;
             }
             else
             {
-                stamps[path] = getFileStamp(path);
+                stamps[path] = preparedReadDepth == 0 ? getFileStamp(path) : default;
             }
         }
         return new LuaMetadataDependencySnapshot(stamps, consistent, coveredByReadSnapshot);
@@ -154,6 +169,11 @@ internal sealed class LuaMetadataFileCache
         {
             trackReadDependency(metadataPath, scopedCached.Stamp);
             return scopedCached.Metadata;
+        }
+        if (preparedReadDepth != 0)
+        {
+            scriptMixinCache[metadataPath] = new CachedScriptMixinMetadata(metadataPath, default, null);
+            return null;
         }
         LuaMetadataFileStamp stamp = getFileStamp(metadataPath);
         trackReadDependency(metadataPath, stamp);
@@ -227,6 +247,18 @@ internal sealed class LuaMetadataFileCache
         metadataFileSet = null;
         revision++;
         Invalidated?.Invoke();
+    }
+
+    public void AdoptPreparedState(LuaMetadataFileCache prepared)
+    {
+        if (IsReading || prepared.IsReading)
+            throw new InvalidOperationException("Metadata state cannot change during a read.");
+        Clear();
+        foreach (KeyValuePair<string, CachedMetadataFile> entry in prepared.fileCache)
+            fileCache.Add(entry.Key, entry.Value);
+        foreach (KeyValuePair<string, CachedScriptMixinMetadata> entry in prepared.scriptMixinCache)
+            scriptMixinCache.Add(entry.Key, entry.Value);
+        metadataFileSet = prepared.metadataFileSet;
     }
 
     private void endRead()
@@ -335,6 +367,12 @@ internal sealed class LuaMetadataFileCache
             trackReadDependency(path, scopedCached.Stamp);
             return readCachedTypes(path, scopedCached);
         }
+        if (preparedReadDepth != 0)
+        {
+            IReadOnlyDictionary<string, LuaTypeMetadata> missing = new Dictionary<string, LuaTypeMetadata>(StringComparer.Ordinal);
+            fileCache[path] = new CachedMetadataFile(default, moduleName, missing, null);
+            return missing;
+        }
         LuaMetadataFileStamp stamp = getFileStamp(path);
         trackReadDependency(path, stamp);
         if (fileCache.TryGetValue(path, out CachedMetadataFile? cached))
@@ -394,7 +432,7 @@ internal sealed class LuaMetadataFileCache
         IReadOnlyList<string> Paths,
         IReadOnlyDictionary<string, DirectoryStamp> DirectoryStamps);
 
-    private sealed class MetadataReadScope(LuaMetadataFileCache owner, bool requireValid) : IDisposable
+    private sealed class MetadataReadScope(LuaMetadataFileCache owner, bool requireValid, bool prepared = false) : IDisposable
     {
         private LuaMetadataFileCache? service = owner;
 
@@ -406,6 +444,8 @@ internal sealed class LuaMetadataFileCache
             service = null;
             if (requireValid)
                 current.strictReadDepth--;
+            if (prepared)
+                current.preparedReadDepth--;
             current.endRead();
         }
     }

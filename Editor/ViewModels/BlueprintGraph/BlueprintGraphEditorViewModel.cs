@@ -22,12 +22,13 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
         BlueprintGraphDocument document,
         IReadOnlyList<BlueprintGraphNodeDefinition> definitions,
         BlueprintVariableFieldBuilder fieldBuilder,
-        bool isReadOnly)
+        bool isReadOnly,
+        LuaMetadataTypeSnapshot? types)
     {
         this.document = document;
         this.definitions = definitions;
         this.fieldBuilder = fieldBuilder;
-        document.IsTypeAssignable = fieldBuilder.IsTypeAssignable;
+        document.IsTypeAssignable = types is null ? fieldBuilder.IsTypeAssignable : types.IsTypeAssignable;
         IsReadOnly = isReadOnly;
         BlueprintPendingConnection = new BlueprintPendingConnectionViewModel(this);
         PendingConnection = BlueprintPendingConnection;
@@ -209,6 +210,31 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
         BlueprintGraphNodeViewModel viewModel = addNode(definition, location);
         document.NotifyChanged();
         return viewModel;
+    }
+
+    public bool ContainsPort(BlueprintGraphPortViewModel port) =>
+        portsById.TryGetValue(port.Model.Id, out BlueprintGraphPortViewModel? current) && ReferenceEquals(current, port);
+
+    public BlueprintGraphNodeViewModel? AddNodeAndConnect(BlueprintNodePickerSelection selection,
+        BlueprintGraphPortViewModel source, Point location)
+    {
+        if (IsReadOnly || !ContainsPort(source) || source.Model.Direction != BlueprintGraphPortDirection.Output
+            || !definitions.Contains(selection.Definition))
+            return null;
+        BlueprintGraphPortDefinition? targetDefinition = selection.Definition.Ports.FirstOrDefault(port =>
+            port.Direction == BlueprintGraphPortDirection.Input && port.Kind == source.Model.Kind
+            && port.PinIndex == selection.TargetPinIndex);
+        if (targetDefinition is null || source.Model.Kind == BlueprintGraphPortKind.Params
+            && document.IsTypeAssignable?.Invoke(source.Model.TypeName, targetDefinition.TypeName) != true)
+            return null;
+        using IDisposable update = document.BeginUpdate();
+        BlueprintGraphNodeViewModel node = addNode(selection.Definition, location);
+        BlueprintGraphPortViewModel target = node.Input.OfType<BlueprintGraphPortViewModel>().First(port =>
+            port.Model.Kind == source.Model.Kind && port.Model.PinIndex == targetDefinition.PinIndex);
+        Connect(source, target);
+        SelectedNodes.Clear();
+        SelectedNodes.Add(node);
+        return node;
     }
 
     public void DeleteSelected()

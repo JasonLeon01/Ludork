@@ -13,6 +13,7 @@ public sealed partial class ProjectDataStore
     public LuaMetadataService Metadata => metadata ??= new LuaMetadataService(ProjectPath, enums: Enums);
     public BlueprintClassResolver BlueprintClasses => blueprintClasses ??= new BlueprintClassResolver(this, Metadata);
     public ReferenceIndexService ReferenceIndex => referenceIndex ??= new ReferenceIndexService(this, Metadata, BlueprintClasses);
+    public BlueprintNodeSearchService? BlueprintNodeSearch { get; internal set; }
 
     internal JsonObject? ReadReferenceBlueprint(string key) => sections["Blueprints"].TryGetValue(key, out JsonObject? data)
         ? (JsonObject)data.DeepClone() : null;

@@ -33,6 +33,7 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
     private Border graphHost = null!;
     private Toast toast = null!;
     private readonly DeferredWindowInitializer initializer;
+    private readonly BlueprintNodePickerIndexCache pickerIndexes = new();
     private CommonFunctionEditorDocument? currentDocument;
     private BlueprintGraphControl? graphControl;
     private string? pendingFunctionName;
@@ -74,6 +75,11 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
         gameData.Documents.Changed += onDocumentsChanged;
         gameData.Documents.DiskReloaded += onDocumentDiskReloaded;
         gameData.DataReloaded += onDataReloaded;
+        if (gameData.BlueprintNodeSearch is BlueprintNodeSearchService search)
+        {
+            search.Validating += onNodeSearchValidating;
+            search.Changed += onNodeSearchChanged;
+        }
         Closed += onClosed;
         Deactivated += (_, _) => flushGraph();
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
@@ -172,6 +178,8 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
 
     private void showSelectedFunction()
     {
+        using IDisposable? read = gameData.BlueprintNodeSearch?.IsCurrent == true
+            ? gameData.Metadata.BeginPreparedRead() : null;
         disposeGraph(false);
         if (functionList.SelectedItem is not string name)
             return;
@@ -197,7 +205,9 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
             parameterEditorFactory,
             projectSave.GameVariables,
             Path.Combine(gameData.ProjectPath, "Assets"),
-            gameData.Configs.getCellSize());
+            gameData.Configs.getCellSize(),
+            false,
+            pickerIndexes);
         if (currentDocument.ResourceDocument is EditorDocument resource
             && graphViewStates.TryGetValue(resource.Id, out BlueprintGraphControl.ViewState? state))
             graphControl.RestoreViewState(state);
@@ -485,6 +495,24 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
         graphControl?.FlushPendingChanges();
     }
 
+    private void onNodeSearchValidating(object? sender, BlueprintNodeSearchValidationEventArgs args)
+    {
+        if (!initializer.IsInitialized || graphControl is null)
+            return;
+        BlueprintNodeDefinitionCatalog catalog = new(args.Metadata, args.Classes);
+        catalog.GetNodeDefinitionSet();
+    }
+
+    private void onNodeSearchChanged(object? sender, EventArgs args)
+    {
+        if (!initializer.IsInitialized || gameData.BlueprintNodeSearch?.Error is not null)
+            return;
+        flushGraph();
+        nodeDefinitionCatalog?.Invalidate();
+        pickerIndexes.Clear();
+        showSelectedFunction();
+    }
+
     private void disposeGraph(bool discardPendingChanges)
     {
         if (graphControl is not null)
@@ -516,6 +544,11 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
         gameData.Documents.Changed -= onDocumentsChanged;
         gameData.Documents.DiskReloaded -= onDocumentDiskReloaded;
         gameData.DataReloaded -= onDataReloaded;
+        if (gameData.BlueprintNodeSearch is BlueprintNodeSearchService search)
+        {
+            search.Validating -= onNodeSearchValidating;
+            search.Changed -= onNodeSearchChanged;
+        }
         disposeGraph(false);
     }
 }

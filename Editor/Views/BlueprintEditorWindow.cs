@@ -53,6 +53,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
     private readonly Dictionary<string, (Button Button, JsonNode? ParentValue)> revertActions = new(StringComparer.Ordinal);
     private Toast toast = null!;
     private readonly DeferredWindowInitializer initializer;
+    private readonly BlueprintNodePickerIndexCache pickerIndexes = new();
     private bool closed;
     private ResolvedBlueprintClass? resolvedParent => viewModel.ResolvedParent;
     private ResolvedBlueprintClass? resolvedClass => viewModel.ResolvedClass;
@@ -105,6 +106,11 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         projectSave.RegisterParticipant(this);
         gameData.DataReloaded += onDataReloaded;
         gameData.Documents.ContentChanged += onProjectContentChanged;
+        if (gameData.BlueprintNodeSearch is BlueprintNodeSearchService search)
+        {
+            search.Validating += onNodeSearchValidating;
+            search.Changed += onNodeSearchChanged;
+        }
         Closed += onClosed;
         Deactivated += (_, _) => flushGraphViews();
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
@@ -569,7 +575,9 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
     {
         refreshing = true;
         parentField.Text = viewModel.ParentReference;
-        IReadOnlyList<BlueprintVariableField> fields = viewModel.RefreshFields();
+        IReadOnlyList<BlueprintVariableField> fields;
+        using (IDisposable? read = beginNodeMetadataRead())
+            fields = viewModel.RefreshFields();
         revertActions.Clear();
         await variableForm.SetFieldsAsync(fields, cancellationToken);
         updateGraphMode();
@@ -580,6 +588,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
 
     private void refreshAll()
     {
+        using IDisposable? read = beginNodeMetadataRead();
         refreshing = true;
         parentField.Text = viewModel.ParentReference;
         IReadOnlyList<BlueprintVariableField> fields = viewModel.RefreshFields();
@@ -592,6 +601,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
 
     private void refreshAttributes()
     {
+        using IDisposable? read = beginNodeMetadataRead();
         refreshing = true;
         parentField.Text = viewModel.ParentReference;
         IReadOnlyList<BlueprintVariableField> fields = viewModel.RefreshFields();
@@ -634,6 +644,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
 
     private void refreshGraphList(string? preferredEvent, bool preferPreview)
     {
+        using IDisposable? read = beginNodeMetadataRead();
         refreshing = true;
         viewModel.RefreshTabs(preferredEvent, preferPreview);
         graphList.ItemsSource = viewModel.Tabs;
@@ -677,6 +688,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
 
     private BlueprintGraphControl createGraphControl(string eventName, JsonObject eventGraph)
     {
+        using IDisposable? read = beginNodeMetadataRead();
         BlueprintGraphEditorData graphData = viewModel.LoadGraph(eventName, eventGraph);
         BlueprintGraphControl control = new(
             gameData,
@@ -687,7 +699,8 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
             projectSave.GameVariables,
             Path.Combine(gameData.ProjectPath, "Assets"),
             gameData.Configs.getCellSize(),
-            viewModel.IsGraphReadOnly);
+            viewModel.IsGraphReadOnly,
+            pickerIndexes);
         if (graphViewStates.TryGetValue(eventName, out BlueprintGraphControl.ViewState? state))
             control.RestoreViewState(state);
         control.GraphChanged += (_, _) =>
@@ -697,6 +710,12 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         };
         control.InputDraftChanged += onInputDraftChanged;
         return control;
+    }
+
+    private IDisposable? beginNodeMetadataRead()
+    {
+        return gameData.BlueprintNodeSearch?.IsCurrent == true
+            ? gameData.Metadata.BeginPreparedRead() : null;
     }
 
     private async void onVariableChanged(object? sender, BlueprintVariableValueChangedEventArgs args)
@@ -915,6 +934,31 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         reloadFromDataChange();
     }
 
+    private void onNodeSearchValidating(object? sender, BlueprintNodeSearchValidationEventArgs args)
+    {
+        if (closed || !initializer.IsInitialized)
+            return;
+        ResolvedBlueprintClass resolved = viewModel.IsBlueprint
+            ? args.Classes.ResolveBlueprint(document.Data, document.BlueprintKey)
+            : args.Classes.Resolve("GlobalCore.GameplayEventData");
+        if (viewModel.ParentReference.Length != 0)
+            args.Classes.Resolve(viewModel.ParentReference);
+        BlueprintVariableFieldBuilder fields = new(gameData, args.Metadata);
+        fields.Build(resolved, viewModel.IsBlueprint);
+        BlueprintNodeDefinitionCatalog catalog = new(args.Metadata, args.Classes);
+        catalog.GetNodeDefinitionSet(new BlueprintGraphContext(document.Data, document.BlueprintKey), resolved);
+    }
+
+    private void onNodeSearchChanged(object? sender, EventArgs args)
+    {
+        if (closed || !initializer.IsInitialized || gameData.BlueprintNodeSearch?.Error is not null)
+            return;
+        flushGraphViews();
+        viewModel.InvalidateNodeDefinitions();
+        pickerIndexes.Clear();
+        reload(false);
+    }
+
     private void onProjectContentChanged(object? sender, EditorDocumentsChangedEventArgs args)
     {
         if (closed || args.Reset || inheritanceRefreshPending
@@ -1001,6 +1045,11 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         closed = true;
         inheritanceRefreshPending = false;
         gameData.Documents.ContentChanged -= onProjectContentChanged;
+        if (gameData.BlueprintNodeSearch is BlueprintNodeSearchService search)
+        {
+            search.Validating -= onNodeSearchValidating;
+            search.Changed -= onNodeSearchChanged;
+        }
         previewSession.FrameChanged -= onPreviewFrameChanged;
         previewSession.Dispose();
         variableForm?.Dispose();

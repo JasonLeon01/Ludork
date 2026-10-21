@@ -264,7 +264,7 @@ internal sealed class BlueprintEditorViewModel : ViewModelBase, IDisposable
         BlueprintGraphDocument graph = BlueprintGraphCodec.Load(
             eventName, eventGraph, Document.Data["graph"]?["startNodes"]?[eventName], definitions, eventParameters, IsBlueprint);
         IReadOnlyList<BlueprintGraphNodeDefinition> available = Document.IsGraphOnly
-            ? definitions.Definitions.Where(definition => !definition.IsLatent).ToArray()
+            ? definitions.NonLatentDefinitions
             : definitions.Definitions;
         return new BlueprintGraphEditorData(graph, available);
     }

@@ -18,6 +18,7 @@ public sealed class EditorProjectSession : IDisposable
         Metadata = GameData.Metadata;
         GameVariables = new GameVariableService(ProjectPath, Metadata, GameData.Documents);
         BlueprintClasses = GameData.BlueprintClasses;
+        GameData.BlueprintNodeSearch?.Start();
         GameConfig = new GameConfigService(ProjectPath);
         ProjectRunner = new ProjectRunnerService(ProjectPath);
         BlueprintValidation = new BlueprintValidationService(GameData, Metadata, BlueprintClasses);

@@ -1,4 +1,3 @@
-using Ludork.ViewModels.BlueprintGraph;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
@@ -8,38 +7,34 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using Ludork.Models;
 using Ludork.Services;
-using Ludork.Views.Utils;
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Ludork.Views.Utils.BlueprintGraph;
 
 public sealed class BlueprintNodePickerWindow : Window
 {
-    private readonly IReadOnlyList<PickerDefinition> definitions;
+    private readonly BlueprintNodePickerCandidates candidates;
     private readonly TextBox searchBox;
     private readonly ListBox itemList;
-    private readonly CheckBox contextSensitiveBox;
-    private readonly ObservableCollection<BlueprintNodePickerRow> rows = [];
+    private readonly CheckBox? contextSensitiveBox;
+    private IReadOnlyList<BlueprintNodePickerRow> rows = [];
     private readonly HashSet<string> expandedGroups = new(StringComparer.Ordinal);
     private readonly DispatcherTimer deactivateTimer;
-    private TaskCompletionSource<BlueprintGraphNodeDefinition?>? completion;
-    private BlueprintGraphNodeDefinition? result;
+    private TaskCompletionSource<BlueprintNodePickerSelection?>? completion;
+    private BlueprintNodePickerSelection? result;
+    private CancellationTokenRegistration cancellationRegistration;
+    private CancellationToken cancellationToken;
     private bool canCloseOnDeactivate;
 
     private BlueprintNodePickerWindow(
-        IReadOnlyList<BlueprintGraphNodeDefinition> definitions,
-        PixelPoint position)
+        BlueprintNodePickerCandidates candidates,
+        PixelPoint position,
+        bool contextSensitive)
     {
-        this.definitions = definitions
-            .Select(definition => new PickerDefinition(
-                definition,
-                BlueprintNodeDisplayText.GetTitle(definition),
-                getPickerPath(definition)))
-            .ToArray();
+        this.candidates = candidates;
         Position = position;
         Width = 320;
         Height = 420;
@@ -64,27 +59,30 @@ public sealed class BlueprintNodePickerWindow : Window
             BorderBrush = Ludork.Services.EditorTheme.Brush("Border"),
             BorderThickness = new Thickness(1),
             ItemTemplate = new FuncDataTemplate<BlueprintNodePickerRow>(createRow),
+            ItemsPanel = new FuncTemplate<Panel?>(() => new VirtualizingStackPanel()),
         };
         itemList.DoubleTapped += onItemDoubleTapped;
-
-        contextSensitiveBox = new CheckBox
-        {
-            Content = LocaleService.Get("CONTEXT_SENSITIVE"),
-            IsChecked = true,
-        };
-        contextSensitiveBox.IsCheckedChanged += (_, _) => rebuildRows();
 
         Grid content = new()
         {
             Margin = new Thickness(12),
-            RowDefinitions = new RowDefinitions("Auto,10,*,10,Auto"),
+            RowDefinitions = new RowDefinitions(contextSensitive ? "Auto,10,*,10,Auto" : "Auto,10,*"),
         };
         Grid.SetRow(searchBox, 0);
         content.Children.Add(searchBox);
         Grid.SetRow(itemList, 2);
         content.Children.Add(itemList);
-        Grid.SetRow(contextSensitiveBox, 4);
-        content.Children.Add(contextSensitiveBox);
+        if (contextSensitive)
+        {
+            contextSensitiveBox = new CheckBox
+            {
+                Content = LocaleService.Get("CONTEXT_SENSITIVE"),
+                IsChecked = true,
+            };
+            contextSensitiveBox.IsCheckedChanged += (_, _) => rebuildRows();
+            Grid.SetRow(contextSensitiveBox, 4);
+            content.Children.Add(contextSensitiveBox);
+        }
         Content = content;
 
         deactivateTimer = new DispatcherTimer
@@ -98,22 +96,39 @@ public sealed class BlueprintNodePickerWindow : Window
         rebuildRows();
     }
 
-    public static Task<BlueprintGraphNodeDefinition?> ShowAsync(
+    public static Task<BlueprintNodePickerSelection?> ShowAsync(
         Window owner,
-        IReadOnlyList<BlueprintGraphNodeDefinition> definitions,
-        PixelPoint position)
+        BlueprintNodePickerCandidates candidates,
+        PixelPoint position,
+        bool contextSensitive = true,
+        CancellationToken cancellationToken = default)
     {
-        BlueprintNodePickerWindow window = new(definitions, position);
-        return window.showAsync(owner);
+        if (cancellationToken.IsCancellationRequested)
+            return Task.FromResult<BlueprintNodePickerSelection?>(null);
+        BlueprintNodePickerWindow window = new(candidates, position, contextSensitive);
+        return window.showAsync(owner, cancellationToken);
     }
 
-    private Task<BlueprintGraphNodeDefinition?> showAsync(Window owner)
+    private Task<BlueprintNodePickerSelection?> showAsync(Window owner, CancellationToken cancellationToken)
     {
-        completion = new TaskCompletionSource<BlueprintGraphNodeDefinition?>(
+        if (cancellationToken.IsCancellationRequested)
+            return Task.FromResult<BlueprintNodePickerSelection?>(null);
+        this.cancellationToken = cancellationToken;
+        TaskCompletionSource<BlueprintNodePickerSelection?> source = new(
             TaskCreationOptions.RunContinuationsAsynchronously);
+        completion = source;
         Closed += onClosed;
         Show(owner);
-        return completion.Task;
+        cancellationRegistration = cancellationToken.Register(() => Dispatcher.UIThread.Post(() =>
+        {
+            if (source.Task.IsCompleted)
+                return;
+            result = null;
+            Close();
+        }));
+        if (source.Task.IsCompleted)
+            cancellationRegistration.Dispose();
+        return source.Task;
     }
 
     private Control? createRow(BlueprintNodePickerRow? row, INameScope? scope)
@@ -156,106 +171,9 @@ public sealed class BlueprintNodePickerWindow : Window
     private void rebuildRows()
     {
         string search = searchBox.Text?.Trim() ?? string.Empty;
-        bool contextSensitive = contextSensitiveBox.IsChecked == true;
-        PickerDefinition[] filtered = definitions
-            .Where(definition => !contextSensitive || definition.Definition.IsContextRelevant)
-            .ToArray();
-        rows.Clear();
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            foreach (PickerDefinition definition in filtered
-                .Where(definition => definition.Definition.MemberName.Contains(search, StringComparison.OrdinalIgnoreCase)
-                    || definition.Title.Contains(search, StringComparison.OrdinalIgnoreCase))
-                .OrderBy(definition => definition.Title, StringComparer.Ordinal)
-                .ThenBy(definition => definition.Definition.RuntimePath, StringComparer.Ordinal))
-            {
-                string hierarchy = string.Join(
-                    '.',
-                    definition.PickerPath.Select(EditorDisplayName.Format));
-                string display = string.IsNullOrWhiteSpace(hierarchy)
-                    ? definition.Title
-                    : $"{definition.Title} ({hierarchy})";
-                rows.Add(new BlueprintNodePickerRow(display, 0, definition.Definition));
-            }
-            itemList.SelectedItem = rows.FirstOrDefault();
-            return;
-        }
-
-        IReadOnlyList<BlueprintNodePickerTreeItem> roots = buildTree(filtered);
-        foreach (BlueprintNodePickerTreeItem root in roots)
-            appendVisibleRows(root, 0);
-    }
-
-    private static IReadOnlyList<BlueprintNodePickerTreeItem> buildTree(
-        IReadOnlyList<PickerDefinition> definitions)
-    {
-        List<BlueprintNodePickerTreeItem> roots = [];
-        foreach (PickerDefinition definition in definitions)
-        {
-            List<BlueprintNodePickerTreeItem> children = roots;
-            string groupPath = string.Empty;
-            foreach (string segment in definition.PickerPath)
-            {
-                groupPath = string.IsNullOrWhiteSpace(groupPath)
-                    ? segment
-                    : groupPath + "." + segment;
-                BlueprintNodePickerTreeItem? group = children.FirstOrDefault(item =>
-                    item.Definition is null
-                    && string.Equals(item.Path, groupPath, StringComparison.Ordinal));
-                if (group is null)
-                {
-                    group = new BlueprintNodePickerTreeItem(
-                        EditorDisplayName.Format(segment),
-                        groupPath,
-                        null);
-                    children.Add(group);
-                }
-                children = group.Children;
-            }
-            children.Add(new BlueprintNodePickerTreeItem(
-                definition.Title,
-                definition.Definition.RuntimePath,
-                definition.Definition));
-        }
-        sortTree(roots);
-        return roots;
-    }
-
-    private static IReadOnlyList<string> getPickerPath(BlueprintGraphNodeDefinition definition)
-    {
-        if (definition.IsParent)
-            return [LocaleService.Get("PARENT")];
-        string[] parts = definition.MetadataPath.Split('.', StringSplitOptions.RemoveEmptyEntries);
-        return parts.Length <= 1 ? [] : parts[..^1];
-    }
-
-    private static void sortTree(List<BlueprintNodePickerTreeItem> items)
-    {
-        items.Sort((left, right) =>
-        {
-            if (left.Definition is null && right.Definition is not null)
-                return -1;
-            if (left.Definition is not null && right.Definition is null)
-                return 1;
-            return string.Compare(left.Name, right.Name, StringComparison.Ordinal);
-        });
-        foreach (BlueprintNodePickerTreeItem item in items)
-            sortTree(item.Children);
-    }
-
-    private void appendVisibleRows(BlueprintNodePickerTreeItem item, int depth)
-    {
-        if (item.Definition is not null)
-        {
-            rows.Add(new BlueprintNodePickerRow(item.Name, depth, item.Definition));
-            return;
-        }
-        bool isExpanded = expandedGroups.Contains(item.Path);
-        rows.Add(new BlueprintNodePickerRow(item.Name, depth, item.Path, isExpanded));
-        if (!isExpanded)
-            return;
-        foreach (BlueprintNodePickerTreeItem child in item.Children)
-            appendVisibleRows(child, depth + 1);
+        rows = candidates.GetRows(search, contextSensitiveBox?.IsChecked == true, expandedGroups);
+        itemList.ItemsSource = rows;
+        itemList.SelectedIndex = search.Length != 0 && rows.Count != 0 ? 0 : -1;
     }
 
     private void toggleGroup(BlueprintNodePickerRow row)
@@ -276,9 +194,9 @@ public sealed class BlueprintNodePickerWindow : Window
             toggleGroup(row);
             return;
         }
-        if (row.Definition is null)
+        if (row.Selection is null)
             return;
-        result = row.Definition;
+        result = row.Selection;
         Close();
     }
 
@@ -294,11 +212,18 @@ public sealed class BlueprintNodePickerWindow : Window
     {
         deactivateTimer.Stop();
         canCloseOnDeactivate = true;
+        closeIfInactive();
     }
 
     private void onDeactivated(object? sender, EventArgs args)
     {
         if (canCloseOnDeactivate)
+            Dispatcher.UIThread.Post(closeIfInactive);
+    }
+
+    private void closeIfInactive()
+    {
+        if (IsVisible && !IsActive)
             Close();
     }
 
@@ -332,61 +257,7 @@ public sealed class BlueprintNodePickerWindow : Window
     private void onClosed(object? sender, EventArgs args)
     {
         deactivateTimer.Stop();
-        completion?.TrySetResult(result);
+        cancellationRegistration.Dispose();
+        completion?.TrySetResult(cancellationToken.IsCancellationRequested ? null : result);
     }
-
-    private sealed record PickerDefinition(
-        BlueprintGraphNodeDefinition Definition,
-        string Title,
-        IReadOnlyList<string> PickerPath);
-}
-
-internal sealed class BlueprintNodePickerRow
-{
-    public BlueprintNodePickerRow(
-        string displayText,
-        int depth,
-        BlueprintGraphNodeDefinition definition)
-    {
-        DisplayText = displayText;
-        Depth = depth;
-        Definition = definition;
-    }
-
-    public BlueprintNodePickerRow(
-        string displayText,
-        int depth,
-        string groupPath,
-        bool isExpanded)
-    {
-        DisplayText = displayText;
-        Depth = depth;
-        GroupPath = groupPath;
-        IsExpanded = isExpanded;
-    }
-
-    public string DisplayText { get; }
-    public int Depth { get; }
-    public string? GroupPath { get; }
-    public BlueprintGraphNodeDefinition? Definition { get; }
-    public bool IsGroup => GroupPath is not null;
-    public bool IsExpanded { get; }
-}
-
-internal sealed class BlueprintNodePickerTreeItem
-{
-    public BlueprintNodePickerTreeItem(
-        string name,
-        string path,
-        BlueprintGraphNodeDefinition? definition)
-    {
-        Name = name;
-        Path = path;
-        Definition = definition;
-    }
-
-    public string Name { get; }
-    public string Path { get; }
-    public BlueprintGraphNodeDefinition? Definition { get; }
-    public List<BlueprintNodePickerTreeItem> Children { get; } = [];
 }

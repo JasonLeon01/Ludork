@@ -231,6 +231,7 @@ public sealed partial class ProjectDataStore
         if (disposed)
             return;
         disposed = true;
+        BlueprintNodeSearch?.Dispose();
         referenceIndex?.Dispose();
         blueprintClasses?.Dispose();
         Thumbnails.Dispose();

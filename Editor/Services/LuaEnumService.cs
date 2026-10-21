@@ -7,6 +7,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace Ludork.Services;
 
@@ -19,6 +20,10 @@ public sealed class LuaEnumService
     private readonly string projectPath;
 
     private readonly Func<ProjectEnumCatalog>? catalog;
+    private Dictionary<string, LuaEnumDefinition>? capturedModules;
+    private Dictionary<string, LuaEnumDefinition>? preparedModules;
+    private int preparedReadDepth;
+    private CancellationToken captureCancellationToken;
 
     public LuaEnumService(string projectPath, Func<ProjectEnumCatalog>? catalog = null)
     {
@@ -52,6 +57,32 @@ public sealed class LuaEnumService
 
     public LuaEnumDefinition Read(string moduleName) => Read(LuaMetadataType.Parse(new JsonObject { ["enum"] = moduleName }));
 
+    internal IDisposable BeginSnapshotRead(CancellationToken cancellationToken)
+    {
+        if (capturedModules is not null)
+            throw new InvalidOperationException("An enum snapshot is already being captured.");
+        capturedModules = new Dictionary<string, LuaEnumDefinition>(StringComparer.Ordinal);
+        captureCancellationToken = cancellationToken;
+        return new SnapshotReadScope(this);
+    }
+
+    internal IDisposable BeginPreparedRead()
+    {
+        if (preparedReadDepth == 0)
+        {
+            if (capturedModules is not null || preparedModules is null)
+                throw new InvalidOperationException("Enum modules must be captured before a prepared read.");
+            capturedModules = preparedModules;
+        }
+        preparedReadDepth++;
+        return new SnapshotReadScope(this, true);
+    }
+
+    internal void AdoptPreparedState(LuaEnumService prepared)
+    {
+        preparedModules = prepared.preparedModules;
+    }
+
     public LuaEnumDefinition Read(LuaMetadataType schema)
     {
         string moduleName = schema.Name;
@@ -59,49 +90,104 @@ public sealed class LuaEnumService
         {
             LuaMetadataType.ValidateEnumModule(moduleName);
             LuaMetadataType? declared = schema.EnumValueType;
+            LuaEnumDefinition module = readModule(moduleName);
+            if (module.Error is not null)
+                return module;
             if (catalog is not null && ProjectEnumCatalog.IsManagedModule(moduleName))
             {
-                if (!catalog().Definitions.TryGetValue(moduleName, out LuaEnumDefinition? managed))
-                    throw new InvalidDataException("Project enum does not exist.");
                 if (declared is not null && declared.Name != "string")
                     throw new InvalidDataException("Project enum values require string valueType.");
-                return managed;
+                return module;
             }
-            string path = Path.Combine(projectPath, "Scripts", moduleName.Replace('.', Path.DirectorySeparatorChar) + ".lua");
-            string source = File.ReadAllText(path);
-            Script script = new(CoreModules.None);
-            script.LoadString(source, null, path);
-            IReadOnlyDictionary<string, JsonNode> constants = readConstants(source, script);
-            List<BlueprintVariableOption> options = [];
-            string? valueKind = null;
-            bool integers = true;
-            foreach (KeyValuePair<string, JsonNode> pair in constants)
-            {
-                if (string.IsNullOrWhiteSpace(pair.Key))
-                    throw new InvalidDataException("Enum keys must be non-empty strings.");
-                JsonValue value = (JsonValue)pair.Value;
-                string kind = value.TryGetValue(out string? _) ? "string" : value.TryGetValue(out bool _) ? "bool" : "number";
-                if (valueKind is not null && valueKind != kind)
-                    throw new InvalidDataException("Enum values must all have the same scalar type.");
-                valueKind = kind;
-                if (kind == "number")
-                    integers &= value.TryGetValue(out long _);
-                options.Add(new BlueprintVariableOption(pair.Key, value));
-            }
-            if (options.Count == 0)
+            if (module.ValueType is null)
             {
                 if (declared is null)
                     throw new InvalidDataException("Empty enum module requires an explicit valueType.");
-                return new LuaEnumDefinition(moduleName, declared, [], null);
+                return module with { ValueType = declared };
             }
-            string valueType = valueKind == "string" ? "string" : valueKind == "bool" ? "bool" : integers ? "int" : "float";
-            if (declared is not null && declared.Name != valueType && !(declared.Name == "float" && valueType == "int"))
+            if (declared is not null && declared.Name != module.ValueType.Name
+                && !(declared.Name == "float" && module.ValueType.Name == "int"))
                 throw new InvalidDataException("Enum constants conflict with the declared valueType.");
-            return new LuaEnumDefinition(moduleName, declared ?? LuaMetadataType.Parse(valueType), options.OrderBy(option => option.Label, StringComparer.Ordinal).ToArray(), null);
+            return declared is null ? module : module with { ValueType = declared };
         }
         catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or InterpreterException or ArgumentException or RegexMatchTimeoutException)
         {
             return new LuaEnumDefinition(moduleName, null, [], moduleName + ": " + exception.Message);
+        }
+    }
+
+    private LuaEnumDefinition readModule(string moduleName)
+    {
+        captureCancellationToken.ThrowIfCancellationRequested();
+        if (capturedModules?.TryGetValue(moduleName, out LuaEnumDefinition? cached) == true)
+            return cached;
+        if (preparedReadDepth != 0)
+            return new LuaEnumDefinition(moduleName, null, [], moduleName + ": Enum module does not exist.");
+        LuaEnumDefinition result;
+        try
+        {
+            result = readModuleCore(moduleName);
+        }
+        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or InterpreterException or ArgumentException or RegexMatchTimeoutException)
+        {
+            result = new LuaEnumDefinition(moduleName, null, [], moduleName + ": " + exception.Message);
+        }
+        if (capturedModules is not null)
+            capturedModules[moduleName] = result;
+        return result;
+    }
+
+    private LuaEnumDefinition readModuleCore(string moduleName)
+    {
+        if (catalog is not null && ProjectEnumCatalog.IsManagedModule(moduleName))
+        {
+            if (!catalog().Definitions.TryGetValue(moduleName, out LuaEnumDefinition? managed))
+                throw new InvalidDataException("Project enum does not exist.");
+            return managed;
+        }
+        string path = Path.Combine(projectPath, "Scripts", moduleName.Replace('.', Path.DirectorySeparatorChar) + ".lua");
+        string source = File.ReadAllText(path);
+        Script script = new(CoreModules.None);
+        script.LoadString(source, null, path);
+        IReadOnlyDictionary<string, JsonNode> constants = readConstants(source, script);
+        List<BlueprintVariableOption> options = [];
+        string? valueKind = null;
+        bool integers = true;
+        foreach (KeyValuePair<string, JsonNode> pair in constants)
+        {
+            captureCancellationToken.ThrowIfCancellationRequested();
+            if (string.IsNullOrWhiteSpace(pair.Key))
+                throw new InvalidDataException("Enum keys must be non-empty strings.");
+            JsonValue value = (JsonValue)pair.Value;
+            string kind = value.TryGetValue(out string? _) ? "string" : value.TryGetValue(out bool _) ? "bool" : "number";
+            if (valueKind is not null && valueKind != kind)
+                throw new InvalidDataException("Enum values must all have the same scalar type.");
+            valueKind = kind;
+            if (kind == "number")
+                integers &= value.TryGetValue(out long _);
+            options.Add(new BlueprintVariableOption(pair.Key, value));
+        }
+        if (options.Count == 0)
+            return new LuaEnumDefinition(moduleName, null, [], null);
+        string valueType = valueKind == "string" ? "string" : valueKind == "bool" ? "bool" : integers ? "int" : "float";
+        return new LuaEnumDefinition(moduleName, LuaMetadataType.Parse(valueType), options.OrderBy(option => option.Label, StringComparer.Ordinal).ToArray(), null);
+    }
+
+    private sealed class SnapshotReadScope(LuaEnumService owner, bool prepared = false) : IDisposable
+    {
+        private LuaEnumService? service = owner;
+
+        public void Dispose()
+        {
+            LuaEnumService? current = service;
+            if (current is null)
+                return;
+            service = null;
+            if (prepared && --current.preparedReadDepth != 0)
+                return;
+            current.preparedModules = current.capturedModules;
+            current.capturedModules = null;
+            current.captureCancellationToken = default;
         }
     }
 

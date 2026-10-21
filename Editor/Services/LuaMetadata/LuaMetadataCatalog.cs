@@ -29,6 +29,17 @@ internal sealed class LuaMetadataCatalog
         enumeratedTypes = null;
     }
 
+    public void AdoptPreparedState(LuaMetadataCatalog prepared)
+    {
+        clear();
+        foreach (KeyValuePair<NodeMemberCacheKey, IReadOnlyList<LuaNodeMemberMetadata>> entry in prepared.nodeMemberCache)
+            nodeMemberCache.Add(entry.Key, entry.Value);
+        foreach (KeyValuePair<LuaNodeMemberKind, IReadOnlyList<LuaNodeMemberMetadata>> entry in prepared.enumeratedNodeMemberCache)
+            enumeratedNodeMemberCache.Add(entry.Key, entry.Value);
+        enumeratedNodeMembers = prepared.enumeratedNodeMembers;
+        enumeratedTypes = prepared.enumeratedTypes;
+    }
+
     public IReadOnlyList<LuaNodeMemberMetadata> GetNodeMembers(
         LuaTypeReference type,
         LuaNodeMemberKind? kind = null,

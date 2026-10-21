@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace Ludork.Services;
 
@@ -18,19 +19,22 @@ internal sealed class LuaStubTypeHierarchy
     private readonly Dictionary<string, string[]> bases = new(StringComparer.Ordinal);
     private readonly Dictionary<string, (DateTime Modified, long Length)> stamps = new(StringComparer.OrdinalIgnoreCase);
 
-    public LuaStubTypeHierarchy(string directory)
+    public LuaStubTypeHierarchy(string directory, CancellationToken cancellationToken = default)
     {
         this.directory = directory;
         foreach (string path in getPaths())
         {
+            cancellationToken.ThrowIfCancellationRequested();
             FileInfo info = new(path);
             stamps[path] = (info.LastWriteTimeUtc, info.Length);
             foreach (string line in File.ReadLines(path))
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 Match annotation = ClassAnnotation.Match(line.TrimStart());
                 if (!annotation.Success)
                     continue;
                 string name = annotation.Groups[1].Value;
+                bases.TryAdd(name, []);
                 string remainder = annotation.Groups[2].Value.Trim();
                 if (remainder.StartsWith('<'))
                 {
@@ -55,6 +59,8 @@ internal sealed class LuaStubTypeHierarchy
             }
         }
     }
+
+    public IEnumerable<string> TypeNames => bases.Keys;
 
     public IReadOnlyList<string> GetBases(string typeName)
     {

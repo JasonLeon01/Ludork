@@ -54,9 +54,22 @@ internal static class EditorProjectOpenWorkflow
         IProgress<EditorOperationProgress> progress, CancellationToken token)
     {
         progress.Report(new("EDIT_OPERATION_VALIDATING"));
-        ProjectDataStore data = await Task.Run(() => new ProjectDataStore(projectPath, loadCancellationToken: token,
-            loadProgress: path => progress.Report(new("EDIT_OPERATION_VALIDATING",
-                Path.GetRelativePath(projectPath, path)))), token);
+        ProjectDataStore data = await Task.Run(() =>
+        {
+            ProjectDataStore loaded = new(projectPath, loadCancellationToken: token,
+                loadProgress: path => progress.Report(new("EDIT_OPERATION_VALIDATING",
+                    Path.GetRelativePath(projectPath, path))));
+            try
+            {
+                loaded.BlueprintNodeSearch = new BlueprintNodeSearchService(loaded, token);
+                return loaded;
+            }
+            catch
+            {
+                loaded.Dispose();
+                throw;
+            }
+        }, token);
         if (token.IsCancellationRequested)
         {
             data.Dispose();

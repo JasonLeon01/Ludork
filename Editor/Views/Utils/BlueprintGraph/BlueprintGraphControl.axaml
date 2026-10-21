@@ -58,14 +58,31 @@
             </nodify:NodifyEditor.ConnectionTemplate>
             <nodify:NodifyEditor.PendingConnectionTemplate>
                 <DataTemplate x:DataType="vm:BlueprintPendingConnectionViewModel">
-                    <nodify:PendingConnection StartedCommand="{Binding StartCommand}"
-                                              CompletedCommand="{Binding CompleteCommand}"
-                                              EnablePreview="True"
-                                              EnableSnapping="True"
-                                              Stroke="{DynamicResource Editor.AccentBrush}"
-                                              Background="{DynamicResource Editor.AccentMutedBrush}"
-                                              Direction="{Binding Source.Flow, Converter={StaticResource FlowToDirectionConverter}}"
-                                              PreviewTarget="{Binding PreviewTarget, Mode=OneWayToSource}" />
+                    <Grid>
+                        <nodify:PendingConnection StartedCommand="{Binding StartCommand}"
+                                                  CompletedCommand="{Binding CompleteCommand}"
+                                                  EnablePreview="True"
+                                                  EnableSnapping="True"
+                                                  Stroke="{DynamicResource Editor.AccentBrush}"
+                                                  Background="{DynamicResource Editor.AccentMutedBrush}"
+                                                  Direction="{Binding Source.Flow, Converter={StaticResource FlowToDirectionConverter}}"
+                                                  PreviewTarget="{Binding PreviewTarget, Mode=OneWayToSource}" />
+                        <Canvas IsVisible="{Binding IsPickerPreviewVisible}"
+                                IsHitTestVisible="False"
+                                Width="{Binding $parent[nodify:NodifyEditor].Bounds.Width}"
+                                Height="{Binding $parent[nodify:NodifyEditor].Bounds.Height}"
+                                RenderTransform="{Binding $parent[nodify:NodifyEditor].ViewTranslateTransform}">
+                            <nodify:Connection Source="{Binding PickerSource.Anchor}"
+                                               Target="{Binding PickerTarget}"
+                                               Stroke="{DynamicResource Editor.AccentBrush}"
+                                               StrokeThickness="3"
+                                               StrokeDashArray="4,4"
+                                               Spacing="0"
+                                               ArrowSize="0,0"
+                                               SourceOffsetMode="None"
+                                               TargetOffsetMode="None" />
+                        </Canvas>
+                    </Grid>
                 </DataTemplate>
             </nodify:NodifyEditor.PendingConnectionTemplate>
             <nodify:NodifyEditor.ItemTemplate>
@@ -146,5 +163,8 @@
                 </DataTemplate>
             </nodify:NodifyEditor.ItemTemplate>
         </nodify:NodifyEditor>
+        <TextBlock x:Name="SearchError" IsVisible="False" IsHitTestVisible="False"
+                   VerticalAlignment="Top" Margin="12" TextWrapping="Wrap"
+                   Foreground="OrangeRed" />
     </Grid>
 </UserControl>
