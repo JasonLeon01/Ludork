@@ -19,15 +19,46 @@ internal sealed class MapPreviewClient(PreviewRuntimeService runtime) : IDisposa
     private string? sceneKey;
     private long revision = -1;
     private long resourceRevision = -1;
+    private long materialRevision = -1;
     private MapPreviewSceneDelta.Snapshot? acceptedScene;
     internal JsonObject? LastResponse { get; private set; }
 
-    public async Task<Bitmap> RenderAsync(JsonObject request, JsonObject scene, CancellationToken cancellationToken)
+    public async Task<Bitmap> RenderAsync(JsonObject request, JsonObject scene, JsonObject materials, CancellationToken cancellationToken)
     {
+        string key = request["sceneKey"]!.GetValue<string>();
+        long nextRevision = request["revision"]!.GetValue<long>();
+        MapPreviewSceneDelta.Snapshot nextScene = sceneKey == key && revision == nextRevision && acceptedScene is not null
+            ? acceptedScene : new(scene);
         await requests.WaitAsync(cancellationToken);
         try
         {
-            return await renderAsync(request, scene, cancellationToken).ConfigureAwait(false);
+            bool wasReady = connection.IsReady;
+            long nextResourceRevision = request["resourceRevision"]!.GetValue<long>();
+            long nextMaterialRevision = request["materialRevision"]!.GetValue<long>();
+            bool fullScene = !wasReady || sceneKey != key || resourceRevision != nextResourceRevision || acceptedScene is null;
+            if (fullScene)
+                request["scene"] = nextScene.ToJson();
+            else if (revision != nextRevision)
+                request["sceneChanges"] = MapPreviewSceneDelta.Create(acceptedScene!, nextScene);
+            if (!wasReady || resourceRevision != nextResourceRevision || materialRevision != nextMaterialRevision)
+                request["materials"] = materials.DeepClone();
+            request["type"] = "renderMap";
+            request["sessionId"] = sessionId;
+            acceptedScene = null;
+            materialRevision = -1;
+            if (!wasReady && !await connection.StartAsync(cancellationToken))
+                throw new InvalidOperationException(connection.StatusMessage);
+            if (!connection.Capabilities.Contains("map") || !connection.Capabilities.Contains("mapActorChanges")
+                || !connection.Capabilities.Contains("mapEmitters") || !connection.Capabilities.Contains("mapMaterialSnapshots"))
+                throw new InvalidOperationException(LocaleService.Get("MAP_PREVIEW_UNAVAILABLE"));
+            (Bitmap bitmap, JsonObject response) = await Task.Run(() => renderAsync(request, cancellationToken), cancellationToken);
+            LastResponse = response;
+            sceneKey = key;
+            revision = nextRevision;
+            resourceRevision = nextResourceRevision;
+            materialRevision = nextMaterialRevision;
+            acceptedScene = nextScene;
+            return bitmap;
         }
         finally
         {
@@ -35,28 +66,8 @@ internal sealed class MapPreviewClient(PreviewRuntimeService runtime) : IDisposa
         }
     }
 
-    private async Task<Bitmap> renderAsync(JsonObject request, JsonObject scene, CancellationToken cancellationToken)
+    private async Task<(Bitmap Bitmap, JsonObject Response)> renderAsync(JsonObject request, CancellationToken cancellationToken)
     {
-        MapPreviewSceneDelta.Snapshot nextScene = new(scene);
-        bool wasReady = connection.IsReady;
-        string key = request["sceneKey"]!.GetValue<string>();
-        long nextRevision = request["revision"]!.GetValue<long>();
-        long nextResourceRevision = request["resourceRevision"]!.GetValue<long>();
-        bool fullScene = !wasReady || sceneKey != key || resourceRevision != nextResourceRevision || acceptedScene is null;
-        if (fullScene)
-            request["scene"] = scene.DeepClone();
-        else if (revision != nextRevision)
-            request["sceneChanges"] = MapPreviewSceneDelta.Create(acceptedScene!, scene);
-        request["materials"] = scene["materials"]?.DeepClone() ?? new JsonObject();
-        request["type"] = "renderMap";
-        request["sessionId"] = sessionId;
-        acceptedScene = null;
-        if (!wasReady && !await connection.StartAsync(cancellationToken).ConfigureAwait(false))
-            throw new InvalidOperationException(connection.StatusMessage);
-        if (!connection.Capabilities.Contains("map") || !connection.Capabilities.Contains("mapActorChanges")
-            || !connection.Capabilities.Contains("mapEmitters"))
-            throw new InvalidOperationException(LocaleService.Get("MAP_PREVIEW_UNAVAILABLE"));
-        sceneKey = key;
         JsonObject response = await connection.ExchangeAsync(request, cancellationToken).ConfigureAwait(false);
         if (response["type"]?.GetValue<string>() != "mapFrame"
             || response["sessionId"]?.GetValue<string>() != sessionId
@@ -74,16 +85,12 @@ internal sealed class MapPreviewClient(PreviewRuntimeService runtime) : IDisposa
         long bitmapStarted = Stopwatch.GetTimestamp();
         Bitmap bitmap = createBitmap(pixels, new PixelSize(width, height));
         response["previewBitmapMs"] = Stopwatch.GetElapsedTime(bitmapStarted).TotalMilliseconds;
-        LastResponse = response;
-        revision = nextRevision;
-        resourceRevision = nextResourceRevision;
-        acceptedScene = nextScene;
-        return bitmap;
+        return (bitmap, response);
     }
 
     internal async Task CloseSceneAsync(string leaseId)
     {
-        await requests.WaitAsync().ConfigureAwait(false);
+        await requests.WaitAsync();
         try
         {
             if (sceneKey is not string key || !key.StartsWith(leaseId + "/", StringComparison.Ordinal) || !connection.IsReady)
@@ -93,7 +100,7 @@ internal sealed class MapPreviewClient(PreviewRuntimeService runtime) : IDisposa
             JsonObject response = await connection.ExchangeAsync(new JsonObject
             {
                 ["type"] = "closeMap", ["sessionId"] = sessionId, ["sceneKey"] = key,
-            }, CancellationToken.None).ConfigureAwait(false);
+            }, CancellationToken.None);
             if (response["type"]?.GetValue<string>() != "mapClosed"
                 || response["sessionId"]?.GetValue<string>() != sessionId
                 || response["sceneKey"]?.GetValue<string>() != key)
@@ -101,6 +108,7 @@ internal sealed class MapPreviewClient(PreviewRuntimeService runtime) : IDisposa
         }
         catch (Exception exception) when (PreviewHostConnection.IsProtocolException(exception) || exception is InvalidOperationException)
         {
+            materialRevision = -1;
             Debug.WriteLine(exception);
         }
         finally

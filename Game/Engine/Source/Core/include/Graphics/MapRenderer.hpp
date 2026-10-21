@@ -118,6 +118,7 @@ public:
                      const DrawHooks& hooks = {});
     void drawSprite(const Sprite& sprite, sf::RenderTarget& target,
                     const sf::RenderStates& states, float time);
+    void invalidateScene() noexcept;
     void reset();
 
 private:

@@ -207,7 +207,7 @@ std::shared_ptr<TileLayer> MapPreviewSession::Impl::updateLayer(
         {"tileset", tilesetValue == nullptr ? RuntimeData() : *tilesetValue},
         {"autoTiles", RuntimeData(std::move(autoSignature))},
         {"material", RuntimeData(material)},
-        {"materialSignature", RuntimeData(materialSignature)},
+        {"materialRevision", RuntimeData(materialRevision)},
     })));
     Layer& cached = layers[cacheKey];
     if (!cached.graphics || cached.signature != signature) {
@@ -324,19 +324,24 @@ void MapPreviewSession::Impl::updateLight(std::size_t index,
 }
 
 void MapPreviewSession::Impl::updateVisuals(const RuntimeData::Map& changes,
-                                            const std::string& name) {
+                                            const std::string& name,
+                                            bool updateGraphics) {
     const RuntimeData::Array& before =
         map_preview_data::array(map_preview_data::required(sceneData, name));
     const RuntimeData::Map& delta =
         map_preview_data::map(map_preview_data::required(changes, name));
+    RuntimeData::Array after =
+        changedRecords(before, delta, "upsert", "removed", "order");
+    if (!updateGraphics) {
+        sceneData.insert_or_assign(name, RuntimeData(std::move(after)));
+        return;
+    }
     std::unordered_map<std::string, std::size_t> oldIndices;
     for (std::size_t index = 0; index < before.size(); ++index) {
         oldIndices.emplace(
             map_preview_data::text(map_preview_data::map(before[index]), "id"),
             index);
     }
-    RuntimeData::Array after =
-        changedRecords(before, delta, "upsert", "removed", "order");
     std::unordered_set<std::string> changed;
     for (const RuntimeData& value :
          map_preview_data::array(map_preview_data::required(delta, "upsert"))) {
@@ -504,36 +509,53 @@ RuntimeData MapPreviewSession::Impl::render(const RuntimeData::Map& request,
     const std::int64_t generation = revision(request, "generation");
     const std::int64_t nextResourceRevision =
         revision(request, "resourceRevision");
+    const std::int64_t nextMaterialRevision =
+        revision(request, "materialRevision");
+    if (nextMaterialRevision < 0) {
+        throw std::invalid_argument(
+            "Map material revision must be nonnegative");
+    }
     const std::string nextSceneKey =
         map_preview_data::text(request, "sceneKey");
     const RuntimeData* materialValues =
         map_preview_data::optional(request, "materials");
-    const std::string nextMaterialSignature =
-        materialValues == nullptr ? std::string{}
-                                  : stringifyJSON(*materialValues);
-    if (nextResourceRevision != resourceRevision) {
+    const bool resourcesChanged = nextResourceRevision != resourceRevision;
+    if (materialValues == nullptr &&
+        (materials == nullptr || nextMaterialRevision != materialRevision ||
+         resourcesChanged)) {
+        throw std::invalid_argument(
+            "Map material revision requires a complete material snapshot");
+    }
+    std::unique_ptr<ludork::engine::materials::MaterialResource::Overrides>
+        nextMaterials;
+    if (materialValues != nullptr) {
+        nextMaterials = std::make_unique<
+            ludork::engine::materials::MaterialResource::Overrides>(
+            map_preview_data::map(*materialValues));
+    }
+    if (resourcesChanged) {
         reset();
         resourceRevision = nextResourceRevision;
     } else if (sceneKey != nextSceneKey) {
-        emitters.clear();
-        renderer.reset();
-        scene = {};
-        sceneData.clear();
-        layers.clear();
-        spriteIds.clear();
-        animations.clear();
-        nextSpriteId = 1;
-        hasScene = false;
+        clearScene();
     }
     sceneKey = nextSceneKey;
-    const bool materialsChanged = materialSignature != nextMaterialSignature;
-    materialSignature = nextMaterialSignature;
+    bool rebuild = nextMaterials != nullptr;
+    if (nextMaterials != nullptr) {
+        materials = std::move(nextMaterials);
+        materialRevision = nextMaterialRevision;
+        layers.clear();
+        if (!resourcesChanged) {
+            renderer.reset();
+        }
+    }
+    const ludork::engine::materials::MaterialResource::ScopedOverrides
+        materialScope(*materials);
     bool sceneChanged = false;
     if (const RuntimeData* data =
             map_preview_data::optional(request, "scene")) {
         sceneData = map_preview_data::map(*data);
-        updateScene(sceneData);
-        sceneChanged = true;
+        rebuild = true;
     } else if (const RuntimeData* changes =
                    map_preview_data::optional(request, "sceneChanges")) {
         if (!hasScene) {
@@ -543,7 +565,7 @@ RuntimeData MapPreviewSession::Impl::render(const RuntimeData::Map& request,
         const RuntimeData::Map& values = map_preview_data::map(*changes);
         const RuntimeData::Map& fields =
             map_preview_data::map(map_preview_data::required(values, "fields"));
-        bool rebuild = !fields.empty();
+        rebuild = rebuild || !fields.empty();
         for (const auto& [key, value] : fields) {
             if (key == "regions" || key == "sprites" || key == "lights") {
                 throw std::invalid_argument(
@@ -575,21 +597,17 @@ RuntimeData MapPreviewSession::Impl::render(const RuntimeData::Map& request,
                         map_preview_data::required(sceneData, "regions")),
                     values, "regions", "removedRegions", "regionOrder")));
         }
-        updateVisuals(values, "sprites");
-        updateVisuals(values, "lights");
-        if (rebuild) {
-            updateScene(sceneData);
-        }
+        updateVisuals(values, "sprites", !rebuild);
+        updateVisuals(values, "lights", !rebuild);
+        sceneChanged = true;
+    }
+    if (rebuild) {
+        updateScene(sceneData);
         sceneChanged = true;
     }
     if (!hasScene) {
         throw std::invalid_argument(
             "Map preview needs a complete scene after opening or restarting");
-    }
-    if (materialsChanged) {
-        renderer.reset();
-        updateScene(sceneData);
-        sceneChanged = true;
     }
     if (sceneChanged) {
         emitters.update(sceneData, scene);
@@ -677,17 +695,12 @@ RuntimeData MapPreviewSession::Impl::render(const RuntimeData::Map& request,
     }));
 }
 
-void MapPreviewSession::Impl::reset() {
-    if (context != nullptr) {
-        activate();
-    }
-    emitters.clear();
-    renderer.reset();
+void MapPreviewSession::Impl::clearScene(bool releaseEmitterResources) {
+    emitters.clear(releaseEmitterResources);
+    renderer.invalidateScene();
     scene = {};
     sceneData.clear();
     layers.clear();
-    textures.clear();
-    materialSignature.clear();
     spriteIds.clear();
     animations.clear();
     nextSpriteId = 1;
@@ -695,11 +708,31 @@ void MapPreviewSession::Impl::reset() {
     hasScene = false;
 }
 
+void MapPreviewSession::Impl::reset() {
+    if (context != nullptr) {
+        activate();
+    }
+    clearScene(true);
+    renderer.reset();
+    textures.clear();
+    materials.reset();
+    resourceRevision = -1;
+    materialRevision = -1;
+}
+
 MapPreviewSession::MapPreviewSession() : impl_(std::make_unique<Impl>()) {}
 MapPreviewSession::~MapPreviewSession() = default;
 RuntimeData MapPreviewSession::render(const RuntimeData::Map& request,
                                       FrameFiles& frameFiles) {
-    return impl_->render(request, frameFiles);
+    try {
+        return impl_->render(request, frameFiles);
+    } catch (...) {
+        impl_->clearScene();
+        impl_->materials.reset();
+        impl_->resourceRevision = -1;
+        impl_->materialRevision = -1;
+        throw;
+    }
 }
 void MapPreviewSession::reset() {
     impl_->reset();
@@ -707,7 +740,8 @@ void MapPreviewSession::reset() {
 
 void MapPreviewSession::close(const std::string& sceneKey) {
     if (impl_->sceneKey == sceneKey) {
-        impl_->reset();
+        impl_->activate();
+        impl_->clearScene();
     }
 }
 

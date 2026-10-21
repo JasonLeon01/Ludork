@@ -15,6 +15,7 @@ public sealed partial class MapPanel
     private JsonObject? nativeScene;
     private long nativeSceneRevision;
     private long nativeContentRevision = -1;
+    private long? nativeSelectionStartedAt;
 
     private void configureNativePreview()
     {
@@ -41,6 +42,11 @@ public sealed partial class MapPanel
             return;
         if (nativePreview is null)
             configureNativePreview();
+        if (nativeSelectionStartedAt is long selectedAt)
+        {
+            nativePreview!.RecordSelection(selectedAt);
+            nativeSelectionStartedAt = null;
+        }
         MapPreviewService service = previewService.MapPreviews;
         if (nativeScene is null || nativeContentRevision != service.ContentRevision)
         {

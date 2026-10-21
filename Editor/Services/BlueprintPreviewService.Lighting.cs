@@ -13,7 +13,7 @@ public sealed partial class BlueprintPreviewService
         if (BlueprintReference.IsReference(blueprintReference)
             && !gameData.Blueprints.BlueprintsData.ContainsKey(BlueprintReference.NormalizeKey(blueprintReference)))
             return null;
-        return tryResolveActorLight(classResolver.Resolve(blueprintReference, overrides));
+        return tryResolveActorLight(resolveActorClass(blueprintReference, overrides));
     }
 
     internal ActorLightDescriptor? tryResolveActorLight(ResolvedBlueprintClass resolved)

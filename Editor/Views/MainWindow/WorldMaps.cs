@@ -94,7 +94,8 @@ public partial class MainWindow
         else
         {
             WorldEditorPanel.SetWorld(null, null, Array.Empty<WorldMapChildSource>());
-            EditorPanel.refreshMap(viewModel?.MapWorkspace.SelectedMap?.Key, viewModel?.MapWorkspace.SelectedMapData);
+            EditorPanel.refreshMap(viewModel?.MapWorkspace.SelectedMap?.Key, viewModel?.MapWorkspace.SelectedMapData,
+                viewModel?.MapWorkspace.SelectedMapChangedAt);
             selectPreviewMode(EditorPanel.EditMode);
         }
         refreshMapPanelState();
@@ -113,7 +114,8 @@ public partial class MainWindow
         WorldEditorPanel.SetWorld(
             world.Key,
             viewModel.GameData.Worlds.ReadWorldMapSnapshot(world.Key),
-            children);
+            children,
+            viewModel.MapWorkspace.SelectedMapChangedAt);
     }
 
     private void onMapListContextRequested(object? sender, ContextRequestedEventArgs args)

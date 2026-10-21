@@ -74,6 +74,7 @@ public:
     std::shared_ptr<sf::Texture> occupancy_;
     std::shared_ptr<sf::Texture> dynamicOccupancy_;
     sf::FloatRect transmissionRect_;
+    bool transmissionValid_ = false;
     std::size_t transmissionSignature_ = 0;
     std::size_t transmissionGeneration_ = 0;
 };

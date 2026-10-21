@@ -38,6 +38,8 @@ public sealed class MapPreviewService : IDisposable
     private double lastThumbnail;
     private double nextForeground;
     private long requestSequence;
+    private JsonObject? materialSnapshot;
+    private long materialRevision;
 
     public MapPreviewService(ProjectDataStore gameData, PreviewRuntimeService runtime, ProjectConfigService projectConfig)
     {
@@ -121,7 +123,7 @@ public sealed class MapPreviewService : IDisposable
             || !current.Pending && !Options.Realtime)
             return;
         double now = clock.Elapsed.TotalSeconds;
-        double delay = Math.Max(nextForeground, current.RetryAfter) - now;
+        double delay = Math.Max(current.PriorityPending ? now : nextForeground, current.RetryAfter) - now;
         if (delay > 0)
         {
             foregroundTimer.Stop();
@@ -171,10 +173,13 @@ public sealed class MapPreviewService : IDisposable
             foregroundBusy = true;
         bool contentPending = lease.Pending;
         lease.Pending = false;
+        lease.PriorityPending = false;
         long generation = lease.Generation;
         long epoch = lease.Epoch;
         long sequence = ++requestSequence;
         long resourceRevision = ResourceRevision;
+        long nextMaterialRevision = materialRevision;
+        long? selectionStartedAt = lease.SelectionStartedAt;
         Rect view = lease.View;
         PixelSize size = lease.Size;
         MapPreviewOptions options = lease.Options;
@@ -184,7 +189,8 @@ public sealed class MapPreviewService : IDisposable
         JsonObject request = new()
         {
             ["generation"] = sequence, ["sceneKey"] = lease.SceneKey, ["revision"] = lease.Revision,
-            ["resourceRevision"] = resourceRevision, ["width"] = size.Width, ["height"] = size.Height,
+            ["resourceRevision"] = resourceRevision, ["materialRevision"] = nextMaterialRevision,
+            ["width"] = size.Width, ["height"] = size.Height,
             ["view"] = new JsonObject { ["x"] = view.X, ["y"] = view.Y, ["width"] = view.Width, ["height"] = view.Height, ["rotation"] = 0 },
             ["time"] = thumbnail ? 0 : animationTime, ["lit"] = options.Lit, ["showFog"] = options.ShowFog,
             ["showPanorama"] = options.ShowPanorama, ["selectedLayer"] = lease.SelectedLayer, ["otherLayerOpacity"] = 0.5,
@@ -192,9 +198,11 @@ public sealed class MapPreviewService : IDisposable
         };
         try
         {
-            Bitmap bitmap = await client.RenderAsync(request, lease.Scene!, lifetime.Token);
+            materialSnapshot ??= gameData.Assets.CaptureMaterials();
+            Bitmap bitmap = await client.RenderAsync(request, lease.Scene!, materialSnapshot, lifetime.Token);
             if (disposed || !lease.CanRender || epoch != lease.Epoch || sequence <= lease.PublishedSequence
-                || resourceRevision != ResourceRevision || thumbnail && generation != lease.Generation)
+                || resourceRevision != ResourceRevision || nextMaterialRevision != materialRevision
+                || thumbnail && generation != lease.Generation)
             {
                 bitmap.Dispose();
                 return;
@@ -203,7 +211,10 @@ public sealed class MapPreviewService : IDisposable
             lease.LastFrameTiming = new(Stopwatch.GetElapsedTime(changedAt).TotalMilliseconds, sceneMilliseconds,
                 milliseconds(timing, "previewSerializeMs"), milliseconds(timing, "previewSceneApplyMs"),
                 milliseconds(timing, "renderMilliseconds"), milliseconds(timing, "previewReadbackMs"),
-                milliseconds(timing, "previewTransferMs"), milliseconds(timing, "previewPixelReadMs"), milliseconds(timing, "previewBitmapMs"));
+                milliseconds(timing, "previewTransferMs"), milliseconds(timing, "previewPixelReadMs"), milliseconds(timing, "previewBitmapMs"),
+                selectionStartedAt is long selectedAt ? Stopwatch.GetElapsedTime(selectedAt).TotalMilliseconds : null);
+            if (selectionStartedAt == lease.SelectionStartedAt)
+                lease.SelectionStartedAt = null;
             lease.PublishedSequence = sequence;
             lease.Publish(bitmap, view, string.Empty);
         }
@@ -239,6 +250,8 @@ public sealed class MapPreviewService : IDisposable
     internal void InvalidateResources() => invalidate(true);
     private void onDocumentsChanged(object? sender, EditorDocumentsChangedEventArgs args)
     {
+        if (args.Reset || args.Changes.Any(change => change.Section == "Materials"))
+            invalidateMaterials();
         if (args.Reset || args.Changes.Any(change => change.Section is "WorldMaps" or "Blueprints" or "Tilesets" or "AutoTiles" or "Materials" or "Particles" or "Curves" or "Configs" || change.Section == "Maps" && change.IdentityChanged))
             invalidate(false);
     }
@@ -247,7 +260,16 @@ public sealed class MapPreviewService : IDisposable
         if (args.Edit is null || !MapPreviewSceneBuilder.IsActorEdit(args.Edit))
             invalidate(false);
     }
-    private void onDataRestored(object? sender, EventArgs args) => invalidate(true);
+    private void onDataRestored(object? sender, EventArgs args)
+    {
+        invalidateMaterials();
+        invalidate(true);
+    }
+    private void invalidateMaterials()
+    {
+        materialRevision++;
+        materialSnapshot = null;
+    }
     private void onRuntimeChanged(object? sender, EventArgs args) => Dispatcher.UIThread.Post(() => invalidate(true));
     private void invalidate(bool resources)
     {

@@ -14,17 +14,27 @@ internal static class MapPreviewSceneDelta
         public Dictionary<string, JsonObject> Regions { get; } = records(scene, "regions");
         public Dictionary<string, JsonObject> Sprites { get; } = records(scene, "sprites");
         public Dictionary<string, JsonObject> Lights { get; } = records(scene, "lights");
+
+        public JsonObject ToJson()
+        {
+            JsonObject result = new();
+            foreach ((string key, JsonNode? value) in Fields)
+                result[key] = value?.DeepClone();
+            result["regions"] = new JsonArray(Regions.Values.Select(value => value.DeepClone()).ToArray());
+            result["sprites"] = new JsonArray(Sprites.Values.Select(value => value.DeepClone()).ToArray());
+            result["lights"] = new JsonArray(Lights.Values.Select(value => value.DeepClone()).ToArray());
+            return result;
+        }
     }
 
-    public static JsonObject Create(Snapshot previous, JsonObject current)
+    public static JsonObject Create(Snapshot previous, Snapshot current)
     {
         JsonObject fields = [];
-        foreach (KeyValuePair<string, JsonNode?> field in current)
-            if (field.Key is not ("regions" or "sprites" or "lights")
-                && (!previous.Fields.TryGetValue(field.Key, out JsonNode? old) || !equal(old, field.Value)))
+        foreach (KeyValuePair<string, JsonNode?> field in current.Fields)
+            if (!previous.Fields.TryGetValue(field.Key, out JsonNode? old) || !equal(old, field.Value))
                 fields[field.Key] = field.Value?.DeepClone();
         Dictionary<string, JsonObject> oldRegions = previous.Regions;
-        Dictionary<string, JsonObject> newRegions = records(current, "regions");
+        Dictionary<string, JsonObject> newRegions = current.Regions;
         JsonArray changed = [];
         foreach (KeyValuePair<string, JsonObject> region in newRegions)
             if (!oldRegions.TryGetValue(region.Key, out JsonObject? old) || !equal(old, region.Value))
@@ -39,8 +49,8 @@ internal static class MapPreviewSceneDelta
         return new JsonObject
         {
             ["fields"] = fields, ["regions"] = changed, ["removedRegions"] = removed, ["regionOrder"] = order,
-            ["sprites"] = changes(previous.Sprites, records(current, "sprites")),
-            ["lights"] = changes(previous.Lights, records(current, "lights")),
+            ["sprites"] = changes(previous.Sprites, current.Sprites),
+            ["lights"] = changes(previous.Lights, current.Lights),
         };
     }
 

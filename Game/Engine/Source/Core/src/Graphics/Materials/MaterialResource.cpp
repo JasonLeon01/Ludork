@@ -19,6 +19,7 @@
 #include <sstream>
 #include <tuple>
 #include <unordered_set>
+#include <utility>
 
 namespace ludork::engine::materials {
 namespace {
@@ -165,10 +166,15 @@ std::shared_ptr<const MaterialResource> MaterialResource::load(
             found != (*scope)->resources_.end()) {
             return found->second;
         }
-        if (const auto document = (*scope)->documents_.find(path);
-            document != (*scope)->documents_.end()) {
+        const Overrides& values = (*scope)->values_;
+        if (const auto found = values.resources_.find(path);
+            found != values.resources_.end()) {
+            return found->second;
+        }
+        if (const auto document = values.documents_.find(path);
+            document != values.documents_.end()) {
             const auto resource = fromData(document->second, path);
-            (*scope)->resources_.emplace(path, resource);
+            values.resources_.emplace(path, resource);
             return resource;
         }
     }
@@ -207,9 +213,8 @@ std::shared_ptr<const MaterialResource> MaterialResource::load(
     });
 }
 
-MaterialResource::ScopedOverrides::ScopedOverrides(
-    const RuntimeData::Map& documents)
-    : documents_(documents) {
+MaterialResource::Overrides::Overrides(RuntimeData::Map documents)
+    : documents_(std::move(documents)) {
     for (const auto& [path, data] : documents_) {
         static_cast<void>(data);
         if (path.empty()) {
@@ -217,6 +222,10 @@ MaterialResource::ScopedOverrides::ScopedOverrides(
                 "Material preview override requires a resource path");
         }
     }
+}
+
+MaterialResource::ScopedOverrides::ScopedOverrides(const Overrides& values)
+    : values_(values) {
     overrides.push_back(this);
 }
 

@@ -193,12 +193,21 @@ public sealed partial class MapPanel : Control
         }, DispatcherPriority.Loaded);
     }
 
-    public void refreshMap(string? mapKey, JsonObject? mapData)
-        => refreshMapDocument(mapKey, mapData is null ? null : MapDocumentCodec.Decode(mapData));
+    public void refreshMap(string? mapKey, JsonObject? mapData, long? selectionStartedAt = null)
+    {
+        long started = selectionStartedAt ?? Stopwatch.GetTimestamp();
+        refreshMapDocument(mapKey, mapData is null ? null : MapDocumentCodec.Decode(mapData), started);
+    }
 
-    private void refreshMapDocument(string? mapKey, MapDocumentSnapshot? document)
+    private void refreshMapDocument(string? mapKey, MapDocumentSnapshot? document, long? selectionStartedAt = null)
     {
         cancelMapGesture();
+        if (mapKey != CurrentMapKey)
+        {
+            nativeSelectionStartedAt = mapKey is null ? null : selectionStartedAt ?? Stopwatch.GetTimestamp();
+            if (nativePreview is not null)
+                nativePreview.SelectionStartedAt = null;
+        }
         CurrentMapKey = mapKey;
         CurrentMapDocument = document;
         nativeScene = null;

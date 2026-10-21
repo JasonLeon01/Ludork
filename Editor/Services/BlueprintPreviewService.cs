@@ -54,11 +54,6 @@ public sealed partial class BlueprintPreviewService : IDisposable
             ? BlueprintReference.ToReference(document.Key) : null;
     }
 
-    public IDisposable BeginResolutionBatch()
-    {
-        return classResolver.BeginBatch();
-    }
-
     public void InvalidateVisuals()
     {
         MapPreviews.InvalidateScene();
@@ -85,10 +80,10 @@ public sealed partial class BlueprintPreviewService : IDisposable
         JsonObject? overrides = null)
     {
         if (!BlueprintReference.IsReference(blueprintReference))
-            return createActorVisual(classResolver.Resolve(blueprintReference, overrides), blueprintReference);
+            return tryResolveActorVisual(resolveActorClass(blueprintReference, overrides), blueprintReference);
         string key = BlueprintReference.NormalizeKey(blueprintReference);
         return gameData.Blueprints.BlueprintsData.ContainsKey(key)
-            ? tryResolveActorVisual(classResolver.Resolve(blueprintReference, overrides), blueprintReference)
+            ? tryResolveActorVisual(resolveActorClass(blueprintReference, overrides), blueprintReference)
             : null;
     }
 
@@ -108,7 +103,16 @@ public sealed partial class BlueprintPreviewService : IDisposable
         ResolvedBlueprintClass resolved,
         string blueprintReference)
     {
-        return createActorVisual(resolved, blueprintReference);
+        if (resolutionBatchDepth == 0)
+            return createActorVisual(resolved, blueprintReference);
+        ensureResolutionBatchCurrent();
+        (ResolvedBlueprintClass, string) key = (resolved, blueprintReference);
+        if (!batchActorVisuals.TryGetValue(key, out ActorVisualDescriptor? visual))
+        {
+            visual = createActorVisual(resolved, blueprintReference);
+            batchActorVisuals.Add(key, visual);
+        }
+        return visual;
     }
 
     public ActorVisualDescriptor? tryResolveMapActorVisual(JsonObject map, JsonObject actor)
@@ -131,7 +135,7 @@ public sealed partial class BlueprintPreviewService : IDisposable
         if (reference.Length == 0 || BlueprintReference.IsReference(reference)
             && !gameData.Blueprints.BlueprintsData.ContainsKey(BlueprintReference.NormalizeKey(reference)))
             return null;
-        return classResolver.Resolve(reference, overrides);
+        return resolveActorClass(reference, overrides);
     }
 
     public void Dispose()

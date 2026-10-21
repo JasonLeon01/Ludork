@@ -23,6 +23,7 @@ internal sealed class WorldMapPreviewRenderer : IDisposable
     private long worldRevision;
     private long contentRevision = -1;
     private long revision;
+    private string? selectedWorldKey;
 
     public WorldMapPreviewRenderer(ProjectDataStore gameData, BlueprintPreviewService? previewService = null)
     {
@@ -45,6 +46,18 @@ internal sealed class WorldMapPreviewRenderer : IDisposable
     {
         if (world is not null)
             world.Visible = visible;
+    }
+
+    public void RecordSelection(string? key, long? started)
+    {
+        if (selectedWorldKey == key)
+            return;
+        selectedWorldKey = key;
+        if (world is null)
+            return;
+        world.SelectionStartedAt = null;
+        if (key is not null)
+            world.RecordSelection(started ?? Stopwatch.GetTimestamp());
     }
 
     public void DrawMap(DrawingContext context, string key, JsonObject map, Point origin, double cellSize, Rect clip, double renderScale, Func<bool> visible)

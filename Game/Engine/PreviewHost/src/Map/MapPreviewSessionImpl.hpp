@@ -5,6 +5,7 @@
 
 #include <Gameplay/TileLayer.hpp>
 #include <Graphics/MapRenderer.hpp>
+#include <Graphics/Materials/MaterialResource.hpp>
 #include <SFML/Window/Context.hpp>
 
 #include <string>
@@ -33,6 +34,7 @@ public:
 
     RuntimeData render(const RuntimeData::Map& request, FrameFiles& frameFiles);
     void activate();
+    void clearScene(bool releaseEmitterResources = false);
     void reset();
     void updateScene(const RuntimeData::Map& data);
     std::shared_ptr<TileLayer> updateLayer(const std::string& cacheKey,
@@ -45,8 +47,8 @@ public:
     std::uint64_t spriteId(const std::string& name);
     void updateSprite(std::size_t index, const RuntimeData::Map& fields);
     void updateLight(std::size_t index, const RuntimeData::Map& fields);
-    void updateVisuals(const RuntimeData::Map& changes,
-                       const std::string& name);
+    void updateVisuals(const RuntimeData::Map& changes, const std::string& name,
+                       bool updateGraphics);
     void updateSprites(const RuntimeData::Array& values);
 
     std::unique_ptr<sf::Context> context;
@@ -56,12 +58,14 @@ public:
     RuntimeData::Map sceneData;
     std::unordered_map<std::string, Layer> layers;
     std::unordered_map<std::string, std::shared_ptr<sf::Texture>> textures;
-    std::string materialSignature;
+    std::unique_ptr<ludork::engine::materials::MaterialResource::Overrides>
+        materials;
     std::unordered_map<std::string, std::uint64_t> spriteIds;
     std::unordered_map<std::uint64_t, Animation> animations;
     std::uint64_t nextSpriteId = 1;
     std::string sceneKey;
     std::int64_t resourceRevision = -1;
+    std::int64_t materialRevision = -1;
     bool hasScene = false;
 };
 

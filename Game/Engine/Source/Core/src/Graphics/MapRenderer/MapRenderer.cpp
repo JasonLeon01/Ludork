@@ -35,6 +35,10 @@ const MapRenderer::Statistics& MapRenderer::statistics() const {
     return impl_->statistics_;
 }
 
+void MapRenderer::invalidateScene() noexcept {
+    impl_->transmissionValid_ = false;
+}
+
 void MapRenderer::reset() {
     impl_ = std::make_unique<Impl>();
 }

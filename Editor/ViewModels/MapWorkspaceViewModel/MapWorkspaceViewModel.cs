@@ -4,6 +4,7 @@ using Ludork.Services;
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
@@ -26,6 +27,7 @@ public sealed partial class MapWorkspaceViewModel : ViewModelBase, IDisposable
     public event EventHandler? SelectedMapChanged;
     public event EventHandler? ActorOutlinerChanged;
     public event EventHandler? LayerDisplayStateChanged;
+    internal long SelectedMapChangedAt { get; private set; }
     public ObservableCollection<MapListItemViewModel> Maps { get; } = [];
     public ObservableCollection<LayerTabViewModel> LayerTabs { get; } = [];
     public ObservableCollection<ActorOutlinerItemViewModel> ActorOutlinerItems { get; } = [];
@@ -89,8 +91,10 @@ public sealed partial class MapWorkspaceViewModel : ViewModelBase, IDisposable
         {
             if (liveDebugSession is not null && !selectingRuntimeMap)
                 return;
+            long started = Stopwatch.GetTimestamp();
             if (!SetProperty(ref selectedMap, value))
                 return;
+            SelectedMapChangedAt = started;
             if (liveDebugSession is null && !selectingRuntimeMap)
                 ProjectConfig.LastOpenedMapKey = value?.Key;
             refreshLayerTabs();

@@ -3,6 +3,7 @@
 #include <Emitters/Emitter.hpp>
 #include <Graphics/MapRenderer.hpp>
 #include <Runtime/RuntimeData.hpp>
+#include <SFML/Graphics/RenderTexture.hpp>
 
 #include <cstdint>
 #include <memory>
@@ -16,7 +17,7 @@ public:
     void update(const RuntimeData::Map& data, const MapRenderer::Scene& scene);
     void advance(float delta, bool resetMotion);
     MapRenderer::DrawHooks drawHooks();
-    void clear() noexcept;
+    void clear(bool releaseResources = false) noexcept;
 
 private:
     struct Entry {
@@ -39,6 +40,7 @@ private:
 
     std::unordered_map<std::uint64_t, Entry> entries_;
     std::unordered_map<std::string, Resource> resources_;
+    std::unique_ptr<sf::RenderTexture> simulationTarget_;
 };
 
 }  // namespace ludork::preview_host

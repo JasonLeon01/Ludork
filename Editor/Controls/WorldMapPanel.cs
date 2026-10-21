@@ -140,8 +140,10 @@ public sealed class WorldMapPanel : Grid, IDisposable
     public void SetWorld(
         string? worldKey,
         JsonObject? manifest,
-        IReadOnlyList<WorldMapChildSource> children)
+        IReadOnlyList<WorldMapChildSource> children,
+        long? selectionStartedAt = null)
     {
+        renderer?.RecordSelection(worldKey, selectionStartedAt);
         IReadOnlyDictionary<string, (int X, int Y)> positions = getPlacementPositions(worldKey, manifest);
         Dictionary<string, WorldMapChildSource> currentSources = childItems.ToDictionary(item => item.Source.Key, item => item.Source, StringComparer.Ordinal);
         List<WorldMapChildListItem> nextItems = [];

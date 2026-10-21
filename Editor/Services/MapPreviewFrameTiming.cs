@@ -9,4 +9,5 @@ public sealed record MapPreviewFrameTiming(
     double ReadbackMilliseconds,
     double TransferMilliseconds,
     double PixelReadMilliseconds,
-    double BitmapMilliseconds);
+    double BitmapMilliseconds,
+    double? SelectionToPublishMilliseconds);

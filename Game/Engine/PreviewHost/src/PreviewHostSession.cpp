@@ -69,13 +69,17 @@ RuntimeData PreviewHostSession::handle(const RuntimeData& requestValue) {
     if (type == "compileMaterial") {
         return MaterialExport::compile(request);
     }
+    if (type == "renderMap") {
+        engineState().setScale(1.0f);
+        return mapSession_.render(request, frameFiles_);
+    }
     const RuntimeData* materials =
         ludork::runtime::value_reader::findValue(request, "materials");
-    const RuntimeData::Map materialDocuments =
-        materials == nullptr || materials->isNil()
-            ? RuntimeData::Map{}
-            : ludork::runtime::value_reader::requireMap(
-                  *materials, "Preview request.materials");
+    const ludork::engine::materials::MaterialResource::Overrides
+        materialDocuments(materials == nullptr || materials->isNil()
+                              ? RuntimeData::Map{}
+                              : ludork::runtime::value_reader::requireMap(
+                                    *materials, "Preview request.materials"));
     const ludork::engine::materials::MaterialResource::ScopedOverrides
         materialScope(materialDocuments);
     if (type == "describeMaterials") {
@@ -97,10 +101,6 @@ RuntimeData PreviewHostSession::handle(const RuntimeData& requestValue) {
     if (type == "renderActorBatch") {
         engineState().setScale(1.0f);
         return actorRenderer_.render(request, frameFiles_);
-    }
-    if (type == "renderMap") {
-        engineState().setScale(1.0f);
-        return mapSession_.render(request, frameFiles_);
     }
     if (type == "renderParticle") {
         engineState().setScale(1.0f);
@@ -170,6 +170,7 @@ RuntimeData PreviewHostSession::handshake(const RuntimeData::Map& request) {
     capabilities.emplace_back(RuntimeData("materialExport"));
     capabilities.emplace_back(RuntimeData("mapActorChanges"));
     capabilities.emplace_back(RuntimeData("mapEmitters"));
+    capabilities.emplace_back(RuntimeData("mapMaterialSnapshots"));
     capabilities.emplace_back(RuntimeData("persistentFrames"));
     return RuntimeData(object({
         {"type", RuntimeData("handshake")},

@@ -70,6 +70,9 @@ public sealed partial class MapPanel
         Rect visibleMapRect = getVisibleLocalMapRect(mapRect);
         if (visibleMapRect.Width <= 0 || visibleMapRect.Height <= 0)
             return;
+        using IDisposable? resolutionBatch = previewService is not null
+            && (actorRenderStatesDirty || nativeScene is null || nativeContentRevision != previewService.MapPreviews.ContentRevision)
+                ? previewService.BeginResolutionBatch() : null;
         ensureRenderCaches(mapWidth, mapHeight, visibleMapRect);
         using (context.PushClip(mapRect))
         using (context.PushTransform(Matrix.CreateTranslation(mapRect.X, mapRect.Y)))

@@ -60,7 +60,6 @@ public sealed partial class MapPreviewSceneBuilder(ProjectDataStore gameData, Bl
             ["cellSize"] = gameData.Configs.getCellSize(), ["layerOrder"] = settings["layerOrder"]?.DeepClone(),
             ["regions"] = regions, ["sprites"] = sprites, ["lights"] = lights,
             ["tilesets"] = tilesets, ["autoTiles"] = autoTiles,
-            ["materials"] = gameData.Assets.CaptureMaterials(),
             ["particles"] = captureParticles(sprites),
             ["ambientLight"] = settings["ambientLight"]?.DeepClone() ?? new JsonArray(255, 255, 255, 255),
             ["fog"] = settings["fog"]?.DeepClone(), ["panorama"] = settings["panorama"]?.DeepClone() ?? JsonValue.Create(string.Empty),

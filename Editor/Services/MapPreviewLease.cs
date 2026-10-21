@@ -19,6 +19,7 @@ public sealed class MapPreviewLease : IDisposable
     internal string SceneKey => Id + "/" + identity;
     internal bool IsThumbnail { get; }
     internal bool Pending { get; set; }
+    internal bool PriorityPending { get; set; } = true;
     internal double RetryAfter { get; set; }
     internal bool Disposed { get; private set; }
     internal long Generation { get; private set; }
@@ -36,6 +37,7 @@ public sealed class MapPreviewLease : IDisposable
     public string Error { get; private set; } = string.Empty;
     public MapPreviewFrameTiming? LastFrameTiming { get; internal set; }
     internal long ChangedAt { get; private set; } = Stopwatch.GetTimestamp();
+    internal long? SelectionStartedAt { get; set; }
     internal double SceneUpdateMilliseconds { get; private set; }
     private bool changeRecorded;
     private double? lastParticleFrame;
@@ -58,7 +60,10 @@ public sealed class MapPreviewLease : IDisposable
             changed = true;
         }
         if (identity != (sceneIdentity ?? string.Empty))
+        {
+            PriorityPending = true;
             SuspendParticles();
+        }
         identity = sceneIdentity ?? string.Empty;
         Scene = scene;
         Revision = revision;
@@ -84,6 +89,12 @@ public sealed class MapPreviewLease : IDisposable
         ChangedAt = started;
         changeRecorded = true;
         SceneUpdateMilliseconds = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+    }
+
+    internal void RecordSelection(long started)
+    {
+        SelectionStartedAt = started;
+        PriorityPending = true;
     }
 
     internal (double Delta, bool ResetMotion) ParticleFrame(double now, bool realtime)

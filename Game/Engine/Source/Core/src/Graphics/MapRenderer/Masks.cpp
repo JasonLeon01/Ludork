@@ -154,9 +154,11 @@ void MapRenderer::Impl::renderTransmission(const Scene& scene, const View& view,
             }
         }
     }
-    if (transmission_ && signature == transmissionSignature_) {
+    if (transmissionValid_ && transmission_ &&
+        signature == transmissionSignature_) {
         return;
     }
+    transmissionValid_ = false;
     const float maximumTextureSize =
         static_cast<float>(sf::Texture::getMaximumSize());
     const float scale =
@@ -237,4 +239,5 @@ void MapRenderer::Impl::renderTransmission(const Scene& scene, const View& view,
     transmissionRect_ = rect;
     transmissionSignature_ = signature;
     ++transmissionGeneration_;
+    transmissionValid_ = true;
 }

@@ -144,6 +144,17 @@ void MapEmitterPreviewImpl::update(const RuntimeData::Map& data,
 
 void MapEmitterPreviewImpl::advance(float delta, bool resetMotion) {
     Emitter::collectGarbage();
+    if (entries_.empty()) {
+        return;
+    }
+    if (!simulationTarget_) {
+        simulationTarget_ =
+            std::make_unique<sf::RenderTexture>(sf::Vector2u{1, 1});
+    }
+    if (!simulationTarget_->setActive(true)) {
+        throw std::runtime_error(
+            "Cannot activate map emitter simulation target");
+    }
     for (auto& [id, entry] : entries_) {
         entry.emitter->setHostTransform(entry.transform);
         entry.emitter->setColour(entry.colour);
@@ -180,7 +191,7 @@ void MapEmitterPreviewImpl::draw(std::uint64_t id, sf::RenderTarget& target,
     }
 }
 
-void MapEmitterPreviewImpl::clear() noexcept {
+void MapEmitterPreviewImpl::clear(bool releaseResources) noexcept {
     for (auto& [id, entry] : entries_) {
         if (entry.emitter != nullptr) {
             entry.emitter->shutdown();
@@ -189,6 +200,9 @@ void MapEmitterPreviewImpl::clear() noexcept {
     entries_.clear();
     resources_.clear();
     Emitter::collectGarbage();
+    if (releaseResources) {
+        simulationTarget_.reset();
+    }
 }
 
 }  // namespace ludork::preview_host

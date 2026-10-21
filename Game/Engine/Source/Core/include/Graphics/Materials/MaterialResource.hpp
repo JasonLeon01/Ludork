@@ -15,16 +15,28 @@ namespace ludork::engine::materials {
 
 class LUDORK_ENGINE_API MaterialResource {
 public:
+    class LUDORK_ENGINE_API Overrides {
+    public:
+        explicit Overrides(RuntimeData::Map documents);
+
+    private:
+        friend class MaterialResource;
+        RuntimeData::Map documents_;
+        mutable std::unordered_map<std::string,
+                                   std::shared_ptr<const MaterialResource>>
+            resources_;
+    };
+
     class LUDORK_ENGINE_API ScopedOverrides {
     public:
-        explicit ScopedOverrides(const RuntimeData::Map& documents);
+        explicit ScopedOverrides(const Overrides& values);
         ~ScopedOverrides();
         ScopedOverrides(const ScopedOverrides&) = delete;
         ScopedOverrides& operator=(const ScopedOverrides&) = delete;
 
     private:
         friend class MaterialResource;
-        RuntimeData::Map documents_;
+        const Overrides& values_;
         mutable std::unordered_map<std::string,
                                    std::shared_ptr<const MaterialResource>>
             resources_;

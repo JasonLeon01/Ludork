@@ -94,10 +94,12 @@ const sf::RenderTexture& MapRenderer::Impl::render(const Scene& scene,
     materialContext_.viewRotation = view.rotation.asDegrees();
     materialContext_.cellSize = static_cast<float>(EngineState::CellSize);
     materialContext_.targetSize = view.pixelSize;
-    renderAmbient(scene, view, options);
-    renderMasks(scene, view);
-    renderLighting(scene, view, options);
     const bool reflection = hasReflection(scene, view);
+    renderAmbient(scene, view, options);
+    if (reflection) {
+        renderMasks(scene, view);
+    }
+    renderLighting(scene, view, options);
     DrawHooks frameHooks = hooks;
     if (reflection && hooks.afterLayer) {
         std::erase_if(layerCallbackBuffers_, [&scene](const auto& entry) {
@@ -143,7 +145,8 @@ const sf::RenderTexture& MapRenderer::Impl::render(const Scene& scene,
     materialContext_.lighting = options.lighting == LightingMode::Lit;
     materialContext_.ambientLight = &ambient_->getTexture();
     materialContext_.directLight = &directLight_->getTexture();
-    materialContext_.surfaceMask = &surface_->getTexture();
+    materialContext_.surfaceMask =
+        reflection ? &surface_->getTexture() : nullptr;
     materialContext_.reflectionSource =
         reflection ? &content_->getTexture() : nullptr;
     materialContext_.reflection = reflection;
