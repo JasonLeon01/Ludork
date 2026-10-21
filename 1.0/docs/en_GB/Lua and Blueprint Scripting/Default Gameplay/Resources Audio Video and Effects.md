@@ -54,7 +54,7 @@ A world manifest may define global fog and a global panorama, but not BGM, BGS, 
 
 BGM, BGS and ambient light follow the child beneath the player. Audio switches fade for 0.5 seconds, and returning during a fade-out restores that source. Later ambient changes also blend for 0.5 seconds, using white in holes. World fog and panorama remain active there.
 
-The Game project's advanced enemy-defeat effect is controlled by the global class setting `Enemy.DefeatShatterEffectEnabled`, which defaults to `true` and is not a Blueprint field. Its shader renders a snapshot as world-space logical-pixel fragments scattering radially outward from the centre for about 0.65 seconds. The defeated enemy has already been recorded and destroyed, so the snapshot does not affect passability, collision or light blocking. When the setting is `false` or `sf.Shader.isAvailable()` is false, the enemy disappears immediately instead.
+The Game project's advanced enemy-defeat effect is controlled project-wide by [Gameplay configuration](<Runtime Data Configuration and Saves.md#shared-gameplay-configuration>), not by an individual Enemy Blueprint. Its shader renders a snapshot as world-space logical-pixel fragments scattering radially outward from the centre for about 0.65 seconds. The defeated enemy has already been recorded and destroyed, so the snapshot does not affect passability, collision or light blocking. When `Enemy.DefeatShatterEffectEnabled` is `false` or `sf.Shader.isAvailable()` is false, the enemy disappears immediately instead.
 
 ## Video
 

@@ -20,7 +20,7 @@ Shared combat algorithms belong in Gameplay Abilities, Gameplay Effects or Lua m
 
 `BP_Enemy_Slime.json` derives from `Source.MapActors.Enemy` and sets `ID = "Slime"`. That ID resolves the `Slime` member in `Data/General/Enemy.json`. The Blueprint owns physical and presentation defaults such as the texture, source rectangle and material speed. The General Data member owns `MAXHP`, `ATK`, `DEF`, `EXP`, `GOLD`, `drops`, `special` and `ANIMATION_KEY`.
 
-Configure the optional [enemy-defeat shatter effect](<../Resources Audio Video and Effects.md#shaders-fog-and-transitions>) project-wide with `Enemy.DefeatShatterEffectEnabled`.
+Configure the optional [enemy-defeat shatter effect](<../Resources Audio Video and Effects.md#shaders-fog-and-transitions>) through [System Config → Gameplay](<../../../Editor User Guide/Project Settings and Asset Layout.md#system-config>).
 
 Set `drops` keys to Item Blueprint paths, with `sf.Vector2i` cell offsets. See [Enemies](<../Actors Enemies Items and Equipment.md#enemies>) for drop activation, persistence and defeat settlement.
 

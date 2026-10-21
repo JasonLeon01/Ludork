@@ -8,7 +8,7 @@ Metadata source: `Scripts/Source/MapActors/EnemyDamageText_meta.lua`
 
 Direct metadata bases: `{ "Engine", "Actor" }`
 
-`EnemyDamageText.EnemyDamageHintLevel` is the shared runtime setting. Load `Enums.DamageHintLevel` to choose `NONE = 0`, `BATTLE = 1` (default), or `MAP = 2`. `NONE` hides expected-damage hints; `MAP` also enables movement-danger cell totals. The required Item still gates hints, and actual damage particles are unaffected.
+`EnemyDamageText.EnemyDamageHintLevel` is the shared runtime setting controlled by `enemyDamageHintLevel` in [Gameplay configuration](<../Default Gameplay/Runtime Data Configuration and Saves.md#shared-gameplay-configuration>), which documents its enum values, script default and application timing.
 
 ### Properties
 

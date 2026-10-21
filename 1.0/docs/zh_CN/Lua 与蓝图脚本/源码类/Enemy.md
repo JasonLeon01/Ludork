@@ -21,7 +21,7 @@ Blueprint 编辑器会合成 `Source.Configs.GeneralDataTypes.EnemyAttributeSet`
 | `animateWithoutMoving` | `bool` | `true` | — |
 | `afterBattleVarChanges` | `Dict[string, Tuple[string, any]]` | `{}` | 数值游戏变量选择器与固定运算符选择器 |
 
-运行时类设置项 `DefeatShatterEffectEnabled` 默认为 `true`。`attributes` 字段保存生成的 Enemy Attribute Set。
+共享运行时设置 `DefeatShatterEffectEnabled` 由 [Gameplay 配置](<../Game 玩法/运行时数据、配置与存档.md#共享玩法配置>)中的 `enemyDefeatShatterEffectEnabled` 控制。`attributes` 字段保存生成的 Enemy Attribute Set。
 
 Enemy 继承 Actor 默认的 `tickable = false`。
 

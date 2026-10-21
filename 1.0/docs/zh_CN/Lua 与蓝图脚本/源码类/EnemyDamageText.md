@@ -8,7 +8,7 @@ Metadata 来源：`Scripts/Source/MapActors/EnemyDamageText_meta.lua`
 
 直接 metadata 基类：`{ "Engine", "Actor" }`
 
-`EnemyDamageText.EnemyDamageHintLevel` 是共享的运行时设置。加载 `Enums.DamageHintLevel` 后，可选择 `NONE = 0`、`BATTLE = 1`（默认）或 `MAP = 2`。`NONE` 隐藏预计伤害提示，`MAP` 还显示移动危险格的合计伤害。提示仍要求持有指定 Item，实际受伤时的伤害粒子不受影响。
+`EnemyDamageText.EnemyDamageHintLevel` 是由 [Gameplay 配置](<../Game 玩法/运行时数据、配置与存档.md#共享玩法配置>)中的 `enemyDamageHintLevel` 控制的共享运行时设置；枚举值、脚本默认值与生效时机见该节。
 
 ### 属性
 

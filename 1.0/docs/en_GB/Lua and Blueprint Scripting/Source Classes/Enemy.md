@@ -21,7 +21,7 @@ The Blueprint editor synthesises a read-only `attributes` preview of `Source.Con
 | `animateWithoutMoving` | `bool` | `true` | — |
 | `afterBattleVarChanges` | `Dict[string, Tuple[string, any]]` | `{}` | numeric game-variable selector and fixed operator selector |
 
-The runtime class setting `DefeatShatterEffectEnabled` defaults to `true`. The `attributes` field holds the generated Enemy Attribute Set.
+The shared runtime setting `DefeatShatterEffectEnabled` is controlled by `enemyDefeatShatterEffectEnabled` in [Gameplay configuration](<../Default Gameplay/Runtime Data Configuration and Saves.md#shared-gameplay-configuration>). The `attributes` field holds the generated Enemy Attribute Set.
 
 Enemy inherits the Actor default `tickable = false`.
 

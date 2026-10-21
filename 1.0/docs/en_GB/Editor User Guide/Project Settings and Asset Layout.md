@@ -50,9 +50,17 @@ Windows, macOS and Linux desktop games use `~/<APP_NAME>` for configuration, `Sa
 
 ## System Config
 
-Open **Database → System Config** (`F4`) to edit the configuration files under `Data/Configs`. The left-hand list shows each configuration by its relative key; selecting an entry such as **Audio** or **System** displays only that configuration's fields on the right.
+Open **Database → System Config** (`F4`) to edit the configuration files under `Data/Configs`. The left-hand list shows each configuration by its relative key; selecting **Audio**, **System** or **Gameplay** displays only that configuration's fields on the right.
 
 Configuration files use JSON objects with `type: "system"` or no `type`. Their keys are paths relative to `Data/Configs`, without the extension.
+
+**Gameplay** configures shared gameplay settings. Each row has **Use default** on the right. Selecting it hides the value editor and saves `null` as the field's `value`, so the game uses the script default. New Gameplay data starts with every row selected. Select Use default again to clear a configured override.
+
+Clear **Use default** to fill the editor with the current script default and create an override. The editor reads the saved Lua source each time, so save script changes first. An existing override does not follow later script changes; select and then clear Use default to read the default again. If the default cannot be read, the field stays on Use default and displays the reason.
+
+Enum fields use a drop-down; numeric and text fields accept typed input, and boolean fields use a checkbox. Clearing a numeric input restores Use default. An empty string and `false` remain explicit values; use the Use default checkbox to clear those overrides.
+
+A numeric zero is an explicit value, not Use default; enter a positive value for the save-slot count and tutorial duration before saving. The [shared Gameplay configuration reference](<../Lua and Blueprint Scripting/Default Gameplay/Runtime Data Configuration and Saves.md#shared-gameplay-configuration>) lists the supported settings and their script defaults. Save the configuration and restart the game to apply it.
 
 Switching configurations keeps pending edits and does not save automatically. An asterisk in the list and window title marks changes. Use Ctrl+S on Windows or Command+S on macOS for global Save; Undo/Redo applies to the configuration selected in the list.
 

@@ -50,7 +50,7 @@ A* 与实际移动使用同一条 Dir4 边规则：每个新进入的前导格�
 
 Domain、Flank 与 Blockade Effect 授予 `Gameplay.Movement.Hazard`。移动与 `MovementDangerGrid` 都使用 `MovementSpecials.Preview`，由它派发 `Event.Movement.QueryHazard`，因此空间规则要保留在这条路径上。Domain 覆盖曼哈顿距离小于或等于范围值（最小为 1）的格子：`Domain = 1` 包含上下左右四个相邻格，不包含对角格。其单回合伤害遵循战斗特性，因此 Magic 会忽略玩家防御。Flank 要求敌人位于相对的相邻两侧，Blockade 影响相邻格。各项正数伤害会累加。
 
-取得 Enemy Book 后，`EnemyDamageText.EnemyDamageHintLevel` 使用 `Enums.DamageHintLevel`，可选择不显示提示（`NONE`，`0`）、显示敌人伤害数值（`BATTLE`，`1`，默认）或同时显示敌人与地图格伤害数值（`MAP`，`2`）。提示不影响玩法。
+取得 Enemy Book 后，共享的 [Gameplay 伤害提示设置](<运行时数据、配置与存档.md#共享玩法配置>)决定是否显示敌人伤害数值和移动危险格的合计伤害。提示不影响玩法。
 
 点击寻路始终排除正危险格，即使提示尚未显示；显式点击的目的地除外。点击 Domain 或 Blockade 敌人时，只移除该目标的贡献，包括它在 Flank 中的那一侧。玩家不会占用的碰撞与 overlap 目标忽略目的地格的危险。
 

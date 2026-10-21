@@ -16,7 +16,7 @@ Startup calls the following functions explicitly. Requiring their modules does n
 | `Source.Configs.Main.LoadOrCreate()` | Reads the [platform game configuration](<Runtime Data Configuration and Saves.md#configuration>), creating it with default settings when absent. |
 | `Source.Data.InitializeRuntime()` | Supplies project callbacks and preview base classes to `Global.Data.InitializeRuntime(options)`, which creates shared data services and registers data and Blueprint providers before the first scene. |
 | `Source.System.InstallRuntimeProviders()` | Registers the configuration provider before the first scene. |
-| `Source.System.Init()` | Applies game and audio configuration and prepares display resources through `GlobalCore.Display` before the native loop. |
+| `Source.System.Init()` | Applies game, audio and [shared Gameplay configuration](<Runtime Data Configuration and Saves.md#shared-gameplay-configuration>), and prepares display resources through `GlobalCore.Display` before the native loop. |
 
 Entry also initialises latent graphs and the native System before it constructs `SceneInit`. Register providers once per session. Hot reload does not rerun startup; see [Lua Runtime and Modules](<../Lua Runtime and Modules.md#lua-hot-reload>). [Runtime Data, Configuration and Saves](<Runtime Data Configuration and Saves.md>) describes the configuration and save locations.
 

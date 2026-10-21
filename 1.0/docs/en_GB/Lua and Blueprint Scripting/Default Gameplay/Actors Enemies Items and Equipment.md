@@ -50,7 +50,7 @@ World pathfinding crosses loaded child boundaries but treats unloaded children a
 
 Domain, Flank and Blockade Effects grant `Gameplay.Movement.Hazard`. Both movement and `MovementDangerGrid` use `MovementSpecials.Preview`, which dispatches `Event.Movement.QueryHazard`. Keep their spatial rules on that path. Domain includes cells whose Manhattan distance is at most its range (minimum 1): `Domain = 1` reaches the four orthogonally adjacent cells, but not diagonal cells. Its per-round damage respects combat specials, so Magic ignores player defence. Flank requires enemies on opposite adjacent sides, and Blockade affects adjacent cells. Positive contributions add.
 
-After obtaining the Enemy Book, `EnemyDamageText.EnemyDamageHintLevel` uses `Enums.DamageHintLevel` to select no hints (`NONE`, `0`), enemy readouts (`BATTLE`, `1`, default) or enemy and map-cell readouts (`MAP`, `2`). Hints have no gameplay side effects.
+After obtaining the Enemy Book, the shared [Gameplay damage-hint setting](<Runtime Data Configuration and Saves.md#shared-gameplay-configuration>) determines whether enemy readouts and movement-danger cell totals are shown. Hints have no gameplay side effects.
 
 Click routes exclude positive-danger cells even while hidden, except for an explicitly clicked destination. Clicking a Domain or Blockade enemy removes only that target's contributions, including its side of a Flank. Collision and overlap targets that the player will not occupy ignore destination-cell danger.
 

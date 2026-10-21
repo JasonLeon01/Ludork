@@ -22,6 +22,23 @@ Initial data keys use paths relative to their category directory, with `/` separ
 
 An Android package mirrors its immutable runtime assets into `filesDir/ludork/runtime/<runtime-hash>` before native startup. Mutable configuration and saves use `filesDir/ludork/user-data/<APP_NAME>`. They are never written back into that versioned runtime directory and do not require external-storage permission.
 
+### Shared Gameplay configuration
+
+`Data/Configs/Gameplay.json` stores project-wide overrides for the following shared script settings. Edit them through [Database → System Config → Gameplay](<../../Editor User Guide/Project Settings and Asset Layout.md#system-config>).
+
+| Key | Type | Script default | Effect |
+|---|---|---|---|
+| `enemyDamageHintLevel` | `Enums.DamageHintLevel` | `BATTLE` (`1`) | Sets `EnemyDamageText.EnemyDamageHintLevel`: `NONE` (`0`) hides expected-damage hints, `BATTLE` shows enemy readouts, and `MAP` (`2`) also shows movement-danger cell totals. The required Item still gates hints; actual damage particles are unaffected. |
+| `enemyDefeatShatterEffectEnabled` | boolean | `true` | Sets `Enemy.DefeatShatterEffectEnabled`, controlling the [enemy-defeat shatter effect](<Resources Audio Video and Effects.md#shaders-fog-and-transitions>). |
+| `maxSaveSlots` | positive integer | `100` | Sets `WindowSaveSlot.MAX_SAVE_SLOTS` for the slot list and all quick-save, quick-load and latest-slot searches. Lowering it hides higher slots without deleting their files. |
+| `tutorialShrinkDuration` | finite positive number, seconds | `0.25` | Sets `WindowTutorial.SHRINK_DURATION`, the time taken for the tutorial mask to contract around its target. |
+
+Fields retain their existing string `type`, such as `"int"`, `"float"` or `"bool"`; `nullable: true` allows the script default, and `enum: "Enums.DamageHintLevel"` identifies the damage-hint choices. Each field stores its override under `value`, with no separate `useDefault` boolean. `null` means **Use default** and leaves the current script default in effect; it does not assign nil to the script field. Explicit `false` and `0` remain values, so `0` selects `NONE` for the damage-hint enum but is invalid for the two positive settings. New Gameplay data stores `null` for all four values. Actor and map instance defaults, such as movement speed or `GameMap.MapViewRect`, remain with their existing class or Blueprint properties.
+
+Each nullable field requires `scriptDefault: { module, field }` to identify the editor's default source. `module` selects the Lua file under `Scripts`; `field` names its `table.field` assignment, such as `Controller.MAX_SAVE_SLOTS`. This stores a source reference, not a copy of the default value. The source must contain one unconditional top-level assignment using scalar literals, imported enum members or simple scalar arithmetic. The editor reads that expression without executing the module or its functions; missing sources and unsupported expressions leave Use default selected and report an error.
+
+`Source.System.Init()` calls `Source.Configs.Gameplay.Apply()` after applying the other system configuration. `Apply()` reads and validates the Gameplay data and applies its shared overrides before gameplay starts. Invalid types, enum values or numeric ranges fail startup instead of silently using defaults. Configuration edits take effect after saving and restarting the game; Lua hot reload does not reload this JSON or rerun startup.
+
 ## Data services
 
 `Global.Data` owns shared data loading, resource queries, Blueprint classes and graphs, Actor construction and static previews. Require it directly for these operations. `Source.Data` supplies project startup and the default game's General Data queries, such as `GetGeneralPlayerData` and `GetGeneralItemData`, plus `CreateGeneralAttributeSet(typeName, memberID)`.
