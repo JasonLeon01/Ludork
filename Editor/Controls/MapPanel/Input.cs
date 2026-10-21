@@ -119,8 +119,11 @@ public sealed partial class MapPanel
             args.Handled = true;
             return;
         }
+        if (!IsRuntimeEditing && getLayer(selectedLayerName) is { Visible: true })
+            tilePaintPointer = args.Pointer;
         if (args.KeyModifiers.HasFlag(KeyModifiers.Alt))
         {
+            capturePointer(args.Pointer);
             fillTileRegion(grid);
             args.Handled = true;
             return;
@@ -171,6 +174,8 @@ public sealed partial class MapPanel
     protected override void OnPointerMoved(PointerEventArgs args)
     {
         base.OnPointerMoved(args);
+        if (args.GetCurrentPoint(this).Properties.IsRightButtonPressed)
+            tilePaintPointer = null;
         if (CurrentMapDocument is null || !tryGetMapSize(out int width, out int height))
             return;
         Point position = args.GetPosition(this);
@@ -223,12 +228,19 @@ public sealed partial class MapPanel
         actorMoveLayer = null;
         movingRuntimeActorId = null;
         actorPropertyDrag = null;
+        bool tilePaintCommitted = tilePaintChanged && ReferenceEquals(tilePaintPointer, args.Pointer)
+            && args.InitialPressMouseButton == MouseButton.Left
+            && !args.GetCurrentPoint(this).Properties.IsRightButtonPressed
+            && EditMode == MapEditMode.Tile && !IsRuntimeEditing && canEditMap
+            && selectedLayerName is not null && getLayer(selectedLayerName) is { Visible: true };
         endMapGesture();
         args.Pointer.Capture(null);
         capturedPointer = null;
         InvalidateVisual();
         if (committedActor is not null && selectedActors.Count == 1 && selectedActors[0] == committedActor)
             ActorSelectionCommitted?.Invoke(this, EventArgs.Empty);
+        if (tilePaintCommitted)
+            TilePaintCommitted?.Invoke(this, EventArgs.Empty);
     }
 
     protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs args)

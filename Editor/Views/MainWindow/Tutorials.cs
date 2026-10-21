@@ -8,6 +8,7 @@ using Ludork.Controls;
 using Ludork.EditorTutorial.Models;
 using Ludork.EditorTutorial.Playback;
 using Ludork.Models;
+using Ludork.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -31,8 +32,11 @@ public partial class MainWindow
         tutorials = new TutorialPlayer(this, WindowRoot, WindowContent, projectSession.TutorialTriggers,
             editorSettings, appendConsoleLine);
         tutorials.RegisterAnchor("map.canvas", getTutorialCanvasBounds);
+        tutorials.RegisterAnchor("map.workspace", getTutorialWorkspaceBounds);
+        tutorials.RegisterContext("map.tilePaintCommitted", createTileDeselectTutorialContext);
         tutorials.RegisterContext("map.actorSelectionCommitted", createActorTutorialContext);
         RightList.SelectionCommitted += onTutorialTileSelection;
+        EditorPanel.TilePaintCommitted += onTutorialTilePaint;
         EditorPanel.ActorSelectionCommitted += onTutorialActorSelection;
         ActorOutliner.AddHandler(PointerPressedEvent, onTutorialOutlinerPressed, RoutingStrategies.Tunnel, true);
         ActorOutliner.AddHandler(PointerReleasedEvent, onTutorialOutlinerReleased, RoutingStrategies.Bubble, true);
@@ -67,6 +71,74 @@ public partial class MainWindow
                 return;
             projectSession?.TutorialTriggers.Publish("map.tileSelectionCommitted");
         }, DispatcherPriority.Background);
+    }
+
+    private Rect? getTutorialWorkspaceBounds()
+    {
+        if (getTutorialCanvasBounds() is null || !RightList.IsEffectivelyVisible
+            || WindowContent.TranslatePoint(default, WindowRoot) is not { } origin)
+            return null;
+        return new Rect(origin, WindowContent.Bounds.Size).Intersect(new Rect(WindowRoot.Bounds.Size));
+    }
+
+    private bool canShowTileDeselectTutorial() => viewModel?.CanEdit == true
+        && viewModel.MapWorkspace.IsSelectedLayerEditable && !EditorPanel.IsRuntimeEditing
+        && EditorPanel.EditMode == MapEditMode.Tile
+        && tileSelect is { SelectedTiles: { Width: 1, Height: 1 }, SelectedAutoTile: null }
+        && getTutorialWorkspaceBounds() is not null;
+
+    private bool matchesTileTutorialSelection(string? mapKey, string? layerName,
+        TilesetTabViewModel? tileset, TileSelection? selection) => canShowTileDeselectTutorial()
+        && EditorPanel.CurrentMapKey == mapKey
+        && viewModel?.MapWorkspace.SelectedLayerTab?.Name == layerName
+        && tileSelect?.SelectedTileset == tileset && tileSelect?.SelectedTiles == selection;
+
+    private void onTutorialTilePaint(object? sender, EventArgs args)
+    {
+        if (!canShowTileDeselectTutorial())
+            return;
+        string? mapKey = EditorPanel.CurrentMapKey;
+        string? layerName = viewModel?.MapWorkspace.SelectedLayerTab?.Name;
+        TilesetTabViewModel? tileset = tileSelect?.SelectedTileset;
+        TileSelection? selection = tileSelect?.SelectedTiles;
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (tutorials is not null && matchesTileTutorialSelection(mapKey, layerName, tileset, selection))
+                projectSession?.TutorialTriggers.Publish("map.tilePaintCommitted");
+        }, DispatcherPriority.Background);
+    }
+
+    private Task<TutorialPlaybackContext?> createTileDeselectTutorialContext(CancellationToken cancellationToken)
+    {
+        if (cancellationToken.IsCancellationRequested || !canShowTileDeselectTutorial())
+            return Task.FromResult<TutorialPlaybackContext?>(null);
+        string? mapKey = EditorPanel.CurrentMapKey;
+        string? layerName = viewModel?.MapWorkspace.SelectedLayerTab?.Name;
+        TilesetTabViewModel? tileset = tileSelect?.SelectedTileset;
+        TileSelection? selection = tileSelect?.SelectedTiles;
+        TutorialPlaybackContext context = new(new Dictionary<string, Bitmap>(), anchor =>
+            matchesTileTutorialSelection(mapKey, layerName, tileset, selection)
+                ? getTileDeselectTutorialLayouts(anchor) : null);
+        return Task.FromResult<TutorialPlaybackContext?>(context);
+    }
+
+    private IReadOnlyDictionary<string, TutorialLayout>? getTileDeselectTutorialLayouts(Rect anchor)
+    {
+        if (RightList.GetSelectedTileBounds(WindowRoot) is not { } bounds
+            || anchor.Width < 392 || anchor.Height < 212)
+            return null;
+        Rect tile = bounds.Intersect(anchor);
+        if (tile.Width <= 0 || tile.Height <= 0)
+            return null;
+        const double hintWidth = 360;
+        const double hintHeight = 180;
+        double hintX = Math.Clamp(tile.Left - anchor.Left - hintWidth - 24, 16, anchor.Width - hintWidth - 16);
+        double hintY = Math.Clamp(tile.Center.Y - anchor.Top - hintHeight / 2, 16, anchor.Height - hintHeight - 16);
+        return new Dictionary<string, TutorialLayout>
+        {
+            ["selectedTile"] = new(tile.Size, Matrix.CreateTranslation(tile.X - anchor.X, tile.Y - anchor.Y)),
+            ["instructions"] = new(new Size(hintWidth, hintHeight), Matrix.CreateTranslation(hintX, hintY))
+        };
     }
 
     private bool canShowActorTutorial() => viewModel?.CanEdit == true
@@ -258,6 +330,7 @@ public partial class MainWindow
     private void disposeTutorials()
     {
         RightList.SelectionCommitted -= onTutorialTileSelection;
+        EditorPanel.TilePaintCommitted -= onTutorialTilePaint;
         EditorPanel.ActorSelectionCommitted -= onTutorialActorSelection;
         ActorOutliner.RemoveHandler(PointerPressedEvent, onTutorialOutlinerPressed);
         ActorOutliner.RemoveHandler(PointerReleasedEvent, onTutorialOutlinerReleased);

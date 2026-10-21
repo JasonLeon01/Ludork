@@ -106,11 +106,13 @@ public sealed partial class MapPanel
             else
                 cells.Add(new MapTileEdit(x, y, null, selectedAutoTileKey));
         }
-        editingContext.PaintMapCells(CurrentMapKey, selectedLayerName, cells);
+        if (editingContext.PaintMapCells(CurrentMapKey, selectedLayerName, cells) && tilePaintPointer is not null)
+            tilePaintChanged = true;
     }
 
     private void pickTileAt((int X, int Y) grid)
     {
+        tilePaintPointer = null;
         if (selectedLayerName is null || getLayer(selectedLayerName) is not MapLayerSnapshot layer)
             return;
         string? autoKey = layer.AutoTileAt(grid.X, grid.Y);
@@ -165,7 +167,8 @@ public sealed partial class MapPanel
             pending.Enqueue((cell.X, cell.Y - 1));
             pending.Enqueue((cell.X, cell.Y + 1));
         }
-        editingContext.PaintMapCells(CurrentMapKey, selectedLayerName, cells);
+        if (editingContext.PaintMapCells(CurrentMapKey, selectedLayerName, cells) && tilePaintPointer is not null)
+            tilePaintChanged = true;
     }
 
     private void showEditFeedback(string key)

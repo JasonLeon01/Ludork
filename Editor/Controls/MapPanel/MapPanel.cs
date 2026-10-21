@@ -55,6 +55,8 @@ public sealed partial class MapPanel : Control
     private int tileSize = SourceTileSize;
     private double continuousTileSize = SourceTileSize;
     private bool tileBrushDragging;
+    private IPointer? tilePaintPointer;
+    private bool tilePaintChanged;
     private long mapEditGesture;
     private IPointer? capturedPointer;
     private readonly Dictionary<string, string?> tilesetPaths = new(StringComparer.Ordinal);
@@ -100,6 +102,7 @@ public sealed partial class MapPanel : Control
     private bool canEditMap => selectedLayerEditable && editingContext?.IsEditable == true;
     public MapEditMode EditMode { get; private set; } = MapEditMode.Tile;
     public event EventHandler<TileSelectionChangedEventArgs>? TileSelectionPicked;
+    public event EventHandler? TilePaintCommitted;
     public event EventHandler<ActorSelectionChangedEventArgs>? ActorSelectionChanged;
     public event EventHandler<string>? BlueprintLocateRequested;
     public event EventHandler? ActorDataChanged;
@@ -228,7 +231,7 @@ public sealed partial class MapPanel : Control
     public void setSelectedLayerEditable(bool editable)
     {
         selectedLayerEditable = editable;
-        if (!editable && (actorPropertyDrag is not null || propertyWheelTarget is not null || actorPointerGesture is not null))
+        if (!editable && (actorPropertyDrag is not null || propertyWheelTarget is not null || actorPointerGesture is not null || tilePaintPointer is not null))
             CancelInteractions();
         flushPendingBrushLayers();
         disposeMapRenderCaches();

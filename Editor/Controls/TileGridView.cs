@@ -43,18 +43,24 @@ public sealed class TileGridView : Control
             context.DrawLine(GridPen, new Point(x, 0), new Point(x, height));
         for (int y = 0; y <= height; y += cell)
             context.DrawLine(GridPen, new Point(0, y), new Point(width, y));
-        if (viewModel.SelectedTiles is not { } selection)
-            return;
+        if (GetSelectionBounds() is { } selectionRect)
+            context.DrawRectangle(null, SelectionPen, selectionRect);
+    }
+
+    internal Rect? GetSelectionBounds()
+    {
+        if (bitmap is null || viewModel?.SelectedTiles is not { } selection
+            || selection.OriginTileNumber < 0 || selection.Width <= 0 || selection.Height <= 0)
+            return null;
+        int width = bitmap.PixelSize.Width;
+        int cell = Math.Max(1, viewModel.CellSize);
         int columns = Math.Max(1, width / cell);
         int tileX = selection.OriginTileNumber % columns;
         int tileY = selection.OriginTileNumber / columns;
-        Rect selectionRect = new Rect(
-            tileX * cell + 1,
-            tileY * cell + 1,
-            selection.Width * cell - 2,
-            selection.Height * cell - 2
-        );
-        context.DrawRectangle(null, SelectionPen, selectionRect);
+        Rect bounds = new(tileX * (double)cell, tileY * (double)cell,
+            selection.Width * (double)cell, selection.Height * (double)cell);
+        return new Rect(0, 0, width, bitmap.PixelSize.Height).Contains(bounds)
+            ? bounds.Deflate(1) : null;
     }
 
     protected override Size MeasureOverride(Size availableSize)

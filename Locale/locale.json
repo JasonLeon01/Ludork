@@ -55,6 +55,14 @@
     "en_GB": "Hold Shift and drag to paint a rectangle.",
     "zh_CN": "按住 Shift 并拖动鼠标，可进行矩形绘制。"
   },
+  "TUTORIAL_TILE_DESELECT_DESCRIPTION": {
+    "en_GB": "Click the selected tile again to deselect it.",
+    "zh_CN": "再次点击选中的图块，可取消选择。"
+  },
+  "TUTORIAL_TILE_ERASE_DESCRIPTION": {
+    "en_GB": "With no tile selected, painting on the map erases tiles.",
+    "zh_CN": "未选择图块时，在地图上绘制即为擦除。"
+  },
   "TUTORIAL_DISMISS": {
     "en_GB": "Click anywhere to continue",
     "zh_CN": "点击任意处继续"

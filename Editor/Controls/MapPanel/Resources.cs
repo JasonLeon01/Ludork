@@ -285,6 +285,8 @@ public sealed partial class MapPanel
 
     private void endMapGesture()
     {
+        tilePaintPointer = null;
+        tilePaintChanged = false;
         if (nativePreview is not null)
             nativePreview.IsInteracting = false;
         propertyWheelTimer.Stop();

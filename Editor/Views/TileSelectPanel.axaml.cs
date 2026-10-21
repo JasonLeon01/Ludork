@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -26,6 +27,25 @@ public partial class TileSelectPanel : UserControl
         AutoTileList.LostFocus += (_, _) => { autoTileKeyPressed = false; autoTileBeforeKey = null; };
         AutoTileList.AddHandler(KeyDownEvent, onAutoTileKeyDown, RoutingStrategies.Tunnel);
         AutoTileList.AddHandler(KeyUpEvent, onAutoTileKeyUp, RoutingStrategies.Bubble, true);
+    }
+
+    internal Rect? GetSelectedTileBounds(Visual relativeTo)
+    {
+        if (!IsEffectivelyVisible || !TileGrid.IsEffectivelyVisible
+            || TileGrid.GetSelectionBounds() is not { } selection
+            || TileGrid.TransformToVisual(relativeTo) is not { } transform)
+            return null;
+        Rect visible = selection.Intersect(new Rect(TileGrid.Bounds.Size)).TransformToAABB(transform);
+        foreach (Visual ancestor in TileGrid.GetVisualAncestors())
+        {
+            if (!ancestor.ClipToBounds)
+                continue;
+            if (ancestor.TransformToVisual(relativeTo) is not { } ancestorTransform)
+                return null;
+            visible = visible.Intersect(new Rect(ancestor.Bounds.Size).TransformToAABB(ancestorTransform));
+        }
+        visible = visible.Intersect(new Rect(relativeTo.Bounds.Size));
+        return visible.Width > 0 && visible.Height > 0 ? visible : null;
     }
 
     private void onAutoTilePressed(object? sender, PointerPressedEventArgs args)
