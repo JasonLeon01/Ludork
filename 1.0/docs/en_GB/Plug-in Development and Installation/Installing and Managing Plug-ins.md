@@ -1,6 +1,6 @@
 # Installing and Managing Plug-ins
 
-Create, import, update or uninstall source plug-ins for all projects or the current project.
+Create, import, update or uninstall source plug-ins for all projects or the current project. Longer creation, import, status-refresh and uninstall operations show a progress dialog; related windows cannot accept another operation or close until it finishes. Trust confirmation remains a separate step before import.
 
 Editor plug-ins are trusted code. They run with the permissions of the editor process and are not sandboxed. Import only directories whose source is trusted.
 
@@ -90,7 +90,7 @@ Run installation commands as your normal user, without **Run as administrator** 
 
 ## Restart and status
 
-Creation and import compile source before registration. Global plug-ins compile and load at editor startup. Each project’s plug-ins compile and load before its first project window opens in that editor session, and that result is reused when reopening or switching projects. Creating, importing, uninstalling or directly editing plug-in source requires a restart; reopening a project does not reload it. **Plugins → Manage Plugins** reports the Loaded, manifest-invalid, compile-failed, initialisation-failed and pending restart or deletion states, together with diagnostics.
+Creation and import compile source before registration. Global plug-ins compile and load at editor startup. Each project’s plug-ins compile and load before its first project window opens in that editor session, with progress shown in the project-opening dialog. That result is reused when reopening or switching projects. Creating, importing, uninstalling or directly editing plug-in source requires a restart; reopening a project does not reload it. **Plugins → Manage Plugins** reports the Loaded, manifest-invalid, compile-failed, initialisation-failed and pending restart or deletion states, together with diagnostics.
 
 A registered plug-in is enabled after restart, when its scope loads, and there is no hot enable or disable switch. Treat **Loaded** as the effective enabled state.
 

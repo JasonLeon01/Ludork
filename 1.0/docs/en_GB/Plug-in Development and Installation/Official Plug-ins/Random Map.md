@@ -21,7 +21,7 @@ The handler receives `PluginMapContextMenuContext`, checks for `IAvaloniaPluginU
 3. Select a valid wall tile. The preview starts with the full map selected. Choose **Select region** and drag between two cells to select a rectangle, or choose **Full map** to restore the whole map. Both endpoint cells are included; dragging beyond the map clamps to its edges. The displayed origin uses zero-based map coordinates.
 4. Select **Next**, choose the layout and wall density limit, then use **Place markers** to toggle required open cells within the region. Markers are optional and are not saved. Shrinking the region removes markers outside it. Switching layers retains the region and markers; switching maps resets to the full map.
 5. Select **Generate and Save** to generate inside the region and save the selected layer. Outside the rectangle, both Tile and AutoTile values remain unchanged. Inside it, generated wall tiles or empty cells replace Tiles and clear AutoTiles. Other layers and all Actors remain unchanged. Local generation does not inspect or connect to paths outside the rectangle.
-6. Review the saved result. **Generate Again** retains the region and generates another layout. The reported density is measured within that region. Generation locks the controls until completion; a revision conflict reloads the map and resets the workflow.
+6. Review the saved result. **Generate Again** retains the region and generates another layout. The reported density is measured within that region. Generation locks the controls and shows an animated indicator in the status area until completion or failure; a revision conflict reloads the map and resets the workflow.
 
 ## Actor preview
 
