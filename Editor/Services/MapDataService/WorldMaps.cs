@@ -70,19 +70,23 @@ public sealed partial class MapDataService
         int maximumLoadedChildren = 32,
         long maximumLoadedBytes = 256L * 1024L * 1024L)
     {
+        HashSet<string> worldChildren = MapCatalog
+            .Where(entry => entry.Kind == MapCatalogEntryKind.WorldChildMap && entry.WorldKey is not null)
+            .Select(entry => entry.Key)
+            .ToHashSet(StringComparer.Ordinal);
         HashSet<string> pinned = pinnedMapKeys is null
             ? new HashSet<string>(StringComparer.Ordinal)
             : new HashSet<string>(pinnedMapKeys.Select(normaliseMapKey), StringComparer.Ordinal);
         List<string> candidates = mapDocuments.Keys
-            .Where(key => store.Worlds.TryGetWorldForMap(key, out _)
+            .Where(key => worldChildren.Contains(key)
                 && !pinned.Contains(key)
                 && !isMapHeldByHistory(key)
                 && isCleanLoadedMap(key))
             .OrderBy(key => mapAccessOrder.GetValueOrDefault(key))
             .ToList();
-        int loadedCount = mapDocuments.Keys.Count(key => store.Worlds.TryGetWorldForMap(key, out _));
+        int loadedCount = mapDocuments.Keys.Count(worldChildren.Contains);
         long loadedBytes = mapDocuments.Keys
-            .Where(key => store.Worlds.TryGetWorldForMap(key, out _))
+            .Where(worldChildren.Contains)
             .Sum(key => mapLoadedBytes.GetValueOrDefault(key));
         int removed = 0;
         foreach (string key in candidates)

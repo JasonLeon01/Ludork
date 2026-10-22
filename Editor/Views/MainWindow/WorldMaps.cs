@@ -99,7 +99,7 @@ public partial class MainWindow
         else
         {
             WorldEditorPanel.SetWorld(null, null, Array.Empty<WorldMapChildSource>());
-            EditorPanel.refreshMap(viewModel?.MapWorkspace.SelectedMap?.Key, viewModel?.MapWorkspace.SelectedMapData,
+            EditorPanel.refreshMap(viewModel?.MapWorkspace.SelectedMap?.Key, viewModel?.MapWorkspace.ReadSelectedMapDocument(),
                 viewModel?.MapWorkspace.SelectedMapChangedAt);
             selectPreviewMode(EditorPanel.EditMode);
         }

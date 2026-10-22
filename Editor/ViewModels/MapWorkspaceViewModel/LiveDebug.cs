@@ -35,8 +35,6 @@ public sealed partial class MapWorkspaceViewModel
         if (liveDebugSession is not null)
             liveDebugSession.Changed -= onRuntimeMapChanged;
         liveDebugSession = session;
-        selectedMapSnapshot = null;
-        selectedSnapshotKey = null;
         selectedMapDocument = null;
         selectedDocumentKey = null;
         if (session is not null)

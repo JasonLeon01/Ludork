@@ -18,6 +18,9 @@ public sealed partial class BlueprintPreviewService : IDisposable
     private readonly ProjectDataStore gameData;
     private readonly BlueprintClassResolver classResolver;
     private readonly Dictionary<string, SourceImageInfo> sourceImageInfoCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> textureFilePaths = new(StringComparer.Ordinal);
+    private readonly object texturePathSync = new();
+    private long texturePathRevision = -1;
 
     public BlueprintPreviewService(
         string projectPath,
@@ -148,6 +151,8 @@ public sealed partial class BlueprintPreviewService : IDisposable
         if (ReferenceEquals(gameData.BlueprintPreviews, this))
             gameData.BlueprintPreviews = null;
         sourceImageInfoCache.Clear();
+        lock (texturePathSync)
+            textureFilePaths.Clear();
     }
 
     private void onVisualSourceDataChanged(object? sender, EventArgs args)
@@ -513,9 +518,26 @@ public sealed partial class BlueprintPreviewService : IDisposable
 
     private string resolveTextureFilePath(string texturePath)
     {
-        return GameAssetPath.TryResolveExistingFile(projectPath, texturePath, out string path)
-            ? path
-            : string.Empty;
+        return TryResolveTextureFile(texturePath, out string path) ? path : string.Empty;
+    }
+
+    internal bool TryResolveTextureFile(string texturePath, out string path)
+    {
+        lock (texturePathSync)
+        {
+            long revision = MapPreviews.ResourceRevision;
+            if (texturePathRevision != revision)
+            {
+                textureFilePaths.Clear();
+                texturePathRevision = revision;
+            }
+            if (!textureFilePaths.TryGetValue(texturePath, out path!))
+            {
+                GameAssetPath.TryResolveExistingFile(projectPath, texturePath, out path);
+                textureFilePaths.Add(texturePath, path);
+            }
+            return path.Length != 0;
+        }
     }
 
     private readonly record struct PixelChannels(int Red, int Green, int Blue, int Alpha);

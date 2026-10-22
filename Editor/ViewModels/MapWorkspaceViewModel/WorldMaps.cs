@@ -9,8 +9,6 @@ namespace Ludork.ViewModels;
 
 public sealed partial class MapWorkspaceViewModel
 {
-    private string? selectedSnapshotKey;
-    private JsonObject? selectedMapSnapshot;
     private string? selectedDocumentKey;
     private MapDocumentSnapshot? selectedMapDocument;
 
@@ -23,27 +21,18 @@ public sealed partial class MapWorkspaceViewModel
             if (selectedMapDocument is null || !string.Equals(selectedDocumentKey, map.Key, StringComparison.Ordinal))
             {
                 selectedDocumentKey = map.Key;
-                selectedMapDocument = liveDebugSession is null ? GameData.Maps.ReadMapDocument(map.Key)
-                    : SelectedMapData is JsonObject runtime ? MapDocumentCodec.Decode(runtime) : null;
+                selectedMapDocument = ReadSelectedMapDocument();
             }
             return selectedMapDocument;
         }
     }
 
-    public JsonObject? SelectedMapData
+    internal MapDocumentSnapshot? ReadSelectedMapDocument()
     {
-        get
-        {
-            if (SelectedMap is not { IsMap: true } map)
-                return null;
-            if (selectedMapSnapshot is null || !string.Equals(selectedSnapshotKey, map.Key, StringComparison.Ordinal))
-            {
-                selectedSnapshotKey = map.Key;
-                selectedMapSnapshot = liveDebugSession is null
-                    ? GameData.Maps.ReadMapSnapshot(map.Key) : liveDebugSession.ReadMapSnapshot(map.Key);
-            }
-            return selectedMapSnapshot;
-        }
+        if (SelectedMap is not { IsMap: true } map)
+            return null;
+        return liveDebugSession is null ? GameData.Maps.ReadMapDocument(map.Key)
+            : liveDebugSession.ReadMapDocument(map.Key);
     }
 
     private void onMapPreviewChanged(object? sender, MapPreviewChangedEventArgs args)
@@ -52,13 +41,6 @@ public sealed partial class MapWorkspaceViewModel
             return;
         selectedMapDocument = null;
         selectedDocumentKey = null;
-        if (args.Edit is not null && selectedMapSnapshot is not null)
-            args.Edit.ApplyTo(selectedMapSnapshot);
-        else
-        {
-            selectedSnapshotKey = null;
-            selectedMapSnapshot = null;
-        }
         if (args.Edit is null)
             refreshLayerTabs();
     }
@@ -100,8 +82,6 @@ public sealed partial class MapWorkspaceViewModel
 
     public void refreshMaps(string? selectedMapKey = null)
     {
-        selectedSnapshotKey = null;
-        selectedMapSnapshot = null;
         selectedMapDocument = null;
         selectedDocumentKey = null;
         selectedMapKey ??= SelectedMap?.Key;

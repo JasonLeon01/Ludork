@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 void MapRenderer::Impl::renderLighting(const Scene& scene, const View& view,
                                        const Options& options) {
@@ -47,6 +48,35 @@ void MapRenderer::Impl::renderLighting(const Scene& scene, const View& view,
     if (lights.empty()) {
         direct.display();
         return;
+    }
+    struct Occluder {
+        const Sprite* sprite;
+        sf::FloatRect bounds;
+    };
+    std::vector<Occluder> occluders;
+    occluders.reserve(scene.sprites.size());
+    for (const Sprite& sprite : scene.sprites) {
+        if (!sprite.texture || !sprite.affectsLighting ||
+            !layerVisible(scene, sprite)) {
+            continue;
+        }
+        const auto resource =
+            sprite.materialResource
+                ? sprite.materialResource
+                : ludork::engine::materials::MaterialResource::load(
+                      sprite.material);
+        if (!ludork::engine::materials::MaterialCompiler::analyse(
+                 *resource, sprite.materialParameters)
+                 .mayBlockLight) {
+            continue;
+        }
+        const sf::Vector2f displacement = resource->maximumVertexOffset();
+        occluders.push_back(
+            {&sprite, sprite.transform.transformRect(
+                          {-displacement,
+                           sf::Vector2f(std::abs(sprite.textureRect.size.x),
+                                        std::abs(sprite.textureRect.size.y)) +
+                               displacement * 2.0f})});
     }
     renderTransmission(scene, view, lights, options);
     lightCaches_.resize(lights.size());
@@ -110,9 +140,13 @@ void MapRenderer::Impl::renderLighting(const Scene& scene, const View& view,
             cache.light = light;
             cache.generation = transmissionGeneration_;
         }
-        sf::RenderTexture& dynamic = target(dynamicTransmission_, cacheSize);
-        dynamic.setView(nativeView(lightView));
-        dynamic.clear(sf::Color::White);
+        const bool hasOccluders = std::any_of(
+            occluders.begin(), occluders.end(),
+            [&light, &lightRect](const Occluder& occluder) {
+                return (!light.emitterId ||
+                        *light.emitterId != occluder.sprite->id) &&
+                       occluder.bounds.findIntersection(lightRect).has_value();
+            });
         const sf::Vector2i occupancyOrigin(
             static_cast<int>(std::floor(lightRect.position.x / cell)),
             static_cast<int>(std::floor(lightRect.position.y / cell)));
@@ -123,66 +157,54 @@ void MapRenderer::Impl::renderLighting(const Scene& scene, const View& view,
             static_cast<unsigned int>(std::max(
                 1.0f, std::ceil((lightRect.position.y + diameter) / cell) -
                           occupancyOrigin.y)));
-        sf::Image occupancy(occupancySize, sf::Color::Black);
-        bool hasOccluders = false;
-        for (const Sprite& sprite : scene.sprites) {
-            if (!sprite.texture || !sprite.affectsLighting ||
-                !layerVisible(scene, sprite) ||
-                (light.emitterId && *light.emitterId == sprite.id)) {
-                continue;
-            }
-            const auto resource =
-                sprite.materialResource
-                    ? sprite.materialResource
-                    : ludork::engine::materials::MaterialResource::load(
-                          sprite.material);
-            if (!ludork::engine::materials::MaterialCompiler::analyse(
-                     *resource, sprite.materialParameters)
-                     .mayBlockLight) {
-                continue;
-            }
-            const sf::Vector2f displacement = resource->maximumVertexOffset();
-            const sf::FloatRect bounds = sprite.transform.transformRect(
-                {-displacement,
-                 sf::Vector2f(std::abs(sprite.textureRect.size.x),
-                              std::abs(sprite.textureRect.size.y)) +
-                     displacement * 2.0f});
-            if (!bounds.findIntersection(lightRect)) {
-                continue;
-            }
-            hasOccluders = true;
-            drawSpriteMask(sprite, dynamic, true);
-            const int left = std::max(
-                0, static_cast<int>(std::floor(bounds.position.x / cell)) -
-                       occupancyOrigin.x);
-            const int top = std::max(
-                0, static_cast<int>(std::floor(bounds.position.y / cell)) -
-                       occupancyOrigin.y);
-            const int right = std::min(
-                static_cast<int>(occupancySize.x),
-                static_cast<int>(
-                    std::ceil((bounds.position.x + bounds.size.x) / cell)) -
-                    occupancyOrigin.x);
-            const int bottom = std::min(
-                static_cast<int>(occupancySize.y),
-                static_cast<int>(
-                    std::ceil((bounds.position.y + bounds.size.y) / cell)) -
-                    occupancyOrigin.y);
-            for (int y = top; y < bottom; ++y) {
-                for (int x = left; x < right; ++x) {
-                    occupancy.setPixel(
-                        {static_cast<unsigned int>(x),
-                         occupancySize.y - 1 - static_cast<unsigned int>(y)},
-                        sf::Color::White);
+        if (hasOccluders) {
+            sf::RenderTexture& dynamic =
+                target(dynamicTransmission_, cacheSize);
+            dynamic.setView(nativeView(lightView));
+            dynamic.clear(sf::Color::White);
+            sf::Image occupancy(occupancySize, sf::Color::Black);
+            for (const Occluder& occluder : occluders) {
+                const Sprite& sprite = *occluder.sprite;
+                if (light.emitterId && *light.emitterId == sprite.id) {
+                    continue;
+                }
+                const sf::FloatRect& bounds = occluder.bounds;
+                if (!bounds.findIntersection(lightRect)) {
+                    continue;
+                }
+                drawSpriteMask(sprite, dynamic, true);
+                const int left = std::max(
+                    0, static_cast<int>(std::floor(bounds.position.x / cell)) -
+                           occupancyOrigin.x);
+                const int top = std::max(
+                    0, static_cast<int>(std::floor(bounds.position.y / cell)) -
+                           occupancyOrigin.y);
+                const int right = std::min(
+                    static_cast<int>(occupancySize.x),
+                    static_cast<int>(
+                        std::ceil((bounds.position.x + bounds.size.x) / cell)) -
+                        occupancyOrigin.x);
+                const int bottom = std::min(
+                    static_cast<int>(occupancySize.y),
+                    static_cast<int>(
+                        std::ceil((bounds.position.y + bounds.size.y) / cell)) -
+                        occupancyOrigin.y);
+                for (int y = top; y < bottom; ++y) {
+                    for (int x = left; x < right; ++x) {
+                        occupancy.setPixel({static_cast<unsigned int>(x),
+                                            occupancySize.y - 1 -
+                                                static_cast<unsigned int>(y)},
+                                           sf::Color::White);
+                    }
                 }
             }
-        }
-        dynamic.display();
-        if (!dynamicOccupancy_ ||
-            dynamicOccupancy_->getSize() != occupancySize) {
-            dynamicOccupancy_ = std::make_shared<sf::Texture>(occupancy);
-        } else {
-            dynamicOccupancy_->update(occupancy);
+            dynamic.display();
+            if (!dynamicOccupancy_ ||
+                dynamicOccupancy_->getSize() != occupancySize) {
+                dynamicOccupancy_ = std::make_shared<sf::Texture>(occupancy);
+            } else {
+                dynamicOccupancy_->update(occupancy);
+            }
         }
         setViewUniforms(*pass, scene, view);
         pass->setUniform(
@@ -192,10 +214,13 @@ void MapRenderer::Impl::renderLighting(const Scene& scene, const View& view,
         pass->setUniform("useCachedStaticLight", 1.0f);
         pass->setUniform("traceStatic", 0.0f);
         pass->setUniform("traceDynamic", hasOccluders ? 1.0f : 0.0f);
-        pass->setUniform("dynamicTransmission", dynamic.getTexture());
+        pass->setUniform("dynamicTransmission",
+                         hasOccluders ? dynamicTransmission_->getTexture()
+                                      : transmission_->getTexture());
         pass->setUniform("dynamicMaskOrigin", lightRect.position);
         pass->setUniform("dynamicMaskSize", lightRect.size);
-        pass->setUniform("dynamicOccupancy", *dynamicOccupancy_);
+        pass->setUniform("dynamicOccupancy",
+                         hasOccluders ? *dynamicOccupancy_ : *occupancy_);
         pass->setUniform("dynamicOccupancyOrigin",
                          sf::Vector2f(occupancyOrigin));
         pass->setUniform("dynamicOccupancySize", sf::Vector2f(occupancySize));

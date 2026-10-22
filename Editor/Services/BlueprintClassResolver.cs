@@ -160,7 +160,16 @@ public sealed class BlueprintClassResolver : IDisposable
 
     public IDisposable BeginBatch()
     {
-        return metadataService.BeginRead();
+        return new ResolutionBatch(metadataService.BeginRead(), metadataService.Enums.BeginRead());
+    }
+
+    private sealed class ResolutionBatch(IDisposable metadataRead, IDisposable enumRead) : IDisposable
+    {
+        public void Dispose()
+        {
+            enumRead.Dispose();
+            metadataRead.Dispose();
+        }
     }
 
     private ResolvedBlueprintTemplate createCanonicalTemplate(string reference)

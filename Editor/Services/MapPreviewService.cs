@@ -49,7 +49,7 @@ public sealed class MapPreviewService : IDisposable
         Options = projectConfig.ViewportOptions;
         foreground = new MapPreviewClient(runtime);
         thumbnails = new MapPreviewClient(runtime);
-        assets = new FileSystemWatcher(gameData.ProjectPath) { IncludeSubdirectories = true, NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size };
+        assets = new FileSystemWatcher(gameData.ProjectPath) { IncludeSubdirectories = true, NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Size };
         assets.Changed += onAssetChanged;
         assets.Created += onAssetChanged;
         assets.Deleted += onAssetChanged;
@@ -241,9 +241,15 @@ public sealed class MapPreviewService : IDisposable
 
     private void onAssetChanged(object sender, FileSystemEventArgs args)
     {
-        string relative = Path.GetRelativePath(gameData.ProjectPath, args.FullPath);
-        if (relative.StartsWith("Assets" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        if (isAssetPath(args.FullPath) || args is RenamedEventArgs renamed && isAssetPath(renamed.OldFullPath))
             Interlocked.Exchange(ref assetsChanged, 1);
+    }
+
+    private bool isAssetPath(string path)
+    {
+        string relative = Path.GetRelativePath(gameData.ProjectPath, path);
+        return string.Equals(relative, "Assets", StringComparison.OrdinalIgnoreCase)
+            || relative.StartsWith("Assets" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
     }
 
     internal void InvalidateScene() => invalidate(false);

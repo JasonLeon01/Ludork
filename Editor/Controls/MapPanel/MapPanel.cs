@@ -11,7 +11,6 @@ using Ludork.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Text.Json.Nodes;
 
 namespace Ludork.Controls;
 
@@ -156,7 +155,7 @@ public sealed partial class MapPanel : Control
         setPendingActor(null);
         setSelectedActor(null, null, true, true);
         if (CurrentMapKey is not null)
-            refreshMapDocument(CurrentMapKey, context.ReadMapDocument(CurrentMapKey));
+            refreshMap(CurrentMapKey, context.ReadMapDocument(CurrentMapKey));
     }
 
     public void CancelInteractions()
@@ -193,13 +192,7 @@ public sealed partial class MapPanel : Control
         }, DispatcherPriority.Loaded);
     }
 
-    public void refreshMap(string? mapKey, JsonObject? mapData, long? selectionStartedAt = null)
-    {
-        long started = selectionStartedAt ?? Stopwatch.GetTimestamp();
-        refreshMapDocument(mapKey, mapData is null ? null : MapDocumentCodec.Decode(mapData), started);
-    }
-
-    private void refreshMapDocument(string? mapKey, MapDocumentSnapshot? document, long? selectionStartedAt = null)
+    public void refreshMap(string? mapKey, MapDocumentSnapshot? document, long? selectionStartedAt = null)
     {
         cancelMapGesture();
         if (mapKey != CurrentMapKey)

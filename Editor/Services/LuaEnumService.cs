@@ -20,6 +20,9 @@ public sealed class LuaEnumService
     private readonly string projectPath;
 
     private readonly Func<ProjectEnumCatalog>? catalog;
+    private Dictionary<string, LuaEnumDefinition>? readModules;
+    private ProjectEnumCatalog? readCatalog;
+    private int readScopeDepth;
     private Dictionary<string, LuaEnumDefinition>? capturedModules;
     private Dictionary<string, LuaEnumDefinition>? preparedModules;
     private int preparedReadDepth;
@@ -41,21 +44,32 @@ public sealed class LuaEnumService
                 && part.All(character => char.IsAsciiLetterOrDigit(character) || character == '_')))
             .Select(path => "Enums." + path.Replace(Path.DirectorySeparatorChar, '.'))
             .Where(module => catalog is null || !ProjectEnumCatalog.IsManagedModule(module))
-            .Concat(catalog?.Invoke().Definitions.Keys ?? [])
+            .Concat(getCatalog()?.Definitions.Keys ?? [])
             .Distinct(StringComparer.Ordinal)
             .OrderBy(module => module, StringComparer.Ordinal)
             .ToArray();
     }
 
-    public bool IsProjectModule(string moduleName) => catalog?.Invoke().Definitions.ContainsKey(moduleName) == true;
+    public bool IsProjectModule(string moduleName) => getCatalog()?.Definitions.ContainsKey(moduleName) == true;
 
     public bool TryGetReference(string moduleName, out ProjectEnumReference? reference)
     {
         reference = null;
-        return catalog?.Invoke().References.TryGetValue(moduleName, out reference) == true;
+        return getCatalog()?.References.TryGetValue(moduleName, out reference) == true;
     }
 
     public LuaEnumDefinition Read(string moduleName) => Read(LuaMetadataType.Parse(new JsonObject { ["enum"] = moduleName }));
+
+    internal IDisposable BeginRead()
+    {
+        if (readScopeDepth == 0)
+        {
+            readModules = new Dictionary<string, LuaEnumDefinition>(StringComparer.Ordinal);
+            readCatalog = null;
+        }
+        readScopeDepth++;
+        return new ReadScope(this);
+    }
 
     internal IDisposable BeginSnapshotRead(CancellationToken cancellationToken)
     {
@@ -123,6 +137,8 @@ public sealed class LuaEnumService
             return cached;
         if (preparedReadDepth != 0)
             return new LuaEnumDefinition(moduleName, null, [], moduleName + ": Enum module does not exist.");
+        if (capturedModules is null && readModules?.TryGetValue(moduleName, out cached) == true)
+            return cached;
         LuaEnumDefinition result;
         try
         {
@@ -134,14 +150,25 @@ public sealed class LuaEnumService
         }
         if (capturedModules is not null)
             capturedModules[moduleName] = result;
+        else if (readModules is not null)
+            readModules[moduleName] = result;
         return result;
+    }
+
+    private ProjectEnumCatalog? getCatalog()
+    {
+        if (catalog is null)
+            return null;
+        if (readScopeDepth == 0 || capturedModules is not null)
+            return catalog();
+        return readCatalog ??= catalog();
     }
 
     private LuaEnumDefinition readModuleCore(string moduleName)
     {
         if (catalog is not null && ProjectEnumCatalog.IsManagedModule(moduleName))
         {
-            if (!catalog().Definitions.TryGetValue(moduleName, out LuaEnumDefinition? managed))
+            if (!getCatalog()!.Definitions.TryGetValue(moduleName, out LuaEnumDefinition? managed))
                 throw new InvalidDataException("Project enum does not exist.");
             return managed;
         }
@@ -171,6 +198,23 @@ public sealed class LuaEnumService
             return new LuaEnumDefinition(moduleName, null, [], null);
         string valueType = valueKind == "string" ? "string" : valueKind == "bool" ? "bool" : integers ? "int" : "float";
         return new LuaEnumDefinition(moduleName, LuaMetadataType.Parse(valueType), options.OrderBy(option => option.Label, StringComparer.Ordinal).ToArray(), null);
+    }
+
+    private sealed class ReadScope(LuaEnumService owner) : IDisposable
+    {
+        private LuaEnumService? service = owner;
+
+        public void Dispose()
+        {
+            LuaEnumService? current = service;
+            if (current is null)
+                return;
+            service = null;
+            if (--current.readScopeDepth != 0)
+                return;
+            current.readModules = null;
+            current.readCatalog = null;
+        }
     }
 
     private sealed class SnapshotReadScope(LuaEnumService owner, bool prepared = false) : IDisposable

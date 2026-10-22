@@ -50,10 +50,10 @@ public sealed partial class MapPreviewSceneBuilder(ProjectDataStore gameData, Bl
         }
         JsonObject tilesets = [];
         foreach (KeyValuePair<string, JsonObject> entry in SnapshotJson.ToDictionary(gameData.Assets.TilesetData))
-            tilesets[entry.Key] = entry.Value.DeepClone();
+            tilesets[entry.Key] = entry.Value;
         JsonObject autoTiles = [];
         foreach (KeyValuePair<string, JsonObject> entry in SnapshotJson.ToDictionary(gameData.Assets.AutoTileData))
-            autoTiles[entry.Key] = entry.Value.DeepClone();
+            autoTiles[entry.Key] = entry.Value;
         JsonObject scene = new()
         {
             ["world"] = world, ["width"] = settings["width"]?.DeepClone(), ["height"] = settings["height"]?.DeepClone(),

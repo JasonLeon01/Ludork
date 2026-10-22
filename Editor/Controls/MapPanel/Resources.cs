@@ -44,11 +44,9 @@ public sealed partial class MapPanel
     private Bitmap? loadBitmap(string? assetPath)
     {
         if (gameData is null
+            || previewService is null
             || string.IsNullOrWhiteSpace(assetPath)
-            || !GameAssetPath.TryResolveExistingFile(
-                gameData.ProjectPath,
-                assetPath,
-                out string filePath))
+            || !previewService.TryResolveTextureFile(assetPath, out string filePath))
         {
             return null;
         }
