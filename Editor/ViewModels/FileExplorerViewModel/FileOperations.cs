@@ -210,10 +210,32 @@ public sealed partial class FileExplorerViewModel
         List<string> deleted = [];
         List<string> externalDeleted = [];
         using ProjectResourceDeletionValidation deletionValidation = new(gameData.ProjectPath);
-        foreach (string path in normalizedPaths)
+        for (int index = 0; index < normalizedPaths.Length; index++)
         {
+            string path = normalizedPaths[index];
             try
             {
+                if (gameData.IsBlueprintResourcePath(path))
+                {
+                    int end = index + 1;
+                    while (end < normalizedPaths.Length && gameData.IsBlueprintResourcePath(normalizedPaths[end]))
+                        end++;
+                    BlueprintDeletionBatchResult batch = await gameData.DeleteBlueprintResourcesAsync(normalizedPaths[index..end], progress);
+                    index = end - 1;
+                    foreach (BlueprintDeletionBatchResult.Item item in batch.Items)
+                    {
+                        if (item.Deleted)
+                            deleted.Add(item.Path);
+                        if (item.Error is not null)
+                            errors.Add(item.Error);
+                    }
+                    if (batch.Aborted)
+                    {
+                        errors.Add(batch.Error!);
+                        break;
+                    }
+                    continue;
+                }
                 (bool managed, string? managedError) = await gameData.TryDeleteManagedPathAsync(path, deletionValidation, progress);
                 if (managed)
                 {

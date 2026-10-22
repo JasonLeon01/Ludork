@@ -13,6 +13,25 @@ internal sealed class ProjectResourceDeletionValidation(string projectPath) : ID
 
     internal void AssertUnreferenced(IReadOnlyList<string> paths, IProgress<EditorOperationProgress>? progress = null)
     {
+        ProjectDataStore data = getCurrentData(progress);
+        progress?.Report(new EditorOperationProgress("EDIT_OPERATION_REFERENCES"));
+        ProjectDataStore.assertDocumentsUnreferenced(data, paths);
+        if (!IsCurrent())
+            throw new IOException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
+    }
+
+    internal ReferenceIndexSnapshot CaptureSnapshot(IProgress<EditorOperationProgress>? progress)
+    {
+        ProjectDataStore data = getCurrentData(progress);
+        progress?.Report(new EditorOperationProgress("EDIT_OPERATION_REFERENCES"));
+        data.ReferenceIndex.Rebuild();
+        if (!IsCurrent())
+            throw new IOException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
+        return data.ReferenceIndex.CurrentSnapshot!;
+    }
+
+    private ProjectDataStore getCurrentData(IProgress<EditorOperationProgress>? progress)
+    {
         Dictionary<string, ReferenceInputFiles.Stamp> current = captureInputs();
         if (diskData is null || inputs.Count != current.Count
             || inputs.Any(pair => !current.TryGetValue(pair.Key, out ReferenceInputFiles.Stamp value) || value != pair.Value))
@@ -23,10 +42,7 @@ internal sealed class ProjectResourceDeletionValidation(string projectPath) : ID
             diskData = new ProjectDataStore(projectPath, cacheMapCatalog: false,
                 loadProgress: path => progress?.Report(new EditorOperationProgress("EDIT_OPERATION_REFERENCES", path)));
         }
-        progress?.Report(new EditorOperationProgress("EDIT_OPERATION_REFERENCES"));
-        ProjectDataStore.assertDocumentsUnreferenced(diskData, paths);
-        if (!IsCurrent())
-            throw new IOException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
+        return diskData;
     }
 
     internal bool IsCurrent()

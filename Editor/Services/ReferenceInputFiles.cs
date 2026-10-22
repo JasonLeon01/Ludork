@@ -45,6 +45,21 @@ internal sealed class ReferenceInputFiles
             current.stamps.TryGetValue(pair.Key, out Stamp value) && pair.Value == value);
     }
 
+    internal void AcceptDeleted(IReadOnlyList<string> paths)
+    {
+        StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+        foreach (string path in paths)
+        {
+            foreach (string capturedPath in stamps.Keys.Where(value => comparer.Equals(value, path)).ToArray())
+            {
+                if (Array.IndexOf(mapPaths, capturedPath) >= 0)
+                    stamps[capturedPath] = default;
+                else
+                    stamps.Remove(capturedPath);
+            }
+        }
+    }
+
     internal static Stamp Read(string path)
     {
         FileInfo file = new(path);

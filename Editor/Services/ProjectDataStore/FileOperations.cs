@@ -207,6 +207,12 @@ public sealed partial class ProjectDataStore
             .Select(target => target.SavedPath).ToArray();
         if (savedPaths.Length != 0)
             validation.AssertUnreferenced(savedPaths, progress);
+        return prepareDocumentDeletionFiles(section, document, targets, savedPaths);
+    }
+
+    private PreparedResourceDeletion prepareDocumentDeletionFiles(string section, EditorDocument document,
+        IReadOnlyList<EditorDocument> targets, string[] savedPaths)
+    {
         EditorFileSaveBatch batch = new();
         string? deletedDirectory = section == "WorldMaps" && document.SavedState.InternalData is not null
             ? Path.GetDirectoryName(document.SavedPath) : null;
