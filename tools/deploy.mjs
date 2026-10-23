@@ -1,16 +1,18 @@
 import { createHash, randomBytes, scryptSync } from 'node:crypto';
-import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { encodeName, hasControlCharacters, projectIdentifier } from '../backend/identity.ts';
-import { ipWriteIntervalSeconds, luaEntry } from '../backend/config.ts';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const [project, key, password, ...extra] = process.argv.slice(2);
 
 try {
   if (Number(process.versions.node.split('.')[0]) !== 24) throw new Error('Node.js 24 is required.');
+  try { await access(join(root, 'backend/main.js')); await access(join(root, 'frontend/index.html')); }
+  catch { throw new Error('Deploy the built package: run npm ci and npm run build in the source checkout, then copy dist/LudorkServer to a separate deployment directory and run deploy there.'); }
+  const { encodeName, hasControlCharacters, projectIdentifier } = await import('../backend/identity.js');
+  const { ipWriteIntervalSeconds, luaEntry } = await import('../backend/config.js');
   if (extra.length || !project || !key || !password) throw new Error('Usage: deploy <project> <key> <password>');
   projectIdentifier(project);
   if (!/^[\x21-\x7e]{1,4096}$/.test(key)) throw new Error('The key must contain 1-4096 visible ASCII characters without spaces.');
@@ -25,11 +27,11 @@ try {
   const interval = ipWriteIntervalSeconds(Object.hasOwn(config.projects, project) ? config.projects[project].ipWriteIntervalSeconds : undefined);
   const entry = luaEntry(Object.hasOwn(config.projects, project) ? config.projects[project].luaEntry : undefined);
 
-  console.log('Installing locked dependencies (no frontend build)...');
-  const install = spawnSync(process.platform === 'win32' ? process.env.ComSpec ?? 'cmd.exe' : 'npm', process.platform === 'win32' ? ['/d', '/s', '/c', 'npm ci'] : ['ci'], {
+  console.log('Installing locked production dependencies...');
+  const install = spawnSync(process.platform === 'win32' ? process.env.ComSpec ?? 'cmd.exe' : 'npm', process.platform === 'win32' ? ['/d', '/s', '/c', 'npm ci --omit=dev'] : ['ci', '--omit=dev'], {
     cwd: root, stdio: 'inherit', windowsHide: true
   });
-  if (install.error || install.status !== 0) throw new Error('npm ci failed. Check Node.js 24, npm, and network access.');
+  if (install.error || install.status !== 0) throw new Error('npm ci --omit=dev failed. Check Node.js 24, npm, and network access.');
 
   const salt = randomBytes(16);
   Object.defineProperty(config.projects, project, { value: {
@@ -51,8 +53,6 @@ try {
     if (entry === 'Main.lua')
     await writeFile(join(projectDirectory, 'Main.lua'), await readFile(join(root, 'lua', 'templates', 'Main.lua')), { mode: 0o600, flag: 'wx' });
   } catch (error) { if (error.code !== 'EEXIST') throw error; }
-  await writeFile(join(root, 'start.sh'), '#!/usr/bin/env sh\nset -eu\ncd -- "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"\nexec node tools/start.mjs\n', { mode: 0o700 });
-  await writeFile(join(root, 'start.bat'), '@echo off\r\nsetlocal\r\ncd /d "%~dp0"\r\nnode tools\\start.mjs\r\nexit /b %errorlevel%\r\n');
   console.log(`Configured project ${project}; existing user data was preserved.`);
   console.log(`Lua entry: projects/${encodeName(project)}/${entry} (existing logic is preserved).`);
   console.log('Run start.sh (Linux/macOS) or start.bat (Windows). Restart an existing service to load changed credentials.');

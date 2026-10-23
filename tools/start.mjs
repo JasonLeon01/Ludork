@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
+import { access } from 'node:fs/promises';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const children = new Set();
@@ -53,12 +54,26 @@ if (Number(process.versions.node.split('.')[0]) !== 24) {
 }
 process.on('SIGINT', () => shutdown());
 process.on('SIGTERM', () => shutdown());
-const backend = launch([join(root, 'backend', 'main.ts')], true);
+process.on('message', message => { if (message === 'shutdown') shutdown(); });
+process.on('disconnect', () => shutdown());
+try { await access(join(root, 'backend/main.js')); await access(join(root, 'frontend/index.html')); }
+catch {
+  console.error('Start the built deployment package. Run npm ci and npm run build, copy dist/LudorkServer to a separate directory, then run deploy and start there.');
+  process.exit(1);
+}
+const backend = launch([join(root, 'backend', 'main.js')], true);
 const timeout = setTimeout(() => { console.error('Backend startup timed out.'); shutdown(1); }, 15_000);
 timeout.unref();
 backend.on('message', message => {
   if (message !== 'ready' || stopping) return;
   clearTimeout(timeout);
-  launch([join(root, 'tools', 'frontend.mjs')], true);
-  console.log('Use http://<host>:3333/<project>/ to sign in. Press Ctrl+C to stop both services.');
+  const management = launch([join(root, 'backend', 'management.js')], true);
+  const managementTimeout = setTimeout(() => { console.error('Management startup timed out.'); shutdown(1); }, 15_000);
+  managementTimeout.unref();
+  management.on('message', state => {
+    if (state !== 'ready' || stopping) return;
+    clearTimeout(managementTimeout);
+    console.log('Use http://<host>:3333/<project>/ to sign in. Press Ctrl+C to stop both services.');
+    process.send?.('ready');
+  });
 });

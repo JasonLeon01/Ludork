@@ -38,7 +38,7 @@ export class LuaProject {
 
   async start(): Promise<void> {
     const options: ForkOptions & { windowsHide: boolean } = { execArgv: [], windowsHide: true, stdio: ['ignore', 'inherit', 'inherit', 'ipc'], serialization: 'advanced' };
-    const child = fork(new URL('./lua-worker.ts', import.meta.url), [], options);
+    const child = fork(new URL('./lua-worker.js', import.meta.url), [], options);
     this.child = child;
     this.starting = true;
     await new Promise<void>((resolve, reject) => {

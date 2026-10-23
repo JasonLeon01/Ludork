@@ -4,10 +4,10 @@ Ludork's optional Node.js 24 server runs project logic in Lua 5.4 through the pi
 
 ## Deploy
 
-Install **Node.js 24** with npm, then deploy a project:
+Extract the built `LudorkServer-<version>.tar.gz` package to a deployment directory. Install **Node.js 24** with npm, then deploy a project:
 
 ```sh
-git clone --branch Server --single-branch https://github.com/JasonLeon01/Ludork.git LudorkServer
+tar -xzf LudorkServer-1.0.0.tar.gz
 cd LudorkServer
 sh deploy.sh MyGame 'project-key' 'management-password'
 sh start.sh
@@ -22,7 +22,7 @@ start.bat
 
 Quote arguments for your shell, particularly `$`, `%`, `!`, `&` and quote characters. Deployment arguments can remain in shell history and process listings. Do not put production credentials in source-controlled scripts.
 
-Deployment installs locked npm dependencies, saves credential hashes in `config/projects.json`, creates a project Lua entry, and generates `start.sh` and `start.bat`. Wasmoon ships its Lua VM as WebAssembly; no system Lua installation or native compiler is needed. Deployment does not build the frontend. The start script supervises the backend and Vite together; Ctrl+C stops both. A failed service process stops the other service. Occupied ports cause startup to fail.
+Deployment runs `npm ci --omit=dev`, saves credential hashes in `config/projects.json`, and creates a project Lua entry. The package already contains compiled backend JavaScript, built frontend assets, and `start.sh` / `start.bat`; deployment does not compile code or install development dependencies. Wasmoon ships its Lua VM as WebAssembly; no system Lua installation or native compiler is needed. The start script supervises the backend and production management server together; Ctrl+C stops both. A failed service process stops the other service. Occupied ports cause startup to fail.
 
 | Purpose | Address |
 | --- | --- |
@@ -30,11 +30,26 @@ Deployment installs locked npm dependencies, saves credential hashes in `config/
 | Ludork client server URL | `http://IP:7777/MyGame` |
 | Client WebSocket endpoint | `ws://IP:7777/MyGame/api/v1/net` |
 
-For a domain, set `LUDORK_ALLOWED_HOSTS=games.example.com` before starting Vite. Multiple hostnames are comma-separated, without scheme or port. IP addresses work directly. Both services listen on all interfaces; deployment does not configure a firewall, TLS, system service or automatic startup.
+For a domain, set `LUDORK_ALLOWED_HOSTS=games.example.com` before starting. Multiple exact hostnames are comma-separated, without scheme or port. IP addresses, `localhost` and names ending in `.localhost` work directly. Both services listen on all interfaces; deployment does not configure a firewall, TLS, system service or automatic startup.
 
 Deploy another project to add it to the same instance. Redeployment rotates that project's credentials while preserving data, Lua source, `luaEntry` and `ipWriteIntervalSeconds`. Deploy projects sequentially and stop the service while reinstalling dependencies. Restart to apply configuration or Lua source changes.
 
 Project names support 1–64 UTF-8 bytes, excluding control characters, slash, backslash, and the exact names `.` and `..`. Keys use 1–4096 visible ASCII characters without spaces. Passwords support 1–4096 UTF-8 bytes without control characters. There are no default credentials.
+
+## Build from source
+
+The `Server` branch owns the build inputs. Install Node.js 24 and run:
+
+```sh
+git clone --branch Server --single-branch https://github.com/JasonLeon01/Ludork.git LudorkServerSource
+cd LudorkServerSource
+npm ci
+npm run build
+```
+
+The fixed output is `dist/LudorkServer/`. Copy that directory to a separate deployment location, then run its deploy and start scripts as described above. Source checkout deploy/start commands reject direct execution. Building never reads private project settings, data or Lua logic into the package; if the output directory already contains `config/`, `data/`, `projects/` or `logs/`, the build refuses to replace it. Move the deployed instance outside `dist` before building again.
+
+The build compiles TypeScript, bundles React with Vite, copies Lua runtime files and declarations, and writes a production-only package manifest and lockfile. The deployable directory contains no TypeScript/TSX sources, development dependencies, `node_modules`, or private deployment data. Run `npm run typecheck` and `npm run lint` when changing source. Lua declarations and the standalone EmmyLua workspace describe the server-only language surface.
 
 ## Project Lua logic
 
@@ -170,23 +185,23 @@ Stable server failures include `InvalidArgument`, `AuthenticationFailed`, `RateL
 
 Open `http://host:3333/<project>/` and supply the project key and management password. Password hashes use scrypt with a per-project random salt. The project-specific HttpOnly, SameSite=Strict cookie lasts eight hours; restarting invalidates sessions. Login/logout require a custom header, and the server does not enable CORS.
 
-The viewer lists accounts and `.ldata` categories and displays typed Lua values, including exact integers and escaped byte strings. It has no editing or deletion UI. Vite serves only frontend inputs and imported dependencies, never project logic, data, configuration or backend source. Management data endpoints require the project's session.
+The viewer lists accounts and `.ldata` categories and displays typed Lua values, including exact integers and escaped byte strings. It has no editing or deletion UI. The production management server serves only the built page and frontend assets, and proxies project API requests to the backend. Project logic, data, configuration and backend files are not served. Management data endpoints require the project's session.
 
 This service retains shared project-key authentication. Account IDs are storage namespaces, not authenticated identities. An extracted client key can access that project's registered network modules. HTTP/WebSocket traffic is unencrypted; use the intended network boundary or a separately managed TLS proxy. This service does not configure that infrastructure.
 
 ```text
-backend/                   Node.js TypeScript networking and host services
+backend/                   Compiled JavaScript networking and host services
 lua/                       Lua framework, supplied modules and entry template
-frontend/                  Read-only React/TypeScript management viewer
+frontend/                  Built management page and static assets
 projects/<project-hex>/     Private project Lua source (ignored)
 config/projects.json       Project settings and credential hashes (ignored)
 data/<project>/<account>/  Encoded category .ldata files (ignored)
 data/.server.lock          Single-backend lock (ignored)
-start.sh / start.bat       Generated launchers (ignored)
+start.sh / start.bat       Packaged service launchers
 ```
 
 Back up private project logic, configuration and data through your operational process. Restrict filesystem access to the service administrator. The instance lock detects a live recorded PID without killing it; an exited process's stale lock can be recovered. For malformed locks or reused PIDs, confirm no backend is running before manually removing the lock.
 
-Source archives exclude private logic, credentials, user data, dependencies and generated launchers. Install with `npm ci`; use `npm run typecheck` and `npm run lint` when changing TypeScript. Lua declarations and the standalone EmmyLua workspace describe the server-only language surface.
+Built archives exclude private logic, credentials, user data and installed dependencies. Their runtime package and lockfile install only the required production dependencies.
 
-Wasmoon, its embedded Lua runtime and ws are distributed under the MIT license. Their copyright and license texts are included in [Third-party notices](third-party/README.md).
+Copyright and license texts for Wasmoon, its embedded Lua runtime, ws and the bundled React components are included in [Third-party notices](third-party/README.md).
