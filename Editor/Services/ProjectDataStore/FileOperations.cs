@@ -217,10 +217,10 @@ public sealed partial class ProjectDataStore
         string? deletedDirectory = section == "WorldMaps" && document.SavedState.InternalData is not null
             ? Path.GetDirectoryName(document.SavedPath) : null;
         if (deletedDirectory is not null)
-            batch.DeleteDirectory(deletedDirectory);
+            batch.Recycle(deletedDirectory);
         foreach (string savedPath in savedPaths)
             if (deletedDirectory is null || !isDocumentInsidePath(savedPath, deletedDirectory))
-                batch.Delete(savedPath);
+                batch.Recycle(savedPath);
         if (section is "General" or "Animations" or "Particles")
         {
             Dictionary<string, JsonObject> savedGeneral = originData["General"]

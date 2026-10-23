@@ -408,7 +408,8 @@ public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
     private async Task onDeleteDataTypeAsync(string typeKey)
     {
         string msg = LocaleService.Get("CONFIRM_DELETE_DATA_TYPE").Replace("{}", typeKey) + Environment.NewLine + LocaleService.Get("DELETE_DOCUMENT_CONFIRMATION");
-        bool confirmed = await ConfirmationDialog.ShowAsync(this, LocaleService.Get("DELETE_DATA_TYPE"), msg);
+        bool confirmed = await ConfirmationDialog.ShowAsync(this, LocaleService.Get("DELETE_DATA_TYPE"), msg,
+            details: LocaleService.Get("DELETE_DOCUMENT_DETAILS"));
         if (!confirmed)
             return;
         if (!await EditorResourceOperations.DeleteAsync(this, gameData,

@@ -367,7 +367,7 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
         bool confirmed = await ConfirmationDialog.ShowAsync(
             this,
             LocaleService.Get("CONFIRM_DELETE"),
-            message);
+            message, details: LocaleService.Get("DELETE_DOCUMENT_DETAILS"));
         if (!confirmed)
             return;
         flushGraph();

@@ -1,4 +1,4 @@
-namespace Ludork.Services.ResourceCleanup;
+namespace Ludork.Services;
 
 internal interface ISystemTrash
 {

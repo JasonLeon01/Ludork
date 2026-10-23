@@ -249,18 +249,7 @@ public sealed partial class FileExplorerViewModel
                     continue;
                 }
                 progress?.Report(new EditorOperationProgress("EDIT_OPERATION_DELETING", path));
-                bool removed = await Task.Run(() =>
-                {
-                    if (Directory.Exists(path))
-                        Directory.Delete(path, true);
-                    else if (File.Exists(path))
-                        File.Delete(path);
-                    else
-                        return false;
-                    return true;
-                });
-                if (!removed)
-                    continue;
+                await SystemTrashService.MoveToTrashAsync(path);
                 deleted.Add(path);
                 externalDeleted.Add(path);
             }

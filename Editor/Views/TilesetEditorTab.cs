@@ -141,7 +141,8 @@ internal sealed class TilesetEditorTab : Grid
     {
         if (dataList.SelectedItem is not string key)
             return;
-        bool confirmed = await ConfirmationDialog.ShowAsync(owner, LocaleService.Get("CONFIRM_DELETE"), LocaleService.Get("DELETE_DOCUMENT_CONFIRMATION"));
+        bool confirmed = await ConfirmationDialog.ShowAsync(owner, LocaleService.Get("CONFIRM_DELETE"), LocaleService.Get("DELETE_DOCUMENT_CONFIRMATION"),
+            details: LocaleService.Get("DELETE_DOCUMENT_DETAILS"));
         if (!confirmed)
             return;
         if (await EditorResourceOperations.DeleteAsync(owner, gameData,

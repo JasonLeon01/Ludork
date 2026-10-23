@@ -361,7 +361,8 @@ public partial class MainWindow
             string message = string.Format(LocaleService.Get("WORLD_DELETE_CONFIRMATION"), worldKey, childCount)
                 + Environment.NewLine + LocaleService.Get("DELETE_DOCUMENT_CONFIRMATION");
             bool confirmed = await EditorEditWorkflow.RunInteractionAsync(progress, this,
-                owner => ConfirmationDialog.ShowAsync(owner, LocaleService.Get("CONFIRM_DELETE"), message));
+                owner => ConfirmationDialog.ShowAsync(owner, LocaleService.Get("CONFIRM_DELETE"), message,
+                    details: LocaleService.Get("DELETE_DOCUMENT_DETAILS")));
             return confirmed && await viewModel.MapWorkspace.DeleteWorldAsync(worldKey, progress);
         });
     }
@@ -417,7 +418,8 @@ public partial class MainWindow
             }
             bool confirmed = await EditorEditWorkflow.RunInteractionAsync(progress, this,
                 owner => ConfirmationDialog.ShowAsync(owner, LocaleService.Get("CONFIRM_DELETE"),
-                    LocaleService.Get("DELETE_DOCUMENT_CONFIRMATION")));
+                    LocaleService.Get("DELETE_DOCUMENT_CONFIRMATION"),
+                    details: LocaleService.Get("DELETE_DOCUMENT_DETAILS")));
             return confirmed && await viewModel.MapWorkspace.DeleteMapAsync(key, progress);
         });
     }

@@ -3,7 +3,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
-namespace Ludork.Services.ResourceCleanup;
+namespace Ludork.Services;
 
 [SupportedOSPlatform("macos")]
 internal sealed class MacOSTrashService : ISystemTrash

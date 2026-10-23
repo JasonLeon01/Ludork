@@ -1,11 +1,27 @@
 using System;
+using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Ludork.Services.ResourceCleanup;
+namespace Ludork.Services;
 
 internal static class SystemTrashService
 {
+    public static string? MoveToTrash(string path) => MoveToTrashAsync(path).GetAwaiter().GetResult();
+
+    public static async Task<string?> MoveToTrashAsync(string path)
+    {
+        try
+        {
+            return await RunAsync(trash => trash.MoveToTrash(path), CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is COMException or NotSupportedException)
+        {
+            throw new IOException(exception.Message, exception);
+        }
+    }
+
     public static Task<T> RunAsync<T>(Func<ISystemTrash, T> operation, CancellationToken cancellationToken)
     {
         if (OperatingSystem.IsMacOS())

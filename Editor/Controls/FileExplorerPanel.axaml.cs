@@ -788,7 +788,8 @@ public partial class FileExplorerPanel : UserControl
         bool confirmed = await ConfirmationDialog.ShowAsync(
             owner,
             LocaleService.Get("CONFIRM_DELETE"),
-            LocaleService.Get("DELETE_DOCUMENT_CONFIRMATION"));
+            LocaleService.Get("DELETE_DOCUMENT_CONFIRMATION"),
+            details: LocaleService.Get("DELETE_DOCUMENT_DETAILS"));
         if (!confirmed)
             return;
         await runFileOperationAsync(viewModel, "DELETE",

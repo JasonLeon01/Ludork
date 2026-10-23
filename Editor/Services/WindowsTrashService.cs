@@ -3,7 +3,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
-namespace Ludork.Services.ResourceCleanup;
+namespace Ludork.Services;
 
 [SupportedOSPlatform("windows")]
 internal sealed class WindowsTrashService : ISystemTrash
@@ -22,7 +22,7 @@ internal sealed class WindowsTrashService : ISystemTrash
             operation.DeleteItem(item, sink);
             operation.PerformOperations();
             operation.GetAnyOperationsAborted(out bool aborted);
-            if (aborted || !sink.Recycled || File.Exists(path))
+            if (aborted || !sink.Recycled || File.Exists(path) || Directory.Exists(path))
                 throw new IOException(sink.Error ?? "The system did not recycle the file. Permanent deletion is not allowed.");
             return sink.Destination;
         }

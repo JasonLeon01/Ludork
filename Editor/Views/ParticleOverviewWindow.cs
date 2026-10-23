@@ -162,7 +162,8 @@ public sealed class ParticleOverviewWindow : Window
     {
         string key = currentKey;
         if (key.Length == 0 || !await ConfirmationDialog.ShowAsync(this, LocaleService.Get("CONFIRM_DELETE"),
-                key + Environment.NewLine + LocaleService.Get("DELETE_DOCUMENT_CONFIRMATION")))
+                key + Environment.NewLine + LocaleService.Get("DELETE_DOCUMENT_CONFIRMATION"),
+                details: LocaleService.Get("DELETE_DOCUMENT_DETAILS")))
             return;
         await EditorResourceOperations.DeleteAsync(this, gameData,
             progress => gameData.DeleteDocumentResourceAsync("Particles", key, progress));
