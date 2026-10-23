@@ -10,7 +10,7 @@ Choose **Game → New Common Particle** or create a particle in the project file
 
 *The track list is on the left, the preview and lifetime curve are in the centre, and properties are on the right.*
 
-The Texture Rect fields set the texture region’s position and size. Playback, track isolation and seeking are described in [Particle previews](<../PreviewHost/UI Actor Particle and Subtitle Previews.md#particle-previews>).
+Textures can be PNG (`.png`) or JPEG (`.jpg`); Texture Rect selects a region of the image. For playback, track isolation and seeking, see [Particle previews](<../PreviewHost/UI Actor Particle and Subtitle Previews.md#particle-previews>).
 
 Resource edits follow the shared [save and Undo rules](<Start Page Workspace and Shortcuts.md#editing-and-saving>).
 

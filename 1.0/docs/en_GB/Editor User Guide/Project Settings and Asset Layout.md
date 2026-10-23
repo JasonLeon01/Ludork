@@ -76,7 +76,7 @@ Resource resolution rejects symbolic links, broken links and reparse points from
 
 Keep the conventional first-level folders so that selectors can filter correctly: `Tilesets`, `Autotiles`, `Characters`, `Animations`, `Particles`, `Icons`, `Fonts`, `Musics`, `Sounds`, `Voices`, `Shaders`, `Panoramas`, `Transitions`, `System` and `Videos`. The `.ldpak` option archives the complete `Assets` tree as root `Assets.ldpak`, including ordinary files directly under `Assets`. Logical resource paths remain unchanged.
 
-Moving an asset does not automatically repair every stored reference. Open its reference tree before moving or deleting it, then update the affected data manually.
+Rename or move files and folders within `Assets` through the editor to update recognised references. Renames outside the editor, handwritten source references and dynamically constructed paths require manual updates. For saving, Undo and pending-path restrictions, see [Editing and saving](<Start Page Workspace and Shortcuts.md#editing-and-saving>).
 
 ## Data and Scripts
 

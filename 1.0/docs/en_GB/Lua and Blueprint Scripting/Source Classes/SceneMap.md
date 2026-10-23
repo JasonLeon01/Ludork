@@ -38,6 +38,10 @@ Ordinary map loading binds the Scene, the current map identity and the Player. I
 
 Scene exit, destruction and map replacement cancel unfinished tutorials, dialogues, shops, player-name windows and scene timers, dismissing windows and releasing input blocks. Registered operations on departing map Actors, including movement and doors, are also cancelled. Waiting Lua tasks and Blueprint events stop without running subsequent statements or completion outputs.
 
+Pushing another Scene stops map BGM/BGS and clears weather and panorama. On `SceneManager.popScene()`, the departing Scene's BGM/BGS and weather are cleared, then the map's configured audio and panorama are reapplied. Ordinary maps use settings captured at load; worlds follow the [composite-world environment rules](<../Default Gameplay/Resources Audio Video and Effects.md#composite-world-environment>). Music restarts with the map filter's offset and loop-point settings rather than its previous playback position. Temporary script changes to music, filters, weather and panorama are not restored.
+
+The map, Actors, fog and ambient-light transitions remain alive. Returning neither reloads the map nor repeats Actor `onCreate`.
+
 ### Composite-world behaviour
 
 `getGameMap` returns `GameMap` or a compatible `WorldGameMap`. `gotoMapAndPos` accepts either world coordinates for a manifest or local coordinates for a placed child, and stores the manifest as the primary player's map. `blockTransition` skips the mask, but not the target readiness checks.

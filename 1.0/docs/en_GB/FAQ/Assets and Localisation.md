@@ -6,7 +6,9 @@ Select **Enable video playback (FFmpeg)** when creating the project. This adds l
 
 ## Why does an asset reference break after I move or rename a file?
 
-Stored resource references use exact-case `/Game/Assets/...` paths with file extensions. Moving an asset does not repair every stored reference automatically. Open its reference tree and update the affected data manually. Symbolic links and paths outside the project are also rejected. See [Assets](<../Editor User Guide/Project Settings and Asset Layout.md#assets>).
+Rename or move assets through the editor, then Save. External renames and source-code or dynamic references require manual updates; see [Assets](<../Editor User Guide/Project Settings and Asset Layout.md#assets>) for path requirements.
+
+For an external-change conflict while a move is still unsaved, see [Editing and saving](<../Editor User Guide/Start Page Workspace and Shortcuts.md#editing-and-saving>).
 
 ## Why do changed translations not appear in the game?
 

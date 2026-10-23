@@ -38,6 +38,10 @@ Lua 还可调用 `showVoiceMessage(name, message, voiceFileName, refActor, minDi
 
 退出场景、销毁场景和替换地图会取消未完成的教程、对话、商店、改名窗口及场景计时器，关闭窗口并解除输入阻塞。离开地图的 Actor 所注册的操作（包括移动与门动画）也会取消。等待中的 Lua 任务与蓝图事件随之停止，不执行后续语句或完成出口。
 
+压入另一个 Scene 时，会停止地图 BGM/BGS 并清除天气和远景。通过 `SceneManager.popScene()` 返回时，先清除离场 Scene 的 BGM/BGS 和天气，再重新应用地图配置中的音频与远景。普通地图使用加载时保存的配置；大地图遵循[组合式大地图环境规则](<../Game 玩法/资源、音频、视频与特效.md#组合式大地图环境>)。音乐按地图过滤器的起始偏移与循环区间重新播放，不续接离场时的播放位置。脚本临时修改的音乐、过滤器、天气和远景不会恢复。
+
+原有地图、Actor、雾和环境光过渡状态继续保留。返回不会重新加载地图或再次执行 Actor 的 `onCreate`。
+
 ### 组合式大地图行为
 
 `getGameMap` 返回 `GameMap` 或兼容的 `WorldGameMap`。`gotoMapAndPos` 接受“清单 + 大地图坐标”或“已摆放子地图 + 局部坐标”，并把清单存为主控 player 的地图。`blockTransition` 跳过遮罩，但不跳过目标就绪检查。

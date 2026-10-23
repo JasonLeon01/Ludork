@@ -24,9 +24,11 @@ Each field definition may store an optional English `comment`. Enter it through 
 
 String enum selectors include **— None —**, stored as an empty string. Unknown nonempty values are retained; enums validate scalar types rather than option membership. Empty managed collections remain valid string enums. An enum-keyed dictionary row remains pending until a nonempty, unique key is chosen, so no placeholder key is saved. The old `GeneralDataVars` decorator and General Data field `reference` protocol are unsupported; express these choices in the type schema.
 
-Enum declarations count as dependencies even when no member selects a value. Remove these dependencies before deleting a referenced type. Enum IDs preserve whitespace and quote characters literally.
+Enum declarations count as dependencies even when no member selects a value. Enum IDs preserve whitespace and quote characters literally.
 
-Renaming a type automatically updates recognised module paths only where they are stored in editable JSON, including self references and other module names reassigned by identifier collisions. Dependencies declared in Lua metadata remain visible but do not trigger source rewriting. Animation and particle renames update typed scalar references. Dictionary key collisions reject a rename without partial changes, and Undo/Redo restores coordinated references under the shared [reference-update rules](<Start Page Workspace and Shortcuts.md#editing-and-saving>). Remove and save dependencies before deleting a referenced type. Ordinary strings and Lua or C++ source are not rewritten.
+Renaming a type updates recognised module paths in editable JSON, including self references and module names reassigned by identifier collisions. Lua metadata dependencies remain visible, but their source is not rewritten.
+
+**Change ID** updates typed member references in defaults, Blueprint and map fields, graph parameters and containers, including dictionary keys. Inherited values change in their owning definition; child Blueprints and map Actors receive no overrides. Animation and particle renames update typed scalar references. Dictionary key collisions reject the whole rename. Undo/Redo follows the shared [reference-update rules](<Start Page Workspace and Shortcuts.md#editing-and-saving>). Ordinary strings and Lua or C++ source require manual updates. Remove and save dependencies before deleting a referenced type.
 
 ## Steps
 

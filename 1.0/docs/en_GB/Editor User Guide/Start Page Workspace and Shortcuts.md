@@ -104,15 +104,21 @@ Displayed field defaults are written only when the field is edited.
 
 File fields that can be cleared offer **Clear** as the first item in the file selector, in every directory and for every file filter. Select it and choose **Open**, press Enter or double-click it to clear the field. **Cancel** or Escape keeps the previous value. Save dialogs, multi-file imports and selectors that require an actual file do not offer this item.
 
-Managed resource changes stay in memory until Save. All Save buttons and `Ctrl/Command+S` write every modified document, including unopened resources, and Construct, Export, Play and Pack use the same workflow. Successful saves show no result dialog; a failed save reports only the failed items and their errors. Normal Save validates changed Blueprints, while forced saving can retain unfinished graphs. [Game Config](<Project Settings and Asset Layout.md#game-configuration>) writes immediately on confirmation.
+Managed resource changes and asset file or folder renames and moves stay in memory until Save; Discard restores the last saved paths. All Save buttons and `Ctrl/Command+S` write every modified document, including unopened resources, and Construct, Export, Play and Pack use the same workflow. Successful saves show no result dialog; a failed save reports only the failed items and their errors. Normal Save validates changed Blueprints, while forced saving can retain unfinished graphs. [Game Config](<Project Settings and Asset Layout.md#game-configuration>) writes immediately on confirmation.
 
 Saving, resource deletion and file transfers, renaming, Undo and Redo temporarily disable editing, project switching and window closing. Longer operations show an animated progress dialog after a short delay, including reference checks before deletion. The dialog reports the current stage and, when available, the current file and completed count. It gives way to any required confirmation and closes when the operation finishes or fails. These editing operations cannot be cancelled midway. If project data or external files change during validation, the editor asks you to retry.
 
 Undo and Redo apply only to the active file, which keeps its 100 most recent entries. Windows that show the same file share its data and history, including after they are closed and reopened. Continuous text or numeric input in one field merges into a single step. Changing the control or the editing view, an automatic update, Save, Undo and Redo all end that step. Buttons, check boxes and selections each remain separate steps.
 
-Undo cannot restore a reference to a deleted resource; a rejected step leaves the document and history unchanged.
+Undo cannot restore a reference to a deleted resource or to an unavailable asset path or General Data member ID renamed during the session; a rejected step leaves the document and history unchanged.
 
 Automatic reference updates create a marked Undo barrier in every changed target file, including unopened files. Later edits remain undoable, but Undo cannot cross the barrier and reports the barrier's source. Undoing or redoing the source rename updates references against the current target content and adds a new barrier, which preserves unrelated edits. Saving preserves the history and the barriers, so Undo can mark a saved file as modified again.
+
+To Undo or Redo an asset path change, select the file or folder in File Explorer. Undoing a folder move preserves later independent changes to its children. Save pending moves before copying, deleting, importing, creating or writing files at their source or destination paths; further renames and moves remain available. Destination conflicts reject the whole operation.
+
+For external-change conflicts, **Keep memory** accepts the current disk contents while retaining pending paths, updated references and Undo/Redo history. **Use disk** cancels the affected pending moves and restores recognised references to the last saved paths, preserving unrelated edits.
+
+If a source is missing or a destination is occupied, **Keep memory** fails without partial changes. **Use disk** can still cancel the moves, but does not restore missing files or clear their references; restore the files or update those references yourself.
 
 Modified files show `*` in the file explorer and in editor titles, and they are marked in resource selectors. Closing or replacing a project lists unsaved files and offers **Save**, **Discard** and **Cancel**. **Save** writes every modified document. Save failures retain the modified markers and prevent closing. Closing a resource window keeps its unsaved data until the project closes.
 

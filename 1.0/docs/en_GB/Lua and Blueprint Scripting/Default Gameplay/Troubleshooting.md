@@ -18,7 +18,7 @@ Confirm that its metadata file is pure data, returns `_METADATA`, names the memb
 
 ## An asset or data reference is broken
 
-Open the reference tree, find the invalid stored key or path, and update it manually. Renaming and deleting do not promise automatic reference repair.
+Use the reference tree to locate the invalid key or path. For asset renames and path requirements, see [Assets](<../../Editor User Guide/Project Settings and Asset Layout.md#assets>); for typed data references, see [General Data](<../../Editor User Guide/General Data and Text Config.md#type-structure>).
 
 ## Localised text is missing
 

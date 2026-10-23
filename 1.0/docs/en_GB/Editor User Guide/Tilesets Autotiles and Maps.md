@@ -74,7 +74,9 @@ Tile mode supports layer creation, rename, reorder, copy, paste and deletion. A 
 
 Each layer tab shows its name on the left and its visibility control on the right. Visibility is authored map data, so hidden layers are not rendered and are read-only. Layers and their Actors are drawn in the map's layer order. **Overview** shows all visible layers; selecting a layer dims the others without changing their stacking order.
 
-The map uses one tile brush. Left-drag paints the selected tile or autotile continuously, Shift+left-drag paints a filled rectangle, and right-click samples the clicked cell. Alt+left-click (Option+left-click on macOS) fills the four-directionally connected region matching the clicked tile and autotile values. A multi-tile selection repeats from the clicked cell across that region; autotile selection and erase use the same fill shortcut. One brush stroke, rectangle or fill is recorded as one map edit for Undo. Hidden layers reject every editing route and show read-only feedback. The first time painting with a single ordinary tile changes the map, releasing the left mouse button shows an animated reminder that outlines the selected tile and explains deselection and erasing. This reminder appears once per editor user; click anywhere to continue.
+Left-drag paints the selected tile or autotile continuously; a multi-tile selection places the complete pattern at each brush position. Shift+left-drag fills the outlined rectangle, repeating multi-tile patterns from its top-left corner and clipping them to its bounds. Shift+left-click paints one cell. Right-click samples the clicked cell.
+
+Alt+left-click (Option+left-click on macOS) fills the four-directionally connected region matching the clicked tile and autotile values. Multi-tile patterns repeat from the clicked cell; autotile selection and erase use the same shortcut. One brush stroke, rectangle or fill is one Undo step.
 
 Saving during a stroke starts a new Undo step for subsequent movement. Undo and Redo end the active stroke, and pressing again resumes painting.
 
