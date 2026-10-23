@@ -13,7 +13,8 @@ internal sealed record ProjectOperationSnapshot(
     IReadOnlyList<string> InvalidPaths,
     IReadOnlyDictionary<string, string> InvalidErrors,
     IReadOnlyList<string> DeletedPaths,
-    bool GenerateEnums)
+    bool GenerateEnums,
+    RenamedReferenceState RenamedReferences)
 {
     internal ProjectDataStore CreateStore() => ProjectDataStore.CreateOperationStore(this);
 }

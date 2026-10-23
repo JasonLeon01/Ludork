@@ -19,7 +19,7 @@ public sealed partial class ProjectDataStore
             return new HistoryResult(false, "File creation and deletion cannot be undone.") { IsBlocked = true };
         try
         {
-            validateRestoredReferences(document, candidate);
+            validateRestoredReferences(document, candidate, state.Key);
             bool restored = entry.GeneralMemberRename is GeneralMemberRename rename
                 ? commitGeneralMemberRename(document.Key, undo ? rename.NewId : rename.OldId,
                     undo ? rename.OldId : rename.NewId, candidate)
@@ -116,6 +116,8 @@ public sealed partial class ProjectDataStore
             updateDocumentCatalog(document.Section, previousKey, change.Value.Key, change.Value.Data);
         }
         CompleteDocumentChanges();
+        if (renamed && section == "General")
+            SetRenamedReferences(RenamedReferences.WithGeneralTypeRename(oldKey, newKey));
         transaction.Commit();
         refreshModifiedState();
         if (changes.Keys.Any(document => document.Section == "UI"))
@@ -213,19 +215,16 @@ public sealed partial class ProjectDataStore
         }
     }
 
-    internal void validateRestoredReferences(EditorDocument document, JsonObject candidate)
+    internal void validateRestoredReferences(EditorDocument document, JsonObject candidate, string restoredKey)
     {
         HashSet<string> unavailableMembers = new(StringComparer.Ordinal);
-        foreach (EditorDocument general in Documents.All.Where(item => item.Section == "General"))
+        foreach ((string typeKey, string memberId) in RenamedReferences.GeneralMembers)
         {
-            JsonObject? members = (ReferenceEquals(general, document) ? candidate : general.InternalData)?["members"] as JsonObject;
-            foreach (GeneralMemberRename rename in general.UndoEntries.Concat(general.RedoEntries)
-                         .Select(entry => entry.GeneralMemberRename).OfType<GeneralMemberRename>())
-            {
-                foreach (string member in new[] { rename.OldId, rename.NewId })
-                    if (members?.ContainsKey(member) != true)
-                        unavailableMembers.Add(ReferenceIdentity.GeneralMemberNodeId(general.Key, member));
-            }
+            EditorDocument? general = GetDocument("General", typeKey);
+            JsonObject? data = document.Section == "General" && restoredKey == typeKey ? candidate
+                : ReferenceEquals(general, document) ? null : general?.InternalData;
+            if (data?["members"] is not JsonObject members || !members.ContainsKey(memberId))
+                unavailableMembers.Add(ReferenceIdentity.GeneralMemberNodeId(typeKey, memberId));
         }
         using BlueprintClassResolver resolver = new(Metadata, key =>
             document.Section == "Blueprints" && document.Key == key

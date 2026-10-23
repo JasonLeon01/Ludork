@@ -27,8 +27,6 @@ public sealed partial class ProjectDataStore
         token.ThrowIfCancellationRequested();
         BreakHistoryGesture();
         CompleteDocumentChanges();
-        AssetPaths.AssertCanWrite(changes.Select(change => change.Path));
-        AssetPaths.ForgetExternalPaths(changes.Where(change => !keepMemoryPaths.Contains(change.Path)).Select(change => change.Path));
         long revision = Documents.Revision;
         EditorUiBatch batch = new();
         Dictionary<string, EditorDocument> savedDocuments = new(getPathComparer());
@@ -55,14 +53,14 @@ public sealed partial class ProjectDataStore
             }
             await batch.YieldIfNeededAsync(token);
         }
-        if (inputs.Count == 0)
-            return;
+        bool synchronizeAssets = changes.Any(change => ProjectDiskSnapshot.IsWithin(change.Path, Path.Combine(ProjectPath, "Assets")))
+            || AssetPaths.HasPendingChanges && inputs.Any(change => !change.Keep);
         bool validateBlueprints = inputs.Any(change => !change.Keep && change.Section is "Blueprints" or "Maps");
         bool validateWorlds = inputs.Any(change => !change.Keep && change.Section is "Maps" or "WorldMaps");
-        ProjectOperationSnapshot? snapshot = validateBlueprints || validateWorlds
+        ProjectOperationSnapshot? snapshot = validateBlueprints || validateWorlds || synchronizeAssets
             ? await captureDiskSynchronizationSnapshotAsync(batch, token) : null;
-        PreparedDiskChange[] prepared = await Task.Run(() => prepareDiskSynchronization(
-            inputs, snapshot, validateBlueprints, validateWorlds, progress, token), token);
+        (PreparedDiskChange[] prepared, PreparedAssetDiskChanges? assets) = await Task.Run(() => prepareDiskSynchronization(
+            inputs, snapshot, changes, keepPaths, synchronizeAssets, validateBlueprints, validateWorlds, progress, token), token);
         if (Documents.Revision != revision)
             throw new InvalidOperationException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
         List<Action> restoreEntries = [];
@@ -81,8 +79,16 @@ public sealed partial class ProjectDataStore
             }
             await batch.YieldIfNeededAsync(token);
         }
+        if (assets is not null)
+            foreach (ReferenceRewrite rewrite in assets.Rewrites)
+            {
+                if (captured.Add((rewrite.Section, rewrite.Key)))
+                    captureExternalChange(rewrite.Section, rewrite.Key, restoreEntries);
+                await batch.YieldIfNeededAsync(token);
+            }
         if (Documents.Revision != revision)
             throw new InvalidOperationException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
+        string[] previousDeletedPaths = deletedDocumentPaths.ToArray();
         bool committed = false;
         try
         {
@@ -98,9 +104,17 @@ public sealed partial class ProjectDataStore
                     Path.GetRelativePath(ProjectPath, change.Input.Path), ++completed, prepared.Length));
                 await batch.YieldIfNeededAsync(token);
             }
+            if (assets is not null)
+            {
+                AssetPaths.ApplyExternalChanges(assets);
+                ApplyReferenceRewrites(assets.Rewrites);
+            }
             token.ThrowIfCancellationRequested();
             if (canCommit is not null && !await canCommit())
                 throw new IOException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
+            token.ThrowIfCancellationRequested();
+            if (assets is not null)
+                await Task.Run(assets.Inputs.Validate, token);
             token.ThrowIfCancellationRequested();
             foreach (PreparedDiskChange change in prepared)
                 if (!change.Input.Keep)
@@ -124,8 +138,12 @@ public sealed partial class ProjectDataStore
         finally
         {
             if (!committed)
+            {
                 foreach (Action restore in restoreEntries)
                     restore();
+                deletedDocumentPaths.Clear();
+                deletedDocumentPaths.UnionWith(previousDeletedPaths);
+            }
         }
     }
 
@@ -134,7 +152,7 @@ public sealed partial class ProjectDataStore
         List<ProjectOperationDocument> documents = [];
         foreach (EditorDocument document in Documents.All)
         {
-            if (sections.ContainsKey(document.Section))
+            if (sections.ContainsKey(document.Section) || document.Section == ProjectAssetPaths.Section)
                 documents.Add(new ProjectOperationDocument(document.Id, document.Revision, document.CaptureState(),
                     document.SavedState, document.UndoEntries.ToArray(), document.RedoEntries.ToArray()));
             await batch.YieldIfNeededAsync(token);
@@ -147,11 +165,13 @@ public sealed partial class ProjectDataStore
             await batch.YieldIfNeededAsync(token);
         }
         return new ProjectOperationSnapshot(ProjectPath, Documents.Revision, documents, Maps.MapCatalog.ToArray(), moves,
-            InvalidLoadPaths, InvalidLoadErrors, deletedDocumentPaths.ToArray(), projectEnumGenerationPending);
+            InvalidLoadPaths, InvalidLoadErrors, deletedDocumentPaths.ToArray(), projectEnumGenerationPending, RenamedReferences);
     }
 
-    private PreparedDiskChange[] prepareDiskSynchronization(IReadOnlyList<DiskChangeInput> inputs,
-        ProjectOperationSnapshot? snapshot, bool validateBlueprints, bool validateWorlds,
+    private (PreparedDiskChange[] Changes, PreparedAssetDiskChanges? Assets) prepareDiskSynchronization(
+        IReadOnlyList<DiskChangeInput> inputs, ProjectOperationSnapshot? snapshot,
+        IReadOnlyList<ExternalFileChange> externalChanges, IReadOnlySet<string> keepPaths,
+        bool synchronizeAssets, bool validateBlueprints, bool validateWorlds,
         IProgress<EditorOperationProgress>? progress, CancellationToken token)
     {
         List<PreparedDiskChange> prepared = [];
@@ -168,7 +188,7 @@ public sealed partial class ProjectDataStore
                 Path.GetRelativePath(ProjectPath, input.Path), prepared.Count, inputs.Count));
         }
         if (snapshot is null)
-            return prepared.ToArray();
+            return (prepared.ToArray(), null);
         progress?.Report(new EditorOperationProgress("EDIT_OPERATION_VALIDATING"));
         using ProjectDataStore candidate = snapshot.CreateStore();
         Dictionary<Guid, EditorDocument> candidateDocuments = candidate.Documents.All.ToDictionary(document => document.Id);
@@ -191,6 +211,35 @@ public sealed partial class ProjectDataStore
             if (occupied is not null && !ReferenceEquals(occupied, document))
                 throw new InvalidDataException($"The disk file conflicts with another editor document: {input.Path}");
             candidate.Documents.Restore(document, change.State);
+        }
+        token.ThrowIfCancellationRequested();
+        PreparedAssetDiskChanges? assets = synchronizeAssets
+            ? candidate.AssetPaths.PrepareExternalChanges(externalChanges, keepPaths) : null;
+        if (assets is not null)
+        {
+            using EditorDocumentTransaction transaction = candidate.Documents.BeginTransaction([]);
+            candidate.AssetPaths.ApplyExternalChanges(assets);
+            candidate.ApplyReferenceRewrites(assets.Rewrites);
+            transaction.Commit();
+            Dictionary<string, string> replacements = candidate.AssetPaths.CapturePreviewMapping()
+                .ToDictionary(pair => pair.Value, pair => pair.Key, StringComparer.Ordinal);
+            if (replacements.Count != 0)
+            {
+                HashSet<(string Section, string Key)> diskDocuments = prepared
+                    .Where(change => !change.Input.Keep && change.Data is not null)
+                    .Select(change => (change.Input.Section, change.Input.Key)).ToHashSet();
+                ReferenceRewrite[] forward = candidate.ReferenceIndex.PrepareAssetPathRewrites(replacements, diskDocuments).ToArray();
+                candidate.ApplyReferenceRewrites(forward);
+                Dictionary<(string Section, string Key), ReferenceRewrite> rewrites = assets.Rewrites
+                    .ToDictionary(rewrite => (rewrite.Section, rewrite.Key));
+                foreach (ReferenceRewrite rewrite in forward)
+                {
+                    (string Section, string Key) location = (rewrite.Section, rewrite.Key);
+                    rewrites[location] = rewrites.TryGetValue(location, out ReferenceRewrite? previous)
+                        ? previous with { Candidate = rewrite.Candidate } : rewrite;
+                }
+                assets = assets with { Rewrites = rewrites.Values.ToArray() };
+            }
         }
         token.ThrowIfCancellationRequested();
         if (validateBlueprints)
@@ -223,7 +272,7 @@ public sealed partial class ProjectDataStore
                     MapBytes = change.Input.Section == "Maps" ? candidate.Maps.GetOperationMapBytes(change.Input.Key) : 0,
                 };
         }
-        return prepared.ToArray();
+        return (prepared.ToArray(), assets);
     }
 
     private void applyPreparedDiskChange(PreparedDiskChange change)

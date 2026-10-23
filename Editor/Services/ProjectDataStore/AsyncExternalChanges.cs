@@ -54,7 +54,7 @@ public sealed partial class ProjectDataStore
                 progress?.Report(new EditorOperationProgress("EDIT_OPERATION_APPLYING", document.Path));
                 await batch.YieldIfNeededAsync();
             }
-            await applyResourceChangesAsync(prepared.Changes, progress);
+            await applyResourceChangesAsync(prepared.Changes, progress, prepared.RenamedReferences);
             foreach ((MapCatalogEntry? before, MapCatalogEntry? after) in prepared.Catalog)
             {
                 if (after is not null)
@@ -184,7 +184,8 @@ public sealed partial class ProjectDataStore
         if (!inputs.IsCurrent())
             throw new IOException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
         return new PreparedExternalFileChanges(changes.ToArray(), removed, origins, catalogChanges.ToArray(),
-            working.InvalidLoadPaths.ToArray(), working.InvalidLoadErrors, working.deletedDocumentPaths.ToArray(), inputs);
+            working.InvalidLoadPaths.ToArray(), working.InvalidLoadErrors, working.deletedDocumentPaths.ToArray(), inputs,
+            working.RenamedReferences);
     }
 
     private void replaceExternalInvalidPaths(IReadOnlyList<string> paths, IReadOnlyDictionary<string, string> errors)
@@ -202,5 +203,6 @@ public sealed partial class ProjectDataStore
     private sealed record PreparedExternalFileChanges(PreparedResourceChange[] Changes, Guid[] Removed,
         IReadOnlyDictionary<(string Section, string Key), JsonObject?> Origins,
         (MapCatalogEntry? Before, MapCatalogEntry? After)[] Catalog,
-        string[] InvalidPaths, IReadOnlyDictionary<string, string> InvalidErrors, string[] DeletedPaths, ReferenceInputFiles Inputs);
+        string[] InvalidPaths, IReadOnlyDictionary<string, string> InvalidErrors, string[] DeletedPaths, ReferenceInputFiles Inputs,
+        RenamedReferenceState RenamedReferences);
 }

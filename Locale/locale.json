@@ -88,8 +88,8 @@
     "en_GB": "Checking disk versions"
   },
   "EXTERNAL_CHANGES_DESCRIPTION": {
-    "zh_CN": "此文件的磁盘内容和未保存内容存在冲突。使用磁盘数据将丢弃其未保存内容及撤销历史；保留内存数据将在下次保存时覆盖磁盘数据。",
-    "en_GB": "This file has external changes and unsaved edits. Using disk discards its unsaved edits and undo history; keeping memory overwrites disk on the next save."
+    "zh_CN": "数据文件：使用磁盘数据会丢弃其未保存内容及历史；保留内存数据会在保存时覆盖磁盘。素材：使用磁盘数据会取消关联移动并更新引用；保留内存数据会保留路径和历史，并采用当前磁盘内容。",
+    "en_GB": "For data files, Use disk discards unsaved edits and history; Keep memory overwrites disk on Save. For assets, Use disk cancels related pending moves and updates references; Keep memory retains paths and history using the current disk contents."
   },
   "EXTERNAL_KEEP_MEMORY": {
     "zh_CN": "保留内存数据",

@@ -76,7 +76,8 @@ public sealed partial class ProjectDataStore
         string[] paths = snapshot.Documents.SelectMany(document => new[] { document.Current.Path, document.Saved.Path }).ToArray();
         ReferenceInputFiles inputs = await Task.Run(() => ReferenceInputFiles.Capture(ProjectPath, paths));
         ReferenceIndexSnapshotBuilder.Result references = await ReferenceIndex.GetCurrentAsync(progress);
-        (T result, PreparedResourceChange[] changes, ProjectAssetPathInputs? assetInputs) = await Task.Run(() =>
+        (T result, PreparedResourceChange[] changes, ProjectAssetPathInputs? assetInputs,
+            RenamedReferenceState renamedReferences) = await Task.Run(() =>
         {
             if (!references.Files.IsCurrent() || !inputs.IsCurrent())
                 throw new IOException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
@@ -85,7 +86,7 @@ public sealed partial class ProjectDataStore
             progress?.Report(new EditorOperationProgress(stage));
             T result = operation(working);
             if (!succeeded(result))
-                return (result, Array.Empty<PreparedResourceChange>(), (ProjectAssetPathInputs?)null);
+                return (result, Array.Empty<PreparedResourceChange>(), (ProjectAssetPathInputs?)null, snapshot.RenamedReferences);
             Dictionary<Guid, ProjectOperationDocument> originals = snapshot.Documents.ToDictionary(document => document.Id);
             Dictionary<string, MapCatalogEntry> catalog = working.Maps.MapCatalog.ToDictionary(
                 entry => MapDataService.getMapCatalogDataKey(entry.Kind, entry.Key), StringComparer.Ordinal);
@@ -112,7 +113,7 @@ public sealed partial class ProjectDataStore
                 throw new IOException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
             ProjectAssetPathInputs assetInputs = working.AssetPaths.CaptureInputs();
             assetInputs.Validate();
-            return (result, changes.ToArray(), (ProjectAssetPathInputs?)assetInputs);
+            return (result, changes.ToArray(), (ProjectAssetPathInputs?)assetInputs, working.RenamedReferences);
         });
         if (!succeeded(result) || changes.Length == 0)
             return result;
@@ -123,14 +124,15 @@ public sealed partial class ProjectDataStore
         });
         if (Documents.Revision != snapshot.Revision || !filesCurrent)
             throw new InvalidOperationException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
-        await applyResourceChangesAsync(changes, progress);
+        await applyResourceChangesAsync(changes, progress, renamedReferences);
         return result;
     }
 
     private async Task applyResourceChangesAsync(IReadOnlyList<PreparedResourceChange> changes,
-        IProgress<EditorOperationProgress>? progress)
+        IProgress<EditorOperationProgress>? progress, RenamedReferenceState renamedReferences)
     {
         Dictionary<Guid, EditorDocument> existing = Documents.All.ToDictionary(document => document.Id);
+        HashSet<Guid> existingIds = existing.Keys.ToHashSet();
         List<Action> restoreEntries = [];
         EditorUiBatch batch = new();
         foreach ((string section, string key) in changes.SelectMany(change => new[]
@@ -146,13 +148,15 @@ public sealed partial class ProjectDataStore
         try
         {
             using EditorDocumentTransaction transaction = Documents.BeginTransaction([]);
-            int completed = 0;
             foreach (PreparedResourceChange change in changes)
             {
                 if (!existing.TryGetValue(change.Id, out EditorDocument? document))
                 {
                     document = Documents.Register(change.Before.Section, change.Before.Key, change.Before.Path,
                         null, true, change.Id);
+                    if (document.Id != change.Id)
+                        throw new InvalidOperationException($"The resource document identity changed: {change.Before.Path}");
+                    existing.Add(document.Id, document);
                     if (change.Before.Section == ProjectAssetPaths.Section)
                         AssetPaths.Attach(document);
                     else
@@ -160,6 +164,12 @@ public sealed partial class ProjectDataStore
                 }
                 else
                     transaction.Capture(document);
+                await batch.YieldIfNeededAsync();
+            }
+            int completed = 0;
+            foreach (PreparedResourceChange change in changes)
+            {
+                EditorDocument document = existing[change.Id];
                 string oldKey = document.Key;
                 bool assetPath = document.Section == ProjectAssetPaths.Section;
                 if (!assetPath)
@@ -196,9 +206,10 @@ public sealed partial class ProjectDataStore
                 progress?.Report(new EditorOperationProgress("EDIT_OPERATION_APPLYING", document.Path, ++completed, changes.Count));
                 await batch.YieldIfNeededAsync();
             }
-            foreach (PreparedResourceChange change in changes.Where(change => !existing.ContainsKey(change.Id)))
+            foreach (PreparedResourceChange change in changes.Where(change => !existingIds.Contains(change.Id)))
                 if (change.Saved.Section != ProjectAssetPaths.Section && change.Saved.InternalData is JsonObject saved)
                     originData[change.Saved.Section][change.Saved.Key] = saved;
+            SetRenamedReferences(renamedReferences);
             refreshModifiedState();
             foreach (PreparedResourceChange change in changes.Where(change => change.After.Section == "Maps"))
                 Maps.NotifyMapContentChanged(change.After.Key);

@@ -86,6 +86,8 @@ public sealed partial class ProjectAssetPaths
             store.Documents.Capture(document, $"Move {document.Path} to {destination}", marker);
             store.Documents.Commit(document, document.InternalData, key(destination), destination);
         }
+        store.SetRenamedReferences(store.RenamedReferences.WithAssetReferences(
+            replacements.SelectMany(replacement => new[] { replacement.Key, replacement.Value })));
         transaction.Commit();
         return true;
     }
@@ -154,12 +156,7 @@ public sealed partial class ProjectAssetPaths
 
     internal bool IsMovedReferenceUnavailable(string reference)
     {
-        if (!GameAssetPath.TryToProjectFile(store.ProjectPath, reference, out string path) || FileExists(path))
-            return false;
-        return documents().Where(document => !isDirectory(document)).Any(document =>
-            document.Path != document.SavedPath && document.SavedPath == path
-            || document.UndoEntries.Concat(document.RedoEntries).Any(entry => entry.Before.Path != entry.After.Path
-                && (entry.Before.Path == path || entry.After.Path == path)));
+        return store.RenamedReferences.ContainsAsset(reference) && !TryResolveAsset(reference, out _);
     }
 
     private HistoryResult restoreHistory(EditorDocument document, DocumentHistoryEntry entry, bool undo)

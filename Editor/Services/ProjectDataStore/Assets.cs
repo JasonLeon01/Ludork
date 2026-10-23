@@ -18,6 +18,7 @@ public sealed partial class ProjectDataStore
         foreach (EditorDocument document in Documents.All.Where(document => document.Section == ProjectAssetPaths.Section).ToArray())
             Documents.Remove(document);
         loadAll();
+        ClearRenamedReferences();
         Documents.PublishReset();
         notifications.Commit();
         Maps.NotifyAllMapPreviewsChanged();
@@ -119,10 +120,11 @@ public sealed partial class ProjectDataStore
             || !string.Equals(Path.GetExtension(absolutePath), DataConfig.DataFileExtension, StringComparison.OrdinalIgnoreCase))
             return () => null;
         EditorDocument? document = Documents.FindByPath(absolutePath);
-        if (document?.InternalData is JsonObject current)
+        if (document?.InternalData is JsonObject current
+            && sections.TryGetValue(document.Section, out EditorDocumentCollection? currentCollection))
         {
             string? currentType = getString(current["type"]);
-            DataFileInfo info = new(currentType ?? sections[document.Section].ExpectedType ?? "general", document.Key);
+            DataFileInfo info = new(currentType ?? currentCollection.ExpectedType ?? "general", document.Key);
             if (document.Section is "Blueprints" or "Maps")
             {
                 JsonObject snapshot = (JsonObject)current.DeepClone();
@@ -149,13 +151,14 @@ public sealed partial class ProjectDataStore
             : null;
         if (uiFile && !hasDataFileExtension(sectionName, absolutePath))
             return () => new DataFileInfo("invalidUiData", key);
+        string readPath = AssetPaths.ResolveReadPath(absolutePath);
         return () =>
         {
-            if (!File.Exists(absolutePath))
+            if (!File.Exists(readPath))
                 return null;
             try
             {
-                if (JsonNode.Parse(File.ReadAllText(absolutePath)) is not JsonObject file)
+                if (JsonNode.Parse(File.ReadAllText(readPath)) is not JsonObject file)
                 {
                     return textConfigFile
                         ? new DataFileInfo("invalidTextConfig", key)

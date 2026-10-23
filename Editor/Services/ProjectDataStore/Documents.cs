@@ -243,6 +243,7 @@ public sealed partial class ProjectDataStore
         blueprintClasses?.Dispose();
         Thumbnails.Dispose();
         Documents.Clear();
+        ClearRenamedReferences();
         Worlds.ClearPendingDirectoryMoves();
     }
 

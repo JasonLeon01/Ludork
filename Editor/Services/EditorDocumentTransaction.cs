@@ -8,6 +8,7 @@ public sealed class EditorDocumentTransaction : IDisposable
 {
     private readonly EditorDocumentRegistry registry;
     private readonly Dictionary<EditorDocument, Snapshot> snapshots = [];
+    private readonly Dictionary<object, Action> stateRestorers = new(ReferenceEqualityComparer.Instance);
     private bool completed;
 
     internal EditorDocumentTransaction(EditorDocumentRegistry registry, IEnumerable<EditorDocument> documents)
@@ -27,6 +28,8 @@ public sealed class EditorDocumentTransaction : IDisposable
             document.UndoEntries.ToArray(), document.RedoEntries.ToArray(), document.Revision,
             registry.GetAdditionalPaths(document)));
     }
+
+    internal void CaptureState(object owner, Action restore) => stateRestorers.TryAdd(owner, restore);
 
     public void Commit()
     {
@@ -60,6 +63,8 @@ public sealed class EditorDocumentTransaction : IDisposable
             document.UpdateModified();
             document.Revision = snapshot.Revision;
         }
+        foreach (Action restore in stateRestorers.Values)
+            restore();
         registry.CompleteNotificationScope(this, false);
     }
 

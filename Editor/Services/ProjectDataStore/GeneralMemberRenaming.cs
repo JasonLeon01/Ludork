@@ -67,6 +67,7 @@ public sealed partial class ProjectDataStore
         CompleteDocumentChanges();
         if (restored is null)
             source.UndoEntries[^1] = source.UndoEntries[^1] with { GeneralMemberRename = new(oldId, newId) };
+        SetRenamedReferences(RenamedReferences.WithGeneralMemberRename(typeKey, oldId, newId));
         transaction.Commit();
         refreshModifiedState();
         foreach (EditorDocument document in changes.Keys.Where(document => document.Section == "Maps"))

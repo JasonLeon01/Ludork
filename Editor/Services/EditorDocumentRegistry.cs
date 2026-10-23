@@ -315,6 +315,13 @@ public sealed class EditorDocumentRegistry
                 transaction.Capture(document);
     }
 
+    internal void TrackState(object owner, Action restore)
+    {
+        foreach (NotificationScope scope in notificationScopes)
+            if (scope.Owner is EditorDocumentTransaction transaction)
+                transaction.CaptureState(owner, restore);
+    }
+
     private void Publish(NotificationScope scope)
     {
         if (scope.Changed.Count != 0 || scope.Reset)

@@ -53,6 +53,10 @@ public sealed partial class ReferenceIndexService
     }
 
     public IReadOnlyList<ReferenceRewrite> PrepareAssetPathRewrites(IReadOnlyDictionary<string, string> replacements)
+        => PrepareAssetPathRewrites(replacements, null);
+
+    internal IReadOnlyList<ReferenceRewrite> PrepareAssetPathRewrites(IReadOnlyDictionary<string, string> replacements,
+        IReadOnlySet<(string Section, string Key)>? documents)
     {
         foreach (KeyValuePair<string, string> replacement in replacements)
             if (!GameAssetPath.IsCanonical(replacement.Key) || !GameAssetPath.IsCanonical(replacement.Value))
@@ -61,17 +65,19 @@ public sealed partial class ReferenceIndexService
             .SelectMany(path => GetIncoming(ReferenceIdentity.NodeId("asset", path))).ToArray();
         return prepareIndexedReferenceRewrites(incoming, (_, value) =>
             replacements.TryGetValue(value, out string? replacement) ? replacement
-                : throw new InvalidDataException($"The indexed asset reference changed: {value}"));
+                : throw new InvalidDataException($"The indexed asset reference changed: {value}"), documents);
     }
 
     private IReadOnlyList<ReferenceRewrite> prepareIndexedReferenceRewrites(IEnumerable<ReferenceRecord> references,
-        Func<ReferenceRecord, string, string> rewrite)
+        Func<ReferenceRecord, string, string> rewrite, IReadOnlySet<(string Section, string Key)>? documents = null)
     {
         List<ReferenceRewrite> result = [];
         foreach (IGrouping<string, ReferenceRecord> group in references.Where(record => record.StoragePath is not null)
                      .Distinct().GroupBy(record => GetNodePath(record.Source)))
         {
             EditorDocument? document = gameData.GetDocumentByPath(group.Key);
+            if (documents is not null && (document is null || !documents.Contains((document.Section, document.Key))))
+                continue;
             if (document?.Data is not JsonObject original)
                 throw new InvalidDataException($"The referenced document could not be read: {group.Key}");
             if (group.Any(reference => reference.StoragePath == string.Empty))

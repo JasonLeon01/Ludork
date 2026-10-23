@@ -53,6 +53,7 @@ public sealed class ProjectExternalChangeService : IDisposable
                     previous = new(baseline, ProjectDiskSnapshot.PathComparer);
                     revision = baselineRevision;
                 }
+                ProjectAssetExternalSnapshot assetSnapshot = await gameData.AssetPaths.CaptureExternalChangesAsync(token);
                 ProjectDiskSnapshot current = await Task.Run(() => ProjectDiskSnapshot.Capture(gameData.ProjectPath, token,
                     progress: progress), token);
                 token.ThrowIfCancellationRequested();
@@ -63,7 +64,10 @@ public sealed class ProjectExternalChangeService : IDisposable
                     .Distinct(ProjectDiskSnapshot.PathComparer).OrderBy(path => path, ProjectDiskSnapshot.PathComparer)
                     .Where(path => previous.GetValueOrDefault(path) != current.Fingerprints.GetValueOrDefault(path))
                     .Select(path => new ExternalFileChange(path, previous.GetValueOrDefault(path),
-                        current.Fingerprints.GetValueOrDefault(path), current.Data.GetValueOrDefault(path))).ToArray(), token);
+                        current.Fingerprints.GetValueOrDefault(path), current.Data.GetValueOrDefault(path)))
+                    .Concat(assetSnapshot.Changes).DistinctBy(change => change.Path, ProjectDiskSnapshot.PathComparer).ToArray(), token);
+                if (gameData.Documents.Revision != documentRevision)
+                    continue;
                 if (changes.Length == 0)
                     return true;
                 HashSet<string> pending = save.PendingInputPaths.ToHashSet(ProjectDiskSnapshot.PathComparer);
@@ -71,9 +75,11 @@ public sealed class ProjectExternalChangeService : IDisposable
                     || pending.Contains(document.Path) || pending.Contains(document.SavedPath)).ToArray();
                 HashSet<string> dirtyPaths = dirty.SelectMany(document => new[] { document.Path, document.SavedPath })
                     .ToHashSet(ProjectDiskSnapshot.PathComparer);
-                ExternalFileChange[] conflicts = changes.Where(change => dirtyPaths.Contains(change.Path)).ToArray();
-                List<EditorDocument[]> renamedGroups = [];
-                HashSet<EditorDocument> grouped = [];
+                IReadOnlyList<EditorDocument[]> assetGroups = gameData.AssetPaths.GetExternalChangeGroups();
+                ExternalFileChange[] conflicts = changes.Where(change => dirtyPaths.Contains(change.Path)
+                    || assetGroups.Any(group => gameData.AssetPaths.IsExternalChangeRelated(group, change.Path))).ToArray();
+                List<EditorDocument[]> renamedGroups = [.. assetGroups];
+                HashSet<EditorDocument> grouped = assetGroups.SelectMany(group => group).ToHashSet();
                 foreach (EditorDocument world in dirty.Where(document => document.Section == "WorldMaps"
                     && !ProjectDiskSnapshot.PathComparer.Equals(document.Path, document.SavedPath)))
                 {
@@ -98,7 +104,9 @@ public sealed class ProjectExternalChangeService : IDisposable
                 {
                     HashSet<string> paths = group.SelectMany(document => new[] { document.Path, document.SavedPath })
                         .ToHashSet(ProjectDiskSnapshot.PathComparer);
-                    ExternalFileChange[] affected = conflicts.Where(change => paths.Contains(change.Path)).ToArray();
+                    bool assetGroup = group[0].Section == ProjectAssetPaths.Section;
+                    ExternalFileChange[] affected = conflicts.Where(change => assetGroup
+                        ? gameData.AssetPaths.IsExternalChangeRelated(group, change.Path) : paths.Contains(change.Path)).ToArray();
                     if (affected.Length == 0)
                         continue;
                     if (affected.Select(change => keep.Contains(change.Path)).Distinct().Count() != 1)
@@ -115,7 +123,7 @@ public sealed class ProjectExternalChangeService : IDisposable
                 }
                 ProjectDiskSnapshot confirmed = await Task.Run(() => ProjectDiskSnapshot.Capture(gameData.ProjectPath, token,
                     false, progress, "EXTERNAL_RECHECKING"), token);
-                bool confirmedMatches = await Task.Run(() => current.Matches(confirmed), token);
+                bool confirmedMatches = await Task.Run(() => current.Matches(confirmed) && assetSnapshot.Inputs.IsCurrent(), token);
                 token.ThrowIfCancellationRequested();
                 lock (sync)
                     if (revision != baselineRevision || !confirmedMatches)
@@ -131,7 +139,7 @@ public sealed class ProjectExternalChangeService : IDisposable
                 {
                     ProjectDiskSnapshot latest = await Task.Run(() => ProjectDiskSnapshot.Capture(gameData.ProjectPath, token,
                         false, progress, "EXTERNAL_RECHECKING"), token);
-                    bool matches = await Task.Run(() => current.Matches(latest), token);
+                    bool matches = await Task.Run(() => current.Matches(latest) && assetSnapshot.Inputs.IsCurrent(), token);
                     lock (sync)
                         return revision == baselineRevision && matches;
                 });
