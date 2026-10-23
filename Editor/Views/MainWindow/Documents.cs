@@ -48,8 +48,9 @@ public partial class MainWindow
                     .Select(ancestor => ancestor.DataContext).OfType<FileExplorerEntryViewModel>().FirstOrDefault();
             if (!pointer)
                 entry ??= viewModel.FileExplorerPanel.SelectedEntry;
-            viewModel.SetActiveDocument(entry is { IsDirectory: false }
-                ? viewModel.GameData.GetDocumentByPath(entry.FullPath) : null);
+            viewModel.SetActiveDocument(entry is not null
+                ? viewModel.GameData.AssetPaths.GetDocumentByPath(entry.FullPath)
+                    ?? viewModel.GameData.GetDocumentByPath(entry.FullPath) : null);
             return;
         }
         if (isInsideHistoryControl(visual, MapList))

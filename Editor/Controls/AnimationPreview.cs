@@ -203,7 +203,7 @@ public sealed class AnimationPreview : Control, IDisposable
         try
         {
             string? path = await Task.Run(() =>
-                GameAssetPath.TryResolveExistingFile(gameData.ProjectPath, asset, out string resolved) ? resolved : null,
+                gameData.AssetPaths.TryResolveAsset(asset, out string resolved) ? resolved : null,
                 cancellationToken);
             if (path is null)
                 return;

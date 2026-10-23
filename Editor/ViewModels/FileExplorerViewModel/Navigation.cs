@@ -95,7 +95,7 @@ public sealed partial class FileExplorerViewModel
                 if (entry is null || previousIndex < 0)
                 {
                     IImage placeholder = info.IsDirectory ? EditorIconResources.GetImage("EditorImage.Folder") : MediaFileThumbnail.GetPlaceholder(info.Path);
-                    entry = new FileExplorerEntryViewModel(info.Path, info.IsDirectory, placeholder, gameData.Thumbnails, previewService);
+                    entry = new FileExplorerEntryViewModel(info.Path, info.IsDirectory, placeholder, gameData.Thumbnails, previewService, gameData.AssetPaths);
                     Entries.Insert(index, entry);
                 }
                 else if (previousIndex != index)
@@ -234,24 +234,24 @@ public sealed partial class FileExplorerViewModel
 
     private DocumentPath[] captureDocumentPaths()
     {
-        return gameData.Documents.All.Select(document => new DocumentPath(document.Path, document.SavedPath,
+        return gameData.Documents.All.Where(document => !EditorPathSandbox.IsSameOrChildPath(Path.Combine(projectPath, "Assets"), document.Path)).Select(document => new DocumentPath(document.Path, document.SavedPath,
             gameData.Documents.GetPaths(document).ToArray(), document.Section, document.Exists)).ToArray();
     }
 
     private DirectoryEntry[] readDirectory(string directory, DirectorySnapshot snapshot, CancellationToken token)
     {
         Dictionary<string, DirectoryEntry> paths = new(PathComparer);
-        if (Directory.Exists(directory))
+        if (gameData.AssetPaths.DirectoryExists(directory))
         {
-            foreach (FileSystemInfo file in new DirectoryInfo(directory).EnumerateFileSystemInfos())
+            foreach (ProjectAssetPathEntry file in gameData.AssetPaths.EnumerateEntries(directory))
             {
                 token.ThrowIfCancellationRequested();
-                if (snapshot.Hidden.Contains(file.FullName) || !DataConfig.shouldDisplay(file.FullName))
+                if (snapshot.Hidden.Contains(file.Path) || !DataConfig.shouldDisplay(file.Path))
                     continue;
-                bool isDirectory = file is DirectoryInfo;
-                bool canExpand = isDirectory && !EditorPathSandbox.IsLink(file);
-                long length = file is FileInfo info ? info.Length : 0;
-                paths[file.FullName] = new DirectoryEntry(file.FullName, isDirectory,
+                bool isDirectory = file.IsDirectory;
+                bool canExpand = isDirectory && !EditorPathSandbox.IsLink(new DirectoryInfo(file.ReadPath));
+                long length = file.Length;
+                paths[file.Path] = new DirectoryEntry(file.Path, isDirectory,
                     $"{file.LastWriteTimeUtc.Ticks}:{length}", CanExpand: canExpand);
             }
         }

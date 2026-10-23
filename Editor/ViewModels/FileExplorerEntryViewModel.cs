@@ -12,6 +12,7 @@ namespace Ludork.ViewModels;
 public sealed class FileExplorerEntryViewModel : ViewModelBase, IDisposable
 {
     private readonly EditorThumbnailService thumbnails;
+    private readonly ProjectAssetPaths assetPaths;
     private readonly BlueprintPreviewSession blueprintPreview;
     private IImage placeholder;
     private bool image;
@@ -35,13 +36,14 @@ public sealed class FileExplorerEntryViewModel : ViewModelBase, IDisposable
     private Task<DataFileInfo?>? dataInfo;
 
     public FileExplorerEntryViewModel(string fullPath, bool isDirectory, IImage placeholder,
-        EditorThumbnailService thumbnails, BlueprintPreviewService previews)
+        EditorThumbnailService thumbnails, BlueprintPreviewService previews, ProjectAssetPaths assetPaths)
     {
         FullPath = fullPath;
         relativePath = Path.GetFileName(fullPath);
         IsDirectory = isDirectory;
         this.placeholder = placeholder;
         this.thumbnails = thumbnails;
+        this.assetPaths = assetPaths;
         blueprintPreview = new BlueprintPreviewSession(previews);
         blueprintPreview.FrameChanged += onPreviewFrameChanged;
         icon = placeholder;
@@ -147,9 +149,9 @@ public sealed class FileExplorerEntryViewModel : ViewModelBase, IDisposable
         try
         {
             if (image)
-                loaded = await thumbnails.AcquireAsync(FullPath, presentationSize, token);
+                loaded = await thumbnails.AcquireAsync(assetPaths.ResolveReadPath(FullPath), presentationSize, token);
             else if (MediaFileThumbnail.CanLoad(FullPath))
-                loaded = await MediaFileThumbnail.AcquireAsync(thumbnails, FullPath, presentationSize, token);
+                loaded = await MediaFileThumbnail.AcquireAsync(thumbnails, assetPaths.ResolveReadPath(FullPath), presentationSize, token);
             else if (blueprintReference is not null)
             {
                 blueprintPreview.IsActive = visible;

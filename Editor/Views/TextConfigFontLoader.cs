@@ -13,12 +13,12 @@ internal static class TextConfigFontLoader
         new(StringComparer.OrdinalIgnoreCase);
 
     public static bool TryResolve(
-        string projectPath,
+        ProjectDataStore gameData,
         string reference,
         out FontFamily family)
     {
         family = FontFamily.Default;
-        if (!tryResolvePath(projectPath, reference, out string path))
+        if (!tryResolvePath(gameData, reference, out string path))
             return false;
         DateTime stamp = File.GetLastWriteTimeUtc(path);
         if (Cache.TryGetValue(path, out FontCacheEntry? cached)
@@ -39,7 +39,7 @@ internal static class TextConfigFontLoader
     }
 
     private static bool tryResolvePath(
-        string projectPath,
+        ProjectDataStore gameData,
         string reference,
         out string path)
     {
@@ -50,10 +50,11 @@ internal static class TextConfigFontLoader
         {
             return false;
         }
-        if (!GameAssetPath.TryResolveExistingFile(projectPath, reference, out path))
+        if (!gameData.AssetPaths.TryResolveAsset(reference, out path))
             return false;
-        string fontsRoot = Path.GetFullPath(Path.Combine(projectPath, "Assets", "Fonts"));
-        string relative = Path.GetRelativePath(fontsRoot, path);
+        string fontsRoot = Path.GetFullPath(Path.Combine(gameData.ProjectPath, "Assets", "Fonts"));
+        GameAssetPath.TryToProjectFile(gameData.ProjectPath, reference, out string logicalPath);
+        string relative = Path.GetRelativePath(fontsRoot, logicalPath);
         return !Path.IsPathRooted(relative)
             && relative != ".."
             && !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal);

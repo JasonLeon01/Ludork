@@ -674,7 +674,7 @@ public sealed class UiAssetValidationService
                 add(issues, "assetPath", path, "UI asset resources must use a canonical /Game/Assets/ path");
                 return;
             }
-            if (!GameAssetPath.TryResolveExistingFile(gameData.ProjectPath, text, out _))
+            if (!gameData.AssetPaths.TryResolveAsset(text, out _))
             {
                 add(issues, "missingResource", path, $"Resource \"{text}\" was not found");
             }

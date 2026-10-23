@@ -490,7 +490,7 @@ internal sealed class TextConfigPreview : Border
     {
         string font = JsonScalar.String(data["font"], string.Empty);
         return font.Length != 0
-            && TextConfigFontLoader.TryResolve(gameData.ProjectPath, font, out FontFamily family)
+            && TextConfigFontLoader.TryResolve(gameData, font, out FontFamily family)
                 ? family
                 : FontFamily.Default;
     }

@@ -75,6 +75,7 @@ public sealed class FileSelectorDialog : Window
     private readonly ComboBox _filterCombo;
     private readonly Button _confirmButton;
     private List<FileEntry> _entries = [];
+    private readonly ProjectAssetPaths? _assetPaths;
 
     public string? SelectedPath => _selectedPath;
     public string SelectedNameFilter => _filterIndex < _filterNames.Length ? _filterNames[_filterIndex] : string.Empty;
@@ -96,7 +97,8 @@ public sealed class FileSelectorDialog : Window
         bool save = false,
         string? initialDirectory = null,
         string? initialFilePath = null,
-        bool allowEmpty = false)
+        bool allowEmpty = false,
+        ProjectAssetPaths? assetPaths = null)
     {
         FileSelectorDialog dialog = new(
             owner,
@@ -106,7 +108,8 @@ public sealed class FileSelectorDialog : Window
             save,
             initialDirectory,
             initialFilePath: initialFilePath,
-            allowEmpty: allowEmpty);
+            allowEmpty: allowEmpty,
+            assetPaths: assetPaths);
         return dialog.ShowDialog<string?>(owner);
     }
 
@@ -115,9 +118,10 @@ public sealed class FileSelectorDialog : Window
         string root,
         string filterStr,
         string? title = null,
-        string? initialDirectory = null)
+        string? initialDirectory = null,
+        ProjectAssetPaths? assetPaths = null)
     {
-        FileSelectorDialog dialog = new(owner, root, filterStr, title, allowMultiple: true, initialDirectory: initialDirectory);
+        FileSelectorDialog dialog = new(owner, root, filterStr, title, allowMultiple: true, initialDirectory: initialDirectory, assetPaths: assetPaths);
         return dialog.ShowDialog<string[]?>(owner);
     }
 
@@ -146,13 +150,15 @@ public sealed class FileSelectorDialog : Window
         string? initialDirectory = null,
         bool allowMultiple = false,
         string? initialFilePath = null,
-        bool allowEmpty = false)
+        bool allowEmpty = false,
+        ProjectAssetPaths? assetPaths = null)
     {
         _root = Path.GetFullPath(root);
         _save = save;
         _allowMultiple = allowMultiple && !save;
         _allowEmpty = allowEmpty && !save && !_allowMultiple;
-        MainViewModel? project = findProject(owner);
+        MainViewModel? project = FindProject(owner);
+        _assetPaths = assetPaths ?? project?.GameData.AssetPaths;
         EditorThumbnailService? projectThumbnails = project?.GameData.Thumbnails;
         _thumbnails = projectThumbnails ?? new EditorThumbnailService();
         _ownsThumbnails = projectThumbnails is null;
@@ -174,7 +180,7 @@ public sealed class FileSelectorDialog : Window
         if (!_save
             && !_allowMultiple
             && !string.IsNullOrWhiteSpace(initialFilePath)
-            && File.Exists(initialFilePath))
+            && fileExists(initialFilePath))
         {
             string fullInitialFilePath = Path.GetFullPath(initialFilePath);
             if (isWithinRoot(fullInitialFilePath) && matchesFilter(fullInitialFilePath))
@@ -185,7 +191,7 @@ public sealed class FileSelectorDialog : Window
         }
         if (initialSelection is null
             && !string.IsNullOrWhiteSpace(initialDirectory)
-            && Directory.Exists(initialDirectory)
+            && directoryExists(initialDirectory)
             && isWithinRoot(initialDirectory))
         {
             _currentDirectory = Path.GetFullPath(initialDirectory);
@@ -384,7 +390,7 @@ public sealed class FileSelectorDialog : Window
         };
     }
 
-    private static MainViewModel? findProject(Window? owner)
+    internal static MainViewModel? FindProject(Window? owner)
     {
         for (Window? window = owner; window is not null; window = window.Owner as Window)
         {
@@ -479,34 +485,38 @@ public sealed class FileSelectorDialog : Window
         }
     }
 
-    private static List<FileEntry> readDirectory(string directory, string[] patterns, CancellationToken token)
+    private List<FileEntry> readDirectory(string directory, string[] patterns, CancellationToken token)
     {
         List<FileEntry> entries = [];
-        foreach (DirectoryInfo child in new DirectoryInfo(directory).EnumerateDirectories())
+        if (_assetPaths is not null)
         {
-            token.ThrowIfCancellationRequested();
-            entries.Add(new FileEntry(child.FullName, true, 0));
+            foreach (ProjectAssetPathEntry entry in _assetPaths.EnumerateEntries(directory))
+            {
+                token.ThrowIfCancellationRequested();
+                if (entry.IsDirectory || matchesFilter(entry.Path, patterns))
+                    entries.Add(new FileEntry(entry.Path, entry.IsDirectory, entry.Length));
+            }
         }
-        foreach (FileInfo file in new DirectoryInfo(directory).EnumerateFiles())
+        else
         {
-            token.ThrowIfCancellationRequested();
-            if (!matchesFilter(file.FullName, patterns))
-                continue;
-            long size;
-            try
+            foreach (FileSystemInfo entry in new DirectoryInfo(directory).EnumerateFileSystemInfos())
             {
-                size = file.Length;
+                token.ThrowIfCancellationRequested();
+                bool isDirectory = entry is DirectoryInfo;
+                if (isDirectory || matchesFilter(entry.FullName, patterns))
+                    entries.Add(new FileEntry(entry.FullName, isDirectory, entry is FileInfo file ? file.Length : 0));
             }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-            {
-                size = 0;
-            }
-            entries.Add(new FileEntry(file.FullName, false, size));
         }
         return entries.OrderBy(entry => !entry.IsDirectory)
             .ThenBy(entry => Path.GetFileName(entry.Path), StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
+
+    private bool fileExists(string path) => _assetPaths?.FileExists(path) ?? File.Exists(path);
+
+    private bool directoryExists(string path) => _assetPaths?.DirectoryExists(path) ?? Directory.Exists(path);
+
+    private string readPath(string path) => _assetPaths?.ResolveReadPath(path) ?? path;
 
     private bool matchesFilter(string filePath) => matchesFilter(filePath,
         _filterIndex < _filterPatterns.Count ? _filterPatterns[_filterIndex] : []);
@@ -659,7 +669,7 @@ public sealed class FileSelectorDialog : Window
         if (_allowMultiple)
         {
             string[] paths = _selectedPaths.Select(Path.GetFullPath).ToArray();
-            if (paths.Length == 0 || paths.Any(path => !isWithinRoot(path) || !File.Exists(path)))
+            if (paths.Length == 0 || paths.Any(path => !isWithinRoot(path) || !fileExists(path)))
                 return;
             Close(paths);
             return;
@@ -675,7 +685,7 @@ public sealed class FileSelectorDialog : Window
         string full = Path.GetFullPath(resolved);
         if (!isWithinRoot(full))
             return;
-        if (!_save && !File.Exists(full))
+        if (!_save && !fileExists(full))
             return;
         _selectedPath = full;
         Close(full);
@@ -728,7 +738,7 @@ public sealed class FileSelectorDialog : Window
         {
             if (ImageSuffixes.Contains(extension))
             {
-                EditorThumbnailLease? lease = await _thumbnails.AcquireAsync(path, 520, token);
+                EditorThumbnailLease? lease = await _thumbnails.AcquireAsync(readPath(path), 520, token);
                 if (_closed || token.IsCancellationRequested)
                 {
                     lease?.Dispose();
@@ -741,7 +751,7 @@ public sealed class FileSelectorDialog : Window
             else if (MediaPreview.CanPreview(path))
             {
                 _previewMedia.IsVisible = true;
-                _previewMedia.Load(path);
+                _previewMedia.Load(readPath(path));
             }
             else if (_blueprintPreview is not null
                 && _blueprintPreviews?.GetBlueprintReferenceForPath(path) is string blueprintReference)
@@ -754,7 +764,7 @@ public sealed class FileSelectorDialog : Window
             }
             else if (TextSuffixes.Contains(extension))
             {
-                string? text = await readTextPreviewAsync(path, token);
+                string? text = await readTextPreviewAsync(readPath(path), token);
                 if (!_closed && !token.IsCancellationRequested && text is not null)
                 {
                     _previewTextBox.Text = text;
@@ -839,7 +849,7 @@ public sealed class FileSelectorDialog : Window
             cancellation = request;
             try
             {
-                EditorThumbnailLease? lease = await _thumbnails.AcquireAsync(path, 160, request.Token);
+                EditorThumbnailLease? lease = await _thumbnails.AcquireAsync(readPath(path), 160, request.Token);
                 if (_closed || request.IsCancellationRequested || !ReferenceEquals(cancellation, request))
                 {
                     lease?.Dispose();

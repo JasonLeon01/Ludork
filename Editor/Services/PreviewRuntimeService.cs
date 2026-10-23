@@ -20,6 +20,7 @@ public sealed class PreviewRuntimeService : IDisposable, IAsyncDisposable
 {
     private const string RegistryFileName = "UiPreview.registry.json";
     private readonly DispatcherTimer timer;
+    private readonly ProjectAssetPaths? assetPaths;
     private readonly SemaphoreSlim refreshLock = new(1, 1);
     private readonly object connectionSync = new();
     private readonly HashSet<PreviewHostConnection> connections = [];
@@ -32,15 +33,18 @@ public sealed class PreviewRuntimeService : IDisposable, IAsyncDisposable
     private volatile bool disposed;
     private long resourceRevision;
 
-    public PreviewRuntimeService(string projectPath)
+    public PreviewRuntimeService(string projectPath, ProjectDataStore? gameData = null)
     {
         ProjectPath = Path.GetFullPath(projectPath);
+        assetPaths = gameData?.AssetPaths;
         timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         timer.Tick += onTimerTick;
         timer.Start();
         StatusMessage = LocaleService.Get("UI_PREVIEW_COMPILE_REQUIRED");
         _ = RefreshAsync();
     }
+
+    internal PreviewAssetProjection? CreateAssetProjection() => assetPaths is null ? null : new PreviewAssetProjection(assetPaths);
 
     public string ProjectPath { get; }
     public PreviewRuntimeSnapshot? Current { get; private set; }

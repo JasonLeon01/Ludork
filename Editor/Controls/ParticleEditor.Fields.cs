@@ -316,7 +316,7 @@ public sealed partial class ParticleEditor
             if (selected is null)
                 return;
             string path = string.Empty;
-            if (selected.Length == 0 || GameAssetPath.TryFromProjectFile(gameData.ProjectPath, selected, out path))
+            if (selected.Length == 0 || gameData.AssetPaths.TryFromProjectFile(selected, out path))
             {
                 owner["texture"] = path;
                 value.Text = path;

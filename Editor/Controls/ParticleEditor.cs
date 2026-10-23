@@ -180,7 +180,7 @@ public sealed partial class ParticleEditor : UserControl
             data["tracks"] = new JsonArray();
         JsonObject created = ParticleAssetSchema.CreateTrack(uniqueTrackName(LocaleService.Get("PARTICLE_TRACK")));
         string glow = "/Game/Assets/Particles/Glow.png";
-        if (GameAssetPath.TryResolveExistingFile(gameData.ProjectPath, glow, out _))
+        if (gameData.AssetPaths.TryResolveAsset(glow, out _))
             created["texture"] = glow;
         tracks.Add(created);
         commit();

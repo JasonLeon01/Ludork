@@ -146,6 +146,7 @@ public sealed partial class FileExplorerViewModel
             }
             try
             {
+                gameData.AssetPaths.AssertCanWrite([source, destination]);
                 progress?.Report(new EditorOperationProgress("COPY", source));
                 await Task.Run(() => File.Copy(source, destination));
                 externalAdded.Add(destination);
@@ -215,6 +216,7 @@ public sealed partial class FileExplorerViewModel
             string path = normalizedPaths[index];
             try
             {
+                gameData.AssetPaths.AssertCanWrite([path]);
                 if (gameData.IsBlueprintResourcePath(path))
                 {
                     int end = index + 1;
@@ -236,7 +238,8 @@ public sealed partial class FileExplorerViewModel
                     }
                     continue;
                 }
-                (bool managed, string? managedError) = await gameData.TryDeleteManagedPathAsync(path, deletionValidation, progress);
+                (bool managed, string? managedError) = EditorPathSandbox.IsSameOrChildPath(Path.Combine(projectPath, "Assets"), path)
+                    ? (false, null) : await gameData.TryDeleteManagedPathAsync(path, deletionValidation, progress);
                 if (managed)
                 {
                     if (managedError is not null)
@@ -299,6 +302,7 @@ public sealed partial class FileExplorerViewModel
             return new FileOperationResult(false, [LocaleService.Get("FILE_ALREADY_EXISTS").Replace("{name}", name)]);
         try
         {
+            gameData.AssetPaths.AssertCanWrite([newPath]);
             Directory.CreateDirectory(newPath);
             changed(new FileExplorerFilesChangedEventArgs([newPath], [], []));
             return new FileOperationResult(true, []);

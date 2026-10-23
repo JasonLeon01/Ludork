@@ -10,7 +10,7 @@ internal static class ReferenceIdentity
         => NodeId("blueprint", BlueprintReference.ToReference(key));
 
     public static string GeneralMemberNodeId(string typeKey, string memberKey)
-        => NodeId("generalMember", $"{typeKey}/{memberKey}");
+        => "generalMember:" + typeKey.Replace('\\', '/') + "/" + memberKey;
 
     public static string? NormalizeParameter(JsonNode? value)
     {

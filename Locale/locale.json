@@ -1,4 +1,8 @@
 {
+  "ASSET_PATHS_SAVE_REQUIRED": {
+    "en_GB": "Save asset path changes before copying, deleting, importing or writing files in the affected paths.",
+    "zh_CN": "请先保存素材路径变更，再复制、删除、导入或写入相关路径中的文件。"
+  },
   "TUTORIAL_MODIFIER_KEY": {
     "en_GB": "{0}",
     "zh_CN": "{0}"

@@ -416,14 +416,12 @@ public sealed partial class BlueprintVariableForm
                 if (!GameDataPath.TryResolveSelectionDirectory(getProjectDirectory(), assetSubdirectory, out baseDirectory))
                     return;
             }
-            else if (!GameAssetPath.TryResolveSelectionDirectory(
-                         getProjectDirectory(),
-                         assetSubdirectory,
+            else if (!tryResolveAssetDirectory(assetSubdirectory,
                          out baseDirectory))
             {
                 return;
             }
-            if (!Directory.Exists(baseDirectory))
+            if (!(currentAssetPaths?.DirectoryExists(baseDirectory) ?? Directory.Exists(baseDirectory)))
             {
                 if (dataRoot)
                     return;
@@ -448,9 +446,7 @@ public sealed partial class BlueprintVariableForm
             }
             else
             {
-                initialFilePath = GameAssetPath.TryResolveExistingFile(
-                    getProjectDirectory(),
-                    current,
+                initialFilePath = GameAssetPath.TryToProjectFile(getProjectDirectory(), current,
                     out string resolvedCurrent)
                     ? resolvedCurrent
                     : null;
@@ -485,9 +481,7 @@ public sealed partial class BlueprintVariableForm
                     || !GameDataPath.IsCanonical(storedPath, assetSubdirectory))
                     return;
             }
-            else if (!GameAssetPath.TryFromProjectFile(
-                         getProjectDirectory(),
-                         selected,
+            else if (!tryGetAssetReference(selected,
                          out storedPath))
             {
                 return;
@@ -529,6 +523,30 @@ public sealed partial class BlueprintVariableForm
         return grid;
     }
 
+    private ProjectAssetPaths? currentAssetPaths => HistoryGameData?.AssetPaths
+        ?? FileSelectorDialog.FindProject(TopLevel.GetTopLevel(this) as Window)?.GameData.AssetPaths;
+
+    private bool tryResolveAssetDirectory(string? reference, out string directory)
+    {
+        return currentAssetPaths is ProjectAssetPaths paths
+            ? paths.TryResolveSelectionDirectory(reference, out directory)
+            : GameAssetPath.TryResolveSelectionDirectory(getProjectDirectory(), reference, out directory);
+    }
+
+    private bool tryResolveAsset(string value, out string path)
+    {
+        return currentAssetPaths is ProjectAssetPaths paths
+            ? paths.TryResolveAsset(value, out path)
+            : GameAssetPath.TryResolveExistingFile(getProjectDirectory(), value, out path);
+    }
+
+    private bool tryGetAssetReference(string path, out string value)
+    {
+        return currentAssetPaths is ProjectAssetPaths paths
+            ? paths.TryFromProjectFile(path, out value)
+            : GameAssetPath.TryFromProjectFile(getProjectDirectory(), path, out value);
+    }
+
     private Control createRectRangeEditor(
         BlueprintVariableField field,
         JsonNode? value,
@@ -555,9 +573,7 @@ public sealed partial class BlueprintVariableForm
             string relativePath = getText(sourceValue);
             if (string.IsNullOrWhiteSpace(relativePath))
                 return;
-            if (!GameAssetPath.TryResolveExistingFile(
-                    getProjectDirectory(),
-                    relativePath,
+            if (!tryResolveAsset(relativePath,
                     out string imagePath))
             {
                 return;

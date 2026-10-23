@@ -15,6 +15,8 @@ public sealed partial class ProjectDataStore
 
     public EditorDocument? GetDocument(string section, string key)
     {
+        if (section == "AssetPaths")
+            return AssetPaths.GetDocument(key);
         key = normalizeJsonKey(key);
         EditorDocument? document = Documents.Find(section, key);
         if (document is null && sections.TryGetValue(section, out EditorDocumentCollection? requestedSection) && requestedSection.Persist)
@@ -36,6 +38,8 @@ public sealed partial class ProjectDataStore
         EditorDocument? existing = Documents.FindByPath(path);
         if (existing is not null)
             return existing;
+        if (AssetPaths.GetDocumentByPath(path) is EditorDocument asset)
+            return asset;
         if (!tryGetDataLocation(path, out string section, out string relative))
             return null;
         string key = section == "WorldMaps" ? relative : normalizeJsonKey(relative);
@@ -133,7 +137,10 @@ public sealed partial class ProjectDataStore
         foreach (EditorDocument document in Documents.PendingDocuments.ToArray())
         {
             if (!sections.TryGetValue(document.Section, out EditorDocumentCollection? section))
+            {
+                Documents.Commit(document, document.InternalData);
                 continue;
+            }
             section.TryGetValue(document.Key, out JsonObject? data);
             Documents.Commit(document, data);
         }

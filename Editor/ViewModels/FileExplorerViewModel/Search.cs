@@ -39,49 +39,49 @@ public sealed partial class FileExplorerViewModel
         Dictionary<string, DirectoryEntry> paths = new(PathComparer);
         Dictionary<string, bool> directoryVisibility = new(PathComparer);
         List<string> errors = [];
-        Stack<DirectoryInfo> pending = new();
-        if (Directory.Exists(directory))
-            pending.Push(new DirectoryInfo(directory));
+        Stack<string> pending = new();
+        if (gameData.AssetPaths.DirectoryExists(directory))
+            pending.Push(directory);
         else if (!documents.Any(document => document.Exists && document.Paths.Any(path => EditorPathSandbox.IsSameOrChildPath(directory, path))))
             throw new DirectoryNotFoundException(directory);
         string textRoot = Path.Combine(projectPath, "Data", "TextConfigs");
-        while (pending.TryPop(out DirectoryInfo? current))
+        while (pending.TryPop(out string? current))
         {
             token.ThrowIfCancellationRequested();
             try
             {
-                bool visible = !EditorPathSandbox.IsLink(current);
-                directoryVisibility[current.FullName] = visible;
-                if (!visible || hidden.Contains(current.FullName))
+                bool visible = !EditorPathSandbox.IsLink(new DirectoryInfo(gameData.AssetPaths.ResolveReadPath(current)));
+                directoryVisibility[current] = visible;
+                if (!visible || hidden.Contains(current))
                     continue;
-                foreach (FileSystemInfo file in current.EnumerateFileSystemInfos())
+                foreach (ProjectAssetPathEntry file in gameData.AssetPaths.EnumerateEntries(current))
                 {
                     token.ThrowIfCancellationRequested();
                     try
                     {
-                        if (hidden.Contains(file.FullName) || !DataConfig.shouldDisplay(file.FullName))
+                        if (hidden.Contains(file.Path) || !DataConfig.shouldDisplay(file.Path))
                             continue;
-                        if (file is DirectoryInfo child)
+                        if (file.IsDirectory)
                         {
-                            pending.Push(child);
+                            pending.Push(file.Path);
                             continue;
                         }
-                        if (!file.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
-                            || EditorPathSandbox.IsSameOrChildPath(textRoot, file.FullName)
-                            && !textVisibility.IsVisible(file.FullName, false, token))
+                        if (!Path.GetFileName(file.Path).Contains(query, StringComparison.OrdinalIgnoreCase)
+                            || EditorPathSandbox.IsSameOrChildPath(textRoot, file.Path)
+                            && !textVisibility.IsVisible(file.Path, false, token))
                             continue;
-                        long length = file is FileInfo info ? info.Length : 0;
-                        paths[file.FullName] = new DirectoryEntry(file.FullName, false, $"{file.LastWriteTimeUtc.Ticks}:{length}");
+                        long length = file.Length;
+                        paths[file.Path] = new DirectoryEntry(file.Path, false, $"{file.LastWriteTimeUtc.Ticks}:{length}");
                     }
                     catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
                     {
-                        errors.Add($"{Path.GetRelativePath(directory, file.FullName)}: {exception.Message}");
+                        errors.Add($"{Path.GetRelativePath(directory, file.Path)}: {exception.Message}");
                     }
                 }
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
-                errors.Add($"{Path.GetRelativePath(directory, current.FullName)}: {exception.Message}");
+                errors.Add($"{Path.GetRelativePath(directory, current)}: {exception.Message}");
             }
         }
         foreach (DocumentPath document in documents)
@@ -116,7 +116,7 @@ public sealed partial class FileExplorerViewModel
         return new DirectoryReadResult(entries, string.Join(Environment.NewLine, errors.Distinct(StringComparer.Ordinal)));
     }
 
-    private static bool isVisibleSearchDocumentPath(string directory, string path,
+    private bool isVisibleSearchDocumentPath(string directory, string path,
         Dictionary<string, bool> directoryVisibility, CancellationToken token)
     {
         if (!DataConfig.shouldDisplay(path) || directoryVisibility.GetValueOrDefault(directory, true) == false)
@@ -131,7 +131,7 @@ public sealed partial class FileExplorerViewModel
             if (!directoryVisibility.TryGetValue(current, out bool visible))
             {
                 visible = DataConfig.shouldDisplay(current)
-                    && (!Directory.Exists(current) || !EditorPathSandbox.IsLink(current));
+                    && (!gameData.AssetPaths.DirectoryExists(current) || !EditorPathSandbox.IsLink(new DirectoryInfo(gameData.AssetPaths.ResolveReadPath(current))));
                 directoryVisibility[current] = visible;
             }
             if (!visible)

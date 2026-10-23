@@ -341,7 +341,7 @@ public sealed partial class ReferenceIndexService
     private void replayMapReferences(IEnumerable<ReferenceRecord> records)
     {
         foreach (ReferenceRecord record in records)
-            addReference(record.Source, record.Target, record.Kind, record.Path, record.IsDictionaryKey);
+            addReference(record.Source, record.Target, record.Kind, record.Path, record.IsDictionaryKey, record.StoragePath);
     }
 
     private static bool isKnownMapNodeReference(string nodeFunction)

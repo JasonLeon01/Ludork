@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
 
@@ -21,6 +22,7 @@ public sealed partial class BlueprintPreviewService : IDisposable
     private readonly Dictionary<string, string> textureFilePaths = new(StringComparer.Ordinal);
     private readonly object texturePathSync = new();
     private long texturePathRevision = -1;
+    private string[] previousAssetPaths = [];
 
     public BlueprintPreviewService(
         string projectPath,
@@ -33,13 +35,14 @@ public sealed partial class BlueprintPreviewService : IDisposable
         this.gameData = gameData;
         this.classResolver = classResolver;
         Runtime = runtime;
-        ActorPreviews = new ActorPreviewService(runtime, gameData.Thumbnails) { MaterialSnapshots = gameData.Assets.CaptureMaterials };
+        ActorPreviews = new ActorPreviewService(runtime, gameData.Thumbnails, gameData.AssetPaths) { MaterialSnapshots = gameData.Assets.CaptureMaterials };
         MapPreviews = new MapPreviewService(gameData, runtime, projectConfig);
         MapScenes = new MapPreviewSceneBuilder(gameData, this);
         gameData.BlueprintPreviews = this;
         gameData.DataReloaded += onVisualSourceDataChanged;
         gameData.DataRestored += onVisualSourceDataChanged;
         gameData.Documents.ContentChanged += onDocumentsChanged;
+        gameData.AssetPaths.Changed += onAssetPathsChanged;
     }
 
     public PreviewRuntimeService Runtime { get; }
@@ -146,6 +149,7 @@ public sealed partial class BlueprintPreviewService : IDisposable
         gameData.DataReloaded -= onVisualSourceDataChanged;
         gameData.DataRestored -= onVisualSourceDataChanged;
         gameData.Documents.ContentChanged -= onDocumentsChanged;
+        gameData.AssetPaths.Changed -= onAssetPathsChanged;
         ActorPreviews.Dispose();
         MapPreviews.Dispose();
         if (ReferenceEquals(gameData.BlueprintPreviews, this))
@@ -153,6 +157,15 @@ public sealed partial class BlueprintPreviewService : IDisposable
         sourceImageInfoCache.Clear();
         lock (texturePathSync)
             textureFilePaths.Clear();
+    }
+
+    private void onAssetPathsChanged(object? sender, EventArgs args)
+    {
+        string[] paths = gameData.Documents.All.Where(document => document.Section == "AssetPaths")
+            .SelectMany(document => new[] { document.Path, document.SavedPath }).Distinct(StringComparer.Ordinal).ToArray();
+        string[] changed = paths.Concat(previousAssetPaths).Distinct(StringComparer.Ordinal).ToArray();
+        previousAssetPaths = paths;
+        InvalidateExternalAssets(changed);
     }
 
     private void onVisualSourceDataChanged(object? sender, EventArgs args)
@@ -533,7 +546,7 @@ public sealed partial class BlueprintPreviewService : IDisposable
             }
             if (!textureFilePaths.TryGetValue(texturePath, out path!))
             {
-                GameAssetPath.TryResolveExistingFile(projectPath, texturePath, out path);
+                gameData.AssetPaths.TryResolveAsset(texturePath, out path);
                 textureFilePaths.Add(texturePath, path);
             }
             return path.Length != 0;

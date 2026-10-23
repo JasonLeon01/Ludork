@@ -160,11 +160,11 @@ public sealed class MapEditWindow : Window
     private async Task selectFileAsync(TextBox target, string rootName, string filterStr)
     {
         string root = Path.Combine(gameData.ProjectPath, "Assets", rootName);
-        Directory.CreateDirectory(root);
+        root = gameData.AssetPaths.ResolveLogicalPath(root);
+        if (!gameData.AssetPaths.DirectoryExists(root))
+            Directory.CreateDirectory(root);
         string current = target.Text ?? string.Empty;
-        string? initialFilePath = GameAssetPath.TryResolveExistingFile(
-            gameData.ProjectPath,
-            current,
+        string? initialFilePath = GameAssetPath.TryToProjectFile(gameData.ProjectPath, current,
             out string resolvedCurrent)
             ? resolvedCurrent
             : null;
@@ -178,7 +178,7 @@ public sealed class MapEditWindow : Window
             return;
         string assetPath = string.Empty;
         if (path.Length == 0
-            || GameAssetPath.TryFromProjectFile(gameData.ProjectPath, path, out assetPath))
+            || gameData.AssetPaths.TryFromProjectFile(path, out assetPath))
         {
             target.Text = assetPath;
         }

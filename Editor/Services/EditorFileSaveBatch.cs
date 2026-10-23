@@ -19,6 +19,9 @@ internal sealed class EditorFileSaveBatch
     private readonly HashSet<string> deletions = new(pathComparer);
     private readonly HashSet<string> directoryDeletions = new(pathComparer);
     private readonly List<(string Source, string Destination)> moves = [];
+    private readonly List<(string Source, string Destination)> fileMoves = [];
+    private readonly HashSet<string> directories = new(StringComparer.Ordinal);
+    private readonly HashSet<string> emptyDirectoryDeletions = new(StringComparer.Ordinal);
     private readonly HashSet<string> directorySpellings = new(StringComparer.Ordinal);
 
     public void Write(string path, byte[] content)
@@ -37,6 +40,14 @@ internal sealed class EditorFileSaveBatch
     public void Delete(string path) => deletions.Add(Path.GetFullPath(path));
     public void DeleteDirectory(string path) => directoryDeletions.Add(Path.GetFullPath(path));
     public void EnsureDirectoryCase(string path) => directorySpellings.Add(Path.GetFullPath(path));
+    public void EnsureDirectory(string path) => directories.Add(Path.GetFullPath(path));
+    public void DeleteEmptyDirectory(string path) => emptyDirectoryDeletions.Add(Path.GetFullPath(path));
+
+    public void MoveFile(string source, string destination)
+    {
+        if (!string.Equals(source, destination, StringComparison.Ordinal))
+            fileMoves.Add((Path.GetFullPath(source), Path.GetFullPath(destination)));
+    }
 
     public void MoveDirectory(string source, string destination)
     {
@@ -55,17 +66,21 @@ internal sealed class EditorFileSaveBatch
         HashSet<string> replacedPaths = new(pathComparer);
         List<string> changedFiles = [];
         List<(string Source, string Destination)> completedMoves = [];
+        List<(string Source, string Destination)> completedFileMoves = [];
+        List<string> removedEmptyDirectories = [];
         List<(string Source, string Backup)> removedDirectories = [];
         List<string> createdDirectories = [];
         List<string> errors = [];
         Dictionary<string, string?> fingerprints = new(pathComparer);
         Dictionary<string, string?> expectedFiles = new(pathComparer);
+        Dictionary<string, string?> expectedMoveFiles = new(pathComparer);
         string currentPath = staging;
         bool committed = false;
         bool rollbackFailed = false;
         bool cancelled = false;
         int completed = 0;
-        int total = writePaths.Length * 2 + moves.Count * 2 + directoryDeletions.Count + deletions.Count;
+        int total = writePaths.Length * 2 + (moves.Count + fileMoves.Count) * 2
+            + directoryDeletions.Count + deletions.Count + directories.Count + emptyDirectoryDeletions.Count;
         void report(string path)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -90,8 +105,14 @@ internal sealed class EditorFileSaveBatch
                 File.Copy(write.Value, temporary);
                 prepared.Add(write.Key, temporary);
             }
+            foreach ((string source, _) in fileMoves)
+                expectedMoveFiles[source] = ProjectDiskSnapshot.ReadFingerprint(source);
             if (FilesCommitted is not null || canWrite is not null)
             {
+                foreach ((string source, _) in fileMoves)
+                    fingerprints[source] = null;
+                foreach ((string source, string destination) in fileMoves)
+                    fingerprints[destination] = expectedMoveFiles[source];
                 foreach ((string source, string destination) in moves)
                 {
                     if (!Directory.Exists(source))
@@ -172,6 +193,46 @@ internal sealed class EditorFileSaveBatch
                 ensureDirectory(Path.GetDirectoryName(destination)!, createdDirectories);
                 moveDirectory(intermediate, destination, completedMoves);
             }
+            HashSet<string> fileMoveSources = fileMoves.Select(move => move.Source).ToHashSet(pathComparer);
+            HashSet<string> fileMoveDestinations = new(pathComparer);
+            if (fileMoveSources.Count != fileMoves.Count)
+                throw new IOException("A save file cannot be moved more than once.");
+            foreach ((string source, string destination) in fileMoves)
+            {
+                currentPath = source;
+                if (!File.Exists(source))
+                    throw new FileNotFoundException("The moved asset no longer exists.", source);
+                if (!fileMoveDestinations.Add(destination))
+                    throw new IOException($"More than one save file targets: {destination}");
+                if ((Directory.Exists(destination) || File.Exists(destination))
+                    && !fileMoveSources.Contains(destination)
+                    && !FileSystemPathIdentity.RefersToSameEntry(source, destination))
+                    throw new IOException($"The save destination already exists: {destination}");
+            }
+            List<(string Intermediate, string Destination)> stagedFileMoves = [];
+            foreach ((string source, string destination) in fileMoves)
+            {
+                currentPath = source;
+                report(source);
+                if (canWrite is not null && ProjectDiskSnapshot.ReadFingerprint(source) != expectedMoveFiles[source])
+                    throw new IOException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED") + Environment.NewLine + source);
+                string intermediate = createSiblingPath(source);
+                moveFile(source, intermediate, completedFileMoves);
+                stagedFileMoves.Add((intermediate, destination));
+            }
+            foreach (string directory in directories.OrderBy(path => path.Length))
+            {
+                currentPath = directory;
+                report(directory);
+                ensureDirectory(directory, createdDirectories);
+            }
+            foreach ((string intermediate, string destination) in stagedFileMoves)
+            {
+                currentPath = destination;
+                report(destination);
+                ensureDirectory(Path.GetDirectoryName(destination)!, createdDirectories);
+                moveFile(intermediate, destination, completedFileMoves);
+            }
             foreach (string directory in directoryDeletions.OrderBy(path => path.Length))
             {
                 currentPath = directory;
@@ -220,6 +281,18 @@ internal sealed class EditorFileSaveBatch
                 FilePersistence.DeleteFile(path);
                 changedFiles.Add(path);
             }
+            foreach (string directory in emptyDirectoryDeletions.OrderByDescending(path => path.Length))
+            {
+                currentPath = directory;
+                report(directory);
+                if (!Directory.Exists(directory) || directories.Contains(directory)
+                    || directories.Any(target => FileSystemPathIdentity.RefersToSameEntry(directory, target)))
+                    continue;
+                if (Directory.EnumerateFileSystemEntries(directory).Any())
+                    throw new IOException($"The moved asset directory is no longer empty: {directory}");
+                Directory.Delete(directory);
+                removedEmptyDirectories.Add(directory);
+            }
             progress?.Report(new EditorOperationProgress("EDIT_OPERATION_WRITING", Completed: total, Total: total));
             cancellationToken.ThrowIfCancellationRequested();
             committed = true;
@@ -263,6 +336,30 @@ internal sealed class EditorFileSaveBatch
                     errors.Add($"Rollback failed for {source}; backup retained at {backup}: {restoreError.Message}");
                 }
             }
+            foreach (string directory in removedEmptyDirectories.AsEnumerable().Reverse())
+            {
+                try
+                {
+                    Directory.CreateDirectory(directory);
+                }
+                catch (Exception restoreError) when (isFileException(restoreError))
+                {
+                    rollbackFailed = true;
+                    errors.Add($"Rollback failed for {directory}: {restoreError.Message}");
+                }
+            }
+            foreach ((string source, string destination) in completedFileMoves.AsEnumerable().Reverse())
+            {
+                try
+                {
+                    FilePersistence.MoveFile(destination, source);
+                }
+                catch (Exception restoreError) when (isFileException(restoreError))
+                {
+                    rollbackFailed = true;
+                    errors.Add($"Rollback failed for {source}: {restoreError.Message}");
+                }
+            }
             foreach ((string source, string destination) in completedMoves.AsEnumerable().Reverse())
             {
                 try
@@ -287,7 +384,8 @@ internal sealed class EditorFileSaveBatch
             {
                 cleanup(directory, () =>
                 {
-                    if (Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any())
+                    if ((!committed || !directories.Contains(directory))
+                        && Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any())
                         Directory.Delete(directory);
                 }, errors);
             }
@@ -317,6 +415,13 @@ internal sealed class EditorFileSaveBatch
         ICollection<(string Source, string Destination)> completed)
     {
         FilePersistence.MoveDirectory(source, destination);
+        completed.Add((source, destination));
+    }
+
+    private static void moveFile(string source, string destination,
+        ICollection<(string Source, string Destination)> completed)
+    {
+        FilePersistence.MoveFile(source, destination);
         completed.Add((source, destination));
     }
 

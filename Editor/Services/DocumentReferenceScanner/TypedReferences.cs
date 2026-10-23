@@ -13,17 +13,30 @@ internal sealed partial class DocumentReferenceScanner
         ResolvedBlueprintClass resolved,
         string path,
         string kind,
-        JsonObject? selectedFields = null)
+        JsonObject? storedFields = null)
     {
         foreach (ResolvedBlueprintField field in resolved.Fields)
         {
-            if (selectedFields is not null && !selectedFields.ContainsKey(field.Name))
-                continue;
             string fieldPath = $"{path}.{field.Name}";
-            scanGenericReferences(sourceId, field.Value, fieldPath);
-            scanTypedReferences(sourceId, field.Type.Schema, field.Value, field.Name,
-                field.Metadata?.Meta, resolved.Meta, field.Metadata?.DeclaringType.ModuleName,
-                fieldPath, kind, []);
+            JsonNode? storedValue = null;
+            bool hasStored = storedFields?.TryGetPropertyValue(field.Name, out storedValue) == true;
+            if (!hasStored || !JsonNode.DeepEquals(field.Value, storedValue))
+            {
+                scanReadOnlyReferences(() =>
+                {
+                    scanGenericReferences(sourceId, field.Value, fieldPath);
+                    scanTypedReferences(sourceId, field.Type.Schema, field.Value, field.Name,
+                        field.Metadata?.Meta, resolved.Meta, field.Metadata?.DeclaringType.ModuleName,
+                        fieldPath, kind, []);
+                });
+            }
+            if (hasStored)
+            {
+                scanGenericReferences(sourceId, storedValue, fieldPath);
+                scanTypedReferences(sourceId, field.Type.Schema, storedValue, field.Name,
+                    field.Metadata?.Meta, resolved.Meta, field.Metadata?.DeclaringType.ModuleName,
+                    fieldPath, kind, []);
+            }
         }
     }
 
@@ -116,10 +129,17 @@ internal sealed partial class DocumentReferenceScanner
                         continue;
                 }
                 string fieldPath = $"{path}.{field.Name}";
-                scanGenericReferences(sourceId, child, fieldPath);
-                scanTypedReferences(sourceId, field.Type.Schema, child, field.Name,
-                    field.Metadata?.Meta, structure.Meta, field.Metadata?.DeclaringType.ModuleName,
-                    fieldPath, kind, resolving);
+                void scanField()
+                {
+                    scanGenericReferences(sourceId, child, fieldPath);
+                    scanTypedReferences(sourceId, field.Type.Schema, child, field.Name,
+                        field.Metadata?.Meta, structure.Meta, field.Metadata?.DeclaringType.ModuleName,
+                        fieldPath, kind, resolving);
+                }
+                if (hasValue)
+                    scanField();
+                else
+                    scanReadOnlyReferences(scanField);
             }
         }
         finally

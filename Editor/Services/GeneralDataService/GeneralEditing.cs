@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Nodes;
+using System.Threading.Tasks;
 
 namespace Ludork.Services;
 
@@ -52,18 +53,12 @@ public sealed partial class GeneralDataService
 
     public bool RenameGeneralMember(string typeKey, string oldId, string newId)
     {
-        if (string.IsNullOrWhiteSpace(newId)
-            || !generalDocuments.TryGetValue(typeKey, out JsonObject? type)
-            || type["members"] is not JsonObject members
-            || !members.ContainsKey(oldId) || members.ContainsKey(newId))
-        {
-            return false;
-        }
-        generalDocuments.RecordChange(typeKey);
-        replaceGeneralObjectKey(members, oldId, newId, members[oldId]);
-        store.refreshModifiedState();
-        return true;
+        return store.RenameGeneralMember(typeKey, oldId, newId);
     }
+
+    public Task<bool> RenameGeneralMemberAsync(string typeKey, string oldId, string newId,
+        IProgress<EditorOperationProgress>? progress = null)
+        => store.RenameGeneralMemberAsync(typeKey, oldId, newId, progress);
 
     public bool DuplicateGeneralMember(string typeKey, string sourceId, string newId)
     {

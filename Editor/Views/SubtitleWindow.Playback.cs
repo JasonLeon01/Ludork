@@ -115,7 +115,7 @@ public sealed partial class SubtitleWindow
         });
         if (files.Count == 0)
             return;
-        if (!GameAssetPath.TryFromProjectFile(gameData.ProjectPath, files[0].Path.LocalPath, out string path)
+        if (!gameData.AssetPaths.TryFromProjectFile(gameData.AssetPaths.ResolveLogicalPath(files[0].Path.LocalPath), out string path)
             || !path.StartsWith("/Game/Assets/Videos/", StringComparison.Ordinal))
         {
             await AlertDialog.ShowAsync(this, L("SUBTITLE_EDITOR"), L("SUBTITLE_VIDEO_PATH_ERROR"));

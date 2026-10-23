@@ -18,7 +18,7 @@ public sealed class AnimationTimeline : Control
 {
     internal const string AssetDragPrefix = "ludork-animation-assets:";
     private const double SegmentMarqueeThreshold = 4;
-    private readonly string projectPath;
+    private readonly ProjectAssetPaths assetPaths;
     private readonly Func<JsonObject> getData;
     private readonly HashSet<(int Track, int Segment)> segmentSelectionBeforeMarquee = [];
     private readonly HashSet<(int Track, int Segment)> selectedSegments = [];
@@ -45,9 +45,9 @@ public sealed class AnimationTimeline : Control
     private double zoom = 1.0;
     private TimelineZoomAnchor? pendingZoomAnchor;
 
-    public AnimationTimeline(string projectPath, Func<JsonObject> getData)
+    public AnimationTimeline(ProjectDataStore gameData, Func<JsonObject> getData)
     {
-        this.projectPath = projectPath;
+        assetPaths = gameData.AssetPaths;
         this.getData = getData;
         Focusable = true;
         DragDrop.SetAllowDrop(this, true);
@@ -950,7 +950,7 @@ public sealed class AnimationTimeline : Control
     {
         if (!AnimationEditor.isAudioAsset(asset))
             return 0.05;
-        double duration = GameAssetPath.TryResolveExistingFile(projectPath, asset, out string path)
+        double duration = assetPaths.TryResolveAsset(asset, out string path)
             ? AnimationAudioPlayback.GetDuration(path) ?? 0.1
             : 0.1;
         return duration > 0 ? duration : 0.1;
@@ -958,7 +958,7 @@ public sealed class AnimationTimeline : Control
 
     private bool tryGetExactAudioDuration(string asset, out double duration)
     {
-        duration = GameAssetPath.TryResolveExistingFile(projectPath, asset, out string path)
+        duration = assetPaths.TryResolveAsset(asset, out string path)
             ? AnimationAudioPlayback.GetDuration(path) ?? 0
             : 0;
         return duration > 0;

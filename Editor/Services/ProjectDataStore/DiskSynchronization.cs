@@ -27,6 +27,8 @@ public sealed partial class ProjectDataStore
         token.ThrowIfCancellationRequested();
         BreakHistoryGesture();
         CompleteDocumentChanges();
+        AssetPaths.AssertCanWrite(changes.Select(change => change.Path));
+        AssetPaths.ForgetExternalPaths(changes.Where(change => !keepMemoryPaths.Contains(change.Path)).Select(change => change.Path));
         long revision = Documents.Revision;
         EditorUiBatch batch = new();
         Dictionary<string, EditorDocument> savedDocuments = new(getPathComparer());

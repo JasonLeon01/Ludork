@@ -16,6 +16,8 @@ public sealed partial class ProjectDataStore
     {
         if (addedPaths.Count == 0 && movedPaths.Count == 0 && deletedPaths.Count == 0)
             return null;
+        AssetPaths.AssertCanWrite(addedPaths.Concat(deletedPaths)
+            .Concat(movedPaths.SelectMany(move => new[] { move.OldPath, move.NewPath })));
         ProjectOperationSnapshot snapshot = await CaptureOperationSnapshotAsync(progress);
         PreparedExternalFileChanges prepared = await Task.Run(() =>
             prepareExternalFileChanges(snapshot, addedPaths, movedPaths, deletedPaths, progress));
@@ -34,6 +36,7 @@ public sealed partial class ProjectDataStore
             throw new InvalidOperationException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
         string[] previousInvalidPaths = InvalidLoadPaths.ToArray();
         IReadOnlyDictionary<string, string> previousInvalidErrors = InvalidLoadErrors;
+        string[] previousDeletedPaths = deletedDocumentPaths.ToArray();
         bool committed = false;
         Exception? notificationError = null;
         try
@@ -44,7 +47,10 @@ public sealed partial class ProjectDataStore
             foreach (Guid id in prepared.Removed)
             {
                 EditorDocument document = documents[id];
-                removeDataKey(document.Section, document.Key);
+                if (document.Section == ProjectAssetPaths.Section)
+                    Documents.Remove(document);
+                else
+                    removeDataKey(document.Section, document.Key);
                 progress?.Report(new EditorOperationProgress("EDIT_OPERATION_APPLYING", document.Path));
                 await batch.YieldIfNeededAsync();
             }
@@ -75,6 +81,8 @@ public sealed partial class ProjectDataStore
             if (IsDisposed || Documents.Revision != snapshot.Revision || !inputsCurrent)
                 throw new InvalidOperationException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
             replaceExternalInvalidPaths(prepared.InvalidPaths, prepared.InvalidErrors);
+            deletedDocumentPaths.Clear();
+            deletedDocumentPaths.UnionWith(prepared.DeletedPaths);
             refreshModifiedState();
             if (prepared.Catalog.Length != 0)
                 Maps.NotifyAllMapPreviewsChanged();
@@ -96,6 +104,8 @@ public sealed partial class ProjectDataStore
                 foreach (Action restore in restoreEntries)
                     restore();
                 replaceExternalInvalidPaths(previousInvalidPaths, previousInvalidErrors);
+                deletedDocumentPaths.Clear();
+                deletedDocumentPaths.UnionWith(previousDeletedPaths);
             }
         }
         try
@@ -169,12 +179,12 @@ public sealed partial class ProjectDataStore
             MapCatalogEntry entry = after ?? before!;
             locations.Add((entry.Kind == MapCatalogEntryKind.WorldMap ? "WorldMaps" : "Maps", entry.Key));
         }
-        Dictionary<(string Section, string Key), JsonObject?> origins = locations.ToDictionary(
+        Dictionary<(string Section, string Key), JsonObject?> origins = locations.Where(location => location.Section != ProjectAssetPaths.Section).ToDictionary(
             location => location, location => working.originData[location.Section].GetValueOrDefault(location.Key));
         if (!inputs.IsCurrent())
             throw new IOException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
         return new PreparedExternalFileChanges(changes.ToArray(), removed, origins, catalogChanges.ToArray(),
-            working.InvalidLoadPaths.ToArray(), working.InvalidLoadErrors, inputs);
+            working.InvalidLoadPaths.ToArray(), working.InvalidLoadErrors, working.deletedDocumentPaths.ToArray(), inputs);
     }
 
     private void replaceExternalInvalidPaths(IReadOnlyList<string> paths, IReadOnlyDictionary<string, string> errors)
@@ -192,5 +202,5 @@ public sealed partial class ProjectDataStore
     private sealed record PreparedExternalFileChanges(PreparedResourceChange[] Changes, Guid[] Removed,
         IReadOnlyDictionary<(string Section, string Key), JsonObject?> Origins,
         (MapCatalogEntry? Before, MapCatalogEntry? After)[] Catalog,
-        string[] InvalidPaths, IReadOnlyDictionary<string, string> InvalidErrors, ReferenceInputFiles Inputs);
+        string[] InvalidPaths, IReadOnlyDictionary<string, string> InvalidErrors, string[] DeletedPaths, ReferenceInputFiles Inputs);
 }

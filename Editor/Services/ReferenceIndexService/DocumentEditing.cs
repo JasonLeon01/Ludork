@@ -40,23 +40,57 @@ public sealed partial class ReferenceIndexService
                     .Where(record => record.Kind == "generalType"));
             }
         }
+        return prepareIndexedReferenceRewrites(incoming.Where(record => record.Kind != "generalTypeDependency"),
+            (record, value) => record.Kind == "generalType" && enumModuleRenames.TryGetValue(value, out string? module)
+                ? module : renameReferenceValue(value, section, oldKey, newKey));
+    }
+
+    public IReadOnlyList<ReferenceRewrite> PrepareGeneralMemberRename(string typeKey, string oldId, string newId)
+    {
+        return prepareIndexedReferenceRewrites(GetIncoming(ReferenceIdentity.GeneralMemberNodeId(typeKey, oldId)),
+            (_, value) => value == oldId ? newId
+                : throw new InvalidDataException($"The indexed member reference changed: {value}"));
+    }
+
+    public IReadOnlyList<ReferenceRewrite> PrepareAssetPathRewrites(IReadOnlyDictionary<string, string> replacements)
+    {
+        foreach (KeyValuePair<string, string> replacement in replacements)
+            if (!GameAssetPath.IsCanonical(replacement.Key) || !GameAssetPath.IsCanonical(replacement.Value))
+                throw new InvalidDataException("Asset replacements must use canonical asset paths.");
+        ReferenceRecord[] incoming = replacements.Keys
+            .SelectMany(path => GetIncoming(ReferenceIdentity.NodeId("asset", path))).ToArray();
+        return prepareIndexedReferenceRewrites(incoming, (_, value) =>
+            replacements.TryGetValue(value, out string? replacement) ? replacement
+                : throw new InvalidDataException($"The indexed asset reference changed: {value}"));
+    }
+
+    private IReadOnlyList<ReferenceRewrite> prepareIndexedReferenceRewrites(IEnumerable<ReferenceRecord> references,
+        Func<ReferenceRecord, string, string> rewrite)
+    {
         List<ReferenceRewrite> result = [];
-        foreach (IGrouping<string, ReferenceRecord> group in incoming.Where(record => record.Kind != "generalTypeDependency").Distinct().GroupBy(record => GetNodePath(record.Source)))
+        foreach (IGrouping<string, ReferenceRecord> group in references.Where(record => record.StoragePath is not null)
+                     .Distinct().GroupBy(record => GetNodePath(record.Source)))
         {
             EditorDocument? document = gameData.GetDocumentByPath(group.Key);
             if (document?.Data is not JsonObject original)
                 throw new InvalidDataException($"The referenced document could not be read: {group.Key}");
+            if (group.Any(reference => reference.StoragePath == string.Empty))
+                throw new InvalidDataException($"The indexed reference path is ambiguous: {group.Key}");
             JsonObject candidate = (JsonObject)original.DeepClone();
-            HashSet<(string Path, bool IsDictionaryKey)> paths = group.Select(record =>
-                (getDocumentReferencePath(document, original, record.Path), record.IsDictionaryKey)).ToHashSet();
-            HashSet<(string Path, bool IsDictionaryKey)> enumSchemas = group
-                .Where(record => record.Kind == "generalType")
-                .Select(record => (getDocumentReferencePath(document, original, record.Path), record.IsDictionaryKey)).ToHashSet();
+            Dictionary<(string Path, bool IsDictionaryKey), ReferenceRecord[]> locations = group
+                .GroupBy(record => (record.StoragePath!, record.IsDictionaryKey))
+                .ToDictionary(records => records.Key, records => records.ToArray());
+            HashSet<(string Path, bool IsDictionaryKey)> paths = locations.Keys.ToHashSet();
             HashSet<(string Path, bool IsDictionaryKey)> rewritten = [];
-            rewriteIndexedValues(candidate, document.Section + "/" + document.Key, paths,
-                (path, isDictionaryKey, value) => enumSchemas.Contains((path, isDictionaryKey))
-                    && enumModuleRenames.TryGetValue(value, out string? module)
-                    ? module : renameReferenceValue(value, section, oldKey, newKey), rewritten);
+            rewriteIndexedValues(candidate, string.Empty, paths,
+                (path, isDictionaryKey, value) =>
+                {
+                    string[] values = locations[(path, isDictionaryKey)]
+                        .Select(record => rewrite(record, value)).Distinct(StringComparer.Ordinal).ToArray();
+                    if (values.Length != 1)
+                        throw new InvalidDataException($"The indexed references have conflicting replacements: {path}");
+                    return values[0];
+                }, rewritten);
             if (!paths.SetEquals(rewritten))
                 throw new InvalidDataException("The indexed reference could not be updated: "
                     + string.Join(", ", paths.Except(rewritten)));
@@ -64,20 +98,6 @@ public sealed partial class ReferenceIndexService
                 result.Add(new ReferenceRewrite(document.Section, document.Key, original, candidate));
         }
         return result;
-    }
-
-    private static string getDocumentReferencePath(EditorDocument document, JsonObject data, string path)
-    {
-        if (document.Section == "General" && data["members"] is JsonObject members)
-        {
-            foreach (string member in members.Select(pair => pair.Key))
-            {
-                string prefix = "General/" + document.Key + "/" + member + ".";
-                if (path.StartsWith(prefix, StringComparison.Ordinal))
-                    return "General/" + document.Key + ".members." + member + "." + path[prefix.Length..];
-            }
-        }
-        return path;
     }
 
     private static void rewriteIndexedValues(
@@ -91,7 +111,7 @@ public sealed partial class ReferenceIndexService
         {
             foreach (KeyValuePair<string, JsonNode?> pair in value.ToArray())
             {
-                string childPath = path + "." + pair.Key;
+                string childPath = path + "/" + pair.Key.Replace("~", "~0").Replace("/", "~1");
                 string newKey = pair.Key;
                 if (paths.Contains((childPath, true)))
                 {
@@ -119,7 +139,7 @@ public sealed partial class ReferenceIndexService
         {
             for (int index = 0; index < array.Count; index++)
             {
-                string childPath = path + "[" + index + "]";
+                string childPath = path + "/" + index;
                 if (paths.Contains((childPath, false)) && JsonScalar.String(array[index]) is string text)
                 {
                     array[index] = rewrite(childPath, false, text);

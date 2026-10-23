@@ -11,8 +11,8 @@ namespace Ludork.Controls;
 
 public sealed class AutoTilePreview : Control
 {
-    public static readonly StyledProperty<string?> ProjectPathProperty =
-        AvaloniaProperty.Register<AutoTilePreview, string?>(nameof(ProjectPath));
+    public static readonly StyledProperty<ProjectAssetPaths?> AssetPathsProperty =
+        AvaloniaProperty.Register<AutoTilePreview, ProjectAssetPaths?>(nameof(AssetPaths));
 
     public static readonly StyledProperty<string?> AssetPathProperty =
         AvaloniaProperty.Register<AutoTilePreview, string?>(nameof(AssetPath));
@@ -28,10 +28,10 @@ public sealed class AutoTilePreview : Control
         DataContextChanged += (_, _) => loadBitmap();
     }
 
-    public string? ProjectPath
+    public ProjectAssetPaths? AssetPaths
     {
-        get => GetValue(ProjectPathProperty);
-        set => SetValue(ProjectPathProperty, value);
+        get => GetValue(AssetPathsProperty);
+        set => SetValue(AssetPathsProperty, value);
     }
 
     public string? AssetPath
@@ -79,7 +79,7 @@ public sealed class AutoTilePreview : Control
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
-        if (change.Property == ProjectPathProperty
+        if (change.Property == AssetPathsProperty
             || change.Property == AssetPathProperty)
             loadBitmap();
         else if (change.Property == CellSizeProperty)
@@ -93,10 +93,7 @@ public sealed class AutoTilePreview : Control
     {
         bitmap?.Dispose();
         bitmap = null;
-        if (GameAssetPath.TryResolveExistingFile(
-                ProjectPath ?? string.Empty,
-                AssetPath,
-                out string filePath))
+        if (AssetPaths?.TryResolveAsset(AssetPath, out string filePath) == true)
         {
             try
             {

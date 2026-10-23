@@ -106,7 +106,7 @@ public sealed class TilesetImageEditor : Control, IDisposable
         try
         {
             string? path = await Task.Run(() =>
-                GameAssetPath.TryResolveExistingFile(projectPath, assetPath, out string resolved) ? resolved : null,
+                gameData.AssetPaths.TryResolveAsset(assetPath, out string resolved) ? resolved : null,
                 cancellationToken);
             EditorThumbnailLease? lease = path is null ? null
                 : await gameData.Thumbnails.AcquireAsync(path, 0, cancellationToken);

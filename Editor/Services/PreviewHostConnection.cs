@@ -32,6 +32,7 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
 
     private readonly string projectPath;
     private readonly PreviewRuntimeService runtime;
+    private readonly PreviewAssetProjection? assetProjection;
     private readonly SemaphoreSlim startLock = new(1, 1);
     private PreviewRuntimeSnapshot? activeSnapshot;
     private long activeResourceRevision;
@@ -52,6 +53,7 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
     public PreviewHostConnection(PreviewRuntimeService runtime)
     {
         this.runtime = runtime;
+        assetProjection = runtime.CreateAssetProjection();
         projectPath = runtime.ProjectPath;
         StatusMessage = runtime.StatusMessage;
         runtime.RegisterConnection(this);
@@ -236,7 +238,7 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
                 currentOutput = output ?? throw new IOException("PreviewHost is not connected.");
             }
             long exchangeStarted = Stopwatch.GetTimestamp();
-            byte[] payload = Encoding.UTF8.GetBytes(request.ToJsonString());
+            byte[] payload = Encoding.UTF8.GetBytes((assetProjection?.Project(request) ?? request).ToJsonString());
             byte[] length = new byte[sizeof(int)];
             BinaryPrimitives.WriteInt32LittleEndian(length, payload.Length);
             double serializeMilliseconds = Stopwatch.GetElapsedTime(exchangeStarted).TotalMilliseconds;

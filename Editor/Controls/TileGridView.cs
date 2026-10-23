@@ -136,9 +136,7 @@ public sealed class TileGridView : Control
         bitmap = null;
         string? assetPath = viewModel?.SelectedTileset?.AssetPath;
         if (viewModel is not null
-            && GameAssetPath.TryResolveExistingFile(
-                viewModel.GameData.ProjectPath,
-                assetPath,
+            && viewModel.GameData.AssetPaths.TryResolveAsset(assetPath,
                 out string filePath))
         {
             try

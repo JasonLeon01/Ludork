@@ -119,7 +119,7 @@ public sealed class TileSelectViewModel : ViewModelBase, IDisposable
         {
             AutoTileItemViewModel item = AutoTiles[index];
             if (changedAsset(item.AssetPath))
-                AutoTiles[index] = new AutoTileItemViewModel(item.Key, item.ProjectPath, item.AssetPath);
+                AutoTiles[index] = new AutoTileItemViewModel(item.Key, item.AssetPaths, item.AssetPath);
         }
         SelectedAutoTile = AutoTiles.FirstOrDefault(item => item.Key == selectedKey);
     }
@@ -218,7 +218,7 @@ public sealed class TileSelectViewModel : ViewModelBase, IDisposable
             {
                 AutoTiles.Insert(index, new AutoTileItemViewModel(
                     pair.Key,
-                    GameData.ProjectPath,
+                    GameData.AssetPaths,
                     assetPath));
                 index += 1;
                 continue;
@@ -229,7 +229,7 @@ public sealed class TileSelectViewModel : ViewModelBase, IDisposable
             {
                 AutoTiles[index] = new AutoTileItemViewModel(
                     pair.Key,
-                    GameData.ProjectPath,
+                    GameData.AssetPaths,
                     assetPath);
             }
             index += 1;

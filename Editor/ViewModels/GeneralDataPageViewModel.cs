@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Nodes;
+using System.Threading.Tasks;
 
 namespace Ludork.ViewModels;
 
@@ -182,7 +183,8 @@ internal sealed class GeneralDataPageViewModel : ViewModelBase
     }
 
     public bool CreateMember(string memberId) => reloadAfter(generalData.CreateGeneralMember(TypeKey, memberId));
-    public bool RenameMember(string oldId, string newId) => reloadAfter(generalData.RenameGeneralMember(TypeKey, oldId, newId));
+    public async Task<bool> RenameMemberAsync(string oldId, string newId, IProgress<EditorOperationProgress>? progress = null)
+        => reloadAfter(await generalData.RenameGeneralMemberAsync(TypeKey, oldId, newId, progress));
     public bool DuplicateMember(string sourceId, string newId) => reloadAfter(generalData.DuplicateGeneralMember(TypeKey, sourceId, newId));
     public bool DeleteMember(string memberId) => reloadAfter(generalData.DeleteGeneralMember(TypeKey, memberId));
 

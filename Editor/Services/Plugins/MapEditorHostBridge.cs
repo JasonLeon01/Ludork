@@ -69,9 +69,7 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
 
     public string ResolveAssetFile(string assetPath)
     {
-        return GameAssetPath.TryResolveExistingFile(
-            gameData.ProjectPath,
-            assetPath,
+        return gameData.AssetPaths.TryResolveAsset(assetPath,
             out string filePath)
             ? filePath
             : string.Empty;

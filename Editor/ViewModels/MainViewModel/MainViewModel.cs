@@ -321,6 +321,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         FileExplorerFilesChangedEventArgs args)
     {
         remapExplorerMoves(args.Moved);
+        EditorDocument? movedAsset = args.Moved.Reverse()
+            .Select(move => GameData.AssetPaths.GetDocumentByPath(move.NewPath)).FirstOrDefault(document => document is not null);
+        if (movedAsset is not null)
+            SetActiveDocument(movedAsset);
         ReferenceIndex.MarkDirty();
         ActorQueue.PurgeStale();
         MapWorkspace.refreshMaps();
@@ -460,6 +464,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     {
         try
         {
+            GameData.AssetPaths.AssertCanWrite([path]);
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
         }
         catch (Win32Exception exception)

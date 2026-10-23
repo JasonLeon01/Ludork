@@ -15,6 +15,8 @@ public sealed partial class ProjectDataStore
     public void Reload()
     {
         using EditorDocumentNotificationBatch notifications = Documents.BeginNotificationBatch();
+        foreach (EditorDocument document in Documents.All.Where(document => document.Section == ProjectAssetPaths.Section).ToArray())
+            Documents.Remove(document);
         loadAll();
         Documents.PublishReset();
         notifications.Commit();
@@ -32,6 +34,11 @@ public sealed partial class ProjectDataStore
         if (addedPaths.Count == 0 && movedPaths.Count == 0 && deletedPaths.Count == 0
             && prepareReferenceChanges is null)
             return;
+        AssetPaths.AssertCanWrite(addedPaths.Concat(deletedPaths)
+            .Concat(movedPaths.SelectMany(move => new[] { move.OldPath, move.NewPath })));
+        using EditorDocumentTransaction assetTransaction = Documents.BeginTransaction([]);
+        AssetPaths.ForgetExternalPaths(addedPaths.Concat(deletedPaths)
+            .Concat(movedPaths.SelectMany(move => new[] { move.OldPath, move.NewPath })));
         foreach ((string oldPath, string newPath) in movedPaths)
         {
             if (IsManagedPath(oldPath))
@@ -70,6 +77,7 @@ public sealed partial class ProjectDataStore
             UiAssets.NotifyUiAssetsChanged();
         if (externalChanges)
             DataReloaded?.Invoke(this, EventArgs.Empty);
+        assetTransaction.Commit();
     }
 
     public bool ContainsDataPath(string absolutePath, bool directory)

@@ -135,7 +135,7 @@ public sealed partial class ActorPreviewService
 
     private SourceFile? readSourceFile(string assetPath)
     {
-        if (!GameAssetPath.TryResolveExistingFile(projectPath, assetPath, out string path))
+        if (!assetPaths.TryResolveAsset(assetPath, out string path))
             return null;
         FileInfo info = new(path);
         return info.Exists ? new SourceFile(path, info.LastWriteTimeUtc, info.Length) : null;

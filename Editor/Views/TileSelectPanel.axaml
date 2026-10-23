@@ -53,7 +53,7 @@
                     <controls:AutoTilePreview Width="32"
                                               Height="{DynamicResource Editor.TabHeight}"
                                               CellSize="32"
-                                              ProjectPath="{Binding ProjectPath}"
+                                              AssetPaths="{Binding AssetPaths}"
                                               AssetPath="{Binding AssetPath}"
                                               ToolTip.Tip="{Binding Key}" />
                 </DataTemplate>

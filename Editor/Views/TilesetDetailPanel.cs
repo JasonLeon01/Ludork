@@ -205,11 +205,11 @@ internal sealed class TilesetDetailPanel : Grid
             return;
         string selectedKey = key;
         string root = Path.Combine(gameData.ProjectPath, "Assets", isAutoTile ? "Autotiles" : "Tilesets");
-        Directory.CreateDirectory(root);
+        root = gameData.AssetPaths.ResolveLogicalPath(root);
+        if (!gameData.AssetPaths.DirectoryExists(root))
+            Directory.CreateDirectory(root);
         string current = data["fileName"]?.GetValue<string>() ?? string.Empty;
-        string? initialFilePath = GameAssetPath.TryResolveExistingFile(
-            gameData.ProjectPath,
-            current,
+        string? initialFilePath = GameAssetPath.TryToProjectFile(gameData.ProjectPath, current,
             out string resolvedCurrent)
             ? resolvedCurrent
             : null;
@@ -220,7 +220,7 @@ internal sealed class TilesetDetailPanel : Grid
             initialFilePath: initialFilePath);
         if (path is null)
             return;
-        using EditorThumbnailLease? lease = await gameData.Thumbnails.AcquireAsync(path, 0);
+        using EditorThumbnailLease? lease = await gameData.Thumbnails.AcquireAsync(gameData.AssetPaths.ResolveReadPath(path), 0);
         if (lease is null)
             return;
         Avalonia.Media.Imaging.Bitmap bitmap = lease.Bitmap;
@@ -229,7 +229,8 @@ internal sealed class TilesetDetailPanel : Grid
             await AlertDialog.ShowAsync(owner, LocaleService.Get("ERROR"), string.Format(LocaleService.Get("AUTOTILE_FILE_SIZE_INVALID"), bitmap.PixelSize.Width, bitmap.PixelSize.Height));
             return;
         }
-        if (gameData.Assets.UpdateTilesetImage(selectedKey, isAutoTile, GameAssetPath.FromProjectFile(gameData.ProjectPath, path), bitmap.PixelSize.Width, bitmap.PixelSize.Height))
+        if (gameData.AssetPaths.TryFromProjectFile(path, out string reference)
+            && gameData.Assets.UpdateTilesetImage(selectedKey, isAutoTile, reference, bitmap.PixelSize.Width, bitmap.PixelSize.Height))
             dataChanged();
         if (key == selectedKey)
             refreshCurrent();

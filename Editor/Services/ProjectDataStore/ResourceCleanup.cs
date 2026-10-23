@@ -30,6 +30,7 @@ public sealed partial class ProjectDataStore
                 deletedDocumentPaths.Add(document.SavedPath);
             prepareExternalDelete(path, changes);
         }
+        AssetPaths.ForgetExternalPaths(paths);
         if (changes.Count != 0)
             applyExternalChanges(changes, false, null);
         if (notify)

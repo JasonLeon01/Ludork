@@ -20,7 +20,11 @@ public sealed partial class ProjectDataStore
         try
         {
             validateRestoredReferences(document, candidate);
-            if (!commitResourceChange(document.Section, document.Key, state.Key, candidate, recordSource: false))
+            bool restored = entry.GeneralMemberRename is GeneralMemberRename rename
+                ? commitGeneralMemberRename(document.Key, undo ? rename.NewId : rename.OldId,
+                    undo ? rename.OldId : rename.NewId, candidate)
+                : commitResourceChange(document.Section, document.Key, state.Key, candidate, recordSource: false);
+            if (!restored)
                 return new HistoryResult(false, "The document could not be restored because its name or references changed.");
             return new HistoryResult(true) { Changes = [document.Path] };
         }
@@ -211,8 +215,18 @@ public sealed partial class ProjectDataStore
 
     internal void validateRestoredReferences(EditorDocument document, JsonObject candidate)
     {
-        if (deletedDocumentPaths.Count == 0)
-            return;
+        HashSet<string> unavailableMembers = new(StringComparer.Ordinal);
+        foreach (EditorDocument general in Documents.All.Where(item => item.Section == "General"))
+        {
+            JsonObject? members = (ReferenceEquals(general, document) ? candidate : general.InternalData)?["members"] as JsonObject;
+            foreach (GeneralMemberRename rename in general.UndoEntries.Concat(general.RedoEntries)
+                         .Select(entry => entry.GeneralMemberRename).OfType<GeneralMemberRename>())
+            {
+                foreach (string member in new[] { rename.OldId, rename.NewId })
+                    if (members?.ContainsKey(member) != true)
+                        unavailableMembers.Add(ReferenceIdentity.GeneralMemberNodeId(general.Key, member));
+            }
+        }
         using BlueprintClassResolver resolver = new(Metadata, key =>
             document.Section == "Blueprints" && document.Key == key
                 ? (JsonObject)candidate.DeepClone() : ReadReferenceBlueprint(key));
@@ -220,6 +234,14 @@ public sealed partial class ProjectDataStore
         DocumentReferenceResult result = scanner.Scan(document.Section, document.Key, candidate);
         foreach (ReferenceRecord reference in result.References)
         {
+            if (reference.StoragePath is not null)
+            {
+                if (unavailableMembers.Contains(reference.Target))
+                    throw new InvalidDataException($"Undo/Redo cannot restore a reference to a renamed General Data member: {reference.Target}");
+                if (reference.Target.StartsWith("asset:", StringComparison.Ordinal)
+                    && AssetPaths.IsMovedReferenceUnavailable(reference.Target["asset:".Length..]))
+                    throw new InvalidDataException($"Undo/Redo cannot restore a reference to a moved asset: {reference.Target["asset:".Length..]}");
+            }
             string path = ReferenceIndexSnapshot.ResolvePath(ProjectPath, reference.Target, result.GeneralMemberTypes);
             if (deletedDocumentPaths.Contains(path) && GetDocumentByPath(path)?.Exists != true)
                 throw new InvalidDataException($"Undo/Redo cannot restore a reference to a deleted file: {path}");

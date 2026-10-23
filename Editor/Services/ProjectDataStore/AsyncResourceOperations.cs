@@ -58,10 +58,10 @@ public sealed partial class ProjectDataStore
     private Task<HistoryResult> replayResourceAsync(string section, string key, bool undo,
         IProgress<EditorOperationProgress>? progress)
     {
-        EditorDocument? document = Documents.Find(section, normalizeJsonKey(key));
+        EditorDocument? document = Documents.Find(section, section == ProjectAssetPaths.Section ? key : normalizeJsonKey(key));
         DocumentHistoryEntry? entry = (undo ? document?.UndoEntries : document?.RedoEntries)?.LastOrDefault();
         if (document is null || entry is null || entry.Marker?.IsBarrier == true
-            || !sections.ContainsKey(document.Section))
+            || !sections.ContainsKey(document.Section) && document.Section != ProjectAssetPaths.Section)
             return Task.FromResult(undo ? Undo(section, key) : Redo(section, key));
         return runResourceOperationAsync(store => undo ? store.Undo(section, key) : store.Redo(section, key),
             result => result.Success, progress, undo ? "UNDO" : "REDO");
@@ -76,7 +76,7 @@ public sealed partial class ProjectDataStore
         string[] paths = snapshot.Documents.SelectMany(document => new[] { document.Current.Path, document.Saved.Path }).ToArray();
         ReferenceInputFiles inputs = await Task.Run(() => ReferenceInputFiles.Capture(ProjectPath, paths));
         ReferenceIndexSnapshotBuilder.Result references = await ReferenceIndex.GetCurrentAsync(progress);
-        (T result, PreparedResourceChange[] changes) = await Task.Run(() =>
+        (T result, PreparedResourceChange[] changes, ProjectAssetPathInputs? assetInputs) = await Task.Run(() =>
         {
             if (!references.Files.IsCurrent() || !inputs.IsCurrent())
                 throw new IOException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
@@ -85,7 +85,7 @@ public sealed partial class ProjectDataStore
             progress?.Report(new EditorOperationProgress(stage));
             T result = operation(working);
             if (!succeeded(result))
-                return (result, Array.Empty<PreparedResourceChange>());
+                return (result, Array.Empty<PreparedResourceChange>(), (ProjectAssetPathInputs?)null);
             Dictionary<Guid, ProjectOperationDocument> originals = snapshot.Documents.ToDictionary(document => document.Id);
             Dictionary<string, MapCatalogEntry> catalog = working.Maps.MapCatalog.ToDictionary(
                 entry => MapDataService.getMapCatalogDataKey(entry.Kind, entry.Key), StringComparer.Ordinal);
@@ -110,11 +110,17 @@ public sealed partial class ProjectDataStore
             }
             if (!references.Files.IsCurrent() || !inputs.IsCurrent())
                 throw new IOException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
-            return (result, changes.ToArray());
+            ProjectAssetPathInputs assetInputs = working.AssetPaths.CaptureInputs();
+            assetInputs.Validate();
+            return (result, changes.ToArray(), (ProjectAssetPathInputs?)assetInputs);
         });
         if (!succeeded(result) || changes.Length == 0)
             return result;
-        bool filesCurrent = await Task.Run(() => references.Files.IsCurrent() && inputs.IsCurrent());
+        bool filesCurrent = await Task.Run(() =>
+        {
+            assetInputs?.Validate();
+            return references.Files.IsCurrent() && inputs.IsCurrent();
+        });
         if (Documents.Revision != snapshot.Revision || !filesCurrent)
             throw new InvalidOperationException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
         await applyResourceChangesAsync(changes, progress);
@@ -132,7 +138,8 @@ public sealed partial class ProjectDataStore
             (change.Before.Section, change.Before.Key), (change.After.Section, change.After.Key),
         }).Distinct())
         {
-            captureExternalChange(section, key, restoreEntries);
+            if (section != ProjectAssetPaths.Section)
+                captureExternalChange(section, key, restoreEntries);
             await batch.YieldIfNeededAsync();
         }
         bool committed = false;
@@ -146,12 +153,17 @@ public sealed partial class ProjectDataStore
                 {
                     document = Documents.Register(change.Before.Section, change.Before.Key, change.Before.Path,
                         null, true, change.Id);
-                    RegisterLoadedDocument(change.Before.Section, change.Before.Key);
+                    if (change.Before.Section == ProjectAssetPaths.Section)
+                        AssetPaths.Attach(document);
+                    else
+                        RegisterLoadedDocument(change.Before.Section, change.Before.Key);
                 }
                 else
                     transaction.Capture(document);
                 string oldKey = document.Key;
-                sections[document.Section].Remove(oldKey);
+                bool assetPath = document.Section == ProjectAssetPaths.Section;
+                if (!assetPath)
+                    sections[document.Section].Remove(oldKey);
                 document.SetIdentity(change.After.Section, change.After.Key, change.After.Path);
                 document.InternalData = change.Data;
                 document.CurrentState = change.After;
@@ -161,7 +173,7 @@ public sealed partial class ProjectDataStore
                 document.RedoEntries.Clear();
                 document.RedoEntries.AddRange(change.Redo);
                 document.SetPreparedModified(change.Modified);
-                if (change.Data is not null)
+                if (!assetPath && change.Data is not null)
                     sections[document.Section][document.Key] = change.Data;
                 if (change.Catalog is MapCatalogEntry catalog)
                 {
@@ -185,7 +197,7 @@ public sealed partial class ProjectDataStore
                 await batch.YieldIfNeededAsync();
             }
             foreach (PreparedResourceChange change in changes.Where(change => !existing.ContainsKey(change.Id)))
-                if (change.Saved.InternalData is JsonObject saved)
+                if (change.Saved.Section != ProjectAssetPaths.Section && change.Saved.InternalData is JsonObject saved)
                     originData[change.Saved.Section][change.Saved.Key] = saved;
             refreshModifiedState();
             foreach (PreparedResourceChange change in changes.Where(change => change.After.Section == "Maps"))

@@ -20,6 +20,11 @@ public sealed partial class ProjectDataStore
             EditorUiBatch preparation = new();
             foreach (EditorDocument document in Documents.PendingDocuments.ToArray())
             {
+                if (document.Section == ProjectAssetPaths.Section)
+                {
+                    Documents.Commit(document, document.InternalData);
+                    continue;
+                }
                 if (!sections.TryGetValue(document.Section, out EditorDocumentCollection? section))
                     continue;
                 section.TryGetValue(document.Key, out JsonObject? data);
@@ -33,7 +38,8 @@ public sealed partial class ProjectDataStore
             CompleteDocumentChanges();
         long revision = Documents.Revision;
         bool busy = EditOperations.IsBusy;
-        EditorDocument[] sources = Documents.All.Where(document => sections.ContainsKey(document.Section)).ToArray();
+        EditorDocument[] sources = Documents.All.Where(document => sections.ContainsKey(document.Section)
+            || document.Section == ProjectAssetPaths.Section).ToArray();
         List<ProjectOperationDocument> documents = new(sources.Length);
         EditorUiBatch batch = new();
         foreach (EditorDocument document in sources)
@@ -66,13 +72,17 @@ public sealed partial class ProjectDataStore
         {
             EditorDocumentState current = entry.Current;
             JsonObject? data = current.Data;
-            if (data is not null)
+            bool assetPath = current.Section == ProjectAssetPaths.Section;
+            if (!assetPath && data is not null)
                 store.sections[current.Section][current.Key] = data;
-            if (entry.Saved.InternalData is JsonObject saved)
+            if (!assetPath && entry.Saved.InternalData is JsonObject saved)
                 store.originData[entry.Saved.Section][entry.Saved.Key] = saved;
             EditorDocument document = store.Documents.Register(current.Section, current.Key,
                 current.Path, data, entry.Saved.InternalData is null, entry.Id, current);
-            store.RegisterLoadedDocument(current.Section, current.Key);
+            if (assetPath)
+                store.AssetPaths.Attach(document);
+            else
+                store.RegisterLoadedDocument(current.Section, current.Key);
             document.SavedState = entry.Saved;
             document.CurrentState = current;
             document.Revision = entry.Revision;
@@ -91,6 +101,7 @@ public sealed partial class ProjectDataStore
             store.invalidLoadErrors[error.Key] = error.Value;
         store.deletedDocumentPaths.UnionWith(snapshot.DeletedPaths);
         store.projectEnumGenerationPending = snapshot.GenerateEnums;
+        store.AssetPaths.Refresh();
         return store;
     }
 }

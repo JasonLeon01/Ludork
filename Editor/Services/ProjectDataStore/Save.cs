@@ -37,7 +37,19 @@ public sealed partial class ProjectDataStore
             return new SaveResult(false, worldValidation.Details);
         EditorDocument[] modified = Documents.ModifiedDocuments
             .Where(document => sections.ContainsKey(document.Section)).ToArray();
+        EditorDocument[] movedAssets = Documents.ModifiedDocuments
+            .Where(document => document.Section == ProjectAssetPaths.Section).ToArray();
         EditorFileSaveBatch batch = new();
+        ProjectAssetPathInputs assetInputs;
+        try
+        {
+            AssetPaths.AddToSaveBatch(batch);
+            assetInputs = AssetPaths.CaptureInputs();
+        }
+        catch (IOException exception)
+        {
+            return new SaveResult(false, exception.Message);
+        }
         List<(string Source, string Destination)> worldMoves = [];
         foreach (EditorDocument document in modified.Where(document => document.Section == "WorldMaps"))
         {
@@ -81,7 +93,11 @@ public sealed partial class ProjectDataStore
                 return new SaveResult(false, exception.Message);
             }
         }
-        SaveResult result = batch.Execute(progress, canWrite: canWrite);
+        SaveResult result = batch.Execute(progress, canWrite: () =>
+        {
+            assetInputs.Validate();
+            return canWrite?.Invoke() ?? true;
+        });
         if (!result.Success)
             return result;
         using EditorDocumentNotificationBatch notifications = Documents.BeginNotificationBatch();
@@ -95,6 +111,8 @@ public sealed partial class ProjectDataStore
             if (document.Section == "Maps" && document.InternalData is JsonObject map)
                 Maps.updateLoadedMapMetadata(document.Key, map, document.Path);
         }
+        foreach (EditorDocument document in movedAssets)
+            Documents.MarkSaved(document);
         if (generateProjectEnums)
             projectEnumGenerationPending = false;
         originData["MapCatalog"] = sections["MapCatalog"].ToDictionary(
@@ -104,7 +122,7 @@ public sealed partial class ProjectDataStore
         notifications.Commit();
         DataSaved?.Invoke(this, EventArgs.Empty);
         return new SaveResult(true, string.Join(Environment.NewLine,
-            modified.Select(document => document.Path).Append(result.Details).Where(value => !string.IsNullOrEmpty(value))));
+            modified.Concat(movedAssets).Select(document => document.Path).Append(result.Details).Where(value => !string.IsNullOrEmpty(value))));
     }
 
     internal async Task CompleteOperationSaveAsync(
@@ -119,14 +137,16 @@ public sealed partial class ProjectDataStore
                 && ReferenceEquals(document.CaptureState(), state));
         using EditorDocumentNotificationBatch notifications = Documents.BeginNotificationBatch();
         foreach (EditorDocument document in savedDocuments)
-            originData[document.SavedState.Section].Remove(document.SavedState.Key);
+            if (document.Section != ProjectAssetPaths.Section)
+                originData[document.SavedState.Section].Remove(document.SavedState.Key);
         EditorUiBatch batch = new();
         int completed = 0;
         foreach (EditorDocument document in savedDocuments)
         {
             EditorDocumentState state = states[document.Id];
             progress?.Report(new EditorOperationProgress("EDIT_OPERATION_APPLYING", state.Path, completed++, savedDocuments.Count));
-            if (savedStore.originData[state.Section].TryGetValue(state.Key, out JsonObject? data))
+            if (state.Section != ProjectAssetPaths.Section
+                && savedStore.originData[state.Section].TryGetValue(state.Key, out JsonObject? data))
                 originData[state.Section][state.Key] = data;
             Documents.MarkSaved(document, state);
             if (document.Section == "Maps" && document.InternalData is JsonObject map)

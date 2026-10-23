@@ -48,7 +48,8 @@ public sealed partial class MaterialWindow
                 FileSelectorDialog.FilesFilter("*.png", "*.jpg", "*.jpeg"), allowEmpty: true);
             if (selected is not null)
             {
-                texturePath = selected.Length == 0 ? string.Empty : GameAssetPath.FromProjectFile(gameData.ProjectPath, selected);
+                texturePath = selected.Length == 0 ? string.Empty
+                    : gameData.AssetPaths.TryFromProjectFile(selected, out string reference) ? reference : string.Empty;
                 generation++;
             }
         };

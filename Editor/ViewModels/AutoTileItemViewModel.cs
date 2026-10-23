@@ -1,3 +1,4 @@
+using Ludork.Services;
 
 namespace Ludork.ViewModels;
 
@@ -5,15 +6,15 @@ public sealed class AutoTileItemViewModel
 {
     public AutoTileItemViewModel(
         string key,
-        string projectPath,
+        ProjectAssetPaths assetPaths,
         string assetPath)
     {
         Key = key;
-        ProjectPath = projectPath;
+        AssetPaths = assetPaths;
         AssetPath = assetPath;
     }
 
     public string Key { get; }
-    public string ProjectPath { get; }
+    public ProjectAssetPaths AssetPaths { get; }
     public string AssetPath { get; }
 }

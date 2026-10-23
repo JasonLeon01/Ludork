@@ -2,6 +2,7 @@ using Ludork.Models;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Text.Json.Nodes;
 using System.Threading;
 
@@ -18,6 +19,7 @@ internal sealed partial class DocumentReferenceScanner
     private readonly BlueprintNodeDefinitionCatalog blueprintDefinitions;
     private readonly List<ReferenceRecord> references = [];
     private readonly HashSet<ReferenceRecord> seen = [];
+    private int readOnlyDepth;
     private readonly Dictionary<string, string> generalMemberTypes = new(StringComparer.Ordinal);
 
     public DocumentReferenceScanner(
@@ -94,8 +96,14 @@ internal sealed partial class DocumentReferenceScanner
                 scanGeneralReferences(key, data);
                 break;
         }
+        Dictionary<(string Path, bool IsDictionaryKey), string> storedValues = [];
+        collectStoredValues(data, section + "/" + key, string.Empty, storedValues);
         return new DocumentReferenceResult(
-            Array.AsReadOnly(references.ToArray()),
+            Array.AsReadOnly(references.Select(reference => reference with
+            {
+                StoragePath = getStoragePath(reference, section, key, data, storedValues),
+            }).GroupBy(reference => (reference.Source, reference.Target, reference.Kind, reference.Path, reference.IsDictionaryKey))
+                .Select(group => group.FirstOrDefault(reference => reference.StoragePath is not null) ?? group.First()).ToArray()),
             new ReadOnlyDictionary<string, string>(new Dictionary<string, string>(generalMemberTypes, StringComparer.Ordinal)));
     }
 
@@ -121,11 +129,26 @@ internal sealed partial class DocumentReferenceScanner
     private void addReference(string sourceId, string targetId, string kind, string path, bool isDictionaryKey = false)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (sourceId.Length == 0 || targetId.Length == 0 || sourceId == targetId && kind is not "generalType" and not "generalTypeValue" and not "generalTypeDependency")
+        if (sourceId.Length == 0 || targetId.Length == 0 || sourceId == targetId
+            && !sourceId.StartsWith("generalMember:", StringComparison.Ordinal)
+            && kind is not "generalType" and not "generalTypeValue" and not "generalTypeDependency")
             return;
-        ReferenceRecord reference = new(sourceId, targetId, kind, path, isDictionaryKey);
+        ReferenceRecord reference = new(sourceId, targetId, kind, path, isDictionaryKey, readOnlyDepth == 0 ? path : null);
         if (seen.Add(reference))
             references.Add(reference);
+    }
+
+    private void scanReadOnlyReferences(Action scan)
+    {
+        readOnlyDepth++;
+        try
+        {
+            scan();
+        }
+        finally
+        {
+            readOnlyDepth--;
+        }
     }
 
     private static string? getSectionType(string section)

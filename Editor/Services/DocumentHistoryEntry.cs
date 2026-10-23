@@ -31,4 +31,7 @@ public sealed record DocumentHistoryEntry(
     HistoryMarker? Marker = null)
 {
     internal long GestureId { get; init; }
+    internal GeneralMemberRename? GeneralMemberRename { get; init; }
 }
+
+internal sealed record GeneralMemberRename(string OldId, string NewId);

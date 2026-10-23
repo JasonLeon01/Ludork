@@ -43,7 +43,7 @@ public sealed partial class MapPanel
                 await previews.LoadPreviewAsync(reference, 80, cancellationToken);
             thumbnail?.Dispose();
             cancellationToken.ThrowIfCancellationRequested();
-            if (descriptor is null || !GameAssetPath.TryToProjectFile(data.ProjectPath, descriptor.TexturePath, out string path))
+            if (descriptor is null || !data.AssetPaths.TryResolveAsset(descriptor.TexturePath, out string path))
                 return;
             loaded = await data.Thumbnails.AcquireAsync(path, 0, cancellationToken);
             if (loaded is null)

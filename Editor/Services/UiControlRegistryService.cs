@@ -15,7 +15,7 @@ public sealed class UiControlRegistryService : IDisposable
     public UiControlRegistryService(ProjectDataStore gameData)
     {
         this.gameData = gameData;
-        Runtime = new PreviewRuntimeService(gameData.ProjectPath);
+        Runtime = new PreviewRuntimeService(gameData.ProjectPath, gameData);
     }
 
     public PreviewRuntimeService Runtime { get; }

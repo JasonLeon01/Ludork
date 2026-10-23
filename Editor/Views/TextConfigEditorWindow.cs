@@ -858,11 +858,11 @@ public sealed class TextConfigEditorWindow : Window
                 current);
         }
         string root = Path.Combine(gameData.ProjectPath, "Assets", "Fonts");
-        Directory.CreateDirectory(root);
+        root = gameData.AssetPaths.ResolveLogicalPath(root);
+        if (!gameData.AssetPaths.DirectoryExists(root))
+            Directory.CreateDirectory(root);
         string filter = FileSelectorDialog.FilesFilter("*.ttf", "*.otf");
-        string? initialFilePath = GameAssetPath.TryResolveExistingFile(
-            gameData.ProjectPath,
-            current,
+        string? initialFilePath = GameAssetPath.TryToProjectFile(gameData.ProjectPath, current,
             out string resolvedCurrent)
             ? resolvedCurrent
             : null;
@@ -875,7 +875,7 @@ public sealed class TextConfigEditorWindow : Window
             allowEmpty: true);
         if (string.IsNullOrEmpty(path))
             return path;
-        return GameAssetPath.TryFromProjectFile(gameData.ProjectPath, path, out string assetPath)
+        return gameData.AssetPaths.TryFromProjectFile(path, out string assetPath)
                 ? assetPath
                 : null;
     }
@@ -952,7 +952,7 @@ public sealed class TextConfigEditorWindow : Window
         List<string> errors = [];
         string font = JsonScalar.String(data["font"], string.Empty);
         if (font.Length != 0
-            && !TextConfigFontLoader.TryResolve(gameData.ProjectPath, font, out _))
+            && !TextConfigFontLoader.TryResolve(gameData, font, out _))
         {
             errors.Add($"{LocaleService.Get("TEXT_CONFIG_FONT")}: {font}");
         }

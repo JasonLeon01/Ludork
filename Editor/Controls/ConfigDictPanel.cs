@@ -440,9 +440,7 @@ public sealed class ConfigDictPanel : Border
             : FileSelectorDialog.FilesFilter(extensions.Select(e => "*" + e).ToArray());
         bool gameAsset = isGameAssetFile(value);
         string? initialFilePath = gameAsset
-            ? GameAssetPath.TryResolveExistingFile(
-                gameData.ProjectPath,
-                current,
+            ? GameAssetPath.TryToProjectFile(gameData.ProjectPath, current,
                 out string resolvedCurrent)
                 ? resolvedCurrent
                 : null
@@ -462,9 +460,7 @@ public sealed class ConfigDictPanel : Border
             return null;
         if (gameAsset)
         {
-            return GameAssetPath.TryFromProjectFile(
-                gameData.ProjectPath,
-                path,
+            return gameData.AssetPaths.TryFromProjectFile(path,
                 out string assetPath)
                 ? assetPath
                 : null;
@@ -477,9 +473,7 @@ public sealed class ConfigDictPanel : Border
         if (isGameAssetFile(value))
         {
             string? assetBase = value["base"]?.GetValue<string>();
-            return GameAssetPath.TryResolveBaseHint(
-                gameData.ProjectPath,
-                assetBase,
+            return gameData.AssetPaths.TryResolveBaseHint(assetBase,
                 out string directory)
                 ? directory
                 : Path.Combine(gameData.ProjectPath, "Assets");

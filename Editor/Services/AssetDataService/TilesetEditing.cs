@@ -50,7 +50,7 @@ public sealed partial class AssetDataService
         if (!tryGetTilesetForEdit(key, isAutoTile, out JsonObject target)
             || width <= 0 || height <= 0
             || isAutoTile && (width < 96 || height < 128 || width % 96 != 0)
-            || !GameAssetPath.TryResolveExistingFile(store.ProjectPath, assetPath, out _))
+            || !store.AssetPaths.TryResolveAsset(assetPath, out _))
         {
             return false;
         }

@@ -721,11 +721,13 @@ public partial class UiAssetEditorWindow
         };
         browse.Click += async (_, _) =>
         {
-            Directory.CreateDirectory(selectorRoot);
+            string currentRoot = gameData.AssetPaths.ResolveLogicalPath(selectorRoot);
+            if (!gameData.AssetPaths.DirectoryExists(currentRoot))
+                Directory.CreateDirectory(currentRoot);
             string? initialFilePath = getAssetInitialFilePath(pathBox.Text ?? string.Empty);
             string? selectedPath = await FileSelectorDialog.ShowAsync(
                 this,
-                selectorRoot,
+                currentRoot,
                 filter,
                 initialDirectory: Path.GetDirectoryName(initialFilePath),
                 initialFilePath: initialFilePath,
@@ -733,9 +735,7 @@ public partial class UiAssetEditorWindow
             if (selectedPath is null)
                 return;
             string assetPath = string.Empty;
-            if (selectedPath.Length != 0 && !GameAssetPath.TryFromProjectFile(
-                    gameData.ProjectPath,
-                    selectedPath,
+            if (selectedPath.Length != 0 && !gameData.AssetPaths.TryFromProjectFile(selectedPath,
                     out assetPath))
             {
                 return;
@@ -757,7 +757,7 @@ public partial class UiAssetEditorWindow
 
     private string? getAssetInitialFilePath(string value)
     {
-        return GameAssetPath.TryResolveExistingFile(gameData.ProjectPath, value, out string path)
+        return GameAssetPath.TryToProjectFile(gameData.ProjectPath, value, out string path)
             ? path
             : null;
     }

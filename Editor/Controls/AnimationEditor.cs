@@ -93,7 +93,7 @@ public sealed class AnimationEditor : UserControl
         documentRevision = resourceDocument?.Revision ?? 0;
 
         preview = new AnimationPreview(gameData, () => this.data);
-        timeline = new AnimationTimeline(gameData.ProjectPath, () => this.data);
+        timeline = new AnimationTimeline(gameData, () => this.data);
         preview.SegmentSelected += selectSingleSegment;
         preview.SegmentChanged += onSegmentChanged;
         timeline.SegmentSelected += selectSegment;
@@ -342,7 +342,9 @@ public sealed class AnimationEditor : UserControl
         if (TopLevel.GetTopLevel(this) is not Window owner)
             return;
         string root = Path.Combine(gameData.ProjectPath, "Assets", audio ? "Sounds" : "Animations");
-        Directory.CreateDirectory(root);
+        root = gameData.AssetPaths.ResolveLogicalPath(root);
+        if (!gameData.AssetPaths.DirectoryExists(root))
+            Directory.CreateDirectory(root);
         string[]? paths = await FileSelectorDialog.ShowMultipleAsync(owner, root,
             FileSelectorDialog.AllFilesFilter(star: true), LocaleService.Get(audio ? "ADD_AUDIO" : "ADD_ASSET"));
         if (paths is null)
@@ -350,9 +352,7 @@ public sealed class AnimationEditor : UserControl
         JsonArray assets = getAssets(true);
         foreach (string path in paths)
         {
-            if (GameAssetPath.TryFromProjectFile(
-                    gameData.ProjectPath,
-                    path,
+            if (gameData.AssetPaths.TryFromProjectFile(path,
                     out string assetPath))
             {
                 assets.Add(assetPath);
@@ -870,9 +870,7 @@ public sealed class AnimationEditor : UserControl
                 int assetIndex = (int)JsonScalar.Number(segment["asset"], -1);
                 if (assetIndex < 0 || assetIndex >= assets.Count || assets[assetIndex] is not JsonValue asset || !asset.TryGetValue<string>(out string? assetName) || string.IsNullOrWhiteSpace(assetName))
                     continue;
-                if (!GameAssetPath.TryResolveExistingFile(
-                        gameData.ProjectPath,
-                        assetName,
+                if (!gameData.AssetPaths.TryResolveAsset(assetName,
                         out string path))
                 {
                     continue;
@@ -1160,7 +1158,7 @@ public sealed class AnimationEditor : UserControl
         try
         {
             string? path = await Task.Run(() =>
-                GameAssetPath.TryResolveExistingFile(gameData.ProjectPath, assetName, out string resolved) ? resolved : null,
+                gameData.AssetPaths.TryResolveAsset(assetName, out string resolved) ? resolved : null,
                 cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             if (path is null)

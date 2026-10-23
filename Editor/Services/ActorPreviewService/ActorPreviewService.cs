@@ -67,6 +67,7 @@ public sealed partial class ActorPreviewService : IDisposable
     private const long MaximumSourceTextureBytes = 128L * 1024L * 1024L;
     private readonly PreviewHostConnection connection;
     private readonly string projectPath;
+    private readonly ProjectAssetPaths assetPaths;
     private readonly EditorThumbnailService thumbnails;
     private readonly Dictionary<string, SourceLoad> sourceLoads = new(StringComparer.Ordinal);
     private readonly Dictionary<string, TimeSpan> sourceFailures = new(StringComparer.Ordinal);
@@ -87,9 +88,10 @@ public sealed partial class ActorPreviewService : IDisposable
     private Task? renderTask;
     private DateTime nextConnectionAttempt = DateTime.MinValue;
 
-    public ActorPreviewService(PreviewRuntimeService runtime, EditorThumbnailService thumbnails)
+    public ActorPreviewService(PreviewRuntimeService runtime, EditorThumbnailService thumbnails, ProjectAssetPaths assetPaths)
     {
         this.thumbnails = thumbnails;
+        this.assetPaths = assetPaths;
         projectPath = runtime.ProjectPath;
         connection = new PreviewHostConnection(runtime);
         connection.StateChanged += onConnectionStateChanged;

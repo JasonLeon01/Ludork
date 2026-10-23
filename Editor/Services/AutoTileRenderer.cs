@@ -95,9 +95,7 @@ public sealed class AutoTileRenderer : IDisposable
         if (!gameData.Assets.AutoTileData.TryGetValue(key, out TilesetSnapshot? data))
             return null;
         string fileName = data.FileName;
-        if (!GameAssetPath.TryResolveExistingFile(
-                gameData.ProjectPath,
-                fileName,
+        if (!gameData.AssetPaths.TryResolveAsset(fileName,
                 out string path))
         {
             return null;

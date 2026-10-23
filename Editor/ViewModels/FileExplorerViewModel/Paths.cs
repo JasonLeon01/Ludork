@@ -145,6 +145,14 @@ public sealed partial class FileExplorerViewModel
             return (false, null);
         if (string.Equals(Path.GetFullPath(source), Path.GetFullPath(destination), StringComparison.Ordinal))
             return (false, null);
+        try
+        {
+            gameData.AssetPaths.AssertCanWrite([source, destination]);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return (false, exception.Message);
+        }
         string project = projectPath;
         (bool exists, bool directory, bool destinationExists, bool mapAllowed) = await Task.Run(() =>
         {
@@ -353,8 +361,8 @@ public sealed partial class FileExplorerViewModel
     public IReadOnlyList<string> GetSiblingNames(FileExplorerEntryViewModel entry)
     {
         string directory = Path.GetDirectoryName(entry.FullPath)!;
-        HashSet<string> paths = Directory.Exists(directory)
-            ? Directory.EnumerateFileSystemEntries(directory).ToHashSet(PathComparer)
+        HashSet<string> paths = gameData.AssetPaths.DirectoryExists(directory)
+            ? gameData.AssetPaths.EnumerateEntries(directory).Select(item => item.Path).ToHashSet(PathComparer)
             : new HashSet<string>(PathComparer);
         foreach (EditorDocument document in gameData.Documents.All)
         {

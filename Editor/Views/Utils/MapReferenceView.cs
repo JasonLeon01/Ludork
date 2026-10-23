@@ -335,9 +335,7 @@ public class MapReferenceView : Control, IDisposable
             return null;
         }
         string fileName = tilesetData.FileName;
-        if (!GameAssetPath.TryResolveExistingFile(
-                gameData.ProjectPath,
-                fileName,
+        if (!gameData.AssetPaths.TryResolveAsset(fileName,
                 out string path))
         {
             return null;

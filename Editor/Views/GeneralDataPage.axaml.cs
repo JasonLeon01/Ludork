@@ -497,9 +497,10 @@ internal sealed partial class GeneralDataPage : UserControl
             oldId);
         if (string.IsNullOrWhiteSpace(newId) || newId == oldId)
             return;
-        owner.closeBlueprintEditor(typeKey, oldId);
-        if (!viewModel.RenameMember(oldId, newId))
+        if (!await EditorEditWorkflow.RunAsync(owner, gameData, LocaleService.Get("EDIT_OPERATION_RENAMING"),
+                progress => viewModel.RenameMemberAsync(oldId, newId, progress), false))
             return;
+        owner.closeBlueprintEditor(typeKey, oldId);
         revealMember(newId);
     }
 
@@ -780,16 +781,16 @@ internal sealed partial class GeneralDataPage : UserControl
             browseBtn.Click += async (_, _) =>
             {
                 string baseHint = paramDef["base"]?.GetValue<string>() ?? string.Empty;
-                if (!GameAssetPath.TryResolveBaseHint(
-                        gameData.ProjectPath,
+                if (!gameData.AssetPaths.TryResolveBaseHint(
                         baseHint,
                         out string startDir))
                 {
                     return;
                 }
-                Directory.CreateDirectory(startDir);
+                if (!gameData.AssetPaths.DirectoryExists(startDir))
+                    Directory.CreateDirectory(startDir);
                 string currentPath = pathBox.Text ?? string.Empty;
-                string? initialFilePath = GameAssetPath.TryResolveExistingFile(
+                string? initialFilePath = GameAssetPath.TryToProjectFile(
                     gameData.ProjectPath,
                     currentPath,
                     out string resolvedCurrent)
@@ -800,12 +801,12 @@ internal sealed partial class GeneralDataPage : UserControl
                     startDir,
                     FileSelectorDialog.AllFilesFilter(),
                     initialFilePath: initialFilePath,
-                    allowEmpty: true);
+                    allowEmpty: true,
+                    assetPaths: gameData.AssetPaths);
                 if (path is null)
                     return;
                 string assetPath = string.Empty;
-                if (path.Length != 0 && !GameAssetPath.TryFromProjectFile(
-                        gameData.ProjectPath,
+                if (path.Length != 0 && !gameData.AssetPaths.TryFromProjectFile(
                         path,
                         out assetPath)
                     || string.Equals(

@@ -544,7 +544,7 @@ public partial class FileExplorerPanel : UserControl
             || TopLevel.GetTopLevel(this) is not Window owner)
             return;
         args.Handled = true;
-        await new FilePreviewDialog(selected.FullPath, viewModel.Thumbnails).ShowDialog(owner);
+        await new FilePreviewDialog(viewModel.GameData.AssetPaths.ResolveReadPath(selected.FullPath), viewModel.Thumbnails).ShowDialog(owner);
     }
 
     private async void onKeyDown(object? sender, KeyEventArgs args)
@@ -799,6 +799,7 @@ public partial class FileExplorerPanel : UserControl
     {
         try
         {
+            (DataContext as FileExplorerViewModel)?.GameData.AssetPaths.AssertCanWrite([path]);
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
         }
         catch (Exception exception)

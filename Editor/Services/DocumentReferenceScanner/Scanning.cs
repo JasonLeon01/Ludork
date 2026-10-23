@@ -218,17 +218,17 @@ internal sealed partial class DocumentReferenceScanner
         }
         JsonObject attrs = data["attrs"] as JsonObject ?? [];
         ResolvedBlueprintClass resolved = classResolver.ResolveBlueprint(data, key);
-        scanResolvedFieldReferences(sourceId, resolved, $"Blueprints/{key}.attrs", "attribute");
+        scanResolvedFieldReferences(sourceId, resolved, $"Blueprints/{key}.attrs", "attribute", attrs);
         foreach (string name in new[] { "texturePath" })
         {
             JsonNode? value = attrs[name] ?? resolved.GetValue(name);
             if (value is not null)
             {
-                addAssetReference(
-                    sourceId,
-                    value,
-                    "asset",
-                    $"Blueprints/{key}.attrs.{name}");
+                void scanAsset() => addAssetReference(sourceId, value, "asset", $"Blueprints/{key}.attrs.{name}");
+                if (attrs.ContainsKey(name))
+                    scanAsset();
+                else
+                    scanReadOnlyReferences(scanAsset);
             }
         }
         scanGenericReferences(sourceId, attrs, $"Blueprints/{key}.attrs");
@@ -382,8 +382,12 @@ internal sealed partial class DocumentReferenceScanner
                 ? parameters[parameterIndex] ?? port.DefaultValue
                 : port.DefaultValue;
             string referencePath = $"{path}.params[{parameterIndex}]";
-            scanTypedReferences(sourceId, LuaMetadataType.Parse(port.TypeName), value, port.Name,
+            void scanParameter() => scanTypedReferences(sourceId, LuaMetadataType.Parse(port.TypeName), value, port.Name,
                 port.Meta, null, null, referencePath, "nodeParam", []);
+            if (parameterIndex < parameters.Count && parameters[parameterIndex] is not null)
+                scanParameter();
+            else
+                scanReadOnlyReferences(scanParameter);
         }
     }
 

@@ -111,8 +111,7 @@ public sealed partial class ReferenceIndexService : IDisposable
         }
         if (lower.StartsWith("assets/", StringComparison.Ordinal))
         {
-            if (!GameAssetPath.TryFromProjectFile(
-                    gameData.ProjectPath,
+            if (!gameData.AssetPaths.TryFromProjectFile(
                     absolutePath,
                     out string logicalPath))
             {
@@ -165,6 +164,9 @@ public sealed partial class ReferenceIndexService : IDisposable
             ensureBuilt();
         return ReferenceIndexSnapshot.ResolvePath(gameData.ProjectPath, nodeIdValue, generalMemberTypes);
     }
+
+    public string GetNodeReadPath(string nodeIdValue)
+        => gameData.AssetPaths.ResolveReadPath(GetNodePath(nodeIdValue));
 
     public ReferenceNode? GetNode(string nodeIdValue)
     {
@@ -422,16 +424,16 @@ public sealed partial class ReferenceIndexService : IDisposable
         foreach (KeyValuePair<string, string> member in result.GeneralMemberTypes)
             generalMemberTypes[member.Key] = member.Value;
         foreach (ReferenceRecord reference in result.References)
-            addReference(reference.Source, reference.Target, reference.Kind, reference.Path, reference.IsDictionaryKey);
+            addReference(reference.Source, reference.Target, reference.Kind, reference.Path, reference.IsDictionaryKey, reference.StoragePath);
     }
 
-    private void addReference(string sourceId, string targetId, string kind, string path, bool isDictionaryKey = false)
+    private void addReference(string sourceId, string targetId, string kind, string path, bool isDictionaryKey = false, string? storagePath = null)
     {
-        if (sourceId.Length == 0 || targetId.Length == 0 || sourceId == targetId && kind is not "generalType" and not "generalTypeValue" and not "generalTypeDependency")
+        if (sourceId.Length == 0 || targetId.Length == 0 || sourceId == targetId && !sourceId.StartsWith("generalMember:", StringComparison.Ordinal) && kind is not "generalType" and not "generalTypeValue" and not "generalTypeDependency")
             return;
         ensureNode(sourceId);
         ensureNode(targetId);
-        ReferenceRecord record = new(sourceId, targetId, kind, path, isDictionaryKey);
+        ReferenceRecord record = new(sourceId, targetId, kind, path, isDictionaryKey, storagePath);
         if (!seen.Add(record))
             return;
         if (!referencesBySource.TryGetValue(sourceId, out List<ReferenceRecord>? outgoing))

@@ -143,7 +143,7 @@ public sealed class ReferenceTreeWindow : Window
 
     private void onNodeOpenRequested(object? sender, ReferenceNodeOpenEventArgs args)
     {
-        string path = displayedSnapshot?.GetNodePath(args.NodeId) ?? string.Empty;
+        string path = referenceIndex.GetNodeReadPath(args.NodeId);
         if (!File.Exists(path))
             return;
         try
