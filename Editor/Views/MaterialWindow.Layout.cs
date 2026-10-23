@@ -45,7 +45,7 @@ public sealed partial class MaterialWindow
         texture.Click += async (_, _) =>
         {
             string? selected = await FileSelectorDialog.ShowAsync(this, Path.Combine(gameData.ProjectPath, "Assets"),
-                FileSelectorDialog.FilesFilter("*.png", "*.jpg", "*.jpeg", "*.webp"), allowEmpty: true);
+                FileSelectorDialog.FilesFilter("*.png", "*.jpg", "*.jpeg"), allowEmpty: true);
             if (selected is not null)
             {
                 texturePath = selected.Length == 0 ? string.Empty : GameAssetPath.FromProjectFile(gameData.ProjectPath, selected);

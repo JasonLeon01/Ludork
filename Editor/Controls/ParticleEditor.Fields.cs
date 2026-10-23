@@ -311,7 +311,7 @@ public sealed partial class ParticleEditor
             if (TopLevel.GetTopLevel(this) is not Window window)
                 return;
             string? selected = await FileSelectorDialog.ShowAsync(window,
-                System.IO.Path.Combine(gameData.ProjectPath, "Assets"), FileSelectorDialog.FilesFilter("*.png", "*.jpg", "*.webp"),
+                System.IO.Path.Combine(gameData.ProjectPath, "Assets"), FileSelectorDialog.FilesFilter("*.png", "*.jpg"),
                 LocaleService.Get("PARTICLE_SELECT_TEXTURE"), allowEmpty: true);
             if (selected is null)
                 return;

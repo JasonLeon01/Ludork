@@ -29,7 +29,7 @@ internal static class MaterialPropertyForm
         if (type == "texture")
         {
             meta["PathVars"] = GameAssetPath.Root;
-            meta["PathFilter"] = "*.png;*.jpg;*.jpeg;*.webp";
+            meta["PathFilter"] = "*.png *.jpg *.jpeg";
         }
         IReadOnlyList<BlueprintVariableOption> options = (descriptor["options"] as JsonArray ?? []).Select(option =>
             option is JsonObject choice
