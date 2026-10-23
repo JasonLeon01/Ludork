@@ -4,16 +4,20 @@ Ludork Server is an optional Node.js service with a Lua logic layer. Projects ex
 
 Deploy the backend and frontend on a server or a separate test instance. A game client only needs a server URL and project key; it does not install Node.js or deploy the server. Configuring client integration requires a **C++ Source** project. A converted Standalone project can retain server settings compiled into its runtime, but hides both server configuration entries.
 
-## Obtain the source
+## Obtain the server package
 
-Open [Ludork Releases](https://github.com/JasonLeon01/Ludork/releases) and download `LudorkServer-source-<version>.tar.gz` from the release's **Assets**. Its version matches the editor packages in the same release; for example, editor version `1.0.0` uses `LudorkServer-source-1.0.0.tar.gz`.
+Open [Ludork Releases](https://github.com/JasonLeon01/Ludork/releases) and download `LudorkServer-<version>.tar.gz` from the release's **Assets**. Its version matches the editor packages in the same release; for example, editor version `1.0.0` uses `LudorkServer-1.0.0.tar.gz`. Temporary CI artifacts use `LudorkServer-<40-character-Server-commit-SHA>.tar.gz`.
 
-The archive contains the backend, frontend and deployment scripts under `LudorkServer/`. On Linux, extract it and enter that directory:
+Every development and release editor package also includes the same deployable archive, including packages without project templates. On Windows, it is `Server/LudorkServer.tar.gz` below the editor directory; on macOS, it is `Ludork.app/Contents/Resources/Server/LudorkServer.tar.gz`. Copy this archive to a separate deployment location. Installing or running the editor does not start the server.
+
+The archive contains compiled backend JavaScript, the production management website, Lua modules and declarations, deployment/start scripts and locked production dependency manifests under `LudorkServer/`. It contains no installed `node_modules`, project credentials or user data. On Linux, extract it and enter that directory:
 
 ```sh
-tar -xzf LudorkServer-source-1.0.0.tar.gz
+tar -xzf LudorkServer-1.0.0.tar.gz
 cd LudorkServer
 ```
+
+To build from the `Server` branch yourself, install Node.js 24, run `npm ci` and `npm run build` in that checkout, then copy `dist/LudorkServer` to a separate deployment directory. The build compiles the backend and builds the management website with Vite. Source-checkout deploy/start commands reject execution; deploy the built directory instead. A rebuild refuses to replace output containing `config/`, `data/`, `projects/` or `logs/`, so keep deployed instances outside `dist/LudorkServer`. See the [Server README](https://github.com/JasonLeon01/Ludork/blob/Server/README.md) for source development.
 
 ## Deploy and start
 
@@ -33,7 +37,7 @@ start.bat
 
 The three deployment arguments are the project name, project key and management password. Quote and escape them for the shell, especially `$`, `%`, `!`, `&` and quotation marks. Arguments can remain in shell history and process listings; do not place real credentials in checked-in scripts.
 
-Deployment runs `npm ci`, saves credential hashes, creates a project Lua entry and generates the start scripts. The pinned Wasmoon dependency contains its Lua 5.4.5 WebAssembly runtime; no system Lua installation or native compiler is needed. Node.js runs the backend TypeScript directly; Vite runs the React/TypeScript frontend. **There is no frontend production build.** Start launches both services, fails if either port is occupied and stops the other service when a child fails. Ctrl+C stops both. Deployment does not install a system service or configure automatic startup.
+Deployment runs `npm ci --omit=dev` to install the locked production dependencies, saves credential hashes and creates a project Lua entry. It does not compile the backend or rebuild the website. The pinned Wasmoon dependency contains its Lua 5.4.5 WebAssembly runtime; no system Lua installation or native compiler is needed. Node.js runs the compiled backend on port 7777 and serves the built management website on port 3333. Start launches both services, fails if either port is occupied and stops the other service when a child fails. Ctrl+C stops both. Deployment does not install a system service or configure automatic startup.
 
 | Purpose | Address |
 |---|---|
@@ -43,7 +47,7 @@ Deployment runs `npm ci`, saves credential hashes, creates a project Lua entry a
 
 All projects in one server instance share ports **3333** and **7777**. Run deploy again with another project name to add it; redeploying the same name changes its credentials while preserving data, Lua source and project settings. Deploy sequentially and stop the instance while reinstalling dependencies. Restart it to load configuration or Lua source changes. Projects have separate keys, passwords, data, Lua processes and management sessions.
 
-IP addresses work directly. To access Vite by a domain, set `LUDORK_ALLOWED_HOSTS=games.example.com` before starting; multiple permitted hostnames are comma-separated, without scheme or port. Configure DNS and network/firewall access separately.
+IP addresses, `localhost` and its subdomains work directly. To access the management website by another domain, set `LUDORK_ALLOWED_HOSTS=games.example.com` before starting; multiple permitted hostnames are comma-separated, without scheme or port. Names are matched exactly. Configure DNS and network/firewall access separately.
 
 Project names contain 1–64 UTF-8 bytes, excluding control characters, `/`, `\` and the exact names `.` and `..`. Encode the project as one URL path segment; Chinese names are supported. Keys contain 1–4096 visible ASCII characters without spaces. Passwords contain 1–4096 UTF-8 bytes without control characters. No default credentials are supplied.
 
@@ -113,7 +117,7 @@ An enabled build defines `LUDORK_SERVER_AVAILABLE` and includes the transport wi
 
 Open the website and enter both the project key and management password. It supports account filtering, category selection, typed Lua data display, refresh and logout, including exact integers and escaped byte strings. For cookie scope and session expiry, see [read-only management](<HTTP Protocol.md#http-health-and-read-only-management>).
 
-Generated `config/`, private `projects/` Lua source, user `data/`, logs, dependencies and start scripts are excluded from source archives. Back up `config/`, `projects/` and `data/` yourself and restrict local access to them. The backend holds a data-directory instance lock. A stale lock whose process has exited can be recovered automatically; for an incomplete lock or reused PID, first confirm that no instance is running before removing `data/.server.lock` manually.
+Generated `config/`, private `projects/` Lua source, user `data/`, logs and installed dependencies are excluded from the distributed server package. Back up `config/`, `projects/` and `data/` yourself and restrict local access to them. The backend holds a data-directory instance lock. A stale lock whose process has exited can be recovered automatically; for an incomplete lock or reused PID, first confirm that no instance is running before removing `data/.server.lock` manually.
 
 Use a trusted network: **HTTP and WebSocket send credentials and data in plaintext**. The shared project key grants access to that project's registered modules; an account ID is a storage namespace, not a separately authenticated user. A key embedded in a distributed binary can be extracted. Project Lua must enforce its own account authorization and business rules. Network access controls or a separately managed proxy are deployment responsibilities; this project supplies no TLS setup or account-authentication system.
 

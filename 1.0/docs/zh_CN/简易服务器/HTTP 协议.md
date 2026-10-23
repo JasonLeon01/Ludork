@@ -143,7 +143,7 @@ event:    {type:"event", module:"Profile", event:"NameChanged", args:[WireValue,
 
 HTTP API 基地址仍为 `http://主机:7777/<项目名>/api/v1`。`GET /health` 无需密钥，返回 `{"service":"LudorkServer","project":"MyGame"}`。数据查询和写入使用 WebSocket 模块 API，不提供账号／字段 REST 或写入 token 接口。
 
-管理路径在 `/admin` 下，3333 端口的 Vite 将其代理到 7777；后端负责认证，不启用 CORS。
+管理路径位于 `/admin` 下。3333 端口的生产 Node.js 服务提供构建后的网页，并将网页的同源 API 请求代理到 7777；后端执行认证，不启用 CORS。
 
 | `/admin` 之后的方法与路径 | 要求 | 成功响应 |
 | --- | --- | --- |

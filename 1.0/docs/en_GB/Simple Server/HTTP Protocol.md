@@ -143,7 +143,7 @@ Incoming work is capped at 256 calls and 8 MiB per connection and per project. O
 
 The HTTP API base remains `http://host:7777/<project>/api/v1`. `GET /health` requires no key and returns `{"service":"LudorkServer","project":"MyGame"}`. Data queries and writes use the WebSocket module APIs; there are no account/field REST or write-token endpoints.
 
-Management paths are under `/admin`. Vite on port 3333 proxies them to port 7777; the backend enforces authentication and does not enable CORS.
+Management paths are under `/admin`. The production Node.js service on port 3333 serves the built website and proxies its same-origin API requests to port 7777; the backend enforces authentication and does not enable CORS.
 
 | Method and path below `/admin` | Requirement | Success body |
 | --- | --- | --- |

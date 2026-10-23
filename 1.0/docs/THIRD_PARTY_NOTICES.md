@@ -4,6 +4,8 @@ Ludork itself is licensed under the Zlib License in [`LICENSE.md`](https://githu
 
 This notice covers the self-contained Windows x64 and macOS Apple Silicon editor packages, the project templates shipped with Ludork 1.0.0, and the unchanged Ludork runtime and asset materials that those templates carry into a generated game package. Project-specific code and assets require their own notices. Complete licence texts are listed in the [`Licences` index](https://github.com/JasonLeon01/Ludork/blob/main/Licenses/README.md). C++ Source templates also retain notices embedded in their third-party source trees.
 
+Editor packages also contain the optional deployable server archive at `Server/LudorkServer.tar.gz` (under `Contents/Resources` on macOS). Its component notices and licence texts are kept inside the archive under [`LudorkServer/third-party/README.md`](https://github.com/JasonLeon01/Ludork/blob/Server/third-party/README.md); installed server dependencies retain their own package licences.
+
 ## Editor and managed runtime
 
 | Component | Version in Ludork 1.0.0 | Purpose and distribution | Licence | Complete text | Official source |
