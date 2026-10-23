@@ -22,7 +22,7 @@ env:
   EDITOR_CHANNEL: ${{ inputs.release && '--release' || '--dev' }}
 
 concurrency:
-  group: export-${{ inputs.templates && 'package' || 'editor' }}-macos-${{ github.event_name == 'push' && github.ref || 'temporary' }}
+  group: export-${{ inputs.templates && 'package' || 'editor' }}-macos-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.ref || 'temporary' }}
   cancel-in-progress: false
 
 jobs:

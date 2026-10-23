@@ -8,6 +8,8 @@
 #include <charconv>
 #include <cmath>
 #include <limits>
+#include <locale>
+#include <sstream>
 #include <stdexcept>
 
 namespace ludork::global::net_impl {
@@ -28,13 +30,32 @@ std::string decimal(double value) {
     return std::string(buffer.data(), result.ptr);
 }
 
-template <typename Number>
-Number parseNumber(const std::string& text) {
-    Number result{};
+std::int64_t parseInteger(const std::string& text) {
+    std::int64_t result{};
     const auto parsed =
         std::from_chars(text.data(), text.data() + text.size(), result);
     if (text.empty() || parsed.ec != std::errc{} ||
         parsed.ptr != text.data() + text.size()) {
+        throw std::invalid_argument("Invalid network number.");
+    }
+    return result;
+}
+
+double parseFloat(const std::string& text) {
+    if (text.empty() || text.front() == '+' ||
+        text.find_first_not_of("0123456789.-+eE") != std::string::npos) {
+        throw std::invalid_argument("Invalid network number.");
+    }
+    std::istringstream input(text);
+    input.imbue(std::locale::classic());
+    double result{};
+    input >> std::noskipws >> result;
+    // libc++ can report a range failure for a valid subnormal result.
+    const bool rangeFailure =
+        input.fail() && std::fpclassify(result) != FP_SUBNORMAL;
+    const bool underflow = result == 0 && text.find_first_of("123456789") <
+                                              text.find_first_of("eE");
+    if (!input.eof() || input.bad() || rangeFailure || underflow) {
         throw std::invalid_argument("Invalid network number.");
     }
     return result;
@@ -143,7 +164,7 @@ RuntimeValue NetValueCodecImpl::decodeValue(const RuntimeData& value,
     if (tag == "int") {
         const std::string& text = ludork::runtime::value_reader::requireString(
             node[1], "Network integer");
-        const std::int64_t integer = parseNumber<std::int64_t>(text);
+        const std::int64_t integer = parseInteger(text);
         if (std::to_string(integer) != text) {
             throw std::invalid_argument(
                 "Network integers require canonical decimal spelling.");
@@ -152,7 +173,7 @@ RuntimeValue NetValueCodecImpl::decodeValue(const RuntimeData& value,
     }
     if (tag == "float") {
         const double number =
-            parseNumber<double>(ludork::runtime::value_reader::requireString(
+            parseFloat(ludork::runtime::value_reader::requireString(
                 node[1], "Network float"));
         if (!std::isfinite(number)) {
             throw std::invalid_argument("Network numbers must be finite.");

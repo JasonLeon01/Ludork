@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: '0 6,18 * * *'
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/**'
+      - '**/*.py'
 
 permissions:
   contents: read

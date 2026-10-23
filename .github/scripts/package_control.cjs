@@ -46,7 +46,7 @@ async function shouldRun({ github, context, core }, workflow, markerName, server
     for (const run of data.workflow_runs) {
       if (run.id === context.runId || run.conclusion !== 'success'
           || run.head_branch !== defaultBranch
-          || !['schedule', 'workflow_dispatch'].includes(run.event)) {
+          || !['schedule', 'workflow_dispatch', 'push'].includes(run.event)) {
         continue;
       }
 

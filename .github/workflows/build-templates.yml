@@ -88,7 +88,7 @@ jobs:
       - name: Archive prepared environment
         if: inputs.templates
         shell: cmd
-        run: tar.exe -cf windows-native-environment.tar .tools\ScriptTools .tools\gnu-make .tools\sources .tools\build Game\Engine\ThirdParty\LuaSF Game\Engine\ThirdParty\SFML Game\Engine\ThirdParty\LuaGlue Game\Engine\ThirdParty\Lua Game\Engine\ThirdParty\lua-cjson Game\Engine\ThirdParty\zlib Game\Engine\ThirdParty\ffmpeg Game\ThirdPartySource
+        run: tar.exe -cf windows-native-environment.tar .tools\ScriptTools .tools\gnu-make .tools\sources .tools\build Game\Engine\ThirdParty\LuaSF Game\Engine\ThirdParty\SFML Game\Engine\ThirdParty\LuaGlue Game\Engine\ThirdParty\Lua Game\Engine\ThirdParty\lua-cjson Game\Engine\ThirdParty\zlib Game\Engine\ThirdParty\IXWebSocket Game\Engine\ThirdParty\ffmpeg Game\ThirdPartySource
 
       - name: Archive prepared editor tools
         if: ${{ !inputs.templates }}
@@ -234,7 +234,7 @@ jobs:
 
       - name: Archive prepared environment
         if: inputs.templates
-        run: tar -cf macos-native-environment.tar .tools/ScriptTools Game/Engine/ThirdParty/LuaSF Game/Engine/ThirdParty/SFML Game/Engine/ThirdParty/LuaGlue Game/Engine/ThirdParty/Lua Game/Engine/ThirdParty/lua-cjson Game/Engine/ThirdParty/zlib Game/Engine/ThirdParty/ffmpeg Game/ThirdPartySource
+        run: tar -cf macos-native-environment.tar .tools/ScriptTools Game/Engine/ThirdParty/LuaSF Game/Engine/ThirdParty/SFML Game/Engine/ThirdParty/LuaGlue Game/Engine/ThirdParty/Lua Game/Engine/ThirdParty/lua-cjson Game/Engine/ThirdParty/zlib Game/Engine/ThirdParty/IXWebSocket Game/Engine/ThirdParty/ffmpeg Game/ThirdPartySource
 
       - name: Archive prepared editor tools
         if: ${{ !inputs.templates }}
