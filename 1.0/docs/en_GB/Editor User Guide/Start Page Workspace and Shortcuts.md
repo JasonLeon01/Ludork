@@ -144,7 +144,9 @@ Media previews support common audio and video formats, subject to the system’s
 
 The reference tree shows which resources a file uses and which files use it. Create, rename and move managed resources through the editor to update recognised references. Arbitrary strings and references in source code must be updated manually.
 
-Creating or copying a managed resource leaves it unsaved and adds no Undo step for the creation. A rename appears immediately in the editor. Global Save then writes the new paths and the updated references together. Deletion requires every recognised reference to be removed and saved first. Confirmed deletion is immediate and cannot be undone.
+Creating or copying a managed resource leaves it unsaved and adds no Undo step for the creation. A rename appears immediately in the editor. Global Save then writes the new paths and the updated references together. Deletion requires every recognised reference to be removed and saved first. Confirmed deletion in File Explorer and resource lists immediately moves saved files and folders to the Windows Recycle Bin or macOS Trash. If the system cannot recycle an item, the editor reports the error and keeps it; it never falls back to permanent deletion. In a batch, successfully recycled items remain deleted even if another item fails.
+
+Recycling preserves the last saved disk contents and path, including when a resource has an unsaved rename. Unsaved edits are discarded. A new resource that has never been saved is removed from the editor without creating a recoverable copy. Successfully deleted resources are removed from managed documents and resource lists, so a later Save does not recreate them. Editor Undo cannot restore resource deletion. Restore saved files through the operating system, then reopen the project to load them again. Deleting items within a document, such as Actors, graph nodes and map layers, continues to use that document's Undo history.
 
 Copy/paste name conflicts produce names such as `name_copy.ext`, then `name_copy2.ext`, without overwriting existing files or folders.
 

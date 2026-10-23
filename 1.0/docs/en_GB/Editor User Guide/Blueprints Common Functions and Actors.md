@@ -38,7 +38,7 @@ In Actor mode, right-click an Actor on the map and choose **Locate Blueprint** t
 
 For a selected map Actor, **Actor Info** shows its Blueprint reference with the **Open** and **Locate** actions, the grid position X/Y, the tag and the exposed class fields. Position and text edits merge into one Undo step for a continuous focused edit. A reset button beside an overridden field removes that instance override, and **Reset All** removes every class-field override for the instance and reveals the inherited Blueprint defaults again. When the Actor's layer is hidden, **Actor Info** stays available for inspection and Blueprint navigation, but its tag, position, reset actions and class fields are read-only.
 
-Placing and deleting Actor instances can be undone in their map document. Deleting the Blueprint file itself is immediate and cannot be undone. If an instance was deleted and saved before its Blueprint was deleted, Undo cannot bring that instance back while the Blueprint is missing. Blueprint field changes, including Undo and Redo, refresh Actor visuals using the current inherited defaults.
+Placing and deleting Actor instances can be undone in their map document. Deleting the Blueprint file itself follows the [resource deletion and recovery rules](<Start Page Workspace and Shortcuts.md#file-explorer-and-reference-tree>). If an instance was deleted and saved before its Blueprint was deleted, Undo cannot bring that instance back while the Blueprint is missing. Blueprint field changes, including Undo and Redo, refresh Actor visuals using the current inherited defaults.
 
 ## Graph mode
 

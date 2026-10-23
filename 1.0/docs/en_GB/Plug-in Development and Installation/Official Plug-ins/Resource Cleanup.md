@@ -34,9 +34,7 @@ This is static analysis only. It does not run Lua, trace gameplay or infer value
 
 ## Recycling and editor state
 
-On supported Windows and macOS editors, the host uses the operating system's Recycle Bin or Trash. An unavailable Trash location, unsupported volume or recycling error never falls back to permanent deletion. Restore recycled files with the operating system, then reopen the project to load them again.
-
-Successfully recycled Data is removed from the editor's managed documents and resource lists, so a later Save does not recreate it. Editor Undo does not restore recycled files. A report cannot be reused after recycling, and changed project inputs require a new scan.
+Recycling uses the same system Trash, failure handling and recovery rules as [resource deletion in the editor](<../../Editor User Guide/Start Page Workspace and Shortcuts.md#file-explorer-and-reference-tree>). The cleanup workflow requires a saved project. A report cannot be reused after recycling, and changed project inputs require a new scan.
 
 ## Plug-in contract
 
