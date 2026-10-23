@@ -1,178 +1,140 @@
 # Native Client API
 
-Configure the URL and key through [Deployment and Editor Settings](<Deployment and Editor Settings.md>). Network transport, JSON conversion, write-token ownership and completion scheduling run in C++; Lua exposes the typed `GlobalCore.Server` methods without URL or key parameters. The transport uses SFML networking over HTTP.
+Configure the URL and project key through [Deployment and Editor Settings](<Deployment and Editor Settings.md>). Game code uses `Global.Net` for explicit data snapshots, void RPCs and named server events. C++ owns the WebSocket connection, value encoding and delivery on the game logic thread; Lua never supplies connection credentials. `GlobalCore.Server.CheckConnectionAsync` remains the separate HTTP health probe.
 
-## Methods and results
+## Define a network module and proxy
 
-Every method requires a completion callback and returns an `Engine.AsyncOperation`. Call from the game logic thread in a running game whose latent-operation updates are initialised. The default Entry calls `GlobalFunctions.NodeGraph.initLatent()`; custom entry points must initialise it too. See [Lua Runtime and Modules](<../Lua and Blueprint Scripting/Lua Runtime and Modules.md#asynchronous-operation-updates>) for the operation lifecycle. Starting an operation in a bare script without the game update loop does not drive its callback.
-
-| `GlobalCore.Server` method | Callback argument |
-|---|---|
-| `CheckAccountExistsAsync(accountId, onCompleted)` | `GlobalCore.ServerAccountResult` |
-| `ListAccountsAsync(sampleCount, categoryFilter, onCompleted)` | `GlobalCore.ServerAccountListResult` |
-| `ReadFieldAsync(accountId, category, field, onCompleted)` | `GlobalCore.ServerReadResult` |
-| `ListFieldsAsync(accountId, category, beforeKey, limit, onCompleted)` | `GlobalCore.ServerFieldListResult` |
-| `AcquireWriteTokenAsync(accountId, onCompleted)` | `GlobalCore.ServerTokenResult` |
-| `WriteFieldAsync(token, category, field, value, onCompleted)` | `GlobalCore.ServerResult` |
-| `CheckConnectionAsync(onCompleted)` | `GlobalCore.ServerConnectionResult` |
-
-All results expose read-only `ok`, `code`, `message` and `retryAfterSeconds: integer|nil` properties. `ok` is true exactly when `code == GlobalCore.ServerErrorCode.None`. Use the enum for decisions and `message` for diagnostics. `retryAfterSeconds` is present only for a rate-limited write. Check `ok` before using query data; an empty result on failure is not a successful empty query.
-
-Optional list parameters still occupy their positional arguments: pass `nil` for defaults, keeping the required callback last.
-
-| Result | Additional properties |
-|---|---|
-| `ServerAccountResult` | Extends `ServerResult` with read-only `exists: boolean`; meaningful only when `ok == true`. |
-| `ServerAccountListResult` | `accounts: string[]`; iterate the returned account IDs with `ipairs`. |
-| `ServerReadResult` | `found: boolean`, `value: Engine.RuntimeDataValue`; a missing field has `found == false`, while a stored JSON null has `found == true`. |
-| `ServerFieldListResult` | `entries: GlobalCore.ServerFieldEntry[]`, `nextCursor: string\|nil`; a nil cursor ends pagination. |
-| `ServerTokenResult` | `token: GlobalCore.ServerWriteToken\|nil`; present on successful acquisition. |
-| `ServerConnectionResult` | `state: GlobalCore.ServerNetworkState`, `roundTripMs: number\|nil`; timing is present only for a valid health response. |
-
-The native declarations are in `<Server.hpp>` and `<Server/...hpp>`. C++ callbacks receive the corresponding `std::shared_ptr<Result>`; generated Lua declarations therefore include `nil`, so narrow it with `assert(result)` in Lua. Results and tokens are returned native objects, not tables to construct yourself. `ServerFieldEntry` is a returned value record with read-only `key: string` and `value: Engine.RuntimeDataValue`; the entries array contains non-nil records. `ServerWriteToken` is opaque: Lua cannot inspect or supply its raw token or bound account.
-
-Completion first stores the result on the operation, then invokes the callback on the game logic thread. `operation:getResult()` after completion returns the **same result object** delivered to that callback. A request error completes normally with `ok == false`; it is not cancellation. Explicit cancellation suppresses the completion callback and asks the transport to stop. It cannot undo a write already accepted by the server. Closing a game session also cancels its pending work without calling Lua from a worker thread.
-
-## Check account existence
-
-Use `CheckAccountExistsAsync` to query an account:
+A proxy is a local Lua object containing one server snapshot. Its getters read that snapshot without network I/O. Define a subclass of `Global.NetProxy` in its own module, then register it under the same network-module name as the server. The corresponding server implementation is described in [Server Lua modules](<HTTP Protocol.md#server-lua-modules>).
 
 ```lua
-local GlobalCore = require("GlobalCore")
-local Logging = require("Global.Utils.Logging")
+-- Scripts/Source/Net/ProfileProxy.lua
+local NetProxy = require("Global.NetProxy")
 
-GlobalCore.Server.CheckAccountExistsAsync("player-1", function(result)
-    assert(result)
-    if not result.ok then
-        Logging.warning("Account query failed: %s", result.message)
-    elseif result.exists then
-        Logging.info("Account exists")
-    else
-        Logging.info("Account is absent")
-    end
-end)
-```
+local ProfileProxy = {}
 
-An account exists when its data directory exists, even if empty. The check does not create or reserve it, and provides no atomic collision guarantee. Generate UUID account identifiers in your application. Storage failures remain errors rather than `exists == false`; see [account-existence semantics](<HTTP Protocol.md#check-account-existence>).
-
-## List accounts and fields
-
-### List or sample accounts
-
-`ListAccountsAsync(nil, nil, onCompleted)` and `sampleCount == 0` return all eligible account IDs in ascending UTF-8 byte order. Positive counts sample distinct accounts in random order, up to that count. `categoryFilter` applies before sampling and tests file presence rather than JSON validity. See [List accounts](<HTTP Protocol.md#list-accounts>) for accepted ranges, storage errors and the 2 MiB response limit.
-
-This gameplay example samples up to ten accounts that have a `history` category:
-
-```lua
-local GlobalCore = require("GlobalCore")
-local Logging = require("Global.Utils.Logging")
-
-GlobalCore.Server.ListAccountsAsync(10, "history", function(result)
-    assert(result)
-    if not result.ok then
-        Logging.warning("Account list failed: %s", result.message)
-        return
-    end
-    for _, accountId in ipairs(result.accounts) do
-        Logging.info("Account: %s", accountId)
-    end
-end)
-```
-
-There is no account-list cursor. An oversized result fails with `InvalidArgument`; request a smaller positive `sampleCount`.
-
-### Page through a category's fields
-
-Fields are ordered by **descending UTF-8 bytes**, independently of locale or numeric interpretation. `beforeKey == nil` starts the first page; a supplied key is an exclusive upper bound, so only smaller keys are returned, even if the bound itself is not stored. `limit == nil` means 50; explicit limits must be integers from 1 to 100. `beforeKey` follows the field-name rules below.
-
-When more fields remain, `nextCursor` is the last returned key. Pass it unchanged as the next `beforeKey`; stop when it is nil. A missing account/category or an exhausted range succeeds with empty `entries` and a nil cursor. A corrupt category fails with `StorageFailure`.
-
-Read successive pages with the returned cursor:
-
-```lua
-local GlobalCore = require("GlobalCore")
-local Logging = require("Global.Utils.Logging")
-
-local function readPage(beforeKey)
-    GlobalCore.Server.ListFieldsAsync("player-1", "history", beforeKey, nil, function(result)
-        assert(result)
-        if not result.ok then
-            Logging.warning("Field list failed: %s", result.message)
-            return
-        end
-        for _, entry in ipairs(result.entries) do
-            Logging.info("%s = %s", entry.key, tostring(entry.value))
-        end
-        if result.nextCursor ~= nil then
-            readPage(result.nextCursor)
-        end
-    end)
+function ProfileProxy:GetName()
+    return self:GetValue("name")
 end
 
-readPage(nil)
+return class(ProfileProxy, NetProxy)
 ```
 
-Pages do not form a snapshot across writes. Refresh from the first page to include newly inserted keys above the cursor. For timestamp-key design and response-size limits, see [List category fields](<HTTP Protocol.md#list-category-fields>).
+```lua
+-- Scripts/Source/Net/Profile.lua
+local Net = require("Global.Net")
+local ProfileProxy = require("Source.Net.ProfileProxy")
 
-## Read and write from Lua
+return Net.DefineModule("Profile", ProfileProxy)
+```
 
-The following example writes one field, then reads it back:
+`Net.DefineModule(name, proxyClass)` returns the module handle used for RPCs and subscriptions. The class must derive from `Global.NetProxy`; duplicate names are rejected. Defining a module does not connect. Require its definition before requesting a proxy. A subclass that overrides `init(moduleName, params, snapshot)` must call the base initializer with those arguments; otherwise the inherited initializer is used. See [Ludork classes](<../Getting Started/Ludork Lua Advanced.md#ludork-classes>) for class construction and mirrored declarations.
+
+Module, RPC and event names are case-sensitive and use 1–128 ASCII letters, digits, dots, underscores or hyphens. RPC function names refer to the server module's `Rpc` table, not proxy getter names.
+
+Public Net, proxy, getter and RPC functions use PascalCase, such as `GetProxy`, `Sync`, `GetName` and `SetName`. The class constructor keeps the existing `init` convention.
+
+## Fetch and refresh snapshots
 
 ```lua
-local GlobalCore = require("GlobalCore")
+local Net = require("Global.Net")
+local Profile = require("Source.Net.Profile")
 local Logging = require("Global.Utils.Logging")
 
-local Server = GlobalCore.Server
-
-Server.AcquireWriteTokenAsync("player-1", function(result)
-    assert(result)
+local operation = Net.GetProxy("Profile", {account = "player-1"}, function(result)
     if not result.ok then
-        Logging.warning("Token request failed: %s", result.message)
+        Logging.warning("Profile failed: %s", result.message)
         return
     end
-    local token = assert(result.token)
-    Server.WriteFieldAsync(token, "profile", "score", 100, function(written)
-        assert(written)
-        if not written.ok then
-            if written.code == GlobalCore.ServerErrorCode.RateLimited then
-                Logging.warning("Wait at least %d seconds, then acquire a new write token.",
-                    assert(written.retryAfterSeconds))
-            else
-                Logging.warning("Write failed: %s", written.message)
-            end
-            return
+    local proxy = assert(result.proxy)
+    Logging.info("Name: %s", tostring(proxy:GetValue("name")))
+    proxy:Sync(function(refreshed)
+        if refreshed.ok then
+            assert(refreshed.proxy == proxy)
+            Logging.info("Refreshed name: %s", tostring(proxy:GetValue("name")))
         end
-        Server.ReadFieldAsync("player-1", "profile", "score", function(read)
-            assert(read)
-            if not read.ok then
-                Logging.warning("Read failed: %s", read.message)
-            elseif read.found then
-                Logging.info("Score: %s", tostring(read.value))
-            else
-                Logging.info("Score is absent")
-            end
-        end)
     end)
 end)
 ```
 
-Pass account, category and field names without URL-encoding; the client encodes each path segment. Names must satisfy the [HTTP identifier rules](<HTTP Protocol.md>), including the 1–64 UTF-8 byte limit.
+`Net.GetProxy(moduleName, params, callback)` always sends a new snapshot request and constructs a new proxy on success, even when the name and parameters match an earlier request. Parameters are copied when requested; changing the caller's table later does not alter this proxy's query. Separate proxies and their snapshots are independent.
 
-Values follow the [RuntimeData conversion rules](<../Native C++ Development/Runtime Value Boundaries.md#lua-value-conversion>). A top-level null value stores null rather than deleting the field. The backend and viewer preserve the digits of JSON numbers; they cannot recover precision already lost by a caller's numeric conversion.
+`proxy:Sync(callback)` requests the same module with its captured parameters and refreshes the **existing object**. It replaces the complete snapshot only after a successful response. Pending, failed or cancelled syncs leave the previous snapshot readable. Multiple syncs on one proxy are serialized in call order, with one request per call; they are not combined. To change query parameters, call `GetProxy` for a new object.
 
-A successful write creates the account/category as needed and replaces one top-level dictionary field. The [write contract](<HTTP Protocol.md#acquire-and-use-a-token>) defines the 1 MiB request/file limit and transaction boundaries; there is no automatic save synchronisation.
+`proxy:GetValue(key)` returns a snapshot field. Table values are independent copies, including nested tables, so modifying a getter result cannot write the snapshot or server. Business getters such as `GetName` should use this method rather than accessing private fields. Neither an RPC nor a server event refreshes any proxy automatically.
 
-## Tokens and timeouts
+Both fetch methods require a callback and return `Engine.AsyncOperation`. Their callback receives an ordinary Lua result table:
 
-A write token is bound to the project, account and current client session, lasts **at most 60 seconds**, and permits **one write**. The client consumes a valid token before sending. Failed or timed-out writes are not retried automatically: read the field before deciding whether to acquire another token and write again. Backend token handling and restart invalidation follow the [HTTP write contract](<HTTP Protocol.md#acquire-and-use-a-token>).
+| Field | Meaning |
+| --- | --- |
+| `ok` | Whether a snapshot was obtained and installed. |
+| `code` | String error code; `"None"` on success. |
+| `message` | Diagnostic text; empty on success. |
+| `proxy` | The new proxy for `GetProxy`, or the same object for successful `Sync`; nil on failure. |
+| `retryAfterSeconds` | Optional whole-second delay for a rate-limited request. |
 
-The server also applies a configurable write interval per project and client IP; see [HTTP write rate limits](<HTTP Protocol.md#write-rate-limits>) for the full rules.
+The operation stores this result before invoking the callback; `operation:getResult()` returns the **same table** passed to it. Failure completes normally with `ok == false`. Explicit cancellation suppresses proxy construction or replacement and the callback. It cannot undo work already accepted by the server. Closing the game session cancels pending work and removes its listeners.
 
-A denied write completes with `ServerErrorCode.RateLimited` and `retryAfterSeconds`, rounded up to whole seconds. **The valid token is already consumed.** Wait at least that delay, then acquire a fresh token when ready to write; the default interval exceeds the token lifetime.
+Requests have a **ten-second deadline from submission**, including connection and queue time. A response processed after that deadline is rejected even if the logic thread was paused when it arrived. The `Global.Net` wrappers initialize latent-operation updates, but a running game update loop must still pump them; callbacks do not run by themselves in a bare script. See [asynchronous operation updates](<../Lua and Blueprint Scripting/Lua Runtime and Modules.md#asynchronous-operation-updates>).
 
-Ordinary operations have a ten-second deadline; the connection probe has a three-second deadline. Work executes away from the game logic thread, while completion is delivered on its next operation update. System DNS resolution may remain blocked after cancellation; stopping the game can wait for that resolver to return. No DNS cancellation or hard shutdown deadline is promised.
+## Call RPCs and receive events
 
-## Connection quality
+```lua
+local Profile = require("Source.Net.Profile")
+local Logging = require("Global.Utils.Logging")
+
+local errorToken = Profile.SubscribeError(function(error)
+    Logging.warning("Profile RPC/connection failed (%s): %s", error.code, error.message)
+end)
+
+local eventToken = Profile.Subscribe("NameChanged", function(account)
+    Logging.info("Name changed for %s", account)
+    -- Fetch or Sync here if this screen needs a newer snapshot.
+end)
+
+Profile.CallRpcFunction("SetName", "player-1", "Ada")
+```
+
+`module.CallRpcFunction(functionName, ...)` executes the identically named server RPC with positional arguments. It returns **no values and no operation handle**. A table passed as an argument is one argument, not an argument list. Nil gaps and trailing nil arguments retain their positions. Business replies use named events; the internal success acknowledgment is not a function return value.
+
+`module.Subscribe(eventName, handler)` and `module.SubscribeError(handler)` return integer listener tokens. `module.Unsubscribe(token)` returns whether it removed a listener from this module. Subscribe before issuing the RPC whose event matters. Listeners remain active until removed or the game session ends; they also remain registered across connection recovery. Remove them later, when their owning screen or object no longer needs them:
+
+```lua
+Profile.Unsubscribe(eventToken)
+Profile.Unsubscribe(errorToken)
+```
+
+Events contain the server's positional arguments and run on the logic thread. They are online-only: disconnected clients receive no backlog. Event and error subscriptions use `EventBus`: a throwing listener is logged and other listeners continue. A snapshot completion callback's error propagates to the host after the operation has stored its result. These application failures are not converted into malformed-network errors.
+
+A module error contains `code`, `message`, `module`, and optional `functionName`, `requestId` and `retryAfterSeconds`. RPC failures identify the function and request where available; a connection-level error may omit them. Snapshot failures are delivered through their result callbacks. Invalid local arguments, unsupported values and missing callbacks are programming errors rejected at the call boundary.
+
+All modules share one connection per game session. The first fetch, RPC or subscription starts it, so a client that only subscribes can receive events. Connection loss fails pending requests. The transport reconnects automatically after ordinary connection failures, without replaying RPCs, reissuing old snapshot requests or syncing existing proxies. Authentication rejection stops reconnect attempts for that session. Correct the compiled configuration and start a new session.
+
+An RPC can commit a write before a timeout or disconnect is observed. Read a fresh snapshot before deciding whether the business action should be attempted again; there is no automatic rollback or exactly-once replay mechanism.
+
+## Lua values and errors
+
+Parameters and snapshot data use ordinary Lua nil, booleans, finite numbers, byte strings and acyclic tables. Mixed and sparse boolean/number/string keys and signed 64-bit integers are preserved. Functions, threads, userdata, class/native objects, metatables, cycles and table keys are rejected. For the exact value and size rules, see [Lua data and wire encoding](<HTTP Protocol.md#lua-data-and-wire-encoding>); these values do not use the `RuntimeData` JSON conversion contract.
+
+Network results use **string codes**, including `Disabled`, `InvalidArgument`, `AuthenticationFailed`, `Timeout`, `ConnectionFailed`, `InvalidResponse`, `QueueFull`, `StorageFailure`, `ServerFailure` and `RateLimited`. Server business handlers may return additional valid codes. Use the code for decisions and the message for diagnostics. `retryAfterSeconds`, when present, is the minimum whole-second delay to respect before another attempt. A disabled build retains the APIs and reports `Disabled` through snapshot results or module errors.
+
+## Supplied Storage module
+
+Require `Global.Net.Storage` to register the built-in client module and its `Global.Net.StorageProxy` class. The server entry must register `Modules.Storage` under `"Storage"`. Fetch its snapshots with `Net.GetProxy("Storage", params, callback)`.
+
+| `params.query` | Proxy getters |
+| --- | --- |
+| `"account_exists"` | `AccountExists()` |
+| `"accounts"` | `GetAccounts()` |
+| `"field"` | `IsFound()`, `GetFieldValue()` |
+| `"fields"` | `GetEntries()`, `GetNextCursor()` |
+
+Each getter reads only that proxy's query result. Unrelated getters may return nil. Entries have `key` and `value` fields. A nil next cursor ends pagination; pass another cursor in a new `GetProxy` request. Query parameters, account sampling, field order, missing values and storage limits are defined in [Storage services](<HTTP Protocol.md#storage-services>).
+
+Write with `Storage.CallRpcFunction("WriteField", account, category, field, value)`. Nil deletes the field. Success emits `FieldWritten(account, category, field)` to the caller. This supplied RPC alone uses the [configured write interval](<HTTP Protocol.md#write-rate-limits>), normally 180 seconds; custom RPCs do not inherit it. There is no write-token API.
+
+## Network quality
+
+The independent `GlobalCore.Server.CheckConnectionAsync(callback)` retains its native result and three-second HTTP deadline. Custom entry points must initialize `GlobalFunctions.NodeGraph.initLatent()` and run operation updates. Its callback receives `GlobalCore.ServerConnectionResult`; narrow the generated nullable native-object declaration with `assert(result)`.
 
 ```lua
 local GlobalCore = require("GlobalCore")
@@ -190,32 +152,6 @@ GlobalCore.Server.CheckConnectionAsync(function(result)
 end)
 ```
 
-| `GlobalCore.ServerNetworkState` | Meaning |
-|---|---|
-| `Normal` | Valid server health response in at most 300 ms. |
-| `Weak` | Valid response above 300 ms, within the three-second deadline. |
-| `Disconnected` | No valid response within that deadline, or a disabled/failed request. |
+`Normal` means a valid configured-service health response within 300 ms; `Weak` means more than 300 ms within three seconds; `Disconnected` means no valid response, failure or disabled integration. The result also exposes `ok`, `code` as the native `GlobalCore.ServerErrorCode` enum, `message`, and `roundTripMs` when a valid response was received. It returns an `Engine.AsyncOperation` and preserves callback/result identity and cancellation semantics.
 
-This probes the configured server, not general Internet access. The health endpoint does not check the project key, so a Normal result does not establish that subsequent reads or writes will authenticate.
-
-## Error codes
-
-`GlobalCore.ServerErrorCode` contains `None`, `Disabled`, `InvalidArgument`, `AuthenticationFailed`, `InvalidWriteToken`, `Timeout`, `ConnectionFailed`, `InvalidResponse`, `StorageFailure`, `ServerFailure` and `RateLimited`.
-
-| Code | Meaning |
-|---|---|
-| `None` | The operation succeeded. |
-| `Disabled` | This build has no enabled Ludork Server transport. |
-| `InvalidArgument` | Invalid identifier, URL, JSON value or size. |
-| `AuthenticationFailed` | The project key or management authentication was rejected. |
-| `InvalidWriteToken` | Missing, expired, wrong-session/account/project or already consumed token. |
-| `Timeout` | The operation deadline elapsed. |
-| `ConnectionFailed` | The transport could not establish or maintain communication. |
-| `InvalidResponse` | The peer returned an invalid HTTP/JSON or operation response. |
-| `StorageFailure` | The backend could not read or write stored data. |
-| `ServerFailure` | Another backend failure occurred. |
-| `RateLimited` | The project's write interval for this client IP has not elapsed; use `retryAfterSeconds` and a fresh token after waiting. |
-
-The disabled build retains the same API and asynchronous result shape. A missing callback is a programming error and is rejected at the call boundary; request outcomes use the typed result above.
-
-For direct HTTP clients and management endpoints, see [HTTP Protocol](<HTTP Protocol.md>).
+The health endpoint does not check the project key, so a healthy result does not establish RPC authentication or overall Internet access. System DNS resolution may remain blocked after cancellation, and session shutdown may wait for it; cancellation does not guarantee a hard DNS or shutdown deadline.

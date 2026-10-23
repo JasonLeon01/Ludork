@@ -15,7 +15,7 @@ Windows MSVC Release builds use deterministic compilation and `/Brepro` linking 
 
 ## Steps
 
-Enable the optional [`GlobalCore.Server` API](<../Simple Server/Native Client API.md>) through the [server build settings](<../Simple Server/Deployment and Editor Settings.md>). Changing its development URL or key requires a Debug rebuild. When disabled, the Lua API remains callable and returns `ServerErrorCode.Disabled`.
+Enable the optional [`Global.Net` snapshot/RPC APIs and health probe](<../Simple Server/Native Client API.md>) through the [server build settings](<../Simple Server/Deployment and Editor Settings.md>). Changing the development URL or key requires a Debug rebuild. Disabled builds retain the APIs: Net reports the string code `Disabled`, while the native health probe uses `ServerErrorCode.Disabled`.
 
 ### Choose a module
 
@@ -23,7 +23,7 @@ Enable the optional [`GlobalCore.Server` API](<../Simple Server/Native Client AP
 |---|---|---|
 | `LudorkRuntime` | Values, VM/binding services, Blueprint execution, typed/component data, JSON and Asset/Data/Script stores, GPU particle simulation and drawing | Standard, SFML and private zlib, plus LuaSF in full mode; never Core modules |
 | `Engine` | Engine types, services, state and gameplay foundations | LudorkRuntime and SFML |
-| `GlobalCore` | Global game classes and services | Engine, Standard, SFML and LudorkVideo; optional platform libraries |
+| `GlobalCore` | Global game classes and services | Engine, Standard, SFML and LudorkVideo; IXWebSocket for enabled server transport; optional platform libraries |
 | `GlobalFunctions` | `Components`, `UI`, `NodeGraph` and `Manager` free-function groups | GlobalCore and SFML |
 | `LudorkVideo` | Shared video decoding, seeking and audio extraction under `Engine/Source/Media` | LudorkRuntime, SFML and FFmpeg when enabled |
 
@@ -185,6 +185,8 @@ On macOS, single-arm64 AppleClang Release builds compile the generated Core bind
 LuaSF is a binder only: it owns neither the Lua VM nor its dependencies. The game runtime creates the `lua_State` with `luaL_newstate` and `luaL_openlibs`, hands it to LuaSF with `LuaSF_initialize_state` and `LuaSF_register`, and tears it down through `ludork::standard::shutdown` and `lua_close`.
 
 CMake reads LuaSF, LuaGlue, SFML and Lua from their directories under `Game/Engine/ThirdParty`. Override them with `-DLUDORK_LUASF_SOURCE_DIR`, `-DLUDORK_LUAGLUE_SOURCE_DIR`, `-DLUDORK_SFML_SOURCE_DIR` and `-DLUDORK_LUA_SOURCE_DIR`. LuaGlue defaults to the sibling of the selected LuaSF source directory, so local generator integration uses `-DLUDORK_LUASF_SOURCE_DIR=/path/to/LuaSF-AutoGenerator/output/LuaSF`. Dependency initialisation installs the two projects from one source archive and writes matching `.ludork-version` markers.
+
+Dependency initialization also installs IXWebSocket 12.1.0 at `Engine/ThirdParty/IXWebSocket`, pinned by `versions.conf` to commit `bf7ad53c02612643e1cf72e37c8749491798d33d`. `Engine/cmake/LudorkIXWebSocket.cmake` provides the static `ixwebsocket::ixwebsocket` target for GlobalCore's optional WebSocket transport. TLS, message compression, demos, tests and installation are disabled in that dependency's scope without changing parent build options. Source templates and mobile packaging retain its source; packages include `Licenses/IXWebSocket/LICENSE.txt` and `THIRD-PARTY.txt`. The client accepts an `http://` configuration and derives its `ws://` endpoint.
 
 SFML is a required source project rather than an optional override, and LuaSF reuses the `sfml-*` targets Ludork builds from it. Mobile uses static SFML; desktop follows `LUASF_BUILD_SHARED_SFML`, defaulting to shared. `versions.conf` selects the SFML variant by repository and tag; the current pin is the SFML-ME `310-ME-OH-GLESVER` tag. OHOS GPU particles require an SFML source that preserves the GLES 3 context request; see [Common Particles](<../Editor User Guide/Common Particles.md>).
 

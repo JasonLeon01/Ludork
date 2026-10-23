@@ -1,178 +1,140 @@
 # 原生客户端 API
 
-先按[部署与编辑器设置](<部署与编辑器设置.md>)配置 URL 和密钥。网络传输、JSON 转换、写入 token 的持有与完成调度均在 C++ 中执行；Lua 只暴露带类型的 `GlobalCore.Server` 方法，不接收 URL 或密钥参数。传输层通过 SFML 网络模块使用 HTTP。
+先按[部署与编辑器设置](<部署与编辑器设置.md>)配置 URL 和项目密钥。游戏代码通过 `Global.Net` 获取显式数据快照、调用 void RPC 和接收服务端命名事件。C++ 负责 WebSocket 连接、值编码以及游戏逻辑线程上的交付；Lua 不传入连接凭据。`GlobalCore.Server.CheckConnectionAsync` 仍是独立的 HTTP 健康检测接口。
 
-## 方法与结果
+## 定义网络模块与 proxy
 
-每个方法都要求完成回调，并返回 `Engine.AsyncOperation`。应在运行中游戏的逻辑线程调用，且已初始化潜伏操作更新。默认 Entry 会调用 `GlobalFunctions.NodeGraph.initLatent()`，自定义入口也需要初始化；操作生命周期见 [Lua 运行时与模块](<../Lua 与蓝图脚本/Lua 运行时与模块.md>)。在没有游戏更新循环的裸脚本中创建操作，不会自动驱动回调。
-
-| `GlobalCore.Server` 方法 | 回调参数 |
-|---|---|
-| `CheckAccountExistsAsync(accountId, onCompleted)` | `GlobalCore.ServerAccountResult` |
-| `ListAccountsAsync(sampleCount, categoryFilter, onCompleted)` | `GlobalCore.ServerAccountListResult` |
-| `ReadFieldAsync(accountId, category, field, onCompleted)` | `GlobalCore.ServerReadResult` |
-| `ListFieldsAsync(accountId, category, beforeKey, limit, onCompleted)` | `GlobalCore.ServerFieldListResult` |
-| `AcquireWriteTokenAsync(accountId, onCompleted)` | `GlobalCore.ServerTokenResult` |
-| `WriteFieldAsync(token, category, field, value, onCompleted)` | `GlobalCore.ServerResult` |
-| `CheckConnectionAsync(onCompleted)` | `GlobalCore.ServerConnectionResult` |
-
-所有结果都提供只读的 `ok`、`code`、`message` 和 `retryAfterSeconds: integer|nil` 属性。仅当 `code == GlobalCore.ServerErrorCode.None` 时，`ok` 为 true。用枚举判断业务结果，用 `message` 输出诊断。`retryAfterSeconds` 只在写入被限频时存在。使用查询数据前应检查 `ok`；失败时的空结果不代表查询成功且没有数据。
-
-列表接口的可选参数仍占据对应位置：需要默认值时传 `nil`，必填回调始终放在最后。
-
-| 结果 | 额外属性 |
-|---|---|
-| `ServerAccountResult` | 继承 `ServerResult`，新增只读 `exists: boolean`；仅在 `ok == true` 时有效。 |
-| `ServerAccountListResult` | `accounts: string[]`，使用 `ipairs` 遍历账号 ID。 |
-| `ServerReadResult` | `found: boolean`、`value: Engine.RuntimeDataValue`。字段不存在时 `found == false`；已存储的 JSON null 则为 `found == true`。 |
-| `ServerFieldListResult` | `entries: GlobalCore.ServerFieldEntry[]`、`nextCursor: string\|nil`；游标为 nil 时结束分页。 |
-| `ServerTokenResult` | `token: GlobalCore.ServerWriteToken\|nil`，申请成功时存在。 |
-| `ServerConnectionResult` | `state: GlobalCore.ServerNetworkState`、`roundTripMs: number\|nil`，仅有效健康响应携带耗时。 |
-
-原生声明位于 `<Server.hpp>` 与 `<Server/...hpp>`。C++ 回调接收对应的 `std::shared_ptr<Result>`，生成的 Lua 声明因此包含 `nil`，示例中使用 `assert(result)` 收窄类型。结果和 token 是返回的原生对象，不是需要自行构造的 table。`ServerFieldEntry` 是返回的值记录，具有只读的 `key: string` 与 `value: Engine.RuntimeDataValue`；entries 数组中的记录不会为 nil。`ServerWriteToken` 不透明，Lua 不能读取或填入其原始 token、绑定账号。
-
-完成时先把结果存到操作上，再在游戏逻辑线程调用回调。完成后 `operation:getResult()` 返回与回调参数**同一个结果对象**。请求失败会以 `ok == false` 正常完成，不等同于取消。显式取消会抑制完成回调，并通知传输停止，但无法撤销服务器已经接受的写入。关闭游戏会话也会取消其未完成工作，不会从工作线程回调 Lua。
-
-## 查询账号是否存在
-
-使用 `CheckAccountExistsAsync` 查询账号：
+Proxy 是保存一份服务端快照的本地 Lua 对象，getter 只读取快照，不发起网络请求。在独立模块中定义 `Global.NetProxy` 子类，再以与服务端相同的网络模块名注册。对应服务端实现见[服务端 Lua 模块](<HTTP 协议.md#服务端-lua-模块>)。
 
 ```lua
-local GlobalCore = require("GlobalCore")
-local Logging = require("Global.Utils.Logging")
+-- Scripts/Source/Net/ProfileProxy.lua
+local NetProxy = require("Global.NetProxy")
 
-GlobalCore.Server.CheckAccountExistsAsync("player-1", function(result)
-    assert(result)
-    if not result.ok then
-        Logging.warning("Account query failed: %s", result.message)
-    elseif result.exists then
-        Logging.info("Account exists")
-    else
-        Logging.info("Account is absent")
-    end
-end)
-```
+local ProfileProxy = {}
 
-账号数据目录存在即视为账号存在，空目录也算。查询不会创建或预留账号，也不提供原子的防重保证；UUID 账号标识由应用生成。存储故障仍是错误，不能视为 `exists == false`。详见[账号存在性语义](<HTTP 协议.md#查询账号是否存在>)。
-
-## 列出账号与字段
-
-### 获取或随机抽取账号
-
-`ListAccountsAsync(nil, nil, onCompleted)` 与 `sampleCount == 0` 返回全部符合条件的账号 ID，按 UTF-8 字节升序排列。正数表示无放回随机抽取，最多返回该数量，顺序随机。`categoryFilter` 先筛选再抽样，只检查文件存在性，不解析 JSON。数量范围、存储错误与 2 MiB 响应上限见[列出账号](<HTTP 协议.md#列出账号>)。
-
-下面的游戏业务示例从具有 `history` 分类的账号中随机抽取最多十个：
-
-```lua
-local GlobalCore = require("GlobalCore")
-local Logging = require("Global.Utils.Logging")
-
-GlobalCore.Server.ListAccountsAsync(10, "history", function(result)
-    assert(result)
-    if not result.ok then
-        Logging.warning("Account list failed: %s", result.message)
-        return
-    end
-    for _, accountId in ipairs(result.accounts) do
-        Logging.info("Account: %s", accountId)
-    end
-end)
-```
-
-账号列表没有分页游标。结果过大时以 `InvalidArgument` 失败，应改用更小的正数 `sampleCount`。
-
-### 分页读取分类字段
-
-字段按 **UTF-8 字节降序**排列，不按语言区域或数值含义排序。`beforeKey == nil` 从首页开始；指定键是排他的上界，只返回比它小的键，即使该上界本身没有存储。`limit == nil` 表示 50，显式数量必须为 1–100 的整数。`beforeKey` 遵循下方的字段名规则。
-
-后面还有字段时，`nextCursor` 为本页最后一个键；将它原样传作下一页的 `beforeKey`，直到游标为 nil。账号或分类不存在、范围已遍历完时，成功返回空 `entries` 和 nil 游标；分类损坏则返回 `StorageFailure`。
-
-使用返回的游标逐页读取：
-
-```lua
-local GlobalCore = require("GlobalCore")
-local Logging = require("Global.Utils.Logging")
-
-local function readPage(beforeKey)
-    GlobalCore.Server.ListFieldsAsync("player-1", "history", beforeKey, nil, function(result)
-        assert(result)
-        if not result.ok then
-            Logging.warning("Field list failed: %s", result.message)
-            return
-        end
-        for _, entry in ipairs(result.entries) do
-            Logging.info("%s = %s", entry.key, tostring(entry.value))
-        end
-        if result.nextCursor ~= nil then
-            readPage(result.nextCursor)
-        end
-    end)
+function ProfileProxy:GetName()
+    return self:GetValue("name")
 end
 
-readPage(nil)
+return class(ProfileProxy, NetProxy)
 ```
 
-分页不提供跨写入的快照。要纳入新插入且大于当前游标的键，应从首页刷新。时间戳键的设计与响应大小限制见[列出分类字段](<HTTP 协议.md#列出分类字段>)。
+```lua
+-- Scripts/Source/Net/Profile.lua
+local Net = require("Global.Net")
+local ProfileProxy = require("Source.Net.ProfileProxy")
 
-## 在 Lua 中读写
+return Net.DefineModule("Profile", ProfileProxy)
+```
 
-以下示例写入一个字段，再读取：
+`Net.DefineModule(name, proxyClass)` 返回用于 RPC 与订阅的模块句柄。类必须继承 `Global.NetProxy`，重复名称会被拒绝。定义模块本身不连接服务器；获取 proxy 前须先 require 其定义。若子类覆盖 `init(moduleName, params, snapshot)`，必须用这些参数调用基类初始化函数；未覆盖时使用继承的初始化函数。类构造与镜像声明见 [Ludork 类](<../快速入门/Ludork Lua 进阶.md#ludork-类>)。
+
+模块、RPC 与事件名区分大小写，由 1–128 个 ASCII 字母、数字、点、下划线或连字符组成。RPC 函数名对应服务端模块的 `Rpc` 表，与 proxy getter 名称无关。
+
+公开的 Net、proxy、getter 与 RPC 函数采用 PascalCase，例如 `GetProxy`、`Sync`、`GetName`、`SetName`。类构造函数保留既有的 `init` 约定。
+
+## 获取与刷新快照
 
 ```lua
-local GlobalCore = require("GlobalCore")
+local Net = require("Global.Net")
+local Profile = require("Source.Net.Profile")
 local Logging = require("Global.Utils.Logging")
 
-local Server = GlobalCore.Server
-
-Server.AcquireWriteTokenAsync("player-1", function(result)
-    assert(result)
+local operation = Net.GetProxy("Profile", {account = "player-1"}, function(result)
     if not result.ok then
-        Logging.warning("Token request failed: %s", result.message)
+        Logging.warning("Profile failed: %s", result.message)
         return
     end
-    local token = assert(result.token)
-    Server.WriteFieldAsync(token, "profile", "score", 100, function(written)
-        assert(written)
-        if not written.ok then
-            if written.code == GlobalCore.ServerErrorCode.RateLimited then
-                Logging.warning("Wait at least %d seconds, then acquire a new write token.",
-                    assert(written.retryAfterSeconds))
-            else
-                Logging.warning("Write failed: %s", written.message)
-            end
-            return
+    local proxy = assert(result.proxy)
+    Logging.info("Name: %s", tostring(proxy:GetValue("name")))
+    proxy:Sync(function(refreshed)
+        if refreshed.ok then
+            assert(refreshed.proxy == proxy)
+            Logging.info("Refreshed name: %s", tostring(proxy:GetValue("name")))
         end
-        Server.ReadFieldAsync("player-1", "profile", "score", function(read)
-            assert(read)
-            if not read.ok then
-                Logging.warning("Read failed: %s", read.message)
-            elseif read.found then
-                Logging.info("Score: %s", tostring(read.value))
-            else
-                Logging.info("Score is absent")
-            end
-        end)
     end)
 end)
 ```
 
-账号、分类和字段名无需预先 URL 编码，客户端会编码每个路径段。名称须遵循 [HTTP 标识符规则](<HTTP 协议.md>)，包括 1–64 个 UTF-8 字节的限制。
+`Net.GetProxy(moduleName, params, callback)` 每次都发送新的快照请求，成功后构造新的 proxy，即使模块名与参数和之前完全相同也一样。请求时会复制参数，之后修改调用方的 table 不会改变该 proxy 的查询。不同 proxy 及其快照相互独立。
 
-值遵循 [RuntimeData 转换规则](<../C++ 原生开发/运行时值边界.md#lua-值转换>)。顶层 null 会存储 null，而不是删除字段。后端与查看器保留 JSON 数字的原始数字文本，但无法恢复调用方转换时已经丢失的精度。
+`proxy:Sync(callback)` 使用原先捕获的参数再次请求同一模块，刷新**现有对象**。只有响应成功后才整体替换快照。等待中、失败或取消的同步都保留旧快照供读取。同一 proxy 上的多次 Sync 按调用顺序串行处理，每次调用对应一次请求，不会合并。若要改变查询参数，应通过 `GetProxy` 获取新对象。
 
-成功写入会按需创建账号和分类文件，并替换字典中的一个顶层字段。[写入契约](<HTTP 协议.md#申请并使用-token>)说明 1 MiB 请求／文件上限与事务边界；不会自动同步本地存档。
+`proxy:GetValue(key)` 返回一个快照字段。Table 值及其嵌套 table 都是独立副本，修改 getter 结果不会写入快照或服务端。`GetName` 等业务 getter 应通过此方法读取，不直接访问私有字段。RPC 和服务端事件都不会自动刷新 proxy。
 
-## Token 与超时
+两个获取方法都要求回调，并返回 `Engine.AsyncOperation`。回调接收普通 Lua 结果表：
 
-写入 token 绑定项目、账号和当前客户端会话，有效期**至多 60 秒**，只允许**一次写入**。客户端在发送前消费有效 token。写入失败或超时不会自动重试：先读取字段，再决定是否申请新 token 并重新写入。后端的 token 处理顺序与重启失效规则见 [HTTP 写入契约](<HTTP 协议.md#申请并使用-token>)。
+| 字段 | 含义 |
+| --- | --- |
+| `ok` | 是否成功获取并安装快照。 |
+| `code` | 字符串错误码；成功为 `"None"`。 |
+| `message` | 诊断文本；成功为空。 |
+| `proxy` | GetProxy 新建的对象，或成功 Sync 的原对象；失败为 nil。 |
+| `retryAfterSeconds` | 请求被限频时可选的整秒等待时间。 |
 
-服务器还会按项目和客户端 IP 限制写入频率，间隔可配置。完整规则见 [HTTP 写入限频](<HTTP 协议.md#写入限频>)。
+操作先保存结果，再调用回调；`operation:getResult()` 返回与回调参数**同一个 table**。失败以 `ok == false` 正常完成。显式取消会抑制 proxy 构造或快照替换，以及完成回调，但不能撤销服务器已接受的工作。关闭游戏会话会取消未完成工作并移除该会话的监听器。
 
-被拒绝的写入以 `ServerErrorCode.RateLimited` 完成，`retryAfterSeconds` 向上取整到秒。**有效 token 已经被消费。** 至少等待返回的时间，再在准备写入时申请新 token；默认间隔比 token 有效期更长。
+请求从提交开始具有**十秒期限**，包括连接和排队时间。即使响应到达时逻辑线程处于暂停状态，超过期限才处理也会被拒绝。`Global.Net` 包装层会初始化潜伏操作更新，但仍须由运行中的游戏更新循环推进；裸脚本不会自行驱动回调。详见[异步操作更新](<../Lua 与蓝图脚本/Lua 运行时与模块.md#异步操作更新>)。
 
-普通操作的期限为十秒，网络检测为三秒。网络工作不在游戏逻辑线程执行，完成结果由下一次操作更新交付。系统 DNS 解析可能在取消后仍被阻塞，停止游戏时可能等待解析器返回；不保证 DNS 可取消或退出具有硬性截止时间。
+## 调用 RPC 与接收事件
+
+```lua
+local Profile = require("Source.Net.Profile")
+local Logging = require("Global.Utils.Logging")
+
+local errorToken = Profile.SubscribeError(function(error)
+    Logging.warning("Profile RPC/connection failed (%s): %s", error.code, error.message)
+end)
+
+local eventToken = Profile.Subscribe("NameChanged", function(account)
+    Logging.info("Name changed for %s", account)
+    -- 当前界面需要新快照时，可在这里调用 GetProxy 或 Sync。
+end)
+
+Profile.CallRpcFunction("SetName", "player-1", "Ada")
+```
+
+`module.CallRpcFunction(functionName, ...)` 按位置传参，执行服务端同名 RPC。它**不返回任何值，也不返回操作句柄**。作为参数传入的 table 是一个参数，不是参数列表。中间及末尾的 nil 参数都保留位置。业务回复使用命名事件；内部成功确认不属于函数返回值。
+
+`module.Subscribe(eventName, handler)` 与 `module.SubscribeError(handler)` 返回整数监听 token。`module.Unsubscribe(token)` 返回是否从当前模块移除了监听。需要接收某个 RPC 产生的事件时，应先订阅再发起调用。监听持续到显式移除或游戏会话结束，连接恢复后也保留。所属界面或对象不再需要监听时再清理：
+
+```lua
+Profile.Unsubscribe(eventToken)
+Profile.Unsubscribe(errorToken)
+```
+
+事件携带服务端按位置传入的参数，在逻辑线程执行。事件仅在线交付，断开的客户端不会收到积压事件。事件与错误订阅使用 `EventBus`：某个监听器抛错时会记录日志，其他监听器继续执行。快照完成回调抛出的错误会在操作已保存结果后传播给宿主。这些应用错误不会被改写成网络消息格式错误。
+
+模块错误包含 `code`、`message`、`module`，以及可选的 `functionName`、`requestId`、`retryAfterSeconds`。RPC 失败在信息可用时标明函数与请求；连接级错误可能不含这两项。快照失败通过对应结果回调交付。本地参数不合法、包含不支持的值或缺少回调属于编程错误，会在调用边界拒绝。
+
+同一游戏会话的所有模块共用一条连接。首次获取、RPC 或订阅会启动连接，因此只订阅而不主动请求的客户端也能接收事件。连接丢失使未完成请求失败。普通连接故障后会自动重连，但不会重放 RPC、重新发起旧快照请求或同步现有 proxy。认证被拒绝后，该会话停止重连；须修正编译配置并启动新会话。
+
+观察到超时或断开前，RPC 可能已经完成写入。应先读取新快照，再由业务决定是否重试；不存在自动回滚或恰好执行一次的重放机制。
+
+## Lua 值与错误
+
+参数和快照数据使用普通 Lua nil、布尔值、有限数字、字节字符串和无环 table。混合或稀疏的布尔／数字／字符串键、有符号 64 位整数都会保留。函数、线程、userdata、类实例／原生对象、元表、循环引用和 table 键会被拒绝。完整值域及大小规则见 [Lua 数据与传输编码](<HTTP 协议.md#lua-数据与传输编码>)；这些值不采用 `RuntimeData` 的 JSON 转换契约。
+
+网络结果使用**字符串错误码**，包括 `Disabled`、`InvalidArgument`、`AuthenticationFailed`、`Timeout`、`ConnectionFailed`、`InvalidResponse`、`QueueFull`、`StorageFailure`、`ServerFailure`、`RateLimited`。服务端业务还可以返回其他合法错误码。用 code 判断，用 message 诊断。`retryAfterSeconds` 存在时，表示再次尝试前至少等待的整秒数。禁用构建保留 API，通过快照结果或模块错误报告 `Disabled`。
+
+## 随附 Storage 模块
+
+Require `Global.Net.Storage` 会注册内置客户端模块和 `Global.Net.StorageProxy` 类。服务端入口须以 `"Storage"` 注册 `Modules.Storage`。通过 `Net.GetProxy("Storage", params, callback)` 获取快照。
+
+| `params.query` | Proxy getter |
+| --- | --- |
+| `"account_exists"` | `AccountExists()` |
+| `"accounts"` | `GetAccounts()` |
+| `"field"` | `IsFound()`、`GetFieldValue()` |
+| `"fields"` | `GetEntries()`、`GetNextCursor()` |
+
+Getter 仅读取该 proxy 对应查询的结果，不相关的 getter 可能返回 nil。Entries 中的项具有 `key` 与 `value` 字段。下一页游标为 nil 时分页结束；要使用其他游标，应发起新的 GetProxy。查询参数、账号抽样、字段顺序、缺失值及存储限制见[存储服务](<HTTP 协议.md#存储服务>)。
+
+写入使用 `Storage.CallRpcFunction("WriteField", account, category, field, value)`，nil 表示删除字段。成功时向调用者发送 `FieldWritten(account, category, field)`。只有此随附 RPC 使用[配置的写入间隔](<HTTP 协议.md#写入限频>)，默认 180 秒；自定义 RPC 不继承该限制。不再提供写入 token API。
 
 ## 网络质量
+
+独立的 `GlobalCore.Server.CheckConnectionAsync(callback)` 保留原生结果类型和三秒 HTTP 期限。自定义入口须初始化 `GlobalFunctions.NodeGraph.initLatent()` 并推进操作更新。回调接收 `GlobalCore.ServerConnectionResult`；生成声明中的原生对象可能为 nil，使用 `assert(result)` 收窄。
 
 ```lua
 local GlobalCore = require("GlobalCore")
@@ -190,32 +152,6 @@ GlobalCore.Server.CheckConnectionAsync(function(result)
 end)
 ```
 
-| `GlobalCore.ServerNetworkState` | 含义 |
-|---|---|
-| `Normal` | 在 300 ms 以内收到有效服务器健康响应。 |
-| `Weak` | 超过 300 ms，但在三秒期限内收到有效响应。 |
-| `Disconnected` | 在期限内没有有效响应，或请求失败、功能未启用。 |
+`Normal` 表示 300 ms 内收到配置服务的有效健康响应；`Weak` 表示超过 300 ms、但在三秒内收到；`Disconnected` 表示没有有效响应、请求失败或功能禁用。结果还包含 `ok`、类型为原生 `GlobalCore.ServerErrorCode` 枚举的 `code`、`message`，以及收到有效响应时的 `roundTripMs`。方法返回 `Engine.AsyncOperation`，保留回调／结果对象身份与取消语义。
 
-它检测配置的服务器，不判断整个互联网是否可用。健康接口不验证项目密钥，因此 Normal 不代表后续读写一定能通过认证。
-
-## 错误码
-
-`GlobalCore.ServerErrorCode` 包含 `None`、`Disabled`、`InvalidArgument`、`AuthenticationFailed`、`InvalidWriteToken`、`Timeout`、`ConnectionFailed`、`InvalidResponse`、`StorageFailure`、`ServerFailure`、`RateLimited`。
-
-| 枚举值 | 含义 |
-|---|---|
-| `None` | 操作成功。 |
-| `Disabled` | 当前构建没有启用 Ludork Server 传输。 |
-| `InvalidArgument` | 名称、URL、JSON 值或大小不合法。 |
-| `AuthenticationFailed` | 项目密钥或管理认证被拒绝。 |
-| `InvalidWriteToken` | Token 缺失、过期、会话/账号/项目不匹配，或已消费。 |
-| `Timeout` | 操作期限已到。 |
-| `ConnectionFailed` | 传输无法建立或维持通信。 |
-| `InvalidResponse` | 对端返回不合法的 HTTP、JSON 或操作响应。 |
-| `StorageFailure` | 后端无法读取或保存数据。 |
-| `ServerFailure` | 其他后端错误。 |
-| `RateLimited` | 该项目对此客户端 IP 的写入间隔尚未结束；按 `retryAfterSeconds` 等待后申请新 token。 |
-
-禁用构建保留相同的 API 与异步结果形式。未提供回调属于编程错误，会在调用边界拒绝；请求结果通过上述类型返回。
-
-直接 HTTP 客户端与管理接口见 [HTTP 协议](<HTTP 协议.md>)。
+健康接口不验证项目密钥，因此健康结果不能证明 RPC 认证成功，也不能代表整个互联网可用。系统 DNS 解析可能在取消后仍被阻塞，关闭会话时可能等待解析器返回；取消不保证 DNS 或退出具有硬性截止时间。

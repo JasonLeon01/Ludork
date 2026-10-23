@@ -13,7 +13,7 @@ Load native modules with names such as `require("Engine")` and project modules b
 
 ## Which page do I need
 
-- Optional remote account dictionaries, one-use write tokens and connection probes: [Simple Server native API](<../../Simple Server/Native Client API.md>). `GlobalCore.Server`, its typed results, setup and lifecycle are documented together there.
+- Remote Lua snapshot proxies, void RPCs, online events and connection probes: [Simple Server client API](<../../Simple Server/Native Client API.md>). `Global.Net`, `Global.NetProxy`, the supplied Storage module and `GlobalCore.Server.CheckConnectionAsync` are documented together there.
 - Curves, animation data and animation playback: [Engine: Scalar Curves](<Core Modules/Engine/Scalar Curves.md>), [Engine: Vector Curves](<Core Modules/Engine/Vector Curves.md>), [Engine: Animation Data and Graphics](<Core Modules/Engine/Animation Data and Graphics.md>) and [GlobalCore: Animation and Light](<Core Modules/GlobalCore/Animation and Light.md>).
 - Actors, characters and components: [Engine: Gameplay Types](<Core Modules/Engine/Gameplay Types.md>).
 - Tile layers, tilemaps, autotiles, tilesets and materials: [Engine: Maps and Materials](<Core Modules/Engine/Maps and Materials.md>).

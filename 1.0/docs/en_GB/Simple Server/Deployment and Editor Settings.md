@@ -1,6 +1,6 @@
 # Simple Server: Deployment and Editor Settings
 
-Ludork Server is an optional HTTP data store. Each project contains accounts; each account contains category files, and each file is a JSON dictionary. The management website lists accounts and files and displays their contents. It is read-only. The server provides neither multiplayer synchronisation nor RPC, and it does not replace the game's local save system.
+Ludork Server is an optional Node.js service with a Lua logic layer. Projects expose explicit data snapshots, void RPCs and online events over WebSocket. Stored account data uses data-only `.ldata` category files, and the read-only management website displays typed Lua values. Gameplay decides what to fetch, refresh or write; this service does not automatically synchronize multiplayer state or replace local saves.
 
 Deploy the backend and frontend on a server or a separate test instance. A game client only needs a server URL and project key; it does not install Node.js or deploy the server. Configuring client integration requires a **C++ Source** project. A converted Standalone project can retain server settings compiled into its runtime, but hides both server configuration entries.
 
@@ -33,18 +33,27 @@ start.bat
 
 The three deployment arguments are the project name, project key and management password. Quote and escape them for the shell, especially `$`, `%`, `!`, `&` and quotation marks. Arguments can remain in shell history and process listings; do not place real credentials in checked-in scripts.
 
-Deployment runs `npm ci`, saves credential hashes and generates the start scripts. Node.js runs the backend TypeScript directly; Vite runs the React/TypeScript frontend. **There is no frontend production build.** Start launches both services, fails if either port is occupied and stops the other service when a child fails. Ctrl+C stops both. Deployment does not install a system service or configure automatic startup.
+Deployment runs `npm ci`, saves credential hashes, creates a project Lua entry and generates the start scripts. The pinned Wasmoon dependency contains its Lua 5.4.5 WebAssembly runtime; no system Lua installation or native compiler is needed. Node.js runs the backend TypeScript directly; Vite runs the React/TypeScript frontend. **There is no frontend production build.** Start launches both services, fails if either port is occupied and stops the other service when a child fails. Ctrl+C stops both. Deployment does not install a system service or configure automatic startup.
 
 | Purpose | Address |
 |---|---|
 | Management website | `http://IP:3333/MyGame/` |
 | Game client URL | `http://IP:7777/MyGame` |
+| Derived WebSocket endpoint | `ws://IP:7777/MyGame/api/v1/net` |
 
-All projects in one server instance share ports **3333** and **7777**. Run deploy again with another project name to add it; redeploying the same name changes its credentials while preserving data. Deploy sequentially and stop the instance while reinstalling dependencies. Restart it to load configuration changes. Projects have separate keys, passwords, data, tokens and management sessions.
+All projects in one server instance share ports **3333** and **7777**. Run deploy again with another project name to add it; redeploying the same name changes its credentials while preserving data, Lua source and project settings. Deploy sequentially and stop the instance while reinstalling dependencies. Restart it to load configuration or Lua source changes. Projects have separate keys, passwords, data, Lua processes and management sessions.
 
 IP addresses work directly. To access Vite by a domain, set `LUDORK_ALLOWED_HOSTS=games.example.com` before starting; multiple permitted hostnames are comma-separated, without scheme or port. Configure DNS and network/firewall access separately.
 
 Project names contain 1–64 UTF-8 bytes, excluding control characters, `/`, `\` and the exact names `.` and `..`. Encode the project as one URL path segment; Chinese names are supported. Keys contain 1–4096 visible ASCII characters without spaces. Passwords contain 1–4096 UTF-8 bytes without control characters. No default credentials are supplied.
+
+## Project Lua entry
+
+Deployment creates `projects/<hex-project-name>/Main.lua`, initially registering `Modules.Storage`. The directory name is the lowercase hexadecimal encoding of the project's UTF-8 bytes; deployment prints the exact path. Put project-owned Lua modules there. The server loads framework modules from `lua/` and project modules from this private directory. Project source is never sent to game clients or served by the management website.
+
+Each project object in `config/projects.json` may set `luaEntry`, defaulting to `Main.lua`. It is a relative `.lua` file path within that project's directory, using `/` between directories; absolute paths, empty components, `.`/`..`, backslashes, colons and control characters are rejected. The path may contain at most 512 UTF-8 bytes. Redeployment preserves the setting and an existing entry file. Restart after changing source or the entry path.
+
+Server Lua uses ordinary Lua 5.4, with no client Standard, `Engine` or `GlobalCore` modules. Public declarations are under `lua/stub`, with a server-specific `.emmyrc.json`; declaration files and `stub` directories are excluded from the runtime. See [Server Lua modules](<HTTP Protocol.md#server-lua-modules>) for module registration, context services and execution limits.
 
 ## Configure the write interval
 
@@ -54,11 +63,11 @@ Each project has an `ipWriteIntervalSeconds` field in `config/projects.json`, un
 {"ipWriteIntervalSeconds":180}
 ```
 
-This is a project-object fragment, not a replacement configuration file. Set the value to `0` for unlimited writes, or a nonnegative integer up to `9007199254740991` to choose another interval. Fractional values, strings, null and negative numbers are rejected. Redeploying a project preserves its existing interval and data. **Restart the server after editing the setting**; the current process does not reload it automatically.
+This is a project-object fragment, not a replacement configuration file. Set the value to `0` to disable this interval, or a nonnegative integer up to `9007199254740991` to choose another interval. Fractional values, strings, null and negative numbers are rejected. Redeploying a project preserves its existing interval and data. **Restart the server after editing the setting**; the current process does not reload it automatically.
 
-The interval applies to all writes from the same TCP client IP to the same project. Users sharing a NAT or reverse proxy may therefore share one write allowance. Other projects have independent allowances.
+The interval applies only to the supplied `Storage.WriteField` RPC, shared across its writes from the same TCP client IP to the same project. Custom RPCs implement their own business rules and do not inherit it. Users sharing a NAT or reverse proxy may share one allowance. Other projects have independent allowances.
 
-See [HTTP write rate limits](<HTTP Protocol.md#write-rate-limits>) for token consumption, rejected writes and restart behaviour, and [native result handling](<Native Client API.md#tokens-and-timeouts>) for retry guidance.
+See [write rate limits](<HTTP Protocol.md#write-rate-limits>) for admission, failures and restart behaviour, and [RPC lifecycle](<Native Client API.md#call-rpcs-and-receive-events>) for handling uncertain outcomes.
 
 ## Configure the development client
 
@@ -98,14 +107,14 @@ For example, attach these environment values to your normal GitHub Actions game-
   run: tools\pack_project.bat --release Game
 ```
 
-An enabled build defines `LUDORK_SERVER_AVAILABLE` and includes the transport with its URL and key. When disabled, the Lua entry points remain available and complete with `ServerErrorCode.Disabled`. The resulting binary contains the credentials it needs.
+An enabled build defines `LUDORK_SERVER_AVAILABLE` and includes the transport with its URL and key. When disabled, the networking APIs remain available: `Global.Net` reports the string code `Disabled`, while the native health probe uses `ServerErrorCode.Disabled`. The resulting binary contains the credentials it needs.
 
 ## Management and operational limits
 
-Open the website and enter both the project key and management password. It supports account filtering, file selection, JSON display, refresh and logout. For cookie scope and session expiry, see [Read-only management](<HTTP Protocol.md#read-only-management>).
+Open the website and enter both the project key and management password. It supports account filtering, category selection, typed Lua data display, refresh and logout, including exact integers and escaped byte strings. For cookie scope and session expiry, see [read-only management](<HTTP Protocol.md#http-health-and-read-only-management>).
 
-Generated `config/`, user `data/`, logs, dependencies and start scripts are excluded from source archives. Back up `config/` and `data/` yourself and restrict local access to them. The backend holds a data-directory instance lock. A stale lock whose process has exited can be recovered automatically; for an incomplete lock or reused PID, first confirm that no instance is running before removing `data/.server.lock` manually.
+Generated `config/`, private `projects/` Lua source, user `data/`, logs, dependencies and start scripts are excluded from source archives. Back up `config/`, `projects/` and `data/` yourself and restrict local access to them. The backend holds a data-directory instance lock. A stale lock whose process has exited can be recovered automatically; for an incomplete lock or reused PID, first confirm that no instance is running before removing `data/.server.lock` manually.
 
-Use a trusted network: **HTTP sends credentials and data in plaintext**. The shared project key grants access to every account in that project; an account ID is a storage namespace, not a separately authenticated user. A key embedded in a distributed binary can be extracted. One-use tokens limit replay but do not make an untrusted client authoritative. Network access controls or a separately managed proxy are deployment responsibilities; this project supplies no TLS setup or account-authentication system.
+Use a trusted network: **HTTP and WebSocket send credentials and data in plaintext**. The shared project key grants access to that project's registered modules; an account ID is a storage namespace, not a separately authenticated user. A key embedded in a distributed binary can be extracted. Project Lua must enforce its own account authorization and business rules. Network access controls or a separately managed proxy are deployment responsibilities; this project supplies no TLS setup or account-authentication system.
 
-Continue with the [Native Client API](<Native Client API.md>) and [HTTP Protocol](<HTTP Protocol.md>).
+Continue with the [Native Client API](<Native Client API.md>) and [Server Lua and Protocol](<HTTP Protocol.md>).

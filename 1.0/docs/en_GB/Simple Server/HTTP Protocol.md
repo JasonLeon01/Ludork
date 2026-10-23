@@ -1,167 +1,161 @@
-# HTTP Protocol
+# Server Lua and Protocol
 
-The API base is `http://host:7777/<project>/api/v1`. Encode project, account, category and field identifiers separately as URL path segments; routes and names are case-sensitive. The [native client](<Native Client API.md>) constructs these requests internally.
+Node.js owns connections, project authentication, storage and process supervision. Project Lua 5.4.5 modules implement explicit snapshots, void RPCs and named events. Each project runs in a separate Wasmoon process; the game client's Standard extensions and native modules are unavailable on the server. Client proxy usage belongs to [Native Client API](<Native Client API.md>), and project entry paths belong to [Deployment and Editor Settings](<Deployment and Editor Settings.md#project-lua-entry>).
 
-Accounts, categories and fields allow 1–64 UTF-8 bytes without control characters, excluding the exact names `.` and `..`. They may include `/` or `\` when encoded inside their path segment. Projects additionally forbid both slash characters. The server maps project/account/category names to lowercase hexadecimal UTF-8 filenames, avoiding filesystem case folding, reserved names and path traversal. A category file is a dictionary keyed by field name.
+## Server Lua modules
 
-## Game data endpoints
+The project entry loads framework modules from `lua/` and project modules from its own private directory. Register modules explicitly:
 
-| Method and path below the API base | Authentication | Success body |
-|---|---|---|
-| `GET /health` | None | `{"service":"LudorkServer","project":"MyGame"}` |
-| `GET /accounts?sampleCount=10&category=history` | `X-Ludork-Key` | `{"accounts":["player-1"]}` |
-| `GET /accounts/:account` | `X-Ludork-Key` | `{"exists":true}` or `{"exists":false}` |
-| `GET /accounts/:account/categories/:category/fields?limit=50` | `X-Ludork-Key` | `{"entries":[{"key":"...","value":...}],"nextCursor":null}` |
-| `GET /accounts/:account/categories/:category/fields/:field` | `X-Ludork-Key` | `{"found":true,"value":...}` |
-| `POST /accounts/:account/write-tokens` | `X-Ludork-Key` | `{"token":"...","expiresAt":...}` |
-| `PUT /accounts/:account/categories/:category/fields/:field` | `Authorization: Bearer <token>` | `{}` |
+```lua
+local Net = require("Framework.Net")
+local Storage = require("Modules.Storage")
+local Profile = require("Profile")
 
-Success responses use HTTP 200 and `Content-Type: application/json`. Account queries, reads, token requests and writes authenticate independently; a successful health response is only a reachability check.
-
-### List accounts
-
-```http
-GET /MyGame/api/v1/accounts?sampleCount=10&category=history
-X-Ludork-Key: project-key
+Net.RegisterModule("Storage", Storage)
+Net.RegisterModule("Profile", Profile)
 ```
 
-```json
-{"accounts":["player-2","player-1"]}
+A project `Profile.lua` can define both reads and writes:
+
+```lua
+local Profile = {Rpc = {}}
+
+function Profile.Snapshot(context, params)
+    if type(params) ~= "table" or type(params.account) ~= "string" then
+        error({code = "InvalidArgument", message = "An account is required."})
+    end
+    local field = context.Storage:ReadField(params.account, "profile", "name")
+    return {name = field.value or "New player"}
+end
+
+function Profile.Rpc.SetName(context, account, name)
+    if type(name) ~= "string" or #name > 80 then
+        error({code = "InvalidArgument", message = "Name must be at most 80 bytes."})
+    end
+    context.Storage:WriteField(account, "profile", "name", name)
+    context:Notify("NameChanged", account)
+end
+
+return Profile
 ```
 
-Both query parameters are optional:
+Module, RPC and event names are case-sensitive: 1–128 ASCII letters, digits, dots, underscores or hyphens. Duplicate registration fails initialization. Only functions placed in the module's `Rpc` table are remotely callable. Module definitions may omit `Snapshot` or `Rpc` when that operation is not provided.
 
-| Parameter | Meaning |
-|---|---|
-| `sampleCount` | Omitted or `0`: all eligible accounts in ascending UTF-8 byte order. Positive: sample distinct accounts without replacement, up to the requested count, in random order. Accepted decimal integers range from `0` to `9223372036854775807`. |
-| `category` | Only include accounts with this category present as a regular file; apply the filter before sampling. Encode its value as a query parameter. |
+`Snapshot(context, params)` receives one pure Lua value and must return an ordinary table. Every fetch calls it again. Its storage access is read-only, and it cannot send events. The server does not retain the client's proxy or replicate changes automatically.
 
-If fewer accounts qualify than requested, return all qualifying accounts. No matches succeeds with `{"accounts":[]}`. Category filtering checks file presence, not JSON validity: malformed content still qualifies, but a later read fails with `StorageFailure`. Non-file category paths and inspection errors also fail the query.
+`Rpc.FunctionName(context, ...)` receives positional pure Lua arguments, including nil gaps and trailing nil values. It is void: return values are discarded. Calls from one connection retain send order, and each project processes its handlers serially. Host storage calls suspend the current coroutine until Node finishes, allowing sequential Lua code. Do not retain a context or use its services after the handler returns.
 
-The serialised response may not exceed 2 MiB. An all-account query or an oversized sample returns HTTP 400 `InvalidArgument` with `The account list exceeds 2 MiB. Request a smaller positive sampleCount.` It does not truncate the list or return an account cursor. Unknown, repeated, empty or invalid query parameters are rejected.
+| Context member | Meaning |
+| --- | --- |
+| `ProjectName`, `ModuleName` | Current project and registered module. |
+| `SessionId` | Opaque ID for the current online connection. |
+| `PeerAddress` | Actual TCP peer address; forwarded headers are ignored. |
+| `Storage` | Storage services confined to this project. |
+| `Notify(event, ...)` | Queue an event for the caller. |
+| `Send(sessionId, event, ...)` | Queue an event for one online connection in this project. |
+| `Broadcast(event, ...)` | Queue an event for every online connection in this project. |
+| `AdmitWrite(account, category, field)` | Apply the configured interval inside the supplied `Storage.WriteField` RPC only. |
 
-### Check account existence
+Call context methods with `:`. Events carry the current module name. They are flushed after the handler succeeds; a failed handler discards its queued events. This does not roll back storage writes already completed by that handler. Disconnected recipients receive no backlog. Events never refresh client proxy data.
 
-```http
-GET /MyGame/api/v1/accounts/player-1
-X-Ludork-Key: project-key
-```
+An ordinary Lua error fails the request with `ServerFailure`. A handler can raise a table with string `code` and `message`, and an optional positive integer `retryAfterSeconds`. Codes use an ASCII letter followed by up to 63 ASCII letters or digits; invalid codes become `ServerFailure`. Host errors retain their stable codes. Validation and account authorization remain project logic: the shared project key does not authenticate individual account IDs.
 
-```json
-{"exists":false}
-```
+A project has a 64 MiB Lua allocator limit, a nine-second Lua execution interrupt budget and a ten-second overall invocation deadline including queue time. A crash, active invocation timeout or memory failure invalidates that project's connections and restarts its Lua state. Its previous pending calls fail and are not replayed; new requests during recovery wait in the bounded queue for the replacement state, within their original deadlines. Other projects, health checks and management remain available. An entry that cannot load fails that project's requests until corrected and restarted. Server logic cannot use `io`, `os`, `debug`, `load`, `loadfile`, `dofile` or native library loading; it accesses persistence through the context.
 
-`exists` is true when the account data directory exists, including an empty directory, consistent with the management account list. A missing directory returns HTTP 200 with `exists: false`. A non-directory account path or inspection failure returns HTTP 500 `StorageFailure`; it is not reported as absence. This query does not inspect category-file contents.
+## Storage services
 
-Account queries, field reads and token issuance never create accounts. The first write creates the account directory as needed. A query neither reserves the ID nor atomically prevents a later collision: another client may write after it. Clients generate UUID identifiers themselves; there is no UUID-generation endpoint.
+Project, account and category filesystem names use lowercase hexadecimal UTF-8 encoding, preserving case and avoiding reserved filenames and path traversal. Account, category and field names accept 1–64 UTF-8 bytes without control characters, excluding the exact names `.` and `..`. Account/category/field names may contain slash characters; project names may not. Account IDs are supplied by game logic. The server does not generate UUIDs, reserve IDs or authenticate accounts.
 
-### List category fields
+Each category is a data-only `.ldata` file with the envelope `{version:1,data:WireValue}`. Its root is a table keyed by field name and uses the [tagged encoding](<#lua-data-and-wire-encoding>) below. The file is never executed as Lua. Existing `.json` category files are not read or converted; there is no compatibility reader or automatic migration.
 
-```http
-GET /MyGame/api/v1/accounts/player-1/categories/history/fields?limit=2
-X-Ludork-Key: project-key
-```
+| `context.Storage` method | Result |
+| --- | --- |
+| `AccountExists(account)` | Boolean: whether the account directory exists, including an empty directory. |
+| `ListAccounts(sampleCount, categoryFilter)` | Array of eligible account names. |
+| `ReadField(account, category, field)` | `{found = boolean, value = value}`; missing fields have `found = false` and nil value. |
+| `ListFields(account, category, beforeKey, limit)` | `{entries = {{key = key, value = value}, ...}, nextCursor = cursor}`. |
+| `WriteField(account, category, field, value)` | nil; replace the field, or remove it when value is nil. |
 
-```json
-{
-  "entries": [
-    {"key":"2026-10-10T12:30:00.123Z","value":{"score":100}},
-    {"key":"2026-10-10T12:20:00.123Z","value":null}
-  ],
-  "nextCursor":"2026-10-10T12:20:00.123Z"
-}
-```
+Use `:` for these methods. Reads never create accounts. Missing accounts/categories produce empty lists or missing-field results; filesystem inspection and corrupt data failures produce `StorageFailure`, not absence.
 
-`limit` defaults to 50 and accepts integers from 1 to 100. Fields are ordered by descending UTF-8 bytes. The optional `before` is an exclusive upper bound: return only keys whose UTF-8 bytes are smaller, whether or not that boundary key exists. It follows the field-name rules and must be URL-encoded as a query value. Omit it for the first page; an empty value is invalid.
+`sampleCount` accepts nonnegative signed 64-bit integers. Nil or zero returns every matching account in ascending UTF-8 byte order. A positive count samples distinct accounts in random order, capped at the eligible count. `categoryFilter` checks for a regular `.ldata` file before sampling, without validating its contents. There is no account-list cursor; reduce the sample size if the complete response exceeds the message limit.
 
-If more fields remain, `nextCursor` is the last returned key. Pass it unchanged as the next `before`, for example `?before=2026-10-10T12%3A20%3A00.123Z&limit=2`. Otherwise `nextCursor` is JSON null. Missing accounts/categories and exhausted ranges succeed with `{"entries":[],"nextCursor":null}`; malformed category contents return `StorageFailure`. Unknown or repeated query parameters are rejected.
+Fields are ordered by descending UTF-8 bytes, independently of locale or numeric interpretation. Nil `beforeKey` starts the first page; a supplied key is an exclusive upper bound, whether stored or not. `limit` defaults to 50 and accepts integers from 1 through 100. If more matching fields remain, `nextCursor` is the last returned key; otherwise it is nil. Empty ranges return empty entries and nil cursor. Pagination reads current files, without a snapshot across requests. Refresh from the first page to include new keys above a cursor; applications can use fixed-width timestamps when byte order should represent time.
 
-Each page reads the current category; pagination provides no snapshot across concurrent writes. Newly inserted keys larger than the current cursor require a refresh from the first page to enter the traversal. Generate fixed-width timestamp keys in your application if byte order should represent time, using one format and time zone. The server does not generate timestamps or sort field values; reusing a key replaces its value. A serialised page above 2 MiB returns HTTP 400 `InvalidArgument` and asks for a smaller limit.
+Writes create the account/category as needed. Nil removes the field but leaves the category file and account directory. Same-file updates are serialized and replace a temporary file atomically; distinct files can update independently. Each complete category file is limited to **1 MiB**, including encoding and its final newline. There are no cross-file transactions, automatic backups or rollback of earlier writes when a later statement fails. A timeout or lost response can occur after a write commits.
 
-### Read a field
+The supplied `Modules.Storage` module exposes these snapshot queries:
 
-```http
-GET /MyGame/api/v1/accounts/player-1/categories/profile/fields/score
-X-Ludork-Key: project-key
-```
+| `params.query` | Parameters | Snapshot |
+| --- | --- | --- |
+| `"account_exists"` | `account` | `{exists = boolean}` |
+| `"accounts"` | Optional `sampleCount`, `categoryFilter` | `{accounts = {...}}` |
+| `"field"` | `account`, `category`, `field` | `{found = boolean, value = value}` |
+| `"fields"` | `account`, `category`; optional `beforeKey`, `limit` | `{entries = {...}, nextCursor = cursor}` |
 
-```json
-{"found":true,"value":100}
-```
-
-A missing account, category or field returns `{"found":false,"value":null}`. Stored null returns `{"found":true,"value":null}`.
-
-### Acquire and use a token
-
-```http
-POST /MyGame/api/v1/accounts/player-1/write-tokens
-X-Ludork-Key: project-key
-```
-
-The response contains a cryptographically random opaque token and `expiresAt`, a Unix timestamp in **milliseconds**. It is bound to the project/account, valid for 60 seconds from issuance and stored only in memory. Use it for one write:
-
-```http
-PUT /MyGame/api/v1/accounts/player-1/categories/profile/fields/score
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{"value":100}
-```
-
-The body must be a JSON object with its own `value` member. Values can be JSON null, booleans, numbers, strings, arrays or objects. Null is a stored value, not deletion. The backend validates the request, synchronously consumes the matching token, checks the write interval, then awaits storage; concurrent uses cannot both succeed. A storage failure or HTTP 429 still consumes the token. Wrong-project/account requests do not consume a valid token belonging elsewhere. Restarting the backend invalidates all tokens.
-
-Requests and complete category files are limited to **1 MiB**, including the file's terminating newline. Updates to one file are serialised, so concurrent writes to different fields do not overwrite each other's changes. Saving replaces a temporary file; unrelated files can update independently. There are no multi-field or cross-file transactions, delete endpoints or automatic backups. If a write response is lost, read first and acquire a new token only if another write is needed.
-
-The backend preserves JSON integer digits, including signed and unsigned 64-bit values. The management viewer also preserves their displayed digits. Object fields such as `rawJSON`, `isLosslessNumber` and `__proto__` remain ordinary data.
+Its `WriteField(account, category, field, value)` RPC applies the configured interval, writes the field and emits `FieldWritten(account, category, field)` to the caller. Custom modules call the same storage services directly and implement their own business rules.
 
 ### Write rate limits
 
-The default write interval is 180 seconds per **project and TCP client IP**, shared by PUT requests across every account/category in that project. IPv4-mapped IPv6 addresses are normalised to IPv4. `X-Forwarded-For` is ignored, so clients behind the same NAT or reverse proxy can share a write allowance. Configure `ipWriteIntervalSeconds` as described in [Deployment and Editor Settings](<Deployment and Editor Settings.md#configure-the-write-interval>); `0` disables the interval.
+The configured `ipWriteIntervalSeconds`, default **180 seconds**, applies only to the supplied `Storage.WriteField` RPC. See [configuration](<Deployment and Editor Settings.md#configure-the-write-interval>). It is shared across that project's accounts/categories for the same TCP client IP. IPv4-mapped IPv6 addresses are normalized to IPv4; `X-Forwarded-For` is ignored. Clients behind one NAT or reverse proxy can share an allowance. Other projects have separate allowances.
 
-Validation or authentication failures before admission do not start the interval. Once admitted, the write starts it before storage and uses the allowance even if storage later fails. Rejected writes do not extend the existing deadline. Reads, lists, account checks, health checks, token issuance and management requests do not count. Deadlines are held in memory and reset on backend restart.
+Admission starts the interval before storage, and a later storage failure still consumes it. Rejection does not extend the deadline. `RateLimited` carries positive `retryAfterSeconds`, rounded up to whole seconds. Deadlines use a monotonic clock and reset on service restart. Reads, health, management and custom RPCs do not consume this allowance. Custom RPCs are not automatically rate-limited, and cannot invoke `AdmitWrite` to consume this built-in interval.
 
-An early PUT with a valid token returns:
+## Lua data and wire encoding
 
-```http
-HTTP/1.1 429 Too Many Requests
-Content-Type: application/json
-Retry-After: 120
+Parameters, snapshots, events and stored values accept nil, booleans, finite numbers, byte strings and ordinary acyclic tables. Integers preserve the complete signed 64-bit range. Tables may have mixed or sparse boolean, numeric and string keys. Nil is a valid positional argument; in a table it means no entry. Empty tables remain tables.
 
-{"code":"RateLimited","message":"This IP address must wait before writing to this project again.","retryAfterSeconds":120}
+Functions, threads, userdata, metatables, cyclic references and table keys are rejected. Repeated references to an acyclic table are encoded as independent copies: object identity is not preserved. These rules also exclude Ludork class instances and native containers from network data.
+
+Frames carry UTF-8 JSON, with each Lua value represented by one tagged array:
+
+```text
+["nil"]
+["bool", true]
+["int", "9223372036854775807"]
+["float", "1.2345678901234567"]
+["string", "Ynl0ZXM="]
+["table", [[WireKey, WireValue], ...]]
 ```
 
-The JSON `retryAfterSeconds` and `Retry-After` header contain the same remaining delay, rounded up to whole seconds. This optional JSON property is supplied only for `RateLimited`. The valid token is already consumed before the limit check. Wait at least that delay, then acquire a **new** token when ready to write; do not reuse the old token or acquire one before a long wait. The client does not retry automatically.
+Integers use exact decimal text; floats use finite double-precision decimal text that round-trips. Strings encode arbitrary bytes using canonical base64. `WireKey` accepts only the boolean, integer, float or string forms. Duplicate equivalent keys, such as integer `1` and float `1.0`, are invalid. Table entries with nil values are omitted.
 
-## Read-only management
+A message is limited to **2 MiB**; data has at most **64 nesting levels** and **65,536 value nodes**. RPC/event argument arrays preserve every nil position. Limits count the encoded message, so base64 and structural overhead matter.
 
-Management paths are under `<project>/api/v1/admin`. Vite on port 3333 proxies these requests to port 7777; the backend enforces authentication. It does not enable CORS.
+## WebSocket messages
+
+Connect to `ws://host:7777/<URL-encoded-project>/api/v1/net` with `X-Ludork-Key` on the HTTP upgrade. The server answers `{"type":"ready","version":1}` before application messages. Credentials do not occur in URLs or frame bodies. Binary frames and message compression are not used.
+
+```text
+snapshot: {type:"snapshot", id:"1", module:"Profile", params:WireValue}
+RPC:      {type:"rpc", id:"2", module:"Profile", name:"SetName", args:[WireValue,...]}
+success:  {type:"result", id:"1", ok:true, data:WireValue}
+RPC ack:  {type:"result", id:"2", ok:true}
+failure:  {type:"result", id:"2", ok:false, code:"InvalidArgument", message:"..."}
+event:    {type:"event", module:"Profile", event:"NameChanged", args:[WireValue,...]}
+```
+
+Request IDs use 1–128 ASCII letters, digits, dots, underscores or hyphens and must be unique among pending requests on one connection. A duplicate pending ID closes the connection. A rate failure may include `retryAfterSeconds`. RPC acknowledgments confirm execution without a business return value. Server events follow the successful acknowledgment.
+
+Incoming work is capped at 256 calls and 8 MiB per connection and per project. Outgoing buffering is capped at 8 MiB per connection; slow connections are closed. One handler can queue at most 256 events and 8 MiB of encoded event messages. Ping/pong checks remove dead connections. Client timeout, cancellation and recovery rules are in [Call RPCs and receive events](<Native Client API.md#call-rpcs-and-receive-events>).
+
+## HTTP health and read-only management
+
+The HTTP API base remains `http://host:7777/<project>/api/v1`. `GET /health` requires no key and returns `{"service":"LudorkServer","project":"MyGame"}`. Data queries and writes use the WebSocket module APIs; there are no account/field REST or write-token endpoints.
+
+Management paths are under `/admin`. Vite on port 3333 proxies them to port 7777; the backend enforces authentication and does not enable CORS.
 
 | Method and path below `/admin` | Requirement | Success body |
-|---|---|---|
-| `POST /login` | JSON `{"key":"...","password":"..."}` and `X-Ludork-Admin: 1` | `{"project":"MyGame"}`, plus session cookie |
+| --- | --- | --- |
+| `POST /login` | JSON `{"key":"...","password":"..."}` and `X-Ludork-Admin: 1` | `{"project":"MyGame"}`, plus session cookie. |
 | `GET /session` | Session cookie | `{"project":"MyGame"}` |
-| `POST /logout` | Session cookie and `X-Ludork-Admin: 1` | `{}`, clears session cookie |
+| `POST /logout` | Session cookie and `X-Ludork-Admin: 1` | `{}`, clears the cookie. |
 | `GET /accounts` | Session cookie | `{"accounts":["player-1"]}` |
 | `GET /accounts/:account/categories` | Session cookie | `{"categories":["profile"]}` |
-| `GET /accounts/:account/categories/:category` | Session cookie | The category dictionary |
+| `GET /accounts/:account/categories/:category` | Session cookie | `{value:WireValue}` for the category table. |
 
-The session is project-bound, expires after eight hours and is invalidated by logout or backend restart. Cookies are HttpOnly, SameSite=Strict and restricted to that project's management API path. Management has no write/delete endpoint. Responses use `Cache-Control: no-store`; the frontend does not store credentials in browser storage.
+Encode each path parameter as one URL segment. Sessions are project-bound, expire after eight hours and are invalidated by logout or backend restart. Cookies are HttpOnly, SameSite=Strict and scoped to the project's management API. Responses use `Cache-Control: no-store`; the frontend does not keep credentials in browser storage. There is no management write/delete API. The viewer displays exact integers, typed keys and escaped byte strings.
 
-## Errors and trust boundary
+Non-2xx HTTP responses contain `code`, `message` and optional `retryAfterSeconds`. Common statuses are 400 `InvalidArgument`, 401/403 `AuthenticationFailed`, 404 `InvalidArgument` for missing resources, 429 `RateLimited`, and 500 `StorageFailure` or `ServerFailure`. A rate-limited HTTP response also sets `Retry-After`. WebSocket invocation failures use result frames, not HTTP status codes.
 
-Non-2xx responses contain a stable code and diagnostic message:
-
-```json
-{"code":"AuthenticationFailed","message":"Project credentials are invalid."}
-```
-
-| HTTP status | Code and typical cause |
-|---|---|
-| `400` | `InvalidArgument`: invalid names, JSON, encoding or size. |
-| `401` | `AuthenticationFailed` or `InvalidWriteToken`. |
-| `403` | `AuthenticationFailed`: missing management request header. |
-| `404` | `InvalidArgument`: unknown project/endpoint or missing management category. |
-| `429` | `RateLimited`: the project/IP write interval has not elapsed; includes `retryAfterSeconds` and `Retry-After`. |
-| `500` | `StorageFailure` or `ServerFailure`. |
-
-Plaintext HTTP and the shared project key require a trusted network; review the [deployment trust boundary](<Deployment and Editor Settings.md#management-and-operational-limits>) before exposing the service.
+HTTP and WebSocket traffic are unencrypted, and a shared key grants access to the project's registered modules. Review the [deployment trust boundary](<Deployment and Editor Settings.md#management-and-operational-limits>) before exposing the service.
