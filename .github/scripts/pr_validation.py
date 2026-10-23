@@ -50,6 +50,7 @@ MANAGED_INPUTS = (
     "*/packages.lock.json",
     "versions.conf",
     "tools/pack_editor.*",
+    "tools/pack_server.py",
     "Game/Engine/Source/Core/include/EngineState.hpp",
     "ScriptTools/engine_constants.py",
     "ScriptTools/packaging_constants.py",
@@ -68,6 +69,7 @@ SCRIPT_INPUTS = (
 INSTALLER_INPUTS = (
     "tools/installer/*", "tools/pack_editor_msi.bat", "tools/pack_editor_exe.bat",
     "tools/pack_editor.bat", "tools/validate_editor_windows_layout.bat",
+    "tools/pack_server.py",
     "versions.conf", "LICENSE.md", "Editor/Assets/icon.ico", "Editor/Assets/project-icon.ico",
 )
 

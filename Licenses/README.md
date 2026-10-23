@@ -4,7 +4,7 @@ English | [简体中文](README_zh_CN.md)
 
 Ludork uses the [Zlib License](../LICENSE.md); third-party components and assets retain their own terms. [THIRD_PARTY_NOTICES.md](https://jasonleon01.github.io/Ludork/notices/?version=1.0&lang=en_GB) lists versions, sources, purposes and licence paths.
 
-The editor package includes this canonical tree in full. Templates include this index, common runtime notices and `FFmpeg` when enabled.
+The editor package includes this canonical tree in full. Its bundled `Server/LudorkServer.tar.gz` carries separate server notices in `LudorkServer/third-party/README.md`. Templates include this index, common runtime notices and `FFmpeg` when enabled.
 
 | Directories | Contents |
 |---|---|

@@ -6,8 +6,9 @@ set -eu
 : "${FFMPEG_VERSION:?FFMPEG_VERSION is not set in versions.conf}"
 : "${EDITOR_VERSION:?EDITOR_VERSION is not set in versions.conf}"
 
-USAGE="Usage: tools/pack_editor.sh [--version X.Y.Z] [--dev|--release] [--templates <folder>|--without-templates] [--use-current-editor-build] [--signing-identity NAME] [--certificate PATH.p12] [--notarize] [--notary-apple-id EMAIL] [--notary-team-id TEAMID] [--notary-key PATH.p8] [--notary-key-id ID] [--notary-key-issuer UUID]"
+USAGE="Usage: tools/pack_editor.sh [--version X.Y.Z] [--dev|--release] [--templates <folder>|--without-templates] [--server-package <archive>] [--use-current-editor-build] [--signing-identity NAME] [--certificate PATH.p12] [--notarize] [--notary-apple-id EMAIL] [--notary-team-id TEAMID] [--notary-key PATH.p8] [--notary-key-id ID] [--notary-key-issuer UUID]"
 PREBUILT_TEMPLATES_DIR=
+SERVER_PACKAGE=
 WITHOUT_TEMPLATES=0
 USE_CURRENT_EDITOR_BUILD=0
 PRODUCT_VERSION=$EDITOR_VERSION
@@ -23,6 +24,14 @@ SIGNING_NOTARY_KEY_ID=
 SIGNING_NOTARY_KEY_ISSUER=
 while [ "$#" -gt 0 ]; do
     case "$1" in
+        --server-package)
+            if [ "$#" -lt 2 ] || [ -z "$2" ]; then
+                echo "$USAGE" >&2
+                exit 1
+            fi
+            SERVER_PACKAGE=$2
+            shift 2
+            ;;
         --version)
             if [ "$#" -lt 2 ] || [ -z "$2" ]; then
                 echo "$USAGE" >&2
@@ -747,6 +756,7 @@ validate_package() {
     require_package_file "$package_resources/ProjectIcon.icns"
     require_package_file "$package_resources/Locale/en_GB"
     require_package_file "$package_resources/Locale/zh_CN"
+    "$PACKAGE_PYTHON" "$PROJECT_ROOT/tools/pack_server.py" verify "$package_resources/Server/LudorkServer.tar.gz"
     if [ "$WITHOUT_TEMPLATES" -eq 1 ]; then
         if [ -e "$package_resources/Templates" ] || [ -L "$package_resources/Templates" ]; then
             echo "Unexpected Templates entry in an editor-only package: $package_resources/Templates" >&2
@@ -1238,11 +1248,26 @@ require_file "$PROJECT_ROOT/Editor/Assets/icon.ico"
 require_file "$PROJECT_ROOT/Editor/Assets/project-icon.png"
 require_directory "$PROJECT_ROOT/Licenses"
 
+PACKAGE_PYTHON="$PROJECT_ROOT/.venv/bin/python3"
+if [ ! -x "$PACKAGE_PYTHON" ]; then
+    require_command python3
+    PACKAGE_PYTHON=$(command -v python3)
+fi
+PREPARED_SERVER_PACKAGE="$PROJECT_ROOT/obj/server-package/LudorkServer.tar.gz"
+echo "Preparing the built Server package..."
+if [ -n "$SERVER_PACKAGE" ]; then
+    "$PACKAGE_PYTHON" "$PROJECT_ROOT/tools/pack_server.py" copy "$SERVER_PACKAGE" "$PREPARED_SERVER_PACKAGE"
+else
+    "$PACKAGE_PYTHON" "$PROJECT_ROOT/tools/pack_server.py" build --output "$PREPARED_SERVER_PACKAGE"
+fi
+
 if [ -d "$WORK_DIR" ]; then
     rm -rf "$WORK_DIR"
 fi
 WORK_DIR_OWNED=1
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$STAGE_DIR"
+mkdir -p "$RESOURCES_DIR/Server"
+cp "$PREPARED_SERVER_PACKAGE" "$RESOURCES_DIR/Server/LudorkServer.tar.gz"
 
 METADATA_DIR="$PROJECT_ROOT/obj/editor-package-metadata"
 BUILD_INFO="$METADATA_DIR/BuildInfo.json"

@@ -3,7 +3,7 @@ const path = require('node:path');
 
 const templateAssets = ['source', 'source-ffmpeg', 'standalone', 'standalone-ffmpeg']
   .flatMap(name => [`game-${name}.zip`, `game-${name}.tar.gz`]);
-const serverAssetPattern = /^LudorkServer-source-[0-9a-f]{40}\.tar\.gz$/;
+const serverAssetPattern = /^LudorkServer-[0-9a-f]{40}\.tar\.gz$/;
 
 function validateReleaseTag(context) {
   const configuration = fs.readFileSync(path.join(__dirname, '../../versions.conf'), 'utf8');
@@ -22,6 +22,9 @@ async function resolveServerCommit({ github, context, core }) {
 }
 
 async function shouldRun({ github, context, core }, workflow, markerName, serverSha) {
+  if (!/^[0-9a-f]{40}$/.test(serverSha)) {
+    throw new Error('A resolved Server commit SHA is required for package decisions.');
+  }
   if (context.eventName !== 'schedule') {
     core.setOutput('should_build', true);
     return true;
@@ -56,8 +59,9 @@ async function shouldRun({ github, context, core }, workflow, markerName, server
           per_page: 100,
           page: jobPage,
         });
-        marker = jobs.jobs.find(job => (job.name === markerName
-          || (serverSha && job.name.startsWith(`${markerName} (`) && job.name.endsWith(')')))
+        marker = jobs.jobs.find(job => job.name.startsWith(`${markerName} (`)
+          && job.name.endsWith(')')
+          && /^[0-9a-f]{40}$/.test(job.name.slice(markerName.length + 2, -1))
           && job.conclusion === 'success');
         if (marker || jobs.jobs.length < 100) break;
       }
@@ -77,9 +81,8 @@ async function shouldRun({ github, context, core }, workflow, markerName, server
 
   if (latestPackage) {
     const { run } = latestPackage;
-    const build = run.head_sha !== context.sha
-      || (serverSha !== undefined && latestPackage.serverSha !== serverSha);
-    core.info(`Latest successful default-branch package: ${run.head_sha} (run ${run.id}).`);
+    const build = run.head_sha !== context.sha || latestPackage.serverSha !== serverSha;
+    core.info(`Latest successful default-branch package: ${run.head_sha}, Server ${latestPackage.serverSha} (run ${run.id}).`);
     core.setOutput('should_build', build);
     return build;
   }
@@ -110,7 +113,7 @@ async function publishRelease({ github, context, core }, assetDirectory) {
     const size = fs.statSync(filename).size;
     if (size === 0) throw new Error(`Release asset is empty: ${entry.name}`);
     fs.accessSync(filename, fs.constants.R_OK);
-    const name = serverAssetPattern.test(entry.name) ? `LudorkServer-source-${version}.tar.gz` : entry.name;
+    const name = serverAssetPattern.test(entry.name) ? `LudorkServer-${version}.tar.gz` : entry.name;
     return { name, filename, size };
   });
 
@@ -150,6 +153,7 @@ async function publishRelease({ github, context, core }, assetDirectory) {
   for (const asset of previousAssets) {
     if (!assets.some(current => current.name === asset.name)
         && !/^Ludork-.+-(windows-x64\.(?:msi|exe)|macos-arm64\.dmg)$/.test(asset.name)
+        && !/^LudorkServer-(?:[0-9a-f]{40}|\d+\.\d+\.\d+)\.tar\.gz$/.test(asset.name)
         && !/^LudorkServer-source-(?:[0-9a-f]{40}|\d+\.\d+\.\d+)\.(?:zip|tar\.gz)$/.test(asset.name)) continue;
     await ensureDraft();
     await github.rest.repos.deleteReleaseAsset({ ...context.repo, asset_id: asset.id });

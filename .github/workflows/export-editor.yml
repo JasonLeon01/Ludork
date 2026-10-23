@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       should_build: ${{ steps.decision.outputs.should_build }}
+      server_sha: ${{ steps.decision.outputs.server_sha }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -28,29 +29,43 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
-            const { shouldRun } = require('./.github/scripts/package_control.cjs');
-            await shouldRun({ github, context, core }, 'export-editor.yml', 'Record successful editor');
+            const { shouldRun, resolveServerCommit } = require('./.github/scripts/package_control.cjs');
+            const serverSha = await resolveServerCommit({ github, context, core });
+            await shouldRun({ github, context, core }, 'export-editor.yml', 'Record successful editor', serverSha);
+
+  server:
+    name: Server package
+    needs: package_decision
+    if: needs.package_decision.outputs.should_build == 'true'
+    uses: ./.github/workflows/export-server.yml
+    with:
+      source_commit: ${{ needs.package_decision.outputs.server_sha }}
 
   windows:
     name: Windows x64
-    needs: package_decision
+    needs: [package_decision, server]
     if: needs.package_decision.outputs.should_build == 'true'
     uses: ./.github/workflows/export-editor-windows.yml
+    with:
+      server_artifact: ${{ needs.server.outputs.artifact_name }}
 
   macos:
     name: macOS ARM64
-    needs: package_decision
+    needs: [package_decision, server]
     if: needs.package_decision.outputs.should_build == 'true'
     uses: ./.github/workflows/export-editor-macos.yml
+    with:
+      server_artifact: ${{ needs.server.outputs.artifact_name }}
     secrets: inherit
 
   package_complete:
-    name: Record successful editor
-    needs: [windows, macos]
+    name: Record successful editor (${{ needs.package_decision.outputs.server_sha }})
+    needs: [package_decision, windows, macos, server]
     if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
     steps:
       - name: Record the packaged commit
         env:
           PACKAGE_SHA: ${{ github.sha }}
-        run: echo "Both template-free editors completed for $PACKAGE_SHA" >> "$GITHUB_STEP_SUMMARY"
+          SERVER_SHA: ${{ needs.package_decision.outputs.server_sha }}
+        run: echo "Both template-free editors completed for $PACKAGE_SHA; server package $SERVER_SHA" >> "$GITHUB_STEP_SUMMARY"

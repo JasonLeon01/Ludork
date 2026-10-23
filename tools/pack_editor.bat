@@ -7,11 +7,19 @@ set "PREBUILT_TEMPLATES_DIR="
 set "WITHOUT_TEMPLATES=0"
 set "EDITOR_PUBLISH_OPTIONS="
 set "PREBUILT_LAUNCHER="
+set "SERVER_PACKAGE="
 set "PACKAGE_VERSION="
 set "PACKAGE_CHANNEL="
 
 :parse_arguments
 if "%~1"=="" goto arguments_ready
+if /I "%~1"=="--server-package" (
+    if "%~2"=="" goto usage
+    for %%I in ("%~2") do set "SERVER_PACKAGE=%%~fI"
+    shift
+    shift
+    goto parse_arguments
+)
 if /I "%~1"=="--version" (
     if "%~2"=="" goto usage
     set "PACKAGE_VERSION=%~2"
@@ -80,6 +88,9 @@ set "LAUNCHER_BUILD_DIR=%WORK_DIR%\launcher"
 set "FINAL_DIR=%ROOT_DIR%\dist"
 set "BACKUP_DIR=%WORK_DIR%\previous-dist"
 set "DIST_BACKED_UP=0"
+set "PREPARED_SERVER_PACKAGE=%ROOT_DIR%\obj\server-package\LudorkServer.tar.gz"
+set "PACKAGE_PYTHON=%ROOT_DIR%\.venv\Scripts\python.exe"
+if not exist "%PACKAGE_PYTHON%" set "PACKAGE_PYTHON=python"
 set "OFFICIAL_PLUGINS_SUBDIRECTORY="
 if "%PACKAGE_CHANNEL%"=="--release" set "OFFICIAL_PLUGINS_SUBDIRECTORY=\tools\OfficialPlugins"
 
@@ -205,8 +216,20 @@ for %%D in (
     if errorlevel 1 exit /b 1
 )
 
+echo Preparing the built Server package...
+if defined SERVER_PACKAGE (
+    "%PACKAGE_PYTHON%" "%ROOT_DIR%\tools\pack_server.py" copy "%SERVER_PACKAGE%" "%PREPARED_SERVER_PACKAGE%"
+) else (
+    "%PACKAGE_PYTHON%" "%ROOT_DIR%\tools\pack_server.py" build --output "%PREPARED_SERVER_PACKAGE%"
+)
+if errorlevel 1 exit /b 1
+
 if exist "%WORK_DIR%" rmdir /S /Q "%WORK_DIR%"
 mkdir "%STAGE_DIR%"
+if errorlevel 1 goto failed
+mkdir "%STAGE_DIR%\Server"
+if errorlevel 1 goto failed
+copy /Y "%PREPARED_SERVER_PACKAGE%" "%STAGE_DIR%\Server\LudorkServer.tar.gz" >nul
 if errorlevel 1 goto failed
 
 set "FULL_VERSION="
@@ -392,6 +415,8 @@ exit /b %errorlevel%
 :validate_package
 set "PACKAGE_DIR=%~1"
 call "%ROOT_DIR%\tools\validate_editor_windows_layout.bat" "%PACKAGE_DIR%" %PACKAGE_CHANNEL%
+if errorlevel 1 exit /b 1
+"%PACKAGE_PYTHON%" "%ROOT_DIR%\tools\pack_server.py" verify "%PACKAGE_DIR%\Server\LudorkServer.tar.gz"
 if errorlevel 1 exit /b 1
 call :require_file "%PACKAGE_DIR%\Locale\en_GB"
 if errorlevel 1 exit /b 1
@@ -769,7 +794,7 @@ for /f "delims=" %%F in ('dir /B /A "%~1\%EDITOR_CACHE_DIRECTORY%"') do if not "
 exit /b 0
 
 :usage
-echo Usage: tools\pack_editor.bat [--version X.Y.Z] [--dev^|--release] [--templates ^<folder^>^|--without-templates] [--use-current-editor-build] [--launcher ^<file^>]
+echo Usage: tools\pack_editor.bat [--version X.Y.Z] [--dev^|--release] [--templates ^<folder^>^|--without-templates] [--server-package ^<archive^>] [--use-current-editor-build] [--launcher ^<file^>]
 exit /b 1
 
 :conflicting_channel

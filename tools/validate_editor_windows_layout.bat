@@ -28,6 +28,7 @@ for %%F in (
     Binaries\hostfxr.dll
     Binaries\hostpolicy.dll
     Binaries\System.Private.CoreLib.dll
+    Server\LudorkServer.tar.gz
 ) do (
     if not exist "%PACKAGE_DIR%\%%F" (
         echo Required editor package file was not found: %PACKAGE_DIR%\%%F
@@ -66,6 +67,7 @@ for %%F in ("%PACKAGE_DIR%\*.exe") do if exist "%%~fF" (
 for %%F in (
     "%PACKAGE_DIR%\Binaries\Locale"
     "%PACKAGE_DIR%\Binaries\Templates"
+    "%PACKAGE_DIR%\Binaries\Server"
     "%PACKAGE_DIR%\Binaries\tools"
     "%PACKAGE_DIR%\Binaries\Plugins"
     "%PACKAGE_DIR%\Binaries\plugins.json"

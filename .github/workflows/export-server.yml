@@ -1,4 +1,4 @@
-name: Export Server Source
+name: Export Server
 
 on:
   workflow_call:
@@ -8,17 +8,20 @@ on:
         default: ''
     outputs:
       artifact_name:
-        value: ${{ jobs.source.outputs.artifact_name }}
+        value: ${{ jobs.server.outputs.artifact_name }}
+      server_sha:
+        value: ${{ jobs.server.outputs.server_sha }}
 
 permissions:
   contents: read
 
 jobs:
-  source:
-    name: Archive Server source
+  server:
+    name: Build Server package
     runs-on: ubuntu-latest
     outputs:
-      artifact_name: LudorkServer-source-${{ steps.revision.outputs.server_sha }}.tar.gz
+      artifact_name: LudorkServer-${{ steps.revision.outputs.server_sha }}.tar.gz
+      server_sha: ${{ steps.revision.outputs.server_sha }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -43,14 +46,21 @@ jobs:
           ref: ${{ steps.revision.outputs.server_sha }}
           path: obj/server-source
           persist-credentials: false
-      - name: Create the source-only archive
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Build and verify the Server archive
         env:
           SERVER_SHA: ${{ steps.revision.outputs.server_sha }}
-        run: python3 .github/scripts/archive_server_source.py obj/server-source "$SERVER_SHA" obj/server-artifact
+        run: python3 tools/pack_server.py build --source obj/server-source --output "obj/server-artifact/LudorkServer-$SERVER_SHA.tar.gz" --revision "$SERVER_SHA"
       - uses: actions/upload-artifact@v7
         with:
-          name: LudorkServer-source-${{ steps.revision.outputs.server_sha }}.tar.gz
-          path: obj/server-artifact/*.tar.gz
+          name: LudorkServer-${{ steps.revision.outputs.server_sha }}.tar.gz
+          path: obj/server-artifact/LudorkServer-${{ steps.revision.outputs.server_sha }}.tar.gz
           archive: false
           if-no-files-found: error
           retention-days: 7

@@ -37,36 +37,36 @@ jobs:
             const serverSha = await resolveServerCommit({ github, context, core });
             await shouldRun({ github, context, core }, 'export-package.yml', 'Record successful package', serverSha);
 
-  server_source:
-    name: Server source
+  server:
+    name: Server package
     needs: package_decision
     if: needs.package_decision.outputs.should_build == 'true'
-    uses: ./.github/workflows/export-server-source.yml
+    uses: ./.github/workflows/export-server.yml
     with:
       source_commit: ${{ needs.package_decision.outputs.server_sha }}
 
   windows:
     name: Windows x64
-    needs: package_decision
+    needs: [package_decision, server]
     if: needs.package_decision.outputs.should_build == 'true'
     uses: ./.github/workflows/export-package-windows.yml
     with:
       release: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
-      server_source_prepared: true
+      server_artifact: ${{ needs.server.outputs.artifact_name }}
 
   macos:
     name: macOS ARM64
-    needs: package_decision
+    needs: [package_decision, server]
     if: needs.package_decision.outputs.should_build == 'true'
     uses: ./.github/workflows/export-package-macos.yml
     with:
       release: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
-      server_source_prepared: true
+      server_artifact: ${{ needs.server.outputs.artifact_name }}
     secrets: inherit
 
   package_complete:
     name: Record successful package (${{ needs.package_decision.outputs.server_sha }})
-    needs: [package_decision, windows, macos, server_source]
+    needs: [package_decision, windows, macos, server]
     if: github.event_name != 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
     steps:
@@ -74,11 +74,11 @@ jobs:
         env:
           PACKAGE_SHA: ${{ github.sha }}
           SERVER_SHA: ${{ needs.package_decision.outputs.server_sha }}
-        run: echo "Both platform packages completed for $PACKAGE_SHA; server source $SERVER_SHA" >> "$GITHUB_STEP_SUMMARY"
+        run: echo "Both platform packages completed for $PACKAGE_SHA; server package $SERVER_SHA" >> "$GITHUB_STEP_SUMMARY"
 
   release:
     name: Update draft release
-    needs: [windows, macos, server_source]
+    needs: [windows, macos, server]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
@@ -103,10 +103,10 @@ jobs:
         with:
           name: Ludork-macos-arm64-${{ github.sha }}
           path: obj/release/assets
-      - name: Download server source
+      - name: Download Server package
         uses: actions/download-artifact@v8
         with:
-          name: ${{ needs.server_source.outputs.artifact_name }}
+          name: ${{ needs.server.outputs.artifact_name }}
           path: obj/release/assets
           skip-decompress: true
       - name: Download project templates
