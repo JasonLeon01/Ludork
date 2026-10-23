@@ -22,6 +22,6 @@ export function Login({ project, initialError, onSignedIn }: { project: string; 
       <label htmlFor="project-password">Management password</label><input id="project-password" name="password" type="password" autoComplete="current-password" required disabled={busy} />
       {error && <p role="alert" className="error">{error}</p>}
       <button className="primary" disabled={busy} type="submit">{busy ? 'Signing in…' : 'Open project'}</button>
-    </form><p className="login-note">Sign in to browse accounts, category files and JSON content.</p>
+    </form><p className="login-note">Sign in to browse accounts, category files and Lua data.</p>
   </section></main>;
 }

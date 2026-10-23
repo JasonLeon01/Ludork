@@ -1,13 +1,14 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
-import { projectIdentifier } from './identity.ts';
+import { hasControlCharacters, projectIdentifier } from './identity.ts';
 
 export interface ProjectConfig {
   keyHash: string;
   passwordSalt: string;
   passwordHash: string;
   ipWriteIntervalSeconds?: number;
+  luaEntry?: string;
 }
 
 export interface ServerConfig {
@@ -18,6 +19,13 @@ export interface ServerConfig {
 export const root = fileURLToPath(new URL('../', import.meta.url));
 export const configPath = join(root, 'config', 'projects.json');
 export const dataPath = join(root, 'data');
+export const projectsPath = join(root, 'projects');
+
+export function luaEntry(value: unknown): string {
+  const entry = value === undefined ? 'Main.lua' : value;
+  if (typeof entry !== 'string' || !entry.isWellFormed() || !entry.endsWith('.lua') || Buffer.byteLength(entry) > 512 || entry.split('/').some(part => !part || part === '.' || part === '..') || entry.includes('\\') || entry.includes(':') || hasControlCharacters(entry)) throw new Error('luaEntry must be a relative Lua file path inside the project directory.');
+  return entry;
+}
 
 export function ipWriteIntervalSeconds(value: unknown): number {
   const interval = value === undefined ? 180 : value;
@@ -44,6 +52,7 @@ export async function loadConfig(): Promise<ServerConfig> {
       throw new Error('Invalid project configuration. Run deploy again.');
     }
     project.ipWriteIntervalSeconds = ipWriteIntervalSeconds(project.ipWriteIntervalSeconds);
+    project.luaEntry = luaEntry(project.luaEntry);
   }
   return config;
 }

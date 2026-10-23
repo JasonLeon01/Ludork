@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ApiFailure, formattedJson, request, segment } from './api.ts';
+import { ApiFailure, request, segment } from './api.ts';
+import { LuaDataTree } from './LuaDataTree.tsx';
+import type { WireValue } from '../../backend/wire.ts';
 
 export function DataBrowser({ project, onExpired }: { project: string; onExpired: () => void }) {
   const [accounts, setAccounts] = useState<string[]>([]);
@@ -7,7 +9,7 @@ export function DataBrowser({ project, onExpired }: { project: string; onExpired
   const [account, setAccount] = useState('');
   const [category, setCategory] = useState('');
   const [filter, setFilter] = useState('');
-  const [content, setContent] = useState('');
+  const [content, setContent] = useState<WireValue | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState('accounts');
   const [revision, setRevision] = useState(0);
@@ -33,7 +35,7 @@ export function DataBrowser({ project, onExpired }: { project: string; onExpired
   }, [project, revision, failed]);
 
   useEffect(() => {
-    setCategories([]); setContent('');
+    setCategories([]); setContent(null);
     if (!account) return;
     const controller = new AbortController();
     setLoading('categories'); setError('');
@@ -47,12 +49,12 @@ export function DataBrowser({ project, onExpired }: { project: string; onExpired
   }, [project, account, revision, failed]);
 
   useEffect(() => {
-    setContent('');
+    setContent(null);
     if (!account || !category) return;
     const controller = new AbortController();
     setLoading('content'); setError('');
     void request(project, `/accounts/${segment(account)}/categories/${segment(category)}`, { signal: controller.signal })
-      .then(text => { if (!controller.signal.aborted) setContent(formattedJson(text)); }).catch(reason => failed(reason, controller.signal))
+      .then(text => { if (!controller.signal.aborted) setContent((JSON.parse(text) as { value: WireValue }).value); }).catch(reason => failed(reason, controller.signal))
       .finally(() => { if (!controller.signal.aborted) setLoading(''); });
     return () => controller.abort();
   }, [project, account, category, revision, failed]);
@@ -66,9 +68,9 @@ export function DataBrowser({ project, onExpired }: { project: string; onExpired
       </div>
     </aside>
     <section className="file-pane"><div className="file-toolbar"><div><span className="eyebrow">{account || 'No account selected'}</span><h2>Category files</h2></div><button onClick={() => setRevision(value => value + 1)} disabled={Boolean(loading)}>Refresh</button></div>
-      <div className="file-tabs" aria-label="Category files">{categories.map(value => <button key={value} title={value} className={value === category ? 'active' : ''} onClick={() => setCategory(value)}>{value}.json</button>)}</div>
+      <div className="file-tabs" aria-label="Category files">{categories.map(value => <button key={value} title={value} className={value === category ? 'active' : ''} onClick={() => setCategory(value)}>{value}.ldata</button>)}</div>
       {error && <p role="alert" className="error file-error">{error}</p>}
-      {content ? <><div className="code-title"><span>{category}.json</span><span>JSON · Read-only</span></div><pre className="json-content" tabIndex={0}><code>{content}</code></pre></>
+      {content ? <><div className="code-title"><span>{category}.ldata</span><span>Lua data · Read-only</span></div><LuaDataTree key={`${account}/${category}/${revision}`} value={content} /></>
         : <div className="file-empty" role="status"><span className="document-icon">{'{ }'}</span><h3>{loading ? 'Reading…' : 'Select a category file'}</h3><p>The file contents will appear here.</p></div>}
     </section>
   </main>;

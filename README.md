@@ -1,10 +1,10 @@
 # Ludork Server
 
-Ludork's optional, self-hosted HTTP data store. It stores a dictionary in each account/category JSON file and includes a read-only React/TypeScript viewer. It does not provide multiplayer synchronization, RPC, account login, or HTTPS. The client engine is maintained on Ludork's main development branch; this independent `Server` branch contains only the deployable server.
+Ludork's optional Node.js 24 server runs project logic in Lua 5.4 through the pinned Wasmoon runtime. Node owns connections, credentials, storage and process supervision. Lua modules own snapshots, RPC handlers and online notifications. Each project has a separate Lua process. The independent `Server` branch contains the deployable service; the client engine lives on the main development branch.
 
 ## Deploy
 
-Install **Node.js 24** (with npm), then clone this branch onto the server:
+Install **Node.js 24** with npm, then deploy a project:
 
 ```sh
 git clone --branch Server --single-branch https://github.com/JasonLeon01/Ludork.git LudorkServer
@@ -20,181 +20,173 @@ deploy.bat MyGame "project-key" "management-password"
 start.bat
 ```
 
-Quote and escape arguments for your shell, particularly `$`, `%`, `!`, `&` and quote characters. Deployment arguments may remain in shell history and process listings. Do not put real credentials into source-controlled scripts.
+Quote arguments for your shell, particularly `$`, `%`, `!`, `&` and quote characters. Deployment arguments can remain in shell history and process listings. Do not put production credentials in source-controlled scripts.
 
-Deployment checks Node/npm, runs `npm ci`, saves credential hashes in `config/projects.json`, and generates `start.sh` and `start.bat`. It **does not build the frontend**. The start script supervises the backend and Vite together; Ctrl+C stops both. A failed child process stops the other process. Occupied ports cause startup to fail rather than switch to another port.
+Deployment installs locked npm dependencies, saves credential hashes in `config/projects.json`, creates a project Lua entry, and generates `start.sh` and `start.bat`. Wasmoon ships its Lua VM as WebAssembly; no system Lua installation or native compiler is needed. Deployment does not build the frontend. The start script supervises the backend and Vite together; Ctrl+C stops both. A failed service process stops the other service. Occupied ports cause startup to fail.
 
 | Purpose | Address |
 | --- | --- |
 | Read-only management website | `http://IP:3333/MyGame/` |
 | Ludork client server URL | `http://IP:7777/MyGame` |
+| Client WebSocket endpoint | `ws://IP:7777/MyGame/api/v1/net` |
 
-IP addresses work directly. For a domain, list the permitted hostname before starting Vite:
+For a domain, set `LUDORK_ALLOWED_HOSTS=games.example.com` before starting Vite. Multiple hostnames are comma-separated, without scheme or port. IP addresses work directly. Both services listen on all interfaces; deployment does not configure a firewall, TLS, system service or automatic startup.
 
-```sh
-export LUDORK_ALLOWED_HOSTS=games.example.com
-sh start.sh
+Deploy another project to add it to the same instance. Redeployment rotates that project's credentials while preserving data, Lua source, `luaEntry` and `ipWriteIntervalSeconds`. Deploy projects sequentially and stop the service while reinstalling dependencies. Restart to apply configuration or Lua source changes.
+
+Project names support 1–64 UTF-8 bytes, excluding control characters, slash, backslash, and the exact names `.` and `..`. Keys use 1–4096 visible ASCII characters without spaces. Passwords support 1–4096 UTF-8 bytes without control characters. There are no default credentials.
+
+## Project Lua logic
+
+Deployment creates `projects/<hex-project-name>/Main.lua`. The directory name is the lowercase hexadecimal encoding of the project's UTF-8 bytes; deployment prints the exact path. This private directory is ignored by Git. The per-project `luaEntry` configuration defaults to `Main.lua` and can select another relative `.lua` path within this directory. Redeployment never overwrites an existing entry.
+
+The initial entry registers the supplied storage module:
+
+```lua
+local Net = require("Framework.Net")
+local Storage = require("Modules.Storage")
+
+Net.RegisterModule("Storage", Storage)
 ```
 
-```bat
-set LUDORK_ALLOWED_HOSTS=games.example.com
-start.bat
+Put a custom module in the project directory and register it from the entry. Framework modules are loaded from `lua/`; project modules are loaded from the project's own directory. Declaration files and `stub` directories are excluded from the runtime. Server source is never sent to clients. Server logic uses ordinary Lua 5.4; the client's engine-specific Lua classes and native modules are unavailable here.
+
+For example, a project `Profile.lua` can return:
+
+```lua
+local Profile = {Rpc = {}}
+
+function Profile.Snapshot(context, params)
+    local field = context.Storage:ReadField(params.account, "profile", "name")
+    return {name = field.value or "New player"}
+end
+
+function Profile.Rpc.SetName(context, account, name)
+    if type(name) ~= "string" or #name > 80 then
+        error({code = "InvalidArgument", message = "Name must be at most 80 bytes."})
+    end
+    context.Storage:WriteField(account, "profile", "name", name)
+    context:Notify("NameChanged", account)
+end
+
+return Profile
 ```
 
-Multiple hostnames are comma-separated, without a scheme or port. Node listens on all interfaces; configure your own network/firewall access. Deployment does not install a system service or configure automatic startup.
+Register it with `Net.RegisterModule("Profile", require("Profile"))`. Module, RPC and event names are case-sensitive and contain 1–128 ASCII letters, digits, dots, underscores or hyphens. Duplicate module registration fails project initialization. Only functions explicitly placed in `Rpc` are remotely callable.
 
-Deploy another project with the same command to add it to the same instance. Redeploying an existing project updates its key/password and preserves its data. Restart the service to load configuration changes. Deploy projects sequentially and stop the service while reinstalling dependencies. Each project has independent credentials, data, tokens, and management sessions.
+`Snapshot(context, params)` receives the client's pure Lua parameter value and must return an ordinary table. Snapshot storage access is read-only. Every fetch executes this function again. The server does not retain proxy objects or automatically replicate changes.
 
-Each project object in `config/projects.json` has an `ipWriteIntervalSeconds` setting. New deployments write `180`; an omitted setting also defaults to 180 seconds. Set it to `0` to disable the write interval, or another nonnegative safe integer (up to `9007199254740991`) to change it. Fractional, negative, string, and null values are rejected. Redeployment preserves an existing setting and user data; restart to apply edits.
+`Rpc.FunctionName(context, ...)` receives positional arguments, including nil gaps and trailing nil values. RPCs are void: returned values are discarded. Host storage operations suspend the current Lua coroutine until Node finishes the operation, so the Lua code can use normal sequential calls. Do not retain a context or use its services after its handler finishes. Calls are serialized within each project.
 
-Project names support 1–64 UTF-8 bytes, excluding control characters, slash, backslash, and the exact names `.` and `..`. URL-encode the project as one path segment; Chinese project names are supported. Keys use 1–4096 visible ASCII characters without spaces. Passwords support 1–4096 UTF-8 bytes without control characters. No default credentials are supplied.
+The host supplies these context members:
 
-## Client API
-
-In Ludork C++ Source projects, enable the server in the editor's test-server settings or packaging dialog and configure the backend URL and project key. Lua never supplies the URL or key. The native `GlobalCore.Server` API is:
-
-| Method | Completion result |
+| Member | Meaning |
 | --- | --- |
-| `CheckAccountExistsAsync(accountId, onCompleted)` | `ServerAccountResult` |
-| `ListAccountsAsync(sampleCount, categoryFilter, onCompleted)` | `ServerAccountListResult` |
-| `ReadFieldAsync(accountId, category, field, onCompleted)` | `ServerReadResult` |
-| `ListFieldsAsync(accountId, category, beforeKey, limit, onCompleted)` | `ServerFieldListResult` |
-| `AcquireWriteTokenAsync(accountId, onCompleted)` | `ServerTokenResult` |
-| `WriteFieldAsync(writeToken, category, field, value, onCompleted)` | `ServerResult` |
-| `CheckConnectionAsync(onCompleted)` | `ServerConnectionResult` |
+| `ProjectName`, `ModuleName` | Current project and registered module |
+| `SessionId` | Opaque ID of the current online connection |
+| `PeerAddress` | Actual TCP peer address; forwarded headers are ignored |
+| `Storage` | Storage services restricted to the current project |
+| `Notify(event, ...)` | Queue an event for the current connection |
+| `Send(sessionId, event, ...)` | Queue an event for one online connection in this project |
+| `Broadcast(event, ...)` | Queue an event for all online connections in this project |
+| `AdmitWrite(account, category, field)` | Apply the configured interval inside the supplied `Storage.WriteField` RPC |
 
-The engine documentation describes the generated Lua types, asynchronous operation lifecycle, network enum, and build-time configuration. Standalone projects do not expose server configuration.
+Call context methods with `:`. Notifications use the current module name and are flushed only after the handler succeeds. Failed handlers discard their queued events. Events are online-only: disconnected clients receive no backlog and reconnecting does not replay events. Receiving an event does not update any client proxy; client business code decides whether to fetch or sync.
 
-The caller supplies the account ID, for example a caller-generated UUID. `ServerAccountResult` inherits `ok`, `code`, and `message` from `ServerResult` and adds the read-only `exists` flag. Inspect `exists` only when `ok` is true.
+An ordinary Lua error fails that call with `ServerFailure`. A business handler can raise `{code = "InvalidArgument", message = "..."}` for a rejected argument. Host storage and rate errors preserve their stable codes. A Lua process crash, execution timeout or memory failure invalidates that project's online connections and restarts its Lua state; pending RPCs are never replayed. Other projects, HTTP health checks and management remain available. A project whose entry fails to load rejects requests until its source is fixed and the service restarted.
 
-`ServerAccountListResult` exposes the `accounts` string array. `ServerFieldListResult.entries` contains read-only `ServerFieldEntry` objects with `key` and `value`, and its `nextCursor` is a string or nil. Pass explicit nil placeholders for optional arguments before the required completion callback: nil `sampleCount` lists all accounts, nil `categoryFilter` skips filtering, nil `beforeKey` starts at the largest key, and nil `limit` selects 50 entries. `ServerResult.retryAfterSeconds` is present only for a rate-limited write.
+## Client snapshots and RPC
 
-## HTTP protocol
+Enable server integration in a Ludork C++ Source project's editor settings or packaging configuration. Lua never supplies the URL or project key. Standalone projects do not expose server configuration.
 
-All endpoints are relative to `http://host:7777/<project>/api/v1`. Encode each account, category, and field as a separate URL path segment. Names support 1–64 UTF-8 bytes without control characters; the exact names `.` and `..` are invalid. Names are case-sensitive and stored using lowercase hexadecimal UTF-8 filenames, so Unicode, slash characters and Windows reserved names cannot escape the data directory or collide by filesystem case folding.
+The client Net module fetches a new Lua proxy for each `Net.GetProxy(moduleName, params, callback)` request. Its authored getter methods read the local snapshot. `proxy:Sync(callback)` fetches the same module and captured parameters again, replacing that object's snapshot only on success. Separate proxy instances remain independent. No getter performs network I/O, and neither RPC completion nor events implicitly refresh a snapshot.
 
-### Check whether an account exists
+The client's network-module handle calls `CallRpcFunction("FunctionName", ...)`. RPCs have no business return value. Errors are reported through the client's networking error path; server notifications are subscribed through the client event API. The engine documentation owns the complete client signatures and lifecycle.
 
-```http
-GET /MyGame/api/v1/accounts/player-1
-X-Ludork-Key: project-key
-```
+## Storage and supplied module
 
-Success: HTTP 200 with `{"exists":true}` or `{"exists":false}`. An account exists when its persisted account directory exists, matching the management account list. A missing account is a successful query with `exists:false`; filesystem failures or a non-directory account path return `StorageFailure`.
+Each account/category file is a versioned, data-only `.ldata` document. Its root is a dictionary of field names to Lua values. The file contains the same tagged value encoding used on the wire; it is never executed as Lua source. Old `.json` files are not read, converted or deleted. This development-time format change has no compatibility reader or automatic migration.
 
-Checking an account, reading a field, and acquiring a write token do not create the account directory. A write creates it as needed. This query observes current storage only: it does not reserve an ID or guarantee uniqueness between a check and a later write. Generate UUIDs in the caller; the server does not generate or require UUID-formatted account IDs.
+Account, category and field names support 1–64 UTF-8 bytes without control characters; the exact names `.` and `..` are invalid. Encoded filenames preserve case and cannot escape the data directory. Account IDs are supplied by game logic; the service does not generate or authenticate them.
 
-### List or sample accounts
+| Lua storage method | Result |
+| --- | --- |
+| `context.Storage:AccountExists(account)` | Boolean; reads do not create accounts |
+| `context.Storage:ListAccounts(sampleCount, categoryFilter)` | Array of account names |
+| `context.Storage:ReadField(account, category, field)` | `{found = boolean, value = value}`; missing values are nil |
+| `context.Storage:ListFields(account, category, beforeKey, limit)` | `{entries = {{key = key, value = value}, ...}, nextCursor = cursor}` |
+| `context.Storage:WriteField(account, category, field, value)` | No return value; nil removes the field |
 
-```http
-GET /MyGame/api/v1/accounts?sampleCount=10&category=messages
-X-Ludork-Key: project-key
-```
+Missing accounts/categories produce empty lists or `found = false`. `sampleCount` is a nonnegative signed 64-bit integer: nil or zero lists every matching account in ascending UTF-8 byte order; a positive value samples unique accounts. A category filter checks for that category's `.ldata` file before sampling. `beforeKey` is an exclusive upper bound for descending UTF-8 field order. Nil starts the first page. `limit` defaults to 50 and accepts 1–100. `nextCursor` is nil when no more matching fields remain. Pagination observes current files, without a snapshot across requests.
 
-Success: `{"accounts":["player-1","player-2"]}`. Omit `sampleCount` or use `0` to return every account, sorted by ascending UTF-8 byte order. A positive signed 64-bit integer selects that many unique random accounts, or all eligible accounts if fewer exist. An optional `category` includes only accounts with that category file; filtering happens before sampling and does not parse file contents. A directory or other invalid filesystem object at the category file path returns `StorageFailure`.
+The supplied `Storage` module's snapshot parameters are:
 
-The complete serialized response, including JSON escaping and its envelope, cannot exceed 2 MiB. Oversized full lists or samples return HTTP 400 with `InvalidArgument` and a message requesting a smaller positive `sampleCount`; results are never silently truncated. An empty project or filter match returns `{"accounts":[]}`. Empty, negative, fractional, repeated, nested, or unsupported query parameters are rejected.
+| `params.query` | Other parameter fields | Snapshot |
+| --- | --- | --- |
+| `account_exists` | `account` | `{exists = boolean}` |
+| `accounts` | Optional `sampleCount`, `categoryFilter` | `{accounts = {...}}` |
+| `field` | `account`, `category`, `field` | `{found = boolean, value = value}` |
+| `fields` | `account`, `category`; optional `beforeKey`, `limit` | `{entries = {...}, nextCursor = cursor}` |
 
-### Read a field
+Its `WriteField(account, category, field, value)` RPC replaces the old token/PUT flow. On success it notifies the caller with `FieldWritten(account, category, field)`. There is no write-token API. A nil value deletes the field but does not delete the category file or account directory.
 
-```http
-GET /MyGame/api/v1/accounts/player-1/categories/profile/fields/name
-X-Ludork-Key: project-key
-```
+The project setting `ipWriteIntervalSeconds` applies only to this supplied `Storage.WriteField` RPC. It defaults to 180; zero disables it. The value must be a nonnegative safe integer. The first admitted attempt starts the interval before storage; storage failure still consumes it. Rejection returns `RateLimited` with positive `retryAfterSeconds` and does not extend the interval. Limits are isolated by project, normalize IPv4-mapped IPv6, use a monotonic clock and reset on service restart. Clients behind a common NAT or reverse proxy share its peer-IP interval. Custom RPCs are responsible for their own business rules and do not inherit this interval.
 
-Success: `{"found":true,"value":"Hero"}`. A missing account, category or field returns `{"found":false,"value":null}`. A stored null returns `{"found":true,"value":null}`.
+Writes create account/category storage as needed. Same-file updates are serialized and use atomic temporary-file replacement. Different files can update concurrently. Each category is limited to 1 MiB including encoding. There are no cross-file transactions, automatic backups or rollback of earlier writes when a later Lua statement fails. A timeout or disconnect can occur after a write committed; do not automatically retry an RPC with an unknown outcome. Fetch a new snapshot and let business logic decide the next action.
 
-### List fields with a cursor
+## Network protocol
 
-```http
-GET /MyGame/api/v1/accounts/player-1/categories/messages/fields?before=20261010120000&limit=50
-X-Ludork-Key: project-key
-```
-
-Success: `{"entries":[{"key":"20261010115959","value":{"text":"Hello"}}],"nextCursor":null}`. Fields are ordered by descending UTF-8 bytes, not numeric value or insertion time. `before` is an exclusive upper bound: only keys smaller than the cursor are returned, whether or not that key currently exists. Omit `before` for the first page. `limit` defaults to 50 and accepts integers from 1 through 100.
-
-`nextCursor` is the last returned key only when more matching fields remain; otherwise it is null. Missing accounts/categories and exhausted ranges return `{"entries":[],"nextCursor":null}`. Values retain their JSON types and exact numeric digits. Empty, malformed, repeated, nested, or unsupported query parameters are rejected. Each request observes the current file; pagination does not reserve a snapshot across concurrent writes.
-
-For chronological lists, generate fixed-width time keys in the caller so byte order matches time order. Writing an existing key through `WriteFieldAsync` overwrites its value. Newly inserted larger keys appear when you refresh the first page, rather than in later pages bounded by an older cursor.
-
-### Acquire a one-use write token
-
-```http
-POST /MyGame/api/v1/accounts/player-1/write-tokens
-X-Ludork-Key: project-key
-```
-
-Success: `{"token":"<opaque-token>","expiresAt":1790000060000}`. `expiresAt` is Unix epoch milliseconds. A token is valid for **60 seconds** from issuance, for one write to its bound project/account. Tokens are generated using cryptographic randomness and kept only in memory; a server restart invalidates them.
-
-### Write a field
-
-```http
-PUT /MyGame/api/v1/accounts/player-1/categories/profile/fields/name
-Authorization: Bearer <opaque-token>
-Content-Type: application/json
-
-{"value":"Hero"}
-```
-
-Success: `{}` with HTTP 200. The backend consumes the token synchronously after validating the request and before awaiting storage; concurrent uses cannot both succeed. A storage failure still consumes the token. Wrong-account/project requests do not consume a valid token belonging elsewhere. Do not automatically retry timed-out writes: read the field first, then acquire a new token if another write is necessary.
-
-After consuming a valid token, the backend applies the project's write interval to the actual TCP peer IP. The first admitted write starts the interval synchronously, so concurrent requests cannot bypass it by changing accounts or categories. An admitted attempt still consumes the interval if storage fails. A rejected write does not extend the interval, but its valid one-use token is consumed. Reads, lists, connection checks, and token acquisition do not consume the write interval.
-
-A request during the interval returns HTTP 429 with `{"code":"RateLimited","message":"...","retryAfterSeconds":180}` and a matching `Retry-After: 180` header. The delay is rounded up to a positive whole second. Wait before acquiring a new token and retrying explicitly. Limits are isolated by project, normalize IPv4-mapped IPv6 addresses, use a monotonic clock, and reset on backend restart. `Forwarded` and `X-Forwarded-For` are ignored: clients sharing a NAT or reverse-proxy peer IP share that project's interval.
-
-Each write updates one top-level dictionary field; it creates the account/category as needed. Values may be JSON strings, booleans, numbers, null, arrays, or nested objects. Null is a value, not a delete operation. Requests and each category file are limited to 1 MiB; updates to the same file are serialized and saved by replacing a temporary file. Distinct files can update concurrently. There are no multi-field transactions, cross-file transactions, delete API, or automatic backups.
-
-The server preserves numeric source text using Node.js 24's native JSON reviver context and `JSON.rawJSON`. Signed and unsigned 64-bit integers retain their exact digits, and ordinary dictionary keys such as `__proto__` remain data. The viewer uses the same standard when formatting JSON; browsers without this feature display the original JSON text to preserve precision.
-
-### Connection probe
-
-```http
-GET /MyGame/api/v1/health
-```
-
-Success: `{"service":"LudorkServer","project":"MyGame"}`. This lightweight endpoint needs no credentials and reveals no account data. Ludork reports `Normal` at ≤300 ms, `Weak` above 300 ms through 3 seconds, and `Disconnected` if no valid response arrives in 3 seconds. It tests this server's reachability, not general Internet availability or key validity.
-
-### Errors
-
-Errors return `{"code":"AuthenticationFailed","message":"Project credentials are invalid."}` with an appropriate non-2xx HTTP status. Callers use the stable code instead of parsing message text:
-
-- `InvalidArgument`: invalid JSON, identifiers, body size, or endpoint.
-- `AuthenticationFailed`: project key or management credentials/session rejected.
-- `InvalidWriteToken`: missing, wrong, expired, or already used write token.
-- `RateLimited`: the peer IP must wait before its next write to this project; `retryAfterSeconds` and `Retry-After` carry the same delay.
-- `StorageFailure`: data could not be read or saved.
-- `ServerFailure`: unexpected server error.
-
-The engine additionally reports `Disabled`, `Timeout`, `ConnectionFailed`, and `InvalidResponse` for local failures; `None` denotes success. No credentials are included in URLs or server application logs.
-
-## Read-only management
-
-Open `http://host:3333/<project>/`, then supply both the project key and management password. Password hashes use scrypt with a per-project random salt. The browser receives a project-specific HttpOnly, SameSite=Strict session cookie, valid for eight hours; restarting the backend invalidates sessions. Login/logout require a custom request header, and the backend does not enable CORS.
-
-The viewer lists accounts and classification files, filters accounts, displays formatted JSON, refreshes the current selection, and logs out. There is no editing or deletion UI. The Vite server serves only frontend inputs and imported frontend dependencies; it cannot serve `data/`, `config/`, backend code, or deployment scripts. Management requests are proxied to the backend, where every data endpoint checks the session.
-
-This design is intended for a trusted internal network. **HTTP transmits credentials and data in plaintext.** A shared project key grants access to every account in that project; account IDs are storage namespaces, not independently authenticated identities. A key embedded in a distributed client can be extracted. One-use tokens prevent replay but do not make an untrusted client authoritative. Restrict network access or provide TLS at a separately managed reverse proxy when needed; this project does not configure that infrastructure.
-
-## Files and operations
+Connect to `/<URL-encoded-project>/api/v1/net` with `X-Ludork-Key` in the HTTP WebSocket upgrade. The server replies with `{"type":"ready","version":1}`. Frames are UTF-8 JSON text. Credentials never occur in URLs or message bodies.
 
 ```text
-backend/                  Node.js TypeScript backend source
-frontend/                 React/TypeScript viewer and Vite configuration
-tools/                    Shared deployment and process supervision
-config/projects.json      Generated project credential hashes (ignored)
-data/<project>/<account>/  Encoded category JSON files (ignored)
-data/.server.lock         Single-backend lock (ignored)
+snapshot: {type:"snapshot", id:"1", module:"Profile", params:WireValue}
+RPC:      {type:"rpc", id:"2", module:"Profile", name:"SetName", args:[WireValue,...]}
+success:  {type:"result", id:"1", ok:true, data:WireValue}
+RPC ack:  {type:"result", id:"2", ok:true}
+failure:  {type:"result", id:"2", ok:false, code:"InvalidArgument", message:"..."}
+event:    {type:"event", module:"Profile", event:"NameChanged", args:[WireValue,...]}
+```
+
+IDs must be unique among pending requests on a connection. A rate failure also includes `retryAfterSeconds`. RPC acknowledgments report transport/execution success without a function return value. The only unauthenticated client HTTP endpoint is `GET /<project>/api/v1/health`, returning `{"service":"LudorkServer","project":"..."}`. Previous account/field REST endpoints and tokens have been removed.
+
+`WireValue` is one of:
+
+```text
+["nil"]
+["bool", true]
+["int", "9223372036854775807"]
+["float", "1.2345678901234567"]
+["string", "Ynl0ZXM="]
+["table", [[WireKey, WireValue], ...]]
+```
+
+Integers are exact signed 64-bit decimal strings. Floats are finite double-precision numbers encoded as round-trip decimal strings. Strings contain arbitrary bytes encoded as canonical base64. Tables can have mixed or sparse boolean, numeric and string keys. Nil is supported as a parameter or value, but a table entry with nil means absence and is not encoded. Equivalent keys such as integer `1` and float `1.0` cannot occur twice. Metatables, cycles, table keys, functions, threads and userdata are rejected. Repeated acyclic tables are copied; object identity is not preserved.
+
+Messages are limited to 2 MiB, data to 64 levels of nesting and 65,536 value nodes. Incoming queues are capped at 256 calls and 8 MiB per connection and project; outgoing buffering is capped at 8 MiB per connection. Each invocation has a 10-second overall deadline, including queue time; Lua execution has a 9-second interrupt budget and a 64 MiB allocator limit. Slow connections are closed. WebSocket ping/pong checks remove dead connections.
+
+Stable server failures include `InvalidArgument`, `AuthenticationFailed`, `RateLimited`, `StorageFailure`, `ServerFailure` and `Timeout`. Clients additionally distinguish local disabled, connectivity and malformed-response failures. Use codes rather than message wording.
+
+## Read-only management and operations
+
+Open `http://host:3333/<project>/` and supply the project key and management password. Password hashes use scrypt with a per-project random salt. The project-specific HttpOnly, SameSite=Strict cookie lasts eight hours; restarting invalidates sessions. Login/logout require a custom header, and the server does not enable CORS.
+
+The viewer lists accounts and `.ldata` categories and displays typed Lua values, including exact integers and escaped byte strings. It has no editing or deletion UI. Vite serves only frontend inputs and imported dependencies, never project logic, data, configuration or backend source. Management data endpoints require the project's session.
+
+This service retains shared project-key authentication. Account IDs are storage namespaces, not authenticated identities. An extracted client key can access that project's registered network modules. HTTP/WebSocket traffic is unencrypted; use the intended network boundary or a separately managed TLS proxy. This service does not configure that infrastructure.
+
+```text
+backend/                   Node.js TypeScript networking and host services
+lua/                       Lua framework, supplied modules and entry template
+frontend/                  Read-only React/TypeScript management viewer
+projects/<project-hex>/     Private project Lua source (ignored)
+config/projects.json       Project settings and credential hashes (ignored)
+data/<project>/<account>/  Encoded category .ldata files (ignored)
+data/.server.lock          Single-backend lock (ignored)
 start.sh / start.bat       Generated launchers (ignored)
 ```
 
-Back up `config/` and `data/` through your own operational process. Local filesystem access to these directories must be restricted to the service administrator. The instance lock checks whether its recorded PID is still alive without killing it. An exited process's stale lock can be recovered automatically. If a lock is malformed or its PID has been reused, first confirm no instance is running, then remove `data/.server.lock` manually; the server refuses to guess or kill another process.
+Back up private project logic, configuration and data through your operational process. Restrict filesystem access to the service administrator. The instance lock detects a live recorded PID without killing it; an exited process's stale lock can be recovered. For malformed locks or reused PIDs, confirm no backend is running before manually removing the lock.
 
-Before checking in or archiving source, ensure generated configuration, user data, logs, dependencies, and launchers remain ignored. The source dependency lockfile is committed by the repository owner; run `npm ci` to reproduce dependencies.
+Source archives exclude private logic, credentials, user data, dependencies and generated launchers. Install with `npm ci`; use `npm run typecheck` and `npm run lint` when changing TypeScript. Lua declarations and the standalone EmmyLua workspace describe the server-only language surface.
 
-Development checks (no frontend production build):
-
-```sh
-npm ci
-npm run typecheck
-npm run lint
-```
+Wasmoon, its embedded Lua runtime and ws are distributed under the MIT license. Their copyright and license texts are included in [Third-party notices](third-party/README.md).

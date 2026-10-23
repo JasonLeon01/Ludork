@@ -16,15 +16,4 @@ export async function request(project: string, path: string, options?: RequestIn
   return text;
 }
 
-export function formattedJson(text: string): string {
-  const exactJson = JSON as JSON & { rawJSON?: (value: string) => object };
-  if (!exactJson.rawJSON) return text;
-  let exact = true;
-  const value: unknown = JSON.parse(text, (_key: string, item: unknown, context?: { source: string }) => {
-    if (typeof item !== 'number') return item;
-    if (!context) { exact = false; return item; }
-    return exactJson.rawJSON!(context.source);
-  });
-  return exact ? JSON.stringify(value, null, 2) : text;
-}
 export function segment(value: string): string { return encodeURIComponent(value); }

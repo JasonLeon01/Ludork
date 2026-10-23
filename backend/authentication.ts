@@ -7,7 +7,6 @@ import { ApiError } from './errors.ts';
 const derive = promisify(scrypt);
 const sessionLifetime = 8 * 60 * 60 * 1000;
 
-interface WriteToken { project: string; account: string; expiresAt: number }
 interface Session { project: string; expiresAt: number }
 
 function hash(value: string): string { return createHash('sha256').update(value).digest('hex'); }
@@ -18,42 +17,23 @@ function matches(actual: string, expected: string): boolean {
 }
 
 export class Authentication {
-  private readonly tokens = new Map<string, WriteToken>();
   private readonly sessions = new Map<string, Session>();
   private readonly timer: ReturnType<typeof setInterval>;
 
   constructor() {
     this.timer = setInterval(() => {
       const now = Date.now();
-      for (const [key, token] of this.tokens) if (token.expiresAt <= now) this.tokens.delete(key);
       for (const [key, session] of this.sessions) if (session.expiresAt <= now) this.sessions.delete(key);
     }, 30_000);
     this.timer.unref();
   }
 
-  close(): void { clearInterval(this.timer); this.tokens.clear(); this.sessions.clear(); }
+  close(): void { clearInterval(this.timer); this.sessions.clear(); }
 
   verifyKey(key: unknown, project: ProjectConfig): void {
     if (typeof key !== 'string' || !matches(hash(key), project.keyHash)) {
       throw new ApiError(401, 'AuthenticationFailed', 'Project credentials are invalid.');
     }
-  }
-
-  issueWriteToken(project: string, account: string): { token: string; expiresAt: number } {
-    const token = randomBytes(32).toString('base64url');
-    const expiresAt = Date.now() + 60_000;
-    this.tokens.set(hash(token), { project, account, expiresAt });
-    return { token, expiresAt };
-  }
-
-  consumeWriteToken(header: string | undefined, project: string, account: string): void {
-    const raw = header?.match(/^Bearer ([A-Za-z0-9_-]{43})$/)?.[1];
-    const key = raw ? hash(raw) : '';
-    const token = this.tokens.get(key);
-    if (!token || token.project !== project || token.account !== account || token.expiresAt <= Date.now()) {
-      throw new ApiError(401, 'InvalidWriteToken', 'The write token is invalid, expired, or already used.');
-    }
-    this.tokens.delete(key);
   }
 
   async login(project: string, config: ProjectConfig, key: unknown, password: unknown): Promise<string> {

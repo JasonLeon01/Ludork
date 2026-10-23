@@ -27,13 +27,13 @@ export function App() {
 
   return <div className="shell">
     <header className="header">
-      <div className="brand"><span className="brand-icon">L</span><div><strong>Ludork Server</strong><small>Simple data server</small></div></div>
+      <div className="brand"><span className="brand-icon">L</span><div><strong>Ludork Server</strong><small>Lua data server</small></div></div>
       <div className="header-actions"><span className="project-badge">{project || 'No project selected'}</span>{signedIn && <button className="quiet" onClick={() => void logout()}>Sign out</button>}</div>
     </header>
     {!project ? <main className="welcome"><h1>Open a project</h1><p>Use the project name configured during deployment.</p><code>http://host:3333/project/</code></main>
       : checking ? <main className="welcome" role="status">Connecting to the project…</main>
       : signedIn ? <><div className="intro"><div><p className="eyebrow">PROJECT DATA</p><h1>Accounts and files</h1><p>Browse category dictionaries and field values stored on the server.</p></div><span className="readonly"><span />Read-only</span></div>{error && <p role="alert" className="error global-error">{error}</p>}<DataBrowser project={project} onExpired={expired} /></>
       : <Login project={project} initialError={error} onSignedIn={() => { setSignedIn(true); setError(''); }} />}
-    <footer>Data queries and storage only · No multiplayer synchronization or RPC</footer>
+    <footer>Lua data snapshots · RPC · Online events</footer>
   </div>;
 }
