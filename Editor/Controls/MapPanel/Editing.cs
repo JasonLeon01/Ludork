@@ -84,7 +84,9 @@ public sealed partial class MapPanel
 
     private void writeTileSelection((int X, int Y) grid)
     {
-        writeTileRectangle(grid, grid);
+        int width = selectedTiles?.Width ?? 1;
+        int height = selectedTiles?.Height ?? 1;
+        writeTileRectangle(grid, (grid.X + width - 1, grid.Y + height - 1));
     }
 
     private void writeTileRectangle((int X, int Y) start, (int X, int Y) end)
@@ -94,14 +96,18 @@ public sealed partial class MapPanel
             return;
         List<MapTileEdit> cells = [];
         int columns = getTilesetColumnCount(layer);
-        for (int y = Math.Min(start.Y, end.Y); y <= Math.Max(start.Y, end.Y); y++)
-        for (int x = Math.Min(start.X, end.X); x <= Math.Max(start.X, end.X); x++)
+        int minX = Math.Min(start.X, end.X);
+        int minY = Math.Min(start.Y, end.Y);
+        int maxX = Math.Max(start.X, end.X);
+        int maxY = Math.Max(start.Y, end.Y);
+        for (int y = minY; y <= maxY; y++)
+        for (int x = minX; x <= maxX; x++)
         {
             if (selectedTiles is { } tiles)
             {
-                for (int py = 0; py < tiles.Height; py++)
-                for (int px = 0; px < tiles.Width; px++)
-                    cells.Add(new MapTileEdit(x + px, y + py, tiles.OriginTileNumber + py * columns + px, null));
+                int px = (x - minX) % tiles.Width;
+                int py = (y - minY) % tiles.Height;
+                cells.Add(new MapTileEdit(x, y, tiles.OriginTileNumber + py * columns + px, null));
             }
             else
                 cells.Add(new MapTileEdit(x, y, null, selectedAutoTileKey));
