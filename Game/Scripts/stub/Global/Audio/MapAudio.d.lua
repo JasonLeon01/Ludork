@@ -59,7 +59,8 @@ function MapAudio:setBgsFilter(attr, value) end
 ---
 --- - @param mapData Current map data.
 --- - @param transitionSeconds Optional fade duration for a map-environment change.
---- Re-requesting the current file during fade-out keeps its source and restores its stored full target volume.
+--- Re-requesting the current file keeps its source, reapplies the requested filter and cancels its fade.
+--- Fade gain multiplies the filter volume independently of the current music enable flag and user volume.
 ---@param mapData            Global.Audio.MapAudioData
 ---@param transitionSeconds? number
 function MapAudio:playMapAudio(mapData, transitionSeconds) end

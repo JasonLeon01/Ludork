@@ -9,10 +9,10 @@
 ---@field loopPoint? sf.Music.TimeSpan
 
 ---@class Global.Audio.MapAudioState.TransitionBase
----@field elapsed      number
----@field duration     number
----@field startVolume  number
----@field targetVolume number
+---@field elapsed    number
+---@field duration   number
+---@field startGain  number
+---@field targetGain number
 
 ---@class Global.Audio.MapAudioState.FadeInTransition: Global.Audio.MapAudioState.TransitionBase
 ---@field phase "in"
@@ -27,8 +27,8 @@
 ---@field kind            "BGM" | "BGS"
 ---@field music           sf.Music | nil
 ---@field file            string
----@field targetVolume    number | nil
----@field requestedVolume number | nil
+---@field requestedVolume number
+---@field gain            number
 ---@field transition      Global.Audio.MapAudioState.Transition | nil
 ---@field pendingFile     string
 ---@field pendingFilter   Engine.MusicFilter | nil
@@ -52,10 +52,10 @@ function MapAudioState.Request(state, file, filter, duration) end
 ---@param deltaTime number
 function MapAudioState.Update(state, deltaTime) end
 
----@param music sf.Music | nil
+---@param state Global.Audio.MapAudioState.State
 ---@param attr  string
 ---@param value Global.Audio.MusicFilterValue
-function MapAudioState.SetFilterAttribute(music, attr, value) end
+function MapAudioState.SetFilterAttribute(state, attr, value) end
 
 ---@param data Global.Audio.MusicFilterData
 ---@return Engine.MusicFilter | nil

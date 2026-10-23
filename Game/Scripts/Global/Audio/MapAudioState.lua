@@ -10,6 +10,10 @@ local function requestedVolume(filter)
     return filter ~= nil and filter.volume or 100.0
 end
 
+local function applyVolume(state)
+    AudioManager.setMusicFilter(state.music, Engine.MusicFilter.new({ volume = state.requestedVolume * state.gain }))
+end
+
 local function startMusic(state, file, filter, fadeIn)
     if not bool(file) then
         return
@@ -21,18 +25,11 @@ local function startMusic(state, file, filter, fadeIn)
     music:setLooping(true)
     state.music = music
     state.file = file
-    local targetVolume = music:getVolume()
-    state.targetVolume = targetVolume
     state.requestedVolume = requestedVolume(filter)
+    state.gain = fadeIn > 0.0 and 0.0 or 1.0
     if fadeIn > 0.0 then
-        music:setVolume(0.0)
-        state.transition = {
-            phase = "in",
-            elapsed = 0.0,
-            duration = fadeIn,
-            startVolume = 0.0,
-            targetVolume = targetVolume
-        }
+        applyVolume(state)
+        state.transition = { phase = "in", elapsed = 0.0, duration = fadeIn, startGain = 0.0, targetGain = 1.0 }
     end
 end
 
@@ -67,7 +64,15 @@ local function buildLoopPoint(data)
 end
 
 function MapAudioState.New(kind)
-    return { kind = kind, music = nil, file = "", pendingFile = "", pendingFilter = nil }
+    return {
+        kind = kind,
+        music = nil,
+        file = "",
+        requestedVolume = 100.0,
+        gain = 1.0,
+        pendingFile = "",
+        pendingFilter = nil
+    }
 end
 
 function MapAudioState.Stop(state)
@@ -77,24 +82,18 @@ function MapAudioState.Stop(state)
     state.music = nil
     state.file = ""
     state.transition = nil
-    state.targetVolume = nil
-    state.requestedVolume = nil
+    state.requestedVolume = 100.0
+    state.gain = 1.0
     state.pendingFile = ""
     state.pendingFilter = nil
 end
 
 function MapAudioState.Request(state, file, filter, duration)
     if state.music ~= nil and state.file == file and bool(file) then
-        local volume = requestedVolume(filter)
-        local targetVolume = state.targetVolume or state.music:getVolume()
+        state.requestedVolume = requestedVolume(filter)
+        state.gain = 1.0
         replaceMusicFilter(state.music, filter)
-        if state.requestedVolume ~= volume then
-            targetVolume = state.music:getVolume()
-        end
-        state.targetVolume = targetVolume
-        state.requestedVolume = volume
         state.music:setLooping(true)
-        state.music:setVolume(targetVolume)
         state.transition = nil
         state.pendingFile = ""
         state.pendingFilter = nil
@@ -119,8 +118,8 @@ function MapAudioState.Request(state, file, filter, duration)
         phase = "out",
         elapsed = 0.0,
         duration = bool(file) and duration * 0.5 or duration,
-        startVolume = state.music:getVolume(),
-        targetVolume = 0.0,
+        startGain = state.gain,
+        targetGain = 0.0,
         switchDuration = bool(file) and duration * 0.5 or 0.0
     }
 end
@@ -131,12 +130,12 @@ function MapAudioState.Update(state, deltaTime)
         return
     end
     if transition == nil then
-        state.targetVolume = state.music:getVolume()
         return
     end
     transition.elapsed = math.clamp(transition.elapsed + deltaTime, 0.0, transition.duration)
     local alpha = transition.duration > 0.0 and transition.elapsed / transition.duration or 1.0
-    state.music:setVolume(math.lerp(transition.startVolume, transition.targetVolume, alpha))
+    state.gain = math.lerp(transition.startGain, transition.targetGain, alpha)
+    applyVolume(state)
     if alpha < 1.0 then
         return
     end
@@ -154,11 +153,16 @@ function MapAudioState.Update(state, deltaTime)
     startMusic(state, pendingFile, pendingFilter, switchDuration)
 end
 
-function MapAudioState.SetFilterAttribute(music, attr, value)
-    if music == nil then
+function MapAudioState.SetFilterAttribute(state, attr, value)
+    if state.music == nil then
         return
     end
-    AudioManager.setMusicFilter(music, Engine.MusicFilter.new({ [attr] = value }))
+    local filter = Engine.MusicFilter.new({ [attr] = value })
+    if filter.volume ~= nil then
+        state.requestedVolume = filter.volume
+        filter.volume = state.requestedVolume * state.gain
+    end
+    AudioManager.setMusicFilter(state.music, filter)
 end
 
 function MapAudioState.BuildFilter(data)

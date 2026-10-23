@@ -66,6 +66,9 @@
 ---@field _dialogueLocaleSource                 Source.Scenes.SceneMap.DialogueMessageLocaleSource | Source.Scenes.SceneMap.DialogueSelectionLocaleSource | nil
 ---@field _gameMap                              GameMap | nil
 ---@field _cachedMapFile                        string | nil
+---@field _mapAudioData                         Global.Audio.MapAudioData | nil
+---@field _mapPanorama                          string | nil
+---@field _needsEnvironmentRestore              boolean
 ---@field _currentRegion                        string | nil
 ---@field _mapClickMoveBlockedUntilLateTick     boolean
 ---@field _mapInputBlockFrames                  integer
@@ -108,7 +111,10 @@ function Scene.FormatDialogueMessageSource(source) end
 ---@return string, string[]
 function Scene.FormatDialogueSelectionSource(source) end
 
----@brief Start with a transition effect.
+---@brief Restore map-configured BGM/BGS and panorama after a scene-stack return, then start a transition.
+---
+--- Returning clears temporary weather and restarts music from the configured offset.
+--- Initial entry preserves the environment prepared while creating the map.
 function Scene:onEnter() end
 
 ---@brief Set the game instance for this scene.
@@ -120,7 +126,7 @@ function Scene:setInst(inst) end
 ---@brief Create the player HUD and popup factories, then load the starting map.
 function Scene:onCreate() end
 
----@brief Stop map BGM/BGS and weather when leaving this scene.
+---@brief Stop map BGM/BGS, clear weather and panorama, and mark the environment for restoration on return.
 function Scene:onQuit() end
 
 ---@brief Ensure map BGM/BGS are stopped when scene is destroyed.

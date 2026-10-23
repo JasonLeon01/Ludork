@@ -13,11 +13,11 @@ function MapAudio:playBgm(bgm, bgmFilter)
 end
 
 function MapAudio:setBgmFilter(attr, value)
-    MapAudioState.SetFilterAttribute(self._bgmState.music, attr, value)
+    MapAudioState.SetFilterAttribute(self._bgmState, attr, value)
 end
 
 function MapAudio:setBgsFilter(attr, value)
-    MapAudioState.SetFilterAttribute(self._bgsState.music, attr, value)
+    MapAudioState.SetFilterAttribute(self._bgsState, attr, value)
 end
 
 function MapAudio:playMapAudio(mapData, transitionSeconds)
