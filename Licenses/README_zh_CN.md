@@ -10,7 +10,7 @@ Ludork 使用 [Zlib 许可证](../LICENSE.md)；第三方组件和资产适用�
 |---|---|
 | `DotNet`、`DotNetPackages`、`Avalonia`、`EditorPackages` | 编辑器和托管运行时声明 |
 | `ScriptTools` | 随附的 CPython、Nuitka runtime、OpenSSL、Pillow 及其所含组件声明 |
-| `Lua`、`LuaSF`、`SFML`、`LuaGlue`、`lua-cjson`、`zlib`、`NativeDependencies` | 模板公共运行时声明 |
+| `Lua`、`LuaSF`、`SFML`、`LuaGlue`、`lua-cjson`、`zlib`、`IXWebSocket`、`NativeDependencies` | 模板公共运行时声明 |
 | `FFmpeg` | 可选视频运行时声明 |
 | `GNUMake`、`MicrosoftVisualCppRuntime` | 编辑器及外部再分发条款，不进入模板 |
 | `HarmonyOSSans`、`SampleMusic` | 资产声明；模板副本留在资产旁 |

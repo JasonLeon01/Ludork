@@ -57,7 +57,6 @@ ServerErrorCode errorCode(const std::string& code) {
     static const std::unordered_map<std::string, ServerErrorCode> codes{
         {"InvalidArgument", ServerErrorCode::InvalidArgument},
         {"AuthenticationFailed", ServerErrorCode::AuthenticationFailed},
-        {"InvalidWriteToken", ServerErrorCode::InvalidWriteToken},
         {"Timeout", ServerErrorCode::Timeout},
         {"ConnectionFailed", ServerErrorCode::ConnectionFailed},
         {"InvalidResponse", ServerErrorCode::InvalidResponse},
@@ -195,13 +194,6 @@ ServerHttpTransportImpl::Headers ServerHttpTransportImpl::parseHeaders(
             }
             transferSeen = true;
             result.chunked = true;
-        } else if (name == "retry-after") {
-            const auto seconds = number(value);
-            if (result.retryAfterSeconds || seconds == 0 ||
-                seconds > 9007199254740991ULL) {
-                throw std::runtime_error("Invalid Retry-After header.");
-            }
-            result.retryAfterSeconds = static_cast<std::int64_t>(seconds);
         } else if (name == "content-encoding" && lower(value) != "identity") {
             throw std::runtime_error("Unsupported HTTP content encoding.");
         }
@@ -354,7 +346,6 @@ std::optional<std::string> ServerHttpTransportImpl::receive() {
                 }
                 headers = parseHeaders(std::string_view(bytes).substr(0, end));
                 status_ = headers->status;
-                retryAfterSeconds_ = headers->retryAfterSeconds;
                 bodyStart = end + 4;
             } else if (bytes.size() > MaxHeaderSize) {
                 throw std::runtime_error("HTTP headers are too large.");
@@ -410,15 +401,7 @@ Response ServerHttpTransportImpl::perform() {
                         " HTTP/1.1\r\nHost: " + endpoint.authority +
                         "\r\nConnection: close\r\nAccept: "
                         "application/json\r\nAccept-Encoding: identity\r\n";
-    if (!request.bearer.empty()) {
-        bytes += "Authorization: Bearer " + request.bearer + "\r\n";
-    } else if (!request.health) {
-        bytes +=
-            "X-Ludork-Key: " + std::string(ludork::generated::server::Key) +
-            "\r\n";
-    }
-    bytes += "Content-Type: application/json\r\nContent-Length: " +
-             std::to_string(request.body.size()) + "\r\n\r\n" + request.body;
+    bytes += "Content-Length: 0\r\n\r\n";
     if (!send(bytes)) {
         return failure(ServerErrorCode::ConnectionFailed,
                        "Could not send the server request.");
@@ -449,36 +432,6 @@ Response ServerHttpTransportImpl::perform() {
             }
             response.code = errorCode(*code->second.getIf<std::string>());
             response.message = *message->second.getIf<std::string>();
-            if (status_ == 429 ||
-                response.code == ServerErrorCode::RateLimited) {
-                if (status_ != 429 ||
-                    response.code != ServerErrorCode::RateLimited ||
-                    request.method != "PUT" ||
-                    !object->contains("retryAfterSeconds")) {
-                    throw std::runtime_error(
-                        "Invalid write rate-limit response.");
-                }
-                const auto& retry = object->at("retryAfterSeconds");
-                const auto* integer = retry.getIf<std::int64_t>();
-                const auto* decimal = retry.getIf<double>();
-                if (integer && *integer > 0 && *integer <= 9007199254740991LL) {
-                    response.retryAfterSeconds = *integer;
-                } else if (decimal && std::isfinite(*decimal) &&
-                           *decimal >= 1 && *decimal <= 9007199254740991.0 &&
-                           std::floor(*decimal) == *decimal) {
-                    response.retryAfterSeconds =
-                        static_cast<std::int64_t>(*decimal);
-                } else {
-                    throw std::runtime_error("Invalid write retry interval.");
-                }
-                if (response.retryAfterSeconds != retryAfterSeconds_) {
-                    throw std::runtime_error(
-                        "Inconsistent write retry interval.");
-                }
-            } else if (object->contains("retryAfterSeconds") ||
-                       retryAfterSeconds_) {
-                throw std::runtime_error("Unexpected write retry interval.");
-            }
         } else if (request.health) {
             const auto service = object->find("service");
             const auto project = object->find("project");

@@ -8,7 +8,6 @@ enum class ServerErrorCode {
     Disabled,
     InvalidArgument,
     AuthenticationFailed,
-    InvalidWriteToken,
     Timeout,
     ConnectionFailed,
     InvalidResponse,

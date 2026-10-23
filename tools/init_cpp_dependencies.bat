@@ -15,7 +15,7 @@ set "SFML_DIR=%CPP_DIR%\Engine\ThirdParty\SFML"
 set "LUA_DIR=%CPP_DIR%\Engine\ThirdParty\Lua"
 set "INIT_CPP_ROOT=%CD%"
 set "INIT_CPP_DIR=%CPP_DIR%"
-powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $cpp=$env:INIT_CPP_DIR; $root=$env:INIT_CPP_ROOT; $names=@('luasf','sfml','lua','lua_cjson','zlib','ffmpeg'); $ps=@(); foreach($name in $names){ $script=Join-Path $root ('tools\cpp_dependencies\' + $name + '.bat'); $psi=New-Object System.Diagnostics.ProcessStartInfo; $psi.FileName=$env:ComSpec; $psi.Arguments=('/c call ' + [char]34 + $script + [char]34 + ' ' + [char]34 + $cpp + [char]34); $psi.WorkingDirectory=$root; $psi.UseShellExecute=$false; $ps+=[Diagnostics.Process]::Start($psi) }; foreach($p in $ps){ $p.WaitForExit() }; $code=0; foreach($p in $ps){ if($p.ExitCode -ne 0){ $code=$p.ExitCode } }; exit $code"
+powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $cpp=$env:INIT_CPP_DIR; $root=$env:INIT_CPP_ROOT; $names=@('luasf','sfml','lua','lua_cjson','zlib','ixwebsocket','ffmpeg'); $ps=@(); foreach($name in $names){ $script=Join-Path $root ('tools\cpp_dependencies\' + $name + '.bat'); $psi=New-Object System.Diagnostics.ProcessStartInfo; $psi.FileName=$env:ComSpec; $psi.Arguments=('/c call ' + [char]34 + $script + [char]34 + ' ' + [char]34 + $cpp + [char]34); $psi.WorkingDirectory=$root; $psi.UseShellExecute=$false; $ps+=[Diagnostics.Process]::Start($psi) }; foreach($p in $ps){ $p.WaitForExit() }; $code=0; foreach($p in $ps){ if($p.ExitCode -ne 0){ $code=$p.ExitCode } }; exit $code"
 if errorlevel 1 (
     echo A C++ dependency download failed.
     exit /b %errorlevel%

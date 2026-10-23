@@ -14,7 +14,6 @@ public:
     ServerTransportImpl();
     ~ServerTransportImpl();
     void enqueue(const std::shared_ptr<PendingRequest>& pending);
-    std::shared_ptr<void> session() const;
 
 private:
     void run();
@@ -24,7 +23,6 @@ private:
     std::deque<std::shared_ptr<PendingRequest>> queue_;
     std::vector<std::shared_ptr<PendingRequest>> active_;
     std::vector<std::thread> threads_;
-    std::shared_ptr<void> session_ = std::make_shared<int>(0);
 };
 
 ServerTransportImpl& transport();

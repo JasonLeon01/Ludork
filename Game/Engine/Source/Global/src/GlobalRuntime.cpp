@@ -89,10 +89,10 @@ void shutdown(lua_State* state) noexcept {
         return;
     }
     unregisterEditorCommands(execution.state());
+    shutdownServer();
     ludork::standard::LuaExecutionPause pause;
     shutdownVideoPlayback();
     System::shutdownRuntime();
-    shutdownServer();
     PerformanceProfiler::shutdown();
     UIManager::shutdown();
     WeatherController::shutdown();

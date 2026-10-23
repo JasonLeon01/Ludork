@@ -49,6 +49,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "OHOS")
 endif()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/Engine/cmake/LudorkLuaSF.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/Engine/cmake/LudorkIXWebSocket.cmake")
 
 find_package(Threads REQUIRED)
 

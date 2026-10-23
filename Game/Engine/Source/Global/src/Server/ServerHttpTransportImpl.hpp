@@ -26,7 +26,6 @@ private:
         int status = 0;
         std::optional<std::size_t> length;
         bool chunked = false;
-        std::optional<std::int64_t> retryAfterSeconds;
     };
 
     static Endpoint parseEndpoint();
@@ -40,7 +39,6 @@ private:
     const PendingRequest& pending_;
     sf::TcpSocket socket_;
     int status_ = 0;
-    std::optional<std::int64_t> retryAfterSeconds_;
 };
 
 }  // namespace ludork::global::server_impl

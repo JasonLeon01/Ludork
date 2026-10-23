@@ -15,7 +15,7 @@ def archive(source: pathlib.Path, revision: str, output: pathlib.Path) -> pathli
         raise ValueError("The Server checkout does not match its resolved revision.")
     entries = subprocess.check_output(["git", "ls-tree", "-rz", revision], cwd=source).split(b"\0")
     paths = {}
-    excluded = {"node_modules", "data", "config", "logs", "dist", "coverage", ".vite", ".git"}
+    excluded = {"node_modules", "data", "config", "projects", "logs", "dist", "coverage", ".vite", ".git"}
     for entry in filter(None, entries):
         metadata, name = entry.split(b"\t", 1)
         mode, kind, _ = metadata.split()
@@ -26,7 +26,14 @@ def archive(source: pathlib.Path, revision: str, output: pathlib.Path) -> pathli
                 or path.suffix.lower() in {".log", ".tmp"}):
             raise ValueError(f"Non-source content is tracked in Server: {path}")
         paths[path.as_posix()] = int(mode, 8) & 0o777
-    required = {"package.json", "package-lock.json", "deploy.sh", "deploy.bat", "README.md"}
+    required = {
+        "package.json", "package-lock.json", "deploy.sh", "deploy.bat", "README.md",
+        "backend/lua-worker.ts", "backend/net-server.ts", "backend/wire.ts",
+        "lua/Framework/Codec.lua", "lua/Framework/Net.lua",
+        "lua/Modules/Storage.lua", "lua/templates/Main.lua",
+        "third-party/README.md", "third-party/wasmoon-LICENSE.txt",
+        "third-party/ws-LICENSE.txt", "third-party/lua-LICENSE.txt",
+    }
     if not required.issubset(paths) or not any(name.startswith("backend/") for name in paths) \
             or not any(name.startswith("frontend/") for name in paths):
         raise ValueError("The Server revision is missing required deployment sources.")

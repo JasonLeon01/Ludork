@@ -23,7 +23,7 @@ RUNTIME_LEGAL_FILES = (
 MOBILE_PROJECT_DIRECTORIES = (
     "Assets", "Engine/Source", "Engine/Runtime", "Data", "Application",
     "Engine/ThirdParty/LuaSF", "Engine/ThirdParty/lua-cjson", "Scripts",
-    "Engine/Standard", "Engine/ThirdParty/zlib",
+    "Engine/Standard", "Engine/ThirdParty/zlib", "Engine/ThirdParty/IXWebSocket",
     "Engine/ThirdParty/SFML", "Engine/ThirdParty/LuaGlue", "Engine/ThirdParty/Lua",
 )
 MOBILE_DEPENDENCY_NAMES = (

@@ -119,6 +119,7 @@ if not exist "%SOURCE_DIR%\Engine\ThirdParty\LuaGlue" set "MISSING_DEPENDENCIES=
 if not exist "%SOURCE_DIR%\Engine\ThirdParty\Lua" set "MISSING_DEPENDENCIES=1"
 if not exist "%SOURCE_DIR%\Engine\ThirdParty\lua-cjson" set "MISSING_DEPENDENCIES=1"
 if not exist "%SOURCE_DIR%\Engine\ThirdParty\zlib" set "MISSING_DEPENDENCIES=1"
+if not exist "%SOURCE_DIR%\Engine\ThirdParty\IXWebSocket" set "MISSING_DEPENDENCIES=1"
 if defined MISSING_DEPENDENCIES (
     echo Game dependencies were not found. Run tools\init.bat first.
     exit /b 1
@@ -333,7 +334,7 @@ mkdir "%LEGAL_TARGET%\Licenses"
 if errorlevel 1 exit /b 1
 "%SCRIPT_TOOLS%" legal-resources template-index "%ROOT_DIR%" "%LEGAL_TARGET%"
 if errorlevel 1 exit /b 1
-for %%D in (Lua LuaSF SFML LuaGlue lua-cjson zlib NativeDependencies) do (
+for %%D in (Lua LuaSF SFML LuaGlue lua-cjson zlib IXWebSocket NativeDependencies) do (
     robocopy "%LICENSES_DIR%\%%D" "%LEGAL_TARGET%\Licenses\%%D" /E /NFL /NDL /NJH /NJS /NP
     if errorlevel 8 exit /b 1
 )

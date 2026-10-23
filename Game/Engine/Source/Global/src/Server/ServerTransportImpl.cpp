@@ -68,10 +68,6 @@ void ServerTransportImpl::enqueue(
     wake_.notify_one();
 }
 
-std::shared_ptr<void> ServerTransportImpl::session() const {
-    return session_;
-}
-
 void ServerTransportImpl::run() {
     for (;;) {
         std::shared_ptr<PendingRequest> pending;

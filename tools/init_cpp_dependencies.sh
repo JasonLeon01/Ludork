@@ -39,6 +39,8 @@ sh "$DEPS_DIR/lua_cjson.sh" "$CPP_DIR" &
 CHILD_PIDS="$CHILD_PIDS $!"
 sh "$DEPS_DIR/zlib.sh" "$CPP_DIR" &
 CHILD_PIDS="$CHILD_PIDS $!"
+sh "$DEPS_DIR/ixwebsocket.sh" "$CPP_DIR" &
+CHILD_PIDS="$CHILD_PIDS $!"
 sh "$DEPS_DIR/ffmpeg.sh" "$CPP_DIR" &
 CHILD_PIDS="$CHILD_PIDS $!"
 

@@ -14,6 +14,7 @@ Ludork 软件本体适用 [`LICENSE.md`](LICENSE.md) 中的 Zlib 许可证。该
 | SFML | SFML-ME `310-ME-OH-GLESVER` 标签 | 图形、窗口、音频、系统与网络运行时 | Zlib/libpng | `Licenses/SFML/LICENSE.txt` | [JasonLeon01/SFML-ME](https://github.com/JasonLeon01/SFML-ME/releases/tag/310-ME-OH-GLESVER) |
 | lua-cjson | 源码发行版本 2.1.0.19；上游运行时常量报告为 2.1.0.11 | 链接到游戏运行时的 JSON 模块 | MIT | `Licenses/lua-cjson/LICENSE.txt` | [openresty/lua-cjson](https://github.com/openresty/lua-cjson) |
 | zlib | 1.3.1 | 游戏运行时压缩支持 | Zlib | `Licenses/zlib/LICENSE.txt` | [madler/zlib](https://github.com/madler/zlib) |
+| IXWebSocket | 12.1.0，commit `bf7ad53c02612643e1cf72e37c8749491798d33d` | 静态链接的 Ludork Server WebSocket 传输 | BSD 3-Clause；包含 MIT 和 Zlib 代码 | `Licenses/IXWebSocket/LICENSE.txt`、`Licenses/IXWebSocket/THIRD-PARTY.txt` | [machinezone/IXWebSocket](https://github.com/machinezone/IXWebSocket/releases/tag/v12.1.0) |
 | Microsoft.Web.WebView2 | 1.0.4191.47 | Windows 原生网页覆盖层；静态链接 SDK Loader，使用系统已有 Evergreen Runtime，不分发浏览器内核 | Microsoft Software License Terms | `Licenses/NativeDependencies/WebView2-LICENSE.txt` | [Microsoft NuGet](https://www.nuget.org/packages/Microsoft.Web.WebView2/1.0.4191.47) |
 | FreeType | 2.14.3 | 静态链接的 SFML 字体依赖 | FreeType License 或 GPLv2；Ludork 选用 FreeType License | `Licenses/NativeDependencies/FreeType-LICENSE.txt`、`Licenses/NativeDependencies/FreeType-FTL.txt` | [freetype/freetype](https://gitlab.freedesktop.org/freetype/freetype) |
 | HarfBuzz | 14.1.0 | 静态链接的 SFML 文本塑形依赖 | Old MIT | `Licenses/NativeDependencies/HarfBuzz-COPYING.txt` | [harfbuzz/harfbuzz](https://github.com/harfbuzz/harfbuzz) |

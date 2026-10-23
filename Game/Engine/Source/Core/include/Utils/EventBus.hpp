@@ -10,7 +10,7 @@
 using EventHandler = std::function<void(const RuntimeValue&)>;
 
 BIND_CLASS()
-class EventBus {
+class LUDORK_ENGINE_API EventBus {
 public:
     using Handler = EventHandler;
     using BlueprintEventValidator =

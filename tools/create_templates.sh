@@ -174,6 +174,7 @@ copy_runtime_legal_files() {
         LuaGlue \
         lua-cjson \
         zlib \
+        IXWebSocket \
         NativeDependencies; do
         mkdir -p "$template_dir/Licenses/$licence_directory"
         rsync -a --delete --exclude '.DS_Store' \
@@ -338,7 +339,7 @@ if [ ! -f "$SOURCE_DIR/CMakeLists.txt" ]; then
     echo "Game CMakeLists.txt was not found: $SOURCE_DIR" >&2
     exit 1
 fi
-for dependency_dir in LuaSF SFML LuaGlue Lua lua-cjson zlib; do
+for dependency_dir in LuaSF SFML LuaGlue Lua lua-cjson zlib IXWebSocket; do
     if [ ! -d "$SOURCE_DIR/Engine/ThirdParty/$dependency_dir" ]; then
         echo "Game dependency was not found: Engine/ThirdParty/$dependency_dir" >&2
         echo "Prepare the C++ dependencies before creating templates." >&2
@@ -354,6 +355,7 @@ for licence_path in \
     LuaGlue \
     lua-cjson \
     zlib \
+    IXWebSocket \
     NativeDependencies; do
     if [ ! -e "$LICENSES_DIR/$licence_path" ]; then
         echo "Required runtime licence source was not found: $LICENSES_DIR/$licence_path" >&2

@@ -15,8 +15,6 @@ namespace ludork::global::server_impl {
 struct Request {
     std::string method;
     std::string path;
-    std::string bearer;
-    std::string body;
     bool health = false;
 };
 
@@ -25,7 +23,6 @@ struct Response {
     std::string message;
     RuntimeData body;
     double roundTripMs = 0;
-    std::optional<std::int64_t> retryAfterSeconds;
 };
 
 struct PendingRequest {
@@ -38,7 +35,6 @@ struct PendingRequest {
     std::optional<Response> response;
 };
 
-std::string encodeSegment(const std::string& value);
 bool validIdentifier(const std::string& value);
 
 }  // namespace ludork::global::server_impl

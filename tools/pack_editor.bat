@@ -181,6 +181,7 @@ if "%WITHOUT_TEMPLATES%"=="0" (
         "%ROOT_DIR%\Game\Engine\ThirdParty\Lua"
         "%ROOT_DIR%\Game\Engine\ThirdParty\lua-cjson"
         "%ROOT_DIR%\Game\Engine\ThirdParty\zlib"
+        "%ROOT_DIR%\Game\Engine\ThirdParty\IXWebSocket"
     ) do (
         call :require_directory "%%~D"
         if errorlevel 1 exit /b 1
@@ -494,6 +495,8 @@ for %%F in (
     "LuaGlue\LICENSE"
     "lua-cjson\LICENSE.txt"
     "zlib\LICENSE.txt"
+    "IXWebSocket\LICENSE.txt"
+    "IXWebSocket\THIRD-PARTY.txt"
     "FFmpeg\COPYING.GPLv2.txt"
     "FFmpeg\COPYING.GPLv3.txt"
     "FFmpeg\COPYING.LGPLv2.1.txt"
@@ -637,6 +640,8 @@ for %%T in (%TEMPLATE_NAMES%) do (
         "LuaGlue\LICENSE"
         "lua-cjson\LICENSE.txt"
         "zlib\LICENSE.txt"
+        "IXWebSocket\LICENSE.txt"
+        "IXWebSocket\THIRD-PARTY.txt"
         "NativeDependencies\FLAC-COPYING.Xiph.txt"
         "NativeDependencies\FreeType-FTL.txt"
         "NativeDependencies\FreeType-LICENSE.txt"

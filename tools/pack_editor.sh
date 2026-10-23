@@ -855,6 +855,8 @@ validate_package() {
         LuaGlue/LICENSE \
         lua-cjson/LICENSE.txt \
         zlib/LICENSE.txt \
+        IXWebSocket/LICENSE.txt \
+        IXWebSocket/THIRD-PARTY.txt \
         FFmpeg/COPYING.GPLv2.txt \
         FFmpeg/COPYING.GPLv3.txt \
         FFmpeg/COPYING.LGPLv2.1.txt \
@@ -1026,6 +1028,8 @@ validate_package() {
             LuaGlue/LICENSE \
             lua-cjson/LICENSE.txt \
             zlib/LICENSE.txt \
+            IXWebSocket/LICENSE.txt \
+            IXWebSocket/THIRD-PARTY.txt \
             NativeDependencies/FLAC-COPYING.Xiph.txt \
             NativeDependencies/FreeType-FTL.txt \
             NativeDependencies/FreeType-LICENSE.txt \
@@ -1222,6 +1226,7 @@ if [ "$WITHOUT_TEMPLATES" -eq 0 ]; then
     require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/Lua"
     require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/lua-cjson"
     require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/zlib"
+    require_directory "$PROJECT_ROOT/Game/Engine/ThirdParty/IXWebSocket"
     require_file "$PROJECT_ROOT/Game/Engine/ThirdParty/ffmpeg/configure"
     require_file "$FFMPEG_SOURCE_ARCHIVE"
 fi

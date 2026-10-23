@@ -47,6 +47,7 @@ target_link_libraries(GlobalCore
         SFML::Network
     PRIVATE
         Ludork::Video
+        ixwebsocket::ixwebsocket
         LuaSF::LuaSF
         LuaSF::Lua)
 if(WIN32)
