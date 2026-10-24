@@ -4,6 +4,9 @@ local GlobalFunctions = require("GlobalFunctions")
 local Operations = {}
 
 function Operations.Fetch(moduleName, params, transform, callback, after)
+    if not GlobalCore.NetTransport.CheckAvailable() then
+        return nil
+    end
     assert(Class.isInstance(callback, "function"), "Net completion callback must be a function")
     GlobalFunctions.NodeGraph.initLatent()
     return GlobalCore.NetTransport.GetSnapshotAsync(moduleName, params, function (response)

@@ -15,17 +15,25 @@ function NetProxy:GetValue(key)
 end
 
 function NetProxy:Sync(callback)
+    if not GlobalCore.NetTransport.CheckAvailable() then
+        return nil
+    end
     assert(Class.isInstance(callback, "function"), "Net completion callback must be a function")
     local operation
-    operation = Operations.Fetch(self._moduleName, self._params, function(snapshot)
-        self._snapshot = snapshot
-        return self
-    end, function(result)
-        if self._lastOperation == operation then
-            self._lastOperation = nil
-        end
-        callback(result)
-    end, self._lastOperation)
+    operation = Operations.Fetch(
+        self._moduleName, self._params,
+        function (snapshot)
+            self._snapshot = snapshot
+            return self
+        end,
+        function (result)
+            if self._lastOperation == operation then
+                self._lastOperation = nil
+            end
+            callback(result)
+        end,
+        self._lastOperation
+    )
     self._lastOperation = operation
     return operation
 end

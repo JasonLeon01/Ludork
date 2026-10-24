@@ -13,7 +13,9 @@ public:
 
     /// Probe the configured service. Normal is at most 300 ms, Weak at most
     /// 3000 ms, and Disconnected means no valid health response in that time.
-    BIND_METHOD(nonnull_return = true)
+    /// When disabled, log a diagnostic and return null without invoking the
+    /// callback.
+    BIND_METHOD()
     static std::shared_ptr<AsyncOperation> CheckConnectionAsync(
         ConnectionCallback onCompleted);
 };

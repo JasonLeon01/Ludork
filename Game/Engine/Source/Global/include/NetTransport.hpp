@@ -16,8 +16,13 @@ public:
     using Transform =
         ludork::runtime::StrictFunction<RuntimeIdentityPtr(RuntimeIdentityPtr)>;
 
-    BIND_METHOD(metadata = false, nonnull_return = true, defaults = {nil},
-                allow_nil = "params")
+    /// Log a diagnostic and return false when server integration is disabled.
+    BIND_METHOD(metadata = false)
+    static bool CheckAvailable();
+
+    /// Return null without invoking callbacks when server integration is
+    /// disabled.
+    BIND_METHOD(metadata = false, defaults = {nil}, allow_nil = "params")
     static std::shared_ptr<AsyncOperation> GetSnapshotAsync(
         const std::string& module, const RuntimeIdentityPtr& params,
         Transform transform, Callback onCompleted,

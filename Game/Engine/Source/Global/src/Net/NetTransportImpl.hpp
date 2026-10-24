@@ -96,8 +96,6 @@ private:
 
 #if defined(LUDORK_SERVER_AVAILABLE)
     std::unique_ptr<ix::WebSocket> socket_;
-#else
-    std::vector<std::string> disabledModules_;
 #endif
     std::shared_ptr<AsyncOperation> polling_;
     std::unordered_map<std::string, std::unique_ptr<EventBus>> buses_;

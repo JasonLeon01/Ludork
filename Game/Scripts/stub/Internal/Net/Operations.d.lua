@@ -14,7 +14,7 @@ local Operations = {}
 ---@param transform  fun(snapshot: table<Global.Net.Key, Global.Net.Value>): Global.NetProxy
 ---@param callback   fun(result: Global.Net.Result<Global.NetProxy>)
 ---@param after      Engine.AsyncOperation | nil
----@return Engine.AsyncOperation
+---@return Engine.AsyncOperation | nil
 function Operations.Fetch(moduleName, params, transform, callback, after) end
 
 return Operations

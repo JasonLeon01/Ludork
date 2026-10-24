@@ -250,10 +250,6 @@ bool NetTransportImpl::enqueue(const std::shared_ptr<Pending>& pending,
         pending->errorCode = "QueueFull";
         pending->errorMessage = "The network request queue is full.";
     }
-#if !defined(LUDORK_SERVER_AVAILABLE)
-    pending->errorCode = "Disabled";
-    pending->errorMessage = "Ludork Server is disabled for this project.";
-#endif
     if (!pending->errorCode.empty()) {
         return false;
     }
@@ -325,12 +321,6 @@ std::size_t NetTransportImpl::subscribe(const std::string& module,
             callback(ludork::runtime::reference::intern(value).identity());
         });
     ensureStarted();
-#if !defined(LUDORK_SERVER_AVAILABLE)
-    if (std::find(disabledModules_.begin(), disabledModules_.end(), module) ==
-        disabledModules_.end()) {
-        disabledModules_.push_back(module);
-    }
-#endif
     return token;
 }
 
@@ -663,16 +653,6 @@ void NetTransportImpl::poll() {
     }
     if (!socket_ && !authenticationFailed_ && Clock::now() >= reconnectAt_) {
         startConnection();
-    }
-#else
-    const std::vector<std::string> disabled =
-        std::exchange(disabledModules_, {});
-    for (const std::string& module : disabled) {
-        captureFailure(failure, [&] {
-            emitError(module, {},
-                      result(false, "Disabled",
-                             "Ludork Server is disabled for this project."));
-        });
     }
 #endif
     captureFailure(failure, [this] {

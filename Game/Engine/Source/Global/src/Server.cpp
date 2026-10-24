@@ -12,6 +12,9 @@
 
 std::shared_ptr<AsyncOperation> Server::CheckConnectionAsync(
     ConnectionCallback onCompleted) {
+    if (!NetTransport::CheckAvailable()) {
+        return {};
+    }
     if (!onCompleted) {
         throw std::invalid_argument(
             "Server operation requires a completion callback.");
@@ -21,11 +24,6 @@ std::shared_ptr<AsyncOperation> Server::CheckConnectionAsync(
     pending->request = {"GET", "/health"};
     pending->request.health = true;
     pending->deadline = pending->started + std::chrono::seconds(3);
-#if !defined(LUDORK_SERVER_AVAILABLE)
-    pending->response = ludork::global::server_impl::Response{
-        ServerErrorCode::Disabled,
-        "Ludork Server is disabled for this project."};
-#endif
     const auto operation = AsyncOperation::create(
         [pending, callback = std::move(onCompleted)](AsyncOperation& current) {
             std::optional<ludork::global::server_impl::Response> response;
@@ -68,15 +66,15 @@ std::shared_ptr<AsyncOperation> Server::CheckConnectionAsync(
 namespace ludork::global {
 
 void initializeServer() {
-    initializeNetTransport();
 #if defined(LUDORK_SERVER_AVAILABLE)
+    initializeNetTransport();
     server_impl::initializeTransport();
 #endif
 }
 
 void shutdownServer() noexcept {
-    shutdownNetTransport();
 #if defined(LUDORK_SERVER_AVAILABLE)
+    shutdownNetTransport();
     server_impl::shutdownTransport();
 #endif
 }

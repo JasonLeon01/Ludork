@@ -17,11 +17,17 @@ function Net.DefineModule(name, proxyClass)
     local module = {}
 
     function module.CallRpcFunction(functionName, ...)
+        if not GlobalCore.NetTransport.CheckAvailable() then
+            return
+        end
         GlobalFunctions.NodeGraph.initLatent()
         GlobalCore.NetTransport.CallRpcFunction(name, functionName, table.pack(...))
     end
 
     function module.Subscribe(eventName, handler)
+        if not GlobalCore.NetTransport.CheckAvailable() then
+            return 0
+        end
         assert(Class.isInstance(handler, "function"), "Net event handler must be a function")
         GlobalFunctions.NodeGraph.initLatent()
         return GlobalCore.NetTransport.Subscribe(name, eventName, function (arguments)
@@ -30,12 +36,18 @@ function Net.DefineModule(name, proxyClass)
     end
 
     function module.SubscribeError(handler)
+        if not GlobalCore.NetTransport.CheckAvailable() then
+            return 0
+        end
         assert(Class.isInstance(handler, "function"), "Net error handler must be a function")
         GlobalFunctions.NodeGraph.initLatent()
         return GlobalCore.NetTransport.SubscribeError(name, handler)
     end
 
     function module.Unsubscribe(token)
+        if not GlobalCore.NetTransport.CheckAvailable() then
+            return false
+        end
         return GlobalCore.NetTransport.Unsubscribe(name, token)
     end
 
@@ -43,6 +55,9 @@ function Net.DefineModule(name, proxyClass)
 end
 
 function Net.GetProxy(moduleName, params, callback)
+    if not GlobalCore.NetTransport.CheckAvailable() then
+        return nil
+    end
     local proxyClass = assert(proxyClasses[moduleName], "Net module is not defined: " .. moduleName)
     local requestParams = GlobalCore.NetTransport.CloneValue(params)
     return Operations.Fetch(moduleName, requestParams, function (snapshot)
