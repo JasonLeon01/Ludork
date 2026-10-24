@@ -1,15 +1,17 @@
 #include <Application.hpp>
 
 #include "ApplicationPaths.hpp"
-#include "ApplicationPlatform.hpp"
 #include "ApplicationRuntime.hpp"
+#include "ApplicationStartupError.hpp"
 
+#include <ApplicationPlatform.hpp>
 #include <GlobalRuntimeApi.hpp>
 #include <Runtime/AssetStore.hpp>
 #include <Runtime/DataStore.hpp>
 #include <Runtime/ScriptStore.hpp>
 #include <SystemServices.hpp>
 
+#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <stdexcept>
@@ -39,8 +41,13 @@ bool parseRuntimeLaunchOptions(ludork::global::RuntimeLaunchOptions& options,
     if (options.windowMode != ludork::global::RuntimeWindowMode::Embedded) {
         return true;
     }
-    return ludork::application::detail::configureEmbeddedHostWindow(options,
-                                                                    error);
+    std::uintptr_t hostWindowHandle = 0;
+    if (!ludork::application::detail::resolveEmbeddedHostWindow(
+            hostWindowHandle, error)) {
+        return false;
+    }
+    options.hostWindowHandle = hostWindowHandle;
+    return true;
 }
 
 }  // namespace

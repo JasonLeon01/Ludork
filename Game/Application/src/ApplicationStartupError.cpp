@@ -1,4 +1,6 @@
-#include "ApplicationPlatform.hpp"
+#include "ApplicationStartupError.hpp"
+
+#include <ApplicationPlatform.hpp>
 
 #include <cstdio>
 #include <filesystem>

@@ -21,11 +21,14 @@ void AudioEffectControl::finishTail() noexcept {
 }
 
 void AudioEffectControl::attachLuaProcessor(sf::SoundSource& source,
-                                            const std::string& name,
+                                            const std::string& moduleName,
+                                            const std::string& resolverName,
+                                            const std::string& effectName,
                                             std::uint32_t sampleRate) {
     source.setEffectProcessor(
         ludork::global::audio::createLuaAudioEffectProcessor(
-            name, shared_from_this(), sampleRate));
+            moduleName, resolverName, effectName, shared_from_this(),
+            sampleRate));
 }
 
 void AudioEffectControl::cancel() noexcept {

@@ -58,13 +58,15 @@ std::string packagePathFrom(lua_State* state) {
 }  // namespace
 
 LuaAudioEffectProcessorImpl::LuaAudioEffectProcessorImpl(
-    const std::string& name, const std::shared_ptr<AudioEffectControl>& control,
+    const std::string& moduleName, const std::string& resolverName,
+    const std::string& effectName,
+    const std::shared_ptr<AudioEffectControl>& control,
     std::uint32_t sampleRate, const std::string& packagePath)
     : processor_(ludork::runtime::AudioProcessorOptions{
           packagePath,
-          "Source.Utils.AudioEffects",
-          "Get",
-          name,
+          moduleName,
+          resolverName,
+          effectName,
           {[control] {
                return control->isCancelled();
            },
@@ -118,7 +120,9 @@ void shutdownAudioEffectLuaRuntime() noexcept {
 }
 
 sf::SoundSource::EffectProcessor createLuaAudioEffectProcessor(
-    const std::string& name, const std::shared_ptr<AudioEffectControl>& control,
+    const std::string& moduleName, const std::string& resolverName,
+    const std::string& effectName,
+    const std::shared_ptr<AudioEffectControl>& control,
     std::uint32_t sampleRate) {
     if (control == nullptr) {
         throw std::invalid_argument("Audio effect control is missing");
@@ -133,8 +137,9 @@ sf::SoundSource::EffectProcessor createLuaAudioEffectProcessor(
         packagePath = runtimePackagePath;
     }
     const std::shared_ptr<LuaAudioEffectProcessorImpl> processor =
-        std::make_shared<LuaAudioEffectProcessorImpl>(name, control, sampleRate,
-                                                      packagePath);
+        std::make_shared<LuaAudioEffectProcessorImpl>(moduleName, resolverName,
+                                                      effectName, control,
+                                                      sampleRate, packagePath);
     {
         const std::lock_guard<std::mutex> lock(runtimeMutex);
         if (!runtimeInitialized) {

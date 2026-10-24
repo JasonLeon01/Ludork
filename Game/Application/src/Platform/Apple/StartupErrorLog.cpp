@@ -1,4 +1,4 @@
-#include "ApplicationPlatform.hpp"
+#include <ApplicationPlatform.hpp>
 
 #include <cstdlib>
 #include <filesystem>

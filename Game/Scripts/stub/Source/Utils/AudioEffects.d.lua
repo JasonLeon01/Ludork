@@ -7,10 +7,10 @@ local AudioEffects = {}
 
 ---@brief Resolve an audio-effect name for future per-source attachment.
 ---
---- Each attacher delegates to the native control, which creates an isolated Lua
---- state and installs exactly one fresh processor for that source. Processor
---- state is therefore never shared between sources. Missing or duplicate
---- processor installation fails synchronously.
+--- Each attacher supplies this module's path and `Get` resolver to the native
+--- control, which creates an isolated Lua state and installs exactly one fresh
+--- processor for that source. Processor state is therefore never shared between
+--- sources. Missing or duplicate processor installation fails synchronously.
 --- The literal string `nil` returns nil and clears the selected Manager category.
 --- An unknown name raises an error immediately.
 ---@param name string

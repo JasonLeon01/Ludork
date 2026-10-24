@@ -1,6 +1,6 @@
 #include "ApplicationRuntime.hpp"
 
-#include "ApplicationPlatform.hpp"
+#include "ApplicationStartupError.hpp"
 
 #include <EngineLifecycle.hpp>
 #include <GlobalRuntimeApi.hpp>

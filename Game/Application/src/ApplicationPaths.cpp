@@ -1,8 +1,9 @@
 #include <Application.hpp>
+#include <ApplicationPlatform.hpp>
 #include <LudorkGenerated/ResourceFileConstants.hpp>
 
 #include "ApplicationPaths.hpp"
-#include "ApplicationPlatform.hpp"
+#include "ApplicationStartupError.hpp"
 
 #include <filesystem>
 #include <stdexcept>

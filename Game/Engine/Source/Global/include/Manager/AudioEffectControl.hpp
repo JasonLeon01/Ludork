@@ -35,7 +35,10 @@ public:
     void finishTail() noexcept;
 
     BIND_METHOD(metadata = false)
-    void attachLuaProcessor(sf::SoundSource& source, const std::string& name,
+    void attachLuaProcessor(sf::SoundSource& source,
+                            const std::string& moduleName,
+                            const std::string& resolverName,
+                            const std::string& effectName,
                             std::uint32_t sampleRate);
 
     void cancel() noexcept;

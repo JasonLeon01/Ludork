@@ -495,7 +495,7 @@ function AudioEffects.Get(name)
         if source == nil then
             return factory(control, sampleRate)
         end
-        control:attachLuaProcessor(source, name, sampleRate)
+        control:attachLuaProcessor(source, "Source.Utils.AudioEffects", "Get", name, sampleRate)
     end
 end
 

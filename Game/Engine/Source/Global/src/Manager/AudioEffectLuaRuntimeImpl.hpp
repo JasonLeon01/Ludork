@@ -14,7 +14,8 @@ namespace ludork::global::audio {
 class LuaAudioEffectProcessorImpl final {
 public:
     LuaAudioEffectProcessorImpl(
-        const std::string& name,
+        const std::string& moduleName, const std::string& resolverName,
+        const std::string& effectName,
         const std::shared_ptr<AudioEffectControl>& control,
         std::uint32_t sampleRate, const std::string& packagePath);
     ~LuaAudioEffectProcessorImpl();

@@ -1,4 +1,4 @@
-#include "ApplicationPlatform.hpp"
+#include <ApplicationPlatform.hpp>
 
 #include <charconv>
 #include <cstdint>
@@ -10,8 +10,8 @@
 
 namespace ludork::application::detail {
 
-bool configureEmbeddedHostWindow(global::RuntimeLaunchOptions& options,
-                                 std::string& error) {
+bool resolveEmbeddedHostWindow(std::uintptr_t& hostWindowHandle,
+                               std::string& error) {
     const char* handle = std::getenv("LUDORK_WINDOW_HANDLE");
     const std::string_view handleValue = handle == nullptr ? "" : handle;
     if (handleValue.empty()) {
@@ -33,7 +33,7 @@ bool configureEmbeddedHostWindow(global::RuntimeLaunchOptions& options,
         error = "LUDORK_WINDOW_HANDLE does not identify a valid window.";
         return false;
     }
-    options.hostWindowHandle = parsedHandle;
+    hostWindowHandle = parsedHandle;
     return true;
 }
 

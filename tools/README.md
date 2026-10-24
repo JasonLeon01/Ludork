@@ -347,7 +347,7 @@ Validate host-to-implementation dependencies with:
 .tools\ScriptTools\ScriptTools.exe impl-boundary-check Game
 ```
 
-The checker discovers same-name C++ host/directory and Lua host/module pairs, excluding Lua children with their own mirrored declarations. It reports reverse dependencies, host definitions in implementation folders, Lua partial-class/mixin reuse and Standard ClassRuntime layer violations. CMake exposes `ImplBoundaryValidate`.
+The checker discovers same-name C++ host/directory and Lua host/module pairs, excluding Lua children with their own mirrored declarations. It reports reverse dependencies, host definitions in implementation folders, Lua partial-class/mixin reuse and Standard ClassRuntime layer violations. Private-header checks cover both Engine and Application, including parent headers reached through include roots. First-party Engine C++ must not embed `Source.*` project Lua module paths or refer to those types in binding annotations; this check covers static strings and does not trace dynamically constructed paths. CMake exposes `ImplBoundaryValidate`.
 
 ### Material export
 

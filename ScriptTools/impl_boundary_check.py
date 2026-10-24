@@ -4,7 +4,14 @@ import argparse
 import pathlib
 import posixpath
 import re
+import sys
 from dataclasses import dataclass
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
+
+from ScriptTools.core_bindgen.annotations import macro_invocations, parse_macro_options
+from ScriptTools.core_bindgen.scopes import code_mask
 
 
 class ImplBoundaryError(RuntimeError):
@@ -62,13 +69,132 @@ def _cpp_include_roots(project_root: pathlib.Path) -> list[pathlib.Path]:
         include_root = project_root / "Engine" / module / "include"
         if include_root.is_dir():
             roots.append(include_root)
+    application = project_root / "Application" / "include"
+    if application.is_dir():
+        roots.append(application)
     return roots
 
 
 def _cpp_private_roots(project_root: pathlib.Path) -> list[pathlib.Path]:
     roots = sorted((project_root / "Engine" / "Source").glob("*/src"))
     roots.extend(project_root / "Engine" / module / "src" for module in ("Runtime", "Standard"))
+    roots.append(project_root / "Application" / "src")
     return [root.resolve() for root in roots if root.is_dir()]
+
+
+def _cpp_string_value(value: str) -> str:
+    escapes = {
+        "a": "\a", "b": "\b", "f": "\f", "n": "\n", "r": "\r",
+        "t": "\t", "v": "\v", "\\": "\\", "'": "'", '"': '"', "?": "?",
+    }
+
+    def decode(match: re.Match[str]) -> str:
+        escape = match[0][1:]
+        if escape in {"\n", "\r\n"}:
+            return ""
+        if escape in escapes:
+            return escapes[escape]
+        if escape[0] in "xuU01234567":
+            number = int(escape[1:], 16) if escape[0] in "xuU" else int(escape, 8)
+            return chr(number) if number <= 0x10FFFF else match[0]
+        return match[0]
+
+    return re.sub(
+        r"\\(?:\r?\n|[0-7]{1,3}|x[0-9a-fA-F]+|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}|.)",
+        decode,
+        value,
+    )
+
+
+def _cpp_strings_and_comments(text: str) -> tuple[str, list[tuple[int, str]]]:
+    characters: list[str] = []
+    positions: list[int] = []
+    offset = 0
+    for splice in re.finditer(r"\\\r?\n", text):
+        characters.extend(text[offset:splice.start()])
+        positions.extend(range(offset, splice.start()))
+        offset = splice.end()
+    characters.extend(text[offset:])
+    positions.extend(range(offset, len(text)))
+    spliced = "".join(characters)
+    tokens = re.compile(
+        r'(?P<comment>//[^\n]*|/\*.*?\*/)|'
+        r'(?:u8|u|U|L)?R"(?P<delimiter>[^\s()\\]{0,16})\((?P<raw>.*?)\)(?P=delimiter)"|'
+        r'(?:u8|u|U|L)?"(?P<string>(?:\\.|[^"\\])*)"|'
+        r"(?:u8|u|U|L)?'(?:\\.|[^'\\])*'",
+        re.DOTALL,
+    )
+    uncommented = list(text)
+    strings: list[tuple[int, str]] = []
+    previous_end = 0
+    for match in tokens.finditer(spliced):
+        start = positions[match.start()]
+        end = positions[match.end() - 1] + 1
+        if match["comment"] is not None:
+            uncommented[start:end] = [
+                "\n" if char == "\n" else " " for char in text[start:end]
+            ]
+            continue
+        if match["raw"] is None and match["string"] is None:
+            continue
+        if match["raw"] is not None:
+            literal = text[start:end]
+            value = literal[literal.find("(") + 1:-(len(match["delimiter"]) + 2)]
+        else:
+            value = _cpp_string_value(match["string"])
+        gap = "".join(uncommented[previous_end:start])
+        if strings and not re.sub(r"\\\r?\n", "", gap).strip():
+            previous_start, previous = strings[-1]
+            strings[-1] = (previous_start, previous + value)
+        else:
+            strings.append((start, value))
+        previous_end = end
+    return "".join(uncommented), strings
+
+
+def _check_project_lua_dependencies(project_root: pathlib.Path) -> list[str]:
+    module_path = re.compile(r"(?<![\w.])Source(?:\.[A-Za-z_]\w*)+(?![\w.])")
+    type_options = {
+        "type", "parameter_types", "lua_return_type", "metadata_type",
+        "metadata_parameters", "metadata_returns", "returns",
+    }
+    diagnostics: list[str] = []
+    for root in _cpp_source_roots(project_root):
+        for path in _cpp_files(root):
+            text = path.read_text(encoding="utf-8")
+            uncommented, strings = _cpp_strings_and_comments(text)
+            reported: list[tuple[int, str]] = []
+            for position, value in strings:
+                if module_path.fullmatch(value):
+                    reported.append((position, value))
+                    diagnostics.append(_diagnostic(
+                        path, text, position,
+                        f"native engine must not depend on project Lua module or type {value}",
+                    ))
+            kinds = tuple(dict.fromkeys(re.findall(r"\bBIND_(\w+)\s*\(", code_mask(uncommented))))
+            if not kinds:
+                continue
+            for annotation in macro_invocations(uncommented, kinds):
+                options = parse_macro_options(annotation.arguments)
+                references: set[str] = set()
+                for key, value in options.items():
+                    if key not in type_options:
+                        continue
+                    _, type_strings = _cpp_strings_and_comments(value)
+                    for type_text in (code_mask(value), *(item[1] for item in type_strings)):
+                        references.update(match[0] for match in module_path.finditer(type_text))
+                argument_start = uncommented.find("(", annotation.start) + 1
+                for reference in sorted(references):
+                    if any(annotation.start <= position < annotation.end and value == reference
+                           for position, value in reported):
+                        continue
+                    offset = annotation.arguments.find(reference)
+                    position = argument_start + offset if offset >= 0 else annotation.start
+                    diagnostics.append(_diagnostic(
+                        path, text, position,
+                        f"native binding must not depend on project Lua type {reference}",
+                    ))
+    return diagnostics
 
 
 def _cpp_includes(text: str) -> list[tuple[int, str, bool]]:
@@ -622,6 +748,7 @@ def verify_impl_boundaries(project_root: pathlib.Path) -> None:
     cpp = _discover_cpp_boundaries(root)
     lua = _discover_lua_boundaries(root)
     diagnostics = _check_private_includes(root)
+    diagnostics.extend(_check_project_lua_dependencies(root))
     diagnostics.extend(_check_core_glue(root))
     diagnostics.extend(_check_standard_layers(root))
     for boundary in cpp:

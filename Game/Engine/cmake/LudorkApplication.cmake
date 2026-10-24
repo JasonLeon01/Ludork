@@ -45,16 +45,17 @@ set(LUDORK_APPLICATION_SOURCES
     "${LUDORK_APPLICATION_ROOT}/src/Application.cpp"
     "${LUDORK_APPLICATION_ROOT}/src/ApplicationPaths.cpp"
     "${LUDORK_APPLICATION_ROOT}/src/ApplicationPaths.hpp"
-    "${LUDORK_APPLICATION_ROOT}/src/ApplicationPlatform.hpp"
     "${LUDORK_APPLICATION_ROOT}/src/ApplicationRuntime.cpp"
     "${LUDORK_APPLICATION_ROOT}/src/ApplicationRuntime.hpp"
     "${LUDORK_APPLICATION_ROOT}/src/ApplicationScript.cpp"
     "${LUDORK_APPLICATION_ROOT}/src/ApplicationStartupError.cpp"
+    "${LUDORK_APPLICATION_ROOT}/src/ApplicationStartupError.hpp"
     "${LUDORK_APPLICATION_ROOT}/src/main.cpp"
     "${LUDORK_APPLICATION_ROOT}/src/Platform/Main.hpp"
     "${LUDORK_APPLICATION_ROOT}/src/Platform/MainAndroid.hpp"
     "${LUDORK_APPLICATION_ROOT}/src/Platform/MainDefault.hpp"
-    "${LUDORK_APPLICATION_ROOT}/src/Platform/MainIOS.hpp")
+    "${LUDORK_APPLICATION_ROOT}/src/Platform/MainIOS.hpp"
+    "${LUDORK_APPLICATION_ROOT}/src/Platform/include/ApplicationPlatform.hpp")
 
 if(LUDORK_STATIC_LUA_MODULES)
     list(APPEND LUDORK_APPLICATION_SOURCES
@@ -121,7 +122,7 @@ endif()
 target_compile_features(${LUDORK_APPLICATION_TARGET} PRIVATE cxx_std_20)
 target_include_directories(${LUDORK_APPLICATION_TARGET} PRIVATE
     "${LUDORK_APPLICATION_ROOT}/include"
-    "${LUDORK_APPLICATION_ROOT}/src")
+    "${LUDORK_APPLICATION_ROOT}/src/Platform/include")
 target_link_libraries(${LUDORK_APPLICATION_TARGET} PRIVATE
     LuaSF::LuaSF
     LuaSF::Lua

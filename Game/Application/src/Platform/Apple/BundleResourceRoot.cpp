@@ -1,4 +1,4 @@
-#include "ApplicationPlatform.hpp"
+#include <ApplicationPlatform.hpp>
 
 #include <CoreFoundation/CoreFoundation.h>
 
