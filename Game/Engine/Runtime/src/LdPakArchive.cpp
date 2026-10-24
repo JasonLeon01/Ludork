@@ -1,6 +1,7 @@
 #include "LdPakArchive.hpp"
 #include "LdPakArchiveImpl.hpp"
 #include "LdPakEntryReader.hpp"
+#include "ResourceFileInfo.hpp"
 #include "ResourceStorePaths.hpp"
 #include <LudorkGenerated/LdPakFormatConstants.hpp>
 #include <LudorkGenerated/ResourceFileConstants.hpp>
@@ -11,7 +12,6 @@
 
 #include <algorithm>
 #include <array>
-#include <chrono>
 #include <cstring>
 #include <fstream>
 #include <limits>
@@ -140,41 +140,6 @@ void validateGroup(const std::string& group) {
     }
 }
 
-double modificationTime(const std::filesystem::path& path) {
-    std::error_code error;
-    const std::filesystem::file_time_type writeTime =
-        std::filesystem::last_write_time(path, error);
-    if (error) {
-        throw std::runtime_error("Failed to read LDPak modification time: " +
-                                 error.message());
-    }
-    struct ClockCalibration {
-        std::filesystem::file_time_type fileTime;
-        std::chrono::system_clock::time_point systemTime;
-    };
-    static const ClockCalibration calibration{
-        std::filesystem::file_time_type::clock::now(),
-        std::chrono::system_clock::now()};
-    const std::chrono::system_clock::time_point systemTime =
-        calibration.systemTime +
-        std::chrono::duration_cast<std::chrono::system_clock::duration>(
-            writeTime - calibration.fileTime);
-    return std::chrono::duration<double>(systemTime.time_since_epoch()).count();
-}
-
-std::uint64_t regularFileSize(const std::filesystem::path& path) {
-    std::error_code error;
-    const std::uintmax_t size = std::filesystem::file_size(path, error);
-    if (error) {
-        throw std::runtime_error("Failed to read LDPak file size: " +
-                                 error.message());
-    }
-    if (size > std::numeric_limits<std::uint64_t>::max()) {
-        throw std::runtime_error("LDPak file is too large");
-    }
-    return static_cast<std::uint64_t>(size);
-}
-
 void readExact(std::ifstream& stream, void* target, std::size_t size,
                const std::string& description) {
     if (size == 0) {
@@ -245,7 +210,8 @@ LdPakArchive::LdPakArchive(const std::filesystem::path& path)
                                  ludork::standard::pathToUtf8(path));
     }
 
-    const std::uint64_t fileSize = regularFileSize(path);
+    const std::uint64_t fileSize = ludork::runtime::detail::resourceFileSize(
+        path, "Failed to read LDPak file size: ", "LDPak file is too large");
     if (fileSize < format::HeaderSize) {
         throw std::runtime_error("LDPak header is truncated: " +
                                  ludork::standard::pathToUtf8(path));
@@ -471,7 +437,8 @@ LdPakArchive::LdPakArchive(const std::filesystem::path& path)
 
     impl_->path = path;
     impl_->group = std::move(group);
-    impl_->modificationTime = ::modificationTime(path);
+    impl_->modificationTime = ludork::runtime::detail::resourceModificationTime(
+        path, "Failed to read LDPak modification time: ");
     impl_->entries = std::move(entries);
     for (std::size_t entryIndex = 0; entryIndex < impl_->entries.size();
          ++entryIndex) {

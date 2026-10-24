@@ -6,6 +6,7 @@
 #include <Runtime/RuntimeSession.hpp>
 
 #include <ClassServices.hpp>
+#include <LuaInvocation.hpp>
 #include <LudorkRuntimeBinding/DynamicValueCodec.hpp>
 
 #include <LuaGlue/LuaGlue.hpp>
@@ -195,7 +196,7 @@ RuntimeValue MetadataRuntimeFacade::constructTypedValue(
     lua_State* state = lua.lua_state();
     const int stackBase = lua_gettop(state);
     try {
-        const int resultCount = ludork::runtime::detail::invokeRuntimeFunction(
+        const int resultCount = ludork::standard::invokeLuaFunction(
             state, constructor, constructorArguments,
             "runtime constructor arguments");
         RuntimeValue result = resultCount == 0

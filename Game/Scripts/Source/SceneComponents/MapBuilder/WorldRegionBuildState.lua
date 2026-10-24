@@ -127,7 +127,7 @@ local function createWorldRegionBuildCoroutine(
     builder, worldData, region, data, inst, worldPath, addedActors, movedActors, priorityRect
 )
     return coroutine.create(function ()
-        builder:validateIncrementalMapData(data)
+        MapDataParser.ValidateMapData(data)
         validateWorldRegionData(worldData, region, data)
         local ambientLight = builder.BuildAmbientLight(data.ambientLight)
         local serializedActors = data.actors or {}
@@ -300,7 +300,7 @@ local function createWorldRegionBuildCoroutine(
         for _, layerName in ipairs(data.layerOrder) do
             actors[layerName] = {}
             for _, actorData in ipairs(serializedActors[layerName] or {}) do
-                local normalised = builder:normaliseActorData(actorData)
+                local normalised = MapDataParser.NormaliseActorData(actorData)
                 local rootTag = tostring(normalised.tag or "")
                 definitionTags[rootTag] = true
                 local movedRecord = movedActorsByTag[rootTag]

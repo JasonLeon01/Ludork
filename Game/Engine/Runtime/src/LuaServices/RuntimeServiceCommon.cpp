@@ -2,57 +2,17 @@
 #include <ClassRuntimeProtocol.hpp>
 
 #include <ClassServices.hpp>
-#include <LuaError.hpp>
 
 extern "C" {
 #include <lua.h>
 }
 
-#include <climits>
 #include <cstddef>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
 namespace ludork::runtime::detail {
-
-void ensureRuntimeLuaStack(lua_State* state, std::size_t count,
-                           const char* context) {
-    if (count > static_cast<std::size_t>(INT_MAX)) {
-        throw std::length_error(std::string(context) + " count overflow");
-    }
-    if (count != 0 && lua_checkstack(state, static_cast<int>(count)) == 0) {
-        throw std::runtime_error(std::string("Lua stack cannot grow for ") +
-                                 context);
-    }
-}
-
-int invokeRuntimeFunction(lua_State* state, const lua_glue::Object& callable,
-                          const std::vector<lua_glue::Object>& arguments,
-                          const char* context) {
-    const int stackBase = lua_gettop(state);
-    try {
-        if (arguments.size() > static_cast<std::size_t>(INT_MAX - 1)) {
-            throw std::length_error(std::string(context) + " count overflow");
-        }
-        ensureRuntimeLuaStack(state, arguments.size() + 1, context);
-        callable.push(state);
-        for (const lua_glue::Object& argument : arguments) {
-            argument.push(state);
-        }
-        const int status = ludork::standard::protectedLuaCall(
-            state, static_cast<int>(arguments.size()), LUA_MULTRET);
-        ensureRuntimeLuaStack(state, LUA_MINSTACK, "runtime function results");
-        if (status != LUA_OK) {
-            throw std::runtime_error(
-                ludork::standard::luaErrorMessage(state, -1));
-        }
-        return lua_gettop(state) - stackBase;
-    } catch (...) {
-        lua_settop(state, stackBase);
-        throw;
-    }
-}
 
 lua_glue::Object nilObject(lua_glue::StateView lua) {
     return lua_glue::MakeObject(lua, lua_glue::nil);

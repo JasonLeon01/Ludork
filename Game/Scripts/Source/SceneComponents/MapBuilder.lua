@@ -583,14 +583,6 @@ function SceneMapBuilder:createWorldTerrainOverrides(data, terrainDestructions, 
     return MapBuilderWorldTiles.CreateWorldTerrainOverrides(self, data, terrainDestructions, yieldStep)
 end
 
-function SceneMapBuilder:normaliseActorData(actorData)
-    return MapBuilderWorldTiles.NormaliseActorData(self, actorData)
-end
-
-function SceneMapBuilder:validateIncrementalMapData(data)
-    return MapBuilderWorldTiles.ValidateIncrementalMapData(self, data)
-end
-
 function SceneMapBuilder:writeWorldLayerDataChunk(layerState, chunk)
     return MapBuilderWorldTiles.WriteWorldLayerDataChunk(self, layerState, chunk)
 end

@@ -3,7 +3,6 @@
 #include "Detail/ClassNativeInterop.hpp"
 #include "Detail/Hierarchy.hpp"
 #include "Detail/LuaSupport.hpp"
-#include "Detail/RuntimeBridge.hpp"
 #include "Detail/RuntimeState.hpp"
 #include "Detail/TypeQueries.hpp"
 #include "Native/NativeRuntime.hpp"
@@ -11,6 +10,7 @@
 #include <ClassRuntimeProtocol.hpp>
 #include <LuaError.hpp>
 #include <LuaGlue/LuaGlue.hpp>
+#include <LuaInvocation.hpp>
 
 extern "C" {
 #include <lauxlib.h>
@@ -178,8 +178,8 @@ lua_glue::Object invokeNativeFactory(lua_glue::StateView lua,
     const int stackBase = lua_gettop(state);
     lua_glue::Object nativeObject;
     try {
-        const int resultCount = invokeRuntimeFunction(
-            lua, rawFactory, arguments, "native class factory arguments");
+        const int resultCount = ludork::standard::invokeLuaFunction(
+            state, rawFactory, arguments, "native class factory arguments");
         nativeObject = resultCount == 0 ? nilObject(lua)
                                         : lua_glue::Read<lua_glue::Object>(
                                               state, stackBase + 1);

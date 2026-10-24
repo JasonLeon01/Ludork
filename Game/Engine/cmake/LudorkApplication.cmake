@@ -178,6 +178,7 @@ endif()
 if(WIN32)
     add_executable(LudorkLauncher WIN32 EXCLUDE_FROM_ALL
         "${LUDORK_APPLICATION_ROOT}/src/Platform/Windows/Launcher.cpp"
+        "${LUDORK_PROJECT_SOURCE_DIR}/Engine/PlatformHosts/Common/src/WindowsLauncher.cpp"
         Main.rc)
     target_compile_features(LudorkLauncher PRIVATE cxx_std_20)
     target_include_directories(LudorkLauncher PRIVATE

@@ -4,13 +4,12 @@
 
 #include "AssetStoreImpl.hpp"
 #include "LdPakArchive.hpp"
+#include "ResourceFileInfo.hpp"
 #include "ResourceStorePaths.hpp"
 #include <Runtime/AssetPath.hpp>
 #include <Utf8Path.hpp>
 
 #include <algorithm>
-#include <chrono>
-#include <limits>
 #include <mutex>
 #include <shared_mutex>
 #include <stdexcept>
@@ -51,41 +50,6 @@ bool isWithin(const std::filesystem::path& root,
                         [](const std::filesystem::path& part) {
                             return part == "..";
                         });
-}
-
-double modificationTime(const std::filesystem::path& path) {
-    std::error_code error;
-    const std::filesystem::file_time_type writeTime =
-        std::filesystem::last_write_time(path, error);
-    if (error) {
-        throw std::runtime_error("Failed to read asset modification time: " +
-                                 error.message());
-    }
-    struct ClockCalibration {
-        std::filesystem::file_time_type fileTime;
-        std::chrono::system_clock::time_point systemTime;
-    };
-    static const ClockCalibration calibration{
-        std::filesystem::file_time_type::clock::now(),
-        std::chrono::system_clock::now()};
-    const std::chrono::system_clock::time_point systemTime =
-        calibration.systemTime +
-        std::chrono::duration_cast<std::chrono::system_clock::duration>(
-            writeTime - calibration.fileTime);
-    return std::chrono::duration<double>(systemTime.time_since_epoch()).count();
-}
-
-std::uint64_t regularFileSize(const std::filesystem::path& path) {
-    std::error_code error;
-    const std::uintmax_t size = std::filesystem::file_size(path, error);
-    if (error) {
-        throw std::runtime_error("Failed to read asset file size: " +
-                                 error.message());
-    }
-    if (size > std::numeric_limits<std::uint64_t>::max()) {
-        throw std::runtime_error("Asset file is too large");
-    }
-    return static_cast<std::uint64_t>(size);
 }
 
 void addEntry(std::unordered_map<std::string, StoreEntry>& entries,
@@ -178,12 +142,17 @@ std::optional<StoreEntry> findLooseEntry(
                                      assetPath.value);
         }
         if (index + 1 == segments.size()) {
-            return StoreEntry{current,
-                              directory ? 0 : regularFileSize(current),
-                              modificationTime(current),
-                              directory,
-                              {},
-                              {}};
+            return StoreEntry{
+                current,
+                directory ? 0
+                          : ludork::runtime::detail::resourceFileSize(
+                                current, "Failed to read asset file size: ",
+                                "Asset file is too large"),
+                ludork::runtime::detail::resourceModificationTime(
+                    current, "Failed to read asset modification time: "),
+                directory,
+                {},
+                {}};
         }
     }
     return std::nullopt;
@@ -228,13 +197,19 @@ void loadLooseTree(const std::filesystem::path& assetsRoot,
             const std::string key =
                 ludork::generated::resources::AssetPathPrefix + relativeText;
             static_cast<void>(AssetPath::parse(key));
-            addEntry(entries, foldedPaths, key,
-                     {entry.path(),
-                      directory ? 0 : regularFileSize(entry.path()),
-                      modificationTime(entry.path()),
-                      directory,
-                      {},
-                      {}});
+            addEntry(
+                entries, foldedPaths, key,
+                {entry.path(),
+                 directory
+                     ? 0
+                     : ludork::runtime::detail::resourceFileSize(
+                           entry.path(), "Failed to read asset file size: ",
+                           "Asset file is too large"),
+                 ludork::runtime::detail::resourceModificationTime(
+                     entry.path(), "Failed to read asset modification time: "),
+                 directory,
+                 {},
+                 {}});
         }
         iterator.increment(error);
         if (error) {

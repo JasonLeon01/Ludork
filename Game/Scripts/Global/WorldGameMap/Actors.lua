@@ -132,7 +132,7 @@ local function filterSuppressedActorTree(actor, suppressed, objects)
 end
 
 ---@param self WorldGameMapImplState
-function WorldGameMapActors.InitialiseWorldActorState(self, config, reservedTags)
+function WorldGameMapActors.ResetWorldActorRuntimeState(self)
     self._worldActorsByTag = {}
     self._worldActorLayers = {}
     self._worldActorDefinitionRegions = {}
@@ -149,6 +149,11 @@ function WorldGameMapActors.InitialiseWorldActorState(self, config, reservedTags
     self._worldActiveChunkReconcilePending = false
     self._worldLooseActiveChunkGeneration = -1
     self._worldActivationDeferred = false
+end
+
+---@param self WorldGameMapImplState
+function WorldGameMapActors.InitialiseWorldActorState(self, config, reservedTags)
+    WorldGameMapActors.ResetWorldActorRuntimeState(self)
     self._worldSuppressedActorTags = {}
     self._worldSuppressedActorObjects = setmetatable({}, { __mode = "k" })
     self._worldDestroyedActorTagProvider = nil

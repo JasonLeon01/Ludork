@@ -9,6 +9,7 @@
 #include <Runtime/RuntimeSession.hpp>
 #include <Runtime/ScriptStore.hpp>
 #include <ClassServices.hpp>
+#include <LuaInvocation.hpp>
 #include <LuaError.hpp>
 #include <LudorkRuntimeBinding/DynamicValueCodec.hpp>
 
@@ -369,7 +370,7 @@ RuntimeValue::Array invoke(const RuntimeHandle& callable,
     }
     const int base = lua_gettop(scope.state());
     try {
-        const int count = detail::invokeRuntimeFunction(
+        const int count = ludork::standard::invokeLuaFunction(
             scope.state(), write(lua, callable), values,
             "runtime reference arguments");
         RuntimeValue::Array result = collect(scope.state(), base, count);

@@ -25,6 +25,15 @@ function MapDataParser.GetPathCandidates(mapPath, currentMap) end
 ---@param manifestPath string
 function MapDataParser.NormaliseWorld(data, manifestPath) end
 
+--- Validate layer order, layer membership and Actor group membership for ordinary and streamed maps.
+---@param data Global.GameMap.SerializedMapData
+function MapDataParser.ValidateMapData(data) end
+
+--- Convert an Actor placement to native unsigned cell coordinates, defaulting missing coordinates to zero.
+---@param actorData Global.Data.SerializedActorData
+---@return Global.Data.ActorData
+function MapDataParser.NormaliseActorData(actorData) end
+
 ---@param data              Global.GameMap.SerializedMapData
 ---@param buildAmbientLight fun(data: integer[] | nil): sf.Color
 ---@return Global.GameMap.MapData

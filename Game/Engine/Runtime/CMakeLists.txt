@@ -24,6 +24,7 @@ else()
         src/AssetPath.cpp
         src/AssetStore.cpp
         src/AssetInputStream.cpp
+        src/ResourceFileInfo.cpp
         src/ResourceStorePaths.cpp
         src/LdPakArchive.cpp
         src/LdPakEntryReader.cpp)

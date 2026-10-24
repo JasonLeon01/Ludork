@@ -2,11 +2,11 @@
 
 #include "Detail/ClassNativeInterop.hpp"
 #include "Detail/LuaSupport.hpp"
-#include "Detail/RuntimeBridge.hpp"
 #include "Detail/RuntimeState.hpp"
 #include "Detail/TypedFields.hpp"
 
 #include <LuaGlue/LuaGlue.hpp>
+#include <LuaInvocation.hpp>
 
 extern "C" {
 #include <lua.h>
@@ -128,8 +128,8 @@ void invokeMonitorCallback(lua_glue::StateView lua, lua_glue::Table entry,
     lua_State* state = lua.lua_state();
     const int stackBase = lua_gettop(state);
     try {
-        static_cast<void>(invokeRuntimeFunction(lua, rawCallback, arguments,
-                                                "monitor callback arguments"));
+        static_cast<void>(ludork::standard::invokeLuaFunction(
+            state, rawCallback, arguments, "monitor callback arguments"));
         lua_settop(state, stackBase);
         entry.raw_set("running", false);
     } catch (...) {

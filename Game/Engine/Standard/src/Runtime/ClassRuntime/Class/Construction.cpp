@@ -3,12 +3,12 @@
 #include "Composite/CompositeRuntime.hpp"
 #include "Detail/Hierarchy.hpp"
 #include "Detail/LuaSupport.hpp"
-#include "Detail/RuntimeBridge.hpp"
 #include "Instance/InstanceRuntime.hpp"
 #include "Native/NativeRuntime.hpp"
 
 #include <LuaError.hpp>
 #include <LuaGlue/LuaGlue.hpp>
+#include <LuaInvocation.hpp>
 
 extern "C" {
 #include <lauxlib.h>
@@ -70,8 +70,9 @@ void callConstructorFunction(lua_State* state, const lua_glue::Object& function,
         throw std::invalid_argument(
             "Class initializer received too many arguments");
     }
-    ensureRuntimeLuaStack(state, static_cast<std::size_t>(argumentCount) + 2,
-                          "class initializer arguments");
+    ludork::standard::ensureLuaStack(
+        state, static_cast<std::size_t>(argumentCount) + 2,
+        "class initializer arguments");
     function.push(state);
     instance.push(state);
     for (int index = firstArgument; index <= originalTop; ++index) {

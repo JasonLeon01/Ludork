@@ -176,39 +176,6 @@ function MapBuilderWorldTiles.CreateWorldTerrainOverrides(self, data, terrainDes
     return result
 end
 
----@param actorData Global.Data.SerializedActorData
----@return Global.Data.ActorData
----@diagnostic disable-next-line: unused
----@param self      Source.SceneComponents.SceneMapBuilder
-function MapBuilderWorldTiles.NormaliseActorData(self, actorData)
-    local position = actorData.position or { 0, 0 }
-    local x = position[1] or 0
-    local y = position[2] or 0
-    local actorPosition = sf.Vector2u.new(x, y)
-    ---@cast actorPosition sf.Vector2u
-    return { bp = actorData.bp, tag = actorData.tag, position = actorPosition }
-end
-
----@param data Global.GameMap.SerializedMapData
----@diagnostic disable-next-line: unused
----@param self Source.SceneComponents.SceneMapBuilder
-function MapBuilderWorldTiles.ValidateIncrementalMapData(self, data)
-    assert(Class.isInstance(data.layerOrder, "table"), "Map layerOrder must be an array")
-    assert(Class.isInstance(data.layers, "table"), "Map layers must be an object")
-    local seenLayers = {}
-    for _, layerName in ipairs(data.layerOrder) do
-        assert(data.layers[layerName] ~= nil, "Map layerOrder references a missing layer: " .. layerName)
-        assert(not seenLayers[layerName], "Map layerOrder contains a duplicate layer: " .. layerName)
-        seenLayers[layerName] = true
-    end
-    for layerName in pairs(data.layers) do
-        assert(seenLayers[layerName], "Map layer is missing from layerOrder: " .. layerName)
-    end
-    for layerName in pairs(data.actors or {}) do
-        assert(seenLayers[layerName], "Map actor group is missing from layerOrder: " .. layerName)
-    end
-end
-
 ---@param layerState Source.SceneComponents.WorldLayerBuildState
 ---@param chunk      Global.WorldGeometry.CellRect
 ---@diagnostic disable-next-line: unused

@@ -12,12 +12,6 @@
 
 namespace ludork::runtime::detail {
 
-LUDORK_RUNTIME_API void ensureRuntimeLuaStack(lua_State* state,
-                                              std::size_t count,
-                                              const char* context);
-LUDORK_RUNTIME_API int invokeRuntimeFunction(
-    lua_State* state, const lua_glue::Object& callable,
-    const std::vector<lua_glue::Object>& arguments, const char* context);
 LUDORK_RUNTIME_API lua_glue::Object nilObject(lua_glue::StateView lua);
 LUDORK_RUNTIME_API lua_glue::Table createWeakTable(lua_glue::StateView lua,
                                                    const char* mode);

@@ -264,13 +264,6 @@ function SceneMapBuilder:createWorldTileGraphicsChunks(region, width, height, pr
 ---@async
 function SceneMapBuilder:createWorldTerrainOverrides(data, terrainDestructions, yieldStep) end
 
----@param actorData Global.Data.SerializedActorData
----@return Global.Data.ActorData
-function SceneMapBuilder:normaliseActorData(actorData) end
-
----@param data Global.GameMap.SerializedMapData
-function SceneMapBuilder:validateIncrementalMapData(data) end
-
 ---@param layerState Source.SceneComponents.WorldLayerBuildState
 ---@param chunk      Global.WorldGeometry.CellRect
 function SceneMapBuilder:writeWorldLayerDataChunk(layerState, chunk) end

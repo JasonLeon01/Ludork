@@ -5,6 +5,7 @@
 #include <Runtime/NodeGraph/Graph.hpp>
 #include <Runtime/NodeGraph/Node.hpp>
 #include <Runtime/Detail/RuntimeServices.hpp>
+#include <LuaInvocation.hpp>
 #include <LudorkRuntimeBinding/DynamicValueCodec.hpp>
 #include <Runtime/RuntimeObject.hpp>
 
@@ -196,7 +197,7 @@ std::shared_ptr<Node> createNodeGraphNode(
     }
     const int base = lua_gettop(scope.state());
     StackRestore restore{scope.state(), base};
-    const int count = detail::invokeRuntimeFunction(
+    const int count = ludork::standard::invokeLuaFunction(
         scope.state(), constructor,
         {write(lua, RuntimeValue(graph)), write(lua, parent),
          lua_glue::MakeObject(lua, nodeFunction), write(lua, fallback),
@@ -256,8 +257,8 @@ NodeResult invokeNodeGraphCallable(RuntimeScope& scope,
     int count = 0;
     std::exception_ptr failure;
     try {
-        count = detail::invokeRuntimeFunction(scope.state(), function, values,
-                                              "node graph arguments");
+        count = ludork::standard::invokeLuaFunction(
+            scope.state(), function, values, "node graph arguments");
     } catch (...) {
         failure = std::current_exception();
     }

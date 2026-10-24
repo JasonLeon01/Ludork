@@ -156,22 +156,7 @@ function WorldGameMap:disposeStreaming()
         end
     end
     self._worldStreamingState:reset()
-    self._worldActorsByTag = {}
-    self._worldActorLayers = {}
-    self._worldActorDefinitionRegions = {}
-    self._worldActorRoots = {}
-    self._worldActorRegions = {}
-    self._worldRootStates = {}
-    self._worldRootSleepTimes = {}
-    self._worldLooseRoots = {}
-    self._worldPendingRehomes = {}
-    self._worldObservedRootPositions = {}
-    self._worldDestroyedRootsDirty = false
-    self._worldActiveChunkBounds = nil
-    self._worldActiveChunkGeneration = 0
-    self._worldActiveChunkReconcilePending = false
-    self._worldLooseActiveChunkGeneration = -1
-    self._worldActivationDeferred = false
+    WorldGameMapActors.ResetWorldActorRuntimeState(self)
 end
 
 ---@param region   Global.WorldGameMap.WorldRegionData

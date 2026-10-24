@@ -4,7 +4,6 @@
 #include "Composite/CompositeRuntime.hpp"
 #include "Detail/Hierarchy.hpp"
 #include "Detail/LuaSupport.hpp"
-#include "Detail/RuntimeBridge.hpp"
 #include "Detail/RuntimeState.hpp"
 #include "Detail/TypedFields.hpp"
 #include "Native/NativeRuntime.hpp"
@@ -12,6 +11,7 @@
 #include <ClassRuntimeProtocol.hpp>
 #include <ClassServices.hpp>
 #include <LuaGlue/LuaGlue.hpp>
+#include <LuaInvocation.hpp>
 
 extern "C" {
 #include <lua.h>
@@ -113,8 +113,8 @@ lua_glue::Object constructNamed(lua_glue::ThisState state,
     lua_State* luaState = lua.lua_state();
     const int stackBase = lua_gettop(luaState);
     try {
-        const int resultCount = invokeRuntimeFunction(
-            lua, rawConstructor, values, "named constructor arguments");
+        const int resultCount = ludork::standard::invokeLuaFunction(
+            luaState, rawConstructor, values, "named constructor arguments");
         lua_glue::Object result =
             resultCount == 0
                 ? nilObject(lua)

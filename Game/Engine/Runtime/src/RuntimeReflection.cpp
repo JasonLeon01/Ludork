@@ -5,6 +5,7 @@
 #include <Runtime/Detail/RuntimeServices.hpp>
 
 #include <ClassServices.hpp>
+#include <LuaInvocation.hpp>
 #include <LudorkRuntimeBinding/DynamicValueCodec.hpp>
 
 #include <LuaGlue/LuaGlue.hpp>
@@ -45,7 +46,7 @@ RuntimeValue::Array invokeAndRead(
     lua_State* state = lua.lua_state();
     const int stackBase = lua_gettop(state);
     try {
-        const int resultCount = ludork::runtime::detail::invokeRuntimeFunction(
+        const int resultCount = ludork::standard::invokeLuaFunction(
             state, callable, arguments, context);
         RuntimeValue::Array result =
             collectResults(state, stackBase, resultCount);

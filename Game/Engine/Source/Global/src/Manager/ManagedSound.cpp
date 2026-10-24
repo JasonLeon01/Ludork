@@ -1,11 +1,7 @@
 #include <Manager/ManagedSound.hpp>
 #include "ManagedAudioSource/AudioLifecycle.hpp"
 #include "ManagedAudioSource/EffectImpl.hpp"
-#include "ManagedAudioSource/AudioCallbackImpl.hpp"
 #include <Manager/AudioEffectControl.hpp>
-
-#include <Runtime/AssetInputStream.hpp>
-#include <Runtime/AssetStore.hpp>
 
 #include <mutex>
 #include <stdexcept>
@@ -40,24 +36,13 @@ ManagedSound::ManagedSound(const std::shared_ptr<const sf::SoundBuffer>& buffer)
 }
 
 ManagedSound::~ManagedSound() {
-    managed_audio_source_impl::RetiredProcessorGenerations reclaimed;
-    {
-        const std::lock_guard<std::mutex> lock(mutationMutex_);
-        effectImpl_->cancel();
-        sf::Sound::stop();
-        effectImpl_->clear();
-        sf::Sound::setEffectProcessor({});
-        effectImpl_->waitForCallbacks();
-        reclaimed = effectImpl_->takeAllRetired();
-    }
+    managed_audio_source_impl::stopManagedAudio<sf::Sound>(
+        *this, *effectImpl_, mutationMutex_, true);
 }
 
 void ManagedSound::play() {
-    managed_audio_source_impl::requireManagedAudioLifecycleCaller();
-    const std::lock_guard<std::mutex> lock(mutationMutex_);
-    effectImpl_->preparePlaying();
-    sf::Sound::play();
-    effectImpl_->markPlaying();
+    managed_audio_source_impl::playManagedAudio<sf::Sound>(*this, *effectImpl_,
+                                                           mutationMutex_);
 }
 
 void ManagedSound::pause() {
@@ -68,26 +53,13 @@ void ManagedSound::pause() {
 
 void ManagedSound::stop() {
     managed_audio_source_impl::requireManagedAudioLifecycleCaller();
-    managed_audio_source_impl::RetiredProcessorGenerations reclaimed;
-    {
-        const std::lock_guard<std::mutex> lock(mutationMutex_);
-        effectImpl_->cancel();
-        sf::Sound::stop();
-        effectImpl_->clear();
-        effectImpl_->waitForCallbacks();
-        reclaimed = effectImpl_->takeAllRetired();
-    }
+    managed_audio_source_impl::stopManagedAudio<sf::Sound>(
+        *this, *effectImpl_, mutationMutex_, false);
 }
 
 void ManagedSound::setEffectProcessor(EffectProcessor effectProcessor) {
-    managed_audio_source_impl::requireManagedAudioLifecycleCaller();
-    managed_audio_source_impl::RetiredProcessorGenerations reclaimed;
-    {
-        const std::lock_guard<std::mutex> lock(mutationMutex_);
-        effectImpl_->replace(std::move(effectProcessor));
-        effectImpl_->waitForCallbacks();
-        reclaimed = effectImpl_->takeAllRetired();
-    }
+    managed_audio_source_impl::replaceManagedAudioEffect(
+        *effectImpl_, mutationMutex_, std::move(effectProcessor));
 }
 
 void ManagedSound::beginEffectAttachment(
@@ -102,23 +74,13 @@ void ManagedSound::finishEffectAttachment() {
 }
 
 void ManagedSound::abortEffectAttachment() {
-    managed_audio_source_impl::RetiredProcessorGenerations reclaimed;
-    {
-        const std::lock_guard<std::mutex> lock(mutationMutex_);
-        effectImpl_->abort();
-        if (!managed_audio_source_impl::isCallbackThread()) {
-            effectImpl_->waitForCallbacks();
-            reclaimed = effectImpl_->takeAllRetired();
-        }
-    }
+    managed_audio_source_impl::abortManagedAudioEffectAttachment(
+        *effectImpl_, mutationMutex_);
 }
 
 void ManagedSound::notifyNaturalInputEnded() noexcept {
-    const std::lock_guard<std::mutex> lock(mutationMutex_);
-    if (sf::Sound::getStatus() == sf::SoundSource::Status::Stopped &&
-        !effectImpl_->wasExplicitlyStopped()) {
-        effectImpl_->notifyNaturalInputEnded();
-    }
+    managed_audio_source_impl::notifyManagedAudioNaturalInputEnded<sf::Sound>(
+        *this, *effectImpl_, mutationMutex_);
 }
 
 bool ManagedSound::isNaturalInputDrained() const noexcept {
