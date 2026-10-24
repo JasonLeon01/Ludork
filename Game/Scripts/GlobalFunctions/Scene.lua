@@ -16,6 +16,14 @@ end
 
 local Scene = {}
 
+---@param nodeFunction function
+---@return table<string, any>
+local function captureDialogueLocalVars(nodeFunction)
+    local Dialogue = require("Source.Scenes.SceneMap.Dialogue")
+
+    return Dialogue.CaptureLocalVars(nodeFunction)
+end
+
 ---@return GlobalCore.Camera | nil
 local function getSceneCamera()
     local gameMap = loadContext().RequireSceneMap():getGameMap()
@@ -91,23 +99,32 @@ end
 function Scene.ShowMessageByTag(name, message, refActorTag)
     refActorTag = refActorTag == nil and "" or refActorTag
     local scene = loadContext().RequireSceneMap()
-    return scene:showMessage(name, message, getActorByTag(scene, refActorTag))
+    return scene:showMessageWithContext(
+        name, message, getActorByTag(scene, refActorTag), nil, captureDialogueLocalVars(Scene.ShowMessageByTag)
+    )
 end
 
 function Scene.ShowMessage(name, message, actor)
-    return loadContext().RequireSceneMap():showMessage(name, message, actor)
+    return loadContext()
+        .RequireSceneMap()
+        :showMessageWithContext(name, message, actor, nil, captureDialogueLocalVars(Scene.ShowMessage))
 end
 
 function Scene.ShowVoiceMessageByTag(name, message, voiceFileName, refActorTag)
     refActorTag = refActorTag == nil and "" or refActorTag
     local scene = loadContext().RequireSceneMap()
-    return scene:showVoiceMessage(name, message, voiceFileName, getActorByTag(scene, refActorTag), nil, false)
+    return scene:showVoiceMessageWithContext(
+        name, message, voiceFileName, getActorByTag(scene, refActorTag), nil, false,
+        captureDialogueLocalVars(Scene.ShowVoiceMessageByTag)
+    )
 end
 
 function Scene.ShowVoiceMessage(name, message, voiceFileName, refActor, minDistance)
     minDistance = minDistance == nil and 64.0 or minDistance
     local scene = loadContext().RequireSceneMap()
-    return scene:showVoiceMessage(name, message, voiceFileName, refActor, minDistance, true)
+    return scene:showVoiceMessageWithContext(
+        name, message, voiceFileName, refActor, minDistance, true, captureDialogueLocalVars(Scene.ShowVoiceMessage)
+    )
 end
 
 function Scene.ShowSelection(name, options, refActorTag, allowCancel)
@@ -118,7 +135,10 @@ function Scene.ShowSelection(name, options, refActorTag, allowCancel)
         allowCancel = true
     end
     local scene = loadContext().RequireSceneMap()
-    return scene:showSelection(name, options, getActorByTag(scene, refActorTag), allowCancel)
+    return scene:showSelectionWithContext(
+        name, options, getActorByTag(scene, refActorTag), allowCancel, nil,
+        captureDialogueLocalVars(Scene.ShowSelection)
+    )
 end
 
 function Scene.ShowRefSelection(name, options, refActor, allowCancel)
@@ -127,7 +147,11 @@ function Scene.ShowRefSelection(name, options, refActor, allowCancel)
     if allowCancel == nil then
         allowCancel = true
     end
-    return loadContext().RequireSceneMap():showSelection(name, options, refActor, allowCancel)
+    return loadContext()
+        .RequireSceneMap()
+        :showSelectionWithContext(name, options, refActor, allowCancel, nil, captureDialogueLocalVars(
+            Scene.ShowRefSelection
+        ))
 end
 
 function Scene.LockCamera()

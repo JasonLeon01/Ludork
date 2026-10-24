@@ -2,19 +2,12 @@
 
 ---@brief Actor used to move between neighbouring floors or to a chosen map position.
 ---@class Source.MapActors.Teleporter.Teleporter: Source.MapActors.ConditionalActor
----@field Offset                sf.Vector2i
----@field stairDirection        Enums.StairDirection
----@field stairSE               string
----@field transitionName        string
----@field transitionTime        number
----@field _floorTransferPending boolean
+---@field Offset         sf.Vector2i
+---@field stairDirection Enums.StairDirection
+---@field stairSE        string
+---@field transitionName string
+---@field transitionTime number
 local Teleporter = {}
-
----@brief Initialise a teleporter actor.
----@param texture sf.Texture | nil
----@param rect    sf.IntRect | nil
----@param tag     string | nil
-function Teleporter:init(texture, rect, tag) end
 
 ---@brief Move to the next map in the current region and its nearest down stair.
 function Teleporter:goUpstairs() end

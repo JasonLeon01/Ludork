@@ -1,15 +1,25 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
+local Item = require("Enums.GeneralData.Item")
+local WindowTransitionProfile = require("Enums.WindowTransitionProfile")
 local Logging = require("Global.Utils.Logging")
 local LazyWindow = require("Internal.UIBase.LazyWindow")
+local GameSystem = require("Source.System")
+local Save = require("Source.Save")
+local WindowSaveSlot = require("Source.Windows.WindowSaveLoad.Slot")
 
 local Direction = Engine.FocusDirection
 local FocusGroup = GlobalCore.FocusGroup
 local FocusNeighbor = GlobalCore.FocusNeighbor
 local FocusTransition = GlobalCore.FocusTransition
+local AudioManager = GlobalCore.AudioManager
+local Graphics = GlobalCore.Graphics
 
 local MENU_Z_ORDER = 1
+local MAP_INPUT_BLOCK_FRAMES = 2
+local WINDOW_CLOSE_INPUT_BLOCK_FRAMES = 1
 
+---@class Source.Scenes.SceneMap.Windows
 local Windows = {}
 
 ---@param manager GlobalCore.UIManager
@@ -56,32 +66,90 @@ local function bindFocusControl(group, control)
     group.activeOwner = control
 end
 
-function Windows.Create(self)
-    local manager = assert(self:getUIManager(), "Scene map UI manager is unavailable")
-    local groups = createFocusGroups(manager)
-    local function onSubMenuClose()
-        self:_onHotkeySubMenuClose()
-    end
-    self._playerNameMoveEnabledBeforeOpen = true
-    self._shopMoveEnabledBeforeOpen = true
-    self._attrShopMoveEnabledBeforeOpen = true
-    self._enemyBookMoveEnabledBeforeOpen = true
-    self._floorTeleporterMoveEnabledBeforeOpen = true
-    self._itemMoveEnabledBeforeOpen = true
-    self._equipMoveEnabledBeforeOpen = true
-    self._saveLoadMoveEnabledBeforeOpen = true
-    self._messageWindow = LazyWindow.new(function ()
-        local WindowMessage = require("Source.Windows.WindowMessage")
+---@param player  Source.MapActors.Player.Player
+---@param enabled boolean
+---@return Source.Scenes.SceneMap.Windows.Movement
+local function createMovement(player, enabled)
+    return { player = player, enabled = enabled }
+end
 
-        local window = WindowMessage.new()
-        window:mount(manager)
-        return window
-    end)
+---@param self     Source.Scenes.SceneMap.Windows
+---@param movement Source.Scenes.SceneMap.Windows.Movement | nil
+---@param frames   integer
+local function restoreMovement(self, movement, frames)
+    if movement == nil or movement.player ~= self._scene:getPlayer() or movement.player:isDestroyed() then
+        return
+    end
+    movement.player:setMoveEnabled(movement.enabled)
+    self._scene:blockMapInput(frames)
+end
+
+---@param player  Source.MapActors.Player.Player
+---@param enabled boolean
+---@return Source.Scenes.SceneMap.Windows.Session
+local function createSession(player, enabled)
+    return { player = player, enabled = enabled, operation = Engine.AsyncOperation.new() }
+end
+
+---@param self    Source.Scenes.SceneMap.Windows
+---@param session Source.Scenes.SceneMap.Windows.Session | nil
+---@param handle  Internal.UIBase.LazyWindow<Source.Scenes.SceneMap.Windows.AsyncWindow>
+local function cancelSession(self, session, handle)
+    if session == nil then
+        return
+    end
+    session.operation:cancel()
+    local window = handle:peek()
+    if window ~= nil then
+        window:dismiss()
+    end
+    restoreMovement(self, session, WINDOW_CLOSE_INPUT_BLOCK_FRAMES)
+end
+
+local function captureScreenSnapshot()
+    local clock = sf.Clock.new()
+    local canvas = Graphics.getCanvas()
+    local sourceTexture = canvas:getTexture()
+    local sourceSize = sourceTexture:getSize()
+    if sourceSize.x == 0 or sourceSize.y == 0 then
+        GameSystem.SetSavedScreenImage(nil)
+        return
+    end
+    local scale = math.min(224 / sourceSize.x, 168 / sourceSize.y, 1)
+    local previewSize = sf.Vector2u.new(
+        math.max(1, math.floor(sourceSize.x * scale)), math.max(1, math.floor(sourceSize.y * scale))
+    )
+    ---@cast previewSize sf.Vector2u
+    local scaled = sf.RenderTexture.new(previewSize)
+    scaled:clear(sf.Color.Black)
+    local sprite = sf.Sprite.new(sourceTexture)
+    sprite:setScale(sf.Vector2f.new(previewSize.x / sourceSize.x, previewSize.y / sourceSize.y))
+    scaled:draw(sprite)
+    scaled:display()
+    GameSystem.SetSavedScreenImage(scaled:getTexture():copyToImage())
+    Logging.info("Save screenshot capture: %.2f ms", clock:getElapsedTime():asMicroseconds() / 1000)
+end
+
+function Windows:init(scene)
+    self._scene = scene
+    self._pendingMenuOpen = false
+    self._pendingSaveLoadOpen = nil
+    self._pendingQuickSave = false
+    self._shopSession = nil
+    self._attrShopSession = nil
+    self._playerNameSession = nil
+    self._itemMovement = nil
+    self._equipMovement = nil
+    self._saveLoadMovement = nil
+    self._enemyBookMovement = nil
+    self._floorTeleporterMovement = nil
+    local manager = assert(scene:getUIManager(), "Scene map UI manager is unavailable")
+    local groups = createFocusGroups(manager)
     self._windowPlayerName = LazyWindow.new(function ()
         local WindowPlayerName = require("Source.Windows.WindowPlayerName")
 
-        local window = WindowPlayerName.new(self.player, function ()
-            self:_onPlayerNameClose()
+        local window = WindowPlayerName.new(self._scene:getPlayer(), function ()
+            self:onPlayerNameClose()
         end)
         for _, control in ipairs(window:getFocusControls()) do
             groups["player-name"]:addItem(control)
@@ -93,11 +161,13 @@ function Windows.Create(self)
     self._windowItem = LazyWindow.new(function ()
         local WindowItem = require("Source.Windows.WindowItem")
 
-        local window = WindowItem.new(self.player)
+        local window = WindowItem.new(self._scene:getPlayer())
         window:setZOrder(MENU_Z_ORDER)
-        window:setOnCloseCallback(onSubMenuClose)
+        window:setOnCloseCallback(function ()
+            self:onItemClose()
+        end)
         window:setOnUseCallback(function ()
-            self:_onHotkeyItemUsed()
+            self:onHotkeyItemUsed()
         end)
         bindFocusControl(groups.item, window)
         window:mount(manager)
@@ -106,9 +176,11 @@ function Windows.Create(self)
     self._windowEquip = LazyWindow.new(function ()
         local WindowEquip = require("Source.Windows.WindowEquip")
 
-        local window = WindowEquip.new(self.player)
+        local window = WindowEquip.new(self._scene:getPlayer())
         window:setZOrder(MENU_Z_ORDER)
-        window:setOnCloseCallback(onSubMenuClose)
+        window:setOnCloseCallback(function ()
+            self:onEquipClose()
+        end)
         local slot, selection = window:getFocusControls()
         bindFocusControl(groups["equip-slot"], slot)
         bindFocusControl(groups["equip-select"], selection)
@@ -118,8 +190,8 @@ function Windows.Create(self)
     self._windowShop = LazyWindow.new(function ()
         local WindowShop = require("Source.Windows.WindowShop")
 
-        local window = WindowShop.new(self.player, function ()
-            self:_onShopClose()
+        local window = WindowShop.new(self._scene:getPlayer(), function ()
+            self:onShopClose()
         end)
         bindFocusControl(groups["shop-item"], window:getItemWindow())
         window:mount(manager)
@@ -128,8 +200,8 @@ function Windows.Create(self)
     self._windowAttrShop = LazyWindow.new(function ()
         local WindowAttrShop = require("Source.Windows.WindowAttrShop")
 
-        local window = WindowAttrShop.new(self.player, function ()
-            self:_onAttrShopClose()
+        local window = WindowAttrShop.new(self._scene:getPlayer(), function ()
+            self:onAttrShopClose()
         end)
         window:mount(manager)
         return window
@@ -138,12 +210,12 @@ function Windows.Create(self)
         local WindowEnemyBook = require("Source.Windows.WindowEnemyBook")
 
         local window = WindowEnemyBook.new(
-            self.player,
+            self._scene:getPlayer(),
             function ()
-                self:_onEnemyBookClose()
+                self:onEnemyBookClose()
             end,
             function (entry)
-                self:_onEnemyBookConfirm(entry)
+                self:onEnemyBookConfirm(entry)
             end
         )
         window:mount(manager)
@@ -153,7 +225,7 @@ function Windows.Create(self)
         local WindowEnemyEncyclopedia = require("Source.Windows.WindowEnemyEncyclopedia")
 
         local window = WindowEnemyEncyclopedia.new(function ()
-            self:_onEnemyEncyclopediaClose()
+            self:onEnemyEncyclopediaClose()
         end)
         window:mount(manager)
         return window
@@ -162,24 +234,23 @@ function Windows.Create(self)
         local WindowFloorTeleporter = require("Source.Windows.WindowFloorTeleporter")
 
         local window = WindowFloorTeleporter.new(
-            self.inst,
+            self._scene:getGameInstance(),
             function (mapKey, telepoint, previewSize, previewScale, showTelepointMarker)
-                return self:_buildFloorMapPreview(mapKey, telepoint, previewSize, previewScale, showTelepointMarker)
+                return self._scene:buildFloorMapPreview(
+                    mapKey, telepoint, previewSize, previewScale, showTelepointMarker
+                )
             end,
             function (mapKey, telepoint)
-                self:_onFloorTeleporterConfirm(mapKey, telepoint)
+                self:onFloorTeleporterConfirm(mapKey, telepoint)
             end,
             function ()
-                self:_onFloorTeleporterClose()
+                self:onFloorTeleporterClose()
             end,
             function (mapKey)
-                local mapPath = self._mapBuilder:resolveMapPath(mapKey, self:_getCurrentRegionMap())
-                local currentPath = self._mapBuilder:resolveMapPath(self:_getCurrentRegionMap(), nil)
-                local revision = mapPath == currentPath and self:getGameMap():getVisibilityRevision() or 0
-                return mapPath, revision, self._mapBuilder:getFloorMapPreviewConditionRevision(self.inst)
+                return self._scene:getFloorMapPreviewRevision(mapKey)
             end,
             function ()
-                self._mapBuilder:clearFloorMapPreviewCache()
+                self._scene:clearFloorMapPreviewCache()
             end
         )
         bindFocusControl(groups["floor-command"], window:getCommandWindow())
@@ -194,13 +265,13 @@ function Windows.Create(self)
         local window = WindowSaveLoad.new(
             false,
             function ()
-                return self:_getSaveSource()
+                return self._scene:getGameInstance()
             end,
             function (reason)
-                self:_onSaveLoadClose(reason)
+                self:onSaveLoadClose(reason)
             end,
             function (inst)
-                self:applyLoadedGame(inst)
+                self._scene:applyLoadedGame(inst)
             end
         )
         window:setZOrder(MENU_Z_ORDER)
@@ -213,7 +284,7 @@ function Windows.Create(self)
         local ConfigWindow = require("Source.Windows.ConfigWindow")
 
         local window = ConfigWindow.new(function ()
-            self:_onConfigClose()
+            self:onConfigClose()
         end)
         window:setZOrder(MENU_Z_ORDER)
         window:mount(manager)
@@ -223,7 +294,7 @@ function Windows.Create(self)
         local WindowMenu = require("Source.Windows.WindowMenu")
 
         local window = WindowMenu.new(
-            self.player,
+            self._scene:getPlayer(),
             {
                 item = self._windowItem,
                 equip = self._windowEquip,
@@ -238,7 +309,7 @@ function Windows.Create(self)
         )
         window:setZOrder(MENU_Z_ORDER)
         window:setMoveRestoreGuard(function ()
-            return self:_canRestoreMoveAfterMenuClose()
+            return not self:hasVisibleBlockingWindow()
         end)
         bindFocusControl(groups.menu, window)
         window:mount(manager)
@@ -251,15 +322,394 @@ function Windows.Create(self)
     }
 end
 
-function Windows.Dispose(self)
+function Windows:canOpenMenu()
+    return not self._scene:isTutorialBlocking() and not self._pendingMenuOpen and self._pendingSaveLoadOpen == nil
+        and not self._pendingQuickSave and not self:isBlocking() and not self._scene:isDialogueBlocking()
+end
+
+function Windows:canOpenItemOverlay()
+    local menu = self._windowMenu:peek()
+    local item = self._windowItem:peek()
+    return menu ~= nil and menu:getVisible()
+        and item ~= nil and item:getVisible()
+        and not self._scene:isDialogueBlocking()
+end
+
+function Windows:isMenuBlocking()
+    local menu = self._windowMenu:peek()
+    return menu ~= nil and menu:isBlocking()
+end
+
+function Windows:hasVisibleBlockingWindow()
+    for _, handle in ipairs(self._blockingWindows) do
+        local window = handle:peek()
+        if window ~= nil and window:getVisible() then
+            return true
+        end
+    end
+    return false
+end
+
+function Windows:isBlocking()
+    return self:isMenuBlocking() or self:hasVisibleBlockingWindow()
+end
+
+function Windows:openMenu()
+    if not self:canOpenMenu() then
+        return false
+    end
+    self._pendingMenuOpen = true
+    return true
+end
+
+function Windows:openSaveLoadUI(mode)
+    if not self:canOpenMenu() then
+        return false
+    end
+    AudioManager.playSound(GameSystem.GetDecisionSE())
+    self._pendingSaveLoadOpen = mode
+    return true
+end
+
+function Windows:openSaveUI()
+    return self:openSaveLoadUI("save")
+end
+
+function Windows:openLoadUI()
+    return self:openSaveLoadUI("load")
+end
+
+function Windows:openItemUI()
+    if not self:canOpenMenu() then
+        return false
+    end
+    AudioManager.playSound(GameSystem.GetDecisionSE())
+    local player = self._scene:getPlayer()
+    self._itemMovement = createMovement(player, true)
+    player:setMoveEnabled(false)
+    self._windowItem:get():open(WindowTransitionProfile.DEFAULT)
+    self._scene:blockMapInput(MAP_INPUT_BLOCK_FRAMES)
+    return true
+end
+
+function Windows:openEquipUI()
+    if not self:canOpenMenu() then
+        return false
+    end
+    AudioManager.playSound(GameSystem.GetDecisionSE())
+    local player = self._scene:getPlayer()
+    self._equipMovement = createMovement(player, true)
+    player:setMoveEnabled(false)
+    self._windowEquip:get():open(WindowTransitionProfile.DEFAULT)
+    self._scene:blockMapInput(MAP_INPUT_BLOCK_FRAMES)
+    return true
+end
+
+function Windows:quickSave()
+    if not self:canOpenMenu() then
+        return false
+    end
+    self._pendingQuickSave = true
+    return true
+end
+
+function Windows:quickLoad()
+    if not self:canOpenMenu() then
+        return false
+    end
+    local slot = Save.FindLatestSlot(WindowSaveSlot.MAX_SAVE_SLOTS)
+    if slot == nil then
+        AudioManager.playSound(GameSystem.GetBuzzerSE())
+        return true
+    end
+    local instance = Save.LoadGame(Save.GetSavePath(slot))
+    if instance == nil then
+        AudioManager.playSound(GameSystem.GetBuzzerSE())
+        return true
+    end
+    AudioManager.playSound(GameSystem.GetLoadSE())
+    self._scene:applyLoadedGame(instance)
+    return true
+end
+
+function Windows:afterRender()
+    if self._pendingMenuOpen then
+        self._pendingMenuOpen = false
+        captureScreenSnapshot()
+        self._windowMenu:get():open()
+        return
+    end
+    if self._pendingSaveLoadOpen == nil and not self._pendingQuickSave then
+        return
+    end
+    captureScreenSnapshot()
+    if self._pendingSaveLoadOpen ~= nil then
+        local pending = { mode = self._pendingSaveLoadOpen }
+        self._pendingSaveLoadOpen = nil
+        local player = self._scene:getPlayer()
+        self._saveLoadMovement = createMovement(player, player:getMoveEnabled())
+        player:setMoveEnabled(false)
+        self._windowSaveLoad:get():open(WindowTransitionProfile.DEFAULT, pending.mode)
+        self._scene:blockMapInput(MAP_INPUT_BLOCK_FRAMES)
+    end
+    if self._pendingQuickSave then
+        self._pendingQuickSave = false
+        local instance = self._scene:getGameInstance()
+        local slot = Save.FindNextEmptySlot(WindowSaveSlot.MAX_SAVE_SLOTS)
+        Save.SaveSlot(slot, instance, GameSystem.GetSavedScreenImage())
+        AudioManager.playSound(GameSystem.GetSaveSE())
+        self._scene:showMessage("", "{QUICK_SAVE}", nil, { slot = slot })
+    end
+end
+
+function Windows:showEnemyBook()
+    if (not self:canOpenMenu() and not self:canOpenItemOverlay()) or not self._scene:getPlayer():hasItem(Item.EnemyBook) then
+        return false
+    end
+    local window = self._windowEnemyBook:get()
+    if not window:getVisible() then
+        local player = self._scene:getPlayer()
+        self._enemyBookMovement = createMovement(player, self:isMenuBlocking() or player:getMoveEnabled())
+        player:setMoveEnabled(false)
+    end
+    window:open(self._scene:getGameMap())
+    self._scene:blockMapInput(MAP_INPUT_BLOCK_FRAMES)
+    return true
+end
+
+function Windows:showFloorTeleporter()
+    if (not self:canOpenMenu() and not self:canOpenItemOverlay()) or not self._scene:getPlayer():hasItem(Item.Teleport) then
+        return false
+    end
+    local window = self._windowFloorTeleporter:get()
+    local wasVisible = window:getVisible()
+    local player = self._scene:getPlayer()
+    local enabled = self:isMenuBlocking() or player:getMoveEnabled()
+    if not window:open(self._scene:getGameInstance()) then
+        return false
+    end
+    if not wasVisible then
+        self._floorTeleporterMovement = createMovement(player, enabled)
+        player:setMoveEnabled(false)
+    end
+    self._scene:blockMapInput(MAP_INPUT_BLOCK_FRAMES)
+    return true
+end
+
+function Windows:openPlayerName()
+    if self._playerNameSession ~= nil and self._playerNameSession.operation:getStatus() == "pending" then
+        return self._playerNameSession.operation
+    end
+    local player = self._scene:getPlayer()
+    self._playerNameSession = createSession(player, player:getMoveEnabled())
+    local window = self._windowPlayerName:get()
+    if not window:getVisible() then
+        player:setMoveEnabled(false)
+        window:open()
+        self._scene:blockMapInput(MAP_INPUT_BLOCK_FRAMES)
+    end
+    return self._playerNameSession.operation
+end
+
+function Windows:openShop(buyItemIDs, canSell)
+    local player = self._scene:getPlayer()
+    local enabled = self:isMenuBlocking() or player:getMoveEnabled()
+    if self._shopSession ~= nil then
+        enabled = self._shopSession.enabled
+        self._shopSession.operation:cancel()
+    end
+    self._shopSession = createSession(player, enabled)
+    player:setMoveEnabled(false)
+    self._windowShop:get():open(buyItemIDs, canSell)
+    return self._shopSession.operation
+end
+
+function Windows:openAttrShop(actor, shopName, shopDescription, abilities, priceRef, priceIncrement, moneyName)
+    local player = self._scene:getPlayer()
+    local enabled = self:isMenuBlocking() or player:getMoveEnabled()
+    if self._attrShopSession ~= nil then
+        enabled = self._attrShopSession.enabled
+        self._attrShopSession.operation:cancel()
+    end
+    self._attrShopSession = createSession(player, enabled)
+    player:setMoveEnabled(false)
+    self._windowAttrShop:get():open(actor, shopName, shopDescription, abilities, priceRef, priceIncrement, moneyName)
+    return self._attrShopSession.operation
+end
+
+function Windows:onShopClose()
+    local released = { session = self._shopSession }
+    self._shopSession = nil
+    if released.session ~= nil then
+        restoreMovement(self, released.session, WINDOW_CLOSE_INPUT_BLOCK_FRAMES)
+        released.session.operation:complete(true)
+    end
+end
+
+function Windows:onAttrShopClose()
+    local released = { session = self._attrShopSession }
+    self._attrShopSession = nil
+    if released.session ~= nil then
+        restoreMovement(self, released.session, WINDOW_CLOSE_INPUT_BLOCK_FRAMES)
+        released.session.operation:complete(true)
+    end
+end
+
+function Windows:onPlayerNameClose()
+    local released = { session = self._playerNameSession }
+    self._playerNameSession = nil
+    if released.session ~= nil then
+        restoreMovement(self, released.session, MAP_INPUT_BLOCK_FRAMES)
+        released.session.operation:complete(true)
+    end
+end
+
+function Windows:onItemClose()
+    local menu = self._windowMenu:peek()
+    if menu ~= nil and menu:getVisible() then
+        menu:onSubMenuClose()
+        return
+    end
+    restoreMovement(self, self._itemMovement, WINDOW_CLOSE_INPUT_BLOCK_FRAMES)
+    self._itemMovement = nil
+end
+
+function Windows:onEquipClose()
+    local menu = self._windowMenu:peek()
+    if menu ~= nil and menu:getVisible() then
+        menu:onSubMenuClose()
+        return
+    end
+    restoreMovement(self, self._equipMovement, WINDOW_CLOSE_INPUT_BLOCK_FRAMES)
+    self._equipMovement = nil
+end
+
+function Windows:onHotkeyItemUsed()
+    local menu = self._windowMenu:peek()
+    if menu ~= nil and menu:getVisible() then
+        menu:close()
+        return
+    end
+    restoreMovement(self, self._itemMovement, WINDOW_CLOSE_INPUT_BLOCK_FRAMES)
+    self._itemMovement = nil
+end
+
+function Windows:onEnemyBookClose()
+    restoreMovement(self, self._enemyBookMovement, WINDOW_CLOSE_INPUT_BLOCK_FRAMES)
+end
+
+function Windows:onEnemyBookConfirm(entry)
+    self._windowEnemyEncyclopedia:get():open(entry)
+    self._scene:blockMapInput(MAP_INPUT_BLOCK_FRAMES)
+end
+
+function Windows:onEnemyEncyclopediaClose()
+    restoreMovement(self, self._enemyBookMovement, WINDOW_CLOSE_INPUT_BLOCK_FRAMES)
+end
+
+function Windows:onFloorTeleporterClose()
+    restoreMovement(self, self._floorTeleporterMovement, WINDOW_CLOSE_INPUT_BLOCK_FRAMES)
+end
+
+function Windows:onFloorTeleporterConfirm(mapKey, telepoint)
+    local targetMap = self._scene:resolveRegionMapPath(mapKey)
+    local targetPosition = sf.Vector2i.new(telepoint.x, telepoint.y)
+    ---@cast targetPosition sf.Vector2i
+    local window = self._windowFloorTeleporter:peek()
+    if window ~= nil then
+        window:close()
+    end
+    self._scene:gotoMapAndPos(targetMap, targetPosition)
+    restoreMovement(self, self._floorTeleporterMovement, MAP_INPUT_BLOCK_FRAMES)
+end
+
+function Windows:onSaveLoadClose(reason)
+    local menu = self._windowMenu:peek()
+    if menu ~= nil and menu:getVisible() then
+        if reason == "cancel" then
+            menu:onSaveLoadClose()
+            return
+        end
+        menu:close()
+        return
+    end
+    restoreMovement(self, self._saveLoadMovement, WINDOW_CLOSE_INPUT_BLOCK_FRAMES)
+    self._saveLoadMovement = nil
+end
+
+function Windows:onConfigClose()
+    local menu = self._windowMenu:peek()
+    if menu ~= nil then
+        menu:onConfigClose()
+    end
+end
+
+function Windows:cancelAsyncOperations()
+    local released = {
+        shop = self._shopSession,
+        attrShop = self._attrShopSession,
+        playerName = self._playerNameSession
+    }
+    self._shopSession = nil
+    self._attrShopSession = nil
+    self._playerNameSession = nil
+    cancelSession(self, released.shop, self._windowShop)
+    cancelSession(self, released.attrShop, self._windowAttrShop)
+    cancelSession(self, released.playerName, self._windowPlayerName)
+end
+
+function Windows:cancelPendingRequests()
+    self._pendingMenuOpen = false
+    self._pendingSaveLoadOpen = nil
+    self._pendingQuickSave = false
+end
+
+function Windows:rebindPlayer()
+    self._itemMovement = nil
+    self._equipMovement = nil
+    self._saveLoadMovement = nil
+    self._enemyBookMovement = nil
+    self._floorTeleporterMovement = nil
     local windows = {
-        self._messageWindow, self._windowMenu, self._windowItem, self._windowEquip, self._windowAttrShop,
-        self._windowEnemyBook, self._windowEnemyEncyclopedia, self._windowSaveLoad, self._windowShop,
-        self._windowFloorTeleporter, self._configWindow, self._windowPlayerName
+        self._windowItem, self._windowEquip, self._windowMenu, self._windowShop, self._windowAttrShop,
+        self._windowEnemyBook, self._windowPlayerName
+    }
+    for _, handle in ipairs(windows) do
+        local window = handle:peek()
+        if window ~= nil then
+            window:setPlayer(self._scene:getPlayer())
+        end
+    end
+end
+
+function Windows:refreshLocale()
+    local menu = self._windowMenu:peek()
+    if menu ~= nil then
+        menu:refreshRows()
+    end
+    local windows = {
+        self._windowItem, self._windowEquip, self._windowShop, self._windowAttrShop, self._windowEnemyBook,
+        self._windowEnemyEncyclopedia, self._windowFloorTeleporter, self._windowPlayerName
+    }
+    for _, handle in ipairs(windows) do
+        local window = handle:peek()
+        if window ~= nil then
+            window:refreshLocale()
+        end
+    end
+end
+
+function Windows:dispose()
+    self:cancelAsyncOperations()
+    self:cancelPendingRequests()
+    local windows = {
+        self._windowMenu, self._windowItem, self._windowEquip, self._windowAttrShop, self._windowEnemyBook,
+        self._windowEnemyEncyclopedia, self._windowSaveLoad, self._windowShop, self._windowFloorTeleporter,
+        self._configWindow, self._windowPlayerName
     }
     for _, window in ipairs(windows) do
         window:dispose()
     end
 end
 
-return Windows
+return class(Windows)

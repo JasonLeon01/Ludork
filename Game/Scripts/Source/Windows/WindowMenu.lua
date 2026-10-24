@@ -80,12 +80,13 @@ function Controller:open()
 end
 
 function Controller:close(onHidden)
+    local player = self:getPlayer()
     self:_closeSubMenus()
     self.host:setActive(false)
     self:_syncReturnButtonSuppression()
     self.host:hideWithAnimation("FadeOut", function ()
-        if self._moveRestoreGuard() then
-            self:getPlayer():setMoveEnabled(true)
+        if player == self:getPlayer() and not player:isDestroyed() and self._moveRestoreGuard() then
+            player:setMoveEnabled(true)
         end
         if onHidden ~= nil then
             onHidden()

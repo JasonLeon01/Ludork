@@ -330,6 +330,13 @@ function SceneMapBuilder:applyAddedActors(gameMap, addedActors, emitCreateEvents
     end
 end
 
+function SceneMapBuilder:applyPersistentState(gameMap, inst, mapFile)
+    gameMap:applyTerrainDestructions(inst:getTerrainDestructions(mapFile))
+    self:applyAddedActors(gameMap, inst:getAddedActors(mapFile), false)
+    gameMap:applyActorPositions(inst:getActorPositions(mapFile))
+    gameMap:removeActorsByTags(inst:getDestroyedActors(mapFile))
+end
+
 function SceneMapBuilder:buildFloorMapPreview(
     inst, currentMap, mapKey, telepoint, previewSize, previewScale, showTelepointMarker, activeMap
 )

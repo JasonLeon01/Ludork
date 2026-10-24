@@ -183,6 +183,12 @@ function SceneMapBuilder:generateWorldGameMap(worldPath, worldData, inst, initia
 ---@param emitCreateEvents boolean | nil
 function SceneMapBuilder:applyAddedActors(gameMap, addedActors, emitCreateEvents) end
 
+--- Restore terrain, added Actors, positions and destroyed Actors on an ordinary map without create events.
+---@param gameMap GameMap
+---@param inst    Source.GameInstance.GameInstance
+---@param mapFile string
+function SceneMapBuilder:applyPersistentState(gameMap, inst, mapFile) end
+
 ---@brief Build a floor teleporter preview texture.
 ---
 --- - @param inst Current game instance.

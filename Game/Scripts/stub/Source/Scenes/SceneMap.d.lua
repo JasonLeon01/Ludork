@@ -1,115 +1,25 @@
 ---@meta Source.Scenes.SceneMap
 
----@class Source.Scenes.SceneMap.PendingTeleporterTransfer
----@field targetMap            string
----@field targetPosition       sf.Vector2i
----@field moveEnabled          boolean
----@field findNearest          boolean
----@field record               boolean
----@field targetStairDirection Enums.StairDirection | nil
-
----@class Source.Scenes.SceneMap.PendingWorldTransfer
----@field targetMap      string
----@field targetPosition sf.Vector2i
-
----@class Source.Scenes.SceneMap.DialogueLocaleContext
----@field name         string
----@field localeArgs   table<string, any>
----@field localVars    table<string, any>
----@field instanceVars table<string, any>
-
----@class Source.Scenes.SceneMap.DialogueMessageLocaleSource
----@field kind    "message"
----@field context Source.Scenes.SceneMap.DialogueLocaleContext
----@field content string
-
----@class Source.Scenes.SceneMap.DialogueSelectionLocaleSource
----@field kind    "selection"
----@field context Source.Scenes.SceneMap.DialogueLocaleContext
----@field content string[]
-
----@alias Source.Scenes.SceneMap.BlockingWindow Source.Windows.WindowShop | Source.Windows.WindowAttrShop | Source.Windows.WindowEnemyBook | Source.Windows.WindowEnemyEncyclopedia | Source.Windows.WindowFloorTeleporter | Source.Windows.WindowPlayerName
-
 ---@class Source.Scenes.SceneMap.SceneMap: Source.Gameplay.GameplayScene
----@field new                                   fun(): Source.Scenes.SceneMap.SceneMap
----@field inst                                  Source.GameInstance.GameInstance
----@field player                                Source.MapActors.Player.Player
----@field _gameplayRequestsActive               boolean
----@field _gameOverRequest                      { player: Source.MapActors.Player.Player, gameMap: GameMap } | nil
----@field _mapBuilder                           Source.SceneComponents.SceneMapBuilder
----@field _mapAudio                             Global.Audio.MapAudio
----@field _tutorials                            Source.SceneComponents.Tutorial
----@field _playerHUD                            Source.Windows.PlayerAttrHUD
----@field _messageWindow                        Internal.UIBase.LazyWindow<Source.Windows.WindowMessage>
----@field _windowPlayerName                     Internal.UIBase.LazyWindow<Source.Windows.WindowPlayerName>
----@field _playerNameMoveEnabledBeforeOpen      boolean
----@field _windowItem                           Internal.UIBase.LazyWindow<Source.Windows.WindowItem>
----@field _windowEquip                          Internal.UIBase.LazyWindow<Source.Windows.WindowEquip>
----@field _windowShop                           Internal.UIBase.LazyWindow<Source.Windows.WindowShop>
----@field _windowAttrShop                       Internal.UIBase.LazyWindow<Source.Windows.WindowAttrShop>
----@field _windowEnemyBook                      Internal.UIBase.LazyWindow<Source.Windows.WindowEnemyBook>
----@field _windowEnemyEncyclopedia              Internal.UIBase.LazyWindow<Source.Windows.WindowEnemyEncyclopedia>
----@field _windowFloorTeleporter                Internal.UIBase.LazyWindow<Source.Windows.WindowFloorTeleporter>
----@field _windowSaveLoad                       Internal.UIBase.LazyWindow<Source.Windows.WindowSaveLoad>
----@field _windowMenu                           Internal.UIBase.LazyWindow<Source.Windows.WindowMenu>
----@field _configWindow                         Internal.UIBase.LazyWindow<Source.Windows.ConfigWindow>
----@field _blockingWindows                      Internal.UIBase.LazyWindow<Source.Scenes.SceneMap.BlockingWindow>[]
----@field _regionTitleUI                        Source.Scenes.SceneMap.RegionTitle.Controller
----@field _regionTitleText                      Engine.PlainText
----@field _localeChangedToken                   integer | nil
----@field _dialogueOperation                    Engine.AsyncOperation | nil
----@field _dialogueVoice                        sf.Sound | nil
----@field _dialogueRestoreMovement              fun() | nil
----@field _shopOperation                        Engine.AsyncOperation | nil
----@field _attrShopOperation                    Engine.AsyncOperation | nil
----@field _playerNameOperation                  Engine.AsyncOperation | nil
----@field _dialogueLocaleSource                 Source.Scenes.SceneMap.DialogueMessageLocaleSource | Source.Scenes.SceneMap.DialogueSelectionLocaleSource | nil
----@field _gameMap                              GameMap | nil
----@field _cachedMapFile                        string | nil
----@field _mapAudioData                         Global.Audio.MapAudioData | nil
----@field _mapPanorama                          string | nil
----@field _needsEnvironmentRestore              boolean
----@field _currentRegion                        string | nil
----@field _mapClickMoveBlockedUntilLateTick     boolean
----@field _mapInputBlockFrames                  integer
----@field _pendingMenuOpen                      boolean
----@field _pendingSaveLoadOpen                  "load" | "save" | nil
----@field _pendingQuickSave                     boolean
----@field _pendingTeleporterTransfer            Source.Scenes.SceneMap.PendingTeleporterTransfer | nil
----@field _pendingWorldTransfer                 Source.Scenes.SceneMap.PendingWorldTransfer | nil
----@field _mapTransferInProgress                boolean
----@field _worldEnvironmentKey                  string | nil
----@field _worldAmbientStartColour              sf.Color | nil
----@field _worldAmbientTargetColour             sf.Color | nil
----@field _worldAmbientTransitionElapsed        number
----@field _shopMoveEnabledBeforeOpen            boolean
----@field _attrShopMoveEnabledBeforeOpen        boolean
----@field _enemyBookMoveEnabledBeforeOpen       boolean
----@field _floorTeleporterMoveEnabledBeforeOpen boolean
----@field _itemMoveEnabledBeforeOpen            boolean
----@field _equipMoveEnabledBeforeOpen           boolean
----@field _saveLoadMoveEnabledBeforeOpen        boolean
+---@field new                                       fun(): Source.Scenes.SceneMap.SceneMap
+---@field inst                                      Source.GameInstance.GameInstance
+---@field player                                    Source.MapActors.Player.Player
+---@field private _gameplayRequestsActive           boolean
+---@field private _gameOverRequest                  { player: Source.MapActors.Player.Player, gameMap: GameMap } | nil
+---@field private _maps                             Source.Scenes.SceneMap.MapSession
+---@field private _dialogue                         Source.Scenes.SceneMap.Dialogue
+---@field private _windows                          Source.Scenes.SceneMap.Windows
+---@field private _environment                      Source.Scenes.SceneMap.Environment
+---@field private _tutorials                        Source.SceneComponents.Tutorial
+---@field private _playerHUD                        Source.Windows.PlayerAttrHUD
+---@field private _regionTitleUI                    Source.Scenes.SceneMap.RegionTitle.Controller
+---@field private _localeChangedToken               integer | nil
+---@field private _mapClickMoveBlockedUntilLateTick boolean
+---@field private _mapInputBlockFrames              integer
 local Scene = {}
-
----@return boolean
-function Scene:_isInDialogue() end
-
----@return boolean
-function Scene:_isMenuBlocking() end
 
 ---@return Engine.AsyncOperation
 function Scene:openPlayerName() end
-
----@private
-function Scene:_onPlayerNameClose() end
-
----@param source Source.Scenes.SceneMap.DialogueMessageLocaleSource
----@return string, string
-function Scene.FormatDialogueMessageSource(source) end
-
----@param source Source.Scenes.SceneMap.DialogueSelectionLocaleSource
----@return string, string[]
-function Scene.FormatDialogueSelectionSource(source) end
 
 ---@brief Restore map-configured BGM/BGS and panorama after a scene-stack return, then start a transition.
 ---
@@ -364,10 +274,6 @@ function Scene:recordDestroyedActorTag(actorTag) end
 ---@param positions sf.Vector2i[]
 function Scene:recordTerrainDestructions(layerName, positions) end
 
----@param deltaTime number
----@param force     boolean | nil
-function Scene:_updateWorldEnvironment(deltaTime, force) end
-
 ---@brief Replace the current map BGM.
 ---
 --- - @param bgm Canonical music asset path under /Game/Assets/Musics.
@@ -395,5 +301,87 @@ function Scene:setBgsFilter(attr, value) end
 ---@param mapKey string
 ---@return string
 function Scene:resolveRegionMapPath(mapKey) end
+
+---@return Source.MapActors.Player.Player
+function Scene:getPlayer() end
+
+---@param frames? integer
+function Scene:blockMapInput(frames) end
+
+---@return boolean
+function Scene:isTutorialBlocking() end
+
+---@return boolean
+function Scene:isDialogueBlocking() end
+
+---@return boolean
+function Scene:isGameplayRequestActive() end
+
+---@private
+function Scene:_cancelInteractions() end
+
+---@private
+function Scene:_cancelPendingRequests() end
+
+---@private
+---@return boolean
+function Scene:_isMapClickMoveBlocked() end
+
+---@param name       string
+---@param message    string
+---@param refActor   Engine.Actor | nil
+---@param localeArgs table<string, any> | nil
+---@param localVars  table<string, any>
+---@return Engine.AsyncOperation
+function Scene:showMessageWithContext(name, message, refActor, localeArgs, localVars) end
+
+---@param name          string
+---@param message       string
+---@param voiceFileName string
+---@param refActor      Engine.Actor | nil
+---@param minDistance   number | nil
+---@param spatial       boolean
+---@param localVars     table<string, any>
+---@return Engine.AsyncOperation
+function Scene:showVoiceMessageWithContext(name, message, voiceFileName, refActor, minDistance, spatial, localVars) end
+
+---@param name        string
+---@param options     string[]
+---@param refActor    Engine.Actor | nil
+---@param allowCancel boolean | nil
+---@param localeArgs  table<string, any> | nil
+---@param localVars   table<string, any>
+---@return Engine.AsyncOperation
+function Scene:showSelectionWithContext(name, options, refActor, allowCancel, localeArgs, localVars) end
+
+---@param mapKey              string
+---@param telepoint           sf.Vector2u
+---@param previewSize         integer
+---@param previewScale        number
+---@param showTelepointMarker boolean
+---@return sf.Texture
+function Scene:buildFloorMapPreview(mapKey, telepoint, previewSize, previewScale, showTelepointMarker) end
+
+---@param mapKey string
+---@return string, integer, integer
+function Scene:getFloorMapPreviewRevision(mapKey) end
+
+function Scene:clearFloorMapPreviewCache() end
+
+---@param mapFile string
+---@return string | nil
+function Scene.FindRegionForMap(mapFile) end
+
+---@param mapPath string
+---@return string
+function Scene.NormaliseRegionMapName(mapPath) end
+
+---@param region string
+function Scene.ShowRegionTitle(region) end
+
+---@return boolean
+function Scene.IsMenuOpenTriggered() end
+
+function Scene.ConsumeMapClickMoveInput() end
 
 return Scene

@@ -12,11 +12,6 @@ Teleporter.stairSE = ""
 Teleporter.transitionName = ""
 Teleporter.transitionTime = 0.5
 
-function Teleporter:init(texture, rect, tag)
-    super(Teleporter, self).init(texture, rect, tag)
-    self._floorTransferPending = false
-end
-
 function Teleporter:goUpstairs()
     self:_goFloor(1)
 end
@@ -47,7 +42,7 @@ end
 ---@param step integer
 function Teleporter:_goFloor(step)
     local map = self:getMap()
-    if self._floorTransferPending or map == nil then
+    if map == nil then
         return
     end
     local scene = map:getScene()
@@ -56,10 +51,7 @@ function Teleporter:_goFloor(step)
     end
     ---@cast scene Source.Gameplay.GameplayScene
     ---@cast self Source.MapActors.Teleporter.Teleporter
-    self._floorTransferPending = true
-    if not scene:requestFloorStep(self, step) then
-        self._floorTransferPending = false
-    end
+    scene:requestFloorStep(self, step)
 end
 
 ---@param actors          Engine.Actor[]
