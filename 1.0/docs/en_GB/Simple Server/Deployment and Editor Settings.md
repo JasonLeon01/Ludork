@@ -111,7 +111,7 @@ For example, attach these environment values to your normal GitHub Actions game-
   run: tools\pack_project.bat --release Game
 ```
 
-An enabled build defines `LUDORK_SERVER_AVAILABLE` and includes the transport with its URL and key. When disabled, the networking APIs remain available: `Global.Net` reports the string code `Disabled`, while the native health probe uses `ServerErrorCode.Disabled`. The resulting binary contains the credentials it needs.
+An enabled build defines `LUDORK_SERVER_AVAILABLE` and includes the transport with its URL and key; the resulting binary contains the credentials it needs. When disabled, server interactions only print a diagnostic and return. See [Disabled server integration](<Native Client API.md#disabled-server-integration>) for return values and local operations that remain available.
 
 ## Management and operational limits
 

@@ -2,6 +2,19 @@
 
 先按[部署与编辑器设置](<部署与编辑器设置.md>)配置 URL 和项目密钥。游戏代码通过 `Global.Net` 获取显式数据快照、调用 void RPC 和接收服务端命名事件。C++ 负责 WebSocket 连接、值编码以及游戏逻辑线程上的交付；Lua 不传入连接凭据。`GlobalCore.Server.CheckConnectionAsync` 仍是独立的 HTTP 健康检测接口。
 
+## 禁用服务器集成
+
+构建时未启用服务器集成，各服务端交互调用只输出提示并立即返回，不连接、不发送或排队请求，不创建异步操作、不注册监听或轮询，不复制请求参数、不修改 proxy 状态，也不调用回调或发布错误事件。API 仍可调用，返回值如下：
+
+| 调用 | 禁用时的返回值 |
+| --- | --- |
+| `Net.GetProxy`、`proxy:Sync`、`Server.CheckConnectionAsync`、原生 `NetTransport.GetSnapshotAsync` | `nil` |
+| `module.Subscribe`、`module.SubscribeError` | `0`，不创建监听 |
+| `module.Unsubscribe` | `false` |
+| `module.CallRpcFunction` | 无返回值 |
+
+等待操作或调用其方法前，须先检查操作不为 nil。禁用调用不会产生错误码为 `Disabled` 的失败结果，也不会产生 `Disconnected` 健康检测结果。`Net.DefineModule`、使用本地数据构造 proxy、`proxy:GetValue` 和原生 `NetTransport.CloneValue` 仍可作为本地操作使用。以下请求、回调和连接行为均以已启用集成为前提。
+
 ## 定义网络模块与 proxy
 
 Proxy 是保存一份服务端快照的本地 Lua 对象，getter 只读取快照，不发起网络请求。在独立模块中定义 `Global.NetProxy` 子类，再以与服务端相同的网络模块名注册。对应服务端实现见[服务端 Lua 模块](<HTTP 协议.md#服务端-lua-模块>)。
@@ -62,7 +75,7 @@ end)
 
 `proxy:GetValue(key)` 返回一个快照字段。Table 值及其嵌套 table 都是独立副本，修改 getter 结果不会写入快照或服务端。`GetName` 等业务 getter 应通过此方法读取，不直接访问私有字段。RPC 和服务端事件都不会自动刷新 proxy。
 
-两个获取方法都要求回调，并返回 `Engine.AsyncOperation`。回调接收普通 Lua 结果表：
+启用集成时，两个获取方法都要求回调，并返回 `Engine.AsyncOperation`。回调接收普通 Lua 结果表：
 
 | 字段 | 含义 |
 | --- | --- |
@@ -115,7 +128,7 @@ Profile.Unsubscribe(errorToken)
 
 参数和快照数据使用普通 Lua nil、布尔值、有限数字、字节字符串和无环 table。混合或稀疏的布尔／数字／字符串键、有符号 64 位整数都会保留。函数、线程、userdata、类实例／原生对象、元表、循环引用和 table 键会被拒绝。完整值域及大小规则见 [Lua 数据与传输编码](<HTTP 协议.md#lua-数据与传输编码>)；这些值不采用 `RuntimeData` 的 JSON 转换契约。
 
-网络结果使用**字符串错误码**，包括 `Disabled`、`InvalidArgument`、`AuthenticationFailed`、`Timeout`、`ConnectionFailed`、`InvalidResponse`、`QueueFull`、`StorageFailure`、`ServerFailure`、`RateLimited`。服务端业务还可以返回其他合法错误码。用 code 判断，用 message 诊断。`retryAfterSeconds` 存在时，表示再次尝试前至少等待的整秒数。禁用构建保留 API，通过快照结果或模块错误报告 `Disabled`。
+网络结果使用**字符串错误码**，包括 `InvalidArgument`、`AuthenticationFailed`、`Timeout`、`ConnectionFailed`、`InvalidResponse`、`QueueFull`、`StorageFailure`、`ServerFailure`、`RateLimited`。服务端业务还可以返回其他合法错误码。用 code 判断，用 message 诊断。`retryAfterSeconds` 存在时，表示再次尝试前至少等待的整秒数。
 
 ## 随附 Storage 模块
 
@@ -134,7 +147,7 @@ Getter 仅读取该 proxy 对应查询的结果，不相关的 getter 可能返�
 
 ## 网络质量
 
-独立的 `GlobalCore.Server.CheckConnectionAsync(callback)` 保留原生结果类型和三秒 HTTP 期限。自定义入口须初始化 `GlobalFunctions.NodeGraph.initLatent()` 并推进操作更新。回调接收 `GlobalCore.ServerConnectionResult`；生成声明中的原生对象可能为 nil，使用 `assert(result)` 收窄。
+启用集成时，独立的 `GlobalCore.Server.CheckConnectionAsync(callback)` 使用原生结果类型，HTTP 请求期限为三秒。自定义入口须初始化 `GlobalFunctions.NodeGraph.initLatent()` 并推进操作更新。回调接收 `GlobalCore.ServerConnectionResult`；生成声明中的原生对象可能为 nil，使用 `assert(result)` 收窄。
 
 ```lua
 local GlobalCore = require("GlobalCore")
@@ -152,6 +165,6 @@ GlobalCore.Server.CheckConnectionAsync(function(result)
 end)
 ```
 
-`Normal` 表示 300 ms 内收到配置服务的有效健康响应；`Weak` 表示超过 300 ms、但在三秒内收到；`Disconnected` 表示没有有效响应、请求失败或功能禁用。结果还包含 `ok`、类型为原生 `GlobalCore.ServerErrorCode` 枚举的 `code`、`message`，以及收到有效响应时的 `roundTripMs`。方法返回 `Engine.AsyncOperation`，保留回调／结果对象身份与取消语义。
+`Normal` 表示 300 ms 内收到配置服务的有效健康响应；`Weak` 表示超过 300 ms、但在三秒内收到；`Disconnected` 表示没有有效响应或请求失败。结果还包含 `ok`、类型为原生 `GlobalCore.ServerErrorCode` 枚举的 `code`、`message`，以及收到有效响应时的 `roundTripMs`。方法返回 `Engine.AsyncOperation`，保留回调／结果对象身份与取消语义。
 
 健康接口不验证项目密钥，因此健康结果不能证明 RPC 认证成功，也不能代表整个互联网可用。系统 DNS 解析可能在取消后仍被阻塞，关闭会话时可能等待解析器返回；取消不保证 DNS 或退出具有硬性截止时间。

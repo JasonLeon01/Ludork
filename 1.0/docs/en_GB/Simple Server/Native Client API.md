@@ -2,6 +2,19 @@
 
 Configure the URL and project key through [Deployment and Editor Settings](<Deployment and Editor Settings.md>). Game code uses `Global.Net` for explicit data snapshots, void RPCs and named server events. C++ owns the WebSocket connection, value encoding and delivery on the game logic thread; Lua never supplies connection credentials. `GlobalCore.Server.CheckConnectionAsync` remains the separate HTTP health probe.
 
+## Disabled server integration
+
+When server integration is disabled in the build, each server interaction prints a diagnostic and returns immediately. It does not connect, send or queue requests, create an asynchronous operation, register listeners or polling, copy request parameters, change proxy state, invoke callbacks or publish error events. The APIs remain callable, with these return values:
+
+| Call | Disabled return value |
+| --- | --- |
+| `Net.GetProxy`, `proxy:Sync`, `Server.CheckConnectionAsync`, native `NetTransport.GetSnapshotAsync` | `nil` |
+| `module.Subscribe`, `module.SubscribeError` | `0`, without a listener |
+| `module.Unsubscribe` | `false` |
+| `module.CallRpcFunction` | No values |
+
+Check that an operation is not nil before waiting on it or calling its methods. A disabled call does not produce a failure result with code `Disabled` or a `Disconnected` health result. `Net.DefineModule`, constructing a proxy from local data, `proxy:GetValue` and native `NetTransport.CloneValue` remain available as local operations. The request, callback and connection behaviour below applies when integration is enabled.
+
 ## Define a network module and proxy
 
 A proxy is a local Lua object containing one server snapshot. Its getters read that snapshot without network I/O. Define a subclass of `Global.NetProxy` in its own module, then register it under the same network-module name as the server. The corresponding server implementation is described in [Server Lua modules](<HTTP Protocol.md#server-lua-modules>).
@@ -62,7 +75,7 @@ end)
 
 `proxy:GetValue(key)` returns a snapshot field. Table values are independent copies, including nested tables, so modifying a getter result cannot write the snapshot or server. Business getters such as `GetName` should use this method rather than accessing private fields. Neither an RPC nor a server event refreshes any proxy automatically.
 
-Both fetch methods require a callback and return `Engine.AsyncOperation`. Their callback receives an ordinary Lua result table:
+When integration is enabled, both fetch methods require a callback and return `Engine.AsyncOperation`. Their callback receives an ordinary Lua result table:
 
 | Field | Meaning |
 | --- | --- |
@@ -115,7 +128,7 @@ An RPC can commit a write before a timeout or disconnect is observed. Read a fre
 
 Parameters and snapshot data use ordinary Lua nil, booleans, finite numbers, byte strings and acyclic tables. Mixed and sparse boolean/number/string keys and signed 64-bit integers are preserved. Functions, threads, userdata, class/native objects, metatables, cycles and table keys are rejected. For the exact value and size rules, see [Lua data and wire encoding](<HTTP Protocol.md#lua-data-and-wire-encoding>); these values do not use the `RuntimeData` JSON conversion contract.
 
-Network results use **string codes**, including `Disabled`, `InvalidArgument`, `AuthenticationFailed`, `Timeout`, `ConnectionFailed`, `InvalidResponse`, `QueueFull`, `StorageFailure`, `ServerFailure` and `RateLimited`. Server business handlers may return additional valid codes. Use the code for decisions and the message for diagnostics. `retryAfterSeconds`, when present, is the minimum whole-second delay to respect before another attempt. A disabled build retains the APIs and reports `Disabled` through snapshot results or module errors.
+Network results use **string codes**, including `InvalidArgument`, `AuthenticationFailed`, `Timeout`, `ConnectionFailed`, `InvalidResponse`, `QueueFull`, `StorageFailure`, `ServerFailure` and `RateLimited`. Server business handlers may return additional valid codes. Use the code for decisions and the message for diagnostics. `retryAfterSeconds`, when present, is the minimum whole-second delay to respect before another attempt.
 
 ## Supplied Storage module
 
@@ -134,7 +147,7 @@ Write with `Storage.CallRpcFunction("WriteField", account, category, field, valu
 
 ## Network quality
 
-The independent `GlobalCore.Server.CheckConnectionAsync(callback)` retains its native result and three-second HTTP deadline. Custom entry points must initialize `GlobalFunctions.NodeGraph.initLatent()` and run operation updates. Its callback receives `GlobalCore.ServerConnectionResult`; narrow the generated nullable native-object declaration with `assert(result)`.
+When integration is enabled, the independent `GlobalCore.Server.CheckConnectionAsync(callback)` uses its native result and a three-second HTTP deadline. Custom entry points must initialize `GlobalFunctions.NodeGraph.initLatent()` and run operation updates. Its callback receives `GlobalCore.ServerConnectionResult`; narrow the generated nullable native-object declaration with `assert(result)`.
 
 ```lua
 local GlobalCore = require("GlobalCore")
@@ -152,6 +165,6 @@ GlobalCore.Server.CheckConnectionAsync(function(result)
 end)
 ```
 
-`Normal` means a valid configured-service health response within 300 ms; `Weak` means more than 300 ms within three seconds; `Disconnected` means no valid response, failure or disabled integration. The result also exposes `ok`, `code` as the native `GlobalCore.ServerErrorCode` enum, `message`, and `roundTripMs` when a valid response was received. It returns an `Engine.AsyncOperation` and preserves callback/result identity and cancellation semantics.
+`Normal` means a valid configured-service health response within 300 ms; `Weak` means more than 300 ms within three seconds; `Disconnected` means no valid response or a failed request. The result also exposes `ok`, `code` as the native `GlobalCore.ServerErrorCode` enum, `message`, and `roundTripMs` when a valid response was received. It returns an `Engine.AsyncOperation` and preserves callback/result identity and cancellation semantics.
 
 The health endpoint does not check the project key, so a healthy result does not establish RPC authentication or overall Internet access. System DNS resolution may remain blocked after cancellation, and session shutdown may wait for it; cancellation does not guarantee a hard DNS or shutdown deadline.

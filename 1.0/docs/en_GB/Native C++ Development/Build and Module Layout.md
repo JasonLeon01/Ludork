@@ -15,7 +15,7 @@ Windows MSVC Release builds use deterministic compilation and `/Brepro` linking 
 
 ## Steps
 
-Enable the optional [`Global.Net` snapshot/RPC APIs and health probe](<../Simple Server/Native Client API.md>) through the [server build settings](<../Simple Server/Deployment and Editor Settings.md>). Changing the development URL or key requires a Debug rebuild. Disabled builds retain the APIs: Net reports the string code `Disabled`, while the native health probe uses `ServerErrorCode.Disabled`.
+Enable the optional [`Global.Net` snapshot/RPC APIs and health probe](<../Simple Server/Native Client API.md>) through the [server build settings](<../Simple Server/Deployment and Editor Settings.md>). Changing the development URL or key requires a Debug rebuild. Disabled builds retain the APIs, but server interactions only print a diagnostic and return; see [Disabled server integration](<../Simple Server/Native Client API.md#disabled-server-integration>).
 
 ### Choose a module
 
