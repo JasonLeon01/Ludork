@@ -1,3 +1,4 @@
+#include "NodeGraph/Context/GraphContextFields.hpp"
 #include "NodeGraphRuntimeInternal.hpp"
 #include "StackRestore.hpp"
 #include "LuaServices/RuntimeBindingTraits.hpp"
@@ -91,7 +92,8 @@ NodeResult readPacked(const lua_glue::Object& value) {
 }
 lua_glue::Table contextTarget(const lua_glue::Object& value) {
     const lua_glue::Table table = requireTable(value);
-    const lua_glue::Object graph = table.raw_get<lua_glue::Object>("__graph__");
+    const lua_glue::Object graph = table.raw_get<lua_glue::Object>(
+        ludork::runtime::graph_context_fields::Graph);
     return graph.is<lua_glue::Table>() ? graph.as<lua_glue::Table>() : table;
 }
 NodeIndex cacheKey(const lua_glue::Object& value) {
@@ -144,7 +146,7 @@ NodeGraphContextObjects createNodeGraphContext(
             }
         });
     lua_glue::SetMetatable(graph, meta);
-    context.raw_set("__graph__", graph);
+    context.raw_set(ludork::runtime::graph_context_fields::Graph, graph);
     detail::registryTable(lua, NODEGRAPH_CONTEXTS_KEY, "k")
         .raw_set(graph, context);
     return {capture(lua_glue::MakeObject(lua, context)),

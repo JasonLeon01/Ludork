@@ -16,6 +16,7 @@ local Player = require("Source.MapActors.Player")
 local MotaBattleAbility = require("Source.Gameplay.MotaBattleAbility")
 local SpecialAbilities = require("Source.Gameplay.SpecialAbilities")
 local GameplayConstants = require("Source.Configs.GameplayConstants")
+local GeneralDataKey = require("Enums.GeneralDataKey")
 
 local GameplayEffectSpec = GlobalCore.GameplayEffectSpec
 local GameplayEventData = GlobalCore.GameplayEventData
@@ -62,7 +63,7 @@ Enemy.afterBattleVarChanges = {}
 function Enemy:init(texture, rect, tag)
     Actor.init(self, texture, rect, tag)
     self:_normaliseChildActorComp()
-    local attributes = Data.CreateGeneralAttributeSet("Enemy", self.ID)
+    local attributes = Data.CreateGeneralAttributeSet(GeneralDataKey.Enemy, self.ID)
     Battler.init(self, attributes)
     self._battleCondition = nil
     self._defeatFinalising = false
@@ -74,7 +75,7 @@ function Enemy:init(texture, rect, tag)
         local effect = SpecialAbilities.CreateEffect(specialID, self.attributes.special[specialID])
         abilitySystem:applyGameplayEffectSpec(
             GameplayEffectSpec.new(
-                effect, GameplayEventData.new(self, self, "Event.Special.Initialise"), 1,
+                effect, GameplayEventData.new(self, self, GameplayConstants.SPECIAL_INITIALISE_EVENT), 1,
                 GameplayConstants.SPECIAL_PREFIX .. specialID
             )
         )
@@ -116,10 +117,14 @@ end
 function Enemy:_preparePostBattle(player, scene)
     self:_evaluateAfterBattleVariableChanges(scene:getGameInstance())
     local rebornEnemy, droppedActors, spawnLayer = DefeatSpawns.Prepare(self, scene)
-    local eventData = GameplayEventData.new(self, player, "Event.Combat.Reward")
+    local eventData = GameplayEventData.new(self, player, GameplayConstants.COMBAT_REWARD_EVENT)
     local effectSpecs = {
-        Effects.CreateInstantModifierSpec("Combat.Reward.Gold", "GOLD", "Add", self.attributes.GOLD, eventData),
-        Effects.CreateInstantModifierSpec("Combat.Reward.Exp", "EXP", "Add", self.attributes.EXP, eventData)
+        Effects.CreateInstantModifierSpec(
+            "Combat.Reward.Gold", "GOLD", GlobalCore.GameplayModifier.OPERATION_ADD, self.attributes.GOLD, eventData
+        ),
+        Effects.CreateInstantModifierSpec(
+            "Combat.Reward.Exp", "EXP", GlobalCore.GameplayModifier.OPERATION_ADD, self.attributes.EXP, eventData
+        )
     }
     local stateSpecials = { { Special.Poisoning, State.Poisoned }, { Special.Weaken, State.Weak } }
     for _, stateSpecial in ipairs(stateSpecials) do
@@ -147,10 +152,10 @@ function Enemy:_preparePostBattle(player, scene)
 end
 
 function Enemy:_executeDropAbility(player, droppedActor)
-    local ability = GeneralDataGraphAbility.new("Item", droppedActor.ID, "onDrop")
+    local ability = GeneralDataGraphAbility.new(GeneralDataKey.Item, droppedActor.ID, "onDrop")
     ability:activate(
         player:getAbilitySystemComponent(),
-        GameplayEventData.new(self, droppedActor, "Event.Item.Drop", { itemID = droppedActor.ID })
+        GameplayEventData.new(self, droppedActor, GameplayConstants.ITEM_DROP_EVENT, { itemID = droppedActor.ID })
     )
 end
 
@@ -186,7 +191,7 @@ function Enemy:onCollision(other)
     ---@cast gameMap GameMap | nil
     local player = Player.MeetPlayer(other, gameMap ~= nil and gameMap:getPlayer() or nil)
     if player == nil or self._defeatFinalising
-        or (self._battleCondition ~= nil and self._battleCondition:getStatus() == "pending") then
+        or (self._battleCondition ~= nil and self._battleCondition:getStatus() == Engine.AsyncOperation.PENDING) then
         return
     end
     assert(gameMap ~= nil, "Enemy combat requires an owning map")
@@ -194,7 +199,7 @@ function Enemy:onCollision(other)
     assert(Class.isInstance(scene, GameplayScene), "Enemy combat requires a GameplayScene on its owning map")
     ---@cast scene Source.Gameplay.GameplayScene
     self._battleCondition = nil
-    local battleEvent = createCombatEvent(player, self, "Event.Combat.MotaBattle", { commit = false })
+    local battleEvent = createCombatEvent(player, self, GameplayConstants.COMBAT_BATTLE_EVENT, { commit = false })
     battleEvent.target = player
     local result = assert(self:getAbilitySystemComponent():tryActivateAbility(MotaBattleAbility.id, battleEvent))
     local won = result.code == BattleResultCode.WIN

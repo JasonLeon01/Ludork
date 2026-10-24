@@ -6,6 +6,8 @@ local SpecialAbilities = require("Source.Gameplay.SpecialAbilities")
 local Data = require("Source.Data")
 local EventKey = require("Enums.EventKey")
 local GameplayConstants = require("Source.Configs.GameplayConstants")
+local GeneralDataKey = require("Enums.GeneralDataKey")
+local State = require("Enums.GeneralData.State")
 
 local GameplayEffect = GlobalCore.GameplayEffect
 local GameplayEffectSpec = GlobalCore.GameplayEffectSpec
@@ -31,8 +33,8 @@ end
 function Effects.CreateInstantModifierSpec(effectID, attribute, operation, magnitude, eventData)
     local effect = GameplayEffect.new({
         id = effectID,
-        durationPolicy = "Instant",
-        stackingPolicy = "None",
+        durationPolicy = GameplayEffect.DURATION_INSTANT,
+        stackingPolicy = GameplayEffect.STACKING_NONE,
         modifiers = {
             {
                 attribute = attribute,
@@ -53,17 +55,21 @@ end
 function Effects.CreateEquipmentEffect(equipID, slot, attrPlus)
     local modifiers = {}
     for attribute, magnitude in pairs(attrPlus) do
-        modifiers[#modifiers + 1] = { attribute = attribute, operation = "Add", magnitude = magnitude }
+        modifiers[#modifiers + 1] = {
+            attribute = attribute,
+            operation = GlobalCore.GameplayModifier.OPERATION_ADD,
+            magnitude = magnitude
+        }
     end
     table.sort(modifiers, function (left, right)
         return left.attribute < right.attribute
     end)
     return GameplayEffect.new({
         id = GameplayConstants.EQUIPMENT_PREFIX .. slot .. "." .. equipID,
-        durationPolicy = "Infinite",
-        stackingPolicy = "None",
+        durationPolicy = GameplayEffect.DURATION_INFINITE,
+        stackingPolicy = GameplayEffect.STACKING_NONE,
         modifiers = modifiers,
-        grantedTags = { "Equipment.Slot." .. slot },
+        grantedTags = { GameplayConstants.EQUIPMENT_SLOT_TAG_PREFIX .. slot },
         data = { equipID = equipID, slot = slot }
     })
 end
@@ -72,21 +78,24 @@ function Effects.CreateStateEffect(stateID)
     local stateData = Data.GetGeneralStateData(stateID)
     local modifiers = {}
     local grantedAbilities = {
-        GeneralDataGraphAbility.new("State", stateID, "onWalk", { GameplayConstants.MOVEMENT_STEP_EVENT }),
-        GeneralDataGraphAbility.new("State", stateID, "onHookTriggered", { "Event.State.Trigger." .. stateID })
+        GeneralDataGraphAbility.new(GeneralDataKey.State, stateID, "onWalk", { GameplayConstants.MOVEMENT_STEP_EVENT }),
+        GeneralDataGraphAbility.new(
+            GeneralDataKey.State, stateID, "onHookTriggered",
+            { GameplayConstants.STATE_TRIGGER_EVENT_PREFIX .. stateID }
+        )
     }
-    if stateID == "Weak" then
+    if stateID == State.Weak then
         modifiers = {
-            { attribute = "ATK", operation = "Add", magnitude = -1, minimum = 0 },
-            { attribute = "DEF", operation = "Add", magnitude = -1, minimum = 0 }
+            { attribute = "ATK", operation = GlobalCore.GameplayModifier.OPERATION_ADD, magnitude = -1, minimum = 0 },
+            { attribute = "DEF", operation = GlobalCore.GameplayModifier.OPERATION_ADD, magnitude = -1, minimum = 0 }
         }
-    elseif stateID == "Poisoned" then
+    elseif stateID == State.Poisoned then
         grantedAbilities[#grantedAbilities + 1] = SpecialAbilities.CreatePoisonedAbility()
     end
     return GameplayEffect.new({
         id = GameplayConstants.STATE_PREFIX .. stateID,
-        durationPolicy = "Infinite",
-        stackingPolicy = bool(stateData.stackable) and "Aggregate" or "None",
+        durationPolicy = GameplayEffect.DURATION_INFINITE,
+        stackingPolicy = bool(stateData.stackable) and GameplayEffect.STACKING_AGGREGATE or GameplayEffect.STACKING_NONE,
         modifiers = modifiers,
         grantedTags = { GameplayConstants.STATE_PREFIX .. stateID },
         grantedAbilities = grantedAbilities,

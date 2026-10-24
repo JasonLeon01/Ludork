@@ -64,7 +64,7 @@ end
 
 function Gameplay.ApplyAttributeDelta(target, attribute, magnitude)
     return loadEffects()
-        .ApplyInstantModifier(target, "Blueprint.AttributeDelta", attribute, "Add", magnitude, requireGameplayContext(
+        .ApplyInstantModifier(target, "Blueprint.AttributeDelta", attribute, loadGlobalCore().GameplayModifier.OPERATION_ADD, magnitude, requireGameplayContext(
             Gameplay.ApplyAttributeDelta
         ))
 end

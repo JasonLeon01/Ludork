@@ -21,9 +21,9 @@ std::shared_ptr<sf::Texture> buttonTexture(const std::string& assetKey) {
     if (!assetKey.empty()) {
         return ui_control_adapter_detail::loadTexture(assetKey);
     }
+    constexpr sf::IntRect ButtonBackground{{128, 64}, {32, 32}};
     return std::make_shared<sf::Texture>(
-        ui_control_adapter_detail::loadWindowSkin(""), false,
-        sf::IntRect({128, 64}, {32, 32}));
+        ui_control_adapter_detail::loadWindowSkin(""), false, ButtonBackground);
 }
 
 }  // namespace

@@ -1,3 +1,4 @@
+#include <LudorkGenerated/ResourceFileConstants.hpp>
 #include <Runtime/RuntimeReference.hpp>
 #include "ClassRuntimeInternal.hpp"
 
@@ -30,8 +31,9 @@ std::string normalizeScriptMixinPath(const std::string& value) {
     std::string path = value;
     std::replace(path.begin(), path.end(), '\\', '/');
     if (path.empty() || path.front() == '/' ||
-        path.find(':') != std::string::npos || !path.ends_with(".lua") ||
-        path.ends_with("_meta.lua")) {
+        path.find(':') != std::string::npos ||
+        !path.ends_with(ludork::generated::resources::LuaSourceExtension) ||
+        path.ends_with(ludork::generated::resources::MetadataSourceSuffix)) {
         throw std::runtime_error(
             "scriptPath must be a relative .lua path under Scripts/Mixins");
     }
@@ -62,7 +64,8 @@ RuntimeValue loadScriptMixin(const std::string& classPath,
                              const std::string& scriptPath) {
     RuntimeValue value;
     try {
-        value = first(executeScript("Scripts/Mixins/" + scriptPath));
+        value = first(executeScript(
+            ludork::generated::resources::MixinScriptPathPrefix + scriptPath));
     } catch (const std::exception& error) {
         throw std::runtime_error("Failed to load Mixin " + scriptPath +
                                  " for " + classPath + ": " + error.what());

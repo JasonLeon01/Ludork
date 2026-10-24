@@ -23,6 +23,9 @@
 namespace ludork::preview_host {
 namespace {
 
+constexpr float AnchorStretchTolerance = 0.00001f;
+constexpr float SizeChangeTolerance = 0.0001f;
+
 RuntimeData::Map& mutableMap(RuntimeData& value) {
     ludork::runtime::value_reader::requireMap(value, "UI reparent data");
     return *value.getMutableIf<RuntimeData::Map>();
@@ -152,7 +155,7 @@ bool stretched(const RuntimeData::Map& slot, std::size_t axis) {
                                 ludork::runtime::value_reader::requireArray(
                                     *maximum, "Slot.anchors.max")[axis],
                                 "Slot.anchors.max");
-    return std::abs(end - start) > 0.00001f;
+    return std::abs(end - start) > AnchorStretchTolerance;
 }
 
 RuntimeData::Map& slotOffsets(RuntimeData& slot) {
@@ -186,7 +189,7 @@ bool preserveFixedSize(RuntimeData& slot, const ControlBase& before,
     const auto preserveAxis = [&](std::size_t axis, const std::string& name,
                                   float source, float target) {
         if (stretched(values, axis) || target <= 0.0f ||
-            std::abs(source - target) <= 0.0001f) {
+            std::abs(source - target) <= SizeChangeTolerance) {
             return;
         }
         const float size = std::max(0.0f, offset(offsets, name));
@@ -298,7 +301,7 @@ RuntimeData UiPreviewSession::resolveReparent(const RuntimeData::Map& request) {
     RuntimeData& nodeSlot = mutableMap(*node)["slot"];
     if (registry.slotType(parentId) == UiControlSlotType::List) {
         return RuntimeData(object({
-            {"type", RuntimeData("reparentSlot")},
+            {"type", RuntimeData(ReparentResponse)},
             {"slot", RuntimeData(RuntimeData::Map{})},
         }));
     }
@@ -327,7 +330,7 @@ RuntimeData UiPreviewSession::resolveReparent(const RuntimeData::Map& request) {
     }
     preservePosition(slot, before.bounds.position, *after.control);
     return RuntimeData(object({
-        {"type", RuntimeData("reparentSlot")},
+        {"type", RuntimeData(ReparentResponse)},
         {"slot", std::move(slot)},
     }));
 }

@@ -3,6 +3,7 @@
 
 #include <Runtime/AssetStore.hpp>
 #include <Runtime/Data.hpp>
+#include <LudorkGenerated/ResourceFileConstants.hpp>
 #include <Runtime/RuntimeDataReader.hpp>
 #include <UI/UIState.hpp>
 
@@ -11,6 +12,11 @@
 #include <stdexcept>
 namespace ludork::preview_host {
 namespace {
+
+std::filesystem::path systemConfigPath() {
+    return std::string(ludork::generated::resources::DataPathPrefix) +
+           "Configs/System" + ludork::generated::resources::DataExtension;
+}
 
 std::string settingString(const RuntimeData::Map& config,
                           const std::string& name) {
@@ -39,8 +45,7 @@ std::int64_t settingInteger(const RuntimeData::Map& config,
 }  // namespace
 
 void configureUiResources() {
-    const RuntimeData configValue = loadData(
-        std::filesystem::path(".") / "Data" / "Configs" / "System.json");
+    const RuntimeData configValue = loadData(systemConfigPath());
     const RuntimeData::Map& config = ludork::runtime::value_reader::requireMap(
         configValue, "Data/Configs/System.json");
     const RuntimeData::Map& fonts = ludork::runtime::value_reader::requireMap(
@@ -75,8 +80,7 @@ void configureUiResources() {
 }
 
 sf::Vector2f previewGameSize() {
-    const RuntimeData configValue = loadData(
-        std::filesystem::path(".") / "Data" / "Configs" / "System.json");
+    const RuntimeData configValue = loadData(systemConfigPath());
     const RuntimeData::Map& config =
         ludork::runtime::value_reader::requireMap(configValue, "System config");
     const RuntimeData::Map& setting = ludork::runtime::value_reader::requireMap(

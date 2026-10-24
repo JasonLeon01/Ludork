@@ -1,6 +1,7 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GameMap = require("Global.GameMap")
+local WorldActorState = require("Enums.WorldActorState")
 
 local Actor = Engine.Actor
 local WorldRegionState = GlobalCore.WorldRegionState
@@ -206,7 +207,7 @@ end
 function WorldGameMapActors.ApplySuppressedActorTags(self)
     for tag in pairs(self._worldSuppressedActorTags) do
         local actor = self._worldActorsByTag[tag]
-        if actor ~= nil and self._worldRootStates[self._worldActorRoots[actor] or actor] ~= "NeverActive" then
+        if actor ~= nil and self._worldRootStates[self._worldActorRoots[actor] or actor] ~= WorldActorState.NEVER_ACTIVE then
             actor:destroy()
         end
     end
@@ -375,7 +376,7 @@ function WorldGameMapActors.IndexRegionActor(self, payload, layerName, actor, re
     payload.actorRoots[actor] = root
     if actor == root and self._worldRootStates[root] == nil then
         local wakeTime = targetRegion.wakeTags ~= nil and targetRegion.wakeTags[tag] or nil
-        self._worldRootStates[root] = wakeTime ~= nil and "Dormant" or "NeverActive"
+        self._worldRootStates[root] = wakeTime ~= nil and WorldActorState.DORMANT or WorldActorState.NEVER_ACTIVE
         self._worldRootSleepTimes[root] = wakeTime
         self:_rememberWorldRootPosition(root)
     end
@@ -415,7 +416,7 @@ function WorldGameMapActors.RegisterWorldActorTree(self, actor, layer)
         self._worldActorLayers[listed] = layer
         self._worldActorRoots[listed] = actor
     end
-    self._worldRootStates[actor] = self._worldRootStates[actor] or "NeverActive"
+    self._worldRootStates[actor] = self._worldRootStates[actor] or WorldActorState.NEVER_ACTIVE
     self:_rememberWorldRootPosition(actor)
 end
 
@@ -477,7 +478,7 @@ function WorldGameMapActors.SpawnActor(self, actor, layer, emitCreateEvent)
     end
     self:_registerWorldActorTree(actor, layer)
     if self._player ~= nil and actor == self._player then
-        self._worldRootStates[actor] = "Active"
+        self._worldRootStates[actor] = WorldActorState.ACTIVE
         return GameMap.spawnActor(self, actor, layer, emitCreateEvent)
     end
     local regionIndex = self:getSparseWorldRegionIndexAt(actor:getMapPosition())
@@ -548,7 +549,7 @@ function WorldGameMapActors.GetActorByTag(self, tag)
     end
     local root = self._worldActorRoots[actor] or actor
     local state = self._worldRootStates[root]
-    if state == "Active" or state == "Dormant" then
+    if state == WorldActorState.ACTIVE or state == WorldActorState.DORMANT then
         return actor
     end
     return nil
@@ -689,9 +690,9 @@ function WorldGameMapActors.SleepWorldRoots(self, roots)
     local sleeping = {}
     local sleepTime = perfCounter()
     for _, root in ipairs(roots) do
-        if self._worldRootStates[root] == "Active" then
+        if self._worldRootStates[root] == WorldActorState.ACTIVE then
             sleeping[#sleeping + 1] = root
-            self._worldRootStates[root] = "Dormant"
+            self._worldRootStates[root] = WorldActorState.DORMANT
             self._worldRootSleepTimes[root] = sleepTime
         end
     end
@@ -720,13 +721,13 @@ function WorldGameMapActors.ActivateWorldRoots(self, roots)
     local waking = {}
     self:beginActorBatch()
     for _, root in ipairs(roots) do
-        local wasDormant = self._worldRootStates[root] == "Dormant"
-        if self._worldRootStates[root] ~= "Active" and not root:isDestroyed() then
+        local wasDormant = self._worldRootStates[root] == WorldActorState.DORMANT
+        if self._worldRootStates[root] ~= WorldActorState.ACTIVE and not root:isDestroyed() then
             self:_addActorTreeToLayer(root, self._worldActorLayers[root])
             if wasDormant then
                 waking[#waking + 1] = root
             end
-            self._worldRootStates[root] = "Active"
+            self._worldRootStates[root] = WorldActorState.ACTIVE
         end
     end
     self:endActorBatch()

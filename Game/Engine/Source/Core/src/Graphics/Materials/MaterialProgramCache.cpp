@@ -1,3 +1,4 @@
+#include "MaterialSchema.hpp"
 #include <Graphics/Materials/MaterialProgramCache.hpp>
 #include <Graphics/Materials/MaterialGenerated.hpp>
 #include "MaterialProgramCacheImpl.hpp"
@@ -133,11 +134,11 @@ void MaterialProgramCache::Impl::parameters(Program& program,
         }
         const RuntimeData& value =
             (uniform.layer ? layer : material).at(uniform.parameter);
-        if (uniform.type == "texture") {
+        if (uniform.type == schema::value_type::Texture) {
             set(program, uniform.name, *texture(*value.getIf<std::string>()));
-        } else if (uniform.type == "bool") {
+        } else if (uniform.type == schema::value_type::Boolean) {
             set(program, uniform.name, *value.getIf<bool>());
-        } else if (uniform.type == "float") {
+        } else if (uniform.type == schema::value_type::Float) {
             set(program, uniform.name,
                 ludork::runtime::value_reader::requireFloat(value,
                                                             uniform.parameter));

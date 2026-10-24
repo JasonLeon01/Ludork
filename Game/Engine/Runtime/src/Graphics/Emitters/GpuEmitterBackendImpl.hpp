@@ -12,6 +12,11 @@
 namespace ludork::runtime::graphics {
 
 struct GpuEmitterBackend::Impl {
+private:
+    static constexpr double NanosecondsPerMillisecond = 1000000;
+    static constexpr std::size_t MaximumPendingQueries = 16;
+
+public:
     struct Query {
         unsigned int id = 0;
         bool pending = false;
@@ -39,7 +44,7 @@ struct GpuEmitterBackend::Impl {
     sf::Color colour = sf::Color::White;
     double time = 0;
     double remainder = 0;
-    std::array<Query, 16> queries{};
+    std::array<Query, MaximumPendingQueries> queries{};
     std::size_t queryCursor = 0;
     double simulationMs = -1;
     double drawMs = -1;

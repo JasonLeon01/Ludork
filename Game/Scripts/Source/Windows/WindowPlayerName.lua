@@ -6,6 +6,7 @@ local Ui = require("Internal.UIBase.Ui")
 local View = require("Internal.UI.WindowPlayerName")
 local GameSystem = require("Source.System")
 local Player = require("Source.MapActors.Player")
+local PlayerNameValidationError = require("Enums.PlayerNameValidationError")
 
 ---@type fun(value: string): string
 local LOC = LocaleCore.ApplyStringLocaleFormat
@@ -13,7 +14,10 @@ local Input = Engine.Input
 local AudioManager = GlobalCore.AudioManager
 
 ---@class Source.Windows.WindowPlayerName.Controller
-local Controller = {}
+local Controller = {
+    _DISABLED_CONFIRM_COLOUR = sf.Color.new(110, 110, 110, 170),
+    _DISABLED_CONFIRM_LABEL_COLOUR = sf.Color.new(150, 150, 150, 255)
+}
 
 Controller.windowOptions = { centered = true, hidden = true, returnButton = true, focusable = true }
 
@@ -128,8 +132,10 @@ end
 
 function Controller:setConfirmEnabled(enabled)
     self.ui.controls["ConfirmButton"]:setActive(enabled)
-    self.ui.controls["ConfirmButton"]:setColour(enabled and self._confirmColour or sf.Color.new(110, 110, 110, 170))
-    self.ui.controls["ConfirmLabel"]:setColour(enabled and self._confirmLabelColour or sf.Color.new(150, 150, 150, 255))
+    self.ui.controls["ConfirmButton"]:setColour(enabled and self._confirmColour or Controller._DISABLED_CONFIRM_COLOUR)
+    self.ui.controls["ConfirmLabel"]:setColour(
+        enabled and self._confirmLabelColour or Controller._DISABLED_CONFIRM_LABEL_COLOUR
+    )
 end
 
 function Controller:moveFocus(delta)
@@ -193,7 +199,8 @@ end
 
 function Controller:validateDraft(text)
     local _, reason = Player.ValidateName(text)
-    local errorKey = reason == "empty" and "PLAYER_NAME_EMPTY" or (reason == "tooLong" and "PLAYER_NAME_TOO_LONG" or "")
+    local errorKey = reason == PlayerNameValidationError.EMPTY and "PLAYER_NAME_EMPTY"
+        or (reason == PlayerNameValidationError.TOO_LONG and "PLAYER_NAME_TOO_LONG" or "")
     self:setError(errorKey)
     self:setConfirmEnabled(reason == nil)
     return reason == nil

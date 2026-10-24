@@ -125,7 +125,7 @@ AbilitySystemComponent::tryActivateAbility(
                                                                abilityID);
     if (matches.empty()) {
         return GameplayAbilityResult::Failure(
-            std::string("AbilityNotFound"),
+            std::string(GameplayAbilityResult::CODE_ABILITY_NOT_FOUND),
             ludork::global::ability_system_impl::runtimeMap(
                 {{"abilityID", RuntimeValue(abilityID)}}));
     }
@@ -148,7 +148,7 @@ AbilitySystemComponent::tryActivateAbility(
         }
     }
     return GameplayAbilityResult::Failure(
-        std::string("AbilityNotActivated"),
+        std::string(GameplayAbilityResult::CODE_ABILITY_NOT_ACTIVATED),
         ludork::global::ability_system_impl::runtimeMap(
             {{"abilityID", RuntimeValue(abilityID)}}));
 }

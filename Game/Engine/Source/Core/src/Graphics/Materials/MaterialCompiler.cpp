@@ -1,3 +1,4 @@
+#include <Graphics/Materials/MaterialSurfaceField.hpp>
 #include <Graphics/Materials/MaterialCompiler.hpp>
 #include <Graphics/Materials/MaterialGenerated.hpp>
 #include "MaterialCompilerImpl.hpp"
@@ -47,7 +48,7 @@ unsigned int layerInputs(const MaterialResource& layer, unsigned int fields) {
         const std::string& id = *link->at("node").getIf<std::string>();
         const std::string& port = *link->at("port").getIf<std::string>();
         const MaterialDefinition::Node& node = *nodes.at(id);
-        if (node.type == "SurfaceInput") {
+        if (node.type == schema::node_type::SurfaceInput) {
             const auto& names = GraphCompilerImpl::surfaceFields();
             for (std::size_t index = 0; index < names.size(); ++index) {
                 if (port == names[index]) {
@@ -109,7 +110,9 @@ MaterialCompiledStage compileStage(
     const auto assign = [&](const MaterialResource& resource, bool addition,
                             unsigned int requested) {
         for (std::size_t index = 0; index < stage.surface.size(); ++index) {
-            if ((index == 6) != vertex || (requested & (1u << index)) == 0) {
+            if ((index == surfaceFieldIndex(
+                              MaterialSurfaceField::VertexOffset)) != vertex ||
+                (requested & (1u << index)) == 0) {
                 continue;
             }
             std::string expression = stage.surface[index].code;
@@ -153,7 +156,9 @@ MaterialCompiledStage compileStage(
     };
     assign(material, false, primaryFields);
     if (layer) {
-        const GraphCompilerImpl::Expression originalOffset = stage.surface[6];
+        const GraphCompilerImpl::Expression originalOffset =
+            stage
+                .surface[surfaceFieldIndex(MaterialSurfaceField::VertexOffset)];
         GraphCompilerImpl modifier(*layer, "l", vertex, true, stage.surface,
                                    analysisProgram);
         stage.surface = modifier.compile(fields);
@@ -166,17 +171,31 @@ MaterialCompiledStage compileStage(
                 instruction.operation =
                     MaterialAnalysisProgram::Operation::VertexAdd;
                 instruction.width = 2;
-                instruction.inputs = {GraphCompilerImpl::instruction(
-                                          *analysisProgram, originalOffset),
-                                      GraphCompilerImpl::instruction(
-                                          *analysisProgram, stage.surface[6])};
-                stage.surface[6].instruction =
+                instruction.inputs = {
+                    GraphCompilerImpl::instruction(*analysisProgram,
+                                                   originalOffset),
+                    GraphCompilerImpl::instruction(
+                        *analysisProgram,
+                        stage.surface[surfaceFieldIndex(
+                            MaterialSurfaceField::VertexOffset)])};
+                stage
+                    .surface[surfaceFieldIndex(
+                        MaterialSurfaceField::VertexOffset)]
+                    .instruction =
                     analysisProgram->append(std::move(instruction));
             }
-            stage.surface[6].time =
-                stage.surface[6].time || originalOffset.time;
-            stage.surface[6].zero =
-                stage.surface[6].zero && originalOffset.zero;
+            stage.surface[surfaceFieldIndex(MaterialSurfaceField::VertexOffset)]
+                .time = stage
+                            .surface[surfaceFieldIndex(
+                                MaterialSurfaceField::VertexOffset)]
+                            .time ||
+                        originalOffset.time;
+            stage.surface[surfaceFieldIndex(MaterialSurfaceField::VertexOffset)]
+                .zero = stage
+                            .surface[surfaceFieldIndex(
+                                MaterialSurfaceField::VertexOffset)]
+                            .zero &&
+                        originalOffset.zero;
         }
     }
     return stage;
@@ -381,15 +400,32 @@ MaterialCompiler::Analysis analysisOf(const MaterialCompiledStage& fragment,
     for (const auto& expression : fragment.surface) {
         result.timeDependent = result.timeDependent || expression.time;
     }
-    result.timeDependent = result.timeDependent || vertex.surface[6].time;
-    result.occlusionTimeDependent = fragment.surface[1].time ||
-                                    fragment.surface[4].time ||
-                                    vertex.surface[6].time;
+    result.timeDependent =
+        result.timeDependent ||
+        vertex.surface[surfaceFieldIndex(MaterialSurfaceField::VertexOffset)]
+            .time;
+    result.occlusionTimeDependent =
+        fragment.surface[surfaceFieldIndex(MaterialSurfaceField::Alpha)].time ||
+        fragment.surface[surfaceFieldIndex(MaterialSurfaceField::LightBlock)]
+            .time ||
+        vertex.surface[surfaceFieldIndex(MaterialSurfaceField::VertexOffset)]
+            .time;
     result.mayBlockLight =
-        !fragment.surface[4].zero && !fragment.surface[1].zero;
-    result.mayReflect = !fragment.surface[5].zero &&
-                        !fragment.surface[3].zero && !fragment.surface[1].zero;
-    result.vertexDisplacement = !vertex.surface[6].zero;
+        !fragment.surface[surfaceFieldIndex(MaterialSurfaceField::LightBlock)]
+             .zero &&
+        !fragment.surface[surfaceFieldIndex(MaterialSurfaceField::Alpha)].zero;
+    result.mayReflect =
+        !fragment
+             .surface[surfaceFieldIndex(
+                 MaterialSurfaceField::ReflectionStrength)]
+             .zero &&
+        !fragment
+             .surface[surfaceFieldIndex(MaterialSurfaceField::LightingWeight)]
+             .zero &&
+        !fragment.surface[surfaceFieldIndex(MaterialSurfaceField::Alpha)].zero;
+    result.vertexDisplacement =
+        !vertex.surface[surfaceFieldIndex(MaterialSurfaceField::VertexOffset)]
+             .zero;
     return result;
 }
 
@@ -405,29 +441,42 @@ MaterialCompiler::Sources MaterialCompiler::compile(
     std::shared_ptr<MaterialAnalysisProgram> analysisProgram =
         std::make_shared<MaterialAnalysisProgram>();
     const MaterialCompiledStage vertex =
-        compileStage(material, layer, true, 64, analysisProgram.get());
+        compileStage(material, layer, true,
+                     surfaceFieldMask(MaterialSurfaceField::VertexOffset),
+                     analysisProgram.get());
     const MaterialCompiledStage complete =
-        compileStage(material, layer, false, 63, analysisProgram.get());
-    std::array<std::size_t, 7> outputs;
-    for (std::size_t index = 0; index < 6; ++index) {
+        compileStage(material, layer, false, FragmentMaterialSurfaceFields,
+                     analysisProgram.get());
+    std::array<std::size_t, MaterialSurfaceFieldCount> outputs;
+    for (std::size_t index = 0;
+         index < surfaceFieldIndex(MaterialSurfaceField::VertexOffset);
+         ++index) {
         outputs[index] = GraphCompilerImpl::instruction(
             *analysisProgram, complete.surface[index]);
     }
-    outputs[6] =
-        GraphCompilerImpl::instruction(*analysisProgram, vertex.surface[6]);
+    outputs[surfaceFieldIndex(MaterialSurfaceField::VertexOffset)] =
+        GraphCompilerImpl::instruction(
+            *analysisProgram, vertex.surface[surfaceFieldIndex(
+                                  MaterialSurfaceField::VertexOffset)]);
     analysisProgram->setOutputs(outputs);
-    unsigned int fields = 63;
+    unsigned int fields = FragmentMaterialSurfaceFields;
     if (pass == Pass::Transmission) {
-        fields = 2 | 16;
+        fields = surfaceFieldMask(MaterialSurfaceField::Alpha) |
+                 surfaceFieldMask(MaterialSurfaceField::LightBlock);
     }
     if (pass == Pass::Surface) {
-        fields = 2 | 16;
+        fields = surfaceFieldMask(MaterialSurfaceField::Alpha) |
+                 surfaceFieldMask(MaterialSurfaceField::LightBlock);
     }
     if (pass == Pass::Source) {
-        fields = 1 | 2 | 4;
+        fields = surfaceFieldMask(MaterialSurfaceField::BaseColor) |
+                 surfaceFieldMask(MaterialSurfaceField::Alpha) |
+                 surfaceFieldMask(MaterialSurfaceField::Emission);
     }
     const MaterialCompiledStage fragment =
-        fields == 63 ? complete : compileStage(material, layer, false, fields);
+        fields == FragmentMaterialSurfaceFields
+            ? complete
+            : compileStage(material, layer, false, fields);
     Sources result;
     result.vertex = vertexSource(vertex);
     result.fragment = fragmentSource(fragment, pass);
@@ -468,7 +517,7 @@ MaterialCompiler::Analysis MaterialCompiler::analyse(
         if (cache.entries.contains(key)) {
             return cache.entries.at(key).analysis;
         }
-        if (cache.order.size() >= 256) {
+        if (cache.order.size() >= MaterialAnalysisCacheImpl::Capacity) {
             cache.entries.erase(cache.order.front());
             cache.order.pop_front();
         }

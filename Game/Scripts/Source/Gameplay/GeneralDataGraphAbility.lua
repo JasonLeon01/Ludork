@@ -2,13 +2,21 @@ local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local Data = require("Global.Data")
 local GameplayConstants = require("Source.Configs.GameplayConstants")
+local GeneralDataKey = require("Enums.GeneralDataKey")
+
 local GameplayAbility = GlobalCore.GameplayAbility
 local GameplayAbilityResult = GlobalCore.GameplayAbilityResult
 
 local BPBase = Engine.BPBase
 
 ---@class Source.Gameplay.GeneralDataGraphAbility: GlobalCore.GameplayAbility
-local GeneralDataGraphAbility = {}
+local GeneralDataGraphAbility = {
+    _RESULT_CODE = {
+        NO_GRAPH = "NoGraph",
+        EXECUTABLE_GRAPH = "ExecutableGraph",
+        GRAPH_EXECUTED = "GraphExecuted"
+    }
+}
 
 GeneralDataGraphAbility.generalType = ""
 GeneralDataGraphAbility.memberID = ""
@@ -28,20 +36,25 @@ function GeneralDataGraphAbility:calculate(_abilitySystem, _eventData)
     local member = assert(generalData.members[self.memberID], "General Data member not found: " .. self.memberID)
     local graphData = member._graph
     if graphData == nil or graphData.nodeGraph[self.graphEvent] == nil or graphData.startNodes[self.graphEvent] == nil then
-        return assert(GameplayAbilityResult.Success("NoGraph"))
+        return assert(GameplayAbilityResult.Success(GeneralDataGraphAbility._RESULT_CODE.NO_GRAPH))
     end
-    return assert(GameplayAbilityResult.Success("ExecutableGraph", { graphData = graphData }))
+    return assert(GameplayAbilityResult.Success(
+            GeneralDataGraphAbility._RESULT_CODE.EXECUTABLE_GRAPH,
+            {
+                graphData = graphData
+            }
+        ))
 end
 
 function GeneralDataGraphAbility:activate(abilitySystem, eventData)
     local result = assert(self:calculate(abilitySystem, eventData))
-    if result.code == "NoGraph" then
+    if result.code == GeneralDataGraphAbility._RESULT_CODE.NO_GRAPH then
         return result
     end
     eventData.payload.generalType = self.generalType
     eventData.payload.memberID = self.memberID
     eventData.payload.graphEvent = self.graphEvent
-    if self.generalType == "State" then
+    if self.generalType == GeneralDataKey.State then
         for _, activeEffect in ipairs(abilitySystem:getActiveGameplayEffects()) do
             local effectSpec = assert(activeEffect.spec)
             local effect = assert(effectSpec.effect)
@@ -54,7 +67,7 @@ function GeneralDataGraphAbility:activate(abilitySystem, eventData)
     local graph = Data.GenGraphFromData(result.data.graphData, eventData, nil)
     local executed = BPBase.ExecuteGraph(graph, self.graphEvent, { eventData = eventData })
     assert(executed, "General Data graph failed to execute: " .. self.id)
-    return assert(GameplayAbilityResult.Success("GraphExecuted"))
+    return assert(GameplayAbilityResult.Success(GeneralDataGraphAbility._RESULT_CODE.GRAPH_EXECUTED))
 end
 
 return class(GeneralDataGraphAbility, GameplayAbility)

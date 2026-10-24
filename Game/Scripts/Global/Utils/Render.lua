@@ -1,13 +1,15 @@
 local cjson = require("cjson")
 local GlobalCore = require("GlobalCore")
 
+local SIGNATURE_NUMBER_ZERO_TOLERANCE = 0.000000001
+
 local Display = GlobalCore.Display
 
 local Render = {}
 
 local function normaliseSignatureNumber(value)
     local number = value
-    if math.abs(number) <= 0.000000001 then
+    if math.abs(number) <= SIGNATURE_NUMBER_ZERO_TOLERANCE then
         number = 0.0
     end
     return string.format("%.9g", number)

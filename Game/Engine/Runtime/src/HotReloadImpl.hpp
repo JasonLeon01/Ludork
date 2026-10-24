@@ -22,6 +22,15 @@ public:
     void run();
 
 private:
+    enum class Phase {
+        Scan,
+        Compile,
+        CandidateExecution,
+        Compatibility,
+        Commit
+    };
+    const char* phaseName() const noexcept;
+
     struct Pair {
         int live;
         int candidate;
@@ -88,7 +97,7 @@ private:
     int nextReference_ = 0;
     const void* referencesPointer_{};
     ScriptStore::ReloadSnapshot snapshot_;
-    std::string phase_ = "scan";
+    Phase phase_ = Phase::Scan;
     int globals_{};
     int environment_{};
     int package_{};

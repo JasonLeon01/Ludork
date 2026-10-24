@@ -1,3 +1,4 @@
+#include <FocusTransition.hpp>
 #include "FocusImpl.hpp"
 
 #include <unordered_set>
@@ -20,7 +21,7 @@ std::vector<GroupId> FocusImpl::directionalPath(
         }
         const auto neighbor = group->second.neighbors.find(direction);
         if (neighbor == group->second.neighbors.end() ||
-            neighbor->second.transition != "directional" ||
+            neighbor->second.transition != FocusTransition::DIRECTIONAL ||
             neighbor->second.target == 0 ||
             !visited.insert(neighbor->second.target).second) {
             break;

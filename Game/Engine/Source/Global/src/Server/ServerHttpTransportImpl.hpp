@@ -4,6 +4,8 @@
 
 #include <SFML/Network/TcpSocket.hpp>
 
+#include <chrono>
+#include <cstddef>
 #include <string_view>
 
 namespace ludork::global::server_impl {
@@ -14,6 +16,11 @@ public:
     Response perform();
 
 private:
+    static constexpr std::chrono::milliseconds ConnectionAttemptInterval{250};
+    static constexpr std::chrono::milliseconds IoPollInterval{5};
+    static constexpr int SelectorPollMilliseconds = 10;
+    static constexpr std::size_t ReadBufferSize = 8192;
+
     struct Endpoint {
         std::string host;
         std::string authority;

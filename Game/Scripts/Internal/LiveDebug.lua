@@ -7,6 +7,8 @@ local Values = require("Internal.LiveDebug.Values")
 local MapClickAutoPath = require("Source.SceneComponents.MapClickAutoPath")
 local cjson = require("cjson")
 
+local MAXIMUM_TILE_REQUEST_CELLS = 128
+
 local LiveDebug = {}
 
 ---@type table<integer, Source.Scenes.SceneMap.SceneMap>
@@ -187,7 +189,10 @@ local function handle(request)
         local tileCount = layer:getTilesetTileCount()
         local tiles = assert(request.tiles, "Tiles are required")
         assert(Class.isInstance(tiles, "table"), "Tiles must be an array")
-        assert(#tiles <= 128, "A tile request cannot contain more than 128 cells")
+        assert(
+            #tiles <= MAXIMUM_TILE_REQUEST_CELLS,
+            string.format("A tile request cannot contain more than %d cells", MAXIMUM_TILE_REQUEST_CELLS)
+        )
         local cells = {}
         for _, tile in ipairs(tiles) do
             assert(Class.isInstance(tile, "table"), "Each tile must be an object")

@@ -1,3 +1,4 @@
+local GlobalCore = require("GlobalCore")
 local Pickup = require("Source.Utils.Pickup")
 local Effects = require("Source.Gameplay.Effects")
 
@@ -10,7 +11,9 @@ Bottle.getSE = ""
 function Bottle:onCollision(other)
     local parentCollision = super().onCollision
     Pickup.HandleCollision(self, other, parentCollision, function (player)
-        Effects.ApplyInstantModifier(player, "Consumable.Bottle.Heal", "HP", "Add", self.HP_plus)
+        Effects.ApplyInstantModifier(
+            player, "Consumable.Bottle.Heal", "HP", GlobalCore.GameplayModifier.OPERATION_ADD, self.HP_plus
+        )
     end)
 end
 

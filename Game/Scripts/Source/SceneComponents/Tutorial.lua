@@ -58,7 +58,7 @@ function TutorialController:request(key)
     assert(not self._disposed, "Tutorial controller has been disposed")
     assert(Config[key] ~= nil, "Unknown tutorial key: " .. tostring(key))
     local pending = self._requests[key]
-    if pending ~= nil and pending.operation:getStatus() == "pending" then
+    if pending ~= nil and pending.operation:getStatus() == Engine.AsyncOperation.PENDING then
         return pending.operation
     end
     if self:getScene():getGameInstance():hasTriggeredTutorial(key) then

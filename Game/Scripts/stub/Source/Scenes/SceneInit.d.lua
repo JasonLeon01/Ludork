@@ -1,20 +1,21 @@
 ---@meta Source.Scenes.SceneInit
 ---@brief Initial loading scene that bootstraps game data.
 ---@class Source.Scenes.SceneInit.SceneInit: GlobalCore.SceneBase
----@field _ui                  Source.Scenes.SceneInit.Controller
----@field _bg                  Engine.Image
----@field progressValue        number
----@field _displayProgress     number
----@field progressTotal        integer
----@field processedCount       integer
----@field progressDone         boolean
----@field hasSwitched          boolean
----@field _loadCancelled       boolean
----@field _loadStage           Global.Data.InitialLoadStage | nil
----@field _activeBatch         FileBatchJob | nil
----@field _animationSourceKeys table<string, boolean>
----@field _loadTask            AsyncioTask | nil
----@field new                  fun(): Source.Scenes.SceneInit.SceneInit
+---@field _ui                                          Source.Scenes.SceneInit.Controller
+---@field _bg                                          Engine.Image
+---@field progressValue                                number
+---@field _displayProgress                             number
+---@field progressTotal                                integer
+---@field processedCount                               integer
+---@field progressDone                                 boolean
+---@field hasSwitched                                  boolean
+---@field _loadCancelled                               boolean
+---@field _loadStage                                   Global.Data.InitialLoadStage | nil
+---@field _activeBatch                                 FileBatchJob | nil
+---@field _animationSourceKeys                         table<string, boolean>
+---@field _loadTask                                    AsyncioTask | nil
+---@field new                                          fun(): Source.Scenes.SceneInit.SceneInit
+---@field private _DISPLAY_PROGRESS_COMPLETE_THRESHOLD number
 local Scene = {}
 
 ---@brief Create progress bar UI and start asset preparation thread.

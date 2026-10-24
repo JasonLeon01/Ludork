@@ -39,6 +39,15 @@ public:
     RuntimeData resolveReparent(const RuntimeData::Map& request);
 
 private:
+    static constexpr char ReparentResponse[] = "reparentSlot";
+    static constexpr char HitTestResponse[] = "hitTest";
+    static constexpr char FrameResponse[] = "frame";
+    static constexpr int ParticleSimulationRate = 240;
+    static constexpr int MaximumParticleSeekSteps = 120;
+    static constexpr double ParticleSeekBudgetMilliseconds = 12.0;
+    static constexpr double ParticleStepRoundingTolerance = 0.000001;
+    static constexpr float DefaultAnimationSampleTime = 0.5f;
+
     void resetContent() noexcept;
     bool sampleParticles(double time);
 

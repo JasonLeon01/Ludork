@@ -42,6 +42,10 @@ struct ActorBatchRenderer::Impl {
     RuntimeData render(const RuntimeData::Map& request, FrameFiles& frameFiles);
 
 private:
+    static constexpr char FrameResponse[] = "actorFrame";
+    static constexpr unsigned int maximumAtlasSize = 2048;
+    static constexpr unsigned int atlasGutter = 1;
+
     struct PackedActorVisual {
         actor_batch_detail::ActorVisualRequest visual;
         std::size_t page = 0;

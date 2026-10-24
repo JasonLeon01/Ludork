@@ -1,3 +1,4 @@
+#include "NodeGraph/Context/GraphContextFields.hpp"
 #include <Runtime/RuntimeReference.hpp>
 #include "BlueprintRuntimeInternal.hpp"
 
@@ -304,8 +305,10 @@ bool executeBlueprintGraph(const std::shared_ptr<Graph>& nativeGraph,
         }
 
         context = RuntimeHandle(activeLocalGraph);
-        oldContextGraph = getNodeGraphContextValue(scope, context, "__graph__");
-        setNodeGraphContextValue(scope, context, "__graph__",
+        oldContextGraph = getNodeGraphContextValue(
+            scope, context, ludork::runtime::graph_context_fields::Graph);
+        setNodeGraphContextValue(scope, context,
+                                 ludork::runtime::graph_context_fields::Graph,
                                  nativeGraph->getGraphContext());
         contextGraphSet = true;
         for (const BlueprintRuntimeFacade::EventArgument& argument :
@@ -333,11 +336,14 @@ bool executeBlueprintGraph(const std::shared_ptr<Graph>& nativeGraph,
     }
     if (contextGraphSet) {
         try {
-            setNodeGraphContextValue(scope, context, "__graph__",
-                                     oldContextGraph);
+            setNodeGraphContextValue(
+                scope, context, ludork::runtime::graph_context_fields::Graph,
+                oldContextGraph);
         } catch (...) {
             const std::exception_ptr restoreFailure = std::current_exception();
-            logBlueprintCleanupFailure(eventName, "__graph__", restoreFailure);
+            logBlueprintCleanupFailure(
+                eventName, ludork::runtime::graph_context_fields::Graph,
+                restoreFailure);
             if (failure == nullptr) {
                 failure = restoreFailure;
             }

@@ -776,6 +776,8 @@ def validate_lowercase_literals(
     for kind, decorator_options in decorators:
         values.extend((kind, value) for value in decorator_options.values())
     for option_name, value in values:
+        if option_name == "default" and isinstance(value, QuotedAnnotationValue):
+            continue
         quote = ""
         escaped = False
         token: list[str] = []

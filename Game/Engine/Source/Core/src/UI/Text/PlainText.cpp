@@ -1,3 +1,5 @@
+#include <numbers>
+#include <CoreShared/TextConfigLimits.hpp>
 #include "PlainTextImpl.hpp"
 #include <Vector4CurveData.hpp>
 #include <UI/PlainText.hpp>
@@ -22,21 +24,24 @@ std::string toUtf8String(const sf::String& value) {
     return {bytes.begin(), bytes.end()};
 }
 
-sf::Transform customSlantTransform(const PlainTextConfig& config) {
+}  // namespace
+
+sf::Transform PlainText::customSlantTransform(const PlainTextConfig& config) {
     if ((config.style & static_cast<std::uint32_t>(sf::Text::Italic)) != 0 ||
         !std::isfinite(config.slantAngle)) {
         return {};
     }
-    const float angle = std::clamp(config.slantAngle, -45.0f, 45.0f);
-    if (std::abs(angle) <= 0.0001f) {
+    const float angle = std::clamp(
+        config.slantAngle,
+        static_cast<float>(ludork::engine::text_config::MinimumSlantAngle),
+        static_cast<float>(ludork::engine::text_config::MaximumSlantAngle));
+    if (std::abs(angle) <= SlantAngleTolerance) {
         return {};
     }
-    constexpr float DegreesToRadians = 3.14159265358979323846f / 180.0f;
+    constexpr float DegreesToRadians = std::numbers::pi_v<float> / 180.0f;
     const float shear = std::tan(angle * DegreesToRadians);
     return {1.0f, -shear, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
 }
-
-}  // namespace
 
 PlainText::PlainText(std::shared_ptr<PlainTextConfig> config,
                      const std::string& text)

@@ -41,14 +41,14 @@ RuntimeData PreviewHostSession::handle(const RuntimeData& requestValue) {
         ludork::runtime::value_reader::requireValue(request, "type",
                                                     "Preview request"),
         "Preview request.type");
-    if (type == "handshake") {
+    if (type == HandshakeRequest) {
         return handshake(request);
     }
     if (!accepted_) {
         throw std::runtime_error(
             "Preview protocol handshake has not completed");
     }
-    if (type == "closeMap") {
+    if (type == CloseMapRequest) {
         const std::string& sessionId =
             ludork::runtime::value_reader::requireString(
                 ludork::runtime::value_reader::requireValue(
@@ -61,15 +61,15 @@ RuntimeData PreviewHostSession::handle(const RuntimeData& requestValue) {
                 "Close map request.sceneKey");
         mapSession_.close(sceneKey);
         return RuntimeData(object({
-            {"type", RuntimeData("mapClosed")},
+            {"type", RuntimeData(MapClosedResponse)},
             {"sessionId", RuntimeData(sessionId)},
             {"sceneKey", RuntimeData(sceneKey)},
         }));
     }
-    if (type == "compileMaterial") {
+    if (type == CompileMaterialRequest) {
         return MaterialExport::compile(request);
     }
-    if (type == "renderMap") {
+    if (type == RenderMapRequest) {
         engineState().setScale(1.0f);
         return mapSession_.render(request, frameFiles_);
     }
@@ -82,31 +82,31 @@ RuntimeData PreviewHostSession::handle(const RuntimeData& requestValue) {
                                     *materials, "Preview request.materials"));
     const ludork::engine::materials::MaterialResource::ScopedOverrides
         materialScope(materialDocuments);
-    if (type == "describeMaterials") {
+    if (type == DescribeMaterialsRequest) {
         return MaterialPreviewSession::describe();
     }
-    if (type == "renderMaterial") {
+    if (type == RenderMaterialRequest) {
         engineState().setScale(1.0f);
         return materialSession_.render(request, frameFiles_);
     }
-    if (type == "render") {
+    if (type == RenderUiRequest) {
         return uiSession_.render(request, frameFiles_);
     }
-    if (type == "hitTest") {
+    if (type == HitTestRequest) {
         return uiSession_.hitTest(request);
     }
-    if (type == "resolveReparent") {
+    if (type == ResolveReparentRequest) {
         return uiSession_.resolveReparent(request);
     }
-    if (type == "renderActorBatch") {
+    if (type == RenderActorBatchRequest) {
         engineState().setScale(1.0f);
         return actorRenderer_.render(request, frameFiles_);
     }
-    if (type == "renderParticle") {
+    if (type == RenderParticleRequest) {
         engineState().setScale(1.0f);
         return particleSession_.render(request, frameFiles_);
     }
-    if (type == "renderSubtitle") {
+    if (type == RenderSubtitleRequest) {
         return subtitleSession_.render(request, frameFiles_);
     }
     throw std::invalid_argument("Unknown preview request type: " + type);
@@ -173,7 +173,7 @@ RuntimeData PreviewHostSession::handshake(const RuntimeData::Map& request) {
     capabilities.emplace_back(RuntimeData("mapMaterialSnapshots"));
     capabilities.emplace_back(RuntimeData("persistentFrames"));
     return RuntimeData(object({
-        {"type", RuntimeData("handshake")},
+        {"type", RuntimeData(HandshakeResponse)},
         {"accepted", RuntimeData(accepted)},
         {"protocolVersion", RuntimeData(protocolVersion)},
         {"adapterFingerprint", RuntimeData(adapterFingerprint_)},

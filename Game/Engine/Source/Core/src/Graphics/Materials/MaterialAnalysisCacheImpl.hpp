@@ -9,6 +9,8 @@
 namespace ludork::engine::materials {
 
 struct MaterialAnalysisCacheImpl {
+    static constexpr std::size_t Capacity = 256;
+
     struct Entry {
         std::shared_ptr<const MaterialAnalysisProgram> program;
         MaterialCompiler::Analysis analysis;

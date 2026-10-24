@@ -46,6 +46,12 @@ public:
     static void collectGarbage() noexcept;
 
 private:
+    static constexpr float MaximumPlaybackSpeed = 100;
+    static constexpr int MaximumPrewarmStepsPerFrame = 120;
+    static constexpr int MaximumSimulationStepsPerFrame = 240;
+    static constexpr float PrewarmTimeTolerance = 1e-6f;
+    static constexpr double SimulationStepTolerance = 1e-8;
+
     struct Impl;
     std::unique_ptr<Impl> impl_;
 };

@@ -16,6 +16,7 @@
 #include <stdexcept>
 #include <thread>
 #include <utility>
+
 #else
 #include <iostream>
 #endif
@@ -107,7 +108,7 @@ void VideoPlayerImpl::play() {
             }
         }
         if (suspended && !inputService().isFocused()) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            std::this_thread::sleep_for(PausedVideoPollInterval);
             continue;
         }
         if (suspended) {

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <CurveInfinityMode.hpp>
+
 #include <CoreMinimal.hpp>
 #include <EngineRuntimeApi.hpp>
 #include <CurveKey.hpp>
@@ -20,11 +22,11 @@ public:
         BIND_PROPERTY()
         float defaultValue = 0.0f;
 
-        BIND_PROPERTY()
-        std::string preInfinity = "constant";
+        BIND_PROPERTY(default = "constant")
+        std::string preInfinity = CurveInfinityMode::CONSTANT;
 
-        BIND_PROPERTY()
-        std::string postInfinity = "constant";
+        BIND_PROPERTY(default = "constant")
+        std::string postInfinity = CurveInfinityMode::CONSTANT;
 
         BIND_PROPERTY()
         std::vector<CurveKey> keys;
@@ -54,11 +56,11 @@ public:
     BIND_PROPERTY()
     float defaultValue = 0.0f;
 
-    BIND_PROPERTY()
-    std::string preInfinity = "constant";
+    BIND_PROPERTY(default = "constant")
+    std::string preInfinity = CurveInfinityMode::CONSTANT;
 
-    BIND_PROPERTY()
-    std::string postInfinity = "constant";
+    BIND_PROPERTY(default = "constant")
+    std::string postInfinity = CurveInfinityMode::CONSTANT;
 
     BIND_PROPERTY()
     std::vector<CurveKey> keys;

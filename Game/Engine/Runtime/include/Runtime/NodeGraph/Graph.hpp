@@ -9,6 +9,7 @@
 #include <Runtime/NodeGraph/DataNode.hpp>
 #include <Runtime/NodeGraph/GraphLink.hpp>
 #include <Runtime/NodeGraph/Types.hpp>
+#include <Runtime/NodeGraph/GraphConstants.hpp>
 
 #include <cstdint>
 
@@ -20,6 +21,9 @@ BIND_CLASS(bind_bases = false, cast_bases = {"RuntimeObject"}, metadata = false)
 class LUDORK_RUNTIME_API Graph : public RuntimeObject {
 public:
     LUDORK_CAST_DERIVED(Graph, RuntimeObject)
+
+    BIND_CLASS_PROPERTY(readonly = true, metadata = false)
+    static const std::string NO_PARENT_CLASS;
 
     using DataNodeMap =
         std::unordered_map<std::string, std::vector<std::shared_ptr<DataNode>>>;
@@ -135,10 +139,11 @@ public:
     BIND_PROPERTY(metadata = false)
     std::unordered_map<std::string, int> startNodes;
 
-    NodeResult executeResult(const std::string& key,
-                             std::optional<int> startNode = std::nullopt,
-                             std::size_t limit = 1000000,
-                             NodeCache* cache = nullptr);
+    NodeResult executeResult(
+        const std::string& key, std::optional<int> startNode = std::nullopt,
+        std::size_t limit =
+            ludork::runtime::graph_constants::DefaultExecutionLimit,
+        NodeCache* cache = nullptr);
     NodeResult executeNodeResult(const std::string& key,
                                  const NodeIndex& nodeIndex, NodeCache& cache);
     const PinNexts& getNodeNexts(const std::string& key, int nodeIndex) const;

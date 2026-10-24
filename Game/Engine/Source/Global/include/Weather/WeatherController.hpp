@@ -35,6 +35,16 @@ public:
     static void shutdown() noexcept;
 
 private:
+    static constexpr float MaximumPower = 100.0f;
+    static constexpr int MaximumParticleCount = 100;
+    static constexpr float DefaultParticleCount = 50.0f;
+    static constexpr float MinimumParticleScale = 0.1f;
+    static constexpr float StormFlashChancePerUpdate = 0.02f;
+    static constexpr float MinimumStormFlashDuration = 0.08f;
+    static constexpr float StormFlashDurationSpread = 0.07f;
+    static constexpr float MinimumStormFlashCooldown = 0.35f;
+    static constexpr float StormFlashCooldownSpread = 0.65f;
+
     static void ensureShader();
     static void drawShaderOverlayTo(sf::RenderTexture& renderTexture);
     static sf::RenderTexture& ensureBuffer(const sf::Vector2u& size);

@@ -2,20 +2,21 @@
 
 ---@brief Integrated shop UI with tabs, item list, and item details.
 ---@class Source.Windows.WindowShop.Controller: Internal.UIBase.UiController
----@field host             Source.Windows.WindowShop
----@field _player          Source.MapActors.Player.Player
----@field _onCloseCallback function | nil
----@field _tabWindow       Source.Windows.WindowShopTabs
----@field _itemWindow      Source.Windows.WindowShopItem
----@field _detailWindow    Source.Windows.WindowShopDetail
----@field _tabTopLeft      sf.Vector2f
----@field _itemTopLeft     sf.Vector2f
----@field _detailTopLeft   sf.Vector2f
----@field _buyItemIDs      string[]
----@field _canSell         boolean
----@field _mode            Enums.ShopMode
----@field _closed          boolean
----@field ui               Internal.UI.WindowShop
+---@field host                        Source.Windows.WindowShop
+---@field _player                     Source.MapActors.Player.Player
+---@field _onCloseCallback            function | nil
+---@field _tabWindow                  Source.Windows.WindowShopTabs
+---@field _itemWindow                 Source.Windows.WindowShopItem
+---@field _detailWindow               Source.Windows.WindowShopDetail
+---@field _tabTopLeft                 sf.Vector2f
+---@field _itemTopLeft                sf.Vector2f
+---@field _detailTopLeft              sf.Vector2f
+---@field _buyItemIDs                 string[]
+---@field _canSell                    boolean
+---@field _mode                       Enums.ShopMode
+---@field _closed                     boolean
+---@field ui                          Internal.UI.WindowShop
+---@field private _SELL_PRICE_DIVISOR integer
 local Controller = {}
 
 ---@param buyItemIDs table

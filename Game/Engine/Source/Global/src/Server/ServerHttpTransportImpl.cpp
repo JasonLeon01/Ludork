@@ -20,6 +20,7 @@
 
 namespace ludork::global::server_impl {
 namespace {
+
 constexpr std::size_t MaxHeaderSize = 16 * 1024;
 constexpr std::size_t MaxBodySize = 2 * 1024 * 1024;
 
@@ -271,7 +272,7 @@ bool ServerHttpTransportImpl::connect(const Endpoint& endpoint) {
             const auto status =
                 candidate->connect((*addresses)[nextAddress++], endpoint.port);
             nextAttempt =
-                PendingRequest::Clock::now() + std::chrono::milliseconds(250);
+                PendingRequest::Clock::now() + ConnectionAttemptInterval;
             if (status == sf::Socket::Status::Done) {
                 selector.clear();
                 socket_ = std::move(*candidate);
@@ -282,7 +283,8 @@ bool ServerHttpTransportImpl::connect(const Endpoint& endpoint) {
                 candidates.push_back(std::move(candidate));
             }
         }
-        if (candidates.empty() || !selector.wait(sf::milliseconds(10))) {
+        if (candidates.empty() ||
+            !selector.wait(sf::milliseconds(SelectorPollMilliseconds))) {
             continue;
         }
         for (auto candidate = candidates.begin();
@@ -316,7 +318,7 @@ bool ServerHttpTransportImpl::send(const std::string& bytes) {
             return false;
         }
         if (offset < bytes.size()) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            std::this_thread::sleep_for(IoPollInterval);
         }
     }
     return offset == bytes.size();
@@ -326,7 +328,7 @@ std::optional<std::string> ServerHttpTransportImpl::receive() {
     std::string bytes;
     std::optional<Headers> headers;
     std::size_t bodyStart = 0;
-    std::array<char, 8192> buffer{};
+    std::array<char, ReadBufferSize> buffer{};
     while (!stopped()) {
         std::size_t received = 0;
         const auto status =
@@ -373,7 +375,7 @@ std::optional<std::string> ServerHttpTransportImpl::receive() {
             throw std::runtime_error("Missing HTTP response headers.");
         }
         if (received == 0) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            std::this_thread::sleep_for(IoPollInterval);
         }
     }
     return {};

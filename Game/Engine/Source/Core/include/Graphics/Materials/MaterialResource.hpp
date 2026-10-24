@@ -5,6 +5,7 @@
 #include <Runtime/RuntimeData.hpp>
 #include <SFML/System/Vector2.hpp>
 
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <string>
@@ -70,7 +71,10 @@ public:
     void validateParameters(const RuntimeData::Map& overrides) const;
 
 private:
+    static constexpr std::size_t PreviewResourceCacheCapacity = 256;
+
     MaterialResource() = default;
+
     static std::shared_ptr<MaterialResource> readMetadata(
         const RuntimeData& data, std::string path);
     std::string path_;

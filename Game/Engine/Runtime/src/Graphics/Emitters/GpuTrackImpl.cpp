@@ -1,3 +1,6 @@
+#include "GpuParticleLayout.hpp"
+#include "GpuParticleRandom.hpp"
+#include "GpuGlConstants.hpp"
 #include "GpuTrackImpl.hpp"
 #include <SFML/Graphics/Image.hpp>
 #include <Runtime/AssetStore.hpp>
@@ -42,32 +45,38 @@ GpuTrackImpl::GpuTrackImpl(const GpuEmitterConfiguration::Track& data,
       resources(std::move(gpu)),
       texture(particleTexture(data.texture)) {
     for (unsigned char character : definition.name) {
-        seedSalt_ = (seedSalt_ ^ character) * 16777619u;
+        seedSalt_ = (seedSalt_ ^ character) * NameHashPrime;
     }
-    seedSalt_ %= 65521u;
+    seedSalt_ %= gpu_particle_random::SeedModulus;
     GpuApi& gl = resources->api;
     GpuStateGuard guard(gl);
     try {
         resources->reserveIndices(definition.capacity);
         gl.GenBuffers(2, buffers);
         for (unsigned int buffer : buffers) {
-            gl.BindBuffer(0x8892, buffer);
-            gl.BufferData(0x8892,
-                          static_cast<GpuApi::S>(definition.capacity) * 24 *
-                              sizeof(float),
-                          nullptr, 0x88EA);
+            gl.BindBuffer(gpu_gl::ArrayBuffer, buffer);
+            gl.BufferData(gpu_gl::ArrayBuffer,
+                          static_cast<GpuApi::S>(definition.capacity) *
+                              gpu_particle_layout::StateStrideBytes,
+                          nullptr, gpu_gl::DynamicCopy);
         }
         gl.GenTextures(1, &curves);
-        gl.ActiveTexture(0x84C1);
-        gl.BindTexture(0x0DE1, curves);
-        gl.TexParameteri(0x0DE1, 0x2801, 0x2600);
-        gl.TexParameteri(0x0DE1, 0x2800, 0x2600);
-        gl.TexParameteri(0x0DE1, 0x2802, 0x812F);
-        gl.TexParameteri(0x0DE1, 0x2803, 0x812F);
-        gl.TexImage2D(0x0DE1, 0, 0x8814,
+        gl.ActiveTexture(gpu_gl::Texture0 +
+                         gpu_particle_layout::CurveTextureUnit);
+        gl.BindTexture(gpu_gl::Texture2D, curves);
+        gl.TexParameteri(gpu_gl::Texture2D, gpu_gl::TextureMinFilter,
+                         gpu_gl::Nearest);
+        gl.TexParameteri(gpu_gl::Texture2D, gpu_gl::TextureMagFilter,
+                         gpu_gl::Nearest);
+        gl.TexParameteri(gpu_gl::Texture2D, gpu_gl::TextureWrapS,
+                         gpu_gl::ClampToEdge);
+        gl.TexParameteri(gpu_gl::Texture2D, gpu_gl::TextureWrapT,
+                         gpu_gl::ClampToEdge);
+        gl.TexImage2D(gpu_gl::Texture2D, 0, gpu_gl::Rgba32f,
                       static_cast<int>(emitter_curve_layout::SampleCount),
                       static_cast<int>(emitter_curve_layout::TextureRowCount),
-                      0, 0x1908, 0x1406, definition.curveSamples.data());
+                      0, gpu_gl::Rgba, gpu_gl::Float,
+                      definition.curveSamples.data());
         const sf::Vector2u size = texture->getSize();
         if (definition.textureRect.size.x == 0 &&
             definition.textureRect.size.y == 0) {
@@ -98,21 +107,28 @@ GpuTrackImpl::~GpuTrackImpl() {
 }
 void GpuTrackImpl::bindState(bool instanced) {
     GpuApi& gl = resources->api;
-    gl.BindBuffer(0x8892, buffers[input]);
-    for (unsigned int index = 0; index < 6; ++index) {
+    gl.BindBuffer(gpu_gl::ArrayBuffer, buffers[input]);
+    for (unsigned int index = 0;
+         index < gpu_particle_layout::StateAttributeCount; ++index) {
         gl.EnableVertexAttribArray(index);
         gl.VertexAttribPointer(
-            index, 4, 0x1406, 0, 24 * sizeof(float),
-            reinterpret_cast<const void*>(
-                static_cast<std::uintptr_t>(index * 4 * sizeof(float))));
+            index, gpu_particle_layout::ComponentsPerAttribute, gpu_gl::Float,
+            0, gpu_particle_layout::StateStrideBytes,
+            reinterpret_cast<const void*>(static_cast<std::uintptr_t>(
+                index * gpu_particle_layout::ComponentsPerAttribute *
+                sizeof(float))));
         gl.VertexAttribDivisor(index, instanced ? 1 : 0);
     }
-    gl.EnableVertexAttribArray(6);
-    gl.BindBuffer(0x8892, instanced ? resources->corners : resources->indices);
-    gl.VertexAttribPointer(6, instanced ? 2 : 1, 0x1406, 0, 0, nullptr);
-    gl.VertexAttribDivisor(6, 0);
-    gl.ActiveTexture(0x84C1);
-    gl.BindTexture(0x0DE1, curves);
+    gl.EnableVertexAttribArray(gpu_particle_layout::CornerAttributeIndex);
+    gl.BindBuffer(gpu_gl::ArrayBuffer,
+                  instanced ? resources->corners : resources->indices);
+    gl.VertexAttribPointer(
+        gpu_particle_layout::CornerAttributeIndex,
+        instanced ? gpu_particle_layout::QuadComponentsPerVertex : 1,
+        gpu_gl::Float, 0, 0, nullptr);
+    gl.VertexAttribDivisor(gpu_particle_layout::CornerAttributeIndex, 0);
+    gl.ActiveTexture(gpu_gl::Texture0 + gpu_particle_layout::CurveTextureUnit);
+    gl.BindTexture(gpu_gl::Texture2D, curves);
 }
 sf::Transform GpuTrackImpl::transform(const sf::Transform& host,
                                       sf::Vector2f& shapeScale) const {
@@ -121,11 +137,11 @@ sf::Transform GpuTrackImpl::transform(const sf::Transform& host,
     local.rotate(sf::degrees(definition.rotationOffset));
     local.scale(definition.scale);
     shapeScale = {1, 1};
-    if (definition.scaleMode == 1) {
+    if (definition.scaleMode == EmitterTrackParameters::ScaleMode::Local) {
         return withoutScale(host) * local;
     }
     const sf::Transform full = host * local;
-    if (definition.scaleMode == 2) {
+    if (definition.scaleMode == EmitterTrackParameters::ScaleMode::Shape) {
         const float* matrix = full.getMatrix();
         shapeScale = {std::hypot(matrix[0], matrix[1]),
                       std::hypot(matrix[4], matrix[5])};
@@ -163,10 +179,10 @@ void GpuTrackImpl::simulate(float delta, int count, const sf::Vector2f& motion,
     };
     scalar("uDelta", delta);
     scalar("uReset", resetState ? 1.f : 0.f);
-    scalar("uSeed",
-           static_cast<float>((static_cast<std::uint64_t>(seed) + seedSalt_ +
-                               (births / definition.capacity) * 13u) %
-                              65521u));
+    scalar("uSeed", static_cast<float>(
+                        (static_cast<std::uint64_t>(seed) + seedSalt_ +
+                         (births / definition.capacity) * GenerationStride) %
+                        gpu_particle_random::SeedModulus));
     scalar("uCapacity", static_cast<float>(definition.capacity));
     scalar("uBirthStart", static_cast<float>(births % definition.capacity));
     scalar("uBirthCount",
@@ -203,14 +219,18 @@ void GpuTrackImpl::simulate(float delta, int count, const sf::Vector2f& motion,
                  low[2], low[3]);
     gl.Uniform4f(resources->uniform(program, "uColourMax"), high[0], high[1],
                  high[2], high[3]);
-    gl.Uniform1i(resources->uniform(program, "uCurves"), 1);
-    gl.BindBufferBase(0x8C8E, 0, buffers[1 - input]);
-    gl.Enable(0x8C89);
-    gl.BeginTransformFeedback(0x0000);
-    gl.DrawArrays(0x0000, 0, definition.capacity);
+    gl.Uniform1i(resources->uniform(program, "uCurves"),
+                 gpu_particle_layout::CurveTextureUnit);
+    gl.BindBufferBase(gpu_gl::TransformFeedbackBuffer,
+                      gpu_particle_layout::FeedbackBindingIndex,
+                      buffers[1 - input]);
+    gl.Enable(gpu_gl::RasterizerDiscard);
+    gl.BeginTransformFeedback(gpu_gl::Points);
+    gl.DrawArrays(gpu_gl::Points, 0, definition.capacity);
     gl.EndTransformFeedback();
-    gl.Disable(0x8C89);
-    gl.BindBufferBase(0x8C8E, 0, 0);
+    gl.Disable(gpu_gl::RasterizerDiscard);
+    gl.BindBufferBase(gpu_gl::TransformFeedbackBuffer,
+                      gpu_particle_layout::FeedbackBindingIndex, 0);
     input = 1 - input;
     births += static_cast<std::uint64_t>(std::min(count, definition.capacity));
 }
@@ -288,10 +308,12 @@ void GpuTrackImpl::draw(sf::RenderTarget& target,
     bindState(true);
     gl.Uniform4f(resources->uniform(program, "uTint"), colour.r / 255.f,
                  colour.g / 255.f, colour.b / 255.f, colour.a / 255.f);
-    gl.ActiveTexture(0x84C0);
-    gl.BindTexture(0x0DE1, texture->getNativeHandle());
-    gl.Uniform1i(resources->uniform(program, "uImage"), 0);
-    gl.Uniform1i(resources->uniform(program, "uCurves"), 1);
+    gl.ActiveTexture(gpu_gl::Texture0 + gpu_particle_layout::ImageTextureUnit);
+    gl.BindTexture(gpu_gl::Texture2D, texture->getNativeHandle());
+    gl.Uniform1i(resources->uniform(program, "uImage"),
+                 gpu_particle_layout::ImageTextureUnit);
+    gl.Uniform1i(resources->uniform(program, "uCurves"),
+                 gpu_particle_layout::CurveTextureUnit);
     const sf::Transform projection =
         target.getView().getTransform() * states.transform;
     sf::Vector2f unused;
@@ -310,12 +332,18 @@ void GpuTrackImpl::draw(sf::RenderTarget& target,
                  static_cast<float>(target.getSize().x),
                  static_cast<float>(target.getSize().y));
     if (lit) {
-        gl.ActiveTexture(0x84C2);
-        gl.BindTexture(0x0DE1, lighting->ambientLight->getNativeHandle());
-        gl.Uniform1i(resources->uniform(program, "sceneAmbientLight"), 2);
-        gl.ActiveTexture(0x84C3);
-        gl.BindTexture(0x0DE1, lighting->directLight->getNativeHandle());
-        gl.Uniform1i(resources->uniform(program, "sceneDirectLight"), 3);
+        gl.ActiveTexture(gpu_gl::Texture0 +
+                         gpu_particle_layout::AmbientLightTextureUnit);
+        gl.BindTexture(gpu_gl::Texture2D,
+                       lighting->ambientLight->getNativeHandle());
+        gl.Uniform1i(resources->uniform(program, "sceneAmbientLight"),
+                     gpu_particle_layout::AmbientLightTextureUnit);
+        gl.ActiveTexture(gpu_gl::Texture0 +
+                         gpu_particle_layout::DirectLightTextureUnit);
+        gl.BindTexture(gpu_gl::Texture2D,
+                       lighting->directLight->getNativeHandle());
+        gl.Uniform1i(resources->uniform(program, "sceneDirectLight"),
+                     gpu_particle_layout::DirectLightTextureUnit);
     }
     scalar("uWorld", definition.world ? 1.f : 0.f);
     scalar("uFrameRate", definition.frameRate);
@@ -332,14 +360,19 @@ void GpuTrackImpl::draw(sf::RenderTarget& target,
                  static_cast<float>(rect.position.y) / size.y,
                  static_cast<float>(rect.size.x) / size.x,
                  static_cast<float>(rect.size.y) / size.y);
-    gl.Enable(0x0BE2);
-    gl.BlendEquationSeparate(0x8006, 0x8006);
-    gl.BlendFuncSeparate(0x0302, definition.additive ? 1 : 0x0303, 1, 0x0303);
+    gl.Enable(gpu_gl::Blend);
+    gl.BlendEquationSeparate(gpu_gl::FuncAdd, gpu_gl::FuncAdd);
+    gl.BlendFuncSeparate(
+        gpu_gl::SourceAlpha,
+        definition.additive ? gpu_gl::One : gpu_gl::OneMinusSourceAlpha,
+        gpu_gl::One, gpu_gl::OneMinusSourceAlpha);
     const auto viewport = target.getViewport(target.getView());
     gl.Viewport(viewport.position.x,
                 static_cast<int>(target.getSize().y) - viewport.position.y -
                     viewport.size.y,
                 viewport.size.x, viewport.size.y);
-    gl.DrawArraysInstanced(0x0004, 0, 6, definition.capacity);
+    gl.DrawArraysInstanced(gpu_gl::Triangles, 0,
+                           gpu_particle_layout::QuadVertexCount,
+                           definition.capacity);
 }
 }  // namespace ludork::runtime::graphics

@@ -7,7 +7,9 @@ local View = require("Internal.UI.Parts.WindowSaveLoad.WindowSaveDetail")
 local WindowBase = require("Internal.UIBase.WindowBase")
 
 ---@class Source.Windows.WindowSaveDetail.Controller
-local Controller = {}
+local Controller = {
+    _PREVIEW_REFRESH_INTERVAL = 1
+}
 
 Controller.windowOptions = { focusable = false, hidden = true }
 
@@ -48,7 +50,7 @@ function Controller:refresh()
         self:setTimestamp("")
         return
     end
-    self:_showStatus("loading")
+    self:_showStatus(Engine.SavePreviewState.LOADING)
     self._requestClock:restart()
     self._reportTiming = true
     self:_requestPreview()
@@ -74,14 +76,15 @@ function Controller:onTick(deltaTime)
         self:_displayPreview()
     end
     self._refreshElapsed = self._refreshElapsed + deltaTime
-    if self._refreshElapsed >= 1 and self._reader:getState() ~= "loading" then
+    if self._refreshElapsed >= Controller._PREVIEW_REFRESH_INTERVAL
+        and self._reader:getState() ~= Engine.SavePreviewState.LOADING then
         self:_requestPreview()
     end
 end
 
 function Controller:_displayPreview()
     local state = self._reader:getState()
-    if state == "ready" then
+    if state == Engine.SavePreviewState.READY then
         local image = self._reader:getImage()
         if image ~= self._thumbImage then
             self._thumbImage = image
@@ -123,9 +126,9 @@ end
 
 function Controller:_showStatus(state)
     local chinese = LocaleCore.GetLanguage() == "zh_CN"
-    if state == "loading" then
+    if state == Engine.SavePreviewState.LOADING then
         self:setTimestamp(chinese and "正在读取存档…" or "Loading save…")
-    elseif state == "empty" then
+    elseif state == Engine.SavePreviewState.EMPTY then
         self:setTimestamp(chinese and "空存档槽" or "Empty slot")
     else
         self:setTimestamp(chinese and "存档读取失败" or "Unable to read save")

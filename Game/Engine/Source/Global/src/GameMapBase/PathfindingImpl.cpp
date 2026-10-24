@@ -11,6 +11,8 @@
 namespace ludork::global::game_map_base_impl {
 namespace {
 
+constexpr int UnreachableScore = 1 << 30;
+
 bool inBounds(int x, int y, unsigned int width, unsigned int height) {
     return x >= 0 && y >= 0 && static_cast<unsigned int>(x) < width &&
            static_cast<unsigned int>(y) < height;
@@ -18,7 +20,7 @@ bool inBounds(int x, int y, unsigned int width, unsigned int height) {
 
 int nodeFScore(const std::map<GridPoint, int>& scores, const GridPoint& node) {
     const auto iterator = scores.find(node);
-    return iterator == scores.end() ? 1 << 30 : iterator->second;
+    return iterator == scores.end() ? UnreachableScore : iterator->second;
 }
 
 }  // namespace
@@ -78,7 +80,7 @@ std::vector<GridPoint> findPath(const GridPoint& start, const GridPoint& goal,
             const int tentative = gScore[current] + 1;
             const auto previous = gScore.find(next);
             const int previousScore =
-                previous == gScore.end() ? 1 << 30 : previous->second;
+                previous == gScore.end() ? UnreachableScore : previous->second;
             if (tentative >= previousScore) {
                 continue;
             }

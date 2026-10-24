@@ -1,3 +1,4 @@
+#include <Gameplay/GameplayModifier.hpp>
 #include "EffectImpl.hpp"
 #include "AttributeImpl.hpp"
 #include "AbilityImpl.hpp"
@@ -23,24 +24,26 @@ void validateEffectSpec(const AbilitySystemImpl& state,
         throw std::invalid_argument("Gameplay Effect stacks must be positive");
     }
     const GameplayEffect& effect = *spec->effect;
-    if (effect.durationPolicy != "Instant" &&
-        effect.durationPolicy != "Infinite") {
+    if (effect.durationPolicy != GameplayEffect::DURATION_INSTANT &&
+        effect.durationPolicy != GameplayEffect::DURATION_INFINITE) {
         throw std::invalid_argument(
             "Unsupported Gameplay Effect duration policy: " +
             effect.durationPolicy);
     }
-    if (effect.stackingPolicy != "None" &&
-        effect.stackingPolicy != "Aggregate") {
+    if (effect.stackingPolicy != GameplayEffect::STACKING_NONE &&
+        effect.stackingPolicy != GameplayEffect::STACKING_AGGREGATE) {
         throw std::invalid_argument(
             "Unsupported Gameplay Effect stacking policy: " +
             effect.stackingPolicy);
     }
-    if (effect.stackingPolicy == "None" && spec->stacks != 1) {
+    if (effect.stackingPolicy == GameplayEffect::STACKING_NONE &&
+        spec->stacks != 1) {
         throw std::invalid_argument(
             "Non-stacking Gameplay Effects require exactly one stack");
     }
-    if (effect.stackingPolicy == "Aggregate" &&
-        effect.durationPolicy == "Infinite" && effect.id.empty()) {
+    if (effect.stackingPolicy == GameplayEffect::STACKING_AGGREGATE &&
+        effect.durationPolicy == GameplayEffect::DURATION_INFINITE &&
+        effect.id.empty()) {
         throw std::invalid_argument(
             "Aggregate Infinite Gameplay Effects require a non-empty ID");
     }
@@ -50,8 +53,9 @@ void validateEffectSpec(const AbilitySystemImpl& state,
                 "Unknown Gameplay Effect numeric attribute: " +
                 modifier.attribute);
         }
-        if (modifier.operation != "Add" && modifier.operation != "Multiply" &&
-            modifier.operation != "Override") {
+        if (modifier.operation != GameplayModifier::OPERATION_ADD &&
+            modifier.operation != GameplayModifier::OPERATION_MULTIPLY &&
+            modifier.operation != GameplayModifier::OPERATION_OVERRIDE) {
             throw std::invalid_argument(
                 "Unsupported Gameplay Effect modifier operation: " +
                 modifier.operation);
@@ -73,11 +77,12 @@ void validateEffectSpec(const AbilitySystemImpl& state,
          effect.grantedAbilities) {
         validateAbility(state, ability);
     }
-    if (effect.durationPolicy == "Instant" && !effect.grantedTags.empty()) {
+    if (effect.durationPolicy == GameplayEffect::DURATION_INSTANT &&
+        !effect.grantedTags.empty()) {
         throw std::invalid_argument(
             "Instant Gameplay Effects cannot grant tags");
     }
-    if (effect.durationPolicy == "Instant" &&
+    if (effect.durationPolicy == GameplayEffect::DURATION_INSTANT &&
         !effect.grantedAbilities.empty()) {
         throw std::invalid_argument(
             "Instant Gameplay Effects cannot grant abilities");
@@ -111,15 +116,16 @@ std::pair<GameplayNumbers, bool> instantBases(
                                             result.at(modifier.attribute),
                                             "Numeric attribute base");
         NumericValue magnitude = resolveMagnitude(modifier, spec, spec->stacks);
-        if (spec->effect->stackingPolicy == "Aggregate") {
+        if (spec->effect->stackingPolicy ==
+            GameplayEffect::STACKING_AGGREGATE) {
             magnitude =
                 scaleMagnitude(magnitude, modifier.operation, spec->stacks);
         }
-        if (modifier.operation == "Add") {
+        if (modifier.operation == GameplayModifier::OPERATION_ADD) {
             base = addNumbers(base, magnitude);
-        } else if (modifier.operation == "Multiply") {
+        } else if (modifier.operation == GameplayModifier::OPERATION_MULTIPLY) {
             base = multiplyNumbers(base, magnitude);
-        } else if (modifier.operation == "Override") {
+        } else if (modifier.operation == GameplayModifier::OPERATION_OVERRIDE) {
             base = magnitude;
         }
         if (modifier.minimum.has_value()) {
@@ -158,7 +164,7 @@ bool validateGameplayEffectSpec(
     const AbilitySystemImpl& state,
     const std::shared_ptr<GameplayEffectSpec>& spec) {
     validateEffectSpec(state, spec);
-    if (spec->effect->durationPolicy == "Instant") {
+    if (spec->effect->durationPolicy == GameplayEffect::DURATION_INSTANT) {
         auto [bases, changed] = instantBases(state, spec);
         if (changed) {
             static_cast<void>(preview(state, bases));
@@ -169,7 +175,8 @@ bool validateGameplayEffectSpec(
         findStackableEffect(state, spec);
     if (existing == nullptr) {
         static_cast<void>(preview(state, state.baseValues, spec));
-    } else if (spec->effect->stackingPolicy == "Aggregate") {
+    } else if (spec->effect->stackingPolicy ==
+               GameplayEffect::STACKING_AGGREGATE) {
         static_cast<void>(preview(state, state.baseValues, {}, existing->handle,
                                   existing->stacks + spec->stacks));
     }
@@ -179,7 +186,7 @@ bool validateGameplayEffectSpec(
 std::optional<int> applyGameplayEffectSpec(
     AbilitySystemImpl& state, const std::shared_ptr<GameplayEffectSpec>& spec) {
     validateEffectSpec(state, spec);
-    if (spec->effect->durationPolicy == "Instant") {
+    if (spec->effect->durationPolicy == GameplayEffect::DURATION_INSTANT) {
         auto [bases, changed] = instantBases(state, spec);
         if (changed) {
             commitBases(state, bases);
@@ -190,7 +197,8 @@ std::optional<int> applyGameplayEffectSpec(
     const std::shared_ptr<ActiveGameplayEffect> existing =
         findStackableEffect(state, spec);
     if (existing != nullptr) {
-        if (spec->effect->stackingPolicy == "Aggregate") {
+        if (spec->effect->stackingPolicy ==
+            GameplayEffect::STACKING_AGGREGATE) {
             const int replacementStacks = existing->stacks + spec->stacks;
             const GameplayNumbers current =
                 preview(state, state.baseValues, {}, existing->handle,
@@ -240,7 +248,8 @@ bool removeActiveGameplayEffect(AbilitySystemImpl& state, int handle,
     if (removeStacks <= 0) {
         throw std::invalid_argument("Removed stacks must be positive");
     }
-    if (active->spec->effect->stackingPolicy == "Aggregate" &&
+    if (active->spec->effect->stackingPolicy ==
+            GameplayEffect::STACKING_AGGREGATE &&
         removeStacks < active->stacks) {
         const int replacementStacks = active->stacks - removeStacks;
         const GameplayNumbers current = preview(

@@ -1,3 +1,4 @@
+#include <LudorkGenerated/ResourceFileConstants.hpp>
 #include "FileBatchInternal.hpp"
 
 #include <DataFile.hpp>
@@ -45,7 +46,7 @@ bool suffixMatches(std::string_view path, std::string_view suffix) {
 }
 
 bool jsonSuffix(std::string_view suffix) {
-    return suffixMatches(suffix, ".json");
+    return suffixMatches(suffix, ludork::generated::resources::DataExtension);
 }
 
 template <typename Iterator>
@@ -75,11 +76,16 @@ bool appendDirectoryEntries(const FileBatchSpec& spec,
             const std::filesystem::path relative =
                 iterator->path().lexically_relative(spec.root);
             const std::string storedRelativePath = pathToGenericUtf8(relative);
-            const bool encryptedData = iterator->path().extension() == ".ldc";
+            const bool encryptedData =
+                iterator->path().extension() ==
+                ludork::generated::resources::EncryptedDataExtension;
             const bool includeEncryptedData =
                 encryptedData &&
                 (jsonSuffix(spec.suffix) ||
-                 suffixMatches(spec.suffix, ".ldc") || spec.suffix.empty());
+                 suffixMatches(
+                     spec.suffix,
+                     ludork::generated::resources::EncryptedDataExtension) ||
+                 spec.suffix.empty());
             const std::string relativePath =
                 (encryptedData && jsonSuffix(spec.suffix))
                     ? pathToGenericUtf8(logicalDataPath(relative))
@@ -102,7 +108,9 @@ bool appendDirectoryEntries(const FileBatchSpec& spec,
                     relativePath,
                     fileSize,
                     (jsonSuffix(relativePath) ||
-                     suffixMatches(relativePath, ".ldc")),
+                     suffixMatches(
+                         relativePath,
+                         ludork::generated::resources::EncryptedDataExtension)),
                     spec.parseData,
                     encryptedData,
                 });
@@ -159,11 +167,16 @@ bool appendReadOnlyDirectoryEntries(const FileBatchSpec& spec,
             const std::filesystem::path relative =
                 child.lexically_relative(spec.root);
             const std::string storedRelativePath = pathToGenericUtf8(relative);
-            const bool encryptedData = child.extension() == ".ldc";
+            const bool encryptedData =
+                child.extension() ==
+                ludork::generated::resources::EncryptedDataExtension;
             const bool includeEncryptedData =
                 encryptedData &&
                 (jsonSuffix(spec.suffix) ||
-                 suffixMatches(spec.suffix, ".ldc") || spec.suffix.empty());
+                 suffixMatches(
+                     spec.suffix,
+                     ludork::generated::resources::EncryptedDataExtension) ||
+                 spec.suffix.empty());
             const std::string relativePath =
                 (encryptedData && jsonSuffix(spec.suffix))
                     ? pathToGenericUtf8(logicalDataPath(relative))
@@ -179,7 +192,9 @@ bool appendReadOnlyDirectoryEntries(const FileBatchSpec& spec,
                     relativePath,
                     status.size,
                     (jsonSuffix(relativePath) ||
-                     suffixMatches(relativePath, ".ldc")),
+                     suffixMatches(
+                         relativePath,
+                         ludork::generated::resources::EncryptedDataExtension)),
                     spec.parseData,
                     encryptedData,
                 });

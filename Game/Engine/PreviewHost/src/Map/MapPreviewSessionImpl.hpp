@@ -16,6 +16,7 @@ namespace ludork::preview_host {
 
 class MapPreviewSession::Impl {
 public:
+    static constexpr float DefaultAnimationInterval = 0.2f;
     ~Impl() noexcept;
 
     struct Layer {
@@ -28,7 +29,7 @@ public:
     struct Animation {
         std::size_t spriteIndex = 0;
         sf::IntRect baseRect;
-        float interval = 0.2f;
+        float interval = DefaultAnimationInterval;
         int frames = 1;
     };
 
@@ -67,6 +68,12 @@ public:
     std::int64_t resourceRevision = -1;
     std::int64_t materialRevision = -1;
     bool hasScene = false;
+
+private:
+    static constexpr char FrameResponse[] = "mapFrame";
+    static constexpr float MaximumParticleDeltaSeconds = 0.25f;
+    static constexpr float DefaultLightRadius = 16.0f;
+    static constexpr int AnimatedTileFrameCount = 3;
 };
 
 }  // namespace ludork::preview_host

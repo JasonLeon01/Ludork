@@ -1,3 +1,4 @@
+#include <UI/TextGradientConfig.hpp>
 #include "UiControlPropertyCodec.hpp"
 
 #include <Runtime/RuntimeDataReader.hpp>
@@ -142,7 +143,8 @@ RuntimeData parsePropertyDefault(const UiControlPropertyDescriptor& property,
     }
     if (property.type == "Engine.TextGradientDirection") {
         const std::string& text = *value.getIf<std::string>();
-        if (text != "vertical" && text != "horizontal") {
+        if (text != TextGradientConfig::VERTICAL &&
+            text != TextGradientConfig::HORIZONTAL) {
             throw std::invalid_argument(source +
                                         " has an unknown gradient direction");
         }

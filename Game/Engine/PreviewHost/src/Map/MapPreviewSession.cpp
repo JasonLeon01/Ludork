@@ -180,7 +180,7 @@ std::shared_ptr<TileLayer> MapPreviewSession::Impl::updateLayer(
         autoTextures.push_back(texture(definition.fileName));
         frameCounts.push_back(
             std::max(1, static_cast<int>(autoTextures.back()->getSize().x) /
-                            (3 * EngineState::CellSize)));
+                            (AnimatedTileFrameCount * EngineState::CellSize)));
         pool.push_back(std::move(definition));
         autoSignature.emplace(key, entry);
     }
@@ -287,8 +287,8 @@ void MapPreviewSession::Impl::updateSprite(std::size_t index,
     animations.erase(sprite.id);
     if (sprite.texture &&
         map_preview_data::boolean(fields, "animated", false)) {
-        const float interval =
-            map_preview_data::number(fields, "switchInterval", 0.2f);
+        const float interval = map_preview_data::number(
+            fields, "switchInterval", DefaultAnimationInterval);
         const int frames = map_preview_data::integer(fields, "frameCount", 1);
         if (interval <= 0 || frames <= 0) {
             throw std::invalid_argument(
@@ -314,7 +314,8 @@ void MapPreviewSession::Impl::updateLight(std::size_t index,
     MapRenderer::Light light;
     light.position = map_preview_data::vector(fields, "position");
     light.colour = map_preview_data::colour(fields, "colour");
-    light.radius = map_preview_data::number(fields, "radius", 16);
+    light.radius =
+        map_preview_data::number(fields, "radius", DefaultLightRadius);
     light.intensity = map_preview_data::number(fields, "intensity", 1);
     const std::string owner = map_preview_data::text(fields, "ownerId");
     if (!owner.empty()) {
@@ -501,7 +502,7 @@ RuntimeData MapPreviewSession::Impl::render(const RuntimeData::Map& request,
     const bool resetParticleMotion = ludork::runtime::value_reader::requireBool(
         map_preview_data::required(request, "resetParticleMotion"),
         "Map request.resetParticleMotion");
-    if (particleDelta < 0 || particleDelta > 0.25f) {
+    if (particleDelta < 0 || particleDelta > MaximumParticleDeltaSeconds) {
         throw std::invalid_argument(
             "Map particle delta must be between 0 and 0.25 seconds");
     }
@@ -667,18 +668,20 @@ RuntimeData MapPreviewSession::Impl::render(const RuntimeData::Map& request,
     const sf::Image image = output.getTexture().copyToImage();
     const auto transferBegin = std::chrono::steady_clock::now();
     const std::span<std::uint8_t> pixels = frameFiles.acquire(
-        static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4);
+        static_cast<std::size_t>(width) * static_cast<std::size_t>(height) *
+        preview_pixels::BytesPerPixel);
     bgraFromPremultipliedRgba(image, output.getSize(), pixels);
     const std::filesystem::path& path = frameFiles.path();
     const auto end = std::chrono::steady_clock::now();
     return RuntimeData(object({
-        {"type", RuntimeData("mapFrame")},
+        {"type", RuntimeData(FrameResponse)},
         {"sessionId", RuntimeData(sessionId)},
         {"generation", RuntimeData(generation)},
         {"width", RuntimeData(static_cast<std::int64_t>(width))},
         {"height", RuntimeData(static_cast<std::int64_t>(height))},
-        {"stride", RuntimeData(static_cast<std::int64_t>(width) * 4)},
-        {"pixelFormat", RuntimeData("Bgra8888Premultiplied")},
+        {"stride", RuntimeData(static_cast<std::int64_t>(width) *
+                               preview_pixels::BytesPerPixel)},
+        {"pixelFormat", RuntimeData(preview_pixels::Format)},
         {"previewSceneApplyMs",
          RuntimeData(milliseconds(applyBegin, applyEnd))},
         {"renderMilliseconds",

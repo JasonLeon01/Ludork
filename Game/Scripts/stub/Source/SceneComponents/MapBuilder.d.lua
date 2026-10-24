@@ -65,9 +65,11 @@
 
 ---@brief Build map runtime objects and floor-map previews for SceneMap.
 ---@class Source.SceneComponents.SceneMapBuilder
----@field _floorMapPreviews                 table<string, Source.SceneComponents.FloorMapPreviewCacheEntry>
----@field _floorMapPreviewConditions        table<string, Source.SceneComponents.FloorMapPreviewCondition>
----@field _floorMapPreviewConditionRevision integer
+---@field _floorMapPreviews                           table<string, Source.SceneComponents.FloorMapPreviewCacheEntry>
+---@field _floorMapPreviewConditions                  table<string, Source.SceneComponents.FloorMapPreviewCondition>
+---@field _floorMapPreviewConditionRevision           integer
+---@field private _TELEPOINT_MARKER_FILL_COLOUR       sf.Color
+---@field private _TELEPOINT_MARKER_OUTLINE_THICKNESS number
 local SceneMapBuilder = {}
 
 ---@return Source.SceneComponents.SceneMapBuilder

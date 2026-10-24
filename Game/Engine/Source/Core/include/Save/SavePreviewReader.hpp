@@ -53,6 +53,9 @@ public:
     static void invalidate(const std::string& path);
 
 private:
+    static constexpr std::size_t MaxScanSlots = 10000;
+    static constexpr unsigned int MaxPreviewDimension = 1024;
+
     struct Impl;
     std::shared_ptr<Impl> impl_;
 };

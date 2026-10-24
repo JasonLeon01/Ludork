@@ -29,6 +29,8 @@ public:
     SoundFilter buildFilter(const PositionReader& readPosition) const;
 
 private:
+    static constexpr float ResumeDistanceRatio = 0.85f;
+
     std::shared_ptr<sf::Sound> sound_;
     float cooldown_ = 0.0f;
     std::optional<sf::Vector3f> lastPosition_;

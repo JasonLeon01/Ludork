@@ -2,21 +2,30 @@ local Engine = require("Engine")
 local ComponentBase = require("Global.Components.ComponentBase")
 local Pool = require("Global.Pool")
 
-local PathPreviewComponent = {}
+---@class (partial) Global.Components.PathPreviewComponent
+local PathPreviewComponent = {
+    _DEFAULT_FILL_COLOUR = sf.Color.new(80, 180, 255, 110),
+    _DEFAULT_OUTLINE_COLOUR = sf.Color.new(120, 220, 255, 180),
+    _CELL_PADDING_RATIO = 0.12,
+    _MINIMUM_PADDING = 1.0,
+    _OUTLINE_THICKNESS = 1.0
+}
 
 function PathPreviewComponent:init(gameMap, routeState)
     super(PathPreviewComponent, self).init(gameMap)
     ---@type PathRouteState
     self._routeState = routeState
-    self._fillColour = sf.Color.new(80, 180, 255, 110)
-    self._outlineColour = sf.Color.new(120, 220, 255, 180)
-    self._padding = math.max(1.0, Engine.GetCellSize() * 0.12)
+    self._fillColour = PathPreviewComponent._DEFAULT_FILL_COLOUR:copy()
+    self._outlineColour = PathPreviewComponent._DEFAULT_OUTLINE_COLOUR:copy()
+    self._padding = math.max(
+        PathPreviewComponent._MINIMUM_PADDING, Engine.GetCellSize() * PathPreviewComponent._CELL_PADDING_RATIO
+    )
     local size = math.max(1.0, Engine.GetCellSize() - self._padding * 2.0)
     self._rectangleSize = sf.Vector2f.new(size, size)
     self._rectangle = sf.RectangleShape.new(self._rectangleSize)
     self._rectangle:setFillColor(self._fillColour)
     self._rectangle:setOutlineColor(self._outlineColour)
-    self._rectangle:setOutlineThickness(1.0)
+    self._rectangle:setOutlineThickness(PathPreviewComponent._OUTLINE_THICKNESS)
     self._cachedRouteRevision = -1
     ---@type sf.Vector2i[]
     self._cachedRoute = {}

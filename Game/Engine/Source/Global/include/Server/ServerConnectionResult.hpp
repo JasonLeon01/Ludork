@@ -25,6 +25,8 @@ public:
     std::optional<double> getRoundTripMs() const;
 
 private:
+    static constexpr double NormalRoundTripMilliseconds = 300.0;
+
     NetworkState state_;
     std::optional<double> roundTripMs_;
 };

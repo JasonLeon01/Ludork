@@ -29,6 +29,7 @@ extern "C" {
 namespace ludork::runtime {
 namespace {
 
+constexpr std::string_view LuaDeclarationSuffix = ".d.lua";
 constexpr const char* PRELOAD_OWNERS = "Ludork.ScriptStore.preloadOwners";
 
 void pushPreloadOwners(lua_State* state, const ScriptStore* store,
@@ -57,7 +58,7 @@ bool isDeclarationPath(const std::string_view path) {
     const std::string folded =
         ludork::runtime::detail::asciiFold(std::string(path));
     return folded == "stub" || folded.starts_with("stub/") ||
-           folded.ends_with(".d.lua");
+           folded.ends_with(LuaDeclarationSuffix);
 }
 
 bool isIgnoredMetadata(const std::filesystem::path& path,
@@ -531,7 +532,8 @@ void ScriptStore::registerPreloadedModules(lua_State* state) const {
                        impl_->mode == ScriptStoreMode::Loose &&
                        impl_->modules.at(name).ends_with(
                            ludork::generated::resources::LuaSourceExtension) &&
-                       !name.ends_with("_meta"));
+                       !name.ends_with(
+                           ludork::generated::resources::MetadataModuleSuffix));
         lua_pushcclosure(state, preloadScript, 3);
         lua_pushvalue(state, -1);
         lua_setfield(state, ownersIndex, name.c_str());
@@ -563,7 +565,10 @@ ScriptStore::ReloadSnapshot ScriptStore::prepareReload() const {
     candidate.reloadOwner = this;
     candidate.reloadGeneration = generation;
     for (const auto& [path, entry] : candidate.entries) {
-        if (path.ends_with("_meta.lua") || path.ends_with("_meta.luac")) {
+        if (path.ends_with(
+                ludork::generated::resources::MetadataSourceSuffix) ||
+            path.ends_with(
+                ludork::generated::resources::MetadataCompiledSuffix)) {
             continue;
         }
         if (!path.ends_with(ludork::generated::resources::LuaSourceExtension)) {

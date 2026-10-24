@@ -22,6 +22,13 @@ public:
     std::uint64_t presentationRevision() const;
 
 private:
+    static constexpr unsigned int SonyVendorId = 0x054c;
+    static constexpr unsigned int MicrosoftVendorId = 0x045e;
+    static constexpr std::array<unsigned int, 3> PlayStation4ProductIds{
+        0x05c4, 0x09cc, 0x0ba0};
+    static constexpr std::array<unsigned int, 2> PlayStation5ProductIds{0x0ce6,
+                                                                        0x0df2};
+
     struct Device {
         bool connected = false;
         sf::Joystick::Identification identification;

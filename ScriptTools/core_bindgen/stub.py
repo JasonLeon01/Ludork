@@ -313,7 +313,7 @@ def generate_stub(
             if prop.doc:
                 output.extend(stub_doc_lines(prop.doc))
             output.append(
-                f"---@type {lua_type(context, class_property_type(context, prop))}"
+                f"---@type {lua_type(context, prop.options.get('type', class_property_type(context, prop)))}"
             )
             output.append(f"{public_name}.{exposed_property_name} = nil")
         if info.options.get("table_init", "false").lower() == "true":

@@ -9,3 +9,8 @@ const std::string ResourceFileConstants::ANIMATION_CACHE_SUFFIX =
     ludork::generated::resources::AnimationCacheSuffix;
 const std::string ResourceFileConstants::ENCRYPTED_ANIMATION_CACHE_SUFFIX =
     ludork::generated::resources::EncryptedAnimationCacheSuffix;
+
+const std::string ResourceFileConstants::LUA_SOURCE_EXTENSION =
+    ludork::generated::resources::LuaSourceExtension;
+const std::string ResourceFileConstants::LUA_COMPILED_EXTENSION =
+    ludork::generated::resources::LuaCompiledExtension;

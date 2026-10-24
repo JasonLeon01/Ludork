@@ -15,4 +15,15 @@ GameplayConstants.SPECIAL_PREFIX = "Special."
 GameplayConstants.STATE_PREFIX = "State."
 GameplayConstants.EQUIPMENT_PREFIX = "Equipment."
 
+GameplayConstants.EQUIPMENT_UNEQUIP_EVENT = "Event.Equipment.Unequip"
+GameplayConstants.STATE_RESTORE_EVENT = "Event.State.Restore"
+GameplayConstants.STATE_TRIGGER_EVENT_PREFIX = "Event.State.Trigger."
+GameplayConstants.ITEM_USE_EVENT = "Event.Item.Use"
+GameplayConstants.ITEM_DROP_EVENT = "Event.Item.Drop"
+GameplayConstants.SPECIAL_INITIALISE_EVENT = "Event.Special.Initialise"
+GameplayConstants.COMBAT_REWARD_EVENT = "Event.Combat.Reward"
+GameplayConstants.COMBAT_BATTLE_EVENT = "Event.Combat.MotaBattle"
+GameplayConstants.MOVEMENT_HAZARD_DAMAGE_EVENT = "Event.Movement.HazardDamage"
+GameplayConstants.EQUIPMENT_SLOT_TAG_PREFIX = "Equipment.Slot."
+
 return GameplayConstants

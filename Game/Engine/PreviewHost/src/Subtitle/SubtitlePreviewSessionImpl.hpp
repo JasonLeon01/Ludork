@@ -6,6 +6,7 @@
 #include <UI/SubtitleTrack.hpp>
 #include <VideoDecoder.hpp>
 
+#include <SFML/Graphics/Color.hpp>
 #include <SFML/Graphics/RenderTexture.hpp>
 #include <SFML/System/Clock.hpp>
 #include <SFML/Window/Context.hpp>
@@ -51,10 +52,22 @@ struct SubtitlePreviewSession::Impl {
         void updateVideo(double time, bool seek);
         RuntimeData frame(const std::string& sessionId, std::int64_t generation,
                           FrameFiles& frameFiles);
+
+    private:
+        static constexpr char FrameResponse[] = "subtitleFrame";
+        static constexpr float FullAudioVolume = 100.0f;
+        inline static const sf::Color PreviewBackground{24, 24, 24};
     };
     std::unordered_map<std::string, std::unique_ptr<Session>> sessions;
     std::unordered_map<std::string, std::int64_t> generations;
     RuntimeData render(const RuntimeData::Map& request, FrameFiles& frameFiles);
+
+private:
+    static constexpr char StopCommand[] = "stop";
+    static constexpr char PauseCommand[] = "pause";
+    static constexpr char PlayCommand[] = "play";
+    static constexpr char ClosedResponse[] = "subtitleClosed";
+    static constexpr char StaleResponse[] = "subtitleStale";
 };
 
 }  // namespace ludork::preview_host

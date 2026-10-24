@@ -2,6 +2,7 @@
 
 #include "ServerRequestData.hpp"
 
+#include <cstddef>
 #include <condition_variable>
 #include <deque>
 #include <thread>
@@ -16,6 +17,9 @@ public:
     void enqueue(const std::shared_ptr<PendingRequest>& pending);
 
 private:
+    static constexpr int WorkerCount = 4;
+    static constexpr std::size_t RequestQueueCapacity = 256;
+
     void run();
     std::mutex mutex_;
     std::condition_variable wake_;

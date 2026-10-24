@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Runtime/NodeGraph/Node.hpp>
+#include <Runtime/NodeGraph/GraphConstants.hpp>
 #include <Runtime/NodeGraph/Types.hpp>
 
 #include <cstddef>
@@ -25,7 +26,7 @@ struct LoopFrame {
     NodeResult lastResult;
     std::size_t loopSteps = 0;
     std::optional<int> completedNext;
-    std::size_t limit = 1000000;
+    std::size_t limit = ludork::runtime::graph_constants::DefaultExecutionLimit;
 };
 
 struct ExecutionState {

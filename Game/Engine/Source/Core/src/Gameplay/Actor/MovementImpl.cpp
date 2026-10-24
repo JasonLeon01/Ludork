@@ -81,8 +81,9 @@ void MovementImpl::arrive() {
 }
 
 void MovementImpl::recordRealSpeed(float distance, float fixedDelta) {
-    realSpeed =
-        fixedDelta <= 0.0f || distance <= 0.001f ? 0.0f : distance / fixedDelta;
+    realSpeed = fixedDelta <= 0.0f || distance <= StationaryDistanceTolerance
+                    ? 0.0f
+                    : distance / fixedDelta;
 }
 
 void MovementImpl::setDestination(const sf::Vector2i& offset, int cellSize) {

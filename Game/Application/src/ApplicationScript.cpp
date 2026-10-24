@@ -23,7 +23,11 @@ void configureLuaSearchPaths(lua_State* state,
     lua_getglobal(state, "package");
     lua_getfield(state, -1, "path");
     const char* packagePath = lua_tostring(state, -1);
-    const std::string scriptModulePath = "Scripts/?.lua;Scripts/?.luac;";
+    const std::string scriptModulePath =
+        std::string(ludork::generated::resources::ScriptPathPrefix) + "?" +
+        ludork::generated::resources::LuaSourceExtension + ";" +
+        ludork::generated::resources::ScriptPathPrefix + "?" +
+        ludork::generated::resources::LuaCompiledExtension + ";";
     lua_pushlstring(state, scriptModulePath.c_str(), scriptModulePath.size());
     lua_pushstring(state, packagePath == nullptr ? "" : packagePath);
     lua_concat(state, 2);

@@ -85,7 +85,7 @@
 ---@field contentBytes    integer | nil
 ---@field priorityRect    Global.WorldGeometry.CellRect | nil
 ---@field forceActivate   boolean
----@field phase           "convert" | "build" | "index" | "finalise"
+---@field phase           Enums.WorldPublishPhase
 ---@field payload         Global.WorldGameMap.RegionPayload | nil
 ---@field layerNames      string[]
 ---@field layerIndex      integer
@@ -110,7 +110,7 @@
 ---@field _worldActorDefinitionRegions table<Engine.Actor, string>
 ---@field _worldActorRoots             table<Engine.Actor, Engine.Actor>
 ---@field _worldActorRegions           table<Engine.Actor, Global.WorldGameMap.WorldRegionData>
----@field _worldRootStates             table<Engine.Actor, "NeverActive" | "Active" | "Dormant">
+---@field _worldRootStates             table<Engine.Actor, Enums.WorldActorState>
 ---@field _worldRootSleepTimes         table<Engine.Actor, number>
 ---@field _worldLooseRoots             Engine.Actor[]
 ---@field _worldPendingRehomes         table<Engine.Actor, Global.WorldGameMap.WorldRegionData>
@@ -147,6 +147,8 @@
 ---@field _worldPrewarmMilliseconds      number
 ---@field _worldPrewarmReadbackMilliseconds number
 ---@field new                          fun(config: Global.WorldGameMap.WorldMapData, regionFactory: fun(region: Global.WorldGameMap.WorldRegionData, data: Global.GameMap.SerializedMapData, priorityRect: Global.WorldGeometry.CellRect | nil): Global.WorldGameMap.RegionBuildState, reservedTags?: string[]): Global.WorldGameMap.WorldGameMap
+---@field private _REGION_SOURCE_CACHE_MULTIPLIER integer
+---@field private _PREPARED_VIEWPORT_MARGIN_MULTIPLIER integer
 local WorldGameMap = {}
 
 ---@param config        Global.WorldGameMap.WorldMapData

@@ -1,5 +1,13 @@
 local WindowTransitionProfile = require("Enums.WindowTransitionProfile")
-local WindowTransition = {}
+
+local WindowTransition = {
+    _PHASE = {
+        OPEN = "open",
+        HIDDEN = "hidden",
+        ENTERING = "entering",
+        EXITING = "exiting"
+    }
+}
 
 function WindowTransition.GetAnimationNames(profile)
     if profile == WindowTransitionProfile.MENU then
@@ -12,7 +20,7 @@ function WindowTransition:init(host, ui, target)
     self._host = host
     self._ui = ui
     self._target = target
-    self._phase = "open"
+    self._phase = WindowTransition._PHASE.OPEN
     self._generation = 0
     self._animationName = nil
 end
@@ -24,7 +32,7 @@ end
 function WindowTransition:show(animationName, onReady)
     self._generation = self._generation + 1
     local requestGeneration = self._generation
-    self._phase = "entering"
+    self._phase = WindowTransition._PHASE.ENTERING
     self._animationName = animationName
     self._host:setVisible(true)
     self._host:setActive(false)
@@ -33,7 +41,7 @@ function WindowTransition:show(animationName, onReady)
             return
         end
         self._animationName = nil
-        self._phase = "open"
+        self._phase = WindowTransition._PHASE.OPEN
         if onReady ~= nil then
             onReady()
         end
@@ -49,7 +57,7 @@ function WindowTransition:hide(animationName, onHidden)
     end
     self._generation = self._generation + 1
     local requestGeneration = self._generation
-    self._phase = "exiting"
+    self._phase = WindowTransition._PHASE.EXITING
     self._animationName = animationName
     self._host:setActive(false)
     self._ui:playAnimation(animationName, self._target, function ()
@@ -58,7 +66,7 @@ function WindowTransition:hide(animationName, onHidden)
         end
         self._animationName = nil
         self._host:setVisible(false)
-        self._phase = "hidden"
+        self._phase = WindowTransition._PHASE.HIDDEN
         if onHidden ~= nil then
             onHidden()
         end
@@ -73,15 +81,15 @@ function WindowTransition:hideImmediate()
     self._animationName = nil
     self._host:setActive(false)
     self._host:setVisible(false)
-    self._phase = "hidden"
+    self._phase = WindowTransition._PHASE.HIDDEN
 end
 
 function WindowTransition:isBlocking()
-    return self._phase ~= "hidden"
+    return self._phase ~= WindowTransition._PHASE.HIDDEN
 end
 
 function WindowTransition:isOpen()
-    return self._phase == "open"
+    return self._phase == WindowTransition._PHASE.OPEN
 end
 
 return class(WindowTransition)

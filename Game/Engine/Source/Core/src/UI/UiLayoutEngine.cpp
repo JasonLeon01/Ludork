@@ -12,6 +12,8 @@
 
 namespace {
 
+constexpr float FixedAnchorTolerance = 0.00001f;
+
 ui_layout_engine_detail::AxisArrangement arrangeAxis(
     float parentSize, float anchorMinimum, float anchorMaximum,
     float offsetStart, float offsetEnd, float alignment, float desiredSize,
@@ -21,7 +23,7 @@ ui_layout_engine_detail::AxisArrangement arrangeAxis(
             anchorMinimum * parentSize + offsetStart - alignment * desiredSize,
             desiredSize};
     }
-    if (std::abs(anchorMaximum - anchorMinimum) <= 0.00001f) {
+    if (std::abs(anchorMaximum - anchorMinimum) <= FixedAnchorTolerance) {
         const float size = std::max(0.0f, offsetEnd);
         return {anchorMinimum * parentSize + offsetStart - alignment * size,
                 size};

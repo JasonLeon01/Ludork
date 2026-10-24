@@ -1,3 +1,5 @@
+#include <DisplayScaleLimits.hpp>
+#include <Direction.hpp>
 #include <EngineState.hpp>
 
 #include <algorithm>
@@ -9,19 +11,13 @@ const sf::Vector2u ZeroVector2u = {0u, 0u};
 const sf::Vector3f ZeroVector3f = {0.0f, 0.0f, 0.0f};
 const sf::Vector3i ZeroVector3i = {0, 0, 0};
 const sf::Vector3u ZeroVector3u = {0u, 0u, 0u};
-const std::unordered_map<std::string, int> Direction = {
-    {"DOWN", 0},
-    {"LEFT", 1},
-    {"RIGHT", 2},
-    {"UP", 3},
-};
 
 float EngineState::getScale() const {
     return scale_;
 }
 
 void EngineState::setScale(float scale) {
-    scale_ = std::max(0.01f, scale);
+    scale_ = std::max(DisplayScaleLimits::MINIMUM_RENDER_SCALE, scale);
 }
 
 sf::Vector2u EngineState::getGameSize() const {
@@ -42,7 +38,7 @@ void EngineState::setGameRunning(bool running) {
 
 void EngineState::reset() noexcept {
     gameRunning_ = true;
-    gameSize_ = {640u, 480u};
+    gameSize_ = DefaultGameSize;
     scale_ = 1.0f;
 }
 
@@ -72,15 +68,15 @@ bool isGameRunning() {
 }
 
 int oppositeDirection(int direction) {
-    switch (direction) {
-        case 0:
-            return 3;
-        case 1:
-            return 2;
-        case 2:
-            return 1;
-        case 3:
-            return 0;
+    switch (static_cast<Direction>(direction)) {
+        case Direction::DOWN:
+            return static_cast<int>(Direction::UP);
+        case Direction::LEFT:
+            return static_cast<int>(Direction::RIGHT);
+        case Direction::RIGHT:
+            return static_cast<int>(Direction::LEFT);
+        case Direction::UP:
+            return static_cast<int>(Direction::DOWN);
         default:
             throw std::invalid_argument(
                 "direction must be an integer between 0 and 3");

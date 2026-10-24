@@ -6,18 +6,19 @@
 --- and displays the file's last-modified timestamp underneath. Loading, empty
 --- and failed slots display a status message. Native previews are read in the background.
 ---@class Source.Windows.WindowSaveDetail.Controller: Internal.UIBase.UiController
----@field host            Source.Windows.WindowSaveDetail
----@field ui              Internal.UI.Parts.WindowSaveLoad.WindowSaveDetail
----@field _reader         Engine.SavePreviewReader
----@field _currentSlot    integer | nil
----@field _previewEnabled boolean
----@field _refreshElapsed number
----@field _thumbTexture   sf.Texture | nil
----@field _thumbImage     sf.Image | nil
----@field _requestClock   sf.Clock
----@field _reportTiming   boolean
----@field _lastError      string
----@field _timestamp      string | nil
+---@field host                              Source.Windows.WindowSaveDetail
+---@field ui                                Internal.UI.Parts.WindowSaveLoad.WindowSaveDetail
+---@field _reader                           Engine.SavePreviewReader
+---@field _currentSlot                      integer | nil
+---@field _previewEnabled                   boolean
+---@field _refreshElapsed                   number
+---@field _thumbTexture                     sf.Texture | nil
+---@field _thumbImage                       sf.Image | nil
+---@field _requestClock                     sf.Clock
+---@field _reportTiming                     boolean
+---@field _lastError                        string
+---@field _timestamp                        string | nil
+---@field private _PREVIEW_REFRESH_INTERVAL number
 local Controller = {}
 
 ---@brief Construct the detail panel.

@@ -1,3 +1,4 @@
+#include <DisplayScaleLimits.hpp>
 #include <Graphics.hpp>
 #include <Display.hpp>
 #include "DisplayImpl.hpp"
@@ -32,22 +33,24 @@ float DisplayImpl::windowFitScale(const sf::Vector2u& surfaceSize,
     const float scale = std::min(
         static_cast<float>(surfaceSize.x) / static_cast<float>(gameSize.x),
         static_cast<float>(surfaceSize.y) / static_cast<float>(gameSize.y));
-    return std::max(0.01f, scale);
+    return std::max(DisplayScaleLimits::MINIMUM_RENDER_SCALE, scale);
 }
 
 float DisplayImpl::effectiveRenderScale(float surfaceFitScale,
                                         float maximumRenderScale) {
-    const float normalizedSurfaceFitScale = std::max(0.01f, surfaceFitScale);
+    const float normalizedSurfaceFitScale =
+        std::max(DisplayScaleLimits::MINIMUM_RENDER_SCALE, surfaceFitScale);
     const float effectiveScale =
         maximumRenderScale > 0.0f
             ? std::min(normalizedSurfaceFitScale, maximumRenderScale)
             : normalizedSurfaceFitScale;
-    return std::max(0.01f, effectiveScale);
+    return std::max(DisplayScaleLimits::MINIMUM_RENDER_SCALE, effectiveScale);
 }
 
 sf::Vector2u DisplayImpl::scaledSize(const sf::Vector2u& gameSize,
                                      float scale) {
-    const float normalizedScale = std::max(0.01f, scale);
+    const float normalizedScale =
+        std::max(DisplayScaleLimits::MINIMUM_RENDER_SCALE, scale);
     return {
         static_cast<unsigned int>(std::max(
             1.0f,

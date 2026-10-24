@@ -1,6 +1,8 @@
 #include <Emitters/EmitterResource.hpp>
 #include "EmitterCurveChannels.hpp"
 #include <Curve.hpp>
+#include <LudorkGenerated/ResourceFileConstants.hpp>
+#include <utility>
 #include <Runtime/Data.hpp>
 #include <Runtime/RuntimeDataReader.hpp>
 #include <algorithm>
@@ -41,8 +43,10 @@ std::string string(const RuntimeData::Map& map, const std::string& key,
                             : ludork::runtime::value_reader::requireString(
                                   *value, "particle." + key);
 }
-int choice(const RuntimeData::Map& map, const std::string& key,
-           std::initializer_list<const char*> choices, int fallback) {
+template <typename Value>
+Value choice(const RuntimeData::Map& map, const std::string& key,
+             std::initializer_list<std::pair<const char*, Value>> choices,
+             Value fallback) {
     const RuntimeData* input =
         ludork::runtime::value_reader::findValue(map, key);
     if (input == nullptr) {
@@ -50,12 +54,10 @@ int choice(const RuntimeData::Map& map, const std::string& key,
     }
     const std::string value =
         ludork::runtime::value_reader::requireString(*input, "particle." + key);
-    int index = 0;
-    for (const char* candidate : choices) {
-        if (value == candidate) {
-            return index;
+    for (const auto& [name, selected] : choices) {
+        if (value == name) {
+            return selected;
         }
-        ++index;
     }
     throw std::invalid_argument("Unsupported particle." + key + ": " + value);
 }
@@ -98,7 +100,9 @@ std::array<float, 4> colour(const RuntimeData::Map& map, const std::string& key,
 Curve::CurveData curve(const RuntimeData& input, float fallback) {
     RuntimeData data = input;
     if (const std::string* key = data.getIf<std::string>()) {
-        data = loadData("Data/Curves/" + *key + ".json");
+        data = loadData(
+            std::string(ludork::generated::resources::DataPathPrefix) +
+            "Curves/" + *key + ludork::generated::resources::DataExtension);
     }
     const RuntimeData::Map& map =
         ludork::runtime::value_reader::requireMap(data, "particle.curve");
@@ -137,7 +141,9 @@ EmitterConfiguration loadEmitterConfiguration(const std::string& resourceKey) {
                                     resourceKey);
     }
     return parseEmitterConfiguration(
-        loadData("Data/Particles/" + resourceKey + ".json"));
+        loadData(std::string(ludork::generated::resources::DataPathPrefix) +
+                 "Particles/" + resourceKey +
+                 ludork::generated::resources::DataExtension));
 }
 
 EmitterConfiguration parseEmitterConfiguration(const RuntimeData& data) {
@@ -164,17 +170,27 @@ EmitterConfiguration parseEmitterConfiguration(const RuntimeData& data) {
         track.name = string(map, "name", track.name);
         track.texture = string(map, "texture", track.texture);
         track.enabled = boolean(map, "enabled", track.enabled);
-        track.resident = choice(map, "mode", {"emission", "resident"},
-                                track.resident ? 1 : 0) == 1;
-        track.world =
-            choice(map, "space", {"local", "world"}, track.world ? 1 : 0) == 1;
-        track.additive =
-            choice(map, "blend", {"alpha", "add"}, track.additive ? 1 : 0) == 1;
-        track.scaleMode = choice(
-            map, "scaleMode", {"hierarchy", "local", "shape"}, track.scaleMode);
-        track.shape =
-            choice(map, "shape", {"point", "line", "rectangle", "disk", "ring"},
-                   track.shape);
+        track.resident =
+            choice<bool>(map, "mode", {{"emission", false}, {"resident", true}},
+                         track.resident);
+        track.world = choice<bool>(
+            map, "space", {{"local", false}, {"world", true}}, track.world);
+        track.additive = choice<bool>(
+            map, "blend", {{"alpha", false}, {"add", true}}, track.additive);
+        track.scaleMode = choice<EmitterTrack::ScaleMode>(
+            map, "scaleMode",
+            {{"hierarchy", EmitterTrack::ScaleMode::Hierarchy},
+             {"local", EmitterTrack::ScaleMode::Local},
+             {"shape", EmitterTrack::ScaleMode::Shape}},
+            track.scaleMode);
+        track.shape = choice<EmitterTrack::Shape>(
+            map, "shape",
+            {{"point", EmitterTrack::Shape::Point},
+             {"line", EmitterTrack::Shape::Line},
+             {"rectangle", EmitterTrack::Shape::Rectangle},
+             {"disk", EmitterTrack::Shape::Disk},
+             {"ring", EmitterTrack::Shape::Ring}},
+            track.shape);
         track.loop = boolean(map, "loop", track.loop);
         track.prewarm = boolean(map, "prewarm", track.prewarm);
         track.capacity = integer(map, "capacity", track.capacity);

@@ -31,6 +31,9 @@ struct MovementImpl {
     void recordRealSpeed(float distance, float fixedDelta);
     void setDestination(const sf::Vector2i& offset, int cellSize);
     std::optional<sf::Vector2f> velocity(float speed) const;
+
+private:
+    static constexpr float StationaryDistanceTolerance = 0.001f;
 };
 
 struct MovementAdvance {

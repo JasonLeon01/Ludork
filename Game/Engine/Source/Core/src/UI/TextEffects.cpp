@@ -236,8 +236,9 @@ bool draw(Cache& cache, sf::RenderTarget& target, sf::RenderStates states,
     cache.shader->setUniform("contentMinimum", cache.contentMinimum);
     cache.shader->setUniform("contentMaximum", cache.contentMaximum);
     cache.shader->setUniform("gradientEnabled", gradient.enabled);
-    cache.shader->setUniform("gradientDirection",
-                             gradient.direction == "horizontal" ? 1 : 0);
+    cache.shader->setUniform(
+        "gradientDirection",
+        gradient.direction == TextGradientConfig::HORIZONTAL ? 1 : 0);
     cache.shader->setUniform("glowEnabled", glowEnabled(glow));
     cache.shader->setUniform("glowColor", sf::Glsl::Vec4(glow.color));
     cache.shader->setUniform("glowRadius", glowRadiusPixels(glow));

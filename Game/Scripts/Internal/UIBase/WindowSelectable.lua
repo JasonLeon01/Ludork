@@ -499,7 +499,7 @@ function WindowSelectable:_updateTouchInput()
     local touchPosition = Input.getTouchPosition()
     if Input.isTouchMoved() and touchPosition ~= nil then
         local position = Engine.ToVector2f(touchPosition)
-        local scale = math.max(Engine.GetScale(), 0.000001)
+        local scale = math.max(Engine.GetScale(), Engine.DisplayScaleLimits.MINIMUM_INVERTIBLE_SCALE)
         if Input.isTouchDragged() then
             self._touchDragging = true
         end

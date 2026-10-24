@@ -26,7 +26,10 @@ local function containsPointer(window, position)
 end
 
 ---@class Source.Windows.WindowMenu.Controller
-local Controller = {}
+local Controller = {
+    _MENU_INDEX = { ITEM = 0, EQUIP = 1, SAVE = 2 },
+    _SUB_MENU = { ITEM = "item", EQUIP = "equip", SAVE = "save", CONFIG = "config" }
+}
 
 Controller.windowOptions = { hidden = true, returnButton = true, list = "MenuList", scroll = "MenuScrollBox" }
 
@@ -105,28 +108,28 @@ end
 
 function Controller:openInventory()
     AudioManager.playSound(GameSystem.GetDecisionSE())
-    self:_closeSubMenus("item")
+    self:_closeSubMenus(Controller._SUB_MENU.ITEM)
     self._windowItem:get():open(WindowTransitionProfile.MENU, UiLayout.GetMenuDockPosition(self.host))
     self:_syncReturnButtonSuppression()
 end
 
 function Controller:openEquipment()
     AudioManager.playSound(GameSystem.GetDecisionSE())
-    self:_closeSubMenus("equip")
+    self:_closeSubMenus(Controller._SUB_MENU.EQUIP)
     self._windowEquip:get():open(WindowTransitionProfile.MENU, UiLayout.GetMenuDockPosition(self.host))
     self:_syncReturnButtonSuppression()
 end
 
 function Controller:openSaveLoad()
     AudioManager.playSound(GameSystem.GetDecisionSE())
-    self:_closeSubMenus("save")
+    self:_closeSubMenus(Controller._SUB_MENU.SAVE)
     self._windowSaveLoad:get():open(WindowTransitionProfile.MENU, nil, UiLayout.GetMenuDockPosition(self.host))
     self:_syncReturnButtonSuppression()
 end
 
 function Controller:openConfig()
     AudioManager.playSound(GameSystem.GetDecisionSE())
-    self:_closeSubMenus("config")
+    self:_closeSubMenus(Controller._SUB_MENU.CONFIG)
     self.host:setActive(false)
     self._configWindow:get():open()
     self:_syncReturnButtonSuppression()
@@ -266,17 +269,17 @@ function Controller:onMenuExit()
 end
 
 function Controller:_getCurrentSubMenuFocusTarget()
-    if self.host.index == 0 then
+    if self.host.index == Controller._MENU_INDEX.ITEM then
         local window = self._windowItem:peek()
         if window ~= nil and window:getVisible() then
             return window
         end
-    elseif self.host.index == 1 then
+    elseif self.host.index == Controller._MENU_INDEX.EQUIP then
         local window = self._windowEquip:peek()
         if window ~= nil and window:getVisible() then
             return window:getSlotFocusTarget()
         end
-    elseif self.host.index == 2 then
+    elseif self.host.index == Controller._MENU_INDEX.SAVE then
         local window = self._windowSaveLoad:peek()
         if window ~= nil and window:getVisible() then
             return window:getSlotWindow()
@@ -298,19 +301,19 @@ function Controller:_closeSubMenus(exceptName)
     local equip = self._windowEquip:peek()
     local saveLoad = self._windowSaveLoad:peek()
     local config = self._configWindow:peek()
-    if exceptName ~= "item" and item ~= nil and item:getVisible() then
+    if exceptName ~= Controller._SUB_MENU.ITEM and item ~= nil and item:getVisible() then
         item:close()
         closed = true
     end
-    if exceptName ~= "equip" and equip ~= nil and equip:getVisible() then
+    if exceptName ~= Controller._SUB_MENU.EQUIP and equip ~= nil and equip:getVisible() then
         equip:close()
         closed = true
     end
-    if exceptName ~= "save" and saveLoad ~= nil and saveLoad:getVisible() then
+    if exceptName ~= Controller._SUB_MENU.SAVE and saveLoad ~= nil and saveLoad:getVisible() then
         saveLoad:close()
         closed = true
     end
-    if exceptName ~= "config" and config ~= nil and config:isOpen() then
+    if exceptName ~= Controller._SUB_MENU.CONFIG and config ~= nil and config:isOpen() then
         config:close()
         closed = true
     end

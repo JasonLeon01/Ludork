@@ -4,6 +4,7 @@
 
 #include <EngineRuntimeApi.hpp>
 #include <Graphics/RectBase.hpp>
+#include <SFML/Graphics/Rect.hpp>
 #include <UI/SpriteBase.hpp>
 
 BIND_CLASS(callbacks = true)
@@ -28,6 +29,16 @@ public:
     void refreshDisplayScale() override;
 
 private:
+    static constexpr sf::IntRect WindowBackground{{0, 0}, {128, 128}};
+    static constexpr sf::IntRect WindowTopLeftCorner{{128, 0}, {16, 16}};
+    static constexpr sf::IntRect WindowTopRightCorner{{176, 0}, {16, 16}};
+    static constexpr sf::IntRect WindowBottomLeftCorner{{128, 48}, {16, 16}};
+    static constexpr sf::IntRect WindowBottomRightCorner{{176, 48}, {16, 16}};
+    static constexpr sf::IntRect WindowTopEdge{{144, 0}, {24, 16}};
+    static constexpr sf::IntRect WindowBottomEdge{{144, 48}, {24, 16}};
+    static constexpr sf::IntRect WindowLeftEdge{{128, 16}, {16, 24}};
+    static constexpr sf::IntRect WindowRightEdge{{176, 16}, {16, 24}};
+
     static std::shared_ptr<sf::Texture> placeholderTexture();
     static sf::Vector2u logicalSize(const sf::Vector2i& size);
     static sf::Vector2u scaledSize(const sf::Vector2i& size);

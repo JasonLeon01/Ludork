@@ -10,6 +10,7 @@ local Ui = require("Internal.UIBase.Ui")
 local View = require("Internal.UI.WindowFloorTeleporter")
 local WindowFloorMapCommand = require("Source.Windows.WindowFloorTeleporter.Command")
 local WindowFloorMapPreview = require("Source.Windows.WindowFloorTeleporter.Preview")
+local MapConstants = require("Source.Configs.MapConstants")
 
 local AudioManager = GlobalCore.AudioManager
 ---@type fun(value: string): string
@@ -328,7 +329,7 @@ function Controller:getMapDisplayName(mapKey)
     local _, mapData = SceneMapBuilder
         .new()
         :loadMapData(mapKey, self:getGameInstance():getCurrentMapPath() or GameSystem.GetStartMap())
-    local mapName = mapData.type == "worldMap" and mapData.worldName or mapData.mapName
+    local mapName = mapData.type == MapConstants.WORLD_MAP_TYPE and mapData.worldName or mapData.mapName
     if not bool(mapName) then
         return LOC(tostring(mapKey))
     end

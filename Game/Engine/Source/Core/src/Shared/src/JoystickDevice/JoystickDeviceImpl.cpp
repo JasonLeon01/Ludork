@@ -1,3 +1,4 @@
+#include <array>
 #include "JoystickDeviceImpl.hpp"
 #include "JoystickDevicePlatform.hpp"
 
@@ -15,24 +16,25 @@ JoystickDeviceImpl& JoystickDeviceImpl::instance() {
 
 JoystickButton::Family JoystickDeviceImpl::classify(
     const sf::Joystick::Identification& identification) {
-    const bool sony = identification.vendorId == 0x054c;
+    const bool sony = identification.vendorId == SonyVendorId;
 #if defined(SFML_SYSTEM_HARMONY)
     const bool sonyProduct = sony || identification.vendorId == 0;
 #else
     const bool sonyProduct = sony;
 #endif
     if (sonyProduct) {
-        switch (identification.productId) {
-            case 0x05c4:
-            case 0x09cc:
-            case 0x0ba0:
-                return JoystickButton::Family::PlayStation4;
-            case 0x0ce6:
-            case 0x0df2:
-                return JoystickButton::Family::PlayStation5;
+        if (std::find(PlayStation4ProductIds.begin(),
+                      PlayStation4ProductIds.end(), identification.productId) !=
+            PlayStation4ProductIds.end()) {
+            return JoystickButton::Family::PlayStation4;
+        }
+        if (std::find(PlayStation5ProductIds.begin(),
+                      PlayStation5ProductIds.end(), identification.productId) !=
+            PlayStation5ProductIds.end()) {
+            return JoystickButton::Family::PlayStation5;
         }
     }
-    if (identification.vendorId == 0x045e) {
+    if (identification.vendorId == MicrosoftVendorId) {
         return JoystickButton::Family::Xbox;
     }
 #if defined(SFML_SYSTEM_IOS)

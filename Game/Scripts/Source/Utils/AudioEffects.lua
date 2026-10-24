@@ -15,6 +15,35 @@ local UNDERWATER_REFERENCE_SAMPLE_RATE = 48000.0
 local UNDERWATER_BUBBLE_DURATION = 0.008
 local UNDERWATER_MAXIMUM_BUBBLE_VOICES = 8
 
+local UNDERWATER_BASE_BUBBLE_RATE = 0.001
+local UNDERWATER_BUBBLE_INTENSITY_RATE = 0.005
+local UNDERWATER_MINIMUM_BUBBLE_LAST_AGE = 2
+local UNDERWATER_DEPTH_COMPRESSION_RATIO = 2.0
+local UNDERWATER_MINIMUM_CUTOFF = 1.0
+local UNDERWATER_SURFACE_CUTOFF = 800.0
+local UNDERWATER_DEPTH_CUTOFF_REDUCTION = 600.0
+local UNDERWATER_BUBBLE_MINIMUM_FREQUENCY = 200.0
+local UNDERWATER_BUBBLE_FREQUENCY_RANGE = 800.0
+local UNDERWATER_BUBBLE_MINIMUM_AMPLITUDE = 0.5
+local UNDERWATER_BUBBLE_AMPLITUDE_RANGE = 0.5
+local UNDERWATER_BUBBLE_AMPLITUDE_GAIN = 0.1
+local UNDERWATER_BUBBLE_MINIMUM_CHANNEL_GAIN = 0.7
+local UNDERWATER_BUBBLE_CHANNEL_GAIN_RANGE = 0.6
+local UNDERWATER_MODULATION_DEPTH = 0.05
+local UNDERWATER_MODULATION_FREQUENCY = 0.5
+local UNDERWATER_COMPRESSION_ATTACK_SMOOTHING = 0.95
+local UNDERWATER_COMPRESSION_RELEASE_SMOOTHING = 0.999
+local UNDERWATER_COMPRESSION_THRESHOLD = 0.3
+local UNDERWATER_REVERB_BASE_GAIN = 0.2
+local UNDERWATER_REVERB_DEPTH_GAIN = 0.3
+local UNDERWATER_REVERB_BASE_FEEDBACK = 0.7
+local UNDERWATER_REVERB_DEPTH_FEEDBACK_REDUCTION = 0.2
+local UNDERWATER_REVERB_MIX_GAIN = 0.4
+local UNDERWATER_DEPTH_OUTPUT_ATTENUATION = 0.4
+local UNDERWATER_OUTPUT_LIMIT = 0.8
+local BEHIND_WALL_MINIMUM_CUTOFF = 20.0
+local BEHIND_WALL_MAXIMUM_CUTOFF_SAMPLE_RATE_RATIO = 0.45
+
 local AudioEffects = {}
 
 ---@param sampleCount integer
@@ -39,7 +68,7 @@ end
 local function requireStatefulChannelCount(frameChannelCount)
     assert(
         frameChannelCount > 0 and frameChannelCount <= MAXIMUM_CHANNEL_COUNT,
-        "Audio effect channel count must be between 1 and 8"
+        string.format("Audio effect channel count must be between 1 and %d", MAXIMUM_CHANNEL_COUNT)
     )
 end
 
@@ -191,10 +220,16 @@ end
 ---@return sf.SoundSource.EffectProcessor
 local function createUnderwaterProcessor(control, sampleRate)
     local timeStep = 1.0 / sampleRate
-    local bubbleEventsPerSecond = (0.001 + UNDERWATER_BUBBLE_INTENSITY * 0.005) * UNDERWATER_REFERENCE_SAMPLE_RATE
-    local bubbleDurationLastAge = math.max(2, math.floor(UNDERWATER_BUBBLE_DURATION * sampleRate + 0.5))
-    local compressionRatio = 1.0 + UNDERWATER_DEPTH * 2.0
-    local cutoff = math.max(1.0, 800.0 - UNDERWATER_DEPTH * 600.0)
+    local bubbleEventsPerSecond = (UNDERWATER_BASE_BUBBLE_RATE
+        + UNDERWATER_BUBBLE_INTENSITY * UNDERWATER_BUBBLE_INTENSITY_RATE)
+        * UNDERWATER_REFERENCE_SAMPLE_RATE
+    local bubbleDurationLastAge = math.max(
+        UNDERWATER_MINIMUM_BUBBLE_LAST_AGE, math.floor(UNDERWATER_BUBBLE_DURATION * sampleRate + 0.5)
+    )
+    local compressionRatio = 1.0 + UNDERWATER_DEPTH * UNDERWATER_DEPTH_COMPRESSION_RATIO
+    local cutoff = math.max(
+        UNDERWATER_MINIMUM_CUTOFF, UNDERWATER_SURFACE_CUTOFF - UNDERWATER_DEPTH * UNDERWATER_DEPTH_CUTOFF_REDUCTION
+    )
     local alpha = timeStep / (1.0 / (cutoff * 2.0 * math.pi) + timeStep)
     local delayFrames = {}
     local buffers = {}
@@ -248,8 +283,9 @@ local function createUnderwaterProcessor(control, sampleRate)
                 availableVoice = index
             end
         end
-        local frequency = 200.0 + nextRandom() * 800.0
-        local amplitude = (nextRandom() * 0.5 + 0.5) * UNDERWATER_BUBBLE_INTENSITY * 0.1
+        local frequency = UNDERWATER_BUBBLE_MINIMUM_FREQUENCY + nextRandom() * UNDERWATER_BUBBLE_FREQUENCY_RANGE
+        local amplitude = (nextRandom() * UNDERWATER_BUBBLE_AMPLITUDE_RANGE + UNDERWATER_BUBBLE_MINIMUM_AMPLITUDE) * UNDERWATER_BUBBLE_INTENSITY
+            * UNDERWATER_BUBBLE_AMPLITUDE_GAIN
         if availableVoice == 0 then
             for _ = 2, MAXIMUM_CHANNEL_COUNT do
                 nextRandom()
@@ -259,7 +295,8 @@ local function createUnderwaterProcessor(control, sampleRate)
             ---@cast channelGains number[]
             channelGains[1] = 1.0
             for channel = 2, MAXIMUM_CHANNEL_COUNT do
-                channelGains[channel] = 0.7 + nextRandom() * 0.6
+                channelGains[channel] = UNDERWATER_BUBBLE_MINIMUM_CHANNEL_GAIN
+                    + nextRandom() * UNDERWATER_BUBBLE_CHANNEL_GAIN_RANGE
             end
             bubbleAges[availableVoice] = 0
             bubbleLastAges[availableVoice] = bubbleDurationLastAge
@@ -322,8 +359,10 @@ local function createUnderwaterProcessor(control, sampleRate)
         end
 
         for frame = 0, frameCount - 1 do
-            local modulation = 1.0 + 0.05 * UNDERWATER_DEPTH * math.sin(waterPhase)
-            waterPhase = math.fmod(waterPhase + 2.0 * math.pi * 0.5 / sampleRate, 2.0 * math.pi)
+            local modulation = 1.0 + UNDERWATER_MODULATION_DEPTH * UNDERWATER_DEPTH * math.sin(waterPhase)
+            waterPhase = math.fmod(
+                waterPhase + 2.0 * math.pi * UNDERWATER_MODULATION_FREQUENCY / sampleRate, 2.0 * math.pi
+            )
             bubbleFramesUntilNext = bubbleFramesUntilNext - 1.0
             if bubbleFramesUntilNext <= 0.0 then
                 startBubble()
@@ -365,10 +404,12 @@ local function createUnderwaterProcessor(control, sampleRate)
                 local sampleIndex = frameOffset + channel
                 local signal = inputFrames[sampleIndex] * modulation
                 local absolute = math.abs(signal)
-                local smoothing = absolute > envelope and 0.95 or 0.999
+                local smoothing = absolute > envelope and UNDERWATER_COMPRESSION_ATTACK_SMOOTHING
+                    or UNDERWATER_COMPRESSION_RELEASE_SMOOTHING
                 envelope = absolute + (envelope - absolute) * smoothing
-                if envelope > 0.3 then
-                    local gain = 0.3 + (envelope - 0.3) / compressionRatio
+                if envelope > UNDERWATER_COMPRESSION_THRESHOLD then
+                    local gain = UNDERWATER_COMPRESSION_THRESHOLD
+                        + (envelope - UNDERWATER_COMPRESSION_THRESHOLD) / compressionRatio
                     signal = signal * gain / envelope
                 end
                 local previousSample = previous[channel]
@@ -382,13 +423,18 @@ local function createUnderwaterProcessor(control, sampleRate)
                     local offset = delayIndex * MAXIMUM_CHANNEL_COUNT + channel
                     local delayed = buffer[offset]
                     ---@cast delayed number
-                    reverb = reverb + delayed * (0.2 + UNDERWATER_DEPTH * 0.3)
-                    buffer[offset] = filtered + delayed * (0.7 - UNDERWATER_DEPTH * 0.2)
+                    reverb = reverb
+                        + delayed * (UNDERWATER_REVERB_BASE_GAIN + UNDERWATER_DEPTH * UNDERWATER_REVERB_DEPTH_GAIN)
+                    buffer[offset] = filtered
+                        + delayed
+                            * (UNDERWATER_REVERB_BASE_FEEDBACK
+                                - UNDERWATER_DEPTH * UNDERWATER_REVERB_DEPTH_FEEDBACK_REDUCTION)
                 end
                 local frameBubble = frameBubbles[channel]
                 ---@cast frameBubble number
-                local output = (filtered + reverb * 0.4 + frameBubble) * (1.0 - UNDERWATER_DEPTH * 0.4)
-                outputFrames[sampleIndex] = math.clamp(output, -0.8, 0.8)
+                local output = (filtered + reverb * UNDERWATER_REVERB_MIX_GAIN + frameBubble)
+                    * (1.0 - UNDERWATER_DEPTH * UNDERWATER_DEPTH_OUTPUT_ATTENUATION)
+                outputFrames[sampleIndex] = math.clamp(output, -UNDERWATER_OUTPUT_LIMIT, UNDERWATER_OUTPUT_LIMIT)
             end
             for index = 1, #indices do
                 local delayIndex = indices[index]
@@ -414,8 +460,10 @@ end
 ---@param sampleRate integer
 ---@return sf.SoundSource.EffectProcessor
 local function createBehindWallProcessor(control, sampleRate)
-    local maximumCutoff = math.max(20.0, sampleRate * 0.45)
-    local cutoff = math.clamp(BEHIND_WALL_CUTOFF, 20.0, maximumCutoff)
+    local maximumCutoff = math.max(
+        BEHIND_WALL_MINIMUM_CUTOFF, sampleRate * BEHIND_WALL_MAXIMUM_CUTOFF_SAMPLE_RATE_RATIO
+    )
+    local cutoff = math.clamp(BEHIND_WALL_CUTOFF, BEHIND_WALL_MINIMUM_CUTOFF, maximumCutoff)
     local alpha = 1.0 - math.exp(-2.0 * math.pi * cutoff / sampleRate)
     local gain = math.clamp(BEHIND_WALL_TRANSMISSION, 0.0, 1.0)
     local firstStages = createZeroBuffer(MAXIMUM_CHANNEL_COUNT)

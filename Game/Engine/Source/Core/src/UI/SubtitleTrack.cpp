@@ -1,3 +1,4 @@
+#include <LudorkGenerated/ResourceFileConstants.hpp>
 #include <UI/SubtitleTrack.hpp>
 
 #include <DataFile.hpp>
@@ -85,7 +86,8 @@ SubtitleTrack SubtitleTrack::parse(const RuntimeData& asset) {
 
 void SubtitleTrack::validatePath(const std::string& dataPath) {
     constexpr std::string_view prefix = "Data/Subtitles/";
-    if (!dataPath.starts_with(prefix) || !dataPath.ends_with(".json") ||
+    if (!dataPath.starts_with(prefix) ||
+        !dataPath.ends_with(ludork::generated::resources::DataExtension) ||
         dataPath.find_first_of("\\:") != std::string::npos ||
         std::any_of(dataPath.begin(), dataPath.end(), [](unsigned char value) {
             return value < 32 || value == 127;
@@ -98,7 +100,8 @@ void SubtitleTrack::validatePath(const std::string& dataPath) {
         const std::size_t separator = remaining.find('/');
         const std::string_view segment = remaining.substr(0, separator);
         if (segment.empty() || segment == "." || segment == ".." ||
-            (separator == std::string_view::npos && segment == ".json")) {
+            (separator == std::string_view::npos &&
+             segment == ludork::generated::resources::DataExtension)) {
             throw std::invalid_argument("Invalid subtitle path: " + dataPath);
         }
         if (separator == std::string_view::npos) {

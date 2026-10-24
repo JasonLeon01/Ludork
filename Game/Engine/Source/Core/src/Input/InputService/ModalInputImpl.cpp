@@ -1,3 +1,4 @@
+#include <Input/InjectedInputEvent.hpp>
 #include "InputThresholds.hpp"
 #include "ModalInputImpl.hpp"
 
@@ -146,7 +147,7 @@ void ModalInputImpl::observeInjectedEvent(const InjectedInputEvent& event,
         scan != sf::Keyboard::Scancode::Unknown
             ? "scan:" + std::to_string(static_cast<int>(scan))
             : "key:" + std::to_string(static_cast<int>(key));
-    if (event.type == "KeyPressed") {
+    if (event.type == InjectedInputEvent::KEY_PRESSED) {
         if (key == sf::Keyboard::Key::Unknown &&
             scan == sf::Keyboard::Scancode::Unknown) {
             return;
@@ -156,21 +157,21 @@ void ModalInputImpl::observeInjectedEvent(const InjectedInputEvent& event,
             !event.shift && !event.system && isConfirmKey(key, scan)) {
             confirm();
         }
-    } else if (event.type == "KeyReleased") {
+    } else if (event.type == InjectedInputEvent::KEY_RELEASED) {
         injectedKeys_.erase(identifier);
-    } else if (event.type == "MouseButtonPressed") {
+    } else if (event.type == InjectedInputEvent::MOUSE_BUTTON_PRESSED) {
         const bool fresh = injectedButtons_.insert(button).second;
         if (fresh && acceptsConfirmation && button == sf::Mouse::Button::Left) {
             confirm();
         }
-    } else if (event.type == "MouseButtonReleased") {
+    } else if (event.type == InjectedInputEvent::MOUSE_BUTTON_RELEASED) {
         injectedButtons_.erase(button);
-    } else if (event.type == "FocusLost") {
+    } else if (event.type == InjectedInputEvent::FOCUS_LOST) {
         injectedKeys_.clear();
         injectedButtons_.clear();
         clearNativeControls();
         clearConfirmations();
-    } else if (event.type == "FocusGained") {
+    } else if (event.type == InjectedInputEvent::FOCUS_GAINED) {
         clearNativeControls();
         synchronizeHeldConfirmControls();
     }

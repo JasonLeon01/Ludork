@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Runtime/RuntimeValue.hpp>
+#include <AsyncOperationProtocol.hpp>
 
 struct lua_State;
 
@@ -8,6 +9,15 @@ BIND_CLASS()
 class LUDORK_RUNTIME_API AsyncOperation : public RuntimeObject {
 public:
     LUDORK_CAST_DERIVED(AsyncOperation, RuntimeObject)
+
+    BIND_CLASS_PROPERTY(readonly = true, metadata = false)
+    static const std::string PENDING;
+
+    BIND_CLASS_PROPERTY(readonly = true, metadata = false)
+    static const std::string COMPLETED;
+
+    BIND_CLASS_PROPERTY(readonly = true, metadata = false)
+    static const std::string CANCELLED;
 
     /// Create an operation; an optional poll runs once per logic frame until
     /// settlement.
@@ -52,7 +62,7 @@ private:
     void releasePolling();
 
     lua_State* state_;
-    std::string status_ = "pending";
+    std::string status_ = ludork::standard::asyncio::operation_status::Pending;
     std::function<void(AsyncOperation&)> poll_;
     RuntimeValue result_;
     std::vector<std::function<void()>> cancellationCallbacks_;

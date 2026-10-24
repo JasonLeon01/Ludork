@@ -1,3 +1,4 @@
+local GlobalCore = require("GlobalCore")
 local Pickup = require("Source.Utils.Pickup")
 local Effects = require("Source.Gameplay.Effects")
 
@@ -15,7 +16,10 @@ function Gem:onCollision(other)
             player.attributes:getAttributeSchema(self.ATTR_key), "Gem attribute is not in the player AttributeSet"
         )
         assert(schema.type == "int" or schema.type == "float", "Gem attribute must be numeric")
-        Effects.ApplyInstantModifier(player, "Consumable.Gem." .. self.ATTR_key, self.ATTR_key, "Add", self.plus)
+        Effects.ApplyInstantModifier(
+            player, "Consumable.Gem." .. self.ATTR_key, self.ATTR_key, GlobalCore.GameplayModifier.OPERATION_ADD,
+            self.plus
+        )
     end)
 end
 

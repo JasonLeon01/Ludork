@@ -15,6 +15,16 @@
 ---@field SPECIAL_PREFIX                       string
 ---@field STATE_PREFIX                         string
 ---@field EQUIPMENT_PREFIX                     string
+---@field EQUIPMENT_UNEQUIP_EVENT              string
+---@field STATE_RESTORE_EVENT                  string
+---@field STATE_TRIGGER_EVENT_PREFIX           string
+---@field ITEM_USE_EVENT                       string
+---@field ITEM_DROP_EVENT                      string
+---@field SPECIAL_INITIALISE_EVENT             string
+---@field COMBAT_REWARD_EVENT                  string
+---@field COMBAT_BATTLE_EVENT                  string
+---@field MOVEMENT_HAZARD_DAMAGE_EVENT         string
+---@field EQUIPMENT_SLOT_TAG_PREFIX            string
 local GameplayConstants = {}
 
 return GameplayConstants

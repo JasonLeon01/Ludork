@@ -1,3 +1,5 @@
+#include <UI/TextGradientConfig.hpp>
+#include <CoreShared/TextConfigLimits.hpp>
 #include "UiControlAdapterSupportImpl.hpp"
 #include "UiControlAdapterSupport.hpp"
 #include <Runtime/AssetInputStream.hpp>
@@ -236,7 +238,8 @@ std::shared_ptr<PlainTextConfig> plainTextControlConfig(
     result->name = "Inline UI Text";
     result->font = loadFont(stringProperty(properties, "font"), result->name);
     const int characterSize = intProperty(properties, "characterSize", 22);
-    if (characterSize < 1 || characterSize > 512) {
+    if (characterSize < ludork::engine::text_config::MinimumCharacterSize ||
+        characterSize > ludork::engine::text_config::MaximumCharacterSize) {
         throw std::invalid_argument("characterSize must be between 1 and 512");
     }
     result->characterSize = static_cast<unsigned int>(characterSize);
@@ -254,15 +257,26 @@ std::shared_ptr<PlainTextConfig> plainTextControlConfig(
         result->style |= sf::Text::StrikeThrough;
     }
     result->slantAngle = floatProperty(properties, "slantAngle", 0.0f);
-    if (result->slantAngle < -45.0f || result->slantAngle > 45.0f) {
+    if (result->slantAngle <
+            static_cast<float>(
+                ludork::engine::text_config::MinimumSlantAngle) ||
+        result->slantAngle >
+            static_cast<float>(
+                ludork::engine::text_config::MaximumSlantAngle)) {
         throw std::invalid_argument("slantAngle must be between -45 and 45");
     }
     result->fillColor =
         colorProperty(properties, "fillColor", sf::Color::White);
     result->letterSpacing = floatProperty(properties, "letterSpacing", 1.0f);
     result->lineSpacing = floatProperty(properties, "lineSpacing", 1.0f);
-    if (result->letterSpacing < 0.1f || result->letterSpacing > 10.0f ||
-        result->lineSpacing < 0.1f || result->lineSpacing > 10.0f) {
+    if (result->letterSpacing <
+            static_cast<float>(ludork::engine::text_config::MinimumSpacing) ||
+        result->letterSpacing >
+            static_cast<float>(ludork::engine::text_config::MaximumSpacing) ||
+        result->lineSpacing <
+            static_cast<float>(ludork::engine::text_config::MinimumSpacing) ||
+        result->lineSpacing >
+            static_cast<float>(ludork::engine::text_config::MaximumSpacing)) {
         throw std::invalid_argument(
             "letterSpacing and lineSpacing must be between 0.1 and 10");
     }
@@ -290,10 +304,10 @@ std::shared_ptr<PlainTextConfig> plainTextControlConfig(
     }
     result->gradient.enabled =
         boolProperty(properties, "gradientEnabled", false);
-    result->gradient.direction =
-        stringProperty(properties, "gradientDirection", "vertical");
-    if (result->gradient.direction != "vertical" &&
-        result->gradient.direction != "horizontal") {
+    result->gradient.direction = stringProperty(properties, "gradientDirection",
+                                                TextGradientConfig::VERTICAL);
+    if (result->gradient.direction != TextGradientConfig::VERTICAL &&
+        result->gradient.direction != TextGradientConfig::HORIZONTAL) {
         throw std::invalid_argument(
             "gradientDirection must be vertical or horizontal");
     }

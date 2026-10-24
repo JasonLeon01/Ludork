@@ -10,6 +10,7 @@
 #include <stdexcept>
 
 namespace {
+
 const sf::Color StormFlashColour{210, 220, 255, 120};
 
 WeatherType checkedWeatherType(WeatherType value) {
@@ -26,7 +27,7 @@ WeatherType checkedWeatherType(WeatherType value) {
 
 WeatherType WeatherController::weatherType_ = WeatherType::NONE;
 float WeatherController::power_ = 0.0f;
-float WeatherController::maxCount_ = 50.0f;
+float WeatherController::maxCount_ = DefaultParticleCount;
 float WeatherController::time_ = 0.0f;
 float WeatherController::stormFlashCooldown_ = 0.0f;
 std::shared_ptr<sf::Shader> WeatherController::weatherShader_;
@@ -38,8 +39,9 @@ void WeatherController::setWeather(WeatherType weatherType, float power,
                                    int maxCount) {
     clearWeather();
     weatherType_ = checkedWeatherType(weatherType);
-    power_ = std::clamp(std::floor(power), 0.0f, 100.0f);
-    maxCount_ = static_cast<float>(std::clamp(maxCount, 0, 100));
+    power_ = std::clamp(std::floor(power), 0.0f, MaximumPower);
+    maxCount_ =
+        static_cast<float>(std::clamp(maxCount, 0, MaximumParticleCount));
     if (weatherType_ == WeatherType::NONE || power_ <= 0.0f) {
         weatherType_ = WeatherType::NONE;
         return;
@@ -71,10 +73,12 @@ void WeatherController::update(float deltaTime) {
     }
     stormFlashCooldown_ = std::max(0.0f, stormFlashCooldown_ - deltaTime);
     if (stormFlashCooldown_ <= 0.0f &&
-        randomUnit() < 0.02f * (power_ / 100.0f)) {
+        randomUnit() < StormFlashChancePerUpdate * (power_ / MaximumPower)) {
         ScreenEffects::flashScreen(StormFlashColour,
-                                   0.08f + randomUnit() * 0.07f);
-        stormFlashCooldown_ = 0.35f + randomUnit() * 0.65f;
+                                   MinimumStormFlashDuration +
+                                       randomUnit() * StormFlashDurationSpread);
+        stormFlashCooldown_ =
+            MinimumStormFlashCooldown + randomUnit() * StormFlashCooldownSpread;
     }
 }
 
@@ -100,8 +104,10 @@ void WeatherController::drawShaderOverlayTo(sf::RenderTexture& renderTexture) {
     weatherShader_->setUniform("time", time_);
     weatherShader_->setUniform(
         "weatherType", static_cast<float>(static_cast<int>(weatherType_)));
-    weatherShader_->setUniform("power", power_ / 100.0f);
-    weatherShader_->setUniform("maxScale", std::max(0.1f, maxCount_ / 50.0f));
+    weatherShader_->setUniform("power", power_ / MaximumPower);
+    weatherShader_->setUniform(
+        "maxScale",
+        std::max(MinimumParticleScale, maxCount_ / DefaultParticleCount));
     buffer.clear(sf::Color::Transparent);
     sf::RenderStates states = canvasRenderStates();
     states.shader = weatherShader_.get();

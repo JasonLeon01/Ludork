@@ -180,7 +180,7 @@ std::shared_ptr<const MaterialResource> MaterialResource::load(
     }
     if (!overrides.empty()) {
         auto& cache = previewResourceCache();
-        if (cache.entryCount() >= 256) {
+        if (cache.entryCount() >= PreviewResourceCacheCapacity) {
             cache.clear();
         }
         const auto resource = cache.getOrLoad(previewKey(path), [&path]() {
@@ -284,7 +284,7 @@ std::shared_ptr<MaterialResource> MaterialResource::readMetadata(
     const RuntimeData::Map rendering = optionalMap(root, "rendering");
     if (const RuntimeData* offset =
             reader::findValue(rendering, "maxVertexOffset")) {
-        schema::validateParameterValue("vec2", *offset,
+        schema::validateParameterValue(schema::value_type::Vec2, *offset,
                                        "material.rendering.maxVertexOffset");
         const auto& values = *offset->getIf<RuntimeData::Array>();
         result->maximumVertexOffset_ = {
@@ -341,20 +341,23 @@ RuntimeData MaterialResource::nodeRegistry() {
     RuntimeData::Map defaults;
     RuntimeData::Array fields;
     for (const auto& [id, type, required] :
-         {std::tuple{"id", "string", true},
-          std::tuple{"displayName", "string", false},
+         {std::tuple{"id", schema::value_type::String, true},
+          std::tuple{"displayName", schema::value_type::String, false},
           std::tuple{"type", "parameterType", true},
           std::tuple{"default", "parameterValue", true},
-          std::tuple{"group", "string", false},
-          std::tuple{"min", "float", false},
-          std::tuple{"max", "float", false}}) {
+          std::tuple{"group", schema::value_type::String, false},
+          std::tuple{"min", schema::value_type::Float, false},
+          std::tuple{"max", schema::value_type::Float, false}}) {
         fields.emplace_back(
             RuntimeData::Map{{"id", RuntimeData(id)},
                              {"type", RuntimeData(type)},
                              {"required", RuntimeData(required)}});
     }
     for (const char* type :
-         {"float", "vec2", "vec3", "vec4", "color", "bool", "texture"}) {
+         {schema::value_type::Float, schema::value_type::Vec2,
+          schema::value_type::Vec3, schema::value_type::Vec4,
+          schema::value_type::Color, schema::value_type::Boolean,
+          schema::value_type::Texture}) {
         types.emplace_back(type);
         const int width = schema::typeWidth(type);
         if (width == 0) {
@@ -366,7 +369,9 @@ RuntimeData MaterialResource::nodeRegistry() {
         } else {
             RuntimeData::Array values(
                 static_cast<std::size_t>(width),
-                RuntimeData(std::string(type) == "color" ? 1.0 : 0.0));
+                RuntimeData(std::string(type) == schema::value_type::Color
+                                ? 1.0
+                                : 0.0));
             defaults.emplace(type, RuntimeData(std::move(values)));
         }
     }
@@ -377,10 +382,12 @@ RuntimeData MaterialResource::nodeRegistry() {
         {"defaultMaterial", schema::defaultDocument()},
         {"parameterTypes", RuntimeData(std::move(types))},
         {"parameterFields", RuntimeData(std::move(fields))},
-        {"rangeParameterTypes",
-         RuntimeData(RuntimeData::Array{
-             RuntimeData("float"), RuntimeData("vec2"), RuntimeData("vec3"),
-             RuntimeData("vec4"), RuntimeData("color")})},
+        {"rangeParameterTypes", RuntimeData(RuntimeData::Array{
+                                    RuntimeData(schema::value_type::Float),
+                                    RuntimeData(schema::value_type::Vec2),
+                                    RuntimeData(schema::value_type::Vec3),
+                                    RuntimeData(schema::value_type::Vec4),
+                                    RuntimeData(schema::value_type::Color)})},
         {"parameterDefaults", RuntimeData(std::move(defaults))}});
 }
 

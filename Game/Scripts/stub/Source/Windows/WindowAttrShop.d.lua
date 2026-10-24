@@ -8,29 +8,30 @@
 
 ---@brief Attribute upgrade shop window and Controller.
 ---@class Source.Windows.WindowAttrShop.Controller: Internal.UIBase.UiController
----@field _player               Source.MapActors.Player.Player
----@field _onCloseCallback      function | nil
----@field _abilities            table<string, integer>
----@field _abilityKeys          string[]
----@field _priceRef             GlobalFunctions.Utils.NodeReference<integer | integer[]> | nil
----@field _fallbackPrice        integer
----@field _priceIncrement       integer
----@field _moneyName            string
----@field _closed               boolean
----@field ui                    Internal.UI.WindowAttrShop
----@field _shopNameSource       string
----@field _descriptionSource    string
----@field _shopName             string
----@field _description          string
----@field _priceTextValue       string
----@field _avatarTexture        sf.Texture | nil
----@field _avatarRect           sf.IntRect | nil
----@field _avatarAnimatable     boolean
----@field _avatarSwitchInterval number
----@field _avatarSwitchTimer    number
----@field _offers               Source.Windows.WindowAttrShop.Offer[]
----@field _rows                 Internal.UIBase.UiCollection<Source.Windows.WindowAttrShop.AttrShopRow.Controller>
----@field host                  Source.Windows.WindowAttrShop
+---@field _player                                Source.MapActors.Player.Player
+---@field _onCloseCallback                       function | nil
+---@field _abilities                             table<string, integer>
+---@field _abilityKeys                           string[]
+---@field _priceRef                              GlobalFunctions.Utils.NodeReference<integer | integer[]> | nil
+---@field _fallbackPrice                         integer
+---@field _priceIncrement                        integer
+---@field _moneyName                             string
+---@field _closed                                boolean
+---@field ui                                     Internal.UI.WindowAttrShop
+---@field _shopNameSource                        string
+---@field _descriptionSource                     string
+---@field _shopName                              string
+---@field _description                           string
+---@field _priceTextValue                        string
+---@field _avatarTexture                         sf.Texture | nil
+---@field _avatarRect                            sf.IntRect | nil
+---@field _avatarAnimatable                      boolean
+---@field _avatarSwitchInterval                  number
+---@field _avatarSwitchTimer                     number
+---@field _offers                                Source.Windows.WindowAttrShop.Offer[]
+---@field _rows                                  Internal.UIBase.UiCollection<Source.Windows.WindowAttrShop.AttrShopRow.Controller>
+---@field host                                   Source.Windows.WindowAttrShop
+---@field private _DEFAULT_AVATAR_FRAME_INTERVAL number
 local Controller = {}
 
 ---@private

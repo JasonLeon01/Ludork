@@ -2,6 +2,7 @@ local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local Special = require("Enums.GeneralData.Special")
 local GameplayConstants = require("Source.Configs.GameplayConstants")
+local CombatResolutionCode = require("Enums.CombatResolutionCode")
 
 local GameplayAbility = GlobalCore.GameplayAbility
 local GameplayAbilityResult = GlobalCore.GameplayAbilityResult
@@ -37,7 +38,7 @@ function FixDmgAbility:activate(_abilitySystem, eventData)
     damage = math.floor(damage)
     assert(damage >= 0, "FixDmg special value must resolve to a non-negative number")
     eventData.payload.fixedDamage = damage
-    return assert(GameplayAbilityResult.Success("BattleRulesResolved", eventData.payload))
+    return assert(GameplayAbilityResult.Success(CombatResolutionCode.BATTLE_RULES, eventData.payload))
 end
 
 return class(FixDmgAbility, GameplayAbility)

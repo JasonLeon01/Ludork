@@ -153,24 +153,27 @@ void Rect::initialiseUi() {
     cachedCornerTextures_.clear();
     cachedEdgeTextures_.clear();
     windowEdge_ = std::make_unique<sf::RenderTexture>(canvas_->getSize());
-    windowBack_ = textureFromArea({{132, 68}, {24, 24}});
+    windowBack_ = textureFromArea(SelectionBackground);
     windowEdgeSprite_ = std::make_unique<sf::Sprite>(windowEdge_->getTexture());
     windowBackSprite_ = std::make_unique<sf::Sprite>(*windowBack_);
     const sf::Vector2u canvasSize = canvas_->getSize();
-    windowBackSprite_->setScale({static_cast<float>(canvasSize.x) / 24.0f,
-                                 static_cast<float>(canvasSize.y) / 24.0f});
+    windowBackSprite_->setScale(
+        {static_cast<float>(canvasSize.x) /
+             static_cast<float>(SelectionBackground.size.x),
+         static_cast<float>(canvasSize.y) /
+             static_cast<float>(SelectionBackground.size.y)});
 
     const std::vector<sf::IntRect> corners = {
-        {{128, 64}, {4, 4}},
-        {{156, 64}, {4, 4}},
-        {{128, 92}, {4, 4}},
-        {{156, 92}, {4, 4}},
+        SelectionTopLeftCorner,
+        SelectionTopRightCorner,
+        SelectionBottomLeftCorner,
+        SelectionBottomRightCorner,
     };
     const std::vector<sf::IntRect> edges = {
-        {{132, 64}, {24, 4}},
-        {{132, 92}, {24, 4}},
-        {{128, 68}, {4, 24}},
-        {{156, 68}, {4, 24}},
+        SelectionTopEdge,
+        SelectionBottomEdge,
+        SelectionLeftEdge,
+        SelectionRightEdge,
     };
     std::vector<sf::Texture*> cachedCorners;
     std::vector<sf::Texture*> cachedEdges;

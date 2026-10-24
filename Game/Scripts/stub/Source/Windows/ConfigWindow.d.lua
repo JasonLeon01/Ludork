@@ -13,33 +13,35 @@
 
 --- Each setting row combines a label and an interactive control.
 ---@class Source.Windows.ConfigWindow.Controller: Internal.UIBase.UiController
----@field host                           Source.Windows.ConfigWindow
----@field _activePageIndex               integer
----@field _pageSessions                  Source.Windows.ConfigWindow.PageSession[]
----@field _languageRow                   Source.Windows.ConfigWindow.ConfigSettingRow.Controller
----@field _graphicsPresetRow             Source.Windows.ConfigWindow.ConfigSettingRow.Controller
----@field _maximumRenderScaleRow         Source.Windows.ConfigWindow.ConfigSettingRow.Controller
----@field _framerateRow                  Source.Windows.ConfigWindow.ConfigSettingRow.Controller
----@field _antiAliasingLevelRow          Source.Windows.ConfigWindow.ConfigSettingRow.Controller
----@field _lightingRenderScaleRow        Source.Windows.ConfigWindow.ConfigSettingRow.Controller
----@field _verticalSyncRow               Source.Windows.ConfigWindow.ConfigCheckBoxRow.Controller
----@field _musicOnRow                    Source.Windows.ConfigWindow.ConfigCheckBoxRow.Controller
----@field _musicVolumeRow                Source.Windows.ConfigWindow.ConfigSliderRow.Controller
----@field _soundOnRow                    Source.Windows.ConfigWindow.ConfigCheckBoxRow.Controller
----@field _soundVolumeRow                Source.Windows.ConfigWindow.ConfigSliderRow.Controller
----@field _voiceOnRow                    Source.Windows.ConfigWindow.ConfigCheckBoxRow.Controller
----@field _voiceVolumeRow                Source.Windows.ConfigWindow.ConfigSliderRow.Controller
----@field _onClose                       function | nil
----@field _open                          boolean
----@field _tabNavigationHandledThisFrame boolean
----@field ui                             Internal.UI.ConfigWindow
----@field _scaleAvailable                boolean
----@field _scaleValues                   number[]
----@field _maximumRenderScaleValues      number[]
----@field _pages                         Source.Windows.ConfigWindow.Page[]
----@field _applyingGraphicsPreset        boolean
----@field _scaleRow                      Source.Windows.ConfigWindow.ConfigSettingRow.Controller
----@field _antiAliasingLevelItems        string[]
+---@field host                            Source.Windows.ConfigWindow
+---@field _activePageIndex                integer
+---@field _pageSessions                   Source.Windows.ConfigWindow.PageSession[]
+---@field _languageRow                    Source.Windows.ConfigWindow.ConfigSettingRow.Controller
+---@field _graphicsPresetRow              Source.Windows.ConfigWindow.ConfigSettingRow.Controller
+---@field _maximumRenderScaleRow          Source.Windows.ConfigWindow.ConfigSettingRow.Controller
+---@field _framerateRow                   Source.Windows.ConfigWindow.ConfigSettingRow.Controller
+---@field _antiAliasingLevelRow           Source.Windows.ConfigWindow.ConfigSettingRow.Controller
+---@field _lightingRenderScaleRow         Source.Windows.ConfigWindow.ConfigSettingRow.Controller
+---@field _verticalSyncRow                Source.Windows.ConfigWindow.ConfigCheckBoxRow.Controller
+---@field _musicOnRow                     Source.Windows.ConfigWindow.ConfigCheckBoxRow.Controller
+---@field _musicVolumeRow                 Source.Windows.ConfigWindow.ConfigSliderRow.Controller
+---@field _soundOnRow                     Source.Windows.ConfigWindow.ConfigCheckBoxRow.Controller
+---@field _soundVolumeRow                 Source.Windows.ConfigWindow.ConfigSliderRow.Controller
+---@field _voiceOnRow                     Source.Windows.ConfigWindow.ConfigCheckBoxRow.Controller
+---@field _voiceVolumeRow                 Source.Windows.ConfigWindow.ConfigSliderRow.Controller
+---@field _onClose                        function | nil
+---@field _open                           boolean
+---@field _tabNavigationHandledThisFrame  boolean
+---@field ui                              Internal.UI.ConfigWindow
+---@field _scaleAvailable                 boolean
+---@field _scaleValues                    number[]
+---@field _maximumRenderScaleValues       number[]
+---@field _pages                          Source.Windows.ConfigWindow.Page[]
+---@field _applyingGraphicsPreset         boolean
+---@field _scaleRow                       Source.Windows.ConfigWindow.ConfigSettingRow.Controller
+---@field _antiAliasingLevelItems         string[]
+---@field private _SLIDER_REPEAT_DELAY    number
+---@field private _SLIDER_REPEAT_INTERVAL number
 local Controller = {}
 
 ---@brief Construct the configuration window.

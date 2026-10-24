@@ -1,3 +1,4 @@
+#include "GpuGlConstants.hpp"
 #include <Runtime/Graphics/GpuEmitterBackend.hpp>
 #include "GpuEmitterBackendImpl.hpp"
 #include <SFML/Window/Context.hpp>
@@ -9,6 +10,7 @@
 
 namespace ludork::runtime::graphics {
 namespace {
+
 std::mutex& retirementMutex() {
     static std::mutex mutex;
     return mutex;
@@ -94,7 +96,7 @@ void GpuEmitterBackend::emit(const std::string& trackName, int count) {
     impl_->playing = true;
 }
 void GpuEmitterBackend::setSpeed(float speed) {
-    if (!std::isfinite(speed) || speed < 0 || speed > 100) {
+    if (!std::isfinite(speed) || speed < 0 || speed > MaximumPlaybackSpeed) {
         throw std::invalid_argument("Emitter speed must be in [0,100]");
     }
     impl_->speed = speed;
@@ -241,14 +243,14 @@ GpuEmitterBackend::Impl::Query* GpuEmitterBackend::Impl::beginQuery(
     query.sample = frame;
     query.generation = generation;
     query.time = time;
-    resources->api.BeginQuery(0x88BF, query.id);
+    resources->api.BeginQuery(gpu_gl::TimeElapsed, query.id);
     return &query;
 }
 void GpuEmitterBackend::Impl::endQuery(Query* query) {
     if (query == nullptr) {
         return;
     }
-    resources->api.EndQuery(0x88BF);
+    resources->api.EndQuery(gpu_gl::TimeElapsed);
     query->pending = true;
     queryCursor = (queryCursor + 1) % queries.size();
 }
@@ -258,21 +260,23 @@ void GpuEmitterBackend::Impl::pollQueries() {
     }
     int disjoint = 0;
     if (resources->api.embedded) {
-        resources->api.GetIntegerv(0x8FBB, &disjoint);
+        resources->api.GetIntegerv(gpu_gl::GpuDisjoint, &disjoint);
     }
     for (Query& query : queries) {
         if (query.pending) {
             int available = 0;
-            resources->api.GetQueryObjectiv(query.id, 0x8867, &available);
+            resources->api.GetQueryObjectiv(
+                query.id, gpu_gl::QueryResultAvailable, &available);
             if (available) {
                 std::uint64_t nanoseconds = 0;
-                resources->api.GetQueryObjectui64v(query.id, 0x8866,
-                                                   &nanoseconds);
+                resources->api.GetQueryObjectui64v(
+                    query.id, gpu_gl::QueryResult, &nanoseconds);
                 if (!disjoint && query.generation == generation &&
                     query.sample >=
                         (query.simulation ? simulationSample : drawSample)) {
                     (query.simulation ? simulationMs : drawMs) =
-                        static_cast<double>(nanoseconds) / 1000000;
+                        static_cast<double>(nanoseconds) /
+                        NanosecondsPerMillisecond;
                     (query.simulation ? simulationSample : drawSample) =
                         query.sample;
                 }
@@ -299,17 +303,18 @@ void GpuEmitterBackend::tick(float deltaTime) {
     Impl::Query* query = impl_->beginQuery(true);
     const double step = 1.0 / impl_->data.simulationRate;
     bool warming = false;
-    for (int iteration = 0; iteration < 120; ++iteration) {
+    for (int iteration = 0; iteration < MaximumPrewarmStepsPerFrame;
+         ++iteration) {
         warming = false;
         for (auto& track : impl_->tracks) {
-            if (track->warmTime + 1e-6f < track->warmEnd) {
+            if (track->warmTime + PrewarmTimeTolerance < track->warmEnd) {
                 const float previous = track->warmTime;
                 track->warmTime = std::min(track->warmEnd,
                                            previous + static_cast<float>(step));
                 track->step(previous, track->warmTime,
                             track->warmTime - previous, 0, {}, impl_->host,
                             impl_->data.seed, false);
-                if (track->warmTime + 1e-6f >= track->warmEnd) {
+                if (track->warmTime + PrewarmTimeTolerance >= track->warmEnd) {
                     track->lastBirth -= track->warmEnd;
                     track->warmEnd = 0;
                 }
@@ -331,8 +336,9 @@ void GpuEmitterBackend::tick(float deltaTime) {
     impl_->previousPosition = position;
     impl_->hasPosition = true;
     impl_->remainder += static_cast<double>(deltaTime) * impl_->speed;
-    const int steps = static_cast<int>(
-        std::min(240.0, std::floor((impl_->remainder + 1e-8) / step)));
+    const int steps = static_cast<int>(std::min(
+        static_cast<double>(MaximumSimulationStepsPerFrame),
+        std::floor((impl_->remainder + SimulationStepTolerance) / step)));
     const sf::Vector2f motion =
         steps > 0 ? impl_->accumulatedMotion / static_cast<float>(steps)
                   : sf::Vector2f{};

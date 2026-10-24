@@ -1,3 +1,4 @@
+#include <LudorkGenerated/ResourceFileConstants.hpp>
 #include "HotReloadImpl.hpp"
 #include "ScriptModuleShape.hpp"
 
@@ -216,7 +217,8 @@ void HotReloadImpl::preparePairs() {
     for (const auto& [name, live] : liveModules_) {
         static_cast<void>(live);
         if (scriptStore().ownsModule(state_, name) && name != "Entry" &&
-            !name.ends_with("_meta")) {
+            !name.ends_with(
+                ludork::generated::resources::MetadataModuleSuffix)) {
             push(modules_.at(name));
             validateScriptModuleShape(state_, name, -1);
             lua_pop(state_, 1);

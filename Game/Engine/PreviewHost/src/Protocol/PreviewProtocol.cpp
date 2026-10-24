@@ -1,3 +1,4 @@
+#include "Protocol/PreviewMessageNames.hpp"
 #include "Protocol/PreviewProtocol.hpp"
 
 #include <Runtime/Json.hpp>
@@ -43,7 +44,7 @@ RuntimeData number(float value) {
 
 RuntimeData errorResponse(const std::string& message) {
     return RuntimeData(object({
-        {"type", RuntimeData("error")},
+        {"type", RuntimeData(protocol::response::Error)},
         {"message", RuntimeData(message)},
     }));
 }

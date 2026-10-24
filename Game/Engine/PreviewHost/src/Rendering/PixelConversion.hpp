@@ -9,6 +9,11 @@
 
 namespace ludork::preview_host {
 
+namespace preview_pixels {
+inline constexpr unsigned int BytesPerPixel = 4;
+inline constexpr char Format[] = "Bgra8888Premultiplied";
+}  // namespace preview_pixels
+
 std::vector<std::uint8_t> bgraFromPremultipliedRgba(const sf::Image& image,
                                                     const sf::Vector2u& size);
 void bgraFromPremultipliedRgba(const sf::Image& image, const sf::Vector2u& size,

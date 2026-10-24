@@ -1,3 +1,4 @@
+#include <Graphics/Materials/MaterialSurfaceField.hpp>
 #include "MaterialSchema.hpp"
 
 #include <Runtime/AssetPath.hpp>
@@ -38,14 +39,19 @@ RuntimeData vector(std::initializer_list<double> values) {
 }
 
 RuntimeData::Array surfacePorts() {
-    return {port("BaseColor", "vec3"),   port("Alpha", "float"),
-            port("Emission", "vec3"),    port("LightingWeight", "float"),
-            port("LightBlock", "float"), port("ReflectionStrength", "float"),
-            port("VertexOffset", "vec2")};
+    return {
+        port(surface_field_name::BaseColor, schema::value_type::Vec3),
+        port(surface_field_name::Alpha, schema::value_type::Float),
+        port(surface_field_name::Emission, schema::value_type::Vec3),
+        port(surface_field_name::LightingWeight, schema::value_type::Float),
+        port(surface_field_name::LightBlock, schema::value_type::Float),
+        port(surface_field_name::ReflectionStrength, schema::value_type::Float),
+        port(surface_field_name::VertexOffset, schema::value_type::Vec2)};
 }
 
 RuntimeData composeSize() {
-    RuntimeData result = port("size", "integer", RuntimeData(std::int64_t{3}));
+    RuntimeData result =
+        port("size", schema::value_type::Integer, RuntimeData(std::int64_t{3}));
     RuntimeData::Array choices;
     for (int width : composeWidths) {
         choices.emplace_back(static_cast<std::int64_t>(width));
@@ -56,7 +62,8 @@ RuntimeData composeSize() {
 }
 
 RuntimeData swizzleChannels() {
-    RuntimeData result = port("channels", "string", RuntimeData("rgb"));
+    RuntimeData result =
+        port("channels", schema::value_type::String, RuntimeData("rgb"));
     RuntimeData::Array lengths;
     RuntimeData::Array channels;
     for (std::size_t index = 0; index < positionChannels.size(); ++index) {
@@ -85,106 +92,157 @@ RuntimeData swizzleChannels() {
 
 RuntimeData::Array nodeDefinitions() {
     RuntimeData::Array result{
-        node("Surface", "Output", surfacePorts(), {}),
-        node("SurfaceInput", "Input", {}, surfacePorts()),
-        node("Constant", "Input", {}, {port("Value", "numeric")},
-             {port("value", "numeric", RuntimeData(0.0))}),
-        node("Parameter", "Input", {}, {port("Value", "parameter")},
-             {port("id", "string", RuntimeData(""))})};
+        node(schema::node_type::Surface, schema::category::Output,
+             surfacePorts(), {}),
+        node(schema::node_type::SurfaceInput, schema::category::Input, {},
+             surfacePorts()),
+        node(schema::node_type::Constant, schema::category::Input, {},
+             {port(schema::port_name::Value, schema::value_type::Numeric)},
+             {port("value", schema::value_type::Numeric, RuntimeData(0.0))}),
+        node(schema::node_type::Parameter, schema::category::Input, {},
+             {port(schema::port_name::Value, schema::value_type::Parameter)},
+             {port("id", schema::value_type::String, RuntimeData(""))})};
     for (const char* type :
-         {"Time", "LocalUV", "LocalPosition", "WorldPosition", "FrameSize"}) {
-        result.push_back(node(
-            type, "Input", {},
-            {port("Value", std::string(type) == "Time" ? "float" : "vec2")}));
+         {schema::node_type::Time, schema::node_type::LocalUV,
+          schema::node_type::LocalPosition, schema::node_type::WorldPosition,
+          schema::node_type::FrameSize}) {
+        result.push_back(node(type, schema::category::Input, {},
+                              {port(schema::port_name::Value,
+                                    std::string(type) == schema::node_type::Time
+                                        ? schema::value_type::Float
+                                        : schema::value_type::Vec2)}));
     }
     RuntimeData::Array sampleOutputs{
-        port("Color", "vec3"), port("Alpha", "float"), port("RGBA", "vec4")};
+        port(schema::port_name::Color, schema::value_type::Vec3),
+        port(schema::port_name::Alpha, schema::value_type::Float),
+        port(schema::port_name::RGBA, schema::value_type::Vec4)};
     result.push_back(
-        node("SampleSprite", "Texture", {port("UV", "vec2")}, sampleOutputs));
-    result.push_back(node("SampleTexture", "Texture",
-                          {port("Texture", "texture"), port("UV", "vec2")},
-                          sampleOutputs));
+        node(schema::node_type::SampleSprite, schema::category::Texture,
+             {port(schema::port_name::UV, schema::value_type::Vec2)},
+             sampleOutputs));
+    result.push_back(
+        node(schema::node_type::SampleTexture, schema::category::Texture,
+             {port(schema::port_name::Texture, schema::value_type::Texture),
+              port(schema::port_name::UV, schema::value_type::Vec2)},
+             sampleOutputs));
     for (const char* type :
-         {"Add", "Subtract", "Multiply", "Divide", "Min", "Max", "Dot"}) {
+         {schema::node_type::Add, schema::node_type::Subtract,
+          schema::node_type::Multiply, schema::node_type::Divide,
+          schema::node_type::Min, schema::node_type::Max,
+          schema::node_type::Dot}) {
         result.push_back(node(
-            type, "Math",
-            {port("A", "numeric", RuntimeData(0.0)),
-             port("B", "numeric",
-                  RuntimeData(std::string(type) == "Divide" ? 1.0 : 0.0))},
-            {port("Value", std::string(type) == "Dot" ? "float" : "numeric")}));
+            type, schema::category::Math,
+            {port(schema::port_name::A, schema::value_type::Numeric,
+                  RuntimeData(0.0)),
+             port(schema::port_name::B, schema::value_type::Numeric,
+                  RuntimeData(std::string(type) == schema::node_type::Divide
+                                  ? 1.0
+                                  : 0.0))},
+            {port(schema::port_name::Value,
+                  std::string(type) == schema::node_type::Dot
+                      ? schema::value_type::Float
+                      : schema::value_type::Numeric)}));
     }
-    for (const char* type : {"Abs", "Floor", "Fract", "Sin"}) {
-        result.push_back(node(type, "Math",
-                              {port("Value", "numeric", RuntimeData(0.0))},
-                              {port("Value", "numeric")}));
+    for (const char* type :
+         {schema::node_type::Abs, schema::node_type::Floor,
+          schema::node_type::Fract, schema::node_type::Sin}) {
+        result.push_back(node(
+            type, schema::category::Math,
+            {port(schema::port_name::Value, schema::value_type::Numeric,
+                  RuntimeData(0.0))},
+            {port(schema::port_name::Value, schema::value_type::Numeric)}));
     }
-    result.push_back(node("Clamp", "Math",
-                          {port("Value", "numeric", RuntimeData(0.0)),
-                           port("Min", "numeric", RuntimeData(0.0)),
-                           port("Max", "numeric", RuntimeData(1.0))},
-                          {port("Value", "numeric")}));
-    result.push_back(node("Smoothstep", "Math",
-                          {port("Min", "numeric", RuntimeData(0.0)),
-                           port("Max", "numeric", RuntimeData(1.0)),
-                           port("Value", "numeric", RuntimeData(0.0))},
-                          {port("Value", "numeric")}));
-    result.push_back(node("Lerp", "Math",
-                          {port("A", "numeric", RuntimeData(0.0)),
-                           port("B", "numeric", RuntimeData(1.0)),
-                           port("T", "numeric", RuntimeData(0.5))},
-                          {port("Value", "numeric")}));
-    result.push_back(node("Compose", "Vector",
-                          {port("X", "float", RuntimeData(0.0)),
-                           port("Y", "float", RuntimeData(0.0)),
-                           port("Z", "float", RuntimeData(0.0)),
-                           port("W", "float", RuntimeData(1.0))},
-                          {port("Value", "numeric")}, {composeSize()}));
-    result.push_back(node("Swizzle", "Vector",
-                          {port("Value", "numeric", vector({0, 0, 0, 1}))},
-                          {port("Value", "numeric")}, {swizzleChannels()}));
-    result.push_back(node("HueShift", "Color",
-                          {port("Color", "vec3", vector({1, 1, 1})),
-                           port("Hue", "float", RuntimeData(0.0))},
-                          {port("Value", "vec3")}));
+    result.push_back(
+        node(schema::node_type::Clamp, schema::category::Math,
+             {port(schema::port_name::Value, schema::value_type::Numeric,
+                   RuntimeData(0.0)),
+              port(schema::port_name::Min, schema::value_type::Numeric,
+                   RuntimeData(0.0)),
+              port(schema::port_name::Max, schema::value_type::Numeric,
+                   RuntimeData(1.0))},
+             {port(schema::port_name::Value, schema::value_type::Numeric)}));
+    result.push_back(
+        node(schema::node_type::Smoothstep, schema::category::Math,
+             {port(schema::port_name::Min, schema::value_type::Numeric,
+                   RuntimeData(0.0)),
+              port(schema::port_name::Max, schema::value_type::Numeric,
+                   RuntimeData(1.0)),
+              port(schema::port_name::Value, schema::value_type::Numeric,
+                   RuntimeData(0.0))},
+             {port(schema::port_name::Value, schema::value_type::Numeric)}));
+    result.push_back(
+        node(schema::node_type::Lerp, schema::category::Math,
+             {port(schema::port_name::A, schema::value_type::Numeric,
+                   RuntimeData(0.0)),
+              port(schema::port_name::B, schema::value_type::Numeric,
+                   RuntimeData(1.0)),
+              port("T", schema::value_type::Numeric, RuntimeData(0.5))},
+             {port(schema::port_name::Value, schema::value_type::Numeric)}));
+    result.push_back(
+        node(schema::node_type::Compose, "Vector",
+             {port("X", schema::value_type::Float, RuntimeData(0.0)),
+              port("Y", schema::value_type::Float, RuntimeData(0.0)),
+              port("Z", schema::value_type::Float, RuntimeData(0.0)),
+              port("W", schema::value_type::Float, RuntimeData(1.0))},
+             {port(schema::port_name::Value, schema::value_type::Numeric)},
+             {composeSize()}));
+    result.push_back(
+        node(schema::node_type::Swizzle, "Vector",
+             {port(schema::port_name::Value, schema::value_type::Numeric,
+                   vector({0, 0, 0, 1}))},
+             {port(schema::port_name::Value, schema::value_type::Numeric)},
+             {swizzleChannels()}));
+    result.push_back(
+        node(schema::node_type::HueShift, schema::port_name::Color,
+             {port(schema::port_name::Color, schema::value_type::Vec3,
+                   vector({1, 1, 1})),
+              port("Hue", schema::value_type::Float, RuntimeData(0.0))},
+             {port(schema::port_name::Value, schema::value_type::Vec3)}));
     for (RuntimeData& definition : result) {
         RuntimeData::Map& fields = *definition.getMutableIf<RuntimeData::Map>();
         const std::string& type = *fields.at("type").getIf<std::string>();
-        const bool fragmentOnly = type == "LocalUV" || type == "FrameSize" ||
-                                  type == "SampleSprite" ||
-                                  type == "SampleTexture";
+        const bool fragmentOnly = type == schema::node_type::LocalUV ||
+                                  type == schema::node_type::FrameSize ||
+                                  type == schema::node_type::SampleSprite ||
+                                  type == schema::node_type::SampleTexture;
         fields.emplace(
             "stages",
             RuntimeData(fragmentOnly
                             ? RuntimeData::Array{RuntimeData("fragment")}
                             : RuntimeData::Array{RuntimeData("vertex"),
                                                  RuntimeData("fragment")}));
-        if (type == "Surface") {
+        if (type == schema::node_type::Surface) {
             for (RuntimeData& entry :
                  *fields.at("inputs").getMutableIf<RuntimeData::Array>()) {
                 RuntimeData::Map& input =
                     *entry.getMutableIf<RuntimeData::Map>();
                 const std::string& id = *input.at("id").getIf<std::string>();
-                input.emplace("inherited", RuntimeData(id != "VertexOffset"));
-                if (id == "BaseColor") {
+                input.emplace(
+                    "inherited",
+                    RuntimeData(id != surface_field_name::VertexOffset));
+                if (id == surface_field_name::BaseColor) {
                     input.emplace("default", vector({1, 1, 1}));
-                } else if (id == "Emission") {
+                } else if (id == surface_field_name::Emission) {
                     input.emplace("default", vector({0, 0, 0}));
-                } else if (id == "VertexOffset") {
+                } else if (id == surface_field_name::VertexOffset) {
                     input.emplace("default", vector({0, 0}));
                 } else {
                     input.emplace(
                         "default",
-                        RuntimeData(id == "Alpha" || id == "LightingWeight"
-                                        ? 1.0
-                                        : 0.0));
+                        RuntimeData(
+                            id == surface_field_name::Alpha ||
+                                    id == surface_field_name::LightingWeight
+                                ? 1.0
+                                : 0.0));
                 }
                 input.emplace(
                     "stages",
                     RuntimeData(RuntimeData::Array{RuntimeData(
-                        id == "VertexOffset" ? "vertex" : "fragment")}));
+                        id == surface_field_name::VertexOffset ? "vertex"
+                                                               : "fragment")}));
             }
         }
-        if (type == "SurfaceInput") {
+        if (type == schema::node_type::SurfaceInput) {
             for (RuntimeData& entry :
                  *fields.at("outputs").getMutableIf<RuntimeData::Array>()) {
                 RuntimeData::Map& output =
@@ -193,7 +251,8 @@ RuntimeData::Array nodeDefinitions() {
                 output.emplace(
                     "stages",
                     RuntimeData(RuntimeData::Array{RuntimeData(
-                        id == "VertexOffset" ? "vertex" : "fragment")}));
+                        id == surface_field_name::VertexOffset ? "vertex"
+                                                               : "fragment")}));
             }
         }
     }
@@ -201,7 +260,8 @@ RuntimeData::Array nodeDefinitions() {
 }
 
 RuntimeData::Array renderingFields() {
-    RuntimeData offset = port("maxVertexOffset", "vec2", vector({0, 0}));
+    RuntimeData offset =
+        port("maxVertexOffset", schema::value_type::Vec2, vector({0, 0}));
     offset.getMutableIf<RuntimeData::Map>()->emplace("min", RuntimeData(0.0));
     return {std::move(offset)};
 }
@@ -216,7 +276,7 @@ RuntimeData defaultDocument() {
              {"nodes",
               RuntimeData(RuntimeData::Array{RuntimeData(RuntimeData::Map{
                   {"id", RuntimeData("surface")},
-                  {"type", RuntimeData("Surface")},
+                  {"type", RuntimeData(schema::node_type::Surface)},
                   {"inputs", RuntimeData(RuntimeData::Map{})},
                   {"properties", RuntimeData(RuntimeData::Map{})}})})},
              {"output", RuntimeData("surface")}})},
@@ -228,22 +288,22 @@ RuntimeData defaultDocument() {
 }
 
 int typeWidth(const std::string& type) {
-    if (type == "float") {
+    if (type == schema::value_type::Float) {
         return 1;
     }
-    if (type == "vec2") {
+    if (type == schema::value_type::Vec2) {
         return 2;
     }
-    if (type == "vec3") {
+    if (type == schema::value_type::Vec3) {
         return 3;
     }
-    if (type == "vec4" || type == "color") {
+    if (type == schema::value_type::Vec4 || type == schema::value_type::Color) {
         return 4;
     }
-    if (type == "bool") {
+    if (type == schema::value_type::Boolean) {
         return 0;
     }
-    if (type == "texture") {
+    if (type == schema::value_type::Texture) {
         return -1;
     }
     throw std::invalid_argument("Unknown material parameter type: " + type);
@@ -277,13 +337,13 @@ void validateParameterValue(const std::string& type, const RuntimeData& value,
         throw std::invalid_argument(source + " does not match parameter type " +
                                     type);
     }
-    if (type == "texture") {
+    if (type == schema::value_type::Texture) {
         const std::string& path = *value.getIf<std::string>();
         if (!path.empty()) {
             static_cast<void>(ludork::runtime::AssetPath::parse(path));
         }
     }
-    if (type == "color") {
+    if (type == schema::value_type::Color) {
         for (const RuntimeData& item : *value.getIf<RuntimeData::Array>()) {
             const float channel =
                 ludork::runtime::value_reader::requireFloat(item, source);

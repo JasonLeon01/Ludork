@@ -2,6 +2,13 @@ local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local GameplayConstants = require("Source.Configs.GameplayConstants")
 
+local NEXT_DIRECTION = {
+    [Engine.Direction.DOWN] = Engine.Direction.LEFT,
+    [Engine.Direction.LEFT] = Engine.Direction.RIGHT,
+    [Engine.Direction.RIGHT] = Engine.Direction.UP,
+    [Engine.Direction.UP] = Engine.Direction.DOWN
+}
+
 local GameplayEventData = GlobalCore.GameplayEventData
 local MapClickAutoPathRuntime = {}
 
@@ -63,7 +70,7 @@ function MapClickAutoPathRuntime.SetActorDirection(actor, fromPos, goal, rotateW
         return
     end
     if rotateWhenSame then
-        actor.direction = (actor.direction + 1) % 4
+        actor.direction = NEXT_DIRECTION[actor.direction]
         return
     end
     local dx = goal.x - fromPos.x

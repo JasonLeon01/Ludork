@@ -1,6 +1,7 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local FileBatch = require("Global.Utils.FileBatch")
+local WorldPublishPhase = require("Enums.WorldPublishPhase")
 
 local WorldRegionDemand = GlobalCore.WorldRegionDemand
 local WorldRegionState = GlobalCore.WorldRegionState
@@ -103,10 +104,10 @@ function WorldGameMapStreaming.RefreshStreamingStates(self)
     local height = maximumY - minimumY
     local active = getClippedCellRect(self, minimumX - width, minimumY - height, maximumX + width, maximumY + height)
     self._worldActiveRect = active
-    local preparedLeft = minimumX - width * 2
-    local preparedTop = minimumY - height * 2
-    local preparedRight = maximumX + width * 2
-    local preparedBottom = maximumY + height * 2
+    local preparedLeft = minimumX - width * self._PREPARED_VIEWPORT_MARGIN_MULTIPLIER
+    local preparedTop = minimumY - height * self._PREPARED_VIEWPORT_MARGIN_MULTIPLIER
+    local preparedRight = maximumX + width * self._PREPARED_VIEWPORT_MARGIN_MULTIPLIER
+    local preparedBottom = maximumY + height * self._PREPARED_VIEWPORT_MARGIN_MULTIPLIER
     local viewport = assert(self._camera):getViewport()
     ---@cast viewport sf.FloatRect
     local centerX = (viewport.position.x + viewport.size.x / 2) / Engine.GetCellSize()
@@ -175,7 +176,7 @@ function WorldGameMapStreaming.StreamBatchHasDemand(self)
     end
     for _, region in ipairs(self._worldStreamBatchRegions) do
         if region.payload == nil and region.publishState ~= nil
-            and region.publishState.phase == "convert" and self:_isRegionDemanded(region) then
+            and region.publishState.phase == WorldPublishPhase.CONVERT and self:_isRegionDemanded(region) then
             return true
         end
     end
@@ -281,7 +282,7 @@ function WorldGameMapStreaming.PumpStreaming(self, publishBudgetSeconds)
             self._worldPublishMilliseconds = self._worldPublishMilliseconds + (perfCounter() - pollStarted) * 1000.0
             self:_consumeStreamingItem(item)
         end
-        if snapshot.state == "failed" then
+        if snapshot.state == asyncio.FILE_BATCH_FAILED then
             local errorData = snapshot.error
             local failedRegion = errorData ~= nil and self._worldStreamJobRegions[errorData.category] or nil
             local failedRegionDemanded = failedRegion ~= nil and self:_isRegionDemanded(failedRegion)
@@ -297,14 +298,14 @@ function WorldGameMapStreaming.PumpStreaming(self, publishBudgetSeconds)
             asyncio.cancel_file_batch(self._worldStreamJob)
             self:_finishStreamingBatch(true)
             self:_startStreamingBatch()
-        elseif snapshot.state == "cancelled" then
+        elseif snapshot.state == asyncio.FILE_BATCH_CANCELLED then
             for _, region in ipairs(self._worldStreamBatchRegions) do
                 self:_cancelRegionPublish(region)
             end
             self:_finishStreamingBatch(true)
             self:_startStreamingBatch()
         else
-            if snapshot.state == "completed" and snapshot.drained then
+            if snapshot.state == asyncio.FILE_BATCH_COMPLETED and snapshot.drained then
                 for _, region in pairs(self._worldStreamJobRegions) do
                     assert(
                         region.payload ~= nil or not self:_isRegionDemanded(region),
@@ -316,8 +317,8 @@ function WorldGameMapStreaming.PumpStreaming(self, publishBudgetSeconds)
             end
         end
         self:_pumpRegionPublishing(deadline)
-        if item == nil and snapshot.state ~= "completed"
-            and snapshot.state ~= "cancelled" and snapshot.state ~= "failed" then
+        if item == nil and snapshot.state ~= asyncio.FILE_BATCH_COMPLETED
+            and snapshot.state ~= asyncio.FILE_BATCH_CANCELLED and snapshot.state ~= asyncio.FILE_BATCH_FAILED then
             break
         end
     end

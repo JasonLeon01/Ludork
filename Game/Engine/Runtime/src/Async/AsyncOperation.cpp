@@ -6,6 +6,13 @@
 #include <algorithm>
 #include <unordered_map>
 
+const std::string AsyncOperation::PENDING =
+    ludork::standard::asyncio::operation_status::Pending;
+const std::string AsyncOperation::COMPLETED =
+    ludork::standard::asyncio::operation_status::Completed;
+const std::string AsyncOperation::CANCELLED =
+    ludork::standard::asyncio::operation_status::Cancelled;
+
 namespace {
 
 std::unordered_map<lua_State*, std::vector<std::shared_ptr<AsyncOperation>>>&
@@ -48,7 +55,7 @@ void AsyncOperation::complete(const RuntimeValue& result) {
     }
     result_ = result;
     events_.push_back(result);
-    status_ = "completed";
+    status_ = ludork::standard::asyncio::operation_status::Completed;
     cancellationCallbacks_.clear();
     releasePolling();
 }
@@ -57,7 +64,7 @@ void AsyncOperation::cancel() {
     if (!isPending()) {
         return;
     }
-    status_ = "cancelled";
+    status_ = ludork::standard::asyncio::operation_status::Cancelled;
     events_.clear();
     const std::vector<std::function<void()>> callbacks =
         std::move(cancellationCallbacks_);
@@ -68,7 +75,7 @@ void AsyncOperation::cancel() {
 }
 
 void AsyncOperation::onCancelled(std::function<void()> callback) {
-    if (status_ == "cancelled") {
+    if (status_ == ludork::standard::asyncio::operation_status::Cancelled) {
         callback();
     } else if (isPending()) {
         cancellationCallbacks_.push_back(std::move(callback));
@@ -90,7 +97,7 @@ std::string AsyncOperation::getStatus() const {
 }
 
 RuntimeValue AsyncOperation::getResult() const {
-    if (status_ != "completed") {
+    if (status_ != ludork::standard::asyncio::operation_status::Completed) {
         throw std::logic_error(
             "AsyncOperation result requires completed status");
     }
@@ -98,7 +105,7 @@ RuntimeValue AsyncOperation::getResult() const {
 }
 
 bool AsyncOperation::isPending() const noexcept {
-    return status_ == "pending";
+    return status_ == ludork::standard::asyncio::operation_status::Pending;
 }
 
 std::size_t AsyncOperation::eventCount() const noexcept {

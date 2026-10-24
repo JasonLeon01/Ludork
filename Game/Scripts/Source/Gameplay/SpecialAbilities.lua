@@ -63,8 +63,8 @@ function SpecialAbilities.CreateEffect(specialID, magnitude)
     end
     return GameplayEffect.new({
         id = GameplayConstants.SPECIAL_PREFIX .. specialID,
-        durationPolicy = "Infinite",
-        stackingPolicy = "None",
+        durationPolicy = GameplayEffect.DURATION_INFINITE,
+        stackingPolicy = GameplayEffect.STACKING_NONE,
         grantedTags = grantedTags,
         grantedAbilities = { ability },
         data = { magnitude = deepcopy(magnitude), specialID = specialID }

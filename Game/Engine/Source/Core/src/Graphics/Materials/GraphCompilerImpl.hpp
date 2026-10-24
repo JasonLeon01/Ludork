@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Graphics/Materials/MaterialSurfaceField.hpp>
+
 #include <Graphics/Materials/MaterialCompiler.hpp>
 #include <Graphics/Materials/MaterialAnalysisProgram.hpp>
 #include <Graphics/Materials/MaterialDefinition.hpp>
@@ -21,21 +23,31 @@ public:
         std::vector<float> constant;
         std::optional<std::size_t> instruction;
     };
-    using Surface = std::array<Expression, 7>;
+    using Surface = std::array<Expression, MaterialSurfaceFieldCount>;
 
     GraphCompilerImpl(const MaterialResource& resource, std::string prefix,
                       bool vertex, bool layer, Surface incoming,
                       MaterialAnalysisProgram* analysisProgram = nullptr);
-    Surface compile(unsigned int fields = 127);
+    Surface compile(unsigned int fields = AllMaterialSurfaceFields);
     const std::string& body() const;
     const std::vector<MaterialCompiler::Uniform>& uniforms() const;
     static Surface initialSurface();
-    static const std::array<const char*, 7>& surfaceFields();
+    static const std::array<const char*, MaterialSurfaceFieldCount>&
+    surfaceFields();
     static std::string glslType(int width);
     static std::size_t instruction(MaterialAnalysisProgram& program,
                                    const Expression& expression);
 
 private:
+    static constexpr std::array<const char*, MaterialSurfaceFieldCount>
+        MaterialSurfaceFieldNames{surface_field_name::BaseColor,
+                                  surface_field_name::Alpha,
+                                  surface_field_name::Emission,
+                                  surface_field_name::LightingWeight,
+                                  surface_field_name::LightBlock,
+                                  surface_field_name::ReflectionStrength,
+                                  surface_field_name::VertexOffset};
+
     Expression record(Expression expression,
                       MaterialAnalysisProgram::Operation operation,
                       const std::vector<Expression>& inputs,

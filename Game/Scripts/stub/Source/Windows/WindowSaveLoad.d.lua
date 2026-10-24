@@ -7,7 +7,7 @@
 --- menu, the title screen, or any other entry point.
 ---@class Source.Windows.WindowSaveLoad.Controller: Internal.UIBase.UiController
 ---@field host          Source.Windows.WindowSaveLoad
----@field _mode         "load" | "save"
+---@field _mode         Enums.SaveLoadMode
 ---@field _tabWindow    Source.Windows.WindowSaveTabs | nil
 ---@field ui            Internal.UI.WindowSaveLoad
 ---@field _openClock    sf.Clock
@@ -22,7 +22,7 @@ local Controller = {}
 --- - @param onLoaded Callback invoked with the loaded GameInstance after a successful load.
 ---@param loadOnly      boolean | nil
 ---@param getSaveSource function | nil
----@param onClose       function | nil
+---@param onClose       fun(reason: Enums.SaveLoadCloseReason) | nil
 ---@param onLoaded      function | nil
 function Controller:init(loadOnly, getSaveSource, onClose, onLoaded) end
 
@@ -61,7 +61,7 @@ function Controller:setVisible(visible) end
 --- Defaults to Load. Pass `"save"` to open the Save tab when tabs are present.
 --- Selects the latest existing save before showing the window, or the first slot when none exists.
 ---@param transitionProfile Enums.WindowTransitionProfile | nil
----@param initialMode       "load" | "save" | nil
+---@param initialMode       Enums.SaveLoadMode | nil
 ---@param dockPosition      sf.Vector2f | nil
 function Controller:open(transitionProfile, initialMode, dockPosition) end
 

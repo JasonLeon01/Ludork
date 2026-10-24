@@ -6,6 +6,46 @@ local WorldGeometry = require("Global.WorldGeometry")
 local WorldMapConstants = require("Global.WorldMapConstants")
 local Data = require("Global.Data")
 local MapDataParser = require("Source.SceneComponents.MapBuilder.MapDataParser")
+local MapConstants = require("Source.Configs.MapConstants")
+
+local TILE_CHUNK_INDEX_YIELD_INTERVAL = 32
+
+---@enum Source.SceneComponents.MapBuilder.WorldRegionBuildState.ActorDescriptorKind
+local ActorDescriptorKind = {
+    AUTHORED = "authored",
+    ADDED = "added",
+    MOVED = "moved"
+}
+
+---@enum Source.SceneComponents.MapBuilder.WorldRegionBuildState.BuildStage
+local BuildStage = {
+    IDLE = WorldMapConstants.IDLE_BUILD_STAGE,
+    INITIALISE = "initialise",
+    TERRAIN_OVERRIDES = "terrainOverrides",
+    SCAN_AUTOTILES = "scanAutotiles",
+    INDEX_TERRAIN_AUTOTILES = "indexTerrainAutotiles",
+    CREATE_TILE_LAYER_DATA = "createTileLayerData",
+    LOAD_AUTOTILE_TEXTURE = "loadAutotileTexture",
+    LOAD_TILESET_TEXTURE = "loadTilesetTexture",
+    CONSTRUCT_TILE_LAYER = "constructTileLayer",
+    CREATE_TILE_SCRATCH = "createTileScratch",
+    INDEX_TILE_CHUNKS = "indexTileChunks",
+    WRITE_TILE_BLOCK = "writeTileBlock",
+    BUILD_PRIORITY_TILE_CHUNK = "buildPriorityTileChunk",
+    CREATE_TILE_LAYER = "createTileLayer",
+    CREATE_TERRAIN = "createTerrain",
+    INDEX_DESTROYED_TAG = "indexDestroyedTag",
+    INDEX_MOVED_ACTOR = "indexMovedActor",
+    PREPARE_AUTHORED_ACTOR = "prepareAuthoredActor",
+    VALIDATE_MOVED_ACTOR = "validateMovedActor",
+    ACTOR_ROOT = "actorRoot",
+    BUILD_ACTOR = "buildActor",
+    READY_PAYLOAD = "readyPayload",
+    ACTOR_PHASE_COMPLETE = "actorPhaseComplete",
+    WRITE_BACKGROUND_TILE_BLOCK = "writeBackgroundTileBlock",
+    BUILD_BACKGROUND_TILE_CHUNK = "buildBackgroundTileChunk",
+    COMPLETE = "complete"
+}
 
 local TextureManager = GlobalCore.TextureManager
 local WORLD_REGION_FIXED_CACHE_BYTES = WorldMapConstants.REGION_FIXED_CACHE_BYTES
@@ -72,7 +112,9 @@ end
 ---@param region    Global.WorldGameMap.WorldRegionData
 ---@param data      Global.GameMap.SerializedMapData
 local function validateWorldRegionData(worldData, region, data)
-    assert(data.type ~= "worldMap", "World child map cannot be another world manifest: " .. region.path)
+    assert(
+        data.type ~= MapConstants.WORLD_MAP_TYPE, "World child map cannot be another world manifest: " .. region.path
+    )
     assert(
         data.width == region.width and data.height == region.height,
         "World child map size does not match placement rect: " .. region.path
@@ -131,7 +173,7 @@ local function createWorldRegionBuildCoroutine(
         validateWorldRegionData(worldData, region, data)
         local ambientLight = builder.BuildAmbientLight(data.ambientLight)
         local serializedActors = data.actors or {}
-        coroutine.yield("initialise")
+        coroutine.yield(BuildStage.INITIALISE)
 
         local rowMajorChunks, priorityChunks, priorityDataChunkCount = builder:createWorldRegionChunks(
             region, data.width, data.height, priorityRect
@@ -142,7 +184,7 @@ local function createWorldRegionBuildCoroutine(
         ---@cast nativeChunks Global.WorldGeometry.CellRect[]
         ---@async
         local function yieldTerrainOverrideStep()
-            coroutine.yield("terrainOverrides")
+            coroutine.yield(BuildStage.TERRAIN_OVERRIDES)
         end
         local terrainOverrides = builder:createWorldTerrainOverrides(
             data, inst:getTerrainDestructions(region.path), yieldTerrainOverrideStep
@@ -172,7 +214,7 @@ local function createWorldRegionBuildCoroutine(
                             end
                         end
                     end
-                    coroutine.yield("scanAutotiles")
+                    coroutine.yield(BuildStage.SCAN_AUTOTILES)
                 end
             end
             for _, row in pairs(layerTerrainOverrides) do
@@ -186,7 +228,7 @@ local function createWorldRegionBuildCoroutine(
                         end
                     end
                 end
-                coroutine.yield("indexTerrainAutotiles")
+                coroutine.yield(BuildStage.INDEX_TERRAIN_AUTOTILES)
             end
             local autoTileKeys = {}
             for key, index in pairs(autoTileIndexByKey) do
@@ -197,33 +239,33 @@ local function createWorldRegionBuildCoroutine(
                 tostring(layerData.material or "")
             )
             tileLayerData.layerTilesetKey = layerData.layerTileset
-            coroutine.yield("createTileLayerData")
+            coroutine.yield(BuildStage.CREATE_TILE_LAYER_DATA)
             local autoTileTextures = {}
             local autoTileFrameCounts = {}
             for index, entry in ipairs(autoTilePool) do
                 local texture = TextureManager.load(entry.fileName)
                 autoTileTextures[index] = texture
                 autoTileFrameCounts[index] = AutoTileRuntime.GetFrameCount(texture)
-                coroutine.yield("loadAutotileTexture")
+                coroutine.yield(BuildStage.LOAD_AUTOTILE_TEXTURE)
             end
             local tilesetTexture = TextureManager.load(tileLayerData.layerTileset.fileName)
-            coroutine.yield("loadTilesetTexture")
+            coroutine.yield(BuildStage.LOAD_TILESET_TEXTURE)
             local tileLayer = Engine.TileLayer.new(
                 tileLayerData, tilesetTexture, autoTileTextures, autoTileFrameCounts, true, true
             )
-            coroutine.yield("constructTileLayer")
+            coroutine.yield(BuildStage.CONSTRUCT_TILE_LAYER)
             local tileBlock = { n = WORLD_REGION_BUILD_CHUNK_SIZE }
             local autoTileBlock = { n = WORLD_REGION_BUILD_CHUNK_SIZE }
             for blockY = 1, WORLD_REGION_BUILD_CHUNK_SIZE do
                 tileBlock[blockY] = { n = WORLD_REGION_BUILD_CHUNK_SIZE }
                 autoTileBlock[blockY] = { n = WORLD_REGION_BUILD_CHUNK_SIZE }
             end
-            coroutine.yield("createTileScratch")
+            coroutine.yield(BuildStage.CREATE_TILE_SCRATCH)
             local dataChunksByKey = {}
             for index, chunk in ipairs(rowMajorChunks) do
                 dataChunksByKey[WorldGeometry.GridKey(chunk.x, chunk.y)] = chunk
-                if index % 32 == 0 then
-                    coroutine.yield("indexTileChunks")
+                if index % TILE_CHUNK_INDEX_YIELD_INTERVAL == 0 then
+                    coroutine.yield(BuildStage.INDEX_TILE_CHUNKS)
                 end
             end
             ---@type Source.SceneComponents.WorldLayerBuildState
@@ -244,7 +286,7 @@ local function createWorldRegionBuildCoroutine(
             }
             for chunkIndex = 1, priorityDataChunkCount do
                 builder:writeWorldLayerDataChunk(layerBuildState, assert(priorityChunks[chunkIndex]))
-                coroutine.yield("writeTileBlock")
+                coroutine.yield(BuildStage.WRITE_TILE_BLOCK)
             end
             for chunkIndex = 1, priorityNativeChunkCount do
                 local chunk = assert(nativeChunks[chunkIndex])
@@ -252,21 +294,21 @@ local function createWorldRegionBuildCoroutine(
                 tileLayer:buildChunk(
                     chunk.x // WORLD_TILE_GRAPHICS_CHUNK_SIZE, chunk.y // WORLD_TILE_GRAPHICS_CHUNK_SIZE
                 )
-                coroutine.yield("buildPriorityTileChunk")
+                coroutine.yield(BuildStage.BUILD_PRIORITY_TILE_CHUNK)
             end
             tilemap:addLayer(tileLayer)
             layerBuildStates[#layerBuildStates + 1] = layerBuildState
-            coroutine.yield("createTileLayer")
+            coroutine.yield(BuildStage.CREATE_TILE_LAYER)
         end
 
         local terrain = RegionTerrain.new(tilemap, Data.GetAutoTile)
-        coroutine.yield("createTerrain")
+        coroutine.yield(BuildStage.CREATE_TERRAIN)
 
         local classVarChanges = data.BPClassVarChanged
         local destroyedActors = {}
         for _, tag in ipairs(inst:getDestroyedActors(worldPath)) do
             destroyedActors[tag] = true
-            coroutine.yield("indexDestroyedTag")
+            coroutine.yield(BuildStage.INDEX_DESTROYED_TAG)
         end
         local actorPositions = inst:getActorPositions(worldPath)
         ---@type table<string, Source.GameInstance.WorldMovedActorRecord>
@@ -275,7 +317,7 @@ local function createWorldRegionBuildCoroutine(
         local definitionRegions = {}
         for _, record in ipairs(movedActors) do
             movedActorsByTag[record.tag] = record
-            coroutine.yield("indexMovedActor")
+            coroutine.yield(BuildStage.INDEX_MOVED_ACTOR)
         end
         ---@type table<string, Engine.Actor[]>
         local actors = {}
@@ -315,13 +357,13 @@ local function createWorldRegionBuildCoroutine(
                     )
                     ---@cast worldPosition sf.Vector2i
                     appendActorDescriptor({
-                        kind = "authored",
+                        kind = ActorDescriptorKind.AUTHORED,
                         layer = layerName,
                         normalised = normalised,
                         position = actorPositions[rootTag] or worldPosition
                     })
                 end
-                coroutine.yield("prepareAuthoredActor")
+                coroutine.yield(BuildStage.PREPARE_AUTHORED_ACTOR)
             end
         end
         for _, record in ipairs(movedActors) do
@@ -331,12 +373,12 @@ local function createWorldRegionBuildCoroutine(
                     "Moved world Actor definition tag is not an authored root in " .. region.path .. ": " .. record.tag
                 )
             end
-            coroutine.yield("validateMovedActor")
+            coroutine.yield(BuildStage.VALIDATE_MOVED_ACTOR)
         end
         for _, actorRecord in ipairs(addedActors) do
             assert(not definitionTags[actorRecord.tag], "Duplicate restored world MapTag: " .. actorRecord.tag)
             appendActorDescriptor({
-                kind = "added",
+                kind = ActorDescriptorKind.ADDED,
                 layer = actorRecord.layer,
                 record = actorRecord,
                 position = actorRecord.position
@@ -344,7 +386,7 @@ local function createWorldRegionBuildCoroutine(
         end
         for _, actorRecord in ipairs(builder:selectWorldMovedActors(movedActors, region)) do
             appendActorDescriptor({
-                kind = "moved",
+                kind = ActorDescriptorKind.MOVED,
                 layer = actorRecord.layer,
                 record = actorRecord,
                 position = actorRecord.position
@@ -355,7 +397,7 @@ local function createWorldRegionBuildCoroutine(
         ---@async
         local function buildActorDescriptor(descriptor, background)
             local actor = nil
-            if descriptor.kind == "authored" then
+            if descriptor.kind == ActorDescriptorKind.AUTHORED then
                 ---@cast descriptor Source.SceneComponents.WorldAuthoredActorDescriptor
                 local normalised = descriptor.normalised
                 local actorChanges = classVarChanges ~= nil and classVarChanges[tostring(normalised.tag or "")] or nil
@@ -376,7 +418,7 @@ local function createWorldRegionBuildCoroutine(
                 else
                     actor = nil
                 end
-            elseif descriptor.kind == "added" then
+            elseif descriptor.kind == ActorDescriptorKind.ADDED then
                 ---@cast descriptor Source.SceneComponents.WorldAddedActorDescriptor
                 assert(
                     actorsByTag[descriptor.record.tag] == nil,
@@ -401,10 +443,10 @@ local function createWorldRegionBuildCoroutine(
                 roots[#roots + 1] = actor
                 builder:indexActorTreeByTag(actorsByTag, actor)
                 if background then
-                    coroutine.yield("actorRoot", actor, descriptor.layer)
+                    coroutine.yield(BuildStage.ACTOR_ROOT, actor, descriptor.layer)
                 end
             end
-            coroutine.yield("buildActor")
+            coroutine.yield(BuildStage.BUILD_ACTOR)
         end
         for _, descriptor in ipairs(priorityActorDescriptors) do
             buildActorDescriptor(descriptor, false)
@@ -432,24 +474,24 @@ local function createWorldRegionBuildCoroutine(
                     * #data.layerOrder * WORLD_REGION_LAYER_CELL_CACHE_BYTES
                 + (#priorityActorDescriptors + #backgroundActorDescriptors) * WORLD_REGION_ACTOR_CACHE_BYTES
         }
-        coroutine.yield("readyPayload", payload, layerBuildStates)
+        coroutine.yield(BuildStage.READY_PAYLOAD, payload, layerBuildStates)
         for _, descriptor in ipairs(backgroundActorDescriptors) do
             buildActorDescriptor(descriptor, true)
         end
-        coroutine.yield("actorPhaseComplete")
+        coroutine.yield(BuildStage.ACTOR_PHASE_COMPLETE)
         for _, layerBuildState in ipairs(layerBuildStates) do
             for chunkIndex = priorityDataChunkCount + 1, #priorityChunks do
                 builder:writeWorldLayerDataChunk(layerBuildState, priorityChunks[chunkIndex])
-                coroutine.yield("writeBackgroundTileBlock")
+                coroutine.yield(BuildStage.WRITE_BACKGROUND_TILE_BLOCK)
             end
         end
         for _, layerBuildState in ipairs(layerBuildStates) do
             while not layerBuildState.tileLayer:isBuildComplete() do
                 layerBuildState.tileLayer:buildNextChunk()
-                coroutine.yield("buildBackgroundTileChunk")
+                coroutine.yield(BuildStage.BUILD_BACKGROUND_TILE_CHUNK)
             end
         end
-        return "complete", payload
+        return BuildStage.COMPLETE, payload
     end)
 end
 
@@ -472,7 +514,7 @@ function WorldRegionBuildState.Create(
     ---@type Source.SceneComponents.MapBuilder.WorldRegionBuildState.State
     local state
     local function advance(deadline, stopAfterActorPhase)
-        state.lastStepMaximumStage = "idle"
+        state.lastStepMaximumStage = BuildStage.IDLE
         state.lastStepMaximumMilliseconds = 0.0
         state.lastStepResumeCount = 0
         if state.completed or perfCounter() >= deadline then
@@ -498,13 +540,13 @@ function WorldRegionBuildState.Create(
                 state.stageMaximumMilliseconds[stage] or 0.0, elapsedMilliseconds
             )
             if coroutine.status(buildThread) == "dead" then
-                assert(stage == "complete", "World region builder ended without a complete event")
+                assert(stage == BuildStage.COMPLETE, "World region builder ended without a complete event")
                 ---@cast eventValue Global.WorldGameMap.RegionPayload
                 state.payload = eventValue
                 state.completed = true
                 return eventValue
             end
-            if stage == "readyPayload" then
+            if stage == BuildStage.READY_PAYLOAD then
                 ---@cast eventValue Global.WorldGameMap.RegionPayload
                 ---@cast eventMetadata Source.SceneComponents.WorldLayerBuildState[]
                 state.payload = eventValue
@@ -512,7 +554,7 @@ function WorldRegionBuildState.Create(
                 state.ready = true
                 return state.payload
             end
-            if stage == "actorRoot" then
+            if stage == BuildStage.ACTOR_ROOT then
                 ---@cast eventValue Engine.Actor
                 ---@cast eventMetadata string
                 state.readyActorRoots[#state.readyActorRoots + 1] = {
@@ -521,13 +563,13 @@ function WorldRegionBuildState.Create(
                 }
                 return nil
             end
-            if stage == "actorPhaseComplete" then
+            if stage == BuildStage.ACTOR_PHASE_COMPLETE then
                 state.actorPhaseComplete = true
                 if stopAfterActorPhase then
                     return nil
                 end
             end
-            if stage == "buildPriorityTileChunk" or stage == "buildBackgroundTileChunk" then
+            if stage == BuildStage.BUILD_PRIORITY_TILE_CHUNK or stage == BuildStage.BUILD_BACKGROUND_TILE_CHUNK then
                 state.geometryRevision = state.geometryRevision + 1
             end
         until perfCounter() >= deadline
@@ -541,9 +583,9 @@ function WorldRegionBuildState.Create(
         readyActorRoots = {},
         maximumStepMilliseconds = 0.0,
         stageMaximumMilliseconds = {},
-        currentStage = "idle",
+        currentStage = BuildStage.IDLE,
         currentStepMilliseconds = 0.0,
-        lastStepMaximumStage = "idle",
+        lastStepMaximumStage = BuildStage.IDLE,
         lastStepMaximumMilliseconds = 0.0,
         lastStepResumeCount = 0,
         areActorsReady = function ()

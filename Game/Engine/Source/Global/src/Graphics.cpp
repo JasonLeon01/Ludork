@@ -1,3 +1,4 @@
+#include <DisplayScaleLimits.hpp>
 #include <Graphics.hpp>
 #include "System/FramePipelineImpl.hpp"
 #include "System/DisplayImpl.hpp"
@@ -102,7 +103,8 @@ void Graphics::removeGraphicsShaderAt(int index) {
 }
 
 void Graphics::rebuildDisplayTargets(float surfaceFitScale) {
-    const float normalizedSurfaceFitScale = std::max(0.01f, surfaceFitScale);
+    const float normalizedSurfaceFitScale =
+        std::max(DisplayScaleLimits::MINIMUM_RENDER_SCALE, surfaceFitScale);
     const float renderScale =
         ludork::global::system_impl::displayImpl().effectiveRenderScale(
             normalizedSurfaceFitScale);

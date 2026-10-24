@@ -4,6 +4,7 @@
 
 #include <EngineRuntimeApi.hpp>
 
+#include <SFML/Graphics/Rect.hpp>
 #include <UI/Canvas.hpp>
 
 BIND_CLASS(callbacks = true)
@@ -66,6 +67,12 @@ public:
     sf::FloatRect getAbsoluteBounds() const override;
 
 private:
+    static constexpr sf::IntRect UpIndicator{{156, 16}, {8, 12}};
+    static constexpr sf::IntRect DownIndicator{{156, 36}, {8, 12}};
+    static constexpr sf::IntRect LeftIndicator{{144, 28}, {12, 8}};
+    static constexpr sf::IntRect RightIndicator{{164, 28}, {12, 8}};
+    static constexpr sf::Vector2u MinimumIndicatorSkinSize{176, 48};
+
     enum class Indicator {
         Up,
         Down,

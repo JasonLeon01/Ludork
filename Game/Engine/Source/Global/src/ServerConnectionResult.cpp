@@ -7,8 +7,9 @@ ServerConnectionResult::ServerConnectionResult(
     std::optional<double> roundTripMs)
     : ServerResult(code, std::move(message)),
       state_(code == ServerErrorCode::None && roundTripMs
-                 ? (*roundTripMs <= 300 ? NetworkState::Normal
-                                        : NetworkState::Weak)
+                 ? (*roundTripMs <= NormalRoundTripMilliseconds
+                        ? NetworkState::Normal
+                        : NetworkState::Weak)
                  : NetworkState::Disconnected),
       roundTripMs_(code == ServerErrorCode::None ? roundTripMs : std::nullopt) {
 }

@@ -14,7 +14,9 @@ local AudioManager = GlobalCore.AudioManager
 local Canvas = Engine.Canvas
 
 ---@class Source.Windows.WindowShop.Controller
-local Controller = {}
+local Controller = {
+    _SELL_PRICE_DIVISOR = 2
+}
 
 Controller.windowOptions = { centered = true, hidden = true }
 
@@ -255,7 +257,7 @@ end
 ---@param itemID string
 ---@return integer
 function Controller.GetSellPrice(itemID)
-    return math.floor(Controller.GetItemPrice(itemID) / 2)
+    return math.floor(Controller.GetItemPrice(itemID) / Controller._SELL_PRICE_DIVISOR)
 end
 
 ---@param itemID string

@@ -23,7 +23,13 @@ local getBlankTexture
 ---@type function
 local getScratchRenderTexture
 ---@class Source.MapActors.EnemyDamageText
-local EnemyDamageText = {}
+local EnemyDamageText = {
+    _TEXT_TEXTURE_PADDING = 2,
+    _LOW_DAMAGE_HP_DIVISOR = 4,
+    _MODERATE_DAMAGE_HP_DIVISOR = 2,
+    _HIGH_DAMAGE_HP_NUMERATOR = 3,
+    _HIGH_DAMAGE_HP_DENOMINATOR = 4
+}
 
 EnemyDamageText.EnemyDamageHintLevel = DamageHintLevel.BATTLE
 EnemyDamageText.tickable = true
@@ -37,7 +43,7 @@ local scratchWidth = 0
 local scratchHeight = 0
 
 function EnemyDamageText:_syncTextDisplayScale()
-    local displayScale = math.max(Engine.GetScale(), 0.000001)
+    local displayScale = math.max(Engine.GetScale(), Engine.DisplayScaleLimits.MINIMUM_INVERTIBLE_SCALE)
     if self._textDisplayScale == displayScale then
         return
     end
@@ -183,7 +189,7 @@ function EnemyDamageText:_renderTextTexture(damageText, criticalText, damageColo
     local replaceTexture = self._overlayTexture == nil or width ~= self._overlayTextureWidth
         or height ~= self._overlayTextureHeight
     local overlayTexture = not replaceTexture and self._overlayTexture or nil
-    local padding = 2
+    local padding = EnemyDamageText._TEXT_TEXTURE_PADDING
     ---@cast size sf.Vector2u
     local renderTexture = getScratchRenderTexture(size, width, height)
     if renderTexture == nil then
@@ -317,11 +323,11 @@ function EnemyDamageText.GetDamageColor(damage, playerHP)
         return sf.Color.Green
     elseif playerHP <= 0 then
         return UIFunctions.GetDimGrey()
-    elseif damage < playerHP / 4 then
+    elseif damage < playerHP / EnemyDamageText._LOW_DAMAGE_HP_DIVISOR then
         return sf.Color.White
-    elseif damage < playerHP / 2 then
+    elseif damage < playerHP / EnemyDamageText._MODERATE_DAMAGE_HP_DIVISOR then
         return sf.Color.Yellow
-    elseif damage < playerHP * 3 / 4 then
+    elseif damage < playerHP * EnemyDamageText._HIGH_DAMAGE_HP_NUMERATOR / EnemyDamageText._HIGH_DAMAGE_HP_DENOMINATOR then
         return UIFunctions.GetCopper()
     elseif damage < playerHP then
         return sf.Color.Red

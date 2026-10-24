@@ -1,6 +1,7 @@
 local GlobalCore = require("GlobalCore")
 local Special = require("Enums.GeneralData.Special")
 local GameplayConstants = require("Source.Configs.GameplayConstants")
+local CombatResolutionCode = require("Enums.CombatResolutionCode")
 
 local GameplayAbility = GlobalCore.GameplayAbility
 local GameplayAbilityResult = GlobalCore.GameplayAbilityResult
@@ -17,7 +18,7 @@ end
 ---@diagnostic disable-next-line: unused, Gameplay Ability override intentionally ignores its receiver
 function MagicAbility:activate(_abilitySystem, eventData)
     eventData.payload.defenderDEF = 0
-    return assert(GameplayAbilityResult.Success("DamageResolved", eventData.payload))
+    return assert(GameplayAbilityResult.Success(CombatResolutionCode.DAMAGE, eventData.payload))
 end
 
 return class(MagicAbility, GameplayAbility)

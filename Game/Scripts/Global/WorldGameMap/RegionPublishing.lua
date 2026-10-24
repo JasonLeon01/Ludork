@@ -1,5 +1,7 @@
 local GlobalCore = require("GlobalCore")
 local WorldGeometry = require("Global.WorldGeometry")
+local WorldPublishPhase = require("Enums.WorldPublishPhase")
+local WorldMapConstants = require("Global.WorldMapConstants")
 
 local RuntimeDiagnostics = GlobalCore.RuntimeDiagnostics
 local WorldRegionDemand = GlobalCore.WorldRegionDemand
@@ -22,7 +24,7 @@ end
 
 ---@param builder Global.WorldGameMap.RegionBuildState
 local function resetBuilderStage(builder)
-    builder.lastStepMaximumStage = "idle"
+    builder.lastStepMaximumStage = WorldMapConstants.IDLE_BUILD_STAGE
     builder.lastStepMaximumMilliseconds = 0.0
     builder.lastStepResumeCount = 0
 end
@@ -42,7 +44,7 @@ local function beginRegionPublishState(streamingState, region, forceActivate)
     assert(region.payload == nil, "World region is already installed: " .. region.path)
     local state = {
         forceActivate = forceActivate,
-        phase = "build",
+        phase = WorldPublishPhase.BUILD,
         layerNames = {},
         layerIndex = 1,
         rootIndex = 1,
@@ -100,7 +102,7 @@ function WorldGameMapRegionPublishing.BeginRegionPublish(self, region, data, for
         return
     end
     state.builder = self._worldRegionFactory(region, data, priorityRect)
-    state.phase = "build"
+    state.phase = WorldPublishPhase.BUILD
 end
 
 ---@param region        Global.WorldGameMap.WorldRegionData
@@ -120,7 +122,7 @@ function WorldGameMapRegionPublishing.BeginRegionConversion(
     state.conversion = conversion
     state.contentBytes = contentBytes
     state.priorityRect = priorityRect
-    state.phase = "convert"
+    state.phase = WorldPublishPhase.CONVERT
 end
 
 ---@param state Global.WorldGameMap.RegionPublishState
@@ -157,7 +159,7 @@ end
 ---@param self     WorldGameMapImplState
 function WorldGameMapRegionPublishing.StepRegionPublish(self, region, deadline)
     local state = assert(region.publishState)
-    if state.phase == "convert" then
+    if state.phase == WorldPublishPhase.CONVERT then
         local remainingMilliseconds = (deadline - perfCounter()) * 1000.0
         if remainingMilliseconds <= 0.0 then
             return false
@@ -174,9 +176,9 @@ function WorldGameMapRegionPublishing.StepRegionPublish(self, region, deadline)
         ---@cast data Global.GameMap.SerializedMapData
         state.builder = self._worldRegionFactory(region, data, state.priorityRect)
         state.priorityRect = nil
-        state.phase = "build"
+        state.phase = WorldPublishPhase.BUILD
     end
-    if state.phase == "build" then
+    if state.phase == WorldPublishPhase.BUILD then
         if perfCounter() >= deadline then
             return false
         end
@@ -198,12 +200,12 @@ function WorldGameMapRegionPublishing.StepRegionPublish(self, region, deadline)
         end
         state.layerIndex = 1
         state.rootIndex = 1
-        state.phase = "index"
+        state.phase = WorldPublishPhase.INDEX
     end
     local payload = assert(state.payload, "World region payload is not built")
-    while state.phase == "index" and perfCounter() < deadline do
+    while state.phase == WorldPublishPhase.INDEX and perfCounter() < deadline do
         if state.actorQueue == nil and not self:_prepareNextRegionRoot(state) then
-            state.phase = "finalise"
+            state.phase = WorldPublishPhase.FINALISE
             break
         end
         local actorQueue = assert(state.actorQueue, "World region Actor queue is not prepared")
@@ -225,7 +227,7 @@ function WorldGameMapRegionPublishing.StepRegionPublish(self, region, deadline)
             (perfCounter() - actorStarted) * 1000.0
         )
     end
-    if state.phase ~= "finalise" or perfCounter() >= deadline then
+    if state.phase ~= WorldPublishPhase.FINALISE or perfCounter() >= deadline then
         return false
     end
     region.payload = payload
@@ -424,7 +426,8 @@ end
 function WorldGameMapRegionPublishing.DrainRegionPublish(self, region, publishBudgetSeconds)
     local started = perfCounter()
     while region.publishState ~= nil do
-        local deadline = region.publishState.phase == "convert" and perfCounter() + publishBudgetSeconds or math.huge
+        local deadline = region.publishState.phase == WorldPublishPhase.CONVERT and perfCounter() + publishBudgetSeconds
+            or math.huge
         self:_stepRegionPublish(region, deadline)
     end
     self._worldPublishMilliseconds = self._worldPublishMilliseconds + (perfCounter() - started) * 1000.0

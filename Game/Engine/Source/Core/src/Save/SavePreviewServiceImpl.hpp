@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Save/SavePreviewState.hpp>
+
 #include <SFML/Graphics/Image.hpp>
 
 #include <condition_variable>
@@ -19,7 +21,7 @@ namespace ludork::engine {
 class SavePreviewServiceImpl {
 public:
     struct Preview {
-        std::string state = "idle";
+        std::string state = SavePreviewState::IDLE;
         double modificationTime = 0;
         std::shared_ptr<sf::Image> image;
         std::string error;
@@ -33,6 +35,8 @@ public:
     void invalidate(const std::string& path);
 
 private:
+    static constexpr std::size_t CacheCapacity = 8;
+
     struct CacheEntry {
         std::string path;
         std::filesystem::file_time_type modified;

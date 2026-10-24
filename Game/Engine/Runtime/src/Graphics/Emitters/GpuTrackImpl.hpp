@@ -3,6 +3,7 @@
 #include "GpuResourcesImpl.hpp"
 #include <SFML/Graphics/Texture.hpp>
 #include <array>
+#include <cstdint>
 #include <memory>
 
 namespace ludork::runtime::graphics {
@@ -32,7 +33,11 @@ public:
               const sf::Transform& host, const sf::Color& colour);
 
 private:
-    std::uint32_t seedSalt_ = 2166136261u;
+    static constexpr std::uint32_t NameHashOffset = 2166136261u;
+    static constexpr std::uint32_t NameHashPrime = 16777619u;
+    static constexpr std::uint32_t GenerationStride = 13u;
+
+    std::uint32_t seedSalt_ = NameHashOffset;
     void bindState(bool instanced);
     void simulate(float delta, int count, const sf::Vector2f& motion,
                   const sf::Transform& host, int seed, bool draining,

@@ -1,3 +1,4 @@
+#include <Graphics/AnimationFormat.hpp>
 #include <AnimSprite.hpp>
 #include <Runtime/AssetInputStream.hpp>
 #include <Graphics/AnimationSourceData.hpp>
@@ -31,6 +32,10 @@
 
 namespace {
 
+constexpr char SoundSegment[] = "sound";
+constexpr float FrameIndexTolerance = 1e-5f;
+constexpr float MinimumInterpolationDuration = 1e-4f;
+
 std::optional<ludork::engine::animation_compression::SegmentTransform>
 getSegmentTransform(
     const AnimationSourceData::AnimationTimeline::AnimationSegment& segment,
@@ -40,7 +45,7 @@ getSegmentTransform(
         return std::nullopt;
     }
     const float duration = segment.endFrame.time - segment.startFrame.time;
-    const float factor = duration <= 1e-4f
+    const float factor = duration <= MinimumInterpolationDuration
                              ? 0.0f
                              : (frameTime - segment.startFrame.time) / duration;
     return ludork::engine::animation_compression::SegmentTransform{
@@ -106,7 +111,8 @@ void updateCanvasExtent(
     for (const AnimationSourceData::AnimationTimeline& timeline : timeLines) {
         for (const AnimationSourceData::AnimationTimeline::AnimationSegment&
                  segment : timeline.timeSegments) {
-            if (segment.type != "frame") {
+            if (segment.type !=
+                ludork::engine::animation_format::FrameSegment) {
                 continue;
             }
             sf::Texture* texture = getTexture(cache, assets, segment.asset);
@@ -176,7 +182,8 @@ compressAnimationFrames(
              timeLines) {
             for (const AnimationSourceData::AnimationTimeline::AnimationSegment&
                      segment : timeline.timeSegments) {
-                if (segment.type != "frame") {
+                if (segment.type !=
+                    ludork::engine::animation_format::FrameSegment) {
                     continue;
                 }
                 sf::Texture* texture = getTexture(cache, assets, segment.asset);
@@ -216,7 +223,7 @@ compressAnimationFrames(
     for (const AnimationSourceData::AnimationTimeline& timeline : timeLines) {
         for (const AnimationSourceData::AnimationTimeline::AnimationSegment&
                  segment : timeline.timeSegments) {
-            if (segment.type != "sound") {
+            if (segment.type != SoundSegment) {
                 continue;
             }
             AnimationSoundEntry entry;
@@ -225,17 +232,21 @@ compressAnimationFrames(
                 entry.asset = assets[static_cast<std::size_t>(segment.asset)];
             }
             entry.startFrame =
-                std::max(0, static_cast<int>(std::floor(
-                                segment.startFrame.time * frameRate + 1e-5f)));
+                std::max(0, static_cast<int>(
+                                std::floor(segment.startFrame.time * frameRate +
+                                           FrameIndexTolerance)));
             entry.endFrame = std::max(
-                0, static_cast<int>(
-                       std::ceil(segment.endFrame.time * frameRate - 1e-5f)));
+                0,
+                static_cast<int>(std::ceil(segment.endFrame.time * frameRate -
+                                           FrameIndexTolerance)));
             entry.originalDuration = segment.originalDuration;
-            entry.stopAtEndFrame =
-                segment.originalDuration.has_value() &&
-                *segment.originalDuration > 0.0f &&
-                segment.endFrame.time - segment.startFrame.time + 1e-5f <
-                    *segment.originalDuration;
+            entry.stopAtEndFrame = segment.originalDuration.has_value() &&
+                                   *segment.originalDuration > 0.0f &&
+                                   segment.endFrame.time -
+                                           segment.startFrame.time +
+                                           ludork::engine::animation_format::
+                                               SoundDurationTolerance <
+                                       *segment.originalDuration;
             result.sounds.push_back(std::move(entry));
         }
     }
@@ -281,7 +292,9 @@ AnimSprite::AnimationData compressAnimation(
     const AnimationSourceData& source = *sourceValue;
     AnimSprite::AnimationData result;
     result.name = source.name;
-    result.frameRate = source.frameRate > 0 ? source.frameRate : 30;
+    result.frameRate = source.frameRate > 0
+                           ? source.frameRate
+                           : ludork::engine::animation_format::DefaultFrameRate;
     result.timeTags = sortedTimeTags(source.timeTags);
 
     float maxTime = 0.0f;
@@ -291,7 +304,8 @@ AnimSprite::AnimationData compressAnimation(
         for (const AnimationSourceData::AnimationTimeline::AnimationSegment&
                  segment : timeline.timeSegments) {
             maxTime = std::max(maxTime, segment.endFrame.time);
-            if (segment.type == "frame") {
+            if (segment.type ==
+                ludork::engine::animation_format::FrameSegment) {
                 visualMaxTime = std::max(visualMaxTime, segment.endFrame.time);
             }
         }

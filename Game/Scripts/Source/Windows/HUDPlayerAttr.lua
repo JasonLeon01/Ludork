@@ -102,8 +102,8 @@ function Controller:_initialiseAvatar(player)
         return
     end
     local textureSize = texture:getSize()
-    local frameWidth = math.max(1, math.floor(textureSize.x / 4))
-    local frameHeight = math.max(1, math.floor(textureSize.y / 4))
+    local frameWidth = math.max(1, math.floor(textureSize.x / Engine.Character.SPRITE_FRAME_COLUMNS))
+    local frameHeight = math.max(1, math.floor(textureSize.y / Engine.Character.SPRITE_DIRECTION_ROWS))
     local frameSize = math.min(frameWidth, frameHeight)
     self._avatarTexture = texture
     local avatarRect = sf.IntRect.new(0, 0, frameWidth, frameHeight)

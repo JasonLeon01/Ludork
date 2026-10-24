@@ -7,6 +7,21 @@
 BIND_CLASS()
 class LUDORK_GLOBAL_API GameplayAbilityResult : public RuntimeObject {
 public:
+    BIND_CLASS_PROPERTY(readonly = true)
+    static const std::string CODE_SUCCESS;
+
+    BIND_CLASS_PROPERTY(readonly = true)
+    static const std::string CODE_ABILITY_NOT_FOUND;
+
+    BIND_CLASS_PROPERTY(readonly = true)
+    static const std::string CODE_ABILITY_NOT_ACTIVATED;
+
+    BIND_CLASS_PROPERTY(readonly = true)
+    static const std::string CODE_MISSING_REQUIRED_TAG;
+
+    BIND_CLASS_PROPERTY(readonly = true)
+    static const std::string CODE_BLOCKED_BY_TAG;
+
     LUDORK_CAST_DERIVED(GameplayAbilityResult, RuntimeObject)
 
     using Code = std::variant<std::string, std::int64_t>;

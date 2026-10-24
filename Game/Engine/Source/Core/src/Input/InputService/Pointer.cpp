@@ -4,6 +4,7 @@
 #include "Platform/PlatformInputBridge.hpp"
 
 #include <SFML/Graphics/RenderWindow.hpp>
+#include <chrono>
 
 namespace ludork::engine::input_impl {
 
@@ -308,7 +309,7 @@ void InputImpl::updateTouchLongPress() {
         pointer_.touchDragged_ || pointer_.touchGestureSuppressed_ ||
         pointer_.touchLongPressFired_ || pointer_.touchFingers_.size() != 1 ||
         std::chrono::steady_clock::now() - pointer_.touchHoldStart_ <
-            std::chrono::milliseconds(600)) {
+            TouchLongPressDuration) {
         return;
     }
     pointer_.touchLongPressFired_ = true;

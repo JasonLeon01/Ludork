@@ -10,6 +10,7 @@ local WorldGameMapRendering = require("Global.WorldGameMap.Rendering")
 local WorldGameMapRegionPublishing = require("Global.WorldGameMap.RegionPublishing")
 local WorldGameMapStreaming = require("Global.WorldGameMap.Streaming")
 local Logging = require("Global.Utils.Logging")
+
 local ActorMapService = Engine.ActorMapService
 local PanoramaController = GlobalCore.PanoramaController
 local WorldStreamingState = GlobalCore.WorldStreamingState
@@ -19,7 +20,10 @@ local SIGNIFICANT_PUBLISH_OVERRUN_MILLISECONDS = 4.0
 local NON_ACTIVE_CACHE_REGION_LIMIT = 32
 local NON_ACTIVE_CACHE_BYTE_LIMIT = 256 * 1024 * 1024
 ---@class (partial) Global.WorldGameMap.WorldGameMap: GameMap
-local WorldGameMap = {}
+local WorldGameMap = {
+    _REGION_SOURCE_CACHE_MULTIPLIER = 4,
+    _PREPARED_VIEWPORT_MARGIN_MULTIPLIER = 2
+}
 
 ---@alias WorldGameMapImplState Global.WorldGameMap.WorldGameMap
 
@@ -72,7 +76,7 @@ function WorldGameMap:init(config, regionFactory, reservedTags)
     self._worldStreamingCameraPosition = nil
     self._worldDisposed = false
     self._worldPublishMilliseconds = 0.0
-    self._worldPublishSlowStage = "idle"
+    self._worldPublishSlowStage = WorldMapConstants.IDLE_BUILD_STAGE
     self._worldPublishSlowStageMilliseconds = 0.0
     self._worldTransitionPublishThisTick = false
     self._worldPublishBudgetWarningEmitted = false
@@ -190,7 +194,9 @@ function WorldGameMap:_completeRegionInstall(region, activate, payloadBytes)
         or WorldMapConstants.REGION_FIXED_CACHE_BYTES
             + region.width * region.height
                 * #self._worldConfig.layerOrder * WorldMapConstants.REGION_LAYER_CELL_CACHE_BYTES
-    self._worldStreamingState:completePublish(region.index, sourceBytes * 4 + runtimeBytes, false)
+    self._worldStreamingState:completePublish(
+        region.index, sourceBytes * WorldGameMap._REGION_SOURCE_CACHE_MULTIPLIER + runtimeBytes, false
+    )
     if activate then
         self:_activateRegion(region)
     end
@@ -269,7 +275,7 @@ end
 
 function WorldGameMap:onTick(deltaTime)
     self._worldPublishMilliseconds = 0.0
-    self._worldPublishSlowStage = "idle"
+    self._worldPublishSlowStage = WorldMapConstants.IDLE_BUILD_STAGE
     self._worldPublishSlowStageMilliseconds = 0.0
     self._worldTransitionPublishThisTick = false
     if self:_refreshSuppressedActorTags() then

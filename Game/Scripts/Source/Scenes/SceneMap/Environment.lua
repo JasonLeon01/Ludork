@@ -19,7 +19,10 @@ local function interpolateColour(from, to, alpha)
 end
 
 ---@class Source.Scenes.SceneMap.Environment
-local Environment = {}
+local Environment = {
+    _MAP_AUDIO_TRANSITION_TIME = 0.5,
+    _ENVIRONMENT_AVAILABILITY = { LOADED = "loaded", EMPTY = "empty" }
+}
 
 function Environment:init()
     self._audio = MapAudio.new()
@@ -91,15 +94,17 @@ function Environment:updateWorld(gameMap, player, deltaTime, force)
     local region = gameMap:getRegionPosition(player:getMapPosition())
     local regionPath = region ~= nil and region.path or ""
     local mapData = gameMap:getEnvironmentDataAt(player:getMapPosition())
-    local environmentKey = regionPath .. ":" .. (mapData ~= nil and "loaded" or "empty")
+    local environmentKey = regionPath .. ":"
+        .. (mapData ~= nil and Environment._ENVIRONMENT_AVAILABILITY.LOADED
+            or Environment._ENVIRONMENT_AVAILABILITY.EMPTY)
     if force or self._worldEnvironmentKey ~= environmentKey then
         self._worldEnvironmentKey = environmentKey
         local targetColour
         if mapData == nil then
-            self._audio:playMapAudio({}, 0.5)
+            self._audio:playMapAudio({}, Environment._MAP_AUDIO_TRANSITION_TIME)
             targetColour = sf.Color.new(255, 255, 255, 255)
         else
-            self._audio:playMapAudio(mapData, 0.5)
+            self._audio:playMapAudio(mapData, Environment._MAP_AUDIO_TRANSITION_TIME)
             targetColour = mapData.ambientLight
         end
         if self._ambientTarget == nil then

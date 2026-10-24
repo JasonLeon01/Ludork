@@ -1,3 +1,4 @@
+#include <Graphics/Materials/MaterialSurfaceField.hpp>
 #include "GraphCompilerImpl.hpp"
 #include "MaterialSchema.hpp"
 #include <Graphics/Materials/MaterialCompileError.hpp>
@@ -33,12 +34,9 @@ GraphCompilerImpl::Expression scalar(float value) {
 
 }  // namespace
 
-const std::array<const char*, 7>& GraphCompilerImpl::surfaceFields() {
-    static const std::array<const char*, 7> fields{
-        "BaseColor",      "Alpha",      "Emission",
-        "LightingWeight", "LightBlock", "ReflectionStrength",
-        "VertexOffset"};
-    return fields;
+const std::array<const char*, MaterialSurfaceFieldCount>&
+GraphCompilerImpl::surfaceFields() {
+    return MaterialSurfaceFieldNames;
 }
 
 GraphCompilerImpl::Surface GraphCompilerImpl::initialSurface() {
@@ -56,10 +54,10 @@ std::string GraphCompilerImpl::glslType(int width) {
         return "sampler2D";
     }
     if (width == 0) {
-        return "bool";
+        return schema::value_type::Boolean;
     }
     if (width == 1) {
-        return "float";
+        return schema::value_type::Float;
     }
     return "vec" + std::to_string(width);
 }
@@ -117,7 +115,8 @@ GraphCompilerImpl::Expression GraphCompilerImpl::record(
 
 void GraphCompilerImpl::validateGraph() {
     const auto root = nodes_.find(resource_.definition()->output());
-    if (root == nodes_.end() || root->second->type != "Surface") {
+    if (root == nodes_.end() ||
+        root->second->type != schema::node_type::Surface) {
         throw std::invalid_argument(
             "Material graph.output must identify a Surface node");
     }
@@ -341,12 +340,12 @@ GraphCompilerImpl::Expression GraphCompilerImpl::output(
 GraphCompilerImpl::Expression GraphCompilerImpl::evaluate(
     const MaterialDefinition::Node& node, const std::string& port) {
     const std::string& type = node.type;
-    if (type == "Constant") {
+    if (type == schema::node_type::Constant) {
         const auto found = node.properties.find("value");
         return found == node.properties.end() ? scalar(0)
                                               : value(found->second);
     }
-    if (type == "Parameter") {
+    if (type == schema::node_type::Parameter) {
         const std::string id = propertyString(node, "id", "");
         const auto& parameters = resource_.parameters();
         const auto found =
@@ -374,7 +373,7 @@ GraphCompilerImpl::Expression GraphCompilerImpl::evaluate(
         return record({name, width},
                       MaterialAnalysisProgram::Operation::Parameter, {}, id);
     }
-    if (type == "SurfaceInput") {
+    if (type == schema::node_type::SurfaceInput) {
         const auto& fields = surfaceFields();
         const auto found = std::find_if(fields.begin(), fields.end(),
                                         [&port](const char* field) {
@@ -382,30 +381,32 @@ GraphCompilerImpl::Expression GraphCompilerImpl::evaluate(
                                         });
         const std::size_t index =
             static_cast<std::size_t>(found - fields.begin());
-        if (index >= fields.size() || vertex_ != (index == 6)) {
+        if (index >= fields.size() ||
+            vertex_ != (index == surfaceFieldIndex(
+                                     MaterialSurfaceField::VertexOffset))) {
             throw std::invalid_argument(
                 "Surface input unavailable in this stage: " + node.id + "." +
                 port);
         }
         return incoming_[index];
     }
-    if (type == "Time") {
+    if (type == schema::node_type::Time) {
         return {"u_time", 1, true};
     }
-    if (type == "LocalUV") {
+    if (type == schema::node_type::LocalUV) {
         if (vertex_) {
             throw std::invalid_argument(
                 "LocalUV is only available in the fragment stage: " + node.id);
         }
         return {"materialUV()", 2};
     }
-    if (type == "LocalPosition") {
+    if (type == schema::node_type::LocalPosition) {
         return {"v_localPosition", 2};
     }
-    if (type == "WorldPosition") {
+    if (type == schema::node_type::WorldPosition) {
         return {"v_worldPosition", 2};
     }
-    if (type == "FrameSize") {
+    if (type == schema::node_type::FrameSize) {
         if (vertex_) {
             throw std::invalid_argument(
                 "FrameSize is only available in the fragment stage: " +
@@ -413,35 +414,38 @@ GraphCompilerImpl::Expression GraphCompilerImpl::evaluate(
         }
         return {"materialFrameSize()", 2};
     }
-    if (type == "SampleSprite" || type == "SampleTexture") {
+    if (type == schema::node_type::SampleSprite ||
+        type == schema::node_type::SampleTexture) {
         if (vertex_) {
             throw std::invalid_argument(
                 "Texture sampling is not available in VertexOffset: " +
                 node.id);
         }
         Expression uv =
-            expect(input(node, "UV", {"materialUV()", 2}), 2, node.id + ".UV");
+            expect(input(node, schema::port_name::UV, {"materialUV()", 2}), 2,
+                   node.id + ".UV");
         std::string sample;
         bool timed = uv.time;
-        if (type == "SampleSprite") {
+        if (type == schema::node_type::SampleSprite) {
             sample = "sampleSprite(" + uv.code + ")";
         } else {
-            const Expression texture = expect(input(node, "Texture", {"", -2}),
-                                              -1, node.id + ".Texture");
+            const Expression texture =
+                expect(input(node, schema::port_name::Texture, {"", -2}), -1,
+                       node.id + ".Texture");
             sample = "texture2D(" + texture.code + "," + uv.code + ")";
             timed = timed || texture.time;
         }
-        if (port == "Color") {
+        if (port == schema::port_name::Color) {
             return {sample + ".rgb", 3, timed};
         }
-        if (port == "Alpha") {
+        if (port == schema::port_name::Alpha) {
             return {sample + ".a", 1, timed};
         }
-        if (port == "RGBA") {
+        if (port == schema::port_name::RGBA) {
             return {sample, 4, timed};
         }
     }
-    if (type == "Compose") {
+    if (type == schema::node_type::Compose) {
         int width = 3;
         if (const auto found = node.properties.find("size");
             found != node.properties.end()) {
@@ -481,8 +485,9 @@ GraphCompilerImpl::Expression GraphCompilerImpl::evaluate(
         return record(std::move(result),
                       MaterialAnalysisProgram::Operation::Compose, inputs);
     }
-    if (type == "Swizzle") {
-        Expression source = input(node, "Value", {"vec4(0.0,0.0,0.0,1.0)", 4});
+    if (type == schema::node_type::Swizzle) {
+        Expression source =
+            input(node, schema::port_name::Value, {"vec4(0.0,0.0,0.0,1.0)", 4});
         const std::string channels = propertyString(node, "channels", "rgb");
         if (channels.empty() ||
             channels.size() > schema::positionChannels.size() ||
@@ -530,9 +535,10 @@ GraphCompilerImpl::Expression GraphCompilerImpl::evaluate(
                       MaterialAnalysisProgram::Operation::Swizzle, {source}, {},
                       std::move(indices));
     }
-    if (type == "HueShift") {
-        const Expression color = expect(input(node, "Color", {"vec3(1.0)", 3}),
-                                        3, node.id + ".Color");
+    if (type == schema::node_type::HueShift) {
+        const Expression color =
+            expect(input(node, schema::port_name::Color, {"vec3(1.0)", 3}), 3,
+                   node.id + ".Color");
         const Expression hue =
             expect(input(node, "Hue", scalar(0)), 1, node.id + ".Hue");
         return record({"hueShift(" + color.code + "," + hue.code + ")", 3,
@@ -540,23 +546,25 @@ GraphCompilerImpl::Expression GraphCompilerImpl::evaluate(
                       MaterialAnalysisProgram::Operation::HueShift,
                       {color, hue});
     }
-    if (type == "Abs" || type == "Floor" || type == "Fract" || type == "Sin") {
-        Expression source = input(node, "Value", scalar(0));
+    if (type == schema::node_type::Abs || type == schema::node_type::Floor ||
+        type == schema::node_type::Fract || type == schema::node_type::Sin) {
+        Expression source = input(node, schema::port_name::Value, scalar(0));
         const Expression operand = source;
         if (source.width < 1) {
             throw std::invalid_argument("Numeric input required at " + node.id);
         }
-        const std::string function = type == "Abs"     ? "abs"
-                                     : type == "Floor" ? "floor"
-                                     : type == "Fract" ? "fract"
-                                                       : "sin";
+        const std::string function =
+            type == schema::node_type::Abs     ? "abs"
+            : type == schema::node_type::Floor ? "floor"
+            : type == schema::node_type::Fract ? "fract"
+                                               : "sin";
         source.code = function + "(" + source.code + ")";
         for (float& component : source.constant) {
-            if (type == "Abs") {
+            if (type == schema::node_type::Abs) {
                 component = std::abs(component);
-            } else if (type == "Floor") {
+            } else if (type == schema::node_type::Floor) {
                 component = std::floor(component);
-            } else if (type == "Fract") {
+            } else if (type == schema::node_type::Fract) {
                 component -= std::floor(component);
             } else {
                 component = std::sin(component);
@@ -570,32 +578,41 @@ GraphCompilerImpl::Expression GraphCompilerImpl::evaluate(
                             });
         }
         const MaterialAnalysisProgram::Operation operation =
-            type == "Abs"     ? MaterialAnalysisProgram::Operation::Abs
-            : type == "Floor" ? MaterialAnalysisProgram::Operation::Floor
-            : type == "Fract" ? MaterialAnalysisProgram::Operation::Fract
-                              : MaterialAnalysisProgram::Operation::Sin;
+            type == schema::node_type::Abs
+                ? MaterialAnalysisProgram::Operation::Abs
+            : type == schema::node_type::Floor
+                ? MaterialAnalysisProgram::Operation::Floor
+            : type == schema::node_type::Fract
+                ? MaterialAnalysisProgram::Operation::Fract
+                : MaterialAnalysisProgram::Operation::Sin;
         return record(std::move(source), operation, {operand});
     }
-    const bool ternary =
-        type == "Clamp" || type == "Smoothstep" || type == "Lerp";
-    const std::string aPort = type == "Clamp"        ? "Value"
-                              : type == "Smoothstep" ? "Min"
-                                                     : "A";
-    const std::string bPort = type == "Clamp"        ? "Min"
-                              : type == "Smoothstep" ? "Max"
-                                                     : "B";
+    const bool ternary = type == schema::node_type::Clamp ||
+                         type == schema::node_type::Smoothstep ||
+                         type == schema::node_type::Lerp;
+    const std::string aPort =
+        type == schema::node_type::Clamp        ? schema::port_name::Value
+        : type == schema::node_type::Smoothstep ? schema::port_name::Min
+                                                : schema::port_name::A;
+    const std::string bPort =
+        type == schema::node_type::Clamp        ? schema::port_name::Min
+        : type == schema::node_type::Smoothstep ? schema::port_name::Max
+                                                : schema::port_name::B;
     Expression a = input(node, aPort, scalar(0));
-    Expression b = input(
-        node, bPort,
-        scalar(type == "Divide" || type == "Smoothstep" || type == "Lerp" ? 1
-                                                                          : 0));
-    Expression c = input(node,
-                         type == "Clamp"        ? "Max"
-                         : type == "Smoothstep" ? "Value"
-                                                : "T",
-                         scalar(type == "Clamp"  ? 1
-                                : type == "Lerp" ? 0.5f
-                                                 : 0));
+    Expression b = input(node, bPort,
+                         scalar(type == schema::node_type::Divide ||
+                                        type == schema::node_type::Smoothstep ||
+                                        type == schema::node_type::Lerp
+                                    ? 1
+                                    : 0));
+    Expression c =
+        input(node,
+              type == schema::node_type::Clamp        ? schema::port_name::Max
+              : type == schema::node_type::Smoothstep ? schema::port_name::Value
+                                                      : "T",
+              scalar(type == schema::node_type::Clamp  ? 1
+                     : type == schema::node_type::Lerp ? 0.5f
+                                                       : 0));
     const int width = std::max({a.width, b.width, ternary ? c.width : 1});
     if (a.width < 1 || b.width < 1 || (ternary && c.width < 1)) {
         throw std::invalid_argument("Numeric inputs required at " + node.id);
@@ -606,10 +623,11 @@ GraphCompilerImpl::Expression GraphCompilerImpl::evaluate(
         c = promote(c, width);
     }
     Expression result;
-    result.width = type == "Dot" ? 1 : width;
+    result.width = type == schema::node_type::Dot ? 1 : width;
     result.time = a.time || b.time || (ternary && c.time);
-    result.zero = type == "Multiply" ? a.zero || b.zero
-                  : type == "Divide" || type == "Smoothstep"
+    result.zero = type == schema::node_type::Multiply ? a.zero || b.zero
+                  : type == schema::node_type::Divide ||
+                          type == schema::node_type::Smoothstep
                       ? false
                       : a.zero && b.zero && (!ternary || c.zero);
     if (!a.constant.empty() && !b.constant.empty() &&
@@ -621,27 +639,28 @@ GraphCompilerImpl::Expression GraphCompilerImpl::evaluate(
             const float bv = b.constant[index];
             const float cv = ternary ? c.constant[index] : 0;
             float component = 0;
-            if (type == "Add") {
+            if (type == schema::node_type::Add) {
                 component = av + bv;
-            } else if (type == "Subtract") {
+            } else if (type == schema::node_type::Subtract) {
                 component = av - bv;
-            } else if (type == "Multiply" || type == "Dot") {
+            } else if (type == schema::node_type::Multiply ||
+                       type == schema::node_type::Dot) {
                 component = av * bv;
-            } else if (type == "Divide") {
+            } else if (type == schema::node_type::Divide) {
                 component = av / bv;
-            } else if (type == "Min") {
+            } else if (type == schema::node_type::Min) {
                 component = std::min(av, bv);
-            } else if (type == "Max") {
+            } else if (type == schema::node_type::Max) {
                 component = std::max(av, bv);
-            } else if (type == "Clamp") {
+            } else if (type == schema::node_type::Clamp) {
                 if (bv > cv) {
                     finite = false;
                 } else {
                     component = std::clamp(av, bv, cv);
                 }
-            } else if (type == "Lerp") {
+            } else if (type == schema::node_type::Lerp) {
                 component = av * (1 - cv) + bv * cv;
-            } else if (type == "Smoothstep") {
+            } else if (type == schema::node_type::Smoothstep) {
                 if (av >= bv) {
                     finite = false;
                 } else {
@@ -657,7 +676,7 @@ GraphCompilerImpl::Expression GraphCompilerImpl::evaluate(
         if (!finite) {
             result.constant.clear();
         } else {
-            if (type == "Dot") {
+            if (type == schema::node_type::Dot) {
                 result.constant = {dot};
             }
             result.zero =
@@ -667,23 +686,25 @@ GraphCompilerImpl::Expression GraphCompilerImpl::evaluate(
                             });
         }
     }
-    if (type == "Add" || type == "Subtract" || type == "Multiply" ||
-        type == "Divide") {
-        const char* op = type == "Add"        ? "+"
-                         : type == "Subtract" ? "-"
-                         : type == "Multiply" ? "*"
-                                              : "/";
+    if (type == schema::node_type::Add || type == schema::node_type::Subtract ||
+        type == schema::node_type::Multiply ||
+        type == schema::node_type::Divide) {
+        const char* op = type == schema::node_type::Add        ? "+"
+                         : type == schema::node_type::Subtract ? "-"
+                         : type == schema::node_type::Multiply ? "*"
+                                                               : "/";
         result.code = "(" + a.code + op + b.code + ")";
-    } else if (type == "Dot" && width == 1) {
+    } else if (type == schema::node_type::Dot && width == 1) {
         result.code = "(" + a.code + "*" + b.code + ")";
     } else {
-        const std::string function = type == "Min"          ? "min"
-                                     : type == "Max"        ? "max"
-                                     : type == "Dot"        ? "dot"
-                                     : type == "Clamp"      ? "clamp"
-                                     : type == "Smoothstep" ? "smoothstep"
-                                     : type == "Lerp"       ? "mix"
-                                                            : "";
+        const std::string function =
+            type == schema::node_type::Min          ? "min"
+            : type == schema::node_type::Max        ? "max"
+            : type == schema::node_type::Dot        ? "dot"
+            : type == schema::node_type::Clamp      ? "clamp"
+            : type == schema::node_type::Smoothstep ? "smoothstep"
+            : type == schema::node_type::Lerp       ? "mix"
+                                                    : "";
         if (function.empty()) {
             throw std::invalid_argument("Node cannot produce a value: " +
                                         node.id);
@@ -692,16 +713,24 @@ GraphCompilerImpl::Expression GraphCompilerImpl::evaluate(
                       (ternary ? "," + c.code : "") + ")";
     }
     const MaterialAnalysisProgram::Operation operation =
-        type == "Add"          ? MaterialAnalysisProgram::Operation::Add
-        : type == "Subtract"   ? MaterialAnalysisProgram::Operation::Subtract
-        : type == "Multiply"   ? MaterialAnalysisProgram::Operation::Multiply
-        : type == "Divide"     ? MaterialAnalysisProgram::Operation::Divide
-        : type == "Min"        ? MaterialAnalysisProgram::Operation::Min
-        : type == "Max"        ? MaterialAnalysisProgram::Operation::Max
-        : type == "Dot"        ? MaterialAnalysisProgram::Operation::Dot
-        : type == "Clamp"      ? MaterialAnalysisProgram::Operation::Clamp
-        : type == "Smoothstep" ? MaterialAnalysisProgram::Operation::Smoothstep
-                               : MaterialAnalysisProgram::Operation::Lerp;
+        type == schema::node_type::Add ? MaterialAnalysisProgram::Operation::Add
+        : type == schema::node_type::Subtract
+            ? MaterialAnalysisProgram::Operation::Subtract
+        : type == schema::node_type::Multiply
+            ? MaterialAnalysisProgram::Operation::Multiply
+        : type == schema::node_type::Divide
+            ? MaterialAnalysisProgram::Operation::Divide
+        : type == schema::node_type::Min
+            ? MaterialAnalysisProgram::Operation::Min
+        : type == schema::node_type::Max
+            ? MaterialAnalysisProgram::Operation::Max
+        : type == schema::node_type::Dot
+            ? MaterialAnalysisProgram::Operation::Dot
+        : type == schema::node_type::Clamp
+            ? MaterialAnalysisProgram::Operation::Clamp
+        : type == schema::node_type::Smoothstep
+            ? MaterialAnalysisProgram::Operation::Smoothstep
+            : MaterialAnalysisProgram::Operation::Lerp;
     return record(std::move(result), operation,
                   ternary ? std::vector<Expression>{a, b, c}
                           : std::vector<Expression>{a, b});
@@ -712,7 +741,8 @@ GraphCompilerImpl::Surface GraphCompilerImpl::compile(unsigned int fields) {
         *nodes_.at(resource_.definition()->output());
     Surface result = incoming_;
     for (std::size_t index = 0; index < result.size(); ++index) {
-        if ((index == 6) != vertex_) {
+        if ((index == surfaceFieldIndex(MaterialSurfaceField::VertexOffset)) !=
+            vertex_) {
             continue;
         }
         if ((fields & (1u << index)) == 0) {

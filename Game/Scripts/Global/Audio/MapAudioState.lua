@@ -1,13 +1,21 @@
 local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 
+local DEFAULT_MUSIC_VOLUME = 100.0
+
+---@enum Global.Audio.MapAudioState.TransitionPhase
+local TransitionPhase = {
+    IN = "in",
+    OUT = "out"
+}
+
 local AudioManager = GlobalCore.AudioManager
 local MUSIC_FILTER_FIELDS = { "loop", "pitch", "pan", "volume" }
 
 local MapAudioState = {}
 
 local function requestedVolume(filter)
-    return filter ~= nil and filter.volume or 100.0
+    return filter ~= nil and filter.volume or DEFAULT_MUSIC_VOLUME
 end
 
 local function applyVolume(state)
@@ -29,7 +37,13 @@ local function startMusic(state, file, filter, fadeIn)
     state.gain = fadeIn > 0.0 and 0.0 or 1.0
     if fadeIn > 0.0 then
         applyVolume(state)
-        state.transition = { phase = "in", elapsed = 0.0, duration = fadeIn, startGain = 0.0, targetGain = 1.0 }
+        state.transition = {
+            phase = TransitionPhase.IN,
+            elapsed = 0.0,
+            duration = fadeIn,
+            startGain = 0.0,
+            targetGain = 1.0
+        }
     end
 end
 
@@ -40,7 +54,7 @@ local function replaceMusicFilter(music, filter)
     local values = {
         pitch = filter ~= nil and filter.pitch or 1.0,
         pan = filter ~= nil and filter.pan or 0.0,
-        volume = filter ~= nil and filter.volume or 100.0,
+        volume = filter ~= nil and filter.volume or DEFAULT_MUSIC_VOLUME,
         loopPoint = filter ~= nil and filter.loopPoint or loopPoint
     }
     if filter ~= nil and filter.loop ~= nil then
@@ -68,7 +82,7 @@ function MapAudioState.New(kind)
         kind = kind,
         music = nil,
         file = "",
-        requestedVolume = 100.0,
+        requestedVolume = DEFAULT_MUSIC_VOLUME,
         gain = 1.0,
         pendingFile = "",
         pendingFilter = nil
@@ -82,7 +96,7 @@ function MapAudioState.Stop(state)
     state.music = nil
     state.file = ""
     state.transition = nil
-    state.requestedVolume = 100.0
+    state.requestedVolume = DEFAULT_MUSIC_VOLUME
     state.gain = 1.0
     state.pendingFile = ""
     state.pendingFilter = nil
@@ -115,7 +129,7 @@ function MapAudioState.Request(state, file, filter, duration)
         return
     end
     state.transition = {
-        phase = "out",
+        phase = TransitionPhase.OUT,
         elapsed = 0.0,
         duration = bool(file) and duration * 0.5 or duration,
         startGain = state.gain,
@@ -139,7 +153,7 @@ function MapAudioState.Update(state, deltaTime)
     if alpha < 1.0 then
         return
     end
-    if transition.phase == "in" then
+    if transition.phase == TransitionPhase.IN then
         state.transition = nil
         return
     end

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "GpuResourcesImpl.hpp"
+#include "GpuGlConstants.hpp"
 
 #include <array>
 #include <cstdint>
@@ -29,6 +30,15 @@ public:
     std::optional<Sample> poll();
 
 private:
+    static constexpr double MinimumSampleInterval = 0.25;
+
+    static constexpr std::array<unsigned int, 7> DisabledCapabilities{
+        gpu_gl::ScissorTest,   gpu_gl::DepthTest, gpu_gl::StencilTest,
+        gpu_gl::CullFace,      gpu_gl::Dither,    gpu_gl::SampleAlphaToCoverage,
+        gpu_gl::SampleCoverage};
+    static constexpr std::array<unsigned int, 4> PackParameters{
+        gpu_gl::PackAlignment, gpu_gl::PackRowLength, gpu_gl::PackSkipRows,
+        gpu_gl::PackSkipPixels};
     struct StateGuard {
         explicit StateGuard(GpuApi& api);
         ~StateGuard();
@@ -39,10 +49,10 @@ private:
         int readFramebuffer = 0;
         int packBuffer = 0;
         int unpackBuffer = 0;
-        std::array<int, 4> packSettings{};
+        std::array<int, PackParameters.size()> packSettings{};
         std::array<float, 4> clearColour{};
         std::array<unsigned char, 4> colourMask{};
-        std::array<bool, 7> enables{};
+        std::array<bool, DisabledCapabilities.size()> enables{};
         bool srgb = false;
         bool alphaTest = false;
         bool pointSmooth = false;

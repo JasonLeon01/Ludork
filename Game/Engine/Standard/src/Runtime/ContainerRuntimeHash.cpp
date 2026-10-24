@@ -14,12 +14,18 @@
 #include <vector>
 
 namespace ludork::standard::container_runtime::detail {
+namespace {
+constexpr std::size_t CompactionStorageRatio = 2;
+constexpr std::size_t CompactionSpareEntries = 32;
+}  // namespace
 
 std::size_t EqualityContext::ObjectPairHash::operator()(
     const ObjectPair& value) const noexcept {
     std::size_t first = std::hash<const void*>{}(value.first);
     std::size_t second = std::hash<const void*>{}(value.second);
-    return first ^ (second + 0x9e3779b9U + (first << 6U) + (first >> 2U));
+    return first ^
+           (second + HashCombineOffset + (first << HashCombineLeftShift) +
+            (first >> HashCombineRightShift));
 }
 
 std::uint64_t hashBytes(std::uint64_t seed, const void* data,
@@ -264,7 +270,8 @@ bool removeDictEntry(const lua_glue::Object& target,
     --dict.length;
     if (dict.length == 0) {
         releaseDictStorage(target);
-    } else if (dict.entries.size() > dict.length * 2 + 32) {
+    } else if (dict.entries.size() >
+               dict.length * CompactionStorageRatio + CompactionSpareEntries) {
         compactDict(target);
     }
     ++dict.version;

@@ -58,6 +58,23 @@ struct WindowsWebViewSessionImpl
     void showError(const wchar_t* message, bool missingRuntime = false);
     static LRESULT CALLBACK windowProcedure(HWND window, UINT message,
                                             WPARAM word, LPARAM parameter);
+
+private:
+    static constexpr DWORD MessagePollMilliseconds = 33;
+    static constexpr int InitialWindowSize = 100;
+    static constexpr int HorizontalPadding = 12;
+    static constexpr int CloseButtonTop = 6;
+    static constexpr int CloseButtonWidth = 80;
+    static constexpr int CloseButtonHeight = 32;
+    static constexpr int StatusTop = 12;
+    static constexpr int StatusPreferredWidth = 320;
+    static constexpr int StatusHeight = 24;
+    static constexpr int StatusRightInset =
+        CloseButtonWidth + HorizontalPadding * 3;
+    static constexpr int InstallButtonTop = 60;
+    static constexpr int InstallButtonPreferredWidth = 320;
+    static constexpr int InstallButtonHeight = 36;
+    static constexpr int ContentTop = 44;
 };
 
 class WindowsWebViewHostImpl final : public Host {

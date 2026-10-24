@@ -22,7 +22,9 @@ local categoryFields = {
 }
 
 ---@class Global.Data.Loading
-local DataLoading = {}
+local DataLoading = {
+    _FILE_BATCH_POLL_LIMIT = 64
+}
 
 ---@param data Global.Data.Cache
 function DataLoading:init(data)
@@ -97,17 +99,17 @@ function DataLoading:drainFileBatch(specs, onItem)
     local async = asyncio
     local job = async.start_file_batch(specs)
     while true do
-        local snapshot = async.poll_file_batch(job, 64)
-        if snapshot.state == "failed" then
+        local snapshot = async.poll_file_batch(job, DataLoading._FILE_BATCH_POLL_LIMIT)
+        if snapshot.state == asyncio.FILE_BATCH_FAILED then
             error(FileBatch.FormatError(snapshot.error))
         end
-        if snapshot.state == "cancelled" then
+        if snapshot.state == asyncio.FILE_BATCH_CANCELLED then
             error("File batch was cancelled")
         end
         for _, item in ipairs(snapshot.items or {}) do
             onItem(item, snapshot)
         end
-        if snapshot.state == "completed" and snapshot.drained then
+        if snapshot.state == asyncio.FILE_BATCH_COMPLETED and snapshot.drained then
             return snapshot.total
         end
     end

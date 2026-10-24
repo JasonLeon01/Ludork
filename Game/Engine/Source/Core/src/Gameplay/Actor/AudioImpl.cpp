@@ -36,7 +36,7 @@ void AudioImpl::update(float deltaTime, const std::string& sound,
     const float stopDistance = params_->maxDistance;
     if (stopDistance > 0.0f) {
         const float distance = listenerDistance(readPosition());
-        const float startDistance = stopDistance * 0.85f;
+        const float startDistance = stopDistance * ResumeDistanceRatio;
         if (distance > stopDistance) {
             stop();
             cooldown_ = 0.0f;

@@ -2,6 +2,7 @@ local Engine = require("Engine")
 local GlobalCore = require("GlobalCore")
 local NodeCompiler = require("Global.Utils.NodeCompiler")
 local Logging = require("Global.Utils.Logging")
+
 ---@type Global.Utils.Path.Module
 local Path = require("Global.Utils.Path")
 local BlueprintActorOverrides = require("Global.Data.BlueprintActorOverrides")
@@ -183,7 +184,7 @@ function DataBlueprints:compileGraphTemplate(data, parentClass)
         end
     end
     local template = Engine.Graph.new(
-        data.parent or "NOT_WRITTEN", parentClass, nil, nodes, links, nil, startNodes, eventParams
+        data.parent or Engine.Graph.NO_PARENT_CLASS, parentClass, nil, nodes, links, nil, startNodes, eventParams
     )
     self._graphTemplates[data][parentKey] = template
     return template

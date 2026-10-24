@@ -1,3 +1,5 @@
+#include <Gameplay/GameplayAttributeChangeSource.hpp>
+#include <Gameplay/GameplayModifier.hpp>
 #include "AttributeImpl.hpp"
 #include "EffectImpl.hpp"
 #include <Gameplay/GameplayEffect.hpp>
@@ -7,18 +9,20 @@
 namespace ludork::global::ability_system_impl {
 
 namespace {
+constexpr char LastResolvedAttribute[] = "HP";
+
 RuntimeValue attributeChangeValue(
     const AbilitySystemImpl::AttributeChange& change) {
     std::string source;
     switch (change.source) {
         case AbilitySystemImpl::AttributeChangeSource::Base:
-            source = "Base";
+            source = GameplayAttributeChangeSource::BASE;
             break;
         case AbilitySystemImpl::AttributeChangeSource::Effect:
-            source = "Effect";
+            source = GameplayAttributeChangeSource::EFFECT;
             break;
         case AbilitySystemImpl::AttributeChangeSource::Constraint:
-            source = "Constraint";
+            source = GameplayAttributeChangeSource::CONSTRAINT;
             break;
     }
     RuntimeValue::Map value{{"source", RuntimeValue(std::move(source))},
@@ -41,15 +45,16 @@ void accumulateModifiers(AbilitySystemImpl::ModifierAggregate& aggregate,
             continue;
         }
         NumericValue magnitude = resolveMagnitude(modifier, spec, stacks);
-        if (spec->effect->stackingPolicy == "Aggregate") {
+        if (spec->effect->stackingPolicy ==
+            GameplayEffect::STACKING_AGGREGATE) {
             magnitude = scaleMagnitude(magnitude, modifier.operation, stacks);
         }
-        if (modifier.operation == "Add") {
+        if (modifier.operation == GameplayModifier::OPERATION_ADD) {
             aggregate.additive = addNumbers(aggregate.additive, magnitude);
-        } else if (modifier.operation == "Multiply") {
+        } else if (modifier.operation == GameplayModifier::OPERATION_MULTIPLY) {
             aggregate.multiplier =
                 multiplyNumbers(aggregate.multiplier, magnitude);
-        } else if (modifier.operation == "Override") {
+        } else if (modifier.operation == GameplayModifier::OPERATION_OVERRIDE) {
             aggregate.overrideValue = magnitude;
         } else {
             throw std::invalid_argument(
@@ -157,17 +162,18 @@ GameplayNumbers preview(const AbilitySystemImpl& state,
                         std::optional<int> replacementStacks) {
     GameplayNumbers values;
     for (const std::string& name : state.numericAttributes) {
-        if (name != "HP") {
+        if (name != LastResolvedAttribute) {
             values.emplace(name,
                            resolvedNumber(resolveAttribute(
                                state, name, bases, pendingSpec, replacedHandle,
                                replacementStacks, values)));
         }
     }
-    if (bases.contains("HP")) {
-        values.emplace("HP", resolvedNumber(resolveAttribute(
-                                 state, "HP", bases, pendingSpec,
-                                 replacedHandle, replacementStacks, values)));
+    if (bases.contains(LastResolvedAttribute)) {
+        values.emplace(LastResolvedAttribute,
+                       resolvedNumber(resolveAttribute(
+                           state, LastResolvedAttribute, bases, pendingSpec,
+                           replacedHandle, replacementStacks, values)));
     }
     return values;
 }

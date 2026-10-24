@@ -23,6 +23,9 @@ struct MaterialPreviewSession::Impl {
     sf::Vector2u mapSize;
     std::string sourcePath;
     std::optional<ludork::runtime::AssetStore::AssetStat> sourceStamp;
+
+private:
+    static constexpr char FrameResponse[] = "materialFrame";
 };
 
 }  // namespace ludork::preview_host

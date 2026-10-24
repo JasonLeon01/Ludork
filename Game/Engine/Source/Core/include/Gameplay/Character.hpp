@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Direction.hpp>
+
 #include <CoreMinimal.hpp>
 
 #include <Gameplay/Actor.hpp>
@@ -7,6 +9,12 @@
 BIND_CLASS(callbacks = true, invalid_vars(defaultRect))
 class Character : public Actor {
 public:
+    BIND_CLASS_PROPERTY(readonly = true)
+    static const unsigned int SPRITE_FRAME_COLUMNS;
+
+    BIND_CLASS_PROPERTY(readonly = true)
+    static const unsigned int SPRITE_DIRECTION_ROWS;
+
     LUDORK_CAST_DERIVED(Character, Actor)
 
     BIND_INIT()
@@ -15,8 +23,9 @@ public:
 
     ~Character() override = default;
 
-    BIND_PROPERTY(metadata_type = {enum = "Enums.Engine.Direction"})
-    int direction = 0;
+    BIND_PROPERTY(default = 0,
+                  metadata_type = {enum = "Enums.Engine.Direction"})
+    int direction = static_cast<int>(Direction::DOWN);
 
     BIND_PROPERTY()
     bool directionFix = false;

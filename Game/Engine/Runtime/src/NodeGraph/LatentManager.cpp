@@ -1,3 +1,4 @@
+#include "NodeGraph/Context/GraphContextFields.hpp"
 #include <Runtime/NodeGraph/LatentManager.hpp>
 #include "LatentManagerImpl.hpp"
 
@@ -70,9 +71,11 @@ LocalGraphScope::LocalGraphScope(Graph& graph, RuntimeIdentityPtr replacement,
         ludork::runtime::RuntimeScope scope;
         previousContextGraph_ =
             ludork::runtime::node_graph_detail::getNodeGraphContextValue(
-                scope, RuntimeHandle(context_), "__graph__");
+                scope, RuntimeHandle(context_),
+                ludork::runtime::graph_context_fields::Graph);
         ludork::runtime::node_graph_detail::setNodeGraphContextValue(
-            scope, RuntimeHandle(context_), "__graph__",
+            scope, RuntimeHandle(context_),
+            ludork::runtime::graph_context_fields::Graph,
             graph_.getGraphContext());
         contextGraphSet_ = true;
     } catch (...) {
@@ -86,7 +89,8 @@ LocalGraphScope::~LocalGraphScope() noexcept {
         try {
             ludork::runtime::RuntimeScope scope;
             ludork::runtime::node_graph_detail::setNodeGraphContextValue(
-                scope, RuntimeHandle(context_), "__graph__",
+                scope, RuntimeHandle(context_),
+                ludork::runtime::graph_context_fields::Graph,
                 previousContextGraph_);
         } catch (const std::exception& error) {
             std::cerr << "WARNING:Latent event '" << eventKey_
@@ -126,7 +130,8 @@ void LatentManager::add(const std::shared_ptr<Graph>& graph,
     entry->graph = graph;
     entry->key = key;
     entry->operation = std::move(operation);
-    if (entry->operation->getStatus() == "completed") {
+    if (entry->operation->getStatus() ==
+        ludork::standard::asyncio::operation_status::Completed) {
         entry->nextEvent = entry->operation->eventCount() - 1;
     }
     entry->localRef = std::move(localRef);
@@ -166,7 +171,8 @@ void LatentManager::update() {
             continue;
         }
 
-        if (entry->operation->getStatus() == "cancelled") {
+        if (entry->operation->getStatus() ==
+            ludork::standard::asyncio::operation_status::Cancelled) {
             cancel(entry->operation);
             continue;
         }
@@ -184,7 +190,8 @@ void LatentManager::update() {
             nodes[static_cast<std::size_t>(entry->index)]->getMemberMetadata();
         const std::size_t eventCount = entry->operation->eventCount();
         while (entry->nextEvent < eventCount && isPending() &&
-               entry->operation->getStatus() != "cancelled") {
+               entry->operation->getStatus() !=
+                   ludork::standard::asyncio::operation_status::Cancelled) {
             const RuntimeValue value =
                 entry->operation->eventAt(entry->nextEvent++);
             const std::vector<int> execIndexes =
@@ -194,8 +201,9 @@ void LatentManager::update() {
             const Graph::PinNexts& nexts =
                 graph->getNodeNexts(entry->key, entry->index);
             for (const int execIndex : execIndexes) {
-                if (!isPending() ||
-                    entry->operation->getStatus() == "cancelled") {
+                if (!isPending() || entry->operation->getStatus() ==
+                                        ludork::standard::asyncio::
+                                            operation_status::Cancelled) {
                     break;
                 }
                 const auto next = nexts.find(execIndex);
@@ -207,16 +215,20 @@ void LatentManager::update() {
                     throw std::runtime_error(
                         "Latent execution target must be a node index");
                 }
-                graph->executeResult(entry->key, *nextNode, 1000000,
-                                     &entry->cache);
+                graph->executeResult(
+                    entry->key, *nextNode,
+                    ludork::runtime::graph_constants::DefaultExecutionLimit,
+                    &entry->cache);
             }
         }
-        if (entry->operation->getStatus() == "cancelled") {
+        if (entry->operation->getStatus() ==
+            ludork::standard::asyncio::operation_status::Cancelled) {
             cancel(entry->operation);
             continue;
         }
 
-        if (entry->operation->getStatus() == "completed" &&
+        if (entry->operation->getStatus() ==
+                ludork::standard::asyncio::operation_status::Completed &&
             entry->nextEvent == entry->operation->eventCount() && isPending()) {
             const std::uint64_t revision = graph->executionRevision(entry->key);
             std::erase(entries_, entry);
@@ -239,7 +251,8 @@ void LatentManager::cancel(const std::shared_ptr<AsyncOperation>& operation) {
         operation->cancel();
         return;
     }
-    if (operation->getStatus() != "cancelled") {
+    if (operation->getStatus() !=
+        ludork::standard::asyncio::operation_status::Cancelled) {
         return;
     }
     std::vector<std::shared_ptr<Entry>> matches;

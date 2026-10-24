@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Manager/TimerEntry.hpp>
+#include <SceneTiming.hpp>
 
 #include <CoreMinimal.hpp>
 
@@ -13,6 +14,7 @@
 #include <Emitters/EmitterScheduler.hpp>
 #include <GameMapBase.hpp>
 
+#include <chrono>
 #include <exception>
 #include <mutex>
 #include <thread>
@@ -107,6 +109,11 @@ protected:
     virtual void _renderHandle(float deltaTime);
 
 private:
+    static constexpr float DefaultFixedStep =
+        1.0f / ludork::global::scene_timing::DefaultLogicFrameRate;
+
+    static constexpr std::chrono::milliseconds PausedPollInterval{20};
+
     struct LogicStepPerformance {
         double sceneTickMilliseconds{};
         double maintenanceMilliseconds{};
@@ -135,7 +142,7 @@ private:
     void clearRuntimeState() noexcept;
 
     float fixedAccumulator_ = 0.0f;
-    float fixedStep_ = 1.0f / 60.0f;
+    float fixedStep_ = DefaultFixedStep;
     int maxFixedSteps_ = 5;
     mutable std::recursive_mutex logicDataMutex_;
     std::vector<std::shared_ptr<TimerEntry>> timerEntries_;

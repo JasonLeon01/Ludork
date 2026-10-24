@@ -129,7 +129,10 @@ local function adjustGraphicsSettingIndex(index, scaleRowChange)
 end
 
 ---@class Source.Windows.ConfigWindow.Controller
-local Controller = {}
+local Controller = {
+    _SLIDER_REPEAT_DELAY = 0.4,
+    _SLIDER_REPEAT_INTERVAL = 0.05
+}
 
 Controller.windowOptions = {
     centered = true,
@@ -441,8 +444,8 @@ function Controller:_handleSelectedSliderKeyDown()
         return false
     end
     ---@cast row Source.Windows.ConfigWindow.ConfigSliderRow.Controller
-    local repeatDelay = 0.4
-    local repeatInterval = 0.05
+    local repeatDelay = Controller._SLIDER_REPEAT_DELAY
+    local repeatInterval = Controller._SLIDER_REPEAT_INTERVAL
     if Input.isActionTriggered(Input.getLeftKeys(), false, repeatDelay, repeatInterval) then
         row:adjust(-1)
         Input.isActionTriggered(Input.getLeftKeys(), true, repeatDelay, repeatInterval)

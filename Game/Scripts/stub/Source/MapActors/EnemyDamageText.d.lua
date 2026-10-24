@@ -7,32 +7,37 @@
 --- The configured `requiredItemID` remains a prerequisite at every visible level. Actual damage
 --- particles shown after HP loss are not hints and are not suppressed by this setting.
 ---@class Source.MapActors.EnemyDamageText: Engine.Actor
----@field EnemyDamageHintLevel   Enums.DamageHintLevel
----@field requiredItemID         string
----@field textConfig             string
----@field damageTextOffset       sf.Vector2f
----@field _text                  Engine.PlainText?
----@field _textRenderStates      sf.RenderStates
----@field _textDisplayScale      number | nil
----@field _overlayTexture        sf.Texture?
----@field _overlayTextureWidth   integer
----@field _overlayTextureHeight  integer
----@field _currentDamageText     string
----@field _currentCriticalText   string
----@field _currentDamageColorR   integer | nil
----@field _currentDamageColorG   integer | nil
----@field _currentDamageColorB   integer | nil
----@field _currentDamageColorA   integer | nil
----@field _currentOverlayWidth   integer | nil
----@field _currentOverlayHeight  integer | nil
----@field _currentBattlers       table<integer, Source.Battler.Battler>
----@field _currentParentRevision integer | nil
----@field _currentPlayerRevision integer | nil
----@field _currentOffsetX        number | nil
----@field _currentOffsetY        number | nil
----@field _overlayVisible        boolean
----@field _renderDirty           boolean
----@field _fillColor             sf.Color
+---@field EnemyDamageHintLevel                Enums.DamageHintLevel
+---@field requiredItemID                      string
+---@field textConfig                          string
+---@field damageTextOffset                    sf.Vector2f
+---@field _text                               Engine.PlainText?
+---@field _textRenderStates                   sf.RenderStates
+---@field _textDisplayScale                   number | nil
+---@field _overlayTexture                     sf.Texture?
+---@field _overlayTextureWidth                integer
+---@field _overlayTextureHeight               integer
+---@field _currentDamageText                  string
+---@field _currentCriticalText                string
+---@field _currentDamageColorR                integer | nil
+---@field _currentDamageColorG                integer | nil
+---@field _currentDamageColorB                integer | nil
+---@field _currentDamageColorA                integer | nil
+---@field _currentOverlayWidth                integer | nil
+---@field _currentOverlayHeight               integer | nil
+---@field _currentBattlers                    table<integer, Source.Battler.Battler>
+---@field _currentParentRevision              integer | nil
+---@field _currentPlayerRevision              integer | nil
+---@field _currentOffsetX                     number | nil
+---@field _currentOffsetY                     number | nil
+---@field _overlayVisible                     boolean
+---@field _renderDirty                        boolean
+---@field _fillColor                          sf.Color
+---@field private _TEXT_TEXTURE_PADDING       integer
+---@field private _LOW_DAMAGE_HP_DIVISOR      integer
+---@field private _MODERATE_DAMAGE_HP_DIVISOR integer
+---@field private _HIGH_DAMAGE_HP_NUMERATOR   integer
+---@field private _HIGH_DAMAGE_HP_DENOMINATOR integer
 local EnemyDamageText = {}
 
 ---@brief Construct an enemy damage text actor.

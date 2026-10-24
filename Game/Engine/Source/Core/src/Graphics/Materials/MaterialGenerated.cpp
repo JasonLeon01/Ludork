@@ -19,6 +19,8 @@
 namespace ludork::engine::materials {
 namespace {
 
+constexpr std::size_t PreviewProgramCacheCapacity = 256;
+
 constexpr std::string_view materialsPrefix = "Data/Materials/";
 constexpr std::string_view generatedPrefix =
     "/Game/Assets/Shaders/MaterialGenerated/";
@@ -109,7 +111,8 @@ std::vector<MaterialCompiler::Uniform> readUniforms(
 std::shared_ptr<const MaterialGeneratedProgramImpl> program(
     const MaterialResource& material, const MaterialResource* layer) {
     auto& cache = programCache(material.definition() != nullptr);
-    if (material.definition() && cache.entryCount() >= 256) {
+    if (material.definition() &&
+        cache.entryCount() >= PreviewProgramCacheCapacity) {
         cache.clear();
     }
     return cache.getOrLoad(programKey(material, layer), [&material, layer]() {
@@ -236,7 +239,8 @@ std::string MaterialGenerated::resourceDirectory(const std::string& path) {
     if (path.empty()) {
         return "Builtin/Default";
     }
-    if (!path.starts_with(materialsPrefix) || !path.ends_with(".json") ||
+    if (!path.starts_with(materialsPrefix) ||
+        !path.ends_with(ludork::generated::resources::DataExtension) ||
         path.find_first_of("\\:") != std::string::npos ||
         std::any_of(path.begin(), path.end(), [](unsigned char value) {
             return value < 32;
@@ -258,7 +262,10 @@ std::string MaterialGenerated::resourceDirectory(const std::string& path) {
         }
         begin = end + 1;
     }
-    const std::string stem = relative.substr(0, relative.size() - 5);
+    const std::string stem = relative.substr(
+        0, relative.size() -
+               std::string_view(ludork::generated::resources::DataExtension)
+                   .size());
     if (stem.empty() || stem.back() == '/') {
         throw std::invalid_argument("Material file name must not be empty: " +
                                     path);

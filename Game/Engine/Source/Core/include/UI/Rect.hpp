@@ -5,6 +5,7 @@
 #include <Curve.hpp>
 #include <EngineRuntimeApi.hpp>
 #include <Graphics/RectBase.hpp>
+#include <SFML/Graphics/Rect.hpp>
 #include <UI/SpriteBase.hpp>
 
 BIND_CLASS(callbacks = true)
@@ -40,6 +41,16 @@ public:
     static void clearOpacityCurveCache() noexcept;
 
 private:
+    static constexpr sf::IntRect SelectionBackground{{132, 68}, {24, 24}};
+    static constexpr sf::IntRect SelectionTopLeftCorner{{128, 64}, {4, 4}};
+    static constexpr sf::IntRect SelectionTopRightCorner{{156, 64}, {4, 4}};
+    static constexpr sf::IntRect SelectionBottomLeftCorner{{128, 92}, {4, 4}};
+    static constexpr sf::IntRect SelectionBottomRightCorner{{156, 92}, {4, 4}};
+    static constexpr sf::IntRect SelectionTopEdge{{132, 64}, {24, 4}};
+    static constexpr sf::IntRect SelectionBottomEdge{{132, 92}, {24, 4}};
+    static constexpr sf::IntRect SelectionLeftEdge{{128, 68}, {4, 24}};
+    static constexpr sf::IntRect SelectionRightEdge{{156, 68}, {4, 24}};
+
     static std::shared_ptr<sf::Texture> placeholderTexture();
     static std::shared_ptr<Curve> resolveOpacityCurve(const std::string& key);
 

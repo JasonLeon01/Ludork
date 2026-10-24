@@ -1,3 +1,4 @@
+#include <Graphics/Materials/MaterialSurfaceField.hpp>
 #include <Graphics/Materials/MaterialAnalysisProgram.hpp>
 
 #include <Runtime/Json.hpp>
@@ -36,7 +37,8 @@ std::size_t MaterialAnalysisProgram::append(Instruction instruction) {
     return instructions_.size() - 1;
 }
 
-void MaterialAnalysisProgram::setOutputs(std::array<std::size_t, 7> outputs) {
+void MaterialAnalysisProgram::setOutputs(
+    std::array<std::size_t, MaterialSurfaceFieldCount> outputs) {
     outputs_ = outputs;
     validate();
 }
@@ -221,10 +223,10 @@ void MaterialAnalysisProgram::validate() const {
                 "Invalid generated material analysis types");
         }
     }
-    constexpr std::array<int, 7> widths{3, 1, 3, 1, 1, 1, 2};
     for (std::size_t index = 0; index < outputs_.size(); ++index) {
         if (outputs_[index] >= instructions_.size() ||
-            instructions_[outputs_[index]].width != widths[index]) {
+            instructions_[outputs_[index]].width !=
+                MaterialSurfaceFieldWidths[index]) {
             throw std::invalid_argument(
                 "Invalid generated material analysis output");
         }
@@ -418,14 +420,27 @@ MaterialCompiler::Analysis MaterialAnalysisProgram::evaluate(
     for (const std::size_t output : outputs_) {
         result.timeDependent = result.timeDependent || values[output].time;
     }
-    result.occlusionTimeDependent = values[outputs_[1]].time ||
-                                    values[outputs_[4]].time ||
-                                    values[outputs_[6]].time;
+    result.occlusionTimeDependent =
+        values[outputs_[surfaceFieldIndex(MaterialSurfaceField::Alpha)]].time ||
+        values[outputs_[surfaceFieldIndex(MaterialSurfaceField::LightBlock)]]
+            .time ||
+        values[outputs_[surfaceFieldIndex(MaterialSurfaceField::VertexOffset)]]
+            .time;
     result.mayBlockLight =
-        !values[outputs_[4]].zero && !values[outputs_[1]].zero;
-    result.mayReflect = !values[outputs_[5]].zero &&
-                        !values[outputs_[3]].zero && !values[outputs_[1]].zero;
-    result.vertexDisplacement = !values[outputs_[6]].zero;
+        !values[outputs_[surfaceFieldIndex(MaterialSurfaceField::LightBlock)]]
+             .zero &&
+        !values[outputs_[surfaceFieldIndex(MaterialSurfaceField::Alpha)]].zero;
+    result.mayReflect =
+        !values[outputs_[surfaceFieldIndex(
+                    MaterialSurfaceField::ReflectionStrength)]]
+             .zero &&
+        !values[outputs_[surfaceFieldIndex(
+                    MaterialSurfaceField::LightingWeight)]]
+             .zero &&
+        !values[outputs_[surfaceFieldIndex(MaterialSurfaceField::Alpha)]].zero;
+    result.vertexDisplacement =
+        !values[outputs_[surfaceFieldIndex(MaterialSurfaceField::VertexOffset)]]
+             .zero;
     return result;
 }
 

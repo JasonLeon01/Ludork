@@ -1,3 +1,4 @@
+#include <LudorkGenerated/ResourceFileConstants.hpp>
 #include <Runtime/RuntimeProviderFacade.hpp>
 #include <ClassRuntimeProtocol.hpp>
 #include <Runtime/RuntimeReference.hpp>
@@ -116,7 +117,8 @@ void clearResolverState(lua_State* state) noexcept {
 
 std::optional<std::string> directModuleMetadataType(
     const std::string& moduleName) {
-    const std::string metadataModule = moduleName + "_meta";
+    const std::string metadataModule =
+        moduleName + ludork::generated::resources::MetadataModuleSuffix;
     if (!moduleExists(metadataModule)) {
         return std::nullopt;
     }
@@ -227,7 +229,7 @@ std::tuple<RuntimeValue, RuntimeValue> resolveClass(
         if (is<std::string>(rawRoot) && !as<std::string>(rawRoot).empty()) {
             filePath = as<std::string>(rawRoot) + "/" + filePath;
         }
-        filePath += ".json";
+        filePath += ludork::generated::resources::DataExtension;
         if (!dataExists(filePath)) {
             throw std::runtime_error("Class " + classPath + " not found");
         }

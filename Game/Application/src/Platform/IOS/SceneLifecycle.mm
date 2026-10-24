@@ -5,6 +5,9 @@
 #include <CoreFoundation/CoreFoundation.h>
 
 namespace ludork::application::detail {
+namespace {
+constexpr CFTimeInterval SceneActivationPollInterval = 0.01;
+}
 
 void waitForActiveIosScene() {
     while (true) {
@@ -19,7 +22,8 @@ void waitForActiveIosScene() {
                     return;
                 }
             }
-            CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.01, true);
+            CFRunLoopRunInMode(kCFRunLoopDefaultMode,
+                               SceneActivationPollInterval, true);
         }
     }
 }

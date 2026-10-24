@@ -1,3 +1,4 @@
+#include <Save/SavePreviewState.hpp>
 #include "SavePreviewServiceImpl.hpp"
 
 #include <Runtime/Data.hpp>
@@ -125,7 +126,7 @@ SavePreviewServiceImpl::Preview SavePreviewServiceImpl::read(
     try {
         const auto file = ludork::standard::pathFromUtf8(path);
         if (!std::filesystem::exists(file)) {
-            preview.state = "empty";
+            preview.state = SavePreviewState::EMPTY;
             return preview;
         }
         if (!std::filesystem::is_regular_file(file)) {
@@ -163,7 +164,7 @@ SavePreviewServiceImpl::Preview SavePreviewServiceImpl::read(
         preview.modificationTime =
             std::chrono::duration<double>(systemTime.time_since_epoch())
                 .count();
-        preview.state = "ready";
+        preview.state = SavePreviewState::READY;
         {
             std::lock_guard lock(mutex_);
             if (revisions_[key] == revision) {
@@ -172,19 +173,19 @@ SavePreviewServiceImpl::Preview SavePreviewServiceImpl::read(
                 });
                 cache_.push_front(
                     {key, modified, size, width, height, preview});
-                while (cache_.size() > 8) {
+                while (cache_.size() > CacheCapacity) {
                     cache_.pop_back();
                 }
             } else {
                 preview = {};
-                preview.state = "failed";
+                preview.state = SavePreviewState::FAILED;
                 preview.error =
                     "Save changed while reading; retrying on next refresh";
             }
         }
     } catch (const std::exception& error) {
         preview.image.reset();
-        preview.state = "failed";
+        preview.state = SavePreviewState::FAILED;
         preview.error = error.what();
     }
     return preview;

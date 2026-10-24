@@ -81,8 +81,8 @@ sf::Vector2u Window::scaledSize(const sf::Vector2i& size) {
 void Window::initUi() {
     windowEdgeSprite_ = std::make_unique<sf::Sprite>(windowEdge_.getTexture());
     const sf::Vector2u canvasSize = canvas_->getSize();
-    windowBackTexture_ = std::make_unique<sf::Texture>(
-        windowSkin_, false, sf::IntRect({0, 0}, {128, 128}));
+    windowBackTexture_ =
+        std::make_unique<sf::Texture>(windowSkin_, false, WindowBackground);
     windowBackTexture_->setRepeated(repeated_);
     windowBackSprite_ = std::make_unique<sf::Sprite>(*windowBackTexture_);
     if (repeated_) {
@@ -94,21 +94,23 @@ void Window::initUi() {
              static_cast<int>(canvasSize.y / engineState().getScale())}));
     } else {
         windowBackSprite_->setScale(
-            {static_cast<float>(canvasSize.x) / 128.0f,
-             static_cast<float>(canvasSize.y) / 128.0f});
+            {static_cast<float>(canvasSize.x) /
+                 static_cast<float>(WindowBackground.size.x),
+             static_cast<float>(canvasSize.y) /
+                 static_cast<float>(WindowBackground.size.y)});
     }
 
     cacheTextures(cachedCorners_, {
-                                      sf::IntRect({128, 0}, {16, 16}),
-                                      sf::IntRect({176, 0}, {16, 16}),
-                                      sf::IntRect({128, 48}, {16, 16}),
-                                      sf::IntRect({176, 48}, {16, 16}),
+                                      WindowTopLeftCorner,
+                                      WindowTopRightCorner,
+                                      WindowBottomLeftCorner,
+                                      WindowBottomRightCorner,
                                   });
     cacheTextures(cachedEdges_, {
-                                    sf::IntRect({144, 0}, {24, 16}),
-                                    sf::IntRect({144, 48}, {24, 16}),
-                                    sf::IntRect({128, 16}, {16, 24}),
-                                    sf::IntRect({176, 16}, {16, 24}),
+                                    WindowTopEdge,
+                                    WindowBottomEdge,
+                                    WindowLeftEdge,
+                                    WindowRightEdge,
                                 });
     for (sf::Texture& edge : cachedEdges_) {
         edge.setRepeated(true);

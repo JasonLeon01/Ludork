@@ -4,10 +4,19 @@
 ---@field _host          Engine.Canvas
 ---@field _ui            Internal.UIBase.UiView
 ---@field _target        string | nil
----@field _phase         "open" | "hidden" | "entering" | "exiting"
+---@field _phase         Internal.UIBase.WindowTransition.Phase
 ---@field _generation    integer
 ---@field _animationName string | nil
+---@field private _PHASE { OPEN: Internal.UIBase.WindowTransition.Phase, HIDDEN: Internal.UIBase.WindowTransition.Phase, ENTERING: Internal.UIBase.WindowTransition.Phase, EXITING: Internal.UIBase.WindowTransition.Phase }
 local WindowTransition = {}
+
+---@enum Internal.UIBase.WindowTransition.Phase
+WindowTransition._PHASE = {
+    OPEN = "open",
+    HIDDEN = "hidden",
+    ENTERING = "entering",
+    EXITING = "exiting"
+}
 
 ---@param profile? Enums.WindowTransitionProfile
 ---@return string fadeIn

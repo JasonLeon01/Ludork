@@ -3,7 +3,8 @@ add_subdirectory(src)
 set_target_properties(PreviewHostExecutable PROPERTIES OUTPUT_NAME PreviewHost)
 ludork_set_runtime_output(PreviewHostExecutable)
 target_compile_features(PreviewHostExecutable PRIVATE cxx_std_20)
-target_link_libraries(PreviewHostExecutable PRIVATE Ludork::PreviewHostRuntime Ludork::Video)
+target_link_libraries(PreviewHostExecutable PRIVATE
+    Ludork::PreviewHostRuntime Ludork::Video Ludork::RuntimeConstants)
 ludork_enable_release_symbols(PreviewHostExecutable)
 if(APPLE)
     set_target_properties(PreviewHostExecutable PROPERTIES

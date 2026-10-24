@@ -1,3 +1,4 @@
+#include <SceneTiming.hpp>
 #include "LogicImpl.hpp"
 
 #include <algorithm>
@@ -9,8 +10,9 @@ double durationMilliseconds(std::chrono::steady_clock::duration duration) {
 }
 
 float fixedStepForFrameRate(int frameRate) {
-    return 1.0f /
-           static_cast<float>(frameRate == 0 ? 60 : std::max(1, frameRate));
+    return 1.0f / static_cast<float>(frameRate == 0
+                                         ? scene_timing::DefaultLogicFrameRate
+                                         : std::max(1, frameRate));
 }
 
 float nonNegativeScaledDelta(std::chrono::steady_clock::time_point current,

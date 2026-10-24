@@ -1,3 +1,4 @@
+#include <LudorkGenerated/ResourceFileConstants.hpp>
 #include "ClassRuntimeHotReload.hpp"
 
 #include "ClassRuntimeInternal.hpp"
@@ -100,7 +101,9 @@ int pushHotReloadMixins(lua_State* state) {
             std::replace(modulePath.begin(), modulePath.end(), '/', '.');
             lua_glue::Table item = lua.create_table();
             item.raw_set("modulePath", "Mixins." + modulePath);
-            item.raw_set("scriptPath", "Scripts/Mixins/" + scriptPath);
+            item.raw_set("scriptPath",
+                         ludork::generated::resources::MixinScriptPathPrefix +
+                             scriptPath);
             item.raw_set("definition",
                          binding::writeLuaValue(lua, record->scriptTable));
             item.raw_set("class", binding::writeLuaValue(

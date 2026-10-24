@@ -1,3 +1,4 @@
+#include <Save/SavePreviewState.hpp>
 #include <Save/SavePreviewReader.hpp>
 
 #include "SavePreviewReaderImpl.hpp"
@@ -13,7 +14,7 @@ SavePreviewReader::~SavePreviewReader() {
 }
 
 void SavePreviewReader::requestScan(const std::vector<std::string>& paths) {
-    if (paths.size() > 10000) {
+    if (paths.size() > MaxScanSlots) {
         throw std::invalid_argument("Too many save slots");
     }
     const auto impl = impl_;
@@ -75,9 +76,11 @@ std::string SavePreviewReader::getScanError() const {
 void SavePreviewReader::requestPreview(const std::string& path,
                                        unsigned int width,
                                        unsigned int height) {
-    if (width == 0 || height == 0 || width > 1024 || height > 1024) {
+    if (width == 0 || height == 0 || width > MaxPreviewDimension ||
+        height > MaxPreviewDimension) {
         throw std::invalid_argument(
-            "Save preview dimensions must be between 1 and 1024");
+            "Save preview dimensions must be between 1 and " +
+            std::to_string(MaxPreviewDimension));
     }
     const auto impl = impl_;
     const auto sequence = ++impl->previewSequence;
@@ -85,7 +88,7 @@ void SavePreviewReader::requestPreview(const std::string& path,
         std::lock_guard lock(impl->mutex);
         impl->pendingPreview.reset();
     }
-    impl->preview.state = "loading";
+    impl->preview.state = SavePreviewState::LOADING;
     auto* service = &ludork::engine::savePreviewService();
     service->enqueue([impl, sequence, path, width, height, service] {
         if (impl->previewSequence != sequence) {

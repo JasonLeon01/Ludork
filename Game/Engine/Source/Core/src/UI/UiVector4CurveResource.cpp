@@ -1,3 +1,4 @@
+#include <LudorkGenerated/ResourceFileConstants.hpp>
 #include <UI/UiVector4CurveResource.hpp>
 
 #include <Runtime/ConcurrentResourceCache.hpp>
@@ -192,8 +193,9 @@ std::filesystem::path curvePath(const std::filesystem::path& projectRoot,
         }
     }
     if (relative.extension().empty()) {
-        relative += ".json";
-    } else if (relative.extension() != ".json") {
+        relative += ludork::generated::resources::DataExtension;
+    } else if (relative.extension() !=
+               ludork::generated::resources::DataExtension) {
         throw std::invalid_argument("UI curve asset key must reference JSON: " +
                                     assetKey);
     }
@@ -207,7 +209,8 @@ std::filesystem::path curvePath(const std::filesystem::path& projectRoot,
     }
     if (!std::filesystem::is_regular_file(candidate)) {
         std::filesystem::path encrypted = candidate;
-        encrypted.replace_extension(".ldc");
+        encrypted.replace_extension(
+            ludork::generated::resources::EncryptedDataExtension);
         encrypted = std::filesystem::weakly_canonical(encrypted);
         if (!withinRoot(root, encrypted)) {
             throw std::invalid_argument(

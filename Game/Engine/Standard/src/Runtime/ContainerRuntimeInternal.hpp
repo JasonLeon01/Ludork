@@ -67,6 +67,11 @@ struct ObjectPair {
 struct EqualityContext {
     struct ObjectPairHash {
         std::size_t operator()(const ObjectPair& value) const noexcept;
+
+    private:
+        static constexpr std::size_t HashCombineOffset = 0x9e3779b9U;
+        static constexpr unsigned int HashCombineLeftShift = 6U;
+        static constexpr unsigned int HashCombineRightShift = 2U;
     };
 
     std::unordered_set<ObjectPair, ObjectPairHash> visited;

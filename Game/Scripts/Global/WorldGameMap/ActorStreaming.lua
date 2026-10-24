@@ -1,6 +1,7 @@
 local GlobalCore = require("GlobalCore")
 local WorldMapConstants = require("Global.WorldMapConstants")
 local WorldGameMapActors = require("Global.WorldGameMap.Actors")
+local WorldActorState = require("Enums.WorldActorState")
 
 local WorldRegionState = GlobalCore.WorldRegionState
 
@@ -185,7 +186,7 @@ function WorldGameMapActorStreaming.SyncLooseRootActivation(self)
         if root:isDestroyed() then
             desired[root] = nil
         elseif desired[root] then
-            if self._worldRootStates[root] ~= "Active" then
+            if self._worldRootStates[root] ~= WorldActorState.ACTIVE then
                 activating[#activating + 1] = root
             end
         else
@@ -273,7 +274,7 @@ function WorldGameMapActorStreaming.EvictRegion(self, region)
         for _, root in ipairs(layerRoots) do
             allRoots[#allRoots + 1] = root
             self:_recordWorldRootPosition(root, region.path, root:getMapPosition())
-            if self._worldRootStates[root] == "Dormant" then
+            if self._worldRootStates[root] == WorldActorState.DORMANT then
                 region.wakeTags[root:getMapTag()] = self._worldRootSleepTimes[root] or region.sleepTime or perfCounter()
             end
         end
@@ -422,7 +423,7 @@ function WorldGameMapActorStreaming.TransferWorldActorRoot(
         touchedRegions = touchedRegions or {}
         touchedRegions[destinationRegion] = true
         if self._worldStreamingState:getRegionState(destinationRegion.index) == WorldRegionState.Active
-            and self._worldRootStates[root] == "Active" then
+            and self._worldRootStates[root] == WorldActorState.ACTIVE then
             assert(destinationRegion.payload).activeRoots[root] = true
         elseif self._worldStreamingState:getRegionState(destinationRegion.index) ~= WorldRegionState.Active then
             self:_sleepWorldRoot(root)

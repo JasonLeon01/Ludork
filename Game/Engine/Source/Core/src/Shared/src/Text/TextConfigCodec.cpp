@@ -1,3 +1,5 @@
+#include <LudorkGenerated/ResourceFileConstants.hpp>
+#include <CoreShared/TextConfigLimits.hpp>
 #include "TextConfigCodecImpl.hpp"
 #include <CoreShared/TextConfigCodec.hpp>
 #include <Runtime/AssetInputStream.hpp>
@@ -190,7 +192,8 @@ TextGradientConfig gradientValue(const RuntimeData& value,
         requireBool(required(map, "enabled", source), source + ".enabled");
     result.direction = stringValue(required(map, "direction", source),
                                    source + ".direction", false);
-    if (result.direction != "horizontal" && result.direction != "vertical") {
+    if (result.direction != TextGradientConfig::HORIZONTAL &&
+        result.direction != TextGradientConfig::VERTICAL) {
         configError(source + ".direction",
                     "Invalid gradient direction " + result.direction);
     }
@@ -215,7 +218,8 @@ std::shared_ptr<TextStyle> richStyle(const RuntimeData& value,
     std::shared_ptr<TextStyle> result = std::make_shared<TextStyle>();
     if (const auto characterSize = findValue(map, "characterSize")) {
         result->characterSize = static_cast<unsigned int>(
-            integerValue(*characterSize, source + ".characterSize", 1, 512));
+            integerValue(*characterSize, source + ".characterSize",
+                         MinimumCharacterSize, MaximumCharacterSize));
     } else if (requireAll) {
         configError(source, "Missing characterSize");
     }
@@ -245,14 +249,15 @@ std::shared_ptr<TextStyle> richStyle(const RuntimeData& value,
         configError(source, "Missing fillColor");
     }
     if (const auto spacing = findValue(map, "letterSpacing")) {
-        result->letterSpacing = static_cast<float>(
-            numberValue(*spacing, source + ".letterSpacing", 0.1, 10.0));
+        result->letterSpacing =
+            static_cast<float>(numberValue(*spacing, source + ".letterSpacing",
+                                           MinimumSpacing, MaximumSpacing));
     } else if (requireAll) {
         configError(source, "Missing letterSpacing");
     }
     if (const auto spacing = findValue(map, "lineSpacing")) {
-        result->lineSpacing = static_cast<float>(
-            numberValue(*spacing, source + ".lineSpacing", 0.1, 10.0));
+        result->lineSpacing = static_cast<float>(numberValue(
+            *spacing, source + ".lineSpacing", MinimumSpacing, MaximumSpacing));
     } else if (requireAll) {
         configError(source, "Missing lineSpacing");
     }
@@ -298,7 +303,7 @@ std::filesystem::path safeRelativePath(const std::string& value) {
 RuntimeData loadConfigData(const std::string& textConfigKey) {
     std::filesystem::path relative = safeRelativePath(textConfigKey);
     if (relative.extension().empty()) {
-        relative += ".json";
+        relative += ludork::generated::resources::DataExtension;
     }
     const std::filesystem::path path =
         std::filesystem::path(".") / "Data" / "TextConfigs" / relative;
@@ -365,21 +370,23 @@ std::shared_ptr<PlainTextConfig> buildPlain(const RuntimeData::Map& data,
                             sourceName + ".font");
     result->characterSize = static_cast<unsigned int>(
         integerValue(required(data, "characterSize", sourceName),
-                     sourceName + ".characterSize", 1, 512));
+                     sourceName + ".characterSize", MinimumCharacterSize,
+                     MaximumCharacterSize));
     result->style =
         plainStyle(required(data, "style", sourceName), sourceName + ".style");
     if (const auto angle = findValue(data, "slantAngle")) {
         result->slantAngle = static_cast<float>(
-            numberValue(*angle, sourceName + ".slantAngle", -45.0, 45.0));
+            numberValue(*angle, sourceName + ".slantAngle", MinimumSlantAngle,
+                        MaximumSlantAngle));
     }
     result->fillColor = colorValue(required(data, "fillColor", sourceName),
                                    sourceName + ".fillColor");
-    result->letterSpacing = static_cast<float>(
-        numberValue(required(data, "letterSpacing", sourceName),
-                    sourceName + ".letterSpacing", 0.1, 10.0));
-    result->lineSpacing = static_cast<float>(
-        numberValue(required(data, "lineSpacing", sourceName),
-                    sourceName + ".lineSpacing", 0.1, 10.0));
+    result->letterSpacing = static_cast<float>(numberValue(
+        required(data, "letterSpacing", sourceName),
+        sourceName + ".letterSpacing", MinimumSpacing, MaximumSpacing));
+    result->lineSpacing = static_cast<float>(numberValue(
+        required(data, "lineSpacing", sourceName), sourceName + ".lineSpacing",
+        MinimumSpacing, MaximumSpacing));
     result->lineAlignment = parseLineAlignment(
         stringValue(required(data, "lineAlignment", sourceName),
                     sourceName + ".lineAlignment", false),

@@ -1,3 +1,4 @@
+#include <Gameplay/GameplayModifier.hpp>
 #include "NumericImpl.hpp"
 #include <Runtime/RuntimeReflection.hpp>
 #include <cmath>
@@ -114,10 +115,10 @@ NumericValue multiplyNumbers(const NumericValue& left,
 
 NumericValue scaleMagnitude(const NumericValue& magnitude,
                             const std::string& operation, int stacks) {
-    if (operation == "Add") {
+    if (operation == GameplayModifier::OPERATION_ADD) {
         return multiplyNumbers(magnitude, {static_cast<double>(stacks), true});
     }
-    if (operation == "Multiply") {
+    if (operation == GameplayModifier::OPERATION_MULTIPLY) {
         const double value = std::pow(magnitude.value, stacks);
         if (!std::isfinite(value)) {
             throw std::invalid_argument(

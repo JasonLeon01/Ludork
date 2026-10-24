@@ -1,3 +1,4 @@
+#include <LudorkGenerated/ResourceFileConstants.hpp>
 #include "PathResolver.hpp"
 
 #include <DataFile.hpp>
@@ -120,7 +121,7 @@ std::filesystem::path assetPath(const std::string& assetKey) {
                 "UI asset directory was not found: Data/UI");
         }
         std::filesystem::path logicalPath = logicalRoot / relative;
-        logicalPath += ".json";
+        logicalPath += ludork::generated::resources::DataExtension;
         if (!ludork::standard::dataFileExists(logicalPath)) {
             throw std::out_of_range(
                 "UI asset key was not found or does not match filesystem "
@@ -143,8 +144,10 @@ std::filesystem::path assetPath(const std::string& assetKey) {
     for (std::size_t index = 0; index + 1 < parts.size(); ++index) {
         current = requireExactChild(current, parts[index], assetKey, true);
     }
-    const std::string jsonName = parts.back() + ".json";
-    const std::string encryptedName = parts.back() + ".ldc";
+    const std::string jsonName =
+        parts.back() + ludork::generated::resources::DataExtension;
+    const std::string encryptedName =
+        parts.back() + ludork::generated::resources::EncryptedDataExtension;
     std::optional<std::filesystem::path> dataPath =
         findExactChild(current, jsonName, false);
     if (!dataPath.has_value()) {
@@ -162,7 +165,7 @@ std::filesystem::path assetPath(const std::string& assetKey) {
                                     assetKey);
     }
     std::filesystem::path logicalPath = *dataPath;
-    logicalPath.replace_extension(".json");
+    logicalPath.replace_extension(ludork::generated::resources::DataExtension);
     return logicalPath;
 }
 

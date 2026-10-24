@@ -7,6 +7,8 @@ local LazyWindow = require("Internal.UIBase.LazyWindow")
 local GameSystem = require("Source.System")
 local Save = require("Source.Save")
 local WindowSaveSlot = require("Source.Windows.WindowSaveLoad.Slot")
+local SaveLoadMode = require("Enums.SaveLoadMode")
+local SaveLoadCloseReason = require("Enums.SaveLoadCloseReason")
 
 local Direction = Engine.FocusDirection
 local FocusGroup = GlobalCore.FocusGroup
@@ -20,42 +22,56 @@ local MAP_INPUT_BLOCK_FRAMES = 2
 local WINDOW_CLOSE_INPUT_BLOCK_FRAMES = 1
 
 ---@class Source.Scenes.SceneMap.Windows
-local Windows = {}
+local Windows = {
+    _FOCUS_GROUP_NAME = {
+        MENU = "menu",
+        ITEM = "item",
+        EQUIP_SLOT = "equip-slot",
+        EQUIP_SELECT = "equip-select",
+        SHOP_ITEM = "shop-item",
+        FLOOR_COMMAND = "floor-command",
+        FLOOR_PREVIEW = "floor-preview",
+        SAVE_SLOT = "save-slot",
+        PLAYER_NAME = "player-name"
+    },
+    _SAVE_PREVIEW_MAX_WIDTH = 224,
+    _SAVE_PREVIEW_MAX_HEIGHT = 168
+}
 
 ---@param manager GlobalCore.UIManager
 ---@return table<string, GlobalCore.FocusGroup>
 local function createFocusGroups(manager)
     local groups = {}
     for _, name in ipairs({
-        "menu",
-        "item",
-        "equip-slot",
-        "equip-select",
-        "shop-item",
-        "floor-command",
-        "floor-preview",
-        "save-slot",
-        "player-name"
+        Windows._FOCUS_GROUP_NAME.MENU,
+        Windows._FOCUS_GROUP_NAME.ITEM,
+        Windows._FOCUS_GROUP_NAME.EQUIP_SLOT,
+        Windows._FOCUS_GROUP_NAME.EQUIP_SELECT,
+        Windows._FOCUS_GROUP_NAME.SHOP_ITEM,
+        Windows._FOCUS_GROUP_NAME.FLOOR_COMMAND,
+        Windows._FOCUS_GROUP_NAME.FLOOR_PREVIEW,
+        Windows._FOCUS_GROUP_NAME.SAVE_SLOT,
+        Windows._FOCUS_GROUP_NAME.PLAYER_NAME
     }) do
         local group = FocusGroup.new(name)
         groups[name] = group
         manager:registerFocusGroup(group)
     end
     groups.item:setNeighbor(Direction.LEFT, groups.menu)
-    groups["equip-slot"]:setNeighbor(Direction.LEFT, groups.menu)
-    groups["equip-slot"]:setNeighbor(
-        Direction.RIGHT, FocusNeighbor.new(groups["equip-select"], FocusTransition.EXPLICIT)
+    groups[Windows._FOCUS_GROUP_NAME.EQUIP_SLOT]:setNeighbor(Direction.LEFT, groups.menu)
+    groups[Windows._FOCUS_GROUP_NAME.EQUIP_SLOT]:setNeighbor(
+        Direction.RIGHT, FocusNeighbor.new(groups[Windows._FOCUS_GROUP_NAME.EQUIP_SELECT], FocusTransition.EXPLICIT)
     )
-    groups["equip-select"]:setNeighbor(
-        Direction.LEFT, FocusNeighbor.new(groups["equip-slot"], FocusTransition.EXPLICIT)
+    groups[Windows._FOCUS_GROUP_NAME.EQUIP_SELECT]:setNeighbor(
+        Direction.LEFT, FocusNeighbor.new(groups[Windows._FOCUS_GROUP_NAME.EQUIP_SLOT], FocusTransition.EXPLICIT)
     )
-    groups["floor-command"]:setNeighbor(
-        Direction.RIGHT, FocusNeighbor.new(groups["floor-preview"], FocusTransition.EXPLICIT)
+    groups[Windows._FOCUS_GROUP_NAME.FLOOR_COMMAND]:setNeighbor(
+        Direction.RIGHT, FocusNeighbor.new(groups[Windows._FOCUS_GROUP_NAME.FLOOR_PREVIEW], FocusTransition.EXPLICIT)
     )
-    groups["floor-preview"]:setNeighbor(
-        Direction.LEFT, FocusNeighbor.new(groups["floor-command"], FocusTransition.EXPLICIT)
+    groups[Windows._FOCUS_GROUP_NAME.FLOOR_PREVIEW]:setNeighbor(
+        Direction.LEFT, FocusNeighbor.new(groups[Windows._FOCUS_GROUP_NAME.FLOOR_COMMAND], FocusTransition.EXPLICIT)
     )
-    groups["save-slot"]:setNeighbor(Direction.LEFT, groups.menu)
+    groups[Windows._FOCUS_GROUP_NAME.SAVE_SLOT]:setNeighbor(Direction.LEFT, groups.menu)
     return groups
 end
 
@@ -115,7 +131,9 @@ local function captureScreenSnapshot()
         GameSystem.SetSavedScreenImage(nil)
         return
     end
-    local scale = math.min(224 / sourceSize.x, 168 / sourceSize.y, 1)
+    local scale = math.min(
+        Windows._SAVE_PREVIEW_MAX_WIDTH / sourceSize.x, Windows._SAVE_PREVIEW_MAX_HEIGHT / sourceSize.y, 1
+    )
     local previewSize = sf.Vector2u.new(
         math.max(1, math.floor(sourceSize.x * scale)), math.max(1, math.floor(sourceSize.y * scale))
     )
@@ -152,9 +170,9 @@ function Windows:init(scene)
             self:onPlayerNameClose()
         end)
         for _, control in ipairs(window:getFocusControls()) do
-            groups["player-name"]:addItem(control)
+            groups[Windows._FOCUS_GROUP_NAME.PLAYER_NAME]:addItem(control)
         end
-        groups["player-name"].activeOwner = window
+        groups[Windows._FOCUS_GROUP_NAME.PLAYER_NAME].activeOwner = window
         window:mount(manager)
         return window
     end)
@@ -182,8 +200,8 @@ function Windows:init(scene)
             self:onEquipClose()
         end)
         local slot, selection = window:getFocusControls()
-        bindFocusControl(groups["equip-slot"], slot)
-        bindFocusControl(groups["equip-select"], selection)
+        bindFocusControl(groups[Windows._FOCUS_GROUP_NAME.EQUIP_SLOT], slot)
+        bindFocusControl(groups[Windows._FOCUS_GROUP_NAME.EQUIP_SELECT], selection)
         window:mount(manager)
         return window
     end)
@@ -193,7 +211,7 @@ function Windows:init(scene)
         local window = WindowShop.new(self._scene:getPlayer(), function ()
             self:onShopClose()
         end)
-        bindFocusControl(groups["shop-item"], window:getItemWindow())
+        bindFocusControl(groups[Windows._FOCUS_GROUP_NAME.SHOP_ITEM], window:getItemWindow())
         window:mount(manager)
         return window
     end)
@@ -253,8 +271,8 @@ function Windows:init(scene)
                 self._scene:clearFloorMapPreviewCache()
             end
         )
-        bindFocusControl(groups["floor-command"], window:getCommandWindow())
-        bindFocusControl(groups["floor-preview"], window:getPreviewWindow())
+        bindFocusControl(groups[Windows._FOCUS_GROUP_NAME.FLOOR_COMMAND], window:getCommandWindow())
+        bindFocusControl(groups[Windows._FOCUS_GROUP_NAME.FLOOR_PREVIEW], window:getPreviewWindow())
         window:mount(manager)
         return window
     end)
@@ -275,7 +293,7 @@ function Windows:init(scene)
             end
         )
         window:setZOrder(MENU_Z_ORDER)
-        bindFocusControl(groups["save-slot"], window:getSlotWindow())
+        bindFocusControl(groups[Windows._FOCUS_GROUP_NAME.SAVE_SLOT], window:getSlotWindow())
         window:mount(manager)
         Logging.info("Save window construction: %.2f ms", constructionClock:getElapsedTime():asMicroseconds() / 1000)
         return window
@@ -372,11 +390,11 @@ function Windows:openSaveLoadUI(mode)
 end
 
 function Windows:openSaveUI()
-    return self:openSaveLoadUI("save")
+    return self:openSaveLoadUI(SaveLoadMode.SAVE)
 end
 
 function Windows:openLoadUI()
-    return self:openSaveLoadUI("load")
+    return self:openSaveLoadUI(SaveLoadMode.LOAD)
 end
 
 function Windows:openItemUI()
@@ -497,7 +515,7 @@ function Windows:showFloorTeleporter()
 end
 
 function Windows:openPlayerName()
-    if self._playerNameSession ~= nil and self._playerNameSession.operation:getStatus() == "pending" then
+    if self._playerNameSession ~= nil and self._playerNameSession.operation:getStatus() == Engine.AsyncOperation.PENDING then
         return self._playerNameSession.operation
     end
     local player = self._scene:getPlayer()
@@ -626,7 +644,7 @@ end
 function Windows:onSaveLoadClose(reason)
     local menu = self._windowMenu:peek()
     if menu ~= nil and menu:getVisible() then
-        if reason == "cancel" then
+        if reason == SaveLoadCloseReason.CANCEL then
             menu:onSaveLoadClose()
             return
         end

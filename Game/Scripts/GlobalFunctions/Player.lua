@@ -1,3 +1,11 @@
+local GlobalCore
+local function loadGlobalCore()
+    if GlobalCore == nil then
+        GlobalCore = require("GlobalCore")
+    end
+    return GlobalCore
+end
+
 local Engine
 local function loadEngine()
     if Engine == nil then
@@ -172,7 +180,8 @@ function Player.HealPlayer(amount)
     amount = amount == nil and 1 or amount
     local player = Player.GetPlayer()
     if player ~= nil then
-        loadEffects().ApplyInstantModifier(player, "Blueprint.Heal", "HP", "Add", amount)
+        loadEffects()
+            .ApplyInstantModifier(player, "Blueprint.Heal", "HP", loadGlobalCore().GameplayModifier.OPERATION_ADD, amount)
     end
 end
 
@@ -180,7 +189,8 @@ function Player.DamagePlayer(amount)
     amount = amount == nil and 1 or amount
     local player = Player.GetPlayer()
     if player ~= nil then
-        loadEffects().ApplyInstantModifier(player, "Blueprint.Damage", "HP", "Add", -amount)
+        loadEffects()
+            .ApplyInstantModifier(player, "Blueprint.Damage", "HP", loadGlobalCore().GameplayModifier.OPERATION_ADD, -amount)
     end
 end
 
@@ -188,7 +198,8 @@ function Player.AddHP(amount)
     amount = amount == nil and 1 or amount
     local player = Player.GetPlayer()
     if player ~= nil then
-        loadEffects().ApplyInstantModifier(player, "Blueprint.AddHP", "HP", "Add", amount)
+        loadEffects()
+            .ApplyInstantModifier(player, "Blueprint.AddHP", "HP", loadGlobalCore().GameplayModifier.OPERATION_ADD, amount)
     end
 end
 
@@ -196,7 +207,8 @@ function Player.AddGold(amount)
     amount = amount == nil and 1 or amount
     local player = Player.GetPlayer()
     if player ~= nil then
-        loadEffects().ApplyInstantModifier(player, "Blueprint.AddGold", "GOLD", "Add", amount)
+        loadEffects()
+            .ApplyInstantModifier(player, "Blueprint.AddGold", "GOLD", loadGlobalCore().GameplayModifier.OPERATION_ADD, amount)
     end
 end
 
@@ -204,7 +216,8 @@ function Player.AddATK(amount)
     amount = amount == nil and 1 or amount
     local player = Player.GetPlayer()
     if player ~= nil then
-        loadEffects().ApplyInstantModifier(player, "Blueprint.AddATK", "ATK", "Add", amount)
+        loadEffects()
+            .ApplyInstantModifier(player, "Blueprint.AddATK", "ATK", loadGlobalCore().GameplayModifier.OPERATION_ADD, amount)
     end
 end
 
@@ -212,7 +225,8 @@ function Player.AddDEF(amount)
     amount = amount == nil and 1 or amount
     local player = Player.GetPlayer()
     if player ~= nil then
-        loadEffects().ApplyInstantModifier(player, "Blueprint.AddDEF", "DEF", "Add", amount)
+        loadEffects()
+            .ApplyInstantModifier(player, "Blueprint.AddDEF", "DEF", loadGlobalCore().GameplayModifier.OPERATION_ADD, amount)
     end
 end
 
@@ -220,7 +234,8 @@ function Player.AddEXP(amount)
     amount = amount == nil and 1 or amount
     local player = Player.GetPlayer()
     if player ~= nil then
-        loadEffects().ApplyInstantModifier(player, "Blueprint.AddEXP", "EXP", "Add", amount)
+        loadEffects()
+            .ApplyInstantModifier(player, "Blueprint.AddEXP", "EXP", loadGlobalCore().GameplayModifier.OPERATION_ADD, amount)
     end
 end
 

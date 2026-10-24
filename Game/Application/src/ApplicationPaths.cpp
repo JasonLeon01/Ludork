@@ -135,10 +135,13 @@ std::filesystem::path resolveLuaScriptPath(const std::filesystem::path& path) {
         return path;
     }
     std::filesystem::path alternate = path;
-    if (path.extension() == ".lua") {
-        alternate.replace_extension(".luac");
-    } else if (path.extension() == ".luac") {
-        alternate.replace_extension(".lua");
+    if (path.extension() == ludork::generated::resources::LuaSourceExtension) {
+        alternate.replace_extension(
+            ludork::generated::resources::LuaCompiledExtension);
+    } else if (path.extension() ==
+               ludork::generated::resources::LuaCompiledExtension) {
+        alternate.replace_extension(
+            ludork::generated::resources::LuaSourceExtension);
     } else {
         return path;
     }

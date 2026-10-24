@@ -2,6 +2,7 @@ local Engine = require("Engine")
 local ConditionalActor = require("Source.MapActors.ConditionalActor")
 local Data = require("Source.Data")
 local Pickup = require("Source.Utils.Pickup")
+local GeneralDataKey = require("Enums.GeneralDataKey")
 
 local Actor = Engine.Actor
 
@@ -14,7 +15,7 @@ Item.getSE = ""
 function Item:init(texture, rect, tag)
     ---@cast self Source.MapActors.Item
     Actor.init(self, texture, rect, tag)
-    self.attributes = Data.CreateGeneralAttributeSet("Item", self.ID)
+    self.attributes = Data.CreateGeneralAttributeSet(GeneralDataKey.Item, self.ID)
 end
 
 function Item:onCollision(other)

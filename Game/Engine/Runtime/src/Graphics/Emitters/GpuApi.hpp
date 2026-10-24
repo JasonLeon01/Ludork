@@ -1,6 +1,7 @@
 #pragma once
 
 #include <SFML/Graphics/RenderTarget.hpp>
+#include "GpuParticleLayout.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -116,6 +117,8 @@ public:
               bool feedback) const;
 
 private:
+    static constexpr std::size_t ShaderLogCapacity = 8192;
+
     friend class GpuResourcesImpl;
     friend class GpuStateGuard;
     std::vector<E> vertexArrays_;
@@ -134,11 +137,11 @@ private:
     };
     GpuApi& api_;
     int program_, buffer_, feedback_, feedbackBase_, activeTexture_,
-        textures_[4];
+        textures_[gpu_particle_layout::TextureUnitCount];
     int viewport_[4], blend_[6];
     bool blending_, discard_;
     int vertexArray_ = 0;
-    Attribute attributes_[7];
+    Attribute attributes_[gpu_particle_layout::VertexAttributeCount];
 };
 
 }  // namespace ludork::runtime::graphics

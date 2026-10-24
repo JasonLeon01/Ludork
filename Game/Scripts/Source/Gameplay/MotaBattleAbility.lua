@@ -132,13 +132,13 @@ function MotaBattleAbility:calculate(abilitySystem, eventData)
     local playerAbilitySystem = player:getAbilitySystemComponent()
     if damage > 0 then
         resultData.damageEffectSpec = Effects.CreateInstantModifierSpec(
-            "Combat.CounterDamage", "HP", "Add", -damage, eventData
+            "Combat.CounterDamage", "HP", GlobalCore.GameplayModifier.OPERATION_ADD, -damage, eventData
         )
         playerAbilitySystem:validateGameplayEffectSpec(resultData.damageEffectSpec)
     end
     if code ~= BattleResultCode.WIN then
         resultData.gameOverEffectSpec = Effects.CreateInstantModifierSpec(
-            "Combat.GameOver", "HP", "Override", 0, eventData
+            "Combat.GameOver", "HP", GlobalCore.GameplayModifier.OPERATION_OVERRIDE, 0, eventData
         )
         playerAbilitySystem:validateGameplayEffectSpec(resultData.gameOverEffectSpec)
     end

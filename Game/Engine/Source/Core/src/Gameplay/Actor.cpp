@@ -483,7 +483,7 @@ void Actor::trackAsyncOperation(
         return;
     }
     std::erase_if(impl_.get().asyncOperations, [](const auto& existing) {
-        return existing->getStatus() != "pending";
+        return existing->getStatus() != AsyncOperation::PENDING;
     });
     impl_.get().asyncOperations.push_back(operation);
 }

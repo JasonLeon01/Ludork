@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <string>
 
 #if LUDORK_HAS_FFMPEG
@@ -42,6 +43,8 @@ public:
     void play();
 
 private:
+    static constexpr std::chrono::milliseconds PausedVideoPollInterval{20};
+
     void update(sf::RenderWindow& window, const std::optional<sf::Sound>& sound,
                 float elapsed);
     std::optional<int> getFrame(sf::RenderWindow& window);

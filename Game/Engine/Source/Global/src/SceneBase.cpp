@@ -209,7 +209,7 @@ void SceneBase::systemMain() {
                 if (lifecycleImpl_->isSuspended()) {
                     TimeManager::update();
                     lock.unlock();
-                    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+                    std::this_thread::sleep_for(PausedPollInterval);
                     continue;
                 }
                 if (resumed) {
@@ -667,7 +667,7 @@ void SceneBase::logicLoop() {
         std::unique_lock<std::recursive_mutex> lock(logicDataMutex_);
         if (lifecycleImpl_->isSuspended()) {
             lock.unlock();
-            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            std::this_thread::sleep_for(PausedPollInterval);
             lastTime = std::chrono::steady_clock::now();
             continue;
         }

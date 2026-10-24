@@ -23,6 +23,7 @@
 ---@field _wasMovingOnLastFixedTick boolean
 ---@field _movementSpecialPath      sf.Vector2i[]
 ---@field new                       fun(texture?: sf.Texture, tag?: string): Source.MapActors.Player.Player
+---@field MAX_NAME_GRAPHEMES        integer
 local Player = {}
 
 ---@return boolean
@@ -40,7 +41,7 @@ function Player:setName(name) end
 ---@brief Validate a proposed name and return its Unicode-trimmed form and any failure reason.
 ---@param name string
 ---@return string
----@return "empty" | "tooLong" | nil
+---@return Enums.PlayerNameValidationError | nil
 function Player.ValidateName(name) end
 
 ---@brief Get an independent inventory count snapshot.

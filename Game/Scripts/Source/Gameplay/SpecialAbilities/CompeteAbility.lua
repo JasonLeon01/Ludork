@@ -1,6 +1,7 @@
 local GlobalCore = require("GlobalCore")
 local Special = require("Enums.GeneralData.Special")
 local GameplayConstants = require("Source.Configs.GameplayConstants")
+local CombatResolutionCode = require("Enums.CombatResolutionCode")
 
 local GameplayAbility = GlobalCore.GameplayAbility
 local GameplayAbilityResult = GlobalCore.GameplayAbilityResult
@@ -20,7 +21,7 @@ function CompeteAbility:activate(_abilitySystem, eventData)
     if opponentAbilitySystem ~= nil then
         eventData.payload.value = math.max(eventData.payload.value, opponentAbilitySystem:getNumericAttribute("ATK"))
     end
-    return assert(GameplayAbilityResult.Success("AttackResolved", eventData.payload))
+    return assert(GameplayAbilityResult.Success(CombatResolutionCode.ATTACK, eventData.payload))
 end
 
 return class(CompeteAbility, GameplayAbility)

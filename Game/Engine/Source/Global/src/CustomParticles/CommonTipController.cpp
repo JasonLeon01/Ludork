@@ -1,3 +1,4 @@
+#include <DisplayScaleLimits.hpp>
 #include <Graphics.hpp>
 #include <StringUtils.hpp>
 #include <EngineDataProviders.hpp>
@@ -12,6 +13,7 @@
 #include <stdexcept>
 
 namespace {
+
 constexpr float StartY = 64.0f;
 constexpr float Gap = 16.0f;
 constexpr float FadeIn = 0.2f;
@@ -37,7 +39,9 @@ void CommonTipController::shutdown() noexcept {
 CommonTipController::CommonTipController(
     std::shared_ptr<ParticleSystem> particleSystem)
     : particleSystem_(std::move(particleSystem)),
-      displayScale_(std::max(0.000001f, engineState().getScale())) {}
+      displayScale_(std::max(
+          static_cast<float>(DisplayScaleLimits::MINIMUM_INVERTIBLE_SCALE),
+          engineState().getScale())) {}
 
 void CommonTipController::addTip(const std::string& text) {
     syncDisplayScale();
@@ -73,10 +77,10 @@ void CommonTipController::onTick(float deltaTime) {
     }
     bool shiftFinished = true;
     const float shiftRatio =
-        std::min(1.0f, deltaTime / std::max(0.001f, FadeOut));
+        std::min(1.0f, deltaTime / std::max(MinimumFadeDuration, FadeOut));
     for (TipItem& item : tips_) {
         const float difference = item.targetScreenY - item.screenY;
-        if (std::abs(difference) > 0.01f) {
+        if (std::abs(difference) > TargetPositionTolerance) {
             item.screenY += difference * shiftRatio;
             shiftFinished = false;
         } else {
@@ -134,7 +138,9 @@ void CommonTipController::onTick(float deltaTime) {
 }
 
 void CommonTipController::syncDisplayScale() {
-    const float displayScale = std::max(0.000001f, engineState().getScale());
+    const float displayScale = std::max(
+        static_cast<float>(DisplayScaleLimits::MINIMUM_INVERTIBLE_SCALE),
+        engineState().getScale());
     if (displayScale == displayScale_) {
         return;
     }
@@ -184,7 +190,8 @@ float CommonTipController::evaluateFadeInAlpha(float elapsed) const {
     if (curve != nullptr && !curve->isEmpty()) {
         return std::clamp(curve->evaluate(elapsed), 0.0f, 255.0f);
     }
-    return 255.0f * std::min(1.0f, elapsed / std::max(0.001f, FadeIn));
+    return 255.0f *
+           std::min(1.0f, elapsed / std::max(MinimumFadeDuration, FadeIn));
 }
 
 float CommonTipController::evaluateFadeOutAlpha(float elapsed) const {
@@ -193,7 +200,8 @@ float CommonTipController::evaluateFadeOutAlpha(float elapsed) const {
         return std::clamp(curve->evaluate(elapsed), 0.0f, 255.0f);
     }
     return 255.0f *
-           (1.0f - std::min(1.0f, elapsed / std::max(0.001f, FadeOut)));
+           (1.0f -
+            std::min(1.0f, elapsed / std::max(MinimumFadeDuration, FadeOut)));
 }
 
 float CommonTipController::evaluateFadeOutRise(float elapsed) const {
@@ -201,7 +209,8 @@ float CommonTipController::evaluateFadeOutRise(float elapsed) const {
     if (curve != nullptr && !curve->isEmpty()) {
         return std::max(0.0f, curve->evaluate(elapsed));
     }
-    return Rise * std::min(1.0f, elapsed / std::max(0.001f, FadeOut));
+    return Rise *
+           std::min(1.0f, elapsed / std::max(MinimumFadeDuration, FadeOut));
 }
 
 float CommonTipController::getFadeInDuration() const {

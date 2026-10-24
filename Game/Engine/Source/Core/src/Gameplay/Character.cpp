@@ -6,6 +6,9 @@
 #include <stdexcept>
 #include <utility>
 
+const unsigned int Character::SPRITE_FRAME_COLUMNS = 4;
+const unsigned int Character::SPRITE_DIRECTION_ROWS = 4;
+
 namespace {
 
 RuntimeValue optionalStringValue(const std::optional<std::string>& value) {
@@ -107,9 +110,11 @@ void Character::_animate(float deltaTime) {
 
 void Character::_applyDirection(float x, float y) {
     if (std::abs(x) > std::abs(y)) {
-        direction = x > 0.0f ? 2 : 1;
+        direction =
+            static_cast<int>(x > 0.0f ? Direction::RIGHT : Direction::LEFT);
     } else {
-        direction = y > 0.0f ? 0 : 3;
+        direction =
+            static_cast<int>(y > 0.0f ? Direction::DOWN : Direction::UP);
     }
 }
 
@@ -118,5 +123,6 @@ sf::Vector2i Character::rectSize(const std::shared_ptr<sf::Texture>& texture) {
         throw std::invalid_argument("Character requires a texture");
     }
     const sf::Vector2u size = texture->getSize();
-    return {static_cast<int>(size.x / 4), static_cast<int>(size.y / 4)};
+    return {static_cast<int>(size.x / SPRITE_FRAME_COLUMNS),
+            static_cast<int>(size.y / SPRITE_DIRECTION_ROWS)};
 }

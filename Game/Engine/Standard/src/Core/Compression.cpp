@@ -7,6 +7,9 @@
 #include <stdexcept>
 
 namespace ludork::standard {
+namespace {
+constexpr std::size_t DecompressionChunkSize = 32 * 1024;
+}
 
 std::vector<std::uint8_t> compressZlib(std::span<const std::uint8_t> bytes,
                                        int level) {
@@ -36,7 +39,7 @@ std::vector<std::uint8_t> decompressZlib(std::span<const std::uint8_t> bytes,
         throw std::runtime_error("Failed to initialize zlib decompression");
     }
     std::vector<std::uint8_t> result;
-    std::array<std::uint8_t, 32768> buffer{};
+    std::array<std::uint8_t, DecompressionChunkSize> buffer{};
     int status = Z_OK;
     while (status == Z_OK) {
         stream.next_out = buffer.data();

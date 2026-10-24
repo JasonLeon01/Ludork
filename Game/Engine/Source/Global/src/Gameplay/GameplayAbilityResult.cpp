@@ -4,6 +4,15 @@
 #include <stdexcept>
 #include <utility>
 
+const std::string GameplayAbilityResult::CODE_SUCCESS = "Success";
+const std::string GameplayAbilityResult::CODE_ABILITY_NOT_FOUND =
+    "AbilityNotFound";
+const std::string GameplayAbilityResult::CODE_ABILITY_NOT_ACTIVATED =
+    "AbilityNotActivated";
+const std::string GameplayAbilityResult::CODE_MISSING_REQUIRED_TAG =
+    "MissingRequiredTag";
+const std::string GameplayAbilityResult::CODE_BLOCKED_BY_TAG = "BlockedByTag";
+
 namespace {
 
 bool resultCodeTruthy(const GameplayAbilityResult::Code& code) {
@@ -29,7 +38,9 @@ GameplayAbilityResult::GameplayAbilityResult(bool succeeded,
 std::shared_ptr<GameplayAbilityResult> GameplayAbilityResult::Success(
     std::optional<Code> code, RuntimeIdentityPtr data) {
     return std::make_shared<GameplayAbilityResult>(
-        true, code.value_or(Code(std::string("Success"))), std::move(data));
+        true,
+        code.value_or(Code(std::string(GameplayAbilityResult::CODE_SUCCESS))),
+        std::move(data));
 }
 
 std::shared_ptr<GameplayAbilityResult> GameplayAbilityResult::Failure(

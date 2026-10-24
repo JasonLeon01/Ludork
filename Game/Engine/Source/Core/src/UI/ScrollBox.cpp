@@ -1,3 +1,4 @@
+#include <DisplayScaleLimits.hpp>
 #include "Containers/ContainerSupport.hpp"
 #include <UI/ScrollBox.hpp>
 
@@ -15,12 +16,6 @@
 #include <stdexcept>
 
 namespace {
-
-constexpr sf::IntRect UpIndicatorRect{{156, 16}, {8, 12}};
-constexpr sf::IntRect DownIndicatorRect{{156, 36}, {8, 12}};
-constexpr sf::IntRect LeftIndicatorRect{{144, 28}, {12, 8}};
-constexpr sf::IntRect RightIndicatorRect{{164, 28}, {12, 8}};
-constexpr sf::Vector2u MinimumWindowSkinSize{176, 48};
 
 float clampAxis(float value, float maximum) {
     return std::clamp(std::isfinite(value) ? value : 0.0f, 0.0f, maximum);
@@ -90,7 +85,9 @@ void ScrollBox::scrollDescendantIntoView(
     const sf::FloatRect viewport = getAbsoluteBounds();
     const sf::FloatRect bounds = descendant->getAbsoluteBounds();
     sf::Vector2f offset = scrollOffset_;
-    const float scale = std::max(engineState().getScale(), 0.000001f);
+    const float scale = std::max(
+        engineState().getScale(),
+        static_cast<float>(DisplayScaleLimits::MINIMUM_INVERTIBLE_SCALE));
     if (bounds.position.x < viewport.position.x) {
         offset.x -= (viewport.position.x - bounds.position.x) / scale;
     } else if (bounds.position.x + bounds.size.x >
@@ -159,7 +156,9 @@ void ScrollBox::onMouseWheelScrolled(const UiInputEventArguments& arguments) {
     const float distance =
         input.isMouseWheelPrecise()
             ? static_cast<float>(delta) /
-                  std::max(engineState().getScale(), 0.000001f)
+                  std::max(engineState().getScale(),
+                           static_cast<float>(
+                               DisplayScaleLimits::MINIMUM_INVERTIBLE_SCALE))
             : static_cast<float>(delta) * WheelStep;
     if (horizontal) {
         offset.x -= distance;
@@ -347,7 +346,9 @@ void ScrollBox::updateTouchArbitration() {
 }
 
 void ScrollBox::applyTouchScroll(const sf::Vector2f& position) {
-    const float scale = std::max(engineState().getScale(), 0.000001f);
+    const float scale = std::max(
+        engineState().getScale(),
+        static_cast<float>(DisplayScaleLimits::MINIMUM_INVERTIBLE_SCALE));
     const sf::Vector2f delta = (position - touchStartPosition_) / scale;
     const sf::Vector2f maximum = getMaxScrollOffset();
     sf::Vector2f offset = touchStartOffset_;
@@ -381,13 +382,14 @@ std::shared_ptr<ControlBase> ScrollBox::findCapturedDescendant(
 
 void ScrollBox::rebuildIndicators(const sf::Image& windowSkin) {
     const sf::Vector2u size = windowSkin.getSize();
-    if (size.x < MinimumWindowSkinSize.x || size.y < MinimumWindowSkinSize.y) {
+    if (size.x < MinimumIndicatorSkinSize.x ||
+        size.y < MinimumIndicatorSkinSize.y) {
         throw std::invalid_argument(
             "ScrollBox window skin must contain the 144,16,32,32 indicator "
             "atlas");
     }
-    const std::array rectangles = {UpIndicatorRect, DownIndicatorRect,
-                                   LeftIndicatorRect, RightIndicatorRect};
+    const std::array rectangles = {UpIndicator, DownIndicator, LeftIndicator,
+                                   RightIndicator};
     for (std::size_t index = 0; index < rectangles.size(); ++index) {
         indicatorTextures_[index] =
             std::make_unique<sf::Texture>(windowSkin, false, rectangles[index]);

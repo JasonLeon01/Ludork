@@ -6,6 +6,8 @@ namespace ludork::engine::actor_impl {
 
 namespace {
 
+constexpr float OccupiedCellBoundaryInset = 1e-9f;
+
 bool boundsIntersectCell(const sf::Vector2f& boundsPosition,
                          const sf::Vector2f& boundsSize, float cellX,
                          float cellY, float cellSize) {
@@ -68,10 +70,12 @@ std::vector<sf::Vector2i> occupiedCells(const sf::FloatRect& bounds,
     const float size = static_cast<float>(cellSize);
     const int minX = static_cast<int>(std::floor(bounds.position.x / size));
     const int minY = static_cast<int>(std::floor(bounds.position.y / size));
-    const int maxX = static_cast<int>(
-        std::floor((bounds.position.x + bounds.size.x - 1e-9f) / size));
-    const int maxY = static_cast<int>(
-        std::floor((bounds.position.y + bounds.size.y - 1e-9f) / size));
+    const int maxX = static_cast<int>(std::floor(
+        (bounds.position.x + bounds.size.x - OccupiedCellBoundaryInset) /
+        size));
+    const int maxY = static_cast<int>(std::floor(
+        (bounds.position.y + bounds.size.y - OccupiedCellBoundaryInset) /
+        size));
     std::vector<sf::Vector2i> cells;
     for (int cellY = minY; cellY <= maxY; ++cellY) {
         for (int cellX = minX; cellX <= maxX; ++cellX) {

@@ -14,7 +14,9 @@ local SceneBase = GlobalCore.SceneBase
 local ANIMATION_PROGRESS_WEIGHT = 0.5
 
 ---@class Source.Scenes.SceneInit.SceneInit
-local Scene = {}
+local Scene = {
+    _DISPLAY_PROGRESS_COMPLETE_THRESHOLD = 0.999
+}
 
 function Scene:onCreate()
     local gameSize = Display.getGameSize()
@@ -38,7 +40,8 @@ function Scene:onCreate()
 end
 
 function Scene:onTick(_)
-    if self.progressDone and not self.hasSwitched and self._displayProgress >= 0.999 then
+    if self.progressDone and not self.hasSwitched
+        and self._displayProgress >= Scene._DISPLAY_PROGRESS_COMPLETE_THRESHOLD then
         local SceneTitle = require("Source.Scenes.SceneTitle")
 
         self.hasSwitched = true
@@ -238,10 +241,10 @@ function Scene:compressAnimations()
     while not self._loadCancelled do
         local snapshot = asyncio.poll_file_batch(self._activeBatch, 1)
         self.progressTotal = snapshot.total
-        if snapshot.state == "failed" then
+        if snapshot.state == asyncio.FILE_BATCH_FAILED then
             error(FileBatch.FormatError(snapshot.error))
         end
-        if snapshot.state == "cancelled" then
+        if snapshot.state == asyncio.FILE_BATCH_CANCELLED then
             error("Animation source file batch was cancelled")
         end
         local item = snapshot.items ~= nil and snapshot.items[1] or nil
@@ -250,7 +253,7 @@ function Scene:compressAnimations()
             self.processedCount = self.processedCount + 1
             self:_setPhaseProgress(0.0, ANIMATION_PROGRESS_WEIGHT)
         end
-        if snapshot.state == "completed" and snapshot.drained and self.processedCount == snapshot.total then
+        if snapshot.state == asyncio.FILE_BATCH_COMPLETED and snapshot.drained and self.processedCount == snapshot.total then
             self._activeBatch = nil
             self.progressValue = math.max(self.progressValue, ANIMATION_PROGRESS_WEIGHT)
             return
@@ -285,10 +288,10 @@ function Scene:_pumpInitialLoad()
     while not self._loadCancelled do
         local snapshot = asyncio.poll_file_batch(self._activeBatch, 1)
         self.progressTotal = snapshot.total
-        if snapshot.state == "failed" then
+        if snapshot.state == asyncio.FILE_BATCH_FAILED then
             error(FileBatch.FormatError(snapshot.error))
         end
-        if snapshot.state == "cancelled" then
+        if snapshot.state == asyncio.FILE_BATCH_CANCELLED then
             error("Initial data file batch was cancelled")
         end
         local item = snapshot.items ~= nil and snapshot.items[1] or nil
@@ -299,7 +302,7 @@ function Scene:_pumpInitialLoad()
             self.processedCount = self.processedCount + 1
             self:_setPhaseProgress(ANIMATION_PROGRESS_WEIGHT, 1.0 - ANIMATION_PROGRESS_WEIGHT)
         end
-        if snapshot.state == "completed" and snapshot.drained and self.processedCount == snapshot.total then
+        if snapshot.state == asyncio.FILE_BATCH_COMPLETED and snapshot.drained and self.processedCount == snapshot.total then
             Data.CommitInitialLoad(self._loadStage)
             self._loadStage = nil
             self._activeBatch = nil

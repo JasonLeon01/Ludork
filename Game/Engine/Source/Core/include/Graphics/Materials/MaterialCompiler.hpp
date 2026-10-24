@@ -1,6 +1,7 @@
 #pragma once
 
 #include <EngineRuntimeApi.hpp>
+#include <Graphics/Materials/MaterialSurfaceField.hpp>
 #include <Graphics/Materials/MaterialResource.hpp>
 
 #include <string>
@@ -51,6 +52,11 @@ public:
                             const RuntimeData::Map& parameters,
                             const MaterialResource* layer = nullptr,
                             const RuntimeData::Map& layerParameters = {});
+
+private:
+    static constexpr unsigned int FragmentMaterialSurfaceFields =
+        AllMaterialSurfaceFields &
+        ~surfaceFieldMask(MaterialSurfaceField::VertexOffset);
 };
 
 }  // namespace ludork::engine::materials

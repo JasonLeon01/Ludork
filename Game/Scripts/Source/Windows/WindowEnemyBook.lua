@@ -20,7 +20,10 @@ local GameplayEventData = GlobalCore.GameplayEventData
 local AudioManager = GlobalCore.AudioManager
 
 ---@class Source.Windows.WindowEnemyBook.Controller
-local Controller = {}
+local Controller = {
+    _MAX_SPECIAL_DISPLAYS = 3,
+    _DEFAULT_PREVIEW_FRAME_INTERVAL = 0.2
+}
 
 Controller.windowOptions = {
     centered = true,
@@ -137,7 +140,7 @@ function Controller:buildEntry(enemy, visual)
         rect = textureRect,
         scale = scale,
         animatable = bool(visual.animatable),
-        switchInterval = visual.switchInterval or 0.2,
+        switchInterval = visual.switchInterval or Controller._DEFAULT_PREVIEW_FRAME_INTERVAL,
         material = visual.material,
         materialParameters = deepcopy(visual.materialParameters)
     }
@@ -148,7 +151,7 @@ function Controller:buildSpecialDisplays(special)
         return {}
     end
     local specialKeys = table.orderedStringKeys(special)
-    if #specialKeys > 3 then
+    if #specialKeys > Controller._MAX_SPECIAL_DISPLAYS then
         return {
             {
                 texture = nil,

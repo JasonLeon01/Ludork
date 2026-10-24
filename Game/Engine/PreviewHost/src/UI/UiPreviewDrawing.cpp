@@ -1,3 +1,4 @@
+#include <DisplayScaleLimits.hpp>
 #include "UI/UiPreviewDrawing.hpp"
 #include <UI/UiAssetInstance.hpp>
 
@@ -23,8 +24,6 @@
 
 namespace ludork::preview_host {
 namespace {
-
-constexpr float minimumRenderScale = 0.01f;
 
 sf::Vector2u scaledRenderSize(const sf::Vector2u& design, float renderScale) {
     const float width = static_cast<float>(design.x) * renderScale;
@@ -112,7 +111,8 @@ bool insideEffectiveClip(const std::shared_ptr<ControlBase>& control,
 
 UiPreviewSession::RenderTargetSpec renderTargetSpec(const sf::Vector2u& design,
                                                     double requestedScale) {
-    if (requestedScale < static_cast<double>(minimumRenderScale)) {
+    if (requestedScale <
+        static_cast<double>(DisplayScaleLimits::MINIMUM_RENDER_SCALE)) {
         throw std::invalid_argument(
             "Render request.renderScale is below the engine minimum");
     }
@@ -125,7 +125,8 @@ UiPreviewSession::RenderTargetSpec renderTargetSpec(const sf::Vector2u& design,
         static_cast<double>(maximumTextureSize) / static_cast<double>(design.x),
         static_cast<double>(maximumTextureSize) /
             static_cast<double>(design.y));
-    if (maximumScale < static_cast<double>(minimumRenderScale)) {
+    if (maximumScale <
+        static_cast<double>(DisplayScaleLimits::MINIMUM_RENDER_SCALE)) {
         throw std::invalid_argument(
             "UI asset designSize cannot fit the maximum texture size");
     }
@@ -133,12 +134,13 @@ UiPreviewSession::RenderTargetSpec renderTargetSpec(const sf::Vector2u& design,
         static_cast<float>(std::min(requestedScale, maximumScale));
     sf::Vector2u size = scaledRenderSize(design, renderScale);
     while ((size.x > maximumTextureSize || size.y > maximumTextureSize) &&
-           renderScale > minimumRenderScale) {
+           renderScale > DisplayScaleLimits::MINIMUM_RENDER_SCALE) {
         renderScale = std::nextafter(renderScale, 0.0f);
         size = scaledRenderSize(design, renderScale);
     }
-    if (renderScale < minimumRenderScale || size.x == 0 || size.y == 0 ||
-        size.x > maximumTextureSize || size.y > maximumTextureSize) {
+    if (renderScale < DisplayScaleLimits::MINIMUM_RENDER_SCALE || size.x == 0 ||
+        size.y == 0 || size.x > maximumTextureSize ||
+        size.y > maximumTextureSize) {
         throw std::invalid_argument(
             "Render request.renderScale cannot produce a valid preview");
     }

@@ -61,21 +61,6 @@ InputActionKey touchTap() {
     return result;
 }
 
-bool isDefaultDirectionalAxis(const InputActionKey& key) {
-    if (key.kind != InputActionKind::JoystickAxis) {
-        return false;
-    }
-    const sf::Joystick::Axis axis = static_cast<sf::Joystick::Axis>(key.code);
-    const float magnitude = std::abs(key.threshold);
-    if (axis == sf::Joystick::Axis::X || axis == sf::Joystick::Axis::Y) {
-        return std::abs(magnitude - StickDeadZone) < 1e-6f;
-    }
-    if (axis == sf::Joystick::Axis::PovX || axis == sf::Joystick::Axis::PovY) {
-        return std::abs(magnitude - DpadActivationThreshold) < 1e-6f;
-    }
-    return false;
-}
-
 bool repeatTrigger(InputTriggerEntry& entry,
                    std::chrono::steady_clock::time_point now, float repeatDelay,
                    float repeatInterval) {
@@ -90,6 +75,22 @@ bool repeatTrigger(InputTriggerEntry& entry,
 }
 
 }  // namespace
+
+bool InputImpl::isDefaultDirectionalAxis(const InputActionKey& key) {
+    if (key.kind != InputActionKind::JoystickAxis) {
+        return false;
+    }
+    const sf::Joystick::Axis axis = static_cast<sf::Joystick::Axis>(key.code);
+    const float magnitude = std::abs(key.threshold);
+    if (axis == sf::Joystick::Axis::X || axis == sf::Joystick::Axis::Y) {
+        return std::abs(magnitude - StickDeadZone) < AxisChangeTolerance;
+    }
+    if (axis == sf::Joystick::Axis::PovX || axis == sf::Joystick::Axis::PovY) {
+        return std::abs(magnitude - DpadActivationThreshold) <
+               AxisChangeTolerance;
+    }
+    return false;
+}
 
 bool InputImpl::axisMatches(float position, const InputActionKey& key) {
     return key.comparison ? key.comparison(position, key.threshold)
@@ -153,7 +154,7 @@ void InputImpl::dispatchActionMappings() {
                     static_cast<void>(joystickId);
                     const auto iterator = axes.find(axis);
                     if (iterator != axes.end() &&
-                        std::abs(iterator->second) > 1e-6f &&
+                        std::abs(iterator->second) > AxisChangeTolerance &&
                         axisMatches(iterator->second, key)) {
                         moveActions.push_back({iterator->second,
                                                mapping.callback,
@@ -481,7 +482,8 @@ bool InputImpl::actionHeld(const InputActionKey& key) const {
     for (const auto& [joystickId, axes] : joystick_.axisStatus_) {
         static_cast<void>(joystickId);
         const auto position = axes.find(axis);
-        if (position != axes.end() && std::abs(position->second) > 1e-6f &&
+        if (position != axes.end() &&
+            std::abs(position->second) > AxisChangeTolerance &&
             axisMatches(position->second, key)) {
             return true;
         }

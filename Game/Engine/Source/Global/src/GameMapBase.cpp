@@ -1,3 +1,4 @@
+#include <Direction.hpp>
 #include "GameMapBase/ActorRegistryImpl.hpp"
 #include "GameMapBase/RegionVisibilityImpl.hpp"
 #include "GameMapBase/OccupancyIndexImpl.hpp"
@@ -391,13 +392,13 @@ bool GameMapBase::directionPassableForActor(
     const sf::Vector2i delta = toPosition - fromPosition;
     int direction = -1;
     if (delta == sf::Vector2i(0, 1)) {
-        direction = Direction.at("DOWN");
+        direction = static_cast<int>(Direction::DOWN);
     } else if (delta == sf::Vector2i(0, -1)) {
-        direction = Direction.at("UP");
+        direction = static_cast<int>(Direction::UP);
     } else if (delta == sf::Vector2i(1, 0)) {
-        direction = Direction.at("RIGHT");
+        direction = static_cast<int>(Direction::RIGHT);
     } else if (delta == sf::Vector2i(-1, 0)) {
-        direction = Direction.at("LEFT");
+        direction = static_cast<int>(Direction::LEFT);
     }
     if (direction < 0) {
         return true;

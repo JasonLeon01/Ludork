@@ -1,13 +1,15 @@
 ---@meta
 
 ---@class Source.Windows.WindowPlayerName.Controller: Internal.UIBase.UiController
----@field host                Source.Windows.WindowPlayerName
----@field _player             Source.MapActors.Player.Player
----@field _onClose            fun()
----@field ui                  Internal.UI.WindowPlayerName
----@field _errorKey           string
----@field _confirmColour      sf.Color
----@field _confirmLabelColour sf.Color
+---@field host                                   Source.Windows.WindowPlayerName
+---@field _player                                Source.MapActors.Player.Player
+---@field _onClose                               fun()
+---@field ui                                     Internal.UI.WindowPlayerName
+---@field _errorKey                              string
+---@field _confirmColour                         sf.Color
+---@field _confirmLabelColour                    sf.Color
+---@field private _DISABLED_CONFIRM_COLOUR       sf.Color
+---@field private _DISABLED_CONFIRM_LABEL_COLOUR sf.Color
 local Controller = {}
 
 ---@param player  Source.MapActors.Player.Player

@@ -24,6 +24,9 @@ public:
     static void shutdown() noexcept;
 
 private:
+    static constexpr float TargetPositionTolerance = 0.01f;
+    static constexpr float MinimumFadeDuration = 0.001f;
+
     enum class TipPhase {
         FadeIn,
         Queued,

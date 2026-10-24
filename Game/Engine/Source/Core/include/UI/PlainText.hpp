@@ -2,6 +2,7 @@
 
 #include <CoreMinimal.hpp>
 #include <EngineRuntimeApi.hpp>
+#include <SFML/Graphics/Transform.hpp>
 #include <UI/ControlBase.hpp>
 
 struct PlainTextConfig;
@@ -63,6 +64,10 @@ protected:
                       sf::RenderStates states) const override;
 
 private:
+    static constexpr float SlantAngleTolerance = 0.0001f;
+
+    static sf::Transform customSlantTransform(const PlainTextConfig& config);
+
     struct EffectCache;
 
     static const PlainTextConfig& configReference(

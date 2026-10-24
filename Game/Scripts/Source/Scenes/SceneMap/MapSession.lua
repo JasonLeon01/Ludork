@@ -50,7 +50,7 @@ function MapSession:replaceMap(mapPath, initialPosition)
     local mapFile, mapData = self._mapBuilder:loadMapData(mapPath, self:getCurrentRegionMap())
     ---@type GameMap
     local gameMap
-    if mapData.type == "worldMap" then
+    if mapData.type == MapConstants.WORLD_MAP_TYPE then
         ---@cast mapData Global.WorldGameMap.WorldMapData
         gameMap = self._mapBuilder:generateWorldGameMap(mapFile, mapData, instance, initialPosition)
     else
@@ -443,7 +443,10 @@ end
 
 function MapSession:_isMapPositionPassable(mapPath, actor, position)
     local mapFile, mapData = self._mapBuilder:loadMapData(mapPath, self:getCurrentRegionMap())
-    assert(mapData.type ~= "worldMap", "Floor passability preview does not support world manifests: " .. mapFile)
+    assert(
+        mapData.type ~= MapConstants.WORLD_MAP_TYPE,
+        "Floor passability preview does not support world manifests: " .. mapFile
+    )
     ---@cast mapData Global.GameMap.MapData
     local gameMap = self._mapBuilder:generateGameMap(mapData, nil, false, true)
     self._mapBuilder:applyPersistentState(gameMap, self._scene:getGameInstance(), mapFile)

@@ -4,6 +4,12 @@ local GlobalFunctions = require("GlobalFunctions")
 local ConditionalActor = require("Source.MapActors.ConditionalActor")
 local cjson = require("cjson")
 
+local MAXIMUM_VALUE_DEPTH = 16
+local MAXIMUM_SEQUENCE_LENGTH = 1024
+local VALUE_NODE_BUDGET = 1024
+local VALUE_STRING_BYTE_BUDGET = 65536
+local PACKED_SEQUENCE_METADATA_FIELDS = 1
+
 local Values = {}
 
 local arrayMetatable = getmetatable(list():toTable())
@@ -93,7 +99,7 @@ end
 ---@return any, boolean
 local function encode(value, state, depth)
     state.remaining = state.remaining - 1
-    if state.remaining < 0 or depth > 16 then
+    if state.remaining < 0 or depth > MAXIMUM_VALUE_DEPTH then
         return nil, false
     end
     if value == nil or value == cjson.null then
@@ -158,9 +164,8 @@ local function encode(value, state, depth)
                 return false
             end
             hasStringKeys = true
-        elseif not dictionary and Class.isInstance(key, "number")
-            and math.type(key) == "integer" and key > 0
-            and key <= 1024 then
+        elseif not dictionary and Class.isInstance(key, "number") and math.type(key) == "integer" and key > 0
+            and key <= MAXIMUM_SEQUENCE_LENGTH then
             hasNumberKeys = true
             maximumIndex = math.max(maximumIndex, key)
         else
@@ -194,12 +199,12 @@ local function encode(value, state, depth)
     elseif plainTable then
         local packedLength = rawget(value, "n")
         local packed = Class.isInstance(packedLength, "number") and math.type(packedLength) == "integer"
-            and packedLength >= 0 and packedLength <= 1024
+            and packedLength >= 0 and packedLength <= MAXIMUM_SEQUENCE_LENGTH
         if packed then
             local keys = 0
             for key in pairs(value) do
                 keys = keys + 1
-                if keys > 1025
+                if keys > MAXIMUM_SEQUENCE_LENGTH + PACKED_SEQUENCE_METADATA_FIELDS
                     or (key ~= "n"
                         and (not Class.isInstance(key, "number") or math.type(key) ~= "integer"
                             or key < 1 or key > packedLength)) then
@@ -364,7 +369,7 @@ local function encodeField(value, valueType, declaringModule)
     if not supportsType(valueType, declaringModule) then
         return nil, false
     end
-    return encode(value, { visited = {}, remaining = 1024, bytes = 65536 }, 0)
+    return encode(value, { visited = {}, remaining = VALUE_NODE_BUDGET, bytes = VALUE_STRING_BYTE_BUDGET }, 0)
 end
 
 ---@param value           any
@@ -463,7 +468,8 @@ function Values.Read(actor, actorId)
             values[name] = "<runtime " .. Engine.metadataTypeName(descriptor.type) .. ">"
         end
         local fieldMetadata, metadataSupported = encode(
-            descriptor.metadata or {}, { visited = {}, remaining = 1024, bytes = 65536 }, 0
+            descriptor.metadata or {}, { visited = {}, remaining = VALUE_NODE_BUDGET, bytes = VALUE_STRING_BYTE_BUDGET },
+            0
         )
         schema[name] = metadataSupported and fieldMetadata or {}
         schema[name].type = Engine.metadataTypeName(descriptor.type)

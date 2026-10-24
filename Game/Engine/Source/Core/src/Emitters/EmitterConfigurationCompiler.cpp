@@ -14,6 +14,12 @@
 
 namespace ludork::engine::emitters {
 namespace {
+constexpr int MaximumTrackCapacity = 1000000;
+constexpr int MaximumTextureGridDimension = 4096;
+constexpr int MaximumBurstCount = 1000000;
+constexpr int MaximumBurstCycles = 10000;
+constexpr int MaximumSimulationRate = 240;
+constexpr int MaximumSeed = 16777215;
 
 void requireRange(int value, int minimum, int maximum, const char* name) {
     if (value < minimum || value > maximum) {
@@ -24,12 +30,24 @@ void requireRange(int value, int minimum, int maximum, const char* name) {
 
 void validateTrackParameters(
     const ludork::runtime::graphics::EmitterTrackParameters& track) {
-    requireRange(track.scaleMode, 0, 2, "scaleMode");
-    requireRange(track.shape, 0, 4, "shape");
-    requireRange(track.capacity, 1, 1000000, "capacity");
+    requireRange(
+        static_cast<int>(track.scaleMode),
+        static_cast<int>(ludork::runtime::graphics::EmitterTrackParameters::
+                             ScaleMode::Hierarchy),
+        static_cast<int>(ludork::runtime::graphics::EmitterTrackParameters::
+                             ScaleMode::Shape),
+        "scaleMode");
+    requireRange(
+        static_cast<int>(track.shape),
+        static_cast<int>(
+            ludork::runtime::graphics::EmitterTrackParameters::Shape::Point),
+        static_cast<int>(
+            ludork::runtime::graphics::EmitterTrackParameters::Shape::Ring),
+        "shape");
+    requireRange(track.capacity, 1, MaximumTrackCapacity, "capacity");
     requireRange(track.count, 0, track.capacity, "count");
-    requireRange(track.columns, 1, 4096, "columns");
-    requireRange(track.rows, 1, 4096, "rows");
+    requireRange(track.columns, 1, MaximumTextureGridDimension, "columns");
+    requireRange(track.rows, 1, MaximumTextureGridDimension, "rows");
     requireRange(track.frameCount, 1, track.columns * track.rows, "frameCount");
 
     for (float value : {track.delay,
@@ -91,7 +109,9 @@ void validateTrackParameters(
     if (track.duration <= 0 || track.delay < 0 || track.rate < 0 ||
         track.distanceRate < 0 || track.damping < 0 || track.radius < 0 ||
         track.innerRadius < 0 ||
-        (track.shape == 4 && track.innerRadius > track.radius) ||
+        (track.shape ==
+             ludork::runtime::graphics::EmitterTrackParameters::Shape::Ring &&
+         track.innerRadius > track.radius) ||
         track.lifetime.x <= 0 || track.lifetime.y < track.lifetime.x ||
         track.speed.x > track.speed.y || track.sizeMin.x < 0 ||
         track.sizeMin.y < 0 || track.sizeMax.x < track.sizeMin.x ||
@@ -104,8 +124,8 @@ void validateTrackParameters(
     }
 
     for (const ludork::runtime::graphics::EmitterBurst& burst : track.bursts) {
-        requireRange(burst.count, 0, 1000000, "burst.count");
-        requireRange(burst.cycles, 1, 10000, "burst.cycles");
+        requireRange(burst.count, 0, MaximumBurstCount, "burst.count");
+        requireRange(burst.cycles, 1, MaximumBurstCycles, "burst.cycles");
         if (!std::isfinite(burst.time) || !std::isfinite(burst.interval) ||
             burst.time < 0 || burst.time >= track.duration ||
             burst.interval < 0 || (burst.cycles > 1 && burst.interval <= 0)) {
@@ -141,8 +161,9 @@ void validateCurve(const Curve::CurveData& curve, const char* channel) {
 
 ludork::runtime::graphics::GpuEmitterConfiguration compileEmitterConfiguration(
     const EmitterConfiguration& configuration) {
-    requireRange(configuration.simulationRate, 1, 240, "simulationRate");
-    requireRange(configuration.seed, 0, 16777215, "seed");
+    requireRange(configuration.simulationRate, 1, MaximumSimulationRate,
+                 "simulationRate");
+    requireRange(configuration.seed, 0, MaximumSeed, "seed");
 
     ludork::runtime::graphics::GpuEmitterConfiguration result;
     result.simulationRate = configuration.simulationRate;

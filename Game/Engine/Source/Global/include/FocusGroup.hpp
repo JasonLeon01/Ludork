@@ -1,5 +1,7 @@
 #pragma once
 
+#include <FocusTransition.hpp>
+
 #include <Runtime/RuntimeObject.hpp>
 
 #include <CoreMinimal.hpp>
@@ -34,9 +36,10 @@ public:
     std::vector<std::shared_ptr<FunctionalBase>> getItems() const;
 
     BIND_METHOD(defaults = {directional})
-    void setNeighbor(const std::string& direction,
-                     const std::shared_ptr<FocusGroup>& neighbor,
-                     const std::string& transition = "directional");
+    void setNeighbor(
+        const std::string& direction,
+        const std::shared_ptr<FocusGroup>& neighbor,
+        const std::string& transition = FocusTransition::DIRECTIONAL);
 
     BIND_METHOD(metadata = false)
     void setNeighbor(const std::string& direction,

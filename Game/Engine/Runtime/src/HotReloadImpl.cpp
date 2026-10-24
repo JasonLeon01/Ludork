@@ -1,3 +1,4 @@
+#include <LudorkGenerated/ResourceFileConstants.hpp>
 #include "HotReloadImpl.hpp"
 #include <ClassRuntimeProtocol.hpp>
 
@@ -190,6 +191,22 @@ void HotReloadImpl::fail(const std::string& path,
     throw std::runtime_error(path + ": " + reason + "; restart required");
 }
 
+const char* HotReloadImpl::phaseName() const noexcept {
+    switch (phase_) {
+        case Phase::Scan:
+            return "scan";
+        case Phase::Compile:
+            return "compile";
+        case Phase::CandidateExecution:
+            return "candidate execution";
+        case Phase::Compatibility:
+            return "compatibility";
+        case Phase::Commit:
+            return "commit";
+    }
+    return "";
+}
+
 void HotReloadImpl::run() {
     const char* editor = std::getenv("LUDORK_EDITOR");
     if (editor == nullptr || std::string_view(editor) != "1") {
@@ -199,23 +216,24 @@ void HotReloadImpl::run() {
     const auto start = std::chrono::steady_clock::now();
     try {
         snapshot_ = scriptStore().prepareReload();
-        phase_ = "compile";
+        phase_ = Phase::Compile;
         compile();
-        phase_ = "candidate execution";
+        phase_ = Phase::CandidateExecution;
         loadCandidates();
-        phase_ = "compatibility";
+        phase_ = Phase::Compatibility;
         preparePairs();
         prepareReferences();
-        phase_ = "commit";
+        phase_ = Phase::Commit;
         commit();
         scriptStore().publishReload(state_, snapshot_);
     } catch (const std::exception& error) {
-        std::string message = "[" + phase_ + "] " + error.what();
-        if (phase_ == "candidate execution") {
+        std::string message =
+            std::string("[") + phaseName() + "] " + error.what();
+        if (phase_ == Phase::CandidateExecution) {
             message +=
                 "; definitions were not committed; top-level side "
                 "effects may require a restart";
-        } else if (phase_ == "commit") {
+        } else if (phase_ == Phase::Commit) {
             message += "; commit could not finish, restart required";
         }
         throw std::runtime_error(message);
@@ -300,7 +318,9 @@ int HotReloadImpl::loadModule(const std::string& name) {
                          (scriptStore().ownsModule(state_, name) || !occupied);
     int result;
     if (project) {
-        if (name == "Entry" || name.ends_with("_meta")) {
+        if (name == "Entry" ||
+            name.ends_with(
+                ludork::generated::resources::MetadataModuleSuffix)) {
             fail(name, "entry and metadata cannot execute during hot reload");
         }
         loading_.insert(name);
@@ -420,7 +440,8 @@ void HotReloadImpl::loadCandidates() {
     lua_pop(state_, 1);
     for (const auto& [name, live] : liveModules_) {
         if (scriptStore().ownsModule(state_, name) && name != "Entry" &&
-            !name.ends_with("_meta")) {
+            !name.ends_with(
+                ludork::generated::resources::MetadataModuleSuffix)) {
             const int candidate = loadModule(name);
             roots_.push_back({live, candidate, name});
             ++moduleCount_;

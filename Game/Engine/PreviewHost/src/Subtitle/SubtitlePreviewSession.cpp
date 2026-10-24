@@ -1,3 +1,4 @@
+#include "Protocol/PreviewMessageNames.hpp"
 #include "SubtitlePreviewSessionImpl.hpp"
 
 #include <EngineState.hpp>
@@ -122,7 +123,7 @@ void SubtitlePreviewSession::Impl::Session::play() {
     playing = true;
 #if LUDORK_HAS_FFMPEG
     if (sound && position < soundBuffer->getDuration().asSeconds()) {
-        sound->setVolume(mute ? 0.0f : 100.0f);
+        sound->setVolume(mute ? 0.0f : FullAudioVolume);
         sound->setPlayingOffset(sf::seconds(static_cast<float>(position)));
         sound->play();
     }
@@ -201,10 +202,10 @@ RuntimeData SubtitlePreviewSession::Impl::Session::frame(
         pause();
     }
     updateVideo(time, false);
-    target->clear(sf::Color(24, 24, 24));
+    target->clear(PreviewBackground);
 #if LUDORK_HAS_FFMPEG
     if (sound) {
-        sound->setVolume(mute ? 0.0f : 100.0f);
+        sound->setVolume(mute ? 0.0f : FullAudioVolume);
     }
     if (sprite) {
         target->draw(*sprite);
@@ -217,7 +218,7 @@ RuntimeData SubtitlePreviewSession::Impl::Session::frame(
     const auto& framePath =
         frameFiles.write(bgraFromPremultipliedRgba(image, size));
     return RuntimeData(
-        object({{"type", RuntimeData("subtitleFrame")},
+        object({{"type", RuntimeData(FrameResponse)},
                 {"sessionId", RuntimeData(sessionId)},
                 {"generation", RuntimeData(generation)},
                 {"time", RuntimeData(time)},
@@ -226,7 +227,8 @@ RuntimeData SubtitlePreviewSession::Impl::Session::frame(
                 {"playing", RuntimeData(playing)},
                 {"width", RuntimeData(static_cast<std::int64_t>(size.x))},
                 {"height", RuntimeData(static_cast<std::int64_t>(size.y))},
-                {"stride", RuntimeData(static_cast<std::int64_t>(size.x) * 4)},
+                {"stride", RuntimeData(static_cast<std::int64_t>(size.x) *
+                                       preview_pixels::BytesPerPixel)},
                 {"sharedMemory",
                  RuntimeData(object(
                      {{"filePath",
@@ -251,23 +253,25 @@ RuntimeData SubtitlePreviewSession::Impl::render(
     if (previous != generations.end() &&
         (generation < previous->second ||
          (!sessions.contains(id) && generation == previous->second &&
-          command != "close"))) {
-        return status("subtitleStale", id, generation);
+          command != protocol::command::Close))) {
+        return status(StaleResponse, id, generation);
     }
-    if (command == "close") {
+    if (command == protocol::command::Close) {
         sessions.erase(id);
         generations.insert_or_assign(id, generation);
-        return status("subtitleClosed", id, generation);
+        return status(ClosedResponse, id, generation);
     }
-    if (command != "load" && command != "render" && command != "play" &&
-        command != "pause" && command != "seek" && command != "stop") {
+    if (command != protocol::command::Load &&
+        command != protocol::command::Render && command != PlayCommand &&
+        command != PauseCommand && command != protocol::command::Seek &&
+        command != StopCommand) {
         throw std::invalid_argument("Unknown subtitle preview command: " +
                                     command);
     }
     const sf::Vector2u size{
         reader::requireUnsigned(field(request, "width"), "Subtitle width"),
         reader::requireUnsigned(field(request, "height"), "Subtitle height")};
-    if (command == "load") {
+    if (command == protocol::command::Load) {
         auto loaded = std::make_unique<Session>();
         loaded->track =
             ludork::video::SubtitleTrack::parse(field(request, "asset"));
@@ -284,7 +288,7 @@ RuntimeData SubtitlePreviewSession::Impl::render(
     }
     Session& session = *sessions.at(id);
     session.configureTarget(size);
-    if (command != "load") {
+    if (command != protocol::command::Load) {
         if (const RuntimeData* asset = reader::findValue(request, "asset")) {
             session.track = ludork::video::SubtitleTrack::parse(*asset);
         }
@@ -296,14 +300,14 @@ RuntimeData SubtitlePreviewSession::Impl::render(
     if (const RuntimeData* mute = reader::findValue(request, "mute")) {
         session.mute = reader::requireBool(*mute, "Subtitle mute");
     }
-    if (command == "play") {
+    if (command == PlayCommand) {
         session.play();
-    } else if (command == "pause") {
+    } else if (command == PauseCommand) {
         session.pause();
-    } else if (command == "stop") {
+    } else if (command == StopCommand) {
         session.pause();
         session.seek(0);
-    } else if (command == "seek") {
+    } else if (command == protocol::command::Seek) {
         const double time =
             reader::requireNumber(field(request, "time"), "Subtitle time");
         if (time < 0) {

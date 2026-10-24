@@ -106,6 +106,23 @@ if(MSVC)
     endforeach()
 endif()
 
+if(NOT LUDORK_WITH_LUA
+   OR CMAKE_SYSTEM_NAME STREQUAL "iOS"
+   OR CMAKE_SYSTEM_NAME STREQUAL "OHOS"
+   OR ANDROID)
+    foreach(standalone_dependency IN ITEMS
+        freetype
+        ogg
+        FLAC
+        vorbis
+        vorbisenc
+        vorbisfile)
+        if(TARGET ${standalone_dependency})
+            set_target_properties(${standalone_dependency} PROPERTIES UNITY_BUILD OFF)
+        endif()
+    endforeach()
+endif()
+
 if(NOT LUDORK_WITH_LUA)
     return()
 endif()
@@ -135,22 +152,6 @@ if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
             CONTENT "// Xcode requires a source compilation phase to archive the LuaSF binding objects.\n")
         target_sources(LuaSF PRIVATE "${ludork_luasf_archive_source}")
     endif()
-endif()
-
-if(CMAKE_SYSTEM_NAME STREQUAL "iOS"
-   OR CMAKE_SYSTEM_NAME STREQUAL "OHOS"
-   OR ANDROID)
-    foreach(mobile_dependency IN ITEMS
-        freetype
-        ogg
-        FLAC
-        vorbis
-        vorbisenc
-        vorbisfile)
-        if(TARGET ${mobile_dependency})
-            set_target_properties(${mobile_dependency} PROPERTIES UNITY_BUILD OFF)
-        endif()
-    endforeach()
 endif()
 
 if(TARGET LuaSF)

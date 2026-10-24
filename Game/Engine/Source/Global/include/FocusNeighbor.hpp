@@ -1,5 +1,7 @@
 #pragma once
 
+#include <FocusTransition.hpp>
+
 #include <CoreMinimal.hpp>
 
 class FocusGroup;
@@ -9,7 +11,7 @@ class FocusNeighbor {
 public:
     BIND_INIT(defaults = {directional})
     FocusNeighbor(std::shared_ptr<FocusGroup> group,
-                  std::string transition = "directional");
+                  std::string transition = FocusTransition::DIRECTIONAL);
 
     BIND_METHOD(property = "group", setter = "setGroup")
     std::shared_ptr<FocusGroup> getGroup() const;

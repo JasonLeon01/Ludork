@@ -11,17 +11,34 @@
 --- Defines commands and sub-window navigation, then restores player movement on close.
 --- The owning scene controls opening, stacking and the exit action.
 ---@class Source.Windows.WindowMenu.Controller: Internal.UIBase.UiController
----@field host              Source.Windows.WindowMenu
----@field _player           Source.MapActors.Player.Player
----@field ui                Internal.UI.WindowMenu
----@field _moveRestoreGuard fun(): boolean
----@field _onExit           fun()
----@field _windowItem       Internal.UIBase.LazyWindow<Source.Windows.WindowItem>
----@field _windowEquip      Internal.UIBase.LazyWindow<Source.Windows.WindowEquip>
----@field _windowSaveLoad   Internal.UIBase.LazyWindow<Source.Windows.WindowSaveLoad>
----@field _configWindow     Internal.UIBase.LazyWindow<Source.Windows.ConfigWindow>
----@field _commands         Internal.UIBase.UiCollection<Internal.UIBase.CommandRow.Controller>
+---@field host                Source.Windows.WindowMenu
+---@field _player             Source.MapActors.Player.Player
+---@field ui                  Internal.UI.WindowMenu
+---@field _moveRestoreGuard   fun(): boolean
+---@field _onExit             fun()
+---@field _windowItem         Internal.UIBase.LazyWindow<Source.Windows.WindowItem>
+---@field _windowEquip        Internal.UIBase.LazyWindow<Source.Windows.WindowEquip>
+---@field _windowSaveLoad     Internal.UIBase.LazyWindow<Source.Windows.WindowSaveLoad>
+---@field _configWindow       Internal.UIBase.LazyWindow<Source.Windows.ConfigWindow>
+---@field _commands           Internal.UIBase.UiCollection<Internal.UIBase.CommandRow.Controller>
+---@field private _MENU_INDEX { ITEM: Source.Windows.WindowMenu.MenuIndex, EQUIP: Source.Windows.WindowMenu.MenuIndex, SAVE: Source.Windows.WindowMenu.MenuIndex }
+---@field private _SUB_MENU   { ITEM: Source.Windows.WindowMenu.SubMenu, EQUIP: Source.Windows.WindowMenu.SubMenu, SAVE: Source.Windows.WindowMenu.SubMenu, CONFIG: Source.Windows.WindowMenu.SubMenu }
 local Controller = {}
+
+---@enum Source.Windows.WindowMenu.MenuIndex
+Controller._MENU_INDEX = {
+    ITEM = 0,
+    EQUIP = 1,
+    SAVE = 2
+}
+
+---@enum Source.Windows.WindowMenu.SubMenu
+Controller._SUB_MENU = {
+    ITEM = "item",
+    EQUIP = "equip",
+    SAVE = "save",
+    CONFIG = "config"
+}
 
 ---@brief Construct the menu window without creating its independent sub-windows.
 ---

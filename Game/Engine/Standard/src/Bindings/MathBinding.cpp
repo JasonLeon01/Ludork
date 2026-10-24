@@ -73,9 +73,10 @@ void registerMath(lua_glue::StateView lua) {
     mathLibrary.set_function(
         "isNearZero", [](const lua_glue::Object& value,
                          const std::optional<lua_glue::Object>& epsilon) {
-            return math::isNearZero(
-                numberArgument(value),
-                epsilon.has_value() ? numberArgument(*epsilon) : 0.1);
+            return math::isNearZero(numberArgument(value),
+                                    epsilon.has_value()
+                                        ? numberArgument(*epsilon)
+                                        : math::DefaultNearZeroEpsilon);
         });
     mathLibrary.set_function(
         "gcd", [](const lua_glue::Object& left, const lua_glue::Object& right) {

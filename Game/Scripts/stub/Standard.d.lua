@@ -543,6 +543,24 @@ function os.path.getmtime(path) end
 
 asyncio = {}
 
+---@type "scanning"
+asyncio.FILE_BATCH_SCANNING = nil
+
+---@type "running"
+asyncio.FILE_BATCH_RUNNING = nil
+
+---@type "completed"
+asyncio.FILE_BATCH_COMPLETED = nil
+
+---@type "cancelling"
+asyncio.FILE_BATCH_CANCELLING = nil
+
+---@type "cancelled"
+asyncio.FILE_BATCH_CANCELLED = nil
+
+---@type "failed"
+asyncio.FILE_BATCH_FAILED = nil
+
 ---@class AsyncioTask
 
 ---@param callback fun(...: any)

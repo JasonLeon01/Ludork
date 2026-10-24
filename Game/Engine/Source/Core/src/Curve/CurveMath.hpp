@@ -1,5 +1,9 @@
 #pragma once
 
+#include <CurveInterpolation.hpp>
+
+#include <CurveInfinityMode.hpp>
+
 #include <algorithm>
 #include <array>
 #include <cstddef>
@@ -53,11 +57,11 @@ auto evaluateSegment(const Key& start, const Key& ending, float time) {
     if (duration <= 0.0f) {
         return ending.value;
     }
-    if (start.interpolation == "constant") {
+    if (start.interpolation == CurveInterpolation::CONSTANT) {
         return start.value;
     }
     const float alpha = (time - start.time) / duration;
-    if (start.interpolation != "cubic") {
+    if (start.interpolation != CurveInterpolation::CUBIC) {
         return mapComponents(start.value, [&](float value,
                                               std::size_t component) {
             return value +
@@ -84,7 +88,7 @@ auto extrapolate(float time, const Key& start, const Key& ending,
                  const std::string& mode, bool beforeFirst) {
     const Key& edge = beforeFirst ? start : ending;
     const float duration = ending.time - start.time;
-    if (mode != "linear" || duration <= 0.0f) {
+    if (mode != CurveInfinityMode::LINEAR || duration <= 0.0f) {
         return edge.value;
     }
     return mapComponents(edge.value, [&](float value, std::size_t component) {

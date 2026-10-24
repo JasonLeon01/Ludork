@@ -29,6 +29,21 @@ public:
     RuntimeData handle(const RuntimeData& requestValue);
 
 private:
+    static constexpr char MapClosedResponse[] = "mapClosed";
+    static constexpr char HandshakeResponse[] = "handshake";
+    static constexpr char HandshakeRequest[] = "handshake";
+    static constexpr char CloseMapRequest[] = "closeMap";
+    static constexpr char CompileMaterialRequest[] = "compileMaterial";
+    static constexpr char RenderMapRequest[] = "renderMap";
+    static constexpr char DescribeMaterialsRequest[] = "describeMaterials";
+    static constexpr char RenderMaterialRequest[] = "renderMaterial";
+    static constexpr char RenderUiRequest[] = "render";
+    static constexpr char HitTestRequest[] = "hitTest";
+    static constexpr char ResolveReparentRequest[] = "resolveReparent";
+    static constexpr char RenderActorBatchRequest[] = "renderActorBatch";
+    static constexpr char RenderParticleRequest[] = "renderParticle";
+    static constexpr char RenderSubtitleRequest[] = "renderSubtitle";
+
     RuntimeData handshake(const RuntimeData::Map& request);
 
     std::string adapterFingerprint_;

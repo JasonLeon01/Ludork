@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Graphics/AnimationFormat.hpp>
+
 #include <Graphics/AnimationTimeTag.hpp>
 #include <Graphics/AnimationSoundEntry.hpp>
 
@@ -16,14 +18,14 @@ public:
 
     BIND_CLASS(copyable = true, table_init = true)
     struct AnimationData {
-        BIND_PROPERTY()
-        std::string type = "compressedAnimation";
+        BIND_PROPERTY(default = "compressedAnimation")
+        std::string type = CompressedType;
 
         BIND_PROPERTY()
         std::string name;
 
-        BIND_PROPERTY()
-        int frameRate = 30;
+        BIND_PROPERTY(default = 30)
+        int frameRate = ludork::engine::animation_format::DefaultFrameRate;
 
         BIND_PROPERTY()
         int frameCount = 0;
@@ -40,8 +42,9 @@ public:
         BIND_PROPERTY()
         std::vector<AnimationTimeTag> timeTags;
 
-        BIND_PROPERTY()
-        std::string frameEncoding = "base64+zlib";
+        BIND_PROPERTY(default = "base64+zlib")
+        std::string frameEncoding =
+            ludork::engine::animation_format::Base64ZlibEncoding;
 
         BIND_PROPERTY()
         std::vector<std::variant<std::string, std::shared_ptr<sf::Image>>>
@@ -84,16 +87,19 @@ protected:
     std::vector<AnimationSoundEntry>& getSoundEntries();
 
 private:
+    static constexpr char CompressedType[] = "compressedAnimation";
+    static constexpr char ZlibEncoding[] = "zlib";
+
     std::shared_ptr<sf::Texture> texture_;
     std::vector<std::variant<std::string, std::shared_ptr<sf::Image>>> frames_;
-    int frameRate_ = 30;
+    int frameRate_ = ludork::engine::animation_format::DefaultFrameRate;
     int frameCount_ = 0;
     float frameCounter_ = 0.0f;
     int frameIndex_ = 0;
     bool finished_ = false;
     float duration_ = 0.0f;
     float visualDuration_ = 0.0f;
-    std::string frameEncoding_ = "zlib";
+    std::string frameEncoding_ = ZlibEncoding;
     std::vector<AnimationTimeTag> timeTags_;
     std::vector<AnimationSoundEntry> soundEntries_;
 };

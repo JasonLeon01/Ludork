@@ -13,6 +13,22 @@ namespace ludork::runtime::graphics {
 
 BIND_CLASS(copyable = true, table_init = true, metadata = false)
 struct LUDORK_RUNTIME_API EmitterTrackParameters {
+    BIND_ENUM(name = "EmitterScaleMode")
+    enum class ScaleMode : int {
+        Hierarchy = 0,
+        Local = 1,
+        Shape = 2
+    };
+
+    BIND_ENUM(name = "EmitterShape")
+    enum class Shape : int {
+        Point = 0,
+        Line = 1,
+        Rectangle = 2,
+        Disk = 3,
+        Ring = 4
+    };
+
     BIND_PROPERTY()
     std::string name = "Track";
 
@@ -38,7 +54,7 @@ struct LUDORK_RUNTIME_API EmitterTrackParameters {
     bool additive = false;
 
     BIND_PROPERTY()
-    int scaleMode = 0;
+    ScaleMode scaleMode = ScaleMode::Hierarchy;
 
     BIND_PROPERTY()
     int capacity = 1024;
@@ -62,7 +78,7 @@ struct LUDORK_RUNTIME_API EmitterTrackParameters {
     std::vector<EmitterBurst> bursts;
 
     BIND_PROPERTY()
-    int shape = 0;
+    Shape shape = Shape::Point;
 
     BIND_PROPERTY()
     sf::Vector2f extent{32, 32};

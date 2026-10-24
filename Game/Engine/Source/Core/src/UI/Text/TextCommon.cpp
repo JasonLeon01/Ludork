@@ -21,8 +21,8 @@ unsigned int scaledCharacterSize(unsigned int characterSize) {
 }
 
 void validateGradient(const TextGradientConfig& gradient) {
-    if (gradient.direction != "vertical" &&
-        gradient.direction != "horizontal") {
+    if (gradient.direction != TextGradientConfig::VERTICAL &&
+        gradient.direction != TextGradientConfig::HORIZONTAL) {
         throw std::invalid_argument(
             "Text gradient direction must be vertical or horizontal");
     }

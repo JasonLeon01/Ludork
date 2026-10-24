@@ -6,6 +6,7 @@ local Effects = require("Source.Gameplay.Effects")
 local MotaBattleAbility = require("Source.Gameplay.MotaBattleAbility")
 local GameplayScene = require("Source.Gameplay.GameplayScene")
 local GameplayConstants = require("Source.Configs.GameplayConstants")
+local MovementResultCode = require("Enums.MovementResultCode")
 
 local GameplayAbilityResult = GlobalCore.GameplayAbilityResult
 local GameplayEventData = GlobalCore.GameplayEventData
@@ -79,7 +80,7 @@ local function queryEnemyRadius(enemy, player)
     local radius
     for _, result in ipairs(abilitySystem:handleGameplayEvent(eventData)) do
         assert(
-            result.ok and result.code == "MovementHazardBounds",
+            result.ok and result.code == MovementResultCode.HAZARD_BOUNDS,
             "Movement hazard bounds query must return MovementHazardBounds"
         )
         local resultRadius = result.data.radius
@@ -123,7 +124,7 @@ function MovementSpecials.Preview(enemies, player, playerPosition, ignoredEnemie
     local flankEnemies = {}
     for _, enemy in ipairs(enemies) do
         for _, result in ipairs(queryEnemy(enemy, player, playerPosition, previewContext)) do
-            if result.code == "MovementHazard" and result.data.active then
+            if result.code == MovementResultCode.HAZARD and result.data.active then
                 if result.data.special == Special.Flank then
                     flankEnemies[#flankEnemies + 1] = { enemy = enemy, damage = result.data.damage }
                 elseif ignoredEnemySet == nil or not ignoredEnemySet[enemy] then
@@ -165,7 +166,7 @@ function MovementSpecials.Preview(enemies, player, playerPosition, ignoredEnemie
             end
         end
     end
-    return assert(GameplayAbilityResult.Success("MovementHazard", {
+    return assert(GameplayAbilityResult.Success(MovementResultCode.HAZARD, {
             damage = totalDamage,
             sources = sources,
             playerPosition = playerPosition:copy()
@@ -197,7 +198,7 @@ function MovementSpecials.Commit(player, pathPositions)
         enemies = MovementSpecials.CollectEnemies(gameMap)
     end
     if gameMap == nil or not bool(enemies) then
-        return assert(GameplayAbilityResult.Success("NoMovementHazard", { damage = 0, sources = {} }))
+        return assert(GameplayAbilityResult.Success(MovementResultCode.NO_HAZARD, { damage = 0, sources = {} }))
     end
     local totalDamage = 0
     local allSources = {}
@@ -217,7 +218,7 @@ function MovementSpecials.Commit(player, pathPositions)
         end
     end
     if totalDamage <= 0 and not bool(blockadeRetreats) then
-        return assert(GameplayAbilityResult.Success("NoMovementHazard", { damage = 0, sources = allSources }))
+        return assert(GameplayAbilityResult.Success(MovementResultCode.NO_HAZARD, { damage = 0, sources = allSources }))
     end
     local scene = gameMap:getScene()
     assert(
@@ -228,7 +229,7 @@ function MovementSpecials.Commit(player, pathPositions)
         doBlockadeRetreat(retreat.enemy, retreat.playerPosition, scene)
     end
     if totalDamage <= 0 then
-        return assert(GameplayAbilityResult.Success("NoMovementHazard", { damage = 0, sources = allSources }))
+        return assert(GameplayAbilityResult.Success(MovementResultCode.NO_HAZARD, { damage = 0, sources = allSources }))
     end
     local animationLength = 0.0
     local playerPosition = player:getPosition()
@@ -243,14 +244,16 @@ function MovementSpecials.Commit(player, pathPositions)
         end
     end
     local eventData = GameplayEventData.new(
-        allSources[1].enemy, player, "Event.Movement.HazardDamage", { sources = allSources }
+        allSources[1].enemy, player, GameplayConstants.MOVEMENT_HAZARD_DAMAGE_EVENT, { sources = allSources }
     )
-    Effects.ApplyInstantModifier(player, "Movement.HazardDamage", "HP", "Add", -totalDamage, eventData)
+    Effects.ApplyInstantModifier(
+        player, "Movement.HazardDamage", "HP", GlobalCore.GameplayModifier.OPERATION_ADD, -totalDamage, eventData
+    )
     gameMap:addDamageText(tostring(totalDamage), player:getPosition(), player)
     if player.attributes.HP <= 0 then
         scene:requestGameOver(player, animationLength)
     end
-    return assert(GameplayAbilityResult.Success("MovementHazardCommitted", {
+    return assert(GameplayAbilityResult.Success(MovementResultCode.HAZARD_COMMITTED, {
             damage = totalDamage,
             sources = allSources
         }))

@@ -1,3 +1,5 @@
+#include "GpuParticleLayout.hpp"
+#include "GpuGlConstants.hpp"
 #include "GpuResourcesImpl.hpp"
 #include "GpuShaders.hpp"
 #include <SFML/Window/Context.hpp>
@@ -14,11 +16,14 @@ GpuResourcesImpl::GpuResourcesImpl()
         drawProgram =
             api.program(emitterDrawShader(api.embedded),
                         emitterFragmentShader(api.embedded, true), false);
-        const float vertices[] = {-0.5f, -0.5f, 0.5f, -0.5f, 0.5f,  0.5f,
-                                  -0.5f, -0.5f, 0.5f, 0.5f,  -0.5f, 0.5f};
+        const float vertices[gpu_particle_layout::QuadVertexCount *
+                             gpu_particle_layout::QuadComponentsPerVertex] = {
+            -0.5f, -0.5f, 0.5f, -0.5f, 0.5f,  0.5f,
+            -0.5f, -0.5f, 0.5f, 0.5f,  -0.5f, 0.5f};
         api.GenBuffers(1, &corners);
-        api.BindBuffer(0x8892, corners);
-        api.BufferData(0x8892, sizeof(vertices), vertices, 0x88E4);
+        api.BindBuffer(gpu_gl::ArrayBuffer, corners);
+        api.BufferData(gpu_gl::ArrayBuffer, sizeof(vertices), vertices,
+                       gpu_gl::StaticDraw);
         api.GenBuffers(1, &indices);
     } catch (...) {
         destroy();
@@ -60,10 +65,10 @@ void GpuResourcesImpl::reserveIndices(int capacity) {
     for (int index = 0; index < capacity; ++index) {
         values[static_cast<std::size_t>(index)] = static_cast<float>(index);
     }
-    api.BindBuffer(0x8892, indices);
-    api.BufferData(0x8892,
+    api.BindBuffer(gpu_gl::ArrayBuffer, indices);
+    api.BufferData(gpu_gl::ArrayBuffer,
                    static_cast<GpuApi::S>(values.size() * sizeof(float)),
-                   values.data(), 0x88E4);
+                   values.data(), gpu_gl::StaticDraw);
     indexCapacity = capacity;
 }
 std::shared_ptr<GpuResourcesImpl> GpuResourcesImpl::acquire() {

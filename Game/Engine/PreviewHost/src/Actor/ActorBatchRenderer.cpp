@@ -33,9 +33,6 @@
 namespace ludork::preview_host {
 namespace {
 
-constexpr unsigned int maximumAtlasSize = 2048;
-constexpr unsigned int atlasGutter = 1;
-
 actor_batch_detail::FileStamp fileStamp(const std::string& path) {
     const std::optional<ludork::runtime::AssetStore::AssetStat> stat =
         ludork::runtime::assetStore().stat(path);
@@ -119,8 +116,8 @@ RuntimeData ActorBatchRenderer::Impl::render(const RuntimeData::Map& request,
         pages.emplace_back(object({
             {"width", RuntimeData(static_cast<std::int64_t>(layout.size.x))},
             {"height", RuntimeData(static_cast<std::int64_t>(layout.size.y))},
-            {"stride",
-             RuntimeData(static_cast<std::int64_t>(layout.size.x) * 4)},
+            {"stride", RuntimeData(static_cast<std::int64_t>(layout.size.x) *
+                                   preview_pixels::BytesPerPixel)},
             {"sharedMemory", RuntimeData(object({
                                  {"filePath", RuntimeData(std::string())},
                                  {"offset", RuntimeData(offset)},
@@ -158,9 +155,9 @@ RuntimeData ActorBatchRenderer::Impl::render(const RuntimeData::Map& request,
         }));
     }
     return RuntimeData(object({
-        {"type", RuntimeData("actorFrame")},
+        {"type", RuntimeData(FrameResponse)},
         {"generation", RuntimeData(generation)},
-        {"pixelFormat", RuntimeData("Bgra8888Premultiplied")},
+        {"pixelFormat", RuntimeData(preview_pixels::Format)},
         {"pages", RuntimeData(std::move(pages))},
         {"items", RuntimeData(std::move(items))},
     }));

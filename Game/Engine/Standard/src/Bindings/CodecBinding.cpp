@@ -14,6 +14,9 @@
 #include <vector>
 
 namespace ludork::standard::binding {
+namespace {
+constexpr int DetectZlibOrGzipWindowBits = MAX_WBITS + 32;
+}
 
 void registerCodecs(lua_glue::StateView lua) {
     lua_glue::Table zlib = lua.create_table();
@@ -30,7 +33,7 @@ void registerCodecs(lua_glue::StateView lua) {
             std::span<const std::uint8_t>(
                 reinterpret_cast<const std::uint8_t*>(value.data()),
                 value.size()),
-            15 + 32);
+            DetectZlibOrGzipWindowBits);
         return std::string(bytes.begin(), bytes.end());
     });
     lua["zlib"] = std::move(zlib);

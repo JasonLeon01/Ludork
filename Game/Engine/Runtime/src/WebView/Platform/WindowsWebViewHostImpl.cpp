@@ -16,6 +16,7 @@ constexpr wchar_t installAddress[] =
     L"https://developer.microsoft.com/microsoft-edge/webview2/";
 constexpr UINT closeButtonId = 1001;
 constexpr UINT installButtonId = 1002;
+constexpr std::size_t NativePathCapacity = 32768;
 
 std::wstring nativeText(const std::string& value) {
     const int length =
@@ -47,14 +48,14 @@ bool allowedAddress(const wchar_t* address) {
 }
 
 std::filesystem::path dataDirectory() {
-    std::wstring base(32768, L'\0');
+    std::wstring base(NativePathCapacity, L'\0');
     const DWORD length = GetEnvironmentVariableW(
         L"LOCALAPPDATA", base.data(), static_cast<DWORD>(base.size()));
     if (length == 0 || length >= base.size()) {
         return {};
     }
     base.resize(length);
-    std::wstring executable(32768, L'\0');
+    std::wstring executable(NativePathCapacity, L'\0');
     const DWORD executableLength = GetModuleFileNameW(
         nullptr, executable.data(), static_cast<DWORD>(executable.size()));
     if (executableLength == 0 || executableLength >= executable.size()) {
@@ -114,13 +115,15 @@ void WindowsWebViewSessionImpl::run() {
     windowClass.cbSize = sizeof(windowClass);
     windowClass.lpfnWndProc = windowProcedure;
     windowClass.hInstance = GetModuleHandleW(nullptr);
-    windowClass.hCursor = LoadCursorW(nullptr, MAKEINTRESOURCEW(32512));
+    windowClass.hCursor =
+        LoadCursorW(nullptr, reinterpret_cast<LPCWSTR>(IDC_ARROW));
     windowClass.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
     windowClass.lpszClassName = windowClassName;
     RegisterClassExW(&windowClass);
     while (!stopping) {
-        const DWORD result = MsgWaitForMultipleObjectsEx(
-            1, &wakeEvent, 33, QS_ALLINPUT, MWMO_INPUTAVAILABLE);
+        const DWORD result =
+            MsgWaitForMultipleObjectsEx(1, &wakeEvent, MessagePollMilliseconds,
+                                        QS_ALLINPUT, MWMO_INPUTAVAILABLE);
         if (result == WAIT_FAILED) {
             break;
         }
@@ -182,25 +185,28 @@ void WindowsWebViewSessionImpl::open(std::uint64_t sessionId,
     id = sessionId;
     url = std::move(address);
     if (window == nullptr) {
-        window = CreateWindowExW(WS_EX_TOOLWINDOW, windowClassName, L"WebView",
-                                 WS_POPUP | WS_CLIPCHILDREN, 0, 0, 100, 100,
-                                 GetAncestor(parent, GA_ROOT), nullptr,
-                                 GetModuleHandleW(nullptr), this);
+        window =
+            CreateWindowExW(WS_EX_TOOLWINDOW, windowClassName, L"WebView",
+                            WS_POPUP | WS_CLIPCHILDREN, 0, 0, InitialWindowSize,
+                            InitialWindowSize, GetAncestor(parent, GA_ROOT),
+                            nullptr, GetModuleHandleW(nullptr), this);
         if (window == nullptr) {
             close(true);
             return;
         }
         closeButton = CreateWindowExW(
             0, L"BUTTON", L"Close", WS_CHILD | WS_VISIBLE | WS_TABSTOP, 0, 0,
-            80, 32, window,
+            CloseButtonWidth, CloseButtonHeight, window,
             reinterpret_cast<HMENU>(static_cast<UINT_PTR>(closeButtonId)),
             GetModuleHandleW(nullptr), nullptr);
         status = CreateWindowExW(
-            0, L"STATIC", L"Loading…", WS_CHILD | WS_VISIBLE | SS_LEFT, 12, 12,
-            320, 24, window, nullptr, GetModuleHandleW(nullptr), nullptr);
+            0, L"STATIC", L"Loading…", WS_CHILD | WS_VISIBLE | SS_LEFT,
+            HorizontalPadding, StatusTop, StatusPreferredWidth, StatusHeight,
+            window, nullptr, GetModuleHandleW(nullptr), nullptr);
         installButton = CreateWindowExW(
             0, L"BUTTON", L"Install Microsoft WebView2 Runtime",
-            WS_CHILD | WS_TABSTOP, 12, 60, 320, 36, window,
+            WS_CHILD | WS_TABSTOP, HorizontalPadding, InstallButtonTop,
+            InstallButtonPreferredWidth, InstallButtonHeight, window,
             reinterpret_cast<HMENU>(static_cast<UINT_PTR>(installButtonId)),
             GetModuleHandleW(nullptr), nullptr);
         const HFONT font = static_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT));
@@ -492,12 +498,17 @@ void WindowsWebViewSessionImpl::resize() {
                      SWP_NOZORDER | SWP_NOACTIVATE);
         lastFrame = frame;
     }
-    MoveWindow(closeButton, std::max(0, width - 92), 6, 80, 32, TRUE);
-    MoveWindow(status, 12, 12, std::max(0, width - 116), 24, TRUE);
-    MoveWindow(installButton, 12, 60, std::max(0, std::min(320, width - 24)),
-               36, TRUE);
+    MoveWindow(closeButton,
+               std::max(0, width - CloseButtonWidth - HorizontalPadding),
+               CloseButtonTop, CloseButtonWidth, CloseButtonHeight, TRUE);
+    MoveWindow(status, HorizontalPadding, StatusTop,
+               std::max(0, width - StatusRightInset), StatusHeight, TRUE);
+    MoveWindow(installButton, HorizontalPadding, InstallButtonTop,
+               std::max(0, std::min(InstallButtonPreferredWidth,
+                                    width - HorizontalPadding * 2)),
+               InstallButtonHeight, TRUE);
     if (controller != nullptr) {
-        RECT content{0, 44, width, std::max(44, height)};
+        RECT content{0, ContentTop, width, std::max(ContentTop, height)};
         controller->put_Bounds(content);
         controller->NotifyParentWindowPositionChanged();
     }

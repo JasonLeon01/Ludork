@@ -1,3 +1,4 @@
+#include "Protocol/PreviewMessageNames.hpp"
 #include "MaterialExport.hpp"
 
 #include "Protocol/PreviewProtocol.hpp"
@@ -39,11 +40,11 @@ RuntimeData MaterialExport::compile(const RuntimeData::Map& request) {
             ludork::engine::materials::MaterialGenerated::compile(*material,
                                                                   layer.get());
         RuntimeData::Map fields = *result.getIf<RuntimeData::Map>();
-        fields.emplace("type", RuntimeData("compiledMaterial"));
+        fields.emplace("type", RuntimeData(CompiledResponse));
         return RuntimeData(std::move(fields));
     } catch (const ludork::engine::materials::MaterialCompileError& error) {
         return RuntimeData(object({
-            {"type", RuntimeData("error")},
+            {"type", RuntimeData(protocol::response::Error)},
             {"nodeId", RuntimeData(error.nodeId())},
             {"portId", RuntimeData(error.portId())},
             {"message",

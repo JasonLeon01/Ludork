@@ -466,7 +466,7 @@ end
 
 function Controller:_refreshSelectionText(options)
     local children = self.ui.controls["SelectionList"]:getChildren()
-    local optionCount = math.min(#options, 4)
+    local optionCount = math.min(#options, self._MAX_OPTIONS)
     assert(#children == optionCount, "Selection option count changed during dialogue")
     for index = 1, optionCount do
         local child = children[index]

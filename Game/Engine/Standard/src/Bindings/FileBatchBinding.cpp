@@ -1,3 +1,4 @@
+#include <LudorkGenerated/ResourceFileConstants.hpp>
 #include "Bindings.hpp"
 
 #include "Core/FileBatch.hpp"
@@ -208,8 +209,11 @@ std::vector<FileBatchSpec> readSpecs(const lua_glue::Object& value) {
         spec.recursive = optionalBoolean(specTable, "recursive", false);
         spec.required = optionalBoolean(specTable, "required", true);
         spec.parseData = optionalBoolean(specTable, "parseData", false);
-        if (spec.parseData && !spec.suffix.ends_with(".json") &&
-            !spec.suffix.ends_with(".ldc")) {
+        if (spec.parseData &&
+            !spec.suffix.ends_with(
+                ludork::generated::resources::DataExtension) &&
+            !spec.suffix.ends_with(
+                ludork::generated::resources::EncryptedDataExtension)) {
             throw std::invalid_argument(
                 "file batch parseData requires a .json or .ldc suffix");
         }
@@ -339,6 +343,18 @@ void registerFileBatch(lua_glue::StateView lua) {
         lua.registry().raw_set(RUNTIME_KEY, runtime);
     }
     lua_glue::Table asyncio = lua["asyncio"].get_or_create<lua_glue::Table>();
+    asyncio.raw_set("FILE_BATCH_SCANNING",
+                    fileBatchStateName(FileBatchState::Scanning));
+    asyncio.raw_set("FILE_BATCH_RUNNING",
+                    fileBatchStateName(FileBatchState::Running));
+    asyncio.raw_set("FILE_BATCH_COMPLETED",
+                    fileBatchStateName(FileBatchState::Completed));
+    asyncio.raw_set("FILE_BATCH_CANCELLING",
+                    fileBatchStateName(FileBatchState::Cancelling));
+    asyncio.raw_set("FILE_BATCH_CANCELLED",
+                    fileBatchStateName(FileBatchState::Cancelled));
+    asyncio.raw_set("FILE_BATCH_FAILED",
+                    fileBatchStateName(FileBatchState::Failed));
     asyncio.set_function(
         "start_file_batch", [runtime](const lua_glue::Object& specs) {
             return FileBatchHandle(runtime, runtime->start(readSpecs(specs)));

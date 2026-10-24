@@ -21,6 +21,9 @@
 
 using namespace ludork::runtime::graph_detail;
 
+const std::string Graph::NO_PARENT_CLASS =
+    ludork::runtime::graph_constants::NoParentClass;
+
 Graph::Graph(std::string className, RuntimeValue classValue,
              RuntimeValue parentValue, DataNodeMap inNodes, LinkMap graphLinks,
              RuntimeValue nodeModel, RuntimeValue startNodeValues,
@@ -325,7 +328,7 @@ void Graph::addExecutionCompleteCallback(const std::string& key,
 RuntimeValue::Map Graph::asDict() const {
     const_cast<Graph*>(this)->ensureInitialised();
     RuntimeValue::Map result;
-    if (parentClassName != "NOT_WRITTEN") {
+    if (parentClassName != ludork::runtime::graph_constants::NoParentClass) {
         result.emplace("parent", RuntimeValue(parentClassName));
     }
     RuntimeValue::Map nodeGraph;
@@ -451,11 +454,17 @@ RuntimeValue::Array Graph::execute(const std::string& key,
                                    std::optional<RuntimeIdentityPtr> cache) {
     const RuntimeIdentityPtr cacheIdentity = cache.value_or(nullptr);
     if (cacheIdentity == nullptr) {
-        return executeResult(key, startNode, limit.value_or(1000000)).values;
+        return executeResult(
+                   key, startNode,
+                   limit.value_or(
+                       ludork::runtime::graph_constants::DefaultExecutionLimit))
+            .values;
     }
     NodeCache cacheValues = decodeNodeCache(cacheIdentity);
-    NodeResult result =
-        executeResult(key, startNode, limit.value_or(1000000), &cacheValues);
+    NodeResult result = executeResult(
+        key, startNode,
+        limit.value_or(ludork::runtime::graph_constants::DefaultExecutionLimit),
+        &cacheValues);
     syncNodeCache(cacheIdentity, cacheValues);
     return result.values;
 }

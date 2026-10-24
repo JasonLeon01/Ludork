@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Graphics/Materials/MaterialSurfaceField.hpp>
+
 #include <Graphics/Materials/MaterialCompiler.hpp>
 
 #include <array>
@@ -51,7 +53,7 @@ public:
     };
 
     std::size_t append(Instruction instruction);
-    void setOutputs(std::array<std::size_t, 7> outputs);
+    void setOutputs(std::array<std::size_t, MaterialSurfaceFieldCount> outputs);
     RuntimeData serialize() const;
     static std::shared_ptr<const MaterialAnalysisProgram> deserialize(
         const RuntimeData& data);
@@ -62,13 +64,16 @@ public:
                              const RuntimeData::Map& layerParameters) const;
 
 private:
+    static constexpr std::array<int, MaterialSurfaceFieldCount>
+        MaterialSurfaceFieldWidths{3, 1, 3, 1, 1, 1, 2};
+
     Value evaluateInstruction(const Instruction& instruction,
                               const std::vector<Value>& values,
                               const RuntimeData::Map& parameters,
                               const RuntimeData::Map& layerParameters) const;
     void validate() const;
     std::vector<Instruction> instructions_;
-    std::array<std::size_t, 7> outputs_{};
+    std::array<std::size_t, MaterialSurfaceFieldCount> outputs_{};
     std::array<std::vector<std::string>, 2> parameters_;
 };
 

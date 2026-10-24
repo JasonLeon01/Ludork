@@ -14,7 +14,7 @@ std::shared_ptr<GameplayAbilityResult> GameplayAbility::canActivate(
     for (const std::string& tag : requiredTags) {
         if (!abilitySystem->hasMatchingGameplayTag(tag)) {
             return GameplayAbilityResult::Failure(
-                std::string("MissingRequiredTag"),
+                std::string(GameplayAbilityResult::CODE_MISSING_REQUIRED_TAG),
                 ludork::global::gameplay_detail::runtimeMap(
                     {{"tag", RuntimeValue(tag)}}));
         }
@@ -22,7 +22,7 @@ std::shared_ptr<GameplayAbilityResult> GameplayAbility::canActivate(
     for (const std::string& tag : blockedTags) {
         if (abilitySystem->hasMatchingGameplayTag(tag)) {
             return GameplayAbilityResult::Failure(
-                std::string("BlockedByTag"),
+                std::string(GameplayAbilityResult::CODE_BLOCKED_BY_TAG),
                 ludork::global::gameplay_detail::runtimeMap(
                     {{"tag", RuntimeValue(tag)}}));
         }

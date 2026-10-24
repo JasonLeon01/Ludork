@@ -1,5 +1,7 @@
 #pragma once
 
+#include <CurveInterpolation.hpp>
+
 #include <CoreMinimal.hpp>
 #include <EngineRuntimeApi.hpp>
 
@@ -11,8 +13,8 @@ struct CurveKey {
     BIND_PROPERTY()
     float value = 0.0f;
 
-    BIND_PROPERTY()
-    std::string interpolation = "linear";
+    BIND_PROPERTY(default = "linear")
+    std::string interpolation = CurveInterpolation::LINEAR;
 
     BIND_PROPERTY()
     float arriveTangent = 0.0f;

@@ -1,3 +1,4 @@
+#include <AsyncOperationProtocol.hpp>
 #include <LuaError.hpp>
 #include "Bindings/Bindings.hpp"
 
@@ -203,18 +204,24 @@ int awaitOperation(lua_State* state) {
         return luaL_error(state,
                           "asyncio.await operation status must be a string");
     }
-    if (std::strcmp(status, "completed") == 0) {
+    if (std::strcmp(status,
+                    ludork::standard::asyncio::operation_status::Completed) ==
+        0) {
         lua_getfield(state, 1, "getResult");
         lua_pushvalue(state, 1);
         lua_call(state, 1, 1);
         return 1;
     }
-    if (std::strcmp(status, "cancelled") == 0) {
+    if (std::strcmp(status,
+                    ludork::standard::asyncio::operation_status::Cancelled) ==
+        0) {
         lua_pushboolean(state, true);
         lua_setfield(state, task, "cancelled");
         return lua_yield(state, 0);
     }
-    if (std::strcmp(status, "pending") != 0) {
+    if (std::strcmp(status,
+                    ludork::standard::asyncio::operation_status::Pending) !=
+        0) {
         return luaL_error(state,
                           "asyncio.await received an invalid operation status");
     }
@@ -275,10 +282,10 @@ void updateTask(lua_glue::StateView lua, lua_glue::Table& task, double now) {
                 "asyncio.await operation status must be a string");
         }
         const std::string name = status.as<std::string>();
-        if (name == "pending") {
+        if (name == ludork::standard::asyncio::operation_status::Pending) {
             return;
         }
-        if (name == "cancelled") {
+        if (name == ludork::standard::asyncio::operation_status::Cancelled) {
             task.raw_set("cancelled", true);
             const std::string error = closeTask(state, task);
             if (!error.empty()) {
@@ -286,7 +293,7 @@ void updateTask(lua_glue::StateView lua, lua_glue::Table& task, double now) {
             }
             return;
         }
-        if (name != "completed") {
+        if (name != ludork::standard::asyncio::operation_status::Completed) {
             throw std::runtime_error(
                 "asyncio.await received an invalid operation status");
         }

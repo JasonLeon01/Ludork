@@ -5,6 +5,60 @@
 
 BIND_CLASS(copyable = true, table_init = true)
 struct InjectedInputEvent {
+    BIND_CLASS_PROPERTY(readonly = true)
+    static const std::string KEY_PRESSED;
+
+    BIND_CLASS_PROPERTY(readonly = true)
+    static const std::string KEY_RELEASED;
+
+    BIND_CLASS_PROPERTY(readonly = true)
+    static const std::string MOUSE_MOVED;
+
+    BIND_CLASS_PROPERTY(readonly = true)
+    static const std::string MOUSE_BUTTON_PRESSED;
+
+    BIND_CLASS_PROPERTY(readonly = true)
+    static const std::string MOUSE_BUTTON_RELEASED;
+
+    BIND_CLASS_PROPERTY(readonly = true)
+    static const std::string MOUSE_WHEEL_SCROLLED;
+
+    BIND_CLASS_PROPERTY(readonly = true)
+    static const std::string MOUSE_ENTERED;
+
+    BIND_CLASS_PROPERTY(readonly = true)
+    static const std::string MOUSE_LEFT;
+
+    BIND_CLASS_PROPERTY(readonly = true)
+    static const std::string TEXT_ENTERED;
+
+    BIND_CLASS_PROPERTY(readonly = true)
+    static const std::string TEXT_PREEDIT;
+
+    BIND_CLASS_PROPERTY(readonly = true)
+    static const std::string TEXT_COMPOSITION;
+
+    BIND_CLASS_PROPERTY(readonly = true)
+    static const std::string FOCUS_GAINED;
+
+    BIND_CLASS_PROPERTY(readonly = true)
+    static const std::string FOCUS_LOST;
+
+    BIND_CLASS_PROPERTY(readonly = true)
+    static const std::string BUTTON_LEFT;
+
+    BIND_CLASS_PROPERTY(readonly = true)
+    static const std::string BUTTON_RIGHT;
+
+    BIND_CLASS_PROPERTY(readonly = true)
+    static const std::string BUTTON_MIDDLE;
+
+    BIND_CLASS_PROPERTY(readonly = true)
+    static const std::string BUTTON_EXTRA1;
+
+    BIND_CLASS_PROPERTY(readonly = true)
+    static const std::string BUTTON_EXTRA2;
+
     BIND_PROPERTY()
     std::string type;
 
@@ -14,8 +68,8 @@ struct InjectedInputEvent {
     BIND_PROPERTY()
     int scan = static_cast<int>(sf::Keyboard::Scancode::Unknown);
 
-    BIND_PROPERTY()
-    std::string button = "Left";
+    BIND_PROPERTY(default = "Left")
+    std::string button = BUTTON_LEFT;
 
     BIND_PROPERTY()
     int x = 0;

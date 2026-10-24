@@ -1,6 +1,7 @@
 local GlobalCore = require("GlobalCore")
 local Special = require("Enums.GeneralData.Special")
 local GameplayConstants = require("Source.Configs.GameplayConstants")
+local MovementResultCode = require("Enums.MovementResultCode")
 
 local GameplayAbility = GlobalCore.GameplayAbility
 local GameplayAbilityResult = GlobalCore.GameplayAbilityResult
@@ -27,7 +28,7 @@ function MovementSpecialAbility:activate(_abilitySystem, eventData)
         radius = math.max(1, self._magnitude)
     end
     if eventData.eventTag == GameplayConstants.MOVEMENT_QUERY_HAZARD_BOUNDS_EVENT then
-        return assert(GameplayAbilityResult.Success("MovementHazardBounds", { radius = radius }))
+        return assert(GameplayAbilityResult.Success(MovementResultCode.HAZARD_BOUNDS, { radius = radius }))
     end
     local active = false
     if self._specialID == Special.Domain then
@@ -37,7 +38,7 @@ function MovementSpecialAbility:activate(_abilitySystem, eventData)
     elseif self._specialID == Special.Flank then
         active = true
     end
-    return assert(GameplayAbilityResult.Success("MovementHazard", {
+    return assert(GameplayAbilityResult.Success(MovementResultCode.HAZARD, {
             active = active,
             special = self._specialID,
             magnitude = self._magnitude,

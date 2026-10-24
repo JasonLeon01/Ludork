@@ -1,3 +1,5 @@
+#include <LudorkGenerated/ResourceFileConstants.hpp>
+#include "Rendering/PixelConversion.hpp"
 #include "UI/UiPreviewSession.hpp"
 #include <UI/UiAssetInstance.hpp>
 
@@ -72,8 +74,10 @@ std::string particleResourceStamp(
     }
     RuntimeData::Array stamps;
     for (const std::string& key : keys) {
-        const std::filesystem::path path = ludork::standard::resolveDataPath(
-            ludork::standard::pathFromUtf8("Data/Particles/" + key + ".json"));
+        const std::filesystem::path path =
+            ludork::standard::resolveDataPath(ludork::standard::pathFromUtf8(
+                "Data/Particles/" + key +
+                ludork::generated::resources::DataExtension));
         const ludork::standard::ReadOnlyFileStatus status =
             ludork::standard::readOnlyFileStatus(path);
         RuntimeData size;
@@ -173,7 +177,7 @@ RuntimeData UiPreviewSession::render(const RuntimeData::Map& request,
         renderTargetSpec(design, requestedScale);
     std::string animationName;
     std::optional<std::string> animationTarget;
-    float animationTime = 0.5f;
+    float animationTime = DefaultAnimationSampleTime;
     if (const RuntimeData* animationNameValue =
             ludork::runtime::value_reader::findValue(request,
                                                      "animationName")) {
@@ -248,7 +252,8 @@ RuntimeData UiPreviewSession::render(const RuntimeData::Map& request,
     if (!animationName_.empty()) {
         const float time = emitterViews_.empty()
                                ? animationTime
-                               : static_cast<float>(particleSteps_) / 240.0f;
+                               : static_cast<float>(particleSteps_) /
+                                     static_cast<float>(ParticleSimulationRate);
         if (!instance_->sampleAnimation(animationName_, animationTarget_,
                                         time)) {
             throw std::invalid_argument("UI preview animation was not found: " +
@@ -264,17 +269,19 @@ RuntimeData UiPreviewSession::render(const RuntimeData::Map& request,
     renderSize_ = targetSpec.size;
     renderScale_ = targetSpec.renderScale;
     return RuntimeData(object({
-        {"type", RuntimeData("frame")},
+        {"type", RuntimeData(FrameResponse)},
         {"generation", RuntimeData(generation)},
         {"designWidth", RuntimeData(static_cast<std::int64_t>(design.x))},
         {"designHeight", RuntimeData(static_cast<std::int64_t>(design.y))},
         {"width", RuntimeData(static_cast<std::int64_t>(renderSize_.x))},
         {"height", RuntimeData(static_cast<std::int64_t>(renderSize_.y))},
-        {"stride", RuntimeData(static_cast<std::int64_t>(renderSize_.x) * 4)},
+        {"stride", RuntimeData(static_cast<std::int64_t>(renderSize_.x) *
+                               preview_pixels::BytesPerPixel)},
         {"renderScale", number(renderScale_)},
         {"particleSeeking", RuntimeData(particleSeeking)},
         {"particleTime",
-         RuntimeData(static_cast<double>(particleSteps_) / 240.0)},
+         RuntimeData(static_cast<double>(particleSteps_) /
+                     static_cast<double>(ParticleSimulationRate))},
         {"sharedMemory",
          RuntimeData(object({
              {"filePath", RuntimeData(ludork::standard::pathToUtf8(framePath))},
@@ -289,7 +296,9 @@ bool UiPreviewSession::sampleParticles(double time) {
     if (emitterViews_.empty()) {
         return false;
     }
-    const double count = std::floor(time * 240.0 + 0.000001);
+    const double count =
+        std::floor(time * static_cast<double>(ParticleSimulationRate) +
+                   ParticleStepRoundingTolerance);
     if (count >=
         static_cast<double>(std::numeric_limits<std::int64_t>::max())) {
         throw std::invalid_argument("UI particle sample time is too large");
@@ -308,19 +317,22 @@ bool UiPreviewSession::sampleParticles(double time) {
         std::chrono::steady_clock::now();
     bool warming =
         std::any_of(emitterViews_.begin(), emitterViews_.end(), warmingEmitter);
-    for (int step = 0; step < 120 && (warming || particleSteps_ < targetSteps);
+    for (int step = 0; step < MaximumParticleSeekSteps &&
+                       (warming || particleSteps_ < targetSteps);
          ++step) {
         if (!animationName_.empty() &&
             !instance_->sampleAnimation(
                 animationName_, animationTarget_,
-                static_cast<float>(particleSteps_) / 240.0f)) {
+                static_cast<float>(particleSteps_) /
+                    static_cast<float>(ParticleSimulationRate))) {
             throw std::invalid_argument("UI preview animation was not found: " +
                                         animationName_);
         }
         emitterScheduler_->beginFrame();
         ludork::engine::collectUiEmitters(instance_->getRoot(),
                                           *emitterScheduler_);
-        emitterScheduler_->advance(warming ? 0.0f : 1.0f / 240.0f);
+        emitterScheduler_->advance(
+            warming ? 0.0f : 1.0f / static_cast<float>(ParticleSimulationRate));
         if (!warming) {
             ++particleSteps_;
         }
@@ -328,7 +340,7 @@ bool UiPreviewSession::sampleParticles(double time) {
                               warmingEmitter);
         if (std::chrono::duration<double, std::milli>(
                 std::chrono::steady_clock::now() - begin)
-                .count() >= 12.0) {
+                .count() >= ParticleSeekBudgetMilliseconds) {
             break;
         }
     }
@@ -360,7 +372,7 @@ RuntimeData UiPreviewSession::hitTest(const RuntimeData::Map& request) const {
         }
     }
     return RuntimeData(object({
-        {"type", RuntimeData("hitTest")},
+        {"type", RuntimeData(HitTestResponse)},
         {"generation", RuntimeData(generation)},
         {"nodeName", std::move(nodeName)},
     }));

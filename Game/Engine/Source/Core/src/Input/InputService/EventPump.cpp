@@ -145,16 +145,16 @@ sf::Keyboard::Key InputImpl::keyFromName(const std::string& name) {
 }
 
 sf::Mouse::Button InputImpl::mouseButtonFromName(const std::string& name) {
-    if (name == "Right") {
+    if (name == InjectedInputEvent::BUTTON_RIGHT) {
         return sf::Mouse::Button::Right;
     }
-    if (name == "Middle") {
+    if (name == InjectedInputEvent::BUTTON_MIDDLE) {
         return sf::Mouse::Button::Middle;
     }
-    if (name == "Extra1") {
+    if (name == InjectedInputEvent::BUTTON_EXTRA1) {
         return sf::Mouse::Button::Extra1;
     }
-    if (name == "Extra2") {
+    if (name == InjectedInputEvent::BUTTON_EXTRA2) {
         return sf::Mouse::Button::Extra2;
     }
     return sf::Mouse::Button::Left;
@@ -315,7 +315,8 @@ void InputImpl::processInjectedEvents() {
         events.pop_front();
         sf::Keyboard::Key key = sf::Keyboard::Key::Unknown;
         sf::Keyboard::Scancode scan = sf::Keyboard::Scancode::Unknown;
-        if (event.type == "KeyPressed" || event.type == "KeyReleased") {
+        if (event.type == InjectedInputEvent::KEY_PRESSED ||
+            event.type == InjectedInputEvent::KEY_RELEASED) {
             setFocused(true);
             key = keyFromName(event.key);
             scan = scanFromCode(event.scan);
@@ -326,27 +327,29 @@ void InputImpl::processInjectedEvents() {
             key = resolveKeyCode(key, scan);
         }
         const sf::Mouse::Button button = mouseButtonFromName(event.button);
-        if (event.type == "KeyPressed") {
+        if (event.type == InjectedInputEvent::KEY_PRESSED) {
             observeInputHintEvent(
                 sf::Event::KeyPressed{key, scan, event.alt, event.control,
                                       event.shift, event.system});
-        } else if (event.type == "MouseMoved") {
+        } else if (event.type == InjectedInputEvent::MOUSE_MOVED) {
             observeInputHintEvent(sf::Event::MouseMoved{{event.x, event.y}});
-        } else if (event.type == "MouseButtonPressed") {
+        } else if (event.type == InjectedInputEvent::MOUSE_BUTTON_PRESSED) {
             observeInputHintEvent(
                 sf::Event::MouseButtonPressed{button, {event.x, event.y}});
-        } else if (event.type == "MouseWheelScrolled") {
+        } else if (event.type == InjectedInputEvent::MOUSE_WHEEL_SCROLLED) {
             observeInputHintEvent(sf::Event::MouseWheelScrolled{
                 sf::Mouse::Wheel::Vertical, event.delta, {event.x, event.y}});
         }
         const sf::Vector2i pixel{event.x, event.y};
         const bool acceptsConfirmation =
             eventPump_.focused_ &&
-            (event.type != "MouseButtonPressed" || acceptsPointerPixel(pixel));
+            (event.type != InjectedInputEvent::MOUSE_BUTTON_PRESSED ||
+             acceptsPointerPixel(pixel));
         modal_.observeInjectedEvent(event, key, scan, button,
                                     acceptsConfirmation);
-        if (isInputCaptured() && event.type != "FocusGained" &&
-            event.type != "FocusLost") {
+        if (isInputCaptured() &&
+            event.type != InjectedInputEvent::FOCUS_GAINED &&
+            event.type != InjectedInputEvent::FOCUS_LOST) {
             continue;
         }
         const InputModifiers modifiers{event.alt, event.control, event.shift,
@@ -355,20 +358,22 @@ void InputImpl::processInjectedEvents() {
             eventPump_.activeWindow_ == nullptr
                 ? pixel
                 : pixelToWorld(*eventPump_.activeWindow_, pixel);
-        if (event.type == "MouseMoved" || event.type == "MouseButtonPressed" ||
-            event.type == "MouseButtonReleased" ||
-            event.type == "MouseWheelScrolled" ||
-            event.type == "MouseEntered") {
+        if (event.type == InjectedInputEvent::MOUSE_MOVED ||
+            event.type == InjectedInputEvent::MOUSE_BUTTON_PRESSED ||
+            event.type == InjectedInputEvent::MOUSE_BUTTON_RELEASED ||
+            event.type == InjectedInputEvent::MOUSE_WHEEL_SCROLLED ||
+            event.type == InjectedInputEvent::MOUSE_ENTERED) {
             pointer_.injectedPixel_ = pixel;
         }
-        if (event.type == "TextEntered" || event.type == "TextPreedit" ||
-            event.type == "TextComposition") {
+        if (event.type == InjectedInputEvent::TEXT_ENTERED ||
+            event.type == InjectedInputEvent::TEXT_PREEDIT ||
+            event.type == InjectedInputEvent::TEXT_COMPOSITION) {
             ludork::engine::text_input::TextInputService& service =
                 ludork::engine::text_input::service();
             service.pump();
             const ludork::engine::text_input::SessionId id =
                 parseSession(event.session);
-            if (event.type == "TextEntered") {
+            if (event.type == InjectedInputEvent::TEXT_ENTERED) {
                 const bool validScalar =
                     event.unicode >= 32 && event.unicode != 127 &&
                     event.unicode <= 0x10FFFF &&
@@ -386,41 +391,42 @@ void InputImpl::processInjectedEvents() {
                     keyboard_.enteredText_ +=
                         toUtf8(static_cast<char32_t>(event.unicode));
                 }
-            } else if (event.type == "TextPreedit" && event.preeditCaret >= 0) {
+            } else if (event.type == InjectedInputEvent::TEXT_PREEDIT &&
+                       event.preeditCaret >= 0) {
                 service.setPreedit(
                     id, event.text,
                     static_cast<std::size_t>(event.preeditCaret));
-            } else if (event.type == "TextComposition") {
+            } else if (event.type == InjectedInputEvent::TEXT_COMPOSITION) {
                 service.setComposing(id, event.composing);
             }
-        } else if (event.type == "KeyPressed") {
+        } else if (event.type == InjectedInputEvent::KEY_PRESSED) {
             if (!ludork::engine::text_input::service().processEvent(
                     sf::Event::KeyPressed{key, scan, event.alt, event.control,
                                           event.shift, event.system})) {
                 setKeyPressed(key, scan, modifiers);
             }
-        } else if (event.type == "KeyReleased") {
+        } else if (event.type == InjectedInputEvent::KEY_RELEASED) {
             if (!ludork::engine::text_input::service().processEvent(
                     sf::Event::KeyReleased{key, scan, event.alt, event.control,
                                            event.shift, event.system})) {
                 setKeyReleased(key, scan, modifiers);
             }
-        } else if (event.type == "MouseMoved") {
+        } else if (event.type == InjectedInputEvent::MOUSE_MOVED) {
             processMouseMoved(pixel, position);
-        } else if (event.type == "MouseButtonPressed") {
+        } else if (event.type == InjectedInputEvent::MOUSE_BUTTON_PRESSED) {
             processMouseButtonPressed(button, pixel, position);
-        } else if (event.type == "MouseButtonReleased") {
+        } else if (event.type == InjectedInputEvent::MOUSE_BUTTON_RELEASED) {
             processMouseButtonReleased(button, pixel, position);
-        } else if (event.type == "MouseWheelScrolled") {
+        } else if (event.type == InjectedInputEvent::MOUSE_WHEEL_SCROLLED) {
             processMouseWheel(sf::Mouse::Wheel::Vertical, event.delta, pixel,
                               position);
-        } else if (event.type == "FocusGained") {
+        } else if (event.type == InjectedInputEvent::FOCUS_GAINED) {
             setFocused(true);
-        } else if (event.type == "FocusLost") {
+        } else if (event.type == InjectedInputEvent::FOCUS_LOST) {
             setFocused(false);
-        } else if (event.type == "MouseEntered") {
+        } else if (event.type == InjectedInputEvent::MOUSE_ENTERED) {
             updatePointerViewportState(pixel);
-        } else if (event.type == "MouseLeft") {
+        } else if (event.type == InjectedInputEvent::MOUSE_LEFT) {
             pointer_.injectedPixel_.reset();
             pointer_.injectedTransitionPending_.reset();
             updatePointerViewportState(false);

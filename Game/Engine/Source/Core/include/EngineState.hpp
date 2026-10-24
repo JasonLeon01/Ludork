@@ -26,9 +26,6 @@ extern LUDORK_ENGINE_API const sf::Vector3i ZeroVector3i;
 BIND_MODULE_PROPERTY()
 extern LUDORK_ENGINE_API const sf::Vector3u ZeroVector3u;
 
-BIND_MODULE_PROPERTY(enum = true)
-extern LUDORK_ENGINE_API const std::unordered_map<std::string, int> Direction;
-
 class LUDORK_ENGINE_API EngineState {
 public:
     static constexpr int CellSize = 32;
@@ -42,8 +39,10 @@ public:
     void reset() noexcept;
 
 private:
+    static constexpr sf::Vector2u DefaultGameSize{640u, 480u};
+
     bool gameRunning_ = true;
-    sf::Vector2u gameSize_ = {640u, 480u};
+    sf::Vector2u gameSize_ = DefaultGameSize;
     float scale_ = 1.0f;
 };
 

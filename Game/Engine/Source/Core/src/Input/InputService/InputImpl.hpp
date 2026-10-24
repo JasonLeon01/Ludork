@@ -348,8 +348,12 @@ public:
     void shutdown() noexcept;
 
 private:
+    static constexpr std::chrono::milliseconds TouchLongPressDuration{600};
+    static constexpr float AxisChangeTolerance = 1e-6f;
+
     static std::string keyId(int code, const InputModifiers& modifiers);
     static std::string axisId(unsigned int joystickId, sf::Joystick::Axis axis);
+    static bool isDefaultDirectionalAxis(const InputActionKey& key);
     static bool axisMatches(float position, const InputActionKey& key);
     static sf::Keyboard::Key keyFromName(const std::string& name);
     static sf::Mouse::Button mouseButtonFromName(const std::string& name);

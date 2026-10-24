@@ -227,13 +227,14 @@ RuntimeData MaterialPreviewSession::Impl::render(
     const RuntimeData* generation =
         map_preview_data::optional(request, "generation");
     return RuntimeData(object(
-        {{"type", RuntimeData("materialFrame")},
+        {{"type", RuntimeData(FrameResponse)},
          {"generation",
           generation == nullptr ? RuntimeData(std::int64_t{0}) : *generation},
          {"width", RuntimeData(static_cast<std::int64_t>(width))},
          {"height", RuntimeData(static_cast<std::int64_t>(height))},
-         {"stride", RuntimeData(static_cast<std::int64_t>(width) * 4)},
-         {"pixelFormat", RuntimeData("Bgra8888Premultiplied")},
+         {"stride", RuntimeData(static_cast<std::int64_t>(width) *
+                                preview_pixels::BytesPerPixel)},
+         {"pixelFormat", RuntimeData(preview_pixels::Format)},
          {"sharedMemory",
           RuntimeData(object(
               {{"filePath", RuntimeData(ludork::standard::pathToUtf8(file))},
@@ -256,7 +257,7 @@ void MaterialPreviewSession::reset() {
 }
 RuntimeData MaterialPreviewSession::describe() {
     return RuntimeData(object(
-        {{"type", RuntimeData("materialDescription")},
+        {{"type", RuntimeData(DescriptionResponse)},
          {"registry",
           ludork::engine::materials::MaterialResource::nodeRegistry()},
          {"defaultMaterial",

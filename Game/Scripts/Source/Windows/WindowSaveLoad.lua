@@ -11,13 +11,11 @@ local WindowTransition = require("Internal.UIBase.WindowTransition")
 local WindowSaveDetail = require("Source.Windows.WindowSaveLoad.Detail")
 local WindowSaveSlot = require("Source.Windows.WindowSaveLoad.Slot")
 local WindowSaveTabs = require("Source.Windows.WindowSaveLoad.Tabs")
+local SaveLoadMode = require("Enums.SaveLoadMode")
+local SaveLoadCloseReason = require("Enums.SaveLoadCloseReason")
 
 local AudioManager = GlobalCore.AudioManager
 local Canvas = Engine.Canvas
-
-local CLOSE_REASON_CANCEL = "cancel"
-local CLOSE_REASON_SAVED = "saved"
-local CLOSE_REASON_LOADED = "loaded"
 
 ---@class Source.Windows.WindowSaveLoad.Controller
 local Controller = {}
@@ -29,7 +27,7 @@ function Controller:init(loadOnly, getSaveSource, onClose, onLoaded)
     self._getSaveSource = getSaveSource
     self._onCloseCallback = onClose
     self._onLoadedCallback = onLoaded
-    self._mode = "load"
+    self._mode = SaveLoadMode.LOAD
     self._transitionProfile = WindowTransitionProfile.DEFAULT
     self._tabWindow = nil
     if not self._loadOnly then
@@ -80,14 +78,14 @@ end
 function Controller:open(transitionProfile, initialMode, dockPosition)
     self._openClock:restart()
     self._transitionProfile = transitionProfile or WindowTransitionProfile.DEFAULT
-    ---@type "load" | "save"
-    local mode = "load"
-    if not self._loadOnly and initialMode == "save" then
-        mode = "save"
+    ---@type Enums.SaveLoadMode
+    local mode = SaveLoadMode.LOAD
+    if not self._loadOnly and initialMode == SaveLoadMode.SAVE then
+        mode = SaveLoadMode.SAVE
     end
     self._mode = mode
     if self._tabWindow ~= nil then
-        self.ui.assets["TabsAsset"].controls["Tabs"]:setSelectedIndex(mode == "save" and 1 or 0)
+        self.ui.assets["TabsAsset"].controls["Tabs"]:setSelectedIndex(mode == SaveLoadMode.SAVE and 1 or 0)
     end
     self._slotWindow:resetSelection()
     local latestSlotIndex = (Save.FindLatestSlot(WindowSaveSlot.MAX_SAVE_SLOTS) or 1) - 1
@@ -138,7 +136,7 @@ end
 
 function Controller:closeByCancel()
     AudioManager.playSound(GameSystem.GetCancelSE())
-    self:_closeWithReason(CLOSE_REASON_CANCEL)
+    self:_closeWithReason(SaveLoadCloseReason.CANCEL)
 end
 
 function Controller:handleTabNavigationInput()
@@ -153,7 +151,7 @@ function Controller:onTabSelected(index)
     if self._loadOnly then
         return
     end
-    local mode = index == 0 and "load" or "save"
+    local mode = index == 0 and SaveLoadMode.LOAD or SaveLoadMode.SAVE
     if mode == self._mode then
         return
     end
@@ -171,7 +169,7 @@ end
 
 function Controller:onSlotConfirm(slot)
     local slotNumber = slot + 1
-    if self._mode == "save" then
+    if self._mode == SaveLoadMode.SAVE then
         self:_handleSave(slotNumber)
     else
         self:_handleLoad(slotNumber)
@@ -192,7 +190,7 @@ function Controller:_handleSave(slotNumber)
     Save.SaveSlot(slotNumber, instance, GameSystem.GetSavedScreenImage())
     AudioManager.playSound(GameSystem.GetSaveSE())
     self._detailWindow:refresh()
-    self:_closeWithReason(CLOSE_REASON_SAVED)
+    self:_closeWithReason(SaveLoadCloseReason.SAVED)
 end
 
 ---@param slotNumber integer
@@ -208,14 +206,14 @@ function Controller:_handleLoad(slotNumber)
         return
     end
     AudioManager.playSound(GameSystem.GetLoadSE())
-    self:_closeWithReason(CLOSE_REASON_LOADED, function ()
+    self:_closeWithReason(SaveLoadCloseReason.LOADED, function ()
         if self._onLoadedCallback ~= nil then
             self._onLoadedCallback(instance)
         end
     end)
 end
 
----@param reason   string
+---@param reason   Enums.SaveLoadCloseReason
 ---@param onHidden function | nil
 function Controller:_closeWithReason(reason, onHidden)
     self:close(function ()

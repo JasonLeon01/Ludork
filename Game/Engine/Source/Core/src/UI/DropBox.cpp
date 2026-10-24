@@ -1,3 +1,4 @@
+#include <DisplayScaleLimits.hpp>
 #include <UI/DropBox.hpp>
 #include <UI/PlainText.hpp>
 #include <UI/PlainTextConfig.hpp>
@@ -328,7 +329,10 @@ void DropBox::onMouseWheelScrolled(const UiInputEventArguments& arguments) {
                 setScrollOffset(
                     scrollOffset_ -
                     static_cast<float>(*delta) /
-                        std::max(engineState().getScale(), 0.000001f));
+                        std::max(
+                            engineState().getScale(),
+                            static_cast<float>(
+                                DisplayScaleLimits::MINIMUM_INVERTIBLE_SCALE)));
             } else {
                 const float target =
                     scrollTargetOffset_.value_or(scrollOffset_) -

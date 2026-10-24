@@ -1,3 +1,4 @@
+#include "GpuGlConstants.hpp"
 #include "GpuApi.hpp"
 
 #include <SFML/Window/Context.hpp>
@@ -78,7 +79,8 @@ GpuApi::GpuApi() {
     LOAD(ReadPixels);
     LOAD(Flush);
 #undef LOAD
-    const char* version = reinterpret_cast<const char*>(GetString(0x1F02));
+    const char* version =
+        reinterpret_cast<const char*>(GetString(gpu_gl::Version));
     if (version == nullptr) {
         throw std::runtime_error(
             "GPU Emitter requires an active OpenGL context");
@@ -98,16 +100,17 @@ GpuApi::GpuApi() {
     std::string extensionText;
     if (major >= 3 && GetStringi != nullptr) {
         int extensionCount = 0;
-        GetIntegerv(0x821D, &extensionCount);
+        GetIntegerv(gpu_gl::NumExtensions, &extensionCount);
         for (int index = 0; index < extensionCount; ++index) {
-            const auto* extension = GetStringi(0x1F03, static_cast<E>(index));
+            const auto* extension =
+                GetStringi(gpu_gl::Extensions, static_cast<E>(index));
             if (extension != nullptr) {
                 extensionText += reinterpret_cast<const char*>(extension);
                 extensionText += ' ';
             }
         }
     } else {
-        const auto* extensions = GetString(0x1F03);
+        const auto* extensions = GetString(gpu_gl::Extensions);
         extensionText = extensions == nullptr
                             ? ""
                             : reinterpret_cast<const char*>(extensions);
@@ -158,17 +161,25 @@ GpuApi::GpuApi() {
     VertexAttribDivisor = function<VertexAttribDivisorFunction>(
         embedded || desktopAtLeast(3, 3) ? "glVertexAttribDivisor"
                                          : "glVertexAttribDivisorARB");
-    renderer = reinterpret_cast<const char*>(GetString(0x1F01));
+    renderer = reinterpret_cast<const char*>(GetString(gpu_gl::Renderer));
     int vertexTextures = 0;
     int feedbackComponents = 0;
     int attributes = 0;
-    GetIntegerv(0x8B4C, &vertexTextures);
-    GetIntegerv(0x8C8A, &feedbackComponents);
-    GetIntegerv(0x8869, &attributes);
-    if (vertexTextures < 1 || feedbackComponents < 24 || attributes < 7) {
+    GetIntegerv(gpu_gl::MaxVertexTextureImageUnits, &vertexTextures);
+    GetIntegerv(gpu_gl::MaxTransformFeedbackInterleavedComponents,
+                &feedbackComponents);
+    GetIntegerv(gpu_gl::MaxVertexAttribs, &attributes);
+    if (vertexTextures < 1 ||
+        feedbackComponents <
+            static_cast<int>(gpu_particle_layout::StateFloatCount) ||
+        attributes <
+            static_cast<int>(gpu_particle_layout::VertexAttributeCount)) {
         throw std::runtime_error(
-            "GPU Emitter requires vertex texture sampling, 24 "
-            "transform-feedback components and 7 vertex attributes");
+            "GPU Emitter requires vertex texture sampling, " +
+            std::to_string(gpu_particle_layout::StateFloatCount) +
+            " transform-feedback components and " +
+            std::to_string(gpu_particle_layout::VertexAttributeCount) +
+            " vertex attributes");
     }
     const bool coreTimer = !embedded && (desktopAtLeast(3, 3) ||
                                          hasExtension("GL_ARB_timer_query"));
@@ -264,36 +275,41 @@ GpuApi::E GpuApi::program(const std::string& vertex,
     try {
         for (const auto& stage :
              std::array<std::pair<E, const std::string*>, 2>{
-                 {{0x8B31, &vertex}, {0x8B30, &fragment}}}) {
+                 {{gpu_gl::VertexShader, &vertex},
+                  {gpu_gl::FragmentShader, &fragment}}}) {
             const E shader = CreateShader(stage.first);
             shaders.push_back(shader);
             const char* source = stage.second->c_str();
             ShaderSource(shader, 1, &source, nullptr);
             CompileShader(shader);
             int success = 0;
-            GetShaderiv(shader, 0x8B81, &success);
+            GetShaderiv(shader, gpu_gl::CompileStatus, &success);
             if (success == 0) {
-                char log[8192]{};
+                char log[ShaderLogCapacity]{};
                 GetShaderInfoLog(shader, sizeof(log), nullptr, log);
                 throw std::runtime_error(std::string("GPU Emitter shader: ") +
                                          log);
             }
             AttachShader(result, shader);
         }
-        for (unsigned int index = 0; index < 6; ++index) {
-            const std::string name = "a" + std::to_string(index);
-            BindAttribLocation(result, index, name.c_str());
+        for (unsigned int index = 0;
+             index < gpu_particle_layout::StateAttributeCount; ++index) {
+            BindAttribLocation(result, index,
+                               gpu_particle_layout::StateAttributeNames[index]);
         }
-        BindAttribLocation(result, 6, "corner");
+        BindAttribLocation(result, gpu_particle_layout::CornerAttributeIndex,
+                           gpu_particle_layout::CornerAttributeName);
         if (feedback) {
-            const char* outputs[] = {"s0", "s1", "s2", "s3", "s4", "s5"};
-            TransformFeedbackVaryings(result, 6, outputs, 0x8C8C);
+            TransformFeedbackVaryings(result,
+                                      gpu_particle_layout::StateAttributeCount,
+                                      gpu_particle_layout::FeedbackNames.data(),
+                                      gpu_gl::InterleavedAttribs);
         }
         LinkProgram(result);
         int success = 0;
-        GetProgramiv(result, 0x8B82, &success);
+        GetProgramiv(result, gpu_gl::LinkStatus, &success);
         if (success == 0) {
-            char log[8192]{};
+            char log[ShaderLogCapacity]{};
             GetProgramInfoLog(result, sizeof(log), nullptr, log);
             throw std::runtime_error(std::string("GPU Emitter program: ") +
                                      log);
@@ -312,25 +328,32 @@ GpuApi::E GpuApi::program(const std::string& vertex,
 }
 
 GpuStateGuard::GpuStateGuard(GpuApi& api) : api_(api) {
-    api_.GetIntegerv(0x8B8D, &program_);
-    api_.GetIntegerv(0x8894, &buffer_);
-    api_.GetIntegerv(0x8C8F, &feedback_);
-    api_.GetIntegeri_v(0x8C8F, 0, &feedbackBase_);
-    api_.GetIntegerv(0x84E0, &activeTexture_);
-    for (int index = 0; index < 4; ++index) {
-        api_.ActiveTexture(0x84C0 + index);
-        api_.GetIntegerv(0x8069, &textures_[index]);
+    api_.GetIntegerv(gpu_gl::CurrentProgram, &program_);
+    api_.GetIntegerv(gpu_gl::ArrayBufferBinding, &buffer_);
+    api_.GetIntegerv(gpu_gl::TransformFeedbackBufferBinding, &feedback_);
+    api_.GetIntegeri_v(gpu_gl::TransformFeedbackBufferBinding,
+                       gpu_particle_layout::FeedbackBindingIndex,
+                       &feedbackBase_);
+    api_.GetIntegerv(gpu_gl::ActiveTexture, &activeTexture_);
+    for (int index = 0;
+         index < static_cast<int>(gpu_particle_layout::TextureUnitCount);
+         ++index) {
+        api_.ActiveTexture(gpu_gl::Texture0 + index);
+        api_.GetIntegerv(gpu_gl::TextureBinding2D, &textures_[index]);
     }
-    api_.GetIntegerv(0x0BA2, viewport_);
-    const unsigned int blendNames[] = {0x80C9, 0x80C8, 0x80CB,
-                                       0x80CA, 0x8009, 0x883D};
-    for (int index = 0; index < 6; ++index) {
+    api_.GetIntegerv(gpu_gl::Viewport, viewport_);
+    const unsigned int blendNames[] = {
+        gpu_gl::BlendSrcRgb,      gpu_gl::BlendDstRgb,
+        gpu_gl::BlendSrcAlpha,    gpu_gl::BlendDstAlpha,
+        gpu_gl::BlendEquationRgb, gpu_gl::BlendEquationAlpha};
+    for (int index = 0; index < static_cast<int>(std::size(blendNames));
+         ++index) {
         api_.GetIntegerv(blendNames[index], &blend_[index]);
     }
-    blending_ = api_.IsEnabled(0x0BE2) != 0;
-    discard_ = api_.IsEnabled(0x8C89) != 0;
+    blending_ = api_.IsEnabled(gpu_gl::Blend) != 0;
+    discard_ = api_.IsEnabled(gpu_gl::RasterizerDiscard) != 0;
     if (api_.vertexArraysAvailable) {
-        api_.GetIntegerv(0x85B5, &vertexArray_);
+        api_.GetIntegerv(gpu_gl::VertexArrayBinding, &vertexArray_);
         if (api_.vertexArrayDepth_ == api_.vertexArrays_.size()) {
             api_.vertexArrays_.emplace_back(0);
             api_.GenVertexArrays(1, &api_.vertexArrays_.back());
@@ -344,16 +367,25 @@ GpuStateGuard::GpuStateGuard(GpuApi& api) : api_(api) {
         api_.BindVertexArray(api_.vertexArrays_[api_.vertexArrayDepth_++]);
         return;
     }
-    for (unsigned int index = 0; index < 7; ++index) {
+    for (unsigned int index = 0;
+         index < gpu_particle_layout::VertexAttributeCount; ++index) {
         Attribute& attribute = attributes_[index];
-        api_.GetVertexAttribiv(index, 0x8622, &attribute.enabled);
-        api_.GetVertexAttribiv(index, 0x8623, &attribute.size);
-        api_.GetVertexAttribiv(index, 0x8625, &attribute.type);
-        api_.GetVertexAttribiv(index, 0x886A, &attribute.normalized);
-        api_.GetVertexAttribiv(index, 0x8624, &attribute.stride);
-        api_.GetVertexAttribiv(index, 0x889F, &attribute.buffer);
-        api_.GetVertexAttribiv(index, 0x88FE, &attribute.divisor);
-        api_.GetVertexAttribPointerv(index, 0x8645, &attribute.pointer);
+        api_.GetVertexAttribiv(index, gpu_gl::VertexAttribArrayEnabled,
+                               &attribute.enabled);
+        api_.GetVertexAttribiv(index, gpu_gl::VertexAttribArraySize,
+                               &attribute.size);
+        api_.GetVertexAttribiv(index, gpu_gl::VertexAttribArrayType,
+                               &attribute.type);
+        api_.GetVertexAttribiv(index, gpu_gl::VertexAttribArrayNormalized,
+                               &attribute.normalized);
+        api_.GetVertexAttribiv(index, gpu_gl::VertexAttribArrayStride,
+                               &attribute.stride);
+        api_.GetVertexAttribiv(index, gpu_gl::VertexAttribArrayBufferBinding,
+                               &attribute.buffer);
+        api_.GetVertexAttribiv(index, gpu_gl::VertexAttribArrayDivisor,
+                               &attribute.divisor);
+        api_.GetVertexAttribPointerv(index, gpu_gl::VertexAttribArrayPointer,
+                                     &attribute.pointer);
     }
 }
 
@@ -362,9 +394,10 @@ GpuStateGuard::~GpuStateGuard() {
         api_.BindVertexArray(static_cast<unsigned int>(vertexArray_));
         --api_.vertexArrayDepth_;
     } else {
-        for (unsigned int index = 0; index < 7; ++index) {
+        for (unsigned int index = 0;
+             index < gpu_particle_layout::VertexAttributeCount; ++index) {
             const Attribute& attribute = attributes_[index];
-            api_.BindBuffer(0x8892, attribute.buffer);
+            api_.BindBuffer(gpu_gl::ArrayBuffer, attribute.buffer);
             api_.VertexAttribPointer(
                 index, attribute.size, attribute.type,
                 static_cast<unsigned char>(attribute.normalized),
@@ -377,27 +410,31 @@ GpuStateGuard::~GpuStateGuard() {
             }
         }
     }
-    api_.BindBuffer(0x8892, buffer_);
-    api_.BindBufferBase(0x8C8E, 0, feedbackBase_);
-    api_.BindBuffer(0x8C8E, feedback_);
+    api_.BindBuffer(gpu_gl::ArrayBuffer, buffer_);
+    api_.BindBufferBase(gpu_gl::TransformFeedbackBuffer,
+                        gpu_particle_layout::FeedbackBindingIndex,
+                        feedbackBase_);
+    api_.BindBuffer(gpu_gl::TransformFeedbackBuffer, feedback_);
     api_.UseProgram(program_);
-    for (int index = 0; index < 4; ++index) {
-        api_.ActiveTexture(0x84C0 + index);
-        api_.BindTexture(0x0DE1, textures_[index]);
+    for (int index = 0;
+         index < static_cast<int>(gpu_particle_layout::TextureUnitCount);
+         ++index) {
+        api_.ActiveTexture(gpu_gl::Texture0 + index);
+        api_.BindTexture(gpu_gl::Texture2D, textures_[index]);
     }
     api_.ActiveTexture(activeTexture_);
     api_.Viewport(viewport_[0], viewport_[1], viewport_[2], viewport_[3]);
     api_.BlendFuncSeparate(blend_[0], blend_[1], blend_[2], blend_[3]);
     api_.BlendEquationSeparate(blend_[4], blend_[5]);
     if (blending_) {
-        api_.Enable(0x0BE2);
+        api_.Enable(gpu_gl::Blend);
     } else {
-        api_.Disable(0x0BE2);
+        api_.Disable(gpu_gl::Blend);
     }
     if (discard_) {
-        api_.Enable(0x8C89);
+        api_.Enable(gpu_gl::RasterizerDiscard);
     } else {
-        api_.Disable(0x8C89);
+        api_.Disable(gpu_gl::RasterizerDiscard);
     }
 }
 }  // namespace ludork::runtime::graphics

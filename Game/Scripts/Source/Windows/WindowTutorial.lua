@@ -4,7 +4,9 @@ local Ui = require("Internal.UIBase.Ui")
 local View = require("Internal.UI.WindowTutorial")
 
 ---@class Source.Windows.WindowTutorial.Controller
-local Controller = {}
+local Controller = {
+    _EXPLANATION_HORIZONTAL_PADDING = 2
+}
 
 Controller.windowOptions = { screen = true, hidden = true, focusable = false }
 Controller.SHRINK_DURATION = 0.25
@@ -43,7 +45,9 @@ function Controller:refreshText(text)
         return
     end
     local size = GlobalCore.Display.getGameSize()
-    local wrapped = Engine.TextLayout.wrapPlainText(text, size.x - 2, self.ui.controls["Explanation"])
+    local wrapped = Engine.TextLayout.wrapPlainText(
+        text, size.x - Controller._EXPLANATION_HORIZONTAL_PADDING, self.ui.controls["Explanation"]
+    )
     self.ui.controls["Explanation"]:setString(wrapped)
     local bounds = self.ui.controls["Explanation"]:getLocalBounds()
     local x = math.max(0, math.min(self._rect.position.x + self._rect.size.x / 2, size.x - bounds.size.x))

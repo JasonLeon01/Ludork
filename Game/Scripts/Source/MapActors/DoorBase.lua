@@ -40,7 +40,7 @@ function DoorBase:openDoor()
         operation:complete(MovementLatentOutput.FINISHED)
         return operation
     end
-    if self.opening and self._doorOperation ~= nil and self._doorOperation:getStatus() == "pending" then
+    if self.opening and self._doorOperation ~= nil and self._doorOperation:getStatus() == Engine.AsyncOperation.PENDING then
         return self._doorOperation
     end
     local operation = self:_newDoorOperation()
@@ -62,7 +62,7 @@ function DoorBase:openDoor()
 end
 
 function DoorBase:closeDoor()
-    if self.closing and self._doorOperation ~= nil and self._doorOperation:getStatus() == "pending" then
+    if self.closing and self._doorOperation ~= nil and self._doorOperation:getStatus() == Engine.AsyncOperation.PENDING then
         return self._doorOperation
     end
     local operation = self:_newDoorOperation()

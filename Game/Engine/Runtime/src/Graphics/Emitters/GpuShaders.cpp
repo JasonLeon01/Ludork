@@ -1,4 +1,7 @@
 #include "GpuShaders.hpp"
+#include "GpuParticleLayout.hpp"
+#include "GpuParticleRandom.hpp"
+#include <Runtime/Graphics/EmitterTrackParameters.hpp>
 #include <Runtime/Graphics/GpuEmitterCurveLayout.hpp>
 #include <Runtime/Graphics/SceneLighting.hpp>
 
@@ -14,11 +17,35 @@ std::string vertexHeader(bool embedded) {
               std::to_string(emitter_curve_layout::SampleCount) + ".0\n";
     result += "#define LUDORK_EMITTER_CURVE_ROWS " +
               std::to_string(emitter_curve_layout::TextureRowCount) + ".0\n";
+    result += "#define LUDORK_EMITTER_SEED_MODULUS " +
+              std::to_string(gpu_particle_random::SeedModulus) + ".0\n";
+    result +=
+        "#define LUDORK_EMITTER_SHAPE_LINE " +
+        std::to_string(static_cast<int>(EmitterTrackParameters::Shape::Line)) +
+        ".0\n";
+    result += "#define LUDORK_EMITTER_SHAPE_RECTANGLE " +
+              std::to_string(
+                  static_cast<int>(EmitterTrackParameters::Shape::Rectangle)) +
+              ".0\n";
+    result +=
+        "#define LUDORK_EMITTER_SHAPE_DISK " +
+        std::to_string(static_cast<int>(EmitterTrackParameters::Shape::Disk)) +
+        ".0\n";
+    result +=
+        "#define LUDORK_EMITTER_SHAPE_RING " +
+        std::to_string(static_cast<int>(EmitterTrackParameters::Shape::Ring)) +
+        ".0\n";
     return result;
 }
-const char* attributes = R"GLSL(
-IN vec4 a0; IN vec4 a1; IN vec4 a2; IN vec4 a3; IN vec4 a4; IN vec4 a5;
-IN vec2 corner;
+std::string particleAttributes() {
+    std::string result;
+    for (const char* name : gpu_particle_layout::StateAttributeNames) {
+        result += "IN vec4 " + std::string(name) + ";\n";
+    }
+    result += "IN vec2 " +
+              std::string(gpu_particle_layout::CornerAttributeName) + ";\n";
+    return result + R"GLSL(
+const float DEGREES_TO_RADIANS = 0.01745329252;
 uniform sampler2D uCurves;
 vec4 sampleCurves(float age, float rowIndex) {
     float lastSample = LUDORK_EMITTER_CURVE_SAMPLES - 1.0;
@@ -29,11 +56,19 @@ vec4 sampleCurves(float age, float rowIndex) {
                TEX(uCurves, vec2((min(left + 1.0, lastSample) + 0.5) / LUDORK_EMITTER_CURVE_SAMPLES, row)), fract(x));
 }
 )GLSL";
+}
+std::string particleOutputs() {
+    std::string result;
+    for (const char* name : gpu_particle_layout::FeedbackNames) {
+        result += "OUT vec4 " + std::string(name) + ";\n";
+    }
+    return result;
+}
 }  // namespace
 
 std::string emitterUpdateShader(bool embedded) {
-    return vertexHeader(embedded) + attributes + R"GLSL(
-OUT vec4 s0; OUT vec4 s1; OUT vec4 s2; OUT vec4 s3; OUT vec4 s4; OUT vec4 s5;
+    return vertexHeader(embedded) + particleAttributes() + particleOutputs() +
+           R"GLSL(
 uniform float uDelta, uReset, uSeed, uCapacity, uBirthStart, uBirthCount;
 uniform float uResident, uLoop, uDraining, uWorld, uShape, uRadius, uInnerRadius;
 uniform float uDirection, uSpread, uDamping, uRadial, uTangential;
@@ -41,12 +76,21 @@ uniform vec2 uLifetime, uSpeed, uSizeMin, uSizeMax, uRotation, uAngular, uExtent
 uniform vec2 uShapeScale, uMotion;
 uniform vec4 uColourMin, uColourMax;
 uniform mat4 uHost;
+const float FULL_CIRCLE_RADIANS = 6.283185307;
+const float RANDOM_STATE_MULTIPLIER = 251.0;
+const float RANDOM_STATE_INCREMENT = 13849.0;
+const float PARTICLE_ID_SEED_MULTIPLIER = 239.0;
+const float RANDOM_BYTE_RADIX = 256.0;
+const vec3 RANDOM_MIX_SCALES = vec3(13.17,17.71,23.43);
+const vec3 RANDOM_FOLD_OFFSETS = vec3(3.11,7.31,5.97);
+const float RANDOM_FOLD_SCALE = 11.13;
+const float MINIMUM_RADIAL_DISTANCE = 0.0001;
 float randomValue(inout float state) {
-    state = mod(state * 251.0 + 13849.0, 65521.0);
-    vec2 bytes = vec2(mod(state,256.0),floor(state/256.0)) / 256.0;
-    vec3 mixed = fract(vec3(bytes,bytes.x+bytes.y)*vec3(13.17,17.71,23.43));
-    float folded = dot(mixed,mixed.yzx+vec3(3.11,7.31,5.97));
-    return fract((mixed.x+folded)*(mixed.y+folded)+mixed.z*11.13);
+    state = mod(state * RANDOM_STATE_MULTIPLIER + RANDOM_STATE_INCREMENT, LUDORK_EMITTER_SEED_MODULUS);
+    vec2 bytes = vec2(mod(state,RANDOM_BYTE_RADIX),floor(state/RANDOM_BYTE_RADIX)) / RANDOM_BYTE_RADIX;
+    vec3 mixed = fract(vec3(bytes,bytes.x+bytes.y)*RANDOM_MIX_SCALES);
+    float folded = dot(mixed,mixed.yzx+RANDOM_FOLD_OFFSETS);
+    return fract((mixed.x+folded)*(mixed.y+folded)+mixed.z*RANDOM_FOLD_SCALE);
 }
 void main() {
     float id = corner.x;
@@ -59,20 +103,20 @@ void main() {
         bool born = birthIndex < uBirthCount;
         bool recycle = uResident > 0.5 && uLoop > 0.5 && uDraining < 0.5 && s1.x >= 0.0 && s1.x + uDelta >= s1.y;
         if (born || recycle) {
-            float generation = born ? mod(uSeed + floor(id / 65521.0), 65521.0) : mod(s4.w + 1.0, 65521.0);
-            float seed = mod(mod(id,65521.0) * 239.0 + generation,65521.0);
+            float generation = born ? mod(uSeed + floor(id / LUDORK_EMITTER_SEED_MODULUS), LUDORK_EMITTER_SEED_MODULUS) : mod(s4.w + 1.0, LUDORK_EMITTER_SEED_MODULUS);
+            float seed = mod(mod(id,LUDORK_EMITTER_SEED_MODULUS) * PARTICLE_ID_SEED_MULTIPLIER + generation,LUDORK_EMITTER_SEED_MODULUS);
             float r1=randomValue(seed), r2=randomValue(seed), r3=randomValue(seed), r4=randomValue(seed);
             float r5=randomValue(seed), r6=randomValue(seed), r7=randomValue(seed), r8=randomValue(seed);
             float r9=randomValue(seed), r10=randomValue(seed), r11=randomValue(seed), r12=randomValue(seed);
             float r13=randomValue(seed), r14=randomValue(seed), r15=randomValue(seed), r16=randomValue(seed);
-            float angle = r1 * 6.283185307;
-            float radius = sqrt(mix(uShape > 3.5 ? uInnerRadius*uInnerRadius : 0.0, uRadius*uRadius, r2));
+            float angle = r1 * FULL_CIRCLE_RADIANS;
+            float radius = sqrt(mix(uShape == LUDORK_EMITTER_SHAPE_RING ? uInnerRadius*uInnerRadius : 0.0, uRadius*uRadius, r2));
             vec2 p = vec2(0.0);
-            if (uShape > 2.5) p = vec2(cos(angle),sin(angle)) * radius;
-            else if (uShape > 1.5) p = vec2(r3-0.5,r4-0.5)*uExtent;
-            else if (uShape > 0.5) p = vec2((r3-0.5)*uExtent.x,0.0);
+            if (uShape == LUDORK_EMITTER_SHAPE_DISK || uShape == LUDORK_EMITTER_SHAPE_RING) p = vec2(cos(angle),sin(angle)) * radius;
+            else if (uShape == LUDORK_EMITTER_SHAPE_RECTANGLE) p = vec2(r3-0.5,r4-0.5)*uExtent;
+            else if (uShape == LUDORK_EMITTER_SHAPE_LINE) p = vec2((r3-0.5)*uExtent.x,0.0);
             p *= uShapeScale;
-            angle = (uDirection + (r5*2.0-1.0)*uSpread) * 0.01745329252;
+            angle = (uDirection + (r5*2.0-1.0)*uSpread) * DEGREES_TO_RADIANS;
             vec2 velocity = vec2(cos(angle),sin(angle))*mix(uSpeed.x,uSpeed.y,r6);
             s5=vec4(1.0,0.0,0.0,1.0);
             if (uWorld > 0.5) {
@@ -83,8 +127,8 @@ void main() {
             }
             s0=vec4(p,velocity);
             s1=vec4(0.0,mix(uLifetime.x,uLifetime.y,r7),
-                    mix(uRotation.x,uRotation.y,r8)*0.01745329252,
-                    mix(uAngular.x,uAngular.y,r9)*0.01745329252);
+                    mix(uRotation.x,uRotation.y,r8)*DEGREES_TO_RADIANS,
+                    mix(uAngular.x,uAngular.y,r9)*DEGREES_TO_RADIANS);
             s2=vec4(mix(uSizeMin,uSizeMax,vec2(r10,r11)),r12,id);
             s3=mix(uColourMin,uColourMax,vec4(r13,r14,r15,r16));
             s4=vec4(uWorld > 0.5 ? (uHost*vec4(0.0,0.0,0.0,1.0)).xy : vec2(0.0),seed,generation);
@@ -98,7 +142,7 @@ void main() {
             else {
                 vec2 radial = s0.xy-s4.xy;
                 float distance = length(radial);
-                radial = distance > 0.0001 ? radial/distance : vec2(0.0);
+                radial = distance > MINIMUM_RADIAL_DISTANCE ? radial/distance : vec2(0.0);
                 s0.zw += (uGravity + radial*uRadial + vec2(-radial.y,radial.x)*uTangential)*dt;
                 s0.zw *= exp(-uDamping*dt);
                 s0.xy += s0.zw * sampleCurves(s1.x/s1.y,0.0).x * dt;
@@ -112,7 +156,7 @@ void main() {
 }
 
 std::string emitterDrawShader(bool embedded) {
-    return vertexHeader(embedded) + attributes + R"GLSL(
+    return vertexHeader(embedded) + particleAttributes() + R"GLSL(
 OUT vec2 vUv;
 OUT vec4 vColour;
 uniform mat4 uProjection, uHost;
@@ -122,7 +166,7 @@ uniform vec4 uRect;
 uniform vec4 uTint;
 void main() {
     vec4 transformCurve=sampleCurves(a1.x/a1.y,0.0);
-    float rotation=a1.z + transformCurve.w*0.01745329252;
+    float rotation=a1.z + transformCurve.w*DEGREES_TO_RADIANS;
     vec2 point=corner*a2.xy*transformCurve.yz;
     point=mat2(cos(rotation),sin(rotation),-sin(rotation),cos(rotation))*point;
     vec2 position;

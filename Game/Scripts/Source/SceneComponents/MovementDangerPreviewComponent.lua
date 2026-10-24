@@ -43,7 +43,7 @@ end
 function MovementDangerPreviewComponent:_refreshEntries(player)
     self._cachedEntries = self._dangerState:getEntries()
     local cellSize = Engine.GetCellSize()
-    local displayScale = math.max(Engine.GetScale(), 0.000001)
+    local displayScale = math.max(Engine.GetScale(), Engine.DisplayScaleLimits.MINIMUM_INVERTIBLE_SCALE)
     local inverseScale = 1.0 / displayScale
     for index, entry in ipairs(self._cachedEntries) do
         if self._texts[index] == nil then

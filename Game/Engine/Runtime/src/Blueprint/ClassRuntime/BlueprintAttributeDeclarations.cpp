@@ -1,3 +1,4 @@
+#include <LudorkGenerated/ResourceFileConstants.hpp>
 #include "BlueprintAttributeDeclarations.hpp"
 
 #include "ClassRuntimeInternal.hpp"
@@ -103,8 +104,11 @@ BlueprintAttributeDeclarations resolveBlueprintAttributeDeclarations(
         module = "Mixins." + scriptPath.substr(0, scriptPath.size() - 4);
         std::replace(module.begin(), module.end(), '/', '.');
     }
-    if (!module.empty() && reference::moduleExists(module + "_meta")) {
-        const RuntimeHandle root = requireModuleTable(module + "_meta");
+    if (!module.empty() &&
+        reference::moduleExists(
+            module + ludork::generated::resources::MetadataModuleSuffix)) {
+        const RuntimeHandle root = requireModuleTable(
+            module + ludork::generated::resources::MetadataModuleSuffix);
         const auto rootEntries = reference::entries(root);
         const std::string typeName =
             module.substr(module.find_last_of('.') + 1);

@@ -1,3 +1,4 @@
+#include <Graphics/AnimationFormat.hpp>
 #include <AnimSprite.hpp>
 #include <Graphics/AnimationSourceData.hpp>
 #include <Graphics/AnimationSoundEntry.hpp>
@@ -17,6 +18,9 @@
 #include <utility>
 
 namespace {
+constexpr char SourceType[] = "animation";
+constexpr int ZlibWindowBits = 15;
+
 std::unique_ptr<sf::Texture>& placeholderTextureStorage() {
     static std::unique_ptr<sf::Texture> texture;
     return texture;
@@ -43,7 +47,7 @@ std::vector<std::uint8_t> decompressFrame(const std::uint8_t* data,
                                           std::size_t size) {
     try {
         return ludork::standard::decompressZlib(
-            std::span<const std::uint8_t>(data, size), 15);
+            std::span<const std::uint8_t>(data, size), ZlibWindowBits);
     } catch (const std::exception&) {
         throw std::runtime_error("Failed to decompress animation frame");
     }
@@ -61,7 +65,10 @@ void resolveSoundStopAtEndFrame(AnimationSoundEntry& entry, int frameRate) {
     }
     const float effectiveDuration =
         static_cast<float>(entry.endFrame - entry.startFrame) / frameRate;
-    entry.stopAtEndFrame = effectiveDuration + 1e-5f < *entry.originalDuration;
+    entry.stopAtEndFrame =
+        effectiveDuration +
+            ludork::engine::animation_format::SoundDurationTolerance <
+        *entry.originalDuration;
 }
 
 float getCompressedAnimationVisualDuration(
@@ -70,7 +77,9 @@ float getCompressedAnimationVisualDuration(
         return *animationData.visualDuration;
     }
     const int frameRate =
-        animationData.frameRate > 0 ? animationData.frameRate : 30;
+        animationData.frameRate > 0
+            ? animationData.frameRate
+            : ludork::engine::animation_format::DefaultFrameRate;
     if (animationData.visualFrameCount.has_value()) {
         return static_cast<float>(*animationData.visualFrameCount) / frameRate;
     }
@@ -92,9 +101,11 @@ AnimSprite::AnimSprite(const AnimSprite::AnimationData& animationData)
 void AnimSprite::setData(const AnimSprite::AnimationData& animationData) {
     frames_ = animationData.frames;
     frameEncoding_ = animationData.frameEncoding.empty()
-                         ? "zlib"
+                         ? ZlibEncoding
                          : animationData.frameEncoding;
-    frameRate_ = animationData.frameRate > 0 ? animationData.frameRate : 30;
+    frameRate_ = animationData.frameRate > 0
+                     ? animationData.frameRate
+                     : ludork::engine::animation_format::DefaultFrameRate;
     frameCount_ = animationData.frameCount > 0
                       ? animationData.frameCount
                       : static_cast<int>(frames_.size());
@@ -183,7 +194,8 @@ void AnimSprite::applyFrame(int frameIndex) {
     } else {
         const std::string& encoded = std::get<std::string>(frame);
         std::vector<std::uint8_t> compressed;
-        if (frameEncoding_ == "base64+zlib") {
+        if (frameEncoding_ ==
+            ludork::engine::animation_format::Base64ZlibEncoding) {
             compressed = decodeBase64(encoded);
         } else {
             compressed.assign(encoded.begin(), encoded.end());
@@ -220,17 +232,20 @@ float getAnimationVisualDuration(const AnimationSourceData& animationData) {
         return *animationData.visualDuration;
     }
     const int frameRate =
-        animationData.frameRate > 0 ? animationData.frameRate : 30;
+        animationData.frameRate > 0
+            ? animationData.frameRate
+            : ludork::engine::animation_format::DefaultFrameRate;
     if (animationData.visualFrameCount.has_value()) {
         return static_cast<float>(*animationData.visualFrameCount) / frameRate;
     }
-    if (animationData.type == "animation") {
+    if (animationData.type == SourceType) {
         float visualMaxTime = 0.0f;
         for (const AnimationSourceData::AnimationTimeline& timeline :
              animationData.timeLines) {
             for (const AnimationSourceData::AnimationTimeline::AnimationSegment&
                      segment : timeline.timeSegments) {
-                if (segment.type == "frame") {
+                if (segment.type ==
+                    ludork::engine::animation_format::FrameSegment) {
                     visualMaxTime =
                         std::max(visualMaxTime, segment.endFrame.time);
                 }

@@ -1,6 +1,7 @@
 local GlobalCore = require("GlobalCore")
 local Special = require("Enums.GeneralData.Special")
 local GameplayConstants = require("Source.Configs.GameplayConstants")
+local CombatResolutionCode = require("Enums.CombatResolutionCode")
 
 local GameplayAbility = GlobalCore.GameplayAbility
 local GameplayAbilityResult = GlobalCore.GameplayAbilityResult
@@ -17,7 +18,7 @@ end
 ---@diagnostic disable-next-line: unused, Gameplay Ability override intentionally ignores its receiver
 function HardAbility:activate(_abilitySystem, eventData)
     eventData.payload.value = math.max(eventData.payload.value, eventData.payload.attackerATK - 1)
-    return assert(GameplayAbilityResult.Success("DefenseResolved", eventData.payload))
+    return assert(GameplayAbilityResult.Success(CombatResolutionCode.DEFENSE, eventData.payload))
 end
 
 return class(HardAbility, GameplayAbility)

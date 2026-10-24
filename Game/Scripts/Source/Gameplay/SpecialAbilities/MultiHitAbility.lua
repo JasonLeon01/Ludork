@@ -1,6 +1,7 @@
 local GlobalCore = require("GlobalCore")
 local Special = require("Enums.GeneralData.Special")
 local GameplayConstants = require("Source.Configs.GameplayConstants")
+local CombatResolutionCode = require("Enums.CombatResolutionCode")
 
 local GameplayAbility = GlobalCore.GameplayAbility
 local GameplayAbilityResult = GlobalCore.GameplayAbilityResult
@@ -20,7 +21,7 @@ end
 
 function MultiHitAbility:activate(_abilitySystem, eventData)
     eventData.payload.value = self._magnitude
-    return assert(GameplayAbilityResult.Success("HitCountResolved", eventData.payload))
+    return assert(GameplayAbilityResult.Success(CombatResolutionCode.HIT_COUNT, eventData.payload))
 end
 
 return class(MultiHitAbility, GameplayAbility)

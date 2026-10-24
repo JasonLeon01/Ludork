@@ -14,6 +14,10 @@ extern "C" {
 #include <unordered_set>
 
 namespace {
+constexpr std::size_t NumberBufferSize = 128;
+constexpr int MaximumDescriptionDepth = 4;
+constexpr int MaximumDescriptionEntries = 32;
+constexpr std::size_t CallbackErrorBufferSize = 4096;
 
 std::string describeLuaValue(lua_State* state, int index, int depth,
                              std::unordered_set<const void*>& visited) {
@@ -31,7 +35,7 @@ std::string describeLuaValue(lua_State* state, int index, int depth,
         return std::string(raw, length);
     }
     if (valueType == LUA_TNUMBER) {
-        char buffer[128]{};
+        char buffer[NumberBufferSize]{};
         const auto converted =
             lua_isinteger(state, absoluteIndex)
                 ? std::to_chars(buffer, buffer + sizeof(buffer),
@@ -48,7 +52,7 @@ std::string describeLuaValue(lua_State* state, int index, int depth,
     if (visited.contains(identity)) {
         return "<cycle>";
     }
-    if (depth >= 4) {
+    if (depth >= MaximumDescriptionDepth) {
         return "<max-depth>";
     }
     visited.insert(identity);
@@ -66,7 +70,7 @@ std::string describeLuaValue(lua_State* state, int index, int depth,
         first = false;
         ++count;
         lua_pop(state, 1);
-        if (count >= 32) {
+        if (count >= MaximumDescriptionEntries) {
             result += ", ...";
             lua_pop(state, 1);
             break;
@@ -125,7 +129,7 @@ bool compareLuaValues(lua_State* state, int leftIndex, int rightIndex,
 
 int invokeLuaCallback(lua_State* state, const void* context,
                       int (*callback)(const void*)) {
-    char message[4096]{};
+    char message[CallbackErrorBufferSize]{};
     try {
         return callback(context);
     } catch (const std::exception& error) {

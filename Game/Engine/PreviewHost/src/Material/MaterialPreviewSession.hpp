@@ -17,6 +17,7 @@ public:
     static RuntimeData describe();
 
 private:
+    static constexpr char DescriptionResponse[] = "materialDescription";
     struct Impl;
     std::unique_ptr<Impl> impl_;
 };

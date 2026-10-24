@@ -1,5 +1,7 @@
 #pragma once
 
+#include <CurveInfinityMode.hpp>
+
 #include <CoreMinimal.hpp>
 #include <EngineRuntimeApi.hpp>
 #include <Vector4CurveKey.hpp>
@@ -15,11 +17,11 @@ struct Vector4CurveData {
     BIND_PROPERTY()
     std::array<float, 4> defaultValue = {0.0f, 0.0f, 0.0f, 0.0f};
 
-    BIND_PROPERTY()
-    std::string preInfinity = "constant";
+    BIND_PROPERTY(default = "constant")
+    std::string preInfinity = CurveInfinityMode::CONSTANT;
 
-    BIND_PROPERTY()
-    std::string postInfinity = "constant";
+    BIND_PROPERTY(default = "constant")
+    std::string postInfinity = CurveInfinityMode::CONSTANT;
 
     BIND_PROPERTY()
     std::vector<Vector4CurveKey> keys;

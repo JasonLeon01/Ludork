@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Graphics/AnimationFormat.hpp>
+
 #include <CoreMinimal.hpp>
 #include <EngineRuntimeApi.hpp>
 #include <Graphics/AnimationTimeTag.hpp>
@@ -25,8 +27,8 @@ struct AnimationSourceData {
                 std::array<float, 2> scale = {1.0f, 1.0f};
             };
 
-            BIND_PROPERTY()
-            std::string type = "frame";
+            BIND_PROPERTY(default = "frame")
+            std::string type = ludork::engine::animation_format::FrameSegment;
 
             BIND_PROPERTY()
             int asset = -1;

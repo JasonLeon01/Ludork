@@ -10,12 +10,13 @@
 
 namespace ludork::global::server_impl {
 namespace {
+
 std::unique_ptr<ServerTransportImpl> instance;
-}
+}  // namespace
 
 ServerTransportImpl::ServerTransportImpl() {
     try {
-        for (int index = 0; index < 4; ++index) {
+        for (int index = 0; index < WorkerCount; ++index) {
             threads_.emplace_back([this] {
                 run();
             });
@@ -55,7 +56,7 @@ void ServerTransportImpl::enqueue(
     const std::shared_ptr<PendingRequest>& pending) {
     {
         std::lock_guard lock(mutex_);
-        if (stopping_ || queue_.size() >= 256) {
+        if (stopping_ || queue_.size() >= RequestQueueCapacity) {
             std::lock_guard resultLock(pending->mutex);
             pending->response =
                 Response{ServerErrorCode::ConnectionFailed,

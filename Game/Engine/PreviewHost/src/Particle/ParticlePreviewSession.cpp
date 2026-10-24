@@ -1,3 +1,4 @@
+#include "Protocol/PreviewMessageNames.hpp"
 #include "Particle/ParticlePreviewSessionImpl.hpp"
 
 #include "Protocol/FrameFiles.hpp"
@@ -152,7 +153,8 @@ void ParticlePreviewSession::Impl::Session::rewind() {
 }
 
 bool ParticlePreviewSession::Impl::Session::seek(double time) {
-    const double stepCount = std::floor(time * simulationRate + 0.000001);
+    const double stepCount =
+        std::floor(time * simulationRate + StepRoundingTolerance);
     if (stepCount >=
         static_cast<double>(std::numeric_limits<std::int64_t>::max())) {
         throw std::invalid_argument("Particle seek time is too large");
@@ -166,8 +168,8 @@ bool ParticlePreviewSession::Impl::Session::seek(double time) {
         std::chrono::steady_clock::now();
     emitter->setSpeed(1.0f);
     emitter->resume();
-    for (int count = 0;
-         count < 120 && (emitter->isWarming() || seekSteps < targetSteps);
+    for (int count = 0; count < MaximumSeekSteps &&
+                        (emitter->isWarming() || seekSteps < targetSteps);
          ++count) {
         if (emitter->isWarming()) {
             emitter->tick(0.0f);
@@ -179,7 +181,7 @@ bool ParticlePreviewSession::Impl::Session::seek(double time) {
             ++seekSteps;
         }
         if (elapsedMilliseconds(begin, std::chrono::steady_clock::now()) >=
-            12.0) {
+            SeekBudgetMilliseconds) {
             break;
         }
     }
@@ -209,7 +211,7 @@ RuntimeData ParticlePreviewSession::Impl::Session::frame(
     const std::chrono::steady_clock::time_point transferEnd =
         std::chrono::steady_clock::now();
     return RuntimeData(object({
-        {"type", RuntimeData("particleFrame")},
+        {"type", RuntimeData(FrameResponse)},
         {"sessionId", RuntimeData(sessionId)},
         {"generation", RuntimeData(generation)},
         {"time", RuntimeData(timeOffset + emitter->getTime())},
@@ -221,7 +223,8 @@ RuntimeData ParticlePreviewSession::Impl::Session::frame(
          RuntimeData(elapsedMilliseconds(transferBegin, transferEnd))},
         {"width", RuntimeData(static_cast<std::int64_t>(size.x))},
         {"height", RuntimeData(static_cast<std::int64_t>(size.y))},
-        {"stride", RuntimeData(static_cast<std::int64_t>(size.x) * 4)},
+        {"stride", RuntimeData(static_cast<std::int64_t>(size.x) *
+                               preview_pixels::BytesPerPixel)},
         {"sharedMemory",
          RuntimeData(object({
              {"filePath", RuntimeData(ludork::standard::pathToUtf8(framePath))},
@@ -247,17 +250,18 @@ RuntimeData ParticlePreviewSession::Impl::render(
     const auto iterator = sessions.find(sessionId);
     if (previousGeneration != generations.end() &&
         (generation < previousGeneration->second ||
-         (iterator == sessions.end() && command != "close" &&
+         (iterator == sessions.end() && command != protocol::command::Close &&
           generation == previousGeneration->second))) {
-        return statusResponse("particleStale", sessionId, generation);
+        return statusResponse(StaleResponse, sessionId, generation);
     }
-    if (command == "close") {
+    if (command == protocol::command::Close) {
         sessions.erase(sessionId);
         generations.insert_or_assign(sessionId, generation);
-        return statusResponse("particleClosed", sessionId, generation);
+        return statusResponse(ClosedResponse, sessionId, generation);
     }
-    if (command != "load" && command != "render" && command != "advance" &&
-        command != "seek" && command != "reset") {
+    if (command != protocol::command::Load &&
+        command != protocol::command::Render && command != AdvanceCommand &&
+        command != protocol::command::Seek && command != ResetCommand) {
         throw std::invalid_argument("Unknown particle preview command: " +
                                     command);
     }
@@ -269,7 +273,7 @@ RuntimeData ParticlePreviewSession::Impl::render(
     const float zoom = static_cast<float>(positiveNumber(request, "zoom", 1.0));
     const float speed =
         static_cast<float>(positiveNumber(request, "speed", 1.0));
-    if (command == "load") {
+    if (command == protocol::command::Load) {
         ludork::runtime::value_reader::requireString(
             field(request, "assetKey"), "Particle request.assetKey");
         const RuntimeData& asset = field(request, "asset");
@@ -290,7 +294,7 @@ RuntimeData ParticlePreviewSession::Impl::render(
     session.configureTarget(size, zoom);
     session.emitter->setSpeed(speed);
     bool seeking = false;
-    if (command == "advance") {
+    if (command == AdvanceCommand) {
         const float deltaTime =
             static_cast<float>(nonnegativeNumber(request, "deltaTime"));
         session.seekTime.reset();
@@ -298,9 +302,9 @@ RuntimeData ParticlePreviewSession::Impl::render(
             session.emitter->resume();
         }
         session.emitter->tick(deltaTime);
-    } else if (command == "seek") {
+    } else if (command == protocol::command::Seek) {
         seeking = session.seek(nonnegativeNumber(request, "time"));
-    } else if (command == "reset") {
+    } else if (command == ResetCommand) {
         session.rewind();
     }
     generations.insert_or_assign(sessionId, generation);

@@ -14,7 +14,9 @@ local LOC = LocaleCore.ApplyStringLocaleFormat
 local _ABILITY_ORDER = { "LEVEL", "ATK", "DEF", "MAXHP", "HP", "EXP", "GOLD" }
 
 ---@class Source.Windows.WindowAttrShop.Controller
-local Controller = {}
+local Controller = {
+    _DEFAULT_AVATAR_FRAME_INTERVAL = 0.2
+}
 
 Controller.windowOptions = {
     centered = true,
@@ -255,7 +257,7 @@ function Controller:init(player, onClose)
     self._avatarTexture = nil
     self._avatarRect = nil
     self._avatarAnimatable = false
-    self._avatarSwitchInterval = 0.2
+    self._avatarSwitchInterval = Controller._DEFAULT_AVATAR_FRAME_INTERVAL
     self._avatarSwitchTimer = 0.0
     self._rows = self:createCollection(self.ui.controls["AbilityList"], AttrShopRowController)
 end

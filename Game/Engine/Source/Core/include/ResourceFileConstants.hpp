@@ -7,6 +7,12 @@ BIND_CLASS(metadata = false)
 class LUDORK_ENGINE_API ResourceFileConstants {
 public:
     BIND_CLASS_PROPERTY(readonly = true)
+    static const std::string LUA_SOURCE_EXTENSION;
+
+    BIND_CLASS_PROPERTY(readonly = true)
+    static const std::string LUA_COMPILED_EXTENSION;
+
+    BIND_CLASS_PROPERTY(readonly = true)
     static const std::string DATA_EXTENSION;
 
     BIND_CLASS_PROPERTY(readonly = true)

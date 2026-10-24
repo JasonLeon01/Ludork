@@ -14,8 +14,8 @@ bool TimerEntry::isReady() const {
 }
 
 bool TimerEntry::isCancelled() const {
-    return cancelled_ ||
-           (operation != nullptr && operation->getStatus() == "cancelled");
+    return cancelled_ || (operation != nullptr &&
+                          operation->getStatus() == AsyncOperation::CANCELLED);
 }
 
 void TimerEntry::cancel() {

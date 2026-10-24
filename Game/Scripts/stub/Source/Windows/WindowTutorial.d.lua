@@ -1,15 +1,16 @@
 ---@meta
 
 ---@class Source.Windows.WindowTutorial.Controller: Internal.UIBase.UiController
----@field host            Source.Windows.WindowTutorial
----@field ui              Internal.UI.WindowTutorial
----@field root            Engine.Canvas
----@field SHRINK_DURATION number
----@field _capture        Engine.InputCapture | nil
----@field _rect           sf.IntRect | nil
----@field _elapsed        number
----@field _ready          boolean
----@field _finished       boolean
+---@field host                                    Source.Windows.WindowTutorial
+---@field ui                                      Internal.UI.WindowTutorial
+---@field root                                    Engine.Canvas
+---@field SHRINK_DURATION                         number
+---@field _capture                                Engine.InputCapture | nil
+---@field _rect                                   sf.IntRect | nil
+---@field _elapsed                                number
+---@field _ready                                  boolean
+---@field _finished                               boolean
+---@field private _EXPLANATION_HORIZONTAL_PADDING integer
 local Controller = {}
 
 function Controller:init() end

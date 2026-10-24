@@ -1,3 +1,4 @@
+#include <LudorkGenerated/ResourceFileConstants.hpp>
 #include "RuntimeServiceInternals.hpp"
 #include <ClassRuntimeProtocol.hpp>
 
@@ -271,7 +272,8 @@ lua_glue::Object moduleTypeMetadata(lua_glue::StateView lua,
     if (identity.module.empty()) {
         return nilObject(lua);
     }
-    const std::string metadataModule = identity.module + "_meta";
+    const std::string metadataModule =
+        identity.module + ludork::generated::resources::MetadataModuleSuffix;
     const lua_glue::Object rawPackage =
         lua.globals().raw_get<lua_glue::Object>("package");
     if (!rawPackage.is<lua_glue::Table>()) {
@@ -568,7 +570,8 @@ lua_glue::Object resolveRuntimePath(lua_glue::StateView lua,
 
 std::optional<std::string> directRuntimeMetadataTypeName(
     lua_glue::StateView lua, const std::string& modulePath) {
-    const std::string metadataModule = modulePath + "_meta";
+    const std::string metadataModule =
+        modulePath + ludork::generated::resources::MetadataModuleSuffix;
     const lua_glue::Object rawPackage =
         lua.globals().raw_get<lua_glue::Object>("package");
     if (!rawPackage.is<lua_glue::Table>()) {

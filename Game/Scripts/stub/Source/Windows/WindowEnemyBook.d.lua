@@ -38,13 +38,15 @@
 ---@field materialParameters table<string, any>
 
 ---@class Source.Windows.WindowEnemyBook.Controller: Internal.UIBase.UiController
----@field ui                 Internal.UI.WindowEnemyBook
----@field _player            Source.MapActors.Player.Player
----@field _onCloseCallback   function | nil
----@field _onConfirmCallback function | nil
----@field _enemies           Source.Windows.WindowEnemyBook.Entry[]
----@field _cells             Internal.UIBase.UiCollection<Source.Windows.WindowEnemyBook.WindowEnemyBookCell.Controller>
----@field host               Source.Windows.WindowEnemyBook
+---@field ui                                      Internal.UI.WindowEnemyBook
+---@field _player                                 Source.MapActors.Player.Player
+---@field _onCloseCallback                        function | nil
+---@field _onConfirmCallback                      function | nil
+---@field _enemies                                Source.Windows.WindowEnemyBook.Entry[]
+---@field _cells                                  Internal.UIBase.UiCollection<Source.Windows.WindowEnemyBook.WindowEnemyBookCell.Controller>
+---@field host                                    Source.Windows.WindowEnemyBook
+---@field private _MAX_SPECIAL_DISPLAYS           integer
+---@field private _DEFAULT_PREVIEW_FRAME_INTERVAL number
 local Controller = {}
 
 ---@brief Construct the enemy handbook window.
