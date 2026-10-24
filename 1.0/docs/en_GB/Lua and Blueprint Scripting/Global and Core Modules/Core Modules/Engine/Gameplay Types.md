@@ -178,6 +178,8 @@ Direct metadata bases: `{ "Engine", "Actor" }`
 
 InvalidVars: `{ "defaultRect" }`
 
+The read-only class constants `Engine.Character.SPRITE_FRAME_COLUMNS` and `SPRITE_DIRECTION_ROWS` are both `4`: one counts animation columns, the other counts directional rows. The default frame rectangle divides the texture width and height by the corresponding constant. Custom frame rectangles remain supported.
+
 ### Properties
 
 | Name | Type | Default | Metadata |

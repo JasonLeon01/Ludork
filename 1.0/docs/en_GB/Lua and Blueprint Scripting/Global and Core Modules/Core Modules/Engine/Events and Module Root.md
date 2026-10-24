@@ -10,7 +10,7 @@
 | `operation:emit(value)` | Publish an intermediate Blueprint stage without completing Lua waiters. |
 | `operation:complete(result?)` | Complete with one retained result, also used as the final Blueprint stage value. `nil`, `false` and `0` are valid results. |
 | `operation:cancel()` | Cancel the operation and its waiting executions. Completed or cancelled operations remain unchanged. |
-| `operation:getStatus()` | Return `"pending"`, `"completed"` or `"cancelled"`. |
+| `operation:getStatus()` | Return the read-only string constants `AsyncOperation.PENDING` (`"pending"`), `COMPLETED` (`"completed"`) or `CANCELLED` (`"cancelled"`). |
 | `operation:getResult()` | Read the completed result; pending or cancelled operations raise an error. |
 
 Multiple waiters can share an operation without consuming one another's stages. A completed operation can be awaited repeatedly; new Blueprint waiters receive only its final result. Poll callbacks run on the logic thread, must not yield, and propagate errors to the host.
@@ -48,7 +48,7 @@ The operation's owner handles resource cleanup; cancellation alone does not undo
 | `ZeroVector3f` | `sf.Vector3f` | — | — |
 | `ZeroVector3i` | `sf.Vector3i` | — | — |
 | `ZeroVector3u` | `sf.Vector3u` | — | — |
-| `Direction` | `any` | — | — |
+| `Direction` | enum table | — | — |
 | `FocusDirection` | `any` | — | — |
 | `DefaultFontSize` | `int` | — | — |
 
@@ -65,12 +65,18 @@ The operation's owner handles resource cleanup; cancellation alone does not undo
 
 `Engine.GetCellSize()` returns the C++ compile-time cell size, currently `32`, and has no runtime setter. `GetGameSize()` returns a detached logical-size value, `GetScale()` returns the effective render scale, and `IsGameRunning()` reads lifecycle state. Use `GlobalCore.Display` display commands and `GlobalCore.System.exit()` to change runtime state. These queries do not expose writable state.
 
+`Engine.Direction` and `require("Enums.Engine.Direction")` expose the same native enum values: `DOWN = 0`, `LEFT = 1`, `RIGHT = 2`, `UP = 3`. Use the named members for Actor facing and `Engine.OppositeDirection(direction)` to obtain the opposite direction.
+
+`Engine.DisplayScaleLimits` provides read-only numeric constants. `MINIMUM_RENDER_SCALE` (`0.01`) is the effective render-scale lower bound; `MINIMUM_INVERTIBLE_SCALE` (`0.000001`) is the guard used before dividing by a display scale. Each constant describes its own limit.
+
 ## ResourceFileConstants
 
 `Engine.ResourceFileConstants` exposes static, read-only string properties shared by native resource loaders, Lua and packaging tools. The class uses `metadata = false` and does not add Blueprint nodes.
 
 | Property | Type | Value |
 |---|---|---|
+| `LUA_SOURCE_EXTENSION` | `string` | `".lua"` |
+| `LUA_COMPILED_EXTENSION` | `string` | `".luac"` |
 | `DATA_EXTENSION` | `string` | `".json"` |
 | `ENCRYPTED_DATA_EXTENSION` | `string` | `".ldc"` |
 | `ANIMATION_CACHE_SUFFIX` | `string` | `".anim.json"` |
@@ -135,9 +141,11 @@ These APIs use the same pure-data boundary and Lua array/null representation as 
 | `requestScan(paths)` / `pollScan()` | Scan up to 10,000 paths in the background; polling returns true once per completed result. |
 | `getLatestSlot()` / `getScanError()` | Read the completed scan: one-based latest slot, zero if absent, and an empty string on success. |
 | `requestPreview(path, width, height)` / `pollPreview()` | Request metadata and a native thumbnail, with each dimension in 1–1024; polling publishes a completed result. The exact existing file is read as JSON or LDC. |
-| `getState()` | `idle`, `loading`, `empty`, `ready` or `failed`. A ready save without a screenshot has no image. |
+| `getState()` | Return an `Engine.SavePreviewState` string value. A ready save without a screenshot has no image. |
 | `getModificationTime()` / `getImage()` / `getError()` | Read the published Unix timestamp, `sf.Image` or nil, and error text. Create textures only on the game thread. |
 | `cancelPreview()` / `cancel()` | Invalidate the pending preview, or both scan and preview, without waiting for the worker. New requests also supersede older results of the same kind. |
 | `SavePreviewReader.invalidate(path)` | Invalidate a saved file's cached preview immediately after a successful write. |
+
+`Engine.SavePreviewState` exposes read-only strings: `IDLE = "idle"`, `LOADING = "loading"`, `EMPTY = "empty"`, `READY = "ready"` and `FAILED = "failed"`. Use these members when checking a reader state.
 
 The native service retains up to eight thumbnails by path, modification time and size. Requested bounds also participate in cache matching. Readers must be cancelled when their owner closes; destruction cancels automatically. Engine shutdown discards queued work and joins the worker before resource stores are released.

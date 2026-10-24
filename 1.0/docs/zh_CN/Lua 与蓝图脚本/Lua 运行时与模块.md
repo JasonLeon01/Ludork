@@ -77,6 +77,12 @@ return StairDirection
 | `Enums.AbilitySystemChangeKind` | `Attribute`、`State` payload 种类 |
 | `Enums.PlayerChangeKind` | `Inventory`、`Name`、`Map` payload 种类 |
 | `Enums.MovementLatentOutput` | `STARTED = 0`、`FINISHED = 1` 执行输出索引 |
+| `Enums.CombatResolutionCode` | [战斗计算的中间结果](<源码类/Gameplay.md#motabattleability>) |
+| `Enums.MovementResultCode` | [移动危险查询与提交结果](<源码类/Gameplay.md#movementspecials-与移动危险>) |
+| `Enums.PlayerNameValidationError` | [玩家名字校验错误](<源码类/Player.md#lua-运行时-api>) |
+| `Enums.SaveLoadMode`、`Enums.SaveLoadCloseReason` | [存读档窗口模式与关闭原因](<Game 玩法/运行时数据、配置与存档.md#存档>) |
+| `Enums.WorldActorState` | 世界 Actor 生命周期标记：`NEVER_ACTIVE = "NeverActive"`、`ACTIVE = "Active"`、`DORMANT = "Dormant"` |
+| `Enums.WorldPublishPhase` | 区域发布阶段标记：`CONVERT = "convert"`、`BUILD = "build"`、`INDEX = "index"`、`FINALISE = "finalise"` |
 
 原生构建生成 `Enums.Engine.*`、`Enums.GlobalCore.*`、`Enums.GlobalFunctions.*` 和 `Enums.sf.*`。项目数据保存生成 `Enums.GeneralDataKey`、每个数据类型独立的 `Enums.GeneralData.<TypeName>` 模块，以及 `Enums.Animation` 与 `Enums.Particle`。编辑器在保存前从当前项目目录解析这些字符串枚举，包括未保存的变更；运行时 `require` 读取生成的源码模块。这些生成模块仍以所属的原生声明或数据库记录为来源，应修改来源后重新生成。
 

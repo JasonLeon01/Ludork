@@ -138,6 +138,8 @@ Save schema versions are independent of application versions and the packaging d
 
 Save previews load asynchronously without creating gameplay objects. Confirming a load calls `Save.LoadGame(filePath)` to restore the full game.
 
+The save/load window accepts `Enums.SaveLoadMode.LOAD` (`"load"`, the default) or `SAVE` (`"save"`) as its `open` method’s `initialMode`; a load-only window stays in load mode. The host’s `onClose(reason)` callback receives `Enums.SaveLoadCloseReason.CANCEL` (`"cancel"`), `SAVED` (`"saved"`) or `LOADED` (`"loaded"`) after the window closes.
+
 The window shows loading, empty or failed states. Each opening selects the most recently modified save, or the first slot if none exists. The selected slot receives keyboard focus after the opening animation.
 
 New save screenshots preserve their aspect ratio and are no larger than 224 脳 168 pixels. Existing larger screenshots remain readable.

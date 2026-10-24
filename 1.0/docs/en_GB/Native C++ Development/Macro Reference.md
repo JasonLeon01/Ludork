@@ -14,14 +14,14 @@ Select the declaration marker for a supported binding or native UI adapter. Deta
 | `BIND_REGISTER_EVENT` | Register a Blueprint event entry |
 | `BIND_INJECT` | Inject declaration-driven binding code at a supported point |
 | `BIND_MODULE_PROPERTY` | Expose a module-level property |
-| `BIND_CLASS_PROPERTY` | Expose a class-level property |
+| `BIND_CLASS_PROPERTY` | Expose a class-level property. `readonly = true` prevents Lua writes; `type` controls its generated Lua declaration type without changing C++ storage or runtime binding |
 | `BIND_LUA_REVERSE` | Describe reverse Lua/C++ adaptation |
 | `BIND_LUA_HELPER` | Declare a reusable Lua binding helper |
 | `BIND_MODULE_INIT` | Add module initialisation behaviour |
 
 Leave unexposed declarations unmarked. Class conversion options are documented in [Binding a Class](<Binding a Class.md#value-conversion-contracts>). Class decorators such as `invalid_vars(...)` and `rect_range_vars(...)` belong inside `BIND_CLASS`. Loop protocols use inline `loop_node(...)`, while `BIND_REGISTER_EVENT()` remains standalone.
 
-Variadic `BIND_*` markers compile to nothing. Bindgen reads raw tokens such as `outpins(...)`, `latent(...)`, `nil` and `function`, which must not be quoted for C++ parsing. Use lowercase `nil`, `true` and `false`. `defaults` and `parameter_types` use brace lists, while structured `meta(...)` and property `default` data use nestable braces rather than quoted JSON.
+Variadic `BIND_*` markers compile to nothing. Bindgen reads raw tokens such as `outpins(...)`, `latent(...)`, `nil` and `function`, which must not be quoted for C++ parsing. Use lowercase `nil`, `true` and `false`. `defaults` and `parameter_types` use brace lists, while structured `meta(...)` and property `default` data use nestable braces rather than quoted JSON. Scalar string defaults use quotes, including `default = "None"`, preserving the exact string value. A class property can declare a precise Lua string type with `BIND_CLASS_PROPERTY(readonly = true, type = "'Add'")` while its C++ storage remains `std::string`.
 
 Base inference and `cast_bases` follow [Binding a Class](<Binding a Class.md#declare-the-class>).
 

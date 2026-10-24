@@ -156,15 +156,15 @@ There is no `type` property on this structure. The `"type": "particle"` marker b
 | `mode: "emission"` / `"resident"` | `resident: false` / `true` |
 | `space: "local"` / `"world"` | `world: false` / `true` |
 | `blend: "alpha"` / `"add"` | `additive: false` / `true` |
-| `shape: "point"`, `"line"`, `"rectangle"`, `"disk"`, `"ring"` | `shape: 0`, `1`, `2`, `3`, `4` |
-| `scaleMode: "hierarchy"`, `"local"`, `"shape"` | `scaleMode: 0`, `1`, `2` |
+| `shape: "point"`, `"line"`, `"rectangle"`, `"disk"`, `"ring"` | `Engine.EmitterShape`: `Point = 0`, `Line = 1`, `Rectangle = 2`, `Disk = 3`, `Ring = 4` |
+| `scaleMode: "hierarchy"`, `"local"`, `"shape"` | `Engine.EmitterScaleMode`: `Hierarchy = 0`, `Local = 1`, `Shape = 2` |
 | `colourMin`, `colourMax`: four RGBA values in `[0,255]` | Four floats in `[0,1]`, each JSON component divided by 255; both default to `{1,1,1,1}`. |
 | Two-component vectors and min/max ranges | `sf.Vector2f`; range minimum is `x`, maximum is `y`. |
 | `textureRect: [x,y,width,height]` | `sf.IntRect` with `position` and `size`. |
 | `bursts` array | `Engine.EmitterBurst[]` |
 | Inline curves or curve resource keys | Resolved `Engine.EmitterCurves` with eight `Engine.CurveData` values. |
 
-Typed defaults are `resident = world = additive = false`, `shape = scaleMode = 0` and `count = 32`. Lowering `capacity` below 32 requires setting a valid `count` explicitly. The JSON loader separately defaults an omitted `count` to `min(32, capacity)`. Validation occurs when applying the complete configuration; numeric ranges must be finite and ordered, colours normalised, and enum integers within their supported ranges.
+Use these native enum members, or the generated `Enums.Engine.EmitterShape` and `Enums.Engine.EmitterScaleMode` modules, when building a configuration in Lua. The underlying integers remain as shown. Typed defaults are `resident = world = additive = false`, `shape = Engine.EmitterShape.Point`, `scaleMode = Engine.EmitterScaleMode.Hierarchy` and `count = 32`. Lowering `capacity` below 32 requires setting a valid `count` explicitly. The JSON loader separately defaults an omitted `count` to `min(32, capacity)`. Validation occurs when applying the complete configuration; numeric ranges must be finite and ordered, colours normalised, and enum integers within their supported ranges.
 
 ## EmitterCurves
 

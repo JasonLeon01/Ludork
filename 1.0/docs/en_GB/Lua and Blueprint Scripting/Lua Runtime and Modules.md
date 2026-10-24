@@ -77,6 +77,12 @@ Load an enum directly, for example `local StairDirection = require("Enums.StairD
 | `Enums.AbilitySystemChangeKind` | `Attribute`, `State` payload kinds |
 | `Enums.PlayerChangeKind` | `Inventory`, `Name`, `Map` payload kinds |
 | `Enums.MovementLatentOutput` | `STARTED = 0`, `FINISHED = 1` execution output indices |
+| `Enums.CombatResolutionCode` | Intermediate [combat resolution results](<Source Classes/Gameplay.md#motabattleability>) |
+| `Enums.MovementResultCode` | [Movement-hazard query and commit results](<Source Classes/Gameplay.md#movementspecials-and-movement-danger>) |
+| `Enums.PlayerNameValidationError` | [Player name validation errors](<Source Classes/Player.md#lua-runtime-api>) |
+| `Enums.SaveLoadMode`, `Enums.SaveLoadCloseReason` | [Save/load window mode and close reason](<Default Gameplay/Runtime Data Configuration and Saves.md#saves>) |
+| `Enums.WorldActorState` | World Actor lifecycle labels: `NEVER_ACTIVE = "NeverActive"`, `ACTIVE = "Active"`, `DORMANT = "Dormant"` |
+| `Enums.WorldPublishPhase` | Region publication labels: `CONVERT = "convert"`, `BUILD = "build"`, `INDEX = "index"`, `FINALISE = "finalise"` |
 
 Native builds generate `Enums.Engine.*`, `Enums.GlobalCore.*`, `Enums.GlobalFunctions.*` and `Enums.sf.*`. Project data saves generate `Enums.GeneralDataKey`, one `Enums.GeneralData.<TypeName>` module per data type, `Enums.Animation` and `Enums.Particle`. The editor resolves these string enums from the current project catalogue before saving, including unsaved changes; runtime `require` reads the generated source modules. These generated modules retain their owning native declarations or database records as the source of truth; edit those sources and regenerate.
 

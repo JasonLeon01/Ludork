@@ -43,10 +43,12 @@ Listener `oldValue` and `newValue` are always Current values. The third argument
 
 | Field | Type | Meaning |
 |---|---|---|
-| `source` | `"Base" \| "Effect" \| "Constraint"` | Operation that caused resolution |
+| `source` | `"Base" \| "Effect" \| "Constraint"` | Operation that caused resolution: `GameplayAttributeChangeSource.BASE` (`"Base"`), `EFFECT` (`"Effect"`) or `CONSTRAINT` (`"Constraint"`) |
 | `force` | `boolean` | A Base write may notify even when visible Current did not change |
 | `oldBase` | `number \| Class.MissingValue \| nil` | Previous Base for a `Base` source; otherwise nil |
 | `newBase` | `number \| nil` | New Base for a `Base` source; otherwise nil |
+
+The source constants are static, read-only fields on `GlobalCore.GameplayAttributeChangeSource`; `change.source` remains a string.
 
 Listener `params` follow `change`, and batch writes notify only the final state. Base writes notify even when Current is unchanged, while Effect and Constraint notifications require a Current change.
 
@@ -113,6 +115,16 @@ Granted abilities require a non-empty ID, and overrides must return `GameplayAbi
 | `Success` | `(code?, data?) -> GameplayAbilityResult` | Creates a successful result; default code is `Success` |
 | `Failure` | `(code, data?) -> GameplayAbilityResult` | Creates a failed result and requires a non-empty string or non-zero integer code |
 
+Built-in result codes are read-only fields on `GlobalCore.GameplayAbilityResult`. Custom abilities can still return their own string or integer codes.
+
+| Constant | String value | Meaning |
+|---|---|---|
+| `CODE_SUCCESS` | `"Success"` | Default successful result. |
+| `CODE_ABILITY_NOT_FOUND` | `"AbilityNotFound"` | No granted ability has the requested ID. |
+| `CODE_ABILITY_NOT_ACTIVATED` | `"AbilityNotActivated"` | No matching ability passed its activation gate. |
+| `CODE_MISSING_REQUIRED_TAG` | `"MissingRequiredTag"` | A required tag is absent. |
+| `CODE_BLOCKED_BY_TAG` | `"BlockedByTag"` | A blocked tag is present. |
+
 ## GameplayEventData
 
 `GameplayEventData.new(instigator?, target?, eventTag?, payload?)` carries one activation or event.
@@ -133,8 +145,8 @@ Handlers may update `payload`. `handleGameplayEvent` requires a non-empty tag, w
 | GameplayEffect field | Type | Values/default |
 |---|---|---|
 | `id` | `string` | `""` |
-| `durationPolicy` | `string` | `Instant` or `Infinite`; default `Instant` |
-| `stackingPolicy` | `string` | `None` or `Aggregate`; default `None` |
+| `durationPolicy` | `string` | `GameplayEffect.DURATION_INSTANT` (`"Instant"`) or `DURATION_INFINITE` (`"Infinite"`); default `DURATION_INSTANT` |
+| `stackingPolicy` | `string` | `GameplayEffect.STACKING_NONE` (`"None"`) or `STACKING_AGGREGATE` (`"Aggregate"`); default `STACKING_NONE` |
 | `modifiers` | `GameplayModifier[]` | `{}` |
 | `grantedTags` | `string[]` | `{}`; Infinite only |
 | `grantedAbilities` | `GameplayAbility[]` | `{}`; Infinite only |
@@ -143,9 +155,11 @@ Handlers may update `payload`. `handleGameplayEvent` requires a non-empty tag, w
 | GameplayModifier field | Type | Values/default |
 |---|---|---|
 | `attribute` | `string` | Target numeric attribute |
-| `operation` | `string` | `Add`, `Multiply` or `Override` |
+| `operation` | `string` | `GameplayModifier.OPERATION_ADD` (`"Add"`), `OPERATION_MULTIPLY` (`"Multiply"`) or `OPERATION_OVERRIDE` (`"Override"`) |
 | `magnitude` | `number` or `function` | Required at validation: a finite number, or `(spec, stacks)` returning exactly one finite number |
 | `minimum` | `number?` | Optional finite lower bound |
+
+Policy and operation constants are static, read-only properties of their owning `GlobalCore` classes. Policies and operations carry the string values shown above.
 
 `data` is opaque to the ability system. `GameplayEffectSpec.new(effect, eventData?, stacks?, sourceKey?)` requires positive integer stacks. Effect ID plus Lua-equal `sourceKey` identifies an Infinite Effect for deduplication or stacking. Matching definitions are a caller invariant. Aggregate retains the first active spec.
 

@@ -45,7 +45,8 @@ Metadata 来源：`Scripts/Source/MapActors/Player_meta.lua`
 
 | 成员 | 签名 | 行为 |
 |---|---|---|
-| `ValidateName` | `(name) -> string, "empty"/"tooLong"/nil` | 返回去除首尾空白后的候选名与校验错误；合法时错误为 `nil` |
+| `MAX_NAME_GRAPHEMES` | 整数类常量，`32` | 以字素簇计数的名字长度上限。 |
+| `ValidateName` | `(name) -> string, Enums.PlayerNameValidationError?` | 返回去除首尾空白后的候选名与校验错误；合法时错误为 `nil` |
 | `init` | `(texture?, tag?)` | 构造 Attribute Set、Ability System，以及空的背包与装备状态 |
 | `InitPlayer` | `(playerPath, applyInitialEquipment? = true) -> Player` | 根据 Blueprint class path 构造 Player，并可选应用 Class 的初始装备 |
 | `FromDict` | `(data) -> Player` | 恢复 Base、背包 ability、装备 Effect 与 State Effect。不应用 Class 的初始装备，也不执行成员图 |
@@ -61,7 +62,7 @@ Metadata 来源：`Scripts/Source/MapActors/Player_meta.lua`
 
 HP Current 限制在 `0..MAXHP` 范围内。永久 MAXHP 与 LEVEL 的成长通过 Base 增量实现。Effect 与 Constraint 的变化不会改动成长用的 Base。
 
-`setName` 会去除 Unicode 首尾空白，并接受 1–32 个字素簇。输入非法时，名字保持不变。`getDisplayName` 返回自定义名字原文，或通用数据的本地化默认名。
+`setName` 会去除 Unicode 首尾空白，并接受 1 至 `Player.MAX_NAME_GRAPHEMES` 个字素簇。`Enums.PlayerNameValidationError.EMPTY` 为 `"empty"`，`TOO_LONG` 为 `"tooLong"`。输入非法时，名字保持不变。`getDisplayName` 返回自定义名字原文，或通用数据的本地化默认名。
 
 ## 相关页面
 

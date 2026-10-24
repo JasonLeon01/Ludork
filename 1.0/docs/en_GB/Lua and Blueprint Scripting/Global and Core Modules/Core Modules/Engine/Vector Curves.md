@@ -1,5 +1,7 @@
 # Engine: Vector Curves
 
+Vector curves use the same [interpolation constants](<Scalar Curves.md#curvekey>) and [infinity-mode constants](<Scalar Curves.md#curve>) as scalar curves.
+
 ## Vector2CurveKey
 
 ### Properties

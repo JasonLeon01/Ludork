@@ -17,6 +17,8 @@
 
 ## CurveKey
 
+`Engine.CurveInterpolation` exposes the read-only strings `CONSTANT = "constant"`, `LINEAR = "linear"` and `CUBIC = "cubic"` for a key’s `interpolation`. These values are shared by scalar and vector curves.
+
 ### Properties
 
 | Name | Type | Default | Metadata |
@@ -41,6 +43,8 @@
 | `keys` | `{ "Engine", "CurveKey[]" }` | — | — |
 
 ## Curve
+
+`Engine.CurveInfinityMode.CONSTANT` (`"constant"`) holds the endpoint value outside the key range; `LINEAR` (`"linear"`) extends the slope between the first two or last two keys. These read-only strings are used by `preInfinity` and `postInfinity` on scalar and vector curves and their data records. Infinity modes do not include cubic extrapolation.
 
 ### Properties
 

@@ -47,6 +47,8 @@ Rich-text measurement and wrapping use the supplied control's authored configura
 
 ## TextGradientConfig
 
+Use the read-only strings `Engine.TextGradientConfig.HORIZONTAL` (`"horizontal"`) and `VERTICAL` (`"vertical"`) for `direction`. The default is `VERTICAL`.
+
 ### Properties
 
 | Name | Type | Default | Metadata |

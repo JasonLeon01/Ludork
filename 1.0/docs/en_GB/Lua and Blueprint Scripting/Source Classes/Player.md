@@ -45,7 +45,8 @@ The editor shows a read-only generated `PlayerAttributeSet` preview. The preview
 
 | Member | Signature | Behaviour |
 |---|---|---|
-| `ValidateName` | `(name) -> string, "empty"/"tooLong"/nil` | Returns the trimmed candidate and validation error (`nil` when valid) |
+| `MAX_NAME_GRAPHEMES` | integer class constant, `32` | Maximum name length in grapheme clusters. |
+| `ValidateName` | `(name) -> string, Enums.PlayerNameValidationError?` | Returns the trimmed candidate and validation error (`nil` when valid) |
 | `init` | `(texture?, tag?)` | Constructs the Attribute Set, Ability System and empty inventory/equipment state |
 | `InitPlayer` | `(playerPath, applyInitialEquipment? = true) -> Player` | Constructs a Player from a Blueprint class path and optionally applies Class initial equipment |
 | `FromDict` | `(data) -> Player` | Restores Bases, inventory abilities, equipment Effects and State Effects without applying Class initial equipment or executing member graphs |
@@ -61,7 +62,7 @@ A runtime equip or unequip changes the Infinite Effect before the corresponding 
 
 HP Current is constrained to `0..MAXHP`. Permanent MAXHP and LEVEL growth uses Base deltas. Effect and Constraint changes never alter progression Bases.
 
-`setName` trims Unicode whitespace and accepts 1–32 grapheme clusters. Invalid input leaves the name unchanged. `getDisplayName` returns the custom name literally or the localised General Data default.
+`setName` trims Unicode whitespace and accepts between 1 and `Player.MAX_NAME_GRAPHEMES` grapheme clusters. `Enums.PlayerNameValidationError.EMPTY` is `"empty"`; `TOO_LONG` is `"tooLong"`. Invalid input leaves the name unchanged. `getDisplayName` returns the custom name literally or the localised General Data default.
 
 ## Related pages
 

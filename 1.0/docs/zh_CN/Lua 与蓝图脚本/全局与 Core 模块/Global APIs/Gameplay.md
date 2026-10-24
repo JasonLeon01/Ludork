@@ -43,10 +43,12 @@
 
 | 字段 | 类型 | 含义 |
 |---|---|---|
-| `source` | `"Base" \| "Effect" \| "Constraint"` | 触发本次重算的操作 |
+| `source` | `"Base" \| "Effect" \| "Constraint"` | 触发本次重算的操作：`GameplayAttributeChangeSource.BASE`（`"Base"`）、`EFFECT`（`"Effect"`）或 `CONSTRAINT`（`"Constraint"`） |
 | `force` | `boolean` | 为 true 时，即使当前值未变，基础值写入仍会触发通知 |
 | `oldBase` | `number \| Class.MissingValue \| nil` | 来源为 `Base` 时的旧基础值；其他来源为 nil |
 | `newBase` | `number \| nil` | 来源为 `Base` 时的新基础值；其他来源为 nil |
+
+来源常量是 `GlobalCore.GameplayAttributeChangeSource` 的静态只读字段；`change.source` 仍是字符串。
 
 附加参数 `params` 排在 `change` 之后传入回调。批量写入只通知最终状态。基础值写入即使没有改变当前值也会通知，效果和约束则只在当前值变化时通知。
 
@@ -113,6 +115,16 @@
 | `Success` | `(code?, data?) -> GameplayAbilityResult` | 创建成功结果；默认结果码为 `Success` |
 | `Failure` | `(code, data?) -> GameplayAbilityResult` | 创建失败结果；结果码必须是非空字符串或非零整数 |
 
+内建结果码是 `GlobalCore.GameplayAbilityResult` 的只读字段。自定义能力仍可返回自己的字符串或整数结果码。
+
+| 常量 | 字符串值 | 含义 |
+|---|---|---|
+| `CODE_SUCCESS` | `"Success"` | 默认的成功结果。 |
+| `CODE_ABILITY_NOT_FOUND` | `"AbilityNotFound"` | 已授予能力中不存在请求的 ID。 |
+| `CODE_ABILITY_NOT_ACTIVATED` | `"AbilityNotActivated"` | 没有匹配能力通过激活条件。 |
+| `CODE_MISSING_REQUIRED_TAG` | `"MissingRequiredTag"` | 缺少必需标签。 |
+| `CODE_BLOCKED_BY_TAG` | `"BlockedByTag"` | 存在阻止激活的标签。 |
+
 ## GameplayEventData
 
 `GameplayEventData.new(instigator?, target?, eventTag?, payload?)` 携带一次能力激活或事件的数据。
@@ -133,8 +145,8 @@
 | GameplayEffect 字段 | 类型 | 取值/默认值 |
 |---|---|---|
 | `id` | `string` | `""` |
-| `durationPolicy` | `string` | `Instant` 或 `Infinite`；默认 `Instant` |
-| `stackingPolicy` | `string` | `None` 或 `Aggregate`；默认 `None` |
+| `durationPolicy` | `string` | `GameplayEffect.DURATION_INSTANT`（`"Instant"`）或 `DURATION_INFINITE`（`"Infinite"`）；默认 `DURATION_INSTANT` |
+| `stackingPolicy` | `string` | `GameplayEffect.STACKING_NONE`（`"None"`）或 `STACKING_AGGREGATE`（`"Aggregate"`）；默认 `STACKING_NONE` |
 | `modifiers` | `GameplayModifier[]` | `{}` |
 | `grantedTags` | `string[]` | `{}`；仅限 `Infinite` |
 | `grantedAbilities` | `GameplayAbility[]` | `{}`；仅限 `Infinite` |
@@ -143,9 +155,11 @@
 | GameplayModifier 字段 | 类型 | 取值/默认值 |
 |---|---|---|
 | `attribute` | `string` | 目标数值属性 |
-| `operation` | `string` | `Add`、`Multiply` 或 `Override` |
+| `operation` | `string` | `GameplayModifier.OPERATION_ADD`（`"Add"`）、`OPERATION_MULTIPLY`（`"Multiply"`）或 `OPERATION_OVERRIDE`（`"Override"`） |
 | `magnitude` | `number` 或 `function` | 校验时必填：有限数值，或接收 `(spec, stacks)` 并恰好返回一个有限数值的函数 |
 | `minimum` | `number?` | 可选的有限下限 |
+
+策略和运算常量都是其所属 `GlobalCore` 类的静态只读属性。策略与运算都使用上表中的字符串值。
 
 能力系统不解析 `data` 的内容。`GameplayEffectSpec.new(effect, eventData?, stacks?, sourceKey?)` 要求层数为正整数。效果 ID 与 Lua 相等的 `sourceKey` 共同标识一个 `Infinite` 效果，用于去重或叠加；调用方须确保同一组合对应的效果定义一致。`Aggregate` 保留第一个生效的 spec。
 

@@ -32,7 +32,7 @@ Common Functions share the caller's local context and graph owner, including nes
 - Data links connect compatible typed pins, and execution links connect flow pins.
 - Each execution output accepts one connection; execution inputs accept multiple. Data outputs accept multiple connections; each data input accepts one.
 
-Runtime event queries and execution use native `Engine.Graph` userdata. Raw GraphData supports definition-time event inspection. Local execution contexts hold invocation state and are not executable graphs.
+Runtime event queries and execution use native `Engine.Graph` userdata. Raw GraphData supports definition-time event inspection. Local execution contexts hold invocation state and are not executable graphs. When constructing a graph without an inherited class, pass the read-only string `Engine.Graph.NO_PARENT_CLASS` (`"NOT_WRITTEN"`) as `Graph.new`’s `parentClassName`. The `parent` parameter independently supplies the graph owner.
 
 ### Cancelling latent execution
 

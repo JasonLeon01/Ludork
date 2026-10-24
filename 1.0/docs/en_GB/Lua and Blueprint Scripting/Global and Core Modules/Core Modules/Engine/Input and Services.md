@@ -48,6 +48,20 @@ A JoystickButton action with a logical `name` uses that name and its getter toke
 
 ## InjectedInputEvent
 
+Use the following read-only class constants for `type` and `button`; the properties and injected protocol retain their string values.
+
+| `Engine.InjectedInputEvent` constants | String values |
+|---|---|
+| `KEY_PRESSED`, `KEY_RELEASED` | `"KeyPressed"`, `"KeyReleased"` |
+| `MOUSE_MOVED` | `"MouseMoved"` |
+| `MOUSE_BUTTON_PRESSED`, `MOUSE_BUTTON_RELEASED` | `"MouseButtonPressed"`, `"MouseButtonReleased"` |
+| `MOUSE_WHEEL_SCROLLED` | `"MouseWheelScrolled"` |
+| `MOUSE_ENTERED`, `MOUSE_LEFT` | `"MouseEntered"`, `"MouseLeft"` |
+| `TEXT_ENTERED`, `TEXT_PREEDIT`, `TEXT_COMPOSITION` | `"TextEntered"`, `"TextPreedit"`, `"TextComposition"` |
+| `FOCUS_GAINED`, `FOCUS_LOST` | `"FocusGained"`, `"FocusLost"` |
+| `BUTTON_LEFT`, `BUTTON_RIGHT`, `BUTTON_MIDDLE` | `"Left"`, `"Right"`, `"Middle"` |
+| `BUTTON_EXTRA1`, `BUTTON_EXTRA2` | `"Extra1"`, `"Extra2"` |
+
 ### Properties
 
 | Name | Type | Default | Metadata |

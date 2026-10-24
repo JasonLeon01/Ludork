@@ -142,10 +142,10 @@ An existing const map can supply a scalar enum without introducing a C++ enum:
 
 ```cpp
 BIND_MODULE_PROPERTY(enum = true)
-extern const std::unordered_map<std::string, int> Direction;
+extern const std::unordered_map<std::string, std::string> FocusDirection;
 ```
 
-Only const maps with string keys and numeric, string or boolean values support this marker. `Engine.Direction` and `Engine.FocusDirection` use it. The generated enum modules are owned by the build; edit the declaration or map source and rebuild.
+Only const maps with string keys and numeric, string or boolean values support this marker. `Engine.FocusDirection` uses it; `Engine.Direction` is a bound native enum. The generated enum modules are owned by the build; edit the declaration or map source and rebuild.
 
 Use `metadata_type` when an existing scalar property should show an enum selector while keeping its C++ and LuaLS types:
 
