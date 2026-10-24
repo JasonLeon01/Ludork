@@ -18,7 +18,7 @@ The map palette labels tileset tabs with `name`, while the JSON file name is the
 
 Changing a tileset definition after maps have been authored can change what existing tile indices display.
 
-Map JSON requires a `layerOrder` string array, which is the authoritative draw and Actor-processing sequence. `layers` and `actors` remain dictionaries keyed by those names, and the editor keeps the array synchronised. Runtime loading rejects missing, duplicate or unlisted layers. It never infers order from JSON object keys.
+Map JSON requires a `layerOrder` string array, which is the authoritative draw and Actor-processing sequence. `layers` and `actors` remain dictionaries keyed by those names, and the editor keeps the array synchronised. Ordinary-map and streamed child-map loading both reject missing or duplicate layer references, layers omitted from the order, and Actor groups whose layer is absent from the order. Loading never infers order from JSON object keys.
 
 An ordinary tileset provides the **Passable**, **Material** and **Dir4** modes. Left-click toggles one tile's passability, selects its [material resource](<Materials.md>) or toggles the direction nearest the clicked edge. Shift+left-drag copies the pressed source tile's property through every crossed cell. The current mode chooses the copied value: Passable copies the boolean, Material copies the resource reference, and Dir4 copies all four directions. One drag is one Undo step. Clearing a tile material removes its sparse entry and restores the default appearance. Autotiles provide **Passable** and **Material** for the whole asset and do not support this batch brush.
 

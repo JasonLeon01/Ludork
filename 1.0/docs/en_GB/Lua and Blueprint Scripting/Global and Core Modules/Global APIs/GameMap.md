@@ -14,7 +14,14 @@ Shared map data declarations belong to `Global.GameMap.*` and `Global.WorldGameM
 | `Global.GameMap` | `SerializedTileCell`, `SerializedAutoTileCell`, `SerializedTileRow`, `SerializedAutoTileRow` |
 | `Global.WorldGameMap` | `WorldMapData`, `WorldRegionData`, `WorldRegionEnvironmentData` |
 
-`SerializedMapData` describes loaded map records; `MapData` describes normalised Actor data and native environment values. The world facade receives `WorldMapData` and an injected factory with this contract:
+`SerializedMapData` describes loaded map records; `MapData` describes normalised Actor data and native environment values. The project module `Source.SceneComponents.MapBuilder.MapDataParser` provides the same parsing operations for ordinary maps and streamed child maps:
+
+- `ValidateMapData(data)` checks a `Global.GameMap.SerializedMapData` record against the [map layer-order rules](<../../../Editor User Guide/Tilesets Autotiles and Maps.md#tilesets-and-autotiles>). It raises an error for invalid data without modifying the record.
+- `NormaliseActorData(actorData)` returns a new `Global.Data.ActorData` record, retaining `bp` and `tag` and converting `position` to native unsigned cell coordinates (`sf.Vector2u`). A missing position or coordinate defaults to zero.
+
+`NormaliseMap` uses both operations for an ordinary map. A streamed region validates its map data when construction starts, then normalises each authored Actor as part of its incremental work; it does not normalise every Actor in one initial pass.
+
+The world facade receives `WorldMapData` and an injected factory with this contract:
 
 ```lua
 ---@param region Global.WorldGameMap.WorldRegionData

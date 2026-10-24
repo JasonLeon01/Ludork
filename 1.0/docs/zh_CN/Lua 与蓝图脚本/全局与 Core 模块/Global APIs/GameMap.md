@@ -14,7 +14,14 @@ Metadata 来源：`Scripts/Global/GameMap_meta.lua`
 | `Global.GameMap` | `SerializedTileCell`、`SerializedAutoTileCell`、`SerializedTileRow`、`SerializedAutoTileRow` |
 | `Global.WorldGameMap` | `WorldMapData`、`WorldRegionData`、`WorldRegionEnvironmentData` |
 
-`SerializedMapData` 描述读入的地图记录；`MapData` 描述规范化后的 Actor 数据及原生环境值。大地图接口接收 `WorldMapData`，以及符合以下约定的区域工厂回调：
+`SerializedMapData` 描述读入的地图记录；`MapData` 描述规范化后的 Actor 数据及原生环境值。项目模块 `Source.SceneComponents.MapBuilder.MapDataParser` 为普通地图和流式子地图提供相同的解析操作：
+
+- `ValidateMapData(data)` 按[地图图层顺序规则](<../../../编辑器用户指南/图块集、自动图块与地图.md#图块集与自动图块>)检查 `Global.GameMap.SerializedMapData` 记录。数据无效时抛出错误，不修改传入记录。
+- `NormaliseActorData(actorData)` 返回新的 `Global.Data.ActorData` 记录，保留 `bp` 和 `tag`，并将 `position` 转为原生无符号格子坐标（`sf.Vector2u`）。位置或其中某个坐标缺失时，默认使用零。
+
+普通地图的 `NormaliseMap` 使用这两个操作。流式区域在开始构建时校验地图数据，再随增量构建逐个规范化预置 Actor，不在初始化阶段一次性处理全部 Actor。
+
+大地图接口接收 `WorldMapData`，以及符合以下约定的区域工厂回调：
 
 ```lua
 ---@param region Global.WorldGameMap.WorldRegionData

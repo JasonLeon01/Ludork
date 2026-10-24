@@ -106,6 +106,8 @@ AssetStore, DataStore, ScriptStore and the Standard read-only file provider are 
 
 Standard establishes a LuaGlue execution scope at each host Lua entry. Nested glue operations may reuse that scope only while the host confirms that the current thread still owns the VM lock and the execution hooks are unchanged. `LuaExecutionPause` suspends that ownership; operations during a pause must acquire the lock again. Hosts without an ownership probe continue to use the ordinary enter/leave hooks.
 
+Standard's C++ header `LuaInvocation.hpp` provides `ludork::standard::ensureLuaStack(state, count, context)` and `invokeLuaFunction(state, callable, arguments, context)` for use within that VM ownership scope. The stack check reserves space for `count` additional values; a count above `INT_MAX` raises `std::length_error`, and a failed stack expansion raises `std::runtime_error`. Invocation accepts a `lua_glue::Object` callable and a `std::vector<lua_glue::Object>` of arguments, checks capacity, pushes them and makes a protected call. Success leaves every result above the original stack top and returns their count; the caller consumes those results. Any exception restores the entry stack top before propagating. The separate `class_runtime::invoke(state, callable, argumentCount)` interface consumes arguments already on the Lua stack.
+
 ### Host and implementation sources
 
 Each independent class or bound type uses a same-named header and, where needed, a source file. Public declarations belong under `include`, and member definitions under `src`. Owner-specific data types may be nested. Shared data and helper collections may stay together.
@@ -115,6 +117,8 @@ Host-private implementation stays under `src` and uses an `Impl` suffix, such as
 Core shares SpriteVisuals, joystick device tracking and text configuration codecs through `src/Shared/include/CoreShared`. Their implementation and state remain under `src/Shared/src`; consumers include only the interface headers. Host companion headers stay beside their host source and are not shared interfaces.
 
 Application platform implementations share neutral interfaces under `Application/src/Platform/include`. The application host depends on those interfaces and applies platform results to runtime launch options. Platform implementations do not include host-private headers or own the host’s startup-error reporting.
+
+Windows editor and game launchers compile the shared source under `Engine/PlatformHosts/Common`; `WindowsLauncher.hpp` exposes `RunLauncher` with a relative executable path and `LauncherWorkingDirectory` policy. The editor launches `Binaries\Ludork.exe` with the launcher directory as its working directory. The game launches `Binaries\Main.exe` while inheriting the caller's working directory. Both forward arguments, standard streams and the child exit status. C++ Source templates retain this shared source.
 
 Shared Runtime Lua services live in `Runtime/src/LuaServices`. Pure ConfigVars parsing lives in `Runtime/src/Metadata`.
 
