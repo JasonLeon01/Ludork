@@ -96,6 +96,44 @@
   </PropertyGroup>
 
   <Target
+      Name="IncludeMacOSNotificationLibrary"
+      BeforeTargets="AssignTargetPaths"
+      Condition="'$(LudorkTargetPlatform)' == 'macOS' and '$(DesignTimeBuild)' != 'true'">
+    <PropertyGroup>
+      <LudorkMacOSNotificationRuntime>$(RuntimeIdentifier)</LudorkMacOSNotificationRuntime>
+      <LudorkMacOSNotificationRuntime Condition="'$(LudorkMacOSNotificationRuntime)' == ''">$(NETCoreSdkRuntimeIdentifier)</LudorkMacOSNotificationRuntime>
+      <LudorkMacOSNotificationArchitecture Condition="'$(LudorkMacOSNotificationRuntime)' == 'osx-arm64'">arm64</LudorkMacOSNotificationArchitecture>
+      <LudorkMacOSNotificationArchitecture Condition="'$(LudorkMacOSNotificationRuntime)' == 'osx-x64'">x86_64</LudorkMacOSNotificationArchitecture>
+      <LudorkMacOSNotificationDirectory>$(IntermediateOutputPath)native/$(LudorkMacOSNotificationArchitecture)/</LudorkMacOSNotificationDirectory>
+      <LudorkMacOSNotificationLibrary>$(LudorkMacOSNotificationDirectory)libLudorkNotifications.dylib</LudorkMacOSNotificationLibrary>
+      <LudorkMacOSNotificationCompilerOptions>-O2</LudorkMacOSNotificationCompilerOptions>
+      <LudorkMacOSNotificationCompilerOptions Condition="'$(Configuration)' == 'Debug'">-O0 -g</LudorkMacOSNotificationCompilerOptions>
+    </PropertyGroup>
+    <ItemGroup>
+      <LudorkMacOSNotificationSource Include="Editor/Native/macOS/src/*.mm" />
+      <LudorkMacOSNotificationHeader Include="Editor/Native/macOS/include/*.h;Editor/Native/macOS/src/*.hpp" />
+      <Content Include="$(LudorkMacOSNotificationLibrary)"
+          Link="libLudorkNotifications.dylib"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
+      <FileWrites Include="$(LudorkMacOSNotificationLibrary)" />
+    </ItemGroup>
+  </Target>
+
+  <Target
+      Name="BuildMacOSNotificationLibrary"
+      BeforeTargets="CoreCompile"
+      DependsOnTargets="IncludeMacOSNotificationLibrary"
+      Condition="'$(LudorkTargetPlatform)' == 'macOS' and '$(DesignTimeBuild)' != 'true'"
+      Inputs="@(LudorkMacOSNotificationSource);@(LudorkMacOSNotificationHeader);$(MSBuildProjectFullPath)"
+      Outputs="$(LudorkMacOSNotificationLibrary)">
+    <Error Condition="!$([MSBuild]::IsOSPlatform('OSX'))" Text="The macOS notification library must be built on macOS." />
+    <Error Condition="'$(LudorkMacOSNotificationArchitecture)' == ''" Text="Unsupported macOS notification architecture: $(LudorkMacOSNotificationRuntime)." />
+    <MakeDir Directories="$(LudorkMacOSNotificationDirectory)" />
+    <Exec Command="xcrun clang++ -std=c++17 -dynamiclib -fobjc-arc -fblocks -fno-rtti -fexceptions -arch $(LudorkMacOSNotificationArchitecture) -mmacosx-version-min=13.3 $(LudorkMacOSNotificationCompilerOptions) -framework Foundation -framework UserNotifications -I&quot;$(MSBuildProjectDirectory)/Editor/Native/macOS/include&quot; @(LudorkMacOSNotificationSource-&gt;'&quot;%(FullPath)&quot;', ' ') -Wl,-install_name,@rpath/libLudorkNotifications.dylib -o &quot;$(LudorkMacOSNotificationLibrary)&quot;" />
+  </Target>
+
+  <Target
       Name="ValidateEditorVersion"
       BeforeTargets="BeforeBuild;GetAssemblyVersion">
     <Error Condition="'$(Version)' == ''" Text="EDITOR_VERSION is not set in versions.conf." />

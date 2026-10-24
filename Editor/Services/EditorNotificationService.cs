@@ -1,7 +1,5 @@
-using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Labs.Notifications;
 using Avalonia.Threading;
 using System;
 using System.Collections.Generic;
@@ -14,37 +12,33 @@ namespace Ludork.Services;
 internal sealed class EditorNotificationService : IDisposable
 {
     private readonly IClassicDesktopStyleApplicationLifetime desktop;
-    private readonly INativeNotificationManager? manager;
+    private readonly IEditorNotificationBackend? backend;
     private readonly Dictionary<uint, PendingNotification> pending = [];
+    private uint nextNotificationId;
     private bool disposed;
 
     public EditorNotificationService(IClassicDesktopStyleApplicationLifetime desktop)
-        : this(desktop, createManager())
+        : this(desktop, createBackend())
     {
     }
 
-    internal EditorNotificationService(IClassicDesktopStyleApplicationLifetime desktop, INativeNotificationManager? manager)
+    internal EditorNotificationService(IClassicDesktopStyleApplicationLifetime desktop, IEditorNotificationBackend? backend)
     {
         this.desktop = desktop;
-        this.manager = manager;
-        if (manager is not null)
-            manager.NotificationCompleted += onNotificationCompleted;
+        this.backend = backend;
+        if (backend is not null)
+            backend.Completed += onNotificationCompleted;
     }
 
-    private static INativeNotificationManager? createManager()
+    private static IEditorNotificationBackend? createBackend()
     {
-        if (!OperatingSystem.IsWindows() && !OperatingSystem.IsMacOS())
-            return null;
         try
         {
-            AppNotificationOptions options = new() { ClearOnAppClose = true };
+            if (OperatingSystem.IsMacOS())
+                return new MacOSEditorNotificationBackend();
             if (OperatingSystem.IsWindows())
-                options = new AppNotificationOptions { AppName = "Ludork", ClearOnAppClose = true };
-            AppBuilder notifications = AppBuilder.Configure<App>().WithAppNotifications(options);
-            notifications.AfterSetupCallback?.Invoke(notifications);
-            if (NativeNotificationManager.Current is null && OperatingSystem.IsMacOS())
-                Trace.WriteLine("System notifications require launching Ludork from its macOS .app bundle.");
-            return NativeNotificationManager.Current;
+                return WindowsEditorNotificationBackend.Create();
+            return null;
         }
         catch (Exception exception)
         {
@@ -57,25 +51,23 @@ internal sealed class EditorNotificationService : IDisposable
         bool success, Action? showResult = null)
     {
         Dispatcher.UIThread.VerifyAccess();
-        if (disposed || manager is null || !desktop.Windows.Contains(project) || !desktop.Windows.Contains(target)
+        if (disposed || backend is null || !desktop.Windows.Contains(project) || !desktop.Windows.Contains(target)
             || desktop.MainWindow != project || desktop.Windows.Any(window => window.IsActive))
             return;
         uint? notificationId = null;
         try
         {
-            INativeNotification? notification = manager.CreateNotification(null);
-            if (notification is null)
-                return;
-            notification.Title = "Ludork — " + Path.GetFileName(Path.TrimEndingDirectorySeparator(projectPath));
-            notification.Message = string.Format(LocaleService.Get(success ? "TASK_NOTIFICATION_SUCCESS" : "TASK_NOTIFICATION_FAILED"),
+            uint id = checked(++nextNotificationId);
+            string title = "Ludork — " + Path.GetFileName(Path.TrimEndingDirectorySeparator(projectPath));
+            string message = string.Format(LocaleService.Get(success ? "TASK_NOTIFICATION_SUCCESS" : "TASK_NOTIFICATION_FAILED"),
                 LocaleService.Get(operationKey));
-            PendingNotification entry = new(notification, project, target, showResult);
-            pending.Add(notification.Id, entry);
-            notificationId = notification.Id;
+            PendingNotification entry = new(project, target, showResult);
+            pending.Add(id, entry);
+            notificationId = id;
             project.Closed += onWindowClosed;
             if (target != project)
                 target.Closed += onWindowClosed;
-            notification.Show();
+            backend.Show(id, title, message);
         }
         catch (Exception exception)
         {
@@ -87,13 +79,15 @@ internal sealed class EditorNotificationService : IDisposable
 
     public void Dispose()
     {
+        Dispatcher.UIThread.VerifyAccess();
         if (disposed)
             return;
         disposed = true;
-        if (manager is not null)
-            manager.NotificationCompleted -= onNotificationCompleted;
+        if (backend is not null)
+            backend.Completed -= onNotificationCompleted;
         foreach (uint id in pending.Keys.ToArray())
             remove(id);
+        backend?.Dispose();
     }
 
     private void onWindowClosed(object? sender, EventArgs args)
@@ -103,14 +97,16 @@ internal sealed class EditorNotificationService : IDisposable
             remove(id);
     }
 
-    private void onNotificationCompleted(object? sender, NativeNotificationCompletedEventArgs args)
+    private void onNotificationCompleted(object? sender, EditorNotificationCompletion args)
     {
         Dispatcher.UIThread.Post(() =>
         {
-            if (disposed || args.NotificationId is not uint id || !pending.TryGetValue(id, out PendingNotification? entry))
+            if (disposed || !pending.TryGetValue(args.Id, out PendingNotification? entry))
                 return;
-            remove(id);
-            if (!args.IsActivated || desktop.MainWindow != entry.Project
+            remove(args.Id);
+            if (args.Status is EditorNotificationStatus.Denied or EditorNotificationStatus.Failed)
+                Trace.WriteLine("System notification was not shown: " + (args.Error ?? args.Status.ToString()));
+            if (args.Status != EditorNotificationStatus.Activated || desktop.MainWindow != entry.Project
                 || !desktop.Windows.Contains(entry.Project) || !desktop.Windows.Contains(entry.Target))
                 return;
             restore(entry.Project);
@@ -132,7 +128,7 @@ internal sealed class EditorNotificationService : IDisposable
             entry.Target.Closed -= onWindowClosed;
         try
         {
-            entry.Notification.Close();
+            backend?.Close(id);
         }
         catch (Exception exception)
         {
@@ -146,5 +142,5 @@ internal sealed class EditorNotificationService : IDisposable
             window.WindowState = WindowState.Normal;
     }
 
-    private sealed record PendingNotification(INativeNotification Notification, Window Project, Window Target, Action? ShowResult);
+    private sealed record PendingNotification(Window Project, Window Target, Action? ShowResult);
 }
