@@ -114,6 +114,8 @@ Host-private implementation stays under `src` and uses an `Impl` suffix, such as
 
 Core shares SpriteVisuals, joystick device tracking and text configuration codecs through `src/Shared/include/CoreShared`. Their implementation and state remain under `src/Shared/src`; consumers include only the interface headers. Host companion headers stay beside their host source and are not shared interfaces.
 
+Application platform implementations share neutral interfaces under `Application/src/Platform/include`. The application host depends on those interfaces and applies platform results to runtime launch options. Platform implementations do not include host-private headers or own the host’s startup-error reporting.
+
 Shared Runtime Lua services live in `Runtime/src/LuaServices`. Pure ConfigVars parsing lives in `Runtime/src/Metadata`.
 
 Standard ClassRuntime dependencies flow `Class → Composite → Instance → Native → Detail`, with downward shortcuts allowed. Each layer owns a distinct concern:
@@ -124,7 +126,7 @@ Standard ClassRuntime dependencies flow `Class → Composite → Instance → Na
 - Composite owns indexing and metatables.
 - Class coordinates allocation, finalisation and super.
 
-The boundary checker includes Standard and rejects upward layer includes, parent-private includes and cycles formed by those edges.
+The boundary checker covers private headers in Engine and Application, including parent-private headers reached through include search roots. It also checks Standard layer direction and cycles, and rejects static `Source.*` project Lua module paths or type references in first-party Engine C++ strings and binding annotations. This static check does not trace dynamically constructed paths; generic native services receive project module names from their callers.
 
 System privately composes Display, FramePipeline, SceneStack and Lifecycle. Display owns the window. FramePipeline owns the canvas, effects and transition targets. SceneStack owns queued operations and retired scenes. Lifecycle owns shutdown state. Components expose operations instead of mutable state aggregates. Frame presentation remains outside the scene logic lock, and render targets rebuild between frames.
 
