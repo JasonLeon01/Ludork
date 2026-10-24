@@ -32,6 +32,8 @@ With transitions enabled, world entry freezes the outgoing frame until the targe
 
 `Source.SceneComponents.MapBuilder` owns project map assembly and supplies the world region factory. Shared map data types and the `Global.WorldGameMap.RegionBuildState` interface belong to Global; project construction state remains in Source. See [Map data and region builders](<../Global and Core Modules/Global APIs/GameMap.md#map-data-and-region-builders>) when implementing a custom builder.
 
+Ordinary map loading and adjacent-floor passability previews use `MapBuilder:applyPersistentState(gameMap, inst, mapFile)`. It restores terrain changes, added Actors, recorded positions and destroyed-Actor removals in that order, without running Actor `onCreate`. The live Scene starts surviving Actors after binding its map and player. Scene and component ownership are described in [SceneMap](<../Source Classes/SceneMap.md#scene>).
+
 ### Configure Continue
 
 When the title command window is first created, it checks the directory returned by `Engine.getSavePath()`. Any direct entry, including an unrelated file or a subdirectory, selects Continue (`index = 1`); a missing or empty directory selects Start Game (`index = 0`). This check does not parse saves or filter their format. Locale refreshes and returning from Config or Save/Load preserve the current selection. Creating a new title window checks the directory again.

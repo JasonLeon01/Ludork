@@ -10,9 +10,20 @@ Direct metadata bases: `{ "Source.Gameplay.GameplayScene", "GameplayScene" }`
 
 Gameplay commands follow the [GameplayScene contract](<Gameplay.md#gameplayscene>).
 
-The Scene creates HUD and Region Title directly and creates optional windows on first display. Window ownership and reuse follow [Windows, Menus, Input and Controls](<../Default Gameplay/Windows Menus Input and Controls.md>).
+`SceneMap` is the public gameplay entry point and owns the current `inst` and `player`. `getGameInstance()`, `getPlayer()` and `getGameMap()` read the current objects. The Scene coordinates lifecycle and frame order, map input blocking, Game Over requests, tutorials and locale refresh. It creates HUD and Region Title directly; optional windows follow [Windows, Menus, Input and Controls](<../Default Gameplay/Windows Menus Input and Controls.md>).
 
-Ordinary map loading binds the Scene, the current map identity and the Player. It restores terrain and Actor records, and only then runs surviving Actors' `onCreate`. Map replacement and Scene destruction release the departing map's ConditionalActor subscriptions without dispatching Actor destruction or altering persistent records.
+Each Scene owns separate instances of these modules under `Source.Scenes.SceneMap`:
+
+| Module | State and responsibility |
+|---|---|
+| `MapSession` | Loaded map, map path, region, builder and pending transfers; map replacement, destination resolution, floor previews and persistence commands. |
+| `Dialogue` | Message window, active operation, voice, movement restoration and dialogue locale snapshots. |
+| `Windows` | Other optional windows, focus groups, window operations, movement restoration and deferred menu/save requests. |
+| `Environment` | Map audio and panorama settings, return-to-scene restoration and world ambient-light transitions. |
+
+The Scene passes current objects to components or exposes them through getters and commands. Components keep their private state separate; gameplay scripts use the Scene entry points.
+
+Ordinary map loading binds the Scene and current map identity, restores terrain and Actor records, then binds the Player and runs surviving Actors' `onCreate`. Map replacement and Scene destruction release the departing map's ConditionalActor subscriptions without dispatching Actor destruction or altering persistent records.
 
 ### Functions and events
 
@@ -36,7 +47,11 @@ Ordinary map loading binds the Scene, the current map identity and the Player. I
 
 `showVoiceMessage(name, message, voiceFileName, refActor, minDistance, spatial)` is also available to Lua. With `spatial = true`, it positions the voice at `refActor` and passes `minDistance` to the audio manager; with `false`, the voice is non-spatial. The reference actor still positions the message window.
 
+Lua wrappers that supply node-local formatting values can call `showMessageWithContext`, `showSelectionWithContext` or `showVoiceMessageWithContext`. Each takes its corresponding ordinary method's arguments followed by `localVars: table<string, any>`, copied when the dialogue starts, and returns the same `Engine.AsyncOperation`. The ordinary Scene methods and Scene nodes capture their active node context before delegating. The `WithContext` methods have no Blueprint nodes.
+
 Scene exit, destruction and map replacement cancel unfinished tutorials, dialogues, shops, player-name windows and scene timers, dismissing windows and releasing input blocks. Registered operations on departing map Actors, including movement and doors, are also cancelled. Waiting Lua tasks and Blueprint events stop without running subsequent statements or completion outputs.
+
+Scene exit and destruction also discard deferred menu, Save/Load and quick-save requests and queued map transfers. Cancelling a queued transfer releases its frozen background and restores movement on the player captured by that request. `applyLoadedGame(inst)` and `applyPrimaryPlayer()` cancel outgoing interactions and pending requests before rebinding the player, HUD and existing windows, then force a map reload. Movement restoration therefore targets the outgoing player rather than changing the newly bound player's movement state.
 
 Pushing another Scene stops map BGM/BGS and clears weather and panorama. On `SceneManager.popScene()`, the departing Scene's BGM/BGS and weather are cleared, then the map's configured audio and panorama are reapplied. Ordinary maps use settings captured at load; worlds follow the [composite-world environment rules](<../Default Gameplay/Resources Audio Video and Effects.md#composite-world-environment>). Music restarts with the map filter's offset and loop-point settings rather than its previous playback position. Temporary script changes to music, filters, weather and panorama are not restored.
 

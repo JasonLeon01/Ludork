@@ -10,9 +10,20 @@ Metadata 来源：`Scripts/Source/Scenes/SceneMap_meta.lua`
 
 玩法命令遵循 [GameplayScene 契约](<Gameplay.md#gameplayscene>)。
 
-Scene 直接创建 HUD 与 Region Title，可选窗口在首次显示时创建。窗口的持有与复用规则见[窗口、菜单、输入与控件](<../Game 玩法/窗口、菜单、输入与控件.md>)。
+`SceneMap` 是公开的玩法入口，持有当前的 `inst` 与 `player`。`getGameInstance()`、`getPlayer()` 和 `getGameMap()` 返回当前对象。Scene 协调生命周期和每帧执行顺序、地图输入屏蔽、Game Over 请求、教程及语言刷新，并直接创建 HUD 与 Region Title；可选窗口遵循[窗口、菜单、输入与控件](<../Game 玩法/窗口、菜单、输入与控件.md>)中的规则。
 
-加载普通地图时，先绑定 Scene、当前地图身份与 Player，再恢复地形与 Actor 记录，最后才执行存活 Actor 的 `onCreate`。替换地图或销毁 Scene 时，会释放离开地图的 ConditionalActor 订阅，既不派发 Actor 销毁事件，也不改动持久记录。
+每个 Scene 分别持有 `Source.Scenes.SceneMap` 下这些模块的实例：
+
+| 模块 | 状态与职责 |
+|---|---|
+| `MapSession` | 已加载地图、地图路径、区域、构建器及待执行传送；负责替换地图、解析目的地、楼层预览和持久化命令。 |
+| `Dialogue` | 消息窗口、当前操作、语音、移动恢复状态及对话本地化快照。 |
+| `Windows` | 其他可选窗口、焦点组、窗口操作、移动恢复状态及延后执行的菜单与保存请求。 |
+| `Environment` | 地图音频与远景配置、返回场景时的环境恢复，以及大地图环境光过渡。 |
+
+Scene 将当前对象作为参数传给组件，或通过 getter 和命令提供访问。各组件独立持有私有状态；玩法脚本使用 Scene 的公开入口。
+
+加载普通地图时，先绑定 Scene 与当前地图身份，再恢复地形与 Actor 记录，最后绑定 Player 并执行存活 Actor 的 `onCreate`。替换地图或销毁 Scene 时，会释放离开地图的 ConditionalActor 订阅，既不派发 Actor 销毁事件，也不改动持久记录。
 
 ### 函数与事件
 
@@ -36,7 +47,11 @@ Scene 直接创建 HUD 与 Region Title，可选窗口在首次显示时创建�
 
 Lua 还可调用 `showVoiceMessage(name, message, voiceFileName, refActor, minDistance, spatial)`。`spatial = true` 时，语音以 `refActor` 定位，并将 `minDistance` 传给音频管理器；传 `false` 时播放非空间语音。参考 Actor 仍用于定位消息窗口。
 
+需要传入节点局部格式化变量的 Lua 包装函数，可以调用 `showMessageWithContext`、`showSelectionWithContext` 或 `showVoiceMessageWithContext`。它们在对应普通方法的参数之后追加 `localVars: table<string, any>`，在开始对话时复制这张表，并返回相同的 `Engine.AsyncOperation`。普通 Scene 方法和 Scene 节点在转交调用前捕获当前节点上下文；`WithContext` 方法不提供蓝图节点。
+
 退出场景、销毁场景和替换地图会取消未完成的教程、对话、商店、改名窗口及场景计时器，关闭窗口并解除输入阻塞。离开地图的 Actor 所注册的操作（包括移动与门动画）也会取消。等待中的 Lua 任务与蓝图事件随之停止，不执行后续语句或完成出口。
+
+退出或销毁场景还会丢弃延后执行的菜单、存读档、快速保存请求及已排队的地图传送。取消排队中的传送时，会解除对应的背景冻结，并恢复请求发起时保存的玩家移动状态。`applyLoadedGame(inst)` 和 `applyPrimaryPlayer()` 先取消旧交互及待执行请求，再重新绑定玩家、HUD 和已有窗口，并强制重新加载地图。因此，移动恢复作用于离开的玩家，不会改写新绑定玩家的移动状态。
 
 压入另一个 Scene 时，会停止地图 BGM/BGS 并清除天气和远景。通过 `SceneManager.popScene()` 返回时，先清除离场 Scene 的 BGM/BGS 和天气，再重新应用地图配置中的音频与远景。普通地图使用加载时保存的配置；大地图遵循[组合式大地图环境规则](<../Game 玩法/资源、音频、视频与特效.md#组合式大地图环境>)。音乐按地图过滤器的起始偏移与循环区间重新播放，不续接离场时的播放位置。脚本临时修改的音乐、过滤器、天气和远景不会恢复。
 
