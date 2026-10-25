@@ -1,6 +1,6 @@
 # Official Plug-ins Overview
 
-Ludork includes four official C# plug-ins: Official Locale Tools, Official Random Map, Official Blueprint AI and Official Resource Cleanup. Their source is also available as examples of the public plug-in API.
+Ludork includes five official C# plug-ins: Official Locale Tools, Official Random Map, Official Mota Map Fill, Official Blueprint AI and Official Resource Cleanup. Their source is also available as examples of the public plug-in API.
 
 ## The official plug-ins
 
@@ -8,6 +8,7 @@ Ludork includes four official C# plug-ins: Official Locale Tools, Official Rando
 |---|---|
 | [Official Locale Tools](<Locale Tools.md>) | Opens the translation workbook, supplies text hints and exports game language catalogues. |
 | [Official Random Map](<Random Map.md>) | Generates map regions and saves one layer with revision protection. |
+| [Official Mota Map Fill](<Mota Map Fill.md>) | Fills existing map regions with doors, enemies and rewards using a saved player's battle damage. |
 | [Official Blueprint AI](<Blueprint AI.md>) | Discusses one existing Blueprint and applies a validated, reviewable proposal as one Undo step. |
 | [Official Resource Cleanup](<Resource Cleanup.md>) | Finds unreferenced resource candidates, protects keep-listed paths and recycles confirmed files. |
 

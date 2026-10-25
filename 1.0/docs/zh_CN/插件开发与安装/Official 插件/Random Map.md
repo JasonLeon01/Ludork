@@ -54,7 +54,7 @@ Actor 位置只作视觉参考，需要保持其所在格为空时应手动放�
 
 ## 限制
 
-`IMapEditorHost` 不能创建地图、修改尺寸、编辑 Actor、注入编辑器 UI，也不能绕过 版本检查。Random Map 不承担打包职责，因此不得用 Pack Hook 生成地图。
+`IMapEditorHost` 不能创建地图、修改尺寸、注入编辑器 UI，也不能绕过版本检查。Random Map 只改地形；在已有布局中填充 Actor 请使用 [Mota Map Fill](<Mota Map Fill.md>)。Random Map 不承担打包职责，因此不得用 Pack Hook 生成地图。
 
 ## 相关页面
 

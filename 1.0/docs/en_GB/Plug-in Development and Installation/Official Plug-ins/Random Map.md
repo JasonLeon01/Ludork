@@ -54,7 +54,7 @@ The plug-in submits the generated layer through `PluginMapLayerWriteRequest`. Co
 
 ## Limitations
 
-`IMapEditorHost` cannot create maps, change dimensions, edit Actors, inject editor UI or bypass revision checks. Random Map has no packaging responsibility, so it must not use a Pack hook for map generation.
+`IMapEditorHost` cannot create maps, change dimensions, inject editor UI or bypass revision checks. Random Map changes terrain only; use [Mota Map Fill](<Mota Map Fill.md>) to populate an existing layout with Actors. Random Map has no packaging responsibility, so it must not use a Pack hook for map generation.
 
 ## Related pages
 

@@ -37,7 +37,7 @@
 
 处理函数会收到 `PluginMapContextMenuContext`。`MapKey` 是打开右键菜单的地图；其余字段提供项目路径、编辑器语言、插件目录、消息 UI、文本提示刷新接口、密钥存储、取消信号与 `MapEditorHost`。处理函数与普通菜单命令一样返回 `PluginResult`。
 
-`IMapEditorHost` 提供受限的地图操作接口。插件拿不到 `ProjectDataStore`、编辑器 ViewModel、`MapPanel`、宿主控件或可变 JSON。
+`IMapEditorHost` 提供受限的地图操作接口。插件拿不到 `ProjectDataStore`、编辑器 ViewModel、`MapPanel`、宿主控件或可变的编辑器 JSON。
 
 | `IMapEditorHost` 成员 | 含义 |
 |---|---|
@@ -47,20 +47,37 @@
 | `ListMaps()` | 按顺序返回含 key 与显示名的地图摘要 |
 | `ReadMap(mapKey)` | 当前内存地图的不可变快照 |
 | `ReadTileset(tilesetKey)` | 不可变的图块集快照 |
+| `ListActorBlueprints()` | Actor 蓝图摘要；`Key` 是规范类引用，`DisplayName` 是项目蓝图 key |
+| `ReadActorBlueprintPreview(blueprintReference)` | 已有 Actor 蓝图在 `(0, 0)` 格的默认解析外观 |
 | `ResolveAssetFile(assetPath)` | 在编辑器最终文件 I/O 时解析逻辑路径；不可用时为空字符串 |
+| `GetSaveDirectoryAsync(cancellationToken)` | 返回当前项目用户存档目录的绝对路径，不创建目录 |
 | `ReplaceLayerAndSaveAsync(request, cancellationToken)` | 经 revision 校验的图层替换与单地图直接保存 |
+| `ReplaceActorsInRegionAndSaveAsync(request, cancellationToken)` | 经 revision 校验，替换某个图层矩形范围内的 Actor 放置记录 |
+| `RunProjectScriptAsync(scriptPath, request, cancellationToken)` | 用当前项目游戏运行时执行 Lua 入口，返回其 JSON 对象结果 |
 
-`PluginMapSnapshot` 包含标识、尺寸、不透明的 `Revision`，以及由矩形 `Tiles` 和 `AutoTiles` 组成的有序图层。图块集与 Actor 的 `AssetPath` 始终保持大小写精确的 `/Game/Assets/...` 路径。只在实际读写文件 时调用 `ResolveAssetFile`，不要为快照或中间缓存调用它。图块集快照还包含图块尺寸、数量与可通行性。写入请求中的 revision 必须原样照抄。
+`GetSaveDirectoryAsync` 从已保存的 `Scripts/Entry.lua` 读取静态 `APP_NAME`，并遵循[桌面游戏目录规则](<../编辑器用户指南/项目设置与资产布局.md#游戏配置>)。该调用不执行 Lua、不创建目录；名称无法读取或不合法、用户主目录不可用，或收到取消请求时，操作失败。
 
-每个图层还包含不可变的 `PluginMapActorSnapshot`。宿主通过与地图编辑器相同的外观解析器读取蓝图类、脚本类及实例覆盖。`SourceRect` 是解析后的静态贴图矩形，已包含角色朝向对应的首帧，使用方不应再次推导角色图集布局。位移、缩放、原点、旋转、`Material`、`MaterialParameters` 和 `PreviewOpacity` 均为解析后的值；不可见 Actor 的透明度为 0.25，可见 Actor 为 1.0。外观缺失时 `AssetPath` 为空、`SourceRect` 为 null，可据此绘制单格占位。绘制以 `CellSize` 为源坐标缩放基准，不使用图块集尺寸。快照保存外观数据。调用 `IMapEditorHost.AcquireActorPreview(snapshot)` 可让原生材质渲染已解析的源帧；返回的 `IPluginActorPreview` 提供 `Changed` 事件，以及包含预乘 BGRA 像素、尺寸、`OffsetX`／`OffsetY` 和材质错误的 `Frame`。在 Actor 变换前，将偏移加到源帧原点；顶点位移可能扩大输出帧。隐藏时设置 `IsActive = false`，不再使用时释放句柄。源帧动画仍由使用方控制。
+`PluginMapSnapshot` 包含标识、尺寸、不透明的 `Revision`，以及含 `Visible`、矩形 `Tiles` 和 `AutoTiles` 的有序图层。`Passage` 矩阵与地图尺寸一致，每个 `PluginMapPassage` 包含地形 `Passable` 和解析后的 `Up`、`Right`、`Down`、`Left` 移动权限，已经考虑可见地形图层、AutoTile、地图边界以及移动两端的方向限制；Actor 占位另行处理。图块集与 Actor 的 `AssetPath` 始终保持大小写精确的 `/Game/Assets/...` 路径。只在实际读写文件 时调用 `ResolveAssetFile`，不要为快照或中间缓存调用它。图块集快照还包含图块尺寸、数量与可通行性。写入请求中的 revision 必须原样照抄。
 
-局部编辑应复制快照中的完整矩阵，只替换目标矩形，再提交现有图层写入请求。宿主仍校验完整图层及其 revision，没有独立的区域写入 API。
+每个图层还包含不可变的 `PluginMapActorSnapshot`，其中有放置记录的 `Tag` 和 `BlueprintReference`。宿主通过与地图编辑器相同的外观解析器读取蓝图类、脚本类及实例覆盖。`SourceRect` 是解析后的静态贴图矩形，已包含角色朝向对应的首帧，使用方不应再次推导角色图集布局。位移、缩放、原点、旋转、`Material`、`MaterialParameters` 和 `PreviewOpacity` 均为解析后的值；不可见 Actor 的透明度为 0.25，可见 Actor 为 1.0。外观缺失时 `AssetPath` 为空、`SourceRect` 为 null，可据此绘制单格占位。绘制以 `CellSize` 为源坐标缩放基准，不使用图块集尺寸。快照保存外观数据。调用 `IMapEditorHost.AcquireActorPreview(snapshot)` 可让原生材质渲染已解析的源帧；返回的 `IPluginActorPreview` 提供 `Changed` 事件，以及包含预乘 BGRA 像素、尺寸、`OffsetX`／`OffsetY` 和材质错误的 `Frame`。在 Actor 变换前，将偏移加到源帧原点；顶点位移可能扩大输出帧。隐藏时设置 `IsActive = false`，不再使用时释放句柄。源帧动画仍由使用方控制。
+
+局部 Tile 编辑应复制快照中的完整矩阵，只替换目标矩形，再提交现有图层写入请求。宿主仍校验完整图层及其 revision，没有独立的区域 Tile 写入 API。
 
 `PluginMapLayerWriteRequest` 指定地图与图层，回传 `BaseRevision` 和 `ExpectedTilesetKey`，并提供两份矩阵，形状必须与快照的 `Height × Width` 完全一致。`PluginMapWriteResult` 区分成功、revision 或图块集冲突，以及带错误信息的失败，同时返回当前 revision。校验或写入错误不会改动编辑器内存、Undo 状态或界面。
 
-写入成功时，宿主只替换当前内存地图中的该图层，并且只原子保存 `Data/Maps/<mapKey>.json`。它会在该地图的历史中记录一步 Undo，推进已保存的 revision，并刷新目标地图与图层。同一张地图上已有的未保存改动会一并进入这次直接保存。其他地图和项目数据不会保存，脏状态也不会被清除。Undo 会恢复写入前的内存状态，并把该地图标记为需要保存。Undo 不会自动保存。
+`PluginMapActorRegionWriteRequest` 指定 `MapKey`、`LayerName`、`BaseRevision`、`PluginMapRegion(X, Y, Width, Height)`、必填的 `PreserveBaseClassReference`，以及非空的 `PluginMapActorPlacement(BlueprintReference, X, Y)` 列表。坐标从零开始。宿主保留矩形外已有的 Actor，以及矩形内解析后的类继承自指定保留基类的 Actor；删除矩形内其余 Actor 及其实例覆盖，保留记录本身不变。新放置项必须引用有效的 Actor 蓝图，位于矩形内各不重复的可通行格，不能与保留的 Actor 或其他图层 Actor 重叠；宿主分配地图内唯一的 tag。隐藏图层、无效边界、无法解析的类、原有 tag 无效或不唯一、空放置列表和 revision 冲突都会在写入前被拒绝。Tile 和 AutoTile 不变。
+
+两种写入成功时，宿主都会将请求的图层修改应用到当前内存地图，并且只原子保存 `Data/Maps/<mapKey>.json`。它会在该地图的历史中记录一步 Undo，推进已保存的 revision，并刷新目标地图与图层。同一张地图上已有的未保存改动会一并进入这次直接保存。其他地图和项目数据不会保存，脏状态也不会被清除。Undo 会恢复写入前的内存状态，并把该地图标记为需要保存。Undo 不会自动保存。
 
 目标存在未保存的关联路径变更时，写入会被拒绝。先完成一次全局保存。
+
+### 项目脚本执行
+
+`RunProjectScriptAsync` 接受一个已有 `.lua` 或 `.luac` 入口文件的绝对路径，以及独立的 `JsonObject` 请求。宿主拒绝存在未保存非地图文档的项目；源码项目还需要有效的最新原生构建。它以项目根目录为工作目录，启动项目自己的游戏程序，不调用普通游戏 Entry，也不保存其他项目文档。
+
+入口通过 Lua `arg[1]` 接收临时请求 JSON 路径，通过 `arg[2]` 接收必须写入的结果 JSON 路径。退出前应向结果文件写入一个 JSON 对象。`PluginProjectScriptResult.Success` 表示进程执行和结果解码成功，`Data` 包含该对象，`Error` 描述宿主失败原因；插件自定义的结果字段仍由插件处理。结果超过 32 MiB、缺失或无效、进程以非零状态退出，或执行期间检测到项目输入变化，都会使请求失败。
+
+宿主收集标准输出和错误，在取消或超过 60 秒时终止子进程，并清理临时请求和结果目录。加载和执行哪些内容由脚本决定；独立进程不是受限的 Lua 沙箱。[Mota Map Fill](<Official 插件/Mota Map Fill.md>) 用它解码存档并计算战斗预览，不启动场景。
 
 ## 文本提示
 
