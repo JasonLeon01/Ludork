@@ -18,6 +18,7 @@ OFFICIAL_PLUGIN_DIRECTORIES = (
     "OfficialBlueprintAI",
     "OfficialLocaleTools",
     "OfficialRandomMap",
+    "OfficialMotaMapFill",
     "OfficialResourceCleanup",
 )
 

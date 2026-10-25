@@ -189,10 +189,11 @@ public partial class MainWindow
             projectSession!.PreviewService,
             mapKey,
             refreshPluginMap,
-            viewModel.MapWorkspace.canEditLayer);
+            viewModel.MapWorkspace.canEditLayer,
+            new ProjectScriptRunner(viewModel.GameData, projectSession.ProjectConfig, projectSession.ProjectRunner));
     }
 
-    private void refreshPluginMap(string mapKey, string layerName)
+    private void refreshPluginMap(string mapKey, string layerName, bool actorMode)
     {
         if (viewModel is null)
             return;
@@ -205,7 +206,7 @@ public partial class MainWindow
                 && string.Equals(item.Name, layerName, StringComparison.Ordinal));
         if (layer is not null)
             viewModel.MapWorkspace.SelectedLayerTab = layer;
-        selectPreviewMode(MapEditMode.Tile);
+        selectPreviewMode(actorMode ? MapEditMode.Actor : MapEditMode.Tile);
         refreshMapPanel();
     }
 

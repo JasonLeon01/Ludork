@@ -6,6 +6,7 @@ using Ludork.Plugin.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -15,24 +16,27 @@ using System.Threading.Tasks;
 
 namespace Ludork.Services.Plugins;
 
-internal sealed class MapEditorHostBridge : IMapEditorHost
+internal sealed partial class MapEditorHostBridge : IMapEditorHost
 {
     private readonly ProjectDataStore gameData;
     private readonly BlueprintPreviewService previewService;
-    private readonly Action<string, string> refreshMap;
+    private readonly Action<string, string, bool> refreshMap;
     private readonly Func<string, string, bool> canWriteLayer;
+    private readonly ProjectScriptRunner scriptRunner;
 
     public MapEditorHostBridge(
         ProjectDataStore gameData,
         BlueprintPreviewService previewService,
         string? suggestedMapKey,
-        Action<string, string> refreshMap,
-        Func<string, string, bool> canWriteLayer)
+        Action<string, string, bool> refreshMap,
+        Func<string, string, bool> canWriteLayer,
+        ProjectScriptRunner scriptRunner)
     {
         this.gameData = gameData;
         this.previewService = previewService;
         this.refreshMap = refreshMap;
         this.canWriteLayer = canWriteLayer;
+        this.scriptRunner = scriptRunner;
         SuggestedMapKey = suggestedMapKey;
     }
 
@@ -73,6 +77,16 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
             out string filePath)
             ? filePath
             : string.Empty;
+    }
+
+    public async Task<string> GetSaveDirectoryAsync(CancellationToken cancellationToken)
+    {
+        ProjectPackageMetadataResult result = await ProjectPackageMetadataService.ReadRuntimeAppNameAsync(
+            ProjectPath, cancellationToken);
+        if (result.ExitCode != 0 || string.IsNullOrEmpty(result.Output))
+            throw new InvalidDataException(!string.IsNullOrWhiteSpace(result.Error) ? result.Error
+                : "The game's APP_NAME could not be resolved.");
+        return GameUserDataPaths.GetSavePath(result.Output);
     }
 
     public async Task<PluginMapWriteResult> ReplaceLayerAndSaveAsync(
@@ -117,6 +131,7 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
                     readIntGrid(layer["tiles"] as JsonArray, width, height),
                     readStringGrid(layer["autoTiles"] as JsonArray, width, height))
                 {
+                    Visible = readBool(layer["visible"], true),
                     Actors = readActors(map, entry.Key, width, height),
                 });
             }
@@ -127,7 +142,10 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
             width,
             height,
             createRevision(map),
-            layerSnapshots.AsReadOnly());
+            layerSnapshots.AsReadOnly())
+        {
+            Passage = readPassage(map, width, height),
+        };
     }
 
     private IReadOnlyList<PluginMapActorSnapshot> readActors(
@@ -171,7 +189,11 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
                 visual?.Rotation ?? 0,
                 visual?.Material ?? string.Empty,
                 visual?.MaterialParameters.DeepClone() as JsonObject ?? new JsonObject(),
-                visual?.MapPreviewOpacity ?? 1));
+                visual?.MapPreviewOpacity ?? 1)
+            {
+                Tag = readString(actor["tag"]),
+                BlueprintReference = readString(actor["bp"]),
+            });
         }
         return snapshots.AsReadOnly();
     }
@@ -277,7 +299,7 @@ internal sealed class MapEditorHostBridge : IMapEditorHost
 
         JsonObject savedMap = SnapshotJson.ToDictionary(gameData.Maps.MapData)[request.MapKey];
         string savedRevision = createRevision(savedMap);
-        refreshMap(request.MapKey, request.LayerName);
+        refreshMap(request.MapKey, request.LayerName, false);
         return PluginMapWriteResult.Completed(savedRevision);
     }
 

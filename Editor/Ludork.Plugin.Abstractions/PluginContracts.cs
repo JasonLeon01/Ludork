@@ -88,11 +88,23 @@ public interface IMapEditorHost
     IReadOnlyList<PluginMapSummary> ListMaps();
     PluginMapSnapshot ReadMap(string mapKey);
     PluginTilesetSnapshot ReadTileset(string tilesetKey);
+    IReadOnlyList<PluginActorBlueprintSummary> ListActorBlueprints();
+    PluginMapActorSnapshot ReadActorBlueprintPreview(string blueprintReference);
     string ResolveAssetFile(string assetPath);
     IPluginActorPreview AcquireActorPreview(PluginMapActorSnapshot actor);
+    Task<string> GetSaveDirectoryAsync(CancellationToken cancellationToken);
 
     Task<PluginMapWriteResult> ReplaceLayerAndSaveAsync(
         PluginMapLayerWriteRequest request,
+        CancellationToken cancellationToken);
+
+    Task<PluginMapWriteResult> ReplaceActorsInRegionAndSaveAsync(
+        PluginMapActorRegionWriteRequest request,
+        CancellationToken cancellationToken);
+
+    Task<PluginProjectScriptResult> RunProjectScriptAsync(
+        string scriptPath,
+        JsonObject request,
         CancellationToken cancellationToken);
 }
 
@@ -358,7 +370,11 @@ public sealed record PluginMapSnapshot(
     int Width,
     int Height,
     string Revision,
-    IReadOnlyList<PluginMapLayerSnapshot> Layers);
+    IReadOnlyList<PluginMapLayerSnapshot> Layers)
+{
+    public IReadOnlyList<IReadOnlyList<PluginMapPassage>> Passage { get; init; } =
+        Array.Empty<IReadOnlyList<PluginMapPassage>>();
+}
 
 public sealed record PluginMapLayerSnapshot(
     string Name,
@@ -366,6 +382,7 @@ public sealed record PluginMapLayerSnapshot(
     IReadOnlyList<IReadOnlyList<int?>> Tiles,
     IReadOnlyList<IReadOnlyList<string?>> AutoTiles)
 {
+    public bool Visible { get; init; } = true;
     public IReadOnlyList<PluginMapActorSnapshot> Actors { get; init; } =
         Array.Empty<PluginMapActorSnapshot>();
 }
@@ -390,7 +407,11 @@ public sealed record PluginMapActorSnapshot(
     double Rotation,
     string Material,
     JsonObject MaterialParameters,
-    double PreviewOpacity);
+    double PreviewOpacity)
+{
+    public string Tag { get; init; } = string.Empty;
+    public string BlueprintReference { get; init; } = string.Empty;
+}
 
 public sealed record PluginTilesetSnapshot(
     string Key,

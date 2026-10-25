@@ -5,7 +5,7 @@ using Ludork.Plugin.Abstractions;
 using System;
 using System.Runtime.InteropServices;
 
-namespace Ludork.Plugins.OfficialRandomMap.UI;
+namespace Ludork.Plugin.Avalonia;
 
 internal sealed class ActorMaterialPreview : IDisposable
 {

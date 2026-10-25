@@ -5,14 +5,13 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.VisualTree;
 using Ludork.Plugin.Abstractions;
-using Ludork.Plugin.Avalonia;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Ludork.Plugins.OfficialRandomMap.UI;
+namespace Ludork.Plugin.Avalonia;
 
-internal sealed class RandomMapCanvas : Control, IDisposable
+public sealed class PluginMapCanvas : Control, IDisposable
 {
     private const int MinimumCellSize = 12;
     private const int MaximumCellSize = 96;
@@ -62,7 +61,7 @@ internal sealed class RandomMapCanvas : Control, IDisposable
     private IPointer? selectionPointer;
     private readonly EditorZoomAnchor pendingMapZoomAnchor = new();
 
-    public RandomMapCanvas(IMapEditorHost host)
+    public PluginMapCanvas(IMapEditorHost host)
     {
         this.host = host;
         MinWidth = 540;

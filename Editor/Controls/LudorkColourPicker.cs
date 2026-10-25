@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Ludork.Plugin.Avalonia;
+using EditorInputs = Ludork.Views.Utils.EditorInputs;
 using Ludork.Services;
 using Ludork.Views.Utils;
 using System;

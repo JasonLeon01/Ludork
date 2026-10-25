@@ -297,23 +297,28 @@ public sealed partial class ProjectDataStore
         JsonArray tiles,
         JsonArray autoTiles)
     {
-        BreakHistoryGesture();
-        CompleteDocumentChanges();
-        EditorDocument? document = GetDocument("Maps", mapKey);
         EditorDocumentCollection maps = sections["Maps"];
-        if (document is null || !maps.TryGetValue(mapKey, out JsonObject? current)
+        if (!maps.TryGetValue(mapKey, out JsonObject? current)
             || current["layers"]?[layerName] is not JsonObject)
         {
             return new SaveResult(false, "The map or layer no longer exists.");
         }
-        if (hasPendingPathDependencies(document))
-            return new SaveResult(false, "This map has unsaved related resource paths. Save all before running this plug-in operation.");
-
         JsonObject candidate = (JsonObject)current.DeepClone();
         if (candidate["layers"]?[layerName] is not JsonObject candidateLayer)
             return new SaveResult(false, "The map layer could not be copied.");
         candidateLayer["tiles"] = tiles.DeepClone();
         candidateLayer["autoTiles"] = autoTiles.DeepClone();
+        return SaveMapCandidate(mapKey, candidate);
+    }
+
+    internal SaveResult SaveMapCandidate(string mapKey, JsonObject candidate)
+    {
+        EditorDocument? document = GetDocument("Maps", mapKey);
+        EditorDocumentCollection maps = sections["Maps"];
+        if (document is null || !maps.ContainsKey(mapKey))
+            return new SaveResult(false, "The map no longer exists.");
+        if (hasPendingPathDependencies(document))
+            return new SaveResult(false, "This map has unsaved related resource paths. Save all before running this plug-in operation.");
 
         string mapsDirectory = Path.GetFullPath(Path.Combine(
             ProjectPath,
@@ -332,6 +337,8 @@ public sealed partial class ProjectDataStore
         {
             return new SaveResult(false, "The map path is outside the project Maps directory.");
         }
+        BreakHistoryGesture();
+        CompleteDocumentChanges();
         using EditorDocumentTransaction transaction = Documents.BeginTransaction([document]);
         RecordMapSnapshot(mapKey);
         maps[mapKey] = candidate;
@@ -347,6 +354,7 @@ public sealed partial class ProjectDataStore
         MarkDocumentSaved("Maps", mapKey);
         transaction.Commit();
         refreshModifiedState();
+        Maps.NotifyMapActorsChanged(mapKey);
         Maps.NotifyMapContentChanged(mapKey);
         DataSaved?.Invoke(this, EventArgs.Empty);
         return result;

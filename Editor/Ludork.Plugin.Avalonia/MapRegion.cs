@@ -1,8 +1,8 @@
 using System;
 
-namespace Ludork.Plugins.OfficialRandomMap.UI;
+namespace Ludork.Plugin.Avalonia;
 
-internal readonly record struct MapRegion(int X, int Y, int Width, int Height)
+public readonly record struct MapRegion(int X, int Y, int Width, int Height)
 {
     public int Right => X + Width;
     public int Bottom => Y + Height;

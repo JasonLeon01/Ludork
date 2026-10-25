@@ -83,7 +83,7 @@ internal sealed class RandomMapWindow : Window
         Spacing = 8,
     };
     private readonly TextBlock markerCountText = new();
-    private readonly RandomMapCanvas mapCanvas;
+    private readonly PluginMapCanvas mapCanvas;
     private readonly HashSet<(int X, int Y)> markers = [];
     private PluginMapSnapshot? currentMap;
     private PluginMapLayerSnapshot? currentLayer;
@@ -114,7 +114,7 @@ internal sealed class RandomMapWindow : Window
         tilePreview = new TilePreviewControl(host);
         cancellation = CancellationTokenSource.CreateLinkedTokenSource(
             cancellationToken);
-        mapCanvas = new RandomMapCanvas(host);
+        mapCanvas = new PluginMapCanvas(host);
 
         Title = localizer.Text("windowTitle");
         Width = 1280;

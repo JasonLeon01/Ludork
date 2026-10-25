@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "id": "Ludork.OfficialMotaMapFill",
+  "name": "Official Mota Map Fill",
+  "version": "1.0.0",
+  "minimumEditorVersion": "1.0.0",
+  "entryType": "Ludork.Plugins.OfficialMotaMapFill.OfficialMotaMapFillPlugin"
+}
