@@ -69,9 +69,13 @@ def _files(root: pathlib.Path, relative: pathlib.Path) -> list[pathlib.Path]:
     return sorted(result)
 
 
+def _input_hash(contents: bytes) -> str:
+    return hashlib.sha256(contents.replace(b"\r\n", b"\n")).hexdigest()
+
+
 def _read_object(root: pathlib.Path, path: pathlib.Path, inputs: dict[str, str]) -> dict:
     contents = (root / path).read_bytes()
-    inputs[path.as_posix()] = hashlib.sha256(contents).hexdigest()
+    inputs[path.as_posix()] = _input_hash(contents)
     try:
         value = json.loads(contents)
     except (ValueError, UnicodeError) as exception:
@@ -243,7 +247,7 @@ def generation_manifest(project_root: pathlib.Path) -> dict[str, object]:
                 raise MaterialAssetError(f"Material file extension must be lowercase .json: {relative}")
             materials.append(relative)
         inputs = {
-            path.as_posix(): hashlib.sha256((root / path).read_bytes()).hexdigest()
+            path.as_posix(): _input_hash((root / path).read_bytes())
             for path in materials
         }
         _check_path(root, PREVIEW_MANIFEST)
@@ -302,9 +306,16 @@ def validate_generated(project_root: pathlib.Path) -> None:
     ):
         raise MaterialAssetError("Unsupported material export format; run editor Export again.")
     inputs = _hashes(record.get("inputs"), "inputs", allow_missing=True)
-    expected_inputs = manifest["inputs"]
-    if inputs != {path: digest for path, digest in expected_inputs.items() if path != PREVIEW_MANIFEST.as_posix()}:
-        raise MaterialAssetError("Material export inputs changed; run editor Export again.")
+    expected_inputs = {
+        path: digest for path, digest in manifest["inputs"].items() if path != PREVIEW_MANIFEST.as_posix()
+    }
+    changed_inputs = sorted(
+        path for path in inputs.keys() | expected_inputs.keys() if inputs.get(path) != expected_inputs.get(path)
+    )
+    if changed_inputs:
+        raise MaterialAssetError(
+            f"Material export inputs changed: {', '.join(changed_inputs)}; run editor Export again."
+        )
     outputs = _hashes(record.get("outputs"), "outputs")
     expected = set(manifest["expectedOutputPaths"]) - {EXPORT_RECORD.as_posix()}
     if outputs.keys() != expected:
