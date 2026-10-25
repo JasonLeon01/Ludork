@@ -56,11 +56,8 @@ internal sealed class RandomMapWindow : Window
     private readonly RadioButton roomsButton = new();
     private readonly Slider densitySlider = new()
     {
-        Minimum = 35,
-        Maximum = 75,
         TickFrequency = 1,
         IsSnapToTickEnabled = true,
-        Value = 50,
         HorizontalAlignment = HorizontalAlignment.Stretch,
     };
     private readonly Grid densityHeader = new()
@@ -155,8 +152,8 @@ internal sealed class RandomMapWindow : Window
         markerModeButton.IsCheckedChanged += (_, _) => updateCanvasInteraction();
         fullMapButton.Content = localizer.Text("fullMap");
         fullMapButton.Click += (_, _) => setRegion(fullMapRegion());
-        latticeButton.IsCheckedChanged += (_, _) => updateRegionState();
-        roomsButton.IsCheckedChanged += (_, _) => updateRegionState();
+        latticeButton.IsCheckedChanged += (_, _) => onLayoutChanged(latticeButton);
+        roomsButton.IsCheckedChanged += (_, _) => onLayoutChanged(roomsButton);
 
         tileButton.HorizontalAlignment = HorizontalAlignment.Stretch;
         tileButton.HorizontalContentAlignment = HorizontalAlignment.Center;
@@ -751,6 +748,22 @@ internal sealed class RandomMapWindow : Window
         densityValueText.Text = localizer.Format(
             "densityValue",
             (int)densitySlider.Value);
+    }
+
+    private void onLayoutChanged(RadioButton selection)
+    {
+        if (selection.IsChecked != true)
+            return;
+
+        RandomMapMode mode = selection == roomsButton
+            ? RandomMapMode.Rooms
+            : RandomMapMode.Lattice;
+        RandomMapDensityProfile profile = RandomMapGenerator.GetDensityProfile(mode);
+        densitySlider.Minimum = profile.Minimum;
+        densitySlider.Maximum = profile.Maximum;
+        densitySlider.Value = profile.Default;
+        updateDensityValue();
+        updateRegionState();
     }
 
     private static TextBlock createPanelTitle(string text)
