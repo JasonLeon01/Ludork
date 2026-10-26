@@ -123,7 +123,7 @@ Modified files show `*` in the file explorer and in editor titles, and they are 
 
 File Explorer browses `Assets` and `Data` through the source list and breadcrumbs. Up stops at the selected root.
 
-Choose **View → New File Explorer Tab**, or right-click a File Explorer tab and choose **New File Explorer Tab**, to open another browser beside the existing tabs and Console. The first **File Explorer** tab stays open; additional tabs have numbers and a **×** close control. A new tab copies the source tab's current directory and display preferences, with an empty search, navigation history and selection. The context menu uses the right-clicked tab as its source; the View menu uses the most recently active File Explorer. Closing the active additional tab selects the File Explorer immediately to its left.
+Click **＋** to the right of Console in the tab bar, or choose **View → New File Explorer Tab**, to open another browser. The first **File Explorer** tab stays open; additional tabs have numbers and a **×** close control. A new tab copies the most recently active File Explorer's current directory and display preferences, with an empty search, navigation history and selection. Closing the active additional tab selects the File Explorer immediately to its left.
 
 Each tab keeps its own browsing state. Use **Back** and **Forward**, `Alt+Left` and `Alt+Right`, or the mouse side buttons to revisit directories. History also restores that visit's search, expanded folders, selection, scroll position and display preferences. Navigating to a new directory after going back clears the forward history. Refreshing, changing a selection or search, and switching tabs do not add history entries.
 
