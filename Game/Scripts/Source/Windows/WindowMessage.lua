@@ -4,7 +4,7 @@ local System = require("Source.System")
 local WindowBase = require("Internal.UIBase.WindowBase")
 local WindowMessageLayout = require("Source.Windows.WindowMessage.Layout")
 local WindowSelectable = require("Internal.UIBase.WindowSelectable")
-local MessageOptionRowController = require("Source.Windows.WindowMessage.MessageOptionRow.Controller")
+local SelectableTextRowController = require("Source.Windows.Shared.SelectableTextRow.Controller")
 local Ui = require("Internal.UIBase.Ui")
 local View = require("Internal.UI.WindowMessage")
 
@@ -49,8 +49,8 @@ function Controller:init()
     self._messageColour = self.ui.controls["MessageText"]:getColour()
     self._hostColour = self.host:getColour()
     self._messageAdvancer = nil
-    self._messageRows = self:createCollection(self.ui.controls["MessageList"], MessageOptionRowController)
-    self._selectionRows = self:createCollection(self.ui.controls["SelectionList"], MessageOptionRowController)
+    self._messageRows = self:createCollection(self.ui.controls["MessageList"], SelectableTextRowController)
+    self._selectionRows = self:createCollection(self.ui.controls["SelectionList"], SelectableTextRowController)
     self:_setupMessageAdvancer()
 end
 

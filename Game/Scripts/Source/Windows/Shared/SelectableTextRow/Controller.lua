@@ -1,10 +1,10 @@
 local Ui = require("Internal.UIBase.Ui")
-local View = require("Internal.UI.Parts.WindowMessage.MessageOptionRow")
+local View = require("Internal.UI.Parts.Shared.SelectableTextRow")
 
----@class Source.Windows.WindowMessage.MessageOptionRow.Controller
-local MessageOptionRowController = {}
+---@class Source.Windows.Shared.SelectableTextRow.Controller
+local SelectableTextRowController = {}
 
-function MessageOptionRowController:bind()
+function SelectableTextRowController:bind()
     ---@cast self.root Engine.FunctionalPlainText
     if self.model.onConfirm ~= nil then
         self.root:addConfirmCallback(self.model.onConfirm)
@@ -14,8 +14,8 @@ function MessageOptionRowController:bind()
     end
 end
 
-function MessageOptionRowController:refresh()
+function SelectableTextRowController:refresh()
     self:setText("Root", self.model.text)
 end
 
-return Ui.Define(View, MessageOptionRowController)
+return Ui.Define(View, SelectableTextRowController)

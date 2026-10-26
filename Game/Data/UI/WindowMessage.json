@@ -500,7 +500,7 @@
                 "children": [
                   {
                     "name": "SelectionItem1",
-                    "controlId": "Project:Parts/WindowMessage/MessageOptionRow",
+                    "controlId": "Project:Parts/Shared/SelectableTextRow",
                     "properties": {},
                     "slot": {},
                     "editor": {},
@@ -508,7 +508,7 @@
                   },
                   {
                     "name": "SelectionItem2",
-                    "controlId": "Project:Parts/WindowMessage/MessageOptionRow",
+                    "controlId": "Project:Parts/Shared/SelectableTextRow",
                     "properties": {},
                     "slot": {},
                     "editor": {},
@@ -516,7 +516,7 @@
                   },
                   {
                     "name": "SelectionItem3",
-                    "controlId": "Project:Parts/WindowMessage/MessageOptionRow",
+                    "controlId": "Project:Parts/Shared/SelectableTextRow",
                     "properties": {},
                     "slot": {},
                     "editor": {},
@@ -524,7 +524,7 @@
                   },
                   {
                     "name": "SelectionItem4",
-                    "controlId": "Project:Parts/WindowMessage/MessageOptionRow",
+                    "controlId": "Project:Parts/Shared/SelectableTextRow",
                     "properties": {},
                     "slot": {},
                     "editor": {},

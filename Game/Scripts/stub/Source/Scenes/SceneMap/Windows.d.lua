@@ -8,7 +8,7 @@
 ---@field operation Engine.AsyncOperation
 
 ---@alias Source.Scenes.SceneMap.Windows.AsyncWindow Source.Windows.WindowShop | Source.Windows.WindowAttrShop | Source.Windows.WindowPlayerName
----@alias Source.Scenes.SceneMap.Windows.BlockingWindow Source.Windows.WindowShop | Source.Windows.WindowAttrShop | Source.Windows.WindowEnemyBook | Source.Windows.WindowEnemyEncyclopedia | Source.Windows.WindowFloorTeleporter | Source.Windows.WindowPlayerName | Source.Windows.WindowItem | Source.Windows.WindowEquip | Source.Windows.WindowSaveLoad | Source.Windows.ConfigWindow
+---@alias Source.Scenes.SceneMap.Windows.BlockingWindow Source.Windows.WindowShop | Source.Windows.WindowAttrShop | Source.Windows.WindowEnemyBook | Source.Windows.WindowEnemyEncyclopedia | Source.Windows.WindowFloorTeleporter | Source.Windows.WindowPlayerName | Source.Windows.WindowItem | Source.Windows.WindowEquip | Source.Windows.WindowSaveLoad | Source.Windows.ConfigWindow | Source.Windows.WindowShopRecords
 
 --- Owns optional map windows and their active sessions without caching the current game instance or player.
 ---@class Source.Scenes.SceneMap.Windows
@@ -22,6 +22,7 @@
 ---@field _windowEnemyBook                 Internal.UIBase.LazyWindow<Source.Windows.WindowEnemyBook>
 ---@field _windowEnemyEncyclopedia         Internal.UIBase.LazyWindow<Source.Windows.WindowEnemyEncyclopedia>
 ---@field _windowFloorTeleporter           Internal.UIBase.LazyWindow<Source.Windows.WindowFloorTeleporter>
+---@field _windowShopRecords               Internal.UIBase.LazyWindow<Source.Windows.WindowShopRecords>
 ---@field _windowSaveLoad                  Internal.UIBase.LazyWindow<Source.Windows.WindowSaveLoad>
 ---@field _windowMenu                      Internal.UIBase.LazyWindow<Source.Windows.WindowMenu>
 ---@field _configWindow                    Internal.UIBase.LazyWindow<Source.Windows.ConfigWindow>
@@ -37,7 +38,9 @@
 ---@field _saveLoadMovement                Source.Scenes.SceneMap.Windows.Movement | nil
 ---@field _enemyBookMovement               Source.Scenes.SceneMap.Windows.Movement | nil
 ---@field _floorTeleporterMovement         Source.Scenes.SceneMap.Windows.Movement | nil
----@field private _FOCUS_GROUP_NAME        { MENU: Source.Scenes.SceneMap.Windows.FocusGroupName, ITEM: Source.Scenes.SceneMap.Windows.FocusGroupName, EQUIP_SLOT: Source.Scenes.SceneMap.Windows.FocusGroupName, EQUIP_SELECT: Source.Scenes.SceneMap.Windows.FocusGroupName, SHOP_ITEM: Source.Scenes.SceneMap.Windows.FocusGroupName, FLOOR_COMMAND: Source.Scenes.SceneMap.Windows.FocusGroupName, FLOOR_PREVIEW: Source.Scenes.SceneMap.Windows.FocusGroupName, SAVE_SLOT: Source.Scenes.SceneMap.Windows.FocusGroupName, PLAYER_NAME: Source.Scenes.SceneMap.Windows.FocusGroupName }
+---@field _shopRecordsMovement             Source.Scenes.SceneMap.Windows.Movement | nil
+---@field _remoteShopActor                 Engine.Actor | nil
+---@field private _FOCUS_GROUP_NAME        { MENU: Source.Scenes.SceneMap.Windows.FocusGroupName, ITEM: Source.Scenes.SceneMap.Windows.FocusGroupName, EQUIP_SLOT: Source.Scenes.SceneMap.Windows.FocusGroupName, EQUIP_SELECT: Source.Scenes.SceneMap.Windows.FocusGroupName, SHOP_ITEM: Source.Scenes.SceneMap.Windows.FocusGroupName, SHOP_RECORDS: Source.Scenes.SceneMap.Windows.FocusGroupName, FLOOR_COMMAND: Source.Scenes.SceneMap.Windows.FocusGroupName, FLOOR_PREVIEW: Source.Scenes.SceneMap.Windows.FocusGroupName, SAVE_SLOT: Source.Scenes.SceneMap.Windows.FocusGroupName, PLAYER_NAME: Source.Scenes.SceneMap.Windows.FocusGroupName }
 ---@field private _SAVE_PREVIEW_MAX_WIDTH  integer
 ---@field private _SAVE_PREVIEW_MAX_HEIGHT integer
 local Windows = {}
@@ -49,6 +52,7 @@ Windows._FOCUS_GROUP_NAME = {
     EQUIP_SLOT = "equip-slot",
     EQUIP_SELECT = "equip-select",
     SHOP_ITEM = "shop-item",
+    SHOP_RECORDS = "shop-records",
     FLOOR_COMMAND = "floor-command",
     FLOOR_PREVIEW = "floor-preview",
     SAVE_SLOT = "save-slot",
@@ -113,13 +117,25 @@ function Windows:showEnemyBook() end
 ---@return boolean
 function Windows:showFloorTeleporter() end
 
+---@return boolean
+function Windows:showShopRecords() end
+
+---@private
+function Windows:onShopRecordsClose() end
+
+---@private
+---@param mapPath string
+---@param tag     string
+function Windows:onShopRecordConfirm(mapPath, tag) end
+
 ---@return Engine.AsyncOperation
 function Windows:openPlayerName() end
 
 ---@param buyItemIDs string[]
 ---@param canSell    boolean
+---@param actor?     Engine.Actor
 ---@return Engine.AsyncOperation
-function Windows:openShop(buyItemIDs, canSell) end
+function Windows:openShop(buyItemIDs, canSell, actor) end
 
 ---@param actor           Engine.Actor
 ---@param shopName        string

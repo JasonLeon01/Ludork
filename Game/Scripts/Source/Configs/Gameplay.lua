@@ -17,6 +17,19 @@ local function readOverride(data, name)
     return setting.value
 end
 
+---@param data table<string, Engine.RuntimeDataValue>
+---@param name string
+---@return boolean | nil
+local function readBoolean(data, name)
+    local value = readOverride(data, name)
+    if value == nil then
+        return nil
+    end
+    assert(Class.isInstance(value, "boolean"), "Gameplay configuration must be a boolean: " .. name)
+    ---@cast value boolean
+    return value
+end
+
 ---@param data    table<string, Engine.RuntimeDataValue>
 ---@param name    string
 ---@param integer boolean
@@ -38,7 +51,9 @@ function GameplayConfig.Apply()
     assert(Class.isInstance(data, "table"), "Gameplay configuration must be an object")
     ---@cast data table<string, Engine.RuntimeDataValue>
     local damageHintLevel = readOverride(data, "enemyDamageHintLevel")
-    local defeatShatterEffectEnabled = readOverride(data, "enemyDefeatShatterEffectEnabled")
+    local defeatShatterEffectEnabled = readBoolean(data, "enemyDefeatShatterEffectEnabled")
+    local hideDisconnectedRegions = readBoolean(data, "hideDisconnectedRegions")
+    local enableShopRecord = readBoolean(data, "enableShopRecord")
     local maxSaveSlots = readPositiveNumber(data, "maxSaveSlots", true)
     local tutorialShrinkDuration = readPositiveNumber(data, "tutorialShrinkDuration", false)
     if damageHintLevel ~= nil then
@@ -54,12 +69,6 @@ function GameplayConfig.Apply()
         end
         assert(valid, "Gameplay enemyDamageHintLevel must be a member of Enums.DamageHintLevel")
     end
-    if defeatShatterEffectEnabled ~= nil then
-        assert(
-            Class.isInstance(defeatShatterEffectEnabled, "boolean"),
-            "Gameplay enemyDefeatShatterEffectEnabled must be a boolean"
-        )
-    end
     if damageHintLevel ~= nil then
         local EnemyDamageText = require("Source.MapActors.EnemyDamageText")
 
@@ -69,8 +78,17 @@ function GameplayConfig.Apply()
     if defeatShatterEffectEnabled ~= nil then
         local Enemy = require("Source.MapActors.Enemy")
 
-        ---@cast defeatShatterEffectEnabled boolean
         Enemy.DefeatShatterEffectEnabled = defeatShatterEffectEnabled
+    end
+    if hideDisconnectedRegions ~= nil then
+        local GameMap = require("Global.GameMap")
+
+        GameMap.HideDisconnectedRegions = hideDisconnectedRegions
+    end
+    if enableShopRecord ~= nil then
+        local GameInstance = require("Source.GameInstance")
+
+        GameInstance.EnableShopRecord = enableShopRecord
     end
     if maxSaveSlots ~= nil then
         local WindowSaveSlot = require("Source.Windows.WindowSaveLoad.Slot")

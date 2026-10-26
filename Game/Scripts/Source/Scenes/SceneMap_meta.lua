@@ -147,6 +147,16 @@ local _METADATA = {
                 default = "nil"
             }
         },
+        showShopRecords = {
+            type = "function",
+            parameters = {
+                "self",
+                self = { "Source.Scenes.SceneMap", "Scene" }
+            },
+            default = { [1] = "self" },
+            ["return"] = {},
+            ExecSplit = { "default", default = "nil" }
+        },
         openMenu = {
             type = "function",
             parameters = {

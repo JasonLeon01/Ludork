@@ -1,6 +1,7 @@
 local cjson = require("cjson")
 local Data = require("Global.Data")
 local Records = require("Source.Utils.GameInstance.Records")
+local Shops = require("Source.Utils.GameInstance.Shops")
 local MapPath = require("Global.Utils.MapPath")
 local MapConstants = require("Source.Configs.MapConstants")
 
@@ -386,6 +387,7 @@ function SaveCodec.Encode(state)
         destroyedActors = deepcopy(state.destroyedActors),
         destroyedTerrain = serialiseTerrainDestructions(state.terrainDestructions),
         telepoints = serialiseTelepoints(state.telepoints),
+        shops = list(deepcopy(state.shops)):toTable(),
         triggeredTutorials = state.triggeredTutorials:toTable(),
         screenshot = deepcopy(state.screenshot)
     }
@@ -431,6 +433,7 @@ function SaveCodec.Decode(data)
     state.terrainDestructions = normaliseTerrainDestructions(data.destroyedTerrain)
     state.obtainedItems = normaliseObtainedItems(data.obtainedItems)
     state.telepoints = normaliseTelepoints(data.telepoints)
+    state.shops = Shops.Decode(data.shops)
     state.triggeredTutorials = normaliseTriggeredTutorials(data.triggeredTutorials)
     if data.screenshot ~= cjson.null then
         state.screenshot = data.screenshot

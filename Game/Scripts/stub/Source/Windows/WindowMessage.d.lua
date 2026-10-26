@@ -20,8 +20,8 @@
 ---@field _name               string
 ---@field _message            string
 ---@field _panelSize          sf.Vector2f
----@field _messageRows        Internal.UIBase.UiCollection<Source.Windows.WindowMessage.MessageOptionRow.Controller>
----@field _selectionRows      Internal.UIBase.UiCollection<Source.Windows.WindowMessage.MessageOptionRow.Controller>
+---@field _messageRows        Internal.UIBase.UiCollection<Source.Windows.Shared.SelectableTextRow.Controller>
+---@field _selectionRows      Internal.UIBase.UiCollection<Source.Windows.Shared.SelectableTextRow.Controller>
 ---@field _panelSize          sf.Vector2f
 ---@field _contentInsets      sf.Vector2f
 ---@field _screenInsets       number

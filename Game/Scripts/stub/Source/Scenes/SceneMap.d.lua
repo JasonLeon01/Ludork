@@ -148,6 +148,10 @@ function Scene:showEnemyBook() end
 ---@return boolean
 function Scene:showFloorTeleporter() end
 
+--- Open visited shops when recording is enabled, the player owns Teleport, and the scene permits a window.
+---@return boolean
+function Scene:showShopRecords() end
+
 ---@brief Request the in-game menu to open on the next render pass.
 ---@return boolean
 function Scene:openMenu() end
@@ -183,8 +187,9 @@ function Scene:quickLoad() end
 --- - @return An operation completing with true when the shop closes.
 ---@param buyItemIDs string[]
 ---@param canSell    boolean
+---@param actor?     Engine.Actor Shop placement to record after opening.
 ---@return Engine.AsyncOperation
-function Scene:openShop(buyItemIDs, canSell) end
+function Scene:openShop(buyItemIDs, canSell, actor) end
 
 ---@brief Open the map-bound attribute shop and wait until it closes.
 ---

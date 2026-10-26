@@ -18,6 +18,24 @@
     },
     "value": null
   },
+  "hideDisconnectedRegions": {
+    "type": "bool",
+    "nullable": true,
+    "scriptDefault": {
+      "module": "Global.GameMap",
+      "field": "GameMap.HideDisconnectedRegions"
+    },
+    "value": null
+  },
+  "enableShopRecord": {
+    "type": "bool",
+    "nullable": true,
+    "scriptDefault": {
+      "module": "Source.GameInstance",
+      "field": "GameInstance.EnableShopRecord"
+    },
+    "value": null
+  },
   "maxSaveSlots": {
     "type": "int",
     "nullable": true,

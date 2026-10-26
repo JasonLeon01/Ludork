@@ -3,14 +3,13 @@ local GlobalCore = require("GlobalCore")
 local RegionDict = require("Source.Configs.RegionDict")
 local LocaleCore = require("Source.Locale.Core")
 local MapPath = require("Global.Utils.MapPath")
-local SceneMapBuilder = require("Source.SceneComponents.MapBuilder")
+local MapDisplayName = require("Source.Utils.MapDisplayName")
 local GameSystem = require("Source.System")
 local TelepointKey = require("Source.Configs.TelepointKey")
 local Ui = require("Internal.UIBase.Ui")
 local View = require("Internal.UI.WindowFloorTeleporter")
 local WindowFloorMapCommand = require("Source.Windows.WindowFloorTeleporter.Command")
 local WindowFloorMapPreview = require("Source.Windows.WindowFloorTeleporter.Preview")
-local MapConstants = require("Source.Configs.MapConstants")
 
 local AudioManager = GlobalCore.AudioManager
 ---@type fun(value: string): string
@@ -326,14 +325,7 @@ function Controller:getVisitedMapNames()
 end
 
 function Controller:getMapDisplayName(mapKey)
-    local _, mapData = SceneMapBuilder
-        .new()
-        :loadMapData(mapKey, self:getGameInstance():getCurrentMapPath() or GameSystem.GetStartMap())
-    local mapName = mapData.type == MapConstants.WORLD_MAP_TYPE and mapData.worldName or mapData.mapName
-    if not bool(mapName) then
-        return LOC(tostring(mapKey))
-    end
-    return LOC(tostring(mapName))
+    return MapDisplayName.Resolve(mapKey, self:getGameInstance():getCurrentMapPath() or GameSystem.GetStartMap())
 end
 
 function Controller:isBlocking()

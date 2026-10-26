@@ -423,6 +423,10 @@ function Scene:showFloorTeleporter()
     return self._windows:showFloorTeleporter()
 end
 
+function Scene:showShopRecords()
+    return self._windows:showShopRecords()
+end
+
 function Scene:openMenu()
     return self._windows:openMenu()
 end
@@ -455,8 +459,8 @@ function Scene:openPlayerName()
     return self._windows:openPlayerName()
 end
 
-function Scene:openShop(buyItemIDs, canSell)
-    return self._windows:openShop(buyItemIDs, canSell)
+function Scene:openShop(buyItemIDs, canSell, actor)
+    return self._windows:openShop(buyItemIDs, canSell, actor)
 end
 
 function Scene:openAttrShop(actor, shopName, shopDescription, abilities, priceRef, priceIncrement, moneyName)

@@ -6,8 +6,8 @@
   },
   "palette": {
     "exposed": true,
-    "displayName": "Message Option Row",
-    "category": "Parts / Window Message"
+    "displayName": "Selectable Text Row",
+    "category": "Parts / Shared"
   },
   "root": {
     "name": "Root",

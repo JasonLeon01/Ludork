@@ -228,11 +228,13 @@ function Scene.SelfRecordAndDestroy() end
 ---
 --- - @param items Item IDs available for purchase.
 --- - @param canSell Whether selling is available.
+--- - @param actor The shop placement to record; omitted Blueprint calls use their graph owner.
 --- - @return An operation completing with true when the shop closes.
 ---@param items?   string[]
 ---@param canSell? boolean
+---@param actor?   Engine.Actor
 ---@return Engine.AsyncOperation
-function Scene.OpenShop(items, canSell) end
+function Scene.OpenShop(items, canSell, actor) end
 
 ---@brief Open the primary player name window. Completion occurs after confirmation or cancellation closes the window.
 ---@return Engine.AsyncOperation

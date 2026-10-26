@@ -329,12 +329,21 @@ function Scene.OpenPlayerName()
     return loadContext().RequireSceneMap():openPlayerName()
 end
 
-function Scene.OpenShop(items, canSell)
+function Scene.OpenShop(items, canSell, actor)
     items = copy(items or {})
     if canSell == nil then
         canSell = true
     end
-    return loadContext().RequireSceneMap():openShop(items, canSell)
+    if actor == nil then
+        local Engine = require("Engine")
+
+        local owner = loadContext().GetGraphOwner(Scene.OpenShop)
+        if Class.isInstance(owner, Engine.Actor) then
+            ---@cast owner Engine.Actor
+            actor = owner
+        end
+    end
+    return loadContext().RequireSceneMap():openShop(items, canSell, actor)
 end
 
 function Scene.OpenAttrShop(actor, shopName, shopDescription, abilities, price, priceIncrement, moneyName)

@@ -1735,7 +1735,7 @@
         ]
       },
       {
-        "tag": "Data.Blueprints.Actors.BP_Shop_default_5_10",
+        "tag": "{SHOP_NAME}",
         "bp": "Data.Blueprints.Actors.BP_Shop",
         "position": [
           5,
@@ -1743,7 +1743,7 @@
         ]
       },
       {
-        "tag": "Data.Blueprints.Actors.BP_EXPShop_default_7_10",
+        "tag": "{EXP_SHOP_NAME}",
         "bp": "Data.Blueprints.Actors.BP_EXPShop",
         "position": [
           7,

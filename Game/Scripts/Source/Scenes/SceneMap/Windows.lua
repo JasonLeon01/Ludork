@@ -5,6 +5,7 @@ local WindowTransitionProfile = require("Enums.WindowTransitionProfile")
 local Logging = require("Global.Utils.Logging")
 local LazyWindow = require("Internal.UIBase.LazyWindow")
 local GameSystem = require("Source.System")
+local GameInstance = require("Source.GameInstance")
 local Save = require("Source.Save")
 local WindowSaveSlot = require("Source.Windows.WindowSaveLoad.Slot")
 local SaveLoadMode = require("Enums.SaveLoadMode")
@@ -29,6 +30,7 @@ local Windows = {
         EQUIP_SLOT = "equip-slot",
         EQUIP_SELECT = "equip-select",
         SHOP_ITEM = "shop-item",
+        SHOP_RECORDS = "shop-records",
         FLOOR_COMMAND = "floor-command",
         FLOOR_PREVIEW = "floor-preview",
         SAVE_SLOT = "save-slot",
@@ -48,6 +50,7 @@ local function createFocusGroups(manager)
         Windows._FOCUS_GROUP_NAME.EQUIP_SLOT,
         Windows._FOCUS_GROUP_NAME.EQUIP_SELECT,
         Windows._FOCUS_GROUP_NAME.SHOP_ITEM,
+        Windows._FOCUS_GROUP_NAME.SHOP_RECORDS,
         Windows._FOCUS_GROUP_NAME.FLOOR_COMMAND,
         Windows._FOCUS_GROUP_NAME.FLOOR_PREVIEW,
         Windows._FOCUS_GROUP_NAME.SAVE_SLOT,
@@ -122,6 +125,28 @@ local function cancelSession(self, session, handle)
     restoreMovement(self, session, WINDOW_CLOSE_INPUT_BLOCK_FRAMES)
 end
 
+---@param self  Source.Scenes.SceneMap.Windows
+---@param actor Engine.Actor | nil
+local function recordShopVisit(self, actor)
+    if actor == nil or actor:getMap() ~= self._scene:getGameMap() then
+        return
+    end
+    local tag = actor:getMapTag()
+    if bool(tag) then
+        self._scene:getGameInstance():recordShop(assert(self._scene:getGameInstance():getCurrentMapPath()), tag)
+    end
+end
+
+---@param self Source.Scenes.SceneMap.Windows
+local function releaseRemoteShop(self)
+    local actor = self._remoteShopActor
+    self._remoteShopActor = nil
+    if actor ~= nil then
+        actor:cancelAsyncOperations()
+        actor:setGraph(nil)
+    end
+end
+
 local function captureScreenSnapshot()
     local clock = sf.Clock.new()
     local canvas = Graphics.getCanvas()
@@ -161,6 +186,8 @@ function Windows:init(scene)
     self._saveLoadMovement = nil
     self._enemyBookMovement = nil
     self._floorTeleporterMovement = nil
+    self._shopRecordsMovement = nil
+    self._remoteShopActor = nil
     local manager = assert(scene:getUIManager(), "Scene map UI manager is unavailable")
     local groups = createFocusGroups(manager)
     self._windowPlayerName = LazyWindow.new(function ()
@@ -276,6 +303,19 @@ function Windows:init(scene)
         window:mount(manager)
         return window
     end)
+    self._windowShopRecords = LazyWindow.new(function ()
+        local WindowShopRecords = require("Source.Windows.WindowShopRecords")
+
+        local window = WindowShopRecords.new(function (mapPath, tag)
+            self:onShopRecordConfirm(mapPath, tag)
+        end,
+            function ()
+                self:onShopRecordsClose()
+            end)
+        bindFocusControl(groups[Windows._FOCUS_GROUP_NAME.SHOP_RECORDS], window)
+        window:mount(manager)
+        return window
+    end)
     self._windowSaveLoad = LazyWindow.new(function ()
         local constructionClock = sf.Clock.new()
         local WindowSaveLoad = require("Source.Windows.WindowSaveLoad")
@@ -336,7 +376,7 @@ function Windows:init(scene)
     self._blockingWindows = {
         self._windowShop, self._windowAttrShop, self._windowEnemyBook, self._windowEnemyEncyclopedia,
         self._windowFloorTeleporter, self._windowPlayerName, self._windowItem, self._windowEquip, self._windowSaveLoad,
-        self._configWindow
+        self._configWindow, self._windowShopRecords
     }
 end
 
@@ -514,6 +554,77 @@ function Windows:showFloorTeleporter()
     return true
 end
 
+function Windows:showShopRecords()
+    if not GameInstance.EnableShopRecord or self._remoteShopActor ~= nil
+        or (not self:canOpenMenu() and not self:canOpenItemOverlay())
+        or not self._scene:getPlayer():hasItem(Item.Teleport) then
+        return false
+    end
+    local shops = self._scene:getGameInstance():getShops()
+    if #shops == 0 then
+        return false
+    end
+    local window = self._windowShopRecords:get()
+    if not window:open(shops, self._scene:getGameInstance():getCurrentMapPath()) then
+        return false
+    end
+    local player = self._scene:getPlayer()
+    self._shopRecordsMovement = createMovement(player, self:isMenuBlocking() or player:getMoveEnabled())
+    player:setMoveEnabled(false)
+    self._scene:blockMapInput(MAP_INPUT_BLOCK_FRAMES)
+    return true
+end
+
+function Windows:onShopRecordsClose()
+    restoreMovement(self, self._shopRecordsMovement, WINDOW_CLOSE_INPUT_BLOCK_FRAMES)
+    self._shopRecordsMovement = nil
+end
+
+function Windows:onShopRecordConfirm(mapPath, tag)
+    if not GameInstance.EnableShopRecord or self._remoteShopActor ~= nil
+        or not self._scene:getPlayer():hasItem(Item.Teleport) then
+        AudioManager.playSound(GameSystem.GetBuzzerSE())
+        return
+    end
+    local found = false
+    for _, record in ipairs(self._scene:getGameInstance():getShops()) do
+        if record[1] == mapPath and record[2] == tag then
+            found = true
+            break
+        end
+    end
+    if not found then
+        AudioManager.playSound(GameSystem.GetBuzzerSE())
+        return
+    end
+    local ShopRecords = require("Source.Utils.ShopRecords")
+
+    local actor = ShopRecords.CreateActor(mapPath, tag)
+    if actor == nil then
+        AudioManager.playSound(GameSystem.GetBuzzerSE())
+        return
+    end
+    self._remoteShopActor = actor
+    AudioManager.playSound(GameSystem.GetDecisionSE())
+    self._windowShopRecords:get():close(function ()
+        if self._remoteShopActor ~= actor then
+            return
+        end
+        self:onShopRecordsClose()
+        Engine.Actor.BlueprintEvent(
+            actor,
+            Engine.Actor,
+            "onCollision",
+            { other = { self._scene:getPlayer() } },
+            function ()
+                if self._remoteShopActor == actor then
+                    releaseRemoteShop(self)
+                end
+            end
+        )
+    end)
+end
+
 function Windows:openPlayerName()
     if self._playerNameSession ~= nil and self._playerNameSession.operation:getStatus() == Engine.AsyncOperation.PENDING then
         return self._playerNameSession.operation
@@ -529,7 +640,7 @@ function Windows:openPlayerName()
     return self._playerNameSession.operation
 end
 
-function Windows:openShop(buyItemIDs, canSell)
+function Windows:openShop(buyItemIDs, canSell, actor)
     local player = self._scene:getPlayer()
     local enabled = self:isMenuBlocking() or player:getMoveEnabled()
     if self._shopSession ~= nil then
@@ -539,6 +650,7 @@ function Windows:openShop(buyItemIDs, canSell)
     self._shopSession = createSession(player, enabled)
     player:setMoveEnabled(false)
     self._windowShop:get():open(buyItemIDs, canSell)
+    recordShopVisit(self, actor)
     return self._shopSession.operation
 end
 
@@ -552,6 +664,7 @@ function Windows:openAttrShop(actor, shopName, shopDescription, abilities, price
     self._attrShopSession = createSession(player, enabled)
     player:setMoveEnabled(false)
     self._windowAttrShop:get():open(actor, shopName, shopDescription, abilities, priceRef, priceIncrement, moneyName)
+    recordShopVisit(self, actor)
     return self._attrShopSession.operation
 end
 
@@ -674,6 +787,12 @@ function Windows:cancelAsyncOperations()
     cancelSession(self, released.shop, self._windowShop)
     cancelSession(self, released.attrShop, self._windowAttrShop)
     cancelSession(self, released.playerName, self._windowPlayerName)
+    local records = self._windowShopRecords:peek()
+    if records ~= nil then
+        records:dismiss()
+    end
+    self:onShopRecordsClose()
+    releaseRemoteShop(self)
 end
 
 function Windows:cancelPendingRequests()
@@ -688,6 +807,7 @@ function Windows:rebindPlayer()
     self._saveLoadMovement = nil
     self._enemyBookMovement = nil
     self._floorTeleporterMovement = nil
+    self._shopRecordsMovement = nil
     local windows = {
         self._windowItem, self._windowEquip, self._windowMenu, self._windowShop, self._windowAttrShop,
         self._windowEnemyBook, self._windowPlayerName
@@ -707,7 +827,7 @@ function Windows:refreshLocale()
     end
     local windows = {
         self._windowItem, self._windowEquip, self._windowShop, self._windowAttrShop, self._windowEnemyBook,
-        self._windowEnemyEncyclopedia, self._windowFloorTeleporter, self._windowPlayerName
+        self._windowEnemyEncyclopedia, self._windowFloorTeleporter, self._windowPlayerName, self._windowShopRecords
     }
     for _, handle in ipairs(windows) do
         local window = handle:peek()
@@ -723,7 +843,7 @@ function Windows:dispose()
     local windows = {
         self._windowMenu, self._windowItem, self._windowEquip, self._windowAttrShop, self._windowEnemyBook,
         self._windowEnemyEncyclopedia, self._windowSaveLoad, self._windowShop, self._windowFloorTeleporter,
-        self._configWindow, self._windowPlayerName
+        self._configWindow, self._windowPlayerName, self._windowShopRecords
     }
     for _, window in ipairs(windows) do
         window:dispose()

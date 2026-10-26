@@ -613,8 +613,10 @@ local _METADATA = {
             parameters = {
                 "items",
                 "canSell",
+                "actor",
                 items = "string[]",
-                canSell = "bool"
+                canSell = "bool",
+                actor = { "Engine", "Actor" }
             },
             default = {
                 [1] = {},
