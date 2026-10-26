@@ -15,6 +15,7 @@ internal sealed class LuaMetadataFileCache
     private readonly bool strictReads;
     private readonly CancellationToken cancellationToken;
     private readonly LuaValidationReadCache? readCache;
+    private readonly LuaReadDependencyCapture? dependencyCapture;
     private readonly Dictionary<string, CachedMetadataFile> fileCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, CachedScriptMixinMetadata> scriptMixinCache = new(StringComparer.OrdinalIgnoreCase);
     private CachedMetadataFileSet? metadataFileSet;
@@ -26,12 +27,14 @@ internal sealed class LuaMetadataFileCache
     private long revision;
 
     public LuaMetadataFileCache(string projectPath, LuaEnumService enums, bool strictReads = false,
-        CancellationToken cancellationToken = default, LuaValidationReadCache? readCache = null)
+        CancellationToken cancellationToken = default, LuaValidationReadCache? readCache = null,
+        LuaReadDependencyCapture? dependencyCapture = null)
     {
         this.enums = enums;
         this.strictReads = strictReads;
         this.cancellationToken = cancellationToken;
         this.readCache = readCache;
+        this.dependencyCapture = dependencyCapture;
         ProjectPath = Path.GetFullPath(projectPath);
         scriptsPath = Path.Combine(ProjectPath, "Scripts");
     }
@@ -277,6 +280,7 @@ internal sealed class LuaMetadataFileCache
 
     private void trackReadDependency(string path, LuaMetadataFileStamp stamp)
     {
+        dependencyCapture?.Record(path, stamp);
         if (readScopeDepth == 0 || readDependencyStamps is null)
             return;
         if (readDependencyStamps.TryGetValue(path, out LuaMetadataFileStamp existing))
@@ -334,13 +338,7 @@ internal sealed class LuaMetadataFileCache
             .Replace(Path.AltDirectorySeparatorChar, '.');
     }
 
-    private static LuaMetadataFileStamp getFileStamp(string path)
-    {
-        FileInfo info = new(path);
-        return info.Exists
-            ? new LuaMetadataFileStamp(true, info.LastWriteTimeUtc, info.Length)
-            : new LuaMetadataFileStamp(false, default, 0);
-    }
+    private static LuaMetadataFileStamp getFileStamp(string path) => LuaMetadataFileStamp.Read(path);
 
     private static DirectoryStamp getDirectoryStamp(string path)
     {

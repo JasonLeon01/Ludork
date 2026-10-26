@@ -15,6 +15,7 @@ public sealed class EditorDocument
     internal HistoryMarker? PendingMarker;
     internal string? PendingDescription;
     internal long PendingGestureId;
+    internal MapHistoryEdits? PendingMapEdits;
     internal EditorDocumentState? CurrentState;
     internal Func<DocumentHistoryEntry, bool, HistoryResult>? HistoryRestorer;
     internal Action<EditorDocument>? StateRestored;

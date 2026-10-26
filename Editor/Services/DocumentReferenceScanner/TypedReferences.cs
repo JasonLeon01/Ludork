@@ -13,10 +13,13 @@ internal sealed partial class DocumentReferenceScanner
         ResolvedBlueprintClass resolved,
         string path,
         string kind,
-        JsonObject? storedFields = null)
+        JsonObject? storedFields = null,
+        IReadOnlySet<string>? selectedFields = null)
     {
         foreach (ResolvedBlueprintField field in resolved.Fields)
         {
+            if (selectedFields is not null && !selectedFields.Contains(field.Name))
+                continue;
             string fieldPath = $"{path}.{field.Name}";
             JsonNode? storedValue = null;
             bool hasStored = storedFields?.TryGetPropertyValue(field.Name, out storedValue) == true;

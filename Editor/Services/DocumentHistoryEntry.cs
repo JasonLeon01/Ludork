@@ -32,6 +32,7 @@ public sealed record DocumentHistoryEntry(
 {
     internal long GestureId { get; init; }
     internal GeneralMemberRename? GeneralMemberRename { get; init; }
+    internal MapHistoryEdits? MapEdits { get; init; }
 }
 
 internal sealed record GeneralMemberRename(string OldId, string NewId);

@@ -139,16 +139,30 @@ public sealed class EditorDocumentRegistry
         return document;
     }
 
-    internal void Capture(EditorDocument document, string? description = null, HistoryMarker? marker = null, long gestureId = 0)
+    internal void Capture(EditorDocument document, string? description = null, HistoryMarker? marker = null,
+        long gestureId = 0, MapHistoryEdits? mapEdits = null)
     {
-        if (document.PendingState is not null)
-            return;
         TrackDocument(document);
+        if (document.PendingState is not null)
+        {
+            document.PendingMapEdits = document.PendingMapEdits is not null && mapEdits is not null
+                ? document.PendingMapEdits.Append(mapEdits) : null;
+            return;
+        }
         document.PendingState = document.CaptureState();
         document.CurrentState = null;
         document.PendingDescription = description ?? "Edit " + document.Key;
         document.PendingMarker = marker;
         document.PendingGestureId = marker is null ? gestureId : 0;
+        document.PendingMapEdits = mapEdits;
+    }
+
+    internal void AppendPendingMapEdits(EditorDocument document, MapHistoryEdits edits)
+    {
+        if (document.PendingState is null || document.PendingMapEdits is null)
+            return;
+        TrackDocument(document);
+        document.PendingMapEdits = document.PendingMapEdits.Append(edits);
     }
 
     internal bool Commit(EditorDocument document, JsonObject? data, string? key = null, string? path = null)
@@ -168,6 +182,7 @@ public sealed class EditorDocumentRegistry
         HistoryMarker? marker = document.PendingMarker;
         string? description = document.PendingDescription;
         long gestureId = document.PendingGestureId;
+        MapHistoryEdits? mapEdits = document.PendingMapEdits;
         ClearPending(document);
         document.CurrentState = after;
         document.UpdateModified();
@@ -183,14 +198,19 @@ public sealed class EditorDocumentRegistry
             Notify(document, before, after);
             return true;
         }
-        DocumentHistoryEntry entry = new(before, after, description, marker) { GestureId = gestureId };
+        DocumentHistoryEntry entry = new(before, after, description, marker) { GestureId = gestureId, MapEdits = mapEdits };
         if (gestureId != 0 && document.UndoEntries.LastOrDefault() is DocumentHistoryEntry previous
             && previous.GestureId == gestureId && previous.Marker is null)
         {
             if (EditorDocument.StatesEqual(previous.Before, after))
                 document.UndoEntries.RemoveAt(document.UndoEntries.Count - 1);
             else
-                document.UndoEntries[^1] = entry with { Before = previous.Before };
+                document.UndoEntries[^1] = entry with
+                {
+                    Before = previous.Before,
+                    MapEdits = previous.MapEdits is not null && mapEdits is not null
+                        ? previous.MapEdits.Append(mapEdits) : null,
+                };
         }
         else
         {
@@ -421,10 +441,17 @@ public sealed class EditorDocumentRegistry
             index.Remove(key);
     }
 
-    private HistoryResult Replay(EditorDocument document, bool undo)
+    internal HistoryResult ReplayPrepared(EditorDocument document, bool undo, DocumentHistoryEntry expectedEntry,
+        Func<HistoryResult> restore)
+        => Replay(document, undo, expectedEntry, restore);
+
+    private HistoryResult Replay(EditorDocument document, bool undo, DocumentHistoryEntry? expectedEntry = null,
+        Func<HistoryResult>? restore = null)
     {
         List<DocumentHistoryEntry> source = undo ? document.UndoEntries : document.RedoEntries;
         List<DocumentHistoryEntry> target = undo ? document.RedoEntries : document.UndoEntries;
+        if (expectedEntry is not null && (source.Count == 0 || !ReferenceEquals(source[^1], expectedEntry)))
+            return new HistoryResult(false, LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
         if (source.Count == 0)
             return new HistoryResult(false);
         DocumentHistoryEntry entry = source[^1];
@@ -432,9 +459,9 @@ public sealed class EditorDocumentRegistry
             return new HistoryResult(false, entry.Marker.Reason) { IsBlocked = true };
         using EditorDocumentTransaction transaction = BeginTransaction([document]);
         HistoryResult result;
-        if (document.HistoryRestorer is not null)
+        if (restore is not null || document.HistoryRestorer is not null)
         {
-            result = document.HistoryRestorer(entry, undo);
+            result = restore is not null ? restore() : document.HistoryRestorer!(entry, undo);
             if (!result.Success)
                 return result;
         }
@@ -446,7 +473,15 @@ public sealed class EditorDocumentRegistry
         source.RemoveAt(source.Count - 1);
         target.Add(entry with { GestureId = 0 });
         Notify(document);
-        transaction.Commit();
+        try
+        {
+            transaction.Commit();
+        }
+        catch (Exception exception) when (restore is not null && transaction.IsCommitted
+            && exception is InvalidDataException or IOException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            return new HistoryResult(true, exception.Message) { Changes = result.Changes };
+        }
         return result;
     }
 
@@ -456,6 +491,7 @@ public sealed class EditorDocumentRegistry
         document.PendingDescription = null;
         document.PendingMarker = null;
         document.PendingGestureId = 0;
+        document.PendingMapEdits = null;
     }
 
     private sealed class NotificationScope(object owner)

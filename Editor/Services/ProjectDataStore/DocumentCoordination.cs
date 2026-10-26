@@ -231,6 +231,11 @@ public sealed partial class ProjectDataStore
                 ? (JsonObject)candidate.DeepClone() : ReadReferenceBlueprint(key));
         DocumentReferenceScanner scanner = new(Metadata, resolver, GetProjectEnumCatalog);
         DocumentReferenceResult result = scanner.Scan(document.Section, document.Key, candidate);
+        validateRestoredReferenceTargets(result, unavailableMembers);
+    }
+
+    private void validateRestoredReferenceTargets(DocumentReferenceResult result, IReadOnlySet<string> unavailableMembers)
+    {
         foreach (ReferenceRecord reference in result.References)
         {
             if (reference.StoragePath is not null)

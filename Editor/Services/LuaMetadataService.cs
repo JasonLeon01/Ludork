@@ -19,10 +19,10 @@ public sealed class LuaMetadataService
     }
 
     internal LuaMetadataService(string projectPath, bool strictReads, CancellationToken cancellationToken,
-        LuaEnumService? enums, LuaValidationReadCache? readCache)
+        LuaEnumService? enums, LuaValidationReadCache? readCache, LuaReadDependencyCapture? dependencyCapture = null)
     {
         Enums = enums ?? new LuaEnumService(projectPath);
-        files = new LuaMetadataFileCache(projectPath, Enums, strictReads, cancellationToken, readCache);
+        files = new LuaMetadataFileCache(projectPath, Enums, strictReads, cancellationToken, readCache, dependencyCapture);
         hierarchy = new LuaMetadataHierarchy(files, readCache);
         catalog = new LuaMetadataCatalog(files, hierarchy);
     }

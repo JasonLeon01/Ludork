@@ -10,6 +10,7 @@ public sealed class EditorDocumentTransaction : IDisposable
     private readonly Dictionary<EditorDocument, Snapshot> snapshots = [];
     private readonly Dictionary<object, Action> stateRestorers = new(ReferenceEqualityComparer.Instance);
     private bool completed;
+    internal bool IsCommitted { get; private set; }
 
     internal EditorDocumentTransaction(EditorDocumentRegistry registry, IEnumerable<EditorDocument> documents)
     {
@@ -24,7 +25,7 @@ public sealed class EditorDocumentTransaction : IDisposable
             return;
         snapshots.Add(document, new Snapshot(
             document, registry.IsRegistered(document), document.CaptureState(), document.SavedState, document.PendingState,
-            document.PendingMarker, document.PendingDescription, document.PendingGestureId,
+            document.PendingMarker, document.PendingDescription, document.PendingGestureId, document.PendingMapEdits,
             document.UndoEntries.ToArray(), document.RedoEntries.ToArray(), document.Revision,
             registry.GetAdditionalPaths(document)));
     }
@@ -37,6 +38,7 @@ public sealed class EditorDocumentTransaction : IDisposable
             return;
         registry.ValidateNotificationScope(this);
         completed = true;
+        IsCommitted = true;
         registry.CompleteNotificationScope(this, true);
     }
 
@@ -56,6 +58,7 @@ public sealed class EditorDocumentTransaction : IDisposable
             document.PendingMarker = snapshot.Marker;
             document.PendingDescription = snapshot.Description;
             document.PendingGestureId = snapshot.GestureId;
+            document.PendingMapEdits = snapshot.MapEdits;
             document.UndoEntries.Clear();
             document.UndoEntries.AddRange(snapshot.Undo);
             document.RedoEntries.Clear();
@@ -70,6 +73,7 @@ public sealed class EditorDocumentTransaction : IDisposable
 
     private sealed record Snapshot(EditorDocument Document, bool Registered, EditorDocumentState Current,
         EditorDocumentState Saved, EditorDocumentState? Pending, HistoryMarker? Marker,
-        string? Description, long GestureId, DocumentHistoryEntry[] Undo, DocumentHistoryEntry[] Redo, long Revision,
+        string? Description, long GestureId, MapHistoryEdits? MapEdits,
+        DocumentHistoryEntry[] Undo, DocumentHistoryEntry[] Redo, long Revision,
         string[] Aliases);
 }

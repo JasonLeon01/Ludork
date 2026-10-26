@@ -61,6 +61,53 @@ public sealed class JsonDataEdit
             : !exists || !JsonNode.DeepEquals(current, value));
     }
 
+    internal IReadOnlyList<JsonDataEdit> CaptureInverse(JsonObject target)
+    {
+        if (!CanApply(target))
+            throw new InvalidOperationException("The edit target no longer has the expected shape.");
+        JsonNode current = target;
+        for (int index = 0; index < Path.Count; index++)
+        {
+            object segment = Path[index];
+            bool last = index == Path.Count - 1;
+            JsonNode? child;
+            if (current is JsonObject obj && segment is string name)
+            {
+                bool exists = obj.TryGetPropertyValue(name, out child);
+                if (last)
+                {
+                    if (Kind == Operation.Remove)
+                        return exists ? [new JsonDataEdit(Operation.Set, Path, child)] : [];
+                    return [new JsonDataEdit(exists ? Operation.Set : Operation.Remove, Path, child)];
+                }
+                if (child is null)
+                {
+                    if (Kind == Operation.Remove)
+                        return [];
+                    return [new JsonDataEdit(exists ? Operation.Set : Operation.Remove, Path.Take(index + 1))];
+                }
+            }
+            else if (current is JsonArray array && segment is int position)
+            {
+                if (last && Kind == Operation.Insert)
+                    return [new JsonDataEdit(Operation.Remove, Path)];
+                if (position >= array.Count)
+                    return Kind == Operation.Remove ? [] : [new JsonDataEdit(Operation.Set, Path.Take(index), array)];
+                child = array[position];
+                if (last)
+                    return [new JsonDataEdit(Kind == Operation.Remove ? Operation.Insert : Operation.Set, Path, child)];
+                if (child is null)
+                    return Kind == Operation.Remove ? [] : [new JsonDataEdit(Operation.Set, Path.Take(index + 1))];
+            }
+            else
+            {
+                throw new InvalidOperationException("The edit target no longer has the expected shape.");
+            }
+            current = child;
+        }
+        return [];
+    }
+
     public void Apply(JsonObject target)
     {
         JsonNode current = target;

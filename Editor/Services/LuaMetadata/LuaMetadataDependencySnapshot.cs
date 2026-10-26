@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 
 namespace Ludork.Services;
 
@@ -20,4 +21,11 @@ internal sealed class LuaMetadataDependencySnapshot
     internal bool CoveredByReadSnapshot { get; }
 }
 
-internal readonly record struct LuaMetadataFileStamp(bool Exists, DateTime ModifiedAt, long Length);
+internal readonly record struct LuaMetadataFileStamp(bool Exists, DateTime ModifiedAt, long Length)
+{
+    internal static LuaMetadataFileStamp Read(string path)
+    {
+        FileInfo info = new(path);
+        return info.Exists ? new LuaMetadataFileStamp(true, info.LastWriteTimeUtc, info.Length) : default;
+    }
+}

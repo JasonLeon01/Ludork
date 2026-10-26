@@ -19,6 +19,7 @@ public sealed class LuaEnumService
         TimeSpan.FromSeconds(1));
     private readonly string projectPath;
     private readonly LuaValidationReadCache? readCache;
+    private readonly LuaReadDependencyCapture? dependencyCapture;
 
     private readonly Func<ProjectEnumCatalog>? catalog;
     private Dictionary<string, LuaEnumDefinition>? readModules;
@@ -34,11 +35,13 @@ public sealed class LuaEnumService
     {
     }
 
-    internal LuaEnumService(string projectPath, Func<ProjectEnumCatalog>? catalog, LuaValidationReadCache? readCache)
+    internal LuaEnumService(string projectPath, Func<ProjectEnumCatalog>? catalog, LuaValidationReadCache? readCache,
+        LuaReadDependencyCapture? dependencyCapture = null)
     {
         this.projectPath = projectPath;
         this.catalog = catalog;
         this.readCache = readCache;
+        this.dependencyCapture = dependencyCapture;
     }
 
     public IReadOnlyList<string> EnumerateModules()
@@ -180,7 +183,11 @@ public sealed class LuaEnumService
             return managed;
         }
         string path = Path.Combine(projectPath, "Scripts", moduleName.Replace('.', Path.DirectorySeparatorChar) + ".lua");
+        if (dependencyCapture is not null)
+            dependencyCapture.Record(path, LuaMetadataFileStamp.Read(path));
         string source = File.ReadAllText(path);
+        if (dependencyCapture is not null)
+            dependencyCapture.Record(path, LuaMetadataFileStamp.Read(path));
         Script script = new(CoreModules.None);
         script.LoadString(source, null, path);
         IReadOnlyDictionary<string, JsonNode> constants = readConstants(source, script);

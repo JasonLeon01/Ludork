@@ -91,7 +91,8 @@ public sealed partial class ProjectDataStore
         return document;
     }
 
-    internal void RecordDocumentSnapshot(string section, string key, string? description = null, HistoryMarker? marker = null)
+    internal void RecordDocumentSnapshot(string section, string key, string? description = null, HistoryMarker? marker = null,
+        MapHistoryEdits? mapEdits = null)
     {
         key = normalizeJsonKey(key);
         EditorDocument document = GetDocument(section, key) ?? RegisterLoadedDocument(section, key);
@@ -101,7 +102,7 @@ public sealed partial class ProjectDataStore
             clearHistoryGesture();
         if (activeHistoryGestureId != 0)
             activeHistoryDocumentId = document.Id;
-        Documents.Capture(document, description, marker, activeHistoryGestureId);
+        Documents.Capture(document, description, marker, activeHistoryGestureId, mapEdits);
     }
 
     internal bool canCreateDocument(string section, string key)
@@ -229,7 +230,8 @@ public sealed partial class ProjectDataStore
         activeHistoryDocumentId = null;
     }
 
-    internal void RecordMapSnapshot(string mapKey) => RecordDocumentSnapshot("Maps", MapDataService.normaliseMapKey(mapKey));
+    internal void RecordMapSnapshot(string mapKey, MapHistoryEdits? mapEdits = null)
+        => RecordDocumentSnapshot("Maps", MapDataService.normaliseMapKey(mapKey), mapEdits: mapEdits);
 
     internal void RecordWorldSnapshot(string worldKey) => RecordDocumentSnapshot("WorldMaps", WorldDataService.normalizeWorldKey(worldKey));
 

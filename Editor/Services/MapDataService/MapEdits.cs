@@ -136,9 +136,16 @@ public sealed partial class MapDataService
         if (changed.Length == 0 || changed.Any(edit => !edit.CanApply(map)))
             return false;
         mapKey = normaliseMapKey(mapKey);
-        store.RecordMapSnapshot(mapKey);
+        store.RecordMapSnapshot(mapKey, MapHistoryEdits.Empty);
         MapDataEditedEventArgs change = new(mapKey, changed);
-        change.ApplyTo(map);
+        List<IReadOnlyList<JsonDataEdit>> inverses = [];
+        foreach (JsonDataEdit edit in changed)
+        {
+            inverses.Add(edit.CaptureInverse(map));
+            edit.Apply(map);
+        }
+        MapHistoryEdits history = new(changed, inverses.AsEnumerable().Reverse().SelectMany(edits => edits));
+        store.Documents.AppendPendingMapEdits(store.GetDocument("Maps", mapKey)!, history);
         if (change.ChangesActors)
             NotifyMapActorsChanged(mapKey);
         store.refreshModifiedState();

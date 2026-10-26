@@ -58,11 +58,15 @@ public sealed partial class ProjectDataStore
     private Task<HistoryResult> replayResourceAsync(string section, string key, bool undo,
         IProgress<EditorOperationProgress>? progress)
     {
+        BreakHistoryGesture();
+        CompleteDocumentChanges();
         EditorDocument? document = Documents.Find(section, section == ProjectAssetPaths.Section ? key : normalizeJsonKey(key));
         DocumentHistoryEntry? entry = (undo ? document?.UndoEntries : document?.RedoEntries)?.LastOrDefault();
         if (document is null || entry is null || entry.Marker?.IsBarrier == true
             || !sections.ContainsKey(document.Section) && document.Section != ProjectAssetPaths.Section)
             return Task.FromResult(undo ? Undo(section, key) : Redo(section, key));
+        if (canReplayMapHistory(document, entry))
+            return replayMapHistoryAsync(document, entry, undo, progress);
         return runResourceOperationAsync(store => undo ? store.Undo(section, key) : store.Redo(section, key),
             result => result.Success, progress, undo ? "UNDO" : "REDO");
     }
