@@ -94,9 +94,7 @@ Creation and import compile source before registration. Global plug-ins compile 
 
 A registered plug-in is enabled after restart, when its scope loads, and there is no hot enable or disable switch. Treat **Loaded** as the effective enabled state.
 
-![Manage Plugins status and actions](../../../images/plugins/manage-plugins.png)
-
-*Use the status and diagnostics shown here before replacing or removing installed source.*
+Review the manager's status and diagnostics before replacing or removing installed source.
 
 ## Data and uninstall
 
