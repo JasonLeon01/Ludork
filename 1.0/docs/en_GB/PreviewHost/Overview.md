@@ -8,7 +8,7 @@ PreviewHost supplies native rendering for editor previews of maps, worlds, Actor
 |---|---|---|
 | Maps, worlds and child-map thumbnails | Main workspace map viewport and world canvas | [Map and World Previews](<Map and World Previews.md>) |
 | UI assets and their animations | UI Asset Editor Designer and Timeline | [UI previews](<UI Actor Particle and Subtitle Previews.md#ui-previews>) |
-| Actor appearances | Blueprint previews, Actor Library and placed map Actors | [Actor previews](<UI Actor Particle and Subtitle Previews.md#actor-previews>) |
+| Actor appearances | File Explorer thumbnails, file selectors, Blueprint previews and placed map Actors | [Actor previews](<UI Actor Particle and Subtitle Previews.md#actor-previews>) |
 | Common particles | Common Particle Editor | [Particle previews](<UI Actor Particle and Subtitle Previews.md#particle-previews>) |
 | Video subtitles | Subtitle Editor | [Subtitle previews](<UI Actor Particle and Subtitle Previews.md#subtitle-previews>) |
 

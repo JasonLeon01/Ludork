@@ -16,9 +16,9 @@ For nested-asset and repeated-template editing, see the [UI Asset Editor](<../Ed
 
 Selecting a Blueprint JSON file in a file selector previews its current appearance and animation, including unsaved changes. A missing appearance or texture displays the file icon.
 
-The Actor Library and Blueprint editing surfaces use resolved Actor appearances. Texture regions, character frame animation, `material` and `materialParameters` come from the current Blueprint values. Map instances also apply their instance overrides. Changing inherited defaults, including Undo/Redo, refreshes the affected visuals.
+File Explorer thumbnails and Blueprint editing surfaces use resolved Actor appearances. Texture regions, character frame animation, `material` and `materialParameters` come from the current Blueprint values. Map instances also apply their instance overrides. Changing inherited defaults, including Undo/Redo, refreshes the affected visuals.
 
-See [Blueprints, Common Functions and Actors](<../Editor User Guide/Blueprints Common Functions and Actors.md>) for the Actor Library, class and instance editing, and [Map and World Previews](<Map and World Previews.md>) for map lighting, selection aids and Live Debug display.
+See [Actor placement and Actor Info](<../Editor User Guide/Blueprints Common Functions and Actors.md#actor-placement-and-actor-info>) for selecting Blueprints and editing instances, and [Map and World Previews](<Map and World Previews.md>) for map lighting, selection aids and Live Debug display.
 
 ## Material previews
 

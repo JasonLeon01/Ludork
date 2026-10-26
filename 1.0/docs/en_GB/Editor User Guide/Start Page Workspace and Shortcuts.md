@@ -10,11 +10,9 @@ An unsupported project version cannot be opened. See [Main.proj](<Project Settin
 
 ## Main workspace
 
-The **Map List** is on the left, with the map canvas in the centre and layer tabs above it. The right panel shows the tile palette in Tile mode, or **World Outliner** and **Actor Info** in Actor mode. **File Explorer**, **Actor Library** and **Console** sit below the canvas. Tile and Actor mode controls sit beside the canvas and are hidden for world maps. The toolbar provides **Construct → Export → Play** / **Stop**; Standalone projects hide Construct. See [Run, Debug and Package](<Run Debug and Package.md>).
+The **Map List** is on the left, with the map canvas in the centre and layer tabs above it. The right panel shows the tile palette in Tile mode, or **World Outliner** and **Actor Info** in Actor mode. **File Explorer** tabs and **Console** share the tab strip below the canvas. Tile and Actor mode controls sit beside the canvas and are hidden for world maps. The toolbar provides **Construct → Export → Play** / **Stop**; Standalone projects hide Construct. See [Run, Debug and Package](<Run Debug and Package.md>).
 
 Resource windows display a loading indicator while opening. If loading fails, use **Retry**.
-
-![The main workspace showing Overview, layer tabs, the tile palette and File Explorer](../../../images/overview/editor-workspace.png)
 
 ## Online documentation
 
@@ -29,12 +27,11 @@ Preferences shared by all projects are stored in `~/Ludork/Ludork.plist` on macO
 | Area | Saved preferences |
 |---|---|
 | Main window | Normal position and size, maximised state, map-list and inspector widths, lower-area height, Actor outliner/inspector proportions and the world-map child-list width. |
-| File Explorer | Icon/list view, content zoom, expanded/collapsed source list and preferred external open target. |
-| Actor Library | Icon/list view. |
+| File Explorer | Initial icon/list view, content zoom and expanded/collapsed source list for a new workspace, plus the preferred external open target. |
 | Tool windows | Position, normal size and maximised state for each window type. |
 | Tool content | Existing adjustable split widths or proportions, the UI timeline and system-control category expansion, and particle configuration section expansion. |
 
-Defaults are icon view in both panels, 100% File Explorer zoom, a collapsed source list and the system file manager. Missing or invalid preference values use defaults. An unreadable or malformed plist is reported and is not overwritten by preference saves; repair it and restart the editor before saving preferences again. Project browsing and map selection stay in `Main.proj`; global preferences do not modify project resources or restore search text, input drafts, layer selection or canvas view state.
+File Explorer defaults to icon view, 100% zoom, a collapsed source list and the system file manager. Saved project tabs use their own display preferences; changing one tab does not change other open tabs. Missing or invalid preference values use defaults. An unreadable or malformed plist is reported and is not overwritten by preference saves; repair it and restart the editor before saving preferences again. Project browsing and map selection stay in `Main.proj`; global preferences do not modify project resources or restore search text, input drafts, layer selection or canvas view state.
 
 Window layouts adapt to the current monitors. For each window type, the most recent adjustment is restored; minimised state is not restored.
 
@@ -124,7 +121,13 @@ Modified files show `*` in the file explorer and in editor titles, and they are 
 
 ## File explorer and reference tree
 
-File Explorer browses `Assets` and `Data` through the source sidebar and breadcrumbs. Up stops at the selected root. The last valid browsing directory is restored, defaulting to `Assets`.
+File Explorer browses `Assets` and `Data` through the source list and breadcrumbs. Up stops at the selected root.
+
+Choose **View → New File Explorer Tab**, or right-click a File Explorer tab and choose **New File Explorer Tab**, to open another browser beside the existing tabs and Console. The first **File Explorer** tab stays open; additional tabs have numbers and a **×** close control. A new tab copies the source tab's current directory and display preferences, with an empty search, navigation history and selection. The context menu uses the right-clicked tab as its source; the View menu uses the most recently active File Explorer. Closing the active additional tab selects the File Explorer immediately to its left.
+
+Each tab keeps its own browsing state. Use **Back** and **Forward**, `Alt+Left` and `Alt+Right`, or the mouse side buttons to revisit directories. History also restores that visit's search, expanded folders, selection, scroll position and display preferences. Navigating to a new directory after going back clears the forward history. Refreshing, changing a selection or search, and switching tabs do not add history entries.
+
+Resource **Locate** actions use the most recently active File Explorer, including when Console is selected. Reopening the project restores the browser tabs, their directories and display preferences, and the active browser; search, navigation history, selection and scroll position last only for the current session. The saved fields and directory recovery rules are described in [Main.proj](<Project Settings and Asset Layout.md#mainproj>).
 
 Right-click an entry for file operations or empty space for the current directory menu. Paste targets the current browsing directory.
 

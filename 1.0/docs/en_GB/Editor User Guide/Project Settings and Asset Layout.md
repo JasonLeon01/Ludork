@@ -16,7 +16,20 @@ A project stores editor and packaging settings in `Main.proj`, runtime settings 
     "version": "1.0.0",
     "dev": false
   },
-  "lastFileExplorerPath": "Assets"
+  "editor": {
+    "fileExplorer": {
+      "tabs": [
+        {
+          "number": 1,
+          "path": "Assets",
+          "iconView": true,
+          "zoom": 100,
+          "sourcesExpanded": false
+        }
+      ],
+      "activeTabNumber": 1
+    }
+  }
 }
 ```
 
@@ -26,7 +39,9 @@ The required top-level `version` is the engine compatibility version, written as
 
 Treat unknown keys as editor-owned state and preserve them. Choose the FFmpeg template to match the `ffmpeg` setting.
 
-`lastFileExplorerPath` stores the last browsed directory relative to the project root. New Project initialises it to `Assets` for every template.
+`editor.fileExplorer` stores the project browser workspace. `tabs` preserves tab order; each entry records its `number`, project-relative `path`, `iconView`, `zoom` (50–200) and `sourcesExpanded`. `activeTabNumber` identifies the most recently active browser. Tab 1 is always present and cannot be closed. Without saved workspace state, the editor opens it at `Assets` using the [global initial display preferences](<Start Page Workspace and Shortcuts.md#global-editor-preferences>).
+
+Browser paths stay beneath `Assets` or `Data`. If a stored directory has disappeared, reopening uses its nearest existing parent within the same root; an invalid, absolute, linked or out-of-root path uses `Assets`. Search, navigation history, selection and scroll position are not written to `Main.proj`. Browser operations are described in [File explorer and reference tree](<Start Page Workspace and Shortcuts.md#file-explorer-and-reference-tree>).
 
 The editor stores the last selected map key in `lastOpenedMapKey` and saves it immediately when the editing selection changes, without saving map content. Reopening the project restores that map, including world maps and their child maps. Missing or invalid records select the first available entry; an empty project has no selection. Live-debug map changes do not overwrite this preference.
 

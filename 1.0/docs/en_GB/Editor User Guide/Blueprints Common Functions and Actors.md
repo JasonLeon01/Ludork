@@ -26,15 +26,13 @@ A new field saves its declaration in `attrDefs` and its initial value in `attrs`
 
 Every saved attribute needs a declaration in metadata, an active Script Mixin or inherited/local `attrDefs`. An invalid declaration prevents the Blueprint from loading or being saved; the error names the Blueprint and attribute. Parent changes and field removal cannot leave descendants or map overrides with incompatible declarations. **Save Invalid Blueprint** permits unfinished graphs, but cannot bypass attribute errors. See [Blueprint attribute declarations](<../Lua and Blueprint Scripting/Blueprint Scripting/Metadata Schema and Decorators.md#blueprint-attribute-declarations>) for the JSON format.
 
-## Actor Library and Actor Info
+## Actor placement and Actor Info
 
-The **Actor Library** lists Actor Blueprints in icon or list view. Select an entry for placement, or double-click it to open the Blueprint. Visual checks are described in [Actor previews](<../PreviewHost/UI Actor Particle and Subtitle Previews.md#actor-previews>).
+Select an Actor Blueprint in any **File Explorer** tab to use it for placement. It must inherit `Engine.Actor`. In Actor mode, choose an editable layer and click an empty grid position to place an instance; double-clicking the Blueprint file opens its editor. Selecting a single Actor already on the map also selects its Blueprint for further placement. Press **Escape** while the map has focus in Actor mode to cancel placement. Visual checks are described in [Actor previews](<../PreviewHost/UI Actor Particle and Subtitle Previews.md#actor-previews>).
 
-Filter by top-level folder and **All**, **Favourites** or **Recent** (the last 20 selected or placed Actors). Search matches names or Blueprint paths across all Actors, ignoring case; category and scope filters are disabled until the search is cleared.
+Restoring a browser selection when switching tabs, navigating history or refreshing does not change the Actor prepared for placement. Locating a resource and selecting non-Actor files do not change it either. A prepared Blueprint follows its editor rename or move, including Undo/Redo; deleting it or changing it to a non-Actor class cancels placement.
 
-Right-click an entry to open or locate its Blueprint, toggle its favourite state or remove it from Recent. Favourites are stored in `Main.proj` under `editor.actorFavorites`; they follow file moves and renames and are removed when the Blueprint is deleted.
-
-In Actor mode, right-click an Actor on the map and choose **Locate Blueprint** to switch to File Explorer and select its Blueprint file. The action is disabled on empty space and for Actors without a Blueprint in the project.
+In Actor mode, right-click an Actor on the map and choose **Locate Blueprint** to select its Blueprint file in the most recently active [File Explorer](<Start Page Workspace and Shortcuts.md#file-explorer-and-reference-tree>). The action is disabled on empty space and for Actors without a Blueprint in the project.
 
 For a selected map Actor, **Actor Info** shows its Blueprint reference with the **Open** and **Locate** actions, the grid position X/Y, the tag and the exposed class fields. Position and text edits merge into one Undo step for a continuous focused edit. A reset button beside an overridden field removes that instance override, and **Reset All** removes every class-field override for the instance and reveals the inherited Blueprint defaults again. When the Actor's layer is hidden, **Actor Info** stays available for inspection and Blueprint navigation, but its tag, position, reset actions and class fields are read-only.
 

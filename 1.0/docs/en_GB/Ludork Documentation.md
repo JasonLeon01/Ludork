@@ -4,8 +4,6 @@ This guide covers Ludork 1.0. Downloads and project information are on the [Ludo
 
 Ludork combines a visual editor, Blueprint graphs, Lua scripts and an extensible C++20 runtime for map-driven 2D games. Use the editor to configure projects and create maps, Actors, data, animation and user interfaces, then run and package the game.
 
-![The Ludork workspace with the Map List, layer tabs, map overview, tile palette and File Explorer](../../images/overview/editor-workspace.png)
-
 ## Choose a learning path
 
 | If you want to… | Start here |
