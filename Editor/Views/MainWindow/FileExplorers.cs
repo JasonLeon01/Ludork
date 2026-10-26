@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Data;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
@@ -21,6 +22,7 @@ public partial class MainWindow
     private readonly Dictionary<FileExplorerTabViewModel, TabItem> explorerTabs = [];
     private FileExplorerWorkspaceViewModel? explorerWorkspace;
     private NativeMenuItem? newExplorerMenu;
+    private Button? newExplorerButton;
     private bool updatingExplorerTabs;
     private bool preservingBottomSelection;
     private bool explorerPanelsEnabled = true;
@@ -35,6 +37,21 @@ public partial class MainWindow
         NativeMenu view = new();
         view.Items.Add(newExplorerMenu);
         menu.Items.Insert(1, new NativeMenuItem { Header = LocaleService.Get("VIEW_MENU"), Menu = view });
+    }
+
+    private void onBottomTabsTemplateApplied(object? sender, TemplateAppliedEventArgs args)
+    {
+        if (newExplorerButton is not null)
+            newExplorerButton.Click -= onNewFileExplorerTab;
+        newExplorerButton = args.NameScope.Find<Button>("NewExplorerButton");
+        if (newExplorerButton is not null)
+        {
+            newExplorerButton.Click += onNewFileExplorerTab;
+            string label = LocaleService.Get("FILE_EXPLORER_NEW_TAB");
+            ToolTip.SetTip(newExplorerButton, label);
+            Avalonia.Automation.AutomationProperties.SetName(newExplorerButton, label);
+        }
+        updateFileExplorerActions();
     }
 
     private void attachFileExplorers(FileExplorerWorkspaceViewModel? workspace)
@@ -60,8 +77,7 @@ public partial class MainWindow
         }
         updatingExplorerTabs = false;
         synchronizeExplorerTabs();
-        if (newExplorerMenu is not null)
-            newExplorerMenu.IsEnabled = workspace is not null && explorerPanelsEnabled;
+        updateFileExplorerActions();
     }
 
     private void onExplorerTabsChanged(object? sender, NotifyCollectionChangedEventArgs args)
@@ -139,18 +155,6 @@ public partial class MainWindow
         }
         TabItem item = new() { Header = header, Content = panel, DataContext = tab };
         item.Bind(ToolTip.TipProperty, new Binding(nameof(FileExplorerTabViewModel.RelativePath)) { Source = tab });
-        header.ContextRequested += (_, args) =>
-        {
-            MenuItem add = new()
-            {
-                Header = LocaleService.Get("FILE_EXPLORER_NEW_TAB"),
-                IsEnabled = explorerPanelsEnabled,
-            };
-            add.Click += (_, _) => explorerWorkspace?.AddTab(tab);
-            ContextMenu menu = new() { ItemsSource = new[] { add } };
-            menu.Open(header);
-            args.Handled = true;
-        };
         return item;
     }
 
@@ -196,8 +200,16 @@ public partial class MainWindow
             if (item.Content is FileExplorerPanel panel)
                 panel.IsEnabled = enabled;
         }
+        updateFileExplorerActions();
+    }
+
+    private void updateFileExplorerActions()
+    {
+        bool enabled = explorerWorkspace is not null && explorerPanelsEnabled;
         if (newExplorerMenu is not null)
-            newExplorerMenu.IsEnabled = explorerWorkspace is not null && enabled;
+            newExplorerMenu.IsEnabled = enabled;
+        if (newExplorerButton is not null)
+            newExplorerButton.IsEnabled = enabled;
     }
 
     private async Task locateExplorerPathAsync(string path)

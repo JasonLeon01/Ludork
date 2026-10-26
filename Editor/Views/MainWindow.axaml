@@ -389,7 +389,8 @@
             <GridSplitter x:Name="UpperLowerSplitter" Grid.Row="1" ResizeDirection="Rows" />
 
             <Grid x:Name="LowerGrid" Grid.Row="2">
-                <TabControl x:Name="BottomTabs" SelectionChanged="onBottomTabSelectionChanged">
+                <TabControl x:Name="BottomTabs" SelectionChanged="onBottomTabSelectionChanged"
+                            TemplateApplied="onBottomTabsTemplateApplied">
                     <TabControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <StackPanel Orientation="Horizontal" />
@@ -398,11 +399,17 @@
                     <TabControl.Template>
                         <ControlTemplate>
                             <Grid RowDefinitions="Auto,*" Background="{TemplateBinding Background}">
-                                <ScrollViewer HorizontalScrollBarVisibility="Auto"
-                                              VerticalScrollBarVisibility="Disabled">
-                                    <ItemsPresenter Name="PART_ItemsPresenter"
-                                                    ItemsPanel="{TemplateBinding ItemsPanel}" />
-                                </ScrollViewer>
+                                <Grid ColumnDefinitions="*,Auto" HorizontalAlignment="Left">
+                                    <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                                                  VerticalScrollBarVisibility="Disabled">
+                                        <ItemsPresenter Name="PART_ItemsPresenter"
+                                                        ItemsPanel="{TemplateBinding ItemsPanel}" />
+                                    </ScrollViewer>
+                                    <Button x:Name="NewExplorerButton" Grid.Column="1"
+                                            Classes="toolbar" Content="+" FontSize="20"
+                                            Margin="4,2,4,0" VerticalAlignment="Top"
+                                            IsEnabled="False" />
+                                </Grid>
                                 <Panel Grid.Row="1" ClipToBounds="True">
                                     <ContentPresenter Name="PART_SelectedContentHost2"
                                                       IsVisible="False"
