@@ -14,6 +14,7 @@ internal sealed class LuaMetadataFileCache
     private readonly LuaEnumService enums;
     private readonly bool strictReads;
     private readonly CancellationToken cancellationToken;
+    private readonly LuaValidationReadCache? readCache;
     private readonly Dictionary<string, CachedMetadataFile> fileCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, CachedScriptMixinMetadata> scriptMixinCache = new(StringComparer.OrdinalIgnoreCase);
     private CachedMetadataFileSet? metadataFileSet;
@@ -24,11 +25,13 @@ internal sealed class LuaMetadataFileCache
     private int preparedReadDepth;
     private long revision;
 
-    public LuaMetadataFileCache(string projectPath, LuaEnumService enums, bool strictReads = false, CancellationToken cancellationToken = default)
+    public LuaMetadataFileCache(string projectPath, LuaEnumService enums, bool strictReads = false,
+        CancellationToken cancellationToken = default, LuaValidationReadCache? readCache = null)
     {
         this.enums = enums;
         this.strictReads = strictReads;
         this.cancellationToken = cancellationToken;
+        this.readCache = readCache;
         ProjectPath = Path.GetFullPath(projectPath);
         scriptsPath = Path.Combine(ProjectPath, "Scripts");
     }
@@ -191,11 +194,12 @@ internal sealed class LuaMetadataFileCache
             return null;
         }
 
-        LuaTypeMetadata metadata = LuaMetadataParser.ReadScriptMixin(
-            metadataPath,
-            ScriptMixinPaths.GetModuleName(normalized),
-            ScriptMixinPaths.GetTypeName(normalized),
-            enums.Read);
+        string moduleName = ScriptMixinPaths.GetModuleName(normalized);
+        string typeName = ScriptMixinPaths.GetTypeName(normalized);
+        LuaTypeMetadata metadata = readCache is null
+            ? LuaMetadataParser.ReadScriptMixin(metadataPath, moduleName, typeName, enums.Read)
+            : readCache.GetOrAdd(new MixinParseKey(metadataPath, moduleName, typeName, stamp),
+                () => LuaMetadataParser.ReadScriptMixin(metadataPath, moduleName, typeName, readCache.CreateEnums().Read));
         scriptMixinCache[metadataPath] = new CachedScriptMixinMetadata(metadataPath, stamp, metadata);
         return metadata;
     }
@@ -286,7 +290,8 @@ internal sealed class LuaMetadataFileCache
 
     private CachedMetadataFileSet getMetadataFileSet()
     {
-        metadataFileSet ??= captureMetadataFileSet();
+        metadataFileSet ??= readCache is null ? captureMetadataFileSet()
+            : readCache.GetOrAdd(scriptsPath, captureMetadataFileSet);
         return metadataFileSet;
     }
 
@@ -394,7 +399,10 @@ internal sealed class LuaMetadataFileCache
         {
             try
             {
-                types = LuaMetadataParser.ReadFile(path, moduleName, enums.Read);
+                types = readCache is null
+                    ? LuaMetadataParser.ReadFile(path, moduleName, enums.Read)
+                    : readCache.GetOrAdd(new MetadataParseKey(path, moduleName, stamp),
+                        () => LuaMetadataParser.ReadFile(path, moduleName, readCache.CreateEnums().Read));
             }
             catch (Exception exception) when (exception is InterpreterException or InvalidDataException or IOException or UnauthorizedAccessException)
             {
@@ -417,6 +425,10 @@ internal sealed class LuaMetadataFileCache
     }
 
     private readonly record struct DirectoryStamp(bool Exists, DateTime ModifiedAt);
+
+    private sealed record MetadataParseKey(string Path, string ModuleName, LuaMetadataFileStamp Stamp);
+
+    private sealed record MixinParseKey(string Path, string ModuleName, string TypeName, LuaMetadataFileStamp Stamp);
 
     private sealed record CachedMetadataFile(
         LuaMetadataFileStamp Stamp,

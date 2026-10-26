@@ -8,30 +8,17 @@ using System.Threading;
 
 namespace Ludork.Services;
 
-internal sealed class ReferenceIndexSnapshotBuilder : IDisposable
+internal sealed class ReferenceIndexSnapshotBuilder
 {
-    private readonly LuaMetadataService metadata;
-    private readonly BlueprintClassResolver resolver;
-    private IReadOnlyDictionary<string, JsonObject> blueprints = new Dictionary<string, JsonObject>();
     private Dictionary<(string Section, string Key), CachedDocument> cache = [];
-    private ProjectEnumCatalog projectEnums = new(new Dictionary<string, JsonObject>(), [], []);
     private ReferenceBuildDocument[] catalogInputs = [];
     private ReferenceInputFiles? previousFiles;
     private long schemaVersion = -1;
-    private long metadataRevision = -1;
-
-    internal ReferenceIndexSnapshotBuilder(string projectPath)
-    {
-        metadata = new LuaMetadataService(projectPath, strictReads: true,
-            enums: new LuaEnumService(projectPath, () => projectEnums));
-        resolver = new BlueprintClassResolver(metadata, key => blueprints.TryGetValue(key, out JsonObject? value)
-            ? (JsonObject)value.DeepClone() : null);
-    }
 
     internal Result Build(ReferenceBuildInput input, CancellationToken token, IProgress<EditorOperationProgress>? progress = null)
     {
         ReferenceInputFiles files = ReferenceInputFiles.Capture(input.ProjectPath,
-            input.Documents.Where(document => document.Data is null).Select(document => document.Path));
+            input.Documents.Where(document => document.Data is null).Select(document => document.Path), includeStubs: true);
         ReferenceBuildDocument[] nextCatalogInputs = input.Documents
             .Where(document => document.Section is "General" or "Animations" or "Particles")
             .OrderBy(document => document.Section, StringComparer.Ordinal)
@@ -40,46 +27,51 @@ internal sealed class ReferenceIndexSnapshotBuilder : IDisposable
             || catalogInputs.Where((document, index) => document.Section != nextCatalogInputs[index].Section
                 || document.Key != nextCatalogInputs[index].Key
                 || document.Section == "General" && !ReferenceEquals(document.Data, nextCatalogInputs[index].Data)).Any();
-        bool filesChanged = previousFiles is not null && !previousFiles.IsCurrent();
-        projectEnums = new ProjectEnumCatalog(
+        bool filesChanged = previousFiles is not null && !previousFiles.HasSameInputs(files);
+        ProjectEnumCatalog projectEnums = new(
             nextCatalogInputs.Where(document => document.Section == "General")
                 .ToDictionary(document => document.Key, document => document.Data!, StringComparer.Ordinal),
             nextCatalogInputs.Where(document => document.Section == "Animations").Select(document => document.Key),
             nextCatalogInputs.Where(document => document.Section == "Particles").Select(document => document.Key));
-        if (catalogChanged || filesChanged)
-            metadata.ClearCache();
-        bool rebuild = catalogChanged || filesChanged || schemaVersion != input.SchemaVersion || metadataRevision != metadata.Revision;
-        if (rebuild)
-            resolver.Invalidate();
-        blueprints = input.Documents.Where(document => document.Section == "Blueprints" && document.Data is not null)
+        bool rebuild = catalogChanged || filesChanged || schemaVersion != input.SchemaVersion;
+        Dictionary<string, JsonObject> blueprints = input.Documents.Where(document => document.Section == "Blueprints" && document.Data is not null)
             .ToDictionary(document => document.Key, document => document.Data!, StringComparer.Ordinal);
-        DocumentReferenceScanner scanner = new(metadata, resolver, () => projectEnums, token);
+        CachedDocument[] documents = new CachedDocument[input.Documents.Count];
+        List<(int Index, ReferenceInputFiles.Stamp Stamp)> pending = [];
+        for (int index = 0; index < input.Documents.Count; index++)
+        {
+            token.ThrowIfCancellationRequested();
+            ReferenceBuildDocument document = input.Documents[index];
+            (string Section, string Key) key = (document.Section, document.Key);
+            ReferenceInputFiles.Stamp stamp = document.Data is null ? ReferenceInputFiles.Read(document.Path) : default;
+            if (!rebuild && cache.TryGetValue(key, out CachedDocument? previous)
+                && ReferenceEquals(previous.Input.Data, document.Data) && previous.Input.Path == document.Path
+                && sameCatalog(previous.Input.Catalog, document.Catalog) && previous.Stamp == stamp)
+                documents[index] = previous;
+            else
+                pending.Add((index, stamp));
+        }
+        int reused = documents.Length - pending.Count;
+        progress?.Report(new EditorOperationProgress("EDIT_OPERATION_REFERENCES", Completed: reused, Total: documents.Length));
+        DocumentReferenceResult[] scanned = ReferenceDocumentBatchScanner.Scan(input.ProjectPath,
+            pending.Select(item => input.Documents[item.Index]).ToArray(), blueprints, projectEnums, token,
+            completed => progress?.Report(new EditorOperationProgress("EDIT_OPERATION_REFERENCES",
+                Completed: reused + completed, Total: documents.Length)));
+        for (int index = 0; index < pending.Count; index++)
+        {
+            (int documentIndex, ReferenceInputFiles.Stamp stamp) = pending[index];
+            documents[documentIndex] = new CachedDocument(input.Documents[documentIndex], stamp, scanned[index]);
+        }
         Dictionary<(string Section, string Key), CachedDocument> next = [];
         Dictionary<string, ReferenceNode> nodes = new(StringComparer.Ordinal);
         HashSet<string> declared = new(StringComparer.Ordinal);
         Dictionary<string, string> members = new(StringComparer.Ordinal);
         List<ReferenceRecord> references = [];
-        using IDisposable read = metadata.BeginReferenceRead();
-        int completed = 0;
-        foreach (ReferenceBuildDocument document in input.Documents)
+        foreach (CachedDocument cached in documents)
         {
             token.ThrowIfCancellationRequested();
-            progress?.Report(new EditorOperationProgress("EDIT_OPERATION_REFERENCES", document.Path, completed++, input.Documents.Count));
+            ReferenceBuildDocument document = cached.Input;
             (string Section, string Key) key = (document.Section, document.Key);
-            ReferenceInputFiles.Stamp stamp = document.Data is null ? ReferenceInputFiles.Read(document.Path) : default;
-            CachedDocument cached;
-            if (!rebuild && cache.TryGetValue(key, out CachedDocument? previous)
-                && ReferenceEquals(previous.Input.Data, document.Data) && previous.Input.Path == document.Path && sameCatalog(previous.Input.Catalog, document.Catalog) && previous.Stamp == stamp)
-                cached = previous;
-            else
-            {
-                JsonObject data = document.Data ?? JsonNode.Parse(File.ReadAllText(document.Path)) as JsonObject
-                    ?? throw new InvalidDataException($"The indexed document could not be read: {document.Path}");
-                if (document.Data is null && (document.Catalog is not MapCatalogEntry catalog
-                    || data["type"]?.GetValue<string>() != "map" || !MapDataService.mapMatchesCatalogEntry(data, catalog)))
-                    throw new InvalidDataException($"The indexed map no longer matches its catalog: {document.Path}");
-                cached = new CachedDocument(document, stamp, scanner.Scan(document.Section, document.Key, data));
-            }
             next[key] = cached;
             string type = ReferenceIndexSnapshot.DataRoots.Single(pair => pair.Value == document.Section).Key;
             string nodeKey = type == "blueprint" ? BlueprintReference.ToReference(document.Key) : document.Key;
@@ -105,7 +97,6 @@ internal sealed class ReferenceIndexSnapshotBuilder : IDisposable
         catalogInputs = nextCatalogInputs;
         previousFiles = files;
         schemaVersion = input.SchemaVersion;
-        metadataRevision = metadata.Revision;
         return new Result(snapshot, files);
     }
 
@@ -113,8 +104,6 @@ internal sealed class ReferenceIndexSnapshotBuilder : IDisposable
         => ReferenceEquals(left, right) || left is not null && right is not null
             && left.Key == right.Key && left.Width == right.Width && left.Height == right.Height
             && left.LayerOrder.SequenceEqual(right.LayerOrder, StringComparer.Ordinal);
-
-    public void Dispose() => resolver.Dispose();
 
     private sealed record CachedDocument(ReferenceBuildDocument Input, ReferenceInputFiles.Stamp Stamp, DocumentReferenceResult Result);
     internal sealed record Result(ReferenceIndexSnapshot Snapshot, ReferenceInputFiles Files);

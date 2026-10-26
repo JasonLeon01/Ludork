@@ -150,7 +150,7 @@ public sealed partial class ReferenceIndexService
         {
             await EditorUiBatch.YieldAsync();
             ReferenceBuildInput input = await captureBuildInputAsync(null, cancellation.Token);
-            backgroundBuilder ??= new ReferenceIndexSnapshotBuilder(gameData.ProjectPath);
+            backgroundBuilder ??= new ReferenceIndexSnapshotBuilder();
             ReferenceIndexSnapshotBuilder builder = backgroundBuilder;
             ReferenceIndexSnapshotBuilder.Result result = await Task.Run(() => builder.Build(input, cancellation.Token), cancellation.Token);
             bool filesCurrent = await Task.Run(result.Files.IsCurrent, cancellation.Token);
@@ -279,15 +279,12 @@ public sealed partial class ReferenceIndexService
         backgroundCancellation?.Cancel();
         if (backgroundTask is Task task)
         {
-            ReferenceIndexSnapshotBuilder? builder = backgroundBuilder;
             _ = task.ContinueWith(completed =>
             {
                 _ = completed.Exception;
-                builder?.Dispose();
             }, TaskScheduler.Default);
         }
-        else
-            backgroundBuilder?.Dispose();
+        backgroundBuilder = null;
         capturedDocuments.Clear();
         SnapshotChanged = null;
     }

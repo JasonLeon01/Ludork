@@ -14,10 +14,16 @@ public sealed class LuaMetadataService
     private readonly LuaMetadataCatalog catalog;
 
     public LuaMetadataService(string projectPath, bool strictReads = false, CancellationToken cancellationToken = default, LuaEnumService? enums = null)
+        : this(projectPath, strictReads, cancellationToken, enums, null)
+    {
+    }
+
+    internal LuaMetadataService(string projectPath, bool strictReads, CancellationToken cancellationToken,
+        LuaEnumService? enums, LuaValidationReadCache? readCache)
     {
         Enums = enums ?? new LuaEnumService(projectPath);
-        files = new LuaMetadataFileCache(projectPath, Enums, strictReads, cancellationToken);
-        hierarchy = new LuaMetadataHierarchy(files);
+        files = new LuaMetadataFileCache(projectPath, Enums, strictReads, cancellationToken, readCache);
+        hierarchy = new LuaMetadataHierarchy(files, readCache);
         catalog = new LuaMetadataCatalog(files, hierarchy);
     }
 

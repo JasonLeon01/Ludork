@@ -143,14 +143,20 @@ public sealed partial class WorldDataService
 
     public WorldMapMutationResult ValidateAllWorldMaps()
     {
-        List<string> failures = [];
-        foreach (string worldKey in worldDocuments.Keys.OrderBy(value => value, StringComparer.Ordinal))
+        (string Key, JsonObject? World, IReadOnlyDictionary<string, MapCatalogEntry> Children)[] inputs = worldDocuments.Keys
+            .OrderBy(value => value, StringComparer.Ordinal)
+            .Select(key => (key, getWorldMap(key), getWorldChildCatalog(key))).ToArray();
+        string[][] results = EditorValidationBatch.Run(inputs, input =>
         {
-            WorldMapValidationResult validation = ValidateWorldMap(worldKey);
+            List<string> failures = [];
+            WorldMapValidationResult validation = input.World is JsonObject world
+                ? worldMapValidation.Validate(normalizeWorldKey(input.Key), world, input.Children)
+                : new WorldMapValidationResult(
+                    [new WorldMapValidationIssue("missingWorld", "The world map does not exist.")], [], []);
             if (!validation.IsValid)
-                failures.Add(worldKey + ": " + formatWorldMapValidation(validation));
+                failures.Add(input.Key + ": " + formatWorldMapValidation(validation));
             Dictionary<string, int> tagCounts = new(StringComparer.Ordinal);
-            foreach (MapCatalogEntry child in getWorldChildCatalog(worldKey).Values)
+            foreach (MapCatalogEntry child in input.Children.Values)
             {
                 foreach (string tag in child.ActorTags)
                     tagCounts[tag] = tagCounts.GetValueOrDefault(tag) + 1;
@@ -158,12 +164,14 @@ public sealed partial class WorldDataService
             foreach (KeyValuePair<string, int> pair in tagCounts)
             {
                 if (pair.Value > 1)
-                    failures.Add(worldKey + ": duplicate actor tag " + pair.Key + ".");
+                    failures.Add(input.Key + ": duplicate actor tag " + pair.Key + ".");
             }
-        }
-        return failures.Count == 0
+            return failures.ToArray();
+        });
+        string[] allFailures = results.SelectMany(failures => failures).ToArray();
+        return allFailures.Length == 0
             ? WorldMapMutationResult.Succeeded
-            : WorldMapMutationResult.Failed(string.Join(Environment.NewLine, failures));
+            : WorldMapMutationResult.Failed(string.Join(Environment.NewLine, allFailures));
     }
 
     public bool CreateWorldMap(string worldKey, WorldMapInfo info)

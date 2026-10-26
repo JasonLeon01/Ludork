@@ -70,6 +70,29 @@ public sealed partial class ReferenceIndexService
             return;
         }
         dirty = true;
+        List<ReferenceBuildDocument> documents = [];
+        List<(string Type, string Key)> declarations = [];
+        foreach ((string section, string key) in pendingDocuments.Values)
+        {
+            if (section == "Maps")
+            {
+                MapCatalogEntry? entry = gameData.Maps.MapCatalog.FirstOrDefault(entry => entry.Key == key
+                    && entry.Kind != MapCatalogEntryKind.WorldMap);
+                if (entry is not null)
+                {
+                    declarations.Add(("map", key));
+                    if (createMapScanDocument(entry) is ReferenceBuildDocument document)
+                        documents.Add(document);
+                }
+                continue;
+            }
+            (string Type, IReadOnlyDictionary<string, JsonObject> Data)? dataSection = getDataSection(section);
+            if (dataSection is null || !dataSection.Value.Data.TryGetValue(key, out JsonObject? data))
+                continue;
+            declarations.Add((dataSection.Value.Type, key));
+            documents.Add(createScanDocument(section, key, data));
+        }
+        DocumentReferenceResult[] results = scanDocuments(documents);
         nodesByDocumentPath = null;
         HashSet<string> affectedNodes = new(StringComparer.Ordinal);
         foreach (string sourceId in pendingDocuments.Keys)
@@ -89,26 +112,10 @@ public sealed partial class ReferenceIndexService
                     referencedByTarget.Remove(record.Target);
             }
         }
-        foreach (KeyValuePair<string, (string Section, string Key)> pending in pendingDocuments)
-        {
-            (string section, string key) = pending.Value;
-            if (section == "Maps")
-            {
-                MapCatalogEntry? entry = gameData.Maps.MapCatalog.FirstOrDefault(entry => entry.Key == key
-                    && entry.Kind != MapCatalogEntryKind.WorldMap);
-                if (entry is not null)
-                {
-                    addNode("map", key);
-                    scanAndCacheMapReferences(entry);
-                }
-                continue;
-            }
-            (string Type, IReadOnlyDictionary<string, JsonObject> Data)? dataSection = getDataSection(section);
-            if (dataSection is null || !dataSection.Value.Data.TryGetValue(key, out JsonObject? data))
-                continue;
-            addNode(dataSection.Value.Type, key);
-            scanDocumentReferences(section, key, data);
-        }
+        foreach ((string type, string key) in declarations)
+            addNode(type, key);
+        for (int index = 0; index < documents.Count; index++)
+            applyScannedDocument(documents[index], results[index]);
         foreach (string id in affectedNodes)
         {
             if (declaredNodes.Contains(id) || referencesBySource.ContainsKey(id) || referencedByTarget.ContainsKey(id))

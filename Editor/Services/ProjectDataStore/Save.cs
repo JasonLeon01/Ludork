@@ -25,7 +25,10 @@ public sealed partial class ProjectDataStore
             IReadOnlyList<string> blueprintErrors = ValidateBlueprintSchemas();
             if (blueprintErrors.Count != 0)
                 return new SaveResult(false, string.Join(Environment.NewLine, blueprintErrors));
-            IReadOnlyList<string> errors = GeneralDataSchemaValidation.Validate(sections["General"], Enums.Read);
+            ProjectEnumCatalog catalog = GetProjectEnumCatalog();
+            LuaValidationReadCache reads = new(ProjectPath, catalog);
+            IReadOnlyList<string> errors = GeneralDataSchemaValidation.Validate(sections["General"],
+                reads.CreateEnums);
             if (errors.Count != 0)
                 return new SaveResult(false, string.Join(Environment.NewLine, errors));
         }
@@ -185,49 +188,63 @@ public sealed partial class ProjectDataStore
 
     internal IReadOnlyList<string> validateGameAssetPaths()
     {
+        string[] sectionNames = ["Subtitles", "Materials", "Particles", "Tilesets", "AutoTiles", "Animations",
+            "Configs", "Maps", "WorldMaps", "TextConfigs"];
+        (string Section, string Key, JsonObject Data)[] inputs = sectionNames
+            .SelectMany(section => sections[section].Select(pair => (section, pair.Key, pair.Value))).ToArray();
+        IReadOnlyList<string>[] results = EditorValidationBatch.Run(inputs, input =>
+            validateGameAssetPaths(input.Section, input.Key, input.Data));
+        return results.SelectMany(errors => errors).ToArray();
+    }
+
+    private static IReadOnlyList<string> validateGameAssetPaths(string section, string key, JsonObject data)
+    {
         List<string> errors = [];
-        foreach (KeyValuePair<string, JsonObject> entry in sections["Subtitles"])
-            errors.AddRange(SubtitleAssetSchema.Validate(entry.Value, entry.Key));
-        foreach (KeyValuePair<string, JsonObject> entry in sections["Materials"])
-            errors.AddRange(MaterialAssetSchema.Validate(entry.Value, entry.Key));
-        foreach (KeyValuePair<string, JsonObject> entry in sections["Particles"])
-            errors.AddRange(ParticleAssetSchema.Validate(entry.Value, entry.Key));
-        foreach (KeyValuePair<string, JsonObject> entry in sections["Tilesets"])
+        switch (section)
         {
-            validateAssetPath(entry.Value["fileName"], $"Tilesets/{entry.Key}.fileName", errors);
-            if (entry.Value["materials"] is not JsonObject materials)
-                errors.Add($"Tilesets/{entry.Key}.materials must be a sparse object");
-            else
-                foreach ((string index, JsonNode? material) in materials)
+            case "Subtitles":
+                return SubtitleAssetSchema.Validate(data, key);
+            case "Materials":
+                return MaterialAssetSchema.Validate(data, key);
+            case "Particles":
+                return ParticleAssetSchema.Validate(data, key);
+            case "Tilesets":
+                validateAssetPath(data["fileName"], $"Tilesets/{key}.fileName", errors);
+                if (data["materials"] is not JsonObject materials)
+                    errors.Add($"Tilesets/{key}.materials must be a sparse object");
+                else
                 {
-                    if (!int.TryParse(index, out int parsed) || parsed < 0 || parsed.ToString(System.Globalization.CultureInfo.InvariantCulture) != index)
-                        errors.Add($"Tilesets/{entry.Key}.materials contains an invalid tile index: {index}");
-                    MaterialAssetSchema.ValidateReference(material, $"Tilesets/{entry.Key}.materials.{index}", errors);
+                    foreach ((string index, JsonNode? material) in materials)
+                    {
+                        if (!int.TryParse(index, out int parsed) || parsed < 0 || parsed.ToString(System.Globalization.CultureInfo.InvariantCulture) != index)
+                            errors.Add($"Tilesets/{key}.materials contains an invalid tile index: {index}");
+                        MaterialAssetSchema.ValidateReference(material, $"Tilesets/{key}.materials.{index}", errors);
+                    }
                 }
+                break;
+            case "AutoTiles":
+                validateAssetPath(data["fileName"], $"AutoTiles/{key}.fileName", errors);
+                MaterialAssetSchema.ValidateReference(data["material"], $"AutoTiles/{key}.material", errors);
+                break;
+            case "Animations":
+                if (data["assets"] is JsonArray assets)
+                    for (int index = 0; index < assets.Count; index++)
+                        validateAssetPath(assets[index], $"Animations/{key}.assets[{index}]", errors);
+                break;
+            case "Configs":
+                validateConfigAssetPaths(key, data, errors);
+                break;
+            case "Maps":
+                validateMapAssetPaths(key, data, errors);
+                break;
+            case "WorldMaps":
+                validateAssetPath(data["fog"], $"Maps/{key}/_world.fog", errors);
+                validateAssetPath(data["panorama"], $"Maps/{key}/_world.panorama", errors);
+                break;
+            case "TextConfigs":
+                validateAssetPath(data["font"], $"TextConfigs/{key}.font", errors);
+                break;
         }
-        foreach (KeyValuePair<string, JsonObject> entry in sections["AutoTiles"])
-        {
-            validateAssetPath(entry.Value["fileName"], $"AutoTiles/{entry.Key}.fileName", errors);
-            MaterialAssetSchema.ValidateReference(entry.Value["material"], $"AutoTiles/{entry.Key}.material", errors);
-        }
-        foreach (KeyValuePair<string, JsonObject> entry in sections["Animations"])
-        {
-            if (entry.Value["assets"] is not JsonArray assets)
-                continue;
-            for (int index = 0; index < assets.Count; index++)
-                validateAssetPath(assets[index], $"Animations/{entry.Key}.assets[{index}]", errors);
-        }
-        foreach (KeyValuePair<string, JsonObject> entry in sections["Configs"])
-            validateConfigAssetPaths(entry.Key, entry.Value, errors);
-        foreach (KeyValuePair<string, JsonObject> entry in sections["Maps"])
-            validateMapAssetPaths(entry.Key, entry.Value, errors);
-        foreach (KeyValuePair<string, JsonObject> entry in sections["WorldMaps"])
-        {
-            validateAssetPath(entry.Value["fog"], $"Maps/{entry.Key}/_world.fog", errors);
-            validateAssetPath(entry.Value["panorama"], $"Maps/{entry.Key}/_world.panorama", errors);
-        }
-        foreach (KeyValuePair<string, JsonObject> entry in sections["TextConfigs"])
-            validateAssetPath(entry.Value["font"], $"TextConfigs/{entry.Key}.font", errors);
         return errors;
     }
 

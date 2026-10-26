@@ -16,7 +16,11 @@ public sealed record BlueprintValidationResult(
 
 public sealed class BlueprintValidationService
 {
-    private readonly ProjectDataStore gameData;
+    private readonly string projectPath;
+    private readonly Func<string, JsonObject?> readBlueprint;
+    private readonly Func<IReadOnlyDictionary<string, JsonObject>> captureBlueprints;
+    private readonly Func<IReadOnlyDictionary<string, JsonObject>> captureGeneralData;
+    private readonly Func<ProjectEnumCatalog> captureEnums;
     private readonly LuaMetadataService metadataService;
     private readonly BlueprintClassResolver classResolver;
 
@@ -25,7 +29,25 @@ public sealed class BlueprintValidationService
         LuaMetadataService metadataService,
         BlueprintClassResolver classResolver)
     {
-        this.gameData = gameData;
+        projectPath = gameData.ProjectPath;
+        readBlueprint = gameData.ReadReferenceBlueprint;
+        captureBlueprints = () => gameData.GetReferenceSection("Blueprints")
+            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+        captureGeneralData = () => SnapshotJson.ToDictionary(gameData.General.GeneralData);
+        captureEnums = gameData.GetProjectEnumCatalog;
+        this.metadataService = metadataService;
+        this.classResolver = classResolver;
+    }
+
+    internal BlueprintValidationService(string projectPath, IReadOnlyDictionary<string, JsonObject> blueprints,
+        IReadOnlyDictionary<string, JsonObject> generalData, ProjectEnumCatalog enums,
+        LuaMetadataService metadataService, BlueprintClassResolver classResolver)
+    {
+        this.projectPath = projectPath;
+        readBlueprint = key => blueprints.GetValueOrDefault(key);
+        captureBlueprints = () => blueprints;
+        captureGeneralData = () => generalData;
+        captureEnums = () => enums;
         this.metadataService = metadataService;
         this.classResolver = classResolver;
     }
@@ -35,7 +57,7 @@ public sealed class BlueprintValidationService
         string key = BlueprintReference.NormalizeKey(blueprintKey);
         List<string> errors = [];
         if (data is null)
-            data = gameData.Blueprints.BlueprintsData.TryGetValue(key, out BlueprintDefinitionSnapshot? snapshot) ? snapshot.ToJson() : null;
+            data = readBlueprint(key);
         if (data is null)
         {
             errors.Add($"Blueprint \"{key}\" was not found in project data");
@@ -127,12 +149,12 @@ public sealed class BlueprintValidationService
         {
             string parentKey = BlueprintReference.NormalizeKey(parent);
             if (!visited.Add(parentKey)
-                || !gameData.Blueprints.BlueprintsData.TryGetValue(parentKey, out BlueprintDefinitionSnapshot? parentData))
+                || readBlueprint(parentKey) is not JsonObject parentData)
             {
                 return;
             }
-            chain.Add((parentKey, parentData.ToJson()));
-            parent = parentData.Parent;
+            chain.Add((parentKey, parentData));
+            parent = getString(parentData["parent"]);
         }
 
         bool parentMode = false;
@@ -164,7 +186,7 @@ public sealed class BlueprintValidationService
         try
         {
             string normalized = ScriptMixinPaths.Normalize(scriptPath);
-            string fullPath = ScriptMixinPaths.GetScriptPath(gameData.ProjectPath, normalized);
+            string fullPath = ScriptMixinPaths.GetScriptPath(projectPath, normalized);
             if (!File.Exists(fullPath))
             {
                 errors.Add($"Mixin script '{normalized}' was not found");
@@ -196,18 +218,20 @@ public sealed class BlueprintValidationService
     {
         string[] keys = blueprintKeys.Distinct(StringComparer.Ordinal)
             .OrderBy(key => key, StringComparer.Ordinal).ToArray();
-        List<BlueprintValidationResult> results = [];
-        foreach (string key in keys)
-        {
-            progress?.Report(new EditorOperationProgress("EDIT_OPERATION_VALIDATING", key, results.Count, keys.Length));
-            results.Add(ValidateBlueprint(key));
-        }
-        return results;
+        IReadOnlyDictionary<string, JsonObject> blueprints = captureBlueprints();
+        ProjectEnumCatalog enums = captureEnums();
+        LuaValidationReadCache reads = new(projectPath, enums);
+        return EditorValidationBatch.Run(keys,
+            () => new BlueprintValidationWorker(projectPath, blueprints, enums, reads: reads),
+            (worker, key) => worker.Validation.ValidateBlueprint(key),
+            worker => worker.Dispose(),
+            completed: completed => progress?.Report(new EditorOperationProgress(
+                "EDIT_OPERATION_VALIDATING", null, completed, keys.Length)));
     }
 
     public IReadOnlyList<BlueprintValidationResult> ValidateGeneralDataGraphs()
     {
-        return ValidateGeneralDataGraphs(SnapshotJson.ToDictionary(gameData.General.GeneralData));
+        return ValidateGeneralDataGraphs(captureGeneralData());
     }
 
     internal IReadOnlyList<BlueprintValidationResult> ValidateGeneralDataGraphs(
@@ -216,7 +240,10 @@ public sealed class BlueprintValidationService
     {
         List<BlueprintValidationResult> results = [];
         progress?.Report(new EditorOperationProgress("EDIT_OPERATION_VALIDATING", "General"));
-        IReadOnlyList<string> schemaErrors = GeneralDataSchemaValidation.Validate(generalData, metadataService.Enums.Read);
+        ProjectEnumCatalog enums = captureEnums();
+        LuaValidationReadCache reads = new(projectPath, enums);
+        IReadOnlyList<string> schemaErrors = GeneralDataSchemaValidation.Validate(generalData,
+            reads.CreateEnums);
         if (schemaErrors.Count != 0)
             results.Add(new BlueprintValidationResult("GeneralData", false, schemaErrors));
         List<(string Key, JsonObject Graph)> graphs = [];
@@ -230,28 +257,35 @@ public sealed class BlueprintValidationService
         }
         if (graphs.Count == 0)
             return results;
-        using IDisposable metadataBatch = classResolver.BeginBatch();
-        BlueprintNodeDefinitionSet definitionSet = new BlueprintNodeDefinitionCatalog(metadataService, classResolver)
-            .GetNodeDefinitionSet();
-        int completed = 0;
-        foreach ((string key, JsonObject graph) in graphs)
-        {
-            progress?.Report(new EditorOperationProgress("EDIT_OPERATION_VALIDATING", key, completed++, graphs.Count));
-            List<string> errors = [];
-            validateGraphStructure(graph, errors);
-            if (errors.Count == 0)
-            {
-                JsonObject graphDocument = new()
-                {
-                    ["attrs"] = new JsonObject(),
-                    ["graph"] = graph.DeepClone(),
-                };
-                validateGraphDefinitions(key, graphDocument, graph, errors, "GlobalCore.GameplayEventData");
-                validateGeneralDataLatentNodes(graph, definitionSet.RuntimeLookup, errors);
-            }
-            results.Add(new BlueprintValidationResult(key, errors.Count == 0, errors));
-        }
+        IReadOnlyDictionary<string, JsonObject> blueprints = captureBlueprints();
+        BlueprintNodeDefinitionSet definitions;
+        using (BlueprintValidationWorker preparation = new(projectPath, blueprints, enums, reads: reads))
+            definitions = preparation.GeneralDefinitions;
+        results.AddRange(EditorValidationBatch.Run(graphs,
+            () => new BlueprintValidationWorker(projectPath, blueprints, enums, generalData: generalData, reads: reads),
+            (worker, graph) => worker.Validation.validateGeneralDataGraph(graph.Key, graph.Graph, definitions),
+            worker => worker.Dispose(),
+            completed: completed => progress?.Report(new EditorOperationProgress(
+                "EDIT_OPERATION_VALIDATING", "General", completed, graphs.Count))));
         return results;
+    }
+
+    private BlueprintValidationResult validateGeneralDataGraph(string key, JsonObject graph,
+        BlueprintNodeDefinitionSet definitions)
+    {
+        List<string> errors = [];
+        validateGraphStructure(graph, errors);
+        if (errors.Count == 0)
+        {
+            JsonObject graphDocument = new()
+            {
+                ["attrs"] = new JsonObject(),
+                ["graph"] = graph.DeepClone(),
+            };
+            validateGraphDefinitions(key, graphDocument, graph, errors, "GlobalCore.GameplayEventData");
+            validateGeneralDataLatentNodes(graph, definitions.RuntimeLookup, errors);
+        }
+        return new BlueprintValidationResult(key, errors.Count == 0, errors);
     }
 
     private static void validateGeneralDataLatentNodes(
@@ -297,9 +331,7 @@ public sealed class BlueprintValidationService
             }
             JsonObject? parentData = parentKey == blueprintKey
                 ? data
-                : gameData.Blueprints.BlueprintsData.TryGetValue(parentKey, out BlueprintDefinitionSnapshot? loaded)
-                    ? loaded.ToJson()
-                    : null;
+                : readBlueprint(parentKey);
             if (parentData is null)
             {
                 errors.Add($"Parent blueprint '{currentParent}' was not found in project data");

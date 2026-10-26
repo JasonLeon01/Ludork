@@ -305,37 +305,19 @@ public sealed partial class ReferenceIndexService
     {
         if (allWorldChildMapReferencesBuilt)
             return;
+        List<ReferenceBuildDocument> documents = [];
         foreach (MapCatalogEntry entry in gameData.Maps.MapCatalog
                      .Where(entry => entry.Kind == MapCatalogEntryKind.WorldChildMap))
         {
             if (mapReferenceCache.TryGetValue(entry.Key, out IReadOnlyList<ReferenceRecord>? cached))
                 replayMapReferences(cached);
-            else
-                scanAndCacheMapReferences(entry);
+            else if (createMapScanDocument(entry) is ReferenceBuildDocument document)
+                documents.Add(document);
         }
+        DocumentReferenceResult[] results = scanDocuments(documents);
+        for (int index = 0; index < documents.Count; index++)
+            applyScannedDocument(documents[index], results[index]);
         allWorldChildMapReferencesBuilt = true;
-    }
-
-    private void scanAndCacheMapReferences(MapCatalogEntry entry)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        string sourceId = ReferenceIdentity.NodeId("map", entry.Key);
-        JsonObject? map = gameData.Maps.ReadMapSnapshotWithoutCaching(entry.Key);
-        if (map is null)
-        {
-            if (entry.Kind == MapCatalogEntryKind.WorldChildMap)
-                throw new InvalidDataException($"The indexed world child map could not be read: {entry.Key}.");
-            return;
-        }
-        scanDocumentReferences("Maps", entry.Key, map);
-        if (entry.Kind == MapCatalogEntryKind.WorldChildMap)
-        {
-            mapReferenceCache[entry.Key] = referencesBySource.TryGetValue(
-                    sourceId,
-                    out List<ReferenceRecord>? records)
-                ? records.ToArray()
-                : [];
-        }
     }
 
     private void replayMapReferences(IEnumerable<ReferenceRecord> records)

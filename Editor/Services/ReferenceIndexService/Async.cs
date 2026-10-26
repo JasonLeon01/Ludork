@@ -1,19 +1,24 @@
 using Ludork.Models;
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Ludork.Services;
 
 public sealed partial class ReferenceIndexService
 {
+    private readonly SemaphoreSlim foregroundGate = new(1, 1);
+
     internal async Task<ReferenceIndexSnapshotBuilder.Result> GetCurrentAsync(
         IProgress<EditorOperationProgress>? progress)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
+        await foregroundGate.WaitAsync();
         foregroundRefresh = true;
         refreshTimer?.Stop();
         try
         {
+            ObjectDisposedException.ThrowIf(disposed, this);
             backgroundCancellation?.Cancel();
             if (backgroundTask is Task pending)
                 await pending;
@@ -24,15 +29,17 @@ public sealed partial class ReferenceIndexService
                 && requestedVersion == version && metadataRevision == metadataService.CacheRevision)
                 return new ReferenceIndexSnapshotBuilder.Result(CurrentSnapshot!, files);
             ReferenceBuildInput input = await captureBuildInputAsync(progress);
-            using ReferenceIndexSnapshotBuilder builder = new(gameData.ProjectPath);
+            backgroundBuilder ??= new ReferenceIndexSnapshotBuilder();
+            ReferenceIndexSnapshotBuilder builder = backgroundBuilder;
             ReferenceIndexSnapshotBuilder.Result result = await Task.Run(() => builder.Build(input, default, progress));
-            if (input.Version != version)
+            if (disposed || input.Version != version)
                 throw new InvalidOperationException(LocaleService.Get("EDIT_OPERATION_INPUTS_CHANGED"));
             return result;
         }
         finally
         {
             foregroundRefresh = false;
+            foregroundGate.Release();
             if (activated && (dirty || pendingDocuments.Count != 0))
                 scheduleRefresh();
         }

@@ -65,13 +65,16 @@ public sealed partial class ProjectDataStore
 
     internal static ProjectDataStore CreateOperationStore(ProjectOperationSnapshot snapshot)
     {
+        (JsonObject? Data, bool Modified)[] prepared = EditorValidationBatch.Run(snapshot.Documents,
+            entry => (entry.Current.Data, !EditorDocument.StatesEqual(entry.Current, entry.Saved)));
         ProjectDataStore store = new(snapshot.ProjectPath, false, default, null, false);
         foreach (string section in store.sections.Keys)
             store.originData[section] = new Dictionary<string, JsonObject>(StringComparer.Ordinal);
-        foreach (ProjectOperationDocument entry in snapshot.Documents)
+        for (int index = 0; index < snapshot.Documents.Count; index++)
         {
+            ProjectOperationDocument entry = snapshot.Documents[index];
             EditorDocumentState current = entry.Current;
-            JsonObject? data = current.Data;
+            JsonObject? data = prepared[index].Data;
             bool assetPath = current.Section == ProjectAssetPaths.Section;
             if (!assetPath && data is not null)
                 store.sections[current.Section][current.Key] = data;
@@ -88,7 +91,7 @@ public sealed partial class ProjectDataStore
             document.Revision = entry.Revision;
             document.UndoEntries.AddRange(entry.Undo);
             document.RedoEntries.AddRange(entry.Redo);
-            document.UpdateModified();
+            document.SetPreparedModified(prepared[index].Modified);
         }
         foreach (MapCatalogEntry entry in snapshot.MapCatalog)
             store.Maps.setMapCatalogEntry(entry);

@@ -32,7 +32,8 @@ public sealed partial class ProjectDataStore
             progress?.Report(new EditorOperationProgress("EDIT_OPERATION_PREPARING"));
             ProjectOperationSnapshot snapshot = await CaptureOperationSnapshotAsync(progress);
             ReferenceInputFiles inputs = await Task.Run(() => ReferenceInputFiles.Capture(ProjectPath,
-                snapshot.Documents.SelectMany(document => new[] { document.Current.Path, document.Saved.Path }), includeData: true));
+                snapshot.Documents.SelectMany(document => new[] { document.Current.Path, document.Saved.Path }),
+                includeData: true, includeStubs: true));
             ReferenceIndexSnapshotBuilder.Result references = await ReferenceIndex.GetCurrentAsync(progress);
             Dictionary<string, ReferenceRecord[]> incoming = indexBlueprintDeletionReferences(references.Snapshot);
             using ProjectDataStore working = await Task.Run(snapshot.CreateStore);

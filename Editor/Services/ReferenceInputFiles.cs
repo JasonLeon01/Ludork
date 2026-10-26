@@ -11,16 +11,19 @@ internal sealed class ReferenceInputFiles
     private readonly string[] mapPaths;
     private readonly Dictionary<string, Stamp> stamps;
     private readonly bool includeData;
+    private readonly bool includeStubs;
 
-    private ReferenceInputFiles(string projectPath, string[] mapPaths, Dictionary<string, Stamp> stamps, bool includeData)
+    private ReferenceInputFiles(string projectPath, string[] mapPaths, Dictionary<string, Stamp> stamps, bool includeData, bool includeStubs)
     {
         this.projectPath = projectPath;
         this.mapPaths = mapPaths;
         this.stamps = stamps;
         this.includeData = includeData;
+        this.includeStubs = includeStubs;
     }
 
-    internal static ReferenceInputFiles Capture(string projectPath, IEnumerable<string> mapPaths, bool includeData = false)
+    internal static ReferenceInputFiles Capture(string projectPath, IEnumerable<string> mapPaths,
+        bool includeData = false, bool includeStubs = false)
     {
         string[] paths = mapPaths.Distinct(StringComparer.Ordinal).OrderBy(path => path, StringComparer.Ordinal).ToArray();
         string scripts = Path.Combine(projectPath, "Scripts");
@@ -29,21 +32,27 @@ internal sealed class ReferenceInputFiles
         string enumRoot = Path.Combine(scripts, "Enums");
         IEnumerable<string> enums = Directory.Exists(enumRoot)
             ? Directory.EnumerateFiles(enumRoot, "*.lua", SearchOption.AllDirectories) : [];
+        string stubsRoot = Path.Combine(scripts, "stub");
+        IEnumerable<string> stubs = includeStubs && Directory.Exists(stubsRoot)
+            ? Directory.EnumerateFiles(stubsRoot, "*.d.lua", SearchOption.AllDirectories) : [];
         string dataRoot = Path.Combine(projectPath, "Data");
         IEnumerable<string> data = includeData && Directory.Exists(dataRoot)
             ? Directory.EnumerateFiles(dataRoot, "*.json", SearchOption.AllDirectories)
                 .Where(path => !DataConfig.isAnimationCache(path)) : [];
-        Dictionary<string, Stamp> stamps = metadata.Concat(enums).Concat(paths).Concat(data).Distinct(StringComparer.Ordinal)
+        Dictionary<string, Stamp> stamps = metadata.Concat(enums).Concat(stubs).Concat(paths).Concat(data).Distinct(StringComparer.Ordinal)
             .ToDictionary(path => path, Read, StringComparer.Ordinal);
-        return new ReferenceInputFiles(projectPath, paths, stamps, includeData);
+        return new ReferenceInputFiles(projectPath, paths, stamps, includeData, includeStubs);
     }
 
     internal bool IsCurrent()
     {
-        ReferenceInputFiles current = Capture(projectPath, mapPaths, includeData);
-        return stamps.Count == current.stamps.Count && stamps.All(pair =>
-            current.stamps.TryGetValue(pair.Key, out Stamp value) && pair.Value == value);
+        ReferenceInputFiles current = Capture(projectPath, mapPaths, includeData, includeStubs);
+        return HasSameInputs(current);
     }
+
+    internal bool HasSameInputs(ReferenceInputFiles other)
+        => stamps.Count == other.stamps.Count && stamps.All(pair =>
+            other.stamps.TryGetValue(pair.Key, out Stamp value) && pair.Value == value);
 
     internal void AcceptDeleted(IReadOnlyList<string> paths)
     {

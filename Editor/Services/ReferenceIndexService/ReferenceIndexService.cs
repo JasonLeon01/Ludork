@@ -10,11 +10,8 @@ namespace Ludork.Services;
 
 public sealed partial class ReferenceIndexService : IDisposable
 {
-    private readonly DocumentReferenceScanner scanner;
-    private DocumentReferenceScanner? transactionScanner;
     private readonly ProjectDataStore gameData;
     private readonly LuaMetadataService metadataService;
-    private readonly BlueprintClassResolver classResolver;
     private readonly CancellationToken cancellationToken;
     private readonly Action<string>? progress;
     private readonly Dictionary<string, ReferenceNode> nodes = new(StringComparer.Ordinal);
@@ -39,10 +36,8 @@ public sealed partial class ReferenceIndexService : IDisposable
     {
         this.gameData = gameData;
         this.metadataService = metadataService;
-        this.classResolver = classResolver;
         this.cancellationToken = cancellationToken;
         this.progress = progress;
-        scanner = new DocumentReferenceScanner(metadataService, classResolver, gameData.GetProjectEnumCatalog, cancellationToken);
         gameData.Documents.ContentInvalidated += onContentInvalidated;
     }
 
@@ -295,11 +290,9 @@ public sealed partial class ReferenceIndexService : IDisposable
         activate();
         if (gameData.Documents.HasPendingNotifications)
         {
-            using BlueprintClassResolver resolver = new(metadataService, gameData.ReadReferenceBlueprint);
-            transactionScanner = new DocumentReferenceScanner(metadataService, resolver, gameData.GetProjectEnumCatalog, cancellationToken);
             try
             {
-                ReferenceInputFiles transactionalFiles = ReferenceInputFiles.Capture(gameData.ProjectPath, unloadedMapPaths());
+                ReferenceInputFiles transactionalFiles = ReferenceInputFiles.Capture(gameData.ProjectPath, unloadedMapPaths(), includeStubs: true);
                 rebuildIndex();
                 ensureAllWorldChildMapReferences();
                 if (!transactionalFiles.IsCurrent())
@@ -307,7 +300,6 @@ public sealed partial class ReferenceIndexService : IDisposable
             }
             finally
             {
-                transactionScanner = null;
                 dirty = true;
             }
             return;
@@ -316,7 +308,7 @@ public sealed partial class ReferenceIndexService : IDisposable
             MarkDirty();
         if (!dirty && pendingDocuments.Count == 0 && CurrentSnapshot?.Version == version)
             return;
-        ReferenceInputFiles files = ReferenceInputFiles.Capture(gameData.ProjectPath, unloadedMapPaths());
+        ReferenceInputFiles files = ReferenceInputFiles.Capture(gameData.ProjectPath, unloadedMapPaths(), includeStubs: true);
         if (dirty)
             rebuildIndex();
         else
@@ -401,30 +393,24 @@ public sealed partial class ReferenceIndexService : IDisposable
 
     private void buildEdges()
     {
+        List<ReferenceBuildDocument> documents = [];
         foreach ((string section, string key, JsonObject data) in gameData.ReferenceDocuments)
         {
             if (section != "Maps")
-                scanDocumentReferences(section, key, data);
+                documents.Add(createScanDocument(section, key, data));
         }
-        foreach (MapCatalogEntry entry in gameData.Maps.MapCatalog.Where(entry => entry.Kind != MapCatalogEntryKind.WorldMap))
+        MapCatalogEntry[] maps = gameData.Maps.MapCatalog.Where(entry => entry.Kind != MapCatalogEntryKind.WorldMap).ToArray();
+        IReadOnlyDictionary<string, JsonObject> loadedMaps = gameData.GetReferenceSection("Maps");
+        foreach (MapCatalogEntry entry in maps.Where(entry => entry.Kind != MapCatalogEntryKind.WorldChildMap || loadedMaps.ContainsKey(entry.Key))
+                     .Concat(maps.Where(entry => entry.Kind == MapCatalogEntryKind.WorldChildMap && !loadedMaps.ContainsKey(entry.Key))))
         {
-            if (entry.Kind != MapCatalogEntryKind.WorldChildMap || gameData.Maps.LoadedMapData.ContainsKey(entry.Key))
-                scanAndCacheMapReferences(entry);
+            if (createMapScanDocument(entry) is ReferenceBuildDocument document)
+                documents.Add(document);
         }
-        allWorldChildMapReferencesBuilt = gameData.Maps.MapCatalog
-            .Where(entry => entry.Kind == MapCatalogEntryKind.WorldChildMap)
-            .All(entry => mapReferenceCache.ContainsKey(entry.Key));
-    }
-
-    private void scanDocumentReferences(string section, string key, JsonObject data)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        progress?.Invoke($"Data/{section}/{key}.json");
-        DocumentReferenceResult result = (transactionScanner ?? scanner).Scan(section, key, data);
-        foreach (KeyValuePair<string, string> member in result.GeneralMemberTypes)
-            generalMemberTypes[member.Key] = member.Value;
-        foreach (ReferenceRecord reference in result.References)
-            addReference(reference.Source, reference.Target, reference.Kind, reference.Path, reference.IsDictionaryKey, reference.StoragePath);
+        DocumentReferenceResult[] results = scanDocuments(documents);
+        for (int index = 0; index < documents.Count; index++)
+            applyScannedDocument(documents[index], results[index]);
+        allWorldChildMapReferencesBuilt = true;
     }
 
     private void addReference(string sourceId, string targetId, string kind, string path, bool isDictionaryKey = false, string? storagePath = null)

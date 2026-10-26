@@ -18,6 +18,7 @@ public sealed class LuaEnumService
         RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(1));
     private readonly string projectPath;
+    private readonly LuaValidationReadCache? readCache;
 
     private readonly Func<ProjectEnumCatalog>? catalog;
     private Dictionary<string, LuaEnumDefinition>? readModules;
@@ -29,9 +30,15 @@ public sealed class LuaEnumService
     private CancellationToken captureCancellationToken;
 
     public LuaEnumService(string projectPath, Func<ProjectEnumCatalog>? catalog = null)
+        : this(projectPath, catalog, null)
+    {
+    }
+
+    internal LuaEnumService(string projectPath, Func<ProjectEnumCatalog>? catalog, LuaValidationReadCache? readCache)
     {
         this.projectPath = projectPath;
         this.catalog = catalog;
+        this.readCache = readCache;
     }
 
     public IReadOnlyList<string> EnumerateModules()
@@ -142,7 +149,7 @@ public sealed class LuaEnumService
         LuaEnumDefinition result;
         try
         {
-            result = readModuleCore(moduleName);
+            result = readCache is null ? ReadModule(moduleName) : readCache.ReadEnumModule(moduleName);
         }
         catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or InterpreterException or ArgumentException or RegexMatchTimeoutException)
         {
@@ -164,7 +171,7 @@ public sealed class LuaEnumService
         return readCatalog ??= catalog();
     }
 
-    private LuaEnumDefinition readModuleCore(string moduleName)
+    internal LuaEnumDefinition ReadModule(string moduleName)
     {
         if (catalog is not null && ProjectEnumCatalog.IsManagedModule(moduleName))
         {

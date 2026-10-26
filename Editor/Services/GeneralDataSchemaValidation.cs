@@ -10,12 +10,22 @@ namespace Ludork.Services;
 internal static class GeneralDataSchemaValidation
 {
     public static IReadOnlyList<string> Validate(IReadOnlyDictionary<string, JsonObject> generalData,
-        Func<LuaMetadataType, LuaEnumDefinition>? resolveEnum = null)
+        Func<LuaEnumService>? createEnums = null)
     {
-        List<string> errors = [];
-        foreach (KeyValuePair<string, JsonObject> entry in generalData.OrderBy(pair => pair.Key, StringComparer.Ordinal))
-            validateType(entry.Key, entry.Value, errors, resolveEnum);
-        return errors;
+        KeyValuePair<string, JsonObject>[] entries = generalData.OrderBy(pair => pair.Key, StringComparer.Ordinal).ToArray();
+        return EditorValidationBatch.Run(entries,
+            () =>
+            {
+                LuaEnumService? enums = createEnums?.Invoke();
+                return (Enums: enums, Read: enums?.BeginRead());
+            },
+            (worker, entry) =>
+            {
+                List<string> errors = [];
+                validateType(entry.Key, entry.Value, errors, worker.Enums is null ? null : worker.Enums.Read);
+                return errors;
+            },
+            worker => worker.Read?.Dispose()).SelectMany(errors => errors).ToArray();
     }
 
     private static void validateType(string typeName, JsonObject typeData, ICollection<string> errors,

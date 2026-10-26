@@ -92,12 +92,11 @@ public sealed class UiAssetValidationService
             add(issues, "missingAsset", string.Empty, $"UI asset \"{normalizedKey}\" was not found");
             return new UiAssetValidationResult(normalizedKey, issues);
         }
-        IReadOnlyDictionary<string, UiControlDescriptor> controls =
-            createNativeControlLookup();
+        ValidationInputs inputs = captureValidationInputs();
         if (!RegistryReady)
             add(issues, "registryUnavailable", string.Empty, RegistryStatus);
         UiAssetDependencyGraph dependencies = new UiAssetDependencyGraph(assets, normalizedKey, data);
-        validateAssetStructure(normalizedKey, data, controls, issues, !RegistryReady, dependencies);
+        validateAssetStructure(normalizedKey, data, inputs, issues, !RegistryReady, dependencies);
         foreach (UiAssetDependencyGraph.CycleIssue cycle in dependencies.FindCycles(normalizedKey))
         {
             string path = string.Equals(cycle.AssetKey, normalizedKey, StringComparison.Ordinal)
@@ -128,14 +127,14 @@ public sealed class UiAssetValidationService
 
     public IReadOnlyList<UiAssetValidationResult> ValidateAll(bool structuralOnly = false)
     {
-        Dictionary<string, List<UiValidationIssue>> issuesByKey =
-            new Dictionary<string, List<UiValidationIssue>>(StringComparer.Ordinal);
-        IReadOnlyDictionary<string, UiControlDescriptor> controls =
-            createNativeControlLookup();
+        ValidationInputs inputs = captureValidationInputs();
+        bool ready = RegistryReady;
+        string status = RegistryStatus;
         IReadOnlyDictionary<string, UiAssetSnapshot> assets = gameData.UiAssets.UiAssetsData;
         UiAssetDependencyGraph dependencies = new UiAssetDependencyGraph(assets);
-        foreach (KeyValuePair<string, UiAssetSnapshot> pair in assets
-                     .OrderBy(item => item.Key, StringComparer.Ordinal))
+        KeyValuePair<string, UiAssetSnapshot>[] orderedAssets = assets
+            .OrderBy(item => item.Key, StringComparer.Ordinal).ToArray();
+        KeyValuePair<string, List<UiValidationIssue>>[] results = EditorValidationBatch.Run(orderedAssets, pair =>
         {
             List<UiValidationIssue> issues = [];
             string logicalKey = UiAssetSchema.NormalizeAssetKey(pair.Key);
@@ -147,11 +146,14 @@ public sealed class UiAssetValidationService
                     string.Empty,
                     "UI assets must be stored under Data/UI");
             }
-            if (!structuralOnly && !RegistryReady)
-                add(issues, "registryUnavailable", string.Empty, RegistryStatus);
-            validateAssetStructure(logicalKey, pair.Value.ToJson(), controls, issues, structuralOnly || !RegistryReady, dependencies);
-            issuesByKey[logicalKey.Length == 0 ? pair.Key : logicalKey] = issues;
-        }
+            if (!structuralOnly && !ready)
+                add(issues, "registryUnavailable", string.Empty, status);
+            validateAssetStructure(logicalKey, pair.Value.ToJson(), inputs, issues, structuralOnly || !ready, dependencies);
+            return new KeyValuePair<string, List<UiValidationIssue>>(logicalKey.Length == 0 ? pair.Key : logicalKey, issues);
+        });
+        Dictionary<string, List<UiValidationIssue>> issuesByKey = new(StringComparer.Ordinal);
+        foreach (KeyValuePair<string, List<UiValidationIssue>> result in results)
+            issuesByKey[result.Key] = result.Value;
         foreach (UiAssetDependencyGraph.CycleIssue cycle in dependencies.FindCycles())
             add(issuesByKey[cycle.AssetKey], "assetCycle", cycle.Path, cycle.Message);
         foreach (string invalidPath in gameData.InvalidLoadPaths
@@ -173,17 +175,22 @@ public sealed class UiAssetValidationService
             .ToArray();
     }
 
-    private IReadOnlyDictionary<string, UiControlDescriptor> createNativeControlLookup()
+    private ValidationInputs captureValidationInputs()
     {
-        return SystemDescriptors
+        IReadOnlyDictionary<string, UiControlDescriptor> controls = SystemDescriptors
             .GroupBy(descriptor => descriptor.ControlId, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+        return new ValidationInputs(controls, gameData.AssetPaths,
+            gameData.Assets.MaterialsData.Keys.ToHashSet(StringComparer.Ordinal),
+            gameData.Assets.TextConfigsData.ToDictionary(pair => pair.Key, pair => pair.Value.Type, StringComparer.Ordinal),
+            gameData.Assets.ParticlesData.Keys.ToHashSet(StringComparer.Ordinal),
+            gameData.Assets.CurvesData.ToDictionary(pair => pair.Key, pair => pair.Value.Type, StringComparer.Ordinal));
     }
 
-    private void validateAssetStructure(
+    private static void validateAssetStructure(
         string assetKey,
         JsonObject data,
-        IReadOnlyDictionary<string, UiControlDescriptor> controls,
+        ValidationInputs inputs,
         ICollection<UiValidationIssue> issues,
         bool structuralOnly,
         UiAssetDependencyGraph dependencies)
@@ -199,20 +206,20 @@ public sealed class UiAssetValidationService
             return;
         }
         HashSet<string> names = new HashSet<string>(StringComparer.Ordinal);
-        validateNode(assetKey, root, "root", true, null, controls, names, issues, structuralOnly, dependencies);
+        validateNode(assetKey, root, "root", true, null, inputs, names, issues, structuralOnly, dependencies);
         HashSet<string> animationTargets = UiAssetSchema.EnumerateNodes(data, false)
             .Select(node => getString(node["name"]) ?? string.Empty)
             .ToHashSet(StringComparer.Ordinal);
         validateAnimations(data["animations"], animationTargets, issues);
     }
 
-    private void validateNode(
+    private static void validateNode(
         string assetKey,
         JsonObject node,
         string path,
         bool root,
         UiControlDescriptor? parent,
-        IReadOnlyDictionary<string, UiControlDescriptor> controls,
+        ValidationInputs inputs,
         ISet<string> names,
         ICollection<UiValidationIssue> issues,
         bool structuralOnly,
@@ -309,7 +316,7 @@ public sealed class UiAssetValidationService
         }
         else
         {
-            controls.TryGetValue(controlId, out descriptor);
+            inputs.Controls.TryGetValue(controlId, out descriptor);
         }
         if (structuralOnly && descriptor?.Source != "project")
         {
@@ -333,7 +340,7 @@ public sealed class UiAssetValidationService
         }
         else if (descriptor is not null)
         {
-            validateProperties(properties, descriptor, path + ".properties", issues);
+            validateProperties(properties, descriptor, path + ".properties", issues, inputs);
             validateEditor(editor, descriptor, path + ".editor", issues);
         }
         else
@@ -363,7 +370,7 @@ public sealed class UiAssetValidationService
                 $"{path}.children[{index}]",
                 false,
                 descriptor,
-                controls,
+                inputs,
                 names,
                 issues,
                 structuralOnly,
@@ -371,11 +378,12 @@ public sealed class UiAssetValidationService
         }
     }
 
-    private void validateProperties(
+    private static void validateProperties(
         JsonObject properties,
         UiControlDescriptor descriptor,
         string path,
-        ICollection<UiValidationIssue> issues)
+        ICollection<UiValidationIssue> issues,
+        ValidationInputs inputs)
     {
         IReadOnlyDictionary<string, UiControlPropertyDescriptor> propertyLookup = descriptor.Properties
             .Where(property => !property.EditorOnly)
@@ -399,7 +407,8 @@ public sealed class UiAssetValidationService
                 pair.Key,
                 pair.Value,
                 path + "." + pair.Key,
-                issues);
+                issues,
+                inputs);
         }
         foreach (UiControlPropertyDescriptor property in propertyLookup.Values)
         {
@@ -640,12 +649,13 @@ public sealed class UiAssetValidationService
         }
     }
 
-    private void validatePropertyReference(
+    private static void validatePropertyReference(
         string controlId,
         string propertyId,
         JsonNode? value,
         string path,
-        ICollection<UiValidationIssue> issues)
+        ICollection<UiValidationIssue> issues,
+        ValidationInputs inputs)
     {
         string? text = getString(value);
         if (text is null || text.Length == 0)
@@ -674,7 +684,7 @@ public sealed class UiAssetValidationService
                 add(issues, "assetPath", path, "UI asset resources must use a canonical /Game/Assets/ path");
                 return;
             }
-            if (!gameData.AssetPaths.TryResolveAsset(text, out _))
+            if (!inputs.AssetPaths.TryResolveAsset(text, out _))
             {
                 add(issues, "missingResource", path, $"Resource \"{text}\" was not found");
             }
@@ -682,7 +692,7 @@ public sealed class UiAssetValidationService
         }
         if (propertyId == "material")
         {
-            if (!GameDataPath.TryGetMaterialKey(text, out string materialKey) || !gameData.Assets.MaterialsData.ContainsKey(materialKey))
+            if (!GameDataPath.TryGetMaterialKey(text, out string materialKey) || !inputs.Materials.Contains(materialKey))
                 add(issues, "material", path, "Material must reference an existing Data/Materials/*.json file");
             return;
         }
@@ -690,17 +700,17 @@ public sealed class UiAssetValidationService
         {
             if (!tryGetCanonicalDataKey(text, "TextConfigs", out string key))
                 add(issues, "textConfigKey", path, "Text config must use a canonical TextConfigs key without an extension");
-            else if (!gameData.Assets.TextConfigsData.TryGetValue(key, out TextConfigSnapshot? textConfig))
+            else if (!inputs.TextConfigTypes.TryGetValue(key, out string? textConfigType))
                 add(issues, "missingTextConfig", path, $"Text config \"{text}\" was not found");
             else
-                validateTextConfigType(controlId, textConfig, path, issues);
+                validateTextConfigType(controlId, textConfigType, path, issues, inputs.Controls);
             return;
         }
         if (propertyId == "particle")
         {
             if (!tryGetCanonicalDataKey(text, "Particles", out string key))
                 add(issues, "particleKey", path, "Particle must use a canonical Particles key without an extension");
-            else if (!gameData.Assets.ParticlesData.ContainsKey(key))
+            else if (!inputs.Particles.Contains(key))
                 add(issues, "missingParticle", path, $"Particle \"{text}\" was not found");
             return;
         }
@@ -708,27 +718,28 @@ public sealed class UiAssetValidationService
         {
             if (!tryGetCanonicalDataKey(text, "Curves", out string key))
                 add(issues, "curveKey", path, "Curve must use a canonical Curves key without an extension");
-            else if (!gameData.Assets.CurvesData.TryGetValue(key, out CurveSnapshot? curve))
+            else if (!inputs.CurveTypes.TryGetValue(key, out string? curveType))
                 add(issues, "missingCurve", path, $"Curve \"{text}\" was not found");
-            else if (curve.Type != "curve")
+            else if (curveType != "curve")
                 add(issues, "curveType", path, $"{propertyId} must reference a scalar curve");
         }
     }
 
-    private void validateTextConfigType(
+    private static void validateTextConfigType(
         string controlId,
-        TextConfigSnapshot textConfig,
+        string textConfigType,
         string path,
-        ICollection<UiValidationIssue> issues)
+        ICollection<UiValidationIssue> issues,
+        IReadOnlyDictionary<string, UiControlDescriptor> controls)
     {
-        string? expectedType = SystemDescriptors.FirstOrDefault(control => control.ControlId == controlId)?.TextKind switch
+        string? expectedType = controls.GetValueOrDefault(controlId)?.TextKind switch
         {
             "plain" => "plainTextConfig",
             "rich" => "richTextConfig",
             _ => null,
         };
         if (expectedType is not null
-            && textConfig.Type != expectedType)
+            && textConfigType != expectedType)
         {
             add(issues, "textConfigType", path, $"Text config must have type {expectedType}");
         }
@@ -1089,4 +1100,12 @@ public sealed class UiAssetValidationService
         issues.Add(new UiValidationIssue(code, path, message));
     }
     private static bool tryGetFiniteNumber(JsonNode? value, out double result) => JsonScalar.TryGetFiniteNumber(value, out result);
+
+    private sealed record ValidationInputs(
+        IReadOnlyDictionary<string, UiControlDescriptor> Controls,
+        ProjectAssetPaths AssetPaths,
+        IReadOnlySet<string> Materials,
+        IReadOnlyDictionary<string, string> TextConfigTypes,
+        IReadOnlySet<string> Particles,
+        IReadOnlyDictionary<string, string> CurveTypes);
 }

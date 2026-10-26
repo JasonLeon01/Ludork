@@ -10,12 +10,14 @@ namespace Ludork.Services;
 internal sealed class LuaMetadataHierarchy
 {
     private readonly LuaMetadataFileCache files;
+    private readonly LuaValidationReadCache? readCache;
     private readonly Dictionary<string, IReadOnlyList<LuaTypeMetadata>> mroCache = new(StringComparer.Ordinal);
     private LuaStubTypeHierarchy? stubTypeHierarchy;
 
-    public LuaMetadataHierarchy(LuaMetadataFileCache files)
+    public LuaMetadataHierarchy(LuaMetadataFileCache files, LuaValidationReadCache? readCache = null)
     {
         this.files = files;
+        this.readCache = readCache;
         files.Invalidated += clear;
     }
 
@@ -37,7 +39,8 @@ internal sealed class LuaMetadataHierarchy
 
     public bool IsDerivedType(string source, string target)
     {
-        stubTypeHierarchy ??= new LuaStubTypeHierarchy(Path.Combine(files.ProjectPath, "Scripts", "stub"));
+        stubTypeHierarchy ??= readCache?.GetStubHierarchy()
+            ?? new LuaStubTypeHierarchy(Path.Combine(files.ProjectPath, "Scripts", "stub"));
         Stack<string> pending = new();
         HashSet<string> visited = new(StringComparer.Ordinal);
         pending.Push(source);
@@ -62,7 +65,7 @@ internal sealed class LuaMetadataHierarchy
     public IReadOnlyDictionary<string, IReadOnlySet<string>> CaptureAncestors(
         IReadOnlyList<LuaTypeMetadata> types, CancellationToken cancellationToken)
     {
-        stubTypeHierarchy ??= new LuaStubTypeHierarchy(
+        stubTypeHierarchy ??= readCache?.GetStubHierarchy() ?? new LuaStubTypeHierarchy(
             Path.Combine(files.ProjectPath, "Scripts", "stub"), cancellationToken);
         Dictionary<string, HashSet<string>> directBases = new(StringComparer.Ordinal);
         foreach (string name in stubTypeHierarchy.TypeNames)
