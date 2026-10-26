@@ -56,6 +56,10 @@ public partial class FileExplorerPanel
 
     private void onBrowsePropertyChanged(object? sender, PropertyChangedEventArgs args)
     {
+        if (args.PropertyName is nameof(FileExplorerViewModel.CurrentPath) or nameof(FileExplorerViewModel.SearchText)
+            or nameof(FileExplorerViewModel.IsLoading) or nameof(FileExplorerViewModel.IsActive)
+            or nameof(FileExplorerViewModel.Zoom))
+            endMarquee(false);
         if (args.PropertyName == nameof(FileExplorerViewModel.IsActive))
         {
             updatePreviewActivity();

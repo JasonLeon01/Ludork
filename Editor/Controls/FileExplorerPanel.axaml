@@ -205,8 +205,9 @@
                 </SplitButton.Flyout>
             </SplitButton>
         </Grid>
-        <Grid Grid.Row="1" Grid.Column="1">
+        <Grid x:Name="EntriesSelectionSurface" Grid.Row="1" Grid.Column="1" ClipToBounds="True">
             <ListBox x:Name="IconEntries"
+                     Focusable="True"
                      ItemsSource="{Binding Entries}"
                      SelectionChanged="onEntriesSelectionChanged"
                      SelectionMode="Multiple"
@@ -252,6 +253,7 @@
                 </ListBox.ItemTemplate>
             </ListBox>
             <ListBox x:Name="ListEntries"
+                     Focusable="True"
                      IsVisible="False"
                      ItemsSource="{Binding Entries}"
                      SelectionChanged="onEntriesSelectionChanged"
@@ -302,6 +304,11 @@
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
+            <Canvas IsHitTestVisible="False" ClipToBounds="True">
+                <Border x:Name="EntriesSelectionBox" IsVisible="False"
+                        Background="#338ab4f8" BorderBrush="{DynamicResource Editor.AccentBrush}"
+                        BorderThickness="1" CornerRadius="2" />
+            </Canvas>
         </Grid>
         <Grid Grid.Row="2" Grid.Column="1" ColumnDefinitions="*,Auto" Margin="8,2">
             <StackPanel Spacing="2" VerticalAlignment="Center">

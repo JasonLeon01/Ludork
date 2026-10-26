@@ -1,6 +1,6 @@
 {
   "type": "uiAsset",
-  "designSize": { "width": 384, "height": 320 },
+  "designSize": { "width": 384, "height": 224 },
   "palette": {
     "exposed": true,
     "displayName": "Window Shop Records",
@@ -39,13 +39,13 @@
   "root": {
     "name": "Root",
     "controlId": "Engine.Canvas",
-    "properties": { "size": [384, 320] },
+    "properties": { "size": [384, 224] },
     "editor": {},
     "children": [
       {
         "name": "WindowFrame",
         "controlId": "Engine.Window",
-        "properties": { "size": [384, 320], "windowSkin": "", "repeated": false },
+        "properties": { "size": [384, 224], "windowSkin": "", "repeated": false },
         "slot": {
           "anchors": { "min": [0.0, 0.0], "max": [1.0, 1.0] },
           "offsets": { "left": 0.0, "top": 0.0, "right": 0.0, "bottom": 0.0 },
@@ -56,7 +56,7 @@
       {
         "name": "Content",
         "controlId": "Engine.Canvas",
-        "properties": { "size": [352, 288] },
+        "properties": { "size": [352, 192] },
         "slot": {
           "anchors": { "min": [0.0, 0.0], "max": [1.0, 1.0] },
           "offsets": { "left": 16.0, "top": 16.0, "right": 16.0, "bottom": 16.0 },
@@ -67,7 +67,7 @@
           {
             "name": "ShopScrollBox",
             "controlId": "Engine.ScrollBox",
-            "properties": { "size": [352, 288], "windowSkin": "" },
+            "properties": { "size": [352, 192], "windowSkin": "" },
             "slot": {
               "anchors": { "min": [0.0, 0.0], "max": [1.0, 1.0] },
               "offsets": { "left": 0.0, "top": 0.0, "right": 0.0, "bottom": 0.0 },
@@ -79,7 +79,7 @@
                 "name": "ShopList",
                 "controlId": "Engine.ListView",
                 "properties": {
-                  "size": [352, 288], "defaultItemHeight": 32, "fixItemHeight": true,
+                  "size": [352, 192], "defaultItemHeight": 32, "fixItemHeight": true,
                   "columns": 1, "childScrollingEnabled": true
                 },
                 "slot": {}, "editor": {},

@@ -22,11 +22,11 @@ public partial class ConfirmationDialog : Window
         MessageText.Text = message;
         if (!string.IsNullOrWhiteSpace(details))
         {
-            Width = 640;
-            Height = 420;
+            Width = 480;
+            Height = 220;
             CanResize = true;
             MinWidth = 440;
-            MinHeight = 240;
+            MinHeight = 180;
             MessageText.Text += Environment.NewLine + Environment.NewLine + details;
         }
         ConfirmButton.Content = LocaleService.Get("CONFIRM");

@@ -41,6 +41,7 @@ public partial class FileExplorerPanel : UserControl
         AutomationProperties.SetName(SearchBox, searchHint);
         initializeZoom();
         initializeHistory();
+        initializeMarquee();
         IconEntries.AddHandler(KeyDownEvent, onPreviewKeyDown, RoutingStrategies.Tunnel);
         ListEntries.AddHandler(KeyDownEvent, onPreviewKeyDown, RoutingStrategies.Tunnel);
         ListEntries.AddHandler(KeyDownEvent, onTreeKeyDown, RoutingStrategies.Tunnel);
@@ -81,6 +82,7 @@ public partial class FileExplorerPanel : UserControl
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs args)
     {
+        endMarquee(false);
         resetPendingDrag();
         foreach (FileExplorerItemControl row in this.GetVisualDescendants().OfType<FileExplorerItemControl>())
             row.Deactivate();
@@ -159,6 +161,7 @@ public partial class FileExplorerPanel : UserControl
 
     private void updateViewMode()
     {
+        endMarquee(false);
         ListBox previous = activeEntries;
         FileExplorerViewModel? viewModel = DataContext as FileExplorerViewModel;
         bool iconMode = ViewModeButton.IsChecked == true;
@@ -378,7 +381,10 @@ public partial class FileExplorerPanel : UserControl
 
     private async void onPointerPressed(object? sender, PointerPressedEventArgs args)
     {
+        endMarquee(false);
         resetPendingDrag();
+        if (tryBeginMarquee(sender, args))
+            return;
         if (getDirectoryExpander(args.Source) is ToggleButton { DataContext: FileExplorerEntryViewModel entry }
             && args.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
         {
@@ -409,6 +415,7 @@ public partial class FileExplorerPanel : UserControl
         object? sender,
         ContextRequestedEventArgs args)
     {
+        endMarquee(false);
         resetPendingDrag();
         if (DataContext is not FileExplorerViewModel viewModel)
             return;
@@ -836,6 +843,8 @@ public partial class FileExplorerPanel : UserControl
 
     private async void onPointerMoved(object? sender, PointerEventArgs args)
     {
+        if (moveMarquee(args))
+            return;
         if (DataContext is FileExplorerViewModel { IsReadOnly: true })
             return;
         if (isScrollBarSource(args.Source))
@@ -873,6 +882,8 @@ public partial class FileExplorerPanel : UserControl
 
     private async void onPointerReleased(object? sender, PointerReleasedEventArgs args)
     {
+        if (releaseMarquee(args))
+            return;
         FileExplorerEntryViewModel? entry = pressedSelection;
         resetPendingDrag();
         if (args.InitialPressMouseButton == MouseButton.Left && entry is not null
@@ -882,6 +893,7 @@ public partial class FileExplorerPanel : UserControl
 
     private void onPointerCaptureLost(object? sender, PointerCaptureLostEventArgs args)
     {
+        endMarquee(false);
         resetPendingDrag();
     }
 

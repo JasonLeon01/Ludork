@@ -2332,12 +2332,12 @@
     "en_GB": "Failed to edit game variables"
   },
   "DELETE_DOCUMENT_CONFIRMATION": {
-    "zh_CN": "删除所选资源，并将磁盘上的文件或文件夹移到系统回收站／垃圾篓？无法回收的文件会保留。",
-    "en_GB": "Delete the selected resources and move their saved files or folders to the system Recycle Bin or Trash? Files that cannot be recycled will be kept."
+    "zh_CN": "删除所选资源？已保存的文件将移至系统回收站／垃圾篓。",
+    "en_GB": "Delete the selected resources? Saved files will be moved to the system Recycle Bin or Trash."
   },
   "DELETE_DOCUMENT_DETAILS": {
-    "zh_CN": "未保存的修改会丢失；从未保存的新资源会直接移除，没有可回收的副本。编辑器撤销无法恢复本次删除。可通过系统回收站／垃圾篓恢复已保存的文件，然后重新打开项目。",
-    "en_GB": "Unsaved changes will be lost. New resources that have never been saved will be removed without a recoverable copy. Editor Undo cannot restore this deletion. Restore saved files using the operating system, then reopen the project."
+    "zh_CN": "未保存的内容将丢失，编辑器内无法撤销。",
+    "en_GB": "Unsaved content will be lost. This cannot be undone in the editor."
   },
   "DOCUMENT_HISTORY_REFERENCE_BARRIER": {
     "zh_CN": "此处为 {source} 触发的自动引用更新，不能撤销该记录及更早的操作。",

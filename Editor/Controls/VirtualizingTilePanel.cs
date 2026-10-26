@@ -94,7 +94,7 @@ public sealed class VirtualizingTilePanel : VirtualizingPanel
             InvalidateMeasure();
         }
         foreach (KeyValuePair<int, ContainerEntry> entry in realized)
-            entry.Value.Control.Arrange(itemBounds(entry.Key));
+            entry.Value.Control.Arrange(GetItemBounds(entry.Key));
         return finalSize;
     }
 
@@ -105,7 +105,7 @@ public sealed class VirtualizingTilePanel : VirtualizingPanel
         requestedIndex = index;
         Control container = realize(index);
         container.Measure(new Size(ItemWidth, ItemHeight));
-        container.Arrange(itemBounds(index));
+        container.Arrange(GetItemBounds(index));
         container.BringIntoView();
         InvalidateMeasure();
         Dispatcher.UIThread.Post(() =>
@@ -274,7 +274,7 @@ public sealed class VirtualizingTilePanel : VirtualizingPanel
         }
     }
 
-    private Rect itemBounds(int index) =>
+    internal Rect GetItemBounds(int index) =>
         new(index % columns * ItemWidth, index / columns * ItemHeight, ItemWidth, ItemHeight);
 
     private void onEffectiveViewportChanged(object? sender, EffectiveViewportChangedEventArgs e)
