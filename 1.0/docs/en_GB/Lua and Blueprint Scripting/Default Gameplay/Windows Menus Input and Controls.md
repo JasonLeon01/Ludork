@@ -6,7 +6,7 @@ This page describes the default game's windows and input behaviour. To create yo
 
 Window views follow the [Declarative UI Runtime Contract](<../Declarative UI/Runtime Contract.md>). Menus keep stable command identifiers separate from displayed text. Long descriptions use the existing wrapping and formatting helpers.
 
-The title's Save/Load and Config windows and the map's optional windows use separate [`LazyWindow` handles](<../Declarative UI/Runtime Contract.md#create-optional-windows-on-first-use>). Map entry creates HUD and Region Title directly. Menu, Item, Equip, shops, Save/Load, Config, Enemy Book, Encyclopedia, Floor Teleporter and Player Name are created on first display; Message is created on the first message or selection. Opening Menu leaves its unused sub-windows uncreated.
+The title's Save/Load and Config windows and the map's optional windows use separate [`LazyWindow` handles](<../Declarative UI/Runtime Contract.md#create-optional-windows-on-first-use>). Map entry creates HUD and Region Title directly. Menu, Item, Equip, shops, Shop Records, Save/Load, Config, Enemy Book, Encyclopedia, Floor Teleporter and Player Name are created on first display; Message is created on the first message or selection. Opening Menu leaves its unused sub-windows uncreated.
 
 The in-game menu lists Items, Equipments, Files, Config and Return to Title. `WindowMenu.new(player, windows, onExit)` receives the scene's exit action and invokes it after the menu's closing animation. The scene owns the destination and assigns one stacking layer to the menu and its independent sub-windows. Selecting Config opens the shared Config window over the menu and deactivates the command list. Closing the Config window returns focus to the menu.
 
@@ -73,6 +73,16 @@ The static records evaluate [ConditionalActor](<../Source Classes/ConditionalAct
 Attribute shops expose display snapshots through `getOffers()` and validate purchases through `purchaseAttribute(key)`. A scalar price reference is shared by all offers, while an array sets per-offer prices. A purchase increments the corresponding price.
 
 Dialogue, tutorial and window APIs return `Engine.AsyncOperation`. See [Scene operations](<../Node Functions/Scene.md#lua-waiting-and-results>) for completion results and [Lua asynchronous tasks](<../../Getting Started/Ludork Lua Advanced.md>) for sequential waiting.
+
+### Visited shops
+
+Release **V** to open `WindowShopRecords` when shop recording is enabled, the current player owns the Teleporter item, at least one shop is recorded, and the scene allows a window to open. The list includes records from every region. Its single-column children are text controls displaying the map's localised `mapName` (or a world's `worldName`), a space, and the localised recorded tag. Long text scrolls within its row. Reopening selects the first row and scrolls to the top; changing language refreshes the text without resetting selection or scroll.
+
+Both item and attribute shops record successful openings. [Shop nodes](<../Node Functions/Scene.md#shop-actors>) identify the shop Actor; an opening without a map identity remains usable but creates no record. The record format, script methods and recording switch are defined in [Runtime Data, Configuration and Saves](<Runtime Data Configuration and Saves.md#saves>).
+
+Confirming a row closes the list and executes the recorded shop's complete `onCollision` event with the current player as `other`. The player stays on the current map. The shop Actor is constructed independently from its original map placement, including that placement's `BPClassVarChanged`; a world placement retains its world coordinates. The target map is not loaded as a scene, shared class defaults are unchanged, and `onCreate` is not run. Shop graphs therefore use their configured fields and current game variables rather than relying on target-map attachment or state initialised only by `onCreate`. Dialogue, conditions and logic after the shop closes all remain part of the event.
+
+Closing the shop returns to map play, without reopening the list. Cancelling the list restores the previous movement state. A missing map or placement tag plays the buzzer and leaves the list and stored record intact; remove an obsolete entry with `removeShop`. Remote openings do not add the shop under the player's current map.
 
 ### Map introduction
 

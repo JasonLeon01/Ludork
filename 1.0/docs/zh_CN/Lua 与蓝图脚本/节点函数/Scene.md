@@ -41,7 +41,7 @@ Metadata 来源：`Scripts/GlobalFunctions/Scene_meta.lua`
 | `RecordAndDestroyActor` | `function` | actor: { "Engine", "Actor" } | — | ExecSplit { [1] = "default", default = nil } |
 | `SelfRecordAndDestroy` | `function` | — | — | ExecSplit { [1] = "default", default = nil } |
 | `OpenPlayerName` | `function` | — | return: { "Engine", "AsyncOperation" } | Latent Closed |
-| `OpenShop` | `function` | items: string[] = {  }; canSell: bool = true | return: { "Engine", "AsyncOperation" } | Latent true; LatentStates { [1] = "Closed", Closed = { [1] = true } } |
+| `OpenShop` | `function` | items: string[] = {  }; canSell: bool = true; actor: { "Engine", "Actor" } = nil | return: { "Engine", "AsyncOperation" } | Latent true; LatentStates { [1] = "Closed", Closed = { [1] = true } } |
 | `OpenAttrShop` | `function` | actor: { "Engine", "Actor" }; shopName: string = ""; shopDescription: string = ""; abilities: any = {  }; price: any = 0; priceIncrement: int = 1; moneyName: string = "GOLD" | return: { "Engine", "AsyncOperation" } | Latent true; LatentStates { [1] = "Closed", Closed = { [1] = true } } |
 | `OpenAttrShopByTag` | `function` | actorTag: string = ""; shopName: string = ""; shopDescription: string = ""; abilities: any = {  }; price: any = 0; priceIncrement: int = 1; moneyName: string = "GOLD" | return: { "Engine", "AsyncOperation" } | Latent true; LatentStates { [1] = "Closed", Closed = { [1] = true } } |
 
@@ -50,6 +50,10 @@ Metadata 来源：`Scripts/GlobalFunctions/Scene_meta.lua`
 潜伏函数返回 `Engine.AsyncOperation`，顺序等待用法见 [Lua 异步任务](<../../快速入门/Ludork Lua 进阶.md>)。教程、消息、计时器和窗口关闭操作以 `true` 完成。选项返回从 0 开始的索引，玩家取消返回 `-1` 并进入蓝图 `Cancelled` 出口，不等同于取消操作对象。
 
 消息与窗口在关闭动画结束后完成。新的消息或选项取消旧对话操作；重新打开商店会替换其操作，重复请求已打开的改名窗口则共享操作。语音在所属对话完成或取消时停止。场景与换图清理规则见 [SceneMap](<../源码类/SceneMap.md#脚本操作与生命周期>)。
+
+### 商店 Actor
+
+`OpenShop(items, canSell, actor?)` 使用可选的 Actor 确定商店访问身份。在蓝图中省略该参数时，若当前图的 owner 是 Actor，就使用它；Lua 直接调用时，通过第三个参数传入商店 Actor 以记录访问。`OpenAttrShop` 使用已有的 `actor` 参数，`OpenAttrShopByTag` 在当前地图查找对应 Actor。没有地图身份的 Actor 不产生记录。这些节点保持原有的 `Closed` 完成结果；记录与远程访问行为见[已访问商店](<../Game 玩法/窗口、菜单、输入与控件.md#已访问商店>)。
 
 ### GotoMap 的大地图目的地
 

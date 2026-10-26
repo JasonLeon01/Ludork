@@ -36,6 +36,7 @@ Ordinary map loading binds the Scene and current map identity, restores terrain 
 | `applyLoadedGame` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self"; inst: { "Source.GameInstance", "GameInstance" } | — | ExecSplit { [1] = "default", default = nil } |
 | `showEnemyBook` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self" | — | ExecSplit { [1] = "default", default = nil } |
 | `showFloorTeleporter` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self" | — | ExecSplit { [1] = "default", default = nil } |
+| `showShopRecords` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self" | — | ExecSplit { [1] = "default", default = nil } |
 | `openMenu` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self" | — | ExecSplit { [1] = "default", default = nil } |
 | `recordAddedActor` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self"; actor: { "Engine", "Actor" } | — | ExecSplit { [1] = "default", default = nil } |
 | `recordActorPosition` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self"; actor: { "Engine", "Actor" }; position: sf.Vector2i = nil | — | ExecSplit { [1] = "default", default = nil } |
@@ -43,13 +44,15 @@ Ordinary map loading binds the Scene and current map identity, restores terrain 
 
 ### Script operations and lifetime
 
+`showShopRecords()` opens the [visited-shop list](<../Default Gameplay/Windows Menus Input and Controls.md#visited-shops>) under the same conditions as V and returns a Lua boolean indicating whether it opened. `openShop(buyItemIDs, canSell, actor?)` accepts an optional shop Actor for recording; direct Scene calls supply that Actor explicitly.
+
 `showMessage`, `showSelection`, `openPlayerName`, `openShop` and `openAttrShop` return `Engine.AsyncOperation`. Results and window replacement rules match the [Scene nodes](<../Node Functions/Scene.md#lua-waiting-and-results>).
 
 `showVoiceMessage(name, message, voiceFileName, refActor, minDistance, spatial)` is also available to Lua. With `spatial = true`, it positions the voice at `refActor` and passes `minDistance` to the audio manager; with `false`, the voice is non-spatial. The reference actor still positions the message window.
 
 Lua wrappers that supply node-local formatting values can call `showMessageWithContext`, `showSelectionWithContext` or `showVoiceMessageWithContext`. Each takes its corresponding ordinary method's arguments followed by `localVars: table<string, any>`, copied when the dialogue starts, and returns the same `Engine.AsyncOperation`. The ordinary Scene methods and Scene nodes capture their active node context before delegating. The `WithContext` methods have no Blueprint nodes.
 
-Scene exit, destruction and map replacement cancel unfinished tutorials, dialogues, shops, player-name windows and scene timers, dismissing windows and releasing input blocks. Registered operations on departing map Actors, including movement and doors, are also cancelled. Waiting Lua tasks and Blueprint events stop without running subsequent statements or completion outputs.
+Scene exit, destruction and map replacement cancel unfinished tutorials, dialogues, shops, player-name windows and scene timers, dismissing windows and releasing input blocks. They also close the shop-record list and release its remote shop Actor. Registered operations on departing map Actors, including movement and doors, are also cancelled. Waiting Lua tasks and Blueprint events stop without running subsequent statements or completion outputs.
 
 Scene exit and destruction also discard deferred menu, Save/Load and quick-save requests and queued map transfers. Cancelling a queued transfer releases its frozen background and restores movement on the player captured by that request. `applyLoadedGame(inst)` and `applyPrimaryPlayer()` cancel outgoing interactions and pending requests before rebinding the player, HUD and existing windows, then force a map reload. Movement restoration therefore targets the outgoing player rather than changing the newly bound player's movement state.
 

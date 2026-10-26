@@ -70,7 +70,7 @@ Metadata 来源：`Scripts/Global/GameMap_meta.lua`
 
 ### 非连通区域隐藏
 
-`GameMap.HideDisconnectedRegions` 为普通有限地图启用原生区域隐藏。在系统初始化、构造地图之前设置这个模块默认值；已有地图由 `setHideDisconnectedRegions(enabled)` 控制。`GameMap` 对 `sparseWorldConfig` 跳过这个默认开关；直接对稀疏大地图调用原生设置方法并传入 `true` 会报错，因此组合式大地图保留原有绘制行为。
+`GameMap.HideDisconnectedRegions` 为普通有限地图启用原生区域隐藏。通过 [Gameplay 的 `hideDisconnectedRegions`](<../../Game 玩法/运行时数据、配置与存档.md#共享玩法配置>) 配置启动值，或在构造地图之前设置这个模块默认值；已有地图由 `setHideDisconnectedRegions(enabled)` 控制。`GameMap` 对 `sparseWorldConfig` 跳过这个默认开关；直接对稀疏大地图调用原生设置方法并传入 `true` 会报错，因此组合式大地图保留原有绘制行为。
 
 区域仅根据 tile 通行性按四方向连通划分：每格由最上层可见且包含 tile 内容的图层决定通行性。地图边缘限制连通，门和其他 Actor 不参与划分。玩家所在区域保持可见，其他可通行格显示为最近不可通行格的 tile 图层。距离采用曼哈顿距离，同距按从上到下、从左到右选取，保留源格纹理、自动图块形态和动画。不可通行格保持原样。没有有效观察位置时（无玩家、位置越界或观察格不可通行），隐藏所有可通行格，墙格仍可见。预览显式提供观察格。
 

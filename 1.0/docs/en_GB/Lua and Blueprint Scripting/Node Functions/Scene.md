@@ -41,7 +41,7 @@ Metadata source: `Scripts/GlobalFunctions/Scene_meta.lua`
 | `RecordAndDestroyActor` | `function` | actor: { "Engine", "Actor" } | — | ExecSplit { [1] = "default", default = nil } |
 | `SelfRecordAndDestroy` | `function` | — | — | ExecSplit { [1] = "default", default = nil } |
 | `OpenPlayerName` | `function` | — | return: { "Engine", "AsyncOperation" } | Latent Closed |
-| `OpenShop` | `function` | items: string[] = {  }; canSell: bool = true | return: { "Engine", "AsyncOperation" } | Latent true; LatentStates { [1] = "Closed", Closed = { [1] = true } } |
+| `OpenShop` | `function` | items: string[] = {  }; canSell: bool = true; actor: { "Engine", "Actor" } = nil | return: { "Engine", "AsyncOperation" } | Latent true; LatentStates { [1] = "Closed", Closed = { [1] = true } } |
 | `OpenAttrShop` | `function` | actor: { "Engine", "Actor" }; shopName: string = ""; shopDescription: string = ""; abilities: any = {  }; price: any = 0; priceIncrement: int = 1; moneyName: string = "GOLD" | return: { "Engine", "AsyncOperation" } | Latent true; LatentStates { [1] = "Closed", Closed = { [1] = true } } |
 | `OpenAttrShopByTag` | `function` | actorTag: string = ""; shopName: string = ""; shopDescription: string = ""; abilities: any = {  }; price: any = 0; priceIncrement: int = 1; moneyName: string = "GOLD" | return: { "Engine", "AsyncOperation" } | Latent true; LatentStates { [1] = "Closed", Closed = { [1] = true } } |
 
@@ -50,6 +50,10 @@ Metadata source: `Scripts/GlobalFunctions/Scene_meta.lua`
 Latent functions return `Engine.AsyncOperation`; see [Lua asynchronous tasks](<../../Getting Started/Ludork Lua Advanced.md>) for sequential waiting. Tutorials, messages, timers and window-close operations complete with `true`. Selections return a zero-based index or `-1` for player cancellation, which follows the Blueprint `Cancelled` output rather than cancelling the operation.
 
 Messages and windows complete after their closing animation. A new message or selection cancels the previous dialogue operation; reopening a shop replaces its operation, while repeated requests for the open player-name window share one operation. Voice playback stops when its dialogue completes or is cancelled. Scene and map cleanup follows [SceneMap](<../Source Classes/SceneMap.md#script-operations-and-lifetime>).
+
+### Shop Actors
+
+`OpenShop(items, canSell, actor?)` uses its optional Actor to identify a shop visit. When omitted in a Blueprint, it uses the current graph owner if that owner is an Actor. Direct Lua callers supply the shop Actor as the third argument to record the opening. `OpenAttrShop` uses its existing `actor` argument, and `OpenAttrShopByTag` resolves that Actor on the current map. An Actor without a map identity does not create a record. These nodes retain their existing `Closed` result; see [Visited shops](<../Default Gameplay/Windows Menus Input and Controls.md#visited-shops>) for the recording and remote-access behaviour.
 
 ### GotoMap world destinations
 

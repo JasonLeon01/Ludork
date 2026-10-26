@@ -36,6 +36,7 @@ Scene 将当前对象作为参数传给组件，或通过 getter 和命令提供
 | `applyLoadedGame` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self"; inst: { "Source.GameInstance", "GameInstance" } | — | ExecSplit { [1] = "default", default = nil } |
 | `showEnemyBook` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self" | — | ExecSplit { [1] = "default", default = nil } |
 | `showFloorTeleporter` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self" | — | ExecSplit { [1] = "default", default = nil } |
+| `showShopRecords` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self" | — | ExecSplit { [1] = "default", default = nil } |
 | `openMenu` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self" | — | ExecSplit { [1] = "default", default = nil } |
 | `recordAddedActor` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self"; actor: { "Engine", "Actor" } | — | ExecSplit { [1] = "default", default = nil } |
 | `recordActorPosition` | `function` | self: { "Source.Scenes.SceneMap", "Scene" } = "self"; actor: { "Engine", "Actor" }; position: sf.Vector2i = nil | — | ExecSplit { [1] = "default", default = nil } |
@@ -43,13 +44,15 @@ Scene 将当前对象作为参数传给组件，或通过 getter 和命令提供
 
 ### 脚本操作与生命周期
 
+`showShopRecords()` 按与 V 相同的条件打开[已访问商店列表](<../Game 玩法/窗口、菜单、输入与控件.md#已访问商店>)，向 Lua 返回表示是否打开的布尔值。`openShop(buyItemIDs, canSell, actor?)` 接受可选商店 Actor 用于记录访问；直接调用 Scene 方法时需显式传入该 Actor。
+
 `showMessage`、`showSelection`、`openPlayerName`、`openShop` 和 `openAttrShop` 返回 `Engine.AsyncOperation`。完成结果与窗口替换规则同 [Scene 节点](<../节点函数/Scene.md#lua-等待与结果>)。
 
 Lua 还可调用 `showVoiceMessage(name, message, voiceFileName, refActor, minDistance, spatial)`。`spatial = true` 时，语音以 `refActor` 定位，并将 `minDistance` 传给音频管理器；传 `false` 时播放非空间语音。参考 Actor 仍用于定位消息窗口。
 
 需要传入节点局部格式化变量的 Lua 包装函数，可以调用 `showMessageWithContext`、`showSelectionWithContext` 或 `showVoiceMessageWithContext`。它们在对应普通方法的参数之后追加 `localVars: table<string, any>`，在开始对话时复制这张表，并返回相同的 `Engine.AsyncOperation`。普通 Scene 方法和 Scene 节点在转交调用前捕获当前节点上下文；`WithContext` 方法不提供蓝图节点。
 
-退出场景、销毁场景和替换地图会取消未完成的教程、对话、商店、改名窗口及场景计时器，关闭窗口并解除输入阻塞。离开地图的 Actor 所注册的操作（包括移动与门动画）也会取消。等待中的 Lua 任务与蓝图事件随之停止，不执行后续语句或完成出口。
+退出场景、销毁场景和替换地图会取消未完成的教程、对话、商店、改名窗口及场景计时器，关闭窗口并解除输入阻塞，同时关闭商店记录列表并释放远程商店 Actor。离开地图的 Actor 所注册的操作（包括移动与门动画）也会取消。等待中的 Lua 任务与蓝图事件随之停止，不执行后续语句或完成出口。
 
 退出或销毁场景还会丢弃延后执行的菜单、存读档、快速保存请求及已排队的地图传送。取消排队中的传送时，会解除对应的背景冻结，并恢复请求发起时保存的玩家移动状态。`applyLoadedGame(inst)` 和 `applyPrimaryPlayer()` 先取消旧交互及待执行请求，再重新绑定玩家、HUD 和已有窗口，并强制重新加载地图。因此，移动恢复作用于离开的玩家，不会改写新绑定玩家的移动状态。
 
