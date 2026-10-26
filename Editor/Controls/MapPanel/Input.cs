@@ -277,6 +277,13 @@ public sealed partial class MapPanel
     protected override void OnKeyDown(KeyEventArgs args)
     {
         base.OnKeyDown(args);
+        if (args.Key == Key.Escape && args.KeyModifiers == KeyModifiers.None && pendingActor is not null)
+        {
+            setPendingActor(null);
+            PendingActorCancelled?.Invoke(this, EventArgs.Empty);
+            args.Handled = true;
+            return;
+        }
         bool primary = EditorShortcuts.HasPrimaryModifier(args.KeyModifiers);
         if (primary && args.Key == Key.C && EditMode == MapEditMode.Actor)
         {

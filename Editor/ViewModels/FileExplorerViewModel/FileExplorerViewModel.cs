@@ -41,7 +41,8 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
         ProjectConfigService projectConfig,
         ProjectDataStore gameData,
         BlueprintPreviewService previewService,
-        ReferenceIndexService referenceIndex)
+        ReferenceIndexService referenceIndex,
+        FileExplorerTabState? initialState = null)
     {
         this.projectPath = Path.GetFullPath(projectPath);
         this.projectConfig = projectConfig;
@@ -54,20 +55,26 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
             zoom = settings.FileExplorerZoom;
             isSourcesExpanded = settings.FileExplorerSourcesExpanded;
         }
+        if (initialState is not null)
+        {
+            iconView = initialState.IconView;
+            zoom = double.IsFinite(initialState.Zoom) ? Math.Clamp(initialState.Zoom, 50, 200) : 100;
+            isSourcesExpanded = initialState.SourcesExpanded;
+        }
         externalIdeService = new ExternalIdeService(this.projectPath, !projectConfig.IsStandalone);
         ContentRoots = [
             new FileExplorerRootViewModel("Assets", Path.Combine(this.projectPath, "Assets")),
             new FileExplorerRootViewModel("Data", Path.Combine(this.projectPath, "Data")),
         ];
         currentPath = ContentRoots[0].Path;
-        string? savedPath = projectConfig.LastFileExplorerPath;
-        if (!string.IsNullOrWhiteSpace(savedPath)
-            && Directory.Exists(Path.Combine(this.projectPath, savedPath)))
+        string? savedPath = initialState?.Path;
+        if (!string.IsNullOrWhiteSpace(savedPath))
         {
             string fullPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.Combine(this.projectPath, savedPath)));
             if (isUnderRoot(fullPath))
-                currentPath = fullPath;
+                currentPath = resolveExistingDirectory(fullPath);
         }
+        visibleDocumentPaths = gameData.Documents.All.ToDictionary(document => document.Id, document => (document.Path, document.Exists));
         refreshBreadcrumbs();
         gameData.DataReloaded += onGameDataChanged;
         gameData.Documents.Changed += onDocumentsChanged;
@@ -133,7 +140,7 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
 
     partial void OnIconViewChanged(bool value)
     {
-        if (value && !IsSearching && SelectedEntry is { Depth: > 0 } selected)
+        if (!restoringBrowseState && value && !IsSearching && SelectedEntry is { Depth: > 0 } selected)
         {
             string first = Path.GetRelativePath(CurrentPath, selected.FullPath)
                 .Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)[0];
@@ -141,19 +148,19 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
             SelectedEntry = Entries.FirstOrDefault(entry => PathComparer.Equals(entry.FullPath, parentPath));
         }
         OnPropertyChanged(nameof(FileExplorerViewMode));
-        if (EditorLayoutService.Settings is EditorSettings settings)
+        if (!restoringBrowseState && EditorLayoutService.Settings is EditorSettings settings)
         {
             settings.FileExplorerIconView = value;
             EditorLayoutService.Save();
         }
-        if (publishedPath is not null || IsLoading)
+        if (!restoringBrowseState && (publishedPath is not null || IsLoading))
             _ = RefreshAsync();
     }
 
     partial void OnIsSourcesExpandedChanged(bool value)
     {
         OnPropertyChanged(nameof(SourcesToggleHint));
-        if (EditorLayoutService.Settings is EditorSettings settings)
+        if (!restoringBrowseState && EditorLayoutService.Settings is EditorSettings settings)
         {
             settings.FileExplorerSourcesExpanded = value;
             EditorLayoutService.Save();
@@ -166,12 +173,6 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(Breadcrumb));
         OnPropertyChanged(nameof(CanGoUp));
         refreshBreadcrumbs();
-    }
-
-    partial void OnSelectedEntryChanged(FileExplorerEntryViewModel? value)
-    {
-        if (value is not null && !value.IsDirectory)
-            _ = notifyFileClickedAsync(value);
     }
 
     public void CopySelected(bool cut)
@@ -275,6 +276,8 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
         foreach (FileExplorerEntryViewModel entry in Entries)
             entry.Dispose();
         Entries.Clear();
+        backHistory.Clear();
+        forwardHistory.Clear();
         SelectedEntry = null;
     }
 
@@ -283,6 +286,11 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
     private void onVisualsInvalidated(object? sender, EventArgs args)
     {
         visualVersion++;
+        if (!IsActive)
+        {
+            refreshRequired = true;
+            return;
+        }
         foreach (FileExplorerEntryViewModel entry in Entries)
             updateDocumentState(entry);
     }

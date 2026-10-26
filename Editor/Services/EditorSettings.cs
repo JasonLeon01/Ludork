@@ -33,7 +33,6 @@ public sealed class EditorSettings
     public string LastOpenPath { get; set; } = string.Empty;
     public bool FileExplorerIconView { get; set; } = true;
     public double FileExplorerZoom { get; set; } = 100;
-    public bool ActorLibraryIconView { get; set; } = true;
     public bool FileExplorerSourcesExpanded { get; set; }
     public EditorExternalOpenTarget FileExplorerOpenTarget { get; set; }
     public IReadOnlyList<string> RecentProjectPaths => recentProjectPaths;
@@ -89,7 +88,6 @@ public sealed class EditorSettings
         settings.FileExplorerIconView = readBool(explorer, "iconview", true);
         double zoom = readPositiveDouble(explorer, "zoom");
         settings.FileExplorerZoom = zoom > 0 ? Math.Clamp(zoom, 50, 200) : 100;
-        settings.ActorLibraryIconView = readBool(settings.section("ActorLibrary"), "iconview", true);
         settings.FileExplorerSourcesExpanded = readBool(explorer, "sourcesexpanded", false);
         if (Enum.TryParse(readText(explorer, "opentarget", "Folder"), true, out EditorExternalOpenTarget target)
             && Enum.IsDefined(target))
@@ -277,7 +275,7 @@ public sealed class EditorSettings
         Dictionary<string, string> explorer = section("FileExplorer");
         explorer["iconview"] = FileExplorerIconView.ToString();
         explorer["zoom"] = FileExplorerZoom.ToString("R", CultureInfo.InvariantCulture);
-        section("ActorLibrary")["iconview"] = ActorLibraryIconView.ToString();
+        sections.Remove("ActorLibrary");
         explorer["sourcesexpanded"] = FileExplorerSourcesExpanded.ToString();
         explorer["opentarget"] = FileExplorerOpenTarget.ToString();
         if (ConfigFileNames.IsPropertyList(configPath))

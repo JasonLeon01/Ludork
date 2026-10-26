@@ -77,8 +77,16 @@
                 </ListBox>
             </Grid>
         </Border>
-        <Grid Grid.Row="0" Grid.Column="1" ColumnDefinitions="*,160,Auto,Auto,Auto" ColumnSpacing="4" Margin="2">
-            <ScrollViewer Grid.Column="0"
+        <Grid Grid.Row="0" Grid.Column="1" ColumnDefinitions="Auto,Auto,*,160,Auto,Auto,Auto" ColumnSpacing="4" Margin="2">
+            <Button Grid.Column="0" Classes="toolbar" Click="onBack" IsEnabled="{Binding CanGoBack}"
+                    ToolTip.Tip="{Binding BackLabel}" AutomationProperties.Name="{Binding BackLabel}">
+                <Image Source="{StaticResource EditorImage.ChevronRight}" RenderTransform="rotate(180deg)" />
+            </Button>
+            <Button Grid.Column="1" Classes="toolbar" Click="onForward" IsEnabled="{Binding CanGoForward}"
+                    ToolTip.Tip="{Binding ForwardLabel}" AutomationProperties.Name="{Binding ForwardLabel}">
+                <Image Source="{StaticResource EditorImage.ChevronRight}" />
+            </Button>
+            <ScrollViewer Grid.Column="2"
                           HorizontalScrollBarVisibility="Auto"
                           VerticalScrollBarVisibility="Disabled">
                 <ItemsControl ItemsSource="{Binding BreadcrumbItems}">
@@ -103,23 +111,23 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </ScrollViewer>
-            <TextBox x:Name="SearchBox" Grid.Column="1"
+            <TextBox x:Name="SearchBox" Grid.Column="3"
                      Text="{Binding SearchText, Mode=TwoWay}"
                      VerticalAlignment="Center" />
             <ToggleButton x:Name="ViewModeButton"
-                          Grid.Column="2"
+                          Grid.Column="4"
                           IsChecked="{Binding IconView, Mode=TwoWay}"
                           Classes="toolbar"
                           ToolTip.Tip="{Binding FileExplorerViewMode}"
                           AutomationProperties.Name="{Binding FileExplorerViewMode}">
                 <Image />
             </ToggleButton>
-            <Button Grid.Column="3" Classes="toolbar" Click="onUp" IsEnabled="{Binding CanGoUp}"
+            <Button Grid.Column="5" Classes="toolbar" Click="onUp" IsEnabled="{Binding CanGoUp}"
                     ToolTip.Tip="{Binding ParentFolder}" AutomationProperties.Name="{Binding ParentFolder}">
                 <Image Source="{StaticResource EditorImage.NavigateUp}" />
             </Button>
             <SplitButton x:Name="ExternalOpenButton"
-                         Grid.Column="4"
+                         Grid.Column="6"
                          Click="onOpenTarget"
                          Padding="6,0" Height="28" VerticalAlignment="Center">
                 <Grid Width="16" Height="16">
@@ -200,7 +208,7 @@
         <Grid Grid.Row="1" Grid.Column="1">
             <ListBox x:Name="IconEntries"
                      ItemsSource="{Binding Entries}"
-                     SelectedItem="{Binding SelectedEntry, Mode=TwoWay}"
+                     SelectionChanged="onEntriesSelectionChanged"
                      SelectionMode="Multiple"
                      DoubleTapped="onDoubleTapped"
                      PointerMoved="onPointerMoved"
@@ -246,7 +254,7 @@
             <ListBox x:Name="ListEntries"
                      IsVisible="False"
                      ItemsSource="{Binding Entries}"
-                     SelectedItem="{Binding SelectedEntry, Mode=TwoWay}"
+                     SelectionChanged="onEntriesSelectionChanged"
                      SelectionMode="Multiple"
                      DoubleTapped="onDoubleTapped"
                      PointerMoved="onPointerMoved"

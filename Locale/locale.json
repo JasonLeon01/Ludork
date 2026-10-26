@@ -2435,6 +2435,22 @@
     "zh_CN": "文件浏览器",
     "en_GB": "File Explorer"
   },
+  "VIEW_MENU": {
+    "zh_CN": "视图",
+    "en_GB": "View"
+  },
+  "FILE_EXPLORER_NEW_TAB": {
+    "zh_CN": "新建文件浏览器页签",
+    "en_GB": "New File Explorer Tab"
+  },
+  "FILE_EXPLORER_BACK": {
+    "zh_CN": "后退 (Alt+Left)",
+    "en_GB": "Back (Alt+Left)"
+  },
+  "FILE_EXPLORER_FORWARD": {
+    "zh_CN": "前进 (Alt+Right)",
+    "en_GB": "Forward (Alt+Right)"
+  },
   "FILE_EXPLORER_SEARCH": {
     "zh_CN": "搜索文件",
     "en_GB": "Search files"
@@ -3771,10 +3787,6 @@
     "zh_CN": "最近放置",
     "en_GB": "Recently Placed"
   },
-  "REMOVE_FROM_RECENTLY_PLACED": {
-    "zh_CN": "从最近布置中移除",
-    "en_GB": "Remove from Recently Placed"
-  },
   "LOCATE_BLUEPRINT": {
     "zh_CN": "定位到蓝图",
     "en_GB": "Locate Blueprint"
@@ -4738,42 +4750,6 @@
   "ANCHOR_STRETCH_ALL": {
     "zh_CN": "全拉伸",
     "en_GB": "Stretch All"
-  },
-  "ACTOR_LIBRARY": {
-    "zh_CN": "Actor 库",
-    "en_GB": "Actor Library"
-  },
-  "ACTOR_LIBRARY_ALL": {
-    "zh_CN": "全部",
-    "en_GB": "All"
-  },
-  "ACTOR_LIBRARY_FAVOURITES": {
-    "zh_CN": "收藏",
-    "en_GB": "Favourites"
-  },
-  "ACTOR_LIBRARY_RECENT": {
-    "zh_CN": "最近使用",
-    "en_GB": "Recent"
-  },
-  "ALL_CATEGORIES": {
-    "zh_CN": "全部分类",
-    "en_GB": "All Categories"
-  },
-  "UNCATEGORISED": {
-    "zh_CN": "未分类",
-    "en_GB": "Uncategorised"
-  },
-  "SEARCH_ACTORS": {
-    "zh_CN": "搜索 Actor",
-    "en_GB": "Search Actors"
-  },
-  "ADD_TO_FAVOURITES": {
-    "zh_CN": "添加到收藏",
-    "en_GB": "Add to Favourites"
-  },
-  "REMOVE_FROM_FAVOURITES": {
-    "zh_CN": "从收藏中移除",
-    "en_GB": "Remove from Favourites"
   },
   "OPEN_BLUEPRINT": {
     "zh_CN": "打开蓝图",

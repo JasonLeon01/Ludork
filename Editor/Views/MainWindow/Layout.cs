@@ -29,6 +29,7 @@ public partial class MainWindow
 {
     private void initializeInteraction()
     {
+        initializeFileExplorerMenu();
         ToolTip.SetTip(ViewportOptionsButton, LocaleService.Get("MAP_VIEWPORT_OPTIONS"));
         Avalonia.Automation.AutomationProperties.SetName(ViewportOptionsButton, LocaleService.Get("MAP_VIEWPORT_OPTIONS"));
         WorldEditorPanel.ViewportOptionsRequested += (sender, _) =>
@@ -78,6 +79,7 @@ public partial class MainWindow
             _ => saveEditorPanelLayout("LowerArea"));
         EditorPanel.TileSelectionPicked += onTileSelectionPicked;
         EditorPanel.ActorSelectionChanged += onMapActorSelectionChanged;
+        EditorPanel.PendingActorCancelled += (_, _) => viewModel?.ClearPendingActor();
         EditorPanel.BlueprintLocateRequested += onBlueprintLocateRequested;
         EditorPanel.ActorDataChanged += onActorDataChanged;
         EditorPanel.ActorPropertiesChanged += (_, _) => ActorInfoPanel.refreshActorProperties();
@@ -101,11 +103,6 @@ public partial class MainWindow
         }
     }
 
-    private void onActorQueueBlueprintOpenRequested(object? sender, string reference)
-    {
-        viewModel?.Actions.OpenBlueprint(reference);
-    }
-
     private void attachViewModel(MainViewModel? next)
     {
         if (viewModel is not null)
@@ -117,9 +114,6 @@ public partial class MainWindow
             viewModel.PropertyChanged -= onViewModelPropertyChanged;
             viewModel.MapWorkspace.PropertyChanged -= onViewModelPropertyChanged;
             viewModel.MapWorkspace.SelectedMapChanged -= onSelectedMapChanged;
-            viewModel.ActorQueue.SelectionChanged -= onActorQueueSelectionChanged;
-            viewModel.ActorQueue.BlueprintOpenRequested -= onActorQueueBlueprintOpenRequested;
-            viewModel.ActorQueue.BlueprintLocateRequested -= onBlueprintLocateRequested;
             viewModel.LanguageChangeRequested -= onLanguageChangeRequested;
             viewModel.SaveRequested -= onSaveRequested;
             viewModel.HistoryCompleted -= onHistoryCompleted;
@@ -135,6 +129,7 @@ public partial class MainWindow
         }
         actorPreviewService = null;
         viewModel = next;
+        attachFileExplorers(viewModel?.FileExplorers);
         if (viewModel is null)
             return;
         actorPreviewService = projectSession!.PreviewService.ActorPreviews;
@@ -154,9 +149,7 @@ public partial class MainWindow
         viewModel.PropertyChanged += onViewModelPropertyChanged;
         viewModel.MapWorkspace.PropertyChanged += onViewModelPropertyChanged;
         viewModel.MapWorkspace.SelectedMapChanged += onSelectedMapChanged;
-        viewModel.ActorQueue.SelectionChanged += onActorQueueSelectionChanged;
-        viewModel.ActorQueue.BlueprintOpenRequested += onActorQueueBlueprintOpenRequested;
-        viewModel.ActorQueue.BlueprintLocateRequested += onBlueprintLocateRequested;
+        EditorPanel.setPendingActor(viewModel.PendingActorReference);
         viewModel.LanguageChangeRequested += onLanguageChangeRequested;
         viewModel.SaveRequested += onSaveRequested;
         viewModel.HistoryCompleted += onHistoryCompleted;
@@ -338,16 +331,13 @@ public partial class MainWindow
     {
         if (args.PropertyName == nameof(MainViewModel.WindowTitle))
             Title = viewModel?.WindowTitle ?? "Ludork";
+        else if (args.PropertyName == nameof(MainViewModel.PendingActorReference))
+            EditorPanel.setPendingActor(viewModel?.PendingActorReference);
         else if (args.PropertyName == nameof(MapWorkspaceViewModel.SelectedLayerTab))
         {
             refreshMapPanelState();
             syncActorOutlinerSelection();
         }
-    }
-
-    private void onActorQueueSelectionChanged(object? sender, string? reference)
-    {
-        EditorPanel.setPendingActor(reference);
     }
 
     private async void onSaveRequested(object? sender, EventArgs args)
@@ -373,7 +363,7 @@ public partial class MainWindow
         updateMapModePanels();
         liveDebug?.SelectActor(args.ActorData?["runtimeId"]?.GetValue<string>());
         if (viewModel?.CanEdit == true && args.Actors.Count <= 1 && !string.IsNullOrWhiteSpace(args.BlueprintReference))
-            viewModel?.ActorQueue.AddOrPromote(args.BlueprintReference);
+            viewModel?.SelectActorForPlacement(args.BlueprintReference);
         syncActorOutlinerSelection();
     }
 
@@ -404,8 +394,7 @@ public partial class MainWindow
             return;
         string key = BlueprintReference.NormalizeKey(reference).Replace('/', Path.DirectorySeparatorChar);
         string path = Path.Combine(ProjectPath, "Data", "Blueprints", key + ".json");
-        BottomTabs.SelectedItem = FileExplorerTab;
-        await FileExplorerPanel.LocatePathAsync(path);
+        await locateExplorerPathAsync(path);
     }
 
     private void onLanguageChangeRequested(object? sender, EventArgs args)

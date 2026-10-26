@@ -5,6 +5,7 @@ using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Ludork.Plugin.Avalonia;
+using Ludork.Models;
 using Ludork.ViewModels;
 using System;
 using System.ComponentModel;
@@ -61,23 +62,9 @@ public partial class FileExplorerPanel
     {
         if (args.PropertyName != nameof(FileExplorerViewModel.Zoom) || zoomRestorePending)
             return;
-        ListBox list = activeEntries;
-        ScrollViewer? scroll = list.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
-        if (scroll is null)
-            return;
-        foreach (ListBoxItem container in list.GetVisualDescendants().OfType<ListBoxItem>()
-            .OrderBy(item => item.TranslatePoint(default, scroll)?.Y ?? double.MaxValue)
-            .ThenBy(item => item.TranslatePoint(default, scroll)?.X ?? double.MaxValue))
-        {
-            if (container.DataContext is not FileExplorerEntryViewModel entry
-                || container.TranslatePoint(default, scroll) is not Point origin
-                || container.Bounds.Height <= 0
-                || origin.Y + container.Bounds.Height <= 0
-                || origin.Y >= scroll.Viewport.Height)
-                continue;
-            zoomAnchor = new ZoomAnchor(list, entry, -origin.Y / container.Bounds.Height);
-            break;
-        }
+        if (sender is FileExplorerViewModel viewModel)
+            zoomAnchor = new ZoomAnchor(activeEntries, viewModel, viewModel.PresentationRevision,
+                capturePresentationState(activeEntries));
     }
 
     private void onPresentationChanged(object? sender, PropertyChangedEventArgs args)
@@ -88,17 +75,17 @@ public partial class FileExplorerPanel
         Dispatcher.UIThread.Post(() =>
         {
             ZoomAnchor? anchor = zoomAnchor;
-            if (VisualRoot is null)
+            if (anchor is null || !canRestorePresentation(anchor.ViewModel, anchor.Revision))
             {
                 zoomRestorePending = false;
                 zoomAnchor = null;
                 return;
             }
             activeEntries.UpdateLayout();
-            if (anchor is not null && ReferenceEquals(anchor.List, activeEntries)
-                && activeEntries.Items.Contains(anchor.Entry))
+            int index = findEntryIndex(activeEntries, anchor.State.ScrollAnchorPath);
+            if (ReferenceEquals(anchor.List, activeEntries) && index >= 0)
             {
-                activeEntries.ScrollIntoView(anchor.Entry);
+                activeEntries.ScrollIntoView(activeEntries.Items[index]!);
                 activeEntries.UpdateLayout();
             }
             Dispatcher.UIThread.Post(() => restoreZoomAnchor(anchor), DispatcherPriority.Loaded);
@@ -107,23 +94,16 @@ public partial class FileExplorerPanel
 
     private void restoreZoomAnchor(ZoomAnchor? anchor)
     {
-        if (VisualRoot is not null && anchor is not null && ReferenceEquals(zoomAnchor, anchor)
-            && ReferenceEquals(anchor.List, activeEntries) && activeEntries.Items.Contains(anchor.Entry))
+        if (anchor is not null && ReferenceEquals(zoomAnchor, anchor)
+            && ReferenceEquals(anchor.List, activeEntries) && canRestorePresentation(anchor.ViewModel, anchor.Revision))
         {
-            activeEntries.UpdateLayout();
-            ScrollViewer? scroll = activeEntries.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
-            Control? container = activeEntries.ContainerFromItem(anchor.Entry);
-            if (scroll is not null && container?.TranslatePoint(default, scroll) is Point origin)
-            {
-                double offset = scroll.Offset.Y + origin.Y + anchor.Fraction * container.Bounds.Height;
-                scroll.Offset = new Vector(scroll.Offset.X, Math.Clamp(offset, 0,
-                    Math.Max(0, scroll.Extent.Height - scroll.Viewport.Height)));
-            }
+            restoreScrollPosition(activeEntries, anchor.State);
         }
         zoomRestorePending = false;
         zoomAnchor = null;
         updatePreviewActivity();
     }
 
-    private sealed record ZoomAnchor(ListBox List, FileExplorerEntryViewModel Entry, double Fraction);
+    private sealed record ZoomAnchor(ListBox List, FileExplorerViewModel ViewModel, long Revision,
+        FileExplorerPresentationState State);
 }

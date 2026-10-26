@@ -66,7 +66,6 @@ public sealed class ProjectTemplateService
             {
                 ["version"] = gameVersion,
                 ["Cpp"] = !standalone,
-                ["lastFileExplorerPath"] = "Assets",
                 ["packaging"] = new JsonObject { ["version"] = "1.0.0", ["dev"] = false },
             };
             if (ffmpeg)

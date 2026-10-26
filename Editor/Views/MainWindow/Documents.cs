@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using Ludork.Services;
+using Ludork.Controls;
 using Ludork.ViewModels;
 using Ludork.Views.Utils;
 
@@ -41,13 +42,14 @@ public partial class MainWindow
         Control? control = visual as Control;
         if (control is MenuItem || visual.GetVisualAncestors().Any(ancestor => ancestor is MenuItem or Menu))
             return;
-        if (isInsideHistoryControl(visual, FileExplorerPanel))
+        FileExplorerPanel? explorer = visual as FileExplorerPanel ?? visual.FindAncestorOfType<FileExplorerPanel>();
+        if (explorer?.DataContext is FileExplorerViewModel explorerViewModel)
         {
             FileExplorerEntryViewModel? entry = control?.DataContext as FileExplorerEntryViewModel
                 ?? visual.GetVisualAncestors().OfType<Control>()
                     .Select(ancestor => ancestor.DataContext).OfType<FileExplorerEntryViewModel>().FirstOrDefault();
             if (!pointer)
-                entry ??= viewModel.FileExplorerPanel.SelectedEntry;
+                entry ??= explorerViewModel.SelectedEntry;
             viewModel.SetActiveDocument(entry is not null
                 ? viewModel.GameData.AssetPaths.GetDocumentByPath(entry.FullPath)
                     ?? viewModel.GameData.GetDocumentByPath(entry.FullPath) : null);

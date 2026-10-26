@@ -24,13 +24,6 @@ public sealed partial class FileExplorerViewModel
             _ = refreshAsync(TimeSpan.FromMilliseconds(150), CancellationToken.None);
     }
 
-    private void clearSearchForNavigation()
-    {
-        suppressSearchRefresh = true;
-        SearchText = string.Empty;
-        suppressSearchRefresh = false;
-    }
-
     private DirectoryReadResult readSearchResults(string directory, string query, DocumentPath[] documents,
         HashSet<string> textConfigKeys, CancellationToken token)
     {

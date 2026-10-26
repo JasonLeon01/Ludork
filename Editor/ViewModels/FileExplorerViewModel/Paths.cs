@@ -20,8 +20,6 @@ public sealed partial class FileExplorerViewModel
 {
     private void changed(FileExplorerFilesChangedEventArgs changes)
     {
-        updateExpandedDirectories(changes);
-        RequestRefresh();
         FilesChanged?.Invoke(this, changes);
     }
 

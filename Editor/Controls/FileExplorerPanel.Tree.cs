@@ -67,5 +67,7 @@ public partial class FileExplorerPanel
         ListEntries.ScrollIntoView(entry);
         ListEntries.UpdateLayout();
         ListEntries.ContainerFromItem(entry)?.Focus();
+        if (DataContext is FileExplorerViewModel viewModel)
+            _ = viewModel.NotifyUserSelectionAsync(entry);
     }
 }

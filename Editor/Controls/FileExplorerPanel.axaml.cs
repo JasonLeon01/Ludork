@@ -40,6 +40,7 @@ public partial class FileExplorerPanel : UserControl
         ToolTip.SetTip(SearchBox, searchHint);
         AutomationProperties.SetName(SearchBox, searchHint);
         initializeZoom();
+        initializeHistory();
         IconEntries.AddHandler(KeyDownEvent, onPreviewKeyDown, RoutingStrategies.Tunnel);
         ListEntries.AddHandler(KeyDownEvent, onPreviewKeyDown, RoutingStrategies.Tunnel);
         ListEntries.AddHandler(KeyDownEvent, onTreeKeyDown, RoutingStrategies.Tunnel);
@@ -104,10 +105,7 @@ public partial class FileExplorerPanel : UserControl
     {
         bool located = DataContext is FileExplorerViewModel viewModel && await viewModel.LocatePathAsync(path);
         if (located)
-        {
-            activeEntries.ScrollIntoView(activeEntries.SelectedItem!);
             activeEntries.Focus();
-        }
         return located;
     }
 
@@ -148,7 +146,7 @@ public partial class FileExplorerPanel : UserControl
     {
         ListBox? list = row.FindAncestorOfType<ListBox>();
         Point? origin = list is null ? null : row.TranslatePoint(default, list);
-        bool active = IsEffectivelyVisible && row.IsEffectivelyVisible && ReferenceEquals(list, activeEntries)
+        bool active = previewViewModel?.IsActive == true && IsEffectivelyVisible && row.IsEffectivelyVisible && ReferenceEquals(list, activeEntries)
             && VisualRoot is not null && row.Bounds.Height > 0 && origin is not null;
         Rect bounds = new(origin ?? default, row.Bounds.Size);
         Rect viewport = new(list?.Bounds.Size ?? default);
@@ -399,6 +397,7 @@ public partial class FileExplorerPanel : UserControl
             && !point.Properties.IsRightButtonPressed
             && !point.Properties.IsMiddleButtonPressed)
         {
+            pressedSelection = getEntry(args.Source);
             dragStart = args.GetPosition(list);
             dragSource = list;
             dragPress = args;
@@ -864,6 +863,7 @@ public partial class FileExplorerPanel : UserControl
         if (paths.Length == 0)
             return;
         startingDrag = true;
+        pressedSelection = null;
         DataTransfer data = new();
         data.Add(DataTransferItem.CreateText(DragPrefix + JsonSerializer.Serialize(paths)));
         await DragDrop.DoDragDropAsync(press, data, DragDropEffects.Move);
@@ -871,9 +871,13 @@ public partial class FileExplorerPanel : UserControl
         resetPendingDrag();
     }
 
-    private void onPointerReleased(object? sender, PointerReleasedEventArgs args)
+    private async void onPointerReleased(object? sender, PointerReleasedEventArgs args)
     {
+        FileExplorerEntryViewModel? entry = pressedSelection;
         resetPendingDrag();
+        if (args.InitialPressMouseButton == MouseButton.Left && entry is not null
+            && ReferenceEquals(getEntry(args.Source), entry) && DataContext is FileExplorerViewModel viewModel)
+            await viewModel.NotifyUserSelectionAsync(entry);
     }
 
     private void onPointerCaptureLost(object? sender, PointerCaptureLostEventArgs args)
@@ -886,6 +890,7 @@ public partial class FileExplorerPanel : UserControl
         dragStart = null;
         dragSource = null;
         dragPress = null;
+        pressedSelection = null;
     }
 
     private void onDragOver(object? sender, DragEventArgs args)

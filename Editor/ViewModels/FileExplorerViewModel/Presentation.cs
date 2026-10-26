@@ -35,7 +35,7 @@ public sealed partial class FileExplorerViewModel
             OnPropertyChanged(nameof(TreeExpanderIconSize));
             foreach (FileExplorerEntryViewModel entry in Entries)
                 entry.UpdateIndentation(next);
-            if (EditorLayoutService.Settings is EditorSettings settings)
+            if (!restoringBrowseState && EditorLayoutService.Settings is EditorSettings settings)
             {
                 settings.FileExplorerZoom = next;
                 EditorLayoutService.Save();

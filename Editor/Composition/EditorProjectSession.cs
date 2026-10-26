@@ -28,16 +28,15 @@ public sealed class EditorProjectSession : IDisposable
         BlueprintCreation = new BlueprintCreationService(GameData, Metadata, BlueprintClasses);
         PreviewService = new BlueprintPreviewService(ProjectPath, GameData, BlueprintClasses, UiControlRegistry.Runtime, ProjectConfig);
         TileSelect = new TileSelectViewModel(GameData);
-        ActorQueue = new ActorQueueViewModel(GameData, ProjectConfig, BlueprintClasses, PreviewService);
-        FileExplorer = new FileExplorerViewModel(ProjectPath, ProjectConfig, GameData, PreviewService, ReferenceIndex);
+        FileExplorers = new FileExplorerWorkspaceViewModel(ProjectPath, ProjectConfig, GameData, PreviewService, ReferenceIndex);
         Actions = new EditorActionRouter();
         MapWorkspace = new MapWorkspaceViewModel(GameData, ProjectConfig, TileSelect, ReferenceIndex);
         MainViewModel = new MainViewModel(GameData, ProjectConfig, GameVariables, BlueprintClasses, PreviewService,
-            GameConfig, ProjectSave, ReferenceIndex, TileSelect, ActorQueue, FileExplorer, Actions, MapWorkspace);
+            GameConfig, ProjectSave, ReferenceIndex, TileSelect, FileExplorers, Actions, MapWorkspace);
         ExternalChanges = new ProjectExternalChangeService(GameData, ProjectSave);
         ProjectSave.ExternalChanges = ExternalChanges;
         ExternalChanges.Synchronized += onExternalFilesSynchronized;
-        FileExplorer.FilesChanged += onFilesChanged;
+        FileExplorers.FilesChanged += onFilesChanged;
     }
 
     public string ProjectPath { get; }
@@ -59,8 +58,7 @@ public sealed class EditorProjectSession : IDisposable
     public BlueprintPreviewService PreviewService { get; }
     public EditorActionRouter Actions { get; }
     public TileSelectViewModel TileSelect { get; }
-    public ActorQueueViewModel ActorQueue { get; }
-    public FileExplorerViewModel FileExplorer { get; }
+    public FileExplorerWorkspaceViewModel FileExplorers { get; }
     public MainViewModel MainViewModel { get; }
     public ProjectExternalChangeService ExternalChanges { get; }
 
@@ -81,13 +79,12 @@ public sealed class EditorProjectSession : IDisposable
             return;
         disposed = true;
         TutorialTriggers.Dispose();
-        FileExplorer.FilesChanged -= onFilesChanged;
+        FileExplorers.FilesChanged -= onFilesChanged;
         ExternalChanges.Synchronized -= onExternalFilesSynchronized;
         ExternalChanges.Dispose();
         MainViewModel.Dispose();
         MapWorkspace.Dispose();
-        FileExplorer.Dispose();
-        ActorQueue.Dispose();
+        FileExplorers.Dispose();
         TileSelect.Dispose();
         ProjectRunner.Dispose();
         PreviewService.Dispose();

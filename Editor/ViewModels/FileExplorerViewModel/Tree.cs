@@ -40,20 +40,6 @@ public sealed partial class FileExplorerViewModel
         return Entries.FirstOrDefault(candidate => candidate.IsDirectory && PathComparer.Equals(candidate.FullPath, parent));
     }
 
-    private void updateExpandedDirectories(FileExplorerFilesChangedEventArgs changes)
-    {
-        foreach ((string oldPath, string newPath) in changes.Moved)
-        {
-            string[] moved = expandedDirectories.Where(path => EditorPathSandbox.IsSameOrChildPath(oldPath, path)).ToArray();
-            foreach (string path in moved)
-            {
-                expandedDirectories.Remove(path);
-                expandedDirectories.Add(Path.GetFullPath(Path.Combine(newPath, Path.GetRelativePath(oldPath, path))));
-            }
-        }
-        expandedDirectories.RemoveWhere(path => changes.Deleted.Any(deleted => EditorPathSandbox.IsSameOrChildPath(deleted, path)));
-    }
-
     private DirectoryReadResult readDirectoryTree(string directory, DocumentPath[] documents,
         HashSet<string> textConfigKeys, HashSet<string> expanded, CancellationToken token)
     {

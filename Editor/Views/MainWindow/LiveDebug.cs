@@ -65,7 +65,7 @@ public partial class MainWindow
             RightList.IsEnabled = editable;
             ActorInfoPanel.IsEnabled = editable;
             RightModePanel.IsEnabled = editable;
-            FileExplorerPanel.IsEnabled = true;
+            setFileExplorersEnabled(true);
             ActorOutliner.IsEnabled = editable;
             MapList.IsEnabled = false;
             WorldEditorPanel.IsEnabled = false;

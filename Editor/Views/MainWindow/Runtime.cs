@@ -475,8 +475,9 @@ public partial class MainWindow
         if (viewModel is not null)
         {
             viewModel.CanEdit = !active;
-            viewModel.FileExplorerPanel.IsReadOnly = !viewModel.CanEdit;
-            viewModel.ActorQueue.IsReadOnly = !viewModel.CanEdit;
+            viewModel.FileExplorers.IsReadOnly = !viewModel.CanEdit;
+            if (active)
+                viewModel.ClearPendingActor();
         }
         updateRunButtons();
         EditModeToggles.IsEnabled = !active;
@@ -486,7 +487,7 @@ public partial class MainWindow
         RightList.IsEnabled = !active;
         ActorInfoPanel.IsEnabled = !active;
         RightModePanel.IsEnabled = !active;
-        FileExplorerPanel.IsEnabled = !active;
+        setFileExplorersEnabled(!active);
         ActorOutliner.IsEnabled = !active;
         documentWindows?.SetEnabled(!active);
         liveDebug?.SetRunState(state);

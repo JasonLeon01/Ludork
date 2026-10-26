@@ -20,7 +20,7 @@ public partial class MainWindow
         }, paths =>
         {
             current.ReferenceIndex.MarkDirty();
-            current.FileExplorerPanel.RequestRefresh();
+            current.FileExplorers.ApplyFileChanges(new FileExplorerFilesChangedEventArgs([], [], paths));
             documentWindows?.ApplyFileChanges(this, new FileExplorerFilesChangedEventArgs([], [], paths));
         });
     }

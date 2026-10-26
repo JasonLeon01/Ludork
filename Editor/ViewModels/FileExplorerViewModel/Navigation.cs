@@ -22,7 +22,7 @@ public sealed partial class FileExplorerViewModel
 
     public string LoadingLabel => LocaleService.Get("LOADING");
 
-    public Task EnsureLoadedAsync() => !IsLoading && (publishedPath != CurrentPath || publishedQuery != SearchText.Trim() || publishedIconView != IconView)
+    public Task EnsureLoadedAsync() => IsActive && !IsLoading && (refreshRequired || publishedPath != CurrentPath || publishedQuery != SearchText.Trim() || publishedIconView != IconView)
         ? RefreshAsync() : Task.CompletedTask;
 
     public Task RefreshAsync(CancellationToken cancellationToken = default) => refreshAsync(TimeSpan.Zero, cancellationToken);
@@ -31,6 +31,19 @@ public sealed partial class FileExplorerViewModel
     {
         if (disposed)
             return;
+        refreshRequired = true;
+        if (!IsActive)
+            return;
+        capturePresentation();
+        presentationRestorePending = true;
+        PresentationRevision++;
+        string existingPath = resolveExistingDirectory(CurrentPath);
+        if (!PathComparer.Equals(CurrentPath, existingPath))
+        {
+            browseVersion++;
+            CurrentPath = existingPath;
+            PresentationState = FileExplorerPresentationState.Empty;
+        }
         navigation?.Cancel();
         navigation?.Dispose();
         navigation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -110,6 +123,8 @@ public sealed partial class FileExplorerViewModel
             publishedIconView = showIcons;
             LoadingError = result.Error;
             visibleDocumentPaths = gameData.Documents.All.ToDictionary(document => document.Id, document => (document.Path, document.Exists));
+            refreshRequired = false;
+            requestPresentationRestore();
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
@@ -117,7 +132,10 @@ public sealed partial class FileExplorerViewModel
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             if (version == navigationVersion)
+            {
                 LoadingError = exception.Message;
+                presentationRestorePending = false;
+            }
         }
         finally
         {
@@ -129,20 +147,18 @@ public sealed partial class FileExplorerViewModel
     public async Task NavigateToAsync(string path, CancellationToken cancellationToken = default)
     {
         string fullPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
-        if (disposed || !isUnderRoot(fullPath))
+        if (disposed || !isUnderRoot(fullPath) || !isVisibleDirectory(fullPath))
             return;
-        clearSearchForNavigation();
-        if (!PathComparer.Equals(CurrentPath, fullPath))
+        if (PathComparer.Equals(CurrentPath, fullPath) && SearchText.Length == 0)
         {
-            SelectedEntry = null;
-            foreach (FileExplorerEntryViewModel entry in Entries)
-                entry.Dispose();
-            Entries.Clear();
+            await RefreshAsync(cancellationToken);
+            return;
         }
-        CurrentPath = fullPath;
-        await RefreshAsync(cancellationToken);
-        if (!disposed && CurrentPath == fullPath && LoadingError.Length == 0 && !IsReadOnly)
-            projectConfig.LastFileExplorerPath = Path.GetRelativePath(projectPath, fullPath);
+        backHistory.Add(captureBrowseState());
+        forwardHistory.Clear();
+        notifyHistoryChanged();
+        await restoreBrowseStateAsync(new FileExplorerBrowseState(fullPath, string.Empty, IconView, Zoom,
+            IsSourcesExpanded, expandedDirectories.ToArray(), FileExplorerPresentationState.Empty), cancellationToken);
     }
 
     public Task GoUpAsync()
@@ -165,12 +181,34 @@ public sealed partial class FileExplorerViewModel
             return PathComparer.Equals(CurrentPath, root.Path) && LoadingError.Length == 0;
         }
         string directory = Directory.GetParent(fullPath)?.FullName ?? root.Path;
+        bool sameDirectory = PathComparer.Equals(CurrentPath, directory) && SearchText.Length == 0;
+        FileExplorerBrowseState? previous = sameDirectory ? captureBrowseState() : null;
         if (publishedPath != directory || CurrentPath != directory || IsLoading || SearchText.Length != 0)
             await NavigateToAsync(directory);
         if (CurrentPath != directory)
             return false;
-        SelectedEntry = Entries.FirstOrDefault(entry => PathComparer.Equals(entry.FullPath, fullPath));
-        return SelectedEntry is not null;
+        FileExplorerEntryViewModel? located = Entries.FirstOrDefault(entry => PathComparer.Equals(entry.FullPath, fullPath));
+        if (located is not null)
+        {
+            if (previous is not null && (previous.Presentation.SelectedPaths.Length != 1
+                || !PathComparer.Equals(previous.Presentation.PrimaryPath, fullPath)))
+            {
+                backHistory.Add(previous);
+                forwardHistory.Clear();
+                notifyHistoryChanged();
+            }
+            browseVersion++;
+            SelectedEntry = located;
+            PresentationState = FileExplorerPresentationState.Empty with
+            {
+                SelectedPaths = [fullPath],
+                PrimaryPath = fullPath,
+                SelectionAnchorPath = fullPath,
+                ScrollAnchorPath = fullPath,
+            };
+            requestPresentationRestore();
+        }
+        return located is not null;
     }
 
     public async Task OpenSelectedAsync()
@@ -194,12 +232,15 @@ public sealed partial class FileExplorerViewModel
         }
     }
 
-    private async Task notifyFileClickedAsync(FileExplorerEntryViewModel entry)
+    public async Task NotifyUserSelectionAsync(FileExplorerEntryViewModel entry)
     {
+        if (disposed || !IsActive || IsReadOnly || IsLoading || entry.IsDirectory || !Entries.Contains(entry))
+            return;
+        long version = browseVersion;
         try
         {
             DataFileInfo? info = await entry.ReadInfoAsync(gameData);
-            if (!disposed && ReferenceEquals(SelectedEntry, entry))
+            if (!disposed && IsActive && !IsReadOnly && !IsLoading && version == browseVersion && ReferenceEquals(SelectedEntry, entry))
                 FileClicked?.Invoke(this, new FileExplorerFileEventArgs(entry.FullPath, info));
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
@@ -211,7 +252,10 @@ public sealed partial class FileExplorerViewModel
 
     internal void RequestRefresh()
     {
-        if (disposed || refreshScheduled)
+        if (disposed)
+            return;
+        refreshRequired = true;
+        if (!IsActive || refreshScheduled)
             return;
         refreshScheduled = true;
         Dispatcher.UIThread.Post(async () =>

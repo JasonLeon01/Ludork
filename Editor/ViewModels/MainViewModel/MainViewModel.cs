@@ -17,6 +17,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private string selectedLanguage = LocaleService.CurrentLanguage;
     private bool disposed;
     private EditorDocument? activeDocument;
+    private EditorDocument? pendingActorDocument;
+    private string? pendingActorReference;
     private bool canEdit = true;
     private readonly IRelayCommand[] editingCommands;
 
@@ -30,8 +32,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         ProjectSaveService projectSave,
         ReferenceIndexService referenceIndex,
         TileSelectViewModel tileSelect,
-        ActorQueueViewModel actorQueue,
-        FileExplorerViewModel fileExplorerPanel,
+        FileExplorerWorkspaceViewModel fileExplorers,
         EditorActionRouter actions,
         MapWorkspaceViewModel mapWorkspace)
     {
@@ -44,8 +45,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         ProjectSave = projectSave;
         ReferenceIndex = referenceIndex;
         TileSelect = tileSelect;
-        ActorQueue = actorQueue;
-        FileExplorerPanel = fileExplorerPanel;
+        FileExplorers = fileExplorers;
         Actions = actions;
         MapWorkspace = mapWorkspace;
         MapWorkspace.PropertyChanged += onMapWorkspacePropertyChanged;
@@ -84,9 +84,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             CommonFunctionsCommand, GameVariablesCommand, GeneralDataCommand,
         ];
         ChangeLanguageCommand = new RelayCommand<string>(changeLanguage);
-        FileExplorerPanel.FileClicked += onExplorerFileClicked;
-        FileExplorerPanel.FileOpened += onExplorerFileOpened;
-        FileExplorerPanel.FilesChanged += onExplorerFilesChanged;
+        FileExplorers.FileClicked += onExplorerFileClicked;
+        FileExplorers.FileOpened += onExplorerFileOpened;
+        FileExplorers.FilesChanged += onExplorerFilesChanged;
+        BlueprintPreviews.VisualsInvalidated += onActorPlacementSourceChanged;
         GameData.ModifiedChanged += onModifiedChanged;
         GameData.EditOperations.Changed += onEditOperationChanged;
         ProjectSave.PendingInputsChanged += onModifiedChanged;
@@ -114,8 +115,8 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public GameConfigService GameConfig { get; }
     public ProjectSaveService ProjectSave { get; }
     public ReferenceIndexService ReferenceIndex { get; }
-    public ActorQueueViewModel ActorQueue { get; }
-    public FileExplorerViewModel FileExplorerPanel { get; }
+    public FileExplorerWorkspaceViewModel FileExplorers { get; }
+    public string? PendingActorReference => pendingActorReference;
     public EditorActionRouter Actions { get; }
     public TileSelectViewModel TileSelect { get; }
     public IRelayCommand SaveCommand { get; }
@@ -197,6 +198,40 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     }
     public string WindowTitle => GameData.Configs.getGameTitle() + (IsModified ? " *" : string.Empty);
 
+    public void SelectActorForPlacement(string reference)
+    {
+        if (disposed || !CanEdit || !GameData.Blueprints.ContainsReference(reference))
+            return;
+        string normalized = BlueprintReference.ToReference(reference);
+        if (!BlueprintClasses.IsDerivedFrom(normalized, "Engine.Actor")
+            || GameData.GetDocument("Blueprints", BlueprintReference.NormalizeKey(normalized)) is not EditorDocument { Exists: true } document)
+            return;
+        pendingActorDocument = document;
+        if (!SetProperty(ref pendingActorReference, normalized, nameof(PendingActorReference)))
+            OnPropertyChanged(nameof(PendingActorReference));
+    }
+
+    public void ClearPendingActor()
+    {
+        pendingActorDocument = null;
+        SetProperty(ref pendingActorReference, null, nameof(PendingActorReference));
+    }
+
+    private void onActorPlacementSourceChanged(object? sender, EventArgs args)
+    {
+        if (disposed || pendingActorDocument is not EditorDocument document)
+            return;
+        string reference = BlueprintReference.ToReference(document.Key);
+        if (!document.Exists || !ReferenceEquals(GameData.Documents.Find("Blueprints", document.Key), document)
+            || !GameData.Blueprints.ContainsReference(reference)
+            || !BlueprintClasses.IsDerivedFrom(reference, "Engine.Actor"))
+        {
+            ClearPendingActor();
+            return;
+        }
+        SetProperty(ref pendingActorReference, reference, nameof(PendingActorReference));
+    }
+
     public Func<bool, Task<HistoryResult>>? HistoryOperation { get; set; }
 
     public async Task<HistoryResult> UndoChangesAsync()
@@ -222,8 +257,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(CanEdit));
         OnPropertyChanged(nameof(CanConfigureIndividualWindow));
         MapWorkspace.CanEdit = CanEdit;
-        FileExplorerPanel.IsReadOnly = !CanEdit;
-        ActorQueue.IsReadOnly = !CanEdit;
+        FileExplorers.IsReadOnly = !CanEdit;
         foreach (IRelayCommand command in editingCommands)
             command.NotifyCanExecuteChanged();
     }
@@ -243,9 +277,10 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         GameVariables.Saved -= onGameVariablesSaved;
         MapWorkspace.PropertyChanged -= onMapWorkspacePropertyChanged;
         MapWorkspace.SelectedMapChanged -= onUndoRedoStateChanged;
-        FileExplorerPanel.FileClicked -= onExplorerFileClicked;
-        FileExplorerPanel.FileOpened -= onExplorerFileOpened;
-        FileExplorerPanel.FilesChanged -= onExplorerFilesChanged;
+        FileExplorers.FileClicked -= onExplorerFileClicked;
+        FileExplorers.FileOpened -= onExplorerFileOpened;
+        FileExplorers.FilesChanged -= onExplorerFilesChanged;
+        BlueprintPreviews.VisualsInvalidated -= onActorPlacementSourceChanged;
     }
 
     private void onMapWorkspacePropertyChanged(object? sender, PropertyChangedEventArgs args)
@@ -266,7 +301,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private void onGameVariablesSaved(object? sender, EventArgs args)
     {
-        FileExplorerPanel.RequestRefresh();
+        FileExplorers.RequestRefresh();
         onModifiedChanged(sender, args);
     }
 
@@ -284,7 +319,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private void onDataRestored(object? sender, EventArgs args)
     {
-        ActorQueue.PurgeStale();
         MapWorkspace.refreshMaps();
         TileSelect.RefreshData();
     }
@@ -301,90 +335,29 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         if (paths.Any(path => EditorPathSandbox.IsSameOrChildPath(mapsRoot, path)))
             MapWorkspace.refreshMaps();
         TileSelect.RefreshExternalAssets(assets);
-        FileExplorerPanel.RequestRefresh();
+        FileExplorers.RequestRefresh();
         onModifiedChanged(this, EventArgs.Empty);
     }
 
     private void onExplorerFileClicked(object? sender, FileExplorerFileEventArgs args)
     {
-        string path = args.Path;
         DataFileInfo? info = args.Info;
         if (info?.Type != "blueprint" || info.Key is null)
             return;
-        string reference = BlueprintReference.ToReference(info.Key);
-        if (BlueprintClasses.IsDerivedFrom(reference, "Engine.Actor"))
-            ActorQueue.AddOrPromote(reference);
+        SelectActorForPlacement(BlueprintReference.ToReference(info.Key));
     }
 
     private void onExplorerFilesChanged(
         object? sender,
         FileExplorerFilesChangedEventArgs args)
     {
-        remapExplorerMoves(args.Moved);
         EditorDocument? movedAsset = args.Moved.Reverse()
             .Select(move => GameData.AssetPaths.GetDocumentByPath(move.NewPath)).FirstOrDefault(document => document is not null);
         if (movedAsset is not null)
             SetActiveDocument(movedAsset);
         ReferenceIndex.MarkDirty();
-        ActorQueue.PurgeStale();
         MapWorkspace.refreshMaps();
         TileSelect.RefreshData();
-    }
-
-    private void remapExplorerMoves(
-        IReadOnlyList<(string OldPath, string NewPath)> moved)
-    {
-        if (moved.Count == 0)
-            return;
-        Dictionary<string, string> replacements = new Dictionary<string, string>(StringComparer.Ordinal);
-        IReadOnlyList<string> blueprintReferences = ActorQueue.BlueprintReferences;
-        foreach ((string oldPath, string newPath) in moved)
-        {
-            bool directory = Directory.Exists(newPath);
-            if (!directory && !System.IO.File.Exists(newPath) && GameData.GetDocumentByPath(newPath)?.Exists != true)
-                continue;
-            if (tryGetBlueprintReferencePath(oldPath, directory, out string oldReference)
-                && tryGetBlueprintReferencePath(newPath, directory, out string newReference))
-            {
-                foreach (string reference in blueprintReferences)
-                {
-                    if (!directory && string.Equals(reference, oldReference, StringComparison.Ordinal))
-                        replacements[reference] = newReference;
-                    else if (directory && reference.StartsWith(oldReference + ".", StringComparison.Ordinal))
-                        replacements[reference] = newReference + reference[oldReference.Length..];
-                }
-            }
-        }
-        if (replacements.Count != 0)
-            ActorQueue.RemapReferences(replacements);
-    }
-
-    private bool tryGetBlueprintReferencePath(
-        string path,
-        bool directory,
-        out string reference)
-    {
-        string root = Path.GetFullPath(Path.Combine(GameData.ProjectPath, "Data", "Blueprints"));
-        string fullPath = Path.GetFullPath(path);
-        string relative = Path.GetRelativePath(root, fullPath);
-        if (Path.IsPathRooted(relative)
-            || relative == ".."
-            || relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal))
-        {
-            reference = string.Empty;
-            return false;
-        }
-        if (!directory && !string.Equals(
-                Path.GetExtension(relative),
-                DataConfig.DataFileExtension,
-                StringComparison.OrdinalIgnoreCase))
-        {
-            reference = string.Empty;
-            return false;
-        }
-        string key = directory ? relative : Path.ChangeExtension(relative, null)!;
-        reference = relative == "." ? string.Empty : BlueprintReference.ToReference(key);
-        return reference.Length != 0;
     }
 
     private void onExplorerFileOpened(object? sender, FileExplorerFileEventArgs args)
@@ -530,7 +503,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     public string About => LocaleService.Get("ABOUT_MENU");
     public string MapList => LocaleService.Get("MAP_LIST");
     public string WorldOutliner => LocaleService.Get("WORLD_OUTLINER");
-    public string ActorLibrary => LocaleService.Get("ACTOR_LIBRARY");
     public string FileExplorer => LocaleService.Get("FILE_EXPLORER");
     public string Console => LocaleService.Get("CONSOLE");
 }

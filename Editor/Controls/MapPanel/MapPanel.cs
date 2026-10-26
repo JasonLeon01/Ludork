@@ -105,6 +105,7 @@ public sealed partial class MapPanel : Control
     public event EventHandler<ActorSelectionChangedEventArgs>? ActorSelectionChanged;
     public event EventHandler<string>? BlueprintLocateRequested;
     public event EventHandler? ActorDataChanged;
+    public event EventHandler? PendingActorCancelled;
     public event EventHandler<string>? EditFeedbackRequested;
 
     public void configure(ProjectDataStore nextGameData, BlueprintPreviewService nextPreviewService)

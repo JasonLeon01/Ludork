@@ -54,10 +54,10 @@ internal sealed class DocumentWindowCoordinator : IDisposable
         this.showHelp = showHelp;
         viewModel.Actions.ActionRequested += onActionRequested;
         viewModel.Actions.DataCreationRequested += onDataCreationRequested;
-        viewModel.FileExplorerPanel.DataCreationRequested += onDataCreationRequested;
-        viewModel.FileExplorerPanel.ReferenceTreeRequested += onReferenceTreeRequested;
-        viewModel.FileExplorerPanel.FilesChanging += onFileChangesStarting;
-        viewModel.FileExplorerPanel.FilesChanged += ApplyFileChanges;
+        viewModel.FileExplorers.DataCreationRequested += onDataCreationRequested;
+        viewModel.FileExplorers.ReferenceTreeRequested += onReferenceTreeRequested;
+        viewModel.FileExplorers.FilesChanging += onFileChangesStarting;
+        viewModel.FileExplorers.FilesChanged += ApplyFileChanges;
         viewModel.GameData.UiAssets.UiAssetsChanged += onUiAssetsChanged;
         viewModel.GameData.Documents.ContentChanged += onDocumentPathsChanged;
         viewModel.FileOpenFailed += onFileOpenFailed;
@@ -70,10 +70,10 @@ internal sealed class DocumentWindowCoordinator : IDisposable
         disposed = true;
         viewModel.Actions.ActionRequested -= onActionRequested;
         viewModel.Actions.DataCreationRequested -= onDataCreationRequested;
-        viewModel.FileExplorerPanel.DataCreationRequested -= onDataCreationRequested;
-        viewModel.FileExplorerPanel.ReferenceTreeRequested -= onReferenceTreeRequested;
-        viewModel.FileExplorerPanel.FilesChanging -= onFileChangesStarting;
-        viewModel.FileExplorerPanel.FilesChanged -= ApplyFileChanges;
+        viewModel.FileExplorers.DataCreationRequested -= onDataCreationRequested;
+        viewModel.FileExplorers.ReferenceTreeRequested -= onReferenceTreeRequested;
+        viewModel.FileExplorers.FilesChanging -= onFileChangesStarting;
+        viewModel.FileExplorers.FilesChanged -= ApplyFileChanges;
         viewModel.GameData.UiAssets.UiAssetsChanged -= onUiAssetsChanged;
         viewModel.GameData.Documents.ContentChanged -= onDocumentPathsChanged;
         viewModel.FileOpenFailed -= onFileOpenFailed;
@@ -217,7 +217,6 @@ internal sealed class DocumentWindowCoordinator : IDisposable
             await AlertDialog.ShowAsync(owner, LocaleService.Get("ERROR"), message);
             return;
         }
-        mainViewModel.ActorQueue.PurgeStale();
         await AlertDialog.ShowAsync(owner, LocaleService.Get("HINT"), LocaleService.Get("HINT_CREATE_BP_SUCCESS"));
     }
 
@@ -494,35 +493,12 @@ internal sealed class DocumentWindowCoordinator : IDisposable
             projectSession!.Metadata,
             mainViewModel.BlueprintClasses,
             projectSession!.PreviewService);
-        JsonObject actorLibraryState = createActorLibraryState(document);
-        EventHandler actorLibraryDocumentChanged = (_, _) =>
-        {
-            JsonObject nextState = createActorLibraryState(document);
-            if (JsonNode.DeepEquals(actorLibraryState, nextState))
-                return;
-            actorLibraryState = nextState;
-            mainViewModel.ActorQueue.PurgeStale();
-        };
-        document.Changed += actorLibraryDocumentChanged;
         window.Activated += (_, _) =>
         {
             if (window.Document.BlueprintKey is string key)
                 lastActiveBlueprintKey = key;
         };
-        window.Closed += (_, _) =>
-        {
-            document.Changed -= actorLibraryDocumentChanged;
-        };
         return window;
-    }
-
-    private static JsonObject createActorLibraryState(BlueprintEditorDocument document)
-    {
-        return new JsonObject
-        {
-            ["parent"] = document.Data["parent"]?.DeepClone(),
-            ["attrs"] = document.Data["attrs"]?.DeepClone(),
-        };
     }
 
     private async Task createUiAssetAsync(

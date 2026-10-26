@@ -389,16 +389,32 @@
             <GridSplitter x:Name="UpperLowerSplitter" Grid.Row="1" ResizeDirection="Rows" />
 
             <Grid x:Name="LowerGrid" Grid.Row="2">
-                <TabControl x:Name="BottomTabs">
-                    <TabItem x:Name="FileExplorerTab" Header="{Binding FileExplorer}">
-                        <controls:FileExplorerPanel x:Name="FileExplorerPanel"
-                                                    Classes="surface"
-                                                    DataContext="{Binding FileExplorerPanel}" />
-                    </TabItem>
-                    <TabItem x:Name="ActorLibraryTab" Header="{Binding ActorLibrary}">
-                        <controls:ActorQueuePanel Classes="surface"
-                                                  DataContext="{Binding ActorQueue}" />
-                    </TabItem>
+                <TabControl x:Name="BottomTabs" SelectionChanged="onBottomTabSelectionChanged">
+                    <TabControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </TabControl.ItemsPanel>
+                    <TabControl.Template>
+                        <ControlTemplate>
+                            <Grid RowDefinitions="Auto,*" Background="{TemplateBinding Background}">
+                                <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                                              VerticalScrollBarVisibility="Disabled">
+                                    <ItemsPresenter Name="PART_ItemsPresenter"
+                                                    ItemsPanel="{TemplateBinding ItemsPanel}" />
+                                </ScrollViewer>
+                                <Panel Grid.Row="1" ClipToBounds="True">
+                                    <ContentPresenter Name="PART_SelectedContentHost2"
+                                                      IsVisible="False"
+                                                      HorizontalContentAlignment="Stretch"
+                                                      VerticalContentAlignment="Stretch" />
+                                    <ContentPresenter Name="PART_SelectedContentHost"
+                                                      HorizontalContentAlignment="Stretch"
+                                                      VerticalContentAlignment="Stretch" />
+                                </Panel>
+                            </Grid>
+                        </ControlTemplate>
+                    </TabControl.Template>
                     <TabItem x:Name="ConsoleTab" Header="{Binding Console}">
                         <Border x:Name="ConsolePanel" Classes="surface">
                             <Grid RowDefinitions="*,Auto">

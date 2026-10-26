@@ -76,24 +76,32 @@ public sealed partial class FileExplorerViewModel
     {
         if (disposed)
             return;
-        Dictionary<Guid, (string Path, bool Exists)> paths = gameData.Documents.All
+        EditorDocument[] documents = gameData.Documents.All.ToArray();
+        Dictionary<Guid, (string Path, bool Exists)> paths = documents
             .ToDictionary(document => document.Id, document => (document.Path, document.Exists));
         bool structureChanged = paths.Count != visibleDocumentPaths.Count
             || paths.Any(pair => !visibleDocumentPaths.TryGetValue(pair.Key, out (string Path, bool Exists) previous)
                 || previous != pair.Value);
-        foreach (KeyValuePair<Guid, (string Path, bool Exists)> item in paths)
-        {
-            if (item.Value.Exists && visibleDocumentPaths.TryGetValue(item.Key, out (string Path, bool Exists) previous)
-                && previous.Path != item.Value.Path && EditorPathSandbox.IsSameOrChildPath(previous.Path, CurrentPath))
-            {
-                CurrentPath = Path.Combine(item.Value.Path, Path.GetRelativePath(previous.Path, CurrentPath));
-                break;
-            }
-        }
+        (string OldPath, string NewPath)[] moved = documents
+            .Where(document => document.Exists && visibleDocumentPaths.TryGetValue(document.Id, out (string Path, bool Exists) previous)
+                && previous.Path != document.Path)
+            .Select(document => document.Section == "WorldMaps"
+                ? (Path.GetDirectoryName(visibleDocumentPaths[document.Id].Path)!, Path.GetDirectoryName(document.Path)!)
+                : (visibleDocumentPaths[document.Id].Path, document.Path))
+            .Distinct().ToArray();
+        string[] deleted = visibleDocumentPaths.Where(item => item.Value.Exists
+                && (!paths.TryGetValue(item.Key, out (string Path, bool Exists) next) || !next.Exists))
+            .Select(item => item.Value.Path).ToArray();
+        remapBrowsePaths(moved, deleted);
         visibleDocumentPaths = paths;
         if (structureChanged)
         {
             RequestRefresh();
+            return;
+        }
+        if (!IsActive)
+        {
+            refreshRequired = true;
             return;
         }
         foreach (FileExplorerEntryViewModel entry in Entries)
