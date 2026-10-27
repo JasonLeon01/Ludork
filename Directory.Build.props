@@ -1,0 +1,15 @@
+<Project>
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Ludork' or '$(MSBuildProjectName)' == 'Ludork.Plugin.Abstractions' or '$(MSBuildProjectName)' == 'Ludork.Plugin.Avalonia'">
+    <Deterministic>true</Deterministic>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release' and ('$(MSBuildProjectName)' == 'Ludork' or '$(MSBuildProjectName)' == 'Ludork.Plugin.Abstractions' or '$(MSBuildProjectName)' == 'Ludork.Plugin.Avalonia')">
+    <PathMap>$(MSBuildThisFileDirectory)=/_/,$(PathMap)</PathMap>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'win-x64' and ('$(MSBuildProjectName)' == 'Ludork' or '$(MSBuildProjectName)' == 'Ludork.Plugin.Abstractions' or '$(MSBuildProjectName)' == 'Ludork.Plugin.Avalonia')">
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <NuGetLockFilePath>$(MSBuildProjectDirectory)/packages.windows.lock.json</NuGetLockFilePath>
+  </PropertyGroup>
+</Project>

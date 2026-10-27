@@ -2,6 +2,7 @@ bin/
 obj/
 .venv/
 .tools/
+/global.json
 /.vscode/
 *.code-workspace
 **/__pycache__/

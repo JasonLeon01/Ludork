@@ -70,14 +70,16 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: '9.0.x'
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: pip
           cache-dependency-path: requirements.txt
+      - name: Generate editor SDK configuration
+        run: python tools/build_toolchain.py editor-sdk
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
       - name: Prepare Windows build tools
         if: runner.os == 'Windows'
         shell: cmd
@@ -95,7 +97,11 @@ jobs:
         run: |
           sh tools/setup_python.sh
           sh tools/build_script_tools.sh
-      - name: Compile editor and referenced projects
+      - name: Compile Windows editor with locked dependencies
+        if: runner.os == 'Windows'
+        run: dotnet build Ludork.csproj --configuration Release -r win-x64 -p:RestoreLockedMode=true
+      - name: Compile macOS editor and referenced projects
+        if: runner.os == 'macOS'
         run: dotnet build Ludork.csproj --configuration Release
 
   installer:

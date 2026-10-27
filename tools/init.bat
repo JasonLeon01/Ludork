@@ -9,6 +9,9 @@ for %%I in ("%CPP_DIR%") do set "CPP_DIR=%%~fI"
 call "%CD%\tools\setup_python.bat"
 if errorlevel 1 exit /b %errorlevel%
 
+"%CD%\.venv\Scripts\python.exe" "%CD%\tools\build_toolchain.py" editor-sdk
+if errorlevel 1 exit /b %errorlevel%
+
 call "%CD%\tools\build_script_tools.bat"
 if errorlevel 1 exit /b %errorlevel%
 

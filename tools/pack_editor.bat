@@ -58,6 +58,8 @@ if /I "%~1"=="--launcher" (
 goto usage
 
 :arguments_ready
+cd /d "%ROOT_DIR%"
+if errorlevel 1 exit /b 1
 if not defined PACKAGE_CHANNEL set "PACKAGE_CHANNEL=--dev"
 if "%PACKAGE_CHANNEL%"=="--release" (
     set "WITHOUT_TEMPLATES=1"
@@ -234,10 +236,10 @@ if defined PREBUILT_LAUNCHER (
 
 echo Publishing Windows x64 editor...
 if defined EDITOR_PUBLISH_OPTIONS (
-    dotnet restore "%PROJECT_FILE%" -r win-x64 -p:Configuration=Release -p:SelfContained=true -p:PublishSingleFile=false -p:PublishTrimmed=false -p:PublishAot=false -p:DebugSymbols=false -p:DebugType=None
+    dotnet restore "%PROJECT_FILE%" -r win-x64 -p:Configuration=Release -p:SelfContained=true -p:PublishSingleFile=false -p:PublishTrimmed=false -p:PublishAot=false -p:DebugSymbols=false -p:DebugType=None -p:RestoreLockedMode=true
     if errorlevel 1 goto failed
 )
-dotnet publish "%PROJECT_FILE%" %EDITOR_PUBLISH_OPTIONS% -c Release -r win-x64 --self-contained true -o "%BINARIES_DIR%" -p:PublishSingleFile=false -p:PublishTrimmed=false -p:PublishAot=false -p:DebugSymbols=false -p:DebugType=None "-p:Version=%PRODUCT_VERSION%" "-p:LudorkBuildInfo=%BUILD_INFO%"
+dotnet publish "%PROJECT_FILE%" %EDITOR_PUBLISH_OPTIONS% -c Release -r win-x64 --self-contained true -o "%BINARIES_DIR%" -p:PublishSingleFile=false -p:PublishTrimmed=false -p:PublishAot=false -p:DebugSymbols=false -p:DebugType=None -p:RestoreLockedMode=true "-p:Version=%PRODUCT_VERSION%" "-p:LudorkBuildInfo=%BUILD_INFO%"
 if errorlevel 1 goto failed
 "%BINARIES_DIR%\Ludork.exe" --check-build-info "%BUILD_INFO%"
 if errorlevel 1 goto failed

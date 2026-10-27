@@ -53,15 +53,18 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up .NET
-        uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: "9.0.x"
-
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
+
+      - name: Generate editor SDK configuration
+        run: python tools/build_toolchain.py editor-sdk
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
 
       - name: Download prepared environment
         uses: actions/download-artifact@v8

@@ -6,6 +6,11 @@ set -eu
 : "${FFMPEG_VERSION:?FFMPEG_VERSION is not set in versions.conf}"
 : "${EDITOR_VERSION:?EDITOR_VERSION is not set in versions.conf}"
 
+run_dotnet() (
+    cd "$PROJECT_ROOT"
+    dotnet "$@"
+)
+
 USAGE="Usage: tools/pack_editor.sh [--version X.Y.Z] [--dev|--release] [--templates <folder>|--without-templates] [--use-current-editor-build] [--signing-identity NAME] [--certificate PATH.p12] [--notarize] [--notary-apple-id EMAIL] [--notary-team-id TEAMID] [--notary-key PATH.p8] [--notary-key-id ID] [--notary-key-issuer UUID]"
 PREBUILT_TEMPLATES_DIR=
 WITHOUT_TEMPLATES=0
@@ -1263,13 +1268,13 @@ echo "Packaging Ludork $FULL_VERSION for macOS Apple Silicon..."
 echo "Publishing macOS Apple Silicon editor..."
 set --
 if [ "$USE_CURRENT_EDITOR_BUILD" -eq 1 ]; then
-    dotnet restore "$PROJECT_FILE" -r osx-arm64 \
+    run_dotnet restore "$PROJECT_FILE" -r osx-arm64 \
         -p:Configuration=Release -p:SelfContained=true \
         -p:PublishSingleFile=false -p:PublishTrimmed=false -p:PublishAot=false \
         -p:DebugSymbols=false -p:DebugType=None
     set -- --no-build
 fi
-dotnet publish "$PROJECT_FILE" \
+run_dotnet publish "$PROJECT_FILE" \
     "$@" \
     -c Release \
     -r osx-arm64 \

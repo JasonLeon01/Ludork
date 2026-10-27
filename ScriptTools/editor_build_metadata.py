@@ -18,7 +18,6 @@ def write_csharp(config: pathlib.Path, output: pathlib.Path,
         raise PackError("Editor build information does not match the requested assembly version.")
     values = {
         "Ludork.BaseVersion": versions.base_version,
-        "Ludork.FullVersion": release.full_version if release is not None else versions.base_version,
         "Ludork.Development": "true" if release is None or release.dev else "false",
         "Ludork.SupportedGameVersions": json.dumps(versions.supported_game_versions, separators=(",", ":")),
     }

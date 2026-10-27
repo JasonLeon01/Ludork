@@ -46,13 +46,18 @@ jobs:
           ref: ${{ steps.revision.outputs.server_sha }}
           path: obj/server-source
           persist-credentials: false
+      - name: Read Server tool versions
+        id: toolchain
+        run: python3 tools/build_toolchain.py export server
       - uses: actions/setup-node@v6
         with:
-          node-version: '24'
+          node-version: ${{ steps.toolchain.outputs.SERVER_NODE_VERSION }}
           package-manager-cache: false
       - uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version: ${{ steps.toolchain.outputs.SERVER_PYTHON_VERSION }}
+      - name: Verify Server toolchain
+        run: python3 tools/build_toolchain.py verify server
       - name: Build and verify the Server archive
         env:
           SERVER_SHA: ${{ steps.revision.outputs.server_sha }}

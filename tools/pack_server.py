@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 from html.parser import HTMLParser
 import json
 import os
@@ -13,6 +14,7 @@ import tarfile
 
 
 ROOT = Path(__file__).resolve().parent.parent
+ARCHIVE_TIMESTAMP = 315532800
 REQUIRED = {
     "package.json", "package-lock.json", "README.md", ".emmyrc.json",
     "deploy.sh", "deploy.bat", "start.sh", "start.bat",
@@ -165,15 +167,24 @@ def build(source: Path | None, output: Path, revision: str | None) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = output.with_name(output.name + ".tmp")
     try:
-        with tarfile.open(temporary, "w:gz") as package:
-            for path in [built, *sorted(built.rglob("*"))]:
+        with temporary.open("wb") as output_stream, gzip.GzipFile(
+            filename="", mode="wb", fileobj=output_stream, mtime=ARCHIVE_TIMESTAMP,
+        ) as compressed, tarfile.open(fileobj=compressed, mode="w", format=tarfile.PAX_FORMAT) as package:
+            entries = sorted(built.rglob("*"), key=lambda path: path.relative_to(built).as_posix().encode("utf-8"))
+            for path in [built, *entries]:
                 if path.is_symlink() or not (path.is_file() or path.is_dir()):
                     raise ValueError(f"Unexpected Server build entry: {path}")
                 name = "LudorkServer" + ("/" + path.relative_to(built).as_posix() if path != built else "")
                 check_path(name, path.is_dir())
                 entry = package.gettarinfo(str(path), arcname=name)
+                if entry.islnk():
+                    entry.type = tarfile.REGTYPE
+                    entry.linkname = ""
+                    entry.size = path.stat().st_size
                 entry.uid = entry.gid = 0
                 entry.uname = entry.gname = ""
+                entry.mtime = ARCHIVE_TIMESTAMP
+                entry.pax_headers = {}
                 entry.mode = 0o755 if path.is_dir() or path.suffix == ".sh" else 0o644
                 if path.is_file():
                     with path.open("rb") as stream:
