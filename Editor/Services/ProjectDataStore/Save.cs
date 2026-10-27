@@ -182,7 +182,7 @@ public sealed partial class ProjectDataStore
             payload["type"] = section.ExpectedType;
         return new Dictionary<string, byte[]>
         {
-            [document.Path] = Encoding.UTF8.GetBytes(payload.ToJsonString(WriteOptions) + Environment.NewLine),
+            [document.Path] = Encoding.UTF8.GetBytes(payload.ToJsonString(WriteOptions) + "\n"),
         };
     }
 

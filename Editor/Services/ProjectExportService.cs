@@ -17,6 +17,7 @@ public sealed class ProjectExportService : IDisposable
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = true,
+        NewLine = "\n",
     };
     private readonly string projectPath;
     private readonly string recordPath;

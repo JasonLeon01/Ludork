@@ -57,7 +57,7 @@ public sealed partial class MapDataService
                 ["version"] = 1,
                 ["entries"] = entries,
             };
-            File.WriteAllText(path, root.ToJsonString(ProjectDataStore.WriteOptions) + Environment.NewLine);
+            File.WriteAllText(path, root.ToJsonString(ProjectDataStore.WriteOptions) + "\n");
         }
         catch (Exception exception) when (
             exception is IOException

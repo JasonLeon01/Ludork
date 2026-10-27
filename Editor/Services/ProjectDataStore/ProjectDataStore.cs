@@ -25,6 +25,7 @@ public sealed partial class ProjectDataStore : IDisposable
     internal static readonly JsonSerializerOptions WriteOptions = new()
     {
         WriteIndented = true,
+        NewLine = "\n",
         Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
     };
 

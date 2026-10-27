@@ -20,7 +20,7 @@ def executable_name() -> str:
 
 def _file_states(root: pathlib.Path) -> dict[str, dict[str, object]]:
     states: dict[str, dict[str, object]] = {}
-    for path in sorted(root.rglob("*")):
+    for path in sorted(root.rglob("*"), key=lambda path: path.relative_to(root).as_posix().encode("utf-8")):
         relative = path.relative_to(root).as_posix()
         if relative == MANIFEST_NAME:
             continue
@@ -52,7 +52,7 @@ def _file_states(root: pathlib.Path) -> dict[str, dict[str, object]]:
 def write_manifest(directory: pathlib.Path) -> None:
     root = directory.resolve()
     value = {"formatVersion": 1, "buildMode": BUILD_MODE, "files": _file_states(root)}
-    (root / MANIFEST_NAME).write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+    (root / MANIFEST_NAME).write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8", newline="\n")
 
 
 def validate_bundle(directory: pathlib.Path, expected_source_hash: str | None = None) -> None:

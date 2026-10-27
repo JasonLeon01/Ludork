@@ -36,21 +36,23 @@ from .bindings import generate_binding_traits_header, generate_bindings
 
 
 def write_if_different(path: Path, contents: str) -> None:
-    if path.exists() and path.read_text(encoding="utf-8") == contents:
+    data = contents.encode("utf-8")
+    if path.exists() and path.read_bytes() == data:
         return
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(contents, encoding="utf-8")
+    path.write_bytes(data)
 
 
 def write_generated_binding(path: Path, contents: str) -> None:
+    data = contents.encode("utf-8")
     if path.exists():
-        existing = path.read_text(encoding="utf-8")
-        if not existing.startswith(CPP_GENERATED_FILE_MARKER):
+        existing = path.read_bytes()
+        if not existing.removeprefix(b"\xef\xbb\xbf").startswith(CPP_GENERATED_FILE_MARKER.encode("utf-8")):
             raise ValueError(f"refusing to overwrite hand-written binding: {path}")
-        if existing == contents:
+        if existing == data:
             return
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(contents, encoding="utf-8")
+    path.write_bytes(data)
 
 
 def read_previous_binding_outputs(
@@ -137,12 +139,12 @@ def main(arguments: list[str] | None = None) -> int:
     header_paths = [
         path
         for directory in arguments.header_directory
-        for path in sorted(directory.glob("**/*.hpp"))
+        for path in sorted(directory.glob("**/*.hpp"), key=lambda path: path.as_posix())
     ]
     registry_header_paths = [
         path
         for _, directory in registry_entries
-        for path in sorted(directory.glob("**/*.hpp"))
+        for path in sorted(directory.glob("**/*.hpp"), key=lambda path: path.as_posix())
     ]
     register_headers(context, [*registry_header_paths, *header_paths])
     validate_callback_codec_aliases(
@@ -152,7 +154,7 @@ def main(arguments: list[str] | None = None) -> int:
     external_enums: list[EnumInfo] = []
     external_type_modules: dict[str, str] = {}
     for module_name, directory in registry_entries:
-        for path in sorted(directory.glob("**/*.hpp")):
+        for path in sorted(directory.glob("**/*.hpp"), key=lambda path: path.as_posix()):
             parsed_types, parsed_enums, _ = parse_header(context, path)
             for info in [*parsed_types, *parsed_enums]:
                 previous_module = external_type_modules.get(info.cpp_name)
@@ -303,18 +305,18 @@ def main(arguments: list[str] | None = None) -> int:
     for previous_path in previous_binding_outputs - current_binding_outputs:
         if not previous_path.exists():
             continue
-        contents = previous_path.read_text(encoding="utf-8")
+        contents = previous_path.read_text(encoding="utf-8-sig")
         if not contents.startswith(CPP_GENERATED_FILE_MARKER):
             raise ValueError(
                 f"refusing to remove hand-written stale binding: {previous_path}"
             )
         previous_path.unlink()
     manifest_contents = (
-        "\n".join(str(path) for path in sorted(current_binding_outputs)) + "\n"
+        "\n".join(str(path) for path in sorted(current_binding_outputs, key=lambda path: path.as_posix())) + "\n"
     )
     write_if_different(bindings_manifest, manifest_contents)
     bindings_stamp.parent.mkdir(parents=True, exist_ok=True)
-    bindings_stamp.write_text(manifest_contents, encoding="utf-8")
+    bindings_stamp.write_bytes(manifest_contents.encode("utf-8"))
     return 0
 
 

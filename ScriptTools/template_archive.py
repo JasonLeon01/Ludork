@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import os
 import pathlib
+import shutil
 import stat
 import sys
 import tarfile
@@ -11,8 +13,11 @@ import zipfile
 from .packaging_constants import CPP_TEMPLATE_NAMES, TEMPLATE_NAMES
 
 
+ARCHIVE_TIMESTAMP = 315532800
+
+
 def _entries(root: pathlib.Path, platform: str) -> list[pathlib.Path]:
-    entries = sorted(root.rglob("*"))
+    entries = sorted(root.rglob("*"), key=lambda path: path.relative_to(root).as_posix().encode("utf-8"))
     for path in entries:
         if getattr(path, "is_junction", lambda: False)():
             raise ValueError(f"Template contains a directory junction: {path}")
@@ -43,14 +48,34 @@ def archive_template(root: pathlib.Path, destination: pathlib.Path, platform: st
     if platform == "windows":
         with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as package:
             for path in entries:
-                package.write(path, path.relative_to(root).as_posix())
+                directory = path.is_dir()
+                name = path.relative_to(root).as_posix() + ("/" if directory else "")
+                entry = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+                entry.create_system = 3
+                entry.external_attr = ((stat.S_IFDIR | 0o755) if directory else (stat.S_IFREG | 0o644)) << 16
+                entry.compress_type = zipfile.ZIP_DEFLATED
+                entry._compresslevel = 6
+                if directory:
+                    entry.external_attr |= 0x10
+                    package.writestr(entry, b"")
+                else:
+                    entry.file_size = path.stat().st_size
+                    with path.open("rb") as source, package.open(entry, "w") as target:
+                        shutil.copyfileobj(source, target)
         with zipfile.ZipFile(destination) as package:
             if package.testzip() is not None:
                 raise ValueError(f"Template ZIP failed validation: {destination}")
     else:
-        with tarfile.open(destination, "w:gz", dereference=False) as package:
+        with destination.open("wb") as output, gzip.GzipFile(
+            filename="", mode="wb", fileobj=output, mtime=ARCHIVE_TIMESTAMP,
+        ) as compressed, tarfile.open(fileobj=compressed, mode="w", format=tarfile.PAX_FORMAT, dereference=False) as package:
             for path in entries:
                 entry = package.gettarinfo(str(path), arcname=path.relative_to(root).as_posix())
+                entry.uid = entry.gid = 0
+                entry.uname = entry.gname = ""
+                entry.mtime = ARCHIVE_TIMESTAMP
+                entry.pax_headers = {}
+                entry.mode = 0o777 if entry.issym() else 0o755 if entry.isdir() or path.stat().st_mode & 0o111 else 0o644
                 if entry.isfile() or entry.islnk():
                     entry.type = tarfile.REGTYPE
                     entry.linkname = ""

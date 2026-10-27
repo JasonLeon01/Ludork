@@ -25,9 +25,10 @@ def write_csharp(config: pathlib.Path, output: pathlib.Path,
         f"[assembly: System.Reflection.AssemblyMetadata({json.dumps(key)}, {json.dumps(value)})]"
         for key, value in values.items()
     ) + "\n"
-    if not output.is_file() or output.read_text(encoding="utf-8") != text:
+    data = text.encode("utf-8")
+    if not output.is_file() or output.read_bytes() != data:
         output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(text, encoding="utf-8")
+        output.write_bytes(data)
 
 
 def validate_payload(root: pathlib.Path, build_info: pathlib.Path,

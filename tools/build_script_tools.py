@@ -119,9 +119,9 @@ def build(project: pathlib.Path) -> None:
     _smoke(distribution, intermediate)
     if source_hash != _source_hash(project, _versions()):
         raise RuntimeError("ScriptTools inputs changed during compilation; rebuild the tools.")
-    (distribution / SOURCE_STAMP_NAME).write_text(source_hash + "\n", encoding="utf-8")
+    (distribution / SOURCE_STAMP_NAME).write_text(source_hash + "\n", encoding="utf-8", newline="\n")
     (distribution / VERSION_REPORT_NAME).write_text(
-        "".join(f"{name}: {value}\n" for name, value in versions.items()), encoding="utf-8",
+        "".join(f"{name}: {value}\n" for name, value in versions.items()), encoding="utf-8", newline="\n",
     )
     write_manifest(distribution)
     validate_bundle(distribution, source_hash)

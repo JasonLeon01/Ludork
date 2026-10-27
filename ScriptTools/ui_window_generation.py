@@ -302,7 +302,7 @@ def window_outputs(
     if not source.is_dir():
         return outputs
     window_types: dict[str, pathlib.Path] = {}
-    for path in sorted(source.rglob("*.lua")):
+    for path in sorted(source.rglob("*.lua"), key=lambda path: path.as_posix()):
         relative = path.relative_to(scripts)
         if path.name.endswith((".d.lua", "_meta.lua")):
             continue

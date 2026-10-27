@@ -24,7 +24,7 @@ internal static class PluginTemplateWriter
         Directory.CreateDirectory(directory);
         await File.WriteAllTextAsync(
             Path.Combine(directory, "plugin.json"),
-            JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine,
+            JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true, NewLine = "\n" }) + "\n",
             cancellationToken);
         await File.WriteAllTextAsync(
             Path.Combine(directory, "Plugin.cs"),

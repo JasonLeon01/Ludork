@@ -20,10 +20,11 @@ def generate(header_path: pathlib.Path, output_path: pathlib.Path) -> None:
         f"    internal const int CellSize = {cell_size};\n"
         "}\n"
     )
-    if output_path.is_file() and output_path.read_text(encoding="utf-8") == content:
+    data = content.encode("utf-8")
+    if output_path.is_file() and output_path.read_bytes() == data:
         return
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(content, encoding="utf-8", newline="\n")
+    output_path.write_bytes(data)
 
 
 def main(arguments: list[str] | None = None) -> int:

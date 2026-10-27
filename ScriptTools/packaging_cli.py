@@ -35,10 +35,10 @@ def _write_csharp(path: pathlib.Path) -> None:
         kind = "string" if isinstance(value, str) else "int"
         lines.append(f"    public const {kind} {name} = {json.dumps(value)};")
     lines.extend(("}", ""))
-    text = "\n".join(lines)
-    if not path.is_file() or path.read_text(encoding="utf-8") != text:
+    content = "\n".join(lines).encode("utf-8")
+    if not path.is_file() or path.read_bytes() != content:
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text, encoding="utf-8")
+        path.write_bytes(content)
 
 
 def main(arguments: list[str] | None = None) -> int:

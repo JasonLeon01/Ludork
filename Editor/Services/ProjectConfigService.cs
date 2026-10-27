@@ -259,7 +259,7 @@ public sealed class ProjectConfigService
     private void save(JsonObject updated)
     {
         removeObsoleteEditorState(updated);
-        File.WriteAllText(configPath, updated.ToJsonString(new() { WriteIndented = true }));
+        File.WriteAllText(configPath, updated.ToJsonString(new() { WriteIndented = true, NewLine = "\n" }));
         data = updated;
     }
 

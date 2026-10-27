@@ -16,6 +16,7 @@ public sealed class MaterialCombinationService
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = true,
+        NewLine = "\n",
     };
     private readonly string path;
 
@@ -64,6 +65,6 @@ public sealed class MaterialCombinationService
             return Task.Run(() => FilePersistence.DeleteFile(path));
 
         string json = JsonSerializer.Serialize(new { additionalCombinations = combinations }, jsonOptions);
-        return FilePersistence.WriteAllTextAtomicAsync(path, json + Environment.NewLine, CancellationToken.None);
+        return FilePersistence.WriteAllTextAtomicAsync(path, json + "\n", CancellationToken.None);
     }
 }

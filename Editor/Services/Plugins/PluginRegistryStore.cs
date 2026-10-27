@@ -14,6 +14,7 @@ internal sealed class PluginRegistryStore
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
         WriteIndented = true,
+        NewLine = "\n",
         PropertyNameCaseInsensitive = false,
     };
 
@@ -63,7 +64,7 @@ internal sealed class PluginRegistryStore
     {
         PluginPaths.EnsureEnvironmentIsSafe(environment);
         validate(document);
-        string json = JsonSerializer.Serialize(document, SerializerOptions) + Environment.NewLine;
+        string json = JsonSerializer.Serialize(document, SerializerOptions) + "\n";
         await FilePersistence.WriteAllTextAtomicAsync(environment.RegistryPath, json, cancellationToken);
     }
 

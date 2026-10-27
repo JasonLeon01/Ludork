@@ -54,7 +54,7 @@ def parse_module(include_directories: list[Path]) -> list[TypeInfo]:
             raise ValueError(
                 f"binding include directory does not exist: {include_directory}"
             )
-        header_paths.extend(sorted(include_directory.glob("**/*.hpp")))
+        header_paths.extend(sorted(include_directory.glob("**/*.hpp"), key=lambda path: path.as_posix()))
     register_headers(context, header_paths)
     types: list[TypeInfo] = []
     for path in header_paths:

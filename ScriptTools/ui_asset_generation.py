@@ -184,7 +184,7 @@ def _check_path(root: pathlib.Path, relative: pathlib.Path) -> None:
 
 
 def _generated(data: bytes) -> bool:
-    return data.splitlines()[:1] == [GENERATED_MARKER.encode("utf-8")]
+    return data.removeprefix(b"\xef\xbb\xbf").splitlines()[:1] == [GENERATED_MARKER.encode("utf-8")]
 
 
 def _exact_case_path(root: pathlib.Path, relative: pathlib.Path) -> bool:
@@ -228,7 +228,7 @@ def _output_changes(root: pathlib.Path, outputs: dict[pathlib.Path, bytes]) -> d
             continue
         if not output_root.is_dir():
             raise UiAssetError(f"UI generation directory is occupied by a file: {output_root}")
-        for path in sorted(output_root.rglob("*")):
+        for path in sorted(output_root.rglob("*"), key=lambda path: path.as_posix()):
             relative = path.relative_to(root)
             if _is_link(path):
                 raise UiAssetError(f"UI generation does not follow links: {path}")
@@ -236,7 +236,7 @@ def _output_changes(root: pathlib.Path, outputs: dict[pathlib.Path, bytes]) -> d
                 continue
             if _generated(path.read_bytes()):
                 changes[relative] = None
-    return dict(sorted(changes.items()))
+    return dict(sorted(changes.items(), key=lambda item: item[0].as_posix()))
 
 
 def _case_directory_moves(root: pathlib.Path, outputs: dict[pathlib.Path, bytes]) -> list[tuple[pathlib.Path, pathlib.Path]]:
@@ -287,7 +287,7 @@ def _install(
             for original, target in directory_moves:
                 replace_path(original, target)
                 moved_directories.append((original, target))
-            for relative, data in sorted(changes.items(), key=lambda item: (item[1] is not None, item[0])):
+            for relative, data in sorted(changes.items(), key=lambda item: (item[1] is not None, item[0].as_posix())):
                 target = root / relative
                 if data is None:
                     remove_file(target)
@@ -345,7 +345,7 @@ def _prepare_generation(project_root: pathlib.Path) -> tuple[pathlib.Path, dict[
         assets: dict[str, dict[str, object]] = {}
         inputs: dict[pathlib.Path, bytes | None] = {}
         case_keys: dict[str, str] = {}
-        for path in sorted(assets_root.rglob("*.json")):
+        for path in sorted(assets_root.rglob("*.json"), key=lambda path: path.as_posix()):
             _check_path(root, path.relative_to(root))
             if not path.is_file():
                 continue
@@ -386,9 +386,9 @@ def generation_manifest(project_root: pathlib.Path) -> dict[str, object]:
     return {
         "inputs": {
             path.as_posix(): hashlib.sha256(data).hexdigest() if data is not None else "missing"
-            for path, data in sorted(inputs.items())
+            for path, data in sorted(inputs.items(), key=lambda item: item[0].as_posix())
         },
-        "outputPaths": [path.as_posix() for path in sorted(output_paths)],
+        "outputPaths": [path.as_posix() for path in sorted(output_paths, key=lambda path: path.as_posix())],
     }
 
 

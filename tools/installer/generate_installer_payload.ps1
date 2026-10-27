@@ -37,17 +37,17 @@ function Get-StableGuid([string]$value)
 }
 
 $resolvedDist = (Resolve-Path -LiteralPath $DistDir).Path.TrimEnd('\')
-$directories = @(
-    Get-Item -LiteralPath $resolvedDist
-    Get-ChildItem -LiteralPath $resolvedDist -Directory -Recurse -Force |
-        Sort-Object FullName
-)
+$directories = [System.Collections.Generic.List[string]]::new()
+$directories.Add($resolvedDist)
+Get-ChildItem -LiteralPath $resolvedDist -Directory -Recurse -Force |
+    ForEach-Object { $directories.Add($_.FullName) }
+$directories.Sort([System.StringComparer]::Ordinal)
 
 $directoryIds = @{}
 $directoryChildren = @{}
 foreach ($directory in $directories)
 {
-    $relativeDirectory = $directory.FullName.Substring($resolvedDist.Length).TrimStart('\')
+    $relativeDirectory = $directory.Substring($resolvedDist.Length).TrimStart('\')
     if ($relativeDirectory.Length -eq 0)
     {
         $directoryIds[$relativeDirectory] = 'INSTALLFOLDER'
@@ -82,7 +82,8 @@ function Add-DirectoryChildren([string]$parentDirectory, [int]$indent)
         return
     }
 
-    foreach ($relativeDirectory in @($directoryChildren[$parentDirectory] | Sort-Object))
+    $directoryChildren[$parentDirectory].Sort([System.StringComparer]::Ordinal)
+    foreach ($relativeDirectory in $directoryChildren[$parentDirectory])
     {
         $directoryName = Split-Path -Path $relativeDirectory -Leaf
         $escapedName = [System.Security.SecurityElement]::Escape($directoryName)
@@ -102,21 +103,21 @@ $lines.Add('    <ComponentGroup Id="EditorFiles">')
 
 foreach ($directory in $directories)
 {
-    $relativeDirectory = $directory.FullName.Substring($resolvedDist.Length).TrimStart('\')
+    $relativeDirectory = $directory.Substring($resolvedDist.Length).TrimStart('\')
     $normalizedDirectory = $relativeDirectory.ToLowerInvariant()
     [byte[]]$componentHash = Get-StableHash "Ludork.PayloadComponent`0$normalizedDirectory"
     $componentSuffix = (Get-Hex $componentHash).Substring(0, 24)
     $componentId = "Payload_$componentSuffix"
     $componentGuid = Get-StableGuid "Ludork.PayloadComponent`0$ProductVersion`0$normalizedDirectory"
     $directoryId = $directoryIds[$relativeDirectory]
-    $files = @(
-        Get-ChildItem -LiteralPath $directory.FullName -File -Force |
-            Where-Object {
-                $relativeDirectory.Length -ne 0 -or
-                -not $_.Name.Equals('Ludork.exe', [System.StringComparison]::OrdinalIgnoreCase)
-            } |
-            Sort-Object Name
-    )
+    $files = [System.Collections.Generic.List[string]]::new()
+    Get-ChildItem -LiteralPath $directory -File -Force |
+        Where-Object {
+            $relativeDirectory.Length -ne 0 -or
+            -not $_.Name.Equals('Ludork.exe', [System.StringComparison]::OrdinalIgnoreCase)
+        } |
+        ForEach-Object { $files.Add($_.FullName) }
+    $files.Sort([System.StringComparer]::Ordinal)
 
     $lines.Add("      <Component Id=`"$componentId`" Directory=`"$directoryId`" Guid=`"$componentGuid`">")
 
@@ -131,7 +132,7 @@ foreach ($directory in $directories)
     {
         foreach ($file in $files)
         {
-            $relativeFile = $file.FullName.Substring($resolvedDist.Length).TrimStart('\')
+            $relativeFile = $file.Substring($resolvedDist.Length).TrimStart('\')
             $normalizedFile = $relativeFile.ToLowerInvariant()
             [byte[]]$fileHash = Get-StableHash "Ludork.PayloadFile`0$normalizedFile"
             $fileSuffix = (Get-Hex $fileHash).Substring(0, 24)
@@ -147,4 +148,4 @@ foreach ($directory in $directories)
 $lines.Add('    </ComponentGroup>')
 $lines.Add('  </Fragment>')
 $lines.Add('</Wix>')
-$lines | Set-Content -LiteralPath $OutputPath -Encoding UTF8
+[IO.File]::WriteAllText($OutputPath, [string]::Join("`n", $lines) + "`n", [Text.UTF8Encoding]::new($false))

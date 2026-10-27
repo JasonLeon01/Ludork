@@ -252,7 +252,7 @@ Temporary packages use `--dev` and expire after seven days:
 | `Ludork-macos-arm64-<sha>` | Complete macOS DMG artifact. |
 | `LudorkServer-<40-character-server-SHA>.tar.gz` | Independent built Server package. |
 
-Windows 7z files have no outer ZIP, contain the root launcher, use multithreaded LZMA2 level 5 and pass `7z t` before upload. Template-free consumers select a successful target-platform job with a unique unexpired exact-name artifact, continuing to earlier runs if unavailable. Combined Package consumers also require `Record successful package (<server-SHA>)`; an unchanged scheduled run may succeed without producing artifacts. Editor-only baselines use `Record successful editor (<server-SHA>)`.
+Windows 7z files have no outer ZIP, contain the root launcher, use multithreaded LZMA2 level 5, omit source modification/creation/access timestamps and pass `7z t` before upload. Template-free consumers select a successful target-platform job with a unique unexpired exact-name artifact, continuing to earlier runs if unavailable. Combined Package consumers also require `Record successful package (<server-SHA>)`; an unchanged scheduled run may succeed without producing artifacts. Editor-only baselines use `Record successful editor (<server-SHA>)`.
 
 All export runs resolve the remote `Server` tree, verify the exact `SERVER_*` tool versions from `versions.conf`, install locked dependencies with `npm ci`, build the backend and management website, and archive the deployable `LudorkServer/` directory. It contains compiled JavaScript, static frontend assets, Lua files, production dependency manifests, deployment scripts and notices; private project code, credentials, user data, TypeScript inputs and node_modules are excluded. Each combined run builds one Server artifact; single-platform runs build their own. The archive is uploaded independently of the editor packages. Extract with `tar -xzf <archive>` before deployment. Its tar.gz uses stable UTF-8 path ordering, fixed timestamps and canonical entry metadata; unchanged content does not change with file modification or archive creation times.
 
@@ -267,7 +267,7 @@ Each Package platform uploads these four archives directly; Export Editor upload
 | Standalone | `game-standalone.zip` | `game-standalone.tar.gz` |
 | Standalone + FFmpeg | `game-standalone-ffmpeg.zip` | `game-standalone-ffmpeg.tar.gz` |
 
-Archive roots contain project files, hidden configuration, licences and matching preview data. Keep archive output outside the editor payload; macOS preserves executable permissions and relative library links. Public downloads use [Release Assets](https://github.com/JasonLeon01/Ludork/releases). Local checks do not establish hosted workflow success or branch-protection configuration.
+Archive roots contain project files, hidden configuration, licences and matching preview data. Template archives use UTF-8 path ordering, fixed timestamps and canonical entry metadata; unchanged content and executable flags produce identical archive bytes with the same compression toolchain, regardless of file modification times or archive filenames. Keep archive output outside the editor payload; macOS preserves executable permissions and relative library links. Public downloads use [Release Assets](https://github.com/JasonLeon01/Ludork/releases). Local checks do not establish hosted workflow success or branch-protection configuration.
 
 ### CI signing configuration
 

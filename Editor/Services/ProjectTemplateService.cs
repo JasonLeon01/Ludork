@@ -71,7 +71,7 @@ public sealed class ProjectTemplateService
             if (ffmpeg)
                 config["ffmpeg"] = true;
             await File.WriteAllTextAsync(Path.Combine(stagingPath, "Main.proj"),
-                config.ToJsonString(new() { WriteIndented = true }), cancellationToken);
+                config.ToJsonString(new() { WriteIndented = true, NewLine = "\n" }), cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             Directory.Move(stagingPath, targetPath);
             return Path.Combine(targetPath, "Main.proj");

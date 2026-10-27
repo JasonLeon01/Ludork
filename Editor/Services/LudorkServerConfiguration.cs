@@ -14,6 +14,7 @@ public static class LudorkServerConfiguration
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = true,
+        NewLine = "\n",
     };
 
     public static string GetTestConfigPath(string projectPath)
@@ -49,7 +50,7 @@ public static class LudorkServerConfiguration
             throw new InvalidDataException(LocaleService.Get(error));
         return FilePersistence.WriteAllTextAtomicAsync(
             GetTestConfigPath(projectPath),
-            JsonSerializer.Serialize(settings, jsonOptions) + Environment.NewLine,
+            JsonSerializer.Serialize(settings, jsonOptions) + "\n",
             cancellationToken);
     }
 

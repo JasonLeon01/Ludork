@@ -824,7 +824,7 @@ def replace_template_tokens(
                 f"Unresolved Android template token in {path}: {', '.join(sorted(set(unresolved)))}",
                 EXIT_PROJECT,
             )
-        path.write_text(text, encoding="utf-8")
+        path.write_text(text, encoding="utf-8", newline="\n")
 
 
 def create_app_icon(context: PackContext) -> None:
@@ -888,11 +888,13 @@ def prepare_gradle_stage(
     manifest_path.write_text(
         json.dumps(manifest.as_dict(), ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
+        newline="\n",
     )
     local_properties = context.stage_dir / "local.properties"
     local_properties.write_text(
         f"sdk.dir={_properties_path(context.sdk.root)}\n",
         encoding="utf-8",
+        newline="\n",
     )
     create_app_icon(context)
     replace_template_tokens(

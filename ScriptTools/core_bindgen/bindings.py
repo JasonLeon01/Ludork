@@ -229,7 +229,7 @@ def include_lines(sources: set[Path], include_directories: list[Path]) -> list[s
     result: list[str] = []
     for directory in include_directories:
         resolved_directory = directory.resolve()
-        for path in sorted(resolved_directory.glob("**/*.hpp")):
+        for path in sorted(resolved_directory.glob("**/*.hpp"), key=lambda path: path.as_posix()):
             resolved_path = path.resolve()
             if resolved_path not in required or resolved_path in found:
                 continue

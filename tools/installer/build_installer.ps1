@@ -58,14 +58,15 @@ function Write-License([string]$Destination) {
 }
 
 function Write-PayloadManifest([string]$SourceDirectory, [string]$Destination) {
-    $payloadFiles = @(
+    $payloadFiles = [System.Collections.Generic.SortedSet[string]]::new([System.StringComparer]::Ordinal)
+    @(
         Get-ChildItem -LiteralPath $SourceDirectory -Recurse -File -Force | ForEach-Object {
             $_.FullName.Substring($SourceDirectory.Length + 1)
         }
         'LudorkProject.ico'
         'tools\InstallerPayload.txt'
         if ($Format -eq 'exe') { 'tools\LudorkUninstallActions.dll' }
-    ) | Sort-Object -Unique
+    ) | ForEach-Object { [void]$payloadFiles.Add($_) }
     [IO.File]::WriteAllLines((Join-Path $Destination 'InstallerPayload.txt'), $payloadFiles, [Text.UTF8Encoding]::new($true))
 }
 

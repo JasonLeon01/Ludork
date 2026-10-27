@@ -70,9 +70,10 @@ def generate(directory: pathlib.Path, configuration: str) -> None:
     lines.extend(["}", ""])
     path = directory / "LudorkGenerated" / "ServerConfig.hpp"
     content = "\n".join(lines)
+    data = content.encode("utf-8")
     path.parent.mkdir(parents=True, exist_ok=True)
-    if not path.is_file() or path.read_text(encoding="utf-8") != content:
-        path.write_text(content, encoding="utf-8", newline="\n")
+    if not path.is_file() or path.read_bytes() != data:
+        path.write_bytes(data)
 
 
 def cleanup(project: pathlib.Path) -> None:

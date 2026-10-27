@@ -759,7 +759,7 @@ def replace_template_tokens(
         text = path.read_text(encoding="utf-8")
         for token, value in replacements.items():
             text = text.replace(token, value)
-        path.write_text(text, encoding="utf-8")
+        path.write_text(text, encoding="utf-8", newline="\n")
 
 
 def create_app_icon(context: PackContext, stage_dir: pathlib.Path) -> None:
@@ -793,7 +793,7 @@ def prepare_stage(context: PackContext, stage_dir: pathlib.Path | None = None) -
     runtime_archive = rawfile / RUNTIME_ARCHIVE_NAME
     runtime_hash = write_deterministic_zip(resources, runtime_archive)
     validate_runtime_zip(runtime_archive, context.use_ldpak)
-    (rawfile / "ludork-runtime.sha256").write_text(runtime_hash + "\n", encoding="ascii")
+    (rawfile / "ludork-runtime.sha256").write_text(runtime_hash + "\n", encoding="ascii", newline="\n")
     create_app_icon(context, destination)
     replace_template_tokens(context, destination, runtime_hash)
     return runtime_hash

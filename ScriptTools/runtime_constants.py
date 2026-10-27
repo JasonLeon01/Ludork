@@ -133,8 +133,9 @@ def generate(project: pathlib.Path, output: pathlib.Path) -> None:
     directory.mkdir(parents=True, exist_ok=True)
     for name, content in files.items():
         path = directory / name
-        if not path.is_file() or path.read_text(encoding="utf-8") != content:
-            path.write_text(content, encoding="utf-8", newline="\n")
+        data = content.encode("utf-8")
+        if not path.is_file() or path.read_bytes() != data:
+            path.write_bytes(data)
 
 
 def main(arguments: list[str] | None = None) -> int:

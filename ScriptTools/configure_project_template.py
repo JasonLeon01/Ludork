@@ -29,5 +29,6 @@ def main(arguments: list[str] | None = None) -> int:
     projectFile.write_text(
         json.dumps(data, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
+        newline="\n",
     )
     return 0

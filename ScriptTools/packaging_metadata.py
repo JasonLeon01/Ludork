@@ -79,7 +79,7 @@ class ReleaseVersion:
     def write_build_info(self, directory: pathlib.Path) -> None:
         directory.mkdir(parents=True, exist_ok=True)
         (directory / "BuildInfo.json").write_text(
-            json.dumps(self.build_info(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+            json.dumps(self.build_info(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n"
         )
 
 

@@ -117,19 +117,20 @@ def generate_modules(scripts: Path, module: str, catalogue: dict[str, object]) -
     stale: list[Path] = []
     for root in roots:
         for path in root.rglob("*.lua"):
-            if path not in outputs and path.read_text(encoding="utf-8").startswith(GENERATED_MARKER):
+            if path not in outputs and path.read_text(encoding="utf-8-sig").startswith(GENERATED_MARKER):
                 stale.append(path)
     for path in outputs:
-        if path.exists() and not path.read_text(encoding="utf-8").startswith(GENERATED_MARKER):
+        if path.exists() and not path.read_text(encoding="utf-8-sig").startswith(GENERATED_MARKER):
             raise ValueError(f"refusing to overwrite handwritten enum module: {path}")
     roots[0].mkdir(parents=True, exist_ok=True)
     for path, contents in outputs.items():
+        data = contents.encode("utf-8")
         if path.exists():
-            current = path.read_text(encoding="utf-8")
-            if current == contents:
+            current = path.read_bytes()
+            if current == data:
                 continue
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(contents, encoding="utf-8")
+        path.write_bytes(data)
     for path in stale:
         path.unlink()
     for root in roots:
