@@ -22,6 +22,8 @@ npm run dev --prefix __default__
 
 两个构建脚本均调用 `build_docs.mjs`。修改 `__default__` 中的前端源码及各版本内容，不要手改生成的 HTML、资源或搜索索引。
 
+本分支的文本文件统一使用 LF，由 `.gitattributes` 固定 Git 检出时的换行格式。`build_docs.mjs` 在检查提交输入和启动 Vite 之前，会将文档、前端及构建文本输入中的 CRLF 和单独的 CR 原地转换为 LF，避免跨平台换行差异改变资源哈希。只有需要转换的文件才会写回，依赖、生成目录和二进制资源不参与转换。
+
 提交前暂存本次修改的输入文件。`gh-pages` 的 pre-commit hook 会构建站点，并把生成文件纳入同一次提交；构建失败或存在未暂存、未跟踪的构建输入时，提交会停止。每次 clone 后都需要配置 hook。
 
 检查后自行 push `gh-pages`，在 GitHub Pages 中选择 **Deploy from a branch → gh-pages → /(root)**，无需自定义构建工作流。GitHub 网页编辑不会执行本地 hook，因此发布前应在本地构建并提交。
