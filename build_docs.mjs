@@ -5,28 +5,27 @@ import { spawnSync } from 'node:child_process'
 
 const root = fileURLToPath(new URL('.', import.meta.url))
 const frontend = resolve(root, '__default__')
-const versions = JSON.parse(readFileSync(resolve(root, 'versions.json'), 'utf8'))
-const inputs = ['__default__', ...versions, 'versions.json', 'build_docs.mjs', 'build_docs.sh', 'build_docs.bat', '.githooks', '.gitattributes']
 const outputs = ['index.html', 'assets', 'docs', 'about', 'notices', 'favicon.svg', '.nojekyll']
 const textExtensions = new Set(['.bat', '.cmd', '.css', '.html', '.js', '.jsx', '.json', '.md', '.mjs', '.cjs', '.sh', '.svg', '.ts', '.tsx', '.txt', '.yaml', '.yml'])
 const textNames = new Set(['.gitattributes', '.gitignore', '.nojekyll', '.npmrc'])
 const ignoredDirectories = new Set(['node_modules', 'dist', '.git', '.cache', '.vite', '.vite-temp', '.tmp', 'coverage'])
 
-function normalizeLineEndings(path) {
+function normalizeTextInputs(path) {
   const filename = resolve(root, path)
   const stat = lstatSync(filename)
   if (stat.isSymbolicLink()) return 0
   if (stat.isDirectory()) {
     if (ignoredDirectories.has(basename(filename)) || /^__default__\/docs\/v[^/]+$/.test(path)) return 0
-    return readdirSync(filename).reduce((count, name) => count + normalizeLineEndings(`${path}/${name}`), 0)
+    return readdirSync(filename).reduce((count, name) => count + normalizeTextInputs(`${path}/${name}`), 0)
   }
   if (!stat.isFile() || (!textExtensions.has(extname(filename).toLowerCase())
     && !textNames.has(basename(filename)) && !path.startsWith('.githooks/'))) return 0
 
   const content = readFileSync(filename)
-  if (content.includes(0) || !content.includes(13)) return 0
+  const start = content[0] === 0xef && content[1] === 0xbb && content[2] === 0xbf ? 3 : 0
+  if (content.includes(0) || (!start && !content.includes(13))) return 0
   let length = 0
-  for (let index = 0; index < content.length; index++) {
+  for (let index = start; index < content.length; index++) {
     if (content[index] === 13) {
       content[length++] = 10
       if (content[index + 1] === 10) index++
@@ -46,8 +45,11 @@ function run(command, args, cwd = root, capture = false) {
 }
 
 try {
-  const normalized = inputs.reduce((count, path) => count + normalizeLineEndings(path), 0)
-  if (normalized) console.log(`Normalized ${normalized} build input file(s) to LF.`)
+  let normalized = normalizeTextInputs('versions.json')
+  const versions = JSON.parse(readFileSync(resolve(root, 'versions.json'), 'utf8'))
+  const inputs = ['__default__', ...versions, 'versions.json', 'build_docs.mjs', 'build_docs.sh', 'build_docs.bat', '.githooks', '.gitattributes']
+  normalized += inputs.reduce((count, path) => count + normalizeTextInputs(path), 0)
+  if (normalized) console.log(`Normalized ${normalized} build input file(s) to LF without a UTF-8 BOM.`)
   const commit = process.argv.includes('--commit')
   if (commit) {
     if (run('git', ['diff', '--name-only', '--', ...inputs], root, true)

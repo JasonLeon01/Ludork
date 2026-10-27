@@ -22,7 +22,7 @@ npm run dev --prefix __default__
 
 Both build scripts call `build_docs.mjs`. Edit frontend sources in `__default__` and versioned content, not generated HTML, assets or search indexes.
 
-Text files on this branch use LF, enforced on Git checkout by `.gitattributes`. Before checking commit inputs or starting Vite, `build_docs.mjs` converts CRLF and lone CR line endings in documentation, frontend and build text inputs to LF in place, so line endings do not change asset hashes across platforms. It writes only files that need conversion and skips dependencies, generated directories and binary assets.
+Text files on this branch use LF, enforced on Git checkout by `.gitattributes`. Before reading `versions.json`, checking commit inputs or starting Vite, `build_docs.mjs` removes leading UTF-8 byte order marks (BOMs) and converts CRLF and lone CR line endings in documentation, frontend and build text inputs to LF in place, so these encoding and line-ending differences do not change asset hashes across platforms. It writes only files that need conversion and skips dependencies, generated directories and binary assets.
 
 Stage the intended inputs before committing. The `gh-pages` pre-commit hook builds the site and includes generated outputs in the same commit; build failures or unstaged/untracked build inputs stop the commit. Configure the hook in each clone.
 

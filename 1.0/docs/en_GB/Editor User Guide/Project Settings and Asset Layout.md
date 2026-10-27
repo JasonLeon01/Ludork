@@ -2,6 +2,8 @@
 
 A project stores editor and packaging settings in `Main.proj`, runtime settings in its [game configuration](<#game-configuration>), resources in `Assets`, authored data in `Data` and runtime code in `Scripts`. C++ Source projects also include the native sources described in [Build and Module Layout](<../Native C++ Development/Build and Module Layout.md>).
 
+The editor writes project JSON, including `Main.proj`, `Data` documents, `MaterialExport.json` and export records, as UTF-8 without a byte order mark (BOM) and with LF line endings on every platform. Saving the same JSON values therefore does not introduce platform-specific line endings.
+
 ## Main.proj
 
 `Main.proj` describes editor and packaging capabilities. The Game project enables the C++ runtime and FFmpeg and stores the preferred run-window mode:

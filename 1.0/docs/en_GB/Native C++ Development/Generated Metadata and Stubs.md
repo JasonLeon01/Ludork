@@ -63,7 +63,7 @@ Project-owned enums come from General Data, animation and particle documents. Na
 
 ## Regeneration
 
-Run the normal CMake build to add, update or remove generated class units and module outputs. Bindgen writes only changed content, preserving unchanged files' names and timestamps. If output appears stale, confirm that the annotated header belongs to the module's configured public-header set, then inspect the generator diagnostics and rebuild.
+Run the normal CMake build to add, update or remove generated class units and module outputs. Bindgen scans public headers in case-sensitive path order with `/` separators on every platform and writes its generated C++ and Lua text as UTF-8 without a byte order mark (BOM), using LF line endings. It compares output bytes before writing, preserving unchanged files' names and timestamps; regenerating an existing CRLF file rewrites it to LF. If output appears stale, confirm that the annotated header belongs to the module's configured public-header set, then inspect the generator diagnostics and rebuild.
 
 Changes to included headers may still recompile dependent class units even when their generated content is unchanged.
 
