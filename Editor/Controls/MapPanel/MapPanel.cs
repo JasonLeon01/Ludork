@@ -104,7 +104,7 @@ public sealed partial class MapPanel : Control
     public event EventHandler? TilePaintCommitted;
     public event EventHandler<ActorSelectionChangedEventArgs>? ActorSelectionChanged;
     public event EventHandler<string>? BlueprintLocateRequested;
-    public event EventHandler? ActorDataChanged;
+    public event EventHandler<MapPreviewChangedEventArgs>? ActorDataChanged;
     public event EventHandler? PendingActorCancelled;
     public event EventHandler<string>? EditFeedbackRequested;
 

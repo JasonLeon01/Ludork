@@ -116,21 +116,26 @@ public sealed partial class ActorInfoViewModel
 
     private void refreshProjectSelectionHeader()
     {
-        List<MapActorReference> remaining = projectActors.Where(actor => findProjectActor(actor) is not null).ToList();
+        IReadOnlyDictionary<MapActorReference, MapActorSnapshot> resolved = resolveProjectSelectionActors();
+        List<MapActorReference> remaining = projectActors.Where(resolved.ContainsKey).ToList();
         if (remaining.Count != projectActors.Count)
         {
             setActors(mapKey ?? string.Empty, remaining, projectPrimary);
             return;
         }
-        updateProjectSelectionHeader();
+        updateProjectSelectionHeader(resolved);
     }
 
     private void updateProjectSelectionHeader()
+        => updateProjectSelectionHeader(resolveProjectSelectionActors());
+
+    private void updateProjectSelectionHeader(IReadOnlyDictionary<MapActorReference, MapActorSnapshot> resolved)
     {
-        List<MapActorSnapshot> actors = projectActors.Select(findProjectActor).OfType<MapActorSnapshot>().ToList();
+        List<MapActorSnapshot> actors = projectActors.Select(reference => resolved.GetValueOrDefault(reference))
+            .OfType<MapActorSnapshot>().ToList();
         if (actors.Count == 0)
             return;
-        MapActorSnapshot actor = projectPrimary is null ? actors[0] : findProjectActor(projectPrimary) ?? actors[0];
+        MapActorSnapshot actor = projectPrimary is null ? actors[0] : resolved.GetValueOrDefault(projectPrimary) ?? actors[0];
         updatePositionEditors(actor);
         IsPositionXMixed = actors.Any(item => item.Position.X != actor.Position.X);
         IsPositionYMixed = actors.Any(item => item.Position.Y != actor.Position.Y);
@@ -139,6 +144,23 @@ public sealed partial class ActorInfoViewModel
         BlueprintReference = IsBlueprintMixed ? LocaleService.Get("MULTIPLE_CHOICES") : actor.Blueprint;
         Tag = LocaleService.Get("MULTIPLE_CHOICES");
         HeaderChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private IReadOnlyDictionary<MapActorReference, MapActorSnapshot> resolveProjectSelectionActors()
+    {
+        Dictionary<MapActorReference, MapActorSnapshot> resolved = [];
+        foreach (IGrouping<string, MapActorReference> layer in projectActors.GroupBy(actor => actor.LayerName, StringComparer.Ordinal))
+        {
+            if (mapSnapshot is null || !mapSnapshot.Actors.TryGetValue(layer.Key, out IReadOnlyList<MapActorSnapshot>? actors))
+                continue;
+            Dictionary<string, MapActorSnapshot> actorsByTag = new(actors.Count, StringComparer.Ordinal);
+            foreach (MapActorSnapshot actor in actors)
+                actorsByTag.TryAdd(actor.Tag, actor);
+            foreach (MapActorReference reference in layer)
+                if (actorsByTag.TryGetValue(reference.Tag, out MapActorSnapshot? actor))
+                    resolved.TryAdd(reference, actor);
+        }
+        return resolved;
     }
 
     private MapActorSnapshot? findProjectActor(MapActorReference reference)

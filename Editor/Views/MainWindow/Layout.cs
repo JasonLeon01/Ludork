@@ -367,9 +367,10 @@ public partial class MainWindow
         syncActorOutlinerSelection();
     }
 
-    private void onActorDataChanged(object? sender, EventArgs args)
+    private void onActorDataChanged(object? sender, MapPreviewChangedEventArgs args)
     {
-        viewModel?.MapWorkspace.refreshActorOutliner();
+        if (EditorPanel.IsRuntimeEditing || args.Edit?.ChangesOnlyActorPositions != true)
+            viewModel?.MapWorkspace.refreshActorOutliner();
         ActorInfoPanel.refreshActorPosition();
     }
 

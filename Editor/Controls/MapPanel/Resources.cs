@@ -311,6 +311,8 @@ public sealed partial class MapPanel
         if (gameData is null || CurrentMapKey is null || args.MapKey is not null
             && !string.Equals(CurrentMapKey, args.MapKey, StringComparison.Ordinal))
             return;
+        if (actorPointerGesture is not null)
+            actorPointerGesture.LastAppliedOffset = null;
         if (args.Edit is not null && CurrentMapDocument is not null)
         {
             long started = Stopwatch.GetTimestamp();
@@ -332,10 +334,10 @@ public sealed partial class MapPanel
             {
                 if (IsRuntimeEditing)
                     reconcileRuntimeActorSelection();
-                else
+                else if (!args.Edit.ChangesOnlyActorPositions)
                     reconcileProjectActorSelection(renamed.Count != 0);
                 updateActorRenderStates(args.Edit);
-                ActorDataChanged?.Invoke(this, EventArgs.Empty);
+                ActorDataChanged?.Invoke(this, args);
             }
         }
         else
@@ -357,7 +359,7 @@ public sealed partial class MapPanel
                     setSelectedActor(selectedActorLayer, selectedActorIndex, true, true);
                 else
                     reconcileProjectActorSelection(true);
-                ActorDataChanged?.Invoke(this, EventArgs.Empty);
+                ActorDataChanged?.Invoke(this, args);
             }
             InvalidateMeasure();
         }

@@ -17,7 +17,8 @@ public sealed partial class MapPanel
 
     private sealed class ActorPointerGesture(
         Point start, (int X, int Y) grid, KeyModifiers modifiers, MapActorReference hit,
-        bool wasSelected, IReadOnlyList<MapActorPositionEdit> positions)
+        bool wasSelected, IReadOnlyList<MapActorPositionEdit> positions,
+        (int MinimumX, int MaximumX, int MinimumY, int MaximumY) bounds)
     {
         public Point Start { get; } = start;
         public (int X, int Y) Grid { get; } = grid;
@@ -25,6 +26,8 @@ public sealed partial class MapPanel
         public MapActorReference Hit { get; } = hit;
         public bool WasSelected { get; } = wasSelected;
         public IReadOnlyList<MapActorPositionEdit> Positions { get; } = positions;
+        public (int MinimumX, int MaximumX, int MinimumY, int MaximumY) Bounds { get; } = bounds;
+        public (int X, int Y)? LastAppliedOffset { get; set; } = (0, 0);
         public bool Dragging { get; set; }
         public bool Ignored { get; set; }
     }
@@ -59,15 +62,29 @@ public sealed partial class MapPanel
         bool wasSelected = selectedActors.Contains(reference);
         if (!modified && !wasSelected)
             setProjectActorSelection([reference], reference, reference);
+        IReadOnlyList<MapActorSnapshot> layerActors = getActorList(selectedLayerName) ?? [];
+        Dictionary<string, MapActorSnapshot> actorsByTag = new(layerActors.Count, StringComparer.Ordinal);
+        foreach (MapActorSnapshot actor in layerActors)
+            actorsByTag.TryAdd(actor.Tag, actor);
         List<MapActorPositionEdit> positions = [];
+        int minimumX = int.MaxValue;
+        int maximumX = int.MinValue;
+        int minimumY = int.MaxValue;
+        int maximumY = int.MinValue;
         foreach (MapActorReference selected in selectedActors)
         {
-            if (findProjectActor(selected) is int selectedIndex
-                && getActorList(selected.LayerName)?[selectedIndex] is MapActorSnapshot actor
-                && actor.TryGetGridPosition(out int x, out int y))
-                positions.Add(new(selected, x, y));
+            if (selected.LayerName != selectedLayerName
+                || !actorsByTag.TryGetValue(selected.Tag, out MapActorSnapshot? actor)
+                || !actor.TryGetGridPosition(out int x, out int y))
+                continue;
+            positions.Add(new(selected, x, y));
+            minimumX = Math.Min(minimumX, x);
+            maximumX = Math.Max(maximumX, x);
+            minimumY = Math.Min(minimumY, y);
+            maximumY = Math.Max(maximumY, y);
         }
-        actorPointerGesture = new(point.Position, grid, args.KeyModifiers, reference, wasSelected, positions);
+        actorPointerGesture = new(point.Position, grid, args.KeyModifiers, reference, wasSelected, positions,
+            (minimumX, maximumX, minimumY, maximumY));
         capturePointer(args.Pointer);
         args.Handled = true;
         InvalidateVisual();
@@ -109,10 +126,7 @@ public sealed partial class MapPanel
         Rect map = getMapRect(width, height);
         int dx = (int)Math.Floor((position.X - map.X) / tileSize) - gesture.Grid.X;
         int dy = (int)Math.Floor((position.Y - map.Y) / tileSize) - gesture.Grid.Y;
-        int minimumX = gesture.Positions.Min(actor => actor.X);
-        int maximumX = gesture.Positions.Max(actor => actor.X);
-        int minimumY = gesture.Positions.Min(actor => actor.Y);
-        int maximumY = gesture.Positions.Max(actor => actor.Y);
+        (int minimumX, int maximumX, int minimumY, int maximumY) = gesture.Bounds;
         if (gesture.Positions.Count != selectedActors.Count || (long)maximumX - minimumX >= width
             || (long)maximumY - minimumY >= height)
         {
@@ -122,13 +136,16 @@ public sealed partial class MapPanel
         }
         dx = Math.Clamp(dx, -minimumX, width - 1 - maximumX);
         dy = Math.Clamp(dy, -minimumY, height - 1 - maximumY);
+        if (gesture.LastAppliedOffset == (dx, dy))
+            return;
         MapActorPositionEdit[] edits = gesture.Positions.Select(actor => actor with
         {
             X = actor.X + dx,
             Y = actor.Y + dy,
         }).ToArray();
         ensurePropertyHistoryGesture();
-        gameData.Maps.MoveMapActors(CurrentMapKey, edits);
+        if (gameData.Maps.MoveMapActors(CurrentMapKey, edits) && ReferenceEquals(actorPointerGesture, gesture))
+            gesture.LastAppliedOffset = (dx, dy);
     }
 
     private void completeProjectActorGesture()

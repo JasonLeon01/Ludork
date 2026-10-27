@@ -13,11 +13,12 @@ public sealed partial class MapDataService
         if (positions.Count == 0 || getMap(mapKey) is not JsonObject map)
             return false;
         HashSet<MapActorReference> targets = [];
+        Dictionary<string, Dictionary<string, int>> layerTagIndices = new(StringComparer.Ordinal);
         List<JsonDataEdit> edits = [];
         foreach (MapActorPositionEdit position in positions)
         {
             if (!targets.Add(position.Actor)
-                || !tryFindEditableBatchActor(map, position.Actor, out int index)
+                || !tryFindEditableBatchActor(map, position.Actor, layerTagIndices, out int index)
                 || !isMapPositionValid(map, position.X, position.Y))
                 return false;
             edits.Add(new(JsonDataEdit.Operation.Set,
@@ -31,10 +32,11 @@ public sealed partial class MapDataService
         if (overrides.Count == 0 || getMap(mapKey) is not JsonObject map
             || map["BPClassVarChanged"] is not null and not JsonObject)
             return false;
+        Dictionary<string, Dictionary<string, int>> layerTagIndices = new(StringComparer.Ordinal);
         foreach (MapActorOverrideEdit change in overrides)
         {
             if (string.IsNullOrEmpty(change.Name)
-                || !tryFindEditableBatchActor(map, change.Actor, out _)
+                || !tryFindEditableBatchActor(map, change.Actor, layerTagIndices, out _)
                 || map["BPClassVarChanged"]?[change.Actor.Tag] is not null and not JsonObject)
                 return false;
         }
@@ -70,10 +72,11 @@ public sealed partial class MapDataService
             || map["BPClassVarChanged"] is not null and not JsonObject)
             return false;
         HashSet<MapActorReference> targets = [];
+        Dictionary<string, Dictionary<string, int>> layerTagIndices = new(StringComparer.Ordinal);
         Dictionary<string, List<int>> indices = new(StringComparer.Ordinal);
         foreach (MapActorReference actor in actors)
         {
-            if (!targets.Add(actor) || !tryFindEditableBatchActor(map, actor, out int index))
+            if (!targets.Add(actor) || !tryFindEditableBatchActor(map, actor, layerTagIndices, out int index))
                 return false;
             if (!indices.TryGetValue(actor.LayerName, out List<int>? layerIndices))
             {
@@ -152,24 +155,34 @@ public sealed partial class MapDataService
         return commitMapEdits(mapKey, map, edits) ? references.AsReadOnly() : null;
     }
 
-    private static bool tryFindEditableBatchActor(JsonObject map, MapActorReference reference, out int actorIndex)
+    private static bool tryFindEditableBatchActor(JsonObject map, MapActorReference reference,
+        Dictionary<string, Dictionary<string, int>> layerTagIndices, out int actorIndex)
     {
         actorIndex = -1;
-        if (string.IsNullOrWhiteSpace(reference.Tag)
-            || map["layers"]?[reference.LayerName] is not JsonObject layer
-            || !(layer["visible"]?.GetValue<bool?>() ?? true)
-            || map["actors"]?[reference.LayerName] is not JsonArray actors)
+        if (string.IsNullOrWhiteSpace(reference.Tag))
             return false;
-        for (int index = 0; index < actors.Count; index++)
+        if (!layerTagIndices.TryGetValue(reference.LayerName, out Dictionary<string, int>? tagIndices))
         {
-            if (actors[index] is not JsonObject actor
-                || !string.Equals(ProjectDataStore.getString(actor["tag"]), reference.Tag, StringComparison.Ordinal))
-                continue;
-            if (actorIndex >= 0)
+            if (map["layers"]?[reference.LayerName] is not JsonObject layer
+                || !(layer["visible"]?.GetValue<bool?>() ?? true)
+                || map["actors"]?[reference.LayerName] is not JsonArray actors)
                 return false;
-            actorIndex = index;
+            tagIndices = new(actors.Count, StringComparer.Ordinal);
+            for (int index = 0; index < actors.Count; index++)
+            {
+                if (actors[index] is not JsonObject actor
+                    || ProjectDataStore.getString(actor["tag"]) is not string tag
+                    || string.IsNullOrWhiteSpace(tag))
+                    continue;
+                if (!tagIndices.TryAdd(tag, index))
+                    tagIndices[tag] = -1;
+            }
+            layerTagIndices.Add(reference.LayerName, tagIndices);
         }
-        return actorIndex >= 0;
+        if (!tagIndices.TryGetValue(reference.Tag, out int resolvedIndex) || resolvedIndex < 0)
+            return false;
+        actorIndex = resolvedIndex;
+        return true;
     }
 
     private static IReadOnlyList<JsonDataEdit> createBatchActorOverridesEdits(JsonObject map, JsonObject root)
