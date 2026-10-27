@@ -4,7 +4,7 @@ Ludork 软件本体适用 [`LICENSE.md`](https://github.com/JasonLeon01/Ludork/b
 
 本声明覆盖 Ludork 1.0.0 的 Windows x64、macOS Apple Silicon 自包含编辑器包、随附工程模板，以及这些模板原样带入生成游戏包的 Ludork runtime 与资产材料。工程自行添加的代码和资产需要另行提供声明。许可证完整正文见 [`Licenses` 索引](https://github.com/JasonLeon01/Ludork/blob/main/Licenses/README_zh_CN.md)；C++ Source 模板还会在第三方源码树中保留原始声明。
 
-编辑器包还在 `Server/LudorkServer.tar.gz` 中附带可选的服务端部署包（macOS 中位于 `Contents/Resources` 下）。其组件声明与许可证正文保留在归档内的 [`LudorkServer/third-party/README.md`](https://github.com/JasonLeon01/Ludork/blob/Server/third-party/README.md) 所列位置；已安装的服务端依赖保留各自包内的许可证。
+可选的服务端部署归档独立于编辑器分发。其组件声明与许可证正文保留在归档内的 [`LudorkServer/third-party/README.md`](https://github.com/JasonLeon01/Ludork/blob/Server/third-party/README.md) 所列位置；已安装的服务端依赖保留各自包内的许可证。
 
 ## 编辑器与托管运行时
 

@@ -8,7 +8,7 @@ Deploy the backend and frontend on a server or a separate test instance. A game 
 
 Open [Ludork Releases](https://github.com/JasonLeon01/Ludork/releases) and download `LudorkServer-<version>.tar.gz` from the release's **Assets**. Its version matches the editor packages in the same release; for example, editor version `1.0.0` uses `LudorkServer-1.0.0.tar.gz`. Temporary CI artifacts use `LudorkServer-<40-character-Server-commit-SHA>.tar.gz`.
 
-Every development and release editor package also includes the same deployable archive, including packages without project templates. On Windows, it is `Server/LudorkServer.tar.gz` below the editor directory; on macOS, it is `Ludork.app/Contents/Resources/Server/LudorkServer.tar.gz`. Copy this archive to a separate deployment location. Installing or running the editor does not start the server.
+The server is distributed independently. Development and release editor packages contain no Server directory or archive. Download the server archive separately and extract it to a dedicated deployment location. Installing or running the editor does not start the server.
 
 The archive contains compiled backend JavaScript, the production management website, Lua modules and declarations, deployment/start scripts and locked production dependency manifests under `LudorkServer/`. It contains no installed `node_modules`, project credentials or user data. On Linux, extract it and enter that directory:
 
