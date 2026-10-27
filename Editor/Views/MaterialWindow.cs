@@ -44,16 +44,23 @@ public sealed partial class MaterialWindow : Window, IProjectSaveParticipant
     private JsonObject data;
     private EditorDocumentState documentState;
     private JsonObject? registry;
+    private JsonObject? previewAsset;
+    private JsonArray? previewDiagnostics;
     private MaterialGraphViewModel? graphModel;
     private string? selectedParameterId;
     private bool refreshingParameters;
     private string generatedShader = string.Empty;
+    private string? previewError;
     private bool committing;
     private bool layoutPending;
     private bool rendering;
     private bool closed;
     private long generation;
     private long contentRevision;
+    private long previewAssetRevision = -1;
+    private string? previewAssetPath;
+    private long diagnosticsConnectionGeneration = -1;
+    private long diagnosticsRevision = -1;
     private string texturePath = string.Empty;
     private JsonArray frameRect = new(0, 0, 32, 32);
     private JsonArray ambient = new(90, 90, 90, 255);
@@ -125,14 +132,20 @@ public sealed partial class MaterialWindow : Window, IProjectSaveParticipant
         if (registry is null)
             return;
         string[] selected = graphModel?.SelectedNodes.OfType<MaterialGraphNodeViewModel>().Select(node => node.Id).ToArray() ?? [];
+        if (graphModel is not null)
+            graphModel.StructureChanged -= onGraphStructureChanged;
         graphModel = new MaterialGraphViewModel(data, registry, onLayoutChanged, FlushPendingChanges, commit);
+        graphModel.StructureChanged += onGraphStructureChanged;
         graph.DataContext = graphModel;
         foreach (string id in selected)
             if (graphModel.FindNode(id) is MaterialGraphNodeViewModel selectedNode)
                 graphModel.SelectedNodes.Add(selectedNode);
         refreshParameters();
         refreshRenderingProperties();
+        graphModel.ShowDiagnostics(previewDiagnostics);
     }
+
+    private void onGraphStructureChanged(object? sender, EventArgs args) => graphModel?.ShowDiagnostics(previewDiagnostics);
 
     private void addForm(StackPanel panel, JsonObject descriptor, JsonNode? value, Action<JsonNode?> changed)
     {
@@ -240,46 +253,63 @@ public sealed partial class MaterialWindow : Window, IProjectSaveParticipant
         long requested = generation;
         try
         {
-            JsonObject asset = (JsonObject)data.DeepClone();
-            asset["type"] = "material";
-            (JsonObject response, byte[]? pixels) = await preview.RenderAsync(new JsonObject
+            string materialPath = GameDataPath.Materials + "/" + Key + ".json";
+            if (previewAsset is null || previewAssetRevision != contentRevision || previewAssetPath != materialPath)
             {
-                ["asset"] = asset, ["materialPath"] = GameDataPath.Materials + "/" + Key + ".json",
-                ["materials"] = gameData.Assets.CaptureMaterials(), ["parameters"] = new JsonObject(),
+                previewAsset = new JsonObject();
+                foreach (KeyValuePair<string, JsonNode?> entry in data)
+                    if (entry.Key != "editor")
+                        previewAsset[entry.Key] = entry.Value?.DeepClone();
+                previewAsset["type"] = "material";
+                previewAssetRevision = contentRevision;
+                previewAssetPath = materialPath;
+            }
+            MaterialPreviewFrame frame = await preview.RenderAsync(new JsonObject
+            {
+                ["parameters"] = new JsonObject(),
                 ["texturePath"] = texturePath, ["width"] = 640, ["height"] = 300,
                 ["time"] = clock.Elapsed.TotalSeconds, ["generation"] = requested,
                 ["frameRect"] = frameRect.DeepClone(), ["ambient"] = ambient.DeepClone(),
                 ["light"] = lightEnabled, ["background"] = new JsonArray(24, 28, 36, 255),
-            }, lifetime.Token);
+            }, previewAssetRevision, materialPath, previewAsset, lifetime.Token);
             if (closed || requested != generation)
                 return;
-            diagnostics.Children.Clear();
-            generatedShader = response["generatedVertex"]?.ToString() + "\n\n" + response["generatedFragment"]?.ToString();
-            JsonArray? errors = response["diagnostics"] as JsonArray;
-            graphModel?.ShowDiagnostics(errors);
-            foreach (JsonObject error in (errors ?? []).OfType<JsonObject>())
+            previewError = null;
+            generatedShader = frame.GeneratedShader;
+            if (diagnosticsConnectionGeneration != frame.ConnectionGeneration || diagnosticsRevision != frame.DiagnosticsRevision)
             {
-                Button issue = new() { Content = error["message"]?.ToString() ?? string.Empty, HorizontalAlignment = HorizontalAlignment.Stretch };
-                issue.Click += (_, _) =>
+                diagnosticsConnectionGeneration = frame.ConnectionGeneration;
+                diagnosticsRevision = frame.DiagnosticsRevision;
+                previewDiagnostics = frame.Diagnostics;
+                diagnostics.Children.Clear();
+                graphModel?.ShowDiagnostics(previewDiagnostics);
+                foreach (JsonObject error in previewDiagnostics.OfType<JsonObject>())
                 {
-                    tabs.SelectedIndex = 1;
-                    graph.FocusNode(error["nodeId"]?.GetValue<string>() ?? string.Empty);
-                };
-                diagnostics.Children.Add(issue);
+                    Button issue = new() { Content = error["message"]?.ToString() ?? string.Empty, HorizontalAlignment = HorizontalAlignment.Stretch };
+                    issue.Click += (_, _) =>
+                    {
+                        tabs.SelectedIndex = 1;
+                        graph.FocusNode(error["nodeId"]?.GetValue<string>() ?? string.Empty);
+                    };
+                    diagnostics.Children.Add(issue);
+                }
             }
-            if (pixels is not null)
-                surface.SetFrame(response["width"]!.GetValue<int>(), response["height"]!.GetValue<int>(), response["stride"]!.GetValue<int>(), pixels);
-            else
-            {
-                surface.Clear();
-                if (response["message"] is JsonNode message)
-                    diagnostics.Children.Add(new TextBlock { Text = message.ToString(), TextWrapping = TextWrapping.Wrap });
-            }
+            surface.SetFrame(frame.Width, frame.Height, frame.Stride, frame.Pixels);
         }
         catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
-        catch (Exception exception) when (exception is IOException or InvalidOperationException)
+        catch (Exception exception) when (exception is IOException or InvalidDataException or InvalidOperationException)
         {
+            if (closed || requested != generation)
+                return;
+            if (previewError == exception.Message)
+                return;
+            previewError = exception.Message;
             surface.Clear();
+            generatedShader = string.Empty;
+            previewDiagnostics = null;
+            diagnosticsConnectionGeneration = -1;
+            diagnosticsRevision = -1;
+            graphModel?.ShowDiagnostics(null);
             diagnostics.Children.Clear();
             diagnostics.Children.Add(new TextBlock { Text = exception.Message, TextWrapping = TextWrapping.Wrap });
         }
@@ -295,6 +325,8 @@ public sealed partial class MaterialWindow : Window, IProjectSaveParticipant
         timer.Stop();
         lifetime.Cancel();
         document.Changed -= onDocumentChanged;
+        if (graphModel is not null)
+            graphModel.StructureChanged -= onGraphStructureChanged;
         foreach (BlueprintVariableForm form in forms)
             form.Dispose();
         _ = preview.DisposeAsync();

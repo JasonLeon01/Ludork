@@ -36,6 +36,7 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
     private readonly SemaphoreSlim startLock = new(1, 1);
     private PreviewRuntimeSnapshot? activeSnapshot;
     private long activeResourceRevision;
+    private long connectionGeneration;
     private readonly SemaphoreSlim protocolLock = new(1, 1);
     private readonly object processSync = new();
     private readonly TaskCompletionSource shutdownCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -69,6 +70,7 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
         && matchesCurrentSnapshot();
     public IReadOnlySet<string> Capabilities { get; private set; } = new HashSet<string>(StringComparer.Ordinal);
     internal Task Shutdown => shutdownCompletion.Task;
+    internal long ConnectionGeneration => Interlocked.Read(ref connectionGeneration);
 
     public async Task<bool> StartAsync(CancellationToken cancellationToken = default)
     {
@@ -219,6 +221,7 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
             setState(PreviewHostConnectionState.Unavailable, runtime.StatusMessage);
             return false;
         }
+        Interlocked.Increment(ref connectionGeneration);
         setState(PreviewHostConnectionState.Ready, runtime.StatusMessage);
         return !disposed && IsReady;
     }

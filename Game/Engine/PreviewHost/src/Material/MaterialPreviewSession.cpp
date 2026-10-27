@@ -11,6 +11,7 @@
 #include <Gameplay/Tilemap/Tilemap.hpp>
 #include <Graphics/Materials/MaterialCompiler.hpp>
 #include <Graphics/Materials/MaterialCompileError.hpp>
+#include <Graphics/Materials/MaterialGenerated.hpp>
 #include <Graphics/Materials/MaterialResource.hpp>
 #include <Runtime/AssetInputStream.hpp>
 #include <Runtime/RuntimeDataReader.hpp>
@@ -19,9 +20,56 @@
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
+#include <type_traits>
 
 namespace ludork::preview_host {
 namespace {
+
+bool sameData(const RuntimeData& left, const RuntimeData& right) {
+    return left.visit([&right](const auto& value) -> bool {
+        using Value = std::remove_cvref_t<decltype(value)>;
+        if constexpr (std::is_same_v<Value, std::monostate>) {
+            return right.isNil();
+        } else {
+            const Value* other = right.getIf<Value>();
+            if (other == nullptr) {
+                return false;
+            }
+            if constexpr (std::is_same_v<Value, RuntimeData::Array>) {
+                return value.size() == other->size() &&
+                       std::equal(value.begin(), value.end(), other->begin(),
+                                  sameData);
+            } else if constexpr (std::is_same_v<Value, RuntimeData::Map>) {
+                if (value.size() != other->size()) {
+                    return false;
+                }
+                for (const auto& [key, item] : value) {
+                    const auto found = other->find(key);
+                    if (found == other->end() ||
+                        !sameData(item, found->second)) {
+                        return false;
+                    }
+                }
+                return true;
+            } else {
+                return value == *other;
+            }
+        }
+    });
+}
+
+RuntimeData diagnostic(const std::exception& exception) {
+    return RuntimeData(object({{"nodeId", RuntimeData("")},
+                               {"portId", RuntimeData("")},
+                               {"message", RuntimeData(exception.what())}}));
+}
+
+RuntimeData diagnostic(
+    const ludork::engine::materials::MaterialCompileError& exception) {
+    return RuntimeData(object({{"nodeId", RuntimeData(exception.nodeId())},
+                               {"portId", RuntimeData(exception.portId())},
+                               {"message", RuntimeData(exception.what())}}));
+}
 
 sf::IntRect frameRectangle(const RuntimeData::Map& request, sf::Vector2u size) {
     const RuntimeData* value = map_preview_data::optional(request, "frameRect");
@@ -114,8 +162,142 @@ std::shared_ptr<Tilemap> MaterialPreviewSession::Impl::tilemap(
     return map;
 }
 
+void MaterialPreviewSession::Impl::prepare(const RuntimeData& asset,
+                                           std::string path,
+                                           std::int64_t revision) {
+    materialRevision = revision;
+    materialPath = std::move(path);
+    material.reset();
+    generatedVertex.clear();
+    generatedFragment.clear();
+    compileDiagnostics.clear();
+    scene = {};
+    view = {};
+    sceneMaterialRevision = -1;
+    try {
+        const auto resource =
+            ludork::engine::materials::MaterialResource::fromData(asset,
+                                                                  materialPath);
+        const auto sources =
+            ludork::engine::materials::MaterialGenerated::sources(
+                *resource, nullptr,
+                ludork::engine::materials::MaterialCompiler::Pass::Color);
+        generatedVertex = sources.vertex;
+        generatedFragment = sources.fragment;
+        material = resource;
+    } catch (const ludork::engine::materials::MaterialCompileError& exception) {
+        compileDiagnostics.push_back(diagnostic(exception));
+    } catch (const std::exception& exception) {
+        compileDiagnostics.push_back(diagnostic(exception));
+    }
+}
+
+void MaterialPreviewSession::Impl::updateScene(const RuntimeData::Map& request,
+                                               sf::Vector2u size) {
+    const RuntimeData* parameterValues =
+        map_preview_data::optional(request, "parameters");
+    const RuntimeData parameters = parameterValues == nullptr
+                                       ? RuntimeData(RuntimeData::Map{})
+                                       : *parameterValues;
+    const RuntimeData::Map& values = map_preview_data::map(parameters);
+    const std::shared_ptr<sf::Texture> nextTexture =
+        texture(map_preview_data::text(request, "texturePath"));
+    const sf::IntRect rectangle =
+        frameRectangle(request, nextTexture->getSize());
+    const sf::Color ambient =
+        map_preview_data::colour(request, "ambient", sf::Color(90, 90, 90));
+    const sf::Color colour =
+        map_preview_data::colour(request, "background", sf::Color(24, 28, 36));
+    const bool light = map_preview_data::boolean(request, "light", true);
+    if (sceneMaterialRevision == materialRevision && view.pixelSize == size &&
+        !scene.sprites.empty() &&
+        scene.sprites.front().texture == nextTexture &&
+        scene.sprites.front().textureRect == rectangle &&
+        sameData(sceneParameters, parameters) &&
+        scene.ambientLight == ambient && backgroundColour == colour &&
+        (!scene.lights.empty()) == light) {
+        return;
+    }
+    material->validateParameters(values);
+    if (!background) {
+        background = std::make_shared<sf::Texture>();
+    }
+    if (backgroundColour != colour) {
+        if (!background->loadFromImage(sf::Image({1, 1}, colour))) {
+            throw std::runtime_error(
+                "Cannot create material preview background");
+        }
+        backgroundColour = colour;
+    }
+    MapRenderer::Scene next;
+    next.cellSize = {
+        (size.x + EngineState::CellSize - 1) / EngineState::CellSize,
+        (size.y + EngineState::CellSize - 1) / EngineState::CellSize};
+    next.layerOrder = {"preview"};
+    MapRenderer::Region region;
+    region.id = "preview";
+    region.tilemap = tilemap(next.cellSize);
+    next.regions.push_back(std::move(region));
+    next.ambientLight = ambient;
+    next.panorama = background;
+    MapRenderer::Sprite sprite;
+    sprite.id = 1;
+    sprite.layer = "preview";
+    sprite.regionId = "preview";
+    sprite.texture = nextTexture;
+    sprite.textureRect = rectangle;
+    sprite.material = materialPath;
+    sprite.materialParameters = values;
+    sprite.materialResource = material;
+    const sf::Vector2f offset = material->maximumVertexOffset();
+    const sf::Vector2f frameSize(rectangle.size);
+    const float scale = std::min(size.x * 0.75f / (frameSize.x + offset.x * 2),
+                                 size.y * 0.75f / (frameSize.y + offset.y * 2));
+    sf::Transformable transform;
+    transform.setPosition(sf::Vector2f(size) * 0.5f);
+    transform.setOrigin(frameSize * 0.5f);
+    transform.setScale({scale, scale});
+    sprite.transform = transform.getTransform();
+    next.sprites.push_back(std::move(sprite));
+    if (light) {
+        MapRenderer::Light point;
+        point.position = {size.x * .35f, size.y * .3f};
+        point.radius = static_cast<float>(std::max(size.x, size.y));
+        point.intensity = 1.f;
+        point.emitterId = 1;
+        next.lights.push_back(point);
+    }
+    scene = std::move(next);
+    sceneParameters = parameters;
+    view.worldRect = {{0, 0}, sf::Vector2f(size)};
+    view.pixelSize = size;
+    sceneMaterialRevision = materialRevision;
+    renderer.invalidateScene();
+}
+
 RuntimeData MaterialPreviewSession::Impl::render(
     const RuntimeData::Map& request, FrameFiles& frameFiles) {
+    const std::int64_t nextRevision =
+        ludork::runtime::value_reader::requireInteger(
+            map_preview_data::required(request, "materialRevision"),
+            "Material request.materialRevision");
+    if (nextRevision < 0) {
+        throw std::invalid_argument(
+            "Material preview revision must be nonnegative");
+    }
+    const RuntimeData* asset = map_preview_data::optional(request, "asset");
+    if (asset == nullptr && materialRevision != nextRevision) {
+        throw std::invalid_argument(
+            "Material preview revision requires a complete asset snapshot");
+    }
+    if (asset != nullptr) {
+        const std::string& path = ludork::runtime::value_reader::requireString(
+            map_preview_data::required(request, "materialPath"),
+            "Material request.materialPath");
+        if (materialRevision != nextRevision || materialPath != path) {
+            prepare(*asset, path, nextRevision);
+        }
+    }
     const int width = map_preview_data::integer(request, "width", 640);
     const int height = map_preview_data::integer(request, "height", 300);
     const int limit = static_cast<int>(sf::Texture::getMaximumSize());
@@ -125,111 +307,45 @@ RuntimeData MaterialPreviewSession::Impl::render(
     }
     const sf::Vector2u size(static_cast<unsigned int>(width),
                             static_cast<unsigned int>(height));
-    const RuntimeData* asset = map_preview_data::optional(request, "asset");
-    std::string vertex;
-    std::string fragment;
-    RuntimeData::Array diagnostics;
+    RuntimeData::Array nextDiagnostics = compileDiagnostics;
     MapRenderer::Statistics statistics;
-    sf::Image image(size, sf::Color(96, 24, 72));
-    try {
-        const std::string path =
-            map_preview_data::text(request, "materialPath");
-        const auto resource =
-            asset == nullptr
-                ? ludork::engine::materials::MaterialResource::load(path)
-                : ludork::engine::materials::MaterialResource::fromData(*asset,
-                                                                        path);
-        const RuntimeData* parameterValues =
-            map_preview_data::optional(request, "parameters");
-        const RuntimeData::Map parameters =
-            parameterValues == nullptr
-                ? RuntimeData::Map{}
-                : map_preview_data::map(*parameterValues);
-        resource->validateParameters(parameters);
-        const auto sources =
-            ludork::engine::materials::MaterialCompiler::compile(*resource);
-        vertex = sources.vertex;
-        fragment = sources.fragment;
-        MapRenderer::Scene scene;
-        scene.cellSize = {
-            static_cast<unsigned int>((width + EngineState::CellSize - 1) /
-                                      EngineState::CellSize),
-            static_cast<unsigned int>((height + EngineState::CellSize - 1) /
-                                      EngineState::CellSize)};
-        scene.layerOrder = {"preview"};
-        MapRenderer::Region region;
-        region.id = "preview";
-        region.tilemap = tilemap(scene.cellSize);
-        scene.regions.push_back(std::move(region));
-        scene.ambientLight =
-            map_preview_data::colour(request, "ambient", sf::Color(90, 90, 90));
-        if (!background) {
-            background = std::make_shared<sf::Texture>();
+    sf::Image image;
+    if (material) {
+        try {
+            updateScene(request, size);
+            MapRenderer::Options options;
+            options.lighting = MapRenderer::LightingMode::Lit;
+            options.time = map_preview_data::number(request, "time", 0);
+            options.showFog = false;
+            image = renderer.render(scene, view, options)
+                        .getTexture()
+                        .copyToImage();
+            statistics = renderer.statistics();
+        } catch (
+            const ludork::engine::materials::MaterialCompileError& exception) {
+            nextDiagnostics.push_back(diagnostic(exception));
+        } catch (const std::exception& exception) {
+            nextDiagnostics.push_back(diagnostic(exception));
         }
-        if (!background->loadFromImage(sf::Image(
-                {1, 1}, map_preview_data::colour(request, "background",
-                                                 sf::Color(24, 28, 36))))) {
-            throw std::runtime_error(
-                "Cannot create material preview background");
-        }
-        scene.panorama = background;
-        MapRenderer::Sprite sprite;
-        sprite.id = 1;
-        sprite.layer = "preview";
-        sprite.regionId = "preview";
-        sprite.texture =
-            texture(map_preview_data::text(request, "texturePath"));
-        sprite.textureRect = frameRectangle(request, sprite.texture->getSize());
-        sprite.material = path;
-        sprite.materialParameters = parameters;
-        sprite.materialResource = resource;
-        const sf::Vector2f offset = resource->maximumVertexOffset();
-        const sf::Vector2f frameSize(sprite.textureRect.size);
-        const float scale =
-            std::min(width * 0.75f / (frameSize.x + offset.x * 2),
-                     height * 0.75f / (frameSize.y + offset.y * 2));
-        sf::Transformable transform;
-        transform.setPosition(sf::Vector2f(size) * 0.5f);
-        transform.setOrigin(frameSize * 0.5f);
-        transform.setScale({scale, scale});
-        sprite.transform = transform.getTransform();
-        scene.sprites.push_back(std::move(sprite));
-        if (map_preview_data::boolean(request, "light", true)) {
-            MapRenderer::Light light;
-            light.position = {width * .35f, height * .3f};
-            light.radius = static_cast<float>(std::max(width, height));
-            light.intensity = 1.f;
-            light.emitterId = 1;
-            scene.lights.push_back(light);
-        }
-        MapRenderer::View view;
-        view.worldRect = {{0, 0}, sf::Vector2f(size)};
-        view.pixelSize = size;
-        MapRenderer::Options options;
-        options.lighting = MapRenderer::LightingMode::Lit;
-        options.time = map_preview_data::number(request, "time", 0);
-        options.showFog = false;
-        image =
-            renderer.render(scene, view, options).getTexture().copyToImage();
-        statistics = renderer.statistics();
-    } catch (const ludork::engine::materials::MaterialCompileError& exception) {
-        diagnostics.emplace_back(
-            object({{"nodeId", RuntimeData(exception.nodeId())},
-                    {"portId", RuntimeData(exception.portId())},
-                    {"message", RuntimeData(exception.what())}}));
-    } catch (const std::exception& exception) {
-        diagnostics.emplace_back(
-            object({{"nodeId", RuntimeData("")},
-                    {"portId", RuntimeData("")},
-                    {"message", RuntimeData(exception.what())}}));
+    }
+    if (!nextDiagnostics.empty()) {
+        image = sf::Image(size, sf::Color(96, 24, 72));
+    }
+    const RuntimeData nextDiagnosticData(std::move(nextDiagnostics));
+    const bool diagnosticsChanged = !sameData(diagnostics, nextDiagnosticData);
+    if (diagnosticsChanged) {
+        diagnostics = nextDiagnosticData;
+        ++diagnosticsRevision;
     }
     const auto& file = frameFiles.write(bgraFromPremultipliedRgba(image, size));
     const RuntimeData* generation =
         map_preview_data::optional(request, "generation");
-    return RuntimeData(object(
+    RuntimeData::Map response = object(
         {{"type", RuntimeData(FrameResponse)},
          {"generation",
           generation == nullptr ? RuntimeData(std::int64_t{0}) : *generation},
+         {"materialRevision", RuntimeData(materialRevision)},
+         {"diagnosticsRevision", RuntimeData(diagnosticsRevision)},
          {"width", RuntimeData(static_cast<std::int64_t>(width))},
          {"height", RuntimeData(static_cast<std::int64_t>(height))},
          {"stride", RuntimeData(static_cast<std::int64_t>(width) *
@@ -239,10 +355,15 @@ RuntimeData MaterialPreviewSession::Impl::render(
           RuntimeData(object(
               {{"filePath", RuntimeData(ludork::standard::pathToUtf8(file))},
                {"offset", RuntimeData(std::int64_t{0})}}))},
-         {"diagnostics", RuntimeData(std::move(diagnostics))},
-         {"statistics", mapRenderStatistics(statistics)},
-         {"generatedVertex", RuntimeData(vertex)},
-         {"generatedFragment", RuntimeData(fragment)}}));
+         {"statistics", mapRenderStatistics(statistics)}});
+    if (asset != nullptr || diagnosticsChanged) {
+        response.emplace("diagnostics", diagnostics);
+    }
+    if (asset != nullptr) {
+        response.emplace("generatedVertex", RuntimeData(generatedVertex));
+        response.emplace("generatedFragment", RuntimeData(generatedFragment));
+    }
+    return RuntimeData(std::move(response));
 }
 
 MaterialPreviewSession::MaterialPreviewSession()

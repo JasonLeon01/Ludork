@@ -167,6 +167,7 @@ RuntimeData PreviewHostSession::handshake(const RuntimeData::Map& request) {
     capabilities.emplace_back(RuntimeData("subtitle"));
     capabilities.emplace_back(RuntimeData("map"));
     capabilities.emplace_back(RuntimeData("material"));
+    capabilities.emplace_back(RuntimeData("materialSnapshots"));
     capabilities.emplace_back(RuntimeData("materialExport"));
     capabilities.emplace_back(RuntimeData("mapActorChanges"));
     capabilities.emplace_back(RuntimeData("mapEmitters"));
