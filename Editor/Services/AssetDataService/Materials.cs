@@ -14,7 +14,6 @@ public sealed partial class AssetDataService
         materialDocuments.RecordChange(key);
         materialDocuments[key] = (JsonObject)template.DeepClone();
         store.refreshModifiedState();
-        store.Maps.NotifyAllMapPreviewsChanged();
         return true;
     }
 
@@ -25,7 +24,6 @@ public sealed partial class AssetDataService
         materialDocuments.RecordChange(key);
         materialDocuments[key] = (JsonObject)value.DeepClone();
         store.refreshModifiedState();
-        store.Maps.NotifyAllMapPreviewsChanged();
         return true;
     }
 

@@ -33,6 +33,8 @@ public sealed partial class MaterialGraphControl : UserControl
     private MaterialGraphPortViewModel? rightPort;
     private MaterialGraphNodeViewModel[] rightSelection = [];
     private bool anchorRefreshPending;
+    private bool completingGesture;
+    private InputElement? capturedElement;
     private readonly DispatcherTimer viewGestureTimer = new() { Interval = TimeSpan.FromMilliseconds(300) };
 
     public MaterialGraphControl()
@@ -41,7 +43,7 @@ public sealed partial class MaterialGraphControl : UserControl
         editor = this.FindControl<NodifyEditor>("Editor")!;
         AddHandler(PointerPressedEvent, (_, args) =>
         {
-            if (isInputEditor(args.Source as Visual))
+            if (IsInputEditor(args.Source as Visual))
                 return;
             Focus();
             endGesture();
@@ -58,9 +60,14 @@ public sealed partial class MaterialGraphControl : UserControl
             if (GameData is not null)
                 gesture = GameData.BeginHistoryGesture();
         }, RoutingStrategies.Tunnel);
+        AddHandler(PointerPressedEvent, (_, args) =>
+        {
+            if (pointerDown)
+                trackCapture(args.Pointer.Captured as InputElement);
+        }, RoutingStrategies.Bubble, true);
         AddHandler(PointerMovedEvent, (_, args) =>
         {
-            if (!pointerDown && isInputEditor(args.Source as Visual))
+            if (!pointerDown && IsInputEditor(args.Source as Visual))
                 return;
             Point position = args.GetPosition(editor);
             double deltaX = position.X - pointer.X;
@@ -70,9 +77,10 @@ public sealed partial class MaterialGraphControl : UserControl
         }, RoutingStrategies.Tunnel, true);
         AddHandler(PointerReleasedEvent, (_, args) =>
         {
-            if (!pointerDown && isInputEditor(args.Source as Visual))
+            if (!pointerDown && IsInputEditor(args.Source as Visual))
                 return;
             pointerDown = false;
+            trackCapture(null);
             endGesture();
             if (args.InitialPressMouseButton == MouseButton.Right && rightPressed)
             {
@@ -101,13 +109,14 @@ public sealed partial class MaterialGraphControl : UserControl
         DetachedFromVisualTree += (_, _) =>
         {
             viewportInitialized = false;
+            trackCapture(null);
             pointerDown = rightPressed = false;
             rightNode = null;
             rightPort = null;
             rightSelection = [];
             endGesture();
         };
-        DataContextChanged += (_, _) => restoreView();
+        DataContextChanged += (_, _) => RestoreLayout();
         Loaded += (_, _) => Dispatcher.UIThread.Post(() =>
         {
             viewportInitialized = true;
@@ -123,21 +132,14 @@ public sealed partial class MaterialGraphControl : UserControl
         {
             if (!viewportInitialized || restoringView || args.Property.Name is not ("Zoom" or "OffsetX" or "OffsetY") || DataContext is not MaterialGraphViewModel model)
                 return;
-            if (GameData is not null && !GameData.IsHistoryGestureActive(gesture))
-                gesture = GameData.BeginHistoryGesture();
             model.SetView(editor.Zoom, editor.OffsetX, editor.OffsetY);
-            if (!pointerDown)
-            {
-                viewGestureTimer.Stop();
-                viewGestureTimer.Start();
-            }
         };
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
     }
 
     private void onPointerWheelChanged(object? sender, PointerWheelEventArgs args)
     {
-        if (!EditorZoomInput.IsMacOS || isInputEditor(args.Source as Visual))
+        if (!EditorZoomInput.IsMacOS || IsInputEditor(args.Source as Visual))
             return;
         pointer = args.GetPosition(editor);
         if (zoomInput.ShouldSuppressWheel())
@@ -176,18 +178,87 @@ public sealed partial class MaterialGraphControl : UserControl
         editor.Zoom = EditorZoomInput.ScaleByFactor(editor.Zoom, factor, 0.1, 10);
     }
 
+    private void trackCapture(InputElement? element)
+    {
+        if (ReferenceEquals(capturedElement, element))
+            return;
+        capturedElement?.RemoveHandler(PointerCaptureLostEvent, onPointerCaptureLost);
+        capturedElement = element;
+        capturedElement?.AddHandler(PointerCaptureLostEvent, onPointerCaptureLost, RoutingStrategies.Direct, true);
+    }
+
+    private void onPointerCaptureLost(object? sender, PointerCaptureLostEventArgs args)
+    {
+        if (args.Pointer.Captured is InputElement next
+            && (ReferenceEquals(next, this) || next.GetVisualAncestors().Contains(this)))
+        {
+            trackCapture(next);
+            return;
+        }
+        trackCapture(null);
+        pointerDown = false;
+        endGesture();
+    }
+
     private void endGesture()
     {
+        if (completingGesture)
+            return;
+        completingGesture = true;
+        try
+        {
+            viewGestureTimer.Stop();
+            LayoutCommitRequested?.Invoke(this, EventArgs.Empty);
+        }
+        finally
+        {
+            GameData?.EndHistoryGesture(gesture);
+            gesture = 0;
+            completingGesture = false;
+        }
+    }
+
+    public void ScheduleLayoutCommit()
+    {
+        EnsureLayoutGesture();
+        if (!pointerDown)
+        {
+            viewGestureTimer.Stop();
+            viewGestureTimer.Start();
+        }
+    }
+
+    internal void EnsureLayoutGesture()
+    {
+        if (GameData is not null && !GameData.IsHistoryGestureActive(gesture))
+            gesture = GameData.BeginHistoryGesture();
+    }
+
+    public void CompleteLayoutGesture() => endGesture();
+
+    public void CancelLayoutGesture()
+    {
+        trackCapture(null);
         viewGestureTimer.Stop();
         GameData?.EndHistoryGesture(gesture);
         gesture = 0;
+        pointerDown = rightPressed = false;
+        rightNode = null;
+        rightPort = null;
+        rightSelection = [];
+    }
+
+    public void RestoreLayout()
+    {
+        CancelLayoutGesture();
+        restoreView();
+        RequestAnchorRefresh();
     }
 
     private void restoreView()
     {
         if (!viewportInitialized || DataContext is not MaterialGraphViewModel model)
             return;
-        endGesture();
         restoringView = true;
         (double zoom, double x, double y) = model.View;
         editor.Zoom = zoom;
@@ -200,6 +271,7 @@ public sealed partial class MaterialGraphControl : UserControl
 
     public ProjectDataStore? GameData { get; set; }
     public event EventHandler? SelectionChanged;
+    public event EventHandler? LayoutCommitRequested;
     public MaterialGraphViewModel ViewModel => (MaterialGraphViewModel)DataContext!;
     public Point InsertionPoint => new(pointer.X / Math.Max(editor.Zoom, 0.001) - editor.OffsetX,
         pointer.Y / Math.Max(editor.Zoom, 0.001) - editor.OffsetY);
@@ -257,7 +329,7 @@ public sealed partial class MaterialGraphControl : UserControl
         return null;
     }
 
-    private static bool isInputEditor(Visual? source)
+    internal static bool IsInputEditor(Visual? source)
     {
         for (Visual? current = source; current is not null; current = current.GetVisualParent())
             if (current is MaterialGraphInlineEditor or TextBox or NumericUpDown or ComboBox)
@@ -267,7 +339,7 @@ public sealed partial class MaterialGraphControl : UserControl
 
     private void onContextRequested(object? sender, ContextRequestedEventArgs args)
     {
-        if (DataContext is not MaterialGraphViewModel model || isInputEditor(args.Source as Visual))
+        if (DataContext is not MaterialGraphViewModel model || IsInputEditor(args.Source as Visual))
             return;
         bool requestedByPointer = args.TryGetPosition(editor, out Point position);
         args.Handled = true;
@@ -367,7 +439,7 @@ public sealed partial class MaterialGraphControl : UserControl
 
     private void onKeyDown(object? sender, KeyEventArgs args)
     {
-        if (DataContext is not MaterialGraphViewModel graph || isInputEditor(args.Source as Visual))
+        if (DataContext is not MaterialGraphViewModel graph || IsInputEditor(args.Source as Visual))
             return;
         bool command = (args.KeyModifiers & (OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control)) != 0;
         if (args.Key == Key.Delete || args.Key == Key.Back)

@@ -12,16 +12,21 @@ public sealed class MaterialGraphViewModel : NodifyEditorViewModelBase
 {
     private readonly JsonObject asset;
     private readonly Dictionary<string, JsonObject> descriptors;
-    private readonly Action changed;
+    private readonly Action layoutChanged;
+    private readonly Action contentChanging;
+    private readonly Action contentChanged;
     private readonly JsonObject defaults;
     private JsonArray parameterChoices = [];
     private readonly Dictionary<string, MaterialGraphNodeViewModel> byId = new(StringComparer.Ordinal);
     private static JsonArray? clipboard;
+    private bool restoringEditorState;
 
-    public MaterialGraphViewModel(JsonObject asset, JsonObject registry, Action changed)
+    public MaterialGraphViewModel(JsonObject asset, JsonObject registry, Action layoutChanged, Action contentChanging, Action contentChanged)
     {
         this.asset = asset;
-        this.changed = changed;
+        this.layoutChanged = layoutChanged;
+        this.contentChanging = contentChanging;
+        this.contentChanged = contentChanged;
         defaults = (JsonObject)registry["parameterDefaults"]!;
         descriptors = ((JsonArray)registry["nodes"]!).OfType<JsonObject>()
             .ToDictionary(node => node["type"]!.GetValue<string>(), StringComparer.Ordinal);
@@ -47,12 +52,13 @@ public sealed class MaterialGraphViewModel : NodifyEditorViewModelBase
                 properties[property["id"]!.GetValue<string>()] = value.DeepClone();
         string id = Guid.NewGuid().ToString("N");
         JsonObject node = new() { ["id"] = id, ["type"] = type, ["inputs"] = new JsonObject(), ["properties"] = properties };
+        contentChanging();
         GraphNodes.Add(node);
         positions()[id] = new JsonArray(position.X, position.Y);
         MaterialGraphNodeViewModel view = addView(node);
         SelectedNodes.Clear();
         SelectedNodes.Add(view);
-        changed();
+        contentChanged();
         StructureChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -70,9 +76,10 @@ public sealed class MaterialGraphViewModel : NodifyEditorViewModelBase
         JsonObject link = new() { ["node"] = source.NodeId, ["port"] = source.Id };
         if (JsonNode.DeepEquals(target.Value, link))
             return;
+        contentChanging();
         writableInputs(byId[target.NodeId].Data)[target.Id] = link;
         refreshConnections();
-        changed();
+        contentChanged();
         StructureChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -102,9 +109,10 @@ public sealed class MaterialGraphViewModel : NodifyEditorViewModelBase
     {
         if (!CanSetConstant(port))
             return;
+        contentChanging();
         writableInputs(port.Node.Data)[port.Id] = port.Descriptor["default"]?.DeepClone() ?? DefaultValue(port.ValueType);
         port.RefreshInline();
-        changed();
+        contentChanged();
     }
 
     public bool CanResetInput(MaterialGraphPortViewModel port) => port.IsInput && port.HasLiteral;
@@ -113,28 +121,31 @@ public sealed class MaterialGraphViewModel : NodifyEditorViewModelBase
     {
         if (!CanResetInput(port))
             return;
+        contentChanging();
         inputs(port.Node.Data).Remove(port.Id);
         port.RefreshInline();
-        changed();
+        contentChanged();
     }
 
     public void SetInput(MaterialGraphPortViewModel port, JsonNode? value)
     {
         if (!port.IsInput || JsonNode.DeepEquals(port.Value, value))
             return;
+        contentChanging();
         writableInputs(port.Node.Data)[port.Id] = value?.DeepClone();
-        changed();
+        contentChanged();
     }
 
     public void SetProperty(MaterialGraphNodeViewModel node, string id, JsonNode? value)
     {
         if (JsonNode.DeepEquals(node.Data["properties"]?[id], value))
             return;
+        contentChanging();
         if (node.Data["properties"] is not JsonObject properties)
             node.Data["properties"] = properties = new JsonObject();
         properties[id] = value?.DeepClone();
         RefreshParameterNames();
-        changed();
+        contentChanged();
     }
 
     public JsonNode? DefaultValue(string type) => defaults[type == "numeric" ? "float" : type]?.DeepClone();
@@ -151,22 +162,26 @@ public sealed class MaterialGraphViewModel : NodifyEditorViewModelBase
 
     private void removeLinks(Func<JsonObject, string, JsonObject, bool> matches)
     {
-        bool removed = false;
+        List<(JsonObject Inputs, string Key)> removed = [];
         foreach (JsonObject node in GraphNodes.OfType<JsonObject>())
         {
             JsonObject values = inputs(node);
-            foreach ((string key, JsonNode? value) in values.ToArray())
+            foreach ((string key, JsonNode? value) in values)
                 if (isLink(value) && matches(node, key, (JsonObject)value!))
-                    removed |= values.Remove(key);
+                    removed.Add((values, key));
         }
-        if (removed)
-            completeLinkChange();
+        if (removed.Count == 0)
+            return;
+        contentChanging();
+        foreach ((JsonObject values, string key) in removed)
+            values.Remove(key);
+        completeLinkChange();
     }
 
     private void completeLinkChange()
     {
         refreshConnections();
-        changed();
+        contentChanged();
         StructureChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -176,6 +191,7 @@ public sealed class MaterialGraphViewModel : NodifyEditorViewModelBase
         HashSet<string> removed = SelectedNodes.OfType<MaterialGraphNodeViewModel>().Select(node => node.Id).Where(id => id != output).ToHashSet();
         if (removed.Count == 0)
             return;
+        contentChanging();
         foreach (JsonObject node in GraphNodes.OfType<JsonObject>().ToArray())
         {
             string id = node["id"]!.GetValue<string>();
@@ -193,7 +209,7 @@ public sealed class MaterialGraphViewModel : NodifyEditorViewModelBase
         }
         SelectedNodes.Clear();
         refreshConnections();
-        changed();
+        contentChanged();
         StructureChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -208,6 +224,7 @@ public sealed class MaterialGraphViewModel : NodifyEditorViewModelBase
         if (clipboard is null || clipboard.Count == 0)
             return;
         Dictionary<string, string> ids = clipboard.OfType<JsonObject>().ToDictionary(node => node["id"]!.GetValue<string>(), _ => Guid.NewGuid().ToString("N"));
+        contentChanging();
         SelectedNodes.Clear();
         int offset = 0;
         foreach (JsonObject original in clipboard.OfType<JsonObject>())
@@ -229,7 +246,7 @@ public sealed class MaterialGraphViewModel : NodifyEditorViewModelBase
             offset += 48;
         }
         refreshConnections();
-        changed();
+        contentChanged();
         StructureChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -244,8 +261,7 @@ public sealed class MaterialGraphViewModel : NodifyEditorViewModelBase
 
     public MaterialGraphNodeViewModel? FindNode(string id) => byId.GetValueOrDefault(id);
 
-    public (double Zoom, double X, double Y) View => (JsonScalar.Number(asset["editor"]?["view"]?["zoom"], 1),
-        JsonScalar.Number(asset["editor"]?["view"]?["offset"]?[0]), JsonScalar.Number(asset["editor"]?["view"]?["offset"]?[1]));
+    public (double Zoom, double X, double Y) View => readView(asset);
 
     public void SetView(double zoom, double x, double y)
     {
@@ -254,7 +270,35 @@ public sealed class MaterialGraphViewModel : NodifyEditorViewModelBase
         if (asset["editor"] is not JsonObject editor)
             asset["editor"] = editor = new JsonObject();
         editor["view"] = new JsonObject { ["zoom"] = zoom, ["offset"] = new JsonArray(x, y) };
-        changed();
+        layoutChanged();
+    }
+
+    public bool HasSameLayout(JsonObject sourceAsset)
+    {
+        if (View != readView(sourceAsset))
+            return false;
+        foreach (MaterialGraphNodeViewModel node in byId.Values)
+            if (node.Location != readPosition(sourceAsset, node.Id))
+                return false;
+        return true;
+    }
+
+    public void ApplyEditorState(JsonObject sourceAsset)
+    {
+        restoringEditorState = true;
+        try
+        {
+            if (sourceAsset.TryGetPropertyValue("editor", out JsonNode? state))
+                asset["editor"] = state?.DeepClone();
+            else
+                asset.Remove("editor");
+            foreach (MaterialGraphNodeViewModel node in byId.Values)
+                node.Location = readPosition(asset, node.Id);
+        }
+        finally
+        {
+            restoringEditorState = false;
+        }
     }
 
     public void RefreshParameterNames()
@@ -288,12 +332,13 @@ public sealed class MaterialGraphViewModel : NodifyEditorViewModelBase
     private MaterialGraphNodeViewModel addView(JsonObject node)
     {
         string id = node["id"]!.GetValue<string>();
-        JsonArray? position = asset["editor"]?["positions"]?[id] as JsonArray;
         JsonObject descriptor = descriptors.GetValueOrDefault(node["type"]!.GetValue<string>()) ?? new JsonObject();
-        MaterialGraphNodeViewModel view = new(this, node, descriptor, new Point(position?[0]?.GetValue<double>() ?? 0, position?[1]?.GetValue<double>() ?? 0), moved =>
+        MaterialGraphNodeViewModel view = new(this, node, descriptor, readPosition(asset, id), moved =>
         {
+            if (restoringEditorState)
+                return;
             positions()[moved.Id] = new JsonArray(moved.Location.X, moved.Location.Y);
-            changed();
+            layoutChanged();
         });
         byId[id] = view;
         Nodes.Add(view);
@@ -330,6 +375,17 @@ public sealed class MaterialGraphViewModel : NodifyEditorViewModelBase
         if (editor["positions"] is not JsonObject result)
             editor["positions"] = result = new JsonObject();
         return result;
+    }
+
+    private static (double Zoom, double X, double Y) readView(JsonObject sourceAsset) =>
+        (JsonScalar.Number(sourceAsset["editor"]?["view"]?["zoom"], 1),
+            JsonScalar.Number(sourceAsset["editor"]?["view"]?["offset"]?[0]),
+            JsonScalar.Number(sourceAsset["editor"]?["view"]?["offset"]?[1]));
+
+    private static Point readPosition(JsonObject sourceAsset, string id)
+    {
+        JsonArray? position = sourceAsset["editor"]?["positions"]?[id] as JsonArray;
+        return new Point(position?[0]?.GetValue<double>() ?? 0, position?[1]?.GetValue<double>() ?? 0);
     }
 
     private static JsonObject inputs(JsonObject node) => node["inputs"] as JsonObject ?? new JsonObject();

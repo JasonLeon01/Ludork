@@ -20,7 +20,7 @@ using System.Threading.Tasks;
 
 namespace Ludork.Views;
 
-public sealed partial class MaterialWindow : Window
+public sealed partial class MaterialWindow : Window, IProjectSaveParticipant
 {
     private readonly ProjectDataStore gameData;
     private readonly EditorDocument document;
@@ -42,15 +42,18 @@ public sealed partial class MaterialWindow : Window
     private readonly Stopwatch clock = Stopwatch.StartNew();
     private readonly CancellationTokenSource lifetime = new();
     private JsonObject data;
+    private EditorDocumentState documentState;
     private JsonObject? registry;
     private MaterialGraphViewModel? graphModel;
     private string? selectedParameterId;
     private bool refreshingParameters;
     private string generatedShader = string.Empty;
     private bool committing;
+    private bool layoutPending;
     private bool rendering;
     private bool closed;
     private long generation;
+    private long contentRevision;
     private string texturePath = string.Empty;
     private JsonArray frameRect = new(0, 0, 32, 32);
     private JsonArray ambient = new(90, 90, 90, 255);
@@ -62,6 +65,8 @@ public sealed partial class MaterialWindow : Window
         this.projectSave = projectSave;
         document = gameData.GetDocument("Materials", key) ?? throw new ArgumentException("Material does not exist", nameof(key));
         data = document.Data!;
+        documentState = document.CaptureState();
+        contentRevision = document.LastContentChangeRevision;
         preview = new MaterialPreviewClient(runtime);
         Width = 1400;
         Height = 900;
@@ -72,10 +77,23 @@ public sealed partial class MaterialWindow : Window
         EditorWindowIcon.Apply(this);
         EditorLayoutService.AttachWindow(this, nameof(MaterialWindow));
         toast = new Toast(this);
+        AddHandler(GotFocusEvent, (_, _) => FlushPendingChanges(), RoutingStrategies.Bubble);
         binding = new EditorDocumentBinding(this, gameData, () => document,
             () => LocaleService.Get("MATERIAL_EDITOR") + " - " + Key, closeWhenDeleted: true);
+        binding.HasPendingInputs = () => layoutPending;
         document.Changed += onDocumentChanged;
         graph.GameData = gameData;
+        graph.LayoutCommitRequested += (_, _) => commitPendingLayout();
+        projectSave.RegisterParticipant(this);
+        AddHandler(PointerPressedEvent, (_, _) => FlushPendingChanges(), RoutingStrategies.Tunnel);
+        AddHandler(TextInputEvent, (_, _) => FlushPendingChanges(), RoutingStrategies.Tunnel);
+        AddHandler(PointerWheelChangedEvent, (_, args) =>
+        {
+            if (MaterialGraphControl.IsInputEditor(args.Source as Visual))
+                FlushPendingChanges();
+        }, RoutingStrategies.Tunnel);
+        Deactivated += (_, _) => FlushPendingChanges();
+        Closing += (_, _) => FlushPendingChanges();
         Content = DeferredWindowInitializer.CreateLoadingContent();
         _ = new DeferredWindowInitializer(this, async token =>
         {
@@ -87,6 +105,7 @@ public sealed partial class MaterialWindow : Window
         timer.Tick += async (_, _) => await renderAsync();
         AddHandler(KeyDownEvent, async (_, args) =>
         {
+            FlushPendingChanges();
             await binding.HandleShortcutAsync(args, projectSave, toast);
         }, RoutingStrategies.Tunnel);
         Closed += (_, _) => dispose();
@@ -106,7 +125,7 @@ public sealed partial class MaterialWindow : Window
         if (registry is null)
             return;
         string[] selected = graphModel?.SelectedNodes.OfType<MaterialGraphNodeViewModel>().Select(node => node.Id).ToArray() ?? [];
-        graphModel = new MaterialGraphViewModel(data, registry, commit);
+        graphModel = new MaterialGraphViewModel(data, registry, onLayoutChanged, FlushPendingChanges, commit);
         graph.DataContext = graphModel;
         foreach (string id in selected)
             if (graphModel.FindNode(id) is MaterialGraphNodeViewModel selectedNode)
@@ -117,7 +136,11 @@ public sealed partial class MaterialWindow : Window
 
     private void addForm(StackPanel panel, JsonObject descriptor, JsonNode? value, Action<JsonNode?> changed)
     {
-        BlueprintVariableForm form = MaterialPropertyForm.Create(gameData, descriptor, value, changed);
+        BlueprintVariableForm form = MaterialPropertyForm.Create(gameData, descriptor, value, next =>
+        {
+            FlushPendingChanges();
+            changed(next);
+        });
         forms.Add(form);
         panel.Children.Add(form);
     }
@@ -137,17 +160,76 @@ public sealed partial class MaterialWindow : Window
         committing = true;
         try { gameData.Assets.UpdateMaterial(Key, data); }
         finally { committing = false; }
-        graphModel?.RefreshParameterNames();
-        generation++;
+        documentState = document.CaptureState();
+        if (contentRevision != document.LastContentChangeRevision)
+        {
+            contentRevision = document.LastContentChangeRevision;
+            graphModel?.RefreshParameterNames();
+            generation++;
+        }
+    }
+
+    private void onLayoutChanged()
+    {
+        graph.ScheduleLayoutCommit();
+        if (layoutPending)
+            return;
+        layoutPending = true;
+        binding.Refresh();
+    }
+
+    public void FlushPendingChanges()
+    {
+        if (layoutPending)
+            graph.CompleteLayoutGesture();
+    }
+
+    private void commitPendingLayout()
+    {
+        if (!layoutPending)
+            return;
+        layoutPending = false;
+        if (document.Exists && !closed)
+        {
+            if (graphModel is not null && documentState.InternalData is JsonObject previous
+                && graphModel.HasSameLayout(previous))
+                graphModel.ApplyEditorState(previous);
+            else
+            {
+                graph.EnsureLayoutGesture();
+                commit();
+            }
+        }
+        binding.Refresh();
     }
 
     private void onDocumentChanged(object? sender, EventArgs args)
     {
-        if (committing || document.Data is not JsonObject next)
+        if (committing)
             return;
-        data = next;
-        generation++;
-        rebuildGraph();
+        EditorDocumentState nextState = document.CaptureState();
+        if (ReferenceEquals(documentState, nextState) && contentRevision == document.LastContentChangeRevision)
+            return;
+        layoutPending = false;
+        graph.CancelLayoutGesture();
+        documentState = nextState;
+        binding.Refresh();
+        if (document.Data is not JsonObject next)
+            return;
+        if (contentRevision != document.LastContentChangeRevision)
+        {
+            contentRevision = document.LastContentChangeRevision;
+            data = next;
+            generation++;
+            rebuildGraph();
+        }
+        else if (graphModel is not null)
+        {
+            graphModel.ApplyEditorState(next);
+            graph.RestoreLayout();
+        }
+        else
+            data = next;
     }
 
     private async Task renderAsync()
@@ -207,6 +289,9 @@ public sealed partial class MaterialWindow : Window
     private void dispose()
     {
         closed = true;
+        layoutPending = false;
+        graph.CancelLayoutGesture();
+        projectSave.UnregisterParticipant(this);
         timer.Stop();
         lifetime.Cancel();
         document.Changed -= onDocumentChanged;

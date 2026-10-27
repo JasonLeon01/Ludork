@@ -91,6 +91,7 @@ public sealed partial class MaterialWindow
         JsonObject? parameter = await dialog.ShowDialog<JsonObject?>(this);
         if (parameter is null)
             return;
+        FlushPendingChanges();
         ((JsonArray)data["parameters"]!).Add(parameter);
         selectedParameterId = parameter["id"]!.GetValue<string>();
         commit();
@@ -103,6 +104,7 @@ public sealed partial class MaterialWindow
         JsonObject? parameter = parameters.OfType<JsonObject>().FirstOrDefault(item => item["id"]!.GetValue<string>() == id);
         if (parameter is null)
             return;
+        FlushPendingChanges();
         int index = parameters.IndexOf(parameter);
         parameters.RemoveAt(index);
         selectedParameterId = parameters.Count == 0 ? null : parameters[System.Math.Min(index, parameters.Count - 1)]!["id"]!.GetValue<string>();
@@ -193,6 +195,7 @@ public sealed partial class MaterialWindow
             error.IsVisible = range.IsChecked == true && (minimum.Value is null || maximum.Value is null || minimum.Value > maximum.Value);
             if (error.IsVisible)
                 return;
+            FlushPendingChanges();
             if (range.IsChecked == true)
             {
                 parameter["min"] = (double)minimum.Value!.Value;

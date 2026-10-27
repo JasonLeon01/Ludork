@@ -6,6 +6,26 @@ namespace Ludork.Services;
 
 public static class MaterialAssetSchema
 {
+    internal static bool ContentEquals(JsonObject? left, JsonObject? right)
+    {
+        if (ReferenceEquals(left, right))
+            return true;
+        if (left is null || right is null)
+            return false;
+        int leftCount = left.Count - (left.ContainsKey("editor") ? 1 : 0);
+        int rightCount = right.Count - (right.ContainsKey("editor") ? 1 : 0);
+        if (leftCount != rightCount)
+            return false;
+        foreach (KeyValuePair<string, JsonNode?> entry in left)
+        {
+            if (entry.Key == "editor")
+                continue;
+            if (!right.TryGetPropertyValue(entry.Key, out JsonNode? value) || !JsonNode.DeepEquals(entry.Value, value))
+                return false;
+        }
+        return true;
+    }
+
     public static void ValidateReference(JsonNode? value, string path, ICollection<string> errors)
     {
         if (value is null)

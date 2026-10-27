@@ -348,14 +348,17 @@ public sealed class EditorDocumentRegistry
             Revision++;
         EditorDocumentChange[] changes = scope.Content.Select(pair =>
         {
+            bool contentChanged = pair.Value.After.Section == "Materials"
+                ? !MaterialAssetSchema.ContentEquals(pair.Value.Before.InternalData, pair.Value.After.InternalData)
+                : scope.PreparedContentChanges.TryGetValue(pair.Key, out bool changed)
+                    ? changed : !JsonNode.DeepEquals(pair.Value.Before.InternalData, pair.Value.After.InternalData);
             EditorDocumentChange change = new(
                 pair.Key.Id, pair.Value.After.Section,
                 pair.Value.Before.InternalData is null ? null : pair.Value.Before.Key,
                 pair.Value.After.InternalData is null ? null : pair.Value.After.Key,
                 pair.Value.Before.InternalData is null ? null : pair.Value.Before.Path,
                 pair.Value.After.InternalData is null ? null : pair.Value.After.Path,
-                scope.PreparedContentChanges.TryGetValue(pair.Key, out bool changed)
-                    ? changed : !JsonNode.DeepEquals(pair.Value.Before.InternalData, pair.Value.After.InternalData));
+                contentChanged);
             if (change.ContentChanged || change.IdentityChanged)
                 pair.Key.LastContentChangeRevision = Revision;
             return change;
