@@ -49,19 +49,19 @@ jobs:
 
   windows:
     name: Windows x64
-    needs: [package_decision, server]
+    needs: package_decision
     if: needs.package_decision.outputs.should_build == 'true'
     uses: ./.github/workflows/export-editor-windows.yml
     with:
-      server_artifact: ${{ needs.server.outputs.artifact_name }}
+      skip_server: true
 
   macos:
     name: macOS ARM64
-    needs: [package_decision, server]
+    needs: package_decision
     if: needs.package_decision.outputs.should_build == 'true'
     uses: ./.github/workflows/export-editor-macos.yml
     with:
-      server_artifact: ${{ needs.server.outputs.artifact_name }}
+      skip_server: true
     secrets: inherit
 
   package_complete:

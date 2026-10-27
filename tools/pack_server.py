@@ -134,7 +134,7 @@ def server_worktree() -> Path:
             worktree = Path(field[len("worktree "):])
         elif field == "branch refs/heads/Server" and worktree is not None:
             return worktree
-    raise ValueError("Check out the Server worktree, or pass a built archive with --server-package.")
+    raise ValueError("Check out the Server worktree, or select its checkout with --source.")
 
 
 def build(source: Path | None, output: Path, revision: str | None) -> None:
@@ -187,14 +187,6 @@ def build(source: Path | None, output: Path, revision: str | None) -> None:
     print(output)
 
 
-def copy(source: Path, output: Path) -> None:
-    verify(source)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    if source.resolve() != output.resolve():
-        shutil.copyfile(source, output)
-    print(output)
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build and validate deployable Ludork Server archives.")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -204,14 +196,9 @@ def main() -> None:
     build_parser.add_argument("--revision")
     verify_parser = commands.add_parser("verify")
     verify_parser.add_argument("archive", type=Path)
-    copy_parser = commands.add_parser("copy")
-    copy_parser.add_argument("archive", type=Path)
-    copy_parser.add_argument("output", type=Path)
     arguments = parser.parse_args()
     if arguments.command == "build":
         build(arguments.source, arguments.output, arguments.revision)
-    elif arguments.command == "copy":
-        copy(arguments.archive, arguments.output)
     else:
         verify(arguments.archive)
         print(f"Verified built Server package: {arguments.archive}")

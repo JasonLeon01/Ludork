@@ -10,9 +10,9 @@ on:
       release:
         type: boolean
         default: false
-      server_artifact:
-        type: string
-        default: ''
+      skip_server:
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -28,7 +28,7 @@ concurrency:
 jobs:
   server:
     name: Server package
-    if: inputs.server_artifact == ''
+    if: ${{ !inputs.skip_server }}
     uses: ./.github/workflows/export-server.yml
 
   preparation:
@@ -40,14 +40,12 @@ jobs:
 
   windows:
     name: Windows x64
-    needs: [preparation, server]
-    if: ${{ !cancelled() && needs.preparation.result == 'success' && (needs.server.result == 'success' || (needs.server.result == 'skipped' && inputs.server_artifact != '')) }}
+    needs: preparation
     runs-on: windows-2022
     timeout-minutes: 180
     env:
       CMAKE_GENERATOR: Ninja
       CCACHE_DISABLE: "1"
-      SERVER_PACKAGE: obj/editor-inputs/server/${{ inputs.server_artifact || needs.server.outputs.artifact_name }}
 
     steps:
       - name: Check out repository
@@ -64,13 +62,6 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-
-      - name: Download Server package
-        uses: actions/download-artifact@v8
-        with:
-          name: ${{ inputs.server_artifact || needs.server.outputs.artifact_name }}
-          path: obj/editor-inputs/server
-          skip-decompress: true
 
       - name: Set up MSVC command-line environment
         uses: ilammy/msvc-dev-cmd@v1
@@ -139,7 +130,7 @@ jobs:
           TEMPLATE_OPTION: ${{ inputs.templates && !inputs.release && '--templates' || '--without-templates' }}
           TEMPLATE_DIRECTORY: ${{ inputs.templates && !inputs.release && 'obj/editor-inputs/Templates' || '' }}
         shell: cmd
-        run: tools\pack_editor.bat %TEMPLATE_OPTION% %TEMPLATE_DIRECTORY% --launcher "%CD%\obj\editor-launcher\bin\Release\Ludork.exe" --server-package "%SERVER_PACKAGE%" %EDITOR_CHANNEL%
+        run: tools\pack_editor.bat %TEMPLATE_OPTION% %TEMPLATE_DIRECTORY% --launcher "%CD%\obj\editor-launcher\bin\Release\Ludork.exe" %EDITOR_CHANNEL%
 
       - name: Build editor MSI
         if: inputs.release && inputs.templates && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')

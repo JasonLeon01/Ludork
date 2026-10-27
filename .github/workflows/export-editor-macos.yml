@@ -10,9 +10,9 @@ on:
       release:
         type: boolean
         default: false
-      server_artifact:
-        type: string
-        default: ''
+      skip_server:
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -28,7 +28,7 @@ concurrency:
 jobs:
   server:
     name: Server package
-    if: inputs.server_artifact == ''
+    if: ${{ !inputs.skip_server }}
     uses: ./.github/workflows/export-server.yml
 
   preparation:
@@ -40,14 +40,12 @@ jobs:
 
   macos:
     name: macOS ARM64
-    needs: [preparation, server]
-    if: ${{ !cancelled() && needs.preparation.result == 'success' && (needs.server.result == 'success' || (needs.server.result == 'skipped' && inputs.server_artifact != '')) }}
+    needs: preparation
     runs-on: macos-15
     timeout-minutes: 180
     env:
       CMAKE_GENERATOR: Ninja
       CCACHE_DISABLE: "1"
-      SERVER_PACKAGE: obj/editor-inputs/server/${{ inputs.server_artifact || needs.server.outputs.artifact_name }}
 
     steps:
       - name: Check out repository
@@ -64,13 +62,6 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-
-      - name: Download Server package
-        uses: actions/download-artifact@v8
-        with:
-          name: ${{ inputs.server_artifact || needs.server.outputs.artifact_name }}
-          path: obj/editor-inputs/server
-          skip-decompress: true
 
       - name: Download prepared environment
         uses: actions/download-artifact@v8
@@ -206,7 +197,6 @@ jobs:
           if [ "$INCLUDE_TEMPLATES" = "true" ]; then
             set -- --templates "$PWD/obj/editor-inputs/Templates"
           fi
-          set -- "$@" --server-package "$SERVER_PACKAGE"
           if [ "$SIGNING_ENABLED" != "true" ]; then
             sh tools/pack_editor.sh "$EDITOR_CHANNEL" "$@"
             exit 0

@@ -4,7 +4,7 @@
 
 Ludork 使用 [Zlib 许可证](../LICENSE.md)；第三方组件和资产适用各自条款。[THIRD_PARTY_NOTICES_zh_CN.md](https://jasonleon01.github.io/Ludork/notices/?version=1.0&lang=zh_CN) 列出版本、来源、用途及许可证路径。
 
-编辑器包完整携带本权威目录。随附的 `Server/LudorkServer.tar.gz` 在 `LudorkServer/third-party/README.md` 中提供服务端的独立第三方声明。模板携带本索引、公共运行时声明，以及启用时的 `FFmpeg` 声明。
+编辑器包完整携带本权威目录。独立分发的 Server 归档在 `LudorkServer/third-party/README.md` 中提供服务端的第三方声明。模板携带本索引、公共运行时声明，以及启用时的 `FFmpeg` 声明。
 
 | 目录 | 内容 |
 |---|---|

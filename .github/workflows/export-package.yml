@@ -52,21 +52,21 @@ jobs:
 
   windows:
     name: Windows x64
-    needs: [package_decision, server]
+    needs: package_decision
     if: needs.package_decision.outputs.should_build == 'true'
     uses: ./.github/workflows/export-package-windows.yml
     with:
       release: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
-      server_artifact: ${{ needs.server.outputs.artifact_name }}
+      skip_server: true
 
   macos:
     name: macOS ARM64
-    needs: [package_decision, server]
+    needs: package_decision
     if: needs.package_decision.outputs.should_build == 'true'
     uses: ./.github/workflows/export-package-macos.yml
     with:
       release: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
-      server_artifact: ${{ needs.server.outputs.artifact_name }}
+      skip_server: true
     secrets: inherit
 
   package_complete:

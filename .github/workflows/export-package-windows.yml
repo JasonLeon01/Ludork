@@ -7,9 +7,9 @@ on:
       release:
         type: boolean
         default: false
-      server_artifact:
-        type: string
-        default: ''
+      skip_server:
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -22,4 +22,4 @@ jobs:
     with:
       templates: true
       release: ${{ inputs.release == true }}
-      server_artifact: ${{ inputs.server_artifact }}
+      skip_server: ${{ inputs.skip_server == true }}
