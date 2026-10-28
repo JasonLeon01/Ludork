@@ -44,6 +44,10 @@ Fog uses GPU procedural noise in world coordinates. It needs no texture path. Th
 
 ## GameMapBase
 
+Terrain passability and active Actor occupancy are cached independently. Actor creation, destruction, view synchronisation and world sleep or wake update occupancy without rebuilding the terrain grid. Synchronisation removes Actors that leave the active view and updates only added Actors or changed footprints; unchanged occupancy and the relative order of retained Actors are preserved. Hidden Actors remain registered, with their current visibility applied during queries.
+
+`rebuildPassabilityCache(size)` explicitly rebuilds terrain passability and refreshes Actor occupancy. It returns the terrain boolean grid, or an empty grid for a sparse world. `invalidatePassabilityCache()` marks terrain passability and disconnected-region visibility for refresh without clearing Actor occupancy; the Game project's terrain-editing APIs call it automatically. After manually changing an active Actor's map position or bounds, use `updateActorOccupancy(actor)` to refresh its occupied cells. This method does not register an Actor absent from the active view, including a sleeping world Actor. Lifecycle and batch updates also refresh pending occupancy before subsequent Actor queries.
+
 ### Functions and events
 
 | Name | Kind | Parameters | Returns | Execution and metadata |
