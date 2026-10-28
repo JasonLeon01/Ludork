@@ -5,7 +5,6 @@ import importlib.metadata
 import json
 import pathlib
 import platform
-import shutil
 import ssl
 import subprocess
 import sys
@@ -14,6 +13,7 @@ import sys
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from ScriptTools.file_replace import remove_file, remove_tree, retry_file_operation
 from ScriptTools.runtime_bundle import (
     BUILD_MODE,
     SOURCE_STAMP_NAME,
@@ -49,10 +49,20 @@ def _source_hash(project: pathlib.Path, versions: dict[str, str]) -> str:
 
 
 def _remove_owned(path: pathlib.Path) -> None:
-    if path.is_symlink() or path.is_file():
-        path.unlink()
-    elif path.is_dir():
-        shutil.rmtree(path)
+    try:
+        if path.is_symlink() or path.is_file():
+            remove_file(path, missing_ok=True)
+        elif path.is_dir():
+            remove_tree(path)
+    except OSError as error:
+        raise RuntimeError(f"ScriptTools cleanup failed for {path}: {error}") from error
+
+
+def _rename_runtime(source: pathlib.Path, destination: pathlib.Path, stage: str) -> None:
+    try:
+        retry_file_operation(lambda: source.rename(destination))
+    except OSError as error:
+        raise RuntimeError(f"ScriptTools {stage} failed: {source} -> {destination}: {error}") from error
 
 
 def _smoke(directory: pathlib.Path, working_directory: pathlib.Path) -> None:
@@ -71,14 +81,20 @@ def _publish(distribution: pathlib.Path, output: pathlib.Path, build: pathlib.Pa
     backup = build / "previous-runtime"
     _remove_owned(backup)
     if output.exists():
-        output.rename(backup)
+        _rename_runtime(output, backup, "runtime backup")
     try:
-        distribution.rename(output)
+        _rename_runtime(distribution, output, "runtime publication")
         _smoke(output, build)
-    except BaseException:
-        _remove_owned(output)
-        if backup.exists():
-            backup.rename(output)
+    except BaseException as error:
+        try:
+            _remove_owned(output)
+            if backup.exists():
+                _rename_runtime(backup, output, "runtime rollback")
+        except (OSError, RuntimeError) as rollback_error:
+            backup_detail = f"\nPrevious runtime backup: {backup}" if backup.exists() else ""
+            raise RuntimeError(
+                f"ScriptTools publication failed: {error}\nRollback also failed: {rollback_error}{backup_detail}"
+            ) from error
         raise
     _remove_owned(backup)
 
@@ -102,7 +118,7 @@ def build(project: pathlib.Path) -> None:
         return
     if output.is_symlink():
         raise RuntimeError(f"ScriptTools output directory must not be a link: {output}")
-    (output / SOURCE_STAMP_NAME).unlink(missing_ok=True)
+    remove_file(output / SOURCE_STAMP_NAME, missing_ok=True)
     intermediate.mkdir(parents=True, exist_ok=True)
     distribution = intermediate / "ScriptTools.dist"
     _remove_owned(distribution)

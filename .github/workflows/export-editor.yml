@@ -9,7 +9,10 @@ on:
       - main
     paths:
       - '.github/**'
-      - '**/*.py'
+      - 'ScriptTools/**'
+      - 'tools/**'
+      - '!ScriptTools/**/*.md'
+      - '!tools/**/*.md'
 
 permissions:
   contents: read
