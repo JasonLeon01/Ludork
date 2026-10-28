@@ -237,7 +237,7 @@ function WorldGameMapActors.ApplySuppressedActorTags(self)
         self._actors[layerName] = kept
     end
     self:updateActorList()
-    self:markPassabilityDirty()
+    self:_invalidateActorOccupancyCache()
 end
 
 ---@param tag  string
@@ -701,12 +701,14 @@ function WorldGameMapActors.SleepWorldRoots(self, roots)
     end
     if removeRootsFromLiveActors(self._actors, sleeping) then
         self:updateActorList()
-        self._materialDirty = true
+        self:_invalidateActorOccupancyCache()
     end
     for _, root in ipairs(sleeping) do
         for _, actor in ipairs(root:collectTree()) do
             if not actor:isDestroyed() then
+                self:_invalidateActorOccupancyCache()
                 Actor.BlueprintEvent(actor, Actor, "onWorldSleep")
+                self:_invalidateActorOccupancyCache()
             end
         end
     end
@@ -737,7 +739,9 @@ function WorldGameMapActors.ActivateWorldRoots(self, roots)
         local elapsedSeconds = math.max(0.0, wakeTime - (self._worldRootSleepTimes[root] or wakeTime))
         for _, actor in ipairs(root:collectTree()) do
             if not actor:isDestroyed() then
+                self:_invalidateActorOccupancyCache()
                 Actor.BlueprintEvent(actor, Actor, "onWorldWake", { elapsedSeconds = elapsedSeconds })
+                self:_invalidateActorOccupancyCache()
             end
         end
         self._worldRootSleepTimes[root] = nil

@@ -125,11 +125,14 @@ public:
     BIND_METHOD(metadata = false)
     void invalidatePassabilityCache();
 
+    BIND_METHOD(name = "_invalidateActorOccupancyCache", metadata = false)
+    void invalidateActorOccupancyCache();
+
     ////////////////////////////////////////////////////////////
     /// \brief Refresh one actor's occupancy without rebuilding tile passability
     ///
-    /// Removes the actor from all cached cells, then registers it at its
-    /// current occupied cells. Use this after an actor changes map position.
+    /// Updates an active actor's cached cells only when its footprint changes.
+    /// Use this after an actor changes map position or bounds.
     ///
     /// - \param actor Actor whose occupancy should be refreshed
     ///
@@ -398,8 +401,11 @@ private:
                              const sf::Vector2i& toPosition,
                              int direction) const;
 
-    void ensurePassabilityCache() const;
+    void rebuildTerrainPassabilityCache(const sf::Vector2u& size);
+    void ensureTerrainPassabilityCache() const;
+    void ensureActorOccupancyCache() const;
     void refreshActorOccupancyCache();
+    void resetActorOccupancyCache();
 
     ////////////////////////////////////////////////////////////
     /// \brief Return layer names in top-first order
@@ -466,7 +472,8 @@ private:
     std::unique_ptr<ludork::global::game_map_base_impl::SparseWorldImpl>
         sparseWorld_;
     std::vector<std::vector<bool>> tilePassableGrid_;
-    bool passabilityDirty_ = true;
+    bool terrainPassabilityDirty_ = true;
+    bool actorOccupancyDirty_ = true;
     std::unique_ptr<ludork::global::game_map_base_impl::OccupancyIndexImpl>
         occupancy_;
     std::unique_ptr<ludork::global::game_map_base_impl::ActorRegistryImpl>

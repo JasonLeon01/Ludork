@@ -18,14 +18,6 @@ local function initialiseActorComponents(actor)
 end
 
 ---@param self GameMapImplState
-function GameMapActors.SyncActorsForMapCache(self)
-    for _, actor in ipairs(self:getAllActors()) do
-        actor:syncMapCache()
-        actor:refreshDescendantCache()
-    end
-end
-
----@param self GameMapImplState
 function GameMapActors.SyncActorsForPathfinding(self)
     for _, actor in ipairs(self:getAllActors()) do
         actor:setPathfindingBlocks(Actor.HasBlueprintEvent(actor, "onOverlap") and not actor:getCollisionEnabled())
@@ -96,10 +88,6 @@ end
 
 ---@param self GameMapImplState
 function GameMapActors.GetActorsByPosition(self, position)
-    if self._tilePassableGrid == nil or self._materialDirty then
-        self:_rebuildPassabilityCache()
-        self._materialDirty = false
-    end
     return self:getActorsAt(position.x, position.y)
 end
 
@@ -115,10 +103,6 @@ end
 
 ---@param self GameMapImplState
 function GameMapActors.GetActorsByRange(self, position, radius)
-    if self._tilePassableGrid == nil or self._materialDirty then
-        self:_rebuildPassabilityCache()
-        self._materialDirty = false
-    end
     return self:getActorsInRange(position.x, position.y, radius)
 end
 
@@ -177,7 +161,7 @@ function GameMapActors.RemoveActorsByTags(self, tags)
     end
     if removed then
         self:updateActorList()
-        self._materialDirty = true
+        self:_invalidateActorOccupancyCache()
     end
 end
 
@@ -204,7 +188,7 @@ function GameMapActors.ApplyActorPositions(self, actorPositions)
     end
     if movedAny then
         self:updateActorList()
-        self:markPassabilityDirty()
+        self:_invalidateActorOccupancyCache()
     end
 end
 
@@ -215,7 +199,7 @@ function GameMapActors.SpawnActor(self, actor, layer, emitCreateEvent)
     end
     self:_addActorTreeToLayer(actor, layer)
     self:_flushActorChanges()
-    self._materialDirty = true
+    self:_invalidateActorOccupancyCache()
     if emitCreateEvent then
         self:initialiseActorsAndComponents()
     end
@@ -234,7 +218,7 @@ end
 ---@param self GameMapImplState
 function GameMapActors.InitialiseActorsAndComponents(self)
     self:_drainActorLifecycle(initialiseActorCreateEvent, initialiseActorComponents)
-    self._materialDirty = true
+    self:_invalidateActorOccupancyCache()
 end
 
 ---@param actor Engine.Actor
@@ -264,7 +248,7 @@ end
 ---@param self GameMapImplState
 function GameMapActors.DestroyActor(self, actor)
     self._actorsOnDestroy[#self._actorsOnDestroy + 1] = actor
-    self._materialDirty = true
+    self:_invalidateActorOccupancyCache()
 end
 
 ---@param self GameMapImplState
@@ -323,10 +307,6 @@ end
 
 ---@param self GameMapImplState
 function GameMapActors.HasPathBlockingOverlapActor(self, actor, targetPosition)
-    if self._tilePassableGrid == nil or self._materialDirty then
-        self:_rebuildPassabilityCache()
-        self._materialDirty = false
-    end
     for _, cell in ipairs(actor:getOccupiedMapCellsAtMapPosition(targetPosition)) do
         for _, other in ipairs(self:getOverlapsAt(cell.x, cell.y, actor)) do
             if Actor.HasBlueprintEvent(other, "onOverlap") and not other:getCollisionEnabled() then

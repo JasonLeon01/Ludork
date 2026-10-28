@@ -46,12 +46,6 @@ end
 
 ---@param self GameMapImplState
 function GameMapTerrain.UpdateActorOccupancy(self, actor)
-    if self._tilePassableGrid == nil or self._materialDirty then
-        self:_rebuildPassabilityCache()
-        self._materialDirty = false
-        return
-    end
-    actor:syncMapCache()
     GameMapBase.updateActorOccupancy(self, actor)
 end
 
@@ -74,7 +68,6 @@ end
 ---@param self GameMapImplState
 function GameMapTerrain.RebuildPassabilityCache(self)
     local size = self._tilemap:getSize()
-    self:_syncActorsForMapCache()
     self._tilePassableGrid = self:rebuildPassabilityCache(size)
 end
 

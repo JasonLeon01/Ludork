@@ -21,15 +21,17 @@ public:
     static IntPair getOccupancyPageKey(int x, int y);
     static std::size_t getOccupancyPageCellIndex(int x, int y);
     void clearActorOccupancy();
-    void clearRegisteredCells();
+    void syncActors(const std::vector<Actor*>& orderedActors,
+                    const std::optional<sf::Vector2u>& worldSize);
+    void refreshActors(const std::optional<sf::Vector2u>& worldSize);
+    void updateActorOccupancy(Actor& actor,
+                              const std::optional<sf::Vector2u>& worldSize);
     const std::vector<sf::Vector2i>* registeredCells(Actor* actor) const;
     const std::vector<Actor*>* findActorsAtCell(
         int x, int y, const std::optional<sf::Vector2u>& worldSize) const;
     std::vector<Actor*> getActorsInRangeImpl(
         int x, int y, int radius, const Actor* excludedActor,
         const std::optional<sf::Vector2u>& worldSize) const;
-    void registerActorOccupancy(Actor& actor,
-                                const std::optional<sf::Vector2u>& worldSize);
     void unregisterActorOccupancy(Actor& actor,
                                   const std::optional<sf::Vector2u>& worldSize);
 
@@ -39,6 +41,13 @@ private:
             cells;
         std::size_t occupiedCellCount = 0;
     };
+    void registerActorOccupancy(Actor& actor, std::vector<sf::Vector2i> cells,
+                                const std::optional<sf::Vector2u>& worldSize);
+    void insertActorInCell(std::vector<Actor*>& actors, Actor& actor);
+    void reorderActorCells(const std::vector<Actor*>& actors,
+                           const std::optional<sf::Vector2u>& worldSize);
+    std::vector<Actor*> activeActors_;
+    std::unordered_map<Actor*, std::size_t> actorOrder_;
     std::unordered_map<IntPair, std::vector<Actor*>, GridPointHash>
         occupancyMap_;
     std::unordered_map<IntPair, SparseOccupancyPage, GridPointHash>

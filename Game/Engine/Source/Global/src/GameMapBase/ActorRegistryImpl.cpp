@@ -6,23 +6,25 @@
 #include <utility>
 namespace ludork::global::game_map_base_impl {
 
-void ActorRegistryImpl::syncActorsRef(const ActorDict& actors,
-                                      OccupancyIndexImpl& occupancy) {
-    occupancy.clearActorOccupancy();
-    occupancy.clearRegisteredCells();
-    actorLayerRef_.clear();
-    actorsRef_.clear();
+void ActorRegistryImpl::syncActorsRef(
+    const ActorDict& actors, OccupancyIndexImpl& occupancy,
+    const std::optional<sf::Vector2u>& worldSize) {
+    ActorDict nextActorsRef;
+    std::unordered_map<Actor*, std::string> nextActorLayerRef;
     for (const auto& [layerName, actorList] : actors) {
-        std::vector<ActorPtr>& actorRefs = actorsRef_[layerName];
+        std::vector<ActorPtr>& actorRefs = nextActorsRef[layerName];
         actorRefs.reserve(actorList.size());
         for (const ActorPtr& actor : actorList) {
             if (!actor) {
                 continue;
             }
             actorRefs.push_back(actor);
-            actorLayerRef_[actor.get()] = layerName;
+            nextActorLayerRef[actor.get()] = layerName;
         }
     }
+    syncActorOccupancy(nextActorsRef, occupancy, worldSize);
+    actorsRef_ = std::move(nextActorsRef);
+    actorLayerRef_ = std::move(nextActorLayerRef);
 }
 
 void ActorRegistryImpl::syncMaterialActorsRef(const ActorDict& actors) {
@@ -195,7 +197,8 @@ void ActorRegistryImpl::drainActorLifecycle(
 
 void ActorRegistryImpl::syncActorViews(
     const ActorDict& actors, const std::shared_ptr<ActorMapService>& mapOwner,
-    OccupancyIndexImpl& occupancy) {
+    OccupancyIndexImpl& occupancy,
+    const std::optional<sf::Vector2u>& worldSize) {
     ActorDict nextActorsRef;
     ActorDict nextMaterialActorsRef;
     std::unordered_map<std::string, std::unordered_set<Actor*>>
@@ -273,6 +276,8 @@ void ActorRegistryImpl::syncActorViews(
         nextActorLayerRef.try_emplace(actor, layerName);
     }
 
+    syncActorOccupancy(nextActorsRef, occupancy, worldSize);
+
     std::unordered_set<Actor*> destroyedEntries;
     for (auto iterator = entries.begin(); iterator != entries.end();) {
         Actor* actor = iterator->first;
@@ -296,14 +301,34 @@ void ActorRegistryImpl::syncActorViews(
         });
     }
 
-    occupancy.clearActorOccupancy();
-    occupancy.clearRegisteredCells();
     actorsRef_ = std::move(nextActorsRef);
     materialActorsRef_ = std::move(nextMaterialActorsRef);
     actorLayerRef_ = std::move(nextActorLayerRef);
     layerMembership = std::move(nextLayerMembership);
 
     viewsDirty = false;
+}
+
+void ActorRegistryImpl::syncActorOccupancy(
+    OccupancyIndexImpl& occupancy,
+    const std::optional<sf::Vector2u>& worldSize) {
+    syncActorOccupancy(actorsRef_, occupancy, worldSize);
+}
+
+void ActorRegistryImpl::syncActorOccupancy(
+    const ActorDict& actors, OccupancyIndexImpl& occupancy,
+    const std::optional<sf::Vector2u>& worldSize) {
+    std::vector<Actor*> orderedActors;
+    std::unordered_set<Actor*> seenActors;
+    for (const auto& [_, actorList] : actors) {
+        for (const ActorPtr& actor : actorList) {
+            if (actor && seenActors.insert(actor.get()).second) {
+                actor->refreshDescendantCache();
+                orderedActors.push_back(actor.get());
+            }
+        }
+    }
+    occupancy.syncActors(orderedActors, worldSize);
 }
 
 bool ActorRegistryImpl::forgetActors(

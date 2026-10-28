@@ -27,7 +27,8 @@ public:
     void destroyActor(Actor& actor);
     void releaseEmitters() noexcept;
     void releaseBillboards() noexcept;
-    void syncActorsRef(const ActorDict& actors, OccupancyIndexImpl& occupancy);
+    void syncActorsRef(const ActorDict& actors, OccupancyIndexImpl& occupancy,
+                       const std::optional<sf::Vector2u>& worldSize);
     void syncMaterialActorsRef(const ActorDict& actors);
     bool registerLayerActor(ActorPtr actor, const std::string& layer);
     std::optional<std::string> getRegisteredActorLayer(Actor& actor) const;
@@ -39,7 +40,10 @@ public:
                              std::function<void(Actor&)> componentHandler);
     void syncActorViews(const ActorDict& actors,
                         const std::shared_ptr<ActorMapService>& mapOwner,
-                        OccupancyIndexImpl& occupancy);
+                        OccupancyIndexImpl& occupancy,
+                        const std::optional<sf::Vector2u>& worldSize);
+    void syncActorOccupancy(OccupancyIndexImpl& occupancy,
+                            const std::optional<sf::Vector2u>& worldSize);
     bool forgetActors(const std::vector<ActorPtr>& actors,
                       OccupancyIndexImpl& occupancy,
                       const std::optional<sf::Vector2u>& worldSize);
@@ -59,6 +63,9 @@ private:
         bool componentInitialised = false;
     };
     static void rememberLayer(Entry& entry, const std::string& layer);
+    static void syncActorOccupancy(
+        const ActorDict& actors, OccupancyIndexImpl& occupancy,
+        const std::optional<sf::Vector2u>& worldSize);
     ActorDict actorsRef_;
     ActorDict materialActorsRef_;
     std::unordered_map<Actor*, std::string> actorLayerRef_;

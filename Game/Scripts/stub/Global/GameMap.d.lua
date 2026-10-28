@@ -553,13 +553,13 @@ function GameMap:drawMapContent(target, states, applyPlayerCover) end
 ---@brief Render the full map including layers, actors, lights, and particles.
 function GameMap:show() end
 
----@brief Refresh material queries and invalidate passability data.
+---@brief Rebuild pending terrain passability data.
 function GameMap:refreshShader() end
 
----@brief Mark the passability cache as dirty for rebuild on next query.
+---@brief Mark terrain passability and region visibility dirty for the next terrain query.
 function GameMap:markPassabilityDirty() end
 
----@brief Refresh one actor's occupancy without rebuilding tile passability.
+---@brief Refresh an active actor's changed occupancy without rebuilding tile passability.
 ---
 --- - @param actor The actor whose cached occupancy should be refreshed.
 ---@param actor Engine.Actor

@@ -32,6 +32,78 @@ std::size_t OccupancyIndexImpl::getOccupancyPageCellIndex(int x, int y) {
 void OccupancyIndexImpl::clearActorOccupancy() {
     occupancyMap_.clear();
     sparseOccupancyPages_.clear();
+    registeredOccupancyCells_.clear();
+    activeActors_.clear();
+    actorOrder_.clear();
+}
+
+void OccupancyIndexImpl::syncActors(
+    const std::vector<Actor*>& orderedActors,
+    const std::optional<sf::Vector2u>& worldSize) {
+    std::vector<Actor*> nextActors;
+    std::unordered_map<Actor*, std::size_t> nextOrder;
+    nextActors.reserve(orderedActors.size());
+    nextOrder.reserve(orderedActors.size());
+    for (Actor* actor : orderedActors) {
+        if (actor != nullptr &&
+            nextOrder.try_emplace(actor, nextActors.size()).second) {
+            nextActors.push_back(actor);
+        }
+    }
+
+    std::vector<Actor*> previousRetainedActors;
+    std::vector<Actor*> nextRetainedActors;
+    previousRetainedActors.reserve(activeActors_.size());
+    nextRetainedActors.reserve(nextActors.size());
+    for (Actor* actor : activeActors_) {
+        if (nextOrder.contains(actor)) {
+            previousRetainedActors.push_back(actor);
+        } else {
+            unregisterActorOccupancy(*actor, worldSize);
+        }
+    }
+    for (Actor* actor : nextActors) {
+        if (actorOrder_.contains(actor)) {
+            nextRetainedActors.push_back(actor);
+        }
+    }
+
+    std::vector<Actor*> reorderedActors;
+    for (std::size_t index = 0; index < previousRetainedActors.size();
+         ++index) {
+        if (previousRetainedActors[index] != nextRetainedActors[index]) {
+            reorderedActors.push_back(previousRetainedActors[index]);
+        }
+    }
+    activeActors_ = std::move(nextActors);
+    actorOrder_ = std::move(nextOrder);
+    reorderActorCells(reorderedActors, worldSize);
+    refreshActors(worldSize);
+}
+
+void OccupancyIndexImpl::refreshActors(
+    const std::optional<sf::Vector2u>& worldSize) {
+    for (Actor* actor : activeActors_) {
+        updateActorOccupancy(*actor, worldSize);
+    }
+}
+
+void OccupancyIndexImpl::updateActorOccupancy(
+    Actor& actor, const std::optional<sf::Vector2u>& worldSize) {
+    if (!actorOrder_.contains(&actor)) {
+        return;
+    }
+    if (actor.isDestroyed()) {
+        unregisterActorOccupancy(actor, worldSize);
+        return;
+    }
+    std::vector<sf::Vector2i> cells = actor.getOccupiedMapCells();
+    const std::vector<sf::Vector2i>* registered = registeredCells(&actor);
+    if (registered != nullptr && *registered == cells) {
+        return;
+    }
+    unregisterActorOccupancy(actor, worldSize);
+    registerActorOccupancy(actor, std::move(cells), worldSize);
 }
 
 const std::vector<Actor*>* OccupancyIndexImpl::findActorsAtCell(
@@ -102,30 +174,77 @@ std::vector<Actor*> OccupancyIndexImpl::getActorsInRangeImpl(
 }
 
 void OccupancyIndexImpl::registerActorOccupancy(
-    Actor& actor, const std::optional<sf::Vector2u>& worldSize) {
-    const std::vector<sf::Vector2i> cells = actor.getOccupiedMapCells();
-    registeredOccupancyCells_[&actor] = cells;
-    for (const sf::Vector2i& cell : cells) {
+    Actor& actor, std::vector<sf::Vector2i> cells,
+    const std::optional<sf::Vector2u>& worldSize) {
+    const auto registered =
+        registeredOccupancyCells_.emplace(&actor, std::move(cells)).first;
+    for (const sf::Vector2i& cell : registered->second) {
         if (worldSize.has_value()) {
             const IntPair pageKey = getOccupancyPageKey(cell.x, cell.y);
             const std::size_t cellIndex =
                 getOccupancyPageCellIndex(cell.x, cell.y);
             SparseOccupancyPage& page = sparseOccupancyPages_[pageKey];
             std::vector<Actor*>& actorsAtCell = page.cells[cellIndex];
-            if (std::find(actorsAtCell.begin(), actorsAtCell.end(), &actor) ==
-                actorsAtCell.end()) {
-                if (actorsAtCell.empty()) {
-                    ++page.occupiedCellCount;
-                }
-                actorsAtCell.push_back(&actor);
+            if (actorsAtCell.empty()) {
+                ++page.occupiedCellCount;
             }
+            insertActorInCell(actorsAtCell, actor);
             continue;
         }
         auto key = std::make_pair(cell.x, cell.y);
         auto& actorsAtCell = occupancyMap_[key];
-        if (std::find(actorsAtCell.begin(), actorsAtCell.end(), &actor) ==
-            actorsAtCell.end()) {
-            actorsAtCell.push_back(&actor);
+        insertActorInCell(actorsAtCell, actor);
+    }
+}
+
+void OccupancyIndexImpl::insertActorInCell(std::vector<Actor*>& actors,
+                                           Actor& actor) {
+    const std::size_t order = actorOrder_.at(&actor);
+    const auto position =
+        std::lower_bound(actors.begin(), actors.end(), order,
+                         [&](Actor* existing, std::size_t value) {
+                             return actorOrder_.at(existing) < value;
+                         });
+    if (position == actors.end() || *position != &actor) {
+        actors.insert(position, &actor);
+    }
+}
+
+void OccupancyIndexImpl::reorderActorCells(
+    const std::vector<Actor*>& actors,
+    const std::optional<sf::Vector2u>& worldSize) {
+    std::unordered_set<IntPair, GridPointHash> reorderedCells;
+    for (Actor* actor : actors) {
+        const std::vector<sf::Vector2i>* cells = registeredCells(actor);
+        if (cells == nullptr) {
+            continue;
+        }
+        for (const sf::Vector2i& cell : *cells) {
+            if (!reorderedCells.emplace(cell.x, cell.y).second) {
+                continue;
+            }
+            std::vector<Actor*>* actorsAtCell = nullptr;
+            if (worldSize.has_value()) {
+                const auto page = sparseOccupancyPages_.find(
+                    getOccupancyPageKey(cell.x, cell.y));
+                if (page != sparseOccupancyPages_.end()) {
+                    actorsAtCell =
+                        &page->second
+                             .cells[getOccupancyPageCellIndex(cell.x, cell.y)];
+                }
+            } else {
+                const auto entry = occupancyMap_.find({cell.x, cell.y});
+                if (entry != occupancyMap_.end()) {
+                    actorsAtCell = &entry->second;
+                }
+            }
+            if (actorsAtCell != nullptr) {
+                std::sort(actorsAtCell->begin(), actorsAtCell->end(),
+                          [&](Actor* left, Actor* right) {
+                              return actorOrder_.at(left) <
+                                     actorOrder_.at(right);
+                          });
+            }
         }
     }
 }
@@ -133,81 +252,45 @@ void OccupancyIndexImpl::registerActorOccupancy(
 void OccupancyIndexImpl::unregisterActorOccupancy(
     Actor& actor, const std::optional<sf::Vector2u>& worldSize) {
     auto registeredIt = registeredOccupancyCells_.find(&actor);
-    if (registeredIt != registeredOccupancyCells_.end()) {
-        for (const sf::Vector2i& cell : registeredIt->second) {
-            if (worldSize.has_value()) {
-                const IntPair pageKey = getOccupancyPageKey(cell.x, cell.y);
-                auto pageIt = sparseOccupancyPages_.find(pageKey);
-                if (pageIt == sparseOccupancyPages_.end()) {
-                    continue;
-                }
-                SparseOccupancyPage& page = pageIt->second;
-                std::vector<Actor*>& actorsAtCell =
-                    page.cells[getOccupancyPageCellIndex(cell.x, cell.y)];
-                const bool wasOccupied = !actorsAtCell.empty();
-                actorsAtCell.erase(std::remove(actorsAtCell.begin(),
-                                               actorsAtCell.end(), &actor),
-                                   actorsAtCell.end());
-                if (wasOccupied && actorsAtCell.empty()) {
-                    --page.occupiedCellCount;
-                    if (page.occupiedCellCount == 0) {
-                        sparseOccupancyPages_.erase(pageIt);
-                    }
-                }
+    if (registeredIt == registeredOccupancyCells_.end()) {
+        return;
+    }
+    for (const sf::Vector2i& cell : registeredIt->second) {
+        if (worldSize.has_value()) {
+            const IntPair pageKey = getOccupancyPageKey(cell.x, cell.y);
+            auto pageIt = sparseOccupancyPages_.find(pageKey);
+            if (pageIt == sparseOccupancyPages_.end()) {
                 continue;
             }
-            auto key = std::make_pair(cell.x, cell.y);
-            auto occupancyIt = occupancyMap_.find(key);
-            if (occupancyIt == occupancyMap_.end()) {
-                continue;
-            }
-            auto& actorsAtCell = occupancyIt->second;
+            SparseOccupancyPage& page = pageIt->second;
+            std::vector<Actor*>& actorsAtCell =
+                page.cells[getOccupancyPageCellIndex(cell.x, cell.y)];
+            const bool wasOccupied = !actorsAtCell.empty();
             actorsAtCell.erase(
                 std::remove(actorsAtCell.begin(), actorsAtCell.end(), &actor),
                 actorsAtCell.end());
-            if (actorsAtCell.empty()) {
-                occupancyMap_.erase(occupancyIt);
-            }
-        }
-        registeredOccupancyCells_.erase(registeredIt);
-        return;
-    }
-    if (worldSize.has_value()) {
-        for (auto pageIt = sparseOccupancyPages_.begin();
-             pageIt != sparseOccupancyPages_.end();) {
-            SparseOccupancyPage& page = pageIt->second;
-            for (std::vector<Actor*>& actorsAtCell : page.cells) {
-                const bool wasOccupied = !actorsAtCell.empty();
-                actorsAtCell.erase(std::remove(actorsAtCell.begin(),
-                                               actorsAtCell.end(), &actor),
-                                   actorsAtCell.end());
-                if (wasOccupied && actorsAtCell.empty()) {
-                    --page.occupiedCellCount;
+            if (wasOccupied && actorsAtCell.empty()) {
+                --page.occupiedCellCount;
+                if (page.occupiedCellCount == 0) {
+                    sparseOccupancyPages_.erase(pageIt);
                 }
             }
-            if (page.occupiedCellCount == 0) {
-                pageIt = sparseOccupancyPages_.erase(pageIt);
-            } else {
-                ++pageIt;
-            }
+            continue;
         }
-        return;
-    }
-    for (auto it = occupancyMap_.begin(); it != occupancyMap_.end();) {
-        auto& actorsAtCell = it->second;
+        auto key = std::make_pair(cell.x, cell.y);
+        auto occupancyIt = occupancyMap_.find(key);
+        if (occupancyIt == occupancyMap_.end()) {
+            continue;
+        }
+        auto& actorsAtCell = occupancyIt->second;
         actorsAtCell.erase(
             std::remove(actorsAtCell.begin(), actorsAtCell.end(), &actor),
             actorsAtCell.end());
         if (actorsAtCell.empty()) {
-            it = occupancyMap_.erase(it);
-        } else {
-            ++it;
+            occupancyMap_.erase(occupancyIt);
         }
     }
-}
-
-void OccupancyIndexImpl::clearRegisteredCells() {
-    registeredOccupancyCells_.clear();
+    registeredOccupancyCells_.erase(registeredIt);
 }
 
 const std::vector<sf::Vector2i>* OccupancyIndexImpl::registeredCells(

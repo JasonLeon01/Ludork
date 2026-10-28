@@ -36,6 +36,19 @@
 
 namespace {
 
+template <typename Handler>
+void withInvalidatedOccupancy(bool& dirty, Handler&& handler) {
+    struct InvalidateOnExit {
+        bool& dirty;
+        ~InvalidateOnExit() {
+            dirty = true;
+        }
+    };
+    dirty = true;
+    const InvalidateOnExit guard{dirty};
+    std::forward<Handler>(handler)();
+}
+
 bool isEligibleOccupant(Actor* actor, const Actor* excludedActor,
                         const std::unordered_set<Actor*>* descendants) {
     return actor != excludedActor &&
@@ -182,7 +195,7 @@ void GameMapBase::setTilemap(std::shared_ptr<Tilemap> tilemap) {
     tilemap_ = std::move(tilemap);
     visibilityDirty_ = true;
     tilePassableGrid_.clear();
-    passabilityDirty_ = true;
+    terrainPassabilityDirty_ = true;
 }
 
 std::shared_ptr<sf::Texture> GameMapBase::generateDataFromMap(
@@ -213,8 +226,8 @@ std::shared_ptr<sf::Texture> GameMapBase::generateDataFromMap(
 }
 
 void GameMapBase::syncActorsRef(const ActorDict& actors) {
-    actorRegistry_->syncActorsRef(actors, *occupancy_);
-    passabilityDirty_ = true;
+    actorRegistry_->syncActorsRef(actors, *occupancy_, sparseWorld_->size());
+    actorOccupancyDirty_ = false;
 }
 
 void GameMapBase::syncMaterialActorsRef(const ActorDict& actors) {
@@ -243,15 +256,24 @@ void GameMapBase::flushActorChanges() {
 }
 
 void GameMapBase::withDeferredActorViewSync(std::function<void()> handler) {
-    passabilityDirty_ = true;
-    actorRegistry_->withDeferredActorViewSync(std::move(handler));
+    actorRegistry_->withDeferredActorViewSync([this, &handler]() {
+        withInvalidatedOccupancy(actorOccupancyDirty_, handler);
+    });
 }
 
 void GameMapBase::drainActorLifecycle(
     std::function<void(Actor&)> createHandler,
     std::function<void(Actor&)> componentHandler) {
-    actorRegistry_->drainActorLifecycle(std::move(createHandler),
-                                        std::move(componentHandler));
+    const auto wrapHandler = [this](std::function<void(Actor&)> handler) {
+        return [this, handler = std::move(handler)](Actor& actor) {
+            withInvalidatedOccupancy(actorOccupancyDirty_, [&]() {
+                handler(actor);
+            });
+        };
+    };
+    actorRegistry_->drainActorLifecycle(
+        wrapHandler(std::move(createHandler)),
+        wrapHandler(std::move(componentHandler)));
 }
 
 void GameMapBase::syncActorViews(const ActorDict& actors) {
@@ -264,15 +286,13 @@ void GameMapBase::syncActorViews(const ActorDict& actors) {
     }
     const std::shared_ptr<ActorMapService> mapOwner(
         stableOwner, static_cast<ActorMapService*>(this));
-    actorRegistry_->syncActorViews(actors, mapOwner, *occupancy_);
-    passabilityDirty_ = true;
+    actorRegistry_->syncActorViews(actors, mapOwner, *occupancy_,
+                                   sparseWorld_->size());
+    actorOccupancyDirty_ = false;
 }
 
 void GameMapBase::forgetActors(const std::vector<ActorPtr>& actors) {
-    if (actorRegistry_->forgetActors(actors, *occupancy_,
-                                     sparseWorld_->size())) {
-        passabilityDirty_ = true;
-    }
+    actorRegistry_->forgetActors(actors, *occupancy_, sparseWorld_->size());
 }
 
 void GameMapBase::updateActors(float deltaTime) {
@@ -289,13 +309,15 @@ void GameMapBase::fixedUpdateActors(float fixedDelta) {
 
 void GameMapBase::updateActorList() {
     actorRegistry_->markViewsDirty();
-    passabilityDirty_ = true;
+    invalidateActorOccupancyCache();
     actorRegistry_->flushActorChanges();
 }
 
 void GameMapBase::destroyActor(Actor& actor) {
-    actorRegistry_->destroyActor(actor);
-    passabilityDirty_ = true;
+    occupancy_->unregisterActorOccupancy(actor, sparseWorld_->size());
+    withInvalidatedOccupancy(actorOccupancyDirty_, [&]() {
+        actorRegistry_->destroyActor(actor);
+    });
 }
 
 void GameMapBase::setActorListUpdater(std::function<void()> updater) {
@@ -314,7 +336,7 @@ GameMapBase::PathResult GameMapBase::findPathExt(
     const sf::Vector2i& start, const sf::Vector2i& goal,
     const sf::Vector2u& size, Actor& movingActor,
     const std::vector<sf::Vector2i>& excludedAnchors) {
-    ensurePassabilityCache();
+    ensureTerrainPassabilityCache();
     refreshActorOccupancyCache();
     int sx = start.x;
     int sy = start.y;
@@ -466,10 +488,9 @@ void GameMapBase::configureSparseWorld(
             "Disconnected-region hiding requires an ordinary tile map");
     }
     sparseWorld_->configureSparseWorld(size, layerOrder, regionRects);
-    occupancy_->clearActorOccupancy();
-    occupancy_->clearRegisteredCells();
+    resetActorOccupancyCache();
     tilePassableGrid_.clear();
-    passabilityDirty_ = true;
+    terrainPassabilityDirty_ = true;
 }
 
 void GameMapBase::setSparseWorldRegion(int regionIndex,
@@ -507,10 +528,9 @@ std::optional<int> GameMapBase::getSparseWorldRegionIndexAt(
 
 void GameMapBase::clearSparseWorld() {
     sparseWorld_->clearSparseWorld();
-    occupancy_->clearActorOccupancy();
-    occupancy_->clearRegisteredCells();
+    resetActorOccupancyCache();
     tilePassableGrid_.clear();
-    passabilityDirty_ = true;
+    terrainPassabilityDirty_ = true;
 }
 
 std::size_t GameMapBase::getSparseOccupancyPageCount() const {
@@ -519,27 +539,21 @@ std::size_t GameMapBase::getSparseOccupancyPageCount() const {
 
 std::vector<std::vector<bool>> GameMapBase::rebuildPassabilityCache(
     const sf::Vector2u& size) {
+    rebuildTerrainPassabilityCache(size);
+    refreshActorOccupancyCache();
+    return tilePassableGrid_;
+}
+
+void GameMapBase::rebuildTerrainPassabilityCache(const sf::Vector2u& size) {
     if (sparseWorld_->size().has_value()) {
-        occupancy_->clearActorOccupancy();
-        occupancy_->clearRegisteredCells();
-        for (auto& [_, actorList] : actorRegistry_->actors()) {
-            for (const ActorPtr& actor : actorList) {
-                if (actor && !actor->isDestroyed()) {
-                    occupancy_->registerActorOccupancy(*actor,
-                                                       sparseWorld_->size());
-                }
-            }
-        }
         tilePassableGrid_.clear();
-        passabilityDirty_ = false;
-        return {};
+        terrainPassabilityDirty_ = false;
+        return;
     }
     unsigned int width = size.x;
     unsigned int height = size.y;
     const std::vector<std::string> layerNames = getTopFirstLayerNames();
     std::vector<std::vector<bool>> tilePassableGrid(height);
-    occupancy_->clearActorOccupancy();
-    occupancy_->clearRegisteredCells();
     for (unsigned int y = 0; y < height; ++y) {
         std::vector<bool> row(width);
         for (unsigned int x = 0; x < width; ++x) {
@@ -560,19 +574,17 @@ std::vector<std::vector<bool>> GameMapBase::rebuildPassabilityCache(
         }
         tilePassableGrid[y] = row;
     }
-    for (auto& [_, actorList] : actorRegistry_->actors()) {
-        for (const ActorPtr& actor : actorList) {
-            occupancy_->registerActorOccupancy(*actor, sparseWorld_->size());
-        }
-    }
-    tilePassableGrid_ = tilePassableGrid;
-    passabilityDirty_ = false;
-    return tilePassableGrid_;
+    tilePassableGrid_ = std::move(tilePassableGrid);
+    terrainPassabilityDirty_ = false;
 }
 
 void GameMapBase::invalidatePassabilityCache() {
     visibilityDirty_ = true;
-    passabilityDirty_ = true;
+    terrainPassabilityDirty_ = true;
+}
+
+void GameMapBase::invalidateActorOccupancyCache() {
+    actorOccupancyDirty_ = true;
 }
 
 sf::Vector2u GameMapBase::getSize() const {
@@ -587,7 +599,7 @@ bool GameMapBase::isPassable(const Actor& actor,
     if (!actor.getCollisionEnabled() || !actor.isVisibleInHierarchy()) {
         return true;
     }
-    ensurePassabilityCache();
+    ensureTerrainPassabilityCache();
     const sf::Vector2u size = getSize();
     const std::vector<sf::Vector2i> occupied =
         actor.getOccupiedMapCellsAtMapPosition(position);
@@ -624,7 +636,7 @@ std::vector<Actor*> GameMapBase::getCollision(Actor& actor,
     if (!actor.getCollisionEnabled() || !actor.isVisibleInHierarchy()) {
         return {};
     }
-    ensurePassabilityCache();
+    ensureActorOccupancyCache();
     std::vector<Actor*> result;
     std::unordered_set<Actor*> seen;
     for (const sf::Vector2i& cell :
@@ -642,7 +654,7 @@ std::vector<Actor*> GameMapBase::getOverlaps(Actor& actor) {
     if (!actor.isVisibleInHierarchy()) {
         return {};
     }
-    ensurePassabilityCache();
+    ensureActorOccupancyCache();
     std::vector<Actor*> result;
     std::unordered_set<Actor*> seen;
     for (const sf::Vector2i& cell : actor.getOccupiedMapCells()) {
@@ -687,7 +699,7 @@ std::optional<std::string> GameMapBase::getTopMaterial(
 }
 
 std::vector<Actor*> GameMapBase::getActorsAt(int x, int y) {
-    ensurePassabilityCache();
+    ensureActorOccupancyCache();
     const std::vector<Actor*>* actors =
         occupancy_->findActorsAtCell(x, y, sparseWorld_->size());
     if (actors == nullptr) {
@@ -713,7 +725,7 @@ std::vector<Actor*> GameMapBase::getActorsInRangeExcluding(
 
 std::vector<Actor*> GameMapBase::getActorsInRangeImpl(
     int x, int y, int radius, const Actor* excludedActor) {
-    ensurePassabilityCache();
+    ensureActorOccupancyCache();
     return occupancy_->getActorsInRangeImpl(x, y, radius, excludedActor,
                                             sparseWorld_->size());
 }
@@ -723,6 +735,7 @@ std::vector<Actor*> GameMapBase::getCollisionAt(int x, int y,
     if (!selfActor.getCollisionEnabled() || !selfActor.isVisibleInHierarchy()) {
         return {};
     }
+    ensureActorOccupancyCache();
     const std::vector<Actor*>* actorsAtCell =
         occupancy_->findActorsAtCell(x, y, sparseWorld_->size());
     if (actorsAtCell == nullptr) {
@@ -754,6 +767,7 @@ std::vector<Actor*> GameMapBase::getOverlapsAt(int x, int y, Actor& selfActor) {
     if (!selfActor.isVisibleInHierarchy()) {
         return {};
     }
+    ensureActorOccupancyCache();
     const std::vector<Actor*>* actorsAtCell =
         occupancy_->findActorsAtCell(x, y, sparseWorld_->size());
     if (actorsAtCell == nullptr) {
@@ -866,59 +880,45 @@ int GameMapBase::getTopmostOccupantLayerIndex(
 }
 
 void GameMapBase::updateActorOccupancy(Actor& actor) {
-    ensurePassabilityCache();
-    occupancy_->unregisterActorOccupancy(actor, sparseWorld_->size());
-    occupancy_->registerActorOccupancy(actor, sparseWorld_->size());
+    ensureActorOccupancyCache();
+    occupancy_->updateActorOccupancy(actor, sparseWorld_->size());
 }
 
-void GameMapBase::ensurePassabilityCache() const {
+void GameMapBase::ensureTerrainPassabilityCache() const {
     if (sparseWorld_->size().has_value()) {
-        if (!passabilityDirty_) {
+        if (!terrainPassabilityDirty_) {
             return;
         }
         GameMapBase* self = const_cast<GameMapBase*>(this);
-        self->rebuildPassabilityCache(*sparseWorld_->size());
+        self->rebuildTerrainPassabilityCache(*sparseWorld_->size());
         return;
     }
     const sf::Vector2u size = getSize();
     const bool wrongHeight = tilePassableGrid_.size() != size.y;
     const bool wrongWidth = !tilePassableGrid_.empty() &&
                             tilePassableGrid_.front().size() != size.x;
-    if (!passabilityDirty_ && !wrongHeight && !wrongWidth) {
+    if (!terrainPassabilityDirty_ && !wrongHeight && !wrongWidth) {
         return;
     }
     GameMapBase* self = const_cast<GameMapBase*>(this);
-    self->rebuildPassabilityCache(size);
+    self->rebuildTerrainPassabilityCache(size);
+}
+
+void GameMapBase::ensureActorOccupancyCache() const {
+    if (actorOccupancyDirty_) {
+        const_cast<GameMapBase*>(this)->refreshActorOccupancyCache();
+    }
 }
 
 void GameMapBase::refreshActorOccupancyCache() {
-    std::unordered_set<Actor*> seenActors;
-    for (const auto& [_, actorList] : actorRegistry_->actors()) {
-        for (const ActorPtr& actor : actorList) {
-            if (!actor || !seenActors.insert(actor.get()).second) {
-                continue;
-            }
-            const std::vector<sf::Vector2i>* registered =
-                occupancy_->registeredCells(actor.get());
-            if (actor->isDestroyed()) {
-                if (registered != nullptr) {
-                    occupancy_->unregisterActorOccupancy(*actor,
-                                                         sparseWorld_->size());
-                }
-                continue;
-            }
-            const std::vector<sf::Vector2i> occupiedCells =
-                actor->getOccupiedMapCells();
-            if (registered != nullptr && *registered == occupiedCells) {
-                continue;
-            }
-            if (registered != nullptr) {
-                occupancy_->unregisterActorOccupancy(*actor,
-                                                     sparseWorld_->size());
-            }
-            occupancy_->registerActorOccupancy(*actor, sparseWorld_->size());
-        }
-    }
+    occupancy_->refreshActors(sparseWorld_->size());
+    actorOccupancyDirty_ = false;
+}
+
+void GameMapBase::resetActorOccupancyCache() {
+    occupancy_->clearActorOccupancy();
+    actorRegistry_->syncActorOccupancy(*occupancy_, sparseWorld_->size());
+    actorOccupancyDirty_ = false;
 }
 
 std::vector<std::string> GameMapBase::getTopFirstLayerNames() const {
@@ -967,7 +967,7 @@ void GameMapBase::ensureVisibilityCache() const {
     if (visibilityDirty_ || layers != visibilityLayers_) {
         if (hideDisconnectedRegions_) {
             auto* self = const_cast<GameMapBase*>(this);
-            self->rebuildPassabilityCache(getSize());
+            self->rebuildTerrainPassabilityCache(getSize());
             regionVisibility_->rebuild(tilePassableGrid_);
         }
         visibilityLayers_ = std::move(layers);

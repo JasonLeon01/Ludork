@@ -246,16 +246,9 @@ function GameMap:addDamageText(text, position, sourceActor)
         return
     end
     local drawPosition = self:worldToMapViewPosition(position)
-    DamageTextParticle.new(
-        self._particleSystem,
-        text,
-        drawPosition,
-        self._damageTextConfig,
-        self._damageTextSpeedCurve,
-        function ()
-            return self:isActorVisibleOnMap(sourceActor)
-        end
-    )
+    DamageTextParticle.new(self._particleSystem, text, drawPosition, self._damageTextConfig, self._damageTextSpeedCurve, function ()
+        return self:isActorVisibleOnMap(sourceActor)
+    end)
 end
 
 function GameMap:onTick(deltaTime)
@@ -365,10 +358,6 @@ function GameMap:show()
     ---@cast self._particleSystem Engine.ParticleSystem
     Graphics.draw(self._particleSystem)
     Graphics.setWindowDefaultView()
-end
-
-function GameMap:_syncActorsForMapCache()
-    return GameMapActors.SyncActorsForMapCache(self)
 end
 
 function GameMap:_syncActorsForPathfinding()
