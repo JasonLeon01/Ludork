@@ -100,6 +100,10 @@ public:
         unsigned int reflectionPasses = 0;
         unsigned int renderTextureAllocations = 0;
         unsigned int residentRenderTextures = 0;
+        unsigned int occupancyTextureAllocations = 0;
+        unsigned int occupancyBufferGrowths = 0;
+        unsigned int staticLightRedraws = 0;
+        std::uint64_t dynamicLightingCacheBytes = 0;
     };
 
     const Statistics& statistics() const;

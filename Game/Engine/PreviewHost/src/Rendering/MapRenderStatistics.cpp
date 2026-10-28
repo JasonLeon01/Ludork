@@ -14,7 +14,17 @@ RuntimeData mapRenderStatistics(const MapRenderer::Statistics& statistics) {
           RuntimeData(
               static_cast<std::int64_t>(statistics.renderTextureAllocations))},
          {"residentRenderTextures", RuntimeData(static_cast<std::int64_t>(
-                                        statistics.residentRenderTextures))}}));
+                                        statistics.residentRenderTextures))},
+         {"occupancyTextureAllocations",
+          RuntimeData(static_cast<std::int64_t>(
+              statistics.occupancyTextureAllocations))},
+         {"occupancyBufferGrowths", RuntimeData(static_cast<std::int64_t>(
+                                        statistics.occupancyBufferGrowths))},
+         {"staticLightRedraws", RuntimeData(static_cast<std::int64_t>(
+                                    statistics.staticLightRedraws))},
+         {"dynamicLightingCacheBytes",
+          RuntimeData(static_cast<std::int64_t>(
+              statistics.dynamicLightingCacheBytes))}}));
 }
 
 }  // namespace ludork::preview_host

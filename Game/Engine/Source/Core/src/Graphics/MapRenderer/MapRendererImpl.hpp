@@ -11,7 +11,21 @@ public:
     struct StaticLightCache {
         Light light;
         std::size_t generation = 0;
+        std::uint64_t lastUse = 0;
         std::unique_ptr<sf::RenderTexture> texture;
+
+        bool matches(const Light& value, sf::Vector2u size) const;
+    };
+
+    struct DynamicLightTexture {
+        std::shared_ptr<sf::RenderTexture> transmission;
+        std::shared_ptr<sf::Texture> occupancy;
+    };
+
+    struct DynamicLightCache {
+        sf::Vector2u size;
+        std::uint64_t lastUse = 0;
+        DynamicLightTexture texture;
     };
 
     const sf::RenderTexture& render(const Scene& scene, const View& view,
@@ -40,6 +54,15 @@ public:
     std::shared_ptr<sf::Shader> shader(const std::string& path);
     sf::RenderTexture& target(std::unique_ptr<sf::RenderTexture>& value,
                               sf::Vector2u size);
+    std::vector<std::size_t> prepareLightCaches(
+        const std::vector<Light>& lights,
+        const std::vector<sf::Vector2u>& sizes);
+    DynamicLightTexture dynamicLightTexture(sf::Vector2u size,
+                                            bool transmission);
+    void trimDynamicLightingCache();
+    void prepareOccupancy(sf::Vector2u size);
+    void fillOccupancy(const sf::IntRect& bounds);
+    std::shared_ptr<sf::Texture> createOccupancyTexture(sf::Vector2u size);
     static sf::View nativeView(const View& view);
     static sf::Vector3f colour(const sf::Color& value, bool alpha);
     static void setViewUniforms(sf::Shader& shader, const Scene& scene,
@@ -55,7 +78,6 @@ public:
     std::unique_ptr<sf::RenderTexture> surface_;
     std::unique_ptr<sf::RenderTexture> ambient_;
     std::unique_ptr<sf::RenderTexture> transmission_;
-    std::unique_ptr<sf::RenderTexture> dynamicTransmission_;
     std::unique_ptr<sf::RenderTexture> directLight_;
 
     std::unique_ptr<sf::RenderTexture> layerEffect_;
@@ -71,8 +93,12 @@ public:
                      const View& view);
 
     std::vector<StaticLightCache> lightCaches_;
+    std::vector<DynamicLightCache> dynamicLightCaches_;
+    std::uint64_t lightingCacheUse_ = 0;
+    std::uint64_t dynamicLightingCacheBytes_ = 0;
+    std::vector<std::uint8_t> occupancyPixels_;
+    sf::Vector2u occupancyPixelSize_;
     std::shared_ptr<sf::Texture> occupancy_;
-    std::shared_ptr<sf::Texture> dynamicOccupancy_;
     sf::FloatRect transmissionRect_;
     bool transmissionValid_ = false;
     std::size_t transmissionSignature_ = 0;

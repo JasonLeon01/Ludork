@@ -178,8 +178,7 @@ const sf::RenderTexture& MapRenderer::Impl::render(const Scene& scene,
         materialPrograms_.bindCount() - materialDraws;
     for (const auto* texture :
          {content_.get(), output_.get(), surface_.get(), ambient_.get(),
-          transmission_.get(), dynamicTransmission_.get(), directLight_.get(),
-          layerEffect_.get()}) {
+          transmission_.get(), directLight_.get(), layerEffect_.get()}) {
         if (texture) {
             ++statistics_.residentRenderTextures;
         }
@@ -191,6 +190,12 @@ const sf::RenderTexture& MapRenderer::Impl::render(const Scene& scene,
             ++statistics_.residentRenderTextures;
         }
     }
+    for (const DynamicLightCache& cache : dynamicLightCaches_) {
+        if (cache.texture.transmission) {
+            ++statistics_.residentRenderTextures;
+        }
+    }
+    statistics_.dynamicLightingCacheBytes = dynamicLightingCacheBytes_;
     materialContext_ = {};
     return output;
 }

@@ -9,6 +9,7 @@
 
 void MapRenderer::Impl::renderLighting(const Scene& scene, const View& view,
                                        const Options& options) {
+    trimDynamicLightingCache();
     const sf::Vector2u lightSize(
         static_cast<unsigned int>(std::max(
             1.0f, std::ceil(view.pixelSize.x * options.lightingScale))),
@@ -79,7 +80,6 @@ void MapRenderer::Impl::renderLighting(const Scene& scene, const View& view,
                                displacement * 2.0f})});
     }
     renderTransmission(scene, view, lights, options);
-    lightCaches_.resize(lights.size());
     const std::shared_ptr<sf::Shader> pass =
         shader("/Game/Assets/Shaders/Global/LightPass.frag");
     const float cell = static_cast<float>(EngineState::CellSize);
@@ -88,6 +88,16 @@ void MapRenderer::Impl::renderLighting(const Scene& scene, const View& view,
             {1.0f, static_cast<float>(view.pixelSize.x) / view.worldRect.size.x,
              static_cast<float>(view.pixelSize.y) / view.worldRect.size.y}) *
         options.lightingScale;
+    const float maxPixels = static_cast<float>(sf::Texture::getMaximumSize());
+    std::vector<sf::Vector2u> cacheSizes;
+    cacheSizes.reserve(lights.size());
+    for (const Light& light : lights) {
+        const unsigned int pixels = static_cast<unsigned int>(std::clamp(
+            std::ceil(light.radius * 2.0f * pixelDensity), 1.0f, maxPixels));
+        cacheSizes.emplace_back(pixels, pixels);
+    }
+    const std::vector<std::size_t> cacheIndices =
+        prepareLightCaches(lights, cacheSizes);
     pass->setUniform("staticTransmission", transmission_->getTexture());
     pass->setUniform("staticOccupancy", *occupancy_);
     pass->setUniform("staticViewMode", 1.0f);
@@ -97,16 +107,18 @@ void MapRenderer::Impl::renderLighting(const Scene& scene, const View& view,
                      transmissionRect_.position / cell);
     pass->setUniform("staticOccupancySize", transmissionRect_.size / cell);
     pass->setUniform("mapViewOffset", sf::Vector2f{});
+    const auto clearLightSamplers = [&] {
+        pass->setUniform("cachedStaticLight", transmission_->getTexture());
+        pass->setUniform("dynamicTransmission", transmission_->getTexture());
+        pass->setUniform("dynamicOccupancy", *occupancy_);
+    };
+    clearLightSamplers();
     sf::RenderStates states(sf::BlendAdd);
     states.shader = pass.get();
     for (std::size_t index = 0; index < lights.size(); ++index) {
         const Light& light = lights[index];
         const float diameter = light.radius * 2.0f;
-        const float maxPixels =
-            static_cast<float>(sf::Texture::getMaximumSize());
-        const unsigned int cachePixels = static_cast<unsigned int>(
-            std::clamp(std::ceil(diameter * pixelDensity), 1.0f, maxPixels));
-        const sf::Vector2u cacheSize(cachePixels, cachePixels);
+        const sf::Vector2u cacheSize = cacheSizes[index];
         const sf::FloatRect lightRect(
             light.position - sf::Vector2f(light.radius, light.radius),
             {diameter, diameter});
@@ -117,14 +129,9 @@ void MapRenderer::Impl::renderLighting(const Scene& scene, const View& view,
         pass->setUniform("lightColor", colour(light.colour, false));
         pass->setUniform("lightRadius", light.radius);
         pass->setUniform("lightIntensity", light.intensity);
-        StaticLightCache& cache = lightCaches_[index];
-        const bool changed = !cache.texture ||
-                             cache.texture->getSize() != cacheSize ||
-                             cache.generation != transmissionGeneration_ ||
-                             cache.light.position != light.position ||
-                             cache.light.colour != light.colour ||
-                             cache.light.radius != light.radius ||
-                             cache.light.intensity != light.intensity;
+        StaticLightCache& cache = lightCaches_[cacheIndices[index]];
+        const bool changed = !cache.matches(light, cacheSize) ||
+                             cache.generation != transmissionGeneration_;
         if (changed) {
             sf::RenderTexture& buffer = target(cache.texture, cacheSize);
             buffer.setView(nativeView(lightView));
@@ -137,6 +144,7 @@ void MapRenderer::Impl::renderLighting(const Scene& scene, const View& view,
             pass->setUniform("traceDynamic", 0.0f);
             buffer.draw(quad, states);
             buffer.display();
+            ++statistics_.staticLightRedraws;
             cache.light = light;
             cache.generation = transmissionGeneration_;
         }
@@ -157,12 +165,16 @@ void MapRenderer::Impl::renderLighting(const Scene& scene, const View& view,
             static_cast<unsigned int>(std::max(
                 1.0f, std::ceil((lightRect.position.y + diameter) / cell) -
                           occupancyOrigin.y)));
+        DynamicLightTexture dynamicTextures;
         if (hasOccluders) {
-            sf::RenderTexture& dynamic =
-                target(dynamicTransmission_, cacheSize);
+            dynamicTextures.transmission =
+                dynamicLightTexture(cacheSize, true).transmission;
+            dynamicTextures.occupancy =
+                dynamicLightTexture(occupancySize, false).occupancy;
+            sf::RenderTexture& dynamic = *dynamicTextures.transmission;
             dynamic.setView(nativeView(lightView));
             dynamic.clear(sf::Color::White);
-            sf::Image occupancy(occupancySize, sf::Color::Black);
+            prepareOccupancy(occupancySize);
             for (const Occluder& occluder : occluders) {
                 const Sprite& sprite = *occluder.sprite;
                 if (light.emitterId && *light.emitterId == sprite.id) {
@@ -189,22 +201,10 @@ void MapRenderer::Impl::renderLighting(const Scene& scene, const View& view,
                     static_cast<int>(
                         std::ceil((bounds.position.y + bounds.size.y) / cell)) -
                         occupancyOrigin.y);
-                for (int y = top; y < bottom; ++y) {
-                    for (int x = left; x < right; ++x) {
-                        occupancy.setPixel({static_cast<unsigned int>(x),
-                                            occupancySize.y - 1 -
-                                                static_cast<unsigned int>(y)},
-                                           sf::Color::White);
-                    }
-                }
+                fillOccupancy({{left, top}, {right - left, bottom - top}});
             }
             dynamic.display();
-            if (!dynamicOccupancy_ ||
-                dynamicOccupancy_->getSize() != occupancySize) {
-                dynamicOccupancy_ = std::make_shared<sf::Texture>(occupancy);
-            } else {
-                dynamicOccupancy_->update(occupancy);
-            }
+            dynamicTextures.occupancy->update(occupancyPixels_.data());
         }
         setViewUniforms(*pass, scene, view);
         pass->setUniform(
@@ -215,16 +215,21 @@ void MapRenderer::Impl::renderLighting(const Scene& scene, const View& view,
         pass->setUniform("traceStatic", 0.0f);
         pass->setUniform("traceDynamic", hasOccluders ? 1.0f : 0.0f);
         pass->setUniform("dynamicTransmission",
-                         hasOccluders ? dynamicTransmission_->getTexture()
-                                      : transmission_->getTexture());
+                         hasOccluders
+                             ? dynamicTextures.transmission->getTexture()
+                             : transmission_->getTexture());
         pass->setUniform("dynamicMaskOrigin", lightRect.position);
         pass->setUniform("dynamicMaskSize", lightRect.size);
-        pass->setUniform("dynamicOccupancy",
-                         hasOccluders ? *dynamicOccupancy_ : *occupancy_);
+        pass->setUniform("dynamicOccupancy", hasOccluders
+                                                 ? *dynamicTextures.occupancy
+                                                 : *occupancy_);
         pass->setUniform("dynamicOccupancyOrigin",
                          sf::Vector2f(occupancyOrigin));
         pass->setUniform("dynamicOccupancySize", sf::Vector2f(occupancySize));
         direct.draw(quad, states);
+        clearLightSamplers();
+        dynamicTextures = {};
+        trimDynamicLightingCache();
     }
     direct.display();
 }

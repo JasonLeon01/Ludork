@@ -172,7 +172,7 @@ void MapRenderer::Impl::renderTransmission(const Scene& scene, const View& view,
     sf::RenderTexture& transmission = target(transmission_, pixels);
     transmission.setView(nativeView(maskView));
     transmission.clear(sf::Color::White);
-    sf::Image occupancy(cells, sf::Color::Black);
+    prepareOccupancy(cells);
     for (const Region& region : scene.regions) {
         if (!region.tilemap) {
             continue;
@@ -213,29 +213,18 @@ void MapRenderer::Impl::renderTransmission(const Scene& scene, const View& view,
                     if (layer->hasContent({x, y})) {
                         const int centreX = x + region.cellOrigin.x - origin.x;
                         const int centreY = y + region.cellOrigin.y - origin.y;
-                        for (int maskY = std::max(0, centreY - paddingY);
-                             maskY <= std::min(static_cast<int>(cells.y) - 1,
-                                               centreY + paddingY);
-                             ++maskY) {
-                            for (int maskX = std::max(0, centreX - paddingX);
-                                 maskX <=
-                                 std::min(static_cast<int>(cells.x) - 1,
-                                          centreX + paddingX);
-                                 ++maskX) {
-                                occupancy.setPixel(
-                                    {static_cast<unsigned>(maskX),
-                                     cells.y - 1u -
-                                         static_cast<unsigned>(maskY)},
-                                    sf::Color::White);
-                            }
-                        }
+                        fillOccupancy({{centreX - paddingX, centreY - paddingY},
+                                       {paddingX * 2 + 1, paddingY * 2 + 1}});
                     }
                 }
             }
         }
     }
     transmission.display();
-    occupancy_ = std::make_shared<sf::Texture>(occupancy);
+    if (!occupancy_ || occupancy_->getSize() != cells) {
+        occupancy_ = createOccupancyTexture(cells);
+    }
+    occupancy_->update(occupancyPixels_.data());
     transmissionRect_ = rect;
     transmissionSignature_ = signature;
     ++transmissionGeneration_;
