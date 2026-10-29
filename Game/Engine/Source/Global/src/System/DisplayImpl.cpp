@@ -118,7 +118,7 @@ void DisplayImpl::prepareInitialization(const std::string& title,
     if (window_ != nullptr) {
         throw std::logic_error("Display has already been initialized");
     }
-    windowTitle_ = title;
+    windowTitle_ = sf::String::fromUtf8(title.begin(), title.end());
     windowIconPath_ = iconPath;
     windowCursorPath_ = cursorPath;
     windowContextSettings_ = {};

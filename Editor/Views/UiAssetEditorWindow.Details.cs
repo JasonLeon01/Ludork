@@ -70,9 +70,12 @@ public partial class UiAssetEditorWindow
         detailsRefreshPending = false;
         pendingFieldCommit = null;
         textStyleFields.Clear();
+        NodeDetailsPanel.Children.Clear();
+        NodeDetailsHeader.IsVisible = node is not null;
         DetailsPanel.Children.Clear();
         if (node is null)
             return;
+        addNodeDetails(node);
         if (isRoot)
             addAssetDetails();
         if (!isRoot)
@@ -84,7 +87,7 @@ public partial class UiAssetEditorWindow
     {
         Dispatcher.UIThread.Post(() =>
         {
-            if (!closed && detailsRefreshPending && !DetailsPanel.IsKeyboardFocusWithin)
+            if (!closed && detailsRefreshPending && !DetailsContainer.IsKeyboardFocusWithin)
                 refreshDetails(true);
         }, DispatcherPriority.Background);
     }
@@ -142,16 +145,21 @@ public partial class UiAssetEditorWindow
             refreshAll();
     }
 
+    private void addNodeDetails(JsonObject node)
+    {
+        string nodeName = getString(node, "name");
+        TextBox name = EditorInputs.CreateEditableTextBox(nodeName);
+        bindTextField(name, value => renameNode(nodeName, value));
+        NodeDetailsPanel.Children.Add(createField(LocaleService.Get("NAME"), name));
+        TextBox control = EditorInputs.CreateReadOnlyTextBox(getString(node, "controlId"));
+        NodeDetailsPanel.Children.Add(createField(LocaleService.Get("CONTROL"), control));
+    }
+
     private void addWidgetDetails(JsonObject node)
     {
         addSection(LocaleService.Get("WIDGET"));
         string nodeName = getString(node, "name");
-        addTextField(
-            LocaleService.Get("NAME"),
-            nodeName,
-            value => renameNode(nodeName, value));
         string controlId = getString(node, "controlId");
-        addReadOnlyTextField(LocaleService.Get("CONTROL"), controlId);
         if (!controlLookup.TryGetValue(controlId, out UiControlDescriptor? descriptor))
             return;
         if (descriptor.AssetKey is not null)

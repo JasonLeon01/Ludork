@@ -196,13 +196,23 @@
                 Padding="10"
                 BorderBrush="{DynamicResource Editor.BorderBrush}"
                 BorderThickness="0">
-                <Grid RowDefinitions="Auto,*">
+                <Grid x:Name="DetailsContainer" RowDefinitions="Auto,Auto,*">
                     <TextBlock
                         x:Name="DetailsTitle"
                         Margin="2,0,2,8"
                         FontSize="14"
                         FontWeight="SemiBold" />
-                    <ScrollViewer Grid.Row="1">
+                    <Border
+                        x:Name="NodeDetailsHeader"
+                        Grid.Row="1"
+                        Margin="0,0,4,8"
+                        Padding="0,0,0,14"
+                        BorderBrush="{DynamicResource Editor.BorderBrush}"
+                        BorderThickness="0,0,0,1"
+                        IsVisible="False">
+                        <StackPanel x:Name="NodeDetailsPanel" Spacing="8" />
+                    </Border>
+                    <ScrollViewer Grid.Row="2">
                         <StackPanel
                             x:Name="DetailsPanel"
                             Margin="0,0,4,12"

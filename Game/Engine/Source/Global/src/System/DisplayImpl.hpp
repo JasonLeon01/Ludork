@@ -1,6 +1,7 @@
 #pragma once
 
 #include <SFML/Graphics.hpp>
+#include <SFML/System/String.hpp>
 #include <SFML/Window/Cursor.hpp>
 #include <chrono>
 #include <memory>
@@ -68,7 +69,7 @@ private:
     mutable std::mutex windowMutex_;
     std::mutex pendingSettingsMutex_;
     std::unique_ptr<sf::Cursor> cursor_;
-    std::string windowTitle_;
+    sf::String windowTitle_;
     std::string windowIconPath_;
     std::string windowCursorPath_;
     sf::ContextSettings windowContextSettings_;

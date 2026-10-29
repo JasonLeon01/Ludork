@@ -102,7 +102,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             animationSignature = null;
             InitializeComponent();
             bindEditorLayout();
-            DetailsPanel.LostFocus += onDetailsLostFocus;
+            DetailsContainer.LostFocus += onDetailsLostFocus;
             toast = new Toast(this);
             previewSession = new UiAssetPreviewSession(document, gameData, controlRegistry.Runtime);
             previewSurface = new UiPreviewSurface
@@ -478,7 +478,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             PaletteSearch.IsEnabled = controlRegistry.IsReady;
             PaletteCategories.IsEnabled = controlRegistry.IsReady;
             HierarchyTree.IsEnabled = controlRegistry.IsReady;
-            DetailsPanel.IsEnabled = controlRegistry.IsReady;
+            DetailsContainer.IsEnabled = controlRegistry.IsReady;
             TimelineContainer.IsEnabled = controlRegistry.IsReady;
             previewSurface.TransformEnabled = controlRegistry.IsReady && timelineEditor.CurrentSample is null;
         }
