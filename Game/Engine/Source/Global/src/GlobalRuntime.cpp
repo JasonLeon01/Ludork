@@ -61,6 +61,7 @@ void initializeGlobalLifecycle(lua_State* state) {
     ludork::standard::registerRuntimeCleanup(state, ludork::global::shutdown);
     PerformanceProfiler::setEnabled(false);
     System::initializeRuntimeSession();
+    TextureManager::initialize();
     ludork::global::initializeServer();
     AudioManager::initialize(state);
     initializeActorAudioBridge();

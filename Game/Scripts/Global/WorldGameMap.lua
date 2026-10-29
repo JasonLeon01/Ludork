@@ -148,6 +148,9 @@ function WorldGameMap:disposeStreaming()
     end
     for _, region in ipairs(self._worldRegions) do
         self:_cancelRegionPublish(region)
+        if region.backgroundBuilder ~= nil then
+            region.backgroundBuilder.cancel()
+        end
         region.backgroundBuilder = nil
         region.activeChunkGeneration = nil
     end
@@ -657,8 +660,8 @@ function WorldGameMap:_drainRegionPublish(region)
     return WorldGameMapRegionPublishing.DrainRegionPublish(self, region, STREAM_PUBLISH_BUDGET_SECONDS)
 end
 
-function WorldGameMap:_pumpRegionPublishing(deadline)
-    return WorldGameMapRegionPublishing.PumpRegionPublishing(self, deadline)
+function WorldGameMap:_pumpRegionPublishing(deadline, waitingBuilders)
+    return WorldGameMapRegionPublishing.PumpRegionPublishing(self, deadline, waitingBuilders)
 end
 
 function WorldGameMap:_publishRegion(region, data, activate)

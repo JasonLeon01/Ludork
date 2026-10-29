@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Manager/TextureManager.hpp>
+
 #include <atomic>
 #include <chrono>
 #include <cstddef>
@@ -14,6 +16,8 @@ struct MainFramePerformanceMeasurement {
     double runtimeMilliseconds{};
     double sceneOperationsMilliseconds{};
     double inputMilliseconds{};
+    double textureUploadMilliseconds{};
+    TextureManager::Statistics textureStreaming;
     double uiUpdateMilliseconds{};
     double renderMilliseconds{};
     double lateUpdateMilliseconds{};
@@ -82,6 +86,8 @@ private:
         double runtimeMilliseconds{};
         double sceneOperationsMilliseconds{};
         double inputMilliseconds{};
+        double textureUploadMilliseconds{};
+        TextureManager::Statistics textureStreaming;
         double uiUpdateMilliseconds{};
         double renderCpuMilliseconds{};
         double presentWaitMilliseconds{};

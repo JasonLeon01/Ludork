@@ -1,5 +1,17 @@
 ---@meta Source.SceneComponents.MapBuilder.WorldRegionBuildState
 
+---@class Source.SceneComponents.MapBuilder.WorldRegionBuildState.Resources
+---@field requests table<string, GlobalCore.TextureLoadRequest>
+---@field priority integer
+
+---@class Source.SceneComponents.MapBuilder.WorldRegionBuildState.LayerResources
+---@field layerData Global.GameMap.MapLayerData
+---@field layerTileset Engine.Tileset
+---@field tileLayerData Engine.TileLayerData
+---@field layerTerrainOverrides table<integer, table<integer, Source.SceneComponents.WorldTerrainOverride>>
+---@field autoTilePool Engine.AutoTile[]
+---@field autoTileIndexByKey table<string, integer>
+
 ---@class Source.SceneComponents.MapBuilder.WorldRegionBuildState.State: Global.WorldGameMap.RegionBuildState
 ---@field layerBuildStates Source.SceneComponents.WorldLayerBuildState[] | nil
 

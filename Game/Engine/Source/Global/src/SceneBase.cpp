@@ -12,6 +12,7 @@
 
 #include <Input/InputService.hpp>
 #include <Manager/AudioManager.hpp>
+#include <Manager/TextureManager.hpp>
 #include <Runtime/RuntimeReflection.hpp>
 #include <RuntimeSession.hpp>
 #include <SFML/Window/Context.hpp>
@@ -231,6 +232,31 @@ void SceneBase::systemMain() {
                     measurement.inputMilliseconds =
                         durationMilliseconds(phaseEnd - phaseStart);
                     phaseStart = phaseEnd;
+                }
+                const std::shared_ptr<sf::RenderWindow> uploadWindow =
+                    Display::getWindow();
+                lock.unlock();
+                if (uploadWindow != nullptr) {
+                    if (!uploadWindow->setActive(true)) {
+                        throw std::runtime_error(
+                            "Failed to activate the texture upload context");
+                    }
+                    TextureManager::pumpUploads();
+                }
+                if (profile) {
+                    const auto phaseEnd = std::chrono::steady_clock::now();
+                    measurement.textureUploadMilliseconds =
+                        durationMilliseconds(phaseEnd - phaseStart);
+                    measurement.textureStreaming =
+                        TextureManager::getStatistics();
+                    phaseStart = phaseEnd;
+                }
+                lock = lockLogicDataForMain();
+                if (!System::isActive() || lifecycleImpl_->isStopping() ||
+                    SceneManager::hasPendingSceneOperations() ||
+                    SceneManager::getScene().get() != this) {
+                    lifecycleImpl_->requestStop();
+                    break;
                 }
                 TimeManager::update();
                 deltaTime =

@@ -301,6 +301,9 @@ function WorldGameMapActorStreaming.EvictRegion(self, region)
     payload.definitionRegions = {}
     self._fogController:removeWorldRegionFog(region.path)
     self:detachSparseWorldRegion(region.index)
+    if region.backgroundBuilder ~= nil then
+        region.backgroundBuilder.cancel()
+    end
     region.backgroundBuilder = nil
     region.payload = nil
     self._worldStreamingState:markEvicted(region.index)

@@ -27,6 +27,7 @@ local BuildStage = {
     CREATE_TILE_LAYER_DATA = "createTileLayerData",
     LOAD_AUTOTILE_TEXTURE = "loadAutotileTexture",
     LOAD_TILESET_TEXTURE = "loadTilesetTexture",
+    WAIT_TEXTURE = "waitTexture",
     CONSTRUCT_TILE_LAYER = "constructTileLayer",
     CREATE_TILE_SCRATCH = "createTileScratch",
     INDEX_TILE_CHUNKS = "indexTileChunks",
@@ -48,6 +49,7 @@ local BuildStage = {
 }
 
 local TextureManager = GlobalCore.TextureManager
+local TextureLoadRequest = GlobalCore.TextureLoadRequest
 local WORLD_REGION_FIXED_CACHE_BYTES = WorldMapConstants.REGION_FIXED_CACHE_BYTES
 local WORLD_REGION_LAYER_CELL_CACHE_BYTES = WorldMapConstants.REGION_LAYER_CELL_CACHE_BYTES
 local WORLD_REGION_ACTOR_CACHE_BYTES = 16 * 1024
@@ -57,6 +59,26 @@ local WORLD_TILE_GRAPHICS_CHUNK_SIZE = WorldMapConstants.SPATIAL_CHUNK_SIZE
 local worldLayerValidationStates = setmetatable({}, { __mode = "k" })
 
 local WorldRegionBuildState = {}
+
+---@param resources Source.SceneComponents.MapBuilder.WorldRegionBuildState.Resources
+---@param path      string
+local function requestTexture(resources, path)
+    if resources.requests[path] == nil then
+        resources.requests[path] = TextureManager.request(path, false, nil, false, resources.priority)
+    end
+end
+
+---@param resources Source.SceneComponents.MapBuilder.WorldRegionBuildState.Resources
+---@param path      string
+---@return sf.Texture
+---@async
+local function loadRequestedTexture(resources, path)
+    local request = resources.requests[path]
+    while request:getStatus() == TextureLoadRequest.PENDING do
+        coroutine.yield(BuildStage.WAIT_TEXTURE)
+    end
+    return request:getTexture()
+end
 
 ---@param worldData  Global.WorldGameMap.WorldMapData
 ---@param validation Source.SceneComponents.WorldLayerValidationState
@@ -164,9 +186,10 @@ end
 ---@param addedActors  Source.GameInstance.AddedActorRecord[]
 ---@param movedActors  Source.GameInstance.WorldMovedActorRecord[]
 ---@param priorityRect Global.WorldGeometry.CellRect | nil
+---@param resources    Source.SceneComponents.MapBuilder.WorldRegionBuildState.Resources
 ---@return thread
 local function createWorldRegionBuildCoroutine(
-    builder, worldData, region, data, inst, worldPath, addedActors, movedActors, priorityRect
+    builder, worldData, region, data, inst, worldPath, addedActors, movedActors, priorityRect, resources
 )
     return coroutine.create(function ()
         MapDataParser.ValidateMapData(data)
@@ -192,13 +215,25 @@ local function createWorldRegionBuildCoroutine(
         local tilemap = Engine.Tilemap.new({})
         ---@type Source.SceneComponents.WorldLayerBuildState[]
         local layerBuildStates = {}
+        ---@type Source.SceneComponents.MapBuilder.WorldRegionBuildState.LayerResources[]
+        local layerResources = {}
         for _, layerKey in ipairs(data.layerOrder) do
             local layerData = data.layers[layerKey]
             local layerTileset = Data.GetTileset(layerData.layerTileset)
+            requestTexture(resources, layerTileset.fileName)
             local rawAutoTiles = layerData.autoTiles
             local layerTerrainOverrides = terrainOverrides[layerKey] or {}
             local autoTilePool = {}
             local autoTileIndexByKey = {}
+            ---@param key string
+            local function indexAutoTile(key)
+                if autoTileIndexByKey[key] == nil then
+                    local autoTile = Data.GetAutoTile(key)
+                    autoTilePool[#autoTilePool + 1] = autoTile
+                    autoTileIndexByKey[key] = #autoTilePool - 1
+                    requestTexture(resources, autoTile.fileName)
+                end
+            end
             if rawAutoTiles ~= nil then
                 for _, chunk in ipairs(rowMajorChunks) do
                     for y = chunk.y + 1, chunk.y + chunk.height do
@@ -207,9 +242,8 @@ local function createWorldRegionBuildCoroutine(
                             local cell = rawRow ~= nil and rawRow[x] or nil
                             if Class.isInstance(cell, "string") then
                                 ---@cast cell string
-                                if bool(cell) and Data.HasAutoTile(cell) and autoTileIndexByKey[cell] == nil then
-                                    autoTilePool[#autoTilePool + 1] = Data.GetAutoTile(cell)
-                                    autoTileIndexByKey[cell] = #autoTilePool - 1
+                                if bool(cell) and Data.HasAutoTile(cell) then
+                                    indexAutoTile(cell)
                                 end
                             end
                         end
@@ -222,10 +256,7 @@ local function createWorldRegionBuildCoroutine(
                     local tileID = terrainOverride.tileID
                     if Class.isInstance(tileID, "string") then
                         ---@cast tileID string
-                        if autoTileIndexByKey[tileID] == nil then
-                            autoTilePool[#autoTilePool + 1] = Data.GetAutoTile(tileID)
-                            autoTileIndexByKey[tileID] = #autoTilePool - 1
-                        end
+                        indexAutoTile(tileID)
                     end
                 end
                 coroutine.yield(BuildStage.INDEX_TERRAIN_AUTOTILES)
@@ -239,16 +270,30 @@ local function createWorldRegionBuildCoroutine(
                 tostring(layerData.material or "")
             )
             tileLayerData.layerTilesetKey = layerData.layerTileset
+            layerResources[#layerResources + 1] = {
+                layerData = layerData,
+                layerTileset = layerTileset,
+                tileLayerData = tileLayerData,
+                layerTerrainOverrides = layerTerrainOverrides,
+                autoTilePool = autoTilePool,
+                autoTileIndexByKey = autoTileIndexByKey
+            }
             coroutine.yield(BuildStage.CREATE_TILE_LAYER_DATA)
+        end
+        for _, layerResource in ipairs(layerResources) do
+            local layerData = layerResource.layerData
+            local layerTileset = layerResource.layerTileset
+            local tileLayerData = layerResource.tileLayerData
+            local autoTilePool = layerResource.autoTilePool
             local autoTileTextures = {}
             local autoTileFrameCounts = {}
             for index, entry in ipairs(autoTilePool) do
-                local texture = TextureManager.load(entry.fileName)
+                local texture = loadRequestedTexture(resources, entry.fileName)
                 autoTileTextures[index] = texture
                 autoTileFrameCounts[index] = AutoTileRuntime.GetFrameCount(texture)
                 coroutine.yield(BuildStage.LOAD_AUTOTILE_TEXTURE)
             end
-            local tilesetTexture = TextureManager.load(tileLayerData.layerTileset.fileName)
+            local tilesetTexture = loadRequestedTexture(resources, tileLayerData.layerTileset.fileName)
             coroutine.yield(BuildStage.LOAD_TILESET_TEXTURE)
             local tileLayer = Engine.TileLayer.new(
                 tileLayerData, tilesetTexture, autoTileTextures, autoTileFrameCounts, true, true
@@ -273,9 +318,9 @@ local function createWorldRegionBuildCoroutine(
                 tileLayer = tileLayer,
                 layerData = layerData,
                 layerTileset = layerTileset,
-                rawAutoTiles = rawAutoTiles,
-                layerTerrainOverrides = layerTerrainOverrides,
-                autoTileIndexByKey = autoTileIndexByKey,
+                rawAutoTiles = layerData.autoTiles,
+                layerTerrainOverrides = layerResource.layerTerrainOverrides,
+                autoTileIndexByKey = layerResource.autoTileIndexByKey,
                 autoTilePoolSize = #autoTilePool,
                 tileBlock = tileBlock,
                 autoTileBlock = autoTileBlock,
@@ -300,6 +345,7 @@ local function createWorldRegionBuildCoroutine(
             layerBuildStates[#layerBuildStates + 1] = layerBuildState
             coroutine.yield(BuildStage.CREATE_TILE_LAYER)
         end
+        resources.requests = {}
 
         local terrain = RegionTerrain.new(tilemap, Data.GetAutoTile)
         coroutine.yield(BuildStage.CREATE_TERRAIN)
@@ -508,18 +554,23 @@ end
 function WorldRegionBuildState.Create(
     builder, worldData, region, data, inst, worldPath, addedActors, movedActors, priorityRect
 )
+    ---@type Source.SceneComponents.MapBuilder.WorldRegionBuildState.Resources
+    local resources = { requests = {}, priority = 0 }
+    local cancelled = false
     local buildThread = createWorldRegionBuildCoroutine(
-        builder, worldData, region, data, inst, worldPath, addedActors, movedActors, priorityRect
+        builder, worldData, region, data, inst, worldPath, addedActors, movedActors, priorityRect, resources
     )
     ---@type Source.SceneComponents.MapBuilder.WorldRegionBuildState.State
     local state
     local function advance(deadline, stopAfterActorPhase)
+        assert(not cancelled, "Cannot advance a cancelled world region builder")
         state.lastStepMaximumStage = BuildStage.IDLE
         state.lastStepMaximumMilliseconds = 0.0
         state.lastStepResumeCount = 0
         if state.completed or perfCounter() >= deadline then
             return state.payload
         end
+        state.waitingForResources = false
         repeat
             local started = perfCounter()
             local succeeded, stage, eventValue, eventMetadata = coroutine.resume(buildThread)
@@ -539,6 +590,10 @@ function WorldRegionBuildState.Create(
             state.stageMaximumMilliseconds[stage] = math.max(
                 state.stageMaximumMilliseconds[stage] or 0.0, elapsedMilliseconds
             )
+            if stage == BuildStage.WAIT_TEXTURE then
+                state.waitingForResources = true
+                return nil
+            end
             if coroutine.status(buildThread) == "dead" then
                 assert(stage == BuildStage.COMPLETE, "World region builder ended without a complete event")
                 ---@cast eventValue Global.WorldGameMap.RegionPayload
@@ -578,6 +633,7 @@ function WorldRegionBuildState.Create(
     state = {
         completed = false,
         ready = false,
+        waitingForResources = false,
         geometryRevision = 0,
         actorPhaseComplete = false,
         readyActorRoots = {},
@@ -588,6 +644,43 @@ function WorldRegionBuildState.Create(
         lastStepMaximumStage = BuildStage.IDLE,
         lastStepMaximumMilliseconds = 0.0,
         lastStepResumeCount = 0,
+        setResourcePriority = function (priority)
+            if resources.priority == priority then
+                return
+            end
+            resources.priority = priority
+            for _, request in pairs(resources.requests) do
+                request:setPriority(priority)
+            end
+        end,
+        resolvePendingResources = function ()
+            assert(not cancelled, "Cannot resolve resources for a cancelled world region builder")
+            for path, request in pairs(resources.requests) do
+                if request:getStatus() == TextureLoadRequest.PENDING then
+                    TextureManager.load(path)
+                else
+                    request:getTexture()
+                end
+            end
+            state.waitingForResources = false
+        end,
+        cancel = function ()
+            if cancelled then
+                return
+            end
+            cancelled = true
+            for _, request in pairs(resources.requests) do
+                request:cancel()
+            end
+            resources.requests = {}
+            coroutine.close(buildThread)
+            state.waitingForResources = false
+            state.layerBuildStates = nil
+            state.payload = nil
+            state.readyActorRoots = {}
+            state.actorPublishQueue = nil
+            state.actorPublishRoot = nil
+        end,
         areActorsReady = function ()
             return state.actorPhaseComplete and not bool(state.readyActorRoots) and state.actorPublishQueue == nil
         end,

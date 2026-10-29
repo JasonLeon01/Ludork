@@ -56,6 +56,10 @@
 ---@class Global.WorldGameMap.RegionBuildState
 ---@field completed              boolean
 ---@field ready                  boolean
+---@field waitingForResources    boolean
+---@field setResourcePriority    fun(priority: integer)
+---@field resolvePendingResources fun()
+---@field cancel                 fun()
 ---@field geometryRevision       integer
 ---@field actorPhaseComplete     boolean
 ---@field readyActorRoots        { actorRoot: Engine.Actor, actorLayer: string }[]

@@ -81,6 +81,9 @@ void PerformanceProfiler::recordMainFrame(
         record.sceneOperationsMilliseconds =
             std::max(0.0, measurement.sceneOperationsMilliseconds);
         record.inputMilliseconds = std::max(0.0, measurement.inputMilliseconds);
+        record.textureUploadMilliseconds =
+            std::max(0.0, measurement.textureUploadMilliseconds);
+        record.textureStreaming = measurement.textureStreaming;
         record.uiUpdateMilliseconds =
             std::max(0.0, measurement.uiUpdateMilliseconds);
         record.presentWaitMilliseconds =
@@ -221,11 +224,30 @@ void PerformanceProfiler::emit(Batch batch) {
                << ",\"runtime\":" << finite(record.runtimeMilliseconds)
                << ",\"sceneOps\":" << finite(record.sceneOperationsMilliseconds)
                << ",\"input\":" << finite(record.inputMilliseconds)
+               << ",\"textureUpload\":"
+               << finite(record.textureUploadMilliseconds)
                << ",\"uiUpdate\":" << finite(record.uiUpdateMilliseconds)
                << ",\"renderCpu\":" << finite(record.renderCpuMilliseconds)
                << ",\"presentWait\":" << finite(record.presentWaitMilliseconds)
                << ",\"lateUpdate\":" << finite(record.lateUpdateMilliseconds)
-               << ",\"audio\":" << finite(record.audioMilliseconds) << '}';
+               << ",\"audio\":" << finite(record.audioMilliseconds);
+        const TextureManager::Statistics& textures = record.textureStreaming;
+        output << ",\"textureStreaming\":{\"cacheHits\":" << textures.cacheHits
+               << ",\"mergedRequests\":" << textures.mergedRequests
+               << ",\"decodedCount\":" << textures.decodedCount
+               << ",\"uploadedCount\":" << textures.uploadedCount
+               << ",\"failedCount\":" << textures.failedCount
+               << ",\"cancelledCount\":" << textures.cancelledCount
+               << ",\"uploadedBytes\":" << textures.uploadedBytes
+               << ",\"decodeMilliseconds\":"
+               << finite(textures.decodeMilliseconds)
+               << ",\"uploadMilliseconds\":"
+               << finite(textures.uploadMilliseconds)
+               << ",\"pendingRequests\":" << textures.pendingRequests
+               << ",\"decodingRequests\":" << textures.decodingRequests
+               << ",\"readyRequests\":" << textures.readyRequests
+               << ",\"readyBytes\":" << textures.readyBytes
+               << ",\"peakReadyBytes\":" << textures.peakReadyBytes << "}}";
     }
     output << "],\"logicTicks\":[";
     for (std::size_t index = 0; index < batch.logicTicks.size(); ++index) {

@@ -10,6 +10,7 @@
 #include "System/Config/AudioConfigImpl.hpp"
 #include <EngineState.hpp>
 #include <Manager/TimeManager.hpp>
+#include <Manager/TextureManager.hpp>
 #include <stdexcept>
 #include <utility>
 
@@ -117,6 +118,7 @@ void System::initializeRuntimeSession() noexcept {
 void System::shutdownRuntime() noexcept {
     ludork::global::system_impl::lifecycleImpl().shutdownRuntime([]() noexcept {
         ludork::global::system_impl::sceneStackImpl().shutdown();
+        TextureManager::shutdown();
         ludork::global::system_impl::framePipelineImpl()
             .transition()
             .cancelPendingTransition();

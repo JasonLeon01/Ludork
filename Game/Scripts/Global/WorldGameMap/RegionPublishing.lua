@@ -65,6 +65,9 @@ function WorldGameMapRegionPublishing.CancelRegionPublish(self, region)
     if state == nil then
         return
     end
+    if state.builder ~= nil then
+        state.builder.cancel()
+    end
     if state.conversion ~= nil then
         asyncio.clear_file_batch_data(state.conversion)
         state.conversion = nil
@@ -183,6 +186,10 @@ function WorldGameMapRegionPublishing.StepRegionPublish(self, region, deadline)
             return false
         end
         local builder = assert(state.builder, "World region builder is unavailable")
+        builder.setResourcePriority(
+            (state.forceActivate or self._worldStreamingState:getRegionDemand(region.index) == WorldRegionDemand.Active)
+                and 1 or 0
+        )
         local payload = builder.step(deadline)
         self._worldPublishSlowStage, self._worldPublishSlowStageMilliseconds = recordPublishStage(
             self._worldPublishSlowStage, self._worldPublishSlowStageMilliseconds, builder.lastStepMaximumStage,
@@ -426,6 +433,9 @@ end
 function WorldGameMapRegionPublishing.DrainRegionPublish(self, region, publishBudgetSeconds)
     local started = perfCounter()
     while region.publishState ~= nil do
+        if region.publishState.builder ~= nil and region.publishState.builder.waitingForResources then
+            region.publishState.builder.resolvePendingResources()
+        end
         local deadline = region.publishState.phase == WorldPublishPhase.CONVERT and perfCounter() + publishBudgetSeconds
             or math.huge
         self:_stepRegionPublish(region, deadline)
@@ -434,8 +444,10 @@ function WorldGameMapRegionPublishing.DrainRegionPublish(self, region, publishBu
 end
 
 ---@param deadline number
+---@param waitingBuilders table<integer, Global.WorldGameMap.RegionBuildState>
 ---@param self     WorldGameMapImplState
-function WorldGameMapRegionPublishing.PumpRegionPublishing(self, deadline)
+function WorldGameMapRegionPublishing.PumpRegionPublishing(self, deadline, waitingBuilders)
+    local deferred = {}
     while perfCounter() < deadline do
         local regionIndex = self._worldStreamingState:takePublishItem()
         if regionIndex == nil then
@@ -444,16 +456,30 @@ function WorldGameMapRegionPublishing.PumpRegionPublishing(self, deadline)
         local region = assert(self._worldRegions[regionIndex], "Native world publish queue returned an invalid region")
         if region.publishState ~= nil then
             if self:_isRegionDemanded(region) or region.publishState.forceActivate then
-                local started = perfCounter()
-                local completed = self:_stepRegionPublish(region, deadline)
-                self._worldPublishMilliseconds = self._worldPublishMilliseconds + (perfCounter() - started) * 1000.0
-                if not completed then
-                    self._worldStreamingState:deferPublish(region.index)
+                local builder = region.publishState.builder
+                if builder ~= nil and waitingBuilders[region.index] == builder then
+                    deferred[#deferred + 1] = region.index
+                else
+                    local started = perfCounter()
+                    local completed = self:_stepRegionPublish(region, deadline)
+                    self._worldPublishMilliseconds = self._worldPublishMilliseconds + (perfCounter() - started) * 1000.0
+                    if not completed then
+                        builder = region.publishState ~= nil and region.publishState.builder or nil
+                        if builder ~= nil and builder.waitingForResources then
+                            waitingBuilders[region.index] = builder
+                            deferred[#deferred + 1] = region.index
+                        else
+                            self._worldStreamingState:deferPublish(region.index)
+                        end
+                    end
                 end
             else
                 self:_cancelRegionPublish(region)
             end
         end
+    end
+    for _, regionIndex in ipairs(deferred) do
+        self._worldStreamingState:deferPublish(regionIndex)
     end
 end
 

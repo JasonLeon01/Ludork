@@ -1,80 +1,48 @@
 #include <Manager/TextureManager.hpp>
-#include <Runtime/AssetInputStream.hpp>
 
-#include <Runtime/AssetStore.hpp>
-#include <Runtime/ConcurrentResourceCache.hpp>
-
-#include <sstream>
-#include <stdexcept>
-#include <string_view>
-
-#ifndef LUDORK_PLATFORM
-#define LUDORK_PLATFORM ""
-#endif
-
-namespace {
-
-constexpr bool PinTextures = std::string_view(LUDORK_PLATFORM) == "ios";
-
-ludork::runtime::ConcurrentResourceCache<sf::Texture, PinTextures>&
-textureCache() {
-    static ludork::runtime::ConcurrentResourceCache<sf::Texture, PinTextures>
-        cache;
-    return cache;
-}
-
-}  // namespace
+#include "TextureManager/TextureManagerImpl.hpp"
 
 std::shared_ptr<sf::Texture> TextureManager::load(
     const std::string& filePath, bool sRGB, std::optional<sf::IntRect> area,
     bool smooth) {
-    const std::string key = makeKey(filePath, sRGB, area, smooth);
-    return textureCache().getOrLoad(key, [&]() {
-        auto texture = std::make_shared<sf::Texture>();
-        std::unique_ptr<ludork::runtime::AssetInputStream> stream =
-            ludork::runtime::assetStore().open(filePath);
-        const bool loaded = area.has_value()
-                                ? texture->loadFromStream(*stream, sRGB, *area)
-                                : texture->loadFromStream(*stream, sRGB);
-        if (!loaded) {
-            throw std::runtime_error("Failed to load texture from file: " +
-                                     filePath);
-        }
-        texture->setSmooth(smooth);
-        return texture;
-    });
+    return ludork::global::texture_manager_impl::textureManagerImpl()->load(
+        filePath, sRGB, area, smooth);
+}
+
+std::shared_ptr<TextureLoadRequest> TextureManager::request(
+    const std::string& filePath, bool sRGB, std::optional<sf::IntRect> area,
+    bool smooth, int priority) {
+    return ludork::global::texture_manager_impl::textureManagerImpl()->request(
+        filePath, sRGB, area, smooth, priority);
 }
 
 std::size_t TextureManager::getMemory() {
-    const std::size_t entries = textureCache().entryCount();
-    return sizeof(textureCache()) +
-           entries * (sizeof(sf::Texture) +
-                      (PinTextures ? sizeof(std::shared_ptr<sf::Texture>)
-                                   : sizeof(std::weak_ptr<sf::Texture>)));
+    return ludork::global::texture_manager_impl::textureManagerImpl()->memory();
 }
 
 std::optional<std::string> TextureManager::getPath(
     const std::shared_ptr<sf::Texture>& texture) {
-    const std::optional<std::string> key = textureCache().findKey(texture);
-    if (!key.has_value()) {
-        return std::nullopt;
-    }
-    return key->substr(0, key->find('\0'));
+    return ludork::global::texture_manager_impl::textureManagerImpl()->path(
+        texture);
+}
+
+void TextureManager::initialize() {
+    ludork::global::texture_manager_impl::textureManagerImpl()->initialize();
+}
+
+void TextureManager::shutdown() noexcept {
+    ludork::global::texture_manager_impl::textureManagerImpl()->shutdown();
+}
+
+void TextureManager::pumpUploads() {
+    ludork::global::texture_manager_impl::textureManagerImpl()->pumpUploads();
+}
+
+TextureManager::Statistics TextureManager::getStatistics() {
+    return ludork::global::texture_manager_impl::textureManagerImpl()
+        ->statistics();
 }
 
 void TextureManager::clear() noexcept {
-    textureCache().clear();
-}
-
-std::string TextureManager::makeKey(const std::string& filePath, bool sRGB,
-                                    const std::optional<sf::IntRect>& area,
-                                    bool smooth) {
-    std::ostringstream stream;
-    stream << filePath << '\0' << sRGB << '\0';
-    if (area.has_value()) {
-        stream << area->position.x << ',' << area->position.y << ','
-               << area->size.x << ',' << area->size.y;
-    }
-    stream << '\0' << smooth;
-    return stream.str();
+    shutdown();
 }

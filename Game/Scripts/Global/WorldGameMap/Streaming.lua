@@ -143,6 +143,11 @@ function WorldGameMapStreaming.RefreshStreamingStates(self)
     for _, region in ipairs(self._worldRegions) do
         local demand = self._worldStreamingState:getRegionDemand(region.index)
         local state = self._worldStreamingState:getRegionState(region.index)
+        if region.publishState ~= nil and region.publishState.builder ~= nil then
+            region.publishState.builder.setResourcePriority(
+                (region.publishState.forceActivate or demand == WorldRegionDemand.Active) and 1 or 0
+            )
+        end
         if demand == WorldRegionDemand.Active then
             if region.payload ~= nil then
                 self:_activateRegion(region)
@@ -268,8 +273,9 @@ function WorldGameMapStreaming.PumpStreaming(self, publishBudgetSeconds)
         return
     end
     local deadline = perfCounter() + publishBudgetSeconds
+    local waitingBuilders = {}
     self:_startStreamingBatch()
-    self:_pumpRegionPublishing(deadline)
+    self:_pumpRegionPublishing(deadline, waitingBuilders)
     while perfCounter() < deadline do
         self:_startStreamingBatch()
         if self._worldStreamJob == nil then
@@ -316,7 +322,7 @@ function WorldGameMapStreaming.PumpStreaming(self, publishBudgetSeconds)
                 self:_startStreamingBatch()
             end
         end
-        self:_pumpRegionPublishing(deadline)
+        self:_pumpRegionPublishing(deadline, waitingBuilders)
         if item == nil and snapshot.state ~= asyncio.FILE_BATCH_COMPLETED
             and snapshot.state ~= asyncio.FILE_BATCH_CANCELLED and snapshot.state ~= asyncio.FILE_BATCH_FAILED then
             break
