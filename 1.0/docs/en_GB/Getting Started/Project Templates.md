@@ -15,6 +15,8 @@ Before the first Play, use **Construct** for C++ Source, then **Export**. Standa
 
 On Windows, selecting C++ Source shows **Compiler** and **Get MinGW**. Choose an available compiler before creating the project; without one, **Create** remains disabled. The initial preference is MSVC, then Ludork's downloaded MinGW, then a MinGW found on `PATH`. Downloading a compiler refreshes this list without restarting the editor. Standalone does not require a compiler. See [Windows project compiler](<../Editor User Guide/Run Debug and Package.md#windows-project-compiler>) for detection, downloads and later changes.
 
+On macOS, C++ Source requires a full Xcode installation; Command Line Tools alone do not qualify. New Project checks once when the window opens. If Xcode is missing, selecting C++ Source shows **Get Xcode** in the compiler area and keeps **Create** disabled. The button opens Xcode's page in the Mac App Store. After installing Xcode, close and reopen New Project to check again. Standalone creation does not require Xcode.
+
 ## Obtaining templates
 
 Development editor packages include local templates. If one is missing, New Project reports an error without downloading a replacement.
