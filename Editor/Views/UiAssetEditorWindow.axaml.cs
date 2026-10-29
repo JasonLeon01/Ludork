@@ -49,10 +49,10 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     private bool registryValidationPending;
     private bool registryValidationRunning;
     private long registryValidationVersion;
+    private bool catalogDirty = true;
     private string? paletteSignature;
     private string? hierarchySignature;
     private string? animationSignature;
-    private string? relatedAssetsRevision;
     private IReadOnlyList<UiControlDescriptor> paletteDescriptors = [];
 
     public UiAssetEditorWindow()
@@ -96,6 +96,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
                 await releasePreviewAsync();
             cancellationToken.ThrowIfCancellationRequested();
             paletteSignature = null;
+            catalogDirty = true;
             hierarchySignature = null;
             detailsSignature = null;
             animationSignature = null;
@@ -301,6 +302,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
 
     private void onDocumentChanged(object? sender, EventArgs args)
     {
+        catalogDirty = true;
         if (document.ResourceDocument?.Exists != true)
         {
             Close();
@@ -344,6 +346,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             if (!controlRegistry.IsReady)
                 timelineEditor.StopPlayback();
             paletteSignature = null;
+            catalogDirty = true;
             hierarchySignature = null;
             detailsSignature = null;
             refreshAll();
@@ -399,10 +402,16 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         }
     }
 
-    private void onProjectDocumentsChanged(object? sender, EventArgs args)
+    private void onProjectDocumentsChanged(object? sender, EditorDocumentsChangedEventArgs args)
     {
         registryValidationVersion++;
+        if (args.AffectsSection("UI"))
+            catalogDirty = true;
         if (closed || !initializer.IsInitialized || refreshPending)
+            return;
+        bool relatedAssetsChanged = args.Reset || args.Changes.Any(change =>
+            change.DocumentId != document.ResourceDocument?.Id && change.Section is "UI" or "Materials");
+        if (!relatedAssetsChanged)
             return;
         refreshPending = true;
         Dispatcher.UIThread.Post(() =>
@@ -410,17 +419,8 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             refreshPending = false;
             if (closed)
                 return;
-            string nextRevision = string.Join("\n", gameData.Documents.All
-                .Where(item => item.Section is "UI" or "Materials" && item != document.ResourceDocument)
-                .Select(item => item.Id.ToString() + ":" + item.Revision.ToString(CultureInfo.InvariantCulture)));
-            if (relatedAssetsRevision != nextRevision)
-            {
-                relatedAssetsRevision = nextRevision;
-                animationSignature = null;
-                refreshAll();
-            }
-            else
-                refreshCatalog();
+            animationSignature = null;
+            refreshAll();
         }, DispatcherPriority.Background);
     }
 
@@ -439,6 +439,9 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
 
     private void refreshCatalog()
     {
+        if (!catalogDirty)
+            return;
+        catalogDirty = false;
         string signature = string.Join("\n", gameData.Documents.All
             .Where(item => item.Section == "UI" && item.Exists)
             .Select(item => item.Key + "\t" + item.InternalData?["palette"]?.ToJsonString()

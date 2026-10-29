@@ -221,7 +221,6 @@ public sealed partial class WorldMapCanvas : Control, IDisposable
         foreach (WorldMapPlacementPreview placement in placements)
             if (!pinnedMaps.Contains(placement.Child.Key))
                 placement.Child.ReleaseData(this);
-        renderer?.TrimMapCache(pinnedMaps);
         using (context.PushClip(worldRect.Intersect(visibleCanvas)))
         {
             List<(string Key, int X, int Y, int Priority, JsonObject Map)> maps = [];

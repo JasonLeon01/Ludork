@@ -484,9 +484,10 @@ public sealed class UiAssetEditorDocument : IDisposable
         }
     }
 
-    private void onRegistryChanged(object? sender, EventArgs args)
+    private void onRegistryChanged(object? sender, EditorDocumentsChangedEventArgs args)
     {
-        editing.Invalidate();
+        if (args.AffectsSection("UI"))
+            editing.Invalidate();
         if (!committing && gestureStart is not null)
             endGesture();
     }

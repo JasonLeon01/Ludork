@@ -88,13 +88,13 @@ public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
 
 
         gameData.DataReloaded += onDataReloaded;
-        gameData.Documents.Changed += onDocumentsChanged;
+        gameData.Documents.ContentChanged += onDocumentsChanged;
         Closed += (_, _) =>
         {
             projectSave.UnregisterParticipant(this);
 
             gameData.DataReloaded -= onDataReloaded;
-            gameData.Documents.Changed -= onDocumentsChanged;
+            gameData.Documents.ContentChanged -= onDocumentsChanged;
         };
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
     }
@@ -179,10 +179,13 @@ public sealed class GeneralDataEditorWindow : Window, IProjectSaveParticipant
         return state;
     }
 
-    private void onDocumentsChanged(object? sender, EventArgs args)
+    private void onDocumentsChanged(object? sender, EditorDocumentsChangedEventArgs args)
     {
+        if (!args.AffectsSection("General"))
+            return;
         blueprintWindows.Reindex();
-        if (!initializer.IsInitialized)
+        if (!initializer.IsInitialized || !args.Reset
+            && !args.Changes.Any(change => change.Section == "General" && change.IdentityChanged))
             return;
         string[] keys = gameData.General.GeneralData.Keys.OrderBy(key => key, StringComparer.Ordinal).ToArray();
         if (!keys.SequenceEqual(tabControl.Items.OfType<TabItem>().Select(tab => tab.Tag as string), StringComparer.Ordinal))

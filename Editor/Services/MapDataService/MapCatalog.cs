@@ -526,6 +526,8 @@ public sealed partial class MapDataService
 
     internal void setMapCatalogEntry(MapCatalogEntry entry)
     {
+        if (entry.Kind == MapCatalogEntryKind.WorldChildMap)
+            worldPreviewCache.Invalidate(entry.Key);
         catalogDocuments[getMapCatalogDataKey(entry.Kind, entry.Key)] =
             createMapCatalogData(entry);
     }
@@ -556,6 +558,10 @@ public sealed partial class MapDataService
 
     internal void removeMapCatalogEntry(MapCatalogEntryKind kind, string key)
     {
+        if (kind == MapCatalogEntryKind.WorldMap)
+            worldPreviewCache.InvalidatePrefix(key);
+        else if (kind == MapCatalogEntryKind.WorldChildMap)
+            worldPreviewCache.Invalidate(key);
         catalogDocuments.Remove(getMapCatalogDataKey(kind, key));
     }
 

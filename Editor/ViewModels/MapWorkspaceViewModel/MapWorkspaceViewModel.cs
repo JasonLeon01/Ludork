@@ -78,10 +78,17 @@ public sealed partial class MapWorkspaceViewModel : ViewModelBase, IDisposable
         liveDebugSession = null;
     }
 
-    private void onDocumentsChanged(object? sender, EventArgs args)
+    private void onDocumentsChanged(object? sender, EditorDocumentsChangedEventArgs args)
     {
-        foreach (MapListItemViewModel item in Maps.SelectMany(root => root.Children.Prepend(root)))
-            item.IsModified = GameData.Documents.Find(item.IsWorld ? "WorldMaps" : "Maps", item.Key)?.IsModified == true;
+        if (args.Reset)
+        {
+            foreach (KeyValuePair<(string Section, string Key), MapListItemViewModel> item in mapItems)
+                item.Value.IsModified = GameData.Documents.Find(item.Key.Section, item.Key.Key)?.IsModified == true;
+            return;
+        }
+        foreach (EditorDocument document in args.AffectedDocuments)
+            if (mapItems.TryGetValue((document.Section, document.Key), out MapListItemViewModel? item))
+                item.IsModified = document.IsModified;
     }
 
     public MapListItemViewModel? SelectedMap
@@ -98,11 +105,6 @@ public sealed partial class MapWorkspaceViewModel : ViewModelBase, IDisposable
             if (liveDebugSession is null && !selectingRuntimeMap)
                 ProjectConfig.LastOpenedMapKey = value?.Key;
             refreshLayerTabs();
-            IReadOnlyCollection<string> pinnedMaps = value is { IsWorldChild: true }
-                ? new[] { value.Key }
-                : Array.Empty<string>();
-            if (liveDebugSession is null)
-                GameData.Maps.TrimWorldChildCache(pinnedMaps);
             SelectedMapChanged?.Invoke(this, EventArgs.Empty);
         }
     }

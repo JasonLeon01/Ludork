@@ -301,7 +301,6 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
 
     private void onGameVariablesSaved(object? sender, EventArgs args)
     {
-        FileExplorers.RequestRefresh();
         onModifiedChanged(sender, args);
     }
 

@@ -72,8 +72,8 @@ public sealed class ParticleOverviewWindow : Window
             () => LocaleService.Get("PARTICLE_OVERVIEW") + (currentKey.Length == 0 ? "" : " - " + currentKey));
         resources.SelectionChanged += (_, _) => { if (!refreshing) select(resources.SelectedItem as string); };
         search.TextChanged += (_, _) => refresh();
-        gameData.Documents.Changed += onDocumentsChanged;
-        Closed += (_, _) => gameData.Documents.Changed -= onDocumentsChanged;
+        gameData.Documents.ContentChanged += onDocumentsChanged;
+        Closed += (_, _) => gameData.Documents.ContentChanged -= onDocumentsChanged;
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
         _ = new DeferredWindowInitializer(this, async cancellationToken =>
         {
@@ -82,7 +82,11 @@ public sealed class ParticleOverviewWindow : Window
         });
     }
 
-    private void onDocumentsChanged(object? sender, EventArgs args) => refresh();
+    private void onDocumentsChanged(object? sender, EditorDocumentsChangedEventArgs args)
+    {
+        if (args.Reset || args.Changes.Any(change => change.Section == "Particles" && change.IdentityChanged))
+            refresh();
+    }
 
     public void PausePreview() => (editorHost.Content as ParticleEditor)?.PausePreview();
 

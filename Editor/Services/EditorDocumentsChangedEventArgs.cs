@@ -4,10 +4,14 @@ using System.Linq;
 
 namespace Ludork.Services;
 
-public sealed class EditorDocumentsChangedEventArgs(IEnumerable<EditorDocumentChange> changes, bool reset = false) : EventArgs
+public sealed class EditorDocumentsChangedEventArgs(
+    IEnumerable<EditorDocumentChange> changes,
+    IEnumerable<EditorDocument> affectedDocuments,
+    bool reset = false) : EventArgs
 {
     public bool Reset { get; } = reset;
     public IReadOnlyList<EditorDocumentChange> Changes { get; } = Array.AsReadOnly(changes.ToArray());
+    public IReadOnlyList<EditorDocument> AffectedDocuments { get; } = Array.AsReadOnly(affectedDocuments.ToArray());
 
     public bool AffectsSection(string section) => Reset || Changes.Any(change => change.Section == section);
 }

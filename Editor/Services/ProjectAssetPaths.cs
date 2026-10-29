@@ -14,6 +14,7 @@ public sealed partial class ProjectAssetPaths
     private readonly ProjectDataStore store;
     private readonly string root;
     private readonly StringComparer fileSystemComparer;
+    private readonly Dictionary<Guid, PathSnapshot> pathsByDocument = [];
     private volatile PathSnapshot[] currentPaths = [];
 
     internal ProjectAssetPaths(ProjectDataStore store)
@@ -25,7 +26,6 @@ public sealed partial class ProjectAssetPaths
                 ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
         store.Documents.Changed += onDocumentsChanged;
         Refresh();
-        store.DataSaved += onSaved;
     }
 
     public event EventHandler? Changed;
@@ -221,17 +221,50 @@ public sealed partial class ProjectAssetPaths
 
     internal void Refresh()
     {
-        PathSnapshot[] paths = documents().Select(document => new PathSnapshot(document.Path, document.SavedPath,
-            isDirectory(document), document.IsModified)).ToArray();
+        pathsByDocument.Clear();
+        foreach (EditorDocument document in documents())
+            pathsByDocument.Add(document.Id, createSnapshot(document));
+        publishPaths();
+    }
+
+    private void publishPaths()
+    {
+        PathSnapshot[] paths = pathsByDocument.Values.ToArray();
         bool changed = !currentPaths.SequenceEqual(paths);
         currentPaths = paths;
         if (changed)
             Changed?.Invoke(this, EventArgs.Empty);
     }
 
-    private void onDocumentsChanged(object? sender, EventArgs args) => Refresh();
+    private void onDocumentsChanged(object? sender, EditorDocumentsChangedEventArgs args)
+    {
+        if (args.Reset)
+        {
+            Refresh();
+            return;
+        }
+        bool changed = false;
+        foreach (EditorDocument document in args.AffectedDocuments)
+        {
+            if (document.Section != Section)
+                continue;
+            if (!document.Exists || !store.Documents.IsRegistered(document))
+            {
+                changed |= pathsByDocument.Remove(document.Id);
+                continue;
+            }
+            PathSnapshot snapshot = createSnapshot(document);
+            if (pathsByDocument.TryGetValue(document.Id, out PathSnapshot? previous) && previous == snapshot)
+                continue;
+            pathsByDocument[document.Id] = snapshot;
+            changed = true;
+        }
+        if (changed)
+            publishPaths();
+    }
 
-    private void onSaved(object? sender, EventArgs args) => Changed?.Invoke(this, EventArgs.Empty);
+    private static PathSnapshot createSnapshot(EditorDocument document)
+        => new(document.Path, document.SavedPath, isDirectory(document), document.IsModified);
 
     private sealed record PathSnapshot(string Path, string SavedPath, bool Directory, bool Modified);
 }

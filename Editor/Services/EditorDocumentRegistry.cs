@@ -24,10 +24,11 @@ public sealed class EditorDocumentRegistry
     public IReadOnlyList<EditorDocument> All => allDocuments ??= Array.AsReadOnly(documents.ToArray());
     public IReadOnlyList<EditorDocument> ModifiedDocuments => documents.Where(document => document.IsModified).ToArray();
     public bool IsModified => documents.Any(document => document.IsModified);
-    public event EventHandler? Changed;
+    public event EventHandler<EditorDocumentsChangedEventArgs>? Changed;
     public event Action<EditorDocument>? DiskReloaded;
     internal event EventHandler<EditorDocumentsChangedEventArgs>? ContentInvalidated;
     public event EventHandler<EditorDocumentsChangedEventArgs>? ContentChanged;
+    internal event EventHandler? NotificationScopesCompleted;
 
     public EditorDocument? Find(string section, string key)
     {
@@ -50,6 +51,22 @@ public sealed class EditorDocumentRegistry
     internal void BindPath(EditorDocument document, string path)
     {
         string fullPath = Path.GetFullPath(path);
+        additionalPaths.TryGetValue(fullPath, out EditorDocument? previous);
+        if (ReferenceEquals(previous, document))
+            return;
+        TrackDocument(document);
+        if (previous is not null)
+            TrackDocument(previous);
+        using EditorDocumentNotificationBatch notifications = BeginNotificationBatch();
+        BindPathCore(document, fullPath);
+        if (previous is not null)
+            Notify(previous);
+        Notify(document);
+        notifications.Commit();
+    }
+
+    private void BindPathCore(EditorDocument document, string fullPath)
+    {
         if (additionalPaths.TryGetValue(fullPath, out EditorDocument? previous))
             RemoveAlias(previous, fullPath);
         additionalPaths[fullPath] = document;
@@ -109,7 +126,7 @@ public sealed class EditorDocumentRegistry
         foreach (string alias in GetAdditionalPaths(document))
             RemoveAlias(document, alias);
         foreach (string alias in aliases)
-            BindPath(document, alias);
+            BindPathCore(document, alias);
     }
 
     internal long CreateGestureId() => ++nextGestureId;
@@ -303,13 +320,21 @@ public sealed class EditorDocumentRegistry
     {
         ValidateNotificationScope(owner);
         NotificationScope scope = notificationScopes.Pop();
-        if (!committed)
-            return;
         if (!notificationScopes.TryPeek(out NotificationScope? parent))
         {
-            Publish(scope);
+            try
+            {
+                if (committed)
+                    Publish(scope);
+            }
+            finally
+            {
+                NotificationScopesCompleted?.Invoke(this, EventArgs.Empty);
+            }
             return;
         }
+        if (!committed)
+            return;
         parent.Changed.UnionWith(scope.Changed);
         parent.DiskReloads.UnionWith(scope.DiskReloads);
         foreach (KeyValuePair<EditorDocument, (EditorDocumentState Before, EditorDocumentState After)> pair in scope.Content)
@@ -364,10 +389,10 @@ public sealed class EditorDocumentRegistry
             return change;
         })
             .Where(change => change.ContentChanged || change.IdentityChanged).ToArray();
-        EditorDocumentsChangedEventArgs? content = scope.Reset || changes.Length != 0
-            ? new EditorDocumentsChangedEventArgs(changes, scope.Reset) : null;
-        if (content is not null)
-            ContentInvalidated?.Invoke(this, content);
+        EditorDocumentsChangedEventArgs notification = new(changes, scope.Changed, scope.Reset);
+        bool hasContentChanges = scope.Reset || changes.Length != 0;
+        if (hasContentChanges)
+            ContentInvalidated?.Invoke(this, notification);
         foreach (EditorDocument document in scope.Changed)
             document.Revision++;
         foreach (EditorDocument document in scope.DiskReloads)
@@ -378,9 +403,9 @@ public sealed class EditorDocumentRegistry
         foreach (EditorDocument document in scope.Changed)
             document.NotifyChanged();
         if (scope.Changed.Count != 0 || scope.Reset)
-            Changed?.Invoke(this, EventArgs.Empty);
-        if (content is not null)
-            ContentChanged?.Invoke(this, content);
+            Changed?.Invoke(this, notification);
+        if (hasContentChanges)
+            ContentChanged?.Invoke(this, notification);
         foreach (Action action in scope.AfterNotifications)
             action();
     }

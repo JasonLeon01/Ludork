@@ -43,12 +43,17 @@ public sealed partial class MapDataService
     {
         mapKey = normaliseMapKey(mapKey);
         if (mapKey.Length != 0)
+        {
+            worldPreviewCache.Invalidate(mapKey);
             store.Documents.AfterChangeNotifications(() =>
                 MapPreviewChanged?.Invoke(store, new MapPreviewChangedEventArgs(mapKey, edit)));
+        }
     }
 
     internal void NotifyAllMapPreviewsChanged(bool reloadData = true)
     {
+        if (reloadData)
+            worldPreviewCache.Clear();
         store.Documents.AfterChangeNotifications(() =>
             MapPreviewChanged?.Invoke(store, new MapPreviewChangedEventArgs(null, reloadData: reloadData)));
     }
@@ -57,12 +62,6 @@ public sealed partial class MapDataService
     {
         mapKey = normaliseMapKey(mapKey);
         return mapKey.Length == 0 ? string.Empty : mapKey + ".json";
-    }
-
-    internal void touchMap(string key)
-    {
-        nextMapAccessOrder += 1;
-        mapAccessOrder[key] = nextMapAccessOrder;
     }
 
     internal void updateLoadedMapMetadata(
@@ -75,13 +74,12 @@ public sealed partial class MapDataService
             ? new FileInfo(savedPath).Length
             : getMapSerializedByteCount(map);
         mapLoadedBytes[key] = bytes;
-        touchMap(key);
     }
 
     internal void removeLoadedMapMetadata(string key)
     {
         key = normaliseMapKey(key);
-        mapAccessOrder.Remove(key);
+        worldPreviewCache.Invalidate(key);
         mapLoadedBytes.Remove(key);
         mapActorTagIndexes.Remove(key);
     }
@@ -90,8 +88,9 @@ public sealed partial class MapDataService
     {
         oldKey = normaliseMapKey(oldKey);
         newKey = normaliseMapKey(newKey);
-        if (mapAccessOrder.Remove(oldKey, out long accessOrder))
-            mapAccessOrder[newKey] = accessOrder;
+        worldPreviewCache.Invalidate(oldKey);
+        if (newKey != oldKey)
+            worldPreviewCache.Invalidate(newKey);
         if (mapLoadedBytes.Remove(oldKey, out long bytes))
             mapLoadedBytes[newKey] = bytes;
         if (mapActorTagIndexes.Remove(
@@ -104,8 +103,9 @@ public sealed partial class MapDataService
 
     internal void rekeyLoadedMapMetadataPrefix(string oldPrefix, string newPrefix)
     {
-        foreach (string oldKey in mapAccessOrder.Keys
-                     .Concat(mapLoadedBytes.Keys)
+        worldPreviewCache.InvalidatePrefix(oldPrefix);
+        worldPreviewCache.InvalidatePrefix(newPrefix);
+        foreach (string oldKey in mapLoadedBytes.Keys
                      .Concat(mapActorTagIndexes.Keys)
                      .Where(key => ProjectDataStore.keyMatchesPrefix(key, oldPrefix))
                      .Distinct(StringComparer.Ordinal)
@@ -121,18 +121,12 @@ public sealed partial class MapDataService
     internal void rebuildLoadedMapMetadata()
     {
         HashSet<string> loadedKeys = mapDocuments.Keys.ToHashSet(StringComparer.Ordinal);
-        foreach (string key in mapAccessOrder.Keys.Where(key => !loadedKeys.Contains(key)).ToArray())
-            mapAccessOrder.Remove(key);
         foreach (string key in mapLoadedBytes.Keys.Where(key => !loadedKeys.Contains(key)).ToArray())
             mapLoadedBytes.Remove(key);
         foreach (string key in mapActorTagIndexes.Keys.Where(key => !loadedKeys.Contains(key)).ToArray())
             mapActorTagIndexes.Remove(key);
         foreach (KeyValuePair<string, JsonObject> map in mapDocuments)
-        {
             mapLoadedBytes[map.Key] = getMapSerializedByteCount(map.Value);
-            if (!mapAccessOrder.ContainsKey(map.Key))
-                touchMap(map.Key);
-        }
     }
 
     private static long getMapSerializedByteCount(JsonObject map)
@@ -144,35 +138,25 @@ public sealed partial class MapDataService
         return buffer.Count;
     }
 
-    internal bool isMapHeldByHistory(string key)
-    {
-        return store.Documents.Find("Maps", key) is not null;
-    }
-
-    internal bool isCleanLoadedMap(string key)
-    {
-        return store.IsDocumentAtBaseline("Maps", key);
-    }
-
     internal void ResetCacheMetadata()
     {
+        worldPreviewCache.Clear();
         mapActorTagIndexes.Clear();
-        mapAccessOrder.Clear();
         mapLoadedBytes.Clear();
-        nextMapAccessOrder = 0;
     }
 
     internal Action CaptureCacheState(string key)
     {
-        Action restoreAccess = ProjectDataStore.captureExternalEntry(mapAccessOrder, key);
         Action restoreBytes = ProjectDataStore.captureExternalEntry(mapLoadedBytes, key);
         Action restoreTags = ProjectDataStore.captureExternalEntry(mapActorTagIndexes, key);
         return () =>
         {
             restoreTags();
             restoreBytes();
-            restoreAccess();
+            worldPreviewCache.InvalidatePrefix(key);
         };
     }
+
+    internal void InvalidateWorldChildPreview(string key) => worldPreviewCache.Invalidate(normaliseMapKey(key));
 
 }

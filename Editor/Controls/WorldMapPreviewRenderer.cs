@@ -147,7 +147,6 @@ internal sealed class WorldMapPreviewRenderer : IDisposable
             world.IsInteracting = interacting;
     }
 
-    public void TrimMapCache(IReadOnlyCollection<string> pinnedMapKeys) => gameData.Maps.TrimWorldChildCache(pinnedMapKeys);
     public void ClearPendingWork() => SetActive(false);
     public void ResetView()
     {

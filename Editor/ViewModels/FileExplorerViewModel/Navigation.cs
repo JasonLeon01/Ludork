@@ -19,11 +19,19 @@ public sealed partial class FileExplorerViewModel
     private bool refreshScheduled;
     private string? publishedPath;
     private long visualVersion;
+    private long refreshVersion;
 
     public string LoadingLabel => LocaleService.Get("LOADING");
 
-    public Task EnsureLoadedAsync() => IsActive && !IsLoading && (refreshRequired || publishedPath != CurrentPath || publishedQuery != SearchText.Trim() || publishedIconView != IconView)
-        ? RefreshAsync() : Task.CompletedTask;
+    public Task EnsureLoadedAsync()
+    {
+        if (!IsActive || IsLoading)
+            return Task.CompletedTask;
+        if (refreshRequired || publishedPath != CurrentPath || publishedQuery != SearchText.Trim() || publishedIconView != IconView)
+            return RefreshAsync();
+        applyPendingDocumentUpdates();
+        return Task.CompletedTask;
+    }
 
     public Task RefreshAsync(CancellationToken cancellationToken = default) => refreshAsync(TimeSpan.Zero, cancellationToken);
 
@@ -34,6 +42,9 @@ public sealed partial class FileExplorerViewModel
         refreshRequired = true;
         if (!IsActive)
             return;
+        if (documentProjectionResetRequired)
+            rebuildDocumentPaths(true);
+        long requestedRefreshVersion = refreshVersion;
         capturePresentation();
         presentationRestorePending = true;
         PresentationRevision++;
@@ -49,7 +60,6 @@ public sealed partial class FileExplorerViewModel
         navigation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         CancellationToken token = navigation.Token;
         long version = ++navigationVersion;
-        visualVersion++;
         string path = CurrentPath;
         string query = SearchText.Trim();
         bool showIcons = IconView;
@@ -80,8 +90,10 @@ public sealed partial class FileExplorerViewModel
                     && matches.Length == 1 && !previous.ContainsKey(matches[0].Path))
                 {
                     previous.Remove(entry.FullPath);
+                    entriesByPath.Remove(entry.FullPath);
                     entry.UpdatePath(matches[0].Path, path);
                     previous.Add(entry.FullPath, entry);
+                    entriesByPath[entry.FullPath] = entry;
                 }
             }
             EditorUiBatch batch = new();
@@ -94,6 +106,7 @@ public sealed partial class FileExplorerViewModel
                     if (ReferenceEquals(SelectedEntry, removed))
                         SelectedEntry = null;
                     Entries.RemoveAt(index);
+                    entriesByPath.Remove(removed.FullPath);
                     removed.Dispose();
                 }
                 await batch.YieldIfNeededAsync(token);
@@ -110,6 +123,7 @@ public sealed partial class FileExplorerViewModel
                     IImage placeholder = info.IsDirectory ? EditorIconResources.GetImage("EditorImage.Folder") : MediaFileThumbnail.GetPlaceholder(info.Path);
                     entry = new FileExplorerEntryViewModel(info.Path, info.IsDirectory, placeholder, gameData.Thumbnails, previewService, gameData.AssetPaths);
                     Entries.Insert(index, entry);
+                    entriesByPath[entry.FullPath] = entry;
                 }
                 else if (previousIndex != index)
                     Entries.Move(previousIndex, index);
@@ -118,12 +132,15 @@ public sealed partial class FileExplorerViewModel
                 updateDocumentState(entry, info.Stamp);
                 await batch.YieldIfNeededAsync(token);
             }
+            token.ThrowIfCancellationRequested();
+            if (version != navigationVersion || requestedRefreshVersion != refreshVersion)
+                return;
             publishedPath = path;
             publishedQuery = query;
             publishedIconView = showIcons;
             LoadingError = result.Error;
-            visibleDocumentPaths = gameData.Documents.All.ToDictionary(document => document.Id, document => (document.Path, document.Exists));
-            refreshRequired = false;
+            if (requestedRefreshVersion == refreshVersion)
+                refreshRequired = false;
             requestPresentationRestore();
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -140,7 +157,10 @@ public sealed partial class FileExplorerViewModel
         finally
         {
             if (version == navigationVersion)
+            {
                 IsLoading = false;
+                applyPendingDocumentUpdates();
+            }
         }
     }
 
@@ -255,6 +275,8 @@ public sealed partial class FileExplorerViewModel
         if (disposed)
             return;
         refreshRequired = true;
+        refreshVersion++;
+        navigation?.Cancel();
         if (!IsActive || refreshScheduled)
             return;
         refreshScheduled = true;
@@ -265,21 +287,24 @@ public sealed partial class FileExplorerViewModel
         }, DispatcherPriority.Background);
     }
 
-    private void updateDocumentState(FileExplorerEntryViewModel entry, string? stamp = null)
+    private void updateDocumentState(FileExplorerEntryViewModel entry, string? stamp = null, bool updateSource = true)
     {
         EditorDocument? document = gameData.Documents.FindByPath(entry.FullPath);
         entry.IsModified = document?.IsModified == true;
+        if (!updateSource)
+            return;
         string? blueprint = previewService.GetBlueprintReferenceForPath(entry.FullPath);
         if (document is not null)
-            entry.UpdateSource($"document:{document.Id}:{document.Revision}:{previewService.ResolutionRevision}:{visualVersion}", blueprint);
+            entry.UpdateSource($"document:{document.Id}:{document.LastContentChangeRevision}:{previewService.ResolutionRevision}:{visualVersion}", blueprint);
         else if (stamp is not null)
             entry.UpdateSource($"{stamp}:{gameData.Thumbnails.GetSourceRevision(entry.FullPath)}", null);
     }
 
     private DocumentPath[] captureDocumentPaths()
     {
-        return gameData.Documents.All.Where(document => !EditorPathSandbox.IsSameOrChildPath(Path.Combine(projectPath, "Assets"), document.Path)).Select(document => new DocumentPath(document.Path, document.SavedPath,
-            gameData.Documents.GetPaths(document).ToArray(), document.Section, document.Exists)).ToArray();
+        string assetsRoot = Path.Combine(projectPath, "Assets");
+        return visibleDocumentPaths.Values.Where(document => !EditorPathSandbox.IsSameOrChildPath(assetsRoot, document.Path)
+            && documentAffectsCurrentPath(document)).ToArray();
     }
 
     private DirectoryEntry[] readDirectory(string directory, DirectorySnapshot snapshot, CancellationToken token)

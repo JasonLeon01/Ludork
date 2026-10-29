@@ -9,7 +9,6 @@ public sealed partial class MapDataService
     {
         mapDocuments[key] = map;
         mapLoadedBytes[key] = bytes;
-        touchMap(key);
         setMapCatalogEntry(createMapCatalogEntry(key, MapCatalogEntryKind.StandaloneMap, null, map));
     }
 
