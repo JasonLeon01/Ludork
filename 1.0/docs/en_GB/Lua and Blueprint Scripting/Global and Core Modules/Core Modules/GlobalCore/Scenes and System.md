@@ -192,4 +192,17 @@ A new request of the same kind cancels the previous unfinished operation. `cance
 
 `RuntimeDiagnostics.isPerformanceProfilerEnabled()` queries whether profiling is enabled. `recordWorldStreamingPerformance(queueDepth, reading, prepared, active, dormant, cacheBytes, publishMilliseconds, visibleTileChunks, activeActors)` records a streaming sample. Both methods are available to Lua and excluded from Blueprint metadata.
 
+Native performance output also includes `textureUpload` and a `textureStreaming` object in each `mainFrames` entry. `textureUpload` measures that frame's texture upload stage, including graphics-context activation, in milliseconds. The object separates background preparation, upload work and queued decoded pixels:
+
+| Fields | Meaning |
+|---|---|
+| `cacheHits`, `mergedRequests` | Requests served from ready textures, and requests joined to existing work, accumulated in the current runtime session. |
+| `decodedCount`, `uploadedCount`, `failedCount` | Successful CPU decodes, successful GPU uploads and decode/upload failures accumulated in the current session. Shared subscribers do not multiply these counts. Work already started can still contribute after cancellation. |
+| `cancelledCount` | Pending subscriptions cancelled in the current session. Releasing a handle after GPU upload does not increase this count. |
+| `decodeMilliseconds`, `uploadMilliseconds`, `uploadedBytes` | Cumulative reading/decoding time, GPU upload time and uploaded byte estimate. Times are milliseconds. |
+| `pendingRequests`, `decodingRequests`, `readyRequests` | Current queued, decoding and decoded-waiting-for-upload work counts. |
+| `readyBytes`, `peakReadyBytes` | Current and peak decoded-pixel backlog in bytes. These exclude decoder scratch memory and GPU allocations, so they are not total memory use. |
+
+The [TextureManager scheduling limits](<Resource Managers.md#textureloadrequest>) explain how the decoded backlog and per-frame upload budgets affect resource readiness.
+
 Weather and panorama use `WeatherController` and `PanoramaController`. Each `GameMap` owns its own `FogController`; use `gameMap:getFogSettings()` and `gameMap:setFogSettings(settings)` for that map. The shared map compositor renders its fog before foreground weather and particles; see [Map and Fog](<Map and Fog.md>). Audio switches and volumes belong to [AudioManager](<Resource Managers.md#audiomanager>).

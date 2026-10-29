@@ -22,7 +22,7 @@ The facade's `mapName` comes from the required `worldName` in `_world.json`, so 
 
 On entry, the runtime revalidates the flat world directory, the exact `_world.json`, the required world name, direct JSON child files, placements and layer order. Unrelated non-JSON regular files are ignored, and invalid data fails.
 
-Children progress through `Unloaded`, `Reading`, `Prepared`, `Active` and `Dormant`. Streaming prioritises the Camera neighbourhood and cancels obsolete reads. Only Active Actors simulate. Until every visible placement and Tile chunk is ready, the Camera retains its last complete frame, and colliding movement cannot enter the unprepared area.
+Children progress through `Unloaded`, `Reading`, `Prepared`, `Active` and `Dormant`. Streaming prioritises the Camera neighbourhood and cancels obsolete reads. Tileset and autotile preparation uses the [region builder's asynchronous resource requests](<../Global and Core Modules/Global APIs/GameMap.md#map-data-and-region-builders>). Only Active Actors simulate. Until every visible placement and Tile chunk is ready, the Camera retains its last complete frame, and colliding movement cannot enter the unprepared area.
 
 Active Actors outside the Camera view continue to simulate without rendering.
 

@@ -32,6 +32,19 @@ The world facade receives `WorldMapData` and an injected factory with this contr
 
 `RegionBuildState` exposes build progress, the region payload, and `step`, `prepareActors`, `prepareRect`, `areActorsReady`, `isCellReady` and `isRectReady`. Global consumes this interface without importing the project's builder. `Source.SceneComponents.MapBuilder.WorldRegionBuildState.State` extends it with `layerBuildStates`, whose elements are `Source.SceneComponents.WorldLayerBuildState`. Project Actor descriptors, persistence records, layer construction state and floor-preview caches remain in Source.
 
+Region builders also implement the resource-lifetime contract:
+
+| Member | Contract |
+|---|---|
+| `waitingForResources` | True when the last build step returned because requested resources were pending. A later step can retry; waiting does not mark the region ready. |
+| `setResourcePriority(priority)` | Update current pending subscriptions and the priority for dependencies discovered later. The world supplies 1 for Active or explicitly forced regions and 0 for Prepared regions. |
+| `resolvePendingResources()` | Synchronously finish already-discovered pending resource loads for an explicit drain. This does not advance layer construction, Actors or publication; those still proceed through normal builder steps. |
+| `cancel()` | Release resource subscriptions and close the construction coroutine. Safe to call repeatedly when publication is cancelled, the region is evicted or the world is disposed. A cancelled builder cannot advance again. |
+
+The default builder requests tileset and autotile textures as its existing dependency scan discovers them, including autotiles introduced by saved terrain changes. It collects dependencies across layers before constructing those layers, reuses duplicate requests and reads autotile frame counts only after the textures are ready. [TextureManager](<../Core Modules/GlobalCore/Resource Managers.md#texturemanager>) owns the request, error and memory semantics.
+
+During background streaming, a resource wait ends the current builder step. A waiting region is attempted at most once in the same logic update, leaving the remaining budget available to other regions. Required texture failures propagate rather than producing a partial layer. `ensureRegionLoadedAt` and explicit viewport preparation retain their synchronous completion contract by resolving pending resources while draining the builder; background preparation keeps its normal time budget.
+
 ## GameMap
 
 Direct metadata bases: `{ "GlobalCore", "GameMapBase" }`

@@ -32,6 +32,19 @@ Metadata 来源：`Scripts/Global/GameMap_meta.lua`
 
 `RegionBuildState` 提供构建进度、区域 payload，以及 `step`、`prepareActors`、`prepareRect`、`areActorsReady`、`isCellReady` 和 `isRectReady` 回调。Global 通过这个接口使用构建器，无需导入项目实现。`Source.SceneComponents.MapBuilder.WorldRegionBuildState.State` 继承该接口，并添加 `layerBuildStates` 字段，其元素类型为 `Source.SceneComponents.WorldLayerBuildState`。项目 Actor 构建描述、持久化记录、图层构建状态和楼层预览缓存仍归属 Source。
 
+区域构建器还需要实现资源生命周期约定：
+
+| 成员 | 约定 |
+|---|---|
+| `waitingForResources` | 上一次构建步骤因资源仍在加载而返回时为 true。后续步骤可以重试；等待不会将区域标为就绪。 |
+| `setResourcePriority(priority)` | 更新已有 Pending 订阅，以及后续发现的依赖所用的优先级。大地图对 Active 或显式强制加载区域传入 1，对 Prepared 区域传入 0。 |
+| `resolvePendingResources()` | 为显式同步完成流程加载已发现的待加载资源。此操作不推进图层构建、Actor 或发布，它们仍由原有构建步骤推进。 |
+| `cancel()` | 释放资源订阅并关闭构建协程。取消发布、淘汰区域或销毁大地图时可以重复调用；取消后的构建器不能再次推进。 |
+
+默认构建器沿用现有依赖扫描，发现图块集和自动图块纹理时立即发出请求，也包括存档地形改动引入的自动图块。它先收集各图层依赖，再构建图层，复用重复请求，并在纹理就绪后读取自动图块帧数。请求、错误与内存语义由 [TextureManager](<../Core Modules/GlobalCore/资源管理器.md#texturemanager>) 定义。
+
+后台流送遇到资源等待时，会结束当前构建步骤。同一逻辑更新内，等待中的区域最多尝试一次，剩余预算仍可用于其他区域。必需纹理加载失败会向外传播，不生成不完整图层。`ensureRegionLoadedAt` 与显式视口准备保留同步完成约定，在推进构建器的同步流程中完成待加载资源；后台准备继续使用原有时间预算。
+
 ## GameMap
 
 直接 metadata 基类：`{ "GlobalCore", "GameMapBase" }`
