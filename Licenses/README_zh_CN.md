@@ -17,6 +17,8 @@ Ludork 使用 [Zlib 许可证](../LICENSE.md)；第三方组件和资产适用�
 
 C++ Source 模板在 `Engine/PlatformHosts/Android/gradle/wrapper` 下随 Android Gradle wrapper 保留完整许可证与中英文来源说明。
 
+MinGW 构建的 Windows 游戏保留 [NativeDependencies/MinGW-RUNTIME-NOTICE.md](NativeDependencies/MinGW-RUNTIME-NOTICE.md) 中列出的编译器运行库许可证及源码分发信息，以及 WebView2 SDK Loader 的许可证与第三方声明。
+
 编辑器依赖的许可证正文均从 NuGet 包标识的源码提交原样复制：
 
 | 依赖包 | 许可证正文 | 来源 |
@@ -26,5 +28,6 @@ C++ Source 模板在 `Engine/PlatformHosts/Android/gradle/wrapper` 下随 Androi
 | `Svg.Controls.Avalonia`、`Svg.Model`、`Svg.SceneGraph`、`ShimSkiaSharp` | [Svg.Skia MIT](EditorPackages/Svg.Skia-LICENSE.txt) | 第三方声明 |
 | `Svg.Custom` | [Microsoft Public License](EditorPackages/Svg.Custom-LICENSE.txt) | 第三方声明 |
 | `ExCSS` | [MIT](EditorPackages/ExCSS-LICENSE.txt) | 第三方声明 |
+| `SharpCompress` 0.50.7 | [MIT](EditorPackages/SharpCompress-LICENSE.txt) | [上游提交](https://github.com/adamhathcock/sharpcompress/blob/b4af8afe6683d019d504954a3b4e4f18b06e2cd6/LICENSE.txt) |
 
 法律正文保留原始语言，不作改写。本索引不能替代正文。

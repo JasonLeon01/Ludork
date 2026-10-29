@@ -17,6 +17,8 @@ The editor package includes this canonical tree in full. The independently distr
 
 C++ Source templates retain the Android Gradle wrapper's complete licence and bilingual source notice beside it in `Engine/PlatformHosts/Android/gradle/wrapper`.
 
+MinGW-built Windows games retain the compiler runtime licences and source-distribution information in [NativeDependencies/MinGW-RUNTIME-NOTICE.md](NativeDependencies/MinGW-RUNTIME-NOTICE.md), together with the WebView2 SDK loader licence and notices.
+
 Editor package licence texts come unchanged from the source commits identified by their NuGet packages:
 
 | Packages | Licence text | Source |
@@ -26,5 +28,6 @@ Editor package licence texts come unchanged from the source commits identified b
 | `Svg.Controls.Avalonia`, `Svg.Model`, `Svg.SceneGraph`, `ShimSkiaSharp` | [Svg.Skia MIT](EditorPackages/Svg.Skia-LICENSE.txt) | Third-party notices |
 | `Svg.Custom` | [Microsoft Public License](EditorPackages/Svg.Custom-LICENSE.txt) | Third-party notices |
 | `ExCSS` | [MIT](EditorPackages/ExCSS-LICENSE.txt) | Third-party notices |
+| `SharpCompress` 0.50.7 | [MIT](EditorPackages/SharpCompress-LICENSE.txt) | [Upstream commit](https://github.com/adamhathcock/sharpcompress/blob/b4af8afe6683d019d504954a3b4e4f18b06e2cd6/LICENSE.txt) |
 
 Legal texts retain their supplied language and are not rewritten. This index does not replace them.

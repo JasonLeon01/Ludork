@@ -43,6 +43,8 @@ public partial class NewProjectWindow : Window
     private readonly EditorSettings editorSettings;
     private bool standalone = true;
     private bool creating;
+    private bool opened;
+    private bool closingDownload;
     private CancellationTokenSource? creationCancellation;
 
     public NewProjectWindow() : this(EditorLayoutService.Settings ?? new EditorSettings())
@@ -62,7 +64,21 @@ public partial class NewProjectWindow : Window
         ProjectLocationBox.Text = EditorPaths.ProjectsDirectory;
         ProjectNameBox.TextChanged += (_, _) => updateValidation();
         FfmpegToggle.IsCheckedChanged += (_, _) => onFfmpegChanged();
-        Opened += (_, _) => ProjectNameBox.Focus();
+        CompilerSelection.StateChanged += (_, _) => updateValidation();
+        Opened += async (_, _) =>
+        {
+            opened = true;
+            ProjectNameBox.Focus();
+            if (OperatingSystem.IsWindows())
+                await CompilerSelection.RefreshAsync(selectDefault: true);
+        };
+        Activated += async (_, _) =>
+        {
+            if (opened && !creating && !closingDownload && OperatingSystem.IsWindows() && !CompilerSelection.IsBusy)
+                await CompilerSelection.RefreshAsync(preferredCompiler: CompilerSelection.SelectedCompilerPath,
+                    selectDefault: !CompilerSelection.HasSelection);
+        };
+        Closed += (_, _) => CompilerSelection.CancelPendingOperations();
         selectTemplate(true);
     }
 
@@ -106,6 +122,7 @@ public partial class NewProjectWindow : Window
         CppTemplateButton.IsChecked = !standalone;
         StandaloneHeroIcon.IsVisible = standalone;
         CppHeroIcon.IsVisible = !standalone;
+        CompilerSelection.IsVisible = !standalone && OperatingSystem.IsWindows();
 
         string prefix = standalone ? "NEW_PROJECT_STANDALONE" : "NEW_PROJECT_CPP";
         DetailTitle.Text = LocaleService.Get(prefix);
@@ -178,6 +195,8 @@ public partial class NewProjectWindow : Window
 
     private async void onKeyDown(object? sender, KeyEventArgs args)
     {
+        if (closingDownload)
+            return;
         if (creating)
         {
             if (args.Key == Key.Escape)
@@ -193,7 +212,7 @@ public partial class NewProjectWindow : Window
             args.Handled = true;
             return;
         }
-        if (args.Key == Key.Enter && CreateButton.IsEnabled)
+        if (args.Key == Key.Enter && CreateButton.IsEnabled && !CompilerSelection.IsKeyboardFocusWithin)
         {
             args.Handled = true;
             await createProjectAsync();
@@ -215,13 +234,27 @@ public partial class NewProjectWindow : Window
         }
     }
 
-    private void onClosing(object? sender, WindowClosingEventArgs args)
+    private async void onClosing(object? sender, WindowClosingEventArgs args)
     {
         if (creating)
         {
             args.Cancel = true;
             creationCancellation?.Cancel();
+            return;
         }
+        if (closingDownload)
+        {
+            args.Cancel = true;
+            return;
+        }
+        if (!CompilerSelection.IsDownloading)
+            return;
+        args.Cancel = true;
+        closingDownload = true;
+        IsEnabled = false;
+        await CompilerSelection.StopAsync();
+        closingDownload = false;
+        Close((string?)null);
     }
 
     private void onCancel(object? sender, RoutedEventArgs args)
@@ -242,11 +275,18 @@ public partial class NewProjectWindow : Window
         FinalPathText.Text = getTargetPath();
         string? message = getValidationMessage();
         ValidationText.Text = message ?? string.Empty;
-        CreateButton.IsEnabled = !creating && message is null;
+        CreateButton.IsEnabled = !creating && !closingDownload && !CompilerSelection.IsDownloading && message is null;
     }
 
     private string? getValidationMessage()
     {
+        if (!standalone && OperatingSystem.IsWindows())
+        {
+            if (CompilerSelection.IsBusy)
+                return LocaleService.Get("COMPILER_DETECTING");
+            if (!CompilerSelection.HasSelection)
+                return LocaleService.Get("COMPILER_NOT_FOUND");
+        }
         string location = ProjectLocationBox.Text ?? string.Empty;
         if (string.IsNullOrWhiteSpace(location)
             || !Path.IsPathFullyQualified(location)
@@ -313,7 +353,7 @@ public partial class NewProjectWindow : Window
 
     private async Task createProjectAsync()
     {
-        if (creating)
+        if (creating || closingDownload || CompilerSelection.IsDownloading)
             return;
         string? validationMessage = getValidationMessage();
         if (validationMessage is not null)
@@ -332,7 +372,8 @@ public partial class NewProjectWindow : Window
             ProjectTemplateService service = new();
             Progress<ProjectTemplateProgress> progress = new(updateProgress);
             string projectFilePath = await service.CreateAsync(targetPath, standalone,
-                FfmpegToggle.IsChecked == true, progress, cancellation.Token);
+                FfmpegToggle.IsChecked == true, progress, cancellation.Token,
+                !standalone && OperatingSystem.IsWindows() ? CompilerSelection.SelectedCompilerPath : null);
             creating = false;
             Close(projectFilePath);
         }

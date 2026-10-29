@@ -1,0 +1,16 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:utils="using:Ludork.Views.Utils"
+        x:Class="Ludork.Views.ProjectCompilerDialog"
+        Width="660" MinWidth="520" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Editor.BackgroundBrush}"
+        FontFamily="{DynamicResource Editor.FontFamily}" Icon="/Editor/Assets/icon.ico">
+    <StackPanel Margin="24" Spacing="18">
+        <utils:CompilerSelectionControl x:Name="CompilerSelection" />
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+            <Button x:Name="CancelButton" MinWidth="90" Click="onCancel" />
+            <Button x:Name="ConfirmButton" MinWidth="90" Click="onConfirm" />
+        </StackPanel>
+    </StackPanel>
+</Window>

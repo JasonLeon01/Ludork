@@ -49,7 +49,7 @@ if "%USE_CURRENT_BUILD%"=="1" (
 ) else (
     call "%TOOLS_DIR%\build_cpp.bat" "%CPP_DIR%" "%CONFIG%"
     if errorlevel 1 exit /b 1
-    cmake --build "%CPP_DIR%\build" --config "%CONFIG%" --target LudorkLauncher
+    "%SCRIPT_TOOLS%" windows-native-build "%CPP_DIR%" "%CONFIG%" --target LudorkLauncher --tools-directory "%TOOLS_DIR%"
     if errorlevel 1 exit /b 1
 )
 

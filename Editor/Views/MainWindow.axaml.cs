@@ -38,6 +38,7 @@ public partial class MainWindow : Window, IProjectOperationInteraction
     private readonly ProjectRunnerService? projectRunner;
     private readonly ProjectOperationCoordinator? projectOperations;
     private readonly ProjectPackCoordinator? projectPack;
+    private readonly ProjectCompilerCoordinator? projectCompiler;
     private readonly LiveDebugCoordinator? liveDebug;
     private readonly ConsoleLogSession consoleLogSession = new();
     private readonly object consoleOutputSync = new();
@@ -98,7 +99,8 @@ public partial class MainWindow : Window, IProjectOperationInteraction
         projectRunner = session.ProjectRunner;
         projectOperations = new ProjectOperationCoordinator(projectRunner, session.ProjectConfig, this);
         projectOperations.StateChanged += onProjectOperationStateChanged;
-        projectPack = new ProjectPackCoordinator(this, session, projectOperations);
+        projectCompiler = new ProjectCompilerCoordinator(this, session, projectOperations);
+        projectPack = new ProjectPackCoordinator(this, session, projectOperations, projectCompiler);
         liveDebug = new LiveDebugCoordinator(session.MapWorkspace, session.GameData, projectRunner);
         liveDebug.EditingContextChanged += onLiveDebugEditingContextChanged;
         liveDebug.Started += onLiveDebugStarted;

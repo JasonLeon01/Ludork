@@ -8,7 +8,8 @@ using System.Threading.Tasks;
 
 namespace Ludork.Views.Coordination;
 
-internal sealed class ProjectPackCoordinator(Window owner, EditorProjectSession session, ProjectOperationCoordinator operations)
+internal sealed class ProjectPackCoordinator(Window owner, EditorProjectSession session, ProjectOperationCoordinator operations,
+    ProjectCompilerCoordinator compiler)
 {
     private PackSelectionDialog? packSelectionDialog;
     private PackLogDialog? packLogDialog;
@@ -45,7 +46,7 @@ internal sealed class ProjectPackCoordinator(Window owner, EditorProjectSession 
         {
             return;
         }
-        PackSelectionDialog selectionDialog = new(session.ProjectConfig, session.ProjectPath);
+        PackSelectionDialog selectionDialog = new(session.ProjectConfig, session.ProjectPath, compiler.ApplyAsync);
         packSelectionDialog = selectionDialog;
         ProjectPackOptions? options = await selectionDialog.ShowDialog<ProjectPackOptions?>(owner);
         packSelectionDialog = null;
@@ -61,6 +62,10 @@ internal sealed class ProjectPackCoordinator(Window owner, EditorProjectSession 
         Task? closed = null;
         await operations.PackAsync(async token =>
         {
+            if (!await compiler.EnsureAsync(token))
+                return;
+            await using System.IAsyncDisposable? suspension = System.OperatingSystem.IsWindows()
+                ? await session.PreviewService.Runtime.SuspendAsync() : null;
             PackLogDialog logDialog = new();
             ProjectPackService packService = new(session.ProjectPath,
                 (writeOutput, exportToken) => EditorExportWorkflow.ExportAsync(

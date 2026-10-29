@@ -20,6 +20,7 @@ def main(arguments: list[str] | None = None) -> int:
     if projectFile.is_file():
         data = json.loads(projectFile.read_text(encoding="utf-8"))
     data["Cpp"] = parsed.cpp == "true"
+    data.pop("compiler", None)
     data["version"] = read_editor_versions(parsed.versions_config, parsed.version).game_version
     data["packaging"] = {"version": "1.0.0", "dev": False}
     if parsed.ffmpeg == "true":

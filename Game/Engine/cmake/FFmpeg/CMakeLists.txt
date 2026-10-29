@@ -117,12 +117,27 @@ elseif(WIN32)
     set(FFMPEG_AVFORMAT_RUNTIME "${LUDORK_FFMPEG_INSTALL_DIR}/bin/avformat-${FFMPEG_AVFORMAT_MAJOR}.dll")
     set(FFMPEG_SWSCALE_RUNTIME "${LUDORK_FFMPEG_INSTALL_DIR}/bin/swscale-${FFMPEG_SWSCALE_MAJOR}.dll")
     set(FFMPEG_SWRESAMPLE_RUNTIME "${LUDORK_FFMPEG_INSTALL_DIR}/bin/swresample-${FFMPEG_SWRESAMPLE_MAJOR}.dll")
+    if(MINGW)
+        set(LUDORK_FFMPEG_WINDOWS_TOOLCHAIN mingw)
+        set(LUDORK_FFMPEG_IMPORT_LIBRARY_DIRECTORY "${LUDORK_FFMPEG_INSTALL_DIR}/lib")
+        set(LUDORK_FFMPEG_IMPORT_LIBRARY_PREFIX lib)
+        set(LUDORK_FFMPEG_IMPORT_LIBRARY_SUFFIX .dll.a)
+    elseif(MSVC)
+        set(LUDORK_FFMPEG_WINDOWS_TOOLCHAIN msvc)
+        set(LUDORK_FFMPEG_IMPORT_LIBRARY_DIRECTORY "${LUDORK_FFMPEG_INSTALL_DIR}/bin")
+        set(LUDORK_FFMPEG_IMPORT_LIBRARY_PREFIX "")
+        set(LUDORK_FFMPEG_IMPORT_LIBRARY_SUFFIX .lib)
+    else()
+        message(FATAL_ERROR "The Windows FFmpeg build requires MSVC or MinGW.")
+    endif()
     set(FFMPEG_CONFIGURE_COMMAND
-        cmd.exe /d /c "${CMAKE_CURRENT_SOURCE_DIR}/build_msvc.bat"
+        cmd.exe /d /c "${CMAKE_CURRENT_SOURCE_DIR}/build_windows.bat"
         "${LUDORK_FFMPEG_SOURCE_DIR}"
         "${LUDORK_FFMPEG_BUILD_DIR}"
         "${LUDORK_FFMPEG_INSTALL_DIR}"
-        "${LUDORK_GNU_MAKE_EXECUTABLE}")
+        "${LUDORK_GNU_MAKE_EXECUTABLE}"
+        "${LUDORK_FFMPEG_WINDOWS_TOOLCHAIN}"
+        "${CMAKE_C_COMPILER}")
 elseif(APPLE)
     find_program(LUDORK_GNU_MAKE_EXECUTABLE NAMES gmake make REQUIRED)
     if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
@@ -164,7 +179,7 @@ if(WIN32)
     foreach(ffmpeg_library IN ITEMS
         avutil avcodec avformat swscale swresample)
         list(APPEND LUDORK_FFMPEG_BUILD_BYPRODUCTS
-            "${LUDORK_FFMPEG_INSTALL_DIR}/bin/${ffmpeg_library}.lib")
+            "${LUDORK_FFMPEG_IMPORT_LIBRARY_DIRECTORY}/${LUDORK_FFMPEG_IMPORT_LIBRARY_PREFIX}${ffmpeg_library}${LUDORK_FFMPEG_IMPORT_LIBRARY_SUFFIX}")
     endforeach()
 endif()
 
@@ -184,7 +199,7 @@ function(ludork_ffmpeg_import target library runtime)
         INTERFACE_INCLUDE_DIRECTORIES "${LUDORK_FFMPEG_INSTALL_DIR}/include")
     if(WIN32)
         set_target_properties(${target} PROPERTIES
-            IMPORTED_IMPLIB "${LUDORK_FFMPEG_INSTALL_DIR}/bin/${library}.lib")
+            IMPORTED_IMPLIB "${LUDORK_FFMPEG_IMPORT_LIBRARY_DIRECTORY}/${LUDORK_FFMPEG_IMPORT_LIBRARY_PREFIX}${library}${LUDORK_FFMPEG_IMPORT_LIBRARY_SUFFIX}")
     endif()
     add_dependencies(${target} LudorkFFmpegExternal)
 endfunction()

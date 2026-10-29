@@ -34,6 +34,7 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
     private readonly PreviewRuntimeService runtime;
     private readonly PreviewAssetProjection? assetProjection;
     private readonly SemaphoreSlim startLock = new(1, 1);
+    private readonly SemaphoreSlim stopLock = new(1, 1);
     private PreviewRuntimeSnapshot? activeSnapshot;
     private long activeResourceRevision;
     private long connectionGeneration;
@@ -88,7 +89,7 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
     private async Task<bool> startAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (disposed)
+        if (disposed || runtime.IsSuspended)
             return false;
         await runtime.RefreshAsync(cancellationToken).ConfigureAwait(false);
         if (disposed)
@@ -440,6 +441,8 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
     {
         await startLock.WaitAsync().ConfigureAwait(false);
         startLock.Release();
+        await stopLock.WaitAsync().ConfigureAwait(false);
+        stopLock.Release();
         runtime.UnregisterConnection(this);
         shutdownCompletion.TrySetResult();
     }
@@ -472,11 +475,26 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
 
     private async Task stopProcessAsync()
     {
+        await stopLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            await stopOwnedProcessAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            stopLock.Release();
+        }
+    }
+
+    private async Task stopOwnedProcessAsync()
+    {
         Stream? currentInput;
+        Stream? currentOutput;
         Process? currentProcess;
         lock (processSync)
         {
             currentInput = input;
+            currentOutput = output;
             currentProcess = process;
             input = null;
             output = null;
@@ -487,9 +505,25 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
         {
             currentProcess.Exited -= onProcessExited;
             currentProcess.ErrorDataReceived -= onErrorDataReceived;
-            if (!currentProcess.HasExited)
-                currentProcess.Kill(true);
-            currentProcess.WaitForExit();
+            try
+            {
+                if (!currentProcess.HasExited)
+                    currentProcess.Kill(true);
+                await currentProcess.WaitForExitAsync().ConfigureAwait(false);
+            }
+            catch
+            {
+                lock (processSync)
+                {
+                    if (process is null && !disposed)
+                    {
+                        process = currentProcess;
+                        input = currentInput;
+                        output = currentOutput;
+                    }
+                }
+                throw;
+            }
             currentProcess.Dispose();
         }
         if (currentInput is not null)
@@ -555,6 +589,8 @@ public sealed class PreviewHostConnection : IDisposable, IAsyncDisposable
             startLock.Release();
         }
     }
+
+    internal Task SuspendAsync() => stopForSnapshotChangeAsync();
 
     private async Task stopConnectedProcessAsync(CancellationToken cancellationToken)
     {

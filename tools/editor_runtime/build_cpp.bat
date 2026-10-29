@@ -1,87 +1,22 @@
 @echo off
-setlocal EnableExtensions EnableDelayedExpansion
+setlocal EnableExtensions DisableDelayedExpansion
 chcp 65001>nul
-if not defined CMAKE_BUILD_PARALLEL_LEVEL set "CMAKE_BUILD_PARALLEL_LEVEL=%NUMBER_OF_PROCESSORS%"
-
+for %%I in ("%~dp0.") do set "TOOLS_DIR=%%~fI"
 if "%~1"=="" goto usage
 if "%~2"=="" goto usage
 if not "%~3"=="" goto usage
-
-for %%I in ("%~dp0..") do set "ROOT_DIR=%%~fI"
 for %%I in ("%~1") do set "CPP_DIR=%%~fI"
 set "CONFIG=%~2"
-
-if /I not "%CONFIG%"=="Debug" if /I not "%CONFIG%"=="Release" goto usage
 if /I "%CONFIG%"=="Debug" set "CONFIG=Debug"
 if /I "%CONFIG%"=="Release" set "CONFIG=Release"
-if not exist "%CPP_DIR%\CMakeLists.txt" (
-    echo CMakeLists.txt was not found: %CPP_DIR%
-    exit /b 1
-)
-if not exist "%CPP_DIR%\Main.proj" (
-    echo Main.proj was not found: %CPP_DIR%
-    exit /b 1
-)
-
-set "SCRIPT_TOOLS=%~dp0ScriptTools\ScriptTools.exe"
-if not exist "%SCRIPT_TOOLS%" if exist "%ROOT_DIR%\.tools\ScriptTools\ScriptTools.exe" (
-    set "SCRIPT_TOOLS=%ROOT_DIR%\.tools\ScriptTools\ScriptTools.exe"
-)
+set "SCRIPT_TOOLS=%TOOLS_DIR%\ScriptTools\ScriptTools.exe"
+if not exist "%SCRIPT_TOOLS%" set "SCRIPT_TOOLS=%TOOLS_DIR%\..\.tools\ScriptTools\ScriptTools.exe"
 if not exist "%SCRIPT_TOOLS%" (
-    echo ScriptTools was not found. Run tools\init.bat first.
-    exit /b 1
+    echo ScriptTools was not found. Prepare the editor tools first.
+    exit /b 20
 )
-
-set "GNU_MAKE="
-if exist "%ROOT_DIR%\tools\gnu-make\gnumake.exe" (
-    set "GNU_MAKE=%ROOT_DIR%\tools\gnu-make\gnumake.exe"
-)
-if not defined GNU_MAKE if exist "%ROOT_DIR%\.tools\gnu-make\gnumake.exe" (
-    set "GNU_MAKE=%ROOT_DIR%\.tools\gnu-make\gnumake.exe"
-)
-if not defined GNU_MAKE (
-    for /f "delims=" %%I in ('where gnumake.exe 2^>nul') do (
-        if not defined GNU_MAKE set "GNU_MAKE=%%I"
-    )
-)
-if not defined GNU_MAKE (
-    for /f "delims=" %%I in ('where make.exe 2^>nul') do (
-        if not defined GNU_MAKE set "GNU_MAKE=%%I"
-    )
-)
-
-findstr /R /C:"\"ffmpeg\"[ ]*:[ ]*true" "%CPP_DIR%\Main.proj" >nul 2>nul
-if not errorlevel 1 if not defined GNU_MAKE (
-    echo GNU Make was not found in tools\gnu-make or PATH.
-    exit /b 1
-)
-
-echo Project: %CPP_DIR%
-echo Configuration: %CONFIG%
-echo Parallel jobs: %CMAKE_BUILD_PARALLEL_LEVEL%
-set "BUILD_DIR=%CPP_DIR%\build"
-"%SCRIPT_TOOLS%" native-build-state begin "%CPP_DIR%" "%CONFIG%"
-if errorlevel 1 exit /b %errorlevel%
-if defined GNU_MAKE (
-    cmake -S "%CPP_DIR%" -B "%BUILD_DIR%" -DCMAKE_BUILD_TYPE=%CONFIG% "-DLUDORK_SCRIPT_TOOLS_EXECUTABLE=%SCRIPT_TOOLS%" "-DLUDORK_GNU_MAKE_EXECUTABLE=%GNU_MAKE%"
-) else (
-    cmake -S "%CPP_DIR%" -B "%BUILD_DIR%" -DCMAKE_BUILD_TYPE=%CONFIG% "-DLUDORK_SCRIPT_TOOLS_EXECUTABLE=%SCRIPT_TOOLS%"
-)
-if errorlevel 1 exit /b %errorlevel%
-
-cmake --build "%BUILD_DIR%" --config "%CONFIG%" --target Main --parallel %CMAKE_BUILD_PARALLEL_LEVEL%
-if errorlevel 1 exit /b %errorlevel%
-
-set "OUTPUT_DIR=%CPP_DIR%\bin\%CONFIG%"
-if not exist "%OUTPUT_DIR%\Main.exe" (
-    echo Build finished without producing %OUTPUT_DIR%\Main.exe
-    exit /b 1
-)
-
-"%SCRIPT_TOOLS%" native-build-state complete "%CPP_DIR%" "%CONFIG%"
-if errorlevel 1 exit /b %errorlevel%
-echo Build complete: %OUTPUT_DIR%\Main.exe
-exit /b 0
+"%SCRIPT_TOOLS%" windows-native-build "%CPP_DIR%" "%CONFIG%" --tools-directory "%TOOLS_DIR%"
+exit /b %errorlevel%
 
 :usage
 echo Usage: tools\build_cpp.bat ^<cpp-folder^> ^<Debug^|Release^>

@@ -36,6 +36,8 @@ set(preview_runtime_files
     "$<TARGET_FILE:PreviewHostExecutable>"
     "$<TARGET_FILE:PreviewHostRuntime>")
 set(preview_runtime_links)
+ludork_get_windows_runtime_files(windows_runtime_files)
+list(APPEND preview_runtime_files ${windows_runtime_files})
 if(LUDORK_ENABLE_FFMPEG)
     list(APPEND preview_runtime_files ${LUDORK_FFMPEG_RUNTIME_FILES})
     ludork_copy_ffmpeg_runtime(PreviewHostExecutable)

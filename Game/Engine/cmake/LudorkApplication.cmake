@@ -30,9 +30,10 @@ if(WIN32)
     target_compile_definitions(lua_cjson PRIVATE
         DISABLE_INVALID_NUMBERS
         strncasecmp=_strnicmp)
-    target_link_options(lua_cjson PRIVATE
-        /EXPORT:luaopen_cjson
-        /EXPORT:luaopen_cjson_safe)
+    set(cjson_exports "${CMAKE_CURRENT_BINARY_DIR}/cjson.def")
+    file(GENERATE OUTPUT "${cjson_exports}"
+        CONTENT "EXPORTS\n    luaopen_cjson\n    luaopen_cjson_safe\n")
+    target_sources(lua_cjson PRIVATE "${cjson_exports}")
 endif()
 target_link_libraries(lua_cjson PRIVATE LuaSF::Lua)
 set_target_properties(lua_cjson PROPERTIES

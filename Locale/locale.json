@@ -1,4 +1,84 @@
 {
+  "COMPILER_DOWNLOADING": {
+    "en_GB": "Downloading MinGW",
+    "zh_CN": "正在下载 MinGW"
+  },
+  "COMPILER_EXTRACTING": {
+    "en_GB": "Extracting MinGW",
+    "zh_CN": "正在解压 MinGW"
+  },
+  "COMPILER_PROJECT_CHANGED": {
+    "en_GB": "The project compiler changed while this window was open. Reopen the compiler selection and try again.",
+    "zh_CN": "窗口打开期间工程编译器已发生变化，请重新打开编译器选择窗口后重试。"
+  },
+  "COMPILER_LABEL": {
+    "en_GB": "Compiler:",
+    "zh_CN": "编译器："
+  },
+  "COMPILER_CHANGE": {
+    "en_GB": "Change project compiler",
+    "zh_CN": "更改项目编译器"
+  },
+  "COMPILER_NOT_FOUND": {
+    "en_GB": "No available C++ compiler detected",
+    "zh_CN": "未检测到可用 C++ 编译器"
+  },
+  "COMPILER_DETECTING": {
+    "en_GB": "Checking C++ compilers…",
+    "zh_CN": "正在检测 C++ 编译器…"
+  },
+  "COMPILER_SELECT_AVAILABLE": {
+    "en_GB": "The project compiler is unavailable. Select an available compiler.",
+    "zh_CN": "工程指定的编译器不可用，请选择可用的编译器。"
+  },
+  "COMPILER_DOWNLOAD": {
+    "en_GB": "Get MinGW",
+    "zh_CN": "获取 MinGW"
+  },
+  "COMPILER_INSTALLED": {
+    "en_GB": "MinGW installed",
+    "zh_CN": "MinGW 已安装"
+  },
+  "COMPILER_CANCEL_DOWNLOAD": {
+    "en_GB": "Cancel download",
+    "zh_CN": "取消下载"
+  },
+  "COMPILER_DOWNLOAD_FAILED": {
+    "en_GB": "Could not install MinGW.",
+    "zh_CN": "MinGW 安装失败。"
+  },
+  "COMPILER_SOURCE_MANAGED": {
+    "en_GB": "Ludork user data",
+    "zh_CN": "Ludork 用户数据"
+  },
+  "COMPILER_SOURCE_PATH": {
+    "en_GB": "PATH",
+    "zh_CN": "环境变量 PATH"
+  },
+  "COMPILER_SOURCE_PROJECT": {
+    "en_GB": "Project",
+    "zh_CN": "当前工程"
+  },
+  "COMPILER_SWITCH_TITLE": {
+    "en_GB": "Confirm compiler change",
+    "zh_CN": "确认更改编译器"
+  },
+  "COMPILER_SWITCH_CONFIRM": {
+    "en_GB": "Confirm change",
+    "zh_CN": "确认切换"
+  },
+  "COMPILER_SWITCH_MESSAGE": {
+    "en_GB": "Change the project compiler from {0} to {1}?\n\nThis stops this project’s game and previews, clears Debug and Release native build caches and binaries, and requires a rebuild. The new compiler is saved only after cleanup succeeds.",
+    "zh_CN": "将工程编译器从 {0} 切换为 {1}？\n\n这将停止本工程的游戏和预览，清除 Debug 和 Release 原生编译缓存及二进制产物，随后需要重新构建。只有清理成功后才会保存新编译器。"
+  },
+  "COMPILER_SWITCH_FAILED": {
+    "en_GB": "Could not change the project compiler. The previous compiler setting is retained; generated files already removed must be rebuilt.",
+    "zh_CN": "无法更改工程编译器。原编译器配置保持不变；已清除的生成文件需要重新构建。"
+  },
+  "COMPILER_SWITCH_BUSY": {
+    "en_GB": "Wait for the current project operation to finish before changing compilers.",
+    "zh_CN": "请等待当前工程操作完成后再更改编译器。"
+  },
   "ASSET_PATHS_SAVE_REQUIRED": {
     "en_GB": "Save asset path changes before copying, deleting, importing or writing files in the affected paths.",
     "zh_CN": "请先保存素材路径变更，再复制、删除、导入或写入相关路径中的文件。"
@@ -1367,9 +1447,9 @@
     "zh_CN": "Ludork {0} 的模板 {1} 尚未发布，请稍后重试。",
     "en_GB": "Template {1} for Ludork {0} is not available yet. Please try again later."
   },
-  "NEW_PROJECT_DOWNLOAD_INCOMPLETE": {
-    "zh_CN": "模板下载不完整，请重试。",
-    "en_GB": "The template download is incomplete. Please try again."
+  "DOWNLOAD_INCOMPLETE": {
+    "zh_CN": "下载不完整，请重试。",
+    "en_GB": "The download is incomplete. Please try again."
   },
   "NEW_PROJECT_TEMPLATE_INVALID": {
     "zh_CN": "模板压缩包损坏或与所选工程类型及版本不符。",
@@ -1444,8 +1524,8 @@
     "en_GB": "CMake 3.21 or newer"
   },
   "NEW_PROJECT_CPP_REQUIREMENT_2": {
-    "zh_CN": "Visual Studio 2022 MSVC 工具链",
-    "en_GB": "Visual Studio 2022 MSVC toolchain"
+    "zh_CN": "Visual Studio 2022 MSVC 或支持 C++20 的 MinGW 工具链",
+    "en_GB": "Visual Studio 2022 MSVC or a C++20-capable MinGW toolchain"
   },
   "NEW_PROJECT_CPP_REQUIREMENT_1_MACOS": {
     "zh_CN": "CMake 3.21 或更高版本",

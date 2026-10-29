@@ -83,6 +83,11 @@ function(ludork_add_external_sfml)
 endfunction()
 ludork_add_external_sfml()
 
+if(MINGW)
+    # SFML keeps its DLL exports; later consumers use MinGW auto-import for inline data.
+    add_compile_definitions(SFML_STATIC)
+endif()
+
 if(LUDORK_WITH_LUA)
     add_subdirectory("${LUDORK_LUASF_SOURCE_DIR}" LuaSF)
 else()
@@ -106,7 +111,7 @@ if(MSVC)
     endforeach()
 endif()
 
-if(NOT LUDORK_WITH_LUA
+if(WIN32 OR NOT LUDORK_WITH_LUA
    OR CMAKE_SYSTEM_NAME STREQUAL "iOS"
    OR CMAKE_SYSTEM_NAME STREQUAL "OHOS"
    OR ANDROID)
@@ -125,6 +130,10 @@ endif()
 
 if(NOT LUDORK_WITH_LUA)
     return()
+endif()
+
+if(WIN32)
+    set_target_properties(LuaGlue LuaSF_lua_shared PROPERTIES PREFIX "")
 endif()
 
 if(TARGET LuaSF_luac AND DEFINED LUDORK_LUAC_CACHE_FILE)

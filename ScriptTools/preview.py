@@ -27,6 +27,7 @@ from .ui_control_registry import (
     strict_json,
 )
 from .ui_property_values import UiAssetError
+from .windows_toolchain import project_compiler, toolchain_status
 
 
 PREVIEW_DIRECTORY = pathlib.Path("Binaries")
@@ -317,6 +318,15 @@ def _read_snapshot(
     *,
     require_host_platform: bool = True,
 ) -> PreviewSnapshot:
+    project_file = project / "Main.proj"
+    if sys.platform == "win32" and project_file.is_file():
+        config = strict_json(project_file.read_bytes())
+        if isinstance(config, dict) and config.get("Cpp") is True:
+            try:
+                if toolchain_status(project, project_compiler(project))["needsCleanup"]:
+                    raise UiRegistryError("The preview compiler differs from Main.proj. Change the project compiler and rebuild.")
+            except ValueError as error:
+                raise UiRegistryError(str(error)) from error
     root = _artifact_root(project, METADATA_DIRECTORY)
     if type(manifest["formatVersion"]) is not int or manifest["formatVersion"] != 1:
         raise UiRegistryError(

@@ -35,15 +35,17 @@ public sealed class ProjectTemplateService
     }
 
     public Task<string> CreateAsync(string targetPath, bool standalone, bool ffmpeg,
-        IProgress<ProjectTemplateProgress> progress, CancellationToken cancellationToken)
+        IProgress<ProjectTemplateProgress> progress, CancellationToken cancellationToken, string? compiler = null)
     {
         return Task.Run(() => createAsync(Path.GetFullPath(targetPath), standalone, ffmpeg,
-            new ThrottledProgress(progress), cancellationToken), cancellationToken);
+            new ThrottledProgress(progress), cancellationToken, compiler), cancellationToken);
     }
 
     private async Task<string> createAsync(string targetPath, bool standalone, bool ffmpeg,
-        IProgress<ProjectTemplateProgress> progress, CancellationToken cancellationToken)
+        IProgress<ProjectTemplateProgress> progress, CancellationToken cancellationToken, string? compiler)
     {
+        if (OperatingSystem.IsWindows() && !standalone)
+            await WindowsCompilerService.ValidateAsync(compiler, cancellationToken);
         if (Path.Exists(targetPath))
             throw new IOException(LocaleService.Get("PROJECT_EXISTS"));
         string parentPath = Path.GetDirectoryName(targetPath)!;
@@ -70,6 +72,8 @@ public sealed class ProjectTemplateService
             };
             if (ffmpeg)
                 config["ffmpeg"] = true;
+            if (OperatingSystem.IsWindows() && !standalone && compiler is not null)
+                config["compiler"] = Path.GetFullPath(compiler);
             await File.WriteAllTextAsync(Path.Combine(stagingPath, "Main.proj"),
                 config.ToJsonString(new() { WriteIndented = true, NewLine = "\n" }), cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
@@ -141,23 +145,7 @@ public sealed class ProjectTemplateService
             throw new IOException(string.Format(LocaleService.Get("NEW_PROJECT_TEMPLATE_UNAVAILABLE"),
                 baseVersion, archiveName));
         response.EnsureSuccessStatusCode();
-        long? total = response.Content.Headers.ContentLength;
-        progress.Report(new(ProjectTemplateStage.Downloading, 0, total));
-        await using Stream source = await response.Content.ReadAsStreamAsync(cancellationToken);
-        await using FileStream target = new(downloadPath, FileMode.CreateNew, FileAccess.Write,
-            FileShare.None, 65536, FileOptions.Asynchronous | FileOptions.SequentialScan);
-        byte[] buffer = new byte[65536];
-        long completed = 0;
-        int count;
-        while ((count = await source.ReadAsync(buffer, cancellationToken)) != 0)
-        {
-            await target.WriteAsync(buffer.AsMemory(0, count), cancellationToken);
-            completed += count;
-            progress.Report(new(ProjectTemplateStage.Downloading, completed, total));
-        }
-        if (total.HasValue && completed != total.Value)
-            throw new InvalidDataException(LocaleService.Get("NEW_PROJECT_DOWNLOAD_INCOMPLETE"));
-        progress.Report(new(ProjectTemplateStage.Downloading, completed, completed));
+        await DownloadProgressService.CopyAsync(response, downloadPath, progress, cancellationToken);
     }
 
     private async Task extractAndValidateAsync(string archivePath, string stagingPath,

@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:utils="using:Ludork.Views.Utils"
         x:Class="Ludork.Views.NewProjectWindow"
         Width="980" Height="780" MinWidth="880" MinHeight="680"
         WindowStartupLocation="CenterOwner"
@@ -216,6 +217,7 @@
                     <TextBlock x:Name="FinalPathText" Grid.Column="1"
                                Foreground="{DynamicResource Editor.TextMutedBrush}" TextTrimming="CharacterEllipsis" />
                 </Grid>
+                <utils:CompilerSelectionControl x:Name="CompilerSelection" IsVisible="False" />
                 <Border Background="{DynamicResource Editor.SurfaceBrush}" BorderBrush="{DynamicResource Editor.BorderBrush}" BorderThickness="1"
                         CornerRadius="4" Padding="13,10">
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">

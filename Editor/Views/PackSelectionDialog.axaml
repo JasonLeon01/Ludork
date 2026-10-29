@@ -61,6 +61,7 @@
                                    Foreground="{DynamicResource Editor.ErrorBrush}"
                                    TextWrapping="Wrap" />
                     </StackPanel>
+                    <utils:CompilerSelectionControl x:Name="CompilerSelection" IsVisible="False" ShowDownload="False" />
                     <utils:LudorkServerInputs x:Name="ServerOptions" IsVisible="False" />
                     <StackPanel x:Name="GameEncryptionPanel" Spacing="4">
                         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">

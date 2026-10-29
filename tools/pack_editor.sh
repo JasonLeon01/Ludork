@@ -849,6 +849,7 @@ validate_package() {
         EditorPackages/Roslyn-LICENSE.txt \
         EditorPackages/Roslyn-THIRD-PARTY-NOTICES.rtf \
         EditorPackages/SkiaSharp-LICENSE.txt \
+        EditorPackages/SharpCompress-LICENSE.txt \
         EditorPackages/System.Reactive-LICENSE.txt \
         EditorPackages/MicroCom.Runtime-LICENSE.txt \
         EditorPackages/Microsoft.IO.RecyclableMemoryStream-LICENSE.txt \

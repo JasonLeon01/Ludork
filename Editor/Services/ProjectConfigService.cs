@@ -84,6 +84,20 @@ public sealed class ProjectConfigService
         }
     }
 
+    public string? CompilerPath => ReadCompilerPath(Path.GetDirectoryName(configPath)!);
+
+    public static string? ReadCompilerPath(string projectPath)
+    {
+        JsonObject current = JsonNode.Parse(File.ReadAllText(Path.Combine(projectPath, "Main.proj"))) as JsonObject
+            ?? throw new InvalidDataException("Main.proj must contain an object.");
+        if (!current.ContainsKey("compiler"))
+            return null;
+        if (current["compiler"] is not JsonValue value || !value.TryGetValue(out string? compiler)
+            || string.IsNullOrWhiteSpace(compiler) || !Path.IsPathFullyQualified(compiler))
+            throw new InvalidDataException("Main.proj compiler must be an absolute compiler path.");
+        return Path.GetFullPath(compiler);
+    }
+
     public string PackagingVersion => data["packaging"] is JsonObject packaging
         && packaging["version"] is JsonValue value && value.TryGetValue(out string? version)
             ? version ?? "1.0.0" : "1.0.0";
@@ -258,6 +272,13 @@ public sealed class ProjectConfigService
 
     private void save(JsonObject updated)
     {
+        if (File.Exists(configPath) && JsonNode.Parse(File.ReadAllText(configPath)) is JsonObject current)
+        {
+            if (current.TryGetPropertyValue("compiler", out JsonNode? compiler))
+                updated["compiler"] = compiler?.DeepClone();
+            else
+                updated.Remove("compiler");
+        }
         removeObsoleteEditorState(updated);
         File.WriteAllText(configPath, updated.ToJsonString(new() { WriteIndented = true, NewLine = "\n" }));
         data = updated;

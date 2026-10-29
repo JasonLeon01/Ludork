@@ -36,6 +36,8 @@ from ScriptTools import prune_editor_windows_publish
 from ScriptTools import ui_adapter_check
 from ScriptTools import ui_assets
 from ScriptTools import preview
+from ScriptTools import windows_native_build
+from ScriptTools import windows_toolchain
 from ScriptTools.core_bindgen import generate
 from ScriptTools.core_bindgen import layout
 
@@ -43,6 +45,8 @@ from ScriptTools.core_bindgen import layout
 Command = Callable[[list[str] | None], int]
 
 COMMANDS: dict[str, Command] = {
+    "windows-native-build": windows_native_build.main,
+    "windows-toolchain": windows_toolchain.main,
     "android-pack": android_pack.main,
     "animation-mp4": animation_mp4.main,
     "core-bindgen": generate.main,

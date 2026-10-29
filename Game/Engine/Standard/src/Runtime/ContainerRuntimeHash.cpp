@@ -1,4 +1,5 @@
 #include "ContainerRuntimeInternal.hpp"
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>

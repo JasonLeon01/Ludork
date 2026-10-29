@@ -323,6 +323,14 @@
                             <Button x:Name="ConstructButton" Classes="toolbar" IsVisible="False" Click="onConstructClick">
                                 <Image Width="16" Height="16" Source="{StaticResource EditorImage.Construct}" />
                             </Button>
+                            <Button x:Name="CompilerMenuButton" Classes="toolbar" IsVisible="False"
+                                    MinWidth="16" Width="18" Padding="1" Content="▾">
+                                <Button.Flyout>
+                                    <MenuFlyout>
+                                        <MenuItem x:Name="ChangeCompilerMenuItem" Click="onChangeCompilerClick" />
+                                    </MenuFlyout>
+                                </Button.Flyout>
+                            </Button>
                             <Button x:Name="ExportButton" Classes="toolbar" Click="onExportClick">
                                 <Image Width="16" Height="16" Source="{StaticResource EditorImage.Export}" />
                             </Button>

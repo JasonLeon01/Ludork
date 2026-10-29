@@ -1,5 +1,6 @@
 #include "WindowsWebViewHostImpl.hpp"
 #include "WebViewPlatform.hpp"
+#include "WindowsWebViewCallbackImpl.hpp"
 
 #include <shellapi.h>
 
@@ -72,17 +73,21 @@ namespace ludork::runtime::webview {
 
 WindowsWebViewSessionImpl::WindowsWebViewSessionImpl(HWND windowHandle)
     : parent(windowHandle),
-      wakeEvent(CreateEventW(nullptr, FALSE, FALSE, nullptr)) {}
+      wakeEvent(CreateEventW(nullptr, FALSE, FALSE, nullptr)),
+      completionEvent(CreateEventW(nullptr, TRUE, FALSE, nullptr)) {}
 
 WindowsWebViewSessionImpl::~WindowsWebViewSessionImpl() {
     if (wakeEvent != nullptr) {
         CloseHandle(wakeEvent);
     }
+    if (completionEvent != nullptr) {
+        CloseHandle(completionEvent);
+    }
 }
 
 bool WindowsWebViewSessionImpl::post(Command command) {
     const std::lock_guard lock(queueMutex);
-    if (stopping || wakeEvent == nullptr) {
+    if (stopping || wakeEvent == nullptr || completionEvent == nullptr) {
         return false;
     }
     commands.push_back(std::move(command));
@@ -92,12 +97,14 @@ bool WindowsWebViewSessionImpl::post(Command command) {
 
 void WindowsWebViewSessionImpl::stop() {
     stopping = true;
-    SetEvent(wakeEvent);
+    if (wakeEvent != nullptr) {
+        SetEvent(wakeEvent);
+    }
     if (thread.joinable()) {
-        HANDLE worker = thread.native_handle();
-        while (WaitForSingleObject(worker, 0) == WAIT_TIMEOUT) {
+        while (WaitForSingleObject(completionEvent, 0) == WAIT_TIMEOUT) {
             const DWORD result = MsgWaitForMultipleObjectsEx(
-                1, &worker, INFINITE, QS_SENDMESSAGE, MWMO_INPUTAVAILABLE);
+                1, &completionEvent, INFINITE, QS_SENDMESSAGE,
+                MWMO_INPUTAVAILABLE);
             if (result != WAIT_OBJECT_0 + 1) {
                 break;
             }
@@ -153,10 +160,12 @@ void WindowsWebViewSessionImpl::run() {
             }
         }
     }
+    stopping = true;
     close(true);
     if (SUCCEEDED(initialized)) {
         CoUninitialize();
     }
+    SetEvent(completionEvent);
 }
 
 void WindowsWebViewSessionImpl::processCommands() {
@@ -257,8 +266,9 @@ void WindowsWebViewSessionImpl::initializeWebView() {
     const std::weak_ptr<WindowsWebViewSessionImpl> weak = weak_from_this();
     const HRESULT created = CreateCoreWebView2EnvironmentWithOptions(
         nullptr, directory.c_str(), nullptr,
-        Microsoft::WRL::Callback<
+        makeWindowsWebViewCallback<
             ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
+            IID_ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler,
             [weak, expected](HRESULT result,
                              ICoreWebView2Environment* environment) -> HRESULT {
                 const auto state = weak.lock();
@@ -273,50 +283,50 @@ void WindowsWebViewSessionImpl::initializeWebView() {
                     return S_OK;
                 }
                 state->environment = environment;
-                const HRESULT controllerResult =
-                    environment->CreateCoreWebView2Controller(
-                        state->window,
-                        Microsoft::WRL::Callback<
-                            ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
-                            [weak, expected](HRESULT result,
-                                             ICoreWebView2Controller*
-                                                 controller) -> HRESULT {
-                                const auto state = weak.lock();
-                                if (state == nullptr ||
-                                    state->generation != expected ||
-                                    state->window == nullptr) {
-                                    if (controller != nullptr) {
-                                        controller->Close();
-                                    }
-                                    return S_OK;
-                                }
-                                state->initializing = false;
-                                if (FAILED(result) || controller == nullptr) {
-                                    state->showError(
-                                        L"Unable to create Microsoft "
-                                        L"WebView2.");
-                                    return S_OK;
-                                }
-                                state->controller = controller;
-                                controller->get_CoreWebView2(&state->webView);
-                                if (state->webView == nullptr) {
-                                    state->showError(
-                                        L"Microsoft WebView2 is unavailable.");
-                                    return S_OK;
-                                }
-                                state->configureWebView();
-                                state->resize();
-                                controller->put_IsVisible(TRUE);
-                                controller->MoveFocus(
-                                    COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);
-                                if (FAILED(state->webView->Navigate(
-                                        state->url.c_str()))) {
-                                    state->showError(
-                                        L"Unable to open this web address.");
+                const HRESULT controllerResult = environment->CreateCoreWebView2Controller(
+                    state->window,
+                    makeWindowsWebViewCallback<
+                        ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
+                        IID_ICoreWebView2CreateCoreWebView2ControllerCompletedHandler,
+                        [weak, expected](
+                            HRESULT result,
+                            ICoreWebView2Controller* controller) -> HRESULT {
+                            const auto state = weak.lock();
+                            if (state == nullptr ||
+                                state->generation != expected ||
+                                state->window == nullptr) {
+                                if (controller != nullptr) {
+                                    controller->Close();
                                 }
                                 return S_OK;
-                            })
-                            .Get());
+                            }
+                            state->initializing = false;
+                            if (FAILED(result) || controller == nullptr) {
+                                state->showError(
+                                    L"Unable to create Microsoft "
+                                    L"WebView2.");
+                                return S_OK;
+                            }
+                            state->controller = controller;
+                            controller->get_CoreWebView2(&state->webView);
+                            if (state->webView == nullptr) {
+                                state->showError(
+                                    L"Microsoft WebView2 is unavailable.");
+                                return S_OK;
+                            }
+                            state->configureWebView();
+                            state->resize();
+                            controller->put_IsVisible(TRUE);
+                            controller->MoveFocus(
+                                COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);
+                            if (FAILED(state->webView->Navigate(
+                                    state->url.c_str()))) {
+                                state->showError(
+                                    L"Unable to open this web address.");
+                            }
+                            return S_OK;
+                        })
+                        .Get());
                 if (FAILED(controllerResult)) {
                     state->initializing = false;
                     state->showError(L"Unable to create Microsoft WebView2.");
@@ -341,8 +351,9 @@ void WindowsWebViewSessionImpl::configureWebView() {
     const std::uint64_t expected = generation;
     EventRegistrationToken token{};
     controller->add_AcceleratorKeyPressed(
-        Microsoft::WRL::Callback<
+        makeWindowsWebViewCallback<
             ICoreWebView2AcceleratorKeyPressedEventHandler>(
+            IID_ICoreWebView2AcceleratorKeyPressedEventHandler,
             [weak, expected](
                 ICoreWebView2Controller*,
                 ICoreWebView2AcceleratorKeyPressedEventArgs* args) -> HRESULT {
@@ -365,7 +376,8 @@ void WindowsWebViewSessionImpl::configureWebView() {
             .Get(),
         &token);
     webView->add_NavigationStarting(
-        Microsoft::WRL::Callback<ICoreWebView2NavigationStartingEventHandler>(
+        makeWindowsWebViewCallback<ICoreWebView2NavigationStartingEventHandler>(
+            IID_ICoreWebView2NavigationStartingEventHandler,
             [weak, expected](
                 ICoreWebView2*,
                 ICoreWebView2NavigationStartingEventArgs* args) -> HRESULT {
@@ -388,7 +400,9 @@ void WindowsWebViewSessionImpl::configureWebView() {
             .Get(),
         &token);
     webView->add_NavigationCompleted(
-        Microsoft::WRL::Callback<ICoreWebView2NavigationCompletedEventHandler>(
+        makeWindowsWebViewCallback<
+            ICoreWebView2NavigationCompletedEventHandler>(
+            IID_ICoreWebView2NavigationCompletedEventHandler,
             [weak, expected](
                 ICoreWebView2*,
                 ICoreWebView2NavigationCompletedEventArgs* args) -> HRESULT {
@@ -409,7 +423,8 @@ void WindowsWebViewSessionImpl::configureWebView() {
             .Get(),
         &token);
     webView->add_NewWindowRequested(
-        Microsoft::WRL::Callback<ICoreWebView2NewWindowRequestedEventHandler>(
+        makeWindowsWebViewCallback<ICoreWebView2NewWindowRequestedEventHandler>(
+            IID_ICoreWebView2NewWindowRequestedEventHandler,
             [weak, expected](
                 ICoreWebView2*,
                 ICoreWebView2NewWindowRequestedEventArgs* args) -> HRESULT {
@@ -429,7 +444,9 @@ void WindowsWebViewSessionImpl::configureWebView() {
             .Get(),
         &token);
     webView->add_PermissionRequested(
-        Microsoft::WRL::Callback<ICoreWebView2PermissionRequestedEventHandler>(
+        makeWindowsWebViewCallback<
+            ICoreWebView2PermissionRequestedEventHandler>(
+            IID_ICoreWebView2PermissionRequestedEventHandler,
             [](ICoreWebView2*,
                ICoreWebView2PermissionRequestedEventArgs* args) -> HRESULT {
                 return args->put_State(COREWEBVIEW2_PERMISSION_STATE_DENY);
@@ -437,7 +454,8 @@ void WindowsWebViewSessionImpl::configureWebView() {
             .Get(),
         &token);
     webView->add_ProcessFailed(
-        Microsoft::WRL::Callback<ICoreWebView2ProcessFailedEventHandler>(
+        makeWindowsWebViewCallback<ICoreWebView2ProcessFailedEventHandler>(
+            IID_ICoreWebView2ProcessFailedEventHandler,
             [weak, expected](ICoreWebView2*,
                              ICoreWebView2ProcessFailedEventArgs*) -> HRESULT {
                 if (const auto state = weak.lock();
@@ -450,9 +468,13 @@ void WindowsWebViewSessionImpl::configureWebView() {
             .Get(),
         &token);
     Microsoft::WRL::ComPtr<ICoreWebView2_4> downloads;
-    if (SUCCEEDED(webView.As(&downloads))) {
+    if (SUCCEEDED(webView->QueryInterface(
+            IID_ICoreWebView2_4,
+            reinterpret_cast<void**>(downloads.GetAddressOf())))) {
         downloads->add_DownloadStarting(
-            Microsoft::WRL::Callback<ICoreWebView2DownloadStartingEventHandler>(
+            makeWindowsWebViewCallback<
+                ICoreWebView2DownloadStartingEventHandler>(
+                IID_ICoreWebView2DownloadStartingEventHandler,
                 [](ICoreWebView2*,
                    ICoreWebView2DownloadStartingEventArgs* args) -> HRESULT {
                     args->put_Handled(TRUE);
@@ -462,7 +484,9 @@ void WindowsWebViewSessionImpl::configureWebView() {
             &token);
     }
     webView->add_WindowCloseRequested(
-        Microsoft::WRL::Callback<ICoreWebView2WindowCloseRequestedEventHandler>(
+        makeWindowsWebViewCallback<
+            ICoreWebView2WindowCloseRequestedEventHandler>(
+            IID_ICoreWebView2WindowCloseRequestedEventHandler,
             [weak, expected](ICoreWebView2*, IUnknown*) -> HRESULT {
                 if (const auto state = weak.lock();
                     state != nullptr && state->generation == expected) {
@@ -573,6 +597,9 @@ LRESULT CALLBACK WindowsWebViewSessionImpl::windowProcedure(HWND window,
 WindowsWebViewHostImpl::WindowsWebViewHostImpl(sf::WindowHandle window)
     : session_(std::make_shared<WindowsWebViewSessionImpl>(window)) {
     const auto state = session_;
+    if (state->wakeEvent == nullptr || state->completionEvent == nullptr) {
+        return;
+    }
     state->thread = std::thread([state]() {
         state->run();
     });

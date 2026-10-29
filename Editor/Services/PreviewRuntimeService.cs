@@ -22,6 +22,7 @@ public sealed class PreviewRuntimeService : IDisposable, IAsyncDisposable
     private readonly DispatcherTimer timer;
     private readonly ProjectAssetPaths? assetPaths;
     private readonly SemaphoreSlim refreshLock = new(1, 1);
+    private readonly SemaphoreSlim suspensionLock = new(1, 1);
     private readonly object connectionSync = new();
     private readonly HashSet<PreviewHostConnection> connections = [];
     private Task connectionShutdown = Task.CompletedTask;
@@ -31,6 +32,7 @@ public sealed class PreviewRuntimeService : IDisposable, IAsyncDisposable
     private string? recoveryError;
     private bool sourceUnavailable = true;
     private volatile bool disposed;
+    private int suspensionCount;
     private long resourceRevision;
 
     public PreviewRuntimeService(string projectPath, ProjectDataStore? gameData = null)
@@ -48,7 +50,8 @@ public sealed class PreviewRuntimeService : IDisposable, IAsyncDisposable
 
     public string ProjectPath { get; }
     public PreviewRuntimeSnapshot? Current { get; private set; }
-    public bool IsReady => !disposed && Current is not null && !sourceUnavailable;
+    public bool IsReady => !disposed && !IsSuspended && Current is not null && !sourceUnavailable;
+    internal bool IsSuspended => Volatile.Read(ref suspensionCount) != 0;
     public string StatusMessage { get; private set; } = string.Empty;
     public event EventHandler? Changed;
     public event EventHandler? ResourcesInvalidated;
@@ -64,12 +67,12 @@ public sealed class PreviewRuntimeService : IDisposable, IAsyncDisposable
 
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
-        if (disposed)
+        if (disposed || IsSuspended)
             return;
         await refreshLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (disposed)
+            if (disposed || IsSuspended)
                 return;
             try
             {
@@ -87,6 +90,72 @@ public sealed class PreviewRuntimeService : IDisposable, IAsyncDisposable
         {
             refreshLock.Release();
         }
+    }
+
+    public async Task<IAsyncDisposable> SuspendAsync()
+    {
+        await suspensionLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            Interlocked.Increment(ref suspensionCount);
+            try
+            {
+                if (suspensionCount == 1)
+                {
+                    await refreshLock.WaitAsync().ConfigureAwait(false);
+                    try
+                    {
+                        clearSnapshot();
+                    }
+                    finally
+                    {
+                        refreshLock.Release();
+                    }
+                    Changed?.Invoke(this, EventArgs.Empty);
+                    PreviewHostConnection[] active;
+                    lock (connectionSync)
+                        active = connections.ToArray();
+                    await Task.WhenAll(active.Select(connection => connection.SuspendAsync())).ConfigureAwait(false);
+                }
+                return new Suspension(this);
+            }
+            catch
+            {
+                Interlocked.Decrement(ref suspensionCount);
+                throw;
+            }
+        }
+        finally
+        {
+            suspensionLock.Release();
+        }
+    }
+
+    private async ValueTask resumeAsync()
+    {
+        await suspensionLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            if (Interlocked.Decrement(ref suspensionCount) == 0 && !disposed)
+                await RefreshAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            suspensionLock.Release();
+        }
+    }
+
+    private void clearSnapshot()
+    {
+        Current = null;
+        manifestHash = null;
+        sourceStamp = null;
+        recoveryAttemptStamp = null;
+        recoveryError = null;
+        sourceUnavailable = true;
+        StatusMessage = LocaleService.Get("UI_PREVIEW_BUILD_REQUIRED");
+        Interlocked.Increment(ref resourceRevision);
     }
 
     private void applyState(SnapshotReadResult? next, string message)
@@ -184,6 +253,28 @@ public sealed class PreviewRuntimeService : IDisposable, IAsyncDisposable
     private SnapshotReadResult readCurrent()
     {
         string metadataRoot = Path.Combine(ProjectPath, ProjectToolConstants.EditorCacheDirectory);
+        if (OperatingSystem.IsWindows())
+        {
+            string projectFile = Path.Combine(ProjectPath, "Main.proj");
+            if (File.Exists(projectFile))
+            {
+                using JsonDocument project = JsonDocument.Parse(File.ReadAllText(projectFile));
+                if (project.RootElement.TryGetProperty("Cpp", out JsonElement cpp) && cpp.ValueKind == JsonValueKind.True)
+                {
+                    string ownershipPath = Path.Combine(metadataRoot, "WindowsNativeToolchain.json");
+                    requireNotLink(ownershipPath);
+                    if (!File.Exists(ownershipPath))
+                        return new SnapshotReadResult(null, null, null, Building: true);
+                    using JsonDocument ownership = JsonDocument.Parse(File.ReadAllText(ownershipPath));
+                    string? selected = ProjectConfigService.ReadCompilerPath(ProjectPath);
+                    if (!ownership.RootElement.TryGetProperty("compiler", out JsonElement compiler)
+                        || compiler.ValueKind != JsonValueKind.String
+                        || !WindowsCompilerService.SameCompiler(selected, compiler.GetString())
+                        || selected is not null && !File.Exists(selected))
+                        return new SnapshotReadResult(null, null, null, Building: true);
+                }
+            }
+        }
         string manifestPath = Path.Combine(metadataRoot, "Preview.json");
         string registryPath = Path.Combine(metadataRoot, RegistryFileName);
         requireNotLink(metadataRoot);
@@ -613,6 +704,17 @@ public sealed class PreviewRuntimeService : IDisposable, IAsyncDisposable
         PreviewRuntimeSnapshot? Snapshot,
         bool Building = false,
         bool MetadataMissing = false);
+
+    private sealed class Suspension(PreviewRuntimeService runtime) : IAsyncDisposable
+    {
+        private PreviewRuntimeService? owner = runtime;
+
+        public ValueTask DisposeAsync()
+        {
+            PreviewRuntimeService? current = Interlocked.Exchange(ref owner, null);
+            return current is null ? ValueTask.CompletedTask : current.resumeAsync();
+        }
+    }
 
     private static void require(bool condition, string message)
     {

@@ -11,7 +11,9 @@ public sealed class ProjectOperationCoordinator : IDisposable
     private readonly IProjectOperationInteraction interaction;
     private CancellationTokenSource? cancellation;
     private TaskCompletionSource? completion;
+    private TaskCompletionSource? compilerCompletion;
     private bool disposed;
+    private bool changingCompiler;
 
     public ProjectOperationCoordinator(ProjectRunnerService runner, ProjectConfigService config,
         IProjectOperationInteraction interaction)
@@ -22,13 +24,13 @@ public sealed class ProjectOperationCoordinator : IDisposable
     }
 
     public ProjectRunState State { get; private set; }
-    public bool IsPending => completion is not null;
-    public Task Completion => completion?.Task ?? Task.CompletedTask;
+    public bool IsPending => completion is not null || compilerCompletion is not null;
+    public Task Completion => compilerCompletion?.Task ?? completion?.Task ?? Task.CompletedTask;
     public event EventHandler<ProjectRunState>? StateChanged;
 
     public void ObserveRunnerState(ProjectRunState state)
     {
-        if (!disposed && !(IsPending && state == ProjectRunState.Idle))
+        if (!disposed && !changingCompiler && !(IsPending && state == ProjectRunState.Idle))
             setState(state);
     }
 
@@ -98,12 +100,16 @@ public sealed class ProjectOperationCoordinator : IDisposable
                 building = needsBuild;
                 setState(building ? ProjectRunState.Building : ProjectRunState.Preparing);
                 token.ThrowIfCancellationRequested();
+                if (needsBuild && !await interaction.PrepareCompilerAsync(token))
+                    return;
                 if (!await interaction.SaveAsync(needsBuild))
                     return;
                 token.ThrowIfCancellationRequested();
                 if (needsBuild)
                 {
-                    result = await runner.BuildAsync(token);
+                    await using (IAsyncDisposable? suspension = OperatingSystem.IsWindows()
+                        ? await interaction.SuspendNativeRuntimeAsync() : null)
+                        result = await runner.BuildAsync(token);
                     notifyCompleted(EditorProjectOperationKind.Construct, result);
                     token.ThrowIfCancellationRequested();
                     if (!result.Success || action == EditorProjectOperationKind.Construct)
@@ -185,7 +191,42 @@ public sealed class ProjectOperationCoordinator : IDisposable
         Cancel();
     }
 
-    private bool canBegin() => !disposed && !IsPending
+    public async Task<bool> ChangeCompilerAsync(Func<Task<bool>> change)
+    {
+        if (disposed || changingCompiler || State is not (ProjectRunState.Idle or ProjectRunState.Running)
+            || IsPending && State != ProjectRunState.Running)
+            return false;
+        Task previousOperation = completion?.Task ?? Task.CompletedTask;
+        TaskCompletionSource switchCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        compilerCompletion = switchCompletion;
+        changingCompiler = true;
+        setState(ProjectRunState.Building);
+        try
+        {
+            await StopAsync();
+            await previousOperation;
+            using CancellationTokenSource source = new();
+            TaskCompletionSource operationCompletion = begin(source);
+            setState(ProjectRunState.Building);
+            try
+            {
+                return await change();
+            }
+            finally
+            {
+                finish(operationCompletion);
+            }
+        }
+        finally
+        {
+            changingCompiler = false;
+            compilerCompletion = null;
+            setState(runner.State);
+            switchCompletion.TrySetResult();
+        }
+    }
+
+    private bool canBegin() => !disposed && !changingCompiler && !IsPending
         && runner.State == ProjectRunState.Idle && State == ProjectRunState.Idle;
 
     private void notifyCompleted(EditorProjectOperationKind operation, ProjectRunResult result)
@@ -211,7 +252,7 @@ public sealed class ProjectOperationCoordinator : IDisposable
 
     private void setState(ProjectRunState state)
     {
-        State = state;
-        StateChanged?.Invoke(this, state);
+        State = changingCompiler ? ProjectRunState.Building : state;
+        StateChanged?.Invoke(this, State);
     }
 }

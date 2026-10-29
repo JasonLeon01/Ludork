@@ -19,9 +19,21 @@ else()
     set(ludork_webview2_arch x86)
 endif()
 
-add_library(LudorkWebView2 STATIC IMPORTED GLOBAL)
+set(ludork_webview2_library_directory
+    "${ludork_webview2_SOURCE_DIR}/build/native/${ludork_webview2_arch}")
+if(MINGW)
+    add_library(LudorkWebView2 SHARED IMPORTED GLOBAL)
+    set_target_properties(LudorkWebView2 PROPERTIES
+        IMPORTED_LOCATION "${ludork_webview2_library_directory}/WebView2Loader.dll"
+        IMPORTED_IMPLIB "${ludork_webview2_library_directory}/WebView2Loader.dll.lib")
+    set_property(GLOBAL APPEND PROPERTY LUDORK_WINDOWS_RUNTIME_FILES
+        "${ludork_webview2_library_directory}/WebView2Loader.dll")
+else()
+    add_library(LudorkWebView2 STATIC IMPORTED GLOBAL)
+    set_target_properties(LudorkWebView2 PROPERTIES
+        IMPORTED_LOCATION "${ludork_webview2_library_directory}/WebView2LoaderStatic.lib")
+endif()
 add_library(Ludork::WebView2 ALIAS LudorkWebView2)
 set_target_properties(LudorkWebView2 PROPERTIES
-    IMPORTED_LOCATION "${ludork_webview2_SOURCE_DIR}/build/native/${ludork_webview2_arch}/WebView2LoaderStatic.lib"
     INTERFACE_INCLUDE_DIRECTORIES "${ludork_webview2_SOURCE_DIR}/build/native/include"
     INTERFACE_LINK_LIBRARIES version)

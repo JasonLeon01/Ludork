@@ -1,6 +1,7 @@
 include_guard(GLOBAL)
 
 include("${CMAKE_CURRENT_LIST_DIR}/LudorkCppOptions.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/LudorkWindowsRuntime.cmake")
 
 option(
     LUDORK_WITH_LUA
@@ -228,6 +229,7 @@ function(ludork_enable_release_symbols target)
 endfunction()
 
 function(ludork_copy_runtime_libraries target)
+    ludork_copy_windows_runtime_libraries(${target})
     if(LUDORK_WITH_LUA)
         if(NOT COMMAND luasf_copy_runtime_dlls)
             message(FATAL_ERROR "LuaSF runtime copy helper is unavailable.")

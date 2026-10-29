@@ -8,7 +8,7 @@
 
 #include <windows.h>
 #include <WebView2.h>
-#include <wrl.h>
+#include <wrl/client.h>
 
 #include <atomic>
 #include <deque>
@@ -26,6 +26,7 @@ struct WindowsWebViewSessionImpl
 
     HWND parent;
     HANDLE wakeEvent;
+    HANDLE completionEvent;
     std::mutex queueMutex;
     std::deque<Command> commands;
     std::atomic<bool> stopping = false;

@@ -33,8 +33,8 @@ internal static class EditorProjectOpenWorkflow
             using ProjectRunnerService runner = new(projectPath);
             bool prepared = !runner.NativeBuildState.HasGeneratedFiles()
                 || !await runner.ExportState.HasGeneratedFilesAsync(token);
-            if (prepared)
-                await prepareAsync(runner, projectPath, progress, token);
+            if (prepared && !await prepareAsync(dialog, runner, projectPath, progress, token))
+                return null;
             ProjectDataStore data = await loadDataAsync(projectPath, progress, token);
             if (prepared || !data.HasBlueprintSchemaLoadErrors)
                 return data;
@@ -45,7 +45,8 @@ internal static class EditorProjectOpenWorkflow
                 LocaleService.Get("PROJECT_OPEN_REBUILD_CONFIRM"), token, details);
             if (!rebuild)
                 return null;
-            await prepareAsync(runner, projectPath, progress, token);
+            if (!await prepareAsync(dialog, runner, projectPath, progress, token))
+                return null;
             return await loadDataAsync(projectPath, progress, token);
         }
         finally
@@ -83,9 +84,21 @@ internal static class EditorProjectOpenWorkflow
         return data;
     }
 
-    private static async Task prepareAsync(ProjectRunnerService runner, string projectPath,
+    private static async Task<bool> prepareAsync(Window owner, ProjectRunnerService runner, string projectPath,
         IProgress<EditorOperationProgress> progress, CancellationToken token)
     {
+        if (OperatingSystem.IsWindows())
+        {
+            string? compiler = ProjectConfigService.ReadCompilerPath(projectPath);
+            await WindowsCompilerService.ValidateAsync(compiler, token);
+            WindowsCompilerStatus status = await WindowsCompilerService.StatusAsync(projectPath, compiler, token);
+            if (status.NeedsCleanup)
+            {
+                if (!await ProjectCompilerDialog.ConfirmChangeAsync(owner, status.CurrentCompiler, compiler, token))
+                    return false;
+                await WindowsCompilerService.SwitchAsync(projectPath, compiler, compiler);
+            }
+        }
         using ConsoleLogSession log = new();
         string? logError = log.Start(projectPath);
         if (logError is not null)
@@ -116,6 +129,7 @@ internal static class EditorProjectOpenWorkflow
         {
             runner.OutputReceived -= onOutput;
         }
+        return true;
     }
 
     private static InvalidOperationException preparationError(string projectPath, string title, string detail) =>

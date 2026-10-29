@@ -93,6 +93,22 @@ public partial class MainWindow
             await projectOperations.ExecuteAsync(EditorProjectOperationKind.Construct);
     }
 
+    private async void onChangeCompilerClick(object? sender, RoutedEventArgs args)
+    {
+        if (projectCompiler is null || projectSession is null)
+            return;
+        try
+        {
+            await ProjectCompilerDialog.ShowAsync(this, ProjectPath, projectSession.ProjectConfig.CompilerPath,
+                projectCompiler.ApplyAsync);
+        }
+        catch (Exception exception) when (exception is IOException or InvalidDataException or ArgumentException
+            or UnauthorizedAccessException or System.Text.Json.JsonException)
+        {
+            await AlertDialog.ShowAsync(this, LocaleService.Get("COMPILER_CHANGE"), exception.Message);
+        }
+    }
+
     private async void onExportClick(object? sender, RoutedEventArgs args)
     {
         if (projectOperations is not null)
@@ -108,6 +124,12 @@ public partial class MainWindow
 
     Task<bool> IProjectOperationInteraction.SaveAsync(bool needsBuild) =>
         EditorSaveWorkflow.TrySaveAsync(this, viewModel!.ProjectSave, beforeNativeBuild: needsBuild);
+
+    Task<bool> IProjectOperationInteraction.PrepareCompilerAsync(CancellationToken token) =>
+        projectCompiler!.EnsureAsync(token);
+
+    Task<IAsyncDisposable> IProjectOperationInteraction.SuspendNativeRuntimeAsync() =>
+        projectSession!.PreviewService.Runtime.SuspendAsync();
 
     Task<bool> IProjectOperationInteraction.ConfirmRebuildAsync(CancellationToken token) =>
         ConfirmationDialog.ShowAsync(this, LocaleService.Get("RUN_REBUILD_TITLE"), LocaleService.Get("RUN_REBUILD_CONFIRM"), token);
@@ -450,6 +472,10 @@ public partial class MainWindow
         bool sourceProject = viewModel?.ProjectConfig.IsStandalone == false;
         bool hasBuild = !sourceProject || projectRunner?.NativeBuildState.HasSuccessfulBuild == true;
         ConstructButton.IsVisible = sourceProject;
+        CompilerMenuButton.IsVisible = sourceProject && OperatingSystem.IsWindows();
+        CompilerMenuButton.IsEnabled = viewModel is not null && state is ProjectRunState.Idle or ProjectRunState.Running;
+        ChangeCompilerMenuItem.Header = LocaleService.Get("COMPILER_CHANGE");
+        ToolTip.SetTip(CompilerMenuButton, LocaleService.Get("COMPILER_CHANGE"));
         ConstructButton.IsEnabled = viewModel is not null && (projectOperations?.State ?? ProjectRunState.Idle) == ProjectRunState.Idle;
         bool hasExport = projectRunner?.ExportState.HasSuccessfulExport == true;
         ExportButton.IsEnabled = viewModel is not null && (projectOperations?.State ?? ProjectRunState.Idle) == ProjectRunState.Idle;

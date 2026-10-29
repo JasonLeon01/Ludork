@@ -1,77 +1,32 @@
 @echo off
-setlocal EnableExtensions
+setlocal EnableExtensions DisableDelayedExpansion
 chcp 65001>nul
-cd /d "%~dp0.."
-if not defined CMAKE_BUILD_PARALLEL_LEVEL set "CMAKE_BUILD_PARALLEL_LEVEL=%NUMBER_OF_PROCESSORS%"
-
+for %%I in ("%~dp0.") do set "TOOLS_DIR=%%~fI"
 if "%~1"=="" goto usage
-
 if /I "%~1"=="Debug" (
     if not "%~2"=="" goto usage
-    set "CPP_DIR=%CD%\Game"
-    set "CONFIG=%~1"
+    for %%I in ("%TOOLS_DIR%\..\Game") do set "CPP_DIR=%%~fI"
+    set "CONFIG=Debug"
 ) else if /I "%~1"=="Release" (
     if not "%~2"=="" goto usage
-    set "CPP_DIR=%CD%\Game"
-    set "CONFIG=%~1"
+    for %%I in ("%TOOLS_DIR%\..\Game") do set "CPP_DIR=%%~fI"
+    set "CONFIG=Release"
 ) else (
     if "%~2"=="" goto usage
     if not "%~3"=="" goto usage
-    set "CPP_DIR=%~1"
+    for %%I in ("%~1") do set "CPP_DIR=%%~fI"
     set "CONFIG=%~2"
-)
-
-if /I not "%CONFIG%"=="Debug" if /I not "%CONFIG%"=="Release" (
-    echo Configuration must be Debug or Release.
-    goto usage
 )
 if /I "%CONFIG%"=="Debug" set "CONFIG=Debug"
 if /I "%CONFIG%"=="Release" set "CONFIG=Release"
-
-for %%I in ("%CPP_DIR%") do set "CPP_DIR=%%~fI"
-
-if not exist "%CPP_DIR%\CMakeLists.txt" (
-    echo CMakeLists.txt was not found: %CPP_DIR%
-    exit /b 1
-)
-
-set "SCRIPT_TOOLS=%CD%\.tools\ScriptTools\ScriptTools.exe"
-set "LUAC_CACHE=%CD%\.tools\Lua\luac.exe"
+set "SCRIPT_TOOLS=%TOOLS_DIR%\ScriptTools\ScriptTools.exe"
+if not exist "%SCRIPT_TOOLS%" set "SCRIPT_TOOLS=%TOOLS_DIR%\..\.tools\ScriptTools\ScriptTools.exe"
 if not exist "%SCRIPT_TOOLS%" (
-    echo ScriptTools was not found. Run tools\init.bat first.
-    exit /b 1
+    echo ScriptTools was not found. Prepare the editor tools first.
+    exit /b 20
 )
-echo Project: %CPP_DIR%
-echo Configuration: %CONFIG%
-echo Parallel jobs: %CMAKE_BUILD_PARALLEL_LEVEL%
-
-set "GNU_MAKE=%CD%\.tools\gnu-make\gnumake.exe"
-findstr /R /C:"\"ffmpeg\"[ ]*:[ ]*true" "%CPP_DIR%\Main.proj" >nul 2>nul
-if not errorlevel 1 if not exist "%GNU_MAKE%" (
-    echo GNU Make was not found. Run tools\init.bat first.
-    exit /b 1
-)
-
-set "BUILD_DIR=%CPP_DIR%\build"
-if not defined LUDORK_SAVE_AS_LDC set "LUDORK_SAVE_AS_LDC=0"
-"%SCRIPT_TOOLS%" native-build-state begin "%CPP_DIR%" "%CONFIG%"
-if errorlevel 1 exit /b %errorlevel%
-cmake -S "%CPP_DIR%" -B "%BUILD_DIR%" -DCMAKE_BUILD_TYPE=%CONFIG% "-DLUDORK_SCRIPT_TOOLS_EXECUTABLE=%SCRIPT_TOOLS%" "-DLUDORK_LUAC_CACHE_FILE=%LUAC_CACHE%" "-DLUDORK_GNU_MAKE_EXECUTABLE=%GNU_MAKE%" "-DLUDORK_SAVE_AS_LDC=%LUDORK_SAVE_AS_LDC%"
-if errorlevel 1 exit /b %errorlevel%
-
-cmake --build "%BUILD_DIR%" --config "%CONFIG%" --target Main --parallel %CMAKE_BUILD_PARALLEL_LEVEL%
-if errorlevel 1 exit /b %errorlevel%
-
-set "OUTPUT_DIR=%CPP_DIR%\bin\%CONFIG%"
-if not exist "%OUTPUT_DIR%\Main.exe" (
-    echo Build finished without producing %OUTPUT_DIR%\Main.exe
-    exit /b 1
-)
-
-"%SCRIPT_TOOLS%" native-build-state complete "%CPP_DIR%" "%CONFIG%"
-if errorlevel 1 exit /b %errorlevel%
-echo Build complete: %OUTPUT_DIR%\Main.exe
-exit /b 0
+"%SCRIPT_TOOLS%" windows-native-build "%CPP_DIR%" "%CONFIG%" --tools-directory "%TOOLS_DIR%"
+exit /b %errorlevel%
 
 :usage
 echo Usage: tools\build_cpp.bat ^<Debug^|Release^>

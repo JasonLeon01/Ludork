@@ -1,0 +1,18 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Ludork.Views.Utils.CompilerSelectionControl">
+    <StackPanel Spacing="6">
+        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+            <TextBlock x:Name="CompilerLabel" VerticalAlignment="Center" />
+            <ComboBox x:Name="CompilerBox" Grid.Column="1" MinWidth="180"
+                      HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" />
+            <Button x:Name="DownloadButton" Grid.Column="2" VerticalAlignment="Center"
+                    Click="onDownload" />
+        </Grid>
+        <TextBlock x:Name="StatusText" TextWrapping="Wrap"
+                   Foreground="{DynamicResource Editor.TextMutedBrush}" />
+        <ProgressBar x:Name="DownloadProgress" Height="4" IsVisible="False" />
+        <TextBlock x:Name="ErrorText" TextWrapping="Wrap" IsVisible="False"
+                   Foreground="{DynamicResource Editor.ErrorBrush}" />
+    </StackPanel>
+</UserControl>

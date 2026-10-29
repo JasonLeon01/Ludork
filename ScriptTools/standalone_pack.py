@@ -107,6 +107,7 @@ def validate_exports(project: pathlib.Path) -> None:
 def prepare_project(project: pathlib.Path, destination: pathlib.Path) -> None:
     config = read_object(project / "Main.proj")
     config["Cpp"] = False
+    config.pop("compiler", None)
     config.setdefault("packaging", {})["dev"] = False
     write_object(destination / "Main.proj", config)
     emmy = project / ".emmyrc.json"

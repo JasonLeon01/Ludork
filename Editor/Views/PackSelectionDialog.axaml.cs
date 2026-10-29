@@ -22,6 +22,7 @@ public partial class PackSelectionDialog : Window
     private readonly ProjectConfigService? projectConfig;
     private readonly string? projectPath;
     private readonly bool isStandalone;
+    private readonly Func<Window, string?, Task<bool>>? applyCompiler;
     private CancellationTokenSource? validationCancellation;
     private int validationGeneration;
     private readonly MacOSSigningInputs macOSSigning = new();
@@ -42,12 +43,15 @@ public partial class PackSelectionDialog : Window
     {
     }
 
-    public PackSelectionDialog(ProjectConfigService? projectConfig, string? projectPath = null)
+    public PackSelectionDialog(ProjectConfigService? projectConfig, string? projectPath = null,
+        Func<Window, string?, Task<bool>>? applyCompiler = null)
     {
         this.projectConfig = projectConfig;
         this.projectPath = projectPath;
+        this.applyCompiler = applyCompiler;
         isStandalone = projectConfig?.IsStandalone ?? true;
         InitializeComponent();
+        CompilerSelection.StateChanged += (_, _) => updateConfirmState();
         harmonySigning = new(projectPath);
         MacOSSigningHost.Content = macOSSigning;
         IOSSigningHost.Content = iosSigning;
@@ -78,13 +82,17 @@ public partial class PackSelectionDialog : Window
             iosSigning.CancelPendingOperations();
             harmonySigning.CancelPendingOperations();
             androidSigning.CancelPendingOperations();
+            CompilerSelection.CancelPendingOperations();
             lifetimeCancellation.Dispose();
         };
         Activated += async (_, _) =>
         {
             if (opened && !confirming)
-                await validateAppNameAsync();
+            {
+                await Task.WhenAll(validateAppNameAsync(), refreshCompilerAsync());
+            }
         };
+        Closing += (_, args) => args.Cancel = confirming;
         Title = LocaleService.Get("PACK_PROJECT");
         DescriptionText.Text = LocaleService.Get("PACK_MODE_DESC");
         MacOSSigningOption.Content = LocaleService.Get("PACK_MACOS_SIGN_APP");
@@ -164,7 +172,7 @@ public partial class PackSelectionDialog : Window
                 selectedItem.Focus();
             else
                 PlatformList.Focus();
-            await Task.WhenAll(validateVersionAsync(true), validateAppNameAsync());
+            await Task.WhenAll(validateVersionAsync(true), validateAppNameAsync(), refreshCompilerAsync());
         };
     }
 
@@ -177,6 +185,25 @@ public partial class PackSelectionDialog : Window
             ? target.Item2 : ProjectPackKind.Game;
 
     private bool convertsToStandalone => selectedKind == ProjectPackKind.Standalone;
+
+    private async Task refreshCompilerAsync()
+    {
+        if (!OperatingSystem.IsWindows() || isStandalone || closed)
+            return;
+        try
+        {
+            string? configuredCompiler = projectConfig?.CompilerPath;
+            await CompilerSelection.RefreshAsync(projectPath,
+                CompilerSelection.HasSelection ? CompilerSelection.SelectedCompilerPath : configuredCompiler,
+                lifetimeCancellation.Token);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+            or JsonException or ArgumentException)
+        {
+            if (!closed)
+                CompilerSelection.SetUnavailable(exception.Message);
+        }
+    }
 
     private void addPlatform(ProjectPackPlatform platform, string localeKey, ProjectPackKind kind = ProjectPackKind.Game)
     {
@@ -325,7 +352,8 @@ public partial class PackSelectionDialog : Window
             _ => true,
         };
         ConfirmButton.IsEnabled = !closed && !confirming && (convertsToStandalone || (appNameValid && versionValid))
-            && selectedPlatform is not null && signingValid;
+            && selectedPlatform is not null && signingValid
+            && (!CompilerSelection.IsVisible || CompilerSelection.HasSelection && !CompilerSelection.IsBusy);
         ToolTip.SetTip(ConfirmButtonHint, convertsToStandalone || appNameValid ? null : appNameError);
     }
 
@@ -340,6 +368,7 @@ public partial class PackSelectionDialog : Window
         if (!ConfirmButton.IsEnabled || selectedPlatform is not ProjectPackPlatform platform)
             return;
         confirming = true;
+        CancelButton.IsEnabled = false;
         OptionsPanel.IsEnabled = false;
         updateConfirmState();
         try
@@ -403,8 +432,12 @@ public partial class PackSelectionDialog : Window
                 IOSSigning = iosOptions,
                 Server = serverSettings,
             };
+            if (CompilerSelection.IsVisible && (applyCompiler is null
+                || !await applyCompiler(this, CompilerSelection.SelectedCompilerPath)))
+                return;
             if (!convertsToStandalone)
                 projectConfig?.SetPackaging(options.Version, options.Dev);
+            confirming = false;
             Close(options);
         }
         catch (OperationCanceledException) when (closed)
@@ -419,6 +452,7 @@ public partial class PackSelectionDialog : Window
             if (!closed)
             {
                 confirming = false;
+                CancelButton.IsEnabled = true;
                 OptionsPanel.IsEnabled = true;
                 updateConfirmState();
             }
@@ -471,6 +505,8 @@ public partial class PackSelectionDialog : Window
     private void updatePlatformOptions()
     {
         ProjectPackPlatform? platform = selectedPlatform;
+        CompilerSelection.IsVisible = !isStandalone && OperatingSystem.IsWindows()
+            && platform == ProjectPackPlatform.Win32;
         ReleaseOptionsPanel.IsVisible = !convertsToStandalone;
         GameEncryptionPanel.IsVisible = !convertsToStandalone;
         UseLdPakOption.IsVisible = !convertsToStandalone;
@@ -497,6 +533,7 @@ public partial class PackSelectionDialog : Window
 
     private void onCancel(object? sender, RoutedEventArgs args)
     {
-        Close((ProjectPackOptions?)null);
+        if (!confirming)
+            Close((ProjectPackOptions?)null);
     }
 }

@@ -14,6 +14,8 @@ public interface IProjectOperationInteraction
     void NotifyOperationCompleted(EditorProjectOperationKind operation, ProjectRunResult result);
     void RestoreViewport();
     Task<bool> SaveAsync(bool needsBuild);
+    Task<bool> PrepareCompilerAsync(CancellationToken cancellationToken);
+    Task<System.IAsyncDisposable> SuspendNativeRuntimeAsync();
     Task<bool> ConfirmRebuildAsync(CancellationToken cancellationToken);
     Task<bool> ConfirmReexportAsync(CancellationToken cancellationToken);
     Task<ProjectRunResult> ExportAsync(CancellationToken cancellationToken);

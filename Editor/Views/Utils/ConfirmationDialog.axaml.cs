@@ -35,10 +35,20 @@ public partial class ConfirmationDialog : Window
     }
 
     public static async Task<bool> ShowAsync(
-        Window owner, string title, string message, CancellationToken cancellationToken = default, string? details = null)
+        Window owner, string title, string message, CancellationToken cancellationToken = default, string? details = null,
+        string? confirmLabel = null)
     {
         cancellationToken.ThrowIfCancellationRequested();
         ConfirmationDialog dialog = new(title, message, details);
+        if (confirmLabel is not null)
+        {
+            dialog.ConfirmButton.Content = confirmLabel;
+            dialog.Width = 640;
+            dialog.Height = 320;
+            dialog.MinWidth = 440;
+            dialog.MinHeight = 220;
+            dialog.CanResize = true;
+        }
         using CancellationTokenRegistration registration = cancellationToken.Register(
             () => Dispatcher.UIThread.Post(() => dialog.Close(false)));
         return await dialog.ShowDialog<bool>(owner);

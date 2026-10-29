@@ -11,6 +11,7 @@ import tempfile
 
 from .packaging_constants import EDITOR_CACHE_DIRECTORY
 from . import server_config
+from .windows_toolchain import project_compiler, toolchain_status
 
 
 SOURCE_EXTENSIONS = {
@@ -80,6 +81,8 @@ def _inputs(project: pathlib.Path, build_configuration: str) -> dict:
     if not isinstance(configuration, dict):
         raise ValueError("Main.proj must contain an object.")
     digest.update(b"ffmpeg:1" if configuration.get("ffmpeg") is True else b"ffmpeg:0")
+    if sys.platform == "win32":
+        digest.update(b"compiler:" + project_compiler(project).encode("utf-8"))
     digest.update(b"server:" + server_config.fingerprint(build_configuration).encode("ascii"))
     return {
         "digest": digest.hexdigest(),
@@ -159,6 +162,8 @@ def complete(project: pathlib.Path, configuration: str) -> bool:
 
 
 def check(project: pathlib.Path, configuration: str) -> tuple[bool, str]:
+    if sys.platform == "win32" and toolchain_status(project, project_compiler(project))["needsCleanup"]:
+        return False, "The Windows compiler changed; explicitly clean and rebuild the project."
     complete_path, pending_path = _paths(project, configuration)
     if pending_path.exists() or not complete_path.is_file():
         return False, "Compile the project successfully before playing."
