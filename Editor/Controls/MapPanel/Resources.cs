@@ -315,6 +315,7 @@ public sealed partial class MapPanel
             actorPointerGesture.LastAppliedOffset = null;
         if (args.Edit is not null && CurrentMapDocument is not null)
         {
+            invalidateActorPropertySession(args.Edit);
             long started = Stopwatch.GetTimestamp();
             Dictionary<MapActorReference, int> renamed = captureSelectedActorRenames(args.Edit);
             MapDocumentCodec.ApplyEdits(CurrentMapDocument, args.Edit);
@@ -334,7 +335,7 @@ public sealed partial class MapPanel
             {
                 if (IsRuntimeEditing)
                     reconcileRuntimeActorSelection();
-                else if (!args.Edit.ChangesOnlyActorPositions)
+                else if (!args.Edit.ChangesOnlyActorPositions && !args.Edit.ChangesOnlyActorOverrides)
                     reconcileProjectActorSelection(renamed.Count != 0);
                 updateActorRenderStates(args.Edit);
                 ActorDataChanged?.Invoke(this, args);
@@ -434,6 +435,8 @@ public sealed partial class MapPanel
 
     private void onActorVisualsInvalidated(object? sender, EventArgs args)
     {
+        if (actorPropertyDrag is not null || propertyWheelTarget is not null)
+            cancelMapGesture();
         invalidateActorRenderStates();
         invalidatePendingActorRenderState();
         InvalidateVisual();
@@ -441,6 +444,8 @@ public sealed partial class MapPanel
 
     private void onMapImagesRestored(object? sender, EventArgs args)
     {
+        if (actorPropertyDrag is not null || propertyWheelTarget is not null)
+            cancelMapGesture();
         disposeCachedBitmaps();
         InvalidateVisual();
     }

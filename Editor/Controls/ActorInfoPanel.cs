@@ -80,6 +80,7 @@ public sealed partial class ActorInfoPanel : UserControl
         viewModel.EditableStateChanged += (_, _) => updateEditableState();
         viewModel.OverridesChanged += (_, _) => updateResetActions();
         viewModel.FieldsChanged += (_, _) => updateClassFields();
+        viewModel.FieldValuesChanged += (_, _) => updateClassFieldValues();
         viewModel.FieldStatesChanged += (_, _) => ClassForm.SetMultipleFieldStates(viewModel.FormFields);
         viewModel.ClassRefreshRequested += (_, _) => Dispatcher.UIThread.Post(viewModel.refreshClassDetail);
         viewModel.RefreshSelectedActorRequested += (_, _) => editorPanel?.refreshSelectedActor();
@@ -124,7 +125,9 @@ public sealed partial class ActorInfoPanel : UserControl
 
     public void setLayerEditable(bool editable) => viewModel.setLayerEditable(editable);
 
-    internal void refreshActorProperties() => viewModel.refreshClassDetail();
+    internal void ApplyActorDataChanged(MapPreviewChangedEventArgs args)
+        => viewModel.ApplyActorDataChanged(args,
+            PositionX.IsKeyboardFocusWithin || PositionY.IsKeyboardFocusWithin, ClassForm.IsKeyboardFocusWithin);
 
     public void refreshActorPosition()
         => viewModel.refreshActorPosition(PositionX.IsKeyboardFocusWithin || PositionY.IsKeyboardFocusWithin,
@@ -198,6 +201,15 @@ public sealed partial class ActorInfoPanel : UserControl
         else
             ClassForm.SetFields(viewModel.FormFields);
         loading = false;
+    }
+
+    private void updateClassFieldValues()
+    {
+        loading = true;
+        bool updated = ClassForm.TryUpdateFieldValues(viewModel.FormFields);
+        loading = false;
+        if (!updated)
+            updateClassFields();
     }
 
     private Control createResetAction(BlueprintVariableField field)

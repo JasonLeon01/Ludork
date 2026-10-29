@@ -181,10 +181,12 @@ public sealed partial class ActorInfoViewModel
     {
         if (classResolver is null || fieldBuilder is null)
             return null;
+        IReadOnlyDictionary<MapActorReference, MapActorSnapshot> actors = resolveProjectSelectionActors();
+        using IDisposable batch = classResolver.BeginBatch();
         List<ProjectActorFields> result = [];
         foreach (MapActorReference reference in projectActors)
         {
-            MapActorSnapshot? actor = findProjectActor(reference);
+            MapActorSnapshot? actor = actors.GetValueOrDefault(reference);
             if (actor is null)
                 return null;
             ResolvedBlueprintClass resolved = classResolver.Resolve(actor.Blueprint, mapSnapshot?.ReadActorOverrides(actor.Tag));
@@ -204,6 +206,7 @@ public sealed partial class ActorInfoViewModel
             return;
         }
         FormFields = BlueprintMultiSelectionFields.Build(selections.Select(selection => selection.Fields).ToArray());
+        cacheProjectFields(selections);
         defaultValues.Clear();
         fieldsWithDefaults.Clear();
         updateProjectOverriddenFields(selections);
@@ -212,17 +215,22 @@ public sealed partial class ActorInfoViewModel
         SetClassDetailVisible(FormFields.Count > 0);
     }
 
-    private void updateProjectOverriddenFields(IReadOnlyList<ProjectActorFields> selections)
+    private void updateProjectOverriddenFields(IReadOnlyList<ProjectActorFields> selections, IReadOnlySet<string>? names = null)
     {
-        overriddenFields.Clear();
+        if (names is null)
+            overriddenFields.Clear();
+        else
+            overriddenFields.ExceptWith(names);
         foreach (BlueprintVariableField common in FormFields)
         {
+            if (names is not null && !names.Contains(common.Name))
+                continue;
             IReadOnlyList<BlueprintVariableField> leaves = BlueprintMultiSelectionFields.EditableLeaves(common).ToArray();
             if (leaves.Count == 0)
                 continue;
             foreach (ProjectActorFields selection in selections)
             {
-                if (mapSnapshot?.ReadActorOverrides(selection.Reference.Tag)?.ContainsKey(common.Name) != true)
+                if ((mapSnapshot?.Data["BPClassVarChanged"]?[selection.Reference.Tag] as JsonObject)?.ContainsKey(common.Name) != true)
                     continue;
                 ResolvedBlueprintField? resolved = selection.Resolved.GetField(common.Name);
                 BlueprintVariableField? field = selection.Fields.FirstOrDefault(item => item.Name == common.Name);
@@ -268,11 +276,14 @@ public sealed partial class ActorInfoViewModel
             refreshActorInfo();
             return;
         }
+        if (isTransformField(name))
+            return;
         readMapSnapshot();
         List<ProjectActorFields>? updated = readProjectSelectionFields();
         if (updated is not null)
         {
             FormFields = BlueprintMultiSelectionFields.Build(updated.Select(selection => selection.Fields).ToArray());
+            cacheProjectFields(updated);
             updateProjectOverriddenFields(updated);
         }
         RefreshSelectedActorRequested?.Invoke(this, EventArgs.Empty);

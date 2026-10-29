@@ -130,14 +130,14 @@ public sealed partial class MapDataService
         return getMap(mapKey) is JsonObject map && MapTagService.ContainsTag(map, tag, ignoredLayerName, ignoredActorIndex);
     }
 
-    internal bool commitMapEdits(string mapKey, JsonObject map, IReadOnlyList<JsonDataEdit> edits)
+    internal bool commitMapEdits(string mapKey, JsonObject map, IReadOnlyList<JsonDataEdit> edits, object? origin = null)
     {
         JsonDataEdit[] changed = edits.Where(edit => edit.Changes(map)).ToArray();
         if (changed.Length == 0 || changed.Any(edit => !edit.CanApply(map)))
             return false;
         mapKey = normaliseMapKey(mapKey);
         store.RecordMapSnapshot(mapKey, MapHistoryEdits.Empty);
-        MapDataEditedEventArgs change = new(mapKey, changed);
+        MapDataEditedEventArgs change = new(mapKey, changed) { Origin = origin };
         List<IReadOnlyList<JsonDataEdit>> inverses = [];
         foreach (JsonDataEdit edit in changed)
         {
@@ -147,7 +147,7 @@ public sealed partial class MapDataService
         MapHistoryEdits history = new(changed, inverses.AsEnumerable().Reverse().SelectMany(edits => edits));
         store.Documents.AppendPendingMapEdits(store.GetDocument("Maps", mapKey)!, history);
         if (change.ChangesActors)
-            NotifyMapActorsChanged(mapKey);
+            NotifyMapActorsChanged(mapKey, change);
         store.refreshModifiedState();
         NotifyMapContentChanged(mapKey, change);
         return true;

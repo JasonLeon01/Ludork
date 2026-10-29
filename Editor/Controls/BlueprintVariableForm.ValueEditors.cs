@@ -79,8 +79,11 @@ public sealed partial class BlueprintVariableForm
             if (displayed == box.Value)
                 return;
             displayed = box.Value;
+            if (applyingFieldValues)
+                return;
             changed(JsonValue.Create(decimal.ToInt64(box.Value ?? 0)), false);
         };
+        registerNumberValueUpdater(box, true, long.MaxValue);
         return box;
     }
 
@@ -104,10 +107,13 @@ public sealed partial class BlueprintVariableForm
                 if (displayed == box.Value)
                     return;
                 displayed = box.Value;
+                if (applyingFieldValues)
+                    return;
                 double next = decimal.ToDouble(box.Value ?? 0);
                 if (Math.Abs(next) <= limit)
                     changed(JsonValue.Create(next), false);
             };
+            registerNumberValueUpdater(box, false, limit, true);
             return box;
         }
         TextBox input = EditorInputs.CreateEditableTextBox(getText(value));
@@ -272,6 +278,8 @@ public sealed partial class BlueprintVariableForm
             JsonNode? component = index < source.Count ? source[index] : null;
             void setComponent(JsonNode? next, bool refresh)
             {
+                if (applyingFieldValues)
+                    return;
                 if (componentIndex < source.Count && JsonNode.DeepEquals(source[componentIndex], next))
                     return;
                 while (source.Count < spec.Count)
@@ -291,8 +299,11 @@ public sealed partial class BlueprintVariableForm
                     if (displayed == box.Value)
                         return;
                     displayed = box.Value;
+                    if (applyingFieldValues)
+                        return;
                     setComponent(JsonValue.Create(decimal.ToInt64(box.Value ?? 0)), false);
                 };
+                registerNumberValueUpdater(box, true, double.MaxValue);
                 editor = box;
             }
             else
@@ -302,6 +313,23 @@ public sealed partial class BlueprintVariableForm
             Grid.SetColumn(editor, index);
             grid.Children.Add(editor);
         }
+        bool canUpdate(JsonNode? next, bool mixed)
+        {
+            if (mixed || next is not JsonArray array || array.Count != spec.Count)
+                return false;
+            for (int index = 0; index < spec.Count; index++)
+                if (!valueEditorUpdaters.TryGetValue(grid.Children[index], out ValueEditorUpdater? updater)
+                    || !updater.CanUpdate(array[index], false))
+                    return false;
+            return true;
+        }
+        void update(JsonNode? next, bool mixed)
+        {
+            source = (JsonArray)next!.DeepClone();
+            for (int index = 0; index < spec.Count; index++)
+                valueEditorUpdaters[grid.Children[index]].Update(source[index], false);
+        }
+        valueEditorUpdaters[grid] = new(canUpdate, update);
         return grid;
     }
 

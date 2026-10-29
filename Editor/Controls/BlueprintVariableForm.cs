@@ -207,6 +207,8 @@ public sealed partial class BlueprintVariableForm : UserControl, IDisposable
         fields.AddRange(nextFields.Select(field => field.Clone()));
         values.Clear();
         rows.Clear();
+        fieldValueEditors.Clear();
+        valueEditorUpdaters.Clear();
         multipleFieldEditors.Clear();
         instanceVariableSources.Clear();
         foreach (Control control in historyControls)
@@ -494,6 +496,7 @@ public sealed partial class BlueprintVariableForm : UserControl, IDisposable
                 ToolTip.SetTip(editor, tooltip);
         }
         rows[field.Name] = new BlueprintVariableRow(field, label, editor, description, dependency);
+        fieldValueEditors[field] = editor;
         addGridRow(label, editor, FieldActionFactory?.Invoke(field), target);
     }
 
@@ -710,7 +713,7 @@ public sealed partial class BlueprintVariableForm : UserControl, IDisposable
 
     private void commit(BlueprintVariableField field, JsonNode? value, bool refresh)
     {
-        if (disposed || building || isReadOnly || field.IsReadOnly)
+        if (disposed || building || applyingFieldValues || isReadOnly || field.IsReadOnly)
             return;
         values.TryGetValue(field.Name, out JsonNode? previous);
         if (JsonNode.DeepEquals(previous, value))
@@ -953,6 +956,8 @@ public sealed partial class BlueprintVariableForm : UserControl, IDisposable
         editorRefreshGeneration++;
         unsubscribeGameVariables();
         disposeNestedForms();
+        fieldValueEditors.Clear();
+        valueEditorUpdaters.Clear();
         gameVariables = null;
     }
 

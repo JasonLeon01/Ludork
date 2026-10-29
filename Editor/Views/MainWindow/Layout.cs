@@ -82,7 +82,6 @@ public partial class MainWindow
         EditorPanel.PendingActorCancelled += (_, _) => viewModel?.ClearPendingActor();
         EditorPanel.BlueprintLocateRequested += onBlueprintLocateRequested;
         EditorPanel.ActorDataChanged += onActorDataChanged;
-        EditorPanel.ActorPropertiesChanged += (_, _) => ActorInfoPanel.refreshActorProperties();
         EditorPanel.EditFeedbackRequested += (_, message) => toast.ShowMessage(message, 3000);
         WorldEditorPanel.PlacementChanged += onWorldPlacementChanged;
         WorldEditorPanel.PlacementRemoved += onWorldPlacementRemoved;
@@ -369,9 +368,10 @@ public partial class MainWindow
 
     private void onActorDataChanged(object? sender, MapPreviewChangedEventArgs args)
     {
-        if (EditorPanel.IsRuntimeEditing || args.Edit?.ChangesOnlyActorPositions != true)
+        if (EditorPanel.IsRuntimeEditing || args.Edit is null
+            || !args.Edit.ChangesOnlyActorPositions && !args.Edit.ChangesOnlyActorOverrides)
             viewModel?.MapWorkspace.refreshActorOutliner();
-        ActorInfoPanel.refreshActorPosition();
+        ActorInfoPanel.ApplyActorDataChanged(args);
     }
 
     private void onActorTagChanged(object? sender, ActorSelectionChangedEventArgs args)

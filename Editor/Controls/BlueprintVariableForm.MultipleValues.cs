@@ -95,6 +95,7 @@ public sealed partial class BlueprintVariableForm
         }
         editor.IsEnabled = !field.IsReadOnly && !field.IsMultiEditReadOnly;
         multipleFieldEditors.Add(new MultipleFieldEditor(root, field, editor));
+        fieldValueEditors[field] = editor;
         return editor;
     }
 
@@ -221,10 +222,11 @@ public sealed partial class BlueprintVariableForm
         attachHistory(box);
         box.ValueChanged += (_, args) =>
         {
-            if (args.NewValue is not decimal next)
+            if (applyingFieldValues || args.NewValue is not decimal next)
                 return;
             changed(integer ? JsonValue.Create(decimal.ToInt64(next)) : JsonValue.Create(decimal.ToDouble(next)), false);
         };
+        registerNumberValueUpdater(box, integer, (double)decimal.MaxValue);
         return box;
     }
 
@@ -312,7 +314,7 @@ public sealed partial class BlueprintVariableForm
 
     private void commitMultipleValue(BlueprintVariableField root, BlueprintVariableField field, JsonNode? value, bool refresh)
     {
-        if (disposed || building || isReadOnly || root.IsReadOnly || root.IsMultiEditReadOnly
+        if (disposed || building || applyingFieldValues || isReadOnly || root.IsReadOnly || root.IsMultiEditReadOnly
             || field.IsReadOnly || field.IsMultiEditReadOnly)
             return;
         if (!field.IsMixedValue && JsonNode.DeepEquals(getFieldValue(field), value))

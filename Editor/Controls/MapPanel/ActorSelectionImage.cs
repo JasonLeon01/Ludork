@@ -17,14 +17,13 @@ public sealed partial class MapPanel
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (EditMode != MapEditMode.Actor || !tryGetEditableActorClasses(out IReadOnlyList<EditableActor> actors)
-            || actors.Count != 1)
+        if (!canAdjustActorProperties() || selectedActors.Count != 1)
             return null;
         ActorRenderState? actor = getSelectedActorImageState();
-        if (actor is null)
+        if (actor is null || previewService is null
+            || previewService.tryResolveMapActorClass(CurrentMapDocument!, actor.Actor) is not ResolvedBlueprintClass resolved)
             return null;
-        if (resolveActorVisual(actors[0].Actor, null) is { RequiresNativePreview: true } descriptor
-            && previewService is not null)
+        if (previewService.tryResolveActorVisual(resolved, actor.Actor.Blueprint) is { RequiresNativePreview: true } descriptor)
         {
             MapDocumentSnapshot? document = CurrentMapDocument;
             MapActorReference reference = selectedActors[0];

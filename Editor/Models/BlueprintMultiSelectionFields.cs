@@ -17,6 +17,10 @@ public static class BlueprintMultiSelectionFields
         return buildLevel(selections, []);
     }
 
+    internal static IReadOnlyList<BlueprintVariableField> Build(
+        IReadOnlyList<IReadOnlyList<BlueprintVariableField>> selections, IReadOnlySet<string> names)
+        => selections.Count == 0 ? [] : buildLevel(selections, [], names);
+
     public static IEnumerable<BlueprintVariableField> EditableLeaves(BlueprintVariableField field)
     {
         if (field.IsReadOnly || field.IsMultiEditReadOnly)
@@ -138,11 +142,14 @@ public static class BlueprintMultiSelectionFields
     }
 
     private static IReadOnlyList<BlueprintVariableField> buildLevel(
-        IReadOnlyList<IReadOnlyList<BlueprintVariableField>> selections, IReadOnlyList<string> parentPath)
+        IReadOnlyList<IReadOnlyList<BlueprintVariableField>> selections, IReadOnlyList<string> parentPath,
+        IReadOnlySet<string>? names = null)
     {
         List<BlueprintVariableField> result = [];
         foreach (BlueprintVariableField candidate in selections[0])
         {
+            if (names is not null && !names.Contains(candidate.Name))
+                continue;
             List<BlueprintVariableField> matches = [];
             foreach (IReadOnlyList<BlueprintVariableField> selection in selections)
             {
@@ -324,6 +331,18 @@ public static class BlueprintMultiSelectionFields
 
     private static bool dependencyMatches(BlueprintVariableField field, IReadOnlyList<BlueprintVariableField> context)
     {
+        BlueprintVariableDependency? dependency = getDependency(field);
+        if (dependency is null)
+            return true;
+        BlueprintVariableField? sourceField = context.FirstOrDefault(item => item.Name == dependency.Source);
+        bool equal = JsonNode.DeepEquals(sourceField is null ? null : EffectiveValue(sourceField), dependency.ExpectedValue);
+        return dependency.Operator == "!=" ? !equal : equal;
+    }
+
+    internal static string? GetDependencySource(BlueprintVariableField field) => getDependency(field)?.Source;
+
+    private static BlueprintVariableDependency? getDependency(BlueprintVariableField field)
+    {
         BlueprintVariableDependency? dependency = field.Dependency;
         JsonNode? rely = field.Meta["Rely"];
         if (dependency is null && rely is JsonObject map && map[field.Name] is JsonNode nested)
@@ -337,11 +356,7 @@ public static class BlueprintMultiSelectionFields
             if (sourceName is not null)
                 dependency = new BlueprintVariableDependency(sourceName, rule["value"], readString(rule["op"]) ?? readString(rule["operator"]) ?? "==");
         }
-        if (dependency is null)
-            return true;
-        BlueprintVariableField? sourceField = context.FirstOrDefault(item => item.Name == dependency.Source);
-        bool equal = JsonNode.DeepEquals(sourceField is null ? null : EffectiveValue(sourceField), dependency.ExpectedValue);
-        return dependency.Operator == "!=" ? !equal : equal;
+        return dependency;
     }
 
     private static string? readString(JsonNode? value)

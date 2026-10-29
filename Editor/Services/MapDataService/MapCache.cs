@@ -24,16 +24,18 @@ public sealed partial class MapDataService
         return snapshot is not null && mapMatchesCatalogEntry(snapshot, entry) ? snapshot : null;
     }
 
-    internal void NotifyMapActorsChanged(string mapKey)
+    internal void NotifyMapActorsChanged(string mapKey, MapDataEditedEventArgs? edit = null)
     {
         mapKey = normaliseMapKey(mapKey);
-        mapActorTagIndexes.Remove(mapKey);
+        bool preserveTags = edit?.ChangesOnlyActorOverrides == true;
+        if (!preserveTags)
+            mapActorTagIndexes.Remove(mapKey);
         if (mapDocuments.TryGetValue(mapKey, out JsonObject? map)
             && tryGetMapCatalogEntry(mapKey, out MapCatalogEntry entry))
         {
             setMapCatalogEntry(entry with
             {
-                ActorTags = readActorTags(map),
+                ActorTags = preserveTags ? entry.ActorTags : readActorTags(map),
                 PreviewLightSources = MapPreviewCatalogCapture.Extract(map),
             });
         }

@@ -148,6 +148,7 @@ public sealed class BlueprintClassResolver : IDisposable
     }
 
     public long Revision => revision;
+    internal long MetadataRevision => metadataService.CacheRevision;
 
     public bool IsDerivedFrom(ResolvedBlueprintClass resolved, string baseTypeName)
     {

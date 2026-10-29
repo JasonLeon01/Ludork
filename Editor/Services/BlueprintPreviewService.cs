@@ -50,6 +50,7 @@ public sealed partial class BlueprintPreviewService : IDisposable
     public MapPreviewService MapPreviews { get; }
     public MapPreviewSceneBuilder MapScenes { get; }
     public long ResolutionRevision => classResolver.Revision;
+    internal (long Resolver, long Metadata) ResolutionVersion => (classResolver.Revision, classResolver.MetadataRevision);
     public event EventHandler? VisualsInvalidated;
     public event EventHandler? LiveVisualsInvalidated;
 

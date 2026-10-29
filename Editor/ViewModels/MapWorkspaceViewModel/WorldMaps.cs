@@ -40,6 +40,12 @@ public sealed partial class MapWorkspaceViewModel
     {
         if (!args.ReloadData || args.MapKey is not null && !string.Equals(args.MapKey, SelectedMap?.Key, StringComparison.Ordinal))
             return;
+        if (liveDebugSession is null && args.Edit is not null && selectedMapDocument is not null
+            && string.Equals(selectedDocumentKey, args.MapKey, StringComparison.Ordinal))
+        {
+            MapDocumentCodec.ApplyEdits(selectedMapDocument, args.Edit);
+            return;
+        }
         selectedMapDocument = null;
         selectedDocumentKey = null;
         if (args.Edit is null)

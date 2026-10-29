@@ -93,6 +93,7 @@ public sealed partial class MapPreviewSceneBuilder
     private static HashSet<string>? affectedActors(string key, JsonObject map, MapDataEditedEventArgs edit)
     {
         HashSet<string> affected = new(StringComparer.Ordinal);
+        HashSet<string> tags = new(StringComparer.Ordinal);
         foreach (JsonDataEdit change in edit.Edits)
         {
             if (change.Path[0] is "runtimeInfo")
@@ -106,14 +107,16 @@ public sealed partial class MapPreviewSceneBuilder
             }
             if (change.Path[0] is "BPClassVarChanged" && change.Path.Count >= 2 && change.Path[1] is string tag)
             {
-                foreach ((string group, JsonNode? values) in map["actors"] as JsonObject ?? [])
-                    foreach (JsonObject item in (values as JsonArray ?? []).OfType<JsonObject>())
-                        if (item["tag"]?.GetValue<string>() == tag)
-                            affected.Add(actorId(key, group, item));
+                tags.Add(tag);
                 continue;
             }
             return null;
         }
+        if (tags.Count != 0)
+            foreach ((string group, JsonNode? values) in map["actors"] as JsonObject ?? [])
+                foreach (JsonObject item in (values as JsonArray ?? []).OfType<JsonObject>())
+                    if (item["tag"]?.GetValue<string>() is string tag && tags.Contains(tag))
+                        affected.Add(actorId(key, group, item));
         return affected;
     }
 

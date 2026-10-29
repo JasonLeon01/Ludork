@@ -28,6 +28,9 @@ public sealed partial class MapDataService
     }
 
     public bool ApplyMapActorOverrides(string mapKey, IReadOnlyList<MapActorOverrideEdit> overrides)
+        => ApplyMapActorOverrides(mapKey, overrides, null);
+
+    internal bool ApplyMapActorOverrides(string mapKey, IReadOnlyList<MapActorOverrideEdit> overrides, object? origin)
     {
         if (overrides.Count == 0 || getMap(mapKey) is not JsonObject map
             || map["BPClassVarChanged"] is not null and not JsonObject)
@@ -40,30 +43,69 @@ public sealed partial class MapDataService
                 || map["BPClassVarChanged"]?[change.Actor.Tag] is not null and not JsonObject)
                 return false;
         }
-        JsonObject root = map["BPClassVarChanged"]?.DeepClone() as JsonObject ?? [];
+        JsonObject? root = map["BPClassVarChanged"] as JsonObject;
+        Dictionary<string, ActorOverrideChanges> changes = new(StringComparer.Ordinal);
         foreach (MapActorOverrideEdit change in overrides)
         {
-            JsonObject? actorOverrides = root[change.Actor.Tag] as JsonObject;
-            bool exists = actorOverrides?.TryGetPropertyValue(change.Name, out _) == true;
+            if (!changes.TryGetValue(change.Actor.Tag, out ActorOverrideChanges? actorChanges))
+            {
+                actorChanges = new(root?[change.Actor.Tag] as JsonObject, root?.ContainsKey(change.Actor.Tag) == true);
+                changes.Add(change.Actor.Tag, actorChanges);
+            }
+            bool exists = actorChanges.TryGetValue(change.Name, out JsonNode? previous);
             bool changed = change.Remove ? exists
-                : !exists || !JsonNode.DeepEquals(actorOverrides?[change.Name], change.Value);
+                : !exists || !JsonNode.DeepEquals(previous, change.Value);
             if (!changed)
                 continue;
-            if (actorOverrides is null)
-            {
-                actorOverrides = [];
-                root[change.Actor.Tag] = actorOverrides;
-            }
-            if (change.Remove)
-                actorOverrides.Remove(change.Name);
-            else
-                actorOverrides[change.Name] = change.Value?.DeepClone();
+            actorChanges.Set(change.Name, !change.Remove, change.Value);
             if (change.Name == "material")
-                actorOverrides["materialParameters"] = new JsonObject();
-            if (actorOverrides.Count == 0)
-                root.Remove(change.Actor.Tag);
+                actorChanges.Set("materialParameters", true, new JsonObject());
         }
-        return commitMapEdits(mapKey, map, createBatchActorOverridesEdits(map, root));
+        int rootCount = root?.Count ?? 0;
+        List<JsonDataEdit> edits = [];
+        foreach ((string tag, ActorOverrideChanges actorChanges) in changes)
+        {
+            bool existed = root?.ContainsKey(tag) == true;
+            rootCount += (actorChanges.Exists ? 1 : 0) - (existed ? 1 : 0);
+            if (!actorChanges.Exists)
+            {
+                if (existed)
+                    edits.Add(new(JsonDataEdit.Operation.Remove, ["BPClassVarChanged", tag]));
+                continue;
+            }
+            foreach ((string name, (bool exists, JsonNode? value)) in actorChanges.Fields)
+                edits.Add(new(exists ? JsonDataEdit.Operation.Set : JsonDataEdit.Operation.Remove,
+                    ["BPClassVarChanged", tag, name], value));
+        }
+        if (rootCount == 0)
+            edits = [new(JsonDataEdit.Operation.Remove, ["BPClassVarChanged"])];
+        return commitMapEdits(mapKey, map, edits, origin);
+    }
+
+    private sealed class ActorOverrideChanges(JsonObject? original, bool exists)
+    {
+        private int count = original?.Count ?? 0;
+        public bool Exists { get; private set; } = exists;
+        public Dictionary<string, (bool Exists, JsonNode? Value)> Fields { get; } = new(StringComparer.Ordinal);
+
+        public bool TryGetValue(string name, out JsonNode? value)
+        {
+            if (Fields.TryGetValue(name, out (bool Exists, JsonNode? Value) field))
+            {
+                value = field.Value;
+                return field.Exists;
+            }
+            value = null;
+            return original?.TryGetPropertyValue(name, out value) == true;
+        }
+
+        public void Set(string name, bool present, JsonNode? value)
+        {
+            bool previous = TryGetValue(name, out _);
+            count += (present ? 1 : 0) - (previous ? 1 : 0);
+            Fields[name] = (present, present ? value : null);
+            Exists = count != 0;
+        }
     }
 
     public bool DeleteMapActors(string mapKey, IReadOnlyList<MapActorReference> actors)

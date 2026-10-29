@@ -208,6 +208,7 @@ public sealed partial class ActorInfoViewModel
 
     private void clearClassDetail()
     {
+        cacheProjectFields([]);
         defaultValues.Clear();
         fieldsWithDefaults.Clear();
         overriddenFields.Clear();
@@ -278,6 +279,7 @@ public sealed partial class ActorInfoViewModel
 
     public void refreshClassDetail()
     {
+        cacheProjectFields([]);
         readMapSnapshot();
         if (projectActors.Count > 1)
         {
@@ -331,6 +333,7 @@ public sealed partial class ActorInfoViewModel
         }
 
         FormFields = formFields;
+        cacheProjectFields([new ProjectActorFields(new MapActorReference(layerName!, actorData.Tag), resolved, formFields)]);
         FieldsChanged?.Invoke(this, EventArgs.Empty);
         OverridesChanged?.Invoke(this, EventArgs.Empty);
         SetClassDetailVisible(true);
@@ -373,6 +376,10 @@ public sealed partial class ActorInfoViewModel
 
     public void SetVariable(string name, JsonNode? nextValue, bool requiresRefresh, IReadOnlyList<string>? path = null)
     {
+        if (!isRuntime && isTransformField(name) && !isProjectFieldCacheCurrent())
+            refreshClassDetail();
+        if (trySetCachedTransform(name, nextValue, path ?? []))
+            return;
         if (projectActors.Count > 1)
         {
             setProjectSelectionVariable(name, nextValue, path ?? [], requiresRefresh);
@@ -411,6 +418,8 @@ public sealed partial class ActorInfoViewModel
             refreshActorInfo();
             return;
         }
+        if (isTransformField(name))
+            return;
         if (isDefault)
         {
             overriddenFields.Remove(name);

@@ -9,6 +9,7 @@ public sealed partial class MapPanel
 {
     private readonly List<MapActorReference> selectedActors = [];
     private MapActorReference? primarySelectedActor;
+    private long actorSelectionRevision;
 
     public IReadOnlyList<MapActorReference> SelectedActors => selectedActors.AsReadOnly();
     public MapActorReference? PrimarySelectedActor => primarySelectedActor;
@@ -41,7 +42,10 @@ public sealed partial class MapPanel
         primary = primary is not null && next.Contains(primary) ? primary : next.LastOrDefault();
         bool changed = !selectedActors.SequenceEqual(next) || primarySelectedActor != primary;
         if (changed)
+        {
+            actorSelectionRevision++;
             cancelMapGesture();
+        }
         selectedActors.Clear();
         selectedActors.AddRange(next);
         primarySelectedActor = primary;
