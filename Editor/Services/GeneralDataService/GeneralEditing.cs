@@ -18,11 +18,8 @@ public sealed partial class GeneralDataService
         {
             return false;
         }
-        JsonNode? next = value?.DeepClone();
-        generalDocuments.RecordChange(typeKey);
-        member[name] = next;
-        store.refreshModifiedState();
-        return true;
+        return store.ApplyDocumentEdits("General", typeKey,
+            [new JsonDataEdit(JsonDataEdit.Operation.Set, ["members", memberId, name], value)]);
     }
 
     public bool CreateGeneralMember(string typeKey, string memberId)

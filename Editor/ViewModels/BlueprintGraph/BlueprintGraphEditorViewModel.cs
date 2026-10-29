@@ -85,6 +85,20 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
         .Any(node => !node.Model.IsVirtual);
     public bool CanDeleteSelected => !IsReadOnly && CanCopySelected;
 
+    internal void SynchronizeParameters(int index, JsonArray parameters)
+    {
+        BlueprintGraphNode? node = document.FindSavedNode(index);
+        if (node is null)
+            return;
+        node.Parameters.Clear();
+        foreach (JsonNode? parameter in parameters)
+            node.Parameters.Add(parameter?.DeepClone());
+        foreach (BlueprintGraphPort port in node.Inputs)
+            if (port.ParameterIndex is int parameterIndex && parameterIndex < parameters.Count
+                && portsById.TryGetValue(port.Id, out BlueprintGraphPortViewModel? view))
+                view.SynchronizeValue(parameters[parameterIndex]);
+    }
+
     internal IReadOnlyList<string> GetInputErrors()
     {
         return document.Nodes.SelectMany((node, index) => node.Inputs

@@ -18,7 +18,7 @@ public sealed class ParticleCurveEditor : UserControl
     private static readonly string[] Channels = ["speed", "sizeX", "sizeY", "rotation", "red", "green", "blue", "alpha"];
     private readonly ProjectDataStore gameData;
     private readonly JsonObject track;
-    private readonly Action commit;
+    private readonly Action<string> commit;
     private readonly CurveCanvas canvas = new() { MinHeight = 170 };
     private readonly ComboBox channel = new() { Width = 120 };
     private readonly ComboBox resource = new() { Width = 170 };
@@ -30,15 +30,16 @@ public sealed class ParticleCurveEditor : UserControl
     private string[] resourceKeys = [];
     private bool refreshing;
     private long gesture;
+    private bool pointerDown;
 
-    public ParticleCurveEditor(ProjectDataStore gameData, JsonObject track, Action commit)
+    public ParticleCurveEditor(ProjectDataStore gameData, JsonObject track, Action<string> commit)
     {
         this.gameData = gameData;
         this.track = track;
         this.commit = commit;
         channel.ItemsSource = Channels.Select(name => LocaleService.Get("PARTICLE_CURVE_" + name.ToUpperInvariant())).ToArray();
         channel.SelectedIndex = 0;
-        channel.SelectionChanged += (_, _) => load();
+        channel.SelectionChanged += (_, _) => { endGesture(); load(); };
         resource.SelectionChanged += (_, _) =>
         {
             if (refreshing || resource.SelectedIndex < 0)
@@ -49,7 +50,7 @@ public sealed class ParticleCurveEditor : UserControl
                 curves.Remove(selectedChannel);
             else
                 curves[selectedChannel] = key;
-            commit();
+            commit(selectedChannel);
             load();
         };
         WrapPanel toolbar = new() { Orientation = Orientation.Horizontal, Margin = new Thickness(6) };
@@ -60,7 +61,7 @@ public sealed class ParticleCurveEditor : UserControl
         {
             ensureCurves();
             curves[selectedChannel] = curve.DeepClone();
-            commit();
+            commit(selectedChannel);
             load();
         };
         toolbar.Children.Add(edit);
@@ -84,8 +85,18 @@ public sealed class ParticleCurveEditor : UserControl
         interpolation.SelectionChanged += (_, _) => updateKey();
         canvas.DataChanged += onCanvasChanged;
         canvas.SelectionChanged += _ => selectKey();
-        canvas.AddHandler(PointerPressedEvent, (_, _) => gesture = gameData.BeginHistoryGesture(), RoutingStrategies.Tunnel);
-        canvas.AddHandler(PointerReleasedEvent, (_, _) => gameData.EndHistoryGesture(gesture), RoutingStrategies.Bubble);
+        canvas.AddHandler(PointerPressedEvent, (_, _) =>
+        {
+            pointerDown = true;
+            gesture = gameData.BeginHistoryGesture();
+        }, RoutingStrategies.Tunnel);
+        canvas.AddHandler(PointerReleasedEvent, (_, _) => endGesture(), RoutingStrategies.Bubble);
+        canvas.PointerCaptureLost += (_, _) => endGesture();
+        LostFocus += (_, _) =>
+        {
+            if (!IsKeyboardFocusWithin)
+                endGesture();
+        };
         Grid root = new() { RowDefinitions = new RowDefinitions("Auto,*,Auto") };
         root.Children.Add(toolbar);
         Grid.SetRow(canvas, 1);
@@ -98,6 +109,28 @@ public sealed class ParticleCurveEditor : UserControl
 
     private string selectedChannel => Channels[Math.Max(channel.SelectedIndex, 0)];
     private JsonObject curves => track["curves"] as JsonObject ?? new JsonObject();
+
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs args)
+    {
+        base.OnAttachedToVisualTree(args);
+        HistoryMergeBehavior.Attach(keyTime, gameData);
+        HistoryMergeBehavior.Attach(keyValue, gameData);
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs args)
+    {
+        endGesture();
+        HistoryMergeBehavior.Detach(keyTime);
+        HistoryMergeBehavior.Detach(keyValue);
+        base.OnDetachedFromVisualTree(args);
+    }
+
+    private void endGesture()
+    {
+        gameData.EndHistoryGesture(gesture);
+        gesture = 0;
+        pointerDown = false;
+    }
 
     private void ensureCurves()
     {
@@ -152,6 +185,8 @@ public sealed class ParticleCurveEditor : UserControl
 
     private void onCanvasChanged()
     {
+        if (pointerDown && !gameData.IsHistoryGestureActive(gesture))
+            gesture = gameData.BeginHistoryGesture();
         JsonArray keys = new();
         bool normalized = false;
         foreach (JsonObject key in canvas.ExportKeys().OfType<JsonObject>())
@@ -173,7 +208,7 @@ public sealed class ParticleCurveEditor : UserControl
                 "constant", "constant", 1);
         ensureCurves();
         curves[selectedChannel] = curve.DeepClone();
-        commit();
+        commit(selectedChannel);
         selectKey();
     }
 }

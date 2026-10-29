@@ -101,7 +101,7 @@ public sealed partial class ParticleEditor
             addNumber(transform, current, "rotationOffset", 0);
             addVector(transform, current, "scale", [1, 1]);
         });
-        curveHost.Content = new ParticleCurveEditor(gameData, current, commit);
+        curveHost.Content = new ParticleCurveEditor(gameData, current, commitCurve);
     }
 
     private void module(string label, Action<StackPanel> populate, bool expanded = false)
@@ -175,7 +175,7 @@ public sealed partial class ParticleEditor
         box.TextChanged += (_, _) =>
         {
             owner[property] = box.Text ?? string.Empty;
-            commit();
+            commitFields(owner, property);
         };
         box.LostFocus += (_, _) =>
         {
@@ -209,7 +209,7 @@ public sealed partial class ParticleEditor
                 if (number(owner["frameCount"], 1) > frames)
                     owner["frameCount"] = frames;
             }
-            commit();
+            commitFields(owner, property, "count", "frameCount");
         };
         field(parent, property, box);
     }
@@ -247,7 +247,7 @@ public sealed partial class ParticleEditor
                 values[component] = increment == 1 ? JsonValue.Create((int)value) : JsonValue.Create((double)value);
                 if (owner[property] is null)
                     owner[property] = values;
-                commit();
+                commitFields(owner, property);
             };
             Grid.SetColumn(box, index % 2 + (rowLabels is null ? 0 : 1));
             Grid.SetRow(box, index / 2);
@@ -265,7 +265,7 @@ public sealed partial class ParticleEditor
     private void addBool(StackPanel parent, JsonObject owner, string property, bool fallback)
     {
         CheckBox box = new() { Content = LocaleService.Get("PARTICLE_FIELD_" + property.ToUpperInvariant()), IsChecked = owner[property]?.GetValue<bool>() ?? fallback };
-        box.IsCheckedChanged += (_, _) => { owner[property] = box.IsChecked == true; commit(); };
+        box.IsCheckedChanged += (_, _) => { owner[property] = box.IsChecked == true; commitFields(owner, property); };
         parent.Children.Add(box);
     }
 
@@ -278,7 +278,7 @@ public sealed partial class ParticleEditor
             if (box.SelectedIndex < 0)
                 return;
             owner[property] = choices[box.SelectedIndex];
-            commit();
+            commitFields(owner, property);
             if (property == "mode")
                 buildProperties();
         };
@@ -296,7 +296,7 @@ public sealed partial class ParticleEditor
             {
                 Color value = picker.Color;
                 owner[property] = ParticleAssetSchema.Array(value.R, value.G, value.B, value.A);
-                commit();
+                commitFields(owner, property);
             };
             return picker;
         }));
@@ -320,7 +320,7 @@ public sealed partial class ParticleEditor
             {
                 owner["texture"] = path;
                 value.Text = path;
-                commit();
+                commitFields(owner, "texture");
             }
         };
         StackPanel row = new() { Spacing = 4, Children = { value, browse } };

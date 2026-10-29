@@ -30,7 +30,6 @@ public sealed record DocumentHistoryEntry(
     string? Description = null,
     HistoryMarker? Marker = null)
 {
-    internal long GestureId { get; init; }
     internal GeneralMemberRename? GeneralMemberRename { get; init; }
     internal MapHistoryEdits? MapEdits { get; init; }
 }

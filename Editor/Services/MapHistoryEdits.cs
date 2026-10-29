@@ -18,6 +18,10 @@ internal sealed class MapHistoryEdits
     internal IReadOnlyList<JsonDataEdit> Forward { get; }
     internal IReadOnlyList<JsonDataEdit> Backward { get; }
 
+    internal static MapHistoryEdits Combine(IReadOnlyList<MapHistoryEdits> batches)
+        => new(batches.SelectMany(batch => batch.Forward),
+            batches.Reverse().SelectMany(batch => batch.Backward));
+
     internal MapHistoryEdits Append(MapHistoryEdits next)
     {
         if (next.Forward.Count == 0 && next.Backward.Count == 0)

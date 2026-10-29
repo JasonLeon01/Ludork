@@ -119,7 +119,7 @@ public sealed partial class MaterialWindow
                 if (data["rendering"] is not JsonObject)
                     data["rendering"] = values;
                 values[id] = value;
-                commit();
+                commitFields(values, id);
             });
         }
     }

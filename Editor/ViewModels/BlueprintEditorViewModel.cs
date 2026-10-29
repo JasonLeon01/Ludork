@@ -276,7 +276,7 @@ internal sealed class BlueprintEditorViewModel : ViewModelBase, IDisposable
 
     public void CommitGraph(string eventName, BlueprintGraphDocument graph)
     {
-        Document.CommitEventGraph(eventName, BlueprintGraphCodec.Save(graph));
+        Document.CommitGraph(eventName, graph);
     }
 
     public void InvalidateNodeDefinitions() => nodeCatalog?.Invalidate();

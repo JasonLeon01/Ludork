@@ -183,6 +183,7 @@ public static class BlueprintGraphCodec
                 BlueprintGraphEndpoint.Node(entry.Id), start, entryPort.Id, startPort.Id,
                 BlueprintGraphPortKind.Exec, 0, 0, [], true), entryPort, startPort);
         }
+        document.AcceptChanges();
         return document;
     }
 
@@ -303,6 +304,29 @@ public static class BlueprintGraphCodec
             ? document.UnresolvedStartNode?.DeepClone()
             : serializeEndpoint(document.Start, nodeIndices);
         return new BlueprintGraphSaveResult(eventGraph, serializedStart);
+    }
+
+    internal static IReadOnlyList<JsonDataEdit>? GetParameterEdits(BlueprintGraphDocument document)
+    {
+        IReadOnlyList<(BlueprintGraphNode Node, int Index)>? changes = document.GetParameterChanges();
+        if (changes is null)
+            return null;
+        List<JsonDataEdit> edits = [];
+        foreach ((BlueprintGraphNode node, int index) in changes)
+        {
+            JsonArray parameters = (JsonArray)node.Parameters.DeepClone();
+            foreach (BlueprintGraphPort port in node.Inputs)
+            {
+                if (port.Kind != BlueprintGraphPortKind.Params || port.ParameterIndex is not int parameterIndex
+                    || node.OriginalIndex is not null && !port.IsValueModified)
+                    continue;
+                while (parameters.Count <= parameterIndex)
+                    parameters.Add(null);
+                parameters[parameterIndex] = port.Value?.DeepClone();
+            }
+            edits.Add(new JsonDataEdit(JsonDataEdit.Operation.Set, ["nodes", index, "params"], parameters));
+        }
+        return edits;
     }
 
     public static void SaveInto(

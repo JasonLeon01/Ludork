@@ -316,13 +316,15 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             requestPreview();
             return;
         }
-        if (timelineEditor.IsCommitting)
+        if (timelineEditor.IsCommitting
+            || document.LastEdits is IReadOnlyList<JsonDataEdit> edits && timelineEditor.ApplyDocumentEdits(edits))
         {
-            animationSignature = hierarchySignature + "\n" + document.Data["animations"]?.ToJsonString();
+            animationSignature = null;
             requestPreview();
             return;
         }
-        refreshAll();
+        refreshAll(refreshAnimations: document.LastEdits is null
+            || document.LastEdits.Any(edit => edit.Path[0] is "animations"));
     }
 
     private void onRegistryChanged(object? sender, EventArgs args)
@@ -454,7 +456,7 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
         refreshPalette();
     }
 
-    private void refreshAll(bool immediatePreview = false)
+    private void refreshAll(bool immediatePreview = false, bool refreshAnimations = true)
     {
         refreshing = true;
         try
@@ -464,11 +466,14 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
             refreshDetails();
             updateAnchorGuides();
             updateZoomText();
-            string nextAnimations = hierarchySignature + "\n" + document.Data["animations"]?.ToJsonString();
-            if (animationSignature != nextAnimations)
+            if (refreshAnimations)
             {
-                animationSignature = nextAnimations;
-                timelineEditor.Refresh();
+                string nextAnimations = hierarchySignature + "\n" + document.Data["animations"]?.ToJsonString();
+                if (animationSignature != nextAnimations)
+                {
+                    animationSignature = nextAnimations;
+                    timelineEditor.Refresh();
+                }
             }
             PaletteSearch.IsEnabled = controlRegistry.IsReady;
             PaletteCategories.IsEnabled = controlRegistry.IsReady;
@@ -1002,6 +1007,8 @@ public partial class UiAssetEditorWindow : Window, IProjectSaveParticipant
     {
         if (transformStartSlot is null)
             return;
+        if (!document.IsGestureActive)
+            document.BeginGesture();
         JsonObject slot = (JsonObject)transformStartSlot.DeepClone();
         JsonObject anchors = slot["anchors"] as JsonObject ?? new JsonObject();
         JsonArray min = anchors["min"] as JsonArray ?? new JsonArray(0, 0);

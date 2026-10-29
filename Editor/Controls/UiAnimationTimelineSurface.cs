@@ -50,6 +50,7 @@ public sealed class UiAnimationTimelineSurface : Panel
         Focusable = true;
         Children.Add(playhead);
         SizeChanged += (_, _) => contentLayer.InvalidateVisual();
+        DetachedFromVisualTree += (_, _) => finishKeyGesture();
         ActualThemeVariantChanged += (_, _) => contentLayer.InvalidateVisual();
         ResourcesChanged += (_, _) => contentLayer.InvalidateVisual();
         EffectiveViewportChanged += (_, args) =>
@@ -64,6 +65,10 @@ public sealed class UiAnimationTimelineSurface : Panel
     public event EventHandler<double>? TimeChanged;
     public event EventHandler<UiAnimationKeySelectionEventArgs>? SelectionChanged;
     public event EventHandler<UiAnimationKeyMoveEventArgs>? KeyMoved;
+    public event EventHandler? GestureStarted;
+    public event EventHandler? GestureEnded;
+
+    internal bool IsDraggingKey => draggingKey;
 
     public void SetContent(JsonObject? animation, bool editable)
     {
@@ -142,6 +147,7 @@ public sealed class UiAnimationTimelineSurface : Panel
             if (editable)
             {
                 draggingKey = true;
+                GestureStarted?.Invoke(this, EventArgs.Empty);
                 e.Pointer.Capture(this);
             }
         }
@@ -165,15 +171,23 @@ public sealed class UiAnimationTimelineSurface : Panel
     {
         if (!draggingKey)
             return;
-        draggingKey = false;
+        finishKeyGesture();
         e.Pointer.Capture(null);
         e.Handled = true;
     }
 
     protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
     {
-        draggingKey = false;
+        finishKeyGesture();
         base.OnPointerCaptureLost(e);
+    }
+
+    private void finishKeyGesture()
+    {
+        if (!draggingKey)
+            return;
+        draggingKey = false;
+        GestureEnded?.Invoke(this, EventArgs.Empty);
     }
 
     private void drawRuler(DrawingContext context, Rect bounds, Rect visible)

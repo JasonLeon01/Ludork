@@ -22,7 +22,10 @@ public sealed class EditorDocument
     internal Action<EditorDocument>? StateRestoring;
     internal Func<IReadOnlyDictionary<string, byte[]>>? SaveAdapter;
     internal Action<EditorDocument>? IdentityChanged;
+    internal EditorHistoryGesture? Gesture;
+    internal EditorDocumentLiveChange? LastChange { get; private set; }
     private bool modified;
+    private int notificationDepth;
 
     internal EditorDocument(string section, string key, string path, JsonObject? data, bool isNew, Guid? id = null, EditorDocumentState? state = null)
     {
@@ -48,18 +51,30 @@ public sealed class EditorDocument
     public bool IsDeleted => InternalData is null;
     public bool Exists => !IsDeleted;
     public bool IsModified => modified;
-    public bool CanAttemptUndo => UndoEntries.Count != 0;
-    public bool CanUndo => CanAttemptUndo && UndoEntries[^1].Marker?.IsBarrier != true;
+    private bool HasGestureHistory => Gesture is { HasChanges: true, Before.InternalData: not null };
+    public bool CanAttemptUndo => HasGestureHistory || UndoEntries.Count != 0;
+    public bool CanUndo => HasGestureHistory || UndoEntries.Count != 0 && UndoEntries[^1].Marker?.IsBarrier != true;
     public bool CanRedo => RedoEntries.Count != 0;
     public string? UndoBlockedReason => CanAttemptUndo && !CanUndo ? UndoEntries[^1].Marker?.Reason : null;
-    public IReadOnlyList<DocumentHistoryEntry> History => UndoEntries.ToArray();
+    public IReadOnlyList<DocumentHistoryEntry> History
+    {
+        get
+        {
+            if (!HasGestureHistory || Gesture?.Before is not EditorDocumentState before)
+                return UndoEntries.ToArray();
+            EditorDocumentState after = CaptureState();
+            return StatesEqual(before, after) ? UndoEntries.ToArray()
+                : UndoEntries.Append(new DocumentHistoryEntry(before, after, Gesture.Description)
+                {
+                    MapEdits = Gesture.FreezeMapEdits(),
+                }).TakeLast(MaximumHistoryEntries).ToArray();
+        }
+    }
     public event EventHandler? Changed;
     public event EventHandler? DiskReloaded;
 
     internal EditorDocumentState CaptureState()
     {
-        if (PendingState is not null)
-            return new EditorDocumentState(Section, Key, Path, InternalData);
         return CurrentState ??= new EditorDocumentState(Section, Key, Path, InternalData);
     }
 
@@ -89,13 +104,33 @@ public sealed class EditorDocument
         IdentityChanged?.Invoke(this);
     }
 
-    internal void NotifyChanged() => Changed?.Invoke(this, EventArgs.Empty);
+    internal void NotifyChanged(EditorDocumentLiveChange? change = null)
+    {
+        EditorDocumentLiveChange? previous = LastChange;
+        LastChange = change;
+        notificationDepth++;
+        try
+        {
+            Changed?.Invoke(this, EventArgs.Empty);
+        }
+        finally
+        {
+            notificationDepth--;
+            if (notificationDepth != 0)
+                LastChange = previous;
+        }
+    }
     internal void NotifyDiskReloaded() => DiskReloaded?.Invoke(this, EventArgs.Empty);
 
     internal void SetPreparedModified(bool value) => modified = value;
 
     internal void UpdateModified()
     {
+        if (Gesture is { HasChanges: true })
+        {
+            modified = true;
+            return;
+        }
         if (ReferenceEquals(CurrentState, SavedState))
         {
             modified = false;

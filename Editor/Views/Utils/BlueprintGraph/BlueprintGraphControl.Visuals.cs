@@ -178,20 +178,30 @@ public sealed partial class BlueprintGraphControl
     private void onGraphSizeChanged(object? sender, SizeChangedEventArgs args)
         => queueAllParameterEditors();
 
-    private void finishGraphGesture()
+    private void scheduleFinishGraphGesture()
     {
-        if (!disposed && graphGesture != 0)
-            FlushPendingChanges();
+        long version = graphPointerVersion;
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!disposed && graphPointer is not null && version == graphPointerVersion)
+            {
+                graphPointer = null;
+                FlushPendingChanges();
+            }
+        }, DispatcherPriority.Input);
     }
 
     private void onGraphPointerCaptureLost(object? sender, PointerCaptureLostEventArgs args)
     {
         if (ReferenceEquals(graphPointer, args.Pointer))
-            Dispatcher.UIThread.Post(finishGraphGesture, DispatcherPriority.Input);
+            scheduleFinishGraphGesture();
     }
 
     private void onGraphDeactivated(object? sender, EventArgs args)
-        => FlushPendingChanges();
+    {
+        graphPointer = null;
+        FlushPendingChanges();
+    }
 
     private async void initializeLoadedGraph()
     {

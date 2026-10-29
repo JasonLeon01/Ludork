@@ -12,6 +12,7 @@ public sealed partial class ProjectDataStore
 {
     internal void loadAll()
     {
+        BreakHistoryGesture();
         lock (invalidLoadLock)
         {
             invalidLoadPaths.Clear();
@@ -77,7 +78,6 @@ public sealed partial class ProjectDataStore
         originData = cloneAllData();
         projectEnumGenerationPending = generalEnums.NeedsGeneration(GetProjectEnumCatalog());
         isModified = projectEnumGenerationPending;
-        clearHistoryGesture();
         InitializeDocuments();
         UndoRedoStateChanged?.Invoke(this, EventArgs.Empty);
     }

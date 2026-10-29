@@ -68,6 +68,17 @@ public sealed partial class UiAssetDataService
         return true;
     }
 
+    internal bool ApplyUiAssetEdits(string key, IReadOnlyList<JsonDataEdit> edits, object origin)
+    {
+        string normalizedKey = UiAssetSchema.NormalizeAssetKey(key);
+        if (!uiDocuments.TryGetValue(normalizedKey, out JsonObject? current)
+            || !ProjectDataStore.isUiDataType(current, UiAssetSchema.UiAssetType)
+            || !store.ApplyDocumentEdits("UI", normalizedKey, edits, origin: origin))
+            return false;
+        NotifyUiAssetsChanged();
+        return true;
+    }
+
     public bool RenameUiAsset(string oldKey, string newKey)
     {
         string normalizedOldKey = UiAssetSchema.NormalizeAssetKey(oldKey);

@@ -55,7 +55,9 @@ public sealed class UiAnimationTimelineEditor : UserControl
     private readonly Stopwatch playbackClock = new();
     private readonly List<AnimationChoice> choices = [];
     private readonly List<TargetChoice> targets = [];
-    private JsonArray workingAnimations = [];
+    private readonly JsonObject animationData = new() { ["animations"] = new JsonArray() };
+    private JsonArray workingAnimations => (JsonArray)animationData["animations"]!;
+    private long animationGesture;
     private bool refreshing;
     private bool playing;
     private int selectedChoice = -1;
@@ -80,6 +82,8 @@ public sealed class UiAnimationTimelineEditor : UserControl
             timeline.SetSelection(selectedTrack, selectedKey);
         };
         timeline.KeyMoved += (_, args) => moveKey(args.Track, args.KeyIndex, args.Time);
+        timeline.GestureStarted += (_, _) => animationGesture = gameData.BeginHistoryGesture();
+        timeline.GestureEnded += (_, _) => endAnimationGesture();
         playbackTimer.Interval = TimeSpan.FromMilliseconds(1000.0 / 60.0);
         playbackTimer.Tick += (_, _) => advancePlayback();
         buildLayout();
@@ -120,15 +124,34 @@ public sealed class UiAnimationTimelineEditor : UserControl
     public void Refresh()
     {
         string? identity = currentChoice()?.Identity;
-        workingAnimations = document.Data["animations"] is JsonArray animations
+        animationData["animations"] = document.Data["animations"] is JsonArray animations
             ? (JsonArray)animations.DeepClone()
-            : [];
+            : new JsonArray();
         rebuildChoices(identity);
     }
 
     public void FlushPendingChanges()
     {
         commitName();
+        endAnimationGesture();
+    }
+
+    private void endAnimationGesture()
+    {
+        gameData.EndHistoryGesture(animationGesture);
+        animationGesture = 0;
+    }
+
+    internal bool ApplyDocumentEdits(IReadOnlyList<JsonDataEdit> edits)
+    {
+        if (edits.Count == 0 || edits.Any(edit => edit.Kind != JsonDataEdit.Operation.Set
+            || edit.Path.Count < 3 || edit.Path[0] is not "animations" || edit.Path[1] is not int
+            || edit.Path[2] is not ("duration" or "pivot" or "tracks")))
+            return false;
+        foreach (JsonDataEdit edit in edits)
+            edit.Apply(animationData);
+        refreshSelectionEditor();
+        return true;
     }
 
     public void StopPlayback()
@@ -617,7 +640,7 @@ public sealed class UiAnimationTimelineEditor : UserControl
         if (string.Equals(choice.Name, name, StringComparison.Ordinal))
             return;
         animation["name"] = name;
-        commitAnimations();
+        commitAnimationValue(["name"], animation["name"]);
         rebuildChoices(targetIdentity(name, choice.Target, false));
     }
 
@@ -636,7 +659,7 @@ public sealed class UiAnimationTimelineEditor : UserControl
         string name = uniqueName(choice.Name, target, choice.Index);
         animation["target"] = target;
         animation["name"] = name;
-        commitAnimations();
+        commitAnimationValue([], animation);
         rebuildChoices(targetIdentity(name, target, false));
     }
 
@@ -656,7 +679,7 @@ public sealed class UiAnimationTimelineEditor : UserControl
         }
         animation["duration"] = next;
         currentTime = Math.Min(currentTime, next);
-        commitAnimations();
+        commitAnimationValue(["duration"], animation["duration"]);
         refreshKeyEditor();
         refreshTimeline();
     }
@@ -669,7 +692,7 @@ public sealed class UiAnimationTimelineEditor : UserControl
         animation["pivot"] = new JsonArray(
             decimal.ToDouble(pivotXBox.Value ?? 0.5m),
             decimal.ToDouble(pivotYBox.Value ?? 0.5m));
-        commitAnimations();
+        commitAnimationValue(["pivot"], animation["pivot"]);
     }
 
     private void addKey()
@@ -758,9 +781,11 @@ public sealed class UiAnimationTimelineEditor : UserControl
         double next = Math.Clamp(Math.Round(time, 3), minimum, maximum);
         if (Math.Abs(JsonScalar.Number(key["time"]) - next) < 0.000001)
             return;
+        if (timeline.IsDraggingKey && !gameData.IsHistoryGestureActive(animationGesture))
+            animationGesture = gameData.BeginHistoryGesture();
         key["time"] = next;
         currentTime = next;
-        commitAnimations();
+        commitAnimationValue(["tracks", track, keyIndex, "time"], key["time"]);
         refreshKeyEditor();
         refreshTimeline();
         notifyPreviewChanged();
@@ -790,7 +815,7 @@ public sealed class UiAnimationTimelineEditor : UserControl
         {
             key["value"] = x;
         }
-        commitAnimations();
+        commitAnimationValue(["tracks", selectedTrack, selectedKey, "value"], key["value"]);
         if (selectedTrack == "colour")
             refreshKeyEditor();
         notifyPreviewChanged();
@@ -844,7 +869,22 @@ public sealed class UiAnimationTimelineEditor : UserControl
         IsCommitting = true;
         try
         {
-            document.SetAnimations((JsonArray)workingAnimations.DeepClone());
+            document.SetAnimations(workingAnimations);
+        }
+        finally
+        {
+            IsCommitting = false;
+        }
+    }
+
+    private void commitAnimationValue(IReadOnlyList<object> path, JsonNode? value)
+    {
+        if (currentChoice() is not { Inherited: false } choice)
+            return;
+        IsCommitting = true;
+        try
+        {
+            document.SetAnimationValue(choice.Index, path, value);
         }
         finally
         {

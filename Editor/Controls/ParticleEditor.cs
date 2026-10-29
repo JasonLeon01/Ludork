@@ -7,8 +7,10 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.VisualTree;
 using Ludork.Services;
+using Ludork.Models;
 using Ludork.Views.Utils;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Nodes;
 
@@ -27,6 +29,7 @@ public sealed partial class ParticleEditor : UserControl
     private int selectedTrack = -1;
     private bool refreshing;
     private bool committing;
+    private long documentRevision;
 
     public ParticleEditor(ProjectDataStore gameData, PreviewRuntimeService runtime, string key)
     {
@@ -34,6 +37,7 @@ public sealed partial class ParticleEditor : UserControl
         this.runtime = runtime;
         document = gameData.GetDocument("Particles", key) ?? throw new ArgumentException("Particle document was not found", nameof(key));
         data = document.Data!;
+        documentRevision = document.Revision;
         trackList.SelectionChanged += (_, _) =>
         {
             if (refreshing)
@@ -59,11 +63,18 @@ public sealed partial class ParticleEditor : UserControl
     {
         base.OnAttachedToVisualTree(args);
         document.Changed += onDocumentChanged;
+        if (documentRevision != document.Revision && document.Data is JsonObject current)
+        {
+            data = current;
+            documentRevision = document.Revision;
+            refreshTracks(selectedTrack);
+        }
         initializePlayback();
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs args)
     {
+        gameData.BreakHistoryGesture();
         document.Changed -= onDocumentChanged;
         disposePlayback();
         base.OnDetachedFromVisualTree(args);
@@ -71,9 +82,18 @@ public sealed partial class ParticleEditor : UserControl
 
     private void onDocumentChanged(object? sender, EventArgs args)
     {
-        if (committing || document.Data is not JsonObject next || JsonNode.DeepEquals(next, data))
+        documentRevision = document.Revision;
+        if (committing || document.LastChange is not EditorDocumentLiveChange change || ReferenceEquals(change.Origin, this))
             return;
-        data = next;
+        if (change.Edits is IReadOnlyList<JsonDataEdit> edits)
+        {
+            foreach (JsonDataEdit edit in edits)
+                edit.Apply(data);
+        }
+        else if (document.Data is JsonObject next)
+            data = next;
+        else
+            return;
         refreshTracks(selectedTrack);
         requestLoad();
     }
@@ -223,7 +243,23 @@ public sealed partial class ParticleEditor : UserControl
         committing = true;
         gameData.Assets.UpdateParticle(Key, data);
         committing = false;
+        documentRevision = document.Revision;
         requestLoad();
+    }
+
+    private void commitFields(JsonObject owner, params string[] properties)
+    {
+        committing = true;
+        gameData.ApplyDocumentEdits("Particles", Key, EditorJsonEdits.Properties(data, owner, properties), origin: this);
+        committing = false;
+        documentRevision = document.Revision;
+        requestLoad();
+    }
+
+    private void commitCurve(string channel)
+    {
+        if (track?["curves"] is JsonObject curves)
+            commitFields(curves, channel);
     }
 
     private static Button button(string locale, Action action)

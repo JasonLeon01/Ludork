@@ -2,6 +2,8 @@ using Ludork.Models;
 using Ludork.Services;
 using System.Text.Json.Nodes;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Ludork.Views.Utils;
 
@@ -10,7 +12,7 @@ public sealed class CommonFunctionEditorDocument : IDisposable
     private readonly ProjectDataStore gameData;
     private JsonObject data = [];
     private readonly EditorDocument? resourceDocument;
-    private EditorDocumentState? sourceState;
+    private long sourceRevision;
     private bool committing;
 
     private CommonFunctionEditorDocument(ProjectDataStore gameData, string name)
@@ -25,6 +27,7 @@ public sealed class CommonFunctionEditorDocument : IDisposable
     public string Name => resourceDocument?.Key ?? string.Empty;
     public EditorDocument? ResourceDocument => resourceDocument;
     public event EventHandler? ExternalChanged;
+    internal event EventHandler<BlueprintGraphParametersChangedEventArgs>? GraphParametersChanged;
     public JsonObject Data => data;
 
     public static CommonFunctionEditorDocument? Create(
@@ -38,13 +41,13 @@ public sealed class CommonFunctionEditorDocument : IDisposable
 
     public bool Reload()
     {
-        sourceState = resourceDocument?.CaptureState();
-        if (sourceState?.Data is not JsonObject stored)
+        sourceRevision = resourceDocument?.Revision ?? 0;
+        if (resourceDocument?.InternalData is not JsonObject stored)
         {
             data = [];
             return false;
         }
-        data = stored;
+        data = (JsonObject)stored.DeepClone();
         return true;
     }
 
@@ -78,8 +81,37 @@ public sealed class CommonFunctionEditorDocument : IDisposable
         finally
         {
             committing = false;
-            sourceState = resourceDocument?.CaptureState();
+            sourceRevision = resourceDocument?.Revision ?? 0;
         }
+    }
+
+    internal bool CommitGraph(BlueprintGraphDocument graph)
+    {
+        IReadOnlyList<JsonDataEdit>? changes = BlueprintGraphCodec.GetParameterEdits(graph);
+        if (changes is null || data["nodeGraph"]?["common"] is not JsonObject)
+        {
+            bool changed = CommitGraph(BlueprintGraphCodec.Save(graph));
+            graph.AcceptChanges();
+            return changed;
+        }
+        object[] prefix = ["nodeGraph", "common"];
+        JsonDataEdit[] edits = changes.Select(edit => edit.WithPath(prefix.Concat(edit.Path))).ToArray();
+        committing = true;
+        bool applied;
+        try
+        {
+            applied = gameData.ApplyDocumentEdits("CommonFunctions", Name, edits, origin: this);
+        }
+        finally
+        {
+            committing = false;
+            sourceRevision = resourceDocument?.Revision ?? 0;
+        }
+        if (applied)
+            foreach (JsonDataEdit edit in edits)
+                edit.Apply(data);
+        graph.AcceptChanges();
+        return applied;
     }
 
     public void Dispose()
@@ -90,13 +122,25 @@ public sealed class CommonFunctionEditorDocument : IDisposable
 
     private void onResourceChanged(object? sender, EventArgs args)
     {
-        if (committing)
+        if (committing || resourceDocument is null || sourceRevision == resourceDocument.Revision)
             return;
-        EditorDocumentState? currentState = resourceDocument?.CaptureState();
-        bool unchanged = EditorDocumentState.ContentEquals(sourceState, currentState);
-        sourceState = currentState;
-        if (unchanged)
+        sourceRevision = resourceDocument.Revision;
+        EditorDocumentLiveChange? change = resourceDocument.LastChange;
+        if (change is null || ReferenceEquals(change.Origin, this))
             return;
+        if (change.Edits is IReadOnlyList<JsonDataEdit> edits && edits.All(edit => edit.CanApply(data)))
+        {
+            foreach (JsonDataEdit edit in edits)
+                edit.Apply(data);
+            if (edits.All(edit => edit.Kind == JsonDataEdit.Operation.Set && edit.Path.Count == 5
+                && edit.Path[0] is "nodeGraph" && edit.Path[1] is "common" && edit.Path[2] is "nodes"
+                && edit.Path[3] is int && edit.Path[4] is "params"))
+                GraphParametersChanged?.Invoke(this, new BlueprintGraphParametersChangedEventArgs("common",
+                    edits.Select(edit => (int)edit.Path[3]).Distinct().ToArray()));
+            else
+                ExternalChanged?.Invoke(this, EventArgs.Empty);
+            return;
+        }
         Reload();
         ExternalChanged?.Invoke(this, EventArgs.Empty);
     }

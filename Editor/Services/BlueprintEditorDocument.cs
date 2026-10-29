@@ -21,7 +21,7 @@ public sealed class BlueprintEditorDocument : IDisposable
     private readonly string? initialGeneralTypeKey;
     private string? blueprintKey => Kind == BlueprintEditorDocumentKind.Blueprint ? resourceDocument?.Key ?? initialBlueprintKey : null;
     private string? generalTypeKey => Kind == BlueprintEditorDocumentKind.GeneralDataAbility ? resourceDocument?.Key ?? initialGeneralTypeKey : null;
-    private EditorDocumentState? sourceState;
+    private long sourceRevision;
     private bool committing;
     private readonly string? generalMemberId;
     private readonly List<string> requiredEvents = [];
@@ -48,6 +48,7 @@ public sealed class BlueprintEditorDocument : IDisposable
 
     public event EventHandler? Changed;
     public event EventHandler? ExternalChanged;
+    internal event EventHandler<BlueprintGraphParametersChangedEventArgs>? GraphParametersChanged;
     public EditorDocument? ResourceDocument => resourceDocument;
 
     public BlueprintEditorDocumentKind Kind { get; }
@@ -118,20 +119,20 @@ public sealed class BlueprintEditorDocument : IDisposable
 
     public bool Reload()
     {
-        sourceState = resourceDocument?.CaptureState();
+        sourceRevision = resourceDocument?.Revision ?? 0;
         requiredEvents.Clear();
         if (Kind == BlueprintEditorDocumentKind.Blueprint)
         {
-            if (sourceState?.Data is not JsonObject blueprint)
+            if (resourceDocument?.InternalData is not JsonObject blueprint)
             {
                 data = [];
                 return false;
             }
-            data = blueprint;
+            data = (JsonObject)blueprint.DeepClone();
             return true;
         }
 
-        JsonObject? typeData = sourceState?.InternalData;
+        JsonObject? typeData = resourceDocument?.InternalData;
         JsonObject? member = generalMemberId is null ? null : typeData?["members"]?[generalMemberId] as JsonObject;
         if (typeData is null || member is null)
         {
@@ -186,6 +187,31 @@ public sealed class BlueprintEditorDocument : IDisposable
         ensureObject(graph, "startNodes")[eventName] = result.StartNode?.DeepClone();
         Changed?.Invoke(this, EventArgs.Empty);
         return true;
+    }
+
+    internal bool CommitGraph(string eventName, BlueprintGraphDocument graphDocument)
+    {
+        IReadOnlyList<JsonDataEdit>? changes = BlueprintGraphCodec.GetParameterEdits(graphDocument);
+        if (changes is null || getNodeGraph(data)?[eventName] is not JsonObject)
+        {
+            bool changed = CommitEventGraph(eventName, BlueprintGraphCodec.Save(graphDocument));
+            graphDocument.AcceptChanges();
+            return changed;
+        }
+        object[] localPrefix = ["graph", "nodeGraph", eventName];
+        object[] resourcePrefix = Kind == BlueprintEditorDocumentKind.Blueprint
+            ? localPrefix : ["members", generalMemberId!, "_graph", "nodeGraph", eventName];
+        JsonDataEdit[] edits = changes.Select(edit => edit.WithPath(resourcePrefix.Concat(edit.Path))).ToArray();
+        bool applied = resourceDocument is not null && mutate(() => gameData.ApplyDocumentEdits(
+            resourceDocument.Section, resourceDocument.Key, edits, origin: this));
+        if (applied)
+        {
+            foreach (JsonDataEdit edit in changes)
+                edit.WithPath(localPrefix.Concat(edit.Path)).Apply(data);
+            Changed?.Invoke(this, EventArgs.Empty);
+        }
+        graphDocument.AcceptChanges();
+        return applied;
     }
 
     public bool CommitAttribute(string name, JsonNode? value)
@@ -313,22 +339,61 @@ public sealed class BlueprintEditorDocument : IDisposable
         finally
         {
             committing = false;
-            sourceState = resourceDocument?.CaptureState();
+            sourceRevision = resourceDocument?.Revision ?? 0;
         }
     }
 
     private void onResourceChanged(object? sender, EventArgs args)
     {
-        if (committing)
+        if (committing || resourceDocument is null || sourceRevision == resourceDocument.Revision)
             return;
-        EditorDocumentState? currentState = resourceDocument?.CaptureState();
-        bool unchanged = EditorDocumentState.ContentEquals(sourceState, currentState);
-        sourceState = currentState;
-        if (unchanged)
+        sourceRevision = resourceDocument.Revision;
+        EditorDocumentLiveChange? change = resourceDocument.LastChange;
+        if (change is null || ReferenceEquals(change.Origin, this))
+            return;
+        if (change.Edits is IReadOnlyList<JsonDataEdit> edits && synchronizeEdits(edits))
             return;
         Reload();
         Changed?.Invoke(this, EventArgs.Empty);
         ExternalChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private bool synchronizeEdits(IReadOnlyList<JsonDataEdit> edits)
+    {
+        List<JsonDataEdit> localEdits = [];
+        foreach (JsonDataEdit edit in edits)
+        {
+            if (Kind == BlueprintEditorDocumentKind.Blueprint)
+                localEdits.Add(edit);
+            else if (edit.Path.Count >= 3 && edit.Path[0] is "members" && edit.Path[1] is string member)
+            {
+                if (member != generalMemberId)
+                    continue;
+                if (edit.Path[2] is not "_graph")
+                    continue;
+                localEdits.Add(edit.WithPath(new object[] { "graph" }.Concat(edit.Path.Skip(3))));
+            }
+            else
+                return false;
+        }
+        if (localEdits.Any(edit => !edit.CanApply(data)))
+            return false;
+        foreach (JsonDataEdit edit in localEdits)
+            edit.Apply(data);
+        if (localEdits.Count == 0)
+            return true;
+        Changed?.Invoke(this, EventArgs.Empty);
+        if (localEdits.All(edit => edit.Kind == JsonDataEdit.Operation.Set && edit.Path.Count == 6
+            && edit.Path[0] is "graph" && edit.Path[1] is "nodeGraph" && edit.Path[2] is string
+            && edit.Path[3] is "nodes" && edit.Path[4] is int && edit.Path[5] is "params"))
+        {
+            foreach (IGrouping<string, JsonDataEdit> graph in localEdits.GroupBy(edit => (string)edit.Path[2]))
+                GraphParametersChanged?.Invoke(this, new BlueprintGraphParametersChangedEventArgs(graph.Key,
+                    graph.Select(edit => (int)edit.Path[4]).Distinct().ToArray()));
+        }
+        else
+            ExternalChanged?.Invoke(this, EventArgs.Empty);
+        return true;
     }
 
     private JsonObject? getStoredBlueprint()

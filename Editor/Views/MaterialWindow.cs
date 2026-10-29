@@ -6,6 +6,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Ludork.Controls;
+using Ludork.Models;
 using Ludork.Services;
 using Ludork.ViewModels.Materials;
 using Ludork.Views.Utils;
@@ -42,7 +43,7 @@ public sealed partial class MaterialWindow : Window, IProjectSaveParticipant
     private readonly Stopwatch clock = Stopwatch.StartNew();
     private readonly CancellationTokenSource lifetime = new();
     private JsonObject data;
-    private EditorDocumentState documentState;
+    private JsonObject layoutState;
     private JsonObject? registry;
     private JsonObject? previewAsset;
     private JsonArray? previewDiagnostics;
@@ -72,7 +73,7 @@ public sealed partial class MaterialWindow : Window, IProjectSaveParticipant
         this.projectSave = projectSave;
         document = gameData.GetDocument("Materials", key) ?? throw new ArgumentException("Material does not exist", nameof(key));
         data = document.Data!;
-        documentState = document.CaptureState();
+        layoutState = captureLayout();
         contentRevision = document.LastContentChangeRevision;
         preview = new MaterialPreviewClient(runtime);
         Width = 1400;
@@ -134,7 +135,7 @@ public sealed partial class MaterialWindow : Window, IProjectSaveParticipant
         string[] selected = graphModel?.SelectedNodes.OfType<MaterialGraphNodeViewModel>().Select(node => node.Id).ToArray() ?? [];
         if (graphModel is not null)
             graphModel.StructureChanged -= onGraphStructureChanged;
-        graphModel = new MaterialGraphViewModel(data, registry, onLayoutChanged, FlushPendingChanges, commit);
+        graphModel = new MaterialGraphViewModel(data, registry, onLayoutChanged, FlushPendingChanges, commit, commitEdits);
         graphModel.StructureChanged += onGraphStructureChanged;
         graph.DataContext = graphModel;
         foreach (string id in selected)
@@ -173,7 +174,31 @@ public sealed partial class MaterialWindow : Window, IProjectSaveParticipant
         committing = true;
         try { gameData.Assets.UpdateMaterial(Key, data); }
         finally { committing = false; }
-        documentState = document.CaptureState();
+        layoutState = captureLayout();
+        updateContentRevision();
+    }
+
+    private JsonObject captureLayout()
+    {
+        JsonObject result = new();
+        if (data.TryGetPropertyValue("editor", out JsonNode? editor))
+            result["editor"] = editor?.DeepClone();
+        return result;
+    }
+
+    private void commitFields(JsonObject owner, params string[] properties)
+        => commitEdits(EditorJsonEdits.Properties(data, owner, properties));
+
+    private void commitEdits(IReadOnlyList<JsonDataEdit> edits)
+    {
+        committing = true;
+        try { gameData.ApplyDocumentEdits("Materials", Key, edits, origin: this); }
+        finally { committing = false; }
+        updateContentRevision();
+    }
+
+    private void updateContentRevision()
+    {
         if (contentRevision != document.LastContentChangeRevision)
         {
             contentRevision = document.LastContentChangeRevision;
@@ -185,6 +210,7 @@ public sealed partial class MaterialWindow : Window, IProjectSaveParticipant
     private void onLayoutChanged()
     {
         graph.ScheduleLayoutCommit();
+        gameData.MarkHistoryGestureChanged(gameData.Documents.ActiveGestureId, document);
         if (layoutPending)
             return;
         layoutPending = true;
@@ -204,13 +230,19 @@ public sealed partial class MaterialWindow : Window, IProjectSaveParticipant
         layoutPending = false;
         if (document.Exists && !closed)
         {
-            if (graphModel is not null && documentState.InternalData is JsonObject previous
-                && graphModel.HasSameLayout(previous))
-                graphModel.ApplyEditorState(previous);
+            if (graphModel is not null && graphModel.HasSameLayout(layoutState))
+                graphModel.ApplyEditorState(layoutState);
             else
             {
                 graph.EnsureLayoutGesture();
-                commit();
+                committing = true;
+                try
+                {
+                    gameData.ApplyDocumentEdits("Materials", Key,
+                        EditorJsonEdits.Properties(data, data, "editor"), false, this);
+                }
+                finally { committing = false; }
+                layoutState = captureLayout();
             }
         }
         binding.Refresh();
@@ -218,16 +250,20 @@ public sealed partial class MaterialWindow : Window, IProjectSaveParticipant
 
     private void onDocumentChanged(object? sender, EventArgs args)
     {
-        if (committing)
-            return;
-        EditorDocumentState nextState = document.CaptureState();
-        if (ReferenceEquals(documentState, nextState) && contentRevision == document.LastContentChangeRevision)
+        if (committing || document.LastChange is not EditorDocumentLiveChange change || ReferenceEquals(change.Origin, this))
             return;
         layoutPending = false;
         graph.CancelLayoutGesture();
-        documentState = nextState;
         binding.Refresh();
-        if (document.Data is not JsonObject next)
+        JsonObject next = data;
+        if (change.Edits is IReadOnlyList<JsonDataEdit> edits)
+        {
+            foreach (JsonDataEdit edit in edits)
+                edit.Apply(next);
+        }
+        else if (document.Data is JsonObject restored)
+            next = restored;
+        else
             return;
         if (contentRevision != document.LastContentChangeRevision)
         {
@@ -243,6 +279,7 @@ public sealed partial class MaterialWindow : Window, IProjectSaveParticipant
         }
         else
             data = next;
+        layoutState = captureLayout();
     }
 
     private async Task renderAsync()

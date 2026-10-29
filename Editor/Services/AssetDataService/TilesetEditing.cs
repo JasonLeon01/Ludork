@@ -39,10 +39,11 @@ public sealed partial class AssetDataService
         {
             return false;
         }
-        store.RecordDocumentSnapshot(isAutoTile ? "AutoTiles" : "Tilesets", key);
-        target["name"] = name;
-        completeTilesetEdit();
-        return true;
+        bool changed = store.ApplyDocumentEdits(isAutoTile ? "AutoTiles" : "Tilesets", ProjectDataStore.normalizeDataKey(key),
+            [new JsonDataEdit(JsonDataEdit.Operation.Set, ["name"], JsonValue.Create(name))]);
+        if (changed)
+            store.Maps.NotifyAllMapPreviewsChanged(false);
+        return changed;
     }
 
     public bool UpdateTilesetImage(string key, bool isAutoTile, string assetPath, int width, int height)
@@ -81,11 +82,30 @@ public sealed partial class AssetDataService
         changes = changes.Where(index => !JsonNode.DeepEquals(TilesetMetadata.Read(target, property, index, isAutoTile), value)).ToArray();
         if (changes.Length == 0)
             return false;
-        JsonNode copy = value.DeepClone();
-        store.RecordDocumentSnapshot(isAutoTile ? "AutoTiles" : "Tilesets", key);
-        TilesetMetadata.Apply(target, property, copy, changes, tileCount, isAutoTile);
-        completeTilesetEdit();
-        return true;
+        List<JsonDataEdit> edits = [];
+        if (isAutoTile)
+            edits.Add(new(JsonDataEdit.Operation.Set, [property], value));
+        else if (property == "materials")
+        {
+            foreach (int index in changes)
+                edits.Add(new(value.GetValue<string>().Length == 0 ? JsonDataEdit.Operation.Remove : JsonDataEdit.Operation.Set,
+                    [property, index.ToString(System.Globalization.CultureInfo.InvariantCulture)], value));
+        }
+        else if (target[property] is JsonArray current && current.Count == tileCount)
+        {
+            foreach (int index in changes)
+                edits.Add(new(JsonDataEdit.Operation.Set, [property, index], value));
+        }
+        else
+        {
+            JsonObject resized = new() { [property] = target[property]?.DeepClone() };
+            TilesetMetadata.Apply(resized, property, value, changes, tileCount, false);
+            edits.Add(new(JsonDataEdit.Operation.Set, [property], resized[property]));
+        }
+        bool changed = store.ApplyDocumentEdits(isAutoTile ? "AutoTiles" : "Tilesets", ProjectDataStore.normalizeDataKey(key), edits);
+        if (changed)
+            store.Maps.NotifyAllMapPreviewsChanged(false);
+        return changed;
     }
 
     public bool UpdateTilesetDirection(string key, string expectedAssetPath, int index, int tileCount, int direction, bool value)

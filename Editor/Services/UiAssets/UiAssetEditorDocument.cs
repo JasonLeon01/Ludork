@@ -18,7 +18,7 @@ public sealed class UiAssetEditorDocument : IDisposable
     private readonly EditorDocument? resourceDocument;
     private readonly string initialAssetKey;
     private string assetKey => resourceDocument is null ? initialAssetKey : resourceDocument.Key;
-    private EditorDocumentState? sourceState;
+    private bool gestureChanged;
     private bool committing;
 
     private UiAssetEditorDocument(
@@ -32,7 +32,6 @@ public sealed class UiAssetEditorDocument : IDisposable
         initialAssetKey = assetKey;
         resourceDocument = gameData.GetDocument("UI", assetKey);
         this.data = (JsonObject)data.DeepClone();
-        sourceState = resourceDocument?.CaptureState();
         if (resourceDocument is not null)
         {
             resourceDocument.Changed += onResourceChanged;
@@ -42,6 +41,8 @@ public sealed class UiAssetEditorDocument : IDisposable
     }
 
     public event EventHandler? Changed;
+
+    internal IReadOnlyList<JsonDataEdit>? LastEdits { get; private set; }
 
     public EditorDocument? ResourceDocument => resourceDocument;
     public string AssetKey => assetKey;
@@ -80,13 +81,12 @@ public sealed class UiAssetEditorDocument : IDisposable
     public bool Reload()
     {
         endGesture();
-        EditorDocumentState? state = resourceDocument?.CaptureState();
-        if (state?.Data is not JsonObject stored)
+        if (resourceDocument?.Data is not JsonObject stored)
             return false;
         data = stored;
-        sourceState = state;
         editing.Invalidate();
         gestureStart = null;
+        LastEdits = null;
         Changed?.Invoke(this, EventArgs.Empty);
         return true;
     }
@@ -96,15 +96,16 @@ public sealed class UiAssetEditorDocument : IDisposable
         finishOtherGesture();
         if (IsGestureActive)
             return;
+        gestureId = gameData.BeginHistoryGesture(clearGestureState);
         gestureStart = (JsonObject)data.DeepClone();
-        gestureId = gameData.BeginHistoryGesture();
+        gestureChanged = false;
         if (resourceDocument is not null)
             gestureOwners.GetOrCreateValue(resourceDocument).Owner = this;
     }
 
     public bool CommitGesture()
     {
-        bool changed = gestureStart is not null && !JsonNode.DeepEquals(gestureStart, data);
+        bool changed = gestureChanged && gestureStart is not null && !JsonNode.DeepEquals(gestureStart, data);
         endGesture();
         return changed;
     }
@@ -121,8 +122,7 @@ public sealed class UiAssetEditorDocument : IDisposable
 
     public bool Flush()
     {
-        bool changed = commitWorking();
-        return CommitGesture() || changed;
+        return CommitGesture();
     }
 
     private void finishOtherGesture()
@@ -138,8 +138,14 @@ public sealed class UiAssetEditorDocument : IDisposable
     private void endGesture()
     {
         gameData.EndHistoryGesture(gestureId);
+        clearGestureState();
+    }
+
+    private void clearGestureState()
+    {
         gestureId = 0;
         gestureStart = null;
+        gestureChanged = false;
         if (resourceDocument is not null && gestureOwners.TryGetValue(resourceDocument, out GestureOwnership? ownership)
             && ReferenceEquals(ownership.Owner, this))
         {
@@ -164,6 +170,7 @@ public sealed class UiAssetEditorDocument : IDisposable
         out UiAssetEditingService.Failure failure,
         int? index = null)
     {
+        gameData.BreakHistoryGesture();
         if (!editing.TryCreateControl(
                 this,
                 selectedNodeName,
@@ -178,15 +185,15 @@ public sealed class UiAssetEditorDocument : IDisposable
         }
         string name = createUniqueName(getString(node, "name"));
         node["name"] = name;
-        JsonObject before = (JsonObject)data.DeepClone();
         JsonArray children = ensureArray(parent, "children");
         children.Insert(Math.Clamp(index ?? children.Count, 0, children.Count), node);
-        completeMutation(before);
+        commitWorking();
         return name;
     }
 
     public bool DeleteNode(string nodeName)
     {
+        gameData.BreakHistoryGesture();
         JsonObject? root = getRoot();
         JsonObject? target = FindNode(nodeName);
         if (root is null
@@ -195,7 +202,6 @@ public sealed class UiAssetEditorDocument : IDisposable
         {
             return false;
         }
-        JsonObject before = (JsonObject)data.DeepClone();
         HashSet<string> removedNames = enumerateNodes(target)
             .Select(node => getString(node, "name"))
             .ToHashSet(StringComparer.Ordinal);
@@ -203,12 +209,13 @@ public sealed class UiAssetEditorDocument : IDisposable
         if (!removed)
             return false;
         removeAnimationsForTargets(removedNames);
-        completeMutation(before);
+        commitWorking();
         return true;
     }
 
     public string? DuplicateNode(string nodeName)
     {
+        gameData.BreakHistoryGesture();
         if (!CanDuplicateNode(nodeName))
             return null;
         JsonObject? source = FindNode(nodeName);
@@ -229,10 +236,9 @@ public sealed class UiAssetEditorDocument : IDisposable
             .ToHashSet(StringComparer.Ordinal);
         Dictionary<string, string> replacements = new Dictionary<string, string>(StringComparer.Ordinal);
         replaceCloneNames(copy, names, replacements);
-        JsonObject before = (JsonObject)data.DeepClone();
         children.Insert(sourceIndex + 1, copy);
         duplicateAnimationsForTargets(replacements);
-        completeMutation(before);
+        commitWorking();
         return getString(copy, "name");
     }
 
@@ -243,6 +249,7 @@ public sealed class UiAssetEditorDocument : IDisposable
 
     public bool MoveNode(string nodeName, string parentName, int index, JsonObject? reparentSlot = null)
     {
+        gameData.BreakHistoryGesture();
         if (!editing.TryGetMoveLocation(this, nodeName, parentName, index, out int targetIndex))
         {
             return false;
@@ -254,13 +261,12 @@ public sealed class UiAssetEditorDocument : IDisposable
         bool changedParent = !ReferenceEquals(sourceParent, destination);
         if (changedParent && reparentSlot is null)
             return false;
-        JsonObject before = (JsonObject)data.DeepClone();
         sourceChildren.Remove(node);
         if (changedParent)
             node["slot"] = reparentSlot!.DeepClone();
         JsonArray children = ensureArray(destination, "children");
         children.Insert(targetIndex, node);
-        completeMutation(before);
+        commitWorking();
         return true;
     }
 
@@ -304,6 +310,7 @@ public sealed class UiAssetEditorDocument : IDisposable
 
     public bool RenameNode(string nodeName, string name)
     {
+        gameData.BreakHistoryGesture();
         JsonObject? node = FindNode(nodeName);
         string value = name.Trim();
         if (node is null
@@ -315,10 +322,9 @@ public sealed class UiAssetEditorDocument : IDisposable
         {
             return false;
         }
-        JsonObject before = (JsonObject)data.DeepClone();
         node["name"] = value;
         renameAnimationTarget(nodeName, value);
-        completeMutation(before);
+        commitWorking();
         return true;
     }
 
@@ -327,109 +333,108 @@ public sealed class UiAssetEditorDocument : IDisposable
         JsonObject? node = FindNode(nodeName);
         if (node is null || isNestedAsset(node))
             return false;
-        JsonObject properties = ensureObject(node, "properties");
-        if (propertyId == "material" && !JsonNode.DeepEquals(properties[propertyId], value))
-        {
-            JsonObject before = (JsonObject)data.DeepClone();
-            properties[propertyId] = value?.DeepClone();
-            properties["materialParameters"] = new JsonObject();
-            completeMutation(before);
-            return true;
-        }
-        return setNodeValue(properties, propertyId, value);
+        List<JsonDataEdit> edits = [createNodeEdit(node, ["properties", propertyId], value)];
+        if (propertyId == "material" && !JsonNode.DeepEquals(node["properties"]?[propertyId], value))
+            edits.Add(createNodeEdit(node, ["properties", "materialParameters"], new JsonObject()));
+        return applyEdits(edits);
     }
 
     public bool SetNodeEditorProperty(string nodeName, string propertyId, JsonNode? value)
     {
         JsonObject? node = FindNode(nodeName);
-        if (node is null || isNestedAsset(node))
-            return false;
-        JsonObject editor = ensureObject(node, "editor");
-        return setNodeValue(editor, propertyId, value);
+        return node is not null && !isNestedAsset(node)
+            && applyEdits([createNodeEdit(node, ["editor", propertyId], value)]);
     }
 
     public bool SetNodeSlot(string nodeName, JsonObject slot)
     {
         JsonObject? node = FindNode(nodeName);
-        if (node is null || ReferenceEquals(node, getRoot()))
-            return false;
-        return setNodeValue(node, "slot", slot);
+        return node is not null && !ReferenceEquals(node, getRoot())
+            && applyEdits([createNodeEdit(node, ["slot"], slot)]);
     }
 
     public bool SetDesignSize(double width, double height)
     {
-        if (!double.IsFinite(width)
-            || !double.IsFinite(height)
-            || width <= 0
-            || height <= 0)
-        {
+        if (!double.IsFinite(width) || !double.IsFinite(height) || width <= 0 || height <= 0)
             return false;
-        }
         width = Math.Round(width);
         height = Math.Round(height);
         if (width < 1 || height < 1 || width > int.MaxValue || height > int.MaxValue)
             return false;
         int logicalWidth = (int)width;
         int logicalHeight = (int)height;
-        JsonObject size = new()
-        {
-            ["width"] = logicalWidth,
-            ["height"] = logicalHeight,
-        };
-        JsonObject before = (JsonObject)data.DeepClone();
-        data["designSize"] = size;
+        List<JsonDataEdit> edits =
+        [
+            new(JsonDataEdit.Operation.Set, ["designSize"], new JsonObject
+            {
+                ["width"] = logicalWidth,
+                ["height"] = logicalHeight,
+            }),
+        ];
         JsonObject? root = getRoot();
-        if (root is not null
-            && string.Equals(
-                getString(root, "controlId"),
-                "Engine.Canvas",
-                StringComparison.Ordinal))
-        {
-            JsonObject properties = ensureObject(root, "properties");
-            properties["size"] = new JsonArray(logicalWidth, logicalHeight);
-        }
-        if (JsonNode.DeepEquals(before, data))
-            return false;
-        completeMutation(before);
-        return true;
+        if (root is not null && string.Equals(getString(root, "controlId"), "Engine.Canvas", StringComparison.Ordinal))
+            edits.Add(createNodeEdit(root, ["properties", "size"], new JsonArray(logicalWidth, logicalHeight)));
+        return applyEdits(edits);
     }
 
-    public bool SetPalette(
-        bool exposed,
-        string displayName,
-        string category)
+    public bool SetPalette(bool exposed, string displayName, string category)
     {
-        JsonObject palette = new()
+        return applyEdits([new(JsonDataEdit.Operation.Set, ["palette"], new JsonObject
         {
             ["exposed"] = exposed,
             ["displayName"] = displayName.Trim(),
             ["category"] = category.Trim(),
-        };
-        return setNodeValue(data, "palette", palette);
+        })]);
     }
 
     public bool SetAnimations(JsonArray animations)
     {
-        return setNodeValue(data, "animations", animations);
+        gameData.BreakHistoryGesture();
+        return applyEdits([new(JsonDataEdit.Operation.Set, ["animations"], animations)]);
     }
 
-    private bool setNodeValue(JsonObject target, string propertyName, JsonNode? value)
+    internal bool SetAnimationValue(int animationIndex, IReadOnlyList<object> path, JsonNode? value)
     {
-        bool exists = target.TryGetPropertyValue(propertyName, out JsonNode? current);
-        if (exists && JsonNode.DeepEquals(current, value))
+        if (data["animations"] is not JsonArray animations || animationIndex < 0 || animationIndex >= animations.Count)
             return false;
-        JsonObject before = (JsonObject)data.DeepClone();
-        target[propertyName] = value?.DeepClone();
-        completeMutation(before);
-        return true;
+        if (path.Count == 0)
+            gameData.BreakHistoryGesture();
+        return applyEdits([new(JsonDataEdit.Operation.Set, new object[] { "animations", animationIndex }.Concat(path), value)]);
     }
 
-    private void completeMutation(JsonObject before)
+    private JsonDataEdit createNodeEdit(JsonObject node, IReadOnlyList<object> path, JsonNode? value)
     {
-        if (JsonNode.DeepEquals(before, data))
-            return;
+        return new JsonDataEdit(JsonDataEdit.Operation.Set, EditorJsonEdits.Path(data, node).Concat(path), value);
+    }
+
+    private bool applyEdits(IReadOnlyList<JsonDataEdit> edits)
+    {
         finishOtherGesture();
-        commitWorking();
+        JsonDataEdit[] changed = edits.Where(edit => edit.Changes(data)).ToArray();
+        if (changed.Length == 0)
+            return false;
+        committing = true;
+        bool applied;
+        try
+        {
+            applied = gameData.UiAssets.ApplyUiAssetEdits(assetKey, changed, this);
+            if (applied)
+            {
+                foreach (JsonDataEdit edit in changed)
+                    edit.Apply(data);
+            }
+        }
+        finally
+        {
+            committing = false;
+        }
+        if (!applied)
+            return false;
+        gestureChanged |= IsGestureActive;
+        editing.Invalidate();
+        LastEdits = changed;
+        Changed?.Invoke(this, EventArgs.Empty);
+        return true;
     }
 
     private bool commitWorking()
@@ -439,17 +444,19 @@ public sealed class UiAssetEditorDocument : IDisposable
         {
             return false;
         }
+        finishOtherGesture();
+        gestureChanged |= IsGestureActive;
         editing.Invalidate();
         committing = true;
         try
         {
-            gameData.UiAssets.UpdateUiAsset(assetKey, (JsonObject)data.DeepClone());
-            sourceState = resourceDocument.CaptureState();
+            gameData.UiAssets.UpdateUiAsset(assetKey, data);
         }
         finally
         {
             committing = false;
         }
+        LastEdits = null;
         Changed?.Invoke(this, EventArgs.Empty);
         return true;
     }
@@ -469,17 +476,23 @@ public sealed class UiAssetEditorDocument : IDisposable
 
     private void onResourceChanged(object? sender, EventArgs args)
     {
-        if (committing)
+        if (committing || resourceDocument?.LastChange is not EditorDocumentLiveChange change
+            || ReferenceEquals(change.Origin, this))
             return;
-        EditorDocumentState? state = resourceDocument?.CaptureState();
-        bool unchanged = EditorDocumentState.ContentEquals(sourceState, state);
-        sourceState = state;
-        if (unchanged)
-            return;
-        if (!Reload())
+        endGesture();
+        if (change.Edits is IReadOnlyList<JsonDataEdit> edits)
+        {
+            foreach (JsonDataEdit edit in edits)
+                edit.Apply(data);
+            editing.Invalidate();
+            LastEdits = edits;
+            Changed?.Invoke(this, EventArgs.Empty);
+        }
+        else if (!Reload())
         {
             data = [];
             editing.Invalidate();
+            LastEdits = null;
             Changed?.Invoke(this, EventArgs.Empty);
         }
     }
@@ -488,7 +501,7 @@ public sealed class UiAssetEditorDocument : IDisposable
     {
         if (args.AffectsSection("UI"))
             editing.Invalidate();
-        if (!committing && gestureStart is not null)
+        if (!committing && gestureStart is not null && !IsGestureActive)
             endGesture();
     }
 
@@ -671,15 +684,6 @@ public sealed class UiAssetEditorDocument : IDisposable
     private static string getString(JsonObject node, string propertyName)
     {
         return node[propertyName]?.GetValue<string>() ?? string.Empty;
-    }
-
-    private static JsonObject ensureObject(JsonObject parent, string name)
-    {
-        if (parent[name] is JsonObject value)
-            return value;
-        JsonObject result = new();
-        parent[name] = result;
-        return result;
     }
 
     private static JsonArray ensureArray(JsonObject parent, string name)

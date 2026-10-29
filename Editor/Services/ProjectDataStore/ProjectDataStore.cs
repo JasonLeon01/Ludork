@@ -62,8 +62,6 @@ public sealed partial class ProjectDataStore : IDisposable
 
     private readonly Action<string>? loadProgress;
 
-    private long activeHistoryGestureId;
-
     private bool isModified;
 
     private bool projectEnumGenerationPending;
@@ -86,6 +84,8 @@ public sealed partial class ProjectDataStore : IDisposable
         this.loadCancellationToken = loadCancellationToken;
         this.loadProgress = loadProgress;
         ProjectPath = Path.GetFullPath(projectPath);
+        Documents.CompletePendingChanges = CompleteDocumentChanges;
+        Documents.HistoryGestureCompleted = refreshDocumentStatus;
         if (load)
             Directory.CreateDirectory(Path.Combine(ProjectPath, "Data", "Subtitles"));
         Enums = new LuaEnumService(ProjectPath, GetProjectEnumCatalog);

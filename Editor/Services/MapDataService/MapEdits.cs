@@ -132,25 +132,20 @@ public sealed partial class MapDataService
 
     internal bool commitMapEdits(string mapKey, JsonObject map, IReadOnlyList<JsonDataEdit> edits, object? origin = null)
     {
-        JsonDataEdit[] changed = edits.Where(edit => edit.Changes(map)).ToArray();
-        if (changed.Length == 0 || changed.Any(edit => !edit.CanApply(map)))
-            return false;
         mapKey = normaliseMapKey(mapKey);
-        store.RecordMapSnapshot(mapKey, MapHistoryEdits.Empty);
-        MapDataEditedEventArgs change = new(mapKey, changed) { Origin = origin };
-        List<IReadOnlyList<JsonDataEdit>> inverses = [];
-        foreach (JsonDataEdit edit in changed)
-        {
-            inverses.Add(edit.CaptureInverse(map));
-            edit.Apply(map);
-        }
-        MapHistoryEdits history = new(changed, inverses.AsEnumerable().Reverse().SelectMany(edits => edits));
-        store.Documents.AppendPendingMapEdits(store.GetDocument("Maps", mapKey)!, history);
-        if (change.ChangesActors)
-            NotifyMapActorsChanged(mapKey, change);
-        store.refreshModifiedState();
-        NotifyMapContentChanged(mapKey, change);
-        return true;
+        if (!ReferenceEquals(store.GetDocument("Maps", mapKey)?.InternalData, map))
+            return false;
+        MapDataEditedEventArgs? change = null;
+        bool applied = store.ApplyDocumentEdits("Maps", mapKey, edits, origin: origin, recordMapHistory: true,
+            beforeNotify: changed =>
+            {
+                change = new MapDataEditedEventArgs(mapKey, changed) { Origin = origin };
+                if (change.ChangesActors)
+                    NotifyMapActorsChanged(mapKey, change);
+            });
+        if (applied)
+            NotifyMapContentChanged(mapKey, change!);
+        return applied;
     }
 
     internal bool tryGetEditableActor(string mapKey, string layerName, int index, string expectedTag,

@@ -1,6 +1,7 @@
 using Avalonia;
 using NodifyM.Avalonia.ViewModelBase;
 using Ludork.Services;
+using Ludork.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,18 +16,21 @@ public sealed class MaterialGraphViewModel : NodifyEditorViewModelBase
     private readonly Action layoutChanged;
     private readonly Action contentChanging;
     private readonly Action contentChanged;
+    private readonly Action<IReadOnlyList<JsonDataEdit>> fieldsChanged;
     private readonly JsonObject defaults;
     private JsonArray parameterChoices = [];
     private readonly Dictionary<string, MaterialGraphNodeViewModel> byId = new(StringComparer.Ordinal);
     private static JsonArray? clipboard;
     private bool restoringEditorState;
 
-    public MaterialGraphViewModel(JsonObject asset, JsonObject registry, Action layoutChanged, Action contentChanging, Action contentChanged)
+    public MaterialGraphViewModel(JsonObject asset, JsonObject registry, Action layoutChanged, Action contentChanging, Action contentChanged,
+        Action<IReadOnlyList<JsonDataEdit>> fieldsChanged)
     {
         this.asset = asset;
         this.layoutChanged = layoutChanged;
         this.contentChanging = contentChanging;
         this.contentChanged = contentChanged;
+        this.fieldsChanged = fieldsChanged;
         defaults = (JsonObject)registry["parameterDefaults"]!;
         descriptors = ((JsonArray)registry["nodes"]!).OfType<JsonObject>()
             .ToDictionary(node => node["type"]!.GetValue<string>(), StringComparer.Ordinal);
@@ -133,7 +137,7 @@ public sealed class MaterialGraphViewModel : NodifyEditorViewModelBase
             return;
         contentChanging();
         writableInputs(port.Node.Data)[port.Id] = value?.DeepClone();
-        contentChanged();
+        fieldsChanged(EditorJsonEdits.Properties(asset, writableInputs(port.Node.Data), port.Id));
     }
 
     public void SetProperty(MaterialGraphNodeViewModel node, string id, JsonNode? value)
@@ -145,7 +149,7 @@ public sealed class MaterialGraphViewModel : NodifyEditorViewModelBase
             node.Data["properties"] = properties = new JsonObject();
         properties[id] = value?.DeepClone();
         RefreshParameterNames();
-        contentChanged();
+        fieldsChanged(EditorJsonEdits.Properties(asset, properties, id));
     }
 
     public JsonNode? DefaultValue(string type) => defaults[type == "numeric" ? "float" : type]?.DeepClone();

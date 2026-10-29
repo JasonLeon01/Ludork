@@ -9,6 +9,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Ludork.Services;
+using Ludork.Models;
 using Ludork.Views.Utils;
 using System;
 using System.Collections.Generic;
@@ -95,8 +96,8 @@ public sealed class AnimationEditor : UserControl
         this.data = (JsonObject)data.DeepClone();
         documentRevision = resourceDocument?.Revision ?? 0;
 
-        preview = new AnimationPreview(gameData, () => this.data, timelineIndex);
-        timeline = new AnimationTimeline(gameData, () => this.data, timelineIndex);
+        preview = new AnimationPreview(gameData, () => this.data, timelineIndex, resourceDocument);
+        timeline = new AnimationTimeline(gameData, () => this.data, timelineIndex, resourceDocument);
         preview.SegmentSelected += selectSingleSegment;
         preview.SegmentChanged += onSegmentChanged;
         timeline.SegmentSelected += selectSegment;
@@ -124,13 +125,21 @@ public sealed class AnimationEditor : UserControl
         gameData.DataReloaded += onAssetsReloaded;
         gameData.Thumbnails.SourcesInvalidated += onSourcesInvalidated;
         if (resourceDocument is not null)
+        {
             resourceDocument.Changed += onDocumentChanged;
-        onDocumentChanged(this, EventArgs.Empty);
+            if (documentRevision != resourceDocument.Revision && resourceDocument.Data is JsonObject current)
+            {
+                data = current;
+                documentRevision = resourceDocument.Revision;
+                refreshEditor();
+            }
+        }
         refreshAssets();
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs args)
     {
+        gameData.BreakHistoryGesture();
         attached = false;
         stopPlayback();
         releaseAssets();
@@ -145,10 +154,18 @@ public sealed class AnimationEditor : UserControl
     private void onDocumentChanged(object? sender, EventArgs args)
     {
         if (committing || resourceDocument is null || documentRevision == resourceDocument.Revision
-            || resourceDocument.Data is not JsonObject current)
+            || resourceDocument.LastChange is not EditorDocumentLiveChange change || ReferenceEquals(change.Origin, this))
             return;
         documentRevision = resourceDocument.Revision;
-        data = current;
+        if (change.Edits is IReadOnlyList<JsonDataEdit> edits)
+        {
+            foreach (JsonDataEdit edit in edits)
+                edit.Apply(data);
+        }
+        else if (resourceDocument.Data is JsonObject current)
+            data = current;
+        else
+            return;
         refreshEditor();
     }
 
@@ -193,7 +210,7 @@ public sealed class AnimationEditor : UserControl
             if (string.Equals(data["name"]?.GetValue<string>() ?? key, value, StringComparison.Ordinal))
                 return;
             data["name"] = value;
-            commit();
+            commitFields(data, "name");
         };
         left.Children.Add(nameBox);
 
@@ -205,7 +222,7 @@ public sealed class AnimationEditor : UserControl
                 return;
             data["frameRate"] = frameRate;
             timeline.Refresh();
-            commit();
+            commitFields(data, "frameRate");
         };
         left.Children.Add(fpsBox);
 
@@ -786,7 +803,9 @@ public sealed class AnimationEditor : UserControl
             frame[property] = values;
         }
         segment[frameName] = frame;
-        onSegmentChanged();
+        timelineIndex.Update(selectedTrack, selectedSegment);
+        loadInspector();
+        commitFields(segment, frameName);
     }
 
     private void onSegmentChanged()
@@ -808,6 +827,20 @@ public sealed class AnimationEditor : UserControl
         {
             committing = false;
         }
+        preview.Refresh();
+        timeline.Refresh();
+        Modified?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void commitFields(JsonObject owner, params string[] properties)
+    {
+        committing = true;
+        try
+        {
+            gameData.ApplyDocumentEdits("Animations", key, EditorJsonEdits.Properties(data, owner, properties), origin: this);
+            documentRevision = resourceDocument?.Revision ?? 0;
+        }
+        finally { committing = false; }
         preview.Refresh();
         timeline.Refresh();
         Modified?.Invoke(this, EventArgs.Empty);

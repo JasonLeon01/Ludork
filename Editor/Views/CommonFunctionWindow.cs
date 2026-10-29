@@ -194,6 +194,7 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
         if (selectedDocument is null)
             return;
         selectedDocument.ExternalChanged += onDataRestored;
+        selectedDocument.GraphParametersChanged += onGraphParametersChanged;
         CancellationToken cancellationToken = graphLoading.Begin();
         loadingToken = cancellationToken;
         graphHost.Child = DeferredWindowInitializer.CreateLoadingContent();
@@ -222,7 +223,10 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
             cancellationToken.ThrowIfCancellationRequested();
             BlueprintGraphControl control = new(gameData, graphDocument, definitionSet.Definitions,
                 fieldBuilder, parameterEditorFactory, projectSave.GameVariables,
-                Path.Combine(gameData.ProjectPath, "Assets"), gameData.Configs.getCellSize(), false, pickerIndexes);
+                Path.Combine(gameData.ProjectPath, "Assets"), gameData.Configs.getCellSize(), false, pickerIndexes)
+            {
+                ResourceDocument = resource,
+            };
             loadingControl = control;
             if (resource is not null && graphViewStates.TryGetValue(resource.Id, out BlueprintGraphControl.ViewState? state))
                 control.RestoreViewState(state);
@@ -291,7 +295,7 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
     {
         if (graphControl is null || currentDocument is null)
             return;
-        currentDocument.CommitGraph(BlueprintGraphCodec.Save(graphControl.Document));
+        currentDocument.CommitGraph(graphControl.Document);
         onInputDraftChanged(sender, args);
     }
 
@@ -537,6 +541,12 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
         refreshList(name);
     }
 
+    private void onGraphParametersChanged(object? sender, BlueprintGraphParametersChangedEventArgs args)
+    {
+        if (currentDocument is not null)
+            graphControl?.SynchronizeParameters(currentDocument.GetEventGraph(), args.NodeIndices);
+    }
+
     private void onDataReloaded(object? sender, EventArgs args)
     {
         if (!initializer.IsInitialized)
@@ -620,6 +630,7 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
         if (currentDocument is not null)
         {
             currentDocument.ExternalChanged -= onDataRestored;
+            currentDocument.GraphParametersChanged -= onGraphParametersChanged;
             currentDocument.Dispose();
         }
         currentDocument = null;

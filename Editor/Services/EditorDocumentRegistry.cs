@@ -6,7 +6,7 @@ using System.Text.Json.Nodes;
 
 namespace Ludork.Services;
 
-public sealed class EditorDocumentRegistry
+public sealed partial class EditorDocumentRegistry
 {
     private readonly List<EditorDocument> documents = [];
     private readonly Dictionary<(string Section, string Key), List<EditorDocument>> documentsByKey = [];
@@ -77,6 +77,7 @@ public sealed class EditorDocumentRegistry
 
     internal void Remove(EditorDocument document)
     {
+        BreakHistoryGesture();
         TrackDocument(document);
         EditorDocumentState before = document.CaptureState();
         if (!documents.Remove(document))
@@ -129,8 +130,6 @@ public sealed class EditorDocumentRegistry
             BindPathCore(document, alias);
     }
 
-    internal long CreateGestureId() => ++nextGestureId;
-
     internal bool IsRegistered(EditorDocument document) => identities.ContainsKey(document);
 
     internal bool HasPendingNotifications => notificationScopes.Count != 0;
@@ -159,6 +158,9 @@ public sealed class EditorDocumentRegistry
     internal void Capture(EditorDocument document, string? description = null, HistoryMarker? marker = null,
         long gestureId = 0, MapHistoryEdits? mapEdits = null)
     {
+        if (activeGesture is not null && (marker is not null || gestureId != activeGesture.Id
+                || activeGesture.Document is not null && !ReferenceEquals(activeGesture.Document, document)))
+            BreakHistoryGesture();
         TrackDocument(document);
         if (document.PendingState is not null)
         {
@@ -166,11 +168,18 @@ public sealed class EditorDocumentRegistry
                 ? document.PendingMapEdits.Append(mapEdits) : null;
             return;
         }
-        document.PendingState = document.CaptureState();
+        if (activeGesture is not null && gestureId == activeGesture.Id)
+        {
+            activeGesture.Document = document;
+            activeGesture.Before ??= document.CaptureState();
+            activeGesture.Description ??= description ?? "Edit " + document.Key;
+            document.Gesture = activeGesture;
+        }
+        document.PendingState = document.Gesture?.Before ?? document.CaptureState();
         document.CurrentState = null;
         document.PendingDescription = description ?? "Edit " + document.Key;
         document.PendingMarker = marker;
-        document.PendingGestureId = marker is null ? gestureId : 0;
+        document.PendingGestureId = document.Gesture?.Id ?? 0;
         document.PendingMapEdits = mapEdits;
     }
 
@@ -182,7 +191,8 @@ public sealed class EditorDocumentRegistry
         document.PendingMapEdits = document.PendingMapEdits.Append(edits);
     }
 
-    internal bool Commit(EditorDocument document, JsonObject? data, string? key = null, string? path = null)
+    internal bool Commit(EditorDocument document, JsonObject? data, string? key = null, string? path = null,
+        EditorDocumentLiveChange? change = null)
     {
         EditorDocumentState? before = document.PendingState;
         TrackDocument(document);
@@ -195,10 +205,22 @@ public sealed class EditorDocumentRegistry
             document.UpdateModified();
             return false;
         }
+        if (document.Gesture is EditorHistoryGesture gesture && gesture.Id == document.PendingGestureId)
+        {
+            gesture.HasChanges = true;
+            if (document.PendingMapEdits is MapHistoryEdits edits)
+                gesture.MapBatches.Add(edits);
+            else
+                gesture.HasMapEdits = false;
+            ClearPending(document);
+            document.RedoEntries.Clear();
+            document.SetPreparedModified(true);
+            NotifyLive(document, change ?? new EditorDocumentLiveChange(true));
+            return true;
+        }
         EditorDocumentState after = document.CaptureState();
         HistoryMarker? marker = document.PendingMarker;
         string? description = document.PendingDescription;
-        long gestureId = document.PendingGestureId;
         MapHistoryEdits? mapEdits = document.PendingMapEdits;
         ClearPending(document);
         document.CurrentState = after;
@@ -212,39 +234,23 @@ public sealed class EditorDocumentRegistry
             && document.SavedState.InternalData is null && document.UndoEntries.Count == 0)
         {
             document.RedoEntries.Clear();
-            Notify(document, before, after);
+            Notify(document, before, after, change);
             return true;
         }
-        DocumentHistoryEntry entry = new(before, after, description, marker) { GestureId = gestureId, MapEdits = mapEdits };
-        if (gestureId != 0 && document.UndoEntries.LastOrDefault() is DocumentHistoryEntry previous
-            && previous.GestureId == gestureId && previous.Marker is null)
-        {
-            if (EditorDocument.StatesEqual(previous.Before, after))
-                document.UndoEntries.RemoveAt(document.UndoEntries.Count - 1);
-            else
-                document.UndoEntries[^1] = entry with
-                {
-                    Before = previous.Before,
-                    MapEdits = previous.MapEdits is not null && mapEdits is not null
-                        ? previous.MapEdits.Append(mapEdits) : null,
-                };
-        }
-        else
-        {
-            document.UndoEntries.Add(entry);
-            if (document.UndoEntries.Count > EditorDocument.MaximumHistoryEntries)
-                document.UndoEntries.RemoveAt(0);
-        }
+        DocumentHistoryEntry entry = new(before, after, description, marker) { MapEdits = mapEdits };
+        document.UndoEntries.Add(entry);
+        if (document.UndoEntries.Count > EditorDocument.MaximumHistoryEntries)
+            document.UndoEntries.RemoveAt(0);
         document.RedoEntries.Clear();
-        Notify(document, before, after);
+        Notify(document, before, after, change);
         return true;
     }
 
     internal void MarkSaved(EditorDocument document, EditorDocumentState? savedState = null)
     {
+        if (savedState is null)
+            BreakHistoryGesture();
         TrackDocument(document);
-        if (document.UndoEntries.Count != 0 && (savedState is null || ReferenceEquals(savedState, document.CurrentState)))
-            document.UndoEntries[^1] = document.UndoEntries[^1] with { GestureId = 0 };
         document.SavedState = savedState ?? document.CaptureState();
         document.UpdateModified();
         Notify(document);
@@ -252,6 +258,7 @@ public sealed class EditorDocumentRegistry
 
     internal void Restore(EditorDocument document, EditorDocumentState state)
     {
+        BreakHistoryGesture();
         TrackDocument(document);
         EditorDocumentState before = document.CaptureState();
         document.RestoreState(state);
@@ -265,6 +272,7 @@ public sealed class EditorDocumentRegistry
 
     internal EditorDocumentTransaction BeginTransaction(IEnumerable<EditorDocument> affectedDocuments)
     {
+        BreakHistoryGesture();
         EditorDocument[] affected = affectedDocuments.Distinct().ToArray();
         foreach (EditorDocument document in affected)
             TrackDocument(document);
@@ -290,13 +298,21 @@ public sealed class EditorDocumentRegistry
         action();
     }
 
-    internal void Notify(EditorDocument document, EditorDocumentState? before = null, EditorDocumentState? after = null)
+    internal void Notify(EditorDocument document, EditorDocumentState? before = null, EditorDocumentState? after = null,
+        EditorDocumentLiveChange? change = null)
     {
         NotificationScope scope = notificationScopes.TryPeek(out NotificationScope? current)
             ? current : new NotificationScope(document);
         scope.Changed.Add(document);
         if (before is not null && after is not null)
+        {
             scope.AddContent(document, before, after);
+            change ??= new EditorDocumentLiveChange(before.Section == "Materials"
+                ? !MaterialAssetSchema.ContentEquals(before.InternalData, after.InternalData)
+                : !JsonNode.DeepEquals(before.InternalData, after.InternalData));
+        }
+        if (change is not null)
+            scope.AddLive(document, change);
         if (notificationScopes.Count == 0)
             Publish(scope);
     }
@@ -308,6 +324,7 @@ public sealed class EditorDocumentRegistry
         scope.Changed.Add(document);
         scope.AddContent(document, before, after);
         scope.PreparedContentChanges[document] = contentChanged;
+        scope.AddLive(document, new EditorDocumentLiveChange(contentChanged));
     }
 
     internal void ValidateNotificationScope(object owner)
@@ -341,6 +358,8 @@ public sealed class EditorDocumentRegistry
             parent.AddContent(pair.Key, pair.Value.Before, pair.Value.After);
         foreach (KeyValuePair<EditorDocument, bool> change in scope.PreparedContentChanges)
             parent.PreparedContentChanges[change.Key] = change.Value;
+        foreach (KeyValuePair<EditorDocument, EditorDocumentLiveChange> change in scope.LiveChanges)
+            parent.AddLive(change.Key, change.Value);
         parent.Reset |= scope.Reset;
         parent.AfterNotifications.AddRange(scope.AfterNotifications);
     }
@@ -377,6 +396,8 @@ public sealed class EditorDocumentRegistry
                 ? !MaterialAssetSchema.ContentEquals(pair.Value.Before.InternalData, pair.Value.After.InternalData)
                 : scope.PreparedContentChanges.TryGetValue(pair.Key, out bool changed)
                     ? changed : !JsonNode.DeepEquals(pair.Value.Before.InternalData, pair.Value.After.InternalData);
+            contentChanged |= scope.LiveChanges.TryGetValue(pair.Key, out EditorDocumentLiveChange? live)
+                && live.ContentChanged;
             EditorDocumentChange change = new(
                 pair.Key.Id, pair.Value.After.Section,
                 pair.Value.Before.InternalData is null ? null : pair.Value.Before.Key,
@@ -387,7 +408,14 @@ public sealed class EditorDocumentRegistry
             if (change.ContentChanged || change.IdentityChanged)
                 pair.Key.LastContentChangeRevision = Revision;
             return change;
-        })
+        }).Concat(scope.LiveChanges.Where(pair => !scope.Content.ContainsKey(pair.Key)).Select(pair =>
+        {
+            EditorDocument document = pair.Key;
+            if (pair.Value.ContentChanged)
+                document.LastContentChangeRevision = Revision;
+            return new EditorDocumentChange(document.Id, document.Section, document.Key, document.Key,
+                document.Path, document.Path, pair.Value.ContentChanged);
+        }))
             .Where(change => change.ContentChanged || change.IdentityChanged).ToArray();
         EditorDocumentsChangedEventArgs notification = new(changes, scope.Changed, scope.Reset);
         bool hasContentChanges = scope.Reset || changes.Length != 0;
@@ -401,7 +429,12 @@ public sealed class EditorDocumentRegistry
             DiskReloaded?.Invoke(document);
         }
         foreach (EditorDocument document in scope.Changed)
-            document.NotifyChanged();
+        {
+            EditorDocumentLiveChange? update = scope.LiveChanges.GetValueOrDefault(document);
+            if (update is null && scope.Content.ContainsKey(document))
+                update = new EditorDocumentLiveChange(changes.Any(change => change.DocumentId == document.Id && change.ContentChanged));
+            document.NotifyChanged(update);
+        }
         if (scope.Changed.Count != 0 || scope.Reset)
             Changed?.Invoke(this, notification);
         if (hasContentChanges)
@@ -412,6 +445,7 @@ public sealed class EditorDocumentRegistry
 
     internal void Clear()
     {
+        BreakHistoryGesture();
         foreach (EditorDocument document in documents)
             document.IdentityChanged = null;
         documents.Clear();
@@ -476,6 +510,7 @@ public sealed class EditorDocumentRegistry
     private HistoryResult Replay(EditorDocument document, bool undo, DocumentHistoryEntry? expectedEntry = null,
         Func<HistoryResult>? restore = null)
     {
+        BreakHistoryGesture();
         List<DocumentHistoryEntry> source = undo ? document.UndoEntries : document.RedoEntries;
         List<DocumentHistoryEntry> target = undo ? document.RedoEntries : document.UndoEntries;
         if (expectedEntry is not null && (source.Count == 0 || !ReferenceEquals(source[^1], expectedEntry)))
@@ -499,7 +534,7 @@ public sealed class EditorDocumentRegistry
             result = new HistoryResult(true) { Changes = [document.Path] };
         }
         source.RemoveAt(source.Count - 1);
-        target.Add(entry with { GestureId = 0 });
+        target.Add(entry);
         Notify(document);
         try
         {
@@ -530,12 +565,23 @@ public sealed class EditorDocumentRegistry
         public Dictionary<EditorDocument, (EditorDocumentState Before, EditorDocumentState After)> Content { get; } = [];
         public List<Action> AfterNotifications { get; } = [];
         public Dictionary<EditorDocument, bool> PreparedContentChanges { get; } = [];
+        public Dictionary<EditorDocument, EditorDocumentLiveChange> LiveChanges { get; } = [];
         public bool Reset { get; set; }
 
         public void AddContent(EditorDocument document, EditorDocumentState before, EditorDocumentState after)
         {
             Content[document] = (Content.TryGetValue(document, out (EditorDocumentState Before, EditorDocumentState After) current)
                 ? current.Before : before, after);
+        }
+
+        public void AddLive(EditorDocument document, EditorDocumentLiveChange change)
+        {
+            if (LiveChanges.TryGetValue(document, out EditorDocumentLiveChange? previous))
+                change = new EditorDocumentLiveChange(previous.ContentChanged || change.ContentChanged,
+                    previous.Edits is not null && change.Edits is not null
+                        ? previous.Edits.Concat(change.Edits).ToArray() : null,
+                    ReferenceEquals(previous.Origin, change.Origin) ? change.Origin : null);
+            LiveChanges[document] = change;
         }
     }
 }

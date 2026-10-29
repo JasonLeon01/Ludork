@@ -21,11 +21,8 @@ public sealed partial class ConfigDataService
         {
             return false;
         }
-        JsonNode? next = value?.DeepClone();
-        configDocuments.RecordChange(fileKey);
-        field["value"] = next;
-        store.refreshModifiedState();
-        return true;
+        return store.ApplyDocumentEdits("Configs", fileKey,
+            [new JsonDataEdit(JsonDataEdit.Operation.Set, [name, "value"], value)]);
     }
 
     public bool UpdateStartMap(string runtimePath, JsonArray position)
@@ -38,12 +35,9 @@ public sealed partial class ConfigDataService
         {
             return false;
         }
-        JsonArray nextPosition = (JsonArray)position.DeepClone();
-        configDocuments.RecordChange("System");
-        mapField["value"] = runtimePath;
-        positionField["value"] = nextPosition;
-        store.refreshModifiedState();
-        return true;
+        return store.ApplyDocumentEdits("Configs", "System",
+            [new JsonDataEdit(JsonDataEdit.Operation.Set, ["startMap", "value"], JsonValue.Create(runtimePath)),
+                new JsonDataEdit(JsonDataEdit.Operation.Set, ["startPos", "value"], position)]);
     }
 
     public bool UpdateConfigArrayValue(string fileKey, string name, int index, JsonNode? value)
@@ -51,6 +45,9 @@ public sealed partial class ConfigDataService
         JsonArray? values = getConfigArrayForEdit(fileKey, name, out _);
         if (values is null || index < 0 || index >= values.Count || JsonNode.DeepEquals(values[index], value))
             return false;
+        if (ReferenceEquals(configDocuments[fileKey][name]?["value"], values))
+            return store.ApplyDocumentEdits("Configs", fileKey,
+                [new JsonDataEdit(JsonDataEdit.Operation.Set, [name, "value", index], value)]);
         values[index] = value?.DeepClone();
         return UpdateConfigValue(fileKey, name, values);
     }
@@ -60,6 +57,9 @@ public sealed partial class ConfigDataService
         JsonArray? values = getConfigArrayForEdit(fileKey, name, out bool variableLength);
         if (values is null || !variableLength || index < 0 || index > values.Count)
             return false;
+        if (ReferenceEquals(configDocuments[fileKey][name]?["value"], values))
+            return store.ApplyDocumentEdits("Configs", fileKey,
+                [new JsonDataEdit(JsonDataEdit.Operation.Insert, [name, "value", index], value)]);
         values.Insert(index, value?.DeepClone());
         return UpdateConfigValue(fileKey, name, values);
     }
@@ -69,6 +69,9 @@ public sealed partial class ConfigDataService
         JsonArray? values = getConfigArrayForEdit(fileKey, name, out bool variableLength);
         if (values is null || !variableLength || index < 0 || index >= values.Count)
             return false;
+        if (ReferenceEquals(configDocuments[fileKey][name]?["value"], values))
+            return store.ApplyDocumentEdits("Configs", fileKey,
+                [new JsonDataEdit(JsonDataEdit.Operation.Remove, [name, "value", index])]);
         values.RemoveAt(index);
         return UpdateConfigValue(fileKey, name, values);
     }
@@ -91,10 +94,13 @@ public sealed partial class ConfigDataService
         variableLength = lengthText.Length == 0;
         if (!variableLength && !int.TryParse(lengthText, out _))
             return null;
-        JsonArray values = field["value"]?.DeepClone() as JsonArray ?? new JsonArray();
+        JsonArray values = field["value"] as JsonArray ?? new JsonArray();
         if (!variableLength && int.TryParse(lengthText, out int length))
         {
             length = Math.Max(0, length);
+            if (values.Count == length)
+                return values;
+            values = (JsonArray)values.DeepClone();
             string baseType = type[..open];
             while (values.Count < length)
             {

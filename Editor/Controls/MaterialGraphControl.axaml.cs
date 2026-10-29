@@ -58,7 +58,7 @@ public sealed partial class MaterialGraphControl : UserControl
                 rightSelection = model.SelectedNodes.OfType<MaterialGraphNodeViewModel>().ToArray();
             }
             if (GameData is not null)
-                gesture = GameData.BeginHistoryGesture();
+                gesture = GameData.BeginHistoryGesture(flushLayout);
         }, RoutingStrategies.Tunnel);
         AddHandler(PointerPressedEvent, (_, args) =>
         {
@@ -207,8 +207,7 @@ public sealed partial class MaterialGraphControl : UserControl
         completingGesture = true;
         try
         {
-            viewGestureTimer.Stop();
-            LayoutCommitRequested?.Invoke(this, EventArgs.Empty);
+            flushLayout();
         }
         finally
         {
@@ -216,6 +215,12 @@ public sealed partial class MaterialGraphControl : UserControl
             gesture = 0;
             completingGesture = false;
         }
+    }
+
+    private void flushLayout()
+    {
+        viewGestureTimer.Stop();
+        LayoutCommitRequested?.Invoke(this, EventArgs.Empty);
     }
 
     public void ScheduleLayoutCommit()
@@ -231,7 +236,7 @@ public sealed partial class MaterialGraphControl : UserControl
     internal void EnsureLayoutGesture()
     {
         if (GameData is not null && !GameData.IsHistoryGestureActive(gesture))
-            gesture = GameData.BeginHistoryGesture();
+            gesture = GameData.BeginHistoryGesture(flushLayout);
     }
 
     public void CompleteLayoutGesture() => endGesture();

@@ -24,6 +24,8 @@ public sealed class JsonDataEdit
     public Operation Kind { get; }
     public IReadOnlyList<object> Path { get; }
 
+    internal JsonDataEdit WithPath(IEnumerable<object> path) => new(Kind, path, value);
+
     public bool CanApply(JsonObject target)
     {
         JsonNode? current = target;

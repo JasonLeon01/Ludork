@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -17,10 +18,14 @@ namespace Ludork.Controls;
 internal sealed class MaterialNumericEditor : StackPanel
 {
     private readonly List<NumericUpDown> numbers = [];
+    private readonly ProjectDataStore gameData;
     private long gesture;
+    private bool sliderDragging;
+    private InputElement? capturedInput;
 
     public MaterialNumericEditor(ProjectDataStore gameData, JsonObject descriptor, JsonNode? initial, Action<JsonNode?, bool> changed)
     {
+        this.gameData = gameData;
         Spacing = 4;
         double? minimum = descriptor["min"] is JsonValue min ? JsonScalar.Number(min) : null;
         double? maximum = descriptor["max"] is JsonValue max ? JsonScalar.Number(max) : null;
@@ -42,6 +47,8 @@ internal sealed class MaterialNumericEditor : StackPanel
             };
             void commit(JsonNode? next)
             {
+                if (sliderDragging && !gameData.IsHistoryGestureActive(gesture))
+                    gesture = gameData.BeginHistoryGesture();
                 error.IsVisible = false;
                 if (vector is null)
                     changed(next, false);
@@ -62,10 +69,17 @@ internal sealed class MaterialNumericEditor : StackPanel
                 progress.AddHandler(PointerPressedEvent, (_, args) =>
                 {
                     if (args.Source is Visual source && (source is Slider || source.GetVisualAncestors().OfType<Slider>().Any()))
+                    {
+                        sliderDragging = true;
                         gesture = gameData.BeginHistoryGesture();
+                    }
                 }, RoutingStrategies.Tunnel);
-                progress.AddHandler(PointerReleasedEvent, (_, _) => gameData.EndHistoryGesture(gesture), RoutingStrategies.Bubble, handledEventsToo: true);
-                progress.PointerCaptureLost += (_, _) => gameData.EndHistoryGesture(gesture);
+                progress.AddHandler(PointerPressedEvent, (_, args) =>
+                {
+                    if (sliderDragging)
+                        trackCapture(args.Pointer.Captured as InputElement);
+                }, RoutingStrategies.Bubble, handledEventsToo: true);
+                progress.AddHandler(PointerReleasedEvent, (_, _) => endSliderGesture(), RoutingStrategies.Bubble, handledEventsToo: true);
                 number = progress.NumberInput;
                 editor = progress;
             }
@@ -98,8 +112,40 @@ internal sealed class MaterialNumericEditor : StackPanel
         DetachedFromVisualTree += (_, _) =>
         {
             numbers.ForEach(HistoryMergeBehavior.Detach);
-            gameData.EndHistoryGesture(gesture);
+            endSliderGesture();
         };
+        LostFocus += (_, _) =>
+        {
+            if (!IsKeyboardFocusWithin)
+                endSliderGesture();
+        };
+    }
+
+    private void trackCapture(InputElement? input)
+    {
+        if (ReferenceEquals(capturedInput, input))
+            return;
+        if (capturedInput is not null)
+            capturedInput.PointerCaptureLost -= onCaptureLost;
+        capturedInput = input;
+        if (capturedInput is not null)
+            capturedInput.PointerCaptureLost += onCaptureLost;
+    }
+
+    private void onCaptureLost(object? sender, PointerCaptureLostEventArgs args)
+    {
+        if (args.Pointer.Captured is InputElement next && next.GetVisualAncestors().Contains(this))
+            trackCapture(next);
+        else
+            endSliderGesture();
+    }
+
+    private void endSliderGesture()
+    {
+        trackCapture(null);
+        gameData.EndHistoryGesture(gesture);
+        gesture = 0;
+        sliderDragging = false;
     }
 
     private static decimal toDecimal(double number) => number >= (double)decimal.MaxValue ? decimal.MaxValue

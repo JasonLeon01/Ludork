@@ -30,6 +30,8 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
     private Point pointerViewportPoint;
     private bool hasPendingChange;
     private bool parameterFlushScheduled;
+    private long parameterFlushVersion;
+    private long graphPointerVersion;
     private bool viewportInitialized;
     private ViewState? pendingViewState;
     private bool pickerOpen;
@@ -105,6 +107,7 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
     }
 
     internal BlueprintGraphParameterContext? ParameterContext { get; }
+    internal EditorDocument? ResourceDocument { get; set; }
 
     public event EventHandler? GraphChanged;
     public event EventHandler? InputDraftChanged;
@@ -190,9 +193,10 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
 
     public void FlushPendingChanges()
     {
+        parameterFlushVersion++;
+        parameterFlushScheduled = false;
         long gesture = graphGesture;
         graphGesture = 0;
-        graphPointer = null;
         if (!hasPendingChange)
         {
             if (gesture != 0)
@@ -210,6 +214,18 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
     {
         changeTimer.Stop();
         hasPendingChange = false;
+        parameterFlushVersion++;
+        parameterFlushScheduled = false;
+        graphPointer = null;
+        Document.AcceptChanges();
+    }
+
+    internal void SynchronizeParameters(JsonObject eventGraph, IReadOnlyList<int> nodeIndices)
+    {
+        foreach (int index in nodeIndices)
+            if (eventGraph["nodes"] is JsonArray nodes && index >= 0 && index < nodes.Count
+                && nodes[index]?["params"] is JsonArray parameters)
+                viewModel.SynchronizeParameters(index, parameters);
     }
 
     public void Dispose()
@@ -262,25 +278,34 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
 
     private void onDocumentChanged(object? sender, EventArgs args)
     {
+        if (graphPointer is not null && !gameData.IsHistoryGestureActive(graphGesture))
+            graphGesture = gameData.BeginHistoryGesture(FlushPendingChanges);
         hasPendingChange = true;
         changeTimer.Stop();
+        if (graphGesture != 0 && ResourceDocument is EditorDocument resource)
+            gameData.MarkHistoryGestureChanged(graphGesture, resource);
         if (graphGesture == 0)
             changeTimer.Start();
     }
 
     private void onParameterEdited(object? sender, EventArgs args)
     {
+        long gesture = gameData.Documents.ActiveGestureId;
+        if (gesture != 0)
+        {
+            gameData.SetHistoryGestureFlush(gesture, FlushPendingChanges);
+            if (ResourceDocument is EditorDocument resource)
+                gameData.MarkHistoryGestureChanged(gesture, resource);
+        }
         if (parameterFlushScheduled)
             return;
         parameterFlushScheduled = true;
-        Dispatcher.UIThread.Post(flushParameterEdits, DispatcherPriority.Input);
-    }
-
-    private void flushParameterEdits()
-    {
-        parameterFlushScheduled = false;
-        if (!disposed)
-            FlushPendingChanges();
+        long version = parameterFlushVersion;
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!disposed && version == parameterFlushVersion)
+                FlushPendingChanges();
+        }, DispatcherPriority.Input);
     }
 
     private void onLoaded(object? sender, RoutedEventArgs args)
@@ -377,8 +402,9 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
             && findContextNode(args.Source) is { Model.IsVirtual: false })
         {
             FlushPendingChanges();
-            graphGesture = gameData.BeginHistoryGesture();
+            graphGesture = gameData.BeginHistoryGesture(FlushPendingChanges);
             graphPointer = args.Pointer;
+            graphPointerVersion++;
         }
         if (args.GetCurrentPoint(this).Properties.IsRightButtonPressed)
             args.Handled = true;
@@ -401,7 +427,7 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
     {
         updatePointerPosition(args.GetPosition(editor));
         if (ReferenceEquals(graphPointer, args.Pointer))
-            Dispatcher.UIThread.Post(finishGraphGesture, DispatcherPriority.Input);
+            scheduleFinishGraphGesture();
     }
 
     private void onPointerMoved(object? sender, PointerEventArgs args)

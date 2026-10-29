@@ -9,8 +9,6 @@ namespace Ludork.Services;
 
 public sealed partial class ProjectDataStore
 {
-    internal Guid? activeHistoryDocumentId;
-
     public EditorDocumentRegistry Documents { get; } = new();
 
     public EditorDocument? GetDocument(string section, string key)
@@ -98,11 +96,7 @@ public sealed partial class ProjectDataStore
         EditorDocument document = GetDocument(section, key) ?? RegisterLoadedDocument(section, key);
         if (!string.Equals(document.Key, key, StringComparison.Ordinal))
             throw new InvalidOperationException($"Use the document's existing file name: {document.Key}");
-        if (activeHistoryGestureId != 0 && activeHistoryDocumentId is Guid activeId && activeId != document.Id)
-            clearHistoryGesture();
-        if (activeHistoryGestureId != 0)
-            activeHistoryDocumentId = document.Id;
-        Documents.Capture(document, description, marker, activeHistoryGestureId, mapEdits);
+        Documents.Capture(document, description, marker, Documents.ActiveGestureId, mapEdits);
     }
 
     internal bool canCreateDocument(string section, string key)
@@ -191,22 +185,22 @@ public sealed partial class ProjectDataStore
         ModifiedChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    public long BeginHistoryGesture()
-    {
-        clearHistoryGesture();
-        activeHistoryGestureId = Documents.CreateGestureId();
-        return activeHistoryGestureId;
-    }
+    public long BeginHistoryGesture(Action? flushPending = null) => Documents.BeginHistoryGesture(flushPending);
 
     public void EndHistoryGesture(long gestureId)
     {
-        if (gestureId == activeHistoryGestureId)
-            clearHistoryGesture();
+        Documents.EndHistoryGesture(gestureId);
     }
 
     public void BreakHistoryGesture() => clearHistoryGesture();
 
-    internal bool IsHistoryGestureActive(long gestureId) => gestureId != 0 && gestureId == activeHistoryGestureId;
+    internal bool IsHistoryGestureActive(long gestureId) => Documents.IsHistoryGestureActive(gestureId);
+
+    internal void SetHistoryGestureFlush(long gestureId, Action flushPending)
+        => Documents.SetHistoryGestureFlush(gestureId, flushPending);
+
+    internal void MarkHistoryGestureChanged(long gestureId, EditorDocument document)
+        => Documents.MarkHistoryGestureChanged(gestureId, document);
 
     public HistoryResult Undo(string section, string key)
     {
@@ -226,8 +220,7 @@ public sealed partial class ProjectDataStore
 
     internal void clearHistoryGesture()
     {
-        activeHistoryGestureId = 0;
-        activeHistoryDocumentId = null;
+        Documents.BreakHistoryGesture();
     }
 
     internal void RecordMapSnapshot(string mapKey, MapHistoryEdits? mapEdits = null)

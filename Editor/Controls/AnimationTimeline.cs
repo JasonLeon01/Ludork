@@ -19,6 +19,9 @@ public sealed class AnimationTimeline : Panel
     internal const string AssetDragPrefix = "ludork-animation-assets:";
     private const double SegmentMarqueeThreshold = 4;
     private readonly ProjectAssetPaths assetPaths;
+    private readonly ProjectDataStore gameData;
+    private readonly EditorDocument? document;
+    private long historyGesture;
     private readonly Func<JsonObject> getData;
     private readonly AnimationTimelineIndex index;
     private readonly TimelineDrawingLayer contentLayer;
@@ -73,8 +76,11 @@ public sealed class AnimationTimeline : Panel
     private double zoom = 1.0;
     private TimelineZoomAnchor? pendingZoomAnchor;
 
-    internal AnimationTimeline(ProjectDataStore gameData, Func<JsonObject> getData, AnimationTimelineIndex index)
+    internal AnimationTimeline(ProjectDataStore gameData, Func<JsonObject> getData, AnimationTimelineIndex index,
+        EditorDocument? document)
     {
+        this.gameData = gameData;
+        this.document = document;
         assetPaths = gameData.AssetPaths;
         this.getData = getData;
         this.index = index;
@@ -94,6 +100,7 @@ public sealed class AnimationTimeline : Panel
         SizeChanged += (_, _) => invalidateContent();
         ActualThemeVariantChanged += onTextStyleChanged;
         Focusable = true;
+        LostFocus += (_, _) => completePointerGesture(false, default);
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DragOverEvent, onDragOver);
         AddHandler(DragDrop.DropEvent, onDrop);
@@ -398,6 +405,7 @@ public sealed class AnimationTimeline : Panel
         PointerPointProperties properties = e.GetCurrentPoint(this).Properties;
         if (!properties.IsLeftButtonPressed || properties.IsRightButtonPressed)
             return;
+        completePointerGesture(false, default);
         Focus();
         int selectedTimeTag = hitTimeTag(position);
         if (selectedTimeTag >= 0)
@@ -508,8 +516,11 @@ public sealed class AnimationTimeline : Panel
                 double current = JsonScalar.Number(draggedTimeTag["time"]);
                 if (Math.Abs(next - current) > 0.000001)
                 {
+                    ensureHistoryGesture();
                     draggedTimeTag["time"] = next;
                     timeTagMoved = true;
+                    if (document is not null)
+                        gameData.MarkHistoryGestureChanged(historyGesture, document);
                     tagCache.UpdateTime(SelectedTimeTag);
                     invalidateContent();
                     SetTime(next);
@@ -549,10 +560,13 @@ public sealed class AnimationTimeline : Panel
         if (JsonScalar.Number((segment["startFrame"] as JsonObject)?["time"]) == start
             && JsonScalar.Number((segment["endFrame"] as JsonObject)?["time"]) == end)
             return;
+        ensureHistoryGesture();
         (segment["startFrame"] as JsonObject)!["time"] = start;
         (segment["endFrame"] as JsonObject)!["time"] = end;
         index.Update(SelectedTrack, SelectedSegment);
         segmentMoved = true;
+        if (document is not null)
+            gameData.MarkHistoryGestureChanged(historyGesture, document);
         invalidateContent();
     }
 
@@ -570,22 +584,40 @@ public sealed class AnimationTimeline : Panel
                 updateSegmentMarquee(position);
             completeSegmentMarquee(completeMarquee);
         }
-        else if (dragMode == TimeTagDragMode)
+        else
+            flushPointerEdits();
+        gameData.EndHistoryGesture(historyGesture);
+        historyGesture = 0;
+        draggedTimeTag = null;
+        timeTagMoved = false;
+        segmentMoved = false;
+        dragMode = 0;
+    }
+
+    private void ensureHistoryGesture()
+    {
+        if (!gameData.IsHistoryGestureActive(historyGesture))
+            historyGesture = gameData.BeginHistoryGesture(flushPointerEdits);
+    }
+
+    private void flushPointerEdits()
+    {
+        if (dragMode == TimeTagDragMode)
         {
             if (timeTagMoved && draggedTimeTag is not null)
             {
+                timeTagMoved = false;
                 SelectedTimeTag = sortTimeTags(draggedTimeTag);
                 tagsDirty = true;
                 TimeTagChanged?.Invoke();
                 Refresh();
             }
-            draggedTimeTag = null;
-            timeTagMoved = false;
         }
         else if (dragMode != 0 && dragMode != ScrubDragMode && segmentMoved)
+        {
+            segmentMoved = false;
             SegmentChanged?.Invoke();
-        segmentMoved = false;
-        dragMode = 0;
+        }
     }
 
     private void beginSegmentMarquee(Point position, KeyModifiers modifiers)
@@ -762,6 +794,7 @@ public sealed class AnimationTimeline : Panel
     protected override void OnDetachedFromVisualTree(
         VisualTreeAttachmentEventArgs args)
     {
+        completePointerGesture(false, default);
         LayoutUpdated -= onLayoutUpdated;
         LocaleService.LanguageChanged -= onTextStyleChanged;
         pendingZoomAnchor = null;

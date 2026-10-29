@@ -201,6 +201,7 @@ public sealed class GameVariableManagerWindow : Window
         gameVariables.Saved += onVariablesSaved;
         projectSave.SavePreparing += onSavePreparing;
         Closed += onClosed;
+        Deactivated += (_, _) => endGesture();
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
         AddHandler(GotFocusEvent, onGotFocus, RoutingStrategies.Bubble);
         AddHandler(LostFocusEvent, onLostFocus, RoutingStrategies.Bubble);
@@ -361,7 +362,7 @@ public sealed class GameVariableManagerWindow : Window
         if (loading)
             return;
         GameVariableSaveResult result = applyChange(() =>
-            gameVariables.SetInitialValue(name, value, gestureId));
+            gameVariables.SetInitialValue(name, value, currentGesture()));
         showSaveResult(result);
     }
 
@@ -370,7 +371,7 @@ public sealed class GameVariableManagerWindow : Window
         if (loading || variableList.SelectedItem is not string name)
             return;
         GameVariableSaveResult result = applyChange(() =>
-            gameVariables.SetRemark(name, remarkBox.Text, gestureId));
+            gameVariables.SetRemark(name, remarkBox.Text, currentGesture()));
         showSaveResult(result);
     }
 
@@ -425,6 +426,7 @@ public sealed class GameVariableManagerWindow : Window
 
     private void onClosed(object? sender, EventArgs args)
     {
+        endGesture();
         gameVariables.Changed -= onVariablesChanged;
         gameVariables.Saved -= onVariablesSaved;
         projectSave.SavePreparing -= onSavePreparing;
@@ -448,7 +450,7 @@ public sealed class GameVariableManagerWindow : Window
         if (!undo && !EditorShortcuts.IsRedo(args.Key, args.KeyModifiers))
             return;
         args.Handled = true;
-        gestureId = gameVariables.BeginHistoryGesture();
+        endGesture();
         HistoryResult result = undo
             ? gameVariables.Undo()
             : gameVariables.Redo();
@@ -464,6 +466,7 @@ public sealed class GameVariableManagerWindow : Window
 
     private void onGotFocus(object? sender, FocusChangedEventArgs args)
     {
+        endGesture();
         gestureId = args.Source is TextBox or NumericUpDown
             ? gameVariables.BeginHistoryGesture()
             : 0;
@@ -471,12 +474,27 @@ public sealed class GameVariableManagerWindow : Window
 
     private void onLostFocus(object? sender, RoutedEventArgs args)
     {
-        gestureId = 0;
+        endGesture();
     }
 
     private void onSavePreparing(object? sender, EventArgs args)
     {
-        gestureId = gameVariables.BeginHistoryGesture();
+        endGesture();
+    }
+
+    private long currentGesture()
+    {
+        if (!gameVariables.IsHistoryGestureActive(gestureId))
+            gestureId = FocusManager?.GetFocusedElement() is TextBox or NumericUpDown
+                ? gameVariables.BeginHistoryGesture() : 0;
+        return gestureId;
+    }
+
+    private void endGesture()
+    {
+        long ending = gestureId;
+        gestureId = 0;
+        gameVariables.EndHistoryGesture(ending);
     }
 
     private static string getTypeName(GameVariableType type)

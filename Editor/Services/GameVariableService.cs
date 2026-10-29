@@ -103,7 +103,11 @@ public sealed class GameVariableService : IGameVariableCatalog
         return definition is not null;
     }
 
-    public long BeginHistoryGesture() => documents.CreateGestureId();
+    public long BeginHistoryGesture() => documents.BeginHistoryGesture();
+
+    public void EndHistoryGesture(long gestureId) => documents.EndHistoryGesture(gestureId);
+
+    internal bool IsHistoryGestureActive(long gestureId) => documents.IsHistoryGestureActive(gestureId);
 
     public HistoryResult Undo() => documents.Undo(Document);
 
@@ -286,7 +290,7 @@ public sealed class GameVariableService : IGameVariableCatalog
 
     private void onDocumentChanged(object? sender, EventArgs args)
     {
-        if (!committing)
+        if (!committing && Document.LastChange is not null)
             readDocument();
         Changed?.Invoke(this, EventArgs.Empty);
     }

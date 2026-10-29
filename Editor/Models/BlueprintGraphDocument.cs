@@ -12,6 +12,10 @@ public sealed class BlueprintGraphDocument
     private BlueprintGraphEndpoint? start;
     private int updateDepth;
     private bool pendingChange;
+    private bool structuralChange;
+    private readonly HashSet<Guid> changedParameterNodes = [];
+    private readonly Dictionary<Guid, int> savedNodeIndices = [];
+    private readonly Dictionary<int, BlueprintGraphNode> savedNodes = [];
     private readonly Dictionary<Guid, BlueprintGraphNode> nodesById = [];
     private readonly Dictionary<Guid, BlueprintGraphPort> portsById = [];
     private readonly Dictionary<Guid, BlueprintGraphConnection> connectionsById = [];
@@ -251,6 +255,52 @@ public sealed class BlueprintGraphDocument
 
     public void NotifyChanged()
     {
+        structuralChange = true;
+        publishChanged();
+    }
+
+    internal void NotifyParameterChanged(BlueprintGraphPort port)
+    {
+        changedParameterNodes.Add(port.NodeId);
+        publishChanged();
+    }
+
+    internal IReadOnlyList<(BlueprintGraphNode Node, int Index)>? GetParameterChanges()
+    {
+        if (structuralChange)
+            return null;
+        List<(BlueprintGraphNode Node, int Index)> changes = [];
+        foreach (Guid id in changedParameterNodes)
+        {
+            if (!nodesById.TryGetValue(id, out BlueprintGraphNode? node)
+                || !savedNodeIndices.TryGetValue(id, out int index))
+                return null;
+            changes.Add((node, index));
+        }
+        return changes;
+    }
+
+    internal void AcceptChanges()
+    {
+        if (structuralChange || savedNodeIndices.Count == 0)
+        {
+            savedNodeIndices.Clear();
+            savedNodes.Clear();
+            foreach (BlueprintGraphNode node in Nodes.Where(node => !node.IsVirtual))
+            {
+                savedNodes[savedNodeIndices.Count] = node;
+                savedNodeIndices[node.Id] = savedNodeIndices.Count;
+            }
+        }
+        structuralChange = false;
+        changedParameterNodes.Clear();
+    }
+
+    internal BlueprintGraphNode? FindSavedNode(int index)
+        => savedNodes.GetValueOrDefault(index);
+
+    private void publishChanged()
+    {
         if (updateDepth != 0)
         {
             pendingChange = true;
@@ -276,7 +326,7 @@ public sealed class BlueprintGraphDocument
             if (current is null || --current.updateDepth != 0 || !current.pendingChange)
                 return;
             current.pendingChange = false;
-            current.NotifyChanged();
+            current.publishChanged();
         }
     }
 }

@@ -157,7 +157,7 @@ public sealed partial class MaterialWindow
                 parameter[id] ?? JsonValue.Create(string.Empty), value =>
                 {
                     parameter[id] = value;
-                    commit();
+                    commitFields(parameter, id);
                     refreshParameters(false);
                 });
         }
@@ -170,7 +170,7 @@ public sealed partial class MaterialWindow
     private void refreshParameterDefault(JsonObject parameter)
     {
         clearForms(parameterDefault);
-        addForm(parameterDefault, parameter, parameter["default"], value => { parameter["default"] = value; commit(); });
+        addForm(parameterDefault, parameter, parameter["default"], value => { parameter["default"] = value; commitFields(parameter, "default"); });
     }
 
     private void addParameterRange(JsonObject parameter)
@@ -206,7 +206,7 @@ public sealed partial class MaterialWindow
                 parameter.Remove("min");
                 parameter.Remove("max");
             }
-            commit();
+            commitFields(parameter, "min", "max");
             refreshParameterDefault(parameter);
         }
         minimum.ValueChanged += (_, _) => updateRange();

@@ -155,6 +155,7 @@ public sealed class CurveCanvas : Control
 
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
+        cancelPointerGesture();
         Point position = e.GetPosition(this);
         PointerPointProperties properties = e.GetCurrentPoint(this).Properties;
         if (properties.IsMiddleButtonPressed)
@@ -211,6 +212,13 @@ public sealed class CurveCanvas : Control
     {
         if (string.IsNullOrEmpty(dragMode))
             return;
+        PointerPointProperties properties = e.GetCurrentPoint(this).Properties;
+        if (dragMode == "pan" ? !properties.IsMiddleButtonPressed : !properties.IsLeftButtonPressed)
+        {
+            cancelPointerGesture();
+            e.Pointer.Capture(null);
+            return;
+        }
         Point point = e.GetPosition(this);
         if (dragMode == "pan")
         {
@@ -261,9 +269,26 @@ public sealed class CurveCanvas : Control
 
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
+        cancelPointerGesture();
+        e.Pointer.Capture(null);
+    }
+
+    protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
+    {
+        cancelPointerGesture();
+        base.OnPointerCaptureLost(e);
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        cancelPointerGesture();
+        base.OnDetachedFromVisualTree(e);
+    }
+
+    private void cancelPointerGesture()
+    {
         dragMode = string.Empty;
         dragTangentSide = string.Empty;
-        e.Pointer.Capture(null);
     }
 
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)

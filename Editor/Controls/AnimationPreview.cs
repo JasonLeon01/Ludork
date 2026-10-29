@@ -16,6 +16,7 @@ namespace Ludork.Controls;
 public sealed class AnimationPreview : Control, IDisposable
 {
     private readonly ProjectDataStore gameData;
+    private readonly EditorDocument? document;
     private readonly Func<JsonObject> getData;
     private readonly AnimationTimelineIndex timelineIndex;
     private readonly Dictionary<string, EditorThumbnailLease> cache = new(StringComparer.Ordinal);
@@ -25,13 +26,18 @@ public sealed class AnimationPreview : Control, IDisposable
     private double dragStartX;
     private double dragStartY;
     private bool dragging;
+    private bool dragChanged;
+    private long historyGesture;
 
-    internal AnimationPreview(ProjectDataStore gameData, Func<JsonObject> getData, AnimationTimelineIndex timelineIndex)
+    internal AnimationPreview(ProjectDataStore gameData, Func<JsonObject> getData, AnimationTimelineIndex timelineIndex,
+        EditorDocument? document)
     {
         this.gameData = gameData;
+        this.document = document;
         this.getData = getData;
         this.timelineIndex = timelineIndex;
         Focusable = true;
+        LostFocus += (_, _) => completeDrag();
     }
 
     public event Action<int, int>? SegmentSelected;
@@ -97,6 +103,7 @@ public sealed class AnimationPreview : Control, IDisposable
     {
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
             return;
+        completeDrag();
         Point point = e.GetPosition(this);
         (int track, int segment) = hitTest(point);
         if (segment < 0)
@@ -134,19 +141,52 @@ public sealed class AnimationPreview : Control, IDisposable
         double factor = timeFactor(start, end);
         double originalX = interpolate(start["position"] as JsonArray, end["position"] as JsonArray, 0, factor);
         double originalY = interpolate(start["position"] as JsonArray, end["position"] as JsonArray, 1, factor);
+        if (x == originalX && y == originalY)
+            return;
+        if (!gameData.IsHistoryGestureActive(historyGesture))
+            historyGesture = gameData.BeginHistoryGesture(flushDrag);
         shiftFrame(start, x - originalX, y - originalY);
         shiftFrame(end, x - originalX, y - originalY);
         segment["startFrame"] = start;
         segment["endFrame"] = end;
+        dragChanged = true;
+        if (document is not null)
+            gameData.MarkHistoryGestureChanged(historyGesture, document);
         InvalidateVisual();
     }
 
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
-        if (dragging)
-            SegmentChanged?.Invoke();
-        dragging = false;
+        completeDrag();
         e.Pointer.Capture(null);
+    }
+
+    protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
+    {
+        completeDrag();
+        base.OnPointerCaptureLost(e);
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        completeDrag();
+        base.OnDetachedFromVisualTree(e);
+    }
+
+    private void flushDrag()
+    {
+        if (!dragChanged)
+            return;
+        dragChanged = false;
+        SegmentChanged?.Invoke();
+    }
+
+    private void completeDrag()
+    {
+        flushDrag();
+        gameData.EndHistoryGesture(historyGesture);
+        historyGesture = 0;
+        dragging = false;
     }
 
     private (int track, int segment) hitTest(Point point)

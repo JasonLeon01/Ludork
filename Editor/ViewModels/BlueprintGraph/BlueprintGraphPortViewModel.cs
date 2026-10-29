@@ -102,7 +102,7 @@ public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDispo
         Model.Value = value?.DeepClone();
         if (parameterField is not null)
             parameterField.Value = value?.DeepClone();
-        document.NotifyChanged();
+        document.NotifyParameterChanged(Model);
         ParameterValueChanged?.Invoke(this, EventArgs.Empty);
         ParameterEdited?.Invoke(this, EventArgs.Empty);
     }
@@ -112,6 +112,19 @@ public sealed class BlueprintGraphPortViewModel : ConnectorViewModelBase, IDispo
         if (disposed || IsReadOnly || JsonNode.DeepEquals(Model.Value, value))
             return;
         CommitValue(value);
+        ExternalValueChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    internal void SynchronizeValue(JsonNode? value)
+    {
+        if (disposed || JsonNode.DeepEquals(Model.Value, value))
+            return;
+        Model.Value = value?.DeepClone();
+        if (parameterField is not null)
+            parameterField.Value = value?.DeepClone();
+        textDraft = null;
+        notifyInputDraftProperties();
+        ParameterValueChanged?.Invoke(this, EventArgs.Empty);
         ExternalValueChanged?.Invoke(this, EventArgs.Empty);
     }
 

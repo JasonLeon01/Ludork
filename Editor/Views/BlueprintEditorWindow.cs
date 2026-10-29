@@ -99,6 +99,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         Content = DeferredWindowInitializer.CreateLoadingContent();
 
         document.ExternalChanged += onDataRestored;
+        document.GraphParametersChanged += onGraphParametersChanged;
         if (document.ResourceDocument is EditorDocument resourceDocument)
             resourceDocument.DiskReloaded += onDiskReloaded;
         documentBinding = new EditorDocumentBinding(this, gameData, () => document.ResourceDocument, () => document.Title, closeWhenDeleted: true);
@@ -727,7 +728,10 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
             BlueprintGraphControl control = new(gameData, graphData.Document, graphData.Definitions,
                 viewModel.FieldBuilder, nodeParameterEditorFactory, projectSave.GameVariables,
                 Path.Combine(gameData.ProjectPath, "Assets"), gameData.Configs.getCellSize(),
-                viewModel.IsGraphReadOnly, pickerIndexes);
+                viewModel.IsGraphReadOnly, pickerIndexes)
+            {
+                ResourceDocument = resource,
+            };
             contentHost.Children.Remove(loadingContent);
             loadingContent = control;
             if (graphViewStates.TryGetValue(eventName, out BlueprintGraphControl.ViewState? state))
@@ -1022,6 +1026,12 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         reloadFromDataChange();
     }
 
+    private void onGraphParametersChanged(object? sender, BlueprintGraphParametersChangedEventArgs args)
+    {
+        if (graphViews.TryGetValue(args.EventName, out Control? view) && view is BlueprintGraphControl control)
+            control.SynchronizeParameters(document.GetEventGraph(args.EventName), args.NodeIndices);
+    }
+
     private void onNodeSearchValidating(object? sender, BlueprintNodeSearchValidationEventArgs args)
     {
         if (closed || !initializer.IsInitialized)
@@ -1161,6 +1171,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         previewSession.Dispose();
         variableForm?.Dispose();
         document.ExternalChanged -= onDataRestored;
+        document.GraphParametersChanged -= onGraphParametersChanged;
         if (document.ResourceDocument is EditorDocument resourceDocument)
             resourceDocument.DiskReloaded -= onDiskReloaded;
         viewModel.Dispose();
