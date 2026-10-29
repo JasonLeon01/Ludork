@@ -6,6 +6,8 @@ PreviewHost belongs to the editable project. Keep its executable, dedicated runt
 
 For a C++ Source project, **Construct** builds the Debug game and preview runtime without launching gameplay. A full desktop `tools/build_cpp` build also produces the preview artefacts. Standalone projects use the matching preview runtime bundled in `Binaries`. Map edits can be previewed without Play or an Export after every change.
 
+Windows x64 previews support the same MSVC and MinGW-w64 game builds. Follow [Build the project](<../Native C++ Development/Build and Module Layout.md#build-the-project>) for MinGW preparation and the runtime DLLs carried by editable projects and packages.
+
 Build only the host with:
 
 ```text

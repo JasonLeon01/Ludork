@@ -13,6 +13,8 @@ Each card/FFmpeg combination has its own template. To turn an existing C++ Sourc
 
 Before the first Play, use **Construct** for C++ Source, then **Export**. Standalone needs only Export. See [Run, Debug and Package](<../Editor User Guide/Run Debug and Package.md>) for later builds and exports. C++ Source templates include a project-root `.clang-format` for native source formatting.
 
+On Windows, selecting C++ Source shows **Compiler** and **Get MinGW**. Choose an available compiler before creating the project; without one, **Create** remains disabled. The initial preference is MSVC, then Ludork's downloaded MinGW, then a MinGW found on `PATH`. Downloading a compiler refreshes this list without restarting the editor. Standalone does not require a compiler. See [Windows project compiler](<../Editor User Guide/Run Debug and Package.md#windows-project-compiler>) for detection, downloads and later changes.
+
 ## Obtaining templates
 
 Development editor packages include local templates. If one is missing, New Project reports an error without downloading a replacement.
