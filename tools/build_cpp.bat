@@ -25,7 +25,7 @@ if not exist "%SCRIPT_TOOLS%" (
     echo ScriptTools was not found. Prepare the editor tools first.
     exit /b 20
 )
-"%SCRIPT_TOOLS%" windows-native-build "%CPP_DIR%" "%CONFIG%" --tools-directory "%TOOLS_DIR%"
+"%SCRIPT_TOOLS%" windows-native-build "%CPP_DIR%" "%CONFIG%" --tools-directory "%TOOLS_DIR%" --luac-cache-file "%TOOLS_DIR%\..\.tools\Lua\luac.exe"
 exit /b %errorlevel%
 
 :usage

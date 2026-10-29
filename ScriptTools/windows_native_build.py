@@ -30,12 +30,14 @@ def _run(command: list[str], project: pathlib.Path, environment: dict[str, str])
         raise ValueError(f"Native build command failed with exit code {result.returncode}.")
 
 
-def build(project: pathlib.Path, configuration: str, target: str, tools: pathlib.Path) -> None:
+def build(project: pathlib.Path, configuration: str, target: str, tools: pathlib.Path,
+          luac_cache_file: pathlib.Path | None = None) -> None:
     with native_operation_lock(project):
-        _build(project, configuration, target, tools)
+        _build(project, configuration, target, tools, luac_cache_file)
 
 
-def _build(project: pathlib.Path, configuration: str, target: str, tools: pathlib.Path) -> None:
+def _build(project: pathlib.Path, configuration: str, target: str, tools: pathlib.Path,
+           luac_cache_file: pathlib.Path | None) -> None:
     if not (project / "CMakeLists.txt").is_file():
         raise ValueError(f"CMakeLists.txt was not found: {project}")
     selected = project_compiler(project)
@@ -53,7 +55,9 @@ def _build(project: pathlib.Path, configuration: str, target: str, tools: pathli
             raise ValueError("The cached Visual Studio instance differs. Explicitly clean the native cache first.")
     script_tools = _tool(tools, "ScriptTools/ScriptTools.exe")
     gnu_make = _tool(tools, "gnu-make/gnumake.exe", required=False)
-    luac = _tool(tools, "Lua/luac.exe", required=False)
+    luac = luac_cache_file
+    if luac is None:
+        luac = _tool(tools, "Lua/luac.exe", required=False)
     if luac is None:
         luac = _tool(tools, "luac.exe", required=False)
     directory = project / "build"
@@ -106,10 +110,13 @@ def main(arguments: list[str] | None = None) -> int:
     parser.add_argument("configuration", choices=("Debug", "Release"))
     parser.add_argument("--target", choices=("Main", "PreviewHost", "LudorkLauncher"), default="Main")
     parser.add_argument("--tools-directory", type=pathlib.Path, required=True)
+    parser.add_argument("--luac-cache-file", type=pathlib.Path,
+                        help="Copy the built Lua compiler to this output path, even if it does not exist yet.")
     args = parser.parse_args(arguments)
     try:
+        luac_cache_file = pathlib.Path(os.path.abspath(args.luac_cache_file)) if args.luac_cache_file else None
         build(pathlib.Path(os.path.abspath(args.project)), args.configuration, args.target,
-              pathlib.Path(os.path.abspath(args.tools_directory)))
+              pathlib.Path(os.path.abspath(args.tools_directory)), luac_cache_file)
         return 0
     except (OSError, ValueError, subprocess.SubprocessError) as error:
         print(str(error), file=sys.stderr)
