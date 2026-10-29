@@ -254,6 +254,7 @@ public sealed partial class BlueprintVariableForm
                     if (args.Property != TextBox.TextProperty)
                         return;
                     string nextKey = keyBox.Text?.Trim() ?? string.Empty;
+                    setTransientInput(keyBox, nextKey.Length == 0);
                     if (string.Equals(nextKey, currentKey, StringComparison.Ordinal))
                         return;
                     if (!string.IsNullOrEmpty(currentKey))
@@ -406,6 +407,7 @@ public sealed partial class BlueprintVariableForm
         {
             panel.Children.Clear();
             List<KeyValuePair<string, JsonNode?>> entries = items.ToList();
+            setTransientInput(panel, hasDraft);
             foreach (KeyValuePair<string, JsonNode?> entry in entries)
                 addEntryRow(entry.Key, entry.Value, false);
             if (hasDraft)
@@ -459,6 +461,7 @@ public sealed partial class BlueprintVariableForm
             HistoryGameData = HistoryGameData,
         };
         nestedHistoryForms.Add(nested);
+        nested.SuspensionStateChanged += onNestedSuspensionStateChanged;
         List<BlueprintVariableField> nestedFields = materializeStructureFields(field);
         JsonObject value = getFieldValue(field)?.DeepClone() as JsonObject ?? [];
         nested.ValueChanged += (_, args) =>

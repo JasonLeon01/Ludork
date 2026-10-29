@@ -60,6 +60,10 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
     private bool suppressLiveVisualInvalidation;
     private bool refreshing;
     private bool inheritanceRefreshPending;
+    private readonly BlueprintGraphLoadSession graphLoading = new();
+    private string? loadingEvent;
+    private Control? loadingContent;
+    private CancellationToken loadingToken;
 
     public BlueprintEditorWindow(
         BlueprintEditorDocument document,
@@ -105,9 +109,11 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         gameData.Documents.ContentChanged += onProjectContentChanged;
         if (gameData.BlueprintNodeSearch is BlueprintNodeSearchService search)
         {
+            search.Invalidated += onNodeSearchInvalidated;
             search.Validating += onNodeSearchValidating;
             search.Changed += onNodeSearchChanged;
         }
+        LocaleService.LanguageChanged += onLoadLanguageChanged;
         Closed += onClosed;
         Deactivated += (_, _) => flushGraphViews();
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
@@ -283,6 +289,8 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
 
     public void SetGraphContent(string eventName, Control content)
     {
+        if (loadingEvent == eventName)
+            cancelGraphLoad();
         if (graphViews.TryGetValue(eventName, out Control? previous))
         {
             contentHost.Children.Remove(previous);
@@ -654,18 +662,25 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         showSelectedContent();
     }
 
-    private void showSelectedContent()
+    private async void showSelectedContent()
     {
+        if (closed)
+            return;
         previewPanel.IsVisible = false;
         previewSession.IsVisible = false;
         foreach (Control graphView in graphViews.Values)
             graphView.IsVisible = false;
+        BlueprintEditorTabItem? selected = viewModel.SelectedTab;
+        if (loadingEvent is not null && !viewModel.IsGraphReadOnly && selected?.IsPreview == false
+            && string.Equals(selected.EventName, loadingEvent, StringComparison.Ordinal))
+            return;
+        cancelGraphLoad();
         if (viewModel.IsGraphReadOnly)
         {
             refreshPreview(resolvedClass);
             return;
         }
-        if (viewModel.SelectedTab is not BlueprintEditorTabItem selected)
+        if (selected is null)
             return;
         if (selected.IsPreview)
         {
@@ -682,35 +697,107 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         JsonObject eventGraph = document.GetEventGraph(eventName);
         BlueprintGraphRequestedEventArgs request = new(document, eventName, eventGraph);
         GraphRequested?.Invoke(this, request);
-        Control content = request.Content ?? createGraphControl(eventName, eventGraph);
-        graphViews[eventName] = content;
-        contentHost.Children.Add(content);
+        if (request.Content is Control customContent)
+        {
+            graphViews[eventName] = customContent;
+            contentHost.Children.Add(customContent);
+            return;
+        }
+        CancellationToken cancellationToken = graphLoading.Begin();
+        loadingToken = cancellationToken;
+        loadingEvent = eventName;
+        loadingContent = DeferredWindowInitializer.CreateLoadingContent();
+        contentHost.Children.Add(loadingContent);
+        EditorDocument? resource = document.ResourceDocument;
+        long revision = resource?.Revision ?? 0;
+        long? metadataRevision = null;
+        string language = LocaleService.CurrentLanguage;
+        bool isCurrent() => !closed && graphLoading.IsCurrent(cancellationToken)
+            && ReferenceEquals(resource, document.ResourceDocument)
+            && (resource?.Revision ?? 0) == revision
+            && (metadataRevision is null || metadataService.CacheRevision == metadataRevision)
+            && LocaleService.CurrentLanguage == language
+            && viewModel.SelectedTab is { IsPreview: false } current && current.EventName == eventName;
+        try
+        {
+            BlueprintGraphEditorData graphData = await viewModel.LoadGraphAsync(eventName, eventGraph,
+                graphLoading, isCurrent, cancellationToken);
+            metadataRevision = graphData.MetadataRevision;
+            cancellationToken.ThrowIfCancellationRequested();
+            BlueprintGraphControl control = new(gameData, graphData.Document, graphData.Definitions,
+                viewModel.FieldBuilder, nodeParameterEditorFactory, projectSave.GameVariables,
+                Path.Combine(gameData.ProjectPath, "Assets"), gameData.Configs.getCellSize(),
+                viewModel.IsGraphReadOnly, pickerIndexes);
+            contentHost.Children.Remove(loadingContent);
+            loadingContent = control;
+            if (graphViewStates.TryGetValue(eventName, out BlueprintGraphControl.ViewState? state))
+                control.RestoreViewState(state);
+            contentHost.Children.Add(control);
+            await control.InitializeVisualsAsync(cancellationToken);
+            if (!isCurrent())
+                throw new OperationCanceledException(cancellationToken);
+            control.GraphChanged += (_, _) =>
+            {
+                viewModel.CommitGraph(eventName, control.Document);
+                onInputDraftChanged(control, EventArgs.Empty);
+            };
+            control.InputDraftChanged += onInputDraftChanged;
+            graphViews[eventName] = control;
+            loadingContent = null;
+            loadingEvent = null;
+            loadingToken = default;
+            graphLoading.Complete(cancellationToken);
+            onInputDraftChanged(this, EventArgs.Empty);
+        }
+        catch (OperationCanceledException)
+        {
+            if (loadingToken != cancellationToken)
+                return;
+            cancelGraphLoad();
+            if (!closed && ReferenceEquals(selected, viewModel.SelectedTab)
+                && gameData.BlueprintNodeSearch?.IsCurrent != false)
+                Dispatcher.UIThread.Post(showSelectedContent, DispatcherPriority.Background);
+        }
+        catch (Exception error)
+        {
+            if (!graphLoading.IsCurrent(cancellationToken))
+                return;
+            showGraphLoadError(error.Message);
+        }
     }
 
-    private BlueprintGraphControl createGraphControl(string eventName, JsonObject eventGraph)
+    private void showGraphLoadError(string error)
     {
-        using IDisposable? read = beginNodeMetadataRead();
-        BlueprintGraphEditorData graphData = viewModel.LoadGraph(eventName, eventGraph);
-        BlueprintGraphControl control = new(
-            gameData,
-            graphData.Document,
-            graphData.Definitions,
-            viewModel.FieldBuilder,
-            nodeParameterEditorFactory,
-            projectSave.GameVariables,
-            Path.Combine(gameData.ProjectPath, "Assets"),
-            gameData.Configs.getCellSize(),
-            viewModel.IsGraphReadOnly,
-            pickerIndexes);
-        if (graphViewStates.TryGetValue(eventName, out BlueprintGraphControl.ViewState? state))
-            control.RestoreViewState(state);
-        control.GraphChanged += (_, _) =>
+        cancelGraphLoad();
+        Button retry = new() { Content = LocaleService.Get("RETRY") };
+        retry.Click += (_, _) => showSelectedContent();
+        loadingContent = new StackPanel
         {
-            viewModel.CommitGraph(eventName, control.Document);
-            onInputDraftChanged(control, EventArgs.Empty);
+            Margin = new Thickness(16),
+            Spacing = 8,
+            Children =
+            {
+                new TextBlock { Text = error, TextWrapping = TextWrapping.Wrap },
+                retry,
+            },
         };
-        control.InputDraftChanged += onInputDraftChanged;
-        return control;
+        contentHost.Children.Add(loadingContent);
+    }
+
+    private void cancelGraphLoad()
+    {
+        graphLoading.Cancel();
+        loadingToken = default;
+        loadingEvent = null;
+        Control? content = loadingContent;
+        loadingContent = null;
+        if (content is null)
+            return;
+        contentHost?.Children.Remove(content);
+        if (content is BlueprintGraphControl graph)
+            graph.DiscardPendingChanges();
+        if (content is IDisposable disposable)
+            disposable.Dispose();
     }
 
     private IDisposable? beginNodeMetadataRead()
@@ -950,10 +1037,27 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
         catalog.GetNodeDefinitionSet(new BlueprintGraphContext(document.Data, document.BlueprintKey), resolved);
     }
 
+    private void onLoadLanguageChanged(object? sender, EventArgs args)
+    {
+        if (loadingToken == default)
+            return;
+        cancelGraphLoad();
+        Dispatcher.UIThread.Post(showSelectedContent, DispatcherPriority.Background);
+    }
+
+    private void onNodeSearchInvalidated(object? sender, EventArgs args) => cancelGraphLoad();
+
     private void onNodeSearchChanged(object? sender, EventArgs args)
     {
-        if (closed || !initializer.IsInitialized || gameData.BlueprintNodeSearch?.Error is not null)
+        if (closed || !initializer.IsInitialized)
             return;
+        if (gameData.BlueprintNodeSearch?.Error is string error)
+        {
+            if (viewModel.SelectedTab is { IsPreview: false, EventName: string eventName }
+                && !graphViews.ContainsKey(eventName))
+                showGraphLoadError(error);
+            return;
+        }
         flushGraphViews();
         viewModel.InvalidateNodeDefinitions();
         pickerIndexes.Clear();
@@ -1044,10 +1148,12 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
     private void onClosed(object? sender, EventArgs args)
     {
         closed = true;
+        LocaleService.LanguageChanged -= onLoadLanguageChanged;
         inheritanceRefreshPending = false;
         gameData.Documents.ContentChanged -= onProjectContentChanged;
         if (gameData.BlueprintNodeSearch is BlueprintNodeSearchService search)
         {
+            search.Invalidated -= onNodeSearchInvalidated;
             search.Validating -= onNodeSearchValidating;
             search.Changed -= onNodeSearchChanged;
         }
@@ -1066,6 +1172,8 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
 
     private void removeGraphView(string eventName)
     {
+        if (loadingEvent == eventName)
+            cancelGraphLoad();
         graphViewStates.Remove(eventName);
         if (!graphViews.Remove(eventName, out Control? content))
             return;
@@ -1077,6 +1185,7 @@ public sealed class BlueprintEditorWindow : Window, IProjectSaveParticipant
 
     private void clearGraphViews(bool discardPendingChanges = false)
     {
+        cancelGraphLoad();
         foreach (KeyValuePair<string, Control> entry in graphViews)
         {
             Control content = entry.Value;

@@ -122,9 +122,11 @@ public sealed partial class BlueprintVariableForm
                 || !double.IsFinite(next) || Math.Abs(next) > limit)
             {
                 input.BorderBrush = Brushes.OrangeRed;
+                setTransientInput(input, true);
                 return;
             }
             input.BorderBrush = normalBorder;
+            setTransientInput(input, false);
             changed(JsonValue.Create(next), false);
         };
         return input;
@@ -206,14 +208,17 @@ public sealed partial class BlueprintVariableForm
                 if (parsed is not null and not JsonArray)
                 {
                     box.BorderBrush = new SolidColorBrush(Color.Parse("#c65353"));
+                    setTransientInput(box, true);
                     return;
                 }
                 box.BorderBrush = normalBorder;
+                setTransientInput(box, false);
                 changed(parsed, false);
             }
             catch (JsonException)
             {
                 box.BorderBrush = new SolidColorBrush(Color.Parse("#c65353"));
+                setTransientInput(box, true);
             }
         };
         return box;
@@ -369,6 +374,7 @@ public sealed partial class BlueprintVariableForm
             Window? owner = TopLevel.GetTopLevel(this) as Window;
             if (owner is null)
                 return;
+            using IDisposable interaction = BeginInteraction();
             Color? result = await ColourPickerWindow.ShowAsync(owner, swatch.Colour);
             if (result is not Color colour)
                 return;
@@ -451,6 +457,7 @@ public sealed partial class BlueprintVariableForm
                     ? resolvedCurrent
                     : null;
             }
+            using IDisposable interaction = BeginInteraction();
             string? selected = await FileSelectorDialog.ShowAsync(
                 owner,
                 baseDirectory,
@@ -581,6 +588,7 @@ public sealed partial class BlueprintVariableForm
             Window? owner = TopLevel.GetTopLevel(this) as Window;
             if (owner is null)
                 return;
+            using IDisposable interaction = BeginInteraction();
             RectRangeSelection? result = await RectRangeWindow.ShowAsync(
                 owner,
                 imagePath,

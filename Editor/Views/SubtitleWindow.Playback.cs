@@ -79,6 +79,7 @@ public sealed partial class SubtitleWindow
             videoPath = string.Empty;
             videoLabel.Text = string.Empty;
             videoDuration = 0;
+            updateTimelineDuration();
             requestPreview("load");
         }));
         toolbar.Children.Add(videoLabel);
@@ -167,7 +168,6 @@ public sealed partial class SubtitleWindow
         seekTarget = time;
         currentTime = time;
         timeline.CurrentTime = time;
-        timeline.InvalidateVisual();
         requestPreview("seek");
         if (finished)
         {
@@ -220,7 +220,8 @@ public sealed partial class SubtitleWindow
         {
             while (!token.IsCancellationRequested && (pendingLoad || pendingSeek || pendingState || pendingRender))
             {
-                bool valid = inputErrors.Count == 0 && SubtitleAssetSchema.Validate(data, Key).Count == 0;
+                ensureValidation();
+                bool valid = inputErrors.Count == 0 && cachedValidationErrors.Count == 0;
                 if (!valid)
                 {
                     long invalidRevision = generation;
@@ -254,14 +255,17 @@ public sealed partial class SubtitleWindow
                 if (frame is null || revision != generation)
                     continue;
                 currentTime = frame.Time;
-                videoDuration = frame.VideoDuration;
+                if (videoDuration != frame.VideoDuration)
+                {
+                    videoDuration = frame.VideoDuration;
+                    updateTimelineDuration();
+                }
                 if (!pendingState && !pendingSeek)
                     desiredPlaying = frame.Playing;
                 play.Content = L(desiredPlaying ? "SUBTITLE_PAUSE" : "SUBTITLE_PLAY");
                 if (desiredPlaying) previewTimer.Start(); else previewTimer.Stop();
                 preview.SetFrame(frame.Width, frame.Height, frame.Stride, frame.Pixels);
-                JsonObject? active = sections.OfType<JsonObject>().FirstOrDefault(item =>
-                    number(item["startTime"]) <= currentTime && currentTime < number(item["endTime"]));
+                JsonObject? active = timeline.FindActiveSection(currentTime);
                 previewStatus.Text = active?["content"] is JsonObject translations
                     && !translations.ContainsKey(previewLanguage.Text ?? "en_GB") && !translations.ContainsKey("en_GB")
                     ? L("SUBTITLE_MISSING_LANGUAGE") : string.Empty;
@@ -269,7 +273,6 @@ public sealed partial class SubtitleWindow
                 position.Value = decimalTime(currentTime);
                 syncingPosition = false;
                 timeline.CurrentTime = currentTime;
-                updateValidation();
             }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }

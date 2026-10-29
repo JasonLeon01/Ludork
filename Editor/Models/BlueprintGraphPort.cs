@@ -44,7 +44,9 @@ public sealed class BlueprintGraphPort : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public Func<LuaMetadataType, LuaEnumDefinition>? ResolveEnum { get; }
+    public Func<LuaMetadataType, LuaEnumDefinition>? ResolveEnum { get; private set; }
+
+    internal void SetEnumResolver(Func<LuaMetadataType, LuaEnumDefinition> resolver) => ResolveEnum = resolver;
     public Guid Id { get; }
     public Guid NodeId { get; }
     public string Name { get; }

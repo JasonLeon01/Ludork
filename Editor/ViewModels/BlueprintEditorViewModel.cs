@@ -6,12 +6,15 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Ludork.ViewModels;
 
 internal sealed class BlueprintEditorViewModel : ViewModelBase, IDisposable
 {
     private readonly LuaMetadataService metadata;
+    private readonly ProjectDataStore gameData;
     private readonly BlueprintClassResolver resolver;
     private BlueprintNodeDefinitionCatalog? nodeCatalog;
     private BlueprintEditorTabItem? selectedTab;
@@ -23,6 +26,7 @@ internal sealed class BlueprintEditorViewModel : ViewModelBase, IDisposable
         BlueprintClassResolver resolver)
     {
         Document = document;
+        gameData = data;
         this.metadata = metadata;
         this.resolver = resolver;
         FieldBuilder = new BlueprintVariableFieldBuilder(data, metadata);
@@ -246,7 +250,8 @@ internal sealed class BlueprintEditorViewModel : ViewModelBase, IDisposable
             ?? tabs.FirstOrDefault();
     }
 
-    public BlueprintGraphEditorData LoadGraph(string eventName, JsonObject eventGraph)
+    public async Task<BlueprintGraphEditorData> LoadGraphAsync(string eventName, JsonObject eventGraph,
+        BlueprintGraphLoadSession loading, Func<bool> isCurrent, CancellationToken cancellationToken)
     {
         nodeCatalog ??= new BlueprintNodeDefinitionCatalog(metadata, resolver);
         BlueprintNodeDefinitionSet definitions;
@@ -258,12 +263,15 @@ internal sealed class BlueprintEditorViewModel : ViewModelBase, IDisposable
             eventParameters = definitions.EventParameters.TryGetValue(eventName,
                 out IReadOnlyList<BlueprintGraphEventParameterDefinition>? parameters) ? parameters : [];
         }
-        BlueprintGraphDocument graph = BlueprintGraphCodec.Load(
-            eventName, eventGraph, Document.Data["graph"]?["startNodes"]?[eventName], definitions, eventParameters, IsBlueprint);
+        long metadataRevision = metadata.CacheRevision;
+        BlueprintGraphDocument graph = await loading.LoadAsync(eventName, eventGraph,
+            Document.Data["graph"]?["startNodes"]?[eventName], definitions, eventParameters, IsBlueprint,
+            () => gameData.BlueprintNodeSearch?.IsCurrent == true ? metadata.BeginPreparedRead() : metadata.BeginRead(),
+            () => isCurrent() && metadata.CacheRevision == metadataRevision, cancellationToken);
         IReadOnlyList<BlueprintGraphNodeDefinition> available = Document.IsGraphOnly
             ? definitions.NonLatentDefinitions
             : definitions.Definitions;
-        return new BlueprintGraphEditorData(graph, available);
+        return new BlueprintGraphEditorData(graph, available, metadataRevision);
     }
 
     public void CommitGraph(string eventName, BlueprintGraphDocument graph)

@@ -255,6 +255,7 @@ public sealed partial class BlueprintVariableForm
                 if (next is JsonArray or JsonObject)
                 {
                     box.BorderBrush = Brushes.OrangeRed;
+                    setTransientInput(box, true);
                     return;
                 }
             }
@@ -264,6 +265,7 @@ public sealed partial class BlueprintVariableForm
                     || field.Range is BlueprintVariableRange range && (number < range.Minimum || number > range.Maximum))
                 {
                     box.BorderBrush = Brushes.OrangeRed;
+                    setTransientInput(box, true);
                     return;
                 }
                 next = JsonValue.Create(number);
@@ -275,6 +277,7 @@ public sealed partial class BlueprintVariableForm
                     || field.Range is BlueprintVariableRange range && (number < range.Minimum || number > range.Maximum))
                 {
                     box.BorderBrush = Brushes.OrangeRed;
+                    setTransientInput(box, true);
                     return;
                 }
                 next = JsonValue.Create(number);
@@ -286,6 +289,7 @@ public sealed partial class BlueprintVariableForm
             }
             box.BorderBrush = normalBorder;
             box.PlaceholderText = null;
+            setTransientInput(box, false);
             changed(next, false);
         }
         box.PropertyChanged += (_, args) =>

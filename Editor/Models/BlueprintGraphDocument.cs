@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Linq;
 using System.Text.Json.Nodes;
 
@@ -10,14 +12,24 @@ public sealed class BlueprintGraphDocument
     private BlueprintGraphEndpoint? start;
     private int updateDepth;
     private bool pendingChange;
+    private readonly Dictionary<Guid, BlueprintGraphNode> nodesById = [];
+    private readonly Dictionary<Guid, BlueprintGraphPort> portsById = [];
+    private readonly Dictionary<Guid, BlueprintGraphConnection> connectionsById = [];
+    private readonly Dictionary<Guid, HashSet<Guid>> connectionsByPort = [];
+    private readonly HashSet<BlueprintGraphNode> indexedNodes = [];
+    private int entryConnectionCount;
 
     public BlueprintGraphDocument(string eventName, JsonObject rawEventGraph)
     {
         EventName = eventName;
         RawEventGraph = (JsonObject)rawEventGraph.DeepClone();
+        Nodes.CollectionChanged += onNodesChanged;
+        Connections.CollectionChanged += onConnectionsChanged;
     }
 
     public event EventHandler? Changed;
+    internal event EventHandler? EntryConnectionChanged;
+    internal bool HasEntryConnection => entryConnectionCount != 0;
 
     public string EventName { get; }
     public bool InheritsEvents { get; init; }
@@ -55,21 +67,129 @@ public sealed class BlueprintGraphDocument
         }
     }
 
-    public BlueprintGraphNode? FindNode(Guid id)
+    public BlueprintGraphNode? FindNode(Guid id) => nodesById.GetValueOrDefault(id);
+
+    public BlueprintGraphPort? FindPort(Guid id) => portsById.GetValueOrDefault(id);
+
+    internal IEnumerable<BlueprintGraphConnection> GetPortConnections(Guid portId)
     {
-        return Nodes.FirstOrDefault(node => node.Id == id);
+        return connectionsByPort.TryGetValue(portId, out HashSet<Guid>? ids)
+            ? ids.Select(id => connectionsById[id]) : [];
     }
 
-    public BlueprintGraphPort? FindPort(Guid id)
+    private void onNodesChanged(object? sender, NotifyCollectionChangedEventArgs args)
     {
-        foreach (BlueprintGraphNode node in Nodes)
+        if (args.Action == NotifyCollectionChangedAction.Move)
+            return;
+        if (args.Action == NotifyCollectionChangedAction.Reset)
         {
-            BlueprintGraphPort? port = node.Inputs.Concat(node.Outputs)
-                .FirstOrDefault(value => value.Id == id);
-            if (port is not null)
-                return port;
+            foreach (BlueprintGraphNode node in indexedNodes.ToArray())
+                removeNodeIndex(node);
+            foreach (BlueprintGraphNode node in Nodes)
+                addNodeIndex(node);
+            return;
         }
-        return null;
+        if (args.OldItems is not null)
+            foreach (BlueprintGraphNode node in args.OldItems)
+                removeNodeIndex(node);
+        if (args.NewItems is not null)
+            foreach (BlueprintGraphNode node in args.NewItems)
+                addNodeIndex(node);
+    }
+
+    private void addNodeIndex(BlueprintGraphNode node)
+    {
+        nodesById[node.Id] = node;
+        indexedNodes.Add(node);
+        foreach (BlueprintGraphPort port in node.Inputs.Concat(node.Outputs))
+            portsById[port.Id] = port;
+        node.Inputs.CollectionChanged += onPortsChanged;
+        node.Outputs.CollectionChanged += onPortsChanged;
+    }
+
+    private void removeNodeIndex(BlueprintGraphNode node)
+    {
+        node.Inputs.CollectionChanged -= onPortsChanged;
+        node.Outputs.CollectionChanged -= onPortsChanged;
+        indexedNodes.Remove(node);
+        nodesById.Remove(node.Id);
+        foreach (BlueprintGraphPort port in node.Inputs.Concat(node.Outputs))
+            portsById.Remove(port.Id);
+    }
+
+    private void onPortsChanged(object? sender, NotifyCollectionChangedEventArgs args)
+    {
+        if (args.Action == NotifyCollectionChangedAction.Move)
+            return;
+        if (args.Action == NotifyCollectionChangedAction.Reset)
+        {
+            portsById.Clear();
+            foreach (BlueprintGraphNode node in Nodes)
+                foreach (BlueprintGraphPort port in node.Inputs.Concat(node.Outputs))
+                    portsById[port.Id] = port;
+            return;
+        }
+        if (args.OldItems is not null)
+            foreach (BlueprintGraphPort port in args.OldItems)
+                portsById.Remove(port.Id);
+        if (args.NewItems is not null)
+            foreach (BlueprintGraphPort port in args.NewItems)
+                portsById[port.Id] = port;
+    }
+
+    private void onConnectionsChanged(object? sender, NotifyCollectionChangedEventArgs args)
+    {
+        if (args.Action == NotifyCollectionChangedAction.Move)
+            return;
+        bool hadEntry = HasEntryConnection;
+        if (args.Action == NotifyCollectionChangedAction.Reset)
+        {
+            connectionsById.Clear();
+            connectionsByPort.Clear();
+            entryConnectionCount = 0;
+            foreach (BlueprintGraphConnection connection in Connections)
+                addConnectionIndex(connection);
+        }
+        else
+        {
+            if (args.OldItems is not null)
+                foreach (BlueprintGraphConnection connection in args.OldItems)
+                {
+                    connectionsById.Remove(connection.Id);
+                    removePortConnection(connection.SourcePortId, connection.Id);
+                    removePortConnection(connection.TargetPortId, connection.Id);
+                    if (connection.IsEntryConnection)
+                        entryConnectionCount--;
+                }
+            if (args.NewItems is not null)
+                foreach (BlueprintGraphConnection connection in args.NewItems)
+                    addConnectionIndex(connection);
+        }
+        if (hadEntry != HasEntryConnection)
+            EntryConnectionChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void addConnectionIndex(BlueprintGraphConnection connection)
+    {
+        connectionsById[connection.Id] = connection;
+        addPortConnection(connection.SourcePortId, connection.Id);
+        addPortConnection(connection.TargetPortId, connection.Id);
+        if (connection.IsEntryConnection)
+            entryConnectionCount++;
+    }
+
+    private void addPortConnection(Guid portId, Guid connectionId)
+    {
+        if (!connectionsByPort.TryGetValue(portId, out HashSet<Guid>? ids))
+            connectionsByPort[portId] = ids = [];
+        ids.Add(connectionId);
+    }
+
+    private void removePortConnection(Guid portId, Guid connectionId)
+    {
+        if (connectionsByPort.TryGetValue(portId, out HashSet<Guid>? ids)
+            && ids.Remove(connectionId) && ids.Count == 0)
+            connectionsByPort.Remove(portId);
     }
 
     public bool AddConnection(BlueprintGraphConnection connection)
@@ -100,7 +220,7 @@ public sealed class BlueprintGraphDocument
 
     public bool RemoveConnection(Guid id)
     {
-        BlueprintGraphConnection? connection = Connections.FirstOrDefault(value => value.Id == id);
+        BlueprintGraphConnection? connection = connectionsById.GetValueOrDefault(id);
         if (connection is null)
             return false;
         FindPort(connection.SourcePortId)?.DetachConnection();
@@ -115,16 +235,17 @@ public sealed class BlueprintGraphDocument
         return true;
     }
 
-    internal void AddLoadedConnection(BlueprintGraphConnection connection)
+    internal void AddLoadedConnection(BlueprintGraphConnection connection,
+        BlueprintGraphPort source, BlueprintGraphPort target)
     {
         Connections.Add(connection);
-        FindPort(connection.SourcePortId)?.AttachConnection();
-        FindPort(connection.TargetPortId)?.AttachConnection();
+        source.AttachConnection();
+        target.AttachConnection();
     }
 
     internal void SetLoadedStart(BlueprintGraphEndpoint? value, JsonNode? rawStart)
     {
-        Start = value;
+        start = value;
         UnresolvedStartNode = value is null ? rawStart?.DeepClone() : null;
     }
 

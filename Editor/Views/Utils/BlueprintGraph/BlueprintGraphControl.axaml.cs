@@ -57,6 +57,7 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         AddHandler(PointerPressedEvent, onPointerPressed, RoutingStrategies.Tunnel);
         AddHandler(ContextRequestedEvent, onContextRequested, RoutingStrategies.Tunnel);
         AddHandler(PointerReleasedEvent, onPointerReleased, RoutingStrategies.Tunnel);
+        AddHandler(PointerCaptureLostEvent, onGraphPointerCaptureLost, RoutingStrategies.Bubble, true);
         AddHandler(PointerMovedEvent, onPointerMoved, RoutingStrategies.Tunnel);
         AddHandler(PointerWheelChangedEvent, onPointerWheelChanged, RoutingStrategies.Tunnel);
         editor.PointerTouchPadGestureMagnify += onPointerTouchPadGestureMagnify;
@@ -86,6 +87,9 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
             isReadOnly,
             nodeSearch?.IsCurrent == true ? nodeSearch.Types : null);
         DataContext = viewModel;
+        editor.IsEnabled = false;
+        editor.PropertyChanged += onViewportPropertyChanged;
+        SizeChanged += onGraphSizeChanged;
         document.Changed += onDocumentChanged;
         viewModel.ParameterEdited += onParameterEdited;
         viewModel.InputDraftChanged += onInputDraftChanged;
@@ -128,7 +132,11 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
     public ViewState CaptureViewState()
     {
         if (pendingViewState is not null)
+        {
+            if (!visualsInitialized)
+                return pendingViewState;
             return pendingViewState with { InputStates = viewModel.CaptureInputStates() };
+        }
         Dictionary<Guid, int> indexes = viewModel.Document.Nodes.Where(node => !node.IsVirtual)
             .Select((node, index) => (node.Id, Index: index)).ToDictionary(entry => entry.Id, entry => entry.Index);
         return new ViewState(editor.Zoom, editor.OffsetX, editor.OffsetY,
@@ -142,6 +150,11 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
 
     public void RestoreViewState(ViewState state)
     {
+        if (!visualsInitialized)
+        {
+            pendingViewState = state;
+            return;
+        }
         viewModel.RestoreInputStates(state.InputStates);
         if (!viewportInitialized)
         {
@@ -154,16 +167,17 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         editor.ViewTranslateTransform.X = state.OffsetX;
         editor.ViewTranslateTransform.Y = state.OffsetY;
         viewModel.SelectedNodes.Clear();
+        HashSet<(int? Index, string NodeFunction, string? ExternalKey)> selection = state.Selection.ToHashSet();
         foreach (BlueprintGraphNodeViewModel node in viewModel.Nodes.OfType<BlueprintGraphNodeViewModel>())
         {
-            if (state.Selection.Contains((node.Model.OriginalIndex, node.Model.NodeFunction, node.Model.ExternalKey)))
+            if (selection.Contains((node.Model.OriginalIndex, node.Model.NodeFunction, node.Model.ExternalKey)))
                 viewModel.SelectedNodes.Add(node);
         }
     }
 
     public void OrganizeLayout()
     {
-        if (viewModel.IsReadOnly)
+        if (!visualsInitialized || viewModel.IsReadOnly)
             return;
         viewModel.OrganizeLayout();
         Dispatcher.UIThread.Post(refreshOrganizedLayout, DispatcherPriority.Loaded);
@@ -176,11 +190,20 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
 
     public void FlushPendingChanges()
     {
+        long gesture = graphGesture;
+        graphGesture = 0;
+        graphPointer = null;
         if (!hasPendingChange)
+        {
+            if (gesture != 0)
+                gameData.EndHistoryGesture(gesture);
             return;
+        }
         changeTimer.Stop();
         hasPendingChange = false;
         GraphChanged?.Invoke(this, EventArgs.Empty);
+        if (gesture != 0)
+            gameData.EndHistoryGesture(gesture);
     }
 
     public void DiscardPendingChanges()
@@ -194,6 +217,7 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         if (disposed)
             return;
         disposed = true;
+        visualLifetime.Cancel();
         pickerCancellation?.Cancel();
         viewModel.BlueprintPendingConnection.ClearPickerPreview();
         FlushPendingChanges();
@@ -212,9 +236,14 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         RemoveHandler(PointerPressedEvent, onPointerPressed);
         RemoveHandler(ContextRequestedEvent, onContextRequested);
         RemoveHandler(PointerReleasedEvent, onPointerReleased);
+        RemoveHandler(PointerCaptureLostEvent, onGraphPointerCaptureLost);
         RemoveHandler(PointerMovedEvent, onPointerMoved);
         RemoveHandler(PointerWheelChangedEvent, onPointerWheelChanged);
         editor.PointerTouchPadGestureMagnify -= onPointerTouchPadGestureMagnify;
+        editor.PropertyChanged -= onViewportPropertyChanged;
+        SizeChanged -= onGraphSizeChanged;
+        if (graphWindow is not null)
+            graphWindow.Deactivated -= onGraphDeactivated;
         RemoveHandler(KeyDownEvent, onKeyDown);
         foreach (BlueprintGraphNodeViewModel node in viewModel.Nodes.OfType<BlueprintGraphNodeViewModel>())
         {
@@ -226,13 +255,17 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
             }
             node.Dispose();
         }
+        parameterEditors.Clear();
+        pendingParameterEditors.Clear();
+        visualLifetime.Dispose();
     }
 
     private void onDocumentChanged(object? sender, EventArgs args)
     {
         hasPendingChange = true;
         changeTimer.Stop();
-        changeTimer.Start();
+        if (graphGesture == 0)
+            changeTimer.Start();
     }
 
     private void onParameterEdited(object? sender, EventArgs args)
@@ -252,6 +285,12 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
 
     private void onLoaded(object? sender, RoutedEventArgs args)
     {
+        initializeLoadedGraph();
+        if (graphWindow is null && TopLevel.GetTopLevel(this) is Window window)
+        {
+            graphWindow = window;
+            window.Deactivated += onGraphDeactivated;
+        }
         if (viewportInitialized)
             return;
         Dispatcher.UIThread.Post(initializeViewport);
@@ -264,8 +303,11 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
         viewportInitialized = true;
         if (pendingViewState is ViewState state)
         {
-            pendingViewState = null;
-            RestoreViewState(state);
+            editor.Zoom = state.Zoom;
+            editor.OffsetX = state.OffsetX;
+            editor.OffsetY = state.OffsetY;
+            editor.ViewTranslateTransform.X = state.OffsetX;
+            editor.ViewTranslateTransform.Y = state.OffsetY;
             return;
         }
         editor.Zoom = 1;
@@ -325,15 +367,27 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
 
     private void onPointerPressed(object? sender, PointerPressedEventArgs args)
     {
+        if (!visualsInitialized)
+            return;
         dropCanceled = false;
         Focus();
         updatePointerPosition(args.GetPosition(editor));
+        if (!viewModel.IsReadOnly && !isInputControl(args.Source)
+            && args.GetCurrentPoint(this).Properties.IsLeftButtonPressed
+            && findContextNode(args.Source) is { Model.IsVirtual: false })
+        {
+            FlushPendingChanges();
+            graphGesture = gameData.BeginHistoryGesture();
+            graphPointer = args.Pointer;
+        }
         if (args.GetCurrentPoint(this).Properties.IsRightButtonPressed)
             args.Handled = true;
     }
 
     private void onContextRequested(object? sender, ContextRequestedEventArgs args)
     {
+        if (!visualsInitialized)
+            return;
         Focus();
         if (args.TryGetPosition(editor, out Point position))
             updatePointerPosition(position);
@@ -346,6 +400,8 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
     private void onPointerReleased(object? sender, PointerReleasedEventArgs args)
     {
         updatePointerPosition(args.GetPosition(editor));
+        if (ReferenceEquals(graphPointer, args.Pointer))
+            Dispatcher.UIThread.Post(finishGraphGesture, DispatcherPriority.Input);
     }
 
     private void onPointerMoved(object? sender, PointerEventArgs args)
@@ -433,6 +489,8 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
 
     private async void onKeyDown(object? sender, KeyEventArgs args)
     {
+        if (!visualsInitialized)
+            return;
         if (args.Key == Key.Escape && viewModel.BlueprintPendingConnection.Source is not null)
             dropCanceled = true;
         if (isInputControl(args.Source))
@@ -641,6 +699,8 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
             return;
         pickerCancellation?.Cancel();
         pickerIndexes.Get(viewModel.Definitions, nodeSearch);
+        foreach (BlueprintGraphParameterEditor parameter in parameterEditors)
+            parameter.InvalidateMeasuredSize();
     }
 
     private void onSearchChanged(object? sender, EventArgs args)
@@ -680,9 +740,13 @@ public sealed partial class BlueprintGraphControl : UserControl, IDisposable
 
     private static bool isInputControl(object? source)
     {
-        Control? control = source as Control;
-        return isInputControlType(control)
-            || control?.GetVisualAncestors().OfType<Control>().Any(isInputControlType) == true;
+        for (Visual? current = source as Visual; current is not null && current is not NodifyEditor;
+            current = current.GetVisualParent())
+        {
+            if (current is Control control && isInputControlType(control))
+                return true;
+        }
+        return false;
     }
 
     private static bool isInputControlType(Control? control)

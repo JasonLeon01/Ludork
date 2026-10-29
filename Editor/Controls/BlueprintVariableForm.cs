@@ -42,6 +42,7 @@ public sealed partial class BlueprintVariableForm : UserControl, IDisposable
     public BlueprintVariableForm()
     {
         Content = form;
+        initializeSuspension();
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs args)
@@ -199,6 +200,7 @@ public sealed partial class BlueprintVariableForm : UserControl, IDisposable
     private void prepareFields(IEnumerable<BlueprintVariableField> nextFields)
     {
         building = true;
+        transientInputs.Clear();
         form.IsEnabled = false;
         disposeNestedForms();
         fields.Clear();
@@ -347,6 +349,7 @@ public sealed partial class BlueprintVariableForm : UserControl, IDisposable
             Window? owner = TopLevel.GetTopLevel(this) as Window;
             if (owner is null)
                 return;
+            using IDisposable interaction = BeginInteraction();
             JsonObject? result = await BlueprintStructureWindow.ShowAsync(
                 owner,
                 getDisplayName(field),
@@ -700,6 +703,7 @@ public sealed partial class BlueprintVariableForm : UserControl, IDisposable
     private void attachHistory(NumericUpDown control)
     {
         historyControls.Add(control);
+        trackNumericInput(control);
         if (HistoryGameData is ProjectDataStore gameData)
             HistoryMergeBehavior.Attach(control, gameData);
     }
@@ -932,7 +936,10 @@ public sealed partial class BlueprintVariableForm : UserControl, IDisposable
     private void disposeNestedForms()
     {
         foreach (BlueprintVariableForm nested in nestedHistoryForms)
+        {
+            nested.SuspensionStateChanged -= onNestedSuspensionStateChanged;
             nested.Dispose();
+        }
         nestedHistoryForms.Clear();
     }
 
@@ -941,6 +948,8 @@ public sealed partial class BlueprintVariableForm : UserControl, IDisposable
         if (disposed)
             return;
         disposed = true;
+        transientInputs.Clear();
+        interactionPointers.Clear();
         editorRefreshGeneration++;
         unsubscribeGameVariables();
         disposeNestedForms();

@@ -6,6 +6,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Nodes;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Ludork.ViewModels.BlueprintGraph;
 
@@ -17,6 +19,7 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
     private readonly IReadOnlyList<BlueprintGraphNodeDefinition> definitions;
     private readonly Dictionary<Guid, BlueprintGraphNodeViewModel> nodesById = [];
     private readonly Dictionary<Guid, BlueprintGraphPortViewModel> portsById = [];
+    private readonly Dictionary<Guid, BlueprintGraphConnectionViewModel> connectionsById = [];
 
     public BlueprintGraphEditorViewModel(
         BlueprintGraphDocument document,
@@ -32,10 +35,42 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
         IsReadOnly = isReadOnly;
         BlueprintPendingConnection = new BlueprintPendingConnectionViewModel(this);
         PendingConnection = BlueprintPendingConnection;
+    }
+
+    internal async Task InitializeAsync(Func<CancellationToken, Task> prepareConnections,
+        CancellationToken cancellationToken)
+    {
+        EditorUiBatch batch = new();
+        int count = 0;
         foreach (BlueprintGraphNode node in document.Nodes)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            foreach (BlueprintGraphPort port in node.Inputs.Concat(node.Outputs))
+                port.SetEnumResolver(fieldBuilder.ReadEnum);
             addNodeViewModel(node);
+            if (++count % 16 == 0)
+            {
+                await EditorUiBatch.YieldAsync(cancellationToken);
+                batch = new EditorUiBatch();
+            }
+            else
+                await batch.YieldIfNeededAsync(cancellationToken);
+        }
+        await prepareConnections(cancellationToken);
+        batch = new EditorUiBatch();
+        count = 0;
         foreach (BlueprintGraphConnection connection in document.Connections)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
             addConnectionViewModel(connection);
+            if (++count % 64 == 0)
+            {
+                await EditorUiBatch.YieldAsync(cancellationToken);
+                batch = new EditorUiBatch();
+            }
+            else
+                await batch.YieldIfNeededAsync(cancellationToken);
+        }
     }
 
     public BlueprintGraphDocument Document => document;
@@ -77,6 +112,8 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
 
     internal IReadOnlyList<BlueprintNodeInputState> CaptureInputStates()
     {
+        if (!nodesById.Values.Any(node => node.UsePlainTextInputs))
+            return [];
         JsonArray savedNodes = (JsonArray)BlueprintGraphCodec.Save(document).EventGraph["nodes"]!;
         return document.Nodes.Where(node => !node.IsVirtual)
             .Select((node, index) => (Node: nodesById[node.Id], Index: index))
@@ -92,6 +129,8 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
 
     internal void RestoreInputStates(IReadOnlyList<BlueprintNodeInputState> states)
     {
+        if (states.Count == 0)
+            return;
         BlueprintGraphNode[] nodes = document.Nodes.Where(node => !node.IsVirtual).ToArray();
         JsonArray savedNodes = (JsonArray)BlueprintGraphCodec.Save(document).EventGraph["nodes"]!;
         foreach ((BlueprintNodeInputState state, int index) in BlueprintNodeInputState.Match(states, savedNodes))
@@ -124,6 +163,7 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
         BlueprintGraphNodeViewModel[] selected = getSelectedRegularNodes();
         if (selected.Length == 0)
             return false;
+        using IDisposable update = document.BeginUpdate();
         foreach (BlueprintGraphNodeViewModel node in selected)
         {
             node.Location = new Point(
@@ -163,12 +203,9 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
         {
             return;
         }
+        using IDisposable update = document.BeginUpdate();
         BlueprintGraphPort exclusive = BlueprintGraphDocument.GetExclusivePin(source.Model, target.Model);
-        foreach (BlueprintGraphConnectionViewModel existing in Connections
-            .OfType<BlueprintGraphConnectionViewModel>()
-            .Where(connection => connection.Model.SourcePortId == exclusive.Id
-                || connection.Model.TargetPortId == exclusive.Id)
-            .ToArray())
+        foreach (BlueprintGraphConnectionViewModel existing in getPortConnections(exclusive.Id).ToArray())
         {
             removeConnection(existing);
         }
@@ -194,12 +231,10 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
 
     public override void DisconnectConnector(ConnectorViewModelBase connector)
     {
-        if (IsReadOnly)
+        if (IsReadOnly || connector is not BlueprintGraphPortViewModel port)
             return;
-        foreach (BlueprintGraphConnectionViewModel connection in Connections
-            .OfType<BlueprintGraphConnectionViewModel>()
-            .Where(value => ReferenceEquals(value.Source, connector) || ReferenceEquals(value.Target, connector))
-            .ToArray())
+        using IDisposable update = document.BeginUpdate();
+        foreach (BlueprintGraphConnectionViewModel connection in getPortConnections(port.Model.Id).ToArray())
         {
             removeConnection(connection);
         }
@@ -244,12 +279,11 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
         BlueprintGraphNodeViewModel[] selected = getSelectedRegularNodes();
         if (selected.Length == 0)
             return;
+        using IDisposable update = document.BeginUpdate();
         HashSet<Guid> ids = selected.Select(node => node.Model.Id).ToHashSet();
-        foreach (BlueprintGraphConnectionViewModel connection in Connections
-            .OfType<BlueprintGraphConnectionViewModel>()
-            .Where(value => ids.Contains(value.Model.Source.NodeId ?? Guid.Empty)
-                || ids.Contains(value.Model.Target.NodeId ?? Guid.Empty))
-            .ToArray())
+        foreach (BlueprintGraphConnectionViewModel connection in selected
+            .SelectMany(node => node.Model.Inputs.Concat(node.Model.Outputs))
+            .SelectMany(port => getPortConnections(port.Id)).DistinctBy(connection => connection.Model.Id).ToArray())
         {
             removeConnection(connection);
         }
@@ -278,32 +312,27 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
         if (IsReadOnly || node is null)
             return false;
         HashSet<Guid> portIds = getNodePortIds(node, direction);
-        return Connections
-            .OfType<BlueprintGraphConnectionViewModel>()
-            .Any(connection => portIds.Contains(getConnectionPortId(connection, direction)));
+        return portIds.Any(id => document.GetPortConnections(id).Any());
     }
 
     public void DisconnectNode(BlueprintGraphNodeViewModel node, BlueprintGraphPortDirection direction)
     {
         if (IsReadOnly)
             return;
+        using IDisposable update = document.BeginUpdate();
         HashSet<Guid> portIds = getNodePortIds(node, direction);
-        foreach (BlueprintGraphConnectionViewModel connection in Connections
-            .OfType<BlueprintGraphConnectionViewModel>()
-            .Where(connection => portIds.Contains(getConnectionPortId(connection, direction)))
-            .ToArray())
+        foreach (BlueprintGraphConnectionViewModel connection in portIds.SelectMany(getPortConnections)
+            .DistinctBy(connection => connection.Model.Id).ToArray())
         {
             removeConnection(connection);
         }
     }
 
-    private static Guid getConnectionPortId(
-        BlueprintGraphConnectionViewModel connection,
-        BlueprintGraphPortDirection direction)
+    private IEnumerable<BlueprintGraphConnectionViewModel> getPortConnections(Guid portId)
     {
-        return direction == BlueprintGraphPortDirection.Input
-            ? connection.Model.TargetPortId
-            : connection.Model.SourcePortId;
+        return document.GetPortConnections(portId)
+            .Select(connection => connectionsById.GetValueOrDefault(connection.Id))
+            .OfType<BlueprintGraphConnectionViewModel>();
     }
 
     private static HashSet<Guid> getNodePortIds(
@@ -374,6 +403,7 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
 
     private void paste(BlueprintGraphClipboard copied, Point location)
     {
+        using IDisposable update = document.BeginUpdate();
         double minimumX = copied.Nodes.Min(node => node.X);
         double minimumY = copied.Nodes.Min(node => node.Y);
         List<BlueprintGraphNode> pasted = [];
@@ -426,7 +456,7 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
             }
             else
             {
-                document.AddLoadedConnection(connection);
+                document.AddLoadedConnection(connection, sourcePort, targetPort);
                 addConnectionViewModel(connection);
             }
         }
@@ -552,13 +582,18 @@ public sealed class BlueprintGraphEditorViewModel : NodifyEditorViewModelBase
         {
             return;
         }
-        Connections.Add(new BlueprintGraphConnectionViewModel(this, connection, source, target));
+        BlueprintGraphConnectionViewModel viewModel = new(this, connection, source, target);
+        connectionsById[connection.Id] = viewModel;
+        Connections.Add(viewModel);
     }
 
     private void removeConnection(BlueprintGraphConnectionViewModel connection)
     {
         if (document.RemoveConnection(connection.Model.Id))
+        {
+            connectionsById.Remove(connection.Model.Id);
             Connections.Remove(connection);
+        }
     }
 
     private BlueprintGraphNode createNode(

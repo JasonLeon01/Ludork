@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.VisualTree;
+using Avalonia.Threading;
 using Ludork.Controls;
 using Ludork.Models;
 using Ludork.Services;
@@ -15,6 +16,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Ludork.Views;
@@ -38,6 +40,10 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
     private BlueprintGraphControl? graphControl;
     private string? pendingFunctionName;
     private bool refreshing;
+    private bool closed;
+    private readonly BlueprintGraphLoadSession graphLoading = new();
+    private BlueprintGraphControl? loadingControl;
+    private CancellationToken loadingToken;
     private readonly Dictionary<Guid, BlueprintGraphControl.ViewState> graphViewStates = [];
 
     public CommonFunctionWindow(
@@ -74,9 +80,11 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
         gameData.DataReloaded += onDataReloaded;
         if (gameData.BlueprintNodeSearch is BlueprintNodeSearchService search)
         {
+            search.Invalidated += onNodeSearchInvalidated;
             search.Validating += onNodeSearchValidating;
             search.Changed += onNodeSearchChanged;
         }
+        LocaleService.LanguageChanged += onLoadLanguageChanged;
         Closed += onClosed;
         Deactivated += (_, _) => flushGraph();
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
@@ -173,45 +181,110 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
             showSelectedFunction();
     }
 
-    private void showSelectedFunction()
+    private async void showSelectedFunction()
     {
-        using IDisposable? read = gameData.BlueprintNodeSearch?.IsCurrent == true
-            ? gameData.Metadata.BeginPreparedRead() : null;
+        if (closed)
+            return;
         disposeGraph(false);
         if (functionList.SelectedItem is not string name)
             return;
-        currentDocument = CommonFunctionEditorDocument.Create(gameData, name);
+        CommonFunctionEditorDocument? selectedDocument = CommonFunctionEditorDocument.Create(gameData, name);
+        currentDocument = selectedDocument;
         documentBinding.Refresh();
-        if (currentDocument is null)
+        if (selectedDocument is null)
             return;
-        currentDocument.ExternalChanged += onDataRestored;
-        JsonObject eventGraph = currentDocument.GetEventGraph();
-        JsonObject startNodes = currentDocument.GetStartNodes();
-        BlueprintNodeDefinitionSet definitionSet = nodeDefinitionCatalog!.GetNodeDefinitionSet();
-        BlueprintGraphDocument graphDocument = BlueprintGraphCodec.Load(
-            "common",
-            eventGraph,
-            startNodes["common"],
-            definitionSet,
-            []);
-        graphControl = new BlueprintGraphControl(
-            gameData,
-            graphDocument,
-            definitionSet.Definitions,
-            fieldBuilder,
-            parameterEditorFactory,
-            projectSave.GameVariables,
-            Path.Combine(gameData.ProjectPath, "Assets"),
-            gameData.Configs.getCellSize(),
-            false,
-            pickerIndexes);
-        if (currentDocument.ResourceDocument is EditorDocument resource
-            && graphViewStates.TryGetValue(resource.Id, out BlueprintGraphControl.ViewState? state))
-            graphControl.RestoreViewState(state);
-        graphControl.GraphChanged += onGraphChanged;
-        graphControl.InputDraftChanged += onInputDraftChanged;
-        graphHost.Child = graphControl;
-        onInputDraftChanged(this, EventArgs.Empty);
+        selectedDocument.ExternalChanged += onDataRestored;
+        CancellationToken cancellationToken = graphLoading.Begin();
+        loadingToken = cancellationToken;
+        graphHost.Child = DeferredWindowInitializer.CreateLoadingContent();
+        EditorDocument? resource = selectedDocument.ResourceDocument;
+        long revision = resource?.Revision ?? 0;
+        long? metadataRevision = null;
+        string language = LocaleService.CurrentLanguage;
+        bool isCurrent() => !closed && graphLoading.IsCurrent(cancellationToken)
+            && ReferenceEquals(selectedDocument, currentDocument)
+            && (resource?.Revision ?? 0) == revision
+            && (metadataRevision is null || gameData.Metadata.CacheRevision == metadataRevision)
+            && LocaleService.CurrentLanguage == language
+            && functionList.SelectedItem is string selected && selected == name;
+        try
+        {
+            BlueprintNodeDefinitionSet definitionSet;
+            using (IDisposable? read = gameData.BlueprintNodeSearch?.IsCurrent == true
+                ? gameData.Metadata.BeginPreparedRead() : null)
+                definitionSet = nodeDefinitionCatalog!.GetNodeDefinitionSet();
+            metadataRevision = gameData.Metadata.CacheRevision;
+            BlueprintGraphDocument graphDocument = await graphLoading.LoadAsync("common",
+                selectedDocument.GetEventGraph(), selectedDocument.GetStartNodes()["common"], definitionSet, [], false,
+                () => gameData.BlueprintNodeSearch?.IsCurrent == true
+                    ? gameData.Metadata.BeginPreparedRead() : gameData.Metadata.BeginRead(),
+                () => isCurrent() && gameData.Metadata.CacheRevision == metadataRevision, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            BlueprintGraphControl control = new(gameData, graphDocument, definitionSet.Definitions,
+                fieldBuilder, parameterEditorFactory, projectSave.GameVariables,
+                Path.Combine(gameData.ProjectPath, "Assets"), gameData.Configs.getCellSize(), false, pickerIndexes);
+            loadingControl = control;
+            if (resource is not null && graphViewStates.TryGetValue(resource.Id, out BlueprintGraphControl.ViewState? state))
+                control.RestoreViewState(state);
+            graphHost.Child = control;
+            await control.InitializeVisualsAsync(cancellationToken);
+            if (!isCurrent())
+                throw new OperationCanceledException(cancellationToken);
+            control.GraphChanged += onGraphChanged;
+            control.InputDraftChanged += onInputDraftChanged;
+            graphControl = control;
+            loadingControl = null;
+            loadingToken = default;
+            graphLoading.Complete(cancellationToken);
+            onInputDraftChanged(this, EventArgs.Empty);
+        }
+        catch (OperationCanceledException)
+        {
+            if (loadingToken != cancellationToken)
+                return;
+            cancelGraphLoad();
+            if (!closed && ReferenceEquals(selectedDocument, currentDocument)
+                && gameData.BlueprintNodeSearch?.IsCurrent != false)
+                Dispatcher.UIThread.Post(showSelectedFunction, DispatcherPriority.Background);
+        }
+        catch (Exception error)
+        {
+            if (!graphLoading.IsCurrent(cancellationToken))
+                return;
+            showGraphLoadError(error.Message);
+        }
+    }
+
+    private void showGraphLoadError(string error)
+    {
+        cancelGraphLoad();
+        Button retry = new() { Content = LocaleService.Get("RETRY") };
+        retry.Click += (_, _) => showSelectedFunction();
+        graphHost.Child = new StackPanel
+        {
+            Margin = new Thickness(16),
+            Spacing = 8,
+            Children =
+            {
+                new TextBlock { Text = error, TextWrapping = TextWrapping.Wrap },
+                retry,
+            },
+        };
+    }
+
+    private void cancelGraphLoad()
+    {
+        graphLoading.Cancel();
+        loadingToken = default;
+        BlueprintGraphControl? pending = loadingControl;
+        loadingControl = null;
+        if (pending is not null)
+        {
+            pending.DiscardPendingChanges();
+            pending.Dispose();
+        }
+        if (graphControl is null && graphHost is not null)
+            graphHost.Child = null;
     }
 
     private void onGraphChanged(object? sender, EventArgs args)
@@ -501,10 +574,26 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
         catalog.GetNodeDefinitionSet();
     }
 
+    private void onLoadLanguageChanged(object? sender, EventArgs args)
+    {
+        if (loadingToken == default)
+            return;
+        cancelGraphLoad();
+        Dispatcher.UIThread.Post(showSelectedFunction, DispatcherPriority.Background);
+    }
+
+    private void onNodeSearchInvalidated(object? sender, EventArgs args) => cancelGraphLoad();
+
     private void onNodeSearchChanged(object? sender, EventArgs args)
     {
-        if (!initializer.IsInitialized || gameData.BlueprintNodeSearch?.Error is not null)
+        if (closed || !initializer.IsInitialized)
             return;
+        if (gameData.BlueprintNodeSearch?.Error is string error)
+        {
+            if (graphControl is null && currentDocument is not null)
+                showGraphLoadError(error);
+            return;
+        }
         flushGraph();
         nodeDefinitionCatalog?.Invalidate();
         pickerIndexes.Clear();
@@ -513,6 +602,7 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
 
     private void disposeGraph(bool discardPendingChanges)
     {
+        cancelGraphLoad();
         if (graphControl is not null)
         {
             if (currentDocument?.ResourceDocument is EditorDocument resource)
@@ -538,12 +628,15 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
 
     private void onClosed(object? sender, EventArgs args)
     {
+        closed = true;
+        LocaleService.LanguageChanged -= onLoadLanguageChanged;
         projectSave.UnregisterParticipant(this);
         gameData.Documents.Changed -= onDocumentsChanged;
         gameData.Documents.DiskReloaded -= onDocumentDiskReloaded;
         gameData.DataReloaded -= onDataReloaded;
         if (gameData.BlueprintNodeSearch is BlueprintNodeSearchService search)
         {
+            search.Invalidated -= onNodeSearchInvalidated;
             search.Validating -= onNodeSearchValidating;
             search.Changed -= onNodeSearchChanged;
         }

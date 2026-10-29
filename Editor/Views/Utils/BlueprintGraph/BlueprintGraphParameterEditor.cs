@@ -18,19 +18,104 @@ public sealed class BlueprintGraphParameterEditor : ContentControl
     private BlueprintGraphPortViewModel? port;
     private BlueprintVariableForm? form;
     private bool attached;
+    private BlueprintGraphControl? graph;
+    private NodifyM.Avalonia.Controls.Node? node;
+    private Size measuredSize;
+    private bool measured;
+    private bool suspended;
+    private bool awaitingMeasurement;
 
-    public BlueprintGraphParameterEditor() => DataContextChanged += (_, _) => bind();
+    public BlueprintGraphParameterEditor()
+    {
+        DataContextChanged += (_, _) => bind();
+        SizeChanged += (_, _) => graph?.QueueParameterEditor(this);
+    }
+
+    internal bool HasMeasuredSize => measured;
+
+    internal void CaptureMeasuredSize()
+    {
+        if (form is null || !IsMeasureValid || !IsArrangeValid || Bounds.Width <= 0 || Bounds.Height <= 0)
+            return;
+        measuredSize = Bounds.Size;
+        measured = true;
+        stopAwaitingMeasurement();
+    }
+
+    internal void EnsureRealized()
+    {
+        suspended = false;
+        ensureForm();
+    }
+
+    internal bool TrySuspend()
+    {
+        if (form is null)
+            return suspended;
+        CaptureMeasuredSize();
+        bool visible = port?.IsEditorVisible == true;
+        if (visible && !measured || !form.CanSuspend)
+            return false;
+        stopAwaitingMeasurement();
+        form.SuspensionStateChanged -= onSuspensionStateChanged;
+        form.Dispose();
+        form = null;
+        suspended = true;
+        Content = visible ? new Border { Width = measuredSize.Width, Height = measuredSize.Height } : null;
+        return true;
+    }
+
+    internal void InvalidateMeasuredSize()
+    {
+        measured = false;
+        InvalidateMeasure();
+        awaitMeasurement();
+        graph?.QueueParameterEditor(this);
+    }
+
+    private void awaitMeasurement()
+    {
+        if (awaitingMeasurement || form is null)
+            return;
+        awaitingMeasurement = true;
+        LayoutUpdated += onMeasuredLayout;
+    }
+
+    private void stopAwaitingMeasurement()
+    {
+        if (!awaitingMeasurement)
+            return;
+        awaitingMeasurement = false;
+        LayoutUpdated -= onMeasuredLayout;
+    }
+
+    private void onMeasuredLayout(object? sender, EventArgs args)
+    {
+        CaptureMeasuredSize();
+        if (measured)
+            graph?.QueueParameterEditor(this);
+    }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs args)
     {
         base.OnAttachedToVisualTree(args);
         attached = true;
+        graph = this.FindAncestorOfType<BlueprintGraphControl>();
+        node = this.FindAncestorOfType<NodifyM.Avalonia.Controls.Node>();
+        if (node is not null)
+            node.PropertyChanged += onNodePlacementChanged;
         bind();
+        graph?.RegisterParameterEditor(this);
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs args)
     {
         attached = false;
+        if (node is not null)
+            node.PropertyChanged -= onNodePlacementChanged;
+        node = null;
+        graph?.UnregisterParameterEditor(this);
+        graph = null;
         release();
         base.OnDetachedFromVisualTree(args);
     }
@@ -48,12 +133,13 @@ public sealed class BlueprintGraphParameterEditor : ContentControl
         port.DependenciesChanged += onDependenciesChanged;
         port.Disposed += onDisposed;
         ensureForm();
+        graph?.QueueParameterEditor(this);
     }
 
     private void ensureForm()
     {
-        if (form is not null || port is not { IsEditorVisible: true } model
-            || this.FindAncestorOfType<BlueprintGraphControl>()?.ParameterContext is not BlueprintGraphParameterContext context)
+        if (form is not null || suspended || port is not { IsEditorVisible: true } model
+            || graph?.ParameterContext is not BlueprintGraphParameterContext context)
             return;
         BlueprintVariableForm editor = new()
         {
@@ -73,6 +159,7 @@ public sealed class BlueprintGraphParameterEditor : ContentControl
         editor.PlainTextEditorFactory = model.UsePlainTextInputs ? createPlainTextEditor : null;
         editor.PointerPressed += (_, args) => args.Handled = true;
         form = editor;
+        editor.SuspensionStateChanged += onSuspensionStateChanged;
         editor.SetFields([model.ParameterField]);
         synchronizeDependencies();
         editor.ValueChanged += (_, args) =>
@@ -82,6 +169,8 @@ public sealed class BlueprintGraphParameterEditor : ContentControl
                 Dispatcher.UIThread.Post(() => { if (ReferenceEquals(form, editor)) editor.RefreshEditors(); }, DispatcherPriority.Background);
         };
         Content = editor;
+        awaitMeasurement();
+        graph?.QueueParameterEditor(this);
     }
 
     private Control createPlainTextEditor(BlueprintVariableEditorRequest request)
@@ -111,6 +200,18 @@ public sealed class BlueprintGraphParameterEditor : ContentControl
 
     private void onStateChanged(object? sender, PropertyChangedEventArgs args)
     {
+        if (args.PropertyName == nameof(BlueprintGraphPortViewModel.IsEditorVisible)
+            && port is { IsEditorVisible: false })
+        {
+            stopAwaitingMeasurement();
+            TrySuspend();
+            graph?.QueueParameterEditor(this);
+            return;
+        }
+        if (args.PropertyName is nameof(BlueprintGraphPortViewModel.UsePlainTextInputs)
+            or nameof(BlueprintGraphPortViewModel.IsEditorVisible)
+            or nameof(BlueprintGraphPortViewModel.DisplayTitle))
+            InvalidateMeasuredSize();
         bool existing = form is not null;
         ensureForm();
         if (form is null || port is null)
@@ -126,11 +227,25 @@ public sealed class BlueprintGraphParameterEditor : ContentControl
 
     private void onExternalValueChanged(object? sender, EventArgs args)
     {
+        InvalidateMeasuredSize();
         if (port is not null)
             form?.SetFieldValue(port.Model.Name, port.Model.Value);
     }
 
-    private void onDependenciesChanged(object? sender, EventArgs args) => synchronizeDependencies();
+    private void onDependenciesChanged(object? sender, EventArgs args)
+    {
+        InvalidateMeasuredSize();
+        synchronizeDependencies();
+    }
+
+    private void onSuspensionStateChanged(object? sender, EventArgs args)
+        => graph?.QueueParameterEditor(this);
+
+    private void onNodePlacementChanged(object? sender, AvaloniaPropertyChangedEventArgs args)
+    {
+        if (args.Property.Name == "Location")
+            graph?.QueueParameterEditor(this);
+    }
 
     private void synchronizeDependencies()
     {
@@ -144,6 +259,7 @@ public sealed class BlueprintGraphParameterEditor : ContentControl
 
     private void release()
     {
+        stopAwaitingMeasurement();
         if (port is not null)
         {
             port.PropertyChanged -= onStateChanged;
@@ -151,9 +267,15 @@ public sealed class BlueprintGraphParameterEditor : ContentControl
             port.DependenciesChanged -= onDependenciesChanged;
             port.Disposed -= onDisposed;
         }
-        form?.Dispose();
+        if (form is not null)
+        {
+            form.SuspensionStateChanged -= onSuspensionStateChanged;
+            form.Dispose();
+        }
         form = null;
         port = null;
+        suspended = false;
+        measured = false;
         Content = null;
     }
 }

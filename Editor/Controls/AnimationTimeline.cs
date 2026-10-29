@@ -14,12 +14,40 @@ using System.Text.Json.Nodes;
 
 namespace Ludork.Controls;
 
-public sealed class AnimationTimeline : Control
+public sealed class AnimationTimeline : Panel
 {
     internal const string AssetDragPrefix = "ludork-animation-assets:";
     private const double SegmentMarqueeThreshold = 4;
     private readonly ProjectAssetPaths assetPaths;
     private readonly Func<JsonObject> getData;
+    private readonly AnimationTimelineIndex index;
+    private readonly TimelineDrawingLayer contentLayer;
+    private readonly TimelineDrawingLayer selectionLayer;
+    private readonly TimelinePlayhead playhead;
+    private readonly AnimationTimeTagCache tagCache = new();
+    private readonly List<AnimationTimelineSegment> visibleSegments = [];
+    private readonly List<AnimationTimeTagLayout> visibleTags = [];
+    private readonly Dictionary<string, double?> dragAudioDurations = new(StringComparer.Ordinal);
+    private readonly SolidColorBrush frameBrush = new(Color.Parse("#4f89b8"));
+    private readonly SolidColorBrush soundBrush = new(Color.Parse("#76573b"));
+    private readonly SolidColorBrush selectedBrush = new(Color.Parse("#8ab4f8"));
+    private readonly SolidColorBrush tagBrush = new(Color.Parse("#5ad1c4"));
+    private readonly SolidColorBrush selectedTagBrush = new(Color.Parse("#ffd166"));
+    private readonly Pen segmentPen = new(new SolidColorBrush(Color.Parse("#a9cce8")), 1);
+    private readonly Pen selectedSegmentPen = new(Brushes.White, 2);
+    private readonly Pen selectedTagPen = new(Brushes.White, 1);
+    private readonly Pen selectedTagLinePen = new(new SolidColorBrush(Color.Parse("#66ffd166")), 1);
+    private readonly SolidColorBrush marqueeBrush = new(Color.Parse("#338ab4f8"));
+    private readonly Pen marqueePen = new(new SolidColorBrush(Color.Parse("#8ab4f8")), 1);
+    private readonly StreamGeometry tagGeometry = createTagGeometry();
+    private Rect viewport;
+    private string? dragAudioPayload;
+    private double gestureLeft;
+    private double gestureRight;
+    private bool segmentMoved;
+    private bool tagsDirty = true;
+    private readonly Pen tagConnectorPen = new(new SolidColorBrush(Color.Parse("#5ad1c4")), 1);
+    private readonly Pen selectedTagConnectorPen = new(new SolidColorBrush(Color.Parse("#ffd166")), 1);
     private readonly HashSet<(int Track, int Segment)> segmentSelectionBeforeMarquee = [];
     private readonly HashSet<(int Track, int Segment)> selectedSegments = [];
     private Point dragStart;
@@ -45,14 +73,31 @@ public sealed class AnimationTimeline : Control
     private double zoom = 1.0;
     private TimelineZoomAnchor? pendingZoomAnchor;
 
-    public AnimationTimeline(ProjectDataStore gameData, Func<JsonObject> getData)
+    internal AnimationTimeline(ProjectDataStore gameData, Func<JsonObject> getData, AnimationTimelineIndex index)
     {
         assetPaths = gameData.AssetPaths;
         this.getData = getData;
+        this.index = index;
+        contentLayer = new TimelineDrawingLayer(drawContent) { IsHitTestVisible = false };
+        selectionLayer = new TimelineDrawingLayer(drawSelection) { IsHitTestVisible = false };
+        playhead = new TimelinePlayhead(new SolidColorBrush(Color.Parse("#ff5c5c")), 1, true);
+        playhead.SetPosition(0);
+        Children.Add(contentLayer);
+        Children.Add(selectionLayer);
+        Children.Add(playhead);
+        Background = Brushes.Transparent;
+        EffectiveViewportChanged += (_, args) =>
+        {
+            viewport = args.EffectiveViewport;
+            invalidateContent();
+        };
+        SizeChanged += (_, _) => invalidateContent();
+        ActualThemeVariantChanged += onTextStyleChanged;
         Focusable = true;
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DragOverEvent, onDragOver);
         AddHandler(DragDrop.DropEvent, onDrop);
+        AddHandler(DragDrop.DragLeaveEvent, (_, _) => clearDragAudioDurations());
         AddHandler(
             PointerCaptureLostEvent,
             onPointerCaptureLost,
@@ -75,15 +120,22 @@ public sealed class AnimationTimeline : Control
 
     public double PixelsPerSecond => BasePixelsPerSecond * zoom;
 
-    public void Refresh()
+    public void Refresh(bool resetTags = false)
     {
-        JsonObject? selectedTimeTag = GetTimeTag(SelectedTimeTag);
-        SelectedTimeTag = sortTimeTags(selectedTimeTag);
+        if (resetTags || tagsDirty)
+        {
+            JsonObject? selectedTimeTag = GetTimeTag(SelectedTimeTag);
+            SelectedTimeTag = sortTimeTags(selectedTimeTag);
+            tagCache.Reset(timeTags(), PixelsPerSecond);
+            tagsDirty = false;
+        }
         selectedSegments.IntersectWith(validSelectedSegments());
         updatePrimarySegmentSelection();
         updateCanvasSize();
-        InvalidateVisual();
+        invalidateContent();
     }
+
+    public void RefreshSelection() => invalidateContent();
 
     public void SetZoom(double value)
     {
@@ -95,7 +147,7 @@ public sealed class AnimationTimeline : Control
     public void ClearTimeTagSelection()
     {
         SelectedTimeTag = -1;
-        InvalidateVisual();
+        invalidateContent();
     }
 
     public void SetSegmentSelection(int track, int segment)
@@ -104,7 +156,7 @@ public sealed class AnimationTimeline : Control
         if (segmentAt(track, segment) is not null)
             selectedSegments.Add((track, segment));
         updatePrimarySegmentSelection();
-        InvalidateVisual();
+        invalidateContent();
     }
 
     public void AddTimeTag(string tag)
@@ -116,6 +168,7 @@ public sealed class AnimationTimeline : Control
         };
         timeTags(true).Add(timeTag);
         SelectedTimeTag = sortTimeTags(timeTag);
+        tagsDirty = true;
         TimeTagChanged?.Invoke();
         Refresh();
     }
@@ -132,6 +185,7 @@ public sealed class AnimationTimeline : Control
             return;
         timeTag["tag"] = tag;
         SelectedTimeTag = index;
+        tagsDirty = true;
         TimeTagChanged?.Invoke();
         Refresh();
     }
@@ -143,6 +197,7 @@ public sealed class AnimationTimeline : Control
             return false;
         tags.RemoveAt(SelectedTimeTag);
         SelectedTimeTag = -1;
+        tagsDirty = true;
         TimeTagChanged?.Invoke();
         Refresh();
         return true;
@@ -184,6 +239,7 @@ public sealed class AnimationTimeline : Control
             }
             foreach ((int Track, int Segment) item in group.OrderByDescending(item => item.Segment))
                 segments.RemoveAt(item.Segment);
+            index.RefreshTrack(getData(), group.Key);
         }
         selectedSegments.Clear();
         updatePrimarySegmentSelection();
@@ -210,6 +266,7 @@ public sealed class AnimationTimeline : Control
         segment["startFrame"] = startFrame;
         segment["endFrame"] = endFrame;
         segments.Add(segment);
+        index.RefreshTrack(getData(), track);
         SetSegmentSelection(track, segments.Count - 1);
         SegmentSelected?.Invoke(SelectedTrack, SelectedSegment);
         SegmentChanged?.Invoke();
@@ -248,103 +305,91 @@ public sealed class AnimationTimeline : Control
             return false;
         startFrame["time"] = next;
         endFrame["time"] = next + duration;
+        index.Update(SelectedTrack, SelectedSegment);
         SegmentChanged?.Invoke();
         Refresh();
         return true;
     }
 
-    public override void Render(DrawingContext context)
+    private void drawContent(DrawingContext context)
     {
-        base.Render(context);
         Rect bounds = new(Bounds.Size);
-        context.FillRectangle(EditorTheme.Brush("Background"), bounds);
-        context.FillRectangle(EditorTheme.Brush("Surface"), new Rect(0, 0, bounds.Width, HeaderHeight));
+        Rect visible = bounds.Intersect(viewport);
+        if (visible.Width <= 0 || visible.Height <= 0)
+            return;
+        using IDisposable clip = context.PushClip(visible);
+        context.FillRectangle(EditorTheme.Brush("Background"), visible);
+        Rect header = new Rect(0, 0, bounds.Width, HeaderHeight).Intersect(visible);
+        if (header.Height > 0)
+            context.FillRectangle(EditorTheme.Brush("Surface"), header);
         Pen gridPen = new(EditorTheme.Brush("Border"), 1);
-        for (double second = 0; second * PixelsPerSecond < bounds.Width; second += 1)
-            context.DrawLine(gridPen, new Point(second * PixelsPerSecond, 0), new Point(second * PixelsPerSecond, bounds.Height));
-
-        JsonArray tracks = lines();
-        for (int track = 0; track < Math.Max(5, tracks.Count); track += 1)
+        double firstSecond = Math.Max(0, Math.Floor(visible.Left / PixelsPerSecond));
+        for (double second = firstSecond; second * PixelsPerSecond < visible.Right; second++)
+            context.DrawLine(gridPen, new Point(second * PixelsPerSecond, visible.Top), new Point(second * PixelsPerSecond, visible.Bottom));
+        int firstTrack = Math.Max(0, (int)Math.Floor((visible.Top - HeaderHeight) / TrackHeight));
+        int lastTrack = Math.Min(Math.Max(5, index.TrackCount) - 1, (int)Math.Floor((visible.Bottom - HeaderHeight) / TrackHeight));
+        for (int track = firstTrack; track <= lastTrack; track++)
         {
             double y = HeaderHeight + track * TrackHeight;
-            context.FillRectangle(EditorTheme.Brush(track % 2 == 0 ? "Surface" : "Background"), new Rect(0, y, bounds.Width, TrackHeight));
-            if (track >= tracks.Count || tracks[track] is not JsonObject line || line["timeSegments"] is not JsonArray segments)
-                continue;
-            for (int segmentIndex = 0; segmentIndex < segments.Count; segmentIndex += 1)
+            context.FillRectangle(EditorTheme.Brush(track % 2 == 0 ? "Surface" : "Background"), new Rect(visible.Left, y, visible.Width, TrackHeight));
+            index.QueryTrack(track, (visible.Left - 4) / PixelsPerSecond, (visible.Right + 1) / PixelsPerSecond, visibleSegments);
+            foreach (AnimationTimelineSegment segment in visibleSegments)
             {
-                if (segments[segmentIndex] is not JsonObject segment)
-                    continue;
-                Rect rect = segmentRect(track, segment);
-                bool selected = selectedSegments.Contains((track, segmentIndex));
-                bool sound = segment["type"]?.GetValue<string>() == "sound";
-                context.FillRectangle(new SolidColorBrush(Color.Parse(selected ? "#8ab4f8" : sound ? "#76573b" : "#4f89b8")), rect, 4);
-                context.DrawRectangle(selected ? new Pen(Brushes.White, 2) : new Pen(new SolidColorBrush(Color.Parse("#a9cce8")), 1), rect, 4);
+                Rect rect = segmentRect(track, segment.Data);
+                bool selected = selectedSegments.Contains((track, segment.Index));
+                context.FillRectangle(selected ? selectedBrush : segment.IsSound ? soundBrush : frameBrush, rect, 4);
+                context.DrawRectangle(selected ? selectedSegmentPen : segmentPen, rect, 4);
             }
         }
+        if (header.Height <= 0)
+            return;
+        using IDisposable headerClip = context.PushClip(header);
+        tagCache.Query(visible.Left - 1, visible.Right + 1, visibleTags);
+        foreach (AnimationTimeTagLayout tag in visibleTags)
+        {
+            bool selected = tag.Index == SelectedTimeTag;
+            IBrush brush = selected ? selectedTagBrush : tagBrush;
+            if (Math.Abs(tag.MarkerX - tag.ActualX) > 0.01)
+                context.DrawLine(selected ? selectedTagConnectorPen : tagConnectorPen, new Point(tag.ActualX, HeaderHeight - 1), new Point(tag.MarkerX, HeaderHeight - 1));
+            using (context.PushTransform(Matrix.CreateTranslation(tag.MarkerX, 0)))
+                context.DrawGeometry(brush, selected ? selectedTagPen : null, tagGeometry);
+            context.DrawText(selected ? tag.SelectedLabel : tag.Label, new Point(tag.MarkerX + 7, 2));
+        }
+    }
+
+    private void drawSelection(DrawingContext context)
+    {
+        Rect visible = new Rect(Bounds.Size).Intersect(viewport);
+        if (visible.Width <= 0 || visible.Height <= 0)
+            return;
+        using IDisposable clip = context.PushClip(visible);
         if (segmentMarqueeActive)
         {
-            context.FillRectangle(
-                new SolidColorBrush(Color.Parse("#338ab4f8")),
-                segmentMarqueeRect
-            );
-            context.DrawRectangle(
-                new Pen(new SolidColorBrush(Color.Parse("#8ab4f8")), 1),
-                segmentMarqueeRect
-            );
-        }
-        JsonArray tags = timeTags();
-        using (context.PushClip(new Rect(0, 0, bounds.Width, HeaderHeight)))
-        {
-            for (int index = 0; index < tags.Count; index += 1)
-            {
-                if (tags[index] is not JsonObject timeTag)
-                    continue;
-                double actualX = JsonScalar.Number(timeTag["time"]) * PixelsPerSecond;
-                double markerX = timeTagDisplayX(index);
-                bool selected = index == SelectedTimeTag;
-                SolidColorBrush markerBrush = new(Color.Parse(selected ? "#ffd166" : "#5ad1c4"));
-                if (Math.Abs(markerX - actualX) > 0.01)
-                    context.DrawLine(new Pen(markerBrush, 1), new Point(actualX, HeaderHeight - 1), new Point(markerX, HeaderHeight - 1));
-                StreamGeometry marker = new();
-                using (StreamGeometryContext geometry = marker.Open())
-                {
-                    geometry.BeginFigure(new Point(markerX, HeaderHeight), true);
-                    geometry.LineTo(new Point(markerX - 6, HeaderHeight - 9));
-                    geometry.LineTo(new Point(markerX + 6, HeaderHeight - 9));
-                    geometry.EndFigure(true);
-                }
-                context.DrawGeometry(markerBrush, selected ? new Pen(Brushes.White, 1) : null, marker);
-                string tag = timeTag["tag"]?.GetValue<string>() ?? string.Empty;
-                FormattedText label = new(
-                    tag,
-                    CultureInfo.CurrentUICulture,
-                    FlowDirection.LeftToRight,
-                    Typeface.Default,
-                    10,
-                    markerBrush
-                );
-                context.DrawText(label, new Point(markerX + 7, 2));
-            }
+            context.FillRectangle(marqueeBrush, segmentMarqueeRect);
+            context.DrawRectangle(marqueePen, segmentMarqueeRect);
         }
         if (SelectedTimeTag >= 0 && GetTimeTag(SelectedTimeTag) is JsonObject selectedTimeTag)
         {
-            double timeTagX = JsonScalar.Number(selectedTimeTag["time"]) * PixelsPerSecond;
-            context.DrawLine(new Pen(new SolidColorBrush(Color.Parse("#66ffd166")), 1), new Point(timeTagX, HeaderHeight), new Point(timeTagX, bounds.Height));
+            double x = JsonScalar.Number(selectedTimeTag["time"]) * PixelsPerSecond;
+            context.DrawLine(selectedTagLinePen, new Point(x, HeaderHeight), new Point(x, Bounds.Height));
         }
-        double playhead = CurrentTime * PixelsPerSecond;
-        SolidColorBrush playheadBrush = new(Color.Parse("#ff5c5c"));
-        context.DrawLine(new Pen(playheadBrush, 1), new Point(playhead, 0), new Point(playhead, bounds.Height));
-        StreamGeometry head = new();
-        using (StreamGeometryContext geometry = head.Open())
-        {
-            geometry.BeginFigure(new Point(playhead, 18), true);
-            geometry.LineTo(new Point(playhead - 6, 12));
-            geometry.LineTo(new Point(playhead - 6, 0));
-            geometry.LineTo(new Point(playhead + 6, 0));
-            geometry.LineTo(new Point(playhead + 6, 12));
-            geometry.EndFigure(true);
-        }
-        context.DrawGeometry(playheadBrush, null, head);
+    }
+
+    private void invalidateContent()
+    {
+        contentLayer.InvalidateVisual();
+        selectionLayer.InvalidateVisual();
+    }
+
+    private static StreamGeometry createTagGeometry()
+    {
+        StreamGeometry geometry = new();
+        using StreamGeometryContext path = geometry.Open();
+        path.BeginFigure(new Point(0, HeaderHeight), true);
+        path.LineTo(new Point(-6, HeaderHeight - 9));
+        path.LineTo(new Point(6, HeaderHeight - 9));
+        path.EndFigure(true);
+        return geometry;
     }
 
     protected override void OnPointerPressed(PointerPressedEventArgs e)
@@ -365,7 +410,7 @@ public sealed class AnimationTimeline : Control
             {
                 TimeTagRenameRequested?.Invoke(selectedTimeTag);
                 e.Handled = true;
-                InvalidateVisual();
+                invalidateContent();
                 return;
             }
             draggedTimeTag = GetTimeTag(selectedTimeTag);
@@ -376,7 +421,7 @@ public sealed class AnimationTimeline : Control
             dragStart = position;
             SetTime(tagTime);
             e.Pointer.Capture(this);
-            InvalidateVisual();
+            invalidateContent();
             return;
         }
         SelectedTimeTag = -1;
@@ -391,6 +436,8 @@ public sealed class AnimationTimeline : Control
                 JsonObject current = segmentAt(track, segment)!;
                 originalStart = JsonScalar.Number((current["startFrame"] as JsonObject)?["time"]);
                 originalEnd = JsonScalar.Number((current["endFrame"] as JsonObject)?["time"]);
+                (gestureLeft, gestureRight) = findBounds(SelectedTrack, SelectedSegment);
+                segmentMoved = false;
             }
             else
                 dragMode = 0;
@@ -409,7 +456,7 @@ public sealed class AnimationTimeline : Control
             beginSegmentMarquee(position, e.KeyModifiers);
         }
         e.Pointer.Capture(this);
-        InvalidateVisual();
+        invalidateContent();
     }
 
     private void onContextRequested(object? sender, ContextRequestedEventArgs args)
@@ -423,7 +470,7 @@ public sealed class AnimationTimeline : Control
         updatePrimarySegmentSelection();
         SegmentSelected?.Invoke(-1, -1);
         showTimeTagContextMenu();
-        InvalidateVisual();
+        invalidateContent();
         args.Handled = true;
     }
 
@@ -463,6 +510,8 @@ public sealed class AnimationTimeline : Control
                 {
                     draggedTimeTag["time"] = next;
                     timeTagMoved = true;
+                    tagCache.UpdateTime(SelectedTimeTag);
+                    invalidateContent();
                     SetTime(next);
                 }
             }
@@ -486,23 +535,25 @@ public sealed class AnimationTimeline : Control
         {
             double duration = originalEnd - originalStart;
             double potentialStart = Math.Max(0, snap(originalStart + delta));
-            (double left, double right) = findBounds(SelectedTrack, SelectedSegment);
-            start = Math.Max(Math.Max(0, left), Math.Min(potentialStart, right - duration));
+            start = Math.Max(Math.Max(0, gestureLeft), Math.Min(potentialStart, gestureRight - duration));
             end = start + duration;
         }
         else if (dragMode == 2)
         {
-            (double left, _) = findBounds(SelectedTrack, SelectedSegment);
-            start = Math.Max(Math.Max(left, end - maximum), Math.Min(snap(originalStart + delta), end - minimum));
+            start = Math.Max(Math.Max(gestureLeft, end - maximum), Math.Min(snap(originalStart + delta), end - minimum));
         }
         else
         {
-            (_, double right) = findBounds(SelectedTrack, SelectedSegment);
-            end = Math.Min(Math.Min(right, start + maximum), Math.Max(start + minimum, snap(originalEnd + delta)));
+            end = Math.Min(Math.Min(gestureRight, start + maximum), Math.Max(start + minimum, snap(originalEnd + delta)));
         }
+        if (JsonScalar.Number((segment["startFrame"] as JsonObject)?["time"]) == start
+            && JsonScalar.Number((segment["endFrame"] as JsonObject)?["time"]) == end)
+            return;
         (segment["startFrame"] as JsonObject)!["time"] = start;
         (segment["endFrame"] as JsonObject)!["time"] = end;
-        InvalidateVisual();
+        index.Update(SelectedTrack, SelectedSegment);
+        segmentMoved = true;
+        invalidateContent();
     }
 
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
@@ -524,14 +575,16 @@ public sealed class AnimationTimeline : Control
             if (timeTagMoved && draggedTimeTag is not null)
             {
                 SelectedTimeTag = sortTimeTags(draggedTimeTag);
+                tagsDirty = true;
                 TimeTagChanged?.Invoke();
                 Refresh();
             }
             draggedTimeTag = null;
             timeTagMoved = false;
         }
-        else if (dragMode != 0 && dragMode != ScrubDragMode)
+        else if (dragMode != 0 && dragMode != ScrubDragMode && segmentMoved)
             SegmentChanged?.Invoke();
+        segmentMoved = false;
         dragMode = 0;
     }
 
@@ -563,21 +616,16 @@ public sealed class AnimationTimeline : Control
             trackBounds
         );
         List<(int Track, int Segment)> hits = [];
-        JsonArray tracks = lines();
-        for (int track = 0; track < tracks.Count; track += 1)
+        int firstTrack = Math.Max(0, trackAt(segmentMarqueeRect.Top));
+        int lastTrack = Math.Min(index.TrackCount - 1, trackAt(segmentMarqueeRect.Bottom));
+        for (int track = firstTrack; track <= lastTrack; track++)
         {
-            if (tracks[track] is not JsonObject line
-                || line["timeSegments"] is not JsonArray segments)
+            index.QueryTrack(track, (segmentMarqueeRect.Left - 3) / PixelsPerSecond,
+                segmentMarqueeRect.Right / PixelsPerSecond, visibleSegments);
+            foreach (AnimationTimelineSegment segment in visibleSegments)
             {
-                continue;
-            }
-            for (int segment = 0; segment < segments.Count; segment += 1)
-            {
-                if (segments[segment] is JsonObject data
-                    && MarqueeSelection.Overlaps(segmentMarqueeRect, segmentRect(track, data)))
-                {
-                    hits.Add((track, segment));
-                }
+                if (MarqueeSelection.Overlaps(segmentMarqueeRect, segmentRect(track, segment.Data)))
+                    hits.Add((track, segment.Index));
             }
         }
         HashSet<(int Track, int Segment)> selection = MarqueeSelection.Build(
@@ -589,7 +637,7 @@ public sealed class AnimationTimeline : Control
         selectedSegments.Clear();
         selectedSegments.UnionWith(selection);
         updatePrimarySegmentSelection();
-        InvalidateVisual();
+        invalidateContent();
     }
 
     private void completeSegmentMarquee(bool clearOnBlank)
@@ -611,7 +659,7 @@ public sealed class AnimationTimeline : Control
         updatePrimarySegmentSelection();
         SegmentSelected?.Invoke(SelectedTrack, SelectedSegment);
         dragMode = 0;
-        InvalidateVisual();
+        invalidateContent();
     }
 
     private void selectSegmentFromPointer(
@@ -707,6 +755,7 @@ public sealed class AnimationTimeline : Control
     {
         base.OnAttachedToVisualTree(args);
         LayoutUpdated += onLayoutUpdated;
+        LocaleService.LanguageChanged += onTextStyleChanged;
         hostScrollViewer = this.FindAncestorOfType<ScrollViewer>();
     }
 
@@ -714,9 +763,17 @@ public sealed class AnimationTimeline : Control
         VisualTreeAttachmentEventArgs args)
     {
         LayoutUpdated -= onLayoutUpdated;
+        LocaleService.LanguageChanged -= onTextStyleChanged;
         pendingZoomAnchor = null;
         hostScrollViewer = null;
+        clearDragAudioDurations();
         base.OnDetachedFromVisualTree(args);
+    }
+
+    private void onTextStyleChanged(object? sender, EventArgs args)
+    {
+        tagCache.RefreshText();
+        invalidateContent();
     }
 
     private void onPointerTouchPadGestureMagnify(
@@ -756,7 +813,10 @@ public sealed class AnimationTimeline : Control
             return;
         zoom = nextZoom;
         pendingZoomAnchor = anchor;
-        Refresh();
+        tagCache.SetScale(PixelsPerSecond);
+        updateCanvasSize();
+        playhead.SetPosition(CurrentTime * PixelsPerSecond);
+        invalidateContent();
         ZoomChanged?.Invoke(zoom);
     }
 
@@ -809,6 +869,11 @@ public sealed class AnimationTimeline : Control
     private void onDragOver(object? sender, DragEventArgs e)
     {
         string? payload = e.DataTransfer.TryGetText();
+        if (!string.Equals(payload, dragAudioPayload, StringComparison.Ordinal))
+        {
+            clearDragAudioDurations();
+            dragAudioPayload = payload;
+        }
         Point position = e.GetPosition(this);
         int track = trackAt(position.Y);
         e.DragEffects = payload is not null && tryBuildAssetSegments(payload, track, position.X / PixelsPerSecond, out _)
@@ -819,38 +884,40 @@ public sealed class AnimationTimeline : Control
     private void onDrop(object? sender, DragEventArgs e)
     {
         if (e.DataTransfer.TryGetText() is not string payload)
+        {
+            clearDragAudioDurations();
             return;
+        }
+        clearDragAudioDurations();
         Point position = e.GetPosition(this);
         int track = trackAt(position.Y);
         if (tryBuildAssetSegments(payload, track, position.X / PixelsPerSecond, out List<JsonObject> segments))
             insertAssetSegments(track, segments);
+        clearDragAudioDurations();
         e.Handled = true;
     }
 
     public void SetTime(double time, bool snapToFrame = true)
     {
         CurrentTime = Math.Max(0, snapToFrame ? snap(time) : time);
+        playhead.SetPosition(CurrentTime * PixelsPerSecond);
         TimeChanged?.Invoke(CurrentTime);
-        InvalidateVisual();
     }
 
     private (int track, int segment, int mode) hitTest(Point position)
     {
         int track = trackAt(position.Y);
-        if (track < 0 || track >= lines().Count || lines()[track] is not JsonObject line || line["timeSegments"] is not JsonArray segments)
-            return (-1, -1, 0);
         double time = position.X / PixelsPerSecond;
         double handleWidth = 5.0 / PixelsPerSecond;
-        for (int index = 0; index < segments.Count; index += 1)
+        index.QueryTrack(track, time - handleWidth, time + handleWidth, visibleSegments);
+        foreach (AnimationTimelineSegment segment in visibleSegments)
         {
-            if (segments[index] is not JsonObject segment)
-                continue;
-            double start = JsonScalar.Number((segment["startFrame"] as JsonObject)?["time"]);
-            double end = JsonScalar.Number((segment["endFrame"] as JsonObject)?["time"]);
+            double start = segment.Start;
+            double end = segment.End;
             if (time < start - handleWidth || time > end + handleWidth)
                 continue;
             int mode = Math.Abs(time - start) <= handleWidth ? 2 : Math.Abs(time - end) <= handleWidth ? 3 : 1;
-            return (track, index, mode);
+            return (track, segment.Index, mode);
         }
         return (-1, -1, 0);
     }
@@ -859,17 +926,15 @@ public sealed class AnimationTimeline : Control
     {
         if (position.Y < 0 || position.Y >= HeaderHeight)
             return -1;
-        JsonArray tags = timeTags();
         int result = -1;
         double distance = 8;
-        for (int index = 0; index < tags.Count; index += 1)
+        tagCache.Query(position.X - distance, position.X + distance, visibleTags);
+        foreach (AnimationTimeTagLayout tag in visibleTags)
         {
-            if (tags[index] is not JsonObject)
-                continue;
-            double currentDistance = Math.Abs(position.X - timeTagDisplayX(index));
+            double currentDistance = Math.Abs(position.X - tag.MarkerX);
             if (currentDistance <= distance)
             {
-                result = index;
+                result = tag.Index;
                 distance = currentDistance;
             }
         }
@@ -892,20 +957,10 @@ public sealed class AnimationTimeline : Control
 
     private bool overlaps(int track, double start, double end, int ignored)
     {
-        return overlaps(lines(), track, start, end, ignored);
-    }
-
-    private bool overlaps(JsonArray tracks, int track, double start, double end, int ignored)
-    {
-        if (track < 0 || track >= tracks.Count || tracks[track] is not JsonObject line || line["timeSegments"] is not JsonArray segments)
-            return false;
-        for (int index = 0; index < segments.Count; index += 1)
+        index.QueryTrack(track, start, end, visibleSegments);
+        foreach (AnimationTimelineSegment segment in visibleSegments)
         {
-            if (index == ignored || segments[index] is not JsonObject segment)
-                continue;
-            double currentStart = JsonScalar.Number((segment["startFrame"] as JsonObject)?["time"]);
-            double currentEnd = JsonScalar.Number((segment["endFrame"] as JsonObject)?["time"]);
-            if (start < currentEnd && end > currentStart)
+            if (segment.Index != ignored && start < segment.End && end > segment.Start)
                 return true;
         }
         return false;
@@ -950,18 +1005,32 @@ public sealed class AnimationTimeline : Control
     {
         if (!AnimationEditor.isAudioAsset(asset))
             return 0.05;
-        double duration = assetPaths.TryResolveAsset(asset, out string path)
-            ? AnimationAudioPlayback.GetDuration(path) ?? 0.1
-            : 0.1;
+        double duration = audioDuration(asset) ?? 0.1;
         return duration > 0 ? duration : 0.1;
     }
 
     private bool tryGetExactAudioDuration(string asset, out double duration)
     {
-        duration = assetPaths.TryResolveAsset(asset, out string path)
-            ? AnimationAudioPlayback.GetDuration(path) ?? 0
-            : 0;
+        duration = audioDuration(asset) ?? 0;
         return duration > 0;
+    }
+
+    private double? audioDuration(string asset)
+    {
+        if (!assetPaths.TryResolveAsset(asset, out string path))
+            return null;
+        if (!dragAudioDurations.TryGetValue(path, out double? duration))
+        {
+            duration = AnimationAudioPlayback.GetDuration(path);
+            dragAudioDurations[path] = duration;
+        }
+        return duration;
+    }
+
+    private void clearDragAudioDurations()
+    {
+        dragAudioDurations.Clear();
+        dragAudioPayload = null;
     }
 
     private bool tryBuildAssetSegments(string payload, int track, double dropTime, out List<JsonObject> segments)
@@ -1022,7 +1091,7 @@ public sealed class AnimationTimeline : Control
             segments.Add(segment);
             nextStart += duration;
         }
-        if (segments.Count == 0 || overlaps(existingTracks, track, start, nextStart, -1))
+        if (segments.Count == 0 || overlaps(track, start, nextStart, -1))
         {
             segments.Clear();
             return false;
@@ -1080,6 +1149,7 @@ public sealed class AnimationTimeline : Control
         }
         foreach (JsonObject segment in segments)
             target.Add(segment);
+        index.RefreshTrack(getData(), track);
         SetSegmentSelection(track, target.Count - 1);
         SelectedTimeTag = -1;
         SegmentSelected?.Invoke(SelectedTrack, SelectedSegment);
@@ -1089,23 +1159,9 @@ public sealed class AnimationTimeline : Control
 
     private void updateCanvasSize()
     {
-        double contentEnd = 5.0;
-        int trackCount = lines().Count;
-        foreach (JsonNode? lineNode in lines())
-        {
-            if (lineNode is not JsonObject line || line["timeSegments"] is not JsonArray segments)
-                continue;
-            foreach (JsonNode? segmentNode in segments)
-                if (segmentNode is JsonObject segment)
-                    contentEnd = Math.Max(contentEnd, JsonScalar.Number((segment["endFrame"] as JsonObject)?["time"]));
-        }
-        foreach (JsonNode? timeTagNode in timeTags())
-        {
-            if (timeTagNode is JsonObject timeTag)
-                contentEnd = Math.Max(contentEnd, JsonScalar.Number(timeTag["time"]));
-        }
+        double contentEnd = Math.Max(5.0, Math.Max(index.Duration, tagCache.MaximumTime));
         Width = (contentEnd + 1) * PixelsPerSecond;
-        Height = HeaderHeight + (Math.Max(5, trackCount) + 1) * TrackHeight;
+        Height = HeaderHeight + (Math.Max(5, index.TrackCount) + 1) * TrackHeight;
     }
 
     private JsonObject? segmentAt(int track, int segment)
@@ -1158,23 +1214,6 @@ public sealed class AnimationTimeline : Control
                 selectedIndex = index;
         }
         return selectedIndex;
-    }
-
-    private double timeTagDisplayX(int index)
-    {
-        if (GetTimeTag(index) is not JsonObject timeTag)
-            return double.NegativeInfinity;
-        double time = JsonScalar.Number(timeTag["time"]);
-        int duplicate = 0;
-        for (int previous = 0; previous < index; previous += 1)
-        {
-            if (GetTimeTag(previous) is JsonObject previousTag
-                && Math.Abs(JsonScalar.Number(previousTag["time"]) - time) < 0.000001)
-            {
-                duplicate += 1;
-            }
-        }
-        return time * PixelsPerSecond + duplicate * 14;
     }
 
     private int frameRate() => Math.Max(1, (int)JsonScalar.Number(getData()["frameRate"], 30));

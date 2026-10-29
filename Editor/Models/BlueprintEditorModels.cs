@@ -15,7 +15,8 @@ internal sealed record BlueprintAttributeChange(
 
 internal sealed record BlueprintGraphEditorData(
     BlueprintGraphDocument Document,
-    IReadOnlyList<BlueprintGraphNodeDefinition> Definitions);
+    IReadOnlyList<BlueprintGraphNodeDefinition> Definitions,
+    long MetadataRevision);
 
 internal sealed record BlueprintEditorTabItem(string Label, string? EventName, bool IsPreview)
 {

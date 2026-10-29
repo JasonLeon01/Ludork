@@ -26,12 +26,13 @@ public sealed class BlueprintGraphNodeViewModel : NodeViewModelBase, IDisposable
         Title = model.Title;
         Location = new Point(model.X, model.Y);
         PropertyChanged += onViewModelPropertyChanged;
-        document.Changed += onDocumentChanged;
+        if (model.IsEntry)
+            document.EntryConnectionChanged += onDocumentChanged;
     }
 
     public BlueprintGraphNode Model { get; }
     public bool UsePlainTextInputs { get; internal set; }
-    public bool IsInactiveEntry => Model.IsEntry && !document.Connections.Any(connection => connection.IsEntryConnection);
+    public bool IsInactiveEntry => Model.IsEntry && !document.HasEntryConnection;
     public double NodeOpacity => IsInactiveEntry ? 0.5 : 1;
     public string EntryNotice => LocaleService.Get(document.InheritsEvents
         ? "BLUEPRINT_EVENT_INACTIVE_INHERITED" : "BLUEPRINT_EVENT_INACTIVE");
@@ -56,7 +57,8 @@ public sealed class BlueprintGraphNodeViewModel : NodeViewModelBase, IDisposable
     public void Dispose()
     {
         PropertyChanged -= onViewModelPropertyChanged;
-        document.Changed -= onDocumentChanged;
+        if (Model.IsEntry)
+            document.EntryConnectionChanged -= onDocumentChanged;
     }
 
     public void RefreshReadOnly()

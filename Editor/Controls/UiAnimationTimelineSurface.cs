@@ -4,18 +4,35 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Text.Json.Nodes;
 
 namespace Ludork.Controls;
 
-public sealed class UiAnimationTimelineSurface : Control
+public sealed class UiAnimationTimelineSurface : Panel
 {
     private const double HeaderHeight = 26;
     private const double TrackHeight = 28;
     private const double LabelWidth = 104;
     private const double PixelsPerSecond = 240;
     private static readonly string[] TrackNames = ["translation", "rotation", "scale", "colour"];
+    private static readonly IBrush KeyBrush = new SolidColorBrush(Color.Parse("#8ab4f8"));
+    private static readonly IBrush SelectedKeyBrush = new SolidColorBrush(Color.Parse("#ffd166"));
+    private static readonly Pen SelectedKeyPen = new(Brushes.White, 1);
+    private static readonly StreamGeometry Diamond = createDiamond();
+    private readonly TimelinePlayhead playhead = new(new SolidColorBrush(Color.Parse("#ff5c5c")), 1, true, 10, 10, 16);
+    private readonly Dictionary<long, FormattedText> rulerLabels = [];
+    private readonly List<long> obsoleteTicks = [];
+    private readonly FormattedText?[] trackLabels = new FormattedText[TrackNames.Length];
+    private readonly TimelineDrawingLayer contentLayer;
+    private Rect viewport;
+    private IBrush? labelBrush;
+    private IBrush? borderBrush;
+    private IBrush? wholeBrush;
+    private Pen? borderPen;
+    private Pen? wholePen;
+    private string? culture;
     private JsonObject? animation;
     private string selectedTrack = "translation";
     private int selectedKey = -1;
@@ -25,35 +42,66 @@ public sealed class UiAnimationTimelineSurface : Control
 
     public UiAnimationTimelineSurface()
     {
+        contentLayer = new TimelineDrawingLayer(drawContent) { IsHitTestVisible = false };
+        Children.Add(contentLayer);
+        Background = Brushes.Transparent;
         Height = HeaderHeight + TrackNames.Length * TrackHeight;
         MinWidth = 720;
         Focusable = true;
+        Children.Add(playhead);
+        SizeChanged += (_, _) => contentLayer.InvalidateVisual();
+        ActualThemeVariantChanged += (_, _) => contentLayer.InvalidateVisual();
+        ResourcesChanged += (_, _) => contentLayer.InvalidateVisual();
+        EffectiveViewportChanged += (_, args) =>
+        {
+            if (viewport == args.EffectiveViewport)
+                return;
+            viewport = args.EffectiveViewport;
+            contentLayer.InvalidateVisual();
+        };
     }
 
     public event EventHandler<double>? TimeChanged;
     public event EventHandler<UiAnimationKeySelectionEventArgs>? SelectionChanged;
     public event EventHandler<UiAnimationKeyMoveEventArgs>? KeyMoved;
 
-    public void SetState(
-        JsonObject? animation,
-        string selectedTrack,
-        int selectedKey,
-        double currentTime,
-        bool editable)
+    public void SetContent(JsonObject? animation, bool editable)
     {
         this.animation = animation;
-        this.selectedTrack = selectedTrack;
-        this.selectedKey = selectedKey;
-        this.currentTime = currentTime;
         this.editable = editable;
         Width = Math.Max(720, LabelWidth + duration() * PixelsPerSecond + 40);
-        InvalidateVisual();
+        contentLayer.InvalidateVisual();
     }
 
-    public override void Render(DrawingContext context)
+    public void SetSelection(string track, int key)
     {
-        base.Render(context);
+        if (selectedTrack == track && selectedKey == key)
+            return;
+        selectedTrack = track;
+        selectedKey = key;
+        contentLayer.InvalidateVisual();
+    }
+
+    public void SetCurrentTime(double time)
+    {
+        currentTime = time;
+        playhead.SetPosition(LabelWidth + currentTime * PixelsPerSecond);
+    }
+
+    public void RefreshLabels()
+    {
+        culture = null;
+        contentLayer.InvalidateVisual();
+    }
+
+    private void drawContent(DrawingContext context)
+    {
         Rect bounds = new(Bounds.Size);
+        Rect visible = bounds.Intersect(viewport);
+        if (visible.Width <= 0 || visible.Height <= 0)
+            return;
+        ensureDrawingResources();
+        using IDisposable clip = context.PushClip(visible);
         context.FillRectangle(EditorTheme.Brush("Surface"), bounds);
         context.FillRectangle(
             EditorTheme.Brush("Surface"),
@@ -61,23 +109,9 @@ public sealed class UiAnimationTimelineSurface : Control
         context.FillRectangle(
             EditorTheme.Brush("Surface"),
             new Rect(0, 0, LabelWidth, bounds.Height));
-        drawRuler(context, bounds);
+        drawRuler(context, bounds, visible);
         for (int trackIndex = 0; trackIndex < TrackNames.Length; trackIndex++)
-            drawTrack(context, bounds, trackIndex);
-        double playheadX = LabelWidth + currentTime * PixelsPerSecond;
-        Pen playheadPen = new(new SolidColorBrush(Color.Parse("#ff5c5c")), 1);
-        context.DrawLine(playheadPen, new Point(playheadX, 0), new Point(playheadX, bounds.Height));
-        StreamGeometry head = new();
-        using (StreamGeometryContext geometry = head.Open())
-        {
-            geometry.BeginFigure(new Point(playheadX, 16), true);
-            geometry.LineTo(new Point(playheadX - 5, 10));
-            geometry.LineTo(new Point(playheadX - 5, 0));
-            geometry.LineTo(new Point(playheadX + 5, 0));
-            geometry.LineTo(new Point(playheadX + 5, 10));
-            geometry.EndFigure(true);
-        }
-        context.DrawGeometry(new SolidColorBrush(Color.Parse("#ff5c5c")), null, head);
+            drawTrack(context, bounds, visible, trackIndex);
     }
 
     protected override void OnPointerPressed(PointerPressedEventArgs e)
@@ -98,8 +132,7 @@ public sealed class UiAnimationTimelineSurface : Control
             TrackNames.Length - 1);
         string track = TrackNames[trackIndex];
         int keyIndex = hitKey(track, position.X);
-        selectedTrack = track;
-        selectedKey = keyIndex;
+        SetSelection(track, keyIndex);
         SelectionChanged?.Invoke(this, new UiAnimationKeySelectionEventArgs(track, keyIndex));
         if (keyIndex >= 0)
         {
@@ -143,31 +176,38 @@ public sealed class UiAnimationTimelineSurface : Control
         base.OnPointerCaptureLost(e);
     }
 
-    private void drawRuler(DrawingContext context, Rect bounds)
+    private void drawRuler(DrawingContext context, Rect bounds, Rect visible)
     {
         double end = Math.Max(duration(), (bounds.Width - LabelWidth) / PixelsPerSecond);
-        for (double time = 0.0; time <= end + 0.0001; time += 0.25)
+        long first = Math.Max(0, (long)Math.Floor((visible.Left - LabelWidth - 64) / PixelsPerSecond * 4));
+        long last = Math.Min((long)Math.Floor(end * 4), (long)Math.Ceiling((visible.Right - LabelWidth) / PixelsPerSecond * 4));
+        obsoleteTicks.Clear();
+        foreach (long tick in rulerLabels.Keys)
         {
+            if (tick < first || tick > last)
+                obsoleteTicks.Add(tick);
+        }
+        foreach (long tick in obsoleteTicks)
+            rulerLabels.Remove(tick);
+        for (long tick = first; tick <= last; tick++)
+        {
+            double time = tick / 4.0;
             double x = LabelWidth + time * PixelsPerSecond;
-            bool whole = Math.Abs(time - Math.Round(time)) < 0.0001;
-            Pen pen = new(
-                EditorTheme.Brush(whole ? "TextDisabled" : "Border"),
-                1);
-            context.DrawLine(pen, new Point(x, whole ? 0 : 14), new Point(x, bounds.Height));
+            bool whole = tick % 4 == 0;
+            context.DrawLine(whole ? wholePen! : borderPen!, new Point(x, whole ? 0 : 14), new Point(x, bounds.Height));
             if (!whole)
                 continue;
-            FormattedText label = new(
-                time.ToString("0", CultureInfo.InvariantCulture) + "s",
-                CultureInfo.CurrentUICulture,
-                FlowDirection.LeftToRight,
-                Typeface.Default,
-                10,
-                EditorTheme.Brush("TextMuted"));
+            if (!rulerLabels.TryGetValue(tick, out FormattedText? label))
+            {
+                label = new FormattedText(time.ToString("0", CultureInfo.InvariantCulture) + "s",
+                    CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, Typeface.Default, 10, labelBrush);
+                rulerLabels.Add(tick, label);
+            }
             context.DrawText(label, new Point(x + 3, 2));
         }
     }
 
-    private void drawTrack(DrawingContext context, Rect bounds, int trackIndex)
+    private void drawTrack(DrawingContext context, Rect bounds, Rect visible, int trackIndex)
     {
         string track = TrackNames[trackIndex];
         double y = HeaderHeight + trackIndex * TrackHeight;
@@ -177,38 +217,26 @@ public sealed class UiAnimationTimelineSurface : Control
         context.FillRectangle(
             fill,
             new Rect(0, y, bounds.Width, TrackHeight));
-        FormattedText label = new(
-            track,
-            CultureInfo.CurrentUICulture,
-            FlowDirection.LeftToRight,
-            Typeface.Default,
-            11,
-            Brushes.White);
-        context.DrawText(label, new Point(8, y + 6));
+        if (visible.Left < LabelWidth)
+            context.DrawText(trackLabels[trackIndex]!, new Point(8, y + 6));
         JsonArray? keys = (animation?["tracks"] as JsonObject)?[track] as JsonArray;
         if (keys is null)
             return;
-        for (int keyIndex = 0; keyIndex < keys.Count; keyIndex++)
+        int first = lowerBound(keys, (visible.Left - LabelWidth - 7) / PixelsPerSecond);
+        double lastTime = (visible.Right - LabelWidth + 7) / PixelsPerSecond;
+        for (int keyIndex = first; keyIndex < keys.Count; keyIndex++)
         {
             if (keys[keyIndex] is not JsonObject key)
                 continue;
-            double x = LabelWidth + JsonScalar.Number(key["time"]) * PixelsPerSecond;
+            double time = JsonScalar.Number(key["time"]);
+            if (time > lastTime)
+                break;
+            double x = LabelWidth + time * PixelsPerSecond;
             double centerY = y + TrackHeight / 2.0;
-            StreamGeometry diamond = new();
-            using (StreamGeometryContext geometry = diamond.Open())
-            {
-                geometry.BeginFigure(new Point(x, centerY - 6), true);
-                geometry.LineTo(new Point(x + 6, centerY));
-                geometry.LineTo(new Point(x, centerY + 6));
-                geometry.LineTo(new Point(x - 6, centerY));
-                geometry.EndFigure(true);
-            }
             bool selected = string.Equals(track, selectedTrack, StringComparison.Ordinal)
                 && keyIndex == selectedKey;
-            context.DrawGeometry(
-                new SolidColorBrush(Color.Parse(selected ? "#ffd166" : "#8ab4f8")),
-                selected ? new Pen(Brushes.White, 1) : null,
-                diamond);
+            using IDisposable transform = context.PushTransform(Matrix.CreateTranslation(x, centerY));
+            context.DrawGeometry(selected ? SelectedKeyBrush : KeyBrush, selected ? SelectedKeyPen : null, Diamond);
         }
     }
 
@@ -219,10 +247,14 @@ public sealed class UiAnimationTimelineSurface : Control
             return -1;
         int result = -1;
         double distance = 8.0;
-        for (int index = 0; index < keys.Count; index++)
+        int first = lowerBound(keys, (x - LabelWidth - distance) / PixelsPerSecond);
+        double lastTime = (x - LabelWidth + distance) / PixelsPerSecond;
+        for (int index = first; index < keys.Count; index++)
         {
             if (keys[index] is not JsonObject key)
                 continue;
+            if (JsonScalar.Number(key["time"]) > lastTime)
+                break;
             double current = Math.Abs(LabelWidth + JsonScalar.Number(key["time"]) * PixelsPerSecond - x);
             if (current <= distance)
             {
@@ -230,6 +262,59 @@ public sealed class UiAnimationTimelineSurface : Control
                 distance = current;
             }
         }
+        return result;
+    }
+
+    private static int lowerBound(JsonArray keys, double time)
+    {
+        int left = 0;
+        int right = keys.Count;
+        while (left < right)
+        {
+            int middle = left + (right - left) / 2;
+            if (JsonScalar.Number((keys[middle] as JsonObject)?["time"]) < time)
+                left = middle + 1;
+            else
+                right = middle;
+        }
+        return left;
+    }
+
+    private void ensureDrawingResources()
+    {
+        IBrush nextLabel = EditorTheme.Brush("TextMuted");
+        if (!ReferenceEquals(labelBrush, nextLabel) || culture != CultureInfo.CurrentUICulture.Name)
+        {
+            labelBrush = nextLabel;
+            culture = CultureInfo.CurrentUICulture.Name;
+            rulerLabels.Clear();
+            for (int index = 0; index < TrackNames.Length; index++)
+                trackLabels[index] = new FormattedText(TrackNames[index], CultureInfo.CurrentUICulture,
+                    FlowDirection.LeftToRight, Typeface.Default, 11, Brushes.White);
+        }
+        IBrush nextBorder = EditorTheme.Brush("Border");
+        if (!ReferenceEquals(borderBrush, nextBorder))
+        {
+            borderBrush = nextBorder;
+            borderPen = new Pen(nextBorder, 1);
+        }
+        IBrush nextWhole = EditorTheme.Brush("TextDisabled");
+        if (!ReferenceEquals(wholeBrush, nextWhole))
+        {
+            wholeBrush = nextWhole;
+            wholePen = new Pen(nextWhole, 1);
+        }
+    }
+
+    private static StreamGeometry createDiamond()
+    {
+        StreamGeometry result = new();
+        using StreamGeometryContext geometry = result.Open();
+        geometry.BeginFigure(new Point(0, -6), true);
+        geometry.LineTo(new Point(6, 0));
+        geometry.LineTo(new Point(0, 6));
+        geometry.LineTo(new Point(-6, 0));
+        geometry.EndFigure(true);
         return result;
     }
 

@@ -52,6 +52,7 @@ public sealed class BlueprintNodeParameterEditorFactory
         {
             if (TopLevel.GetTopLevel(editor) is not Window owner)
                 return;
+            using IDisposable? interaction = BlueprintVariableForm.BeginInteraction(editor);
             JsonArray? selected = await MoveRouteEditWindow.ShowAsync(
                 owner,
                 gameData,
@@ -92,6 +93,7 @@ public sealed class BlueprintNodeParameterEditorFactory
                 ? null
                 : getRawSiblingValue(relatedFieldName);
             string currentMapReference = BlueprintNodeParameterValues.GetString(rawMapValue);
+            using IDisposable? interaction = BlueprintVariableForm.BeginInteraction(editor);
             TransferPositionSelection? selected = await TransferPositionPickWindow.ShowAsync(
                 owner,
                 gameData,
@@ -132,6 +134,7 @@ public sealed class BlueprintNodeParameterEditorFactory
         {
             if (TopLevel.GetTopLevel(editor) is not Window owner)
                 return;
+            using IDisposable? interaction = BlueprintVariableForm.BeginInteraction(editor);
             string? selected = await BlueprintClassSelector.ShowAsync(
                 owner,
                 gameData,
@@ -163,6 +166,7 @@ public sealed class BlueprintNodeParameterEditorFactory
         {
             if (TopLevel.GetTopLevel(editor) is not Window owner)
                 return;
+            using IDisposable? interaction = BlueprintVariableForm.BeginInteraction(editor);
             string? selected = await SearchSelectorDialog.ShowAsync(
                 owner,
                 LocaleService.Get("COMMON_FUNCTIONS"),

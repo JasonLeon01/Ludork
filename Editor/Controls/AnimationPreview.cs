@@ -17,6 +17,7 @@ public sealed class AnimationPreview : Control, IDisposable
 {
     private readonly ProjectDataStore gameData;
     private readonly Func<JsonObject> getData;
+    private readonly AnimationTimelineIndex timelineIndex;
     private readonly Dictionary<string, EditorThumbnailLease> cache = new(StringComparer.Ordinal);
     private CancellationTokenSource? imageRequest;
     private string[] preparedAssets = [];
@@ -25,10 +26,11 @@ public sealed class AnimationPreview : Control, IDisposable
     private double dragStartY;
     private bool dragging;
 
-    public AnimationPreview(ProjectDataStore gameData, Func<JsonObject> getData)
+    internal AnimationPreview(ProjectDataStore gameData, Func<JsonObject> getData, AnimationTimelineIndex timelineIndex)
     {
         this.gameData = gameData;
         this.getData = getData;
+        this.timelineIndex = timelineIndex;
         Focusable = true;
     }
 
@@ -50,47 +52,44 @@ public sealed class AnimationPreview : Control, IDisposable
         context.DrawLine(new Pen(EditorTheme.Brush("Border"), 1), new Point(0, center.Y), new Point(bounds.Width, center.Y));
 
         JsonArray assets = getData()["assets"] as JsonArray ?? [];
-        JsonArray lines = getData()["timeLines"] as JsonArray ?? [];
-        for (int track = 0; track < lines.Count; track += 1)
+        foreach (AnimationTimelineSegment item in timelineIndex.ActiveAt(CurrentTime))
         {
-            if (lines[track] is not JsonObject line || line["timeSegments"] is not JsonArray segments)
+            if (item.IsSound)
                 continue;
-            for (int index = 0; index < segments.Count; index += 1)
-            {
-                if (segments[index] is not JsonObject segment || segment["type"]?.GetValue<string>() == "sound")
-                    continue;
-                JsonObject? start = segment["startFrame"] as JsonObject;
-                JsonObject? end = segment["endFrame"] as JsonObject;
-                if (start is null || end is null)
-                    continue;
-                double startTime = JsonScalar.Number(start["time"]);
-                double endTime = JsonScalar.Number(end["time"]);
-                if (CurrentTime < startTime || CurrentTime > endTime)
-                    continue;
-                int assetIndex = (int)JsonScalar.Number(segment["asset"], -1);
-                if (assetIndex < 0 || assetIndex >= assets.Count || assets[assetIndex] is not JsonValue assetValue || !assetValue.TryGetValue<string>(out string? assetName) || string.IsNullOrWhiteSpace(assetName))
-                    continue;
-                Bitmap? bitmap = getBitmap(assetName);
-                if (bitmap is null)
-                    continue;
-                double factor = endTime - startTime < 0.0001 ? 0 : (CurrentTime - startTime) / (endTime - startTime);
-                double x = interpolate(start["position"] as JsonArray, end["position"] as JsonArray, 0, factor);
-                double y = interpolate(start["position"] as JsonArray, end["position"] as JsonArray, 1, factor);
-                double scaleX = interpolate(start["scale"] as JsonArray, end["scale"] as JsonArray, 0, factor, 1);
-                double scaleY = interpolate(start["scale"] as JsonArray, end["scale"] as JsonArray, 1, factor, 1);
-                if (segment["flipX"]?.GetValue<bool>() == true)
-                    scaleX *= -1;
-                double rotation = interpolateValue(start["rotation"], end["rotation"], factor);
-                double radians = rotation * Math.PI / 180.0;
-                double cosine = Math.Cos(radians);
-                double sine = Math.Sin(radians);
-                Matrix transform = new(scaleX * cosine, scaleX * sine, -scaleY * sine, scaleY * cosine, center.X + x, center.Y + y);
-                Rect localRect = new(-bitmap.Size.Width / 2, -bitmap.Size.Height / 2, bitmap.Size.Width, bitmap.Size.Height);
-                using (context.PushTransform(transform))
-                    context.DrawImage(bitmap, new Rect(bitmap.Size), localRect);
-                if (track == SelectedTrack && index == SelectedSegment)
-                    context.DrawRectangle(new Pen(Brushes.White, 2), new Rect(center.X + x - bitmap.Size.Width * Math.Abs(scaleX) / 2, center.Y + y - bitmap.Size.Height * Math.Abs(scaleY) / 2, bitmap.Size.Width * Math.Abs(scaleX), bitmap.Size.Height * Math.Abs(scaleY)));
-            }
+            int track = item.Track;
+            int index = item.Index;
+            JsonObject segment = item.Data;
+            JsonObject? start = segment["startFrame"] as JsonObject;
+            JsonObject? end = segment["endFrame"] as JsonObject;
+            if (start is null || end is null)
+                continue;
+            double startTime = JsonScalar.Number(start["time"]);
+            double endTime = JsonScalar.Number(end["time"]);
+            if (CurrentTime < startTime || CurrentTime > endTime)
+                continue;
+            int assetIndex = (int)JsonScalar.Number(segment["asset"], -1);
+            if (assetIndex < 0 || assetIndex >= assets.Count || assets[assetIndex] is not JsonValue assetValue || !assetValue.TryGetValue<string>(out string? assetName) || string.IsNullOrWhiteSpace(assetName))
+                continue;
+            Bitmap? bitmap = getBitmap(assetName);
+            if (bitmap is null)
+                continue;
+            double factor = endTime - startTime < 0.0001 ? 0 : (CurrentTime - startTime) / (endTime - startTime);
+            double x = interpolate(start["position"] as JsonArray, end["position"] as JsonArray, 0, factor);
+            double y = interpolate(start["position"] as JsonArray, end["position"] as JsonArray, 1, factor);
+            double scaleX = interpolate(start["scale"] as JsonArray, end["scale"] as JsonArray, 0, factor, 1);
+            double scaleY = interpolate(start["scale"] as JsonArray, end["scale"] as JsonArray, 1, factor, 1);
+            if (segment["flipX"]?.GetValue<bool>() == true)
+                scaleX *= -1;
+            double rotation = interpolateValue(start["rotation"], end["rotation"], factor);
+            double radians = rotation * Math.PI / 180.0;
+            double cosine = Math.Cos(radians);
+            double sine = Math.Sin(radians);
+            Matrix transform = new(scaleX * cosine, scaleX * sine, -scaleY * sine, scaleY * cosine, center.X + x, center.Y + y);
+            Rect localRect = new(-bitmap.Size.Width / 2, -bitmap.Size.Height / 2, bitmap.Size.Width, bitmap.Size.Height);
+            using (context.PushTransform(transform))
+                context.DrawImage(bitmap, new Rect(bitmap.Size), localRect);
+            if (track == SelectedTrack && index == SelectedSegment)
+                context.DrawRectangle(new Pen(Brushes.White, 2), new Rect(center.X + x - bitmap.Size.Width * Math.Abs(scaleX) / 2, center.Y + y - bitmap.Size.Height * Math.Abs(scaleY) / 2, bitmap.Size.Width * Math.Abs(scaleX), bitmap.Size.Height * Math.Abs(scaleY)));
         }
     }
 
@@ -152,25 +151,22 @@ public sealed class AnimationPreview : Control, IDisposable
 
     private (int track, int segment) hitTest(Point point)
     {
-        JsonArray lines = getData()["timeLines"] as JsonArray ?? [];
-        for (int track = lines.Count - 1; track >= 0; track -= 1)
+        IReadOnlyList<AnimationTimelineSegment> active = timelineIndex.ActiveAt(CurrentTime);
+        for (int index = active.Count - 1; index >= 0; index--)
         {
-            if (lines[track] is not JsonObject line || line["timeSegments"] is not JsonArray segments)
+            AnimationTimelineSegment item = active[index];
+            if (item.IsSound)
                 continue;
-            for (int index = segments.Count - 1; index >= 0; index -= 1)
-            {
-                if (segments[index] is not JsonObject segment || segment["type"]?.GetValue<string>() == "sound")
-                    continue;
-                JsonObject? start = segment["startFrame"] as JsonObject;
-                JsonObject? end = segment["endFrame"] as JsonObject;
-                if (start is null || end is null || CurrentTime < JsonScalar.Number(start["time"]) || CurrentTime > JsonScalar.Number(end["time"]))
-                    continue;
-                double factor = timeFactor(start, end);
-                double x = interpolate(start["position"] as JsonArray, end["position"] as JsonArray, 0, factor);
-                double y = interpolate(start["position"] as JsonArray, end["position"] as JsonArray, 1, factor);
-                if (new Rect(Bounds.Width / 2 + x - 32, Bounds.Height / 2 + y - 32, 64, 64).Contains(point))
-                    return (track, index);
-            }
+            JsonObject segment = item.Data;
+            JsonObject? start = segment["startFrame"] as JsonObject;
+            JsonObject? end = segment["endFrame"] as JsonObject;
+            if (start is null || end is null || CurrentTime < item.Start || CurrentTime > item.End)
+                continue;
+            double factor = timeFactor(start, end);
+            double x = interpolate(start["position"] as JsonArray, end["position"] as JsonArray, 0, factor);
+            double y = interpolate(start["position"] as JsonArray, end["position"] as JsonArray, 1, factor);
+            if (new Rect(Bounds.Width / 2 + x - 32, Bounds.Height / 2 + y - 32, 64, 64).Contains(point))
+                return (item.Track, item.Index);
         }
         return (-1, -1);
     }

@@ -36,6 +36,10 @@ public sealed partial class SubtitleWindow : Window, IProjectSaveParticipant
     private bool confirmedClose;
     private bool confirmingClose;
     private long gesture;
+    private long contentRevision;
+    private long validatedContentRevision = -1;
+    private string? validatedKey;
+    private IReadOnlyList<string> cachedValidationErrors = [];
 
     public SubtitleWindow(ProjectDataStore gameData, ProjectSaveService projectSave, string key, PreviewRuntimeService runtime)
     {
@@ -61,9 +65,11 @@ public sealed partial class SubtitleWindow : Window, IProjectSaveParticipant
         {
             if (index >= 0 && index < sections.Count && sections[index] is JsonObject item)
             {
+                if (number(item["startTime"]) == start && number(item["endTime"]) == end)
+                    return;
                 item["startTime"] = start;
                 item["endTime"] = end;
-                commit();
+                commit(index);
             }
         };
         buildLayout();
@@ -161,14 +167,12 @@ public sealed partial class SubtitleWindow : Window, IProjectSaveParticipant
         if (inputErrors.Count != 0)
         {
             timeline.SelectedIndex = selected;
-            timeline.InvalidateVisual();
             return;
         }
         if (selected != index)
             selectedLine = 0;
         selected = index >= 0 && index < sections.Count ? index : -1;
         timeline.SelectedIndex = selected;
-        timeline.InvalidateVisual();
         buildProperties();
     }
 
@@ -260,7 +264,7 @@ public sealed partial class SubtitleWindow : Window, IProjectSaveParticipant
             {
                 setInputError(input, null);
                 current[field] = (double)value;
-                commit();
+                commit(selected);
             }
         };
         input.PropertyChanged += (_, args) =>
@@ -305,11 +309,13 @@ public sealed partial class SubtitleWindow : Window, IProjectSaveParticipant
         requestPreview("render");
     }
 
-    private void commit()
+    private void commit(int? changedSection = null)
     {
         committing = true;
         gameData.Subtitles.UpdateSubtitle(Key, data);
         committing = false;
+        contentRevision++;
+        timeline.RefreshContent(changedSection);
         updateValidation();
         assetDirty = true;
         requestPreview("render");
@@ -317,10 +323,24 @@ public sealed partial class SubtitleWindow : Window, IProjectSaveParticipant
 
     private void updateValidation()
     {
+        ensureValidation();
         timeline.IsEnabled = inputErrors.Count == 0;
-        errors.Text = string.Join(Environment.NewLine, inputErrors.Values.Concat(SubtitleAssetSchema.Validate(data, Key)).Distinct());
-        timeline.Duration = Math.Max(videoDuration, sections.OfType<JsonObject>().Select(item => number(item["endTime"])).DefaultIfEmpty().Max());
-        timeline.Refresh();
+        errors.Text = string.Join(Environment.NewLine, inputErrors.Values.Concat(cachedValidationErrors).Distinct());
+        updateTimelineDuration();
+    }
+
+    private void ensureValidation()
+    {
+        if (validatedContentRevision == contentRevision && validatedKey == Key)
+            return;
+        cachedValidationErrors = SubtitleAssetSchema.Validate(data, Key);
+        validatedContentRevision = contentRevision;
+        validatedKey = Key;
+    }
+
+    private void updateTimelineDuration()
+    {
+        timeline.Duration = Math.Max(videoDuration, timeline.ContentDuration);
     }
 
     private void documentChanged(object? sender, EventArgs args)
@@ -338,6 +358,8 @@ public sealed partial class SubtitleWindow : Window, IProjectSaveParticipant
     private void reloadDocument(JsonObject next)
     {
         data = next;
+        contentRevision++;
+        timeline.RefreshContent();
         inputErrors.Clear();
         projectSave.NotifyPendingInputsChanged();
         select(Math.Min(selected, sections.Count - 1));

@@ -77,7 +77,7 @@ public sealed class UiAnimationTimelineEditor : UserControl
             selectedTrack = args.Track;
             selectedKey = args.KeyIndex;
             refreshKeyEditor();
-            refreshTimeline();
+            timeline.SetSelection(selectedTrack, selectedKey);
         };
         timeline.KeyMoved += (_, args) => moveKey(args.Track, args.KeyIndex, args.Time);
         playbackTimer.Interval = TimeSpan.FromMilliseconds(1000.0 / 60.0);
@@ -114,6 +114,7 @@ public sealed class UiAnimationTimelineEditor : UserControl
         deleteKeyButton.Content = LocaleService.Get("UI_DELETE_KEY");
         refreshTargetItems();
         refreshTrackItems();
+        timeline.RefreshLabels();
     }
 
     public void Refresh()
@@ -303,7 +304,7 @@ public sealed class UiAnimationTimelineEditor : UserControl
             selectedTrack = TrackNames[trackBox.SelectedIndex];
             selectedKey = -1;
             refreshKeyEditor();
-            refreshTimeline();
+            timeline.SetSelection(selectedTrack, selectedKey);
         };
         addKeyButton.Click += (_, _) => addKey();
         deleteKeyButton.Click += (_, _) => deleteKey();
@@ -557,12 +558,9 @@ public sealed class UiAnimationTimelineEditor : UserControl
 
     private void refreshTimeline()
     {
-        timeline.SetState(
-            currentAnimation(),
-            selectedTrack,
-            selectedKey,
-            currentTime,
-            currentChoice() is { Inherited: false });
+        timeline.SetContent(currentAnimation(), currentChoice() is { Inherited: false });
+        timeline.SetSelection(selectedTrack, selectedKey);
+        timeline.SetCurrentTime(currentTime);
     }
 
     private void addAnimation()
@@ -690,7 +688,7 @@ public sealed class UiAnimationTimelineEditor : UserControl
             {
                 selectedKey = index;
                 refreshKeyEditor();
-                refreshTimeline();
+                timeline.SetSelection(selectedTrack, selectedKey);
                 return;
             }
         }
@@ -795,7 +793,6 @@ public sealed class UiAnimationTimelineEditor : UserControl
         commitAnimations();
         if (selectedTrack == "colour")
             refreshKeyEditor();
-        refreshTimeline();
         notifyPreviewChanged();
     }
 
@@ -838,7 +835,7 @@ public sealed class UiAnimationTimelineEditor : UserControl
     private void setCurrentTime(double value)
     {
         currentTime = Math.Clamp(value, 0.0, duration(currentAnimation()));
-        refreshTimeline();
+        timeline.SetCurrentTime(currentTime);
         notifyPreviewChanged();
     }
 

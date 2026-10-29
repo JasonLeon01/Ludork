@@ -8,6 +8,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
+using System.Threading;
 
 namespace Ludork.Services;
 
@@ -24,6 +25,21 @@ public static class BlueprintGraphCodec
         IReadOnlyList<BlueprintGraphEventParameterDefinition>? eventParameters = null,
         bool inheritsEvents = false)
     {
+        return Load(eventName, eventGraph, startNode, definitionSet, eventParameters,
+            inheritsEvents, CancellationToken.None, LocaleService.Get("BLUEPRINT_EVENT_ENTRY"));
+    }
+
+    internal static BlueprintGraphDocument Load(
+        string eventName,
+        JsonObject eventGraph,
+        JsonNode? startNode,
+        BlueprintNodeDefinitionSet? definitionSet,
+        IReadOnlyList<BlueprintGraphEventParameterDefinition>? eventParameters,
+        bool inheritsEvents,
+        CancellationToken cancellationToken,
+        string entryTitle)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
         IReadOnlyDictionary<string, BlueprintGraphNodeDefinition> definitionsByPath =
             definitionSet?.RuntimeLookup ?? EmptyDefinitionLookup;
         Dictionary<string, BlueprintGraphEventParameterDefinition> parametersByKey = (eventParameters ?? [])
@@ -37,6 +53,7 @@ public static class BlueprintGraphCodec
         JsonArray nodes = eventGraph["nodes"] as JsonArray ?? [];
         for (int index = 0; index < nodes.Count; index++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             JsonObject rawNode = nodes[index] as JsonObject ?? [];
             string nodeFunction = getString(rawNode["nodeFunction"]) ?? string.Empty;
             definitionsByPath.TryGetValue(nodeFunction, out BlueprintGraphNodeDefinition? definition);
@@ -63,7 +80,7 @@ public static class BlueprintGraphCodec
             nodesById[node.Id] = node;
         }
 
-        BlueprintGraphNode entry = createEntry(document, eventParameters ?? []);
+        BlueprintGraphNode entry = createEntry(document, eventParameters ?? [], entryTitle);
         document.Nodes.Add(entry);
         nodesById[entry.Id] = entry;
         foreach (BlueprintGraphEventParameterDefinition parameter in eventParameters ?? [])
@@ -72,6 +89,7 @@ public static class BlueprintGraphCodec
         JsonArray links = eventGraph["links"] as JsonArray ?? [];
         for (int index = 0; index < links.Count; index++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (links[index] is not JsonObject rawLink)
             {
                 document.UnresolvedConnections.Add(new BlueprintGraphUnresolvedConnection(index, links[index], null, null));
@@ -142,7 +160,7 @@ public static class BlueprintGraphCodec
                 sourcePinIndex,
                 targetPinIndex,
                 rawLink);
-            document.AddLoadedConnection(connection);
+            document.AddLoadedConnection(connection, sourcePort, targetPort);
         }
 
         BlueprintGraphEndpoint? start = getEndpoint(
@@ -163,19 +181,20 @@ public static class BlueprintGraphCodec
             document.AddLoadedConnection(new BlueprintGraphConnection(
                 createStableId($"{eventName}:entry:connection"), null,
                 BlueprintGraphEndpoint.Node(entry.Id), start, entryPort.Id, startPort.Id,
-                BlueprintGraphPortKind.Exec, 0, 0, [], true));
+                BlueprintGraphPortKind.Exec, 0, 0, [], true), entryPort, startPort);
         }
         return document;
     }
 
     private static BlueprintGraphNode createEntry(
         BlueprintGraphDocument document,
-        IReadOnlyList<BlueprintGraphEventParameterDefinition> parameters)
+        IReadOnlyList<BlueprintGraphEventParameterDefinition> parameters,
+        string entryTitle)
     {
         BlueprintGraphNode? first = document.Nodes.OrderBy(node => node.X).FirstOrDefault();
         Guid id = createStableId($"{document.EventName}:entry");
         BlueprintGraphNode entry = new(id, null, document.EventName,
-            $"{LocaleService.Get("BLUEPRINT_EVENT_ENTRY")}: {EditorDisplayName.Format(document.EventName)}",
+            $"{entryTitle}: {EditorDisplayName.Format(document.EventName)}",
             first is null ? 0 : first.X - 440, first?.Y ?? 0, true, true, null, [], []) { IsEntry = true };
         entry.AddPort(new BlueprintGraphPort(createPortId(id, BlueprintGraphPortDirection.Output,
             BlueprintGraphPortKind.Exec, 0), id, "", BlueprintGraphPortKind.Exec,

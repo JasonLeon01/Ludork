@@ -57,6 +57,9 @@ public sealed class AnimationEditor : UserControl
     private readonly TextBox endRotation = EditorInputs.CreateEditableTextBox();
     private readonly TextBox endScaleX = EditorInputs.CreateEditableTextBox();
     private readonly TextBox endScaleY = EditorInputs.CreateEditableTextBox();
+    private readonly AnimationTimelineIndex timelineIndex = new();
+    private readonly HashSet<(int Track, int Segment)> activeSounds = [];
+    private readonly List<(int Track, int Segment)> completedSounds = [];
     private readonly AnimationPreview preview;
     private readonly AnimationTimeline timeline;
     private readonly Slider zoomSlider = new()
@@ -92,8 +95,8 @@ public sealed class AnimationEditor : UserControl
         this.data = (JsonObject)data.DeepClone();
         documentRevision = resourceDocument?.Revision ?? 0;
 
-        preview = new AnimationPreview(gameData, () => this.data);
-        timeline = new AnimationTimeline(gameData, () => this.data);
+        preview = new AnimationPreview(gameData, () => this.data, timelineIndex);
+        timeline = new AnimationTimeline(gameData, () => this.data, timelineIndex);
         preview.SegmentSelected += selectSingleSegment;
         preview.SegmentChanged += onSegmentChanged;
         timeline.SegmentSelected += selectSegment;
@@ -621,6 +624,7 @@ public sealed class AnimationEditor : UserControl
         while (lines.Count <= track)
             lines.Add(new JsonObject { ["timeSegments"] = new JsonArray() });
         ((JsonObject)lines[track]!)["timeSegments"]!.AsArray().Add(segment);
+        timelineIndex.RefreshTrack(data, track);
         selectSingleSegment(track, ((JsonObject)lines[track]!)["timeSegments"]!.AsArray().Count - 1);
         commit();
     }
@@ -634,20 +638,27 @@ public sealed class AnimationEditor : UserControl
         if (assetIndex < 0 || assetIndex >= assets.Count)
             return;
         assets.RemoveAt(assetIndex);
-        foreach (JsonNode? lineNode in getTimeLines())
+        JsonArray timeLines = getTimeLines();
+        for (int track = 0; track < timeLines.Count; track++)
         {
-            if (lineNode is not JsonObject line || line["timeSegments"] is not JsonArray segments)
+            if (timeLines[track] is not JsonObject line || line["timeSegments"] is not JsonArray segments)
                 continue;
+            bool removed = false;
             for (int index = segments.Count - 1; index >= 0; index -= 1)
             {
                 if (segments[index] is not JsonObject segment)
                     continue;
                 int segmentAsset = (int)JsonScalar.Number(segment["asset"], -1);
                 if (segmentAsset == assetIndex)
+                {
                     segments.RemoveAt(index);
+                    removed = true;
+                }
                 else if (segmentAsset > assetIndex)
                     segment["asset"] = segmentAsset - 1;
             }
+            if (removed)
+                timelineIndex.RefreshTrack(data, track);
         }
         selectedAssetIndexes.Clear();
         assetSelectionAnchor = -1;
@@ -663,6 +674,7 @@ public sealed class AnimationEditor : UserControl
             || selectedSegment < 0 || selectedSegment >= segments.Count)
             return;
         segments.RemoveAt(selectedSegment);
+        timelineIndex.RefreshTrack(data, selectedTrack);
         clearSelection();
         commit();
     }
@@ -677,7 +689,7 @@ public sealed class AnimationEditor : UserControl
         timeline.SelectedSegment = segment;
         preview.SelectedTrack = track;
         preview.SelectedSegment = segment;
-        timeline.Refresh();
+        timeline.RefreshSelection();
         preview.Refresh();
         loadInspector();
     }
@@ -696,7 +708,7 @@ public sealed class AnimationEditor : UserControl
         timeline.ClearTimeTagSelection();
         preview.SelectedTrack = -1;
         preview.SelectedSegment = -1;
-        timeline.Refresh();
+        timeline.RefreshSelection();
         preview.Refresh();
         loadInspector();
     }
@@ -779,6 +791,7 @@ public sealed class AnimationEditor : UserControl
 
     private void onSegmentChanged()
     {
+        timelineIndex.Update(selectedTrack, selectedSegment);
         loadInspector();
         commit();
     }
@@ -848,39 +861,33 @@ public sealed class AnimationEditor : UserControl
 
     private void syncPlaybackSounds(double time)
     {
-        HashSet<(int Track, int Segment)> active = [];
+        activeSounds.Clear();
         JsonArray assets = getAssets();
-        JsonArray lines = getTimeLines();
-        for (int track = 0; track < lines.Count; track += 1)
+        foreach (AnimationTimelineSegment segment in timelineIndex.ActiveAt(time))
         {
-            if (lines[track] is not JsonObject line || line["timeSegments"] is not JsonArray segments)
+            if (!segment.IsSound || time >= segment.End)
                 continue;
-            for (int segmentIndex = 0; segmentIndex < segments.Count; segmentIndex += 1)
-            {
-                if (segments[segmentIndex] is not JsonObject segment || segment["type"]?.GetValue<string>() != "sound")
-                    continue;
-                double start = JsonScalar.Number((segment["startFrame"] as JsonObject)?["time"]);
-                double end = JsonScalar.Number((segment["endFrame"] as JsonObject)?["time"]);
-                if (time < start || time >= end)
-                    continue;
-                (int Track, int Segment) playerKey = (track, segmentIndex);
-                active.Add(playerKey);
-                if (soundPlayers.ContainsKey(playerKey))
-                    continue;
-                int assetIndex = (int)JsonScalar.Number(segment["asset"], -1);
-                if (assetIndex < 0 || assetIndex >= assets.Count || assets[assetIndex] is not JsonValue asset || !asset.TryGetValue<string>(out string? assetName) || string.IsNullOrWhiteSpace(assetName))
-                    continue;
-                if (!gameData.AssetPaths.TryResolveAsset(assetName,
-                        out string path))
-                {
-                    continue;
-                }
-                IAnimationAudioPlayback? player = AnimationAudioPlayback.Create(path, time - start);
-                if (player is not null)
-                    soundPlayers[playerKey] = player;
-            }
+            (int Track, int Segment) playerKey = (segment.Track, segment.Index);
+            activeSounds.Add(playerKey);
+            if (soundPlayers.ContainsKey(playerKey))
+                continue;
+            int assetIndex = (int)JsonScalar.Number(segment.Data["asset"], -1);
+            if (assetIndex < 0 || assetIndex >= assets.Count || assets[assetIndex] is not JsonValue asset
+                || !asset.TryGetValue<string>(out string? assetName) || string.IsNullOrWhiteSpace(assetName))
+                continue;
+            if (!gameData.AssetPaths.TryResolveAsset(assetName, out string path))
+                continue;
+            IAnimationAudioPlayback? player = AnimationAudioPlayback.Create(path, time - segment.Start);
+            if (player is not null)
+                soundPlayers[playerKey] = player;
         }
-        foreach ((int Track, int Segment) playerKey in soundPlayers.Keys.Where(playerKey => !active.Contains(playerKey)).ToArray())
+        completedSounds.Clear();
+        foreach ((int Track, int Segment) playerKey in soundPlayers.Keys)
+        {
+            if (!activeSounds.Contains(playerKey))
+                completedSounds.Add(playerKey);
+        }
+        foreach ((int Track, int Segment) playerKey in completedSounds)
         {
             soundPlayers[playerKey].Dispose();
             soundPlayers.Remove(playerKey);
@@ -967,30 +974,17 @@ public sealed class AnimationEditor : UserControl
         return TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement() is TextBox or ComboBox;
     }
 
-    private double maxTime()
-    {
-        double maximum = 0;
-        foreach (JsonNode? lineNode in getTimeLines())
-        {
-            if (lineNode is not JsonObject line || line["timeSegments"] is not JsonArray segments)
-                continue;
-            foreach (JsonNode? segmentNode in segments)
-            {
-                if (segmentNode is JsonObject segment)
-                    maximum = Math.Max(maximum, JsonScalar.Number((segment["endFrame"] as JsonObject)?["time"]));
-            }
-        }
-        return maximum;
-    }
+    private double maxTime() => timelineIndex.Duration;
 
     private void refreshEditor()
     {
+        timelineIndex.Reset(data);
         loadingInspector = true;
         nameBox.Text = data["name"]?.GetValue<string>() ?? key;
         fpsBox.SelectedItem = frameRate().ToString(CultureInfo.InvariantCulture);
         loadingInspector = false;
         refreshAssets();
-        timeline.Refresh();
+        timeline.Refresh(true);
         preview.Refresh();
         loadInspector();
     }
