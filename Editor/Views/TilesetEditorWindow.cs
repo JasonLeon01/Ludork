@@ -12,6 +12,7 @@ using Ludork.ViewModels;
 using Ludork.Views.Utils;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Ludork.Views;
 
@@ -66,11 +67,11 @@ public sealed class TilesetEditorWindow : Window
         documentBinding = new EditorDocumentBinding(this, gameData,
             () => ReferenceEquals(tabControl?.SelectedItem, autoTileItem) ? autoTileTab?.Document : tilesetTab?.Document,
             () => LocaleService.Get("TILESETS_DATA"));
-        gameData.Documents.Changed += onDataRestored;
+        gameData.Documents.ContentChanged += onDataRestored;
         Closed += (_, _) =>
         {
             closed = true;
-            gameData.Documents.Changed -= onDataRestored;
+            gameData.Documents.ContentChanged -= onDataRestored;
         };
         AddHandler(KeyDownEvent, onKeyDown, RoutingStrategies.Tunnel);
     }
@@ -163,10 +164,12 @@ public sealed class TilesetEditorWindow : Window
         tab.SelectData(key);
     }
 
-    private void onDataRestored(object? sender, EventArgs args)
+    private void onDataRestored(object? sender, EditorDocumentsChangedEventArgs args)
     {
-        foreach (TilesetEditorTab tab in editorTabs)
-            tab.RefreshDocumentList();
+        if (args.Reset || args.Changes.Any(change => change.Section == "Tilesets" && change.IdentityChanged))
+            tilesetTab?.RefreshDocumentList();
+        if (args.Reset || args.Changes.Any(change => change.Section == "AutoTiles" && change.IdentityChanged))
+            autoTileTab?.RefreshDocumentList();
     }
 
     private async void onKeyDown(object? sender, KeyEventArgs args)

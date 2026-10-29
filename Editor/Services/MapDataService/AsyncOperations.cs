@@ -16,6 +16,5 @@ public sealed partial class MapDataService
     {
         rekeyLoadedMapMetadata(oldKey, key);
         mapLoadedBytes[key] = bytes;
-        touchMap(key);
     }
 }

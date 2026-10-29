@@ -73,7 +73,7 @@ public sealed partial class FileExplorerViewModel
 
     private void capturePresentation()
     {
-        if (!presentationRestorePending)
+        if (IsActive && !presentationRestorePending)
             CapturePresentationRequested?.Invoke(this, EventArgs.Empty);
     }
 
@@ -118,6 +118,7 @@ public sealed partial class FileExplorerViewModel
                 foreach (FileExplorerEntryViewModel entry in Entries)
                     entry.Dispose();
                 Entries.Clear();
+                entriesByPath.Clear();
             }
             CurrentPath = state.Path;
             SearchText = state.SearchText;
@@ -156,22 +157,33 @@ public sealed partial class FileExplorerViewModel
     {
         if (disposed)
             return;
+        bool relevant = changes.Added.Any(affectsCurrentPath) || changes.Deleted.Any(affectsCurrentPath)
+            || changes.Moved.Any(move => affectsCurrentPath(move.OldPath) || affectsCurrentPath(move.NewPath));
         remapBrowsePaths(changes.Moved, changes.Deleted);
-        RequestRefresh();
+        if (relevant)
+            RequestRefresh();
     }
 
     private void remapBrowsePaths(IReadOnlyList<(string OldPath, string NewPath)> moved, IReadOnlyList<string> deleted)
     {
         if (moved.Count == 0 && deleted.Count == 0)
             return;
-        browseVersion++;
-        FileExplorerBrowseState state = remapBrowseState(captureBrowseState(), moved, deleted);
-        PresentationState = state.Presentation;
-        PresentationRevision++;
-        presentationRestorePending = true;
+        bool currentAffected = moved.Any(move => affectsCurrentPath(move.OldPath) || affectsCurrentPath(move.NewPath))
+            || deleted.Any(affectsCurrentPath);
+        if (currentAffected)
+            capturePresentation();
+        FileExplorerBrowseState state = remapBrowseState(new FileExplorerBrowseState(CurrentPath, SearchText,
+            IconView, Zoom, IsSourcesExpanded, expandedDirectories.ToArray(), PresentationState), moved, deleted);
+        if (currentAffected)
+        {
+            browseVersion++;
+            PresentationState = state.Presentation;
+            PresentationRevision++;
+            presentationRestorePending = true;
+            CurrentPath = state.Path;
+        }
         expandedDirectories.Clear();
         expandedDirectories.UnionWith(state.ExpandedDirectories);
-        CurrentPath = state.Path;
         for (int index = 0; index < backHistory.Count; index++)
             backHistory[index] = remapBrowseState(backHistory[index], moved, deleted);
         for (int index = 0; index < forwardHistory.Count; index++)

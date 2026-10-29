@@ -17,13 +17,12 @@ public sealed partial class MapDataService
         this.store = store;
         this.mapDocuments = mapDocuments;
         this.catalogDocuments = catalogDocuments;
-
+        worldPreviewCache = new WorldMapPreviewCache(store);
         mapData = new LazyMapDataDictionary(store);
     }
 
     private readonly LazyMapDataDictionary mapData;
-
-    private readonly Dictionary<string, long> mapAccessOrder = new(StringComparer.Ordinal);
+    private readonly WorldMapPreviewCache worldPreviewCache;
 
     private readonly Dictionary<string, long> mapLoadedBytes = new(StringComparer.Ordinal);
 
@@ -32,8 +31,6 @@ public sealed partial class MapDataService
     private readonly Dictionary<string, JsonObject> loadedMapCatalogCache = new(StringComparer.Ordinal);
 
     private readonly Dictionary<string, JsonObject> nextMapCatalogCache = new(StringComparer.Ordinal);
-
-    private long nextMapAccessOrder;
 
     public event EventHandler<MapPreviewChangedEventArgs>? MapPreviewChanged;
 

@@ -240,6 +240,7 @@ public sealed partial class ProjectDataStore
         if (disposed)
             return;
         disposed = true;
+        Maps.DisposePreviewCache();
         BlueprintNodeSearch?.Dispose();
         referenceIndex?.Dispose();
         blueprintClasses?.Dispose();
@@ -251,24 +252,11 @@ public sealed partial class ProjectDataStore
 
     internal void AcceptLoadedDocument(string section, string key, JsonObject data)
     {
+        if (section == "Maps")
+            Maps.InvalidateWorldChildPreview(key);
         sections[section][key] = data;
         originData[section][key] = (JsonObject)data.DeepClone();
         RegisterLoadedDocument(section, key);
-    }
-
-    internal bool IsDocumentAtBaseline(string section, string key)
-    {
-        return originData[section].TryGetValue(key, out JsonObject? original)
-            && sections[section].TryGetValue(key, out JsonObject? current)
-            && nodesEqual(current, original);
-    }
-
-    internal void ReleaseUntrackedDocument(string section, string key)
-    {
-        if (Documents.Find(section, key) is not null)
-            throw new InvalidOperationException("A registered document cannot be evicted.");
-        sections[section].Remove(key);
-        originData[section].Remove(key);
     }
 
 }

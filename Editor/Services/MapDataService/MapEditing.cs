@@ -13,25 +13,24 @@ public sealed partial class MapDataService
     {
         key = normaliseMapKey(key);
         if (mapDocuments.TryGetValue(key, out JsonObject? value))
-        {
-            touchMap(key);
             return value;
-        }
         if (!tryGetMapCatalogEntry(key, out MapCatalogEntry entry)
             || entry.Kind != MapCatalogEntryKind.WorldChildMap)
         {
             return null;
         }
         string path = getReadableMapDataPath(key);
-        JsonObject? loaded = readMapFile(path, true);
-        if (loaded is null || !mapMatchesCatalogEntry(loaded, entry))
+        bool cached = worldPreviewCache.TryTake(key, path, out JsonObject? loaded, out long bytes);
+        if (!cached)
+            loaded = readMapFile(path, true);
+        if (loaded is null || !mapMatchesCatalogEntry(loaded, entry)
+            || cached && !store.tryValidateMapBlueprintData(path, loaded))
         {
             store.addInvalidLoadPath(path);
             return null;
         }
         store.AcceptLoadedDocument("Maps", key, loaded);
-        mapLoadedBytes[key] = new FileInfo(path).Length;
-        touchMap(key);
+        mapLoadedBytes[key] = cached ? bytes : new FileInfo(path).Length;
         return loaded;
     }
 

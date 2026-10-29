@@ -67,6 +67,7 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
             new FileExplorerRootViewModel("Data", Path.Combine(this.projectPath, "Data")),
         ];
         currentPath = ContentRoots[0].Path;
+        rebuildDocumentPaths(false);
         string? savedPath = initialState?.Path;
         if (!string.IsNullOrWhiteSpace(savedPath))
         {
@@ -74,11 +75,9 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
             if (isUnderRoot(fullPath))
                 currentPath = resolveExistingDirectory(fullPath);
         }
-        visibleDocumentPaths = gameData.Documents.All.ToDictionary(document => document.Id, document => (document.Path, document.Exists));
         refreshBreadcrumbs();
         gameData.DataReloaded += onGameDataChanged;
         gameData.Documents.Changed += onDocumentsChanged;
-        gameData.DataSaved += onGameDataChanged;
         previewService.VisualsInvalidated += onVisualsInvalidated;
     }
 
@@ -271,11 +270,13 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
         navigation?.Dispose();
         gameData.DataReloaded -= onGameDataChanged;
         gameData.Documents.Changed -= onDocumentsChanged;
-        gameData.DataSaved -= onGameDataChanged;
         previewService.VisualsInvalidated -= onVisualsInvalidated;
         foreach (FileExplorerEntryViewModel entry in Entries)
             entry.Dispose();
         Entries.Clear();
+        entriesByPath.Clear();
+        visibleDocumentPaths.Clear();
+        pendingDocumentUpdates.Clear();
         backHistory.Clear();
         forwardHistory.Clear();
         SelectedEntry = null;
@@ -286,13 +287,8 @@ public sealed partial class FileExplorerViewModel : ViewModelBase, IDisposable
     private void onVisualsInvalidated(object? sender, EventArgs args)
     {
         visualVersion++;
-        if (!IsActive)
-        {
-            refreshRequired = true;
-            return;
-        }
-        foreach (FileExplorerEntryViewModel entry in Entries)
-            updateDocumentState(entry);
+        previewRefreshRequired = true;
+        scheduleDocumentUpdates();
     }
 
 }

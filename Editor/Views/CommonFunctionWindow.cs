@@ -75,7 +75,7 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
         documentBinding.HasPendingInputs = () => PendingInputErrors.Count != 0;
         BlueprintInputDraftCloseGuard.Attach(this, () => PendingInputErrors.Count != 0);
         projectSave.RegisterParticipant(this);
-        gameData.Documents.Changed += onDocumentsChanged;
+        gameData.Documents.ContentChanged += onDocumentsChanged;
         gameData.Documents.DiskReloaded += onDocumentDiskReloaded;
         gameData.DataReloaded += onDataReloaded;
         if (gameData.BlueprintNodeSearch is BlueprintNodeSearchService search)
@@ -518,9 +518,10 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
         showSelectedFunction();
     }
 
-    private void onDocumentsChanged(object? sender, EventArgs args)
+    private void onDocumentsChanged(object? sender, EditorDocumentsChangedEventArgs args)
     {
-        if (!initializer.IsInitialized)
+        if (!initializer.IsInitialized || !args.Reset
+            && !args.Changes.Any(change => change.Section == "CommonFunctions" && change.IdentityChanged))
             return;
         string[] keys = gameData.Blueprints.CommonFunctionsData.Keys.OrderBy(key => key, StringComparer.Ordinal).ToArray();
         if (!keys.SequenceEqual(functionList.ItemsSource?.Cast<string>() ?? [], StringComparer.Ordinal))
@@ -631,7 +632,7 @@ public sealed class CommonFunctionWindow : Window, IProjectSaveParticipant
         closed = true;
         LocaleService.LanguageChanged -= onLoadLanguageChanged;
         projectSave.UnregisterParticipant(this);
-        gameData.Documents.Changed -= onDocumentsChanged;
+        gameData.Documents.ContentChanged -= onDocumentsChanged;
         gameData.Documents.DiskReloaded -= onDocumentDiskReloaded;
         gameData.DataReloaded -= onDataReloaded;
         if (gameData.BlueprintNodeSearch is BlueprintNodeSearchService search)

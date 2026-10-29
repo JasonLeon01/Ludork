@@ -11,6 +11,7 @@ public sealed partial class MapWorkspaceViewModel
 {
     private string? selectedDocumentKey;
     private MapDocumentSnapshot? selectedMapDocument;
+    private readonly Dictionary<(string Section, string Key), MapListItemViewModel> mapItems = [];
 
     public MapDocumentSnapshot? SelectedMapDocument
     {
@@ -47,8 +48,13 @@ public sealed partial class MapWorkspaceViewModel
 
     private void onDocumentContentChanged(object? sender, EditorDocumentsChangedEventArgs args)
     {
-        if (args.Reset || liveDebugSession is not null)
+        if (liveDebugSession is not null)
             return;
+        if (args.Reset)
+        {
+            refreshMaps();
+            return;
+        }
         EditorDocumentChange[] changes = args.Changes
             .Where(change => change.Section is "Maps" or "WorldMaps").ToArray();
         if (changes.Length == 0)
@@ -61,11 +67,9 @@ public sealed partial class MapWorkspaceViewModel
             refreshMaps(selectedChange?.Key ?? selectedKey);
             return;
         }
-        Dictionary<(string Key, bool IsWorld), MapListItemViewModel> items = Maps
-            .SelectMany(root => root.Children.Prepend(root)).ToDictionary(item => (item.Key, item.IsWorld));
         foreach (EditorDocumentChange change in changes)
         {
-            if (change.Key is null || !items.TryGetValue((change.Key, change.Section == "WorldMaps"), out MapListItemViewModel? item))
+            if (change.Key is null || !mapItems.TryGetValue((change.Section, change.Key), out MapListItemViewModel? item))
                 continue;
             if (item.IsWorld)
                 item.DisplayName = GameData.Worlds.ReadWorldMapSnapshot(item.Key)?["worldName"]?.GetValue<string>() ?? item.Key;
@@ -117,6 +121,7 @@ public sealed partial class MapWorkspaceViewModel
     private void rebuildMapTree(IReadOnlySet<string>? expandedWorlds = null)
     {
         Maps.Clear();
+        mapItems.Clear();
         IReadOnlyList<MapCatalogEntry> catalog = GameData.Maps.MapCatalog;
         ILookup<string?, MapCatalogEntry> children = catalog
             .Where(item => item.Kind == MapCatalogEntryKind.WorldChildMap)
@@ -145,7 +150,11 @@ public sealed partial class MapWorkspaceViewModel
             }
             Maps.Add(root);
             foreach (MapListItemViewModel item in root.Children.Prepend(root))
-                item.IsModified = GameData.Documents.Find(item.IsWorld ? "WorldMaps" : "Maps", item.Key)?.IsModified == true;
+            {
+                string section = item.IsWorld ? "WorldMaps" : "Maps";
+                mapItems[(section, item.Key)] = item;
+                item.IsModified = GameData.Documents.Find(section, item.Key)?.IsModified == true;
+            }
         }
     }
 }

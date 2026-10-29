@@ -52,8 +52,8 @@ public sealed class AnimationOverviewWindow : Window
         documentBinding = new EditorDocumentBinding(this, gameData,
             () => gameData.GetDocument("Animations", currentKey),
             () => LocaleService.Get("ANIMATION_OVERVIEW") + (currentKey.Length == 0 ? string.Empty : " - " + currentKey));
-        gameData.Documents.Changed += onDocumentsChanged;
-        Closed += (_, _) => gameData.Documents.Changed -= onDocumentsChanged;
+        gameData.Documents.ContentChanged += onDocumentsChanged;
+        Closed += (_, _) => gameData.Documents.ContentChanged -= onDocumentsChanged;
         initializer = new DeferredWindowInitializer(this, async cancellationToken =>
         {
             Content = root;
@@ -62,9 +62,10 @@ public sealed class AnimationOverviewWindow : Window
         });
     }
 
-    private void onDocumentsChanged(object? sender, EventArgs args)
+    private void onDocumentsChanged(object? sender, EditorDocumentsChangedEventArgs args)
     {
-        if (!initializer.IsInitialized)
+        if (!initializer.IsInitialized || !args.Reset
+            && !args.Changes.Any(change => change.Section == "Animations" && change.IdentityChanged))
             return;
         string[] keys = gameData.Assets.AnimationsData.Keys.OrderBy(key => key, StringComparer.Ordinal).ToArray();
         if (!keys.SequenceEqual(animationList.ItemsSource?.Cast<string>() ?? [], StringComparer.Ordinal))
