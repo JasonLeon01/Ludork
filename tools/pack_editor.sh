@@ -163,7 +163,8 @@ WORK_DIR="$PROJECT_ROOT/obj/editor-package"
 STAGE_DIR="$WORK_DIR/dist"
 DMG_ROOT="$WORK_DIR/dmg-root"
 DMG_MOUNT_DIR="/tmp/ludork-editor-dmg-mount.$$"
-DMG_READ_WRITE="/tmp/ludork-editor-layout-rw.$$.dmg"
+DMG_LAYOUT_READ_WRITE="/tmp/ludork-editor-layout-rw.$$.dmg"
+DMG_READ_WRITE="/tmp/ludork-editor-publish-rw.$$.dmg"
 DMG_PAYLOAD_ROOT="$DMG_ROOT/.official-plugin-payload"
 DMG_BACKGROUND_DIR="$DMG_ROOT/.background"
 DMG_INSTALLER="$DMG_ROOT/Install Official Plugins.command"
@@ -188,6 +189,7 @@ DIST_BACKED_UP=0
 DMG_MOUNTED=0
 DMG_IMAGE_PATH=
 DMG_MOUNT_DIR_OWNED=0
+DMG_LAYOUT_TEMP_OWNED=0
 DMG_TEMP_OWNED=0
 WORK_DIR_OWNED=0
 
@@ -200,7 +202,7 @@ cleanup() {
     set +e
     remove_work_dir=$WORK_DIR_OWNED
     if [ "$DMG_MOUNTED" -eq 1 ]; then
-        if ! detach_dmg; then
+        if ! detach_dmg discard; then
             remove_work_dir=0
             echo "Failed to detach the editor DMG; preserving the work directory: $WORK_DIR" >&2
         fi
@@ -233,6 +235,10 @@ cleanup() {
         && [ -f "$DMG_READ_WRITE" ]; then
         unlink "$DMG_READ_WRITE" 2>/dev/null || true
     fi
+    if [ "$DMG_MOUNTED" -eq 0 ] && [ "$DMG_LAYOUT_TEMP_OWNED" -eq 1 ] \
+        && [ -f "$DMG_LAYOUT_READ_WRITE" ]; then
+        unlink "$DMG_LAYOUT_READ_WRITE" 2>/dev/null || true
+    fi
     echo "Editor packaging failed." >&2
 }
 
@@ -246,7 +252,7 @@ trap interrupt HUP INT TERM
 attach_dmg() {
     DMG_IMAGE_PATH=$1
     DMG_MOUNTED=1
-    hdiutil attach "$2" -nobrowse \
+    hdiutil attach "$2" -nobrowse -noautoopen \
         -mountpoint "$DMG_MOUNT_DIR" "$DMG_IMAGE_PATH" >/dev/null
 }
 
@@ -268,6 +274,7 @@ attached_dmg_device() {
 }
 
 detach_dmg() {
+    dmg_detach_mode=${1:-clean}
     dmg_detach_attempt=0
     while :; do
         dmg_device=$(attached_dmg_device) || return 1
@@ -279,11 +286,14 @@ detach_dmg() {
             echo "Editor disk image is still attached: $DMG_IMAGE_PATH ($dmg_device)" >&2
             return 1
         fi
-        if [ "$dmg_detach_attempt" -eq 0 ]; then
-            hdiutil detach "$dmg_device" >/dev/null || true
-        else
+        if [ "$dmg_detach_attempt" -gt 0 ] && [ "$dmg_detach_mode" = discard ]; then
             echo "Retrying editor DMG detach with force: $dmg_device..." >&2
             hdiutil detach -force "$dmg_device" >/dev/null || true
+        else
+            if [ "$dmg_detach_attempt" -gt 0 ]; then
+                echo "Retrying clean editor DMG detach: $dmg_device..." >&2
+            fi
+            hdiutil detach "$dmg_device" >/dev/null || true
         fi
         dmg_detach_attempt=$((dmg_detach_attempt + 1))
         sleep 2
@@ -668,6 +678,7 @@ validate_dmg() {
     mkdir "$DMG_MOUNT_DIR"
     DMG_MOUNT_DIR_OWNED=1
     attach_dmg "$dmg_path" -readonly
+    diskutil verifyVolume "$DMG_MOUNT_DIR"
     validate_dmg_root "$DMG_MOUNT_DIR" 1
     detach_dmg
     rmdir "$DMG_MOUNT_DIR"
@@ -1161,6 +1172,7 @@ require_command iconutil
 require_command plutil
 require_command file
 require_command hdiutil
+require_command diskutil
 require_command cmp
 require_command codesign
 require_command DeRez
@@ -1206,6 +1218,7 @@ if [ -e "$BACKUP_DIR" ] || [ -L "$BACKUP_DIR" ]; then
     exit 1
 fi
 if [ -e "$DMG_MOUNT_DIR" ] || [ -L "$DMG_MOUNT_DIR" ] \
+    || [ -e "$DMG_LAYOUT_READ_WRITE" ] || [ -L "$DMG_LAYOUT_READ_WRITE" ] \
     || [ -e "$DMG_READ_WRITE" ] || [ -L "$DMG_READ_WRITE" ]; then
     echo "An editor DMG temporary path already exists; remove it after checking for an active mount." >&2
     exit 1
@@ -1379,7 +1392,7 @@ create_dmg_assets
 validate_dmg_root "$DMG_ROOT" 0
 
 echo "Creating macOS editor DMG..."
-DMG_TEMP_OWNED=1
+DMG_LAYOUT_TEMP_OWNED=1
 hdiutil create \
     -srcfolder "$DMG_ROOT" \
     -volname "$DMG_VOLUME_NAME" \
@@ -1387,10 +1400,10 @@ hdiutil create \
     -format UDRW \
     -nospotlight \
     -ov \
-    "$DMG_READ_WRITE" >/dev/null
+    "$DMG_LAYOUT_READ_WRITE" >/dev/null
 mkdir "$DMG_MOUNT_DIR"
 DMG_MOUNT_DIR_OWNED=1
-attach_dmg "$DMG_READ_WRITE" -readwrite
+attach_dmg "$DMG_LAYOUT_READ_WRITE" -readwrite
 if ! osascript "$DMG_ASSET_DIR/configure_layout.applescript" "$DMG_MOUNT_DIR"; then
     sleep 2
     osascript "$DMG_ASSET_DIR/configure_layout.applescript" "$DMG_MOUNT_DIR"
@@ -1402,13 +1415,28 @@ SetFile -a V "$DMG_MOUNT_DIR/.VolumeIcon.icns"
 SetFile -a C "$DMG_MOUNT_DIR"
 sync
 validate_dmg_root "$DMG_MOUNT_DIR" 1
+DMG_TEMP_OWNED=1
+hdiutil create \
+    -srcfolder "$DMG_MOUNT_DIR" \
+    -volname "$DMG_VOLUME_NAME" \
+    -fs HFS+ \
+    -format UDRW \
+    -noscrub \
+    -nospotlight \
+    -ov \
+    "$DMG_READ_WRITE" >/dev/null
+detach_dmg discard
+unlink "$DMG_LAYOUT_READ_WRITE"
+DMG_LAYOUT_TEMP_OWNED=0
+attach_dmg "$DMG_READ_WRITE" -readwrite
+SetFile -a C "$DMG_MOUNT_DIR"
+sync
 detach_dmg
 rmdir "$DMG_MOUNT_DIR"
 DMG_MOUNT_DIR_OWNED=0
 hdiutil convert \
     "$DMG_READ_WRITE" \
     -format UDZO \
-    -imagekey zlib-level=9 \
     -ov \
     -o "$STAGE_DMG" >/dev/null
 unlink "$DMG_READ_WRITE"

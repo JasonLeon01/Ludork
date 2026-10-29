@@ -218,6 +218,11 @@
                                Foreground="{DynamicResource Editor.TextMutedBrush}" TextTrimming="CharacterEllipsis" />
                 </Grid>
                 <utils:CompilerSelectionControl x:Name="CompilerSelection" IsVisible="False" />
+                <Grid x:Name="XcodePanel" ColumnDefinitions="*,Auto" ColumnSpacing="10" IsVisible="False">
+                    <TextBlock x:Name="XcodeLabel" VerticalAlignment="Center" />
+                    <Button x:Name="GetXcodeButton" Grid.Column="1" VerticalAlignment="Center"
+                            Click="onGetXcode" />
+                </Grid>
                 <Border Background="{DynamicResource Editor.SurfaceBrush}" BorderBrush="{DynamicResource Editor.BorderBrush}" BorderThickness="1"
                         CornerRadius="4" Padding="13,10">
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">

@@ -38,6 +38,8 @@ public partial class PackSelectionDialog : Window
     private bool confirming;
     private bool opened;
     private bool closed;
+    private bool? xcodeInstalled;
+    private bool openingXcode;
 
     public PackSelectionDialog() : this(null)
     {
@@ -157,6 +159,8 @@ public partial class PackSelectionDialog : Window
         updatePlatformOptions();
         Opened += async (_, _) =>
         {
+            if (opened)
+                return;
             opened = true;
             Screen? screen = Screens.ScreenFromWindow(this) ?? Screens.Primary;
             if (screen is not null)
@@ -172,7 +176,8 @@ public partial class PackSelectionDialog : Window
                 selectedItem.Focus();
             else
                 PlatformList.Focus();
-            await Task.WhenAll(validateVersionAsync(true), validateAppNameAsync(), refreshCompilerAsync());
+            await Task.WhenAll(validateVersionAsync(true), validateAppNameAsync(), refreshCompilerAsync(),
+                detectXcodeAsync());
         };
     }
 
@@ -185,6 +190,26 @@ public partial class PackSelectionDialog : Window
             ? target.Item2 : ProjectPackKind.Game;
 
     private bool convertsToStandalone => selectedKind == ProjectPackKind.Standalone;
+
+    private bool requiresXcode => OperatingSystem.IsMacOS() && !isStandalone
+        && selectedPlatform is ProjectPackPlatform.MacOS or ProjectPackPlatform.IOS;
+
+    private async Task detectXcodeAsync()
+    {
+        if (!OperatingSystem.IsMacOS() || isStandalone || closed)
+            return;
+        try
+        {
+            bool installed = await XcodeToolchainService.IsInstalledAsync(lifetimeCancellation.Token);
+            if (closed)
+                return;
+            xcodeInstalled = installed;
+            updateConfirmState();
+        }
+        catch (OperationCanceledException) when (closed)
+        {
+        }
+    }
 
     private async Task refreshCompilerAsync()
     {
@@ -343,6 +368,15 @@ public partial class PackSelectionDialog : Window
 
     private void updateConfirmState()
     {
+        if (requiresXcode && xcodeInstalled != true)
+        {
+            ConfirmButton.Content = LocaleService.Get(xcodeInstalled is null ? "XCODE_DETECTING" : "XCODE_GET");
+            ConfirmButton.IsEnabled = !closed && !confirming && !openingXcode && xcodeInstalled == false;
+            ToolTip.SetTip(ConfirmButtonHint,
+                LocaleService.Get(xcodeInstalled is null ? "XCODE_DETECTING" : "XCODE_NOT_FOUND"));
+            return;
+        }
+        ConfirmButton.Content = LocaleService.Get("CONFIRM");
         bool signingValid = selectedPlatform switch
         {
             ProjectPackPlatform.MacOS => MacOSSigningOption.IsChecked != true || macOSSigning.CanConfirm,
@@ -351,7 +385,8 @@ public partial class PackSelectionDialog : Window
             ProjectPackPlatform.Android => AndroidSigningOption.IsChecked != true || androidSigning.CanConfirm,
             _ => true,
         };
-        ConfirmButton.IsEnabled = !closed && !confirming && (convertsToStandalone || (appNameValid && versionValid))
+        ConfirmButton.IsEnabled = !closed && !confirming && !openingXcode
+            && (convertsToStandalone || (appNameValid && versionValid))
             && selectedPlatform is not null && signingValid
             && (!CompilerSelection.IsVisible || CompilerSelection.HasSelection && !CompilerSelection.IsBusy);
         ToolTip.SetTip(ConfirmButtonHint, convertsToStandalone || appNameValid ? null : appNameError);
@@ -367,6 +402,19 @@ public partial class PackSelectionDialog : Window
     {
         if (!ConfirmButton.IsEnabled || selectedPlatform is not ProjectPackPlatform platform)
             return;
+        if (requiresXcode && xcodeInstalled == false)
+        {
+            openingXcode = true;
+            updateConfirmState();
+            bool launched = await XcodeToolchainService.OpenAppStoreAsync(Launcher);
+            if (closed)
+                return;
+            openingXcode = false;
+            updateConfirmState();
+            if (!launched)
+                await AlertDialog.ShowAsync(this, LocaleService.Get("ERROR"), LocaleService.Get("XCODE_OPEN_FAILED"));
+            return;
+        }
         confirming = true;
         CancelButton.IsEnabled = false;
         OptionsPanel.IsEnabled = false;

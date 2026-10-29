@@ -1,4 +1,20 @@
 {
+  "XCODE_DETECTING": {
+    "en_GB": "Checking Xcode…",
+    "zh_CN": "正在检测 Xcode…"
+  },
+  "XCODE_NOT_FOUND": {
+    "en_GB": "A complete Xcode installation is required. Install Xcode, then reopen this window.",
+    "zh_CN": "需要完整的 Xcode。安装后请重新打开此窗口。"
+  },
+  "XCODE_GET": {
+    "en_GB": "Get Xcode",
+    "zh_CN": "获取Xcode"
+  },
+  "XCODE_OPEN_FAILED": {
+    "en_GB": "Could not open Xcode in the App Store.",
+    "zh_CN": "无法在 App Store 中打开 Xcode。"
+  },
   "COMPILER_DOWNLOADING": {
     "en_GB": "Downloading MinGW",
     "zh_CN": "正在下载 MinGW"
@@ -1532,8 +1548,8 @@
     "en_GB": "CMake 3.21 or newer"
   },
   "NEW_PROJECT_CPP_REQUIREMENT_2_MACOS": {
-    "zh_CN": "Apple Clang 与 Xcode Command Line Tools",
-    "en_GB": "Apple Clang and Xcode Command Line Tools"
+    "zh_CN": "完整 Xcode（包含 Apple Clang 与 macOS SDK）",
+    "en_GB": "Full Xcode, including Apple Clang and the macOS SDK"
   },
   "RUN_PROJECT_INVALID": {
     "zh_CN": "工程路径无效或缺少必要文件。",

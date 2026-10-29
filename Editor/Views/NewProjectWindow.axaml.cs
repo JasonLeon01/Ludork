@@ -44,7 +44,11 @@ public partial class NewProjectWindow : Window
     private bool standalone = true;
     private bool creating;
     private bool opened;
+    private bool closed;
     private bool closingDownload;
+    private bool? xcodeInstalled;
+    private bool openingXcode;
+    private readonly CancellationTokenSource lifetimeCancellation = new();
     private CancellationTokenSource? creationCancellation;
 
     public NewProjectWindow() : this(EditorLayoutService.Settings ?? new EditorSettings())
@@ -67,10 +71,14 @@ public partial class NewProjectWindow : Window
         CompilerSelection.StateChanged += (_, _) => updateValidation();
         Opened += async (_, _) =>
         {
+            if (opened)
+                return;
             opened = true;
             ProjectNameBox.Focus();
             if (OperatingSystem.IsWindows())
                 await CompilerSelection.RefreshAsync(selectDefault: true);
+            else if (OperatingSystem.IsMacOS())
+                await detectXcodeAsync();
         };
         Activated += async (_, _) =>
         {
@@ -78,7 +86,13 @@ public partial class NewProjectWindow : Window
                 await CompilerSelection.RefreshAsync(preferredCompiler: CompilerSelection.SelectedCompilerPath,
                     selectDefault: !CompilerSelection.HasSelection);
         };
-        Closed += (_, _) => CompilerSelection.CancelPendingOperations();
+        Closed += (_, _) =>
+        {
+            closed = true;
+            CompilerSelection.CancelPendingOperations();
+            lifetimeCancellation.Cancel();
+            lifetimeCancellation.Dispose();
+        };
         selectTemplate(true);
     }
 
@@ -112,6 +126,8 @@ public partial class NewProjectWindow : Window
         BrowseButton.Content = LocaleService.Get("BROWSE");
         CancelButton.Content = LocaleService.Get("CANCEL");
         CreateButton.Content = LocaleService.Get("CREATE");
+        XcodeLabel.Text = LocaleService.Get("COMPILER_LABEL") + " Xcode";
+        GetXcodeButton.Content = LocaleService.Get("XCODE_GET");
         ProgressText.Text = LocaleService.Get("NEW_PROJECT_CREATING");
     }
 
@@ -272,6 +288,8 @@ public partial class NewProjectWindow : Window
 
     private void updateValidation()
     {
+        XcodePanel.IsVisible = !standalone && OperatingSystem.IsMacOS() && xcodeInstalled == false;
+        GetXcodeButton.IsEnabled = !openingXcode;
         FinalPathText.Text = getTargetPath();
         string? message = getValidationMessage();
         ValidationText.Text = message ?? string.Empty;
@@ -280,6 +298,8 @@ public partial class NewProjectWindow : Window
 
     private string? getValidationMessage()
     {
+        if (!standalone && OperatingSystem.IsMacOS() && xcodeInstalled != true)
+            return LocaleService.Get(xcodeInstalled is null ? "XCODE_DETECTING" : "XCODE_NOT_FOUND");
         if (!standalone && OperatingSystem.IsWindows())
         {
             if (CompilerSelection.IsBusy)
@@ -306,6 +326,36 @@ public partial class NewProjectWindow : Window
             && EditorRuntimePaths.FindDirectory(Path.Combine("Templates", templateName)) is null)
             return LocaleService.Get("PROJECT_TEMPLATE_MISSING");
         return null;
+    }
+
+    private async Task detectXcodeAsync()
+    {
+        try
+        {
+            bool installed = await XcodeToolchainService.IsInstalledAsync(lifetimeCancellation.Token);
+            if (closed)
+                return;
+            xcodeInstalled = installed;
+            updateValidation();
+        }
+        catch (OperationCanceledException) when (closed)
+        {
+        }
+    }
+
+    private async void onGetXcode(object? sender, RoutedEventArgs args)
+    {
+        if (closed || openingXcode)
+            return;
+        openingXcode = true;
+        updateValidation();
+        bool launched = await XcodeToolchainService.OpenAppStoreAsync(Launcher);
+        if (closed)
+            return;
+        openingXcode = false;
+        updateValidation();
+        if (!launched)
+            await AlertDialog.ShowAsync(this, LocaleService.Get("ERROR"), LocaleService.Get("XCODE_OPEN_FAILED"));
     }
 
     private string getTargetPath()

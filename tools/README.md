@@ -175,6 +175,8 @@ The EXE **Install Official Plugins** option is selected by default. MSI also ins
 /Applications/Ludork.app/Contents/Resources/tools/unregister_editor.sh
 ```
 
+The DMG packer configures Finder's layout on a temporary writable image, then creates a fresh HFS+ UDRW image from that mounted volume, retaining the layout, hidden payload and signing attributes. It remounts the fresh image without opening Finder, restores the volume's custom-icon flag (`C`), synchronises it and requires a normal detach before converting it to UDZO with the default compression settings. Forced detach is permitted only for the discarded layout image or failure cleanup; a publication image that cannot detach normally fails packaging. If cleanup cannot detach an image, its files and work directory are retained for recovery. Final-image validation checks the mounted filesystem with `diskutil verifyVolume`, the payload and application signatures before publication.
+
 `editor-official-plugins prepare <source> <output-root>` copies the fixed official plug-ins and generates their registry. `editor-official-plugins validate <output-root>` checks exact directories, manifests, index and excluded user/build files. `editor-official-plugins install-current-user <payload-root>` validates the prepared payload, requires Ludork to be closed, and replaces the current user's plug-ins with rollback on failure. A backup cleanup failure is reported separately. Ordinary editor startup never installs or replaces official plug-ins.
 
 For a repository checkout, explicitly prepare and install the official plug-ins after building ScriptTools:
@@ -466,7 +468,7 @@ Environment values override CLI options; `--ignore-environment` disables that lo
 
 Notarisation requires a real identity and either Apple ID/team plus the app-specific password as the second stdin password, or an App Store Connect key/ID/issuer. It submits the DMG or a temporary app ZIP with `notarytool`, waits and staples the ticket. `--check` validates materials and performs a notarisation round trip without building. Failed submissions report the notary log when available while retaining the original failure status and submission ID.
 
-Signing, notarisation and ticket operations retry temporary network/service failures with bounded command timeouts. The same submission ID is retained when waiting for notarisation. See [macOS packaging](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=02%2F11#windows-and-macos) for retry counts, time limits and failure handling. The DMG packer detaches the whole image device before conversion/cleanup; bounded forced retries preserve the image and work directory if detachment remains unresolved.
+Signing, notarisation and ticket operations retry temporary network/service failures with bounded command timeouts. The same submission ID is retained when waiting for notarisation. See [macOS packaging](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=02%2F11#windows-and-macos) for retry counts, time limits and failure handling. DMG construction and detach requirements are described under [Templates and editor packages](#templates-and-editor-packages).
 
 Packaging uses these additional signer options:
 
