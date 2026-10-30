@@ -96,6 +96,8 @@ if(MSVC)
     add_link_options(
         "$<$<CONFIG:Release>:/Brepro>"
         "$<$<CONFIG:Release>:/INCREMENTAL:NO>")
+elseif(MINGW)
+    add_link_options("$<$<CONFIG:Release>:-Wl,--no-insert-timestamp>")
 endif()
 
 function(ludork_apply_msvc_debug_source_options)
@@ -223,7 +225,7 @@ function(ludork_enable_release_symbols target)
         PDB_OUTPUT_DIRECTORY "${LUDORK_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>")
     target_link_options(${target} PRIVATE
         "$<$<CONFIG:Release>:/DEBUG:FULL>"
-        "$<$<CONFIG:Release>:/PDBALTPATH:%_PDB%>"
+        "$<$<CONFIG:Release>:/PDBALTPATH:$<TARGET_PDB_FILE_NAME:${target}>>"
         "$<$<CONFIG:Release>:/OPT:REF>"
         "$<$<CONFIG:Release>:/OPT:ICF>")
 endfunction()
