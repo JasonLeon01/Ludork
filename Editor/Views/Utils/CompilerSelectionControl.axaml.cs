@@ -145,14 +145,10 @@ public partial class CompilerSelectionControl : UserControl
     {
         if (compiler.Compiler is null)
             return compiler.Name;
-        string source = compiler.Source.ToLowerInvariant() switch
-        {
-            "managed" => LocaleService.Get("COMPILER_SOURCE_MANAGED"),
-            "path" => LocaleService.Get("COMPILER_SOURCE_PATH"),
-            "project" => LocaleService.Get("COMPILER_SOURCE_PROJECT"),
-            _ => compiler.Source,
-        };
-        return $"{compiler.Name} {compiler.Version} ({source})";
+        string name = $"{compiler.Name} {compiler.Version}";
+        return string.Equals(compiler.Source, "managed", StringComparison.OrdinalIgnoreCase)
+            ? $"{name} ({LocaleService.Get("COMPILER_SOURCE_MANAGED")})"
+            : name;
     }
 
     private void updateState()

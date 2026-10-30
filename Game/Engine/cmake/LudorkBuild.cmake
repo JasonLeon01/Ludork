@@ -86,13 +86,20 @@ if(MSVC)
     else()
         set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
     endif()
-    add_compile_options(
-        /utf-8
-        /MP
-        /FS
-        "$<$<CONFIG:Release>:/experimental:deterministic>"
-        "$<$<CONFIG:Release>:/pathmap:${CMAKE_SOURCE_DIR}=.>"
-        "$<$<CONFIG:Release>:/pathmap:${CMAKE_BINARY_DIR}=.>")
+    add_compile_options(/utf-8)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        add_compile_options(
+            "$<$<CONFIG:Release>:/Brepro>"
+            "$<$<CONFIG:Release>:/clang:-ffile-prefix-map=${CMAKE_SOURCE_DIR}=.>"
+            "$<$<CONFIG:Release>:/clang:-ffile-prefix-map=${CMAKE_BINARY_DIR}=.>")
+    else()
+        add_compile_options(
+            /MP
+            /FS
+            "$<$<CONFIG:Release>:/experimental:deterministic>"
+            "$<$<CONFIG:Release>:/pathmap:${CMAKE_SOURCE_DIR}=.>"
+            "$<$<CONFIG:Release>:/pathmap:${CMAKE_BINARY_DIR}=.>")
+    endif()
     add_link_options(
         "$<$<CONFIG:Release>:/Brepro>"
         "$<$<CONFIG:Release>:/INCREMENTAL:NO>")

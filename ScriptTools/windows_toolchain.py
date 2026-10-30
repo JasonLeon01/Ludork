@@ -7,10 +7,12 @@ import json
 import os
 import pathlib
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
 from contextlib import contextmanager
+from concurrent.futures import ThreadPoolExecutor
 
 from .file_replace import remove_file, remove_tree, replace_path, wait_until_writable
 from .packaging_constants import EDITOR_CACHE_DIRECTORY
@@ -31,14 +33,22 @@ class WindowsToolchain:
     version: str
     c_compiler: pathlib.Path | None = None
     make: pathlib.Path | None = None
+    environment: dict[str, str] | None = None
+    support_identity: dict[str, str] | None = None
 
     def describe(self) -> dict:
+        version = self.version
+        if self.kind == "clang":
+            match = re.search(r"clang version (\S+)", version)
+            if match:
+                version = match[1]
         return {"compiler": self.compiler or None, "kind": self.kind, "source": self.source,
-                "name": "MSVC" if self.kind == "msvc" else "MinGW",
-                "path": str(self.path), "version": self.version}
+                "name": {"msvc": "MSVC", "mingw": "MinGW", "clang": "LLVM Clang"}[self.kind],
+                "path": str(self.path), "version": version}
 
     def identity(self) -> dict:
-        return {"compiler": self.compiler, "path": str(self.path), "version": self.version}
+        return {"compiler": self.compiler, "path": str(self.path), "version": self.version,
+                **(self.support_identity or {})}
 
 
 def compiler_key(value: str | None) -> str:
@@ -47,8 +57,8 @@ def compiler_key(value: str | None) -> str:
     if not isinstance(value, str):
         raise ValueError("compiler must be a string.")
     path = pathlib.Path(value)
-    if not path.is_absolute() or path.name.lower() != "g++.exe":
-        raise ValueError("compiler must be an absolute path to g++.exe; omit it for MSVC.")
+    if not path.is_absolute() or path.name.lower() not in ("g++.exe", "clang-cl.exe"):
+        raise ValueError("compiler must be an absolute path to g++.exe or clang-cl.exe; omit it for MSVC.")
     return os.path.normcase(os.path.abspath(path))
 
 
@@ -66,7 +76,7 @@ def _config_compiler(config: object) -> str:
         return ""
     value = config["compiler"]
     if not isinstance(value, str) or not value:
-        raise ValueError("Main.proj compiler must be an absolute g++.exe path; omit the field for MSVC.")
+        raise ValueError("Main.proj compiler must be an absolute g++.exe or clang-cl.exe path; omit the field for MSVC.")
     return compiler_key(value)
 
 
@@ -79,7 +89,7 @@ def run_probe(command: list[str], *, input: str | None = None, environment: dict
     return result.stdout.strip()
 
 
-def find_msvc() -> WindowsToolchain:
+def find_msvc(*, require_sdk: bool = True) -> WindowsToolchain:
     program_files = os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")
     vswhere = pathlib.Path(program_files) / "Microsoft Visual Studio/Installer/vswhere.exe"
     if not vswhere.is_file():
@@ -95,19 +105,82 @@ def find_msvc() -> WindowsToolchain:
     tools = root / "VC/Tools/MSVC" / version / "bin/Hostx64/x64"
     if any(not (tools / name).is_file() for name in ("cl.exe", "link.exe", "lib.exe")):
         raise ValueError("Visual Studio x64 C++ tools are incomplete.")
-    sdk = pathlib.Path(program_files) / "Windows Kits/10/Lib"
-    if not sdk.is_dir() or not any((item / "um/x64/kernel32.lib").is_file()
-                                   and (item / "ucrt/x64/ucrt.lib").is_file()
-                                   for item in sdk.iterdir() if item.is_dir()):
-        raise ValueError("The Windows SDK x64 libraries required by MSVC were not found.")
+    if require_sdk:
+        sdk = pathlib.Path(program_files) / "Windows Kits/10/Lib"
+        if not sdk.is_dir() or not any((item / "um/x64/kernel32.lib").is_file()
+                                       and (item / "ucrt/x64/ucrt.lib").is_file()
+                                       for item in sdk.iterdir() if item.is_dir()):
+            raise ValueError("The Windows SDK x64 libraries required by MSVC were not found.")
     return WindowsToolchain("", "msvc", "msvc", root, version)
 
 
-def validate_compiler(value: str | None, source: str = "project") -> WindowsToolchain:
-    selected = compiler_key(value)
-    if not selected:
-        return find_msvc()
-    compiler = pathlib.Path(selected)
+def search_path() -> str:
+    paths = [os.environ.get("PATH", "")]
+    if sys.platform == "win32":
+        import winreg
+        for hive, key in ((winreg.HKEY_CURRENT_USER, "Environment"),
+                          (winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment")):
+            try:
+                with winreg.OpenKey(hive, key) as registry:
+                    paths.append(os.path.expandvars(winreg.QueryValueEx(registry, "Path")[0]))
+            except FileNotFoundError:
+                pass
+    return os.pathsep.join(paths)
+
+
+def _msvc_environment(msvc: WindowsToolchain) -> dict[str, str]:
+    command = msvc.path / "Common7/Tools/VsDevCmd.bat"
+    environment = {key.upper(): value for key, value in os.environ.items()}
+    environment["VSCMD_SKIP_SENDTELEMETRY"] = "1"
+    result = subprocess.run(
+        f'cmd.exe /d /s /c ""{command}" -arch=x64 -host_arch=x64 >nul && set"',
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors="replace", timeout=30,
+        env=environment,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    if result.returncode:
+        raise ValueError(f"Unable to prepare the Visual Studio x64 environment: {result.stderr.strip()}")
+    for line in result.stdout.splitlines():
+        key, separator, value = line.partition("=")
+        if key and separator:
+            environment[key.upper()] = value
+    for name in ("CL", "_CL_", "LINK", "_LINK_"):
+        environment.pop(name, None)
+    environment["LUDORK_VS_INSTALLATION"] = str(msvc.path)
+    return environment
+
+
+def _clang_version(compiler: pathlib.Path) -> str:
+    output = run_probe([str(compiler), "--version"])
+    if not re.search(r"^Target: x86_64-(?:pc|unknown)-windows-msvc\S*$", output, re.MULTILINE):
+        raise ValueError("LLVM Clang must target x64 Windows with the MSVC ABI.")
+    return output.splitlines()[0]
+
+
+def _clang_toolchain(compiler: pathlib.Path, source: str) -> WindowsToolchain:
+    for name in ("clang-cl.exe", "lld-link.exe", "llvm-lib.exe"):
+        if not compiler.with_name(name).is_file():
+            raise ValueError(f"LLVM tool was not found: {compiler.with_name(name)}")
+    msvc = find_msvc()
+    ninja = shutil.which("ninja.exe", path=search_path())
+    if not ninja:
+        raise ValueError("LLVM Clang requires Ninja on PATH.")
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        environment_task = executor.submit(_msvc_environment, msvc)
+        version = _clang_version(compiler)
+        ninja_version = run_probe([ninja, "--version"])
+        linker_version = run_probe([str(compiler.with_name("lld-link.exe")), "--version"])
+        environment = environment_task.result()
+    environment["PATH"] = str(compiler.parent) + os.pathsep + environment["PATH"]
+    identity = {"visualStudio": str(msvc.path), "msvcVersion": msvc.version,
+                "windowsSdk": environment.get("WINDOWSSDKDIR", ""),
+                "windowsSdkVersion": environment.get("WINDOWSSDKVERSION", ""),
+                "ninja": os.path.normcase(ninja), "ninjaVersion": ninja_version,
+                "linkerVersion": linker_version}
+    return WindowsToolchain(str(compiler), "clang", source, compiler, version,
+                            compiler, pathlib.Path(ninja), environment, identity)
+
+
+def _mingw_toolchain(compiler: pathlib.Path, source: str) -> WindowsToolchain:
     c_compiler = compiler.with_name("gcc.exe")
     make = compiler.with_name("mingw32-make.exe")
     if any(not item.is_file() for item in (compiler, c_compiler)):
@@ -120,38 +193,75 @@ def validate_compiler(value: str | None, source: str = "project") -> WindowsTool
     version = run_probe([str(compiler), "-dumpfullversion", "-dumpversion"], environment=environment)
     if run_probe([str(c_compiler), "-dumpmachine"], environment=environment) != machine:
         raise ValueError("MinGW gcc.exe and g++.exe must target the same x64 platform.")
+    return WindowsToolchain(str(compiler), "mingw", source, compiler, version, c_compiler,
+                            make if make.is_file() else None, environment)
+
+
+def validate_compiler(value: str | None, source: str = "project") -> WindowsToolchain:
+    selected = compiler_key(value)
+    if not selected:
+        return find_msvc()
+    compiler = pathlib.Path(selected)
+    toolchain = (_clang_toolchain(compiler, source) if compiler.name == "clang-cl.exe"
+                 else _mingw_toolchain(compiler, source))
+    _check_cpp20(toolchain)
+    return toolchain
+
+
+def _check_cpp20(toolchain: WindowsToolchain) -> None:
     with tempfile.TemporaryDirectory(prefix="ludork-compiler-") as directory:
         output = pathlib.Path(directory) / "check.exe"
         source_text = "#include <concepts>\n#include <span>\nstatic_assert(std::integral<int>);\nint main(){int a[1]={0}; return std::span<int>(a)[0];}\n"
-        run_probe([str(compiler), "-std=c++20", "-x", "c++", "-", "-o", str(output)],
-                  input=source_text, environment=environment)
-        run_probe([str(output)], environment=environment)
-    return WindowsToolchain(selected, "mingw", source, compiler, version, c_compiler,
-                            make if make.is_file() else None)
+        if toolchain.kind == "clang":
+            source = pathlib.Path(directory) / "check.cpp"
+            source.write_text(source_text, encoding="utf-8")
+            command = [str(toolchain.path), "/nologo", "/std:c++20", "/EHsc", "/MD", str(source),
+                       f"/Fo{source.with_suffix('.obj')}", f"/Fe{output}", "-fuse-ld=lld"]
+            run_probe(command, environment=toolchain.environment)
+        else:
+            run_probe([str(toolchain.path), "-std=c++20", "-x", "c++", "-", "-o", str(output)],
+                      input=source_text, environment=toolchain.environment)
+        run_probe([str(output)], environment=toolchain.environment)
 
 
 def list_compilers(project: pathlib.Path | None) -> dict:
     items = []
     try:
-        items.append(find_msvc().describe())
+        items.append(find_msvc(require_sdk=False).describe())
     except (OSError, ValueError, subprocess.SubprocessError):
         pass
     candidates = [(str(MANAGED_COMPILER), "managed")]
-    candidates.extend((str(pathlib.Path(entry.strip('"')) / "g++.exe"), "path")
-                      for entry in os.environ.get("PATH", "").split(os.pathsep) if entry.strip('"'))
+    candidates.extend((str(pathlib.Path(entry.strip('"')) / name), "path")
+                      for entry in search_path().split(os.pathsep) if entry.strip('"')
+                      for name in ("g++.exe", "clang-cl.exe"))
     selected = project_compiler(project) if project else ""
     if selected:
         candidates.append((selected, "project"))
     seen = set()
+    pending = []
     for value, source in candidates:
         try:
             key = compiler_key(value)
             if key in seen or not pathlib.Path(key).is_file():
                 continue
             seen.add(key)
-            items.append(validate_compiler(key, source).describe())
+            pending.append((key, source))
         except (OSError, ValueError, subprocess.SubprocessError):
             continue
+
+    def describe(candidate: tuple[str, str]) -> dict | None:
+        try:
+            key, source = candidate
+            compiler = pathlib.Path(key)
+            toolchain = (WindowsToolchain(key, "clang", source, compiler, _clang_version(compiler))
+                         if compiler.name == "clang-cl.exe" else _mingw_toolchain(compiler, source))
+            return toolchain.describe()
+        except (OSError, ValueError, subprocess.SubprocessError):
+            return None
+
+    if pending:
+        with ThreadPoolExecutor(max_workers=min(4, len(pending))) as executor:
+            items.extend(item for item in executor.map(describe, pending) if item is not None)
     return {"compilers": items, "currentCompiler": selected or None}
 
 
@@ -217,7 +327,7 @@ def cached_compiler(project: pathlib.Path, cache: dict) -> str | None:
     if generator.startswith("Visual Studio"):
         return ""
     value = cache.get("CMAKE_CXX_COMPILER", "")
-    if value and pathlib.Path(value).name.lower() == "g++.exe":
+    if value and pathlib.Path(value).name.lower() in ("g++.exe", "clang-cl.exe"):
         return compiler_key(value)
     for path in (project / "build/CMakeFiles").glob("*/CMakeCXXCompiler.cmake"):
         text = path.read_text(encoding="utf-8", errors="replace")
@@ -225,14 +335,15 @@ def cached_compiler(project: pathlib.Path, cache: dict) -> str | None:
         if match:
             if pathlib.Path(match[1]).name.lower() == "cl.exe":
                 return ""
-            if pathlib.Path(match[1]).name.lower() == "g++.exe":
+            if pathlib.Path(match[1]).name.lower() in ("g++.exe", "clang-cl.exe"):
                 return compiler_key(match[1])
-    raise ValueError("The existing build cache is not an identified Windows MSVC/MinGW build; it was preserved.")
+    raise ValueError("The existing build cache is not an identified Windows MSVC/MinGW/Clang build; it was preserved.")
 
 
-def toolchain_status(project: pathlib.Path, target: str | None) -> dict:
+def toolchain_status(project: pathlib.Path, target: str | None, *, toolchain: WindowsToolchain | None = None) -> dict:
     selected = compiler_key(target)
-    expected = "MinGW Makefiles" if selected else "Visual Studio 17 2022"
+    clang = bool(selected and pathlib.Path(selected).name == "clang-cl.exe")
+    expected = "Ninja" if clang else "MinGW Makefiles" if selected else "Visual Studio 17 2022"
     cache = read_cache(project)
     current = cached_compiler(project, cache)
     mismatch = current is not None and current != selected
@@ -244,8 +355,11 @@ def toolchain_status(project: pathlib.Path, target: str | None) -> dict:
                        {".dll", ".exe", ".lib", ".a", ".obj", ".o", ".stamp", ".tlog"}
                        for path in scan_native_files(project))
     identity = None
-    if state or cache.get("CMAKE_GENERATOR_INSTANCE"):
-        if selected:
+    if state or cache.get("CMAKE_GENERATOR_INSTANCE") or (clang and cache):
+        if clang:
+            toolchain = toolchain or _clang_toolchain(pathlib.Path(selected), "project")
+            identity = toolchain.identity()
+        elif selected:
             identity = {"compiler": selected, "path": selected,
                         "version": run_probe([selected, "-dumpfullversion", "-dumpversion"])}
         else:
@@ -257,6 +371,7 @@ def toolchain_status(project: pathlib.Path, target: str | None) -> dict:
         mismatch = mismatch or generator != expected
         mismatch = mismatch or bool(cache.get("CMAKE_TOOLCHAIN_FILE"))
         if not selected:
+            mismatch = mismatch or cache.get("CMAKE_GENERATOR_TOOLSET", "").lower().startswith(("clang", "llvm"))
             mismatch = mismatch or cache.get("CMAKE_GENERATOR_PLATFORM", "") not in ("x64", "")
             instance = cache.get("CMAKE_GENERATOR_INSTANCE")
             if instance and identity:
@@ -269,7 +384,12 @@ def toolchain_status(project: pathlib.Path, target: str | None) -> dict:
                         path.read_text(encoding="utf-8", errors="replace")) for path in compiler_files)
         elif cache.get("CMAKE_C_COMPILER"):
             mismatch = mismatch or os.path.normcase(os.path.abspath(cache["CMAKE_C_COMPILER"])) != str(
-                pathlib.Path(selected).with_name("gcc.exe"))
+                pathlib.Path(selected).with_name("clang-cl.exe" if clang else "gcc.exe"))
+        if clang:
+            for key, path in (("CMAKE_LINKER", pathlib.Path(selected).with_name("lld-link.exe")),
+                              ("CMAKE_AR", pathlib.Path(selected).with_name("llvm-lib.exe")),
+                              ("CMAKE_MAKE_PROGRAM", toolchain.make)):
+                mismatch = mismatch or os.path.normcase(os.path.abspath(cache.get(key, ""))) != os.path.normcase(str(path))
     for directory, helper in _fetchcontent_helpers(project):
         mismatch = mismatch or helper.get("CMAKE_GENERATOR") != expected
         mismatch = mismatch or os.path.normcase(os.path.abspath(helper.get("CMAKE_HOME_DIRECTORY", ""))) != os.path.normcase(str(directory))
@@ -334,6 +454,8 @@ def owned_paths(project: pathlib.Path) -> tuple[set[pathlib.Path], set[pathlib.P
     if cache:
         cached_compiler(project, cache)
         files.add(project / "build/CMakeCache.txt")
+        if cache.get("CMAKE_GENERATOR") == "Ninja":
+            files.update(project / "build" / name for name in ("build.ninja", ".ninja_log", ".ninja_deps"))
         for name, value in cache.items():
             if name.endswith("_BINARY_DIR"):
                 directory = pathlib.Path(value)

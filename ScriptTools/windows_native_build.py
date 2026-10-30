@@ -42,7 +42,7 @@ def _build(project: pathlib.Path, configuration: str, target: str, tools: pathli
         raise ValueError(f"CMakeLists.txt was not found: {project}")
     selected = project_compiler(project)
     toolchain = validate_compiler(selected)
-    status = toolchain_status(project, selected)
+    status = toolchain_status(project, selected, toolchain=toolchain)
     if status["needsCleanup"]:
         raise ValueError("The cached Windows compiler differs from Main.proj. Change the project compiler "
                          "in the editor and confirm cleanup, or run windows-toolchain clean explicitly.")
@@ -63,7 +63,7 @@ def _build(project: pathlib.Path, configuration: str, target: str, tools: pathli
     directory = project / "build"
     for path in (directory, project / "bin/Debug", project / "bin/Release"):
         require_safe_path(project, path)
-    environment = os.environ.copy()
+    environment = (toolchain.environment or os.environ).copy()
     for name in ("CC", "CXX", "CMAKE_GENERATOR", "CMAKE_GENERATOR_PLATFORM", "CMAKE_GENERATOR_TOOLSET",
                  "CMAKE_GENERATOR_INSTANCE", "CMAKE_TOOLCHAIN_FILE"):
         environment.pop(name, None)
@@ -73,6 +73,11 @@ def _build(project: pathlib.Path, configuration: str, target: str, tools: pathli
                           f"-DCMAKE_GENERATOR_INSTANCE={toolchain.path}"])
         if not cache or cache.get("CMAKE_GENERATOR_PLATFORM"):
             configure.extend(["-A", "x64"])
+    elif toolchain.kind == "clang":
+        configure.extend(["-G", "Ninja", f"-DCMAKE_C_COMPILER={toolchain.path}",
+                          f"-DCMAKE_CXX_COMPILER={toolchain.path}", f"-DCMAKE_MAKE_PROGRAM={toolchain.make}",
+                          f"-DCMAKE_LINKER={toolchain.path.with_name('lld-link.exe')}",
+                          f"-DCMAKE_AR={toolchain.path.with_name('llvm-lib.exe')}"])
     else:
         make = toolchain.make or gnu_make
         if make is None:

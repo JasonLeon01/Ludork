@@ -67,14 +67,6 @@
     "en_GB": "Ludork user data",
     "zh_CN": "Ludork 用户数据"
   },
-  "COMPILER_SOURCE_PATH": {
-    "en_GB": "PATH",
-    "zh_CN": "环境变量 PATH"
-  },
-  "COMPILER_SOURCE_PROJECT": {
-    "en_GB": "Project",
-    "zh_CN": "当前工程"
-  },
   "COMPILER_SWITCH_TITLE": {
     "en_GB": "Confirm compiler change",
     "zh_CN": "确认更改编译器"

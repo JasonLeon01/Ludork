@@ -213,7 +213,7 @@ public partial class PackSelectionDialog : Window
 
     private async Task refreshCompilerAsync()
     {
-        if (!OperatingSystem.IsWindows() || isStandalone || closed)
+        if (!OperatingSystem.IsWindows() || isStandalone || closed || CompilerSelection.IsBusy)
             return;
         try
         {

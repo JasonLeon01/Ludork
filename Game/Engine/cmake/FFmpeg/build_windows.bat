@@ -8,7 +8,7 @@ for %%I in ("%~3") do set "INSTALL_DIR=%%~fI"
 for %%I in ("%~4") do set "GNU_MAKE=%%~fI"
 set "TOOLCHAIN=%~5"
 for %%I in ("%~6") do set "COMPILER=%%~fI"
-if not "%TOOLCHAIN%"=="msvc" if not "%TOOLCHAIN%"=="mingw" exit /b 2
+if not "%TOOLCHAIN%"=="msvc" if not "%TOOLCHAIN%"=="mingw" if not "%TOOLCHAIN%"=="clang" exit /b 2
 for %%I in ("%BUILD_DIR%\..") do if /I "%BUILD_DIR%"=="%%~fI" (
     echo The FFmpeg build directory must not be a filesystem root.
     exit /b 2
@@ -66,28 +66,45 @@ if "%TOOLCHAIN%"=="mingw" (
     set "FFMPEG_TOOLCHAIN_ARGS=--target-os=mingw32 --ar=ar.exe --nm=nm.exe --ranlib=ranlib.exe --strip=strip.exe --windres=windres.exe --host-cc=!FFMPEG_CC! --host-ld=!FFMPEG_CC!"
     set "FFMPEG_LINK_FLAGS=-Wl,--no-insert-timestamp"
 ) else (
-    set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
-    if not exist "!VSWHERE!" (
-        echo Visual Studio Installer vswhere.exe was not found.
-        exit /b 1
-    )
-    for /f "usebackq tokens=*" %%I in (`"!VSWHERE!" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "VS_PATH=%%I"
+    set "VS_PATH=%LUDORK_VS_INSTALLATION%"
     if not defined VS_PATH (
-        echo Visual Studio C++ build tools were not found.
-        exit /b 1
+        set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+        if not exist "!VSWHERE!" (
+            echo Visual Studio Installer vswhere.exe was not found.
+            exit /b 1
+        )
+        for /f "usebackq tokens=*" %%I in (`"!VSWHERE!" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "VS_PATH=%%I"
     )
-    set "PATCH=%GIT_USR_BIN%\patch.exe"
-    if not exist "!PATCH!" (
-        echo patch.exe was not found in the Git installation.
+    if not exist "!VS_PATH!\Common7\Tools\VsDevCmd.bat" (
+        echo Visual Studio C++ build tools were not found.
         exit /b 1
     )
     call "!VS_PATH!\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul
     if errorlevel 1 exit /b !errorlevel!
-    set "CL=/experimental:deterministic "/pathmap:%WORK_SOURCE_DIR%=." !CL!"
-    set "FFMPEG_CC=cl.exe"
-    if defined LUDORK_FFMPEG_CC_LAUNCHER set "FFMPEG_CC=!LUDORK_FFMPEG_CC_LAUNCHER! cl.exe"
     set "FFMPEG_TOOLCHAIN_ARGS=--toolchain=msvc --target-os=win32"
     set "FFMPEG_LINK_FLAGS=-Brepro -INCREMENTAL:NO"
+    if "%TOOLCHAIN%"=="clang" (
+        for %%I in ("%COMPILER%") do (
+            set "COMPILER_DIRECTORY=%%~dpI"
+            set "FFMPEG_CC=%%~nxI"
+        )
+        for %%T in (clang-cl lld-link llvm-lib) do if not exist "!COMPILER_DIRECTORY!%%T.exe" (
+            echo The LLVM tool was not found: !COMPILER_DIRECTORY!%%T.exe
+            exit /b 1
+        )
+        set "PATH=!COMPILER_DIRECTORY!;!PATH!"
+        set "CL=/Brepro "/clang:-ffile-prefix-map=%WORK_SOURCE_DIR%=." "/clang:-ffile-prefix-map=%BUILD_DIR%=.""
+        set "FFMPEG_TOOLCHAIN_ARGS=!FFMPEG_TOOLCHAIN_ARGS! --cxx=!FFMPEG_CC! --ld=lld-link.exe --ar=llvm-lib.exe --host-cc=!FFMPEG_CC! --host-ld=lld-link.exe"
+    ) else (
+        set "PATCH=%GIT_USR_BIN%\patch.exe"
+        if not exist "!PATCH!" (
+            echo patch.exe was not found in the Git installation.
+            exit /b 1
+        )
+        set "CL=/experimental:deterministic "/pathmap:%WORK_SOURCE_DIR%=." !CL!"
+        set "FFMPEG_CC=cl.exe"
+        if defined LUDORK_FFMPEG_CC_LAUNCHER set "FFMPEG_CC=!LUDORK_FFMPEG_CC_LAUNCHER! cl.exe"
+    )
 )
 
 if exist "%BUILD_DIR%" rmdir /S /Q "%BUILD_DIR%"
