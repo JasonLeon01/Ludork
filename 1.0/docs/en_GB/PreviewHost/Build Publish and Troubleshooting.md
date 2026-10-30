@@ -63,6 +63,7 @@ This exclusion applies to loose and `.ldpak` resource layouts and the platform b
 | Host, manifest or registry is missing | Construct the C++ Source project. For Standalone, ensure its preview metadata; update the matching runtime if its binaries or dependencies are missing. Then validate the published artefacts. |
 | Protocol or capability is incompatible | Rebuild or update the host to supply the [required preview capabilities](<Architecture and Data Flow.md#capabilities-and-timing>). There is no fallback map renderer. |
 | Preview pauses during a build | Wait for publication and reconnection. If the build failed, correct the build error and rebuild before retrying preview. |
+| Windows build reports that runtime files are in use | Close the processes listed in the build log, including any externally launched game or test process, then rebuild. The log includes process IDs when Windows can identify the owners. |
 | A newly added native control is unavailable | Rebuild its adapter and registry together; adding an editor palette entry alone does not register a native control. |
 | Packaging rejects UI assets or a registry | Correct the reported asset/registry mismatch using the matching desktop build; do not replace the registry with one from an unrelated project. |
 | Map dragging or animation is delayed | Inspect the timing stages in [Architecture and Data Flow](<Architecture and Data Flow.md#capabilities-and-timing>) at the actual output size. Native drawing, GPU readback, pixel copying and UI publication have separate costs. |
