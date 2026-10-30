@@ -383,6 +383,7 @@ function GameInstance:getShops() end
 ---@brief Record a shop once by normalised map path and stable map-placement tag.
 ---@param mapPath string
 ---@param mapTag  string Non-empty raw map-placement tag; it is not localised in saves.
+--- Publishes ShopRecordsChanged when a record is added.
 ---@return boolean added False when recording is disabled or the pair already exists.
 function GameInstance:recordShop(mapPath, mapTag) end
 
@@ -390,6 +391,7 @@ function GameInstance:recordShop(mapPath, mapTag) end
 --- Removal remains available while EnableShopRecord is false. A later visit can record the shop again.
 ---@param mapPath string
 ---@param mapTag  string
+--- Publishes ShopRecordsChanged when a record is removed.
 ---@return boolean removed False when the pair does not exist.
 function GameInstance:removeShop(mapPath, mapTag) end
 

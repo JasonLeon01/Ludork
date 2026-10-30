@@ -28,6 +28,7 @@ from .ui_control_registry import (
 )
 from .ui_property_values import UiAssetError
 from .windows_toolchain import project_compiler, toolchain_status
+from .windows_file_locks import describe_locks
 
 
 PREVIEW_DIRECTORY = pathlib.Path("Binaries")
@@ -527,7 +528,16 @@ def _replace(source: pathlib.Path, destination: pathlib.Path) -> None:
 def _wait_for_runtime_release(
     directory: pathlib.Path, files: list[pathlib.Path] | None = None
 ) -> None:
-    wait_until_writable(directory, files)
+    try:
+        wait_until_writable(directory, files)
+    except OSError as error:
+        locks = describe_locks(pathlib.Path(error.filename)) if error.filename else ""
+        if not locks:
+            raise
+        raise UiRegistryError(
+            f"{error}\nFiles are in use by: {locks}\n"
+            "Close these processes and rebuild the C++ project."
+        ) from error
 
 
 def _temporary_root(project: pathlib.Path) -> pathlib.Path:

@@ -3,6 +3,7 @@ local Item = require("Enums.GeneralData.Item")
 local State = require("Enums.GeneralData.State")
 local Data = require("Source.Data")
 local EventKey = require("Enums.EventKey")
+local PlayerChangeKind = require("Enums.PlayerChangeKind")
 local GeneralDataTypes = require("Source.Configs.GeneralDataTypes")
 local Effects = require("Source.Gameplay.Effects")
 local LocaleCore = require("Source.Locale.Core")
@@ -21,6 +22,12 @@ local createStateSignature = tuple
 local createSignature = tuple
 ---@cast createStateSignature fun(values: string[]): tuple<string>
 ---@cast createSignature fun(...: any): tuple<any>
+
+---@type Source.Windows.PlayerAttrHUD.ShortcutDefinition[]
+local SHORTCUTS = {
+    { action = "enemyBook", items = { Item.EnemyBook } }, { action = "floorTeleporter", items = { Item.Teleport } },
+    { action = "shopRecords", icon = "/Game/Assets/System/mting-495.png" }
+}
 
 local function getStateSignature(states)
     ---@type string[]
@@ -52,9 +59,12 @@ local Controller = {}
 
 Controller.refreshEvents = { EventKey.LocaleChanged, EventKey.AbilitySystemChanged, EventKey.PlayerChanged }
 
-function Controller:init(player, openMenuCallback)
-    self._player = player
+function Controller:init(inst, openMenuCallback, shortcutCallbacks)
+    self._inst = inst
+    self._player = inst:getPlayer()
     self._openMenuCallback = openMenuCallback
+    self._shortcutCallbacks = shortcutCallbacks or {}
+    self._shortcutSignature = nil
     self._avatarTexture = nil
     self._avatarRect = nil
     self._avatarOffset = 0
@@ -68,12 +78,14 @@ function Controller:init(player, openMenuCallback)
     self._stackSignature = nil
     self._progressSignature = nil
     self._keySignature = nil
-    self:_initialiseAvatar(player)
+    self:_initialiseAvatar(self:getPlayer())
     self._states = self:createCollection(self.ui.controls["StateHost"], PlayerStateRowController)
 end
 
-function Controller:setPlayer(player)
-    self._player = player
+function Controller:setInstance(inst)
+    self._inst = inst
+    self._player = inst:getPlayer()
+    self:refreshShortcuts()
     self:refresh()
 end
 
@@ -85,8 +97,86 @@ function Controller:refreshFromEvent(payload)
     super(Controller, self).refreshFromEvent(payload)
 end
 
+function Controller:onViewUpdate(payload)
+    if payload ~= nil and payload.kind == PlayerChangeKind.Inventory then
+        self:refreshShortcuts()
+    end
+end
+
 function Controller:getPlayer()
     return self._player
+end
+
+function Controller:openShortcut(action)
+    local callback = self._shortcutCallbacks[action]
+    if callback ~= nil then
+        callback()
+    end
+end
+
+function Controller:_onShopRecordsChanged(payload)
+    if payload.instance ~= self._inst then
+        return
+    end
+    self:refreshShortcuts()
+end
+
+function Controller:refreshShortcuts()
+    ---@type Source.Windows.PlayerAttrHUD.ShortcutDefinition[]
+    local shortcuts = {}
+    ---@type string[]
+    local actions = {}
+    for _, definition in ipairs(SHORTCUTS) do
+        local available = false
+        if definition.items ~= nil then
+            for _, itemID in ipairs(definition.items) do
+                if self:getPlayer():hasItem(itemID) then
+                    available = true
+                    break
+                end
+            end
+        else
+            available = #self._inst:getShops() > 0
+        end
+        if available then
+            shortcuts[#shortcuts + 1] = definition
+            actions[#actions + 1] = definition.action
+        end
+    end
+    local signature = table.concat(actions, ",")
+    if self._shortcutSignature == signature then
+        return
+    end
+    self._shortcutSignature = signature
+    local box = self.ui.controls.Shortcuts
+    box:setCount(0)
+    box:setCount(#shortcuts)
+    for index, definition in ipairs(shortcuts) do
+        local button = box:get(index)
+        assert(Class.isInstance(button, Engine.Button), "Shortcut template must be an Engine.Button")
+        ---@cast button Engine.Button
+        local icon = definition.icon
+        if icon == nil then
+            local itemID = assert(assert(definition.items)[1])
+            local itemData = Data.GetGeneralItemData(itemID)
+            icon = itemData.icon
+        end
+        button:setTexture(IconTexture.Load(icon), true)
+        button:setCanReceiveFocus(false)
+        if LUDORK_MOBILE then
+            -- Template reflow fits each source texture to the authored 32px cell.
+            local touchScale = button:getLocalBounds().size / 32
+            button:setTouchHitBounds(
+                Engine.ToFloatRect(-4 * touchScale.x, -4 * touchScale.y, 40 * touchScale.x, 40 * touchScale.y)
+            )
+        end
+        ---@param controller Source.Windows.PlayerAttrHUD.Controller
+        local function openShortcut(controller)
+            controller:openShortcut(definition.action)
+        end
+        button:addClickCallback(self:bindCallback(openShortcut))
+    end
+    self.view:reflowControl("Shortcuts", Engine.ToVector2u(box:getSize()))
 end
 
 function Controller:openMenu()
@@ -114,6 +204,8 @@ function Controller:_initialiseAvatar(player)
 end
 
 function Controller:bind()
+    self:subscribe(EventKey.ShopRecordsChanged, self:bindCallback(Controller._onShopRecordsChanged))
+    self:refreshShortcuts()
     if self._avatarTexture == nil then
         self:setProperty("Avatar", "visible", false)
         return

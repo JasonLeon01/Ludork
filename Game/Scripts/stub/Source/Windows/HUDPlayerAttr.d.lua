@@ -1,10 +1,20 @@
 ---@meta
 
+---@alias Source.Windows.PlayerAttrHUD.ShortcutKey "enemyBook" | "floorTeleporter" | "shopRecords"
+
+---@class Source.Windows.PlayerAttrHUD.ShortcutDefinition
+---@field action Source.Windows.PlayerAttrHUD.ShortcutKey
+---@field items  string[] | nil
+---@field icon   string | nil
+
 ---
 --- Shows the player's avatar, current map name, level, states, HP bar with value, and stat values.
 ---@class Source.Windows.PlayerAttrHUD.Controller: Internal.UIBase.UiController
 ---@field host                   Source.Windows.PlayerAttrHUD
+---@field _inst                  Source.GameInstance.GameInstance
 ---@field _player                Source.MapActors.Player.Player
+---@field _shortcutCallbacks     table<Source.Windows.PlayerAttrHUD.ShortcutKey, fun(): boolean>
+---@field _shortcutSignature     string | nil
 ---@field _openMenuCallback      function | nil
 ---@field ui                     Internal.UI.PlayerAttrHUD
 ---@field refreshEvents          string[]
@@ -24,19 +34,15 @@
 ---@field _states                Internal.UIBase.UiCollection<Source.Windows.HUDPlayerAttr.PlayerStateRow.Controller>
 local Controller = {}
 
---- Construct a player attribute HUD bound to the given player instance.
----
---- - @param player  Target player whose attributes are displayed on this HUD
---- - @param openMenuCallback Callback invoked when the player avatar is clicked
----@param player           Source.MapActors.Player.Player
----@param openMenuCallback function | nil
-function Controller:init(player, openMenuCallback) end
+--- Construct the player HUD and its optional shortcut actions.
+---@param inst              Source.GameInstance.GameInstance
+---@param openMenuCallback  function | nil
+---@param shortcutCallbacks table<Source.Windows.PlayerAttrHUD.ShortcutKey, fun(): boolean> | nil
+function Controller:init(inst, openMenuCallback, shortcutCallbacks) end
 
---- Rebind the player whose values are displayed by this HUD.
----
---- - @param player Target player.
----@param player Source.MapActors.Player.Player
-function Controller:setPlayer(player) end
+--- Rebind the game instance and its primary player, including after loading a save.
+---@param inst Source.GameInstance.GameInstance
+function Controller:setInstance(inst) end
 
 --- Ignore Ability System and player events from other battlers, then refresh the HUD.
 ---
@@ -44,10 +50,22 @@ function Controller:setPlayer(player) end
 ---@param payload Source.Configs.EventChangePayload | { language: string } | nil
 function Controller:refreshFromEvent(payload) end
 
+---@param payload Source.Configs.EventChangePayload | { language: string } | nil
+function Controller:onViewUpdate(payload) end
+
 ---@return Source.MapActors.Player.Player
 function Controller:getPlayer() end
 
 function Controller:openMenu() end
+
+---@param action Source.Windows.PlayerAttrHUD.ShortcutKey
+function Controller:openShortcut(action) end
+
+---@param payload Source.Configs.ShopRecordsChangePayload
+function Controller:_onShopRecordsChanged(payload) end
+
+--- Rebuild the native shortcut templates only when the available actions change.
+function Controller:refreshShortcuts() end
 
 function Controller:bind() end
 

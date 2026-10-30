@@ -1,3 +1,5 @@
+local Engine = require("Engine")
+local EventKey = require("Enums.EventKey")
 local GameVariables = require("Source.Configs.GameVariables")
 local GameInstanceRecords = require("Source.Utils.GameInstance.Records")
 local GameInstanceSaveCodec = require("Source.Utils.GameInstance.SaveCodec")
@@ -257,11 +259,19 @@ function GameInstance:recordShop(mapPath, mapTag)
     if not GameInstance.EnableShopRecord then
         return false
     end
-    return GameInstanceShops.Append(self._shops, mapPath, mapTag)
+    local changed = GameInstanceShops.Append(self._shops, mapPath, mapTag)
+    if changed then
+        Engine.publish(EventKey.ShopRecordsChanged, { instance = self })
+    end
+    return changed
 end
 
 function GameInstance:removeShop(mapPath, mapTag)
-    return GameInstanceShops.Remove(self._shops, mapPath, mapTag)
+    local changed = GameInstanceShops.Remove(self._shops, mapPath, mapTag)
+    if changed then
+        Engine.publish(EventKey.ShopRecordsChanged, { instance = self })
+    end
+    return changed
 end
 
 ---@param actor            Engine.Actor

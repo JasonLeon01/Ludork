@@ -22,6 +22,19 @@ local Transition = GlobalCore.Transition
 local Input = Engine.Input
 local ManagerFunctions = GlobalFunctions.Manager
 
+---@param sceneRef Source.Scenes.SceneMap.SceneMap[]
+---@param action   fun(scene: Source.Scenes.SceneMap.SceneMap): boolean
+---@return fun(): boolean
+local function bindSceneShortcut(sceneRef, action)
+    return function ()
+        local scene = sceneRef[1]
+        if scene ~= nil then
+            return action(scene)
+        end
+        return false
+    end
+end
+
 ---@class Source.Scenes.SceneMap.SceneMap: Source.Gameplay.GameplayScene
 local Scene = {}
 
@@ -45,12 +58,20 @@ function Scene:onCreate()
     self._tutorials = TutorialController.new(self)
     ---@type Source.Scenes.SceneMap.SceneMap[]
     local sceneRef = setmetatable({ self }, { __mode = "v" })
-    self._playerHUD = PlayerAttrHUD.new(self.player, function ()
-        local scene = sceneRef[1]
-        if scene ~= nil then
-            scene:openMenu()
-        end
-    end)
+    self._playerHUD = PlayerAttrHUD.new(
+        self.inst,
+        function ()
+            local scene = sceneRef[1]
+            if scene ~= nil then
+                scene:openMenu()
+            end
+        end,
+        {
+            enemyBook = bindSceneShortcut(sceneRef, Scene.showEnemyBook),
+            floorTeleporter = bindSceneShortcut(sceneRef, Scene.showFloorTeleporter),
+            shopRecords = bindSceneShortcut(sceneRef, Scene.showShopRecords)
+        }
+    )
     self._regionTitleUI = RegionTitleController.new(Display.getGameSize())
     self._regionTitleUI:prepare()
     self._playerHUD:mount(uiManager)
@@ -277,7 +298,7 @@ function Scene:applyLoadedGame(inst)
     self.inst = inst
     self.player = inst:getPlayer()
     self._windows:rebindPlayer()
-    self._playerHUD:setPlayer(self.player)
+    self._playerHUD:setInstance(self.inst)
     self._maps:invalidateLoadedMap()
     self:gotoMapAndPos(inst:getCurrentMapPath() or GameSystem.GetStartMap(), self.player:getMapPosition())
 end
@@ -287,7 +308,7 @@ function Scene:applyPrimaryPlayer()
     self:_cancelInteractions()
     self.player = self.inst:getPlayer()
     self._windows:rebindPlayer()
-    self._playerHUD:setPlayer(self.player)
+    self._playerHUD:setInstance(self.inst)
     self._maps:invalidateLoadedMap()
     local mapPath = assert(self.inst:getCurrentMapPath(), "Primary player has no stored map")
     self:gotoMapAndPos(mapPath, self.player:getMapPosition())
