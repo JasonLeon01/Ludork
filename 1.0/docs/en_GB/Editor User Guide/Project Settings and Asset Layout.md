@@ -49,6 +49,8 @@ Browser paths stay beneath `Assets` or `Data`. If a stored directory has disappe
 
 The editor stores the last selected map key in `lastOpenedMapKey` and saves it immediately when the editing selection changes, without saving map content. Reopening the project restores that map, including world maps and their child maps. Missing or invalid records select the first available entry; an empty project has no selection. Live-debug map changes do not overwrite this preference.
 
+`editor.mapList.expanded` lists the keys of expanded Map List rows that have children, such as `["World_01", "Map_02"]`. Expanding or collapsing a row does not mark the project as modified; the current state is written when the project is saved and restored when it reopens. Keys that no longer exist are ignored, and an empty list removes the entry.
+
 Editor appearance and tool preferences are shared independently of this project workspace state. See [Global editor preferences](<Start Page Workspace and Shortcuts.md#global-editor-preferences>).
 
 ## Game configuration
@@ -118,7 +120,7 @@ Keep `Data` and `Scripts` as loose directories while authoring. See [Run, Debug 
 
 ### Map and world-map assets
 
-An ordinary map is `Data/Maps/<Name>.json`. A world is `Data/Maps/<WorldFolder>/` with exactly one `_world.json` and direct child-map `.json` files, and deeper nesting is not allowed. World loading reads only the direct `.json` files and ignores other regular files such as `.DS_Store`. The folder name is the world's path identity, while `_world.json` stores its independent `worldName`. Each direct child keeps its own editable `mapName`, so the file remains a complete map after it is moved out of the world, and the child file name remains its path and placement identity. The manifest is the world's selector and save identity, and it stays hidden in the Map List.
+An ordinary map is `Data/Maps/<Name>.json`. A world is `Data/Maps/<WorldFolder>/` with exactly one `_world.json` and direct child-map `.json` files, and deeper nesting is not allowed. World loading reads only the direct `.json` files and ignores other regular files such as `.DS_Store`. `_info.json` in `Data/Maps` and in each world folder stores the editor's [Map List order](<Tilesets Autotiles and Maps.md#map-list-and-composite-worlds>) as `{"order": ["Map_01", {"Map_02": ["Map_03"]}, "World_01"]}`, where a string is a file stem or world folder name and a single-key object nests rows under that entry. The runtime ignores it, [game packaging](<Run Debug and Package.md#packaging>) excludes it, and `_info` cannot be used as a map or world name. The folder name is the world's path identity, while `_world.json` stores its independent `worldName`. Each direct child keeps its own editable `mapName`, so the file remains a complete map after it is moved out of the world, and the child file name remains its path and placement identity. The manifest is the world's selector and save identity, and it stays hidden in the Map List.
 
 The manifest has this closed editor-owned shape:
 

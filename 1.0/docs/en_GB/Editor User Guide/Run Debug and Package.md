@@ -102,7 +102,15 @@ Shader encryption covers `Assets/Shaders`; data encryption also covers generated
 
 Preview registry validation and exclusions are described in [PreviewHost packaging rules](<../PreviewHost/Build Publish and Troubleshooting.md#editable-templates-and-final-packages>).
 
-Game packaging works on a staging copy and leaves project sources unchanged. It removes development files, project-root `EditorCache`/`Cache` and UI `editor` design data. UI asset keys remain extensionless and Controller references keep their logical Lua module paths, whether Data is stored as JSON, encrypted `.ldc` or in an archive. Directories named `EditorCache` or `Cache` inside `Assets`, `Data` or `Scripts` remain ordinary project content.
+Game packaging works on a staging copy and leaves project sources unchanged. Every target packages `Assets`, `Data` and `Scripts`. Windows, macOS, Android and HarmonyOS also copy `Licenses` and the root `LICENSE.md`, `THIRD_PARTY_NOTICES.md` and `THIRD_PARTY_NOTICES_zh_CN.md`; iOS adds the same files from the project. Windows and macOS also include `ThirdPartySource`. The following are never packaged:
+
+- `.DS_Store`, `.git`, `.vs`, `.idea`, `.vscode`, `.emmyrc.json`, `.gitignore` and editor animation caches (`*.anim.json`) at any depth;
+- project-root `EditorCache`, `Cache`, `Intermediate` and `Log`, and the `Scripts/stub` declarations;
+- the [Map List order](<Tilesets Autotiles and Maps.md#map-list-and-composite-worlds>) files `Data/Maps/_info.json` and `Data/Maps/<world>/_info.json`;
+- material authoring records, build tools and preview components;
+- files excluded by before-Pack hooks.
+
+Packaging fails if any of these entries, or any other `.d.lua` file, remains after staging. It also strips UI `editor` design data. UI asset keys remain extensionless and Controller references keep their logical Lua module paths, whether Data is stored as JSON, encrypted `.ldc` or in an archive. Directories named `EditorCache` or `Cache` inside `Assets`, `Data` or `Scripts`, and `_info.json` files elsewhere in `Data`, remain ordinary project content.
 
 ### Convert Source to a Standalone project
 
@@ -141,8 +149,6 @@ The staging copy receives `Data/BuildInfo.json` containing `version`, `fullVersi
 Every platform keeps the runtime files, `Assets`, `Data` and the runtime `Scripts` as loose directories by default. The `.ldpak` option is clear by default. When it is selected, the complete contents of each directory become root `Assets.ldpak`, `Data.ldpak` and `Scripts.ldpak`. Archive entries retain paths relative to their original directory, so resource paths, Data paths and Lua module names stay unchanged. Encryption and Lua compilation run before archiving, and an archive does not encrypt its contents by itself. Mobile packages enforce the same loose-or-packed contract, and Android and HarmonyOS do not recompress `.ldpak`.
 
 Resource packaging rejects symbolic links, case collisions, illegal paths and output conflicts. A package contains either all three loose directories (`Assets`, `Data`, `Scripts`) or all three root archives. Corrupt archives, missing roots, mixed layouts and old per-group archives are rejected.
-
-Game packaging removes the development-only `Scripts/stub` tree. Any other `.d.lua` file left under `Scripts` fails packaging.
 
 ### Windows and macOS
 
