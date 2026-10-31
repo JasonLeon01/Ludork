@@ -35,7 +35,7 @@ public sealed partial class ProjectDataStore
     }
 
     internal bool commitResourceChange(string section, string oldKey, string newKey, JsonObject candidate,
-        JsonObject? worldCandidate = null, bool recordSource = true)
+        JsonObject? worldCandidate = null, bool recordSource = true, HistoryMarker? sourceMarker = null)
     {
         EditorDocument? source = GetDocument(section, oldKey);
         if (source is null || source.InternalData is null)
@@ -97,7 +97,7 @@ public sealed partial class ProjectDataStore
             string previousKey = document.Key;
             if (!ReferenceEquals(document, source) || recordSource)
             {
-                HistoryMarker? marker = ReferenceEquals(document, source) ? null
+                HistoryMarker? marker = ReferenceEquals(document, source) ? sourceMarker
                     : new HistoryMarker(LocaleService.Get("DOCUMENT_HISTORY_REFERENCE_BARRIER")
                         .Replace("{source}", source.Path, StringComparison.Ordinal), source.Id, source.Path, true);
                 RecordDocumentSnapshot(document.Section, previousKey,

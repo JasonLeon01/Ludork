@@ -91,6 +91,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
         GameData.ModifiedChanged += onModifiedChanged;
         GameData.EditOperations.Changed += onEditOperationChanged;
         ProjectSave.PendingInputsChanged += onModifiedChanged;
+        ProjectSave.SavePreparing += onSavePreparing;
         GameConfig.Changed += onModifiedChanged;
         GameVariables.Changed += onModifiedChanged;
         GameVariables.Saved += onGameVariablesSaved;
@@ -268,6 +269,7 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
             return;
         disposed = true;
         ProjectSave.PendingInputsChanged -= onModifiedChanged;
+        ProjectSave.SavePreparing -= onSavePreparing;
         GameData.ModifiedChanged -= onModifiedChanged;
         GameData.EditOperations.Changed -= onEditOperationChanged;
         GameData.Documents.Changed -= onDocumentsChanged;
@@ -302,6 +304,11 @@ public sealed class MainViewModel : ViewModelBase, IDisposable
     private void onGameVariablesSaved(object? sender, EventArgs args)
     {
         onModifiedChanged(sender, args);
+    }
+
+    private void onSavePreparing(object? sender, EventArgs args)
+    {
+        MapWorkspace.SaveMapListExpansion();
     }
 
     private void onDocumentsChanged(object? sender, EventArgs args)

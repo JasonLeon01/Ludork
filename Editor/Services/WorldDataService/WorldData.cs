@@ -19,6 +19,8 @@ public sealed partial class WorldDataService
         foreach (string path in Directory.EnumerateFiles(mapsRoot, "*.json", SearchOption.TopDirectoryOnly)
                      .OrderBy(value => value, StringComparer.Ordinal))
         {
+            if (MapOrderService.IsOrderFile(path))
+                continue;
             if (string.Equals(Path.GetFileName(path), "_world.json", StringComparison.OrdinalIgnoreCase))
             {
                 store.addInvalidLoadPath(path);
@@ -49,7 +51,8 @@ public sealed partial class WorldDataService
             .Where(path => string.Equals(
                 Path.GetExtension(path),
                 ".json",
-                StringComparison.OrdinalIgnoreCase))
+                StringComparison.OrdinalIgnoreCase)
+                && !MapOrderService.IsOrderFile(path))
             .OrderBy(value => value, StringComparer.Ordinal)
             .ToArray();
         string[] manifestPaths = directJsonFiles
@@ -239,6 +242,7 @@ public sealed partial class WorldDataService
             && !key.Contains('\\')
             && key is not "." and not ".."
             && !string.Equals(key, "_world", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(key, "_info", StringComparison.OrdinalIgnoreCase)
             && key.IndexOfAny(Path.GetInvalidFileNameChars()) < 0;
     }
 

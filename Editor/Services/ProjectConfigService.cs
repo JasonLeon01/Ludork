@@ -186,6 +186,45 @@ public sealed class ProjectConfigService
         }
     }
 
+    public IReadOnlyList<string> MapListExpandedKeys
+    {
+        get
+        {
+            if (getEditor(false)?["mapList"] is not JsonObject mapList || mapList["expanded"] is not JsonArray keys)
+                return [];
+            List<string> result = [];
+            foreach (JsonNode? node in keys)
+            {
+                if (node is JsonValue value && value.TryGetValue(out string? key) && !string.IsNullOrWhiteSpace(key))
+                    result.Add(key);
+            }
+            return result;
+        }
+        set
+        {
+            JsonObject updated = (JsonObject)data.DeepClone();
+            if (updated["editor"] is not JsonObject editor)
+            {
+                editor = [];
+                updated["editor"] = editor;
+            }
+            if (value.Count == 0)
+            {
+                editor.Remove("mapList");
+            }
+            else
+            {
+                JsonArray keys = [];
+                foreach (string key in value)
+                    keys.Add(key.Replace('\\', '/'));
+                editor["mapList"] = new JsonObject { ["expanded"] = keys };
+            }
+            removeObsoleteEditorState(updated);
+            if (!JsonNode.DeepEquals(data, updated))
+                save(updated);
+        }
+    }
+
     public string? LastOpenedMapKey
     {
         get => data["lastOpenedMapKey"] is JsonValue value && value.TryGetValue(out string? key) ? key : null;

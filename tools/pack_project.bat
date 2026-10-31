@@ -178,9 +178,6 @@ if "%ENCRYPT_SHADERS%"=="1" set "FINALIZE_OPTIONS=%FINALIZE_OPTIONS% --encrypt-s
 if "%ENCRYPT_DATA%"=="1" set "FINALIZE_OPTIONS=%FINALIZE_OPTIONS% --encrypt-data"
 if "%USE_LDPAK%"=="1" set "FINALIZE_OPTIONS=%FINALIZE_OPTIONS% --use-ldpak"
 "%SCRIPT_TOOLS%" finalize-package %FINALIZE_OPTIONS% --registry "%UI_REGISTRY%" "%DIST_DIR%"
-if errorlevel 1 exit /b %errorlevel%
-for %%F in (PreviewHost.exe PreviewHostRuntime.dll UiPreviewHost.exe UiPreviewHostRuntime.dll) do if exist "%DIST_DIR%\Binaries\%%F" exit /b 1
-if exist "%DIST_DIR%\%EDITOR_CACHE_DIRECTORY%" exit /b 1
 exit /b %errorlevel%
 
 :validate_runtime_layout

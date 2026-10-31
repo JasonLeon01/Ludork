@@ -11,7 +11,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import BinaryIO
 
-from .packaging_constants import FILE_BUFFER_SIZE, GAME_BUILD_TOOL_FILES, PACKAGE_CACHE_DIRECTORIES
+from .package_contents import is_excluded
+from .packaging_constants import FILE_BUFFER_SIZE
 from .resource_constants import (
     PACKAGE_EXTENSION,
     RESOURCE_GROUPS,
@@ -32,7 +33,6 @@ from .runtime_formats import (
     LDPK_MAGIC as MAGIC,
     LDPK_VERSION as VERSION,
 )
-from .preview import is_preview_development_file, is_preview_development_path
 
 
 class LdPakError(RuntimeError):
@@ -730,25 +730,9 @@ def validate_runtime_resource_paths(
     use_ldpak = any(name in paths for name in RESOURCE_PACKAGES)
     if expected_use_ldpak is not None and use_ldpak != expected_use_ldpak:
         raise LdPakError("Runtime has the wrong loose/packed resource layout")
-    for directory in PACKAGE_CACHE_DIRECTORIES:
-        if any(name == directory or name.startswith(directory + "/") for name in names):
-            raise LdPakError(
-                f"Runtime must not contain the project root {directory} directory"
-            )
-    if any(
-        name.startswith("Binaries/")
-        and "/" not in name.removeprefix("Binaries/")
-        and (
-            name.removeprefix("Binaries/") in GAME_BUILD_TOOL_FILES
-            or is_preview_development_file(name.removeprefix("Binaries/"))
-        )
-        for name in names
-    ):
-        raise LdPakError(
-            "Runtime must not contain build tools or preview development files in Binaries"
-        )
-    if any(is_preview_development_path(name) for name in names):
-        raise LdPakError("Runtime must not contain preview development files")
+    excluded = sorted(name for name in names if is_excluded(name))
+    if excluded:
+        raise LdPakError(f"Runtime contains excluded package entries: {', '.join(excluded)}")
     for group, package in zip(RESOURCE_GROUPS, RESOURCE_PACKAGES, strict=True):
         has_loose = group + "/" in paths or any(
             name.startswith(group + "/") for name in names

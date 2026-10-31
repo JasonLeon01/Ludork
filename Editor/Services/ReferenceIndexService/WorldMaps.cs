@@ -117,7 +117,8 @@ public sealed partial class ReferenceIndexService
                              .Where(path => !string.Equals(
                                  Path.GetFileName(path),
                                  "_world.json",
-                                 StringComparison.OrdinalIgnoreCase)))
+                                 StringComparison.OrdinalIgnoreCase)
+                                 && !MapOrderService.IsOrderFile(path)))
                 {
                     string fileName = Path.GetFileName(childPath);
                     result[oldRelative + "/" + fileName] = newRelative + "/" + fileName;
@@ -127,7 +128,9 @@ public sealed partial class ReferenceIndexService
             if (string.Equals(Path.GetExtension(oldRelative), ".json", StringComparison.OrdinalIgnoreCase)
                 && string.Equals(Path.GetExtension(newRelative), ".json", StringComparison.OrdinalIgnoreCase)
                 && !string.Equals(Path.GetFileName(oldRelative), "_world.json", StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(Path.GetFileName(newRelative), "_world.json", StringComparison.OrdinalIgnoreCase))
+                && !string.Equals(Path.GetFileName(newRelative), "_world.json", StringComparison.OrdinalIgnoreCase)
+                && !MapOrderService.IsOrderFile(oldRelative)
+                && !MapOrderService.IsOrderFile(newRelative))
             {
                 result[oldRelative] = newRelative;
             }

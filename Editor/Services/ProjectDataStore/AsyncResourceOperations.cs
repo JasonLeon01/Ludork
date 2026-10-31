@@ -44,6 +44,10 @@ public sealed partial class ProjectDataStore
     internal Task<bool> UpdateMapAsync(string key, MapInfo info, IProgress<EditorOperationProgress>? progress)
         => runResourceOperationAsync(store => store.Maps.UpdateMap(key, info), result => result, progress);
 
+    internal Task<WorldMapMutationResult> MoveMapsAsync(IReadOnlyList<string> keys, string? targetWorldKey,
+        IProgress<EditorOperationProgress>? progress)
+        => runResourceOperationAsync(store => store.Maps.MoveMaps(keys, targetWorldKey), result => result.Success, progress);
+
     internal Task<WorldMapMutationResult> RemoveWorldPlacementAsync(string worldKey, string childKey,
         IProgress<EditorOperationProgress>? progress)
         => runResourceOperationAsync(store => store.Worlds.RemoveWorldPlacement(worldKey, childKey),

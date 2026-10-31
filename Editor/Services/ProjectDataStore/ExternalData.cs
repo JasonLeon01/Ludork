@@ -75,6 +75,7 @@ public sealed partial class ProjectDataStore
         }
         rejectInvalidBlueprints();
         Worlds.loadMapsAndWorldMaps();
+        MapOrder.load();
         originData = cloneAllData();
         projectEnumGenerationPending = generalEnums.NeedsGeneration(GetProjectEnumCatalog());
         isModified = projectEnumGenerationPending;
@@ -87,6 +88,8 @@ public sealed partial class ProjectDataStore
         string fullPath = Path.GetFullPath(absolutePath);
         if (Maps.tryGetMapsRelativePath(fullPath, out string mapsRelative))
         {
+            if (MapOrderService.IsOrderFile(fullPath))
+                return null;
             if (string.Equals(Path.GetFileName(fullPath), "_world.json", StringComparison.OrdinalIgnoreCase))
                 return Path.GetDirectoryName(mapsRelative)?.Replace('\\', '/');
             return Path.ChangeExtension(mapsRelative, null)?.Replace('\\', '/');
@@ -157,6 +160,12 @@ public sealed partial class ProjectDataStore
         string fullPath = Path.GetFullPath(path);
         if (Maps.tryGetMapsRelativePath(fullPath, out string mapsRelative))
         {
+            if (MapOrderService.IsOrderFile(fullPath))
+            {
+                sectionName = string.Empty;
+                relativePath = string.Empty;
+                return false;
+            }
             if (string.Equals(Path.GetFileName(fullPath), "_world.json", StringComparison.OrdinalIgnoreCase))
             {
                 sectionName = "WorldMaps";

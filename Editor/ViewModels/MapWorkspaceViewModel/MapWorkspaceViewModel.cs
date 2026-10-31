@@ -42,7 +42,7 @@ public sealed partial class MapWorkspaceViewModel : ViewModelBase, IDisposable
         GameData.Maps.MapPreviewChanged += onMapPreviewChanged;
         GameData.Documents.Changed += onDocumentsChanged;
         GameData.Documents.ContentChanged += onDocumentContentChanged;
-        rebuildMapTree();
+        rebuildMapTree(ProjectConfig.MapListExpandedKeys.ToHashSet(StringComparer.Ordinal));
         SelectedMap = findMapItem(ProjectConfig.LastOpenedMapKey) ?? Maps.FirstOrDefault();
     }
 

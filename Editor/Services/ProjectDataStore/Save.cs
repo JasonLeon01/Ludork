@@ -96,6 +96,7 @@ public sealed partial class ProjectDataStore
                 return new SaveResult(false, exception.Message);
             }
         }
+        MapOrder.AddToSaveBatch(batch);
         SaveResult result = batch.Execute(progress, canWrite: () =>
         {
             assetInputs.Validate();
@@ -121,6 +122,7 @@ public sealed partial class ProjectDataStore
         originData["MapCatalog"] = sections["MapCatalog"].ToDictionary(
             pair => pair.Key, pair => (JsonObject)pair.Value.DeepClone(), StringComparer.Ordinal);
         Worlds.ClearPendingDirectoryMoves();
+        MapOrder.MarkSaved();
         refreshModifiedState();
         notifications.Commit();
         DataSaved?.Invoke(this, EventArgs.Empty);
@@ -163,6 +165,7 @@ public sealed partial class ProjectDataStore
         foreach (EditorDocument world in Documents.All.Where(document => document.Section == "WorldMaps"))
             if (world.SavedState.InternalData is not null && world.SavedPath != world.Path)
                 Worlds.UpdatePendingDirectoryMove(world.Key, world.Key, Path.GetDirectoryName(world.SavedPath));
+        MapOrder.CompleteSave(savedStore.MapOrder);
         refreshModifiedState();
         notifications.Commit();
         DataSaved?.Invoke(this, EventArgs.Empty);

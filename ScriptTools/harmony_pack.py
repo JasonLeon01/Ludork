@@ -15,9 +15,9 @@ import unicodedata
 import zipfile
 from dataclasses import dataclass, replace
 
-from .resource_constants import ANIMATION_CACHE_SUFFIX
 from . import server_config
-from .material_assets import MaterialAssetError, copy_export_inputs, validate_generated as validate_materials
+from .material_assets import MaterialAssetError, validate_generated as validate_materials
+from .package_contents import copy_package_inputs, is_excluded
 from .pack_error import PackError
 from .harmony_signing import (
     HarmonySigningOptions,
@@ -36,12 +36,11 @@ from .packaging_constants import (
     EXIT_TOOLCHAIN,
     FILE_BUFFER_SIZE,
     MOBILE_DEPENDENCY_NAMES,
-    RUNTIME_LEGAL_FILES,
     TEMPLATE_TOKEN_PATTERN,
 )
 from .packaging_names import read_app_name
 from .packaging_metadata import PackageMetadata, add_package_arguments, read_package_metadata
-from .resource_constants import RESOURCE_GROUPS, RESOURCE_PACKAGES
+from .resource_constants import RESOURCE_PACKAGES
 from .ui_property_values import UiAssetError
 from ScriptTools.compile_lua import resolve_luac
 from ScriptTools.preview import prepare_registry
@@ -498,24 +497,7 @@ def copy_runtime_resources(context: PackContext, destination: pathlib.Path) -> N
     if destination.exists():
         shutil.rmtree(destination)
     destination.mkdir(parents=True)
-    for name in RESOURCE_GROUPS:
-        shutil.copytree(
-            context.project_dir / name,
-            destination / name,
-            ignore=shutil.ignore_patterns(".DS_Store", "*" + ANIMATION_CACHE_SUFFIX),
-        )
-    licenses = context.project_dir / "Licenses"
-    if licenses.is_dir():
-        shutil.copytree(
-            licenses,
-            destination / "Licenses",
-            ignore=shutil.ignore_patterns(".DS_Store"),
-        )
-    for name in RUNTIME_LEGAL_FILES:
-        source = context.project_dir / name
-        if source.is_file():
-            shutil.copy2(source, destination / name)
-    copy_export_inputs(context.project_dir, destination)
+    copy_package_inputs(context.project_dir, destination)
     context.metadata.write_build_info(destination)
     finalize_package(
         destination,
@@ -600,10 +582,8 @@ def validate_runtime_zip(
         forbidden = sorted(
             name
             for name in names
-            if pathlib.PurePosixPath(name).name == ".DS_Store"
+            if is_excluded(name.rstrip("/"))
             or name.casefold().endswith(".d.lua")
-            or name.endswith(ANIMATION_CACHE_SUFFIX)
-            or "/Scripts/stub/" in "/" + name
         )
         if forbidden:
             raise PackError(

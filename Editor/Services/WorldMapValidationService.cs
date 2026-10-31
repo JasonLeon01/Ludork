@@ -70,7 +70,8 @@ public sealed class WorldMapValidationService
             || worldKey.Contains('/')
             || worldKey.Contains('\\')
             || worldKey is "." or ".."
-            || string.Equals(worldKey, "_world", StringComparison.OrdinalIgnoreCase))
+            || string.Equals(worldKey, "_world", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(worldKey, "_info", StringComparison.OrdinalIgnoreCase))
         {
             issues.Add(new WorldMapValidationIssue(
                 "invalidWorldKey",
@@ -343,7 +344,8 @@ public sealed class WorldMapValidationService
         return !string.IsNullOrWhiteSpace(value)
             && string.Equals(Path.GetExtension(value), ".json", StringComparison.OrdinalIgnoreCase)
             && string.Equals(Path.GetFileName(value), value, StringComparison.Ordinal)
-            && !string.Equals(value, "_world.json", StringComparison.OrdinalIgnoreCase);
+            && !string.Equals(value, "_world.json", StringComparison.OrdinalIgnoreCase)
+            && !MapOrderService.IsOrderFile(value);
     }
 
     private static bool tryReadRect(JsonNode? value, out WorldMapRect rect)

@@ -188,7 +188,8 @@ public sealed class WorldMapEditWindow : Window
             && value.IndexOfAny(Path.GetInvalidFileNameChars()) < 0
             && !value.Contains('/')
             && !value.Contains('\\')
-            && !string.Equals(value, "_world", StringComparison.OrdinalIgnoreCase);
+            && !string.Equals(value, "_world", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(value, "_info", StringComparison.OrdinalIgnoreCase);
     }
 
 }

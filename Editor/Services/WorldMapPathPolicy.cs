@@ -79,7 +79,8 @@ public sealed class WorldMapPathPolicy
     private static bool isMapFile(string path)
     {
         return string.Equals(Path.GetExtension(path), ".json", StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(Path.GetFileName(path), "_world.json", StringComparison.OrdinalIgnoreCase);
+            && !string.Equals(Path.GetFileName(path), "_world.json", StringComparison.OrdinalIgnoreCase)
+            && !MapOrderService.IsOrderFile(path);
     }
 
     private bool tryGetDepth(string path, out int depth)

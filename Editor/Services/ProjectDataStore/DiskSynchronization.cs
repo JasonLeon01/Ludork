@@ -53,6 +53,10 @@ public sealed partial class ProjectDataStore
             }
             await batch.YieldIfNeededAsync(token);
         }
+        List<(string Scope, IReadOnlyList<MapOrderNode> Tree)> orderChanges = [];
+        foreach (ExternalFileChange change in changes)
+            if (!keepPaths.Contains(change.Path) && MapOrder.TryGetScope(change.Path, out string scope))
+                orderChanges.Add((scope, MapOrder.PrepareDiskChange(change.Path, change.Content)));
         bool synchronizeAssets = changes.Any(change => ProjectDiskSnapshot.IsWithin(change.Path, Path.Combine(ProjectPath, "Assets")))
             || AssetPaths.HasPendingChanges && inputs.Any(change => !change.Keep);
         bool validateBlueprints = inputs.Any(change => !change.Keep && change.Section is "Blueprints" or "Maps");
@@ -123,6 +127,8 @@ public sealed partial class ProjectDataStore
                     if (change.Data is null)
                         deletedDocumentPaths.Add(change.Input.Path);
                 }
+            foreach ((string scope, IReadOnlyList<MapOrderNode> tree) in orderChanges)
+                MapOrder.ApplyDiskChange(scope, tree);
             refreshModifiedState();
             string[] changedMaps = prepared.Where(change => !change.Input.Keep && change.Input.Section == "Maps")
                 .Select(change => change.Input.Key).Distinct(StringComparer.Ordinal).ToArray();
@@ -165,7 +171,8 @@ public sealed partial class ProjectDataStore
             await batch.YieldIfNeededAsync(token);
         }
         return new ProjectOperationSnapshot(ProjectPath, Documents.Revision, documents, Maps.MapCatalog.ToArray(), moves,
-            InvalidLoadPaths, InvalidLoadErrors, deletedDocumentPaths.ToArray(), projectEnumGenerationPending, RenamedReferences);
+            InvalidLoadPaths, InvalidLoadErrors, deletedDocumentPaths.ToArray(), projectEnumGenerationPending, RenamedReferences,
+            MapOrder.Capture());
     }
 
     private (PreparedDiskChange[] Changes, PreparedAssetDiskChanges? Assets) prepareDiskSynchronization(

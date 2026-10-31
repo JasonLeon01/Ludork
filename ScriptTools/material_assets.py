@@ -9,6 +9,8 @@ import re
 import shutil
 import sys
 
+from .resource_constants import MAP_ORDER_FILE
+
 
 FORMAT_VERSION = 1
 GENERATOR = "Ludork Material Export"
@@ -112,7 +114,7 @@ def _programs(root: pathlib.Path, materials: list[pathlib.Path], inputs: dict[st
             for path in _files(root, directory) if path.suffix == ".json"
         }
     for path in _files(root, CONTENT_ROOTS[0]):
-        if path.suffix != ".json":
+        if path.suffix != ".json" or path.name == MAP_ORDER_FILE:
             continue
         document = _read_object(root, path, inputs)
         if path.name == "_world.json":

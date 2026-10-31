@@ -60,7 +60,7 @@ public sealed partial class ProjectDataStore
                 moves.Add(key, directory);
         return new ProjectOperationSnapshot(ProjectPath, revision, documents,
             Maps.MapCatalog.ToArray(), moves, InvalidLoadPaths, InvalidLoadErrors, deletedDocumentPaths.ToArray(),
-            projectEnumGenerationPending, RenamedReferences);
+            projectEnumGenerationPending, RenamedReferences, MapOrder.Capture());
     }
 
     internal static ProjectDataStore CreateOperationStore(ProjectOperationSnapshot snapshot)
@@ -105,6 +105,7 @@ public sealed partial class ProjectDataStore
         store.deletedDocumentPaths.UnionWith(snapshot.DeletedPaths);
         store.SetRenamedReferences(snapshot.RenamedReferences);
         store.projectEnumGenerationPending = snapshot.GenerateEnums;
+        store.MapOrder.Restore(snapshot.MapOrder);
         store.AssetPaths.Refresh();
         return store;
     }

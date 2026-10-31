@@ -67,6 +67,17 @@ public sealed partial class MapWorkspaceViewModel
             return;
         if (changes.Any(change => change.IdentityChanged))
         {
+            foreach (EditorDocumentChange change in changes.Where(change => change.Section == "WorldMaps"
+                && change.IdentityChanged && change.PreviousKey is not null && change.Key is not null))
+                GameData.MapOrder.RenameScope(change.PreviousKey!, change.Key!);
+            foreach (EditorDocumentChange change in changes.Where(change => change.Section == "Maps"
+                && change.IdentityChanged && change.PreviousKey is not null && change.Key is not null))
+            {
+                string scope = MapOrderService.GetScope(change.PreviousKey!);
+                if (string.Equals(scope, MapOrderService.GetScope(change.Key!), StringComparison.Ordinal))
+                    GameData.MapOrder.RenameEntry(scope, MapOrderService.GetName(change.PreviousKey!),
+                        MapOrderService.GetName(change.Key!));
+            }
             string? selectedKey = SelectedMap?.Key;
             EditorDocumentChange? selectedChange = changes.FirstOrDefault(change => change.PreviousKey == selectedKey
                 && (change.Section == "WorldMaps") == (SelectedMap?.IsWorld == true));
@@ -96,11 +107,7 @@ public sealed partial class MapWorkspaceViewModel
         selectedDocumentKey = null;
         selectedMapKey ??= SelectedMap?.Key;
         string? selectedLayerName = SelectedLayerTab is { IsOverview: false } ? SelectedLayerTab.Name : null;
-        HashSet<string> expandedWorlds = Maps
-            .Where(item => item.IsWorld && item.IsExpanded)
-            .Select(item => item.Key)
-            .ToHashSet(StringComparer.Ordinal);
-        rebuildMapTree(expandedWorlds);
+        rebuildMapTree(getExpandedMapKeys().ToHashSet(StringComparer.Ordinal));
         SelectedMap = findMapItem(selectedMapKey) ?? Maps.FirstOrDefault();
         refreshLayerTabs(selectedLayerName);
     }
@@ -109,58 +116,55 @@ public sealed partial class MapWorkspaceViewModel
     {
         if (string.IsNullOrWhiteSpace(key))
             return null;
-        foreach (MapListItemViewModel root in Maps)
+        return findMapItem(Maps, key);
+    }
+
+    private static MapListItemViewModel? findMapItem(IEnumerable<MapListItemViewModel> items, string key)
+    {
+        foreach (MapListItemViewModel item in items)
         {
-            if (string.Equals(root.Key, key, StringComparison.Ordinal))
-                return root;
-            MapListItemViewModel? child = root.Children.FirstOrDefault(
-                item => string.Equals(item.Key, key, StringComparison.Ordinal));
-            if (child is not null)
+            if (string.Equals(item.Key, key, StringComparison.Ordinal))
+                return item;
+            if (findMapItem(item.Children, key) is MapListItemViewModel child)
             {
-                root.IsExpanded = true;
+                item.IsExpanded = true;
                 return child;
             }
         }
         return null;
     }
 
-    private void rebuildMapTree(IReadOnlySet<string>? expandedWorlds = null)
+    private static IEnumerable<MapListItemViewModel> enumerateMapItems(IEnumerable<MapListItemViewModel> items) =>
+        items.SelectMany(item => enumerateMapItems(item.Children).Prepend(item));
+
+    private static string getMapSection(MapListItemViewModel item) => item.IsWorld ? "WorldMaps" : "Maps";
+
+    private IEnumerable<string> getExpandedMapKeys() => enumerateMapItems(Maps)
+        .Where(item => item.IsExpanded && item.Children.Count != 0)
+        .Select(item => item.Key);
+
+    public void SaveMapListExpansion() => ProjectConfig.MapListExpandedKeys = getExpandedMapKeys().ToArray();
+
+    private void rebuildMapTree(IReadOnlySet<string>? expanded = null)
     {
         Maps.Clear();
         mapItems.Clear();
-        IReadOnlyList<MapCatalogEntry> catalog = GameData.Maps.MapCatalog;
-        ILookup<string?, MapCatalogEntry> children = catalog
-            .Where(item => item.Kind == MapCatalogEntryKind.WorldChildMap)
-            .ToLookup(item => item.WorldKey, StringComparer.Ordinal);
-        foreach (MapCatalogEntry entry in catalog
-            .Where(item => item.Kind is MapCatalogEntryKind.StandaloneMap or MapCatalogEntryKind.WorldMap)
-            .OrderBy(item => item.Key, StringComparer.Ordinal))
+        Dictionary<string, MapCatalogEntry> catalog = GameData.Maps.MapCatalog
+            .ToDictionary(entry => entry.Key, StringComparer.Ordinal);
+        MapListItemViewModel createItem(string scope, MapOrderNode node)
         {
-            MapListItemViewModel root = new(
-                entry.Key,
-                entry.DisplayName,
-                entry.Kind,
-                entry.WorldKey);
-            root.IsExpanded = expandedWorlds?.Contains(entry.Key) == true;
-            if (entry.Kind == MapCatalogEntryKind.WorldMap)
-            {
-                foreach (MapCatalogEntry child in children[entry.Key]
-                    .OrderBy(item => item.Key, StringComparer.Ordinal))
-                {
-                    root.Children.Add(new MapListItemViewModel(
-                        child.Key,
-                        child.DisplayName,
-                        child.Kind,
-                        child.WorldKey));
-                }
-            }
-            Maps.Add(root);
-            foreach (MapListItemViewModel item in root.Children.Prepend(root))
-            {
-                string section = item.IsWorld ? "WorldMaps" : "Maps";
-                mapItems[(section, item.Key)] = item;
-                item.IsModified = GameData.Documents.Find(section, item.Key)?.IsModified == true;
-            }
+            MapCatalogEntry entry = catalog[MapOrderService.GetKey(scope, node.Name)];
+            MapListItemViewModel item = new(entry.Key, entry.DisplayName, entry.Kind, entry.WorldKey);
+            string section = getMapSection(item);
+            item.IsExpanded = expanded?.Contains(item.Key) == true;
+            item.IsModified = GameData.Documents.Find(section, item.Key)?.IsModified == true;
+            mapItems[(section, item.Key)] = item;
+            IReadOnlyList<MapOrderNode> children = item.IsWorld ? GameData.MapOrder.GetTree(item.Key) : node.Children;
+            foreach (MapOrderNode child in children)
+                item.Children.Add(createItem(item.IsWorld ? item.Key : scope, child));
+            return item;
         }
+        foreach (MapOrderNode node in GameData.MapOrder.GetTree(string.Empty))
+            Maps.Add(createItem(string.Empty, node));
     }
 }

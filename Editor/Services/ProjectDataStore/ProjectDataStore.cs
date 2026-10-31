@@ -16,6 +16,7 @@ public sealed partial class ProjectDataStore : IDisposable
     internal BlueprintPreviewService? BlueprintPreviews { get; set; }
     public MapDataService Maps { get; }
     public WorldDataService Worlds { get; }
+    public MapOrderService MapOrder { get; }
     public BlueprintDataService Blueprints { get; }
     public GeneralDataService General { get; }
     public ConfigDataService Configs { get; }
@@ -95,6 +96,7 @@ public sealed partial class ProjectDataStore : IDisposable
             collection.BindHistory((key, description, marker) => RecordDocumentSnapshot(sectionName, key, description, marker));
         Maps = new MapDataService(this, sections["Maps"], sections["MapCatalog"]);
         Worlds = new WorldDataService(this, sections["WorldMaps"]);
+        MapOrder = new MapOrderService(this);
         Blueprints = new BlueprintDataService(this, sections["Blueprints"], sections["CommonFunctions"]);
         General = new GeneralDataService(this, sections["General"]);
         Configs = new ConfigDataService(this, sections["Configs"]);

@@ -4999,6 +4999,22 @@
     "zh_CN": "该地图目标仍被以下结构化字段引用，无法删除或取消摆放：",
     "en_GB": "This map target is still used by the following structured references and cannot be deleted or unplaced:"
   },
+  "MAP_MOVE_FAILED": {
+    "zh_CN": "无法移动地图 {0}。",
+    "en_GB": "Could not move map {0}."
+  },
+  "MAP_MOVE_NAME_CONFLICT": {
+    "zh_CN": "目标位置已存在名为 {0} 的地图或大地图。",
+    "en_GB": "A map or world named {0} already exists at the destination."
+  },
+  "MAP_MOVE_TAG_CONFLICT": {
+    "zh_CN": "地图 {0} 的 Actor 标签与大地图 {1} 中已有的标签重复。",
+    "en_GB": "Map {0} has Actor tags that already exist in world {1}."
+  },
+  "DOCUMENT_HISTORY_MAP_MOVE_BARRIER": {
+    "zh_CN": "地图已移动到其他文件夹，不能撤销该记录及更早的操作。",
+    "en_GB": "The map was moved to another folder. This entry and earlier operations cannot be undone."
+  },
   "ENUM_VALUE_TYPE": {
     "en_GB": "Enum value type",
     "zh_CN": "枚举值类型"

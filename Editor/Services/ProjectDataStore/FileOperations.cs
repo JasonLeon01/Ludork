@@ -11,7 +11,8 @@ public sealed partial class ProjectDataStore
 {
     public IReadOnlyList<string> GetUnsavedDocumentPaths()
     {
-        IEnumerable<string> paths = Documents.ModifiedDocuments.Select(document => document.Path);
+        IEnumerable<string> paths = Documents.ModifiedDocuments.Select(document => document.Path)
+            .Concat(MapOrder.GetModifiedPaths());
         if (projectEnumGenerationPending)
             paths = paths.Concat(generalEnums.GetOutputPaths(GetProjectEnumCatalog()));
         return paths.Distinct(StringComparer.Ordinal).OrderBy(path => path, StringComparer.Ordinal).ToArray();

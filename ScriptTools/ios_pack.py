@@ -24,9 +24,9 @@ from .apple_signing import (
     read_secret_lines,
     select_identity,
 )
-from .resource_constants import ANIMATION_CACHE_SUFFIX
 from . import server_config
-from .material_assets import MaterialAssetError, copy_export_inputs, validate_generated as validate_materials
+from .material_assets import MaterialAssetError, validate_generated as validate_materials
+from .package_contents import copy_package_inputs
 from .pack_error import PackError
 from .packaging_constants import (
     COMMON_DEPENDENCY_CACHE_DIRECTORIES,
@@ -508,13 +508,7 @@ def copy_runtime_resources(
         validate_ldpak_source(context.project_dir)
     if resources_dir.exists():
         shutil.rmtree(resources_dir)
-    for directory_name in RESOURCE_GROUPS:
-        shutil.copytree(
-            context.project_dir / directory_name,
-            resources_dir / directory_name,
-            ignore=shutil.ignore_patterns(".DS_Store", "*" + ANIMATION_CACHE_SUFFIX),
-        )
-    copy_export_inputs(context.project_dir, resources_dir)
+    copy_package_inputs(context.project_dir, resources_dir, licenses=False)
 
 
 def configure_and_build(

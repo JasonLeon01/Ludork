@@ -25,16 +25,13 @@ from .ldpak import (
     validate_runtime_ldpak_layout,
 )
 from .material_assets import (
-    COMBINATIONS_FILE as MATERIAL_COMBINATIONS_FILE,
-    EXPORT_RECORD as MATERIAL_EXPORT_RECORD,
     GENERATED_ROOT as MATERIAL_GENERATED_ROOT,
     validate_generated as validate_materials,
 )
+from .package_contents import excluded_entries
 from .packaging_constants import (
     COMPILE_LUA_DIRECTORIES_ENVIRONMENT,
     EXCLUDED_FILES_ENVIRONMENT,
-    GAME_BUILD_TOOL_FILES,
-    PACKAGE_CACHE_DIRECTORIES,
 )
 from .resource_constants import DATA_EXTENSION, ENCRYPTED_DATA_EXTENSION, SHADER_EXTENSIONS
 from .runtime_formats import (
@@ -55,12 +52,7 @@ from .runtime_formats import (
 )
 from .ui_assets import validate_assets
 from .ui_control_registry import UiControlRegistry, load_registry
-from .preview import (
-    PREVIEW_DIRECTORY,
-    ensure_preview,
-    is_preview_development_file,
-    is_preview_development_path,
-)
+from .preview import PREVIEW_DIRECTORY, ensure_preview
 
 
 UINT64_MASK = 0xFFFFFFFFFFFFFFFF
@@ -381,57 +373,24 @@ def prune_package(
     resource_root: pathlib.Path,
     excluded_files: tuple[pathlib.PurePosixPath, ...] = (),
 ) -> int:
-    removed = 0
-    for relative_path in (
-        *(pathlib.Path(name) for name in PACKAGE_CACHE_DIRECTORIES),
-        pathlib.Path("Scripts") / "stub",
-        MATERIAL_EXPORT_RECORD,
-        MATERIAL_COMBINATIONS_FILE,
-    ):
-        target = resource_root / relative_path
-        if _remove_path(target):
-            removed += 1
     binaries = resource_root / PREVIEW_DIRECTORY
     if binaries.is_symlink():
         raise RuntimeError(f"Package Binaries must not be a link: {binaries}")
-    if binaries.is_dir():
-        for path in binaries.iterdir():
-            if (
-                path.name in GAME_BUILD_TOOL_FILES or is_preview_development_file(path.name)
-            ) and _remove_path(path):
-                removed += 1
-
-    vscode_directories = sorted(
-        (
-            path
-            for path in resource_root.rglob(".vscode")
-            if path.is_dir() or path.is_symlink()
-        ),
-        key=lambda path: len(path.parts),
-        reverse=True,
-    )
-    for directory in vscode_directories:
-        if _remove_path(directory):
+    removed = 0
+    for path in excluded_entries(resource_root):
+        if _remove_path(path):
             removed += 1
-
-    for name in (".emmyrc.json", ".gitignore"):
-        for path in sorted(resource_root.rglob(name)):
-            if _remove_path(path):
-                removed += 1
-
     for relative_path in excluded_files:
         if _remove_path(_package_path(resource_root, relative_path)):
             removed += 1
-    preview_paths = sorted(
-        (path for path in resource_root.rglob("*")
-         if is_preview_development_path(path.relative_to(resource_root).as_posix())),
-        key=lambda path: len(path.parts),
-        reverse=True,
-    )
-    for path in preview_paths:
-        if _remove_path(path):
-            removed += 1
     return removed
+
+
+def reject_excluded_entries(resource_root: pathlib.Path) -> None:
+    remaining = excluded_entries(resource_root)
+    if remaining:
+        relative_paths = ", ".join(path.relative_to(resource_root).as_posix() for path in remaining)
+        raise RuntimeError(f"Excluded entries remain in the game package: {relative_paths}")
 
 
 def compile_package_lua(
@@ -491,21 +450,7 @@ def _finalize_package_in_place(
         if encrypt_data_enabled else 0
     )
     reject_declaration_files(root)
-    for directory in PACKAGE_CACHE_DIRECTORIES:
-        if os.path.lexists(root / directory):
-            raise RuntimeError(
-                f"The project root {directory} directory remains in the game package"
-            )
-    binaries = root / PREVIEW_DIRECTORY
-    if binaries.is_dir() and any(
-        path.name in GAME_BUILD_TOOL_FILES or is_preview_development_file(path.name)
-        for path in binaries.iterdir()
-    ):
-        raise RuntimeError(
-            "Build tools or preview development files remain in the game package Binaries"
-        )
-    if any(is_preview_development_path(path.relative_to(root).as_posix()) for path in root.rglob("*")):
-        raise RuntimeError("Preview development files remain in the game package")
+    reject_excluded_entries(root)
     packed_groups = pack_ldpak(root) if use_ldpak else 0
     expected_entry = "Entry.luac" if scripts_compiled else "Entry.lua"
     validate_runtime_ldpak_layout(root, use_ldpak, expected_entry)

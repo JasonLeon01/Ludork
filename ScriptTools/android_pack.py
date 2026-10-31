@@ -18,9 +18,9 @@ import zipfile
 from dataclasses import dataclass, replace
 from typing import BinaryIO, TextIO
 
-from .resource_constants import ANIMATION_CACHE_SUFFIX
 from . import server_config
-from .material_assets import MaterialAssetError, copy_export_inputs, validate_generated as validate_materials
+from .material_assets import MaterialAssetError, validate_generated as validate_materials
+from .package_contents import copy_package_inputs, is_excluded
 from .pack_error import PackError
 from .packaging_constants import (
     MOBILE_PROJECT_DIRECTORIES,
@@ -30,12 +30,10 @@ from .packaging_constants import (
     EXIT_TOOLCHAIN,
     FILE_BUFFER_SIZE,
     MOBILE_DEPENDENCY_NAMES,
-    RUNTIME_LEGAL_FILES,
     TEMPLATE_TOKEN_PATTERN,
 )
 from .packaging_names import read_app_name
 from .packaging_metadata import PackageMetadata, add_package_arguments, read_package_metadata
-from .resource_constants import RESOURCE_GROUPS
 from .ui_property_values import UiAssetError
 from ScriptTools.preview import prepare_registry
 from ScriptTools.compile_lua import resolve_luac
@@ -705,24 +703,7 @@ def copy_runtime_resources(context: PackContext) -> None:
     if context.runtime_dir.exists():
         shutil.rmtree(context.runtime_dir)
     context.runtime_dir.mkdir(parents=True)
-    for name in RESOURCE_GROUPS:
-        shutil.copytree(
-            context.project_dir / name,
-            context.runtime_dir / name,
-            ignore=shutil.ignore_patterns(".DS_Store", "*" + ANIMATION_CACHE_SUFFIX),
-        )
-    licenses = context.project_dir / "Licenses"
-    if licenses.is_dir():
-        shutil.copytree(
-            licenses,
-            context.runtime_dir / "Licenses",
-            ignore=shutil.ignore_patterns(".DS_Store"),
-        )
-    for name in RUNTIME_LEGAL_FILES:
-        source = context.project_dir / name
-        if source.is_file():
-            shutil.copy2(source, context.runtime_dir / name)
-    copy_export_inputs(context.project_dir, context.runtime_dir)
+    copy_package_inputs(context.project_dir, context.runtime_dir)
     context.metadata.write_build_info(context.runtime_dir)
     finalize_package(
         context.runtime_dir,
@@ -1131,10 +1112,8 @@ def validate_apk_archive(
             forbidden = [
                 name
                 for name in names
-                if pathlib.PurePosixPath(name.rstrip("/")).name == ".DS_Store"
-                or name.endswith(".d.lua")
-                or name.endswith(ANIMATION_CACHE_SUFFIX)
-                or "/Scripts/stub/" in "/" + name
+                if is_excluded(name.removeprefix("assets/").rstrip("/"))
+                or name.casefold().endswith(".d.lua")
                 or not signed
                 and name.startswith("META-INF/")
                 and name.upper().endswith((".RSA", ".DSA", ".EC", ".SF"))

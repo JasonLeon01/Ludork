@@ -256,6 +256,26 @@
                             </TreeDataTemplate>
                         </TreeView.ItemTemplate>
                     </TreeView>
+                    <Canvas x:Name="MapListDropOverlay"
+                            Grid.Row="1"
+                            Grid.Column="1"
+                            ClipToBounds="True"
+                            IsHitTestVisible="False">
+                        <Border x:Name="MapListDropHighlight"
+                                IsVisible="False"
+                                BorderBrush="{DynamicResource Editor.AccentBrush}"
+                                BorderThickness="1"
+                                CornerRadius="3">
+                            <Border.Background>
+                                <SolidColorBrush Color="{DynamicResource Editor.AccentColor}" Opacity="0.3" />
+                            </Border.Background>
+                        </Border>
+                        <Line x:Name="MapListDropLine"
+                              IsVisible="False"
+                              Stroke="{DynamicResource Editor.AccentBrush}"
+                              StrokeThickness="2"
+                              StrokeDashArray="3,2" />
+                    </Canvas>
                     <Border Grid.Row="1"
                             Grid.Column="2"
                             Background="Transparent"

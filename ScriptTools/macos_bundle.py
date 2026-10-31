@@ -7,16 +7,11 @@ import shutil
 import subprocess
 import tempfile
 
-from .resource_constants import ANIMATION_CACHE_SUFFIX
-from .packaging_constants import (
-    GAME_BUILD_TOOL_FILES,
-    RUNTIME_LEGAL_FILES,
-)
+from .package_contents import copy_package_inputs
+from .packaging_constants import GAME_BUILD_TOOL_FILES
 from .packaging_names import prepare_directory
 from .packaging_metadata import add_package_arguments, load_package_metadata, read_package_metadata
-from .resource_constants import RESOURCE_GROUPS
 from .preview import is_preview_development_file
-from .material_assets import copy_export_inputs
 
 
 def is_runtime_library(path: pathlib.Path) -> bool:
@@ -168,28 +163,7 @@ def strip_and_sign_runtime(binaries: list[pathlib.Path]) -> None:
 
 
 def copy_resources(project_dir: pathlib.Path, resources_dir: pathlib.Path) -> None:
-    for name in RESOURCE_GROUPS:
-        source = project_dir / name
-        if not source.is_dir():
-            raise RuntimeError(f"Project is missing {name}: {source}")
-        shutil.copytree(
-            source,
-            resources_dir / name,
-            ignore=shutil.ignore_patterns(".DS_Store", "*" + ANIMATION_CACHE_SUFFIX),
-        )
-    for name in ("Licenses", "ThirdPartySource"):
-        source = project_dir / name
-        if source.is_dir():
-            shutil.copytree(
-                source,
-                resources_dir / name,
-                ignore=shutil.ignore_patterns(".DS_Store"),
-            )
-    for name in RUNTIME_LEGAL_FILES:
-        source = project_dir / name
-        if source.is_file():
-            shutil.copy2(source, resources_dir / name)
-    copy_export_inputs(project_dir, resources_dir)
+    copy_package_inputs(project_dir, resources_dir, third_party=True)
 
 
 def require_exact_entry(

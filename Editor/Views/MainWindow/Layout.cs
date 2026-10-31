@@ -47,6 +47,7 @@ public partial class MainWindow
         updateConsoleInputState();
         DataContextChanged += (_, _) => attachViewModel(DataContext as MainViewModel);
         MapList.AddHandler(ContextRequestedEvent, onMapListContextRequested, RoutingStrategies.Tunnel);
+        configureMapListDragDrop();
         ActorOutliner.SelectedItems = new Avalonia.Collections.AvaloniaList<object>();
         LayerTabs.AddHandler(PointerPressedEvent, onLayerPointerPressed, RoutingStrategies.Tunnel);
         ActorOutliner.AddHandler(PointerPressedEvent, onActorOutlinerPointerPressed, RoutingStrategies.Tunnel);
