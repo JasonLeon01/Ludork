@@ -79,8 +79,10 @@ if "%TOOLCHAIN%"=="mingw" (
         echo Visual Studio C++ build tools were not found.
         exit /b 1
     )
-    call "!VS_PATH!\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul
-    if errorlevel 1 exit /b !errorlevel!
+    if not defined LUDORK_VS_INSTALLATION (
+        call "!VS_PATH!\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 >nul
+        if errorlevel 1 exit /b !errorlevel!
+    )
     set "FFMPEG_TOOLCHAIN_ARGS=--toolchain=msvc --target-os=win32"
     set "FFMPEG_LINK_FLAGS=-Brepro -INCREMENTAL:NO"
     if "%TOOLCHAIN%"=="clang" (

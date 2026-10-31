@@ -132,17 +132,25 @@ def _msvc_environment(msvc: WindowsToolchain) -> dict[str, str]:
     command = msvc.path / "Common7/Tools/VsDevCmd.bat"
     environment = {key.upper(): value for key, value in os.environ.items()}
     environment["VSCMD_SKIP_SENDTELEMETRY"] = "1"
-    result = subprocess.run(
-        f'cmd.exe /d /s /c ""{command}" -arch=x64 -host_arch=x64 >nul && set"',
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors="replace", timeout=30,
-        env=environment,
-        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-    if result.returncode:
-        raise ValueError(f"Unable to prepare the Visual Studio x64 environment: {result.stderr.strip()}")
-    for line in result.stdout.splitlines():
-        key, separator, value = line.partition("=")
-        if key and separator:
-            environment[key.upper()] = value
+    # VsDevCmd.bat prepends PATH, INCLUDE and LIB on every call; nesting it exceeds cmd.exe's line limit.
+    prepared = (environment.get("VSCMD_ARG_TGT_ARCH", "").lower() == "x64"
+                and environment.get("VSCMD_ARG_HOST_ARCH", "").lower() == "x64"
+                and environment.get("VCTOOLSVERSION") == msvc.version
+                and bool(environment.get("VSINSTALLDIR"))
+                and os.path.normcase(os.path.abspath(environment["VSINSTALLDIR"]))
+                == os.path.normcase(os.path.abspath(msvc.path)))
+    if not prepared:
+        result = subprocess.run(
+            f'cmd.exe /d /s /c ""{command}" -arch=x64 -host_arch=x64 >nul && set"',
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors="replace", timeout=30,
+            env=environment,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        if result.returncode:
+            raise ValueError(f"Unable to prepare the Visual Studio x64 environment: {result.stderr.strip()}")
+        for line in result.stdout.splitlines():
+            key, separator, value = line.partition("=")
+            if key and separator:
+                environment[key.upper()] = value
     for name in ("CL", "_CL_", "LINK", "_LINK_"):
         environment.pop(name, None)
     environment["LUDORK_VS_INSTALLATION"] = str(msvc.path)
