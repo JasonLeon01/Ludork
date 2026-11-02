@@ -29,7 +29,7 @@ public static class LudorkServerConfiguration
         if (!File.Exists(path))
         {
             string projectName = Path.GetFileName(Path.TrimEndingDirectorySeparator(Path.GetFullPath(projectPath)));
-            return new(false, "http://localhost:7777/" + Uri.EscapeDataString(projectName), string.Empty);
+            return new(false, "http://localhost:6666/" + Uri.EscapeDataString(projectName), string.Empty);
         }
         LudorkServerSettings? settings = JsonSerializer.Deserialize<LudorkServerSettings>(File.ReadAllText(path), jsonOptions);
         if (settings is null)

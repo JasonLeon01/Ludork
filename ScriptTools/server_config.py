@@ -39,17 +39,17 @@ def load(configuration: str) -> dict[str, object]:
                  and parsed.username is None and parsed.password is None
                  and not parsed.query and not parsed.fragment
                  and len(parsed.path.strip("/").split("/")) == 1
-                 and project not in ("", ".", "..") and "/" not in project and "\\" not in project
+                 and project not in (".", "..") and "/" not in project and "\\" not in project
                  and len(project.encode("utf-8")) <= 64
                  and not any(ord(char) < 32 or ord(char) == 127 for char in project)
                  and not any(ord(char) <= 32 or ord(char) == 127 for char in url))
     except (ValueError, UnicodeError):
         valid = False
     if not valid:
-        raise ValueError("The Ludork server URL must be http://host[:port]/project without credentials, a query or fragment.")
+        raise ValueError("The Ludork server URL must be http://host[:port][/project] without credentials, a query or fragment.")
     if not key or len(key) > 4096 or any(not 33 <= ord(char) <= 126 for char in key):
         raise ValueError("The Ludork server key must contain 1 to 4096 visible ASCII characters without spaces.")
-    normalized = urlunsplit(("http", parsed.netloc, "/" + quote(project, safe=""), "", ""))
+    normalized = urlunsplit(("http", parsed.netloc, "/" + quote(project, safe="") if project else "", "", ""))
     return {"enabled": True, "url": normalized, "key": key}
 
 

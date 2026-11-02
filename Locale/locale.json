@@ -232,16 +232,16 @@
     "en_GB": "Server URL"
   },
   "LUDORK_SERVER_URL_HINT": {
-    "zh_CN": "http://localhost:7777/项目名",
-    "en_GB": "http://localhost:7777/project"
+    "zh_CN": "http://localhost:6666/项目名",
+    "en_GB": "http://localhost:6666/project"
   },
   "LUDORK_SERVER_KEY": {
     "zh_CN": "密钥",
     "en_GB": "Key"
   },
   "LUDORK_SERVER_URL_INVALID": {
-    "zh_CN": "请输入 http://主机:端口/项目名，不包含用户名、查询参数或片段。",
-    "en_GB": "Enter http://host:port/project without credentials, query parameters or a fragment."
+    "zh_CN": "请输入 http://主机:端口 或 http://主机:端口/项目名，不包含用户名、查询参数或片段。",
+    "en_GB": "Enter http://host:port or http://host:port/project without credentials, query parameters or a fragment."
   },
   "LUDORK_SERVER_KEY_REQUIRED": {
     "zh_CN": "密钥须为 1 至 4096 个 ASCII 可见字符，不能包含空格。",

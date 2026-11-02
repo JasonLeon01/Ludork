@@ -31,20 +31,21 @@ public sealed record LudorkServerSettings(bool Enabled, string Url, string Key)
         string path = pathStart < 0 ? string.Empty : Url[pathStart..];
         if (path.EndsWith('/'))
             path = path[..^1];
-        if (path.Length <= 1 || path.IndexOf('/', 1) >= 0)
+        if (path.Length != 0)
         {
-            return "LUDORK_SERVER_URL_INVALID";
-        }
-        string project = Uri.UnescapeDataString(path[1..]);
-        if (project is "." or ".." || Encoding.UTF8.GetByteCount(project) > 64
-            || project.IndexOfAny(['/', '\\']) >= 0)
-        {
-            return "LUDORK_SERVER_URL_INVALID";
-        }
-        foreach (char character in project)
-        {
-            if (char.IsControl(character))
+            if (path.IndexOf('/', 1) >= 0)
                 return "LUDORK_SERVER_URL_INVALID";
+            string project = Uri.UnescapeDataString(path[1..]);
+            if (project is "." or ".." || Encoding.UTF8.GetByteCount(project) > 64
+                || project.IndexOfAny(['/', '\\']) >= 0)
+            {
+                return "LUDORK_SERVER_URL_INVALID";
+            }
+            foreach (char character in project)
+            {
+                if (char.IsControl(character))
+                    return "LUDORK_SERVER_URL_INVALID";
+            }
         }
         if (string.IsNullOrEmpty(Key) || Key.Length > 4096)
             return "LUDORK_SERVER_KEY_REQUIRED";

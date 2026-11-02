@@ -82,40 +82,42 @@ ServerHttpTransportImpl::Endpoint ServerHttpTransportImpl::parseEndpoint() {
         throw std::invalid_argument("Invalid server URL.");
     }
     const std::size_t slash = url.find('/', 7);
-    if (slash == std::string::npos) {
-        throw std::invalid_argument("Missing server project path.");
-    }
     Endpoint result;
-    result.authority = url.substr(7, slash - 7);
-    result.prefix = url.substr(slash);
+    if (slash == std::string::npos) {
+        result.authority = url.substr(7);
+    } else {
+        result.authority = url.substr(7, slash - 7);
+        result.prefix = url.substr(slash);
+    }
     while (result.prefix.ends_with('/')) {
         result.prefix.pop_back();
     }
-    if (result.prefix.size() < 2) {
-        throw std::invalid_argument("Missing server project path.");
-    }
-    const std::string_view project(result.prefix.data() + 1,
-                                   result.prefix.size() - 1);
-    for (std::size_t index = 0; index < project.size(); ++index) {
-        unsigned int byte = static_cast<unsigned char>(project[index]);
-        if (byte == '%') {
-            if (index + 2 >= project.size()) {
-                throw std::invalid_argument("Invalid encoded project path.");
+    if (!result.prefix.empty()) {
+        const std::string_view project(result.prefix.data() + 1,
+                                       result.prefix.size() - 1);
+        for (std::size_t index = 0; index < project.size(); ++index) {
+            unsigned int byte = static_cast<unsigned char>(project[index]);
+            if (byte == '%') {
+                if (index + 2 >= project.size()) {
+                    throw std::invalid_argument(
+                        "Invalid encoded project path.");
+                }
+                const auto parsed =
+                    std::from_chars(project.data() + index + 1,
+                                    project.data() + index + 3, byte, 16);
+                if (parsed.ec != std::errc{} ||
+                    parsed.ptr != project.data() + index + 3) {
+                    throw std::invalid_argument(
+                        "Invalid encoded project path.");
+                }
+                index += 2;
             }
-            const auto parsed =
-                std::from_chars(project.data() + index + 1,
-                                project.data() + index + 3, byte, 16);
-            if (parsed.ec != std::errc{} ||
-                parsed.ptr != project.data() + index + 3) {
-                throw std::invalid_argument("Invalid encoded project path.");
-            }
-            index += 2;
+            result.project.push_back(static_cast<char>(byte));
         }
-        result.project.push_back(static_cast<char>(byte));
-    }
-    if (!validIdentifier(result.project) ||
-        result.project.find_first_of("/\\") != std::string::npos) {
-        throw std::invalid_argument("Invalid server project path.");
+        if (!validIdentifier(result.project) ||
+            result.project.find_first_of("/\\") != std::string::npos) {
+            throw std::invalid_argument("Invalid server project path.");
+        }
     }
     std::string_view authority(result.authority);
     std::string_view port;
@@ -441,7 +443,10 @@ Response ServerHttpTransportImpl::perform() {
                 service->second.getIf<std::string>() == nullptr ||
                 *service->second.getIf<std::string>() != "LudorkServer" ||
                 project->second.getIf<std::string>() == nullptr ||
-                *project->second.getIf<std::string>() != endpoint.project) {
+                (endpoint.project.empty()
+                     ? project->second.getIf<std::string>()->empty()
+                     : *project->second.getIf<std::string>() !=
+                           endpoint.project)) {
                 throw std::runtime_error("Unexpected health response.");
             }
         }
