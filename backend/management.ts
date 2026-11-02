@@ -4,12 +4,13 @@ import { createServer, request as proxyRequest } from 'node:http';
 import type { IncomingHttpHeaders } from 'node:http';
 import { isIP } from 'node:net';
 import { join } from 'node:path';
-import { root } from './config.ts';
+import { loadConfig, projectHosts, root } from './config.ts';
 
 const app = express();
 const assets = join(root, 'frontend', 'assets');
 const index = join(root, 'frontend', 'index.html');
 const allowedHosts = new Set((process.env.LUDORK_ALLOWED_HOSTS ?? '').split(',').map(value => value.trim().toLowerCase()).filter(Boolean));
+for (const host of projectHosts(await loadConfig()).keys()) allowedHosts.add(host);
 
 function allowedHost(host: string | undefined): boolean {
   if (!host || /[\s/\\@?#]/.test(host)) return false;
@@ -36,7 +37,7 @@ app.use((request, response, next) => {
 });
 app.use((request, response, next) => {
   if (!/^\/[^/]+\/api\/v1(?:\/|$)/.test(request.path)) { next(); return; }
-  const upstream = proxyRequest({ hostname: '127.0.0.1', port: 7777, method: request.method, path: request.originalUrl, headers: proxyHeaders(request.headers) }, result => {
+  const upstream = proxyRequest({ hostname: '127.0.0.1', port: 6666, method: request.method, path: request.originalUrl, headers: proxyHeaders(request.headers) }, result => {
     response.writeHead(result.statusCode ?? 502, proxyHeaders(result.headers));
     result.on('error', () => response.destroy());
     result.pipe(response);

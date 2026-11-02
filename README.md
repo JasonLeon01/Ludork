@@ -27,12 +27,14 @@ Deployment runs `npm ci --omit=dev`, saves credential hashes in `config/projects
 | Purpose | Address |
 | --- | --- |
 | Read-only management website | `http://IP:3333/MyGame/` |
-| Ludork client server URL | `http://IP:7777/MyGame` |
-| Client WebSocket endpoint | `ws://IP:7777/MyGame/api/v1/net` |
+| Ludork client server URL | `http://IP:6666/MyGame` |
+| Client WebSocket endpoint | `ws://IP:6666/MyGame/api/v1/net` |
 
-For a domain, set `LUDORK_ALLOWED_HOSTS=games.example.com` before starting. Multiple exact hostnames are comma-separated, without scheme or port. IP addresses, `localhost` and names ending in `.localhost` work directly. Both services listen on all interfaces; deployment does not configure a firewall, TLS, system service or automatic startup.
+To give a project its own domain, add its exact hostnames to that project's `hosts` list in `config/projects.json`, for example `"hosts": ["mygame.example.com"]`, and restart. Hostnames are lowercase, without scheme or port, and each belongs to at most one project. Requests for a listed hostname can then omit the project path: the client server URL becomes `http://mygame.example.com:6666`, and `/api/v1/...`, including the `/api/v1/net` WebSocket endpoint, is served as `/MyGame/api/v1/...`. Project paths keep working on every host. The management website accepts listed hostnames but still uses `/<project>/`.
 
-Deploy another project to add it to the same instance. Redeployment rotates that project's credentials while preserving data, Lua source, `luaEntry` and `ipWriteIntervalSeconds`. Deploy projects sequentially and stop the service while reinstalling dependencies. Restart to apply configuration or Lua source changes.
+For another management domain, set `LUDORK_ALLOWED_HOSTS=games.example.com` before starting. Multiple exact hostnames are comma-separated, without scheme or port. IP addresses, `localhost` and names ending in `.localhost` work directly. Both services listen on all interfaces; deployment does not configure a firewall, TLS, system service or automatic startup.
+
+Deploy another project to add it to the same instance. Redeployment rotates that project's credentials while preserving data, Lua source, `luaEntry`, `ipWriteIntervalSeconds` and `hosts`. Deploy projects sequentially and stop the service while reinstalling dependencies. Restart to apply configuration or Lua source changes.
 
 Project names support 1–64 UTF-8 bytes, excluding control characters, slash, backslash, and the exact names `.` and `..`. Keys use 1–4096 visible ASCII characters without spaces. Passwords support 1–4096 UTF-8 bytes without control characters. There are no default credentials.
 

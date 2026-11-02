@@ -1,7 +1,7 @@
 import express from 'express';
 import type { ErrorRequestHandler, Request, Response } from 'express';
 import type { Server } from 'node:http';
-import { projectsPath } from './config.ts';
+import { hostName, projectHosts, projectsPath } from './config.ts';
 import type { ServerConfig } from './config.ts';
 import { Authentication } from './authentication.ts';
 import { ApiError } from './errors.ts';
@@ -32,6 +32,12 @@ export async function createApplication(config: ServerConfig, dataDirectory: str
   app.disable('x-powered-by'); app.disable('etag'); app.set('case sensitive routing', true);
   app.use((_request, response, next) => {
     response.set({ 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' }); next();
+  });
+  const hostProjects = projectHosts(config);
+  app.use((request, _response, next) => {
+    const project = hostProjects.get(hostName(request.headers.host));
+    if (project !== undefined && /^\/api\/v1(?:[/?]|$)/.test(request.url)) request.url = `/${encodeURIComponent(project)}${request.url}`;
+    next();
   });
   app.use(express.text({ type: 'application/json', limit: '1mb' }));
   const router = express.Router({ mergeParams: true, caseSensitive: true });

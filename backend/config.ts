@@ -9,6 +9,7 @@ export interface ProjectConfig {
   passwordHash: string;
   ipWriteIntervalSeconds?: number;
   luaEntry?: string;
+  hosts?: string[];
 }
 
 export interface ServerConfig {
@@ -35,6 +36,25 @@ export function ipWriteIntervalSeconds(value: unknown): number {
   return interval;
 }
 
+export function hosts(value: unknown): string[] {
+  const list = value === undefined ? [] : value;
+  const label = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+  if (!Array.isArray(list) || list.some(host => typeof host !== 'string' || host.length > 253 || !host.split('.').every(part => label.test(part)))) {
+    throw new Error('hosts must list lowercase hostnames without a scheme or port.');
+  }
+  return list;
+}
+
+export function projectHosts(config: ServerConfig): Map<string, string> {
+  const result = new Map<string, string>();
+  for (const [name, project] of Object.entries(config.projects)) for (const host of project.hosts ?? []) result.set(host, name);
+  return result;
+}
+
+export function hostName(header: string | undefined): string {
+  return (header ?? '').toLowerCase().replace(/:\d*$/, '');
+}
+
 export async function loadConfig(): Promise<ServerConfig> {
   const parsed: unknown = JSON.parse(await readFile(configPath, 'utf8'));
   if (!parsed || typeof parsed !== 'object' || !('version' in parsed) || parsed.version !== 1 ||
@@ -43,6 +63,7 @@ export async function loadConfig(): Promise<ServerConfig> {
   }
   const config = parsed as ServerConfig;
   if (Object.keys(config.projects).length === 0) throw new Error('No projects configured. Run deploy first.');
+  const boundHosts = new Set<string>();
   for (const [name, project] of Object.entries(config.projects)) {
     projectIdentifier(name);
     if (!project ||
@@ -53,6 +74,11 @@ export async function loadConfig(): Promise<ServerConfig> {
     }
     project.ipWriteIntervalSeconds = ipWriteIntervalSeconds(project.ipWriteIntervalSeconds);
     project.luaEntry = luaEntry(project.luaEntry);
+    project.hosts = hosts(project.hosts);
+    for (const host of project.hosts) {
+      if (boundHosts.has(host)) throw new Error('Each host can belong to only one project.');
+      boundHosts.add(host);
+    }
   }
   return config;
 }

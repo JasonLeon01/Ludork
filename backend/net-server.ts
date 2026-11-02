@@ -6,6 +6,7 @@ import { ApiError } from './errors.ts';
 import { encodeName } from './identity.ts';
 import { jsonObject, parseJson } from './json.ts';
 import { invalid, maxFrameBytes, networkName, validateArgs, validateWire } from './wire.ts';
+import { hostName, projectHosts } from './config.ts';
 import type { ServerConfig } from './config.ts';
 import type { Authentication } from './authentication.ts';
 import type { LuaServices } from './lua-services.ts';
@@ -18,12 +19,13 @@ export class NetServer {
   private readonly config: ServerConfig;
   private readonly auth: Authentication;
   private readonly projects = new Map<string, LuaProject>();
+  private readonly hostProjects: Map<string, string>;
   private readonly sessions = new Map<string, Session>();
   private readonly sockets = new WebSocketServer({ noServer: true, maxPayload: maxFrameBytes, perMessageDeflate: false });
   private readonly heartbeat: ReturnType<typeof setInterval>;
 
   constructor(config: ServerConfig, auth: Authentication, services: LuaServices, projectsDirectory: string) {
-    this.config = config; this.auth = auth;
+    this.config = config; this.auth = auth; this.hostProjects = projectHosts(config);
     for (const [name, project] of Object.entries(config.projects)) {
       this.projects.set(name, new LuaProject(name, project, join(projectsDirectory, encodeName(name)), services, () => {
         for (const session of this.sessions.values()) if (session.project === name) session.socket.close(1011, 'The project Lua process restarted.');
@@ -46,9 +48,11 @@ export class NetServer {
   attach(server: Server): void {
     server.on('upgrade', (request, socket, head) => {
       try {
-        const match = /^\/([^/?]+)\/api\/v1\/net$/.exec(request.url ?? '');
-        if (!match) invalid('The WebSocket endpoint does not exist.');
-        const project = decodeURIComponent(match[1]);
+        const url = request.url ?? '';
+        const hostProject = this.hostProjects.get(hostName(request.headers.host));
+        const match = /^\/([^/?]+)\/api\/v1\/net$/.exec(url);
+        if (!match && (hostProject === undefined || url !== '/api/v1/net')) invalid('The WebSocket endpoint does not exist.');
+        const project = match ? decodeURIComponent(match[1]) : hostProject!;
         if (!Object.hasOwn(this.config.projects, project)) invalid('The project does not exist.');
         this.auth.verifyKey(request.headers['x-ludork-key'], this.config.projects[project]);
         this.sockets.handleUpgrade(request, socket, head, webSocket => this.connected(webSocket, project, request.socket.remoteAddress));

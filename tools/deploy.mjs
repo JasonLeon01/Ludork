@@ -12,7 +12,7 @@ try {
   try { await access(join(root, 'backend/main.js')); await access(join(root, 'frontend/index.html')); }
   catch { throw new Error('Deploy the built package: run npm ci and npm run build in the source checkout, then copy dist/LudorkServer to a separate deployment directory and run deploy there.'); }
   const { encodeName, hasControlCharacters, projectIdentifier } = await import('../backend/identity.js');
-  const { ipWriteIntervalSeconds, luaEntry } = await import('../backend/config.js');
+  const { hosts, ipWriteIntervalSeconds, luaEntry } = await import('../backend/config.js');
   if (extra.length || !project || !key || !password) throw new Error('Usage: deploy <project> <key> <password>');
   projectIdentifier(project);
   if (!/^[\x21-\x7e]{1,4096}$/.test(key)) throw new Error('The key must contain 1-4096 visible ASCII characters without spaces.');
@@ -26,6 +26,7 @@ try {
   if (config.version !== 1 || !config.projects || typeof config.projects !== 'object' || Array.isArray(config.projects)) throw new Error('Existing configuration is invalid; it has not been replaced.');
   const interval = ipWriteIntervalSeconds(Object.hasOwn(config.projects, project) ? config.projects[project].ipWriteIntervalSeconds : undefined);
   const entry = luaEntry(Object.hasOwn(config.projects, project) ? config.projects[project].luaEntry : undefined);
+  const boundHosts = hosts(Object.hasOwn(config.projects, project) ? config.projects[project].hosts : undefined);
 
   console.log('Installing locked production dependencies...');
   const install = spawnSync(process.platform === 'win32' ? process.env.ComSpec ?? 'cmd.exe' : 'npm', process.platform === 'win32' ? ['/d', '/s', '/c', 'npm ci --omit=dev'] : ['ci', '--omit=dev'], {
@@ -39,7 +40,8 @@ try {
     passwordSalt: salt.toString('hex'),
     passwordHash: scryptSync(password, salt, 64).toString('hex'),
     ipWriteIntervalSeconds: interval,
-    luaEntry: entry
+    luaEntry: entry,
+    hosts: boundHosts
   }, enumerable: true, configurable: true, writable: true });
   await mkdir(configDirectory, { recursive: true, mode: 0o700 });
   const temporary = join(configDirectory, `projects.${randomBytes(8).toString('hex')}.tmp`);
@@ -57,7 +59,7 @@ try {
   console.log(`Lua entry: projects/${encodeName(project)}/${entry} (existing logic is preserved).`);
   console.log('Run start.sh (Linux/macOS) or start.bat (Windows). Restart an existing service to load changed credentials.');
   console.log(`Viewer: http://<host>:3333/${encodeURIComponent(project)}/`);
-  console.log(`Client URL: http://<host>:7777/${encodeURIComponent(project)}`);
+  console.log(`Client URL: http://<host>:6666/${encodeURIComponent(project)}`);
 } catch (error) {
   console.error(error instanceof Error ? error.message : 'Deployment failed.');
   process.exitCode = 1;

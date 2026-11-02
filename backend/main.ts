@@ -31,15 +31,15 @@ try {
   process.on('message', message => { if (message === 'shutdown') stop(); });
   process.on('disconnect', stop);
   server.once('error', error => {
-    console.error(error.message.includes('EADDRINUSE') ? 'Port 7777 is already in use.' : 'The backend could not listen on port 7777.');
+    console.error(error.message.includes('EADDRINUSE') ? 'Port 6666 is already in use.' : 'The backend could not listen on port 6666.');
     process.exitCode = 1;
     stop();
   });
   server.once('listening', () => {
-    console.log('LudorkServer backend listening on http://0.0.0.0:7777');
+    console.log('LudorkServer backend listening on http://0.0.0.0:6666');
     process.send?.('ready');
   });
-  server.listen(7777, '0.0.0.0');
+  server.listen(6666, '0.0.0.0');
 } catch (error) {
   await releaseLock?.();
   console.error(error instanceof Error ? error.message.replaceAll(/(?:[A-Za-z]:)?[^\s]*projects\.json/g, 'project configuration') : 'Could not start LudorkServer.');
