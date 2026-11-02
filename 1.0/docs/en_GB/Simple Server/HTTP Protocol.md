@@ -124,7 +124,7 @@ A message is limited to **2 MiB**; data has at most **64 nesting levels** and **
 
 ## WebSocket messages
 
-Connect to `ws://host:7777/<URL-encoded-project>/api/v1/net` with `X-Ludork-Key` on the HTTP upgrade. The server answers `{"type":"ready","version":1}` before application messages. Credentials do not occur in URLs or frame bodies. Binary frames and message compression are not used.
+Connect to `ws://host:6666/<URL-encoded-project>/api/v1/net`, or `ws://host:6666/api/v1/net` for a [bound project domain](<Deployment and Editor Settings.md#bind-a-project-domain>), with `X-Ludork-Key` on the HTTP upgrade. The server answers `{"type":"ready","version":1}` before application messages. Credentials do not occur in URLs or frame bodies. Binary frames and message compression are not used.
 
 ```text
 snapshot: {type:"snapshot", id:"1", module:"Profile", params:WireValue}
@@ -141,9 +141,9 @@ Incoming work is capped at 256 calls and 8 MiB per connection and per project. O
 
 ## HTTP health and read-only management
 
-The HTTP API base remains `http://host:7777/<project>/api/v1`. `GET /health` requires no key and returns `{"service":"LudorkServer","project":"MyGame"}`. Data queries and writes use the WebSocket module APIs; there are no account/field REST or write-token endpoints.
+The HTTP API base remains `http://host:6666/<project>/api/v1`; a bound project domain also uses `http://host:6666/api/v1`. `GET /health` requires no key and returns `{"service":"LudorkServer","project":"MyGame"}`. A client URL naming a project requires that exact project in the response; a URL without a project path accepts any nonempty project name. Data queries and writes use the WebSocket module APIs; there are no account/field REST or write-token endpoints.
 
-Management paths are under `/admin`. The production Node.js service on port 3333 serves the built website and proxies its same-origin API requests to port 7777; the backend enforces authentication and does not enable CORS.
+Management paths are under `/admin`. The production Node.js service on port 3333 serves the built website and proxies its same-origin API requests to port 6666; the backend enforces authentication and does not enable CORS.
 
 | Method and path below `/admin` | Requirement | Success body |
 | --- | --- | --- |

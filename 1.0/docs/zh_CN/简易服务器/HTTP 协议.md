@@ -124,7 +124,7 @@ Context 方法使用 `:` 调用。事件携带当前模块名，仅在 handler �
 
 ## WebSocket 消息
 
-连接到 `ws://主机:7777/<URL编码后的项目名>/api/v1/net`，在 HTTP upgrade 中携带 `X-Ludork-Key`。服务端先发送 `{"type":"ready","version":1}`，再处理应用消息。凭据不出现在 URL 或帧内容中。不使用二进制帧与消息压缩。
+连接到 `ws://主机:6666/<URL编码后的项目名>/api/v1/net`；[已绑定项目域名](<部署与编辑器设置.md#绑定项目域名>)时也可连接 `ws://主机:6666/api/v1/net`。在 HTTP upgrade 中携带 `X-Ludork-Key`。服务端先发送 `{"type":"ready","version":1}`，再处理应用消息。凭据不出现在 URL 或帧内容中。不使用二进制帧与消息压缩。
 
 ```text
 snapshot: {type:"snapshot", id:"1", module:"Profile", params:WireValue}
@@ -141,9 +141,9 @@ event:    {type:"event", module:"Profile", event:"NameChanged", args:[WireValue,
 
 ## HTTP 健康检测与只读管理
 
-HTTP API 基地址仍为 `http://主机:7777/<项目名>/api/v1`。`GET /health` 无需密钥，返回 `{"service":"LudorkServer","project":"MyGame"}`。数据查询和写入使用 WebSocket 模块 API，不提供账号／字段 REST 或写入 token 接口。
+HTTP API 基地址仍为 `http://主机:6666/<项目名>/api/v1`；已绑定的项目域名也可使用 `http://主机:6666/api/v1`。`GET /health` 无需密钥，返回 `{"service":"LudorkServer","project":"MyGame"}`。客户端 URL 含项目名时，响应中的项目必须完全一致；URL 不含项目路径时，接受任意非空项目名。数据查询和写入使用 WebSocket 模块 API，不提供账号／字段 REST 或写入 token 接口。
 
-管理路径位于 `/admin` 下。3333 端口的生产 Node.js 服务提供构建后的网页，并将网页的同源 API 请求代理到 7777；后端执行认证，不启用 CORS。
+管理路径位于 `/admin` 下。3333 端口的生产 Node.js 服务提供构建后的网页，并将网页的同源 API 请求代理到 6666；后端执行认证，不启用 CORS。
 
 | `/admin` 之后的方法与路径 | 要求 | 成功响应 |
 | --- | --- | --- |
