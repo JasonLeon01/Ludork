@@ -26,7 +26,7 @@ local createSignature = tuple
 ---@type Source.Windows.PlayerAttrHUD.ShortcutDefinition[]
 local SHORTCUTS = {
     { action = "enemyBook", items = { Item.EnemyBook } }, { action = "floorTeleporter", items = { Item.Teleport } },
-    { action = "shopRecords", icon = "/Game/Assets/System/mting-495.png" }
+    { action = "shopRecords", icon = "/Game/Assets/System/shop.png" }
 }
 
 local function getStateSignature(states)

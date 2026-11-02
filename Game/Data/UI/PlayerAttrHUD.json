@@ -935,7 +935,7 @@
                 "name": "ShortcutButton",
                 "controlId": "Engine.Button",
                 "properties": {
-                  "texture": "/Game/Assets/System/mting-495.png",
+                  "texture": "/Game/Assets/System/shop.png",
                   "hoverColour": [
                     238,
                     246,

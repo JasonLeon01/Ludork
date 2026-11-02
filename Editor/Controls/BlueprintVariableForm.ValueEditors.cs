@@ -420,6 +420,10 @@ public sealed partial class BlueprintVariableForm
     {
         TextBox box = EditorInputs.CreateReadOnlyTextBox(getText(value));
         box.PlaceholderText = field.IsMixedValue ? LocaleService.Get("MULTIPLE_CHOICES") : null;
+        CheckBox? fromTileset = null;
+        bool updatingTileset = false;
+        bool tilesetBrowse = false;
+        bool actorTexture = isActorCharacterTexture(field, assetSubdirectory);
         Button browse = new()
         {
             Content = "...",
@@ -432,6 +436,9 @@ public sealed partial class BlueprintVariableForm
             Window? owner = TopLevel.GetTopLevel(this) as Window;
             if (owner is null)
                 return;
+            string directory = assetSubdirectory;
+            if (actorTexture && browseActorTileset(box.Text, tilesetBrowse))
+                directory = ActorTilesetTextureRoot;
             bool projectRoot = string.Equals(
                 getMetadataString(field, "PathRoot"),
                 "Project",
@@ -443,14 +450,14 @@ public sealed partial class BlueprintVariableForm
             string baseDirectory;
             if (projectRoot)
             {
-                baseDirectory = getSafeDirectory(ProjectDirectory, assetSubdirectory);
+                baseDirectory = getSafeDirectory(ProjectDirectory, directory);
             }
             else if (dataRoot)
             {
-                if (!GameDataPath.TryResolveSelectionDirectory(getProjectDirectory(), assetSubdirectory, out baseDirectory))
+                if (!GameDataPath.TryResolveSelectionDirectory(getProjectDirectory(), directory, out baseDirectory))
                     return;
             }
-            else if (!tryResolveAssetDirectory(assetSubdirectory,
+            else if (!tryResolveAssetDirectory(directory,
                          out baseDirectory))
             {
                 return;
@@ -473,7 +480,7 @@ public sealed partial class BlueprintVariableForm
             }
             else if (dataRoot)
             {
-                initialFilePath = GameDataPath.IsCanonical(current, assetSubdirectory)
+                initialFilePath = GameDataPath.IsCanonical(current, directory)
                     && GameDataPath.TryResolveExistingFile(getProjectDirectory(), current, out string resolvedData)
                     ? resolvedData
                     : null;
@@ -513,7 +520,7 @@ public sealed partial class BlueprintVariableForm
             else if (dataRoot)
             {
                 if (!GameDataPath.TryFromProjectFile(getProjectDirectory(), selected, out storedPath)
-                    || !GameDataPath.IsCanonical(storedPath, assetSubdirectory))
+                    || !GameDataPath.IsCanonical(storedPath, directory))
                     return;
             }
             else if (!tryGetAssetReference(selected,
@@ -523,8 +530,52 @@ public sealed partial class BlueprintVariableForm
             }
             box.PlaceholderText = null;
             box.Text = storedPath;
+            tilesetBrowse = false;
+            syncTilesetCheck(storedPath);
             changed(JsonValue.Create(storedPath), false);
         };
+        void syncTilesetCheck(string path)
+        {
+            if (fromTileset is null)
+                return;
+            updatingTileset = true;
+            fromTileset.IsChecked = isTilesetTexturePath(path);
+            updatingTileset = false;
+        }
+        if (actorTexture)
+        {
+            fromTileset = new CheckBox
+            {
+                Content = LocaleService.Get("ACTOR_TEXTURE_FROM_TILESET"),
+                IsChecked = isTilesetTexturePath(box.Text ?? string.Empty),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            fromTileset.IsCheckedChanged += (_, _) =>
+            {
+                if (updatingTileset)
+                    return;
+                string current = box.Text ?? string.Empty;
+                bool check = fromTileset.IsChecked == true;
+                string? next = check
+                    ? replaceTextureRoot(current, ActorCharacterTextureRoot, ActorTilesetTextureRoot)
+                    : replaceTextureRoot(current, ActorTilesetTextureRoot, ActorCharacterTextureRoot);
+                if (next is null)
+                {
+                    if (field.IsMixedValue && string.IsNullOrEmpty(current))
+                    {
+                        tilesetBrowse = check;
+                        return;
+                    }
+                    syncTilesetCheck(current);
+                    tilesetBrowse = false;
+                    return;
+                }
+                tilesetBrowse = false;
+                box.PlaceholderText = null;
+                box.Text = next;
+                changed(JsonValue.Create(next), false);
+            };
+        }
         Control? action = PathActionFactory?.Invoke(new BlueprintVariableEditorRequest(field, value, changed));
         StackPanel buttons = new()
         {
@@ -547,6 +598,8 @@ public sealed partial class BlueprintVariableForm
             buttons.Children.Add(action);
         }
         buttons.Children.Add(browse);
+        if (fromTileset is not null)
+            buttons.Children.Add(fromTileset);
         Grid grid = new()
         {
             ColumnDefinitions = new ColumnDefinitions("*,Auto"),
@@ -658,5 +711,41 @@ public sealed partial class BlueprintVariableForm
         if (relative.StartsWith("..", StringComparison.Ordinal) || Path.IsPathRooted(relative))
             return root;
         return candidate;
+    }
+
+    private const string ActorCharacterTextureRoot = "/Game/Assets/Characters";
+    private const string ActorTilesetTextureRoot = "/Game/Assets/Tilesets";
+
+    private static bool isActorCharacterTexture(BlueprintVariableField field, string assetSubdirectory)
+    {
+        return string.Equals(field.Name, "texturePath", StringComparison.Ordinal)
+            && string.Equals(assetSubdirectory, ActorCharacterTextureRoot, StringComparison.Ordinal);
+    }
+
+    private static bool isTilesetTexturePath(string path)
+    {
+        return hasTextureRoot(path, ActorTilesetTextureRoot);
+    }
+
+    private static bool browseActorTileset(string? path, bool tilesetBrowse)
+    {
+        string current = path ?? string.Empty;
+        return isTilesetTexturePath(current)
+            || tilesetBrowse && string.IsNullOrEmpty(current);
+    }
+
+    private static bool hasTextureRoot(string path, string root)
+    {
+        return string.Equals(path, root, StringComparison.Ordinal)
+            || path.StartsWith(root + "/", StringComparison.Ordinal);
+    }
+
+    private static string? replaceTextureRoot(string path, string from, string to)
+    {
+        if (string.Equals(path, from, StringComparison.Ordinal))
+            return to;
+        if (!path.StartsWith(from + "/", StringComparison.Ordinal))
+            return null;
+        return to + path[from.Length..];
     }
 }

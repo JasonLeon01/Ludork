@@ -2519,6 +2519,10 @@
     "zh_CN": "角色模式",
     "en_GB": "Actor Mode"
   },
+  "ACTOR_TEXTURE_FROM_TILESET": {
+    "zh_CN": "取自图块集",
+    "en_GB": "From Tileset"
+  },
   "FILE_EXPLORER": {
     "zh_CN": "文件浏览器",
     "en_GB": "File Explorer"
