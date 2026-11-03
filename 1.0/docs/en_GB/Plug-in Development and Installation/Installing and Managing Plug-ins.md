@@ -42,7 +42,7 @@ At startup, the editor reads both the working directory's `plugins.json` with it
 
 The manager shows the selected source and routes unregistration or source deletion to its own registry and directory. Selecting an unregistered immediate child of the working directory's plug-in root for import registers it in place; other imports and newly created plug-ins go to the user directory. If a user copy remains after removing a working-directory registration, it becomes active after restart.
 
-Repository official plug-ins can therefore load directly from the checkout. Windows development archives likewise include `Plugins` and `plugins.json` beside the root `Ludork.exe`. Launching that executable sets the working directory to the extracted package root, so the bundled plug-ins load without installing a user copy. Windows release packages keep `tools/OfficialPlugins` as an installation input; startup never copies or replaces official plug-ins. See [User data directory](<../Editor User Guide/Start Page Workspace and Shortcuts.md#user-data-directory>) for other editor data and manual migration.
+Repository official plug-ins can therefore load directly from the checkout. Windows development archives likewise include `Plugins` and `plugins.json` beside the root `Ludork.exe`. Launching that executable sets the working directory to the extracted package root, so the bundled plug-ins load without installing a user copy. Windows release packages keep `BuildTools/OfficialPlugins` as an installation input; startup never copies or replaces official plug-ins. See [User data directory](<../Editor User Guide/Start Page Workspace and Shortcuts.md#user-data-directory>) for other editor data and manual migration.
 
 Project plug-ins use the following layout under either scanned root, with the same working-directory priority. Writable `.data` remains under the user root:
 
@@ -83,7 +83,7 @@ Repository runs can load the checkout’s registered plug-ins directly. To insta
 On Windows, use `.tools\ScriptTools\ScriptTools.exe` instead. To retry a failed plug-in installation from an installed Windows release editor directory, run:
 
 ```bat
-tools\ScriptTools\ScriptTools.exe editor-official-plugins install-current-user tools\OfficialPlugins
+BuildTools\ScriptTools\ScriptTools.exe editor-official-plugins install-current-user BuildTools\OfficialPlugins
 ```
 
 Run installation commands as your normal user, without **Run as administrator** or `sudo`. These commands replace all existing plug-ins and their data as described above. Windows installer plug-in operations and `install-current-user` commands save their latest output to `~/Ludork/Log/OfficialPluginInstall.log` when that location is writable. If an EXE installation reports that plug-ins failed, the editor itself remains installed; inspect this log and the installer output before retrying. If identity checks fail before the user directory can be resolved, use the installer output for details. The macOS DMG installer displays its own result and recovery details.
