@@ -63,10 +63,10 @@ Name: "officialplugins"; Description: "Install Official Plugins (replace all exi
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Shortcuts:"
 
 [Files]
-Source: "{#WorkDir}\InstallerPayload.txt"; DestDir: "{app}\tools"; Flags: ignoreversion
+Source: "{#WorkDir}\InstallerPayload.txt"; DestDir: "{app}\BuildTools"; Flags: ignoreversion
 Source: "{#DistDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#AssetsDir}\project-icon.ico"; DestDir: "{app}"; DestName: "LudorkProject.ico"; Flags: ignoreversion
-Source: "{#UninstallActions}"; DestDir: "{app}\tools"; DestName: "LudorkUninstallActions.dll"; Flags: ignoreversion
+Source: "{#UninstallActions}"; DestDir: "{app}\BuildTools"; DestName: "LudorkUninstallActions.dll"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\Ludork"; Filename: "{app}\Ludork.exe"; WorkingDir: "{app}"
@@ -129,7 +129,7 @@ var
 begin
   Path := Lowercase(RelativePath);
   Result := (Pos('binaries\', Path) = 1) or (Pos('locale\', Path) = 1) or
-    (Pos('licenses\', Path) = 1) or (Pos('tools\', Path) = 1) or
+    (Pos('licenses\', Path) = 1) or (Pos('buildtools\', Path) = 1) or (Pos('tools\', Path) = 1) or
     (Path = 'ludork.exe') or (Path = 'ludorkproject.ico') or
     (Path = 'license.md') or (Path = 'readme.md') or (Path = 'readme_zh_cn.md') or
     (Path = 'third_party_notices.md') or (Path = 'third_party_notices_zh_cn.md');
@@ -172,7 +172,9 @@ var
   PreviousManifest, RelativePath, FullPath, BackupPath: String;
   Index: Integer;
 begin
-  PreviousManifest := ExpandConstant('{app}\tools\InstallerPayload.txt');
+  PreviousManifest := ExpandConstant('{app}\BuildTools\InstallerPayload.txt');
+  if not FileExists(PreviousManifest) then
+    PreviousManifest := ExpandConstant('{app}\tools\InstallerPayload.txt');
   if not FileExists(PreviousManifest) then exit;
   CheckPayloadPath(PreviousManifest);
   ObsoleteFiles := TStringList.Create;
@@ -291,8 +293,8 @@ begin
     Log(PluginWarning);
     ResultCode := -1;
     try
-      PluginsInstalled := ExecAsOriginalUser(ExpandConstant('{app}\tools\ScriptTools\ScriptTools.exe'),
-        'editor-official-plugins install-current-user "' + ExpandConstant('{app}\tools\OfficialPlugins') + '"',
+      PluginsInstalled := ExecAsOriginalUser(ExpandConstant('{app}\BuildTools\ScriptTools\ScriptTools.exe'),
+        'editor-official-plugins install-current-user "' + ExpandConstant('{app}\BuildTools\OfficialPlugins') + '"',
         ExpandConstant('{app}'), SW_SHOW, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0);
     except
       Log(GetExceptionMessage);
@@ -332,7 +334,7 @@ begin
     SuppressibleMsgBox('REMOVEUSERDATA must be 0 or 1.', mbError, MB_OK, IDOK);
     exit;
   end;
-  if not CopyFile(ExpandConstant('{app}\tools\LudorkUninstallActions.dll'),
+  if not CopyFile(ExpandConstant('{app}\BuildTools\LudorkUninstallActions.dll'),
                   ExpandConstant('{tmp}\LudorkUninstallActions.dll'), False) then begin
     SuppressibleMsgBox('Cannot prepare the uninstall helper. Repair Ludork and retry uninstalling.', mbError, MB_OK, IDOK);
     exit;

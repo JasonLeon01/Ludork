@@ -200,6 +200,7 @@ jobs:
           if [ "$INCLUDE_TEMPLATES" = "true" ]; then
             set -- --templates "$PWD/obj/editor-inputs/Templates"
           fi
+          set -- "$@" --with-build-tools
           if [ "$SIGNING_ENABLED" != "true" ]; then
             sh tools/pack_editor.sh "$EDITOR_CHANNEL" "$@"
             exit 0
@@ -214,6 +215,18 @@ jobs:
           else
             printf '%s\n' "$MACOS_SIGNING_CERTIFICATE_PASSWORD"
           fi | sh tools/pack_editor.sh "$EDITOR_CHANNEL" "$@"
+
+      - name: Name BuildTools archive
+        run: mv dist/Ludork-BuildTools-macos-arm64.tar.gz Ludork-BuildTools-macos-arm64-${{ github.sha }}.tar.gz
+
+      - name: Upload BuildTools
+        uses: actions/upload-artifact@v7
+        with:
+          path: Ludork-BuildTools-macos-arm64-${{ github.sha }}.tar.gz
+          archive: false
+          overwrite: true
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Upload editor DMG
         uses: actions/upload-artifact@v7

@@ -117,6 +117,13 @@ jobs:
           name: ${{ needs.server.outputs.artifact_name }}
           path: obj/release/assets
           skip-decompress: true
+      - name: Download BuildTools
+        uses: actions/download-artifact@v8
+        with:
+          pattern: Ludork-BuildTools-*-${{ github.sha }}.tar.gz
+          path: obj/release/assets
+          merge-multiple: true
+          skip-decompress: true
       - name: Download project templates
         uses: actions/download-artifact@v8
         with:

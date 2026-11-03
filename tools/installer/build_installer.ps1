@@ -64,8 +64,8 @@ function Write-PayloadManifest([string]$SourceDirectory, [string]$Destination) {
             $_.FullName.Substring($SourceDirectory.Length + 1)
         }
         'LudorkProject.ico'
-        'tools\InstallerPayload.txt'
-        if ($Format -eq 'exe') { 'tools\LudorkUninstallActions.dll' }
+        'BuildTools\InstallerPayload.txt'
+        if ($Format -eq 'exe') { 'BuildTools\LudorkUninstallActions.dll' }
     ) | ForEach-Object { [void]$payloadFiles.Add($_) }
     [IO.File]::WriteAllLines((Join-Path $Destination 'InstallerPayload.txt'), $payloadFiles, [Text.UTF8Encoding]::new($true))
 }
@@ -141,8 +141,8 @@ $scriptTools = Join-Path $root '.tools\ScriptTools\ScriptTools.exe'
 Require-File $scriptTools
 Require-File $buildInfo
 Require-File (Join-Path $dist 'Ludork.exe')
-Require-File (Join-Path $dist 'tools\ScriptTools\ScriptTools.exe')
-Require-File (Join-Path $dist 'tools\OfficialPlugins\plugins.json')
+Require-File (Join-Path $dist 'BuildTools\ScriptTools\ScriptTools.exe')
+Require-File (Join-Path $dist 'BuildTools\OfficialPlugins\plugins.json')
 Invoke-Checked (Join-Path $root 'tools\validate_editor_windows_layout.bat') @($dist, '--release')
 $dev = & $scriptTools packaging-constants build-info $buildInfo --field dev
 if ($LASTEXITCODE -ne 0 -or $dev -ne 'false') {
@@ -154,7 +154,7 @@ if ($LASTEXITCODE -ne 0 -or $productVersion -notmatch '^\d+\.\d+\.\d+$') {
 }
 Invoke-Checked (Join-Path $dist 'Binaries\Ludork.exe') @('--check-build-info', $buildInfo)
 Invoke-Checked $scriptTools @('editor-build-metadata', 'validate-payload', $dist, '--build-info', $buildInfo)
-Invoke-Checked $scriptTools @('editor-official-plugins', 'validate', (Join-Path $dist 'tools\OfficialPlugins'))
+Invoke-Checked $scriptTools @('editor-official-plugins', 'validate', (Join-Path $dist 'BuildTools\OfficialPlugins'))
 if (Test-Path -LiteralPath (Join-Path $dist 'Templates')) {
     throw 'A release installer must not contain embedded development templates.'
 }
@@ -163,7 +163,7 @@ foreach ($file in Get-ChildItem -LiteralPath $dist -Recurse -File -Force) {
         throw "Forbidden editor package file: $($file.FullName)"
     }
 }
-foreach ($forbidden in @('tools\installer', 'tools\pack_editor_msi.bat', 'tools\pack_editor_exe.bat')) {
+foreach ($forbidden in @('BuildTools\installer', 'BuildTools\pack_editor_msi.bat', 'BuildTools\pack_editor_exe.bat')) {
     if (Test-Path -LiteralPath (Join-Path $dist $forbidden)) {
         throw "Installer build inputs must not be present in dist: $forbidden"
     }

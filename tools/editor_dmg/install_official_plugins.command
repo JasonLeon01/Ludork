@@ -3,7 +3,7 @@ set -u
 
 installer_directory=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 payload_root="$installer_directory/.official-plugin-payload"
-script_tools="$installer_directory/Ludork.app/Contents/Resources/tools/ScriptTools"
+script_tools="$installer_directory/Ludork.app/Contents/Resources/BuildTools/ScriptTools"
 
 show_error() {
     LUDORK_INSTALLER_MESSAGE=$1 /usr/bin/osascript \

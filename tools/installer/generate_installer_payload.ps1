@@ -137,7 +137,7 @@ foreach ($directory in $directories)
             [byte[]]$fileHash = Get-StableHash "Ludork.PayloadFile`0$normalizedFile"
             $fileSuffix = (Get-Hex $fileHash).Substring(0, 24)
             $escapedFile = [System.Security.SecurityElement]::Escape($relativeFile)
-            $fileId = if ($normalizedFile -eq 'tools\scripttools\scripttools.exe') { 'ScriptToolsExe' } else { "PayloadFile_$fileSuffix" }
+            $fileId = if ($normalizedFile -eq 'buildtools\scripttools\scripttools.exe') { 'ScriptToolsExe' } else { "PayloadFile_$fileSuffix" }
             $lines.Add("        <File Id=`"$fileId`" Source=`"!(bindpath.dist)\$escapedFile`" />")
         }
     }

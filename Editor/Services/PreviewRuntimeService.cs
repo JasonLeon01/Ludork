@@ -443,9 +443,7 @@ public sealed class PreviewRuntimeService : IDisposable, IAsyncDisposable
             return false;
         string binaryRoot = Path.Combine(ProjectPath, "Binaries");
         requireNotLink(binaryRoot);
-        string executable = OperatingSystem.IsWindows() ? "ScriptTools.exe" : "ScriptTools";
-        string? toolPath = EditorRuntimePaths.FindFile("tools", "ScriptTools", executable)
-            ?? EditorRuntimePaths.FindFile(".tools", "ScriptTools", executable);
+        string? toolPath = EditorRuntimePaths.FindScriptTools();
         string manifestPath = Path.Combine(metadataRoot, "Preview.json");
         string registryPath = Path.Combine(metadataRoot, RegistryFileName);
         List<string> paths = [configPath, manifestPath, registryPath];

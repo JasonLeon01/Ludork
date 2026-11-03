@@ -231,7 +231,7 @@ public sealed class ProjectPackService
         if (scriptName is null)
             return ProjectPackResult.Failed(ProjectPackFailure.PlatformUnsupported, options.Platform.ToString());
 
-        string? scriptPath = EditorRuntimePaths.FindFile("tools", scriptName);
+        string? scriptPath = EditorRuntimePaths.FindBuildTool(scriptName);
         if (scriptPath is null)
             return ProjectPackResult.Failed(ProjectPackFailure.ScriptMissing, "tools/" + scriptName);
 

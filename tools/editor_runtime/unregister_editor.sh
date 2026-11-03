@@ -15,7 +15,7 @@ if [ "$#" -eq 1 ]; then
     APP_DIR=$(CDPATH= cd -- "$1" && pwd)
 else
     case "$TOOLS_DIR" in
-        */Contents/Resources/tools)
+        */Contents/Resources/BuildTools)
             APP_DIR=$(CDPATH= cd -- "$TOOLS_DIR/../../.." && pwd)
             ;;
         *)

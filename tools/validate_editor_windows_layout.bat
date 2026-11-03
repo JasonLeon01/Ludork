@@ -13,8 +13,8 @@ if "%~2"=="--release" (
         exit /b 1
     )
 ) else (
-    if exist "%PACKAGE_DIR%\tools\OfficialPlugins" (
-        echo Unexpected installer plugin payload in a development package: %PACKAGE_DIR%\tools\OfficialPlugins
+    if exist "%PACKAGE_DIR%\BuildTools\OfficialPlugins" (
+        echo Unexpected installer plugin payload in a development package: %PACKAGE_DIR%\BuildTools\OfficialPlugins
         exit /b 1
     )
 )
@@ -52,9 +52,10 @@ for %%F in (
     "%PACKAGE_DIR%\.localserver"
     "%PACKAGE_DIR%\Log"
     "%PACKAGE_DIR%\WebView2"
-    "%PACKAGE_DIR%\tools\installer"
-    "%PACKAGE_DIR%\tools\pack_editor_msi.bat"
-    "%PACKAGE_DIR%\tools\pack_editor_exe.bat"
+    "%PACKAGE_DIR%\tools"
+    "%PACKAGE_DIR%\BuildTools\installer"
+    "%PACKAGE_DIR%\BuildTools\pack_editor_msi.bat"
+    "%PACKAGE_DIR%\BuildTools\pack_editor_exe.bat"
 ) do if exist "%%~fF" (
     echo Unexpected file at the editor package root: %%~fF
     exit /b 1
@@ -71,6 +72,7 @@ for %%F in (
     "%PACKAGE_DIR%\Binaries\Server"
     "%PACKAGE_DIR%\Binaries\LudorkServer*.tar.gz"
     "%PACKAGE_DIR%\Binaries\tools"
+    "%PACKAGE_DIR%\Binaries\BuildTools"
     "%PACKAGE_DIR%\Binaries\Plugins"
     "%PACKAGE_DIR%\Binaries\plugins.json"
     "%PACKAGE_DIR%\Binaries\docs"

@@ -99,21 +99,24 @@ async function publishRelease({ github, context, core }, assetDirectory) {
   const version = validateReleaseTag(context);
 
   const entries = fs.readdirSync(assetDirectory, { withFileTypes: true });
+  const buildToolsAssets = new Map(['windows-x64', 'macos-arm64'].map(platform => [
+    `Ludork-BuildTools-${platform}-${context.sha}.tar.gz`, `Ludork-BuildTools-${version}-${platform}.tar.gz`,
+  ]));
   const expected = new Set([
     `Ludork-${version}-windows-x64.msi`, `Ludork-${version}-windows-x64.exe`,
-    `Ludork-${version}-macos-arm64.dmg`, ...templateAssets,
+    `Ludork-${version}-macos-arm64.dmg`, ...templateAssets, ...buildToolsAssets.keys(),
   ]);
   if (entries.length !== expected.size + 1 || entries.some(entry => !entry.isFile())
       || entries.filter(entry => serverAssetPattern.test(entry.name)).length !== 1
       || entries.some(entry => !expected.has(entry.name) && !serverAssetPattern.test(entry.name))) {
-    throw new Error('Release assets must contain the matching Windows MSI and EXE, macOS DMG, Server tar.gz and eight project templates.');
+    throw new Error('Release assets must contain the matching Windows MSI and EXE, macOS DMG, Server tar.gz, eight project templates and both BuildTools archives.');
   }
   const assets = entries.map(entry => {
     const filename = path.join(assetDirectory, entry.name);
     const size = fs.statSync(filename).size;
     if (size === 0) throw new Error(`Release asset is empty: ${entry.name}`);
     fs.accessSync(filename, fs.constants.R_OK);
-    const name = serverAssetPattern.test(entry.name) ? `LudorkServer-${version}.tar.gz` : entry.name;
+    const name = serverAssetPattern.test(entry.name) ? `LudorkServer-${version}.tar.gz` : (buildToolsAssets.get(entry.name) ?? entry.name);
     return { name, filename, size };
   });
 
@@ -153,6 +156,7 @@ async function publishRelease({ github, context, core }, assetDirectory) {
   for (const asset of previousAssets) {
     if (!assets.some(current => current.name === asset.name)
         && !/^Ludork-.+-(windows-x64\.(?:msi|exe)|macos-arm64\.dmg)$/.test(asset.name)
+        && !/^Ludork-BuildTools-\d+\.\d+\.\d+-(?:windows-x64|macos-arm64)\.tar\.gz$/.test(asset.name)
         && !/^LudorkServer-(?:[0-9a-f]{40}|\d+\.\d+\.\d+)\.tar\.gz$/.test(asset.name)
         && !/^LudorkServer-source-(?:[0-9a-f]{40}|\d+\.\d+\.\d+)\.(?:zip|tar\.gz)$/.test(asset.name)) continue;
     await ensureDraft();

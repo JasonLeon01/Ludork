@@ -54,10 +54,19 @@ public static class EditorRuntimePaths
         return null;
     }
 
+    internal static string? FindBuildTool(params string[] parts)
+    {
+        string relativePath = Path.Combine(parts);
+        string packagedPath = Path.Combine(ContentRoot, "BuildTools", relativePath);
+        if (File.Exists(packagedPath))
+            return packagedPath;
+        return FindFile("tools", relativePath);
+    }
+
     public static string? FindScriptTools()
     {
         string executable = OperatingSystem.IsWindows() ? "ScriptTools.exe" : "ScriptTools";
-        return FindFile("tools", "ScriptTools", executable)
+        return FindBuildTool("ScriptTools", executable)
             ?? FindFile(".tools", "ScriptTools", executable);
     }
 

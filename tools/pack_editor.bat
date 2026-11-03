@@ -83,7 +83,7 @@ set "FINAL_DIR=%ROOT_DIR%\dist"
 set "BACKUP_DIR=%WORK_DIR%\previous-dist"
 set "DIST_BACKED_UP=0"
 set "OFFICIAL_PLUGINS_SUBDIRECTORY="
-if "%PACKAGE_CHANNEL%"=="--release" set "OFFICIAL_PLUGINS_SUBDIRECTORY=\tools\OfficialPlugins"
+if "%PACKAGE_CHANNEL%"=="--release" set "OFFICIAL_PLUGINS_SUBDIRECTORY=\BuildTools\OfficialPlugins"
 
 if not exist "%PROJECT_FILE%" (
     echo Ludork.csproj was not found: %PROJECT_FILE%
@@ -288,28 +288,28 @@ echo Preparing official editor plugins...
 "%SCRIPT_TOOLS%" editor-official-plugins prepare "%ROOT_DIR%\Plugins" "%STAGE_DIR%%OFFICIAL_PLUGINS_SUBDIRECTORY%"
 if errorlevel 1 goto failed
 
-mkdir "%STAGE_DIR%\tools" >nul 2>nul
-copy /Y "%ROOT_DIR%\tools\editor_runtime\build_cpp.bat" "%STAGE_DIR%\tools\build_cpp.bat" >nul
+mkdir "%STAGE_DIR%\BuildTools" >nul 2>nul
+copy /Y "%ROOT_DIR%\tools\editor_runtime\build_cpp.bat" "%STAGE_DIR%\BuildTools\build_cpp.bat" >nul
 if errorlevel 1 goto failed
 for %%F in (build_standalone.bat build_preview_host.bat pack_project.bat pack_standalone.bat) do (
-    copy /Y "%ROOT_DIR%\tools\%%F" "%STAGE_DIR%\tools\%%F" >nul
+    copy /Y "%ROOT_DIR%\tools\%%F" "%STAGE_DIR%\BuildTools\%%F" >nul
     if errorlevel 1 goto failed
 )
 call :require_file "%ROOT_DIR%\.tools\Lua\luac.exe"
 if errorlevel 1 goto failed
-call :copy_directory "%SCRIPT_TOOLS_DIRECTORY%" "%STAGE_DIR%\tools\ScriptTools"
+call :copy_directory "%SCRIPT_TOOLS_DIRECTORY%" "%STAGE_DIR%\BuildTools\ScriptTools"
 if errorlevel 1 goto failed
-copy /Y "%ROOT_DIR%\.tools\Lua\luac.exe" "%STAGE_DIR%\tools\luac.exe" >nul
+copy /Y "%ROOT_DIR%\.tools\Lua\luac.exe" "%STAGE_DIR%\BuildTools\luac.exe" >nul
 if errorlevel 1 goto failed
-mkdir "%STAGE_DIR%\tools\gnu-make" >nul 2>nul
-copy /Y "%GNU_MAKE_EXE%" "%STAGE_DIR%\tools\gnu-make\gnumake.exe" >nul
+mkdir "%STAGE_DIR%\BuildTools\gnu-make" >nul 2>nul
+copy /Y "%GNU_MAKE_EXE%" "%STAGE_DIR%\BuildTools\gnu-make\gnumake.exe" >nul
 if errorlevel 1 goto failed
-copy /Y "%GNU_MAKE_SOURCE%" "%STAGE_DIR%\tools\gnu-make\make-%GNU_MAKE_VERSION%.tar.gz" >nul
+copy /Y "%GNU_MAKE_SOURCE%" "%STAGE_DIR%\BuildTools\gnu-make\make-%GNU_MAKE_VERSION%.tar.gz" >nul
 if errorlevel 1 goto failed
 if exist "%GNU_MAKE_LICENSE%" (
-    copy /Y "%GNU_MAKE_LICENSE%" "%STAGE_DIR%\tools\gnu-make\COPYING" >nul
+    copy /Y "%GNU_MAKE_LICENSE%" "%STAGE_DIR%\BuildTools\gnu-make\COPYING" >nul
 ) else (
-    "%SystemRoot%\System32\tar.exe" -xOf "%GNU_MAKE_SOURCE%" "make-%GNU_MAKE_VERSION%/COPYING" > "%STAGE_DIR%\tools\gnu-make\COPYING"
+    "%SystemRoot%\System32\tar.exe" -xOf "%GNU_MAKE_SOURCE%" "make-%GNU_MAKE_VERSION%/COPYING" > "%STAGE_DIR%\BuildTools\gnu-make\COPYING"
 )
 if errorlevel 1 goto failed
 
@@ -418,25 +418,25 @@ if "%WITHOUT_TEMPLATES%"=="1" (
         if errorlevel 1 exit /b 1
     )
 )
-call :require_file "%PACKAGE_DIR%\tools\build_cpp.bat"
+call :require_file "%PACKAGE_DIR%\BuildTools\build_cpp.bat"
 if errorlevel 1 exit /b 1
-call :require_file "%PACKAGE_DIR%\tools\build_standalone.bat"
+call :require_file "%PACKAGE_DIR%\BuildTools\build_standalone.bat"
 if errorlevel 1 exit /b 1
-call :require_file "%PACKAGE_DIR%\tools\pack_standalone.bat"
+call :require_file "%PACKAGE_DIR%\BuildTools\pack_standalone.bat"
 if errorlevel 1 exit /b 1
-call :require_file "%PACKAGE_DIR%\tools\pack_project.bat"
+call :require_file "%PACKAGE_DIR%\BuildTools\pack_project.bat"
 if errorlevel 1 exit /b 1
-call :validate_script_tools_bundle "%PACKAGE_DIR%\tools\ScriptTools"
+call :validate_script_tools_bundle "%PACKAGE_DIR%\BuildTools\ScriptTools"
 if errorlevel 1 exit /b 1
-call :require_file "%PACKAGE_DIR%\tools\luac.exe"
+call :require_file "%PACKAGE_DIR%\BuildTools\luac.exe"
 if errorlevel 1 exit /b 1
-call :require_file "%PACKAGE_DIR%\tools\build_preview_host.bat"
+call :require_file "%PACKAGE_DIR%\BuildTools\build_preview_host.bat"
 if errorlevel 1 exit /b 1
-call :require_file "%PACKAGE_DIR%\tools\gnu-make\gnumake.exe"
+call :require_file "%PACKAGE_DIR%\BuildTools\gnu-make\gnumake.exe"
 if errorlevel 1 exit /b 1
-call :require_file "%PACKAGE_DIR%\tools\gnu-make\make-%GNU_MAKE_VERSION%.tar.gz"
+call :require_file "%PACKAGE_DIR%\BuildTools\gnu-make\make-%GNU_MAKE_VERSION%.tar.gz"
 if errorlevel 1 exit /b 1
-call :require_file "%PACKAGE_DIR%\tools\gnu-make\COPYING"
+call :require_file "%PACKAGE_DIR%\BuildTools\gnu-make\COPYING"
 if errorlevel 1 exit /b 1
 "%SCRIPT_TOOLS%" editor-build-metadata validate-payload "%PACKAGE_DIR%" --build-info "%BUILD_INFO%"
 if errorlevel 1 exit /b 1
@@ -578,16 +578,16 @@ for %%P in (
     "%PACKAGE_DIR%\Ludork.ini"
     "%PACKAGE_DIR%\Ludork.plist"
     "%PACKAGE_DIR%\Locale\locale.json"
-    "%PACKAGE_DIR%\tools\ScriptTools.exe"
-    "%PACKAGE_DIR%\tools\ScriptTools-runtime-versions.txt"
-    "%PACKAGE_DIR%\tools\pack_editor.bat"
-    "%PACKAGE_DIR%\tools\pack_editor_msi.bat"
-    "%PACKAGE_DIR%\tools\pack_editor_exe.bat"
-    "%PACKAGE_DIR%\tools\validate_editor_windows_layout.bat"
-    "%PACKAGE_DIR%\tools\editor_launcher"
-    "%PACKAGE_DIR%\tools\installer"
-    "%PACKAGE_DIR%\tools\create_templates.bat"
-    "%PACKAGE_DIR%\tools\run_editor.bat"
+    "%PACKAGE_DIR%\BuildTools\ScriptTools.exe"
+    "%PACKAGE_DIR%\BuildTools\ScriptTools-runtime-versions.txt"
+    "%PACKAGE_DIR%\BuildTools\pack_editor.bat"
+    "%PACKAGE_DIR%\BuildTools\pack_editor_msi.bat"
+    "%PACKAGE_DIR%\BuildTools\pack_editor_exe.bat"
+    "%PACKAGE_DIR%\BuildTools\validate_editor_windows_layout.bat"
+    "%PACKAGE_DIR%\BuildTools\editor_launcher"
+    "%PACKAGE_DIR%\BuildTools\installer"
+    "%PACKAGE_DIR%\BuildTools\create_templates.bat"
+    "%PACKAGE_DIR%\BuildTools\run_editor.bat"
 ) do (
     if exist "%%~P" (
         echo Forbidden package entry was found: %%~P
@@ -619,7 +619,7 @@ for /r "%PACKAGE_DIR%" %%F in (*.pdb) do (
         exit /b 1
     )
 )
-for /r "%PACKAGE_DIR%\tools" %%F in (*.sh) do (
+for /r "%PACKAGE_DIR%\BuildTools" %%F in (*.sh) do (
     if exist "%%~fF" (
         echo Non-Windows tool was found: %%~fF
         exit /b 1

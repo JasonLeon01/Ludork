@@ -50,15 +50,15 @@ else
         SCRIPT_TOOLS="$DEVELOPMENT_ROOT/.tools/ScriptTools/ScriptTools"
     fi
     if [ -z "$SCRIPT_TOOLS" ]; then
-        use_tools_dir "/Applications/Ludork.app/Contents/Resources/tools"
+        use_tools_dir "/Applications/Ludork.app/Contents/Resources/BuildTools"
     fi
     if [ -z "$SCRIPT_TOOLS" ]; then
-        use_tools_dir "$HOME/Applications/Ludork.app/Contents/Resources/tools"
+        use_tools_dir "$HOME/Applications/Ludork.app/Contents/Resources/BuildTools"
     fi
     if [ -z "$SCRIPT_TOOLS" ] && command -v mdfind >/dev/null 2>&1; then
         LUDORK_APP=$(mdfind 'kMDItemCFBundleIdentifier == "com.ludork.editor"' | head -n 1)
         if [ -n "$LUDORK_APP" ]; then
-            use_tools_dir "$LUDORK_APP/Contents/Resources/tools"
+            use_tools_dir "$LUDORK_APP/Contents/Resources/BuildTools"
         fi
     fi
 fi

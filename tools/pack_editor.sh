@@ -11,10 +11,11 @@ run_dotnet() (
     dotnet "$@"
 )
 
-USAGE="Usage: tools/pack_editor.sh [--version X.Y.Z] [--dev|--release] [--templates <folder>|--without-templates] [--use-current-editor-build] [--signing-identity NAME] [--certificate PATH.p12] [--notarize] [--notary-apple-id EMAIL] [--notary-team-id TEAMID] [--notary-key PATH.p8] [--notary-key-id ID] [--notary-key-issuer UUID]"
+USAGE="Usage: tools/pack_editor.sh [--version X.Y.Z] [--dev|--release] [--templates <folder>|--without-templates] [--use-current-editor-build] [--with-build-tools] [--signing-identity NAME] [--certificate PATH.p12] [--notarize] [--notary-apple-id EMAIL] [--notary-team-id TEAMID] [--notary-key PATH.p8] [--notary-key-id ID] [--notary-key-issuer UUID]"
 PREBUILT_TEMPLATES_DIR=
 WITHOUT_TEMPLATES=0
 USE_CURRENT_EDITOR_BUILD=0
+WITH_BUILD_TOOLS=0
 PRODUCT_VERSION=$EDITOR_VERSION
 PACKAGE_CHANNEL=
 SIGNING_IDENTITY=
@@ -58,6 +59,10 @@ while [ "$#" -gt 0 ]; do
             ;;
         --use-current-editor-build)
             USE_CURRENT_EDITOR_BUILD=1
+            shift
+            ;;
+        --with-build-tools)
+            WITH_BUILD_TOOLS=1
             shift
             ;;
         --signing-identity)
@@ -357,7 +362,7 @@ run_macos_sign() {
         if [ -n "$SIGNING_ENTITLEMENTS" ]; then
             set -- "$@" --entitlements "$SIGNING_ENTITLEMENTS"
         fi
-        set -- "$@" --runtime-bundle "$RESOURCES_DIR/tools/ScriptTools"
+        set -- "$@" --runtime-bundle "$RESOURCES_DIR/BuildTools/ScriptTools"
         if [ "$WITHOUT_TEMPLATES" -eq 0 ]; then
             for template_name in $STANDALONE_TEMPLATE_NAMES; do
                 set -- "$@" --preview-template "$RESOURCES_DIR/Templates/$template_name"
@@ -780,18 +785,18 @@ validate_package() {
                 "$package_resources/Templates/$template_name"
         done
     fi
-    require_package_executable "$package_resources/tools/build_cpp.sh"
-    require_package_executable "$package_resources/tools/build_standalone.sh"
-    require_package_executable "$package_resources/tools/pack_standalone.sh"
-    require_package_executable "$package_resources/tools/pack_project.sh"
-    require_package_executable "$package_resources/tools/pack_ios.sh"
-    require_package_executable "$package_resources/tools/pack_harmony.sh"
-    require_package_executable "$package_resources/tools/pack_android.sh"
-    require_package_executable "$package_resources/tools/unregister_editor.sh"
-    require_package_file "$package_resources/tools/common.sh"
-    validate_script_tools_bundle "$package_resources/tools/ScriptTools"
-    require_package_executable "$package_resources/tools/luac"
-    require_package_executable "$package_resources/tools/build_preview_host.sh"
+    require_package_executable "$package_resources/BuildTools/build_cpp.sh"
+    require_package_executable "$package_resources/BuildTools/build_standalone.sh"
+    require_package_executable "$package_resources/BuildTools/pack_standalone.sh"
+    require_package_executable "$package_resources/BuildTools/pack_project.sh"
+    require_package_executable "$package_resources/BuildTools/pack_ios.sh"
+    require_package_executable "$package_resources/BuildTools/pack_harmony.sh"
+    require_package_executable "$package_resources/BuildTools/pack_android.sh"
+    require_package_executable "$package_resources/BuildTools/unregister_editor.sh"
+    require_package_file "$package_resources/BuildTools/common.sh"
+    validate_script_tools_bundle "$package_resources/BuildTools/ScriptTools"
+    require_package_executable "$package_resources/BuildTools/luac"
+    require_package_executable "$package_resources/BuildTools/build_preview_host.sh"
     if [ "$WITHOUT_TEMPLATES" -eq 0 ]; then
         for template_name in $STANDALONE_TEMPLATE_NAMES; do
             "$SCRIPT_TOOLS" preview validate "$package_resources/Templates/$template_name"
@@ -964,13 +969,13 @@ validate_package() {
         "$package_resources/docs" \
         "$package_resources/Server" \
         "$package_resources"/LudorkServer*.tar.gz \
-        "$package_resources/tools/ScriptTools-runtime-versions.txt" \
-        "$package_resources/tools/pack_editor.sh" \
-        "$package_resources/tools/pack_editor.bat" \
-        "$package_resources/tools/pack_editor_msi.bat" \
-        "$package_resources/tools/create_templates.sh" \
-        "$package_resources/tools/run_editor.sh" \
-        "$package_resources/tools/installer"; do
+        "$package_resources/BuildTools/ScriptTools-runtime-versions.txt" \
+        "$package_resources/BuildTools/pack_editor.sh" \
+        "$package_resources/BuildTools/pack_editor.bat" \
+        "$package_resources/BuildTools/pack_editor_msi.bat" \
+        "$package_resources/BuildTools/create_templates.sh" \
+        "$package_resources/BuildTools/run_editor.sh" \
+        "$package_resources/BuildTools/installer"; do
         if [ -e "$forbidden_path" ] || [ -L "$forbidden_path" ]; then
             echo "Forbidden package entry was found: $forbidden_path" >&2
             exit 1
@@ -1337,31 +1342,31 @@ rm -rf "$RESOURCES_DIR/docs" "$RESOURCES_DIR/Page" "$RESOURCES_DIR/Licenses"
 copy_directory "$PROJECT_ROOT/Licenses" "$RESOURCES_DIR/Licenses"
 "$SCRIPT_TOOLS" legal-resources editor "$PROJECT_ROOT" "$RESOURCES_DIR"
 
-mkdir -p "$RESOURCES_DIR/tools"
-cp "$PROJECT_ROOT/tools/common.sh" "$RESOURCES_DIR/tools/common.sh"
-cp "$PROJECT_ROOT/tools/editor_runtime/build_cpp.sh" "$RESOURCES_DIR/tools/build_cpp.sh"
-cp "$PROJECT_ROOT/tools/build_standalone.sh" "$RESOURCES_DIR/tools/build_standalone.sh"
-cp "$PROJECT_ROOT/tools/pack_standalone.sh" "$RESOURCES_DIR/tools/pack_standalone.sh"
-cp "$PROJECT_ROOT/tools/build_preview_host.sh" "$RESOURCES_DIR/tools/build_preview_host.sh"
-cp "$PROJECT_ROOT/tools/pack_project.sh" "$RESOURCES_DIR/tools/pack_project.sh"
-cp "$PROJECT_ROOT/tools/editor_runtime/pack_ios.sh" "$RESOURCES_DIR/tools/pack_ios.sh"
-cp "$PROJECT_ROOT/tools/editor_runtime/pack_harmony.sh" "$RESOURCES_DIR/tools/pack_harmony.sh"
-cp "$PROJECT_ROOT/tools/editor_runtime/pack_android.sh" "$RESOURCES_DIR/tools/pack_android.sh"
-cp "$PROJECT_ROOT/tools/editor_runtime/unregister_editor.sh" "$RESOURCES_DIR/tools/unregister_editor.sh"
+mkdir -p "$RESOURCES_DIR/BuildTools"
+cp "$PROJECT_ROOT/tools/common.sh" "$RESOURCES_DIR/BuildTools/common.sh"
+cp "$PROJECT_ROOT/tools/editor_runtime/build_cpp.sh" "$RESOURCES_DIR/BuildTools/build_cpp.sh"
+cp "$PROJECT_ROOT/tools/build_standalone.sh" "$RESOURCES_DIR/BuildTools/build_standalone.sh"
+cp "$PROJECT_ROOT/tools/pack_standalone.sh" "$RESOURCES_DIR/BuildTools/pack_standalone.sh"
+cp "$PROJECT_ROOT/tools/build_preview_host.sh" "$RESOURCES_DIR/BuildTools/build_preview_host.sh"
+cp "$PROJECT_ROOT/tools/pack_project.sh" "$RESOURCES_DIR/BuildTools/pack_project.sh"
+cp "$PROJECT_ROOT/tools/editor_runtime/pack_ios.sh" "$RESOURCES_DIR/BuildTools/pack_ios.sh"
+cp "$PROJECT_ROOT/tools/editor_runtime/pack_harmony.sh" "$RESOURCES_DIR/BuildTools/pack_harmony.sh"
+cp "$PROJECT_ROOT/tools/editor_runtime/pack_android.sh" "$RESOURCES_DIR/BuildTools/pack_android.sh"
+cp "$PROJECT_ROOT/tools/editor_runtime/unregister_editor.sh" "$RESOURCES_DIR/BuildTools/unregister_editor.sh"
 require_file "$LUAC"
-copy_directory "$SCRIPT_TOOLS_DIRECTORY" "$RESOURCES_DIR/tools/ScriptTools"
-cp "$LUAC" "$RESOURCES_DIR/tools/luac"
+copy_directory "$SCRIPT_TOOLS_DIRECTORY" "$RESOURCES_DIR/BuildTools/ScriptTools"
+cp "$LUAC" "$RESOURCES_DIR/BuildTools/luac"
 chmod +x \
-    "$RESOURCES_DIR/tools/build_cpp.sh" \
-    "$RESOURCES_DIR/tools/build_standalone.sh" \
-    "$RESOURCES_DIR/tools/pack_standalone.sh" \
-    "$RESOURCES_DIR/tools/build_preview_host.sh" \
-    "$RESOURCES_DIR/tools/pack_project.sh" \
-    "$RESOURCES_DIR/tools/pack_ios.sh" \
-    "$RESOURCES_DIR/tools/pack_harmony.sh" \
-    "$RESOURCES_DIR/tools/pack_android.sh" \
-    "$RESOURCES_DIR/tools/unregister_editor.sh" \
-    "$RESOURCES_DIR/tools/luac"
+    "$RESOURCES_DIR/BuildTools/build_cpp.sh" \
+    "$RESOURCES_DIR/BuildTools/build_standalone.sh" \
+    "$RESOURCES_DIR/BuildTools/pack_standalone.sh" \
+    "$RESOURCES_DIR/BuildTools/build_preview_host.sh" \
+    "$RESOURCES_DIR/BuildTools/pack_project.sh" \
+    "$RESOURCES_DIR/BuildTools/pack_ios.sh" \
+    "$RESOURCES_DIR/BuildTools/pack_harmony.sh" \
+    "$RESOURCES_DIR/BuildTools/pack_android.sh" \
+    "$RESOURCES_DIR/BuildTools/unregister_editor.sh" \
+    "$RESOURCES_DIR/BuildTools/luac"
 
 "$SCRIPT_TOOLS" editor-macos-metadata generate \
     "$APP_DIR/Contents/Info.plist" \
@@ -1382,6 +1387,9 @@ if [ -n "$SIGNING_IDENTITY$SIGNING_CERTIFICATE" ]; then
 fi
 echo "Signing the editor application..."
 run_macos_sign app "$APP_DIR"
+if [ "$WITH_BUILD_TOOLS" -eq 1 ]; then
+    tar -czf "$STAGE_DIR/Ludork-BuildTools-macos-arm64.tar.gz" -C "$RESOURCES_DIR" BuildTools
+fi
 
 echo "Preparing official editor plugins..."
 "$SCRIPT_TOOLS" editor-official-plugins prepare \

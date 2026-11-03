@@ -50,13 +50,13 @@ if exist "!DEVELOPMENT_ROOT!\.tools\ScriptTools\ScriptTools.exe" if exist "!DEVE
     set "SCRIPT_TOOLS=!DEVELOPMENT_ROOT!\.tools\ScriptTools\ScriptTools.exe"
     set "GNU_MAKE=!DEVELOPMENT_ROOT!\.tools\gnu-make\gnumake.exe"
 )
-if not defined SCRIPT_TOOLS call :use_tools_dir "%LOCALAPPDATA%\Ludork\tools"
+if not defined SCRIPT_TOOLS call :use_tools_dir "%LOCALAPPDATA%\Ludork\BuildTools"
 if not defined SCRIPT_TOOLS (
     for /f "tokens=2,*" %%A in ('reg query "HKCU\Software\Classes\Ludork.Project\shell\open\command" /ve 2^>nul ^| findstr "REG_SZ"') do set "LUDORK_OPEN_COMMAND=%%B"
     if defined LUDORK_OPEN_COMMAND (
         for /f tokens^=2^ delims^=^" %%I in ("!LUDORK_OPEN_COMMAND!") do set "LUDORK_EDITOR_EXE=%%I"
         if defined LUDORK_EDITOR_EXE (
-            for %%I in ("!LUDORK_EDITOR_EXE!\..\tools") do call :use_tools_dir "%%~fI"
+            for %%I in ("!LUDORK_EDITOR_EXE!\..\BuildTools") do call :use_tools_dir "%%~fI"
         )
     )
 )

@@ -41,7 +41,7 @@
                   DllEntry="ApplyAssociations" Execute="deferred"
                   Impersonate="no" Return="check" />
     <CustomAction Id="InstallOfficialPlugins" FileRef="ScriptToolsExe"
-                  ExeCommand="editor-official-plugins install-current-user &quot;[INSTALLFOLDER]tools\OfficialPlugins&quot; --expected-user-sid &quot;[UserSID]&quot;"
+                  ExeCommand="editor-official-plugins install-current-user &quot;[INSTALLFOLDER]BuildTools\OfficialPlugins&quot; --expected-user-sid &quot;[UserSID]&quot;"
                   Execute="commit" Impersonate="yes" TerminalServerAware="yes" Return="check" />
     <InstallExecuteSequence>
       <Custom Action="Preflight" After="InstallValidate" />

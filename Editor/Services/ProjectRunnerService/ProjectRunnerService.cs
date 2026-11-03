@@ -233,7 +233,7 @@ public sealed partial class ProjectRunnerService : IDisposable
         {
             setState(ProjectRunState.Building);
             string buildScriptName = OperatingSystem.IsWindows() ? "build_cpp.bat" : "build_cpp.sh";
-            string? buildScript = EditorRuntimePaths.FindFile("tools", buildScriptName);
+            string? buildScript = EditorRuntimePaths.FindBuildTool(buildScriptName);
             if (buildScript is null)
                 return ProjectRunResult.Failed(ProjectRunFailure.BuildToolMissing, "tools/" + buildScriptName);
             writeOutput($"> {buildScript} \"{projectPath}\" Debug");
