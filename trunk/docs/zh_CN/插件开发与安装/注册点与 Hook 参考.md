@@ -123,7 +123,7 @@ Official Locale Tools 在生成游戏发行包时调用 `ExcludeFile("Data/Local
 | `SearchDocumentationAsync(query, maxResults, cancellationToken)` | 按关键词匹配标题、路径和完整 Markdown，返回文档 key、摘要与官方页面 URL |
 | `ReadDocumentationAsync(documentKey, startLine, lineCount, cancellationToken)` | 按文档 key 和从 1 开始的行范围返回带行号的 Markdown，以及官方页面 URL |
 
-这些方法按需从固定官网加载当前编辑器 major.minor 版本与语言的索引，每轮请求的 workspace 内共用同一份快照。它们接受文档查询与 key，不接受项目路径或任意 URL。索引缺失、无效或网络失败时返回工具错误，不会改变所选版本或语言。具体蓝图 API 仍以 API 清单的 metadata 为准；参见 [Official Blueprint AI](<Official 插件/Blueprint AI.md#官方文档>)。
+这些方法按需从固定官网加载编辑器所选开发文档或发布快照的当前语言索引，每轮请求的 workspace 内共用同一份快照。文档版本遵循[在线手册的选择规则](<../编辑器用户指南/启动页、工作区与快捷键.md#在线文档>)。它们接受文档查询与 key，不接受项目路径或任意 URL。索引缺失、无效或网络失败时返回工具错误，不会改变所选版本或语言。具体蓝图 API 仍以 API 清单的 metadata 为准；参见 [Official Blueprint AI](<Official 插件/Blueprint AI.md#官方文档>)。
 
 文档结果最多输出 12,000 个字符。有 `nextLine` 时从该行继续读取；`truncatedLine` 明确表示超长单行的尾部已省略，续读从下一行开始。
 

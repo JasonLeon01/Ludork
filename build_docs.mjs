@@ -1,54 +1,66 @@
-import { cpSync, existsSync, lstatSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { basename, extname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { spawnSync } from 'node:child_process'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { editableInputs, normalizeTextInputs, root, run } from './build_docs_utils.mjs'
+import { getDocsRoute, sortDocsVersions } from './docs_versions.mjs'
 
-const root = fileURLToPath(new URL('.', import.meta.url))
 const frontend = resolve(root, '__default__')
 const outputs = ['index.html', 'assets', 'docs', 'about', 'notices', 'favicon.svg', '.nojekyll']
-const textExtensions = new Set(['.bat', '.cmd', '.css', '.html', '.js', '.jsx', '.json', '.md', '.mjs', '.cjs', '.sh', '.svg', '.ts', '.tsx', '.txt', '.yaml', '.yml'])
-const textNames = new Set(['.gitattributes', '.gitignore', '.nojekyll', '.npmrc'])
-const ignoredDirectories = new Set(['node_modules', 'dist', '.git', '.cache', '.vite', '.vite-temp', '.tmp', 'coverage'])
 
-function normalizeTextInputs(path) {
-  const filename = resolve(root, path)
-  const stat = lstatSync(filename)
-  if (stat.isSymbolicLink()) return 0
-  if (stat.isDirectory()) {
-    if (ignoredDirectories.has(basename(filename)) || /^__default__\/docs\/v[^/]+$/.test(path)) return 0
-    return readdirSync(filename).reduce((count, name) => count + normalizeTextInputs(`${path}/${name}`), 0)
-  }
-  if (!stat.isFile() || (!textExtensions.has(extname(filename).toLowerCase())
-    && !textNames.has(basename(filename)) && !path.startsWith('.githooks/'))) return 0
-
-  const content = readFileSync(filename)
-  const start = content[0] === 0xef && content[1] === 0xbb && content[2] === 0xbf ? 3 : 0
-  if (content.includes(0) || (!start && !content.includes(13))) return 0
-  let length = 0
-  for (let index = start; index < content.length; index++) {
-    if (content[index] === 13) {
-      content[length++] = 10
-      if (content[index + 1] === 10) index++
-    } else {
-      content[length++] = content[index]
+function publishOutputs(dist) {
+  const staging = mkdtempSync(resolve(root, '.docs-build-'))
+  const next = resolve(staging, 'next')
+  const previous = resolve(staging, 'previous')
+  const replaced = []
+  let preserveBackup = false
+  try {
+    mkdirSync(next)
+    mkdirSync(previous)
+    for (const path of outputs) cpSync(resolve(dist, path), resolve(next, path), { recursive: true })
+    try {
+      for (const path of outputs) {
+        const target = resolve(root, path)
+        const entry = { path, backedUp: false, installed: false }
+        replaced.push(entry)
+        if (existsSync(target)) {
+          renameSync(target, resolve(previous, path))
+          entry.backedUp = true
+        }
+        renameSync(resolve(next, path), target)
+        entry.installed = true
+      }
+    } catch (error) {
+      const failures = []
+      for (const entry of replaced.reverse()) {
+        try {
+          const target = resolve(root, entry.path)
+          if (entry.installed) rmSync(target, { recursive: true, force: true })
+          if (entry.backedUp) renameSync(resolve(previous, entry.path), target)
+        } catch (restoreError) {
+          failures.push(restoreError.message)
+        }
+      }
+      if (failures.length) {
+        preserveBackup = true
+        throw new Error(`${error.message}. Could not restore all website outputs: ${failures.join('; ')}. Backup retained at ${staging}`)
+      }
+      throw error
+    }
+  } finally {
+    if (!preserveBackup) {
+      try {
+        rmSync(staging, { recursive: true, force: true })
+      } catch (error) {
+        console.warn(`Could not remove build staging directory ${staging}: ${error.message}`)
+      }
     }
   }
-  writeFileSync(filename, content.subarray(0, length))
-  return 1
-}
-
-function run(command, args, cwd = root, capture = false) {
-  const result = spawnSync(command, args, { cwd, encoding: 'utf8', stdio: capture ? 'pipe' : 'inherit' })
-  if (result.error) throw result.error
-  if (result.status !== 0) throw new Error(`${command} failed (${result.status})${result.stderr ? `: ${result.stderr}` : ''}`)
-  return result.stdout?.trim() ?? ''
 }
 
 try {
   let normalized = normalizeTextInputs('versions.json')
-  const versions = JSON.parse(readFileSync(resolve(root, 'versions.json'), 'utf8'))
-  const inputs = ['__default__', ...versions, 'versions.json', 'build_docs.mjs', 'build_docs.sh', 'build_docs.bat', '.githooks', '.gitattributes']
-  normalized += inputs.reduce((count, path) => count + normalizeTextInputs(path), 0)
+  const versions = sortDocsVersions(JSON.parse(readFileSync(resolve(root, 'versions.json'), 'utf8')))
+  const inputs = [...editableInputs, ...versions.filter((version) => version !== 'trunk')]
+  normalized += editableInputs.reduce((count, path) => count + normalizeTextInputs(path), 0)
   if (normalized) console.log(`Normalized ${normalized} build input file(s) to LF without a UTF-8 BOM.`)
   const commit = process.argv.includes('--commit')
   if (commit) {
@@ -63,14 +75,10 @@ try {
 
   const dist = resolve(frontend, 'dist')
   for (const path of ['index.html', 'assets', 'about/index.html', 'notices/index.html', 'favicon.svg', '.nojekyll',
-    ...versions.map((version) => `docs/v${version}/index.html`)]) {
+    ...versions.map((version) => `${getDocsRoute(version)}index.html`)]) {
     if (!existsSync(resolve(dist, path))) throw new Error(`Missing website output: ${path}`)
   }
-  for (const path of outputs) {
-    const target = resolve(root, path)
-    rmSync(target, { recursive: true, force: true })
-    cpSync(resolve(dist, path), target, { recursive: true })
-  }
+  publishOutputs(dist)
   if (commit) run('git', ['add', '-A', '--', ...outputs])
   console.log('Updated the static website at the gh-pages worktree root.')
 } catch (error) {

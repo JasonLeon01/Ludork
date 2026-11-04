@@ -16,7 +16,7 @@ Resource windows display a loading indicator while opening. If loading fails, us
 
 ## Online documentation
 
-**F1** opens the online manual inside the editor. The installed editor version selects its matching major.minor documentation: 1.0.7 opens `/Ludork/docs/v1.0/`. The current editor language is selected initially; language and version selectors remain available beside the chapter tabs. About and third-party notices also load online, while About retains the installed package version.
+**F1** opens the online manual inside the editor. Development editors use `trunk`, the documentation for ongoing development, at `/Ludork/docs/trunk/`. Release editors use the frozen snapshot matching their major.minor version: release `1.0.7` opens `/Ludork/docs/v1.0/`. The current editor language is selected initially; language and version selectors remain available in the documentation sidebar. About and third-party notices use the same documentation version and also load online, while About retains the installed package version.
 
 The embedded pages hide website navigation. Documentation links stay in the window; the homepage, downloads and external links open in the system browser. An internet connection is required. Failed page loads offer **Retry**. Windows requires Microsoft Edge WebView2 Runtime and offers an installation link when it is missing; macOS uses its system WKWebView.
 

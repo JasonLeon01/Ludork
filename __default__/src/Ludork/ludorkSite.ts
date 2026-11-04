@@ -1,3 +1,4 @@
+import { getDocsRoute } from '../../../docs_versions.mjs'
 import { getDocsVersion, isEmbedded } from './ludorkVersions'
 import type { LanguageKey } from './ludorkLanguages'
 
@@ -32,7 +33,7 @@ export function preserveEmbeddedMode(href: string | undefined): string | undefin
   const url = new URL(href, getSiteRoot())
   const roots = [getSiteRoot(), new URL(LUDORK_LINKS.website)]
   const root = roots.find((candidate) => url.origin === candidate.origin && url.pathname.startsWith(candidate.pathname))
-  if (root && /^(?:docs\/v\d+\.\d+|about|notices)\/?$/.test(url.pathname.slice(root.pathname.length))) {
+  if (root && /^(?:docs\/(?:trunk|v\d+\.\d+)|about|notices)\/?$/.test(url.pathname.slice(root.pathname.length))) {
     url.searchParams.set('embedded', '1')
     return url.href
   }
@@ -40,7 +41,7 @@ export function preserveEmbeddedMode(href: string | undefined): string | undefin
 }
 
 export function getSitePageHref(page: SitePage, language: LanguageKey): string {
-  const route = page === 'home' ? './' : page === 'docs' ? `docs/v${getDocsVersion()}/` : `${page}/`
+  const route = page === 'home' ? './' : page === 'docs' ? getDocsRoute(getDocsVersion()) : `${page}/`
   const url = new URL(route, getSiteRoot())
   if (page === 'about' || page === 'notices') url.searchParams.set('version', getDocsVersion())
   if (page !== 'home' && isEmbedded()) url.searchParams.set('embedded', '1')

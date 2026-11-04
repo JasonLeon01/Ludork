@@ -1,6 +1,6 @@
 # Ludork Documentation
 
-This guide covers Ludork 1.0. Downloads and project information are on the [Ludork website](https://jasonleon01.github.io/Ludork/?lang=en_GB); [third-party notices](https://jasonleon01.github.io/Ludork/notices/?version=1.0&lang=en_GB) are also linked from its footer.
+This guide covers Ludork. Downloads and project information are on the [Ludork website](https://jasonleon01.github.io/Ludork/?lang=en_GB); [third-party notices](../THIRD_PARTY_NOTICES.md) are also linked from its footer.
 
 Ludork combines a visual editor, Blueprint graphs, Lua scripts and an extensible C++20 runtime for map-driven 2D games. Use the editor to configure projects and create maps, Actors, data, animation and user interfaces, then run and package the game.
 

@@ -1,4 +1,5 @@
 import { FormControl, MenuItem, Select } from '@mui/material'
+import { getDocsRoute } from '../../../docs_versions.mjs'
 import { isFaqDoc, resolveFilenameByDocKey, type SelectedDoc } from './ludorkDocsIndex'
 import type { LanguageKey } from './ludorkLanguages'
 import { getSiteRoot } from './ludorkSite'
@@ -12,7 +13,7 @@ export default function LudorkVersionSelect({ language, selected }: { language: 
         sx={{ borderRadius: '10px', fontSize: 14 }}
         onChange={(event) => {
           const version = event.target.value
-          const url = new URL(`docs/v${version}/`, getSiteRoot())
+          const url = new URL(getDocsRoute(version), getSiteRoot())
           url.search = window.location.search
           url.searchParams.set('lang', language)
           url.searchParams.delete('version')
@@ -25,7 +26,11 @@ export default function LudorkVersionSelect({ language, selected }: { language: 
           }
           window.location.assign(url)
         }}>
-        {LUDORK_VERSIONS.map((version) => <MenuItem key={version} value={version}>Ludork {version}</MenuItem>)}
+        {LUDORK_VERSIONS.map((version) => (
+          <MenuItem key={version} value={version}>
+            {version === 'trunk' ? LUDORK_SITE_MESSAGES[language].developmentVersion : `Ludork ${version}`}
+          </MenuItem>
+        ))}
       </Select>
     </FormControl>
   )

@@ -1,9 +1,10 @@
-import { readFileSync, mkdirSync, writeFileSync } from 'node:fs'
+import { readFileSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import sirv from 'sirv'
 import { defineConfig, type Plugin } from 'vite'
+import { getDocsRoute, sortDocsVersions } from '../docs_versions.mjs'
 import { readDocsManifest } from './build/readDocsManifest.ts'
 import { readDocsSearchIndexes } from './build/readDocsSearchIndexes.ts'
 
@@ -11,7 +12,7 @@ const VIRTUAL_MODULE_ID = 'virtual:ludork-doc-manifest'
 const RESOLVED_VIRTUAL_MODULE_ID = `\0${VIRTUAL_MODULE_ID}`
 const PROJECT_DIRECTORY = fileURLToPath(new URL('.', import.meta.url))
 const SITE_DIRECTORY = resolve(PROJECT_DIRECTORY, '..')
-const versions: string[] = JSON.parse(readFileSync(resolve(SITE_DIRECTORY, 'versions.json'), 'utf8'))
+const versions = sortDocsVersions(JSON.parse(readFileSync(resolve(SITE_DIRECTORY, 'versions.json'), 'utf8')))
 
 function ludorkDocsPlugin(): Plugin {
   const contentRoute = (base: string, version: string) => `${base === './' ? '/' : base}${version}`
@@ -24,7 +25,7 @@ function ludorkDocsPlugin(): Plugin {
       for (const index of readDocsSearchIndexes(SITE_DIRECTORY, manifests)) {
         this.emitFile({
           type: 'asset',
-          fileName: `docs/v${index.version}/search-index.${index.language}.json`,
+          fileName: `${getDocsRoute(index.version)}search-index.${index.language}.json`,
           source: `${JSON.stringify(index)}\n`,
         })
       }
@@ -52,10 +53,20 @@ function ludorkDocsPlugin(): Plugin {
   }
 }
 
-const template = readFileSync(resolve(PROJECT_DIRECTORY, 'docs/index.html'), 'utf8')
+const docsDirectory = resolve(PROJECT_DIRECTORY, 'docs')
+const docsRoutes = new Set(versions.map(getDocsRoute))
+for (const entry of readdirSync(docsDirectory, { withFileTypes: true })) {
+  if (entry.isDirectory() && /^(?:trunk|v\d+\.\d+)$/.test(entry.name)
+    && !docsRoutes.has(`docs/${entry.name}/`)) {
+    rmSync(resolve(docsDirectory, entry.name), { recursive: true, force: true })
+  }
+}
+
+const template = readFileSync(resolve(docsDirectory, 'index.html'), 'utf8')
 const docsInputs = Object.fromEntries(versions.map((version) => {
-  const filename = resolve(PROJECT_DIRECTORY, `docs/v${version}/index.html`)
-  mkdirSync(resolve(PROJECT_DIRECTORY, `docs/v${version}`), { recursive: true })
+  const route = getDocsRoute(version)
+  const filename = resolve(PROJECT_DIRECTORY, route, 'index.html')
+  mkdirSync(resolve(PROJECT_DIRECTORY, route), { recursive: true })
   writeFileSync(filename, template.replace('data-site-root="../"', 'data-site-root="../../"'))
   return [`docs-${version}`, filename]
 }))

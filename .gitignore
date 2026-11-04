@@ -1,5 +1,7 @@
 __default__/node_modules/
 __default__/dist/
 __default__/docs/v*/
+__default__/docs/trunk/
+.docs-build-*/
 *.log
 .DS_Store

@@ -20,9 +20,13 @@ npm run dev --prefix __default__
 | Build on macOS/Linux | `sh build_docs.sh` |
 | Preview the build | `npm run preview --prefix __default__` |
 
-Both build scripts call `build_docs.mjs`. Edit frontend sources in `__default__` and versioned content, not generated HTML, assets or search indexes.
+Both build scripts call `build_docs.mjs`. Edit frontend sources in `__default__` and development content in `trunk`; leave release snapshots unchanged. Do not hand-edit generated HTML, assets or search indexes.
 
-Text files on this branch use LF, enforced on Git checkout by `.gitattributes`. Before reading `versions.json`, checking commit inputs or starting Vite, `build_docs.mjs` removes leading UTF-8 byte order marks (BOMs) and converts CRLF and lone CR line endings in documentation, frontend and build text inputs to LF in place, so these encoding and line-ending differences do not change asset hashes across platforms. It writes only files that need conversion and skips dependencies, generated directories and binary assets.
+To create a release snapshot, run `build_docs_release.bat 1.0` on Windows or `sh build_docs_release.sh 1.0` on macOS/Linux. These entry points call `build_docs_release.mjs` with one `major.minor` version, using decimal components without leading zeros, a `v` prefix or a patch component. The script normalises trunk text, copies the complete `trunk` directory into the new version directory, registers it in `versions.json`, then builds the site. All languages, navigation, images, About and notices are copied. Snapshot sources must be ordinary files and directories; symbolic links are rejected. An existing directory or registered version is rejected; snapshots cannot be overwritten. If copying or building fails, the script removes only the new snapshot and restores the version list. Run it manually when releasing; it does not stage, commit or push changes.
+
+Continue all content changes in `trunk` after creating a snapshot. Later site builds read release content without changing it; shared frontend code, HTML entries and generated indexes are rebuilt for all versions.
+
+Text files on this branch use LF, enforced on Git checkout by `.gitattributes`. Before reading `versions.json`, checking commit inputs or starting Vite, `build_docs.mjs` removes leading UTF-8 byte order marks (BOMs) and converts CRLF and lone CR line endings in trunk documentation, frontend and build text inputs to LF in place, so these encoding and line-ending differences do not change asset hashes across platforms. It writes only files that need conversion and skips frozen release directories, dependencies, generated directories and binary assets.
 
 Stage the intended inputs before committing. The `gh-pages` pre-commit hook builds the site and includes generated outputs in the same commit; build failures or unstaged/untracked build inputs stop the commit. Configure the hook in each clone.
 
@@ -30,28 +34,29 @@ After review, push `gh-pages` and set GitHub Pages to **Deploy from a branch →
 
 ## Content and routes
 
-- [`versions.json`](versions.json) lists major.minor versions, default first. Each version contains `docs/en_GB`, `docs/zh_CN`, shared About/notices Markdown and `images`. Add a content directory and version entry to introduce a version; the build generates its HTML entry and language manifests.
+- [`versions.json`](versions.json) lists `trunk` and the available major.minor release snapshots. Release versions are shown in descending numeric order, with `trunk (development)` always last. The default is the latest release, or trunk if no release exists. Each version contains `docs/en_GB`, `docs/zh_CN`, shared About/notices Markdown and `images`; the build generates its HTML entry and language manifests.
 - Each language's root `order.json` defines the `home` Markdown entry, the `faq` tree root and ordered `sections`. FAQ uses `{"key":"faq","path":"FAQ"}`; its directory's `order.json` defines the scenario pages in an ordered `items` tree, using keys such as `faq/projects`. Each top-level chapter also has an `order.json` with an ordered `items` tree. Nodes have a stable `key`, a `path` relative to their parent directory, and `children` for folders in the tree.
 - Each version and language owns its own `docs/<language>/FAQ/` scenario pages. FAQ content is not shared across versions; its links point to the documentation in the same version and language.
 - Use array order for navigation; filenames need no ordering prefixes. Preserve keys when renaming or reordering, and use the same keys for matching English and Chinese content so existing `doc` links stay valid.
 
 | Route or parameter | Purpose |
 | --- | --- |
-| `/Ludork/docs/v1.0/` | Documentation; `lang`, `doc`, `path` and heading fragments select content. `path` is relative to the version directory. |
-| `/Ludork/docs/v1.0/?lang=en_GB&doc=faq/projects` | The selected version's Projects and Upgrades FAQ page; FAQ scenario keys select individual pages. |
-| `/Ludork/`, `/Ludork/about/`, `/Ludork/notices/` | Website entries; About and notices accept `version=1.0`, defaulting to the first version. |
+| `/Ludork/docs/trunk/` | Development documentation; `lang`, `doc`, `path` and heading fragments select content. `path` is relative to the version directory. |
+| `/Ludork/docs/v1.0/` | The frozen `1.0` documentation, available after creating that snapshot. The same content parameters apply. |
+| `/Ludork/docs/trunk/?lang=en_GB&doc=faq/projects` | The selected version's Projects and Upgrades FAQ page; FAQ scenario keys select individual pages. |
+| `/Ludork/`, `/Ludork/about/`, `/Ludork/notices/` | Website entries; About and notices accept `version=trunk` or a release such as `version=1.0`, defaulting to the latest release or, if none exists, trunk. |
 | `embedded=1` | Hides the website header and the About/notices footer; language and version navigation preserve it. |
 
-The editor supplies its language and major.minor version when opening embedded pages.
+The editor supplies its language when opening embedded pages. Development editors select trunk; release editors select the snapshot matching their major.minor version.
 
 The documentation sidebar provides a Documentation link and an expandable FAQ node with scenario pages. Below the version selector, the title filter narrows the current language's chapter tree within the selected version; it does not search FAQ or document contents. The former chapter tabs are the chapter tree's first-level nodes.
 
 ## Documentation search index
 
-The build generates `/Ludork/docs/v{version}/search-index.{language}.json` for programmatic queries, using this schema:
+The build generates `/Ludork/docs/trunk/search-index.{language}.json` for development documentation and `/Ludork/docs/v{version}/search-index.{language}.json` for release snapshots, using this schema:
 
 ```text
 { version, language, documents: [{ key, title, path, content }] }
 ```
 
-It includes the home page, all FAQ scenario pages and all chapter documents in navigation order. `title` is the filename without `.md`, `path` is relative to the version directory, and `content` is the full Markdown with LF line endings. Select the required version and language explicitly. The index becomes available online after publishing and is independent of the sidebar's title filter.
+`version` is `"trunk"` for development documentation or the snapshot's major.minor value for a release. The index includes the home page, all FAQ scenario pages and all chapter documents in navigation order. `title` is the filename without `.md`, `path` is relative to the version directory, and `content` is the full Markdown with LF line endings. Select the required version and language explicitly. The index becomes available online after publishing and is independent of the sidebar's title filter.

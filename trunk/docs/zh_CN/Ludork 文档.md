@@ -1,6 +1,6 @@
 # Ludork 文档
 
-本指南适用于 Ludork 1.0。下载与项目信息见 [Ludork 官网](https://jasonleon01.github.io/Ludork/?lang=zh_CN)，[第三方声明](https://jasonleon01.github.io/Ludork/notices/?version=1.0&lang=zh_CN)也可从官网页脚打开。
+本指南介绍 Ludork。下载与项目信息见 [Ludork 官网](https://jasonleon01.github.io/Ludork/?lang=zh_CN)，[第三方声明](../THIRD_PARTY_NOTICES_zh_CN.md)也可从官网页脚打开。
 
 Ludork 集可视化编辑器、蓝图、Lua 脚本和可扩展的 C++20 运行时于一体，用于制作以地图为基础的 2D 游戏。可在编辑器中配置项目，制作地图、Actor、数据、动画和界面，再运行和打包游戏。
 

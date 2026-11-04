@@ -46,7 +46,7 @@ Project search and file reading only accept project-relative paths under the con
 
 ## Official documentation
 
-The assistant can search and read official documentation for the editor's current major.minor version and language. For example, editor `1.0.7` uses documentation `1.0`. Results include links to the source pages.
+The assistant can search and read the development or release documentation selected by the editor, in the editor's current language. It follows the same [version selection as the online manual](<../../Editor User Guide/Start Page Workspace and Shortcuts.md#online-documentation>). Results include links to the source pages.
 
 If the matching documentation is unavailable, the assistant reports the problem without using a different version or language. The current project's API catalogue and metadata remain authoritative for concrete nodes, types, serialised names and pins. Public documentation methods are listed in [Registration and Hook Reference](<../Registration and Hook Reference.md#blueprint-assistants>).
 

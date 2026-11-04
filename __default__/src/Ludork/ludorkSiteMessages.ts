@@ -11,6 +11,7 @@ const FOOTER_DESCRIPTION = 'A tilemap RPG Engine for the next generation'
 export type SiteMessages = {
   navigation: { home: string; docs: string; about: string; repository: string; label: string }
   version: string
+  developmentVersion: string
   language: string
   skipToContent: string
   download: string
@@ -51,6 +52,7 @@ export const LUDORK_SITE_MESSAGES = {
   en_GB: {
     navigation: { home: 'Home', docs: 'Documentation', about: 'About', repository: 'GitHub repository', label: 'Main navigation' },
     version: 'Version',
+    developmentVersion: 'trunk (development)',
     language: 'Language',
     skipToContent: 'Skip to content',
     download: 'Download Ludork',
@@ -73,6 +75,7 @@ export const LUDORK_SITE_MESSAGES = {
   zh_CN: {
     navigation: { home: '首页', docs: '文档', about: '关于', repository: 'GitHub 仓库', label: '主导航' },
     version: '版本',
+    developmentVersion: 'trunk（开发中）',
     language: '语言',
     skipToContent: '跳到主要内容',
     download: '下载 Ludork',
