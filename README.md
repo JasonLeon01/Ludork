@@ -17,7 +17,7 @@ This editor supports **v1.0 Game Runtime**.
 | HarmonyOS games | HarmonyOS 6.0.2 / API 22, arm64-v8a |
 | Android games | Android 7.0 / API 24, arm64-v8a |
 
-Mobile packaging requires a C++ Source project and Apple Silicon macOS with the target platform's tools. Linux and Intel Mac editor packages are not provided. See [platform setup and packaging](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=02%2F11).
+Mobile packaging requires a C++ Source project and Apple Silicon macOS with the target platform's tools. Linux and Intel Mac editor packages are not provided. See [platform setup and packaging](https://jasonleon01.github.io/Ludork/docs/trunk/?lang=en_GB&doc=02%2F11).
 
 ## Get started
 
@@ -30,12 +30,12 @@ Release editors download templates from the matching release and reuse valid cac
 
 | Guide | Covers |
 | --- | --- |
-| [First project](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=01%2F01) | Create, export and run |
-| [Project templates](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=01%2F02) | Standalone, C++ Source and FFmpeg |
-| [Workspace and IDEs](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=02%2F01) | Editor workspace and opening projects in an IDE |
-| [Run, debug and package](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=02%2F11) | Desktop/mobile output and signing |
-| [Native development](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=04%2F01) | Toolchains, modules and bindings |
-| [Editor plug-ins](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB&doc=05%2F01) | Installation and management |
+| [First project](https://jasonleon01.github.io/Ludork/docs/trunk/?lang=en_GB&doc=01%2F01) | Create, export and run |
+| [Project templates](https://jasonleon01.github.io/Ludork/docs/trunk/?lang=en_GB&doc=01%2F02) | Standalone, C++ Source and FFmpeg |
+| [Workspace and IDEs](https://jasonleon01.github.io/Ludork/docs/trunk/?lang=en_GB&doc=02%2F01) | Editor workspace and opening projects in an IDE |
+| [Run, debug and package](https://jasonleon01.github.io/Ludork/docs/trunk/?lang=en_GB&doc=02%2F11) | Desktop/mobile output and signing |
+| [Native development](https://jasonleon01.github.io/Ludork/docs/trunk/?lang=en_GB&doc=04%2F01) | Toolchains, modules and bindings |
+| [Editor plug-ins](https://jasonleon01.github.io/Ludork/docs/trunk/?lang=en_GB&doc=05%2F01) | Installation and management |
 
 Editor plug-ins run with your full user permissions. Install only trusted source and publishers.
 
@@ -63,7 +63,7 @@ See the [tool reference](https://github.com/JasonLeon01/Ludork/blob/main/tools/R
 
 ## Documentation and support
 
-- [Website](https://jasonleon01.github.io/Ludork/?lang=en_GB) · [Documentation](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=en_GB)
+- [Website](https://jasonleon01.github.io/Ludork/?lang=en_GB) · [Documentation](https://jasonleon01.github.io/Ludork/docs/trunk/?lang=en_GB)
 - [GitHub Issues](https://github.com/JasonLeon01/Ludork/issues): include the editor version, OS, template, reproduction steps and relevant Console output.
 
 ## Licence and assets

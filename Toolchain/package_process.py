@@ -33,21 +33,22 @@ def _stop(process: subprocess.Popen[bytes]) -> None:
 
 def run(command: Sequence[str | pathlib.Path] | str, *, cwd: pathlib.Path | None = None,
         env: Mapping[str, str] | None = None, input: bytes | None = None,
-        capture: bool = False, quiet: bool = False, check: bool = True) -> subprocess.CompletedProcess[bytes]:
+        capture: bool = False, quiet: bool = False, check: bool = True,
+        timeout: float | None = None) -> subprocess.CompletedProcess[bytes]:
     arguments = command if isinstance(command, str) else [str(value) for value in command]
-    process = subprocess.Popen(
+    with subprocess.Popen(
         arguments, cwd=cwd, env=env,
         stdin=subprocess.PIPE if input is not None else None,
         stdout=subprocess.PIPE if capture else subprocess.DEVNULL if quiet else None,
         stderr=subprocess.PIPE if capture else None,
         start_new_session=os.name != "nt",
         creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0,
-    )
-    try:
-        output, error = process.communicate(input)
-    except BaseException:
-        _stop(process)
-        raise
+    ) as process:
+        try:
+            output, error = process.communicate(input, timeout=timeout)
+        except BaseException:
+            _stop(process)
+            raise
     result = subprocess.CompletedProcess(arguments, process.returncode, output or b"", error or b"")
     if check and result.returncode:
         detail = (result.stderr or result.stdout).decode("utf-8", errors="replace").strip()

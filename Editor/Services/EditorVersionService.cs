@@ -33,8 +33,10 @@ public static class EditorVersionService
             return readBuildInfoFullVersion(path);
         }
     }
-    public static string DocumentationVersion { get; } = string.Join('.', BaseVersion.Split('.').Take(2));
-    public static string GameVersion => $"v{DocumentationVersion}";
+    public static string DocumentationVersion { get; } = IsDevelopment
+        ? "trunk"
+        : string.Join('.', BaseVersion.Split('.').Take(2));
+    public static string GameVersion { get; } = $"v{string.Join('.', BaseVersion.Split('.').Take(2))}";
     public static IReadOnlyList<string> SupportedGameVersions { get; } = Array.AsReadOnly(
         JsonSerializer.Deserialize<string[]>(metadata["Ludork.SupportedGameVersions"]!)!);
 

@@ -5,6 +5,7 @@ import os
 import pathlib
 import plistlib
 import shutil
+import subprocess
 import sys
 import time
 from collections.abc import Callable
@@ -89,6 +90,7 @@ class EditorDiskImage:
             if shutil.which(name) is None:
                 raise PackError(f"Required command was not found: {name}")
         require_file(pathlib.Path("/usr/bin/lipo"))
+        require_file(pathlib.Path("/sbin/umount"), executable=True)
         for name in ("background.svg", "installer_icon.svg", "configure_layout.applescript",
                      "install_official_plugins.command"):
             require_file(self.assets / name, executable=name.endswith(".command"))
@@ -263,11 +265,20 @@ class EditorDiskImage:
                 return
             if attempt == 4:
                 raise PackError(f"Editor disk image is still attached: {self.image} ({device})")
+            print(f"Detaching editor disk image ({attempt + 1}/4): {self.image} ({device})", flush=True)
             command = ["hdiutil", "detach"]
             if attempt and discard:
                 command.append("-force")
             command.append(device)
-            run(command, quiet=True, check=False)
+            try:
+                if attempt and self.mount.is_mount():
+                    unmount = ["/sbin/umount"]
+                    if discard:
+                        unmount.append("-f")
+                    run([*unmount, self.mount], quiet=True, check=False, timeout=30)
+                run(command, quiet=True, check=False, timeout=30)
+            except subprocess.TimeoutExpired:
+                print(f"Editor disk image detach timed out: {self.image} ({device})", file=sys.stderr)
             time.sleep(2)
 
     def create(self, full_version: str, *, templates: bool,

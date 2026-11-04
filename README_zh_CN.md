@@ -17,7 +17,7 @@ Ludork 是一款 2D RPG 编辑器，集成可视化地图与数据编辑、Bluep
 | HarmonyOS 游戏 | HarmonyOS 6.0.2 / API 22，arm64-v8a |
 | Android 游戏 | Android 7.0 / API 24，arm64-v8a |
 
-移动端打包需要 C++ Source 工程、Apple Silicon macOS 及目标平台工具。不提供 Linux 或 Intel Mac 编辑器包。详见[平台准备与打包](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=zh_CN&doc=02%2F11)。
+移动端打包需要 C++ Source 工程、Apple Silicon macOS 及目标平台工具。不提供 Linux 或 Intel Mac 编辑器包。详见[平台准备与打包](https://jasonleon01.github.io/Ludork/docs/trunk/?lang=zh_CN&doc=02%2F11)。
 
 ## 快速开始
 
@@ -30,12 +30,12 @@ Ludork 是一款 2D RPG 编辑器，集成可视化地图与数据编辑、Bluep
 
 | 指南 | 内容 |
 | --- | --- |
-| [创建第一个工程](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=zh_CN&doc=01%2F01) | 创建、导出与运行 |
-| [工程模板](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=zh_CN&doc=01%2F02) | Standalone、C++ Source 与 FFmpeg |
-| [工作区与 IDE](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=zh_CN&doc=02%2F01) | 编辑器工作区与使用 IDE 打开工程 |
-| [运行、调试与打包](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=zh_CN&doc=02%2F11) | 桌面与移动端输出、签名 |
-| [原生开发](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=zh_CN&doc=04%2F01) | 工具链、模块与绑定 |
-| [编辑器插件](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=zh_CN&doc=05%2F01) | 安装与管理 |
+| [创建第一个工程](https://jasonleon01.github.io/Ludork/docs/trunk/?lang=zh_CN&doc=01%2F01) | 创建、导出与运行 |
+| [工程模板](https://jasonleon01.github.io/Ludork/docs/trunk/?lang=zh_CN&doc=01%2F02) | Standalone、C++ Source 与 FFmpeg |
+| [工作区与 IDE](https://jasonleon01.github.io/Ludork/docs/trunk/?lang=zh_CN&doc=02%2F01) | 编辑器工作区与使用 IDE 打开工程 |
+| [运行、调试与打包](https://jasonleon01.github.io/Ludork/docs/trunk/?lang=zh_CN&doc=02%2F11) | 桌面与移动端输出、签名 |
+| [原生开发](https://jasonleon01.github.io/Ludork/docs/trunk/?lang=zh_CN&doc=04%2F01) | 工具链、模块与绑定 |
+| [编辑器插件](https://jasonleon01.github.io/Ludork/docs/trunk/?lang=zh_CN&doc=05%2F01) | 安装与管理 |
 
 编辑器插件拥有当前用户的完整权限，请只安装来源和代码均可信的插件。
 
@@ -63,7 +63,7 @@ macOS：
 
 ## 文档与支持
 
-- [官网](https://jasonleon01.github.io/Ludork/?lang=zh_CN) · [文档](https://jasonleon01.github.io/Ludork/docs/v1.0/?lang=zh_CN)
+- [官网](https://jasonleon01.github.io/Ludork/?lang=zh_CN) · [文档](https://jasonleon01.github.io/Ludork/docs/trunk/?lang=zh_CN)
 - 通过 [GitHub Issues](https://github.com/JasonLeon01/Ludork/issues)反馈问题，并提供编辑器版本、系统、模板、复现步骤和相关 Console 输出。
 
 ## 许可证与资产

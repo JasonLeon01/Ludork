@@ -146,10 +146,10 @@ jobs:
       - name: Restore generated declarations and UI
         shell: pwsh
         run: |
-          tar.exe -xf obj/pr-inputs/windows-native-environment.tar -C .
+          python -X utf8 -m tarfile -e obj/pr-inputs/windows-native-environment.tar . --filter data
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           New-Item -ItemType Directory -Force obj/pr-inputs/Templates | Out-Null
-          tar.exe -xf obj/pr-inputs/windows-templates-plain.tar -C obj/pr-inputs/Templates
+          python -X utf8 -m tarfile -e obj/pr-inputs/windows-templates-plain.tar obj/pr-inputs/Templates --filter data
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python .github/scripts/pr_validation.py prepare-scripts obj/pr-inputs/Templates
           if ($LASTEXITCODE) { exit $LASTEXITCODE }

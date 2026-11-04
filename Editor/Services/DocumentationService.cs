@@ -8,19 +8,19 @@ public static class DocumentationService
 {
     private static readonly Uri siteRoot = new("https://jasonleon01.github.io/Ludork/");
 
-    public static Uri Help => createUri($"docs/v{EditorVersionService.DocumentationVersion}/");
+    public static Uri Help => createUri(getDocsPath(EditorVersionService.DocumentationVersion));
     public static Uri About => createUri("about/");
     public static Uri Notices => createUri("notices/");
 
     internal static Uri GetSearchIndexUri(string version, string language)
     {
         return new Uri(siteRoot,
-            $"docs/v{Uri.EscapeDataString(version)}/search-index.{Uri.EscapeDataString(language)}.json");
+            $"{getDocsPath(version)}search-index.{Uri.EscapeDataString(language)}.json");
     }
 
     internal static Uri GetDocumentUri(string version, string language, string documentKey)
     {
-        UriBuilder builder = new(new Uri(siteRoot, $"docs/v{Uri.EscapeDataString(version)}/"));
+        UriBuilder builder = new(new Uri(siteRoot, getDocsPath(version)));
         NameValueCollection query = HttpUtility.ParseQueryString(string.Empty);
         query["lang"] = language;
         query["doc"] = documentKey;
@@ -34,6 +34,7 @@ public static class DocumentationService
             return false;
         string path = uri.AbsolutePath.TrimEnd('/');
         return path.StartsWith("/Ludork/docs/v", StringComparison.Ordinal)
+            || path == "/Ludork/docs/trunk"
             || path == "/Ludork/about"
             || path == "/Ludork/notices";
     }
@@ -45,6 +46,11 @@ public static class DocumentationService
         query["embedded"] = "1";
         builder.Query = query.ToString();
         return builder.Uri;
+    }
+
+    private static string getDocsPath(string version)
+    {
+        return version == "trunk" ? "docs/trunk/" : $"docs/v{Uri.EscapeDataString(version)}/";
     }
 
     private static Uri createUri(string path)

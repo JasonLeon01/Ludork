@@ -88,12 +88,12 @@ jobs:
       - name: Archive prepared environment
         if: inputs.templates
         shell: cmd
-        run: tar.exe -cf windows-native-environment.tar .tools\Toolchain .tools\gnu-make .tools\sources .tools\build Game\Engine\ThirdParty\LuaSF Game\Engine\ThirdParty\SFML Game\Engine\ThirdParty\LuaGlue Game\Engine\ThirdParty\Lua Game\Engine\ThirdParty\lua-cjson Game\Engine\ThirdParty\zlib Game\Engine\ThirdParty\IXWebSocket Game\Engine\ThirdParty\ffmpeg Game\ThirdPartySource
+        run: python -X utf8 -m tarfile -c windows-native-environment.tar .tools/Toolchain .tools/gnu-make .tools/sources Game/Engine/ThirdParty/LuaSF Game/Engine/ThirdParty/SFML Game/Engine/ThirdParty/LuaGlue Game/Engine/ThirdParty/Lua Game/Engine/ThirdParty/lua-cjson Game/Engine/ThirdParty/zlib Game/Engine/ThirdParty/IXWebSocket Game/Engine/ThirdParty/ffmpeg Game/ThirdPartySource
 
       - name: Archive prepared editor tools
         if: ${{ !inputs.templates }}
         shell: cmd
-        run: tar.exe -cf windows-native-environment.tar .tools\Toolchain .tools\Lua .tools\gnu-make .tools\sources .tools\build
+        run: python -X utf8 -m tarfile -c windows-native-environment.tar .tools/Toolchain .tools/Lua .tools/gnu-make .tools/sources
 
       - name: Upload prepared environment
         uses: actions/upload-artifact@v7
@@ -123,6 +123,11 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
       - name: Set up MSVC command-line environment
         uses: ilammy/msvc-dev-cmd@v1
         with:
@@ -136,7 +141,7 @@ jobs:
 
       - name: Restore prepared environment
         shell: cmd
-        run: tar.exe -xf obj\native-environment\windows-native-environment.tar -C .
+        run: python -X utf8 -m tarfile -e obj/native-environment/windows-native-environment.tar . --filter data
 
       - name: Build templates without FFmpeg
         if: matrix.component == 'templates-plain'
@@ -151,17 +156,20 @@ jobs:
       - name: Archive templates without FFmpeg
         if: matrix.component == 'templates-plain'
         shell: cmd
-        run: tar.exe -cf windows-templates-plain.tar -C obj\export-editor-inputs\Templates Cpp Standalone
+        working-directory: obj/export-editor-inputs/Templates
+        run: python -X utf8 -m tarfile -c "%GITHUB_WORKSPACE%/windows-templates-plain.tar" Cpp Standalone
 
       - name: Archive Lua compiler
         if: matrix.component == 'templates-plain'
         shell: cmd
-        run: tar.exe -cf windows-luac.tar -C .tools\Lua luac.exe
+        working-directory: .tools/Lua
+        run: python -X utf8 -m tarfile -c "%GITHUB_WORKSPACE%/windows-luac.tar" luac.exe
 
       - name: Archive templates with FFmpeg
         if: matrix.component == 'templates-ffmpeg'
         shell: cmd
-        run: tar.exe -cf windows-templates-ffmpeg.tar -C obj\export-editor-inputs\Templates Cpp-ffmpeg Standalone-ffmpeg
+        working-directory: obj/export-editor-inputs/Templates
+        run: python -X utf8 -m tarfile -c "%GITHUB_WORKSPACE%/windows-templates-ffmpeg.tar" Cpp-ffmpeg Standalone-ffmpeg
 
       - name: Upload native component
         uses: actions/upload-artifact@v7
