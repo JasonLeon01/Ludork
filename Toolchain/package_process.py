@@ -5,30 +5,53 @@ import os
 import pathlib
 import signal
 import subprocess
+import threading
 from collections.abc import Iterator, Mapping, Sequence
 
 from .pack_error import PackError
 
 
 def _stop(process: subprocess.Popen[bytes]) -> None:
-    if os.name == "nt":
-        subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
-    else:
-        try:
-            os.killpg(process.pid, signal.SIGTERM)
-        except ProcessLookupError:
-            pass
+    interrupted = False
+
+    def defer_interrupt(number: int, frame: object) -> None:
+        nonlocal interrupted
+        interrupted = True
+
+    signals = (signal.SIGINT, signal.SIGTERM)
+    if hasattr(signal, "SIGHUP"):
+        signals += (signal.SIGHUP,)
+    previous = (
+        {number: signal.getsignal(number) for number in signals}
+        if threading.current_thread() is threading.main_thread()
+        else {}
+    )
     try:
-        process.wait(timeout=10)
-    except subprocess.TimeoutExpired:
-        process.kill()
-        process.wait()
-    if os.name != "nt":
+        for number in previous:
+            signal.signal(number, defer_interrupt)
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+        else:
+            try:
+                os.killpg(process.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
         try:
-            os.killpg(process.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
+            process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+        if os.name != "nt":
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+    finally:
+        for number, handler in previous.items():
+            signal.signal(number, handler)
+    if interrupted:
+        raise KeyboardInterrupt
 
 
 def run(command: Sequence[str | pathlib.Path] | str, *, cwd: pathlib.Path | None = None,

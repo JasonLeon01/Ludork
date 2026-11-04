@@ -6,18 +6,16 @@ import json
 import os
 import pathlib
 import shutil
-import tempfile
 import zlib
+from dataclasses import dataclass
 
 from .binary_data import encode_data
 from .compile_lua import compile_scripts, lua_source_paths, resolve_luac
 from .file_replace import (
     copy_file,
-    package_lock_candidates,
     remove_file,
     remove_tree,
     replace_path,
-    wait_until_writable,
 )
 from .ldpak import (
     pack_ldpak,
@@ -29,6 +27,7 @@ from .material_assets import (
     validate_generated as validate_materials,
 )
 from .package_contents import excluded_entries
+from .package_staging import package_staging
 from .packaging_constants import (
     COMPILE_LUA_DIRECTORIES_ENVIRONMENT,
     EXCLUDED_FILES_ENVIRONMENT,
@@ -64,6 +63,13 @@ class ShaderCodecError(RuntimeError):
 
 class DataCodecError(RuntimeError):
     pass
+
+
+@dataclass(frozen=True)
+class FinalizationInputs:
+    registry: UiControlRegistry
+    compile_lua_directories: tuple[pathlib.PurePosixPath, ...]
+    excluded_files: tuple[pathlib.PurePosixPath, ...]
 
 
 def _next_stream_block(state: int) -> tuple[int, bytes]:
@@ -420,22 +426,42 @@ def reject_declaration_files(resource_root: pathlib.Path) -> None:
         )
 
 
-def _finalize_package_in_place(
+def resolve_finalization_inputs(
     root: pathlib.Path,
+    *,
+    registry: UiControlRegistry | pathlib.Path | None = None,
+    compile_lua_directories: tuple[pathlib.PurePosixPath, ...] | None = None,
+    excluded_files: tuple[pathlib.PurePosixPath, ...] | None = None,
+) -> FinalizationInputs:
+    if registry is None:
+        registry = ensure_preview(root).registry
+    elif isinstance(registry, pathlib.Path):
+        registry = load_registry(registry)
+    if compile_lua_directories is None:
+        compile_lua_directories = _environment_relative_paths(
+            COMPILE_LUA_DIRECTORIES_ENVIRONMENT
+        )
+    if excluded_files is None:
+        excluded_files = _environment_relative_paths(EXCLUDED_FILES_ENVIRONMENT)
+    return FinalizationInputs(registry, compile_lua_directories, excluded_files)
+
+
+def finalize_staged_package(
+    root: pathlib.Path,
+    inputs: FinalizationInputs,
+    *,
     encrypt_shaders_enabled: bool,
     encrypt_data_enabled: bool,
-    compile_lua_directories: tuple[pathlib.PurePosixPath, ...],
-    excluded_files: tuple[pathlib.PurePosixPath, ...],
     compile_lua_enabled: bool = False,
     use_ldpak: bool = False,
-    registry: UiControlRegistry | None = None,
 ) -> tuple[int, int, int, int, int]:
-    validate_assets(root, registry)
+    """Transform caller-owned staging; publication and rollback belong to its owner."""
+    validate_assets(root, inputs.registry)
     validate_materials(root)
     if use_ldpak:
         validate_ldpak_source(root)
-    removed = prune_package(root, excluded_files)
-    lua_directories = list(compile_lua_directories)
+    removed = prune_package(root, inputs.excluded_files)
+    lua_directories = list(inputs.compile_lua_directories)
     scripts_directory = pathlib.PurePosixPath("Scripts")
     if compile_lua_enabled and scripts_directory not in lua_directories:
         lua_directories.append(scripts_directory)
@@ -470,58 +496,23 @@ def finalize_package(
     root = resource_root.expanduser().resolve()
     if not root.is_dir():
         raise RuntimeError(f"Package resource root was not found: {root}")
-    if registry is None:
-        registry = ensure_preview(root).registry
-    elif isinstance(registry, pathlib.Path):
-        registry = load_registry(registry)
-    if compile_lua_directories is None:
-        compile_lua_directories = _environment_relative_paths(
-            COMPILE_LUA_DIRECTORIES_ENVIRONMENT
-        )
-    if excluded_files is None:
-        excluded_files = _environment_relative_paths(EXCLUDED_FILES_ENVIRONMENT)
-
-    transaction_root = pathlib.Path(
-        tempfile.mkdtemp(
-            prefix=f".{root.name}-finalize-",
-            dir=root.parent,
-        )
+    inputs = resolve_finalization_inputs(
+        root,
+        registry=registry,
+        compile_lua_directories=compile_lua_directories,
+        excluded_files=excluded_files,
     )
-    working_root = transaction_root / "working"
-    original_backup = transaction_root / "original"
-    preserve_transaction = False
-    try:
+    with package_staging(root) as working_root:
         shutil.copytree(root, working_root, symlinks=True, copy_function=copy_file)
-        result = _finalize_package_in_place(
+        result = finalize_staged_package(
             working_root,
-            encrypt_shaders_enabled,
-            encrypt_data_enabled,
-            compile_lua_directories,
-            excluded_files,
-            compile_lua_enabled,
-            use_ldpak,
-            registry,
+            inputs,
+            encrypt_shaders_enabled=encrypt_shaders_enabled,
+            encrypt_data_enabled=encrypt_data_enabled,
+            compile_lua_enabled=compile_lua_enabled,
+            use_ldpak=use_ldpak,
         )
-        wait_until_writable(root, package_lock_candidates(root))
-        replace_path(root, original_backup)
-        try:
-            wait_until_writable(original_backup, package_lock_candidates(original_backup))
-            wait_until_writable(working_root, package_lock_candidates(working_root))
-            replace_path(working_root, root)
-        except BaseException:
-            try:
-                replace_path(original_backup, root)
-            except BaseException as rollback_exception:
-                preserve_transaction = True
-                raise RuntimeError(
-                    "Unable to restore the package resource root after commit failure; "
-                    f"the original remains at {original_backup}"
-                ) from rollback_exception
-            raise
-        return result
-    finally:
-        if not preserve_transaction and transaction_root.exists():
-            remove_tree(transaction_root, ignore_errors=True)
+    return result
 
 
 def main(arguments: list[str] | None = None) -> int:

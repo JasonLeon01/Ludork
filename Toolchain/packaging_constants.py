@@ -26,10 +26,6 @@ MOBILE_PROJECT_DIRECTORIES = (
     "Engine/Standard", "Engine/ThirdParty/zlib", "Engine/ThirdParty/IXWebSocket",
     "Engine/ThirdParty/SFML", "Engine/ThirdParty/LuaGlue", "Engine/ThirdParty/Lua",
 )
-MOBILE_DEPENDENCY_NAMES = (
-    "flac", "freetype", "harfbuzz", "libssh2", "ludork_utf8proc", "mbedtls", "ogg", "sheenbidi", "vorbis",
-)
-COMMON_DEPENDENCY_CACHE_DIRECTORIES = ("build/_deps", "build/Release/_deps", "build/Debug/_deps")
 CPP_TEMPLATE_NAMES = ("Cpp", "Cpp-ffmpeg")
 STANDALONE_TEMPLATE_NAMES = ("Standalone", "Standalone-ffmpeg")
 TEMPLATE_NAMES = CPP_TEMPLATE_NAMES + STANDALONE_TEMPLATE_NAMES

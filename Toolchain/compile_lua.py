@@ -3,10 +3,10 @@ from __future__ import annotations
 import argparse
 import os
 import pathlib
-import subprocess
 import sys
 
 from .file_replace import remove_file, replace_path
+from .package_process import cancellation_signals, run
 from .resource_constants import LUA_SOURCE_EXTENSION, LUA_COMPILED_EXTENSION
 
 
@@ -60,7 +60,7 @@ def compile_scripts(scripts_dir: pathlib.Path, luac: pathlib.Path) -> int:
         if temporary.exists():
             remove_file(temporary)
     for script, temporary in zip(scripts, temporaries, strict=True):
-        result = subprocess.run(
+        result = run(
             [str(luac), "-s", "-o", str(temporary), str(script)],
             check=False,
         )
@@ -93,6 +93,11 @@ def main(arguments: list[str] | None = None) -> int:
     if not scripts_dir.is_dir():
         parser.error(f"Scripts directory was not found: {scripts_dir}")
     luac = resolve_luac(parsed.luac)
-    count = compile_scripts(scripts_dir, luac)
+    try:
+        with cancellation_signals():
+            count = compile_scripts(scripts_dir, luac)
+    except KeyboardInterrupt:
+        print("Lua compilation cancelled.", file=sys.stderr)
+        return 130
     print(f"Compiled and renamed {count} Lua scripts with {luac}")
     return 0

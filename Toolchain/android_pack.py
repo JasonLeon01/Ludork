@@ -19,18 +19,18 @@ from dataclasses import dataclass, replace
 from typing import BinaryIO, TextIO
 
 from . import server_config
+from .fetchcontent_cache import cached_dependency_sources
 from .material_assets import MaterialAssetError, validate_generated as validate_materials
-from .package_contents import copy_package_inputs, is_excluded
+from .package_contents import is_excluded
+from .package_resources import prepare_runtime_resources
 from .tool_paths import resolve_toolchain_directory
 from .pack_error import PackError
 from .packaging_constants import (
     MOBILE_PROJECT_DIRECTORIES,
-    COMMON_DEPENDENCY_CACHE_DIRECTORIES,
     EXIT_PROJECT,
     EXIT_SIGNING,
     EXIT_TOOLCHAIN,
     FILE_BUFFER_SIZE,
-    MOBILE_DEPENDENCY_NAMES,
     TEMPLATE_TOKEN_PATTERN,
 )
 from .packaging_names import read_app_name
@@ -38,7 +38,6 @@ from .packaging_metadata import PackageMetadata, add_package_arguments, read_pac
 from .ui_property_values import UiAssetError
 from Toolchain.preview import prepare_registry
 from Toolchain.compile_lua import resolve_luac
-from Toolchain.finalize_package import finalize_package
 from Toolchain.ldpak import (
     LdPakError,
     validate_ldpak_source,
@@ -687,24 +686,6 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
     )
 
 
-def copy_runtime_resources(context: PackContext) -> None:
-    if context.use_ldpak:
-        validate_ldpak_source(context.project_dir)
-    if context.runtime_dir.exists():
-        shutil.rmtree(context.runtime_dir)
-    context.runtime_dir.mkdir(parents=True)
-    copy_package_inputs(context.project_dir, context.runtime_dir)
-    context.metadata.write_build_info(context.runtime_dir)
-    finalize_package(
-        context.runtime_dir,
-        context.encrypt_shaders,
-        context.encrypt_data,
-        compile_lua_enabled=context.use_luac,
-        use_ldpak=context.use_ldpak,
-        registry=context.registry,
-    )
-
-
 def _stream_size_and_sha256(stream: BinaryIO) -> tuple[int, str]:
     size = 0
     digest = hashlib.sha256()
@@ -873,21 +854,6 @@ def prepare_gradle_stage(
     )
 
 
-def cached_dependency_arguments(project_dir: pathlib.Path) -> list[str]:
-    roots = (
-        project_dir / "build" / "android" / "_deps",
-        *(project_dir / relative for relative in COMMON_DEPENDENCY_CACHE_DIRECTORIES),
-    )
-    arguments: list[str] = []
-    for name in MOBILE_DEPENDENCY_NAMES:
-        for root in roots:
-            source = root / f"{name}-src"
-            if (source / "CMakeLists.txt").is_file():
-                arguments.append(f"-DFETCHCONTENT_SOURCE_DIR_{name.upper()}={source}")
-                break
-    return arguments
-
-
 def native_configure_command(
     context: PackContext,
     runtime_hash: str,
@@ -923,7 +889,12 @@ def native_configure_command(
         f"-DLUDORK_UI_REGISTRY_PATH={context.registry}",
         f"-DLUDORK_SAVE_AS_LDC={'ON' if context.encrypt_saves else 'OFF'}",
     ]
-    command.extend(cached_dependency_arguments(context.project_dir))
+    command.extend(
+        f"-DFETCHCONTENT_SOURCE_DIR_{name}={source}"
+        for name, source in cached_dependency_sources(
+            context.project_dir, preferred_roots=(context.project_dir / "build/android/_deps",),
+        ).items()
+    )
     return command
 
 
@@ -1853,7 +1824,17 @@ def main(arguments: list[str] | None = None) -> int:
             print(f"Android {packaging_kind} APK packaging check passed.")
             return 0
         context = replace(context, ui_registry=prepare_registry(context.project_dir, context.toolchain_directory))
-        copy_runtime_resources(context)
+        prepare_runtime_resources(
+            context.project_dir,
+            context.runtime_dir,
+            metadata=context.metadata,
+            registry=context.registry,
+            licenses=True,
+            compile_lua=context.use_luac,
+            encrypt_shaders=context.encrypt_shaders,
+            encrypt_data=context.encrypt_data,
+            use_ldpak=context.use_ldpak,
+        )
         manifest = create_runtime_manifest(
             context.runtime_dir,
             context.use_ldpak,

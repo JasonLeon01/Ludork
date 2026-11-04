@@ -25,16 +25,15 @@ from .apple_signing import (
     select_identity,
 )
 from . import server_config
+from .fetchcontent_cache import cached_dependency_sources
 from .material_assets import MaterialAssetError, validate_generated as validate_materials
-from .package_contents import copy_package_inputs
+from .package_resources import prepare_runtime_resources
 from .tool_paths import resolve_toolchain_directory
 from .pack_error import PackError
 from .packaging_constants import (
-    COMMON_DEPENDENCY_CACHE_DIRECTORIES,
     EXIT_PROJECT,
     EXIT_SIGNING,
     EXIT_TOOLCHAIN,
-    MOBILE_DEPENDENCY_NAMES,
     MOBILE_PROJECT_DIRECTORIES,
 )
 from .packaging_names import artifact_name, read_app_name
@@ -43,7 +42,6 @@ from .resource_constants import RESOURCE_GROUPS
 from .compile_lua import resolve_luac
 from .ui_property_values import UiAssetError
 from .preview import prepare_registry
-from .finalize_package import finalize_package
 from .ldpak import (
     LdPakError,
     validate_ldpak_source,
@@ -437,22 +435,6 @@ def create_app_icon(context: PackContext, path: pathlib.Path) -> None:
     raise PackError(f"Unable to create the iOS app icon from {source}.", EXIT_PROJECT)
 
 
-def cached_dependency_arguments(project_dir: pathlib.Path) -> list[str]:
-    cache_roots = (
-        project_dir / "build" / "ios" / "_deps",
-        *(project_dir / relative for relative in COMMON_DEPENDENCY_CACHE_DIRECTORIES),
-    )
-    arguments: list[str] = []
-    for dependency_name in MOBILE_DEPENDENCY_NAMES:
-        for cache_root in cache_roots:
-            source_dir = cache_root / f"{dependency_name}-src"
-            if (source_dir / "CMakeLists.txt").is_file():
-                variable = f"FETCHCONTENT_SOURCE_DIR_{dependency_name.upper()}"
-                arguments.append(f"-D{variable}={source_dir}")
-                break
-    return arguments
-
-
 def xcode_build_command(
     context: PackContext,
     xcode_project: pathlib.Path,
@@ -501,17 +483,6 @@ def xcode_build_command(
     return command
 
 
-def copy_runtime_resources(
-    context: PackContext,
-    resources_dir: pathlib.Path,
-) -> None:
-    if context.use_ldpak:
-        validate_ldpak_source(context.project_dir)
-    if resources_dir.exists():
-        shutil.rmtree(resources_dir)
-    copy_package_inputs(context.project_dir, resources_dir, licenses=False)
-
-
 def configure_and_build(
     context: PackContext,
     device: dict[str, object] | None,
@@ -532,15 +503,16 @@ def configure_and_build(
         )
     toolchain_directory = resolve_toolchain_directory()
     ui_registry = prepare_registry(context.project_dir, toolchain_directory)
-    copy_runtime_resources(context, resources_dir)
-    context.metadata.write_build_info(resources_dir)
-    finalize_package(
+    prepare_runtime_resources(
+        context.project_dir,
         resources_dir,
-        context.encrypt_shaders,
-        context.encrypt_data,
-        compile_lua_enabled=context.use_luac,
-        use_ldpak=context.use_ldpak,
+        metadata=context.metadata,
         registry=ui_registry,
+        licenses=False,
+        compile_lua=context.use_luac,
+        encrypt_shaders=context.encrypt_shaders,
+        encrypt_data=context.encrypt_data,
+        use_ldpak=context.use_ldpak,
     )
     resource_options: list[str] = []
     for name in RESOURCE_GROUPS:
@@ -578,7 +550,12 @@ def configure_and_build(
         f"-DLUDORK_IOS_INFO_PLIST={info_plist}",
         f"-DLUDORK_IOS_ICON={app_icon}",
     ]
-    configure_command.extend(cached_dependency_arguments(context.project_dir))
+    configure_command.extend(
+        f"-DFETCHCONTENT_SOURCE_DIR_{name}={source}"
+        for name, source in cached_dependency_sources(
+            context.project_dir, preferred_roots=(context.project_dir / "build/ios/_deps",),
+        ).items()
+    )
     run_streaming(
         configure_command,
         environment=context.environment,

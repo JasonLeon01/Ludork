@@ -16,8 +16,10 @@ import zipfile
 from dataclasses import dataclass, replace
 
 from . import server_config
+from .fetchcontent_cache import cached_dependency_sources
 from .material_assets import MaterialAssetError, validate_generated as validate_materials
-from .package_contents import copy_package_inputs, is_excluded
+from .package_contents import is_excluded
+from .package_resources import prepare_runtime_resources
 from .tool_paths import resolve_toolchain_directory
 from .pack_error import PackError
 from .harmony_signing import (
@@ -30,13 +32,11 @@ from .harmony_signing import (
 )
 from .packaging_constants import (
     MOBILE_PROJECT_DIRECTORIES,
-    COMMON_DEPENDENCY_CACHE_DIRECTORIES,
     EXIT_DEVICE,
     EXIT_PROJECT,
     EXIT_SIGNING,
     EXIT_TOOLCHAIN,
     FILE_BUFFER_SIZE,
-    MOBILE_DEPENDENCY_NAMES,
     TEMPLATE_TOKEN_PATTERN,
 )
 from .packaging_names import read_app_name
@@ -45,7 +45,6 @@ from .resource_constants import RESOURCE_PACKAGES
 from .ui_property_values import UiAssetError
 from Toolchain.compile_lua import resolve_luac
 from Toolchain.preview import prepare_registry
-from Toolchain.finalize_package import finalize_package
 from Toolchain.ldpak import (
     LdPakError,
     validate_ldpak_source,
@@ -481,25 +480,6 @@ def ensure_harmony_device_connected(context: PackContext, device: HarmonyDevice)
         )
 
 
-def copy_runtime_resources(context: PackContext, destination: pathlib.Path) -> None:
-    if context.use_ldpak:
-        validate_ldpak_source(context.project_dir)
-    if destination.exists():
-        shutil.rmtree(destination)
-    destination.mkdir(parents=True)
-    copy_package_inputs(context.project_dir, destination)
-    context.metadata.write_build_info(destination)
-    finalize_package(
-        destination,
-        context.encrypt_shaders,
-        context.encrypt_data,
-        compile_lua_enabled=context.use_luac,
-        use_ldpak=context.use_ldpak,
-        registry=context.registry,
-    )
-    validate_runtime_ldpak_layout(destination, context.use_ldpak)
-
-
 def write_deterministic_zip(source: pathlib.Path, destination: pathlib.Path) -> str:
     destination.parent.mkdir(parents=True, exist_ok=True)
     temporary = destination.with_name(destination.name + ".tmp")
@@ -627,20 +607,6 @@ def cmake_bracket_literal(value: str) -> str:
     return f"[{delimiter}[{value}]{delimiter}]"
 
 
-def cached_dependency_sources(project_dir: pathlib.Path) -> dict[str, pathlib.Path]:
-    roots = (
-        *(project_dir / relative for relative in COMMON_DEPENDENCY_CACHE_DIRECTORIES),
-    )
-    result: dict[str, pathlib.Path] = {}
-    for name in MOBILE_DEPENDENCY_NAMES:
-        for root in roots:
-            source = root / f"{name}-src"
-            if (source / "CMakeLists.txt").is_file():
-                result[name.upper()] = source
-                break
-    return result
-
-
 def cmake_configuration(context: PackContext) -> str:
     lines = [
         f"set(LUDORK_PROJECT_DIR {cmake_bracket_literal(str(context.project_dir))})",
@@ -758,7 +724,17 @@ def prepare_stage(context: PackContext, stage_dir: pathlib.Path | None = None) -
         shutil.rmtree(destination)
     shutil.copytree(context.template_dir, destination)
     resources = context.project_dir / "build" / "harmony" / "runtime"
-    copy_runtime_resources(context, resources)
+    prepare_runtime_resources(
+        context.project_dir,
+        resources,
+        metadata=context.metadata,
+        registry=context.registry,
+        licenses=True,
+        compile_lua=context.use_luac,
+        encrypt_shaders=context.encrypt_shaders,
+        encrypt_data=context.encrypt_data,
+        use_ldpak=context.use_ldpak,
+    )
     rawfile = destination / "entry" / "src" / "main" / "resources" / "rawfile"
     runtime_archive = rawfile / RUNTIME_ARCHIVE_NAME
     runtime_hash = write_deterministic_zip(resources, runtime_archive)
