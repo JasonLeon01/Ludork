@@ -29,6 +29,7 @@ from .template_contents import (
     copy_cpp_template,
     copy_runtime_legal_files,
     copy_standalone_files,
+    copy_tree,
     validate_templates,
 )
 from .tool_paths import resolve_toolchain_directory
@@ -124,7 +125,7 @@ def _copy_native_outputs(build: TemplateBuild, source: pathlib.Path, destination
     if build.platform == "win32":
         directories.append(pathlib.Path("build/launcher") / build.configuration)
     for relative in directories:
-        shutil.copytree(source / relative, destination / relative, dirs_exist_ok=True, symlinks=build.platform != "win32")
+        copy_tree(source / relative, destination / relative, platform=build.platform, dirs_exist_ok=True)
     for relative in NATIVE_LUA_FILES:
         target = destination / "Scripts" / relative
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -133,7 +134,7 @@ def _copy_native_outputs(build: TemplateBuild, source: pathlib.Path, destination
         target = destination / "Scripts" / relative
         if target.exists():
             remove_tree(target)
-        shutil.copytree(source / "Scripts" / relative, target, symlinks=build.platform != "win32")
+        copy_tree(source / "Scripts" / relative, target, platform=build.platform)
     copy_preview(source, destination, runtime_directory=f"bin/{build.configuration}")
 
 

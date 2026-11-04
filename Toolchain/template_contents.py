@@ -4,6 +4,7 @@ import fnmatch
 import os
 import pathlib
 import shutil
+from collections.abc import Callable
 
 from .file_replace import remove_file, remove_tree
 from .legal_resources import copy_resources
@@ -124,6 +125,61 @@ def is_source_entry_excluded(
     return any(_matches(name, pattern, platform) for pattern in patterns)
 
 
+def _follow_link(path: pathlib.Path) -> pathlib.Path:
+    seen: set[str] = set()
+    current = path
+    while current.is_symlink():
+        identity = os.path.normcase(os.path.abspath(current))
+        if identity in seen:
+            raise OSError(f"Symbolic link loop: {path}")
+        seen.add(identity)
+        target = pathlib.Path(os.readlink(current))
+        current = target if target.is_absolute() else current.parent / target
+    return current
+
+
+def copy_tree(
+    source: pathlib.Path,
+    destination: pathlib.Path,
+    *,
+    platform: str,
+    ignore: Callable[[str, list[str]], set[str]] | None = None,
+    dirs_exist_ok: bool = False,
+) -> None:
+    if platform != "win32":
+        shutil.copytree(source, destination, dirs_exist_ok=dirs_exist_ok, symlinks=True, ignore=ignore)
+        return
+    # Opening a Windows symlink fails with WinError 123 when its target contains '/'.
+    _copy_tree_following_links(source, source, destination, ignore=ignore, dirs_exist_ok=dirs_exist_ok)
+
+
+def _copy_tree_following_links(
+    logical: pathlib.Path,
+    physical: pathlib.Path,
+    destination: pathlib.Path,
+    *,
+    ignore: Callable[[str, list[str]], set[str]] | None,
+    dirs_exist_ok: bool,
+) -> None:
+    if not dirs_exist_ok and destination.exists():
+        raise FileExistsError(destination)
+    destination.mkdir(parents=True, exist_ok=True)
+    with os.scandir(physical) as iterator:
+        names = [entry.name for entry in iterator]
+    ignored = ignore(os.fspath(logical), names) if ignore is not None else set()
+    for name in names:
+        if name in ignored:
+            continue
+        followed = _follow_link(physical / name)
+        child = destination / name
+        if followed.is_dir():
+            _copy_tree_following_links(
+                logical / name, followed, child, ignore=ignore, dirs_exist_ok=dirs_exist_ok,
+            )
+        else:
+            shutil.copy2(followed, child)
+
+
 def copy_cpp_template(
     source: pathlib.Path,
     destination: pathlib.Path,
@@ -145,7 +201,7 @@ def copy_cpp_template(
             )
         }
 
-    shutil.copytree(source, destination, dirs_exist_ok=True, symlinks=platform != "win32", ignore=ignore)
+    copy_tree(source, destination, platform=platform, ignore=ignore, dirs_exist_ok=True)
     if platform == "win32":
         locale_core = source / "Scripts/Source/Locale/Core.lua"
         if locale_core.is_file():
@@ -170,10 +226,10 @@ def copy_runtime_legal_files(
     copy_resources(repository, destination, "template-index")
     names = RUNTIME_LICENSE_DIRECTORIES + (("FFmpeg",) if include_ffmpeg else ())
     for name in names:
-        shutil.copytree(
+        copy_tree(
             repository / "Licenses" / name,
             destination / "Licenses" / name,
-            symlinks=platform != "win32",
+            platform=platform,
             ignore=shutil.ignore_patterns(".DS_Store") if platform != "win32" else None,
         )
     for name in RUNTIME_LEGAL_FILES:
@@ -202,8 +258,8 @@ def copy_prebuilt_templates(source: pathlib.Path, destination: pathlib.Path, *, 
     target = destination.resolve()
     if source == target or source.is_relative_to(target) or target.is_relative_to(source):
         raise ValueError("Prepared template source and destination must not overlap")
-    shutil.copytree(
-        source, destination, dirs_exist_ok=True, symlinks=platform != "win32",
+    copy_tree(
+        source, destination, platform=platform, dirs_exist_ok=True,
         ignore=shutil.ignore_patterns(".DS_Store") if platform != "win32" else None,
     )
 
