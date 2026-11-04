@@ -58,7 +58,7 @@ Assets using `WindowBase` or `WindowSelectable` include the shared `Parts/Shared
 
 ### Regenerate after asset changes
 
-After moving an asset or renaming nodes, update handwritten `require` calls and node references, then click **Export**. Alternatively, `ScriptTools ui-assets generate <project-root>` synchronises UI Views and declarations only and removes obsolete generated files. Ordinary Save and Construct do not generate them; export before running or packaging directly from the command line. See [Run, Debug and Package](<../../Editor User Guide/Run Debug and Package.md>) for the full export workflow.
+After moving an asset or renaming nodes, update handwritten `require` calls and node references, then click **Export**. Alternatively, `ludork-assets ui-assets generate <project-root>` synchronises UI Views and declarations only and removes obsolete generated files. Ordinary Save and Construct do not generate them; export before running or packaging directly from the command line. See [Run, Debug and Package](<../../Editor User Guide/Run Debug and Package.md>) for the full export workflow.
 
 ## Limitations
 

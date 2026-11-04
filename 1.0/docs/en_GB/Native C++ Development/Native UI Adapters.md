@@ -36,7 +36,7 @@ For a system control the two path fields must be identical. A bound `Canvas` in 
 
 Read asset JSON as `RuntimeData` and decode each property through its descriptor into `UiControlPropertyValue`. Factories receive the resulting `UiControlProperties` dictionary. Setters receive one typed property value.
 
-Image `drawAs` uses the bound C++ `Image::DrawAs` enum, exported as `Engine.ImageDrawAs`. JSON stores the member name, but native decoding and runtime setters carry the enum itself. A runtime `AssetInstance:setProperty` call therefore passes `Engine.ImageDrawAs.Tile`. Keep the decoder, property-value variant, Inspector enum selector, ScriptTools validation and generated declarations in agreement.
+Image `drawAs` uses the bound C++ `Image::DrawAs` enum, exported as `Engine.ImageDrawAs`. JSON stores the member name, but native decoding and runtime setters carry the enum itself. A runtime `AssetInstance:setProperty` call therefore passes `Engine.ImageDrawAs.Tile`. Keep the decoder, property-value variant, Inspector enum selector, Toolchain validation and generated declarations in agreement.
 
 `Engine.WrapBox` uses `UiChildPolicy::Single` and List Slots. Its authored child is a template for repeated instances; see the [UI Asset Schema and Control Registry](<../Lua and Blueprint Scripting/Declarative UI/Asset Schema and Control Registry.md>) for its child behaviour.
 
@@ -44,9 +44,9 @@ Image `drawAs` uses the bound C++ `Image::DrawAs` enum, exported as `Engine.Imag
 
 1. Implement the native control.
 2. Add one `BIND_UI_CONTROL` entry to `LUDORK_UI_CONTROL_DEFINITIONS`. Choose a stable control ID and specify the exact child policy and Slot type.
-3. Declare properties using the existing supported types and resource handling. A new property type also requires changes to the native decoder, editor and ScriptTools.
+3. Declare properties using the existing supported types and resource handling. A new property type also requires changes to the native decoder, editor and Toolchain.
 4. Register the tag in `UiControlAdapterRegistry`. Supply the factory, setter, arranger and child functions required by the descriptor. The registry copies adapter-property IDs from the descriptor.
-5. Build the C++ project with the platform `tools/build_cpp` entry point to update the Host and registry and validate UI assets. Controls using supported property types do not require rebuilding the editor or ScriptTools.
+5. Build the C++ project with the platform `tools/build_cpp` entry point to update the Host and registry and validate UI assets. Controls using supported property types do not require rebuilding the editor or Toolchain.
 `Engine.TabView` is the childless Input example: serialise construction and visual resources only, and bind labels and callbacks at runtime. Details are in the [UI Asset Schema and Control Registry](<../Lua and Blueprint Scripting/Declarative UI/Asset Schema and Control Registry.md>) and [Engine: Interactive and Declarative UI Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md>).
 
 `Engine.CharacterView` is the childless animated Visual example. Its adapter constructs the native preview state from `size`, texture/Rect, actor scale, animation, material reference and instance parameters. Its class owns cropping, frame advancement and effect composition, while the adapter owns resource-path conversion and property assignment.

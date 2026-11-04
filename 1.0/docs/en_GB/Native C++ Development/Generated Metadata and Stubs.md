@@ -49,7 +49,7 @@ A `BIND_CLASS` singleton declaration also generates metadata for its bound funct
 
 ## Generated enum modules
 
-A desktop native build uses `NativeStubDump` to invoke `<Module>_write_enum_catalogue`. The compiled writer obtains integer values from the actual C++ enumerators and scalar values from const maps marked `BIND_MODULE_PROPERTY(enum = true)`. It writes a catalogue under `Intermediate` without creating a Lua VM. `ScriptTools enum-modules` then produces one annotated local constant table and its return statement per enum under `Enums.Engine`, `Enums.GlobalCore` or the owning native module's namespace. The existing native table exports continue to use the same source values.
+A desktop native build uses `NativeStubDump` to invoke `<Module>_write_enum_catalogue`. The compiled writer obtains integer values from the actual C++ enumerators and scalar values from const maps marked `BIND_MODULE_PROPERTY(enum = true)`. It writes a catalogue under `Intermediate` without creating a Lua VM. `ludork-codegen enum-modules` then produces one annotated local constant table and its return statement per enum under `Enums.Engine`, `Enums.GlobalCore` or the owning native module's namespace. The existing native table exports continue to use the same source values.
 
 LuaSF enum modules under `Enums.sf` come from `sfml_api.json`. Nested names become directories, such as `Enums/sf/Keyboard/Scan.lua`; the `Scancode` alias resolves to the canonical `Enums.sf.Keyboard.Scan` schema. Their generation does not expose additional Blueprint nodes.
 
@@ -69,7 +69,7 @@ Changes to included headers may still recompile dependent class units even when 
 
 ## Generated UI Views
 
-UI Views and window declarations use a separate generator, `ScriptTools ui-assets generate <project-root>`. Generated file ownership and export steps are described in the [Declarative UI Authoring Workflow](<../Lua and Blueprint Scripting/Declarative UI/Authoring Workflow.md>).
+UI Views and window declarations use a separate generator, `ludork-assets ui-assets generate <project-root>`. Generated file ownership and export steps are described in the [Declarative UI Authoring Workflow](<../Lua and Blueprint Scripting/Declarative UI/Authoring Workflow.md>).
 
 ## Related pages
 

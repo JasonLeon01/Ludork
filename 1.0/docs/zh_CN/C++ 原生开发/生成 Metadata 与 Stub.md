@@ -49,7 +49,7 @@ LuaSF 通过 `LUASF_CALLBACK_CODECS_FILE` 提供具有特殊调用约定的回�
 
 ## 生成枚举模块
 
-桌面原生构建使用 `NativeStubDump` 调用 `<Module>_write_enum_catalogue`。编译后的 writer 从实际 C++ 枚举项取得整数值，从带 `BIND_MODULE_PROPERTY(enum = true)` 标记的 const 映射取得标量值，在 `Intermediate` 下写入 catalogue，不创建 Lua VM。随后 `ScriptTools enum-modules` 在 `Enums.Engine`、`Enums.GlobalCore` 或所属原生模块的命名空间下，为每个枚举生成包含带注解的局部常量表及返回语句的独立模块。既有原生 table 导出继续使用同一份源值。
+桌面原生构建使用 `NativeStubDump` 调用 `<Module>_write_enum_catalogue`。编译后的 writer 从实际 C++ 枚举项取得整数值，从带 `BIND_MODULE_PROPERTY(enum = true)` 标记的 const 映射取得标量值，在 `Intermediate` 下写入 catalogue，不创建 Lua VM。随后 `ludork-codegen enum-modules` 在 `Enums.Engine`、`Enums.GlobalCore` 或所属原生模块的命名空间下，为每个枚举生成包含带注解的局部常量表及返回语句的独立模块。既有原生 table 导出继续使用同一份源值。
 
 `Enums.sf` 下的 LuaSF 枚举模块来自 `sfml_api.json`。嵌套名称形成目录，例如 `Enums/sf/Keyboard/Scan.lua`；`Scancode` 别名解析为规范 schema `Enums.sf.Keyboard.Scan`。这项生成不会额外公开蓝图节点。
 
@@ -69,7 +69,7 @@ LuaSF 通过 `LUASF_CALLBACK_CODECS_FILE` 提供具有特殊调用约定的回�
 
 ## 生成 UI View
 
-UI View 与窗口声明由独立生成器 `ScriptTools ui-assets generate <project-root>` 处理。生成文件的归属与导出步骤见[声明式 UI 编写工作流](<../Lua 与蓝图脚本/声明式 UI/编写工作流.md>)。
+UI View 与窗口声明由独立生成器 `ludork-assets ui-assets generate <project-root>` 处理。生成文件的归属与导出步骤见[声明式 UI 编写工作流](<../Lua 与蓝图脚本/声明式 UI/编写工作流.md>)。
 
 ## 相关页面
 

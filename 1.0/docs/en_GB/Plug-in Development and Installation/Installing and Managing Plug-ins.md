@@ -73,17 +73,17 @@ Do not drag plug-in files to Applications. The same complete-replacement rules a
 
 ### Repository and portable installation
 
-Repository runs can load the checkout’s registered plug-ins directly. To install a separate user copy for use outside the checkout, run these commands after building ScriptTools, with Ludork closed:
+Repository runs can load the checkout’s registered plug-ins directly. To install a separate user copy for use outside the checkout, run these commands after building Toolchain, with Ludork closed:
 
 ```sh
-.tools/ScriptTools/ScriptTools editor-official-plugins prepare Plugins obj/official-plugins
-.tools/ScriptTools/ScriptTools editor-official-plugins install-current-user obj/official-plugins
+.tools/Toolchain/ludork-editor editor-official-plugins prepare Plugins obj/official-plugins
+.tools/Toolchain/ludork-editor editor-official-plugins install-current-user obj/official-plugins
 ```
 
-On Windows, use `.tools\ScriptTools\ScriptTools.exe` instead. To retry a failed plug-in installation from an installed Windows release editor directory, run:
+On Windows, use `.tools\Toolchain\ludork-editor.exe` instead. To retry a failed plug-in installation from an installed Windows release editor directory, run:
 
 ```bat
-BuildTools\ScriptTools\ScriptTools.exe editor-official-plugins install-current-user BuildTools\OfficialPlugins
+BuildTools\Toolchain\ludork-editor.exe editor-official-plugins install-current-user BuildTools\OfficialPlugins
 ```
 
 Run installation commands as your normal user, without **Run as administrator** or `sudo`. These commands replace all existing plug-ins and their data as described above. Windows installer plug-in operations and `install-current-user` commands save their latest output to `~/Ludork/Log/OfficialPluginInstall.log` when that location is writable. If an EXE installation reports that plug-ins failed, the editor itself remains installed; inspect this log and the installer output before retrying. If identity checks fail before the user directory can be resolved, use the installer output for details. The macOS DMG installer displays its own result and recovery details.

@@ -20,7 +20,7 @@ On macOS:
 sh tools/build_preview_host.sh Game Debug
 ```
 
-The tool command family is `ScriptTools preview`. Validate published project artefacts with `ScriptTools preview validate Game`; replace `Game` with the project root when necessary. Native UI control changes require rebuilding the project and publishing its updated registry. Follow [Native UI Adapters](<../Native C++ Development/Native UI Adapters.md>) for registration and [Declarative UI Authoring Workflow](<../Lua and Blueprint Scripting/Declarative UI/Authoring Workflow.md>) for asset and generated-code ownership.
+The tool command family is `ludork-build preview`. Validate published project artefacts with `ludork-build preview validate Game`; replace `Game` with the project root when necessary. Native UI control changes require rebuilding the project and publishing its updated registry. Follow [Native UI Adapters](<../Native C++ Development/Native UI Adapters.md>) for registration and [Declarative UI Authoring Workflow](<../Lua and Blueprint Scripting/Declarative UI/Authoring Workflow.md>) for asset and generated-code ownership.
 
 ## Build configurations
 
@@ -46,7 +46,7 @@ A desktop native build produces:
 
 Source preview and game binaries share `bin/<configuration>`; Standalone uses `Binaries`. The editor reconnects after the new artefacts are published. Compilation, linking, description or publication failures leave preview unavailable until the next successful publication clears the build marker. Full UI asset validation runs afterwards, so an asset validation error can fail the build while leaving the newly published preview available for editing. The generic service and snapshot names are `PreviewRuntimeService` and `PreviewRuntimeSnapshot`. UI-specific `UiPreviewClient`, `UiPreviewSession` and `UiPreview.registry.json` retain their names.
 
-Missing, damaged or mismatched Standalone preview JSON is regenerated from the current `Binaries/PreviewHost` during preview preparation, Save, Export or `ScriptTools preview ensure <project-root>`. Recovery replaces only the two preview JSON files and preserves other cache files. A build marker blocks recovery; missing host binaries or dependencies remain errors. Source projects require a build when their selected preview metadata is unavailable.
+Missing, damaged or mismatched Standalone preview JSON is regenerated from the current `Binaries/PreviewHost` during preview preparation, Save, Export or `ludork-build preview ensure <project-root>`. Recovery replaces only the two preview JSON files and preserves other cache files. A build marker blocks recovery; missing host binaries or dependencies remain errors. Source projects require a build when their selected preview metadata is unavailable.
 
 ## Editable templates and final packages
 

@@ -11,10 +11,10 @@ Ludork 软件本体适用 [`LICENSE.md`](https://github.com/JasonLeon01/Ludork/b
 | 组件 | Ludork 1.0.0 使用版本 | 用途与分发范围 | 许可证 | 完整正文 | 官方来源 |
 | --- | --- | --- | --- | --- | --- |
 | .NET Runtime | 9.0.15 | 编辑器自包含运行时 | MIT 及其随附第三方条款 | `Licenses/DotNet/LICENSE.txt`、`Licenses/DotNet/THIRD-PARTY-NOTICES.txt` | [dotnet/runtime](https://github.com/dotnet/runtime) |
-| CPython 及其包含的组件 | 每个发行包记录 Python 3.12 patch 版本；已审计 macOS 构建为 3.12.0 | 与编译后的 `ScriptTools` 可执行文件一起放在 `tools/ScriptTools` 中的运行时 | Python Software Foundation License 及 CPython 复现的随附许可证，包括 OpenSSL 3 许可证 | `Licenses/ScriptTools/Python-3.12-LICENSES-AND-ACKNOWLEDGEMENTS.rst.txt` | [python/cpython](https://github.com/python/cpython) |
-| OpenSSL | 每个发行包记录实际版本；已审计 macOS 构建为 3.0.11 | macOS `ScriptTools` 运行时目录中的 `libssl` 与 `libcrypto`；Windows 可能包含等效的 Python runtime 库 | OpenSSL 3.0 及更高版本适用 Apache License 2.0 | `Licenses/ScriptTools/Python-3.12-LICENSES-AND-ACKNOWLEDGEMENTS.rst.txt`（OpenSSL 章节） | [openssl/openssl](https://github.com/openssl/openssl) |
-| Nuitka runtime library | 4.1.3 | 编译后的 `ScriptTools` 可执行文件中的生成 runtime 代码 | AGPL 3.0；生成的 target code 适用 Nuitka Runtime Library Exception | `Licenses/ScriptTools/Nuitka-4.1.3-AGPL-3.0.txt`、`Licenses/ScriptTools/Nuitka-4.1.3-RUNTIME-EXCEPTION.txt`、`Licenses/ScriptTools/Nuitka-4.1.3-NOTICE.txt` | [Nuitka/Nuitka](https://github.com/Nuitka/Nuitka) |
-| Pillow 及其包含的组件 | 12.2.0 | ScriptTools 动画导出与打包使用的图像处理 | MIT-CMU 及 Pillow wheel 复现的随附许可证 | `Licenses/ScriptTools/Pillow-12.2.0-LICENSE.txt` | [python-pillow/Pillow](https://github.com/python-pillow/Pillow) |
+| CPython 及其包含的组件 | 每个发行包记录 Python 3.12 patch 版本；已审计 macOS 构建为 3.12.0 | 随六个编译后的 `ludork-*` 入口一同放在 `BuildTools/Toolchain` 中的共享运行时 | Python Software Foundation License 及 CPython 复现的随附许可证，包括 OpenSSL 3 许可证 | `Licenses/ScriptTools/Python-3.12-LICENSES-AND-ACKNOWLEDGEMENTS.rst.txt` | [python/cpython](https://github.com/python/cpython) |
+| OpenSSL | 每个发行包记录实际版本；已审计 macOS 构建为 3.0.11 | macOS `Toolchain` 运行时目录中的 `libssl` 与 `libcrypto`；Windows 可能包含等效的 Python runtime 库 | OpenSSL 3.0 及更高版本适用 Apache License 2.0 | `Licenses/ScriptTools/Python-3.12-LICENSES-AND-ACKNOWLEDGEMENTS.rst.txt`（OpenSSL 章节） | [openssl/openssl](https://github.com/openssl/openssl) |
+| Nuitka runtime library | 4.1.3 | 编译后的 `ludork-*` 入口共用的生成 runtime 代码 | AGPL 3.0；生成的 target code 适用 Nuitka Runtime Library Exception | `Licenses/ScriptTools/Nuitka-4.1.3-AGPL-3.0.txt`、`Licenses/ScriptTools/Nuitka-4.1.3-RUNTIME-EXCEPTION.txt`、`Licenses/ScriptTools/Nuitka-4.1.3-NOTICE.txt` | [Nuitka/Nuitka](https://github.com/Nuitka/Nuitka) |
+| Pillow 及其包含的组件 | 12.2.0 | Toolchain 动画导出与打包使用的图像处理 | MIT-CMU 及 Pillow wheel 复现的随附许可证 | `Licenses/ScriptTools/Pillow-12.2.0-LICENSE.txt` | [python-pillow/Pillow](https://github.com/python-pillow/Pillow) |
 | Avalonia 软件包族 | 12.1.0 | 编辑器 UI、桌面后端、渲染、主题、颜色选择器与 Inter 字体集成 | MIT | `Licenses/Avalonia/LICENSE.txt` | [AvaloniaUI/Avalonia](https://github.com/AvaloniaUI/Avalonia) |
 | Avalonia.Controls.WebView | 12.1.0 | 编辑器在线帮助、关于与声明 | MIT | `Licenses/EditorPackages/Avalonia.Controls.WebView-LICENSE.txt` | [AvaloniaUI/Avalonia.Controls.WebView](https://github.com/AvaloniaUI/Avalonia.Controls.WebView) |
 | Avalonia.AvaloniaEdit | 12.0.0 | 文本与代码编辑 | MIT | `Licenses/EditorPackages/AvaloniaEdit-LICENSE.txt` | [AvaloniaUI/AvaloniaEdit](https://github.com/AvaloniaUI/AvaloniaEdit) |
@@ -46,7 +46,7 @@ Ludork 软件本体适用 [`LICENSE.md`](https://github.com/JasonLeon01/Ludork/b
 | Avalonia ANGLE Windows natives | 2.1.27548.20260419 | Windows 包中的 OpenGL ES 转换层 | BSD 3-Clause | `Licenses/Avalonia/ANGLE-LICENSE.txt` | [AvaloniaUI/angle](https://github.com/AvaloniaUI/angle) |
 | Avalonia.Fonts.Inter 中的 Inter 字体 | 随 Avalonia.Fonts.Inter 12.1.0 分发 | 默认编辑器字体资源 | SIL Open Font License 1.1 | `Licenses/Avalonia/Inter-OFL-1.1.txt` | [rsms/inter](https://github.com/rsms/inter) |
 
-每个发行包都会在 `tools/ScriptTools/runtime-versions.txt` 中记录 ScriptTools 构建模式及实际使用的 CPython、OpenSSL、Nuitka 与 Pillow 版本。编辑器分发完整的运行时目录，包括所需的原生库与数据文件。
+每个发行包都会在 `BuildTools/Toolchain/runtime-versions.txt` 中记录 Toolchain 构建模式及实际使用的 CPython、OpenSSL、Nuitka 与 Pillow 版本。编辑器分发完整的运行时目录，包括所需的原生库与数据文件。
 
 `AvaloniaUI.DiagnosticsSupport` 2.2.3 以及 analyser/build-service 软件包仅供开发使用，不进入 Release 包。编辑器打包脚本会移除不属于目标平台的程序集。
 

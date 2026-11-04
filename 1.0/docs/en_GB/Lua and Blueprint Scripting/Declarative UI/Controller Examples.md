@@ -94,7 +94,7 @@ function Controller:updateCount(count) end
 function Controller:onReturn() end
 ```
 
-Run `ScriptTools ui-assets generate <project-root>` to derive the public window declaration. Require `Source.Windows.WindowInventory`. `Source.Windows.WindowInventory.Controller` is a private type, not a module.
+Run `ludork-assets ui-assets generate <project-root>` to derive the public window declaration. Require `Source.Windows.WindowInventory`. `Source.Windows.WindowInventory.Controller` is a private type, not a module.
 
 ## Bind a native callback
 

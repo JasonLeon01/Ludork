@@ -13,7 +13,7 @@ Keep source images under `Assets/Animations` or another intended asset folder. N
 Save the animation before exporting. From the repository root on Windows, run
 `tools\animation_to_mp4.bat` to export all current `Game/Data/Animations` JSON
 files to `Game/EditorCache/AnimationMp4`. Use `sh tools/animation_to_mp4.sh` on macOS.
-The tool requires rebuilt ScriptTools with Pillow and a separate FFmpeg executable
+The tool requires rebuilt Toolchain with Pillow and a separate FFmpeg executable
 with `libx264` and AAC; see [tool setup and options](https://github.com/JasonLeon01/Ludork/blob/main/tools/README.md#animation-mp4-export).
 
 ```bat

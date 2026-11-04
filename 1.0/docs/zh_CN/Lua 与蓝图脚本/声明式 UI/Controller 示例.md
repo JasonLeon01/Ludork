@@ -94,7 +94,7 @@ function Controller:updateCount(count) end
 function Controller:onReturn() end
 ```
 
-运行 `ScriptTools ui-assets generate <project-root>` 生成公开窗口声明，再用 `require` 加载 `Source.Windows.WindowInventory`。`Source.Windows.WindowInventory.Controller` 是私有类型，不是模块。
+运行 `ludork-assets ui-assets generate <project-root>` 生成公开窗口声明，再用 `require` 加载 `Source.Windows.WindowInventory`。`Source.Windows.WindowInventory.Controller` 是私有类型，不是模块。
 
 ## 绑定原生回调
 
