@@ -2,7 +2,7 @@
 
 ## TimerEntry
 
-`isReady()` means elapsed or cancelled; it does not mean the callback has finished. `cancel()` cancels the associated operation and prevents its expiry callback. To wait for completion, use the operation returned by [SceneBase.addTimer](<Scenes and System.md#scene-timers>).
+`isReady()` indicates that the timer has elapsed or been cancelled; it does not mean the callback has finished. `cancel()` cancels the associated operation and prevents its expiry callback. To wait for completion, use the operation returned by [SceneBase.addTimer](<Scenes and System.md#scene-timers>).
 
 ### Properties
 

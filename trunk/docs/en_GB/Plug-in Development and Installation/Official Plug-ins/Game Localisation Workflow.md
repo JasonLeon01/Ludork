@@ -18,9 +18,9 @@ Use Official Locale Tools to export a translation workbook into Lua language tab
 
 Create `Data/Locale/Locale.xlsx`. Every included worksheet must use row 1 as a header. Column A must be `ID` (case-insensitive), and columns B onwards are language names such as `en_GB` and `zh_CN`. Blank language headers are ignored, and at least one language is required.
 
-Rows with a blank ID are ignored. IDs are trimmed and are case-sensitive. Multiple worksheets are merged. Duplicate IDs are reported with their first and duplicate cell locations, and a value present in the later cell overwrites the earlier value for the same language.
+Rows with a blank ID are ignored. IDs are trimmed and are case-sensitive. Multiple worksheets are merged. Duplicate IDs are reported with the locations of the first and duplicate cells, and a value present in the later cell overwrites the earlier value for the same language.
 
-Formula cells use their cached value when one is present. Without a cached value, the formula text without the leading equals sign is exported. A literal `=` or `==` may be entered as `'=` or `'==`.
+Formula cells use their cached value when one is present. When there is no cached value, the exported text is the formula without its leading equals sign. A literal `=` or `==` may be entered as `'=` or `'==`.
 
 ## Export
 

@@ -13,7 +13,7 @@
 | `recordAddedActor`、`recordDestroyedActor` | `(actor)` | 记录对应的持久化变更 |
 | `recordActorPosition` | `(actor, position)` | 记录 Actor 的地图位置 |
 | `requestFloorStep` | `(teleporter, step) -> boolean` | 接受一次相邻楼层请求；`step` 必须为 `1` 或 `-1`。抵达时选择最近的、可见且未销毁的相反方向楼梯 |
-| `requestMapTransfer` | `(teleporter, mapPath, position, record = true) -> boolean` | 接受一次指定地图坐标传送，不搜索楼梯；可选记录两端各自地图的传送点 |
+| `requestMapTransfer` | `(teleporter, mapPath, position, record = true) -> boolean` | 接受一次到指定格子的传送，不搜索楼梯；可选将两端分别记录到各自地图上 |
 | `requestGameOver` | `(player, delay)` | 等待有限且非负的动画延时后切换场景，不施加伤害或 Effect |
 
 战斗与移动危险必须先取得 `GameplayScene`，才会改变状态。Teleporter 请求无法执行或被拒绝时，移动与记录保持不变。Game Over 采用剩余动画中最长的时长。重复请求会被忽略；替换场景、地图或玩家都会取消待执行的导航。
@@ -36,7 +36,7 @@
 | `calculate` | `(abilitySystem, eventData) -> GameplayAbilityResult` | 返回包含 graph data 的 `ExecutableGraph`，或表示成功的 `NoGraph` |
 | `activate` | `(abilitySystem, eventData) -> GameplayAbilityResult` | 构建并同步执行所选 event，返回 `GraphExecuted` 或 `NoGraph` |
 
-graph 的 parent 与 `eventData` 参数是同一个 `GameplayEventData`。它的数据会接收上述三个字段；对 State 图还会接收 `activeEffect`。执行通过 `Engine.BPBase.ExecuteGraph` 完成。通用数据 graph 没有 Actor 派发与继承，不能 latent，错误会直接传播。
+graph 的 parent 与 `eventData` 参数是同一个 `GameplayEventData`。其 payload 会接收上述三个字段；对 State 图还会接收 `activeEffect`。执行通过 `Engine.BPBase.ExecuteGraph` 完成。通用数据 graph 没有 Actor 派发与继承，不能以 Latent 方式执行，错误会直接传播。
 
 ## Effects
 
@@ -84,7 +84,7 @@ Ability ID：`Ability.Combat.MotaBattle`
 
 持有者是敌人，`eventData.target` 是玩家。计算只做校验，不应用反击伤害或 Game Over Spec。战斗结果的 data 包含每回合伤害、反击回合数、Vampire 回复、先攻（First）与固定伤害（FixDmg）、双方 Battler、预先准备的 Spec 以及 `committed`。`CommitResult` 只提交一次合计伤害。Enemy 在动画结束后处理 Game Over。暴击值计算会纳入 Vampire 回复，First 的回合阈值保持原值，但会忽略 FixDmg 表达式。
 
-战斗计算的中间阶段返回 `Enums.CombatResolutionCode` 中的字符串：`ATTACK = "AttackResolved"`、`DEFENSE = "DefenseResolved"`、`HIT_COUNT = "HitCountResolved"`、`DAMAGE = "DamageResolved"`、`INCOMING_DAMAGE = "IncomingDamageResolved"`、`BATTLE_RULES = "BattleRulesResolved"`。这些中间结果与最终的 `Enums.BattleResultCode` 战斗结局分开。
+战斗结算的各个阶段返回 `Enums.CombatResolutionCode` 中的字符串：`ATTACK = "AttackResolved"`、`DEFENSE = "DefenseResolved"`、`HIT_COUNT = "HitCountResolved"`、`DAMAGE = "DamageResolved"`、`INCOMING_DAMAGE = "IncomingDamageResolved"`、`BATTLE_RULES = "BattleRulesResolved"`。这些中间结果独立于最终的 `Enums.BattleResultCode` 结局。
 
 ## GameplayConstants
 
@@ -129,24 +129,24 @@ Compete、Hard、Magic、MultiHit 与 Poisoned 使用各自的战斗结算事件
 
 | 函数 | 签名 | 行为 |
 |---|---|---|
-| `CreatePreviewContext` | `(enemies, player) -> PreviewContext` | 校验危险覆盖声明，为未变化的玩家/敌人快照缓存战斗伤害和覆盖半径 |
+| `CreatePreviewContext` | `(enemies, player) -> PreviewContext` | 校验危险覆盖，为一份未变化的玩家/敌人快照缓存战斗伤害和覆盖半径 |
 | `Preview` | `(enemies, player, playerPosition, ignoredEnemies?, previewContext?) -> GameplayAbilityResult` | 解析移动危险伤害与贡献来源 |
 | `Commit` | `(player, pathPositions) -> GameplayAbilityResult` | 对每个经过的格子复用 `Preview`，应用总伤害并执行 Blockade 后退 |
 | `NotifyPlayerMovementFinished` | `(player, pathPositions?) -> GameplayAbilityResult` | 提交已完成的移动路径；缺省时提交当前格 |
 
 通过 `local MovementResultCode = require("Enums.MovementResultCode")` 取得移动结果常量：`HAZARD_BOUNDS = "MovementHazardBounds"`、`HAZARD = "MovementHazard"`、`NO_HAZARD = "NoMovementHazard"`、`HAZARD_COMMITTED = "MovementHazardCommitted"`。
 
-`Preview` 负责移动危险的几何计算。它派发 `Event.Movement.QueryHazard`，解析 Flank 与被忽略的敌人，并返回有序的来源与总伤害。Domain 在曼哈顿距离 `<= max(1, magnitude)` 时触发，包含范围边界，并通过 `MotaBattleAbility.CalculateDamagePerRound` 计算伤害，保留 Magic 等战斗特性。被忽略的 Flank 敌人只参与几何计算，不贡献伤害。
+`Preview` 负责移动危险的几何计算。它派发 `Event.Movement.QueryHazard`，解析 Flank 与被忽略的敌人，并返回有序的来源与总伤害。Domain 在曼哈顿距离 `<= max(1, magnitude)` 时触发，包含范围边界，并结合 Magic 等战斗特性，通过 `MotaBattleAbility.CalculateDamagePerRound` 计算伤害。被忽略的 Flank 敌人只参与几何计算，不贡献伤害。
 
 传给 `CreatePreviewContext` 的应是具有移动危险能力的敌人，例如 `CollectEnemies` 的返回结果。每个订阅 `Event.Movement.QueryHazard` 的已授予能力，都必须同时处理 `Event.Movement.QueryHazardBounds`。范围事件以敌人为 `instigator`、玩家为 `target`，payload 为空。每个处理函数必须成功返回 `GameplayAbilityResult.Success(MovementResultCode.HAZARD_BOUNDS, { radius = n })`，其中 `n` 为非负整数。从 `(enemy.x - n, enemy.y - n)` 到 `(enemy.x + n, enemy.y + n)` 的闭合正方形必须覆盖该能力可能贡献伤害的全部格子。Domain 声明 `max(1, magnitude)`，Blockade 和 Flank 声明 `1`。缺少订阅、查询被拒绝或结果格式错误都会报错，即使同一敌人的其他能力已提供有效范围也不能省略。范围查询和伤害预览均不得修改玩法状态。
 
-`PreviewContext` 包含 `player`、`damageByEnemy` 和 `radiusByEnemy`；覆盖半径取同一敌人各能力声明中的最大值。敌人集合、可见性、位置或玩家/敌人的能力状态变化后，必须重新创建上下文。危险格网按 `Gameplay.Movement.Hazard` 筛选并按需生成，将覆盖范围裁剪到请求区域，仅对候选格及相关敌人调用 `Preview`，同时保留伤害来源顺序和格子按行排列的顺序。覆盖范围只是保守边界，准确伤害仍由逐格事件与 Flank 配对决定。区域变化时，未变化的重叠格会复用已有结果，包括零伤害格。
+`PreviewContext` 包含 `player`、`damageByEnemy` 和 `radiusByEnemy`；覆盖半径取同一敌人各能力声明中的最大值。敌人集合、可见性、位置或玩家/敌人的能力状态变化后，必须重新创建上下文。危险格网按 `Gameplay.Movement.Hazard` 筛选并按需生成，将覆盖范围裁剪到请求区域，仅对候选格及相关敌人调用 `Preview`，同时保留来源顺序与行优先的条目顺序。覆盖范围只是保守边界，准确伤害仍由逐格事件与 Flank 解析决定。区域变化时，未变化的重叠格会复用已有结果，包括零伤害格。
 
 ## 生成的 GeneralDataTypes
 
 模块：`Source.Configs.GeneralDataTypes`
 
-通用数据生成器拥有该模块及其 stub。`Types` 与其中的命名字段导出每一个生成的 `<TypeName>AttributeSet`。类型键来自 `Enums.GeneralDataKey`，成员键来自对应的 `Enums.GeneralData.<TypeName>` 模块。
+通用数据生成器拥有该模块及其 stub。`Types` 与各命名字段提供每一个生成的 `<TypeName>AttributeSet`。类型键来自 `Enums.GeneralDataKey`，成员键来自对应的 `Enums.GeneralData.<TypeName>` 模块。
 
 `Create(typeName, memberID, memberData) -> AttributeSet` 深拷贝结构定义字段并设置 `ID`。以 ID 为起点时，改用 `Source.Data.CreateGeneralAttributeSet(typeName, memberID)`。
 

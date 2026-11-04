@@ -10,7 +10,7 @@
 
 ## Components
 
-这一组的组件工具用于类 metadata、序列化与挂载。以 `_` 开头的名称，以及声明为 `metadata = false` 的函数，都属于运行时基础设施，因此项目玩法应改用公开的类和组件工作流。
+这一组的组件工具支持类 metadata、序列化与挂载。以 `_` 开头的名称，以及声明为 `metadata = false` 的函数，都属于运行时基础设施，因此项目玩法应改用公开的类和组件工作流。
 
 `getComponentFieldValue` 与 `setComponentFieldValue` 要求传入已声明的组件实例。组件缺失或类型错误时直接报错，不会重建。
 

@@ -12,7 +12,7 @@ Startup calls the following functions explicitly. Requiring their modules does n
 
 | Call | Responsibility |
 |---|---|
-| `Source.Locale.Core.Init()` | Loads locale dictionaries before configuration loading and language selection. |
+| `Source.Locale.Core.Init()` | Loads locale dictionaries before loading the configuration and selecting the language. |
 | `Source.Configs.Main.LoadOrCreate()` | Reads the [platform game configuration](<Runtime Data Configuration and Saves.md#configuration>), creating it with default settings when absent. |
 | `Source.Data.InitializeRuntime()` | Supplies project callbacks and preview base classes to `Global.Data.InitializeRuntime(options)`, which creates shared data services and registers data and Blueprint providers before the first scene. |
 | `Source.System.InstallRuntimeProviders()` | Registers the configuration provider before the first scene. |

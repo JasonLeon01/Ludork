@@ -1,6 +1,6 @@
 # GlobalFunctions.Audio
 
-`SoundFilter` 与 `MusicFilter` 保存这些节点编辑的共享过滤器；仅在 `applyFilter` 为 true 时应用到播放。
+`SoundFilter` 与 `MusicFilter` 保存这些节点所编辑的共享过滤器；播放仅在 `applyFilter` 为 true 时应用它们。
 
 Metadata 来源：`Scripts/GlobalFunctions/Audio_meta.lua`
 

@@ -1,6 +1,6 @@
 # Source.Battler
 
-`Battler` is the Lua gameplay base of `Enemy` and `Player`, which construct their generated Attribute Set from General Data.
+`Battler` is the Lua gameplay base of `Enemy` and `Player`, which each construct a generated Attribute Set from General Data.
 
 Metadata source: `Scripts/Source/Battler_meta.lua`
 

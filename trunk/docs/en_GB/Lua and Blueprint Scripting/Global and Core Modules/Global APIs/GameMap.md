@@ -6,7 +6,7 @@ Metadata source: `Scripts/Global/GameMap_meta.lua`
 
 ## Map data and region builders
 
-Shared map data declarations belong to `Global.GameMap.*` and `Global.WorldGameMap.*`, in their matching stubs. These are Lua annotation types; their names do not add constructors or change the map file format.
+Shared map data declarations belong to `Global.GameMap.*` and `Global.WorldGameMap.*`, in their matching stubs. These are Lua annotation types; their names add no constructors and do not change the map file format.
 
 | Namespace | Types |
 |---|---|
@@ -37,7 +37,7 @@ Region builders also implement the resource-lifetime contract:
 | Member | Contract |
 |---|---|
 | `waitingForResources` | True when the last build step returned because requested resources were pending. A later step can retry; waiting does not mark the region ready. |
-| `setResourcePriority(priority)` | Update current pending subscriptions and the priority for dependencies discovered later. The world supplies 1 for Active or explicitly forced regions and 0 for Prepared regions. |
+| `setResourcePriority(priority)` | Update current pending subscriptions and the priority for dependencies discovered later. The world supplies a priority of 1 for Active or explicitly forced regions and 0 for Prepared regions. |
 | `resolvePendingResources()` | Synchronously finish already-discovered pending resource loads for an explicit drain. This does not advance layer construction, Actors or publication; those still proceed through normal builder steps. |
 | `cancel()` | Release resource subscriptions and close the construction coroutine. Safe to call repeatedly when publication is cancelled, the region is evicted or the world is disposed. A cancelled builder cannot advance again. |
 
@@ -85,9 +85,9 @@ Each `GameMap` owns a separate fog controller. The runtime Lua methods `getFogSe
 
 `GameMap.HideDisconnectedRegions` enables native region hiding for ordinary finite maps. Configure its startup value with [`hideDisconnectedRegions` in Gameplay](<../../Default Gameplay/Runtime Data Configuration and Saves.md#shared-gameplay-configuration>), or set this module default before constructing maps; `setHideDisconnectedRegions(enabled)` controls an existing map. `GameMap` skips this default for `sparseWorldConfig`; calling the native setter with `true` on a sparse world raises an error, so composite worlds retain their normal rendering.
 
-Regions use four-way connectivity and only tile passability: the topmost visible layer with tile content determines each cell. Map edges bound connectivity; doors and other Actors do not divide regions. The player's region remains visible, and other passable cells display the nearest impassable cell's tile layers. Distance is Manhattan distance, with ties resolved from top to bottom, then left to right. Source texture, autotile shape and animation are preserved. Impassable cells retain their original display. If no valid observer exists (no player, an out-of-bounds position, or an impassable observer cell), all passable cells are hidden; walls remain visible. Previews supply an explicit observer cell.
+Regions use four-way connectivity and only tile passability: the topmost visible layer with tile content determines each cell. Map edges bound connectivity; doors and other Actors do not divide regions. The player's region remains visible, and other passable cells display the nearest impassable cell's tile layers. Distance is Manhattan distance, with ties resolved from top to bottom, then left to right. Source-cell texture, autotile shape and animation are preserved. Impassable cells retain their original display. If no valid observer exists (no player, an out-of-bounds position, or an impassable observer cell), all passable cells are hidden; walls remain visible. Previews supply an explicit observer cell.
 
-Actors anchored on passable cells follow their anchor's region. For an Actor anchored on an impassable cell, its local image rectangle is transformed by its position, translation, origin, rotation and scale; the resulting quadrilateral must overlap a visible passable cell with positive area. This lets wall-mounted torches follow the room into which their images extend. Touching a cell boundary is insufficient. An image entirely within walls, or with no area, remains hidden. This is a geometric rectangle test, not a per-pixel alpha test. An image spanning multiple regions is drawn in full whenever it overlaps the current region. Each ancestor must independently pass the same rule and its visibility flag; a hidden parent also hides its descendants. Without a valid observer, all Actors are hidden.
+Actors anchored on passable cells follow their anchor's region. For an Actor anchored on an impassable cell, its local image rectangle is transformed by its position, translation, origin, rotation and scale; the resulting quadrilateral must overlap a visible passable cell with positive area. This lets wall-mounted torches follow the room into which their images extend. Touching a cell boundary is insufficient. An image entirely within walls, or with no area, remains hidden. This is a geometric rectangle test, not a per-pixel alpha test. An image spanning multiple regions is drawn in full whenever it overlaps the current region. Each ancestor must independently pass the same rule and its own visibility flag; a hidden parent also hides its descendants. Without a valid observer, all Actors are hidden.
 
 Entering a region reveals it; leaving hides it again, without recording exploration in saves. Rendering suppresses hidden-region Actors and their descendants, attached particles and lights, and damage text in hidden cells. This display rule does not change Actor `visible` flags, terrain data, collision, pathfinding or events. Enemy Book filters through `isActorVisibleOnMap(actor)` before grouping enemies, so a visible instance still represents its enemy type.
 

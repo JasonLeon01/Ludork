@@ -1,6 +1,6 @@
 # Metadata 结构与 Decorator
 
-`_METADATA` 是描述蓝图字段、签名、编辑器控件与执行协议的纯数据结构定义。它告诉编辑器哪些 Lua 与 C++ 成员可以编辑，哪些可以作为蓝图节点使用。元数据文件必须返回一个名为 `_METADATA` 的纯数据表。
+`_METADATA` 是描述蓝图字段、签名、编辑器控件与执行协议的纯数据结构定义。它告诉编辑器哪些 Lua 与 C++ 成员可以编辑，哪些可以作为蓝图节点使用。metadata文件必须返回一个名为 `_METADATA` 的纯数据表。
 
 ```lua
 local _METADATA = {
@@ -33,7 +33,7 @@ return _METADATA
 
 ## 类型与字段
 
-每张类型表都含有序的 `attrs`。不要依赖 Lua 表的键顺序。字段必须声明 `type`。只有当蓝图已经保存该字段，或 metadata 提供了 `default` 时，它才以普通值的形式出现。
+每张类型表都包含有序的 `attrs`。不要依赖 Lua 表的键顺序。字段必须声明 `type`。只有当蓝图已经保存该字段，或 metadata 提供了 `default` 时，它才以普通值的形式出现。
 
 基础类型名包括 `bool`、`int`、`float`、`string`、`function`、`event`、`any` 与 `Pair`。SFML 值使用 `sf.` 前缀。Core 类型写成 `{ "Module", "Type" }`，数组则在第二项上加 `[]`。
 
@@ -45,7 +45,7 @@ return _METADATA
 
 未设置的节点输入保存为 JSON `null`，有声明默认值时采用该默认值。JSON 值编辑框可以直接输入 `null`。清空函数表达式即可让它保持未设置。`any` 输入以文本编辑：失焦时，能解析为 JSON 字面量（如数字）的文本按该字面量保存，其余文本保存为表达式字符串。
 
-节点的 **转换为普通输入框** 绕过选择器与数字控件，但保留声明结构定义。`string` 和 `file` 原样保留全部文本，包括空白和 `null`；`int` 必须是无小数部分的有符号 64 位整数；`float`、`double` 和 `number` 必须是使用小数点的有限数字。布尔值接受 `true` 或 `false`。输入留空表示未设置，但 `string`、`file` 与 `any` 会把空白保留为文本。容器与复合值必须使用有效 JSON：向量与 `Pair` 使用分量数组，`sf.Color` 使用四个 0 至 255 的整数通道，`sf.FloatRect` 使用四个数字，`sf.IntRect` 使用 `[[0, 0, 32, 32]]` 这样的嵌套数组。联合类型保留声明的 `$type`/`$value` 封装，容器内部同样如此。
+节点的 **转换为普通输入框** 绕过选择器与数字控件，但保留声明结构定义。`string` 和 `file` 原样保留全部文本，包括空白和 `null`；`int` 必须是无小数部分的有符号 64 位整数；`float`、`double` 和 `number` 必须是有限数字，小数点固定使用 `.`。布尔值接受 `true` 或 `false`。输入留空表示未设置，但 `string`、`file` 与 `any` 会把空白保留为文本。容器与复合值必须使用有效 JSON：向量与 `Pair` 使用分量数组，`sf.Color` 使用四个 0 至 255 的整数通道，`sf.FloatRect` 使用四个数字，`sf.IntRect` 使用 `[[0, 0, 32, 32]]` 这样的嵌套数组。联合类型保留声明的 `$type`/`$value` 封装，容器内部同样如此。
 
 普通 `any` 输入沿用现有 JSON 字面量或表达式转换，空白及带引号的 JSON 字符串仍保留输入原文；输入 `null` 表示未设置。函数／事件表达式与对象引用保持原有运行时语义。无效文本只作为编辑会话草稿保留，不能写入参数值；修正前无法保存或恢复类型输入框。模式与草稿属于当前窗口，不改变 metadata 或蓝图 JSON。
 
@@ -78,9 +78,9 @@ return _METADATA
 
 此片段展示蓝图的声明与值部分。定义只包含 `type` 和可选的文件 `base`，值与初始默认值写在 `attrs`。声明可以暂时没有值；编辑器和运行时始终保留其准确类型，不根据数字、字符串或空容器猜测类型。
 
-先解析 Lua／原生 metadata、启用的 Script Mixin 与祖先蓝图的声明，再加入本地 `attrDefs`。子类同时继承类型与默认值，可以在 `attrs` 中覆盖值，但不能在 `attrDefs` 中重复声明或改写继承类型。本地名称不能与已有字段、方法或运行时保留名称冲突。例如，继承的 `speed` 或 Mixin 的 `needKeyCount` 都是值覆盖，无须新增声明。
+先解析 Lua/原生 metadata、启用的 Script Mixin 与祖先蓝图的声明，再加入本地 `attrDefs`。子类同时继承类型与默认值，可以在 `attrs` 中覆盖值，但不能在 `attrDefs` 中重复声明或改写继承类型。本地名称不能与已有字段、方法或运行时保留名称冲突。例如，继承的 `speed` 或 Mixin 的 `needKeyCount` 都是值覆盖，无须新增声明。
 
-所有已保存属性以及带类型记录的嵌套成员都必须有声明，值必须符合对应结构定义。未知字段、缺少声明、无效结构定义和冲突声明会拒绝加载，并指出蓝图路径及字段。编辑器与运行时不会推断缺失声明，也不会转换旧的无类型格式。地图 `BPClassVarChanged` 同样只保存值，使用 Actor 类继承得到的结构定义。公共函数与通用数据成员的纯图文档没有类声明。
+所有已保存属性以及带类型记录的嵌套成员都必须有声明，值必须符合对应结构定义。未知字段、缺少声明、无效结构定义和冲突声明会拒绝加载，并指出蓝图路径及字段。编辑器与运行时不会推断缺失声明，也不会转换旧的无类型格式。地图 `BPClassVarChanged` 同样只保存值，使用 Actor 类继承得到的结构定义。仅由图构成的公共函数与通用数据成员图没有类声明。
 
 ## 枚举 schema
 
@@ -115,7 +115,7 @@ stairDirection = {
 
 可选的 `valueType` 显式声明 `string`、`bool`、`int` 或 `float`，例如 `{ enum = "Enums.GeneralData.Item", valueType = "string" }`。它允许常量表为空，并在出现选项之前确定类型。非空常量必须与声明一致；整数常量也可以显式使用 `float`。空源码模块未声明 `valueType`、常量类型冲突、未知结构定义属性或模块缺失都会报错，嵌套容器中也一样。`valueType` 描述标量类型，不要求取值属于选项列表。
 
-选择器按字符序显示键，保存选中键对应的值本身，不保存键名或 Lua 表达式，也无需 `Meta.DropBox`。多个键对应同一个值时，回显第一个匹配的键。当前常量表不再包含的已有值仍会保留，并显示未知值提示。只要它仍符合底层标量类型，就仍是有效值；枚举不在运行时强制限定取值集合。
+选择器按声明顺序显示键，保存选中键对应的值本身，不保存键名或 Lua 表达式，也无需 `Meta.DropBox`。多个键对应同一个值时，回显第一个匹配的键。当前常量表不再包含的已有值仍会保留，并显示未知值提示。只要它仍符合底层标量类型，就仍是有效值；枚举不在运行时强制限定取值集合。
 
 显式默认值填写实际标量值，并优先使用。未声明时，新节点输入和容器项使用第一个选项；空枚举使用声明标量的默认值（`""`、`false` 或 `0`）。未声明默认值的属性在存在保存值之前仍只提供结构定义。字符串枚举选择器包含 **— 不选择 —**，保存为 `""`；未知的非空取值仍会显示并保留。
 
@@ -157,7 +157,7 @@ default = { ["$type"] = "sf.Vector2u", ["$value"] = { 64, 32 } },
 
 `bases` 是直接 metadata 基类的有序数组，每项写成 `{ "Module", "Type" }`。只列参与编辑器字段继承的基类。Script Mixin 的 metadata 不能声明 bases。
 
-Lua 模块直接返回类时，在该类的 metadata 表中声明 `moduleReturn = true`，且 metadata 文件必须只包含一个类型。类选择器与新建蓝图的父类引用会使用模块路径，例如 `Source.MapActors.Enemy`。通过模块成员导出的类保留完整引用，例如 `Engine.Actor`，不声明此标记。`bases`、字段和节点引脚中的 metadata 类型引用仍使用明确的模块／类型二元组，例如 `{ "Source.MapActors.Enemy", "Enemy" }`。
+Lua 模块直接返回类时，在该类的 metadata 表中声明 `moduleReturn = true`，且 metadata 文件必须只包含一个类型。类选择器与新建蓝图的父类引用会使用模块路径，例如 `Source.MapActors.Enemy`。通过模块成员导出的类保留完整引用，例如 `Engine.Actor`，不声明此标记。`bases`、字段和节点引脚中的 metadata 类型引用仍使用明确的模块/类型二元组，例如 `{ "Source.MapActors.Enemy", "Enemy" }`。
 
 ## 函数与事件
 
@@ -201,11 +201,11 @@ calculate = {
 - `Loop = true` 标记循环节点；`LoopNode = "ForEach"` 或 `"ForLoop"` 选择运行时协议。
 - `type = "event"` 只创建事件入口，其参数与返回值使用相同的签名格式。未显式声明 `ExecSplit` 时，事件会得到 `ExecSplit = { "default", default = "nil" }`；字符串 `"nil"` 是默认分支的 metadata 标记。
 
-这些声明是对蓝图运行时的承诺。Lua 或 C++ 实现必须真正返回 split 值、恢复 latent 状态，或执行所声明的迭代。
+这些声明是对蓝图运行时的承诺。Lua 或 C++ 实现必须真正返回 split 值、恢复 Latent 状态，或执行所声明的迭代。
 
 ## 编辑器名称与 decorator
 
-类型、字段、函数、事件、引脚和蓝图变量的标签来自其标识符，例如 `textureRect` 显示为 `Texture Rect`。元数据键、运行时成员名和已保存的蓝图名称保持不变。
+类型、字段、函数、事件、引脚和蓝图变量的标签来自其标识符，例如 `textureRect` 显示为 `Texture Rect`。metadata键、运行时成员名和已保存的蓝图名称保持不变。
 
 普通成员不得声明 `DisplayName`、`DisplayDesc`、`VariableDisplayNames`、`VariableDisplayDescs`、`ParameterDisplayNames` 或 `ParameterDisplayDescs`。编辑器不会求值 `LOC(...)` 或其他表达式来获取结构定义标签与默认说明。
 
@@ -213,7 +213,7 @@ calculate = {
 
 `Meta` 保存无法从声明类型推断的编辑器语义，例如 `DropBox`、`PathVars`、`ProgressVars`、`SliderVars`、`RangeVars`、`MoveRouteVars`、`Transfer`、`BlueprintClassVars`、`CommonFunctionVars` 与 `ConfigVars`。
 
-游戏资源用 `PathVars` 给出完整的选择根，例如 `/Game/Assets/Sounds`，字段保存完整逻辑路径。`PathRoot = "Project"` 则改为选择 Script Mixin 之类的原生工程文件。`PathRoot = "Data"` 在项目相对的 `PathVars` 目录（如 `Data/Subtitles`）下选择数据文件，并保存完整的项目相对 `Data/...` 路径。JSON 文档使用 `PathFilter = "*.json"`。数据引用必须位于选择目录内，不允许目录越界。函数元数据按参数名指定，例如 `PathRoot = { subtitleFileName = "Data" }`。
+游戏资源用 `PathVars` 给出完整的选择根，例如 `/Game/Assets/Sounds`，字段保存完整逻辑路径。`PathRoot = "Project"` 则改为选择 Script Mixin 之类的原生项目文件。`PathRoot = "Data"` 在项目相对的 `PathVars` 目录（如 `Data/Subtitles`）下选择数据文件，并保存完整的项目相对 `Data/...` 路径。JSON 文档使用 `PathFilter = "*.json"`。数据引用必须位于选择目录内，且不得包含路径穿越段。函数metadata按参数名指定，例如 `PathRoot = { subtitleFileName = "Data" }`。
 
 `InstVar` 把 string 字段或参数标记为游戏变量名。编辑器用可搜索的选择器取代自由文本输入，数据来自当前的游戏变量声明，包括尚未保存的修改。直接字段使用 `InstVar = true`；只保留指定 metadata 类型的声明时，使用 `InstVar = { types = { "int", "float" } }`。函数 metadata 表通过 `InstVar = { "valueName" }` 把 decorator 投影到具名参数上。
 

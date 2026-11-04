@@ -9,7 +9,7 @@ This chapter lists the Lua Blueprint nodes under `GlobalFunctions`, with their i
 | `GlobalFunctions.Container` | Loop constructs and the dictionary and list operations available as Blueprint nodes. | [Container.md](<Container.md>) |
 | `GlobalFunctions.GameMap` | Actor lookup nodes. | [GameMap.md](<GameMap.md>) |
 | `GlobalFunctions.Math` | Scalar, vector, angle and operator nodes. | [Math.md](<Math.md>) |
-| `GlobalFunctions.Mota` | Monster-book, region and floor-transport nodes. | [Mota.md](<Mota.md>) |
+| `GlobalFunctions.Mota` | Monster handbook, region and floor-transport nodes. | [Mota.md](<Mota.md>) |
 | `GlobalFunctions.Movement` | Nodes that toggle movement, set a movement route and start automatic pathing. | [Movement.md](<Movement.md>) |
 | `GlobalFunctions.Player` | Nodes that read and change Player state, inventory and equipment. | [Player.md](<Player.md>) |
 | `GlobalFunctions.Save` | Save, load and save-path nodes. | [Save.md](<Save.md>) |
@@ -25,7 +25,7 @@ This chapter lists the Lua Blueprint nodes under `GlobalFunctions`, with their i
 
 ## Looking up a node
 
-Choose a module by its purpose above, then look up the node identifier. For example, the `+` node is `Math.ADD`.
+Choose a module by its purpose above, then look up the node's identifier. For example, the `+` node is `Math.ADD`.
 
 The function tables on those pages use these columns:
 

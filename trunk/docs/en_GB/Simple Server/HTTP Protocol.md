@@ -1,6 +1,6 @@
 # Server Lua and Protocol
 
-Node.js owns connections, project authentication, storage and process supervision. Project Lua 5.4.5 modules implement explicit snapshots, void RPCs and named events. Each project runs in a separate Wasmoon process; the game client's Standard extensions and native modules are unavailable on the server. Client proxy usage belongs to [Native Client API](<Native Client API.md>), and project entry paths belong to [Deployment and Editor Settings](<Deployment and Editor Settings.md#project-lua-entry>).
+Node.js owns connections, project authentication, storage and process supervision. Project Lua 5.4.5 modules implement explicit snapshots, void RPCs and named events. Each project runs in a separate Wasmoon process; the game client's Standard extensions and native modules are unavailable on the server. Client proxy usage is described in [Native Client API](<Native Client API.md>), and project entry paths in [Deployment and Editor Settings](<Deployment and Editor Settings.md#project-lua-entry>).
 
 ## Server Lua modules
 
@@ -39,7 +39,7 @@ end
 return Profile
 ```
 
-Module, RPC and event names are case-sensitive: 1–128 ASCII letters, digits, dots, underscores or hyphens. Duplicate registration fails initialization. Only functions placed in the module's `Rpc` table are remotely callable. Module definitions may omit `Snapshot` or `Rpc` when that operation is not provided.
+Module, RPC and event names are case-sensitive and consist of 1–128 ASCII letters, digits, dots, underscores or hyphens. Duplicate registration fails initialisation. Only functions placed in the module's `Rpc` table are remotely callable. Module definitions may omit `Snapshot` or `Rpc` when that operation is not provided.
 
 `Snapshot(context, params)` receives one pure Lua value and must return an ordinary table. Every fetch calls it again. Its storage access is read-only, and it cannot send events. The server does not retain the client's proxy or replicate changes automatically.
 
@@ -58,7 +58,7 @@ Module, RPC and event names are case-sensitive: 1–128 ASCII letters, digits, d
 
 Call context methods with `:`. Events carry the current module name. They are flushed after the handler succeeds; a failed handler discards its queued events. This does not roll back storage writes already completed by that handler. Disconnected recipients receive no backlog. Events never refresh client proxy data.
 
-An ordinary Lua error fails the request with `ServerFailure`. A handler can raise a table with string `code` and `message`, and an optional positive integer `retryAfterSeconds`. Codes use an ASCII letter followed by up to 63 ASCII letters or digits; invalid codes become `ServerFailure`. Host errors retain their stable codes. Validation and account authorization remain project logic: the shared project key does not authenticate individual account IDs.
+An ordinary Lua error fails the request with `ServerFailure`. A handler can raise a table with string `code` and `message`, and an optional positive integer `retryAfterSeconds`. Codes consist of an ASCII letter followed by up to 63 ASCII letters or digits; invalid codes become `ServerFailure`. Host errors retain their stable codes. Validation and account authorisation remain project logic: the shared project key does not authenticate individual account IDs.
 
 A project has a 64 MiB Lua allocator limit, a nine-second Lua execution interrupt budget and a ten-second overall invocation deadline including queue time. A crash, active invocation timeout or memory failure invalidates that project's connections and restarts its Lua state. Its previous pending calls fail and are not replayed; new requests during recovery wait in the bounded queue for the replacement state, within their original deadlines. Other projects, health checks and management remain available. An entry that cannot load fails that project's requests until corrected and restarted. Server logic cannot use `io`, `os`, `debug`, `load`, `loadfile`, `dofile` or native library loading; it accesses persistence through the context.
 
@@ -82,7 +82,7 @@ Use `:` for these methods. Reads never create accounts. Missing accounts/categor
 
 Fields are ordered by descending UTF-8 bytes, independently of locale or numeric interpretation. Nil `beforeKey` starts the first page; a supplied key is an exclusive upper bound, whether stored or not. `limit` defaults to 50 and accepts integers from 1 through 100. If more matching fields remain, `nextCursor` is the last returned key; otherwise it is nil. Empty ranges return empty entries and nil cursor. Pagination reads current files, without a snapshot across requests. Refresh from the first page to include new keys above a cursor; applications can use fixed-width timestamps when byte order should represent time.
 
-Writes create the account/category as needed. Nil removes the field but leaves the category file and account directory. Same-file updates are serialized and replace a temporary file atomically; distinct files can update independently. Each complete category file is limited to **1 MiB**, including encoding and its final newline. There are no cross-file transactions, automatic backups or rollback of earlier writes when a later statement fails. A timeout or lost response can occur after a write commits.
+Writes create the account/category as needed. Nil removes the field but leaves the category file and account directory. Same-file updates are serialised and replace the file atomically via a temporary file; distinct files can update independently. Each complete category file is limited to **1 MiB**, including encoding and its final newline. There are no cross-file transactions, automatic backups or rollback of earlier writes when a later statement fails. A timeout or lost response can occur after a write commits.
 
 The supplied `Modules.Storage` module exposes these snapshot queries:
 
@@ -97,9 +97,9 @@ Its `WriteField(account, category, field, value)` RPC applies the configured int
 
 ### Write rate limits
 
-The configured `ipWriteIntervalSeconds`, default **180 seconds**, applies only to the supplied `Storage.WriteField` RPC. See [configuration](<Deployment and Editor Settings.md#configure-the-write-interval>). It is shared across that project's accounts/categories for the same TCP client IP. IPv4-mapped IPv6 addresses are normalized to IPv4; `X-Forwarded-For` is ignored. Clients behind one NAT or reverse proxy can share an allowance. Other projects have separate allowances.
+The configured `ipWriteIntervalSeconds`, default **180 seconds**, applies only to the supplied `Storage.WriteField` RPC. See [configuration](<Deployment and Editor Settings.md#configure-the-write-interval>). It is shared across that project's accounts/categories for the same TCP client IP. IPv4-mapped IPv6 addresses are normalised to IPv4; `X-Forwarded-For` is ignored. Clients behind one NAT or reverse proxy can share an allowance. Other projects have separate allowances.
 
-Admission starts the interval before storage, and a later storage failure still consumes it. Rejection does not extend the deadline. `RateLimited` carries positive `retryAfterSeconds`, rounded up to whole seconds. Deadlines use a monotonic clock and reset on service restart. Reads, health, management and custom RPCs do not consume this allowance. Custom RPCs are not automatically rate-limited, and cannot invoke `AdmitWrite` to consume this built-in interval.
+Admission starts the interval before storage runs, and a later storage failure still consumes it. Rejection does not extend the deadline. `RateLimited` carries positive `retryAfterSeconds`, rounded up to whole seconds. Deadlines use a monotonic clock and reset on service restart. Reads, health, management and custom RPCs do not consume this allowance. Custom RPCs are not automatically rate-limited, and cannot invoke `AdmitWrite` to consume this built-in interval.
 
 ## Lua data and wire encoding
 
@@ -124,7 +124,7 @@ A message is limited to **2 MiB**; data has at most **64 nesting levels** and **
 
 ## WebSocket messages
 
-Connect to `ws://host:6666/<URL-encoded-project>/api/v1/net`, or `ws://host:6666/api/v1/net` for a [bound project domain](<Deployment and Editor Settings.md#bind-a-project-domain>), with `X-Ludork-Key` on the HTTP upgrade. The server answers `{"type":"ready","version":1}` before application messages. Credentials do not occur in URLs or frame bodies. Binary frames and message compression are not used.
+Connect to `ws://host:6666/<URL-encoded-project>/api/v1/net`, or `ws://host:6666/api/v1/net` for a [bound project domain](<Deployment and Editor Settings.md#bind-a-project-domain>), with `X-Ludork-Key` on the HTTP upgrade. The server replies with `{"type":"ready","version":1}` before any application messages. Credentials do not occur in URLs or frame bodies. Binary frames and message compression are not used.
 
 ```text
 snapshot: {type:"snapshot", id:"1", module:"Profile", params:WireValue}
@@ -135,9 +135,9 @@ failure:  {type:"result", id:"2", ok:false, code:"InvalidArgument", message:"...
 event:    {type:"event", module:"Profile", event:"NameChanged", args:[WireValue,...]}
 ```
 
-Request IDs use 1–128 ASCII letters, digits, dots, underscores or hyphens and must be unique among pending requests on one connection. A duplicate pending ID closes the connection. A rate failure may include `retryAfterSeconds`. RPC acknowledgments confirm execution without a business return value. Server events follow the successful acknowledgment.
+Request IDs consist of 1–128 ASCII letters, digits, dots, underscores or hyphens and must be unique among pending requests on one connection. A duplicate pending ID closes the connection. A rate-limit failure may include `retryAfterSeconds`. RPC acknowledgements confirm execution without a business return value. Server events follow the successful acknowledgement.
 
-Incoming work is capped at 256 calls and 8 MiB per connection and per project. Outgoing buffering is capped at 8 MiB per connection; slow connections are closed. One handler can queue at most 256 events and 8 MiB of encoded event messages. Ping/pong checks remove dead connections. Client timeout, cancellation and recovery rules are in [Call RPCs and receive events](<Native Client API.md#call-rpcs-and-receive-events>).
+Incoming work is capped at 256 calls and 8 MiB per connection and per project. Outgoing buffering is capped at 8 MiB per connection; slow connections are closed. One handler can queue at most 256 events and 8 MiB of encoded event messages. Ping/pong checks remove dead connections. Client timeout, cancellation and recovery rules are described in [Call RPCs and receive events](<Native Client API.md#call-rpcs-and-receive-events>).
 
 ## HTTP health and read-only management
 
@@ -156,6 +156,6 @@ Management paths are under `/admin`. The production Node.js service on port 3333
 
 Encode each path parameter as one URL segment. Sessions are project-bound, expire after eight hours and are invalidated by logout or backend restart. Cookies are HttpOnly, SameSite=Strict and scoped to the project's management API. Responses use `Cache-Control: no-store`; the frontend does not keep credentials in browser storage. There is no management write/delete API. The viewer displays exact integers, typed keys and escaped byte strings.
 
-Non-2xx HTTP responses contain `code`, `message` and optional `retryAfterSeconds`. Common statuses are 400 `InvalidArgument`, 401/403 `AuthenticationFailed`, 404 `InvalidArgument` for missing resources, 429 `RateLimited`, and 500 `StorageFailure` or `ServerFailure`. A rate-limited HTTP response also sets `Retry-After`. WebSocket invocation failures use result frames, not HTTP status codes.
+Non-2xx HTTP responses contain `code`, `message` and optional `retryAfterSeconds`. Common statuses are 400 `InvalidArgument`, 401/403 `AuthenticationFailed`, 404 `InvalidArgument` for missing resources, 429 `RateLimited` and 500 `StorageFailure` or `ServerFailure`. A rate-limited HTTP response also sets `Retry-After`. WebSocket invocation failures use result frames, not HTTP status codes.
 
 HTTP and WebSocket traffic are unencrypted, and a shared key grants access to the project's registered modules. Review the [deployment trust boundary](<Deployment and Editor Settings.md#management-and-operational-limits>) before exposing the service.

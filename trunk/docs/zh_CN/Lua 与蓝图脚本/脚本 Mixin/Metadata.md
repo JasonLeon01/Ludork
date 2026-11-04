@@ -1,6 +1,6 @@
 # Script Mixin Metadata
 
-同名的 `_meta.lua` 文件必须返回 `_METADATA`，且其中只能有一个类型，其名称与脚本文件名一致。它为一个挂载的行为暴露可编辑字段，不声明运行时方法、蓝图节点入口或继承层级。
+同名的 `_meta.lua` 文件必须返回 `_METADATA`，且只包含一个名称与脚本文件名一致的类型。它为单个挂载的行为暴露可编辑字段，不声明运行时方法、蓝图节点入口或继承层级。
 
 ```lua
 local _METADATA = {
@@ -32,7 +32,7 @@ return _METADATA
 - 根表中不得出现第二个类型、函数、userdata、协程或外部状态访问。
 - 编辑器 decorator 细化控件，不改变运行时值。资源与游戏变量选择器见[编辑器名称与 Decorator](<../蓝图脚本/Metadata 结构与 Decorator.md#编辑器名称与-decorator>)。
 
-Mixin metadata 已为蓝图声明其字段，本地值写入 `attrs`，不要在 `attrDefs` 中重复声明。`attrDefs` 只用于蓝图额外新增的字段，其类型与默认值由派生类继承。缺少声明，或与继承字段、Mixin 字段冲突时都会拒绝加载。参见[蓝图属性声明](<../蓝图脚本/Metadata 结构与 Decorator.md#蓝图属性声明>)。
+mixin metadata 已为蓝图声明其字段，本地值写入 `attrs`，不要在 `attrDefs` 中重复声明。`attrDefs` 只用于蓝图额外新增的字段，其类型与默认值由派生类继承。缺少声明，或与继承字段、mixin 字段冲突，都会导致加载失败。参见[蓝图属性声明](<../蓝图脚本/Metadata 结构与 Decorator.md#蓝图属性声明>)。
 
 ## 限制
 

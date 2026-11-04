@@ -1,6 +1,6 @@
 # Source.Battler
 
-`Battler` 是 `Enemy` 与 `Player` 的 Lua 玩法基类，这两个类都依据通用数据构造各自生成的 Attribute Set。
+`Battler` 是 `Enemy` 与 `Player` 的 Lua 玩法基类，这两个类都依据通用数据构造生成的 Attribute Set。
 
 Metadata 来源：`Scripts/Source/Battler_meta.lua`
 
@@ -9,20 +9,20 @@ Metadata 来源：`Scripts/Source/Battler_meta.lua`
 | 名称 | 类型 | 含义 |
 |---|---|---|
 | `attributes` | `GlobalCore.AttributeSet` | 实时生成的 Attribute Set；具体类型会将其收窄为 Enemy 或 Player |
-| `_abilitySystemComponent` | `GlobalCore.AbilitySystemComponent` | 私有的 attribute、ability、effect 与 tag 持有者 |
+| `_abilitySystemComponent` | `GlobalCore.AbilitySystemComponent` | 属性、能力、效果与标签的私有持有者 |
 
 ## 运行时 API
 
 | 成员 | 签名 | 行为 |
 |---|---|---|
-| `init` | `(attributes)` | 需要传入 Attribute Set，并据此创建 Ability System Component |
-| `getAbilitySystemComponent` | `() -> AbilitySystemComponent` | 返回当前生效的 Ability System |
+| `init` | `(attributes)` | 需要传入 Attribute Set，并创建自身的 Ability System Component |
+| `getAbilitySystemComponent` | `() -> AbilitySystemComponent` | 返回当前的 Ability System |
 | `getAttr` | `(name, base = false) -> number` | 返回数值属性的 Current；`base` 为 `true` 时返回 Base |
 | `setAttr` | `(name, value)` | 通过 Ability System 设置数值 Base 并重新计算 Current |
 | `addAttr` | `(name, delta)` | 对数值 Base 增加 `delta`；负数表示减少 |
-| `playAttackAnimationAt` | `(scene, targetPosition) -> GlobalCore.Animation?` | 在目标位置播放 `attributes.ANIMATION_KEY` 并返回动画对象，key 为空时返回 `nil`。调用方可读取其视觉时长和时间 tag |
+| `playAttackAnimationAt` | `(scene, targetPosition) -> GlobalCore.Animation?` | 在目标位置播放 `attributes.ANIMATION_KEY` 并返回动画对象，key 为空时返回 `nil`。调用方可读取其视觉时长和时间标签 |
 
-单个数值属性使用 `getAttr`、`setAttr` 和 `addAttr`。`addAttr` 读取 Base，因此不会将生效中的修饰项写入基础值。这些方法保留原生校验：未知属性、非有限数值以及不符合生成的 `int` 或 `float` 结构定义的值都会报错。其他数据直接从 `attributes` 读取。批量写入、持久化、Effect 和监听仍通过 Ability System 操作。
+单个数值属性使用 `getAttr`、`setAttr` 和 `addAttr`。`addAttr` 读取 Base，因此不会将生效中的修饰项写入基础值。这些方法保留原生校验：未知属性、非有限数值以及不符合生成的 `int` 或 `float` 结构定义的值都会失败。其他数据直接从 `attributes` 读取。批量写入、持久化、Effect 与监听则通过 Ability System 操作。
 
 ## 相关页面
 

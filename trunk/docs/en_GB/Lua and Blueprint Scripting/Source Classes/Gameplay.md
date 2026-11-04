@@ -1,6 +1,6 @@
 # Source Gameplay API
 
-`Source.Gameplay` contains the Game project-specific abilities and Effects built on `GlobalCore`.
+`Source.Gameplay` contains the abilities and Effects specific to the Game project, built on `GlobalCore`.
 
 ## GameplayScene
 
@@ -9,7 +9,7 @@ Module: `Source.Gameplay.GameplayScene`, derived from `GlobalCore.SceneBase`. `S
 | Member | Signature | Behaviour |
 |---|---|---|
 | `getGameMap` | `() -> GameMap` | Returns the scene's loaded map |
-| `getGameInstance` | `() -> GameInstance` | Returns the game instance owning variable and persistence state |
+| `getGameInstance` | `() -> GameInstance` | Returns the game instance that owns variables and persistence state |
 | `recordAddedActor`, `recordDestroyedActor` | `(actor)` | Records the corresponding persistence change |
 | `recordActorPosition` | `(actor, position)` | Records the Actor's map position |
 | `requestFloorStep` | `(teleporter, step) -> boolean` | Accepts one adjacent-floor request; `step` must be `1` or `-1`. Arrival selects the nearest visible, surviving stair of the opposite direction |
@@ -46,7 +46,7 @@ Module: `Source.Gameplay.Effects`
 |---|---|---|
 | `CreateInstantModifierSpec` | `(effectID, attribute, operation, magnitude, eventData?) -> GameplayEffectSpec` | Creates, but does not apply, one Instant modifier spec |
 | `ApplyInstantModifier` | `(target, effectID, attribute, operation, magnitude, eventData?)` | Applies one Instant modifier |
-| `CreateEquipmentEffect` | `(equipID, slot, attrPlus) -> GameplayEffect` | Creates an Infinite equipment effect and `Equipment.Slot.<slot>` tag |
+| `CreateEquipmentEffect` | `(equipID, slot, attrPlus) -> GameplayEffect` | Creates an Infinite equipment effect and an `Equipment.Slot.<slot>` tag |
 | `CreateStateEffect` | `(stateID) -> GameplayEffect` | Creates an Infinite state effect, tag and granted state abilities |
 | `CreateStateSpec` | `(stateID, stacks?, eventData?) -> GameplayEffectSpec` | Creates, but does not apply, a State spec with a positive stack count |
 | `ApplyState` | `(target, stateID, stacks?, eventData?) -> integer` | Applies or stacks the State effect and returns its handle |
@@ -76,11 +76,11 @@ Load these constant modules directly with `require`; `MotaBattleAbility` returns
 
 | Member | Signature | Behaviour |
 |---|---|---|
-| `calculate` | `(abilitySystem, eventData) -> GameplayAbilityResult` | Produces a `Enums.BattleResultCode` code and prevalidated damage/Game Over specs without mutation |
+| `calculate` | `(abilitySystem, eventData) -> GameplayAbilityResult` | Produces an `Enums.BattleResultCode` code and prevalidated damage/Game Over specs without mutation |
 | `activate` | `(abilitySystem, eventData) -> GameplayAbilityResult` | Calculates and optionally commits when `eventData.payload.commit` is true |
 | `CalculateDamagePerRound` | `(attacker, defender) -> damage, details` | Runs the attack, defence, damage, hit-count and incoming-damage event pipeline |
 | `CommitResult` | `(result)` | Applies the prevalidated counter-damage Effect exactly once |
-| `CalculateCriticalValue` | `(enemy, player) -> GameplayAbilityResult` | Returns a `Enums.CriticalResultCode` code |
+| `CalculateCriticalValue` | `(enemy, player) -> GameplayAbilityResult` | Returns an `Enums.CriticalResultCode` code |
 
 The owner is the enemy, and `eventData.target` is the player. Calculation validates without applying counter-damage or Game Over Specs. Its battle result data includes per-round damage, counter rounds, Vampire healing, first-strike and fixed damage, both Battlers, prepared Specs and `committed`. `CommitResult` applies the combined damage once. The Enemy handles Game Over after the animation. Critical calculation includes Vampire healing and the unchanged First round threshold, but it ignores FixDmg expressions.
 
@@ -121,7 +121,7 @@ Concrete ability classes can also be loaded from `Source.Gameplay.SpecialAbiliti
 | `CreatePoisonedAbility` | `() -> GameplayAbility` | Creates the State Poisoned incoming-damage ability |
 | `GetMagnitude` | `(abilitySystem, specialID) -> any` | Reads the magnitude stored on the active special effect |
 
-Compete, Hard, Magic, MultiHit and Poisoned use their combat resolution events. `GameplayConstants.BATTLE_RULES_EVENT` gathers Vampire healing, First damage and FixDmg. Numeric FixDmg is direct, while strings substitute the current numeric attributes of the player and enemy before evaluation. Domain, Flank and Blockade handle `Event.Movement.QueryHazard` and grant `Gameplay.Movement.Hazard`. Other IDs grant queryable passive tags.
+Compete, Hard, Magic, MultiHit and Poisoned use their combat resolution events. `GameplayConstants.BATTLE_RULES_EVENT` gathers Vampire healing, First damage and FixDmg. Numeric FixDmg applies directly, while string FixDmg substitutes the player's and enemy's current numeric attributes before evaluation. Domain, Flank and Blockade handle `Event.Movement.QueryHazard` and grant `Gameplay.Movement.Hazard`. Other IDs grant queryable passive tags.
 
 ## MovementSpecials and movement danger
 
@@ -136,9 +136,9 @@ Module: `Source.Utils.MovementSpecials`
 
 Load `local MovementResultCode = require("Enums.MovementResultCode")` for movement results: `HAZARD_BOUNDS = "MovementHazardBounds"`, `HAZARD = "MovementHazard"`, `NO_HAZARD = "NoMovementHazard"` and `HAZARD_COMMITTED = "MovementHazardCommitted"`.
 
-`Preview` owns movement-hazard geometry. It dispatches `Event.Movement.QueryHazard`, resolves Flank and ignored enemies, and returns ordered sources and total damage. Domain activates when Manhattan distance is `<= max(1, magnitude)`, including the range boundary, and uses `MotaBattleAbility.CalculateDamagePerRound` with combat specials such as Magic. Ignored Flank enemies count for geometry, not for damage.
+`Preview` owns movement-hazard geometry. It dispatches `Event.Movement.QueryHazard`, resolves Flank and ignored enemies, and returns ordered sources and total damage. Domain activates when Manhattan distance is `<= max(1, magnitude)`, including the range boundary, and uses `MotaBattleAbility.CalculateDamagePerRound` with combat specials such as Magic. Ignored Flank enemies are included in geometry but not in damage.
 
-Pass movement-hazard enemies, such as those returned by `CollectEnemies`, to `CreatePreviewContext`. Every granted ability subscribed to `Event.Movement.QueryHazard` must also handle `Event.Movement.QueryHazardBounds`. The bounds event uses the enemy as `instigator`, the player as `target`, and an empty payload. Each handler must successfully return `GameplayAbilityResult.Success(MovementResultCode.HAZARD_BOUNDS, { radius = n })`, where `n` is a non-negative integer. The inclusive square from `(enemy.x - n, enemy.y - n)` to `(enemy.x + n, enemy.y + n)` must contain every cell where that ability can contribute damage. Domain declares `max(1, magnitude)`; Blockade and Flank declare `1`. Missing subscriptions, rejected queries and malformed results raise, including when another ability on the same enemy supplies valid bounds. Bounds and damage previews must not mutate gameplay state.
+Pass movement-hazard enemies, such as those returned by `CollectEnemies`, to `CreatePreviewContext`. Every granted ability subscribed to `Event.Movement.QueryHazard` must also handle `Event.Movement.QueryHazardBounds`. The bounds event uses the enemy as `instigator`, the player as `target`, and an empty payload. Each handler must successfully return `GameplayAbilityResult.Success(MovementResultCode.HAZARD_BOUNDS, { radius = n })`, where `n` is a non-negative integer. The inclusive square from `(enemy.x - n, enemy.y - n)` to `(enemy.x + n, enemy.y + n)` must contain every cell where that ability can contribute damage. Domain declares `max(1, magnitude)`; Blockade and Flank declare `1`. Missing subscriptions, rejected queries and malformed results raise errors, including when another ability on the same enemy supplies valid bounds. Bounds and damage previews must not mutate gameplay state.
 
 `PreviewContext` contains `player`, `damageByEnemy` and `radiusByEnemy`; the radius is the largest declared by that enemy's abilities. Recreate it when enemy membership, visibility, positions or player/enemy ability state changes. Danger grids filter by `Gameplay.Movement.Hazard` and materialise on demand. They clip coverage to the requested area, run `Preview` only for candidate cells and relevant enemies, and preserve source and row-major entry order. Coverage is conservative: per-cell events and Flank resolution still determine exact damage. Unchanged overlapping cells, including zero-damage cells, are reused when the area changes.
 

@@ -18,7 +18,7 @@ Going up selects the nearest visible, surviving `Down` stair on the next map; go
 
 `FindNearestTeleporter(actors, position, stairDirection?)` accepts the same enum. Omitting the argument searches all teleporters; passing `None` filters ordinary teleporters. `IsAsideOrOverlapping` and general nearest-teleporter transfers continue to search all directions.
 
-`goToMap(mapPath, position, record = true)` exposes a map and tile selector in Blueprint. It transfers directly to `position` without searching for a destination Teleporter. With recording enabled, the source stores this actor's `getTeleportPosition()` and raw tag; the destination stores the chosen tile with an empty tag. Passing `false` adds neither endpoint and preserves existing records. Child-map destinations resolve to their world manifest and world coordinates.
+`goToMap(mapPath, position, record = true)` exposes a map and tile selector in Blueprint. It transfers directly to `position` without searching for a destination Teleporter. With recording enabled, the source stores this Actor's `getTeleportPosition()` and raw tag; the destination stores the chosen tile with an empty tag. Passing `false` adds neither endpoint and preserves existing records. Child-map destinations resolve to their world manifest and world coordinates.
 
 Each endpoint is stored under its own map path. The source and destination maps belong to their respective configured regions, and the floor-teleporter window lists only visited maps in the current region. Stair transfers resolve the source map's region; map loading resolves the destination region. A map outside all configured regions clears the current region and shows no floor entries.
 

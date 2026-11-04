@@ -27,7 +27,7 @@ return PluginResult.Completed();
 
 适用时把 `WindowStartupLocation` 设为 `CenterOwner`。窗口、控件、视图状态、取消处理，以及图像与其他资源的释放都由插件负责。不要在 `Application.Current` 中查找编辑器窗口，也不要把控件注入编辑器拥有的视图。
 
-通过 `Ludork.Plugin.Avalonia.PluginTheme` 使用编辑器的公共外观：`Brush("Surface")` 或 `Color("Accent")` 读取语义颜色，`FontFamily` 提供包含中文回退的界面字体。可用颜色键为 `Background`、`Surface`、`Input`、`Hover`、`Border`、`Text`、`TextMuted`、`TextDisabled`、`Accent`、`AccentMuted`、`AccentHover`、`AccentPressed`、`TextOnAccent`、`Error`、`Warning` 和 `Success`。在编辑器应用初始化后读取这些资源，并让标准控件继承宿主主题。
+通过 `Ludork.Plugin.Avalonia.PluginTheme` 使用编辑器的共享外观：`Brush("Surface")` 或 `Color("Accent")` 读取语义颜色，`FontFamily` 提供包含中文回退的界面字体。可用颜色键为 `Background`、`Surface`、`Input`、`Hover`、`Border`、`Text`、`TextMuted`、`TextDisabled`、`Accent`、`AccentMuted`、`AccentHover`、`AccentPressed`、`TextOnAccent`、`Error`、`Warning` 和 `Success`。在编辑器应用初始化后读取这些资源，并让标准控件继承宿主主题。
 
 `Ludork.Plugin.Avalonia.EditorBitmapEffects` 提供用于插件 UI 图片的位图色相处理工具。`NormalizeHue(double)` 把角度归一化到 `[0, 360)`，非有限数以及距离整圈不超过 `0.0001` 度的偏移均视为零；`IsNeutralHue(double)` 使用相同规则。`CreateHueShiftedBitmap(Bitmap, double, CancellationToken)` 返回与源图尺寸、DPI 相同的新位图，零偏移时也返回新对象，由调用方负责释放。`ApplyHueShiftBgra(Span<byte>, int width, int height, int stride, double hue, CancellationToken)` 原地修改未预乘的 BGRA 缓冲区，保留 alpha、完全透明像素和行尾填充字节。两种处理方法都接受可选的取消令牌，统一使用 Avalonia 的双精度 HSV 转换与 RGB 最近整数舍入。颜色选择器使用相同转换，并在灰阶颜色下保留上一次色相。
 
@@ -41,7 +41,7 @@ return PluginResult.Completed();
 
 `Ludork.Plugin.Abstractions.FilePersistence` 提供无 BOM UTF-8 文本方法 `WriteAllTextAtomic` / `WriteAllTextAtomicAsync`，以及用于其他格式的流方法 `WriteAtomic` / `WriteAtomicAsync`。它们写入同目录临时文件、刷新到存储后替换目标，并在失败时清理临时文件。异步写入在替换前检查取消；同步 `beforeCommit` 回调在临时文件关闭后执行。业务校验和多文件事务、回滚仍由调用方负责。
 
-`CreateTemporaryPath`、`WriteDurable`、`MoveFile`、`DeleteFile` 与 `MoveDirectory` 可用于自定义事务。`WriteDurable` 创建新文件并刷新到存储。移动和删除方法对 Windows 瞬态共享或访问失败最多重试十秒，覆盖和删除会清除目标只读属性。错误向调用方传递。
+`CreateTemporaryPath`、`WriteDurable`、`MoveFile`、`DeleteFile` 与 `MoveDirectory` 可用于自定义事务。`WriteDurable` 创建新文件并刷新到存储。移动和删除方法对 Windows 瞬态共享或访问失败最多重试十秒，覆盖和删除会清除目标只读属性。错误会传递给调用方。
 
 ### 保存密钥
 

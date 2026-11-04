@@ -16,7 +16,7 @@ Direct metadata bases: `{ "Engine", "FunctionalImage" }`
 
 `CharacterView` renders frame-animated character and enemy sheets inside fixed `size` bounds. `textureRect` selects the initial frame, and `characterScale` is applied before the frame is centred and fitted without enlargement. A positive `switchInterval` advances equal-width horizontal frames when `animatable` is true, and a non-positive value pauses animation.
 
-`material` is empty or references a complete `Data/Materials/...json` path; `materialParameters` holds this control's own overrides. The control draws the current frame through the formal material graph. `setFrameRect` changes the reset frame, and changing the declarative `texture` resets it to the full texture. Asset properties (`size`, `texture`, optional `textureRect`, `characterScale`, `animatable`, `switchInterval`, `material`, `materialParameters`, `colour`) provide preview data; runtime passes the real Actor resource and parameter snapshot to `setCharacter`. Apply a new material before its parameters; mutable parameter state is not shared with other Actors.
+`material` is empty or references a complete `Data/Materials/...json` path; `materialParameters` holds this control's own overrides. The control draws the current frame through the formal material graph. `setFrameRect` changes the reset frame, and changing the declarative `texture` resets it to the full texture. Asset properties (`size`, `texture`, optional `textureRect`, `characterScale`, `animatable`, `switchInterval`, `material`, `materialParameters`, `colour`) provide preview data; runtime passes the real Actor resource and parameter snapshot to `setCharacter`. Apply a new material before applying its parameters; mutable parameter state is not shared with other Actors.
 
 An invisible CharacterView skips rendering, including direct draw calls.
 
@@ -81,13 +81,13 @@ An invisible ListView skips drawing and does not prepare layout during that draw
 
 With child scrolling disabled, `getContentBounds` returns the laid-out union of the visible children rather than only the declared ListView size. A scrolling parent uses that result after `applyPositions`, so a list becomes scrollable only when its real laid-out extent strictly exceeds the viewport.
 
-`getDefaultItemSize()` returns the native column width and authored default row height in logical pixels. `getItemLayoutRect(index)` returns a zero-based item's cell in list-local coordinates, including the column width and the row's fixed height or tallest child height. It settles pending layout and rejects out-of-range indices. Use these values for dynamic row sizes, selection and hit testing instead of reproducing ListView's spacing in Lua.
+`getDefaultItemSize()` returns the native column width and authored default row height in logical pixels. `getItemLayoutRect(index)` returns the cell of the item at a zero-based index, in list-local coordinates, including the column width and the row's fixed height or tallest child height. It settles pending layout and rejects out-of-range indices. Use these values for dynamic row sizes, selection and hit testing instead of reproducing ListView's spacing in Lua.
 
 `childScrollingEnabled` defaults to `false`. Enable it through the UI Inspector or `setChildScrollingEnabled(true)` to reveal wide children without widening their cells. Each visible child whose scaled local width exceeds `(size.x - 32) / columns` scrolls independently: it starts with its left edge at the column's left edge, pauses for one second, moves left at 30 logical pixels per second until its right edge is visible, pauses for one second, then returns. Children that fit remain centred. Origin and scale are included when placing the content. The speed and pause are fixed native constants, not asset or script options.
 
 Only `update(deltaTime)` advances this motion; drawing and layout queries do not. Hiding a child, the list or an ancestor pauses it. A change to the child's local bounds, origin or scale restarts it from the left edge when the next update measures it, or when layout is explicitly refreshed with `invalidatePositions()` followed by `applyPositions()`. Changing the list size or column count invalidates layout; a changed column width restarts the affected motion. Disabling the property restores centred placement immediately; re-enabling starts again. Removing a child discards its scroll state.
 
-While enabled, child drawing and descendant hit areas are clipped horizontally to their column, intersected with enclosing clipping; popup overlays keep their existing behaviour. The item's cell and selection rectangle stay fixed while its content moves. `getContentBounds()` reports the declared ListView width on the horizontal axis, so this motion does not create horizontal overflow in an enclosing ScrollBox. Vertical content bounds and scrolling still follow the laid-out child heights.
+While enabled, child drawing and descendant hit areas are clipped horizontally to their column, intersected with the enclosing clipping region; popup overlays keep their existing behaviour. The item's cell and selection rectangle stay fixed while its content moves. `getContentBounds()` reports the declared ListView width on the horizontal axis, so this motion does not create horizontal overflow in an enclosing ScrollBox. Vertical content bounds and scrolling still follow the laid-out child heights.
 
 ## WrapBox
 
@@ -102,7 +102,7 @@ Items flow left to right and wrap when the next item would exceed the available 
 | `getSpacing()` / `setSpacing(spacing)` | Read or set the horizontal and vertical spacing as `sf.Vector2f`. |
 | `get(i)` | Return the i-th native `Engine.ControlBase`, using a 1-based index; an out-of-range index raises an error. |
 
-Count zero or an absent template produces no instances. The WrapBox owns repeated controls' update, input and release lifetimes. Generated Views expose the WrapBox itself; template descendants belong to each independent instance boundary and are accessed through `get(i)` and that control's child APIs. The editor previews all repetitions, while editing any repetition updates the single authored template.
+Count zero or an absent template produces no instances. The WrapBox owns repeated controls' update, input and release lifetimes. Generated Views expose the WrapBox itself; template descendants sit inside each independent instance's boundary and are accessed through `get(i)` and that control's child APIs. The editor previews all repetitions, while editing any repetition updates the single authored template.
 
 ## ScrollBox
 
@@ -122,7 +122,7 @@ Direct metadata bases: `{ "Engine", "Canvas" }`
 | `setScrollingEnabled` | `function` | self: { "Engine", "ScrollBox" } = "self"; enabled: bool | — | — |
 | `scrollDescendantIntoView` | `function` | self: { "Engine", "ScrollBox" } = "self"; descendant: { "Engine", "ControlBase" } | — | — |
 
-Each axis uses the visible direct-child content bounds and is enabled only when they exceed the viewport. Otherwise the offset and maximum are zero. Offsets are clamped after writes, a resize or content shrink. Rendering and descendant hits are clipped, and `scrollDescendantIntoView` rejects controls outside this ScrollBox.
+Each axis uses the visible direct-child content bounds and is enabled only when those bounds exceed the viewport. Otherwise the offset and maximum are zero. Offsets are clamped after writes, resizes and content shrinks. Rendering and descendant hits are clipped, and `scrollDescendantIntoView` rejects controls outside this ScrollBox.
 
 Ordinary wheel input uses 32-logical-pixel steps, and precise deltas apply directly to the matching axis. Touch drag starts after the input threshold and has no inertia. Selectable-list taps, Config Slider direction ownership and DropBox popup input remain unchanged.
 

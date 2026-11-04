@@ -32,9 +32,9 @@ Enemy inherits the Actor default `tickable = false`.
 | `onCollision` | event | `other: Engine.Actor[]` | — | default execution output |
 | `onDefeat` | event | — | — | default execution output |
 
-`init(texture?, rect?, tag?)` constructs the Attribute Set, the Ability System, the Mota ability and the configured special Effects. Collision prevalidates combat and required settlement before committing counter damage. A loss applies the prepared Game Over Effect after the animations.
+`init(texture?, rect?, tag?)` constructs the Attribute Set, the Ability System, the Mota ability and the configured special Effects. Collision prevalidates combat and required settlement before committing counter damage. On a loss, the prepared Game Over Effect is applied after the animations.
 
-After a win animation, the Actor Blueprint `onDefeat` hook runs before mandatory destruction, Reborn/drops, rewards and States. These values use the prepared snapshot, and `afterBattleVarChanges` is evaluated after the hook. Enemy General Data has no `onDefeat` member graph.
+After a win animation, the Actor Blueprint's `onDefeat` hook runs before mandatory destruction, Reborn/drops, rewards and States. These values come from the prepared snapshot, and `afterBattleVarChanges` is evaluated after the hook. Enemy General Data has no `onDefeat` member graph.
 
 ## Related pages
 

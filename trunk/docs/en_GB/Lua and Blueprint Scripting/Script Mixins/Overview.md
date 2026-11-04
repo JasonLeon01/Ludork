@@ -1,6 +1,6 @@
 # Script Mixins Overview
 
-A Script Mixin attaches Lua behaviour to a Blueprint class, retaining its authored defaults and inheritance while defining event logic in Lua.
+A Script Mixin attaches Lua behaviour to a Blueprint class, retaining the Blueprint's authored defaults and inheritance while defining event logic in Lua.
 
 | Page | Covers |
 |---|---|

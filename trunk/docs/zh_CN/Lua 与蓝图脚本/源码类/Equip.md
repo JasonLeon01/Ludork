@@ -8,7 +8,7 @@ Metadata 来源：`Scripts/Source/MapActors/Equip_meta.lua`
 
 继承的可见性条件见 [Source.MapActors.ConditionalActor](<ConditionalActor.md>)。
 
-编辑器会按 `ID` 显示生成的 `EquipAttributeSet` 预览。`attributes` 字段只读，不会序列化到 Blueprint JSON 中。
+编辑器会按 `ID` 显示生成的 `EquipAttributeSet` 预览。`attributes` 字段为只读，不会序列化到 Blueprint JSON 中。
 
 ## 属性
 

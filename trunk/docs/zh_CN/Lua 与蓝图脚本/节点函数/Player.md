@@ -34,4 +34,4 @@ Metadata 来源：`Scripts/GlobalFunctions/Player_meta.lua`
 | `AddEXP` | `function` | amount: int = 1 | — | ExecSplit { [1] = "default", default = nil } |
 | `MeetPlayer` | `function` | actors: { "Engine", "Actor[]" } | playerInfo: Union[Source.MapActors.Player.Player, nil] | Pure |
 
-属性辅助节点优先使用生成的 Player 属性。数值设置节点写入 Base 值。治疗、伤害和加属性节点应用 Instant Effect。State 节点见 [GlobalFunctions.Gameplay](<Gameplay.md>)。
+属性辅助节点优先使用生成的 Player 属性。数值设置节点写入 Base 值。治疗、伤害和加属性节点施加 Instant Effect。State 节点见 [GlobalFunctions.Gameplay](<Gameplay.md>)。

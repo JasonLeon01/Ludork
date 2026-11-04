@@ -4,7 +4,7 @@
 
 Metadata 来源：`Scripts/GlobalFunctions/Math_meta.lua`
 
-标量数学行为参见[数学扩展](<../../快速入门/Ludork Lua 进阶.md#数学扩展>)。
+关于标量数学的行为，参见[数学扩展](<../../快速入门/Ludork Lua 进阶.md#数学扩展>)。
 
 ## Math
 

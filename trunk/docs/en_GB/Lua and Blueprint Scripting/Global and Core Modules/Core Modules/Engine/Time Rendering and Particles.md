@@ -116,7 +116,7 @@ The Lua API signatures in this section omit the colon-call receiver. Blueprint i
 | `play()` | Starts from the beginning when stopped or paused; leaves an already playing instance running. |
 | `pause()`, `resume()` | Pause preserves particles; resume continues the existing timeline and resets host-motion history. |
 | `restart()` | Clears playback state and restarts at zero, repeating configured prewarm. |
-| `stop(clear = true)` | Clears and stops by default. `false` disables further emission/recycling while existing particles finish if playback is advancing. |
+| `stop(clear = true)` | Clears and stops by default. `false` disables further emission/recycling; existing particles still finish if playback is advancing. |
 | `emit(trackName, count)` | Queues a non-negative manual count on a named emission track and enables playback. Invalid names and resident tracks are errors; queued counts are capped by track capacity. |
 | `setSpeed(speed)`, `getSpeed()` | Finite playback multiplier in `[0,100]`. Zero freezes timeline advancement. |
 | `setColour(colour)` | Multiply rendered RGBA by an `sf.Color`. `EmitterView` supplies its UI presentation colour when drawing. |
@@ -132,7 +132,7 @@ configuration.seed = 42
 emitter:setConfiguration(configuration)
 ```
 
-The native host API is `tick(float deltaTime)`, `draw(sf::RenderTarget&, sf::RenderStates = {})`, `setHostTransform(const sf::Transform&)`, `resetHostMotion()`, `shutdown() noexcept` and static `collectGarbage() noexcept`. Delta time is finite and non-negative. `EmitterScheduler` calls `beginFrame()`, `registerEmitter(shared_ptr<Emitter>, transform)` for active hosts, then `advance(deltaTime)` once per Scene frame. Registration is weak and deduplicated. Re-entry resets distance history. `shutdown()` stops known instances and collects retired graphics resources with an active context. Runtime scripts should use their owning Component or View rather than ticking an instance a second time.
+The native host API is `tick(float deltaTime)`, `draw(sf::RenderTarget&, sf::RenderStates = {})`, `setHostTransform(const sf::Transform&)`, `resetHostMotion()`, `shutdown() noexcept` and static `collectGarbage() noexcept`. Delta time must be finite and non-negative. `EmitterScheduler` calls `beginFrame()`, `registerEmitter(shared_ptr<Emitter>, transform)` for active hosts, then `advance(deltaTime)` once per Scene frame. Registration is weak and deduplicated. Re-entry resets distance history. `shutdown()` stops known instances and collects retired graphics resources with an active context. Runtime scripts should use their owning Component or View rather than ticking an instance a second time.
 
 ## EmitterConfiguration
 
@@ -172,7 +172,7 @@ Use these native enum members, or the generated `Enums.Engine.EmitterShape` and 
 
 ## EmitterBurst
 
-`Engine.EmitterBurst` is a fixed value record with `time: float = 0`, `count: int = 0`, `cycles: int = 1` and `interval: float = 0`. Time and interval are seconds. Its first time is within `[0, duration)`, count is 0–1,000,000, cycles is 1–10,000, and repeated bursts require a positive interval.
+`Engine.EmitterBurst` is a fixed value record with `time: float = 0`, `count: int = 0`, `cycles: int = 1` and `interval: float = 0`. Time and interval are seconds. The first time is within `[0, duration)`, count is 0–1,000,000, cycles is 1–10,000, and repeated bursts require a positive interval.
 
 ## EmitterStatistics
 
@@ -202,20 +202,20 @@ Replacing `actor.emitterComp` or assigning `nil` immediately clears the previous
 
 | Property | Default | Meaning |
 |---|---|---|
-| `resource` | `""` | `{ enum = "Enums.Particle", valueType = "string" }`; extensionless key under `Data/Particles`, selected from the live project catalog. Empty disables the effect. |
-| `anchor` | `[0.5,0.5]` | Normalized point in the Actor's local bounds. |
+| `resource` | `""` | `{ enum = "Enums.Particle", valueType = "string" }`; extensionless key under `Data/Particles`, selected from the live project catalogue. Empty disables the effect. |
+| `anchor` | `[0.5,0.5]` | Normalised point in the Actor's local bounds. |
 | `offset` | `[0,0]` | Additional local offset in logical pixels. |
 | `rotation` | `0` | Local rotation in degrees. |
 | `scale` | `[1,1]` | Local scale. |
 | `beforeActor` | `false` | Draw immediately before the owner when true, immediately after when false. |
 
-Map rendering preserves the existing Actor-list and layer order. Invisible and dormant Actors freeze their effect without changing its pause flag. Destroy, region eviction, map replacement and Scene shutdown clear and release it. The Component keeps a weak Actor reference and owns only its playback instance.
+Map rendering preserves the existing Actor-list and layer order. Invisible and dormant Actors freeze their effect without changing its pause flag. Destruction, region eviction, map replacement and Scene shutdown clear and release it. The Component keeps a weak Actor reference and owns only its playback instance.
 
 ## EmitterView
 
 Blueprint instance-method nodes expose `self: Engine.EmitterView`; leaving it unset selects the graph owner.
 
-`Engine.EmitterView` derives from `ControlBase`. Use it as a childless visual UI node under a Canvas or List container. It owns an `Emitter` independently of Actor and follows existing Slot layout, parent ordering and clipping.
+`Engine.EmitterView` derives from `ControlBase`. Use it as a childless visual UI node under a Canvas or List container. It owns an `Emitter` independently of any Actor and follows existing Slot layout, parent ordering and clipping.
 
 | Lua API | Contract |
 |---|---|
@@ -223,7 +223,7 @@ Blueprint instance-method nodes expose `self: Engine.EmitterView`; leaving it un
 | `getEmitter()` | Return the shared `Emitter` playback object. |
 | `getParticle()`, `setParticle(key)` | Read/change the particle resource key; changing it clears the previous effect. |
 | `getSize()`, `setSize(size)` | Read/change layout bounds. |
-| `getAnchor()`, `setAnchor(anchor)` | Read/change the normalized emission anchor. |
+| `getAnchor()`, `setAnchor(anchor)` | Read/change the normalised emission anchor. |
 | `getAutoPlay()`, `setAutoPlay(value)` | Read/change the automatic playback policy used when loading a resource or changing Canvas. The setter itself does not start or pause playback. |
 | `dispose()` | Idempotently release playback and stop future participation. |
 

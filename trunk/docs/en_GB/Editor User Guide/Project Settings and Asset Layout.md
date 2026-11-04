@@ -6,7 +6,7 @@ The editor writes project JSON, including `Main.proj`, `Data` documents, `Materi
 
 ## Main.proj
 
-`Main.proj` describes editor and packaging capabilities. The Game project enables the C++ runtime and FFmpeg and stores the preferred run-window mode:
+`Main.proj` declares editor and packaging capabilities. The Game project enables the C++ runtime and FFmpeg and stores the preferred run-window mode:
 
 ```json
 {
@@ -57,9 +57,9 @@ Editor appearance and tool preferences are shared independently of this project 
 
 Open **Game → Game Config** (`F3`) to edit the game’s language, display and audio settings.
 
-macOS stores these settings in `Main.plist`, using XML plist. Other platforms, including iOS, use `Main.ini`. The section names, keys and defaults are the same in both formats. macOS does not read or migrate an existing `Main.ini`; if `Main.plist` is absent, new settings use the defaults and the INI file is left untouched. The plist structure is described in [Platform, configuration and files](<../Getting Started/Ludork Lua Advanced.md#platform-configuration-and-files>).
+macOS stores these settings in `Main.plist`, an XML plist. Other platforms, including iOS, use `Main.ini`. The section names, keys and defaults are the same in both formats. macOS does not read or migrate an existing `Main.ini`; if `Main.plist` is absent, new settings use the defaults and the INI file is left untouched. The plist structure is described in [Platform, configuration and files](<../Getting Started/Ludork Lua Advanced.md#platform-configuration-and-files>).
 
-The language list uses the exported `Scripts/Source/Locale/*.lua` files, excluding `Core.lua`, and refreshes whenever Game Config opens. The current configured language remains available even if its export is missing. Export workbook changes before selecting a newly added language.
+The language list is built from the exported `Scripts/Source/Locale/*.lua` files, excluding `Core.lua`, and refreshes whenever Game Config opens. The current configured language remains available even if its export is missing. Export workbook changes before selecting a newly added language.
 
 **Confirm** saves immediately; **Cancel** keeps the previous values. A failed write leaves the dialog open with an error. An unreadable or malformed plist is reported, and Confirm cannot overwrite it with defaults; repair the file before saving. These settings are outside document Undo and unsaved changes.
 
@@ -152,7 +152,7 @@ The manifest has this closed editor-owned shape:
 
 `width`, `height` and `[x, y, width, height]` placement rects use zero-based cells. A rect must match the size of its child, and each child may appear once. Placements may touch, and uncovered cells are valid holes. Placements cannot extend beyond the world. The editor allows temporary overlaps while arranging maps, but rejects Save until they are resolved; saved manifests cannot contain overlapping placements.
 
-`worldName` is a required non-empty display name. `layerOrder` is derived from the placed children and rejects contradictory cycles. The manifest owns the world display name, size, composition, global fog and global panorama, while audio, filters and ambient light remain child data.
+`worldName` is a required non-empty display name. `layerOrder` is derived from the placed children, and contradictory cycles are rejected. The manifest owns the world display name, size, composition, global fog and global panorama, while audio, filters and ambient light remain child data.
 
 Ordinary maps and worlds store fog in the same `fog` object. Configure its procedural world-space pattern through [Fog](<Tilesets Autotiles and Maps.md#fog>); it does not reference an asset image.
 

@@ -1,6 +1,6 @@
 # GlobalFunctions.Video
 
-`Video` 声明播放视频的节点，并提供可选的静音、可跳过与字幕参数。
+`Video` 声明播放视频的节点，并提供可选的静音、跳过与字幕参数。
 
 Metadata 来源：`Scripts/GlobalFunctions/Video_meta.lua`
 

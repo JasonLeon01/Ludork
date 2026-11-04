@@ -70,7 +70,7 @@ DropBox 有 Canvas 祖先时，展开的列表绘制在最外层 Canvas 的浮�
 
 ### 移动端触摸确认
 
-移动端展开的 DropBox 采用两步确认：点击未高亮的选项时，只移动高亮并播放游标音效，不改变 `selectedIndex`，也不触发选择回调。点击当前高亮项才会确认，包括展开时已高亮的选项。取消会丢弃预览，并保留原来的 `selectedIndex`。
+移动端展开的 DropBox 采用两步确认：点击未高亮的选项时，只移动高亮并播放游标音效，不改变 `selectedIndex`，也不触发任一选择回调。点击当前高亮项才会确认，包括展开时已高亮的选项。取消会丢弃预览，并保留原来的 `selectedIndex`。
 
 ### 选择回调
 
@@ -171,9 +171,9 @@ tabView:setKeyHint(
 
 直接 metadata 基类：`{ "Engine", "ControlBase" }`、`{ "Engine", "FunctionalBase" }`
 
-GamepadHintBar 最多显示三条手柄提示，在自身尺寸内居中。它仅在连接手柄时绘制与响应。每条提示是一个 `Engine.GamepadHint`，包含 `Button`（`Engine.JoystickButton` 读取方法值）、`LongPress` 与 `Text`，`setHints` 会拒绝超过三条。默认窗口通过共用的 `WindowChrome` 资产把它放在底部边框，由 `WindowBase` 绑定回调。
+GamepadHintBar 最多显示三条手柄提示，在自身尺寸内居中。它仅在连接手柄时绘制与响应。每条提示是一个 `Engine.GamepadHint`，包含 `Button`（`Engine.JoystickButton` 取值方法返回的按钮值）、`LongPress` 与 `Text`，`setHints` 会拒绝超过三条。默认窗口通过共用的 `WindowChrome` 资产把它放在底部边框，由 `WindowBase` 绑定回调。
 
-短按提示在直径 16 逻辑像素的白色圆底上绘制当前手柄的按键图案，随后是文本。长按提示叠加一个绿色顺时针扇形，在一秒内填满。按住按键满一秒会在达标瞬间以零基下标调用一次 `setOnHintTriggered`，释放则重置进度。`setHintEnabled` 会使提示变灰、停止进度并阻止触发。
+短按提示在直径 16 逻辑像素的白色圆底上绘制当前手柄的按键图案，随后是文本。长按提示叠加一个绿色顺时针扇形，在一秒内填满。按住按键满一秒时，会以从零开始的下标触发一次 `setOnHintTriggered`；释放则重置进度。`setHintEnabled` 会使提示变灰、停止进度并阻止触发。
 
 ### 属性
 
@@ -220,9 +220,9 @@ SectorShape 是基础图形而非 UI 控件，因此不出现在 Palette 中。�
 
 直接 metadata 基类：`{ "Engine", "ControlBase" }`
 
-进度范围为 0 到 1，超出范围会被限制，非有限值按 0 处理。背景始终覆盖整个控件，填充层随进度增加显示图片对应的左侧部分，不会把整张填充图片压缩到当前宽度。显示缩放与表现层透明度同时作用于两层。
+进度范围为 0 到 1，超出范围会被限制，非有限值按 0 处理。背景始终覆盖整个控件，填充层随进度增加显示图片对应的左侧部分，不会把整张填充图片压缩到当前宽度。显示缩放与呈现透明度同时作用于两层。
 
-两层分别持有自己的 `sf.Texture` 资源。向对应的图片设置方法传入 `nil` 会清除图片并恢复纯色绘制。图片 Rect 使用源图像素坐标，`nil` 表示整张图片。每层的颜色与图片相乘，保留原色时设为白色。替换或清除图片不改变尺寸与进度。
+两层分别持有自己的 `sf.Texture` 资源。向对应的图片设置方法传入 `nil` 会清除图片并恢复纯色绘制。图片 Rect 使用源图像素坐标，`nil` 表示整张图片。每层的颜色与图片相乘，要保留原色时应设为白色。替换或清除图片不改变尺寸与进度。
 
 ### 函数与事件
 
@@ -287,7 +287,7 @@ Slider 被触摸捕获时，会依据指针 X 坐标在可见范围内的位置�
 
 `setProperty` 要求属性的运行时类型。设置 Image 的 `drawAs` 时，传入 `Engine.ImageDrawAs.Image` 或 `Engine.ImageDrawAs.Tile`；这里不接受 JSON 中使用的字符串。WrapBox 模板形成独立实例边界，应通过 WrapBox 的 `get(i)` 访问重复项根控件，不能在外层资产中查找模板名。
 
-`reflowControl(localName, logicalSize)` 为具名的本资产系统控件应用正的 `sf.Vector2u` 尺寸，按资产重新排列后代，并保留该控件的位置。它不跨越嵌套资产边界，子资产内部的控件应通过子实例处理。父级下次重新布局、应用资产 Slot 时，会替换这次尺寸覆盖。
+`reflowControl(localName, logicalSize)` 为具名的本资产系统控件应用正的 `sf.Vector2u` 尺寸，对其资产中定义的后代执行布局，并保留该控件的位置。它不跨越嵌套资产边界，子资产内部的控件应通过子实例处理。父级下次重新布局并应用资产定义的 Slot 时，会替换这次尺寸覆盖。
 
 ### 函数与事件
 

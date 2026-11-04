@@ -27,7 +27,7 @@ public:
 };
 ```
 
-Header dependencies and runtime value types follow [Build and Module Layout](<Build and Module Layout.md#core-headers-and-runtime-boundary>). `BIND_METHOD(name = "...")` selects the Lua method name, and it applies to `metadata = false` methods as well.
+Header dependencies and runtime value types follow [Build and Module Layout](<Build and Module Layout.md#core-headers-and-runtime-boundary>). `BIND_METHOD(name = "...")` selects the Lua method name, and applies to `metadata = false` methods as well.
 
 Place the declaration in the module's `include/Counter.hpp` and the member definitions in `src/Counter.cpp`:
 
@@ -58,7 +58,7 @@ Logging.info(counter:getValue())
 
 The module root is the only public runtime location for the class. The `name` option selects the Lua identifier for that root field. Do not create a second table path for the same native class.
 
-`BIND_CLASS(callbacks = true)` dispatches this class's non-static virtual bound methods through Lua. The opt-in is not inherited, but an override of a base-selected callback remains active.
+`BIND_CLASS(callbacks = true)` dispatches this class's non-static virtual bound methods through Lua. The opt-in is not inherited, but an override of a method the base class selected as a callback remains active.
 
 `BIND_METHOD(callback = false)` excludes the current class's method without removing an inherited callback. Selection is independent of metadata and events. String lists and non-virtual constructor callbacks are unsupported.
 
@@ -116,7 +116,7 @@ void setVolume(float value);
 
 The getter return type becomes the property type unless `type` overrides it. This form exposes one property and does not also expose getter and setter nodes.
 
-A computed property may also declare `component = true`, preserving the same component metadata as a data member while routing assignment through its setter. `Actor.emitterComp` uses this form to release the previous effect immediately when replaced or assigned `nil`, including while its Actor is dormant.
+A computed property may also declare `component = true`, preserving the same component metadata as a data member while routing assignment through its setter. `Actor.emitterComp` uses this form to release the previous effect immediately when it is replaced or assigned `nil`, including while its Actor is dormant.
 
 ### Review constructors and exclusions
 

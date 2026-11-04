@@ -1,8 +1,8 @@
 # Ludork 1.0.0 许可证与第三方声明
 
-Ludork 软件本体适用 [`LICENSE.md`](https://github.com/JasonLeon01/Ludork/blob/main/LICENSE.md) 中的 Zlib 许可证。该许可证适用于 Ludork 软件，不会替代下列组件和资产各自的许可证。
+Ludork 软件本体适用 [`LICENSE.md`](https://github.com/JasonLeon01/Ludork/blob/main/LICENSE.md) 中的 Zlib 许可证。该许可证适用于 Ludork 软件，不替代下列组件和资产各自的许可证。
 
-本声明覆盖 Ludork 1.0.0 的 Windows x64、macOS Apple Silicon 自包含编辑器包、随附工程模板，以及这些模板原样带入生成游戏包的 Ludork runtime 与资产材料。工程自行添加的代码和资产需要另行提供声明。许可证完整正文见 [`Licenses` 索引](https://github.com/JasonLeon01/Ludork/blob/main/Licenses/README_zh_CN.md)；C++ Source 模板还会在第三方源码树中保留原始声明。
+本声明覆盖 Ludork 1.0.0 的 Windows x64、macOS Apple Silicon 自包含编辑器包、随附工程模板，以及这些模板原样带入所生成游戏包的 Ludork runtime 与资产材料。工程自行添加的代码和资产需要另行提供声明。许可证完整正文见 [`Licenses` 索引](https://github.com/JasonLeon01/Ludork/blob/main/Licenses/README_zh_CN.md)；C++ Source 模板还会在第三方源码树中保留原始声明。
 
 可选的服务端部署归档独立于编辑器分发。其组件声明与许可证正文保留在归档内的 [`LudorkServer/third-party/README.md`](https://github.com/JasonLeon01/Ludork/blob/Server/third-party/README.md) 所列位置；已安装的服务端依赖保留各自包内的许可证。
 
@@ -86,7 +86,7 @@ Ludork 软件本体适用 [`LICENSE.md`](https://github.com/JasonLeon01/Ludork/b
 | HarmonyOS Sans SC | 字体版权为 Copyright 2021 Huawei Device Co., Ltd. | 编辑器中的 `Assets/HarmonyOS_Sans_SC_Regular.ttf`，以及 Game 和工程模板中的 `HarmonyOS_SansSC_Medium.ttf` | HarmonyOS Sans Fonts License Agreement | `Licenses/HarmonyOSSans/LICENSE.txt`；Game 字体旁保留另一份副本 | [HarmonyOS 设计资源](https://developer.huawei.com/consumer/en/design/resource/) |
 | “To Walk the Unseen Path” | Game 资产 | Game 项目中当前存在的 MP3 音乐 | Suno Free/Basic 条款将使用限制为个人非商业用途；没有可核验的原始模板再分发授权 | `Licenses/SampleMusic/NOTICE.md`；曲目旁保留声明副本 | [Suno 服务条款](https://suno.com/terms/) |
 
-Game 音乐的限制只适用于该音乐资产，Ludork 软件仍使用 Zlib 许可证。当前 Suno 条款不能证明可在编辑器或工程模板中再分发原始曲目，即使发行本身不商用也一样。发布包含该曲目的任何包前，必须移除或替换曲目，或取得明确的再分发权。
+Game 音乐的限制只适用于该音乐资产，Ludork 软件仍在 Zlib 许可证下提供。当前 Suno 条款并未授予在编辑器或工程模板中再分发原始曲目的许可，非商业发行也不例外。发布包含该曲目的任何包之前，必须先移除或替换该曲目，或取得明确的再分发授权。
 
 ## 来源与商标
 

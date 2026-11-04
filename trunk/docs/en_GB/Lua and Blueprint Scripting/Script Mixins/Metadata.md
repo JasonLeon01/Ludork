@@ -1,6 +1,6 @@
 # Script Mixin Metadata
 
-The same-name `_meta.lua` file must return `_METADATA` and contain exactly one type whose name matches the script file name. It exposes editable fields for one attached behaviour. It does not declare runtime methods, Blueprint node entries or an inheritance hierarchy.
+The same-named `_meta.lua` file must return `_METADATA` and contain exactly one type whose name matches the script file name. It exposes editable fields for one attached behaviour. It does not declare runtime methods, Blueprint node entries or an inheritance hierarchy.
 
 ```lua
 local _METADATA = {
@@ -32,7 +32,7 @@ return _METADATA
 - The root contains no second type, function, userdata, coroutine or external-state access.
 - Editor decorators refine controls without changing runtime values. See [Editor names and decorators](<../Blueprint Scripting/Metadata Schema and Decorators.md#editor-names-and-decorators>) for resource and game-variable selectors.
 
-Mixin metadata already declares its fields for a Blueprint. Store their local values in `attrs`; do not repeat them in `attrDefs`. Use `attrDefs` only for additional Blueprint fields, whose types and defaults are inherited by descendants. Missing declarations and collisions with inherited or Mixin fields fail loading. See [Blueprint attribute declarations](<../Blueprint Scripting/Metadata Schema and Decorators.md#blueprint-attribute-declarations>).
+Mixin metadata already declares its fields for a Blueprint. Store their local values in `attrs`; do not repeat them in `attrDefs`. Use `attrDefs` only for additional Blueprint fields, whose types and defaults are inherited by descendants. Missing declarations and collisions with inherited or mixin fields cause loading to fail. See [Blueprint attribute declarations](<../Blueprint Scripting/Metadata Schema and Decorators.md#blueprint-attribute-declarations>).
 
 ## Limitations
 

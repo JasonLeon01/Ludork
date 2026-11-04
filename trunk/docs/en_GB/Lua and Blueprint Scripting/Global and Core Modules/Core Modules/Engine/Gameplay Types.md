@@ -2,7 +2,7 @@
 
 ## Actor
 
-`material` references a formal 2D material resource; `materialParameters` holds independent per-Actor overrides. Switching material clears the old overrides, and parameter writes are validated against the new resource. See [Maps and Materials](<Maps and Materials.md#material-resources>) for paths, defaults, lighting and masking.
+`material` references a formal 2D material resource; `materialParameters` holds independent per-Actor overrides. Switching the material clears the old overrides, and parameter writes are validated against the new resource. See [Maps and Materials](<Maps and Materials.md#material-resources>) for paths, defaults, lighting and masking.
 
 `getMaterialBounds()` (`metadata = false`) returns the world-space visual bounds, including the material's declared maximum vertex displacement and the Actor transform. Runtime capture effects use these bounds to avoid clipping displaced pixels. This method does not change collision bounds or occupied map cells.
 
@@ -10,11 +10,11 @@
 
 `setGraph` stores an `Engine.Graph` instance, which `getGraph` returns. Passing nil clears the graph, after which `getGraph` returns nil.
 
-`visible` is an editable boolean field that defaults to `true`, and `getVisible()` returns its current value. `isVisibleInHierarchy()` also checks every ancestor. An invisible Actor keeps its instance, lifecycle and configured Tick behaviour, but contributes no drawing, no attached light or light blocking, and no collision, overlap or pathfinding obstruction. Rendering, interaction and gameplay caches account for the current visibility. `setVisible(value, applyToChildren = true)` also sets the descendants' own flags by default. Pass `false` to retain them, while the parent's visibility still gates the hierarchy. Direct assignment changes only the Actor's own flag.
+`visible` is an editable boolean field that defaults to `true`, and `getVisible()` returns its current value. `isVisibleInHierarchy()` also checks every ancestor. An invisible Actor retains its instance, lifecycle and configured Tick behaviour, but contributes no drawing, no attached light or light blocking, and no collision, overlap or pathfinding obstruction. Rendering, interaction and gameplay caches take the current visibility into account. `setVisible(value, applyToChildren = true)` also sets the descendants' own flags by default. Pass `false` to retain them, while the parent's visibility still gates the hierarchy. Direct assignment changes only the Actor's own flag.
 
 `getOccupiedMapCellsAtMapPosition(mapPosition)` computes the Actor footprint with its logical position placed exactly at `mapPosition * CellSize`. It preserves the current bounds relative to that position, including origin, translation, rotation and scale, but excludes the current movement offset within a cell. Empty bounds return the requested cell. `getOccupiedMapCells()` without an argument reports the actual current footprint, including cells crossed during movement.
 
-`texturePath` stores the Actor texture as a `/Game/Assets/...` path. The property editor opens `Assets/Characters` by default. From Tileset follows the browse button and is checked when the stored path is under `/Game/Assets/Tilesets`. Checking it rewrites a `/Game/Assets/Characters/...` reference to the same relative path under `/Game/Assets/Tilesets`, and clearing it restores `/Game/Assets/Characters`. Opening the Actor again reads the check from that path.
+`texturePath` stores the Actor texture as a `/Game/Assets/...` path. The property editor opens `Assets/Characters` by default. The From Tileset checkbox follows the browse button and is checked when the stored path is under `/Game/Assets/Tilesets`. Checking it rewrites a `/Game/Assets/Characters/...` reference to the same relative path under `/Game/Assets/Tilesets`, and clearing it restores `/Game/Assets/Characters`. Reopening the Actor restores the checkbox state from that path.
 
 ### Routes and operation lifetime
 
@@ -30,7 +30,7 @@ The following Lua-only methods manage additional operations, such as door animat
 
 | Method | Behaviour |
 |---|---|
-| `trackAsyncOperation(operation)` | Register an operation for cancellation when the Actor is destroyed, released or changes map; cancel immediately if already destroyed. |
+| `trackAsyncOperation(operation)` | Register an operation to be cancelled when the Actor is destroyed, released or changes map; cancel it immediately if the Actor is already destroyed. |
 | `cancelAsyncOperations()` | Cancel route and registered operations without stopping their underlying animations. |
 
 ### Properties
@@ -261,4 +261,4 @@ Direct metadata bases: `{ "Engine", "Component" }`
 | `lightRadius` | `float` | `16` | — |
 | `lightOffset` | `sf.Vector2f` | `{ [1] = 0, [2] = 0 }` | — |
 
-`lightOffset` is measured from the centre of the Actor's local bounds and follows its complete transform. A wall-mounted emitter must use a separate Actor and place this offset at the flame on the room side, because the renderer does not search for a passable cell.
+`lightOffset` is measured from the centre of the Actor's local bounds and follows its complete transform. A wall-mounted emitter needs a separate Actor, with this offset placed at the flame on the room side, because the renderer does not search for a passable cell.

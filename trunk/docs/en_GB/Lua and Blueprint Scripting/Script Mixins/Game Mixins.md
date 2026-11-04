@@ -5,7 +5,7 @@ The Game project provides the following mixin examples. Each requires the parent
 | Script | Parent capability | Behaviour |
 |---|---|---|
 | `Consumables/Bottle.lua` | Collidable Actor | Detects the Player, restores HP, plays a configured sound and destroys the pickup. |
-| `Consumables/Gem.lua` | Collidable Actor | Adds a value to a direct Player field or matching component field. |
+| `Consumables/Gem.lua` | Collidable Actor | Adds a value to a direct Player field or to the matching component field. |
 | `Doors/Door.lua` | `DoorBase` | Opens on collision and guards against repeated opening. |
 | `Doors/KeyDoor.lua` | Script Mixin door Blueprint | Requires and consumes a configured General Data item before continuing the parent collision method. |
 | `Doors/ConditionDoor.lua` | `DoorBase` | Enables polling only for a configured game variable and opens when it reaches the threshold. |

@@ -32,7 +32,7 @@ Properties use one of three descriptor macros. `UI_CONTROL_COMMON_PROPERTY` appl
 
 Before exporting descriptors, the native registry validates IDs, property types and defaults, property responsibilities and adapter registration.
 
-For a system control the two path fields must be identical. A bound `Canvas` in Engine therefore uses `Engine.Canvas` for both `CONTROL_ID` and `ADAPTER`. Nested or abbreviated identifiers are invalid.
+For a system control, the two path fields must be identical. A bound `Canvas` in Engine therefore uses `Engine.Canvas` for both `CONTROL_ID` and `ADAPTER`. Nested or abbreviated identifiers are invalid.
 
 Read asset JSON as `RuntimeData` and decode each property through its descriptor into `UiControlPropertyValue`. Factories receive the resulting `UiControlProperties` dictionary. Setters receive one typed property value.
 
@@ -49,13 +49,13 @@ Image `drawAs` uses the bound C++ `Image::DrawAs` enum, exported as `Engine.Imag
 5. Build the C++ project with the platform `tools/build_cpp` entry point to update the Host and registry and validate UI assets. Controls using supported property types do not require rebuilding the editor or Toolchain.
 `Engine.TabView` is the childless Input example: serialise construction and visual resources only, and bind labels and callbacks at runtime. Details are in the [UI Asset Schema and Control Registry](<../Lua and Blueprint Scripting/Declarative UI/Asset Schema and Control Registry.md>) and [Engine: Interactive and Declarative UI Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md>).
 
-`Engine.CharacterView` is the childless animated Visual example. Its adapter constructs the native preview state from `size`, texture/Rect, actor scale, animation, material reference and instance parameters. Its class owns cropping, frame advancement and effect composition, while the adapter owns resource-path conversion and property assignment.
+`Engine.CharacterView` is the childless animated Visual example. Its adapter constructs the native preview state from `size`, texture/Rect, Actor scale, animation, material reference and instance parameters. Its class owns cropping, frame advancement and effect composition, while the adapter owns resource-path conversion and property assignment.
 
 Preview build artefacts, registry publication and packaging rules are described in [PreviewHost: Build, Publish and Troubleshooting](<../PreviewHost/Build Publish and Troubleshooting.md>).
 
 ## Limitations
 
-Native controls must be added through the project's Core UI source and adapter registration, and they must satisfy the preview runtime's dependency boundary. Editor plug-ins cannot register them through the palette. A control with `UiChildPolicy::None` cannot contain children, and `Single` accepts at most one child.
+Native controls must be added through the project's Core UI source and adapter registration, and they must satisfy the preview runtime's dependency boundary. Editor plug-ins cannot register them through the Palette. A control with `UiChildPolicy::None` cannot contain children, and `Single` accepts at most one child.
 
 ## Related pages
 

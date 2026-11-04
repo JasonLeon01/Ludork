@@ -12,7 +12,7 @@ local playerName = "Hero"
 local level, alive, target = 1, true, nil
 ```
 
-Lua values include `nil`, booleans, numbers, strings, functions, tables, userdata and threads. `type(value)` returns one of these built-in categories. Application objects that are represented by tables or userdata still report that underlying category.
+Lua values include `nil`, booleans, numbers, strings, functions, tables, userdata and threads. `type(value)` returns one of these built-in categories. Application objects that are represented by tables or userdata still report the underlying category.
 
 ## Operators
 

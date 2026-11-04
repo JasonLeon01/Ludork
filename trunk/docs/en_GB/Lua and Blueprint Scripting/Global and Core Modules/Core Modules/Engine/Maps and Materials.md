@@ -117,7 +117,7 @@ All individual materials are exported, while base/layer combinations come from s
 | `rendering.maxVertexOffset` | Maximum absolute displacement `[x, y]` in local pixels; defaults to `[0, 0]`. |
 | `editor.positions` | Node ID to canvas position; editing data only. |
 
-Parameter types are `bool`, `float`, `vec2`, `vec3`, `vec4`, `color` and `texture`. Vectors are numeric arrays; colors are four normalized channels in `[0, 1]`. The optional `displayName` changes the label shown in the editor; the stable `id` used by parameter nodes and instance overrides does not change. Invalid types, unknown parameter IDs and values outside declared ranges fail. The graph is a typed, acyclic data-flow graph; it has no gameplay execution pins or custom GLSL node.
+Parameter types are `bool`, `float`, `vec2`, `vec3`, `vec4`, `color` and `texture`. Vectors are numeric arrays; colours are four normalised channels in `[0, 1]`. The optional `displayName` changes the label shown in the editor; the stable `id` used by parameter nodes and instance overrides does not change. Invalid types, unknown parameter IDs and values outside declared ranges fail. The graph is a typed, acyclic data-flow graph; it has no gameplay execution pins or custom GLSL node.
 
 ### Surface outputs
 
@@ -148,7 +148,7 @@ actor:setMaterialParameter("hue", 20)
 actor:resetMaterialParameter("hue")
 ```
 
-Blueprint defaults and map-instance overrides can store the reference and parameter dictionary. Temporary runtime changes are not automatically saved; use the existing explicit state-recording workflow. Movement speed is Actor gameplay state and is not a material parameter contract.
+Blueprint defaults and map-instance overrides can store the reference and parameter dictionary. Temporary runtime changes are not automatically saved; use the existing explicit state-recording workflow. Movement speed is Actor gameplay state and is not part of the material parameter contract.
 
 The project includes Standard, Rainbow, Frozen, Burning, Petrify, Ghost, Poison, Crystallize, Hologram and WaterWind materials. These are ordinary node graphs, not special Shader modes. The standard and character examples expose `opacity`, `hue`, `lightBlock`, `reflectionStrength` and `lightingWeight`. Shader program generation and binding are engine-owned; Actors do not expose a shader path or mutable shader handle.
 

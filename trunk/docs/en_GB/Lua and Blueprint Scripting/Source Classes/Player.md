@@ -46,7 +46,7 @@ The editor shows a read-only generated `PlayerAttributeSet` preview. The preview
 | Member | Signature | Behaviour |
 |---|---|---|
 | `MAX_NAME_GRAPHEMES` | integer class constant, `32` | Maximum name length in grapheme clusters. |
-| `ValidateName` | `(name) -> string, Enums.PlayerNameValidationError?` | Returns the trimmed candidate and validation error (`nil` when valid) |
+| `ValidateName` | `(name) -> string, Enums.PlayerNameValidationError?` | Returns the trimmed candidate and the validation error (`nil` when valid) |
 | `init` | `(texture?, tag?)` | Constructs the Attribute Set, Ability System and empty inventory/equipment state |
 | `InitPlayer` | `(playerPath, applyInitialEquipment? = true) -> Player` | Constructs a Player from a Blueprint class path and optionally applies Class initial equipment |
 | `FromDict` | `(data) -> Player` | Restores Bases, inventory abilities, equipment Effects and State Effects without applying Class initial equipment or executing member graphs |

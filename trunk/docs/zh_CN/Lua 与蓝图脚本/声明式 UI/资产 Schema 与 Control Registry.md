@@ -2,7 +2,7 @@
 
 ## 资产标识与结构
 
-UI 资产使用 `type = "uiAsset"`，并遵循下面的字段规则，不接受未知字段。它不保存结构定义版本字段。资产的唯一标识是相对 `Data/UI` 的路径：大小写精确、使用正斜杠、不带扩展名。`Title.json` 的键是 `Title`，`Parts/Shared/WindowChrome.json` 的键是 `Parts/Shared/WindowChrome`。
+UI 资产使用 `type = "uiAsset"`，并遵循下面的字段规则，不接受未知字段。它不保存结构定义的版本字段。资产的唯一标识是相对 `Data/UI` 的路径：大小写精确、使用正斜杠、不带扩展名。`Title.json` 的键是 `Title`，`Parts/Shared/WindowChrome.json` 的键是 `Parts/Shared/WindowChrome`。
 
 键不得是绝对路径，也不得包含反斜杠、空段、`.`、`..`、扩展名，或 `Assets/`、`UI/`、`Data/UI/` 这样的重复前缀。每个路径段都必须不含点号，生成的 Lua 模块才有无歧义的 require 路径。空格、连字符与 Unicode 名称仍然受支持。资产对象包含 `designSize`、`palette` 与一个 `root` 节点。资产和节点都不含 UUID 字段。
 
@@ -12,12 +12,12 @@ UI 资产使用 `type = "uiAsset"`，并遵循下面的字段规则，不接受�
 |---|---|
 | `name` | 资产内的节点身份、生成引用的 key 与原生查找名，在资产内唯一；完整身份为 `(assetKey, name)`。 |
 | `controlId` | 系统控件的规范模块根原生类路径，或 `Project:<relative-key>`。 |
-| `properties` | 由控件 Schema 拥有的值。 |
+| `properties` | 由控件结构定义拥有的值。 |
 | `slot` | 由父级拥有的布局；根节点没有该字段。 |
 | `editor` | `previewText` 等仅用于设计的值。 |
 | `children` | 有序子节点；z-order 相同时以顺序作为稳定依据。 |
 
-嵌套的项目资产是黑盒：这类节点只声明项目 `controlId`、`name` 与父级 Slot，内部既无覆盖也不含子节点。目标资产必须启用 **Exposed**，直接或间接的嵌套循环都无效。
+嵌套的项目资产是黑盒：这类节点只声明项目 `controlId`、`name` 与父级 Slot，内部既无覆盖也不含子节点。目标资产必须启用 **Exposed**，直接或间接嵌套成环都无效。
 
 系统 ID 使用绑定类唯一的运行时路径，例如 `Engine.Canvas` 或 `Engine.FunctionalPlainText`。与绑定类唯一运行时路径不符的系统 ID 属于未知控件。
 
@@ -37,9 +37,9 @@ UI 资产使用 `type = "uiAsset"`，并遵循下面的字段规则，不接受�
 
 Canvas 父级提供锚点、偏移、对齐、自动尺寸与 z-order；List 父级提供列表排布，不接受 Canvas 的 Slot 字段。子项策略与 Slot 类型由父级的 adapter 声明决定。
 
-Canvas Slot 根据控件的局部边界定位，并计入边界的非零偏移。文本的 `lineAlignment` 决定文本内部的行位置，Slot 的 `alignment` 则将所得边界放置到父级中。因此，右对齐文本可以同时使用右对齐、自动尺寸的 Slot，文本宽度变化时右边缘保持固定。
+Canvas Slot 根据控件的局部边界定位，并计入边界的非零偏移。文本的 `lineAlignment` 决定文本内部的行位置，Slot 的 `alignment` 则将所得边界摆放到父级中。因此，右对齐文本可以同时使用右对齐、自动尺寸的 Slot，文本宽度变化时右边缘保持固定。
 
-`Engine.ScrollBox` 是使用 List Slot 的多子控件 Layout，序列化 `size` 与 `windowSkin`。滚动、提示与裁剪都由原生控件负责。
+`Engine.ScrollBox` 是使用 List Slot 的多子控件 Layout，序列化 `size` 与 `windowSkin`。滚动、指示器与裁剪都由原生控件负责。
 
 `Engine.WrapBox` 是使用 List Slot 的单模板 Layout 控件。`size` 设置可用布局边界，`count` 为默认 `1` 的非负整数，`spacing` 是默认 `[0,0]` 的二维数值向量。唯一子节点使用 `slot: {}`，可以包含子树。生成的实例从左向右排列并按宽度换行，只有排布步长为正时才允许负间距。没有模板或数量为零时，不创建重复控件。资产中的节点名仍在资产内唯一，但生成引用到 WrapBox 模板边界为止；运行时实例通过从 1 开始的 `get(i)` API 访问。
 
@@ -50,9 +50,9 @@ Canvas Slot 根据控件的局部边界定位，并计入边界的非零偏移�
 
 普通文本控件把字体、字号、样式、间距、对齐、描边、辉光与渐变直接保存在 UI 节点上。共享文本或特殊用途的文本仍可选用 `textConfig`。`textConfig` 非空时，编辑器禁用这些内联样式字段，运行时改用 TextConfig。富文本可以用 TextConfig 定义具名标签样式。
 
-## 控件字段
+## 控件序列化契约
 
-本节列出控件的 JSON 字段及其运行时类型。控件的用途、能否接受子节点，以及 Inspector 中完整的属性集合，见 [Palette 控件](<../../编辑器用户指南/Palette 控件.md>)。
+本节是所列控件 JSON 字段的权威说明：节点会序列化哪些字段，以及每个值要求哪种运行时类型。控件的用途、能否接受子节点，以及 Inspector 中完整的属性集合，见 [Palette 控件](<../../编辑器用户指南/Palette 控件.md>)。
 
 `Engine.ListView` 的 `childScrollingEnabled` 使用 JSON 布尔值，默认为 `false`，也可在运行时赋值。子项滚动、裁剪与布局行为见 [ListView](<../全局与 Core 模块/Core Modules/Engine/布局与图像控件.md#listview>)。
 
@@ -60,7 +60,7 @@ Canvas Slot 根据控件的局部边界定位，并计入边界的非零偏移�
 
 `Engine.Image` 与 `Engine.FunctionalImage` 将 `drawAs` 保存为 `"Image"`（默认）或 `"Tile"`。运行时调用要求 `Engine.ImageDrawAs`，平铺与缩放行为见 [Image](<../全局与 Core 模块/Core Modules/Engine/布局与图像控件.md#image>)。
 
-`Engine.EmitterView` 序列化 `particle`（`Data/Particles` 下不带扩展名的键，默认 `""`）、`size`（默认 `[100,100]`）、`anchor`（默认 `[0.5,0.5]`）和 `autoPlay`（默认 `true`），不接受子节点。它沿用父节点的 Slot、排序与裁剪，GPU 粒子使用所属 Canvas 的逻辑坐标域，代码通过 `getEmitter()` 控制播放。隐藏或未挂载时冻结，释放时释放播放，切换 Canvas 时重置坐标域。资源 Schema、时序与缩放见 [通用粒子](<../../编辑器用户指南/通用粒子.md>)。
+`Engine.EmitterView` 序列化 `particle`（`Data/Particles` 下不带扩展名的键，默认 `""`）、`size`（默认 `[100,100]`）、`anchor`（默认 `[0.5,0.5]`）和 `autoPlay`（默认 `true`），不接受子节点。它沿用父节点的 Slot、排序与裁剪，GPU 粒子使用所属 Canvas 的逻辑坐标域，代码通过 `getEmitter()` 控制播放。隐藏或未挂载时冻结，销毁时释放播放，切换 Canvas 时重置坐标域。资源结构定义、时序与缩放见 [通用粒子](<../../编辑器用户指南/通用粒子.md>)。
 
 `Engine.Button` 接受 `texture`、可选的 `textureRect`、`colour`、`hoverColour`、`pressedColour`、`gamepadButton` 与 `gamepadLongPress`。`gamepadButton` 使用 `"X"` 等逻辑名称，默认为 `""`；`gamepadLongPress` 默认为 `false`。运行时绑定与交互见 [Engine：运行时值与功能控件](<../全局与 Core 模块/Core Modules/Engine/运行时值与功能控件.md#button>)。
 

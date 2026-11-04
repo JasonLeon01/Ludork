@@ -17,7 +17,7 @@ __*  init  new  scriptMixin  scriptPath
 _GENERATED_CLASS  _graph  _hasImplementationOwner
 ```
 
-Because `init` is reserved, a Direct Script Mixin does not declare a constructor. Initialise private instance state from the lifecycle callback supplied by the owning type, such as `onCreate`. Release subscriptions or resources in the corresponding teardown callback.
+Because `init` is reserved, a Direct Script Mixin does not declare a constructor. Initialise private instance state in the lifecycle callback supplied by the owning type, such as `onCreate`. Release subscriptions or resources in the corresponding teardown callback.
 
 ## Parent method calls
 

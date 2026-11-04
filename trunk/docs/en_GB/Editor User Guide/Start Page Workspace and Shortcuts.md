@@ -22,7 +22,7 @@ The embedded pages hide website navigation. Documentation links stay in the wind
 
 ## Global editor preferences
 
-Preferences shared by all projects are stored in `~/Ludork/Ludork.plist` on macOS and `~/Ludork/Ludork.ini` on other platforms, and restored when the editor starts. The macOS file uses the [XML plist configuration structure](<../Getting Started/Ludork Lua Advanced.md#platform-configuration-and-files>). Its directory stays `~/Ludork`; an existing macOS `Ludork.ini` is neither read nor migrated. A missing plist starts with the default preferences.
+Preferences shared by all projects are stored in `~/Ludork/Ludork.plist` on macOS and `~/Ludork/Ludork.ini` on other platforms, and restored when the editor starts. The macOS file uses the [XML plist configuration structure](<../Getting Started/Ludork Lua Advanced.md#platform-configuration-and-files>). Its directory stays `~/Ludork`; an existing macOS `Ludork.ini` is neither read nor migrated. If the plist is missing, the editor starts with the default preferences.
 
 | Area | Saved preferences |
 |---|---|
@@ -91,7 +91,7 @@ The primary modifier is `Ctrl` on Windows and `Command` on macOS.
 | `F9` | Game Variables |
 | `F10` | General Data |
 
-Some document windows add context-specific shortcuts. In the Blueprint editor, `F2` renames the selected event tab. In the Common Functions window it renames the selected Common Function, in the file explorer it renames the selected file, except on macOS, and in the animation editor it renames the selected time tag. No window displays an `F2` hint.
+Some document windows add context-specific shortcuts. In the Blueprint editor, `F2` renames the selected event tab; in the Common Functions window, the selected Common Function; in the file explorer, the selected file (except on macOS); and in the animation editor, the selected time tag. No window displays an `F2` hint.
 
 Single-button hint and error dialogs close with `Enter`, `Return`, `Space` or `Escape`. In confirmation dialogs, `Enter`, `Return` and `Space` confirm the action, while `Escape` cancels it.
 
@@ -103,7 +103,7 @@ File fields that can be cleared offer **Clear** as the first item in the file se
 
 Managed resource changes and asset file or folder renames and moves stay in memory until Save; Discard restores the last saved paths. All Save buttons and `Ctrl/Command+S` write every modified document, including unopened resources, and Construct, Export, Play and Pack use the same workflow. Successful saves show no result dialog; a failed save reports only the failed items and their errors. Normal Save validates changed Blueprints, while forced saving can retain unfinished graphs. [Game Config](<Project Settings and Asset Layout.md#game-configuration>) writes immediately on confirmation.
 
-Saving, resource deletion and file transfers, renaming, Undo and Redo temporarily disable editing, project switching and window closing. Longer operations show an animated progress dialog after a short delay, including reference checks before deletion. The dialog reports the current stage and, when available, the current file and completed count. It gives way to any required confirmation and closes when the operation finishes or fails. These editing operations cannot be cancelled midway. If project data or external files change during validation, the editor asks you to retry.
+Saving, resource deletion, file transfers and renames, Undo and Redo temporarily disable editing, project switching and window closing. Longer operations show an animated progress dialog after a short delay, including reference checks before deletion. The dialog reports the current stage and, when available, the current file and completed count. It gives way to any required confirmation and closes when the operation finishes or fails. These editing operations cannot be cancelled midway. If project data or external files change during validation, the editor asks you to retry.
 
 Undo and Redo apply only to the active file, which keeps its 100 most recent entries. Windows that show the same file share its data and history, including after they are closed and reopened. Continuous text or numeric input in one field merges into a single step. Changing the control or the editing view, an automatic update, Save, Undo and Redo all end that step. Buttons, check boxes and selections each remain separate steps.
 
@@ -172,7 +172,7 @@ When profiling a composite world, the Performance Monitor includes an optional `
 | `prepared` | Loaded regions in `Prepared`. |
 | `active` | Regions in `Active`. |
 | `dormant` | Loaded regions in `Dormant`. |
-| `cacheBytes` | Conservative estimate used by the non-Active region cache. It is not exact process, Lua, native or GPU memory. |
+| `cacheBytes` | Conservative estimate used by the non-Active region cache. It is not an exact measure of process, Lua, native or GPU memory. |
 | `publishMilliseconds` | Time spent converting and publishing regions during the logic tick. |
 | `visibleTileChunks` | Unique 32×32-cell TileLayer chunks submitted by visible child layers in the latest draw. |
 | `activeActors` | Actors currently present in the world's Active update/render batches. |

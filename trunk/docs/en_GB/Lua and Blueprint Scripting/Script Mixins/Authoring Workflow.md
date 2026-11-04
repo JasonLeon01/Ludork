@@ -10,13 +10,13 @@ A Script Mixin Blueprint may omit `graph`, because its events come from Lua. If 
 
 1. Create or open a Blueprint whose parent supplies the lifecycle and native members the mixin uses.
 2. Enable **Script Mixin** on the first Blueprint in the chain.
-3. When **Script Path** is empty and editable, click **+** before **...**. Choose a directory beneath `Scripts/Mixins` and enter a file name, for example `Doors/KeyDoor.lua`. The editor adds `.lua` if no extension is entered.
-4. Save to create the script and its same-name `_meta.lua` companion. The editor selects the new script automatically and hides **+**. To attach an existing script, use **...** instead. Stored paths are relative to `Scripts/Mixins`.
+3. When **Script Path** is empty and editable, click **+** to the left of **...**. Choose a directory beneath `Scripts/Mixins` and enter a file name, for example `Doors/KeyDoor.lua`. The editor adds `.lua` if no extension is entered.
+4. Save to create the script and its same-named `_meta.lua` companion. The editor selects the new script automatically and hides **+**. To attach an existing script, use **...** instead. Stored paths are relative to `Scripts/Mixins`.
 5. Edit the generated event methods and add any editable defaults and metadata fields. Refresh or reopen the Blueprint after editing the files, then save.
 
 The script name must start with an ASCII letter or underscore, contain only ASCII letters, digits and underscores, and must not be a Lua keyword. Creation does not overwrite existing files. Undo and redo restore the selection without deleting the created files.
 
-The template contains all Events declared for the resolved Actor type, including inherited Events with the most-derived signature. Each method forwards its parameters to the parent event through `super()` and forwards any return values. Ordinary methods and `init` are not generated. The companion metadata declares only the matching type and an empty `attrs` table; add editable fields as needed.
+The template contains all events declared for the resolved Actor type, including inherited events with the most-derived signature. Each method forwards its parameters to the parent event through `super()` and forwards any return values. Ordinary methods and `init` are not generated. The companion metadata declares only the matching type and an empty `attrs` table; add editable fields as needed.
 
 ## File pair
 

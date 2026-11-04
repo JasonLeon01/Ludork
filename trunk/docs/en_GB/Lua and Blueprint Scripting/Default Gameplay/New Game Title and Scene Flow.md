@@ -20,7 +20,7 @@ For a world, `Scene:getGameMap()` and `Actor:getMap()` expose one world-coordina
 
 The facade's `mapName` comes from the required `worldName` in `_world.json`, so UI such as the player HUD identifies the complete world rather than an individual streamed child. Child map JSON retains its own `mapName` for standalone use, but the HUD does not display that name while the child belongs to a loaded world.
 
-On entry, the runtime revalidates the flat world directory, the exact `_world.json`, the required world name, direct JSON child files, placements and layer order. Unrelated non-JSON regular files are ignored, and invalid data fails.
+On entry, the runtime revalidates the flat world directory, the exact `_world.json` filename, the required world name, direct JSON child files, placements and layer order. Unrelated non-JSON regular files are ignored, and invalid data fails.
 
 Children progress through `Unloaded`, `Reading`, `Prepared`, `Active` and `Dormant`. Streaming prioritises the Camera neighbourhood and cancels obsolete reads. Tileset and autotile preparation uses the [region builder's asynchronous resource requests](<../Global and Core Modules/Global APIs/GameMap.md#map-data-and-region-builders>). Only Active Actors simulate. Until every visible placement and Tile chunk is ready, the Camera retains its last complete frame, and colliding movement cannot enter the unprepared area.
 
@@ -46,7 +46,7 @@ Use the System and scene APIs documented in the API reference. The C++ runtime s
 
 ### Customise the title
 
-Edit the Lua scene and window composition and the corresponding data. Keep all text identifiers compatible with [Game Localisation Workflow](<../../Plug-in Development and Installation/Official Plug-ins/Game Localisation Workflow.md>).
+Edit the Lua scene and window composition, and the corresponding data. Keep all text identifiers compatible with [Game Localisation Workflow](<../../Plug-in Development and Installation/Official Plug-ins/Game Localisation Workflow.md>).
 
 ## Limitations
 

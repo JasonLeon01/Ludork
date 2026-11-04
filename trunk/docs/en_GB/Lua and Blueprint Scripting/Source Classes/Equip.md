@@ -22,6 +22,6 @@ The editor shows a generated `EquipAttributeSet` preview for `ID`. The `attribut
 | Member | Signature | Behaviour |
 |---|---|---|
 | `init` | `(texture?, rect?, tag?)` | Constructs the generated Equip Attribute Set from `ID` |
-| `onCollision` | `(other)` | Adds the Equip to Player inventory through the shared pickup flow |
+| `onCollision` | `(other)` | Adds the Equip to the Player's inventory through the shared pickup flow |
 
 `Player:equip` applies `attributes.attrPlus` as an Infinite Effect and explicitly runs the General Data `onEquip` or `onUnequip` ability.

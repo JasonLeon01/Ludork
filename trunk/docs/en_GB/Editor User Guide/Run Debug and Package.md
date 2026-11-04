@@ -74,7 +74,7 @@ Stopping, natural exit or a launch failure restores the project map view and the
 
 Save the changed Lua source files in your external editor, enter `$r` in the Console, then press `Enter` or **Send**. This updates existing functions while preserving the scene, objects and runtime state. The game must be launched from the editor and use loose Lua sources.
 
-The Console reports the result. Changes to data or module structure may require a restart; see [Lua hot reload](<../Lua and Blueprint Scripting/Lua Runtime and Modules.md#lua-hot-reload>) for the supported changes and the failure handling.
+The Console reports the result. Changes to data or module structure may require a restart; see [Lua hot reload](<../Lua and Blueprint Scripting/Lua Runtime and Modules.md#lua-hot-reload>) for supported changes and failure handling.
 
 ## Packaging
 
@@ -136,7 +136,7 @@ Set **Release version** in Pack Options. C++ Source projects also show **Interna
 
 All game packaging commands accept `--version 1.0.0` and `--release`. C++ Source projects also accept `--dev`; either channel option overrides `packaging.dev` for that invocation only. Standalone projects always package as releases, ignore an older `packaging.dev=true` value and reject an explicit `--dev`. Command-line options do not write back to the project.
 
-The packer captures one UTC+8 build time at the start and reuses it through every stage. Formal packages use the base version as their full release identifier. A dev package appends `YYYYMMDDHH` to it: at `2026-01-01T07:00:00+08:00`, version `1.0.0` becomes `1.0.0.2026010107`, using the build time captured at packaging start. dev does not change Release optimisation, signing, encryption or installation identity.
+The packer captures one UTC+8 build time at the start and reuses it through every stage. Formal packages use the base version as their full release identifier. A dev package appends `YYYYMMDDHH` to it: at `2026-01-01T07:00:00+08:00`, version `1.0.0` becomes `1.0.0.2026010107`. dev does not change Release optimisation, signing, encryption or installation identity.
 
 | Platform field | Value in both modes | Example at the time above |
 |---|---|---|

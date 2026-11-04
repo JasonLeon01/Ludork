@@ -6,7 +6,7 @@ Choose **Standalone** to build gameplay with Lua, Blueprint, data and assets usi
 
 ## Why is a project template unavailable, and can I create projects offline?
 
-Release editors download templates matching their complete version, including the patch number. If that release or template has not been published, creation reports that it is unavailable. A completed, valid template cache can be reused offline. Development editors use bundled templates and report missing files without downloading a replacement. See [Obtaining templates](<../Getting Started/Project Templates.md#obtaining-templates>).
+Release editors download templates matching their complete version, including the patch number. If that release or template has not been published, project creation reports the template as unavailable. A completed, valid template cache can be reused offline. Development editors use bundled templates and report missing files without downloading a replacement. See [Obtaining templates](<../Getting Started/Project Templates.md#obtaining-templates>).
 
 ## Will updating Ludork automatically update an existing project?
 

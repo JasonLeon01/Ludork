@@ -1,6 +1,6 @@
 # Source.MapActors.Item
 
-`Item` declares the General Data identifier, pickup count and sound effect of an item Actor, which adds itself to the Player inventory on collision.
+`Item` declares the General Data identifier, pickup count and sound effect of an item Actor, which adds itself to the Player's inventory on collision.
 
 Metadata source: `Scripts/Source/MapActors/Item_meta.lua`
 
@@ -23,6 +23,6 @@ The editor shows a generated `ItemAttributeSet` preview for `ID`. The `attribute
 | Member | Signature | Behaviour |
 |---|---|---|
 | `init` | `(texture?, rect?, tag?)` | Constructs the generated Item Attribute Set from `ID` |
-| `onCollision` | `(other)` | Adds `count` Items to Player inventory through the shared pickup flow |
+| `onCollision` | `(other)` | Adds `count` Items to the Player's inventory through the shared pickup flow |
 
 The Player grants `GeneralData.Item.<ID>.onUse` while the Item count is positive. Enemy drops explicitly activate `onDrop`.

@@ -4,7 +4,7 @@ These patterns cover engine infrastructure that the ordinary class, property, me
 
 ## Class metadata decorators
 
-Class decorators are nested in the owning class annotation:
+Class decorators are nested inside the owning class's annotation:
 
 ```cpp
 BIND_CLASS(callbacks = true,
@@ -17,7 +17,7 @@ public:
 };
 ```
 
-`invalid_vars(...)` hides fields and `rect_range_vars(...)` links rectangles to resource or range fields. Both accept ordered identifiers, and only inside `BIND_CLASS`. Property-specific rectangle semantics remain `meta(RectRangeVars = "texturePath")` in `BIND_PROPERTY`. `metadata = false` does not disable a callback; use `callback = false` instead. See [Binding a Class](<Binding a Class.md>).
+`invalid_vars(...)` hides fields and `rect_range_vars(...)` links rectangles to resource or range fields. Both accept ordered identifiers and are valid only inside `BIND_CLASS`. Property-specific rectangle semantics remain `meta(RectRangeVars = "texturePath")` in `BIND_PROPERTY`. `metadata = false` does not disable a callback; use `callback = false` instead. See [Binding a Class](<Binding a Class.md>).
 
 Member-level decorators and structured brace values follow [Declare properties](<Binding a Class.md#declare-properties>).
 
@@ -50,7 +50,7 @@ BIND_LUA_REVERSE(path = "Input.KeyName", source = "sf.Keyboard.Key")
 BIND_LUA_HELPER(kind = "cast", path = "Cast")
 ```
 
-Module properties are exposed at the module root, and class properties on their own class. Bindgen does not duplicate an existing Lua value under another runtime path. Reverse declarations create a new reverse-name lookup at their declared canonical path. Helpers use generic native support. The `eval` helper evaluates only its caller's expression, and optional locals take precedence over runtime globals. A missing or empty expression returns `nil`. Non-empty evaluation is synchronous and raises when called from a yieldable coroutine.
+Module properties are exposed at the module root, and class properties on their own class. Bindgen does not duplicate an existing Lua value under another runtime path. Reverse declarations create a new reverse-name lookup at their declared canonical path. Helpers use generic native support. The `eval` helper evaluates only its caller's expression, and optional locals take precedence over runtime globals. A missing or empty expression returns `nil`. Non-empty evaluation is synchronous and raises an error when called from a yieldable coroutine.
 
 ## Initialisation, injection and value traits
 
@@ -68,7 +68,7 @@ BIND_CLASS(dynamic_value = true)
 class RuntimeValue {};
 ```
 
-`BIND_MODULE_INIT` runs while opening the module. `BIND_INJECT` names its Lua source callback with `global` and connects it to a C++ setter and is valid only while that Lua state remains available. With `variadic = true`, the setter must accept `std::function<std::vector<T>(Fixed..., const std::vector<T>&)>`. Zero returns and interior or trailing `nil` remain distinct without envelope tables. The two `BIND_CLASS` flags select conversion and identity traits, and they cannot combine with incompatible table-value modes. Engine subsystems use typed runtime facades and fixed provider slots, not a generic string operation dispatcher.
+`BIND_MODULE_INIT` runs while opening the module. `BIND_INJECT` names its Lua source callback with `global`, connects it to a C++ setter, and is valid only while that Lua state remains available. With `variadic = true`, the setter must accept `std::function<std::vector<T>(Fixed..., const std::vector<T>&)>`. Zero returns and interior or trailing `nil` remain distinct without envelope tables. The two `BIND_CLASS` flags select conversion and identity traits and cannot be combined with incompatible table-value modes. Engine subsystems use typed runtime facades and fixed provider slots, not a generic string operation dispatcher.
 
 ## Limitations
 

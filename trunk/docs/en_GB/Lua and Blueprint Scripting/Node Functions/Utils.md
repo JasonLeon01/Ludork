@@ -53,4 +53,4 @@ Metadata source: `Scripts/GlobalFunctions/Utils_meta.lua`
 
 `AddPlayerByClass` stores the new member's map and cell without changing the primary player. `SetPlayerByClass` moves that class to `playerKeys[1]`, rebinds Scene UI, and loads the stored map.
 
-`GetAttr` and a read through `GetAttrRef` both return the component field value when one is non-nil. Otherwise they read the object's attribute. Both preserve `false`, `0` and empty strings, and both raise an error when no non-nil value exists. Reading an Actor's `tag` returns its string value, which can connect directly to the `refActorTag` input of dialogue nodes.
+`GetAttr` and a read through `GetAttrRef` both return the component field value when it is non-nil. Otherwise they read the object's attribute. Both preserve `false`, `0` and empty strings, and both raise an error when no non-nil value exists. Reading an Actor's `tag` returns its string value, which can connect directly to the `refActorTag` input of dialogue nodes.

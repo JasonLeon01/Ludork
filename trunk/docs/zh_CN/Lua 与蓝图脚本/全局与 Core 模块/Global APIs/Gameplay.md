@@ -2,7 +2,7 @@
 
 `require("GlobalCore")` 暴露原生能力系统，涵盖 `AttributeSet`、`AbilitySystemComponent`，以及能力、结果、事件、效果与 spec 等类型。
 
-下列签名描述 Lua 实例调用。对应的蓝图实例方法节点还会显式提供有类型的首个 `self` 输入，未设置时默认使用图的所属对象。需要调用其他 Attribute Set、Ability System Component 或 Ability 实例时，应连接该实例。
+下列签名描述 Lua 实例调用。对应的蓝图实例方法节点还会显式提供有类型的首个 `self` 输入，未设置时默认为图的所属对象。要调用的 Attribute Set、Ability System Component 或 Ability 实例与所属对象不同时，应连接该实例。
 
 ## AttributeSet
 
@@ -35,7 +35,7 @@
 | `getNumericAttributeBases` | `() -> table<string, number>` | 返回可用于持久化的基础值副本 |
 | `addAttributeChangeListener` | `(name, callback, params?)` | 相关当前值或基础值变化后，调用 `callback(oldValue, newValue, change, ...)` |
 | `setNumericAttributeConstraint` | `(name, callback?)` | 设置或移除当前值的最终约束，并立即重算 |
-| `getRevision` | `() -> integer` | 返回随属性、能力或效果变化而递增的版本号。属性监听触发时已包含本次提交 |
+| `getRevision` | `() -> integer` | 返回随属性、能力或效果修改而变化的版本号。属性监听触发时已包含本次提交 |
 
 基础值设置方法会先校验完整的候选 Base 与 Current 状态，再提交修改。属性名未知、数值非有限或不符合结构定义时都会失败，不会留下部分修改。直接给数值字段赋值同样视为写入基础值。
 

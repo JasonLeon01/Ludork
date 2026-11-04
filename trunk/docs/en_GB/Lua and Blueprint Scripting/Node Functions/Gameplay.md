@@ -27,11 +27,11 @@ Metadata source: `Scripts/GlobalFunctions/Gameplay_meta.lua`
 | `SendEvent` | `target: Battler; eventTag: string; payload: any = {}` | `results: any` | default execution output |
 | `ApplyEffect` | `target: Battler; effect: any; stacks: int = 1; sourceKey: any` | `handle: int` | default execution output |
 
-The context accessors and the context-bound mutation nodes require the `GameplayEventData` parent of a General Data graph. Using them in an ordinary Actor graph is an error. `RemovePlayerState` and `ReducePlayerState` act on that context's target, and they keep a single execution output when no State exists.
+The context accessors and the context-bound mutation nodes require a General Data graph owned by `GameplayEventData`. Using them in an ordinary Actor graph is an error. `RemovePlayerState` and `ReducePlayerState` act on that context's target, and they keep a single execution output when no State exists.
 
 Dynamic attribute pins are `any`, but the Ability System requires a finite number of the selected schema type. `SetNumericAttributeBase` writes Base. `ApplyAttributeDelta` applies an Instant Add modifier.
 
-`SendEvent` synchronously preserves the instigator and targets the supplied Battler. `ApplyEffect` accepts a `GameplayEffect`. Instant Effects return no persistent handle and cannot grant tags or abilities.
+`SendEvent` runs synchronously, preserves the instigator, and targets the supplied Battler. `ApplyEffect` accepts a `GameplayEffect`. Instant Effects return no persistent handle and cannot grant tags or abilities.
 
 ## Related pages
 

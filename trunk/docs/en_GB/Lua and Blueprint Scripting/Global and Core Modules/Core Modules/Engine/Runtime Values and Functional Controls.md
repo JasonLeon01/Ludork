@@ -2,7 +2,7 @@
 
 ## RuntimeValue
 
-`RuntimeValue` is registered under `Engine` for dynamic native and Lua values, and Lua `any` values keep their ordinary representations. C++ ownership and conversion rules are in [Core headers and Runtime boundary](<../../../../Native C++ Development/Build and Module Layout.md#core-headers-and-runtime-boundary>).
+`RuntimeValue` is registered under `Engine` for dynamic native and Lua values; Lua `any` values keep their ordinary representations. C++ ownership and conversion rules are in [Core headers and Runtime boundary](<../../../../Native C++ Development/Build and Module Layout.md#core-headers-and-runtime-boundary>).
 
 ### Functions and events
 
@@ -19,7 +19,7 @@ A declarative Button with an empty `texture` uses the current window skin's sele
 
 `gamepadButton` and `gamepadLongPress` add a gamepad binding. JSON stores a logical name such as `"X"`; `""` means unbound and long press defaults to `false`. Lua uses `button:setGamepadButton(Engine.JoystickButton.getX())` and `button:setGamepadLongPress(true)`; pass `nil` to clear the binding.
 
-While `Engine.Input.getInputHintDevice()` is `Engine.InputHintDevice.Gamepad`, the bound key is a 16 logical-pixel circle inside the button's right edge, vertically centred and independent of background stretching. It shares the white background, black key glyph and green clockwise long-press progress with [`GamepadHintBar`](<Interactive and Declarative UI Controls.md#gamepadhintbar>). A short press invokes `onConfirm` / `addConfirmCallback` once; a long press invokes it once at one second and needs a release before another trigger. The button need not have focus, but it and its owning window must be visible and interactive. Disabling or hiding either, deactivating the window or disconnecting the gamepad clears progress. A disabled button's visible hint is grey.
+While `Engine.Input.getInputHintDevice()` is `Engine.InputHintDevice.Gamepad`, the bound key appears as a 16 logical-pixel circle at the inner right edge of the button, vertically centred and unaffected by background stretching. It shares the white background, black key glyph and green clockwise long-press progress with [`GamepadHintBar`](<Interactive and Declarative UI Controls.md#gamepadhintbar>). A short press invokes `onConfirm` / `addConfirmCallback` once; a long press invokes it once at one second and requires a release before it can trigger again. The button need not have focus, but it and its owning window must be visible and interactive. Disabling or hiding either, deactivating the window or disconnecting the gamepad clears progress. A disabled button's visible hint is grey.
 
 ### Properties
 
@@ -74,7 +74,7 @@ Direct metadata bases: `{ "Engine", "SpriteBase" }`, `{ "Engine", "FunctionalBas
 | `lateUpdate` | `function` | self: { "Engine", "Canvas" } = "self"; deltaTime: float | — | — |
 | `fixedUpdate` | `function` | self: { "Engine", "Canvas" } = "self"; fixedDelta: float | — | — |
 
-`insertChildBefore(child, before)` inserts a child immediately before an existing child in update order without detaching or resetting existing siblings. A null child or a missing anchor is rejected. Visual stacking still follows each child’s z-order.
+`insertChildBefore(child, before)` inserts a child immediately before an existing child in the update order, without detaching or resetting existing siblings. A null child or a missing anchor is rejected. Visual stacking still follows each child's z-order.
 
 ### CPU particles in a Canvas
 
@@ -145,7 +145,7 @@ A `FunctionalBase` accepts focus and input only while it and every `FunctionalBa
 
 ### Touch capture
 
-`setTouchHitBounds` sets an optional touch-only hit rectangle in the control's local logical coordinates. The rectangle must have finite coordinates and a non-negative size, and passing `nil` restores the default. `getAbsoluteTouchHitBounds` returns its axis-aligned screen rectangle after the runtime display scale and control hierarchy transforms are applied. A `FunctionalBase` mixed into a `ControlBase` defaults to the control's absolute bounds. A standalone `FunctionalBase` has no control coordinate space, so the getter returns `nil`.
+`setTouchHitBounds` sets an optional touch-only hit rectangle in the control's local logical coordinates. The rectangle must have finite coordinates and a non-negative size, and passing `nil` restores the default. `getAbsoluteTouchHitBounds` returns its axis-aligned screen rectangle after the runtime display scale and control hierarchy transforms are applied. When a `FunctionalBase` is mixed into a `ControlBase`, the rectangle defaults to the control's absolute bounds. A standalone `FunctionalBase` has no control coordinate space, so the getter returns `nil`.
 
 An effectively enabled functional control captures a primary touch whose beginning position is inside its absolute touch hit bounds. The capturing control continues to receive movement and the final release even after the pointer leaves those bounds. Releasing outside clears the pressed state without invoking click or confirm, but any tap belonging to that capture is still consumed so it cannot activate a control underneath. Multi-touch cancellation also releases capture, and touch hit bounds do not affect mouse hit testing.
 

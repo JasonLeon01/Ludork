@@ -1,6 +1,6 @@
 # GlobalFunctions.Transition
 
-Both functions return `Engine.AsyncOperation` and complete with `true`: freeze waits for capture of the outgoing frame (`Frozen`), and transition waits for submission of its final frame (`Finished`). Replacement and cancellation follow [GlobalCore.Transition](<../Global and Core Modules/Core Modules/GlobalCore/Scenes and System.md#transition>).
+Both functions return `Engine.AsyncOperation` and complete with `true`: freeze waits for capture of the outgoing frame (`Frozen`), and transition waits for submission of its final frame (`Finished`). See [GlobalCore.Transition](<../Global and Core Modules/Core Modules/GlobalCore/Scenes and System.md#transition>) for replacement and cancellation.
 
 Metadata source: `Scripts/GlobalFunctions/Transition_meta.lua`
 

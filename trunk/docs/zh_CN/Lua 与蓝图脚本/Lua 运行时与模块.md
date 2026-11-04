@@ -2,11 +2,11 @@
 
 Ludork 运行 Lua 5.5，并提供 Standard 扩展、LuaSF 与项目原生模块。
 
-初次接触 Lua 的读者可以从 [Lua 基础语法](<../快速入门/Lua 基础语法.md>) 入手。`class`、`bool`、`list`、`dict`、复制、文件系统辅助函数与 `asyncio` 等 Ludork 原生语言扩展见 [Ludork Lua 进阶](<../快速入门/Ludork Lua 进阶.md>)。本节讲项目脚本架构，不涉及语言语法。
+初次接触 Lua 的读者可以从 [Lua 基础语法](<../快速入门/Lua 基础语法.md>) 入手。`class`、`bool`、`list`、`dict`、复制、文件系统辅助函数与 `asyncio` 等 Ludork 原生语言扩展见 [Ludork Lua 进阶](<../快速入门/Ludork Lua 进阶.md>)。本节介绍项目脚本架构，不涉及语言语法。
 
 | 模型 | 适合场景 | 主要来源 |
 |---|---|---|
-| 蓝图 graph | 可视化事件与执行流 | `Data/Blueprints/*.json` |
+| 图模式蓝图 | 可视化事件与执行流 | `Data/Blueprints/*.json` |
 | Lua 类 | 可复用系统与玩法类型 | `Scripts/**/*.lua` |
 | Script Mixin | 直接挂到蓝图类上的 Lua 行为 | `Scripts/Mixins/**/*.lua` 与同名 `_meta.lua` |
 | 声明式 UI | JSON 资产与生成的类型化 View 树 | `Data/UI/**/*.json`、生成的 `Scripts/Internal/UI/**/*.lua` 及对应 stub |
@@ -16,7 +16,7 @@ Ludork 运行 Lua 5.5，并提供 Standard 扩展、LuaSF 与项目原生模块�
 
 ## 入口与模块顺序
 
-原生宿主启动命令行第一个参数指定的脚本；未提供脚本时，启动 `Scripts/Entry.lua`。宿主不会读取项目本地配置或 `script` 设置来选择入口。按下面的顺序加载根原生模块，先完成全部直接 `require`，再声明别名：
+原生宿主在启动时运行命令行第一个参数指定的脚本；未提供脚本时运行 `Scripts/Entry.lua`。宿主不会读取项目本地配置或 `script` 设置来选择入口。按下面的顺序加载根原生模块，先完成全部直接 `require`，再声明别名：
 
 ```lua
 local Engine = require("Engine")
@@ -29,9 +29,9 @@ local System = GlobalCore.System
 local ManagerFunctions = GlobalFunctions.Manager
 ```
 
-原生 `GlobalFunctions` 模块暴露 `Components`、`UI`、`NodeGraph` 与 `Manager`。`Scripts/GlobalFunctions` 下的 Lua 蓝图函数库是独立模块，通过 `require("GlobalFunctions.Math")` 等路径加载，不会自动加入原生根表。其他模块一律使用完整点分路径。不要添加目录级的 `init.lua` 聚合模块。除蓝图函数库外，可以为解决实际依赖环，或在明确的首次使用入口（例如可选窗口工厂）中延迟 `require`。这类生命周期须由所属场景或功能明确控制；普通依赖仍直接导入。
+原生 `GlobalFunctions` 模块暴露 `Components`、`UI`、`NodeGraph` 与 `Manager`。`Scripts/GlobalFunctions` 下的 Lua 蓝图函数库是独立模块，通过 `require("GlobalFunctions.Math")` 等路径加载，不会自动加入原生根表。其他模块一律使用完整点分路径。不要添加目录级的 `init.lua` 聚合模块。除蓝图函数库外，只有为了解决实际的依赖环，或在明确的首次使用入口（例如可选窗口的工厂）处，才延迟 `require`。这类生命周期须由所属场景或功能明确控制；普通依赖仍直接导入。
 
-`Scripts/GlobalFunctions` 的运行时模块不得在模块作用域调用 `require`，包括加载原生模块；依赖在函数首次使用时解析，避免蓝图函数库加载成环。Lua 路径及导出名不得占用 C++ 绑定的同一 `GlobalFunctions` 路径。
+`Scripts/GlobalFunctions` 的运行时模块不得在模块作用域调用 `require`，包括加载原生模块；依赖在函数首次使用时才解析，蓝图函数库因此可以无环加载。Lua 路径及导出名不得占用 C++ 绑定的同一 `GlobalFunctions` 路径。
 
 静态依赖从根原生模块流向 `Scripts/Global`，再流向 `Scripts/Source`。Global 的实现和声明不得 `require` Source 或引用其类型，也不得通过 `GlobalFunctions` 下依赖项目的 Lua 函数库间接引入 Source。原生根模块 `GlobalFunctions` 仍属于下层 API。`Scripts/Internal` 与 `Scripts/GlobalFunctions` 可以依赖 `Source` 中的项目模块。通用模块可以加载数据中指定的模块名，但不得硬编码更高层的业务模块。共享服务需要项目行为时，由项目启动代码传入回调和类对象，参见 [`Global.Data.InitializeRuntime(options)`](<Game 玩法/运行时数据、配置与存档.md#数据服务>)。
 
@@ -43,7 +43,7 @@ local ManagerFunctions = GlobalFunctions.Manager
 
 打包后的 Data 仍通过相同的逻辑 `Data/...` 路径访问。`Engine.loadData` 与 `Engine.dataExists` 会为不存在的 `.json` 路径查找二进制 `.ldc` 替代文件；JSON 平台 API 只使用指定路径。这是只读的运行时边界，不是通用归档文件系统。
 
-每个可独立复用的类都有自己的模块，由该模块返回类本身。窗口模块可以内含私有 Controller，并通过 `Ui.DefineWindow` 导出 UI，详见[声明式 UI 编写工作流](<声明式 UI/编写工作流.md>)。工具模块可以收拢相关的辅助函数。
+每个可独立复用的类都有自己的模块，由该模块返回类本身。窗口模块可以内含私有 Controller，并通过 `Ui.DefineWindow` 导出 UI，详见[声明式 UI 编写工作流](<声明式 UI/编写工作流.md>)。工具模块可以汇集相关的辅助函数。
 
 私有成员只能通过 `self` 或同实例的 `super(..., self)` 分派访问。访问其他对象时改用公开的读取方法、命令或数据，链式访问与动态索引同样如此。
 
@@ -63,7 +63,7 @@ local StairDirection = {
 return StairDirection
 ```
 
-运行时直接加载枚举，例如 `local StairDirection = require("Enums.StairDirection")`，随后使用 `StairDirection.Up`。蓝图元数据使用 `type = { enum = "Enums.StairDirection" }` 引用该模块，完整规则见 [Metadata 结构与 Decorator](<蓝图脚本/Metadata 结构与 Decorator.md>)。
+运行时直接加载枚举，例如 `local StairDirection = require("Enums.StairDirection")`，随后使用 `StairDirection.Up`。蓝图metadata使用 `type = { enum = "Enums.StairDirection" }` 引用该模块，完整规则见 [Metadata 结构与 Decorator](<蓝图脚本/Metadata 结构与 Decorator.md>)。
 
 | Game 枚举模块 | 值或用途 |
 |---|---|
@@ -84,7 +84,7 @@ return StairDirection
 | `Enums.WorldActorState` | 世界 Actor 生命周期标记：`NEVER_ACTIVE = "NeverActive"`、`ACTIVE = "Active"`、`DORMANT = "Dormant"` |
 | `Enums.WorldPublishPhase` | 区域发布阶段标记：`CONVERT = "convert"`、`BUILD = "build"`、`INDEX = "index"`、`FINALISE = "finalise"` |
 
-原生构建生成 `Enums.Engine.*`、`Enums.GlobalCore.*`、`Enums.GlobalFunctions.*` 和 `Enums.sf.*`。项目数据保存生成 `Enums.GeneralDataKey`、每个数据类型独立的 `Enums.GeneralData.<TypeName>` 模块，以及 `Enums.Animation` 与 `Enums.Particle`。编辑器在保存前从当前项目目录解析这些字符串枚举，包括未保存的变更；运行时 `require` 读取生成的源码模块。这些生成模块仍以所属的原生声明或数据库记录为来源，应修改来源后重新生成。
+原生构建生成 `Enums.Engine.*`、`Enums.GlobalCore.*`、`Enums.GlobalFunctions.*` 和 `Enums.sf.*`。保存项目数据时生成 `Enums.GeneralDataKey`、每个数据类型独立的 `Enums.GeneralData.<TypeName>` 模块，以及 `Enums.Animation` 与 `Enums.Particle`。编辑器在保存前从当前项目目录解析这些字符串枚举，包括未保存的变更；运行时 `require` 读取生成的源码模块。这些生成模块仍以所属的原生声明或数据库记录为来源，应修改来源后重新生成。
 
 ## 原生模块与值
 
@@ -102,7 +102,7 @@ LuaSF 注册全局 `sf`。API 声明 `sf.Vector2i`、`sf.Vector2f`、`sf.Color` 
 
 ## 实时调试
 
-从编辑器启用实时调试后，可在游戏运行时修改 Actor 状态，包括运行时生成的 Actor。这些修改不写回项目数据，实例重建后也不会重新应用。操作说明见[实时调试](<../编辑器用户指南/运行、调试与打包.md#实时调试>)。
+通过实时调试，可以在编辑器启动的游戏中修改 Actor 状态，包括运行时生成的 Actor。这些修改不写回项目数据，实例重建后也不会重新应用。操作说明见[实时调试](<../编辑器用户指南/运行、调试与打包.md#实时调试>)。
 
 ## Lua 热更新
 
@@ -134,6 +134,6 @@ Lua 文件分工如下：
 
 EmmyLua 工作区保留 `Scripts/stub` 作为模块根和库目录。在 `.emmyrc.json` 中，`workspace.moduleMap` 把 `^Scripts[.]Enums[.](.*)$` 映射为 `Enums.$1`，使枚举导入解析到带注解的源码，其他公开导入仍使用 stub 声明。枚举源码不使用 `---@meta`。
 
-模板与打包时的文件范围见[项目模板](<../快速入门/项目模板.md>)。
+各模板与游戏包分别包含哪些声明，见[项目模板](<../快速入门/项目模板.md>)。
 
 Standalone 与 C++ Source 模板都提供名为 `Ludork: EmmyLua Attach (Windows)` 的 VS Code 配置，通过 `tangzx.emmylua` 的 `emmylua_attach` 调试器附加到正在运行的 `Main.exe`。C++ Source 模板另外保留原有的 `cppvsdbg` 与 `lldb` 原生启动和附加配置。EmmyLua 附加调试仅支持 Windows。

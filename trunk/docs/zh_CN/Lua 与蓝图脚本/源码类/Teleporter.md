@@ -20,7 +20,7 @@ Metadata 来源：`Scripts/Source/MapActors/Teleporter_meta.lua`
 
 `goToMap(mapPath, position, record = true)` 在蓝图中提供地图与格子坐标选择器，直接传送到 `position`，不搜索目标地图中最近的 Teleporter。开启记录时，出发地图记录本 Actor 的 `getTeleportPosition()` 与原始标签，目标地图记录指定落点，标签为空。传入 `false` 时两边都不新增记录，已有记录保持不变。目标为子地图时，会转换为所属世界清单与世界坐标。
 
-两端记录各自保存在所属地图路径下，出发地图与目标地图分别归属各自配置的区域；楼层传送器窗口只列出当前区域已记录的地图。上下楼根据出发地图查找区域，加载目标地图时重新查找目标区域。目标地图未配置区域时清空当前区域，楼层列表为空。
+两端记录各自保存在所属地图路径下，出发地图与目标地图分别归属各自配置的区域；楼层传送器窗口只列出当前区域已访问的地图。上下楼根据出发地图查找区域，加载目标地图时重新查找目标区域。目标地图未配置区域时清空当前区域，楼层列表为空。
 
 传送请求通过 [GameplayScene.requestFloorStep 与 requestMapTransfer](<Gameplay.md#gameplayscene>) 提交。请求被拒绝时不改变移动状态或记录。
 

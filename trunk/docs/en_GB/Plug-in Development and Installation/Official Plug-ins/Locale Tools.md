@@ -19,7 +19,7 @@ The [Game Localisation Workflow](<Game Localisation Workflow.md>) covers workboo
 
 ## Menu behaviour
 
-The menu handler requires an open project, checks that the workbook exists and asks the operating system to open it. It reports handled warnings and errors through `IPluginUserInterface`.
+The menu handler requires an open project, checks that the workbook exists and asks the operating system to open it. It reports the warnings and errors it handles through `IPluginUserInterface`.
 
 ## Plug-in and game languages
 

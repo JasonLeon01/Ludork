@@ -24,7 +24,7 @@ Non-void functions receive one metadata output named `return`. Void functions re
 
 ### Metadata-only signature schemas
 
-`metadata_parameters` maps existing business parameter names to Blueprint schemas. `metadata_returns` does the same for existing return-pin names; a single ordinary result is named `return`. These options change neither the C++ signature nor its LuaLS declaration, and keep the function's existing metadata visibility.
+`metadata_parameters` maps existing business parameter names to Blueprint schemas. `metadata_returns` does the same for existing return-pin names; a single ordinary result is named `return`. These options change neither the C++ signature nor its LuaLS declaration, while keeping the function's existing metadata visibility.
 
 ```cpp
 BIND_METHOD(

@@ -8,25 +8,25 @@ Actor 通过 `material` 引用 `Data/Materials/...json`，通过 `materialParame
 
 `Actor.visible` 默认为 `true`。直接赋值只修改 Actor 自身的标记，`getVisible` 读取该值；`setVisible(value, applyToChildren = true)` 还可以一并更新子 Actor。自身或祖先隐藏时，Actor 不绘制、不遮挡光线、不碰撞、不触发 overlap、不占用寻路格，也不接受地图点击交互。隐藏的敌人不贡献移动危险，也不进入怪物手册列表。可见性变化会刷新受影响的缓存。隐藏会保留实例，不停止 Tick，也不改写碰撞与动画设置。
 
-Actor 可以将 `emitterComp` 配置为 `Engine.EmitterComponent`，附着 [通用粒子](<../../编辑器用户指南/通用粒子.md>) 效果。效果跟随 Actor 变换，按既有列表顺序紧接宿主之前或之后绘制。隐藏或休眠 Actor 冻结 GPU 播放，保留状态和用户手动暂停设置；销毁、世界逐出、地图替换和 Scene 退出会释放效果。Actor 玩法 Tick 保持原有可见性策略。
+Actor 可以将 `emitterComp` 配置为 `Engine.EmitterComponent`，附着 [通用粒子](<../../编辑器用户指南/通用粒子.md>) 效果。效果跟随 Actor 变换，按既有列表顺序紧接宿主之前或之后绘制。隐藏或休眠的 Actor 会冻结 GPU 播放，效果仍保留自身状态和手动暂停设置；销毁、世界逐出、地图替换和 Scene 退出会释放效果。Actor 玩法 Tick 保持原有可见性策略。
 
 Actor 可通过 `billboardComp` 配置 [Engine.BillboardComponent](<../全局与 Core 模块/Core Modules/Engine/玩法类型.md#billboardcomponent>)，在玩家靠近时显示头顶图片和文字。
 
-这些字段与挂载光源的编辑操作见 [Actor 组件](<../../编辑器用户指南/Actor 组件/概述.md>)。默认玩法 Enemy 还声明了用于伤害提示的 `childActorComp`，配置见 [ChildActor 组件](<../../编辑器用户指南/Actor 组件/ChildActor.md>)。
+这些字段与挂载光源在编辑器中的配置见 [Actor 组件](<../../编辑器用户指南/Actor 组件/概述.md>)。默认玩法 Enemy 还声明了用于伤害提示的 `childActorComp`，配置见 [ChildActor 组件](<../../编辑器用户指南/Actor 组件/ChildActor.md>)。
 
 ### 条件出现
 
 [Source.MapActors.ConditionalActor](<../源码类/ConditionalActor.md>) 增加了 `conditionVariable`、`conditionOperator` 和 `conditionValue`。先选择一个已声明的数值、布尔或字符串变量，再选择比较运算符和比较值；比较值的控件由变量类型决定。变量名为空时不进行条件控制。数值支持 `==`、`~=`、`>`、`>=`、`<`、`<=`，布尔和字符串只支持 `==`、`~=`。非法数据直接报错，不做类型转换。
 
-Enemy、Item、Equip、DoorBase、Teleporter 以及 Game 项目中直接放置在地图上的 Actor 蓝图都继承这一行为，Bottle 和 Gem 则保留各自的 Script Mixin。`onCreate` 完成订阅并立即求值；之后再写入变量会更新可见性，条件转为不成立时 Actor 重新隐藏。隐藏期间 Actor 仍在监听。`onDestroy` 和大地图休眠会退订，大地图唤醒则重新订阅并求值。覆盖生命周期时必须继续调用父事件；图模式蓝图应在执行路径中保留对应的[父事件调用](<../蓝图脚本/执行流、事件与变量.md#父事件调用>)。EnemyDamageText 保留自己独立的提示行为与 Tick 策略。
+Enemy、Item、Equip、DoorBase、Teleporter 以及 Game 项目中直接摆放在地图上的 Actor 蓝图都继承这一行为，Bottle 和 Gem 则保留各自的 Script Mixin。`onCreate` 完成订阅并立即求值；之后再写入变量会更新可见性，条件转为不成立时 Actor 重新隐藏。隐藏期间 Actor 仍在监听。`onDestroy` 和大地图休眠会退订，大地图唤醒则重新订阅并求值。覆盖生命周期时必须继续调用父事件；图模式蓝图应在执行路径中保留对应的[父事件调用](<../蓝图脚本/执行流、事件与变量.md#父事件调用>)。EnemyDamageText 保留自己独立的提示行为与 Tick 策略。
 
 地图加载与生命周期顺序见 [SceneMap](<../源码类/SceneMap.md>)，条件订阅和存档规则见 [ConditionalActor](<../源码类/ConditionalActor.md>)。
 
 ### 组合式大地图中的 Actor
 
-`WorldGameMap` 维护一份大地图坐标的 Actor 集合。跨过已就绪的子地图边界时，同一个实例迁移到新的归属。空洞仍属于大地图。启用碰撞的 Actor 不能进入未加载的区域；无碰撞的根 Actor 则休眠并异步请求它们。
+`WorldGameMap` 维护一份世界坐标的 Actor 集合。跨过已就绪的子地图边界时，同一个实例会迁移到新的子地图名下。空洞仍属于大地图。启用碰撞的 Actor 不能进入未加载的摆放区域；无碰撞的根 Actor 则休眠并异步请求它们。
 
-只有位于处于 Active 状态的 32×32 格区块中的根 Actor 参与模拟与绘制。离开时调用 `onWorldSleep()`，返回时调用 `onWorldWake(elapsedSeconds)`，两者都不替代 `onCreate` 或 `onDestroy`。从未激活过的 Prepared 根 Actor 不接收生命周期回调，也不会被玩法查询返回。
+只有处于 Active 状态的 32×32 格区块中的根 Actor 参与模拟与绘制。离开时调用 `onWorldSleep()`，返回时调用 `onWorldWake(elapsedSeconds)`，两者都不替代 `onCreate` 或 `onDestroy`。从未激活过的 Prepared 根 Actor 不接收生命周期回调，也不会被玩法查询返回。
 
 Tile 与 Actor 的绘制顺序遵循清单中的 `layerOrder`。仅运行时存在的图层按首次使用的顺序追加。Player 在所属图层中始终保持最后。隐藏子地图的某个 Tile 图层时，该图层的 Actor 也退出颜色与光照绘制。
 
@@ -42,7 +42,7 @@ Tile 与 Actor 的绘制顺序遵循清单中的 `layerOrder`。仅运行时存�
 
 A* 与实际移动使用同一条 Dir4 边规则：每个新进入的前导格都必须允许从来源图块离开，并允许从目标图块的反方向进入。点击移动对普通目标和单格受阻目标都复用直接 A* 的结果。若移动 Actor 的完整占用范围使该结果不可用，点击移动改为搜索目标的相邻格。碰撞目标仍是最后尝试的一步，因此它的碰撞交互照常执行。使用该回退且不可通行的目标没有碰撞体时，玩家停在相邻格，而不是向目标顶撞。寻路会绕过无碰撞且 `onOverlap` 可执行的 Actor，避免途经时意外进入其格子。玩家显式点击这类 Actor 作为地图目标时，则保留通往其格子的完整路线并走进去，触发 overlap 交互——与显式点击 Teleporter 进入其格子完成传送的方式一致。
 
-通行性和寻路查询把 Actor 的占格范围精确放到请求的目标格，保留自身边界，但不带入正在移动时的像素偏移。移动特殊能力的直线通路检查也因此不受移动方向和进度影响。
+通行性和寻路查询把 Actor 的占格范围精确放到请求的格子，保留自身边界，但不带入正在移动时的像素偏移。移动危险的直线检查也因此不受移动方向和进度影响。
 
 大地图寻路可以跨越已加载的子地图边界，但把未加载的子地图视为不可用，且不产生隐式 I/O。空洞仍可通行，其顶层材质为 `nil`。
 
@@ -56,17 +56,17 @@ Domain、Flank 与 Blockade Effect 授予 `Gameplay.Movement.Hazard`。移动与
 
 大地图 chunk 激活或休眠导致活跃危险敌人集合变化时，危险缓存会失效。网格只在需要地图提示或点击寻路时生成：先按敌人声明的覆盖范围收集候选格，再为每格查询可能影响它的敌人。覆盖范围来自 [MovementSpecials](<../源码类/Gameplay.md#movementspecials-与移动危险>) 中的只读事件 `Event.Movement.QueryHazardBounds`，准确伤害仍由 `Preview` 计算。区域变化时复用重叠部分的结果，包括零伤害；敌人或能力状态变化时则重新计算。普通地图继续复用稳定缓存，单格查询仍只计算本格。
 
-危险 revision 只在影响剩余路线或某个可进入的敌人目标时才使移动失效。失效的路线退回最后一个完整的格子并重新规划。
+危险修订只在影响剩余路线或某个可进入的敌人目标时才使移动失效。失效的路线退回最后一个完整的格子并重新规划。
 
 ## 敌人
 
 Enemy 蓝图选择一个 Enemy 通用数据成员。`GeneralDataTypes.Create` 把它复制为 `EnemyAttributeSet`；`Battler` 通过 `attributes` 公开该属性集，并持有它自己的 `AbilitySystemComponent`。Enemy 通用数据没有成员事件，战斗行为使用显式的 Gameplay Ability 与 Effect。
 
-`MAXHP` 是敌人的用于伤害计算的生命值，敌人自身不保存可变的 `HP`。Player 的 `HP` 属于 `PlayerAttributeSet`，初值 `1000` 来自 Player 通用数据，不作为蓝图属性覆盖保存。
+`MAXHP` 是敌人用于伤害计算的虚拟生命值，敌人自身不保存可变的 `HP`。Player 的 `HP` 属于 `PlayerAttributeSet`，初值 `1000` 来自 Player 通用数据，不作为蓝图属性覆盖保存。
 
 Player 的 HP 当前值在应用修饰项后限制到 `0..MAXHP`。永久 MAXHP 与 LEVEL 成长只响应 Base 变化，因此临时的 Infinite Effect 不会改变永久成长。
 
-敌人的 `special` 会保留整数次数/范围、仅表示存在的 `""`、`Vampire` 比率、`FixDmg` 数值/表达式以及 `Reborn` 类路径。每一项都会转为一个 Infinite 的 `Special.<id>` Effect，带有同名标签和专用的 ability。战斗类 special 修改战斗 Gameplay Event；移动类 special 使用 `Event.Movement.QueryHazard` 与 `Gameplay.Movement.Hazard`。
+敌人的 `special` 会保留整数次数/范围、仅表示存在的 `""`、`Vampire` 比率、`FixDmg` 数值/表达式以及 `Reborn` 类路径。每一项都会转为一个 Infinite 的 `Special.<id>` Effect，带有匹配的标签和专用的 ability。战斗类 special 修改战斗 Gameplay Event；移动类 special 使用 `Event.Movement.QueryHazard` 与 `Gameplay.Movement.Hazard`。
 
 每个 Enemy 都授予 `Ability.Combat.MotaBattle`。它的计算没有副作用，返回伤害明细和数值形式的 `Enums.BattleResultCode`（`WIN`、`CANNOT_DAMAGE` 或 `LETHAL_COUNTER_DAMAGE`）。碰撞会在 `CommitResult(result)` 之前校验伤害、Game Over、奖励和 State Effect Spec。预览复用同一套计算，但不会修改状态。
 
@@ -98,7 +98,7 @@ EnemyBook 物品在自己的 `onUse` 图中通过 [GlobalFunctions.Scene](<../�
 
 最高占用图块图层上的碰撞回调，从视觉上最靠上的 Actor 依次执行到最靠下的 Actor。同一图层内，Actor 列表中靠后的条目先绘制、先触发。因此多个可拾取 Item 占据同一格时，一次受阻的移动尝试拾取的是视觉上最靠上的 Item。它的销毁会结束本次碰撞派发，下一次移动尝试再拾取下一个 Item。持续按住方向键时，后续 fixed update 可以继续拾取，不需要先松开按键。
 
-`GlobalFunctions.Mota.CenterSymmetricTeleport`、`GoUpstairsSamePos` 和 `GoDownstairsSamePos` 提供 CenterSymmetricTeleport、UpstairsTransportation 与 DownstairsTransportation 的可复用逻辑。相邻楼层节点遵循当前区域的地图顺序，并在切换地图之前按玩家当前的零基坐标检查带持久状态的目标地图。中心对称节点以当前地图上的 `(width - 1 - x, height - 1 - y)` 为目标。每个节点都公开 `Success` 与 `Failed` 执行分支。失败时解析 `FLY_FAIL` 并作为公共提示显示，且不消耗物品。配置消耗型物品的图时，只把 `Success` 接到 `GlobalFunctions.Player.RemoveItem`。
+`GlobalFunctions.Mota.CenterSymmetricTeleport`、`GoUpstairsSamePos` 和 `GoDownstairsSamePos` 提供 CenterSymmetricTeleport、UpstairsTransportation 与 DownstairsTransportation 的可复用逻辑。相邻楼层节点遵循当前区域的地图顺序，并在切换地图之前按玩家当前的零基坐标查询持久记录中的目标地图。中心对称节点以当前地图上的 `(width - 1 - x, height - 1 - y)` 为目标。每个节点都公开 `Success` 与 `Failed` 执行分支。失败时解析 `FLY_FAIL` 并作为公共提示显示，且不消耗物品。配置消耗型物品的图时，只把 `Success` 接到 `GlobalFunctions.Player.RemoveItem`。
 
 ## 装备
 
@@ -108,7 +108,7 @@ State 是携带 `State.<id>`、stack、修饰项与 ability 的 Infinite Effect�
 
 ## 运行时引用
 
-把通用数据标识符当作稳定的键使用。运行时应用会原样保留每个字符串，因此 class、animation 和装备槽位的键都不依赖所选语言。显示名称与说明可以写成带花括号的本地化标识符，只在展示时用 `LOC` 解析，并在语言变化后重新解析。查找表由 [游戏本地化工作流](<../../插件开发与安装/Official 插件/游戏本地化工作流.md>) 管理。重命名标识符时必须更新每一处引用。
+把通用数据标识符当作稳定的键使用。运行时套用时会原样保留每个字符串，因此 class、animation 和装备槽位的键都不依赖所选语言。显示名称与说明可以写成带花括号的本地化标识符，只在展示时用 `LOC` 解析，并在语言变化后重新解析。查找表由 [游戏本地化工作流](<../../插件开发与安装/Official 插件/游戏本地化工作流.md>) 管理。重命名标识符时必须更新每一处引用。
 
 Game 项目的数据结构与成员列表见通用数据参考各页，从 [Class](<../../编辑器用户指南/通用数据参考/Class.md>) 开始。Bottle、Gem、门和敌人的实用范例见实用配方各页，从 [消耗品](<实用配方/消耗品.md>) 开始。
 

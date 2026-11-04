@@ -45,7 +45,7 @@ Scripts can change `GameInstance.EnableShopRecord` directly at runtime. This is 
 
 ## Data services
 
-`Global.Data` owns shared data loading, resource queries, Blueprint classes and graphs, Actor construction and static previews. Require it directly for these operations. `Source.Data` supplies project startup and the default game's General Data queries, such as `GetGeneralPlayerData` and `GetGeneralItemData`, plus `CreateGeneralAttributeSet(typeName, memberID)`.
+`Global.Data` owns shared data loading, resource queries, Blueprint classes and graphs, Actor construction and static previews. Require it directly for these operations. `Source.Data` handles project startup and the default game's General Data queries, such as `GetGeneralPlayerData` and `GetGeneralItemData`, plus `CreateGeneralAttributeSet(typeName, memberID)`.
 
 The default `Source.Data.InitializeRuntime()` calls `Global.Data.InitializeRuntime(options)` to create the shared services and install data and Blueprint providers before the first scene. Initialisation is required once per Lua session; a second call fails. Requiring either module does not initialise it. Custom projects supply all four fields of `Global.Data.RuntimeOptions` from their own startup:
 
@@ -70,7 +70,7 @@ Construct General Data Attribute Sets with `Source.Configs.GeneralDataTypes.Crea
 
 `Global.Data.GetActorPreviewData(classPath, classVarChanges?)` returns `Global.Data.ActorPreviewData`, or `nil` for an empty class path. Invalid class paths raise an error. It resolves inherited Blueprint and Script Mixin defaults, then applies declared display and condition overrides with their existing typed conversion. Unknown override names fail; unrelated gameplay values and `BlueprintOnly` overrides are not applied. A resolved class must derive from `Engine.Actor`.
 
-The record contains texture and material resource paths, the configured first-frame `rect`, `translation`, rotation in degrees, `scale`, `origin`, `visible`, `materialParameters`, condition fields, and optional recursive `child` with its `childOffset`. Declarative `childActorComp` supplies child class and offset; cyclic child references fail. Each call returns independent records and copied parameter dictionaries and mutable `sf` rectangles and vectors, so callers cannot alter shared class defaults or cached templates.
+The record contains texture and material resource paths, the configured first-frame `rect`, `translation`, rotation in degrees, `scale`, `origin`, `visible`, `materialParameters`, condition fields, and optional recursive `child` with its `childOffset`. Declarative `childActorComp` supplies child class and offset; cyclic child references fail. Each call returns independent records and copies of the parameter dictionaries, mutable `sf` rectangles and vectors, so callers cannot alter shared class defaults or cached templates.
 
 Extraction does not construct gameplay Actors, instantiate event graphs, load the referenced textures, dispatch component or lifecycle callbacks, or initialise combat state. `Global.Data.ClearActorPreviewCache()` discards the class display templates without altering shared class definitions; clearing the floor-preview cache calls it automatically.
 
@@ -122,7 +122,7 @@ A world save requires `worldMovedActors` when any stored player map is a world m
 
 ## Saves
 
-[Live Debug](<../../Editor User Guide/Run Debug and Package.md#live-debug>) does not write project documents and does not change the save schema, slots or persistence records. A save during that run can keep gameplay state that live edits affected.
+[Live Debug](<../../Editor User Guide/Run Debug and Package.md#live-debug>) does not write project documents and does not change the save schema, slots or persistence records. A save made during that run can retain gameplay state affected by live edits.
 
 The Game project save schema remains v1, serialised as the number `1`. Only the current structure and version are supported. `SaveCodec` rejects incompatible saves without migration.
 
@@ -146,11 +146,11 @@ Save schema versions are independent of application versions and the packaging d
 
 Save previews load asynchronously without creating gameplay objects. Confirming a load calls `Save.LoadGame(filePath)` to restore the full game.
 
-The save/load window accepts `Enums.SaveLoadMode.LOAD` (`"load"`, the default) or `SAVE` (`"save"`) as its `open` method’s `initialMode`; a load-only window stays in load mode. The host’s `onClose(reason)` callback receives `Enums.SaveLoadCloseReason.CANCEL` (`"cancel"`), `SAVED` (`"saved"`) or `LOADED` (`"loaded"`) after the window closes.
+The save/load window accepts `Enums.SaveLoadMode.LOAD` (`"load"`, the default) or `SAVE` (`"save"`) as its `open` method's `initialMode`; a load-only window stays in load mode. The host's `onClose(reason)` callback receives `Enums.SaveLoadCloseReason.CANCEL` (`"cancel"`), `SAVED` (`"saved"`) or `LOADED` (`"loaded"`) after the window closes.
 
 The window shows loading, empty or failed states. Each opening selects the most recently modified save, or the first slot if none exists. The selected slot receives keyboard focus after the opening animation.
 
-New save screenshots preserve their aspect ratio and are no larger than 224 脳 168 pixels. Existing larger screenshots remain readable.
+New save screenshots preserve their aspect ratio and are no larger than 224 × 168 pixels. Existing larger screenshots remain readable.
 
 Save encryption is independent of project JSON encryption, although Pack Options groups both under **Encrypt game data**.
 

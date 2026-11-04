@@ -42,7 +42,7 @@ return Net.DefineModule("Profile", ProfileProxy)
 
 `Net.DefineModule(name, proxyClass)` returns the module handle used for RPCs and subscriptions. The class must derive from `Global.NetProxy`; duplicate names are rejected. Defining a module does not connect. Require its definition before requesting a proxy. A subclass that overrides `init(moduleName, params, snapshot)` must call the base initializer with those arguments; otherwise the inherited initializer is used. See [Ludork classes](<../Getting Started/Ludork Lua Advanced.md#ludork-classes>) for class construction and mirrored declarations.
 
-Module, RPC and event names are case-sensitive and use 1–128 ASCII letters, digits, dots, underscores or hyphens. RPC function names refer to the server module's `Rpc` table, not proxy getter names.
+Module, RPC and event names are case-sensitive and consist of 1–128 ASCII letters, digits, dots, underscores or hyphens. RPC function names refer to the server module's `Rpc` table, not proxy getter names.
 
 Public Net, proxy, getter and RPC functions use PascalCase, such as `GetProxy`, `Sync`, `GetName` and `SetName`. The class constructor keeps the existing `init` convention.
 
@@ -71,9 +71,9 @@ end)
 
 `Net.GetProxy(moduleName, params, callback)` always sends a new snapshot request and constructs a new proxy on success, even when the name and parameters match an earlier request. Parameters are copied when requested; changing the caller's table later does not alter this proxy's query. Separate proxies and their snapshots are independent.
 
-`proxy:Sync(callback)` requests the same module with its captured parameters and refreshes the **existing object**. It replaces the complete snapshot only after a successful response. Pending, failed or cancelled syncs leave the previous snapshot readable. Multiple syncs on one proxy are serialized in call order, with one request per call; they are not combined. To change query parameters, call `GetProxy` for a new object.
+`proxy:Sync(callback)` requests the same module with its captured parameters and refreshes the **existing object**. It replaces the complete snapshot only after a successful response. Pending, failed or cancelled syncs leave the previous snapshot readable. Multiple syncs on one proxy are serialised in call order, with one request per call; they are not combined. To change query parameters, call `GetProxy` for a new object.
 
-`proxy:GetValue(key)` returns a snapshot field. Table values are independent copies, including nested tables, so modifying a getter result cannot write the snapshot or server. Business getters such as `GetName` should use this method rather than accessing private fields. Neither an RPC nor a server event refreshes any proxy automatically.
+`proxy:GetValue(key)` returns a snapshot field. Table values are independent copies, including nested tables, so modifying a getter result cannot write to the snapshot or the server. Business getters such as `GetName` should use this method rather than accessing private fields. Neither an RPC nor a server event refreshes any proxy automatically.
 
 When integration is enabled, both fetch methods require a callback and return `Engine.AsyncOperation`. Their callback receives an ordinary Lua result table:
 
@@ -85,9 +85,9 @@ When integration is enabled, both fetch methods require a callback and return `E
 | `proxy` | The new proxy for `GetProxy`, or the same object for successful `Sync`; nil on failure. |
 | `retryAfterSeconds` | Optional whole-second delay for a rate-limited request. |
 
-The operation stores this result before invoking the callback; `operation:getResult()` returns the **same table** passed to it. Failure completes normally with `ok == false`. Explicit cancellation suppresses proxy construction or replacement and the callback. It cannot undo work already accepted by the server. Closing the game session cancels pending work and removes its listeners.
+The operation stores this result before invoking the callback; `operation:getResult()` returns the **same table** passed to the callback. Failure completes normally with `ok == false`. Explicit cancellation suppresses proxy construction or replacement and the callback. It cannot undo work already accepted by the server. Closing the game session cancels pending work and removes its listeners.
 
-Requests have a **ten-second deadline from submission**, including connection and queue time. A response processed after that deadline is rejected even if the logic thread was paused when it arrived. The `Global.Net` wrappers initialize latent-operation updates, but a running game update loop must still pump them; callbacks do not run by themselves in a bare script. See [asynchronous operation updates](<../Lua and Blueprint Scripting/Lua Runtime and Modules.md#asynchronous-operation-updates>).
+Requests have a **ten-second deadline from submission**, including connection and queue time. A response processed after that deadline is rejected even if the logic thread was paused when it arrived. The `Global.Net` wrappers initialise latent-operation updates, but a running game update loop must still pump them; callbacks do not run by themselves in a bare script. See [asynchronous operation updates](<../Lua and Blueprint Scripting/Lua Runtime and Modules.md#asynchronous-operation-updates>).
 
 ## Call RPCs and receive events
 
@@ -107,7 +107,7 @@ end)
 Profile.CallRpcFunction("SetName", "player-1", "Ada")
 ```
 
-`module.CallRpcFunction(functionName, ...)` executes the identically named server RPC with positional arguments. It returns **no values and no operation handle**. A table passed as an argument is one argument, not an argument list. Nil gaps and trailing nil arguments retain their positions. Business replies use named events; the internal success acknowledgment is not a function return value.
+`module.CallRpcFunction(functionName, ...)` executes the identically named server RPC with positional arguments. It returns **no values and no operation handle**. A table passed as an argument is one argument, not an argument list. Nil gaps and trailing nil arguments retain their positions. Business replies use named events; the internal success acknowledgement is not a function return value.
 
 `module.Subscribe(eventName, handler)` and `module.SubscribeError(handler)` return integer listener tokens. `module.Unsubscribe(token)` returns whether it removed a listener from this module. Subscribe before issuing the RPC whose event matters. Listeners remain active until removed or the game session ends; they also remain registered across connection recovery. Remove them later, when their owning screen or object no longer needs them:
 
@@ -147,7 +147,7 @@ Write with `Storage.CallRpcFunction("WriteField", account, category, field, valu
 
 ## Network quality
 
-When integration is enabled, the independent `GlobalCore.Server.CheckConnectionAsync(callback)` uses its native result and a three-second HTTP deadline. Custom entry points must initialize `GlobalFunctions.NodeGraph.initLatent()` and run operation updates. Its callback receives `GlobalCore.ServerConnectionResult`; narrow the generated nullable native-object declaration with `assert(result)`.
+When integration is enabled, the independent `GlobalCore.Server.CheckConnectionAsync(callback)` uses its native result and a three-second HTTP deadline. Custom entry points must initialise `GlobalFunctions.NodeGraph.initLatent()` and run operation updates. Its callback receives `GlobalCore.ServerConnectionResult`; narrow the generated nullable native-object declaration with `assert(result)`.
 
 ```lua
 local GlobalCore = require("GlobalCore")

@@ -1,6 +1,6 @@
 # Ludork Documentation
 
-This guide covers Ludork. Downloads and project information are on the [Ludork website](https://jasonleon01.github.io/Ludork/?lang=en_GB); [third-party notices](../THIRD_PARTY_NOTICES.md) are also linked from its footer.
+This guide covers Ludork. Downloads and project information are on the [Ludork website](https://jasonleon01.github.io/Ludork/?lang=en_GB); its footer also links to the [third-party notices](../THIRD_PARTY_NOTICES.md).
 
 Ludork combines a visual editor, Blueprint graphs, Lua scripts and an extensible C++20 runtime for map-driven 2D games. Use the editor to configure projects and create maps, Actors, data, animation and user interfaces, then run and package the game.
 
@@ -51,4 +51,4 @@ Mobile packages are produced on Apple Silicon macOS. A Standalone project uses t
 
 ## Product and content licences
 
-Ludork's software licence, third-party notices and Game project asset terms are separate. Review all three before redistributing an editor package or a game made from Game project content. Installing a plug-in also runs trusted code with the permissions of the editor process. Inspect the source and origin of a plug-in before import.
+Ludork's software licence, third-party notices and Game project asset terms are separate. Review all three before redistributing an editor package or a game made from Game project content. Installing a plug-in also runs trusted code with the permissions of the editor process. Inspect the source and origin of a plug-in before importing it.

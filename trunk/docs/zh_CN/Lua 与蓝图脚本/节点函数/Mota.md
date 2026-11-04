@@ -1,6 +1,6 @@
 # GlobalFunctions.Mota
 
-`Mota` 声明怪物图鉴、区域与楼层传送节点。
+`Mota` 声明怪物手册、区域与楼层传送节点。
 
 Metadata 来源：`Scripts/GlobalFunctions/Mota_meta.lua`
 

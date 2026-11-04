@@ -10,7 +10,7 @@ The plug-in ID is `Ludork.OfficialBlueprintAI`; its repository source is `Plugin
 2. Open a project and select **Game → Blueprint AI**.
 3. Configure the provider, model, endpoint and secret from **Settings**.
 4. Create a conversation for one existing Blueprint and review the staged proposal and generated diff.
-5. Select **Apply** only after validation succeeds, then use the normal project Save command when the change is ready for disk.
+5. Select **Apply** only after validation succeeds, then use the normal project Save command when you are ready to write the change to disk.
 
 ## Local data
 
@@ -30,7 +30,7 @@ Open **Settings** in the Blueprint AI window to choose a provider, model and end
 
 An endpoint must be an absolute HTTPS URL. Plain HTTP is accepted only for a loopback address used during local development. Credentials, query strings and fragments are not accepted in endpoint URLs.
 
-API keys use the [host secret store](<../Avalonia UI Secrets and Localisation.md#store-secrets>) and are not written to `settings.json`. The settings window displays a stored key as its first three characters, a fixed mask and its final three characters. Short keys are fully hidden. The credential changes only when a new value is entered or removal is explicitly selected. Provider availability is external to Ludork.
+API keys use the [host secret store](<../Avalonia UI Secrets and Localisation.md#store-secrets>) and are not written to `settings.json`. The settings window displays a stored key as its first three characters, a fixed mask and its final three characters. Short keys are fully hidden. The credential changes only when a new value is entered or removal is explicitly selected. Provider availability is outside Ludork's control.
 
 ## Local conversations and provider state
 

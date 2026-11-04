@@ -31,11 +31,11 @@ Only `int` and `float` fields have Base and Current values and modifiers. Values
 | `getNumericAttribute` | `(name) -> number` | Returns the current value after active modifiers |
 | `getNumericAttributeBase` | `(name) -> number` | Returns the unmodified base value |
 | `setNumericAttributeBase` | `(name, value)` | Changes one Base and recalculates every numeric Current |
-| `setNumericAttributeBases` | `(values)` | Changes several base values, then recalculates all numeric attributes |
+| `setNumericAttributeBases` | `(values)` | Changes several Base values, then recalculates all numeric attributes |
 | `getNumericAttributeBases` | `() -> table<string, number>` | Returns a copy suitable for persistence |
 | `addAttributeChangeListener` | `(name, callback, params?)` | Calls `callback(oldValue, newValue, change, ...)` after a relevant Current or Base change |
 | `setNumericAttributeConstraint` | `(name, callback?)` | Installs or removes a final Current-value constraint and recalculates immediately |
-| `getRevision` | `() -> integer` | Returns the revision changed by attribute, ability or effect mutations. Attribute listeners observe the revision after this commit |
+| `getRevision` | `() -> integer` | Returns the revision, which changes on attribute, ability or effect mutations. Attribute listeners observe the revision after this commit |
 
 Base setters validate the complete candidate Base and Current state before committing. Unknown attributes, non-finite values or schema mismatches fail without partial mutation. Direct numeric field assignment is treated as a Base write.
 
@@ -44,7 +44,7 @@ Listener `oldValue` and `newValue` are always Current values. The third argument
 | Field | Type | Meaning |
 |---|---|---|
 | `source` | `"Base" \| "Effect" \| "Constraint"` | Operation that caused resolution: `GameplayAttributeChangeSource.BASE` (`"Base"`), `EFFECT` (`"Effect"`) or `CONSTRAINT` (`"Constraint"`) |
-| `force` | `boolean` | A Base write may notify even when visible Current did not change |
+| `force` | `boolean` | A Base write may notify even when the visible Current did not change |
 | `oldBase` | `number \| Class.MissingValue \| nil` | Previous Base for a `Base` source; otherwise nil |
 | `newBase` | `number \| nil` | New Base for a `Base` source; otherwise nil |
 

@@ -6,7 +6,7 @@
 
 启动页使用全局插件。项目上下文只组合全局插件与对应项目的插件。普通菜单、地图右键菜单、文本提示、Export／Run／Pack Hook 和导出参与者指纹都遵循该作用域；切换项目后不会继续调用前一个项目的注册内容。
 
-每个作用域内按插件 ID 合并工作目录与用户目录的注册记录，优先使用工作目录中的副本。只有选中的版本会提供命令、文本提示与 Hook。
+每个作用域内按插件 ID 合并工作目录与用户目录的注册记录，优先使用工作目录中的副本。只有选中的副本会提供命令、提供器与 Hook。
 
 文本提示提供器与 Hook 先执行全局插件，再执行项目插件。菜单仍按位置和 `Order` 排序，相同排序值时全局命令在前。插件 ID 与命令 ID 必须在有效的“全局＋当前项目”集合内唯一，普通菜单与地图右键菜单共用命令 ID 命名空间。冲突会报告注册失败，不会覆盖已有注册。不同项目作用域可以使用相同 ID。某个项目的加载错误不会阻止全局插件或其他项目插件加载。
 
@@ -52,20 +52,20 @@
 | `ResolveAssetFile(assetPath)` | 在编辑器最终文件 I/O 时解析逻辑路径；不可用时为空字符串 |
 | `GetSaveDirectoryAsync(cancellationToken)` | 返回当前项目用户存档目录的绝对路径，不创建目录 |
 | `ReplaceLayerAndSaveAsync(request, cancellationToken)` | 经 revision 校验的图层替换与单地图直接保存 |
-| `ReplaceActorsInRegionAndSaveAsync(request, cancellationToken)` | 经 revision 校验，替换某个图层矩形范围内的 Actor 放置记录 |
+| `ReplaceActorsInRegionAndSaveAsync(request, cancellationToken)` | 经 revision 校验，替换某个图层矩形范围内的 Actor 摆放记录 |
 | `RunProjectScriptAsync(scriptPath, request, cancellationToken)` | 用当前项目游戏运行时执行 Lua 入口，返回其 JSON 对象结果 |
 
 `GetSaveDirectoryAsync` 从已保存的 `Scripts/Entry.lua` 读取静态 `APP_NAME`，并遵循[桌面游戏目录规则](<../编辑器用户指南/项目设置与资产布局.md#游戏配置>)。该调用不执行 Lua、不创建目录；名称无法读取或不合法、用户主目录不可用，或收到取消请求时，操作失败。
 
-`PluginMapSnapshot` 包含标识、尺寸、不透明的 `Revision`，以及含 `Visible`、矩形 `Tiles` 和 `AutoTiles` 的有序图层。`Passage` 矩阵与地图尺寸一致，每个 `PluginMapPassage` 包含地形 `Passable` 和解析后的 `Up`、`Right`、`Down`、`Left` 移动权限，已经考虑可见地形图层、AutoTile、地图边界以及移动两端的方向限制；Actor 占位另行处理。图块集与 Actor 的 `AssetPath` 始终保持大小写精确的 `/Game/Assets/...` 路径。只在实际读写文件 时调用 `ResolveAssetFile`，不要为快照或中间缓存调用它。图块集快照还包含图块尺寸、数量与可通行性。写入请求中的 revision 必须原样照抄。
+`PluginMapSnapshot` 包含标识、尺寸、不透明的 `Revision`，以及含 `Visible`、矩形 `Tiles` 和 `AutoTiles` 的有序图层。`Passage` 矩阵与地图尺寸一致，每个 `PluginMapPassage` 包含地形 `Passable` 和解析后的 `Up`、`Right`、`Down`、`Left` 移动权限，已经考虑可见地形图层、AutoTile、地图边界以及移动两端的方向限制；Actor 占位另行处理。图块集与 Actor 的 `AssetPath` 始终保持大小写精确的 `/Game/Assets/...` 路径。只在最终读写文件时调用 `ResolveAssetFile`，不要为快照或中间缓存调用它。图块集快照还包含图块尺寸、数量与可通行性。写入请求中的 revision 必须原样复制。
 
-每个图层还包含不可变的 `PluginMapActorSnapshot`，其中有放置记录的 `Tag` 和 `BlueprintReference`。宿主通过与地图编辑器相同的外观解析器读取蓝图类、脚本类及实例覆盖。`SourceRect` 是解析后的静态贴图矩形，已包含角色朝向对应的首帧，使用方不应再次推导角色图集布局。位移、缩放、原点、旋转、`Material`、`MaterialParameters` 和 `PreviewOpacity` 均为解析后的值；不可见 Actor 的透明度为 0.25，可见 Actor 为 1.0。外观缺失时 `AssetPath` 为空、`SourceRect` 为 null，可据此绘制单格占位。绘制以 `CellSize` 为源坐标缩放基准，不使用图块集尺寸。快照保存外观数据。调用 `IMapEditorHost.AcquireActorPreview(snapshot)` 可让原生材质渲染已解析的源帧；返回的 `IPluginActorPreview` 提供 `Changed` 事件，以及包含预乘 BGRA 像素、尺寸、`OffsetX`／`OffsetY` 和材质错误的 `Frame`。在 Actor 变换前，将偏移加到源帧原点；顶点位移可能扩大输出帧。隐藏时设置 `IsActive = false`，不再使用时释放句柄。源帧动画仍由使用方控制。
+每个图层还包含不可变的 `PluginMapActorSnapshot`，其中有摆放记录的 `Tag` 和 `BlueprintReference`。宿主通过与地图编辑器相同的外观解析器读取蓝图类、脚本类及实例覆盖。`SourceRect` 是解析后的静态纹理矩形，已包含角色朝向对应的首帧，使用方不应再次推导角色图集布局。位移、缩放、原点、旋转、`Material`、`MaterialParameters` 和 `PreviewOpacity` 均为解析后的值；不可见 Actor 的透明度为 0.25，可见 Actor 为 1.0。外观缺失时 `AssetPath` 为空、`SourceRect` 为 null，可据此绘制单格占位。绘制以 `CellSize` 为源坐标缩放基准，不使用图块集尺寸。快照保存外观数据。调用 `IMapEditorHost.AcquireActorPreview(snapshot)` 可让原生材质渲染已解析的源帧；返回的 `IPluginActorPreview` 提供 `Changed` 事件，以及包含预乘 BGRA 像素、尺寸、`OffsetX`／`OffsetY` 和材质错误的 `Frame`。在 Actor 变换前，将偏移加到源帧原点；顶点位移可能扩大输出帧。隐藏时设置 `IsActive = false`，不再使用时释放句柄。源帧动画仍由使用方控制。
 
 局部 Tile 编辑应复制快照中的完整矩阵，只替换目标矩形，再提交现有图层写入请求。宿主仍校验完整图层及其 revision，没有独立的区域 Tile 写入 API。
 
 `PluginMapLayerWriteRequest` 指定地图与图层，回传 `BaseRevision` 和 `ExpectedTilesetKey`，并提供两份矩阵，形状必须与快照的 `Height × Width` 完全一致。`PluginMapWriteResult` 区分成功、revision 或图块集冲突，以及带错误信息的失败，同时返回当前 revision。校验或写入错误不会改动编辑器内存、Undo 状态或界面。
 
-`PluginMapActorRegionWriteRequest` 指定 `MapKey`、`LayerName`、`BaseRevision`、`PluginMapRegion(X, Y, Width, Height)`、必填的 `PreserveBaseClassReference`，以及非空的 `PluginMapActorPlacement(BlueprintReference, X, Y)` 列表。坐标从零开始。宿主保留矩形外已有的 Actor，以及矩形内解析后的类继承自指定保留基类的 Actor；删除矩形内其余 Actor 及其实例覆盖，保留记录本身不变。新放置项必须引用有效的 Actor 蓝图，位于矩形内各不重复的可通行格，不能与保留的 Actor 或其他图层 Actor 重叠；宿主分配地图内唯一的 tag。隐藏图层、无效边界、无法解析的类、原有 tag 无效或不唯一、空放置列表和 revision 冲突都会在写入前被拒绝。Tile 和 AutoTile 不变。
+`PluginMapActorRegionWriteRequest` 指定 `MapKey`、`LayerName`、`BaseRevision`、`PluginMapRegion(X, Y, Width, Height)`、必填的 `PreserveBaseClassReference`，以及非空的 `PluginMapActorPlacement(BlueprintReference, X, Y)` 列表。坐标从零开始。宿主保留矩形外已有的 Actor，以及矩形内解析后的类继承自指定保留基类的 Actor；删除矩形内其余 Actor 及其实例覆盖，保留记录本身不变。新摆放项必须引用有效的 Actor 蓝图，位于矩形内各不重复的可通行格，不能与保留的 Actor 或其他图层 Actor 重叠；宿主分配地图内唯一的 tag。隐藏图层、无效边界、无法解析的类、原有 tag 无效或不唯一、空摆放列表和 revision 冲突都会在写入前被拒绝。Tile 和 AutoTile 不变。
 
 两种写入成功时，宿主都会将请求的图层修改应用到当前内存地图，并且只原子保存 `Data/Maps/<mapKey>.json`。它会在该地图的历史中记录一步 Undo，推进已保存的 revision，并刷新目标地图与图层。同一张地图上已有的未保存改动会一并进入这次直接保存。其他地图和项目数据不会保存，脏状态也不会被清除。Undo 会恢复写入前的内存状态，并把该地图标记为需要保存。Undo 不会自动保存。
 
@@ -89,7 +89,7 @@
 
 导出先保存并校验项目，依次执行 Export Hook，生成 UI 与材质运行文件，最后记录成功结果。编辑器对声明的文件和导出插件身份计算指纹，判断是否需要重新导出；项目插件身份还包含项目作用域。导出按钮、确认后的 **导出后运行**，以及编辑器每次打包都执行 Export Hook。before-Run Hook 若修改导出输入，运行会在实际启动前要求再次导出。完整流程见[编译、导出与运行](<../编辑器用户指南/运行、调试与打包.md#编译导出与运行>)。
 
-`RegisterBeforeRunHook` 与 `RegisterBeforePackHook` 接受 `IProjectOperationHook`，在各自目标操作之前依次执行；编辑器生成游戏发行包时先完整导出，再执行 before-Pack Hook。[Standalone 工程转换](<../编辑器用户指南/运行、调试与打包.md#将-source-转换为-standalone-工程>)执行 Export Hook，但不调用 before-Pack Hook，也不应用其打包排除规则。所有 Hook 的上下文 都提供项目路径、语言、操作类型、输出写入器、文本提示刷新接口与取消信号。结果失败或抛出异常会终止后续 Hook 并阻止操作。Hook 必须响应取消请求，并通过 `IPluginOutput` 写出进度。
+`RegisterBeforeRunHook` 与 `RegisterBeforePackHook` 接受 `IProjectOperationHook`，在各自目标操作之前依次执行；编辑器生成游戏发行包时先完整导出，再执行 before-Pack Hook。[Standalone 项目转换](<../编辑器用户指南/运行、调试与打包.md#将-source-转换为-standalone-项目>)执行 Export Hook，但不调用 before-Pack Hook，也不应用其打包排除规则。所有 Hook 的上下文都提供项目路径、语言、操作类型、输出写入器、文本提示刷新接口与取消信号。结果失败或抛出异常会终止后续 Hook 并阻止操作。Hook 必须响应取消请求，并通过 `IPluginOutput` 写出进度。
 
 | 操作上下文字段 | 含义 |
 |---|---|
@@ -110,7 +110,7 @@
 | `CompileLuaDirectory(relativePath)` | 把项目相对的 Lua 目录加入 Pack 编译集合 |
 | `ExcludeFile(relativePath)` | 从发行包中排除项目相对文件 |
 
-Official Locale Tools 在生成游戏发行包时调用 `ExcludeFile("Data/Locale/Locale.xlsx")`，从游戏成品中排除创作用的本地化工作簿；Standalone 工程转换则保留工作簿。语言文件由独立的 Export Hook 写入；Export 与 Run 期间 `Packaging` 为 null。
+Official Locale Tools 在生成游戏发行包时调用 `ExcludeFile("Data/Locale/Locale.xlsx")`，从游戏成品中排除创作用的本地化工作簿；Standalone 项目转换则保留工作簿。语言文件由独立的 Export Hook 写入；Export 与 Run 期间 `Packaging` 为 null。
 
 ## 蓝图助手
 
@@ -137,14 +137,14 @@ API 密钥使用按作用域隔离的 `PluginMenuContext.SecretStore`；平台�
 |---|---|
 | `ProjectPath` | 已打开项目的根目录 |
 | `ReadKeepPathsAsync` / `SaveKeepPathsAsync` | 读取或替换 `EditorCache/ResourceCleanupKeep.list` 中的项目追加项，空列表会移除文件 |
-| `ScanAsync(nativeKeepPaths, userKeepPaths, progress, cancellationToken)` | 分析静态引用，返回包含候选路径、类别、体积和问题的不可变报告 |
+| `ScanAsync(nativeKeepPaths, userKeepPaths, progress, cancellationToken)` | 分析静态引用，返回包含候选路径、类别、大小和问题的不可变报告 |
 | `TrashAsync(reportId, progress, cancellationToken)` | 重新校验并回收报告中的全部候选，返回已移走路径、剩余路径和错误 |
 
-`ResourceCleanupProgress` 包含阶段、已完成数量、总数和当前路径。报告存在扫描问题时不能回收；项目输入变化会使报告失效。系统回收站或垃圾篓不可用时，宿主不会退回永久删除。扫描范围与操作步骤见 [Official Resource Cleanup](<Official 插件/Resource Cleanup.md>)。
+`ResourceCleanupProgress` 包含阶段、已完成数量、总数和当前路径。报告存在扫描问题时不能回收；项目输入变化会使报告失效。系统回收站或废纸篓不可用时，宿主不会退回永久删除。扫描范围与审阅流程见 [Official Resource Cleanup](<Official 插件/Resource Cleanup.md>)。
 
 ## 不支持的扩展点
 
-宿主停靠面板、工具栏、任意右键菜单、数据类型和编辑器事件都没有公开 hook。上文的地图项命令是唯一的右键菜单扩展点。插件可以随命令携带并打开自己的 Avalonia 窗口，但不能把任意控件注入编辑器拥有的视图。
+宿主停靠面板、工具栏、任意右键菜单、数据类型和编辑器事件都没有公开 Hook。上文的地图项命令是唯一的右键菜单扩展点。插件可以随命令携带并打开自己的 Avalonia 窗口，但不能把任意控件注入编辑器拥有的视图。
 
 ## 相关页面
 

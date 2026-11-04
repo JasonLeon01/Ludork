@@ -2,13 +2,13 @@
 
 ## Actors and characters
 
-`Actor` supplies map ownership, position, lifecycle and collision-facing behaviour. Character-style classes add movement and direction. Public class defaults belong on the Lua class table. `init` is reserved for constructor arguments and private runtime state.
+`Actor` supplies map ownership, position, lifecycle and collision-related behaviour. Character-style classes add movement and direction. Public class defaults belong on the Lua class table. `init` is reserved for constructor arguments and private runtime state.
 
 Actors reference `Data/Materials/...json` through `material` and keep independent overrides in `materialParameters`. Several Actors can share a resource while changing their own parameters independently. Apply the reference before parameters; temporary changes still require explicit state recording to enter saves. Materials do not change movement speed. See [Maps and Materials](<../Global and Core Modules/Core Modules/Engine/Maps and Materials.md#material-resources>) for the format and API.
 
 `Actor.visible` defaults to `true`. Direct assignment changes the Actor's own flag, and `getVisible` reads it. `setVisible(value, applyToChildren = true)` can also update descendants. An Actor hidden by itself or by an ancestor does not render, block light, collide, overlap, occupy pathfinding cells or accept map-click interaction. Hidden enemies contribute no movement hazards and no Enemy Book entries. A visibility change refreshes the affected caches. Hiding retains the instance, does not stop Tick, and does not rewrite collision or animation settings.
 
-An Actor can configure `emitterComp` as an `Engine.EmitterComponent` to attach a [Common Particle](<../../Editor User Guide/Common Particles.md>) effect. It follows the Actor transform and draws immediately before or after its owner in existing list order. Hidden or dormant Actors freeze GPU playback while retaining its state and manual pause setting. Destroy, world eviction, map replacement and Scene exit release the effect. Actor gameplay Tick retains its existing visibility policy.
+An Actor can configure `emitterComp` as an `Engine.EmitterComponent` to attach a [Common Particle](<../../Editor User Guide/Common Particles.md>) effect. It follows the Actor transform and draws immediately before or after its owner in existing list order. Hidden or dormant Actors freeze GPU playback while the effect retains its state and manual pause setting. Destroy, world eviction, map replacement and Scene exit release the effect. Actor gameplay Tick retains its existing visibility policy.
 
 An Actor can configure `billboardComp` as an [Engine.BillboardComponent](<../Global and Core Modules/Core Modules/Engine/Gameplay Types.md#billboardcomponent>) to display images and text above its head when the player approaches.
 
@@ -52,7 +52,7 @@ Domain, Flank and Blockade Effects grant `Gameplay.Movement.Hazard`. Both moveme
 
 After obtaining the Enemy Book, the shared [Gameplay damage-hint setting](<Runtime Data Configuration and Saves.md#shared-gameplay-configuration>) determines whether enemy readouts and movement-danger cell totals are shown. Hints have no gameplay side effects.
 
-Click routes exclude positive-danger cells even while hidden, except for an explicitly clicked destination. Clicking a Domain or Blockade enemy removes only that target's contributions, including its side of a Flank. Collision and overlap targets that the player will not occupy ignore destination-cell danger.
+Click routes exclude positive-danger cells even while those cells are hidden, except for an explicitly clicked destination. Clicking a Domain or Blockade enemy removes only that target's contributions, including its side of a Flank. Collision and overlap targets that the player will not occupy ignore destination-cell danger.
 
 World chunk activation and sleep invalidate the danger cache when the active hazard enemies change. Grids materialise only for map hints or click pathfinding, evaluating candidate cells inside declared enemy coverage and querying only the enemies that can affect each cell. Coverage comes from the read-only `Event.Movement.QueryHazardBounds` contract described in [MovementSpecials](<../Source Classes/Gameplay.md#movementspecials-and-movement-danger>); exact damage still uses `Preview`. Area changes reuse the overlapping results, including zero damage, while enemy and ability changes invalidate them. Ordinary maps reuse their stable cache, and single-cell queries remain local.
 

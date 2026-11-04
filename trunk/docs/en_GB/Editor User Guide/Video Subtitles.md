@@ -12,7 +12,7 @@ Add, select, delete or move sections on the timeline, and drag their edges to ad
 
 Each section has a multilingual switch, off by default for new sections. Turning it on places the existing text under `en_GB` and adds the document's other languages with empty text. Turning it off retains the selected language, with confirmation before discarding other translations from that section.
 
-All multilingual sections share the same language keys. Use `+` and `−` below the language list to add or delete a language throughout the document, or right-click a language to rename it. Names must be nonempty and unique; new languages start with empty text.
+All multilingual sections share the same language keys. Use `+` and `−` below the language list to add or delete a language throughout the document, or right-click a language to rename it. Names must be non-empty and unique; new languages start with empty text.
 
 Within a section, all languages have the same number of text rows; different sections can have different counts. Click or focus a row, then use `↑`, `↓`, `+` and `−` below the text list to move it, append an empty row or delete it across that section's languages. Typing changes only the selected translation. Switching languages keeps the row selection; switching sections selects the first row. Empty text lists and language lists are allowed, with text operations disabled when no language exists.
 
@@ -47,7 +47,7 @@ Store UTF-8 JSON beneath `Data/Subtitles` and reference it with a project-relati
 
 Times are finite numbers in seconds with `0 ≤ startTime < endTime`. A section is active from its start time, inclusive, to its end time, exclusive. Sections may touch but cannot overlap; gaps display no subtitles. An empty `sections` array is valid.
 
-`content` is either a string array used directly or a dictionary of language keys to string arrays. The dictionary first selects the current game language, then `en_GB` if that key is missing. If neither exists, no subtitle is displayed. An existing empty array explicitly displays nothing and does not fall back.
+`content` is either a string array used directly or a dictionary of language keys to string arrays. The dictionary first looks up the current game language, then falls back to `en_GB` if that key is missing. If neither exists, no subtitle is displayed. An existing empty array explicitly displays nothing and does not fall back.
 
 ## Playback and layout
 

@@ -61,7 +61,7 @@ local moved = start + step * 2.0   -- Vector2f(96, 64)
 local isSame = moved == sf.Vector2f.new(96.0, 64.0) -- true
 ```
 
-可用的运算符是 `+`、`-`、一元 `-`、与标量数字的 `*` 和 `/`，以及 `==`。仅定义了 `==`，因此 `<` 之类的比较不能用于向量。两个向量相乘是方法而不是运算符。三种 `Vector2` 都提供 `lengthSquared`、`perpendicular`、`dot`、`cross`、`componentWiseMul`、`componentWiseDiv` 与 `unpack`，其中 `unpack` 把各分量作为多个返回值返回。浮点类型另有 `length`、`normalized`、`angle`、`angleTo`、`rotatedBy` 与 `projectedOnto`，它们使用 `sf.Angle` 而不是角度值。
+可用的运算符是 `+`、`-`、一元 `-`、与标量数字的 `*` 和 `/`，以及 `==`。比较运算符只有 `==`，`<` 之类的排序比较不能用于向量。两个向量相乘是方法而不是运算符。三种 `Vector2` 都提供 `lengthSquared`、`perpendicular`、`dot`、`cross`、`componentWiseMul`、`componentWiseDiv` 与 `unpack`，其中 `unpack` 把各分量作为多个返回值返回。浮点类型另有 `length`、`normalized`、`angle`、`angleTo`、`rotatedBy` 与 `projectedOnto`，它们使用 `sf.Angle` 而不是角度值。
 
 `sf.Vector2f.new` 还接受一个长度和一个 `sf.Angle`，用于按极坐标构造向量：
 
@@ -71,7 +71,7 @@ local forward = sf.Vector2f.new(1.0, sf.degrees(90)) -- Vector2f(0, 1)
 
 ### 颜色、矩形与时间
 
-`sf.Color` 的 `r`、`g`、`b`、`a` 取值范围是 0 到 255。四参数构造函数依次接收红、绿、蓝、透明度，参数更少的写法会为缺省分量取默认值：
+`sf.Color` 的 `r`、`g`、`b`、`a` 取值范围是 0 到 255。四参数构造函数依次接收红、绿、蓝、透明度，参数更少的写法中，未给出的分量取默认值：
 
 ```lua
 local solid = sf.Color.new(32, 96, 160)
@@ -93,7 +93,7 @@ local inside = tile.contains(sf.Vector2i.new(16, 16)) -- true
 local overlap = tile.findIntersection(sub) -- 一个 sf.IntRect；不相交时为 nil
 ```
 
-`sf.Angle` 表示旋转角度。它不是数字，因此角度值必须经 `sf.degrees` 或 `sf.radians` 构造，不能直接把度数当参数传。
+`sf.Angle` 表示旋转角度。它不是数字，因此角度值必须经 `sf.degrees` 或 `sf.radians` 构造，不能直接传入度数。
 
 ```lua
 local facing = sf.degrees(90)
@@ -146,11 +146,11 @@ local bounds = cell:getGlobalBounds()
 
 上面列出的抽象基类都以表的形式存在，但没有 `new`：`sf.Drawable`、`sf.Shape`、`sf.RenderTarget`、`sf.InputStream`、`sf.SoundSource`、`sf.SoundStream`、`sf.SoundRecorder`、`sf.SoundFileReader`、`sf.SoundFileWriter` 与 `sf.Socket` 都无法构造。请改为构造具体的子类，并把基类当作参数或返回值所声明的类型来用。唯一的例外是 `sf.Drawable`：Lua 可以通过 `sf.LuaDrawable.new(drawCallback)` 实现它，`draw` 会在 Lua 中执行。
 
-事件需要指定载荷类型：`sf.Event_Closed`、`sf.Event_Resized` 这类载荷类型可以构造，而 `sf.Event.new` 要求传入其中一个作为参数。项目代码通常是接收事件，而不是自己构造。
+事件则是同一模式的反向：`sf.Event_Closed`、`sf.Event_Resized` 这类载荷类型可以构造，而 `sf.Event.new` 要求传入其中一个作为参数。项目代码通常接收事件，而不是自行构造。
 
 ## 在项目中使用 SFML
 
-位置、尺寸与矩形在 Engine API 中都以 `sf` 值传递，因此格坐标与世界坐标之间的换算就是普通的向量运算：
+位置、尺寸与矩形在 Engine API 中都以 `sf` 值传递，因此格子坐标与世界坐标之间的换算就是普通的向量运算：
 
 ```lua
 local Engine = require("Engine")
@@ -172,13 +172,13 @@ if player ~= nil then
 end
 ```
 
-传值之前先看声明的类型。声明为 `sf.Vector2f` 的接口不会接受 `sf.Vector2i`，也不会接受 Standard 的 `tuple` 或普通 table，也不会自动转换。
+传值之前先确认声明的类型。声明为 `sf.Vector2f` 的接口不接受 `sf.Vector2i`、Standard 的 `tuple` 或普通 table，也不会自动转换。
 
 JSON 与 metadata 只保存纯数据，而 `sf` 值是原生 userdata，因此两种形式之间的转换是显式的。Game 项目的存档编解码器把 `sf.Vector2i` 写成 `{ x, y }`，读取时再重建；它的记录归一化会把 `sf.Vector2i`、`sf.Vector3i`、`sf.IntRect`、`sf.FloatRect` 与 `sf.Color` 转成数字数组。只要目标是数据，就存分量，用到时再构造 `sf` 值。
 
 ## 延伸阅读
 
-`Scripts/stub/LuaSF.d.lua` 包含完整 Lua 声明与 SFML 注释，EmmyLua 会索引它以提供补全和悬浮提示。上方官方 C++ 参考的成员名和参数顺序与 Lua 接口基本一致。
+`Scripts/stub/LuaSF.d.lua` 包含完整 Lua 声明与 SFML 注释，EmmyLua 会索引它以提供补全和悬浮提示。上文链接的官方 C++ 参考的成员名和参数顺序与 Lua 接口基本一致。
 
 ## 相关页面
 

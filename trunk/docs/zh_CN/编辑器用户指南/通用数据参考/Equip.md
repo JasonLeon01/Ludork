@@ -4,7 +4,7 @@
 
 | 属性 | 值 |
 |---|---|
-| 成员事件 | `onEquip`, `onUnequip` |
+| 成员事件 | `onEquip`、`onUnequip` |
 
 ## Schema
 

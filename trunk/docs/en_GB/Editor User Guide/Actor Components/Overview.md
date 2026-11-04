@@ -9,15 +9,15 @@ Components add optional presentation or child-Actor behaviour to an Actor. Confi
 | [Emitter](<Emitter.md>) | `emitterComp` | `Engine.Actor` and derived classes | A Common Particle effect attached to the Actor |
 | [ChildActor](<ChildActor.md>) | `childActorComp` | Default Gameplay `Source.MapActors.Enemy` and derived classes | A child Actor, used for the enemy damage readout |
 
-The component list comes from the selected class's metadata and inheritance chain. `childActorComp` is declared by Enemy, not by the native Actor base; adding a component does not add a new field to an arbitrary class.
+The component list comes from the selected class's metadata and inheritance chain. `childActorComp` is declared by Enemy, not by the native Actor base; adding a component does not introduce a new field on an arbitrary class.
 
 ## Configuration
 
 1. Open an Actor Blueprint to edit shared defaults, or select a placed Actor and open **Actor Info** to edit that instance.
-2. In **Components**, use **+** to add an available optional component. Double-click an existing component to edit its fields. Follow the corresponding component page for its configuration.
+2. In **Components**, use **+** to add an available optional component. Double-click an existing component to edit its fields. See the corresponding component page for its configuration.
 3. Save the Blueprint or map document you edited.
 
-A child Blueprint inherits an omitted value and uses its explicit value in preference to an ancestor's default. Optional components remain available even if no ancestor supplies a default; an unset component without a default is omitted from a new Blueprint's JSON. A map instance override takes precedence over its Blueprint defaults. In **Actor Info**, reset an overridden field to inherit again, or use **Reset All** to remove all class-field overrides for that instance.
+A child Blueprint inherits an omitted value; an explicit value is used in preference to an ancestor's default. Optional components remain available even if no ancestor supplies a default; an unset component without a default is omitted from a new Blueprint's JSON. A map instance override takes precedence over its Blueprint defaults. In **Actor Info**, reset an overridden field to inherit again, or use **Reset All** to remove all class-field overrides for that instance.
 
 ## References
 

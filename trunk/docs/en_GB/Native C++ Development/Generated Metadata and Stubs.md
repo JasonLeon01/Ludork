@@ -18,7 +18,7 @@ Generated names and metadata inclusion follow the declarations described in [Bin
 
 Core bindgen and LuaSF preserve multiline `///` documentation in `.d.lua` files and convert recognised Doxygen commands, such as `\param` and `\return`, to the corresponding `@` form.
 
-Desktop builds finish native stubs by invoking the exported `<Module>_write_stub` function with `Engine/Tools/NativeStubDump`. The writer appends `copy` and `deepcopy` only for types whose compiled `StructTraits` confirms independent value semantics. It creates no Lua VM. Module runtime dependencies are copied before loading, and the aggregate native build refreshes these stubs even when the module did not relink. Cross-builds retain their source stubs. Generated conversion traits are force-included only in generated binding units.
+Desktop builds complete the native stubs by invoking the exported `<Module>_write_stub` function with `Engine/Tools/NativeStubDump`. The writer appends `copy` and `deepcopy` only for types whose compiled `StructTraits` confirms independent value semantics. It creates no Lua VM. Module runtime dependencies are copied before loading, and the aggregate native build refreshes these stubs even when the module did not relink. Cross-builds retain their source stubs. Generated conversion traits are force-included only in generated binding units.
 
 ## Defaults and types
 
@@ -57,7 +57,7 @@ Enum modules contain their own annotations and have no mirrored enum stubs. Nati
 
 The generator writes changed content only and removes stale outputs only when they carry its generation marker. It also removes obsolete enum stubs carrying its own marker and rejects a collision with a handwritten file. Editor templates and native caches include enum source modules without an enum stub tree; other native API stubs remain included. Game packages keep the enum source modules and exclude the stub tree.
 
-Cross-builds and builds with static Lua modules require the enum source modules from a prior desktop native build. Missing generated files fail the preflight with their paths; the build does not guess C++ constant values. Rebuild on desktop after changing native enum declarations or marked maps before preparing those builds.
+Cross-builds and builds with static Lua modules require the enum source modules from a prior desktop native build. Missing generated files fail the preflight with their paths; the build does not guess C++ constant values. After changing native enum declarations or marked maps, rebuild on desktop before preparing those builds.
 
 Project-owned enums come from General Data, animation and particle documents. Native metadata can refer to them with `metadata_type = { enum = "Enums.Particle", valueType = "string" }` without changing the C++ string parameter or Lua API value. See [General Data and Text Config](<../Editor User Guide/General Data and Text Config.md>) for generated modules and rename rules.
 

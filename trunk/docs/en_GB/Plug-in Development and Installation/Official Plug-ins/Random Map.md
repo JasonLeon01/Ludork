@@ -1,18 +1,18 @@
 # Official Random Map
 
-Use the official Random Map plug-in as the reference for a map-item command that reads immutable editor snapshots, opens its own Avalonia workflow and replaces one layer with revision protection.
+Use the official Random Map plug-in as the reference for a map-item command that reads immutable editor snapshots, opens its own Avalonia workflow and replaces a single layer under revision protection.
 
 ## Prerequisites
 
 - Install [the official plug-ins](<../Installing and Managing Plug-ins.md#official-release-plug-ins>) and confirm Official Random Map is **Loaded**. Its repository source is `Plugins/OfficialRandomMap`.
 - Open a project containing at least one map, layer and valid tileset.
-- Save any unsaved edits in the target map, or accept that a successful plug-in write includes them in the direct save of that map.
+- Save any unsaved edits in the target map, or accept that a successful plug-in write includes them in its direct save of that map.
 
 ## Registration contract
 
 `OfficialRandomMapPlugin` registers one `PluginMapContextMenuCommand`, displayed when a map item is right-clicked.
 
-The handler receives `PluginMapContextMenuContext`, checks for `IAvaloniaPluginUserInterface`, and opens the plug-in-owned `RandomMapWindow` with the host's real owner. The window uses only `IMapEditorHost`. It does not receive an editor view model, a control or a mutable JSON object.
+The handler receives `PluginMapContextMenuContext`, checks for `IAvaloniaPluginUserInterface`, and opens the plug-in-owned `RandomMapWindow` with the real owner window supplied by the host. The window uses only `IMapEditorHost`. It does not receive an editor view model, a control or a mutable JSON object.
 
 ## Steps
 
@@ -33,7 +33,7 @@ Actor positions are visual references: add a marker when an Actor's cell must re
 
 Both layouts keep all empty cells connected by four-way movement, leave markers open and reject solid 2 × 2 wall blocks. The region's outermost cells remain available for paths and rooms; generation does not reserve a closed outer wall ring.
 
-**Lattice** randomly scatters single-cell walls and straight wall segments of two or three cells. Their positions, directions and spacing vary across the region, while separate components do not touch orthogonally. The generator reserves local single-cell gateways with walls on two opposite sides and open cells in front and behind, providing positions for doors or blocking Actors. These supporting walls and open cells remain protected while the remaining walls are placed to reach the target density. Natural bends and areas of different spacing remain part of the layout. A gateway blocks its local passage, while other routes may still lead around it. Lattice does not carve rooms or build room rings, and rejects completely empty 4 × 4 areas.
+**Lattice** randomly scatters single-cell walls and straight wall segments of two or three cells. Positions, directions and spacing vary across the region, and separate wall components do not touch orthogonally. The generator reserves local single-cell gateways with walls on two opposite sides and open cells in front and behind, providing positions for doors or blocking Actors. These supporting walls and open cells remain protected while the remaining walls are placed to reach the target density. Natural bends and areas of different spacing remain part of the layout. A gateway blocks its local passage, while other routes may still lead around it. Lattice does not carve rooms or build room rings, and rejects completely empty 4 × 4 areas.
 
 **Rooms** combines small rooms, one-cell doorways and branching corridors. Room interiors contain at most nine cells, with shapes such as 2 × 2, 2 × 3, 2 × 4 and 3 × 3; adjacent rooms can share a one-cell wall. An 11 × 11 region contains four to seven rooms and one or two loops offering alternate routes around walls. Larger regions support more rooms and routes. At least half of the rooms have a single entrance: blocking that entrance disconnects the room from the main route. Other connections provide limited detours. Open space within a room and wider corridors do not count as extra routes.
 

@@ -51,4 +51,6 @@ Metadata 来源：`Scripts/GlobalFunctions/Utils_meta.lua`
 | `IfPlayerOverlaps` | `function` | — | value: bool | Pure |
 | `IfGameVar` | `function` | varName: string = ""; op: string = "=="; value: any | return: bool | ExecSplit { [1] = "TRUE", [2] = "FALSE", TRUE = { [1] = true }, FALSE = { [1] = false } }; Meta { DropBox = { op = { [1] = "==", [2] = "!=", [3] = "<", [4] = "<=", [5] = ">", [6] = ">=" } }, InstVar = { [1] = "varName" }, InstVarValue = { value = "varName" } } |
 
+`AddPlayerByClass` 记录新成员的地图与格子，不改变主玩家。`SetPlayerByClass` 把该玩家类移到 `playerKeys[1]`，重新绑定场景 UI，并加载记录的地图。
+
 `GetAttr` 与经由 `GetAttrRef` 的读取，会在组件字段非 nil 时返回该字段值，否则读取对象自身的属性。两者都会保留 `false`、`0` 与空字符串，并在不存在任何非 nil 值时抛出错误。读取 Actor 的 `tag` 会得到字符串值，可直接连接到对话节点的 `refActorTag` 输入。

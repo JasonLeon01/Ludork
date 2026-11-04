@@ -1,12 +1,12 @@
 # Source.MapActors.DoorBase
 
-`DoorBase` 声明门的碰撞、开启间隔、开门音效与门状态属性，以及开门和关门节点。
+`DoorBase` 声明门的碰撞、开启间隔、门音效与门状态属性，以及开门和关门节点。
 
 Metadata 来源：`Scripts/Source/MapActors/DoorBase_meta.lua`
 
-`openDoor()` 与 `closeDoor()` 返回 `Engine.AsyncOperation`。动画开始时发布 `Enums.MovementLatentOutput.STARTED`（`0`），结束时以 `FINISHED`（`1`）完成，对应蓝图的 `Started` / `Finished` 分支。
+`openDoor()` 与 `closeDoor()` 返回 `Engine.AsyncOperation`。动画开始时发布 `Enums.MovementLatentOutput.STARTED`（`0`），完成时返回 `FINISHED`（`1`），对应蓝图的 `Started` / `Finished` 分支。
 
-同方向的重复请求共享未完成操作，反向播放会取消原操作。对已打开的门开门、对已关闭的门关门都会立即完成。正常开门在门销毁自身之前完成，其他销毁情形取消未完成操作。
+同方向的重复请求会共享未完成的操作；反向请求会将其取消。对已打开的门开门、对已关闭的门关门都会立即完成。正常开门在门销毁自身之前完成，其他销毁情形取消未完成操作。
 
 ## DoorBase
 

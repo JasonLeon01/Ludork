@@ -13,12 +13,12 @@ Review project resources for which no static reference can be found, protect res
 2. Review the built-in list. `NativeResources.list` ships with the plug-in and protects resources used directly by native C++, including shaders, UI defaults, text styles and curves. It also retains standard application icons and the bundled asset licence files used by distribution. These entries are read-only in the window.
 3. Add files or directories needed by dynamic Lua paths to the additional keep list, one project-relative path per line. For example, keep `Assets/Characters/Dynamic` or `Data/Animations/GeneratedEffect.json`. A directory protects its contents. Static scanning cannot identify concatenated or runtime-calculated paths; add those paths yourself.
 4. Select **Scan**. The scan runs in the background and shows its stage, progress and current path. **Cancel** stops the operation without starting a cleanup.
-5. Review the **Data** and **Assets** tabs. Each candidate shows its complete project-relative path and size; each tab also shows its file count and total size. A candidate means that no supported static reference was found, not that runtime use has been disproved.
+5. Review the **Data** and **Assets** tabs. Each candidate shows its complete project-relative path and size; each tab also shows its file count and total size. A candidate means no supported static reference was found; it does not mean that runtime use has been disproved.
 6. To retain a candidate, select its row and choose **Keep selected and rescan**, or edit the keep list and scan again. A changed keep list invalidates the previous report. Scan issues must be resolved before recycling is enabled.
 7. Choose **Move to Trash**, review the final file count and total size, and confirm. This applies to every candidate in the current report. The host rechecks the report against current project files before moving anything.
 8. Review the results: moved files, the failure if one occurred, and files not processed. Cancellation or a failure stops further work; files already moved remain in the system Trash. Scan again before another cleanup.
 
-Additional keep paths are saved through the host in the project's `EditorCache/ResourceCleanupKeep.list`, when scanning, saving the list or closing the window. Opening with an empty list does not create the file. Clearing and saving the additions removes it. Built-in entries are never copied into this file. If saving fails, the window stays open and shows the error.
+The host saves additional keep paths in the project's `EditorCache/ResourceCleanupKeep.list` when scanning, saving the list or closing the window. Opening with an empty list does not create the file. Clearing and saving the additions removes it. Built-in entries are never copied into this file. If saving fails, the window stays open and shows the error.
 
 ## Scan boundaries
 

@@ -4,7 +4,7 @@ Palette（控件面板）列出可拖入 UI 资产的内置控件，以及启用
 
 ## 如何阅读本页
 
-条目按 Palette 分类排列，以控件的 `controlId` 为标题。每张表列出分类、允许的子节点、Slot 类型和主要属性。
+条目按 Palette 分类排列，以节点中保存的 `controlId` 为标题。每张表列出子节点策略、Slot 类型与各控件特有的序列化属性。
 
 ### 子节点与 Slot
 
@@ -27,7 +27,7 @@ PlainText、RichText、FunctionalPlainText、FunctionalRichText、TextBox 和 Dr
 
 ### 内联文本样式组
 
-有 7 个控件带同一组内联文本样式属性：`textConfig`、`font`、`characterSize`、`bold`、`italic`、`underlined`、`strikeThrough`、`slantAngle`、`fillColor`、`letterSpacing`、`lineSpacing`、`lineAlignment`、`outlineColor`、`outlineThickness`，4 个 `glow*` 字段和 3 个 `gradient*` 字段。它们是 CheckBox、DropBox、FunctionalPlainText、GamepadHintBar、PlainText、TabView、TextBox。下面的条目用*文本样式*指代这一组，不再逐项列出。`textConfig` 非空时，编辑器会禁用这些内联字段，运行时改用 TextConfig。
+7 个控件共用同一组内联文本样式属性：`textConfig`、`font`、`characterSize`、`bold`、`italic`、`underlined`、`strikeThrough`、`slantAngle`、`fillColor`、`letterSpacing`、`lineSpacing`、`lineAlignment`、`outlineColor`、`outlineThickness`，4 个 `glow*` 字段和 3 个 `gradient*` 字段。它们是 CheckBox、DropBox、FunctionalPlainText、GamepadHintBar、PlainText、TabView、TextBox。下面的条目用*文本样式*指代这一组，不再逐项列出。`textConfig` 非空时，编辑器会禁用这些内联字段，运行时改用 TextConfig。
 
 RichText 与 FunctionalRichText 只接受 `textConfig`，没有内联字段；它们通过 TextConfig 为命名标签设定样式。
 
@@ -71,7 +71,7 @@ Canvas 决定内部控件的坐标空间和层叠顺序。详见 [Engine：运�
 
 ### Engine.WrapBox
 
-按等间距重复一个子节点模板，适合图标列、格子背景等。
+按等间距重复同一个子节点模板，适合状态火焰、图标网格、格子背景等。
 
 | 分类 | 子节点 | Slot | 关键属性 |
 |---|---|---|---|
@@ -169,7 +169,7 @@ Input 控件接受焦点与玩家输入。它们都是 `FunctionalBase`：只有
 
 ### Engine.CheckBox
 
-带文字标签的复选框，可响应选中状态的变化。
+自带文字标签的双态开关，状态变化时会向外报告。
 
 | 分类 | 子节点 | Slot | 关键属性 |
 |---|---|---|---|
@@ -195,7 +195,7 @@ Input 控件接受焦点与玩家输入。它们都是 `FunctionalBase`：只有
 |---|---|---|---|
 | Input | 无 | — | `drawAs`、`texture`、`textureRect`、`colour` |
 
-它保存的属性与 Image 相同，并继承其 `drawAs` API。如果不需要点击图片，就选 Image。详见 [Engine：运行时值与功能控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/运行时值与功能控件.md#functionalimage>)。
+它序列化的属性与 Image 相同，并继承其 `drawAs` API。如果不需要点击图片，就选 Image。详见 [Engine：运行时值与功能控件](<../Lua 与蓝图脚本/全局与 Core 模块/Core Modules/Engine/运行时值与功能控件.md#functionalimage>)。
 
 ### Engine.FunctionalPlainText
 
@@ -249,7 +249,7 @@ Input 控件接受焦点与玩家输入。它们都是 `FunctionalBase`：只有
 
 ### Engine.TextBox
 
-供玩家输入和编辑文本。
+可编辑的单行文本输入框。
 
 | 分类 | 子节点 | Slot | 关键属性 |
 |---|---|---|---|

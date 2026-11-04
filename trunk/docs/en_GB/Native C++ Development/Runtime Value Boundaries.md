@@ -1,6 +1,6 @@
 # Runtime Value Boundaries
 
-Choose a type from the values the API accepts and the ownership it requires.
+Choose a type based on the values the API accepts and the ownership it requires.
 
 | Requirement | Type |
 |---|---|
@@ -40,7 +40,7 @@ An empty Lua `{}` is a map, while `{ n = 0 }` is an empty array. A non-negative 
 
 Returning a shared native object first reuses its existing Lua owner. After that wrapper is collected, sources exposing the [native Cast protocol](<Macro Reference.md#native-cast-declarations>) select a registered writer through `ludorkDynamicTypeKey()`. The writer receives the source's static type key and an aliasing shared pointer to its subobject. Generated conversion bases permit statically checked pointer recovery, including nonzero multiple-inheritance offsets, while preserving the original control block.
 
-A missing writer or unsupported source uses an ordinary static-type wrapper. This includes an external base such as `sf::Drawable` with neither a Cast protocol nor an existing Lua owner. Non-polymorphic value types use their declared static type without dynamic-writer registration.
+A missing writer or an unsupported source falls back to an ordinary static-type wrapper. This includes an external base such as `sf::Drawable` with neither a Cast protocol nor an existing Lua owner. Non-polymorphic value types use their declared static type without dynamic-writer registration.
 
 The wrapper registers the exposed type and all conversion-base subobject addresses to preserve repeated Lua object identity. Lua callback adapters release captured references through the Cast protocol. Opaque Lua references retain their original value and follow the [session lifetime rules](<#lua-references-and-session-lifetime>).
 

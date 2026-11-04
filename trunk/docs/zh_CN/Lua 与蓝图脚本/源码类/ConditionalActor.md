@@ -20,7 +20,7 @@ Metadata 来源：`Scripts/Source/MapActors/ConditionalActor_meta.lua`
 
 `applyConditionVisibility(variables)` 使用传入的游戏变量表判断同一条件，并应用一次可见性。它不依赖所属 Scene，不注册订阅，也不触发生命周期事件。空条件保留 Actor 原有的可见性。
 
-实时 Actor 与楼层预览共用标量求值函数 `Source.Utils.ActorVisibility.Evaluate(variable, operator, comparison, authoredVisible, variables)`。预览恢复地图记录后，将结果应用到静态显示记录，不创建 Actor 或订阅。隐藏记录仍保留在缓存中，供之后重新求值；子对象的有效可见性同时要求祖先可见。
+实时 Actor 与楼层预览共用标量求值函数 `Source.Utils.ActorVisibility.Evaluate(variable, operator, comparison, authoredVisible, variables)`。预览恢复地图记录后，将结果应用到静态显示记录，不创建 Actor 或订阅。隐藏记录仍保留在缓存中，供之后重新求值；子 Actor 的有效可见性同时要求祖先可见。
 
 ## 生命周期
 
@@ -34,4 +34,4 @@ Metadata 来源：`Scripts/Source/MapActors/ConditionalActor_meta.lua`
 
 ## 继承
 
-Enemy、Item、Equip、DoorBase 与 Teleporter 都继承此类。Bottle、Gem 以及 Game 项目中其他直接的地图 Actor Blueprint 以 `Source.MapActors.ConditionalActor.ConditionalActor` 为父类。`EnemyDamageText` 保留原有的父类与提示逻辑。
+Enemy、Item、Equip、DoorBase 与 Teleporter 都继承此类。Bottle、Gem 以及 Game 项目中其他直接派生的地图 Actor Blueprint 以 `Source.MapActors.ConditionalActor.ConditionalActor` 为父类。`EnemyDamageText` 保留原有的父类与提示逻辑。

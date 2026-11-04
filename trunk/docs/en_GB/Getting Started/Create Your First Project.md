@@ -21,7 +21,7 @@ Release editors download the matching template on first use. See [Obtaining temp
 
 1. Select a map in the map list.
 2. Click **Export** and resolve any reported errors. Play requires a successful export.
-3. Click **Play**. Windows supports embedded or individual-window mode; other hosts use an individual window. See [Construct, Export and Play](<../Editor User Guide/Run Debug and Package.md#construct-export-and-play>) for window settings and export details.
+3. Click **Play**. Windows supports embedded or individual-window mode; other platforms use an individual window. See [Construct, Export and Play](<../Editor User Guide/Run Debug and Package.md#construct-export-and-play>) for window settings and export details.
 4. Open **Console** to see runtime output. Project editing is disabled while the game runs unless [Live Debug](<../Editor User Guide/Run Debug and Package.md#live-debug>) was enabled before Play.
 5. Click the same button, now **Stop**, to stop the game and resume editing.
 

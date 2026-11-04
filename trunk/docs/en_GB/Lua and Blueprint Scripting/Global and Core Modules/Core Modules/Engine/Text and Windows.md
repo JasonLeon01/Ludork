@@ -11,7 +11,7 @@
 
 ## Engine.TextLayout
 
-`Engine.TextLayout` measures, truncates and wraps UTF-8 text without mutating the control, and `maxWidth` must be positive and finite.
+`Engine.TextLayout` measures, truncates and wraps UTF-8 text without mutating the control; `maxWidth` must be positive and finite.
 
 | Name | Parameters | Returns |
 |---|---|---|

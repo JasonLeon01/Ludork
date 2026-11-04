@@ -113,7 +113,7 @@ macOS and iOS use WKWebView, Android the system WebView, HarmonyOS ArkWeb, and W
 
 ## JSON data
 
-JSON APIs address the exact path in loose or packed Data and never select or decode an LDC alternative. `Engine.getJSONData(path)` parses JSON; `Engine.getJSONText(path)` reads the file as text; `Engine.jsonExists(path)` checks only that path. `Engine.writeJSON(path, value)` always writes JSON text, regardless of the filename extension.
+JSON APIs operate on the exact path in loose or packed Data and never select or decode an LDC alternative. `Engine.getJSONData(path)` parses JSON; `Engine.getJSONText(path)` reads the file as text; `Engine.jsonExists(path)` checks only that path. `Engine.writeJSON(path, value)` always writes JSON text, regardless of the filename extension.
 
 `Engine.writeJSON(filePath, value)` and `Engine.getJSONData(filePath)` use the native pure-data boundary. Writing accepts registered JSON array markers, including empty arrays from Standard containers' `toTable()`, and `cjson.null`. Native objects, functions, cycles and unrecognised metatables are rejected. Convert Standard containers explicitly before writing.
 

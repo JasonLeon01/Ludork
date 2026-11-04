@@ -12,7 +12,7 @@ local playerName = "Hero"
 local level, alive, target = 1, true, nil
 ```
 
-Lua 的值包括 `nil`、boolean、number、string、function、table、userdata 与 thread。`type(value)` 返回这些内建类别之一。由 table 或 userdata 表示的应用对象，仍然归入它底层的类别。
+Lua 的值包括 `nil`、boolean、number、string、function、table、userdata 与 thread。`type(value)` 返回这些内建类别之一。由 table 或 userdata 表示的应用对象，仍会报告底层的类别。
 
 ## 运算符
 
@@ -69,7 +69,7 @@ for key, value in pairs(player) do
 end
 ```
 
-稠密数组用 `ipairs`，字典用 `pairs`。数值循环写作 `for i = first, last, step do ... end`，步长能到达终点时包含终点；while 循环写作 `while condition do ... end`。
+稠密数组用 `ipairs`，字典用 `pairs`。数值循环写作 `for i = first, last, step do ... end`，步长能到达时包含两个端点；while 循环写作 `while condition do ... end`。
 
 ## 函数与方法
 

@@ -29,7 +29,7 @@ local System = GlobalCore.System
 local ManagerFunctions = GlobalFunctions.Manager
 ```
 
-The native `GlobalFunctions` module exposes `Components`, `UI`, `NodeGraph` and `Manager`. Lua Blueprint function libraries under `Scripts/GlobalFunctions` are separate modules, loaded with paths such as `require("GlobalFunctions.Math")`; they are not members of the native root table. Other modules use their full dotted path. Do not add directory-level `init.lua` aggregators. Outside Blueprint function libraries, delay a `require` to resolve a real dependency cycle, or at an explicit first-use boundary such as an optional window's factory. The owning scene or feature must define that lifecycle; ordinary dependencies remain direct imports.
+The native `GlobalFunctions` module exposes `Components`, `UI`, `NodeGraph` and `Manager`. Lua Blueprint function libraries under `Scripts/GlobalFunctions` are separate modules, loaded with paths such as `require("GlobalFunctions.Math")`; they are not members of the native root table. Other modules use their full dotted path. Do not add directory-level `init.lua` aggregators. Outside Blueprint function libraries, delay a `require` only to resolve a real dependency cycle or at an explicit first-use boundary such as an optional window's factory. The owning scene or feature must define that lifecycle; ordinary dependencies remain direct imports.
 
 Runtime modules under `Scripts/GlobalFunctions` do not call `require` at module scope, including for native modules. They resolve dependencies from functions on first use so Blueprint function libraries can load without cycles. Their Lua paths and exported names must not occupy the same `GlobalFunctions` paths as C++ bindings.
 
@@ -84,11 +84,11 @@ Load an enum directly, for example `local StairDirection = require("Enums.StairD
 | `Enums.WorldActorState` | World Actor lifecycle labels: `NEVER_ACTIVE = "NeverActive"`, `ACTIVE = "Active"`, `DORMANT = "Dormant"` |
 | `Enums.WorldPublishPhase` | Region publication labels: `CONVERT = "convert"`, `BUILD = "build"`, `INDEX = "index"`, `FINALISE = "finalise"` |
 
-Native builds generate `Enums.Engine.*`, `Enums.GlobalCore.*`, `Enums.GlobalFunctions.*` and `Enums.sf.*`. Project data saves generate `Enums.GeneralDataKey`, one `Enums.GeneralData.<TypeName>` module per data type, `Enums.Animation` and `Enums.Particle`. The editor resolves these string enums from the current project catalogue before saving, including unsaved changes; runtime `require` reads the generated source modules. These generated modules retain their owning native declarations or database records as the source of truth; edit those sources and regenerate.
+Native builds generate `Enums.Engine.*`, `Enums.GlobalCore.*`, `Enums.GlobalFunctions.*` and `Enums.sf.*`. Saving project data generates `Enums.GeneralDataKey`, one `Enums.GeneralData.<TypeName>` module per data type, `Enums.Animation` and `Enums.Particle`. The editor resolves these string enums from the current project catalogue before saving, including unsaved changes; runtime `require` reads the generated source modules. These generated modules retain their owning native declarations or database records as the source of truth; edit those sources and regenerate.
 
 ## Native modules and values
 
-Standard globals such as `os.createDirectories`, `os.removeFile`, `zlib` and `base64` are host-installed and are not required. The host also installs the `SAVE_AS_LDC` default from `LUDORK_SAVE_AS_LDC`; project overrides are described in [Saves](<Default Gameplay/Runtime Data Configuration and Saves.md#saves>). `LudorkRuntime` is a native library, not a Lua module. Core bindings load only through `Engine`, `GlobalCore` and `GlobalFunctions`, and there is no `Runtime` or `CoreSystem` alias.
+Standard globals such as `os.createDirectories`, `os.removeFile`, `zlib` and `base64` are host-installed and need no `require`. The host also installs the `SAVE_AS_LDC` default from `LUDORK_SAVE_AS_LDC`; project overrides are described in [Saves](<Default Gameplay/Runtime Data Configuration and Saves.md#saves>). `LudorkRuntime` is a native library, not a Lua module. Core bindings load only through `Engine`, `GlobalCore` and `GlobalFunctions`, and there is no `Runtime` or `CoreSystem` alias.
 
 LuaSF registers the global `sf`. Use exact native values such as `sf.Vector2i.new(...)`, `sf.Vector2f.new(...)` and `sf.Color.new(...)` when an API declares those types. Native containers and ordinary tables are not implicit vector adapters.
 

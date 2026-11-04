@@ -2,7 +2,7 @@
 
 ## FogController
 
-Construct `GlobalCore.FogController.new()` for each map session. The controller owns configuration; the shared renderer owns its GPU resources. The Game project creates and attaches one controller per `GameMap`, so configuring one map cannot overwrite another map's fog.
+For each map session, construct a `GlobalCore.FogController` with `GlobalCore.FogController.new()`. The controller owns the configuration; the shared renderer owns the GPU resources. The Game project creates and attaches one controller per `GameMap`, so configuring one map cannot overwrite another map's fog.
 
 | Instance method | Parameters | Returns |
 |---|---|---|
@@ -16,7 +16,7 @@ Construct `GlobalCore.FogController.new()` for each map session. The controller 
 
 The region methods and `applyWorldFromMapData` are runtime-only Lua APIs. `applyFromMapData` replaces the base configuration while retaining regions. `applyWorldFromMapData` starts a world configuration by clearing prior regions; `clearFog` clears both the base and regional configuration. There are no global `update` or `drawOverlay` calls. Map composition samples fog at the frame's absolute time, after material and light composition and before foreground weather and particles.
 
-Fog uses GPU procedural noise in world coordinates. It needs no texture path. The base world fog is composed first; resident child fog is clipped to its placement and composed in stable placement order. Matching settings and time produce continuous noise across neighbouring placements. Lit fog samples the scene's ambient and direct light; Unlit uses its configured colour. See [Engine.MapFogSettings](<../Engine/Maps and Materials.md#mapfogsettings>) for fields and defaults.
+Fog uses GPU procedural noise in world coordinates and needs no texture path. The base world fog is composed first; resident child fog is clipped to its placement and composed in stable placement order. Matching settings and time produce continuous noise across neighbouring placements. Lit fog samples the scene's ambient and direct light; Unlit uses its configured colour. See [Engine.MapFogSettings](<../Engine/Maps and Materials.md#mapfogsettings>) for fields and defaults.
 
 ## PanoramaController
 
@@ -80,7 +80,7 @@ Changing terrain rebuilds connectivity and replacement sources. Moving within on
 
 `GlobalCore.GameMapRenderer` adapts live map and Actor state to Core `MapRenderer`. `renderFrame(ambientLight, time, applyPlayerCover, materialRevision, drawLayerEffects, drawOverlay)` renders materials, lighting, reflection, panorama and fog. `drawLayerEffects(layerName, target, states)` runs once per layer per frame; when reflection is needed, the renderer captures and reuses its output. `drawOverlay()` runs once per frame for component overlays. These callbacks draw only; gameplay advances in the normal update phase. `drawContent` preserves the supplied render states for offscreen drawing. `prewarm(ambientLight, time)` warms the same path; `setFogController(controller)` attaches the map fog instance and `setLayerOrder(names)` follows world layer changes.
 
-The shared renderer and editor preview data flow are described in [PreviewHost: Architecture and Data Flow](<../../../../PreviewHost/Architecture and Data Flow.md>). Editor display options are documented in [Map and World Previews](<../../../../PreviewHost/Map and World Previews.md>).
+The shared renderer and the editor preview data flow are described in [PreviewHost: Architecture and Data Flow](<../../../../PreviewHost/Architecture and Data Flow.md>). Editor display options are documented in [Map and World Previews](<../../../../PreviewHost/Map and World Previews.md>).
 
 ## Static preview rendering
 
@@ -96,9 +96,9 @@ The shared renderer and editor preview data flow are described in [PreviewHost: 
 
 `renderer:setPreviewSprites(records)` requires a renderer constructed with `previewOnly = true`. It retains the display resources and preserves record order within each configured layer. Parents must precede children; invalid parent indices fail without replacing the installed records. Explicitly installing an empty array draws no static sprites. Until records are installed, the renderer retains its ordinary Actor rendering contract.
 
-`renderer:setPreviewVisibility(flags)` requires installed records and exactly one boolean per record, in the same order. It updates own visibility; effective visibility also includes ancestors and the map's region rules. A `nil` texture draws nothing but retains the record's geometry and parent role. Geometry is already resolved into map coordinates; `parentIndex` controls visibility, not transform composition.
+`renderer:setPreviewVisibility(flags)` requires installed records and exactly one boolean per record, in the same order. It updates each record's own visibility; effective visibility also includes ancestors and the map's region rules. A `nil` texture draws nothing but retains the record's geometry and parent role. Geometry is already resolved into map coordinates; `parentIndex` controls visibility, not transform composition.
 
-Static material drawing uses the current frame, instance parameters and supplied absolute time (`0` for floor previews), combining sprite and caller transforms, including world offsets. Invalid materials report an error. The native-only `GameMapBase::isSpriteVisibleOnMap(position, bounds, transform)` shares the geometry visibility test with live Actors; it is not a Lua binding.
+Static material drawing uses the current frame, instance parameters and supplied absolute time (`0` for floor previews), combining sprite and caller transforms, including world offsets. An invalid material raises an error. The native-only `GameMapBase::isSpriteVisibleOnMap(position, bounds, transform)` shares the geometry visibility test with live Actors; it is not a Lua binding.
 
 ## WorldStreamingState
 

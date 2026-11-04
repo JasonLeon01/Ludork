@@ -4,7 +4,7 @@
 
 | 属性 | 值 |
 |---|---|
-| 成员事件 | `onWalk`, `onHookTriggered` |
+| 成员事件 | `onWalk`、`onHookTriggered` |
 
 ## Schema
 
@@ -17,4 +17,4 @@
 
 ## 编辑说明
 
-应用 State 会创建 Infinite Gameplay Effect，并授予该 State 的事件 Ability。`onWalk` 监听 `Event.Movement.Step`。可以用 `Event.State.Trigger.<stateID>` 显式触发 `onHookTriggered`，也可以在玩法图内调用 `GlobalFunctions.Gameplay.SendEvent`。添加或叠加 State 都不会发出 `onHookTriggered`。
+应用 State 会创建 Infinite Gameplay Effect，并授予该 State 的事件 Ability。`onWalk` 监听 `Event.Movement.Step`。可以用 `Event.State.Trigger.<stateID>` 显式触发 `onHookTriggered`，也可以在玩法图内调用 `GlobalFunctions.Gameplay.SendEvent`。添加或叠加 State 都不会触发 `onHookTriggered`。

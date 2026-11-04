@@ -6,7 +6,7 @@ Archive compression is transparent to these APIs. Seekable streams decode one bl
 
 ## AudioManager
 
-Music, sound and voice switches and volumes are configured here. `set*` applies and saves, while `save*` only persists the value.
+Music, sound and voice switches and volumes are configured here. `set*` applies the value and saves it, while `save*` only persists the value.
 
 ### Functions and events
 
@@ -50,7 +50,7 @@ Music, sound and voice switches and volumes are configured here. `set*` applies 
 | `setVoiceVolume` | `function` | value: float | — | — |
 | `saveVoiceVolume` | `function` | value: float | — | — |
 
-`AudioManager.setEffect(audioType, effect)` accepts `Sound`, `Voice` or `Music` and stores a callback for future playback in that category; `nil` clears it. It does not change a source already playing. The callback has the signature `fun(source: sf.SoundSource, control: GlobalCore.AudioEffectControl, sampleRate: integer)`, with non-nil source and control arguments. Each new source invokes it once before playback, using the current playback-device sample rate. It must install exactly one non-empty processor; missing or duplicate installation fails synchronously.
+`AudioManager.setEffect(audioType, effect)` accepts `Sound`, `Voice` or `Music` and stores a callback for future playback in that category; `nil` clears it. It does not affect a source that is already playing. The callback has the signature `fun(source: sf.SoundSource, control: GlobalCore.AudioEffectControl, sampleRate: integer)`, with non-nil source and control arguments. It is invoked once for each new source before playback, using the current playback-device sample rate. The callback must install exactly one non-empty processor; missing or duplicate installation fails synchronously.
 
 For a Lua processor, call `control:attachLuaProcessor(source, moduleName, resolverName, effectName, sampleRate)`. The three names are required strings supplied by the project. The native layer has no default project module or resolver. Each attachment creates an isolated Lua state, loads the module table with `require(moduleName)`, calls its `resolverName` function with `effectName`, then invokes the returned attacher as `(nil, control, sampleRate)` to obtain an `sf.SoundSource.EffectProcessor`. The isolated control exposes `isCancelled()`, `beginTail()` and `finishTail()`; it cannot attach another processor. Module loading, resolver and processor-creation failures propagate synchronously, without falling back to unprocessed audio. Errors raised later by the audio callback propagate through the Manager update.
 
@@ -104,12 +104,12 @@ The handle retains its ready texture until it is cancelled or released. Other ho
 
 | API | Contract |
 |---|---|
-| `getStatus()` | Return one of the read-only constants `TextureLoadRequest.PENDING` (`"pending"`), `READY` (`"ready"`), `FAILED` (`"failed"`) or `CANCELLED` (`"cancelled"`). This never waits or raises the stored load failure. |
+| `getStatus()` | Return one of the read-only constants `TextureLoadRequest.PENDING` (`"pending"`), `READY` (`"ready"`), `FAILED` (`"failed"`) or `CANCELLED` (`"cancelled"`). It never waits or raises the stored load failure. |
 | `getTexture()` | Return the ready `sf.Texture`, or raise the stored loading error for Failed. Pending and Cancelled raise a state error; this method never waits. |
 | `setPriority(priority)` | Change this pending subscription's integer priority. Larger values run first, with request order breaking ties. Completed, failed and cancelled handles are unchanged. |
 | `cancel()` | Release this subscription and make the handle Cancelled, including after Ready or Failed. Repeated cancellation is harmless. Textures already obtained from the handle remain valid. |
 
-These methods and constants are Lua-only and do not create Blueprint nodes. A texture request is not an `Engine.AsyncOperation` and is not passed to `asyncio.await`. Poll its state from normal updates; call `getTexture()` for Ready or Failed so required-resource failures propagate.
+These methods and constants are Lua-only and do not create Blueprint nodes. A texture request is not an `Engine.AsyncOperation` and cannot be passed to `asyncio.await`. Poll its state from normal updates; call `getTexture()` for Ready or Failed so required-resource failures propagate.
 
 The highest priority among pending subscriptions controls shared work. Cancelling or releasing one handle leaves other subscribers active. When the last subscriber leaves, queued work is cancelled and an in-flight result is discarded. An already-running decode or upload is not interrupted. Runtime shutdown cancels outstanding requests and joins the decoding workers before closing the graphics context.
 

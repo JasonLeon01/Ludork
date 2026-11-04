@@ -1,6 +1,6 @@
 # Official Plug-ins Overview
 
-Ludork includes five official C# plug-ins: Official Locale Tools, Official Random Map, Official Mota Map Fill, Official Blueprint AI and Official Resource Cleanup. Their source is also available as examples of the public plug-in API.
+Ludork includes five official C# plug-ins: Official Locale Tools, Official Random Map, Official Mota Map Fill, Official Blueprint AI and Official Resource Cleanup. Their sources also serve as examples of the public plug-in API.
 
 ## The official plug-ins
 

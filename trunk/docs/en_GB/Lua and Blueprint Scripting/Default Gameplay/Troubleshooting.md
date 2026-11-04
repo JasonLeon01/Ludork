@@ -30,7 +30,7 @@ Check the package's assets, scripts, native modules, FFmpeg variant, [writable g
 
 Android packaging requires a C++ Source project, a local Android Studio installation and its supporting tools. Packaging errors list missing requirements; see [Run, Debug and Package](<../../Editor User Guide/Run Debug and Package.md>) for installation paths and versions.
 
-If Android signing fails, check that the JKS or PKCS12 path is absolute and readable, that the alias exists, and that both passwords are correct. Correct stale saved values in the dialog, and enter unsaved values again. A failed run publishes neither its unsigned intermediate nor a partial signed APK. Use the same key for every later version that must update the installed application.
+If Android signing fails, check that the JKS or PKCS12 path is absolute and readable, that the alias exists, and that both passwords are correct. Correct stale saved values in the dialog, and re-enter unsaved values. A failed run publishes neither its unsigned intermediate nor a partial signed APK. Use the same key for every later version that must update the installed application.
 
 ## Limitations
 

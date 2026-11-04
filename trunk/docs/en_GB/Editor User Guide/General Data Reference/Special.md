@@ -17,4 +17,4 @@ Source: `Data/General/Special.json`
 
 ## Editing notes
 
-Special records define presentation only. Parameters remain in `Enemy.special`. Presence-only specials use `""`. A special's description may contain one `{value}` placeholder. The Enemy Book localises `FixDmg` expression tokens before inserting the value into the description.
+Special records define presentation only. Parameters remain in `Enemy.special`. Presence-only specials store `""`. A special's description may contain one `{value}` placeholder. The Enemy Book localises `FixDmg` expression tokens before inserting the value into the description.

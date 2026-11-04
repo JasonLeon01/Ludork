@@ -17,11 +17,11 @@ Metadata 来源：`Scripts/Global/GameMap_meta.lua`
 `SerializedMapData` 描述读入的地图记录；`MapData` 描述规范化后的 Actor 数据及原生环境值。项目模块 `Source.SceneComponents.MapBuilder.MapDataParser` 为普通地图和流式子地图提供相同的解析操作：
 
 - `ValidateMapData(data)` 按[地图图层顺序规则](<../../../编辑器用户指南/图块集、自动图块与地图.md#图块集与自动图块>)检查 `Global.GameMap.SerializedMapData` 记录。数据无效时抛出错误，不修改传入记录。
-- `NormaliseActorData(actorData)` 返回新的 `Global.Data.ActorData` 记录，保留 `bp` 和 `tag`，并将 `position` 转为原生无符号格子坐标（`sf.Vector2u`）。位置或其中某个坐标缺失时，默认使用零。
+- `NormaliseActorData(actorData)` 返回新的 `Global.Data.ActorData` 记录，保留 `bp` 和 `tag`，并将 `position` 转为原生无符号格子坐标（`sf.Vector2u`）。位置或其中某个坐标缺失时，默认为零。
 
 普通地图的 `NormaliseMap` 使用这两个操作。流式区域在开始构建时校验地图数据，再随增量构建逐个规范化预置 Actor，不在初始化阶段一次性处理全部 Actor。
 
-大地图接口接收 `WorldMapData`，以及符合以下约定的区域工厂回调：
+大地图门面接收 `WorldMapData`，以及按以下约定注入的区域工厂：
 
 ```lua
 ---@param region Global.WorldGameMap.WorldRegionData
@@ -30,7 +30,7 @@ Metadata 来源：`Scripts/Global/GameMap_meta.lua`
 ---@return Global.WorldGameMap.RegionBuildState
 ```
 
-`RegionBuildState` 提供构建进度、区域 payload，以及 `step`、`prepareActors`、`prepareRect`、`areActorsReady`、`isCellReady` 和 `isRectReady` 回调。Global 通过这个接口使用构建器，无需导入项目实现。`Source.SceneComponents.MapBuilder.WorldRegionBuildState.State` 继承该接口，并添加 `layerBuildStates` 字段，其元素类型为 `Source.SceneComponents.WorldLayerBuildState`。项目 Actor 构建描述、持久化记录、图层构建状态和楼层预览缓存仍归属 Source。
+`RegionBuildState` 提供构建进度、区域 payload，以及 `step`、`prepareActors`、`prepareRect`、`areActorsReady`、`isCellReady` 和 `isRectReady` 方法。Global 通过这个接口使用构建器，无需导入项目的构建器。`Source.SceneComponents.MapBuilder.WorldRegionBuildState.State` 继承该接口，并添加 `layerBuildStates` 字段，其元素类型为 `Source.SceneComponents.WorldLayerBuildState`。项目 Actor 构建描述、持久化记录、图层构建状态和楼层预览缓存仍归属 Source。
 
 区域构建器还需要实现资源生命周期约定：
 
@@ -38,7 +38,7 @@ Metadata 来源：`Scripts/Global/GameMap_meta.lua`
 |---|---|
 | `waitingForResources` | 上一次构建步骤因资源仍在加载而返回时为 true。后续步骤可以重试；等待不会将区域标为就绪。 |
 | `setResourcePriority(priority)` | 更新已有 Pending 订阅，以及后续发现的依赖所用的优先级。大地图对 Active 或显式强制加载区域传入 1，对 Prepared 区域传入 0。 |
-| `resolvePendingResources()` | 为显式同步完成流程加载已发现的待加载资源。此操作不推进图层构建、Actor 或发布，它们仍由原有构建步骤推进。 |
+| `resolvePendingResources()` | 为显式清空等待资源，同步完成已发现的待加载资源。此操作不推进图层构建、Actor 或发布，它们仍由正常构建步骤推进。 |
 | `cancel()` | 释放资源订阅并关闭构建协程。取消发布、淘汰区域或销毁大地图时可以重复调用；取消后的构建器不能再次推进。 |
 
 默认构建器沿用现有依赖扫描，发现图块集和自动图块纹理时立即发出请求，也包括存档地形改动引入的自动图块。它先收集各图层依赖，再构建图层，复用重复请求，并在纹理就绪后读取自动图块帧数。请求、错误与内存语义由 [TextureManager](<../Core Modules/GlobalCore/资源管理器.md#texturemanager>) 定义。
@@ -61,7 +61,7 @@ Metadata 来源：`Scripts/Global/GameMap_meta.lua`
 
 ### 组合式大地图门面（facade）
 
-面对大地图清单时，`WorldGameMap` 对外提供大地图坐标。原生稀疏区域索引为已摆放的子地图提供通行性、Dir4、材质与地形。空洞可以通行，查询也不会加载远处的子地图。
+对于大地图清单，`WorldGameMap` 对外提供世界坐标。原生稀疏区域索引为已摆放的子地图提供通行性、Dir4、材质与地形。空洞可以通行，查询也不会加载远处的子地图。
 
 `getTilemap()` 返回稀疏的底层存储，而不是扁平化的大地图。`getActorByTag` 不执行 I/O，只在 Active 或曾经激活的驻留 root 中查找。
 
@@ -71,11 +71,11 @@ Metadata 来源：`Scripts/Global/GameMap_meta.lua`
 
 ### 渲染与雾效
 
-普通地图、组合式大地图与楼层预览将地图内容交给共用的原生 `MapRenderer` 绘制。游戏适配层保留 Actor 回调、粒子、Billboard、图层特效和普通地图的玩家遮挡。大地图按全局图层顺序绘制各区域，Actor 灯光与 Tile 遮挡共享大地图坐标，因此光照可以跨越摆放边界。
+普通地图、组合式大地图与楼层预览将地图内容交给共用的原生 `MapRenderer` 绘制。游戏适配层保留 Actor 回调、粒子、Billboard、图层特效和普通地图的玩家遮挡。大地图按全局图层顺序绘制各区域，Actor 灯光与 Tile 遮挡共享世界坐标，因此光照可以跨越摆放边界。
 
 地图灯光来自 `Actor.lightComp`，环境光通过 `getAmbientLight` 与 `setAmbientLight` 控制。
 
-每个 `GameMap` 独立持有一个雾控制器。运行时 Lua 方法 `getFogSettings()` 返回 `Engine.MapFogSettings` 的副本，`setFogSettings(settings)` 替换本地图的配置。`getRegionFogSettings(path)` 返回大地图子区域的配置，没有驻留配置时返回 `nil`。修改读出的配置值不会直接影响地图；修改后应传给 `setFogSettings`。
+每个 `GameMap` 独立持有一个雾控制器。运行时 Lua 方法 `getFogSettings()` 返回 `Engine.MapFogSettings` 的副本，`setFogSettings(settings)` 替换本地图的配置。`getRegionFogSettings(path)` 返回大地图子区域的配置，没有驻留配置时返回 `nil`。修改读出的配置值不会改变地图；修改后应传给 `setFogSettings`。
 
 ### Actor 可见性
 
@@ -87,7 +87,7 @@ Metadata 来源：`Scripts/Global/GameMap_meta.lua`
 
 区域仅根据 tile 通行性按四方向连通划分：每格由最上层可见且包含 tile 内容的图层决定通行性。地图边缘限制连通，门和其他 Actor 不参与划分。玩家所在区域保持可见，其他可通行格显示为最近不可通行格的 tile 图层。距离采用曼哈顿距离，同距按从上到下、从左到右选取，保留源格纹理、自动图块形态和动画。不可通行格保持原样。没有有效观察位置时（无玩家、位置越界或观察格不可通行），隐藏所有可通行格，墙格仍可见。预览显式提供观察格。
 
-锚点位于可通行格的 Actor 按锚点所属区域判断。锚点位于不可通行格时，将局部图像矩形经过位置、平移、原点、旋转和缩放变换，所得四边形必须与可见区域的某个可通行格存在正面积交集才显示。因此墙上火把会随图像伸入的房间显示或隐藏。仅接触格子边界不算覆盖；图像完全位于墙内或没有面积时隐藏。判定使用几何矩形，不逐像素检查透明度。跨越多个区域的图像只要覆盖当前区域就整体显示。每个祖先也必须分别通过同一规则及自身可见性标记检查，父级隐藏时后代一并隐藏。没有有效观察位置时，所有 Actor 隐藏。
+锚点位于可通行格的 Actor 按锚点所属区域判断。锚点位于不可通行格时，将局部图像矩形经过位置、平移、原点、旋转和缩放变换，所得四边形必须与可见区域的某个可通行格存在正面积交集才显示。因此墙上火把会随图像伸入的房间显示或隐藏。仅接触格子边界不算覆盖；图像完全位于墙内或没有面积时隐藏。判定使用几何矩形，不逐像素检查透明度。跨越多个区域的图像只要与当前区域重叠，就整体显示。每个祖先也必须分别通过同一规则及自身可见性标记检查，父级隐藏时后代一并隐藏。没有有效观察位置时，所有 Actor 隐藏。
 
 进入区域时显示，离开后重新隐藏，存档不记录探索状态。绘制会跳过隐藏区域的 Actor 及其后代、附属粒子和光源，以及隐藏格上的伤害文字。这项显示规则不修改 Actor 的 `visible` 标记、地形数据、碰撞、寻路或事件。怪物手册在分组前通过 `isActorVisibleOnMap(actor)` 过滤，只要某种怪物仍有可见实例，就保留对应条目。
 

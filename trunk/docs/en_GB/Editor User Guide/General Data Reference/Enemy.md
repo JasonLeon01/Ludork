@@ -23,8 +23,8 @@ Source: `Data/General/Enemy.json`
 
 ## Editing notes
 
-The Enemy schema declares no member events. Gameplay abilities handle defeat behaviour.
+The Enemy schema declares no member events. Gameplay Abilities handle defeat behaviour.
 
-In `special`, the presence of the key alone enables `Compete`, `Hard`, `Magic`, `First`, `Flank` and `Blockade`, and each of them stores `""`. `Vampire` takes a finite non-negative number, and `Reborn` takes a non-empty Blueprint class path. `FixDmg` accepts either a finite non-negative number or a non-empty expression string. Only the string form substitutes the current player and enemy values into `{m<attribute>}` and `{e<attribute>}` before `Engine.Eval`. No other special value is evaluated.
+In `special`, the presence of the key alone enables `Compete`, `Hard`, `Magic`, `First`, `Flank` and `Blockade`, and each of them stores `""`. `Vampire` takes a finite non-negative number, and `Reborn` takes a non-empty Blueprint class path. `FixDmg` accepts either a finite non-negative number or a non-empty expression string. Only the string form replaces the `{m<attribute>}` and `{e<attribute>}` placeholders with the current player and enemy values before `Engine.Eval`. No other special value is evaluated.
 
-Each `drops` key must be a Blueprint class path whose generated Actor derives from `Source.MapActors.Item`. The matching `sf.Vector2i` value is added to the defeated enemy's map position. The spawned Actor tag is derived from the Blueprint path and the absolute target coordinates. When an identical tag already exists, that drop is skipped and a warning is written instead of a suffixed duplicate.
+Each `drops` key must be a Blueprint class path whose generated Actor derives from `Source.MapActors.Item`. The matching `sf.Vector2i` value is added to the defeated enemy's map position. The spawned Actor's tag is derived from the Blueprint path and the absolute target coordinates. When an identical tag already exists, that drop is skipped and a warning is written instead of spawning a suffixed duplicate.

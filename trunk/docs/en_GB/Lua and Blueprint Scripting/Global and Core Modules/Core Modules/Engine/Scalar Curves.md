@@ -17,7 +17,7 @@
 
 ## CurveKey
 
-`Engine.CurveInterpolation` exposes the read-only strings `CONSTANT = "constant"`, `LINEAR = "linear"` and `CUBIC = "cubic"` for a key’s `interpolation`. These values are shared by scalar and vector curves.
+`Engine.CurveInterpolation` exposes the read-only strings `CONSTANT = "constant"`, `LINEAR = "linear"` and `CUBIC = "cubic"` for a key's `interpolation`. These values are shared by scalar and vector curves.
 
 ### Properties
 

@@ -1,6 +1,6 @@
 # GlobalFunctions.Mota
 
-`Mota` declares the monster-book, region and floor-transport nodes.
+`Mota` declares the monster handbook, region and floor-transport nodes.
 
 Metadata source: `Scripts/GlobalFunctions/Mota_meta.lua`
 

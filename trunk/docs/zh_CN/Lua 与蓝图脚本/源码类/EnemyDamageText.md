@@ -1,6 +1,6 @@
 # Source.MapActors.EnemyDamageText
 
-`EnemyDamageText` 声明敌人伤害数字所需的 Item、文本配置与偏移。
+`EnemyDamageText` 声明敌人伤害数值所需的 Item、文本配置与偏移。
 
 Metadata 来源：`Scripts/Source/MapActors/EnemyDamageText_meta.lua`
 

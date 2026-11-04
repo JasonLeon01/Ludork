@@ -1,6 +1,6 @@
 # Source.MapActors.Item
 
-`Item` 声明物品 Actor 的 General Data 标识、拾取数量与音效；碰撞时它把自己加入 Player 背包。
+`Item` 声明物品 Actor 的 通用数据 标识、拾取数量与音效；碰撞时会将自身加入 Player 的背包。
 
 Metadata 来源：`Scripts/Source/MapActors/Item_meta.lua`
 

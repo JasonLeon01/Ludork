@@ -73,11 +73,11 @@ Inside a method, `super()` resolves the next implementation from the defining cl
 | `Class.monitor` / `Class.unmonitor` | Add or remove a named subscription to a field. |
 | `Class.MISSING` | Sentinel used when a monitored field had no previous value. |
 
-`Class.monitor(target, name, callback, params?, notifyEqualWrites?, identifier?)` subscribes to a table or userdata field without immediately invoking the callback. `identifier` defaults to `""`. The same identifier replaces its subscription in place, while different identifiers run in registration order. `Class.unmonitor(target, name, identifier?)` removes only that subscription. A missing subscription is ignored.
+`Class.monitor(target, name, callback, params?, notifyEqualWrites?, identifier?)` subscribes to a table or userdata field without immediately invoking the callback. `identifier` defaults to `""`. Registering again with the same identifier replaces that subscription in place; subscriptions with different identifiers run in registration order. `Class.unmonitor(target, name, identifier?)` removes only that subscription. A missing subscription is ignored.
 
 Monitored fields reject `nil` assignments and normally notify only when their visible value changes. Pass `true` as `notifyEqualWrites` to receive equal writes for that subscription. A previous missing or explicit `nil` value reports `Class.MISSING`. Each callback receives `(oldValue, newValue, ...)`, followed by the entries of `params`. Re-entrant assignments take effect, but each subscription suppresses its own recursion. Callback errors stop dispatch and propagate without rolling back the assignment.
 
-Dispatch uses a subscription snapshot. Removing or replacing a subscription before its turn skips the old callback, and newly registered callbacks start with subsequent assignments. The removal of the last subscription restores ordinary field storage and the original metatable of the table.
+Dispatch uses a subscription snapshot. Removing or replacing a subscription before its turn skips the old callback, and newly registered callbacks start with subsequent assignments. The removal of the last subscription restores ordinary field storage and the table's original metatable.
 
 ### Type checks
 
@@ -202,9 +202,9 @@ Configuration plists contain one root dictionary whose keys name sections. Each 
 
 Binary plists and non-string setting values such as `<integer>`, `<real>`, `<true/>`, arrays or nested dictionaries are unsupported. Empty sections and strings, Unicode text and whitespace inside values are preserved. XML characters such as `&` and `<` are escaped when writing. Keys that differ only in case within one plist section are rejected.
 
-The runtime parser treats section names as case-sensitive and setting keys as case-insensitive, preserving the last spelling supplied by `set`. All stored values are strings; `getfloat`, `getint` and `getboolean` convert on access. Boolean text accepts `1`, `yes`, `true`, `on` and `0`, `no`, `false`, `off`, ignoring case and surrounding whitespace. A missing value or failed conversion returns the supplied fallback, or `nil` when no fallback was supplied. Repeated successful reads merge into the existing sections and retain unrelated keys.
+The runtime parser treats section names as case-sensitive and setting keys as case-insensitive, preserving the last spelling supplied by `set`. All stored values are strings; `getfloat`, `getint` and `getboolean` convert on access. Boolean text parses `1`, `yes`, `true` and `on` as true, and `0`, `no`, `false` and `off` as false, ignoring case and surrounding whitespace. A missing value or failed conversion returns the supplied fallback, or `nil` when no fallback was supplied. Repeated successful reads merge into the existing sections and retain unrelated keys.
 
-`read` returns `false` when the file is absent; the INI reader also returns `false` if it cannot open the file. An existing plist that cannot be read, has invalid structure or uses an unsupported format raises an error. A failed plist parse leaves the parser's existing sections unchanged. `write` serializes before opening the destination, so serialization failures leave the existing file intact; file-writing errors also raise.
+`read` returns `false` when the file is absent; the INI reader also returns `false` if it cannot open the file. An existing plist that cannot be read, has invalid structure or uses an unsupported format raises an error. A failed plist parse leaves the parser's existing sections unchanged. `write` serialises before opening the destination, so serialisation failures leave the existing file intact; file-writing errors also raise.
 
 `locale.getdefaultlocale()` returns the host locale pair.
 
@@ -258,7 +258,7 @@ Without `parseData`, `item.content` contains the original file bytes, including 
 
 ## Timing and memory diagnostics
 
-`perfCounter()` returns a monotonic high-resolution time in seconds. `processMemoryMB()` returns current process memory in MiB. Use `asizeof` for an owned value graph rather than process-wide memory.
+`perfCounter()` returns a monotonic high-resolution time in seconds. `processMemoryMB()` returns the current process memory in MiB. Use `asizeof` for an owned value graph rather than process-wide memory.
 
 ## Related pages
 

@@ -61,7 +61,7 @@ local moved = start + step * 2.0   -- Vector2f(96, 64)
 local isSame = moved == sf.Vector2f.new(96.0, 64.0) -- true
 ```
 
-Operators are `+`, `-`, unary `-`, `*` and `/` by a scalar number, and `==`. Only `==` is defined, so ordering comparisons such as `<` are not available on vectors. Multiplication between two vectors is a method rather than an operator. `lengthSquared`, `perpendicular`, `dot`, `cross`, `componentWiseMul`, `componentWiseDiv` and `unpack` exist on all three `Vector2` types, and `unpack` returns the components as separate values. The floating-point type adds `length`, `normalized`, `angle`, `angleTo`, `rotatedBy` and `projectedOnto`, which works in `sf.Angle` rather than degrees.
+Operators are `+`, `-`, unary `-`, `*` and `/` by a scalar number, and `==`. `==` is the only comparison operator, so ordering comparisons such as `<` are not available on vectors. Multiplication between two vectors is a method rather than an operator. `lengthSquared`, `perpendicular`, `dot`, `cross`, `componentWiseMul`, `componentWiseDiv` and `unpack` exist on all three `Vector2` types, and `unpack` returns the components as separate values. The floating-point type adds `length`, `normalized`, `angle`, `angleTo`, `rotatedBy` and `projectedOnto`, which works in `sf.Angle` rather than degrees.
 
 `sf.Vector2f.new` also accepts a length and an `sf.Angle`, which builds the vector from polar coordinates:
 
@@ -172,7 +172,7 @@ if player ~= nil then
 end
 ```
 
-Check the declared type before passing a value. An API that declares `sf.Vector2f` does not accept a `sf.Vector2i`, a Standard `tuple` or a plain table, and it does not convert one for you.
+Check the declared type before passing a value. An API that declares `sf.Vector2f` does not accept an `sf.Vector2i`, a Standard `tuple` or a plain table, and does not convert between them.
 
 JSON and metadata hold pure data, while `sf` values are native userdata, so converting between the two forms is explicit rather than automatic. The Game project's save codec writes a `sf.Vector2i` as `{ x, y }` and rebuilds it on load, and its record normaliser turns `sf.Vector2i`, `sf.Vector3i`, `sf.IntRect`, `sf.FloatRect` and `sf.Color` into numeric arrays. Store the components whenever the destination is data, and build the `sf` value again where it is used.
 

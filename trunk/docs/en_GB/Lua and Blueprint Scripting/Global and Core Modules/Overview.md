@@ -9,7 +9,7 @@ This chapter covers the three native Lua modules and the shared Lua modules in D
 | `GlobalFunctions` | Lua helpers grouped into `Components`, `Manager`, `NodeGraph` and `UI`. |
 | `Global.*` | Shared Game project modules, such as `Global.GameMap`. |
 
-Load native modules with names such as `require("Engine")` and project modules by their full paths, such as `require("Global.GameMap")`. [Lua node libraries](<../Node Functions/Overview.md>) such as `GlobalFunctions.Math` load separately and are not members of the native `GlobalFunctions` root table. See [Lua Runtime and Modules](<../Lua Runtime and Modules.md>) for loading order.
+Load native modules by name, such as `require("Engine")`, and project modules by their full paths, such as `require("Global.GameMap")`. [Lua node libraries](<../Node Functions/Overview.md>) such as `GlobalFunctions.Math` load separately and are not members of the native `GlobalFunctions` root table. See [Lua Runtime and Modules](<../Lua Runtime and Modules.md>) for loading order.
 
 ## Which page do I need
 
@@ -29,4 +29,4 @@ Load native modules with names such as `require("Engine")` and project modules b
 - Attributes, abilities, Effects and gameplay tags: [GlobalCore Gameplay API](<Global APIs/Gameplay.md>).
 - Texture, font, shader and sound loading, and their `/Game/Assets/...` path rules: [GlobalCore: Resource Managers](<Core Modules/GlobalCore/Resource Managers.md>).
 - `EventBus`, JSON data, resource-file constants, save previews and the `Engine` module root: [Engine: Events and Module Root](<Core Modules/Engine/Events and Module Root.md>).
-- Component metadata and serialisation helpers, and the colour helpers: [GlobalFunctions Lua API](<Core Modules/GlobalFunctions.md>).
+- Component metadata, serialisation helpers and colour helpers: [GlobalFunctions Lua API](<Core Modules/GlobalFunctions.md>).

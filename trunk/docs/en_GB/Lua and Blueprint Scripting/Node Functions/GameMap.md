@@ -1,6 +1,6 @@
 # GlobalFunctions.GameMap
 
-`GameMap` declares the actor lookup nodes.
+`GameMap` declares the Actor lookup nodes.
 
 Metadata source: `Scripts/GlobalFunctions/GameMap_meta.lua`
 

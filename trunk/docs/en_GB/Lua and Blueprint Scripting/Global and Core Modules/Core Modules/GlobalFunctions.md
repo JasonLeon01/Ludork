@@ -10,9 +10,9 @@ See [Lua Runtime and Modules](<../../Lua Runtime and Modules.md#entry-and-module
 
 ## Components
 
-The component utilities in this group support class metadata, serialisation and attachment. Names beginning with `_` and functions declared `metadata = false` are runtime infrastructure, so project gameplay uses the public class and component workflow instead.
+The component utilities in this group support class metadata, serialisation and attachment. Names beginning with `_` and functions declared `metadata = false` are runtime infrastructure; project gameplay should use the public class and component workflow instead.
 
-`getComponentFieldValue` and `setComponentFieldValue` require the declared component instance. A missing or wrong-type component raises instead of being rebuilt.
+`getComponentFieldValue` and `setComponentFieldValue` require the declared component instance. A missing or wrong-type component raises an error instead of being rebuilt.
 
 | Name | Parameters | Returns |
 |---|---|---|
@@ -90,7 +90,7 @@ The component utilities in this group support class metadata, serialisation and 
 
 ## Limitations
 
-Category helpers accept only category-relative paths and add their `/Game/Assets/...` prefix, as in `loadCharacter("actors/Hero.png")` and `playSE("cursor.ogg")`. Stored data and `getSoundBuffer(filePath)` require complete logical paths instead. Loading failures follow the native manager contract.
+Category helpers accept only category-relative paths and prepend their `/Game/Assets/...` prefix, as in `loadCharacter("actors/Hero.png")` and `playSE("cursor.ogg")`. Stored data and `getSoundBuffer(filePath)` require complete logical paths instead. Loading failures follow the native manager contract.
 
 ## Related pages
 

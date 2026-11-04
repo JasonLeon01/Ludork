@@ -52,7 +52,7 @@ The following JSON format uses colour components in 0–255. For the correspondi
 }
 ```
 
-This example requires the named texture in the project. An empty texture is transparent. `simulationRate` is an integer from 1 to 240, default 60; `seed` is an integer from 0 to 16,777,215, default 1. `tracks` is an ordered array with unique track names. A fixed seed supports repeatable authoring on the same runtime and GPU; floating-point GPU simulation is not a cross-device determinism guarantee.
+This example requires the named texture in the project. An empty texture is transparent. `simulationRate` is an integer from 1 to 240, default 60; `seed` is an integer from 0 to 16,777,215, default 1. `tracks` is an ordered array with unique track names. A fixed seed supports repeatable authoring on the same runtime and GPU; floating-point GPU simulation does not guarantee determinism across devices.
 
 | Track fields | Default and meaning |
 |---|---|
@@ -75,7 +75,7 @@ This example requires the named texture in the project. An empty texture is tran
 | `offset`, `rotationOffset`, `scale` | `[0,0]`, `0` degrees, `[1,1]`; the track's transform relative to its host. |
 | `curves` | Optional lifetime channels `speed`, `sizeX`, `sizeY`, `rotation`, `red`, `green`, `blue`, `alpha`. |
 
-Each burst is `{ "time": 0, "count": 16, "cycles": 1, "interval": 0 }`. Its first time is within `[0,duration)`, count is 0–1,000,000, cycles is 1–10,000, and interval is non-negative seconds, strictly positive for repeated bursts. Numeric inputs must be finite and minimum/maximum ranges ordered.
+Each burst is `{ "time": 0, "count": 16, "cycles": 1, "interval": 0 }`. Its first occurrence falls within `[0,duration)`, count is 0–1,000,000, cycles is 1–10,000, and interval is non-negative seconds, strictly positive for repeated bursts. Numeric inputs must be finite and minimum/maximum ranges ordered.
 
 Curves accept an inline scalar [Curve](<Animations and Curves.md>) or an extensionless key under `Data/Curves`. Their key times use normalised particle age `[0,1]`. Speed, size and RGBA channels multiply their base values and default to 1; rotation adds degrees and defaults to 0. Inline curves support `defaultValue`, `preInfinity`, `postInfinity` and `keys` containing `time`, `value`, `interpolation`, `arriveTangent` and `leaveTangent`. The runtime samples each channel into a 256-entry GPU lookup table, so rendered curves are an approximation of the source curve.
 
@@ -105,7 +105,7 @@ Common Particles require a compatible GPU; mobile builds require OpenGL ES 3. Mi
 
 ## Limitations
 
-Collision, trails, noise and sub-emitters are outside this particle feature.
+Collision, trails, noise and sub-emitters are not part of this particle feature.
 
 ## Related pages
 

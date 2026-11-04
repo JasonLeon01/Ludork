@@ -14,7 +14,7 @@ Class attributes provide defaults for every instance, and a map Actor may overri
 
 The Blueprint editor resolves variable and component declarations through the complete inheritance chain. A child’s explicit value takes precedence over inherited defaults. See [Actor Components](<Actor Components/Overview.md>) for available components, adding and editing them, and instance overrides.
 
-In the Blueprint editor and **Actor Info**, ordinary variables are grouped in grey dashed frames beneath the component list. Each frame names the class that first declared its fields, and hovering over the grey heading shows the full class reference. Inherited fields appear only in their original group, even when a child overrides their values. Fields contributed by a Script Mixin and custom Blueprint fields are attributed to the first Script Mixin or Blueprint that declares them.
+In the Blueprint editor and **Actor Info**, ordinary variables are grouped in grey dashed frames beneath the component list. Each frame names the class that first declared its fields, and hovering over the grey heading shows the full class reference. Inherited fields appear only in their original group, even when a child overrides their values. Fields contributed by a Script Mixin and custom Blueprint fields are attributed to the Script Mixin or Blueprint that first declares them.
 
 When a Blueprint’s `ID` selects a General Data member, its `attributes` are shown read-only. Edit those values in General Data.
 

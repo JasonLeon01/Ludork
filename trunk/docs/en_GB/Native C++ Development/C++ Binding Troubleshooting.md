@@ -26,7 +26,7 @@ Use supported primitive, STL, SFML and declared Core types. Include complete cro
 
 Put the property or method `Meta` inside its own annotation and use an annotation-native `default` (see [Macro Reference](<Macro Reference.md>) and [Generated Metadata and Stubs](<Generated Metadata and Stubs.md>)). Rebuild to update the generated files.
 
-A top-level method or function `default`, `success` or `fail` is rejected with a validation diagnostic that requires `outpins(...)`. The `outpins` and `defaults` distinction and the lowercase-token rules follow [Functions, Events and Execution](<Functions Events and Execution.md>) and [Macro Reference](<Macro Reference.md>).
+A top-level method or function `default`, `success` or `fail` is rejected with a validation diagnostic that requires `outpins(...)`. The distinction between `outpins` and `defaults` and the lowercase-token rules are covered in [Functions, Events and Execution](<Functions Events and Execution.md>) and [Macro Reference](<Macro Reference.md>).
 
 ## Related pages
 

@@ -173,7 +173,7 @@ Direct metadata bases: `{ "Engine", "ControlBase" }`, `{ "Engine", "FunctionalBa
 
 GamepadHintBar shows up to three gamepad hints, centred in its size. It draws and reacts only while a gamepad is connected. Each hint is an `Engine.GamepadHint` with `Button` (an `Engine.JoystickButton` getter value), `LongPress` and `Text`. `setHints` rejects more than three. Default windows place it on the bottom border through the shared `WindowChrome` asset, and `WindowBase` binds its callbacks.
 
-A short-press hint draws the current controller’s button glyph on a 16 logical-pixel white circle, then the text. A long-press hint adds a green clockwise sector that fills over one second. Holding the button fires `setOnHintTriggered` once with the zero-based index at the one-second mark; release resets progress. `setHintEnabled` greys a hint, stops its progress and blocks its trigger.
+A short-press hint draws the current controller's button glyph on a 16 logical-pixel white circle, then the text. A long-press hint adds a green clockwise sector that fills over one second. Holding the button fires `setOnHintTriggered` once with the zero-based index at the one-second mark; release resets progress. `setHintEnabled` greys a hint, stops its progress and blocks its trigger.
 
 ### Properties
 
@@ -200,7 +200,7 @@ No editable properties are declared beyond `size` and the plain-text configurati
 
 Direct metadata bases: `{ "sf", "Drawable" }`, `{ "sf", "Transformable" }`
 
-SectorShape is a base graphic, not a UI control, so it is not in the palette. It fills a pie slice clockwise from 12 o'clock, with the angle clamped to 0–360 degrees. `GamepadHintBar` and `Button` use it for long-press progress.
+SectorShape is a base graphic, not a UI control, so it is not in the Palette. It fills a pie slice clockwise from 12 o'clock, with the angle clamped to 0–360 degrees. `GamepadHintBar` and `Button` use it for long-press progress.
 
 ### Functions and events
 

@@ -1,15 +1,15 @@
 # Doors
 
-Create a door that opens through an inventory key or a named game-state condition.
+Create a door that opens with an inventory key or a named game-state condition.
 
 ## Prerequisites
 
-- A valid `Source.MapActors.DoorBase.DoorBase` Blueprint parent and door sprite sheet.
+- A valid `Source.MapActors.DoorBase.DoorBase` Blueprint parent and a door sprite sheet.
 - Matching Item or Game Variable identifiers for the selected workflow.
 
 ## Steps
 
-When the opening animation finishes, `DoorBase` records its map-placement tag as destroyed, provided the tag is not empty. Rebuilt maps omit that placement, so the door remains absent across map transfers and save and load.
+When the opening animation finishes, `DoorBase` records its map-placement tag as destroyed, provided the tag is not empty. Rebuilt maps omit that placement, so the door remains absent across map transfers and save/load.
 
 `DoorBase` inherits `tickable = false` and enables ticks only while opening or reversing.
 
@@ -25,7 +25,7 @@ The key ID must match an Item member and its pickup Blueprint, such as `KEY_Y` a
 
 ### Conditional door
 
-`Mixins/Doors/ConditionDoor.lua` polls `openConditionName` against `openConditionVal`. An empty name disables polling. A configured name with no variable starts at zero. Reaching the threshold calls `openDoor`.
+`Mixins/Doors/ConditionDoor.lua` polls `openConditionName` against `openConditionVal`. An empty name disables polling. A configured name with no matching variable starts at zero. Reaching the threshold calls `openDoor`.
 
 `openConditionName` uses a numeric-only `InstVar` selector, so it lists `int` and `float` declarations from the Game Variable Manager. `openConditionVal` uses `InstVarValue`, so it adopts the numeric editor of the selected declaration. The Game project's generated declarations include `MTExample = 0` for this workflow.
 

@@ -4,7 +4,7 @@ Open the relevant asset editor to inspect its appearance and timing. These previ
 
 ## UI previews
 
-The [UI Asset Editor](<../Editor User Guide/UI Asset Editor.md>) displays the authored asset without running its Lua Controller. Use **Refresh Preview** to display pending edits. After changing native controls, rebuild the project before checking their result.
+The [UI Asset Editor](<../Editor User Guide/UI Asset Editor.md>) displays the authored asset without running its Lua Controller. Use **Refresh Preview** to display pending edits. After changing native controls, rebuild the project before checking the result.
 
 Provide representative placeholder content for model-dependent areas. Use `previewText` for strings supplied by code at runtime; it belongs to the node's design-only `editor` data. Representative `#TAB` and `#ITEM` entries and Game visuals make tabs, lists and character displays readable, but are not fallback game data. Before display, business code must supply localised labels and populate dynamic collections. The runtime responsibilities remain in [Declarative UI Authoring Workflow](<../Lua and Blueprint Scripting/Declarative UI/Authoring Workflow.md>).
 
@@ -22,7 +22,7 @@ See [Actor placement and Actor Info](<../Editor User Guide/Blueprints Common Fun
 
 ## Material previews
 
-Material, Actor, map and UI previews receive unsaved material snapshots. The native host compiles them in memory without rewriting exported shaders; gameplay loads the exported files. Invalid previews report an error instead of retaining a stale successful image. For the shared compiler, preview controls, error navigation and GLSL view, see [Preview and diagnose](<../Editor User Guide/Materials.md#preview-and-diagnose>).
+Material, Actor, map and UI previews receive unsaved material snapshots. The native host compiles them in memory without rewriting exported shaders; gameplay loads the exported files. An invalid preview shows an error instead of retaining a stale successful image. For the shared compiler, preview controls, error navigation and GLSL view, see [Preview and diagnose](<../Editor User Guide/Materials.md#preview-and-diagnose>).
 
 ## Particle previews
 
@@ -30,7 +30,7 @@ Open a particle from **Database → Common Particle Overview** (`F6`) or the pro
 
 A step advances `1 / simulationRate` seconds. Seeking pauses playback and can take longer for later times. These controls do not change the saved resource; track and property edits retain the normal Save and Undo workflow. A fixed resource seed supports repeatable authoring on the same runtime and GPU, not cross-device deterministic simulation.
 
-Missing resources or unsupported GPU capabilities display an error. Particle preview uses the native GPU implementation and has no CPU fallback. See [Common Particles](<../Editor User Guide/Common Particles.md>) for resource fields, emission and ownership rules, GPU requirements and feature limits.
+Missing resources or unsupported GPU capabilities produce an error. Particle preview uses the native GPU implementation and has no CPU fallback. See [Common Particles](<../Editor User Guide/Common Particles.md>) for resource fields, emission and ownership rules, GPU requirements and feature limits.
 
 ## Subtitle previews
 

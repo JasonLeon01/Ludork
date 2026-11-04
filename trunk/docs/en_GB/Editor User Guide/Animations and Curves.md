@@ -13,7 +13,7 @@ Keep source images under `Assets/Animations` or another intended asset folder. N
 Save the animation before exporting. From the repository root on Windows, run
 `tools\animation_to_mp4.bat` to export all current `Game/Data/Animations` JSON
 files to `Game/EditorCache/AnimationMp4`. Use `sh tools/animation_to_mp4.sh` on macOS.
-The tool requires rebuilt Toolchain with Pillow and a separate FFmpeg executable
+The tool requires a rebuilt Toolchain with Pillow and a separate FFmpeg executable
 with `libx264` and AAC; see [tool setup and options](https://github.com/JasonLeon01/Ludork/blob/main/tools/README.md#animation-mp4-export).
 
 ```bat
@@ -21,14 +21,16 @@ tools\animation_to_mp4.bat Game --input Game/Data/Animations/attack.json --outpu
 ```
 
 Exports retain frame rate, track order, position/rotation/scale interpolation,
-horizontal flips and sound timing/trimming. Each video plays once through the
-last image or sound segment, rounded up to whole frames. After visual segments
-end, only the background remains. The canvas automatically fits all sampled
-frames around the animation origin; `--size 512x512` fixes an even-sized canvas
+horizontal flips and sound timing/trimming. Each video plays a single pass
+ending at the last image or sound segment, with the duration rounded up to whole
+frames. After visual segments end, only the background remains. The canvas
+automatically fits all sampled frames around the animation origin;
+`--size 512x512` fixes an even-sized canvas
 and crops overflowing content without rescaling. MP4 uses an opaque background:
 black by default, or `--background "#202020"`. `--mute` removes audio without
 shortening the timeline, and `--overwrite` replaces existing output after a
-successful export. Directory inputs are recursive and retain their subdirectories.
+successful export. Directory inputs are scanned recursively and retain their
+subdirectories.
 Time tags are not encoded as video events. Inputs are saved source JSON and loose
 assets, not compressed animation caches or `.ldpak` packages.
 

@@ -23,7 +23,7 @@ local WindowInventory = require("Source.Windows.WindowInventory")
 local window = WindowInventory.new():mount(uiManager)
 ```
 
-窗口显示模板原有的内容与尺寸。创建方持有窗口，不再需要时调用 `window:dispose()`。
+窗口显示模板原有的内容与尺寸。持有者保留该窗口，不再需要时调用 `window:dispose()`。
 
 ## 替换内容并响应字段变化
 

@@ -20,7 +20,7 @@ Changing a tileset definition after maps have been authored can change what exis
 
 Map JSON requires a `layerOrder` string array, which is the authoritative draw and Actor-processing sequence. `layers` and `actors` remain dictionaries keyed by those names, and the editor keeps the array synchronised. Ordinary-map and streamed child-map loading both reject missing or duplicate layer references, layers omitted from the order, and Actor groups whose layer is absent from the order. Loading never infers order from JSON object keys.
 
-An ordinary tileset provides the **Passable**, **Material** and **Dir4** modes. Left-click toggles one tile's passability, selects its [material resource](<Materials.md>) or toggles the direction nearest the clicked edge. Shift+left-drag copies the pressed source tile's property through every crossed cell. The current mode chooses the copied value: Passable copies the boolean, Material copies the resource reference, and Dir4 copies all four directions. One drag is one Undo step. Clearing a tile material removes its sparse entry and restores the default appearance. Autotiles provide **Passable** and **Material** for the whole asset and do not support this batch brush.
+An ordinary tileset provides the **Passable**, **Material** and **Dir4** modes. Left-click toggles one tile's passability, selects its [material resource](<Materials.md>) or toggles the direction nearest the clicked edge. Shift+left-drag copies the pressed source tile's property to every crossed cell. The current mode chooses the copied value: Passable copies the boolean, Material copies the resource reference, and Dir4 copies all four directions. One drag is one Undo step. Clearing a tile material removes its sparse entry and restores the default appearance. Autotiles provide **Passable** and **Material** for the whole asset and do not support this batch brush.
 
 ![Map editor with layer tabs above the canvas and a tile palette on the right](../../../images/editor/tile-layers.png)
 
@@ -32,9 +32,9 @@ The Map List contains ordinary maps and worlds. A world row displays the `worldN
 
 The Map List shows maps in the order and nesting saved in `_info.json` files: one in `Data/Maps` for the top level and one in each world folder for its children. Nesting only groups rows for convenience and has no runtime meaning. Drag a row near the top or bottom edge of another row to place it before or after that row, or onto the middle of a map to nest it under that map. Nested rows move with their parent. Worlds stay at the top level and cannot be nested. Maps missing from the files appear after the listed rows in file-name order, and entries without a matching map are dropped. Reordering marks the project as modified and is saved with it; it is not part of Undo/Redo.
 
-Dropping an ordinary map onto a world, or anywhere among that world's rows, moves the file and its nested maps into the world folder; dropping a child at the top level or into another world moves it out. A map always arrives unplaced, and leaving a world removes its placement. The move updates recognised references and creates an Undo barrier. It is rejected when the destination already has a map with the same name, when Actor tags would conflict within the destination world, or, when entering a world, while other assets still reference the map, because an unplaced child cannot be a runtime destination.
+Dropping an ordinary map onto a world, or anywhere among that world's rows, moves the file and its nested maps into the world folder; dropping a child at the top level or into another world moves it out. A map always arrives unplaced, and leaving a world removes its placement. The move updates recognised references and creates an Undo barrier. It is rejected when the destination already has a map with the same name, when Actor tags would conflict within the destination world, or when other assets still reference a map being moved into a world, because an unplaced child cannot be a runtime destination.
 
-Drag an unplaced child onto the world canvas, and drag a placed child to move it. Delete, Backspace or the context menu of the placement removes it. Each placement edit is one Undo/Redo step. Placements may temporarily overlap while editing, including when resizing a child map, but Save fails until all overlaps are resolved. Bounds and layer-order violations are still rejected during editing.
+Drag an unplaced child onto the world canvas, and drag a placed child to move it. Delete, Backspace or the placement's context menu removes it. Each placement edit is one Undo/Redo step. Placements may temporarily overlap while editing, including when resizing a child map, but Save fails until all overlaps are resolved. Bounds and layer-order violations are still rejected during editing.
 
 The selected placement is drawn above the others within each layer and takes priority when clicking an overlap, so it can be dragged away again. Without a selected placement under the pointer, the last placement takes priority. An obscured child can also be moved by dragging it from the child-map list onto the canvas.
 
@@ -56,7 +56,7 @@ Use the browse button beside BGM, BGS or **Panorama** to select a resource; choo
 
 ## Fog
 
-Map Properties and World Map Properties provide the same **Fog** settings. Enable fog to reveal its controls. The GPU generates the fog pattern in world coordinates; no fog image is required. Panning or zooming does not attach the pattern to the screen. A world can combine its global fog with fog inside each child region, using the same world coordinates across region boundaries.
+Map Properties and World Map Properties provide the same **Fog** settings. Enable fog to reveal its controls. The GPU generates the fog pattern in world coordinates; no fog image is required. Panning or zooming does not anchor the pattern to the screen. A world can combine its global fog with fog inside each child region, using the same world coordinates across region boundaries.
 
 | Setting | Meaning | Standard default |
 |---|---|---|
@@ -80,9 +80,9 @@ Each layer tab shows its name on the left and its visibility control on the righ
 
 Left-drag paints the selected tile or autotile continuously; a multi-tile selection places the complete pattern at each brush position. Shift+left-drag fills the outlined rectangle, repeating multi-tile patterns from its top-left corner and clipping them to its bounds. Shift+left-click paints one cell. Right-click samples the clicked cell.
 
-Alt+left-click (Option+left-click on macOS) fills the four-directionally connected region matching the clicked tile and autotile values. Multi-tile patterns repeat from the clicked cell; autotile selection and erase use the same shortcut. One brush stroke, rectangle or fill is one Undo step.
+Alt+left-click (Option+left-click on macOS) fills the four-directionally connected region whose tile and autotile values match the clicked cell. Multi-tile patterns repeat from the clicked cell; autotile selection and erase use the same shortcut. One brush stroke, rectangle or fill is one Undo step.
 
-Saving during a stroke starts a new Undo step for subsequent movement. Undo and Redo end the active stroke, and pressing again resumes painting.
+Saving during a stroke starts a new Undo step for subsequent painting. Undo and Redo end the active stroke, and pressing again resumes painting.
 
 ## Lights and actors
 
@@ -126,7 +126,7 @@ A complete group drag, batch property change, reset, delete or paste is one Undo
 
 Copy or delete the selection through either the World Outliner or map context menu, or use Ctrl/Command+C and Delete/Backspace. Right-clicking a selected Actor keeps the group; right-clicking an unselected Actor selects it alone before opening the menu.
 
-Paste through the map context menu or Ctrl/Command+V at the pointer's grid cell. The primary Actor is the paste anchor: its cell moves to that position while the other copied Actors retain their relative grid offsets. Paste targets the current layer, preserves instance overrides, assigns fresh tags unique within the map or world, and selects the new group. If any target is outside the map, already occupied, or occupied by another Actor in the copied group, the entire paste fails with feedback and leaves the map unchanged.
+Paste through the map context menu or Ctrl/Command+V at the pointer's grid cell. The primary Actor is the paste anchor: its cell moves to that position while the other copied Actors retain their relative grid offsets. Paste targets the current layer, preserves instance overrides, assigns fresh tags unique within the map or world, and selects the new group. If any target is outside the map, already occupied, or occupied by another Actor in the copied group, the entire paste fails with a message and leaves the map unchanged.
 
 For invisible Actors, layer dimming and light-range overlays, see [Actor and layer assistance](<../PreviewHost/Map and World Previews.md#actor-and-layer-assistance>).
 
@@ -136,7 +136,7 @@ For invisible Actors, layer dimming and light-range overlays, see [Actor and lay
 
 An Actor light uses `LightComponent.lightOffset` relative to the centre of the Actor's local bounds. The complete Actor transform is applied to the offset, so the emitter follows rotation and scale. For a wall-mounted torch, place the offset at the visible flame on the room side of the wall, because the renderer does not move an emitter to a nearby passable cell.
 
-`Surface.LightBlock` in a material graph is an opacity in the inclusive range `[0, 1]` for one `CellSize` of penetration. `0` is fully transmissive, `1` blocks direct light completely, and intermediate values compound by physical path length. For example, a value of `0.5` transmits approximately `0.707`, `0.5`, and `0.25` through half, one and two cells respectively.
+`Surface.LightBlock` in a material graph is an opacity in the inclusive range `[0, 1]` applied for each `CellSize` the light penetrates. `0` is fully transmissive, `1` blocks direct light completely, and intermediate values compound by physical path length. For example, a value of `0.5` transmits approximately `0.707`, `0.5`, and `0.25` through half, one and two cells respectively.
 
 An emitting Actor is excluded only from the dynamic occluders of its own light. It still blocks every other light, while tiles and other Actors at the same position remain occluders. Do not combine a wall and its torch emitter into one Actor. Use a wall occluder Actor and a separate torch Actor, because excluding the emitter also excludes the wall.
 

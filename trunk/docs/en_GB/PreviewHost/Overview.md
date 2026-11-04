@@ -1,6 +1,6 @@
 # PreviewHost
 
-PreviewHost supplies native rendering for editor previews of maps, worlds, Actors, UI, particles and subtitles. This chapter covers using those previews, preparing their runtime and understanding how the editor obtains their frames.
+PreviewHost supplies native rendering for editor previews of maps, worlds, Actors, UI, particles and subtitles. This chapter explains how to use these previews, prepare the preview runtime and understand how the editor obtains their frames.
 
 ## Choose a preview
 
@@ -16,7 +16,7 @@ PreviewHost supplies native rendering for editor previews of maps, worlds, Actor
 
 Editor previews display the content being authored. Map and Actor appearance previews resolve visual data without executing Actor creation, Tick or Blueprint gameplay events. The UI Designer displays authored assets without running their Lua Controllers. Particle and subtitle playback have their own preview controls, described in the guides above.
 
-Use **Play** to test gameplay. **Live Debug** inspects an already running game and retains its own editing permissions; its map image follows the [map preview display rules](<Map and World Previews.md>). See [Run, Debug and Package](<../Editor User Guide/Run Debug and Package.md>) for game execution and live editing.
+Use **Play** to test gameplay. **Live Debug** inspects an already-running game and retains its own editing permissions; its map image follows the [map preview display rules](<Map and World Previews.md>). See [Run, Debug and Package](<../Editor User Guide/Run Debug and Package.md>) for game execution and live editing.
 
 ## Prepare or develop PreviewHost
 

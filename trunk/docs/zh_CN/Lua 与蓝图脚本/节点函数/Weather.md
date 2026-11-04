@@ -18,4 +18,4 @@ local Weather = require("GlobalFunctions.Weather")
 Weather.SetWeather(WeatherType.STORM, 30, 50)
 ```
 
-节点把该值直接交给 `GlobalCore.WeatherController.setWeather`，名称与本地化标签不作为运行时参数。上例在蓝图 JSON 中保存为 `[2, 30, 50]`。
+节点把该值转发给 `GlobalCore.WeatherController.setWeather`；名称与本地化标签不作为运行时参数。上例在蓝图 JSON 中保存为 `[2, 30, 50]`。

@@ -1,6 +1,6 @@
 # Source.MapActors.Enemy
 
-`Enemy` 声明可战斗地图 Actor 的 General Data 标识、伤害文本子组件、动画开关与战后变量变更，并提供 `onCollision` 与 `onDefeat` 事件。
+`Enemy` 声明可战斗地图 Actor 的通用数据标识、伤害文本子组件、动画开关与战后变量变更，并提供 `onCollision` 与 `onDefeat` 事件。
 
 Metadata 来源：`Scripts/Source/MapActors/Enemy_meta.lua`
 
@@ -34,7 +34,7 @@ Enemy 继承 Actor 默认的 `tickable = false`。
 
 `init(texture?, rect?, tag?)` 构造 Attribute Set、Ability System、Mota ability 以及配置好的 special Effect。碰撞会在提交反击伤害之前，先预校验战斗与必需的结算。战败时，会在动画结束后应用已准备好的 Game Over Effect。
 
-胜利动画结束后，先执行 Actor Blueprint 的 `onDefeat` hook，再执行强制销毁、Reborn/掉落、奖励与 State。这些数值取自预先准备好的快照，`afterBattleVarChanges` 在 hook 之后求值。Enemy 通用数据不定义 `onDefeat` 成员图。
+胜利动画结束后，先执行 Actor Blueprint 的 `onDefeat` hook，再执行强制销毁、Reborn/掉落、奖励与 State。这些数值取自预先准备好的快照，`afterBattleVarChanges` 在 hook 之后求值。Enemy 通用数据没有 `onDefeat` 成员图。
 
 ## 相关页面
 

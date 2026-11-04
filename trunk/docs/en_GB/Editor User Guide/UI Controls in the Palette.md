@@ -23,7 +23,7 @@ A Canvas Slot positions the child's local bounds. A List Slot does not accept Ca
 
 `visible`, `rotation`, `scale` and `origin` are on all 23 controls and are left out of the entry tables.
 
-Six text-bearing controls — PlainText, RichText, FunctionalPlainText, FunctionalRichText, TextBox and DropBox — also carry an editor-only `previewText`. The Designer shows it so the layout stays readable before a Controller supplies real strings. It lives in the node's `editor` object and is design-only.
+Six text-bearing controls — PlainText, RichText, FunctionalPlainText, FunctionalRichText, TextBox and DropBox — also carry an editor-only `previewText`. The Designer shows it so the layout stays readable before a Controller supplies real strings. It lives in the node's `editor` object.
 
 ### The inline text-style group
 
@@ -111,7 +111,7 @@ A static picture, stretched or tiled.
 |---|---|---|---|
 | Visual | none | — | `drawAs`, `texture`, `textureRect`, `colour` |
 
-**Draw As** is an enum selector in the Inspector: **Image** stretches the picture, while **Tile** repeats its texture region to fill the layout area and crops a partial final tile. Global UI Scale scales the complete result either way. An optional `textureRect` defines the tile. See [Engine: Layout and Image Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#image>).
+**Draw As** is an enum selector in the Inspector: **Image** stretches the picture, while **Tile** repeats its texture region to fill the layout area and crops the partial final tile. Global UI Scale scales the complete result either way. An optional `textureRect` defines the tile. See [Engine: Layout and Image Controls](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Layout and Image Controls.md#image>).
 
 ### Engine.ProgressBar
 
@@ -155,7 +155,7 @@ A skinned window frame — the standard background for dialogs, menus and messag
 
 ## Input controls
 
-Input controls accept focus and player input. Each one is a `FunctionalBase`, which accepts focus and input only while it and every `FunctionalBase` ancestor are active, and while it and every `ControlBase` ancestor are visible.
+Input controls accept focus and player input. Each one is a `FunctionalBase` and accepts focus and input only while it and every `FunctionalBase` ancestor are active, and while it and every `ControlBase` ancestor are visible.
 
 ### Engine.Button
 

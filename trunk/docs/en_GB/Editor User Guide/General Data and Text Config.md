@@ -20,9 +20,9 @@ Loading fails on a missing subtype, on a missing or unknown non-underscore membe
 
 `linkedType` is unsupported and rejected.
 
-Each field definition may store an optional English `comment`. Enter it through **Comment** when adding or editing a field, and an empty comment is omitted. Form field names and Table headers show the comment on hover. Comments are plain project text, not locale keys or member data.
+Each field definition may store an optional English `comment`. Enter it through **Comment** when adding or editing a field; an empty comment is omitted. Form field names and Table headers show the comment on hover. Comments are plain project text, not locale keys or member data.
 
-String enum selectors include **— None —**, stored as an empty string. Unknown nonempty values are retained; enums validate scalar types rather than option membership. Empty managed collections remain valid string enums. An enum-keyed dictionary row remains pending until a nonempty, unique key is chosen, so no placeholder key is saved. The old `GeneralDataVars` decorator and General Data field `reference` protocol are unsupported; express these choices in the type schema.
+String enum selectors include **— None —**, stored as an empty string. Unknown non-empty values are retained; enums validate scalar types rather than option membership. Empty managed collections remain valid string enums. An enum-keyed dictionary row remains pending until a non-empty, unique key is chosen, so no placeholder key is saved. The old `GeneralDataVars` decorator and General Data field `reference` protocol are unsupported; express these choices in the type schema.
 
 Enum declarations count as dependencies even when no member selects a value. Enum IDs preserve whitespace and quote characters literally.
 
@@ -58,9 +58,9 @@ Form edits one member in full. Table shows the ID and schema fields in declarati
 
 ## Game Variable Manager
 
-Open **Database → Game Variables** (`F9`) to declare mutable values shared by Blueprint and the active game instance. The left side lists the declared variable names. Select one to edit its type, initial value and optional remark on the right, and the remark remains editor-only with no runtime effect. Variable names are runtime identifiers, so keep them stable once graphs, maps or scripts begin to reference them.
+Open **Database → Game Variables** (`F9`) to declare mutable values shared by Blueprint and the active game instance. The left side lists the declared variable names. Select one to edit its type, initial value and optional remark on the right; the remark remains editor-only with no runtime effect. Variable names are runtime identifiers, so keep them stable once graphs, maps or scripts begin to reference them.
 
-Use the search box to filter variable names case-insensitively. **New Variable** adds a declaration after asking for its name and type, and **Delete Variable** removes the selected declaration after confirmation.
+Use the search box to filter variable names, ignoring case. **New Variable** adds a declaration after asking for its name and type, and **Delete Variable** removes the selected declaration after confirmation.
 
 ![Game Variable Manager with a selected integer variable](../../../images/editor/game-variables.png)
 

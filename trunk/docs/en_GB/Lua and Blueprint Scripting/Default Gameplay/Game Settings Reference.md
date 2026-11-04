@@ -40,11 +40,11 @@ Config lists Low, Medium, High, Extra High and Original in that order, and deriv
 | Extra High | (`3`, `90`, `8`, `1`) |
 | Original | (Unlimited (`0`), `120`, `8`, `1`) |
 
-Only an unmatched tuple appends **Custom** as the final option and selects it, and selecting Custom applies no values. When the values match any preset again, Config selects that preset and removes Custom from the list. No preset key is stored, and `scale` and `verticalsync` do not participate.
+When the tuple matches no preset, Config appends **Custom** as the final option and selects it; selecting Custom applies no values. When the values match a preset again, Config selects that preset and removes Custom from the list. No preset key is stored, and `scale` and `verticalsync` do not participate.
 
-The anti-aliasing level is a requested multisample level. SFML may create the closest context supported by the platform. `0` is the SFML default and disables anti-aliasing. Because it is a context-creation setting, a change saves the preference but affects rendering only after the display is initialised again, normally on the next game start. Negative or out-of-range values resolve to the SFML default.
+The anti-aliasing level is a requested multisample level. SFML may create the closest context supported by the platform. `0` is the SFML default and disables anti-aliasing. Because it is a context-creation setting, changing it saves the preference but affects rendering only after the display is reinitialised, normally on the next game start. Negative or out-of-range values resolve to the SFML default.
 
-Standalone desktop startup, including HarmonyOS 2in1, filters the positive Scale presets `1`, `1.25`, `1.5`, `1.75`, `2`, `3` and `4` against the primary display work area, and Config rechecks the window's current display when it opens. HarmonyOS Mobile free-window mode uses the smaller of the display's available area and the Stage maximum. Fullscreen (`0`) and a fitting non-preset value remain available. An over-limit value becomes the highest fitting preset, or Fullscreen if none fits, and moving to a larger display does not raise it automatically. A failed size query leaves the choices and the value unchanged.
+Standalone desktop startup, including HarmonyOS 2in1, filters the positive Scale presets `1`, `1.25`, `1.5`, `1.75`, `2`, `3` and `4` against the primary display work area, and Config rechecks the window's current display when it opens. HarmonyOS Mobile free-window mode uses the smaller of the display's available area and the Stage maximum. Fullscreen (`0`) and a fitting non-preset value remain available. An over-limit value becomes the highest fitting preset, or Fullscreen if none fits, and moving to a larger display does not automatically raise it. A failed size query leaves the choices and the value unchanged.
 
 ## Limitations
 

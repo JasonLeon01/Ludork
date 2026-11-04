@@ -4,7 +4,7 @@
 
 Metadata 来源：`Scripts/GlobalFunctions/Movement_meta.lua`
 
-路线与寻路函数返回 `Engine.AsyncOperation`，开始时发布 `Enums.MovementLatentOutput.STARTED`（`0`），结束时以 `FINISHED`（`1`）完成，对应蓝图的 `Started` / `Finished` 分支。路线替换与取消规则见 [Actor.setRoute](<../全局与 Core 模块/Core Modules/Engine/玩法类型.md#路线与操作生命周期>)。
+路线与寻路函数返回 `Engine.AsyncOperation`，开始时发出 `Enums.MovementLatentOutput.STARTED`（`0`），结束时以 `FINISHED`（`1`）完成，对应蓝图的 `Started` / `Finished` 分支。路线替换与取消规则见 [Actor.setRoute](<../全局与 Core 模块/Core Modules/Engine/玩法类型.md#路线与操作生命周期>)。
 
 ## Movement
 

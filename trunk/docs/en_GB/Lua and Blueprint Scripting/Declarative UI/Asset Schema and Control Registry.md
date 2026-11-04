@@ -19,13 +19,13 @@ Each node contains:
 
 Nested project assets are black boxes. Their node declares the project `controlId`, `name` and parent Slot, with no internal overrides or children. The target must be exposed, and direct or indirect nesting cycles are invalid.
 
-System IDs use the bound class's sole runtime path, for example `Engine.Canvas` or `Engine.FunctionalPlainText`. A system ID that does not match its bound class's sole runtime path is an unknown control.
+System IDs use the bound class's sole runtime path, for example `Engine.Canvas` or `Engine.FunctionalPlainText`. A system ID that does not match that path is an unknown control.
 
 ## Animation timelines
 
 The asset may contain an `animations` array. Each entry has a non-empty `name`, a required `target` (`null` for Global or one asset-local node name), a positive `duration`, an optional normalised `pivot` defaulting to `[0.5, 0.5]`, and a `tracks` object. Names are unique within one target. A target may be a direct nested-asset node, but never an internal node behind that boundary.
 
-`tracks` accepts `translation`, `rotation`, `scale` and `colour`. Every present track is a non-empty array of diamond keys shaped as `{ "time": number, "value": ... }`. Times are finite, strictly increasing and within `0..duration`. Vector values use two finite numbers, and scale is non-negative. Colour values are four integer RGBA components within `0..255`, and each component is interpolated independently. Missing tracks use identity, and a track with one key stays constant. Outside a track's keyed range, the runtime holds the first or last value. Interpolation is linear.
+`tracks` accepts `translation`, `rotation`, `scale` and `colour`. Every present track is a non-empty array of diamond keyframes shaped as `{ "time": number, "value": ... }`. Times are finite, strictly increasing and within `0..duration`. Vector values use two finite numbers, and scale is non-negative. Colour values are four integer RGBA components within `0..255`, and each component is interpolated independently. Missing tracks use identity, and a track with one key stays constant. Outside a track's keyed range, the runtime holds the first or last value. Interpolation is linear.
 
 Translation is a local additive offset after layout. Rotation is a local angle increment. Scale multiplies the authored or layout scale. Colour multiplies the subtree's authored RGBA components. Presentation transforms are composed around the target's local bounds and pivot without modifying position, rotation, scale, origin or Slot data, so reflow does not accumulate animation offsets. Rendering, absolute bounds and hit testing share that composed transform. Canvas applies the subtree colour once at its composition boundary.
 
@@ -72,7 +72,7 @@ Only assets with `palette.exposed = true` appear as project controls.
 
 `Engine.TabView` serialises `size`, `windowSkin`, the construction-only non-empty `items: string[]` and the same inline text style or optional `textConfig` as plain text, and has no children or Slot of its own. Before the first visible frame, the Controller supplies localised labels and binds selection behaviour through [Engine: Interactive and Declarative UI Controls](<../Global and Core Modules/Core Modules/Engine/Interactive and Declarative UI Controls.md#tabview>). `selectedIndex` and key-hint tables are runtime-only, and `tabCount` is not accepted.
 
-`Engine.CharacterView` serialises `size`, `texture`, optional `textureRect`, `characterScale`, `animatable`, `switchInterval`, `material`, `materialParameters` and `colour`, and accepts no children. `material` is empty or a complete `Data/Materials/...json` resource path; `materialParameters` is a string-keyed pure-data override dictionary. The control owns cropping, animation, actor-scale fitting, material drawing and fixed bounds.
+`Engine.CharacterView` serialises `size`, `texture`, optional `textureRect`, `characterScale`, `animatable`, `switchInterval`, `material`, `materialParameters` and `colour`, and accepts no children. `material` is empty or a complete `Data/Materials/...json` resource path; `materialParameters` is a string-keyed pure-data override dictionary. The control owns cropping, animation, Actor-scale fitting, material drawing and fixed bounds.
 
 ## Related pages
 

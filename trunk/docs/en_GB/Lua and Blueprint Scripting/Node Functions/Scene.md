@@ -47,9 +47,9 @@ Metadata source: `Scripts/GlobalFunctions/Scene_meta.lua`
 
 ### Lua waiting and results
 
-Latent functions return `Engine.AsyncOperation`; see [Lua asynchronous tasks](<../../Getting Started/Ludork Lua Advanced.md>) for sequential waiting. Tutorials, messages, timers and window-close operations complete with `true`. Selections return a zero-based index or `-1` for player cancellation, which follows the Blueprint `Cancelled` output rather than cancelling the operation.
+Latent functions return `Engine.AsyncOperation`; see [Lua asynchronous tasks](<../../Getting Started/Ludork Lua Advanced.md>) for sequential waiting. Tutorials, messages, timers and window-close operations complete with `true`. Selections return a zero-based index or `-1` when the player cancels; that cancellation follows the Blueprint `Cancelled` output rather than cancelling the operation.
 
-Messages and windows complete after their closing animation. A new message or selection cancels the previous dialogue operation; reopening a shop replaces its operation, while repeated requests for the open player-name window share one operation. Voice playback stops when its dialogue completes or is cancelled. Scene and map cleanup follows [SceneMap](<../Source Classes/SceneMap.md#script-operations-and-lifetime>).
+Messages and windows complete after their closing animation. A new message or selection cancels the previous dialogue operation; reopening a shop replaces its operation, whereas repeated requests made while the player-name window is open share one operation. Voice playback stops when its dialogue completes or is cancelled. Scene and map cleanup follows [SceneMap](<../Source Classes/SceneMap.md#script-operations-and-lifetime>).
 
 ### Shop Actors
 
@@ -67,7 +67,7 @@ Messages and windows complete after their closing animation. A new message or se
 
 `ShowTutorial(key)` displays the configured guide and completes with `true` after confirmation. Pending requests for the same key share an operation, even if the key has already been recorded; otherwise, recorded keys complete immediately. Different keys queue in order, and unknown keys raise an error.
 
-When a request reaches the front of the queue, empty localised text (`""`) skips presentation and recording and completes through `Finished`. Recording rules are described under [Saves](<../Default Gameplay/Runtime Data Configuration and Saves.md#saves>).
+When a request reaches the front of the queue, empty localised text (`""`) skips presentation and recording, and completes through `Finished`. Recording rules are described under [Saves](<../Default Gameplay/Runtime Data Configuration and Saves.md#saves>).
 
 Blueprints choose tutorial keys and their order; see [Map introduction](<../Default Gameplay/Windows Menus Input and Controls.md#map-introduction>) for the `Map_01` configuration.
 
