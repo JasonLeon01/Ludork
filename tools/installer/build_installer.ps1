@@ -137,24 +137,27 @@ if ($ValidateOnly) {
 }
 
 $dist = Join-Path $root 'dist'
-$scriptTools = Join-Path $root '.tools\ScriptTools\ScriptTools.exe'
-Require-File $scriptTools
+$toolchainDirectory = Join-Path $root '.tools\Toolchain'
+$packTool = Join-Path $toolchainDirectory 'ludork-pack.exe'
+$editorTool = Join-Path $toolchainDirectory 'ludork-editor.exe'
+Require-File $packTool
+Require-File $editorTool
 Require-File $buildInfo
 Require-File (Join-Path $dist 'Ludork.exe')
-Require-File (Join-Path $dist 'BuildTools\ScriptTools\ScriptTools.exe')
+Require-File (Join-Path $dist 'BuildTools\Toolchain\ludork-editor.exe')
 Require-File (Join-Path $dist 'BuildTools\OfficialPlugins\plugins.json')
 Invoke-Checked (Join-Path $root 'tools\validate_editor_windows_layout.bat') @($dist, '--release')
-$dev = & $scriptTools packaging-constants build-info $buildInfo --field dev
+$dev = & $packTool metadata build-info $buildInfo --field dev
 if ($LASTEXITCODE -ne 0 -or $dev -ne 'false') {
     throw 'Windows installers require a release dist. Run tools\pack_editor.bat --release first.'
 }
-$productVersion = & $scriptTools packaging-constants build-info $buildInfo --field version
+$productVersion = & $packTool metadata build-info $buildInfo --field version
 if ($LASTEXITCODE -ne 0 -or $productVersion -notmatch '^\d+\.\d+\.\d+$') {
     throw "Cannot read a valid packaged editor version from $buildInfo."
 }
 Invoke-Checked (Join-Path $dist 'Binaries\Ludork.exe') @('--check-build-info', $buildInfo)
-Invoke-Checked $scriptTools @('editor-build-metadata', 'validate-payload', $dist, '--build-info', $buildInfo)
-Invoke-Checked $scriptTools @('editor-official-plugins', 'validate', (Join-Path $dist 'BuildTools\OfficialPlugins'))
+Invoke-Checked $editorTool @('editor-build-metadata', 'validate-payload', $dist, '--build-info', $buildInfo)
+Invoke-Checked $editorTool @('editor-official-plugins', 'validate', (Join-Path $dist 'BuildTools\OfficialPlugins'))
 if (Test-Path -LiteralPath (Join-Path $dist 'Templates')) {
     throw 'A release installer must not contain embedded development templates.'
 }

@@ -9,15 +9,15 @@ set "CONFIG=%~2"
 if "%CONFIG%"=="" set "CONFIG=Release"
 if /I "%CONFIG%"=="Debug" set "CONFIG=Debug"
 if /I "%CONFIG%"=="Release" set "CONFIG=Release"
-set "SCRIPT_TOOLS=%TOOLS_DIR%\ScriptTools\ScriptTools.exe"
-if not exist "%SCRIPT_TOOLS%" set "SCRIPT_TOOLS=%TOOLS_DIR%\..\.tools\ScriptTools\ScriptTools.exe"
-if not exist "%SCRIPT_TOOLS%" (
-    echo ScriptTools was not found. Prepare the editor tools first.
+set "TOOLCHAIN_DIRECTORY=%TOOLS_DIR%\Toolchain"
+if not exist "%TOOLCHAIN_DIRECTORY%" set "TOOLCHAIN_DIRECTORY=%TOOLS_DIR%\..\.tools\Toolchain"
+if not exist "%TOOLCHAIN_DIRECTORY%" (
+    echo Toolchain was not found. Prepare the editor tools first.
     exit /b 20
 )
-"%SCRIPT_TOOLS%" windows-native-build "%PROJECT_DIR%" "%CONFIG%" --target PreviewHost --tools-directory "%TOOLS_DIR%"
+"%TOOLCHAIN_DIRECTORY%\ludork-build.exe" windows-native-build "%PROJECT_DIR%" "%CONFIG%" --target PreviewHost --tools-directory "%TOOLS_DIR%"
 if errorlevel 1 exit /b %errorlevel%
-"%SCRIPT_TOOLS%" preview validate "%PROJECT_DIR%"
+"%TOOLCHAIN_DIRECTORY%\ludork-build.exe" preview validate "%PROJECT_DIR%"
 exit /b %errorlevel%
 
 :usage

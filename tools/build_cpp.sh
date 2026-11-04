@@ -23,7 +23,7 @@ if [ ! -f "$CPP_DIR/CMakeLists.txt" ]; then
     echo "CMakeLists.txt was not found: $CPP_DIR" >&2
     exit 1
 fi
-SCRIPT_TOOLS=$(resolve_script_tools)
+TOOLCHAIN_DIRECTORY=$(resolve_toolchain_directory)
 LUAC_CACHE="$PROJECT_ROOT/.tools/Lua/luac"
 
 CMAKE_BIN=$(find_cmake)
@@ -36,7 +36,7 @@ set -- \
     -S "$CPP_DIR" \
     -B "$CPP_DIR/build" \
     -DCMAKE_BUILD_TYPE="$CONFIG" \
-    -DLUDORK_SCRIPT_TOOLS_EXECUTABLE="$SCRIPT_TOOLS" \
+    -DLUDORK_TOOLCHAIN_DIRECTORY="$TOOLCHAIN_DIRECTORY" \
     -DLUDORK_LUAC_CACHE_FILE="$LUAC_CACHE" \
     -DLUDORK_SAVE_AS_LDC="${LUDORK_SAVE_AS_LDC:-0}"
 
@@ -79,7 +79,7 @@ if [ "$(uname -s)" = "Darwin" ]; then
     set -- "$@" -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=13.3
 fi
 
-"$SCRIPT_TOOLS" native-build-state begin "$CPP_DIR" "$CONFIG"
+"$TOOLCHAIN_DIRECTORY/ludork-build" native-build-state begin "$CPP_DIR" "$CONFIG"
 "$CMAKE_BIN" "$@"
 "$CMAKE_BIN" --build "$CPP_DIR/build" --config "$CONFIG" --target Main --parallel "$BUILD_JOBS"
 
@@ -88,5 +88,5 @@ if [ ! -x "$OUTPUT" ]; then
     echo "Build finished without producing $OUTPUT" >&2
     exit 1
 fi
-"$SCRIPT_TOOLS" native-build-state complete "$CPP_DIR" "$CONFIG"
+"$TOOLCHAIN_DIRECTORY/ludork-build" native-build-state complete "$CPP_DIR" "$CONFIG"
 echo "Build complete: $OUTPUT"

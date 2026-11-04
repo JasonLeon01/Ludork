@@ -16,9 +16,9 @@ public static class UiAssetGenerationService
         Action<string>? writeOutput,
         CancellationToken cancellationToken)
     {
-        string? toolPath = EditorRuntimePaths.FindScriptTools();
+        string? toolPath = EditorRuntimePaths.FindToolchainTool(ToolchainTool.Assets);
         if (toolPath is null)
-            return new SaveResult(false, "ScriptTools was not found in the editor installation.");
+            return new SaveResult(false, "Toolchain was not found in the editor installation.");
         ProcessStartInfo startInfo = new()
         {
             FileName = toolPath,

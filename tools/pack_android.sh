@@ -8,5 +8,5 @@ if [ "$(uname -s)" != "Darwin" ] || [ "$(uname -m)" != "arm64" ]; then
     exit 20
 fi
 
-SCRIPT_TOOLS=$(resolve_script_tools)
-exec "$SCRIPT_TOOLS" android-pack "$@"
+TOOLCHAIN_DIRECTORY=$(resolve_toolchain_directory)
+exec "$TOOLCHAIN_DIRECTORY/ludork-pack" android-pack "$@"

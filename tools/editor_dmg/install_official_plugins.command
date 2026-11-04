@@ -3,7 +3,7 @@ set -u
 
 installer_directory=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 payload_root="$installer_directory/.official-plugin-payload"
-script_tools="$installer_directory/Ludork.app/Contents/Resources/BuildTools/ScriptTools"
+editor_tool="$installer_directory/Ludork.app/Contents/Resources/BuildTools/Toolchain/ludork-editor"
 
 show_error() {
     LUDORK_INSTALLER_MESSAGE=$1 /usr/bin/osascript \
@@ -28,13 +28,13 @@ if ! require_ludork_closed; then
     exit 1
 fi
 
-if [ ! -x "$script_tools" ]; then
+if [ ! -x "$editor_tool" ]; then
     show_error "The installer tool is missing from Ludork.app."
     exit 1
 fi
 
 if ! validation_output=$(
-    "$script_tools" editor-official-plugins validate "$payload_root" 2>&1
+    "$editor_tool" editor-official-plugins validate "$payload_root" 2>&1
 ); then
     validation_message=$(printf 'The DMG plug-in payload is invalid.\n\n%.1600s' "$validation_output")
     show_error "$validation_message"
@@ -58,7 +58,7 @@ fi
 
 target_root="$HOME/Ludork"
 if ! install_output=$(
-    "$script_tools" editor-official-plugins prepare \
+    "$editor_tool" editor-official-plugins prepare \
         "$payload_root/Plugins" \
         "$target_root" 2>&1
 ); then
@@ -68,7 +68,7 @@ if ! install_output=$(
 fi
 
 if ! validation_output=$(
-    "$script_tools" editor-official-plugins validate "$target_root" 2>&1
+    "$editor_tool" editor-official-plugins validate "$target_root" 2>&1
 ); then
     validation_message=$(printf 'Installed files did not pass validation.\n\n%.1600s' "$validation_output")
     show_error "$validation_message"

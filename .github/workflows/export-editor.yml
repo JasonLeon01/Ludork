@@ -9,9 +9,9 @@ on:
       - main
     paths:
       - '.github/**'
-      - 'ScriptTools/**'
+      - 'Toolchain/**'
       - 'tools/**'
-      - '!ScriptTools/**/*.md'
+      - '!Toolchain/**/*.md'
       - '!tools/**/*.md'
 
 permissions:

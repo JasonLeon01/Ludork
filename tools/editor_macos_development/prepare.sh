@@ -5,7 +5,7 @@ executable_dir=$(CDPATH= cd -- "$1" && pwd)
 version=$2
 icon_source=$3
 intermediate_dir=$4
-script_tools=$5
+TOOLCHAIN_DIRECTORY=$5
 source_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 
 case "$executable_dir" in
@@ -47,4 +47,4 @@ find "$executable_dir" -type f -links +1 -exec sh -eu -c '
     done
 ' sh {} +
 
-"$script_tools" macos-sign --ignore-environment --signing-identity - "$bundle_dir"
+"$TOOLCHAIN_DIRECTORY/ludork-pack" macos-sign --ignore-environment --signing-identity - "$bundle_dir"

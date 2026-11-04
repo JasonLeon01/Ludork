@@ -70,18 +70,40 @@ absolute_path() {
     printf '%s/%s\n' "$parent" "$name"
 }
 
-resolve_script_tools() {
+resolve_toolchain_directory() {
+    if [ -n "${LUDORK_TOOLCHAIN_DIRECTORY:-}" ]; then
+        if [ ! -x "$LUDORK_TOOLCHAIN_DIRECTORY/ludork-build" ]; then
+            echo "LUDORK_TOOLCHAIN_DIRECTORY does not contain ludork-build: $LUDORK_TOOLCHAIN_DIRECTORY" >&2
+            return 1
+        fi
+        (CDPATH= cd -- "$LUDORK_TOOLCHAIN_DIRECTORY" && pwd)
+        return
+    fi
     for candidate in \
-        "$TOOLS_DIR/ScriptTools/ScriptTools" \
-        "$PROJECT_ROOT/.tools/ScriptTools/ScriptTools"
+        "$TOOLS_DIR/Toolchain" \
+        "$PROJECT_ROOT/.tools/Toolchain"
     do
-        if [ -f "$candidate" ] && [ -x "$candidate" ]; then
+        if [ -d "$candidate" ] && [ -x "$candidate/ludork-build" ]; then
             printf '%s\n' "$candidate"
             return
         fi
     done
-    echo "ScriptTools was not found. Run tools/init.sh first." >&2
+    echo "Toolchain was not found. Run tools/init.sh first." >&2
     exit 1
+}
+
+resolve_toolchain_tool() {
+    case "$1" in
+        build|codegen|assets|pack|editor|check) ;;
+        *) echo "Unknown toolchain role: $1" >&2; return 1 ;;
+    esac
+    toolchain_directory=$(resolve_toolchain_directory)
+    tool="$toolchain_directory/ludork-$1"
+    if [ ! -x "$tool" ]; then
+        echo "Toolchain executable was not found: $tool" >&2
+        return 1
+    fi
+    printf '%s\n' "$tool"
 }
 
 require_macos_arm64() {

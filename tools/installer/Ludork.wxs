@@ -40,7 +40,7 @@
     <CustomAction Id="ApplyAssociations" BinaryRef="InstallerActions"
                   DllEntry="ApplyAssociations" Execute="deferred"
                   Impersonate="no" Return="check" />
-    <CustomAction Id="InstallOfficialPlugins" FileRef="ScriptToolsExe"
+    <CustomAction Id="InstallOfficialPlugins" FileRef="ToolchainEditorExe"
                   ExeCommand="editor-official-plugins install-current-user &quot;[INSTALLFOLDER]BuildTools\OfficialPlugins&quot; --expected-user-sid &quot;[UserSID]&quot;"
                   Execute="commit" Impersonate="yes" TerminalServerAware="yes" Return="check" />
     <InstallExecuteSequence>

@@ -1,24 +1,19 @@
 include_guard(GLOBAL)
 
-include("${CMAKE_CURRENT_LIST_DIR}/LudorkScriptTools.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/LudorkToolchain.cmake")
 
-set(LUDORK_SCRIPT_TOOLS_EXECUTABLE "" CACHE FILEPATH
-    "Path to the platform ScriptTools executable")
-if(NOT LUDORK_SCRIPT_TOOLS_EXECUTABLE OR
-   NOT EXISTS "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}")
-    message(FATAL_ERROR
-        "LUDORK_SCRIPT_TOOLS_EXECUTABLE is missing. Run tools/init first.")
-endif()
+ludork_get_tool(LUDORK_TOOL_CODEGEN codegen)
+ludork_get_tool(LUDORK_TOOL_PACK pack)
 
 set(LUDORK_RUNTIME_CONSTANTS_DIRECTORY
     "${LUDORK_INTERMEDIATE_DIRECTORY}/RuntimeConstants")
 set(LUDORK_SERVER_CONFIG_DIRECTORY
     "${LUDORK_INTERMEDIATE_DIRECTORY}/ServerConfig/$<CONFIG>")
-ludork_get_script_tools_dependencies(runtime_constants_dependencies)
+ludork_get_toolchain_dependencies(runtime_constants_dependencies)
 add_custom_target(RuntimeConstantsGenerate
-    COMMAND "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}" runtime-constants cpp
+    COMMAND "${LUDORK_TOOL_CODEGEN}" runtime-constants cpp
         "${LUDORK_PROJECT_SOURCE_DIR}" "${LUDORK_RUNTIME_CONSTANTS_DIRECTORY}"
-    COMMAND "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}" server-config generate
+    COMMAND "${LUDORK_TOOL_PACK}" server-config generate
         "${LUDORK_SERVER_CONFIG_DIRECTORY}" "$<CONFIG>"
     BYPRODUCTS
         "${LUDORK_RUNTIME_CONSTANTS_DIRECTORY}/LudorkGenerated/BinaryDataFormatConstants.hpp"

@@ -1,0 +1,775 @@
+from __future__ import annotations
+
+import argparse
+import pathlib
+import posixpath
+import re
+import sys
+from dataclasses import dataclass
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
+
+from Toolchain.core_bindgen.annotations import macro_invocations, parse_macro_options
+from Toolchain.core_bindgen.scopes import code_mask
+
+
+class ImplBoundaryError(RuntimeError):
+    pass
+
+
+@dataclass(frozen=True)
+class CppBoundary:
+    host_source: pathlib.Path
+    host_header: pathlib.Path
+    host_types: tuple[str, ...]
+    impl_directory: pathlib.Path
+
+
+@dataclass(frozen=True)
+class LuaBoundary:
+    host_file: pathlib.Path
+    host_module: str
+    host_types: tuple[str, ...]
+    impl_modules: tuple[str, ...]
+
+
+CPP_SUFFIXES = {".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".hxx", ".mm"}
+HOST_MEMBER_CANDIDATE = re.compile(
+    r"^[ \t]*(?:[^;(){}\n]+[ \t]+)?([A-Za-z_]\w*)\s*::\s*"
+    r"(?:[A-Za-z_]\w*\s*::\s*)*"
+    r"(?:~?\w+|operator\s*[^\s(]+)\s*\(",
+    re.MULTILINE,
+)
+
+
+def _line_number(text: str, position: int) -> int:
+    return text.count("\n", 0, position) + 1
+
+
+def _diagnostic(path: pathlib.Path, text: str, position: int, message: str) -> str:
+    return f"{path}:{_line_number(text, position)}: {message}"
+
+
+def _cpp_files(directory: pathlib.Path) -> list[pathlib.Path]:
+    return sorted(path for path in directory.rglob("*") if path.suffix in CPP_SUFFIXES)
+
+
+def _cpp_source_roots(project_root: pathlib.Path) -> list[pathlib.Path]:
+    roots = [
+        project_root / "Engine" / module
+        for module in ("Source", "Runtime", "Standard")
+    ]
+    return [root for root in roots if root.is_dir()]
+
+
+def _cpp_include_roots(project_root: pathlib.Path) -> list[pathlib.Path]:
+    roots = sorted((project_root / "Engine" / "Source").glob("*/include"))
+    for module in ("Runtime", "Standard"):
+        include_root = project_root / "Engine" / module / "include"
+        if include_root.is_dir():
+            roots.append(include_root)
+    application = project_root / "Application" / "include"
+    if application.is_dir():
+        roots.append(application)
+    return roots
+
+
+def _cpp_private_roots(project_root: pathlib.Path) -> list[pathlib.Path]:
+    roots = sorted((project_root / "Engine" / "Source").glob("*/src"))
+    roots.extend(project_root / "Engine" / module / "src" for module in ("Runtime", "Standard"))
+    roots.append(project_root / "Application" / "src")
+    return [root.resolve() for root in roots if root.is_dir()]
+
+
+def _cpp_string_value(value: str) -> str:
+    escapes = {
+        "a": "\a", "b": "\b", "f": "\f", "n": "\n", "r": "\r",
+        "t": "\t", "v": "\v", "\\": "\\", "'": "'", '"': '"', "?": "?",
+    }
+
+    def decode(match: re.Match[str]) -> str:
+        escape = match[0][1:]
+        if escape in {"\n", "\r\n"}:
+            return ""
+        if escape in escapes:
+            return escapes[escape]
+        if escape[0] in "xuU01234567":
+            number = int(escape[1:], 16) if escape[0] in "xuU" else int(escape, 8)
+            return chr(number) if number <= 0x10FFFF else match[0]
+        return match[0]
+
+    return re.sub(
+        r"\\(?:\r?\n|[0-7]{1,3}|x[0-9a-fA-F]+|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}|.)",
+        decode,
+        value,
+    )
+
+
+def _cpp_strings_and_comments(text: str) -> tuple[str, list[tuple[int, str]]]:
+    characters: list[str] = []
+    positions: list[int] = []
+    offset = 0
+    for splice in re.finditer(r"\\\r?\n", text):
+        characters.extend(text[offset:splice.start()])
+        positions.extend(range(offset, splice.start()))
+        offset = splice.end()
+    characters.extend(text[offset:])
+    positions.extend(range(offset, len(text)))
+    spliced = "".join(characters)
+    tokens = re.compile(
+        r'(?P<comment>//[^\n]*|/\*.*?\*/)|'
+        r'(?:u8|u|U|L)?R"(?P<delimiter>[^\s()\\]{0,16})\((?P<raw>.*?)\)(?P=delimiter)"|'
+        r'(?:u8|u|U|L)?"(?P<string>(?:\\.|[^"\\])*)"|'
+        r"(?:u8|u|U|L)?'(?:\\.|[^'\\])*'",
+        re.DOTALL,
+    )
+    uncommented = list(text)
+    strings: list[tuple[int, str]] = []
+    previous_end = 0
+    for match in tokens.finditer(spliced):
+        start = positions[match.start()]
+        end = positions[match.end() - 1] + 1
+        if match["comment"] is not None:
+            uncommented[start:end] = [
+                "\n" if char == "\n" else " " for char in text[start:end]
+            ]
+            continue
+        if match["raw"] is None and match["string"] is None:
+            continue
+        if match["raw"] is not None:
+            literal = text[start:end]
+            value = literal[literal.find("(") + 1:-(len(match["delimiter"]) + 2)]
+        else:
+            value = _cpp_string_value(match["string"])
+        gap = "".join(uncommented[previous_end:start])
+        if strings and not re.sub(r"\\\r?\n", "", gap).strip():
+            previous_start, previous = strings[-1]
+            strings[-1] = (previous_start, previous + value)
+        else:
+            strings.append((start, value))
+        previous_end = end
+    return "".join(uncommented), strings
+
+
+def _check_project_lua_dependencies(project_root: pathlib.Path) -> list[str]:
+    module_path = re.compile(r"(?<![\w.])Source(?:\.[A-Za-z_]\w*)+(?![\w.])")
+    type_options = {
+        "type", "parameter_types", "lua_return_type", "metadata_type",
+        "metadata_parameters", "metadata_returns", "returns",
+    }
+    diagnostics: list[str] = []
+    for root in _cpp_source_roots(project_root):
+        for path in _cpp_files(root):
+            text = path.read_text(encoding="utf-8")
+            uncommented, strings = _cpp_strings_and_comments(text)
+            reported: list[tuple[int, str]] = []
+            for position, value in strings:
+                if module_path.fullmatch(value):
+                    reported.append((position, value))
+                    diagnostics.append(_diagnostic(
+                        path, text, position,
+                        f"native engine must not depend on project Lua module or type {value}",
+                    ))
+            kinds = tuple(dict.fromkeys(re.findall(r"\bBIND_(\w+)\s*\(", code_mask(uncommented))))
+            if not kinds:
+                continue
+            for annotation in macro_invocations(uncommented, kinds):
+                options = parse_macro_options(annotation.arguments)
+                references: set[str] = set()
+                for key, value in options.items():
+                    if key not in type_options:
+                        continue
+                    _, type_strings = _cpp_strings_and_comments(value)
+                    for type_text in (code_mask(value), *(item[1] for item in type_strings)):
+                        references.update(match[0] for match in module_path.finditer(type_text))
+                argument_start = uncommented.find("(", annotation.start) + 1
+                for reference in sorted(references):
+                    if any(annotation.start <= position < annotation.end and value == reference
+                           for position, value in reported):
+                        continue
+                    offset = annotation.arguments.find(reference)
+                    position = argument_start + offset if offset >= 0 else annotation.start
+                    diagnostics.append(_diagnostic(
+                        path, text, position,
+                        f"native binding must not depend on project Lua type {reference}",
+                    ))
+    return diagnostics
+
+
+def _cpp_includes(text: str) -> list[tuple[int, str, bool]]:
+    characters: list[str] = []
+    positions: list[int] = []
+    offset = 0
+    for splice in re.finditer(r"\\\r?\n", text):
+        characters.extend(text[offset:splice.start()])
+        positions.extend(range(offset, splice.start()))
+        offset = splice.end()
+    characters.extend(text[offset:])
+    positions.extend(range(offset, len(text)))
+    spliced = "".join(characters)
+    comments = re.compile(
+        r'R"(?P<delimiter>[^ ()\\\t\r\n]{0,16})\(.*?\)(?P=delimiter)"|'
+        r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|//[^\n]*|/\*.*?\*/',
+        re.DOTALL,
+    )
+    uncommented = comments.sub(
+        lambda match: "".join("\n" if ch == "\n" else " " for ch in match[0])
+        if match[0].startswith(("//", "/*", 'R"')) else match[0],
+        spliced,
+    )
+    pattern = r'^[ \t]*#[ \t]*include[ \t]*(?:[<"]([^>"]+)[>"]|([A-Za-z_]\w*))'
+    return [(positions[match.start()], match[1] or match[2], match[1] is not None)
+            for match in re.finditer(pattern, uncommented, re.MULTILINE)]
+
+
+def _check_private_includes(project_root: pathlib.Path) -> list[str]:
+    private_roots = _cpp_private_roots(project_root)
+    public_roots = [root.resolve() for root in _cpp_include_roots(project_root)]
+    shared_roots = sorted(root for private in private_roots for root in private.rglob("include") if root.is_dir())
+    private_directories = sorted({path.parent for root in private_roots for path in _cpp_files(root)})
+    lookup_roots = [*public_roots, *shared_roots, *private_roots, *private_directories]
+    paths = sorted({path.resolve() for root in (*public_roots, *private_roots) for path in _cpp_files(root)})
+    contents = {path: path.read_text(encoding="utf-8") for path in paths}
+    include_targets: dict[pathlib.Path, pathlib.Path] = {}
+    for root in lookup_roots:
+        for path in paths:
+            if path.is_relative_to(root):
+                include_targets.setdefault(path.relative_to(root), path)
+    companions: dict[pathlib.Path, str] = {}
+    for path, text in contents.items():
+        if path.suffix not in {".h", ".hh", ".hpp", ".hxx"}:
+            continue
+        declaration = re.search(r"\b(?:class|struct)\s+(?:\w+::)*(\w+)::Impl\b", _without_cpp_comments_and_literals(text))
+        if declaration:
+            companions[path] = declaration[1]
+    diagnostics: list[str] = []
+    for path, text in contents.items():
+        source_public = any(path.is_relative_to(root) for root in public_roots)
+        source_interface = any(path.is_relative_to(root) for root in shared_roots)
+        source_private = next((root for root in private_roots if path.is_relative_to(root)), None)
+        source_shared = next((root.parent for root in shared_roots if path.is_relative_to(root.parent)), None)
+        for position, included_name, literal in _cpp_includes(text):
+            if not literal:
+                diagnostics.append(_diagnostic(path, text, position,
+                    "include must use a literal header path so implementation boundaries can be resolved"))
+                continue
+            name = included_name.replace("\\", "/")
+            local_target = (path.parent / name).resolve()
+            target = local_target if local_target in contents else include_targets.get(pathlib.Path(posixpath.normpath(name)))
+            if target is None and ".." in pathlib.PurePosixPath(name).parts:
+                target = next((candidate for root in lookup_roots
+                               if (candidate := (root / name).resolve()) in contents), None)
+            if target is None:
+                continue
+            target_private = next((root for root in private_roots if target.is_relative_to(root)), None)
+            if target_private is None:
+                continue
+            target_interface = any(target.is_relative_to(root) for root in shared_roots)
+            shared_implementation = next((root.parent / "src" for root in shared_roots
+                                          if target.is_relative_to(root.parent / "src")), None)
+            message = None
+            if source_public or (source_interface and not target_interface):
+                message = f"public interface must not include private header {name}"
+            elif shared_implementation and not path.is_relative_to(shared_implementation):
+                message = f"shared implementation must be accessed through its interface: {name}"
+            elif source_shared and not target_interface and not target.is_relative_to(source_shared):
+                message = f"shared layer must not include host-private header {name}"
+            elif source_private and not target_interface and target.parent in path.parent.parents:
+                message = f"implementation must not include parent-private header {name} (resolved to {target})"
+            elif target in companions:
+                host = companions[target]
+                host_members = {name for name, _ in _member_definitions(_without_cpp_comments_and_literals(text))}
+                if path.parent != target.parent or host not in host_members:
+                    message = f"only {host} host sources may include companion {name}"
+            if message:
+                diagnostics.append(_diagnostic(path, text, position, message))
+    return diagnostics
+
+
+def _check_standard_layers(project_root: pathlib.Path) -> list[str]:
+    standard = project_root / "Engine" / "Standard"
+    runtime = standard / "src" / "Runtime" / "ClassRuntime"
+    if not runtime.is_dir():
+        return []
+    layers = {name: rank for rank, name in enumerate(
+        ("Detail", "Native", "Instance", "Composite", "Class")
+    )}
+    include_roots = (runtime, standard / "src", standard / "include")
+    include_pattern = re.compile(
+        r'^[ \t]*#[ \t]*include[ \t]*[<"]([^>"]+)[>"]', re.MULTILINE
+    )
+    comment_pattern = re.compile(
+        r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|//[^\n]*|/\*.*?\*/',
+        re.DOTALL,
+    )
+    diagnostics: list[str] = []
+    for path in _cpp_files(runtime):
+        relative = path.relative_to(runtime)
+        source_layer = relative.parts[0]
+        if source_layer not in layers:
+            continue
+        text = path.read_text(encoding="utf-8")
+        uncommented = comment_pattern.sub(
+            lambda match: "".join("\n" if ch == "\n" else " " for ch in match[0])
+            if match[0].startswith(("//", "/*")) else match[0],
+            text,
+        )
+        for match in include_pattern.finditer(uncommented):
+            name = match[1]
+            if ".." in pathlib.PurePosixPath(name).parts:
+                diagnostics.append(_diagnostic(
+                    path, text, match.start(), "Standard impl must not include through ../"
+                ))
+                continue
+            target = next(
+                (candidate.resolve() for directory in (path.parent, *include_roots)
+                 if (candidate := directory / name).is_file()),
+                None,
+            )
+            if target is None or not target.is_relative_to(standard / "src"):
+                continue
+            if not target.is_relative_to(runtime):
+                diagnostics.append(_diagnostic(
+                    path, text, match.start(),
+                    f"ClassRuntime layer must not include parent implementation header {name}",
+                ))
+                continue
+            target_layer = target.relative_to(runtime).parts[0]
+            if target_layer not in layers or layers[target_layer] > layers[source_layer]:
+                diagnostics.append(_diagnostic(
+                    path, text, match.start(),
+                    f"ClassRuntime dependency {source_layer} -> {target_layer} violates "
+                    "Class -> Composite -> Instance -> Native -> Detail",
+                ))
+    return diagnostics
+
+
+def _without_cpp_comments_and_literals(text: str) -> str:
+    pattern = re.compile(
+        r'(?m)^\s*\#[^\n]*$|//[^\n]*|/\*.*?\*/|"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'',
+        re.DOTALL,
+    )
+
+    def preserve_lines(match: re.Match[str]) -> str:
+        return "\n" * match.group(0).count("\n")
+
+    return pattern.sub(preserve_lines, text)
+
+
+def _member_definitions(text: str) -> list[tuple[str, int]]:
+    definitions: list[tuple[str, int]] = []
+    for match in HOST_MEMBER_CANDIDATE.finditer(text):
+        position = match.end()
+        depth = 1
+        while position < len(text) and depth > 0:
+            if text[position] == "(":
+                depth += 1
+            elif text[position] == ")":
+                depth -= 1
+            position += 1
+        if depth != 0:
+            continue
+        terminator = re.search(r"[;{}]", text[position:])
+        if terminator is None or terminator.group(0) != "{":
+            continue
+        tail = text[position : position + terminator.start()]
+        if (
+            re.fullmatch(
+                r"\s*(?:(?:const|noexcept|override|final)\s*|&{1,2}\s*)*",
+                tail,
+            )
+            is None
+        ):
+            continue
+        definitions.append((match.group(1), match.start()))
+    return definitions
+
+
+def _find_host_header(
+    project_root: pathlib.Path,
+    host_source: pathlib.Path,
+) -> pathlib.Path:
+    text = host_source.read_text(encoding="utf-8")
+    includes = re.findall(r"#\s*include\s*[<\"]([^>\"]+)[>\"]", text)
+    include_roots = _cpp_include_roots(project_root)
+    candidates: list[pathlib.Path] = []
+    for include in includes:
+        include_path = pathlib.PurePosixPath(include)
+        if include_path.stem != host_source.stem:
+            continue
+        for include_root in include_roots:
+            candidate = include_root / pathlib.Path(*include_path.parts)
+            if candidate.is_file():
+                candidates.append(candidate)
+    unique_candidates = sorted(set(candidates))
+    if len(unique_candidates) != 1:
+        display = ", ".join(str(path) for path in unique_candidates) or "none"
+        raise ImplBoundaryError(
+            f"Unable to resolve one public host header for {host_source}: {display}"
+        )
+    return unique_candidates[0]
+
+
+def _discover_cpp_boundaries(project_root: pathlib.Path) -> list[CppBoundary]:
+    source_roots = _cpp_source_roots(project_root)
+    if not source_roots:
+        raise ImplBoundaryError(f"C++ source roots were not found: {project_root}")
+    boundaries: list[CppBoundary] = []
+    for host_source in [
+        path for source_root in source_roots for path in _cpp_files(source_root)
+    ]:
+        if host_source.suffix not in {".cc", ".cpp", ".cxx"}:
+            continue
+        impl_directory = host_source.with_suffix("")
+        if not impl_directory.is_dir():
+            continue
+        host_header = _find_host_header(project_root, host_source)
+        host_code = _without_cpp_comments_and_literals(
+            host_source.read_text(encoding="utf-8")
+        )
+        defined_types = tuple(
+            sorted({host_type for host_type, _ in _member_definitions(host_code)})
+        )
+        include_root = next(
+            root
+            for root in _cpp_include_roots(project_root)
+            if root == host_header.parent or root in host_header.parents
+        )
+        bound_types: set[str] = set()
+        for public_header in _cpp_files(include_root):
+            header_text = public_header.read_text(encoding="utf-8")
+            bound_types.update(
+                re.findall(
+                    r"BIND_CLASS\s*\(.*?\)\s*class(?:\s+[A-Za-z_]\w*)*\s+([A-Za-z_]\w*)",
+                    header_text,
+                    re.DOTALL,
+                )
+            )
+        host_types = tuple(name for name in defined_types if name in bound_types)
+        if not host_types:
+            raise ImplBoundaryError(
+                f"No bound host member definitions were found in {host_source} "
+                f"for {host_header}"
+            )
+        boundaries.append(
+            CppBoundary(
+                host_source=host_source,
+                host_header=host_header,
+                host_types=host_types,
+                impl_directory=impl_directory,
+            )
+        )
+    if not boundaries:
+        raise ImplBoundaryError(
+            "No C++ host/same-name implementation directories were found under "
+            f"{', '.join(str(root) for root in source_roots)}"
+        )
+    return boundaries
+
+
+def _check_cpp(
+    boundary: CppBoundary,
+    project_root: pathlib.Path,
+) -> list[str]:
+    diagnostics: list[str] = []
+    header_name = boundary.host_header.name
+    header_pattern = re.compile(
+        rf"#\s*include\s*[<\"](?:[^>\"]*/)?{re.escape(header_name)}[>\"]"
+    )
+    upward_include_pattern = re.compile(r"#\s*include\s*[<\"]\.\./")
+    for path in _cpp_files(boundary.impl_directory):
+        text = path.read_text(encoding="utf-8")
+        for pattern, message in (
+            (header_pattern, f"impl must not include host header {header_name}"),
+            (upward_include_pattern, "impl must not include through ../"),
+        ):
+            for match in pattern.finditer(text):
+                diagnostics.append(_diagnostic(path, text, match.start(), message))
+        code = _without_cpp_comments_and_literals(text)
+        for host_type in boundary.host_types:
+            host_type_pattern = re.compile(rf"\b{re.escape(host_type)}\b")
+            for match in host_type_pattern.finditer(code):
+                diagnostics.append(
+                    _diagnostic(
+                        path,
+                        code,
+                        match.start(),
+                        f"impl must not depend on host type {host_type}",
+                    )
+                )
+
+    for path in [
+        path
+        for source_root in _cpp_source_roots(project_root)
+        for path in _cpp_files(source_root)
+    ]:
+        if path == boundary.host_source or boundary.impl_directory in path.parents:
+            continue
+        text = path.read_text(encoding="utf-8")
+        code = _without_cpp_comments_and_literals(text)
+        for host_type, position in _member_definitions(code):
+            if host_type not in boundary.host_types:
+                continue
+            diagnostics.append(
+                _diagnostic(
+                    path,
+                    code,
+                    position,
+                    f"only host source {boundary.host_source} may define members of {host_type}",
+                )
+            )
+    return diagnostics
+
+
+def _lua_module(scripts_root: pathlib.Path, path: pathlib.Path) -> str:
+    relative = path.relative_to(scripts_root).with_suffix("")
+    return ".".join(relative.parts)
+
+
+def _discover_lua_boundaries(project_root: pathlib.Path) -> list[LuaBoundary]:
+    scripts_root = project_root / "Scripts"
+    stub_root = scripts_root / "stub"
+    if not scripts_root.is_dir() or not stub_root.is_dir():
+        raise ImplBoundaryError(
+            f"Lua runtime or stub root was not found under {scripts_root}"
+        )
+    boundaries: list[LuaBoundary] = []
+    for host_file in sorted(scripts_root.rglob("*.lua")):
+        if stub_root in host_file.parents or host_file.name.endswith("_meta.lua"):
+            continue
+        impl_directory = host_file.with_suffix("")
+        if not impl_directory.is_dir():
+            continue
+        impl_files: list[pathlib.Path] = []
+        for path in sorted(impl_directory.rglob("*.lua")):
+            if path.name.endswith("_meta.lua"):
+                continue
+            relative = path.relative_to(scripts_root)
+            stub_path = stub_root / relative.with_suffix(".d.lua")
+            if not stub_path.is_file():
+                impl_files.append(path)
+        if not impl_files:
+            continue
+        host_text = host_file.read_text(encoding="utf-8")
+        host_types = tuple(
+            re.findall(r"(?m)^---@class\s+\(partial\)\s+([^\s:]+)", host_text)
+        )
+        if not host_types:
+            raise ImplBoundaryError(
+                f"Lua host with private implementation has no partial host type: {host_file}"
+            )
+        boundaries.append(
+            LuaBoundary(
+                host_file=host_file,
+                host_module=_lua_module(scripts_root, host_file),
+                host_types=host_types,
+                impl_modules=tuple(
+                    _lua_module(scripts_root, path) for path in impl_files
+                ),
+            )
+        )
+    if not boundaries:
+        raise ImplBoundaryError(
+            f"No Lua host/private implementation directories were found under {scripts_root}"
+        )
+    return boundaries
+
+
+def _module_path(project_root: pathlib.Path, module: str) -> pathlib.Path:
+    return (
+        project_root / "Scripts" / pathlib.Path(*module.split(".")).with_suffix(".lua")
+    )
+
+
+def _require_aliases(text: str) -> dict[str, str]:
+    pattern = re.compile(
+        r"(?m)^local\s+([A-Za-z_]\w*)\s*=\s*require\s*\(\s*[\"']([^\"']+)[\"']\s*\)"
+    )
+    return {match.group(2): match.group(1) for match in pattern.finditer(text)}
+
+
+def _check_lua(boundary: LuaBoundary, project_root: pathlib.Path) -> list[str]:
+    diagnostics: list[str] = []
+    host_text = boundary.host_file.read_text(encoding="utf-8")
+    aliases = _require_aliases(host_text)
+    impl_aliases: set[str] = set()
+
+    for module in boundary.impl_modules:
+        path = _module_path(project_root, module)
+        if not path.is_file():
+            diagnostics.append(f"Missing Lua impl module {module}: {path}")
+            continue
+        alias = aliases.get(module)
+        if alias is not None:
+            impl_aliases.add(alias)
+        text = path.read_text(encoding="utf-8")
+        host_require = re.compile(
+            rf"\brequire\s*\(\s*[\"']{re.escape(boundary.host_module)}[\"']\s*\)"
+        )
+        for match in host_require.finditer(text):
+            diagnostics.append(
+                _diagnostic(
+                    path,
+                    text,
+                    match.start(),
+                    f"impl must not require host module {boundary.host_module}",
+                )
+            )
+        for host_type in boundary.host_types:
+            partial_host = re.compile(
+                rf"---@class\s+\(partial\)\s+{re.escape(host_type)}\b"
+            )
+            for match in partial_host.finditer(text):
+                diagnostics.append(
+                    _diagnostic(
+                        path,
+                        text,
+                        match.start(),
+                        f"impl must not declare partial host type {host_type}",
+                    )
+                )
+
+    class_calls = re.compile(r"\bclass\s*\((.*?)\)", re.DOTALL)
+    for match in class_calls.finditer(host_text):
+        arguments = match.group(1)
+        for alias in sorted(impl_aliases):
+            alias_match = re.search(rf"\b{re.escape(alias)}\b", arguments)
+            if alias_match is not None:
+                diagnostics.append(
+                    _diagnostic(
+                        boundary.host_file,
+                        host_text,
+                        match.start(1) + alias_match.start(),
+                        f"host must delegate to impl module {alias}, not mix it into class()",
+                    )
+                )
+    for alias in sorted(impl_aliases):
+        copy_patterns = (
+            re.compile(rf"\bpairs\s*\(\s*{re.escape(alias)}\s*\)"),
+            re.compile(
+                rf"(?m)^\s*[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)?\s*=\s*{re.escape(alias)}\.[A-Za-z_]\w*\s*$"
+            ),
+        )
+        for pattern in copy_patterns:
+            for match in pattern.finditer(host_text):
+                diagnostics.append(
+                    _diagnostic(
+                        boundary.host_file,
+                        host_text,
+                        match.start(),
+                        f"host must delegate to impl module {alias}, not copy its methods",
+                    )
+                )
+    return diagnostics
+
+
+def _check_core_glue(project_root: pathlib.Path) -> list[str]:
+    core = project_root / "Engine" / "Source"
+    if not core.is_dir():
+        return []
+    include_roots = _cpp_include_roots(project_root)
+    include_roots.extend(sorted(core.glob("*/src")))
+    include_roots.extend(
+        project_root / "Engine" / module / "include"
+        for module in ("Standard", "ThirdParty/LuaSF")
+    )
+    include_pattern = re.compile(
+        r'^[ \t]*#[ \t]*include[ \t]*[<"]([^>"]+)[>"]', re.MULTILINE
+    )
+    comment_pattern = re.compile(
+        r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|//[^\n]*|/\*.*?\*/',
+        re.DOTALL,
+    )
+    parsed: dict[
+        pathlib.Path, tuple[list[pathlib.Path], tuple[int, str] | None]
+    ] = {}
+
+    def mask(match: re.Match[str]) -> str:
+        return "".join("\n" if ch == "\n" else " " for ch in match[0])
+
+    def inspect(path: pathlib.Path) -> tuple[list[pathlib.Path], tuple[int, str] | None]:
+        if path in parsed:
+            return parsed[path]
+        text = path.read_text(encoding="utf-8")
+        code = comment_pattern.sub(mask, text)
+        usage = re.search(r"\blua_glue\s*::", code)
+        violation = (_line_number(code, usage.start()), "LuaGlue namespace") if usage else None
+        uncommented = comment_pattern.sub(
+            lambda match: mask(match)
+            if match[0].startswith(("//", "/*")) else match[0],
+            text,
+        )
+        includes: list[pathlib.Path] = []
+        for match in include_pattern.finditer(uncommented):
+            name = match[1]
+            line = _line_number(uncommented, match.start())
+            if name.startswith("LuaGlue/"):
+                violation = (line, name)
+                break
+            for directory in (path.parent, *include_roots):
+                candidate = directory / name
+                if candidate.is_file():
+                    includes.append(candidate.resolve())
+                    break
+        parsed[path] = includes, violation
+        return parsed[path]
+
+    diagnostics: list[str] = []
+    for source in _cpp_files(core):
+        pending = [(source.resolve(), ())]
+        visited: set[pathlib.Path] = set()
+        while pending:
+            path, chain = pending.pop()
+            if path in visited:
+                continue
+            visited.add(path)
+            includes, violation = inspect(path)
+            if violation is not None:
+                line, reason = violation
+                route = " -> ".join(
+                    str(item.relative_to(project_root))
+                    if item.is_relative_to(project_root) else str(item)
+                    for item in (*chain, path)
+                )
+                diagnostics.append(
+                    f"{source}:{line if not chain else 1}: handwritten Core must not depend on LuaGlue "
+                    f"({route}:{line}: {reason}); use a Runtime interface without binding dependencies"
+                )
+                break
+            pending.extend((child, (*chain, path)) for child in includes)
+    return diagnostics
+
+
+def verify_impl_boundaries(project_root: pathlib.Path) -> None:
+    root = project_root.resolve()
+    if not root.is_dir():
+        raise ImplBoundaryError(f"Project root was not found: {root}")
+    cpp = _discover_cpp_boundaries(root)
+    lua = _discover_lua_boundaries(root)
+    diagnostics = _check_private_includes(root)
+    diagnostics.extend(_check_project_lua_dependencies(root))
+    diagnostics.extend(_check_core_glue(root))
+    diagnostics.extend(_check_standard_layers(root))
+    for boundary in cpp:
+        diagnostics.extend(_check_cpp(boundary, root))
+    for boundary in lua:
+        diagnostics.extend(_check_lua(boundary, root))
+    if diagnostics:
+        raise ImplBoundaryError("\n".join(diagnostics))
+
+
+def main(arguments: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="ludork-check impl-boundary-check")
+    parser.add_argument("project_root", type=pathlib.Path)
+    parsed = parser.parse_args(arguments)
+    try:
+        verify_impl_boundaries(parsed.project_root)
+    except (OSError, ValueError, ImplBoundaryError) as exception:
+        parser.exit(1, f"{exception}\n")
+    print(f"Impl boundaries are valid: {parsed.project_root.resolve()}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

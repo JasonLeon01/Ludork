@@ -8,14 +8,13 @@ import subprocess
 import sys
 
 ENVIRONMENT_INPUTS = (
-    "ScriptTools/*",
+    "Toolchain/*",
     "requirements.txt",
     "versions.conf",
-    "tools/cpp_dependencies/*",
+    "tools/toolchain_entrypoints/*",
     "tools/setup_python.*",
-    "tools/build_script_tools.*",
+    "tools/build_toolchain_bundle.*",
     "tools/init_cpp_dependencies.*",
-    "tools/init_ffmpeg_source.*",
     "tools/init_gnu_make.*",
     "tools/lua_compiler/*",
     "tools/common.sh",
@@ -53,15 +52,16 @@ MANAGED_INPUTS = (
     "versions.conf",
     "tools/pack_editor.*",
     "Game/Engine/Source/Core/include/EngineState.hpp",
-    "ScriptTools/engine_constants.py",
-    "ScriptTools/packaging_constants.py",
-    "ScriptTools/packaging_cli.py",
+    "Toolchain/engine_constants.py",
+    "Toolchain/packaging_constants.py",
+    "Toolchain/project_tool_constants.py",
 )
 
 
 COMMON_INPUTS = (
-    ".github/workflows/*", ".github/scripts/*", "ScriptTools/*",
-    "requirements.txt", "tools/setup_python.*", "tools/build_script_tools.*", "tools/common.sh",
+    ".github/workflows/*", ".github/scripts/*", "Toolchain/*",
+    "requirements.txt", "tools/setup_python.*", "tools/build_toolchain_bundle.*",
+    "tools/toolchain_entrypoints/*", "tools/common.sh",
 )
 SCRIPT_INPUTS = (
     "Game/Scripts/*", "Game/.emmyrc.json", "Game/.emmyrc.lua", "Game/.luarc.json",
@@ -115,15 +115,15 @@ def validate_results(needs: dict) -> None:
 
 
 def prepare_scripts(root: Path, templates: Path) -> None:
-    tool = root / ".tools/ScriptTools/ScriptTools.exe"
-    files = subprocess.check_output([str(tool), "packaging-constants", "list", "native-lua-files"], text=True).splitlines()
+    toolchain = root / ".tools/Toolchain"
+    files = subprocess.check_output([str(toolchain / "ludork-pack.exe"), "content", "list", "native-lua-files"], text=True).splitlines()
     if not files:
         raise ValueError("Native Lua file manifest is empty")
     for name in files:
         destination = root / "Game/Scripts" / name
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(templates / "Cpp/Scripts" / name, destination)
-    subprocess.run([str(tool), "ui-assets", "generate", str(root / "Game")], check=True)
+    subprocess.run([str(toolchain / "ludork-assets.exe"), "ui-assets", "generate", str(root / "Game")], check=True)
 
 
 def main() -> None:

@@ -1,0 +1,62 @@
+from __future__ import annotations
+
+
+COMMANDS = {
+    "build": {
+        "windows-native-build": "windows_native_build",
+        "windows-toolchain": "windows_toolchain",
+        "ide-config": "ide_config",
+        "native-build-state": "native_build_state",
+        "preview": "preview",
+        "project-state-worker": "project_state_worker",
+        "project-runtime-mode": "project_runtime_mode",
+        "runtime-bundle": "runtime_bundle",
+        "dependencies": "dependencies",
+    },
+    "codegen": {
+        "core-bindgen": "core_bindgen.generate",
+        "core-bindgen-layout": "core_bindgen.layout",
+        "engine-constants": "engine_constants",
+        "runtime-constants": "runtime_constants",
+        "enum-modules": "enum_modules",
+        "project-tool-constants": "project_tool_constants",
+    },
+    "assets": {
+        "ui-assets": "ui_assets",
+        "material-assets": "material_assets",
+        "compile-lua": "compile_lua",
+        "animation-mp4": "animation_mp4",
+        "validate-ldpak-source": "ldpak",
+    },
+    "pack": {
+        "android-pack": "android_pack",
+        "ios-pack": "ios_pack",
+        "harmony-pack": "harmony_pack",
+        "standalone-pack": "standalone_pack",
+        "configure-project-template": "configure_project_template",
+        "template-archive": "template_archive",
+        "finalize-package": "finalize_package",
+        "macos-bundle": "macos_bundle",
+        "macos-sign": "macos_sign",
+        "legal-resources": "legal_resources",
+        "server-config": "server_config",
+        "content": "package_content_cli",
+        "metadata": "package_metadata_cli",
+        "output": "package_output_cli",
+        "create-templates": "create_templates",
+    },
+    "editor": {
+        "editor-build-metadata": "editor_build_metadata",
+        "editor-macos-metadata": "editor_macos_metadata",
+        "editor-official-plugins": "editor_official_plugins",
+        "prune-editor-macos-publish": "prune_editor_macos_publish",
+        "prune-editor-windows-publish": "prune_editor_windows_publish",
+        "package": "editor_package",
+        "package-validate": "editor_package_contents",
+    },
+    "check": {
+        "impl-boundary-check": "impl_boundary_check",
+        "ui-adapter-check": "ui_adapter_check",
+        "global-functions": "global_functions_check",
+    },
+}

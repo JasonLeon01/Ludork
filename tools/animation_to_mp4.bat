@@ -3,10 +3,10 @@ setlocal EnableExtensions
 chcp 65001>nul
 set "PYTHONIOENCODING=utf-8"
 cd /d "%~dp0.."
-set "SCRIPT_TOOLS=%CD%\.tools\ScriptTools\ScriptTools.exe"
-if not exist "%SCRIPT_TOOLS%" (
-    echo ScriptTools was not found. Run tools\setup_python.bat and tools\build_script_tools.bat first.
+set "TOOLCHAIN_DIRECTORY=%CD%\.tools\Toolchain"
+if not exist "%TOOLCHAIN_DIRECTORY%" (
+    echo Toolchain was not found. Run tools\setup_python.bat and tools\build_toolchain_bundle.bat first.
     exit /b 1
 )
-"%SCRIPT_TOOLS%" animation-mp4 %*
+"%TOOLCHAIN_DIRECTORY%\ludork-assets.exe" animation-mp4 %*
 exit /b %errorlevel%

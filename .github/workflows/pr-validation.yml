@@ -25,7 +25,7 @@ jobs:
       - name: Test GlobalFunctions checker
         run: python3 -m unittest tools.global_functions_check_test
       - name: Check native and Lua GlobalFunctions paths
-        run: python3 -m ScriptTools.global_functions_check
+        run: python3 -m Toolchain.cli.check global-functions .
 
   changes:
     name: Detect affected checks
@@ -86,7 +86,7 @@ jobs:
         run: |
           call tools\setup_python.bat
           if errorlevel 1 exit /b 1
-          call tools\build_script_tools.bat
+          call tools\build_toolchain_bundle.bat
           if errorlevel 1 exit /b 1
       - name: Prepare macOS build tools
         if: runner.os == 'macOS'
@@ -96,7 +96,7 @@ jobs:
           PIP_TIMEOUT: "60"
         run: |
           sh tools/setup_python.sh
-          sh tools/build_script_tools.sh
+          sh tools/build_toolchain_bundle.sh
       - name: Compile Windows editor with locked dependencies
         if: runner.os == 'Windows'
         run: dotnet build Ludork.csproj --configuration Release -r win-x64 -p:RestoreLockedMode=true

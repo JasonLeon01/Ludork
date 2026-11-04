@@ -170,7 +170,7 @@ public sealed class ProjectExportService : IDisposable
         (JsonElement manifest, string toolIdentity) = await stateWorker.ExecuteAsync("ui-manifest", cancellationToken);
         (JsonElement materials, string materialToolIdentity) = await stateWorker.ExecuteAsync("material-manifest", cancellationToken);
         if (toolIdentity != materialToolIdentity)
-            throw new InvalidDataException("ScriptTools changed during the export check. Try again.");
+            throw new InvalidDataException("Toolchain changed during the export check. Try again.");
         return await Task.Run(() =>
         {
             SortedDictionary<string, string> inputs = new(StringComparer.Ordinal);

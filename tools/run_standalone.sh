@@ -11,7 +11,7 @@ if [ ! -x "$GAME_DIR/Main" ]; then
     echo "Standalone game executable was not found: $GAME_DIR/Main" >&2
     exit 1
 fi
-SCRIPT_TOOLS=$(resolve_script_tools)
-"$SCRIPT_TOOLS" material-assets validate "$GAME_DIR"
+TOOLCHAIN_DIRECTORY=$(resolve_toolchain_directory)
+"$TOOLCHAIN_DIRECTORY/ludork-assets" material-assets validate "$GAME_DIR"
 cd "$GAME_DIR"
 exec "$GAME_DIR/Main"

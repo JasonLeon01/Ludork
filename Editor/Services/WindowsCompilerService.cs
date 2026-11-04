@@ -190,8 +190,8 @@ public static class WindowsCompilerService
 
     private static async Task<JsonElement> executeAsync(IEnumerable<string> arguments, CancellationToken token)
     {
-        string tool = EditorRuntimePaths.FindScriptTools()
-            ?? throw new FileNotFoundException("ScriptTools was not found in the editor installation.");
+        string tool = EditorRuntimePaths.FindToolchainTool(ToolchainTool.Build)
+            ?? throw new FileNotFoundException("Toolchain was not found in the editor installation.");
         ProcessStartInfo startInfo = new()
         {
             FileName = tool,

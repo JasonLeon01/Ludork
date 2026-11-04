@@ -293,7 +293,7 @@ begin
     Log(PluginWarning);
     ResultCode := -1;
     try
-      PluginsInstalled := ExecAsOriginalUser(ExpandConstant('{app}\BuildTools\ScriptTools\ScriptTools.exe'),
+      PluginsInstalled := ExecAsOriginalUser(ExpandConstant('{app}\BuildTools\Toolchain\ludork-editor.exe'),
         'editor-official-plugins install-current-user "' + ExpandConstant('{app}\BuildTools\OfficialPlugins') + '"',
         ExpandConstant('{app}'), SW_SHOW, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0);
     except

@@ -683,7 +683,7 @@ public sealed class ProjectPackService
 
     private async Task<string?> cleanupServerConfigurationAsync(ProjectPackOptions options)
     {
-        string? tool = EditorRuntimePaths.FindScriptTools();
+        string? tool = EditorRuntimePaths.FindToolchainTool(ToolchainTool.Pack);
         string detail = string.Empty;
         if (tool is not null)
         {
@@ -805,7 +805,7 @@ public sealed class ProjectPackService
         try
         {
             result = await ProjectPackageMetadataService.ExecuteAsync(
-                "check-package-metadata", projectPath, options.Version, options.Dev, cancellationToken);
+                "check", projectPath, options.Version, options.Dev, cancellationToken);
         }
         catch (OperationCanceledException)
         {

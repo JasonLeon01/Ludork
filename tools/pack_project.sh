@@ -14,8 +14,8 @@ USAGE="Usage: tools/pack_project.sh [--version X.Y.Z] [--dev|--release] [--compi
 TEMPORARY_DIR=$(mktemp -d "${TMPDIR:-/tmp}/ludork-pack.XXXXXX")
 
 cleanup_temporary() {
-    if [ -n "${SCRIPT_TOOLS:-}" ] && [ -n "${PROJECT_DIR:-}" ]; then
-        "$SCRIPT_TOOLS" server-config cleanup "$PROJECT_DIR"
+    if [ -n "${TOOLCHAIN_DIRECTORY:-}" ] && [ -n "${PROJECT_DIR:-}" ]; then
+        "$TOOLCHAIN_DIRECTORY/ludork-pack" server-config cleanup "$PROJECT_DIR"
     fi
     rm -rf "$TEMPORARY_DIR"
 }
@@ -97,7 +97,7 @@ if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
 fi
 
 require_macos_arm64
-SCRIPT_TOOLS=$(resolve_script_tools)
+TOOLCHAIN_DIRECTORY=$(resolve_toolchain_directory)
 PROJECT_DIR=$(absolute_path "$1")
 DEFAULT_DIST="$PROJECT_DIR/dist"
 DIST_DIR=$(absolute_path "${2:-$DEFAULT_DIST}")
@@ -107,7 +107,7 @@ if [ ! -f "$PROJECT_FILE" ]; then
     exit 1
 fi
 
-"$SCRIPT_TOOLS" material-assets validate "$PROJECT_DIR"
+"$TOOLCHAIN_DIRECTORY/ludork-assets" material-assets validate "$PROJECT_DIR"
 
 PACKAGE_METADATA="$TEMPORARY_DIR/package-metadata.json"
 set -- "$PROJECT_DIR" "$PACKAGE_METADATA"
@@ -117,13 +117,13 @@ fi
 if [ -n "$PACKAGE_CHANNEL" ]; then
     set -- "$@" "$PACKAGE_CHANNEL"
 fi
-"$SCRIPT_TOOLS" packaging-constants resolve-metadata "$@"
-PACKAGE_NAME=$("$SCRIPT_TOOLS" packaging-constants package-name --metadata "$PACKAGE_METADATA")
+"$TOOLCHAIN_DIRECTORY/ludork-pack" metadata resolve "$@"
+PACKAGE_NAME=$("$TOOLCHAIN_DIRECTORY/ludork-pack" metadata package-name --metadata "$PACKAGE_METADATA")
 APP_PATH="$DIST_DIR/$PACKAGE_NAME.app"
 if [ "$USE_LDPAK" -eq 1 ]; then
-    "$SCRIPT_TOOLS" validate-ldpak-source "$PROJECT_DIR"
+    "$TOOLCHAIN_DIRECTORY/ludork-assets" validate-ldpak-source "$PROJECT_DIR"
 fi
-PROJECT_MODE=$("$SCRIPT_TOOLS" project-runtime-mode "$PROJECT_FILE")
+PROJECT_MODE=$("$TOOLCHAIN_DIRECTORY/ludork-build" project-runtime-mode "$PROJECT_FILE")
 
 set --
 while IFS= read -r signing_argument; do
@@ -131,7 +131,7 @@ while IFS= read -r signing_argument; do
 done < "$SIGNING_ARGUMENT_FILE"
 
 if [ "$CHECK_ONLY" -eq 1 ]; then
-    "$SCRIPT_TOOLS" macos-sign "$@" --check "$APP_PATH"
+    "$TOOLCHAIN_DIRECTORY/ludork-pack" macos-sign "$@" --check "$APP_PATH"
     echo "Packaging prerequisites and signing material are ready."
     exit 0
 fi
@@ -154,9 +154,9 @@ fi
 
 mkdir -p "$DIST_DIR"
 if [ "$USE_LDPAK" -eq 1 ]; then
-    "$SCRIPT_TOOLS" validate-ldpak-source "$PROJECT_DIR"
+    "$TOOLCHAIN_DIRECTORY/ludork-assets" validate-ldpak-source "$PROJECT_DIR"
 fi
-"$SCRIPT_TOOLS" macos-bundle \
+"$TOOLCHAIN_DIRECTORY/ludork-pack" macos-bundle \
     "$PROJECT_DIR" "$RUNTIME_DIR" "$APP_PATH" --metadata "$PACKAGE_METADATA"
 set --
 if [ "$USE_LUAC" -eq 1 ]; then
@@ -171,14 +171,14 @@ fi
 if [ "$USE_LDPAK" -eq 1 ]; then
     set -- "$@" --use-ldpak
 fi
-UI_REGISTRY=$("$SCRIPT_TOOLS" preview registry "$PROJECT_DIR")
-"$SCRIPT_TOOLS" finalize-package "$@" --registry "$UI_REGISTRY" \
+UI_REGISTRY=$("$TOOLCHAIN_DIRECTORY/ludork-build" preview registry "$PROJECT_DIR")
+"$TOOLCHAIN_DIRECTORY/ludork-pack" finalize-package "$@" --registry "$UI_REGISTRY" \
     "$APP_PATH/Contents/Resources"
 plutil -lint "$APP_PATH/Contents/Info.plist"
 set --
 while IFS= read -r signing_argument; do
     set -- "$@" "$signing_argument"
 done < "$SIGNING_ARGUMENT_FILE"
-"$SCRIPT_TOOLS" macos-sign "$@" "$APP_PATH"
+"$TOOLCHAIN_DIRECTORY/ludork-pack" macos-sign "$@" "$APP_PATH"
 echo "Pack complete: $APP_PATH"
 

@@ -71,8 +71,10 @@ ludork_discover_lua_binding_layouts(
     GlobalCore "${CMAKE_CURRENT_SOURCE_DIR}/Global/include"
     GlobalFunctions "${CMAKE_CURRENT_SOURCE_DIR}/GlobalFunctions/include")
 
+ludork_get_tool(LUDORK_TOOL_CODEGEN codegen)
+
 add_custom_target(LudorkSfEnumModules
-    COMMAND "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}" enum-modules
+    COMMAND "${LUDORK_TOOL_CODEGEN}" enum-modules
         --sfml-api "${LUASF_CALLBACK_CODECS_API_FILE}"
         --module sf
         --scripts-directory "${LUDORK_BINDING_SCRIPTS_DIRECTORY}"
@@ -102,7 +104,7 @@ function(ludork_configure_core_library
                 "$<TARGET_FILE:${target}>"
                 "${target}_write_enum_catalogue"
                 "${enum_catalogue}"
-            COMMAND "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}" enum-modules
+            COMMAND "${LUDORK_TOOL_CODEGEN}" enum-modules
                 --catalogue "${enum_catalogue}"
                 --module "${target}"
                 --scripts-directory "${LUDORK_BINDING_SCRIPTS_DIRECTORY}")

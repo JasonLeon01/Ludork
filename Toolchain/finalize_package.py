@@ -1,0 +1,559 @@
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import pathlib
+import shutil
+import tempfile
+import zlib
+
+from .binary_data import encode_data
+from .compile_lua import compile_scripts, lua_source_paths, resolve_luac
+from .file_replace import (
+    copy_file,
+    package_lock_candidates,
+    remove_file,
+    remove_tree,
+    replace_path,
+    wait_until_writable,
+)
+from .ldpak import (
+    pack_ldpak,
+    validate_ldpak_source,
+    validate_runtime_ldpak_layout,
+)
+from .material_assets import (
+    GENERATED_ROOT as MATERIAL_GENERATED_ROOT,
+    validate_generated as validate_materials,
+)
+from .package_contents import excluded_entries
+from .packaging_constants import (
+    COMPILE_LUA_DIRECTORIES_ENVIRONMENT,
+    EXCLUDED_FILES_ENVIRONMENT,
+)
+from .resource_constants import DATA_EXTENSION, ENCRYPTED_DATA_EXTENSION, SHADER_EXTENSIONS
+from .runtime_formats import (
+    DATA_MAGIC,
+    ENCRYPTED_HEADER as HEADER,
+    ENCRYPTED_VERSION as VERSION,
+    ENCRYPTED_ZLIB_FLAG as FLAG_ZLIB,
+    KEY_SEED,
+    MAX_DATA_SIZE,
+    MAX_SHADER_SIZE,
+    SHADER_MAGIC,
+    STREAM_BLOCK_SIZE,
+    STREAM_FALLBACK,
+    STREAM_LEFT_SHIFT,
+    STREAM_MULTIPLIER,
+    STREAM_RIGHT_SHIFT_FIRST,
+    STREAM_RIGHT_SHIFT_LAST,
+)
+from .ui_assets import validate_assets
+from .ui_control_registry import UiControlRegistry, load_registry
+from .preview import PREVIEW_DIRECTORY, ensure_preview
+
+
+UINT64_MASK = 0xFFFFFFFFFFFFFFFF
+
+
+class ShaderCodecError(RuntimeError):
+    pass
+
+
+class DataCodecError(RuntimeError):
+    pass
+
+
+def _next_stream_block(state: int) -> tuple[int, bytes]:
+    state ^= state >> STREAM_RIGHT_SHIFT_FIRST
+    state ^= (state << STREAM_LEFT_SHIFT) & UINT64_MASK
+    state ^= state >> STREAM_RIGHT_SHIFT_LAST
+    state &= UINT64_MASK
+    value = (state * STREAM_MULTIPLIER) & UINT64_MASK
+    return state, value.to_bytes(STREAM_BLOCK_SIZE, "little")
+
+
+def _apply_stream(data: bytes, nonce: int) -> bytes:
+    state = (nonce ^ KEY_SEED) & UINT64_MASK
+    if state == 0:
+        state = STREAM_FALLBACK
+    result = bytearray(len(data))
+    offset = 0
+    while offset < len(data):
+        state, block = _next_stream_block(state)
+        count = min(len(block), len(data) - offset)
+        for index in range(count):
+            result[offset + index] = data[offset + index] ^ block[index]
+        offset += count
+    return bytes(result)
+
+
+def _content_nonce(relative_path: pathlib.PurePath, source: bytes) -> int:
+    digest = hashlib.sha256(
+        relative_path.as_posix().encode("utf-8") + b"\0" + source
+    ).digest()
+    return int.from_bytes(digest[:8], "little")
+
+
+def _encode_bytes(
+    relative_path: pathlib.PurePath,
+    source: bytes,
+    magic: bytes,
+    maximum_size: int,
+    error_type: type[RuntimeError],
+    kind: str,
+) -> bytes:
+    if len(source) > maximum_size:
+        raise error_type(f"{kind} is too large: {relative_path}")
+    nonce = _content_nonce(relative_path, source)
+    compressed = zlib.compress(source, level=9)
+    payload = _apply_stream(compressed, nonce)
+    return (
+        HEADER.pack(
+            magic,
+            VERSION,
+            FLAG_ZLIB,
+            0,
+            len(source),
+            zlib.crc32(source) & 0xFFFFFFFF,
+            nonce,
+        )
+        + payload
+    )
+
+
+def encode_shader_bytes(relative_path: pathlib.PurePath, source: bytes) -> bytes:
+    return _encode_bytes(
+        relative_path,
+        source,
+        SHADER_MAGIC,
+        MAX_SHADER_SIZE,
+        ShaderCodecError,
+        "Shader",
+    )
+
+
+def decode_shader_bytes(encoded: bytes) -> bytes:
+    if len(encoded) < HEADER.size:
+        raise ShaderCodecError("Encrypted shader header is truncated")
+    magic, version, flags, reserved, source_size, checksum, nonce = HEADER.unpack_from(
+        encoded
+    )
+    if magic != SHADER_MAGIC:
+        raise ShaderCodecError("Encrypted shader magic is invalid")
+    if version != VERSION:
+        raise ShaderCodecError(f"Unsupported encrypted shader version: {version}")
+    if flags != FLAG_ZLIB or reserved != 0:
+        raise ShaderCodecError("Encrypted shader flags are invalid")
+    compressed = _apply_stream(encoded[HEADER.size :], nonce)
+    if source_size > MAX_SHADER_SIZE:
+        raise ShaderCodecError("Encrypted shader source is too large")
+    try:
+        decompressor = zlib.decompressobj()
+        source = decompressor.decompress(compressed, source_size + 1)
+        if (
+            not decompressor.eof
+            or decompressor.unconsumed_tail
+            or decompressor.unused_data
+        ):
+            raise ShaderCodecError("Encrypted shader payload could not be decompressed")
+        source += decompressor.flush()
+    except zlib.error as exception:
+        raise ShaderCodecError(
+            "Encrypted shader payload could not be decompressed"
+        ) from exception
+    if len(source) != source_size:
+        raise ShaderCodecError("Encrypted shader size does not match its header")
+    if zlib.crc32(source) & 0xFFFFFFFF != checksum:
+        raise ShaderCodecError("Encrypted shader checksum does not match")
+    return source
+
+
+def _replace_sources(
+    jobs: list[tuple[pathlib.Path, pathlib.Path, bytes]],
+    error_type: type[RuntimeError],
+    kind: str,
+) -> None:
+    temporary_paths: list[pathlib.Path] = []
+    try:
+        for _, target_path, encoded in jobs:
+            temporary_path = target_path.with_name(target_path.name + ".tmp")
+            if temporary_path.exists():
+                raise error_type(
+                    f"Encrypted {kind} temporary file already exists: {temporary_path}"
+                )
+            temporary_path.write_bytes(encoded)
+            temporary_paths.append(temporary_path)
+        for (_, target_path, _), temporary_path in zip(jobs, temporary_paths):
+            replace_path(temporary_path, target_path)
+        for source_path, _, _ in jobs:
+            remove_file(source_path)
+    finally:
+        for temporary_path in temporary_paths:
+            if temporary_path.exists():
+                remove_file(temporary_path, missing_ok=True)
+
+
+def encrypt_shaders(shader_root: pathlib.Path) -> int:
+    if not shader_root.is_dir():
+        return 0
+    jobs: list[tuple[pathlib.Path, pathlib.Path, bytes]] = []
+    for source_path in sorted(
+        path for path in shader_root.rglob("*") if path.is_file()
+    ):
+        target_extension = SHADER_EXTENSIONS.get(source_path.suffix.lower())
+        if target_extension is None:
+            continue
+        target_path = source_path.with_suffix(target_extension)
+        if target_path.exists():
+            raise ShaderCodecError(
+                f"Encrypted shader target already exists: {target_path}"
+            )
+        relative_path = source_path.relative_to(shader_root)
+        jobs.append(
+            (
+                source_path,
+                target_path,
+                encode_shader_bytes(relative_path, source_path.read_bytes()),
+            )
+        )
+
+    _replace_sources(jobs, ShaderCodecError, "shader")
+    return len(jobs)
+
+
+def _reject_json_constant(value: str) -> None:
+    raise ValueError(f"Invalid JSON constant: {value}")
+
+
+def _json_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    value: dict[str, object] = {}
+    for key, child in pairs:
+        if key in value:
+            raise ValueError(f"Duplicate JSON data key: {key}")
+        value[key] = child
+    return value
+
+
+def _encode_json_data(source_path: pathlib.Path, source: bytes) -> bytes:
+    try:
+        value = json.loads(
+            source.decode("utf-8-sig"),
+            parse_constant=_reject_json_constant,
+            object_pairs_hook=_json_object,
+        )
+        return encode_data(value)
+    except (UnicodeError, ValueError, RecursionError) as exception:
+        raise DataCodecError(f"Invalid JSON data file: {source_path}: {exception}") from exception
+
+
+def encrypt_data(data_root: pathlib.Path) -> int:
+    if not data_root.is_dir():
+        return 0
+    jobs: list[tuple[pathlib.Path, pathlib.Path, bytes]] = []
+    for source_path in sorted(path for path in data_root.rglob("*") if path.is_file()):
+        if source_path.suffix.lower() != DATA_EXTENSION:
+            continue
+        target_path = source_path.with_suffix(ENCRYPTED_DATA_EXTENSION)
+        if target_path.exists():
+            raise DataCodecError(f"Encrypted data target already exists: {target_path}")
+        relative_path = source_path.relative_to(data_root)
+        payload = _encode_json_data(source_path, source_path.read_bytes())
+        jobs.append(
+            (
+                source_path,
+                target_path,
+                _encode_bytes(
+                    relative_path,
+                    payload,
+                    DATA_MAGIC,
+                    MAX_DATA_SIZE,
+                    DataCodecError,
+                    "Data",
+                ),
+            )
+        )
+
+    _replace_sources(jobs, DataCodecError, "data")
+    return len(jobs)
+
+
+def _strip_ui_editor_values(value: object) -> int:
+    if isinstance(value, list):
+        return sum(_strip_ui_editor_values(item) for item in value)
+    if not isinstance(value, dict):
+        return 0
+    removed = 0
+    if "editor" in value:
+        del value["editor"]
+        removed += 1
+    for item in value.values():
+        removed += _strip_ui_editor_values(item)
+    return removed
+
+
+def strip_ui_editor_data(data_root: pathlib.Path) -> int:
+    assets_root = data_root / "UI"
+    if not assets_root.is_dir():
+        return 0
+    removed = 0
+    for source_path in sorted(assets_root.rglob("*.json")):
+        try:
+            value = json.loads(
+                source_path.read_text(encoding="utf-8-sig"),
+                parse_constant=_reject_json_constant,
+            )
+        except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exception:
+            raise DataCodecError(
+                f"Invalid UI asset JSON file: {source_path}"
+            ) from exception
+        if not isinstance(value, dict) or value.get("type") != "uiAsset":
+            raise DataCodecError(f"Invalid UI asset data file: {source_path}")
+        stripped = _strip_ui_editor_values(value)
+        if stripped == 0:
+            continue
+        source_path.write_text(
+            json.dumps(
+                value,
+                ensure_ascii=False,
+                allow_nan=False,
+                separators=(",", ":"),
+            ),
+            encoding="utf-8",
+        )
+        removed += stripped
+    return removed
+
+
+def _remove_path(path: pathlib.Path) -> bool:
+    if path.is_symlink() or path.is_file():
+        remove_file(path)
+        return True
+    if path.is_dir():
+        remove_tree(path)
+        return True
+    return False
+
+
+def _environment_relative_paths(name: str) -> tuple[pathlib.PurePosixPath, ...]:
+    paths: list[pathlib.PurePosixPath] = []
+    for text in os.environ.get(name, "").splitlines():
+        value = text.strip()
+        if not value:
+            continue
+        path = pathlib.PurePosixPath(value)
+        if (
+            path.is_absolute()
+            or "\\" in value
+            or not path.parts
+            or any(part in {"", ".", ".."} for part in path.parts)
+        ):
+            raise RuntimeError(f"Invalid package-relative path: {value}")
+        paths.append(path)
+    return tuple(paths)
+
+
+def _package_path(
+    resource_root: pathlib.Path,
+    relative_path: pathlib.PurePosixPath,
+) -> pathlib.Path:
+    target = (resource_root / pathlib.Path(*relative_path.parts)).resolve()
+    try:
+        target.relative_to(resource_root)
+    except ValueError as exception:
+        raise RuntimeError(
+            f"Package path escapes the resource root: {relative_path}"
+        ) from exception
+    return target
+
+
+def prune_package(
+    resource_root: pathlib.Path,
+    excluded_files: tuple[pathlib.PurePosixPath, ...] = (),
+) -> int:
+    binaries = resource_root / PREVIEW_DIRECTORY
+    if binaries.is_symlink():
+        raise RuntimeError(f"Package Binaries must not be a link: {binaries}")
+    removed = 0
+    for path in excluded_entries(resource_root):
+        if _remove_path(path):
+            removed += 1
+    for relative_path in excluded_files:
+        if _remove_path(_package_path(resource_root, relative_path)):
+            removed += 1
+    return removed
+
+
+def reject_excluded_entries(resource_root: pathlib.Path) -> None:
+    remaining = excluded_entries(resource_root)
+    if remaining:
+        relative_paths = ", ".join(path.relative_to(resource_root).as_posix() for path in remaining)
+        raise RuntimeError(f"Excluded entries remain in the game package: {relative_paths}")
+
+
+def compile_package_lua(
+    resource_root: pathlib.Path,
+    relative_directories: tuple[pathlib.PurePosixPath, ...],
+) -> int:
+    compiled = 0
+    luac: pathlib.Path | None = None
+    for relative_directory in relative_directories:
+        directory = _package_path(resource_root, relative_directory)
+        if not directory.is_dir() or not lua_source_paths(directory):
+            continue
+        if luac is None:
+            luac = resolve_luac()
+        compiled += compile_scripts(directory, luac)
+    return compiled
+
+
+def reject_declaration_files(resource_root: pathlib.Path) -> None:
+    declaration_files = sorted(resource_root.rglob("*.d.lua"))
+    if declaration_files:
+        relative_paths = ", ".join(
+            path.relative_to(resource_root).as_posix() for path in declaration_files
+        )
+        raise RuntimeError(
+            f"Lua declaration files remain in the game package: {relative_paths}"
+        )
+
+
+def _finalize_package_in_place(
+    root: pathlib.Path,
+    encrypt_shaders_enabled: bool,
+    encrypt_data_enabled: bool,
+    compile_lua_directories: tuple[pathlib.PurePosixPath, ...],
+    excluded_files: tuple[pathlib.PurePosixPath, ...],
+    compile_lua_enabled: bool = False,
+    use_ldpak: bool = False,
+    registry: UiControlRegistry | None = None,
+) -> tuple[int, int, int, int, int]:
+    validate_assets(root, registry)
+    validate_materials(root)
+    if use_ldpak:
+        validate_ldpak_source(root)
+    removed = prune_package(root, excluded_files)
+    lua_directories = list(compile_lua_directories)
+    scripts_directory = pathlib.PurePosixPath("Scripts")
+    if compile_lua_enabled and scripts_directory not in lua_directories:
+        lua_directories.append(scripts_directory)
+    scripts_compiled = scripts_directory in lua_directories
+    compiled_lua = compile_package_lua(root, tuple(lua_directories))
+    encrypted_shaders = (
+        encrypt_shaders(root / "Assets" / "Shaders") if encrypt_shaders_enabled else 0
+    )
+    removed += strip_ui_editor_data(root / "Data")
+    encrypted_data = (
+        sum(encrypt_data(directory) for directory in (root / "Data", root / MATERIAL_GENERATED_ROOT))
+        if encrypt_data_enabled else 0
+    )
+    reject_declaration_files(root)
+    reject_excluded_entries(root)
+    packed_groups = pack_ldpak(root) if use_ldpak else 0
+    expected_entry = "Entry.luac" if scripts_compiled else "Entry.lua"
+    validate_runtime_ldpak_layout(root, use_ldpak, expected_entry)
+    return removed, encrypted_shaders, encrypted_data, compiled_lua, packed_groups
+
+
+def finalize_package(
+    resource_root: pathlib.Path,
+    encrypt_shaders_enabled: bool,
+    encrypt_data_enabled: bool,
+    compile_lua_directories: tuple[pathlib.PurePosixPath, ...] | None = None,
+    excluded_files: tuple[pathlib.PurePosixPath, ...] | None = None,
+    compile_lua_enabled: bool = False,
+    use_ldpak: bool = False,
+    registry: UiControlRegistry | pathlib.Path | None = None,
+) -> tuple[int, int, int, int, int]:
+    root = resource_root.expanduser().resolve()
+    if not root.is_dir():
+        raise RuntimeError(f"Package resource root was not found: {root}")
+    if registry is None:
+        registry = ensure_preview(root).registry
+    elif isinstance(registry, pathlib.Path):
+        registry = load_registry(registry)
+    if compile_lua_directories is None:
+        compile_lua_directories = _environment_relative_paths(
+            COMPILE_LUA_DIRECTORIES_ENVIRONMENT
+        )
+    if excluded_files is None:
+        excluded_files = _environment_relative_paths(EXCLUDED_FILES_ENVIRONMENT)
+
+    transaction_root = pathlib.Path(
+        tempfile.mkdtemp(
+            prefix=f".{root.name}-finalize-",
+            dir=root.parent,
+        )
+    )
+    working_root = transaction_root / "working"
+    original_backup = transaction_root / "original"
+    preserve_transaction = False
+    try:
+        shutil.copytree(root, working_root, symlinks=True, copy_function=copy_file)
+        result = _finalize_package_in_place(
+            working_root,
+            encrypt_shaders_enabled,
+            encrypt_data_enabled,
+            compile_lua_directories,
+            excluded_files,
+            compile_lua_enabled,
+            use_ldpak,
+            registry,
+        )
+        wait_until_writable(root, package_lock_candidates(root))
+        replace_path(root, original_backup)
+        try:
+            wait_until_writable(original_backup, package_lock_candidates(original_backup))
+            wait_until_writable(working_root, package_lock_candidates(working_root))
+            replace_path(working_root, root)
+        except BaseException:
+            try:
+                replace_path(original_backup, root)
+            except BaseException as rollback_exception:
+                preserve_transaction = True
+                raise RuntimeError(
+                    "Unable to restore the package resource root after commit failure; "
+                    f"the original remains at {original_backup}"
+                ) from rollback_exception
+            raise
+        return result
+    finally:
+        if not preserve_transaction and transaction_root.exists():
+            remove_tree(transaction_root, ignore_errors=True)
+
+
+def main(arguments: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="ludork-pack finalize-package")
+    parser.add_argument("--compile-lua", action="store_true")
+    parser.add_argument("--encrypt-shaders", action="store_true")
+    parser.add_argument("--encrypt-data", action="store_true")
+    parser.add_argument("--use-ldpak", action="store_true")
+    parser.add_argument("--registry", type=pathlib.Path)
+    parser.add_argument("resource_root", type=pathlib.Path)
+    parsed = parser.parse_args(arguments)
+    (
+        removed,
+        encrypted_shaders,
+        encrypted_data,
+        compiled_lua,
+        packed_groups,
+    ) = finalize_package(
+        parsed.resource_root,
+        parsed.encrypt_shaders,
+        parsed.encrypt_data,
+        compile_lua_enabled=parsed.compile_lua,
+        use_ldpak=parsed.use_ldpak,
+        registry=parsed.registry,
+    )
+    print(f"Removed {removed} development-only package entries")
+    if compiled_lua:
+        print(f"Compiled and renamed {compiled_lua} package Lua files")
+    if parsed.encrypt_shaders:
+        print(f"Encrypted {encrypted_shaders} shader files")
+    if parsed.encrypt_data:
+        print(f"Encrypted {encrypted_data} JSON data files")
+    if parsed.use_ldpak:
+        print("Packed Assets.ldpak, Data.ldpak and Scripts.ldpak")
+    return 0

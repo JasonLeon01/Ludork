@@ -8,7 +8,7 @@ function(ludork_discover_lua_binding_layouts)
     endif()
 
     set(layout_arguments)
-    ludork_get_script_tools_dependencies(layout_dependencies)
+    ludork_get_toolchain_dependencies(layout_dependencies)
     set(module_names)
     set(argument_index 0)
     while(argument_index LESS ARGC)
@@ -36,10 +36,12 @@ function(ludork_discover_lua_binding_layouts)
         math(EXPR argument_index "${argument_index} + 2")
     endwhile()
 
+    ludork_get_tool(LUDORK_TOOL_CODEGEN codegen)
+
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
         ${layout_dependencies})
     execute_process(
-        COMMAND "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}"
+        COMMAND "${LUDORK_TOOL_CODEGEN}"
             core-bindgen-layout
             ${layout_arguments}
         RESULT_VARIABLE layout_result
@@ -104,7 +106,8 @@ function(ludork_discover_lua_binding_layouts)
 endfunction()
 
 function(ludork_generate_lua_bindings module_name include_directory output_variable)
-    ludork_get_script_tools_dependencies(script_tools_dependencies)
+    ludork_get_tool(LUDORK_TOOL_CODEGEN codegen)
+    ludork_get_toolchain_dependencies(toolchain_dependencies)
     set(options)
     set(one_value_args)
     set(multi_value_args
@@ -182,8 +185,8 @@ function(ludork_generate_lua_bindings module_name include_directory output_varia
     set(bindings_manifest
         "${generated_bindings_directory}/${module_name}.bindings.manifest")
     set(binding_input_lines "module:${module_name}")
-    foreach(script_tools_dependency IN LISTS script_tools_dependencies)
-        list(APPEND binding_input_lines "script-tool:${script_tools_dependency}")
+    foreach(toolchain_dependency IN LISTS toolchain_dependencies)
+        list(APPEND binding_input_lines "script-tool:${toolchain_dependency}")
     endforeach()
     foreach(relative_binding_source IN LISTS relative_binding_sources)
         list(APPEND binding_input_lines
@@ -242,7 +245,7 @@ function(ludork_generate_lua_bindings module_name include_directory output_varia
             ${stub_byproducts}
             "${metadata}"
             "${metadata_stamp}"
-        COMMAND "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}"
+        COMMAND "${LUDORK_TOOL_CODEGEN}"
             core-bindgen
             --source-root "${LUDORK_BINDING_SOURCE_ROOT}"
             ${header_directory_arguments}
@@ -262,7 +265,7 @@ function(ludork_generate_lua_bindings module_name include_directory output_varia
             ${module_headers}
             ${type_registry_headers}
             "${binding_inputs}"
-            ${script_tools_dependencies}
+            ${toolchain_dependencies}
             "${LUDORK_BINDING_ANNOTATIONS_HEADER}"
             "${LUASF_CALLBACK_CODECS_FILE}"
             "${callback_codecs_api}"

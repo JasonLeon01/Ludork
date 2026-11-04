@@ -12,6 +12,9 @@ if(APPLE)
         INSTALL_RPATH "@loader_path")
 endif()
 
+ludork_get_tool(LUDORK_TOOL_ASSETS assets)
+ludork_get_tool(LUDORK_TOOL_BUILD build)
+
 set(preview_runtime_targets LudorkRuntime LudorkStandard
     sfml-system sfml-window sfml-graphics sfml-audio)
 if(LUDORK_WITH_LUA)
@@ -23,7 +26,7 @@ if(LUDORK_WITH_LUA)
         LuaSF LuaSF_lua_shared ${preview_glue_target} sfml-network)
 endif()
 add_custom_target(PreviewPrepare
-    COMMAND "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}"
+    COMMAND "${LUDORK_TOOL_BUILD}"
         preview begin-build "${LUDORK_PROJECT_SOURCE_DIR}"
         "${LUDORK_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>"
         --configuration "$<CONFIG>"
@@ -98,11 +101,11 @@ add_custom_target(PreviewHost
     COMMAND "${CMAKE_COMMAND}"
         "-DPREVIEW_STAGE_CONFIG=${preview_stage_config}"
         -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/StageRuntime.cmake"
-    COMMAND "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}"
+    COMMAND "${LUDORK_TOOL_BUILD}"
         preview publish "${LUDORK_PROJECT_SOURCE_DIR}"
         "$<TARGET_FILE_DIR:PreviewHostExecutable>"
         --configuration "$<CONFIG>"
-    COMMAND "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}"
+    COMMAND "${LUDORK_TOOL_ASSETS}"
         ui-assets validate "${LUDORK_PROJECT_SOURCE_DIR}"
     DEPENDS PreviewHostExecutable PreviewHostRuntime ${preview_runtime_targets}
     WORKING_DIRECTORY "${LUDORK_PROJECT_SOURCE_DIR}"

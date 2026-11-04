@@ -12,11 +12,11 @@ if errorlevel 1 exit /b %errorlevel%
 "%CD%\.venv\Scripts\python.exe" "%CD%\tools\build_toolchain.py" editor-sdk
 if errorlevel 1 exit /b %errorlevel%
 
-call "%CD%\tools\build_script_tools.bat"
+call "%CD%\tools\build_toolchain_bundle.bat"
 if errorlevel 1 exit /b %errorlevel%
 
 call "%CD%\tools\init_cpp_dependencies.bat" "%CPP_DIR%"
 if errorlevel 1 exit /b %errorlevel%
 
-echo ScriptTools and C++ dependencies are ready: %CPP_DIR%
+echo Toolchain and C++ dependencies are ready: %CPP_DIR%
 exit /b 0

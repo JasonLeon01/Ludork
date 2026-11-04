@@ -38,8 +38,8 @@ public sealed class ProjectStateWorker : IDisposable
         await requestLock.WaitAsync(cancellation.Token).ConfigureAwait(false);
         try
         {
-            string path = EditorRuntimePaths.FindScriptTools()
-                ?? throw new IOException("ScriptTools was not found in the editor installation.");
+            string path = EditorRuntimePaths.FindToolchainTool(ToolchainTool.Build)
+                ?? throw new IOException("Toolchain was not found in the editor installation.");
             string identity = await hashToolAsync(path, cancellation.Token).ConfigureAwait(false);
             if (process is null || process.HasExited || toolPath != path || toolIdentity != identity)
             {
@@ -67,7 +67,7 @@ public sealed class ProjectStateWorker : IDisposable
             JsonElement result = response.GetProperty("result").Clone();
             validateResult(operation, result);
             if (await hashToolAsync(path, cancellation.Token).ConfigureAwait(false) != identity)
-                throw new IOException("ScriptTools changed during the check. Try the operation again.");
+                throw new IOException("Toolchain changed during the check. Try the operation again.");
             cancellation.Token.ThrowIfCancellationRequested();
             return (result, identity);
         }

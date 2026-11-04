@@ -41,10 +41,10 @@ case "$CPP_DIR" in
         exit 1
         ;;
 esac
-SCRIPT_TOOLS=$(resolve_script_tools)
-EDITOR_CACHE_DIRECTORY=$("$SCRIPT_TOOLS" packaging-constants list editor-cache-directory --separator space)
-RESOURCE_GROUPS=$("$SCRIPT_TOOLS" packaging-constants list resource-groups --separator space)
-RUNTIME_LEGAL_FILES=$("$SCRIPT_TOOLS" packaging-constants list runtime-legal-files --separator space)
+TOOLCHAIN_DIRECTORY=$(resolve_toolchain_directory)
+EDITOR_CACHE_DIRECTORY=$("$TOOLCHAIN_DIRECTORY/ludork-pack" content list editor-cache-directory --separator space)
+RESOURCE_GROUPS=$("$TOOLCHAIN_DIRECTORY/ludork-pack" content list resource-groups --separator space)
+RUNTIME_LEGAL_FILES=$("$TOOLCHAIN_DIRECTORY/ludork-pack" content list runtime-legal-files --separator space)
 for protected_name in $RESOURCE_GROUPS Binaries "$EDITOR_CACHE_DIRECTORY" Cache bin build Licenses ThirdPartySource Engine Intermediate; do
     protected_source="$CPP_DIR/$protected_name"
     case "$STANDALONE_DIR" in
@@ -56,7 +56,7 @@ for protected_name in $RESOURCE_GROUPS Binaries "$EDITOR_CACHE_DIRECTORY" Cache 
 done
 
 if [ "$USE_CURRENT_BUILD" -eq 1 ]; then
-    "$SCRIPT_TOOLS" ui-assets validate "$CPP_DIR"
+    "$TOOLCHAIN_DIRECTORY/ludork-assets" ui-assets validate "$CPP_DIR"
 else
     sh "$TOOLS_DIR/build_cpp.sh" "$CPP_DIR" "$CONFIG"
 fi
@@ -68,7 +68,7 @@ for resource in $RESOURCE_GROUPS; do
     fi
 done
 if [ "${LUDORK_VALIDATE_LDPAK_SOURCE:-0}" = "1" ]; then
-    "$SCRIPT_TOOLS" validate-ldpak-source "$CPP_DIR"
+    "$TOOLCHAIN_DIRECTORY/ludork-assets" validate-ldpak-source "$CPP_DIR"
 fi
 
 mkdir -p "$STANDALONE_DIR"
@@ -140,9 +140,9 @@ for legal_name in $RUNTIME_LEGAL_FILES; do
     fi
 done
 
-"$SCRIPT_TOOLS" material-assets copy-inputs "$CPP_DIR" "$STANDALONE_DIR"
+"$TOOLCHAIN_DIRECTORY/ludork-assets" material-assets copy-inputs "$CPP_DIR" "$STANDALONE_DIR"
 rm -rf "$STANDALONE_DIR/$EDITOR_CACHE_DIRECTORY"
-"$SCRIPT_TOOLS" preview copy "$CPP_DIR" "$STANDALONE_DIR"
+"$TOOLCHAIN_DIRECTORY/ludork-build" preview copy "$CPP_DIR" "$STANDALONE_DIR"
 rm -rf "$STANDALONE_DIR/Cache"
 
 unexpected_runtime=$(find "$STANDALONE_DIR" \

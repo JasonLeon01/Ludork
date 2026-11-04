@@ -1,3 +1,5 @@
+ludork_get_tool(LUDORK_TOOL_ASSETS assets)
+
 ludork_add_impl_boundary_validation_target(
     ImplBoundaryValidate
     "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -9,7 +11,7 @@ else()
         message(FATAL_ERROR "LUDORK_UI_REGISTRY_PATH must identify the desktop project's UI registry JSON")
     endif()
     add_custom_target(UiAssetValidate
-        COMMAND "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}"
+        COMMAND "${LUDORK_TOOL_ASSETS}"
             ui-assets validate "${LUDORK_PROJECT_SOURCE_DIR}"
             --registry "${LUDORK_UI_REGISTRY_PATH}"
         WORKING_DIRECTORY "${LUDORK_PROJECT_SOURCE_DIR}"

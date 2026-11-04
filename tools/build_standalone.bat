@@ -3,8 +3,8 @@ setlocal EnableExtensions DisableDelayedExpansion
 for %%I in ("%~dp0.") do set "TOOLS_DIR=%%~fI"
 for %%I in ("%TOOLS_DIR%\..") do set "ROOT_DIR=%%~fI"
 cd /d "%ROOT_DIR%"
-set "SCRIPT_TOOLS=%TOOLS_DIR%\ScriptTools\ScriptTools.exe"
-if not exist "%SCRIPT_TOOLS%" set "SCRIPT_TOOLS=%ROOT_DIR%\.tools\ScriptTools\ScriptTools.exe"
+set "TOOLCHAIN_DIRECTORY=%TOOLS_DIR%\Toolchain"
+if not exist "%TOOLCHAIN_DIRECTORY%" set "TOOLCHAIN_DIRECTORY=%ROOT_DIR%\.tools\Toolchain"
 
 set "USE_CURRENT_BUILD=0"
 if /I "%~1"=="--use-current-build" (
@@ -21,13 +21,13 @@ for %%I in ("%~2") do set "STANDALONE_DIR=%%~fI"
 set "CONFIG=%~3"
 if /I not "%CONFIG%"=="Debug" if /I not "%CONFIG%"=="Release" goto :usage
 set "EDITOR_CACHE_DIRECTORY="
-for /f "delims=" %%V in ('""%SCRIPT_TOOLS%" packaging-constants list editor-cache-directory --separator space"') do set "EDITOR_CACHE_DIRECTORY=%%V"
+for /f "delims=" %%V in ('""%TOOLCHAIN_DIRECTORY%\ludork-pack.exe" content list editor-cache-directory --separator space"') do set "EDITOR_CACHE_DIRECTORY=%%V"
 if not defined EDITOR_CACHE_DIRECTORY exit /b 1
 set "RESOURCE_GROUPS="
-for /f "delims=" %%V in ('""%SCRIPT_TOOLS%" packaging-constants list resource-groups --separator space"') do set "RESOURCE_GROUPS=%%V"
+for /f "delims=" %%V in ('""%TOOLCHAIN_DIRECTORY%\ludork-pack.exe" content list resource-groups --separator space"') do set "RESOURCE_GROUPS=%%V"
 if not defined RESOURCE_GROUPS exit /b 1
 set "RUNTIME_LEGAL_FILES="
-for /f "delims=" %%V in ('""%SCRIPT_TOOLS%" packaging-constants list runtime-legal-files --separator space"') do set "RUNTIME_LEGAL_FILES=%%V"
+for /f "delims=" %%V in ('""%TOOLCHAIN_DIRECTORY%\ludork-pack.exe" content list runtime-legal-files --separator space"') do set "RUNTIME_LEGAL_FILES=%%V"
 if not defined RUNTIME_LEGAL_FILES exit /b 1
 set "LUDORK_STANDALONE_SOURCE_PATH=%CPP_DIR%"
 set "LUDORK_STANDALONE_TARGET_PATH=%STANDALONE_DIR%"
@@ -40,16 +40,16 @@ if errorlevel 1 (
 )
 
 if "%USE_CURRENT_BUILD%"=="1" (
-    if not exist "%SCRIPT_TOOLS%" (
-        echo ScriptTools was not found. Run tools\init.bat first.
+    if not exist "%TOOLCHAIN_DIRECTORY%" (
+        echo Toolchain was not found. Run tools\init.bat first.
         exit /b 1
     )
-    "%SCRIPT_TOOLS%" ui-assets validate "%CPP_DIR%"
+    "%TOOLCHAIN_DIRECTORY%\ludork-assets.exe" ui-assets validate "%CPP_DIR%"
     if errorlevel 1 exit /b 1
 ) else (
     call "%TOOLS_DIR%\build_cpp.bat" "%CPP_DIR%" "%CONFIG%"
     if errorlevel 1 exit /b 1
-    "%SCRIPT_TOOLS%" windows-native-build "%CPP_DIR%" "%CONFIG%" --target LudorkLauncher --tools-directory "%TOOLS_DIR%"
+    "%TOOLCHAIN_DIRECTORY%\ludork-build.exe" windows-native-build "%CPP_DIR%" "%CONFIG%" --target LudorkLauncher --tools-directory "%TOOLS_DIR%"
     if errorlevel 1 exit /b 1
 )
 
@@ -66,11 +66,11 @@ if not exist "%CPP_DIR%\Scripts" (
     exit /b 1
 )
 if "%LUDORK_VALIDATE_LDPAK_SOURCE%"=="1" (
-    if not exist "%SCRIPT_TOOLS%" (
-        echo ScriptTools was not found. Run tools\init.bat first.
+    if not exist "%TOOLCHAIN_DIRECTORY%" (
+        echo Toolchain was not found. Run tools\init.bat first.
         exit /b 1
     )
-    "%SCRIPT_TOOLS%" validate-ldpak-source "%CPP_DIR%"
+    "%TOOLCHAIN_DIRECTORY%\ludork-assets.exe" validate-ldpak-source "%CPP_DIR%"
     if errorlevel 1 exit /b 1
 )
 
@@ -124,11 +124,11 @@ for %%F in (%RUNTIME_LEGAL_FILES%) do if exist "%CPP_DIR%\%%F" (
     if errorlevel 1 exit /b %errorlevel%
 )
 
-"%SCRIPT_TOOLS%" material-assets copy-inputs "%CPP_DIR%" "%STANDALONE_DIR%"
+"%TOOLCHAIN_DIRECTORY%\ludork-assets.exe" material-assets copy-inputs "%CPP_DIR%" "%STANDALONE_DIR%"
 if errorlevel 1 exit /b %errorlevel%
 if exist "%STANDALONE_DIR%\%EDITOR_CACHE_DIRECTORY%" rmdir /S /Q "%STANDALONE_DIR%\%EDITOR_CACHE_DIRECTORY%"
 if exist "%STANDALONE_DIR%\%EDITOR_CACHE_DIRECTORY%" exit /b 1
-"%SCRIPT_TOOLS%" preview copy "%CPP_DIR%" "%STANDALONE_DIR%"
+"%TOOLCHAIN_DIRECTORY%\ludork-build.exe" preview copy "%CPP_DIR%" "%STANDALONE_DIR%"
 if errorlevel 1 exit /b %errorlevel%
 if exist "%STANDALONE_DIR%\Cache" rmdir /S /Q "%STANDALONE_DIR%\Cache"
 if exist "%STANDALONE_DIR%\Cache" exit /b 1

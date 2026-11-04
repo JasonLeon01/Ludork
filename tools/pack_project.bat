@@ -69,10 +69,10 @@ if "%~2"=="" (
 )
 
 set "PROJECT_FILE=%PROJECT_DIR%\Main.proj"
-set "SCRIPT_TOOLS=%TOOLS_DIR%\ScriptTools\ScriptTools.exe"
-if not exist "%SCRIPT_TOOLS%" set "SCRIPT_TOOLS=%ROOT_DIR%\.tools\ScriptTools\ScriptTools.exe"
-if not exist "%SCRIPT_TOOLS%" (
-    echo ScriptTools was not found. Run tools\init.bat first.
+set "TOOLCHAIN_DIRECTORY=%TOOLS_DIR%\Toolchain"
+if not exist "%TOOLCHAIN_DIRECTORY%" set "TOOLCHAIN_DIRECTORY=%ROOT_DIR%\.tools\Toolchain"
+if not exist "%TOOLCHAIN_DIRECTORY%" (
+    echo Toolchain was not found. Run tools\init.bat first.
     exit /b 1
 )
 if not exist "%PROJECT_FILE%" (
@@ -86,25 +86,25 @@ if exist "%PACKAGE_METADATA%" del /Q "%PACKAGE_METADATA%"
 exit /b %PACK_EXIT_CODE%
 
 :pack_project
-"%SCRIPT_TOOLS%" material-assets validate "%PROJECT_DIR%"
+"%TOOLCHAIN_DIRECTORY%\ludork-assets.exe" material-assets validate "%PROJECT_DIR%"
 if errorlevel 1 exit /b %errorlevel%
 if defined PACKAGE_VERSION (
-    "%SCRIPT_TOOLS%" packaging-constants resolve-metadata "%PROJECT_DIR%" "%PACKAGE_METADATA%" --version "%PACKAGE_VERSION%" %PACKAGE_CHANNEL%
+    "%TOOLCHAIN_DIRECTORY%\ludork-pack.exe" metadata resolve "%PROJECT_DIR%" "%PACKAGE_METADATA%" --version "%PACKAGE_VERSION%" %PACKAGE_CHANNEL%
 ) else (
-    "%SCRIPT_TOOLS%" packaging-constants resolve-metadata "%PROJECT_DIR%" "%PACKAGE_METADATA%" %PACKAGE_CHANNEL%
+    "%TOOLCHAIN_DIRECTORY%\ludork-pack.exe" metadata resolve "%PROJECT_DIR%" "%PACKAGE_METADATA%" %PACKAGE_CHANNEL%
 )
 if errorlevel 1 exit /b %errorlevel%
 set "EDITOR_CACHE_DIRECTORY="
-for /f "delims=" %%V in ('""%SCRIPT_TOOLS%" packaging-constants list editor-cache-directory --separator space"') do set "EDITOR_CACHE_DIRECTORY=%%V"
+for /f "delims=" %%V in ('""%TOOLCHAIN_DIRECTORY%\ludork-pack.exe" content list editor-cache-directory --separator space"') do set "EDITOR_CACHE_DIRECTORY=%%V"
 if not defined EDITOR_CACHE_DIRECTORY exit /b 1
 if "%USE_LDPAK%"=="1" (
-    "%SCRIPT_TOOLS%" validate-ldpak-source "%PROJECT_DIR%"
+    "%TOOLCHAIN_DIRECTORY%\ludork-assets.exe" validate-ldpak-source "%PROJECT_DIR%"
     if errorlevel 1 exit /b 1
 )
 
 set "DIST_DIR="
 set "NAME_OUTPUT=%TEMP%\ludork-pack-output-%RANDOM%-%RANDOM%.txt"
-"%SCRIPT_TOOLS%" packaging-constants prepare-output "%PROJECT_DIR%" "%DIST_ROOT%" --metadata "%PACKAGE_METADATA%" > "%NAME_OUTPUT%"
+"%TOOLCHAIN_DIRECTORY%\ludork-pack.exe" output prepare "%PROJECT_DIR%" "%DIST_ROOT%" --metadata "%PACKAGE_METADATA%" > "%NAME_OUTPUT%"
 set "PREPARE_EXIT_CODE=%ERRORLEVEL%"
 if "%PREPARE_EXIT_CODE%"=="0" for /f "usebackq delims=" %%V in ("%NAME_OUTPUT%") do set "DIST_DIR=%%V"
 del /Q "%NAME_OUTPUT%"
@@ -121,7 +121,7 @@ if "%ENCRYPT_SAVES%"=="1" (
     exit /b 1
 )
 if "%USE_LDPAK%"=="1" (
-    "%SCRIPT_TOOLS%" validate-ldpak-source "%PROJECT_DIR%"
+    "%TOOLCHAIN_DIRECTORY%\ludork-assets.exe" validate-ldpak-source "%PROJECT_DIR%"
     if errorlevel 1 exit /b 1
 )
 robocopy "%PROJECT_DIR%" "%DIST_DIR%" /E /XF *.proj *.pdb *.anim.json *.py *.pyc *.pyo LudorkPreview-*.bin LudorkUiPreview-*.bin "%PROJECT_DIR%\Binaries\PreviewHost.exe" "%PROJECT_DIR%\Binaries\PreviewHostRuntime.dll" "%PROJECT_DIR%\Binaries\UiPreviewHost.exe" "%PROJECT_DIR%\Binaries\UiPreviewHostRuntime.dll" /XD "%DIST_ROOT%" "%DIST_DIR%" "%PROJECT_DIR%\%EDITOR_CACHE_DIRECTORY%" "%PROJECT_DIR%\Cache" "%PROJECT_DIR%\Engine\PreviewHost" "%PROJECT_DIR%\Engine\UiPreviewHost" build bin dist dist-luac .venv __pycache__ /NFL /NDL /NJH /NJS /NP
@@ -145,7 +145,7 @@ set "LUDORK_VALIDATE_LDPAK_SOURCE=%USE_LDPAK%"
 set "LUDORK_SAVE_AS_LDC=%ENCRYPT_SAVES%"
 call "%TOOLS_DIR%\build_standalone.bat" "%PROJECT_DIR%" "%%DIST_DIR%%" Release
 set "STANDALONE_EXIT_CODE=%ERRORLEVEL%"
-"%SCRIPT_TOOLS%" server-config cleanup "%PROJECT_DIR%"
+"%TOOLCHAIN_DIRECTORY%\ludork-pack.exe" server-config cleanup "%PROJECT_DIR%"
 if errorlevel 1 exit /b 1
 set "LUDORK_VALIDATE_LDPAK_SOURCE="
 set "LUDORK_SAVE_AS_LDC="
@@ -157,7 +157,7 @@ if not exist "%DIST_DIR%\Main.exe" (
 )
 
 :complete_pack
-"%SCRIPT_TOOLS%" packaging-constants write-build-info "%DIST_DIR%" --metadata "%PACKAGE_METADATA%"
+"%TOOLCHAIN_DIRECTORY%\ludork-pack.exe" metadata write-build-info "%DIST_DIR%" --metadata "%PACKAGE_METADATA%"
 if errorlevel 1 exit /b %errorlevel%
 call :validate_runtime_layout
 if errorlevel 1 exit /b %errorlevel%
@@ -170,14 +170,14 @@ exit /b 0
 
 :finalize_package
 set "UI_REGISTRY="
-for /f "usebackq delims=" %%R in (`call "%SCRIPT_TOOLS%" preview registry "%PROJECT_DIR%"`) do set "UI_REGISTRY=%%R"
+for /f "usebackq delims=" %%R in (`call "%TOOLCHAIN_DIRECTORY%\ludork-build.exe" preview registry "%PROJECT_DIR%"`) do set "UI_REGISTRY=%%R"
 if not defined UI_REGISTRY exit /b 1
 set "FINALIZE_OPTIONS="
 if "%USE_LUAC%"=="1" set "FINALIZE_OPTIONS=%FINALIZE_OPTIONS% --compile-lua"
 if "%ENCRYPT_SHADERS%"=="1" set "FINALIZE_OPTIONS=%FINALIZE_OPTIONS% --encrypt-shaders"
 if "%ENCRYPT_DATA%"=="1" set "FINALIZE_OPTIONS=%FINALIZE_OPTIONS% --encrypt-data"
 if "%USE_LDPAK%"=="1" set "FINALIZE_OPTIONS=%FINALIZE_OPTIONS% --use-ldpak"
-"%SCRIPT_TOOLS%" finalize-package %FINALIZE_OPTIONS% --registry "%UI_REGISTRY%" "%DIST_DIR%"
+"%TOOLCHAIN_DIRECTORY%\ludork-pack.exe" finalize-package %FINALIZE_OPTIONS% --registry "%UI_REGISTRY%" "%DIST_DIR%"
 exit /b %errorlevel%
 
 :validate_runtime_layout

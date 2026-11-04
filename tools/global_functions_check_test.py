@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from ScriptTools.global_functions_check import (
+from Toolchain.global_functions_check import (
     LUA_MODULES,
     NATIVE_HEADERS,
     _native_exports,
@@ -85,7 +85,7 @@ class GlobalFunctionsCheckTests(unittest.TestCase):
                 return staged_content
             raise AssertionError(command)
 
-        with patch("ScriptTools.global_functions_check.subprocess.check_output", side_effect=git_output):
+        with patch("Toolchain.global_functions_check.subprocess.check_output", side_effect=git_output):
             _staged_snapshot(self.root, self.root / "snapshot")
         self.assertEqual(check(self.root), [])
         self.assertEqual((self.root / "snapshot" / staged_module).read_bytes(), staged_content)

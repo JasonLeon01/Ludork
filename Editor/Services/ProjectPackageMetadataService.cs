@@ -43,9 +43,9 @@ public static class ProjectPackageMetadataService
         bool dev,
         CancellationToken cancellationToken)
     {
-        string? toolPath = EditorRuntimePaths.FindScriptTools();
+        string? toolPath = EditorRuntimePaths.FindToolchainTool(ToolchainTool.Pack);
         if (toolPath is null)
-            return new(-1, string.Empty, "ScriptTools was not found in the editor installation.");
+            return new(-1, string.Empty, "Toolchain was not found in the editor installation.");
         ProcessStartInfo startInfo = new()
         {
             FileName = toolPath,
@@ -57,7 +57,7 @@ public static class ProjectPackageMetadataService
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8,
         };
-        startInfo.ArgumentList.Add("packaging-constants");
+        startInfo.ArgumentList.Add("metadata");
         startInfo.ArgumentList.Add(operation);
         if (projectPath is not null)
             startInfo.ArgumentList.Add(projectPath);

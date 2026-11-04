@@ -2,5 +2,5 @@
 set -eu
 . "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)/common.sh"
 cd "$PROJECT_ROOT"
-SCRIPT_TOOLS=$(resolve_script_tools)
-exec "$SCRIPT_TOOLS" animation-mp4 "$@"
+TOOLCHAIN_DIRECTORY=$(resolve_toolchain_directory)
+exec "$TOOLCHAIN_DIRECTORY/ludork-assets" animation-mp4 "$@"

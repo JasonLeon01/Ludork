@@ -15,13 +15,13 @@ if not exist "%GAME_EXE%" (
     exit /b 1
 )
 
-set "SCRIPT_TOOLS=%~dp0ScriptTools\ScriptTools.exe"
-if not exist "%SCRIPT_TOOLS%" set "SCRIPT_TOOLS=%~dp0..\.tools\ScriptTools\ScriptTools.exe"
-if not exist "%SCRIPT_TOOLS%" (
-    echo ScriptTools was not found. Run tools\init.bat first.
+set "TOOLCHAIN_DIRECTORY=%~dp0Toolchain"
+if not exist "%TOOLCHAIN_DIRECTORY%" set "TOOLCHAIN_DIRECTORY=%~dp0..\.tools\Toolchain"
+if not exist "%TOOLCHAIN_DIRECTORY%" (
+    echo Toolchain was not found. Run tools\init.bat first.
     exit /b 1
 )
-"%SCRIPT_TOOLS%" material-assets validate "%GAME_DIR%"
+"%TOOLCHAIN_DIRECTORY%\ludork-assets.exe" material-assets validate "%GAME_DIR%"
 if errorlevel 1 exit /b %errorlevel%
 
 pushd "%GAME_DIR%"

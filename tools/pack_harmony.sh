@@ -8,5 +8,5 @@ if [ "$(uname -s)" != "Darwin" ]; then
     exit 20
 fi
 
-SCRIPT_TOOLS=$(resolve_script_tools)
-exec "$SCRIPT_TOOLS" harmony-pack "$@"
+TOOLCHAIN_DIRECTORY=$(resolve_toolchain_directory)
+exec "$TOOLCHAIN_DIRECTORY/ludork-pack" harmony-pack "$@"

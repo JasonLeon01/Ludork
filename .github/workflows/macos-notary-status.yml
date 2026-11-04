@@ -42,7 +42,7 @@ jobs:
           import uuid
 
           sys.path.insert(0, os.getcwd())
-          from ScriptTools.apple_signing import (
+          from Toolchain.apple_signing import (
               OptionSource,
               TemporaryKeychain,
               query_notary_service,

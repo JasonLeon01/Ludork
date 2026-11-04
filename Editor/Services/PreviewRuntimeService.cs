@@ -443,7 +443,7 @@ public sealed class PreviewRuntimeService : IDisposable, IAsyncDisposable
             return false;
         string binaryRoot = Path.Combine(ProjectPath, "Binaries");
         requireNotLink(binaryRoot);
-        string? toolPath = EditorRuntimePaths.FindScriptTools();
+        string? toolPath = EditorRuntimePaths.FindToolchainTool(ToolchainTool.Build);
         string manifestPath = Path.Combine(metadataRoot, "Preview.json");
         string registryPath = Path.Combine(metadataRoot, RegistryFileName);
         List<string> paths = [configPath, manifestPath, registryPath];
@@ -471,7 +471,7 @@ public sealed class PreviewRuntimeService : IDisposable, IAsyncDisposable
         recoveryAttemptStamp = nextStamp;
         try
         {
-            require(toolPath is not null, "ScriptTools was not found in the editor installation.");
+            require(toolPath is not null, "Toolchain was not found in the editor installation.");
             if (disposed || Path.Exists(buildingPath))
                 return false;
             ProcessStartInfo startInfo = new()
@@ -491,7 +491,7 @@ public sealed class PreviewRuntimeService : IDisposable, IAsyncDisposable
             startInfo.Environment["PYTHONUTF8"] = "1";
             startInfo.Environment["PYTHONIOENCODING"] = "utf-8";
             using Process process = Process.Start(startInfo)
-                ?? throw new IOException("ScriptTools could not be started.");
+                ?? throw new IOException("Toolchain could not be started.");
             Task<string> output = process.StandardOutput.ReadToEndAsync();
             Task<string> error = process.StandardError.ReadToEndAsync();
             process.WaitForExit();

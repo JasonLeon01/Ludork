@@ -215,8 +215,9 @@ function(ludork_configure_visual_studio_play target)
 endfunction()
 
 function(ludork_add_impl_boundary_validation_target target project_root)
+    ludork_get_tool(LUDORK_TOOL_CHECK check)
     add_custom_target(${target}
-        COMMAND "${LUDORK_SCRIPT_TOOLS_EXECUTABLE}"
+        COMMAND "${LUDORK_TOOL_CHECK}"
             impl-boundary-check
             "${project_root}"
         WORKING_DIRECTORY "${project_root}"

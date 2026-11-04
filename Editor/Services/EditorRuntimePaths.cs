@@ -63,11 +63,23 @@ public static class EditorRuntimePaths
         return FindFile("tools", relativePath);
     }
 
-    public static string? FindScriptTools()
+    public static string? FindToolchainDirectory()
     {
-        string executable = OperatingSystem.IsWindows() ? "ScriptTools.exe" : "ScriptTools";
-        return FindBuildTool("ScriptTools", executable)
-            ?? FindFile(".tools", "ScriptTools", executable);
+        string executable = OperatingSystem.IsWindows() ? "ludork-build.exe" : "ludork-build";
+        string? tool = FindBuildTool("Toolchain", executable)
+            ?? FindFile(".tools", "Toolchain", executable);
+        return tool is null ? null : Path.GetDirectoryName(tool);
+    }
+
+    public static string? FindToolchainTool(ToolchainTool role)
+    {
+        string? directory = FindToolchainDirectory();
+        if (directory is null)
+            return null;
+        string executable = "ludork-" + role.ToString().ToLowerInvariant()
+            + (OperatingSystem.IsWindows() ? ".exe" : string.Empty);
+        string path = Path.Combine(directory, executable);
+        return File.Exists(path) ? path : null;
     }
 
     private static IEnumerable<string> getRoots()
