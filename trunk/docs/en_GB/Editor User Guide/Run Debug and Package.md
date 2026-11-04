@@ -102,7 +102,11 @@ Shader encryption covers `Assets/Shaders`; data encryption also covers generated
 
 Preview registry validation and exclusions are described in [PreviewHost packaging rules](<../PreviewHost/Build Publish and Troubleshooting.md#editable-templates-and-final-packages>).
 
-Game packaging works on a staging copy and leaves project sources unchanged. Every target packages `Assets`, `Data` and `Scripts`. Windows, macOS, Android and HarmonyOS also copy `Licenses` and the root `LICENSE.md`, `THIRD_PARTY_NOTICES.md` and `THIRD_PARTY_NOTICES_zh_CN.md`; iOS adds the same files from the project. Windows and macOS also include `ThirdPartySource`. The following are never packaged:
+Game packaging works on a staging copy and leaves project sources unchanged.
+
+Android, HarmonyOS and iOS replace their prepared build resources only after conversion and validation succeed. Failure or cancellation before replacement keeps the previous resources. If replacement fails and the previous resources cannot be restored, the error identifies the retained recovery directory. Cancellation or cleanup failure after replacement leaves the new resources in place and reports any remaining recovery or staging directory; a completed replacement is not rolled back.
+
+Every target packages `Assets`, `Data` and `Scripts`. Windows, macOS, Android and HarmonyOS also copy `Licenses` and the root `LICENSE.md`, `THIRD_PARTY_NOTICES.md` and `THIRD_PARTY_NOTICES_zh_CN.md`; iOS adds the same files from the project. Windows and macOS also include `ThirdPartySource`. The following are never packaged:
 
 - `.DS_Store`, `.git`, `.vs`, `.idea`, `.vscode`, `.emmyrc.json`, `.gitignore` and editor animation caches (`*.anim.json`) at any depth;
 - project-root `EditorCache`, `Cache`, `Intermediate` and `Log`, and the `Scripts/stub` declarations;
