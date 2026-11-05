@@ -219,6 +219,9 @@ jobs:
       - name: Name BuildTools archive
         run: mv dist/Ludork-BuildTools-macos-arm64.tar.gz Ludork-BuildTools-macos-arm64-${{ github.sha }}.tar.gz
 
+      - name: Validate relocated BuildTools
+        run: python3 tools/validate_toolchain_bundle.py Ludork-BuildTools-macos-arm64-${{ github.sha }}.tar.gz
+
       - name: Upload BuildTools
         uses: actions/upload-artifact@v7
         with:

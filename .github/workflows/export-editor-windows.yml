@@ -140,6 +140,10 @@ jobs:
         working-directory: dist
         run: python -X utf8 -m tarfile -c "%GITHUB_WORKSPACE%/Ludork-BuildTools-windows-x64-${{ github.sha }}.tar.gz" BuildTools
 
+      - name: Validate relocated BuildTools
+        shell: cmd
+        run: python tools\validate_toolchain_bundle.py Ludork-BuildTools-windows-x64-${{ github.sha }}.tar.gz
+
       - name: Upload BuildTools
         uses: actions/upload-artifact@v7
         with:

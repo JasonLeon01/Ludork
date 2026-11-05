@@ -5,15 +5,42 @@ import hashlib
 import json
 import os
 import pathlib
+import subprocess
 import sys
+import tempfile
 
+from .cli.catalogue import COMMANDS
 from .tool_paths import TOOL_ROLES, executable_name
 
 
 BUILD_MODE = "standalone"
+BUNDLE_LAYOUT = "independent-entrypoints"
 MANIFEST_NAME = "runtime-files.json"
 SOURCE_STAMP_NAME = "source.sha256"
 VERSION_REPORT_NAME = "runtime-versions.txt"
+
+
+def smoke_bundle(directory: pathlib.Path, working_directory: pathlib.Path) -> None:
+    environment = {key: value for key, value in os.environ.items() if key.upper() not in {"PYTHONHOME", "PYTHONPATH"}}
+    with tempfile.TemporaryDirectory(prefix="toolchain smoke ", dir=working_directory) as temporary:
+        project = pathlib.Path(temporary) / "Main.proj"
+        project.write_text('{"Cpp":true}\n', encoding="utf-8")
+        for role in TOOL_ROLES:
+            probes = [(["--help"], f"ludork-{role}")]
+            for command in COMMANDS[role]:
+                if command == "project-runtime-mode":
+                    probes.append(([command, str(project)], "cpp"))
+                else:
+                    probes.append(([command, "--help"], ""))
+            for arguments, expected in probes:
+                result = subprocess.run(
+                    [str(directory / executable_name(role)), *arguments],
+                    cwd=temporary, env=environment, capture_output=True, text=True, check=False,
+                )
+                if result.returncode != 0 or expected not in result.stdout:
+                    raise RuntimeError(
+                        f"Toolchain {role} {' '.join(arguments)} smoke check failed: {result.stdout}{result.stderr}"
+                    )
 
 
 def _file_states(root: pathlib.Path) -> dict[str, dict[str, object]]:
@@ -49,7 +76,7 @@ def _file_states(root: pathlib.Path) -> dict[str, dict[str, object]]:
 
 def write_manifest(directory: pathlib.Path) -> None:
     root = directory.resolve()
-    value = {"formatVersion": 1, "buildMode": BUILD_MODE, "files": _file_states(root)}
+    value = {"formatVersion": 2, "buildMode": BUILD_MODE, "layout": BUNDLE_LAYOUT, "files": _file_states(root)}
     (root / MANIFEST_NAME).write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8", newline="\n")
 
 
@@ -61,18 +88,31 @@ def validate_bundle(directory: pathlib.Path, expected_source_hash: str | None = 
         raise ValueError(f"Runtime bundle directory was not found: {root}")
     for role in TOOL_ROLES:
         executable = root / executable_name(role)
-        if not executable.is_file() or not os.access(executable, os.X_OK):
-            raise ValueError(f"Runtime bundle executable is missing: {executable}")
+        if executable.is_symlink() or not executable.is_file() or not os.access(executable, os.X_OK):
+            raise ValueError(f"Runtime bundle entry must be a regular executable: {executable}")
     for name in (SOURCE_STAMP_NAME, VERSION_REPORT_NAME, MANIFEST_NAME):
         if not (root / name).is_file():
             raise ValueError(f"Runtime bundle metadata is missing: {root / name}")
     if expected_source_hash is not None and (root / SOURCE_STAMP_NAME).read_text(encoding="utf-8").strip() != expected_source_hash:
         raise ValueError("Runtime bundle was built from different inputs")
     value = json.loads((root / MANIFEST_NAME).read_text(encoding="utf-8"))
-    if not isinstance(value, dict) or value.get("formatVersion") != 1 or value.get("buildMode") != BUILD_MODE:
+    if (not isinstance(value, dict) or value.get("formatVersion") != 2
+            or value.get("buildMode") != BUILD_MODE or value.get("layout") != BUNDLE_LAYOUT):
         raise ValueError("Unsupported runtime bundle manifest")
-    if value.get("files") != _file_states(root):
+    states = _file_states(root)
+    if value.get("files") != states:
         raise ValueError("Runtime bundle files are missing, changed or unexpected")
+    entry_hashes: dict[str, str] = {}
+    for role in TOOL_ROLES:
+        name = executable_name(role)
+        digest = str(states[name]["sha256"])
+        if digest in entry_hashes:
+            raise ValueError(f"Runtime bundle entries must be independent: {entry_hashes[digest]} and {name}")
+        entry_hashes[digest] = name
+    if sys.platform == "darwin":
+        from .runtime_bundle_macos import validate_dependencies
+
+        validate_dependencies(root)
 
 
 def main(arguments: list[str] | None = None) -> int:

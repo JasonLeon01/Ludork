@@ -7,6 +7,7 @@ import pathlib
 import platform
 import ssl
 import shutil
+import stat
 import subprocess
 import sys
 
@@ -15,10 +16,13 @@ PROJECT_ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from Toolchain.file_replace import remove_file, remove_tree, retry_file_operation
+from Toolchain.cli.catalogue import COMMANDS
 from Toolchain.runtime_bundle import (
     BUILD_MODE,
+    BUNDLE_LAYOUT,
     SOURCE_STAMP_NAME,
     VERSION_REPORT_NAME,
+    smoke_bundle,
     validate_bundle,
     write_manifest,
 )
@@ -29,6 +33,7 @@ from Toolchain.tool_paths import TOOL_ROLES, executable_name
 def _versions() -> dict[str, str]:
     return {
         "Build mode": BUILD_MODE,
+        "Bundle layout": BUNDLE_LAYOUT,
         "Platform": f"{platform.system()}-{platform.machine()}",
         "CPython": platform.python_version(),
         "OpenSSL": ssl.OPENSSL_VERSION,
@@ -68,24 +73,43 @@ def _rename_runtime(source: pathlib.Path, destination: pathlib.Path, stage: str)
         raise RuntimeError(f"Toolchain {stage} failed: {source} -> {destination}: {error}") from error
 
 
-def _smoke(directory: pathlib.Path, working_directory: pathlib.Path) -> None:
-    for role in TOOL_ROLES:
-        result = subprocess.run(
-            [str(directory / executable_name(role)), "--help"],
-            cwd=working_directory, capture_output=True, text=True, check=False,
-        )
-        if result.returncode != 0 or f"ludork-{role}" not in result.stdout:
-            raise RuntimeError(f"Toolchain {role} smoke check failed: {result.stdout}{result.stderr}")
+def _distribution_entry(path: pathlib.Path, root: pathlib.Path) -> tuple[object, ...]:
+    mode = stat.S_IMODE(path.lstat().st_mode)
+    if path.is_symlink():
+        target = path.readlink()
+        if target.is_absolute() or not path.resolve().is_relative_to(root.resolve()) or not path.exists():
+            raise RuntimeError(f"Distribution link leaves its directory or is broken: {path}")
+        return ("link", mode, target.as_posix())
+    if path.is_dir():
+        return ("directory", mode)
+    if path.is_file():
+        with path.open("rb") as stream:
+            return ("file", mode, path.stat().st_size, hashlib.file_digest(stream, "sha256").hexdigest())
+    raise RuntimeError(f"Unsupported distribution entry: {path}")
 
 
-def _create_entry_points(directory: pathlib.Path) -> None:
-    primary = directory / executable_name("build")
-    for role in TOOL_ROLES[1:]:
-        target = directory / executable_name(role)
-        if sys.platform == "win32":
-            shutil.copy2(primary, target)
+def _merge_distribution(source: pathlib.Path, destination: pathlib.Path, role: str,
+                        entries: dict[str, tuple[str, tuple[object, ...]]]) -> None:
+    for path in sorted(source.rglob("*")):
+        relative = path.relative_to(source)
+        key = relative.as_posix()
+        state = _distribution_entry(path, source)
+        previous = entries.get(key)
+        if previous is not None:
+            if previous[1] != state:
+                raise RuntimeError(f"Toolchain dependency conflict at {key}: {previous[0]} and {role}")
+            continue
+        target = destination / relative
+        if target.exists() or target.is_symlink():
+            raise RuntimeError(f"Toolchain dependency path collision at {key} from {role}")
+        if state[0] == "directory":
+            target.mkdir()
+            shutil.copystat(path, target)
+        elif state[0] == "link":
+            target.symlink_to(path.readlink(), target_is_directory=path.is_dir())
         else:
-            target.symlink_to(primary.name)
+            shutil.copy2(path, target)
+        entries[key] = (role, state)
 
 
 def _publish(distribution: pathlib.Path, output: pathlib.Path, build: pathlib.Path) -> None:
@@ -96,7 +120,7 @@ def _publish(distribution: pathlib.Path, output: pathlib.Path, build: pathlib.Pa
         _rename_runtime(output, backup, "runtime backup")
     try:
         _rename_runtime(distribution, output, "runtime publication")
-        _smoke(output, build)
+        smoke_bundle(output, build)
     except BaseException as error:
         try:
             _remove_owned(output)
@@ -137,19 +161,27 @@ def build(project: pathlib.Path) -> None:
     intermediate.mkdir(parents=True, exist_ok=True)
     distribution = intermediate / "Toolchain.dist"
     _remove_owned(distribution)
-    command = [
-        sys.executable, "-m", "nuitka", f"--mode={BUILD_MODE}",
-        "--assume-yes-for-downloads", "--include-package=Toolchain",
-        "--output-folder-name=Toolchain", f"--output-dir={intermediate}",
-        f"--output-filename={executable_name('build')}",
-        *(f"--main={entries / ('ludork-' + role + '.py')}" for role in TOOL_ROLES),
-    ]
-    if sys.platform == "win32":
-        command.append("--reproducible=yes")
+    distribution.mkdir()
+    merged_entries: dict[str, tuple[str, tuple[object, ...]]] = {}
     print("Building Toolchain runtime bundle...", flush=True)
-    subprocess.run(command, cwd=project, check=True)
-    _create_entry_points(distribution)
-    _smoke(distribution, intermediate)
+    for role in TOOL_ROLES:
+        role_build = intermediate / role
+        role_build.mkdir(exist_ok=True)
+        role_distribution = role_build / f"ludork-{role}.dist"
+        _remove_owned(role_distribution)
+        command = [
+            sys.executable, "-m", "nuitka", f"--mode={BUILD_MODE}", "--assume-yes-for-downloads",
+            f"--output-folder-name=ludork-{role}", f"--output-dir={role_build}",
+            f"--output-filename={executable_name(role)}", f"--report={role_build / 'compilation-report.xml'}",
+            *(f"--include-module=Toolchain.{module}" for module in sorted(set(COMMANDS[role].values()))),
+            str(entries / f"ludork-{role}.py"),
+        ]
+        if sys.platform == "win32":
+            command.append("--reproducible=yes")
+        print(f"Building ludork-{role}...", flush=True)
+        subprocess.run(command, cwd=project, check=True)
+        _merge_distribution(role_distribution, distribution, role, merged_entries)
+    smoke_bundle(distribution, intermediate)
     if source_hash != _source_hash(project, _versions()):
         raise RuntimeError("Toolchain inputs changed during compilation; rebuild the tools.")
     (distribution / SOURCE_STAMP_NAME).write_text(source_hash + "\n", encoding="utf-8", newline="\n")

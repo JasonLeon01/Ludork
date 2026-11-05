@@ -284,7 +284,7 @@ Both macOS package modes use the same secrets. Set `MACOS_SIGNING_CERTIFICATE` t
 
 ## Toolchain maintenance commands
 
-`tools/build_toolchain_bundle.sh` or `.bat` builds the Python sources under `Toolchain/` with Nuitka MultiDist. The six entry points share one runtime directory at `.tools/Toolchain`; compiler output stays in `.tools/build/Toolchain`. Installed editors and standalone BuildTools archives keep the same bundle at `BuildTools/Toolchain` and require no system Python. Copy, sign and publish the entire bundle together; an entry point alone is not a distributable tool.
+`tools/build_toolchain_bundle.sh` or `.bat` builds the Python sources under `Toolchain/` as six independently compiled Nuitka standalone executables. Each executable includes its own commands and their imported dependencies; shared native libraries and extension modules are stored once in `.tools/Toolchain`. Both Windows and macOS use independent executable files. Common Python helpers may be compiled into more than one executable. Compiler output and each role's `compilation-report.xml` stay under `.tools/build/Toolchain/<role>`. Installed editors and standalone BuildTools archives keep the same bundle at `BuildTools/Toolchain` and require no system Python. Copy, sign and publish the entire bundle together; an entry point alone is not a distributable tool.
 
 | Entry point | Responsibility |
 |---|---|
@@ -301,7 +301,7 @@ CMake takes the complete bundle directory through `LUDORK_TOOLCHAIN_DIRECTORY` a
 
 On Windows, bundle backup, publication, rollback and cleanup retry temporary access or sharing failures for up to ten seconds per operation. A failed publication or post-publication smoke check restores the previous bundle; if rollback also fails, the error reports both failures and the backup path. Persistent failures report the operation and affected paths. Close processes using the bundle before retrying `tools\build_toolchain_bundle.bat` or `tools\init.bat`.
 
-`runtime-versions.txt` records build/dependency versions; `runtime-files.json` records contents. `ludork-build runtime-bundle validate <bundle-directory>` checks that manifest. Windows tool builds use deterministic MSVC compilation, `/Brepro`, disabled incremental linking and Nuitka `--reproducible=yes`; identical outputs require the same paths, sources, dependencies and toolchain. Editor-only and complete-package `luac` builds may differ; these settings do not make whole installers or signed macOS bundles byte-identical.
+`runtime-versions.txt` records build/dependency versions; `runtime-files.json` records contents and the independent-entrypoint layout. `ludork-build runtime-bundle validate <bundle-directory>` checks the manifest, rejects linked or identical tool entries, and checks macOS dynamic-library paths. The builder rebuilds older bundle formats and rejects conflicting shared files instead of overwriting them. It loads every command before publishing the complete bundle. Windows tool builds use deterministic MSVC compilation, `/Brepro`, disabled incremental linking and Nuitka `--reproducible=yes`; identical outputs require the same paths, sources, dependencies and toolchain. Editor-only and complete-package `luac` builds may differ; these settings do not make whole installers or signed macOS bundles byte-identical.
 
 ### Native dependency preparation
 
