@@ -3,8 +3,9 @@ from __future__ import annotations
 import ctypes
 import os
 import pathlib
-import subprocess
 from ctypes import wintypes
+
+from . import tool_process
 
 
 def windowsUserProfile(expectedSid: str | None) -> pathlib.Path:
@@ -122,7 +123,7 @@ def requireEditorClosed() -> None:
     if os.name == "nt":
         requireWindowsEditorClosed()
         return
-    result = subprocess.run(["/usr/bin/pgrep", "-x", "Ludork"], capture_output=True, text=True)
+    result = tool_process.run(["/usr/bin/pgrep", "-x", "Ludork"], capture_output=True, text=True)
     if result.returncode == 0:
         raise RuntimeError("Close Ludork before replacing the official plug-ins.")
     if result.returncode != 1:

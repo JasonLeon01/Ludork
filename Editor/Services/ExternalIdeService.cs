@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Ludork.Services;
@@ -84,18 +85,11 @@ public sealed class ExternalIdeService
             return new IdeInitializationResult(false, scriptPath ?? string.Empty);
 
         ProcessStartInfo startInfo = createInitializationStartInfo(scriptPath);
-        using Process process = new() { StartInfo = startInfo };
         try
         {
-            if (!process.Start())
-                return new IdeInitializationResult(false, scriptPath);
-            Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
-            Task<string> errorTask = process.StandardError.ReadToEndAsync();
-            await process.WaitForExitAsync();
-            string output = await outputTask;
-            string error = await errorTask;
-            string details = string.IsNullOrWhiteSpace(error) ? output : error;
-            return new IdeInitializationResult(process.ExitCode == 0, details.Trim());
+            ToolProcessResult result = await ToolProcessRunner.CaptureAsync(startInfo, CancellationToken.None);
+            string details = string.IsNullOrWhiteSpace(result.StandardError) ? result.StandardOutput : result.StandardError;
+            return new IdeInitializationResult(result.ExitCode == 0, details.Trim());
         }
         catch (Win32Exception exception)
         {
@@ -171,10 +165,15 @@ public sealed class ExternalIdeService
         };
         startInfo.ArgumentList.Add("-Ra");
         startInfo.ArgumentList.Add(applicationName);
-        using Process process = new() { StartInfo = startInfo };
         try
         {
-            return process.Start() && process.WaitForExit(3000) && process.ExitCode == 0;
+            ToolProcessResult result = ToolProcessRunner.CaptureAsync(
+                startInfo, CancellationToken.None, TimeSpan.FromSeconds(3)).GetAwaiter().GetResult();
+            return result.ExitCode == 0;
+        }
+        catch (TimeoutException)
+        {
+            return false;
         }
         catch (Win32Exception)
         {
@@ -251,15 +250,11 @@ public sealed class ExternalIdeService
         startInfo.ArgumentList.Add("[17.0,18.0)");
         startInfo.ArgumentList.Add("-find");
         startInfo.ArgumentList.Add(Path.Combine("Common7", "IDE", "devenv.exe"));
-        using Process process = new() { StartInfo = startInfo };
         try
         {
-            if (!process.Start())
-                return null;
-            string output = process.StandardOutput.ReadToEnd();
-            process.WaitForExit();
-            return process.ExitCode == 0
-                ? output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            ToolProcessResult result = ToolProcessRunner.CaptureAsync(startInfo, CancellationToken.None).GetAwaiter().GetResult();
+            return result.ExitCode == 0
+                ? result.StandardOutput.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
                     .FirstOrDefault(File.Exists)
                 : null;
         }

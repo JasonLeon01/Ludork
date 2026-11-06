@@ -71,16 +71,6 @@ jobs:
         with:
           arch: amd64
 
-      - name: Build editor launcher
-        shell: pwsh
-        run: |
-          $version = (& dotnet msbuild Ludork.csproj -nologo -getProperty:Version).Trim()
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          cmake -S tools/editor_launcher -B obj/editor-launcher -DCMAKE_BUILD_TYPE=Release "-DLUDORK_VERSION=$version"
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          cmake --build obj/editor-launcher --config Release --target LudorkEditorLauncher
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-
       - name: Download prepared environment
         uses: actions/download-artifact@v8
         with:
@@ -127,6 +117,14 @@ jobs:
           if errorlevel 1 exit /b 1
           python -X utf8 -m tarfile -e obj/editor-inputs/artifacts/windows-templates-ffmpeg.tar obj/editor-inputs/Templates --filter data
           if errorlevel 1 exit /b 1
+
+      - name: Build editor launcher
+        shell: pwsh
+        run: |
+          $version = (& dotnet msbuild Ludork.csproj -nologo -getProperty:Version).Trim()
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & .tools/Toolchain/ludork-build.exe editor-launcher --repository-root "$PWD" --build-directory obj/editor-launcher --version $version
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
       - name: Package editor
         env:

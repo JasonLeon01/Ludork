@@ -7,6 +7,8 @@ import os
 import pathlib
 from urllib.parse import quote, unquote, urlsplit, urlunsplit
 
+from .generated_files import write_if_different
+
 
 def load(configuration: str) -> dict[str, object]:
     settings: dict[str, object] = {"enabled": False}
@@ -69,11 +71,7 @@ def generate(directory: pathlib.Path, configuration: str) -> None:
         lines.append(f'inline constexpr char {field.title()}[] = "{encoded}";')
     lines.extend(["}", ""])
     path = directory / "LudorkGenerated" / "ServerConfig.hpp"
-    content = "\n".join(lines)
-    data = content.encode("utf-8")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if not path.is_file() or path.read_bytes() != data:
-        path.write_bytes(data)
+    write_if_different(path, "\n".join(lines).encode("utf-8"))
 
 
 def cleanup(project: pathlib.Path) -> None:

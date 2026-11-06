@@ -14,6 +14,7 @@ import time
 from dataclasses import dataclass
 from typing import Callable, TextIO
 
+from . import tool_process
 from .pack_error import PackError
 from .packaging_constants import EXIT_SIGNING, EXIT_TOOLCHAIN
 from .runtime_bundle import MANIFEST_NAME, validate_bundle, write_manifest
@@ -115,7 +116,7 @@ def _run_capture(
     timeout: int | None = 600,
 ) -> subprocess.CompletedProcess[str]:
     try:
-        return subprocess.run(
+        return tool_process.run(
             command,
             check=False,
             input=input_text,

@@ -4,6 +4,8 @@ import argparse
 import pathlib
 import re
 
+from .generated_files import write_if_different
+
 
 def generate(header_path: pathlib.Path, output_path: pathlib.Path) -> None:
     source = header_path.read_text(encoding="utf-8")
@@ -20,11 +22,7 @@ def generate(header_path: pathlib.Path, output_path: pathlib.Path) -> None:
         f"    internal const int CellSize = {cell_size};\n"
         "}\n"
     )
-    data = content.encode("utf-8")
-    if output_path.is_file() and output_path.read_bytes() == data:
-        return
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_bytes(data)
+    write_if_different(output_path, content.encode("utf-8"))
 
 
 def main(arguments: list[str] | None = None) -> int:

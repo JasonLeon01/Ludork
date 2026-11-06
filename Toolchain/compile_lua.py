@@ -6,7 +6,8 @@ import pathlib
 import sys
 
 from .file_replace import remove_file, replace_path
-from .package_process import cancellation_signals, run
+from .package_process import run
+from .tool_process import cancellation_signals
 from .resource_constants import LUA_SOURCE_EXTENSION, LUA_COMPILED_EXTENSION
 
 

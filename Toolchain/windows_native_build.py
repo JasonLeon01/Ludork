@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-import argparse
 import os
 import pathlib
 import subprocess
-import sys
 
 from . import native_build_state
 from .tool_paths import resolve_toolchain_directory
+from .tool_process import run
 from .windows_toolchain import (
-    EXIT_TOOLCHAIN, project_compiler, read_cache, read_state, record_owned_files,
+    project_compiler, read_cache, read_state, record_owned_files,
     require_safe_path, scan_native_files, toolchain_status, validate_compiler, native_operation_lock,
 )
 
@@ -26,7 +25,7 @@ def _tool(tools: pathlib.Path, relative: str, *, required: bool = True) -> pathl
 
 def _run(command: list[str], project: pathlib.Path, environment: dict[str, str]) -> None:
     print(subprocess.list2cmdline(command), flush=True)
-    result = subprocess.run(command, cwd=project, env=environment)
+    result = run(command, cwd=project, env=environment)
     if result.returncode:
         raise ValueError(f"Native build command failed with exit code {result.returncode}.")
 
@@ -108,22 +107,3 @@ def _build(project: pathlib.Path, configuration: str, target: str, tools: pathli
             raise ValueError("Native build verification failed.")
     finally:
         record_owned_files(project, toolchain, before)
-
-
-def main(arguments: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="ludork-build windows-native-build")
-    parser.add_argument("project", type=pathlib.Path)
-    parser.add_argument("configuration", choices=("Debug", "Release"))
-    parser.add_argument("--target", choices=("Main", "PreviewHost", "LudorkLauncher"), default="Main")
-    parser.add_argument("--tools-directory", type=pathlib.Path, required=True)
-    parser.add_argument("--luac-cache-file", type=pathlib.Path,
-                        help="Copy the built Lua compiler to this output path, even if it does not exist yet.")
-    args = parser.parse_args(arguments)
-    try:
-        luac_cache_file = pathlib.Path(os.path.abspath(args.luac_cache_file)) if args.luac_cache_file else None
-        build(pathlib.Path(os.path.abspath(args.project)), args.configuration, args.target,
-              pathlib.Path(os.path.abspath(args.tools_directory)), luac_cache_file)
-        return 0
-    except (OSError, ValueError, subprocess.SubprocessError) as error:
-        print(str(error), file=sys.stderr)
-        return EXIT_TOOLCHAIN

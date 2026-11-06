@@ -10,7 +10,7 @@ import threading
 from collections.abc import Iterator
 
 from .file_replace import package_lock_candidates, remove_tree, replace_path, wait_until_writable
-from .package_process import cancellation_signals
+from .tool_process import cancellation_signals
 
 
 def _directory_identity(path: pathlib.Path) -> tuple[int, int] | None:

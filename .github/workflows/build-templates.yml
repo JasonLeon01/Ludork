@@ -64,11 +64,7 @@ jobs:
           if errorlevel 1 exit /b 1
           call tools\init_gnu_make.bat
           if errorlevel 1 exit /b 1
-          cmake -S tools/lua_compiler -B obj/editor-luac -DCMAKE_BUILD_TYPE=Release "-DLUDORK_LUA_SOURCE_DIR=%CD%/Game/Engine/ThirdParty/Lua"
-          if errorlevel 1 exit /b 1
-          cmake --build obj/editor-luac --config Release --target luac
-          if errorlevel 1 exit /b 1
-          cmake --install obj/editor-luac --config Release --prefix "%CD%/.tools/Lua"
+          .tools\Toolchain\ludork-build.exe lua-compiler --repository-root "%CD%"
           if errorlevel 1 exit /b 1
 
       - name: Initialize C++ dependencies
@@ -223,11 +219,7 @@ jobs:
         if: ${{ !inputs.templates }}
         run: |
           sh tools/init_cpp_dependencies.sh Game --only lua
-          cmake -S tools/lua_compiler -B obj/editor-luac -DCMAKE_BUILD_TYPE=Release \
-            "-DLUDORK_LUA_SOURCE_DIR=$PWD/Game/Engine/ThirdParty/Lua" \
-            -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=13.3
-          cmake --build obj/editor-luac --config Release --target luac
-          cmake --install obj/editor-luac --config Release --prefix "$PWD/.tools/Lua"
+          .tools/Toolchain/ludork-build lua-compiler --repository-root "$PWD"
 
       - name: Initialize C++ dependencies
         if: inputs.templates

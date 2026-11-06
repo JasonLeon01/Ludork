@@ -66,31 +66,20 @@ internal sealed class ProjectScriptRunner(
             })
                 startInfo.Environment.Remove(name);
             startInfo.Environment["LUDORK_EDITOR"] = "1";
-            using Process process = new() { StartInfo = startInfo };
-            if (!process.Start())
-                return failed("The project evaluation process could not start.");
-            Task<string> output = process.StandardOutput.ReadToEndAsync();
-            Task<string> error = process.StandardError.ReadToEndAsync();
-            using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeout.CancelAfter(TimeSpan.FromSeconds(60));
+            ToolProcessResult execution;
             try
             {
-                await process.WaitForExitAsync(timeout.Token);
+                execution = await ToolProcessRunner.CaptureAsync(
+                    startInfo, cancellationToken, TimeSpan.FromSeconds(60));
             }
-            catch (OperationCanceledException)
+            catch (TimeoutException)
             {
-                if (!process.HasExited)
-                    process.Kill(true);
-                await process.WaitForExitAsync(CancellationToken.None);
-                await Task.WhenAll(output, error);
-                cancellationToken.ThrowIfCancellationRequested();
                 return failed("Project evaluation exceeded its 60-second time limit.");
             }
-            string standardOutput = await output;
-            string standardError = await error;
-            if (process.ExitCode != 0)
+            if (execution.ExitCode != 0)
             {
-                string detail = string.IsNullOrWhiteSpace(standardError) ? standardOutput : standardError;
+                string detail = string.IsNullOrWhiteSpace(execution.StandardError)
+                    ? execution.StandardOutput : execution.StandardError;
                 if (detail.Length > 8192)
                     detail = detail[^8192..];
                 return failed("Project evaluation failed: " + detail.Trim());

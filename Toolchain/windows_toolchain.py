@@ -14,6 +14,7 @@ import tempfile
 from contextlib import contextmanager
 from concurrent.futures import ThreadPoolExecutor
 
+from . import tool_process
 from .file_replace import remove_file, remove_tree, replace_path, wait_until_writable
 from .packaging_constants import EDITOR_CACHE_DIRECTORY
 from .windows_file_locks import describe_locks
@@ -81,7 +82,7 @@ def _config_compiler(config: object) -> str:
 
 
 def run_probe(command: list[str], *, input: str | None = None, environment: dict | None = None) -> str:
-    result = subprocess.run(command, input=input, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+    result = tool_process.run(command, input=input, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                             text=True, errors="replace", timeout=30, env=environment,
                             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     if result.returncode:
@@ -140,7 +141,7 @@ def _msvc_environment(msvc: WindowsToolchain) -> dict[str, str]:
                 and os.path.normcase(os.path.abspath(environment["VSINSTALLDIR"]))
                 == os.path.normcase(os.path.abspath(msvc.path)))
     if not prepared:
-        result = subprocess.run(
+        result = tool_process.run(
             f'cmd.exe /d /s /c ""{command}" -arch=x64 -host_arch=x64 >nul && set"',
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors="replace", timeout=30,
             env=environment,

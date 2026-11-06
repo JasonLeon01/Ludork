@@ -474,30 +474,12 @@ public sealed class PreviewRuntimeService : IDisposable, IAsyncDisposable
             require(toolPath is not null, "Toolchain was not found in the editor installation.");
             if (disposed || Path.Exists(buildingPath))
                 return false;
-            ProcessStartInfo startInfo = new()
-            {
-                FileName = toolPath!,
-                WorkingDirectory = ProjectPath,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                StandardOutputEncoding = Encoding.UTF8,
-                StandardErrorEncoding = Encoding.UTF8,
-            };
-            startInfo.ArgumentList.Add("preview");
-            startInfo.ArgumentList.Add("ensure");
-            startInfo.ArgumentList.Add(ProjectPath);
-            startInfo.Environment["PYTHONUTF8"] = "1";
-            startInfo.Environment["PYTHONIOENCODING"] = "utf-8";
-            using Process process = Process.Start(startInfo)
-                ?? throw new IOException("Toolchain could not be started.");
-            Task<string> output = process.StandardOutput.ReadToEndAsync();
-            Task<string> error = process.StandardError.ReadToEndAsync();
-            process.WaitForExit();
-            string outputText = output.GetAwaiter().GetResult().Trim();
-            string errorText = error.GetAwaiter().GetResult().Trim();
-            require(process.ExitCode == 0, errorText.Length != 0 ? errorText
+            ProcessStartInfo startInfo = ToolchainProcess.CreateStartInfo(
+                ToolchainTool.Build, ["preview", "ensure", ProjectPath], ProjectPath);
+            ToolProcessResult result = ToolProcessRunner.CaptureAsync(startInfo, CancellationToken.None).GetAwaiter().GetResult();
+            string outputText = result.StandardOutput.Trim();
+            string errorText = result.StandardError.Trim();
+            require(result.ExitCode == 0, errorText.Length != 0 ? errorText
                 : outputText.Length != 0 ? outputText : "Standalone UI preview recovery failed.");
             require(Path.Exists(buildingPath) || File.Exists(manifestPath) && File.Exists(registryPath),
                 "Standalone UI preview recovery did not produce its metadata files.");

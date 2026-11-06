@@ -25,27 +25,5 @@ fi
 
 require_macos_arm64
 TOOLCHAIN_DIRECTORY=$(resolve_toolchain_directory)
-CMAKE_BIN=$(find_cmake)
-BUILD_JOBS=$(resolve_parallel_jobs)
-
-echo "Project: $CPP_DIR"
-echo "Configuration: $CONFIG"
-echo "Parallel jobs: $BUILD_JOBS"
-"$TOOLCHAIN_DIRECTORY/ludork-build" native-build-state begin "$CPP_DIR" "$CONFIG"
-"$CMAKE_BIN" \
-    -S "$CPP_DIR" \
-    -B "$CPP_DIR/build" \
-    -DCMAKE_BUILD_TYPE="$CONFIG" \
-    -DLUDORK_TOOLCHAIN_DIRECTORY="$TOOLCHAIN_DIRECTORY" \
-    -DCMAKE_OSX_ARCHITECTURES=arm64 \
-    -DCMAKE_OSX_DEPLOYMENT_TARGET=13.3
-"$CMAKE_BIN" --build "$CPP_DIR/build" --config "$CONFIG" --target Main --parallel "$BUILD_JOBS"
-
-OUTPUT="$CPP_DIR/bin/$CONFIG/Main"
-if [ ! -x "$OUTPUT" ]; then
-    echo "Build finished without producing $OUTPUT" >&2
-    exit 1
-fi
-
-"$TOOLCHAIN_DIRECTORY/ludork-build" native-build-state complete "$CPP_DIR" "$CONFIG"
-echo "Build complete: $OUTPUT"
+exec "$TOOLCHAIN_DIRECTORY/ludork-build" native-build "$CPP_DIR" "$CONFIG" \
+    --tools-directory "$TOOLS_DIR"

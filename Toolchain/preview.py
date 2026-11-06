@@ -16,6 +16,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 
+from . import tool_process
 from .file_replace import replace_path, wait_until_writable
 from .packaging_constants import EDITOR_CACHE_DIRECTORY
 from .ui_control_registry import (
@@ -463,7 +464,7 @@ def prepare_registry(project: pathlib.Path, toolchain_directory: pathlib.Path) -
         )
     else:
         command = ["sh", str(script), str(project), "Release"]
-    result = subprocess.run(command, cwd=project, env=environment, check=False)
+    result = tool_process.run(command, cwd=project, env=environment, check=False)
     if result.returncode:
         raise UiRegistryError(
             f"Project preview build failed with exit code {result.returncode}: {project}"
@@ -481,7 +482,7 @@ def _query_host(host: pathlib.Path, project: pathlib.Path, option: str) -> bytes
             f"Preview Host is missing or is not a regular file: {host}"
         )
     try:
-        result = subprocess.run(
+        result = tool_process.run(
             [str(host), option],
             cwd=project,
             capture_output=True,

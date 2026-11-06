@@ -18,6 +18,7 @@ import zipfile
 from dataclasses import dataclass, replace
 from typing import BinaryIO, TextIO
 
+from . import tool_process
 from . import server_config
 from .fetchcontent_cache import cached_dependency_sources
 from .material_assets import MaterialAssetError, validate_generated as validate_materials
@@ -275,7 +276,7 @@ def resolve_android_studio() -> AndroidStudio:
             EXIT_TOOLCHAIN,
         )
     try:
-        result = subprocess.run(
+        result = tool_process.run(
             [str(java), "-version"],
             check=False,
             capture_output=True,
@@ -383,7 +384,7 @@ def resolve_cmake() -> CMakeTool:
             continue
         checked.add(candidate)
         try:
-            version_result = subprocess.run(
+            version_result = tool_process.run(
                 [str(candidate), "--version"],
                 check=False,
                 capture_output=True,
@@ -401,7 +402,7 @@ def resolve_cmake() -> CMakeTool:
         if version < MINIMUM_CMAKE_VERSION:
             continue
         try:
-            capabilities = subprocess.run(
+            capabilities = tool_process.run(
                 [str(candidate), "-E", "capabilities"],
                 check=False,
                 capture_output=True,
@@ -798,7 +799,7 @@ def create_app_icon(context: PackContext) -> None:
     icns = system_assets / "icon.icns"
     sips = shutil.which("sips")
     if icns.is_file() and sips is not None:
-        result = subprocess.run(
+        result = tool_process.run(
             [
                 sips,
                 "-s",
@@ -903,7 +904,7 @@ def _run_streaming(
     cwd: pathlib.Path,
     environment: dict[str, str] | None = None,
 ) -> None:
-    result = subprocess.run(command, cwd=cwd, env=environment, check=False)
+    result = tool_process.run(command, cwd=cwd, env=environment, check=False)
     if result.returncode != 0:
         raise PackError(
             f"Command failed with exit code {result.returncode}: {command[0]}",
@@ -953,7 +954,7 @@ def build_native_library(context: PackContext, runtime_hash: str) -> pathlib.Pat
     )
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(candidates[0], destination)
-    result = subprocess.run(
+    result = tool_process.run(
         [str(context.ndk.strip), "--strip-unneeded", str(destination)],
         check=False,
         capture_output=True,
@@ -1147,7 +1148,7 @@ def _run_capture(
     environment: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     try:
-        return subprocess.run(
+        return tool_process.run(
             command,
             check=False,
             capture_output=True,
@@ -1168,7 +1169,7 @@ def _run_signing_tool(
     timeout: float = 120.0,
 ) -> subprocess.CompletedProcess[str]:
     try:
-        return subprocess.run(
+        return tool_process.run(
             command,
             check=False,
             capture_output=True,

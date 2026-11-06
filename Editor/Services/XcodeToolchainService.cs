@@ -68,41 +68,19 @@ public static class XcodeToolchainService
             RedirectStandardError = true,
         };
         startInfo.ArgumentList.Add("-p");
-        using Process process = new() { StartInfo = startInfo };
-        using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(TimeSpan.FromSeconds(5));
         try
         {
-            process.Start();
-            Task<string> output = process.StandardOutput.ReadToEndAsync(timeout.Token);
-            Task<string> error = process.StandardError.ReadToEndAsync(timeout.Token);
-            await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
-            string selected = await output.ConfigureAwait(false);
-            await error.ConfigureAwait(false);
-            return process.ExitCode == 0 ? selected.Trim() : null;
+            ToolProcessResult result = await ToolProcessRunner.CaptureAsync(
+                startInfo, cancellationToken, TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            return result.ExitCode == 0 ? result.StandardOutput.Trim() : null;
         }
-        catch (OperationCanceledException)
+        catch (TimeoutException)
         {
-            stopProcess(process);
-            cancellationToken.ThrowIfCancellationRequested();
             return null;
         }
         catch (Exception exception) when (exception is Win32Exception or IOException or InvalidOperationException)
         {
-            stopProcess(process);
             return null;
-        }
-    }
-
-    private static void stopProcess(Process process)
-    {
-        try
-        {
-            if (!process.HasExited)
-                process.Kill(true);
-        }
-        catch (Exception exception) when (exception is Win32Exception or InvalidOperationException)
-        {
         }
     }
 }

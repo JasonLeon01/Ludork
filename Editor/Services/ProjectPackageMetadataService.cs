@@ -2,7 +2,6 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -43,62 +42,27 @@ public static class ProjectPackageMetadataService
         bool dev,
         CancellationToken cancellationToken)
     {
-        string? toolPath = EditorRuntimePaths.FindToolchainTool(ToolchainTool.Pack);
-        if (toolPath is null)
-            return new(-1, string.Empty, "Toolchain was not found in the editor installation.");
-        ProcessStartInfo startInfo = new()
-        {
-            FileName = toolPath,
-            WorkingDirectory = projectPath ?? Path.GetDirectoryName(toolPath)!,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8,
-        };
-        startInfo.ArgumentList.Add("metadata");
-        startInfo.ArgumentList.Add(operation);
-        if (projectPath is not null)
-            startInfo.ArgumentList.Add(projectPath);
-        if (version is not null)
-        {
-            startInfo.ArgumentList.Add("--version");
-            startInfo.ArgumentList.Add(version);
-            startInfo.ArgumentList.Add(dev ? "--dev" : "--release");
-        }
-        startInfo.Environment["PYTHONUTF8"] = "1";
-        startInfo.Environment["PYTHONIOENCODING"] = "utf-8";
         cancellationToken.ThrowIfCancellationRequested();
         try
         {
-            using Process process = new() { StartInfo = startInfo };
-            process.Start();
-            Task<string> output = process.StandardOutput.ReadToEndAsync();
-            Task<string> error = process.StandardError.ReadToEndAsync();
-            using CancellationTokenRegistration registration = cancellationToken.Register(() => stopProcess(process));
-            await process.WaitForExitAsync().ConfigureAwait(false);
-            string outputText = await output.ConfigureAwait(false);
-            outputText = operation == "runtime-app-name" ? outputText.TrimEnd('\r', '\n') : outputText.Trim();
-            string errorText = (await error.ConfigureAwait(false)).Trim();
-            cancellationToken.ThrowIfCancellationRequested();
-            return new(process.ExitCode, outputText, errorText);
+            ProcessStartInfo startInfo = ToolchainProcess.CreateStartInfo(
+                ToolchainTool.Pack, ["metadata", operation], projectPath);
+            if (projectPath is not null)
+                startInfo.ArgumentList.Add(projectPath);
+            if (version is not null)
+            {
+                startInfo.ArgumentList.Add("--version");
+                startInfo.ArgumentList.Add(version);
+                startInfo.ArgumentList.Add(dev ? "--dev" : "--release");
+            }
+            ToolProcessResult result = await ToolProcessRunner.CaptureAsync(startInfo, cancellationToken).ConfigureAwait(false);
+            string outputText = operation == "runtime-app-name"
+                ? result.StandardOutput.TrimEnd('\r', '\n') : result.StandardOutput.Trim();
+            return new(result.ExitCode, outputText, result.StandardError.Trim());
         }
         catch (Exception exception) when (exception is Win32Exception or IOException or InvalidOperationException)
         {
             return new(-1, string.Empty, exception.Message);
-        }
-    }
-
-    private static void stopProcess(Process process)
-    {
-        try
-        {
-            if (!process.HasExited)
-                process.Kill(true);
-        }
-        catch (Exception exception) when (exception is Win32Exception or InvalidOperationException)
-        {
         }
     }
 }

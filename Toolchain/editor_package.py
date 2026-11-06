@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import argparse
-import os
 import pathlib
 import platform
 import shutil
 import sys
 
 from . import editor_macos_metadata, editor_official_plugins, legal_resources
+from .build_tools import find_cmake
 from .cli_arguments import parse_platform_arguments
+from .editor_launcher_build import build as build_editor_launcher
 from .editor_package_contents import (
     BUILD_TOOL_SOURCES, clean_package, copy_directory, remove_path, require_directory,
     require_file, stage_build_tools, validate_layout, validate_package,
@@ -16,10 +17,11 @@ from .editor_package_contents import (
 from .editor_package_macos import EditorDiskImage, SIGNING_ENVIRONMENT
 from .file_replace import replace_path
 from .pack_error import PackError
-from .package_process import cancellation_signals, run
+from .package_process import run
 from .packaging_metadata import read_release_version
 from .runtime_bundle import validate_bundle
 from .tool_paths import resolve_toolchain_directory
+from .tool_process import cancellation_signals
 from .versions import read_versions
 
 
@@ -58,26 +60,13 @@ def _host_platform(arguments: argparse.Namespace) -> str:
     raise PackError("Editor packaging requires Windows x64 or Apple Silicon macOS.")
 
 
-def _find_cmake() -> pathlib.Path:
-    configured = os.environ.get("LUDORK_CMAKE", "")
-    candidates = [configured] if configured else [
-        "cmake", "/opt/homebrew/bin/cmake", "/usr/local/bin/cmake", "/Applications/CMake.app/Contents/bin/cmake",
-    ]
-    for candidate in candidates:
-        path = pathlib.Path(candidate) if os.path.isabs(candidate) else pathlib.Path(shutil.which(candidate) or "")
-        if path.is_file() and os.access(path, os.X_OK):
-            if run([path, "--version"], capture=True, check=False).returncode == 0:
-                return path.resolve()
-    raise PackError("CMake was not found. Set LUDORK_CMAKE to its executable path.")
-
-
 def _preflight(repository: pathlib.Path, host: str, arguments: argparse.Namespace,
                versions: dict[str, str], templates: bool) -> pathlib.Path:
     require_file(repository / "Ludork.csproj")
     require_file(repository / "versions.conf")
     if shutil.which("dotnet") is None:
         raise PackError("The .NET SDK was not found.")
-    cmake = _find_cmake()
+    cmake = find_cmake()
     for key in ("EDITOR_VERSION", "FFMPEG_VERSION") + (("GNU_MAKE_VERSION",) if host == "windows" else ()):
         if not versions.get(key):
             raise PackError(f"{key} is not set in versions.conf.")
@@ -226,11 +215,7 @@ def package(arguments: argparse.Namespace) -> pathlib.Path:
         if host == "windows":
             launcher = arguments.launcher
             if launcher is None:
-                launcher_build = work / "launcher"
-                run([cmake, "-S", repository / "tools/editor_launcher", "-B", launcher_build,
-                     "-DCMAKE_BUILD_TYPE=Release", f"-DLUDORK_VERSION={release.version}"], cwd=repository)
-                run([cmake, "--build", launcher_build, "--config", "Release", "--target", "LudorkEditorLauncher"], cwd=repository)
-                launcher = launcher_build / "bin/Release/Ludork.exe"
+                launcher = build_editor_launcher(repository, work / "launcher", release.version, cmake=cmake)
             shutil.copy2(launcher, stage / "Ludork.exe")
         _publish_editor(repository, binaries, host, arguments, release.version, build_info)
         _relocate_content(repository, package_root, binaries, content, host, arguments.channel)

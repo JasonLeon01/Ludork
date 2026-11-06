@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -85,7 +86,9 @@ class GlobalFunctionsCheckTests(unittest.TestCase):
                 return staged_content
             raise AssertionError(command)
 
-        with patch("Toolchain.global_functions_check.subprocess.check_output", side_effect=git_output):
+        with patch("Toolchain.global_functions_check.tool_process.run",
+                   side_effect=lambda command, **kwargs: subprocess.CompletedProcess(
+                       command, 0, git_output(command, **kwargs))):
             _staged_snapshot(self.root, self.root / "snapshot")
         self.assertEqual(check(self.root), [])
         self.assertEqual((self.root / "snapshot" / staged_module).read_bytes(), staged_content)

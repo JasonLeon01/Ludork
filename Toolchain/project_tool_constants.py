@@ -5,6 +5,7 @@ import json
 import pathlib
 
 from . import packaging_constants as constants
+from .generated_files import write_if_different
 
 
 def generate(path: pathlib.Path) -> None:
@@ -23,10 +24,7 @@ def generate(path: pathlib.Path) -> None:
         kind = "string" if isinstance(value, str) else "int"
         lines.append(f"    public const {kind} {name} = {json.dumps(value)};")
     lines.extend(("}", ""))
-    content = "\n".join(lines).encode("utf-8")
-    if not path.is_file() or path.read_bytes() != content:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(content)
+    write_if_different(path, "\n".join(lines).encode("utf-8"))
 
 
 def main(arguments: list[str] | None = None) -> int:

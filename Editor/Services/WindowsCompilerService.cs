@@ -3,13 +3,11 @@ using SharpCompress.Archives;
 using SharpCompress.Readers;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -190,44 +188,14 @@ public static class WindowsCompilerService
 
     private static async Task<JsonElement> executeAsync(IEnumerable<string> arguments, CancellationToken token)
     {
-        string tool = EditorRuntimePaths.FindToolchainTool(ToolchainTool.Build)
-            ?? throw new FileNotFoundException("Toolchain was not found in the editor installation.");
-        ProcessStartInfo startInfo = new()
-        {
-            FileName = tool,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8,
-        };
-        startInfo.ArgumentList.Add("windows-toolchain");
+        ProcessStartInfo startInfo = ToolchainProcess.CreateStartInfo(ToolchainTool.Build, ["windows-toolchain"],
+            Environment.CurrentDirectory);
         foreach (string argument in arguments)
             startInfo.ArgumentList.Add(argument);
-        startInfo.Environment["PYTHONUTF8"] = "1";
-        startInfo.Environment["PYTHONIOENCODING"] = "utf-8";
-        token.ThrowIfCancellationRequested();
-        using Process process = new() { StartInfo = startInfo };
-        process.Start();
-        Task<string> output = process.StandardOutput.ReadToEndAsync();
-        Task<string> error = process.StandardError.ReadToEndAsync();
-        using CancellationTokenRegistration registration = token.Register(() =>
-        {
-            try
-            {
-                if (!process.HasExited)
-                    process.Kill(true);
-            }
-            catch (Exception exception) when (exception is Win32Exception or InvalidOperationException)
-            {
-            }
-        });
-        await process.WaitForExitAsync();
-        string outputText = await output;
-        string errorText = await error;
-        token.ThrowIfCancellationRequested();
-        if (process.ExitCode != 0)
+        ToolProcessResult result = await ToolProcessRunner.CaptureAsync(startInfo, token);
+        string outputText = result.StandardOutput;
+        string errorText = result.StandardError;
+        if (result.ExitCode != 0)
             throw new IOException(errorText.Trim());
         using JsonDocument document = JsonDocument.Parse(outputText);
         return document.RootElement.Clone();

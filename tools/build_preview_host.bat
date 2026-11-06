@@ -15,9 +15,7 @@ if not exist "%TOOLCHAIN_DIRECTORY%" (
     echo Toolchain was not found. Prepare the editor tools first.
     exit /b 20
 )
-"%TOOLCHAIN_DIRECTORY%\ludork-build.exe" windows-native-build "%PROJECT_DIR%" "%CONFIG%" --target PreviewHost --tools-directory "%TOOLS_DIR%"
-if errorlevel 1 exit /b %errorlevel%
-"%TOOLCHAIN_DIRECTORY%\ludork-build.exe" preview validate "%PROJECT_DIR%"
+"%TOOLCHAIN_DIRECTORY%\ludork-build.exe" native-build "%PROJECT_DIR%" "%CONFIG%" --target PreviewHost --tools-directory "%TOOLS_DIR%"
 exit /b %errorlevel%
 
 :usage

@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 from dataclasses import dataclass
+from . import tool_process
 from .pack_error import PackError
 from .packaging_constants import (
     EXIT_DEVICE,
@@ -23,7 +24,7 @@ def run_capture(
     timeout: int | None = None,
 ) -> subprocess.CompletedProcess[str]:
     try:
-        return subprocess.run(
+        return tool_process.run(
             command,
             check=False,
             stdout=subprocess.PIPE,
@@ -46,28 +47,15 @@ def run_streaming(
 ) -> None:
     print("> " + " ".join(command), flush=True)
     try:
-        process = subprocess.Popen(
-            command,
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            env=environment,
-            cwd=cwd,
-            bufsize=1,
+        result = tool_process.run(
+            command, stdin=subprocess.DEVNULL, stderr=subprocess.STDOUT,
+            text=True, encoding="utf-8", errors="replace", env=environment, cwd=cwd,
+            on_stdout=lambda line: print(line, end="", flush=True),
         )
     except OSError as exception:
         raise PackError(str(exception)) from exception
-    if process.stdout is not None:
-        for line in process.stdout:
-            print(line, end="", flush=True)
-    return_code = process.wait()
-    if return_code != 0:
-        raise PackError(
-            f"Command failed with exit code {return_code}: {command[0]}"
-        )
+    if result.returncode != 0:
+        raise PackError(f"Command failed with exit code {result.returncode}: {command[0]}")
 
 
 def valid_developer_dir(path: pathlib.Path) -> bool:

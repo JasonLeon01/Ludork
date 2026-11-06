@@ -15,7 +15,8 @@ from .configure_project_template import main as configure_project_template
 from .editor_versions import read_editor_versions
 from .file_replace import remove_tree
 from .pack_error import PackError
-from .package_process import cancellation_signals, run
+from .package_process import run
+from .tool_process import cancellation_signals
 from .packaging_constants import (
     CPP_TEMPLATE_NAMES,
     EDITOR_CACHE_DIRECTORY,

@@ -6,6 +6,7 @@ import pathlib
 import sys
 
 from .editor_versions import read_editor_versions
+from .generated_files import write_if_different
 from .pack_error import PackError
 from .packaging_metadata import load_release_version
 
@@ -25,10 +26,7 @@ def write_csharp(config: pathlib.Path, output: pathlib.Path,
         f"[assembly: System.Reflection.AssemblyMetadata({json.dumps(key)}, {json.dumps(value)})]"
         for key, value in values.items()
     ) + "\n"
-    data = text.encode("utf-8")
-    if not output.is_file() or output.read_bytes() != data:
-        output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_bytes(data)
+    write_if_different(output, text.encode("utf-8"))
 
 
 def validate_payload(root: pathlib.Path, build_info: pathlib.Path,

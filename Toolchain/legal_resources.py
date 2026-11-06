@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 import pathlib
 
+from .generated_files import write_if_different
+
 
 def copy_markdown(
     source: pathlib.Path,
@@ -14,10 +16,7 @@ def copy_markdown(
     text = source.read_bytes().decode("utf-8")
     for original, relocated in links.items():
         text = text.replace(f"]({original})", f"]({relocated})")
-    content = text.encode("utf-8")
-    if not target.is_file() or target.read_bytes() != content:
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(content)
+    write_if_different(target, text.encode("utf-8"))
 
 
 def copy_resources(source_root: pathlib.Path, output_root: pathlib.Path, mode: str) -> None:

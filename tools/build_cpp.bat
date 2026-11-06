@@ -25,7 +25,7 @@ if not exist "%TOOLCHAIN_DIRECTORY%" (
     echo Toolchain was not found. Prepare the editor tools first.
     exit /b 20
 )
-"%TOOLCHAIN_DIRECTORY%\ludork-build.exe" windows-native-build "%CPP_DIR%" "%CONFIG%" --tools-directory "%TOOLS_DIR%" --luac-cache-file "%TOOLS_DIR%\..\.tools\Lua\luac.exe"
+"%TOOLCHAIN_DIRECTORY%\ludork-build.exe" native-build "%CPP_DIR%" "%CONFIG%" --tools-directory "%TOOLS_DIR%" --luac-cache-file "%TOOLS_DIR%\..\.tools\Lua\luac.exe"
 exit /b %errorlevel%
 
 :usage

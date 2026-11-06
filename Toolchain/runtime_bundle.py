@@ -5,10 +5,10 @@ import hashlib
 import json
 import os
 import pathlib
-import subprocess
 import sys
 import tempfile
 
+from . import tool_process
 from .cli.catalogue import COMMANDS
 from .tool_paths import TOOL_ROLES, executable_name
 
@@ -33,7 +33,7 @@ def smoke_bundle(directory: pathlib.Path, working_directory: pathlib.Path) -> No
                 else:
                     probes.append(([command, "--help"], ""))
             for arguments, expected in probes:
-                result = subprocess.run(
+                result = tool_process.run(
                     [str(directory / executable_name(role)), *arguments],
                     cwd=temporary, env=environment, capture_output=True, text=True, check=False,
                 )

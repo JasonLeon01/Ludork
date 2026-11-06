@@ -534,29 +534,9 @@ public sealed partial class ProjectRunnerService : IDisposable
 
     private async Task<int> runProcessAsync(ProcessStartInfo startInfo, CancellationToken cancellationToken)
     {
-        using Process process = createProcess(startInfo);
-        cancellationToken.ThrowIfCancellationRequested();
-        if (!process.Start())
-            throw new InvalidOperationException(startInfo.FileName);
-        setActiveProcess(process);
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
-
-        try
-        {
-            await process.WaitForExitAsync(cancellationToken);
-            process.WaitForExit();
-            return process.ExitCode;
-        }
-        catch (OperationCanceledException)
-        {
-            stopProcess(process);
-            throw;
-        }
-        finally
-        {
-            clearActiveProcess(process);
-        }
+        ToolProcessResult result = await ToolProcessRunner.StreamAsync(
+            startInfo, null, writeOutput, writeOutput, cancellationToken, setActiveProcess, clearActiveProcess);
+        return result.ExitCode;
     }
 
     private async Task<GameProcessResult> runGameProcessAsync(

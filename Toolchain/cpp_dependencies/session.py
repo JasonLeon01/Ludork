@@ -11,6 +11,8 @@ import threading
 from collections.abc import Iterator
 from concurrent.futures import CancelledError
 
+from ..tool_process import run
+
 
 class PreparationSession:
     def __init__(self) -> None:
@@ -22,47 +24,11 @@ class PreparationSession:
 
     def run(self, command: list[str] | str, *, cwd: pathlib.Path | None = None,
             environment: dict[str, str] | None = None) -> None:
-        self.check()
-        with subprocess.Popen(command, cwd=cwd, env=environment, stdin=subprocess.DEVNULL,
-                              start_new_session=os.name != "nt",
-                              creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0) as process:
-            try:
-                while True:
-                    self.check()
-                    try:
-                        code = process.wait(timeout=0.2)
-                        break
-                    except subprocess.TimeoutExpired:
-                        pass
-                if code:
-                    raise RuntimeError(f"Command failed with exit code {code}: {command[0] if isinstance(command, list) else command}")
-            except BaseException:
-                self._stop(process)
-                raise
-
-    @staticmethod
-    def _stop(process: subprocess.Popen) -> None:
-        if process.poll() is not None:
-            return
-        if os.name == "nt":
-            subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
-        else:
-            try:
-                os.killpg(process.pid, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
-        try:
-            process.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            if os.name != "nt":
-                try:
-                    os.killpg(process.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
-            else:
-                process.kill()
-            process.wait()
+        result = run(command, cwd=cwd, env=environment, stdin=subprocess.DEVNULL,
+                     cancel_check=self.check)
+        if result.returncode:
+            program = command[0] if isinstance(command, list) else command
+            raise RuntimeError(f"Command failed with exit code {result.returncode}: {program}")
 
     @contextlib.contextmanager
     def signals(self) -> Iterator[None]:

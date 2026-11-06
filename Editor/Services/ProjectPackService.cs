@@ -607,10 +607,6 @@ public sealed class ProjectPackService
             signing,
             packaging,
             options);
-        using Process process = createProcess(startInfo);
-        bool started = false;
-        Task outputTask = Task.CompletedTask;
-        Task errorTask = Task.CompletedTask;
         string optionText = options.Kind == ProjectPackKind.Standalone ? string.Empty : " --version " + options.Version
             + (options.Dev ? " --dev" : " --release")
             + (options.UseLuac ? " --compile-lua" : string.Empty)
@@ -633,26 +629,20 @@ public sealed class ProjectPackService
 
         try
         {
-            if (!process.Start())
-                return ScriptExecutionResult.LaunchFailed(startInfo.FileName);
-            started = true;
-            process.StandardInput.NewLine = "\n";
-            foreach (string secret in signing.Secrets())
-            {
-                await process.StandardInput.WriteLineAsync(secret).ConfigureAwait(false);
-            }
-            await process.StandardInput.FlushAsync(cancellationToken).ConfigureAwait(false);
-            process.StandardInput.Close();
-            outputTask = readOutputAsync(process.StandardOutput, signing, options.Server);
-            errorTask = readOutputAsync(process.StandardError, signing, options.Server);
-            await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
-            await Task.WhenAll(outputTask, errorTask).ConfigureAwait(false);
-            return ScriptExecutionResult.Exited(process.ExitCode);
+            ToolProcessResult result = await ToolProcessRunner.StreamAsync(
+                startInfo,
+                async (writer, token) =>
+                {
+                    foreach (string secret in signing.Secrets())
+                        await writer.WriteLineAsync(secret.AsMemory(), token).ConfigureAwait(false);
+                },
+                line => writeOutput(redactSensitiveValues(line, signing, options.Server)),
+                line => writeOutput(redactSensitiveValues(line, signing, options.Server)),
+                cancellationToken).ConfigureAwait(false);
+            return ScriptExecutionResult.Exited(result.ExitCode);
         }
         catch (OperationCanceledException)
         {
-            stopProcess(process);
-            await Task.WhenAll(outputTask, errorTask).ConfigureAwait(false);
             return ScriptExecutionResult.CancelledResult();
         }
         catch (Win32Exception exception)
@@ -667,17 +657,8 @@ public sealed class ProjectPackService
         }
         catch (IOException exception)
         {
-            stopProcess(process);
             return ScriptExecutionResult.LaunchFailed(
                 redactSensitiveValues(exception.Message, signing, options.Server));
-        }
-        finally
-        {
-            if (started)
-            {
-                stopProcess(process);
-                await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
-            }
         }
     }
 
@@ -687,37 +668,16 @@ public sealed class ProjectPackService
         string detail = string.Empty;
         if (tool is not null)
         {
-            ProcessStartInfo startInfo = new()
-            {
-                FileName = tool,
-                WorkingDirectory = Path.GetDirectoryName(tool)!,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                StandardOutputEncoding = utf8,
-                StandardErrorEncoding = utf8,
-            };
-            startInfo.ArgumentList.Add("server-config");
-            startInfo.ArgumentList.Add("cleanup");
-            startInfo.ArgumentList.Add(projectPath);
-            startInfo.Environment["PYTHONUTF8"] = "1";
-            startInfo.Environment["PYTHONIOENCODING"] = "utf-8";
-            LudorkServerConfiguration.ApplyPackEnvironment(startInfo, LudorkServerSettings.Disabled);
             try
             {
-                using Process process = createProcess(startInfo);
-                if (process.Start())
-                {
-                    Task<string> output = process.StandardOutput.ReadToEndAsync(CancellationToken.None);
-                    Task<string> error = process.StandardError.ReadToEndAsync(CancellationToken.None);
-                    await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
-                    string outputText = (await output.ConfigureAwait(false)).Trim();
-                    string errorText = (await error.ConfigureAwait(false)).Trim();
-                    if (process.ExitCode == 0)
-                        return null;
-                    detail = errorText.Length != 0 ? errorText : outputText;
-                }
+                ProcessStartInfo startInfo = ToolchainProcess.CreateStartInfo(
+                    ToolchainTool.Pack, ["server-config", "cleanup", projectPath]);
+                LudorkServerConfiguration.ApplyPackEnvironment(startInfo, LudorkServerSettings.Disabled);
+                ToolProcessResult result = await ToolProcessRunner.CaptureAsync(startInfo, CancellationToken.None).ConfigureAwait(false);
+                if (result.ExitCode == 0)
+                    return null;
+                string errorText = result.StandardError.Trim();
+                detail = errorText.Length != 0 ? errorText : result.StandardOutput.Trim();
             }
             catch (Exception exception) when (exception is Win32Exception or IOException or InvalidOperationException)
             {
@@ -1005,38 +965,6 @@ public sealed class ProjectPackService
             HarmonyGraphicsApi.OpenGLES => "opengl-es",
             _ => throw new ArgumentOutOfRangeException(nameof(graphicsApi)),
         };
-
-    private static Process createProcess(ProcessStartInfo startInfo)
-    {
-        return new Process
-        {
-            StartInfo = startInfo,
-        };
-    }
-
-    private static void stopProcess(Process process)
-    {
-        try
-        {
-            if (!process.HasExited)
-                process.Kill(true);
-        }
-        catch (InvalidOperationException)
-        {
-        }
-        catch (Win32Exception)
-        {
-        }
-    }
-
-    private async Task readOutputAsync(
-        StreamReader reader,
-        PackSigning signing,
-        LudorkServerSettings server)
-    {
-        while (await reader.ReadLineAsync().ConfigureAwait(false) is { } line)
-            writeOutput(redactSensitiveValues(line, signing, server));
-    }
 
     private static string redactSensitiveValues(string text, PackSigning signing, LudorkServerSettings server)
     {

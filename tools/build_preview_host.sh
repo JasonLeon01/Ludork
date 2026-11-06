@@ -17,14 +17,5 @@ if [ ! -f "$CPP_DIR/CMakeLists.txt" ]; then
     exit 1
 fi
 TOOLCHAIN_DIRECTORY=$(resolve_toolchain_directory)
-CMAKE_BIN=$(find_cmake)
-BUILD_JOBS=$(resolve_parallel_jobs)
-set -- -S "$CPP_DIR" -B "$CPP_DIR/build" -DCMAKE_BUILD_TYPE="$CONFIG" \
-    -DLUDORK_TOOLCHAIN_DIRECTORY="$TOOLCHAIN_DIRECTORY" -DLUDORK_BUILD_PREVIEW_HOST=ON
-if [ "$(uname -s)" = Darwin ]; then
-    set -- "$@" -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=13.3
-fi
-"$CMAKE_BIN" "$@"
-"$CMAKE_BIN" --build "$CPP_DIR/build" --config "$CONFIG" \
-    --target PreviewHost --parallel "$BUILD_JOBS"
-"$TOOLCHAIN_DIRECTORY/ludork-build" preview validate "$CPP_DIR"
+exec "$TOOLCHAIN_DIRECTORY/ludork-build" native-build "$CPP_DIR" "$CONFIG" \
+    --target PreviewHost --tools-directory "$TOOLS_DIR"

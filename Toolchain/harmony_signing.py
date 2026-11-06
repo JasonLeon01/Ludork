@@ -13,6 +13,7 @@ import time
 from dataclasses import dataclass
 from typing import TextIO
 
+from . import tool_process
 from .pack_error import PackError
 from .packaging_constants import EXIT_SIGNING, EXIT_TOOLCHAIN
 
@@ -101,7 +102,7 @@ def run_signing_tool(
     timeout: float = 30.0,
 ) -> subprocess.CompletedProcess[str]:
     try:
-        result = subprocess.run(
+        result = tool_process.run(
             command, cwd=directory, input=input_text, env=environment,
             capture_output=True, encoding="utf-8", errors="replace", timeout=timeout, check=False,
         )

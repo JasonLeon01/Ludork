@@ -15,6 +15,7 @@ import unicodedata
 import zipfile
 from dataclasses import dataclass, replace
 
+from . import tool_process
 from . import server_config
 from .fetchcontent_cache import cached_dependency_sources
 from .material_assets import MaterialAssetError, validate_generated as validate_materials
@@ -328,7 +329,7 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
 
 def read_device_type(tools: DevEcoTools, identifier: str) -> str:
     try:
-        result = subprocess.run(
+        result = tool_process.run(
             [
                 str(tools.hdc),
                 "-t",
@@ -360,7 +361,7 @@ def read_device_type(tools: DevEcoTools, identifier: str) -> str:
 
 def connected_harmony_devices(tools: DevEcoTools) -> list[HarmonyDevice]:
     try:
-        result = subprocess.run(
+        result = tool_process.run(
             [str(tools.hdc), "list", "targets", "-v"],
             check=False,
             capture_output=True,
@@ -424,7 +425,7 @@ def select_harmony_device(tools: DevEcoTools, device_form: str) -> HarmonyDevice
 
 def read_device_udid(tools: DevEcoTools, device: HarmonyDevice) -> HarmonyDevice:
     try:
-        result = subprocess.run(
+        result = tool_process.run(
             [str(tools.hdc), "-t", device.identifier, "shell", "bm", "get", "-u"],
             check=False,
             capture_output=True,
@@ -709,7 +710,7 @@ def create_app_icon(context: PackContext, stage_dir: pathlib.Path) -> None:
     icns = system_assets / "icon.icns"
     sips = shutil.which("sips")
     if icns.is_file() and sips is not None:
-        result = subprocess.run(
+        result = tool_process.run(
             [sips, "-s", "format", "png", "-z", "512", "512", str(icns), "--out", str(destination)],
             check=False,
         )
@@ -759,7 +760,7 @@ def read_json5(
         "process.stdout.write(JSON.stringify(value));"
     )
     try:
-        result = subprocess.run(
+        result = tool_process.run(
             [
                 str(tools.node_home / "bin" / "node"),
                 "-e",
@@ -1207,7 +1208,7 @@ def validate_native_build_contract(context: PackContext) -> None:
         context.tools.sdk_home / "default" / "openharmony" / "native"
     )
     try:
-        macros = subprocess.run(
+        macros = tool_process.run(
             [
                 str(native_sdk / "llvm" / "bin" / "clang"),
                 target_argument,
@@ -1246,7 +1247,7 @@ def hap_native_dependencies(
                 with archive.open("libs/arm64-v8a/libentry.so") as source:
                     with library.open("wb") as destination:
                         shutil.copyfileobj(source, destination)
-            result = subprocess.run(
+            result = tool_process.run(
                 [str(context.tools.readobj), "--needed-libs", str(library)],
                 check=False,
                 capture_output=True,
@@ -1343,7 +1344,7 @@ def build_hap(context: PackContext) -> pathlib.Path:
     )
     unsigned_hap = output_dir / "entry-default-unsigned.hap"
     native_log_baseline = native_build_log_states(context.stage_dir)
-    result = subprocess.run(command, cwd=context.stage_dir, env=environment, check=False)
+    result = tool_process.run(command, cwd=context.stage_dir, env=environment, check=False)
     if result.returncode != 0:
         print_native_build_diagnostic(context.stage_dir, native_log_baseline)
         raise PackError(
@@ -1418,7 +1419,7 @@ def harmony_app_is_foreground(
     if timeout <= 0:
         return False
     try:
-        result = subprocess.run(
+        result = tool_process.run(
             [
                 str(context.tools.hdc),
                 "-t",
@@ -1474,7 +1475,7 @@ def wait_for_harmony_app_foreground(context: PackContext, device: HarmonyDevice)
 
 def launch_harmony_app(context: PackContext, device: HarmonyDevice) -> tuple[bool, str]:
     try:
-        launch = subprocess.run(
+        launch = tool_process.run(
             [
                 str(context.tools.hdc),
                 "-t",
@@ -1518,7 +1519,7 @@ def install_and_launch_harmony_hap(
     ensure_harmony_device_connected(context, device)
     print("Installing the signed HAP on the HarmonyOS device.", flush=True)
     try:
-        install = subprocess.run(
+        install = tool_process.run(
             [str(context.tools.hdc), "-t", device.identifier, "install", "-r", str(hap)],
             check=False,
             capture_output=True,

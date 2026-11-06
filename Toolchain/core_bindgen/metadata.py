@@ -5,7 +5,6 @@ import ast
 import json
 import math
 import re
-from pathlib import Path
 
 from Toolchain.lua_syntax.constants import LUA_RESERVED_WORDS
 
@@ -1162,15 +1161,3 @@ def generate_metadata(
         output.append("    },")
     output.extend(["}", "", "return _METADATA", ""])
     return "\n".join(output)
-
-
-def write_metadata(path: Path, contents: str) -> None:
-    data = contents.encode("utf-8")
-    if path.exists():
-        existing = path.read_bytes()
-        if not existing.removeprefix(b"\xef\xbb\xbf").startswith(GENERATED_FILE_MARKER.encode("utf-8")):
-            raise ValueError(f"refusing to overwrite hand-written metadata: {path}")
-        if existing == data:
-            return
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(data)

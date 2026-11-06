@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 
+from Toolchain import tool_process
 from Toolchain.core_bindgen.annotations import parse_header
 from Toolchain.core_bindgen.context import GeneratorContext
 from Toolchain.core_bindgen.scopes import register_headers
@@ -111,17 +112,18 @@ def check(root: Path) -> list[str]:
 
 
 def _staged_snapshot(repository: Path, destination: Path) -> None:
-    paths = subprocess.check_output(
+    paths = tool_process.run(
         ["git", "ls-files", "--cached", "-z", "--", NATIVE_HEADERS.as_posix(), LUA_MODULES.as_posix()],
-        cwd=repository,
-    ).split(b"\0")
+        cwd=repository, stdout=subprocess.PIPE, check=True,
+    ).stdout.split(b"\0")
     for raw in paths:
         if not raw:
             continue
         relative = Path(raw.decode("utf-8"))
         if relative.is_absolute() or ".." in relative.parts:
             raise ValueError(f"Invalid staged path: {relative}")
-        content = subprocess.check_output(["git", "show", ":" + relative.as_posix()], cwd=repository)
+        content = tool_process.run(["git", "show", ":" + relative.as_posix()],
+                                   cwd=repository, stdout=subprocess.PIPE, check=True).stdout
         target = destination / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(content)

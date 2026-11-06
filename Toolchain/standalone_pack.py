@@ -7,12 +7,12 @@ import os
 import pathlib
 import platform
 import shutil
-import signal
 import subprocess
 import sys
 import tempfile
 
 from . import macos_sign, server_config
+from .tool_process import cancellation_signals, run as run_tool
 from .file_replace import remove_tree, replace_path, wait_until_writable
 from .material_assets import MaterialAssetError, validate_generated
 from .pack_error import PackError
@@ -142,42 +142,16 @@ def run_builder(builder: pathlib.Path, project: pathlib.Path, destination: pathl
         command = ["sh", str(builder), str(project), str(destination), "Release"]
     environment["LUDORK_SAVE_AS_LDC"] = "0"
     secrets = [environment.get(name, "") for name in ("LUDORK_SERVER_URL", "LUDORK_SERVER_KEY")]
-    with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                          text=True, errors="replace", env=environment,
-                          start_new_session=os.name != "nt",
-                          creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0) as process:
-        try:
-            for line in process.stdout:
-                for secret in secrets:
-                    if secret:
-                        line = line.replace(secret, "[REDACTED]")
-                print(line, end="", flush=True)
-            if process.wait() != 0:
-                raise PackError("Standalone native build failed. See the build output above.")
-        except BaseException:
-            stop_build(process)
-            raise
+    def write_output(line: str) -> None:
+        for secret in secrets:
+            if secret:
+                line = line.replace(secret, "[REDACTED]")
+        print(line, end="", flush=True)
 
-
-def stop_build(process: subprocess.Popen) -> None:
-    if os.name == "nt":
-        subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
-    else:
-        try:
-            os.killpg(process.pid, signal.SIGTERM)
-        except ProcessLookupError:
-            pass
-    try:
-        process.wait(timeout=10)
-    except subprocess.TimeoutExpired:
-        process.kill()
-        process.wait()
-    if os.name != "nt":
-        try:
-            os.killpg(process.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
+    result = run_tool(command, stderr=subprocess.STDOUT, text=True, errors="replace",
+                      env=environment, on_stdout=write_output)
+    if result.returncode != 0:
+        raise PackError("Standalone native build failed. See the build output above.")
 
 
 def validate_output(destination: pathlib.Path) -> None:
@@ -266,11 +240,9 @@ def pack(parsed: argparse.Namespace) -> None:
 
 def main(arguments: list[str] | None = None) -> int:
     parsed = create_parser().parse_args(arguments)
-    def cancel(signum: int, frame: object) -> None:
-        raise KeyboardInterrupt
-    previous = signal.signal(signal.SIGTERM, cancel)
     try:
-        pack(parsed)
+        with cancellation_signals():
+            pack(parsed)
         return 0
     except KeyboardInterrupt:
         print("Standalone packaging cancelled.", file=sys.stderr, flush=True)
@@ -281,5 +253,3 @@ def main(arguments: list[str] | None = None) -> int:
     except (OSError, ValueError, UiAssetError, MaterialAssetError) as exception:
         print(f"Error: {exception}", file=sys.stderr, flush=True)
         return EXIT_PROJECT
-    finally:
-        signal.signal(signal.SIGTERM, previous)

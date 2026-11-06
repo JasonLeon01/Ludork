@@ -5,8 +5,9 @@ import re
 from pathlib import Path
 
 from Toolchain.enum_modules import check_native_modules, enum_module_paths
+from Toolchain.generated_files import remove_generated_file, write_generated_file, write_if_different
 
-from .constants import CPP_GENERATED_FILE_MARKER
+from .constants import CPP_GENERATED_FILE_MARKER, GENERATED_FILE_MARKER
 from .context import GeneratorContext
 from .scopes import register_headers, binding_identifier, validate_bound_types
 from .callback_codecs import (
@@ -30,29 +31,8 @@ from .stub import generate_stub
 from .metadata import (
     generate_metadata,
     metadata_type_names,
-    write_metadata,
 )
 from .bindings import generate_binding_traits_header, generate_bindings
-
-
-def write_if_different(path: Path, contents: str) -> None:
-    data = contents.encode("utf-8")
-    if path.exists() and path.read_bytes() == data:
-        return
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(data)
-
-
-def write_generated_binding(path: Path, contents: str) -> None:
-    data = contents.encode("utf-8")
-    if path.exists():
-        existing = path.read_bytes()
-        if not existing.removeprefix(b"\xef\xbb\xbf").startswith(CPP_GENERATED_FILE_MARKER.encode("utf-8")):
-            raise ValueError(f"refusing to overwrite hand-written binding: {path}")
-        if existing == data:
-            return
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(data)
 
 
 def read_previous_binding_outputs(
@@ -289,32 +269,30 @@ def main(arguments: list[str] | None = None) -> int:
         binding_output_path(bindings_directory, name) for name in binding_sources
     }
     current_binding_outputs.add(traits_header)
+    binding_marker = CPP_GENERATED_FILE_MARKER.encode("utf-8")
     for name, contents in binding_sources.items():
-        write_generated_binding(binding_output_path(bindings_directory, name), contents)
-    write_generated_binding(
+        write_generated_file(binding_output_path(bindings_directory, name), contents.encode("utf-8"),
+                             marker=binding_marker, description="binding")
+    write_generated_file(
         traits_header,
         generate_binding_traits_header(
             context, all_types,
             [*arguments.include_directory, *[directory for _, directory in registry_entries]],
-        ),
+        ).encode("utf-8"),
+        marker=binding_marker,
+        description="binding",
     )
-    write_metadata(metadata_path, metadata)
+    write_generated_file(metadata_path, metadata.encode("utf-8"),
+                         marker=GENERATED_FILE_MARKER.encode("utf-8"), description="metadata")
     if not arguments.preserve_existing_stub or not arguments.stub.exists():
-        write_if_different(arguments.stub, stub)
-    write_if_different(arguments.metadata_stamp, str(metadata_path) + "\n")
+        write_if_different(arguments.stub, stub.encode("utf-8"))
+    write_if_different(arguments.metadata_stamp, (str(metadata_path) + "\n").encode("utf-8"))
     for previous_path in previous_binding_outputs - current_binding_outputs:
-        if not previous_path.exists():
-            continue
-        contents = previous_path.read_text(encoding="utf-8-sig")
-        if not contents.startswith(CPP_GENERATED_FILE_MARKER):
-            raise ValueError(
-                f"refusing to remove hand-written stale binding: {previous_path}"
-            )
-        previous_path.unlink()
+        remove_generated_file(previous_path, marker=binding_marker, missing_ok=True, description="binding")
     manifest_contents = (
         "\n".join(str(path) for path in sorted(current_binding_outputs, key=lambda path: path.as_posix())) + "\n"
     )
-    write_if_different(bindings_manifest, manifest_contents)
+    write_if_different(bindings_manifest, manifest_contents.encode("utf-8"))
     bindings_stamp.parent.mkdir(parents=True, exist_ok=True)
     bindings_stamp.write_bytes(manifest_contents.encode("utf-8"))
     return 0

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import os
 import pathlib
 import re
 import tempfile
@@ -9,6 +8,12 @@ import tempfile
 from Toolchain.lua_syntax.constants import LUA_RESERVED_WORDS
 
 from .file_replace import copy_file, remove_file, replace_path
+from .generated_files import (
+    GeneratedFileOwnershipError,
+    has_generated_marker,
+    prepare_generated_file,
+    remove_generated_file,
+)
 from .ui_assets import (
     ASSETS_RELATIVE_PATH,
     _asset_key_from_path,
@@ -183,10 +188,6 @@ def _check_path(root: pathlib.Path, relative: pathlib.Path) -> None:
             raise UiAssetError(f"UI generation directory is occupied by a file: {current}")
 
 
-def _generated(data: bytes) -> bool:
-    return data.removeprefix(b"\xef\xbb\xbf").splitlines()[:1] == [GENERATED_MARKER.encode("utf-8")]
-
-
 def _exact_case_path(root: pathlib.Path, relative: pathlib.Path) -> bool:
     current = root
     for part in relative.parts:
@@ -216,7 +217,7 @@ def _output_changes(root: pathlib.Path, outputs: dict[pathlib.Path, bytes]) -> d
             if not target.is_file():
                 raise UiAssetError(f"UI generated file is occupied by a directory: {target}")
             existing = target.read_bytes()
-            if not _generated(existing):
+            if not has_generated_marker(existing, GENERATED_MARKER.encode("utf-8"), exact_line=True):
                 raise UiAssetError(f"UI generated file conflicts with handwritten content: {target}")
             if existing == data and _exact_case_path(root, relative):
                 continue
@@ -234,7 +235,7 @@ def _output_changes(root: pathlib.Path, outputs: dict[pathlib.Path, bytes]) -> d
                 raise UiAssetError(f"UI generation does not follow links: {path}")
             if relative in outputs or not path.is_file() or path.suffix != ".lua":
                 continue
-            if _generated(path.read_bytes()):
+            if has_generated_marker(path.read_bytes(), GENERATED_MARKER.encode("utf-8"), exact_line=True):
                 changes[relative] = None
     return dict(sorted(changes.items(), key=lambda item: item[0].as_posix()))
 
@@ -253,7 +254,7 @@ def _case_directory_moves(root: pathlib.Path, outputs: dict[pathlib.Path, bytes]
             continue
         original = next(path for path in target.parent.iterdir() if path.samefile(target))
         for path in original.rglob("*"):
-            if path.is_file() and not _generated(path.read_bytes()):
+            if path.is_file() and not has_generated_marker(path.read_bytes(), GENERATED_MARKER.encode("utf-8"), exact_line=True):
                 raise UiAssetError(f"UI directory case change conflicts with handwritten content: {path}")
         moves.append((original, target))
     return moves
@@ -279,9 +280,7 @@ def _install(
                 backups[relative] = backup
             if data is not None:
                 output = staging / f"{index}.new"
-                output.write_bytes(data)
-                if target.exists():
-                    os.chmod(output, target.stat().st_mode)
+                prepare_generated_file(output, data, mode_from=target)
                 prepared[relative] = output
         try:
             for original, target in directory_moves:
@@ -290,7 +289,7 @@ def _install(
             for relative, data in sorted(changes.items(), key=lambda item: (item[1] is not None, item[0].as_posix())):
                 target = root / relative
                 if data is None:
-                    remove_file(target)
+                    remove_generated_file(target, marker=GENERATED_MARKER.encode("utf-8"), exact_line=True)
                 else:
                     missing: list[pathlib.Path] = []
                     parent = target.parent
@@ -302,7 +301,7 @@ def _install(
                         created_directories.append(directory)
                     replace_path(prepared[relative], target)
                 installed.append(relative)
-        except OSError as exception:
+        except (OSError, GeneratedFileOwnershipError) as exception:
             failures: list[str] = []
             for relative in reversed(installed):
                 try:

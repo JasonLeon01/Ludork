@@ -49,7 +49,7 @@ if "%USE_CURRENT_BUILD%"=="1" (
 ) else (
     call "%TOOLS_DIR%\build_cpp.bat" "%CPP_DIR%" "%CONFIG%"
     if errorlevel 1 exit /b 1
-    "%TOOLCHAIN_DIRECTORY%\ludork-build.exe" windows-native-build "%CPP_DIR%" "%CONFIG%" --target LudorkLauncher --tools-directory "%TOOLS_DIR%"
+    "%TOOLCHAIN_DIRECTORY%\ludork-build.exe" native-build "%CPP_DIR%" "%CONFIG%" --target LudorkLauncher --tools-directory "%TOOLS_DIR%"
     if errorlevel 1 exit /b 1
 )
 

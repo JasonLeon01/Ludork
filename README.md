@@ -6,8 +6,6 @@ Ludork is a 2D RPG editor with visual map and data editing, Blueprint graphs, Lu
 
 This editor supports **v1.0 Game Runtime**.
 
-![The Ludork editor workspace](https://jasonleon01.github.io/Ludork/1.0/images/overview/editor-workspace.png)
-
 ## Platforms
 
 | Target | Minimum system |

@@ -8,6 +8,7 @@ import struct
 
 from . import resource_constants as resources
 from . import runtime_formats as formats
+from .generated_files import write_if_different
 
 
 def _header(namespace: str, declarations: list[str]) -> str:
@@ -130,12 +131,8 @@ def generate(project: pathlib.Path, output: pathlib.Path) -> None:
         "LightingConstants.hpp": _header("lighting", [_integer("int", "MaximumShaderLights", lighting_limit)]),
     }
     directory = output / "LudorkGenerated"
-    directory.mkdir(parents=True, exist_ok=True)
     for name, content in files.items():
-        path = directory / name
-        data = content.encode("utf-8")
-        if not path.is_file() or path.read_bytes() != data:
-            path.write_bytes(data)
+        write_if_different(directory / name, content.encode("utf-8"))
 
 
 def main(arguments: list[str] | None = None) -> int:

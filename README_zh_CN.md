@@ -6,8 +6,6 @@ Ludork 是一款 2D RPG 编辑器，集成可视化地图与数据编辑、Bluep
 
 当前编辑器适用于 **v1.0 Game Runtime**。
 
-![Ludork 编辑器工作区](https://jasonleon01.github.io/Ludork/1.0/images/overview/editor-workspace.png)
-
 ## 支持平台
 
 | 目标 | 最低系统要求 |

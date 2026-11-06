@@ -303,6 +303,24 @@ On Windows, bundle backup, publication, rollback and cleanup retry temporary acc
 
 `runtime-versions.txt` records build/dependency versions; `runtime-files.json` records contents and the independent-entrypoint layout. `ludork-build runtime-bundle validate <bundle-directory>` checks the manifest, rejects linked or identical tool entries, and checks macOS dynamic-library paths. The builder rebuilds older bundle formats and rejects conflicting shared files instead of overwriting them. It loads every command before publishing the complete bundle. Windows tool builds use deterministic MSVC compilation, `/Brepro`, disabled incremental linking and Nuitka `--reproducible=yes`; identical outputs require the same paths, sources, dependencies and toolchain. Editor-only and complete-package `luac` builds may differ; these settings do not make whole installers or signed macOS bundles byte-identical.
 
+`Toolchain/generated_files.py` provides byte comparison, single-file replacement, existing-permission preservation and marker-checked deletion. Generators own their encoding, ownership markers and obsolete-output selection; the UI generator also owns batch installation and rollback. See [generated output maintenance](https://jasonleon01.github.io/Ludork/docs/trunk/?lang=en_GB&doc=04%2F07#regeneration) for unchanged-file timestamps and the binding completion stamp.
+
+`Toolchain/tool_process.py` owns child-process execution, captured or streamed output, timeouts, cancellation and process-tree cleanup. It returns the exit code and untrimmed output; `package_process.py` supplies packaging error interpretation. Callers retain JSON parsing, business exit codes, retry decisions and secret redaction. The editor uses `Editor/Services/ToolProcessRunner.cs` for the corresponding one-shot calls; `ProjectStateWorker` retains its persistent JSON Lines request protocol.
+
+### Shared build tasks
+
+Source and installed `build_cpp`/`build_preview_host` wrappers share `native-build`. The editor launcher and host Lua compiler each have a separate repository build command for local and CI use:
+
+| Command | Responsibility |
+|---|---|
+| `ludork-build native-build <project> <Debug\|Release> --tools-directory <tools>` | Configure CMake, build the selected desktop target and check its result; Main builds publish the [native build state](#native-build-state). |
+| `ludork-build editor-launcher --repository-root <repository> --build-directory <build> --version <base-version>` | Build the Windows x64 editor launcher in Release at `<build>/bin/Release/Ludork.exe`. |
+| `ludork-build lua-compiler --repository-root <repository> [--build-directory <build>] [--install-directory <output>]` | Build and install the host Lua compiler in Release from prepared Lua sources. Defaults are `obj/editor-luac` and `.tools/Lua` beneath the repository. |
+
+For `native-build`, `<tools>` is the checkout's `tools` or the installed `BuildTools` directory. `--target` defaults to `Main`; `PreviewHost` builds and validates the preview, and Windows also accepts `LudorkLauncher` for the game-package launcher. `--repository-root` enables the source checkout's complete dependency-cache reuse for Unix Main builds, and `--luac-cache-file` selects where CMake publishes the host Lua compiler. The source `build_cpp` wrapper supplies its repository options; the installed wrapper requires an explicit project. Platform compiler selection and output directories follow the [native build contract](https://jasonleon01.github.io/Ludork/docs/trunk/?lang=en_GB&doc=04%2F01#build-the-project).
+
+Editor packaging calls the same launcher builder unless `--launcher` supplies a prepared executable. CI restores Toolchain before building the launcher and passes that output to packaging. Editor-only preparation runs `lua-compiler` after preparing Lua sources; it does not configure Game. CI continues to own environment setup and artifact handoffs.
+
 ### Native dependency preparation
 
 Run `tools/init_cpp_dependencies.sh <project>` or the Windows `.bat` after building the toolchain. The direct command is `ludork-build dependencies <project> --repository-root <repository>`. It reads `versions.conf` without executing it and prepares all seven source dependencies concurrently. Use repeated `--only` options to select `luasf`, `sfml`, `lua`, `lua_cjson`, `zlib`, `ixwebsocket` or `ffmpeg`; editor-only preparation selects `--only lua`. A successful full Windows invocation also runs the existing GNU Make preparation script; selected-dependency invocations do not.

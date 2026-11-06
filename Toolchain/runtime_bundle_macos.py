@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pathlib
 import posixpath
-import subprocess
 from collections.abc import Iterator
 
+from . import tool_process
 from .tool_paths import TOOL_ROLES, executable_name
 
 
@@ -18,7 +18,7 @@ def _is_system_path(value: str) -> bool:
 
 
 def _load_paths(path: pathlib.Path) -> tuple[list[str], list[str]]:
-    result = subprocess.run(["otool", "-l", str(path)], capture_output=True, text=True, check=False)
+    result = tool_process.run(["otool", "-l", str(path)], capture_output=True, text=True, check=False)
     if result.returncode != 0:
         raise ValueError(f"Cannot inspect runtime bundle dependencies: {path}: {result.stderr}")
     dependencies: list[str] = []

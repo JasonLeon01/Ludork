@@ -3,7 +3,9 @@ from __future__ import annotations
 
 COMMANDS = {
     "build": {
-        "windows-native-build": "windows_native_build",
+        "native-build": "native_build",
+        "editor-launcher": "editor_launcher_build",
+        "lua-compiler": "lua_compiler_build",
         "windows-toolchain": "windows_toolchain",
         "ide-config": "ide_config",
         "native-build-state": "native_build_state",

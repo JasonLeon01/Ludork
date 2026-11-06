@@ -4,6 +4,7 @@ import argparse
 import pathlib
 import plistlib
 
+from .generated_files import write_if_different
 from .packaging_metadata import ReleaseVersion, load_release_version
 
 
@@ -48,9 +49,7 @@ def expectedMetadata(release: ReleaseVersion) -> dict[str, object]:
 
 def generate(buildInfoPath: pathlib.Path, outputPath: pathlib.Path) -> None:
     metadata = expectedMetadata(load_release_version(buildInfoPath))
-    outputPath.parent.mkdir(parents=True, exist_ok=True)
-    with outputPath.open("wb") as stream:
-        plistlib.dump(metadata, stream, sort_keys=True)
+    write_if_different(outputPath, plistlib.dumps(metadata, sort_keys=True))
 
 
 def validate(buildInfoPath: pathlib.Path, plistPath: pathlib.Path) -> None:

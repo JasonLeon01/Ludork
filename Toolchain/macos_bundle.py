@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import tempfile
 
+from . import tool_process
 from .package_contents import copy_package_inputs
 from .packaging_constants import GAME_BUILD_TOOL_FILES
 from .packaging_names import prepare_directory
@@ -97,7 +98,7 @@ def copy_runtime(
 
 
 def executable_rpaths(executable: pathlib.Path) -> set[str]:
-    result = subprocess.run(
+    result = tool_process.run(
         ["otool", "-l", str(executable)],
         check=True,
         capture_output=True,
@@ -131,7 +132,7 @@ def rewrite_executable_rpath(executable: pathlib.Path) -> None:
     if "@loader_path/../Frameworks" not in rpaths:
         command.extend(["-add_rpath", "@loader_path/../Frameworks"])
     command.append(str(executable))
-    subprocess.run(command, check=True)
+    tool_process.run(command, check=True)
     rewritten_rpaths = executable_rpaths(executable)
     if "@loader_path/Binaries" in rewritten_rpaths:
         raise RuntimeError(f"Bundle Main retains the Binaries rpath: {executable}")
@@ -148,11 +149,11 @@ def strip_and_sign_runtime(binaries: list[pathlib.Path]) -> None:
         raise RuntimeError("strip and codesign are required for macOS packaging")
     original_size = sum(binary.stat().st_size for binary in binaries)
     for binary in binaries:
-        subprocess.run([strip, "-x", str(binary)], check=True)
-        subprocess.run(
+        tool_process.run([strip, "-x", str(binary)], check=True)
+        tool_process.run(
             [codesign, "--force", "--sign", "-", str(binary)], check=True
         )
-        subprocess.run(
+        tool_process.run(
             [codesign, "--verify", "--strict", str(binary)], check=True
         )
     packaged_size = sum(binary.stat().st_size for binary in binaries)
@@ -212,7 +213,7 @@ def create_icon(project_dir: pathlib.Path, resources_dir: pathlib.Path) -> None:
                 pixels = size * scale
                 suffix = "@2x" if scale == 2 else ""
                 resized_icon = iconset / f"icon_{size}x{size}{suffix}.png"
-                result = subprocess.run(
+                result = tool_process.run(
                     [sips, "-z", str(pixels), str(pixels), str(png), "--out", str(resized_icon)],
                     check=False,
                     stdout=subprocess.DEVNULL,
@@ -221,7 +222,7 @@ def create_icon(project_dir: pathlib.Path, resources_dir: pathlib.Path) -> None:
                     raise RuntimeError(
                         f"sips failed to generate {resized_icon}: exit code {result.returncode}"
                     )
-        result = subprocess.run(
+        result = tool_process.run(
             [iconutil, "-c", "icns", str(iconset), "-o", str(app_icon)],
             check=False,
         )
