@@ -60,6 +60,8 @@ Assets using `WindowBase` or `WindowSelectable` include the shared `Parts/Shared
 
 After moving an asset or renaming nodes, update handwritten `require` calls and node references, then click **Export**. Alternatively, `ludork-assets ui-assets generate <project-root>` synchronises UI Views and declarations only and removes obsolete generated files. Ordinary Save and Construct do not generate them; export before running or packaging directly from the command line. See [Run, Debug and Package](<../../Editor User Guide/Run Debug and Package.md>) for the full export workflow.
 
+Generation rejects output paths occupied by handwritten Lua or symbolic links and removes only obsolete files carrying its own generation marker. Installation groups changed Views, declarations and case-only directory renames into one batch. An installation error rolls back the changes already applied; any rollback failure is reported with the affected paths. A case-only directory rename also fails when that directory contains handwritten files.
+
 ## Limitations
 
 Every visible screen has one top-level asset. Multi-pane screens nest owner-specific assets from `Parts/<TopLevelName>/`. Nested parts use `palette.exposed = true`, while runtime-only helpers may remain unexposed.
