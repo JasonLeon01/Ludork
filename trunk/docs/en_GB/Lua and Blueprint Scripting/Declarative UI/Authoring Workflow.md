@@ -43,7 +43,9 @@ Scripts/Internal/UI/
 
 Handwritten foundations live under `Scripts/Internal/UIBase`. A window module such as `Scripts/Source/Windows/WindowInventory.lua` contains its private Controller and returns the UI class through `Ui.DefineWindow`. Independent row and Scene Controllers use separate modules, such as `Source.Windows.WindowInventory.ItemRow.Controller` and `Source.Scenes.SceneTitle.Controller`.
 
-The matching window stub declares only the private Controller, using bare `---@meta`. Public window declarations are generated under `Scripts/stub/Internal/UIWindows` and must not be edited by hand. See [Declarative UI Controller Examples](<Controller Examples.md#declare-business-members-once>) for the declaration format.
+The matching window stub declares only the private Controller, using bare `---@meta`. Public window declarations are generated under `Scripts/stub/Internal/UIWindows` and must not be edited by hand. Numeric constants outside the plain decimal forms, such as `1e3` and `0x20`, need an explicit `---@field NAME type` on the Controller declaration. See [Declarative UI Controller Examples](<Controller Examples.md#declare-business-members-once>) for the declaration format.
+
+The declaration generator resolves top-level `local Name = require(...)` imports from string literals and requires one final `return Ui.DefineWindow(...)`. Both quoted and long-bracket strings are decoded according to Lua's string rules; the resulting module name must be valid UTF-8 text. Invalid strings, long comments or numeric literals report the source file, line and column.
 
 ### Create the UI and add its behaviour
 

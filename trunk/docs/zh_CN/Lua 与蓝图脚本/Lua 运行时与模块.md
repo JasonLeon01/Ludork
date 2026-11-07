@@ -31,7 +31,7 @@ local ManagerFunctions = GlobalFunctions.Manager
 
 原生 `GlobalFunctions` 模块暴露 `Components`、`UI`、`NodeGraph` 与 `Manager`。`Scripts/GlobalFunctions` 下的 Lua 蓝图函数库是独立模块，通过 `require("GlobalFunctions.Math")` 等路径加载，不会自动加入原生根表。其他模块一律使用完整点分路径。不要添加目录级的 `init.lua` 聚合模块。除蓝图函数库外，只有为了解决实际的依赖环，或在明确的首次使用入口（例如可选窗口的工厂）处，才延迟 `require`。这类生命周期须由所属场景或功能明确控制；普通依赖仍直接导入。
 
-`Scripts/GlobalFunctions` 的运行时模块不得在模块作用域调用 `require`，包括加载原生模块；依赖在函数首次使用时才解析，蓝图函数库因此可以无环加载。Lua 路径及导出名不得占用 C++ 绑定的同一 `GlobalFunctions` 路径。
+`Scripts/GlobalFunctions` 的运行时模块不得在模块作用域调用 `require`，包括加载原生模块；依赖在函数首次使用时才解析，蓝图函数库因此可以无环加载。Lua 路径及导出名不得占用 C++ 绑定的同一 `GlobalFunctions` 路径。`ludork-check global-functions <repository-root>` 命令检查这些规则，不执行 Lua。字符串、长注释或数字字面量不合法时，命令同样失败，并报告文件、行和列。
 
 静态依赖从根原生模块流向 `Scripts/Global`，再流向 `Scripts/Source`。Global 的实现和声明不得 `require` Source 或引用其类型，也不得通过 `GlobalFunctions` 下依赖项目的 Lua 函数库间接引入 Source。原生根模块 `GlobalFunctions` 仍属于下层 API。`Scripts/Internal` 与 `Scripts/GlobalFunctions` 可以依赖 `Source` 中的项目模块。通用模块可以加载数据中指定的模块名，但不得硬编码更高层的业务模块。共享服务需要项目行为时，由项目启动代码传入回调和类对象，参见 [`Global.Data.InitializeRuntime(options)`](<Game 玩法/运行时数据、配置与存档.md#数据服务>)。
 
