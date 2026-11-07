@@ -6,7 +6,8 @@ import json
 import math
 import re
 
-from Toolchain.lua_syntax.constants import LUA_RESERVED_WORDS
+from Toolchain.lua_syntax.identifiers import lua_key
+from Toolchain.lua_syntax.literals import lua_string
 
 from .constants import GENERATED_FILE_MARKER
 from .context import GeneratorContext
@@ -378,27 +379,6 @@ def metadata_type(
     )
 
 
-def lua_string(value: str) -> str:
-    escapes = {
-        "\\": "\\\\",
-        '"': '\\"',
-        "\b": "\\b",
-        "\f": "\\f",
-        "\n": "\\n",
-        "\r": "\\r",
-        "\t": "\\t",
-    }
-    encoded: list[str] = []
-    for char in value:
-        if char in escapes:
-            encoded.append(escapes[char])
-        elif ord(char) < 32 or ord(char) == 127:
-            encoded.append(f"\\{ord(char):03d}")
-        else:
-            encoded.append(char)
-    return '"' + "".join(encoded) + '"'
-
-
 def raw_string_chunks(
     value: str, delimiter_prefix: str, max_bytes: int = 12000
 ) -> list[str]:
@@ -421,14 +401,6 @@ def raw_string_chunks(
             delimiter += "_"
         output.append(f'R"{delimiter}({chunk}){delimiter}"')
     return output
-
-
-def lua_key(key: str) -> str:
-    return (
-        key
-        if re.fullmatch(r"[A-Za-z_]\w*", key) and key not in LUA_RESERVED_WORDS
-        else f"[{lua_string(key)}]"
-    )
 
 
 def metadata_schema(context: GeneratorContext, value: str, type_modules: dict[str, str]) -> object:

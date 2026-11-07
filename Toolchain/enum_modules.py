@@ -6,7 +6,8 @@ import math
 import re
 from pathlib import Path
 
-from Toolchain.core_bindgen.metadata import lua_key, lua_string
+from Toolchain.lua_syntax.identifiers import lua_key
+from Toolchain.lua_syntax.literals import lua_string
 from Toolchain.generated_files import has_generated_marker, remove_generated_file, write_generated_file
 
 

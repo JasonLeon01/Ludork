@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import hashlib
 import pathlib
-import re
 import tempfile
 
-from Toolchain.lua_syntax.constants import LUA_RESERVED_WORDS
+from Toolchain.lua_syntax.identifiers import is_identifier, lua_key
+from Toolchain.lua_syntax.literals import lua_string
 
 from .file_replace import copy_file, remove_file, replace_path
 from .generated_files import (
@@ -40,31 +40,13 @@ LEGACY_OUTPUT_ROOTS = (
 _TYPE_ESCAPE = "__ui_"
 
 
-def _lua_string(value: str) -> str:
-    escaped: list[str] = []
-    for character in value:
-        if character in {'"', "\\"} or ord(character) < 32 or ord(character) == 127:
-            escaped.append(f"\\{ord(character):03d}")
-        else:
-            escaped.append(character)
-    return '"' + "".join(escaped) + '"'
-
-
-def _identifier(value: str) -> bool:
-    return re.fullmatch(r"[A-Za-z_][A-Za-z_0-9]*", value) is not None and value not in LUA_RESERVED_WORDS
-
-
 def _type_key(asset_key: str) -> str:
     return ".".join(
         part
-        if _identifier(part) and not part.startswith(_TYPE_ESCAPE)
+        if is_identifier(part) and not part.startswith(_TYPE_ESCAPE)
         else _TYPE_ESCAPE + part.encode("utf-8").hex()
         for part in asset_key.split("/")
     )
-
-
-def _field_name(name: str) -> str:
-    return name if _identifier(name) else f"[{_lua_string(name)}]"
 
 
 def _root_type(asset_key: str, assets: dict[str, dict[str, object]]) -> str:
@@ -78,14 +60,14 @@ def _map_lines(name: str, entries: list[tuple[str, str]], record: str) -> list[s
     if len(entries) == 1:
         node_name, expression = entries[0]
         lines = [
-            f"    local {name} = {{ {_field_name(node_name)} = {expression} }}"
+            f"    local {name} = {{ {lua_key(node_name)} = {expression} }}"
         ]
     elif entries:
         lines = [f"    local {name} = {{"]
         for index, (node_name, expression) in enumerate(entries):
             comma = "," if index + 1 < len(entries) else ""
             lines.append(
-                f"        {_field_name(node_name)} = {expression}{comma}"
+                f"        {lua_key(node_name)} = {expression}{comma}"
             )
         lines.append("    }")
     else:
@@ -106,7 +88,7 @@ def _render(asset_key: str, assets: dict[str, dict[str, object]]) -> tuple[str, 
     controls_type = "Internal.UIBase.GeneratedControls." + type_key
     assets_type = "Internal.UIBase.GeneratedAssets." + type_key
     module = "Internal.UI." + asset_key.replace("/", ".")
-    meta = module if all(_identifier(part) for part in module.split(".")) else _lua_string(module)
+    meta = module if all(is_identifier(part) for part in module.split(".")) else lua_string(module)
     controls: list[tuple[str, str]] = []
     nested_assets: list[tuple[str, str]] = []
     for node in sorted(_reference_nodes(value["root"]), key=lambda node: node["name"]):
@@ -119,11 +101,11 @@ def _render(asset_key: str, assets: dict[str, dict[str, object]]) -> tuple[str, 
         for index, key in enumerate(sorted({key for _, key in nested_assets}), start=1)
     }
     control_values = [
-        (name, f"assert(self.instance:requireControl({_lua_string(name)}))")
+        (name, f"assert(self.instance:requireControl({lua_string(name)}))")
         for name, _ in controls
     ]
     asset_values = [
-        (name, f"self:own({child_modules[key]}.new(assert(self.instance:requireAsset({_lua_string(name)}))))")
+        (name, f"self:own({child_modules[key]}.new(assert(self.instance:requireAsset({lua_string(name)}))))")
         for name, key in nested_assets
     ]
     design_size = value["designSize"]
@@ -131,14 +113,14 @@ def _render(asset_key: str, assets: dict[str, dict[str, object]]) -> tuple[str, 
         GENERATED_MARKER,
         'local UiView = require("Internal.UIBase.UiView")',
         *[
-            f"local {alias} = require({_lua_string('Internal.UI.' + key.replace('/', '.'))})"
+            f"local {alias} = require({lua_string('Internal.UI.' + key.replace('/', '.'))})"
             for key, alias in child_modules.items()
         ],
         "",
         f"---@class {view_type}",
         "local View = {}",
         "",
-        f"View.assetKey = {_lua_string(asset_key)}",
+        f"View.assetKey = {lua_string(asset_key)}",
         f"View.designSize = sf.Vector2f.new({design_size['width']}, {design_size['height']})",
         "",
         "function View:init(instance)",
@@ -155,10 +137,10 @@ def _render(asset_key: str, assets: dict[str, dict[str, object]]) -> tuple[str, 
         "---@meta " + meta,
         "",
         f"---@class {controls_type}",
-        *_field_lines([(_field_name(name), type_name) for name, type_name in controls]),
+        *_field_lines([(lua_key(name), type_name) for name, type_name in controls]),
         "",
         f"---@class {assets_type}",
-        *_field_lines([(_field_name(name), "Internal.UI." + _type_key(key)) for name, key in nested_assets]),
+        *_field_lines([(lua_key(name), "Internal.UI." + _type_key(key)) for name, key in nested_assets]),
         "",
         f"---@class {view_type}: Internal.UIBase.UiView",
         *_field_lines([

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
-import re
 import subprocess
 import sys
 import tempfile
@@ -11,12 +10,14 @@ from Toolchain import tool_process
 from Toolchain.core_bindgen.annotations import parse_header
 from Toolchain.core_bindgen.context import GeneratorContext
 from Toolchain.core_bindgen.scopes import register_headers
-from Toolchain.ui_window_generation import _tokens
+from Toolchain.lua_syntax.identifiers import is_identifier
+from Toolchain.lua_syntax.lexer import tokenize
+from Toolchain.lua_syntax.lua_token import LuaToken
+from Toolchain.lua_syntax.syntax_error import LuaSyntaxError
 
 
 NATIVE_HEADERS = Path("Game/Engine/Source/GlobalFunctions/include")
 LUA_MODULES = Path("Game/Scripts/GlobalFunctions")
-IDENTIFIER = re.compile(r"[A-Za-z_]\w*\Z")
 
 
 def _native_exports(root: Path) -> dict[tuple[str, ...], Path]:
@@ -39,19 +40,18 @@ def _native_exports(root: Path) -> dict[tuple[str, ...], Path]:
     return exports
 
 
-def _module_scope_requires(path: Path, content: str) -> list[int]:
-    tokens = _tokens(path, content)
+def _module_scope_requires(tokens: list[LuaToken]) -> list[int]:
     blocks: list[str] = []
     pending_do = 0
     positions: list[int] = []
     for index, token in enumerate(tokens):
-        if token.string:
+        if token.kind == "string":
             continue
-        value = token.value
+        value = token.lexeme
         if value == "require" and "function" not in blocks:
-            previous = tokens[index - 1].value if index else ""
+            previous = tokens[index - 1].lexeme if index else ""
             if previous not in {".", ":"}:
-                positions.append(content.count("\n", 0, token.position) + 1)
+                positions.append(token.line)
         if value in {"function", "if", "for", "while", "repeat"}:
             blocks.append(value)
             if value in {"for", "while"}:
@@ -68,21 +68,20 @@ def _module_scope_requires(path: Path, content: str) -> list[int]:
     return positions
 
 
-def _lua_exports(path: Path, content: str, module: tuple[str, ...]) -> set[tuple[str, ...]]:
-    tokens = _tokens(path, content)
+def _lua_exports(tokens: list[LuaToken], module: tuple[str, ...]) -> set[tuple[str, ...]]:
     owner = module[-1]
     result = {module}
     for index in range(len(tokens) - 3):
-        if (tokens[index].value == "function" and not tokens[index].string
-                and tokens[index + 1].value == owner
-                and tokens[index + 2].value == "."
-                and IDENTIFIER.fullmatch(tokens[index + 3].value)):
-            result.add((*module, tokens[index + 3].value))
-        if (tokens[index].value == owner and not tokens[index].string
-                and tokens[index + 1].value == "."
-                and IDENTIFIER.fullmatch(tokens[index + 2].value)
-                and tokens[index + 3].value == "="):
-            result.add((*module, tokens[index + 2].value))
+        if (tokens[index].lexeme == "function"
+                and tokens[index + 1].lexeme == owner
+                and tokens[index + 2].lexeme == "."
+                and tokens[index + 3].kind == "name"):
+            result.add((*module, tokens[index + 3].lexeme))
+        if (tokens[index].lexeme == owner
+                and tokens[index + 1].lexeme == "."
+                and tokens[index + 2].kind == "name"
+                and tokens[index + 3].lexeme == "="):
+            result.add((*module, tokens[index + 2].lexeme))
     return result
 
 
@@ -94,13 +93,19 @@ def check(root: Path) -> list[str]:
             continue
         relative = path.relative_to(root)
         module = path.relative_to(root / LUA_MODULES).with_suffix("").parts
-        if any(IDENTIFIER.fullmatch(part) is None for part in module):
+        if any(not is_identifier(part) for part in module):
             messages.append(f"{relative}: module path contains an invalid Lua identifier")
             continue
-        content = path.read_text(encoding="utf-8")
-        for line in _module_scope_requires(path, content):
+        with path.open(encoding="utf-8", newline="") as script:
+            content = script.read()
+        try:
+            tokens = tokenize(content)
+        except LuaSyntaxError as error:
+            messages.append(f"{relative}:{error}")
+            continue
+        for line in _module_scope_requires(tokens):
             messages.append(f"{relative}:{line}: require at module scope is forbidden")
-        for export in sorted(_lua_exports(path, content, module)):
+        for export in sorted(_lua_exports(tokens, module)):
             native_source = native.get(export)
             if native_source is not None:
                 name = "GlobalFunctions." + ".".join(export)

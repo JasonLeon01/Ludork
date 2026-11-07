@@ -4,25 +4,24 @@ import pathlib
 import re
 from dataclasses import dataclass
 
+from .lua_syntax.constants import LUA_NAME_PATTERN
+from .lua_syntax.identifiers import is_identifier
+from .lua_syntax.lexer import tokenize
+from .lua_syntax.literals import NEWLINE
+from .lua_syntax.lua_token import LuaToken
+from .lua_syntax.syntax_error import LuaSyntaxError
 from .ui_assets import _is_link
 from .ui_property_values import UiAssetError
 
 
 OUTPUT_ROOT = pathlib.Path("Scripts/stub/Internal/UIWindows")
-_NAME = r"[A-Za-z_]\w*"
+_NAME = LUA_NAME_PATTERN.pattern
 _METHOD = re.compile(
     rf"(?P<docs>(?:^[ \t]*---[^\n]*\n)*)"
     rf"^[ \t]*(?P<definition>function)[ \t]+(?P<owner>{_NAME})(?P<separator>[:.])"
     rf"(?P<name>{_NAME})\s*\((?P<arguments>[^)]*)\)",
     re.MULTILINE,
 )
-
-
-@dataclass(frozen=True)
-class Token:
-    value: str
-    position: int
-    string: bool = False
 
 
 @dataclass(frozen=True)
@@ -33,114 +32,82 @@ class Method:
     docs: str
 
 
-def _error(path: pathlib.Path, text: str, position: int, message: str) -> UiAssetError:
-    return UiAssetError(f"{path}:{text.count(chr(10), 0, position) + 1}: {message}")
+def _error(path: pathlib.Path, token: LuaToken, message: str) -> UiAssetError:
+    return UiAssetError(f"{path}:{token.line}:{token.column}: {message}")
 
 
-def _tokens(path: pathlib.Path, text: str) -> list[Token]:
-    result: list[Token] = []
-    position = 0
-    while position < len(text):
-        if text[position].isspace():
-            position += 1
-            continue
-        start = position
-        comment = text.startswith("--", position)
-        if comment:
-            position += 2
-        long_open = re.match(r"\[(=*)\[", text[position:])
-        if long_open:
-            closing = "]" + long_open[1] + "]"
-            content = position + len(long_open[0])
-            end = text.find(closing, content)
-            if end < 0:
-                raise _error(path, text, start, "Unterminated Lua long string or comment")
-            if not comment:
-                result.append(Token(text[content:end], start, True))
-            position = end + len(closing)
-        elif comment:
-            end = text.find("\n", position)
-            position = len(text) if end < 0 else end + 1
-        elif text[position] in {'"', "'"}:
-            quote = text[position]
-            position += 1
-            content = position
-            while position < len(text) and text[position] != quote:
-                position += 2 if text[position] == "\\" else 1
-            if position >= len(text):
-                raise _error(path, text, start, "Unterminated Lua string")
-            result.append(Token(text[content:position], start, True))
-            position += 1
-        else:
-            name = re.match(r"[A-Za-z_]\w*|\d+(?:\.\d+)?|\.\.\.", text[position:])
-            value = name[0] if name else text[position]
-            result.append(Token(value, position))
-            position += len(value)
-    return result
+def _read_source(path: pathlib.Path) -> str:
+    with path.open(encoding="utf-8", newline="") as source:
+        return NEWLINE.sub("\n", source.read())
 
 
-def _references(tokens: list[Token]) -> dict[str, str]:
+def _references(path: pathlib.Path, tokens: list[LuaToken]) -> dict[str, str]:
     references: dict[str, str] = {}
     depth = 0
     for index in range(len(tokens) - 3):
         token = tokens[index]
-        if not token.string:
-            if token.value in {"end", "until", "elseif"}:
+        if token.kind != "string":
+            if token.lexeme in {"end", "until", "elseif"}:
                 depth -= 1
-            elif token.value in {"function", "then", "do", "repeat"}:
+            elif token.lexeme in {"function", "then", "do", "repeat"}:
                 depth += 1
         if depth != 0:
             continue
-        if tokens[index].value != "local" or tokens[index + 2].value != "=":
+        if tokens[index].lexeme != "local" or tokens[index + 2].lexeme != "=":
             continue
-        name = tokens[index + 1].value
+        name = tokens[index + 1].lexeme
         position = index + 3
-        if tokens[position].value == "require":
+        if tokens[position].lexeme == "require":
             position += 1
             if position >= len(tokens):
                 continue
-            if tokens[position].value == "(":
+            if tokens[position].lexeme == "(":
                 position += 1
-            if position < len(tokens) and tokens[position].string:
-                references[name] = tokens[position].value
-        elif tokens[position].value in references:
-            value = references[tokens[position].value]
+            if position < len(tokens) and tokens[position].kind == "string":
+                literal = tokens[position]
+                assert literal.string_value is not None
+                try:
+                    references[name] = literal.string_value.decode("utf-8")
+                except UnicodeDecodeError as error:
+                    raise _error(path, literal, "UI module names must be UTF-8 text") from error
+        elif tokens[position].lexeme in references:
+            value = references[tokens[position].lexeme]
             position += 1
-            while position + 1 < len(tokens) and tokens[position].value == ".":
-                value += "." + tokens[position + 1].value
+            while position + 1 < len(tokens) and tokens[position].lexeme == ".":
+                value += "." + tokens[position + 1].lexeme
                 position += 2
             references[name] = value
     return references
 
 
-def _arguments(path: pathlib.Path, text: str, tokens: list[Token], start: int) -> list[list[Token]]:
-    arguments: list[list[Token]] = [[]]
+def _arguments(path: pathlib.Path, tokens: list[LuaToken], start: int) -> list[list[LuaToken]]:
+    arguments: list[list[LuaToken]] = [[]]
     depth = 0
     for index in range(start, len(tokens)):
         token = tokens[index]
-        if token.value == ")" and not token.string and depth == 0:
-            if any(item.value != ";" for item in tokens[index + 1:]):
-                raise _error(path, text, token.position, "Ui.DefineWindow must be the module's final return")
+        if token.lexeme == ")" and token.kind != "string" and depth == 0:
+            if any(item.lexeme != ";" for item in tokens[index + 1:]):
+                raise _error(path, token, "Ui.DefineWindow must be the module's final return")
             return arguments
-        if token.value == "," and not token.string and depth == 0:
+        if token.lexeme == "," and token.kind != "string" and depth == 0:
             arguments.append([])
         else:
             arguments[-1].append(token)
-            if token.value in {"(", "{", "["} and not token.string:
+            if token.lexeme in {"(", "{", "["} and token.kind != "string":
                 depth += 1
-            elif token.value in {")", "}", "]"} and not token.string:
+            elif token.lexeme in {")", "}", "]"} and token.kind != "string":
                 depth -= 1
-    raise _error(path, text, tokens[start - 1].position, "Unclosed Ui.DefineWindow call")
+    raise _error(path, tokens[start - 1], "Unclosed Ui.DefineWindow call")
 
 
-def _reference(argument: list[Token], references: dict[str, str]) -> str | None:
-    if not argument or argument[0].value not in references:
+def _reference(argument: list[LuaToken], references: dict[str, str]) -> str | None:
+    if not argument or argument[0].lexeme not in references:
         return None
-    value = references[argument[0].value]
+    value = references[argument[0].lexeme]
     for index in range(1, len(argument), 2):
-        if index + 1 >= len(argument) or argument[index].value != ".":
+        if index + 1 >= len(argument) or argument[index].lexeme != ".":
             return None
-        value += "." + argument[index + 1].value
+        value += "." + argument[index + 1].lexeme
     return value
 
 
@@ -156,8 +123,8 @@ def _controller_type(text: str, name: str, module: str) -> str:
     return module + ".Controller"
 
 
-def _methods(text: str, owner: str, tokens: list[Token] | None = None) -> dict[str, Method]:
-    function_positions = {token.position for token in tokens if token.value == "function" and not token.string} if tokens is not None else None
+def _methods(text: str, owner: str, tokens: list[LuaToken] | None = None) -> dict[str, Method]:
+    function_positions = {token.start for token in tokens if token.lexeme == "function" and token.kind != "string"} if tokens is not None else None
     return {
         match["name"]: Method(
             match["name"], match["separator"],
@@ -170,27 +137,27 @@ def _methods(text: str, owner: str, tokens: list[Token] | None = None) -> dict[s
     }
 
 
-def _constant_types(path: pathlib.Path, text: str, tokens: list[Token], owner: str, header: str) -> dict[str, str]:
+def _constant_types(path: pathlib.Path, tokens: list[LuaToken], owner: str, header: str) -> dict[str, str]:
     constants = dict(re.findall(r"^---@field\s+([A-Z][A-Z0-9_]*)\s+([^\n]+)", header, re.MULTILINE))
     for index in range(len(tokens) - 4):
-        if tokens[index].value != owner or tokens[index + 1].value != "." or tokens[index + 3].value != "=":
+        if tokens[index].lexeme != owner or tokens[index + 1].lexeme != "." or tokens[index + 3].lexeme != "=":
             continue
-        name = tokens[index + 2].value
+        name = tokens[index + 2].lexeme
         if not re.fullmatch(r"[A-Z][A-Z0-9_]*", name) or name in constants:
             continue
         value = tokens[index + 4]
-        if value.string:
+        if value.kind == "string":
             constants[name] = "string"
-        elif value.value in {"true", "false"}:
+        elif value.lexeme in {"true", "false"}:
             constants[name] = "boolean"
-        elif re.fullmatch(r"\d+", value.value):
+        elif re.fullmatch(r"\d+", value.lexeme):
             constants[name] = "integer"
-        elif re.fullmatch(r"\d+\.\d+", value.value):
+        elif re.fullmatch(r"\d+\.\d+", value.lexeme):
             constants[name] = "number"
-        elif value.value == "{":
+        elif value.lexeme == "{":
             constants[name] = "table"
         else:
-            raise _error(path, text, value.position, f"Declare the type of UI constant {owner}.{name} in the Controller stub")
+            raise _error(path, value, f"Declare the type of UI constant {owner}.{name} in the Controller stub")
     return constants
 
 
@@ -221,23 +188,23 @@ def _format_annotations(lines: list[str]) -> str:
 
 
 def _render(path: pathlib.Path, text: str, relative: pathlib.Path,
-            tokens: list[Token], arguments: list[list[Token]], references: dict[str, str],
+            tokens: list[LuaToken], arguments: list[list[LuaToken]], references: dict[str, str],
             view_types: dict[str, str], marker: str, stub: pathlib.Path) -> str:
     if len(arguments) not in {2, 3} or any(not argument for argument in arguments):
-        raise _error(path, text, tokens[-1].position, "Ui.DefineWindow expects a View, Controller and optional native base")
+        raise _error(path, tokens[-1], "Ui.DefineWindow expects a View, Controller and optional native base")
     view_module = _reference(arguments[0], references)
     if view_module not in view_types:
-        raise _error(path, text, arguments[0][0].position, "Ui.DefineWindow View must reference a generated UI asset module")
+        raise _error(path, arguments[0][0], "Ui.DefineWindow View must reference a generated UI asset module")
     view_type = view_types[view_module]
-    base_type = _reference(arguments[2], references) if len(arguments) == 3 and [token.value for token in arguments[2]] != ["nil"] else "Engine.Canvas"
+    base_type = _reference(arguments[2], references) if len(arguments) == 3 and [token.lexeme for token in arguments[2]] != ["nil"] else "Engine.Canvas"
     if base_type is None:
-        raise _error(path, text, arguments[2][0].position, "Ui.DefineWindow native base must be a directly imported class")
-    if len(arguments[1]) == 1 and re.fullmatch(_NAME, arguments[1][0].value):
-        controller_name = arguments[1][0].value
-    elif [token.value for token in arguments[1]] == ["{", "}"]:
+        raise _error(path, arguments[2][0], "Ui.DefineWindow native base must be a directly imported class")
+    if len(arguments[1]) == 1 and is_identifier(arguments[1][0].lexeme):
+        controller_name = arguments[1][0].lexeme
+    elif [token.lexeme for token in arguments[1]] == ["{", "}"]:
         controller_name = ""
     else:
-        raise _error(path, text, arguments[1][0].position, "Ui.DefineWindow Controller must be a local definition table or an empty table")
+        raise _error(path, arguments[1][0], "Ui.DefineWindow Controller must be a local definition table or an empty table")
     module = relative.with_suffix("").as_posix().replace("/", ".")
     controller_type = _controller_type(text, controller_name, module)
     window_type = controller_type.removesuffix(".Controller") if controller_type.endswith(".Controller") else module
@@ -245,7 +212,7 @@ def _render(path: pathlib.Path, text: str, relative: pathlib.Path,
     methods = source_methods
     header = ""
     if stub.is_file():
-        contract = stub.read_text(encoding="utf-8")
+        contract = _read_source(stub)
         declaration = re.search(
             rf"(?P<docs>(?:^---[^\n]*\n)*)^---@class\s+{re.escape(controller_type)}(?=[:\s]|$)"
             rf"[^\n]*\n(?P<fields>(?:^---[^\n]*\n)*)^local\s+(?P<owner>{_NAME})\s*=",
@@ -266,7 +233,7 @@ def _render(path: pathlib.Path, text: str, relative: pathlib.Path,
     constructor = methods.get("init", Method("init", ":", "", ""))
     if "init" in source_methods and constructor.arguments != source_methods["init"].arguments:
         raise UiAssetError(f"{stub}: Controller:init arguments do not match {path}")
-    constants = _constant_types(path, text, tokens, controller_name, header)
+    constants = _constant_types(path, tokens, controller_name, header)
     lines = [marker, "---@meta " + module, ""]
     if description:
         lines.append(description)
@@ -310,21 +277,24 @@ def window_outputs(
             target = item if item.is_absolute() else project_root / item
             if _is_link(target):
                 raise UiAssetError(f"UI generation does not follow links: {target}")
-        text = path.read_text(encoding="utf-8")
+        text = _read_source(path)
         if "DefineWindow" not in text:
             continue
-        tokens = _tokens(path, text)
-        references = _references(tokens)
+        try:
+            tokens = tokenize(text)
+        except LuaSyntaxError as error:
+            raise UiAssetError(f"{path}:{error}") from error
+        references = _references(path, tokens)
         calls = [
             index for index in range(len(tokens) - 3)
-            if references.get(tokens[index].value) == "Internal.UIBase.Ui"
-            and [token.value for token in tokens[index + 1:index + 4]] == [".", "DefineWindow", "("]
+            if references.get(tokens[index].lexeme) == "Internal.UIBase.Ui"
+            and [token.lexeme for token in tokens[index + 1:index + 4]] == [".", "DefineWindow", "("]
         ]
         if not calls:
             continue
-        if len(calls) != 1 or calls[0] == 0 or tokens[calls[0] - 1].value != "return":
-            raise _error(path, text, tokens[calls[0]].position, "Declare a UI module with one final return Ui.DefineWindow(...) call")
-        arguments = _arguments(path, text, tokens, calls[0] + 4)
+        if len(calls) != 1 or calls[0] == 0 or tokens[calls[0] - 1].lexeme != "return":
+            raise _error(path, tokens[calls[0]], "Declare a UI module with one final return Ui.DefineWindow(...) call")
+        arguments = _arguments(path, tokens, calls[0] + 4)
         stub = scripts / "stub" / relative.with_suffix(".d.lua")
         for item in (stub, *stub.relative_to(project_root).parents):
             target = item if item.is_absolute() else project_root / item

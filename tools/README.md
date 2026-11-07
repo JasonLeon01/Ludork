@@ -305,6 +305,8 @@ On Windows, bundle backup, publication, rollback and cleanup retry temporary acc
 
 `Toolchain/generated_files.py` provides byte comparison, single-file replacement, existing-permission preservation and marker-checked deletion. Generators own their encoding, ownership markers and obsolete-output selection; the UI generator also owns batch installation and rollback. See [generated output maintenance](https://jasonleon01.github.io/Ludork/docs/trunk/?lang=en_GB&doc=04%2F07#regeneration) for unchanged-file timestamps and the binding completion stamp.
 
+`Toolchain/lua_syntax` owns Lua tokenization, string literals and identifier rules for the Python tools. Import `tokenize` from `lexer`, `decode_string_literal` and `lua_string` from `literals`, and `is_identifier` and `lua_key` from `identifiers`. Tokens retain their complete source text, zero-based character spans with exclusive ends, and one-based lines/columns; decoded strings are separate byte values. The rules match the project's Lua 5.5 configuration, including `LUA_COMPAT_GLOBAL`. Consumers apply UTF-8 and business restrictions, and translate `LuaSyntaxError` into their own path-qualified diagnostics and exit codes. This layer neither executes Lua nor analyses business scopes.
+
 `Toolchain/tool_process.py` owns child-process execution, captured or streamed output, timeouts, cancellation and process-tree cleanup. It returns the exit code and untrimmed output; `package_process.py` supplies packaging error interpretation. Callers retain JSON parsing, business exit codes, retry decisions and secret redaction. The editor uses `Editor/Services/ToolProcessRunner.cs` for the corresponding one-shot calls; `ProjectStateWorker` retains its persistent JSON Lines request protocol.
 
 ### Shared build tasks
