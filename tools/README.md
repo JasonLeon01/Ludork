@@ -403,7 +403,7 @@ Validate host-to-implementation dependencies with:
 .tools\Toolchain\ludork-check.exe impl-boundary-check Game
 ```
 
-The checker discovers same-name C++ host/directory and Lua host/module pairs, excluding Lua children with their own mirrored declarations. It reports reverse dependencies, host definitions in implementation folders, Lua partial-class/mixin reuse and Standard ClassRuntime layer violations. Private-header checks cover both Engine and Application, including parent headers reached through include roots. First-party Engine C++ must not embed `Source.*` project Lua module paths or refer to those types in binding annotations; this check covers static strings and does not trace dynamically constructed paths. CMake exposes `ImplBoundaryValidate`.
+The checker discovers same-name C++ host/directory and Lua host/module pairs, excluding Lua children with their own mirrored declarations. It reports reverse dependencies, host definitions in implementation folders, Lua partial-class/mixin reuse and Standard ClassRuntime layer violations. Private-header checks cover both Engine and Application, including parent headers reached through include roots. First-party Engine C++ must not embed `Source.*` project Lua module paths or refer to those types in binding annotations; this check covers static strings and does not trace dynamically constructed paths. CMake exposes the incremental `ImplBoundaryValidate` target; its invalidation rules are documented under [Host and implementation sources](https://jasonleon01.github.io/Ludork/docs/trunk/?lang=en_GB&doc=04%2F01#host-and-implementation-sources). Direct checker commands, including native CI's invocation, always run the full check.
 
 ### Material export
 

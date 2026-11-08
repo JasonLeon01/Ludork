@@ -1,6 +1,7 @@
 include_guard(GLOBAL)
 
 include("${CMAKE_CURRENT_LIST_DIR}/LudorkCppOptions.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/LudorkPrecompiledHeaders.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/LudorkWindowsRuntime.cmake")
 
 option(
@@ -113,6 +114,7 @@ function(ludork_apply_msvc_debug_source_options)
     endif()
 
     foreach(source IN LISTS ARGN)
+        set_property(SOURCE "${source}" PROPERTY SKIP_PRECOMPILE_HEADERS ON)
         set_property(SOURCE "${source}" APPEND PROPERTY
             COMPILE_OPTIONS
                 "$<$<CONFIG:Debug>:/O1>"
@@ -216,12 +218,55 @@ endfunction()
 
 function(ludork_add_impl_boundary_validation_target target project_root)
     ludork_get_tool(LUDORK_TOOL_CHECK check)
-    add_custom_target(${target}
+    ludork_get_toolchain_dependencies(checker_dependencies)
+    file(GLOB_RECURSE boundary_entries LIST_DIRECTORIES true CONFIGURE_DEPENDS
+        RELATIVE "${project_root}"
+        "${project_root}/Engine/Source/*"
+        "${project_root}/Engine/Runtime/*"
+        "${project_root}/Engine/Standard/*"
+        "${project_root}/Application/*"
+        "${project_root}/Scripts/*"
+        "${project_root}/Engine/ThirdParty/LuaSF/include/*")
+    set(boundary_inputs "project:${project_root}")
+    set(boundary_dependencies)
+    foreach(entry IN LISTS boundary_entries)
+        if(IS_DIRECTORY "${project_root}/${entry}")
+            list(APPEND boundary_inputs "directory:${entry}")
+        elseif(entry MATCHES "^Scripts/stub/.*\\.lua$")
+            list(APPEND boundary_inputs "stub:${entry}")
+        elseif(entry MATCHES "^Scripts/.*\\.lua$")
+            if(NOT entry MATCHES "_meta\\.lua$")
+                list(APPEND boundary_inputs "source:${entry}")
+                list(APPEND boundary_dependencies "${project_root}/${entry}")
+            endif()
+        elseif(NOT entry MATCHES "^Scripts/")
+            list(APPEND boundary_inputs "source:${entry}")
+            list(APPEND boundary_dependencies "${project_root}/${entry}")
+        endif()
+    endforeach()
+    list(APPEND boundary_inputs ${checker_dependencies})
+    list(SORT boundary_inputs)
+    string(JOIN "\n" boundary_manifest ${boundary_inputs})
+    set(validation_directory "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${target}")
+    set(validation_inputs "${validation_directory}/inputs.txt")
+    set(validation_stamp "${validation_directory}/success.stamp")
+    file(MAKE_DIRECTORY "${validation_directory}")
+    file(GENERATE OUTPUT "${validation_inputs}" CONTENT "${boundary_manifest}\n")
+    add_custom_command(OUTPUT "${validation_stamp}"
+        COMMAND "${CMAKE_COMMAND}" -E rm -f "${validation_stamp}"
         COMMAND "${LUDORK_TOOL_CHECK}"
             impl-boundary-check
             "${project_root}"
+        COMMAND "${CMAKE_COMMAND}" -E touch "${validation_stamp}"
+        DEPENDS
+            ${boundary_dependencies}
+            ${checker_dependencies}
+            "${validation_inputs}"
+            "${CMAKE_CURRENT_FUNCTION_LIST_FILE}"
+            "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/LudorkToolchain.cmake"
         WORKING_DIRECTORY "${project_root}"
         VERBATIM)
+    add_custom_target(${target} DEPENDS "${validation_stamp}")
 endfunction()
 
 function(ludork_enable_release_symbols target)

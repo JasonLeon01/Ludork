@@ -30,17 +30,24 @@ if(MINGW)
     set(LUDORK_CORE_DEBUG_LTO OFF)
 endif()
 
-function(ludork_configure_core_target target)
+function(ludork_configure_core_compilation target)
     target_compile_features(${target} PRIVATE cxx_std_20)
     set_target_properties(${target} PROPERTIES
-        PREFIX ""
+        POSITION_INDEPENDENT_CODE ON
         CXX_VISIBILITY_PRESET hidden
         VISIBILITY_INLINES_HIDDEN ON
         INTERPROCEDURAL_OPTIMIZATION_DEBUG ${LUDORK_CORE_DEBUG_LTO}
-        INTERPROCEDURAL_OPTIMIZATION_RELEASE ${LUDORK_CORE_RELEASE_LTO}
+        INTERPROCEDURAL_OPTIMIZATION_RELEASE ${LUDORK_CORE_RELEASE_LTO})
+endfunction()
+
+function(ludork_configure_core_target target)
+    ludork_configure_core_compilation(${target})
+    set_target_properties(${target} PROPERTIES
+        PREFIX ""
         WINDOWS_EXPORT_ALL_SYMBOLS OFF)
     ludork_enable_release_dead_strip(${target})
     ludork_set_runtime_output(${target})
+    ludork_target_precompile_headers(${target})
 endfunction()
 
 if(LUDORK_BUILD_GAME_APPLICATION)
@@ -86,9 +93,16 @@ if(LUDORK_WITH_LUA AND NOT CMAKE_CROSSCOMPILING AND NOT LUDORK_STATIC_LUA_MODULE
         "${CMAKE_CURRENT_BINARY_DIR}/NativeStubDump")
 endif()
 
-function(ludork_configure_core_library
-         target generated_bindings generated_traits)
+function(ludork_configure_core_library target generated_traits)
     ludork_configure_core_target(${target})
+    set(bindings_target ${target}Bindings)
+    ludork_configure_core_compilation(${bindings_target})
+    add_dependencies(${bindings_target} ${target}Stub)
+    target_sources(${target} PRIVATE $<TARGET_OBJECTS:${bindings_target}>)
+    target_precompile_headers(${bindings_target} PRIVATE
+        "$<$<COMPILE_LANGUAGE:CXX>:${generated_traits}>")
+    set(pch_disabled
+        "$<BOOL:$<TARGET_PROPERTY:${bindings_target},DISABLE_PRECOMPILE_HEADERS>>")
     add_dependencies(${target} ${target}Stub)
     if(TARGET LudorkNativeStubDump)
         add_dependencies(${target} LudorkNativeStubDump)
@@ -128,31 +142,23 @@ function(ludork_configure_core_library
         set_target_properties(${target} PROPERTIES
             SUFFIX "${CMAKE_SHARED_MODULE_SUFFIX}")
     endif()
-    foreach(generated_binding IN LISTS generated_bindings)
-        set_property(SOURCE "${generated_binding}" PROPERTY
-            SKIP_UNITY_BUILD_INCLUSION ON)
-    endforeach()
+    set_target_properties(${bindings_target} PROPERTIES UNITY_BUILD OFF)
     if(CMAKE_SYSTEM_NAME STREQUAL "Darwin"
        AND CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
         if(CMAKE_OSX_ARCHITECTURES STREQUAL "arm64"
            OR (NOT CMAKE_OSX_ARCHITECTURES
                AND CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64"))
-            set_property(SOURCE ${generated_bindings} APPEND PROPERTY
-                COMPILE_OPTIONS "$<$<CONFIG:Release>:-Os>")
+            target_compile_options(${bindings_target} PRIVATE
+                "$<$<CONFIG:Release>:-Os>")
         endif()
     endif()
     if(MSVC)
-        set_property(SOURCE ${generated_bindings} APPEND PROPERTY
-            COMPILE_OPTIONS "/FI${generated_traits}")
+        target_compile_options(${bindings_target} PRIVATE
+            "$<${pch_disabled}:/FI${generated_traits}>"
+            /bigobj)
     else()
-        set_property(SOURCE ${generated_bindings} APPEND PROPERTY
-            COMPILE_OPTIONS -include "${generated_traits}")
-    endif()
-    if(MSVC)
-        foreach(generated_binding IN LISTS generated_bindings)
-            set_property(SOURCE "${generated_binding}" APPEND PROPERTY
-                COMPILE_OPTIONS /bigobj)
-        endforeach()
+        target_compile_options(${bindings_target} PRIVATE
+            "$<${pch_disabled}:-include;${generated_traits}>")
     endif()
 endfunction()
 

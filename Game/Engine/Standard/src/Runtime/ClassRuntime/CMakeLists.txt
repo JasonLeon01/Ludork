@@ -31,3 +31,4 @@ target_link_libraries(LudorkStandardClassRuntime
         LuaGlue::LuaGlue
         LuaSF::LuaSF
         LuaSF::Lua)
+ludork_target_precompile_headers(LudorkStandardClassRuntime)

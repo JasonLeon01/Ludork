@@ -16,21 +16,22 @@ ludork_generate_lua_bindings(
         "GlobalCore=${LUDORK_CORE_SOURCE_DIR}/Global/include")
 
 add_library(GlobalFunctions ${LUDORK_RUNTIME_LIBRARY_TYPE}
-    ${LUDORK_GLOBAL_FUNCTIONS_SOURCES}
-    ${LUDORK_GLOBAL_FUNCTIONS_BINDINGS})
+    ${LUDORK_GLOBAL_FUNCTIONS_SOURCES})
+add_library(GlobalFunctionsBindings OBJECT ${LUDORK_GLOBAL_FUNCTIONS_BINDINGS})
 add_library(Ludork::GlobalFunctions ALIAS GlobalFunctions)
 ludork_apply_msvc_debug_source_options(
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Components.cpp")
-target_compile_definitions(GlobalFunctions PRIVATE
-    LUDORK_PLATFORM="${LUDORK_PLATFORM}")
-target_include_directories(GlobalFunctions
-    PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries(GlobalFunctions
-    PUBLIC
-        Ludork::Global
-        SFML::Graphics
-        SFML::Audio)
+foreach(target IN ITEMS GlobalFunctions GlobalFunctionsBindings)
+    target_compile_definitions(${target} PRIVATE
+        LUDORK_PLATFORM="${LUDORK_PLATFORM}")
+    target_include_directories(${target}
+        PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+    target_link_libraries(${target}
+        PUBLIC
+            Ludork::Global
+            SFML::Graphics
+            SFML::Audio)
+endforeach()
 ludork_configure_core_library(
     GlobalFunctions
-    "${LUDORK_GLOBAL_FUNCTIONS_BINDINGS}"
     "${LUDORK_GLOBAL_FUNCTIONS_BINDINGS_TRAITS}")

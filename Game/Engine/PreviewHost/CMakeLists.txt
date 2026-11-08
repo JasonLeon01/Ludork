@@ -6,6 +6,7 @@ target_compile_features(PreviewHostExecutable PRIVATE cxx_std_20)
 target_link_libraries(PreviewHostExecutable PRIVATE
     Ludork::PreviewHostRuntime Ludork::Video Ludork::RuntimeConstants)
 ludork_enable_release_symbols(PreviewHostExecutable)
+ludork_target_precompile_headers(PreviewHostExecutable)
 if(APPLE)
     set_target_properties(PreviewHostExecutable PROPERTIES
         BUILD_WITH_INSTALL_RPATH TRUE

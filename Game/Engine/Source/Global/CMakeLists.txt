@@ -28,28 +28,30 @@ ludork_generate_lua_bindings(
         "Engine=${LUDORK_RUNTIME_SOURCE_DIR}/include/Runtime")
 
 add_library(GlobalCore ${LUDORK_RUNTIME_LIBRARY_TYPE}
-    ${LUDORK_GLOBAL_SOURCES}
-    ${LUDORK_GLOBAL_BINDINGS})
+    ${LUDORK_GLOBAL_SOURCES})
+add_library(GlobalCoreBindings OBJECT ${LUDORK_GLOBAL_BINDINGS})
 add_library(Ludork::Global ALIAS GlobalCore)
-target_link_libraries(GlobalCore PRIVATE Ludork::RuntimeConstants)
-target_compile_definitions(GlobalCore PRIVATE
-    LUDORK_GLOBAL_EXPORTS=1
-    LUDORK_PLATFORM="${LUDORK_PLATFORM}")
-target_include_directories(GlobalCore
-    PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
-    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/System/Config")
-target_link_libraries(GlobalCore
-    PUBLIC
-        Ludork::Engine
-        Ludork::Standard
-        SFML::Graphics
-        SFML::Audio
-        SFML::Network
-    PRIVATE
-        Ludork::Video
-        ixwebsocket::ixwebsocket
-        LuaSF::LuaSF
-        LuaSF::Lua)
+foreach(target IN ITEMS GlobalCore GlobalCoreBindings)
+    target_link_libraries(${target} PRIVATE Ludork::RuntimeConstants)
+    target_compile_definitions(${target} PRIVATE
+        LUDORK_GLOBAL_EXPORTS=1
+        LUDORK_PLATFORM="${LUDORK_PLATFORM}")
+    target_include_directories(${target}
+        PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
+        PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/System/Config")
+    target_link_libraries(${target}
+        PUBLIC
+            Ludork::Engine
+            Ludork::Standard
+            SFML::Graphics
+            SFML::Audio
+            SFML::Network
+        PRIVATE
+            Ludork::Video
+            ixwebsocket::ixwebsocket
+            LuaSF::LuaSF
+            LuaSF::Lua)
+endforeach()
 if(WIN32)
     target_link_libraries(GlobalCore PRIVATE Imm32 User32)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "iOS")
@@ -63,5 +65,4 @@ elseif(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
 endif()
 ludork_configure_core_library(
     GlobalCore
-    "${LUDORK_GLOBAL_BINDINGS}"
     "${LUDORK_GLOBAL_BINDINGS_TRAITS}")

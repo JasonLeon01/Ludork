@@ -21,32 +21,32 @@ ludork_generate_lua_bindings(
     INCLUDE_DIRECTORIES "${LUDORK_RUNTIME_SOURCE_DIR}/include")
 
 add_library(Engine ${LUDORK_RUNTIME_LIBRARY_TYPE}
-    ${LUDORK_ENGINE_SOURCES}
-    ${LUDORK_ENGINE_BINDINGS})
+    ${LUDORK_ENGINE_SOURCES})
+add_library(EngineBindings OBJECT ${LUDORK_ENGINE_BINDINGS})
 add_library(Ludork::Engine ALIAS Engine)
-target_link_libraries(Engine PRIVATE Ludork::RuntimeConstants)
-
-target_compile_definitions(Engine PRIVATE
-    LUDORK_ENGINE_EXPORTS=1
-    LUDORK_PLATFORM="${LUDORK_PLATFORM}")
-target_include_directories(Engine
-    PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+foreach(target IN ITEMS Engine EngineBindings)
+    target_link_libraries(${target} PRIVATE Ludork::RuntimeConstants)
+    target_compile_definitions(${target} PRIVATE
+        LUDORK_ENGINE_EXPORTS=1
+        LUDORK_PLATFORM="${LUDORK_PLATFORM}")
+    target_include_directories(${target}
+        PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+    target_link_libraries(${target}
+        PUBLIC
+            Ludork::Runtime
+            SFML::Graphics
+            SFML::Audio
+            SFML::Network
+        PRIVATE
+            Ludork::Standard)
+endforeach()
 ludork_add_core_shared(Engine)
-target_link_libraries(Engine
-    PUBLIC
-        Ludork::Runtime
-        SFML::Graphics
-        SFML::Audio
-        SFML::Network
-    PRIVATE
-        Ludork::Standard)
 ludork_link_engine_platform(Engine)
 if(WIN32)
     target_link_libraries(Engine PRIVATE shell32 ole32)
 endif()
 ludork_configure_core_library(
     Engine
-    "${LUDORK_ENGINE_BINDINGS}"
     "${LUDORK_ENGINE_BINDINGS_TRAITS}")
 endif()
 
