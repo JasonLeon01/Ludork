@@ -18,7 +18,7 @@
 
 Core bindgen 与 LuaSF 会在 `.d.lua` 中保留多行 `///` 文档，并把 `\param`、`\return` 等已识别的 Doxygen 命令转换为对应的 `@` 形式。
 
-桌面构建通过 `Engine/Tools/NativeStubDump` 调用导出的 `<Module>_write_stub` 完成原生 stub。writer 只为编译后的 `StructTraits` 确认具备独立值语义的类型追加 `copy`、`deepcopy`，不创建 Lua VM。加载前会复制模块运行时依赖；即使模块未重新链接，原生聚合构建也会刷新这些 stub。交叉构建保留源码 stub。生成的转换 traits 只对生成绑定单元强制 include。
+桌面构建通过 `Engine/Tools/NativeStubDump` 调用导出的 `<Module>_write_stub` 完成原生 stub。writer 只为编译后的 `StructTraits` 确认具备独立值语义的类型追加 `copy`、`deepcopy`，不创建 Lua VM。加载前会复制模块运行时依赖；即使模块未重新链接，原生聚合构建也会刷新这些 stub。交叉构建保留源码 stub。生成的转换 traits 仅供生成绑定单元使用，默认由绑定 PCH 提供，关闭 PCH 时改为强制包含；详见[构建项目](<构建与模块布局.md#构建项目>)。
 
 ## 默认值与类型
 

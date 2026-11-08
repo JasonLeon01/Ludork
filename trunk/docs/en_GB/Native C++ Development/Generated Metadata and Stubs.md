@@ -18,7 +18,7 @@ Generated names and metadata inclusion follow the declarations described in [Bin
 
 Core bindgen and LuaSF preserve multiline `///` documentation in `.d.lua` files and convert recognised Doxygen commands, such as `\param` and `\return`, to the corresponding `@` form.
 
-Desktop builds complete the native stubs by invoking the exported `<Module>_write_stub` function with `Engine/Tools/NativeStubDump`. The writer appends `copy` and `deepcopy` only for types whose compiled `StructTraits` confirms independent value semantics. It creates no Lua VM. Module runtime dependencies are copied before loading, and the aggregate native build refreshes these stubs even when the module did not relink. Cross-builds retain their source stubs. Generated conversion traits are force-included only in generated binding units.
+Desktop builds complete the native stubs by invoking the exported `<Module>_write_stub` function with `Engine/Tools/NativeStubDump`. The writer appends `copy` and `deepcopy` only for types whose compiled `StructTraits` confirms independent value semantics. It creates no Lua VM. Module runtime dependencies are copied before loading, and the aggregate native build refreshes these stubs even when the module did not relink. Cross-builds retain their source stubs. Generated conversion traits are provided only to generated binding units, through their binding PCH by default or forced inclusion when PCH is disabled; see [Build the project](<Build and Module Layout.md#build-the-project>).
 
 ## Defaults and types
 
