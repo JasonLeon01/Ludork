@@ -27,6 +27,11 @@ public:
         double modificationTime = 0.0;
     };
 
+    struct LUDORK_RUNTIME_API AssetContents {
+        std::string path;
+        std::vector<std::uint8_t> bytes;
+    };
+
     AssetStore();
     ~AssetStore();
 
@@ -35,6 +40,7 @@ public:
 
     void configure(const std::filesystem::path& runtimeRoot,
                    AssetStoreMode mode = AssetStoreMode::Loose);
+    void setUserDataRoot(const std::filesystem::path& root);
     void reset() noexcept;
 
     [[nodiscard]] bool isConfigured() const noexcept;
@@ -46,6 +52,8 @@ public:
         const std::string& assetPath) const;
     [[nodiscard]] std::vector<std::uint8_t> readAll(
         const std::string& assetPath) const;
+    [[nodiscard]] std::optional<AssetContents> readFirst(
+        const std::vector<std::string>& candidatePaths) const;
 
 private:
     struct Impl;

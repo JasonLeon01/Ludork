@@ -27,11 +27,17 @@ namespace ludork::runtime {
 struct DataStore::Impl {
     mutable std::shared_mutex mutex;
     std::filesystem::path runtimeRoot;
+    std::filesystem::path userDataRoot;
     DataStoreMode mode = DataStoreMode::Loose;
     bool configured = false;
     std::unordered_map<std::string, data_store_impl::StoreEntry> entries;
     std::unordered_map<std::string, std::vector<std::filesystem::path>>
         directoryEntries;
+
+    std::optional<data_store_impl::StoreEntry> find(const std::string& key,
+                                                    bool user) const;
+    std::optional<data_store_impl::StoreEntry> find(
+        const std::filesystem::path& path) const;
 };
 
 }  // namespace ludork::runtime

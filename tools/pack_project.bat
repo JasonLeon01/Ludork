@@ -86,8 +86,6 @@ if exist "%PACKAGE_METADATA%" del /Q "%PACKAGE_METADATA%"
 exit /b %PACK_EXIT_CODE%
 
 :pack_project
-"%TOOLCHAIN_DIRECTORY%\ludork-assets.exe" material-assets validate "%PROJECT_DIR%"
-if errorlevel 1 exit /b %errorlevel%
 if defined PACKAGE_VERSION (
     "%TOOLCHAIN_DIRECTORY%\ludork-pack.exe" metadata resolve "%PROJECT_DIR%" "%PACKAGE_METADATA%" --version "%PACKAGE_VERSION%" %PACKAGE_CHANNEL%
 ) else (

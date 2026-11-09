@@ -25,7 +25,6 @@ COMMANDS = {
     },
     "assets": {
         "ui-assets": "ui_assets",
-        "material-assets": "material_assets",
         "compile-lua": "compile_lua",
         "animation-mp4": "animation_mp4",
         "validate-ldpak-source": "ldpak",

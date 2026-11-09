@@ -79,23 +79,18 @@ std::optional<sf::Shader::Type> shaderTypeFromExtension(
     return std::nullopt;
 }
 
-std::string resolveShaderPath(const std::string& value) {
+std::vector<std::string> shaderCandidates(const std::string& value) {
     validateRequestedShaderPath(value);
-    if (ludork::runtime::assetStore().exists(value)) {
-        return value;
-    }
+    std::vector<std::string> result{value};
     const std::string extension = pathExtension(value);
     for (const auto& item : ludork::generated::resources::ShaderExtensions) {
         if (extension == item.source) {
-            const std::string encrypted =
-                value + std::string(item.encrypted.substr(item.source.size()));
-            if (ludork::runtime::assetStore().exists(encrypted)) {
-                return encrypted;
-            }
+            result.push_back(
+                value + std::string(item.encrypted.substr(item.source.size())));
             break;
         }
     }
-    return value;
+    return result;
 }
 
 ShaderLoader::ShaderSourceResult decodeShader(
@@ -111,26 +106,24 @@ ShaderLoader::ShaderSourceResult decodeShader(
 }
 
 ShaderLoader::ShaderSourceResult readShaderSource(const std::string& value) {
-    const std::string path = resolveShaderPath(value);
-    const std::optional<ludork::runtime::AssetStore::AssetStat> stat =
-        ludork::runtime::assetStore().stat(path);
-    if (!stat.has_value() || stat->directory) {
-        return {{}, path, "Shader file not found: " + path};
-    }
-    std::vector<std::uint8_t> contents;
+    const auto candidates = shaderCandidates(value);
     try {
-        contents = ludork::runtime::assetStore().readAll(path);
+        const auto source = ludork::runtime::assetStore().readFirst(candidates);
+        if (!source) {
+            return {{}, value, "Shader file not found: " + value};
+        }
+        if (isEncryptedExtension(pathExtension(source->path))) {
+            return decodeShader(source->path, source->bytes);
+        }
+        return {std::string(source->bytes.begin(), source->bytes.end()),
+                source->path,
+                {}};
     } catch (const std::exception& error) {
         return {{},
-                path,
-                "Shader file could not be read: " + path + " (" + error.what() +
-                    ")"};
+                value,
+                "Shader file could not be read: " + value + " (" +
+                    error.what() + ")"};
     }
-    const std::string extension = pathExtension(path);
-    if (isEncryptedExtension(extension)) {
-        return decodeShader(path, contents);
-    }
-    return {std::string(contents.begin(), contents.end()), path, {}};
 }
 
 ShaderLoadResult failedLoad(const ShaderLoader::ShaderSourceResult& source) {

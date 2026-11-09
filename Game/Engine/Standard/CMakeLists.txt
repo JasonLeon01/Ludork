@@ -17,6 +17,7 @@ else()
         src/Core/EncryptedPayload.cpp
         src/Core/Math.cpp
         src/Core/ReadOnlyFileProvider.cpp
+        src/Core/Sha256.cpp
         src/Core/UnicodeText.cpp
         src/Core/Utf8Path.cpp)
 endif()

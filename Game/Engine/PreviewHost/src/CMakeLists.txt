@@ -4,7 +4,6 @@ target_sources(PreviewHostExecutable PRIVATE
     Map/MapEmitterPreviewImpl.cpp
     Map/MapPreviewSession.cpp
     Material/MaterialPreviewSession.cpp
-    Material/MaterialExport.cpp
     Particle/ParticlePreviewSession.cpp
     PreviewBuildInfo.cpp
     PreviewHostSession.cpp

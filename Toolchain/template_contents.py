@@ -16,6 +16,7 @@ from .packaging_constants import (
     NATIVE_ENUM_DIRECTORIES,
     NATIVE_LUA_FILES,
     RUNTIME_LEGAL_FILES,
+    RUNTIME_SETTINGS_FILES,
     TEMPLATE_NAMES,
 )
 from .preview import load_preview
@@ -52,7 +53,7 @@ GENERATED_IDE_PATHS = (".vs", ".idea", "cmake-build-ludork-debug", "CMakeUserPre
 SOURCE_IDE_FILES = ("generate_vs2022.bat", "generate_clion.bat", "generate_clion.sh")
 EXPORT_DIRECTORIES = (
     "Scripts/Internal/UI", "Scripts/stub/Internal/UI", "Scripts/stub/Internal/UIWindows",
-    "Scripts/stub/Enums", "Assets/Shaders/MaterialGenerated",
+    "Scripts/stub/Enums",
 )
 ANDROID_WRAPPER_FILES = (
     "gradlew", "gradle/wrapper/gradle-wrapper.jar", "gradle/wrapper/gradle-wrapper.properties",
@@ -60,6 +61,7 @@ ANDROID_WRAPPER_FILES = (
 )
 _ROOT_EXCLUDED_DIRECTORIES = (
     "Binaries", EDITOR_CACHE_DIRECTORY, "Cache", "Save", "Engine/ThirdParty/SFML/test",
+    "Assets/Shaders/MaterialGenerated",
     *EXPORT_DIRECTORIES,
 )
 _BUILD_DIRECTORY_NAMES = (
@@ -100,6 +102,8 @@ def is_source_entry_excluded(
     path = relative.as_posix()
     name = relative.name
     if platform != "win32" and name == ".DS_Store":
+        return True
+    if any(_matches(path, excluded, platform) for excluded in RUNTIME_SETTINGS_FILES):
         return True
     locale_path = path.casefold() if platform == "win32" else path
     locale_prefix = "scripts/source/locale/" if platform == "win32" else "Scripts/Source/Locale/"
@@ -350,7 +354,8 @@ def validate_templates(
             _require_file(template / relative)
         for directory in NON_RUNTIME_LICENSE_DIRECTORIES:
             _require_absent(template / "Licenses" / directory)
-        for relative in (*RUNTIME_STATE_PATHS, *EXPORT_DIRECTORIES, "Cache", "BuildInfo.json", "Data/BuildInfo.json"):
+        for relative in (*RUNTIME_STATE_PATHS, *EXPORT_DIRECTORIES, *RUNTIME_SETTINGS_FILES,
+                         "Assets/Shaders/MaterialGenerated", "Cache", "BuildInfo.json", "Data/BuildInfo.json"):
             _require_absent(template / relative)
         locale = template / "Scripts/Source/Locale"
         if locale.is_dir():

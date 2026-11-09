@@ -1,4 +1,8 @@
 local Engine = require("Engine")
+
+local APP_NAME = "LudorkSample"
+Engine.setAppName(APP_NAME)
+
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
 local Logging = require("Global.Utils.Logging")
@@ -10,15 +14,12 @@ local SceneManager = GlobalCore.SceneManager
 local NodeGraphFunctions = GlobalFunctions.NodeGraph
 local GlobalSystem = GlobalCore.System
 
-local APP_NAME = "LudorkSample"
-
 -- Entry point.
 local function entry()
     local Data = require("Source.Data")
     local SceneInit = require("Source.Scenes.SceneInit")
     local SourceSystem = require("Source.System")
 
-    Engine.setAppName(APP_NAME)
     Logging.info("Starting %s", APP_NAME)
     Locale.Init()
     local iniFilePath, iniFile = MainConfig.LoadOrCreate()

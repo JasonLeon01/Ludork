@@ -21,7 +21,6 @@ from typing import BinaryIO, TextIO
 from . import tool_process
 from . import server_config
 from .fetchcontent_cache import cached_dependency_sources
-from .material_assets import MaterialAssetError, validate_generated as validate_materials
 from .package_contents import is_excluded
 from .package_resources import prepare_runtime_resources
 from .tool_paths import resolve_toolchain_directory
@@ -591,7 +590,6 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
         )
     project_dir = resolve_project(arguments.project_folder)
     metadata = read_package_metadata(project_dir, arguments.version, arguments.dev)
-    validate_materials(project_dir)
     if arguments.use_ldpak:
         validate_ldpak_source(project_dir)
     if arguments.compile_lua:
@@ -1858,7 +1856,7 @@ def main(arguments: list[str] | None = None) -> int:
             message = redact_signing_diagnostic(message, signing)
         print(message, file=sys.stderr)
         return exception.exit_code
-    except (LdPakError, MaterialAssetError, UiAssetError) as exception:
+    except (LdPakError, UiAssetError) as exception:
         print(str(exception), file=sys.stderr)
         return EXIT_PROJECT
     except (OSError, RuntimeError, zipfile.BadZipFile) as exception:

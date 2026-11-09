@@ -22,15 +22,12 @@ from .ldpak import (
     validate_ldpak_source,
     validate_runtime_ldpak_layout,
 )
-from .material_assets import (
-    GENERATED_ROOT as MATERIAL_GENERATED_ROOT,
-    validate_generated as validate_materials,
-)
 from .package_contents import excluded_entries
 from .package_staging import package_staging
 from .packaging_constants import (
     COMPILE_LUA_DIRECTORIES_ENVIRONMENT,
     EXCLUDED_FILES_ENVIRONMENT,
+    RUNTIME_SETTINGS_FILES,
 )
 from .resource_constants import DATA_EXTENSION, ENCRYPTED_DATA_EXTENSION, SHADER_EXTENSIONS
 from .runtime_formats import (
@@ -457,10 +454,21 @@ def finalize_staged_package(
 ) -> tuple[int, int, int, int, int]:
     """Transform caller-owned staging; publication and rollback belong to its owner."""
     validate_assets(root, inputs.registry)
-    validate_materials(root)
     if use_ldpak:
         validate_ldpak_source(root)
     removed = prune_package(root, inputs.excluded_files)
+    settings_path = _package_path(root, pathlib.PurePosixPath(RUNTIME_SETTINGS_FILES[0]))
+    encrypted_settings_path = _package_path(root, pathlib.PurePosixPath(RUNTIME_SETTINGS_FILES[1]))
+    remove_file(encrypted_settings_path, missing_ok=True)
+    settings_path.parent.mkdir(parents=True, exist_ok=True)
+    settings_path.write_text(
+        json.dumps({
+            "encryptShaders": encrypt_shaders_enabled,
+            "encryptData": encrypt_data_enabled,
+        }, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
     lua_directories = list(inputs.compile_lua_directories)
     scripts_directory = pathlib.PurePosixPath("Scripts")
     if compile_lua_enabled and scripts_directory not in lua_directories:
@@ -472,7 +480,7 @@ def finalize_staged_package(
     )
     removed += strip_ui_editor_data(root / "Data")
     encrypted_data = (
-        sum(encrypt_data(directory) for directory in (root / "Data", root / MATERIAL_GENERATED_ROOT))
+        encrypt_data(root / "Data")
         if encrypt_data_enabled else 0
     )
     reject_declaration_files(root)

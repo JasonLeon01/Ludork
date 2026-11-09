@@ -8,6 +8,7 @@ function(ludork_add_preview_host_runtime target)
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Graphics/Materials/*.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Graphics/TilemapGraphics/*.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/UI/*.cpp")
+    list(FILTER preview_runtime_sources EXCLUDE REGEX "/MaterialCacheRequest[^/]*\\.cpp$")
     list(APPEND preview_runtime_sources
         "${CMAKE_CURRENT_SOURCE_DIR}/src/AnimSprite.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Emitters/Emitter.cpp"

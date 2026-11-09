@@ -140,7 +140,6 @@ for legal_name in $RUNTIME_LEGAL_FILES; do
     fi
 done
 
-"$TOOLCHAIN_DIRECTORY/ludork-assets" material-assets copy-inputs "$CPP_DIR" "$STANDALONE_DIR"
 rm -rf "$STANDALONE_DIR/$EDITOR_CACHE_DIRECTORY"
 "$TOOLCHAIN_DIRECTORY/ludork-build" preview copy "$CPP_DIR" "$STANDALONE_DIR"
 rm -rf "$STANDALONE_DIR/Cache"

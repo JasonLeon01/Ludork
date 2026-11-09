@@ -4,6 +4,8 @@
 
 #include <LudorkPlatform.hpp>
 #include <Runtime/AssetStore.hpp>
+#include <Runtime/DataStore.hpp>
+#include <Runtime/ScriptStore.hpp>
 #include <Runtime/RuntimeReflection.hpp>
 #include <Utf8Path.hpp>
 
@@ -157,6 +159,10 @@ std::string runtimeValueString(const RuntimeValue& value) {
 
 void setAppName(const std::string& value) {
     appName = normalizeAppName(value);
+    const std::filesystem::path root = userDataPath(std::nullopt);
+    ludork::runtime::assetStore().setUserDataRoot(root);
+    ludork::runtime::dataStore().setUserDataRoot(root);
+    ludork::runtime::scriptStore().setUserDataRoot(root);
 }
 
 const std::string& getAppName() {

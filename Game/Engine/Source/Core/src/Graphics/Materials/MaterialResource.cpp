@@ -198,7 +198,7 @@ std::shared_ptr<const MaterialResource> MaterialResource::load(
         if (text(root, "type") != "materialResource" ||
             reader::requireInt(required(root, "version"),
                                "generated material.version") != 1 ||
-            text(root, "generator") != "Ludork Material Export" ||
+            text(root, "generator") != "Ludork Material Compiler" ||
             text(root, "material") != path) {
             throw std::invalid_argument(
                 "Invalid generated material metadata: " + path);

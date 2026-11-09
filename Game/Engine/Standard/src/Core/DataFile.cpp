@@ -87,6 +87,9 @@ std::vector<std::uint8_t> readFile(const std::filesystem::path& path) {
 }  // namespace
 
 std::filesystem::path resolveDataPath(const std::filesystem::path& path) {
+    if (const auto resolved = resolveReadOnlyDataPath(path)) {
+        return *resolved;
+    }
     if (isRegularFile(path)) {
         return path;
     }

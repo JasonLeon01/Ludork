@@ -74,9 +74,10 @@ int runEntryScript(lua_State* state, const std::filesystem::path& scriptPath) {
         scriptPath.lexically_normal();
     std::string loadedPathText = normalizedScriptPath.generic_string();
     int loadStatus = LUA_ERRFILE;
-    if (!normalizedScriptPath.is_absolute() &&
-        loadedPathText.starts_with(
-            ludork::generated::resources::ScriptPathPrefix)) {
+    if (loadedPathText.starts_with("/Game/Scripts/") ||
+        (!normalizedScriptPath.is_absolute() &&
+         loadedPathText.starts_with(
+             ludork::generated::resources::ScriptPathPrefix))) {
         loadStatus =
             ludork::runtime::scriptStore().loadFile(state, loadedPathText);
     } else {

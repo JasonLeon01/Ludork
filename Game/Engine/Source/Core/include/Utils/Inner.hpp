@@ -3,6 +3,7 @@
 #include <CoreMinimal.hpp>
 
 #include <EngineRuntimeApi.hpp>
+#include <Graphics/Materials/MaterialCacheRequest.hpp>
 
 BIND_FUNCTION(name = "setAppName")
 void setAppName(const std::string& value);
@@ -17,6 +18,12 @@ LUDORK_ENGINE_API void warnOnce(const std::string& key,
 BIND_FUNCTION(name = "getUserDataPath")
 std::string getUserDataPath(
     const std::optional<std::string>& appNameOverride = std::nullopt);
+
+/// Prepare generated material programs in the current application's user data.
+BIND_FUNCTION(name = "prepareMaterialCache", metadata = false,
+              nonnull_return = true)
+std::shared_ptr<ludork::engine::materials::MaterialCacheRequest>
+prepareMaterialCache();
 
 BIND_FUNCTION(name = "getSavePath")
 std::string getSavePath(

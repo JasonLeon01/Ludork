@@ -33,7 +33,6 @@ private:
     static constexpr char HandshakeResponse[] = "handshake";
     static constexpr char HandshakeRequest[] = "handshake";
     static constexpr char CloseMapRequest[] = "closeMap";
-    static constexpr char CompileMaterialRequest[] = "compileMaterial";
     static constexpr char RenderMapRequest[] = "renderMap";
     static constexpr char DescribeMaterialsRequest[] = "describeMaterials";
     static constexpr char RenderMaterialRequest[] = "renderMaterial";

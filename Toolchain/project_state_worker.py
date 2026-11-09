@@ -7,7 +7,6 @@ import pathlib
 import sys
 
 from Toolchain import native_build_state
-from Toolchain.material_assets import generation_manifest as material_generation_manifest
 from Toolchain.ui_asset_generation import generation_manifest
 
 
@@ -30,8 +29,6 @@ def execute(project: pathlib.Path, request: dict) -> dict:
         return {"current": current, "detail": detail}
     if operation == "ui-manifest":
         return generation_manifest(project)
-    if operation == "material-manifest":
-        return material_generation_manifest(project)
     raise ValueError(f"Unknown project state operation: {operation}")
 
 

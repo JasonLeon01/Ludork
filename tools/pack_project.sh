@@ -107,8 +107,6 @@ if [ ! -f "$PROJECT_FILE" ]; then
     exit 1
 fi
 
-"$TOOLCHAIN_DIRECTORY/ludork-assets" material-assets validate "$PROJECT_DIR"
-
 PACKAGE_METADATA="$TEMPORARY_DIR/package-metadata.json"
 set -- "$PROJECT_DIR" "$PACKAGE_METADATA"
 if [ -n "$PACKAGE_VERSION" ]; then

@@ -181,6 +181,20 @@ bool appendReadOnlyDirectoryEntries(const FileBatchSpec& spec,
                 (encryptedData && jsonSuffix(spec.suffix))
                     ? pathToGenericUtf8(logicalDataPath(relative))
                     : storedRelativePath;
+            std::filesystem::path selectedPath = child;
+            if (jsonSuffix(spec.suffix) &&
+                (jsonSuffix(storedRelativePath) || encryptedData)) {
+                try {
+                    selectedPath = resolveDataPath(logicalDataPath(child));
+                } catch (const std::exception& exception) {
+                    error =
+                        providerError("scan", spec, child, exception.what());
+                    return false;
+                }
+                if (selectedPath.extension() != child.extension()) {
+                    continue;
+                }
+            }
             if (suffixMatches(relativePath, spec.suffix) &&
                 (spec.excludeSuffix.empty() ||
                  !suffixMatches(relativePath, spec.excludeSuffix)) &&
@@ -188,7 +202,7 @@ bool appendReadOnlyDirectoryEntries(const FileBatchSpec& spec,
                 entries.push_back({
                     0,
                     spec.category,
-                    child,
+                    selectedPath,
                     relativePath,
                     status.size,
                     (jsonSuffix(relativePath) ||

@@ -31,11 +31,14 @@ public:
 
     void configure(const std::filesystem::path& runtimeRoot,
                    DataStoreMode mode = DataStoreMode::Loose);
+    void setUserDataRoot(const std::filesystem::path& root);
     void reset() noexcept;
 
     [[nodiscard]] bool isConfigured() const noexcept;
     [[nodiscard]] DataStoreMode mode() const;
     [[nodiscard]] bool handles(const std::filesystem::path& path) const;
+    [[nodiscard]] std::filesystem::path resolve(
+        const std::filesystem::path& path) const;
     [[nodiscard]] std::optional<DataStat> stat(
         const std::filesystem::path& path) const;
     [[nodiscard]] std::vector<std::filesystem::path> listDirectory(

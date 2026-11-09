@@ -5148,8 +5148,8 @@
     "en_GB": "{0} (missing)"
   },
   "MATERIAL_COMBINATIONS_LOAD_FAILED": {
-    "zh_CN": "无法读取 MaterialExport.json 中的材质组合。",
-    "en_GB": "Unable to read material combinations from MaterialExport.json."
+    "zh_CN": "无法读取 Data/MaterialCombinations.json 中的材质组合。",
+    "en_GB": "Unable to read material combinations from Data/MaterialCombinations.json."
   },
   "MATERIAL_COMBINATIONS_SAVE_FAILED": {
     "zh_CN": "无法保存材质组合，已有组合保持不变。",

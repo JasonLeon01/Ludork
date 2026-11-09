@@ -13,10 +13,9 @@ import tempfile
 
 from . import macos_sign, server_config
 from .tool_process import cancellation_signals, run as run_tool
-from .file_replace import remove_tree, replace_path, wait_until_writable
-from .material_assets import MaterialAssetError, validate_generated
+from .file_replace import remove_file, remove_tree, replace_path, wait_until_writable
 from .pack_error import PackError
-from .packaging_constants import EXIT_PROJECT, EXIT_TOOLCHAIN
+from .packaging_constants import EXIT_PROJECT, EXIT_TOOLCHAIN, RUNTIME_SETTINGS_FILES
 from .preview import load_preview, verify_preview_host
 from .ui_asset_generation import generate_assets
 from .ui_property_values import UiAssetError
@@ -91,7 +90,7 @@ def validate_source(project: pathlib.Path) -> None:
         for path in root.rglob("*"):
             if path.is_symlink() or path.is_junction():
                 raise PackError(f"Editable project resources must not contain links: {path}", EXIT_PROJECT)
-    for name in ("Main.proj", ".emmyrc.json", ".vscode", "MaterialExport.json", "Licenses", "ThirdPartySource"):
+    for name in ("Main.proj", ".emmyrc.json", ".vscode", "Licenses", "ThirdPartySource"):
         require_unlinked(project / name)
     validate_exports(project)
     server_config.load("Release")
@@ -101,10 +100,14 @@ def validate_exports(project: pathlib.Path) -> None:
     changes = generate_assets(project, check=True)
     if changes:
         raise PackError("UI export is missing or outdated. Run editor Export first:\n" + "\n".join(changes), EXIT_PROJECT)
-    validate_generated(project)
 
 
 def prepare_project(project: pathlib.Path, destination: pathlib.Path) -> None:
+    for relative in RUNTIME_SETTINGS_FILES:
+        remove_file(destination / relative, missing_ok=True)
+    generated_materials = destination / "Assets/Shaders/MaterialGenerated"
+    if generated_materials.exists():
+        remove_tree(generated_materials)
     config = read_object(project / "Main.proj")
     config["Cpp"] = False
     config.pop("compiler", None)
@@ -166,7 +169,8 @@ def validate_output(destination: pathlib.Path) -> None:
     for name in executables:
         if not (destination / name).is_file():
             raise PackError(f"Standalone output is missing {name}.")
-    for name in ("Engine", "Application", "build", "bin", "Intermediate", "Cache", "Save", "Log", ".git",
+    for name in (*RUNTIME_SETTINGS_FILES, "Assets/Shaders/MaterialGenerated",
+                 "Engine", "Application", "build", "bin", "Intermediate", "Cache", "Save", "Log", ".git",
                  "Assets.ldpak", "Data.ldpak", "Scripts.ldpak", "EditorCache/ProjectExport.json"):
         if (destination / name).exists():
             raise PackError(f"Unexpected development or packed content in Standalone: {name}")
@@ -250,6 +254,6 @@ def main(arguments: list[str] | None = None) -> int:
     except PackError as exception:
         print(f"Error: {exception}", file=sys.stderr, flush=True)
         return exception.exit_code
-    except (OSError, ValueError, UiAssetError, MaterialAssetError) as exception:
+    except (OSError, ValueError, UiAssetError) as exception:
         print(f"Error: {exception}", file=sys.stderr, flush=True)
         return EXIT_PROJECT

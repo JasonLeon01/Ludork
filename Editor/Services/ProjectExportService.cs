@@ -124,8 +124,6 @@ public sealed class ProjectExportService : IDisposable
             ExportRecord? previous = readRecord();
             if (previous is not null)
                 await writeRecordAsync(previous with { Complete = false }, cancellation.Token);
-            await using MaterialGenerationService materials = new(projectPath);
-            await materials.PrepareAsync(cancellation.Token);
             ExportSnapshot before = await captureSnapshotAsync(cancellation.Token);
             PluginResult hooks = await pipeline.ExecuteAsync(ProjectOperationKind.Export, writeOutput, cancellation.Token);
             if (!hooks.Success)
@@ -134,10 +132,6 @@ public sealed class ProjectExportService : IDisposable
                 projectPath, "generate", writeOutput, cancellation.Token);
             if (!generation.Success)
                 return ProjectExportResult.Failed(generation.Details);
-            (JsonElement materialManifest, _) = await stateWorker.ExecuteAsync("material-manifest", cancellation.Token);
-            SaveResult materialGeneration = await materials.GenerateAsync(materialManifest, writeOutput, cancellation.Token);
-            if (!materialGeneration.Success)
-                return ProjectExportResult.Failed(materialGeneration.Details);
             ExportSnapshot after = await captureSnapshotAsync(cancellation.Token);
             if (!sameInputs(before, after))
                 return ProjectExportResult.Failed("Export inputs changed during export. Export the project again.");
@@ -168,28 +162,23 @@ public sealed class ProjectExportService : IDisposable
     private async Task<ExportSnapshot> captureSnapshotAsync(CancellationToken cancellationToken)
     {
         (JsonElement manifest, string toolIdentity) = await stateWorker.ExecuteAsync("ui-manifest", cancellationToken);
-        (JsonElement materials, string materialToolIdentity) = await stateWorker.ExecuteAsync("material-manifest", cancellationToken);
-        if (toolIdentity != materialToolIdentity)
-            throw new InvalidDataException("Toolchain changed during the export check. Try again.");
         return await Task.Run(() =>
         {
             SortedDictionary<string, string> inputs = new(StringComparer.Ordinal);
-            foreach (JsonProperty property in manifest.GetProperty("inputs").EnumerateObject()
-                .Concat(materials.GetProperty("inputs").EnumerateObject()))
+            foreach (JsonProperty property in manifest.GetProperty("inputs").EnumerateObject())
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 resolveProjectFile(property.Name);
                 inputs[property.Name] = property.Value.GetString() ?? throw new InvalidDataException(property.Name);
             }
             string[] uiOutputs = manifest.GetProperty("outputPaths").EnumerateArray()
-                .Concat(materials.GetProperty("outputPaths").EnumerateArray())
                 .Select(value => value.GetString() ?? throw new InvalidDataException("Invalid UI output path")).ToArray();
             IReadOnlyList<ProjectExportParticipant> participants = pluginRuntime?.GetExportParticipants(projectPath) ?? [];
             SortedDictionary<string, string> outputs = new(StringComparer.Ordinal);
             HashSet<string> outputOwners = new(StringComparer.OrdinalIgnoreCase);
             foreach (string path in uiOutputs)
             {
-                if (!outputOwners.Add(path) && !path.StartsWith("Assets/Shaders/MaterialGenerated/", StringComparison.Ordinal))
+                if (!outputOwners.Add(path))
                     throw new InvalidDataException("Export outputs conflict on case-insensitive filesystems: " + path);
                 outputs.Add(path, hashProjectFile(path, cancellationToken));
             }

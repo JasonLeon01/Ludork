@@ -15,15 +15,6 @@ if not exist "%GAME_EXE%" (
     exit /b 1
 )
 
-set "TOOLCHAIN_DIRECTORY=%~dp0Toolchain"
-if not exist "%TOOLCHAIN_DIRECTORY%" set "TOOLCHAIN_DIRECTORY=%~dp0..\.tools\Toolchain"
-if not exist "%TOOLCHAIN_DIRECTORY%" (
-    echo Toolchain was not found. Run tools\init.bat first.
-    exit /b 1
-)
-"%TOOLCHAIN_DIRECTORY%\ludork-assets.exe" material-assets validate "%GAME_DIR%"
-if errorlevel 1 exit /b %errorlevel%
-
 pushd "%GAME_DIR%"
 "%GAME_EXE%"
 set "EXIT_CODE=%ERRORLEVEL%"

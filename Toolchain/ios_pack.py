@@ -26,7 +26,6 @@ from .apple_signing import (
 )
 from . import server_config
 from .fetchcontent_cache import cached_dependency_sources
-from .material_assets import MaterialAssetError, validate_generated as validate_materials
 from .package_resources import prepare_runtime_resources
 from .tool_paths import resolve_toolchain_directory
 from .pack_error import PackError
@@ -314,7 +313,6 @@ def create_context(
         raise PackError("iOS packaging is only supported on macOS.", EXIT_TOOLCHAIN)
     project_dir = resolve_project(arguments.project_folder)
     metadata = read_package_metadata(project_dir, arguments.version, arguments.dev)
-    validate_materials(project_dir)
     if arguments.use_ldpak:
         validate_ldpak_source(project_dir)
     dist_dir = (
@@ -714,7 +712,7 @@ def main(arguments: list[str] | None = None) -> int:
     except PackError as exception:
         print(f"Error: {exception}", file=sys.stderr, flush=True)
         return exception.exit_code
-    except (LdPakError, MaterialAssetError, UiAssetError) as exception:
+    except (LdPakError, UiAssetError) as exception:
         print(f"Error: {exception}", file=sys.stderr, flush=True)
         return EXIT_PROJECT
     except KeyboardInterrupt:

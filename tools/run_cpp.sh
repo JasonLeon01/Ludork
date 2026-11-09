@@ -13,7 +13,5 @@ if [ ! -x "$GAME" ]; then
     echo "No C++ game executable was found: $GAME" >&2
     exit 1
 fi
-TOOLCHAIN_DIRECTORY=$(resolve_toolchain_directory)
-"$TOOLCHAIN_DIRECTORY/ludork-assets" material-assets validate "$CPP_DIR"
 cd "$CPP_DIR"
 exec "$GAME"

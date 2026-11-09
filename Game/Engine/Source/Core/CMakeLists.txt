@@ -22,6 +22,23 @@ ludork_generate_lua_bindings(
 
 add_library(Engine ${LUDORK_RUNTIME_LIBRARY_TYPE}
     ${LUDORK_ENGINE_SOURCES})
+file(GLOB_RECURSE LUDORK_MATERIAL_CACHE_INPUTS CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Graphics/Materials/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Graphics/Materials/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/Graphics/Materials/*.hpp")
+list(SORT LUDORK_MATERIAL_CACHE_INPUTS)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    ${LUDORK_MATERIAL_CACHE_INPUTS})
+set(LUDORK_MATERIAL_CACHE_IDENTITY "")
+foreach(input IN LISTS LUDORK_MATERIAL_CACHE_INPUTS)
+    file(SHA256 "${input}" input_hash)
+    string(APPEND LUDORK_MATERIAL_CACHE_IDENTITY "${input_hash}\n")
+endforeach()
+string(SHA256 LUDORK_MATERIAL_CACHE_FINGERPRINT "${LUDORK_MATERIAL_CACHE_IDENTITY}")
+file(GENERATE
+    OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/MaterialCacheCompilerFingerprint.hpp"
+    CONTENT "#pragma once\nnamespace ludork::engine::materials { inline constexpr char MaterialCacheCompilerFingerprint[] = \"${LUDORK_MATERIAL_CACHE_FINGERPRINT}\"; }\n")
+target_include_directories(Engine PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 add_library(EngineBindings OBJECT ${LUDORK_ENGINE_BINDINGS})
 add_library(Ludork::Engine ALIAS Engine)
 foreach(target IN ITEMS Engine EngineBindings)

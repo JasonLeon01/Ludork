@@ -22,7 +22,7 @@ public sealed class MaterialCombinationService
 
     public MaterialCombinationService(string projectPath)
     {
-        path = Path.Combine(projectPath, "MaterialExport.json");
+        path = Path.Combine(projectPath, "Data", "MaterialCombinations.json");
     }
 
     public List<MaterialCombination> Read()

@@ -524,6 +524,9 @@ bool moduleExists(const std::string& module) {
             return true;
         }
     }
+    if (scriptStore().isConfigured() && scriptStore().hasModule(module)) {
+        return true;
+    }
     const RuntimeValue search =
         rawGet(ludork::runtime::reference::intern(package), "searchpath");
     if (!isFunction(search)) {

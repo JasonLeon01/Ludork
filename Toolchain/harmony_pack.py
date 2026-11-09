@@ -18,7 +18,6 @@ from dataclasses import dataclass, replace
 from . import tool_process
 from . import server_config
 from .fetchcontent_cache import cached_dependency_sources
-from .material_assets import MaterialAssetError, validate_generated as validate_materials
 from .package_contents import is_excluded
 from .package_resources import prepare_runtime_resources
 from .tool_paths import resolve_toolchain_directory
@@ -291,7 +290,6 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
         )
     project_dir = resolve_project(arguments.project_folder)
     metadata = read_package_metadata(project_dir, arguments.version, arguments.dev)
-    validate_materials(project_dir)
     if arguments.use_ldpak:
         validate_ldpak_source(project_dir)
     if arguments.compile_lua:
@@ -1620,7 +1618,7 @@ def main(arguments: list[str] | None = None) -> int:
         print(redact_native_build_diagnostic(message), file=sys.stderr)
         if isinstance(exception, PackError):
             return exception.exit_code
-        return EXIT_PROJECT if isinstance(exception, (LdPakError, MaterialAssetError, UiAssetError)) else 1
+        return EXIT_PROJECT if isinstance(exception, (LdPakError, UiAssetError)) else 1
     finally:
         server_config.cleanup(parsed.project_folder.expanduser())
 

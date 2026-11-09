@@ -38,6 +38,13 @@ ReadOnlyFileStatus readOnlyFileStatus(const std::filesystem::path& path) {
     return provider.status ? provider.status(path) : ReadOnlyFileStatus{};
 }
 
+std::optional<std::filesystem::path> resolveReadOnlyDataPath(
+    const std::filesystem::path& path) {
+    const ReadOnlyFileProvider provider = providerSnapshot();
+    return provider.resolveDataPath ? provider.resolveDataPath(path)
+                                    : std::nullopt;
+}
+
 std::vector<std::filesystem::path> readOnlyDirectoryEntries(
     const std::filesystem::path& path) {
     const ReadOnlyFileProvider provider = providerSnapshot();

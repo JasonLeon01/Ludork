@@ -124,8 +124,6 @@ for %%F in (%RUNTIME_LEGAL_FILES%) do if exist "%CPP_DIR%\%%F" (
     if errorlevel 1 exit /b %errorlevel%
 )
 
-"%TOOLCHAIN_DIRECTORY%\ludork-assets.exe" material-assets copy-inputs "%CPP_DIR%" "%STANDALONE_DIR%"
-if errorlevel 1 exit /b %errorlevel%
 if exist "%STANDALONE_DIR%\%EDITOR_CACHE_DIRECTORY%" rmdir /S /Q "%STANDALONE_DIR%\%EDITOR_CACHE_DIRECTORY%"
 if exist "%STANDALONE_DIR%\%EDITOR_CACHE_DIRECTORY%" exit /b 1
 "%TOOLCHAIN_DIRECTORY%\ludork-build.exe" preview copy "%CPP_DIR%" "%STANDALONE_DIR%"

@@ -32,11 +32,14 @@ public:
     ScriptStore& operator=(const ScriptStore&) = delete;
 
     void configure(const std::filesystem::path& runtimeRoot);
+    void setUserDataRoot(const std::filesystem::path& root);
     void reset() noexcept;
 
     [[nodiscard]] bool isConfigured() const noexcept;
     [[nodiscard]] ScriptStoreMode mode() const;
-    int loadFile(lua_State* state, const std::string& scriptPath) const;
+    int loadFile(lua_State* state, const std::string& scriptPath,
+                 const char* mode = nullptr) const;
+    [[nodiscard]] bool hasModule(const std::string& moduleName) const;
     int loadModule(lua_State* state, const std::string& moduleName) const;
     void registerPreloadedModules(lua_State* state) const;
     [[nodiscard]] ReloadSnapshot prepareReload() const;

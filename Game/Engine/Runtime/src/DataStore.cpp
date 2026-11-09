@@ -6,12 +6,14 @@
 #include "ResourceFileInfo.hpp"
 #include "ResourceStorePaths.hpp"
 #include <ReadOnlyFileProvider.hpp>
+#include <StringUtils.hpp>
 #include <Utf8Path.hpp>
 
 #include <algorithm>
 #include <fstream>
 #include <iterator>
 #include <mutex>
+#include <map>
 #include <shared_mutex>
 #include <stdexcept>
 #include <string>
@@ -20,8 +22,6 @@
 
 namespace ludork::runtime {
 namespace {
-
-using data_store_impl::StoreEntry;
 
 bool isIgnoredMetadata(const std::filesystem::path& path,
                        const std::filesystem::file_status& status) {
@@ -57,9 +57,10 @@ std::vector<std::uint8_t> readPhysicalFile(const std::filesystem::path& path) {
     return result;
 }
 
-void addEntry(std::unordered_map<std::string, StoreEntry>& entries,
-              std::unordered_map<std::string, std::string>& foldedPaths,
-              const std::string& key, StoreEntry entry) {
+void addEntry(
+    std::unordered_map<std::string, data_store_impl::StoreEntry>& entries,
+    std::unordered_map<std::string, std::string>& foldedPaths,
+    const std::string& key, data_store_impl::StoreEntry entry) {
     if (!entries.emplace(key, std::move(entry)).second) {
         throw std::runtime_error("Duplicate Data path: " + key);
     }
@@ -71,9 +72,10 @@ void addEntry(std::unordered_map<std::string, StoreEntry>& entries,
     }
 }
 
-void loadLooseTree(const std::filesystem::path& dataRoot,
-                   std::unordered_map<std::string, StoreEntry>& entries,
-                   std::unordered_map<std::string, std::string>& foldedPaths) {
+void loadLooseTree(
+    const std::filesystem::path& dataRoot,
+    std::unordered_map<std::string, data_store_impl::StoreEntry>& entries,
+    std::unordered_map<std::string, std::string>& foldedPaths) {
     addEntry(entries, foldedPaths, ludork::generated::resources::DataGroup,
              {dataRoot,
               nullptr,
@@ -139,9 +141,10 @@ void loadLooseTree(const std::filesystem::path& dataRoot,
     }
 }
 
-void loadPackage(const std::filesystem::path& packagePath,
-                 std::unordered_map<std::string, StoreEntry>& entries,
-                 std::unordered_map<std::string, std::string>& foldedPaths) {
+void loadPackage(
+    const std::filesystem::path& packagePath,
+    std::unordered_map<std::string, data_store_impl::StoreEntry>& entries,
+    std::unordered_map<std::string, std::string>& foldedPaths) {
     std::shared_ptr<detail::LdPakArchive> archive =
         std::make_shared<detail::LdPakArchive>(packagePath);
     if (archive->group() != ludork::generated::resources::DataGroup) {
@@ -165,7 +168,8 @@ void loadPackage(const std::filesystem::path& packagePath,
 
 std::unordered_map<std::string, std::vector<std::filesystem::path>>
 buildDirectoryEntries(
-    const std::unordered_map<std::string, StoreEntry>& entries) {
+    const std::unordered_map<std::string, data_store_impl::StoreEntry>&
+        entries) {
     std::unordered_map<std::string, std::vector<std::filesystem::path>> result;
     for (const auto& [key, entry] : entries) {
         static_cast<void>(entry);
@@ -186,6 +190,15 @@ buildDirectoryEntries(
     return result;
 }
 
+bool virtualDataPath(const std::filesystem::path& path) {
+    const std::string text = ludork::standard::pathToGenericUtf8(path);
+    return text == "/Game/Data" || text.starts_with("/Game/Data/");
+}
+
+bool usesUserData(const std::filesystem::path& path) {
+    return !path.is_absolute() || virtualDataPath(path);
+}
+
 std::optional<std::string> normalizeDataPath(
     const std::filesystem::path& runtimeRoot,
     const std::filesystem::path& path) {
@@ -193,7 +206,16 @@ std::optional<std::string> normalizeDataPath(
         return std::nullopt;
     }
     std::filesystem::path relative;
-    if (path.is_absolute()) {
+    if (virtualDataPath(path)) {
+        const std::string text = ludork::standard::pathToGenericUtf8(path);
+        relative = ludork::standard::pathFromUtf8(text.substr(6));
+        for (const auto& part : relative) {
+            if (part == "." || part == ".." || part.empty()) {
+                throw std::invalid_argument(
+                    "Data resource path is not canonical");
+            }
+        }
+    } else if (path.is_absolute()) {
         relative = path.lexically_normal().lexically_relative(runtimeRoot);
     } else {
         relative = path.lexically_normal();
@@ -202,7 +224,10 @@ std::optional<std::string> normalizeDataPath(
         return std::nullopt;
     }
     for (const std::filesystem::path& part : relative) {
-        if (part == "..") {
+        const std::string text = ludork::standard::pathToUtf8(part);
+        if (part == ".." || text.find('\\') != std::string::npos ||
+            text.find(':') != std::string::npos ||
+            text.find('\0') != std::string::npos) {
             return std::nullopt;
         }
     }
@@ -212,6 +237,27 @@ std::optional<std::string> normalizeDataPath(
         return std::nullopt;
     }
     return key;
+}
+
+std::optional<data_store_impl::StoreEntry> findLooseEntry(
+    const std::filesystem::path& root, const std::string& key) {
+    const auto entry =
+        detail::findLooseResource(root, ludork::standard::pathFromUtf8(key));
+    if (!entry) {
+        return std::nullopt;
+    }
+    const bool directory = entry->is_directory();
+    return data_store_impl::StoreEntry{
+        entry->path(),
+        nullptr,
+        {},
+        {directory,
+         directory ? 0
+                   : detail::resourceFileSize(entry->path(),
+                                              "Failed to read Data file size: ",
+                                              "Data file is too large"),
+         detail::resourceModificationTime(
+             entry->path(), "Failed to read Data modification time: ")}};
 }
 
 }  // namespace
@@ -224,7 +270,7 @@ void DataStore::configure(const std::filesystem::path& runtimeRoot,
     const std::filesystem::path normalized = detail::resourceStoreRoot(
         runtimeRoot, ludork::generated::resources::DataGroup,
         mode == DataStoreMode::Packed);
-    std::unordered_map<std::string, StoreEntry> loadedEntries;
+    std::unordered_map<std::string, data_store_impl::StoreEntry> loadedEntries;
     std::unordered_map<std::string, std::string> foldedPaths;
     if (mode == DataStoreMode::Loose) {
         loadLooseTree(normalized / ludork::generated::resources::DataGroup,
@@ -240,48 +286,84 @@ void DataStore::configure(const std::filesystem::path& runtimeRoot,
     {
         std::unique_lock lock(impl_->mutex);
         impl_->runtimeRoot = normalized;
+        impl_->userDataRoot.clear();
         impl_->mode = mode;
         impl_->entries = std::move(loadedEntries);
         impl_->directoryEntries = std::move(loadedDirectoryEntries);
         impl_->configured = true;
     }
 
-    if (mode == DataStoreMode::Packed) {
-        ludork::standard::configureReadOnlyFileProvider({
-            [this](const std::filesystem::path& path) {
-                ludork::standard::ReadOnlyFileStatus result;
-                if (!handles(path)) {
-                    return result;
-                }
-                result.handled = true;
-                const std::optional<DataStat> value = stat(path);
-                if (!value.has_value()) {
-                    return result;
-                }
-                result.type =
-                    value->directory
-                        ? ludork::standard::ReadOnlyFileType::Directory
-                        : ludork::standard::ReadOnlyFileType::Regular;
-                result.size = value->size;
-                result.modificationTime = value->modificationTime;
+    ludork::standard::configureReadOnlyFileProvider({
+        [this](const std::filesystem::path& path) {
+            ludork::standard::ReadOnlyFileStatus result;
+            if (!handles(path)) {
                 return result;
-            },
-            [this](const std::filesystem::path& path) {
-                return listDirectory(path);
-            },
-            [this](const std::filesystem::path& path) {
-                return readAll(path);
-            },
-        });
-    } else {
-        ludork::standard::clearReadOnlyFileProvider();
+            }
+            result.handled = true;
+            const std::optional<DataStat> value = stat(path);
+            if (!value.has_value()) {
+                return result;
+            }
+            result.type = value->directory
+                              ? ludork::standard::ReadOnlyFileType::Directory
+                              : ludork::standard::ReadOnlyFileType::Regular;
+            result.size = value->size;
+            result.modificationTime = value->modificationTime;
+            return result;
+        },
+        [this](const std::filesystem::path& path) {
+            return listDirectory(path);
+        },
+        [this](const std::filesystem::path& path) {
+            return readAll(path);
+        },
+        [this](const std::filesystem::path& path)
+            -> std::optional<std::filesystem::path> {
+            return handles(path) ? std::optional(resolve(path)) : std::nullopt;
+        },
+    });
+}
+
+void DataStore::setUserDataRoot(const std::filesystem::path& root) {
+    const std::filesystem::path normalized = detail::resourceUserDataRoot(root);
+    std::unique_lock lock(impl_->mutex);
+    if (!impl_->configured) {
+        throw std::logic_error("DataStore is not configured");
     }
+    impl_->userDataRoot = normalized;
+}
+
+std::optional<data_store_impl::StoreEntry> DataStore::Impl::find(
+    const std::string& key, bool user) const {
+    if (user || mode == DataStoreMode::Loose) {
+        return findLooseEntry(user ? userDataRoot : runtimeRoot, key);
+    }
+    const auto entry = entries.find(key);
+    return entry == entries.end() ? std::nullopt : std::optional(entry->second);
+}
+
+std::optional<data_store_impl::StoreEntry> DataStore::Impl::find(
+    const std::filesystem::path& path) const {
+    if (!configured) {
+        throw std::logic_error("DataStore is not configured");
+    }
+    const auto key = normalizeDataPath(runtimeRoot, path);
+    if (!key) {
+        throw std::invalid_argument("Path is outside Data");
+    }
+    if (usesUserData(path)) {
+        if (auto entry = find(*key, true)) {
+            return entry;
+        }
+    }
+    return find(*key, false);
 }
 
 void DataStore::reset() noexcept {
     ludork::standard::clearReadOnlyFileProvider();
     std::unique_lock lock(impl_->mutex);
     impl_->runtimeRoot.clear();
+    impl_->userDataRoot.clear();
     impl_->entries.clear();
     impl_->directoryEntries.clear();
     impl_->mode = DataStoreMode::Loose;
@@ -307,62 +389,113 @@ bool DataStore::handles(const std::filesystem::path& path) const {
            normalizeDataPath(impl_->runtimeRoot, path).has_value();
 }
 
-std::optional<DataStat> DataStore::stat(
+std::filesystem::path DataStore::resolve(
     const std::filesystem::path& path) const {
     std::shared_lock lock(impl_->mutex);
     if (!impl_->configured) {
         throw std::logic_error("DataStore is not configured");
     }
-    const std::optional<std::string> key =
-        normalizeDataPath(impl_->runtimeRoot, path);
-    if (!key.has_value()) {
+    const auto key = normalizeDataPath(impl_->runtimeRoot, path);
+    if (!key) {
         throw std::invalid_argument("Path is outside Data");
     }
-    const auto iterator = impl_->entries.find(*key);
-    return iterator == impl_->entries.end()
-               ? std::nullopt
-               : std::optional<DataStat>(iterator->second.stat);
+    std::vector<std::string> candidates{*key};
+    if (ludork::standard::lowercase(ludork::standard::pathToUtf8(
+            path.extension())) == ludork::generated::resources::DataExtension) {
+        std::filesystem::path encrypted = ludork::standard::pathFromUtf8(*key);
+        encrypted.replace_extension(
+            ludork::generated::resources::EncryptedDataExtension);
+        candidates.push_back(ludork::standard::pathToGenericUtf8(encrypted));
+    }
+    for (const bool user : {true, false}) {
+        if (user && !usesUserData(path)) {
+            continue;
+        }
+        for (const std::string& candidate : candidates) {
+            if (auto entry = impl_->find(candidate, user)) {
+                if (entry->stat.directory) {
+                    throw std::runtime_error("Data is not a file: " +
+                                             candidate);
+                }
+                return entry->archive
+                           ? impl_->runtimeRoot /
+                                 ludork::standard::pathFromUtf8(candidate)
+                           : entry->source;
+            }
+        }
+    }
+    return path;
+}
+
+std::optional<DataStat> DataStore::stat(
+    const std::filesystem::path& path) const {
+    std::shared_lock lock(impl_->mutex);
+    const auto entry = impl_->find(path);
+    return entry ? std::optional(entry->stat) : std::nullopt;
 }
 
 std::vector<std::filesystem::path> DataStore::listDirectory(
     const std::filesystem::path& path) const {
     std::shared_lock lock(impl_->mutex);
-    if (!impl_->configured) {
-        throw std::logic_error("DataStore is not configured");
+    const auto directory = impl_->find(path);
+    if (!directory || !directory->stat.directory) {
+        throw std::runtime_error("Data directory not found: " +
+                                 ludork::standard::pathToUtf8(path));
     }
-    const std::optional<std::string> key =
-        normalizeDataPath(impl_->runtimeRoot, path);
-    if (!key.has_value()) {
-        throw std::invalid_argument("Path is outside Data");
+    const std::string key = *normalizeDataPath(impl_->runtimeRoot, path);
+    std::map<std::string, bool> children;
+    for (const bool user : {true, false}) {
+        if (user && !usesUserData(path)) {
+            continue;
+        }
+        const auto sourceDirectory = impl_->find(key, user);
+        if (!sourceDirectory || !sourceDirectory->stat.directory) {
+            continue;
+        }
+        std::vector<std::filesystem::path> names;
+        if (sourceDirectory->archive) {
+            const auto sourceChildren = impl_->directoryEntries.find(key);
+            if (sourceChildren != impl_->directoryEntries.end()) {
+                names = sourceChildren->second;
+            }
+        } else {
+            for (const auto& entry :
+                 std::filesystem::directory_iterator(sourceDirectory->source)) {
+                names.push_back(entry.path().filename());
+            }
+            std::sort(names.begin(), names.end());
+        }
+        for (const auto& name : names) {
+            const std::string text = ludork::standard::pathToUtf8(name);
+            if (text == ".DS_Store") {
+                continue;
+            }
+            const auto entry = impl_->find(key + '/' + text, user);
+            if (entry) {
+                children.emplace(text, entry->stat.directory);
+            }
+        }
     }
-    const auto entry = impl_->entries.find(*key);
-    if (entry == impl_->entries.end() || !entry->second.stat.directory) {
-        throw std::runtime_error("Data directory not found: " + *key);
+    std::vector<std::filesystem::path> result;
+    result.reserve(children.size());
+    for (const auto& [name, directoryEntry] : children) {
+        static_cast<void>(directoryEntry);
+        result.push_back(ludork::standard::pathFromUtf8(name));
     }
-    const auto children = impl_->directoryEntries.find(*key);
-    return children == impl_->directoryEntries.end()
-               ? std::vector<std::filesystem::path>{}
-               : children->second;
+    return result;
 }
 
 std::vector<std::uint8_t> DataStore::readAll(
     const std::filesystem::path& path) const {
     std::shared_lock lock(impl_->mutex);
-    if (!impl_->configured) {
-        throw std::logic_error("DataStore is not configured");
+    const auto entry = impl_->find(path);
+    if (!entry || entry->stat.directory) {
+        throw std::runtime_error("Data file not found: " +
+                                 ludork::standard::pathToUtf8(path));
     }
-    const std::optional<std::string> key =
-        normalizeDataPath(impl_->runtimeRoot, path);
-    if (!key.has_value()) {
-        throw std::invalid_argument("Path is outside Data");
-    }
-    const auto iterator = impl_->entries.find(*key);
-    if (iterator == impl_->entries.end() || iterator->second.stat.directory) {
-        throw std::runtime_error("Data file not found: " + *key);
-    }
-    const StoreEntry& entry = iterator->second;
-    return entry.archive ? entry.archive->readAll(entry.archivePath)
-                         : readPhysicalFile(entry.source);
+    lock.unlock();
+    return entry->archive ? entry->archive->readAll(entry->archivePath)
+                          : readPhysicalFile(entry->source);
 }
 
 DataStore& dataStore() {

@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <functional>
+#include <optional>
 #include <vector>
 
 namespace ludork::standard {
@@ -29,6 +30,9 @@ struct ReadOnlyFileProvider {
         listDirectory;
     std::function<std::vector<std::uint8_t>(const std::filesystem::path&)>
         readFile;
+    std::function<std::optional<std::filesystem::path>(
+        const std::filesystem::path&)>
+        resolveDataPath;
 };
 
 LUDORK_STANDARD_API void configureReadOnlyFileProvider(
@@ -37,6 +41,8 @@ LUDORK_STANDARD_API void clearReadOnlyFileProvider() noexcept;
 
 [[nodiscard]] LUDORK_STANDARD_API ReadOnlyFileStatus
 readOnlyFileStatus(const std::filesystem::path& path);
+[[nodiscard]] LUDORK_STANDARD_API std::optional<std::filesystem::path>
+resolveReadOnlyDataPath(const std::filesystem::path& path);
 [[nodiscard]] LUDORK_STANDARD_API std::vector<std::filesystem::path>
 readOnlyDirectoryEntries(const std::filesystem::path& path);
 [[nodiscard]] LUDORK_STANDARD_API std::vector<std::uint8_t> readOnlyFileBytes(

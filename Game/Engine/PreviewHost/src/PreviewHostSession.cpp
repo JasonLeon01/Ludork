@@ -1,7 +1,6 @@
 #include "PreviewHostSession.hpp"
 
 #include "Protocol/PreviewProtocol.hpp"
-#include "Material/MaterialExport.hpp"
 
 #include <EngineState.hpp>
 #include <Graphics/Materials/MaterialResource.hpp>
@@ -65,9 +64,6 @@ RuntimeData PreviewHostSession::handle(const RuntimeData& requestValue) {
             {"sessionId", RuntimeData(sessionId)},
             {"sceneKey", RuntimeData(sceneKey)},
         }));
-    }
-    if (type == CompileMaterialRequest) {
-        return MaterialExport::compile(request);
     }
     if (type == RenderMapRequest) {
         engineState().setScale(1.0f);
@@ -168,7 +164,6 @@ RuntimeData PreviewHostSession::handshake(const RuntimeData::Map& request) {
     capabilities.emplace_back(RuntimeData("map"));
     capabilities.emplace_back(RuntimeData("material"));
     capabilities.emplace_back(RuntimeData("materialSnapshots"));
-    capabilities.emplace_back(RuntimeData("materialExport"));
     capabilities.emplace_back(RuntimeData("mapActorChanges"));
     capabilities.emplace_back(RuntimeData("mapEmitters"));
     capabilities.emplace_back(RuntimeData("mapMaterialSnapshots"));
