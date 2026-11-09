@@ -8,7 +8,6 @@
 ---@field progressTotal                                integer
 ---@field processedCount                               integer
 ---@field progressDone                                 boolean
----@field hasSwitched                                  boolean
 ---@field _loadCancelled                               boolean
 ---@field _loadStage                                   Global.Data.InitialLoadStage | nil
 ---@field _activeBatch                                 FileBatchJob | nil
@@ -18,14 +17,8 @@
 ---@field private _DISPLAY_PROGRESS_COMPLETE_THRESHOLD number
 local Scene = {}
 
----@brief Create progress bar UI and start asset preparation thread.
+---@brief Create progress bar UI and start the required loading and title scene task.
 function Scene:onCreate() end
-
----@brief Transition after the displayed progress completes.
----
---- - @param deltaTime Elapsed time in seconds.
----@param _ number
-function Scene:onTick(_) end
 
 ---@brief Publish pending progress on the render thread.
 ---

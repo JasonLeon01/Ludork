@@ -2,6 +2,7 @@
 #include "ValueReader.hpp"
 #include "AnimationImpl.hpp"
 
+#include <LuaError.hpp>
 #include <Runtime/RuntimeDataReader.hpp>
 #include <UI/Canvas.hpp>
 
@@ -332,7 +333,8 @@ void update(const std::shared_ptr<AssetImpl>& impl, float deltaTime) {
         const auto iterator = impl->activeAnimations.find(pending.activeKey);
         if (iterator != impl->activeAnimations.end() &&
             iterator->second == pending.active) {
-            pending.callback();
+            ludork::standard::dispatchLuaCallback("UI animation onFinished",
+                                                  pending.callback);
         }
     }
 }

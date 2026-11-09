@@ -11,6 +11,7 @@
 #include "System/Diagnostics/PerformanceProfiler.hpp"
 
 #include <Input/InputService.hpp>
+#include <LuaError.hpp>
 #include <Manager/AudioManager.hpp>
 #include <Manager/TextureManager.hpp>
 #include <Runtime/RuntimeReflection.hpp>
@@ -312,7 +313,9 @@ void SceneBase::systemMain() {
                 if (profile) {
                     phaseStart = std::chrono::steady_clock::now();
                 }
-                onLateTick(deltaTime);
+                ludork::standard::dispatchLuaCallback("Scene.onLateTick", [&] {
+                    onLateTick(deltaTime);
+                });
                 if (profile) {
                     const auto phaseEnd = std::chrono::steady_clock::now();
                     measurement.lateUpdateMilliseconds =
@@ -451,7 +454,9 @@ bool SceneBase::systemIsRunning() const noexcept {
 void SceneBase::systemInput() {
     if (lifecycleImpl_->isEntered() && !lifecycleImpl_->isDestroyed() &&
         !inputService().isInputCaptured()) {
-        onInput();
+        ludork::standard::dispatchLuaCallback("Scene.onInput", [&] {
+            onInput();
+        });
     }
 }
 
@@ -516,9 +521,14 @@ void SceneBase::logicHandle(float deltaTime) {
     }
     for (const std::shared_ptr<TimerEntry>& entry : readyTimers) {
         if (!entry->isCancelled() && entry->task != nullptr) {
-            runtimeReflection().invoke(
-                ludork::runtime::reference::intern(RuntimeValue(entry->task)),
-                entry->params);
+            if (!ludork::standard::dispatchLuaCallback("Scene timer", [&] {
+                    runtimeReflection().invoke(
+                        ludork::runtime::reference::intern(
+                            RuntimeValue(entry->task)),
+                        entry->params);
+                })) {
+                entry->cancel();
+            }
         }
         if (!entry->isCancelled()) {
             entry->operation->complete(RuntimeValue(true));
@@ -603,7 +613,9 @@ SceneBase::LogicStepPerformance SceneBase::runLogicStep(float deltaTime,
     if (profile) {
         phaseStart = std::chrono::steady_clock::now();
     }
-    onTick(deltaTime);
+    ludork::standard::dispatchLuaCallback("Scene.onTick", [&] {
+        onTick(deltaTime);
+    });
     if (profile) {
         const auto phaseEnd = std::chrono::steady_clock::now();
         performance.sceneTickMilliseconds =
@@ -626,7 +638,9 @@ SceneBase::LogicStepPerformance SceneBase::runLogicStep(float deltaTime,
         if (profile) {
             phaseStart = std::chrono::steady_clock::now();
         }
-        onFixedTick(fixedStep_);
+        ludork::standard::dispatchLuaCallback("Scene.onFixedTick", [&] {
+            onFixedTick(fixedStep_);
+        });
         if (profile) {
             const auto phaseEnd = std::chrono::steady_clock::now();
             performance.fixedTickMilliseconds +=

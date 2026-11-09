@@ -4,6 +4,7 @@
 #include <CoreShared/TextConfigCodec.hpp>
 
 #include <Input/InputService.hpp>
+#include <LuaError.hpp>
 #include <UI/PlainTextConfig.hpp>
 
 #include <cstdint>
@@ -82,7 +83,9 @@ void Button::update(float deltaTime) {
             *impl_->gamepadButton, true);
     }
     if (triggered) {
-        onConfirm({});
+        ludork::standard::dispatchLuaCallback("UI.onConfirm", [this] {
+            onConfirm({});
+        });
     }
 }
 

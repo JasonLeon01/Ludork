@@ -3,6 +3,7 @@
 #include "FunctionalBase/InteractionImpl.hpp"
 
 #include <EngineState.hpp>
+#include <LuaError.hpp>
 #include <UI/ControlBase.hpp>
 
 #include <array>
@@ -199,14 +200,22 @@ void FunctionalBase::update(float deltaTime) {
     if (control != nullptr) {
         control->updatePresentationAnimations(deltaTime);
     }
-    onTick(deltaTime);
+    ludork::standard::dispatchLuaCallback("UI.onTick", [&] {
+        onTick(deltaTime);
+    });
+    const auto resetInput = [this] {
+        ludork::standard::dispatchLuaCallback("UI.onPointerInteractionReset",
+                                              [this] {
+                                                  resetPointerInteraction();
+                                              });
+    };
     if (inputProvider_ == nullptr) {
-        resetPointerInteraction();
+        resetInput();
         return;
     }
     const sf::Vector2f mousePosition(inputProvider_->getMousePosition());
     if (!isInteractionEnabled()) {
-        resetPointerInteraction();
+        resetInput();
         return;
     }
 
@@ -221,12 +230,15 @@ void FunctionalBase::update(float deltaTime) {
                 touchBounds->contains(sf::Vector2f(*beganPosition))) {
                 beginTouchPress();
                 inputProvider_->isTouchBegan(true);
-                onTouchCaptureBegan(sf::Vector2f(*beganPosition));
+                ludork::standard::dispatchLuaCallback(
+                    "UI.onTouchCaptureBegan", [&] {
+                        onTouchCaptureBegan(sf::Vector2f(*beganPosition));
+                    });
             }
         }
     }
     if (!isInteractionEnabled()) {
-        resetPointerInteraction();
+        resetInput();
         return;
     }
 
@@ -245,16 +257,22 @@ void FunctionalBase::update(float deltaTime) {
                 const sf::Mouse::Button button = buttons[index];
                 mousePressed[index] =
                     inputProvider_->getMouseButtonPressed(button, false);
-                if (mousePressed[index] &&
-                    onMouseButtonDown(
-                        mouseButtonArguments(mousePosition, button))) {
+                bool handled = false;
+                if (mousePressed[index]) {
+                    ludork::standard::dispatchLuaCallback(
+                        "UI.onMouseButtonDown", [&] {
+                            handled = onMouseButtonDown(
+                                mouseButtonArguments(mousePosition, button));
+                        });
+                }
+                if (handled) {
                     inputProvider_->getMouseButtonPressed(button, true);
                     inputProvider_->isMouseButtonTriggered(button, true);
                 }
             }
         }
         if (!isInteractionEnabled()) {
-            resetPointerInteraction();
+            resetInput();
             return;
         }
 
@@ -266,7 +284,7 @@ void FunctionalBase::update(float deltaTime) {
         }
         setHovered(hovered, mousePosition);
         if (!isInteractionEnabled()) {
-            resetPointerInteraction();
+            resetInput();
             return;
         }
         if (hovered) {
@@ -279,23 +297,28 @@ void FunctionalBase::update(float deltaTime) {
                 }
             }
             if (!isInteractionEnabled()) {
-                resetPointerInteraction();
+                resetInput();
                 return;
             }
             if (inputProvider_->isMouseMoved()) {
-                onMouseMoved(pointerArguments(mousePosition));
+                ludork::standard::dispatchLuaCallback("UI.onMouseMoved", [&] {
+                    onMouseMoved(pointerArguments(mousePosition));
+                });
             }
             if (!isInteractionEnabled()) {
-                resetPointerInteraction();
+                resetInput();
                 return;
             }
             if (inputProvider_->isMouseWheelScrolled()) {
-                onMouseWheelScrolled(mouseWheelArguments(
-                    mousePosition,
-                    inputProvider_->getMouseScrolledWheelDelta()));
+                ludork::standard::dispatchLuaCallback(
+                    "UI.onMouseWheelScrolled", [&] {
+                        onMouseWheelScrolled(mouseWheelArguments(
+                            mousePosition,
+                            inputProvider_->getMouseScrolledWheelDelta()));
+                    });
             }
             if (!isInteractionEnabled()) {
-                resetPointerInteraction();
+                resetInput();
                 return;
             }
         }
@@ -311,10 +334,12 @@ void FunctionalBase::update(float deltaTime) {
                 endPointerPress();
             }
             if (clicked) {
-                onClick(mouseButtonArguments(mousePosition, button));
+                ludork::standard::dispatchLuaCallback("UI.onClick", [&] {
+                    onClick(mouseButtonArguments(mousePosition, button));
+                });
             }
             if (!isInteractionEnabled()) {
-                resetPointerInteraction();
+                resetInput();
                 return;
             }
         }
@@ -322,7 +347,7 @@ void FunctionalBase::update(float deltaTime) {
         setHovered(false, mousePosition);
     }
     if (!isInteractionEnabled()) {
-        resetPointerInteraction();
+        resetInput();
         return;
     }
 
@@ -333,10 +358,12 @@ void FunctionalBase::update(float deltaTime) {
                 ended ? inputProvider_->getTouchEndedPosition()
                       : inputProvider_->getTouchPosition();
             if (inputProvider_->isTouchMoved() && position.has_value()) {
-                onMouseMoved(pointerArguments(sf::Vector2f(*position)));
+                ludork::standard::dispatchLuaCallback("UI.onMouseMoved", [&] {
+                    onMouseMoved(pointerArguments(sf::Vector2f(*position)));
+                });
             }
             if (!isInteractionEnabled()) {
-                resetPointerInteraction();
+                resetInput();
                 return;
             }
             if (ended) {
@@ -348,9 +375,15 @@ void FunctionalBase::update(float deltaTime) {
                         const UiInputEventArguments arguments =
                             pointerArguments(sf::Vector2f(*position));
                         if (confirmCallback_) {
-                            onConfirm(arguments);
+                            ludork::standard::dispatchLuaCallback(
+                                "UI.onConfirm", [&] {
+                                    onConfirm(arguments);
+                                });
                         } else {
-                            onClick(arguments);
+                            ludork::standard::dispatchLuaCallback(
+                                "UI.onClick", [&] {
+                                    onClick(arguments);
+                                });
                         }
                     }
                     inputProvider_->isTouchTap(true);
@@ -359,33 +392,41 @@ void FunctionalBase::update(float deltaTime) {
             } else if (!isInteractionEnabled() ||
                        !inputProvider_->isTouchActive() ||
                        !position.has_value()) {
-                resetPointerInteraction();
+                resetInput();
             }
         }
     } else if (pointerSource_ == PointerSource::Touch) {
-        resetPointerInteraction();
+        resetInput();
     }
 
     if (shouldDispatchKeyboardInput()) {
         if (inputProvider_->isKeyPressed() ||
             inputProvider_->isJoystickButtonPressed() ||
             inputProvider_->isJoystickAxisMoved()) {
-            onKeyDown({});
+            ludork::standard::dispatchLuaCallback("UI.onKeyDown", [this] {
+                onKeyDown({});
+            });
         }
         if (shouldDispatchKeyboardInput() &&
             (inputProvider_->isKeyReleased() ||
              inputProvider_->isJoystickButtonReleased())) {
-            onKeyUp({});
+            ludork::standard::dispatchLuaCallback("UI.onKeyUp", [this] {
+                onKeyUp({});
+            });
         }
     }
 }
 
 void FunctionalBase::lateUpdate(float deltaTime) {
-    onLateTick(deltaTime);
+    ludork::standard::dispatchLuaCallback("UI.onLateTick", [&] {
+        onLateTick(deltaTime);
+    });
 }
 
 void FunctionalBase::fixedUpdate(float fixedDelta) {
-    onFixedTick(fixedDelta);
+    ludork::standard::dispatchLuaCallback("UI.onFixedTick", [&] {
+        onFixedTick(fixedDelta);
+    });
 }
 
 void FunctionalBase::onConfirm(const UiInputEventArguments& arguments) {
@@ -527,9 +568,13 @@ void FunctionalBase::setHovered(bool hovered, const sf::Vector2f& position) {
     hovered_ = hovered;
     onInteractionStateChanged();
     if (hovered_) {
-        onHover(pointerArguments(position));
+        ludork::standard::dispatchLuaCallback("UI.onHover", [&] {
+            onHover(pointerArguments(position));
+        });
     } else {
-        onUnHover(pointerArguments(position));
+        ludork::standard::dispatchLuaCallback("UI.onUnHover", [&] {
+            onUnHover(pointerArguments(position));
+        });
     }
 }
 

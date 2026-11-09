@@ -177,7 +177,7 @@ int Canvas::getZOrder() const {
 
 void Canvas::update(float deltaTime) {
     ludork::engine::ui_container::tickChildren(
-        children_, &FunctionalBase::update, deltaTime);
+        *this, children_, "UI.update", &FunctionalBase::update, deltaTime);
     animations_.erase(
         std::remove_if(animations_.begin(), animations_.end(),
                        [](const std::shared_ptr<AnimSprite>& animation) {
@@ -231,7 +231,8 @@ void Canvas::render(sf::RenderTarget& target) {
 
 void Canvas::lateUpdate(float deltaTime) {
     ludork::engine::ui_container::tickChildren(
-        children_, &FunctionalBase::lateUpdate, deltaTime);
+        *this, children_, "UI.lateUpdate", &FunctionalBase::lateUpdate,
+        deltaTime);
     if (particleSystem_ != nullptr) {
         particleSystem_->onLateTick(deltaTime);
     }
@@ -240,7 +241,8 @@ void Canvas::lateUpdate(float deltaTime) {
 
 void Canvas::fixedUpdate(float fixedDelta) {
     ludork::engine::ui_container::tickChildren(
-        children_, &FunctionalBase::fixedUpdate, fixedDelta);
+        *this, children_, "UI.fixedUpdate", &FunctionalBase::fixedUpdate,
+        fixedDelta);
     if (particleSystem_ != nullptr) {
         particleSystem_->onFixedTick(fixedDelta);
     }

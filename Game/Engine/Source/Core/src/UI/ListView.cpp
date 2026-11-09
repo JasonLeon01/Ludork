@@ -145,7 +145,7 @@ sf::RenderStates ListView::getRenderStates() const {
 
 void ListView::update(float deltaTime) {
     ludork::engine::ui_container::tickChildren(
-        children_, &FunctionalBase::update, deltaTime);
+        *this, children_, "UI.update", &FunctionalBase::update, deltaTime);
     FunctionalBase::update(deltaTime);
     updateChildScrolling(deltaTime);
 }
@@ -190,13 +190,15 @@ float ListView::childScrollOffset(const ChildScrollState& state) {
 
 void ListView::lateUpdate(float deltaTime) {
     ludork::engine::ui_container::tickChildren(
-        children_, &FunctionalBase::lateUpdate, deltaTime);
+        *this, children_, "UI.lateUpdate", &FunctionalBase::lateUpdate,
+        deltaTime);
     FunctionalBase::lateUpdate(deltaTime);
 }
 
 void ListView::fixedUpdate(float fixedDelta) {
     ludork::engine::ui_container::tickChildren(
-        children_, &FunctionalBase::fixedUpdate, fixedDelta);
+        *this, children_, "UI.fixedUpdate", &FunctionalBase::fixedUpdate,
+        fixedDelta);
     FunctionalBase::fixedUpdate(fixedDelta);
 }
 

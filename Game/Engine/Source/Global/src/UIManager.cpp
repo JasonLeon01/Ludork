@@ -7,6 +7,7 @@
 
 #include <EngineState.hpp>
 #include <Emitters/EmitterScheduler.hpp>
+#include <LuaError.hpp>
 #include <UI/Canvas.hpp>
 #include <UI/FunctionalBase.hpp>
 #include <UI/UiEmitterTraversal.hpp>
@@ -114,7 +115,9 @@ void UIManager::fixedLogicHandle(float fixedDelta) {
         }
         const std::shared_ptr<FunctionalBase> functional = functionalUI(ui);
         if (functional != nullptr) {
-            functional->fixedUpdate(fixedDelta);
+            ludork::standard::dispatchLuaCallback("UI.fixedUpdate", [&] {
+                functional->fixedUpdate(fixedDelta);
+            });
         }
     }
 }
@@ -130,7 +133,9 @@ void UIManager::logicHandle(float deltaTime) {
         }
         const std::shared_ptr<FunctionalBase> functional = functionalUI(ui);
         if (functional != nullptr) {
-            functional->update(deltaTime);
+            ludork::standard::dispatchLuaCallback("UI.update", [&] {
+                functional->update(deltaTime);
+            });
         }
     }
 }
@@ -174,7 +179,9 @@ void UIManager::renderHandle(float deltaTime,
         }
         const std::shared_ptr<FunctionalBase> functional = functionalUI(ui);
         if (functional != nullptr) {
-            functional->lateUpdate(deltaTime);
+            ludork::standard::dispatchLuaCallback("UI.lateUpdate", [&] {
+                functional->lateUpdate(deltaTime);
+            });
         }
     }
 }

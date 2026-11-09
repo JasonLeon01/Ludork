@@ -151,11 +151,10 @@ Return callPushedLuaFunctionWithPolicy(lua_State* state,
          ...);
         constexpr int resultCount =
             Exact ? LUA_MULTRET : (std::is_void_v<Return> ? 0 : 1);
-        if (ludork::standard::protectedLuaCall(state, sizeof...(Arguments),
-                                               resultCount) != LUA_OK) {
-            const std::string message =
-                ludork::standard::luaErrorMessage(state, -1);
-            throw std::runtime_error(message);
+        const int status = ludork::standard::protectedLuaCall(
+            state, sizeof...(Arguments), resultCount);
+        if (status != LUA_OK) {
+            ludork::standard::throwLuaCallError(state, status);
         }
         if constexpr (Exact) {
             constexpr int expected = std::is_void_v<Return> ? 0 : 1;

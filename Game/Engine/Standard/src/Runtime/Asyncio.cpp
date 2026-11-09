@@ -14,6 +14,7 @@ extern "C" {
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <exception>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -59,16 +60,17 @@ lua_State* taskThread(lua_State* state, const lua_glue::Table& task) {
     return thread;
 }
 
-std::string closeTask(lua_State* state, lua_glue::Table& task) {
+std::pair<int, std::string> closeTask(lua_State* state, lua_glue::Table& task) {
     task.raw_set("done", true);
     task.raw_set("waiting", lua_glue::nil);
     task.raw_set("deadline", 0.0);
+    int status = LUA_OK;
     std::string error;
     lua_State* thread = taskThread(state, task);
     if (thread != nullptr) {
-        if (lua_closethread(thread, state) != LUA_OK) {
-            const char* message = lua_tostring(thread, -1);
-            error = message == nullptr ? "asyncio task close failed" : message;
+        status = lua_closethread(thread, state);
+        if (status != LUA_OK) {
+            error = luaErrorMessage(thread, -1);
         }
         lua_settop(thread, 0);
         lua_glue::StateView lua(state);
@@ -80,12 +82,23 @@ std::string closeTask(lua_State* state, lua_glue::Table& task) {
         }
     }
     task.raw_set("thread", lua_glue::nil);
-    if (!error.empty()) {
+    if (status != LUA_OK) {
         task.raw_set("error", error);
     }
-    return error;
+    return {status, std::move(error)};
 }
 
+void finishTask(lua_State* state, lua_glue::Table& task) {
+    const auto [status, error] = closeTask(state, task);
+    if (status == LUA_ERRRUN) {
+        throw LuaScriptError(error);
+    }
+    if (status != LUA_OK) {
+        throw std::runtime_error(error);
+    }
+}
+
+template <bool Required>
 int createTask(lua_State* state) {
     return ludork::standard::protectedLuaCallback(state, [&]() -> int {
         luaL_checktype(state, 1, LUA_TFUNCTION);
@@ -124,7 +137,8 @@ int createTask(lua_State* state) {
         }
         lua_glue::Table task = lua.create_table_with(
             "thread", thread, "nargs", argumentCount, "started", false, "done",
-            false, "cancelled", false, "__asyncioTask", true, "deadline", 0.0);
+            false, "cancelled", false, "__asyncioTask", true, "deadline", 0.0,
+            "required", Required);
         registryTable(lua, TASKS_KEY).add(task);
         task.push(state);
         return 1;
@@ -151,10 +165,7 @@ int cancelTask(lua_State* state) {
             }
             task.raw_set("cancelled", true);
             if (taskThread(state, task) != state) {
-                const std::string error = closeTask(state, task);
-                if (!error.empty()) {
-                    throw std::runtime_error(error);
-                }
+                finishTask(state, task);
             }
             lua_pushboolean(state, true);
             return 1;
@@ -240,17 +251,15 @@ int operationMethod(lua_State* state) {
 lua_glue::Object callOperation(lua_State* state,
                                const lua_glue::Object& operation,
                                const char* method) {
+    const lua_glue::StackGuard stack(state);
     lua_pushcfunction(state, operationMethod);
     operation.push(state);
     lua_pushstring(state, method);
-    if (ludork::standard::protectedLuaCall(state, 2, 1) != LUA_OK) {
-        const std::string error = ludork::standard::luaErrorMessage(state, -1);
-        lua_pop(state, 1);
-        throw std::runtime_error(error);
+    const int status = protectedLuaCall(state, 2, 1);
+    if (status != LUA_OK) {
+        throwLuaCallError(state, status);
     }
-    lua_glue::Object result = lua_glue::Read<lua_glue::Object>(state, -1);
-    lua_pop(state, 1);
-    return result;
+    return lua_glue::Read<lua_glue::Object>(state, -1);
 }
 
 void updateTask(lua_glue::StateView lua, lua_glue::Table& task, double now) {
@@ -259,10 +268,7 @@ void updateTask(lua_glue::StateView lua, lua_glue::Table& task, double now) {
         return;
     }
     if (task.raw_get<bool>("cancelled")) {
-        const std::string error = closeTask(state, task);
-        if (!error.empty()) {
-            throw std::runtime_error(error);
-        }
+        finishTask(state, task);
         return;
     }
     if (task.raw_get<double>("deadline") > now) {
@@ -278,7 +284,7 @@ void updateTask(lua_glue::StateView lua, lua_glue::Table& task, double now) {
         const lua_glue::Object status =
             callOperation(state, waiting, "getStatus");
         if (!status.is<std::string>()) {
-            throw std::runtime_error(
+            throw LuaScriptError(
                 "asyncio.await operation status must be a string");
         }
         const std::string name = status.as<std::string>();
@@ -287,14 +293,11 @@ void updateTask(lua_glue::StateView lua, lua_glue::Table& task, double now) {
         }
         if (name == ludork::standard::asyncio::operation_status::Cancelled) {
             task.raw_set("cancelled", true);
-            const std::string error = closeTask(state, task);
-            if (!error.empty()) {
-                throw std::runtime_error(error);
-            }
+            finishTask(state, task);
             return;
         }
         if (name != ludork::standard::asyncio::operation_status::Completed) {
-            throw std::runtime_error(
+            throw LuaScriptError(
                 "asyncio.await received an invalid operation status");
         }
         callOperation(state, waiting, "getResult").push(thread);
@@ -309,15 +312,10 @@ void updateTask(lua_glue::StateView lua, lua_glue::Table& task, double now) {
     const int status = lua_resume(thread, state, argumentCount, &resultCount);
     lua.registry().raw_set(ACTIVE_TASK_KEY, lua_glue::nil);
     if (status != LUA_OK && status != LUA_YIELD) {
-        const char* message = lua_tostring(thread, -1);
-        throw std::runtime_error(message == nullptr ? "asyncio task failed"
-                                                    : message);
+        throwLuaCallError(thread, status);
     }
     if (status == LUA_OK || task.raw_get<bool>("cancelled")) {
-        const std::string error = closeTask(state, task);
-        if (!error.empty()) {
-            throw std::runtime_error(error);
-        }
+        finishTask(state, task);
         return;
     }
     double delay = 0.0;
@@ -328,12 +326,48 @@ void updateTask(lua_glue::StateView lua, lua_glue::Table& task, double now) {
     task.raw_set("deadline", performanceCounter() + delay);
 }
 
+std::string recordTaskFailure(lua_State* state, lua_glue::Table& task,
+                              const std::exception& error,
+                              std::string diagnostic) {
+    const auto [status, closeError] = closeTask(state, task);
+    if (status != LUA_OK && closeError != error.what()) {
+        diagnostic += "\n" + closeError;
+    }
+    task.raw_set("error", diagnostic);
+    if (status != LUA_OK && status != LUA_ERRRUN) {
+        throw std::runtime_error(diagnostic);
+    }
+    return diagnostic;
+}
+
+void dispatchTask(lua_glue::StateView lua, lua_glue::Table& task, double now) {
+    lua_State* state = lua.lua_state();
+    try {
+        updateTask(lua, task, now);
+    } catch (const LuaScriptError& error) {
+        lua_State* thread = taskThread(state, task);
+        const LuaScriptError failure(recordTaskFailure(
+            state, task, error,
+            thread == nullptr
+                ? error.what()
+                : luaThreadTraceback(state, thread, error.what())));
+        if (task.raw_get<bool>("required")) {
+            throw failure;
+        }
+        logLuaCallbackError("asyncio task", failure);
+    } catch (const std::exception& error) {
+        throw std::runtime_error(
+            recordTaskFailure(state, task, error, error.what()));
+    }
+}
+
 }  // namespace
 
 void registerAsyncio(lua_glue::StateView lua) {
     lua.registry().raw_set(STOPPING_KEY, lua_glue::nil);
     lua_glue::Table asyncio = lua.create_table();
-    asyncio.set_function("create_task", createTask);
+    asyncio.set_function("create_task", createTask<false>);
+    asyncio.set_function("create_required_task", createTask<true>);
     asyncio.set_function("cancel_task", cancelTask);
     asyncio.set_function("sleep", sleepTask);
     asyncio.set_function("await", awaitOperation);
@@ -342,22 +376,17 @@ void registerAsyncio(lua_glue::StateView lua) {
 
 void updateAsyncio(lua_glue::StateView lua) {
     lua_State* state = lua.lua_state();
-    const int baseTop = lua_gettop(state);
+    const lua_glue::StackGuard stack(state);
     lua_glue::Table taskList = registryTable(lua, TASKS_KEY);
     const std::size_t originalCount = taskList.size();
-    std::string taskError;
+    std::exception_ptr fatalError;
     const double now = performanceCounter();
     for (std::size_t index = 1; index <= originalCount; ++index) {
         lua_glue::Table task = taskList.raw_get<lua_glue::Table>(index);
         try {
-            updateTask(lua, task, now);
-        } catch (const std::exception& error) {
-            taskError = error.what();
-            const std::string closeError = closeTask(state, task);
-            if (!closeError.empty() && closeError != taskError) {
-                taskError += "\n" + closeError;
-            }
-            task.raw_set("error", taskError);
+            dispatchTask(lua, task, now);
+        } catch (...) {
+            fatalError = std::current_exception();
             break;
         }
     }
@@ -372,9 +401,8 @@ void updateAsyncio(lua_glue::StateView lua) {
     for (std::size_t index = writeIndex; index <= currentCount; ++index) {
         taskList.raw_set(index, lua_glue::nil);
     }
-    lua_settop(state, baseTop);
-    if (!taskError.empty()) {
-        throw std::runtime_error(taskError);
+    if (fatalError != nullptr) {
+        std::rethrow_exception(fatalError);
     }
 }
 
@@ -385,8 +413,8 @@ void shutdownAsyncio(lua_glue::StateView lua) noexcept {
     for (std::size_t index = 1; index <= count; ++index) {
         lua_glue::Table task = taskList.raw_get<lua_glue::Table>(index);
         task.raw_set("cancelled", true);
-        const std::string error = closeTask(lua.lua_state(), task);
-        if (!error.empty()) {
+        const auto [status, error] = closeTask(lua.lua_state(), task);
+        if (status != LUA_OK) {
             std::fprintf(stderr, "Asyncio task shutdown failed: %s\n",
                          error.c_str());
         }

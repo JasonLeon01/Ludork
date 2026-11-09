@@ -1,5 +1,6 @@
 #pragma once
 
+#include <LuaError.hpp>
 #include <UI/ControlBase.hpp>
 #include <UI/FunctionalBase.hpp>
 #include <algorithm>
@@ -8,15 +9,19 @@
 
 namespace ludork::engine::ui_container {
 
-template <typename Tick>
-void tickChildren(const std::vector<std::shared_ptr<ControlBase>>& children,
-                  Tick tick, float deltaTime) {
+inline void tickChildren(const ControlBase& parent,
+                         std::vector<std::shared_ptr<ControlBase>> children,
+                         std::string_view callbackName,
+                         void (FunctionalBase::*tick)(float), float deltaTime) {
     for (const std::shared_ptr<ControlBase>& child : children) {
-        if (child->getVisible()) {
-            if (FunctionalBase* functional =
-                    ludork::Cast<FunctionalBase>(child.get())) {
+        if (child->getParent().get() != &parent || !child->getVisible()) {
+            continue;
+        }
+        if (FunctionalBase* functional =
+                ludork::Cast<FunctionalBase>(child.get())) {
+            ludork::standard::dispatchLuaCallback(callbackName, [&] {
                 (functional->*tick)(deltaTime);
-            }
+            });
         }
     }
 }

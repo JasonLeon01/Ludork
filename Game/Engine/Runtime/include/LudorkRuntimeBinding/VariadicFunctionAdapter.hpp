@@ -90,8 +90,7 @@ private:
                     "Lua stack cannot grow for callable results");
             }
             if (status != LUA_OK) {
-                throw std::runtime_error(
-                    ludork::standard::luaErrorMessage(state, -1));
+                ludork::standard::throwLuaCallError(state, status);
             }
             const int resultCount = lua_gettop(state) - stackBase;
             Return result;

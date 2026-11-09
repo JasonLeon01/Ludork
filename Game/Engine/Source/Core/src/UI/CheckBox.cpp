@@ -5,6 +5,7 @@
 #include "Interaction/InputArguments.hpp"
 
 #include <Input/InputService.hpp>
+#include <LuaError.hpp>
 #include <UI/Rect.hpp>
 
 #include <SFML/Window/Mouse.hpp>
@@ -125,7 +126,9 @@ void CheckBox::onKeyDown(const UiInputEventArguments& arguments) {
     InputService* service = ludork::Cast<InputService>(inputProvider());
     if (service != nullptr && ownsKeyboardCursorFocus() &&
         service->isActionTriggered(service->getConfirmKeys(), true)) {
-        onConfirm({});
+        ludork::standard::dispatchLuaCallback("UI.onConfirm", [this] {
+            onConfirm({});
+        });
     }
     FunctionalBase::onKeyDown(arguments);
 }

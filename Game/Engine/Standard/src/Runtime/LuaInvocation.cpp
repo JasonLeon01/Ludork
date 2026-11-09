@@ -39,7 +39,7 @@ int invokeLuaFunction(lua_State* state, const lua_glue::Object& callable,
             state, static_cast<int>(arguments.size()), LUA_MULTRET);
         ensureLuaStack(state, LUA_MINSTACK, "runtime function results");
         if (status != LUA_OK) {
-            throw std::runtime_error(luaErrorMessage(state, -1));
+            throwLuaCallError(state, status);
         }
         return lua_gettop(state) - stackBase;
     } catch (...) {

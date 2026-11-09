@@ -567,6 +567,13 @@ asyncio.FILE_BATCH_FAILED = nil
 ---@param ...      any
 ---@return AsyncioTask
 function asyncio.create_task(callback, ...) end
+
+--- Schedule a task whose failure aborts the game session.
+---@param callback fun(...: any)
+---@param ...      any
+---@return AsyncioTask
+function asyncio.create_required_task(callback, ...) end
+
 ---@param task AsyncioTask
 ---@return boolean
 function asyncio.cancel_task(task) end

@@ -28,25 +28,23 @@ function Scene:onCreate()
     self.progressTotal = 0
     self.processedCount = 0
     self.progressDone = false
-    self.hasSwitched = false
     self._loadCancelled = false
     self._loadStage = Data.BeginInitialLoad()
     self._activeBatch = nil
     self._animationSourceKeys = {}
-    self._loadTask = asyncio.create_task(function ()
+    self._loadTask = asyncio.create_required_task(function ()
         self:prepareAssets()
+        while not self._loadCancelled do
+            if self.progressDone and self._displayProgress >= Scene._DISPLAY_PROGRESS_COMPLETE_THRESHOLD then
+                local SceneTitle = require("Source.Scenes.SceneTitle")
+
+                SceneManager.setScene(SceneTitle.new())
+                break
+            end
+            asyncio.sleep(0.0)
+        end
         self._loadTask = nil
     end)
-end
-
-function Scene:onTick(_)
-    if self.progressDone and not self.hasSwitched
-        and self._displayProgress >= Scene._DISPLAY_PROGRESS_COMPLETE_THRESHOLD then
-        local SceneTitle = require("Source.Scenes.SceneTitle")
-
-        self.hasSwitched = true
-        SceneManager.setScene(SceneTitle.new())
-    end
 end
 
 function Scene:onLateTick(_)

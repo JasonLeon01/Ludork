@@ -44,8 +44,8 @@ bool pushNativeCallbackInstance(lua_State* state) {
 }
 
 int nativeCallback(lua_State* state) {
-    return ludork::standard::protectedLuaCallback(state, [&]() -> int {
-        const int argumentCount = lua_gettop(state);
+    const int argumentCount = lua_gettop(state);
+    ludork::standard::protectedLuaCallback(state, [&]() -> int {
         const char* methodName = lua_tostring(state, lua_upvalueindex(2));
         if (!pushNativeCallbackInstance(state)) {
             lua_pop(state, 1);
@@ -69,15 +69,12 @@ int nativeCallback(lua_State* state) {
         callback.push(state);
         lua_insert(state, 1);
         lua_insert(state, 2);
-        if (ludork::standard::protectedLuaCall(state, argumentCount + 1,
-                                               LUA_MULTRET) != LUA_OK) {
-            const std::string message =
-                ludork::standard::luaErrorMessage(state, -1);
-            throw std::runtime_error(std::string("Native callback '") +
-                                     methodName + "' failed: " + message);
-        }
-        return lua_gettop(state);
+        return 0;
     });
+    // The caller already protects this Lua call. Keep C++ temporaries out of
+    // the call so Lua can unwind directly to that boundary.
+    lua_call(state, argumentCount + 1, LUA_MULTRET);
+    return lua_gettop(state);
 }
 
 int nativeSelf(lua_State* state) {

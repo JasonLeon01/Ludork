@@ -1,6 +1,7 @@
 #include <Gameplay/Actor.hpp>
 #include <EngineRuntimeServices.hpp>
 
+#include <LuaError.hpp>
 #include <Runtime/Blueprint/BlueprintRuntime.hpp>
 
 #include <utility>
@@ -83,10 +84,14 @@ void ActorUpdateBatch::update(float deltaTime) {
         if (!actor) {
             continue;
         }
-        actor->update(deltaTime);
+        ludork::standard::dispatchLuaCallback("Actor.update", [&] {
+            actor->update(deltaTime);
+        });
         if (actor->getTickable() &&
             (getTickEvents(tickEvents_, actor) & actorTickEvent) != 0U) {
-            dispatchActorTick(*actor, deltaTime);
+            ludork::standard::dispatchLuaCallback("Actor.onTick", [&] {
+                dispatchActorTick(*actor, deltaTime);
+            });
         }
     }
 }
@@ -96,10 +101,14 @@ void ActorUpdateBatch::lateUpdate(float deltaTime) {
         if (!actor) {
             continue;
         }
-        actor->lateUpdate(deltaTime);
+        ludork::standard::dispatchLuaCallback("Actor.lateUpdate", [&] {
+            actor->lateUpdate(deltaTime);
+        });
         if (actor->getTickable() &&
             (getTickEvents(tickEvents_, actor) & actorLateTickEvent) != 0U) {
-            dispatchActorLateTick(*actor, deltaTime);
+            ludork::standard::dispatchLuaCallback("Actor.onLateTick", [&] {
+                dispatchActorLateTick(*actor, deltaTime);
+            });
         }
     }
 }
@@ -109,10 +118,14 @@ void ActorUpdateBatch::fixedUpdate(float fixedDelta) {
         if (!actor) {
             continue;
         }
-        actor->fixedUpdate(fixedDelta);
+        ludork::standard::dispatchLuaCallback("Actor.fixedUpdate", [&] {
+            actor->fixedUpdate(fixedDelta);
+        });
         if (actor->getTickable() &&
             (getTickEvents(tickEvents_, actor) & actorFixedTickEvent) != 0U) {
-            dispatchActorFixedTick(*actor, fixedDelta);
+            ludork::standard::dispatchLuaCallback("Actor.onFixedTick", [&] {
+                dispatchActorFixedTick(*actor, fixedDelta);
+            });
         }
     }
 }

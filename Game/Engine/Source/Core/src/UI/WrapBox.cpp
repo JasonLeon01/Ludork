@@ -217,19 +217,21 @@ void WrapBox::applyPositions() {
 void WrapBox::update(float deltaTime) {
     applyPositions();
     ludork::engine::ui_container::tickChildren(
-        getChildren(), &FunctionalBase::update, deltaTime);
+        *this, getChildren(), "UI.update", &FunctionalBase::update, deltaTime);
     FunctionalBase::update(deltaTime);
 }
 
 void WrapBox::lateUpdate(float deltaTime) {
     ludork::engine::ui_container::tickChildren(
-        getChildren(), &FunctionalBase::lateUpdate, deltaTime);
+        *this, getChildren(), "UI.lateUpdate", &FunctionalBase::lateUpdate,
+        deltaTime);
     FunctionalBase::lateUpdate(deltaTime);
 }
 
 void WrapBox::fixedUpdate(float fixedDelta) {
     ludork::engine::ui_container::tickChildren(
-        getChildren(), &FunctionalBase::fixedUpdate, fixedDelta);
+        *this, getChildren(), "UI.fixedUpdate", &FunctionalBase::fixedUpdate,
+        fixedDelta);
     FunctionalBase::fixedUpdate(fixedDelta);
 }
 

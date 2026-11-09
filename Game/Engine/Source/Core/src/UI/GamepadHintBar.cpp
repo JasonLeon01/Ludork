@@ -3,6 +3,7 @@
 #include <EngineState.hpp>
 #include <Input/InputService.hpp>
 #include <Input/JoystickButton.hpp>
+#include <LuaError.hpp>
 
 #include "Interaction/JoystickState.hpp"
 #include "Interaction/GamepadKeyHintImpl.hpp"
@@ -125,7 +126,9 @@ void GamepadHintBar::update(float deltaTime) {
     }
     if (triggeredIndex.has_value() && hintTriggeredCallback_) {
         const std::function<void(int)> callback = hintTriggeredCallback_;
-        callback(*triggeredIndex);
+        ludork::standard::dispatchLuaCallback("UI.onHintTriggered", [&] {
+            callback(*triggeredIndex);
+        });
     }
     FunctionalBase::update(deltaTime);
 }

@@ -81,22 +81,29 @@ std::string describeLuaValue(lua_State* state, int index, int depth,
     return result;
 }
 
+void pushLuaTraceback(lua_State* state, lua_State* thread, const char* message,
+                      int level) {
+    struct TracebackContext {
+        lua_State* thread;
+        const char* message;
+        int level;
+    } context{thread, message, level};
+    lua_glue::detail::ProtectedCallOperation(
+        state,
+        [](lua_State* target) {
+            const auto* context =
+                static_cast<const TracebackContext*>(lua_touserdata(target, 1));
+            luaL_traceback(target, context->thread, context->message,
+                           context->level);
+            return 1;
+        },
+        &context, 1);
+}
+
 int luaTracebackHandler(lua_State* state) {
     return ludork::standard::protectedLuaCallback(state, [&]() -> int {
-        std::unordered_set<const void*> visited;
-        const std::string message = describeLuaValue(state, 1, 0, visited);
-        struct TracebackContext {
-            const char* message;
-        } context{message.c_str()};
-        lua_glue::detail::ProtectedCallOperation(
-            state,
-            [](lua_State* target) {
-                const auto* context = static_cast<const TracebackContext*>(
-                    lua_touserdata(target, 1));
-                luaL_traceback(target, target, context->message, 2);
-                return 1;
-            },
-            &context, 1);
+        const std::string message = ludork::standard::luaErrorMessage(state, 1);
+        pushLuaTraceback(state, state, message.c_str(), 2);
         return 1;
     });
 }
@@ -104,6 +111,29 @@ int luaTracebackHandler(lua_State* state) {
 }  // namespace
 
 namespace ludork::standard {
+
+LuaScriptError::LuaScriptError(const std::string& message)
+    : std::runtime_error(message) {}
+
+void throwLuaCallError(lua_State* state, int status) {
+    const std::string message = luaErrorMessage(state, -1);
+    if (status == LUA_ERRRUN) {
+        throw LuaScriptError(message);
+    }
+    throw std::runtime_error(message);
+}
+
+std::string luaThreadTraceback(lua_State* state, lua_State* thread,
+                               const std::string& message) {
+    lua_glue::StackGuard stack(state);
+    pushLuaTraceback(state, thread, message.c_str(), 0);
+    return luaErrorMessage(state, -1);
+}
+
+void logLuaCallbackError(std::string_view name, const LuaScriptError& error) {
+    std::fprintf(stderr, "ERROR:Lua callback %.*s: %s\n",
+                 static_cast<int>(name.size()), name.data(), error.what());
+}
 
 bool compareLuaValues(lua_State* state, int leftIndex, int rightIndex,
                       int operation) {
