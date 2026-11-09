@@ -8,10 +8,11 @@ const serverAssetPattern = /^LudorkServer-[0-9a-f]{40}\.tar\.gz$/;
 function validateReleaseTag(context) {
   const configuration = fs.readFileSync(path.join(__dirname, '../../versions.conf'), 'utf8');
   const version = /^EDITOR_VERSION=(\d+\.\d+\.\d+)\s*$/m.exec(configuration)?.[1];
-  if (!version || context.ref !== `refs/tags/v${version}`) {
-    throw new Error('The release tag must match v<EDITOR_VERSION> from versions.conf.');
+  const release = /^refs\/tags\/(?<tag>v(?<version>\d+\.\d+\.\d+)(?<rc>-rc\.[1-9]\d*)?)$/.exec(context.ref)?.groups;
+  if (!version || release?.version !== version) {
+    throw new Error('Use v<EDITOR_VERSION> or v<EDITOR_VERSION>-rc.N with a positive RC number and the version from versions.conf.');
   }
-  return version;
+  return { version, tag: release.tag, prerelease: release.rc !== undefined };
 }
 
 async function resolveServerCommit({ github, context, core }) {
@@ -96,7 +97,7 @@ async function publishRelease({ github, context, core }, assetDirectory) {
   if (context.eventName !== 'push' || !context.ref.startsWith('refs/tags/v')) {
     throw new Error('Draft releases require a push of a v-prefixed tag.');
   }
-  const version = validateReleaseTag(context);
+  const { version, tag, prerelease } = validateReleaseTag(context);
 
   const entries = fs.readdirSync(assetDirectory, { withFileTypes: true });
   const buildToolsAssets = new Map(['windows-x64', 'macos-arm64'].map(platform => [
@@ -120,7 +121,6 @@ async function publishRelease({ github, context, core }, assetDirectory) {
     return { name, filename, size };
   });
 
-  const tag = context.ref.slice('refs/tags/'.length);
   let release;
   for (let page = 1; ; page++) {
     const { data } = await github.rest.repos.listReleases({
@@ -139,6 +139,7 @@ async function publishRelease({ github, context, core }, assetDirectory) {
       target_commitish: context.sha,
       name: tag,
       draft: true,
+      prerelease,
       generate_release_notes: true,
     });
     release = data;
