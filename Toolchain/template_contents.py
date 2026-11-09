@@ -42,7 +42,7 @@ FFMPEG_LICENSE_FILES = (
 )
 NON_RUNTIME_LICENSE_DIRECTORIES = (
     "Avalonia", "DotNet", "DotNetPackages", "EditorPackages", "GNUMake",
-    "HarmonyOSSans", "MicrosoftVisualCppRuntime", "SampleMusic", "ScriptTools",
+    "HarmonyOSSans", "MicrosoftVisualCppRuntime", "SampleMusic", "Toolchain",
 )
 RUNTIME_STATE_PATHS = (
     "Log", "Save", "Main.ini", "Main.plist", "Ludork.ini", "Ludork.plist",

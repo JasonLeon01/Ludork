@@ -23,6 +23,10 @@
             {
                 "pattern": "^Scripts[.]Enums[.](.*)$",
                 "replace": "Enums.$1"
+            },
+            {
+                "pattern": "^Scripts[.](Global[.]WorldMapConstants|Source[.]Configs[.](HotKey|Tutorial|MapConstants|GameplayConstants))$",
+                "replace": "$1"
             }
         ],
         "library": [

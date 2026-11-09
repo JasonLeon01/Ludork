@@ -1,1 +1,1 @@
-"""Ludork repository and packaged-editor script tools."""
+"""Ludork repository and packaged-editor toolchain."""

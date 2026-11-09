@@ -9,7 +9,7 @@ The editor package includes this canonical tree in full. The independently distr
 | Directories | Contents |
 |---|---|
 | `DotNet`, `DotNetPackages`, `Avalonia`, `EditorPackages` | Editor and managed-runtime notices |
-| `ScriptTools` | Packaged CPython, Nuitka runtime, OpenSSL, Pillow and incorporated-component notices |
+| `Toolchain` | Packaged CPython, Nuitka runtime, OpenSSL, Pillow and incorporated-component notices |
 | `Lua`, `LuaSF`, `SFML`, `LuaGlue`, `lua-cjson`, `zlib`, `IXWebSocket`, `NativeDependencies` | Common template runtime notices |
 | `FFmpeg` | Optional video-runtime notices |
 | `GNUMake`, `MicrosoftVisualCppRuntime` | Editor/external redistribution terms; excluded from templates |

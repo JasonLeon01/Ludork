@@ -60,10 +60,10 @@ EDITOR_LICENSE_PATHS = (
     "NativeDependencies/FLAC-COPYING.Xiph.txt", "NativeDependencies/MbedTLS-LICENSE.txt",
     "NativeDependencies/libssh2-COPYING.txt", "NativeDependencies/SFML-THIRD-PARTY.md",
     "HarmonyOSSans/LICENSE.txt", "SampleMusic/NOTICE.md",
-    "ScriptTools/Nuitka-4.1.3-AGPL-3.0.txt", "ScriptTools/Nuitka-4.1.3-NOTICE.txt",
-    "ScriptTools/Nuitka-4.1.3-RUNTIME-EXCEPTION.txt",
-    "ScriptTools/Python-3.12-LICENSES-AND-ACKNOWLEDGEMENTS.rst.txt",
-    "ScriptTools/Pillow-12.2.0-LICENSE.txt",
+    "Toolchain/Nuitka-4.1.3-AGPL-3.0.txt", "Toolchain/Nuitka-4.1.3-NOTICE.txt",
+    "Toolchain/Nuitka-4.1.3-RUNTIME-EXCEPTION.txt",
+    "Toolchain/Python-3.12-LICENSES-AND-ACKNOWLEDGEMENTS.rst.txt",
+    "Toolchain/Pillow-12.2.0-LICENSE.txt",
 )
 
 BUILD_TOOL_SOURCES = {
