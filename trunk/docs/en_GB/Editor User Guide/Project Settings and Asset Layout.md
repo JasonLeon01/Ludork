@@ -2,7 +2,7 @@
 
 A project stores editor and packaging settings in `Main.proj`, runtime settings in its [game configuration](<#game-configuration>), resources in `Assets`, authored data in `Data` and runtime code in `Scripts`. C++ Source projects also include the native sources described in [Build and Module Layout](<../Native C++ Development/Build and Module Layout.md>).
 
-The editor writes project JSON, including `Main.proj`, `Data` documents, `MaterialExport.json` and export records, as UTF-8 without a byte order mark (BOM) and with LF line endings on every platform. Saving the same JSON values therefore does not introduce platform-specific line endings.
+The editor writes project JSON, including `Main.proj`, `Data` documents and export records, as UTF-8 without a byte order mark (BOM) and with LF line endings on every platform. Saving the same JSON values therefore does not introduce platform-specific line endings.
 
 ## Main.proj
 
@@ -91,9 +91,9 @@ Switching configurations keeps pending edits and does not save automatically. An
 
 ## Assets
 
-Authoring files live under the physical `Assets` directory. Stored resources use exact-case `/Game/Assets/...` paths with `/` separators and file extensions. Paths such as `Assets/...`, category-relative paths, native absolute paths and traversal paths are invalid. `PathVars` marks a field as a validated canonical `/Game/Assets/...` reference, unless `PathRoot` selects `"Project"` files or `"Data"` documents. Config `base` only sets the picker root. `/Game` works through Ludork resource APIs, while Standard filesystem APIs and direct LuaSF file constructors use native paths.
+Authoring files live under the physical `Assets` directory. Stored resources use exact-case `/Game/Assets/...` paths with `/` separators and file extensions. Paths such as `Assets/...`, category-relative paths, native absolute paths and traversal paths are invalid. `PathVars` marks a field as a validated canonical `/Game/Assets/...` reference, unless `PathRoot` selects `"Project"` files or `"Data"` documents. Config `base` only sets the picker root. Runtime lookup follows the [resource priority](#runtime-resource-lookup) below. Direct LuaSF file constructors and ordinary physical filesystem operations continue to use native paths.
 
-Resource resolution rejects symbolic links, broken links and reparse points from the target through the project root. An inaccessible path is rejected. Path conversion and picker roots may name a file or directory that has not been created yet, provided the existing ancestors pass the same checks. Stored resource paths remain case-sensitive on every platform.
+Resource resolution rejects symbolic links, broken links and reparse points from the target through its resource root. An inaccessible path is rejected. Path conversion and picker roots may name a file or directory that has not been created yet, provided the existing ancestors pass the same checks. Stored resource paths remain case-sensitive on every platform.
 
 Keep the conventional first-level folders so that selectors can filter correctly: `Tilesets`, `Autotiles`, `Characters`, `Animations`, `Particles`, `Icons`, `Fonts`, `Musics`, `Sounds`, `Voices`, `Shaders`, `Panoramas`, `Transitions`, `System` and `Videos`. The `.ldpak` option archives the complete `Assets` tree as root `Assets.ldpak`, including ordinary files directly under `Assets`. Logical resource paths remain unchanged.
 
@@ -105,7 +105,7 @@ Rename or move files and folders within `Assets` through the editor to update re
 
 | Location | References and purpose |
 |---|---|
-| `Data/Materials` | Full `Data/Materials/...json` paths; see [Materials](<Materials.md>) for graphs and runtime export. |
+| `Data/Materials` | Full `Data/Materials/...json` paths; see [Materials](<Materials.md>) for graphs and runtime generation. |
 | `Data/Subtitles` | Full `Data/Subtitles/...json` paths; see [Video Subtitles](<Video Subtitles.md>). |
 | `Data/Particles` | Extensionless relative keys such as `Combat/Hit`; see [Common Particles](<Common Particles.md>). |
 | `Data/UI` | Extensionless relative asset keys; see [UI Asset Editor](<UI Asset Editor.md>). |
@@ -117,6 +117,18 @@ Rename or move files and folders within `Assets` through the editor to update re
 Do not edit `Engine_meta.lua`, `GlobalCore_meta.lua`, `GlobalFunctions_meta.lua` or generated Core/LuaSF declarations by hand. Packaging removes `Scripts/stub` and rejects any misplaced `.d.lua`.
 
 Keep `Data` and `Scripts` as loose directories while authoring. See [Run, Debug and Package](<Run Debug and Package.md#loose-and-packed-output>) for `.ldpak` output.
+
+### Runtime resource lookup
+
+`/Game/Assets/...`, `/Game/Data/...` and `/Game/Scripts/...` identify resources in the corresponding tree. Runtime reads first look beneath `Engine.getUserDataPath()`, then in the game's root directory or resource archive. Existing relative `Data/...` references and Lua module names use the same priority; absolute physical Data paths retain their explicit source. For example, `/Game/Assets/System/icon.png` reads `<user-data>/Assets/System/icon.png` when present, otherwise the game's `Assets/System/icon.png` or its entry in `Assets.ldpak`.
+
+The source directory takes priority over format alternatives. A user's `.ldc` data file can override the game's corresponding `.json`; a user's `.luac` can override the game's `.lua`; encrypted shader variants follow the same rule. Within each source, the existing API's format rules still apply. Exact-path JSON reads do not gain an encrypted-file fallback. A missing file permits the next source; an unreadable, damaged or invalid file reports its error instead. Data directory enumeration merges both sources, removes duplicates and gives user entries priority, including file/directory conflicts.
+
+The application establishes its user directory through `Engine.setAppName`; default Entry does this before loading project modules. The startup Entry itself is loaded from the game root. The user root need not contain all three trees. [Game configuration](#game-configuration) describes platform-specific locations.
+
+A game can write downloaded updates to the corresponding user directories. New files become visible on the next actual read, including a new module's first `require`. Already loaded modules and resource objects retain their normal caches; downloading a file does not replace live objects or rerun startup. Script loading details are in [Lua Runtime and Modules](<../Lua and Blueprint Scripting/Lua Runtime and Modules.md#entry-and-module-order>).
+
+These logical paths are read interfaces. Write downloaded files, saves and caches using explicit physical user-data paths; writes are not redirected to a resource source. Native filesystem operations such as `io.open` and direct LuaSF constructors do not become a general `/Game` filesystem.
 
 ### Map and world-map assets
 

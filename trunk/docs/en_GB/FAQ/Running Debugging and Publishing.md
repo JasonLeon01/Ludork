@@ -6,7 +6,7 @@ The editor runs on Windows x64 and Apple Silicon macOS. Games can target those p
 
 ## Why is Play unavailable, and when do I use Construct or Export?
 
-Complete a successful **Export** before the first Play. C++ Source projects also need a successful Debug build through **Construct** or `tools/build_cpp`. Construct compiles native code; Export generates UI, locale and material runtime files. Lua, UI JSON, game data and localisation changes do not require a native build. Read the first reported error if preparation fails. See [Construct, Export and Play](<../Editor User Guide/Run Debug and Package.md#construct-export-and-play>).
+Complete a successful **Export** before the first Play. C++ Source projects also need a successful Debug build through **Construct** or `tools/build_cpp`. Construct compiles native code; Export generates UI and locale runtime files; SceneInit prepares materials. Lua, UI JSON, game data and localisation changes do not require a native build. Read the first reported error if preparation fails. See [Construct, Export and Play](<../Editor User Guide/Run Debug and Package.md#construct-export-and-play>).
 
 ## Does Live Debug save changes back to my project?
 

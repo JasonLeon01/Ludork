@@ -20,6 +20,8 @@ Ludork 运行 Lua 5.5，并提供 Standard 扩展、LuaSF 与项目原生模块�
 
 ```lua
 local Engine = require("Engine")
+Engine.setAppName("MyGame")
+
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
 local Logging = require("Global.Utils.Logging")
@@ -37,11 +39,11 @@ local ManagerFunctions = GlobalFunctions.Manager
 
 原生资源后缀由 `Engine.ResourceFileConstants` 提供，游戏地图标识与玩法事件标签分别位于 `Source.Configs.MapConstants` 和 `Source.Configs.GameplayConstants`。公开枚举使用下文的独立 `Enums.*` 模块。
 
-运行时脚本只采用一种存储形态：开发期用未打包的 `Scripts`，打包发行版用根级 `Scripts.ldpak`。两种形态混用、缺失或无效都会在启动阶段失败。两种形态下的逻辑模块路径与入口路径完全一致。
+游戏根目录只采用一种脚本存储形态：开发期用散放的 `Scripts`，打包发行版用根级 `Scripts.ldpak`。根目录的两种形态混用、缺失或无效都会在启动阶段失败。Entry 调用 `Engine.setAppName` 后，用户数据目录中的散文件可以按[运行时资源查找](<../编辑器用户指南/项目设置与资产布局.md#运行时资源查找>)规则覆盖这两种根目录布局。
 
-每个 Lua state 都通过 `package.preload` 暴露项目模块，同时不覆盖原生模块。Script Mixin 仍在每次执行时重新加载。Standard 文件系统 API 不会暴露归档内容。
+每个 Lua state 都通过 `package.preload` 和动态脚本搜索器暴露项目模块，不覆盖原生模块。用户目录中新增的模块可以在首次 `require` 时加载；已经进入 `package.loaded` 的模块不会仅因文件变化而重新执行。Script Mixin 仍在每次执行时重新加载，音频状态也读取相同的有效脚本来源。`loadfile` 与 `dofile` 接受 `/Game/Scripts/...`，保留原有返回值、错误与环境行为；普通物理路径维持原有行为。通用文件系统 API 不会暴露脚本归档内容。
 
-打包后的 Data 仍通过相同的逻辑 `Data/...` 路径访问。`Engine.loadData` 与 `Engine.dataExists` 会为不存在的 `.json` 路径查找二进制 `.ldc` 替代文件；JSON 平台 API 只使用指定路径。这是只读的运行时边界，不是通用归档文件系统。
+散放和归档 Data 都可以通过逻辑 `Data/...` 与 `/Game/Data/...` 路径访问。`Engine.loadData` 与 `Engine.dataExists` 在每个来源内为缺失的 `.json` 查找二进制 `.ldc` 替代文件，且用户数据优先于根目录数据。JSON 平台 API 只读取精确路径。这是只读的运行时边界，不是通用归档文件系统。
 
 每个可独立复用的类都有自己的模块，由该模块返回类本身。窗口模块可以内含私有 Controller，并通过 `Ui.DefineWindow` 导出 UI，详见[声明式 UI 编写工作流](<声明式 UI/编写工作流.md>)。工具模块可以汇集相关的辅助函数。
 
@@ -106,13 +108,13 @@ LuaSF 注册全局 `sf`。API 声明 `sf.Vector2i`、`sf.Vector2f`、`sf.Color` 
 
 ## Lua 热更新
 
-从编辑器启动游戏，且 `Scripts` 下是未打包的 Lua 源码时，保存改动后在控制台输入 `$r`。运行时会在下一次控制台更新时、玩法回调之间，更新已加载的项目模块与已使用的 Script Mixin，同时保留当前场景、对象与 Lua VM。Debug 与 Release 构建都支持该命令。已打包脚本或仅有编译产物的脚本不支持。
+从编辑器启动游戏，且游戏根目录使用散放的 `Scripts` Lua 源码时，保存改动后在控制台输入 `$r`。运行时会在下一次控制台更新时、玩法回调之间，更新已加载的项目模块与已使用的 Script Mixin，同时保留当前场景、对象与 Lua VM。Debug 与 Release 构建都支持该命令。已打包脚本或仅有编译产物的脚本不支持。
 
 热更新替换已有的具名函数，同时保留模块与类的身份、实例字段、模块数据、常量、默认值以及已捕获的非函数值。修改函数体会生效，修改类默认值则需要重启。已缓存的匹配函数引用（含原生回调）会转向新的函数对象。已有的匿名回调与挂起的协程帧继续使用原函数体，但其中引用的匹配辅助函数会更新。构造函数与生命周期回调不会重新执行。
 
 已加载模块与已使用的 Script Mixin 必须保留导出名称、类基类、字段与函数的种类、原生回调成员，以及兼容的捕获状态。删除这些模块或做出不兼容的结构改动都需要重启。增删普通全局访问是允许的。自定义 `_ENV` 无法匹配时同样需要重启。
 
-应用改动前，运行时会编译全部 Lua 源码。入口脚本只做检查，不会重新执行。新增模块与尚未加载的模块仍可由 `require` 按需加载。Metadata、声明文件、JSON 数据、UI 资产与原生代码都不参与热更新。已有的[音频处理器](<Game 玩法/资源、音频、视频与特效.md#音频>)继续使用原代码，直到开始新的播放。
+应用改动前，运行时会编译全部有效的 Lua 源码，包括用户目录覆盖的源码。入口脚本只做检查，不会重新执行。新增模块与尚未加载的模块仍可由 `require` 按需加载。Metadata、声明文件、JSON 数据、UI 资产与原生代码都不参与热更新。已有的[音频处理器](<Game 玩法/资源、音频、视频与特效.md#音频>)继续使用原代码，直到开始新的播放。
 
 语法、兼容性或候选代码执行失败时，原有定义保持不变，控制台会报告错误。候选执行造成的外部副作用无法回滚。错误一旦可能改动过原生资源或共享对象，就应重启。模块顶层只放定义与依赖加载，资源创建与订阅放进显式的启动函数或生命周期回调，参见 [Game 入口顺序](<Game 玩法/默认模板概述.md#入口与模块>)。
 

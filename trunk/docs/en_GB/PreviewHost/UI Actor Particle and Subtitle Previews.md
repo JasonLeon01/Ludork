@@ -22,7 +22,7 @@ See [Actor placement and Actor Info](<../Editor User Guide/Blueprints Common Fun
 
 ## Material previews
 
-Material, Actor, map and UI previews receive unsaved material snapshots. The native host compiles them in memory without rewriting exported shaders; gameplay loads the exported files. An invalid preview shows an error instead of retaining a stale successful image. For the shared compiler, preview controls, error navigation and GLSL view, see [Preview and diagnose](<../Editor User Guide/Materials.md#preview-and-diagnose>).
+Material, Actor, map and UI previews receive unsaved material snapshots. The native host compiles them in memory without rewriting the game's runtime material cache. An invalid preview shows an error instead of retaining a stale successful image. For the shared compiler, preview controls, error navigation and GLSL view, see [Preview and diagnose](<../Editor User Guide/Materials.md#preview-and-diagnose>).
 
 ## Particle previews
 

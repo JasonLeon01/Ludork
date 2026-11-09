@@ -1,6 +1,6 @@
 # GlobalCore: Resource Managers
 
-The generic managers require `/Game/Assets/...` paths with exact case, and they read both loose files and `.ldpak` archives. Native absolute paths, `Assets/...` paths and category-relative paths are invalid.
+The generic managers require `/Game/Assets/...` paths with exact case, and they read both loose files and `.ldpak` archives, with [user-directory resources taking priority](<../../../../Editor User Guide/Project Settings and Asset Layout.md#runtime-resource-lookup>). Native absolute paths, `Assets/...` paths and category-relative paths are invalid.
 
 Archive compression is transparent to these APIs. Seekable streams decode one block at a time and report original file sizes and byte positions. Each loaded block is CRC32-checked; complete reads also check the file CRC32.
 

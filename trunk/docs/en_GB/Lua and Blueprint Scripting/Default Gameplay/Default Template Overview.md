@@ -12,6 +12,7 @@ Startup calls the following functions explicitly. Requiring their modules does n
 
 | Call | Responsibility |
 |---|---|
+| `Engine.setAppName(...)` | Establishes the application's user directory and resource overrides before loading project modules. |
 | `Source.Locale.Core.Init()` | Loads locale dictionaries before loading the configuration and selecting the language. |
 | `Source.Configs.Main.LoadOrCreate()` | Reads the [platform game configuration](<Runtime Data Configuration and Saves.md#configuration>), creating it with default settings when absent. |
 | `Source.Data.InitializeRuntime()` | Supplies project callbacks and preview base classes to `Global.Data.InitializeRuntime(options)`, which creates shared data services and registers data and Blueprint providers before the first scene. |
@@ -20,7 +21,7 @@ Startup calls the following functions explicitly. Requiring their modules does n
 
 Entry also initialises latent graphs and the native System before it constructs `SceneInit`. Register providers once per session. Hot reload does not rerun startup; see [Lua Runtime and Modules](<../Lua Runtime and Modules.md#lua-hot-reload>). [Runtime Data, Configuration and Saves](<Runtime Data Configuration and Saves.md>) describes the configuration and save locations.
 
-`SceneInit` uses a [required task](<../../Getting Started/Ludork Lua Advanced.md#cooperative-tasks-and-file-batches>) to prepare the initial assets and data, wait for the displayed progress to finish and construct the title scene.
+`SceneInit` uses a [required task](<../../Getting Started/Ludork Lua Advanced.md#cooperative-tasks-and-file-batches>) to prepare [material programs](<../../Editor User Guide/Materials.md#runtime-generation>), animation caches and shared data, in that order. Each stage occupies one third of loading progress. It waits for the displayed progress to finish before constructing the title scene; required preparation failures stop startup.
 
 Mobile background/resume behaviour follows the [SceneBase lifecycle](<../Global and Core Modules/Core Modules/GlobalCore/Scenes and System.md#scenebase>).
 
@@ -33,7 +34,7 @@ Mobile background/resume behaviour follows the [SceneBase lifecycle](<../Global 
 - `Scripts/Internal/UI` contains Views generated from `Data/UI` by Export. Generated UI and locale files are absent from templates and version control; export the project before its first run. See [Declarative UI Authoring Workflow](<../Declarative UI/Authoring Workflow.md>).
 - `Scripts/Mixins` contains directly attachable Lua behaviour.
 - `Data/Blueprints` contains game-specific Actor classes.
-- `Data/Materials` contains authored material graphs; Export generates runtime shaders and metadata in `Assets/Shaders/MaterialGenerated`. These outputs are ignored and excluded from templates.
+- `Data/Materials` contains authored material graphs. SceneInit prepares their runtime shaders and metadata in the user data directory; templates contain the source graphs, not the cache.
 - `Data/General` provides items, enemies, equipment, classes, players, states and special effects.
 - `Data/Maps` and `Data/Tilesets` provide the playable world.
 - `Engine/` contains the native runtime, modules and dependencies.

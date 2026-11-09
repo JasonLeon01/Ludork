@@ -10,7 +10,7 @@ A save error identifies invalid parents, inheritance cycles, nodes, links, pins 
 
 ## The game will not start
 
-Read the Console from the first failure. Complete Construct when required, then Export; Play checks these in that order. Export validation or plug-in failures block launch, as do before-Run hook failures. Check the generated UI and locale files, `Assets/Shaders/MaterialGenerated`, native modules, the [startup script](<../Lua Runtime and Modules.md#entry-and-module-order>), Core module order and runtime protocol diagnostics.
+Read the Console from the first failure. Complete Construct when required, then Export; Play checks these in that order. Export validation or plug-in failures block launch, as do before-Run hook failures. Check the generated UI and locale files, native modules, the [startup script](<../Lua Runtime and Modules.md#entry-and-module-order>), Core module order and runtime protocol diagnostics. If SceneInit stops while preparing materials, inspect its first generation or cache error; the runtime cache is beneath the game's user data directory, as described in [Runtime generation](<../../Editor User Guide/Materials.md#runtime-generation>).
 
 ## A node is missing
 

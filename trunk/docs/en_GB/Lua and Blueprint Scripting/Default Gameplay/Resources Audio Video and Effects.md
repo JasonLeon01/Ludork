@@ -36,9 +36,9 @@ After hot reload, start a new playback to use updated audio code; see [Lua Runti
 
 ## Shaders, fog and transitions
 
-Actors and tile layers draw through the official 2D material system; projects compose effects with general-purpose nodes. Export writes the material shaders and metadata to `Assets/Shaders/MaterialGenerated`. The game loads those files and evaluates the exported numeric analysis instructions with current instance parameters, without parsing graphs or assembling GLSL; the GPU driver still compiles the shaders. Missing or invalid generated files stop material loading, so export before running or packaging.
+Actors and tile layers draw through the official 2D material system; projects compose effects with general-purpose nodes. SceneInit prepares the shaders and runtime metadata in the user data directory before gameplay. Drawing uses the prepared numeric analysis instructions with current instance parameters; the GPU driver still compiles the shader programs. See [Runtime generation](<../../Editor User Guide/Materials.md#runtime-generation>) for cache validation, generation failures and file ownership.
 
-Export includes all individual materials and scans saved maps for tile/layer combinations. If gameplay creates a different combination by constructing a map or changing a layer's material, add it through [Game → Material Combinations](<../../Editor User Guide/Materials.md#material-combinations>) before Export. Actor/UI material switches and parameter changes need no extra entry.
+Initialisation includes all individual materials and scans saved maps for tile/layer combinations. If gameplay creates a different combination by constructing a map or changing a layer's material, add it through [Game → Material Combinations](<../../Editor User Guide/Materials.md#material-combinations>) before preparation. Actor/UI material switches and parameter changes need no extra entry.
 
 Built-in weather and fog retain their cross-platform shader pipelines, and loading or compilation errors propagate. World entry prewarms the shared renderer for the current viewport and repeats after regional geometry changes. HarmonyOS compiles programs on their first normal draw after complete render-state and uniform binding.
 

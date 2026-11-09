@@ -20,6 +20,8 @@ Native startup runs the script passed as the first command-line argument, or `Sc
 
 ```lua
 local Engine = require("Engine")
+Engine.setAppName("MyGame")
+
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
 local Logging = require("Global.Utils.Logging")
@@ -37,11 +39,11 @@ Static dependencies flow from the root native modules through `Scripts/Global` t
 
 Native resource suffixes are exposed through `Engine.ResourceFileConstants`; game map identities and Gameplay tags live in `Source.Configs.MapConstants` and `Source.Configs.GameplayConstants`. Public enums use the independent `Enums.*` modules described below.
 
-At runtime, scripts use exactly one storage form: loose `Scripts` during development, or a root `Scripts.ldpak` in a packed release. Mixed, missing or invalid layouts fail during startup. Logical module and entry paths are identical in both forms.
+The game root uses exactly one script storage form: loose `Scripts` during development, or a root `Scripts.ldpak` in a packed release. Mixed, missing or invalid root layouts fail during startup. Once Entry has called `Engine.setAppName`, loose files under the user data directory can override either root layout through the [runtime resource lookup](<../Editor User Guide/Project Settings and Asset Layout.md#runtime-resource-lookup>) rules.
 
-Every Lua state exposes project modules through `package.preload` without replacing native modules. Script Mixins still load fresh on every execution. Standard filesystem APIs do not expose archive contents.
+Every Lua state exposes project modules through `package.preload` and a dynamic script searcher without replacing native modules. New user-directory modules can be loaded on their first `require`; a module already in `package.loaded` is not re-executed merely because its file changed. Script Mixins still load fresh on every execution, and audio states use the same effective script sources. `loadfile` and `dofile` accept `/Game/Scripts/...` while preserving their usual return, error and environment behaviour; ordinary physical paths retain their existing behaviour. General filesystem APIs do not expose script archive contents.
 
-Packed Data remains available through the same logical `Data/...` paths. `Engine.loadData` and `Engine.dataExists` resolve missing `.json` paths to binary `.ldc` alternatives; JSON platform APIs use only the exact path. This is a read-only runtime boundary, not a general archive filesystem.
+Loose and packed Data are available through logical `Data/...` and `/Game/Data/...` paths. `Engine.loadData` and `Engine.dataExists` resolve missing `.json` paths to binary `.ldc` alternatives within each source, giving user data priority over root data. JSON platform APIs use only the exact path. This is a read-only runtime boundary, not a general archive filesystem.
 
 Each independently reusable class has its own module, and that module returns the class. A window module may contain its private Controller and export the UI through `Ui.DefineWindow`; see the [Declarative UI Authoring Workflow](<Declarative UI/Authoring Workflow.md>). Utility modules may group related helpers.
 
@@ -106,13 +108,13 @@ Live Debug lets you change Actor state in an editor-launched game, including Act
 
 ## Lua hot reload
 
-In an editor-launched game that uses loose Lua sources under `Scripts`, save the changes and enter `$r` in the Console. At the next Console update, between gameplay callbacks, the runtime updates loaded project modules and used Script Mixins while keeping the current scene, objects and Lua VM. Both Debug and Release builds support the command. Packed or compiled-only scripts do not.
+In an editor-launched game whose root uses loose Lua sources under `Scripts`, save the changes and enter `$r` in the Console. At the next Console update, between gameplay callbacks, the runtime updates loaded project modules and used Script Mixins while keeping the current scene, objects and Lua VM. Both Debug and Release builds support the command. Packed or compiled-only scripts do not.
 
 Reload replaces existing named functions while preserving module and class identities, instance fields, module data, constants, defaults and captured non-function values. Changing a function body takes effect. Changing a class default requires a restart. Cached references to matched functions, including native callbacks, are redirected to new function objects. Existing anonymous callbacks and suspended coroutine frames keep their original bodies, although references to matched helpers are updated. Constructors and lifecycle callbacks do not run again.
 
 Loaded modules and used Script Mixins must retain their export names, class bases, field and function kinds, native callback members and compatible captured state. Deleting one of these modules, or making an incompatible structural change, requires a restart. Adding or removing ordinary global accesses is supported. An unmatchable custom `_ENV` requires a restart.
 
-The runtime compiles all Lua sources before it applies changes. Entry is checked but not rerun. New and unloaded modules remain available on demand through `require`. Metadata, declarations, JSON data, UI assets and native code are excluded. Existing [audio processors](<Default Gameplay/Resources Audio Video and Effects.md#audio>) keep their code until a new playback starts.
+The runtime compiles all effective Lua sources, including user-directory overrides, before it applies changes. Entry is checked but not rerun. New and unloaded modules remain available on demand through `require`. Metadata, declarations, JSON data, UI assets and native code are excluded. Existing [audio processors](<Default Gameplay/Resources Audio Video and Effects.md#audio>) keep their code until a new playback starts.
 
 Syntax, compatibility or candidate-execution failures leave the existing definitions in place and report an error in the Console. External side effects from candidate execution cannot be rolled back, so restart after an error that may have changed native resources or shared objects. Keep module top levels to definitions and dependencies, and put resource creation and subscriptions in explicit startup or lifecycle functions. See the [Game entry sequence](<Default Gameplay/Default Template Overview.md#entry-and-modules>).
 

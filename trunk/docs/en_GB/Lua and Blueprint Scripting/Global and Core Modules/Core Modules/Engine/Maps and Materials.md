@@ -103,11 +103,11 @@ The native-only `TileLayer::updateBlock` updates an existing rectangular block a
 
 The shared standard resource is `Data/Materials/Global/Standard.json`. Effect examples and `Surfaces` presets remain directly under `Data/Materials` and its `Surfaces` directory.
 
-An authored material is a `Data/Materials/<name>.json` graph with `type: "material"` and `version: 1`. Actors, autotiles and layers retain this string reference. The empty reference selects the built-in neutral material, separately from `Global/Standard.json`; an invalid non-empty reference fails. Export maps these references to shaders and runtime metadata under `Assets/Shaders/MaterialGenerated/Materials/<name>/`, or `Assets/Shaders/MaterialGenerated/Builtin/Default/` for the empty reference. Runtime loading uses those generated files, including encrypted data/shaders and `Assets.ldpak`; it does not read the authored graph. Missing, damaged or unsupported outputs fail. Auxiliary textures retain canonical `/Game/Assets/...` paths, and the host supplies the sprite texture, current frame, transform and time.
+An authored material is a `Data/Materials/<name>.json` graph with `type: "material"` and `version: 1`. Actors, autotiles and layers retain this string reference. The empty reference selects the built-in neutral material, separately from `Global/Standard.json`; an invalid non-empty reference fails. Initialisation prepares shaders and runtime metadata in the user data directory. Drawing loads those prepared files, including their encrypted forms. Auxiliary textures retain canonical `/Game/Assets/...` paths, and the host supplies the sprite texture, current frame, transform and time.
 
-For native C++ callers, `MaterialResource::load` loads the exported runtime resource. `MaterialResource::fromData` creates a resource with an editing graph definition for Export and preview compilation. Preview integrations can retain a `MaterialResource::Overrides` snapshot to reuse parsed resources, activating it for each request with `ScopedOverrides`. Keep the snapshot alive for the entire scope and use it on the same preview thread; replace it when its documents or source resources change. The scope does not remain active between requests. See [Material export](<../../../../Editor User Guide/Materials.md#export-for-runtime>) for generation, combinations and file layout.
+For native C++ callers, `MaterialResource::load` loads the prepared runtime resource. `MaterialResource::fromData` creates a resource with a graph definition for cache generation and preview compilation. Preview integrations can retain a `MaterialResource::Overrides` snapshot to reuse parsed resources, activating it for each request with `ScopedOverrides`. Keep the snapshot alive for the entire scope and use it on the same preview thread; replace it when its documents or source resources change. The scope does not remain active between requests. See [Runtime generation](<../../../../Editor User Guide/Materials.md#runtime-generation>) for generation, combinations and file layout.
 
-All individual materials are exported, while base/layer combinations come from saved map usage and the editor's [additional combinations](<../../../../Editor User Guide/Materials.md#material-combinations>). Register a combination there before using it only through dynamically constructed maps or runtime layer-material changes. Actor/UI material switches and parameter changes need no additional entry. A missing combination fails at runtime; the game does not generate it from the graph.
+Preparation includes all individual materials, while base/layer combinations come from saved map usage and the editor's [additional combinations](<../../../../Editor User Guide/Materials.md#material-combinations>). Register a combination there before using it only through dynamically constructed maps or runtime layer-material changes. Actor/UI material switches and parameter changes need no additional entry. Drawing an unprepared combination fails; drawing does not generate missing programs.
 
 | File section | Contents |
 |---|---|
@@ -118,6 +118,19 @@ All individual materials are exported, while base/layer combinations come from s
 | `editor.positions` | Node ID to canvas position; editing data only. |
 
 Parameter types are `bool`, `float`, `vec2`, `vec3`, `vec4`, `color` and `texture`. Vectors are numeric arrays; colours are four normalised channels in `[0, 1]`. The optional `displayName` changes the label shown in the editor; the stable `id` used by parameter nodes and instance overrides does not change. Invalid types, unknown parameter IDs and values outside declared ranges fail. The graph is a typed, acyclic data-flow graph; it has no gameplay execution pins or custom GLSL node.
+
+### Material cache preparation
+
+`Engine.prepareMaterialCache()` starts background preparation and returns an `Engine.MaterialCacheRequest`. These APIs are Lua-only and create no Blueprint nodes. Call it after setting the application name and finish preparation before constructing material-dependent graphics. It generates GLSL and runtime metadata; it does not precompile GPU programs.
+
+| Request method | Contract |
+|---|---|
+| `getStatus()` | Return `"pending"`, `"ready"`, `"failed"` or `"cancelled"` without waiting. |
+| `getProgress()` | Return preparation progress in `0..1`. |
+| `getResult()` | Return no value on Ready; rethrow the stored failure on Failed; report a state error on Pending or Cancelled. |
+| `cancel()` | Request cancellation and wait for the worker to finish. |
+
+Poll from successive frames so the initialisation screen can update, then call `getResult()` on Ready or Failed to propagate errors. Cancel the request when leaving the initialisation scene. The cache policy and encryption settings are described in [Runtime generation](<../../../../Editor User Guide/Materials.md#runtime-generation>).
 
 ### Surface outputs
 
