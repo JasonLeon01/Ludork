@@ -230,7 +230,9 @@ Standard also installs binary-safe codec globals:
 
 ## Cooperative tasks and file batches
 
-`asyncio.create_task(callback, ...)` starts a cooperative task. Inside it, use `asyncio.sleep(seconds)` for a delay or `asyncio.await(operation)` to wait for an asynchronous result without blocking the game loop. Both require a task created by `asyncio.create_task`.
+`asyncio.create_task(callback, ...)` schedules a cooperative task and returns its handle. Inside the task, use `asyncio.sleep(seconds)` for a delay or `asyncio.await(operation)` to wait for an asynchronous result while the game loop continues. If the task raises a Lua runtime error, the engine ends the task, logs its Lua stack trace and continues running other tasks.
+
+Use `asyncio.create_required_task(callback, ...)` for work that must succeed for the game to run. It takes the same arguments and returns the same kind of handle. An unhandled Lua error in a required task ends the game session.
 
 For example, while a `SceneMap` is active, these configured tutorials run in order:
 

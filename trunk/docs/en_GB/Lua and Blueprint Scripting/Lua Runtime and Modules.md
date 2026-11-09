@@ -120,6 +120,10 @@ Syntax, compatibility or candidate-execution failures leave the existing definit
 
 Runtime Lua logs through `Global.Utils.Logging`: `debug` for diagnostic detail, `info` for significant stages, `warning` for recoverable data problems and `error` for unrecoverable failures. Logging does not raise. Use `error` or `assert` when execution must stop.
 
+When a scheduled Scene input or frame callback, Actor frame callback, or UI input, frame or animation completion callback raises a Lua runtime error, the engine ends that invocation and logs the callback name and Lua stack trace in the Console. Other scheduled callbacks continue, and a repeating callback can run again on its next turn. Synchronous calls inside the failing callback unwind with it. Changes made before the error remain applied. A failed mouse-button-down callback leaves the input unconsumed.
+
+An error that escapes the game entry script or required initialisation fails the launch. See [cooperative tasks](<../Getting Started/Ludork Lua Advanced.md#cooperative-tasks-and-file-batches>) and [scene timers](<Global and Core Modules/Core Modules/GlobalCore/Scenes and System.md#scene-timers>) for their failure behaviour.
+
 Engine providers are installed explicitly during [startup](<Default Gameplay/Default Template Overview.md#entry-and-modules>), not by `require`. Missing or duplicate providers, stopped sessions and invalid return counts or types raise errors. Returning no values differs from returning one `nil`.
 
 ## Runtime, declarations and metadata

@@ -230,7 +230,9 @@ Standard 还会安装以下二进制安全的编解码全局对象：
 
 ## 协作任务与文件批次
 
-`asyncio.create_task(callback, ...)` 启动协作式任务。在任务中，用 `asyncio.sleep(seconds)` 延时，或用 `asyncio.await(operation)` 等待异步结果，两者都不会阻塞游戏循环；它们只能在 `asyncio.create_task` 创建的任务内使用。
+`asyncio.create_task(callback, ...)` 调度协作式任务并返回任务句柄。在任务中可以用 `asyncio.sleep(seconds)` 延时，或用 `asyncio.await(operation)` 等待异步结果，游戏循环会继续运行。任务发生 Lua 运行时错误时，引擎会结束该任务、记录 Lua 调用栈，并继续调度其他任务。
+
+必须成功才能运行游戏的工作使用 `asyncio.create_required_task(callback, ...)`。它接受相同的参数并返回同样的任务句柄。必需任务中的未处理 Lua 错误会结束游戏会话。
 
 例如，在活动的 `SceneMap` 中，按顺序播放以下已配置的教程：
 

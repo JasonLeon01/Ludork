@@ -20,6 +20,8 @@ Startup calls the following functions explicitly. Requiring their modules does n
 
 Entry also initialises latent graphs and the native System before it constructs `SceneInit`. Register providers once per session. Hot reload does not rerun startup; see [Lua Runtime and Modules](<../Lua Runtime and Modules.md#lua-hot-reload>). [Runtime Data, Configuration and Saves](<Runtime Data Configuration and Saves.md>) describes the configuration and save locations.
 
+`SceneInit` uses a [required task](<../../Getting Started/Ludork Lua Advanced.md#cooperative-tasks-and-file-batches>) to prepare the initial assets and data, wait for the displayed progress to finish and construct the title scene.
+
 Mobile background/resume behaviour follows the [SceneBase lifecycle](<../Global and Core Modules/Core Modules/GlobalCore/Scenes and System.md#scenebase>).
 
 ## Gameplay layout

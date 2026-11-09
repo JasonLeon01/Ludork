@@ -8,7 +8,7 @@ On Android and iOS, losing focus pauses scene and UI updates, rendering, runtime
 
 ### Scene timers
 
-`scene:addTimer(interval, task, params, blocking)` returns an `Engine.AsyncOperation`. On expiry, it runs `task` before completing with `true` and resuming the Blueprint `TimeUp` branch. Callback errors propagate.
+`scene:addTimer(interval, task, params, blocking)` returns an `Engine.AsyncOperation`. On expiry, it runs `task` before completing with `true` and resuming the Blueprint `TimeUp` branch. If the callback raises a Lua runtime error, the engine logs the Lua stack trace, cancels the operation and releases its input block. Waiters follow the [operation cancellation rules](<../Engine/Events and Module Root.md#asyncoperation>), and other timers due in the same update continue.
 
 The Lua-only `scene:cancelTimers()` cancels unfinished timers and clears their input blocking. Calling it from a timer callback also cancels the current operation and skips any remaining callbacks. Scene exit or destruction cancels timers automatically.
 
