@@ -126,13 +126,13 @@ Engine 提供程序在[启动](<Game 玩法/默认模板概述.md#入口与模�
 
 Lua 文件分工如下：
 
-- `.lua` 文件保存运行时行为，以及仅供实现使用的注解。纯数据枚举模块同时保存自己的公开类型注解与说明。
-- 镜像路径 `Scripts/stub/**/*.d.lua` 保存其他公开文档与 LuaLS 声明，不含运行时副作用，也不含 `require`。原生 API 的枚举类型仍保留在 `Engine.d.lua`、`LuaSF.d.lua` 等所属声明中。
+- `.lua` 文件保存运行时行为，以及仅供实现使用的注解。短小的纯常量表和简单配置表与纯数据枚举一样，直接在源码中维护公开类型注解与说明，不再提供镜像 stub。含有业务方法或生命周期行为的模块，不因篇幅短而适用此例外。
+- `Scripts/stub/**/*.d.lua` 保存其他公开文档与 LuaLS 声明，不含运行时副作用，也不含 `require`。没有运行时实现的纯类型声明，即使篇幅很短，也保留在这里。原生 API 的枚举类型仍保留在 `Engine.d.lua`、`LuaSF.d.lua` 等所属声明中。
 - 同名 `_meta.lua` 文件保存纯编辑器 metadata，绝不作为玩法脚本运行。
 
-可 `require` 的声明用 `---@meta` 写出模块路径，例如 `Global/Pool.d.lua` 声明 `---@meta Global.Pool`。只声明全局 API 的 `Standard.d.lua`、`Class.d.lua` 与 `LuaSF.d.lua` 使用不带模块名的 `---@meta`。
+可 `require` 的声明使用对应运行时模块的镜像路径，并用 `---@meta` 写出模块路径，例如 `Global/Pool.d.lua` 声明 `---@meta Global.Pool`。只声明全局 API 的 `Standard.d.lua`、`Class.d.lua` 与 `LuaSF.d.lua`，以及只含类型声明的 `Scripts/stub/Source/Configs/EventChangePayload.d.lua`，使用不带模块名的 `---@meta`。语言服务器直接从工作区读取这些声明，无需在运行时 `require`。
 
-EmmyLua 工作区保留 `Scripts/stub` 作为模块根和库目录。在 `.emmyrc.json` 中，`workspace.moduleMap` 把 `^Scripts[.]Enums[.](.*)$` 映射为 `Enums.$1`，使枚举导入解析到带注解的源码，其他公开导入仍使用 stub 声明。枚举源码不使用 `---@meta`。
+EmmyLua 工作区保留 `Scripts/stub` 作为模块根和库目录。在 `.emmyrc.json` 中，`workspace.moduleMap` 把 `^Scripts[.]Enums[.](.*)$` 映射为 `Enums.$1`，并对 `Source.Configs.HotKey`、`Source.Configs.Tutorial`、`Source.Configs.MapConstants`、`Source.Configs.GameplayConstants` 与 `Global.WorldMapConstants` 五个源码模块分别精确映射到正常导入路径。这些导入解析到带注解的源码，其他公开导入仍使用 stub 声明。在源码中维护的声明不使用 `---@meta`。
 
 各模板与游戏包分别包含哪些声明，见[项目模板](<../快速入门/项目模板.md>)。
 

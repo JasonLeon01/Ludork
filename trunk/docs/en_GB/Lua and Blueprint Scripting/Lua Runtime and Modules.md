@@ -126,13 +126,13 @@ Engine providers are installed explicitly during [startup](<Default Gameplay/Def
 
 Lua files have separate owners:
 
-- `.lua` files contain runtime behaviour and implementation-only annotations. Pure-data enum modules also carry their public type annotations and documentation.
-- Mirrored `Scripts/stub/**/*.d.lua` files contain other public documentation and LuaLS declarations, with no runtime side effects or `require`. Native API enum types remain in their owning declarations, such as `Engine.d.lua` and `LuaSF.d.lua`.
+- `.lua` files contain runtime behaviour and implementation-only annotations. Short pure constant tables and simple configuration tables keep their public type annotations and documentation in the source, like pure-data enums, without mirrored stubs. This exception does not extend to short modules with business methods or lifecycle behaviour.
+- `Scripts/stub/**/*.d.lua` files contain other public documentation and LuaLS declarations, with no runtime side effects or `require`. Types with no runtime implementation stay here even when their declarations are short. Native API enum types remain in their owning declarations, such as `Engine.d.lua` and `LuaSF.d.lua`.
 - Same-name `_meta.lua` files contain pure editor metadata and never run as gameplay scripts.
 
-A requireable declaration uses `---@meta` with its module path; for example, `Global/Pool.d.lua` declares `---@meta Global.Pool`. Global-only `Standard.d.lua`, `Class.d.lua` and `LuaSF.d.lua` use a bare `---@meta`.
+A requireable declaration mirrors its runtime module's path and uses `---@meta` with that module path; for example, `Global/Pool.d.lua` declares `---@meta Global.Pool`. Global-only `Standard.d.lua`, `Class.d.lua` and `LuaSF.d.lua`, and the declaration-only `Scripts/stub/Source/Configs/EventChangePayload.d.lua`, use a bare `---@meta`. The language server reads these declarations from the workspace; they need no runtime `require`.
 
-The EmmyLua workspace keeps `Scripts/stub` as its module root and library. In `.emmyrc.json`, `workspace.moduleMap` maps `^Scripts[.]Enums[.](.*)$` to `Enums.$1`, allowing enum imports to resolve to their annotated sources while other public imports retain their stub declarations. Enum sources do not use `---@meta`.
+The EmmyLua workspace keeps `Scripts/stub` as its module root and library. In `.emmyrc.json`, `workspace.moduleMap` maps `^Scripts[.]Enums[.](.*)$` to `Enums.$1` and maps the exact source modules `Source.Configs.HotKey`, `Source.Configs.Tutorial`, `Source.Configs.MapConstants`, `Source.Configs.GameplayConstants` and `Global.WorldMapConstants` to their normal import paths. These imports resolve to annotated sources; other public imports retain their stub declarations. Source-owned declarations do not use `---@meta`.
 
 See [Project Templates](<../Getting Started/Project Templates.md>) for which declarations templates and game packages include.
 
