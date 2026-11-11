@@ -15,31 +15,6 @@ namespace Ludork.Views;
 
 public partial class NewProjectWindow : Window
 {
-    private static readonly HashSet<string> reservedProjectNames = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "CON",
-        "PRN",
-        "AUX",
-        "NUL",
-        "COM1",
-        "COM2",
-        "COM3",
-        "COM4",
-        "COM5",
-        "COM6",
-        "COM7",
-        "COM8",
-        "COM9",
-        "LPT1",
-        "LPT2",
-        "LPT3",
-        "LPT4",
-        "LPT5",
-        "LPT6",
-        "LPT7",
-        "LPT8",
-        "LPT9",
-    };
     private readonly EditorSettings editorSettings;
     private bool standalone = true;
     private bool creating;
@@ -63,10 +38,12 @@ public partial class NewProjectWindow : Window
         Title = LocaleService.Get("NEW_PROJECT");
         EditorInputs.ApplyReadOnly(ProjectLocationBox);
         EditorInputs.ApplyEditable(ProjectNameBox);
+        EditorInputs.ApplyEditable(AppNameBox);
         applyLocale();
 
         ProjectLocationBox.Text = EditorPaths.ProjectsDirectory;
         ProjectNameBox.TextChanged += (_, _) => updateValidation();
+        AppNameBox.TextChanged += (_, _) => updateValidation();
         FfmpegToggle.IsCheckedChanged += (_, _) => onFfmpegChanged();
         CompilerSelection.StateChanged += (_, _) => updateValidation();
         Opened += async (_, _) =>
@@ -120,6 +97,7 @@ public partial class NewProjectWindow : Window
         ProjectSettingsTitle.Text = LocaleService.Get("NEW_PROJECT_SETTINGS");
         LocationLabel.Text = LocaleService.Get("NEW_PROJECT_LOCATION");
         NameLabel.Text = LocaleService.Get("NEW_PROJECT_NAME");
+        AppNameLabel.Text = LocaleService.Get("NEW_PROJECT_APP_NAME");
         FfmpegTitle.Text = LocaleService.Get("NEW_PROJECT_FFMPEG");
         FfmpegSummary.Text = LocaleService.Get("NEW_PROJECT_FFMPEG_SUMMARY");
         FinalPathCaption.Text = LocaleService.Get("NEW_PROJECT_FINAL_PATH");
@@ -316,10 +294,13 @@ public partial class NewProjectWindow : Window
         string name = ProjectNameBox.Text?.Trim() ?? string.Empty;
         if (name.Length == 0)
             return LocaleService.Get("ENTER_PROJECT_NAME");
-        if (!isValidProjectName(name))
+        if (!ProjectNameValidation.IsValidDirectoryName(name))
             return LocaleService.Get("NEW_PROJECT_NAME_INVALID");
         if (Directory.Exists(Path.Combine(location, name)) || File.Exists(Path.Combine(location, name)))
             return LocaleService.Get("PROJECT_EXISTS");
+        string? appNameError = ProjectNameValidation.GetAppNameError(AppNameBox.Text ?? string.Empty);
+        if (appNameError is not null)
+            return LocaleService.Get(appNameError);
 
         string templateName = getTemplateName();
         if (EditorVersionService.IsDevelopment
@@ -368,21 +349,6 @@ public partial class NewProjectWindow : Window
             : targetPath;
     }
 
-    private static bool isValidProjectName(string name)
-    {
-        if (!OperatingSystem.IsWindows())
-        {
-            return name is not "." and not ".."
-                && name.IndexOfAny(Path.GetInvalidFileNameChars()) < 0;
-        }
-        string stem = name.Split('.')[0].TrimEnd(' ');
-        return name is not "." and not ".."
-            && name.IndexOfAny(Path.GetInvalidFileNameChars()) < 0
-            && !name.EndsWith('.')
-            && !name.EndsWith(' ')
-            && !reservedProjectNames.Contains(stem);
-    }
-
     private void setCreating(bool value)
     {
         creating = value;
@@ -421,7 +387,7 @@ public partial class NewProjectWindow : Window
         {
             ProjectTemplateService service = new();
             Progress<ProjectTemplateProgress> progress = new(updateProgress);
-            string projectFilePath = await service.CreateAsync(targetPath, standalone,
+            string projectFilePath = await service.CreateAsync(targetPath, AppNameBox.Text ?? string.Empty, standalone,
                 FfmpegToggle.IsChecked == true, progress, cancellation.Token,
                 !standalone && OperatingSystem.IsWindows() ? CompilerSelection.SelectedCompilerPath : null);
             creating = false;

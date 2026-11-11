@@ -56,7 +56,7 @@ def download_archive(spec: Dependency, destination: pathlib.Path, session: Prepa
     print(f"Downloading {spec.label}...", flush=True)
     session.run([
         curl, "--location", "--fail", "--show-error", "--silent",
-        "--retry", "3", "--retry-connrefused", "--retry-delay", "5", "--retry-max-time", "900",
+        "--retry", "3", "--retry-all-errors", "--retry-delay", "5", "--retry-max-time", "900",
         "--connect-timeout", "15", "--max-time", "300", "--output", str(destination), spec.url,
     ])
 

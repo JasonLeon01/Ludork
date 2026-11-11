@@ -348,9 +348,7 @@ public partial class PackSelectionDialog : Window
                 return false;
             appNameValid = result.ExitCode == 0;
             appNameError = appNameValid ? null
-                : result.ExitCode == ProjectToolConstants.AppNameUnchangedExitCode
-                    ? LocaleService.Get("PACK_APP_NAME_UNCHANGED")
-                    : result.Error.Length != 0 ? result.Error : result.Output;
+                : result.Error.Length != 0 ? result.Error : result.Output;
             return appNameValid;
         }
         catch (OperationCanceledException)

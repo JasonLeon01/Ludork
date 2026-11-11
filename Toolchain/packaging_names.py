@@ -8,10 +8,7 @@ from .file_replace import remove_tree
 from .lua_syntax.lexer import tokenize
 from .lua_syntax.syntax_error import LuaSyntaxError
 from .pack_error import PackError
-from .packaging_constants import (
-    EXIT_APP_NAME_UNCHANGED,
-    EXIT_PROJECT,
-)
+from .packaging_constants import EXIT_PROJECT
 
 
 _ARTIFACT_NAME_PATTERN = re.compile(r'[\x00-\x1f\x7f<>:"/\\|?*;]+')
@@ -23,7 +20,7 @@ _EXPRESSION_CONTINUATIONS = frozenset({
 })
 
 
-def read_runtime_app_name(project: pathlib.Path) -> str:
+def read_app_name(project: pathlib.Path) -> str:
     entry = project / "Scripts" / "Entry.lua"
     try:
         with entry.open(encoding="utf-8-sig", newline="") as script:
@@ -86,16 +83,6 @@ def read_runtime_app_name(project: pathlib.Path) -> str:
         raise PackError(
             f"APP_NAME must be a single directory name without path separators, colons or control characters: {entry}",
             EXIT_PROJECT,
-        )
-    return name
-
-
-def read_app_name(project: pathlib.Path) -> str:
-    name = read_runtime_app_name(project)
-    if name == "LudorkSample":
-        raise PackError(
-            "Change APP_NAME in Scripts/Entry.lua from LudorkSample to a name unique to your game before packaging.",
-            EXIT_APP_NAME_UNCHANGED,
         )
     return name
 

@@ -81,7 +81,7 @@ internal sealed partial class MapEditorHostBridge : IMapEditorHost
 
     public async Task<string> GetSaveDirectoryAsync(CancellationToken cancellationToken)
     {
-        ProjectPackageMetadataResult result = await ProjectPackageMetadataService.ReadRuntimeAppNameAsync(
+        ProjectPackageMetadataResult result = await ProjectPackageMetadataService.ReadAppNameAsync(
             ProjectPath, cancellationToken);
         if (result.ExitCode != 0 || string.IsNullOrEmpty(result.Output))
             throw new InvalidDataException(!string.IsNullOrWhiteSpace(result.Error) ? result.Error

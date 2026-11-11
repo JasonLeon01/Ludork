@@ -14,6 +14,7 @@ COMMANDS = {
         "project-runtime-mode": "project_runtime_mode",
         "runtime-bundle": "runtime_bundle",
         "dependencies": "dependencies",
+        "sample-entry": "project_entry",
     },
     "codegen": {
         "core-bindgen": "core_bindgen.generate",

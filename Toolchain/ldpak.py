@@ -640,14 +640,10 @@ def _validate_script_entries(
 ) -> None:
     files = _script_file_paths(entries)
     paths = {entry.relative_path for entry in entries}
-    entries_found = set(SCRIPT_ENTRY_PATHS) & files
-    if not entries_found:
+    accepted_entries = (expected_entry,) if expected_entry is not None else SCRIPT_ENTRY_PATHS
+    if not set(accepted_entries) & files:
         raise LdPakError(
-            f"Scripts source is missing Entry.lua or Entry.luac: {description}"
-        )
-    if expected_entry is not None and expected_entry not in files:
-        raise LdPakError(
-            f"Scripts source is missing the expected {expected_entry}: {description}"
+            f"Scripts source is missing {' or '.join(accepted_entries)}: {description}"
         )
     if reject_declarations:
         forbidden = sorted(
@@ -666,6 +662,8 @@ def _validate_script_entries(
 
 def validate_ldpak_source(
     runtime_root: pathlib.Path,
+    *,
+    expected_entry: str | None = None,
 ) -> tuple[pathlib.Path, ...]:
     runtime_root = pathlib.Path(runtime_root)
     if _is_link(runtime_root):
@@ -680,7 +678,7 @@ def validate_ldpak_source(
             raise LdPakError(f"Resource package output already exists: {package}")
         if name == SCRIPT_GROUP:
             entries = _scan_group(source)
-            _validate_script_entries(entries, source)
+            _validate_script_entries(entries, source, expected_entry)
         else:
             _scan_resource_root(source)
         sources.append(source)

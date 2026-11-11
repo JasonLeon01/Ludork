@@ -22,6 +22,7 @@ build-verify/
 Templates/
 Game/Engine/ThirdParty/
 Game/ThirdPartySource/
+/Game/Scripts/Entry.lua
 Game/Scripts/Engine_meta.lua
 Game/Scripts/GlobalCore_meta.lua
 Game/Scripts/GlobalFunctions_meta.lua

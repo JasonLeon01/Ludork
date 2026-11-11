@@ -15,6 +15,9 @@ if errorlevel 1 exit /b %errorlevel%
 call "%CD%\tools\build_toolchain_bundle.bat"
 if errorlevel 1 exit /b %errorlevel%
 
+"%CD%\.tools\Toolchain\ludork-build.exe" sample-entry "%CD%\Game"
+if errorlevel 1 exit /b %errorlevel%
+
 call "%CD%\tools\init_cpp_dependencies.bat" "%CPP_DIR%"
 if errorlevel 1 exit /b %errorlevel%
 

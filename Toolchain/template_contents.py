@@ -20,6 +20,7 @@ from .packaging_constants import (
     TEMPLATE_NAMES,
 )
 from .preview import load_preview
+from .project_entry import ENTRY_SCRIPT, ENTRY_TEMPLATE, read_entry_template
 
 
 RUNTIME_LICENSE_DIRECTORIES = (
@@ -104,6 +105,8 @@ def is_source_entry_excluded(
     if platform != "win32" and name == ".DS_Store":
         return True
     if any(_matches(path, excluded, platform) for excluded in RUNTIME_SETTINGS_FILES):
+        return True
+    if any(_matches(path, entry, platform) for entry in (ENTRY_SCRIPT, "Scripts/Entry.luac")):
         return True
     locale_path = path.casefold() if platform == "win32" else path
     locale_prefix = "scripts/source/locale/" if platform == "win32" else "Scripts/Source/Locale/"
@@ -345,7 +348,10 @@ def validate_templates(
             raise ValueError(f"Unknown project template: {name}")
         template = templates / name
         _require_file(template / "Main.proj")
-        validate_ldpak_source(template)
+        _require_absent(template / ENTRY_SCRIPT)
+        _require_absent(template / "Scripts/Entry.luac")
+        read_entry_template(template)
+        validate_ldpak_source(template, expected_entry=pathlib.PurePosixPath(ENTRY_TEMPLATE).name)
         for relative in RUNTIME_LEGAL_FILES:
             _require_file(template / relative)
         for relative in RUNTIME_LICENSE_FILES:

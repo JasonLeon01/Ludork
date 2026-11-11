@@ -16,7 +16,6 @@ public enum ProjectPackFailure
 {
     None,
     ProjectInvalid,
-    AppNameUnchanged,
     PluginPreparationFailed,
     ExportFailed,
     Cancelled,
@@ -701,12 +700,6 @@ public sealed class ProjectPackService
             return ProjectPackResult.Failed(ProjectPackFailure.LaunchFailed, execution.LaunchError);
         if (execution.ExitCode == 0)
             return null;
-        if (execution.ExitCode == ProjectToolConstants.AppNameUnchangedExitCode)
-        {
-            return ProjectPackResult.Failed(
-                ProjectPackFailure.AppNameUnchanged,
-                execution.ExitCode.ToString());
-        }
         if (platform == ProjectPackPlatform.IOS)
         {
             ProjectPackFailure failure = execution.ExitCode switch
@@ -779,7 +772,6 @@ public sealed class ProjectPackService
             return null;
         ProjectPackFailure failure = result.ExitCode switch
         {
-            ProjectToolConstants.AppNameUnchangedExitCode => ProjectPackFailure.AppNameUnchanged,
             -1 => ProjectPackFailure.LaunchFailed,
             _ => ProjectPackFailure.ProjectInvalid,
         };

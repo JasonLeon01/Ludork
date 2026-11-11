@@ -31,6 +31,7 @@ EXCLUDED_PATHS = (
     "Intermediate",
     "Log",
     "Scripts/stub",
+    "Scripts/Entry.lua.in",
     "Assets/Shaders/MaterialGenerated",
     *(f"{PREVIEW_DIRECTORY.as_posix()}/{name}" for name in GAME_BUILD_TOOL_FILES),
     f"{DATA_GROUP}/Maps/{MAP_ORDER_FILE}",

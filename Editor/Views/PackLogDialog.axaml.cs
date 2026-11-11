@@ -48,7 +48,6 @@ public partial class PackLogDialog : Window
             string detail = result.Failure switch
             {
                 ProjectPackFailure.ProjectInvalid => LocaleService.Get("PACK_NO_PROJECT") + Environment.NewLine + result.Detail,
-                ProjectPackFailure.AppNameUnchanged => LocaleService.Get("PACK_APP_NAME_UNCHANGED"),
                 ProjectPackFailure.ExportFailed => LocaleService.Get("PACK_EXPORT_FAILED") + Environment.NewLine + result.Detail,
                 ProjectPackFailure.PluginPreparationFailed => LocaleService.Get("PACK_PLUGIN_PREPARATION_FAILED") + Environment.NewLine + result.Detail,
                 ProjectPackFailure.PlatformUnsupported => LocaleService.Get("PACK_PLATFORM_NOT_IMPLEMENTED") + Environment.NewLine + result.Detail,

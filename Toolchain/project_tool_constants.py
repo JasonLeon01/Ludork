@@ -15,7 +15,6 @@ def generate(path: pathlib.Path) -> None:
         "DeviceExitCode": constants.EXIT_DEVICE,
         "SigningExitCode": constants.EXIT_SIGNING,
         "ProjectExitCode": constants.EXIT_PROJECT,
-        "AppNameUnchangedExitCode": constants.EXIT_APP_NAME_UNCHANGED,
         "CompileLuaDirectoriesEnvironment": constants.COMPILE_LUA_DIRECTORIES_ENVIRONMENT,
         "ExcludedFilesEnvironment": constants.EXCLUDED_FILES_ENVIRONMENT,
     }

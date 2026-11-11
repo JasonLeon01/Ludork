@@ -18,13 +18,6 @@ public static class ProjectPackageMetadataService
         return executeAsync("app-name", projectPath, null, false, cancellationToken);
     }
 
-    public static Task<ProjectPackageMetadataResult> ReadRuntimeAppNameAsync(
-        string projectPath,
-        CancellationToken cancellationToken)
-    {
-        return executeAsync("runtime-app-name", projectPath, null, false, cancellationToken);
-    }
-
     public static Task<ProjectPackageMetadataResult> ExecuteAsync(
         string operation,
         string? projectPath,
@@ -56,7 +49,7 @@ public static class ProjectPackageMetadataService
                 startInfo.ArgumentList.Add(dev ? "--dev" : "--release");
             }
             ToolProcessResult result = await ToolProcessRunner.CaptureAsync(startInfo, cancellationToken).ConfigureAwait(false);
-            string outputText = operation == "runtime-app-name"
+            string outputText = operation == "app-name"
                 ? result.StandardOutput.TrimEnd('\r', '\n') : result.StandardOutput.Trim();
             return new(result.ExitCode, outputText, result.StandardError.Trim());
         }

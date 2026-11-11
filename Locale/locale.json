@@ -1399,6 +1399,18 @@
     "zh_CN": "工程名称",
     "en_GB": "Project Name"
   },
+  "NEW_PROJECT_APP_NAME": {
+    "zh_CN": "APP_NAME",
+    "en_GB": "APP_NAME"
+  },
+  "NEW_PROJECT_APP_NAME_REQUIRED": {
+    "zh_CN": "请输入 APP_NAME。",
+    "en_GB": "Enter APP_NAME."
+  },
+  "NEW_PROJECT_APP_NAME_INVALID": {
+    "zh_CN": "APP_NAME 必须是有效的单个目录名，不能包含路径分隔符、冒号或控制字符。",
+    "en_GB": "APP_NAME must be a valid single directory name without path separators, colons or control characters."
+  },
   "NEW_PROJECT_FINAL_PATH": {
     "zh_CN": "完整路径：",
     "en_GB": "Full Path:"
@@ -2166,10 +2178,6 @@
   "PACK_ENTRY_MISSING": {
     "zh_CN": "未找到 Main.proj",
     "en_GB": "Main.proj not found"
-  },
-  "PACK_APP_NAME_UNCHANGED": {
-    "zh_CN": "请先在 Scripts/Entry.lua 中将 APP_NAME 的默认值 LudorkSample 修改为游戏专属名称，然后重新打包",
-    "en_GB": "Change the default APP_NAME value LudorkSample in Scripts/Entry.lua to a name unique to your game, then package again"
   },
   "PACK_PLUGIN_PREPARATION_FAILED": {
     "zh_CN": "打包前插件准备失败",

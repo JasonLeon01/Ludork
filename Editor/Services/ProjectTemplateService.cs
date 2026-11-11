@@ -7,11 +7,13 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
+using Ludork.Plugin.Abstractions;
 
 namespace Ludork.Services;
 
 public sealed class ProjectTemplateService
 {
+    private const string appNamePlaceholder = "@LUDORK_APP_NAME@";
     private static readonly HttpClient downloadClient = new() { Timeout = Timeout.InfiniteTimeSpan };
     private readonly HttpClient client;
     private readonly string cacheDirectory;
@@ -34,16 +36,19 @@ public sealed class ProjectTemplateService
         this.gameVersion = gameVersion;
     }
 
-    public Task<string> CreateAsync(string targetPath, bool standalone, bool ffmpeg,
+    public Task<string> CreateAsync(string targetPath, string appName, bool standalone, bool ffmpeg,
         IProgress<ProjectTemplateProgress> progress, CancellationToken cancellationToken, string? compiler = null)
     {
-        return Task.Run(() => createAsync(Path.GetFullPath(targetPath), standalone, ffmpeg,
+        return Task.Run(() => createAsync(Path.GetFullPath(targetPath), appName.Trim(), standalone, ffmpeg,
             new ThrottledProgress(progress), cancellationToken, compiler), cancellationToken);
     }
 
-    private async Task<string> createAsync(string targetPath, bool standalone, bool ffmpeg,
+    private async Task<string> createAsync(string targetPath, string appName, bool standalone, bool ffmpeg,
         IProgress<ProjectTemplateProgress> progress, CancellationToken cancellationToken, string? compiler)
     {
+        string? appNameError = ProjectNameValidation.GetAppNameError(appName);
+        if (appNameError is not null)
+            throw new ArgumentException(LocaleService.Get(appNameError), nameof(appName));
         if (OperatingSystem.IsWindows() && !standalone)
             await WindowsCompilerService.ValidateAsync(compiler, cancellationToken);
         if (Path.Exists(targetPath))
@@ -64,6 +69,11 @@ public sealed class ProjectTemplateService
             {
                 await extractReleaseAsync(stagingPath, standalone, ffmpeg, progress, cancellationToken);
             }
+            string entryTemplate = await readEntryTemplateAsync(stagingPath, cancellationToken);
+            await File.WriteAllTextAsync(Path.Combine(stagingPath, "Scripts", "Entry.lua"),
+                entryTemplate.Replace(appNamePlaceholder, LuaStringLiteral.Quote(appName), StringComparison.Ordinal),
+                cancellationToken);
+            File.Delete(Path.Combine(stagingPath, "Scripts", "Entry.lua.in"));
             JsonObject config = new()
             {
                 ["version"] = gameVersion,
@@ -154,6 +164,7 @@ public sealed class ProjectTemplateService
     {
         await ProjectTemplateArchive.ExtractAsync(archivePath, stagingPath,
             OperatingSystem.IsWindows(), progress, cancellationToken);
+        await readEntryTemplateAsync(stagingPath, cancellationToken);
         string projectFile = Path.Combine(stagingPath, "Main.proj");
         if (!File.Exists(projectFile))
             throw new InvalidDataException(LocaleService.Get("NEW_PROJECT_TEMPLATE_INVALID"));
@@ -176,6 +187,20 @@ public sealed class ProjectTemplateService
         {
             throw new InvalidDataException(LocaleService.Get("NEW_PROJECT_TEMPLATE_INVALID"), exception);
         }
+    }
+
+    private static async Task<string> readEntryTemplateAsync(string root, CancellationToken cancellationToken)
+    {
+        string scripts = Path.Combine(root, "Scripts");
+        string templatePath = Path.Combine(scripts, "Entry.lua.in");
+        if (!File.Exists(templatePath) || Path.Exists(Path.Combine(scripts, "Entry.lua"))
+            || Path.Exists(Path.Combine(scripts, "Entry.luac")))
+            throw new InvalidDataException(LocaleService.Get("NEW_PROJECT_TEMPLATE_INVALID"));
+        string template = await File.ReadAllTextAsync(templatePath, cancellationToken);
+        int placeholder = template.IndexOf(appNamePlaceholder, StringComparison.Ordinal);
+        if (placeholder < 0 || placeholder != template.LastIndexOf(appNamePlaceholder, StringComparison.Ordinal))
+            throw new InvalidDataException(LocaleService.Get("NEW_PROJECT_TEMPLATE_INVALID"));
+        return template;
     }
 
     private sealed class ThrottledProgress(IProgress<ProjectTemplateProgress> progress) : IProgress<ProjectTemplateProgress>

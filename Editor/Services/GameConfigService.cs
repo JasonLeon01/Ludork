@@ -210,7 +210,7 @@ public sealed class GameConfigService
         GameConfigData data = defaults;
         try
         {
-            ProjectPackageMetadataResult result = await ProjectPackageMetadataService.ReadRuntimeAppNameAsync(
+            ProjectPackageMetadataResult result = await ProjectPackageMetadataService.ReadAppNameAsync(
                 projectPath, cancellationToken);
             if (result.ExitCode != 0)
                 error = !string.IsNullOrWhiteSpace(result.Error) ? result.Error

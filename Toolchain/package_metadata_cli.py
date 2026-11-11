@@ -6,7 +6,7 @@ import pathlib
 import sys
 
 from .pack_error import PackError
-from .packaging_names import artifact_name, read_app_name, read_runtime_app_name
+from .packaging_names import artifact_name, read_app_name
 from .packaging_metadata import (
     add_channel_arguments,
     add_package_arguments,
@@ -40,8 +40,6 @@ def main(arguments: list[str] | None = None) -> int:
     naming = operations.add_parser("app-name")
     naming.add_argument("project", type=pathlib.Path)
     naming.add_argument("--artifact", action="store_true")
-    runtime_naming = operations.add_parser("runtime-app-name")
-    runtime_naming.add_argument("project", type=pathlib.Path)
     package_name = operations.add_parser("package-name")
     package_name.add_argument("--metadata", type=pathlib.Path, required=True)
     writing = operations.add_parser("write-build-info")
@@ -66,8 +64,6 @@ def main(arguments: list[str] | None = None) -> int:
         elif parsed.operation == "app-name":
             name = read_app_name(parsed.project.expanduser().resolve())
             print(artifact_name(name) if parsed.artifact else name)
-        elif parsed.operation == "runtime-app-name":
-            print(read_runtime_app_name(parsed.project.expanduser().resolve()))
         elif parsed.operation == "package-name":
             print(load_package_metadata(parsed.metadata).package_name)
         elif parsed.operation == "write-build-info":

@@ -116,6 +116,7 @@ def validate_results(needs: dict) -> None:
 
 def prepare_scripts(root: Path, templates: Path) -> None:
     toolchain = root / ".tools/Toolchain"
+    subprocess.run([str(toolchain / "ludork-build.exe"), "sample-entry", str(root / "Game")], check=True)
     files = subprocess.check_output([str(toolchain / "ludork-pack.exe"), "content", "list", "native-lua-files"], text=True).splitlines()
     if not files:
         raise ValueError("Native Lua file manifest is empty")

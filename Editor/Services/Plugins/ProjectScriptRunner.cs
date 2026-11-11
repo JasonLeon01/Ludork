@@ -42,7 +42,7 @@ internal sealed class ProjectScriptRunner(
         {
             ProjectScriptInputs inputs = await Task.Run(
                 () => ProjectScriptInputs.Capture(gameData.ProjectPath, scriptPath, cancellationToken), cancellationToken);
-            ProjectPackageMetadataResult appName = await ProjectPackageMetadataService.ReadRuntimeAppNameAsync(
+            ProjectPackageMetadataResult appName = await ProjectPackageMetadataService.ReadAppNameAsync(
                 gameData.ProjectPath, cancellationToken);
             if (appName.ExitCode != 0 || string.IsNullOrEmpty(appName.Output))
                 return failed(!string.IsNullOrWhiteSpace(appName.Error) ? appName.Error

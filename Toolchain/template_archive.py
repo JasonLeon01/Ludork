@@ -11,6 +11,7 @@ import tarfile
 import zipfile
 
 from .packaging_constants import CPP_TEMPLATE_NAMES, RUNTIME_SETTINGS_FILES, TEMPLATE_NAMES
+from .project_entry import ENTRY_SCRIPT, read_entry_template
 
 
 ARCHIVE_TIMESTAMP = 315532800
@@ -43,6 +44,9 @@ def archive_template(root: pathlib.Path, destination: pathlib.Path, platform: st
     if root.is_symlink() or not root.is_dir() or not (root / "Main.proj").is_file():
         raise ValueError(f"Project template was not found: {root}")
     root = root.resolve()
+    if (root / ENTRY_SCRIPT).exists() or (root / "Scripts/Entry.luac").exists():
+        raise ValueError(f"Project template must not contain an initialized entry: {root}")
+    read_entry_template(root)
     if destination.resolve().is_relative_to(root):
         raise ValueError("Template archives must be outside their input template.")
     entries = _entries(root, platform)

@@ -2,6 +2,8 @@
 
 All scripts switch to the repository root before doing work. Use `.bat` on Windows 10 or newer on x64 and matching `.sh` scripts on Apple Silicon macOS 13.3 or newer. macOS tools find CMake from `PATH` or `/Applications/CMake.app`.
 
+The repository owns the sample entry as `Game/Scripts/Entry.lua.in`. `init` creates the ignored local `Game/Scripts/Entry.lua` with `APP_NAME = "LudorkSample"` when that file is missing and preserves an existing entry. To prepare only that file after building Toolchain, run `ludork-build sample-entry Game`. Source and Standalone templates retain only `Scripts/Entry.lua.in`; New Project expands its application-name placeholder into the new project's `Scripts/Entry.lua` and removes the template input. Game packages exclude the template input.
+
 `DOTNET_SDK_VERSION` in `versions.conf` owns the editor SDK version. After preparing Python, `tools/init.bat` and `tools/init.sh` generate the root `global.json` with exact version selection and prerelease SDKs disabled. Editor CI generates it before setting up .NET. This file is ignored by Git and must not be edited or committed. Before using an IDE or invoking `dotnet` directly after a fresh checkout or SDK-version change, run initialization or refresh just this configuration with `python tools/build_toolchain.py editor-sdk` (`python3` on macOS). Generation does not install the SDK locally; install the configured version separately. The managed build settings apply only to the editor and its two plug-in contract projects. `SERVER_*` entries select the independent Server package toolchain.
 
 | Tool | Purpose |
@@ -331,7 +333,7 @@ Run `tools/init_cpp_dependencies.sh <project>` or the Windows `.bat` after build
 
 Matching `.ludork-version` markers and required files reuse installed sources. Lua archives must match `LUA_SHA256`; LuaSF and LuaGlue are validated and replaced together; `LUASF_SOURCE_ARCHIVE` forces the [documented local source archive](https://jasonleon01.github.io/Ludork/docs/trunk/?lang=en_GB&doc=04%2F01#build-the-project) even when markers match. FFmpeg retains `ThirdPartySource/ffmpeg-<version>.tar.gz` for source distribution and re-extracts it on each invocation, checking the pinned commit's source root and the `RELEASE` value. Keep that archive with FFmpeg-enabled templates and distributions.
 
-Downloads use curl on both platforms, with at most four attempts, a 15-second connection timeout, a five-minute limit per attempt and five seconds between retries. No new attempt starts after the 15-minute retry window. Timeouts, refused connections and curl's transient HTTP errors can retry; permanent HTTP errors and archive/hash validation failures stop immediately. Sources are validated in staging before replacement. Failed replacement restores the previous dependency; failed rollback retains recovery files and reports their path. One dependency failure does not cancel independent preparations. Cancelling stops active download processes and cleans temporary files; overlapping preparation of the same project is rejected.
+Downloads use curl 7.71 or newer on both platforms, with at most four attempts, a 15-second connection timeout, a five-minute limit per attempt and five seconds between retries. No new attempt starts after the 15-minute retry window. All curl transfer errors, including TLS connection resets, can retry; HTTP errors also use this bounded retry policy. Each retry replaces the partial archive written through curl's output-file option. Exhausted download failures and archive/hash validation failures stop preparation before publication. Sources are validated in staging before replacement. Failed replacement restores the previous dependency; failed rollback retains recovery files and reports their path. One dependency failure does not cancel independent preparations. Cancelling stops active download processes and cleans temporary files; overlapping preparation of the same project is rejected.
 
 ### Packaging metadata
 
@@ -343,8 +345,7 @@ Package metadata, content queries and output preparation have separate commands:
 |---|---|
 | `ludork-pack content list <name> [--separator space] [--windows]` | Print a list, one entry per line by default; optionally use one line or Windows path separators. |
 | `ludork-pack metadata app-name <project-root> [--artifact]` | Print the static application name or its safe filename form. |
-| `ludork-pack metadata runtime-app-name <project-root>` | Read the runtime name from its static `APP_NAME` declaration. |
-| `ludork-pack metadata check <project-root> [--version <version>] [--dev\|--release]` | Validate identity, System title and release settings; sample app name exits 24, invalid/missing metadata exits 23. |
+| `ludork-pack metadata check <project-root> [--version <version>] [--dev\|--release]` | Validate identity, System title and release settings; invalid or missing metadata exits 23. |
 | `ludork-pack metadata release-version --version <version> [--dev\|--release]` | Print version-preview JSON without a project. |
 | `ludork-pack metadata release-build-info <directory> --version <version> [--dev\|--release]` | Write `BuildInfo.json` and print its full version. |
 | `ludork-pack metadata build-info <file> --field <name>` | Read a validated field, including `fullVersion`, `dev` or `appleBuildVersion`. |
