@@ -2,7 +2,7 @@
 
 Official Mota Map Fill places doors, enemies and rewards on an existing map. It uses the current terrain to find narrow passages and rooms, and a saved player's state to rank enemy battle damage. Its source is `Plugins/OfficialMotaMapFill`; install it through the [official plug-in installation](<../Installing and Managing Plug-ins.md#official-release-plug-ins>).
 
-The project must retain the Default Gameplay Player, Enemy, DoorBase, Teleporter and MotaBattleAbility contracts. The plug-in runs the current project's game executable to restore the player and calculate damage. Save Blueprint, script and other non-map data changes before opening a reference save; source projects also need a current **Construct**. The plug-in itself does not save those documents.
+The project must retain the Default Gameplay Player, Enemy, DoorBase, Teleporter and MotaBattleAbility contracts. The plug-in runs the current project's game executable to restore the player and calculate damage. It automatically prepares the project's user material cache before restoring the player; preparation errors appear in the status area. Save Blueprint, script and other non-map data changes before opening a reference save; source projects also need a current **Construct**. The plug-in itself does not save those documents.
 
 ## Choose the region and reference player
 

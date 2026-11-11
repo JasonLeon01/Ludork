@@ -2,7 +2,7 @@
 
 Official Mota Map Fill 在已有地图上摆放门、怪物和奖励。插件根据当前地形识别隘口与房间，并以存档中玩家的状态计算怪物战斗伤害、安排守卫强度。源码位于 `Plugins/OfficialMotaMapFill`，安装方式见[发行版官方插件](<../安装与管理插件.md#发行版官方插件>)。
 
-项目需要保留 Default Gameplay 的 Player、Enemy、DoorBase、Teleporter 和 MotaBattleAbility 契约。插件调用当前项目的游戏程序还原玩家并计算伤害。选择参考存档前，先保存蓝图、脚本和其他非地图数据的修改；源码项目还需要完成最新的**编译**。插件不会替你保存这些其他文档。
+项目需要保留 Default Gameplay 的 Player、Enemy、DoorBase、Teleporter 和 MotaBattleAbility 契约。插件调用当前项目的游戏程序还原玩家并计算伤害，并在还原玩家前自动准备项目的用户材质缓存；准备失败时，错误会显示在状态区域。选择参考存档前，先保存蓝图、脚本和其他非地图数据的修改；源码项目还需要完成最新的**编译**。插件不会替你保存这些其他文档。
 
 ## 选择范围与参考玩家
 
