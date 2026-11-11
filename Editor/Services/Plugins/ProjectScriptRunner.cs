@@ -42,6 +42,11 @@ internal sealed class ProjectScriptRunner(
         {
             ProjectScriptInputs inputs = await Task.Run(
                 () => ProjectScriptInputs.Capture(gameData.ProjectPath, scriptPath, cancellationToken), cancellationToken);
+            ProjectPackageMetadataResult appName = await ProjectPackageMetadataService.ReadRuntimeAppNameAsync(
+                gameData.ProjectPath, cancellationToken);
+            if (appName.ExitCode != 0 || string.IsNullOrEmpty(appName.Output))
+                return failed(!string.IsNullOrWhiteSpace(appName.Error) ? appName.Error
+                    : "The game's APP_NAME could not be resolved.");
             string requestPath = Path.Combine(directory, "request.json");
             string resultPath = Path.Combine(directory, "result.json");
             await File.WriteAllTextAsync(requestPath, request.ToJsonString(), new UTF8Encoding(false), cancellationToken);
@@ -59,6 +64,7 @@ internal sealed class ProjectScriptRunner(
             startInfo.ArgumentList.Add(scriptPath);
             startInfo.ArgumentList.Add(requestPath);
             startInfo.ArgumentList.Add(resultPath);
+            startInfo.ArgumentList.Add(appName.Output);
             foreach (string name in new[]
             {
                 "LUDORK_COMMAND_PORT", "LUDORK_WINDOW_MODE", "LUDORK_WINDOW_HANDLE",

@@ -1,4 +1,7 @@
 local Engine = require("Engine")
+local appName = assert(arg[3], "Application name is required")
+Engine.setAppName(appName)
+
 local GlobalCore = require("GlobalCore")
 local GlobalFunctions = require("GlobalFunctions")
 local cjson = require("cjson")
@@ -52,6 +55,12 @@ local function evaluate()
     assert(save.version == 1, "Unsupported save version: expected 1")
     assert(Class.isInstance(save.playerKeys, "table") and #save.playerKeys > 0, "Save has no player keys")
     assert(Class.isInstance(save.players, "table"), "Save players must be an object")
+
+    local materials = Engine.prepareMaterialCache()
+    while materials:getStatus() == "pending" do
+        sf.sleep(sf.milliseconds(10))
+    end
+    materials:getResult()
 
     local GlobalData = require("Global.Data")
     local Data = require("Source.Data")
