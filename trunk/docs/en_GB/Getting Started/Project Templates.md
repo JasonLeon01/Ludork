@@ -4,6 +4,10 @@
 
 The picker presents two template cards, **Standalone** and **C++ Source**, and an independent **Enable video playback (FFmpeg)** switch.
 
+Enter a project name for the new folder and a separate, required **APP_NAME** for the game. `APP_NAME` identifies the game's [user data directory](<../Editor User Guide/Project Settings and Asset Layout.md#game-configuration>) and [packaged application](<../Editor User Guide/Run Debug and Package.md#packaging>); choose a name dedicated to this game. An empty or invalid value keeps **Create** disabled. Renaming the project folder does not change `APP_NAME`.
+
+Project creation fills `APP_NAME` into the template's `Scripts/Entry.lua.in` and creates an ordinary, editable `Scripts/Entry.lua`. The new project retains that entry script, not the `.in` template. Later changes to the application name belong in the static `local APP_NAME` declaration in `Scripts/Entry.lua`.
+
 | Template | Native source | Native compiler required | Use when |
 |---|---|---|---|
 | Standalone | No | No | Authoring Lua, Blueprint, data and assets with the supplied runtime. |

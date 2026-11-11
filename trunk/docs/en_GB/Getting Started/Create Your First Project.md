@@ -10,7 +10,7 @@ Create a Standalone project, open its initial map and run it.
 
 2. Select **Standalone**.
 3. Leave the FFmpeg option disabled unless the game must play video.
-4. Choose an existing destination directory and enter a new project name.
+4. Choose an existing destination directory, enter a new project name and fill in the required **APP_NAME**. Their separate roles are described in [Project Templates](<Project Templates.md#template-reference>).
 5. Confirm the destination path and choose **Create**. Ludork opens `Main.proj` when creation finishes.
 
 Release editors download the matching template on first use. See [Obtaining templates](<Project Templates.md#obtaining-templates>) for availability, offline use and cancellation.

@@ -14,4 +14,4 @@ Live Debug edits the current runtime instances without writing project documents
 
 ## Why is Confirm disabled in Pack Project?
 
-Hover over the disabled button to read the reason. `Scripts/Entry.lua` must define exactly one top-level `local APP_NAME` as a non-empty static string other than `LudorkSample`. `APP_NAME` supplies the application's stable identity; the System title supplies its display name. See [Packaging](<../Editor User Guide/Run Debug and Package.md#packaging>).
+Hover over the disabled button to read the reason. The entry script must retain a valid static `APP_NAME`, initially supplied through [New Project](<../Getting Started/Project Templates.md#template-reference>). See [Packaging](<../Editor User Guide/Run Debug and Package.md#packaging>) for the declaration rules and other requirements.
