@@ -1,4 +1,5 @@
 #include <Runtime/Async/AsyncOperation.hpp>
+#include <BackgroundTask.hpp>
 #if LUDORK_WITH_LUA
 #include <Runtime/RuntimeSession.hpp>
 #endif
@@ -117,6 +118,7 @@ RuntimeValue AsyncOperation::eventAt(std::size_t index) const {
 }
 
 void AsyncOperation::updateAll() {
+    ludork::standard::BackgroundTask::poll();
 #if LUDORK_WITH_LUA
     ludork::runtime::RuntimeScope scope;
     lua_State* state = scope.state();

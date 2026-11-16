@@ -1,0 +1,6 @@
+#pragma once
+
+namespace ludork::application::web {
+inline constexpr char AppName[] = "@LUDORK_WEB_APP_NAME_BYTES@";
+inline constexpr char Title[] = "@LUDORK_WEB_TITLE_BYTES@";
+}

@@ -48,9 +48,13 @@ foreach(target IN ITEMS GlobalCore GlobalCoreBindings)
             SFML::Network
         PRIVATE
             Ludork::Video
-            ixwebsocket::ixwebsocket
             LuaSF::LuaSF
             LuaSF::Lua)
+    if(EMSCRIPTEN)
+        target_link_options(${target} PUBLIC -lwebsocket.js)
+    else()
+        target_link_libraries(${target} PRIVATE ixwebsocket::ixwebsocket)
+    endif()
 endforeach()
 if(WIN32)
     target_link_libraries(GlobalCore PRIVATE Imm32 User32)

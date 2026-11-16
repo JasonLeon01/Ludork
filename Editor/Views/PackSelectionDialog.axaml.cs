@@ -150,8 +150,11 @@ public partial class PackSelectionDialog : Window
             }
         }
         if (!isStandalone && (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()))
+        {
+            addPlatform(ProjectPackPlatform.WebGL, "PACK_PLATFORM_WEBGL");
             addPlatform(OperatingSystem.IsWindows() ? ProjectPackPlatform.Win32 : ProjectPackPlatform.MacOS,
                 "PACK_KIND_STANDALONE", ProjectPackKind.Standalone);
+        }
         PlatformList.SelectedIndex = PlatformList.ItemCount > 0 ? 0 : -1;
         updatePlatformOptions();
         Opened += async (_, _) =>
@@ -546,6 +549,9 @@ public partial class PackSelectionDialog : Window
     private void updatePlatformOptions()
     {
         ProjectPackPlatform? platform = selectedPlatform;
+        ServerOptions.AllowHttps = platform == ProjectPackPlatform.WebGL;
+        WebHint.IsVisible = platform == ProjectPackPlatform.WebGL;
+        WebHint.Text = LocaleService.Get("PACK_WEB_HINT");
         CompilerSelection.IsVisible = !isStandalone && OperatingSystem.IsWindows()
             && platform == ProjectPackPlatform.Win32;
         ReleaseOptionsPanel.IsVisible = !convertsToStandalone;

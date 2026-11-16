@@ -1,5 +1,6 @@
 add_library(LudorkVideo STATIC
     src/FFmpegSupport.cpp
+    src/PlaybackWorkBudget.cpp
     src/VideoAudio.cpp
     src/VideoDecoder.cpp)
 add_library(Ludork::Video ALIAS LudorkVideo)

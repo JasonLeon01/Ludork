@@ -62,12 +62,12 @@ ANDROID_WRAPPER_FILES = (
     "gradle/wrapper/LICENSE.txt", "gradle/wrapper/NOTICE.md",
 )
 _ROOT_EXCLUDED_DIRECTORIES = (
-    "Binaries", EDITOR_CACHE_DIRECTORY, "Cache", "Save", "Engine/ThirdParty/SFML/test",
+    "Binaries", EDITOR_CACHE_DIRECTORY, "Cache", "Save", "dist", "Engine/ThirdParty/SFML/test",
     "Assets/Shaders/MaterialGenerated",
     *EXPORT_DIRECTORIES,
 )
 _BUILD_DIRECTORY_NAMES = (
-    ".venv", "build", "Intermediate", "bin", "Log", ".vs", ".idea",
+    ".venv", "build", "build-web", "Intermediate", "bin", "Log", ".vs", ".idea",
     "cmake-build-ludork-debug", "ThirdPartySource",
 )
 _EXCLUDED_FILE_PATTERNS = (
@@ -382,9 +382,13 @@ def validate_templates(
         else:
             _require_absent(template / "Licenses/FFmpeg")
         if name in CPP_TEMPLATE_NAMES:
-            for relative in ("Binaries", EDITOR_CACHE_DIRECTORY, "build", "bin", "Intermediate", *GENERATED_IDE_PATHS):
+            for relative in ("Binaries", EDITOR_CACHE_DIRECTORY, "build", "build-web", "bin", "dist", "Intermediate", *GENERATED_IDE_PATHS):
                 _require_absent(template / relative)
             _require_file(template / "Engine/PreviewHost/CMakeLists.txt")
+            _require_file(template / "Engine/PlatformHosts/Web/index.html")
+            _require_file(template / "Engine/cmake/LudorkWebApplication.cmake")
+            if name.endswith("-ffmpeg"):
+                _require_file(template / "Engine/cmake/FFmpeg/build_web.sh")
             wrapper_files = ANDROID_WRAPPER_FILES + (("gradlew.bat",) if platform == "win32" else ())
             for relative in wrapper_files:
                 _require_file(template / "Engine/PlatformHosts/Android" / relative)

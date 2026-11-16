@@ -3,6 +3,7 @@
 /.venv/
 /Main.sln
 /build/
+/build-web/
 /.idea/
 /cmake-build-*/
 /cmake-build-ludork-debug/

@@ -1,6 +1,7 @@
 #include <Graphics.hpp>
 #include <Display.hpp>
 #include "VideoPlayerImpl.hpp"
+#include "PlaybackWorkBudget.hpp"
 
 #if LUDORK_HAS_FFMPEG
 #include <Input/InputService.hpp>
@@ -9,12 +10,12 @@
 
 #include <SFML/Audio/SoundBuffer.hpp>
 #include <SFML/System/Clock.hpp>
+#include <SFML/System/Sleep.hpp>
 
 #include <algorithm>
-#include <chrono>
+#include <cstdint>
 #include <memory>
 #include <stdexcept>
-#include <thread>
 #include <utility>
 
 #else
@@ -69,10 +70,18 @@ void VideoPlayerImpl::play() {
     sf::Clock silentClock;
     silentClock.restart();
     sf::Time excludedSilentTime;
-#if defined(SFML_SYSTEM_ANDROID) || defined(SFML_SYSTEM_IOS)
+#if defined(SFML_SYSTEM_ANDROID) || defined(SFML_SYSTEM_IOS) || \
+    defined(SFML_SYSTEM_EMSCRIPTEN)
     bool suspended = false;
     bool resumeSound = false;
     bool resumeClock = false;
+#endif
+#if defined(SFML_SYSTEM_EMSCRIPTEN)
+    sf::Time silentTimeBeforeEvents;
+    sf::Time soundTimeBeforeEvents;
+    bool soundWasPlaying =
+        sound.has_value() &&
+        sound->getStatus() == sf::SoundSource::Status::Playing;
 #endif
     while (System::isActive()) {
         window = Display::getWindow();
@@ -92,7 +101,8 @@ void VideoPlayerImpl::play() {
             break;
         }
         TimeManager::update();
-#if defined(SFML_SYSTEM_ANDROID) || defined(SFML_SYSTEM_IOS)
+#if defined(SFML_SYSTEM_ANDROID) || defined(SFML_SYSTEM_IOS) || \
+    defined(SFML_SYSTEM_EMSCRIPTEN)
         if (!inputService().isFocused() || inputService().isFocusLost()) {
             if (!suspended) {
                 suspended = true;
@@ -108,7 +118,8 @@ void VideoPlayerImpl::play() {
             }
         }
         if (suspended && !inputService().isFocused()) {
-            std::this_thread::sleep_for(PausedVideoPollInterval);
+            sf::sleep(sf::milliseconds(
+                static_cast<std::int32_t>(PausedVideoPollInterval.count())));
             continue;
         }
         if (suspended) {
@@ -126,11 +137,26 @@ void VideoPlayerImpl::play() {
             break;
         }
         window->clear(sf::Color::Transparent);
+#if defined(SFML_SYSTEM_EMSCRIPTEN)
+        // Decoding and presentation can yield before focus loss is consumed.
+        // Keep raw clock checkpoints for the existing pause-time rollback.
+        silentTimeBeforeEvents = silentClock.getElapsedTime();
+        soundTimeBeforeEvents =
+            sound.has_value() ? sound->getPlayingOffset() : sf::Time::Zero;
+        soundWasPlaying =
+            sound.has_value() &&
+            sound->getStatus() == sf::SoundSource::Status::Playing;
+        const float elapsed =
+            (sound.has_value() ? soundTimeBeforeEvents
+                               : silentTimeBeforeEvents - excludedSilentTime)
+                .asSeconds();
+#else
         const float elapsed =
             sound.has_value()
                 ? sound->getPlayingOffset().asSeconds()
                 : (silentClock.getElapsedTime() - excludedSilentTime)
                       .asSeconds();
+#endif
         update(*window, sound, elapsed);
         if (finished_ && !sprite_.has_value()) {
             break;
@@ -163,10 +189,12 @@ void VideoPlayerImpl::update(sf::RenderWindow& window,
         finished_ = true;
         return;
     }
+    PlaybackWorkBudget budget;
     while (targetFrameIndex_.has_value() &&
            (expectedFrame > *targetFrameIndex_ ||
             (expectedFrame == 0 && !sprite_.has_value()))) {
         targetFrameIndex_ = getFrame(window);
+        budget.yieldIfNeeded();
     }
     if (!targetFrameIndex_.has_value()) {
         finished_ = true;

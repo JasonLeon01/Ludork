@@ -8,7 +8,7 @@
 #include <map>
 #include <mutex>
 #include <set>
-#include <thread>
+#include <BackgroundTask.hpp>
 #include <utility>
 
 namespace ludork::engine::materials {
@@ -44,7 +44,7 @@ struct MaterialCacheRequest::Impl {
     std::exception_ptr failure;
     std::atomic<double> progress = 0.0;
     std::atomic<bool> stopRequested = false;
-    std::thread worker;
+    ludork::standard::BackgroundTask worker;
 };
 
 }  // namespace ludork::engine::materials

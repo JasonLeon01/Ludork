@@ -8,6 +8,7 @@
             "Binaries",
             "bin",
             "build",
+            "build-web",
             "dist",
             "Log",
             "obj",

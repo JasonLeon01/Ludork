@@ -1675,6 +1675,26 @@
     "zh_CN": "Standalone 工程",
     "en_GB": "Standalone project"
   },
+  "PACK_PLATFORM_WEBGL": {
+    "zh_CN": "WebGL",
+    "en_GB": "WebGL"
+  },
+  "PACK_WEB_HINT": {
+    "zh_CN": "生成可部署到网站的游戏目录。需要已安装的 Emscripten SDK 7.0.0；通过 EMSDK 或 PATH 指定。使用 HTTP/HTTPS 服务器打开游戏。",
+    "en_GB": "Exports a game directory for web hosting. Requires an installed Emscripten SDK 7.0.0, located through EMSDK or PATH. Open the game through an HTTP/HTTPS server."
+  },
+  "PACK_WEB_TOOLCHAIN_UNAVAILABLE": {
+    "zh_CN": "WebGL 构建工具不可用，请查看日志中的 Emscripten、CMake 和构建工具要求。",
+    "en_GB": "The WebGL toolchain is unavailable. See the log for Emscripten, CMake and build tool requirements."
+  },
+  "PACK_WEB_PROJECT_UNSUPPORTED": {
+    "zh_CN": "WebGL 打包需要已导出的 C++ Source 工程及支持 Web 的依赖，请查看日志。",
+    "en_GB": "WebGL packaging requires an exported C++ Source project and Web-capable dependencies. See the log for details."
+  },
+  "LUDORK_SERVER_WEB_URL_INVALID": {
+    "zh_CN": "请输入 http:// 或 https:// 开头的服务器地址，可包含一个项目名路径；不要包含凭据、查询或片段。",
+    "en_GB": "Enter an http:// or https:// server address, optionally followed by one project-name path. Do not include credentials, a query or a fragment."
+  },
   "PACK_PLATFORM_MACOS": {
     "zh_CN": "macOS (Apple Silicon)",
     "en_GB": "macOS (Apple Silicon)"

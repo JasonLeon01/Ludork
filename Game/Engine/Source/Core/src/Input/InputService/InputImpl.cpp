@@ -3,6 +3,9 @@
 #include <Input/TextInputService.hpp>
 
 #include "Platform/PlatformInputBridge.hpp"
+#if defined(__EMSCRIPTEN__)
+#include "Platform/WebInputBridge.hpp"
+#endif
 #include <CoreShared/JoystickDevice.hpp>
 
 #include <SFML/Window/Clipboard.hpp>
@@ -148,6 +151,9 @@ void InputImpl::updateInputType(sf::WindowBase& window) {
 }
 
 void InputImpl::update(sf::RenderWindow& window) {
+#if defined(__EMSCRIPTEN__)
+    ludork::engine::platform_input::attachWebTouchCancellation(window);
+#endif
     eventPump_.activeWindow_ = &window;
     resetFrameState();
     if (modal_.beginFrame()) {

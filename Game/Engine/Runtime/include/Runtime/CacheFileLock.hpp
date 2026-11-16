@@ -18,6 +18,9 @@ public:
 
 private:
     std::intptr_t handle_ = -1;
+#ifdef __EMSCRIPTEN__
+    std::filesystem::path webKey_;
+#endif
 };
 
 }  // namespace ludork::runtime

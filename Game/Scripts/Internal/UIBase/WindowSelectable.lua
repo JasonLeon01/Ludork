@@ -109,7 +109,7 @@ end
 function WindowSelectable:update(deltaTime)
     self._mouseSelectionConfirmedThisFrame = false
     local pendingTouchConfirm = nil
-    if LUDORK_MOBILE then
+    if LUDORK_MOBILE or PLATFORM == "web" then
         pendingTouchConfirm = self:_updateTouchInput()
     end
     super(WindowSelectable, self).update(deltaTime)

@@ -1,6 +1,7 @@
 #include "VideoDecoder.hpp"
 
 #if LUDORK_HAS_FFMPEG
+#include "PlaybackWorkBudget.hpp"
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
@@ -29,7 +30,9 @@ VideoDecoder::VideoDecoder(const std::string& path)
 }
 
 bool VideoDecoder::readFrame() {
+    PlaybackWorkBudget budget;
     while (true) {
+        budget.yieldIfNeeded();
         const int receiveResult =
             avcodec_receive_frame(decoder_.get(), frame_.get());
         if (receiveResult == 0) {
@@ -57,6 +60,7 @@ bool VideoDecoder::readFrame() {
         int readResult = 0;
         while ((readResult = av_read_frame(format_.get(), packet_.get())) >=
                0) {
+            budget.yieldIfNeeded();
             if (packet_->stream_index == streamIndex_) {
                 requireFfmpeg(
                     avcodec_send_packet(decoder_.get(), packet_.get()),
@@ -152,7 +156,9 @@ bool VideoDecoder::seek(double seconds) {
     flushing_ = false;
     frameIndex_ = 0;
     time_ = -1;
+    PlaybackWorkBudget budget;
     while (readFrame()) {
+        budget.yieldIfNeeded();
         if (time_ + 0.5 / fps_ >= boundedTime) {
             return true;
         }

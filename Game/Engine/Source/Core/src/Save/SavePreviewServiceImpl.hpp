@@ -13,7 +13,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
-#include <thread>
+#include <BackgroundTask.hpp>
 #include <unordered_map>
 
 namespace ludork::engine {
@@ -53,7 +53,7 @@ private:
     std::deque<std::function<void()>> work_;
     std::list<CacheEntry> cache_;
     std::unordered_map<std::string, std::uint64_t> revisions_;
-    std::thread thread_;
+    ludork::standard::BackgroundTask thread_;
 };
 
 SavePreviewServiceImpl& savePreviewService();

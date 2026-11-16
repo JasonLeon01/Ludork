@@ -199,7 +199,7 @@ void FileBatchDataRuntime::startDisposalWorker() {
         return;
     }
     disposalStopping_ = false;
-    disposalWorker_ = std::thread([this]() {
+    disposalWorker_ = ludork::standard::BackgroundTask([this]() {
         disposalLoop();
     });
 }
@@ -239,9 +239,10 @@ void FileBatchDataRuntime::disposalLoop() {
         FileBatchDataDisposal disposal;
         {
             std::unique_lock<std::mutex> disposalLock(disposalMutex_);
-            disposalReady_.wait(disposalLock, [this]() {
-                return disposalStopping_ || !disposals_.empty();
-            });
+            ludork::standard::BackgroundTask::wait(
+                disposalReady_, disposalLock, [this]() {
+                    return disposalStopping_ || !disposals_.empty();
+                });
             if (disposals_.empty()) {
                 if (disposalStopping_) {
                     return;
@@ -252,6 +253,7 @@ void FileBatchDataRuntime::disposalLoop() {
             disposals_.pop_front();
         }
         disposal.reset();
+        BackgroundTask::yield();
     }
 }
 

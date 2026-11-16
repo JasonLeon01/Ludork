@@ -42,7 +42,7 @@ void TextureManagerImpl::workerLoop() {
         std::shared_ptr<DecodeTicket> ticket;
         {
             std::unique_lock lock(mutex_);
-            changed_.wait(lock, [this] {
+            ludork::standard::BackgroundTask::wait(changed_, lock, [this] {
                 return stopping_ ||
                        (!queued_.empty() && readyBytes_ < ReadyByteLimit);
             });
@@ -57,6 +57,7 @@ void TextureManagerImpl::workerLoop() {
             ++activeDecodes_;
         }
         decode(ticket);
+        ludork::standard::BackgroundTask::yield();
     }
 }
 
@@ -140,9 +141,10 @@ std::shared_ptr<sf::Texture> TextureManagerImpl::resolve(
                 image = claimUploadLocked(*entry);
             } else {
                 const LoadStage waitingFor = ticket.stage;
-                changed_.wait(lock, [&state, &ticket, waitingFor] {
-                    return state.cancelled || ticket.stage != waitingFor;
-                });
+                ludork::standard::BackgroundTask::wait(
+                    changed_, lock, [&state, &ticket, waitingFor] {
+                        return state.cancelled || ticket.stage != waitingFor;
+                    });
             }
         }
         if (decodeTicket != nullptr) {

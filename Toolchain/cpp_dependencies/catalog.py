@@ -37,7 +37,8 @@ def _value(values: dict[str, str], key: str, pattern: str = r"[A-Za-z0-9][A-Za-z
 
 
 def dependency(name: str, values: dict[str, str], *, windows: bool,
-               local_luasf_archive: pathlib.Path | None = None) -> Dependency:
+               local_luasf_archive: pathlib.Path | None = None,
+               local_sfml_archive: pathlib.Path | None = None) -> Dependency:
     if name == "luasf":
         version = _value(values, "LUASF_VERSION")
         variant = values.get("LUASF_VARIANT", "")
@@ -51,6 +52,10 @@ def dependency(name: str, values: dict[str, str], *, windows: bool,
     if name == "sfml":
         repository = _value(values, "SFML_REPOSITORY", r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
         tag = _value(values, "SFML_TAG")
+        if local_sfml_archive is not None:
+            return Dependency(name, "SFML", "", local_sfml_archive.name,
+                              (DependencyTarget("SFML", "SFML", ("CMakeLists.txt", "include/SFML/Config.hpp")),),
+                              "local-" + tag, local_archive=local_sfml_archive)
         return Dependency(name, "SFML", f"https://github.com/{repository}/archive/refs/tags/{tag}.tar.gz", "sfml.tar.gz",
                           (DependencyTarget(f"{repository.split('/')[1]}-{tag}", "SFML", ("CMakeLists.txt",)),), tag)
     if name == "lua":

@@ -34,6 +34,8 @@ public enum ProjectPackFailure
     AndroidToolchainUnavailable,
     AndroidSigningUnavailable,
     AndroidProjectUnsupported,
+    WebToolchainUnavailable,
+    WebProjectUnsupported,
     SaveEncryptionProjectUnsupported,
     ServerConfigurationInvalid,
     ServerProjectUnsupported,
@@ -48,6 +50,7 @@ public enum ProjectPackPlatform
     IOS,
     HarmonyOS,
     Android,
+    WebGL,
 }
 
 public enum HarmonyDeviceForm
@@ -172,6 +175,8 @@ public sealed class ProjectPackService
             return "pack_harmony.sh";
         if (platform == ProjectPackPlatform.Android && OperatingSystem.IsMacOS())
             return "pack_android.sh";
+        if (platform == ProjectPackPlatform.WebGL && (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()))
+            return OperatingSystem.IsWindows() ? "pack_web.bat" : "pack_web.sh";
         return null;
     }
 
@@ -237,6 +242,7 @@ public sealed class ProjectPackService
         bool requiresPreflight = standalone || options.Platform == ProjectPackPlatform.IOS
             || options.Platform == ProjectPackPlatform.HarmonyOS
             || options.Platform == ProjectPackPlatform.Android
+            || options.Platform == ProjectPackPlatform.WebGL
             || (options.Platform == ProjectPackPlatform.MacOS && signing.MacOS is not null);
         ProjectPackaging packaging = new(
             projectPath,
@@ -317,7 +323,7 @@ public sealed class ProjectPackService
             out bool isStandalone);
         if (projectFailure is not null)
             return projectFailure;
-        string? serverError = options.Server.GetValidationError();
+        string? serverError = options.Server.GetValidationError(options.Platform == ProjectPackPlatform.WebGL);
         if (serverError is not null)
             return ProjectPackResult.Failed(ProjectPackFailure.ServerConfigurationInvalid, LocaleService.Get(serverError));
         if (options.Kind == ProjectPackKind.Standalone)
@@ -333,6 +339,8 @@ public sealed class ProjectPackService
         }
         if (!isStandalone)
             return null;
+        if (options.Platform == ProjectPackPlatform.WebGL)
+            return ProjectPackResult.Failed(ProjectPackFailure.WebProjectUnsupported, projectFilePath);
         if (options.Server.Enabled)
             return ProjectPackResult.Failed(ProjectPackFailure.ServerProjectUnsupported, string.Empty);
         if (options.EncryptSaves)
@@ -722,6 +730,16 @@ public sealed class ProjectPackService
             {
                 ProjectToolConstants.ToolchainExitCode => ProjectPackFailure.ToolchainUnavailable,
                 ProjectToolConstants.SigningExitCode => ProjectPackFailure.MacOSSigningUnavailable,
+                _ => ProjectPackFailure.PackFailed,
+            };
+            return ProjectPackResult.Failed(failure, execution.ExitCode.ToString());
+        }
+        if (platform == ProjectPackPlatform.WebGL)
+        {
+            ProjectPackFailure failure = execution.ExitCode switch
+            {
+                ProjectToolConstants.ToolchainExitCode => ProjectPackFailure.WebToolchainUnavailable,
+                ProjectToolConstants.ProjectExitCode => ProjectPackFailure.WebProjectUnsupported,
                 _ => ProjectPackFailure.PackFailed,
             };
             return ProjectPackResult.Failed(failure, execution.ExitCode.ToString());

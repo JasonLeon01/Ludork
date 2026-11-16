@@ -1,3 +1,4 @@
+#include <PersistentStorage.hpp>
 #include <Runtime/Data.hpp>
 #include <Runtime/Json.hpp>
 
@@ -27,7 +28,8 @@ RuntimeData loadData(const std::string& path) {
     return loadData(ludork::standard::pathFromUtf8(path));
 }
 
-void saveData(const std::filesystem::path& path, const RuntimeData& value) {
+void ludork::runtime::writeDataFile(const std::filesystem::path& path,
+                                    const RuntimeData& value) {
     const std::string extension = ludork::standard::lowercase(
         ludork::standard::pathToUtf8(path.extension()));
     if (extension == ludork::generated::resources::DataExtension) {
@@ -41,6 +43,11 @@ void saveData(const std::filesystem::path& path, const RuntimeData& value) {
         throw std::invalid_argument("Data file must use .json or .ldc: " +
                                     ludork::standard::pathToUtf8(path));
     }
+}
+
+void saveData(const std::filesystem::path& path, const RuntimeData& value) {
+    ludork::runtime::writeDataFile(path, value);
+    ludork::standard::persistStorage(path);
 }
 
 void saveData(const std::string& path, const RuntimeData& value) {

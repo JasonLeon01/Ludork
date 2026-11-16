@@ -187,6 +187,10 @@ CodecContextPtr openCodec(AVStream* stream, AVCodecID requiredCodec,
     requireFfmpeg(
         avcodec_parameters_to_context(context.get(), stream->codecpar),
         "Failed to prepare " + streamName + " decoder");
+#if defined(__EMSCRIPTEN__)
+    context->thread_count = 1;
+    context->thread_type = 0;
+#endif
     requireFfmpeg(avcodec_open2(context.get(), codec, nullptr),
                   "Failed to open " + streamName + " decoder");
     return context;

@@ -127,6 +127,7 @@ bool FileBatchRuntime::Impl::cancel(const std::shared_ptr<FileBatchJob>& job) {
 
 FileBatchSnapshot FileBatchRuntime::Impl::poll(
     const std::shared_ptr<FileBatchJob>& job, std::size_t maximum) {
+    BackgroundTask::poll();
     if (!job) {
         throw std::invalid_argument("file batch job is invalid");
     }
@@ -200,7 +201,7 @@ void FileBatchRuntime::Impl::shutdown() {
         job->resultSpace.notify_all();
     }
     workReady_.notify_all();
-    for (std::thread& worker : workers_) {
+    for (ludork::standard::BackgroundTask& worker : workers_) {
         if (worker.joinable()) {
             worker.join();
         }
@@ -297,10 +298,11 @@ void FileBatchRuntime::Impl::workerLoop() {
         WorkItem workItem;
         {
             std::unique_lock<std::mutex> queueLock(queueMutex_);
-            workReady_.wait(queueLock, [this]() {
-                return stopping_.load(std::memory_order_acquire) ||
-                       !work_.empty();
-            });
+            ludork::standard::BackgroundTask::wait(
+                workReady_, queueLock, [this]() {
+                    return stopping_.load(std::memory_order_acquire) ||
+                           !work_.empty();
+                });
             if (stopping_.load(std::memory_order_acquire) && work_.empty()) {
                 return;
             }
@@ -315,6 +317,7 @@ void FileBatchRuntime::Impl::workerLoop() {
         } else {
             handleRead(workItem.job, workItem.entry);
         }
+        BackgroundTask::yield();
     }
 }
 
@@ -386,12 +389,13 @@ void FileBatchRuntime::Impl::handleRead(
     }
 
     std::unique_lock<std::mutex> jobLock(job->mutex);
-    job->resultSpace.wait(jobLock, [this, &job, &result]() {
-        return stopping_.load(std::memory_order_acquire) ||
-               job->cancellationRequested.load(std::memory_order_acquire) ||
-               job->results.size() < job->resultCapacity ||
-               result.item->index == job->nextDeliveryIndex;
-    });
+    ludork::standard::BackgroundTask::wait(
+        job->resultSpace, jobLock, [this, &job, &result]() {
+            return stopping_.load(std::memory_order_acquire) ||
+                   job->cancellationRequested.load(std::memory_order_acquire) ||
+                   job->results.size() < job->resultCapacity ||
+                   result.item->index == job->nextDeliveryIndex;
+        });
     if (stopping_.load(std::memory_order_acquire) ||
         job->cancellationRequested.load(std::memory_order_acquire)) {
         if (job->pendingWork > 0) {

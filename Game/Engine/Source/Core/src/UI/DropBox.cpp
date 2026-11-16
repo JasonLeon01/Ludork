@@ -36,7 +36,7 @@ constexpr float CollapsedTextInset = 8.0f;
 constexpr float ExpandedContentTop = 16.0f;
 constexpr float GeometryEpsilon = 0.001f;
 
-#if defined(LUDORK_MOBILE)
+#if defined(LUDORK_MOBILE) || defined(__EMSCRIPTEN__)
 constexpr bool MobilePlatform = true;
 #else
 constexpr bool MobilePlatform = false;

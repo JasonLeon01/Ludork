@@ -35,6 +35,7 @@ COMMANDS = {
         "ios-pack": "ios_pack",
         "harmony-pack": "harmony_pack",
         "standalone-pack": "standalone_pack",
+        "web-pack": "web_pack",
         "configure-project-template": "configure_project_template",
         "template-archive": "template_archive",
         "finalize-package": "finalize_package",

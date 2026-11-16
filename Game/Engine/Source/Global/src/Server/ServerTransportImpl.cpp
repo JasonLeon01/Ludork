@@ -3,6 +3,9 @@
 #if defined(LUDORK_SERVER_AVAILABLE)
 #include "ServerTransportImpl.hpp"
 #include "ServerHttpTransportImpl.hpp"
+#if defined(__EMSCRIPTEN__)
+#include "ServerWebRequestImpl.hpp"
+#endif
 
 #include <algorithm>
 #include <exception>
@@ -15,6 +18,7 @@ std::unique_ptr<ServerTransportImpl> instance;
 }  // namespace
 
 ServerTransportImpl::ServerTransportImpl() {
+#if !defined(__EMSCRIPTEN__)
     try {
         for (int index = 0; index < WorkerCount; ++index) {
             threads_.emplace_back([this] {
@@ -32,9 +36,16 @@ ServerTransportImpl::ServerTransportImpl() {
         }
         throw;
     }
+#endif
 }
 
 ServerTransportImpl::~ServerTransportImpl() {
+#if defined(__EMSCRIPTEN__)
+    if (polling_) {
+        polling_->cancel();
+    }
+    requests_.clear();
+#endif
     {
         std::lock_guard lock(mutex_);
         stopping_ = true;
@@ -46,10 +57,12 @@ ServerTransportImpl::~ServerTransportImpl() {
         }
         queue_.clear();
     }
+#if !defined(__EMSCRIPTEN__)
     wake_.notify_all();
     for (std::thread& thread : threads_) {
         thread.join();
     }
+#endif
 }
 
 void ServerTransportImpl::enqueue(
@@ -66,9 +79,44 @@ void ServerTransportImpl::enqueue(
         }
         queue_.push_back(pending);
     }
+#if defined(__EMSCRIPTEN__)
+    if (!polling_) {
+        polling_ = AsyncOperation::create([this](AsyncOperation&) {
+            poll();
+        });
+    }
+#else
     wake_.notify_one();
+#endif
 }
 
+#if defined(__EMSCRIPTEN__)
+void ServerTransportImpl::poll() {
+    std::erase_if(requests_, [](const auto& request) {
+        return request->poll();
+    });
+    while (requests_.size() < WorkerCount && !queue_.empty()) {
+        const std::shared_ptr<PendingRequest> pending = queue_.front();
+        queue_.pop_front();
+        if (pending->cancelled.load()) {
+            continue;
+        }
+        try {
+            requests_.push_back(
+                std::make_unique<ServerWebRequestImpl>(pending));
+        } catch (const std::invalid_argument&) {
+            std::lock_guard lock(pending->mutex);
+            pending->response = Response{ServerErrorCode::InvalidArgument,
+                                         "The compiled server URL is invalid."};
+        } catch (const std::exception&) {
+            std::lock_guard lock(pending->mutex);
+            pending->response =
+                Response{ServerErrorCode::ConnectionFailed,
+                         "The server request could not be started."};
+        }
+    }
+}
+#else
 void ServerTransportImpl::run() {
     for (;;) {
         std::shared_ptr<PendingRequest> pending;
@@ -106,6 +154,7 @@ void ServerTransportImpl::run() {
         }
     }
 }
+#endif
 
 ServerTransportImpl& transport() {
     if (!instance) {

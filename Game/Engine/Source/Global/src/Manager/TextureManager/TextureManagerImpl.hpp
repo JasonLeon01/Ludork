@@ -9,7 +9,7 @@
 #include <deque>
 #include <memory>
 #include <mutex>
-#include <thread>
+#include <BackgroundTask.hpp>
 #include <unordered_map>
 #include <vector>
 
@@ -82,7 +82,7 @@ private:
     std::vector<std::weak_ptr<RequestState>> requests_;
     std::deque<std::shared_ptr<DecodeTicket>> queued_;
     std::deque<std::shared_ptr<DecodeTicket>> ready_;
-    std::vector<std::thread> workers_;
+    std::vector<ludork::standard::BackgroundTask> workers_;
     TextureLoadingStatistics statistics_;
 };
 

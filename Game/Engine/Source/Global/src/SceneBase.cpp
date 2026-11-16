@@ -18,9 +18,11 @@
 #include <RuntimeSession.hpp>
 #include <SFML/Graphics/GraphicsBackend.hpp>
 #include <SFML/Window/Context.hpp>
+#include <SFML/System/Sleep.hpp>
 #include <System.hpp>
 #include <Utils/EventBus.hpp>
 #include <VideoPlayback.hpp>
+#include <BackgroundTask.hpp>
 
 #include <algorithm>
 #include <chrono>
@@ -160,6 +162,7 @@ void SceneBase::systemMain() {
         }
         while (!lifecycleImpl_->isStopping() && System::isActive() &&
                SceneManager::getScene().get() == this) {
+            ludork::standard::BackgroundTask::poll();
             PerformanceProfiler::beginMainFrame();
             const bool profile = PerformanceProfiler::isEnabled();
             MainFramePerformanceMeasurement measurement;
@@ -203,7 +206,8 @@ void SceneBase::systemMain() {
                 if (!System::isActive()) {
                     break;
                 }
-#if defined(SFML_SYSTEM_ANDROID) || defined(SFML_SYSTEM_IOS)
+#if defined(SFML_SYSTEM_ANDROID) || defined(SFML_SYSTEM_IOS) || \
+    defined(SFML_SYSTEM_EMSCRIPTEN)
                 if (inputService().isFocusLost()) {
                     lifecycleImpl_->setSuspended(true);
                 }
@@ -213,7 +217,7 @@ void SceneBase::systemMain() {
                 if (lifecycleImpl_->isSuspended()) {
                     TimeManager::update();
                     lock.unlock();
-                    std::this_thread::sleep_for(PausedPollInterval);
+                    sf::sleep(sf::milliseconds(10));
                     continue;
                 }
                 if (resumed) {
@@ -264,6 +268,17 @@ void SceneBase::systemMain() {
                 TimeManager::update();
                 deltaTime =
                     resumed ? 0.0f : TimeManager::getDeltaTime().asSeconds();
+#ifdef __EMSCRIPTEN__
+                const auto videoSequence = getVideoPlaybackCompletionSequence();
+                lock.unlock();
+                static_cast<void>(runLogicStep(deltaTime, profile));
+                lock = lockLogicDataForMain();
+                if (videoSequence != getVideoPlaybackCompletionSequence()) {
+                    TimeManager::update();
+                    fixedAccumulator_ = 0.0f;
+                    deltaTime = 0.0f;
+                }
+#endif
                 if (uiManager_ != nullptr) {
                     uiManager_->logicHandle(deltaTime);
                 }
@@ -600,7 +615,9 @@ void SceneBase::releaseBlockingTimer(const std::shared_ptr<TimerEntry>& entry) {
 
 SceneBase::LogicStepPerformance SceneBase::runLogicStep(float deltaTime,
                                                         bool profile) {
+#ifndef __EMSCRIPTEN__
     const std::lock_guard<std::recursive_mutex> lock(logicDataMutex_);
+#endif
     LogicStepPerformance performance;
     if (lifecycleImpl_->isStopping() || lifecycleImpl_->isSuspended() ||
         !System::isActive() || SceneManager::getScene().get() != this ||
@@ -663,6 +680,10 @@ SceneBase::LogicStepPerformance SceneBase::runLogicStep(float deltaTime,
 }
 
 void SceneBase::startLogicThread() {
+#ifdef __EMSCRIPTEN__
+    lifecycleImpl_->resetStop();
+    fixedAccumulator_ = 0.0f;
+#else
     if (logicThread_.joinable()) {
         return;
     }
@@ -692,6 +713,7 @@ void SceneBase::startLogicThread() {
             lifecycleImpl_->requestStop();
         }
     });
+#endif
 }
 
 void SceneBase::stopLogicThread() noexcept {

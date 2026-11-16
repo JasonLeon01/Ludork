@@ -10,11 +10,15 @@ set(LUDORK_RUNTIME_CONSTANTS_DIRECTORY
 set(LUDORK_SERVER_CONFIG_DIRECTORY
     "${LUDORK_INTERMEDIATE_DIRECTORY}/ServerConfig/$<CONFIG>")
 ludork_get_toolchain_dependencies(runtime_constants_dependencies)
+set(ludork_server_target_arguments)
+if(EMSCRIPTEN)
+    list(APPEND ludork_server_target_arguments --target web)
+endif()
 add_custom_target(RuntimeConstantsGenerate
     COMMAND "${LUDORK_TOOL_CODEGEN}" runtime-constants cpp
         "${LUDORK_PROJECT_SOURCE_DIR}" "${LUDORK_RUNTIME_CONSTANTS_DIRECTORY}"
     COMMAND "${LUDORK_TOOL_PACK}" server-config generate
-        "${LUDORK_SERVER_CONFIG_DIRECTORY}" "$<CONFIG>"
+        "${LUDORK_SERVER_CONFIG_DIRECTORY}" "$<CONFIG>" ${ludork_server_target_arguments}
     BYPRODUCTS
         "${LUDORK_RUNTIME_CONSTANTS_DIRECTORY}/LudorkGenerated/BinaryDataFormatConstants.hpp"
         "${LUDORK_RUNTIME_CONSTANTS_DIRECTORY}/LudorkGenerated/LdPakFormatConstants.hpp"

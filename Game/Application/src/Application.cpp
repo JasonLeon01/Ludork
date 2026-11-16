@@ -76,7 +76,8 @@ int run(int argc, char** argv) {
 #elif defined(SFML_SYSTEM_MACOS) || defined(SFML_SYSTEM_IOS)
         const bool graphicsSelected =
             sf::setGraphicsBackend(sf::GraphicsBackend::Metal);
-#elif defined(SFML_SYSTEM_ANDROID) || defined(SFML_SYSTEM_HARMONY)
+#elif defined(SFML_SYSTEM_ANDROID) || defined(SFML_SYSTEM_HARMONY) || \
+    defined(SFML_SYSTEM_EMSCRIPTEN)
         const bool graphicsSelected = sf::setGraphicsBackend(
             sf::GraphicsBackend::OpenGLES, sf::OpenGLESSettings{3, 0});
 #else

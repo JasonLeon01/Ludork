@@ -158,7 +158,7 @@ void ShaderCache::Impl::publish(const std::filesystem::path& root,
                 (std::to_string(index++) +
                  ludork::standard::pathToUtf8(output.path.extension()));
             if (output.record) {
-                saveData(staged, *output.record);
+                ludork::runtime::writeDataFile(staged, *output.record);
             } else {
                 ludork::standard::writeFileBytes(staged, output.bytes);
             }

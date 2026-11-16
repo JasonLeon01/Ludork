@@ -71,12 +71,12 @@ BUILD_TOOL_SOURCES = {
     "windows": {
         "build_cpp.bat": "tools/editor_runtime/build_cpp.bat",
         **{name: "tools/" + name for name in (
-            "build_standalone.bat", "build_preview_host.bat", "pack_project.bat", "pack_standalone.bat",
+            "build_standalone.bat", "build_preview_host.bat", "pack_project.bat", "pack_standalone.bat", "pack_web.bat",
         )},
     },
     "macos": {
         **{name: "tools/" + name for name in (
-            "common.sh", "build_standalone.sh", "pack_standalone.sh", "build_preview_host.sh", "pack_project.sh",
+            "common.sh", "build_standalone.sh", "pack_standalone.sh", "build_preview_host.sh", "pack_project.sh", "pack_web.sh",
         )},
         **{name: "tools/editor_runtime/" + name for name in (
             "build_cpp.sh", "pack_ios.sh", "pack_harmony.sh", "pack_android.sh", "unregister_editor.sh",

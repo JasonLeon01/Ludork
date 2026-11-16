@@ -33,6 +33,7 @@ public:
     void observeNativeTouch(const sf::Event& event,
                             const sf::Vector2i& position,
                             bool acceptsConfirmation, float dragThreshold);
+    void cancelNativeTouchGesture();
     void suppressKey(sf::Keyboard::Key key);
     bool allowsJoystickButton(unsigned int joystickId,
                               unsigned int button) const;

@@ -7,6 +7,13 @@
 #include <string>
 #include <string_view>
 
+namespace ludork::runtime {
+
+LUDORK_RUNTIME_API void writeDataFile(const std::filesystem::path& path,
+                                      const RuntimeData& value);
+
+}  // namespace ludork::runtime
+
 LUDORK_RUNTIME_API RuntimeData parseBinaryData(std::string_view bytes);
 LUDORK_RUNTIME_API RuntimeData loadData(const std::filesystem::path& path);
 LUDORK_RUNTIME_API void saveData(const std::filesystem::path& path,

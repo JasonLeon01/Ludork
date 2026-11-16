@@ -1,4 +1,7 @@
 #include "PlatformInputBridge.hpp"
+#if defined(__EMSCRIPTEN__)
+#include "WebInputBridge.hpp"
+#endif
 
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
@@ -12,7 +15,11 @@ namespace ludork::engine::platform_input {
 
 void initialize() {}
 
-void shutdown() noexcept {}
+void shutdown() noexcept {
+#if defined(__EMSCRIPTEN__)
+    detachWebTouchCancellation();
+#endif
+}
 
 bool setMousePosition(sf::WindowBase& window, const sf::Vector2i& position) {
     sf::Mouse::setPosition(position, window);

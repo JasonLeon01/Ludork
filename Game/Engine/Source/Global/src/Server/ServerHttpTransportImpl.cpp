@@ -4,8 +4,10 @@
 #include "ServerHttpTransportImpl.hpp"
 
 #include <Runtime/Json.hpp>
+#if !defined(__EMSCRIPTEN__)
 #include <SFML/Network/Dns.hpp>
 #include <SFML/Network/SocketSelector.hpp>
+#endif
 
 #include <algorithm>
 #include <array>
@@ -21,6 +23,7 @@
 namespace ludork::global::server_impl {
 namespace {
 
+#if !defined(__EMSCRIPTEN__)
 constexpr std::size_t MaxHeaderSize = 16 * 1024;
 constexpr std::size_t MaxBodySize = 2 * 1024 * 1024;
 
@@ -53,6 +56,7 @@ std::size_t number(std::string_view value, int base = 10) {
     }
     return result;
 }
+#endif
 
 ServerErrorCode errorCode(const std::string& code) {
     static const std::unordered_map<std::string, ServerErrorCode> codes{
@@ -70,23 +74,33 @@ ServerErrorCode errorCode(const std::string& code) {
 }
 }  // namespace
 
+#if !defined(__EMSCRIPTEN__)
 ServerHttpTransportImpl::ServerHttpTransportImpl(const PendingRequest& pending)
     : pending_(pending) {
     socket_.setBlocking(false);
 }
+#endif
 
 ServerHttpTransportImpl::Endpoint ServerHttpTransportImpl::parseEndpoint() {
     const std::string url = ludork::generated::server::Url;
-    if (!url.starts_with("http://") ||
+    const bool secure = url.starts_with("https://");
+    if ((!url.starts_with("http://") && !secure) ||
         url.find_first_of("?#@\\\r\n\t ") != std::string::npos) {
         throw std::invalid_argument("Invalid server URL.");
     }
-    const std::size_t slash = url.find('/', 7);
+#if !defined(__EMSCRIPTEN__)
+    if (secure) {
+        throw std::invalid_argument("The native server URL requires HTTP.");
+    }
+#endif
+    const std::size_t schemeLength = secure ? 8 : 7;
+    const std::size_t slash = url.find('/', schemeLength);
     Endpoint result;
+    result.port = secure ? 443 : 80;
     if (slash == std::string::npos) {
-        result.authority = url.substr(7);
+        result.authority = url.substr(schemeLength);
     } else {
-        result.authority = url.substr(7, slash - 7);
+        result.authority = url.substr(schemeLength, slash - schemeLength);
         result.prefix = url.substr(slash);
     }
     while (result.prefix.ends_with('/')) {
@@ -158,6 +172,7 @@ ServerHttpTransportImpl::Endpoint ServerHttpTransportImpl::parseEndpoint() {
     return result;
 }
 
+#if !defined(__EMSCRIPTEN__)
 ServerHttpTransportImpl::Headers ServerHttpTransportImpl::parseHeaders(
     std::string_view text) {
     Headers result;
@@ -416,40 +431,8 @@ Response ServerHttpTransportImpl::perform() {
             return failure(ServerErrorCode::ConnectionFailed,
                            "Could not receive the server response.");
         }
-        Response response;
-        response.body = parseJSONText(*body);
-        response.roundTripMs =
-            std::chrono::duration<double, std::milli>(
-                PendingRequest::Clock::now() - pending_.started)
-                .count();
-        const auto* object = response.body.getIf<RuntimeData::Map>();
-        if (object == nullptr) {
-            throw std::runtime_error("Expected a JSON response object.");
-        }
-        if (status_ != 200) {
-            const auto code = object->find("code");
-            const auto message = object->find("message");
-            if (code == object->end() || message == object->end() ||
-                code->second.getIf<std::string>() == nullptr ||
-                message->second.getIf<std::string>() == nullptr) {
-                throw std::runtime_error("Invalid server error response.");
-            }
-            response.code = errorCode(*code->second.getIf<std::string>());
-            response.message = *message->second.getIf<std::string>();
-        } else if (request.health) {
-            const auto service = object->find("service");
-            const auto project = object->find("project");
-            if (service == object->end() || project == object->end() ||
-                service->second.getIf<std::string>() == nullptr ||
-                *service->second.getIf<std::string>() != "LudorkServer" ||
-                project->second.getIf<std::string>() == nullptr ||
-                (endpoint.project.empty()
-                     ? project->second.getIf<std::string>()->empty()
-                     : *project->second.getIf<std::string>() !=
-                           endpoint.project)) {
-                throw std::runtime_error("Unexpected health response.");
-            }
-        }
+        Response response =
+            decodeResponse(pending_, endpoint.project, status_, *body);
         if (stopped()) {
             return failure(ServerErrorCode::Timeout,
                            "The server request timed out.");
@@ -459,6 +442,46 @@ Response ServerHttpTransportImpl::perform() {
         return failure(ServerErrorCode::InvalidResponse,
                        "The server returned an invalid response.");
     }
+}
+#endif
+
+Response ServerHttpTransportImpl::decodeResponse(const PendingRequest& pending,
+                                                 const std::string& projectName,
+                                                 int status,
+                                                 const std::string& body) {
+    Response response;
+    response.body = parseJSONText(body);
+    response.roundTripMs = std::chrono::duration<double, std::milli>(
+                               PendingRequest::Clock::now() - pending.started)
+                               .count();
+    const auto* object = response.body.getIf<RuntimeData::Map>();
+    if (object == nullptr) {
+        throw std::runtime_error("Expected a JSON response object.");
+    }
+    if (status != 200) {
+        const auto code = object->find("code");
+        const auto message = object->find("message");
+        if (code == object->end() || message == object->end() ||
+            code->second.getIf<std::string>() == nullptr ||
+            message->second.getIf<std::string>() == nullptr) {
+            throw std::runtime_error("Invalid server error response.");
+        }
+        response.code = errorCode(*code->second.getIf<std::string>());
+        response.message = *message->second.getIf<std::string>();
+    } else if (pending.request.health) {
+        const auto service = object->find("service");
+        const auto project = object->find("project");
+        if (service == object->end() || project == object->end() ||
+            service->second.getIf<std::string>() == nullptr ||
+            *service->second.getIf<std::string>() != "LudorkServer" ||
+            project->second.getIf<std::string>() == nullptr ||
+            (projectName.empty()
+                 ? project->second.getIf<std::string>()->empty()
+                 : *project->second.getIf<std::string>() != projectName)) {
+            throw std::runtime_error("Unexpected health response.");
+        }
+    }
+    return response;
 }
 
 }  // namespace ludork::global::server_impl

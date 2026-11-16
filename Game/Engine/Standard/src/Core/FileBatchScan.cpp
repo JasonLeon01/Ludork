@@ -1,3 +1,4 @@
+#include <BackgroundTask.hpp>
 #include <LudorkGenerated/ResourceFileConstants.hpp>
 #include "FileBatchInternal.hpp"
 
@@ -63,6 +64,7 @@ bool appendDirectoryEntries(const FileBatchSpec& spec,
         return false;
     }
     while (iterator != end) {
+        BackgroundTask::yield();
         if (job->cancellationRequested.load(std::memory_order_relaxed)) {
             return false;
         }
@@ -131,6 +133,7 @@ bool appendReadOnlyDirectoryEntries(const FileBatchSpec& spec,
                                     FileBatchError& error) {
     std::vector<std::filesystem::path> pending{spec.root};
     while (!pending.empty()) {
+        BackgroundTask::yield();
         const std::filesystem::path directory = std::move(pending.back());
         pending.pop_back();
         std::vector<std::filesystem::path> children;

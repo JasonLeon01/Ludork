@@ -438,7 +438,8 @@ def registry_path(project: pathlib.Path) -> pathlib.Path:
     return ensure_preview(project).registry_path
 
 
-def prepare_registry(project: pathlib.Path, toolchain_directory: pathlib.Path) -> pathlib.Path:
+def prepare_registry(project: pathlib.Path, toolchain_directory: pathlib.Path,
+                     *, environment: dict[str, str] | None = None) -> pathlib.Path:
     project = project.expanduser().resolve()
     toolchain_directory = toolchain_directory.expanduser().resolve()
     name = (
@@ -453,7 +454,7 @@ def prepare_registry(project: pathlib.Path, toolchain_directory: pathlib.Path) -
         raise UiRegistryError(
             f"Project preview build tool was not found beside {toolchain_directory}"
         )
-    environment = os.environ.copy()
+    environment = (os.environ if environment is None else environment).copy()
     environment["LUDORK_TOOLCHAIN_DIRECTORY"] = str(toolchain_directory)
     if os.name == "nt":
         environment["LUDORK_UI_PREVIEW_BUILD_SCRIPT"] = str(script)

@@ -58,14 +58,14 @@ void TextureManagerImpl::shutdown() noexcept {
         ready_.clear();
         readyBytes_ = 0;
         changed_.notify_all();
-        changed_.wait(lock, [this] {
+        ludork::standard::BackgroundTask::wait(changed_, lock, [this] {
             return activeDecodes_ == 0 && activeUploads_ == 0;
         });
         entries.swap(entries_);
         requests.swap(requests_);
         requestsSinceSweep_ = 0;
     }
-    for (std::thread& worker : workers_) {
+    for (ludork::standard::BackgroundTask& worker : workers_) {
         worker.join();
     }
     workers_.clear();

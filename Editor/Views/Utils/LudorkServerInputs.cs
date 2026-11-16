@@ -7,6 +7,18 @@ namespace Ludork.Views.Utils;
 
 public sealed class LudorkServerInputs : StackPanel
 {
+    private bool allowHttps;
+
+    public bool AllowHttps
+    {
+        get => allowHttps;
+        set
+        {
+            allowHttps = value;
+            error.IsVisible = false;
+        }
+    }
+
     private readonly CheckBox enabled = new();
     private readonly TextBox url = EditorInputs.CreateEditableTextBox();
     private readonly TextBox key = EditorInputs.CreateEditableTextBox();
@@ -51,7 +63,7 @@ public sealed class LudorkServerInputs : StackPanel
     public bool TryGetSettings(out LudorkServerSettings settings)
     {
         settings = new(enabled.IsChecked == true, url.Text ?? string.Empty, key.Text ?? string.Empty);
-        string? message = settings.GetValidationError();
+        string? message = settings.GetValidationError(AllowHttps);
         error.IsVisible = message is not null;
         error.Text = message is null ? string.Empty : LocaleService.Get(message);
         return message is null;

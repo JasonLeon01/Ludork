@@ -5,9 +5,7 @@
 #include <Runtime/RuntimeData.hpp>
 #include <Utils/EventBus.hpp>
 
-#if defined(LUDORK_SERVER_AVAILABLE)
-#include <ixwebsocket/IXWebSocket.h>
-#endif
+#include "Socket/NetSocketImpl.hpp"
 
 #include <chrono>
 #include <deque>
@@ -54,19 +52,7 @@ private:
         NetTransport::Callback callback;
     };
 
-    struct Notification {
-        enum class Kind {
-            Open,
-            Message,
-            Close,
-            Error
-        };
-        Kind kind = Kind::Message;
-        std::uint64_t generation = 0;
-        std::string bytes;
-        bool binary = false;
-        int status = 0;
-    };
+    using Notification = NetSocketImpl::Notification;
 
     static void validateName(const std::string& name);
     static RuntimeIdentityPtr result(bool ok, const std::string& code,
@@ -95,7 +81,7 @@ private:
     void queueNotification(Notification notification);
 
 #if defined(LUDORK_SERVER_AVAILABLE)
-    std::unique_ptr<ix::WebSocket> socket_;
+    std::unique_ptr<NetSocketImpl> socket_;
 #endif
     std::shared_ptr<AsyncOperation> polling_;
     std::unordered_map<std::string, std::unique_ptr<EventBus>> buses_;

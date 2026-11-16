@@ -29,14 +29,16 @@ function SceneTitleController:bind()
             callback = function ()
                 self.model:toggleConfig()
             end
-        },
-        {
+        }
+    }
+    if PLATFORM ~= "web" then
+        self._commandModels[#self._commandModels + 1] = {
             localeKey = "TITLE_EXIT",
             callback = function ()
                 self.model:exitGame()
             end
         }
-    }
+    end
     self._windowCommand = self:createChild("CommandPanel", WindowCommand, self._commandModels)
     local savePath = Engine.getSavePath()
     self._windowCommand:selectIndex(os.path.isdir(savePath) and bool(os.listdir(savePath)) and 1 or 0)

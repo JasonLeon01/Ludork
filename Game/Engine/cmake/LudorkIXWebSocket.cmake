@@ -1,5 +1,9 @@
 include_guard(GLOBAL)
 
+if(EMSCRIPTEN)
+    return()
+endif()
+
 function(ludork_add_ixwebsocket)
     set(ixwebsocket_source_directory
         "${LUDORK_PROJECT_SOURCE_DIR}/Engine/ThirdParty/IXWebSocket")

@@ -8,7 +8,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Editor\Assets\icon.ico</ApplicationIcon>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-    <DefaultItemExcludes>$(DefaultItemExcludes);dist\**;**\bin\**;**\obj\**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);dist\**;build-verify\**;**\bin\**;**\obj\**</DefaultItemExcludes>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'osx-arm64'">

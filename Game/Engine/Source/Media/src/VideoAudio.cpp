@@ -2,6 +2,7 @@
 
 #if LUDORK_HAS_FFMPEG
 #include "FFmpegSupport.hpp"
+#include "PlaybackWorkBudget.hpp"
 
 #include <stdexcept>
 
@@ -89,6 +90,7 @@ AudioData extractAudio(const std::string& path) {
             "Failed to allocate video audio decode buffers");
     }
     int readResult = 0;
+    PlaybackWorkBudget budget;
     while ((readResult = av_read_frame(format.get(), packet.get())) >= 0) {
         if (packet->stream_index == streamIndex) {
             requireFfmpeg(avcodec_send_packet(decoder.get(), packet.get()),
@@ -97,6 +99,7 @@ AudioData extractAudio(const std::string& path) {
                               audio, false);
         }
         av_packet_unref(packet.get());
+        budget.yieldIfNeeded();
     }
     if (readResult != AVERROR_EOF) {
         requireFfmpeg(readResult, "Failed to read video audio packet");

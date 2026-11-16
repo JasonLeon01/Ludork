@@ -9,8 +9,17 @@ if(LUDORK_WITH_LUA)
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
     list(FILTER LUDORK_STANDARD_SOURCES EXCLUDE REGEX
         ".*/src/Runtime/ClassRuntime/.*\\.cpp$")
+    if(EMSCRIPTEN)
+        list(FILTER LUDORK_STANDARD_SOURCES EXCLUDE REGEX
+            ".*/src/Runtime/(EditorConsole|EditorLiveDebugImpl)\\.cpp$")
+    else()
+        list(FILTER LUDORK_STANDARD_SOURCES EXCLUDE REGEX
+            ".*/src/Runtime/EditorConsoleWeb\\.cpp$")
+    endif()
 else()
     set(LUDORK_STANDARD_SOURCES
+        src/Core/BackgroundTask.cpp
+        src/Core/PersistentStorage.cpp
         src/Core/Base64.cpp
         src/Core/Compression.cpp
         src/Core/DataFile.cpp

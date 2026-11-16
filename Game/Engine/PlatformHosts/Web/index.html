@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ludork</title>
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #101218; color: #edf0f5; font-family: system-ui, sans-serif; }
+    #canvas { display: block; width: 100% !important; height: 100% !important; outline: none; touch-action: none; }
+    #loading { position: fixed; inset: 0; display: grid; place-content: center; gap: 18px; padding: 24px; text-align: center; background: #101218; }
+    #status { white-space: pre-wrap; overflow-wrap: anywhere; max-width: 42rem; }
+    progress { width: min(75vw, 340px); justify-self: center; accent-color: #83b5f5; }
+    button { padding: 12px 30px; border: 0; border-radius: 7px; font: inherit; background: #a6caff; color: #101218; cursor: pointer; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <canvas id="canvas" width="960" height="540" tabindex="0" aria-label="Game"></canvas>
+  <div id="loading" role="status">
+    <div id="status">Loading…</div>
+    <progress id="progress"></progress>
+    <button id="restart" type="button" hidden>Restart</button>
+  </div>
+  <script>
+    const chinese = navigator.language.toLowerCase().startsWith('zh');
+    const text = (en, zh) => chinese ? zh : en;
+    const overlay = document.getElementById('loading');
+    const status = document.getElementById('status');
+    const progress = document.getElementById('progress');
+    const restart = document.getElementById('restart');
+    restart.textContent = text('Restart', '重新开始');
+    restart.onclick = () => location.reload();
+    var Module = {
+      canvas: document.getElementById('canvas'),
+      print: line => console.log(line),
+      printErr: line => console.error(line),
+      setStatus(message) { status.textContent = message; },
+      monitorRunDependencies(remaining) {
+        this.totalDependencies = Math.max(this.totalDependencies || 0, remaining);
+        status.textContent = text('Loading game…', '正在加载游戏…');
+        progress.max = this.totalDependencies || 1;
+        progress.value = this.totalDependencies - remaining;
+      },
+      ludorkStarted() { overlay.hidden = true; this.canvas.focus(); },
+      ludorkError(message) {
+        this.ludorkFailed = true;
+        overlay.hidden = false;
+        progress.hidden = true;
+        restart.hidden = false;
+        status.textContent = message;
+      },
+      onAbort(reason) { this.ludorkError(text('Unable to run the game: ', '游戏运行失败：') + reason); },
+      onExit(code) {
+        if (this.ludorkFailed) return;
+        this.ludorkError(code === 0 ? text('Game ended', '游戏已结束') : text('Game exited with an error: ', '游戏异常退出：') + code);
+      }
+    };
+    if (location.protocol === 'file:') {
+      Module.ludorkError(text('Serve this folder through HTTP or HTTPS to play.', '请通过 HTTP 或 HTTPS 访问此目录。'));
+    } else if (!window.WebAssembly) {
+      Module.ludorkError(text('This browser does not support WebAssembly.', '此浏览器不支持 WebAssembly。'));
+    } else {
+      const script = document.createElement('script');
+      script.src = 'Main.js';
+      script.onerror = () => Module.ludorkError(text('Unable to load the game.', '无法加载游戏文件。'));
+      document.body.appendChild(script);
+    }
+  </script>
+</body>
+</html>

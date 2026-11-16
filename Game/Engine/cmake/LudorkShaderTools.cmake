@@ -35,11 +35,13 @@ endfunction()
 ludork_add_shader_tools()
 
 function(ludork_shader_tools_fingerprint translator_output compiler_output)
+    get_filename_component(shader_runtime_directory
+        "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../Runtime" ABSOLUTE)
     set(shader_inputs "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/LudorkShaderTools.cmake")
     file(GLOB shader_sources CONFIGURE_DEPENDS
-        "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../Runtime/src/Graphics/Shaders/*.cpp"
-        "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../Runtime/src/Graphics/Shaders/*.hpp"
-        "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../Runtime/include/Runtime/Graphics/ShaderTranslator.hpp")
+        "${shader_runtime_directory}/src/Graphics/Shaders/*.cpp"
+        "${shader_runtime_directory}/src/Graphics/Shaders/*.hpp"
+        "${shader_runtime_directory}/include/Runtime/Graphics/ShaderTranslator.hpp")
     list(FILTER shader_sources EXCLUDE REGEX "/ShaderCompiler\\.(cpp|hpp)$")
     list(APPEND shader_inputs ${shader_sources})
     set(identity "")
@@ -51,8 +53,8 @@ function(ludork_shader_tools_fingerprint translator_output compiler_output)
     string(SHA256 identity "${identity}")
     set(${translator_output} "${identity}" PARENT_SCOPE)
     set(compiler_inputs
-        "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../Runtime/src/Graphics/Shaders/ShaderCompiler.cpp"
-        "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../Runtime/include/Runtime/Graphics/ShaderCompiler.hpp")
+        "${shader_runtime_directory}/src/Graphics/Shaders/ShaderCompiler.cpp"
+        "${shader_runtime_directory}/include/Runtime/Graphics/ShaderCompiler.hpp")
     set(identity "")
     foreach(compiler_input IN LISTS compiler_inputs)
         set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${compiler_input}")

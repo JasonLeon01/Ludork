@@ -25,6 +25,7 @@ The repository owns the sample entry as `Game/Scripts/Entry.lua.in`. `init` crea
 | `create_templates_ffmpeg` | Recreate only the FFmpeg-enabled Cpp and Standalone templates |
 | `pack_project` | Produce the platform distribution layout, with optional macOS signing and notarisation |
 | `pack_standalone` | Convert a C++ Source project into an editable desktop Standalone project, retaining exported resources and preview support |
+| `pack_web` | Build a C++ Source game as a WebGL 2 website with Emscripten |
 | `pack_ios.sh` | Build an iOS 16.3-or-newer IPA from a C++ Source project, with optional manual signing |
 | `pack_harmony.sh` | Build a HarmonyOS API 22 Mobile or 2in1 arm64-v8a HAP, with optional signing and device export |
 | `pack_android.sh` | Build an Android arm64-v8a Release APK from a C++ Source project, unsigned by default with optional signing |
@@ -331,7 +332,7 @@ Editor packaging calls the same launcher builder unless `--launcher` supplies a 
 
 Run `tools/init_cpp_dependencies.sh <project>` or the Windows `.bat` after building the toolchain. The direct command is `ludork-build dependencies <project> --repository-root <repository>`. It reads `versions.conf` without executing it and prepares all seven source dependencies concurrently. Use repeated `--only` options to select `luasf`, `sfml`, `lua`, `lua_cjson`, `zlib`, `ixwebsocket` or `ffmpeg`; editor-only preparation selects `--only lua`. A successful full Windows invocation also runs the existing GNU Make preparation script; selected-dependency invocations do not.
 
-Matching `.ludork-version` markers and required files reuse installed sources. Lua archives must match `LUA_SHA256`; LuaSF and LuaGlue are validated and replaced together; `LUASF_SOURCE_ARCHIVE` forces the [documented local source archive](https://jasonleon01.github.io/Ludork/docs/trunk/?lang=en_GB&doc=04%2F01#build-the-project) even when markers match. FFmpeg retains `ThirdPartySource/ffmpeg-<version>.tar.gz` for source distribution and re-extracts it on each invocation, checking the pinned commit's source root and the `RELEASE` value. Keep that archive with FFmpeg-enabled templates and distributions.
+Matching `.ludork-version` markers and required files reuse installed sources. Lua archives must match `LUA_SHA256`; LuaSF and LuaGlue are validated and replaced together; `LUASF_SOURCE_ARCHIVE` forces the [documented local source archive](https://jasonleon01.github.io/Ludork/docs/trunk/?lang=en_GB&doc=04%2F01#build-the-project) even when markers match. `SFML_SOURCE_ARCHIVE` explicitly imports a local `.zip` or `.tar.gz` with a top-level `SFML/` directory; it does not change `versions.conf`. FFmpeg retains `ThirdPartySource/ffmpeg-<version>.tar.gz` for source distribution and re-extracts it on each invocation, checking the pinned commit's source root and the `RELEASE` value. Keep that archive with FFmpeg-enabled templates and distributions.
 
 Downloads use curl 7.71 or newer on both platforms, with at most four attempts, a 15-second connection timeout, a five-minute limit per attempt and five seconds between retries. No new attempt starts after the 15-minute retry window. All curl transfer errors, including TLS connection resets, can retry; HTTP errors also use this bounded retry policy. Each retry replaces the partial archive written through curl's output-file option. Exhausted download failures and archive/hash validation failures stop preparation before publication. Sources are validated in staging before replacement. Failed replacement restores the previous dependency; failed rollback retains recovery files and reports their path. One dependency failure does not cancel independent preparations. Cancelling stops active download processes and cleans temporary files; overlapping preparation of the same project is rejected.
 
@@ -469,6 +470,14 @@ Hvigor first builds unsigned. Signing invokes `hap-sign-tool.jar sign-app` with 
 Android delegates to `ludork-pack android-pack`. SDK lookup is `ANDROID_SDK_ROOT`, then `ANDROID_HOME`, then `~/Library/Android/sdk`; it selects the highest complete stable NDK r27+. `LUDORK_CMAKE` selects a host CMake executable (3.28+, Unix Makefiles and `/usr/bin/make` required). It does not use SDK CMake, Ninja, SDK Manager, emulators or adb. The host and Gradle wrapper come from `Game/Engine/PlatformHosts/Android`; preserve wrapper JAR/configuration/notices and macOS executable permissions. The wrapper selects Gradle 9.5.0 and AGP 9.3.0; macOS templates omit `gradlew.bat`.
 
 Android signing uses `--sign --keystore <absolute-path> --key-alias <alias>` and the same two-password stdin protocol. `--check` validates without publishing. Signed output is verified before publication, credentials are not persisted, and the command never installs or launches the APK. Reuse the same signing key for application updates.
+
+## WebGL game packages
+
+Run `tools/pack_web.bat <project> [dist]` on Windows or `sh tools/pack_web.sh <project> [dist]` on macOS, or invoke `ludork-pack web-pack` directly. It accepts the shared release/dev, Lua compilation, shader/data/save encryption and `.ldpak` options. Server settings use the existing process environment; Web targets accept HTTP or HTTPS. Use `--check` for prerequisite validation and `--emsdk <directory>` to select an installed SDK explicitly.
+
+Emscripten SDK 7.0.0 is discovered through the explicit argument, `EMSDK`, then `emcc` on `PATH`; CMake and Ninja must also be available. FFmpeg projects additionally require Bash and GNU Make (Git Bash on Windows). Nothing is installed automatically. The project must contain Web-capable SFML/LuaSF sources; explicit dependency imports remain separate operations.
+
+The native preview supplies the UI registry. Resources reuse `prepare_runtime_resources` and the common finalizer in `build-web/resources`; Web native builds use `build-web/bin/Release`. The final `dist/<game-name>-<full-version>-webgl` directory is published transactionally only after `index.html`, `Main.js`, `Main.wasm` and `Main.data` exist, preserving an earlier package on failure. Available legal files and FFmpeg source/build materials accompany it. CLI callers must export beforehand. See [WebGL deployment and browser behavior](https://jasonleon01.github.io/Ludork/docs/trunk/?lang=en_GB&doc=02%2F11#webgl).
 
 ## Editable Standalone projects
 

@@ -107,7 +107,7 @@ void SavePreviewServiceImpl::run() {
         std::function<void()> work;
         {
             std::unique_lock lock(mutex_);
-            wake_.wait(lock, [this] {
+            ludork::standard::BackgroundTask::wait(wake_, lock, [this] {
                 return stopping_ || !work_.empty();
             });
             if (stopping_) {
@@ -117,6 +117,7 @@ void SavePreviewServiceImpl::run() {
             work_.pop_front();
         }
         work();
+        ludork::standard::BackgroundTask::yield();
     }
 }
 

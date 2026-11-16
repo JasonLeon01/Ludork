@@ -182,7 +182,11 @@ def prepare_dependencies(project: pathlib.Path, repository_root: pathlib.Path,
     values = read_versions(repository / "versions.conf")
     local_name = os.environ.get("LUASF_SOURCE_ARCHIVE", "").strip()
     local = pathlib.Path(local_name).expanduser().resolve(strict=True) if local_name and "luasf" in names else None
-    specs = [dependency(name, values, windows=os.name == "nt", local_luasf_archive=local) for name in names]
+    local_sfml_name = os.environ.get("SFML_SOURCE_ARCHIVE", "").strip()
+    local_sfml = (pathlib.Path(local_sfml_name).expanduser().resolve(strict=True)
+                  if local_sfml_name and "sfml" in names else None)
+    specs = [dependency(name, values, windows=os.name == "nt", local_luasf_archive=local,
+                        local_sfml_archive=local_sfml) for name in names]
     root = project / "Engine" / "ThirdParty"
     _require_owned_path(project, root)
     for spec in specs:

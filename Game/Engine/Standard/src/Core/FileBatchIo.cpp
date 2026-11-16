@@ -1,3 +1,4 @@
+#include <BackgroundTask.hpp>
 #include "FileBatchInternal.hpp"
 
 #include <DataFile.hpp>
@@ -139,6 +140,7 @@ ReadResult readFile(const std::shared_ptr<FileBatchJob>& job,
     }
     std::array<char, READ_CHUNK_SIZE> buffer{};
     while (input) {
+        BackgroundTask::yield();
         if (job->cancellationRequested.load(std::memory_order_relaxed)) {
             result.cancelled = true;
             return result;

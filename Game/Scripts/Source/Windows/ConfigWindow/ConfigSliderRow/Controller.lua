@@ -15,7 +15,7 @@ end
 
 function ConfigSliderRowController:bind()
     self.ui.controls["Slider"]:setCanReceiveFocus(false)
-    if PLATFORM == "ios" or PLATFORM == "android" or PLATFORM == "ohos" then
+    if LUDORK_MOBILE or PLATFORM == "web" then
         local sliderSize = self.ui.controls["Slider"]:getSize()
         local rowHeight = self.root:getSize().y
         self.ui.controls["Slider"]:setTouchHitBounds(

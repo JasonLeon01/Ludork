@@ -1,3 +1,4 @@
+#include <PersistentStorage.hpp>
 #include <Utils/Inner.hpp>
 #include <Runtime/Graphics/ShaderCache.hpp>
 #include <ConfigParser.hpp>
@@ -98,7 +99,8 @@ std::filesystem::path userDataPath(
 #if defined(__APPLE__) && TARGET_OS_IPHONE
     const std::filesystem::path root =
         homePath() / "Library" / "Application Support";
-#elif defined(SFML_SYSTEM_HARMONY) || defined(SFML_SYSTEM_ANDROID)
+#elif defined(SFML_SYSTEM_HARMONY) || defined(SFML_SYSTEM_ANDROID) || \
+    defined(SFML_SYSTEM_EMSCRIPTEN)
     const std::string rootValue = environmentValue("LUDORK_USER_DATA_ROOT");
     if (rootValue.empty()) {
         throw std::runtime_error("User data root is not configured");
@@ -110,6 +112,7 @@ std::filesystem::path userDataPath(
 #endif
     const std::filesystem::path path = root / resolvedName;
     std::filesystem::create_directories(path);
+    ludork::standard::restoreStorage(path);
     return path;
 }
 

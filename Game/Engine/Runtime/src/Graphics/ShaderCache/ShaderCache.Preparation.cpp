@@ -8,6 +8,8 @@
 #include <Runtime/Json.hpp>
 #include <SFML/Graphics/GraphicsBackend.hpp>
 #include <SFML/Window/Context.hpp>
+#include <BackgroundTask.hpp>
+#include <PersistentStorage.hpp>
 #include <Sha256.hpp>
 #include <StringUtils.hpp>
 #include <Utf8Path.hpp>
@@ -244,7 +246,9 @@ void ShaderCache::Impl::prepare(const std::filesystem::path& userDataRoot,
                                 const std::atomic<bool>& stop,
                                 const std::function<void(double)>& progress) {
     checkCancelled(stop);
+#ifndef __EMSCRIPTEN__
     std::lock_guard preparationLock(preparationMutex);
+#endif
     checkCancelled(stop);
     const auto device = sf::rhi::getDevice();
     if (!device) {
@@ -262,6 +266,7 @@ void ShaderCache::Impl::prepare(const std::filesystem::path& userDataRoot,
     const auto language = targetLanguage(backend);
     const auto extension = targetExtension(backend);
     std::unique_ptr<sf::Context> context;
+#ifndef __EMSCRIPTEN__
     if (backend == sf::GraphicsBackend::OpenGLES) {
         sf::ContextSettings settings;
         settings.backend = sf::OpenGLESSettings{3, 0};
@@ -271,6 +276,7 @@ void ShaderCache::Impl::prepare(const std::filesystem::path& userDataRoot,
                 "Cannot activate the shader preparation context");
         }
     }
+#endif
     std::string profile;
     std::string compiler;
 #if defined(_WIN32)
@@ -362,6 +368,7 @@ void ShaderCache::Impl::prepare(const std::filesystem::path& userDataRoot,
     };
     std::size_t completed = 0;
     for (const auto& input : inputs) {
+        ludork::standard::BackgroundTask::yield();
         checkCancelled(stop);
         if (input.source.stages.empty()) {
             throw std::invalid_argument(
@@ -702,6 +709,7 @@ void ShaderCache::Impl::prepare(const std::filesystem::path& userDataRoot,
             });
         encryptData = encryptMetadata;
     }
+    ludork::standard::persistStorage(userDataRoot);
     progress(1.0);
 }
 

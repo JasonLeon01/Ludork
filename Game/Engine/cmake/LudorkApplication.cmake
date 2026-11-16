@@ -76,8 +76,14 @@ if(WIN32)
 else()
     list(APPEND LUDORK_APPLICATION_SOURCES
         "${LUDORK_APPLICATION_ROOT}/src/Platform/Default/EmbeddedHost.cpp"
-        "${LUDORK_APPLICATION_ROOT}/src/Platform/Default/StartupErrorDisplay.cpp"
         "${LUDORK_APPLICATION_ROOT}/src/Platform/Posix/UserDataEnvironment.cpp")
+    if(EMSCRIPTEN)
+        list(APPEND LUDORK_APPLICATION_SOURCES
+            "${LUDORK_APPLICATION_ROOT}/src/Platform/Web/StartupErrorDisplay.cpp")
+    else()
+        list(APPEND LUDORK_APPLICATION_SOURCES
+            "${LUDORK_APPLICATION_ROOT}/src/Platform/Default/StartupErrorDisplay.cpp")
+    endif()
 endif()
 
 if(APPLE)

@@ -232,7 +232,8 @@ void MaterialCacheRequest::Impl::generate(const Inputs& inputs,
                 }
                 std::filesystem::create_directories(destination.parent_path());
                 if (relative.extension() == ".ldc") {
-                    saveData(destination, parseJSONText(text));
+                    ludork::runtime::writeDataFile(destination,
+                                                   parseJSONText(text));
                 } else if (relative.extension() == ".vertc" ||
                            relative.extension() == ".fragc") {
                     const ludork::standard::EncryptedPayloadFormat format{
@@ -272,10 +273,11 @@ void MaterialCacheRequest::Impl::generate(const Inputs& inputs,
                 "Material inputs changed during preparation; restart "
                 "initialization");
         }
-        saveData(staging / (inputs.encryptData ? "cache.ldc" : "cache.json"),
-                 RuntimeData(RuntimeData::Map{
-                     {"identity", inputs.identity()},
-                     {"outputs", RuntimeData(std::move(outputs))}}));
+        ludork::runtime::writeDataFile(
+            staging / (inputs.encryptData ? "cache.ldc" : "cache.json"),
+            RuntimeData(RuntimeData::Map{
+                {"identity", inputs.identity()},
+                {"outputs", RuntimeData(std::move(outputs))}}));
         checkCancelled(stop);
         if (std::filesystem::exists(cacheRoot)) {
             ludork::runtime::CacheFiles::rename(cacheRoot, backup, stop);

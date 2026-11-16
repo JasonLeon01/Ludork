@@ -163,7 +163,7 @@ function Controller:refreshShortcuts()
         end
         button:setTexture(IconTexture.Load(icon), true)
         button:setCanReceiveFocus(false)
-        if LUDORK_MOBILE then
+        if LUDORK_MOBILE or PLATFORM == "web" then
             -- Template reflow fits each source texture to the authored 32px cell.
             local touchScale = button:getLocalBounds().size / 32
             button:setTouchHitBounds(

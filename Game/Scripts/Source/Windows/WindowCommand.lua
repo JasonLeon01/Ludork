@@ -19,10 +19,16 @@ function Controller:init(commands)
         self.ui.assets["TitleCommand1"], self.ui.assets["TitleCommand2"], self.ui.assets["TitleCommand3"],
         self.ui.assets["TitleCommand4"]
     }
-    assert(#commands == #rows, "Title commands must match the authored rows")
+    local commandCount = #commands
+    assert(commandCount == 3 or commandCount == #rows, "Title commands require three or four authored rows")
     for index, row in ipairs(rows) do
-        local controller = CommandRowController.new(assert(commands[index]), row)
-        self._rows[#self._rows + 1] = controller
+        if index <= commandCount then
+            local controller = CommandRowController.new(assert(commands[index]), row)
+            self._rows[#self._rows + 1] = controller
+        else
+            row.root:setVisible(false)
+            self.ui.controls["CommandList"]:removeChild(row.root)
+        end
     end
 end
 

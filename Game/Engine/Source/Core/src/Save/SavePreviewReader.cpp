@@ -3,6 +3,7 @@
 
 #include "SavePreviewReaderImpl.hpp"
 #include <Utf8Path.hpp>
+#include <BackgroundTask.hpp>
 
 #include <filesystem>
 #include <stdexcept>
@@ -28,6 +29,7 @@ void SavePreviewReader::requestScan(const std::vector<std::string>& paths) {
         std::optional<std::filesystem::file_time_type> latest;
         try {
             for (std::size_t index = 0; index < paths.size(); ++index) {
+                ludork::standard::BackgroundTask::yield();
                 if (impl->scanSequence != sequence) {
                     return;
                 }

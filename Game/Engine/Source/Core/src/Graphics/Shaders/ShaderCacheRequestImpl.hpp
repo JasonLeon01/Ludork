@@ -5,7 +5,7 @@
 #include <atomic>
 #include <exception>
 #include <mutex>
-#include <thread>
+#include <BackgroundTask.hpp>
 
 namespace ludork::engine::shaders {
 
@@ -23,7 +23,7 @@ struct ShaderCacheRequest::Impl {
     std::exception_ptr failure;
     std::atomic<double> progress = 0.0;
     std::atomic<bool> stop = false;
-    std::thread worker;
+    ludork::standard::BackgroundTask worker;
 };
 
 }  // namespace ludork::engine::shaders

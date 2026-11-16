@@ -1,9 +1,11 @@
 #include <Runtime/CacheFileLock.hpp>
 #include <Runtime/CacheFiles.hpp>
+#include <BackgroundTask.hpp>
 
 #include <cerrno>
 #include <chrono>
 #include <stdexcept>
+#include <set>
 #include <system_error>
 #include <thread>
 
@@ -12,7 +14,7 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
-#else
+#elif !defined(__EMSCRIPTEN__)
 #include <fcntl.h>
 #include <sys/file.h>
 #include <unistd.h>
@@ -20,11 +22,23 @@
 
 namespace ludork::runtime {
 
+#ifdef __EMSCRIPTEN__
+namespace {
+std::set<std::filesystem::path> webLocks;
+}
+#endif
+
 CacheFileLock::CacheFileLock(const std::filesystem::path& path,
                              const std::atomic<bool>& stop) {
     CacheFiles::requireOrdinary(path);
     while (!stop.load()) {
-#if defined(_WIN32)
+#if defined(__EMSCRIPTEN__)
+        webKey_ = path.lexically_normal();
+        if (webLocks.insert(webKey_).second) {
+            handle_ = 0;
+            return;
+        }
+#elif defined(_WIN32)
         HANDLE file = CreateFileW(
             path.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_ALWAYS,
             FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
@@ -62,14 +76,21 @@ CacheFileLock::CacheFileLock(const std::filesystem::path& path,
                                     "Cannot lock cache");
         }
 #endif
+#ifdef __EMSCRIPTEN__
+        ludork::standard::BackgroundTask::poll();
+        ludork::standard::BackgroundTask::yield();
+#else
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
+#endif
     }
     throw std::runtime_error("Cache preparation was cancelled");
 }
 
 CacheFileLock::~CacheFileLock() {
     if (handle_ != -1) {
-#if defined(_WIN32)
+#if defined(__EMSCRIPTEN__)
+        webLocks.erase(webKey_);
+#elif defined(_WIN32)
         CloseHandle(reinterpret_cast<HANDLE>(handle_));
 #else
         ::flock(static_cast<int>(handle_), LOCK_UN);

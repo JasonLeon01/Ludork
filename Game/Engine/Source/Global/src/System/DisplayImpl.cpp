@@ -8,6 +8,8 @@
 #include "Platform/EmbeddedTextInputHostImpl.hpp"
 #if defined(SFML_SYSTEM_IOS)
 #include "Platform/TextInputHostIOS.hpp"
+#elif defined(__EMSCRIPTEN__)
+#include "Platform/WebTextInputHost.hpp"
 #endif
 #include <Input/TextInputService.hpp>
 #include "Diagnostics/PerformanceProfiler.hpp"
@@ -156,11 +158,16 @@ void DisplayImpl::createDisplayWindow() {
             ludork::global::runtimeWindowStyle(), sf::State::Fullscreen,
             windowContextSettings_);
     } else {
+#if defined(__EMSCRIPTEN__)
+        desktopFullscreen_ = false;
+        const sf::Vector2u windowSize = getGameSize();
+#else
         const float configuredScale = Display::getConfiguredScale();
         desktopFullscreen_ = configuredScale == 0.0f;
         const sf::Vector2u windowSize =
             desktopFullscreen_ ? sf::VideoMode::getDesktopMode().size
                                : windowSizeForScale(configuredScale);
+#endif
         window = std::make_shared<sf::RenderWindow>(
             sf::VideoMode(windowSize), windowTitle_,
             desktopFullscreen_ ? sf::Style::None
@@ -190,6 +197,9 @@ void DisplayImpl::initializeInput() {
 #if defined(SFML_SYSTEM_IOS)
     ludork::engine::text_input::service().setHost(
         ludork::global::createIosTextInputHost(window_->getNativeHandle()));
+#elif defined(__EMSCRIPTEN__)
+    ludork::engine::text_input::service().setHost(
+        ludork::global::createWebTextInputHost(window_->getNativeHandle()));
 #elif defined(_WIN32) || (defined(__APPLE__) && !defined(LUDORK_MOBILE))
     if (isEmbeddedDisplay()) {
         ludork::engine::text_input::service().setHost(
@@ -233,6 +243,9 @@ bool DisplayImpl::isMobileDisplay() {
 }
 
 bool DisplayImpl::isDisplayScaleConfigurable() {
+#if defined(__EMSCRIPTEN__)
+    return false;
+#else
     if (isEmbeddedDisplay()) {
         return false;
     }
@@ -240,6 +253,7 @@ bool DisplayImpl::isDisplayScaleConfigurable() {
         return true;
     }
     return ludork::global::native_display_host::isDisplayScaleConfigurable();
+#endif
 }
 
 float DisplayImpl::windowFitScale(const sf::Vector2u& size) {
@@ -392,6 +406,10 @@ void DisplayImpl::updateWindowViewport(const sf::Vector2u& renderSize) {
 }
 
 std::optional<float> DisplayImpl::applyConfiguredScale(float scale) {
+#if defined(__EMSCRIPTEN__)
+    static_cast<void>(scale);
+    return std::nullopt;
+#else
     if (window_ == nullptr || isEmbeddedDisplay()) {
         return std::nullopt;
     }
@@ -430,6 +448,7 @@ std::optional<float> DisplayImpl::applyConfiguredScale(float scale) {
     pendingResizeScale_.reset();
     pendingClientSizeChange_ = false;
     return windowFitScale(observedWindowSize_);
+#endif
 }
 
 std::optional<float> DisplayImpl::observeWindowResize(

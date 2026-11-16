@@ -13,7 +13,16 @@ namespace {
 
 using ButtonEntry = std::pair<std::string_view, int>;
 
-#if defined(SFML_SYSTEM_MACOS)
+#if defined(__EMSCRIPTEN__)
+
+constexpr std::array<ButtonEntry, 12> PlatformButtons = {
+    ButtonEntry{"A", 0},    ButtonEntry{"B", 1},     ButtonEntry{"X", 2},
+    ButtonEntry{"Y", 3},    ButtonEntry{"LB", 4},    ButtonEntry{"RB", 5},
+    ButtonEntry{"View", 8}, ButtonEntry{"Menu", 9},  ButtonEntry{"LS", 10},
+    ButtonEntry{"RS", 11},  ButtonEntry{"XBox", 16}, ButtonEntry{"Share", 17},
+};
+
+#elif defined(SFML_SYSTEM_MACOS)
 
 constexpr std::array<ButtonEntry, 12> PlatformButtons = {
     ButtonEntry{"A", 0},     ButtonEntry{"B", 1},     ButtonEntry{"X", 3},
@@ -53,7 +62,8 @@ constexpr std::array<ButtonEntry, 11> PlayStationDesktopButtons = {
 }  // namespace
 
 std::optional<InputNamedValue> JoystickButton::get(const std::string& name) {
-#if defined(SFML_SYSTEM_ANDROID) || defined(SFML_SYSTEM_HARMONY)
+#if defined(SFML_SYSTEM_ANDROID) || defined(SFML_SYSTEM_HARMONY) || \
+    defined(__EMSCRIPTEN__)
     if (name == "Share") {
         return std::nullopt;
     }

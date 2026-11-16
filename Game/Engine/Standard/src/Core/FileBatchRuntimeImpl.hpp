@@ -9,7 +9,7 @@
 #include <deque>
 #include <memory>
 #include <mutex>
-#include <thread>
+#include <BackgroundTask.hpp>
 #include <vector>
 
 namespace ludork::standard {
@@ -61,7 +61,7 @@ private:
     std::mutex queueMutex_;
     std::condition_variable workReady_;
     std::deque<WorkItem> work_;
-    std::vector<std::thread> workers_;
+    std::vector<ludork::standard::BackgroundTask> workers_;
     std::vector<std::weak_ptr<FileBatchJob>> jobs_;
     FileBatchDataRuntime dataRuntime_;
 };

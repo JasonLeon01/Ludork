@@ -1,5 +1,6 @@
 #include <Graphics/Materials/MaterialCacheRequest.hpp>
 #include "MaterialCacheRequestImpl.hpp"
+#include <PersistentStorage.hpp>
 
 #include <stdexcept>
 
@@ -59,6 +60,7 @@ MaterialCacheRequest::Impl::~Impl() {
 
 void MaterialCacheRequest::Impl::checkCancelled(
     const std::atomic<bool>& stop) const {
+    ludork::standard::BackgroundTask::yield();
     if (stop.load()) {
         throw std::runtime_error("Material cache preparation was cancelled");
     }
@@ -67,6 +69,7 @@ void MaterialCacheRequest::Impl::checkCancelled(
 void MaterialCacheRequest::Impl::run(const std::atomic<bool>& stop) noexcept {
     try {
         prepare(stop);
+        ludork::standard::persistStorage(userDataRoot);
         std::lock_guard lock(mutex);
         progress = 1.0;
         status = "ready";

@@ -8,7 +8,9 @@
 #include <SFML/Main.hpp>
 #endif
 
-#if defined(SFML_SYSTEM_ANDROID)
+#if defined(SFML_SYSTEM_EMSCRIPTEN)
+#include "MainWeb.hpp"
+#elif defined(SFML_SYSTEM_ANDROID)
 #include "MainAndroid.hpp"
 #elif defined(SFML_SYSTEM_IOS)
 #include "MainIOS.hpp"

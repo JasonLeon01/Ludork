@@ -4,6 +4,9 @@
 #include <Input/InjectedInputEvent.hpp>
 
 #include "Platform/PlatformInputBridge.hpp"
+#if defined(__EMSCRIPTEN__)
+#include "Platform/WebInputBridge.hpp"
+#endif
 
 #include <EngineState.hpp>
 #include <Input/TextInputService.hpp>
@@ -245,6 +248,11 @@ void InputImpl::setPointerViewport(std::optional<sf::IntRect> viewport) {
 }
 
 void InputImpl::onWindowRecreated(sf::RenderWindow& window) {
+#if defined(__EMSCRIPTEN__)
+    modal_.cancelNativeTouchGesture();
+    ludork::engine::platform_input::detachWebTouchCancellation();
+    ludork::engine::platform_input::attachWebTouchCancellation(window);
+#endif
     ludork::engine::text_input::service().close();
     resetFrameState();
     clearKeyboardState();
@@ -489,6 +497,14 @@ bool InputImpl::processNativeEvent(sf::RenderWindow& window,
         setFocused(true);
     }
     std::optional<sf::Vector2i> touchPixel;
+#if defined(__EMSCRIPTEN__)
+    if (event.is<sf::Event::TouchEnded>() &&
+        ludork::engine::platform_input::consumeWebTouchCancellation()) {
+        abortTwoFingerCancel();
+        cancelTouchGesture();
+        modal_.cancelNativeTouchGesture();
+    }
+#endif
     if (const auto* touch = event.getIf<sf::Event::TouchBegan>()) {
         touchPixel = touch->position;
     } else if (const auto* touch = event.getIf<sf::Event::TouchMoved>()) {

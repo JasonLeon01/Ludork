@@ -5,7 +5,7 @@
 #include <Runtime/RuntimeDataReader.hpp>
 #include <Runtime/RuntimeReference.hpp>
 
-#if defined(LUDORK_SERVER_AVAILABLE)
+#if defined(LUDORK_SERVER_AVAILABLE) && !defined(__EMSCRIPTEN__)
 #include <ixwebsocket/IXNetSystem.h>
 #endif
 
@@ -77,7 +77,7 @@ void validateJsonDepth(const std::string& bytes) {
 }  // namespace
 
 NetTransportImpl::NetTransportImpl() {
-#if defined(LUDORK_SERVER_AVAILABLE)
+#if defined(LUDORK_SERVER_AVAILABLE) && !defined(__EMSCRIPTEN__)
     if (!ix::initNetSystem()) {
         throw std::runtime_error("Could not initialize the network transport.");
     }
@@ -102,7 +102,7 @@ NetTransportImpl::~NetTransportImpl() {
     }
     pending_.clear();
     buses_.clear();
-#if defined(LUDORK_SERVER_AVAILABLE)
+#if defined(LUDORK_SERVER_AVAILABLE) && !defined(__EMSCRIPTEN__)
     ix::uninitNetSystem();
 #endif
 }
@@ -187,44 +187,24 @@ void NetTransportImpl::ensureStarted() {
 void NetTransportImpl::startConnection() {
 #if defined(LUDORK_SERVER_AVAILABLE)
     std::string url = ludork::generated::server::Url;
-    if (!url.starts_with("http://")) {
+    const bool secure = url.starts_with("https://");
+    if (!url.starts_with("http://") && !secure) {
         throw std::invalid_argument("The compiled server URL is invalid.");
     }
+#if !defined(__EMSCRIPTEN__)
+    if (secure) {
+        throw std::invalid_argument("The native server URL requires HTTP.");
+    }
+#endif
     while (url.ends_with('/')) {
         url.pop_back();
     }
-    socket_ = std::make_unique<ix::WebSocket>();
-    socket_->setUrl("ws://" + url.substr(7) + "/api/v1/net");
-    socket_->setExtraHeaders(
-        {{"X-Ludork-Key", ludork::generated::server::Key}});
-    socket_->disablePerMessageDeflate();
-    socket_->disableAutomaticReconnection();
-    socket_->setHandshakeTimeout(10);
-    socket_->setPingInterval(15);
     const std::uint64_t generation = ++generation_;
-    socket_->setOnMessageCallback(
-        [this, generation](const ix::WebSocketMessagePtr& message) {
-            Notification notification;
-            notification.generation = generation;
-            if (message->type == ix::WebSocketMessageType::Open) {
-                notification.kind = Notification::Kind::Open;
-            } else if (message->type == ix::WebSocketMessageType::Message) {
-                notification.kind = Notification::Kind::Message;
-                notification.binary = message->binary;
-                if (message->str.size() > NetValueCodecImpl::MaxMessageBytes) {
-                    std::lock_guard lock(inboundMutex_);
-                    inboundOverflow_ = true;
-                    return;
-                }
-                notification.bytes = message->str;
-            } else if (message->type == ix::WebSocketMessageType::Close) {
-                notification.kind = Notification::Kind::Close;
-            } else if (message->type == ix::WebSocketMessageType::Error) {
-                notification.kind = Notification::Kind::Error;
-                notification.status = message->errorInfo.http_status;
-            } else {
-                return;
-            }
+    socket_ = std::make_unique<NetSocketImpl>(
+        (secure ? "wss://" : "ws://") + url.substr(secure ? 8 : 7) +
+            "/api/v1/net",
+        generation, NetValueCodecImpl::MaxMessageBytes,
+        [this](Notification notification) {
             queueNotification(std::move(notification));
         });
     reconnectPending_ = false;
@@ -332,7 +312,8 @@ bool NetTransportImpl::unsubscribe(const std::string& module,
 
 void NetTransportImpl::queueNotification(Notification notification) {
     std::lock_guard lock(inboundMutex_);
-    if (inbound_.size() >= MaxQueueCount ||
+    if (notification.kind == Notification::Kind::Overflow ||
+        inbound_.size() >= MaxQueueCount ||
         notification.bytes.size() > MaxQueueBytes - inboundBytes_) {
         inboundOverflow_ = true;
         return;
@@ -408,7 +389,7 @@ void NetTransportImpl::connectionFailure(const std::string& code,
     reconnectPending_ = true;
     reconnectAt_ = Clock::now() + std::chrono::seconds(1);
 #if defined(LUDORK_SERVER_AVAILABLE)
-    if (socket_ && socket_->getReadyState() == ix::ReadyState::Open) {
+    if (socket_ && socket_->getReadyState() != NetSocketImpl::State::Closed) {
         socket_->close();
     }
 #endif
@@ -434,30 +415,51 @@ void NetTransportImpl::connectionFailure(const std::string& code,
 
 std::function<void()> NetTransportImpl::process(
     const Notification& notification) {
-    if (notification.generation < generation_) {
+    if (notification.generation != generation_ ||
+        (reconnectPending_ &&
+         (notification.kind == Notification::Kind::Open ||
+          notification.kind == Notification::Kind::Message))) {
         return {};
     }
     if (notification.kind == Notification::Kind::Open) {
         generation_ = notification.generation;
         ready_ = false;
-        handshakeDeadline_ = Clock::now() + std::chrono::seconds(10);
+#if defined(LUDORK_SERVER_AVAILABLE)
+        const std::string authentication =
+            stringifyJSON(RuntimeData(RuntimeData::Map{
+                {"type", RuntimeData("auth")},
+                {"key", RuntimeData(ludork::generated::server::Key)}}));
+        if (!socket_ || !socket_->sendText(authentication)) {
+            return [this] {
+                connectionFailure(
+                    "ConnectionFailed",
+                    "The server authentication could not be sent.");
+            };
+        }
+#endif
     } else if (notification.kind == Notification::Kind::Message) {
         if (notification.generation != generation_ || notification.binary) {
             throw std::invalid_argument(
                 "Invalid network message generation or encoding.");
         }
         return processMessage(notification.bytes);
-    } else if (notification.kind == Notification::Kind::Error &&
-               (notification.status == 401 || notification.status == 403)) {
+    } else if ((notification.kind == Notification::Kind::Close &&
+                notification.status == 4401) ||
+               (notification.kind == Notification::Kind::Error &&
+                (notification.status == 401 || notification.status == 403))) {
         authenticationFailed_ = true;
         return [this] {
             connectionFailure("AuthenticationFailed",
                               "The server rejected the project key.");
         };
     } else {
-        return [this] {
-            connectionFailure("ConnectionFailed",
-                              "The server connection was lost.");
+        const std::string message =
+            notification.kind == Notification::Kind::Error &&
+                    !notification.bytes.empty()
+                ? notification.bytes
+                : "The server connection was lost.";
+        return [this, message] {
+            connectionFailure("ConnectionFailed", message);
         };
     }
     return {};
@@ -556,7 +558,7 @@ std::function<void()> NetTransportImpl::processMessage(
 void NetTransportImpl::flushOutgoing() {
 #if defined(LUDORK_SERVER_AVAILABLE)
     if (!ready_ || !socket_ ||
-        socket_->getReadyState() != ix::ReadyState::Open) {
+        socket_->getReadyState() != NetSocketImpl::State::Open) {
         return;
     }
     for (const std::shared_ptr<Pending>& pending : pending_) {
@@ -572,7 +574,7 @@ void NetTransportImpl::flushOutgoing() {
         }
         pending->sent = true;
         pending->generation = generation_;
-        if (!socket_->sendText(pending->bytes).success) {
+        if (!socket_->sendText(pending->bytes)) {
             connectionFailure("ConnectionFailed",
                               "The server request could not be sent.");
             return;
@@ -637,8 +639,7 @@ void NetTransportImpl::poll() {
         }
     }
 #if defined(LUDORK_SERVER_AVAILABLE)
-    if (!ready_ && socket_ &&
-        socket_->getReadyState() == ix::ReadyState::Open &&
+    if (!ready_ && !reconnectPending_ && socket_ &&
         Clock::now() >= handshakeDeadline_) {
         captureFailure(failure, [&] {
             connectionFailure("Timeout",
@@ -647,7 +648,7 @@ void NetTransportImpl::poll() {
         socket_->close(1002, "Protocol handshake timed out");
     }
     if (reconnectPending_ && socket_ &&
-        socket_->getReadyState() == ix::ReadyState::Closed) {
+        socket_->getReadyState() == NetSocketImpl::State::Closed) {
         socket_->stop();
         socket_.reset();
     }

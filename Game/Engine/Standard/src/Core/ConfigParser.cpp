@@ -1,3 +1,4 @@
+#include <PersistentStorage.hpp>
 #include "ConfigParser.hpp"
 #include <StringUtils.hpp>
 
@@ -200,6 +201,12 @@ void ConfigParser::write(const std::filesystem::path& path) const {
         throw std::runtime_error("Failed to write configuration file: " +
                                  pathToUtf8(path));
     }
+    output.close();
+    if (!output) {
+        throw std::runtime_error("Failed to close configuration file: " +
+                                 pathToUtf8(path));
+    }
+    persistStorage(path);
 }
 
 }  // namespace ludork::standard

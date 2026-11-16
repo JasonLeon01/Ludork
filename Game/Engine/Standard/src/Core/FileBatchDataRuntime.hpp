@@ -7,7 +7,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
-#include <thread>
+#include <BackgroundTask.hpp>
 #include <vector>
 
 namespace ludork::standard {
@@ -65,7 +65,7 @@ private:
     std::mutex disposalMutex_;
     std::condition_variable disposalReady_;
     std::deque<FileBatchDataDisposal> disposals_;
-    std::thread disposalWorker_;
+    ludork::standard::BackgroundTask disposalWorker_;
     bool disposalStopping_ = true;
 };
 

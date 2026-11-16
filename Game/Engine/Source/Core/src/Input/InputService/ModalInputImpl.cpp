@@ -369,6 +369,11 @@ void ModalInputImpl::cancelTouchConfirmation() {
     touchTravelDistance_ = 0.0f;
 }
 
+void ModalInputImpl::cancelNativeTouchGesture() {
+    nativeTouches_.clear();
+    cancelTouchConfirmation();
+}
+
 void ModalInputImpl::updateTouchTravel(const sf::Vector2i& position,
                                        float dragThreshold) {
     const sf::Vector2i delta = position - touchPosition_;

@@ -19,7 +19,7 @@ SOURCE_EXTENSIONS = {
     ".inl", ".ipp", ".m", ".mm", ".cmake", ".rc",
 }
 EXCLUDED_DIRECTORIES = {
-    "thirdparty", "thirdpartysource", "build", "bin", ".cache",
+    "thirdparty", "thirdpartysource", "build", "build-web", "bin", ".cache",
     ".git", ".vs", ".idea", ".tools", ".venv", "obj", "dist",
 }
 EXCLUDED_ROOT_DIRECTORIES = {
