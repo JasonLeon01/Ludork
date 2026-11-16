@@ -1,6 +1,7 @@
 #pragma once
 
 #include <RuntimeApi.hpp>
+#include <Runtime/Graphics/ShaderCache.hpp>
 #include <SFML/Graphics/Rect.hpp>
 #include <SFML/Graphics/Shader.hpp>
 #include <SFML/Graphics/Texture.hpp>
@@ -21,7 +22,8 @@ struct SceneLightingContext {
 
 LUDORK_RUNTIME_API const SceneLightingContext* currentSceneLighting();
 LUDORK_RUNTIME_API std::string sceneLightingGlsl(
-    const std::string& textureFunction = "texture2D");
+    const std::string& textureFunction = "texture");
+LUDORK_RUNTIME_API ShaderCache::Program sceneLightingProgram();
 LUDORK_RUNTIME_API void bindSceneLighting(sf::Shader& shader);
 LUDORK_RUNTIME_API std::shared_ptr<sf::Shader> sceneLightingShader();
 

@@ -2,7 +2,7 @@
 #include <string>
 
 namespace ludork::runtime::graphics {
-std::string emitterUpdateShader(bool embedded);
-std::string emitterDrawShader(bool embedded);
-std::string emitterFragmentShader(bool embedded, bool textured);
+std::string emitterUpdateShader();
+std::string emitterDrawShader();
+std::string emitterFragmentShader(bool textured);
 }  // namespace ludork::runtime::graphics

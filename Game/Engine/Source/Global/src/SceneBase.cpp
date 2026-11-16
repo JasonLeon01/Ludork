@@ -16,6 +16,7 @@
 #include <Manager/TextureManager.hpp>
 #include <Runtime/RuntimeReflection.hpp>
 #include <RuntimeSession.hpp>
+#include <SFML/Graphics/GraphicsBackend.hpp>
 #include <SFML/Window/Context.hpp>
 #include <System.hpp>
 #include <Utils/EventBus.hpp>
@@ -23,6 +24,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <optional>
 #include <stdexcept>
 #include <utility>
 
@@ -673,10 +675,15 @@ void SceneBase::startLogicThread() {
         try {
             // Keep the worker's context alive when shared render textures are
             // rebuilt or released by the render thread.
-            sf::Context context;
-            if (!context.setActive(true)) {
-                throw std::runtime_error(
-                    "Failed to activate the scene logic graphics context");
+            std::optional<sf::Context> context;
+            const sf::GraphicsBackend backend = sf::getGraphicsBackend();
+            if (backend == sf::GraphicsBackend::OpenGL ||
+                backend == sf::GraphicsBackend::OpenGLES) {
+                context.emplace();
+                if (!context->setActive(true)) {
+                    throw std::runtime_error(
+                        "Failed to activate the scene logic graphics context");
+                }
             }
             logicLoop();
         } catch (...) {

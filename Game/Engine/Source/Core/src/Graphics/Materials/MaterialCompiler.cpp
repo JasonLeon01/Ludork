@@ -241,31 +241,22 @@ vec3 hueShift(vec3 color, float degrees) {
 )GLSL";
 }
 
-const char* varyings() {
-    return R"GLSL(
-#ifdef GL_ES
-varying mediump vec2 v_texCoord;
-varying mediump vec4 v_tint;
-varying highp vec2 v_localPosition;
-varying highp vec2 v_worldPosition;
-#else
-varying vec2 v_texCoord;
-varying vec4 v_tint;
-varying vec2 v_localPosition;
-varying vec2 v_worldPosition;
-#endif
-)GLSL";
+std::string varyings(bool vertex) {
+    const std::string qualifier = vertex ? "out " : "in ";
+    return qualifier + "vec2 v_texCoord;\n" + qualifier + "vec4 v_tint;\n" +
+           qualifier + "vec2 v_localPosition;\n" + qualifier +
+           "vec2 v_worldPosition;\n";
 }
 
 std::string vertexSource(const MaterialCompiledStage& stage) {
-    return std::string(R"GLSL(
-attribute vec4 sf_Vertex;
-attribute vec4 sf_Color;
-attribute vec4 sf_MultiTexCoord0;
+    return std::string(R"GLSL(#version 150 core
+in vec4 sf_Vertex;
+in vec4 sf_Color;
+in vec4 sf_MultiTexCoord0;
 uniform mat4 sf_ModelViewProjectionMatrix;
 uniform mat4 sf_TextureMatrix;
 uniform mat4 u_worldTransform;
-)GLSL") + varyings() +
+)GLSL") + varyings(true) +
            commonDeclarations() + declarations(stage.uniforms) + R"GLSL(
 void main() {
     v_texCoord = (sf_TextureMatrix * sf_MultiTexCoord0).xy;
@@ -307,7 +298,7 @@ vec4 sampleSprite(vec2 uv) {
     if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) return vec4(0.0);
     uv = clamp(uv, halfPixel, vec2(1.0) - halfPixel);
     vec2 pixel = materialFrameOrigin() + uv * materialFrameExtent();
-    vec4 sampled = texture2D(u_texture, pixel / u_textureSize);
+    vec4 sampled = texture(u_texture, pixel / u_textureSize);
     if (u_premultipliedSource > 0.5 && sampled.a > 0.0) sampled.rgb /= sampled.a;
     return sampled;
 }
@@ -335,8 +326,8 @@ vec4 materialReflection(float strength) {
     vec2 sourceWorld = (cell + vec2(0.0, -1.0) + vec2(local.x, 1.0-local.y)) * u_cellSize;
     vec2 uv = worldToScreen(sourceWorld);
     if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) return vec4(0.0);
-    vec4 source = texture2D(u_reflectionSource, uv);
-    vec4 mask = texture2D(u_surfaceMask, uv);
+    vec4 source = texture(u_reflectionSource, uv);
+    vec4 mask = texture(u_surfaceMask, uv);
     float block = mask.a > 0.0 ? clamp(mask.r / mask.a, 0.0, 1.0) : 0.0;
     if (source.a > 0.0) source.rgb /= source.a;
     return vec4(source.rgb, clamp(strength * block * source.a, 0.0, 1.0));
@@ -347,8 +338,8 @@ vec4 materialReflection(float strength) {
 std::string fragmentSource(const MaterialCompiledStage& stage,
                            MaterialCompiler::Pass pass) {
     std::string source =
-        std::string("#ifdef GL_ES\nprecision highp float;\n#endif\n") +
-        varyings() + commonDeclarations() + declarations(stage.uniforms) +
+        std::string("#version 150 core\nout vec4 fragmentColor;\n") +
+        varyings(false) + commonDeclarations() + declarations(stage.uniforms) +
         fragmentHelpers() + R"GLSL(
 void main() {
     vec4 original = sampleSprite(materialUV());
@@ -369,26 +360,26 @@ void main() {
     float reflection = clamp(surface.ReflectionStrength, 0.0, 1.0);
 )GLSL";
     if (pass == MaterialCompiler::Pass::Transmission) {
-        source += "    gl_FragColor = vec4(vec3(1.0 - alpha * block), 1.0);\n";
+        source += "    fragmentColor = vec4(vec3(1.0 - alpha * block), 1.0);\n";
     } else if (pass == MaterialCompiler::Pass::Surface) {
         source +=
-            "    gl_FragColor = vec4(block, 0.0, 0.0, "
+            "    fragmentColor = vec4(block, 0.0, 0.0, "
             "alpha);\n";
     } else if (pass == MaterialCompiler::Pass::Source) {
         source +=
-            "    gl_FragColor = vec4(clamp((surface.BaseColor + "
+            "    fragmentColor = vec4(clamp((surface.BaseColor + "
             "surface.Emission) * tint.rgb, 0.0, 1.0), alpha);\n";
     } else {
         source += R"GLSL(
     vec3 light = vec3(1.0);
     if (u_lighting > 0.5) {
         vec2 uv = gl_FragCoord.xy / u_targetSize;
-        light = clamp(texture2D(u_ambientLight, uv).rgb + texture2D(u_directLight, uv).rgb, 0.0, 1.0);
+        light = clamp(texture(u_ambientLight, uv).rgb + texture(u_directLight, uv).rgb, 0.0, 1.0);
     }
     vec3 color = surface.BaseColor * mix(vec3(1.0), light, weight);
     vec4 reflected = materialReflection(reflection * weight);
     color = mix(color, reflected.rgb, reflected.a);
-    gl_FragColor = vec4(clamp((color + surface.Emission) * tint.rgb, 0.0, 1.0), alpha);
+    fragmentColor = vec4(clamp((color + surface.Emission) * tint.rgb, 0.0, 1.0), alpha);
 )GLSL";
     }
     return source + "}\n";

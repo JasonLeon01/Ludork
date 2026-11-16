@@ -1,9 +1,7 @@
 #pragma once
 
 #include "GpuResourcesImpl.hpp"
-#include "GpuGlConstants.hpp"
 
-#include <array>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -18,6 +16,7 @@ public:
         std::uint32_t aliveCount;
         double sampleTime;
     };
+    using StateBuffer = std::pair<std::shared_ptr<sf::rhi::Buffer>, int>;
 
     explicit GpuStatisticsImpl(std::shared_ptr<GpuResourcesImpl> resources);
     ~GpuStatisticsImpl();
@@ -25,57 +24,24 @@ public:
     GpuStatisticsImpl& operator=(const GpuStatisticsImpl&) = delete;
 
     bool available() const;
-    bool submit(const std::vector<std::pair<unsigned int, int>>& stateBuffers,
+    bool submit(const std::vector<StateBuffer>& stateBuffers,
                 double simulationTime, bool force = false);
     std::optional<Sample> poll();
 
 private:
     static constexpr double MinimumSampleInterval = 0.25;
 
-    static constexpr std::array<unsigned int, 7> DisabledCapabilities{
-        gpu_gl::ScissorTest,   gpu_gl::DepthTest, gpu_gl::StencilTest,
-        gpu_gl::CullFace,      gpu_gl::Dither,    gpu_gl::SampleAlphaToCoverage,
-        gpu_gl::SampleCoverage};
-    static constexpr std::array<unsigned int, 4> PackParameters{
-        gpu_gl::PackAlignment, gpu_gl::PackRowLength, gpu_gl::PackSkipRows,
-        gpu_gl::PackSkipPixels};
-    struct StateGuard {
-        explicit StateGuard(GpuApi& api);
-        ~StateGuard();
-
-        GpuApi& api;
-        GpuStateGuard base;
-        int drawFramebuffer = 0;
-        int readFramebuffer = 0;
-        int packBuffer = 0;
-        int unpackBuffer = 0;
-        std::array<int, PackParameters.size()> packSettings{};
-        std::array<float, 4> clearColour{};
-        std::array<unsigned char, 4> colourMask{};
-        std::array<bool, DisabledCapabilities.size()> enables{};
-        bool srgb = false;
-        bool alphaTest = false;
-        bool pointSmooth = false;
-        bool pointSize = false;
-        bool logicOp = false;
-    };
-
     void reserve(int size);
-    void attach(unsigned int texture, int size);
-    void destroy() noexcept;
 
     std::shared_ptr<GpuResourcesImpl> resources_;
-    unsigned int maskProgram_ = 0;
-    unsigned int reductionProgram_ = 0;
-    int maskSide_ = -1;
-    int maskBase_ = -1;
-    int reductionSide_ = -1;
-    int reductionSource_ = -1;
-    unsigned int framebuffer_ = 0;
-    std::array<unsigned int, 2> textures_{};
-    unsigned int readback_ = 0;
+    std::shared_ptr<sf::Shader> maskShader_;
+    std::shared_ptr<sf::Shader> reductionShader_;
+    std::shared_ptr<sf::rhi::ShaderProgram> maskProgram_;
+    std::shared_ptr<sf::rhi::ShaderProgram> reductionProgram_;
+    std::vector<std::shared_ptr<sf::rhi::Texture>> textures_;
+    std::vector<std::shared_ptr<sf::rhi::RenderTarget>> targets_;
+    std::shared_ptr<sf::rhi::Readback> readback_;
     int size_ = 0;
-    void* fence_ = nullptr;
     double pendingTime_ = 0;
     std::optional<double> lastSubmitTime_;
     std::optional<Sample> zeroSample_;

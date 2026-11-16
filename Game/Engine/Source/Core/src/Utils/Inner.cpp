@@ -1,4 +1,5 @@
 #include <Utils/Inner.hpp>
+#include <Runtime/Graphics/ShaderCache.hpp>
 #include <ConfigParser.hpp>
 #include <StringUtils.hpp>
 
@@ -163,6 +164,7 @@ void setAppName(const std::string& value) {
     ludork::runtime::assetStore().setUserDataRoot(root);
     ludork::runtime::dataStore().setUserDataRoot(root);
     ludork::runtime::scriptStore().setUserDataRoot(root);
+    ludork::runtime::graphics::ShaderCache::loadPipelineCache(root);
 }
 
 const std::string& getAppName() {

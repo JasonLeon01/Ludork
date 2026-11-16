@@ -4,7 +4,7 @@ import pathlib
 
 
 _DEPENDENCY_NAMES = (
-    "flac", "freetype", "harfbuzz", "libssh2", "ludork_utf8proc", "mbedtls", "ogg", "sheenbidi", "vorbis",
+    "flac", "freetype", "harfbuzz", "libssh2", "ludork_utf8proc", "ludork_glslang", "ludork_spirv_cross", "mbedtls", "ogg", "sheenbidi", "vorbis",
 )
 _COMMON_CACHE_DIRECTORIES = ("build/_deps", "build/Release/_deps", "build/Debug/_deps")
 

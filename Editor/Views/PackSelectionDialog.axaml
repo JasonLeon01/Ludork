@@ -34,13 +34,6 @@
                         <RadioButton x:Name="HarmonyMobileOption"
                                      GroupName="HarmonyDeviceForm" IsChecked="True" />
                         <RadioButton x:Name="HarmonyTwoInOneOption" GroupName="HarmonyDeviceForm" />
-                        <StackPanel x:Name="HarmonyGraphicsApiPanel" Margin="28,0,0,0"
-                                    IsVisible="False" Spacing="4">
-                            <TextBlock x:Name="HarmonyGraphicsApiText" />
-                            <RadioButton x:Name="HarmonyOpenGLOption"
-                                         GroupName="HarmonyGraphicsApi" IsChecked="True" />
-                            <RadioButton x:Name="HarmonyOpenGLESOption" GroupName="HarmonyGraphicsApi" />
-                        </StackPanel>
                         <CheckBox x:Name="HarmonySigningOption" IsChecked="False" />
                         <CheckBox x:Name="ExportToHarmonyDeviceOption" IsChecked="False" />
                     </StackPanel>

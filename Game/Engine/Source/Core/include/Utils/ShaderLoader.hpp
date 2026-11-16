@@ -25,6 +25,7 @@ public:
         std::string source;
         std::string resolvedPath;
         std::string error;
+        std::string sourceHash;
 
         explicit operator bool() const noexcept {
             return error.empty();

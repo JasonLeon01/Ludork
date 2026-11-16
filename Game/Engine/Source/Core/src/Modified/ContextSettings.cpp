@@ -1,19 +1,18 @@
 #include <Modified/ContextSettings.hpp>
 
 #include <stdexcept>
+#include <type_traits>
 
 ModifiedContextSettings::ModifiedContextSettings(
     unsigned int depthBits, unsigned int stencilBits,
-    unsigned int antiAliasingLevel, unsigned int majorVersion,
-    unsigned int minorVersion, unsigned int attributeFlags, bool sRgbCapable)
+    unsigned int antiAliasingLevel, bool sRgbCapable,
+    const sf::ContextSettings::BackendSettings& backend)
     : sf::ContextSettings{} {
     this->depthBits = depthBits;
     this->stencilBits = stencilBits;
     this->antiAliasingLevel = antiAliasingLevel;
-    this->majorVersion = majorVersion;
-    this->minorVersion = minorVersion;
-    this->attributeFlags = attributeFlags;
     this->sRgbCapable = sRgbCapable;
+    this->backend = backend;
 }
 
 ModifiedContextSettings::ModifiedContextSettings(
@@ -25,13 +24,20 @@ ModifiedContextSettings::ModifiedContextSettings(
             stencilBits = std::get<unsigned int>(value);
         } else if (field == "antiAliasingLevel") {
             antiAliasingLevel = std::get<unsigned int>(value);
-        } else if (field == "majorVersion") {
-            majorVersion = std::get<unsigned int>(value);
-        } else if (field == "minorVersion") {
-            minorVersion = std::get<unsigned int>(value);
-        } else if (field == "attributeFlags") {
-            attributeFlags = static_cast<sf::ContextSettings::Attribute>(
-                std::get<unsigned int>(value));
+        } else if (field == "backend") {
+            std::visit(
+                [this](const auto& settings) {
+                    if constexpr (std::is_constructible_v<
+                                      sf::ContextSettings::BackendSettings,
+                                      decltype(settings)>) {
+                        backend = settings;
+                    } else {
+                        throw std::invalid_argument(
+                            "ContextSettings.backend requires backend settings "
+                            "or nil");
+                    }
+                },
+                value);
         } else if (field == "sRgbCapable") {
             sRgbCapable = std::get<bool>(value);
         } else {

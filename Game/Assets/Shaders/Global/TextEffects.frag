@@ -1,12 +1,9 @@
-#ifdef GL_ES
-precision highp float;
-varying mediump vec4 sf_FrontColor;
-varying mediump vec4 sf_TexCoord0;
-#else
-varying vec4 sf_FrontColor;
-varying vec4 sf_TexCoord0;
-#endif
+#version 150 core
+out vec4 fragmentColor;
+in vec4 sf_FrontColor;
+in vec4 sf_TexCoord0;
 
+vec4 sampleTexture(sampler2D image, vec2 uv) { return texture(image, uv); }
 uniform sampler2D texture;
 uniform sampler2D outlineTexture;
 uniform sampler2D curveTexture;
@@ -29,8 +26,8 @@ vec4 straightColor(vec4 sampleColor)
 
 float combinedAlpha(vec2 uv)
 {
-    float fillAlpha = texture2D(texture, uv).a;
-    float outlineAlpha = texture2D(outlineTexture, uv).a;
+    float fillAlpha = sampleTexture(texture, uv).a;
+    float outlineAlpha = sampleTexture(outlineTexture, uv).a;
     return max(fillAlpha, outlineAlpha);
 }
 
@@ -73,8 +70,8 @@ vec4 over(vec4 foreground, vec4 background)
 void main()
 {
     vec2 uv = sf_TexCoord0.xy;
-    vec4 fill = straightColor(texture2D(texture, uv));
-    vec4 outline = straightColor(texture2D(outlineTexture, uv));
+    vec4 fill = straightColor(sampleTexture(texture, uv));
+    vec4 outline = straightColor(sampleTexture(outlineTexture, uv));
 
     if (gradientEnabled)
     {
@@ -90,7 +87,7 @@ void main()
             0.0,
             1.0);
         vec4 gradientColor =
-            texture2D(curveTexture, vec2(percent, 0.5));
+            sampleTexture(curveTexture, vec2(percent, 0.5));
         fill *= gradientColor;
     }
 
@@ -98,5 +95,5 @@ void main()
                      sampleGlow(uv) * glowColor.a);
     vec4 result = over(fill, over(outline, glow));
     result *= sf_FrontColor;
-    gl_FragColor = result;
+    fragmentColor = result;
 }

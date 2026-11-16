@@ -4,6 +4,8 @@
 #include "System/FramePipelineImpl.hpp"
 #include "System/Config/DisplayConfigImpl.hpp"
 #include <GlobalRuntimeApi.hpp>
+#include <Runtime/Graphics/ShaderCache.hpp>
+#include <Utils/Render.hpp>
 
 float Display::getScale() {
     return ludork::global::system_impl::DisplayConfigImpl::getScale();
@@ -86,7 +88,9 @@ void Display::initializeDisplay(const std::string& title,
     ludork::global::system_impl::lifecycleImpl().setDebugMode(
         ludork::global::runtimeLaunchOptions().editor);
     ludork::global::system_impl::displayImpl().createDisplayWindow();
-    ludork::global::system_impl::framePipelineImpl().initializeGraphics();
+    ludork::runtime::graphics::ShaderCache::setWindowSettings(
+        ludork::global::system_impl::displayImpl().getWindow()->getSettings(),
+        {premultipliedRenderStates().blendMode});
     ludork::global::system_impl::displayImpl().initializeInput();
     ludork::global::system_impl::framePipelineImpl().initCanvas(
         ludork::global::system_impl::displayImpl().renderSizeForScale(

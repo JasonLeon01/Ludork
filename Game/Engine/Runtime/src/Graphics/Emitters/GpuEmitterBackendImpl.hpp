@@ -13,12 +13,11 @@ namespace ludork::runtime::graphics {
 
 struct GpuEmitterBackend::Impl {
 private:
-    static constexpr double NanosecondsPerMillisecond = 1000000;
     static constexpr std::size_t MaximumPendingQueries = 16;
 
 public:
     struct Query {
-        unsigned int id = 0;
+        std::shared_ptr<sf::rhi::Timer> timer;
         bool pending = false;
         bool simulation = false;
         std::int64_t sample = 0;

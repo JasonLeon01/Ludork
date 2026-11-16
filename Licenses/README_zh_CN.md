@@ -31,3 +31,5 @@ MinGW 构建的 Windows 游戏保留 [NativeDependencies/MinGW-RUNTIME-NOTICE.md
 | `SharpCompress` 0.50.7 | [MIT](EditorPackages/SharpCompress-LICENSE.txt) | [上游提交](https://github.com/adamhathcock/sharpcompress/blob/b4af8afe6683d019d504954a3b4e4f18b06e2cd6/LICENSE.txt) |
 
 法律正文保留原始语言，不作改写。本索引不能替代正文。
+
+原生着色器转换器使用 [glslang](NativeDependencies/glslang-LICENSE.txt)（[提交 b5782e52](https://github.com/KhronosGroup/glslang/tree/b5782e52ee2f7b3e40bb9c80d15b47016e008bc9)）和 [SPIRV-Cross](NativeDependencies/SPIRV-Cross-LICENSE.txt)（[提交 7affe74d](https://github.com/KhronosGroup/SPIRV-Cross/tree/7affe74d77f93a622bb5002789d5332d32e512ee)）。许可证正文从这些源码原样复制。

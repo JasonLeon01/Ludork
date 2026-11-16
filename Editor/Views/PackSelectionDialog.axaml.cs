@@ -103,9 +103,6 @@ public partial class PackSelectionDialog : Window
         HarmonySigningOption.Content = LocaleService.Get("PACK_HARMONY_SIGN_HAP");
         HarmonyMobileOption.Content = LocaleService.Get("PACK_HARMONY_DEVICE_MOBILE");
         HarmonyTwoInOneOption.Content = LocaleService.Get("PACK_HARMONY_DEVICE_TWO_IN_ONE");
-        HarmonyGraphicsApiText.Text = LocaleService.Get("PACK_HARMONY_GRAPHICS_API");
-        HarmonyOpenGLOption.Content = LocaleService.Get("PACK_HARMONY_GRAPHICS_OPENGL");
-        HarmonyOpenGLESOption.Content = LocaleService.Get("PACK_HARMONY_GRAPHICS_OPENGL_ES");
         ExportToHarmonyDeviceOption.Content = LocaleService.Get("PACK_EXPORT_TO_HARMONY_DEVICE");
         AndroidSigningOption.Content = LocaleService.Get("PACK_ANDROID_SIGN_APK");
         ExportToIPhoneOption.Content = LocaleService.Get("PACK_EXPORT_TO_IPHONE");
@@ -470,8 +467,6 @@ public partial class PackSelectionDialog : Window
                 ExportToHarmonyDevice = platform == ProjectPackPlatform.HarmonyOS
                     && ExportToHarmonyDeviceOption.IsChecked == true,
                 HarmonyDeviceForm = deviceForm,
-                HarmonyGraphicsApi = deviceForm == HarmonyDeviceForm.Mobile || HarmonyOpenGLESOption.IsChecked == true
-                    ? HarmonyGraphicsApi.OpenGLES : HarmonyGraphicsApi.OpenGL,
                 AndroidSigning = androidOptions,
                 HarmonySigning = harmonyOptions,
                 MacOSSigning = macOSOptions,
@@ -564,7 +559,6 @@ public partial class PackSelectionDialog : Window
         IosPanel.IsVisible = platform == ProjectPackPlatform.IOS;
         HarmonyPanel.IsVisible = platform == ProjectPackPlatform.HarmonyOS;
         AndroidPanel.IsVisible = platform == ProjectPackPlatform.Android;
-        HarmonyGraphicsApiPanel.IsVisible = HarmonyTwoInOneOption.IsChecked == true;
         if (ExportToHarmonyDeviceOption.IsChecked == true)
             HarmonySigningOption.IsChecked = true;
         HarmonySigningOption.IsEnabled = ExportToHarmonyDeviceOption.IsChecked != true;

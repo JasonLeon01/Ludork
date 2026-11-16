@@ -1,21 +1,19 @@
-#ifdef GL_ES
-precision highp float;
-varying mediump vec4 sf_FrontColor;
-varying mediump vec4 sf_TexCoord0;
-varying mediump float shatterProgress;
-#else
-varying vec4 sf_FrontColor;
-varying vec4 sf_TexCoord0;
-varying float shatterProgress;
-#endif
+#version 150 core
+out vec4 fragmentColor;
+in vec4 sf_FrontColor;
+in vec4 sf_TexCoord0;
+in float shatterProgress;
 
+vec4 sampleTexture(sampler2D image, vec2 uv) { return texture(image, uv); }
 uniform sampler2D texture;
 
+#define texture sampleTexture
 // LUDORK_SCENE_LIGHTING
+#undef texture
 
 void main()
 {
-    vec4 pixel = texture2D(texture, sf_TexCoord0.xy);
+    vec4 pixel = sampleTexture(texture, sf_TexCoord0.xy);
     if (pixel.a > 0.000001) {
         pixel.rgb /= pixel.a;
     } else {
@@ -23,5 +21,5 @@ void main()
     }
     pixel *= sf_FrontColor;
     pixel.a *= 1.0 - smoothstep(0.58, 1.0, shatterProgress);
-    gl_FragColor = vec4(applySceneLighting(pixel.rgb), pixel.a);
+    fragmentColor = vec4(applySceneLighting(pixel.rgb), pixel.a);
 }

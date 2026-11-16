@@ -56,12 +56,6 @@ public enum HarmonyDeviceForm
     TwoInOne,
 }
 
-public enum HarmonyGraphicsApi
-{
-    OpenGL,
-    OpenGLES,
-}
-
 public sealed record AndroidSigningOptions(
     string KeystorePath,
     string KeyAlias,
@@ -121,8 +115,6 @@ public sealed record ProjectPackOptions(
     public bool ExportToHarmonyDevice { get; init; }
     public HarmonyDeviceForm HarmonyDeviceForm { get; init; } =
         global::Ludork.Services.HarmonyDeviceForm.Mobile;
-    public HarmonyGraphicsApi HarmonyGraphicsApi { get; init; } =
-        global::Ludork.Services.HarmonyGraphicsApi.OpenGL;
     public AndroidSigningOptions? AndroidSigning { get; init; }
     public HarmonySigningOptions? HarmonySigning { get; init; }
     public MacOSSigningOptions? MacOSSigning { get; init; }
@@ -241,11 +233,6 @@ public sealed class ProjectPackService
         HarmonyDeviceForm? harmonyDeviceForm = options.Platform == ProjectPackPlatform.HarmonyOS
             ? options.HarmonyDeviceForm
             : null;
-        HarmonyGraphicsApi? harmonyGraphicsApi = options.Platform == ProjectPackPlatform.HarmonyOS
-            ? options.HarmonyDeviceForm == HarmonyDeviceForm.Mobile
-                ? HarmonyGraphicsApi.OpenGLES
-                : options.HarmonyGraphicsApi
-            : null;
         PackSigning signing = createSigning(options);
         bool requiresPreflight = standalone || options.Platform == ProjectPackPlatform.IOS
             || options.Platform == ProjectPackPlatform.HarmonyOS
@@ -261,7 +248,6 @@ public sealed class ProjectPackService
             exportToIPhone,
             exportToHarmonyDevice,
             harmonyDeviceForm,
-            harmonyGraphicsApi,
             signing,
             packaging,
             options,
@@ -590,7 +576,6 @@ public sealed class ProjectPackService
         bool exportToIPhone,
         bool exportToHarmonyDevice,
         HarmonyDeviceForm? harmonyDeviceForm,
-        HarmonyGraphicsApi? harmonyGraphicsApi,
         PackSigning signing,
         ProjectPackaging packaging,
         ProjectPackOptions options,
@@ -602,7 +587,6 @@ public sealed class ProjectPackService
             exportToIPhone,
             exportToHarmonyDevice,
             harmonyDeviceForm,
-            harmonyGraphicsApi,
             signing,
             packaging,
             options);
@@ -618,9 +602,6 @@ public sealed class ProjectPackService
             + (harmonyDeviceForm is null
                 ? string.Empty
                 : " --device-form " + getHarmonyDeviceFormArgument(harmonyDeviceForm.Value))
-            + (harmonyGraphicsApi is null
-                ? string.Empty
-                : " --graphics-api " + getHarmonyGraphicsApiArgument(harmonyGraphicsApi.Value))
             + (signing.Android is not null || signing.Harmony is not null ? " --sign" : string.Empty);
         writeOutput(checkOnly
             ? $"> {scriptPath} --check{optionText} \"{projectPath}\""
@@ -785,7 +766,6 @@ public sealed class ProjectPackService
         bool exportToIPhone,
         bool exportToHarmonyDevice,
         HarmonyDeviceForm? harmonyDeviceForm,
-        HarmonyGraphicsApi? harmonyGraphicsApi,
         PackSigning signing,
         ProjectPackaging packaging,
         ProjectPackOptions options)
@@ -854,11 +834,6 @@ public sealed class ProjectPackService
         {
             startInfo.ArgumentList.Add("--device-form");
             startInfo.ArgumentList.Add(getHarmonyDeviceFormArgument(harmonyDeviceForm.Value));
-        }
-        if (harmonyGraphicsApi is not null)
-        {
-            startInfo.ArgumentList.Add("--graphics-api");
-            startInfo.ArgumentList.Add(getHarmonyGraphicsApiArgument(harmonyGraphicsApi.Value));
         }
         if (signing.Android is { } androidSigning)
         {
@@ -948,14 +923,6 @@ public sealed class ProjectPackService
             HarmonyDeviceForm.Mobile => "mobile",
             HarmonyDeviceForm.TwoInOne => "2in1",
             _ => throw new ArgumentOutOfRangeException(nameof(deviceForm)),
-        };
-
-    private static string getHarmonyGraphicsApiArgument(HarmonyGraphicsApi graphicsApi) =>
-        graphicsApi switch
-        {
-            HarmonyGraphicsApi.OpenGL => "opengl",
-            HarmonyGraphicsApi.OpenGLES => "opengl-es",
-            _ => throw new ArgumentOutOfRangeException(nameof(graphicsApi)),
         };
 
     private static string redactSensitiveValues(string text, PackSigning signing, LudorkServerSettings server)

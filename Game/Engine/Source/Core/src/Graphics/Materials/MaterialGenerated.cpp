@@ -7,7 +7,6 @@
 #include <Runtime/Data.hpp>
 #include <Runtime/Json.hpp>
 #include <Runtime/RuntimeDataReader.hpp>
-#include <Utils/ShaderLoader.hpp>
 #include <LudorkGenerated/ResourceFileConstants.hpp>
 
 #include <algorithm>
@@ -215,15 +214,6 @@ RuntimeData uniformMetadata(
     return RuntimeData(std::move(result));
 }
 
-std::string shaderSource(const std::string& path) {
-    ShaderLoader::ShaderSourceResult source = ShaderLoader::readSource(path);
-    if (!source) {
-        throw std::runtime_error("Could not read generated material shader: " +
-                                 path + "\n" + source.error);
-    }
-    return std::move(source.source);
-}
-
 std::string generatedHeader(const MaterialResource& material,
                             const MaterialResource* layer,
                             const std::string& pass) {
@@ -362,12 +352,7 @@ MaterialCompiler::Sources MaterialGenerated::sources(
     if (generated->previewSources) {
         return (*generated->previewSources)[index];
     }
-    const std::string directory =
-        std::string(generatedPrefix) + programDirectory(material, layer);
     MaterialCompiler::Sources result;
-    result.vertex = shaderSource(directory + "/vertex.vert");
-    result.fragment =
-        shaderSource(directory + "/" + passNames[index] + ".frag");
     result.uniforms = generated->uniforms[index];
     result.analysisProgram = generated->analysisProgram;
     result.analysis = result.analysisProgram->evaluate(

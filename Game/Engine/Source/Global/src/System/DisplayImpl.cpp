@@ -125,8 +125,7 @@ void DisplayImpl::prepareInitialization(const std::string& title,
     windowContextSettings_.antiAliasingLevel =
         static_cast<unsigned int>(Display::getAntiAliasingLevel());
 #if defined(SFML_OPENGL_ES)
-    windowContextSettings_.majorVersion = 3;
-    windowContextSettings_.minorVersion = 0;
+    windowContextSettings_.backend = sf::OpenGLESSettings{3, 0};
 #endif
     setGameSize(gameSize);
 }
@@ -176,12 +175,10 @@ void DisplayImpl::createDisplayWindow() {
     surfaceFitScale_ = surfaceFitScale;
     engineState().setScale(effectiveRenderScale(surfaceFitScale));
 #if defined(SFML_OPENGL_ES)
-    if (window->getSettings().majorVersion < 3) {
-        throw std::runtime_error(
-            "Ludork requires an OpenGL ES 3.0 context, but OpenGL ES " +
-            std::to_string(window->getSettings().majorVersion) + "." +
-            std::to_string(window->getSettings().minorVersion) +
-            " was created");
+    const auto* settings =
+        std::get_if<sf::OpenGLESSettings>(&window->getSettings().backend);
+    if (settings == nullptr || settings->majorVersion < 3) {
+        throw std::runtime_error("Ludork requires an OpenGL ES 3.0 context");
     }
 #endif
     initWindow(window);

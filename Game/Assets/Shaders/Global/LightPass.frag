@@ -1,6 +1,5 @@
-#ifdef GL_ES
-precision highp float;
-#endif
+#version 150 core
+out vec4 fragmentColor;
 
 uniform sampler2D staticTransmission;
 uniform sampler2D staticOccupancy;
@@ -54,7 +53,7 @@ float SampleStaticTransmission(vec2 worldPosTL) {
             return 1.0;
         }
         return clamp(
-            texture2D(staticTransmission, vec2(viewUV.x, 1.0 - viewUV.y)).r,
+            textureLod(staticTransmission, vec2(viewUV.x, 1.0 - viewUV.y), 0.0).r,
             0.0,
             1.0
         );
@@ -65,7 +64,7 @@ float SampleStaticTransmission(vec2 worldPosTL) {
         return 1.0;
     }
     return clamp(
-        texture2D(staticTransmission, vec2(uv.x, 1.0 - uv.y)).r,
+        textureLod(staticTransmission, vec2(uv.x, 1.0 - uv.y), 0.0).r,
         0.0,
         1.0
     );
@@ -83,10 +82,10 @@ float SampleStaticOccupancy(vec2 cell) {
             return 0.0;
         }
         vec2 viewUV = (localCell + vec2(0.5)) / staticOccupancySize;
-        return texture2D(
+        return textureLod(
             staticOccupancy,
             vec2(viewUV.x, 1.0 - viewUV.y)
-        ).r;
+        , 0.0).r;
     }
     if (
         cell.x < 0.0 ||
@@ -97,10 +96,10 @@ float SampleStaticOccupancy(vec2 cell) {
         return 0.0;
     }
     vec2 uv = (cell + vec2(0.5)) / gridSize;
-    return texture2D(
+    return textureLod(
         staticOccupancy,
         vec2(uv.x, 1.0 - uv.y)
-    ).r;
+    , 0.0).r;
 }
 
 float SampleDynamicTransmission(vec2 worldPosTL) {
@@ -113,7 +112,7 @@ float SampleDynamicTransmission(vec2 worldPosTL) {
         return 1.0;
     }
     return clamp(
-        texture2D(dynamicTransmission, vec2(uv.x, 1.0 - uv.y)).r,
+        textureLod(dynamicTransmission, vec2(uv.x, 1.0 - uv.y), 0.0).r,
         0.0,
         1.0
     );
@@ -130,7 +129,7 @@ float SampleDynamicOccupancy(vec2 cell) {
         return 0.0;
     }
     vec2 uv = (localCell + vec2(0.5)) / dynamicOccupancySize;
-    return texture2D(dynamicOccupancy, vec2(uv.x, 1.0 - uv.y)).r;
+    return textureLod(dynamicOccupancy, vec2(uv.x, 1.0 - uv.y), 0.0).r;
 }
 
 bool AccumulateOpticalDepth(
@@ -486,10 +485,10 @@ void main() {
         vec2 cachedUV =
             (pixelPosTLWorld - (lightPos - vec2(lightRadius))) /
             (lightRadius * 2.0);
-        vec3 cachedDirect = texture2D(
+        vec3 cachedDirect = textureLod(
             cachedStaticLight,
             vec2(cachedUV.x, 1.0 - cachedUV.y)
-        ).rgb;
+        , 0.0).rgb;
         float dynamicTransmissionValue = 1.0;
         if (traceDynamic > 0.5) {
             dynamicTransmissionValue = TraceTransmission(
@@ -497,7 +496,7 @@ void main() {
                 pixelPosTLWorld
             );
         }
-        gl_FragColor = vec4(
+        fragmentColor = vec4(
             cachedDirect * dynamicTransmissionValue,
             1.0
         );
@@ -513,5 +512,5 @@ void main() {
         lightIntensity *
         radialAttenuation *
         transmission;
-    gl_FragColor = vec4(direct, 1.0);
+    fragmentColor = vec4(direct, 1.0);
 }

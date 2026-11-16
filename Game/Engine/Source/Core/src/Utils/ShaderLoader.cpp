@@ -1,5 +1,9 @@
 #include <Utils/ShaderLoader.hpp>
+#include <Runtime/Graphics/ShaderCache.hpp>
+#include <Runtime/Graphics/SceneLighting.hpp>
+#include <SFML/Graphics/GraphicsBackend.hpp>
 #include <StringUtils.hpp>
+#include <Sha256.hpp>
 #include <LudorkGenerated/EncryptedPayloadConstants.hpp>
 #include <LudorkGenerated/ResourceFileConstants.hpp>
 
@@ -13,6 +17,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <utility>
 
 namespace {
 
@@ -99,7 +104,10 @@ ShaderLoader::ShaderSourceResult decodeShader(
         return {ludork::standard::decodeEncryptedPayload(encoded, ShaderFormat,
                                                          path),
                 path,
-                {}};
+                {},
+                ludork::standard::sha256(std::string_view(
+                    reinterpret_cast<const char*>(encoded.data()),
+                    encoded.size()))};
     } catch (const std::runtime_error& error) {
         return {{}, path, error.what()};
     }
@@ -117,7 +125,10 @@ ShaderLoader::ShaderSourceResult readShaderSource(const std::string& value) {
         }
         return {std::string(source->bytes.begin(), source->bytes.end()),
                 source->path,
-                {}};
+                {},
+                ludork::standard::sha256(std::string_view(
+                    reinterpret_cast<const char*>(source->bytes.data()),
+                    source->bytes.size()))};
     } catch (const std::exception& error) {
         return {{},
                 value,
@@ -126,15 +137,57 @@ ShaderLoader::ShaderSourceResult readShaderSource(const std::string& value) {
     }
 }
 
-ShaderLoadResult failedLoad(const ShaderLoader::ShaderSourceResult& source) {
-    return {nullptr, {}, source.resolvedPath, source.error};
+ShaderLoadResult loadProgram(
+    const std::vector<std::pair<std::string, sf::Shader::Type>>& stages) {
+    ludork::runtime::graphics::ShaderCache::Program program;
+    try {
+        const auto device = sf::rhi::getDevice();
+        const bool preview =
+            device && device->backend() == sf::GraphicsBackend::OpenGL;
+        for (const auto& [path, type] : stages) {
+            validateRequestedShaderPath(path);
+            const auto stage =
+                type == sf::Shader::Type::Vertex
+                    ? ludork::runtime::graphics::ShaderTranslator::Stage::Vertex
+                : type == sf::Shader::Type::Geometry
+                    ? ludork::runtime::graphics::ShaderTranslator::Stage::
+                          Geometry
+                    : ludork::runtime::graphics::ShaderTranslator::Stage::
+                          Fragment;
+            std::string text;
+            if (preview) {
+                auto source = ShaderLoader::readSource(path);
+                if (!source) {
+                    return {nullptr, {}, source.resolvedPath, source.error};
+                }
+                text = std::move(source.source);
+            }
+            program.source.stages.push_back({stage, std::move(text), path});
+        }
+        return {ludork::runtime::graphics::ShaderCache::instantiate(program),
+                {},
+                stages.front().first,
+                {}};
+    } catch (const std::exception& error) {
+        return {nullptr, {}, stages.front().first, error.what()};
+    }
 }
 
 }  // namespace
 
 ShaderLoader::ShaderSourceResult ShaderLoader::readSource(
     const std::string& shaderPath) {
-    return readShaderSource(shaderPath);
+    auto result = readShaderSource(shaderPath);
+    if (result) {
+        const std::string marker = "// LUDORK_SCENE_LIGHTING";
+        const auto position = result.source.find(marker);
+        if (position != std::string::npos) {
+            result.source.replace(
+                position, marker.size(),
+                ludork::runtime::graphics::sceneLightingGlsl());
+        }
+    }
+    return result;
 }
 
 std::optional<sf::Shader::Type> ShaderLoader::inferType(
@@ -145,67 +198,20 @@ std::optional<sf::Shader::Type> ShaderLoader::inferType(
 
 ShaderLoadResult ShaderLoader::load(
     const std::string& shaderPath, std::optional<sf::Shader::Type> shaderType) {
-    ShaderLoader::ShaderSourceResult source = readSource(shaderPath);
-    if (!source) {
-        return failedLoad(source);
-    }
-    const sf::Shader::Type type =
-        shaderType.value_or(shaderTypeFromExtension(source.resolvedPath)
-                                .value_or(sf::Shader::Type::Fragment));
-    std::shared_ptr<sf::Shader> shader = std::make_shared<sf::Shader>();
-    if (!shader->loadFromMemory(source.source, type)) {
-        return {nullptr, std::move(source.source), source.resolvedPath,
-                "Shader load failed: " + source.resolvedPath};
-    }
-    return {
-        std::move(shader), std::move(source.source), source.resolvedPath, {}};
+    return loadProgram(
+        {{shaderPath, shaderType.value_or(inferType(shaderPath).value())}});
 }
 
 ShaderLoadResult ShaderLoader::load(const std::string& vertexPath,
                                     const std::string& fragmentPath) {
-    ShaderLoader::ShaderSourceResult vertex = readSource(vertexPath);
-    if (!vertex) {
-        return failedLoad(vertex);
-    }
-    ShaderLoader::ShaderSourceResult fragment = readSource(fragmentPath);
-    if (!fragment) {
-        return failedLoad(fragment);
-    }
-    std::shared_ptr<sf::Shader> shader = std::make_shared<sf::Shader>();
-    if (!shader->loadFromMemory(vertex.source, fragment.source)) {
-        return {nullptr,
-                {},
-                vertex.resolvedPath,
-                "Full shader load failed: " + vertex.resolvedPath + " and " +
-                    fragment.resolvedPath};
-    }
-    return {std::move(shader), {}, vertex.resolvedPath, {}};
+    return loadProgram({{vertexPath, sf::Shader::Type::Vertex},
+                        {fragmentPath, sf::Shader::Type::Fragment}});
 }
 
 ShaderLoadResult ShaderLoader::load(const std::string& vertexPath,
                                     const std::string& geometryPath,
                                     const std::string& fragmentPath) {
-    ShaderLoader::ShaderSourceResult vertex = readSource(vertexPath);
-    if (!vertex) {
-        return failedLoad(vertex);
-    }
-    ShaderLoader::ShaderSourceResult geometry = readSource(geometryPath);
-    if (!geometry) {
-        return failedLoad(geometry);
-    }
-    ShaderLoader::ShaderSourceResult fragment = readSource(fragmentPath);
-    if (!fragment) {
-        return failedLoad(fragment);
-    }
-    std::shared_ptr<sf::Shader> shader = std::make_shared<sf::Shader>();
-    if (!shader->loadFromMemory(vertex.source, geometry.source,
-                                fragment.source)) {
-        return {nullptr,
-                {},
-                vertex.resolvedPath,
-                "Shader load with geometry failed: " + vertex.resolvedPath +
-                    ", " + geometry.resolvedPath + ", and " +
-                    fragment.resolvedPath};
-    }
-    return {std::move(shader), {}, vertex.resolvedPath, {}};
+    return loadProgram({{vertexPath, sf::Shader::Type::Vertex},
+                        {geometryPath, sf::Shader::Type::Geometry},
+                        {fragmentPath, sf::Shader::Type::Fragment}});
 }

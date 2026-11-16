@@ -1,6 +1,6 @@
 target_sources(LudorkRuntime PRIVATE
     GpuEmitterBackend.cpp
-    GpuApi.cpp
+    GpuEmitterShaders.cpp
     GpuResourcesImpl.cpp
     GpuShaders.cpp
     GpuStatisticsImpl.cpp

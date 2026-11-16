@@ -5,6 +5,9 @@
 #include <DataFile.hpp>
 #include <EncryptedPayload.hpp>
 #include <LudorkGenerated/EncryptedPayloadConstants.hpp>
+#include <Runtime/CacheFileLock.hpp>
+#include <Runtime/CacheFiles.hpp>
+#include <Runtime/Graphics/ShaderCache.hpp>
 #include <Runtime/Data.hpp>
 #include <Runtime/Json.hpp>
 #include <Runtime/RuntimeDataReader.hpp>
@@ -13,21 +16,9 @@
 #include <Utf8Path.hpp>
 
 #include <chrono>
-#include <fstream>
+#include <exception>
 #include <stdexcept>
-#include <cerrno>
 #include <iostream>
-
-#if defined(_WIN32)
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-#else
-#include <fcntl.h>
-#include <sys/file.h>
-#include <unistd.h>
-#endif
 
 namespace ludork::engine::materials {
 namespace {
@@ -44,57 +35,6 @@ std::filesystem::path storedPath(const std::string& path, bool encryptShaders,
         result += "c";
     }
     return result;
-}
-
-std::string physicalBytes(const std::filesystem::path& path) {
-    std::ifstream stream(path, std::ios::binary);
-    if (!stream) {
-        throw std::runtime_error("Cannot read material cache: " +
-                                 ludork::standard::pathToUtf8(path));
-    }
-    std::string bytes{std::istreambuf_iterator<char>(stream),
-                      std::istreambuf_iterator<char>()};
-    if (stream.bad()) {
-        throw std::runtime_error("Cannot read complete material cache: " +
-                                 ludork::standard::pathToUtf8(path));
-    }
-    return bytes;
-}
-
-bool requireOrdinaryEntry(const std::filesystem::path& path) {
-    std::error_code error;
-    const auto status = std::filesystem::symlink_status(path, error);
-    if (error == std::errc::no_such_file_or_directory ||
-        status.type() == std::filesystem::file_type::not_found) {
-        return false;
-    }
-    if (error) {
-        throw std::filesystem::filesystem_error("Cannot inspect material cache",
-                                                path, error);
-    }
-#if defined(_WIN32)
-    const DWORD attributes = GetFileAttributesW(path.c_str());
-    if (attributes == INVALID_FILE_ATTRIBUTES ||
-        (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0) {
-        throw std::runtime_error("Material cache links are not supported: " +
-                                 ludork::standard::pathToUtf8(path));
-    }
-#endif
-    if (std::filesystem::is_symlink(status) ||
-        (!std::filesystem::is_directory(status) &&
-         !std::filesystem::is_regular_file(status))) {
-        throw std::runtime_error("Unsupported material cache entry: " +
-                                 ludork::standard::pathToUtf8(path));
-    }
-    return std::filesystem::is_directory(status);
-}
-
-void requireOrdinaryTree(const std::filesystem::path& path) {
-    if (requireOrdinaryEntry(path)) {
-        for (const auto& child : std::filesystem::directory_iterator(path)) {
-            requireOrdinaryTree(child.path());
-        }
-    }
 }
 
 std::set<std::string> expectedFiles(
@@ -152,71 +92,14 @@ std::set<std::string> expectedFiles(
 
 }  // namespace
 
-MaterialCacheRequest::Impl::DirectoryLock::DirectoryLock(
-    const std::filesystem::path& path, const std::atomic<bool>& stop) {
-    requireOrdinaryEntry(path);
-    while (!stop.load()) {
-#if defined(_WIN32)
-        HANDLE file = CreateFileW(
-            path.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_ALWAYS,
-            FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
-        if (file != INVALID_HANDLE_VALUE) {
-            BY_HANDLE_FILE_INFORMATION info{};
-            if (!GetFileInformationByHandle(file, &info) ||
-                (info.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0) {
-                CloseHandle(file);
-                throw std::runtime_error("Invalid material cache lock file");
-            }
-            handle = reinterpret_cast<std::intptr_t>(file);
-            return;
-        }
-        const DWORD error = GetLastError();
-        if (error != ERROR_SHARING_VIOLATION && error != ERROR_LOCK_VIOLATION) {
-            throw std::system_error(static_cast<int>(error),
-                                    std::system_category(),
-                                    "Cannot lock material cache");
-        }
-#else
-        const int file =
-            ::open(path.c_str(), O_CREAT | O_RDWR | O_NOFOLLOW, 0600);
-        if (file == -1) {
-            throw std::system_error(errno, std::generic_category(),
-                                    "Cannot open material cache lock");
-        }
-        if (::flock(file, LOCK_EX | LOCK_NB) == 0) {
-            handle = file;
-            return;
-        }
-        const int error = errno;
-        ::close(file);
-        if (error != EWOULDBLOCK && error != EAGAIN && error != EINTR) {
-            throw std::system_error(error, std::generic_category(),
-                                    "Cannot lock material cache");
-        }
-#endif
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }
-    throw std::runtime_error("Material cache preparation was cancelled");
-}
-
-MaterialCacheRequest::Impl::DirectoryLock::~DirectoryLock() {
-    if (handle != -1) {
-#if defined(_WIN32)
-        CloseHandle(reinterpret_cast<HANDLE>(handle));
-#else
-        ::flock(static_cast<int>(handle), LOCK_UN);
-        ::close(static_cast<int>(handle));
-#endif
-    }
-}
-
 void MaterialCacheRequest::Impl::prepare(const std::atomic<bool>& stop) {
-    requireOrdinaryEntry(userDataRoot);
-    requireOrdinaryEntry(userDataRoot / "Assets");
-    requireOrdinaryEntry(userDataRoot / "Assets" / "Shaders");
+    ludork::runtime::CacheFiles::requireOrdinary(userDataRoot);
+    ludork::runtime::CacheFiles::requireOrdinary(userDataRoot / "Assets");
+    ludork::runtime::CacheFiles::requireOrdinary(userDataRoot / "Assets" /
+                                                 "Shaders");
     std::filesystem::create_directories(cacheRoot.parent_path());
-    DirectoryLock lock(cacheRoot.parent_path() / ".MaterialGenerated.lock",
-                       stop);
+    ludork::runtime::CacheFileLock lock(
+        cacheRoot.parent_path() / ".MaterialGenerated.lock", stop);
     const Inputs inputs = captureInputs(stop);
     progress = 0.1;
     checkCancelled(stop);
@@ -227,10 +110,11 @@ void MaterialCacheRequest::Impl::prepare(const std::atomic<bool>& stop) {
 
 bool MaterialCacheRequest::Impl::reusable(const Inputs& inputs,
                                           const std::atomic<bool>& stop) const {
-    requireOrdinaryEntry(userDataRoot);
-    requireOrdinaryEntry(userDataRoot / "Assets");
-    requireOrdinaryEntry(userDataRoot / "Assets" / "Shaders");
-    requireOrdinaryTree(cacheRoot);
+    ludork::runtime::CacheFiles::requireOrdinary(userDataRoot);
+    ludork::runtime::CacheFiles::requireOrdinary(userDataRoot / "Assets");
+    ludork::runtime::CacheFiles::requireOrdinary(userDataRoot / "Assets" /
+                                                 "Shaders");
+    ludork::runtime::CacheFiles::requireTree(cacheRoot);
     const std::filesystem::path recordPath =
         cacheRoot / (inputs.encryptData ? "cache.ldc" : "cache.json");
     if (!std::filesystem::is_regular_file(recordPath)) {
@@ -239,7 +123,8 @@ bool MaterialCacheRequest::Impl::reusable(const Inputs& inputs,
     const auto expected = expectedFiles(inputs.programs, inputs.encryptShaders,
                                         inputs.encryptData);
     try {
-        const RuntimeData record = decodeData(physicalBytes(recordPath));
+        const RuntimeData record =
+            decodeData(ludork::runtime::CacheFiles::read(recordPath));
         const auto& fields =
             reader::requireMap(record, "material cache record");
         if (stringifyJSON(
@@ -260,7 +145,7 @@ bool MaterialCacheRequest::Impl::reusable(const Inputs& inputs,
                 !std::filesystem::is_regular_file(
                     cacheRoot / ludork::standard::pathFromUtf8(path)) ||
                 reader::requireString(found->second, path) !=
-                    ludork::standard::sha256(physicalBytes(
+                    ludork::standard::sha256(ludork::runtime::CacheFiles::read(
                         cacheRoot / ludork::standard::pathFromUtf8(path)))) {
                 return false;
             }
@@ -270,7 +155,11 @@ bool MaterialCacheRequest::Impl::reusable(const Inputs& inputs,
             checkCancelled(stop);
             if (entry.is_regular_file() && entry.path() != recordPath &&
                 !expected.contains(ludork::standard::pathToGenericUtf8(
-                    entry.path().lexically_relative(cacheRoot)))) {
+                    entry.path().lexically_relative(cacheRoot))) &&
+                !ludork::runtime::graphics::ShaderCache::isDerivedFile(
+                    ludork::standard::pathToGenericUtf8(
+                        entry.path().lexically_relative(cacheRoot)),
+                    expected)) {
                 return false;
             }
         }
@@ -283,6 +172,8 @@ bool MaterialCacheRequest::Impl::reusable(const Inputs& inputs,
 
 void MaterialCacheRequest::Impl::generate(const Inputs& inputs,
                                           const std::atomic<bool>& stop) {
+    ludork::runtime::CacheFileLock shaderLock(
+        cacheRoot.parent_path() / ".ShaderCache.lock", stop);
     const auto expected = expectedFiles(inputs.programs, inputs.encryptShaders,
                                         inputs.encryptData);
     std::map<std::string, std::shared_ptr<const MaterialResource>> materials;
@@ -307,6 +198,7 @@ void MaterialCacheRequest::Impl::generate(const Inputs& inputs,
     bool backedUp = false;
     try {
         RuntimeData::Map outputs;
+        std::map<std::string, std::string> shaderSources;
         std::size_t completed = 0;
         for (const auto& [material, layer] : inputs.programs) {
             checkCancelled(stop);
@@ -321,6 +213,11 @@ void MaterialCacheRequest::Impl::generate(const Inputs& inputs,
             for (const auto& [path, value] : files) {
                 checkCancelled(stop);
                 const std::string& text = reader::requireString(value, path);
+                if (path.ends_with(".vert") || path.ends_with(".frag")) {
+                    shaderSources.emplace(
+                        "/Game/Assets/Shaders/MaterialGenerated/" + path,
+                        ludork::standard::sha256(text));
+                }
                 const auto relative =
                     storedPath(path, inputs.encryptShaders, inputs.encryptData);
                 const std::string key =
@@ -356,8 +253,9 @@ void MaterialCacheRequest::Impl::generate(const Inputs& inputs,
                 } else {
                     ludork::standard::writeFileBytes(destination, text);
                 }
-                outputs.emplace(key, RuntimeData(ludork::standard::sha256(
-                                         physicalBytes(destination))));
+                outputs.emplace(
+                    key, RuntimeData(ludork::standard::sha256(
+                             ludork::runtime::CacheFiles::read(destination))));
             }
             progress = 0.1 + 0.8 * static_cast<double>(++completed) /
                                  static_cast<double>(inputs.programs.size());
@@ -366,6 +264,8 @@ void MaterialCacheRequest::Impl::generate(const Inputs& inputs,
             throw std::runtime_error(
                 "Material compiler outputs are incomplete");
         }
+        preserveShaderArtifacts(staging, shaderSources, inputs.encryptData,
+                                stop);
         if (stringifyJSON(captureInputs(stop).identity()) !=
             stringifyJSON(inputs.identity())) {
             throw std::runtime_error(
@@ -378,10 +278,10 @@ void MaterialCacheRequest::Impl::generate(const Inputs& inputs,
                      {"outputs", RuntimeData(std::move(outputs))}}));
         checkCancelled(stop);
         if (std::filesystem::exists(cacheRoot)) {
-            std::filesystem::rename(cacheRoot, backup);
+            ludork::runtime::CacheFiles::rename(cacheRoot, backup, stop);
             backedUp = true;
         }
-        std::filesystem::rename(staging, cacheRoot);
+        ludork::runtime::CacheFiles::rename(staging, cacheRoot, stop);
         if (backedUp) {
             backedUp = false;
             std::error_code cleanupError;
@@ -394,12 +294,25 @@ void MaterialCacheRequest::Impl::generate(const Inputs& inputs,
             }
         }
     } catch (...) {
+        const auto failure = std::current_exception();
+        if (backedUp) {
+            const std::atomic<bool> restoring = false;
+            try {
+                if (std::filesystem::exists(cacheRoot)) {
+                    throw std::runtime_error("Cache destination is occupied");
+                }
+                ludork::runtime::CacheFiles::rename(backup, cacheRoot,
+                                                    restoring);
+            } catch (const std::exception& error) {
+                throw std::runtime_error(
+                    "Material cache rollback failed; recovery files remain "
+                    "at " +
+                    ludork::standard::pathToUtf8(backup) + ": " + error.what());
+            }
+        }
         std::error_code ignored;
         std::filesystem::remove_all(staging, ignored);
-        if (backedUp && !std::filesystem::exists(cacheRoot)) {
-            std::filesystem::rename(backup, cacheRoot, ignored);
-        }
-        throw;
+        std::rethrow_exception(failure);
     }
 }
 

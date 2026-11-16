@@ -37,6 +37,7 @@ public:
     explicit RuntimeData(Map value);
 
     bool isNil() const;
+    bool equals(const RuntimeData& other) const;
 
     std::string typeName() const;
 

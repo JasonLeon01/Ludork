@@ -432,7 +432,7 @@ GraphCompilerImpl::Expression GraphCompilerImpl::evaluate(
             const Expression texture =
                 expect(input(node, schema::port_name::Texture, {"", -2}), -1,
                        node.id + ".Texture");
-            sample = "texture2D(" + texture.code + "," + uv.code + ")";
+            sample = "texture(" + texture.code + "," + uv.code + ")";
             timed = timed || texture.time;
         }
         if (port == schema::port_name::Color) {

@@ -1,6 +1,5 @@
-#ifdef GL_ES
-precision highp float;
-#endif
+#version 150 core
+out vec4 fragmentColor;
 
 uniform vec2 screenSize;
 uniform vec2 viewPos;
@@ -56,6 +55,6 @@ void main() {
     float value = field(p + (warp - 0.5) * turbulence * 3.0) / 0.9375;
     float coverage = smoothstep(0.25, 0.75, value);
     float alpha = (1.0 - exp(-2.0 * density * coverage)) * fogColour.a;
-    vec3 light = mix(vec3(1.0), clamp(texture2D(ambientLight, uv).rgb + texture2D(directLight, uv).rgb, 0.0, 1.0), lit);
-    gl_FragColor = vec4(fogColour.rgb * light, alpha);
+    vec3 light = mix(vec3(1.0), clamp(texture(ambientLight, uv).rgb + texture(directLight, uv).rgb, 0.0, 1.0), lit);
+    fragmentColor = vec4(fogColour.rgb * light, alpha);
 }

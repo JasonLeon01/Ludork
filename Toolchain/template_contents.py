@@ -35,7 +35,8 @@ RUNTIME_LICENSE_FILES = (
     "NativeDependencies/FreeType-LICENSE.txt", "NativeDependencies/Glad-CC0-1.0.txt",
     "NativeDependencies/HarfBuzz-COPYING.txt", "NativeDependencies/libssh2-COPYING.txt",
     "NativeDependencies/MbedTLS-LICENSE.txt", "NativeDependencies/Ogg-COPYING.txt",
-    "NativeDependencies/SFML-THIRD-PARTY.md", "NativeDependencies/SheenBidi-LICENSE.txt",
+    "NativeDependencies/SFML-THIRD-PARTY.md",
+    "NativeDependencies/glslang-LICENSE.txt", "NativeDependencies/SPIRV-Cross-LICENSE.txt", "NativeDependencies/SheenBidi-LICENSE.txt",
     "NativeDependencies/Vorbis-COPYING.txt", "NativeDependencies/Wine-DInput-LGPLv2.1.txt",
 )
 FFMPEG_LICENSE_FILES = (

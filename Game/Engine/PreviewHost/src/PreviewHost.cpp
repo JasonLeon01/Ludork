@@ -5,9 +5,12 @@
 #include <Runtime/RuntimeData.hpp>
 #include <UI/UiControlAdapterRegistry.hpp>
 #include <Runtime/Json.hpp>
+#include <SFML/Graphics/GraphicsBackend.hpp>
+#include <SFML/Window/Context.hpp>
 
 #include <iostream>
 #include <optional>
+#include <stdexcept>
 #include <string>
 
 int main(int argc, char** argv) {
@@ -28,6 +31,17 @@ int main(int argc, char** argv) {
                             static_cast<std::streamsize>(description.size()));
             std::cout.flush();
             return std::cout ? 0 : 1;
+        }
+        const sf::OpenGLSettings backend{3, 2, sf::OpenGLProfile::Core};
+        if (!sf::setGraphicsBackend(sf::GraphicsBackend::OpenGL, backend)) {
+            throw std::runtime_error("Preview requires the OpenGL backend");
+        }
+        sf::ContextSettings settings;
+        settings.backend = backend;
+        sf::Context context(settings, {1, 1});
+        if (!context.setActive(true)) {
+            throw std::runtime_error(
+                "Preview requires an OpenGL 3.2 Core context");
         }
         ludork::preview_host::PreviewHostSession host(
             uiControlAdapterFingerprint(), uiControlRegistryHash());

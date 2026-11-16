@@ -17,15 +17,8 @@ inline constexpr std::size_t StateStrideBytes = StateFloatCount * sizeof(float);
 inline constexpr std::size_t AgeOffsetBytes =
     ComponentsPerAttribute * sizeof(float);
 inline constexpr unsigned int CornerAttributeIndex = StateAttributeCount;
-inline constexpr unsigned int VertexAttributeCount = StateAttributeCount + 1;
 inline constexpr char CornerAttributeName[] = "corner";
 inline constexpr int QuadVertexCount = 6;
 inline constexpr int QuadComponentsPerVertex = 2;
-inline constexpr unsigned int ImageTextureUnit = 0;
-inline constexpr unsigned int CurveTextureUnit = 1;
-inline constexpr unsigned int AmbientLightTextureUnit = 2;
-inline constexpr unsigned int DirectLightTextureUnit = 3;
-inline constexpr unsigned int TextureUnitCount = DirectLightTextureUnit + 1;
-inline constexpr unsigned int FeedbackBindingIndex = 0;
 
 }  // namespace ludork::runtime::graphics::gpu_particle_layout

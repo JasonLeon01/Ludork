@@ -2,6 +2,7 @@
 #include <Runtime/Graphics/GpuEmitterConfiguration.hpp>
 #include "GpuResourcesImpl.hpp"
 #include <SFML/Graphics/Texture.hpp>
+#include <SFML/Graphics/RenderStates.hpp>
 #include <array>
 #include <cstdint>
 #include <memory>
@@ -12,8 +13,8 @@ public:
     GpuEmitterConfiguration::Track definition;
     std::shared_ptr<GpuResourcesImpl> resources;
     std::shared_ptr<sf::Texture> texture;
-    unsigned int buffers[2]{};
-    unsigned int curves = 0;
+    std::array<std::shared_ptr<sf::rhi::Buffer>, 2> buffers;
+    std::shared_ptr<sf::rhi::Texture> curves;
     int input = 0;
     std::uint64_t births = 0;
     double credit = 0;
@@ -38,7 +39,6 @@ private:
     static constexpr std::uint32_t GenerationStride = 13u;
 
     std::uint32_t seedSalt_ = NameHashOffset;
-    void bindState(bool instanced);
     void simulate(float delta, int count, const sf::Vector2f& motion,
                   const sf::Transform& host, int seed, bool draining,
                   bool reset);

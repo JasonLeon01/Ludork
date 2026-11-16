@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <mutex>
+#include <set>
 #include <shared_mutex>
 #include <stdexcept>
 #include <unordered_map>
@@ -91,7 +92,8 @@ std::vector<std::uint8_t> readStream(AssetInputStream& stream,
 void loadLooseTree(
     const std::filesystem::path& assetsRoot,
     std::unordered_map<std::string, asset_store_impl::StoreEntry>& entries,
-    std::unordered_map<std::string, std::string>& foldedPaths) {
+    std::unordered_map<std::string, std::string>& foldedPaths,
+    std::string_view prefix = ludork::generated::resources::AssetPathPrefix) {
     std::error_code error;
     std::filesystem::recursive_directory_iterator iterator(
         assetsRoot, std::filesystem::directory_options::none, error);
@@ -125,8 +127,7 @@ void loadLooseTree(
                 entry.path().lexically_relative(assetsRoot);
             const std::string relativeText =
                 ludork::standard::pathToGenericUtf8(relative);
-            const std::string key =
-                ludork::generated::resources::AssetPathPrefix + relativeText;
+            const std::string key = std::string(prefix) + relativeText;
             static_cast<void>(AssetPath::parse(key));
             addEntry(
                 entries, foldedPaths, key,
@@ -261,6 +262,46 @@ AssetStoreMode AssetStore::mode() const {
 
 bool AssetStore::exists(const std::string& assetPath) const {
     return stat(assetPath).has_value();
+}
+
+std::vector<std::string> AssetStore::listFiles(
+    const std::string& assetDirectory) const {
+    const AssetPath directory = AssetPath::parse(assetDirectory);
+    const std::string prefix = directory.value + '/';
+    std::shared_lock lock(impl_->mutex);
+    if (!impl_->configured) {
+        throw std::logic_error("AssetStore is not configured");
+    }
+    std::set<std::string> files;
+    const auto collectLoose = [&](const std::filesystem::path& root) {
+        const auto entry = findLooseEntry(root, directory);
+        if (!entry) {
+            return;
+        }
+        if (!entry->directory) {
+            throw std::runtime_error("Asset directory is a file: " +
+                                     assetDirectory);
+        }
+        std::unordered_map<std::string, asset_store_impl::StoreEntry> entries;
+        std::unordered_map<std::string, std::string> folded;
+        loadLooseTree(entry->source, entries, folded, prefix);
+        for (const auto& [path, child] : entries) {
+            if (!child.directory) {
+                files.insert(path);
+            }
+        }
+    };
+    if (impl_->mode == AssetStoreMode::Packed) {
+        for (const auto& [path, entry] : impl_->entries) {
+            if (path.starts_with(prefix) && !entry.directory) {
+                files.insert(path);
+            }
+        }
+    } else {
+        collectLoose(impl_->runtimeRoot);
+    }
+    collectLoose(impl_->userDataRoot);
+    return {files.begin(), files.end()};
 }
 
 std::optional<AssetStore::AssetStat> AssetStore::stat(

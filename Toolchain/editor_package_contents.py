@@ -59,6 +59,7 @@ EDITOR_LICENSE_PATHS = (
     "NativeDependencies/Vorbis-COPYING.txt", "NativeDependencies/Wine-DInput-LGPLv2.1.txt",
     "NativeDependencies/FLAC-COPYING.Xiph.txt", "NativeDependencies/MbedTLS-LICENSE.txt",
     "NativeDependencies/libssh2-COPYING.txt", "NativeDependencies/SFML-THIRD-PARTY.md",
+    "NativeDependencies/glslang-LICENSE.txt", "NativeDependencies/SPIRV-Cross-LICENSE.txt",
     "HarmonyOSSans/LICENSE.txt", "SampleMusic/NOTICE.md",
     "Toolchain/Nuitka-4.1.3-AGPL-3.0.txt", "Toolchain/Nuitka-4.1.3-NOTICE.txt",
     "Toolchain/Nuitka-4.1.3-RUNTIME-EXCEPTION.txt",

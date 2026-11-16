@@ -4,6 +4,7 @@
 
 #include <EngineRuntimeApi.hpp>
 #include <Graphics/Materials/MaterialCacheRequest.hpp>
+#include <Graphics/Shaders/ShaderCacheRequest.hpp>
 
 BIND_FUNCTION(name = "setAppName")
 void setAppName(const std::string& value);
@@ -24,6 +25,12 @@ BIND_FUNCTION(name = "prepareMaterialCache", metadata = false,
               nonnull_return = true)
 std::shared_ptr<ludork::engine::materials::MaterialCacheRequest>
 prepareMaterialCache();
+
+/// Translate and prepare all game shader programs after material generation.
+BIND_FUNCTION(name = "prepareShaderCache", metadata = false,
+              nonnull_return = true)
+std::shared_ptr<ludork::engine::shaders::ShaderCacheRequest> prepareShaderCache(
+    const std::vector<std::vector<std::string>>& additionalPrograms = {});
 
 BIND_FUNCTION(name = "getSavePath")
 std::string getSavePath(

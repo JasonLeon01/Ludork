@@ -1,7 +1,6 @@
-#include "GpuGlConstants.hpp"
 #include <Runtime/Graphics/GpuEmitterBackend.hpp>
 #include "GpuEmitterBackendImpl.hpp"
-#include <SFML/Window/Context.hpp>
+#include <SFML/Graphics/RenderTarget.hpp>
 #include <algorithm>
 #include <cmath>
 #include <mutex>
@@ -150,7 +149,7 @@ EmitterStatistics GpuEmitterBackend::getStatistics() const {
     result.capacity = getCapacity();
     result.time = impl_->time;
     if (impl_->resources) {
-        result.renderer = impl_->resources->api.renderer;
+        result.renderer = impl_->resources->renderer;
     }
     if (impl_->sample) {
         result.aliveCount =
@@ -184,7 +183,6 @@ void GpuEmitterBackend::Impl::prepare() {
         tracks.swap(prepared);
     }
     if (reset) {
-        ludork::runtime::graphics::GpuStateGuard guard(resources->api);
         statistics.reset();
         sample.reset();
         for (auto& track : tracks) {
@@ -217,7 +215,7 @@ void GpuEmitterBackend::Impl::sampleStatistics() {
     if (const auto value = statistics->poll()) {
         sample = value;
     }
-    std::vector<std::pair<unsigned int, int>> buffers;
+    std::vector<GpuStatisticsImpl::StateBuffer> buffers;
     buffers.reserve(tracks.size());
     for (const auto& track : tracks) {
         buffers.emplace_back(track->buffers[track->input],
@@ -229,66 +227,56 @@ void GpuEmitterBackend::Impl::sampleStatistics() {
 GpuEmitterBackend::Impl::Query* GpuEmitterBackend::Impl::beginQuery(
     bool simulation) {
     pollQueries();
-    if (!profiling || !resources->api.timerQueries) {
+    if (!profiling || !resources->device->capabilities().timers) {
         return nullptr;
     }
     Query& query = queries[queryCursor];
     if (query.pending) {
         return nullptr;
     }
-    if (!query.id) {
-        resources->api.GenQueries(1, &query.id);
+    query.timer = resources->device->beginTimer();
+    if (!query.timer) {
+        return nullptr;
     }
     query.simulation = simulation;
     query.sample = frame;
     query.generation = generation;
     query.time = time;
-    resources->api.BeginQuery(gpu_gl::TimeElapsed, query.id);
     return &query;
 }
+
 void GpuEmitterBackend::Impl::endQuery(Query* query) {
     if (query == nullptr) {
         return;
     }
-    resources->api.EndQuery(gpu_gl::TimeElapsed);
+    query->timer->end();
     query->pending = true;
     queryCursor = (queryCursor + 1) % queries.size();
 }
+
 void GpuEmitterBackend::Impl::pollQueries() {
-    if (!resources->api.timerQueries) {
-        return;
-    }
-    int disjoint = 0;
-    if (resources->api.embedded) {
-        resources->api.GetIntegerv(gpu_gl::GpuDisjoint, &disjoint);
-    }
     for (Query& query : queries) {
-        if (query.pending) {
-            int available = 0;
-            resources->api.GetQueryObjectiv(
-                query.id, gpu_gl::QueryResultAvailable, &available);
-            if (available) {
-                std::uint64_t nanoseconds = 0;
-                resources->api.GetQueryObjectui64v(
-                    query.id, gpu_gl::QueryResult, &nanoseconds);
-                if (!disjoint && query.generation == generation &&
-                    query.sample >=
-                        (query.simulation ? simulationSample : drawSample)) {
-                    (query.simulation ? simulationMs : drawMs) =
-                        static_cast<double>(nanoseconds) /
-                        NanosecondsPerMillisecond;
-                    (query.simulation ? simulationSample : drawSample) =
-                        query.sample;
-                }
-                query.pending = false;
-            }
+        if (!query.pending) {
+            continue;
         }
-    }
-    if (disjoint) {
-        simulationMs = -1;
-        drawMs = -1;
+        const auto milliseconds = query.timer->elapsedMilliseconds();
+        if (!milliseconds) {
+            continue;
+        }
+        if (query.generation == generation &&
+            query.sample >=
+                (query.simulation ? simulationSample : drawSample)) {
+            (query.simulation ? simulationMs : drawMs) =
+                std::isfinite(*milliseconds) && *milliseconds >= 0
+                    ? *milliseconds
+                    : -1;
+            (query.simulation ? simulationSample : drawSample) = query.sample;
+        }
+        query.pending = false;
+        query.timer.reset();
     }
 }
+
 void GpuEmitterBackend::tick(float deltaTime) {
     if (!std::isfinite(deltaTime) || deltaTime < 0) {
         throw std::invalid_argument("Invalid Emitter delta time");
@@ -298,7 +286,6 @@ void GpuEmitterBackend::tick(float deltaTime) {
         return;
     }
     impl_->prepare();
-    ludork::runtime::graphics::GpuStateGuard guard(impl_->resources->api);
     ++impl_->frame;
     Impl::Query* query = impl_->beginQuery(true);
     const double step = 1.0 / impl_->data.simulationRate;
@@ -387,7 +374,6 @@ void GpuEmitterBackend::draw(sf::RenderTarget& target,
         throw std::runtime_error("Cannot activate Emitter render target");
     }
     impl_->prepare();
-    ludork::runtime::graphics::GpuStateGuard guard(impl_->resources->api);
     Impl::Query* query = impl_->beginQuery(false);
     if (!invisible) {
         for (auto& track : impl_->tracks) {
@@ -414,29 +400,13 @@ void GpuEmitterBackend::shutdown() noexcept {
     retiredEmitters().push_back(std::move(retired));
 }
 void GpuEmitterBackend::collectGarbage() noexcept {
-    const std::uint64_t contextId = sf::Context::getActiveContextId();
-    if (contextId == 0) {
-        return;
-    }
     std::vector<std::unique_ptr<GpuEmitterBackend>> retired;
     {
         const std::lock_guard lock(retirementMutex());
-        auto& pending = retiredEmitters();
-        for (auto entry = pending.begin(); entry != pending.end();) {
-            if ((*entry)->impl_->resources->contextId == contextId) {
-                retired.push_back(std::move(*entry));
-                entry = pending.erase(entry);
-            } else {
-                ++entry;
-            }
-        }
+        retired.swap(retiredEmitters());
     }
     for (auto& emitter : retired) {
-        for (const Impl::Query& query : emitter->impl_->queries) {
-            if (query.id) {
-                emitter->impl_->resources->api.DeleteQueries(1, &query.id);
-            }
-        }
+        emitter->impl_->queries = {};
         emitter->impl_->statistics.reset();
         emitter->impl_->tracks.clear();
         emitter->impl_->resources.reset();

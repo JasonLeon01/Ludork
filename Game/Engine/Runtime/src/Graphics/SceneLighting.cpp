@@ -60,30 +60,29 @@ void bindSceneLighting(sf::Shader& shader) {
     }
 }
 
+ShaderCache::Program sceneLightingProgram() {
+    ShaderCache::Program program;
+    program.generated = true;
+    program.source.stages.push_back(
+        {ShaderTranslator::Stage::Fragment, std::string(R"GLSL(#version 150 core
+in vec4 sf_FrontColor;
+in vec4 sf_TexCoord0;
+out vec4 fragmentColor;
+vec4 sampleTexture(sampler2D image, vec2 uv) { return texture(image, uv); }
+uniform sampler2D texture;
+)GLSL") + sceneLightingGlsl("sampleTexture") + R"GLSL(
+void main() {
+    vec4 pixel = sampleTexture(texture, sf_TexCoord0.xy) * sf_FrontColor;
+    fragmentColor = vec4(applySceneLighting(pixel.rgb), pixel.a);
+}
+)GLSL",
+         "/Game/Assets/Shaders/Builtin/Runtime/SceneLighting.frag"});
+    return program;
+}
+
 std::shared_ptr<sf::Shader> sceneLightingShader() {
     if (!lightingShader) {
-        const std::string fragment = std::string(R"GLSL(
-#ifdef GL_ES
-precision highp float;
-varying mediump vec4 sf_FrontColor;
-varying mediump vec4 sf_TexCoord0;
-#else
-varying vec4 sf_FrontColor;
-varying vec4 sf_TexCoord0;
-#endif
-uniform sampler2D texture;
-)GLSL") + sceneLightingGlsl() + R"GLSL(
-void main() {
-    vec4 pixel = texture2D(texture, sf_TexCoord0.xy) * sf_FrontColor;
-    gl_FragColor = vec4(applySceneLighting(pixel.rgb), pixel.a);
-}
-)GLSL";
-        lightingShader = std::make_shared<sf::Shader>();
-        if (!lightingShader->loadFromMemory(fragment,
-                                            sf::Shader::Type::Fragment)) {
-            lightingShader.reset();
-            throw std::runtime_error("Could not compile scene lighting shader");
-        }
+        lightingShader = ShaderCache::instantiate(sceneLightingProgram());
         lightingShader->setUniform("texture", sf::Shader::CurrentTexture);
     }
     bindSceneLighting(*lightingShader);

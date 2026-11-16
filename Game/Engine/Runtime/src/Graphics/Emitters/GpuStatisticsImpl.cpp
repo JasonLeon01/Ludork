@@ -1,173 +1,27 @@
-#include "GpuParticleLayout.hpp"
-#include <limits>
-#include "GpuGlConstants.hpp"
 #include "GpuStatisticsImpl.hpp"
+#include "GpuParticleLayout.hpp"
+#include <Runtime/Graphics/GpuEmitterShaders.hpp>
+#include <Runtime/Graphics/ShaderCache.hpp>
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <stdexcept>
-#include <string>
+#include <utility>
 
 namespace ludork::runtime::graphics {
 namespace {
 
-std::string shaderPrefix(bool embedded, bool vertex) {
-    if (embedded) {
-        return std::string("#version 300 es\nprecision highp float;\n") +
-               (vertex
-                    ? "#define INPUT in\n#define VARYING out\n"
-                    : "#define VARYING in\n#define SAMPLE texture\n"
-                      "out vec4 outputColour;\n#define OUTPUT outputColour\n");
-    }
-    return std::string("#version 120\n") +
-           (vertex ? "#define INPUT attribute\n#define VARYING varying\n"
-                   : "#define VARYING varying\n#define SAMPLE texture2D\n"
-                     "#define OUTPUT gl_FragColor\n");
-}
-
-std::string maskVertex(bool embedded) {
-    return shaderPrefix(embedded, true) + R"(
-INPUT float a0;
-INPUT float corner;
-uniform float side;
-uniform vec2 baseSlot;
-VARYING float alive;
-void main() {
-    float x = mod(corner, side) + baseSlot.x;
-    float y = floor(corner / side) + baseSlot.y + floor(x / side);
-    vec2 pixel = vec2(mod(x, side), y) + vec2(0.5);
-    gl_Position = vec4(pixel * (2.0 / side) - vec2(1.0), 0.0, 1.0);
-    gl_PointSize = 1.0;
-    alive = step(0.0, a0);
-}
-)";
-}
-
-std::string maskFragment(bool embedded) {
-    return shaderPrefix(embedded, false) + R"(
-VARYING float alive;
-void main() { OUTPUT = vec4(alive / 255.0, 0.0, 0.0, 0.0); }
-)";
-}
-
-std::string reductionVertex(bool embedded) {
-    return shaderPrefix(embedded, true) + R"(
-INPUT vec2 a0;
-void main() { gl_Position = vec4(a0 * 2.0, 0.0, 1.0); }
-)";
-}
-
-std::string reductionFragment(bool embedded) {
-    return shaderPrefix(embedded, false) + R"(
-uniform sampler2D source;
-uniform float side;
-vec4 countAt(vec2 pixel) {
-    return floor(SAMPLE(source, pixel / side) * 255.0 + vec4(0.5));
-}
-void main() {
-    vec2 pixel = floor(gl_FragCoord.xy) * 2.0 + vec2(0.5);
-    vec4 value = countAt(pixel) + countAt(pixel + vec2(1.0, 0.0))
-               + countAt(pixel + vec2(0.0, 1.0)) + countAt(pixel + vec2(1.0));
-    value.y += floor(value.x / 256.0);
-    value.x = mod(value.x, 256.0);
-    value.z += floor(value.y / 256.0);
-    value.y = mod(value.y, 256.0);
-    value.w += floor(value.z / 256.0);
-    value.z = mod(value.z, 256.0);
-    OUTPUT = value / 255.0;
-}
-)";
+sf::rhi::TargetState targetState(const sf::rhi::RenderTarget& target) {
+    const auto size = target.getSize();
+    return {size,
+            {{0, 0}, sf::Vector2i(size)},
+            {{0, 0}, sf::Vector2i(size)},
+            sf::Transform::Identity,
+            false};
 }
 
 }  // namespace
-
-GpuStatisticsImpl::StateGuard::StateGuard(GpuApi& functions)
-    : api(functions), base(functions) {
-    api.GetIntegerv(gpu_gl::DrawFramebufferBinding, &drawFramebuffer);
-    if (api.separateFramebuffers) {
-        api.GetIntegerv(gpu_gl::ReadFramebufferBinding, &readFramebuffer);
-    }
-    api.GetIntegerv(gpu_gl::PixelPackBufferBinding, &packBuffer);
-    api.GetIntegerv(gpu_gl::PixelUnpackBufferBinding, &unpackBuffer);
-    for (std::size_t index = 0; index < PackParameters.size(); ++index) {
-        api.GetIntegerv(PackParameters[index], &packSettings[index]);
-        api.PixelStorei(PackParameters[index], index == 0 ? 1 : 0);
-    }
-    api.GetFloatv(gpu_gl::ColorClearValue, clearColour.data());
-    api.GetBooleanv(gpu_gl::ColorWriteMask, colourMask.data());
-    for (std::size_t index = 0; index < DisabledCapabilities.size(); ++index) {
-        enables[index] = api.IsEnabled(DisabledCapabilities[index]) != 0;
-        api.Disable(DisabledCapabilities[index]);
-    }
-    if (api.framebufferSrgb) {
-        srgb = api.IsEnabled(gpu_gl::FramebufferSrgb) != 0;
-        api.Disable(gpu_gl::FramebufferSrgb);
-    }
-    if (!api.embedded) {
-        alphaTest = api.IsEnabled(gpu_gl::AlphaTest) != 0;
-        pointSmooth = api.IsEnabled(gpu_gl::PointSmooth) != 0;
-        pointSize = api.IsEnabled(gpu_gl::ProgramPointSize) != 0;
-        logicOp = api.IsEnabled(gpu_gl::ColorLogicOp) != 0;
-        api.Disable(gpu_gl::AlphaTest);
-        api.Disable(gpu_gl::PointSmooth);
-        api.Disable(gpu_gl::ColorLogicOp);
-        api.Enable(gpu_gl::ProgramPointSize);
-    }
-    api.Disable(gpu_gl::RasterizerDiscard);
-    api.Disable(gpu_gl::Blend);
-    api.ColorMask(1, 1, 1, 1);
-    api.ActiveTexture(gpu_gl::Texture0);
-    api.BindBuffer(gpu_gl::PixelUnpackBuffer, 0);
-    for (unsigned int index = 0;
-         index < gpu_particle_layout::VertexAttributeCount; ++index) {
-        api.DisableVertexAttribArray(index);
-        api.VertexAttribDivisor(index, 0);
-    }
-}
-
-GpuStatisticsImpl::StateGuard::~StateGuard() {
-    if (api.separateFramebuffers) {
-        api.BindFramebuffer(gpu_gl::DrawFramebuffer,
-                            static_cast<unsigned int>(drawFramebuffer));
-        api.BindFramebuffer(gpu_gl::ReadFramebuffer,
-                            static_cast<unsigned int>(readFramebuffer));
-    } else {
-        api.BindFramebuffer(gpu_gl::Framebuffer,
-                            static_cast<unsigned int>(drawFramebuffer));
-    }
-    api.BindBuffer(gpu_gl::PixelPackBuffer,
-                   static_cast<unsigned int>(packBuffer));
-    api.BindBuffer(gpu_gl::PixelUnpackBuffer,
-                   static_cast<unsigned int>(unpackBuffer));
-    for (std::size_t index = 0; index < PackParameters.size(); ++index) {
-        api.PixelStorei(PackParameters[index], packSettings[index]);
-    }
-    api.ClearColor(clearColour[0], clearColour[1], clearColour[2],
-                   clearColour[3]);
-    api.ColorMask(colourMask[0], colourMask[1], colourMask[2], colourMask[3]);
-    for (std::size_t index = 0; index < DisabledCapabilities.size(); ++index) {
-        if (enables[index]) {
-            api.Enable(DisabledCapabilities[index]);
-        }
-    }
-    if (api.framebufferSrgb && srgb) {
-        api.Enable(gpu_gl::FramebufferSrgb);
-    }
-    if (!api.embedded) {
-        if (alphaTest) {
-            api.Enable(gpu_gl::AlphaTest);
-        }
-        if (pointSmooth) {
-            api.Enable(gpu_gl::PointSmooth);
-        }
-        if (logicOp) {
-            api.Enable(gpu_gl::ColorLogicOp);
-        }
-        if (!pointSize) {
-            api.Disable(gpu_gl::ProgramPointSize);
-        }
-    }
-}
 
 GpuStatisticsImpl::GpuStatisticsImpl(
     std::shared_ptr<GpuResourcesImpl> resources)
@@ -175,93 +29,52 @@ GpuStatisticsImpl::GpuStatisticsImpl(
     if (!available()) {
         return;
     }
-    GpuApi& api = resources_->api;
-    StateGuard guard(api);
-    try {
-        maskProgram_ = api.program(maskVertex(api.embedded),
-                                   maskFragment(api.embedded), false);
-        reductionProgram_ = api.program(reductionVertex(api.embedded),
-                                        reductionFragment(api.embedded), false);
-        maskSide_ = api.GetUniformLocation(maskProgram_, "side");
-        maskBase_ = api.GetUniformLocation(maskProgram_, "baseSlot");
-        reductionSide_ = api.GetUniformLocation(reductionProgram_, "side");
-        reductionSource_ = api.GetUniformLocation(reductionProgram_, "source");
-        api.GenFramebuffers(1, &framebuffer_);
-        api.GenTextures(2, textures_.data());
-        api.GenBuffers(1, &readback_);
-        api.BindBuffer(gpu_gl::PixelPackBuffer, readback_);
-        api.BufferData(gpu_gl::PixelPackBuffer, sizeof(std::uint32_t), nullptr,
-                       gpu_gl::StreamRead);
-    } catch (...) {
-        destroy();
-        throw;
+    const auto programs = GpuEmitterShaders::programs();
+    maskShader_ = ShaderCache::instantiate(
+        programs[static_cast<std::size_t>(GpuEmitterShaders::Kind::Mask)]);
+    reductionShader_ = ShaderCache::instantiate(
+        programs[static_cast<std::size_t>(GpuEmitterShaders::Kind::Reduction)]);
+    maskProgram_ = sf::rhi::getShader(*maskShader_);
+    reductionProgram_ = sf::rhi::getShader(*reductionShader_);
+    if (!maskProgram_ || !reductionProgram_) {
+        throw std::runtime_error(
+            "GPU particle statistics shaders are unavailable");
     }
 }
 
-GpuStatisticsImpl::~GpuStatisticsImpl() {
-    destroy();
-}
-
-void GpuStatisticsImpl::destroy() noexcept {
-    if (!available()) {
-        return;
-    }
-    GpuApi& api = resources_->api;
-    if (fence_ != nullptr) {
-        api.DeleteSync(fence_);
-    }
-    api.DeleteBuffers(1, &readback_);
-    api.DeleteFramebuffers(1, &framebuffer_);
-    api.DeleteTextures(2, textures_.data());
-    if (maskProgram_) {
-        api.DeleteProgram(maskProgram_);
-    }
-    if (reductionProgram_) {
-        api.DeleteProgram(reductionProgram_);
-    }
-}
+GpuStatisticsImpl::~GpuStatisticsImpl() = default;
 
 bool GpuStatisticsImpl::available() const {
-    return resources_ != nullptr && resources_->api.statisticsAvailable;
+    return resources_ &&
+           resources_->device->capabilities().asynchronousReadback;
 }
 
 void GpuStatisticsImpl::reserve(int size) {
-    if (size_ >= size) {
+    if (size_ == size) {
         return;
     }
-    GpuApi& api = resources_->api;
-    for (unsigned int texture : textures_) {
-        api.BindTexture(gpu_gl::Texture2D, texture);
-        api.TexParameteri(gpu_gl::Texture2D, gpu_gl::TextureMinFilter,
-                          gpu_gl::Nearest);
-        api.TexParameteri(gpu_gl::Texture2D, gpu_gl::TextureMagFilter,
-                          gpu_gl::Nearest);
-        api.TexParameteri(gpu_gl::Texture2D, gpu_gl::TextureWrapS,
-                          gpu_gl::ClampToEdge);
-        api.TexParameteri(gpu_gl::Texture2D, gpu_gl::TextureWrapT,
-                          gpu_gl::ClampToEdge);
-        api.TexImage2D(gpu_gl::Texture2D, 0, gpu_gl::Rgba8, size, size, 0,
-                       gpu_gl::Rgba, gpu_gl::UnsignedByte, nullptr);
+    std::vector<std::shared_ptr<sf::rhi::Texture>> textures;
+    std::vector<std::shared_ptr<sf::rhi::RenderTarget>> targets;
+    for (int dimension = size; dimension >= 1; dimension /= 2) {
+        const unsigned int side = static_cast<unsigned int>(dimension);
+        auto texture = resources_->device->createTexture({side, side});
+        auto target =
+            texture ? resources_->device->createRenderTarget(texture) : nullptr;
+        if (!target) {
+            throw std::runtime_error(
+                "Cannot allocate GPU particle statistics reduction targets");
+        }
+        textures.push_back(std::move(texture));
+        targets.push_back(std::move(target));
     }
+    textures_ = std::move(textures);
+    targets_ = std::move(targets);
     size_ = size;
 }
 
-void GpuStatisticsImpl::attach(unsigned int texture, int size) {
-    GpuApi& api = resources_->api;
-    api.FramebufferTexture2D(gpu_gl::Framebuffer, gpu_gl::ColorAttachment0,
-                             gpu_gl::Texture2D, texture, 0);
-    if (api.CheckFramebufferStatus(gpu_gl::Framebuffer) !=
-        gpu_gl::FramebufferComplete) {
-        throw std::runtime_error(
-            "GPU particle statistics framebuffer is incomplete");
-    }
-    api.Viewport(0, 0, size, size);
-}
-
-bool GpuStatisticsImpl::submit(
-    const std::vector<std::pair<unsigned int, int>>& stateBuffers,
-    double simulationTime, bool force) {
-    if (!available() || fence_ != nullptr ||
+bool GpuStatisticsImpl::submit(const std::vector<StateBuffer>& stateBuffers,
+                               double simulationTime, bool force) {
+    if (!available() || readback_ ||
         (!force && lastSubmitTime_.has_value() &&
          simulationTime >= *lastSubmitTime_ &&
          simulationTime - *lastSubmitTime_ < MinimumSampleInterval)) {
@@ -274,7 +87,7 @@ bool GpuStatisticsImpl::submit(
     std::uint64_t total = 0;
     int largestTrack = 0;
     for (const auto& [buffer, capacity] : stateBuffers) {
-        if (buffer == 0 || capacity < 0) {
+        if (!buffer || capacity < 0) {
             throw std::invalid_argument(
                 "GPU statistics requires valid state buffers");
         }
@@ -286,114 +99,93 @@ bool GpuStatisticsImpl::submit(
         lastSubmitTime_ = simulationTime;
         return true;
     }
-    GpuApi& api = resources_->api;
-    int maximum = 0;
-    api.GetIntegerv(gpu_gl::MaxTextureSize, &maximum);
-    int side = 1;
+    const auto maximum = resources_->device->capabilities().maximumTextureSize;
+    unsigned int side = 1;
     while (static_cast<std::uint64_t>(side) * side < total &&
            side <= maximum / 2) {
         side *= 2;
     }
-    if (total > std::numeric_limits<std::uint32_t>::max() ||
+    if (side > static_cast<unsigned int>(std::numeric_limits<int>::max()) ||
+        total > std::numeric_limits<std::uint32_t>::max() ||
         static_cast<std::uint64_t>(side) * side < total) {
         return false;
     }
-    StateGuard guard(api);
-    reserve(side);
+    reserve(static_cast<int>(side));
     resources_->reserveIndices(largestTrack);
-    api.BindFramebuffer(gpu_gl::Framebuffer, framebuffer_);
-    attach(textures_[0], side);
-    api.ClearColor(0, 0, 0, 0);
-    api.Clear(gpu_gl::ColorBufferBit);
-    api.UseProgram(maskProgram_);
-    api.Uniform1f(maskSide_, static_cast<float>(side));
-    api.EnableVertexAttribArray(0);
-    api.EnableVertexAttribArray(gpu_particle_layout::CornerAttributeIndex);
-    api.BindBuffer(gpu_gl::ArrayBuffer, resources_->indices);
-    api.VertexAttribPointer(gpu_particle_layout::CornerAttributeIndex, 1,
-                            gpu_gl::Float, 0, sizeof(float), nullptr);
+    auto& maskTarget = *targets_.front();
+    const auto maskState = targetState(maskTarget);
+    maskTarget.commands().clear(maskState, sf::Color::Transparent);
+    maskShader_->setUniform("side", static_cast<float>(side));
+    sf::rhi::DrawSettings settings;
+    settings.blendMode = sf::BlendNone;
+    settings.shader = maskProgram_;
     std::uint64_t offset = 0;
     for (const auto& [buffer, capacity] : stateBuffers) {
-        api.BindBuffer(gpu_gl::ArrayBuffer, buffer);
-        api.VertexAttribPointer(
-            0, 1, gpu_gl::Float, 0, gpu_particle_layout::StateStrideBytes,
-            reinterpret_cast<const void*>(gpu_particle_layout::AgeOffsetBytes));
-        api.Uniform2f(maskBase_, static_cast<float>(offset % side),
-                      static_cast<float>(offset / side));
-        api.DrawArrays(gpu_gl::Points, 0, capacity);
+        maskShader_->setUniform(
+            "baseSlot", sf::Vector2f(static_cast<float>(offset % side),
+                                     static_cast<float>(offset / side)));
+        if (!maskTarget.commands().drawVertices(
+                maskState, {{buffer, 0}, {resources_->indices, 0}}, 0,
+                static_cast<std::size_t>(capacity), 1,
+                sf::PrimitiveType::Points, settings)) {
+            throw std::runtime_error(
+                "GPU particle statistics mask submission failed");
+        }
         offset += static_cast<std::uint64_t>(capacity);
     }
-    api.DisableVertexAttribArray(gpu_particle_layout::CornerAttributeIndex);
-    api.BindBuffer(gpu_gl::ArrayBuffer, resources_->corners);
-    api.VertexAttribPointer(0, 2, gpu_gl::Float, 0, 2 * sizeof(float), nullptr);
-    api.UseProgram(reductionProgram_);
-    api.Uniform1i(reductionSource_, 0);
-    api.Uniform1f(reductionSide_, static_cast<float>(size_));
-    int source = 0;
-    for (int dimension = side / 2; dimension >= 1; dimension /= 2) {
-        const int destination = 1 - source;
-        attach(textures_[destination], dimension);
-        api.BindTexture(gpu_gl::Texture2D, textures_[source]);
-        api.DrawArrays(gpu_gl::Triangles, 0,
-                       gpu_particle_layout::QuadVertexCount);
-        source = destination;
+    maskTarget.finish();
+    settings.shader = reductionProgram_;
+    for (std::size_t level = 1; level < targets_.size(); ++level) {
+        auto& target = *targets_[level];
+        reductionProgram_->setSampler("source", textures_[level - 1]);
+        reductionShader_->setUniform(
+            "side", static_cast<float>(textures_[level - 1]->getSize().x));
+        if (!target.commands().drawVertices(
+                targetState(target), {{resources_->corners, 0}}, 0,
+                gpu_particle_layout::QuadVertexCount, 1,
+                sf::PrimitiveType::Triangles, settings)) {
+            throw std::runtime_error(
+                "GPU particle statistics reduction submission failed");
+        }
+        target.finish();
     }
-    api.BindBuffer(gpu_gl::PixelPackBuffer, readback_);
-    api.ReadPixels(0, 0, 1, 1, gpu_gl::Rgba, gpu_gl::UnsignedByte, nullptr);
-    fence_ = api.FenceSync(gpu_gl::SyncGpuCommandsComplete, 0);
-    if (fence_ == nullptr) {
+    readback_ = resources_->device->readTextureAsync(textures_.back(),
+                                                     {{0, 0}, {1, 1}});
+    if (!readback_ || !resources_->device->submit()) {
+        readback_.reset();
         throw std::runtime_error(
-            "Failed to fence asynchronous GPU particle statistics");
+            "Cannot submit asynchronous GPU particle statistics readback");
     }
-    api.Flush();
     pendingTime_ = simulationTime;
     lastSubmitTime_ = simulationTime;
     return true;
 }
 
 std::optional<GpuStatisticsImpl::Sample> GpuStatisticsImpl::poll() {
-    if (zeroSample_.has_value()) {
-        const std::optional<Sample> result = zeroSample_;
+    if (zeroSample_) {
+        const auto result = zeroSample_;
         zeroSample_.reset();
         return result;
     }
-    if (!available() || fence_ == nullptr) {
+    if (!readback_) {
         return std::nullopt;
     }
-    GpuApi& api = resources_->api;
-    const unsigned int state = api.ClientWaitSync(fence_, 0, 0);
-    if (state == gpu_gl::TimeoutExpired) {
+    const auto status = readback_->poll();
+    if (status == sf::rhi::ReadbackStatus::Pending) {
         return std::nullopt;
     }
-    if (state != gpu_gl::AlreadySignaled &&
-        state != gpu_gl::ConditionSatisfied) {
+    if (status == sf::rhi::ReadbackStatus::Failed ||
+        readback_->data().size() != sizeof(std::uint32_t)) {
+        readback_.reset();
         throw std::runtime_error(
-            "Failed to poll asynchronous GPU particle statistics");
+            "Asynchronous GPU particle statistics readback failed");
     }
-    int previous = 0;
-    api.GetIntegerv(gpu_gl::PixelPackBufferBinding, &previous);
-    api.BindBuffer(gpu_gl::PixelPackBuffer, readback_);
-    const auto* bytes = static_cast<const unsigned char*>(api.MapBufferRange(
-        gpu_gl::PixelPackBuffer, 0, sizeof(std::uint32_t), gpu_gl::MapReadBit));
-    if (bytes == nullptr) {
-        api.BindBuffer(gpu_gl::PixelPackBuffer,
-                       static_cast<unsigned int>(previous));
-        throw std::runtime_error(
-            "Failed to map completed GPU particle statistics");
-    }
+    const auto& bytes = readback_->data();
     const std::uint32_t value = static_cast<std::uint32_t>(bytes[0]) |
                                 (static_cast<std::uint32_t>(bytes[1]) << 8u) |
                                 (static_cast<std::uint32_t>(bytes[2]) << 16u) |
                                 (static_cast<std::uint32_t>(bytes[3]) << 24u);
-    const bool valid = api.UnmapBuffer(gpu_gl::PixelPackBuffer) != 0;
-    api.BindBuffer(gpu_gl::PixelPackBuffer,
-                   static_cast<unsigned int>(previous));
-    api.DeleteSync(fence_);
-    fence_ = nullptr;
-    if (!valid) {
-        throw std::runtime_error(
-            "GPU particle statistics buffer contents became invalid");
-    }
+    readback_.reset();
     return Sample{value, pendingTime_};
 }
 

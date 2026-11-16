@@ -11,6 +11,8 @@
 #include <EngineState.hpp>
 #include <Manager/TimeManager.hpp>
 #include <Manager/TextureManager.hpp>
+#include <Runtime/Graphics/ShaderCache.hpp>
+#include <Utils/Inner.hpp>
 #include <stdexcept>
 #include <utility>
 
@@ -123,6 +125,11 @@ void System::shutdownRuntime() noexcept {
             .transition()
             .cancelPendingTransition();
         ludork::global::system_impl::lifecycleImpl().setStandardUpdate({});
+        try {
+            ludork::runtime::graphics::ShaderCache::savePipelineCache();
+        } catch (const std::exception& error) {
+            warnOnce("ShaderCache.shutdown", error.what());
+        }
         ludork::global::system_impl::framePipelineImpl().shutdown();
         ludork::global::system_impl::displayImpl().shutdown();
     });

@@ -11,7 +11,7 @@ from .tool_paths import resolve_toolchain_directory
 from .tool_process import run
 
 
-DEPENDENCY_NAMES = ("flac", "freetype", "harfbuzz", "libssh2", "ludork_utf8proc", "mbedtls", "ogg", "sheenbidi", "vorbis")
+DEPENDENCY_NAMES = ("flac", "freetype", "harfbuzz", "libssh2", "ludork_utf8proc", "ludork_glslang", "ludork_spirv_cross", "mbedtls", "ogg", "sheenbidi", "vorbis")
 
 
 def _prepare_dependency_cache(project: pathlib.Path, repository: pathlib.Path, configuration: str) -> bool:

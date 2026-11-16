@@ -1,9 +1,6 @@
-#ifdef GL_ES
-precision highp float;
-varying mediump vec4 sf_TexCoord0;
-#else
-varying vec4 sf_TexCoord0;
-#endif
+#version 150 core
+out vec4 fragmentColor;
+in vec4 sf_TexCoord0;
 
 uniform sampler2D screenTex;
 uniform vec2 texSize;
@@ -60,14 +57,14 @@ float snowFlake(vec2 uv, float t, float density, vec2 scroll)
 void main()
 {
     vec2 uv = sf_TexCoord0.xy;
-    vec3 src = texture2D(screenTex, clamp(uv, 0.0, 1.0)).rgb;
+    vec3 src = texture(screenTex, clamp(uv, 0.0, 1.0)).rgb;
     float p = clamp(power, 0.0, 1.0);
     float m = clamp(maxScale, 0.1, 2.0);
     int wType = int(weatherType + 0.5);
 
     if (wType == 0 || p <= 0.001)
     {
-        gl_FragColor = vec4(src, 1.0);
+        fragmentColor = vec4(src, 1.0);
         return;
     }
 
@@ -98,5 +95,5 @@ void main()
         src += vec3(0.95, 0.97, 1.0) * snow * p * 0.38;
     }
 
-    gl_FragColor = vec4(clamp(src, 0.0, 1.0), 1.0);
+    fragmentColor = vec4(clamp(src, 0.0, 1.0), 1.0);
 }

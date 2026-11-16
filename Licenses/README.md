@@ -31,3 +31,5 @@ Editor package licence texts come unchanged from the source commits identified b
 | `SharpCompress` 0.50.7 | [MIT](EditorPackages/SharpCompress-LICENSE.txt) | [Upstream commit](https://github.com/adamhathcock/sharpcompress/blob/b4af8afe6683d019d504954a3b4e4f18b06e2cd6/LICENSE.txt) |
 
 Legal texts retain their supplied language and are not rewritten. This index does not replace them.
+
+The native shader translator includes [glslang](NativeDependencies/glslang-LICENSE.txt) from [commit b5782e52](https://github.com/KhronosGroup/glslang/tree/b5782e52ee2f7b3e40bb9c80d15b47016e008bc9) and [SPIRV-Cross](NativeDependencies/SPIRV-Cross-LICENSE.txt) from [commit 7affe74d](https://github.com/KhronosGroup/SPIRV-Cross/tree/7affe74d77f93a622bb5002789d5332d32e512ee). Their licence texts are copied unchanged from those sources.

@@ -1,6 +1,7 @@
-attribute vec4 sf_Vertex;
-attribute vec4 sf_Color;
-attribute vec4 sf_MultiTexCoord0;
+#version 150 core
+in vec4 sf_Vertex;
+in vec4 sf_Color;
+in vec4 sf_MultiTexCoord0;
 
 uniform mat4 sf_ModelViewProjectionMatrix;
 uniform mat4 sf_TextureMatrix;
@@ -11,15 +12,9 @@ uniform vec2 snapshotOrigin;
 uniform vec2 snapshotSize;
 uniform float seed;
 
-#ifdef GL_ES
-varying mediump vec4 sf_FrontColor;
-varying mediump vec4 sf_TexCoord0;
-varying mediump float shatterProgress;
-#else
-varying vec4 sf_FrontColor;
-varying vec4 sf_TexCoord0;
-varying float shatterProgress;
-#endif
+out vec4 sf_FrontColor;
+out vec4 sf_TexCoord0;
+out float shatterProgress;
 
 float pixelHash(vec2 pixel, float salt)
 {

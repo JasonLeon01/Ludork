@@ -7,12 +7,10 @@
 
 namespace ludork::runtime::graphics {
 namespace {
-std::string vertexHeader(bool embedded) {
+std::string vertexHeader() {
     std::string result =
-        embedded ? "#version 300 es\nprecision highp float;\n#define IN "
-                   "in\n#define OUT out\n#define TEX texture\n"
-                 : "#version 120\n#define IN attribute\n#define OUT "
-                   "varying\n#define TEX texture2D\n";
+        "#version 150 core\n#define IN in\n#define OUT out\n#define TEX "
+        "texture\n";
     result += "#define LUDORK_EMITTER_CURVE_SAMPLES " +
               std::to_string(emitter_curve_layout::SampleCount) + ".0\n";
     result += "#define LUDORK_EMITTER_CURVE_ROWS " +
@@ -37,12 +35,12 @@ std::string vertexHeader(bool embedded) {
         ".0\n";
     return result;
 }
-std::string particleAttributes() {
+std::string particleAttributes(bool draw) {
     std::string result;
     for (const char* name : gpu_particle_layout::StateAttributeNames) {
         result += "IN vec4 " + std::string(name) + ";\n";
     }
-    result += "IN vec2 " +
+    result += std::string(draw ? "IN vec2 " : "IN float ") +
               std::string(gpu_particle_layout::CornerAttributeName) + ";\n";
     return result + R"GLSL(
 const float DEGREES_TO_RADIANS = 0.01745329252;
@@ -66,8 +64,8 @@ std::string particleOutputs() {
 }
 }  // namespace
 
-std::string emitterUpdateShader(bool embedded) {
-    return vertexHeader(embedded) + particleAttributes() + particleOutputs() +
+std::string emitterUpdateShader() {
+    return vertexHeader() + particleAttributes(false) + particleOutputs() +
            R"GLSL(
 uniform float uDelta, uReset, uSeed, uCapacity, uBirthStart, uBirthCount;
 uniform float uResident, uLoop, uDraining, uWorld, uShape, uRadius, uInnerRadius;
@@ -93,7 +91,7 @@ float randomValue(inout float state) {
     return fract((mixed.x+folded)*(mixed.y+folded)+mixed.z*RANDOM_FOLD_SCALE);
 }
 void main() {
-    float id = corner.x;
+    float id = corner;
     s0=a0; s1=a1; s2=a2; s3=a3; s4=a4; s5=a5;
     if (uReset > 0.5) {
         s0=vec4(0.0); s1=vec4(-1.0,1.0,0.0,0.0);
@@ -150,13 +148,12 @@ void main() {
             }
         }
     }
-    gl_Position=vec4(0.0,0.0,0.0,1.0);
 }
 )GLSL";
 }
 
-std::string emitterDrawShader(bool embedded) {
-    return vertexHeader(embedded) + particleAttributes() + R"GLSL(
+std::string emitterDrawShader() {
+    return vertexHeader() + particleAttributes(true) + R"GLSL(
 OUT vec2 vUv;
 OUT vec4 vColour;
 uniform mat4 uProjection, uHost;
@@ -182,13 +179,10 @@ void main() {
 )GLSL";
 }
 
-std::string emitterFragmentShader(bool embedded, bool textured) {
+std::string emitterFragmentShader(bool textured) {
     std::string result =
-        embedded ? "#version 300 es\nprecision highp float;\n#define IN "
-                   "in\n#define TEX texture\nout vec4 resultColour;\n#define "
-                   "RESULT resultColour\n"
-                 : "#version 120\n#define IN varying\n#define TEX "
-                   "texture2D\n#define RESULT gl_FragColor\n";
+        "#version 150 core\n#define IN in\n#define TEX texture\nout vec4 "
+        "resultColour;\n#define RESULT resultColour\n";
     if (textured) {
         result += sceneLightingGlsl("TEX");
         result +=

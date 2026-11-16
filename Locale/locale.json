@@ -1971,18 +1971,6 @@
     "zh_CN": "2in1",
     "en_GB": "2in1"
   },
-  "PACK_HARMONY_GRAPHICS_API": {
-    "zh_CN": "图形 API",
-    "en_GB": "Graphics API"
-  },
-  "PACK_HARMONY_GRAPHICS_OPENGL": {
-    "zh_CN": "OpenGL",
-    "en_GB": "OpenGL"
-  },
-  "PACK_HARMONY_GRAPHICS_OPENGL_ES": {
-    "zh_CN": "OpenGL ES",
-    "en_GB": "OpenGL ES"
-  },
   "PACK_HARMONY_SIGNING_TITLE": {
     "zh_CN": "HarmonyOS HAP 签名",
     "en_GB": "HarmonyOS HAP Signing"

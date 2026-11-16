@@ -8,7 +8,9 @@
 #include <Runtime/AssetStore.hpp>
 #include <Runtime/RuntimeDataReader.hpp>
 #include <SFML/Graphics/Image.hpp>
-#include <SFML/Window/Context.hpp>
+#include <Runtime/Graphics/ShaderCache.hpp>
+#include <SFML/Graphics/RHI/Device.hpp>
+#include <algorithm>
 
 #include <cmath>
 #include <stdexcept>
@@ -62,12 +64,26 @@ MaterialProgramCache::Impl::Program& MaterialProgramCache::Impl::program(
     }
     Program value;
     value.sources = MaterialGenerated::sources(material, layer, pass);
-    value.shader = std::make_shared<sf::Shader>();
+    const std::string directory =
+        "/Game/Assets/Shaders/MaterialGenerated/" +
+        MaterialGenerated::programDirectory(material, layer);
+    static constexpr const char* passes[] = {"color", "surface", "transmission",
+                                             "source"};
+    ludork::runtime::graphics::ShaderCache::Program input;
+    input.source.stages = {
+        {ludork::runtime::graphics::ShaderTranslator::Stage::Vertex,
+         value.sources.vertex, directory + "/vertex.vert"},
+        {ludork::runtime::graphics::ShaderTranslator::Stage::Fragment,
+         value.sources.fragment,
+         directory + "/" + passes[static_cast<std::size_t>(pass)] + ".frag"}};
     ShaderLogCaptureImpl diagnostics;
-    if (!value.shader->loadFromMemory(value.sources.vertex,
-                                      value.sources.fragment)) {
-        throw std::runtime_error("Material shader compilation failed: " +
-                                 material.path() + "\n" + diagnostics.text());
+    try {
+        value.shader =
+            ludork::runtime::graphics::ShaderCache::instantiate(input);
+    } catch (const std::exception& error) {
+        throw std::runtime_error(
+            "Material shader loading failed: " + material.path() + "\n" +
+            error.what() + "\n" + diagnostics.text());
     }
     return programs.emplace(key, std::move(value)).first->second;
 }
@@ -78,19 +94,12 @@ bool MaterialProgramCache::Impl::hasUniform(Program& program,
         found != program.activeUniforms.end()) {
         return found->second;
     }
-#ifdef SFML_SYSTEM_WINDOWS
-    using UniformLocation = int(__stdcall*)(unsigned int, const char*);
-#else
-    using UniformLocation = int (*)(unsigned int, const char*);
-#endif
-    const auto query = reinterpret_cast<UniformLocation>(
-        sf::Context::getFunction("glGetUniformLocation"));
-    if (!query) {
-        throw std::runtime_error(
-            "Material rendering requires glGetUniformLocation");
-    }
+    const auto uniforms =
+        sf::rhi::getShader(*program.shader)->getActiveUniforms();
     const bool active =
-        query(program.shader->getNativeHandle(), name.c_str()) >= 0;
+        std::any_of(uniforms.begin(), uniforms.end(), [&](const auto& uniform) {
+            return uniform.name == name;
+        });
     program.activeUniforms.emplace(name, active);
     return active;
 }

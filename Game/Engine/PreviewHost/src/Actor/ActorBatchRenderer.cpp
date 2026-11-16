@@ -383,19 +383,16 @@ ActorBatchRenderer::Impl::loadTexture(const std::string& path) {
 sf::Shader& ActorBatchRenderer::Impl::requireErrorShader() {
     if (errorShader_ == nullptr) {
         constexpr const char* source = R"(
-#ifdef GL_ES
-precision highp float;
-varying mediump vec4 sf_FrontColor;
-varying mediump vec4 sf_TexCoord0;
-#else
-varying vec4 sf_FrontColor;
-varying vec4 sf_TexCoord0;
-#endif
+#version 150 core
+out vec4 fragmentColor;
+in vec4 sf_FrontColor;
+in vec4 sf_TexCoord0;
+vec4 sampleTexture(sampler2D image, vec2 uv) { return texture(image, uv); }
 uniform sampler2D texture;
 void main()
 {
-    vec4 source = texture2D(texture, sf_TexCoord0.xy);
-    gl_FragColor = vec4(source.r, 0.0, source.b, source.a) * sf_FrontColor;
+    vec4 source = sampleTexture(texture, sf_TexCoord0.xy);
+    fragmentColor = vec4(source.r, 0.0, source.b, source.a) * sf_FrontColor;
 }
 )";
         errorShader_ = std::make_shared<sf::Shader>();

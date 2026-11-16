@@ -54,6 +54,8 @@ public:
         const std::string& assetPath) const;
     [[nodiscard]] std::optional<AssetContents> readFirst(
         const std::vector<std::string>& candidatePaths) const;
+    [[nodiscard]] std::vector<std::string> listFiles(
+        const std::string& assetDirectory) const;
 
 private:
     struct Impl;

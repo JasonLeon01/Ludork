@@ -130,7 +130,6 @@ class PackContext:
     artifact_name: str
     bundle_name: str
     device_form: str
-    graphics_api: str
     use_luac: bool
     encrypt_shaders: bool
     encrypt_data: bool
@@ -280,14 +279,6 @@ def validate_bundle_name(bundle_name: str) -> None:
 def create_context(arguments: argparse.Namespace) -> PackContext:
     if sys.platform != "darwin":
         raise PackError("HarmonyOS packaging is only supported on macOS.", EXIT_TOOLCHAIN)
-    graphics_api = arguments.graphics_api
-    if graphics_api is None:
-        graphics_api = "opengl-es" if arguments.device_form == "mobile" else "opengl"
-    if arguments.device_form == "mobile" and graphics_api != "opengl-es":
-        raise PackError(
-            "HarmonyOS mobile packaging supports only the OpenGL ES graphics backend.",
-            EXIT_PROJECT,
-        )
     project_dir = resolve_project(arguments.project_folder)
     metadata = read_package_metadata(project_dir, arguments.version, arguments.dev)
     if arguments.use_ldpak:
@@ -316,7 +307,6 @@ def create_context(arguments: argparse.Namespace) -> PackContext:
         artifact_name=metadata.package_name,
         bundle_name=bundle_name,
         device_form=arguments.device_form,
-        graphics_api=graphics_api,
         use_luac=arguments.compile_lua,
         encrypt_shaders=arguments.encrypt_shaders,
         encrypt_data=arguments.encrypt_data,
@@ -629,14 +619,10 @@ def cmake_device_form(context: PackContext) -> str:
     return "MOBILE" if context.device_form == "mobile" else "2IN1"
 
 
-def cmake_opengl_es(context: PackContext) -> str:
-    return "ON" if context.graphics_api == "opengl-es" else "OFF"
-
-
 def harmony_artifact_variant(context: PackContext) -> str:
     if context.device_form == "mobile":
         return "mobile"
-    return f"2in1-{context.graphics_api}"
+    return "2in1-opengl-es"
 
 
 def replace_template_tokens(
@@ -673,7 +659,7 @@ def replace_template_tokens(
     replacements = {
         "__LUDORK_CMAKE_CONFIG__": cmake_configuration(context),
         "__LUDORK_RUNTIME_HASH__": runtime_hash,
-        "__LUDORK_GRAPHICS_API__": "OpenGL ES" if context.graphics_api == "opengl-es" else "OpenGL",
+        "__LUDORK_GRAPHICS_API__": "OpenGL ES",
         "__LUDORK_BUNDLE_NAME__": context.bundle_name,
         "__LUDORK_VERSION_NAME__": context.metadata.version,
         "__LUDORK_VERSION_CODE__": str(context.metadata.version_code),
@@ -862,7 +848,7 @@ def harmony_project_sdk_contract(profile: dict[str, object]) -> bool:
 def generated_native_arguments(context: PackContext) -> list[str]:
     return [
         f"-DSFML_HARMONY_DEVICE_FORM={cmake_device_form(context)}",
-        f"-DSFML_OPENGL_ES={cmake_opengl_es(context)}",
+        "-DSFML_OPENGL_ES=ON",
         f"-DOHOS_COMPATIBLE_SDK_VERSION={HARMONY_COMPATIBLE_API}",
         "-DSFML_USE_SYSTEM_DEPS=OFF",
         "-DBUILD_SHARED_LIBS=OFF",
@@ -1195,7 +1181,7 @@ def validate_native_build_contract(context: PackContext) -> None:
             )
     expected_cache_values = (
         f"SFML_HARMONY_DEVICE_FORM:STRING={cmake_device_form(context)}",
-        f"SFML_OPENGL_ES:BOOL={cmake_opengl_es(context)}",
+        "SFML_OPENGL_ES:BOOL=ON",
     )
     if any(value not in cache for value in expected_cache_values):
         raise PackError(
@@ -1292,12 +1278,8 @@ def validate_hap_native_dependencies(
         forbidden = desktop_libraries | {"libGLv4.so"}
     else:
         required.update(desktop_libraries)
-        if context.graphics_api == "opengl":
-            required.add("libGLv4.so")
-            forbidden = {"libGLESv2.so"}
-        else:
-            required.add("libGLESv2.so")
-            forbidden = {"libGLv4.so"}
+        required.add("libGLESv2.so")
+        forbidden = {"libGLv4.so"}
     missing = sorted(required - dependencies)
     unexpected = sorted(forbidden & dependencies)
     if missing or unexpected:
@@ -1563,7 +1545,6 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument("--encrypt-saves", action="store_true")
     parser.add_argument("--use-ldpak", action="store_true")
     parser.add_argument("--device-form", choices=("mobile", "2in1"), default="mobile")
-    parser.add_argument("--graphics-api", choices=("opengl", "opengl-es"))
     parser.add_argument("project_folder", type=pathlib.Path)
     parser.add_argument("dist_folder", type=pathlib.Path, nargs="?")
     return parser
@@ -1580,7 +1561,7 @@ def main(arguments: list[str] | None = None) -> int:
         print(f"Game name: {context.game_name}")
         print(f"Bundle name: {context.bundle_name}")
         print(f"Device form: {context.device_form}")
-        print(f"Graphics API: {context.graphics_api}")
+        print("Graphics API: opengl-es")
         device: HarmonyDevice | None = None
         if parsed.export_to_device:
             require_device_export_tools(context.tools)

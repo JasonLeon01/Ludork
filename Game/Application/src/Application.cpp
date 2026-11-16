@@ -9,6 +9,7 @@
 #include <Runtime/AssetStore.hpp>
 #include <Runtime/DataStore.hpp>
 #include <Runtime/ScriptStore.hpp>
+#include <SFML/Graphics/GraphicsBackend.hpp>
 #include <SystemServices.hpp>
 
 #include <cstdint>
@@ -69,6 +70,24 @@ int run(int argc, char** argv) {
         return 1;
     }
     try {
+#if defined(SFML_SYSTEM_WINDOWS)
+        const bool graphicsSelected =
+            sf::setGraphicsBackend(sf::GraphicsBackend::DirectX);
+#elif defined(SFML_SYSTEM_MACOS) || defined(SFML_SYSTEM_IOS)
+        const bool graphicsSelected =
+            sf::setGraphicsBackend(sf::GraphicsBackend::Metal);
+#elif defined(SFML_SYSTEM_ANDROID) || defined(SFML_SYSTEM_HARMONY)
+        const bool graphicsSelected = sf::setGraphicsBackend(
+            sf::GraphicsBackend::OpenGLES, sf::OpenGLESSettings{3, 0});
+#else
+        const bool graphicsSelected = sf::setGraphicsBackend(
+            sf::GraphicsBackend::OpenGL,
+            sf::OpenGLSettings{3, 2, sf::OpenGLProfile::Core});
+#endif
+        if (!graphicsSelected) {
+            throw std::runtime_error(
+                "The platform graphics backend is unavailable");
+        }
         ludork::runtime::scriptStore().configure(runtimeRoot);
         const bool scriptsPacked = ludork::runtime::scriptStore().mode() ==
                                    ludork::runtime::ScriptStoreMode::Packed;

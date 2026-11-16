@@ -78,6 +78,9 @@ void TransitionImpl::startTransition(
         transitionFrozen_ = false;
     }
     if (transitionShader_ == nullptr) {
+        initializeGraphics();
+    }
+    if (transitionShader_ == nullptr) {
         inTransition_ = false;
         return;
     }

@@ -20,43 +20,9 @@
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
-#include <type_traits>
 
 namespace ludork::preview_host {
 namespace {
-
-bool sameData(const RuntimeData& left, const RuntimeData& right) {
-    return left.visit([&right](const auto& value) -> bool {
-        using Value = std::remove_cvref_t<decltype(value)>;
-        if constexpr (std::is_same_v<Value, std::monostate>) {
-            return right.isNil();
-        } else {
-            const Value* other = right.getIf<Value>();
-            if (other == nullptr) {
-                return false;
-            }
-            if constexpr (std::is_same_v<Value, RuntimeData::Array>) {
-                return value.size() == other->size() &&
-                       std::equal(value.begin(), value.end(), other->begin(),
-                                  sameData);
-            } else if constexpr (std::is_same_v<Value, RuntimeData::Map>) {
-                if (value.size() != other->size()) {
-                    return false;
-                }
-                for (const auto& [key, item] : value) {
-                    const auto found = other->find(key);
-                    if (found == other->end() ||
-                        !sameData(item, found->second)) {
-                        return false;
-                    }
-                }
-                return true;
-            } else {
-                return value == *other;
-            }
-        }
-    });
-}
 
 RuntimeData diagnostic(const std::exception& exception) {
     return RuntimeData(object({{"nodeId", RuntimeData("")},
@@ -213,9 +179,8 @@ void MaterialPreviewSession::Impl::updateScene(const RuntimeData::Map& request,
         !scene.sprites.empty() &&
         scene.sprites.front().texture == nextTexture &&
         scene.sprites.front().textureRect == rectangle &&
-        sameData(sceneParameters, parameters) &&
-        scene.ambientLight == ambient && backgroundColour == colour &&
-        (!scene.lights.empty()) == light) {
+        sceneParameters.equals(parameters) && scene.ambientLight == ambient &&
+        backgroundColour == colour && (!scene.lights.empty()) == light) {
         return;
     }
     material->validateParameters(values);
@@ -332,7 +297,7 @@ RuntimeData MaterialPreviewSession::Impl::render(
         image = sf::Image(size, sf::Color(96, 24, 72));
     }
     const RuntimeData nextDiagnosticData(std::move(nextDiagnostics));
-    const bool diagnosticsChanged = !sameData(diagnostics, nextDiagnosticData);
+    const bool diagnosticsChanged = !diagnostics.equals(nextDiagnosticData);
     if (diagnosticsChanged) {
         diagnostics = nextDiagnosticData;
         ++diagnosticsRevision;

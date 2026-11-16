@@ -281,10 +281,6 @@ sf::Vector2u FramePipelineImpl::getCanvasSize() const {
     return canvas_ != nullptr ? canvas_->getSize() : sf::Vector2u{};
 }
 
-void FramePipelineImpl::initializeGraphics() {
-    transitionImpl_.initializeGraphics();
-}
-
 void FramePipelineImpl::rebuildTargets(const sf::Vector2u& size,
                                        float renderScale) {
     engineState().setScale(renderScale);

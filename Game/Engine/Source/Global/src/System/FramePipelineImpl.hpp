@@ -38,7 +38,6 @@ public:
     sf::RenderTexture* getCanvas();
     void clearCanvas();
     sf::Vector2u getCanvasSize() const;
-    void initializeGraphics();
     void rebuildTargets(const sf::Vector2u& size, float renderScale);
     void reset();
     void shutdown() noexcept;

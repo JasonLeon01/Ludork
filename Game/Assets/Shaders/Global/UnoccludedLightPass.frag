@@ -1,11 +1,7 @@
-#ifdef GL_ES
-precision highp float;
-varying mediump vec4 sf_FrontColor;
-varying mediump vec4 sf_TexCoord0;
-#else
-varying vec4 sf_FrontColor;
-varying vec4 sf_TexCoord0;
-#endif
+#version 150 core
+out vec4 fragmentColor;
+in vec4 sf_FrontColor;
+in vec4 sf_TexCoord0;
 
 #define LUDORK_MAX_SHADER_LIGHTS 64
 
@@ -35,5 +31,5 @@ void main() {
         sf_FrontColor.rgb *
         GetLightIntensity(index) *
         radialAttenuation;
-    gl_FragColor = vec4(direct, 1.0);
+    fragmentColor = vec4(direct, 1.0);
 }

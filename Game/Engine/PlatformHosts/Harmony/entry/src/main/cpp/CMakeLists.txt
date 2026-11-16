@@ -42,9 +42,9 @@ if(NOT DEFINED SFML_OPENGL_ES)
     message(FATAL_ERROR
         "SFML_OPENGL_ES must be passed explicitly by the Ludork packer.")
 endif()
-if(SFML_HARMONY_DEVICE_FORM STREQUAL "MOBILE" AND NOT SFML_OPENGL_ES)
+if(NOT SFML_OPENGL_ES)
     message(FATAL_ERROR
-        "The HarmonyOS mobile host requires SFML_OPENGL_ES=ON.")
+        "The HarmonyOS host requires SFML_OPENGL_ES=ON.")
 endif()
 
 add_subdirectory("${LUDORK_PROJECT_DIR}" ludork)
