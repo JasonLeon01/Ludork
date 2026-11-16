@@ -19,6 +19,8 @@ local Scene = {
 }
 
 function Scene:onCreate()
+    self.phaseKey = "INIT_MATERIALS"
+    self._displayPhaseKey = self.phaseKey
     local gameSize = Display.getGameSize()
     self._ui = SceneInitController.new(self, gameSize)
     self._ui:mount(self:getUIManager(), gameSize)
@@ -50,10 +52,12 @@ end
 
 function Scene:onLateTick(_)
     local target = self.progressDone and 1.0 or self.progressValue
-    if target ~= self._displayProgress then
+    if target ~= self._displayProgress or self.phaseKey ~= self._displayPhaseKey then
         self._displayProgress = target
+        self._displayPhaseKey = self.phaseKey
         SceneInitController.Publish({
-            progress = target
+            progress = target,
+            phaseKey = self.phaseKey
         })
     end
 end
@@ -79,6 +83,7 @@ function Scene:onQuit()
 end
 
 function Scene:loadGameData()
+    self.phaseKey = "INIT_DATA"
     self.progressTotal = 0
     self.processedCount = 0
     self._activeBatch = asyncio.start_file_batch({
@@ -234,6 +239,7 @@ function Scene:_processAnimationSource(item, sourceRoot, cacheRoot)
 end
 
 function Scene:prepareMaterials()
+    self.phaseKey = "INIT_MATERIALS"
     local request = Engine.prepareMaterialCache()
     self._materialRequest = request
     while not self._loadCancelled do
@@ -249,6 +255,7 @@ function Scene:prepareMaterials()
 end
 
 function Scene:compressAnimations()
+    self.phaseKey = "INIT_ANIMATIONS"
     local sourceRoot = Engine.getAnimationSourceRoot()
     local cacheRoot = Engine.getAnimationCacheRoot()
     self.progressTotal = 0

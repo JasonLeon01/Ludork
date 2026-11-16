@@ -101,6 +101,58 @@
         },
         "editor": {},
         "children": []
+      },
+      {
+        "name": "OperationText",
+        "controlId": "Engine.PlainText",
+        "properties": {
+          "characterSize": 20,
+          "fillColor": [
+            255,
+            255,
+            255,
+            255
+          ],
+          "outlineColor": [
+            0,
+            0,
+            0,
+            255
+          ],
+          "outlineThickness": 1.0,
+          "glowEnabled": false,
+          "gradientEnabled": false,
+          "lineAlignment": "center",
+          "text": ""
+        },
+        "slot": {
+          "anchors": {
+            "min": [
+              0.5,
+              0.8
+            ],
+            "max": [
+              0.5,
+              0.8
+            ]
+          },
+          "offsets": {
+            "left": 0.0,
+            "top": 24.0,
+            "right": 0.0,
+            "bottom": 0.0
+          },
+          "alignment": [
+            0.5,
+            0.0
+          ],
+          "autoSize": true,
+          "zOrder": 2
+        },
+        "editor": {
+          "previewText": "正在转换和编译着色器…"
+        },
+        "children": []
       }
     ]
   }

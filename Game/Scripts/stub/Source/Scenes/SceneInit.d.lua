@@ -3,6 +3,8 @@
 ---@class Source.Scenes.SceneInit.SceneInit: GlobalCore.SceneBase
 ---@field _ui                                          Source.Scenes.SceneInit.Controller
 ---@field _bg                                          Engine.Image
+---@field phaseKey                                     string
+---@field _displayPhaseKey                             string
 ---@field progressValue                                number
 ---@field _displayProgress                             number
 ---@field progressTotal                                integer

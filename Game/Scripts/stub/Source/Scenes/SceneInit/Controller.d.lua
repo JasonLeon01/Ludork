@@ -1,9 +1,10 @@
 ---@meta Source.Scenes.SceneInit.Controller
 
 ---@class Source.Scenes.SceneInit.Controller: Internal.UIBase.UiController
----@field ui      Internal.UI.Init
----@field new     fun(model: Source.Scenes.SceneInit.SceneInit, logicalSize: sf.Vector2u): Source.Scenes.SceneInit.Controller
----@field Publish fun(payload: table)
+---@field _phaseKey string
+---@field ui        Internal.UI.Init
+---@field new       fun(model: Source.Scenes.SceneInit.SceneInit, logicalSize: sf.Vector2u): Source.Scenes.SceneInit.Controller
+---@field Publish   fun(payload: table)
 local SceneInitController = {}
 
 ---@param payload table

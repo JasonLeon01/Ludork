@@ -25,6 +25,7 @@ concurrency:
 jobs:
   package_decision:
     name: Decide whether to package
+    if: github.event_name != 'schedule' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
       should_build: ${{ steps.decision.outputs.should_build }}
