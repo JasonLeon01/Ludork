@@ -132,6 +132,20 @@ Parameter types are `bool`, `float`, `vec2`, `vec3`, `vec4`, `color` and `textur
 
 Poll from successive frames so the initialisation screen can update, then call `getResult()` on Ready or Failed to propagate errors. Cancel the request when leaving the initialisation scene. The cache policy and encryption settings are described in [Runtime generation](<../../../../Editor User Guide/Materials.md#runtime-generation>).
 
+### Shader preparation in MRB
+
+The experimental `MRB` branch adds `Engine.prepareShaderCache(additionalPrograms = {})`, returning an `Engine.ShaderCacheRequest`. It is Lua-only and creates no Blueprint node. Call it after the application name and material cache are ready, before loading game shaders or constructing graphics that require them. The default `SceneInit` already performs this step. The request uses the same `getStatus`, `getProgress`, `getResult` and `cancel` contract as [material preparation](#material-cache-preparation).
+
+`additionalPrograms` is an array of path arrays. Each inner array declares one program, with stages identified by `.vert`, `.geom` and `.frag`; paths use `/Game/Assets/...` and retain source suffixes for encrypted assets. The default preparation covers engine programs, material passes, ordinary standalone assets and matching-name vertex/fragment pairs. Register a different pairing, a complete geometry program, or a stage that must also be loaded independently from its matching-name pair in `additionalPrograms`. Explicit declarations take precedence: their paths are excluded from automatic pairing and single-stage inference, so declare every full or independent program you intend to load. Duplicate program declarations are deduplicated. While a request is pending, another call with the same program list reuses it; reordering paths or repeating identical program declarations does not change that list. A different list is rejected rather than merged into the running request. Unsupported geometry stages fail on the target backend.
+
+```lua
+local request = Engine.prepareShaderCache({
+    { "/Game/Assets/Shaders/Custom/Shared.vert", "/Game/Assets/Shaders/Custom/Tint.frag" }
+})
+```
+
+After the request is Ready and `getResult()` succeeds, the matching `ShaderManager.loadFull` call can use that program. Loading an unprepared stage combination fails; rendering does not compile new combinations. Platform formats, encryption and cache ownership are described under [Experimental MRB rendering](<../../../../Native C++ Development/Build and Module Layout.md#experimental-mrb-rendering>).
+
 ### Surface outputs
 
 | Output | Meaning and default |

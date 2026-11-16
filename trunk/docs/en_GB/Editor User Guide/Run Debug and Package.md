@@ -176,6 +176,8 @@ By default, iOS packaging only creates `dist/<game-name>-<full-version>.ipa`, an
 
 ### HarmonyOS
 
+The following backend choices describe `main`. In experimental MRB builds, Mobile and 2in1 both use OpenGL ES; the graphics-backend selector and `--graphics-api` argument are removed. The 2in1 artifact variant is always `2in1-opengl-es`. The MRB platform-port requirement is described under [Experimental MRB rendering](<../Native C++ Development/Build and Module Layout.md#experimental-mrb-rendering>).
+
 HarmonyOS packaging requires a C++ Source project, Apple Silicon macOS and DevEco Studio with the OpenHarmony native SDK. Every HarmonyOS variant uses HarmonyOS 6.0.2 / API 22. Select **Mobile** for the OpenGL ES phone and tablet host, or **2in1** and then OpenGL (default) or OpenGL ES.
 
 Selecting HarmonyOS shows **Sign HAP**, which is clear by default. Leave it clear to produce one arm64-v8a unsigned HAP in `dist`: `<game-name>-<full-version>-harmony-mobile-unsigned.hap`, `<game-name>-<full-version>-harmony-2in1-opengl-unsigned.hap` or `<game-name>-<full-version>-harmony-2in1-opengl-es-unsigned.hap`. Select it and use the form below to choose a `.p12` keystore, `.cer` certificate and `.p7b` Profile, and enter the key alias and passwords. The key password defaults to the keystore password. A successful signed run publishes the corresponding `-signed.hap`; signing alone requires no connected device and does not install or launch the game.

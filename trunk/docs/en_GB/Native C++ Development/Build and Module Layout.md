@@ -80,6 +80,29 @@ LDC retains the `LDDC` envelope, version `1`, zlib compression, stream obfuscati
 
 Empty arrays and maps remain distinct. The decoded payload is limited to 512 MiB and nesting to 256. Invalid tags, truncation, invalid lengths, duplicate keys, non-finite numbers and trailing bytes fail decoding. Functions, objects, cycles and reference restoration are outside this pure-data format. Old LDC payloads containing JSON text are rejected without fallback or migration; regenerate them from source data. Shader payloads keep their separate format.
 
+### Experimental MRB rendering
+
+This section applies to the experimental `MRB` branch. The ordinary `main` branch retains the OpenGL behaviour described elsewhere on this page. MRB uses a manually supplied SFML MRB source tree and matching regenerated LuaSF bindings; the dependency versions in `versions.conf` remain unchanged. Set `LUDORK_SFML_SOURCE_DIR`, `LUDORK_LUASF_SOURCE_DIR` and `LUDORK_LUAGLUE_SOURCE_DIR` in the existing CMake build when using external source directories. Dependency initialisation still follows the pinned release sources, so it is not the command for refreshing the experimental SFML copy.
+
+| Target | Game backend | Editor preview backend |
+|---|---|---|
+| Windows | Direct3D 11 | OpenGL 3.2 Core |
+| macOS | Metal | OpenGL 3.2 Core |
+| iOS | Metal | No local PreviewHost |
+| Android and HarmonyOS, including 2in1 | OpenGL ES 3 | No local PreviewHost |
+
+Desktop builds contain OpenGL alongside the native game backend. The game selects its platform backend before creating GPU resources; it does not switch to OpenGL if that backend fails. PreviewHost is a separate process and explicitly holds an OpenGL Core context. Preview programs are created from GLSL in memory and do not populate the game's persistent shader cache. HarmonyOS has only the GLES configuration in MRB; the SFML MRB source still requires its HarmonyOS platform port before that target can build.
+
+SFML MRB replaces `ContextSettings.majorVersion`, `minorVersion`, `attributeFlags` and `Attribute` with `ContextSettings.backend`. The backend value is `nil`/`std::monostate` to inherit the device configuration, or `OpenGLSettings`, `OpenGLESSettings`, `VulkanSettings`, `DirectXSettings` or `MetalSettings`. OpenGL version, profile and debug settings belong to `OpenGLSettings`; framebuffer depth, stencil, anti-aliasing and sRGB settings remain on `ContextSettings`. Ludork's `Engine.ContextSettings` constructors follow this shape: depth, stencil, anti-aliasing, sRGB and backend, or a dictionary containing those fields. Regenerate LuaSF from the matching public headers. Its generator excludes `sf::rhi` and the RHI header subtree; ordinary SFML public APIs remain available.
+
+Shader assets and material output remain GLSL. During game initialisation, material export runs first, followed by [shader preparation](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Maps and Materials.md#shader-preparation-in-mrb>), then animation-cache preparation and shared-data loading. The initialisation screen appears directly, without the shader-dependent entry transition; subsequent scenes retain their normal transitions after preparation. Shader preparation includes the selected asset programs, generated material passes and built-in lighting and GPU-particle programs. Missing sources, unsupported stages and compilation failures stop initialisation; later drawing does not translate a missing program.
+
+The C++ translator produces HLSL for Direct3D 11, MSL for Metal and ESSL for GLES. It preserves stage interfaces, uniform names and types, texture bindings and the engine's coordinate conventions. Derived files mirror each source's relative path beneath the user data directory, with target-language and program-identity suffixes where required. GLSL sources and translated text follow the applicable shader-encryption setting; cache records follow the data-encryption setting. These are loose files even when the original game uses `.ldpak`.
+
+Windows compiles translated HLSL to raw DXBC during initialisation. Runtime shader loading and independent program instances use those prepared bytes; raw DXBC is not wrapped in the shader-encryption format. DXBC is Direct3D bytecode, not GPU machine code: the operating system and driver own the final Direct3D 11 cache. Metal retains MSL and a device/driver-specific `MTLBinaryArchive` for prepared pipelines. GLES retains ESSL and skips the persistent GPU-binary compilation stage. Source content, translation settings, compiler identity where applicable, encryption and output hashes control reuse; incompatible Metal archives are ignored and rebuilt from the prepared shader inputs.
+
+MRB GPU particles keep simulation and drawing on the GPU through SFML RHI, including vertex transformation, instanced drawing and floating-point curve textures. Alive counts are reduced on the GPU and only the final four-byte count is read asynchronously. Count and timer results remain optional when the backend lacks those statistics capabilities; missing simulation capabilities are an error and do not select a CPU fallback.
+
 ### GPU particle ownership
 
 Core keeps the public `Emitter`, `EmitterComponent`, `EmitterView` and Scene scheduling interfaces. Its `EmitterConfiguration` contains `EmitterTrack` values, each combining Runtime's `EmitterTrackParameters` with Core's eight named `EmitterCurves` channels of `Curve::CurveData`. `setConfiguration` centrally validates these values, samples the existing `Curve` implementation into a 256 × 8 float lookup table per track and restarts playback. `Runtime/Graphics/GpuEmitterCurveLayout.hpp` owns this layout: 256 samples across eight channels, packed into two RGBA rows. CPU baking, GPU texture allocation and generated shader coordinates use the same sample counts and indexing. `getConfiguration` returns an independent value copy. The existing ParticleSystem remains in Core.
@@ -90,11 +113,11 @@ Within the Emitter path, `RuntimeData` is confined to resource JSON input in Cor
 
 The public Core `Emitter` forwards playback operations to this backend. Configuration, track, curve, burst and statistics records each keep a separate class-named header, and their Lua registrations and declarations are generated through the normal binding build under `Engine`. Runtime has no additional Lua root.
 
-GPU implementation files live under `Runtime/src/Graphics/Emitters`. Raw OpenGL functions, shaders, buffer/query identifiers and private GPU headers stay there. Texture reads reuse Runtime AssetStore and AssetInputStream, including the existing loose and packed layouts. Runtime depends on Standard and SFML; Core includes only Runtime's public graphics headers.
+On `main`, GPU implementation files live under `Runtime/src/Graphics/Emitters`. Raw OpenGL functions, shaders, buffer/query identifiers and private GPU headers stay there. Texture reads reuse Runtime AssetStore and AssetInputStream, including the existing loose and packed layouts. Runtime depends on Standard and SFML; Core includes only Runtime's public graphics headers.
 
 The Runtime Graphics CMake subdirectory compiles this backend once in both full and `LUDORK_WITH_LUA=OFF` builds.
 
-Shared GPU resources are keyed by the active SFML context ID. Shutdown queues GPU objects without requiring a context on the caller's thread; collection runs with the matching resource context active. Scene and preview hosts retain ownership of windows/render targets and collect retired resources before destroying those contexts. This GPU lifetime is independent of the Lua VM lifetime.
+On `main`, shared GPU resources are keyed by the active SFML context ID. Shutdown queues GPU objects without requiring a context on the caller's thread; collection runs with the matching resource context active. Scene and preview hosts retain ownership of windows/render targets and collect retired resources before destroying those contexts. This GPU lifetime is independent of the Lua VM lifetime.
 
 ### Session and module lifetime
 
@@ -230,7 +253,7 @@ iOS uses a single-window `UIScene` host. The application scene manifest selects 
 
 HarmonyOS packaging is an Apple Silicon macOS cross-build through DevEco Studio's OpenHarmony native SDK. Each package recreates its Stage and native build directories, so a CMake cache cannot cross device forms or graphics backends. The HAP target and the compatible SDK are both `6.0.2(22)`, and CMake receives `OHOS_COMPATIBLE_SDK_VERSION=22`. The toolchain therefore compiles Ludork, Lua, LuaSF, LuaGlue and SFML for `aarch64-linux-ohos22.0.0` with API availability diagnostics enabled. A newer installed SDK serves as the compile SDK only and does not raise that deployment target.
 
-The Mobile variant configures `SFML_HARMONY_DEVICE_FORM=MOBILE` and `SFML_OPENGL_ES=ON`, advertises `phone` and `tablet`, and uses the fixed-landscape mobile host. The 2in1 variants configure `SFML_HARMONY_DEVICE_FORM=2IN1` and advertise only `2in1`. They support `fullscreen` and `floating` windows, publish `NEED_OPENGL=1`, request `ohos.permission.LOCK_WINDOW_CURSOR`, and set `SFML_OPENGL_ES=OFF` for OpenGL or `ON` for OpenGL ES. An FFmpeg-enabled HarmonyOS build keeps the same versioned compiler target for C and C++ compilation and linking, while retaining the OpenHarmony sysroot, MUSL selection and availability checks.
+On `main`, the Mobile variant configures `SFML_HARMONY_DEVICE_FORM=MOBILE` and `SFML_OPENGL_ES=ON`, advertises `phone` and `tablet`, and uses the fixed-landscape mobile host. The 2in1 variants configure `SFML_HARMONY_DEVICE_FORM=2IN1` and advertise only `2in1`. They support `fullscreen` and `floating` windows, publish `NEED_OPENGL=1`, request `ohos.permission.LOCK_WINDOW_CURSOR`, and set `SFML_OPENGL_ES=OFF` for OpenGL or `ON` for OpenGL ES. An FFmpeg-enabled HarmonyOS build keeps the same versioned compiler target for C and C++ compilation and linking, while retaining the OpenHarmony sysroot, MUSL selection and availability checks.
 
 A 2in1 OpenGL binary has a hard dependency on `libGLv4.so`. If the image lacks that library, the dynamic loader rejects the NAPI module before native initialisation. The binary does not switch to OpenGL ES.
 

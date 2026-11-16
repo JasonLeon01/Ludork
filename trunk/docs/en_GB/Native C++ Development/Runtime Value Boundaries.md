@@ -46,7 +46,7 @@ The wrapper registers the exposed type and all conversion-base subobject address
 
 ## Containers and views
 
-`RuntimeData` owns VM-independent data, and copies detach on mutation. `RuntimeValue` can also own native objects without a VM or hold session-bound Lua handles. Its `Array` is `std::vector<RuntimeValue>`, and `Map` is `std::unordered_map<std::string, RuntimeValue>`. Construction from `RuntimeData` shares its containers, while the Array and Map constructors take ownership.
+`RuntimeData` owns VM-independent data, and copies detach on mutation. In MRB, the unbound C++ `RuntimeData::equals` method compares recursively with exact value types, ordered array elements and key-based map contents, independently of JSON object iteration order. `RuntimeValue` can also own native objects without a VM or hold session-bound Lua handles. Its `Array` is `std::vector<RuntimeValue>`, and `Map` is `std::unordered_map<std::string, RuntimeValue>`. Construction from `RuntimeData` shares its containers, while the Array and Map constructors take ownership.
 
 Read containers through `value.view().array()` or `.map()`, which return optional borrowed views. Array indexing and iteration yield `RuntimeValueView`, and Map `find` distinguishes a missing key from a stored nil. The source must remain alive and unmodified while a view or borrowed string is in use. Views cannot be acquired from temporary owning values. Use `toValue()`, `toArray()` or `toMap()` when ownership is required.
 
