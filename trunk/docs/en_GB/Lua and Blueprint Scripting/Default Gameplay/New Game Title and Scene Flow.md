@@ -1,6 +1,6 @@
 # New Game, Title and Scene Flow
 
-The default entry creates `Source.Scenes.SceneInit` and then hands control to the native System loop. SceneInit prepares shared data and advances to the title flow. Loading progress appears in the initialisation screen. The title scene creates the command window for Start Game, Continue, Config and Exit Game. Save/Load and Config are created on first use and reused until the title scene is destroyed.
+The default entry creates `Source.Scenes.SceneInit` and then hands control to the native System loop. SceneInit prepares shared data and advances to the title flow. Loading progress appears in the initialisation screen. The title scene offers Start Game, Continue and Config on [WebGL](<../../Editor User Guide/Run Debug and Package.md#webgl>), and adds Exit Game in native builds. Save/Load and Config are created on first use and reused until the title scene is destroyed.
 
 Scene changes use `GlobalCore.SceneManager`; freezing and transition requests use `GlobalCore.Transition`. Screen flash, shake and tone use `GlobalCore.ScreenEffects`.
 

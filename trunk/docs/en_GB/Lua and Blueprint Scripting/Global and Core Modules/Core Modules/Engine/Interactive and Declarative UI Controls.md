@@ -66,11 +66,11 @@ The popup's visible height is limited to the intersection of the root Canvas con
 
 ### Popup scrolling and selection
 
-An ordinary mouse wheel scrolls towards a row-sized target, while a precise wheel and mobile touch dragging apply their offsets directly. These inputs move only the popup viewport, not the cursor or the committed selection, and releasing a drag never confirms an item. Directional keys move the cursor and reveal it as needed. Mouse hover previews a visible item, and a desktop click confirms it. Mobile taps use the two-stage confirmation described below. All indices still address the complete `items` array.
+An ordinary mouse wheel scrolls towards a row-sized target, while a precise wheel and touch dragging on mobile and Web apply their offsets directly. These inputs move only the popup viewport, not the cursor or the committed selection, and releasing a drag never confirms an item. Directional keys move the cursor and reveal it as needed. Mouse hover previews a visible item, and a mouse click confirms it. Mobile and Web taps use the two-stage confirmation described below. All indices still address the complete `items` array.
 
-### Mobile touch confirmation
+### Touch confirmation
 
-On mobile, an expanded DropBox uses two-stage confirmation. Tapping a non-highlighted item only moves the highlight and plays the cursor sound, without changing `selectedIndex` or firing either selection callback. Tapping the highlighted item confirms it, including the initial highlight. Cancelling discards the preview and preserves `selectedIndex`.
+On mobile and Web, an expanded DropBox uses two-stage confirmation. Tapping a non-highlighted item only moves the highlight and plays the cursor sound, without changing `selectedIndex` or firing either selection callback. Tapping the highlighted item confirms it, including the initial highlight. Cancelling discards the preview and preserves `selectedIndex`.
 
 ### Selection callbacks
 

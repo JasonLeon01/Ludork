@@ -105,7 +105,9 @@ These are local settings, including a plaintext test key. They are ignored by Gi
 
 ## Configure a packaged client
 
-In **File → Pack Project**, select **Enable Ludork Server**, then enter the production URL and key. Each newly opened Pack window starts disabled with empty fields. Production settings are not cached or copied from test settings. Use `http://host:6666/project`, or `http://host:6666` when `host` is [bound to the project](#bind-a-project-domain), without `/api/v1`, credentials, query parameters or a fragment. HTTPS is not supported by this client integration.
+In **File → Pack Project**, select **Enable Ludork Server**, then enter the production URL and key. Each newly opened Pack window starts disabled with empty fields. Production settings are not cached or copied from test settings. Use `http://host:6666/project`, or `http://host:6666` when `host` is [bound to the project](#bind-a-project-domain), without `/api/v1`, credentials, query parameters or a fragment. Native clients use HTTP/WS. The WebGL target also accepts HTTPS and derives WSS for that connection.
+
+An HTTPS game page requires an HTTPS/WSS server endpoint; the client rejects HTTP/WS even for localhost before sending a request. Configure TLS through a reverse proxy in front of the HTTP server. The proxy must forward the project routes and WebSocket upgrade. Browser health checks are public requests without credentials and support cross-origin access; management APIs remain private to their same-origin website. WebSocket authentication uses the first message described in [WebSocket messages](<HTTP Protocol.md#websocket-messages>), equally for native and browser clients. Keep client and server implementations matched to this protocol.
 
 [Standalone project conversion](<../Editor User Guide/Run Debug and Package.md#convert-source-to-a-standalone-project>) offers the same opt-in Release configuration. The resulting editable project keeps the compiled connection, which cannot be changed without another Source build.
 

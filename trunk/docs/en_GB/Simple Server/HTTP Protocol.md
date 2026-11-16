@@ -124,7 +124,7 @@ A message is limited to **2 MiB**; data has at most **64 nesting levels** and **
 
 ## WebSocket messages
 
-Connect to `ws://host:6666/<URL-encoded-project>/api/v1/net`, or `ws://host:6666/api/v1/net` for a [bound project domain](<Deployment and Editor Settings.md#bind-a-project-domain>), with `X-Ludork-Key` on the HTTP upgrade. The server replies with `{"type":"ready","version":1}` before any application messages. Credentials do not occur in URLs or frame bodies. Binary frames and message compression are not used.
+Connect to `ws://host:6666/<URL-encoded-project>/api/v1/net`, or `ws://host:6666/api/v1/net` for a [bound project domain](<Deployment and Editor Settings.md#bind-a-project-domain>); a browser HTTPS endpoint uses WSS through its TLS proxy. The first message is `{"type":"auth","key":"<project-key>"}`. After authentication, the server replies with `{"type":"ready","version":1}` before any application messages. Authentication has a ten-second deadline; failure closes the connection with code `4401`, and the client stops reconnecting for that session. Credentials never occur in URLs. Binary frames and message compression are not used.
 
 ```text
 snapshot: {type:"snapshot", id:"1", module:"Profile", params:WireValue}
@@ -143,7 +143,9 @@ Incoming work is capped at 256 calls and 8 MiB per connection and per project. O
 
 The HTTP API base remains `http://host:6666/<project>/api/v1`; a bound project domain also uses `http://host:6666/api/v1`. `GET /health` requires no key and returns `{"service":"LudorkServer","project":"MyGame"}`. A client URL naming a project requires that exact project in the response; a URL without a project path accepts any nonempty project name. Data queries and writes use the WebSocket module APIs; there are no account/field REST or write-token endpoints.
 
-Management paths are under `/admin`. The production Node.js service on port 3333 serves the built website and proxies its same-origin API requests to port 6666; the backend enforces authentication and does not enable CORS.
+`GET /health` permits cross-origin browser requests with `Access-Control-Allow-Origin: *`; browser clients omit credentials. This permission applies only to the public health route.
+
+Management paths are under `/admin`. The production Node.js service on port 3333 serves the built website and proxies its same-origin API requests to port 6666; the backend enforces authentication and does not enable CORS for management.
 
 | Method and path below `/admin` | Requirement | Success body |
 | --- | --- | --- |

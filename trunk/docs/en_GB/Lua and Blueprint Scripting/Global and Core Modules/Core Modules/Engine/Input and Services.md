@@ -4,7 +4,7 @@
 
 `Engine.JoystickButton` creates logical button values through `getA()`, `getB()`, `getX()`, `getY()`, `getLB()`, `getRB()`, `getView()`, `getMenu()`, `getLS()`, `getRS()`, `getXBox()` and `getShare()`. Pass the complete `Engine.InputNamedValue` to Input queries and UI bindings. Ludork resolves it separately for each connected controller when input is read; cached bindings therefore survive hot-plugging and mixed Xbox/PlayStation connections. Its `value` field is the platform's default token number, not the connected PlayStation controller's raw button number.
 
-Integer Input queries and `sf.Joystick` retain raw SFML button numbers. `Input.isJoystickButtonDown(id, button)` and `Input.isAnyJoystickButtonDown(button)` accept either a logical getter value or a raw integer, and respect input blocking and focus. Getter availability does not guarantee that a device has the physical button; unsupported buttons produce no input. `getShare()` remains unavailable on Android and HarmonyOS.
+Integer Input queries and `sf.Joystick` retain raw SFML button numbers. `Input.isJoystickButtonDown(id, button)` and `Input.isAnyJoystickButtonDown(button)` accept either a logical getter value or a raw integer, and respect input blocking and focus. Getter availability does not guarantee that a device has the physical button; unsupported buttons produce no input. `getShare()` is unavailable on Android, HarmonyOS and Web.
 
 | Platform/device | A/B/X/Y | LB/RB | View/Menu | LS/RS | XBox/Share |
 |---|---|---|---|---|---|
@@ -13,6 +13,7 @@ Integer Input queries and `sf.Joystick` retain raw SFML button numbers. `Input.i
 | Windows/macOS PlayStation | `1/2/0/3` | `4/5` | `8/9` | `10/11` | `12/unavailable` |
 | Android, HarmonyOS | `0/1/3/4` | `6/7` | `13/12` | `10/11` | `14/unavailable` |
 | iOS | `0/1/3/4` | `6/7` | `13/12` | `10/11` | `14/15` for Xbox; Share unavailable for PlayStation |
+| Web standard gamepad | `0/1/2/3` | `4/5` | `8/9` | `10/11` | `16/unavailable` |
 
 The table lists raw backend numbers. First-party PlayStation support is DUALSHOCK 4, DualSense and DualSense Edge. Unidentified devices keep the platform default layout; there are no third-party profiles. Each SFML joystick slot keeps its own identity and held/repeat state.
 
@@ -24,14 +25,22 @@ Button, GamepadHintBar and TabView hints follow the most recently active control
 
 The iOS SFML backend uses Apple's [GCExtendedGamepad](https://developer.apple.com/documentation/gamecontroller/gcextendedgamepad) profile to report connections, disconnections, buttons and axes through the standard joystick APIs and events. Its fixed button layout follows the table above, with left and right trigger presses at `8/9`. Slots `2/5` remain unused. Optional stick-click, View, Home/XBox and [GCXboxGamepad](https://developer.apple.com/documentation/gamecontroller/gcxboxgamepad) Share inputs depend on the device and system version. Home and Share retain their system gestures, so the game is not guaranteed to receive system-reserved gestures.
 
-| iOS input | SFML axes | Values and direction |
+| iOS / Web input | SFML axes | Values and direction |
 |---|---|---|
 | Left stick | `X/Y` | `-100..100`; right is positive X, down is positive Y |
 | Right stick | `Z/R` | `-100..100`; right is positive Z, down is positive R |
 | Left/right triggers | `U/V` | `0..100`; released is `0`, fully pressed is `100` |
 | D-pad | `PovX/PovY` | `-100..100`; right is positive PovX, up is positive PovY |
 
-Both stick Y values are inverted from Apple's profile, while D-pad Y keeps Apple's sign. The SFML backend does not assign Confirm, Cancel or movement actions.
+On iOS, both stick Y values are inverted from Apple's profile, while D-pad Y keeps Apple's sign. The SFML backend does not assign Confirm, Cancel or movement actions.
+
+## Web input
+
+One WebGL package accepts keyboard, mouse and touch on both desktop and mobile browsers. It reports `PLATFORM == "web"`; game code does not need a second mobile package. Touch uses the existing capture, tap, drag, long-press and two-finger cancel rules. Coordinates follow the canvas drawing buffer and its current scale. Browser touch cancellation, focus loss and page hiding release captures without confirming an item or leaving a held button. Touch does not produce a duplicate compatibility mouse click. Input hints continue to follow the most recently used input device.
+
+Text boxes open a modal browser input field using their existing title, prompt, placeholder and confirmation/cancellation labels. Tap the field to open the software keyboard when the browser does not focus it automatically. The field supports composition and text selection, including Chinese and emoji; Enter does not submit an unfinished composition. Cancel or Escape restores the original value, and hiding the page cancels the session. Keyboard input stays with the field while the dialog is active.
+
+Gamepads use the browser's `standard` mapping and the button/axis tables above. Connecting or disconnecting a supported controller uses the existing SFML events and Ludork logical bindings; held and repeat states are cleared on disconnect. Unmapped controllers and browsers that do not expose Gamepad data report no supported device and do not prevent game startup. Browser/system-reserved controls may not reach the game.
 
 ## InputActionKey
 

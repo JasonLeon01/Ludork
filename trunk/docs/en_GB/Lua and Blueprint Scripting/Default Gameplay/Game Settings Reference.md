@@ -7,7 +7,7 @@
 | Key | Type | Meaning |
 |---|---|---|
 | `language` | string | Game catalogue key; see Game Localisation Workflow |
-| `scale` | float | Display-scale preference; defaults to Fullscreen (`0`) |
+| `scale` | float | Display-scale preference; default `0` means Fullscreen on configurable displays |
 | `maxrenderscale` | float | Maximum internal render scale, default `2.0`; Unlimited (`0`) removes the cap |
 | `lightingrenderscale` | discrete float | Direct-light render scale: `0.5`, `0.75` or `1.0`; default `1.0`, also used for invalid values |
 | `framerate` | integer | Target frame rate, default `60`; Unlimited (`0`) removes the cap |
@@ -20,9 +20,9 @@ The editor preserves unknown sections and keys. Invalid supported values fall ba
 
 `Main.proj` contains project and tooling flags rather than mutable game preferences. `Cpp` selects native-project behaviour, `ffmpeg` selects video-capable packaging, and `IndividualWindow` stores the preferred editor run mode. `packaging.version` and `packaging.dev` store release settings; see [Release version and internal packages](<../../Editor User Guide/Run Debug and Package.md#release-version-and-internal-packages>).
 
-Normal Save writes changed settings. New user configurations and missing settings use High (`2`, `60`, `8`, `1`) and Fullscreen (`scale = 0`); existing values are not overwritten.
+Normal Save writes changed settings. New user configurations and missing settings use High (`2`, `60`, `8`, `1`) and `scale = 0`; existing values are not overwritten.
 
-**Scale** applies immediately on configurable displays. Desktop windows and HarmonyOS tablets in free-window mode use positive values for a fixed window size and `0` for fullscreen; other mobile displays omit this option. A new config writes `scale = 0`, while a missing key uses `0` in memory only. Negative or non-finite values resolve to `1`. See [Display](<../Global and Core Modules/Core Modules/GlobalCore/Scenes and System.md#display>) for platform behaviour and runtime methods.
+**Scale** applies immediately on configurable displays. Desktop windows and HarmonyOS tablets in free-window mode use positive values for a fixed window size and `0` for fullscreen; other mobile displays omit this option. WebGL also omits Scale, including its Fullscreen choice; **Render Limit** remains available. A new config writes `scale = 0`, while a missing key uses `0` in memory only. Negative or non-finite values resolve to `1`. See [Display](<../Global and Core Modules/Core Modules/GlobalCore/Scenes and System.md#display>) for platform behaviour and runtime methods.
 
 `maxrenderscale`, shown as **Render Limit**, caps the internal Graphics canvas and dependent render targets without changing the window, the logical game size or the configured Scale. It applies immediately on every platform. The cap uses physical drawable pixels relative to the logical game size, including Retina pixel density. On macOS, configured Scale still controls the window size in Cocoa points; Unlimited allows rendering at the full drawable resolution. Config offers `0.5`, `0.75`, `1`, `1.5`, `2`, `3`, `4` and Unlimited (`0`), retains another finite non-negative value, and resolves a negative or non-finite value to `2`.
 

@@ -11,7 +11,7 @@ Project creation fills `APP_NAME` into the template's `Scripts/Entry.lua.in` and
 | Template | Native source | Native compiler required | Use when |
 |---|---|---|---|
 | Standalone | No | No | Authoring Lua, Blueprint, data and assets with the supplied runtime. |
-| C++ Source | Yes | Yes | Changing native services, bindings or building an iOS, HarmonyOS or Android target. |
+| C++ Source | Yes | Yes | Changing native services, bindings or building an iOS, HarmonyOS, Android or WebGL target. |
 
 Each card and FFmpeg combination has its own template. To turn an existing C++ Source project into an editable Standalone project, use [Pack Project → Standalone project](<../Editor User Guide/Run Debug and Package.md#convert-source-to-a-standalone-project>). This creates a separate project that keeps the original export outputs, rather than a fresh template.
 
@@ -46,14 +46,14 @@ New Project always creates the editor's current major.minor project version, suc
 
 **Enable video playback (FFmpeg)** adds local MOV and MP4 playback for H.264 video and AAC audio, and increases the build size. Other codecs, network playback and hardware acceleration are not included.
 
-Platform preparation also differs: Windows and macOS use shared FFmpeg libraries, while iOS, HarmonyOS and Android use static libraries. Distribution requirements, including the LGPL relinking materials for static builds, are described in `Licenses/FFmpeg/README.md`. On macOS, selecting FFmpeg also displays a compatibility notice.
+Platform preparation also differs: Windows and macOS use shared FFmpeg libraries, while iOS, HarmonyOS, Android and WebGL use static libraries. Distribution requirements, including the LGPL relinking materials for static builds, are described in `Licenses/FFmpeg/README.md`. On macOS, selecting FFmpeg also displays a compatibility notice.
 
 ## Template targets
 
 - Configuring [Ludork Server](<../Simple Server/Deployment and Editor Settings.md>) requires C++ Source. Its Game test-server menu and Pack configuration are hidden for Standalone. All generated templates start with the server disabled and contain no test or production credentials. Converting an existing Source project can instead embed explicitly enabled Release server settings in its Standalone runtime.
 - Script compilation, shader encryption, data encryption, save encryption and **Archive Assets, Data and Scripts (.ldpak)** are packaging options, not template types. See [Run, Debug and Package](<../Editor User Guide/Run Debug and Package.md>) for the complete option behaviour.
 
-All four templates exclude UI and locale Export outputs: `Scripts/Internal/UI/`, `Scripts/stub/Internal/UI/`, `Scripts/stub/Internal/UIWindows/`, generated locale language Lua files and `EditorCache/ProjectExport.json`. The project `.gitignore` excludes these generated files. Templates retain UI JSON, authored material graphs under `Data/Materials`, handwritten Controllers and declarations, `Scripts/Source/Locale/Core.lua`, General Data and variable Lua with their declarations, and native binding declarations. Export creates the UI and locale runtime files for the new project. Material caches and release `Data/RuntimeSettings.json` or `.ldc` files are excluded; the game [prepares materials at initialisation](<../Editor User Guide/Materials.md#runtime-generation>).
+All four templates exclude UI and locale Export outputs: `Scripts/Internal/UI/`, `Scripts/stub/Internal/UI/`, `Scripts/stub/Internal/UIWindows/`, generated locale language Lua files and `EditorCache/ProjectExport.json`. The project `.gitignore` excludes these generated files. Source templates also exclude the project-root `build-web` and `dist` output directories. Templates retain UI JSON, authored material graphs under `Data/Materials`, handwritten Controllers and declarations, `Scripts/Source/Locale/Core.lua`, General Data and variable Lua with their declarations, and native binding declarations. Export creates the UI and locale runtime files for the new project. Material caches and release `Data/RuntimeSettings.json` or `.ldc` files are excluded; the game [prepares materials at initialisation](<../Editor User Guide/Materials.md#runtime-generation>).
 
 Templates also retain the optional `Data/MaterialCombinations.json` for [additional material combinations](<../Editor User Guide/Materials.md#material-combinations>); game initialisation combines those entries with the combinations the project's maps use.
 

@@ -60,7 +60,7 @@ The Game project's advanced enemy-defeat effect is controlled project-wide by [G
 
 ## Video
 
-Video playback requires an FFmpeg-enabled project or template. Keep files beneath `Assets/Videos` and reference them as `/Game/Assets/Videos/...`. Loose files and entries in the root `Assets.ldpak` share the same seekable playback contract. Android supports MOV, H.264/AAC, swscale and swresample, but not network, JNI, MediaCodec or hardware acceleration. Build and distribution requirements are in [Project Templates](<../../Getting Started/Project Templates.md#ffmpeg-option>).
+Video playback requires an FFmpeg-enabled project or template. Keep files beneath `Assets/Videos` and reference them as `/Game/Assets/Videos/...`. Loose files and entries in the root `Assets.ldpak` share the same seekable playback contract. Android supports MOV, H.264/AAC, swscale and swresample, but not network, JNI, MediaCodec or hardware acceleration. WebGL uses the same FFmpeg software decoding and resource paths, including mute, skip and subtitles; it does not depend on the browser's HTML video codecs. Audio follows the [browser startup policy](<../../Editor User Guide/Run Debug and Package.md#webgl>); focus loss pauses the video clock. Decoding shares the browser main thread, so supported frame sizes and playback speed depend on the device. Build and distribution requirements are in [Project Templates](<../../Getting Started/Project Templates.md#ffmpeg-option>).
 
 Call `Video.PlayVideo(videoFileName, mute, skipable, subtitleFileName)` through `require("GlobalFunctions.Video")`. The optional fourth argument is a project-relative `Data/Subtitles/...json` path; omission or an empty string preserves video-only playback.
 

@@ -167,4 +167,4 @@ end)
 
 `Normal` means a valid configured-service health response within 300 ms; `Weak` means more than 300 ms within three seconds; `Disconnected` means no valid response or a failed request. The result also exposes `ok`, `code` as the native `GlobalCore.ServerErrorCode` enum, `message`, and `roundTripMs` when a valid response was received. It returns an `Engine.AsyncOperation` and preserves callback/result identity and cancellation semantics.
 
-The health endpoint does not check the project key, so a healthy result does not establish RPC authentication or overall Internet access. System DNS resolution may remain blocked after cancellation, and session shutdown may wait for it; cancellation does not guarantee a hard DNS or shutdown deadline.
+The health endpoint does not check the project key, so a healthy result does not establish RPC authentication or overall Internet access. In native clients, system DNS resolution may remain blocked after cancellation, and session shutdown may wait for it; cancellation does not guarantee a hard DNS or shutdown deadline.

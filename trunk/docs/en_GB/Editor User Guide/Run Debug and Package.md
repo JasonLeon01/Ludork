@@ -80,7 +80,7 @@ The Console reports the result. Changes to data or module structure may require 
 
 Choose **File → Pack Project** and select an available platform from the list on the left. Windows offers Windows; macOS offers macOS. On macOS, C++ Source projects also offer iOS, plus HarmonyOS when DevEco Studio is detected and Android when Android Studio is detected.
 
-Source projects also offer [Standalone project conversion](#convert-source-to-a-standalone-project). The remaining game-package options below apply to the platform targets.
+Source projects on Windows and macOS also offer **WebGL (browser)** immediately above [Standalone project conversion](#convert-source-to-a-standalone-project). The remaining game-package options below apply to the platform targets.
 
 The right pane shows the selected platform’s options first, followed by the shared release, server, encryption and archive settings. Enabling signing displays its form at the bottom of this pane, separated from the options above by a horizontal line. Switching platforms keeps the inputs entered in the current window; confirmation uses only the selected platform’s settings. Click **Confirm** at the bottom of the window to start packaging and follow the log. The log window shows an animated indicator until the operation finishes or fails, then enables **Close**.
 
@@ -108,7 +108,7 @@ Game packaging works on a staging copy and leaves project sources unchanged.
 
 Android, HarmonyOS and iOS replace their prepared build resources only after conversion and validation succeed. Failure or cancellation before replacement keeps the previous resources. If replacement fails and the previous resources cannot be restored, the error identifies the retained recovery directory. Cancellation or cleanup failure after replacement leaves the new resources in place and reports any remaining recovery or staging directory; a completed replacement is not rolled back.
 
-Every target packages `Assets`, `Data` and `Scripts`. Windows, macOS, Android and HarmonyOS also copy `Licenses` and the root `LICENSE.md`, `THIRD_PARTY_NOTICES.md` and `THIRD_PARTY_NOTICES_zh_CN.md`; iOS adds the same files from the project. Windows and macOS also include `ThirdPartySource`. The following are never packaged:
+Every target packages `Assets`, `Data` and `Scripts`. Windows, macOS, Android and HarmonyOS also copy `Licenses` and the root `LICENSE.md`, `THIRD_PARTY_NOTICES.md` and `THIRD_PARTY_NOTICES_zh_CN.md`; iOS adds the same files from the project. Windows and macOS also include `ThirdPartySource`, as do FFmpeg-enabled WebGL packages. The following are never packaged:
 
 - `.DS_Store`, `.git`, `.vs`, `.idea`, `.vscode`, `.emmyrc.json`, `.gitignore` and editor animation caches (`*.anim.json`) at any depth;
 - project-root `EditorCache`, `Cache`, `Intermediate` and `Log`, and the `Scripts/stub` declarations;
@@ -117,6 +117,18 @@ Every target packages `Assets`, `Data` and `Scripts`. Windows, macOS, Android an
 - files excluded by before-Pack hooks.
 
 Packaging fails if any of these entries, or any other `.d.lua` file, remains after staging. It also strips UI `editor` design data. UI asset keys remain extensionless and Controller references keep their logical Lua module paths, whether Data is stored as JSON, encrypted `.ldc` or in an archive. Directories named `EditorCache` or `Cache` inside `Assets`, `Data` or `Scripts`, and `_info.json` files elsewhere in `Data`, remain ordinary project content.
+
+### WebGL
+
+WebGL packaging requires a C++ Source project, Emscripten SDK **7.0.0**, CMake and Ninja. Locate the installed SDK through `EMSDK` or its compiler on `PATH`; the command line also accepts `--emsdk <directory>`. The packer reports missing prerequisites without installing tools or replacing project dependencies. Existing projects need Web-capable SFML and LuaSF sources; explicit source replacement is described in [native build inputs](<../Native C++ Development/Build and Module Layout.md#build-the-project>).
+
+The output directory is `dist/<game-name>-<full-version>-webgl`, containing `index.html`, `Main.js`, `Main.wasm`, `Main.data` and available licence materials. A custom output directory replaces `dist` as the parent. Build and validation complete before publication; failure or cancellation before publication preserves the previous package. Source templates include the Web host and build scripts, while Standalone projects cannot produce a Web runtime.
+
+The target retains release/dev metadata, before-Pack hooks, Lua compilation, shader/data/save encryption, `.ldpak` and optional Ludork Server integration. It has no signing settings. The shared resource finalizer prepares Assets, Data and Scripts, then Emscripten embeds that loose-or-packed layout in `Main.data`; it does not publish those resources as separate download directories. FFmpeg-enabled projects retain [local video playback](<../Lua and Blueprint Scripting/Default Gameplay/Resources Audio Video and Effects.md#video>).
+
+Serve the complete directory over HTTP or HTTPS rather than opening `index.html` as a local file. WebAssembly uses `application/wasm`; keep the generated file names together. The game uses WebGL 2 and one canvas. The same package accepts keyboard, mouse and touch, with [supported browser gamepads and text entry](<../Lua and Blueprint Scripting/Global and Core Modules/Core Modules/Engine/Input and Services.md#web-input>). The page starts the game automatically after loading; the default entry runs `SceneInit` and then opens the title screen. If the browser blocks audio autoplay, the game continues silently until the first normal click or tap unlocks sound. Browsers control fullscreen, background throttling and storage; losing the graphics context requires reloading the page. Geometry shaders, custom image cursors and native embedded WebView windows are unavailable; the browser uses system cursors. Web games write runtime output to the browser console; they do not connect to the editor Console or Live Debug.
+
+Run `tools/pack_web.bat <project> [dist]` on Windows or `sh tools/pack_web.sh <project> [dist]` on macOS. The equivalent Toolchain command is `ludork-pack web-pack`. `--check` validates prerequisites without building a package; command-line callers must first run editor Export. See [browser user data](<Project Settings and Asset Layout.md#game-configuration>) and [server deployment](<../Simple Server/Deployment and Editor Settings.md#configure-a-packaged-client>) for persistence and connection requirements.
 
 ### Convert Source to a Standalone project
 
@@ -152,7 +164,7 @@ The staging copy receives `Data/BuildInfo.json` containing `version`, `fullVersi
 
 ### Loose and packed output
 
-Every platform keeps the runtime files, `Assets`, `Data` and the runtime `Scripts` as loose directories by default. The `.ldpak` option is clear by default. When it is selected, the complete contents of each directory become root `Assets.ldpak`, `Data.ldpak` and `Scripts.ldpak`. Archive entries retain paths relative to their original directory, so resource paths, Data paths and Lua module names stay unchanged. Encryption and Lua compilation run before archiving, and an archive does not encrypt its contents by itself. Mobile packages enforce the same loose-or-packed contract, and Android and HarmonyOS do not recompress `.ldpak`.
+Resources start as loose `Assets`, `Data` and runtime `Scripts` directories on every platform; WebGL embeds this resource layout in its data download. The `.ldpak` option is clear by default. When it is selected, the complete contents of each directory become root `Assets.ldpak`, `Data.ldpak` and `Scripts.ldpak`. Archive entries retain paths relative to their original directory, so resource paths, Data paths and Lua module names stay unchanged. Encryption and Lua compilation run before archiving, and an archive does not encrypt its contents by itself. Mobile packages enforce the same loose-or-packed contract, and Android and HarmonyOS do not recompress `.ldpak`.
 
 Resource packaging rejects symbolic links, case collisions, illegal paths and output conflicts. A package contains either all three loose directories (`Assets`, `Data`, `Scripts`) or all three root archives. Corrupt archives, missing roots, mixed layouts and old per-group archives are rejected.
 
