@@ -153,7 +153,7 @@ Writes create account/category storage as needed. Same-file updates are serializ
 
 ## Network protocol
 
-Connect to `/<URL-encoded-project>/api/v1/net` with `X-Ludork-Key` in the HTTP WebSocket upgrade. The server replies with `{"type":"ready","version":1}`. Frames are UTF-8 JSON text. Credentials never occur in URLs or message bodies.
+Connect to `/<URL-encoded-project>/api/v1/net` using a standard WebSocket and send `{"type":"auth","key":"<project-key>"}` as the first UTF-8 JSON text frame. The server replies with `{"type":"ready","version":1}` only after authentication succeeds. Send no snapshots or RPCs before that reply. Missing, invalid or timed-out authentication closes the connection with code `4401`; the first frame must arrive within 10 seconds. Unauthenticated connections receive no project notifications. The former `X-Ludork-Key` upgrade header is not accepted as authentication. Keep the key out of URLs and logs.
 
 ```text
 snapshot: {type:"snapshot", id:"1", module:"Profile", params:WireValue}
@@ -164,7 +164,7 @@ failure:  {type:"result", id:"2", ok:false, code:"InvalidArgument", message:"...
 event:    {type:"event", module:"Profile", event:"NameChanged", args:[WireValue,...]}
 ```
 
-IDs must be unique among pending requests on a connection. A rate failure also includes `retryAfterSeconds`. RPC acknowledgments report transport/execution success without a function return value. The only unauthenticated client HTTP endpoint is `GET /<project>/api/v1/health`, returning `{"service":"LudorkServer","project":"..."}`. Previous account/field REST endpoints and tokens have been removed.
+IDs must be unique among pending requests on a connection. A rate failure also includes `retryAfterSeconds`. RPC acknowledgments report transport/execution success without a function return value. The only unauthenticated client HTTP endpoint is `GET /<project>/api/v1/health`, returning `{"service":"LudorkServer","project":"..."}`. That response permits cross-origin requests with `Access-Control-Allow-Origin: *`; browser clients omit credentials. Management endpoints do not enable cross-origin access. Previous account/field REST endpoints and tokens have been removed.
 
 `WireValue` is one of:
 
@@ -189,7 +189,7 @@ Open `http://host:3333/<project>/` and supply the project key and management pas
 
 The viewer lists accounts and `.ldata` categories and displays typed Lua values, including exact integers and escaped byte strings. It has no editing or deletion UI. The production management server serves only the built page and frontend assets, and proxies project API requests to the backend. Project logic, data, configuration and backend files are not served. Management data endpoints require the project's session.
 
-This service retains shared project-key authentication. Account IDs are storage namespaces, not authenticated identities. An extracted client key can access that project's registered network modules. HTTP/WebSocket traffic is unencrypted; use the intended network boundary or a separately managed TLS proxy. This service does not configure that infrastructure.
+This service retains shared project-key authentication. Account IDs are storage namespaces, not authenticated identities. An extracted client key can access that project's registered network modules. The service itself listens over HTTP/WebSocket; use the intended network boundary or a separately managed TLS proxy. A WebGL client accepts an HTTP or HTTPS server URL and derives the corresponding WS or WSS endpoint. Games served over HTTPS require HTTPS/WSS endpoints; configure the proxy to forward WebSocket upgrades and the health route. Native clients currently use HTTP/WS. This service does not configure TLS infrastructure.
 
 ```text
 backend/                   Compiled JavaScript networking and host services

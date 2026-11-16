@@ -49,7 +49,10 @@ export async function createApplication(config: ServerConfig, dataDirectory: str
   const accountName = (request: Request): string => identifier(request.params.account, 'Account');
   const categoryName = (request: Request): string => identifier(request.params.category, 'Category');
 
-  router.get('/health', (request, response) => send(response, { service: 'LudorkServer', project: projectName(request) }));
+  router.get('/health', (request, response) => {
+    response.set('Access-Control-Allow-Origin', '*');
+    send(response, { service: 'LudorkServer', project: projectName(request) });
+  });
   router.post('/admin/login', async (request, response) => {
     adminMutation(request);
     const project = projectName(request);

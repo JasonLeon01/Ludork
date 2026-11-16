@@ -54,7 +54,6 @@ export class NetServer {
         if (!match && (hostProject === undefined || url !== '/api/v1/net')) invalid('The WebSocket endpoint does not exist.');
         const project = match ? decodeURIComponent(match[1]) : hostProject!;
         if (!Object.hasOwn(this.config.projects, project)) invalid('The project does not exist.');
-        this.auth.verifyKey(request.headers['x-ludork-key'], this.config.projects[project]);
         this.sockets.handleUpgrade(request, socket, head, webSocket => this.connected(webSocket, project, request.socket.remoteAddress));
       } catch (error) {
         const status = error instanceof ApiError && error.code === 'AuthenticationFailed' ? 401 : 400;
@@ -74,17 +73,30 @@ export class NetServer {
 
   private connected(socket: WebSocket, project: string, peer: string | undefined): void {
     const id = randomUUID();
-    const session: Session = { socket, project, peer, pending: new Set(), bytes: 0, alive: true };
-    this.sessions.set(id, session);
-    socket.on('pong', () => { session.alive = true; });
-    socket.on('close', () => this.sessions.delete(id));
+    let session: Session | undefined;
+    const authenticationDeadline = setTimeout(() => socket.close(4401, 'Project authentication timed out.'), 10_000);
+    authenticationDeadline.unref();
+    socket.on('pong', () => { if (session) session.alive = true; });
+    socket.on('close', () => { clearTimeout(authenticationDeadline); this.sessions.delete(id); });
     socket.on('error', () => socket.terminate());
     socket.on('message', (bytes, binary) => {
-      if (binary) { socket.close(1003, 'Only text frames are accepted.'); return; }
+      if (socket.readyState !== WebSocket.OPEN) return;
+      if (binary) { socket.close(session ? 1003 : 4401, 'A text authentication frame is required.'); return; }
       const buffer = Array.isArray(bytes) ? Buffer.concat(bytes) : Buffer.from(bytes as ArrayBuffer);
+      if (!session) {
+        try {
+          const payload = jsonObject(parseJson(buffer.toString('utf8')));
+          if (payload.type !== 'auth' || typeof payload.key !== 'string' || !/^[!-~]{1,4096}$/.test(payload.key)) throw new ApiError(401, 'AuthenticationFailed', 'Project credentials are invalid.');
+          this.auth.verifyKey(payload.key, this.config.projects[project]);
+          clearTimeout(authenticationDeadline);
+          session = { socket, project, peer, pending: new Set(), bytes: 0, alive: true };
+          this.sessions.set(id, session);
+          this.send(session, { type: 'ready', version: 1 });
+        } catch { socket.close(4401, 'Project authentication failed.'); }
+        return;
+      }
       void this.request(session, id, buffer);
     });
-    this.send(session, { type: 'ready', version: 1 });
   }
 
   private async request(session: Session, sessionId: string, bytes: Buffer): Promise<void> {
@@ -121,7 +133,7 @@ export class NetServer {
 
   async close(): Promise<void> {
     clearInterval(this.heartbeat);
-    for (const session of this.sessions.values()) session.socket.terminate();
+    for (const socket of this.sockets.clients) socket.terminate();
     this.sessions.clear();
     this.sockets.close();
     await Promise.all([...this.projects.values()].map(project => project.close()));
