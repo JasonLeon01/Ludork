@@ -115,6 +115,10 @@ void FramePipelineImpl::composeFrame(float deltaTime,
     }
     canvasSprite_->setTexture(finalCanvas->getTexture(), true);
     screenEffectsImpl_.applyShake(*canvasSprite_, finalCanvas->getSize());
+#if defined(SFML_SYSTEM_EMSCRIPTEN)
+    // Keep the last composed frame visible while the browser is in control.
+    target->clear(sf::Color::Black);
+#endif
     transitionImpl_.compose(*canvasSprite_, *target);
     screenEffectsImpl_.restoreShake(*canvasSprite_);
     transitionImpl_.finishComposition();

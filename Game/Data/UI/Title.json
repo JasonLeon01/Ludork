@@ -71,14 +71,14 @@
           "offsets": {
             "left": 0,
             "top": 0,
-            "right": 256,
-            "bottom": 160
+            "right": 0,
+            "bottom": 0
           },
           "alignment": [
             0.5,
             0
           ],
-          "autoSize": false,
+          "autoSize": true,
           "zOrder": 1
         },
         "editor": {},

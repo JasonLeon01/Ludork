@@ -2,6 +2,7 @@
 #include "MaterialCacheRequestImpl.hpp"
 #include <PersistentStorage.hpp>
 
+#include <chrono>
 #include <stdexcept>
 
 namespace ludork::engine::materials {
@@ -60,7 +61,13 @@ MaterialCacheRequest::Impl::~Impl() {
 
 void MaterialCacheRequest::Impl::checkCancelled(
     const std::atomic<bool>& stop) const {
-    ludork::standard::BackgroundTask::yield();
+#if defined(__EMSCRIPTEN__)
+    if (std::chrono::steady_clock::now() - workSliceStart >=
+        std::chrono::milliseconds(2)) {
+        ludork::standard::BackgroundTask::yield();
+        workSliceStart = std::chrono::steady_clock::now();
+    }
+#endif
     if (stop.load()) {
         throw std::runtime_error("Material cache preparation was cancelled");
     }
@@ -68,6 +75,9 @@ void MaterialCacheRequest::Impl::checkCancelled(
 
 void MaterialCacheRequest::Impl::run(const std::atomic<bool>& stop) noexcept {
     try {
+#if defined(__EMSCRIPTEN__)
+        workSliceStart = std::chrono::steady_clock::now();
+#endif
         prepare(stop);
         ludork::standard::persistStorage(userDataRoot);
         std::lock_guard lock(mutex);

@@ -4,6 +4,7 @@
 #include <Runtime/RuntimeData.hpp>
 
 #include <atomic>
+#include <chrono>
 #include <exception>
 #include <map>
 #include <mutex>
@@ -44,6 +45,9 @@ struct MaterialCacheRequest::Impl {
     std::exception_ptr failure;
     std::atomic<double> progress = 0.0;
     std::atomic<bool> stopRequested = false;
+#if defined(__EMSCRIPTEN__)
+    mutable std::chrono::steady_clock::time_point workSliceStart;
+#endif
     ludork::standard::BackgroundTask worker;
 };
 

@@ -42,7 +42,9 @@ void Graphics::initCanvas(const sf::Vector2u& size) {
 }
 
 void Graphics::clearCanvas() {
+#if !defined(SFML_SYSTEM_EMSCRIPTEN)
     ludork::global::system_impl::displayImpl().clearWindow();
+#endif
     ludork::global::system_impl::framePipelineImpl().clearCanvas();
 }
 
